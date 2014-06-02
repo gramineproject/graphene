@@ -1,0 +1,64 @@
+.\" $Id$
+.TH LAT_SYSCALL 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+lat_syscall - time simple entry into the operating system
+.SH SYNOPSIS
+.B lat_syscall
+.I "null|read|write|stat|fstat|open"
+.SH DESCRIPTION
+.B lat_syscall
+measures how long it takes to do various simple system call
+operations.  
+.TP
+.B null
+measures how long it takes to do
+.BR getppid .
+This is useful as a lower bound cost on anything that has to interact
+with the operating system.
+.TP
+.B write
+measures how long it takes to write one byte to \f(CB/dev/null\fP.  
+.TP
+.B read
+measures how long it takes to read one byte from \f(CB/dev/zero\fP.  
+.TP
+.B stat
+measures how long it takes to 
+.B stat
+a file.
+.TP
+.B fstat
+measures how long it takes to 
+.B fstat
+a file.
+.TP
+open
+measures how long it takes to
+.B open
+and then
+.B close
+a file.  
+Note that this does not include the time to read the directories or
+inodes from disk, since everything should be in the buffer cache.
+.SH OUTPUT
+Output formats are:
+.ft CB
+.br
+Simple syscall: 67 microseconds
+.br
+Simple write: 67 microseconds
+.br
+Simple read: 67 microseconds
+.br
+Simple stat: 67 microseconds
+.br
+Simple fstat: 67 microseconds
+.br
+Simple open/close: 67 microseconds
+.ft
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8), getppid(2), read(2), write(2), stat(2), fstat(2), open(2),
+close(2).

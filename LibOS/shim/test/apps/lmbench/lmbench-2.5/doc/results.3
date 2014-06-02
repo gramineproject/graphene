@@ -1,0 +1,81 @@
+.\"
+.\" @(#)results.man	2.0 98/04/24
+.\"
+.\"   results - lmbench results subsystem
+.\"
+.\"   Copyright (C) 1998  Carl Staelin and Larry McVoy
+.\"   E-mail: staelin@hpl.hp.com
+.\"
+.TH "lmbench result management" 3 "$Date$" "(c)1998 Larry McVoy" "LMBENCH"
+.SH "NAME"
+insertinit, insertsort, get_results, set_results, save_median, save_minimum
+	\- the lmbench results subsystem
+.SH "SYNOPSIS"
+.ft C
+#include "lmbench.h"
+.br
+#define TRIES 11
+.br
+typedef struct { int N; uint64 u[TRIES], n[TRIES] } result_t;
+.br
+void	insertinit(result_t *r);
+.br
+void	insertsort(uint64 u, uint64 n, result_t *r);
+.br
+void	get_results(result_t *r);
+.br
+void	set_results(result_t *r);
+.br
+void	save_median();
+.br
+void	save_minimum();
+.ft R
+.SH "DESCRIPTION"
+These routines provide some simple data management functionality.
+In most cases, you will not need these routines.
+.P
+The current timing results can be accessed using the routines in
+timing(3).  The current timing results may be modified using 
+.B save_median 
+and 
+.BR save_minimum .  
+.TP
+.B "void	insertinit(result_t *r)"
+initializes the results array.
+.TP
+.B "void	insertsort(uint64 u, uint64 n, result_t *r)"
+insert 
+.I u 
+and 
+.I n 
+into 
+.IR r .  
+Results are sorted in decreasing order by 
+.IR u/n .
+.TP
+.B "void	get_results(result_t *r)"
+get a copy of the current results.
+.TP
+.B "void	set_results(result_t *r)"
+save a copy 
+.I r 
+as the current results.
+.TP
+.B "void	save_median()"
+sets the timing results to the median of the current results.
+.TP
+.B "void	save_minimum()"
+sets the timing restuls to the minimum of the current results.
+.P
+Results are sorted in ascending order, so the minimum value is at 
+.B TRIES-1
+and the maximum value is at
+.BR 0 .
+.SH "FUTURES"
+Development of \fIlmbench\fR is continuing.  
+.SH "SEE ALSO"
+lmbench(8), lmbench(3), timing(3), reporting(3).
+.SH "AUTHOR"
+Carl Staelin and Larry McVoy
+.PP
+Comments, suggestions, and bug reports are always welcome.

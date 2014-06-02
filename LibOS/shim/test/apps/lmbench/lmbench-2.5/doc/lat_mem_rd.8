@@ -1,0 +1,73 @@
+.\" $Id$
+.TH LAT_MEM_RD 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+lat_mem_rd \- memory read latency benchmark
+.SH SYNOPSIS
+.B lat_mem_rd 
+.I size_in_megabytes
+.I stride [stride stride...]
+.SH DESCRIPTION
+.B lat_mem_rd
+measures memory read latency for varying memory sizes and strides.  The
+results are reported in nanoseconds per load and have been verified
+accurate to within a few nanoseconds on an SGI Indy.
+.PP
+The
+entire memory hierarchy is measured, including onboard cache latency
+and size, external cache latency and size, main memory latency, and TLB
+miss latency.
+.PP
+Only data accesses are measured; the instruction cache is not measured.
+.PP
+The benchmark runs as two nested loops.  The outer loop is the stride size.
+The inner loop is the array size.  For each array size, the benchmark
+creates a ring of pointers that point forward one stride.  Traversing the
+array is done by
+.sp
+.ft CB
+	p = (char **)*p;
+.ft
+.sp
+in a for loop (the over head of the for loop is not significant; the loop is 
+an unrolled loop 1000 loads long).  The loop stops after doing a million loads.
+.PP
+The size of the array varies from 512 bytes to (typically) eight megabytes.
+For the small sizes, the cache will have an effect, and the loads will be
+much faster.  This becomes much more apparent when the data is plotted.
+.SH OUTPUT
+Output format is intended as input to \fBxgraph\fP or some similar program
+(I use a perl script that produces pic input).
+There is a set of data produced for each stride.  The data set title
+is the stride size and the data points are the array size in megabytes 
+(floating point value) and the load latency over all points in that array.
+.SH "INTERPRETING THE OUTPUT"
+The output is best examined in a graph where you typically get a graph
+that has four plateaus.  The graph should plotted in log base 2 of the
+array size on the X axis and the latency on the Y axis.  Each stride
+is then plotted as a curve.  The plateaus that appear correspond to 
+the onboard cache (if present), external cache (if present), main
+memory latency, and TLB miss latency.
+.PP
+As a rough guide, you may be able to extract the latencies of the
+various parts as follows, but you should really look at the graphs,
+since these rules of thumb do not always work (some systems do not
+have onboard cache, for example).
+.IP "onboard cache" 16
+Try stride of 128 and array size of .00098.
+.IP "external cache" 
+Try stride of 128 and array size of .125.
+.IP "main memory"
+Try stride of 128 and array size of 8.
+.IP "TLB miss"
+Try the largest stride and the largest array.
+.SH BUGS
+This program is dependent on the correct operation of
+.BR mhz (8).
+If you are getting numbers that seem off, check that 
+.BR mhz (8)
+is giving you a clock rate that you believe.
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8).

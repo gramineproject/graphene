@@ -1,0 +1,43 @@
+.\" $Id$
+.TH CLOCK 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+clock \- report timing attributes
+.SH SYNOPSIS
+.B clock
+.SH DESCRIPTION
+.B clock
+reports the timing interval, 
+.BR ENOUGH ,
+timing overhead
+.BR TIMING_OVERHEAD ,
+and loop overhead
+.BR LOOP_OVERHEAD .
+The required timing interval is determined experimentally to
+ensure that the timing results are accurate to within 1% in
+the spite of the system clock resolution and measurement 
+overheads.  
+It is necessary to measure
+.B ENOUGH
+experimentally because system clock resolution varies widely
+across systems, from as large as 10 milliseconds to as small as
+1 microsecond, a range of four orders of magnitude.
+The timing overheads and loop overheads are used by the 
+timing harness
+.I timing(3)
+to remove the various overheads from the measured times.
+.SH OUTPUT
+The various results are reported in micro-seconds, e.g.,
+.IP ""
+\fCENOUGH=5000
+.br
+TIMING_OVERHEAD=7.000000
+.br
+LOOP_OVERHEAD=0.000004
+.br
+# version 2.0\fR
+.ft
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8), lmbench(3), timing(3).

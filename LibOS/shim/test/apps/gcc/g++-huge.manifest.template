@@ -1,0 +1,26 @@
+#!$(PWD)../libpal.so
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:/usr/bin/g++
+loader.execname = /usr/bin/g++
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.PATH = /bin:/usr/bin
+loader.debug_type = none
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.other.lib1.type = chroot
+fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+
+fs.mount.other.lib2.type = chroot
+fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.other.usr.type = chroot
+fs.mount.other.usr.path = /usr
+fs.mount.other.usr.uri = file:/usr
+
+sys.stack.size = 67108864  # 64MB
+sys.brk.size = 268435456  # 256MB

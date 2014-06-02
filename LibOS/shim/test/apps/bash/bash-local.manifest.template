@@ -1,0 +1,32 @@
+#!$(PWD)../libpal.so
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:bash-local
+loader.execname = bash-local
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.PATH = /bin:/usr/bin
+loader.env.USERNAME =
+loader.env.HOME =
+loader.env.PWD =
+loader.debug_type = none
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.other.lib1.type = chroot
+fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+
+fs.mount.other.lib2.type = chroot
+fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.other.bin.type = chroot
+fs.mount.other.bin.path = /bin
+fs.mount.other.bin.uri = file:/bin
+
+fs.mount.other.usr.type = chroot
+fs.mount.other.usr.path = /usr
+fs.mount.other.usr.uri = file:/usr
+
+sys.brk.size = 262144  # 256K

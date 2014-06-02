@@ -1,0 +1,22 @@
+#!$(PWD)../libpal.so
+
+loader.interp = file:$(SHIMROOT)build/elf/ld.so
+loader.preload = file:$(SHIMROOT)build/libsysdb.so
+loader.exec = file:$(PWD)obj/bin/gcc
+loader.env.LD_LIBRARY_PATH = /lib:/usr/lib
+loader.debug_type = none
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.other.lib1.type = chroot
+fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.uri = file:$(SHIMROOT)build
+
+fs.mount.other.lib2.type = chroot
+fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.other.usr.type = chroot
+fs.mount.other.usr.path = /usr
+fs.mount.other.usr.uri = file:/usr

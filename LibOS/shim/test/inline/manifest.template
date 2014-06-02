@@ -1,0 +1,2 @@
+loader.preload = file:../../src/libsysdb_debug.so
+loader.debug_type = inline

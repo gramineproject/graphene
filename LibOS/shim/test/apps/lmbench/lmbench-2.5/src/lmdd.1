@@ -1,0 +1,131 @@
+.\" %W% %G%
+.TH LMDD 1 
+.SH NAME
+lmdd \- move io for performance and debugging tests
+.SH SYNOPSIS
+.B lmdd
+[
+.IB option = value
+] .\|.\|.
+.SH DESCRIPTION
+.B lmdd
+copies a specified input file to a specified output with possible
+conversions.  This program is primarily useful for timing I/O since it
+prints out the timing statistics after completing.
+.SH OPTIONS
+.TP 15
+.BI if= name
+Input file is taken from
+.IR name ;
+.I internal
+is the default.
+.I internal
+is a special file that acts like Sun's 
+.IR /dev/zero ,
+i.e., it provides a buffer of zeros without doing a system call to get them.
+.TP 
+.BI of= name
+Output file is taken from
+.IR name ;
+.I internal
+is the default.
+.I internal
+is a special file that acts like 
+.IR /dev/null ,
+without doing a system call to get rid of the data.
+.TP 
+.BI bs= n
+Input and output block size
+.I n
+bytes (default 8192).  Note that this is different from dd(1), it has
+a 512 byte default.   Also note that the block size can be followed
+by 'k' or 'm' to indicate kilo bytes (*1024) or megabytes (*1024*1024),
+respectively.
+.TP 
+.BI ipat= n
+If 
+.B n
+is non zero, expect a known pattern in the file (see opat).  Mismatches
+will be displayed as "ERROR: off=%d want=%x got=%x".  The pattern is
+a sequence of 4 byte integers with the first 0, second 1, and so on.
+The default is not to check for the pattern.
+.TP
+.BI opat= n
+If 
+.B n
+is non zero, generate a known pattern on the output stream.  Used for
+debugging file system correctness.
+The default is not to generate the pattern.
+.TP 
+.BI mismatch= n
+If 
+.B n
+is non zero, stop at the first mismatched value.  Used with ipat.
+.TP 
+.BI skip= n
+Skip
+.IR n ""
+input blocks before starting copy.
+.TP 
+.BI fsync= n
+If
+.I n
+is non-zero, call fsync(2) on the output file before exiting or printing
+timing statistics.
+.TP 
+.BI sync= n
+If
+.I n
+is non-zero, call sync(2) before exiting or printing
+timing statistics.
+.TP 
+.BI rand= n
+This argument, by default off, turns on random behavior.  The argument is
+not a flag, it is a size, that size is used as the upper bound for the 
+seeks.
+Also note that the block size can be followed
+by 'k' or 'm' to indicate kilo bytes (*1024) or megabytes (*1024*1024),
+.TP 
+.BI flush= n
+If
+.I n
+is non-zero and mmap(2) is available, call msync(2) to invalidate the
+output file.  This flushes the file to disk so that you don't have
+unmount/mount.  It is not as good as mount/unmount because it just
+flushes file pages - it misses the indirect blocks which are still
+cached.  Not supported on all systems, compile time option.
+.TP 
+.BI rusage= n
+If
+.I n
+is non-zero, print rusage statistics as well as timing statistics.
+Not supported on all systems, compile time option.
+.TP 
+.BI count= n
+Copy only
+.IR n ""
+input records.
+.SH EXAMPLES
+.LP
+This is the most common usage, the intent is to measure disk performance.
+The disk is a spare partition mounted on /spare.
+.sp
+.nf
+.in +4
+# mount /spare
+# lmdd if=internal of=/spare/XXX count=1000 fsync=1
+7.81 MB in 3.78 seconds (2.0676 MB/sec)
+
+: Flush cache
+# umount /spare
+# mount /spare
+
+# lmdd if=/spare/XXX of=internal 
+7.81 MB in 2.83 seconds (2.7611 MB/sec)
+.in
+.sp
+.fi
+.SH AUTHOR
+Larry McVoy, lm@sun.com
+.br
+Not copyrighted.

@@ -1,0 +1,175 @@
+%z Article
+%K Wolman89
+%A Barry L. Wolman
+%A Thomas M. Olson
+%T IOBENCH: a system independent IO benchmark
+%J Computer Architecture News
+%V 17
+%N 5
+%D September 1989
+%P 55-70
+%x IOBENCH is an operating system and processor independent synthetic
+%x input/output (IO) benchmark designed to put a configurable IO and
+%x processor (CP) load on the system under test.  This paper discusses
+%x the UNIX versions.
+%k IOBENCH, synthetic I/O benchmark, UNIX workload
+%s vinton%cello@hplabs.hp.com (Fri Sep 20 12:55:58 PDT 1991)
+
+%z Book
+%K Hennessy96
+%A John L. Hennessy
+%A David A. Patterson
+%T Computer Architecture A Quantitative Approach, 2nd Edition
+%I Morgan Kaufman
+%D 1996
+
+%z Article
+%K Chen94a
+%A P. M. Chen
+%A D. A. Patterson
+%T A new approach to I/O performance evaluation \- self-scaling I/O benchmarks, predicted I/O performance
+%D November 1994
+%J Transactions on Computer Systems
+%V 12
+%N 4
+%P 308-339
+%x Current I/O benchmarks suffer from several chronic problems: they
+%x quickly become obsolete; they do not stress the I/O system; and they
+%x do not help much in undelsi;anding I/O system performance. We
+%x propose a new approach to I/O performance analysis. First, we
+%x propose a self-scaling benchmark that dynamically adjusts aspects of
+%x its workload according to the performance characteristic of the
+%x system being measured. By doing so, the benchmark automatically
+%x scales across current and future systems. The evaluation aids in
+%x understanding system performance by reporting how performance varies
+%x according to each of five workload parameters. Second, we propose
+%x predicted performance, a technique for using the results from the
+%x self-scaling evaluation to estimate quickly the performance for
+%x workloads that have not been measured. We show that this technique
+%x yields reasonably accurate performance estimates and argue that this
+%x method gives a far more accurate comparative performance evaluation
+%x than traditional single-point benchmarks. We apply our new
+%x evaluation technique by measuring a SPARCstation 1+ with one SCSI
+%x disk, an HP 730 with one SCSI-II disk, a DECstation 5000/200 running
+%x the Sprite LFS operating system with a three-disk disk array, a
+%x Convex C240 minisupercomputer with a four-disk disk array, and a
+%x Solbourne 5E/905 fileserver with a two-disk disk array.
+%s toc@hpl.hp.com (Mon Mar 13 10:57:38 1995)
+%s wilkes%hplajw@hpl.hp.com (Sun Mar 19 12:38:01 PST 1995)
+%s wilkes%cello@hpl.hp.com (Sun Mar 19 12:38:53 PST 1995)
+
+%z InProceedings
+%K Ousterhout90
+%s wilkes%cello@hplabs.hp.com (Fri Jun 29 20:46:08 PDT 1990)
+%A John K. Ousterhout
+%T Why aren't operating systems getting faster as fast as hardware?
+%C Proceedings USENIX Summer Conference
+%c Anaheim, CA
+%D June 1990
+%P 247-256
+%x This paper evaluates several hardware pplatforms and operating systems using
+%x a set of benchmarks that stress kernel entry/exit, file systems, and
+%x other things related to operating systems. The overall conclusion is that
+%x operating system performance is not improving at the same rate as the base speed of the
+%x underlying hardware. The most obvious ways to remedy this situation
+%x are to improve memory bandwidth and reduce operating systems'
+%x tendency to wait for disk operations to complete.
+%o Typical performance of 10-20 MIPS cpus is only 0.4 times what
+%o their raw hardware performance would suggest. HP-UX is
+%o particularly bad on the HP 9000/835, at about 0.2x. (Although
+%o this measurement discounted a highly-tuned getpid call.)
+%k OS performance, RISC machines, HP9000 Series 835 system calls
+
+%z InProceedings
+%K McVoy91
+%A L. W. McVoy
+%A S. R. Kleiman
+%T Extent-like Performance from a Unix File System
+%C Proceedings USENIX Winter Conference
+%c Dallas, TX
+%D January 1991
+%P 33-43
+
+%z Article
+%K Chen93d
+%A Peter M. Chen
+%A David Patterson
+%T Storage performance \- metrics and benchmarks
+%J Proceedings of the IEEE
+%V 81
+%N 8
+%D August 1993
+%P 1151-1165
+%x Discusses metrics and benchmarks used in storage performance evaluation.
+%x Describes, reviews, and runs popular I/O benchmarks on three systems.  Also
+%x describes two new approaches to storage benchmarks: LADDIS and a Self-Scaling
+%x benchmark with predicted performance.
+%k I/O, storage, benchmark, workload, self-scaling benchmark, 
+%k predicted performance, disk, performance evaluation
+%s staelin%cello@hpl.hp.com (Wed Sep 27 16:21:11 PDT 1995)
+
+%z Article
+%K Park90a
+%A Arvin Park
+%A J. C. Becker
+%T IOStone: a synthetic file system benchmark
+%J Computer Architecture News
+%V 18
+%N 2
+%D June 1990
+%P 45-52
+%o this benchmark is useless for all modern systems; it fits
+%o completely inside the file system buffer cache.  Soon it may even
+%o fit inside the processor cache!
+%k IOStone, I/O, benchmarks
+%s staelin%cello@hpl.hp.com (Wed Sep 27 16:37:26 PDT 1995)
+
+%z Article
+%K Fenwick95
+%A David M. Fenwick
+%A Denis J. Foley
+%A William B. Gist
+%A Stephen R. VanDoren
+%A Danial Wissell
+%T The AlphaServer 8000 series: high-end server platform development
+%J Digital Technical Journal
+%V 7
+%N 1
+%D August 1995
+%P 43-65
+%x The AlphaServer 8400 and the AlphaServer 8200 are Digital's newest high-end
+%x server products.  Both servers are based on the 300Mhz Alpha 21164 
+%x microprocessor and on the AlphaServer 8000-series platform architecture.
+%x The AlphaServer 8000 platform development team set aggressive system data
+%x bandwidth and memory read latency targets in order to achieve high-performance
+%x goals.  The low-latency criterion was factored into design decisions made at
+%x each of the seven layers of platform development.  The combination of 
+%x industry-leading microprocessor technology and a system platform focused
+%x on low latency has resulted in a 12-processor server implementation ---
+%x the AlphaServer 8400 --- capable of supercomputer levels of performance.
+%k DEC Alpha server, performance, memory latency
+%s staelin%cello@hpl.hp.com (Wed Sep 27 17:27:23 PDT 1995)
+
+%z Book
+%K Toshiba94
+%A Toshiba
+%T DRAM Components and Modules
+%I Toshiba America Electronic Components, Inc.
+%P A59-A77,C37-C42
+%D 1994
+
+%z Article
+%K McCalpin95
+%A John D. McCalpin
+%T Memory bandwidth and machine balance in current high performance computers
+%J IEEE Technical Committee on Computer Architecture newsletter
+%V to appear 
+%D December 1995
+
+%z Article
+%K FSF89
+%A Richard Stallman
+%Q Free Software Foundation
+%T General Public License
+%D 1989
+%O Included with \*[lmbench]

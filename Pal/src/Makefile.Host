@@ -1,0 +1,14 @@
+all_hosts = Linux
+
+ifeq ($(OS),)
+SYS := $(shell gcc -dumpmachine)
+ifeq ($(SYS),x86_64-linux-gnu)
+OS := Linux
+else
+$(error Unsupported platform: $(SYS))
+endif
+else
+ifeq ($(findstring $(OS),$(all_hosts)),)
+$(error Unsupported platform: $(OS))
+endif
+endif

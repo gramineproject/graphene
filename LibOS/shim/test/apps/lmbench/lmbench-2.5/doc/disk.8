@@ -1,0 +1,39 @@
+.\" $Id$
+.TH DISK 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+disk \- report raw disk performance
+.SH SYNOPSIS
+.B disk rdisk
+.SH DESCRIPTION
+.B disk
+reports the seek latencies and transfer bandwidths for the
+raw disk
+.BR rdisk .
+It determines the disk size and measures seek latencies 
+for 2000 seek distances and transfer bandwidths for 150
+zone locations.  The measurement points are spread uniformly
+across the disk to provide a representative picture of the
+disk performance.
+The seek distance is expressed in megabytes, since
+.B disk
+does not have access to the raw disk geometry information.
+The zone location is expressed in megabytes from location 0
+of the disk.
+.SH OUTPUT
+Output format for seek latencies is \f(CB"%0.1f %.2f\\n", megabytes, 
+milli-seconds\fP, i.e.,
+.sp
+.ft CB
+ 25.33
+.ft
+Output format for zone bandwidths is \f(CB"%0.1f %.2f\\n", megabytes, 
+megabytes_per_second\fP, i.e.,
+.sp
+.ft CB
+8.00 25.33
+.ft
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8).

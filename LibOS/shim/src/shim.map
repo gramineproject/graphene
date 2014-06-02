@@ -1,0 +1,8 @@
+SHIM {
+    global:
+        syscalldb;
+        __libc_r_debug; __libc_dl_debug_state;
+        glibc_vers_2_17;
+        register_library;
+    local: *;
+};

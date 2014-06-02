@@ -1,0 +1,37 @@
+.\" $Id$
+.TH LAT_FS 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+lat_fs \- measure file system create/delete performance
+.SH SYNOPSIS
+.B lat_fs
+[
+.I dir
+]
+.SH DESCRIPTION
+.B lat_fs
+is a program that creates a number of small files in the current working
+directory and then removes the files.  Both the creation and removal of 
+the files is timed.
+.SH OPTIONS
+If
+.I dir
+is specified,
+.B lat_fs
+will change to that directory first and do the creates and deletes there.
+Otherwise the creates and deletes are done in $PWD.
+.SH OUTPUT
+The results are in terms of creates per second and deletes per second
+as a function of file size.  The output is in 4 column form and is the
+size of the file, the number created, the creations per second, and the
+removals per second.  Output format looks like:
+.sp
+.ft CB
+.nf
+0k      500     1304    2740
+1k      500     904     1663
+4k      500     861     1647
+10k     500     674     1516
+.fi
+.ft
+.SH "SEE ALSO"
+lmbench(8), creat(2).

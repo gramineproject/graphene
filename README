@@ -1,0 +1,144 @@
+
+                           Graphene Library OS
+
+        A Linux-compatible Library OS for Multi-Process Applications
+
+
+1. WHAT IS GRAPHENE?
+
+Graphene Library OS is a project to provided lightweight guest OSes with
+support for Linux multi-process applications. Comparable to virtual
+machines, Graphene can run applications in an isolated environment, with
+virtualization benefits such as guest customization, platform independence
+and migration.
+
+Graphene Library OS is a work published in Eurosys 2014. For more
+information. see the paper: Tsai, et al, "Cooperation and Security Isolation
+of Library OSes for Multi-Process Applications", Eurosys 2014.
+
+
+
+2. HOW TO BUILD GRAPHENE?
+
+Graphene Library OS is consist of five parts:
+  - Instrumented GNU Library C
+  - LibOS (a shared library named "libsysdb.so")
+  - PAL, a.k.a Platform Adaption Layer (a shared library named "libpal.so")
+  - Reference monitor (a shared library named "libpal_sec.so")
+  - Minor kernel customization and kernel modules
+
+Graphene Library OS currently only works on x86_64 architecture.
+
+Graphene Library OS is tested to be compiling and running on Ubuntu 12.04
+(both server and desktop version), along with Linux kernel 3.5.
+We recommand to build and install Graphene with the same host platform.
+Other distributions of 64-bit Linux can potentially, but the result is not
+guaranteed. If you find Graphene not working on other distributions, please
+contact us with a detailed bug report.
+
+The following packages are required for building Graphene: (can be installed
+with 'apt-get install')
+   - Build-essential
+   - Autoconf
+   - Gawk
+
+To build the system, simply run the following commands in the root of the
+source tree:
+
+    make
+    make install
+    (Add Graphene kernel as a boot option by commands like "update-grub")
+    (reboot and choose the Graphene kernel)
+
+Please note that the building process may pause before building the Linux
+kernel, because it requires you to provide a sensible configuration file
+(.config). The Graphene kernel requires the following options to be enabled
+in the configuration:
+
+  - CONFIG_GRAPHENE=y
+  - CONFIG_GRAPHENE_BULK_IPC=y
+  - CONFIG_GRAPHENE_ISOLATE=y
+
+Each part of Graphene can be built separately in the subdirectories.
+
+To build Graphene library OS with debug symbol, run "make debug" instead of
+"make".
+
+For more details about the building and installation, see the Graphene github
+Wiki page: <https://github.com/oscarlab/graphene/wiki>.
+
+
+
+3. HOW TO RUN AN APPLICATION IN GRAPHENE?
+
+Graphene library OS uses PAL (libpal.so) as a loader to bootstrap an
+application in the library OS. To start Graphene, PAL (libpal.so) will have
+to be run as an executable, with the name of the program, and a "manifest
+file" given from the command line. Graphene provides three options for
+spcifying the programs and manifest files:
+
+    option 1: (automatic manifest)
+    [PATH_TO_PAL]/libpal.so [PROGRAM] [ARGUMENTS]...
+    (Manifest file: "[PROGRAM].manifest" or "manifest")
+
+    option 2: (given manifest)
+    [PATH_TO_PAL]/libpal.so [MANIFEST] [ARGUMENTS]...
+
+    option 3: (manifest as a script)
+    [PATH_TO_MANIFEST]/[MANIFEST] [ARGUMENTS]...
+    (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
+
+Using "libpal.so" as loader to start Graphene will not attach the applications
+to the Graphene reference monitor. Tha applications will have better
+performance, but no strong security isolation. To attach the applications to
+the Graphene reference monitor, Graphene must be started with the PAL
+reference monitor loader (libpal_sec.so). Graphene provides three options for
+spcifying the programs and manifest files to the loader:
+
+    option 4: (automatic manifest - with reference monitor)
+    [PATH_TO_PAL]/libpal.so [PROGRAM] [ARGUMENTS]...
+    (Manifest file: "[PROGRAM].manifest" or "manifest")
+
+    option 5: (given manifest - with reference monitor)
+    [PATH_TO_PAL]/libpal.so [MANIFEST] [ARGUMENTS]...
+
+    option 6: (manifest as a script - with reference monitor)
+    [PATH_TO_MANIFEST]/[MANIFEST] [ARGUMENTS]...
+    (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
+
+
+Although manifest files are optional for Graphene, running an application
+usually requires some minimal configuration in its manifest file. A
+sensible manifest file will include paths to the library OS and GNU
+library C, environment variables such as LD_LIBRARY_PATH, file systems to
+be mounted, and isolation rules to be enforced in the reference monitor.
+
+Here is an example of manifest files:
+
+    loader.preload = file:LibOS/shim/src/libsysdb.so
+    loader.env.LDL_LIBRAY_PATH = /lib
+    fs.mount.root.type = chroot
+    fs.mount.root.uri = file:/
+    fs.mount.other.glibc.type = chroot
+    fs.mount.other.glibc.path = /lib
+    fs.mount.other.glibc.uri = file:LibOS/build
+
+More examples can be found in the test directories (LibOS/shim/test). We have
+also tested several commercial applications such as GCC, Bash and Apache,
+and the manifest files that bootstrap them in Graphene are provided in the
+individual directories.
+
+For more information and the detail of the manifest syntax, see the Graphene
+github Wiki page: <https://github.com/oscarlab/graphene/wiki>.
+
+
+
+4. HOW TO CONTACT THE MAINTAINER?
+
+For any questions or bug reports, please contact us:
+
+Chia-Che Tsai <chitsai@cs.stonybrook.edu>
+Donald Porter <porter@cs.stonybrook.edu>
+
+or post an issue on our github repository:
+        <https://github.com/oscarlab/graphene/issues>

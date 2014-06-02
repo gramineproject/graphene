@@ -1,0 +1,48 @@
+.\" $Id$
+.TH LAT_RPC 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+lat_rpc \- measure interprocess communication latency via Sun RPC
+.SH SYNOPSIS
+.B lat_rpc
+.I -s
+.sp .5
+.B lat_rpc
+.I hostname [udp|tcp]
+.sp .5
+.B lat_rpc
+.I -hostname
+.SH DESCRIPTION
+.B lat_rpc
+is a client/server program that measures interprocess
+communication latencies.  The benchmark passes a token back and forth between
+the two processes (this sort of benchmark is frequently referred to as a
+``hot potato'' benchmark).  No other work is done in the processes.
+.PP
+This benchmark may be compared to the TCP and UDP forms of the same benchmark
+to accurately see the cost of using RPC versus the cost of using plain 
+old TCP or UDP sockets.  It is worth noting that the RPC form is passing
+back and forth a single byte, not some long complicated record.
+.PP
+.B lat_rpc
+has three forms of usage: as a server (-s), as a client (lat_rpc localhost), and
+as a shutdown (lat_rpc -localhost).
+.P
+The client form may specify the protocol over which the RPCs are performed.
+The default is ``udp''.
+.SH OUTPUT
+The reported time is in microseconds per round trip and includes the total
+time, i.e., the context switching overhead is included.
+Output format is like so
+.sp
+.ft CB
+RPC/udp latency using localhost: 1344 microseconds
+.br
+RPC/tcp latency using localhost: 2089 microseconds
+.ft
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8), svcudp_create(3), svctcp_create(3), svc_register(3),
+svc_run(3), svc_sendreply(3), svc_freeargs(3), clnt_create(3),
+clnt_control(3), clnt_call(3).

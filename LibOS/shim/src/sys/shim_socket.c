@@ -1,0 +1,1680 @@
+/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
+/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
+
+/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+   This file is part of Graphene Library OS.
+
+   Graphene Library OS is free software: you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   Graphene Library OS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
+/*
+ * shim_socket.c
+ *
+ * Implementation of system call "socket", "bind", "accept4", "listen",
+ * "connect", "sendto", "recvfrom", "sendmsg", "recvmsg" and "shutdown" and
+ * "getsockname", "getpeername".
+ */
+
+#include <shim_internal.h>
+#include <shim_table.h>
+#include <shim_handle.h>
+#include <shim_fs.h>
+#include <shim_utils.h>
+#include <shim_checkpoint.h>
+
+#include <pal.h>
+#include <pal_error.h>
+
+#include <errno.h>
+#include <linux/fcntl.h>
+#include <linux/un.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
+#define SOCK_URI_SIZE   64
+
+static int rebase_on_lo __attribute_migratable = -1;
+
+static int init_port_rebase (void)
+{
+    if (rebase_on_lo != -1)
+        return 0;
+
+    char cfg[CONFIG_MAX];
+    int rebase = 0;
+
+    if (!root_config ||
+        get_config(root_config, "net.port.rebase_on_lo", cfg, CONFIG_MAX) <= 0) {
+        rebase_on_lo = 0;
+        return 0;
+    }
+
+    for (const char * p = cfg ; *p ; p++) {
+        if (*p < '0' || *p > '9' || rebase > 32767) {
+            rebase_on_lo = 0;
+            return 0;
+        }
+        rebase = rebase * 10 + (*p - '0');
+    }
+
+    rebase_on_lo = rebase;
+    return 0;
+}
+
+static int __process_pending_options (struct shim_handle * hdl);
+
+int shim_do_socket (int family, int type, int protocol)
+{
+    struct shim_handle * hdl = get_new_handle();
+    if (!hdl)
+        return -ENOMEM;
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    hdl->type = TYPE_SOCK;
+    set_handle_fs(hdl, &socket_builtin_fs);
+    hdl->flags = type & SOCK_NONBLOCK ? O_NONBLOCK : 0;
+    hdl->acc_mode = 0;
+    sock->domain    = family;
+    sock->sock_type = type & ~(SOCK_NONBLOCK|SOCK_CLOEXEC);
+    sock->protocol  = protocol;
+
+    int ret = -ENOSYS;
+
+#undef  NOTSUPPORT
+#define NOTSUPPORT(domain)  \
+    case domain:            \
+        debug("shim_socket: domain " #domain " not supported\n"); \
+        goto err;
+
+    switch (sock->domain) {
+        case AF_UNIX:             //Local communication
+        case AF_INET:             //IPv4 Internet protocols          ip(7)
+        case AF_INET6:            //IPv6 Internet protocols
+            break;
+
+        NOTSUPPORT(AF_IPX)        //IPX - Novell protocols
+        NOTSUPPORT(AF_NETLINK)    //Kernel user interface device     netlink(7)
+        NOTSUPPORT(AF_X25)        //ITU-T X.25 / ISO-8208 protocol   x25(7)
+        NOTSUPPORT(AF_AX25)       //Amateur radio AX.25 protocol
+        NOTSUPPORT(AF_ATMPVC)     //Access to raw ATM PVCs
+        NOTSUPPORT(AF_APPLETALK)  //Appletalk                        ddp(7)
+        NOTSUPPORT(AF_PACKET)     //Low level packet interface       packet(7)
+
+        default:
+            debug("shim_socket: unknown socket domain %d\n",
+                  sock->domain);
+            goto err;
+    }
+
+#undef  NOTSUPPORT
+#define NOTSUPPORT(type)    \
+    case type:              \
+        debug("shim_socket: type " #type " not supported\n"); \
+        goto err;
+
+    switch (sock->sock_type) {
+        case SOCK_STREAM:         //TCP
+            break;
+        case SOCK_DGRAM:          //UDP
+            hdl->acc_mode = MAY_READ|MAY_WRITE;
+            break;
+
+        NOTSUPPORT(SOCK_SEQPACKET)
+        NOTSUPPORT(SOCK_RAW)
+        NOTSUPPORT(SOCK_RDM)
+        NOTSUPPORT(SOCK_PACKET)
+
+        default:
+            debug("shim_socket: unknown socket type %d\n",
+                  sock->sock_type);
+            goto err;
+    }
+
+    sock->sock_state = SOCK_CREATED;
+    ret = set_new_fd_handle(hdl, type & SOCK_CLOEXEC ? FD_CLOEXEC : 0, NULL);
+err:
+    put_handle(hdl);
+    return ret;
+}
+
+static int unix_create_uri (char * uri, int count, enum shim_sock_state state,
+                            unsigned int pipeid)
+{
+    int bytes = 0;
+
+    switch (state) {
+        case SOCK_CREATED:
+        case SOCK_BOUNDCONNECTED:
+        case SOCK_SHUTDOWN:
+            return -ENOTCONN;
+
+        case SOCK_BOUND:
+        case SOCK_LISTENED:
+        case SOCK_ACCEPTED:
+            bytes = snprintf(uri, count, "pipe.srv:%u", pipeid);
+            break;
+
+        case SOCK_CONNECTED:
+            bytes = snprintf(uri, count, "pipe:%u", pipeid);
+            break;
+
+        default:
+            return -ENOTCONN;
+    }
+
+    return bytes == count ? -ENAMETOOLONG : bytes;
+}
+
+static void inet_rebase_port (bool reverse, int domain, struct addr_inet * addr,
+                              bool local)
+{
+    init_port_rebase();
+
+    if (rebase_on_lo) {
+        if (domain == AF_INET) {
+            unsigned char * ad = (unsigned char *) &addr->addr.v4.s_addr;
+            if (!local && memcmp(ad, "\177\0\0\1", 4))
+                return;
+        }
+
+        if (domain == AF_INET6) {
+            unsigned short * ad = (void *) &addr->addr.v6.s6_addr;
+            if (!local && memcmp(ad, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1", 16))
+                return;
+        }
+    }
+
+    if (reverse)
+        addr->port = addr->ext_port - rebase_on_lo;
+    else
+        addr->ext_port = addr->port + rebase_on_lo;
+}
+
+static int inet_translate_addr (int domain, char * uri, int count,
+                                struct addr_inet * addr)
+{
+    if (domain == AF_INET) {
+        unsigned char * ad = (unsigned char *) &addr->addr.v4.s_addr;
+        int bytes = snprintf(uri, count, "%u.%u.%u.%u:%u",
+                             ad[0], ad[1], ad[2], ad[3], addr->ext_port);
+        return bytes == count ? -ENAMETOOLONG : bytes;
+    }
+
+    if (domain == AF_INET6) {
+        unsigned short * ad = (void *) &addr->addr.v6.s6_addr;
+        int bytes = snprintf(uri, count, "[%x:%x:%x:%x:%x:%x:%x:%x]:%u",
+                             ad[0], ad[1], ad[2], ad[3],
+                             ad[4], ad[5], ad[6], ad[7], addr->ext_port);
+        return bytes == count ? -ENAMETOOLONG : bytes;
+    }
+
+    return -EPROTONOSUPPORT;
+}
+
+static int inet_create_uri (int domain, char * uri, int count, int sock_type,
+                            enum shim_sock_state state,
+                            struct addr_inet * bind, struct addr_inet * conn)
+{
+    int bytes = 0, ret;
+
+    if (sock_type == SOCK_STREAM) {
+        switch (state) {
+            case SOCK_CREATED:
+            case SOCK_SHUTDOWN:
+                return -ENOTCONN;
+
+            case SOCK_BOUND:
+            case SOCK_LISTENED:
+                if (count < 9)
+                    return -ENAMETOOLONG;
+                memcpy(uri, "tcp.srv:", 9);
+                ret = inet_translate_addr(domain, uri + 8, count - 8, bind);
+                return ret < 0 ? ret : ret + 8;
+
+            case SOCK_BOUNDCONNECTED:
+                if (count < 5)
+                    return -ENAMETOOLONG;
+                memcpy(uri, "tcp:", 5);
+                bytes = 4;
+                ret = inet_translate_addr(domain, uri + bytes, count - bytes,
+                                          bind);
+                if (ret < 0)
+                    return ret;
+                uri[bytes + ret] = ':';
+                bytes += ret + 1;
+                ret = inet_translate_addr(domain, uri + bytes, count - bytes,
+                                          conn);
+                return ret < 0 ? ret : ret + bytes;
+
+            case SOCK_CONNECTED:
+            case SOCK_ACCEPTED:
+                if (count < 5)
+                    return -ENAMETOOLONG;
+                memcpy(uri, "tcp:", 5);
+                ret = inet_translate_addr(domain, uri + 4, count - 4, conn);
+                return ret < 0 ? ret : ret + 4;
+        }
+    }
+
+    if (sock_type == SOCK_DGRAM) {
+        switch (state) {
+            case SOCK_CREATED:
+            case SOCK_SHUTDOWN:
+                return -ENOTCONN;
+
+            case SOCK_LISTENED:
+            case SOCK_ACCEPTED:
+                return -EOPNOTSUPP;
+
+            case SOCK_BOUNDCONNECTED:
+                if (count < 9)
+                    return -ENAMETOOLONG;
+                memcpy(uri, "tcp.srv:", 9);
+                bytes = 8;
+                ret = inet_translate_addr(domain, uri + bytes, count - bytes,
+                                          bind);
+                if (ret < 0)
+                    return ret;
+                uri[bytes + ret] = ':';
+                bytes += ret + 1;
+                ret = inet_translate_addr(domain, uri + bytes, count - bytes,
+                                          conn);
+                return ret < 0 ? ret : ret + bytes;
+
+            case SOCK_BOUND:
+                if (count < 9)
+                    return -ENAMETOOLONG;
+                memcpy(uri, "udp.srv:", 9);
+                ret = inet_translate_addr(domain, uri + 8, count - 8, bind);
+                return ret < 0 ? ret : ret + 9;
+
+            case SOCK_CONNECTED:
+                if (count < 5)
+                    return -ENAMETOOLONG;
+                memcpy(uri, "udp:", 5);
+                ret = inet_translate_addr(domain, uri + 4, count - 4, conn);
+                return ret < 0 ? ret : ret + 4;
+        }
+    }
+
+    return -EPROTONOSUPPORT;
+}
+
+static inline void unix_copy_addr (struct sockaddr * saddr,
+                                   struct shim_dentry * dent)
+{
+    struct sockaddr_un * un = (struct sockaddr_un *) saddr;
+    un->sun_family = AF_UNIX;
+    int size;
+    const char * path = dentry_get_path(dent, true, &size);
+    memcpy(un->sun_path, path, size + 1);
+}
+
+static int inet_copy_addr (int domain, struct sockaddr * saddr,
+                           const struct addr_inet * addr)
+{
+    if (domain == AF_INET) {
+        struct sockaddr_in * in = (struct sockaddr_in *) saddr;
+        in->sin_family = AF_INET;
+        in->sin_port = __htons(addr->port);
+        in->sin_addr = addr->addr.v4;
+        return sizeof(struct sockaddr_in);
+    }
+
+    if (domain == AF_INET6) {
+        struct sockaddr_in6 * in6 = (struct sockaddr_in6 *) saddr;
+        in6->sin6_family = AF_INET6;
+        in6->sin6_port = __htons(addr->port);
+        in6->sin6_addr = addr->addr.v6;
+        return sizeof(struct sockaddr_in6);
+    }
+
+    return sizeof(struct sockaddr);
+}
+
+static void inet_save_addr (int domain, struct addr_inet * addr,
+                            const struct sockaddr * saddr)
+{
+    if (domain == AF_INET) {
+        const struct sockaddr_in * in = (const struct sockaddr_in *) saddr;
+        addr->port = __ntohs(in->sin_port);
+        addr->addr.v4 = in->sin_addr;
+        return;
+    }
+
+    if (domain == AF_INET6) {
+        const struct sockaddr_in6 * in6 = (const struct sockaddr_in6 *) saddr;
+        addr->port = __ntohs(in6->sin6_port);
+        addr->addr.v6 = in6->sin6_addr;
+        return;
+    }
+}
+
+static inline bool inet_comp_addr (int domain, const struct addr_inet * addr,
+                                   const struct sockaddr * saddr)
+{
+    if (domain == AF_INET) {
+        const struct sockaddr_in * in = (const struct sockaddr_in *) saddr;
+        return addr->port == __ntohs(in->sin_port) &&
+               !memcmp(&addr->addr.v4, &in->sin_addr,
+                       sizeof(struct in_addr));
+    }
+    if (domain == AF_INET6) {
+        const struct sockaddr_in6 * in6 = (const struct sockaddr_in6 *) saddr;
+        return addr->port == __ntohs(in6->sin6_port) &&
+               !memcmp(&addr->addr.v6, &in6->sin6_addr,
+                       sizeof(struct in6_addr));
+    }
+    return false;
+}
+
+static int create_socket_uri (struct shim_handle * hdl)
+{
+    struct shim_sock_handle * sock = &hdl->info.sock;
+
+    if (sock->domain == AF_UNIX) {
+        char uri_buf[32];
+        int bytes = unix_create_uri(uri_buf, 32, sock->sock_state,
+                                    sock->addr.un.pipeid);
+        if (bytes < 0)
+            return bytes;
+
+        qstrsetstr(&hdl->uri, uri_buf, bytes);
+        return 0;
+    }
+
+    if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+        char uri_buf[SOCK_URI_SIZE];
+        int bytes = inet_create_uri(sock->domain, uri_buf, SOCK_URI_SIZE,
+                                    sock->sock_type, sock->sock_state,
+                                    &sock->addr.in.bind, &sock->addr.in.conn);
+        if (bytes < 0)
+            return bytes;
+
+        qstrsetstr(&hdl->uri, uri_buf, bytes);
+        return 0;
+    }
+
+    return -EPROTONOSUPPORT;
+}
+
+int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
+{
+    struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = -EINVAL;
+
+    if (hdl->type != TYPE_SOCK) {
+        put_handle(hdl);
+        return -ENOTSOCK;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+    enum shim_sock_state state = sock->sock_state;
+
+    if (state != SOCK_CREATED) {
+        debug("shim_bind: bind on a bound socket\n");
+        goto out;
+    }
+
+    if (sock->domain == AF_UNIX) {
+        if (addrlen != sizeof(struct sockaddr_un))
+            goto out;
+
+        struct sockaddr_un * saddr = (struct sockaddr_un *) addr;
+        char * spath = saddr->sun_path;
+        struct shim_dentry * dent = NULL;
+
+        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent)) < 0)
+            goto out;
+
+        if (dent->state & DENTRY_VALID &&
+            !(dent->state & DENTRY_NEGATIVE)) {
+            ret = -EADDRINUSE;
+            goto out;
+        }
+
+        struct shim_unix_data * data = malloc(sizeof(struct shim_unix_data));
+
+        data->pipeid = dent->rel_path.hash >> 32;
+        sock->addr.un.pipeid = data->pipeid;
+        sock->addr.un.data = data;
+        sock->addr.un.dentry = dent;
+    }
+
+    if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
+                    sizeof(struct sockaddr_in6)))
+            goto out;
+
+    inet_save_addr(sock->domain, &sock->addr.in.bind, addr);
+    inet_rebase_port(false, sock->domain, &sock->addr.in.bind, true);
+
+    sock->sock_state = SOCK_BOUND;
+
+    if ((ret = create_socket_uri(hdl)) < 0)
+        goto out;
+
+    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri),
+                                      0, 0, 0,
+                                      hdl->flags & O_NONBLOCK);
+
+    if (!pal_hdl) {
+        debug("bind: invalid handle returned\n");
+        ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ? -EADDRINUSE : -PAL_ERRNO;
+        goto out;
+    }
+
+    if (sock->domain == AF_UNIX) {
+        struct shim_dentry * dent = sock->addr.un.dentry;
+
+        dent->state ^= DENTRY_NEGATIVE;
+        dent->state |= DENTRY_VALID|DENTRY_RECENTLY;
+        dent->fs = &socket_builtin_fs;
+        dent->data = sock->addr.un.data;
+    }
+
+    hdl->pal_handle = pal_hdl;
+    __process_pending_options(hdl);
+    ret = 0;
+
+out:
+    if (ret < 0) {
+        sock->sock_state = state;
+        sock->error = -ret;
+
+        if (sock->domain == AF_UNIX) {
+            if (sock->addr.un.dentry)
+                put_dentry(sock->addr.un.dentry);
+
+            if (sock->addr.un.data) {
+                free(sock->addr.un.data);
+                sock->addr.un.data = NULL;
+            }
+        }
+    }
+
+    unlock(hdl->lock);
+    put_handle(hdl);
+    return ret;
+}
+
+static int inet_parse_addr (int domain, int type, const char * uri,
+                            struct addr_inet * bind,
+                            struct addr_inet * conn)
+{
+    char * ip_str, * port_str, * next_str;
+    int ip_len = 0;
+
+    if (!(next_str = strchr(uri, ':')))
+        return -EINVAL;
+
+    enum { UDP, UDPSRV, TCP, TCPSRV } prefix;
+    int n = (next_str++) - uri;
+
+    if (!memcmp(uri, "udp", n))
+        prefix = UDP;
+    else if (!memcmp(uri, "udp.srv", n))
+        prefix = UDPSRV;
+    else if (!memcmp(uri, "tcp", n))
+        prefix = TCP;
+    else if (!memcmp(uri, "tcp.srv", n))
+        prefix = TCPSRV;
+    else
+        return -EINVAL;
+
+    if ((prefix == UDP || prefix == UDPSRV) && type != SOCK_DGRAM)
+        return -EINVAL;
+
+    if ((prefix == TCP || prefix == TCPSRV) && type != SOCK_STREAM)
+        return -EINVAL;
+
+    for  (int round = 0 ; (ip_str = next_str) ; round++) {
+        if (ip_str[0] == '[') {
+            ip_str++;
+            if (domain != AF_INET6)
+                return -EINVAL;
+            if (!(port_str = strchr(ip_str, ']')))
+                return -EINVAL;
+            ip_len = port_str - ip_str;
+            port_str++;
+            if (*port_str != ':')
+                return -EINVAL;
+        } else {
+            if (domain != AF_INET)
+                return -EINVAL;
+            if (!(port_str = strchr(ip_str, ':')))
+                return -EINVAL;
+            ip_len = port_str - ip_str;
+        }
+
+        port_str++;
+        next_str = strchr(port_str, ':');
+
+        struct addr_inet * addr = round ? conn : bind;
+
+        if (domain == AF_INET) {
+            char ip_buf[20];
+            memcpy(ip_buf, ip_str, ip_len);
+            ip_buf[ip_len] = 0;
+            inet_pton(AF_INET, ip_buf, &addr->addr.v4);
+            addr->ext_port = atoi(port_str);
+        }
+
+        if (domain == AF_INET6) {
+            char ip_buf[48];
+            memcpy(ip_buf, ip_str, ip_len);
+            ip_buf[ip_len] = 0;
+            inet_pton(AF_INET6, ip_str, &addr->addr.v6);
+            addr->ext_port = atoi(port_str);
+        }
+    }
+
+    return 0;
+}
+
+struct un_conn {
+    unsigned int pipeid;
+    unsigned char path_size;
+    char path[];
+} __attribute__((packed));
+
+int shim_do_listen (int sockfd, int backlog)
+{
+    if (backlog < 0)
+        return -EINVAL;
+
+    struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    if (hdl->type != TYPE_SOCK) {
+        put_handle(hdl);
+        return -ENOTSOCK;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+
+    if (sock->sock_type != SOCK_STREAM) {
+        debug("shim_listen: not a stream socket\n");
+        put_handle(hdl);
+        return -EINVAL;
+    }
+
+    lock(hdl->lock);
+
+    enum shim_sock_state state = sock->sock_state;
+    int ret = -EINVAL;
+
+    if (state != SOCK_BOUND) {
+        debug("shim_listen: listen on unbound socket\n");
+        goto out;
+    }
+
+    hdl->acc_mode = MAY_READ;
+    sock->sock_state = SOCK_LISTENED;
+
+    ret = 0;
+
+out:
+    if (ret < 0)
+        sock->sock_state = state;
+
+    unlock(hdl->lock);
+    put_handle(hdl);
+    return ret;
+}
+
+/* Connect with the TCP socket is always in the client.
+ *
+ * With UDP, the connection is make to the socket specific for a
+ * destination. A process with a connected UDP socket can call
+ * connect again for that socket for one of two reasons: 1. To
+ * specify a new IP address and port 2. To unconnect the socket.
+ */
+int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
+{
+    struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
+
+    if (!hdl)
+        return -EBADF;
+
+    if (hdl->type != TYPE_SOCK) {
+        put_handle(hdl);
+        return -ENOTSOCK;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+    enum shim_sock_state state = sock->sock_state;
+    int ret = -EINVAL;
+
+    if (state == SOCK_CONNECTED) {
+        debug("shim_connect: reconnect on a stream socket\n");
+        goto out;
+    }
+
+    if (state != SOCK_BOUND &&
+        state != SOCK_CREATED) {
+        debug("shim_connect: connect on invalid socket\n");
+        goto out;
+    }
+
+    if (sock->domain == AF_UNIX) {
+        if (addrlen != sizeof(struct sockaddr_un))
+            goto out;
+
+        struct sockaddr_un * saddr = (struct sockaddr_un *) addr;
+        char * spath = saddr->sun_path;
+        struct shim_dentry * dent;
+
+        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent)) < 0)
+            goto out;
+
+        struct shim_unix_data * data = dent->data;
+
+        if (!(dent->state & DENTRY_VALID) || dent->state & DENTRY_NEGATIVE) {
+            data = malloc(sizeof(struct shim_unix_data));
+            data->pipeid = dent->rel_path.hash >> 32;
+        } else if (dent->fs != &socket_builtin_fs) {
+            ret = -ECONNREFUSED;
+            goto out;
+        }
+
+        sock->addr.un.pipeid = data->pipeid;
+        sock->addr.un.data = data;
+        sock->addr.un.dentry = dent;
+        get_dentry(dent);
+    }
+
+    if (state == SOCK_BOUND) {
+        /* if the socket is bound, the stream needs to be shut and rebound. */
+        assert(hdl->pal_handle);
+        DkStreamDelete(hdl->pal_handle, 0);
+        DkObjectClose(hdl->pal_handle);
+        hdl->pal_handle = NULL;
+    }
+
+    if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
+                    sizeof(struct sockaddr_in6)))
+            goto out;
+
+    inet_save_addr(sock->domain, &sock->addr.in.conn, addr);
+    inet_rebase_port(false, sock->domain, &sock->addr.in.conn, false);
+
+    sock->sock_state = (state == SOCK_BOUND) ? SOCK_BOUNDCONNECTED :
+                                               SOCK_CONNECTED;
+
+    if ((ret = create_socket_uri(hdl)) < 0)
+        goto out;
+
+    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri),
+                                      0, 0, 0,
+                                      hdl->flags & O_NONBLOCK);
+
+    if (!pal_hdl) {
+        ret = -PAL_ERRNO;
+        goto out;
+    }
+
+    hdl->pal_handle = pal_hdl;
+
+    if (sock->domain == AF_UNIX) {
+        struct shim_dentry * dent = sock->addr.un.dentry;
+        lock(dent->lock);
+        dent->state ^= DENTRY_NEGATIVE;
+        dent->state |= DENTRY_VALID|DENTRY_RECENTLY;
+        dent->fs = &socket_builtin_fs;
+        dent->data = sock->addr.un.data;
+        unlock(dent->lock);
+    }
+
+    if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+        char uri[SOCK_URI_SIZE];
+
+        if (!DkStreamGetName(pal_hdl, uri, SOCK_URI_SIZE)) {
+            ret = -PAL_ERRNO;
+            goto out;
+        }
+
+        if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri,
+                                   &sock->addr.in.bind,
+                                   &sock->addr.in.conn)) < 0)
+            goto out;
+
+        inet_rebase_port(true, sock->domain, &sock->addr.in.bind, true);
+        inet_rebase_port(true, sock->domain, &sock->addr.in.conn, false);
+    }
+
+    hdl->acc_mode = MAY_READ|MAY_WRITE;
+    __process_pending_options(hdl);
+    ret = 0;
+
+out:
+    if (ret < 0) {
+        sock->sock_state = state;
+        sock->error = -ret;
+
+        if (sock->domain == AF_UNIX) {
+            if (sock->addr.un.dentry)
+                put_dentry(sock->addr.un.dentry);
+
+            if (sock->addr.un.data) {
+                free(sock->addr.un.data);
+                sock->addr.un.data = NULL;
+            }
+        }
+    }
+
+    unlock(hdl->lock);
+    put_handle(hdl);
+    return ret;
+}
+
+int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
+                 socklen_t * addrlen)
+{
+    if (hdl->type != TYPE_SOCK)
+        return -ENOTSOCK;
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    int ret;
+    PAL_HANDLE accepted = NULL;
+
+    if (sock->sock_type != SOCK_STREAM) {
+        debug("shim_listen: not a stream socket\n");
+        return -EINVAL;
+    }
+
+    lock(hdl->lock);
+
+    if (sock->sock_state != SOCK_LISTENED) {
+        debug("shim_accpet: invalid socket\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    accepted = DkStreamWaitForClient(hdl->pal_handle);
+    if (!accepted) {
+        ret = -PAL_ERRNO;
+        goto out;
+    }
+
+    if (flags & O_NONBLOCK) {
+        PAL_STREAM_ATTR attr;
+
+        if (!DkStreamAttributesQuerybyHandle(accepted, &attr)) {
+            ret = -PAL_ERRNO;
+            goto out;
+        }
+
+        attr.nonblocking = PAL_TRUE;
+
+        if (!DkStreamAttributesSetbyHandle(accepted, &attr)) {
+            ret = -PAL_ERRNO;
+            goto out;
+        }
+    }
+
+    struct shim_handle * cli = get_new_handle();
+    if (!cli) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    struct shim_sock_handle * cli_sock = &cli->info.sock;
+    cli->type       = TYPE_SOCK;
+    set_handle_fs(cli, &socket_builtin_fs);
+    cli->acc_mode = MAY_READ|MAY_WRITE;
+    cli->flags      = O_RDWR|flags;
+    cli->pal_handle = accepted;
+    cli_sock->domain     = sock->domain;
+    cli_sock->sock_type  = sock->sock_type;
+    cli_sock->protocol   = sock->protocol;
+    cli_sock->sock_state = SOCK_ACCEPTED;
+
+    if (sock->domain == AF_UNIX) {
+        cli_sock->addr.un.pipeid = sock->addr.un.pipeid;
+        if (sock->addr.un.dentry) {
+            get_dentry(sock->addr.un.dentry);
+            cli_sock->addr.un.dentry = sock->addr.un.dentry;
+        }
+
+        qstrsetstr(&cli->uri, qstrgetstr(&hdl->uri), hdl->uri.len);
+
+        if (addr) {
+            unix_copy_addr(addr, sock->addr.un.dentry);
+
+            if (addrlen)
+                *addrlen = sizeof(struct sockaddr_un);
+        }
+    }
+
+    if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+        char uri[SOCK_URI_SIZE];
+        int uri_len;
+
+        if (!(uri_len = DkStreamGetName(accepted, uri, SOCK_URI_SIZE))) {
+            ret = -PAL_ERRNO;
+out_hdl:
+            DkObjectClose(accepted);
+            goto out_cli;
+        }
+
+        if ((ret = inet_parse_addr(cli_sock->domain, cli_sock->sock_type, uri,
+                                   &cli_sock->addr.in.bind,
+                                   &cli_sock->addr.in.conn)) < 0)
+            goto out_hdl;
+
+        qstrsetstr(&cli->uri, uri, uri_len);
+
+        inet_rebase_port(true, cli_sock->domain, &cli_sock->addr.in.bind, true);
+        inet_rebase_port(true, cli_sock->domain, &cli_sock->addr.in.conn, false);
+
+        if (addr) {
+            inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+
+            if (addrlen)
+                *addrlen = (sock->domain == AF_INET) ?
+                    sizeof(struct sockaddr_in) :
+                    sizeof(struct sockaddr_in6);
+        }
+    }
+
+    ret = set_new_fd_handle(cli, flags & O_CLOEXEC ? FD_CLOEXEC : 0, NULL);
+out_cli:
+    put_handle(cli);
+out:
+    if (ret < 0)
+        sock->error = -ret;
+
+    unlock(hdl->lock);
+    return ret;
+}
+
+int shim_do_accept (int fd, struct sockaddr * addr, socklen_t * addrlen)
+{
+    int flags;
+    struct shim_handle * hdl = get_fd_handle(fd, &flags, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = __do_accept(hdl, flags & FD_CLOEXEC ? O_CLOEXEC : 0,
+                          addr, addrlen);
+    put_handle(hdl);
+    return ret;
+}
+
+int shim_do_accept4 (int fd, struct sockaddr * addr, socklen_t * addrlen,
+                     int flags)
+{
+    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = __do_accept(hdl,
+                          (flags & SOCK_CLOEXEC ? FD_CLOEXEC : 0) |
+                          (flags & SOCK_NONBLOCK ? O_NONBLOCK : 0),
+                          addr, addrlen);
+    put_handle(hdl);
+    return ret;
+}
+
+static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
+                           const struct sockaddr * addr, socklen_t addrlen)
+{
+    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = -EINVAL;
+
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
+        goto out;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+
+    PAL_HANDLE pal_hdl = hdl->pal_handle;
+    char * uri = NULL;
+
+    /* Data gram sock need not be conneted or bound at all */
+    if (sock->sock_type == SOCK_STREAM &&
+        sock->sock_state != SOCK_CONNECTED &&
+        sock->sock_state != SOCK_BOUNDCONNECTED &&
+        sock->sock_state != SOCK_ACCEPTED) {
+        ret = -ENOTCONN;
+        goto out_locked;
+    }
+
+    if (sock->sock_type == SOCK_DGRAM &&
+        sock->sock_state == SOCK_SHUTDOWN) {
+        ret = -ENOTCONN;
+        goto out_locked;
+    }
+
+    if (!(hdl->acc_mode & MAY_WRITE)) {
+        ret = -ECONNRESET;
+        goto out_locked;
+    }
+
+    if (sock->sock_type == SOCK_DGRAM &&
+        sock->sock_state != SOCK_BOUNDCONNECTED &&
+        sock->sock_state != SOCK_CONNECTED) {
+        if (!addr) {
+            ret = -EDESTADDRREQ;
+            goto out_locked;
+        }
+
+        if (sock->sock_state == SOCK_CREATED && !pal_hdl) {
+            pal_hdl = DkStreamOpen("udp:", 0, 0, 0,
+                                   hdl->flags & O_NONBLOCK);
+            if (!pal_hdl) {
+                ret = -PAL_ERRNO;
+                goto out_locked;
+            }
+
+            hdl->pal_handle = pal_hdl;
+        }
+
+        if (addr && addr->sa_family != sock->domain) {
+            ret = -EINVAL;
+            goto out_locked;
+        }
+
+        uri = __alloca(SOCK_URI_SIZE);
+    }
+
+    unlock(hdl->lock);
+
+    if (uri) {
+        struct addr_inet addr_buf;
+        inet_save_addr(sock->domain, &addr_buf, addr);
+        inet_rebase_port(false, sock->domain, &addr_buf, false);
+        memcpy(uri, "udp:", 5);
+        if ((ret = inet_translate_addr(sock->domain, uri + 4, SOCK_URI_SIZE - 4,
+                                       &addr_buf)) < 0) {
+            lock(hdl->lock);
+            goto out_locked;
+        }
+
+        debug("next packet send to %s\n", uri);
+    }
+
+    int bytes = 0;
+    ret = 0;
+
+    for (int i = 0 ; i < nbufs ; i++) {
+        ret = DkStreamWrite(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base,
+                            uri);
+
+        if (!ret) {
+            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ?
+                  - ECONNABORTED : -PAL_ERRNO;
+            break;
+        }
+
+        bytes += ret;
+    }
+
+    if (bytes)
+        ret = bytes;
+    if (ret < 0) {
+        lock(hdl->lock);
+        goto out_locked;
+    }
+    goto out;
+
+out_locked:
+    if (ret < 0)
+        sock->error = -ret;
+
+    unlock(hdl->lock);
+out:
+    put_handle(hdl);
+    return ret;
+}
+
+ssize_t shim_do_sendto (int sockfd, const void * buf, size_t len, int flags,
+                        const struct sockaddr * addr, socklen_t addrlen)
+{
+    struct iovec iovbuf;
+    iovbuf.iov_base = (void *) buf;
+    iovbuf.iov_len = len;
+
+    return do_sendmsg(sockfd, &iovbuf, 1, flags, addr, addrlen);
+}
+
+ssize_t shim_do_sendmsg (int sockfd, struct msghdr * msg, int flags)
+{
+    return do_sendmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags,
+                      msg->msg_name, msg->msg_namelen);
+}
+
+static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
+                           struct sockaddr * addr, socklen_t * addrlen)
+{
+    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = 0;
+
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
+        goto out;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+
+    PAL_HANDLE pal_hdl = hdl->pal_handle;
+    char * uri = NULL;
+
+    if (sock->sock_type == SOCK_STREAM &&
+        sock->sock_state != SOCK_CONNECTED &&
+        sock->sock_state != SOCK_BOUNDCONNECTED &&
+        sock->sock_state != SOCK_ACCEPTED) {
+        ret = -ENOTCONN;
+        goto out_locked;
+    }
+
+    if (!(hdl->acc_mode & MAY_READ)) {
+        ret = 0;
+        goto out_locked;
+    }
+
+    if (addr && sock->sock_type == SOCK_DGRAM &&
+        sock->sock_state != SOCK_CONNECTED &&
+        sock->sock_state != SOCK_BOUNDCONNECTED) {
+        if (sock->sock_state == SOCK_CREATED) {
+            ret = -EINVAL;
+            goto out_locked;
+        }
+
+        uri = __alloca(SOCK_URI_SIZE);
+    }
+
+    unlock(hdl->lock);
+
+    bool address_received = false;
+    int bytes = 0;
+    ret = 0;
+
+    for (int i = 0 ; i < nbufs ; i++) {
+        ret = DkStreamRead(pal_hdl, 0, bufs[i].iov_len, bufs[i].iov_base,
+                           uri, uri ? SOCK_URI_SIZE : 0);
+
+        if (!ret) {
+            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMNOTEXIST) ?
+                  - ECONNABORTED : -PAL_ERRNO;
+            break;
+        }
+
+        bytes += ret;
+
+        if (!addr || !bytes || address_received)
+            continue;
+
+        if (sock->domain == AF_UNIX) {
+            unix_copy_addr(addr, sock->addr.un.dentry);
+            *addrlen = sizeof(struct sockaddr_un);
+        }
+
+        if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+            if (uri) {
+                struct addr_inet conn;
+
+                if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri,
+                                           &conn, NULL)) < 0) {
+                    lock(hdl->lock);
+                    goto out_locked;
+                }
+
+                debug("last packet received from %s\n", uri);
+
+                inet_rebase_port(true, sock->domain, &conn, false);
+                inet_copy_addr(sock->domain, addr, &conn);
+            } else {
+                inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
+            }
+
+            *addrlen = (sock->domain == AF_INET) ?
+                       sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+        }
+
+        address_received = false;
+    }
+
+    if (bytes)
+        ret = bytes;
+    if (ret < 0) {
+        lock(hdl->lock);
+        goto out_locked;
+    }
+    goto out;
+
+out_locked:
+    if (ret < 0)
+        sock->error = -ret;
+
+    unlock(hdl->lock);
+out:
+    put_handle(hdl);
+    return ret;
+}
+
+ssize_t shim_do_recvfrom (int sockfd, void * buf, size_t len, int flags,
+                          struct sockaddr * addr, socklen_t * addrlen)
+{
+    struct iovec iovbuf;
+    iovbuf.iov_base = (void *) buf;
+    iovbuf.iov_len = len;
+
+    return do_recvmsg(sockfd, &iovbuf, 1, flags, addr, addrlen);
+}
+
+ssize_t shim_do_recvmsg (int sockfd, struct msghdr * msg, int flags)
+{
+    return do_recvmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags,
+                      msg->msg_name, &msg->msg_namelen);
+}
+
+int shim_do_shutdown (int sockfd, int how)
+{
+    struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = 0;
+    struct shim_sock_handle * sock = &hdl->info.sock;
+
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
+        goto out;
+    }
+
+    lock(hdl->lock);
+
+    if (sock->sock_state != SOCK_LISTENED &&
+        sock->sock_state != SOCK_ACCEPTED &&
+        sock->sock_state != SOCK_CONNECTED &&
+        sock->sock_state != SOCK_BOUNDCONNECTED) {
+        ret = -ENOTCONN;
+        goto out_locked;
+    }
+
+    switch (how) {
+        case SHUT_RD:
+            DkStreamDelete(hdl->pal_handle, PAL_DELETE_RD);
+            hdl->acc_mode &= ~MAY_READ;
+            break;
+        case SHUT_WR:
+            DkStreamDelete(hdl->pal_handle, PAL_DELETE_WR);
+            hdl->acc_mode &= ~MAY_WRITE;
+            break;
+        case SHUT_RDWR:
+            DkStreamDelete(hdl->pal_handle, 0);
+            hdl->acc_mode = 0;
+            sock->sock_state = SOCK_SHUTDOWN;
+            break;
+    }
+
+    ret = 0;
+out_locked:
+    if (ret < 0)
+        sock->error = -ret;
+
+    unlock(hdl->lock);
+out:
+    put_handle(hdl);
+    return ret;
+}
+
+int shim_do_getsockname (int sockfd, struct sockaddr * addr, int * addrlen)
+{
+    if (!addr || !addrlen)
+        return -EFAULT;
+
+    if (*addrlen <= 0)
+        return -EINVAL;
+
+    struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = -EINVAL;
+
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
+        goto out;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+
+    struct sockaddr saddr;
+    int len = inet_copy_addr(sock->domain, &saddr, &sock->addr.in.bind);
+
+    if (len < *addrlen)
+        len = *addrlen;
+
+    memcpy(addr, &saddr, len);
+    *addrlen = len;
+    ret = 0;
+    unlock(hdl->lock);
+out:
+    put_handle(hdl);
+    return ret;
+}
+
+int shim_do_getpeername (int sockfd, struct sockaddr * addr, int * addrlen)
+{
+    if (!addr || !addrlen)
+        return -EFAULT;
+
+    if (*addrlen <= 0)
+        return -EINVAL;
+
+    struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = -EINVAL;
+
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
+        goto out;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+
+    /* Data gram sock need not be conneted or bound at all */
+    if (sock->sock_type == SOCK_STREAM &&
+        sock->sock_state != SOCK_CONNECTED &&
+        sock->sock_state != SOCK_BOUNDCONNECTED &&
+        sock->sock_state != SOCK_ACCEPTED) {
+        ret = -ENOTCONN;
+        goto out_locked;
+    }
+
+    if (sock->sock_type == SOCK_DGRAM &&
+        sock->sock_state != SOCK_CONNECTED &&
+        sock->sock_state != SOCK_BOUNDCONNECTED) {
+        ret = -ENOTCONN;
+        goto out_locked;
+    }
+
+    struct sockaddr saddr;
+    int len = inet_copy_addr (sock->domain, &saddr, &sock->addr.in.conn);
+
+    if (len < *addrlen)
+        len = *addrlen;
+
+    memcpy(addr, &saddr, len);
+    *addrlen = len;
+    ret = 0;
+out_locked:
+    unlock(hdl->lock);
+out:
+    put_handle(hdl);
+    return ret;
+}
+
+struct __kernel_linger {
+    int l_onoff;
+    int l_linger;
+};
+
+static int __do_setsockopt (struct shim_handle * hdl, int level, int optname,
+                            char * optval, int optlen, PAL_STREAM_ATTR * attr)
+{
+    int intval = *((int *) optval);
+    PAL_BOL bolval = intval ? PAL_TRUE : PAL_FALSE;
+
+    if (level == SOL_SOCKET) {
+        switch(optname) {
+            case SO_ACCEPTCONN:
+            case SO_DOMAIN:
+            case SO_ERROR:
+            case SO_PROTOCOL:
+            case SO_TYPE:
+                return -EPERM;
+            case SO_KEEPALIVE:
+            case SO_LINGER:
+            case SO_RCVBUF:
+            case SO_SNDBUF:
+            case SO_RCVTIMEO:
+            case SO_SNDTIMEO:
+            case SO_REUSEADDR:
+                goto query;
+            default:
+                goto unknown;
+        }
+    }
+
+    if (level == SOL_TCP) {
+        switch(optname) {
+            case TCP_CORK:
+            case TCP_NODELAY:
+                goto query;
+            default:
+                goto unknown;
+        }
+    }
+
+unknown:
+    return -ENOPROTOOPT;
+
+query:
+    if (!attr) {
+        attr = __alloca(sizeof(PAL_STREAM_ATTR));
+
+        if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, attr))
+            return -PAL_ERRNO;
+    }
+
+    if (level == SOL_SOCKET) {
+        switch(optname) {
+            case SO_KEEPALIVE:
+                if (bolval != attr->tcp_keepalive) {
+                    attr->tcp_keepalive = bolval;
+                    goto set;
+                }
+                break;
+            case SO_LINGER: {
+                                struct __kernel_linger * l =
+                                    (struct __kernel_linger *) optval;
+                                int linger = l->l_onoff ? l->l_linger : 0;
+                                if (linger != (int) attr->linger) {
+                                    attr->linger = linger;
+                                    goto set;
+                                }
+                                break;
+                            }
+            case SO_RCVBUF:
+                            if (intval != (int) attr->receivebuf) {
+                                attr->receivebuf = intval;
+                                goto set;
+                            }
+                            break;
+            case SO_SNDBUF:
+                            if (intval != (int) attr->sendbuf) {
+                                attr->sendbuf = intval;
+                                goto set;
+                            }
+                            break;
+            case SO_RCVTIMEO:
+                            if (intval != (int) attr->receivetimeout) {
+                                attr->receivetimeout = intval;
+                                goto set;
+                            }
+                            break;
+            case SO_SNDTIMEO:
+                            if (intval != (int) attr->sendtimeout) {
+                                attr->sendtimeout = intval;
+                                goto set;
+                            }
+                            break;
+            case SO_REUSEADDR:
+                            if (bolval != attr->reuseaddr) {
+                                attr->reuseaddr = bolval;
+                                goto set;
+                            }
+                            break;
+        }
+    }
+
+    if (level == SOL_TCP) {
+        switch(optname) {
+            case TCP_CORK:
+                if (bolval != attr->tcp_cork) {
+                    attr->tcp_cork = bolval;
+                    goto set;
+                }
+                break;
+            case TCP_NODELAY:
+                if (bolval != attr->tcp_nodelay) {
+                    attr->tcp_nodelay = bolval;
+                    goto set;
+                }
+                break;
+        }
+    }
+
+    return 0;
+
+set:
+    if (!DkStreamAttributesSetbyHandle(hdl->pal_handle, attr))
+        return -PAL_ERRNO;
+
+    return 0;
+}
+
+static int __process_pending_options (struct shim_handle * hdl)
+{
+    struct shim_sock_handle * sock = &hdl->info.sock;
+
+    if (!sock->pending_options)
+        return 0;
+
+    PAL_STREAM_ATTR attr;
+
+    if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr))
+        return -PAL_ERRNO;
+
+    struct shim_sock_option * o = sock->pending_options;
+
+    while (o) {
+        PAL_STREAM_ATTR tmp = attr;
+
+        int ret = __do_setsockopt(hdl, o->level, o->optname, o->optval,
+                                  o->optlen, &tmp);
+
+        if (!ret)
+            attr = tmp;
+
+        struct shim_sock_option * next = o->next;
+        free(o);
+        o = next;
+    }
+
+    return 0;
+}
+
+int shim_do_setsockopt (int fd, int level, int optname, char * optval,
+                        int optlen)
+{
+    if (!optval)
+        return -EFAULT;
+
+    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = 0;
+
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
+        goto out;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+
+    if (!hdl->pal_handle) {
+        struct shim_sock_option * o = malloc(sizeof(struct shim_sock_option) +
+                                             optlen);
+        if (!o) {
+            ret = -ENOMEM;
+            goto out_locked;
+        }
+
+        struct shim_sock_option ** next = &sock->pending_options;
+        while (*next)
+            next = &(*next)->next;
+
+        o->next     = NULL;
+        *next       = o;
+        o->level    = level;
+        o->optname  = optname;
+        o->optlen   = optlen;
+        memcpy(&o->optval, optval, optlen);
+        goto out_locked;
+    }
+
+    ret = __do_setsockopt(hdl, level, optname, optval, optlen, NULL);
+
+out_locked:
+    unlock(hdl->lock);
+out:
+    put_handle(hdl);
+    return ret;
+}
+
+int shim_do_getsockopt (int fd, int level, int optname, char * optval,
+                        int * optlen)
+{
+    if (!optval || !optlen)
+        return -EFAULT;
+
+    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    int ret = 0;
+
+    if (hdl->type != TYPE_SOCK) {
+        ret = -ENOTSOCK;
+        goto out;
+    }
+
+    struct shim_sock_handle * sock = &hdl->info.sock;
+    lock(hdl->lock);
+
+    int * intval = (int *) optval;
+
+    if (level == SOL_SOCKET) {
+        switch(optname) {
+            case SO_ACCEPTCONN:
+                *intval = (sock->sock_state == SOCK_LISTENED) ? 1 : 0;
+                goto out;
+            case SO_DOMAIN:
+                *intval = sock->domain;
+                goto out;
+            case SO_ERROR:
+                *intval = sock->error;
+                goto out;
+            case SO_PROTOCOL:
+                switch(sock->protocol) {
+                    case SOCK_STREAM:
+                        *intval = IPPROTO_SCTP;
+                        break;
+                    case SOCK_DGRAM:
+                        *intval = IPPROTO_UDP;
+                        break;
+                    default:
+                        goto unknown;
+                }
+                goto out;
+            case SO_TYPE:
+                *intval = sock->protocol;
+                goto out;
+            case SO_KEEPALIVE:
+            case SO_LINGER:
+            case SO_RCVBUF:
+            case SO_SNDBUF:
+            case SO_RCVTIMEO:
+            case SO_SNDTIMEO:
+            case SO_REUSEADDR:
+                goto query;
+            default:
+                goto unknown;
+        }
+    }
+
+    if (level == SOL_TCP) {
+        switch(optname) {
+            case TCP_CORK:
+            case TCP_NODELAY:
+                goto query;
+            default:
+                goto unknown;
+        }
+    }
+
+unknown:
+    ret = -ENOPROTOOPT;
+    goto out;
+
+query:
+    {
+        PAL_STREAM_ATTR attr;
+
+        if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr)) {
+            ret = -PAL_ERRNO;
+            goto out;
+        }
+
+        if (level == SOL_SOCKET) {
+            switch(optname) {
+                case SO_KEEPALIVE:
+                    *intval = attr.tcp_keepalive ? 1 : 0;
+                    break;
+                case SO_LINGER: {
+                    struct __kernel_linger * l =
+                            (struct __kernel_linger *) optval;
+                    l->l_onoff = attr.linger ? 1 : 0;
+                    l->l_linger = attr.linger;
+                    break;
+                }
+                case SO_RCVBUF:
+                    *intval = attr.receivebuf;
+                    break;
+                case SO_SNDBUF:
+                    *intval = attr.sendbuf;
+                    break;
+                case SO_RCVTIMEO:
+                    *intval = attr.receivetimeout;
+                    break;
+                case SO_SNDTIMEO:
+                    *intval = attr.sendtimeout;
+                    break;
+                case SO_REUSEADDR:
+                    *intval = attr.reuseaddr ? 1 : 0;
+                    break;
+            }
+        }
+
+        if (level == SOL_TCP) {
+            switch(optname) {
+                case TCP_CORK:
+                    *intval = attr.tcp_cork ? 1 : 0;
+                    break;
+                case TCP_NODELAY:
+                    *intval = attr.tcp_nodelay ? 1 : 0;
+                    break;
+            }
+        }
+    }
+
+out:
+    unlock(hdl->lock);
+    put_handle(hdl);
+    return ret;
+}

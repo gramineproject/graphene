@@ -1,0 +1,245 @@
+In June of 1997, Margo Seltzer and Aaron Brown published a paper in
+Sigmetrics called "Operating System Benchmarking in the Wake of Lmbench:
+A Case Study of the Performance of NetBSD on the Intel x86 Architecture".
+
+
+This papers claims to have found flaws in the original lmbench work.
+With the exception of one bug, which we have of course fixed, we find
+the claims inaccurate, misleading, and petty.  We don't understand
+what appears to be a pointless attack on something that has obviously
+helped many researchers and industry people alike.  lmbench was warmly
+received and is widely used and referenced.  We stand firmly behind the
+work and results of the original benchmark.  We continue to improve and
+extend the benchmark.  Our focus continues to be on providing a useful,
+accurate, portable benchmark suite that is widely used.  As always, we
+welcome constructive feedback.
+
+
+To ease the concerns of gentle benchmarkers around the world, we have
+spent at least 4 weeks reverifying the results.  We modified lmbench to
+eliminate any effects of
+
+	. clock resolution
+	. loop overhead
+	. timing interface overhead
+
+Our prediction was that that this would not make any difference and our
+prediction was correct.  All of the results reported in lmbench 1.x are
+valid except the file reread benchmark which may be 20% optimistic on
+some platforms.
+
+We've spent a great deal of time and energy, for free, at the expense
+of our full time jobs, to address the issues raised by hbench.  We feel
+that we were needlessly forced into a lose/lose situation of arguing
+with a fellow researcher.  We intend no disrespect towards their work,
+but did not feel that it was appropriate for what we see as incorrect
+and misleading claims to go unanswered.
+
+We wish to move on to the more interesting and fruitful work of extending
+lmbench in substantial ways.
+
+Larry McVoy & Carl Staelin, June 1997
+
+--------------------------------------------------------------------------
+
+Detailed responses to their claims:
+
+Claim 1: 
+
+	"it did not have the statistical rigor and self-consistency
+	needed for detailed architectural studies"
+
+Reply:
+
+	This is an unsubstantiated claim.  There are no numbers which back 
+	up this claim.  
+
+Claim 2: 
+
+	"with a reasonable compiler, the test designed to read and touch
+	data from the file system buffer cache never actually touched
+	the data"
+
+Reply:
+	
+	Yes, this was a bug in lmbench 1.0.  It has been fixed.
+	On platforms such as a 120 Mhz Pentium, we see change of a 20%
+	in the results, i.e., without the bug fix it is about 20% faster.
+
+Claim 3:
+
+    This is a multi part claim:
+
+	a) gettimeofday() is too coarse.
+
+Reply:  
+    	
+	The implication is that there are number of benchmarks in
+	lmbench that finish in less time than the clock resolution
+	with correspondingly incorrect results.  There is exactly one
+	benchmark, TCP connection latency, where this is true and that
+	is by design, not by mistake.  All other tests run long enough 
+	to overcome 10ms clocks (most modern clocks are microsecond
+	resolution).
+
+	Seltzer/Brown point out that lmbench 1.x couldn't accurately
+	measure the L1/L2 cache bandwidths.  lmbench 1.x didn't attempt
+	to report L1/L2 cache bandwidths so it would seem a little
+	unreasonable to imply inaccuracy in something the benchmark
+	didn't measure.  It's not hard to get this right by the way, we
+	do so handily in lmbench 2.0.
+
+
+    	b)  TCP connection latency is reported as 0 on the DEC Alpha.
+
+Reply:
+
+	We could have easily run the TCP latency connection benchmark in
+	a loop long enough to overcome the clock resolution.  We were,
+	and are, well aware of the problem on DEC Alpha boxes.	We run
+	only a few interations of this benchmark because the benchmark
+	causes a large number of sockets to get stuck in TIME_WAIT,
+	part of the TCP shutdown protocol.   Almost all protocol stacks
+	degrade somewhat in performance when there are large numbers of
+	old sockets in their queues.  We felt that showing the degraded
+	performance was not representative of what users would see.
+	So we run only for a small number (about 1000) interations and
+	report the result.  We would not consider changing the benchmark
+	the correct answer - DEC needs to fix their clocks if they wish
+	to see accurate results for this test.
+
+	We would welcome a portable solution to this problem.  Reading
+	hardware specific cycle counters is not portable.
+
+Claim 4:
+
+	"lmbench [..] was inconsistent in its statistical treatment of
+	the data"
+	...
+	"The most-used statistical policy in lmbench is to take the
+	minimum of a few repetitions of the measurement"
+
+Reply:
+
+	Both of these claims are false, as can be seen by a quick inspection
+	of the code.   The most commonly used timing method (16/19 tests
+	use this) is
+
+		start_timing
+		do the test N times
+		stop_timing
+		report results in terms of duration / N
+	
+	In fact, the /only/ case where a minimum is used is in the
+	context switch test.
+
+	The claim goes on to try and say that taking the minimum causes
+	incorrect results in the case of the context switch test.
+	Another unsupportable claim, one that shows a clear lack of
+	understanding of the context switch test.  The real issue is cache
+	conflicts due to page placement in the cache.  Page placement is
+	something not under our control, it is under the control of the
+	operating system.  We did not, and do not, subscribe to the theory
+	that one should use better ``statistical methods'' to eliminate
+	the variance in the context switch benchmark.  The variance is
+	what actually happened and happens to real applications.
+
+	The authors also claim "if the virtually-contiguous pages of
+	the buffer are randomly assigned to physical addresses, as they
+	are in many systems, ... then there is a good probability that
+	pages of the buffer will conflict in the cache".
+
+	We agree with the second part but heartily disagree with
+	the first.  It's true that NetBSD doesn't solve this problem.
+	It doesn't follow that others don't.  Any vendor supplied
+	operating system that didn't do this on a direct mapped L2
+	cache would suffer dramatically compared to it's competition.
+	We know for a fact that Solaris, IRIX, and HPUX do this.
+
+	A final claim is that they produced a modified version of the
+	context switch benchmark that does not have the variance of
+	the lmbench version.  We could not support this.  We ran that
+	benchmark on an SGI MP and saw the same variance as the original
+	benchmark.
+
+Claim 5:
+
+	"The lmbench bandwidth tests use inconsistent methods of accessing
+	memory, making it hard to directly compare the results of, say
+	memory read bandwidth with memory write bandwidth, or file reread
+	bandwidth with memory copy bandwidth"
+	...
+	"On the Alpha processor, memory read bandwidth via array indexing
+	is 26% faster than via pointer indirection; the Pentium Pro is
+	67% faster when reading with array indexing, and an unpipelined
+	i386 is about 10% slower when writing with pointer indirection"
+
+Reply:
+	In reading that, it would appear that they are suggesting that
+	their numbers are up to 67% different than the lmbench numbers.
+	We can only assume that this was delibrately misleading.
+	Our results are identical to theirs.  How can this be?
+
+		. We used array indexing for reads, so did they.
+		  They /implied/ that we did it differently, when in fact
+		  we use exactly the same technique.  They get about
+		  87MB/sec on reads on a P6, so do we.	We challenge
+		  the authors to demonstrate the implied 67% difference
+		  between their numbers and ours.  In fact, we challenge
+		  them to demonstrate a 1% difference.
+
+		. We use pointers for writes exactly because we wanted
+		  comparable numbers.  The read case is a load and
+		  an integer add per word.  If we used array indexing
+		  for the stores, it would be only a store per word.
+		  On older systems, the stores can appear to go faster
+		  because the load/add is slower than a single store.
+
+	While the authors did their best to confuse the issue, the
+	results speak for themselves.  We coded up the write benchmark
+	our way and their way.  Results for a Intel P6:
+
+			pointer	  array	   difference
+		L1 $	587	  710	      18%
+		L2 $	414	  398	       4%
+		memory   53	   53	       0%
+	
+
+Claim 5a:
+	The harmonic mean stuff.
+
+Reply:
+	They just don't understand modern architectures.  The harmonic mean
+	theory is fine if and only if the process can't do two things at
+	once.  Many modern processors can indeed do more than one thing at
+	once, the concept is known as super scalar, and can and does include
+	load/store units.  If the processor supports both outstanding loads
+	and outstanding stores, the harmonic mean theory fails.
+
+Claim 6:
+
+	"we modified the memory copy bandwidth to use the same size
+	data types as the memory read and write benchmark (which use the
+	machine's native word size); originally, on 32-bit machines, the
+	copy benchmark used 64-bit types whereas the memory read/write
+	bandwidth tests used 32- bit types"
+
+Reply:
+
+	The change was to use 32 bit types for bcopy.  On even relatively
+	modern systems, such as a 586, this change has no impact - the
+	benchmark is bound by memory sub systems.  On older systems, the
+	use of multiple load/store instructions, as required for the smaller
+	types, resulted in lower results than the meory system could produce.
+
+	The processor cycles required actually slow down the results.  This 
+	is still true today for in cache numbers.  For example, an R10K
+	shows L1 cache bandwidths of 750MB/sec and 377MB/sec with 64 bit
+	vs 32 bit loads.  It was our intention to show the larger number and
+	that requires the larger types.  
+	
+	Perhaps because the authors have not ported their benchmark to
+	non-Intel platforms, they have not noticed this.  The Intel
+	platform does not have native 64 bit types so it does two
+	load/stores for what C says is a 64 bit type.  Just because it 
+	makes no difference on Intel does not mean it makes no difference.

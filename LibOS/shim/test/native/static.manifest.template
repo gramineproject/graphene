@@ -1,0 +1,14 @@
+loader.preload = file:../../src/libsysdb.so
+loader.env.LD_LIBRARY_PATH = /lib
+loader.debug_type = inline
+# loader.debug_type = file
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.tty.type = chroot
+fs.mount.tty.uri = dev:tty
+
+fs.mount.other.1.type = chroot
+fs.mount.other.1.path = /lib
+fs.mount.other.1.uri = file:../../../build

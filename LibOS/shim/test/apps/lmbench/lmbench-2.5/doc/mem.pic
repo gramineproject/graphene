@@ -1,0 +1,2337 @@
+.PS
+.ps 8
+.vs 11
+.ft CB
+[
+# Variables, tweak these.
+	xtick = 2.000000			# width of an X tick
+	xlower = 8.000000			# where the xtick start
+	xupper = 24.000000			# upper range of graph
+	xn = 8					# number of ticks to do
+	ytick = 50.000000			# width of an Y tick
+	ylower = 0.000000			# where the ytick start
+	yupper = 500.000000			# upper range of graph
+	yn = 10					# number of ticks to do
+	xsize = 1.75				# width of the graph
+	ysize = 1.75				# height of the graph
+	yscale = ysize / (yupper - ylower)	# scale data to paper
+	xscale = xsize / (xupper - xlower)	# scale data to paper
+	tick = 0.10000000000000000555				# distance towards numbers
+	gthk = .1				# thickness of grid lines
+	thk = .75				# thickness of data lines
+	qthk = 2.0				# thickness of quartile lines
+	vs = .15				# works for 10 point fonts
+
+# Draw the graph borders and tick marks
+	O:	box  thick 1.5 ht ysize wid xsize
+	j = ylower
+	t = tick * .5
+	for i = 0 to yn by 1 do {
+		ys = j - ylower
+		g = ys * yscale
+		line thick 1.5 from O.sw + (-tick, g) to O.sw + (0, g)
+		
+		if (i < yn) then {
+			y2 = (ys + (ytick / 2)) * yscale
+			line thick .5 from O.sw + (-t, y2) to O.sw + (0, y2)
+		}
+		if (yupper - ylower > 999) then {
+			sprintf("%.0f", j) rjust at O.sw + (-.2, g - .02)
+		} else { if (yupper - ylower > 10) then {
+			sprintf("%.0f", j) rjust at O.sw + (-.2, g - .02)
+		} else { if (yupper - ylower > 1) then {
+			sprintf("%.1f", j) rjust at O.sw + (-.2, g - .02)
+		} else {
+			sprintf("%.2f", j) rjust at O.sw + (-.2, g - .02)
+		}}}
+		j = j + ytick
+	}
+	j = xlower
+	for i = 0 to xn by 1 do {
+		xs = j - xlower
+		g = xs * xscale
+		line thick 1.5 from O.sw + (g, -tick) to O.sw + (g, 0)
+		
+		if (i < xn) then {
+			x2 = (xs + (xtick / 2)) * xscale
+			line thick .5 from O.sw + (x2, 0) to O.sw + (x2, -t)
+		}
+		if (xupper - xlower > 999) then {
+			sprintf("%.0f", j) at O.sw + (g, -.25)
+		} else { if (xupper - xlower > 10) then {
+			sprintf("%.0f", j) at O.sw + (g, -.25)
+		} else { if (xupper - xlower > 1) then {
+			sprintf("%.1f", j) at O.sw + (g, -.25)
+		} else {
+			sprintf("%.2f", j) at O.sw + (g, -.25)
+		}}}
+		j = j + xtick
+	}
+
+# DATASET: stride=8, MARK 0
+[ "\(ci" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (11 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (18 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (23 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (27 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (29 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (29 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (29 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (29 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (29 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (31 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (30 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (31 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (31 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (31 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (31 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (31 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (32 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (32 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (33 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (32 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (33 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (34 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (34 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (34 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (35 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (35 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (36 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (36 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (37 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (46 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (40 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (39 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (89 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (91 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (91 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (89 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (91 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (90 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (92 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(ci" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (92 - ylower))
+
+# DATASET: stride=16, MARK 1
+[ "\(sq" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (10 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (26 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (36 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (44 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (48 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (51 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (51 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (51 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (52 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (51 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (52 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (51 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (52 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (52 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (52 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (52 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (53 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (53 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (58 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (59 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (60 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (65 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (164 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (165 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (167 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (165 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (165 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (168 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (167 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (166 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (165 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (168 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (168 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (167 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (167 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (166 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (167 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(sq" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (167 - ylower))
+
+# DATASET: stride=32, MARK 2
+[ "\(*D" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (10 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (28 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (40 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (48 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (58 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (60 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (62 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (62 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (63 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (65 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (64 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (68 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (70 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (83 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (85 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (87 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (335 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (335 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (336 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (335 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (339 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (337 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (338 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (336 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (337 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (335 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (338 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (339 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (336 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (340 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(*D" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (340 - ylower))
+
+# DATASET: stride=64, MARK 3
+[ "\(mu" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (11 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (28 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (40 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (49 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (51 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (57 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (58 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (58 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (62 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (63 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (63 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (76 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (78 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (79 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (323 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (325 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (328 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(mu" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (327 - ylower))
+
+# DATASET: stride=128, MARK 4
+[ "\s+4\(bu\s0" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (10 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (27 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (39 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (48 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (59 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (60 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (60 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (60 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (61 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (71 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (75 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (75 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (317 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (322 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (319 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (323 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\s+4\(bu\s0" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (321 - ylower))
+
+# DATASET: stride=512, MARK 5
+[ box ht .07 wid .07 fill 1 ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (10 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (28 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (39 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (48 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (53 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (50 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (67 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (77 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (74 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (80 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (317 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (320 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (322 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (321 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (322 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (322 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (322 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box ht .07 wid .07 fill 1 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (322 - ylower))
+
+# DATASET: stride=1024, MARK 6
+[ "\s+2\(pl\s0" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (11 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (27 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (39 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (48 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (53 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (78 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (78 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (78 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (78 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (78 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (78 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (88 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (91 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (91 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (324 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (325 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (328 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (328 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (327 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (326 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\s+2\(pl\s0" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (326 - ylower))
+
+# DATASET: stride=2048, MARK 7
+[ "\s+4\(**\s0" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (10 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (27 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (40 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (48 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (100 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (100 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (100 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (100 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (100 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (100 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (111 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (115 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (114 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (340 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (340 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (343 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (344 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (343 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (343 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (345 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (343 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (344 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (344 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (344 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (344 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (345 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (345 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (345 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\s+4\(**\s0" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (345 - ylower))
+
+# DATASET: stride=4096, MARK 0
+[ "\(ci" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (10 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (39 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (39 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (56 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (147 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (146 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (146 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (145 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (145 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (145 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (157 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (162 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (160 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (379 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (380 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (378 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (380 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (382 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (381 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (381 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (381 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (382 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (382 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (382 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (382 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (383 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (383 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (385 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(ci" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (385 - ylower))
+
+# DATASET: stride=8192, MARK 1
+[ "\(sq" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (11 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (232 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (231 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (231 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (232 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (232 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (230 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (240 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (246 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (246 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (445 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (449 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (441 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (449 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (449 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (450 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (451 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (443 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (441 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (442 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (446 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (452 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (452 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (453 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (453 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(sq" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (453 - ylower))
+
+# DATASET: stride=16384, MARK 2
+[ "\(*D" ] at O.sw + \
+	(xscale * (9.0050693696783969955 - xlower), yscale * (10 - ylower))
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.005069369678396995 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (10.997689839312798199 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (11.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.001384322870542576 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.585116379985436197 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (12.999538263705169072 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.322574277531574083 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.585116379985436197 - xlower), yscale * (11 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (13.807157053169248684 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.000461588562853166 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.32183575944998033 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.459137803548600232 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.585116379985436197 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.700404205210695352 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.807157053169248684 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (14.907044474872799711 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.170078880706594049 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.32183575944998033 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.459473587337127398 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.585116379985436197 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.700404205210695352 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.807420872323479699 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (15.906798260171138182 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.1698737047066885 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.322020424415466522 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.584962500721157852 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.700404205210695352 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.807420872323479699 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (16.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.169976296354082734 - xlower), yscale * (54 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.32192809488736529 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.459473587337129175 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.700475230197337595 - xlower), yscale * (53 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.807354922057605506 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (17.906921372774437629 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.169925001442312151 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.32192809488736529 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.459431618637296424 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.584962500721157852 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.70043971814109085 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.807354922057605506 - xlower), yscale * (55 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (18.90689059560851959 - xlower), yscale * (72 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (19 - xlower), yscale * (243 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (432 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (20.584962500721154299 - xlower), yscale * (445 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21 - xlower), yscale * (445 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.321928094887361738 - xlower), yscale * (447 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.584962500721154299 - xlower), yscale * (448 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (21.807354922057605506 - xlower), yscale * (448 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22 - xlower), yscale * (449 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.169925001442312151 - xlower), yscale * (450 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.321928094887361738 - xlower), yscale * (447 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.459431618637296424 - xlower), yscale * (450 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.584962500721157852 - xlower), yscale * (449 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.70043971814109085 - xlower), yscale * (449 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.807354922057605506 - xlower), yscale * (449 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (22.90689059560851959 - xlower), yscale * (452 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ box invis ht .05 wid .05 ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (452 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(*D" ] at O.sw + \
+	(xscale * (23 - xlower), yscale * (452 - ylower))
+
+# DATASET: stride=16384, MARK 3
+
+# DATASET: stride=16384, MARK 4
+
+.ps 8
+.vs 8
+"8KB" "cache" at O.sw + .35,.32
+arrow thick 2 wid .07 down .15 from O.sw + .35,.20
+".5MB" "cache" at O.sw + .85,.50
+arrow thick 2 wid .07 down .15 from O.sw + .85,.38
+"Main" "mem" at O.e - .25,.15
+arrow thick 2 wid .07 up .15 from O.e - .25,0
+.vs
+.ps
+
+# Xaxis title.
+"\s+2log2(Array size)\s0" rjust at O.se - (0, .6)
+
+# Yaxis title (Latency in nanoseconds)
+.ps +2
+.vs -1
+"L" "a" "t" "e" "n" "c" "y" " " "i" "n" at O.w - (.95, 0)
+"n" "a" "n" "o" "s" "e" "c" "o" "n" "d" "s" at O.w - (.75, 0)
+.ps
+.vs
+
+# Graph title.
+"\s+2DEC alpha@182mhz memory latencies\s0" at O.n + (-.5, .3)
+
+# Title.
+#[ "\(ci" ] at O.ne + (.25, - 0 * vs)
+#"stride=8" ljust at last [].e + (.1, 0)
+#[ "\(sq" ] at O.ne + (.25, - 1 * vs)
+#"stride=16" ljust at last [].e + (.1, 0)
+#[ "\(*D" ] at O.ne + (.25, - 2 * vs)
+#"stride=32" ljust at last [].e + (.1, 0)
+#[ "\(mu" ] at O.ne + (.25, - 3 * vs)
+#"stride=64" ljust at last [].e + (.1, 0)
+#[ "\s+4\(bu\s0" ] at O.ne + (.25, - 4 * vs)
+#"stride=128" ljust at last [].e + (.1, 0)
+#[ box ht .07 wid .07 fill 1 ] at O.ne + (.25, - 5 * vs)
+#"stride=512" ljust at last [].e + (.1, 0)
+#[ "\s+2\(pl\s0" ] at O.ne + (.25, - 6 * vs)
+#"stride=1024" ljust at last [].e + (.1, 0)
+#[ "\s+4\(**\s0" ] at O.ne + (.25, - 7 * vs)
+#"stride=2048" ljust at last [].e + (.1, 0)
+#[ "\(ci" ] at O.ne + (.25, - 8 * vs)
+#"stride=4096" ljust at last [].e + (.1, 0)
+#[ "\(sq" ] at O.ne + (.25, - 9 * vs)
+#"stride=8192" ljust at last [].e + (.1, 0)
+#[ "\(*D" ] at O.ne + (.25, - 10 * vs)
+#"stride=16384" ljust at last [].e + (.1, 0)
+]
+.ft
+.ps
+.PE

@@ -1,0 +1,198 @@
+.sp .10i
+.in +.07i
+.PS
+.ps 9
+.vs 9
+.ft CB
+[
+# Variables, tweak these.
+	xtick = 2.000000			# width of an X tick
+	xlower = 0.000000			# where the xtick start
+	xupper = 22.000000			# upper range of graph
+	xn = 11					# number of ticks to do
+	ytick = 50.000000			# width of an Y tick
+	ylower = 0.000000			# where the ytick start
+	yupper = 450.000000			# upper range of graph
+	yn = 9					# number of ticks to do
+	xsize = 2.05				# width of the graph
+	ysize = 2.1				# height of the graph
+	yscale = ysize / (yupper - ylower)	# scale data to paper
+	xscale = xsize / (xupper - xlower)	# scale data to paper
+	tick = 0.10000000000000001				# distance towards numbers
+	gthk = .1				# thickness of grid lines
+	thk = 0.75				# thickness of data lines
+	qthk = 2.0				# thickness of quartile lines
+	vs = .10				# works for 10 point fonts
+
+# Draw the graph borders and tick marks
+	O:	box  thick 1.5 ht ysize wid xsize
+	j = ylower
+	t = tick * .5
+	for i = 0 to yn by 1 do {
+		ys = j - ylower
+		g = ys * yscale
+		line thick 1.5 from O.sw + (-tick, g) to O.sw + (0, g)
+		
+		if (i < yn) then {
+			y2 = (ys + (ytick / 2)) * yscale
+			line thick .5 from O.sw + (-t, y2) to O.sw + (0, y2)
+		}
+		if (yupper - ylower > 999) then {
+			sprintf("%.0f", j) rjust at O.sw + (-.2, g - .02)
+		} else { if (yupper - ylower > 10) then {
+			sprintf("%.0f", j) rjust at O.sw + (-.2, g - .02)
+		} else { if (yupper - ylower > 1) then {
+			sprintf("%.1f", j) rjust at O.sw + (-.2, g - .02)
+		} else {
+			sprintf("%.2f", j) rjust at O.sw + (-.2, g - .02)
+		}}}
+		j = j + ytick
+	}
+	j = xlower
+	for i = 0 to xn by 1 do {
+		xs = j - xlower
+		g = xs * xscale
+		line thick 1.5 from O.sw + (g, -tick) to O.sw + (g, 0)
+		
+		if (i < xn) then {
+			x2 = (xs + (xtick / 2)) * xscale
+			line thick .5 from O.sw + (x2, 0) to O.sw + (x2, -t)
+		}
+		if (xupper - xlower > 999) then {
+			sprintf("%.0f", j) at O.sw + (g, -.25)
+		} else { if (xupper - xlower > 10) then {
+			sprintf("%.0f", j) at O.sw + (g, -.25)
+		} else { if (xupper - xlower > 1) then {
+			sprintf("%.1f", j) at O.sw + (g, -.25)
+		} else {
+			sprintf("%.2f", j) at O.sw + (g, -.25)
+		}}}
+		j = j + xtick
+	}
+
+# DATASET: Process size=0	overhead=10, MARK 0
+[ "\(ci" ] at O.sw + \
+	(xscale * (2 - xlower), yscale * (6 - ylower))
+[ "\(ci" ] at O.sw + \
+	(xscale * (4 - xlower), yscale * (7 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(ci" ] at O.sw + \
+	(xscale * (8 - xlower), yscale * (7 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(ci" ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (8 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(ci" ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (8 - ylower))
+line thick thk from 2nd last [].c to last [].c
+
+# DATASET: Process size=4	overhead=19, MARK 1
+[ "\(sq" ] at O.sw + \
+	(xscale * (2 - xlower), yscale * (7 - ylower))
+[ "\(sq" ] at O.sw + \
+	(xscale * (4 - xlower), yscale * (8 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(sq" ] at O.sw + \
+	(xscale * (8 - xlower), yscale * (9 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(sq" ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (10 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(sq" ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (12 - ylower))
+line thick thk from 2nd last [].c to last [].c
+
+# DATASET: Process size=16	overhead=66, MARK 2
+[ "\(*D" ] at O.sw + \
+	(xscale * (2 - xlower), yscale * (14 - ylower))
+[ "\(*D" ] at O.sw + \
+	(xscale * (4 - xlower), yscale * (15 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(*D" ] at O.sw + \
+	(xscale * (8 - xlower), yscale * (18 - ylower))
+".12M" at O.sw + \
+	(xscale * (8 - xlower), .12 + yscale * (18 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(*D" ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (46 - ylower))
+".25M" at O.sw + \
+	(xscale * (16 - xlower), .12 + yscale * (46 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(*D" ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (88 - ylower))
+line thick thk from 2nd last [].c to last [].c
+
+# DATASET: Process size=32	overhead=129, MARK 3
+[ "\(mu" ] at O.sw + \
+	(xscale * (2 - xlower), yscale * (22 - ylower))
+[ "\(mu" ] at O.sw + \
+	(xscale * (4 - xlower), yscale * (24 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(mu" ] at O.sw + \
+	(xscale * (8 - xlower), yscale * (107 - ylower))
+".25M" at O.sw + \
+	(xscale * (8 - xlower), .12 + yscale * (107 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(mu" ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (187 - ylower))
+".5M" at O.sw + \
+	(xscale * (16 - xlower), .12 + yscale * (187 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\(mu" ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (188 - ylower))
+line thick thk from 2nd last [].c to last [].c
+
+# DATASET: Process size=64	overhead=255, MARK 4
+[ "\s+4\(bu\s0" ] at O.sw + \
+	(xscale * (2 - xlower), yscale * (38 - ylower))
+".12M" at O.sw + \
+	(xscale * (2 - xlower), .12 + yscale * (38 - ylower))
+[ "\s+4\(bu\s0" ] at O.sw + \
+	(xscale * (4 - xlower), yscale * (140 - ylower))
+".25M" at O.sw + \
+	(xscale * (4 - xlower) - .14, .12 + yscale * (140 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\s+4\(bu\s0" ] at O.sw + \
+	(xscale * (8 - xlower), yscale * (363 - ylower))
+".5M" at O.sw + \
+	(xscale * (8 - xlower), .12 + yscale * (363 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\s+4\(bu\s0" ] at O.sw + \
+	(xscale * (16 - xlower), yscale * (367 - ylower))
+"1M" at O.sw + \
+	(xscale * (16 - xlower), .12 + yscale * (367 - ylower))
+line thick thk from 2nd last [].c to last [].c
+[ "\s+4\(bu\s0" ] at O.sw + \
+	(xscale * (20 - xlower), yscale * (367 - ylower))
+line thick thk from 2nd last [].c to last [].c
+
+# Xaxis title.
+"\s+1Processes\s0" rjust at O.se - (-.15, .6)
+
+# Yaxis title (Time in microseconds)
+.ps +1
+"T" "i" "m" "e" " " "i" "n" at O.w - (.85, 0)
+"m" "i" "c" "r" "o" "s" "e" "c" "o" "n" "d" "s"  at O.w - (.68, 0)
+.ps
+
+# Graph title.
+.vs 12
+"\s+2Context switches for" "Linux i686@167Mhz\s0" at O.n + (-.5, .4)
+.vs
+
+# Title.
+[ "\(ci" ] at O.sw - (.80, .50 + 0 * vs)
+"size=0KB \ overhead=10" ljust at last [].e + (.1, 0)
+[ "\(sq" ] at last [] - (0, vs)
+"size=4KB \ overhead=19" ljust at last [].e + (.1, 0)
+[ "\(*D" ] at last [] - (0, vs)
+"size=16KB overhead=66" ljust at last [].e + (.1, 0)
+[ "\(mu" ] at last [] - (0, vs)
+"size=32KB overhead=129" ljust at last [].e + (.1, 0)
+[ "\s+4\(bu\s0" ] at last [] - (0, vs)
+"size=64KB overhead=255" ljust at last [].e + (.1, 0)
+]
+.ft
+.ps
+.in
+.PE

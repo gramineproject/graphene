@@ -1,0 +1,20 @@
+#!$(PWD)../libpal.so
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:busybox_nofork
+loader.env.PATH = /:/usr/sbin:/usr/bin:/sbin:/bin
+loader.env.LD_LIBRARY_PATH = /lib:/lib64
+loader.exclude_env = USERNAME,HOME,PWD
+loader.debug_type = none
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.other.lib1.type = chroot
+fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+
+fs.mount.other.lib2.type = chroot
+fs.mount.other.lib2.path = /lib64
+fs.mount.other.lib2.uri = file:/lib
+

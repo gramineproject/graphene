@@ -1,0 +1,34 @@
+#!$(PWD)../libpal.so
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:$(PWD)build/sbin/lighttpd-angel
+loader.env.LD_LIBRARY_PATH = /lib:/lighttpd
+loader.debug_type = none
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.other.lib1.type = chroot
+fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+
+fs.mount.other.lib2.type = chroot
+fs.mount.other.lib2.path = /lighttpd
+fs.mount.other.lib2.uri = file:$(PWD)build/lib
+
+fs.mount.other.usr.type = chroot
+fs.mount.other.usr.path = /usr
+fs.mount.other.usr.uri = file:/usr
+
+fs.mount.other.tmp.type = chroot
+fs.mount.other.tmp.path = /tmp
+fs.mount.other.tmp.uri = file:/tmp
+
+fs.mount.other.pwd.type = chroot
+fs.mount.other.pwd.path = $(PWD)
+fs.mount.other.pwd.uri = file:
+
+sys.stack.size = 131072
+
+# allow to bind on port for listening
+net.rules.1 = $(HOST):$(PORT):0.0.0.0:0-65535

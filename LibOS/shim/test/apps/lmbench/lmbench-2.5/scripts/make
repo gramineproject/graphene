@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ "X$MAKE" != "X" ] && echo "$MAKE" | grep -q '`'
+then
+    MAKE=
+fi
+
+if [ X$MAKE = X ]
+then	MAKE=make
+	for p in `echo $PATH | sed 's/:/ /g'`
+	do	if [ -f $p/gmake ]
+		then	MAKE=gmake
+		fi
+	done
+fi
+echo $MAKE

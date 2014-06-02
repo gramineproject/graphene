@@ -1,0 +1,36 @@
+#!$(PWD)../libpal.so
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:$(PWD)lmbench-2.5/bin/linux/$(BIN)
+loader.env.LD_LIBRARY_PATH = /lib:/lib64
+loader.debug_type = none
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.other.tmp1.type = chroot
+fs.mount.other.tmp1.path = /tmp
+fs.mount.other.tmp1.uri = file:/tmp
+
+fs.mount.other.tmp2.type = chroot
+fs.mount.other.tmp2.path = /var/tmp
+fs.mount.other.tmp2.uri = file:/var/tmp
+
+fs.mount.other.lib1.type = chroot
+fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+
+fs.mount.other.lib2.type = chroot
+fs.mount.other.lib2.path = /lib64
+fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.other.bin.type = chroot
+fs.mount.other.bin.path = /bin
+fs.mount.other.bin.uri = file:/bin
+
+fs.mount.other.inc.type = chroot
+fs.mount.other.inc.path = /usr/include
+fs.mount.other.inc.uri = file:/usr/include
+
+net.rules.1 = 127.0.0.1:1024-65535:0.0.0.0:0-65535
+net.rules.2 = 0.0.0.0:0-65535:127.0.0.1:1024-65535

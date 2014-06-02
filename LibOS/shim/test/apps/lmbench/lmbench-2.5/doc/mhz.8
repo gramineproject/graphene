@@ -1,0 +1,56 @@
+.\" $Id$
+.TH MHZ 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+mhz \- calulate processor clock rate
+.SH SYNOPSIS
+.B mhz
+.I [-c]
+.SH DESCRIPTION
+.B mhz
+calculates the processor clock rate in megahertz.
+Since it is written in portable ANSI/C, it cannot rely on 
+the operating system to report the clock speed.
+Nor can it measure the time of a single loop to determine 
+the clock rate since this would require that it assume
+the number of clock ticks per instruction, which is not
+constant across architectures.
+.P
+.B mhz
+measures the time to execute a variety of loops, which are
+carefully constructed to minimize the compiler and processor's
+ability to overlap instruction execution so that time total
+time per loop is an integral multiple of clock ticks.
+.B mhz
+then finds the greatest common divisor of the various
+time measurements to identify the clock rate.
+.P
+Of course, things aren't really that simple.  For one thing,
+the measured times are real numbers, not integers, so we must
+convert the real numbers to integers in order for the
+.I "greatest common divisor"
+to make sense.
+In reality, 
+.B mhz
+makes a series of assumptions that the smallest measured
+time is {1, 2, ...} clock ticks.  
+.B mhz
+then computes the number of clock ticks for each measured
+value, and the error between the predicted value and the
+measured value.
+.P
+.B mhz
+also has a variety of mechanisms for reducing the impact
+of measurement error on the reported results, since the
+algorithm is extremely sensitive to measurement error.
+.SH OUTPUT
+Output format is either just the clock rate as a float (-c) or more verbose
+.sp
+.ft CB
+39.80 Mhz, 25 nanosec clock
+.ft
+.SH BUGS
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8).

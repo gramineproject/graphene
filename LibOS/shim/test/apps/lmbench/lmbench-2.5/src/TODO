@@ -1,0 +1,135 @@
+$Id$
+
+Time the make.
+
+Make a bw_tcp mode that measures bandwidth for each block and graph that
+as offset/bandwidth.
+
+Make the disk stuff autosize such that you get the same number of data
+points regardless of disk size.
+
+Make sure that all memory referencing benchmarks reference all the
+memory.  So no partial references in the BENCH() macro, it has
+to call something that touches all of it.
+
+Make all benchmarks use the timing overhead for the loop and all call
+use_result.  So all are in function calls.
+
+Integrate in the GNU os naming scheme for results & bin.  
+[done]
+
+Fix teh getsummary to include simple calls.
+
+Make a "fast" target that does only 128 byte stride mem latency and 
+2 process context switches.
+[done]
+
+The loop overhead for bandwidths is too high - make it 128 loads.
+[done]
+
+Think about the issues of int/long long/double load/stores.  Maybe do them
+all.
+
+Make all results print out bandwidths in powers of 10/sizes in powers of two.
+
+Make the compiling of the benchmark itself be part of the benchmark.
+
+memsize needs to be a little more forceful about trying for the memory.
+and should do gettimeofday() around each load.
+[done - run it three times in the script]
+
+Put sleeps in the lat_* client side in a retry loop for the port.  This is 
+in case the other guy hasn't registered yet.
+[I think this is OK, I found a bug in lat_rpc]
+
+Make a version of memory latency that chases N lists.  This is to
+measure multiple outstanding load implementations.
+
+Make the lat_mem_rd walk in different strides.  Try and make it so that
+you flip back and forth between the same cache line.  So if you assume
+4 byte pointers and 8 byte cache lines, you do
+
+	[ x _ ] [ _ x ] [ x _ ] [ _ x]
+
+such that the stride switches between 4 & 12 bytes.  Make sure this screws
+up HP's prefetch.
+
+The lat_fs and lat_pagefault numbers are not being reported yet.
+[done]
+
+Documentation on porting.
+
+Check that file size is right in the benchmarking system.
+
+Compiler version info included in results.  XXX - do this!
+
+Assembler output for the files that need it.
+
+Get rid of what strings.
+[done]
+
+memory store latency (complex)
+	Why can't I just use the read one and make it write?
+	Well, because the read one is list oriented and I need to figure
+	out reasonable math for the write case.  The read one is a load
+	per statement whereas the write one will be more work, I think.
+
+RPC numbers reserved for the benchmark.
+
+Check all the error outputs and make sure they are consistent.
+
+Each of these tests could take a quick stab at guessing the answer
+and adjust N to match.  For example, the networking latency numbers
+can vary from 400 to 15,000 usecs, depending on the network.
+	[done]
+
+On a similar note, the bandwidth measurements should autosize such that
+they run for at least 100 milliseconds.  Over an 8K to 32MB range.
+	[done]
+
+On all the normalized graphs, make sure that they mean the same thing.
+I do not think that the bandwidth measurements are "correct" in this
+sense.
+
+Move the k/m postfix routine into timing.c and make it an interface.
+
+Document the timing.c interfaces.
+
+Run the whole suite through gcc -Wall and fix all the errors.  Also make
+sure that it compiles and has the right sizes for 64 bit OS.
+
+Make bw_file_rd & bw_mmap_rd include the cost of opening & mapping the
+file to get an apples to apples comparison.  Also fix it so that they
+run long enough on the smaller sizes.
+	[done]
+
+[Mon Jul  1 13:30:01 PDT 1996, after meeting w/ Kevin]
+
+Do the load latency like so
+
+	loop:
+		load	r1
+		{
+		increase the number of nops until they start to make the
+		run time longer - the last one was the memory latency.
+		}
+		use the register
+		{
+		increase the number of nops until they start to make the
+		run time longer - the last one was the cache fill shadow.
+		}
+		repeat
+
+Do the same thing w/ a varying number of loads (& their uses), showing 
+the number of outstanding loads implemented to L1, L2, mem.
+
+Do hand made assembler to get accurate numbers.  Provide C source that 
+mimics the hand made assembler for new machines.
+
+Think about a report format for the hardware stuff that showed the
+numbers as triples L1/L2/mem (or quadruples for alphas).
+
+Clock thoughts Fri Jul 12 1996:  I can't count on anything greater than
+10 millisecond accuracy.  I don't want to depend on the counters either.
+That leaves me with the choice of either not doing anything that is less
+than 10 milliseconds, doing it in a loop, or what?

@@ -1,0 +1,33 @@
+.\" $Id$
+.TH BW_MMAP_RD 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+bw_mmap_rd \- time the reading and summing of a file
+.SH SYNOPSIS
+.B bw_mmap_rd
+.I size
+.I file
+.SH DESCRIPTION
+.B bw_mmap_rd
+creates a memory mapping to the file and then reads the mapping in an unrolled
+loop similar to that used in bw_mem_rd(8).
+The benchmark is intended to be used on a file 
+that is in memory, i.e., the benchmark is a reread benchmark.  Other
+file benchmarking can be done with 
+.BR lmdd (8).
+.PP
+The size
+specification may end with ``k'' or ``m'' to mean
+kilobytes (* 1024) or megabytes (* 1024 * 1024).
+.SH OUTPUT
+Output format is \f(CB"%0.2f %.2f\\n", megabytes, megabytes_per_second\fP, i.e.,
+.sp
+.ft CB
+8.00 25.33
+.ft
+.SH MEMORY UTILIZATION
+This benchmark should move approximately the reported amount of memory.
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8).

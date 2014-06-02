@@ -1,0 +1,497 @@
+#!/bin/sh
+
+# Configure parameters for lmbench.
+# %I% %E% %@%
+
+OS=`../scripts/os`
+L='====================================================================='
+echo $L; 
+cat<<EOF;
+
+		L M B E N C H   C ON F I G U R A T I O N
+		----------------------------------------
+
+You need to configure some parameters to lmbench.  Once you have configured
+these parameters, you may do multiple runs by saying
+
+	"make rerun"
+
+in the src subdirectory.
+
+NOTICE: please do not have any other activity on the system if you can
+help it.  Things like the second hand on your xclock or X perfmeters
+are not so good when benchmarking.  In fact, X is not so good when
+benchmarking.
+
+EOF
+
+# Figure out echo.
+if [ `echo -n "foo" | wc -l` -eq 0 ]
+then	ECHON="-n"; ECHOC=
+else	ECHON= ; ECHOC='\c'
+fi
+
+############################################################################
+# Timing granulairty, loop overhead, etc.
+############################################################################
+echo $L; echo "";
+echo "Hang on, we are calculating your timing granularity."
+../bin/$OS/msleep 250
+ENOUGH=`../bin/$OS/enough`
+export ENOUGH 
+echo "OK, it looks like you can time stuff down to $ENOUGH usec resolution."
+echo ""
+echo "Hang on, we are calculating your timing overhead."
+../bin/$OS/msleep 250
+TIMING_O=`../bin/$OS/timing_o`
+export TIMING_O
+echo "OK, it looks like your gettimeofday() costs $TIMING_O usecs."
+echo ""
+echo "Hang on, we are calculating your loop overhead."
+../bin/$OS/msleep 250
+LOOP_O=`../bin/$OS/loop_o`
+export LOOP_O
+echo "OK, it looks like your benchmark loop costs $LOOP_O usecs."
+echo ""
+
+############################################################################
+# Figure out memory size.
+############################################################################
+if [ -r /proc/meminfo ]
+then
+	TMP=`grep 'MemTotal:' /proc/meminfo | awk '{print $2}'`
+	if [ X$TMP != X ]
+	then	MB=`echo \(\( $TMP / 1024 \) \* 7 \) / 10 | bc 2>/dev/null`
+		if [ X$MB = X ]
+		then	MB=`expr $TMP / 1024 2>/dev/null`
+			MB=`expr $MB \* 7`
+			MB=`expr $MB / 10`
+		fi
+	fi
+	TMP=`grep 'Mem\(Free\)\?:' /proc/meminfo | awk '{print $2}'`
+	if [ X$MB = X -a X$TMP != X ]
+	then	MB=`echo \(\( $TMP / 1048576 \) \* 7 \) / 10 | bc 2>/dev/null`
+		if [ X$MB = X ]
+		then	MB=`expr $TMP / 1048576 2>/dev/null`
+			MB=`expr $MB \* 7`
+			MB=`expr $MB / 10`
+		fi
+	fi
+fi
+
+if [ X$MB != X -a 0$MB -gt 1024 ]
+then	MB=1024
+fi
+
+if [ X$MB = X ]
+then	$ECHON "Probing system for available memory: $ECHOC"
+	MB=`../bin/$OS/memsize 1024`
+fi
+
+echo $L
+cat<<EOF;
+
+Several benchmarks operate on a range of memory.  This memory should be
+sized such that it is at least 4 times as big as the external cache[s]
+on your system.   It should be no more than 80% of your physical memory.
+
+The bigger the range, the more accurate the results, but larger sizes
+take somewhat longer to run the benchmark.
+
+EOF
+echo $ECHON "MB [default $MB] $ECHOC"
+read TMP
+if [ X$TMP != X ]
+then	MB=$TMP
+fi
+# Certain machines tend to barf when you try and bcopy 8MB.
+# Figure out how much we can use.
+echo "Checking to see if you have $MB MB; please wait for a moment..."
+AVAILMEM=`../bin/$OS/memsize $MB`
+AVAILMEM=`../bin/$OS/memsize $AVAILMEM`
+AVAILMEM=`../bin/$OS/memsize $AVAILMEM`
+if [ $AVAILMEM -lt 8 ]
+then    echo $0 aborted: Not enough memory, only ${AVAILMEM}MB available. 
+	exit 1
+fi
+if [ $AVAILMEM -lt 16 ]
+then	echo Warning: you have only ${AVAILMEM}MB available memory. 
+	echo Some benchmark results will be less meaningful. 
+fi
+MB=`expr $AVAILMEM / 2`
+
+############################################################################
+# Memory strides for lat_mem
+############################################################################
+echo $L
+cat<<EOF;
+
+This benchmark measures, by default, memory latency for a number of
+different strides.  That can take a long time and is most useful if you
+are trying to figure out your cache line size or if your cache line size
+is greater than 128 bytes.
+
+If you are planning on sending in these results, please don't do a fast
+run.
+
+If you are measuring software only, you probably want to do a fast run,
+so answer yes below.  Answering yes means that we measure memory latency
+with a 128 byte stride.  
+
+EOF
+
+echo $ECHON "FASTMEM [default no] $ECHOC"
+read fast
+case "$fast" in
+    [yY]*) FASTMEM=YES;;
+    *)	   FASTMEM=NO;;
+esac
+
+############################################################################
+# File system latency
+############################################################################
+echo $L
+cat<<EOF;
+
+This benchmark measures, by default, file system latency.  That can
+take a long time on systems with old style file systems (i.e., UFS,
+FFS, etc.).  Linux' ext2fs and Sun's tmpfs are fast enough that this
+test is not painful.
+
+If you are planning on sending in these results, please don't do a fast
+run.
+
+If you want to skip the file system latency tests, answer "yes" below.
+
+EOF
+
+echo $ECHON "SLOWFS [default no] $ECHOC"
+read slow
+case "$slow" in
+    [yY]*) SLOWFS=YES;;
+    *)	   SLOWFS=NO;;
+esac
+
+############################################################################
+# Disk bandwidth/seek times
+############################################################################
+echo $L
+cat<<EOF;
+
+This benchmark can measure disk zone bandwidths and seek times.  These can
+be turned into whizzy graphs that pretty much tell you everything you might
+need to know about the performance of your disk.  
+
+This takes a while and requires read access to a disk drive.  
+Write is not measured, see disk.c to see how if you want to do so.
+
+If you want to skip the disk tests, hit return below.
+
+If you want to include disk tests, then specify the path to the disk
+device, such as /dev/sda.  For each disk that is readable, you'll be
+prompted for a one line description of the drive, i.e., 
+
+	Iomega IDE ZIP
+or
+	HP C3725S 2GB on 10MB/sec NCR SCSI bus
+
+EOF
+
+echo $ECHON "DISKS [default none] $ECHOC"
+read disks
+if [ X"$disks" != X ]
+then	
+	for i in $disks
+	do	if [ -r $i ]
+		then	../bin/$OS/flushdisk $i
+			if [ $? -eq 1 ]
+			then	echo "Must be root to run disk benchmarks."
+				echo "Root is needed to flush the buffer cache"
+				exit 1
+			fi
+			echo $ECHON "$i is a $ECHOC"
+			read x
+			DISK_DESC="$DISK_DESC[${i}:${x}] "
+			DISKS="$DISKS${i} "
+		else	echo "Can't read $i, skipping it."
+		fi
+	done
+fi
+
+############################################################################
+# Processor speed
+############################################################################
+echo $L
+echo ""
+echo "Calculating mhz, please wait for a moment..."
+MHZ=`../bin/$OS/mhz`
+cat<<EOF
+I think your CPU mhz is 
+
+	$MHZ
+	
+but I am frequently wrong.  If that is the wrong Mhz, type in your
+best guess as to your processor speed.  It doesn't have to be exact,
+but if you know it is around 800, say 800.  
+
+Type in just the Mhz part, like 3060 or 2800 for 3.06GHz or 2.8GHz P4s.
+
+EOF
+echo $ECHON "Processor mhz [default $MHZ] $ECHOC"
+read mhz
+if [ -n "$mhz" ]
+then	MHZ=$mhz
+fi
+
+
+############################################################################
+# /usr/tmp?
+############################################################################
+echo $L
+AGAIN=Y
+while [ $AGAIN = Y ]
+do
+	cat<<EOF;
+
+We need a place to store a $MB Mbyte file as well as create and delete a
+large number of small files.  We default to /usr/tmp.  If /usr/tmp is a
+memory resident file system (i.e., tmpfs), pick a different place.
+Please specify a directory that has enough space and is a local file
+system.
+
+EOF
+	DEFAULTFSDIR=/usr/tmp
+	for t in /usr/tmp /var/tmp /tmp; do
+		if [ -d $t -a -w $t ]
+		then	DEFAULTFSDIR=$t
+			break
+		fi
+	done
+	echo $ECHON "FSDIR [default $DEFAULTFSDIR] $ECHOC"
+	read FSDIR
+	if [ X$FSDIR = X ]
+	then	FSDIR=$DEFAULTFSDIR
+	fi
+	if [ ! -d $FSDIR ]
+	then	mkdir -p $FSDIR 2>/dev/null
+	fi
+	if [ -d $FSDIR -a -w $FSDIR ]
+	then	AGAIN=N
+		FILE=$FSDIR/XXX
+	else	echo $FSDIR is not a directory or is not writable
+	fi
+done
+
+############################################################################
+# Remote networking
+############################################################################
+echo $L
+
+RSH=rsh
+for p in `echo $PATH | sed 's/:/ /g'`
+do	if [ -f $p/remsh ]
+	then	RSH=remsh
+	fi
+done
+RCP=rcp
+
+cat<<EOF;
+
+If you are running on an idle network and there are other, identically
+configured systems, on the same wire (no gateway between you and them),
+and you have rsh access to them, then you should run the network part
+of the benchmarks to them.  Please specify any such systems as a space
+separated list such as: ether-host fddi-host hippi-host.
+
+EOF
+echo $ECHON "REMOTE [default none] $ECHOC"
+read REMOTE
+
+if [ "X$REMOTE" != X ]
+then	cat<<EOF;
+
+Thanks for doing remote testing, that is a hard thing to get.  In 
+order to run a server on the remote system, we need a remote shell 
+to be enabled (ideally without a password) from this host to $REMOTE.  
+The original remote shell is rsh, but the use of a secure remote shell 
+like ssh is increasingly common.  We need the name of BOTH the shell 
+itself and the associated copy tool (e.g. rcp vs scp) to be entered.
+
+EOF
+	echo $ECHON "RSH [default $RSH] $ECHOC"
+	read rsh
+	if [ -n "$rsh" ]
+	then	RSH=$rsh
+	fi
+	echo $ECHON "RCP [default $RCP] $ECHOC"
+	read rcp
+	if [ -n "$rsh" ]
+	then	RCP=$rcp
+	fi
+
+	cat<<EOF;
+
+Could you do me one more favor and tell me the networking you think 
+will be used to get to each of the remote hosts.  By networking I 
+mean one of the following (or whatever you use if you use something 
+else):
+
+ethernet		aka 10baseT, thinnet, thicknet, etc
+ethernet-100		aka 100baseT, 100VG
+fddi			aka cddi
+hippi
+others?
+
+Please type it just like the above if you can, it makes parsing easier.
+
+EOF
+
+	RSH=rsh
+	case `uname -s` in
+		*HP-UX*)	RSH=remsh;;
+	esac
+	for r in $REMOTE
+	do	echo $ECHON "Network type for $r: $ECHOC"
+		read n
+		X=`$RSH $r echo foo`
+		if [ X$X = Xfoo ]
+		then	echo Remote access to $r worked, thanks.
+		else	echo Remote access to $r did not work, please check and retry,
+			exit 1
+		fi
+		NETWORKS="${NETWORKS}[ $r:$n ]"
+	done
+fi
+
+############################################################################
+# status output?
+############################################################################
+echo $L
+cat<<EOF;
+
+lmbench outputs status information as it runs various benchmarks.
+By default this output is sent to /dev/tty, but you may redirect
+it to any file you wish (such as /dev/null...).
+
+EOF
+
+echo $ECHON "Status output file [default /dev/tty] $ECHOC"
+read OUTPUT
+if [ "X$OUTPUT" = X ]
+then	OUTPUT=/dev/tty;
+fi
+
+############################################################################
+# Submit results?
+############################################################################
+echo $L
+cat<<EOF;
+
+There is a database of benchmark results that is shipped with new
+releases of lmbench.  Your results can be included in the database
+if you wish.  The more results the better, especially if they include
+remote networking.  If your results are interesting, i.e., for a new
+fast box, they may be made available on the lmbench web page, which is
+
+	http://www.bitmover.com/lmbench
+
+EOF
+
+echo $ECHON "Mail results [default yes] $ECHOC"
+read MAIL
+case $MAIL in 
+    [Nn]*)	MAIL=no
+		echo OK, no results mailed.
+		;;
+    *)		MAIL=yes
+		;;
+esac
+
+INFO=`../scripts/info`
+if [ $MAIL = yes ]
+then	if [ ! -f ../bin/$OS/$INFO ]
+	then	cp ../scripts/info-template ../bin/$OS/$INFO
+		chmod +w ../bin/$OS/$INFO
+		REUSE=no
+	else	
+		REUSE=view
+		while [ $REUSE = view ]
+		do	echo ""
+			echo $ECHON \
+"Reuse previous description [default yes, other options: no|view] $ECHOC"
+			read REUSE
+			case $REUSE in 
+	    		[Nn]*)	REUSE=no
+				;;
+			[Vv]*)	REUSE=view
+				echo $L
+				more ../bin/$OS/$INFO
+				echo $L
+				;;
+	    		*)	REUSE=yes
+				;;
+			esac
+		done
+	fi
+
+	if [ $REUSE = no ]
+	then	EDITOR=vi
+		echo $L
+		cat<<EOF;
+
+Please tell us about your machine.   There is a form we would like you
+to fill out that we will make available with the results.  If you would
+prefer to use a different editor, tell us the editor at the prompt.
+
+If you want to skip filling out this form (please don't) then answer 
+"none" at the prompt.
+
+EOF
+		echo $ECHON "Editor [default $EDITOR] $ECHOC"
+		read TMP
+		if [ X$TMP != X ]
+		then	EDITOR=$TMP
+		fi
+		if [ X$EDITOR != "none" ]
+		then	$EDITOR ../bin/$OS/`../scripts/info`
+		fi
+	fi
+fi
+
+echo $L
+echo ""
+echo "Configuration done, thanks."
+cat <<EOF
+
+There is a mailing list for discussing lmbench hosted at BitMover. 
+Send mail to majordomo@bitmover.com to join the list.
+
+EOF
+
+VERSION=`../scripts/version`
+
+C=../bin/$OS/`../scripts/config`
+echo DISKS=\"$DISKS\"\; export DISKS > $C
+echo DISK_DESC=\"$DISK_DESC\"\; export DISK_DESC >> $C
+echo OUTPUT=$OUTPUT\; export OUTPUT >> $C
+echo ENOUGH=$ENOUGH\; export ENOUGH >> $C
+echo FASTMEM=\"$FASTMEM\"\; export FASTMEM >> $C
+echo FILE=$FILE\; export FILE >> $C
+echo FSDIR=$FSDIR\; export FSDIR >> $C
+echo INFO=$INFO\; export INFO >> $C
+echo LOOP_O=$LOOP_O\; export LOOP_O >> $C
+echo MAIL=$MAIL\; export MAIL >> $C
+echo MB=$MB\; export MB >> $C
+echo MHZ=\"$MHZ\"\; export MHZ >> $C
+echo MOTHERBOARD=\"$MOTHERBOARD\"\; export MOTHERBOARD >> $C
+echo NETWORKS=\"$NETWORKS\"\; export NETWORKS >> $C
+echo OS=\"$OS\"\; export OS >> $C
+echo PROCESSORS=\"$PROCESSORS\"\; export PROCESSORS >> $C
+echo REMOTE=\"$REMOTE\"\; export REMOTE >> $C
+echo SLOWFS=\"$SLOWFS\"\; export SLOWFS >> $C
+echo TIMING_O=$TIMING_O\; export TIMING_O >> $C
+echo RSH=$RSH\; export RSH >> $C
+echo RCP=$RCP\; export RCP >> $C
+echo VERSION=$VERSION\; export VERSION >> $C
+
+exit 0

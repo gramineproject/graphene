@@ -1,0 +1,7 @@
+GLIBC {
+    global:
+        _r_debug; _dl_debug_state;
+};
+PAL {
+    local: *;
+};

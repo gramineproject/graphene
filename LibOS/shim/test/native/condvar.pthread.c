@@ -1,0 +1,79 @@
+/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
+/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condvar = PTHREAD_COND_INITIALIZER;
+
+void * functionCount1();
+void * functionCount2();
+int count = 0;
+
+#define COUNT_DONE  10
+#define COUNT_HALT1  3
+#define COUNT_HALT2  6
+
+int main (int argc, const char ** argv)
+{
+   pthread_t thread1, thread2;
+
+   pthread_create( &thread1, NULL, &functionCount1, NULL);
+   pthread_create( &thread2, NULL, &functionCount2, NULL);
+
+   pthread_join( thread1, NULL);
+   pthread_join( thread2, NULL);
+
+   printf("Final count: %d\n",count);
+
+   exit(0);
+}
+
+void * functionCount1 (void)
+{
+   for(;;)
+   {
+      // Lock mutex and then wait for signal to relase mutex
+      pthread_mutex_lock(&count_mutex);
+
+      // Wait while functionCount2() operates on count
+      // mutex unlocked if condition varialbe in functionCount2() signaled.
+      pthread_cond_wait(&condvar, &count_mutex);
+      count++;
+      printf("Counter value functionCount1: %d\n", count);
+
+      pthread_mutex_unlock(&count_mutex);
+
+      if (count >= COUNT_DONE)
+          return NULL;
+   }
+}
+
+void * functionCount2 (void)
+{
+    for(;;)
+    {
+       pthread_mutex_lock(&count_mutex);
+
+       if (count < COUNT_HALT1 || count > COUNT_HALT2)
+       {
+          // Condition of if statement has been met.
+          // Signal to free waiting thread by freeing the mutex.
+          // Note: functionCount1() is now permitted to modify "count".
+          pthread_cond_signal(&condvar);
+       }
+       else
+       {
+          count++;
+          printf("Counter value functionCount2: %d\n", count);
+       }
+
+       pthread_mutex_unlock(&count_mutex);
+
+       if (count >= COUNT_DONE)
+           return NULL;
+    }
+
+}

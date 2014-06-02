@@ -1,0 +1,28 @@
+.\" $Id$
+.TH ENOUGH 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+enough \- report timing interval duration
+.SH SYNOPSIS
+.B enough
+.SH DESCRIPTION
+.B enough
+reports the timing interval duration
+.BR ENOUGH .
+The required timing interval is determined experimentally to
+ensure that the timing results are accurate to within 1% in
+the spite of the system clock resolution and measurement 
+overheads.  
+It is necessary to measure
+.B ENOUGH
+experimentally because system clock resolution varies widely
+across systems, from as large as 10 milliseconds to as small
+as 1 microsecond, a range of four orders of magnitude.
+.SH OUTPUT
+The output is reported in microseconds as an integer:
+.IP ""
+\fC5000\fR
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8), lmbench(3), timing(3).

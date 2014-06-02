@@ -1,0 +1,314 @@
+#!/bin/bash
+
+# lmbench - run the lmbench benchmark suite.
+#
+# Hacked by Larry McVoy (lm@sun.com, lm@sgi.com, lm@bitmover.com).
+# Copyright (c) 1994 Larry McVoy.  GPLed software.
+# $Id$
+
+# Make sure we can find: ./cmd, df, and netstat
+PATH=.:../../scripts:$PATH:/etc:/usr/etc:/sbin:/usr/sbin
+export PATH
+
+echo PATH = $PATH
+echo lat_syscall = `readlink -f lat_syscall`
+
+# lat_unix, lat_udp, lat_tcp only do one run!!!
+# we loop to repeat the tests
+N_RUNS=6
+
+if [ -f $1 ]
+then	. $1
+	echo Using config in $1 >> ${OUTPUT}
+else	echo Using defaults >> ${OUTPUT}
+	ENOUGH=1000000
+	TIMING_O=0
+	LOOP_O=0
+fi
+export ENOUGH TIMING_O LOOP_O
+
+if [ X$FILE = X ]
+then	FILE=/tmp/XXX
+	touch $FILE || echo Can not create $FILE >> ${OUTPUT}
+fi
+if [ X$MB = X ]
+then	MB=8
+fi
+AVAILKB=`expr $MB \* 1024`
+
+# Figure out how big we can go for stuff that wants to use
+# all and half of memory.
+HALF="512 1k 2k 4k 8k 16k 32k 64k 128k 256k 512k 1m"
+ALL="$HALF 2m"
+i=4
+while [ $i -le $MB ]
+do
+	ALL="$ALL ${i}m"
+	h=`expr $i / 2`
+	HALF="$HALF ${h}m"
+	i=`expr $i \* 2`
+done
+
+
+if [ X$FSDIR = X ]
+then	FSDIR=/tmp/lat_fs
+fi
+MP=N
+
+# Figure out as much stuff as we can about this system.
+# Sure would be nice if everyone had SGI's "hinv".
+echo \[lmbench2.0 results for `uname -a`] 1>&2
+echo \[ALL: ${ALL}] 1>&2
+echo \[DISKS: ${DISKS}] 1>&2
+echo \[DISK_DESC: ${DISK_DESC}] 1>&2
+echo \[ENOUGH: ${ENOUGH}] 1>&2
+echo \[FAST: ${FAST}] 1>&2
+echo \[FASTMEM: ${FASTMEM}] 1>&2
+echo \[FILE: ${FILE}] 1>&2
+echo \[FSDIR: ${FSDIR}] 1>&2
+echo \[HALF: ${HALF}] 1>&2
+echo \[INFO: ${INFO}] 1>&2
+echo \[LOOP_O: ${LOOP_O}] 1>&2
+echo \[MB: ${MB}] 1>&2
+echo \[MHZ: ${MHZ}] 1>&2
+echo \[MOTHERBOARD: ${MOTHERBOARD}] 1>&2
+echo \[NETWORKS: ${NETWORKS}] 1>&2
+echo \[PROCESSORS: ${PROCESSORS}] 1>&2
+echo \[REMOTE: ${REMOTE}] 1>&2
+echo \[SLOWFS: ${SLOWFS}] 1>&2
+echo \[OS: ${OS}] 1>&2
+echo \[TIMING_O: ${TIMING_O}] 1>&2
+echo \[LMBENCH VERSION: ${VERSION}] 1>&2
+echo \[USER: $USER] 1>&2
+echo \[HOSTNAME: `hostname`] 1>&2
+echo \[NODENAME: `uname -n`] 1>&2
+echo \[SYSNAME: `uname -s`] 1>&2
+echo \[PROCESSOR: `uname -p`] 1>&2
+echo \[MACHINE: `uname -m`] 1>&2
+echo \[RELEASE: `uname -r`] 1>&2
+echo \[VERSION: `uname -v`] 1>&2
+#if 0
+echo \[`date`] 1>&2
+echo \[`uptime`] 1>&2
+netstat -i | while read i
+do	echo \[net: "$i"] 1>&2
+	set `echo $i`
+	case $1 in
+	    *ame)	;;
+	    *)		ifconfig $1 | while read i
+			do echo \[if: "$i"] 1>&2
+			done
+			;;
+	esac
+done
+
+mount | while read i
+do	echo \[mount: "$i"] 1>&2
+done
+
+STAT=$FSDIR/lmbench
+mkdir $FSDIR 2>/dev/null
+touch $STAT 2>/dev/null
+if [ ! -f $STAT ]
+then	echo "Can't make a file - $STAT - in $FSDIR" >> ${OUTPUT}
+	touch $STAT
+	exit 1
+fi
+
+function work {
+	echo "$@"
+	"$@" 3>&1 >&2 2>&3 3>&-
+}
+
+date >> ${OUTPUT}
+echo Latency measurements >> ${OUTPUT}
+msleep 250
+work lat_syscall null
+work lat_syscall read
+work lat_syscall write
+work lat_syscall stat $STAT
+work lat_syscall fstat $STAT
+work lat_syscall open $STAT
+
+#select file (500), select tcp (500)
+work lat_select file 500
+work lat_select tcp 500
+
+#sig install, sig_overhead, prot. Fault
+work lat_sig install
+work lat_sig catch
+work lat_sig prot lat_sig
+
+#AF_UNIX
+echo "***"; echo "AF_UNIX TESTS"
+for i in $(eval echo "{1..$N_RUNS}")
+do
+    work lat_unix
+done
+echo "***"; echo "";
+
+#forks
+cp hello /tmp/hello
+for i in fork exec shell;
+    do     work lat_proc $i; 
+done
+rm -f /tmp/hello 
+
+#0,4,10KB create/delete
+date >> ${OUTPUT}
+	echo Calculating file system latency >> ${OUTPUT}
+	echo '"File system latency' 1>&2
+	work lat_fs $FSDIR
+	echo "" 1>&2
+
+date >> ${OUTPUT}
+
+echo "sleeep for 30" 
+sleep 30
+echo Local networking >> ${OUTPUT}
+#if [ ! -d /tmp/webpage-lm ]
+#then	TAR=${PWD}/../../src/webpage-lm.tar
+#	(cd /tmp && tar xf ${TAR})
+#	sync
+#	sleep 5
+#fi
+#SERVERS="lat_udp lat_tcp lat_rpc lat_connect bw_tcp"
+
+#SERVERS="lat_udp lat_tcp"
+#for server in $SERVERS; do work $server -s; done
+
+#work env DOCROOT=/tmp/webpage-lm lmhttp 8008 &
+#sleep 60
+
+echo ""; echo"UDP TESTS"
+work lat_udp -s
+for i in $(eval echo "{1..$N_RUNS}")
+do
+        work lat_udp 127.0.0.1
+	sleep 5
+done
+work lat_udp -127.0.0.1
+sleep 5
+echo "***"; echo "";
+
+
+echo "***"; echo"TCP TESTS"
+work lat_tcp -s
+for i in $(eval echo "{1..$N_RUNS}")
+do
+	work lat_tcp 127.0.0.1
+	sleep 5
+done
+work lat_tcp -127.0.0.1
+sleep 5
+echo "***"; echo "";
+
+#done for graphene tests
+exit 0
+
+for remote in $REMOTE
+do	echo Networking to $remote >> ${OUTPUT}
+	$RCP $SERVERS lmhttp /tmp/webpage-lm.tar ${remote}:/tmp/rcp/
+	for server in $SERVERS
+	do	$RSH $remote -n /tmp/$server -s &
+	done
+	$RSH $remote -n 'cd /tmp; tar xf webpage-lm.tar; cd webpage-lm; ../lmhttp 8008' &
+	sleep 10
+	echo "[ Networking remote to $remote: `$RSH $remote uname -a` ]" 1>&2
+	work lat_udp $remote; lat_udp -$remote;
+	work lat_tcp $remote; lat_tcp -$remote;
+	#work lat_rpc $remote udp; lat_rpc $remote tcp; lat_rpc -$remote; 
+	work lat_connect $remote; lat_connect -$remote;
+	work bw_tcp $remote; bw_tcp -$remote
+	# I want a hot cache number
+	#work lat_http $remote 8008 < /tmp/webpage-lm/URLS > /dev/null 2>&1
+	#work lat_http $remote 8008 < /tmp/webpage-lm/URLS
+	#work lat_http -$remote 8008
+	RM=
+	for server in $SERVERS
+	do	RM="/tmp/$server $RM"
+	done
+	$RSH $remote rm $RM
+done
+
+exit #exit because we do not need these bandwith tests for the paper 
+date >> ${OUTPUT}
+echo Bandwidth measurements >> ${OUTPUT}
+work bw_unix
+work bw_pipe
+echo "" 1>&2
+echo \"read bandwidth 1>&2
+for i in $ALL; do work bw_file_rd $i io_only $FILE; done
+echo "" 1>&2
+
+echo "" 1>&2
+echo \"read open2close bandwidth 1>&2
+for i in $ALL; do work bw_file_rd $i open2close $FILE; done
+echo "" 1>&2
+
+echo \"Mmap read bandwidth 1>&2
+for i in $ALL; do work bw_mmap_rd $i mmap_only $FILE; done
+echo "" 1>&2
+
+echo \"Mmap read open2close bandwidth 1>&2
+for i in $ALL; do work bw_mmap_rd $i open2close $FILE; done
+echo "" 1>&2
+rm -f $FILE
+
+echo \"libc bcopy unaligned 1>&2
+for i in $HALF; do work bw_mem $i bcopy; done; echo "" 1>&2
+
+echo \"libc bcopy aligned 1>&2
+for i in $HALF; do work bw_mem $i bcopy conflict; done; echo "" 1>&2
+
+echo \"unrolled bcopy unaligned 1>&2
+for i in $HALF; do work bw_mem $i fcp; done; echo "" 1>&2
+
+echo \"unrolled partial bcopy unaligned 1>&2
+for i in $HALF; do work bw_mem $i cp; done; echo "" 1>&2
+
+echo "Memory read bandwidth" 1>&2
+for i in $ALL; do work bw_mem $i frd; done; echo "" 1>&2
+
+echo "Memory partial read bandwidth" 1>&2
+for i in $ALL; do work bw_mem $i rd; done; echo "" 1>&2
+
+echo "Memory write bandwidth" 1>&2
+for i in $ALL; do work bw_mem $i fwr; done; echo "" 1>&2
+
+echo "Memory partial write bandwidth" 1>&2
+for i in $ALL; do work bw_mem $i wr; done; echo "" 1>&2
+
+echo "Memory partial read/write bandwidth" 1>&2
+for i in $ALL; do work bw_mem $i rdwr; done; echo "" 1>&2
+
+echo "Memory bzero bandwidth" 1>&2
+for i in $ALL; do work bw_mem $i bzero; done; echo "" 1>&2
+
+date >> ${OUTPUT}
+msleep 250
+echo Calculating context switch overhead >> ${OUTPUT}
+if [ $MB -ge 8 ]
+then	CTX="0 4 8 16 32 64"
+	N="2 4 8 16 24 32 64 96"
+else
+	CTX="0 4 8 16 32"
+	N="2 4 8 16 24 32 64 96"
+fi
+	
+for size in $CTX; do work lat_ctx -s $size $N; done
+
+date >> ${OUTPUT}
+echo Calculating memory load latency >> ${OUTPUT}
+msleep 250
+echo "" 1>&2
+echo "Memory load latency" 1>&2
+if [ X$FASTMEM = XYES ]
+then	work lat_mem_rd $MB 128
+else	work lat_mem_rd $MB 16 32 64 128 256 512 1024 
+fi
+date >> ${OUTPUT}
+echo '' 1>&2
+echo \[`date`] 1>&2
+
+exit 0

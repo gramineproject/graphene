@@ -1,0 +1,135 @@
+.\" $Id$
+.TH BARGRAPH 1
+.SH NAME
+bargraph \- compile bar graphs into pic input
+.SH SYNOPSIS
+.B bargraph
+[
+.I filename
+\&.\|.\|.
+]
+.SH DESCRIPTION
+.LP
+.B bargraph
+is a perl script which
+takes a set of Y data with labels and generates a (human readable) pic script
+that will produce the bar graph.  
+The output (pic input) is commented and is designed such that you should be 
+able to go in and adjust it to fit your document should you need to do so.
+.LP
+The input data format is:
+.sp
+.nf
+.in +4
+3 foo bar 
+9 bigger foo 
+"Silly example
+.in
+.fi
+.sp
+with output like
+.sp
+.nf
+.in +2
+.ft CW
+                    bigger
+                     foo
+                 +----------+
+                 |          |
+      foo        |          |
+      bar        |          |
+  +----------+   |          |
+  |          |   |          |
+  +----------+   +----------+
+-------------------------------
+       3              9
+
+        Silly example
+.ft
+.in
+.fi
+.SH OPTIONS
+The following command line options are available
+.TP 10
+-big
+Make the x/y defaults be 7.5 inches, crank up the title size, and don't
+put a spacer at the top.  Used for printing a graph on a full page.
+.TP
+-nobox
+Do not put an outline box around the bargraph.
+.SH "CONTROL OPTIONS"
+The following may be included in the graph to control the format
+of the graph.  They must be at the beginning of a line and by themselves.
+.TP 18
+%ps <ps>
+point size.  Default is 10.
+.TP
+%ft <ft>
+font.  Default is CB.
+.TP
+%labelgap <val>
+the space in inches between fill labels.  The bars may be filled with different
+fill values (no patterns yet, pic doesn't do that).  If you want to label 
+these, the labels are labelgap inches apart.  Default is 1.5 inches.
+.TP
+%xsize <val>
+the width of the graph in inches.  Default is 7 inches.
+.TP
+%ysize <val>
+the height of the graph in inches.  Default is 6 inches.
+.TP
+%Title n|s <title>
+the title of the bargraph.  The title option is followed by a
+a "n"orth (top) or "s"outh (bottom) indicator which controls placement 
+of the title.  No default.
+.TP
+%titleplus <val>
+increases the size of the title in pointsize.  Default is 0.
+.TP
+%boxpercent <val>
+a value between 0 and 100 that controls how closely the
+bars are to each other.  A value of 100 means the bars touch.
+Default is 75.
+.TP
+%worse <D> <W>
+An idiot arrow is drawn to indicate which way is worse.  
+<D> is the direction and must be "up" or "down". 
+<W> is the location specifier and must be one of
+"n"orth, "w"est, "e"ast, "s"outh, "nw" northwest, ne, sw, se, etc.
+.TP
+%better <D> <W>
+An idiot arrow is drawn to indicate which way is better.
+<D> is the direction and must be "up" or "down". 
+<W> is the location specifier and must be one of
+"n"orth, "w"est, "e"ast, "s"outh, "nw" northwest, ne, sw, se, etc.
+.TP
+%fakemax
+pretend that one data point was this big when autoscaling.  THis
+is used to make a series of bargraphs be all drawn to the same
+scale.
+.SH "FILL CONTROL"
+Each datum may be follwed by a fill specifier as follows
+.sp .5
+.ti +.5i
+3 foo bar %fill.5
+.sp  .5
+Labels may be specified to group a set of data that all have
+the same data.  If a line appears like
+.sp .5
+.ti +.5i
+%label.5 The foo bar data
+.sp .5
+then you get a label below the graph.
+.SH "SEE ALSO"
+.BR gtroff (1),
+.BR graph (1),
+.BR gpic (1)
+.SH TODO
+Make a -horizontal option that prints the graphs the other way.
+.LP
+Hack pick to get access to postscripts stipple patterns.
+.SH BUGS
+This isn't done.  It isn't integrated with the groff preprocessor yet.
+It doesn't know about .GS/.GE thingys.  I use it to manually generate
+a pic file and then include that.  I have to talk to James to
+see if he wants it as part of the gpic stuff.

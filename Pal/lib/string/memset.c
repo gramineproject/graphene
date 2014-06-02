@@ -1,0 +1,148 @@
+/* Copyright (C) 1991,1993,1995,1997,1998,2003,2004
+   Free Software Foundation, Inc.
+   This file is part of the GNU C Library.
+   Contributed by Torbjorn Granlund (tege@sics.se).
+
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+   02111-1307 USA.  */
+
+#include "api.h"
+
+#define op_t unsigned long int
+#define OPSIZ (sizeof(op_t))
+
+typedef unsigned char byte;
+
+void *
+memset (void *dstpp, int c, size_t len)
+{
+  long int dstp = (long int) dstpp;
+
+  if (len >= 8)
+    {
+      size_t xlen;
+      op_t cccc;
+
+      cccc = (unsigned char) c;
+      cccc |= cccc << 8;
+      cccc |= cccc << 16;
+      if (OPSIZ > 4)
+	/* Do the shift in two steps to avoid warning if long has 32 bits.  */
+	cccc |= (cccc << 16) << 16;
+
+      /* There are at least some bytes to set.
+	 No need to test for LEN == 0 in this alignment loop.  */
+      while (dstp % OPSIZ != 0)
+	{
+	  ((byte *) dstp)[0] = c;
+	  dstp += 1;
+	  len -= 1;
+	}
+
+      /* Write 8 `op_t' per iteration until less than 8 `op_t' remain.  */
+      xlen = len / (OPSIZ * 8);
+      while (xlen > 0)
+	{
+	  ((op_t *) dstp)[0] = cccc;
+	  ((op_t *) dstp)[1] = cccc;
+	  ((op_t *) dstp)[2] = cccc;
+	  ((op_t *) dstp)[3] = cccc;
+	  ((op_t *) dstp)[4] = cccc;
+	  ((op_t *) dstp)[5] = cccc;
+	  ((op_t *) dstp)[6] = cccc;
+	  ((op_t *) dstp)[7] = cccc;
+	  dstp += 8 * OPSIZ;
+	  xlen -= 1;
+	}
+      len %= OPSIZ * 8;
+
+      /* Write 1 `op_t' per iteration until less than OPSIZ bytes remain.  */
+      xlen = len / OPSIZ;
+      while (xlen > 0)
+	{
+	  ((op_t *) dstp)[0] = cccc;
+	  dstp += OPSIZ;
+	  xlen -= 1;
+	}
+      len %= OPSIZ;
+    }
+
+  /* Write the last few bytes.  */
+  while (len > 0)
+    {
+      ((byte *) dstp)[0] = c;
+      dstp += 1;
+      len -= 1;
+    }
+
+  return dstpp;
+}
+
+#if 0
+
+void * memset (void *dstpp, int c, size_t len)
+{
+    int d0;
+    unsigned long int dstp = (unsigned long int) dstpp;
+
+    /* This explicit register allocation
+       improves code very much indeed.  */
+    register op_t x asm("ax");
+
+    x = (unsigned char) c;
+
+    /* Clear the direction flag, so filling will move forward.  */
+    asm volatile("cld");
+
+    /* This threshold value is optimal.  */
+    if (len >= 12)
+    {
+        /* Fill X with four copies of the char we want to fill with.  */
+        x |= (x << 8);
+        x |= (x << 16);
+
+        /* Adjust LEN for the bytes handled in the first loop.  */
+        len -= (-dstp) % OPSIZ;
+
+        /* There are at least some bytes to set.
+           No need to test for LEN == 0 in this alignment loop.  */
+
+        /* Fill bytes until DSTP is aligned on a longword boundary.  */
+        asm volatile("rep\n"
+                     "stosb" /* %0, %2, %3 */ :
+                     "=D" (dstp), "=c" (d0) :
+                     "0" (dstp), "1" ((-dstp) % OPSIZ), "a" (x) :
+                     "memory");
+
+        /* Fill longwords.  */
+        asm volatile("rep\n"
+                     "stosl" /* %0, %2, %3 */ :
+                     "=D" (dstp), "=c" (d0) :
+                     "0" (dstp), "1" (len / OPSIZ), "a" (x) :
+                     "memory");
+        len %= OPSIZ;
+    }
+
+    /* Write the last few bytes.  */
+    asm volatile("rep\n"
+                 "stosb" /* %0, %2, %3 */ :
+                 "=D" (dstp), "=c" (d0) :
+                 "0" (dstp), "1" (len), "a" (x) :
+                 "memory");
+
+    return dstpp;
+}
+
+#endif

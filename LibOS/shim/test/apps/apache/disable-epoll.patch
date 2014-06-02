@@ -1,0 +1,21 @@
+diff -ruNp apr-1.4.6/configure apr-1.4.6.new/configure
+--- apr-1.4.6/configure	2012-02-07 18:17:57.000000000 -0500
++++ apr-1.4.6.new/configure	2013-10-09 19:41:16.603262382 -0400
+@@ -20307,6 +20307,8 @@ _ACEOF
+ fi
+ done
+ 
++# disable epoll support
++if [ yes = no ]; then
+ 
+ # Check for the Linux epoll interface; epoll* may be available in libc
+ # but return ENOSYS on a pre-2.6 kernel, so do a run-time check.
+@@ -20387,6 +20389,8 @@ $as_echo "#define HAVE_EPOLL_CREATE1 1"
+ 
+ fi
+ 
++fi
++
+ # test for dup3
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dup3 support" >&5
+ $as_echo_n "checking for dup3 support... " >&6; }

@@ -1,0 +1,149 @@
+.\" $Id$
+.de DS
+.	sp .5
+.	nf
+.	in +4
+.	ft CW
+.	vs -1
+..
+.de DE
+.	sp .5
+.	fi
+.	in
+.	ft
+.	vs
+..
+.TH RCCS 1 "Nov, 1995" "lm@sgi.com" "Programmers tools"
+.SH NAME
+rccs \- apply RCS commands to sets of files
+.SH SYNOPSIS
+.B rccs
+command
+[ options ]
+[
+.I filename
+and/or
+.I directory
+\&.\|.\|.
+]
+.SH DESCRIPTION
+.LP
+.B rccs
+is a perl script that tries to emulate the Berkeley \fBSCCS\fP program
+for \fBRCS\fP.  If your fingers know how to type commands to \fBSCCS\fP,
+just do the same thing to \fBrccs\fP.
+.LP
+A subset of the \fBSCCS\fP commands are implemented, the ones that I use.
+Some new commands have been added.  It is easy to add more commands, see
+the \fIExample\fP routine at the bottom of \fBrccs\fP to see how.
+.LP
+This interface does not require a list of files/directories for most
+commands; the implied list is *,v and/or RCS/*,v.  Destructive commands,
+such as clean -f, unedit, unget, do \fBnot\fP have an implied list.  In
+other words, \f(CBrccs diffs\fP is the same as \f(CBrccs diffs RCS\fP
+but \f(CBrccs unedit\fP is not the same as \f(CBrccs unedit RCS\fP.
+.SH COMMANDS
+.IP options 8
+Note that RCS options are typically passed through to RCS.  The options
+that made sense to SCCS commands are translated to RCS options.
+.IP "ci" 10
+Alias for delta.  Checks in files.
+.IP "clean [-e] [-f] [-d|y'message'] [files]"
+Without any arguments, this command removes all files that are read only
+and have an associated RCS file.
+With the -e argument, clean removes files that have been checked out
+writable but have not been modified.
+The -d|y|m option may be combined with -e to check in the set of files that
+have been modified.
+With the -f option, clean removes all working files, \fBincluding\fP files
+that have been modified since the check out.  Be careful.
+.IP co 
+Alias for get.  Checks out files.
+.IP "create [-y|d'message'] [-g] files"
+Initial check in of files to the RCS system.  The files are then checked out
+readonly unless the -g option is present.
+The -y or -d options may be used to set the descriptive text message.
+Differs from SCCS in that the
+original files are not preserved.
+.IP deledit 
+Alias for delta followed by a get -e.
+.IP delget 
+Alias for delta followed by a get.
+.IP "delta [-y|d'message'] [-q] [files]"
+Check in a delta of the file.  -q is changed to RCS' -s and means to be 
+quiet about hwat is happening.  -y'message' or -d'message' or -m'message'
+all get sent through to RCS as the check in message.  No other arguments
+are translated.
+.IP "diffs [-C|c] [-r<rev>] [-sdiff] [files]"
+Shows changes between the working files and the RCS file.  Note that the 
+files do not need to be checked out, only writable.  -C or -c means do a 
+context diff.  -sdiff means do a side by side diff.  The sdiff option will
+figure out your screen width if it knows how - see the source to make this 
+work on your system.
+.IP edit 
+Alias for get -e.
+.IP enter 
+Alias for create -g.
+.IP fix 
+Useful if you just checked in the file and then realized you forgot 
+something.  The fix command will remove the top delta from the history
+and leave you with an editable working file with the top delta as the
+contents.
+.IP "get [-e] [-p] [-k] [-s] [files]"
+Get, or check out, the file.  Without any options, get just gets the 
+latest revision of the RCS file in the working file.
+With -e, check out the file writable.  With -p, send the file to stdout.
+With -k, supress expansion of key words.  With -s, be quiet about what
+is happening.
+.IP help 
+Get a brief help screen of information.
+.IP "history [files]"
+Print the RCS history (my format) of the specified files.
+.IP "info [files]"
+Print the list of files being edited.
+.IP print 
+Alias for a loop that prints the history of each file followed by the
+contents of the file.
+.IP prs 
+Alias for history.
+.IP prt 
+Alias for history.
+.IP unedit 
+Alias for clean -f.
+.IP unget 
+Alias for clean -f.
+.SH GLOBAL OPTIONS
+.IP -debug 10
+Turn on debugging.  Used when debugging \fBrccs\fP itself.
+.IP -verbose
+Be more verbose about what is happening.
+.SH EXAMPLES
+To start off, add a bunch of files to RCS:
+.DS
+rccs create -y'my program name' myprog.c myprog.h
+.DE
+Now let's edit them all:
+.DS
+rccs get -e
+.DE
+If we didn't change anything, the following gives us a clean directory:
+.DS
+rccs clean -e 
+.DE
+If we changed myprog.h, the following gives us a clean directory after
+checking in myprog.h:
+.DS
+rccs clean -e -d'some message'
+.DE
+If we want to see what we changed:
+.DS
+rccs diffs
+.DE
+.SH "SEE ALSO"
+.BR "RCS commands" ,
+.BR "SCCS commands" ,
+.BR sdiff (1),
+.BR perl (1).
+.SH TODO
+It would be nice to implement a \fB-i\fP option that prompted before each 
+action, especially the destructive ones.

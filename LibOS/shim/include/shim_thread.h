@@ -1,0 +1,314 @@
+/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
+/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
+
+#ifndef _SHIM_THREAD_H_
+#define _SHIM_THREAD_H_
+
+#include <shim_defs.h>
+#include <shim_internal.h>
+#include <shim_tls.h>
+#include <shim_utils.h>
+#include <shim_signal.h>
+#include <shim_handle.h>
+#include <shim_vma.h>
+
+#include <pal.h>
+#include <linux_list.h>
+
+struct shim_handle;
+struct shim_fd_map;
+struct shim_dentry;
+struct shim_signal_handle;
+struct shim_signal_log;
+
+struct shim_thread {
+    /* thread identifiers */
+    IDTYPE vmid;
+    IDTYPE pgid, ppid, tgid, tid;
+    bool in_vm;
+    LEASETYPE tid_lease;
+
+    /* credentials */
+    IDTYPE uid, gid, euid, egid;
+
+    /* thread pal handle */
+    PAL_HANDLE pal_handle;
+
+    /* parent handle */
+    struct shim_thread * parent;
+    /* thread leader */
+    struct shim_thread * leader;
+    /* dummy thread */
+    struct shim_thread * dummy;
+    /* child handles */
+    struct list_head children;
+    /* nodes in child handles */
+    struct list_head siblings;
+    /* nodes in global handles */
+    struct list_head list;
+
+    struct shim_handle_map * handle_map;
+
+    /* child tid */
+    int * set_child_tid, * clear_child_tid;
+
+    /* signal handling */
+    sigset_t signal_mask;
+    struct shim_signal_handle signal_handles[NUM_SIGS];
+    struct shim_atomic has_signal;
+    struct shim_signal_log signal_logs[NUM_SIGS];
+
+    /* futex robust list */
+    void * robust_list;
+
+    PAL_HANDLE scheduler_event;
+
+    PAL_HANDLE exit_event;
+    int exit_code;
+    bool is_alive;
+
+    PAL_HANDLE child_exit_event;
+    struct list_head exited_children;
+
+    /* file system */
+    struct shim_dentry * root, * cwd;
+    mode_t umask;
+
+    /* executable */
+    struct shim_handle * exec;
+
+    void * stack, * stack_top, * stack_red;
+    void * tcb;
+    void * frameptr;
+
+    REFTYPE ref_count;
+    LOCKTYPE lock;
+};
+
+struct shim_simple_thread {
+    /* VMID and PIDs */
+    IDTYPE vmid;
+    IDTYPE pgid, tgid, tid;
+
+    /* exit event and status */
+    PAL_HANDLE exit_event;
+    int exit_code;
+    bool is_alive;
+
+    /* nodes in global handles */
+    struct list_head list;
+
+    REFTYPE ref_count;
+    LOCKTYPE lock;
+};
+
+int init_thread (void);
+
+#define SHIM_THREAD_SELF()                                     \
+    ({ struct shim_thread * __self;                            \
+        asm ("movq %%fs:%c1,%q0" : "=r" (__self)               \
+           : "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));       \
+      __self; })
+
+#define SAVE_SHIM_THREAD_SELF(__self)                         \
+  ({ asm ("movq %q0,%%fs:%c1" : : "r" (__self),               \
+          "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));         \
+     __self; })
+
+void get_thread (struct shim_thread * thread);
+void put_thread (struct shim_thread * thread);
+void get_simple_thread (struct shim_simple_thread * thread);
+void put_simple_thread (struct shim_simple_thread * thread);
+
+void allocate_tls (void * tcb_location, struct shim_thread * thread);
+void populate_tls (void * tcb_location);
+
+void debug_setprefix (shim_tcb_t * tcb);
+
+static inline
+__attribute__((always_inline))
+void debug_setbuf (shim_tcb_t * tcb, bool on_stack)
+{
+    if (!debug_handle)
+        return;
+
+    tcb->debug_buf = on_stack ? __alloca(sizeof(struct debug_buf)) :
+                     malloc(sizeof(struct debug_buf));
+
+    debug_setprefix(tcb);
+}
+
+static inline
+__attribute__((always_inline))
+struct shim_thread * get_cur_thread (void)
+{
+    return SHIM_THREAD_SELF();
+}
+
+static inline
+__attribute__((always_inline))
+void set_cur_thread (struct shim_thread * thread)
+{
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+    IDTYPE tid = 0;
+
+#ifndef container_of
+# define container_of(ptr, type, member) ({                 \
+    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+    (type *)( (char *)__mptr - offsetof(type,member) );})
+#endif
+
+    if (tcb->tp)
+        put_thread(tcb->tp);
+
+    tcb->tp = thread;
+
+    if (thread) {
+        thread->tcb = container_of(tcb, __libc_tcb_t, shim_tcb);
+        tid = thread->tid;
+    }
+
+    if (tcb->tid != tid) {
+        tcb->tid = tid;
+        debug_setprefix(tcb);
+    }
+}
+
+static inline void thread_setwait (struct shim_thread ** queue,
+                                   struct shim_thread * thread)
+{
+    if (!thread)
+        thread = get_cur_thread();
+    get_thread(thread);
+    DkEventClear(thread->scheduler_event);
+    *queue = thread;
+}
+
+static inline void thread_sleep (void)
+{
+    struct shim_thread * cur_thread = get_cur_thread();
+
+    if (!cur_thread)
+        return;
+
+    PAL_HANDLE event = cur_thread->scheduler_event;
+    if (!event)
+        return;
+
+    DkObjectsWaitAny(1, &event, NO_TIMEOUT);
+}
+
+static inline void thread_wakeup (struct shim_thread * thread)
+{
+    DkEventSet(thread->scheduler_event);
+}
+
+extern LOCKTYPE thread_list_lock;
+
+struct shim_thread * __lookup_thread (IDTYPE tid);
+struct shim_thread * lookup_thread (IDTYPE tid);
+struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid);
+struct shim_simple_thread * lookup_simple_thread (IDTYPE tid);
+
+void set_as_child (struct shim_thread * parent, struct shim_thread * child);
+
+/* creating and revoking thread objects */
+struct shim_thread * get_new_thread (IDTYPE new_tid);
+struct shim_thread * get_new_internal_thread (void);
+struct shim_simple_thread * get_new_simple_thread (void);
+
+/* thread list utilities */
+void add_thread (struct shim_thread * thread);
+void del_thread (struct shim_thread * thread);
+void add_simple_thread (struct shim_simple_thread * thread);
+void del_simple_thread (struct shim_simple_thread * thread);
+
+int check_last_thread (struct shim_thread * self);
+void switch_dummy_thread (struct shim_thread * thread);
+
+int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
+                      void * arg, bool may_write);
+int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
+                                              void *, bool *),
+                             void * arg, bool may_write);
+
+/* reference counting of handle maps */
+void get_handle_map (struct shim_handle_map * map);
+void put_handle_map (struct shim_handle_map * map);
+
+/* retriving handle mapping */
+static inline __attribute__((always_inline))
+struct shim_handle_map * get_cur_handle_map (struct shim_thread * thread)
+{
+    if (!thread)
+        thread = get_cur_thread();
+
+    return thread ? thread->handle_map : NULL;
+}
+
+static inline __attribute__((always_inline))
+void set_handle_map (struct shim_thread * thread,
+                     struct shim_handle_map * map)
+{
+    get_handle_map(map);
+
+    if (!thread)
+        thread = get_cur_thread();
+
+    if (thread->handle_map)
+        put_handle_map(thread->handle_map);
+
+    thread->handle_map = map;
+}
+
+/* shim exit callback */
+int thread_exit (struct shim_thread * self, bool send_ipc);
+int try_process_exit (int error_code);
+
+/* thread cloning helpers */
+struct clone_args {
+    PAL_HANDLE create_event;
+    PAL_HANDLE initialize_event;
+    struct shim_thread * thread;
+    void * stack;
+    void * return_pc;
+};
+
+int clone_implementation_wrapper(struct clone_args * arg);
+
+int clean_held_locks (struct shim_thread * self);
+
+void * allocate_stack (size_t size, size_t protect_size, bool user);
+
+int populate_user_stack (void * stack, size_t stack_size,
+                         int nauxv, elf_auxv_t ** auxpp,
+                         const char *** argvp, const char *** envpp);
+
+static inline __attribute__((always_inline))
+bool check_stack_size (struct shim_thread * cur_thread, int size)
+{
+    if (!cur_thread)
+        cur_thread = get_cur_thread();
+
+    void * rsp;
+    asm volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
+
+    if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack)
+        return size < rsp - cur_thread->stack;
+
+    return false;
+}
+
+static inline __attribute__((always_inline))
+bool check_on_stack (struct shim_thread * cur_thread, void * mem)
+{
+    if (!cur_thread)
+        cur_thread = get_cur_thread();
+
+    return (mem <= cur_thread->stack_top && mem > cur_thread->stack);
+}
+
+int init_stack (const char ** argv, const char ** envp, const char *** argpp,
+                int nauxv, elf_auxv_t ** auxpp);
+
+#endif /* _SHIM_THREAD_H_ */

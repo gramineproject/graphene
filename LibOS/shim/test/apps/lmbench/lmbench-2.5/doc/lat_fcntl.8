@@ -1,0 +1,25 @@
+.\" $Id$
+.TH LAT_FCNTL 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+lat_fcntl \- measure fctl() locking latencies
+.SH SYNOPSIS
+.B lat_fcntl
+.SH DESCRIPTION
+.B lat_fcntl
+uses two processes and alternately locks and unlocks files so that
+only one of the processes is running at a time, similar to 
+``hot potato'' message passing benchmarks.
+No other work is done in the processes.
+.SH OUTPUT
+The reported time is in microseconds per round trip and includes the total
+time, i.e., the context switching overhead is included.
+Output format is like so
+.sp
+.ft CB
+AF_UNIX sock stream latency: 491 microseconds
+.ft
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8), fcntl(2).

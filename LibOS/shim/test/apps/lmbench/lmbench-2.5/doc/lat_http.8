@@ -1,0 +1,46 @@
+.\" $Id$
+.TH LAT_HTTP 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+lat_http \- measure HTTP latencies
+.SH SYNOPSIS
+.B lat_http
+.I -s
+.sp .5
+.B lat_tcp
+.I hostname
+.sp .5
+.B lat_tcp
+.I -hostname
+.SH DESCRIPTION
+.B lat_http
+implements a
+.I very
+simple HTTP server and uses this simple server to measure
+HTTP version 1.0 transactional latency.  
+.PP
+.B lat_http
+has three forms of usage: as a server (lat_http -s), 
+as a client (lat_http localhost), and
+as a shutdown (lat_http -localhost).
+.PP
+.B lat_http
+is not meant to be used to measure HTTP server performance,
+but was intended to provide some insight into the potential
+performance for HTTP version 1.0 servers.  
+HTTP version 1.0 is very inefficient with respect to system
+and networking resources, since it creates a new TCP connection
+for each file request.
+.SH OUTPUT
+.B lat_http
+reports the average file size, the total number of bytes
+transferred, the total time to transfer the data, and
+the average bandwidth, i.e.:
+.sp
+.ft CB
+Avg xfer: 3.2KB, 41.8KB in 14.4990 millisecs, 2.88 MB/sec
+.ft
+.SH ACKNOWLEDGEMENT
+Funding for the development of
+this tool was provided by Sun Microsystems Computer Corporation.
+.SH "SEE ALSO"
+lmbench(8), read(2), write(2), socket(2), bind(2), connect(2).

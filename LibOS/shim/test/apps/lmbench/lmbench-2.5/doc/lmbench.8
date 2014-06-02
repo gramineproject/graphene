@@ -1,0 +1,125 @@
+.\" $Id$
+.TH LMBENCH 8 "$Date$" "(c)1994 Larry McVoy" "LMBENCH"
+.SH NAME
+lmbench \- system benchmarks
+.SH DESCRIPTION
+.B lmbench
+is a series of micro benchmarks intended to measure basic operating
+system and hardware system metrics.  The benchmarks fall into three
+general classes: bandwidth, latency, and ``other''.
+.SH BANDWIDTH MEASUREMENTS
+Data movement is fundemental to the performance on most computer systems.
+The bandwidth measurements are intended to show how the system can move
+data.  The results of the bandwidth metrics can be compared but care
+must be taken to understand what it is that is being compared.  The
+bandwidth benchmarks can be reduced to two main components: operating
+system overhead and memory speeds.  The bandwidth benchmarks report
+their results as megabytes moved per second but please note that the
+data moved is \fBnot\fP necessarily the same as the memory bandwidth 
+used to move the data.  Consult the individual man pages for more 
+information.
+.P
+Each of the bandwidth benchmarks is listed below with a brief overview of the 
+intent of the benchmark.
+.TP 14
+bw_file_rd
+reading and summing of a file via the read(2) interface.
+.TP 
+bw_mem
+memory bandwidth (read, write, copy).
+.TP
+bw_mmap_rd
+reading and summing of a file via the memory mapping mmap(2) interface.
+.TP
+bw_pipe
+copying data via a pipe.
+.TP
+bw_unix
+copying data via a Unix socket.
+.TP
+bw_tcp
+reading of data via a TCP/IP socket.
+.SH LATENCY MEASUREMENTS
+Control messages are also fundemental to the performance on most
+computer systems.  The latency measurements are intended to show how fast
+a system can be told to do some operation.  The results of the 
+latency metrics can be compared to each other
+for the most part.  In particular, the
+pipe, rpc, tcp, and udp transactions are all identical benchmarks 
+carried out over different system abstractions.
+.P
+Latency numbers here should mostly be in microseconds per operation.
+.TP 14
+lat_connect
+the time it takes to establish a TCP/IP connection.
+.TP 
+lat_connect_unix
+the time it takes to establish a Unix connection.
+.TP 
+lat_ctx
+context switching; the number and size of processes is varied.
+.TP 
+lat_fs
+creating and deleting small files.
+.TP 
+lat_pagefault
+the time it takes to fault in a page from a file.
+.TP
+lat_mem_rd
+memory read latency (accurate to the ~2-5 nanosecond range,
+reported in nanoseconds).
+.TP
+lat_mmap
+time to set up a memory mapping.
+.TP
+lat_pipe
+``hot potato'' transaction through a Unix pipe.
+.TP
+lat_proc
+process creation times (various sorts).
+.TP
+lat_rpc
+``hot potato'' transaction through Sun RPC over UDP or TCP.
+.TP
+lat_syscall
+non trivial entry into the system.
+.TP
+lat_tcp
+``hot potato'' transaction through TCP.
+.TP
+lat_udp
+``hot potato'' transaction through UDP.
+.SH OTHER MEASUREMENTS
+.TP 14
+mhz
+processor cycle time.
+.TP
+disk
+seek latencies and zone bandwidths.
+.TP
+clock
+timing subsystem parameters.
+.TP
+enough
+timing interval duration required for accurate timing results.
+.TP
+timing_o
+overhead incurred by gettimeofday() to measure timing intervals.
+.TP
+loop_o
+for() loop overhead.
+.SH ACKNOWLEDGEMENT
+Funding for the development of these tools was provided by Sun
+Microsystems Computer Corporation.
+.SH COPYING
+The benchmarking code is distributed under the GPL with additional 
+restrictions, see the COPYING file.
+.SH "SEE ALSO"
+lmbench(3), timing(3), results(3), reporting(3), 
+bargraph(1), graph(1), pgraph(1),
+disk(8), clock(8), enough(8), timing_o(8), loop_o(8),
+bw_file_rd(8), bw_mem(8), bw_mmap_rd(8), bw_pipe(8), bw_unix(8),
+lat_connect(8), lat_ctx(8), lat_fcntl(8), lat_fifo(8), lat_fs(8),
+lat_http(8), lat_mem_rd(8), lat_mmap(8), lat_pagefault(8),
+lat_pipe(8), lat_proc(8), lat_rpc(8), lat_select(8), lat_syscall(8),
+lat_tcp(8), lat_udp(8), lat_unix(8), lat_unix_connect(8).

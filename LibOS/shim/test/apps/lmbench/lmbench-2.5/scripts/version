@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# %W% %@%
+
+F="no_such_file"
+VERSION="2.0-`date '+%Y%m%d'`"
+for f in version.h ../src/version.h src/version.h
+do
+	if [ $F = "no_such_file" -a -f $f ]
+	then
+		F=$f
+	fi
+done
+if [ -f $F ]
+then	VERSION=`awk '/MAJOR/ { major = $3; } /MINOR/ { minor=$3;} END { if (minor < 0) printf("%d.0-a%d", major, -minor); else printf("%d.%d", major, minor);}' $F`
+fi
+echo $VERSION

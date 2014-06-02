@@ -1,0 +1,143 @@
+.\" $Id$
+.de DS
+.	sp .5
+.	nf
+.	in +4
+.	ft CW
+.	vs -1
+..
+.de DE
+.	sp .5
+.	fi
+.	in
+.	ft
+.	vs
+..
+.TH GRAPH 1
+.SH NAME
+graph \- compile graphs into pic input
+.SH SYNOPSIS
+.B graph
+[ options ]
+[
+.I filename
+\&.\|.\|.
+]
+.SH DESCRIPTION
+.LP
+.B graph
+is a perl script which
+takes sets of X Y data and generates a (human readable) pic program
+that will produce the graphed data.  The output is designed such that
+you can save it in a file and tweak it to make it fit your document.
+Try one and look at the output.  The output is actually commented.
+.LP
+The graph is autosized and auto ticked.
+.LP
+The input data format is similar
+that of xgraph(1), i.e.,
+.DS
+1 1
+2 2
+3 3
+"sloped across
+
+1 4
+2 4
+3 4
+"straight across
+.DE
+.SH "CONTROL OPTIONS"
+.LP
+You may set the graph title, the X title, and the Y title with the 
+following control sequences in the data stream:
+.DS
+%T Graph title in +4 point font
+%X X axis title and/or units in +2 point font
+%Y Y axis title and/or units in +2 point font
+%fakemax-X <value>     force graph to be that big
+%fakemax-Y <value>     force graph to be that big
+%fakemin-X <value>     force graph to be that small
+%fakemin-Y <value>     force graph to be that small
+.DE
+.SH OPTIONS
+.IP -rev 12
+reverse X/Y data sense (and titles).  Note this is done after processing
+any fudging of the input data stream(s) (see -xk, -yk, -logx, etc below).
+.IP -below
+put data set titles below the graph rather than to the right.
+.IP -close
+no extra space around the data's endpoints.
+.IP -qline
+connect the quartile center points.
+.IP -grid
+dotted line grid marks.
+.IP -nobox
+no box around whole graph.
+.IP -big
+make the graph take the whole page.
+.IP -medium
+make the graph take about 1/2 the page.
+.IP -small
+make the graph be small.
+.IP -grapheach
+draw each data set in its own graph.
+.IP -nolabels
+no X/Y/Title labels.
+.IP -nodatal
+no data set labels.
+.IP -nomarks
+do not mark each data point with distinct markers (endpoints are still
+marked).
+.IP -k
+print values larger than 1000 as value/1000.
+.IP -xk
+multiply X input by 1024 (blech).
+.IP -yk
+multiply Y input by 1024 (blech).
+.IP -xm
+multiply X input by 1024*1024 (blech).
+.IP -ym
+multiply Y input by 1024*1024 (blech).
+.IP -logx
+convert X input into lag base 2 of X input.
+.IP -logy
+convert Y input into lag base 2 of Y input.
+.SH EXAMPLE
+Workstation price performance from a Digital ad.  Process with
+.DS
+.ps -2
+graph -rev workstations | groff -TX75
+
+"%T Workstation Price / Performance, 6/93
+"%X SPECINT 92 Performance
+"%Y Price in $1000's
+35 5
+65 10
+78 15
+110 70
+"Dec AXP line
+
+25 4
+25 8
+38 16
+48 21
+52 23
+64 27
+"Sun SPARC line
+.DE
+.ps
+.SH "QUARTILE FORMAT"
+Data points are \f(CBx y1 y2 y3 y4 y5\fP.   You get a two lines from the
+first two y values, a mark at the third, and another line from the last two.
+.SH "SEE ALSO"
+.BR gtroff (1),
+.BR gpic (1),
+.BR perl (1).
+.SH BUGS
+This should probably be called pic_graph or something like that.
+.LP
+This isn't done as much as I would like.
+It isn't integrated with the groff preprocessor yet.
+It doesn't know about .GS/.GE things.  I use it to manually generate
+a pic file and then include that.
