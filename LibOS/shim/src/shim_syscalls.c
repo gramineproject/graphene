@@ -961,7 +961,7 @@ SHIM_SYSCALL_PASSTHROUGH (kexec_load, 4, int, unsigned long, entry,
 */
 
 SHIM_SYSCALL_PASSTHROUGH (waitid, 5, int, int, which, pid_t, pid,
-                          struct siginfo *, infop, int, options,
+                          siginfo_t *, infop, int, options,
                           struct __kernel_rusage *, ru)
 
 /*

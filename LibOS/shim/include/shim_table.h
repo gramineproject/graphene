@@ -762,7 +762,7 @@ int shim_mq_notify (__kernel_mqd_t mqdes, const struct sigevent * notification);
 int shim_mq_getsetattr (__kernel_mqd_t mqdes,
                         const struct __kernel_mq_attr * mqstat,
                         struct __kernel_mq_attr * omqstat);
-int shim_waitid (int which, pid_t pid, struct siginfo * infop, int options,
+int shim_waitid (int which, pid_t pid, siginfo_t * infop, int options,
                  struct __kernel_rusage * ru);
 int shim_ioprio_set (int which, int who, int ioprio);
 int shim_ioprio_get (int which, int who);

@@ -40,6 +40,7 @@
 #include <asm-errno.h>
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
+#include <sys/types.h>
 
 asm (".global pal_start \n"
      "  .type pal_start,@function \n"
