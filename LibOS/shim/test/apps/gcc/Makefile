@@ -14,7 +14,7 @@ test: all $(test_targets)
 $(c_targets): %: %.c
 	echo "$@ (native):" >> result
 	rm -rf $@
-	./memusg time -a -o result -p gcc -o $@ $^ \
+	time -a -o result -p gcc -o $@ $^ \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 	sleep 0.5
 	echo "$@ (graphene):" >> result
@@ -25,7 +25,7 @@ $(c_targets): %: %.c
 $(make_targets): %:
 	echo "$@ (native2):" >> result
 	make -C $(dir $@) clean
-	./memusg time -a -o result -p make -C $(dir $@) $(notdir $@) CC=g++
+	time -a -o result -p make -C $(dir $@) $(notdir $@) CC=g++
 	echo "$@ (graphene):" >> result
 	make -C $(dir $@) clean
 	time -a -o result -p make -C $(dir $@) $(notdir $@) CC=$(shell pwd)/g++.manifest
