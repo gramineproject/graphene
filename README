@@ -29,8 +29,8 @@ Graphene Library OS is consist of five parts:
 
 Graphene Library OS currently only works on x86_64 architecture.
 
-Graphene Library OS is tested to be compiling and running on Ubuntu 12.04
-(both server and desktop version), along with Linux kernel 3.5.
+Graphene Library OS is tested to be compiling and running on Ubuntu 12.04/14.04
+(both server and desktop version), along with Linux kernel 3.5/3.14.
 We recommand to build and install Graphene with the same host platform.
 Other distributions of 64-bit Linux can potentially, but the result is not
 guaranteed. If you find Graphene not working on other distributions, please
