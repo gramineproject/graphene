@@ -18,7 +18,7 @@ pal_target = libpal.a libpal.so
 
 include host/$(OS)/Makefile.am
 
-defs	= -DIN_PAL -DSRCDIR="$(PWD)/"
+defs	= -DIN_PAL
 objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf
 graphene_lib = ../lib/graphene-lib.a
@@ -46,12 +46,10 @@ security:
 libpal.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
 	   $(host_lib) $(graphene_lib)
 	@echo [ $@ ]
-	@[ ! -f $@ ] || mv -f $@ $@.backup
 	@$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) -soname=$@
 
 libpal.a: $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib)
 	@echo [ $@ ]
-	@[ ! -f $@ ] || mv -f $@ $@.backup
 	@$(AR) $(ARFLAGS) $@ $^
 
 %.asm: %.c $(headers)
@@ -68,10 +66,6 @@ libpal.a: $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib)
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
 
 clean:
-	rm -rf $(addsuffix .o,$(objs))
-	for f in $(pal_target); \
-	do \
-		[ ! -f $$f ] || mv -f $$f $$f.backup || true; \
-	done
+	rm -f $(addsuffix .o,$(objs)) $(pal_target)
 	@[ ! -d host/$(OS) ] || make -C host/$(OS) clean
 	@[ ! -d security/$(OS) ] || make -C security/$(OS) clean

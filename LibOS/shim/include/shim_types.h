@@ -288,8 +288,7 @@ typedef struct shim_atomic REFTYPE;
 
 typedef struct shim_lock {
     PAL_HANDLE lock;
-    //IDTYPE owner;
-    //unsigned int reowned;
+    IDTYPE owner;
 } LOCKTYPE;
 
 typedef struct shim_aevent {

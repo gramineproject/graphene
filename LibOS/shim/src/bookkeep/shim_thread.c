@@ -754,7 +754,7 @@ MIGRATE_FUNC_BODY(running_thread)
     ADD_FUNC_ENTRY(new_thread);
 
     __libc_tcb_t * tcb = thread->tcb;
-    if (lookup_supervma(tcb, sizeof(__libc_tcb_t), NULL) < 0) {
+    if (tcb && lookup_supervma(tcb, sizeof(__libc_tcb_t), NULL) < 0) {
         ADD_OFFSET(sizeof(__libc_tcb_t));
         ADD_ENTRY(ADDR, base + *offset);
         if (!dry) {

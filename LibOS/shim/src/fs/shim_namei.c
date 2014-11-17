@@ -40,7 +40,7 @@
 
 /* check permission of a dentry. If force is not set, permission
    is consider granted on invalid dentries */
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 int permission (struct shim_dentry * dent, int mask, bool force)
 {
     mode_t mode = 0;
@@ -107,7 +107,7 @@ static inline int __do_lookup_dentry (struct shim_dentry * dent, bool force)
 }
 
 /* looking up single dentry based on its parent and name */
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
                    bool force, struct shim_dentry ** new)
 {
@@ -149,7 +149,7 @@ out:
 static void path_reacquire (struct lookup * look, struct shim_dentry * dent);
 
 /* looking up single dentry, but use struct lookup */
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 static int do_lookup (struct lookup * look, const char * name, int namelen,
                       bool force)
 {
@@ -170,6 +170,7 @@ fail:
 
 static int link_path_walk (const char * name, struct lookup * look);
 
+/* have dcache_lock acquired */
 void path_acquire (struct lookup * look)
 {
     if (look->dentry)
@@ -179,6 +180,7 @@ void path_acquire (struct lookup * look)
         get_mount(look->mount);
 }
 
+/* have dcache_lock acquired */
 void path_release (struct lookup * look)
 {
     if (look->dentry)
@@ -188,6 +190,7 @@ void path_release (struct lookup * look)
         put_mount(look->mount);
 }
 
+/* have dcache_lock acquired */
 static void path_reacquire (struct lookup * look, struct shim_dentry * dent)
 {
     struct shim_dentry * old_dent = look->dentry;
@@ -209,7 +212,7 @@ static void path_reacquire (struct lookup * look, struct shim_dentry * dent)
 }
 
 /* try follow a link where the dentry points to */
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 static inline int __do_follow_link (struct lookup * look)
 {
     int err = 0;
@@ -245,7 +248,7 @@ out:
 }
 
 /* follow links on a dentry until the last target */
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 static int follow_link (struct lookup * look)
 {
     int err = 0;
@@ -269,7 +272,7 @@ static int follow_link (struct lookup * look)
 }
 
 /* follow a single dot-dot to the parent */
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 static int follow_dotdot (struct lookup * look)
 {
     struct shim_dentry * dent = look->dentry;
@@ -299,7 +302,7 @@ static int follow_dotdot (struct lookup * look)
 
 /* walk through a absolute path based on current lookup structure,
    across mount point, dot dot and symlinks */
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 static int link_path_walk (const char * name, struct lookup * look)
 {
     struct shim_dentry * dent = NULL;
@@ -503,7 +506,7 @@ static int path_lookup_dcache (struct shim_dentry * start, const char * path,
     return 0;
 }
 
-/* have dcache_lock acquired (write) */
+/* have dcache_lock acquired */
 static int path_lookup_walk (struct shim_dentry * start,
                              const char * name, int flags,
                              struct lookup * look,
@@ -578,6 +581,7 @@ out_if:
         else
             put_dentry(found);
     }
+
     return 0;
 }
 
@@ -591,44 +595,42 @@ int path_lookupat (struct shim_dentry * start, const char * path, int flags,
     struct lookup look;
 
     lock(dcache_lock);
-    ret = path_lookup_dcache(start, path, flags, &found, cur_thread);
-    unlock(dcache_lock);
 
-    if (ret < 0)
+    ret = path_lookup_dcache(start, path, flags, &found, cur_thread);
+
+    if (ret < 0) {
+        unlock(dcache_lock);
         return ret;
+    }
 
     if (!found) {
-        lock(dcache_lock);
-
         if ((ret = path_lookup_walk(start, path, flags, &look,
                                     cur_thread)) < 0)
-            goto out_if;
+            goto out;
 
         get_dentry(look.dentry);
         found = look.dentry;
 
         if (flags & LOOKUP_SYNC) {
             if ((ret = __do_lookup_dentry(found, true)) < 0)
-                goto out_dentry;
+                goto out_release;
         }
 
         if (found->state & DENTRY_NEGATIVE &&
             !(flags & LOOKUP_CREATE)) {
             ret = -ENOENT;
-            goto out_dentry;
+            goto out_release;
         }
 
         if (!(found->state & DENTRY_NEGATIVE) &&
             !(found->state & DENTRY_ISDIRECTORY) &&
             flags & LOOKUP_DIRECTORY) {
             ret = -ENOTDIR;
-            goto out_dentry;
+            goto out_release;
         }
 
-out_dentry:
+out_release:
         path_release(&look);
-out_if:
-        unlock(dcache_lock);
     }
 
     if (found) {
@@ -637,6 +639,9 @@ out_if:
         else
             put_dentry(found);
     }
+
+out:
+    unlock(dcache_lock);
     return ret;
 }
 
@@ -726,7 +731,6 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
 #endif
 
     BEGIN_PROFILE_INTERVAL();
-
     lock(dcache_lock);
 
     err = path_lookup_dcache(start, path, lookup_flags|LOOKUP_OPEN,
@@ -738,10 +742,10 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
             get_mount(look.mount);
     }
 
-    unlock(dcache_lock);
     SAVE_PROFILE_INTERVAL(path_lookup_dcache_for_open_namei);
 
     if (err < 0) {
+        unlock(dcache_lock);
         SAVE_PROFILE_INTERVAL(end_open_namei);
         return err;
     }
@@ -763,31 +767,25 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
             goto exit;
         }
 
-        goto do_open;
+        goto do_open_locked;
     }
-
-    lock(dcache_lock);
 
     /* no create, just look it up. */
     if (!(flags & O_CREAT)) {
         err = path_lookup_walk(start, path, lookup_flags|LOOKUP_OPEN,
                                &look, cur_thread);
-
-        unlock(dcache_lock);
         SAVE_PROFILE_INTERVAL(path_lookup_walk_for_open_namei);
-
         if (err) {
             debug("path_lookup error in open_namei\n");
-            SAVE_PROFILE_INTERVAL(end_open_namei);
             goto exit;
         }
 
+do_open_locked:
+        unlock(dcache_lock);
 do_open:
         if ((err = permission(look.dentry, acc_mode, true)) < 0)
             goto exit;
-
         SAVE_PROFILE_INTERVAL(open_namei_permission);
-
         if (hdl) {
             if (look.dentry->state & DENTRY_ISDIRECTORY) {
                 assert(flags & O_DIRECTORY);
@@ -811,33 +809,22 @@ do_open:
 
     SAVE_PROFILE_INTERVAL(path_lookup_walk_2_for_open_namei);
 
-    if (err < 0) {
-        unlock(dcache_lock);
-        SAVE_PROFILE_INTERVAL(end_open_namei);
+    if (err < 0 || look.last_type != LAST_NORM)
         goto exit;
-    }
-
-    if (look.last_type != LAST_NORM) {
-        unlock(dcache_lock);
-        goto exit;
-    }
 
     struct shim_dentry * new = NULL;
     dir = look.dentry;
     err = lookup_dentry(dir, look.last, strlen(look.last), true, &new);
-    unlock(dcache_lock);
-
     SAVE_PROFILE_INTERVAL(open_namei_lookup_2);
-
     if (err < 0 && (err != -ENOENT || !new))
         goto exit;
 
     path_reacquire(&look, new);
-
     SAVE_PROFILE_INTERVAL(open_namei_path_reacquire);
 
 do_creat:
     assert(dir);
+    unlock(dcache_lock);
 
     /* negative dentry */
     if (look.dentry->state & DENTRY_NEGATIVE) {
@@ -894,6 +881,9 @@ done:
 
     path_release(&look);
 
+    if (locked(dcache_lock))
+        unlock(dcache_lock);
+
     SAVE_PROFILE_INTERVAL(end_open_namei);
     return 0;
 
@@ -902,6 +892,9 @@ exit:
 
     if (dir)
         put_dentry(dir);
+
+    if (locked(dcache_lock))
+        unlock(dcache_lock);
 
     SAVE_PROFILE_INTERVAL(end_open_namei);
     return err;

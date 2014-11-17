@@ -38,8 +38,6 @@
 #include <elf/elf.h>
 #include <bits/dlfcn.h>
 
-DEFINE_GDB_SCRIPT_IN_SRCDIR("pal-gdb.py")
-
 struct link_map * loaded_libraries = NULL;
 struct link_map * rtld_map = NULL;
 struct link_map * exec_map = NULL;

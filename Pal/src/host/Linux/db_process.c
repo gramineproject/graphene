@@ -174,7 +174,8 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
                               pal_config.environments);
 
         /* shouldn't get to here */
-        INLINE_SYSCALL(exit_group, 0);
+        printf("unexpected failure of new process\n");
+        asm("hlt");
         return 0;
     }
 

@@ -1,6 +1,6 @@
 apps = lmbench gcc busybox lighttpd bash apache make
 
-targets = pal build-all
+targets = pal
 clean-extra = clean-all
 
 level = ../
@@ -22,7 +22,7 @@ libpal.so:
 	make pal
 
 build-all:
-	for f in $(apps); do (cd $$f; make $(DEBUG); cd ..); done
+	for f in $(apps); do (cd $$f; make $(DEBUG) || true; cd ..); done
 
 clean-all:
 	for f in $(apps); do (cd $$f; make clean; cd ..); done

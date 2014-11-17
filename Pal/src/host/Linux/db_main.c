@@ -54,6 +54,11 @@ asm ("pal_start: \n"
      "  movq %rsp, %rdi \n"
      "  call pal_linux_main \n");
 
+asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
+     ".byte 1\r\n"
+     ".asciz \"" XSTRINGIFY(GDB_SCRIPT) "\"\r\n"
+     ".popsection\r\n");
+
 struct pal_linux_config pal_linux_config;
 
 static size_t pagesz = PRESET_PAGESIZE;

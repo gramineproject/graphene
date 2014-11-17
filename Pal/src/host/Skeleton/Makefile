@@ -43,7 +43,6 @@ $(graphene_lib):
 
 libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ $@ ]
-	@[ ! -f $@ ] || mv -f $@ $@.backup
 	@$(AR) $(ARFLAGS) $@ $^
 
 %.asm: %.c $(headers)
@@ -68,8 +67,4 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
 clean:
-	rm -rf $(addsuffix .o,$(objs))
-	for f in $(host_target); \
-	do \
-		[ ! -f $$f ] || mv -f $$f $$f.backup || true; \
-	done
+	rm -f $(addsuffix .o,$(objs)) $(host_target)

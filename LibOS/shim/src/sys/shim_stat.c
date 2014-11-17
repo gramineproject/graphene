@@ -113,6 +113,11 @@ int shim_do_readlink (const char * file, char * buf, int bufsize)
     if (bufsize <= 0)
         return -EINVAL;
 
+    /* The correct behavior is to return -EINVAL if file is not a
+       symbolic link */
+    return -EINVAL;
+
+#if 0
     int ret;
     struct shim_dentry * dent = NULL;
 
@@ -128,4 +133,5 @@ int shim_do_readlink (const char * file, char * buf, int bufsize)
     memcpy(buf, relpath, len);
     put_dentry(dent);
     return len;
+#endif
 }

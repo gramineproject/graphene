@@ -71,7 +71,7 @@ extern struct pal_linux_config {
 #endif
 
 #define ARCH_FORK() INLINE_SYSCALL(clone, 4, CLONE_CHILD_SETTID, 0, \
-                                   NULL, &pal_config.pid)
+                                   NULL, &pal_linux_config.pid)
 
 #define ARCH_VFORK() INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, \
                                     NULL, NULL)

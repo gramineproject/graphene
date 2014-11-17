@@ -471,21 +471,34 @@ int recv_helper (unsigned long *addr, unsigned long len, int prot,
 		 * vma.  Correct if not. 
 		 */
 #if defined(CONFIG_GRAPHENE_BULK_IPC) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
-		my_addr = do_mmap_pgoff(vm_file, my_addr, PAGE_SIZE * (page_count - i),
-				      prot,
-				      flags, vm_pgoff);
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
-		my_addr = my_do_mmap_pgoff(vm_file, my_addr, PAGE_SIZE * (page_count - i),
-					 prot,
-					 flags, vm_pgoff);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+		my_addr = do_mmap_pgoff(vm_file, my_addr,
+					PAGE_SIZE * (page_count - i),
+					prot, flags, vm_pgoff);
 #else
 		{
 			unsigned long populate;
-			my_addr = my_do_mmap_pgoff(vm_file, my_addr, PAGE_SIZE * (page_count - i),
-						 prot,
-						 flags, vm_pgoff, &populate);
+			my_addr = do_mmap_pgoff(vm_file, my_addr,
+						PAGE_SIZE * (page_count - i),
+						prot,
+						flags, vm_pgoff, &populate);
 		}
 #endif /* kernel_version >= 3.9.0 */
+#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+		my_addr = my_do_mmap_pgoff(vm_file, my_addr,
+					   PAGE_SIZE * (page_count - i),
+					   prot, flags, vm_pgoff);
+#else
+		{
+			unsigned long populate;
+			my_addr = my_do_mmap_pgoff(vm_file, my_addr,
+						   PAGE_SIZE * (page_count - i),
+						   prot,
+						   flags, vm_pgoff, &populate);
+		}
+#endif /* kernel_version >= 3.9.0 */
+#endif
 
 		if (!my_addr) {
 			printk(KERN_ERR

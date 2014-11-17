@@ -30,5 +30,4 @@ graphene-lib.a: $(objs)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(objs)
-	[ ! -f graphene-lib.a ] || mv -f graphene-lib.a graphene-lib.a.backup
+	rm -f $(objs) graphene-lib.a

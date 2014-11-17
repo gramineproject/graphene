@@ -153,7 +153,10 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
                       CLONE_VM|CLONE_FILES|
                       CLONE_FS|CLONE_SIGHAND|CLONE_THREAD|
                       CLONE_DETACHED| // Unused
-                      CLONE_SYSVSEM)) == 0);
+#ifdef CLONE_PTRACE
+                      CLONE_PTRACE| // Unused
+#endif
+                      CLONE_SYSVSEM|CSIGNAL)) == 0);
 
     new_args->create_event = DkNotificationEventCreate(0);
     if (!new_args->create_event) {

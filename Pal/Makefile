@@ -1,5 +1,5 @@
 LINUX_GEN = 3.x
-LINUX_SRC = linux-3.5
+LINUX_SRC = linux-3.14
 SRC_DIR = src
 TEST_DIR = test
 DIRS = ${SRC_DIR} ${TEST_DIR} $(LINUX_SRC)
@@ -35,7 +35,16 @@ $(LINUX_SRC)/Makefile:
 	[ ! -f $(LINUX_SRC).patch ] || git apply $(LINUX_SRC).patch
 
 $(LINUX_SRC)/.config:
-	$(error "Configure the kernel source and rerun the make command")
+	$(error "Configure the Linux kernel source and rerun the make command; Or run 'make linux-deb' to build a Linux kernel package")
+
+linux-deb:
+	[ -f $(LINUX_SRC)/.config ] || \
+		(cp /boot/config-$(shell uname -r) $(LINUX_SRC)/.config && \
+		cd $(LINUX_SRC) && make menuconfig)
+	cd $(LINUX_SRC) && \
+	CONCURRENCY_LEVEL=$(NPROCS) make-kpkg --rootcmd fakeroot \
+		--append-to-version -graphene --initrd \
+		kernel-image kernel-headers
 
 clean:
 	for d in ${SRC_DIR} $(TEST_DIR) $(LINUX_SRC); \

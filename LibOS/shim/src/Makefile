@@ -61,7 +61,6 @@ $(graphene_lib):
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
 	     $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
-	@mv -f $@ $@.backup || true
 	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) -soname $@ \
 		-e shim_start
 
@@ -69,7 +68,6 @@ libsysdb_debug.so: $(addsuffix .o,$(objs)) \
 		   $(filter %.map %.lds,$($LDFLAGS-debug)) \
 		   $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
-	@mv -f $@ $@.backup || true
 	$(LD) $(LDFLAGS-debug) -o $@ $(filter-out %.map %.lds,$^) -soname $@ \
 		-e shim_start
 
@@ -103,8 +101,4 @@ $(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): ipc/*.h
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
 clean:
-	rm -f $(addsuffix .o,$(objs))
-	for f in $(shim_target); \
-	do \
-		mv -f $$f $$f.backup || true; \
-	done
+	rm -f $(addsuffix .o,$(objs)) $(shim_target)

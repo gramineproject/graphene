@@ -473,8 +473,7 @@ static inline void enable_preempt (shim_tcb_t * tcb)
 
 #define lock_created(l)  ((l).lock != NULL)
 
-//#define clear_lock(l)  do { (l).lock = NULL; (l).owner = 0; (l).reowned = 0; } while (0)
-#define clear_lock(l)  do { (l).lock = NULL; } while (0)
+#define clear_lock(l)  do { (l).lock = NULL; (l).owner = 0; } while (0)
 
 #define create_lock(l)                          \
     do {                                        \
@@ -511,7 +510,7 @@ static inline void __lock (LOCKTYPE * l)
 #endif
 
     while (!DkObjectsWaitAny(1, &l->lock, NO_TIMEOUT));
-
+    l->owner = tcb->tid;
 #if DEBUG_LOCK == 1
     debug("lock(%s=%p) by %s:%d\n", name, l, file, line);
 #endif
@@ -535,9 +534,21 @@ static inline void __unlock (LOCKTYPE * l)
     debug("unlock(%s=%p) %s:%d\n", name, l, file, line);
 #endif
 
+    l->owner = 0;
     DkSemaphoreRelease(l->lock, 1);
     enable_preempt(tcb);
 }
+
+static inline bool __locked (LOCKTYPE * l)
+{
+    if (!lock_enabled || !l->lock)
+        return false;
+
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+    return tcb->tid == l->owner;
+}
+
+#define locked(l) __locked(&(l))
 
 #define DEBUG_MASTER_LOCK       0
 

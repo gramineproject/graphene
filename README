@@ -38,9 +38,9 @@ contact us with a detailed bug report.
 
 The following packages are required for building Graphene: (can be installed
 with 'apt-get install')
-   - Build-essential
-   - Autoconf
-   - Gawk
+   - build-essential
+   - autoconf
+   - gawk
 
 To build the system, simply run the following commands in the root of the
 source tree:

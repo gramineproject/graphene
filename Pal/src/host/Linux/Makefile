@@ -16,7 +16,7 @@ ARFLAGS	=
 
 host_target = libpal-Linux.a
 
-defs	= -DIN_PAL -DSRCDIR="$(PWD)/"
+defs	= -DIN_PAL -DGDB_SCRIPT="$(CURDIR)/pal-gdb.py"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    semaphore mutex events process object main rtld misc ipc \
 	    exception) manifest clone-x86_64 gettimeofday-x86_64
@@ -35,7 +35,6 @@ $(graphene_lib):
 
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/Linux/$@ ]
-	@[ ! -f $@ ] || mv -f $@ $@.backup
 	@$(AR) $(ARFLAGS) $@ $^
 
 %.asm: %.c $(headers)
@@ -60,8 +59,4 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
 clean:
-	rm -rf $(addsuffix .o,$(objs))
-	for f in $(host_target); \
-	do \
-		[ ! -f $$f ] || mv -f $$f $$f.backup || true; \
-	done
+	rm -f $(addsuffix .o,$(objs)) $(host_target)

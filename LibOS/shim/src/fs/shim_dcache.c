@@ -156,7 +156,7 @@ void __del_dcache (struct shim_dentry * dent)
 #endif
 }
 
-static int __put_dentry (struct shim_dentry * dent, bool dput);
+static int __internal_put_dentry (struct shim_dentry * dent);
 
 void del_dcache (struct shim_dentry * dent)
 {
@@ -199,13 +199,13 @@ kill:   {
             dent->parent = NULL;
             dent = parent;
 
-            if (__put_dentry(dent, false))
+            if (__internal_put_dentry(dent))
                 break;
         }
     }
 }
 
-static int __put_dentry (struct shim_dentry * dent, bool dput)
+static int __internal_put_dentry (struct shim_dentry * dent)
 {
     int count = REF_DEC(dent->ref_count);
 
@@ -216,11 +216,7 @@ static int __put_dentry (struct shim_dentry * dent, bool dput)
           qstrgetstr(&dent->rel_path), count);
 #endif
 
-    if (count || !dput)
-        return count;
-
-    __dput_dentry(dent);
-    return 0;
+    return count;
 }
 
 void get_dentry (struct shim_dentry * dent)
@@ -239,12 +235,16 @@ void get_dentry (struct shim_dentry * dent)
 
 void put_dentry (struct shim_dentry * dent)
 {
-    if (__put_dentry(dent, false))
+    if (__internal_put_dentry(dent))
         return;
 
-    lock(dcache_lock);
-    __dput_dentry(dent);
-    unlock(dcache_lock);
+    if (locked(dcache_lock)) {
+        __dput_dentry(dent);
+    } else {
+        lock(dcache_lock);
+        __dput_dentry(dent);
+        unlock(dcache_lock);
+    }
 }
 
 struct shim_dentry * get_new_dentry (struct shim_dentry * parent,

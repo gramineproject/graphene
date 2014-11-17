@@ -52,19 +52,6 @@ void __assert (void);
         }                                                                \
     } while (0)
 
-#define DEFINE_GDB_SCRIPT(script_name)                                  \
-    asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"  \
-         ".byte 1\r\n"                                                  \
-         ".asciz \"" script_name "\"\r\n"                               \
-         ".popsection\r\n");
-
-#define DEFINE_GDB_SCRIPT_IN_DIR(dir, script_name)  \
-    DEFINE_GDB_SCRIPT_IN_DIR2(dir, script_name)
-#define DEFINE_GDB_SCRIPT_IN_DIR2(dir, script_name)  \
-    DEFINE_GDB_SCRIPT(#dir script_name)
-#define DEFINE_GDB_SCRIPT_IN_SRCDIR(script_name)    \
-    DEFINE_GDB_SCRIPT_IN_DIR(SRCDIR, script_name)
-
 #else
 
 int pal_printf  (const char *fmt, ...);
