@@ -45,7 +45,6 @@ DEFINE_PROFILE_CATAGORY(migrate_func, );
 DEFINE_PROFILE_CATAGORY(resume_func, );
 
 DEFINE_PROFILE_CATAGORY(checkpoint, );
-DEFINE_PROFILE_INTERVAL(checkpoint_init_store, checkpoint);
 DEFINE_PROFILE_INTERVAL(checkpoint_predict_size, checkpoint);
 DEFINE_PROFILE_INTERVAL(checkpoint_alloc_memory, checkpoint);
 DEFINE_PROFILE_INTERVAL(checkpoint_copy_object, checkpoint);
@@ -740,10 +739,9 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     PAL_NUM gipc_key;
     PAL_HANDLE gipc_hdl = DkCreatePhysicalMemoryChannel(&gipc_key);
 
-    if (!gipc_hdl) {
-        sys_printf("Failure: require physical memory support\n");
-        return -PAL_ERRNO;
-    }
+    if (!gipc_hdl)
+        sys_printf("WARNING: no physical memory support, process creation "
+                   "will be slow.\n");
 
     debug("created gipc store: gipc:%lu\n", gipc_key);
 
@@ -762,6 +760,8 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     }
 
     cpstore = __alloca(sizeof(struct shim_cp_store));
+    INIT_CP_STORE(cpstore);
+    cpstore->use_gipc = (gipc_hdl != NULL);
     va_list ap;
     va_start(ap, thread);
     ret = migrate(cpstore, new_process, thread, ap);
@@ -776,11 +776,17 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     hdr.checkpoint.data.cpsize = cpstore->cpsize;
     hdr.checkpoint.data.cpaddr = cpstore->cpaddr;
-    hdr.checkpoint.data.cpoffset = cpstore->cpdata - cpstore->cpaddr ;
-    hdr.checkpoint.gipc.gipc_key = gipc_key;
-    hdr.checkpoint.gipc.gipc_entoffset = cpstore->gipc_entries ?
+    hdr.checkpoint.data.cpoffset = cpstore->cpdata - cpstore->cpaddr;
+    if (gipc_hdl) {
+        hdr.checkpoint.gipc.gipc_key = gipc_key;
+        hdr.checkpoint.gipc.gipc_entoffset = cpstore->gipc_entries ?
                            (void *) cpstore->gipc_entries - cpstore->cpaddr : 0;
-    hdr.checkpoint.gipc.gipc_nentries  = cpstore->gipc_nentries;
+        hdr.checkpoint.gipc.gipc_nentries  = cpstore->gipc_nentries;
+    } else {
+        hdr.checkpoint.gipc.gipc_key = 0;
+        hdr.checkpoint.gipc.gipc_entoffset = 0;
+        hdr.checkpoint.gipc.gipc_nentries  = 0;
+    }
     hdr.failure = 0;
 #ifdef PROFILE
     hdr.begin_create_time  = begin_create_time;
@@ -794,10 +800,18 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto err;
     }
 
-    if ((ret = send_checkpoint_by_gipc(gipc_hdl, cpstore)) < 0)
-        goto err;
+    if (gipc_hdl) {
+        if ((ret = send_checkpoint_by_gipc(gipc_hdl, cpstore)) < 0)
+            goto err;
 
-    DkObjectClose(gipc_hdl);
+        DkObjectClose(gipc_hdl);
+    } else {
+        ret = DkStreamWrite(proc, 0, cpstore->cpsize, cpstore->cpdata, NULL);
+        if (ret < cpstore->cpsize) {
+            ret = -PAL_ERRNO;
+            goto err;
+        }
+    }
 
     if ((ret = send_handles_on_stream(proc, cpstore->cpdata)) < 0)
         goto err;

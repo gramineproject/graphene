@@ -519,9 +519,6 @@ ptr_t add_to_migrate_map (void * map, void * obj, ptr_t off,
                                                                             \
             BEGIN_PROFILE_INTERVAL();                                       \
                                                                             \
-            INIT_CP_STORE(store);                                           \
-            SAVE_PROFILE_INTERVAL(checkpoint_init_store);                   \
-                                                                            \
             size = migrate_def_##name((store), NULL, 0, true, ##__VA_ARGS__) \
                    + (preserve);                                            \
             SAVE_PROFILE_INTERVAL(checkpoint_predict_size);                 \
@@ -597,7 +594,6 @@ int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, void * cpdata,
                   long cprebase);
 int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
                              struct shim_cp_store * cpstore);
-int send_checkpoint_on_stream (PAL_HANDLE stream, void * cpdata, int size);
 int send_handles_on_stream (PAL_HANDLE stream, void * cpdata);
 
 int do_migrate_process (int (*migrate) (struct shim_cp_store *,

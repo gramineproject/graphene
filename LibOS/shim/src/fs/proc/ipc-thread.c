@@ -227,7 +227,7 @@ static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
         for (int i = 0 ; i < pid_status_cache->nstatus ; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 unlock(status_lock);
-                *mode = 0400;
+                *mode = 0500;
                 return 0;
             }
 

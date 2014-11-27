@@ -232,7 +232,7 @@ static int finish_checkpoint (void)
     struct shim_cp_store cpstore;
 
 again:
-    memset(&cpstore, 0, sizeof(struct shim_cp_store));
+    INIT_CP_STORE(&cpstore);
 
     BEGIN_MIGRATION_DEF(checkpoint)
     {

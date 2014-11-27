@@ -63,7 +63,6 @@ static int migrate_fork (struct shim_cp_store * cpstore,
     BEGIN_MIGRATION_DEF(fork, struct shim_process * proc,
                         struct shim_thread * thread)
     {
-        store->use_gipc = true;
         DEFINE_MIGRATE(process, proc, sizeof(struct shim_process), false);
         DEFINE_MIGRATE(all_mounts, NULL, 0, false);
         DEFINE_MIGRATE(all_vmas, NULL, 0, true); /* recusive for the data */

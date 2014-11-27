@@ -12,6 +12,19 @@
 
 int main(int argc, char ** argv)
 {
+    struct dirent * dirent;
+    DIR * dir;
+
+    dir = opendir("/proc/1");
+    if (!dir) {
+        perror("opendir /proc/1");
+        exit(1);
+    }
+    while ((dirent = readdir(dir)))
+        printf("/proc/1/%s\n", dirent->d_name);
+    closedir(dir);
+
+
     for (int i = 0 ; i < 3 ; i++) {
         pid_t pid = fork();
 
@@ -26,13 +39,13 @@ int main(int argc, char ** argv)
         }
     }
 
-    struct dirent * dirent;
-
-    DIR * dir = opendir("/proc");
-
+    dir = opendir("/proc");
+    if (!dir) {
+        perror("opendir /proc");
+        exit(1);
+    }
     while ((dirent = readdir(dir)))
-        printf("found %s\n", dirent->d_name);
-
+        printf("/proc/%s\n", dirent->d_name);
     closedir(dir);
 
     return 0;

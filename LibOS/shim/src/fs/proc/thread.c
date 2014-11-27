@@ -470,7 +470,7 @@ static int proc_thread_dir_mode (const char * name, mode_t * mode)
     if (pid < 0)
         return pid;
 
-    *mode = 0400;
+    *mode = 0500;
     return 0;
 }
 
