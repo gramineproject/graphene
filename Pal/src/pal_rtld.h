@@ -66,6 +66,7 @@ struct link_map {
     ElfW(Dyn) * l_ld;
     char * l_soname;
     bool l_relocated;
+    bool l_lookup_symbol;
 
     ElfW(Dyn) * l_info[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM
                        + DT_EXTRANUM + DT_VALNUM + DT_ADDRNUM];

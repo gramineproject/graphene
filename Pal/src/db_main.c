@@ -27,6 +27,7 @@
 #include "pal_defs.h"
 #include "pal.h"
 #include "pal_internal.h"
+#include "pal_security.h"
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "api.h"
@@ -34,12 +35,6 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 #include <bits/dlfcn.h>
-
-#define RTLD_BOOTSTRAP
-
-/* pal_start is the entry point of libpal.so, which calls pal_main */
-void pal_start(void);
-#define _ENTRY pal_start
 
 /* allocate memory for page size constants */
 PAL_NUM allocsize, allocshift, allocmask;
@@ -195,24 +190,12 @@ static void * find_heap_base (void)
     return NULL;
 }
 
-void setup_pal_map (const char * realname, ElfW(Dyn) ** dyn, ElfW(Addr) addr);
 void start_execution (int argc, const char ** argv);
-
-#include "dynamic_link.h"
 
 void pal_main (int argc, const char ** argv, const char ** envp)
 {
-    ElfW(Addr) pal_addr;
     char cfgbuf[CONFIG_MAX];
     int ret;
-
-    pal_addr = elf_machine_load_address();
-    ElfW(Dyn) * pal_dyn[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM +
-                        DT_EXTRANUM + DT_VALNUM + DT_ADDRNUM];
-    memset(pal_dyn, 0, sizeof(pal_dyn));
-    elf_get_dynamic_info((void *) pal_addr + elf_machine_dynamic(), pal_dyn,
-                         pal_addr);
-    ELF_DYNAMIC_RELOCATE(pal_dyn, pal_addr);
 
     pal_config.pagesize    = _DkGetPagesize();
     pal_config.alloc_align = _DkGetAllocationAlignment();
@@ -223,8 +206,6 @@ void pal_main (int argc, const char ** argv, const char ** envp)
     allocmask  = ~allocshift;
 
     init_slab_mgr();
-
-    setup_pal_map(XSTRINGIFY(SRCDIR) "/" LIBRARY_NAME, pal_dyn, pal_addr);
 
     /* reloaction of loader is done here. starting from this point, the global
        symbols of loader should be accessible. */

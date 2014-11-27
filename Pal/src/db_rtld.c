@@ -39,7 +39,6 @@
 #include <bits/dlfcn.h>
 
 struct link_map * loaded_libraries = NULL;
-struct link_map * rtld_map = NULL;
 struct link_map * exec_map = NULL;
 bool run_preload = false;
 
@@ -99,6 +98,9 @@ static ElfW(Addr) resolve_map (const char **strtab, ElfW(Sym) ** ref)
     return 0;
 }
 
+extern ElfW(Addr) resolve_map_in_rtld (ElfW(Sym) * ref);
+
+#define RESOLVE_MAP_IN_RTLD(ref) resolve_map_in_rtld(ref)
 #define RESOLVE_MAP(strtab, ref) resolve_map(strtab, ref)
 
 #include "dynamic_link.h"
@@ -868,36 +870,44 @@ static int do_lookup (const char * undef_name, ElfW(Sym) * ref,
 {
     const uint_fast32_t fast_hash = elf_fast_hash(undef_name);
     const long int hash = elf_hash(undef_name);
+    ElfW(Sym) * sym;
+    struct link_map * map = loaded_libraries;
 
-    assert(rtld_map);
+    while (map) {
+        if (!map->l_lookup_symbol) {
+            map = map->l_next;
+            continue;
+        }
 
-    ElfW(Sym) * sym = do_lookup_map (ref, undef_name, fast_hash, hash,
-                                     rtld_map);
+        sym = do_lookup_map (ref, undef_name, fast_hash, hash, map);
 
-    if (sym == NULL)
-        return 0;
+        if (sym == NULL)
+            return 0;
 
-    switch (__builtin_expect (ELFW(ST_BIND) (sym->st_info), STB_GLOBAL)) {
-        case STB_WEAK:
-            /* Weak definition.  Use this value if we don't find another. */
-            if (!result->s) {
+        switch (__builtin_expect (ELFW(ST_BIND) (sym->st_info), STB_GLOBAL)) {
+            case STB_WEAK:
+                /* Weak definition.  Use this value if we don't find another. */
+                if (!result->s) {
+                    result->s = sym;
+                    result->m = (struct link_map *) map;
+                }
+                break;
+
+                /* FALLTHROUGH */
+            case STB_GLOBAL:
+            case STB_GNU_UNIQUE:
+                /* success: */
+                /* Global definition.  Just what we need.  */
                 result->s = sym;
-                result->m = (struct link_map *) rtld_map;
-            }
-            break;
+                result->m = (struct link_map *) map;
+                return 1;
 
-            /* FALLTHROUGH */
-        case STB_GLOBAL:
-        case STB_GNU_UNIQUE:
-            /* success: */
-            /* Global definition.  Just what we need.  */
-            result->s = sym;
-            result->m = (struct link_map *) rtld_map;
-            return 1;
+            default:
+                /* Local symbols are ignored.  */
+                break;
+        }
 
-        default:
-            /* Local symbols are ignored.  */
-            break;
+        map = map->l_next;
     }
 
     /* We have not found anything until now.  */
@@ -1014,68 +1024,6 @@ static int relocate_elf_object (struct link_map * l)
 
     l->l_relocated = true;
     return 0;
-}
-
-void setup_pal_map (const char * realname, ElfW(Dyn) ** dyn, ElfW(Addr) addr)
-{
-    assert (loaded_libraries == NULL);
-
-    const ElfW(Ehdr) * header = (void *) addr;
-    struct link_map * l = new_elf_object(realname, OBJECT_RTLD);
-    memcpy(l->l_info, dyn, sizeof(l->l_info));
-    l->l_real_ld = l->l_ld = (void *) elf_machine_dynamic();
-    l->l_addr  = addr;
-    l->l_entry = header->e_entry;
-    l->l_phdr  = (void *) (addr + header->e_phoff);
-    l->l_phnum = header->e_phnum;
-    l->l_relocated = true;
-    l->l_soname = "libpal.so";
-    l->l_text_start = (ElfW(Addr)) &text_start;
-    l->l_text_end   = (ElfW(Addr)) &text_end;
-    l->l_data_start = (ElfW(Addr)) &data_start;
-    l->l_data_end   = (ElfW(Addr)) &data_end;
-    setup_elf_hash(l);
-
-    void * begin_hole = (void *) ALLOC_ALIGNUP(l->l_text_end);
-    void * end_hole = (void *) ALLOC_ALIGNDOWN(l->l_data_start);
-
-    /* Usually the test segment and data segment of a loaded library has
-       a gap between them. Need to fill the hole with a empty area */
-    if (begin_hole < end_hole) {
-        void * addr = begin_hole;
-        _DkVirtualMemoryAlloc(&addr, end_hole - begin_hole,
-                              PAL_ALLOC_RESERVE, PAL_PROT_NONE);
-    }
-
-    /* Set up debugging before the debugger is notified for the first time.  */
-    if (l->l_info[DT_DEBUG] != NULL)
-        l->l_info[DT_DEBUG]->d_un.d_ptr = (ElfW(Addr)) &pal_r_debug;
-
-    l->l_prev = l->l_next = NULL;
-    rtld_map = l;
-    loaded_libraries = l;
-
-    if (!pal_sec_info._r_debug) {
-        pal_r_debug.r_version = 1;
-        pal_r_debug.r_brk = (ElfW(Addr)) &pal_dl_debug_state;
-        pal_r_debug.r_ldbase = addr;
-        pal_r_debug.r_map = loaded_libraries;
-        pal_sec_info._r_debug = &pal_r_debug;
-        pal_sec_info._dl_debug_state = &pal_dl_debug_state;
-    } else {
-        pal_sec_info._r_debug->r_state = RT_ADD;
-        pal_sec_info._dl_debug_state();
-
-        if (pal_sec_info._r_debug->r_map) {
-            l->l_prev = pal_sec_info._r_debug->r_map;
-            pal_sec_info._r_debug->r_map->l_next = l;
-        } else {
-            pal_sec_info._r_debug->r_map = loaded_libraries;
-        }
-
-        pal_sec_info._r_debug->r_state = RT_CONSISTENT;
-        pal_sec_info._dl_debug_state();
-    }
 }
 
 void start_execution (int argc, const char ** argv)

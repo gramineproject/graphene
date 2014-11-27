@@ -42,17 +42,19 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <sys/types.h>
 
-asm (".global pal_start \n"
-     "  .type pal_start,@function \n"
-     ".global pal_main \n"
-     "  .type pal_main,@function \n");
-
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
    messed up by function calls */
-asm ("pal_start: \n"
+asm (".global pal_start \n"
+     "  .type pal_start,@function \n"
+     "pal_start: \n"
      "  movq %rsp, %rdi \n"
      "  call pal_linux_main \n");
+
+#define RTLD_BOOTSTRAP
+
+/* pal_start is the entry point of libpal.so, which calls pal_main */
+#define _ENTRY pal_start
 
 asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".byte 1\r\n"
@@ -239,6 +241,12 @@ bad_shebang:
     return 0;
 }
 
+#include "elf-x86_64.h"
+#include "dynamic_link.h"
+
+extern void setup_pal_map (const char * realname, ElfW(Dyn) ** dyn,
+                           ElfW(Addr) addr);
+
 void pal_linux_main (void * args)
 {
     int argc;
@@ -246,6 +254,18 @@ void pal_linux_main (void * args)
 
     /* parse argc, argv, envp and auxv */
     pal_init_bootstrap(args, &argc, &argv, &envp);
+
+    ElfW(Addr) pal_addr = elf_machine_load_address();
+    ElfW(Dyn) * pal_dyn[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM +
+                        DT_EXTRANUM + DT_VALNUM + DT_ADDRNUM];
+    memset(pal_dyn, 0, sizeof(pal_dyn));
+    elf_get_dynamic_info((void *) pal_addr + elf_machine_dynamic(), pal_dyn,
+                         pal_addr);
+    ELF_DYNAMIC_RELOCATE(pal_dyn, pal_addr);
+
+    init_slab_mgr();
+
+    setup_pal_map(XSTRINGIFY(SRCDIR) "/" LIBRARY_NAME, pal_dyn, pal_addr);
 
     /* jump to main function */
     pal_main(argc, argv, envp);

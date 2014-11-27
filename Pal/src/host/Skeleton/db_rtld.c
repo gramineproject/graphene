@@ -38,3 +38,9 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 #include <bits/dlfcn.h>
+
+ElfW(Addr) resolve_map_in_rtld (ElfW(Sym) * ref)
+{
+    /* Not yet implemented */
+    return 0;
+}

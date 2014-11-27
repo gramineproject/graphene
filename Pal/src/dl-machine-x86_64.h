@@ -35,62 +35,6 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include "pal_internal.h"
 
-/* Return nonzero iff ELF header is compatible with the running host.  */
-static inline bool __attribute__ ((unused))
-elf_machine_matches_host (const Elf64_Ehdr *ehdr)
-{
-    return ehdr->e_machine == EM_X86_64;
-}
-
-/* Return the link-time address of _DYNAMIC.  Conveniently, this is the
-   first element of the GOT.  This must be inlined in a function which
-   uses global data.  */
-static inline Elf64_Addr __attribute__ ((unused))
-elf_machine_dynamic (void)
-{
-    Elf64_Addr addr;
-
-    /* This works because we have our GOT address available in the small PIC
-       model.  */
-    addr = (Elf64_Addr) &_DYNAMIC;
-
-    return addr;
-}
-
-#define XSTRINGIFY(x) STRINGIFY(x)
-#define STRINGIFY(x) #x
-
-/* Return the run-time load address of the shared object.  */
-static inline Elf64_Addr __attribute__ ((unused))
-elf_machine_load_address (void)
-{
-    Elf64_Addr addr;
-
-    /* The easy way is just the same as on x86:
-         leaq _dl_start, %0
-         leaq _dl_start(%%rip), %1
-         subq %0, %1
-       but this does not work with binutils since we then have
-       a R_X86_64_32S relocation in a shared lib.
-
-       Instead we store the address of _dl_start in the data section
-       and compare it with the current value that we can get via
-       an RIP relative addressing mode.  Note that this is the address
-       of _dl_start before any relocation performed at runtime.  In case
-       the binary is prelinked the resulting "address" is actually a
-       load offset which is zero if the binary was loaded at the address
-       it is prelinked for.  */
-
-    asm ("leaq " XSTRINGIFY(_ENTRY) "(%%rip), %0\n\t"
-         "subq 1f(%%rip), %0\n\t"
-         ".section\t.data.rel.ro\n"
-         "1:\t.quad " XSTRINGIFY(_ENTRY) "\n\t"
-         ".previous\n\t"
-         : "=r" (addr) : : "cc");
-
-    return addr;
-}
-
 /* The x86-64 never uses Elf64_Rel relocations.  */
 #define ELF_MACHINE_NO_REL 1
 
@@ -153,13 +97,22 @@ elf_machine_rela (Elf64_Dyn **l_info, Elf64_Addr l_addr,
 #define SYM (sym)
 #else
     Elf64_Sym *refsym = sym;
-    Elf64_Addr sym_map = RESOLVE_MAP(&strtab, &sym);
+    Elf64_Addr value;
+    Elf64_Addr sym_map;
+
+    value = RESOLVE_MAP_IN_RTLD(sym);
+
+    if (value) {
+        /* We can't handle a IRELEATIVE symbol if it's found in RTLD,
+           they should never exist */
+        if (r_type == R_X86_64_IRELATIVE)
+            return;
+    } else {
+        sym_map = RESOLVE_MAP(&strtab, &sym) ? : l_addr;
+        value = sym_map + (sym ? sym->st_value : refsym->st_value);
+    }
+
 #define SYM (sym ? : refsym)
-
-    if (!sym_map)
-        sym_map = l_addr;
-
-    Elf64_Addr value = sym_map + (sym == NULL ? refsym->st_value : sym->st_value);
 
     /* We do a very special relocation for loaded libraries */
     if (!rel) {

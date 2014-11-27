@@ -41,6 +41,75 @@
 #include <elf/elf.h>
 #include <bits/dlfcn.h>
 
+#include "elf-x86_64.h"
+
+struct link_map * rtld_map = NULL;
+
+extern void setup_elf_hash (struct link_map *map);
+
+void setup_pal_map (const char * realname, ElfW(Dyn) ** dyn, ElfW(Addr) addr)
+{
+    assert (loaded_libraries == NULL);
+
+    const ElfW(Ehdr) * header = (void *) addr;
+    struct link_map * l = new_elf_object(realname, OBJECT_RTLD);
+    memcpy(l->l_info, dyn, sizeof(l->l_info));
+    l->l_real_ld = l->l_ld = (void *) elf_machine_dynamic();
+    l->l_addr  = addr;
+    l->l_entry = header->e_entry;
+    l->l_phdr  = (void *) (addr + header->e_phoff);
+    l->l_phnum = header->e_phnum;
+    l->l_relocated = true;
+    l->l_lookup_symbol = true;
+    l->l_soname = "libpal.so";
+    l->l_text_start = (ElfW(Addr)) &text_start;
+    l->l_text_end   = (ElfW(Addr)) &text_end;
+    l->l_data_start = (ElfW(Addr)) &data_start;
+    l->l_data_end   = (ElfW(Addr)) &data_end;
+    setup_elf_hash(l);
+
+    void * begin_hole = (void *) ALLOC_ALIGNUP(l->l_text_end);
+    void * end_hole = (void *) ALLOC_ALIGNDOWN(l->l_data_start);
+
+    /* Usually the test segment and data segment of a loaded library has
+       a gap between them. Need to fill the hole with a empty area */
+    if (begin_hole < end_hole) {
+        void * addr = begin_hole;
+        _DkVirtualMemoryAlloc(&addr, end_hole - begin_hole,
+                              PAL_ALLOC_RESERVE, PAL_PROT_NONE);
+    }
+
+    /* Set up debugging before the debugger is notified for the first time.  */
+    if (l->l_info[DT_DEBUG] != NULL)
+        l->l_info[DT_DEBUG]->d_un.d_ptr = (ElfW(Addr)) &pal_r_debug;
+
+    l->l_prev = l->l_next = NULL;
+    rtld_map = l;
+    loaded_libraries = l;
+
+    if (!pal_sec_info._r_debug) {
+        pal_r_debug.r_version = 1;
+        pal_r_debug.r_brk = (ElfW(Addr)) &pal_dl_debug_state;
+        pal_r_debug.r_ldbase = addr;
+        pal_r_debug.r_map = loaded_libraries;
+        pal_sec_info._r_debug = &pal_r_debug;
+        pal_sec_info._dl_debug_state = &pal_dl_debug_state;
+    } else {
+        pal_sec_info._r_debug->r_state = RT_ADD;
+        pal_sec_info._dl_debug_state();
+
+        if (pal_sec_info._r_debug->r_map) {
+            l->l_prev = pal_sec_info._r_debug->r_map;
+            pal_sec_info._r_debug->r_map->l_next = l;
+        } else {
+            pal_sec_info._r_debug->r_map = loaded_libraries;
+        }
+
+        pal_sec_info._r_debug->r_state = RT_CONSISTENT;
+        pal_sec_info._dl_debug_state();
+    }
+}
+
 #if USE_VDSO_GETTIME == 1
 void setup_vdso_map (ElfW(Addr) addr)
 {
@@ -115,3 +184,10 @@ void setup_vdso_map (ElfW(Addr) addr)
     free(l);
 }
 #endif
+
+ElfW(Addr) resolve_map_in_rtld (ElfW(Sym) * ref)
+{
+    /* We are not using this, because in Linux we can rely on
+       rtld_map to directly lookup symbols */
+    return 0;
+}
