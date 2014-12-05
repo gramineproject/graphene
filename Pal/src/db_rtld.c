@@ -98,9 +98,9 @@ static ElfW(Addr) resolve_map (const char **strtab, ElfW(Sym) ** ref)
     return 0;
 }
 
-extern ElfW(Addr) resolve_map_in_rtld (ElfW(Sym) * ref);
+extern ElfW(Addr) resolve_rtld (const char * sym_name);
 
-#define RESOLVE_MAP_IN_RTLD(ref) resolve_map_in_rtld(ref)
+#define RESOLVE_RTLD(sym_name) resolve_rtld(sym_name)
 #define RESOLVE_MAP(strtab, ref) resolve_map(strtab, ref)
 
 #include "dynamic_link.h"

@@ -185,7 +185,7 @@ void setup_vdso_map (ElfW(Addr) addr)
 }
 #endif
 
-ElfW(Addr) resolve_map_in_rtld (ElfW(Sym) * ref)
+ElfW(Addr) resolve_rtld (const char * sym_name)
 {
     /* We are not using this, because in Linux we can rely on
        rtld_map to directly lookup symbols */

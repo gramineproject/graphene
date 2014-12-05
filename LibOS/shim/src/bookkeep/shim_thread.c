@@ -645,6 +645,7 @@ MIGRATE_FUNC_BODY(thread)
             new_thread->handle_map = NULL;
             new_thread->root   = NULL;
             new_thread->cwd    = NULL;
+            new_thread->robust_list = NULL;
 
             if (!recursive)
                 new_thread->tcb = NULL;

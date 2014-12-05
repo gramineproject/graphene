@@ -136,6 +136,8 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     SAVE_PROFILE_INTERVAL(load_new_executable_for_exec);
 
+    cur_thread->robust_list = NULL;
+
     debug("execve: start execution\n");
     execute_elf_object(cur_thread->exec, new_argc, new_argp,
                        REQUIRED_ELF_AUXV, new_auxp);

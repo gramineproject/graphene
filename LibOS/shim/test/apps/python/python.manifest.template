@@ -4,7 +4,7 @@ loader.preload = file:$(SHIMPATH)
 loader.exec = file:/usr/bin/python
 loader.execname = python
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
-loader.env.PATH = /usr/bin
+loader.env.PATH = /usr/bin:/bin
 loader.env.USERNAME =
 loader.env.HOME =
 loader.env.PWD =
@@ -20,6 +20,10 @@ fs.mount.other.lib1.uri = file:$(GLIBCDIR)
 fs.mount.other.lib2.type = chroot
 fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
 fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.other.bin.type = chroot
+fs.mount.other.bin.path = /bin
+fs.mount.other.bin.uri = file:/bin
 
 fs.mount.other.usr.type = chroot
 fs.mount.other.usr.path = /usr
