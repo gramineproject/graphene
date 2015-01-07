@@ -165,7 +165,7 @@ static int pipe_waitforclient (PAL_HANDLE handle, PAL_HANDLE * client)
     *client = clnt;
 #else
     PAL_IDX connid;
-    system_getrand(&connid, sizeof(PAL_IDX));
+    getrand(&connid, sizeof(PAL_IDX));
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(clnt, pipecli);
     clnt->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);

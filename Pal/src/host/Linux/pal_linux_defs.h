@@ -5,7 +5,7 @@
 #define PAL_LINUX_DEFS_H
 
 /* internal wrap native pipe inside pipe streams */
-#define USE_PIPE_SYSCALL        1
+#define USE_PIPE_SYSCALL        0
 
 #define USE_VSYSCALL_GETTIME    0
 #define USE_VDSO_GETTIME        1
