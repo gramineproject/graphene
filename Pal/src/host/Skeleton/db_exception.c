@@ -34,7 +34,7 @@
 
 typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
 
-int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND + 1])
+int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])
     (int, PAL_UPCALL, int) = {
         /* reserved   */ NULL,
         /* DivZero    */ NULL,

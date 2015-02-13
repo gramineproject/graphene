@@ -228,7 +228,7 @@ DECLARE_HANDLER_HEAD(Suspend);
 DECLARE_HANDLER_HEAD(Resume);
 DECLARE_HANDLER_HEAD(Failure);
 
-struct handler * pal_handlers [PAL_EVENT_NUM_BOUND + 1] = {
+struct handler * pal_handlers [PAL_EVENT_NUM_BOUND] = {
         NULL, /* reserved */
         &handler_DivZero,
         &handler_MemFault,
@@ -443,7 +443,7 @@ struct signal_ops {
                      struct ucontext * uc);
 };
 
-struct signal_ops on_signals[PAL_EVENT_NUM_BOUND + 1] = {
+struct signal_ops on_signals[PAL_EVENT_NUM_BOUND] = {
         /* reserved    */ { .signum = { 0 }, .handler = NULL },
         /* DivZero     */ { .signum = { SIGFPE, 0 },
                             .handler = _DkGenericSighandler },
@@ -525,7 +525,7 @@ static int _DkDummyEventUpcall (int event_num, PAL_UPCALL upcall,
 
 typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
 
-int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND + 1])
+int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])
     (int, PAL_UPCALL, int) = {
         /* reserved   */ NULL,
         /* DivZero    */ &_DkPersistentEventUpcall,
@@ -599,7 +599,7 @@ void _DkExceptionReturn (const void * event)
 
     int event_n = e->event_num;
 
-    if (event_n > 0 && event_n <= PAL_EVENT_NUM_BOUND) {
+    if (event_n > 0 && event_n < PAL_EVENT_NUM_BOUND) {
         arch_restore_frame(&e->frame->arch);
         asm volatile ("leaveq\r\n"
                       "retq\r\n"

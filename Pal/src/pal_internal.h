@@ -392,7 +392,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
 
 /* DkException calls & structures */
 typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
-int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND + 1]) (int, PAL_UPCALL, int);
+int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND]) (int, PAL_UPCALL, int);
 void _DkExceptionReturn (const void * event);
 
 /* other DK calls */
