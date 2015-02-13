@@ -55,7 +55,7 @@ pal_sec: $(pal_sec)
 endif
 
 $(pal_lib): $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib) $(pal_lib_deps)
-	@echo [ libpal.exe ]
+	@echo [ $@ ]
 	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) $(LDFLAGS-suffix)
 
 pal: $(pal_loader)
