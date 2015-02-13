@@ -105,6 +105,11 @@ int __clone (int (*__fn) (void * __arg), void * __child_stack,
 struct stat;
 bool stataccess (struct stat * stats, int acc);
 
+/* Locking and unlocking of Mutexes */
+int _DkMutexLock (struct mutex_handle * mut);
+int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout);
+int _DkMutexUnlock (struct mutex_handle * mut);
+
 #if USE_VDSO_GETTIME == 1
 # if USE_CLOCK_GETTIME == 1
 struct timespec;

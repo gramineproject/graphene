@@ -324,15 +324,8 @@ int _DkInitHost (int * pargc, const char *** pargv);
 
 #include <atomic.h>
 
-/* Initializer of Mutexes */
-#define MUTEX_HANDLE_INIT    { .value = { .counter = 1 } }
-#define INIT_MUTEX_HANDLE(mut)  \
-    do { atomic_set(&(mut)->value, 1); } while (0)
-
-/* Locking and unlocking of Mutexes */
-int _DkMutexLock (struct mutex_handle * mut);
-int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout);
-int _DkMutexUnlock (struct mutex_handle * mut);
+int _DkInternalLock (PAL_LOCK * mut);
+int _DkInternalUnlock (PAL_LOCK * mut);
 
 /* Internal DK calls, in case any of the internal routines needs to use them */
 /* DkStream calls */

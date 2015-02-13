@@ -32,13 +32,11 @@
 PAL_NUM DkSystemTimeQuery (void)
 {
     store_frame(SystemTimeQuery);
-
     unsigned long time = _DkSystemTimeQuery();
-
     return time;
 }
 
-static struct mutex_handle lock = MUTEX_HANDLE_INIT;
+static PAL_LOCK lock = LOCK_INIT;
 static unsigned long randval = 0;
 
 static int init_randgen (void)
@@ -48,10 +46,9 @@ static int init_randgen (void)
     if (_DkRandomBitsRead(&val, sizeof(val)) < sizeof(val))
         return -PAL_ERROR_DENIED;
 
-    _DkMutexLock(&lock);
+    _DkInternalLock(&lock);
     randval = val;
-    _DkMutexUnlock(&lock);
-
+    _DkInternalUnlock(&lock);
     return 0;
 }
 
@@ -60,17 +57,17 @@ int getrand (void * buffer, int size)
     unsigned long val;
     int bytes = 0;
 
-    _DkMutexLock(&lock);
+    _DkInternalLock(&lock);
     while (!randval) {
-        _DkMutexUnlock(&lock);
+        _DkInternalUnlock(&lock);
         if (init_randgen() < 0)
             return -PAL_ERROR_DENIED;
-        _DkMutexLock(&lock);
+        _DkInternalLock(&lock);
     }
 
     val = randval;
     randval++;
-    _DkMutexUnlock(&lock);
+    _DkInternalUnlock(&lock);
 
     while (bytes + sizeof(unsigned long) <= size) {
         *(unsigned long *) (buffer + bytes) = val;
@@ -100,9 +97,9 @@ int getrand (void * buffer, int size)
         randval = hash64(randval);
     }
 
-    _DkMutexLock(&lock);
+    _DkInternalLock(&lock);
     randval = val;
-    _DkMutexUnlock(&lock);
+    _DkInternalUnlock(&lock);
 
     return bytes;
 }

@@ -30,6 +30,27 @@
 # error "cannot be included outside PAL"
 #endif
 
+/* internal Mutex design, the structure has to align at integer boundary
+   because it is required by futex call. If DEBUG_MUTEX is defined,
+   mutex_handle will record the owner of mutex locking. */
+typedef struct mutex_handle {
+    struct atomic_int value;
+#ifdef DEBUG_MUTEX
+    int owner;
+#endif
+} PAL_LOCK;
+
+/* Initializer of Mutexes */
+#define MUTEX_HANDLE_INIT    { .value = { .counter = 1 } }
+#define INIT_MUTEX_HANDLE(mut)  \
+    do { atomic_set(&(mut)->value, 1); } while (0)
+
+#define LOCK_INIT MUTEX_HANDLE_INIT
+#define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock);
+
+#define _DkInternalLock _DkMutexLock
+#define _DkInternalUnlock _DkMutexUnlock
+
 typedef union pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE

@@ -29,10 +29,10 @@
 #include "linux_list.h"
 #include "api.h"
 
-static struct mutex_handle slab_mgr_lock = MUTEX_HANDLE_INIT;
+static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 
-#define system_lock()   _DkMutexLock(&slab_mgr_lock)
-#define system_unlock() _DkMutexUnlock(&slab_mgr_lock)
+#define system_lock()   _DkInternalLock(&slab_mgr_lock)
+#define system_unlock() _DkInternalUnlock(&slab_mgr_lock)
 
 #if STATIC_SLAB == 1
 # define POOL_SIZE 4096 * 20480

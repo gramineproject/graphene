@@ -76,7 +76,7 @@ enum {
 
 #ifdef IN_PAL
 struct atomic_int {
-    volatile int32_t counter;
+    volatile int counter;
 } __attribute__((aligned(sizeof(int))));
 
 typedef struct atomic_int PAL_REF;
@@ -86,16 +86,6 @@ typedef struct {
     PAL_REF ref;
     PAL_FLG flags;
 } PAL_HDR;
-
-/* internal Mutex design, the structure has to align at integer boundary
-   because it is required by futex call. If DEBUG_MUTEX is defined,
-   mutex_handle will record the owner of mutex locking. */
-struct mutex_handle {
-    struct atomic_int value;
-#ifdef DEBUG_MUTEX
-    int owner;
-#endif
-};
 
 # include "pal_host.h"
 

@@ -29,7 +29,7 @@ objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf
 graphene_lib = ../lib/graphene-lib.a
 host_lib = host/$(OS)/libpal-$(OS).a
-headers	= $(wildcard *.h) $(wildcard ../lib/*.h)
+headers	= $(wildcard *.h) $(wildcard ../lib/*.h) host/$(OS)/pal_host.h
 
 all: $(pal_target)
 
