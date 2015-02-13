@@ -1,0 +1,39 @@
+#!/bin/bash
+
+PAL_DIR=$(readlink -f $(dirname ${BASH_SOURCE[0]})/../../../../Pal/src)
+PAL=$PAL_DIR/pal
+PAL_SEC=$PAL_DIR/pal_sec
+
+MANIFEST=
+GDB=
+PAL_CMD=$PAL
+
+while [ "$1" != "" ];
+do
+	if [ "$1" = "-gdb" ]; then
+		GDB="gdb --args"
+		shift
+		continue
+	fi
+
+	if [ "$1" = "-sec" ]; then
+		PAL_CMD=$PAL_SEC
+		shift
+		continue
+	fi
+
+	if [ "$MANIFEST" == "" ]; then
+		MANIFEST=$1
+		shift
+		continue
+	fi
+
+	break
+done
+
+if [ ! -f "$PAL_CMD" ]; then
+	echo "$PAL_CMD is not built, or security mode is not supported"
+	exit 1
+fi
+
+exec $GDB $PAL $MANIFEST $*
