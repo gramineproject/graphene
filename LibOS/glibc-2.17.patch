@@ -926,10 +926,10 @@ index dc95421..a772f66 100644
  	cmpl	$0, (%rdi)
  	jne	1f
 diff --git a/LibOS/glibc-2.17/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h b/LibOS/glibc-2.17/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h
-index 5a80ddd..bcc8d57 100644
+index 5a80ddd..f7319ca 100644
 --- a/LibOS/glibc-2.17/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h
 +++ b/LibOS/glibc-2.17/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h
-@@ -214,12 +214,12 @@ LLL_STUB_UNWIND_INFO_END
+@@ -214,7 +214,7 @@ LLL_STUB_UNWIND_INFO_END
      register const struct timespec *__to __asm ("r10") = timeout;	      \
      int __status;							      \
      register __typeof (val) _val __asm ("edx") = (val);			      \
@@ -938,13 +938,7 @@ index 5a80ddd..bcc8d57 100644
  		      : "=a" (__status)					      \
  		      : "0" (SYS_futex), "D" (futex),			      \
  			"S" (__lll_private_flag (FUTEX_WAIT, private)),	      \
- 			"d" (_val), "r" (__to)				      \
--		      : "memory", "cc", "r11", "cx");			      \
-+		      : "memory", "cc", "r11", "cx", "bx");		      \
-     __status;								      \
-   })
- 
-@@ -229,12 +229,12 @@ LLL_STUB_UNWIND_INFO_END
+@@ -229,7 +229,7 @@ LLL_STUB_UNWIND_INFO_END
      int __ignore;							      \
      register __typeof (nr) _nr __asm ("edx") = (nr);			      \
      LIBC_PROBE (lll_futex_wake, 3, futex, nr, private);                       \
@@ -953,13 +947,7 @@ index 5a80ddd..bcc8d57 100644
  		      : "=a" (__ignore)					      \
  		      : "0" (SYS_futex), "D" (futex),			      \
  			"S" (__lll_private_flag (FUTEX_WAKE, private)),	      \
- 			"d" (_nr)					      \
--		      : "memory", "cc", "r10", "r11", "cx");		      \
-+		      : "memory", "cc", "r10", "r11", "cx", "bx");	      \
-   } while (0)
- 
- 
-@@ -532,12 +532,12 @@ LLL_STUB_UNWIND_INFO_END
+@@ -532,7 +532,7 @@ LLL_STUB_UNWIND_INFO_END
      {									      \
        int ignore;							      \
        __asm __volatile (LOCK_INSTR "orl %3, (%2)\n\t"			      \
@@ -968,13 +956,7 @@ index 5a80ddd..bcc8d57 100644
  			: "=m" (futex), "=a" (ignore)			      \
  			: "D" (&(futex)), "i" (FUTEX_OWNER_DIED),	      \
  			  "S" (__lll_private_flag (FUTEX_WAKE, private)),     \
- 			  "1" (__NR_futex), "d" (1)			      \
--			: "cx", "r11", "cc", "memory");			      \
-+			: "cx", "bx", "r11", "cc", "memory");		      \
-     }									      \
-   while (0)
- 
-@@ -547,13 +547,13 @@ LLL_STUB_UNWIND_INFO_END
+@@ -547,7 +547,7 @@ LLL_STUB_UNWIND_INFO_END
       register int __nr_move __asm ("r10") = nr_move;			      \
       register void *__mutex __asm ("r8") = mutex;			      \
       register int __val __asm ("r9") = val;				      \
@@ -983,14 +965,7 @@ index 5a80ddd..bcc8d57 100644
  		       : "=a" (__res)					      \
  		       : "0" (__NR_futex), "D" ((void *) ftx),		      \
  			 "S" (__lll_private_flag (FUTEX_CMP_REQUEUE,	      \
- 						  private)), "d" (nr_wake),   \
- 			 "r" (__nr_move), "r" (__mutex), "r" (__val)	      \
--		       : "cx", "r11", "cc", "memory");			      \
-+		       : "cx", "bx", "r11", "cc", "memory");		      \
-      __res < 0; })
- 
- #define lll_islocked(futex) \
-@@ -573,13 +573,13 @@ LLL_STUB_UNWIND_INFO_END
+@@ -573,7 +573,7 @@ LLL_STUB_UNWIND_INFO_END
      if (_tid != 0)							      \
        __asm __volatile ("xorq %%r10, %%r10\n\t"				      \
  			"1:\tmovq %2, %%rax\n\t"			      \
@@ -999,13 +974,6 @@ index 5a80ddd..bcc8d57 100644
  			"cmpl $0, (%%rdi)\n\t"				      \
  			"jne 1b"					      \
  			: "=&a" (__ignore)				      \
- 			: "S" (FUTEX_WAIT), "i" (SYS_futex), "D" (&tid),      \
- 			  "d" (_tid)					      \
--			: "memory", "cc", "r10", "r11", "cx");		      \
-+			: "memory", "cc", "r10", "r11", "cx", "bx");	      \
-   } while (0)
- 
- extern int __lll_timedwait_tid (int *tid, const struct timespec *abstime)
 diff --git a/LibOS/glibc-2.17/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S b/LibOS/glibc-2.17/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
 index 0b4ef71..36c5572 100644
 --- a/LibOS/glibc-2.17/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
@@ -1401,7 +1369,7 @@ index 50587b8..374b553 100644
 +  asm volatile ("pushq %%rbx\n\tmovq syscalldb@GOTPCREL(%%rip), %%rbx\n\t" \
 +		"call %%rbx\n\t" :: "a" (__NR_exit), "D" (val) : "bx" )
 diff --git a/LibOS/glibc-2.17/nptl/sysdeps/x86_64/tls.h b/LibOS/glibc-2.17/nptl/sysdeps/x86_64/tls.h
-index f3b7649..b466cb1 100644
+index f3b7649..433b8c9 100644
 --- a/LibOS/glibc-2.17/nptl/sysdeps/x86_64/tls.h
 +++ b/LibOS/glibc-2.17/nptl/sysdeps/x86_64/tls.h
 @@ -28,6 +28,7 @@
@@ -1423,16 +1391,20 @@ index f3b7649..b466cb1 100644
    int rtld_must_xmm_save;
    /* Reservation of some values for the TM ABI.  */
    void *__private_tm[5];
-@@ -135,6 +140,8 @@ typedef struct
+@@ -135,6 +140,12 @@ typedef struct
  # define GET_DTV(descr) \
    (((tcbhead_t *) (descr))->dtv)
  
 +/* For Graphene */
-+#define SYSCALLDB "movq syscalldb@GOTPCREL(%%rip), %%rbx\n\tcall %%rbx\n\t"
++#define SYSCALLDB							      \
++	"pushq %%rbx\n\t"						      \
++	"movq syscalldb@GOTPCREL(%%rip), %%rbx\n\t"			      \
++	"callq *%%rbx\n\t"						      \
++	"popq %%rbx\n\t"
  
  /* Code to initially initialize the thread pointer.  This might need
     special attention since 'errno' is not yet available and if the
-@@ -152,12 +159,12 @@ typedef struct
+@@ -152,7 +163,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \
       /* It is a simple syscall to set the %fs value for the thread.  */	      \
@@ -1441,12 +1413,6 @@ index f3b7649..b466cb1 100644
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
- 		     "S" (_thrdescr)					      \
--		   : "memory", "cc", "r11", "cx");			      \
-+		   : "memory", "cc", "r11", "cx", "bx");		      \
- 									      \
-     _result ? "cannot set %fs base address for thread-local storage" : 0;     \
-   })
 diff --git a/LibOS/glibc-2.17/scripts/mkinstalldirs b/LibOS/glibc-2.17/scripts/mkinstalldirs
 index f945dbf..3c0e48c 100755
 --- a/LibOS/glibc-2.17/scripts/mkinstalldirs

@@ -50,6 +50,15 @@ DEFINE_PROFILE_OCCURENCE(brk, memory);
 DEFINE_PROFILE_OCCURENCE(brk_count, memory);
 DEFINE_PROFILE_OCCURENCE(brk_migrate_count, memory);
 
+void get_brk_region (void ** start, void ** end, void ** current)
+{
+    master_lock();
+    *start   = region.brk_start;
+    *end     = region.brk_end;
+    *current = region.brk_current;
+    master_unlock();
+}
+
 int init_brk_region (void)
 {
     if (region.brk_start)
@@ -88,11 +97,11 @@ int init_brk_region (void)
           brk_region + brk_max_size);
 
     bkeep_mmap(brk_region, BRK_SIZE, PROT_READ|PROT_WRITE,
-               MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "brk");
+               MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "[heap]");
     bkeep_mmap(end_brk_region, brk_max_size - BRK_SIZE,
                PROT_READ|PROT_WRITE,
                MAP_ANONYMOUS|MAP_PRIVATE|VMA_UNMAPPED,
-               NULL, 0, "brk-reserved");
+               NULL, 0, NULL);
 
     return 0;
 }
@@ -148,7 +157,7 @@ unchanged:
 
         bkeep_mmap(region.brk_start, brk_end - region.brk_start,
                    PROT_READ|PROT_WRITE,
-                   MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "brk");
+                   MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "heap");
 
         region.brk_current = brk;
         region.brk_end = brk_end;
@@ -203,7 +212,7 @@ RESUME_FUNC_BODY(brk)
         bkeep_mmap(region.brk_end, brk_max_size - brk_size,
                    PROT_READ|PROT_WRITE,
                    MAP_ANONYMOUS|MAP_PRIVATE|VMA_UNMAPPED, NULL, 0,
-                   "brk-reserved");
+                   NULL);
     }
 
 #ifdef DEBUG_RESUME

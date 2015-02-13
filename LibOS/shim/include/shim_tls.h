@@ -32,13 +32,13 @@ struct shim_regs {
     unsigned long           r15;
     unsigned long           r14;
     unsigned long           r13;
+    unsigned long           r12;
     unsigned long           r9;
     unsigned long           r8;
     unsigned long           rcx;
     unsigned long           rdx;
     unsigned long           rsi;
     unsigned long           rdi;
-    unsigned long           r12;
     unsigned long           rbx;
     unsigned long           rbp;
 };

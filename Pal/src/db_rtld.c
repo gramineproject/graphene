@@ -52,39 +52,6 @@ void __attribute__((noinline)) __assert (void)
 }
 #endif
 
-/* This structure communicates dl state to the debugger.  The debugger
-   normally finds it via the DT_DEBUG entry in the dynamic section, but in
-   a statically-linked program there is no dynamic section for the debugger
-   to examine and it looks for this particular symbol name.  */
-struct r_debug pal_r_debug =
-        { 1, NULL, (ElfW(Addr)) &pal_dl_debug_state, RT_CONSISTENT, 0 };
-
-extern __typeof(pal_r_debug) _r_debug
-    __attribute ((alias ("pal_r_debug")));
-
-    /* This function exists solely to have a breakpoint set on it by the
-   debugger.  The debugger is supposed to find this function's address by
-   examining the r_brk member of struct r_debug, but GDB 4.15 in fact looks
-   for this particular symbol name in the PT_INTERP file.  */
-
-/* The special symbol name is set as breakpoint in gdb */
-void __attribute__((noinline)) pal_dl_debug_state (void)
-{
-}
-
-extern __typeof(pal_dl_debug_state) _dl_debug_state
-    __attribute ((alias ("pal_dl_debug_state")));
-
-void __attribute__((noinline)) _dl_debug_state_trigger (void)
-{
-    struct link_map *l = pal_r_debug.r_map;
-    for ( ; l ; l = l->l_next)
-        if (!memcmp(l->l_name, "file:", 5))
-            l->l_name += 5;
-
-    pal_dl_debug_state();
-}
-
 /* This macro is used as a callback from the ELF_DYNAMIC_RELOCATE code.  */
 static ElfW(Addr) resolve_map (const char **strtab, ElfW(Sym) ** ref)
 {
@@ -251,7 +218,7 @@ call_lose:
     /* Scan the program header table, collecting its load commands.  */
     struct loadcmd {
         ElfW(Addr) mapstart, mapend, dataend, allocend;
-        off_t mapoff;
+        unsigned int mapoff;
         int prot;
     } loadcmds[l->l_phnum], *c;
 
@@ -309,18 +276,13 @@ call_lose:
                     has_holes = true;
 
                 /* Optimize a common case.  */
-#if (PF_R | PF_W | PF_X) == 7 && (PROT_READ | PROT_WRITE | PROT_EXEC) == 7
-                c->prot = (PF_TO_PROT
-                          >> ((ph->p_flags & (PF_R | PF_W | PF_X)) * 4)) & 0xf;
-#else
                 c->prot = 0;
                 if (ph->p_flags & PF_R)
-                    c->prot |= PROT_READ;
+                    c->prot |= PAL_PROT_READ;
                 if (ph->p_flags & PF_W)
-                    c->prot |= PROT_WRITE;
+                    c->prot |= PAL_PROT_WRITE;
                 if (ph->p_flags & PF_X)
-                    c->prot |= PROT_EXEC;
-#endif
+                    c->prot |= PAL_PROT_EXEC;
                 break;
 
             case PT_TLS:
@@ -390,7 +352,7 @@ map_error:
                unallocated.  Then jump into the normal segment-mapping loop to
                handle the portion of the segment past the end of the file
                mapping.  */
-            _DkVirtualMemoryProtect((caddr_t) (l->l_addr + c->mapend),
+            _DkVirtualMemoryProtect((void *) (l->l_addr + c->mapend),
                                     loadcmds[nloadcmds - 1].mapstart - c->mapend,
                                     PAL_PROT_NONE);
 
@@ -414,12 +376,12 @@ map_error:
         }
 
 postmap:
-        if (c->prot & PROT_EXEC) {
+        if (c->prot & PAL_PROT_EXEC) {
             l->l_text_start = l->l_addr + c->mapstart;
             l->l_text_end = l->l_addr + c->mapend;
         }
 
-        if (c->prot & PROT_WRITE) {
+        if (c->prot & PAL_PROT_WRITE) {
             l->l_data_start = l->l_addr + c->mapstart;
             l->l_data_end = l->l_addr + c->mapend;
         }
@@ -447,7 +409,7 @@ postmap:
 
             if (zerosec > zero) {
                 /* Zero the final part of the last section of the segment.  */
-                if (__builtin_expect ((c->prot & PROT_WRITE) == 0, 0))
+                if (__builtin_expect ((c->prot & PAL_PROT_WRITE) == 0, 0))
                 {
                     /* Dag nab it.  */
                     if (_DkVirtualMemoryProtect((void *) ALLOC_ALIGNDOWN(zero),
@@ -458,7 +420,7 @@ postmap:
                     }
                 }
                 memset ((void *) zero, '\0', zerosec - zero);
-                if (__builtin_expect ((c->prot & PROT_WRITE) == 0, 0))
+                if (__builtin_expect ((c->prot & PAL_PROT_WRITE) == 0, 0))
                     _DkVirtualMemoryProtect((void *) ALLOC_ALIGNDOWN(zero),
                                             allocsize, c->prot);
             }
@@ -563,16 +525,12 @@ void free_elf_object (struct link_map * map)
     _DkVirtualMemoryFree((void *) map->l_map_start,
                          map->l_map_end - map->l_map_start);
 
-    pal_sec_info._r_debug->r_state = RT_DELETE;
-    pal_sec_info._dl_debug_state();
-
     if (map->l_prev)
         map->l_prev->l_next = map->l_next;
     if (map->l_next)
         map->l_next->l_prev = map->l_prev;
 
-    pal_sec_info._r_debug->r_state = RT_CONSISTENT;
-    pal_sec_info._dl_debug_state();
+    _DkDebugDelMap(map);
 
     if (loaded_libraries == map)
         loaded_libraries = map->l_next;
@@ -675,9 +633,6 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
         }
     }
 
-    pal_sec_info._r_debug->r_state = RT_ADD;
-    pal_sec_info._dl_debug_state();
-
     struct link_map * map;
 
     if (!(map = map_elf_object_by_handle(handle, type, &fb, len, true))) {
@@ -706,8 +661,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     map->l_prev = prev;
     map->l_next = NULL;
 
-    pal_sec_info._r_debug->r_state = RT_CONSISTENT;
-    pal_sec_info._dl_debug_state();
+    _DkDebugAddMap(map);
 
     return 0;
 
@@ -969,18 +923,13 @@ static int relocate_elf_object (struct link_map * l)
             if (ret < 0)
                 return ret;
 
-#if (PF_R | PF_W | PF_X) == 7 && (PROT_READ | PROT_WRITE | PROT_EXEC) == 7
-            r->prot = (PF_TO_PROT
-                      >> ((ph->p_flags & (PF_R | PF_W | PF_X)) * 4)) & 0xf;
-#else
             r->prot = 0;
             if (ph->p_flags & PF_R)
-                r->prot |= PROT_READ;
+                r->prot |= PAL_PROT_READ;
             if (ph->p_flags & PF_W)
-                r->prot |= PROT_WRITE;
+                r->prot |= PAL_PROT_WRITE;
             if (ph->p_flags & PF_X)
-                r->prot |= PROT_EXEC;
-#endif
+                r->prot |= PAL_PROT_EXEC;
             r->next = textrels;
             textrels = r;
         }
@@ -1024,6 +973,70 @@ static int relocate_elf_object (struct link_map * l)
 
     l->l_relocated = true;
     return 0;
+}
+
+void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
+{
+    if (memcmp(uri, "file:", 5))
+        return;
+
+    struct link_map * l = new_elf_object(uri + 5, OBJECT_EXTERNAL);
+
+    /* This is the ELF header.  We read it in `open_verify'.  */
+    const ElfW(Ehdr) * header = start_addr;
+
+    l->l_entry = header->e_entry;
+    l->l_phnum = header->e_phnum;
+    l->l_addr = l->l_map_start = (ElfW(Addr)) start_addr;
+
+    ElfW(Phdr) * phdr = (void *) (start_addr + header->e_phoff);
+    const ElfW(Phdr) * ph;
+
+    for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
+        switch (ph->p_type)
+        {
+            /* These entries tell us where to find things once the file's
+               segments are mapped in.  We record the addresses it says
+               verbatim, and later correct for the run-time load address.  */
+            case PT_DYNAMIC:
+                l->l_ld = l->l_real_ld = (void *) ph->p_vaddr;
+                l->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
+                break;
+
+            case PT_PHDR:
+                l->l_phdr = (void *) ph->p_vaddr;
+                break;
+
+            case PT_LOAD: {
+                ElfW(Addr) start = l->l_addr + ALLOC_ALIGNDOWN(ph->p_vaddr);
+                ElfW(Addr) end = l->l_addr + ALLOC_ALIGNDOWN(ph->p_vaddr +
+                                                             ph->p_memsz);
+
+                if (ph->p_flags & PF_X) {
+                    l->l_text_start = start;
+                    l->l_text_end = end;
+                }
+
+                if (ph->p_flags & PF_W) {
+                    l->l_data_start = start;
+                    l->l_data_end = end;
+                }
+
+                l->l_map_end = end;
+                break;
+            }
+
+            case PT_GNU_RELRO:
+                l->l_relro_addr = ph->p_vaddr;
+                l->l_relro_size = ph->p_memsz;
+                break;
+        }
+
+    _DkDebugAddMap(l);
+}
+
+void DkDebugDetachBinary (PAL_PTR start_addr)
+{
 }
 
 void start_execution (int argc, const char ** argv)

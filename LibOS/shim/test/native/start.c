@@ -28,6 +28,5 @@ int main (int argc, char ** argv, char ** envp)
     unsigned long long overhead = (msec4 - msec3) / OVERHEAD_TIMES;
 
     printf("%llu\n", msec2 - msec1 - overhead);
-
     return 0;
 }

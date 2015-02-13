@@ -265,21 +265,7 @@ void set_handle_map (struct shim_thread * thread,
 int thread_exit (struct shim_thread * self, bool send_ipc);
 int try_process_exit (int error_code);
 
-/* thread cloning helpers */
-struct clone_args {
-    PAL_HANDLE create_event;
-    PAL_HANDLE initialize_event;
-    struct shim_thread * thread;
-    void * stack;
-    void * return_pc;
-};
-
-int clone_implementation_wrapper(struct clone_args * arg);
-
-int clean_held_locks (struct shim_thread * self);
-
 void * allocate_stack (size_t size, size_t protect_size, bool user);
-
 int populate_user_stack (void * stack, size_t stack_size,
                          int nauxv, elf_auxv_t ** auxpp,
                          const char *** argvp, const char *** envpp);

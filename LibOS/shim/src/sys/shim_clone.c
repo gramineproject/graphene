@@ -29,6 +29,7 @@
 #include <shim_table.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
+#include <shim_checkpoint.h>
 #include <shim_profile.h>
 
 #include <pal.h>
@@ -39,6 +40,14 @@
 #include <sys/mman.h>
 #include <linux/sched.h>
 #include <asm/prctl.h>
+
+struct clone_args {
+    PAL_HANDLE create_event;
+    PAL_HANDLE initialize_event;
+    struct shim_thread * thread, * parent;
+    void * stack;
+    void * return_pc;
+};
 
 /* from **sysdeps/unix/sysv/linux/x86_64/clone.S:
    The userland implementation is:
@@ -96,10 +105,17 @@ int clone_implementation_wrapper(struct clone_args * arg)
     assert(my_thread);
     get_thread(my_thread);
 
-    if (my_thread->set_child_tid) {
+    if (!my_thread->tcb)
+        my_thread->tcb = __alloca(sizeof(__libc_tcb_t));
+    allocate_tls(my_thread->tcb, my_thread);
+    shim_tcb_t * tcb = &((__libc_tcb_t *) my_thread->tcb)->shim_tcb;
+    debug_setbuf(tcb, true);
+
+    struct shim_regs * regs = __alloca(sizeof(struct shim_regs));
+    *regs = *((__libc_tcb_t *) arg->parent->tcb)->shim_tcb.context.regs;
+
+    if (my_thread->set_child_tid)
         *(my_thread->set_child_tid) = my_thread->tid;
-        debug("clone: tid set at %p\n", my_thread->set_child_tid);
-    }
 
     void * stack = pcargs->stack;
     void * return_pc = pcargs->return_pc;
@@ -107,12 +123,9 @@ int clone_implementation_wrapper(struct clone_args * arg)
     struct shim_vma * vma = NULL;
     lookup_supervma(ALIGN_DOWN(stack), allocsize, &vma);
     assert(vma);
-    my_thread->stack_top = stack;
+    my_thread->stack_top = vma->addr + vma->length;
     my_thread->stack_red = my_thread->stack = vma->addr;
-
-    __libc_tcb_t tcb;
-    allocate_tls(&tcb, my_thread);
-    debug_setbuf(&tcb.shim_tcb, true);
+    snprintf(vma->comment, VMA_COMMENT_LEN, "stack:%d", my_thread->tid);
 
     /* Don't signal the initialize event until we are actually init-ed */ 
     DkEventSet(pcargs->initialize_event);
@@ -125,12 +138,17 @@ int clone_implementation_wrapper(struct clone_args * arg)
     debug("child swapping stack to %p return %p: %d\n",
           stack, return_pc, my_thread->tid);
 
-    asm volatile("movq %0, %%rsp\r\n"
-                 "pushq %1\r\n"
-                 "retq\r\n"
-                 : : "r"(stack), "r"(return_pc), "a"(0));
+    tcb->context.regs = regs;
+    tcb->context.sp = stack;
+    tcb->context.ret_ip = return_pc;
+
+    restore_context(&tcb->context);
     return 0;
 }
+
+int migrate_fork (struct shim_cp_store * cpstore,
+                  struct shim_process * process,
+                  struct shim_thread * thread, va_list ap);
 
 /*  long int __arg0 - flags
  *  long int __arg1 - 16 bytes ( 2 words ) offset into the child stack allocated
@@ -144,8 +162,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * self = get_cur_thread();
     assert(self);
-    struct clone_args * new_args = __alloca(sizeof(struct clone_args));
-    memset(new_args, 0, sizeof(struct clone_args));
+    int * set_parent_tid = NULL;
     int ret = 0;
 
     assert((flags & ~(CLONE_PARENT_SETTID|CLONE_CHILD_SETTID|
@@ -158,67 +175,58 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 #endif
                       CLONE_SYSVSEM|CSIGNAL)) == 0);
 
-    new_args->create_event = DkNotificationEventCreate(0);
-    if (!new_args->create_event) {
-        ret = -PAL_ERRNO;
-        goto failed;
+    if (!(flags & CLONE_FS))
+        debug("clone without CLONE_FS is not yet implemented\n");
+
+    if (!(flags & CLONE_SIGHAND))
+        debug("clone without CLONE_SIGHAND is not yet implemented\n");
+
+    if (!(flags & CLONE_SYSVSEM))
+        debug("clone without CLONE_SYSVSEM is not yet implemented\n");
+
+    if (flags & CLONE_PARENT_SETTID) {
+        if (!parent_tidptr)
+            return -EINVAL;
+        set_parent_tid = parent_tidptr;
     }
 
-    new_args->initialize_event = DkNotificationEventCreate(0);
-    if (!new_args->initialize_event) {
-        ret = -PAL_ERRNO;
-        goto failed;
-    }
-
-    new_args->thread = get_new_thread(0);
-    if (!new_args->thread) {
+    struct shim_thread * thread = get_new_thread(0);
+    if (!thread) {
         ret = -ENOMEM;
         goto failed;
     }
 
-    new_args->stack     = user_stack_addr;
-    new_args->return_pc = *(void **) user_stack_addr;
+    IDTYPE tid = thread->tid;
 
-    if (flags & CLONE_PARENT_SETTID)
-        new_args->thread->set_child_tid = parent_tidptr;
-
-    if ((flags & CLONE_CHILD_SETTID) && (flags & CLONE_CHILD_CLEARTID)) {
-        ret = -EINVAL;
-        goto failed;
+    if (flags & CLONE_CHILD_SETTID) {
+        if (!child_tidptr) {
+            ret = -EINVAL;
+            goto failed;
+        }
+        thread->set_child_tid = child_tidptr;
     }
-
-    if (flags & CLONE_CHILD_SETTID)
-        new_args->thread->set_child_tid = child_tidptr;
 
     if (flags & CLONE_CHILD_CLEARTID)
         /* Implemented in shim_futex.c: release_clear_child_id */
-        new_args->thread->clear_child_tid = parent_tidptr;
+        thread->clear_child_tid = parent_tidptr;
 
     if (flags & CLONE_SETTLS) {
-        new_args->thread->tcb = tls;
+        if (!tls) {
+            ret = -EINVAL;
+            goto failed;
+        }
+        thread->tcb = tls;
     } else {
-        new_args->thread->tcb = NULL;
+        thread->tcb = NULL;
     }
 
-    if ((flags & CLONE_VM) != CLONE_VM)
-        debug("Fork-like behavior is not yet implemented in clone\n");
-
-    if ((flags & CLONE_FS) != CLONE_FS)
-        debug("clone without CLONE_FS is not yet implemented\n");
-
-    if ((flags & CLONE_SIGHAND) != CLONE_SIGHAND)
-        debug("clone without CLONE_SIGHAND is not yet implemented\n");
-
-    if ((flags & CLONE_SYSVSEM) != CLONE_SYSVSEM)
-        debug("clone without CLONE_SYSVSEM is not yet implemented\n");
-
-    if ((flags & CLONE_THREAD) != CLONE_THREAD)
-        new_args->thread->tgid = new_args->thread->tid;
+    if (!(flags & CLONE_THREAD))
+        thread->tgid = thread->tid;
 
     struct shim_handle_map * handle_map = get_cur_handle_map(self);
 
     if (flags & CLONE_FILES) {
-        set_handle_map(new_args->thread, handle_map);
+        set_handle_map(thread, handle_map);
     } else {
         /* if CLONE_FILES is not given, the new thread should receive
            a copy of current descriptor table */
@@ -226,9 +234,80 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
         get_handle_map(handle_map);
         dup_handle_map(&new_map, handle_map);
-        set_handle_map(new_args->thread, new_map);
+        set_handle_map(thread, new_map);
         put_handle_map(handle_map);
     }
+
+    if (!(flags & CLONE_VM)) {
+        __libc_tcb_t * tcb;
+        shim_tcb_t * old_shim_tcb = NULL;
+
+        if (thread->tcb) {
+            tcb = (__libc_tcb_t *) thread->tcb;
+        } else {
+            thread->tcb = tcb = (__libc_tcb_t *) self->tcb;
+            old_shim_tcb = __alloca(sizeof(shim_tcb_t));
+            memcpy(old_shim_tcb, &tcb->shim_tcb, sizeof(shim_tcb_t));
+        }
+
+        if (user_stack_addr) {
+            struct shim_vma * vma = NULL;
+            lookup_supervma(ALIGN_DOWN(user_stack_addr), allocsize, &vma);
+            assert(vma);
+            thread->stack_top = vma->addr + vma->length;
+            thread->stack_red = thread->stack = vma->addr;
+            tcb->shim_tcb.context.sp = user_stack_addr;
+            tcb->shim_tcb.context.ret_ip = *(void **) user_stack_addr;
+        } else {
+            tcb->shim_tcb.context.ret_ip = *(void **) tcb->shim_tcb.context.sp;
+        }
+
+        thread->is_alive = true;
+        thread->in_vm = false;
+        add_thread(thread);
+        set_as_child(self, thread);
+
+        if ((ret = do_migrate_process(&migrate_fork, NULL, NULL, thread)) < 0)
+            goto failed;
+
+        if (old_shim_tcb)
+            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(shim_tcb_t));
+
+        lock(thread->lock);
+        handle_map = thread->handle_map;
+        thread->handle_map = NULL;
+        unlock(thread->lock);
+        if (handle_map)
+            put_handle_map(handle_map);
+
+        if (set_parent_tid)
+            *set_parent_tid = tid;
+
+        put_thread(thread);
+        return tid;
+    }
+
+    enable_locking();
+
+    struct clone_args * new_args = __alloca(sizeof(struct clone_args));
+    memset(new_args, 0, sizeof(struct clone_args));
+
+    new_args->create_event = DkNotificationEventCreate(0);
+    if (!new_args->create_event) {
+        ret = -PAL_ERRNO;
+        goto clone_thread_failed;
+    }
+
+    new_args->initialize_event = DkNotificationEventCreate(0);
+    if (!new_args->initialize_event) {
+        ret = -PAL_ERRNO;
+        goto clone_thread_failed;
+    }
+
+    new_args->thread    = thread;
+    new_args->parent    = self;
+    new_args->stack     = user_stack_addr;
+    new_args->return_pc = *(void **) user_stack_addr;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual 
     // "clone" system call. DkThreadCreate allocates a stack for the child 
@@ -240,32 +319,30 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
                                           new_args, flags);
     if (!pal_handle) {
         ret = -PAL_ERRNO;
-        goto failed;
+        goto clone_thread_failed;
     }
 
-    new_args->thread->pal_handle = pal_handle;
+    thread->pal_handle = pal_handle;
+    thread->in_vm = thread->is_alive = true;
+    add_thread(thread);
+    set_as_child(self, thread);
 
-    new_args->thread->in_vm = new_args->thread->is_alive = true;
-    add_thread(new_args->thread);
-    set_as_child(NULL, new_args->thread);
-    put_thread(new_args->thread);
-
-    if (new_args->thread->set_child_tid)
-        *new_args->thread->set_child_tid = new_args->thread->tid;
+    if (set_parent_tid)
+        *set_parent_tid = tid;
 
     DkEventSet(new_args->create_event);
-
     DkObjectsWaitAny(1, &new_args->initialize_event, NO_TIMEOUT);
     DkObjectClose(new_args->initialize_event);
+    put_thread(thread);
+    return tid;
 
-    return new_args->thread->tid;
-
-failed:
+clone_thread_failed:
     if (new_args->create_event)
         DkObjectClose(new_args->create_event);
     if (new_args->initialize_event)
         DkObjectClose(new_args->initialize_event);
-    if (new_args->thread)
-        put_thread(new_args->thread);
+failed:
+    if (thread)
+        put_thread(thread);
     return ret;
 }

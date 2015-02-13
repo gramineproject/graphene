@@ -111,9 +111,7 @@ static struct shim_heap * __alloc_enough_heap (size_t size)
 
         unlock(shim_heap_lock);
         bkeep_mmap(start, heap_size, PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0,
-                   "shim-heap");
-
+                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
         lock(shim_heap_lock);
     }
 
@@ -175,8 +173,7 @@ int bkeep_shim_heap (void)
             bkeep_mmap(shim_heap_areas[i].start,
                        shim_heap_areas[i].end - shim_heap_areas[i].start,
                        PROT_READ|PROT_WRITE,
-                       MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0,
-                       "shim-heap");
+                       MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
 
     unlock(shim_heap_lock);
     return 0;

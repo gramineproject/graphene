@@ -94,7 +94,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     }
 
     ret = bkeep_mmap((void *) mapped, mapped_end - mapped, prot,
-                     flags, hdl, offset, "user");
+                     flags, hdl, offset, NULL);
     assert(!ret);
     if (hdl)
         put_handle(hdl);

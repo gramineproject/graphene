@@ -87,6 +87,8 @@ struct shim_vma * next_vma (struct shim_vma * vma);
 
 void * get_unmapped_vma (size_t len, int flags);
 
+int dump_all_vmas (struct shim_thread * thread, char * buf, size_t size);
+
 void unmap_all_vmas (void);
 
 /* Debugging */

@@ -11,10 +11,13 @@
 #include <pal.h>
 #include <pal_error.h>
 
+#include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/unistd.h>
 #include <asm/prctl.h>
 #include <errno.h>
+
+#define DEFAULT_BUFFER_SIZE 256
 
 static int parse_thread_name (const char * name,
                               const char ** next, int * next_len,
@@ -461,6 +464,100 @@ static const struct proc_dir dir_fd = { .size = 1, .ent = { {
             .nm_ops = &nm_thread_each_fd, .fs_ops = &fs_thread_each_fd,
         }, }, };
 
+static int proc_thread_maps_open (struct shim_handle * hdl,
+                                  const char * name, int flags)
+{
+    if (flags & (O_WRONLY|O_RDWR))
+        return -EACCES;
+
+    const char * next;
+    int next_len;
+    int pid = parse_thread_name(name, &next, &next_len, NULL);
+
+    if (pid < 0)
+        return pid;
+
+    struct shim_thread * thread = lookup_thread(pid);
+
+    if (!thread)
+        return -ENOENT;
+
+    int size = DEFAULT_BUFFER_SIZE;
+    char * strbuf = malloc(size);
+    int ret = 0, len = 0;
+
+    if (!strbuf) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+retry:
+    ret = dump_all_vmas(thread, strbuf, size);
+
+    if (ret == -EOVERFLOW) {
+        char * newbuf = malloc(size * 2);
+        if (!newbuf) {
+            ret = -ENOMEM;
+            goto err;
+        }
+        free(strbuf);
+        strbuf = newbuf;
+        size *= 2;
+        goto retry;
+    }
+
+    if (ret < 0)
+        goto err;
+
+    len = ret;
+
+    struct shim_str_data * data = malloc(sizeof(struct shim_str_data));
+    if (!data) {
+        ret = -ENOMEM;
+        goto err;
+    }
+
+    memset(data, 0, sizeof(struct shim_str_data));
+    data->str = strbuf;
+    data->len = len;
+    hdl->type = TYPE_STR;
+    hdl->flags = flags & ~O_RDONLY;
+    hdl->acc_mode = MAY_READ;
+    hdl->info.str.data = data;
+    ret = 0;
+out:
+    put_thread(thread);
+    return ret;
+err:
+    free(strbuf);
+    goto out;
+}
+
+static int proc_thread_maps_mode (const char * name, mode_t * mode)
+{
+    *mode = 0400;
+    return 0;
+}
+
+static int proc_thread_maps_stat (const char * name, struct stat * buf)
+{
+    memset(buf, 0, sizeof(struct stat));
+
+    buf->st_dev = buf->st_ino = 1;
+    buf->st_mode = 0400|S_IFREG;
+    buf->st_uid = 0;
+    buf->st_gid = 0;
+    buf->st_size = 0;
+
+    return 0;
+}
+
+static const struct proc_fs_ops fs_thread_maps = {
+            .open           = &proc_thread_maps_open,
+            .mode           = &proc_thread_maps_mode,
+            .stat           = &proc_thread_maps_stat,
+        };
+
 static int proc_thread_dir_mode (const char * name, mode_t * mode)
 {
     const char * next;
@@ -570,4 +667,5 @@ const struct proc_dir dir_thread = { .size = 5, .ent = {
         { .name = "exe", .fs_ops = &fs_thread_link, },
         { .name = "root", .fs_ops = &fs_thread_link, },
         { .name = "fd", .dir = &dir_fd, .fs_ops = &fs_thread_fd, },
+        { .name = "maps", .fs_ops = &fs_thread_maps, },
     }, };

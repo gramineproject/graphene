@@ -43,7 +43,111 @@
 
 #include "elf-x86_64.h"
 
-struct link_map * rtld_map = NULL;
+/* This structure communicates dl state to the debugger.  The debugger
+   normally finds it via the DT_DEBUG entry in the dynamic section, but in
+   a statically-linked program there is no dynamic section for the debugger
+   to examine and it looks for this particular symbol name.  */
+struct r_debug pal_r_debug =
+        { 1, NULL, (ElfW(Addr)) &pal_dl_debug_state, RT_CONSISTENT, 0 };
+
+extern __typeof(pal_r_debug) _r_debug
+    __attribute ((alias ("pal_r_debug")));
+
+/* This function exists solely to have a breakpoint set on it by the
+   debugger.  The debugger is supposed to find this function's address by
+   examining the r_brk member of struct r_debug, but GDB 4.15 in fact looks
+   for this particular symbol name in the PT_INTERP file.  */
+
+/* The special symbol name is set as breakpoint in gdb */
+void __attribute__((noinline)) pal_dl_debug_state (void)
+{
+    if (pal_sec_info._dl_debug_state)
+        pal_sec_info._dl_debug_state();
+}
+
+extern __typeof(pal_dl_debug_state) _dl_debug_state
+    __attribute ((alias ("pal_dl_debug_state")));
+
+void _DkDebugAddMap (struct link_map * map)
+{
+    struct r_debug * dbg = pal_sec_info._r_debug ? : &pal_r_debug;
+    int len = map->l_name ? strlen(map->l_name) + 1 : 0;
+
+    struct link_map ** prev = &dbg->r_map, * last = NULL,
+                    * tmp = *prev;
+    while (tmp) {
+        if (tmp->l_addr == map->l_addr &&
+            tmp->l_ld == map->l_ld &&
+            !memcmp(tmp->l_name, map->l_name, len))
+            return;
+
+        last = tmp;
+        tmp = *(prev = &last->l_next);
+    }
+
+    struct link_gdb_map * m = malloc(sizeof(struct link_gdb_map) + len);
+    if (!m)
+        return;
+
+    if (len) {
+        m->l_name = (char *) m + sizeof(struct link_gdb_map);
+        memcpy((void *) m->l_name, map->l_name, len);
+    } else {
+        m->l_name = NULL;
+    }
+
+    m->l_addr = map->l_addr;
+    m->l_ld   = map->l_real_ld;
+
+    dbg->r_state = RT_ADD;
+    pal_dl_debug_state();
+
+    *prev = (struct link_map *) m;
+    m->l_prev = last;
+    m->l_next = NULL;
+
+    dbg->r_state = RT_CONSISTENT;
+    pal_dl_debug_state();
+}
+
+void _DkDebugDelMap (struct link_map * map)
+{
+    struct r_debug * dbg = pal_sec_info._r_debug ? : &pal_r_debug;
+    int len = map->l_name ? strlen(map->l_name) + 1 : 0;
+
+    struct link_map ** prev = &dbg->r_map, * last = NULL,
+                    * tmp = *prev, * found = NULL;
+    while (tmp) {
+        if (tmp->l_addr == map->l_addr &&
+            tmp->l_ld == map->l_ld &&
+            !memcmp(tmp->l_name, map->l_name, len)) {
+            found = tmp;
+            break;
+        }
+
+        last = tmp;
+        tmp = *(prev = &last->l_next);
+    }
+
+    if (!found)
+        return;
+
+    dbg->r_state = RT_DELETE;
+    pal_dl_debug_state();
+
+    if (last)
+        last->l_next = tmp->l_next;
+    else
+        dbg->r_map = tmp->l_next;
+
+    if (tmp->l_next)
+        tmp->l_next->l_prev = last;
+
+    free(tmp);
+
+    dbg->r_state = RT_CONSISTENT;
+    pal_dl_debug_state();
+}
 
 extern void setup_elf_hash (struct link_map *map);
 
@@ -84,30 +188,9 @@ void setup_pal_map (const char * realname, ElfW(Dyn) ** dyn, ElfW(Addr) addr)
         l->l_info[DT_DEBUG]->d_un.d_ptr = (ElfW(Addr)) &pal_r_debug;
 
     l->l_prev = l->l_next = NULL;
-    rtld_map = l;
     loaded_libraries = l;
 
-    if (!pal_sec_info._r_debug) {
-        pal_r_debug.r_version = 1;
-        pal_r_debug.r_brk = (ElfW(Addr)) &pal_dl_debug_state;
-        pal_r_debug.r_ldbase = addr;
-        pal_r_debug.r_map = loaded_libraries;
-        pal_sec_info._r_debug = &pal_r_debug;
-        pal_sec_info._dl_debug_state = &pal_dl_debug_state;
-    } else {
-        pal_sec_info._r_debug->r_state = RT_ADD;
-        pal_sec_info._dl_debug_state();
-
-        if (pal_sec_info._r_debug->r_map) {
-            l->l_prev = pal_sec_info._r_debug->r_map;
-            pal_sec_info._r_debug->r_map->l_next = l;
-        } else {
-            pal_sec_info._r_debug->r_map = loaded_libraries;
-        }
-
-        pal_sec_info._r_debug->r_state = RT_CONSISTENT;
-        pal_sec_info._dl_debug_state();
-    }
+    _DkDebugAddMap(l);
 }
 
 #if USE_VDSO_GETTIME == 1

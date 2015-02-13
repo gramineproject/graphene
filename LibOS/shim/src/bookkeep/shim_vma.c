@@ -282,6 +282,7 @@ static int __bkeep_mmap (void * addr, size_t length,
                     prev->length = addr - prev->addr;
                 }
 
+                assert(prev->addr + prev->length <= addr);
                 cont = prev;
                 pos = &prev->list;
             } else { /* has no precendent vma */
@@ -584,9 +585,12 @@ static int __bkeep_mprotect (void * addr, size_t length, int prot,
                 /* no more vmas, protect the whole area */
                 ret = __bkeep_mmap((void *) addr, length, prot,
                                    VMA_UNMAPPED|(flags ? *flags : 0),
-                                   NULL, 0, "bkeep");
+                                   NULL, 0, NULL);
                 if (ret < 0)
                     return ret;
+
+                candidate = __lookup_vma((void *) addr, length);
+                assert(candidate);
             }
 
             length -= candidate->addr - addr;
@@ -799,6 +803,73 @@ struct shim_vma * next_vma (struct shim_vma * vma)
     put_vma(vma);
     unlock(vma_list_lock);
     return tmp;
+}
+
+int dump_all_vmas (struct shim_thread * thread, char * buf, size_t size)
+{
+    lock(vma_list_lock);
+
+    struct shim_vma * vma;
+    int cnt = 0;
+
+    list_for_each_entry(vma, &vma_list, list) {
+        void * start = vma->addr, * end = vma->addr + vma->length;
+
+        if ((vma->flags & (VMA_INTERNAL|VMA_UNMAPPED)) && !vma->comment[0])
+            continue;
+
+        char prot[3] = {'-', '-', '-'};
+        if (vma->prot & PROT_READ)
+            prot[0] = 'r';
+        if (vma->prot & PROT_WRITE)
+            prot[1] = 'w';
+        if (vma->prot & PROT_EXEC)
+            prot[2] = 'x';
+
+        if (vma->file) {
+            int dev_major = 0, dev_minor = 0;
+            unsigned long ino = vma->file->dentry ? vma->file->dentry->ino : 0;
+            const char * name = "[unknown]";
+
+            if (!qstrempty(&vma->file->path))
+                name = qstrgetstr(&vma->file->path);
+
+            cnt += snprintf(buf + cnt, size - cnt,
+                            start > (void *) 0xffffffff ? "%lx" : "%08x", start);
+
+            cnt += snprintf(buf + cnt, size - cnt,
+                            end > (void *) 0xffffffff ? "-%lx" : "-%08x", end);
+
+            cnt += snprintf(buf + cnt, size - cnt,
+                            " %c%c%cp %08x %02d:%02d %u %s\n",
+                            prot[0], prot[1], prot[2],
+                            vma->offset, dev_major, dev_minor, ino,
+                            name);
+        } else {
+            cnt += snprintf(buf + cnt, size - cnt,
+                            start > (void *) 0xffffffff ? "%lx" : "%08x", start);
+
+            cnt += snprintf(buf + cnt, size - cnt,
+                            end > (void *) 0xffffffff ? "-%lx" : "-%08x", end);
+
+            if (vma->comment[0])
+                cnt += snprintf(buf + cnt, size - cnt,
+                                " %c%c%cp 00000000 00:00 0 [%s]\n",
+                                prot[0], prot[1], prot[2], vma->comment[0]);
+            else
+                cnt += snprintf(buf + cnt, size - cnt,
+                                " %c%c%cp 00000000 00:00 0\n",
+                                prot[0], prot[1], prot[2]);
+        }
+
+        if (cnt >= size) {
+            cnt = -EOVERFLOW;
+            break;
+        }
+    }
+
+    unlock(vma_list_lock);
+    return cnt;
 }
 
 void unmap_all_vmas (void)
@@ -1085,11 +1156,9 @@ RESUME_FUNC_BODY(all_vmas)
 }
 END_RESUME_FUNC
 
-void debug_print_vma_list ()
+void debug_print_vma_list (void)
 {
     sys_printf("vma bookkeeping:\n");
-
-    lock(vma_list_lock);
 
     struct shim_vma * vma;
     list_for_each_entry(vma, &vma_list, list) {
@@ -1116,8 +1185,6 @@ void debug_print_vma_list ()
                    vma->comment[0] ? " comment=" : "",
                    vma->comment[0] ? vma->comment : "");
     }
-
-    unlock(vma_list_lock);
 }
 
 void print_vma_hash (struct shim_vma * vma, void * addr, int len,

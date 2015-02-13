@@ -23,6 +23,9 @@
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
+#include "pal_internal.h"
+
+#define PAL_LOADER XSTRINGIFY(PAL_LOADER_PATH)
 
 #include <sys/syscall.h>
 

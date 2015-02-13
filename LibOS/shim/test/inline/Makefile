@@ -2,7 +2,7 @@ INLINE_TESTS_CPP = $(patsubst %.cpp,%,$(wildcard *.cpp))
 INLINE_TESTS = $(patsubst %.c,%,$(wildcard *.c))
 
 rtarget = helloworld fork vfork
-targets = $(rtarget) manifest pal
+targets = $(rtarget) manifest pal pal_sec
 clean-extra = clean-exec
 
 level = ../
@@ -23,4 +23,4 @@ test-vfork = grep -q "Hello, Dad" OUTPUT && grep -q "Hello, Kid" OUTPUT
 
 clean-exec:
 	find -type f -executable -exec rm {} \;
-	rm -rf manifest libpal.so
+	rm -rf manifest pal pal_sec

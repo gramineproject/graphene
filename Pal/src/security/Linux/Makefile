@@ -27,7 +27,6 @@ libpal_sec.so: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ security/Linux/$@ ]
 	@[ ! -f $@ ] || mv -f $@ $@.backup
 	@$(LD) $(LDFLAGS) -o $@ $^ -soname=libpal_sec.so
-	@cd ../.. && ln -sf security/Linux/libpal_sec.so
 
 %.o: %.c
 	@echo [ security/Linux/$@ ]

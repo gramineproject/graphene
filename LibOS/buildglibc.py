@@ -86,7 +86,7 @@ try:
 
     os.chdir(buildDir)
 
-    cflags= '{0} -O2 -U_FORTIFY_SOURCE -fno-stack-protector'.format(debug_flags)
+    cflags = '{0} -O2 -U_FORTIFY_SOURCE -fno-stack-protector'.format(debug_flags)
     disabled_features = { 'nscd' }
     extra_flags = '--with-tls --enable-add-ons=nptl --without-selinux {0}'.format(' '.join(['--disable-' + f for f in disabled_features]))
 
@@ -108,6 +108,7 @@ try:
                       ( 'nptl',   'libpthread.so.0' ),
                       ( 'nptl_db','libthread_db.so.1' ),
                       ( 'dlfcn',  'libdl.so.2' ),
+                      ( 'math',   'libm.so.6' ),
                       ( 'csu',    'crt1.o' ),
                       ( 'csu',    'crti.o' ),
                       ( 'csu',    'crtn.o' ),

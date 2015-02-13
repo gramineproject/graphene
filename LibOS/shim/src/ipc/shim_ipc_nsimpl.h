@@ -639,7 +639,7 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
                 for ( ; j < BITS ; f <<= 1, j++)
                     if (!(map & f)) {
                         (*m) |= f;
-                        idx = base + i * RANGE_SIZE + j;
+                        idx = base + i * BITS + j;
                         debug("allocated " NS_STR ": %u\n", idx);
                         goto out;
                     }

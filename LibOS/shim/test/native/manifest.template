@@ -10,6 +10,10 @@ fs.mount.other.lib.type = chroot
 fs.mount.other.lib.path = /lib
 fs.mount.other.lib.uri = file:../../../build
 
+fs.mount.other.bin.type = chroot
+fs.mount.other.bin.path = /bin
+fs.mount.other.bin.uri = file:/bin
+
 # allow to bind on port 8000
 net.rules.1 = 127.0.0.1:8000:0.0.0.0:0-65535
 # allow to connect to port 8000

@@ -12,23 +12,23 @@ char	*id = "$Id$\n";
 #define	FNAME "/usr/include/x86_64-linux-gnu/sys/types.h"
 
 void
-do_write(int fd)
+do_write(int fd, char *s)
 {
 	char	c;
 
 	if (write(fd, &c, 1) != 1) {
-		perror("/dev/null");
+		perror(s);
 		return;
 	}
 }
 
 void
-do_read(int fd)
+do_read(int fd, char *s)
 {
 	char	c;
 
 	if (read(fd, &c, 1) != 1) {
-		perror("/dev/zero");
+		perror(s);
 		return;
 	}
 }
@@ -81,17 +81,23 @@ main(int ac, char **av)
 		BENCH(getppid(), 0);
 		micro("Simple syscall", get_n());
 	} else if (!strcmp("write", av[1])) {
-		fd = open("/dev/null", 1);
-		BENCH(do_write(fd), 0);;
+		file = av[2] ? av[2] : "/dev/null";
+		fd = open(file, 1);
+		if (fd == -1) {
+			fprintf(stderr, "Write from %s: %s\n", file, strerror(errno));
+			return(1);
+		}
+		BENCH(do_write(fd, file), 0);;
 		micro("Simple write", get_n());
 		close(fd);
 	} else if (!strcmp("read", av[1])) {
-		fd = open("/dev/zero", 0);
+		file = av[2] ? av[2] : "/dev/null";
+		fd = open(file, 0);
 		if (fd == -1) {
-			fprintf(stderr, "Read from /dev/zero: -1");
+			fprintf(stderr, "Read from %s: %s\n", file, strerror(errno));
 			return(1);
 		}
-		BENCH(do_read(fd), 0);
+		BENCH(do_read(fd, file), 0);
 		micro("Simple read", get_n());
 		close(fd);
 	} else if (!strcmp("stat", av[1])) {

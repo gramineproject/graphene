@@ -43,6 +43,11 @@
 #define FUTEX_MIN_VALUE 0
 #define FUTEX_MAX_VALUE 255
 
+struct futex_waiter {
+    struct shim_thread * thread;
+    struct list_head list;
+};
+
 static LIST_HEAD(futex_list);
 static LOCKTYPE futex_list_lock;
 
@@ -66,11 +71,9 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
         }
 
     if (futex) {
-        hdl = container_of(tmp, struct shim_handle, info.futex);
+        hdl = container_of(futex, struct shim_handle, info.futex);
         get_handle(hdl);
     } else {
-        struct shim_vma * vma_addr = NULL;
-
         if (!(hdl = get_new_handle())) {
             unlock(futex_list_lock);
             return -ENOMEM;
@@ -79,15 +82,6 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
         hdl->type = TYPE_FUTEX;
         futex = &hdl->info.futex;
         futex->uaddr = uaddr;
-        futex->vma = vma_addr;
-
-        futex->event = DkSynchronizationEventCreate(0);
-        if (futex->event == NULL) {
-            ret = -PAL_ERRNO;
-            unlock(futex_list_lock);
-            goto out;
-        }
-
         get_handle(hdl);
         INIT_LIST_HEAD(&futex->waiters);
         INIT_LIST_HEAD(&futex->list);
@@ -97,13 +91,9 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
     unlock(futex_list_lock);
     lock(hdl->lock);
 
-    struct futex_waiter {
-        struct shim_thread * thread;
-        struct list_head list;
-    };
-
     switch (op & FUTEX_CMD_MASK) {
         case FUTEX_WAIT:
+            debug("FUTEX_WAIT: %p (val = %d) vs %d\n", uaddr, *uaddr, val);
             if (*uaddr != val)
                 break;
 
@@ -118,7 +108,76 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             break;
 
         case FUTEX_WAKE: {
-            for (int cnt = 0 ; cnt < val ; cnt++) {
+            debug("FUTEX_WAKE: %p (val = %d)\n", uaddr, *uaddr);
+            int cnt;
+            for (cnt = 0 ; cnt < val ; cnt++) {
+                if (list_empty(&futex->waiters))
+                    break;
+
+                struct futex_waiter * waiter = list_entry(futex->waiters.next,
+                                                          struct futex_waiter,
+                                                          list);
+
+                debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
+                      waiter->thread->tid, uaddr, *uaddr);
+                list_del(&waiter->list);
+                thread_wakeup(waiter->thread);
+            }
+            ret = cnt;
+            debug("FUTEX_WAKE done: %p (val = %d)\n", uaddr, *uaddr);
+            break;
+        }
+
+        case FUTEX_CMP_REQUEUE:
+            if (*uaddr != val3) {
+                ret = -EAGAIN;
+                break;
+            }
+
+        case FUTEX_REQUEUE: {
+            struct shim_futex_handle * futex2 = NULL;
+            struct shim_handle * hdl2;
+
+            lock(futex_list_lock);
+
+            list_for_each_entry(tmp, &futex_list, list)
+                if (tmp->uaddr == uaddr2) {
+                    futex2 = tmp;
+                    break;
+                }
+
+            if (futex2) {
+                hdl2 = container_of(futex2, struct shim_handle, info.futex);
+                get_handle(hdl2);
+            } else {
+                if (!(hdl2 = get_new_handle())) {
+                    unlock(futex_list_lock);
+                    ret = -ENOMEM;
+                    goto out;
+                }
+
+                hdl2->type = TYPE_FUTEX;
+                futex2 = &hdl2->info.futex;
+                futex2->uaddr = uaddr2;
+#if 0
+                futex2->event = DkSynchronizationEventCreate(0);
+                if (futex2->event == NULL) {
+                    ret = -PAL_ERRNO;
+                    unlock(futex_list_lock);
+                    put_handle(hdl2);
+                    goto out;
+                }
+#endif
+                get_handle(hdl2);
+                INIT_LIST_HEAD(&futex2->waiters);
+                INIT_LIST_HEAD(&futex2->list);
+                list_add_tail(&futex2->list, &futex_list);
+            }
+
+            unlock(futex_list_lock);
+
+            int cnt;
+            for (cnt = 0 ; cnt < val ; cnt++) {
                 if (list_empty(&futex->waiters))
                     break;
 
@@ -129,6 +188,19 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                 list_del(&waiter->list);
                 thread_wakeup(waiter->thread);
             }
+
+            lock(hdl2->lock);
+            while (!list_empty(&futex->waiters)) {
+                struct futex_waiter * waiter = list_entry(futex->waiters.next,
+                                                          struct futex_waiter,
+                                                          list);
+
+                list_del(&waiter->list);
+                list_add_tail(&waiter->list, &futex2->waiters);
+            }
+            unlock(hdl2->lock);
+            put_handle(hdl2);
+            ret = cnt;
             break;
         }
 
@@ -137,6 +209,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             break;
 
         default:
+            debug("unsupported futex op: 0x%x\n", op);
             ret = -ENOSYS;
             break;
     }
@@ -205,7 +278,24 @@ void release_robust_list (struct robust_list_head * head)
         if (!futex)
             continue;
 
-        DkEventSet(futex->event);
+        struct shim_handle * hdl =
+            container_of(futex, struct shim_handle, info.futex);
+        get_handle(hdl);
+        lock(hdl->lock);
+
+        debug("release robust list: %p\n", futex_addr);
+        *(int *) futex_addr = 0;
+        while (!list_empty(&futex->waiters)) {
+            struct futex_waiter * waiter = list_entry(futex->waiters.next,
+                                                      struct futex_waiter,
+                                                      list);
+
+            list_del(&waiter->list);
+            thread_wakeup(waiter->thread);
+        }
+
+        unlock(hdl->lock);
+        put_handle(hdl);
     }
 }
 
@@ -230,6 +320,22 @@ void release_clear_child_id (int * clear_child_tid)
     if (!futex)
         return;
 
+    struct shim_handle * hdl =
+            container_of(futex, struct shim_handle, info.futex);
+    get_handle(hdl);
+    lock(hdl->lock);
+
     debug("release futex at %p\n", clear_child_tid);
-    DkEventSet(futex->event);
+    *clear_child_tid = 0;
+    while (!list_empty(&futex->waiters)) {
+        struct futex_waiter * waiter = list_entry(futex->waiters.next,
+                                                  struct futex_waiter,
+                                                  list);
+
+        list_del(&waiter->list);
+        thread_wakeup(waiter->thread);
+    }
+
+    unlock(hdl->lock);
+    put_handle(hdl);
 }

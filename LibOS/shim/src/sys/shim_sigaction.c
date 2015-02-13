@@ -165,8 +165,7 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
     if (!warg->use_ipc && !thread->in_vm)
         return 0;
 
-    /* only signal thread leader */
-    if (thread->tgid != warg->id || thread->tid != thread->tgid)
+    if (thread->tgid != warg->id)
         return 0;
 
     if (warg->current == thread)
@@ -185,7 +184,6 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
         return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS,
                                    warg->sig)) ? 1 : 0;
     } else {
-
         lock(thread->lock);
 
         if (!thread->is_alive)
@@ -216,7 +214,7 @@ static int __kill_proc_simple (struct shim_simple_thread * sthread,
     struct walk_arg * warg = (struct walk_arg *) arg;
     int srched = 0;
 
-    if (sthread->tgid != warg->id || sthread->tgid != sthread->tid)
+    if (sthread->tgid != warg->id)
         return 0;
 
     lock(sthread->lock);
@@ -276,8 +274,7 @@ static int __kill_pgroup (struct shim_thread * thread, void * arg,
     if (!warg->use_ipc && !thread->in_vm)
         return 0;
 
-    /* only signal thread leader */
-    if (thread->pgid != warg->id || thread->tgid != thread->tid)
+    if (thread->pgid != warg->id)
         return 0;
 
     if (warg->current == thread)
@@ -312,7 +309,7 @@ static int __kill_pgroup_simple (struct shim_simple_thread * sthread,
     struct walk_arg * warg = (struct walk_arg *) arg;
     int srched = 0;
 
-    if (sthread->pgid != warg->id || sthread->tgid != sthread->tid)
+    if (sthread->pgid != warg->id)
         return 0;
 
     lock(sthread->lock);

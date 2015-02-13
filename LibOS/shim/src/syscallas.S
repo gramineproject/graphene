@@ -22,8 +22,8 @@
 
 #include <shim_tls.h>
 
-        .text
-        .globl syscalldb
+.text
+        .global syscalldb
         .type syscalldb, @function
         .extern shim_table
 
@@ -42,18 +42,10 @@ syscalldb:
         .cfi_def_cfa_register 6
 
         pushq %rbx
-        pushq %r12
 
-        movq %rax, %fs:(SHIM_TCB_OFFSET + 24)
-        movq %rsp, %rbx
-        addq $152, %rbx
-        movq %rbx, %fs:(SHIM_TCB_OFFSET + 32)
-        movq (%rbx), %rbx
-        movq %rbx, %fs:(SHIM_TCB_OFFSET + 40)
-
-        movq shim_table@GOTPCREL(%rip), %rbx
-        movq (%rbx,%rax,8), %r12
-        cmp $0, (%r12)
+        leaq shim_table(%rip), %rbx
+        movq (%rbx,%rax,8), %rbx
+        cmp $0, (%rbx)
         je isundef
 
 isdef:
@@ -63,16 +55,29 @@ isdef:
         pushq %rcx
         pushq %r8
         pushq %r9
+        pushq %r12
         pushq %r13
         pushq %r14
         pushq %r15
+
+        movq %rax, %fs:(SHIM_TCB_OFFSET + 24)
+        leaq 224(%rsp), %rax
+        movq %rax, %fs:(SHIM_TCB_OFFSET + 32)
+        movq (%rax), %rax
+        movq %rax, %fs:(SHIM_TCB_OFFSET + 40)
         movq %rsp, %fs:(SHIM_TCB_OFFSET + 48)
 
-        call *(%rbx,%rax,8)
+        call *%rbx
+
+        movq $0, %fs:(SHIM_TCB_OFFSET + 24)
+        movq $0, %fs:(SHIM_TCB_OFFSET + 32)
+        movq $0, %fs:(SHIM_TCB_OFFSET + 40)
+        movq $0, %fs:(SHIM_TCB_OFFSET + 48)
 
         popq %r15
         popq %r14
         popq %r13
+        popq %r12
         popq %r9
         popq %r8
         popq %rcx
@@ -86,17 +91,9 @@ isundef:
         movq $-38, %rax
 
 ret:
-        popq %r12
         popq %rbx
         popq %rbp
-
-        movq $0, %fs:(SHIM_TCB_OFFSET + 24)
-        movq $0, %fs:(SHIM_TCB_OFFSET + 32)
-        movq $0, %fs:(SHIM_TCB_OFFSET + 40)
-        movq $0, %fs:(SHIM_TCB_OFFSET + 48)
-
         addq $128, %rsp
-
         retq
 
         .cfi_endproc

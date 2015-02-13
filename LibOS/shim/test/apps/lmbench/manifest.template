@@ -1,4 +1,4 @@
-#!$(PWD)../libpal.so
+#!$(PAL)
 
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:$(PWD)lmbench-2.5/bin/linux/$(BIN)

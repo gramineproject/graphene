@@ -875,7 +875,7 @@ int init_checkpoint (struct newproc_cp_header * hdr, void ** cpptr)
 
         bkeep_mmap(cpaddr, ALIGN_UP(cpsize), PROT_READ|PROT_WRITE,
                    MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-                   NULL, 0, "migrated");
+                   NULL, 0, NULL);
 
         SAVE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc);
 
@@ -897,7 +897,7 @@ int init_checkpoint (struct newproc_cp_header * hdr, void ** cpptr)
 
         bkeep_mmap(cpaddr, cpsize_pgalign, PROT_READ|PROT_WRITE,
                    MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-                   NULL, 0, "migrated");
+                   NULL, 0, NULL);
 
         cpaddr -= cpaddr_pgalign;
 
@@ -944,8 +944,8 @@ int init_checkpoint (struct newproc_cp_header * hdr, void ** cpptr)
 
 void restore_context (struct shim_context * context)
 {
-    int nregs = sizeof(struct shim_regs) / sizeof(unsigned long);
-    unsigned long regs[nregs + 1];
+    int nregs = sizeof(struct shim_regs) / sizeof(void *);
+    void * regs[nregs + 1];
 
     if (context->regs)
         memcpy(regs, context->regs, sizeof(struct shim_regs));
@@ -954,7 +954,8 @@ void restore_context (struct shim_context * context)
 
     debug("restore context: SP = %p, IP = %p\n", context->sp, context->ret_ip);
 
-    regs[nregs] = (unsigned long) context->sp;
+    regs[nregs] = (void *) context->sp - 8;
+    *(void **) (context->sp - 8) = context->ret_ip;
 
     memset(context, 0, sizeof(struct shim_context));
 
@@ -962,13 +963,13 @@ void restore_context (struct shim_context * context)
                  "popq %%r15\r\n"
                  "popq %%r14\r\n"
                  "popq %%r13\r\n"
+                 "popq %%r12\r\n"
                  "popq %%r9\r\n"
                  "popq %%r8\r\n"
                  "popq %%rcx\r\n"
                  "popq %%rdx\r\n"
                  "popq %%rsi\r\n"
                  "popq %%rdi\r\n"
-                 "popq %%r12\r\n"
                  "popq %%rbx\r\n"
                  "popq %%rbp\r\n"
                  "popq %%rsp\r\n"

@@ -44,11 +44,10 @@ PAL {
         DkStreamAttributesSetbyHandle;
 
         # Debugging ABIs
-        pal_printf; pal_snprintf;
+        pal_printf; pal_snprintf; DkDebugAttachBinary; DkDebugDetachBinary;
 
         # Control block
         pal_control; pal_control_addr; pal_sec_info;
-
 
     local: *;
 };

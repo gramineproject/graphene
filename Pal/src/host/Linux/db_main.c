@@ -70,7 +70,6 @@ static gid_t gid;
 static ElfW(Addr) sysinfo_ehdr;
 #endif
 
-static const char * libname;
 static const char * child_args;
 
 static void pal_init_bootstrap (void * args, int * pargc,
@@ -124,9 +123,7 @@ static void pal_init_bootstrap (void * args, int * pargc,
 #endif
         }
 
-    if (memcmp(*argv + strlen(*argv) - LIBRARY_NAMELEN, LIBRARY_NAME,
-               LIBRARY_NAMELEN) == 0) {
-        libname = *argv;
+    if (!memcmp(*argv + strlen(*argv) - 3, "pal", 3)) {
         argv++;
         argc--;
 
@@ -198,8 +195,6 @@ int read_shebang (const char ** argv)
 
     if (IS_ERR(fd)) {
 bad_shebang:
-        printf("The program is either not libpal.so or script with "
-               "shebang. I can't recognize.\n");
         INLINE_SYSCALL(close, 1, fd);
         return -PAL_ERROR_INVAL;
     }
@@ -215,14 +210,8 @@ bad_shebang:
         goto bad_shebang;
 
     char * p = &buffer[2];
-    while (*p && *p != ' ' && *p != '\r' && *p != '\n');
-    p++;
-
-    if (!libname) {
-        char * name = malloc(p - buffer - 1);
-        memcpy(name, &buffer[2], p - buffer - 2);
-        libname = name;
-    }
+    while (*p && *p != ' ' && *p != '\r' && *p != '\n')
+        p++;
 
     int len = strlen(*argv);
     PAL_HANDLE manifest = malloc(HANDLE_SIZE(file) + len + 1);
@@ -265,7 +254,7 @@ void pal_linux_main (void * args)
 
     init_slab_mgr();
 
-    setup_pal_map(XSTRINGIFY(SRCDIR) "/" LIBRARY_NAME, pal_dyn, pal_addr);
+    setup_pal_map(XSTRINGIFY(SRCDIR) "/pal", pal_dyn, pal_addr);
 
     /* jump to main function */
     pal_main(argc, argv, envp);
@@ -345,9 +334,6 @@ int _DkInitHost (int * pargc, const char *** pargv)
         return -PAL_ERROR_INVAL;
     }
 
-    if (pal_sec_info.pal_name)
-        libname = pal_sec_info.pal_name;
-
     pal_linux_config.pid = INLINE_SYSCALL(getpid, 0);
 
     signal_setup();
@@ -359,12 +345,8 @@ int _DkInitHost (int * pargc, const char *** pargv)
         goto read_manifest;
     }
 
-    if (!libname) {
-        if ((ret = read_shebang(argv)) < 0)
-            return ret;
-
+    if (!(ret = read_shebang(argv)) < 0)
         goto read_manifest;
-    }
 
     PAL_HANDLE file = NULL;
     const char * file_uri = NULL;
@@ -468,12 +450,6 @@ read_manifest:
     }
 
 done_init:
-    if (!child_args && pal_config.exec)
-        printf("Program \"%s\" loaded in Graphene Library OS\n",
-               pal_config.exec);
-
-    pal_config.lib_name = libname;
-
     if (!child_args && !pal_sec_info.domain_id) {
         if ((ret = create_domain_dir()) < 0)
             return ret;
@@ -490,9 +466,9 @@ done_init:
 #endif
 
     if (!pal_sec_info.mcast_port) {
-        do {
-            getrand(&pal_sec_info.mcast_port, sizeof(unsigned short));
-        } while (pal_sec_info.mcast_port < 1024);
+        unsigned short mcast_port;
+        getrand(&mcast_port, sizeof(unsigned short));
+        pal_sec_info.mcast_port = mcast_port % 1024;
     }
 
     __pal_control.broadcast_stream = pal_sec_info.mcast_handle ? :

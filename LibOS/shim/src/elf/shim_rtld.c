@@ -339,23 +339,6 @@ void setup_elf_hash (struct link_map * map)
     map->l_chain = hash;
 }
 
-static const char * __obj_type_str (int type, struct link_map * remap)
-{
-    switch (type) {
-        case OBJECT_INTERNAL:
-            return "elf-internal";
-        case OBJECT_LOAD:
-            return "elf-load";
-        case OBJECT_MAPPED:
-            return "elf-mapped";
-        case OBJECT_REMAP:
-            return __obj_type_str(remap->l_type, NULL);
-        case OBJECT_USER:
-            return "elf-user";
-    }
-    return NULL;
-}
-
 /* Map in the shared object NAME, actually located in REALNAME, and already
    opened on FD */
 static struct link_map *
@@ -376,7 +359,6 @@ __map_elf_object (struct shim_handle * file,
     if (file && (!read || !mmap || !seek))
         return NULL;
 
-    const char * obj_type = __obj_type_str(type, remap);
     struct link_map * l = remap ? :
                           new_elf_object(file ? (!qstrempty(&file->path) ?
                                          qstrgetstr(&file->path) :
@@ -404,6 +386,7 @@ call_lose:
 
     /* Extract the remaining details we need from the ELF header
        and then read in the program header table.  */
+    l->l_addr = (ElfW(Addr)) addr;
     l->l_entry = header->e_entry;
     int e_type = header->e_type;
     l->l_phnum = header->e_phnum;
@@ -438,7 +421,7 @@ call_lose:
                 break;
 
             case PT_INTERP:
-                l->l_interp_libname = ((const char *) l->l_addr + ph->p_vaddr);
+                l->l_interp_libname = (const char *) ph->p_vaddr;
                 break;
 
             case PT_PHDR:
@@ -559,7 +542,7 @@ map_error:
             bkeep_mmap((void *) mappref, ALIGN_UP(maplength), c->prot,
                        c->flags|MAP_PRIVATE|
                        (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
-                       file, c->mapoff, obj_type);
+                       file, c->mapoff, NULL);
 
         l->l_addr = l->l_map_start - c->mapstart;
 
@@ -593,6 +576,7 @@ map_error:
     }
 
     /* Remember which part of the address space this object uses.  */
+    l->l_addr = 0;
     l->l_map_start = c->mapstart;
     l->l_map_end = l->l_map_start + maplength;
 
@@ -615,7 +599,7 @@ do_remap:
                     bkeep_mmap(mapaddr, c->mapend - c->mapstart, c->prot,
                                c->flags|MAP_FIXED|MAP_PRIVATE|
                                (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
-                               file, c->mapoff, obj_type);
+                               file, c->mapoff, NULL);
         }
 
 postmap:
@@ -1143,12 +1127,12 @@ static int __load_elf_object (struct shim_handle * file, void * addr,
         add_link_map(map);
     }
 
-    if ((type == OBJECT_LOAD || type == OBJECT_REMAP) &&
+    if ((type == OBJECT_LOAD || type == OBJECT_REMAP || type == OBJECT_USER) &&
         map->l_file && !qstrempty(&map->l_file->uri)) {
         if (type == OBJECT_REMAP)
             remove_r_debug((void *) map->l_addr);
 
-        append_r_debug(qstrgetstr(&map->l_file->uri), (void *) map->l_addr,
+        append_r_debug(qstrgetstr(&map->l_file->uri), (void *) map->l_map_start,
                        (void *) map->l_real_ld);
     }
 
@@ -1440,7 +1424,8 @@ int free_elf_interp (void)
 
 static int __load_interp_object (struct link_map * exec_map)
 {
-    const char * interp_name = exec_map->l_interp_libname;
+    const char * interp_name = (const char *) exec_map->l_interp_libname +
+                               (long) exec_map->l_addr;
     int len = strlen(interp_name);
     const char * filename = interp_name + len - 1;
     while (filename > interp_name && *filename != '/')

@@ -1,4 +1,4 @@
-#!$(PWD)../libpal.so
+#!$(PAL)
 
 loader.interp = file:$(SHIMROOT)build/elf/ld.so
 loader.preload = file:$(SHIMROOT)build/libsysdb.so

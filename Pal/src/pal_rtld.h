@@ -102,6 +102,16 @@ struct link_map {
     const Elf32_Word * l_gnu_chain_zero;
 };
 
+struct link_gdb_map {
+    /* These first few members are part of the protocol with the debugger.
+       This is the same format used in SVR4.  */
+
+    ElfW(Addr) l_addr;          /* Base address shared object is loaded at. */
+    const char * l_name;        /* Absolute file name object was found in.  */
+    ElfW(Dyn) * l_ld;           /* Dynamic section of the shared object.    */
+    struct link_map * l_next, * l_prev;     /* Chain of loaded objects.     */
+};
+
 extern struct link_map * loaded_libraries;
 extern struct link_map * rtld_map;
 extern struct link_map * exec_map;
@@ -206,5 +216,10 @@ ElfW(Sym) *
 do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
                const uint_fast32_t hash, unsigned long int elf_hash,
                const struct link_map * map);
+
+/* for GDB debugging */
+void _DkDebugAddMap (struct link_map * map);
+void _DkDebugDelMap (struct link_map * map);
+
 
 #endif /* PAL_RTLD_H */

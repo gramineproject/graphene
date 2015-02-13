@@ -59,6 +59,9 @@ int pal_snprintf (char *buf, size_t n, const char *fmt, ...);
 int pal_atoi (const char *nptr);
 long int pal_atol (const char *nptr);
 
+void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr);
+void DkDebugDetachBinary (PAL_PTR start_addr);
+
 #endif
 
 #endif

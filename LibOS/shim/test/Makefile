@@ -26,12 +26,11 @@ manifest: manifest.template
 	rm -rf $@
 	cp $@.template $@
 
-.PHONY: pal palsec
-
 pal:
-	ln -sf $(level)../../../Pal/src/libpal.so
-palsec:
-	ln -sf $(level)../../../Pal/src/libpal_sec.so libpal.so
+	[ ! -f $(level)../../../Pal/src/pal ] || ln -sf $(level)../../../Pal/src/pal pal
+
+pal_sec:
+	[ ! -f $(level)../../../Pal/src/pal_sec ] || ln -sf $(level)../../../Pal/src/pal_sec pal_sec
 
 # Regression Test
 rtest:	$(rtarget)

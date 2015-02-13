@@ -47,8 +47,7 @@ static void * __malloc (size_t size)
     addr = DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
 
     if (addr)
-        bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0,
-                   "checkpoint");
+        bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0, NULL);
 
     return addr;
 }
@@ -56,9 +55,9 @@ static void * __malloc (size_t size)
 #define malloc_method __malloc
 #include <shim_checkpoint.h>
 
-static int migrate_fork (struct shim_cp_store * cpstore,
-                         struct shim_process * process,
-                         struct shim_thread * thread, va_list ap)
+int migrate_fork (struct shim_cp_store * cpstore,
+                  struct shim_process * process,
+                  struct shim_thread * thread, va_list ap)
 {
     BEGIN_MIGRATION_DEF(fork, struct shim_process * proc,
                         struct shim_thread * thread)
@@ -104,7 +103,6 @@ int shim_do_fork (void)
     if (!new_thread)
         return -ENOMEM;
 
-    new_thread->stack    = cur_thread->stack;
     new_thread->tcb      = cur_thread->tcb;
     new_thread->tgid     = new_thread->tid;
     new_thread->in_vm    = false;

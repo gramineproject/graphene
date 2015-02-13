@@ -55,10 +55,10 @@ unsigned long _DkSystemTimeQuery (void)
 
 #if USE_VDSO_GETTIME == 1
     if (__vdso_clock_gettime) {
-        ret = __vdso_clock_gettime(CLOCK_MONOTONIC, &time);
+        ret = __vdso_clock_gettime(CLOCK_REALTIME, &time);
     } else {
 #endif
-        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time);
+        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
 #if USE_VDSO_GETTIME == 1
     }
 #endif

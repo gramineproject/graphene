@@ -595,7 +595,7 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
         return -PAL_ERRNO;
 
     bkeep_mmap(mapbuf, maplen, prot, MAP_FILE|MAP_SHARED|VMA_INTERNAL,
-               hdl, mapoff, "chroot-buffer");
+               hdl, mapoff, NULL);
 
     file->mapbuf    = mapbuf;
     file->mapoffset = mapoff;
@@ -706,14 +706,26 @@ static int chroot_read (struct shim_handle * hdl, void * buf,
         goto out;
     }
 
-    if (hdl->info.file.buf_type == FILEBUF_MAP) {
+    struct shim_file_handle * file = &hdl->info.file;
+
+    if (file->buf_type == FILEBUF_MAP) {
         ret = map_read(hdl, buf, count);
-        goto out;
+        if (ret != -EACCES)
+            goto out;
+
+        lock(hdl->lock);
+        file->buf_type = FILEBUF_NONE;
+    } else {
+        lock(hdl->lock);
     }
 
-    ret = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0) ? :
+    ret = DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0) ? :
            (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ? 0 : -PAL_ERRNO);
 
+    if (ret > 0)
+        file->marker += ret;
+
+    unlock(hdl->lock);
 out:
     return ret;
 }
@@ -730,13 +742,26 @@ static int chroot_write (struct shim_handle * hdl, const void * buf,
         goto out;
     }
 
+    struct shim_file_handle * file = &hdl->info.file;
+
     if (hdl->info.file.buf_type == FILEBUF_MAP) {
         ret = map_write(hdl, buf, count);
+        if (ret != -EACCES)
+            goto out;
+
+        lock(hdl->lock);
+        file->buf_type = FILEBUF_NONE;
     } else {
-        ret =  DkStreamWrite(hdl->pal_handle, 0, count, buf, NULL) ? :
-            -PAL_ERRNO;
+        lock(hdl->lock);
     }
 
+    ret = DkStreamWrite(hdl->pal_handle, file->marker, count, buf, NULL) ? :
+          -PAL_ERRNO;
+
+    if (ret > 0)
+        file->marker += ret;
+
+    unlock(hdl->lock);
 out:
     return ret;
 
@@ -804,9 +829,7 @@ static int chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
             break;
 
         case SEEK_END:
-            if (offset < 0)
-                goto out;
-            marker = size - offset;
+            marker = size + offset;
             break;
     }
 

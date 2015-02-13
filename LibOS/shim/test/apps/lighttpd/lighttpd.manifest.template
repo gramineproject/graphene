@@ -1,4 +1,4 @@
-#!$(PWD)../libpal.so
+#!$(PAL)
 
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:$(PWD)build/sbin/lighttpd

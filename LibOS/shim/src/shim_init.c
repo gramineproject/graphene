@@ -148,6 +148,9 @@ void allocate_tls (void * tcb_location, struct shim_thread * thread)
         thread->tcb       = tcb;
         tcb->shim_tcb.tp  = thread;
         tcb->shim_tcb.tid = thread->tid;
+    } else {
+        tcb->shim_tcb.tp  = NULL;
+        tcb->shim_tcb.tid = 0;
     }
 
     DkThreadPrivate(tcb);
@@ -210,7 +213,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 
         if (protect_size &&
             bkeep_mmap(stack - protect_size, protect_size, 0,
-                       STACK_FLAGS, NULL, 0, "stack-red") < 0)
+                       STACK_FLAGS, NULL, 0, NULL) < 0)
             return NULL;
     }
 
@@ -394,7 +397,8 @@ int init_manifest (PAL_HANDLE manifest_handle)
 
     size_t cfg_size = attr.size;
     void * cfg_addr = DkStreamMap(manifest_handle, NULL,
-                                  PAL_PROT_READ, 0, ALIGN_UP(cfg_size));
+                                  PAL_PROT_READ|PAL_PROT_WRITECOPY, 0,
+                                  ALIGN_UP(cfg_size));
 
     if (!cfg_addr)
         return -PAL_ERRNO;
@@ -583,6 +587,7 @@ int shim_init (int argc, void * args, void ** return_stack)
 
     /* create the initial TCB, shim can not be run without a tcb */
     __libc_tcb_t tcb;
+    memset(&tcb, 0, sizeof(__libc_tcb_t));
     allocate_tls(&tcb, NULL);
     debug_setbuf(&tcb.shim_tcb, true);
 
@@ -918,6 +923,23 @@ int create_handle (const char * prefix, char * uri, size_t size,
 
     return create_unique(&name_path, &open_pal_handle, &output_path, uri, size,
                          id ? : &suffix, hdl, NULL);
+}
+
+void check_stack_hook (void)
+{
+    struct shim_thread * cur_thread = get_cur_thread();
+
+    void * rsp;
+    asm volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
+
+    if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
+        if (rsp - cur_thread->stack < PAL_CB(pagesize))
+            sys_printf("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
+                       rsp, cur_thread->stack, cur_thread->stack_top);
+    } else {
+        sys_printf("*** context dismateched with thread stack (RSP = %p, stack = %p-%p) ***\n",
+                   rsp, cur_thread->stack, cur_thread->stack_top);
+    }
 }
 
 #ifdef PROFILE

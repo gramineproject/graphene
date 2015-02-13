@@ -35,9 +35,6 @@
 # error "pal_internal.h can only be included in PAL"
 #endif
 
-#define LIBRARY_NAME        "libpal.so"
-#define LIBRARY_NAMELEN     9
-
 /* handle_ops is the operators provided for each handler type. They are
    mostly used by Stream-related PAL calls, but can also be used by
    some others in special ways. */
@@ -286,7 +283,6 @@ extern struct pal_config {
     PAL_HANDLE      manifest_handle;
     PAL_HANDLE      exec_handle;
     struct config_store * root_config;
-    const char *    lib_name;
     const char **   environments;
     unsigned long   pagesize;
     unsigned long   alloc_align;
@@ -430,7 +426,7 @@ int unblock_signals (int * sigs, int nsig);
 void * find_address (void * addr);
 
 /* function and definition for loading binaries */
-enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD };
+enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
 
 int check_elf_object (PAL_HANDLE handle);
 int load_elf_object (const char * uri, enum object_type type);

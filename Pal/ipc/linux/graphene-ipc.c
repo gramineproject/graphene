@@ -895,7 +895,7 @@ out:
 		mutex_unlock(&pending->receiver_lock);
 		up_write(&current_tsk->mm->mmap_sem);
 
-		rv = copy_to_user(((struct gipc_recv *)arg)->addr, addrs,
+		rv = copy_to_user(gr.addr, addrs,
 				  sizeof(unsigned long) * gr.entries);
 		if (rv) {
 			printk(KERN_ERR "Graphene error: bad buffer %p\n",

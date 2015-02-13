@@ -106,7 +106,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     const char ** new_args = __alloca(sizeof(const char *) * (nargs + 3));
     int bufsize = STRARG_SIZE;
     char * argbuf = __alloca(STRARG_SIZE);
-    new_args[0] = pal_config.lib_name;
+    new_args[0] = PAL_LOADER;
     new_args[1] = argbuf;
     if (args)
         memcpy(new_args + 2, args, sizeof(const char *) * nargs);
@@ -170,7 +170,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
         if (manifest_fd >= 0)
             INLINE_SYSCALL(fcntl, 3, manifest_fd, F_SETFD, 0);
 
-        rete = INLINE_SYSCALL(execve, 3, pal_config.lib_name, new_args,
+        rete = INLINE_SYSCALL(execve, 3,  PAL_LOADER, new_args,
                               pal_config.environments);
 
         /* shouldn't get to here */

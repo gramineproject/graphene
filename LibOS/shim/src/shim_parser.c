@@ -37,6 +37,7 @@
 #include <asm/prctl.h>
 #include <asm/mman.h>
 #include <asm/ioctls.h>
+#include <linux/sched.h>
 #include <linux/futex.h>
 #include <linux/wait.h>
 #include <errno.h>
@@ -45,6 +46,7 @@
 static void parse_open_flags    (const char *, va_list);
 static void parse_open_mode     (const char *, va_list);
 static void parse_access_mode   (const char *, va_list);
+static void parse_clone_flags   (const char *, va_list);
 static void parse_mmap_prot     (const char *, va_list);
 static void parse_mmap_flags    (const char *, va_list);
 static void parse_exec_args     (const char *, va_list);
@@ -130,7 +132,7 @@ struct parser_table {
       .parser = { NULL, NULL, NULL, &parse_pipe_fds } },
     { .slow = 0, .parser = { NULL } }, /* setsockopt */
     { .slow = 0, .parser = { NULL } }, /* getsockopt */
-    { .slow = 1, .parser = { NULL } }, /* clone */
+    { .slow = 1, .parser = { &parse_clone_flags } }, /* clone */
     { .slow = 1, .parser = { NULL } }, /* fork */
     { .slow = 1, .parser = { NULL } }, /* vfork */
     { .slow = 1,                       /* execve */
@@ -612,6 +614,37 @@ static void parse_access_mode (const char * type, va_list ap)
     }
 }
 
+static void parse_clone_flags (const char * type, va_list ap)
+{
+    int flags = va_arg (ap, int);
+
+#define FLG(n) { "CLONE_" #n, CLONE_##n, }
+    const struct {
+        const char * name; int flag;
+    } all_flags[] = {
+        FLG(VM), FLG(FS), FLG(FILES), FLG(SIGHAND), FLG(PTRACE), FLG(VFORK),
+        FLG(PARENT), FLG(THREAD), FLG(NEWNS), FLG(SYSVSEM), FLG(SETTLS),
+        FLG(PARENT_SETTID), FLG(CHILD_CLEARTID), FLG(DETACHED), FLG(UNTRACED),
+        FLG(CHILD_SETTID), FLG(NEWUTS), FLG(NEWIPC), FLG(NEWUSER),
+        FLG(NEWPID), FLG(NEWNET), FLG(IO),
+    };
+#undef FLG
+
+    bool printed = false;
+    for (int i = 0 ; i < sizeof(all_flags) / sizeof(all_flags[0]) ; i++)
+        if (flags & all_flags[i].flag) {
+            if (printed)
+                PUTCH('|');
+            else
+                printed = true;
+            PUTS(all_flags[i].name);
+            flags &= ~all_flags[i].flag;
+        }
+
+    if (flags)
+        PRINTF("|0x%x", flags);
+}
+
 static void parse_mmap_prot (const char * type, va_list ap)
 {
     int prot = va_arg (ap, int);
@@ -650,23 +683,36 @@ static void parse_mmap_flags (const char * type, va_list ap)
         PUTS("MAP_SHARED");
         flags &= ~MAP_SHARED;
     }
-    else
+
+    if (flags & MAP_PRIVATE) {
         PUTS("MAP_PRIVATE");
+        flags &= ~MAP_PRIVATE;
+    }
 
     if (flags & MAP_ANONYMOUS) {
         PUTS("|MAP_ANON");
         flags &= ~MAP_ANONYMOUS;
     }
-    else
+
+    if (flags & MAP_FILE) {
         PUTS("|MAP_FILE");
+        flags &= ~MAP_FILE;
+    }
 
     if (flags & MAP_FIXED) {
         PUTS("|MAP_FIXED");
         flags &= ~MAP_FIXED;
     }
 
+#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+    if (flags & MAP_UNINITIALIZED) {
+        PUTS("|MAP_UNINITIALIZED");
+        flags &= ~MAP_UNINITIALIZED;
+    }
+#endif
+
     if (flags)
-        PRINTF("|%o", flags);
+        PRINTF("|0x%x", flags);
 }
 
 static void parse_exec_args (const char * type, va_list ap)
@@ -884,7 +930,7 @@ static void parse_futexop (const char * type, va_list ap)
             PUTS("FUTEX_CMP_REQUEUE");
             break;
         case FUTEX_WAKE_OP:
-            PUTS("FUTEX_WAKE");
+            PUTS("FUTEX_WAKE_OP");
             break;
         default:
             PRINTF("OP %d", op);

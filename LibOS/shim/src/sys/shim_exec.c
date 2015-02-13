@@ -154,8 +154,7 @@ static void * __malloc (size_t size)
     addr = DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
 
     if (addr)
-        bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0,
-                   "checkpoint");
+        bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0, NULL);
 
     return addr;
 }
