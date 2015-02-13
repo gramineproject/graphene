@@ -48,7 +48,7 @@ int init_child (int argc, const char ** argv, const char ** envp)
     mcast_rules[1].peer.port_end = pal_sec_info_addr->mcast_port;
 
     const struct graphene_user_policy default_policies[] = {
-        { .type = GRAPHENE_LIB_NAME,     .value = LIBPAL_PATH, },
+        { .type = GRAPHENE_LIB_NAME,     .value = PAL_LOADER, },
         { .type = GRAPHENE_LIB_ADDR,     .value = (void *) pal_addr, },
         { .type = GRAPHENE_UNIX_ROOT,    .value = pipe_root, },
         { .type = GRAPHENE_UNIX_PREFIX,  .value = pipe_prefix, },

@@ -562,7 +562,7 @@ void do_main (void * args)
     unsigned long pal_phoff = 0;
     int pal_phnum = 0;
 
-    ret = load_static(LIBPAL_PATH, &pal_entry, &pal_addr, &pal_start, &pal_end,
+    ret = load_static(PAL_LOADER, &pal_entry, &pal_addr, &pal_start, &pal_end,
                       &pal_phoff, &pal_phnum);
     if (ret < 0) {
         printf("Unable to load PAL loader\n");
@@ -638,7 +638,6 @@ void do_main (void * args)
     mcast_c(&mcast_handle, mcast_port);
     mcast_handle.mcast.port = mcast_port;
 
-    pal_sec_info_addr->pal_name     = LIBPAL_PATH;
     pal_sec_info_addr->domain_id    = domainid;
     pal_sec_info_addr->pipe_prefix  = pipe_prefix;
     pal_sec_info_addr->rand_gen     = rand;

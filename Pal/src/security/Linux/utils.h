@@ -10,7 +10,7 @@
 
 #include "api.h"
 
-#define LIBPAL_PATH  XSTRINGIFY(PALDIR) "libpal.so"
+#define PAL_LOADER  XSTRINGIFY(PAL_LOADER_PATH)
 
 #ifdef __x86_64__
 # include "sysdep-x86_64.h"
