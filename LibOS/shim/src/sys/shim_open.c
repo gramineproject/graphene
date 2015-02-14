@@ -371,8 +371,7 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
         dent = *dirhdl->ptr;
         ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
         put_dentry(dent);
-        *dirhdl->ptr = NULL;
-        dirhdl->ptr++;
+        *(dirhdl->ptr++) = NULL;
     }
 
 #undef DIRENT_SIZE
@@ -441,8 +440,7 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
         dent = *dirhdl->ptr;
         ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
         put_dentry(dent);
-        *dirhdl->ptr = NULL;
-        dirhdl->ptr++;
+        *(dirhdl->ptr++) = NULL;
     }
 
 #undef DIRENT_SIZE

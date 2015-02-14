@@ -1052,7 +1052,9 @@ done_read:
     memcpy(hdl->fs_type, fs->type, sizeof(fs->type));
     hdl->dentry = dent;
     hdl->flags = flags;
+    get_dentry(dent);
     hdl->info.dir.dot = dent;
+    put_dentry(dent->parent);
     hdl->info.dir.dotdot = dent->parent;
     hdl->info.dir.buf = children;
     hdl->info.dir.ptr = children;

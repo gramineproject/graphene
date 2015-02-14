@@ -452,10 +452,29 @@ void close_handle (struct shim_handle * hdl)
 #endif
 
     if (!opened) {
-        if (hdl->type != TYPE_DIR &&
-            hdl->fs && hdl->fs->fs_ops &&
-            hdl->fs->fs_ops->close)
-            hdl->fs->fs_ops->close(hdl);
+        if (hdl->type == TYPE_DIR) {
+            struct shim_dir_handle * dir = &hdl->info.dir;
+
+            if (dir->dot) {
+                put_dentry(dir->dot);
+                dir->dot = NULL;
+            }
+
+            if (dir->dotdot) {
+                put_dentry(dir->dotdot);
+                dir->dotdot = NULL;
+            }
+
+            while (*dir->ptr) {
+                struct shim_dentry * dent = *dir->ptr;
+                put_dentry(dent);
+                *(dir->ptr++) = NULL;
+            }
+        } else {
+            if (hdl->fs && hdl->fs->fs_ops &&
+                hdl->fs->fs_ops->close)
+                hdl->fs->fs_ops->close(hdl);
+        }
     }
 
     put_handle(hdl);
