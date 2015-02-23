@@ -7,6 +7,8 @@ CFLAGS-debug = $(CFLAGS) -I$(level)../../../Pal/lib \
 	       -I$(level)../../../Pal/include/pal
 LDFLAGS	=
 LDFLAGS-debug = $(LDFLAGS) -L$(level)../src -L$(level)../../../Pal/src \
+		-Wl,-rpath-link=$(abspath $(LEVEL)../src) \
+		-Wl,-rpath-link=$(abspath $(level)../../../Pal/src) \
 		-lpal -lsysdb_debug
 
 libs = $(level)../src/libsysdb_debug.so $(level)../../../Pal/src/libpal.so

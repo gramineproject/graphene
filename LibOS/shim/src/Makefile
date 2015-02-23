@@ -21,7 +21,8 @@ ASFLAGS	= -Wa,--noexecstack -x assembler-with-cpp -I../include
 
 LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
 	  -z combreloc -z relro -z defs \
-	  -dynamic-link=libpal.so -rpath-link=$(PWD)
+	  -dynamic-link=libpal.so \
+	  -rpath-link=$(abspath ../../../Pal/src)
 LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
 
@@ -41,7 +42,7 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  async parser debug) syscallas start \
 	  $(patsubst %.c,%,$(wildcard sys/*.c))
 graphene_lib = ../../../Pal/lib/graphene-lib.a
-pal_lib = ../../../Pal/src/libpal.so
+pal_lib = $(abspath ../../../Pal/src/libpal.so)
 headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
 
 all: $(shim_target)
@@ -73,8 +74,7 @@ libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 
 libsysdb.a: $(addsuffix .o,$(objs))
 	@echo [ $@ ]
-	@mv -f $@ $@.backup || true
-	@$(AR) $(ARFLAGS) $@ $^
+	$(AR) $(ARFLAGS) $@ $^
 
 %.asm: %.c $(headers)
 	@echo [ $@ ]
