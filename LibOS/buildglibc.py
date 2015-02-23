@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 
-import sys, os, string, subprocess, shutil, fileinput, multiprocessing, re
+import sys, os, string, subprocess, shutil, fileinput, multiprocessing, re, resource
 
 
 def replaceAll(fd,searchExp,replaceExp):
@@ -33,36 +33,47 @@ try:
     installDir = "/usr/local/graphene"
     commandStr = ""
     commandOutput = ""
-
+    quiet = False
     debug_flags = ""
-    if len(sys.argv) > 1 and sys.argv[1] == 'debug':
-        debug_flags = "-g"
 
-
+    for arg in sys.argv[1:]:
+        if arg == '--quiet' or arg == '-q':
+            quiet = True
+        if arg == 'debug':
+            debug_flags = "-g"
 
     #########################################
     #### get the locations of directories ###
     #########################################
 
-    iput = raw_input('use {0} as the source of GNU libc? ([y]/n):'.format(glibc)).lower()
-    if not iput == 'y' and not iput == '' :
-        glibc = raw_input('enter the glibc source to install with: ')
+    if not quiet:
+        iput = raw_input('use {0} as the source of GNU libc? ([y]/n):'.format(glibc)).lower()
+        if not iput == 'y' and not iput == '' :
+            glibc = raw_input('enter the glibc source to install with: ')
 
-    iput = raw_input('{0} contains glibc code to compile? ([y]/n): '.format(glibc)).lower()
-    if not iput == 'y' and not iput == '':
-        glibc = raw_input('directory containing glibc code to compile: ')
+    if not quiet:
+        iput = raw_input('{0} contains glibc code to compile? ([y]/n): '.format(glibc)).lower()
+        if not iput == 'y' and not iput == '':
+            glibc = raw_input('directory containing glibc code to compile: ')
+
     if os.path.isdir(glibc) :
         glibc = os.path.abspath(glibc)
         glibcParent,glibcDir = os.path.split(glibc)
-        print '{0} + {1}'.format(glibcParent, glibcDir)
+        print 'building in {0}: {1}'.format(glibcParent, glibcDir)
 
-    iput = raw_input('use {0} as the directory to build glibc in? ([y]/n): '.format(buildDir)).lower()
-    if not iput == 'y' and not iput == '':
-        buildDir = raw_input('the directory to build glibc in:  ')
+    if not quiet:
+        iput = raw_input('use {0} as the directory to build glibc in? ([y]/n): '.format(buildDir)).lower()
+        if not iput == 'y' and not iput == '':
+            buildDir = raw_input('the directory to build glibc in:  ')
+
     buildDir = os.path.abspath(buildDir)
     print 'using build dir: {0}'.format(buildDir)
     if os.path.isdir(buildDir) :
-        clean = raw_input('clean build (delete {0}, rerun configure, etc.)? ([y]/n): '.format(buildDir))
+        if not quiet:
+            clean = raw_input('clean build (delete {0}, rerun configure, etc.)? ([y]/n): '.format(buildDir))
+        else:
+            clean = 'y'
+
         if clean == 'y' or clean == '':
             shutil.rmtree(buildDir)
             os.makedirs(buildDir)
@@ -72,9 +83,11 @@ try:
     else :
         os.makedirs(buildDir)
 
-    iput = raw_input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
-    if not iput == 'y' and not iput == '':
-        installDir = raw_input('the directory to install glibc in:  ')
+    if not quiet:
+        iput = raw_input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
+        if not iput == 'y' and not iput == '':
+            installDir = raw_input('the directory to install glibc in:  ')
+
     installDir = os.path.abspath(installDir)
     print 'using install dir: {0}'.format(installDir)
 
@@ -87,11 +100,12 @@ try:
     os.chdir(buildDir)
 
     cflags = '{0} -O2 -U_FORTIFY_SOURCE -fno-stack-protector'.format(debug_flags)
+    extra_defs = ''
     disabled_features = { 'nscd' }
     extra_flags = '--with-tls --enable-add-ons=nptl --without-selinux {0}'.format(' '.join(['--disable-' + f for f in disabled_features]))
 
     ##    configure
-    commandStr = r'CFLAGS="{2}" {0}/configure --prefix={1} {3} | tee configure.out'.format(glibc, installDir, cflags, extra_flags)
+    commandStr = r'CFLAGS="{2}" {3} {0}/configure --prefix={1} {4} | tee configure.out'.format(glibc, installDir, cflags, extra_defs, extra_flags)
     print commandStr
     commandOutput = subprocess.call(commandStr, shell=True)
 
@@ -107,8 +121,9 @@ try:
     link_binaries = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
                       ( 'nptl',   'libpthread.so.0' ),
                       ( 'nptl_db','libthread_db.so.1' ),
-                      ( 'dlfcn',  'libdl.so.2' ),
                       ( 'math',   'libm.so.6' ),
+                      ( 'dlfcn',  'libdl.so.2' ),
+                      ( 'login',  'libutil.so.1' ),
                       ( 'csu',    'crt1.o' ),
                       ( 'csu',    'crti.o' ),
                       ( 'csu',    'crtn.o' ),

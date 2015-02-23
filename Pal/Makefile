@@ -1,32 +1,30 @@
-LINUX_GEN = 3.x
-LINUX_SRC = linux-3.14
-SRC_DIR = src
-TEST_DIR = test
-DIRS = ${SRC_DIR} ${TEST_DIR} $(LINUX_SRC)
-
-NPROCS := 1
-OS := $(shell uname -s)
+OS ?= $(shell uname -s)
 ifeq ($(OS),Linux)
-	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
+	NPROCS ?= $(shell grep -c ^processor /proc/cpuinfo)
+else
+	NPROCS ?= 1
 endif
 
+ifeq ($(OS),Linux)
+	LINUX_GEN := 3.x
+	LINUX_SRC := linux-3.14
+	LINUX_KERNEL := $(LINUX_SRC)/arch/x86/boot/bzImage
+endif
+
+DIRS = src test
+
 all debug:
-	for d in ${SRC_DIR} $(TEST_DIR); \
+	for d in $(DIRS); \
 	do \
 		make -C $$d $@; \
 	done
-	make $(LINUX_SRC)/arch/x86/boot/bzImage
 
-$(LINUX_SRC)/arch/x86/boot/bzImage: $(LINUX_SRC)/Makefile $(LINUX_SRC)/.config
+.PHONY: kernel
+kernel: $(LINUX_KERNEL)
+
+ifneq ($(LINUX_KERNEL),)
+$(LINUX_KERNEL): $(LINUX_SRC)/Makefile $(LINUX_SRC)/.config
 	make -C $(LINUX_SRC) -j$(NPROCS)
-
-install: $(LINUX_SRC)/arch/x86/boot/bzImage
-	make -C $(LINUX_SRC) install modules_install headers_install
-
-.PHONY: test
-
-test:
-	make -C test test
 
 $(LINUX_SRC)/Makefile:
 	[ -f $(LINUX_SRC).tar.gz ] || \
@@ -37,6 +35,9 @@ $(LINUX_SRC)/Makefile:
 $(LINUX_SRC)/.config:
 	cd $(LINUX_SRC) && make menuconfig
 
+install: $(LINUX_KERNEL)
+	make -C $(LINUX_SRC) install modules_install headers_install
+
 linux-deb:
 	if [ -f $(LINUX_SRC)/.config ]; then \
 		cp /boot/config-$(shell uname -r) $(LINUX_SRC)/.config && \
@@ -45,9 +46,16 @@ linux-deb:
 	CONCURRENCY_LEVEL=$(NPROCS) make-kpkg --rootcmd fakeroot \
 		--append-to-version -graphene --initrd \
 		kernel-image kernel-headers
+else
+install:
+endif
+
+.PHONY: test
+test:
+	make -C test test
 
 clean:
-	for d in ${SRC_DIR} $(TEST_DIR) $(LINUX_SRC); \
+	for d in $(DIRS) $(LINUX_KERNEL); \
 	do \
 		make -C $$d clean; \
 	done

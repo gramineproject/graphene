@@ -5,10 +5,12 @@ GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2)
 
 all: $(GLIBC_TARGET)
 	make -C $(SHIM_DIR)/src
+	make -C $(SHIM_DIR)/test
 
 debug: DEBUG=debug
 debug: $(GLIBC_TARGET)
-	make -C $(SHIM_DIR)/src debug
+	make -C $(SHIM_DIR)/src  debug
+	make -C $(SHIM_DIR)/test debug
 
 # nothing to install
 install:
@@ -17,7 +19,7 @@ $(GLIBC_TARGET): $(BUILD_DIR)/Makefile
 	cd $(BUILD_DIR) && make
 
 $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
-	./buildglibc.py $(DEBUG)
+	./buildglibc.py --quiet $(DEBUG)
 
 $(GLIBC_SRC)/configure:
 	[ -f $(GLIBC_SRC).tar.gz ] || \
