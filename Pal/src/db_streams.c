@@ -361,7 +361,7 @@ DkStreamWrite (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
 
 /* _DkStreamAttributesQuery of internal use. The function query attribute
    of streams by their URI */
-int _DkStreamAttributesQuery (PAL_STR uri, PAL_STREAM_ATTR * attr)
+int _DkStreamAttributesQuery (const char * uri, PAL_STREAM_ATTR * attr)
 {
     struct handle_ops * ops = NULL;
     const char * type = NULL;

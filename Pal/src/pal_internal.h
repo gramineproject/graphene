@@ -117,9 +117,6 @@ extern const struct handle_ops * pal_handle_ops [];
        NULL : pal_handle_ops[_type];                    \
     })
 
-int parse_stream_uri (const char ** uri, const char ** prefix,
-                      struct handle_ops ** ops);
-
 /* interger hash functions defined inline. The algorithm we used here
   is based on Robert Jenkins developed in 96', the algorithm has two
   version, 32-bit one and 64-bit one. */
@@ -283,11 +280,10 @@ extern struct pal_config {
     PAL_HANDLE      manifest_handle;
     PAL_HANDLE      exec_handle;
     struct config_store * root_config;
-    const char **   environments;
     unsigned long   pagesize;
     unsigned long   alloc_align;
     bool            daemonize;
-    void *          heap_base;
+    void *          user_addr_start, * user_addr_end;
     void *          lib_text_start, * lib_text_end;
     void *          lib_data_start, * lib_data_end;
     PAL_HANDLE      console_output;
@@ -309,12 +305,22 @@ extern void * data_start, * data_end;
    boundaries */
 extern unsigned long allocsize, allocshift, allocmask;
 
-#define ALLOC_ALIGNDOWN(addr) \
-    (allocsize ? ((unsigned long) (addr)) & allocmask : (unsigned long) (addr))
-#define ALLOC_ALIGNUP(addr) \
-    (allocsize ? (((unsigned long) (addr)) + allocshift) & allocmask : (unsigned long) (addr))
-#define ALLOC_ALIGNED(addr) \
-    (allocsize && ((unsigned long) (addr)) == (((unsigned long) (addr)) & allocmask))
+#define ALLOC_ALIGNDOWN(addr)                           \
+    ({                                                  \
+        assert(allocsize && allocshift && allocmask);   \
+        ((unsigned long) (addr)) & allocmask;           \
+    })
+#define ALLOC_ALIGNUP(addr)                             \
+    ({                                                  \
+        assert(allocsize && allocshift && allocmask);   \
+        (((unsigned long) (addr)) + allocshift) & allocmask;    \
+    })
+#define ALLOC_ALIGNED(addr)                             \
+    ({                                                  \
+        assert(allocsize && allocshift && allocmask);   \
+        (unsigned long) (addr) ==                       \
+            (((unsigned long) (addr)) & allocmask);     \
+    })
 
 /* For initialization */
 void pal_main (int argc, const char ** argv, const char ** envp);
@@ -336,7 +342,7 @@ int _DkStreamRead (PAL_HANDLE handle, int offset, int count, void * buf,
                    char * addr, int addrlen);
 int _DkStreamWrite (PAL_HANDLE handle, int offset, int count,
                     const void * buf, const char * addr, int addrlen);
-int _DkStreamAttributesQuery (PAL_STR uri, PAL_STREAM_ATTR * attr);
+int _DkStreamAttributesQuery (const char * uri, PAL_STREAM_ATTR * attr);
 int _DkStreamAttributesQuerybyHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
 int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, int offset,
                   size_t size);

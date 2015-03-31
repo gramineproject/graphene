@@ -22,24 +22,25 @@
 
 #include "pal.h"
 
+#define PATH_MAX    80
+#define PIPE_MAX    32
+
 struct r_debug;
 
 extern struct pal_sec_info {
-    const char *        pal_name;
     unsigned int        domain_id;
-    const char *        pipe_prefix;
+    char                pipe_prefix[PIPE_MAX];
+    void *              user_addr_base;
     int                 rand_gen;
     unsigned short      mcast_port;
-    PAL_HANDLE          mcast_handle;
     void                (*_dl_debug_state) (void);
     struct r_debug *    _r_debug;
 } pal_sec_info;
 
-#define GRAPHENE_TMPDIR         "/tmp/graphene"
-#define GRAPHENE_TMPDIR_LEN     (13)
+#define GRAPHENE_TEMPDIR        "/tmp/graphene"
+#define GRAPHENE_PIPEDIR        GRAPHENE_TEMPDIR "/pipes"
 
-#define GRAPHENE_PIPEDIR        GRAPHENE_TMPDIR "/pipes"
-#define GRAPHENE_PIPEDIR_LEN    (GRAPHENE_TMPDIR_LEN + 6)
+#define PROC_INIT_FD    3
 
 #define MCAST_GROUP "239.0.0.1"
 

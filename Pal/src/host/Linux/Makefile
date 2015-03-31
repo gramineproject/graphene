@@ -16,7 +16,7 @@ ARFLAGS	=
 
 host_target = libpal-Linux.a
 
-defs	= -DIN_PAL -DPAL_LOADER_PATH="$(shell readlink -f ../../pal)" \
+defs	= -DIN_PAL -DSRCDIR="$(PWD)/" -DPAL_LOADER_PATH="$(shell readlink -f ../../pal)" \
 	  -DGDB_SCRIPT="$(CURDIR)/pal-gdb.py"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    semaphore mutex events process object main rtld misc ipc \

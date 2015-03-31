@@ -70,8 +70,6 @@ static gid_t gid;
 static ElfW(Addr) sysinfo_ehdr;
 #endif
 
-static const char * child_args;
-
 static void pal_init_bootstrap (void * args, int * pargc,
                                 const char *** pargv,
                                 const char *** penvp)
@@ -123,17 +121,8 @@ static void pal_init_bootstrap (void * args, int * pargc,
 #endif
         }
 
-    if (!memcmp(*argv + strlen(*argv) - 3, "pal", 3)) {
-        argv++;
-        argc--;
-
-        if (argc >= 1 && (*argv)[0] == ':') {
-            child_args = (*argv) + 1;
-            argv++;
-            argc--;
-        }
-    }
-
+    argv++;
+    argc--;
     *pargc = argc;
     *pargv = argv;
     *penvp = envp;
@@ -252,6 +241,9 @@ void pal_linux_main (void * args)
                          pal_addr);
     ELF_DYNAMIC_RELOCATE(pal_dyn, pal_addr);
 
+    allocsize  = PRESET_PAGESIZE;
+    allocshift = PRESET_PAGESIZE - 1;
+    allocmask  = ~(PRESET_PAGESIZE - 1);
     init_slab_mgr();
 
     setup_pal_map(XSTRINGIFY(SRCDIR) "/pal", pal_dyn, pal_addr);
@@ -269,9 +261,9 @@ int create_domain_dir (void)
 
     if (IS_ERR(ret) && ERRNO(ret) != EEXIST) {
         if (ERRNO(ret) == ENOENT) {
-            ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_TMPDIR), 0777);
+            ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_TEMPDIR), 0777);
             if (!IS_ERR(ret)) {
-                INLINE_SYSCALL(chmod, 2, GRAPHENE_TMPDIR, 0777);
+                INLINE_SYSCALL(chmod, 2, GRAPHENE_TEMPDIR, 0777);
                 ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_PIPEDIR), 0777);
             }
         }
@@ -286,7 +278,7 @@ int create_domain_dir (void)
     if (!IS_ERR(ret))
         INLINE_SYSCALL(chmod, 2, GRAPHENE_PIPEDIR, 0777);
 
-    char * pipedir = __alloca(GRAPHENE_PIPEDIR_LEN + 10);
+    char * pipedir = __alloca(sizeof(GRAPHENE_PIPEDIR) + 10);
     unsigned int id;
 
     do {
@@ -295,7 +287,7 @@ int create_domain_dir (void)
             return -PAL_ERROR_DENIED;
         }
 
-        snprintf(pipedir, GRAPHENE_PIPEDIR_LEN + 10,
+        snprintf(pipedir, sizeof(GRAPHENE_PIPEDIR) + 10,
                  GRAPHENE_PIPEDIR "/%08x", id);
 
         ret = INLINE_SYSCALL(mkdir, 2, pipedir, 0700);
@@ -310,9 +302,6 @@ int create_domain_dir (void)
     pal_sec_info.domain_id = id;
     return 0;
 }
-
-int init_child_process (const char * proc_args);
-int signal_setup (void);
 
 #if USE_VDSO_GETTIME == 1
 void setup_vdso_map (ElfW(Addr) addr);
@@ -329,21 +318,67 @@ int _DkInitHost (int * pargc, const char *** pargv)
     const char ** argv = *pargv, * first_argv = NULL;
     int ret = 0;
 
-    if (!child_args && !argc) {
+    struct pal_proc_args proc_args;
+    void * proc_data;
+    bool in_child = false;
+
+    ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, &proc_args,
+                         sizeof(proc_args));
+
+    if (IS_ERR(ret) && ERRNO(ret) != EBADF)
+        return -PAL_ERROR_DENIED;
+
+    if (!IS_ERR(ret)) {
+        in_child = true;
+        proc_data = __alloca(proc_args.data_size);
+        ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_data,
+                             proc_args.data_size);
+        if (IS_ERR(ret) || ret < proc_args.data_size)
+            return -PAL_ERROR_DENIED;
+    }
+
+    if (!in_child && !argc) {
         printf("USAGE: libpal.so [executable|manifest] args ...\n");
         return -PAL_ERROR_INVAL;
     }
 
     pal_linux_config.pid = INLINE_SYSCALL(getpid, 0);
 
+    pal_config.user_addr_end = (void *)
+                    ALLOC_ALIGNDOWN(pal_config.lib_text_start);
+
+    /* look for lowest mappable address, starting at 0x400000 */
+    if (pal_sec_info.user_addr_base) {
+        pal_config.user_addr_start = pal_sec_info.user_addr_base;
+    } else {
+        void * base = (void *) 0x400000;
+        for (; base < pal_config.user_addr_end ;
+             base = (void *) ((unsigned long) base << 4)) {
+            void * mem = (void *) ARCH_MMAP(base, allocsize,
+                                            PROT_NONE,
+                                            MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
+                                            -1, 0);
+            if (IS_ERR_P(mem))
+                continue;
+            INLINE_SYSCALL(munmap, 2, mem, allocsize);
+            if (mem == base)
+                break;
+        }
+
+        pal_sec_info.user_addr_base = pal_config.user_addr_start = base;
+    }
+
     signal_setup();
 
-    if (child_args) {
-        if ((ret = init_child_process(child_args)) < 0)
+    if (in_child) {
+        if ((ret = init_child_process(&proc_args, proc_data)) < 0)
             return ret;
 
         goto read_manifest;
     }
+
+    /* occupy PROC_INIT_FD so no one will use it */
+    INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
 
     if (!(ret = read_shebang(argv)) < 0)
         goto read_manifest;
@@ -399,7 +434,8 @@ read_manifest:
                                                 &attr)) < 0)
         return ret;
 
-    void * cfg_addr = NULL;
+    pal_config.user_addr_end -= ALLOC_ALIGNUP(attr.size);
+    void * cfg_addr = pal_config.user_addr_end;
     size_t cfg_size = attr.size;
 
     if ((ret = _DkStreamMap(pal_config.manifest_handle, &cfg_addr,
@@ -440,7 +476,7 @@ read_manifest:
         }
     }
 
-    if (!child_args) {
+    if (!in_child) {
         if ((len = get_config(root_config, "loader.execname", cfgbuf,
                               CONFIG_MAX)) > 0)
             first_argv = remalloc(cfgbuf, len + 1);
@@ -450,7 +486,7 @@ read_manifest:
     }
 
 done_init:
-    if (!child_args && !pal_sec_info.domain_id) {
+    if (!in_child && !pal_sec_info.domain_id) {
         if ((ret = create_domain_dir()) < 0)
             return ret;
     }
@@ -468,11 +504,14 @@ done_init:
     if (!pal_sec_info.mcast_port) {
         unsigned short mcast_port;
         getrand(&mcast_port, sizeof(unsigned short));
-        pal_sec_info.mcast_port = mcast_port % 1024;
+        if (mcast_port < 1024)
+            mcast_port += 1024;
+        pal_sec_info.mcast_port = mcast_port > 1024 ? mcast_port :
+                                  mcast_port + 1204;
     }
 
-    __pal_control.broadcast_stream = pal_sec_info.mcast_handle ? :
-                            _DkBroadcastStreamOpen(pal_sec_info.mcast_port);
+    __pal_control.broadcast_stream =
+                _DkBroadcastStreamOpen(pal_sec_info.mcast_port);
 
     if (first_argv) {
         argc++;

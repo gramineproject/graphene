@@ -180,6 +180,11 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
                 ret = -ENOTCONN;
                 goto out;
             }
+
+            if (sock->sock_state == SOCK_LISTENED) {
+                ret = -EAGAIN;
+                goto out;
+            }
         }
 
         if (sock->sock_type == SOCK_DGRAM &&
@@ -187,7 +192,6 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
             ret = -ENOTCONN;
             goto out;
         }
-
     }
 
     if (poll_type & FS_POLL_WR) {

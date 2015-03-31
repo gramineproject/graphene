@@ -110,6 +110,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     allocate_tls(my_thread->tcb, my_thread);
     shim_tcb_t * tcb = &((__libc_tcb_t *) my_thread->tcb)->shim_tcb;
     debug_setbuf(tcb, true);
+    debug("set tcb to %p\n", my_thread->tcb);
 
     struct shim_regs * regs = __alloca(sizeof(struct shim_regs));
     *regs = *((__libc_tcb_t *) arg->parent->tcb)->shim_tcb.context.regs;
@@ -216,6 +217,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             goto failed;
         }
         thread->tcb = tls;
+        thread->user_tcb = true;
     } else {
         thread->tcb = NULL;
     }

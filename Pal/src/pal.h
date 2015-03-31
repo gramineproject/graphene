@@ -125,6 +125,9 @@ typedef struct {
     /* address where PAL is loaded */
     PAL_BUF library_begin;
     PAL_BUF library_end;
+    /* The range of address allowed for user */
+    PAL_BUF user_address_begin;
+    PAL_BUF user_address_end;
     /* host page size */
     PAL_NUM pagesize;
     /* host allocation alignment */

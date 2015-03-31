@@ -110,6 +110,23 @@ int _DkMutexLock (struct mutex_handle * mut);
 int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout);
 int _DkMutexUnlock (struct mutex_handle * mut);
 
+#include "pal_security.h"
+
+struct pal_proc_args {
+    struct pal_sec_info pal_sec_info;
+    PAL_IDX             proc_fds[3];
+    unsigned int        parent_pid;
+    PAL_IDX             exec_fd;
+    unsigned short      exec_uri_offset;
+    bool                noexec;
+    PAL_IDX             manifest_fd;
+    unsigned short      manifest_uri_offset;
+    unsigned short      data_size;
+};
+
+int init_child_process (struct pal_proc_args * proc_args, void * proc_data);
+int signal_setup (void);
+
 #if USE_VDSO_GETTIME == 1
 # if USE_CLOCK_GETTIME == 1
 struct timespec;

@@ -13,7 +13,7 @@ endif
 
 DIRS = src test
 
-all debug:
+all debug clean:
 	for d in $(DIRS); \
 	do \
 		make -C $$d $@; \
@@ -32,7 +32,7 @@ $(LINUX_SRC)/Makefile:
 	tar -xzf $(LINUX_SRC).tar.gz
 	[ ! -f $(LINUX_SRC).patch ] || git apply $(LINUX_SRC).patch
 
-$(LINUX_SRC)/.config:
+$(LINUX_SRC)/.config: $(LINUX_SRC)/Makefile
 	cd $(LINUX_SRC) && make menuconfig
 
 install: $(LINUX_KERNEL)
@@ -53,9 +53,3 @@ endif
 .PHONY: test
 test:
 	make -C test test
-
-clean:
-	for d in $(DIRS) $(LINUX_KERNEL); \
-	do \
-		make -C $$d clean; \
-	done

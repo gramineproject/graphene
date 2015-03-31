@@ -49,4 +49,4 @@ clean-manifests:
 	rm -rf $(manifests)
 
 clean-tests:
-	for d in $(test_targets); do (make -C $$d clean || true); done
+	for d in $(test_targets); do ([ ! -d $$d ] || make -C $$d clean); done

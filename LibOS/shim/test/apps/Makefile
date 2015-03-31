@@ -7,11 +7,11 @@ level = ../
 include ../Makefile
 
 manifest_rules = \
-	-e 's:\$$(PAL):$(shell pwd)/pal_loader:g' \
-	-e 's:\$$(PWD):$(shell pwd)/$(appdir):g' \
+	-e 's:\$$(PAL):$(abspath $(PWD)/../pal_loader):g' \
+	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
-	-e 's:\$$(SHIMPATH):$(shell readlink -f ../../src/libsysdb.so):g' \
-	-e 's:\$$(GLIBCDIR):$(shell readlink -f $(glibc_dir)):g' \
+	-e 's:\$$(SHIMPATH):$(abspath ../../src/libsysdb.so):g' \
+	-e 's:\$$(GLIBCDIR):$(abspath $(glibc_dir)):g' \
 	$(extra_rules)
 
 %.manifest: %.manifest.template

@@ -593,6 +593,7 @@ void switch_dummy_thread (struct shim_thread * thread)
 
     DkThreadPrivate(real_thread->tcb);
     set_cur_thread(real_thread);
+    debug("set tcb to %p\n", real_thread->tcb);
 
     debug("jump to the stack %p\n", real_thread->frameptr);
     debug("shim_vfork success (returning %d)\n", child);
@@ -732,13 +733,13 @@ RESUME_FUNC_BODY(thread)
     if (thread->handle_map)
         get_handle_map(thread->handle_map);
 
-#ifndef DEBUG_RESUME
+//#ifdef DEBUG_RESUME
     debug("thread: "
           "tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p\n",
           thread->tid, thread->tgid,
           thread->parent ? thread->parent->tid : thread->tid,
           thread->stack, thread->frameptr, thread->tcb);
-#endif
+//#endif
 }
 END_RESUME_FUNC
 
@@ -755,16 +756,13 @@ MIGRATE_FUNC_BODY(running_thread)
     DO_MIGRATE(thread, thread, thread_obj, recursive);
     ADD_FUNC_ENTRY(new_thread);
 
-    __libc_tcb_t * tcb = thread->tcb;
-    if (tcb && lookup_supervma(tcb, sizeof(__libc_tcb_t), NULL) < 0) {
+    if (!thread->user_tcb) {
         ADD_OFFSET(sizeof(__libc_tcb_t));
-        ADD_ENTRY(ADDR, base + *offset);
         if (!dry) {
             __libc_tcb_t * new_tcb = (void *) (base + *offset);
-            memcpy(new_tcb, tcb, sizeof(__libc_tcb_t));
+            new_thread->tcb = new_tcb;
+            memcpy(new_tcb, thread->tcb, sizeof(__libc_tcb_t));
         }
-    } else {
-        ADD_ENTRY(ADDR, NULL);
     }
 }
 END_MIGRATE_FUNC
@@ -782,6 +780,7 @@ int resume_wrapper (void * param)
     thread->in_vm = thread->is_alive = true;
     allocate_tls(libc_tcb, thread);
     debug_setbuf(tcb, true);
+    debug("set tcb to %p\n", libc_tcb);
 
     DkObjectsWaitAny(1, &thread_start_event, NO_TIMEOUT);
 
@@ -798,12 +797,6 @@ RESUME_FUNC_BODY(running_thread)
 
     get_thread(thread);
 
-    void * new_tcb = (void *) GET_ENTRY(ADDR);
-    if (new_tcb) {
-        RESUME_REBASE(new_tcb);
-        thread->tcb = new_tcb;
-    }
-
     if (cur_thread) {
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread, 0);
         if (!thread)
@@ -819,6 +812,7 @@ RESUME_FUNC_BODY(running_thread)
             tcb->debug_buf = SHIM_GET_TLS()->debug_buf;
             allocate_tls(libc_tcb, thread);
             debug_setprefix(tcb);
+            debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
             set_cur_thread(thread);
         }

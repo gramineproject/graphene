@@ -39,6 +39,7 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_bind,          action_trace),                  \
     SYSCALL(__NR_clone,         action_allow),                  \
     SYSCALL(__NR_close,         action_allow),                  \
+    SYSCALL(__NR_dup2,          action_allow),                  \
     SYSCALL(__NR_connect,       action_trace),                  \
     SYSCALL(__NR_execve,        action_trace),                  \
     SYSCALL(__NR_exit,          action_allow),                  \

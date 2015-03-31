@@ -738,6 +738,7 @@ static void shim_ipc_helper (void * arg)
     __libc_tcb_t tcb;
     allocate_tls(&tcb, self);
     debug_setbuf(&tcb.shim_tcb, true);
+    debug("set tcb to %p\n", &tcb);
 
     lock(ipc_helper_lock);
     bool notme = (self != ipc_helper_thread);

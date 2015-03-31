@@ -16,8 +16,7 @@ debug:	CC=gcc -g
 debug:	$(target) manifest
 
 manifest: manifest.template
-	[ ! -f manifest ] || mv -f manifest manifest.backup
-	cp manifest.template manifest
+	cp -f manifest.template manifest
 
 # Regression Test
 rtest:	$(rtarget)
@@ -49,6 +48,5 @@ $(target): %: %.c $(graphene_lib) $(pal_lib)
 	@$(CC) $(CFLAGS) $^ -o $@
 
 clean:
-	rm -rf $(target)
-	[ ! -f manifest ] || mv manifest manifest.backup
+	rm -rf $(target) manifest
 	find -type f -executable -exec rm {} \;

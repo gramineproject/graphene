@@ -382,7 +382,6 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
                 continue;
             if (memcmp(fullpath, path, pathlen))
                 continue;
-            debug("dentry %p matched path: %s\n", dent, path);
         }
 
         get_dentry(dent);

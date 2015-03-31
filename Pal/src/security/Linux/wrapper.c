@@ -27,8 +27,8 @@ int ioctl_set_graphene (struct config_store * config, int ndefault,
 int init_child (int argc, const char ** argv, const char ** envp)
 {
     const char * pipe_prefix = pal_sec_info_addr->pipe_prefix;
-    char pipe_root[GRAPHENE_PIPEDIR_LEN + 20];
-    snprintf(pipe_root, GRAPHENE_PIPEDIR_LEN + 20, GRAPHENE_PIPEDIR "/%08x",
+    char pipe_root[sizeof(GRAPHENE_PIPEDIR) + 20];
+    snprintf(pipe_root, sizeof(GRAPHENE_PIPEDIR) + 20, GRAPHENE_PIPEDIR "/%08x",
              pal_sec_info_addr->domain_id);
 
     struct graphene_net_policy mcast_rules[2];

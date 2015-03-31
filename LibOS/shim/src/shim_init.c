@@ -146,6 +146,7 @@ void allocate_tls (void * tcb_location, struct shim_thread * thread)
 
     if (thread) {
         thread->tcb       = tcb;
+        thread->user_tcb  = false;
         tcb->shim_tcb.tp  = thread;
         tcb->shim_tcb.tid = thread->tid;
     } else {
@@ -157,7 +158,7 @@ void allocate_tls (void * tcb_location, struct shim_thread * thread)
     assert(SHIM_TLS_CHECK_CANARY());
 }
 
-void populate_tls (void * tcb_location)
+void populate_tls (void * tcb_location, bool user)
 {
     __libc_tcb_t * tcb = (__libc_tcb_t *) tcb_location;
     assert(tcb);
@@ -165,8 +166,10 @@ void populate_tls (void * tcb_location)
     copy_tcb(&tcb->shim_tcb, SHIM_GET_TLS());
 
     struct shim_thread * thread = (struct shim_thread *) tcb->shim_tcb.tp;
-    if (thread)
+    if (thread) {
         thread->tcb = tcb;
+        thread->user_tcb = user;
+    }
 
     DkThreadPrivate(tcb);
     assert(SHIM_TLS_CHECK_CANARY());
@@ -590,6 +593,7 @@ int shim_init (int argc, void * args, void ** return_stack)
     memset(&tcb, 0, sizeof(__libc_tcb_t));
     allocate_tls(&tcb, NULL);
     debug_setbuf(&tcb.shim_tcb, true);
+    debug("set tcb to %p\n", &tcb);
 
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();

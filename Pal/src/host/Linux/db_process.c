@@ -51,15 +51,17 @@ typedef __kernel_pid_t pid_t;
 # define SEEK_SET 0
 #endif
 
-int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
-                      int flags, const char ** args)
+int _DkProcessCreate (PAL_HANDLE * handle,
+                      const char * uri, int flags, const char ** args)
 {
-    int ret, rete = 0;
+    int ret, rete;
 
     const char * manifest_uri   = pal_config.manifest;
     PAL_HANDLE   manifest       = pal_config.manifest_handle;
+    int          manifest_fd    = -1;
     const char * exec_uri       = NULL;
     PAL_HANDLE   exec           = NULL;
+    int          exec_fd        = -1;
     bool         noexec         = false;
 
     if (uri) {
@@ -73,8 +75,16 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
             exec = NULL;
             exec_uri = NULL;
         }
+
+        exec_fd = exec->file.fd;
+        INLINE_SYSCALL(fcntl, 3, exec_fd, F_SETFD, 0);
     } else {
         noexec = true;
+    }
+
+    if (manifest) {
+        manifest_fd = manifest->file.fd;
+        INLINE_SYSCALL(fcntl, 3, manifest_fd, F_SETFD, 0);
     }
 
     int fds[6] = { -1, -1, -1, -1, -1, -1 };
@@ -92,69 +102,12 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
         { fds[2], fds[1], fds[5] },
     };
 
-    int nargs = 0;
-    if (args) {
-        const char ** p = args;
-        while (*p) {
-            p++;
-            nargs++;
-        }
-    }
-
-# define STRARG_SIZE    256
-
-    const char ** new_args = __alloca(sizeof(const char *) * (nargs + 3));
-    int bufsize = STRARG_SIZE;
-    char * argbuf = __alloca(STRARG_SIZE);
-    new_args[0] = PAL_LOADER;
-    new_args[1] = argbuf;
-    if (args)
-        memcpy(new_args + 2, args, sizeof(const char *) * nargs);
-    new_args[nargs + 2] = NULL;
-
-#define write_arg(...)                                      \
-    do {                                                    \
-        int _len = snprintf(argbuf, bufsize, __VA_ARGS__);  \
-        argbuf += _len;                                     \
-        bufsize -= _len;                                    \
-    } while (0);
-
-    write_arg(":domain=%08x;", pal_sec_info.domain_id);
-
-    int manifest_fd = -1;
-
-    if (manifest) {
-        manifest_fd = manifest->file.fd;
-        INLINE_SYSCALL(fcntl, 3, manifest_fd, F_SETFD, 0);
-        write_arg("manifest=%d,%s;", manifest_fd, manifest_uri ? : "");
-
-        if (manifest != pal_config.manifest_handle)
-            manifest_fd = -1;
-    }
-
-    write_arg("proc=%d,%d,%d,%d;",
-              proc_fds[0][0], proc_fds[0][1], proc_fds[0][2],
-              pal_linux_config.pid);
-
-    if (exec) {
-        int exec_fd = exec->file.fd;
-        INLINE_SYSCALL(fcntl, 3, exec_fd, F_SETFD, 0);
-        write_arg("exec=%d,%s;", exec_fd, exec_uri ? : "");
-    } else if (noexec) {
-        write_arg("noexec;");
-    }
-
-    if (pal_sec_info.pipe_prefix)
-        write_arg("pipe=%s;", pal_sec_info.pipe_prefix);
-
-    if (pal_config.heap_base)
-        write_arg("heap=%lx;", pal_config.heap_base);
-
-    if (pal_sec_info.rand_gen)
-        write_arg("rand=%d;", pal_sec_info.rand_gen);
-
-    if (pal_sec_info.mcast_port)
-        write_arg("mcast=%u;", pal_sec_info.mcast_port);
+    int argc = 0;
+    if (args) for (; args[argc] ; argc++);
+    const char ** argv = __alloca(sizeof(const char *) * (argc + 2));
+    argv[0] = PAL_LOADER;
+    if (args) memcpy(&argv[1], args, sizeof(const char *) * argc);
+    argv[argc + 1] = NULL;
 
     ret = ARCH_VFORK();
 
@@ -167,14 +120,19 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
         for (int i = 0 ; i < 3 ; i++)
             INLINE_SYSCALL(close, 1, proc_fds[1][i]);
 
+        INLINE_SYSCALL(close, 1, PROC_INIT_FD);
+        rete = INLINE_SYSCALL(dup2, 2, proc_fds[0][0], PROC_INIT_FD);
+        if (IS_ERR(rete))
+            goto out_child;
+
         if (manifest_fd >= 0)
             INLINE_SYSCALL(fcntl, 3, manifest_fd, F_SETFD, 0);
 
-        rete = INLINE_SYSCALL(execve, 3,  PAL_LOADER, new_args,
-                              pal_config.environments);
+        rete = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, NULL);
 
         /* shouldn't get to here */
         printf("unexpected failure of new process\n");
+out_child:
         asm("hlt");
         return 0;
     }
@@ -186,6 +144,67 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
 
     for (int i = 0 ; i < 3 ; i++)
         INLINE_SYSCALL(close, 1, proc_fds[0][i]);
+
+    int pipe_in = proc_fds[1][0], pipe_out = proc_fds[1][1];
+    unsigned short data_size = 0;
+    unsigned short exec_uri_offset = 0, manifest_uri_offset = 0;
+
+    if (exec_uri) {
+        int len = strlen(exec_uri);
+        exec_uri_offset = data_size;
+        data_size += len + 1;
+    }
+
+    if (manifest_fd >= 0) {
+        int len = strlen(manifest_uri);
+        manifest_uri_offset = data_size;
+        data_size += len + 1;
+    }
+
+    struct pal_proc_args * proc_args = __alloca(sizeof(struct pal_proc_args) +
+                                                data_size);
+    void * data = ((void *) proc_args) + sizeof(struct pal_proc_args);
+    memset(proc_args, 0, sizeof(struct pal_proc_args));
+    memcpy(&proc_args->pal_sec_info, &pal_sec_info, sizeof(struct pal_sec_info));
+    proc_args->pal_sec_info._dl_debug_state = NULL;
+    proc_args->pal_sec_info._r_debug = NULL;
+    proc_args->proc_fds[0] = proc_fds[0][0];
+    proc_args->proc_fds[1] = proc_fds[0][1];
+    proc_args->proc_fds[2] = proc_fds[0][2];
+    proc_args->parent_pid  = pal_linux_config.pid;
+    proc_args->exec_fd = (exec_fd == -1) ? PAL_IDX_POISON : exec_fd;
+    proc_args->noexec  = noexec;
+    proc_args->manifest_fd = (manifest_fd == -1) ? PAL_IDX_POISON : manifest_fd;
+
+    if (exec_uri)
+        memcpy(data + (proc_args->exec_uri_offset = exec_uri_offset),
+               exec_uri, strlen(exec_uri) + 1);
+
+    if (manifest_uri)
+        memcpy(data + (proc_args->manifest_uri_offset = manifest_uri_offset),
+               manifest_uri, strlen(manifest_uri) + 1);
+
+    proc_args->data_size = data_size;
+
+    ret = INLINE_SYSCALL(write, 3, pipe_out, proc_args,
+                         sizeof(struct pal_proc_args) + data_size);
+
+    if (IS_ERR(ret) || ret < sizeof(struct pal_proc_args) + data_size) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
+
+    ret = INLINE_SYSCALL(read, 3, pipe_in, &rete, sizeof(int));
+
+    if (IS_ERR(ret) || ret < sizeof(int)) {
+        ret = -PAL_ERROR_DENIED;
+        goto out;
+    }
+
+    if (rete < 0) {
+        ret = rete;
+        goto out;
+    }
 
     for (int i = 0 ; i < 3 ; i++)
         INLINE_SYSCALL(fcntl, 3, proc_fds[1][i], F_SETFD, FD_CLOEXEC);
@@ -211,165 +230,60 @@ out:
     return ret;
 }
 
-static void read_child_args (const char * val, int vlen,
-                             void * arg1, bool isnum1,
-                             void * arg2, bool isnum2,
-                             void * arg3, bool isnum3,
-                             void * arg4, bool isnum4)
+int init_child_process (struct pal_proc_args * proc_args, void * proc_data)
 {
-    const char * v1 = val, * v2 = v1, * end = val + vlen;
-    void * arg[4] = { arg1, arg2, arg3, arg4 };
-    bool isnum[4] = { isnum1, isnum2, isnum3, isnum4 };
+    memcpy(&pal_sec_info, &proc_args->pal_sec_info, sizeof(pal_sec_info));
 
-    for (int i = 0 ; i < 4 ; i++) {
-        if (!arg[i])
-            return;
+    PAL_HANDLE parent = malloc(HANDLE_SIZE(process));
+    SET_HANDLE_TYPE(parent, process);
+    parent->__in.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    parent->process.stream_in  = proc_args->proc_fds[0];
+    parent->process.stream_out = proc_args->proc_fds[1];
+    parent->process.cargo      = proc_args->proc_fds[2];
+    parent->process.pid        = proc_args->parent_pid;
+    parent->process.nonblocking = PAL_FALSE;
+    __pal_control.parent_process = parent;
 
-        while (v2 < end && *v2 != ',')
-            v2++;
-
-        if (v1 >= end || v2 <= v1) {
-            if (isnum[i])
-                *(int *) arg[i] = 0;
-            else
-                ((char *) arg[i])[0] = 0;
-            continue;
-        }
-
-        if (isnum[i]) {
-            *(int *) arg[i] = atoi(v1);
-        } else {
-            memcpy((char *) arg[i], v1, v2 - v1);
-            ((char *) arg[i])[v2 - v1] = 0;
-        }
-
-        v2 = v1 = v2 + 1;
-    }
-}
-
-static inline bool set_fd_cloexec (int fd)
-{
-    return !(IS_ERR(INLINE_SYSCALL(fcntl, 3, fd, F_SETFD, FD_CLOEXEC)));
-}
-
-#define STRARG_SIZE     256
-
-static void read_child_handle (const char * val, int vlen,
-                               PAL_HANDLE * handle, const char ** uri)
-{
-    int fd;
-    char buf[STRARG_SIZE];
-    read_child_args(val, vlen, &fd, true, buf, false,
-                    NULL, false, NULL, false);
-
-    if (!fd || !set_fd_cloexec(fd)) {
-        *handle = NULL;
-        *uri = NULL;
-        return;
-    }
-
-    INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
-
-    int len = strlen(buf);
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + (len > 4 ? len - 4 : 0));
-    SET_HANDLE_TYPE(hdl, file);
-    hdl->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
-    hdl->file.fd = fd;
-    if (len > 4) {
-        char * path = (void *) hdl + HANDLE_SIZE(file);
-        memcpy(path, buf + 5, len - 4);
-        hdl->file.realpath = path;
+    if (proc_args->exec_fd != PAL_IDX_POISON) {
+        char * uri = (char *) proc_data + proc_args->exec_uri_offset;
+        char * exec_uri = remalloc(uri, strlen(uri) + 1);
+        INLINE_SYSCALL(lseek, 3, proc_args->exec_fd, 0, SEEK_SET);
+        PAL_HANDLE exec = malloc(HANDLE_SIZE(file));
+        SET_HANDLE_TYPE(exec, file);
+        exec->__in.flags |= RFD(0);
+        exec->file.fd = proc_args->exec_fd;
+        exec->file.offset = 0;
+        exec->file.append = PAL_FALSE;
+        exec->file.pass   = PAL_FALSE;
+        exec->file.realpath = remalloc(exec_uri + 5, strlen(exec_uri + 5) + 1);
+        pal_config.exec = exec_uri;
+        pal_config.exec_handle = exec;
     } else {
-        hdl->file.realpath = NULL;
+        pal_linux_config.noexec = proc_args->noexec;
     }
-    *handle = hdl;
-    *uri = len ? remalloc(buf, len + 1) : NULL;
-}
 
-int init_child_process (const char * proc_args)
-{
-    const char * c = proc_args;
-
-    while (*c) {
-        const char * key = c, * val;
-        int klen, vlen;
-
-        while (*c && *c != '=' && *c != ';')
-            c++;
-
-        klen = c - key;
-        if (klen == 6 && !memcmp(key, "noexec", 6))
-            /* format: noexec */
-            pal_linux_config.noexec = true;
-
-        if (!*c)
-            break;
-        if (*c == ';') {
-            c++;
-            continue;
-        }
-
-        val = (++c);
-        while (*c && *c != ';')
-            c++;
-        vlen = c - val;
-        if (*c == ';')
-            c++;
-
-        if (klen == 4) {
-            if (!memcmp(key, "exec", 4)) {
-                /* format: exec=fd,uri */
-                read_child_handle(val, vlen, &pal_config.exec_handle,
-                                  &pal_config.exec);
-            } else if (!memcmp(key, "proc", 4)) {
-                /* format: proc=fd,pid */
-                int fds[3], pid;
-                read_child_args(val, vlen,
-                                &fds[0], true, &fds[1], true, &fds[2], true,
-                                &pid, true);
-
-                for (int i = 0 ; i < 3 ; i++)
-                    if (!set_fd_cloexec(fds[i]))
-                        fds[i] = PAL_IDX_POISON;
-
-                PAL_HANDLE proc = malloc(HANDLE_SIZE(process));
-                SET_HANDLE_TYPE(proc, process);
-                proc->__in.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
-                proc->process.stream_in  = fds[0];
-                proc->process.stream_out = fds[1];
-                proc->process.cargo      = fds[2];
-                proc->process.pid = pid;
-                __pal_control.parent_process = proc;
-            } else if (!memcmp(key, "pipe", 4)) {
-                /* format: pipe=prefix */
-                char * prefix = remalloc(val, vlen + 1);
-                prefix[vlen] = 0;
-                pal_sec_info.pipe_prefix = prefix;
-            } else if (!memcmp(key, "rand", 4)) {
-                /* format: rand=fd */
-                pal_sec_info.rand_gen = atoi(val);
-            } else if (!memcmp(key, "heap", 4)) {
-                /* format: heap=addr (hex) */
-                pal_config.heap_base = (void *) strtol(val, NULL, 16);
-            }
-        } else if (klen == 5) {
-            if (!memcmp(key, "mcast", 5)) {
-                /* format: mcast=port */
-                pal_sec_info.mcast_port = atoi(val);
-            }
-        } else if (klen == 6) {
-            if (!memcmp(key, "domain", 6)) {
-                /* format: domain=id */
-                pal_sec_info.domain_id = strtol(val, NULL, 16);
-            }
-        } else if (klen == 8) {
-            if (!memcmp(key, "manifest", 8)) {
-                /* format: manifest=fd,uri */
-                read_child_handle(val, vlen, &pal_config.manifest_handle,
-                                  &pal_config.manifest);
-            }
-        }
+    if (proc_args->manifest_fd != PAL_IDX_POISON) {
+        char * uri = (char *) proc_data + proc_args->manifest_uri_offset;
+        char * manifest_uri = remalloc(uri, strlen(uri) + 1);
+        INLINE_SYSCALL(lseek, 3, proc_args->manifest_fd, 0, SEEK_SET);
+        PAL_HANDLE manifest = malloc(HANDLE_SIZE(file));
+        SET_HANDLE_TYPE(manifest, file);
+        manifest->__in.flags |= RFD(0);
+        manifest->file.fd = proc_args->manifest_fd;
+        manifest->file.offset = 0;
+        manifest->file.append = PAL_FALSE;
+        manifest->file.pass   = PAL_FALSE;
+        manifest->file.realpath = remalloc(manifest_uri + 5,
+                                           strlen(manifest_uri + 5) + 1);
+        pal_config.manifest = manifest_uri;
+        pal_config.manifest_handle = manifest;
     }
+
+    int child_status = 0;
+    int ret = INLINE_SYSCALL(write, 3, proc_args->proc_fds[1], &child_status,
+                             sizeof(int));
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
 
     return 0;
 }
@@ -450,12 +364,12 @@ static int set_graphene_task (const char * uri, int flags)
     mcast_rules[1].peer.port_end = pal_sec_info.mcast_port;
 
     if (flags & PAL_SANDBOX_PIPE) {
-        char pipe_root[GRAPHENE_PIPEDIR_LEN + 20];
+        char pipe_root[sizeof(GRAPHENE_PIPEDIR) + 20];
         char pipe_prefix[9];
         int sandboxid;
 
         snprintf(pipe_root,
-                 GRAPHENE_PIPEDIR_LEN + 20, GRAPHENE_PIPEDIR "/%08x",
+                 sizeof(GRAPHENE_PIPEDIR) + 20, GRAPHENE_PIPEDIR "/%08x",
                  pal_sec_info.domain_id);
 
         getrand(&sandboxid, sizeof(int));
@@ -474,7 +388,7 @@ static int set_graphene_task (const char * uri, int flags)
         if (ret < 0)
             goto out_mem;
 
-        pal_sec_info.pipe_prefix = remalloc(pipe_prefix, 9);
+        memcpy(&pal_sec_info.pipe_prefix, pipe_prefix, 9);
     } else {
         const struct graphene_user_policy default_policies[] = {
             { .type = GRAPHENE_NET_RULE,    .value = &mcast_rules[0], },

@@ -1281,7 +1281,7 @@ static int mcast_c (PAL_HANDLE handle, int port)
 
 PAL_HANDLE _DkBroadcastStreamOpen (int port)
 {
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(file));
+    PAL_HANDLE hdl = malloc(HANDLE_SIZE(mcast));
     SET_HANDLE_TYPE(hdl, mcast);
     mcast_s(hdl, port);
     mcast_c(hdl, port);

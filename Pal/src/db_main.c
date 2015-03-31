@@ -83,8 +83,10 @@ int load_libraries (struct config_store * root_config, const char ** msg)
     return 0;
 }
 
-static void read_envs (const char ** envp)
+static void read_envs (const char *** envpp)
 {
+    const char ** envp = *envpp;
+
     if (!pal_config.root_config)
         goto done;
 
@@ -160,37 +162,10 @@ static void read_envs (const char ** envp)
     }
 
 done:
-    pal_config.environments = envp;
+    *envpp = envp;
 }
 
-static void * find_heap_base (void)
-{
-    /* This function is to allocate an area to map preloaded loibraries,
-       but try to get around future address of PAL caused by ASLR.
-       The top of heap must be at least 1/16 of the area below where PAL
-       is loaded. The address is still randomized. */
-    unsigned long heap_base = (unsigned long) pal_config.lib_text_start;
-    unsigned long pal_size = pal_config.lib_data_end -
-                             pal_config.lib_text_start;
-    unsigned long base = allocsize;
-
-    while ((base >> 12) < pal_size)
-        base <<= 1;
-    while ((base << 6) < heap_base)
-        base <<= 1;
-
-    heap_base &= allocmask;
-    while ((heap_base -= base) > base) {
-        void * heap = (void *) heap_base;
-        if (!_DkVirtualMemoryAlloc(&heap, allocsize, PAL_ALLOC_RESERVE,
-                                   PAL_PROT_NONE))
-            return heap;
-    }
-
-    return NULL;
-}
-
-void start_execution (int argc, const char ** argv);
+void start_execution (int argc, const char ** argv, const char ** envp);
 
 void pal_main (int argc, const char ** argv, const char ** envp)
 {
@@ -244,10 +219,7 @@ void pal_main (int argc, const char ** argv, const char ** envp)
         }
     }
 
-    read_envs(envp);
-
-    if (!pal_config.heap_base)
-        pal_config.heap_base = find_heap_base();
+    read_envs(&envp);
 
     if (pal_config.root_config) {
         struct config_store * cfg = pal_config.root_config;
@@ -291,11 +263,13 @@ void pal_main (int argc, const char ** argv, const char ** envp)
         pal_config.root_config = NULL;
     }
 
-    __pal_control.manifest_handle = pal_config.manifest_handle;
-    __pal_control.executable = pal_config.exec;
+    __pal_control.manifest_handle    = pal_config.manifest_handle;
+    __pal_control.executable         = pal_config.exec;
+    __pal_control.user_address_begin = pal_config.user_addr_start;
+    __pal_control.user_address_end   = pal_config.user_addr_end;
 
     /* Now we will start the execution */
-    start_execution(argc, argv);
+    start_execution(argc, argv, envp);
 
     /* We wish we will never reached here */
     printf("unexpected termination\n");

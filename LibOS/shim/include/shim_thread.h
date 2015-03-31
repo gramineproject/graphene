@@ -79,6 +79,7 @@ struct shim_thread {
 
     void * stack, * stack_top, * stack_red;
     void * tcb;
+    bool user_tcb; /* is tcb assigned by user? */
     void * frameptr;
 
     REFTYPE ref_count;
@@ -121,7 +122,7 @@ void get_simple_thread (struct shim_simple_thread * thread);
 void put_simple_thread (struct shim_simple_thread * thread);
 
 void allocate_tls (void * tcb_location, struct shim_thread * thread);
-void populate_tls (void * tcb_location);
+void populate_tls (void * tcb_location, bool user);
 
 void debug_setprefix (shim_tcb_t * tcb);
 

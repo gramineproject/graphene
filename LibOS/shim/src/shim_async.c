@@ -109,6 +109,7 @@ static void shim_async_helper (void * arg)
     __libc_tcb_t tcb;
     allocate_tls(&tcb, self);
     debug_setbuf(&tcb.shim_tcb, true);
+    debug("set tcb to %p\n", &tcb);
 
     lock(async_helper_lock);
 

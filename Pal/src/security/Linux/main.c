@@ -33,9 +33,8 @@ unsigned long pagemask  = ~4095;
 # define FILEBUF_SIZE 832
 #endif
 
-char libname[80];
+char libname[PATH_MAX];
 const char * execname;
-char pipe_prefix[10];
 
 int find_manifest (int * pargc, const char *** pargv)
 {
@@ -373,7 +372,8 @@ static void run_library (unsigned long entry, void * stack,
     *((void **) (stack -= sizeof(void *))) = NULL;
     for (int i = argc - 1 ; i >= 0 ; i--)
         *((const void **) (stack -= sizeof(void *))) = argv[i];
-    *((unsigned long *) (stack -= sizeof(unsigned long))) = argc;
+    *((const void **) (stack -= sizeof(void *))) = libname;
+    *((unsigned long *) (stack -= sizeof(unsigned long))) = argc + 1;
 
     asm volatile ("movq %0, %%rsp\r\n"
                   "pushq %1\r\n"
@@ -412,73 +412,6 @@ struct config_store root_config;
 
 int free_heaps (void);
 
-static int mcast_s (PAL_HANDLE handle, int port)
-{
-    handle->mcast.srv = PAL_IDX_POISON;
-    int ret = 0;
-
-    int fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
-
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
-
-    struct in_addr local;
-    local.s_addr  = INADDR_ANY;
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
-                         &local, sizeof(local));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    handle->__in.flags |= WFD(1)|WRITEABLE(1);
-    handle->mcast.srv = fd;
-    return 0;
-}
-
-static int mcast_c (PAL_HANDLE handle, int port)
-{
-    handle->mcast.cli = PAL_IDX_POISON;
-    int ret = 0;
-
-    int fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
-
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
-
-    int reuse = 1;
-    INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR,
-                   &reuse, sizeof(reuse));
-
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
-    ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    struct in_addr local;
-    local.s_addr = INADDR_ANY;
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
-                         &local, sizeof(local));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    struct ip_mreq group;
-    inet_pton(AF_INET, MCAST_GROUP, &group.imr_multiaddr.s_addr);
-    group.imr_interface.s_addr = htonl(INADDR_ANY);
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                         &group, sizeof(group));
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    handle->__in.flags |= RFD(0);
-    handle->mcast.cli = fd;
-    handle->mcast.nonblocking = PAL_FALSE;
-    return 0;
-}
-
-union pal_handle mcast_handle;
-
 void do_main (void * args)
 {
     void **all_args = (void **) args;
@@ -503,6 +436,9 @@ void do_main (void * args)
         printf("Unable to install initial system call filter\n");
         goto exit;
     }
+
+    /* occupy PAL_INIT_FD */
+    INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
 
     for (av = (void *) auxv ; av->a_type != AT_NULL ; av++)
         switch (av->a_type) {
@@ -582,10 +518,10 @@ void do_main (void * args)
 
     if (IS_ERR(ret) && ERRNO(ret) != EEXIST) {
         if (ERRNO(ret) == ENOENT) {
-            ret = INLINE_SYSCALL(mkdir, 2, GRAPHENE_TMPDIR, 0777);
+            ret = INLINE_SYSCALL(mkdir, 2, GRAPHENE_TEMPDIR, 0777);
 
             if (!IS_ERR(ret)) {
-                INLINE_SYSCALL(chmod, 2, GRAPHENE_TMPDIR, 0777);
+                INLINE_SYSCALL(chmod, 2, GRAPHENE_TEMPDIR, 0777);
                 ret = INLINE_SYSCALL(mkdir, 2, GRAPHENE_PIPEDIR, 0777);
             }
         }
@@ -598,8 +534,9 @@ void do_main (void * args)
         INLINE_SYSCALL(chmod, 2, GRAPHENE_PIPEDIR, 0777);
 
     unsigned int domainid = 0;
-    char * tmpdir = __alloca(GRAPHENE_PIPEDIR_LEN + 12);
-    memcpy(tmpdir, GRAPHENE_PIPEDIR, GRAPHENE_PIPEDIR_LEN + 1);
+    char * tmpdir = __alloca(sizeof(GRAPHENE_PIPEDIR) + 12);
+    memcpy(tmpdir, GRAPHENE_PIPEDIR, sizeof(GRAPHENE_PIPEDIR));
+    tmpdir[sizeof(GRAPHENE_PIPEDIR) - 1] = '/';
 
     while (!domainid) {
         ret = INLINE_SYSCALL(read, 3, rand, &domainid,
@@ -610,7 +547,7 @@ void do_main (void * args)
         }
 
         if (domainid) {
-            snprintf(tmpdir + GRAPHENE_PIPEDIR_LEN, 12, "/%08x", domainid);
+            snprintf(tmpdir + sizeof(GRAPHENE_PIPEDIR), 12, "%08x", domainid);
             ret = INLINE_SYSCALL(mkdir, 2, tmpdir, 0700);
             if (IS_ERR(ret)) {
                 if ((ret = -ERRNO(ret)) != -EEXIST)
@@ -621,28 +558,19 @@ void do_main (void * args)
         }
     }
 
-    snprintf(pipe_prefix, sizeof(pipe_prefix), "%08x", domainid);
+    snprintf(pal_sec_info_addr->pipe_prefix, PIPE_MAX, "%08x", domainid);
 
     unsigned short mcast_port = 0;
-    do {
-        ret = INLINE_SYSCALL(read, 3, rand, &mcast_port,
-                             sizeof(unsigned short));
-        if (IS_ERR(ret)) {
-            ret = -ERRNO(ret);
-            goto exit;
-        }
-    } while (mcast_port < 1024);
-
-    SET_HANDLE_TYPE(&mcast_handle, mcast);
-    mcast_s(&mcast_handle, mcast_port);
-    mcast_c(&mcast_handle, mcast_port);
-    mcast_handle.mcast.port = mcast_port;
+    ret = INLINE_SYSCALL(read, 3, rand, &mcast_port, sizeof(mcast_port));
+    if (IS_ERR(ret)) {
+        ret = -ERRNO(ret);
+        goto exit;
+    }
+    if (mcast_port < 1024) mcast_port += 1024;
 
     pal_sec_info_addr->domain_id    = domainid;
-    pal_sec_info_addr->pipe_prefix  = pipe_prefix;
     pal_sec_info_addr->rand_gen     = rand;
     pal_sec_info_addr->mcast_port   = mcast_port;
-    pal_sec_info_addr->mcast_handle = &mcast_handle;
     pal_sec_info_addr->_dl_debug_state = &___dl_debug_state;
     pal_sec_info_addr->_r_debug     = &___r_debug;
 
@@ -651,6 +579,9 @@ void do_main (void * args)
         goto exit;
 
     free_heaps();
+
+    /* free PAL_INIT_FD */
+    INLINE_SYSCALL(close, 1, PROC_INIT_FD);
 
     ret = install_syscall_filter(libname, pal_start, pal_end, do_trace);
     if (ret < 0) {

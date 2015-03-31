@@ -5,13 +5,21 @@ PAL=$PAL_DIR/pal
 PAL_SEC=$PAL_DIR/pal_sec
 
 MANIFEST=
-GDB=
+GDB_CMD=
 PAL_CMD=$PAL
+
+if [ "$GDB" == "1" ]; then
+	GDB_CMD="gdb --args"
+fi
+
+if [ "$SEC" == "1" ]; then
+	PAL_CMD=$PAL_SEC
+fi
 
 while [ "$1" != "" ];
 do
 	if [ "$1" = "-gdb" ]; then
-		GDB="gdb --args"
+		GDB_CMD="gdb --args"
 		shift
 		continue
 	fi
@@ -36,4 +44,4 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-exec $GDB $PAL $MANIFEST $*
+exec $GDB_CMD $PAL_CMD $MANIFEST $*

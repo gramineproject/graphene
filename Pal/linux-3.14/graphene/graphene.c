@@ -507,9 +507,7 @@ static int __unix_perm(struct sockaddr *address, int addrlen)
 {
 	struct graphene_info *gi = get_graphene_info(current->graphene);
 	const char *path, *sun_path;
-	struct nameidata nd;
-	struct path *p = NULL;
-	int err = 0;
+	int err = 0, path_len;
 
 	if (!gi->gi_unix)
 		return -EPERM;
@@ -519,44 +517,46 @@ static int __unix_perm(struct sockaddr *address, int addrlen)
 	if (gi->gi_unix->root.mnt) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 		struct path parent;
+		const char *s;
 
-		err = kern_path(path, LOOKUP_FOLLOW, &nd.path);
-		if (!err)
+		err = kern_path(path, LOOKUP_PARENT, &parent);
+		if (err)
 			return err;
-
-		p = &nd.path;
-
-		err = vfs_path_lookup(nd.path.dentry, nd.path.mnt, "..", 0,
-				      &parent);
-		if (!err)
-			goto denied;
 
 		if (!path_equal(&gi->gi_unix->root, &parent))
 			goto denied;
 
 		path_put(&parent);
-		path = nd.path.dentry->d_name.name;
+		/* find the last name */
+		for (s = path; *s ; s++)
+			if (*s == '/')
+				path = s + 1;
+		path_len = s - path;
 #else
+		struct nameidata nd;
 		err = kern_path_parent(path, &nd);
-		if (!err)
+		if (err)
 			return err;
 
 		path_put(&nd.path);
 		path = nd.last.name;
+		path_len = nd.last.len;
 
 		if (!path_equal(&gi->gi_unix->root, &nd.path))
 			goto denied;
 
 #endif
+	} else {
+		path_len = strlen(path);
 	}
 
-	if (gi->gi_unix->prefix.len &&
-	    memcmp(path, gi->gi_unix->prefix.name,
-		   gi->gi_unix->prefix.len))
-		err = -EPERM;
-
-	if (p)
-		path_put(p);
+	if (gi->gi_unix->prefix.len) {
+		if (gi->gi_unix->prefix.len > path_len ||
+		    memcmp(path,
+			   gi->gi_unix->prefix.name,
+			   gi->gi_unix->prefix.len))
+			err = -EPERM;
+	}
 
 	if (!err)
 		return 0;
@@ -566,8 +566,6 @@ denied:
 	printk(KERN_INFO "Graphene: DENY PID %d SOCKET %s\n",
 	       current->pid, sun_path);
 #endif
-	if (p)
-		path_put(p);
 	return -EPERM;
 }
 
@@ -581,12 +579,12 @@ static int net_cmp(int family, int addr_any, int port_any,
 
 		if (!addr_any) {
 			if (a->sin_addr.s_addr != ga->addr.sin_addr.s_addr)
-				return -EPERM;
+				return 1;
 		}
 		if (!port_any) {
 			unsigned short port = ntohs(a->sin_port);
 			if (!(port >= ga->port_begin && port <= ga->port_end))
-				return -EPERM;
+				return 1;
 		}
 
 		break;
@@ -598,12 +596,12 @@ static int net_cmp(int family, int addr_any, int port_any,
 		if (!addr_any) {
 			if (memcmp(&a6->sin6_addr, &ga->addr.sin6_addr,
 				   sizeof(struct in6_addr)))
-				return -EPERM;
+				return 1;
 		}
 		if (!port_any) {
 			unsigned short port = ntohs(a6->sin6_port);
 			if (!(port >= ga->port_begin && port <= ga->port_end))
-				return -EPERM;
+				return 1;
 		}
 
 		break;
@@ -753,7 +751,7 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 		local_needcmp = 1;
 
 		err = sock->ops->getname(sock, local_addr, &local_addrlen, 0);
-		if (err < 0)
+		if (err)
 			return err;
 	}
 
@@ -772,18 +770,16 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 			continue;
 
 		if (local_needcmp) {
-			err = net_cmp(sk->sk_family, gn->flags & LOCAL_ADDR_ANY,
-				      gn->flags & LOCAL_PORT_ANY,
-				      &gn->local, local_addr, local_addrlen);
-			if (err < 0)
+			if (net_cmp(sk->sk_family, gn->flags & LOCAL_ADDR_ANY,
+				    gn->flags & LOCAL_PORT_ANY,
+				    &gn->local, local_addr, local_addrlen))
 				continue;
 		}
 
 		if (peer_needcmp) {
-			err = net_cmp(sk->sk_family, gn->flags & PEER_ADDR_ANY,
-				      gn->flags & PEER_PORT_ANY,
-				      &gn->peer, peer_addr, peer_addrlen);
-			if (err < 0)
+			if (net_cmp(sk->sk_family, gn->flags & PEER_ADDR_ANY,
+				    gn->flags & PEER_PORT_ANY,
+				    &gn->peer, peer_addr, peer_addrlen))
 				continue;
 		}
 
@@ -1112,7 +1108,7 @@ int set_graphene(struct task_struct *current_tsk,
 #endif
 
 	rv = copy_from_user(&npolicies, &gpolicies->npolicies, sizeof(int));
-	if (rv < 0)
+	if (rv)
 		return -EFAULT;
 
 	if (npolicies && !policies)
@@ -1146,8 +1142,10 @@ int set_graphene(struct task_struct *current_tsk,
 		int type, flags;
 		rv = copy_from_user(&ptmp, policies + i,
 				    sizeof(struct graphene_user_policy));
-		if (rv < 0)
+		if (rv) {
+			rv = -EFAULT;
 			goto err;
+		}
 
 		if (!ptmp.value) {
 			rv = -EINVAL;
@@ -1270,8 +1268,10 @@ int set_graphene(struct task_struct *current_tsk,
 
 			rv = copy_from_user(&np, ptmp.value,
 					    sizeof(struct graphene_net_policy));
-			if (rv < 0)
+			if (rv) {
+				rv = -EFAULT;
 				goto err;
+			}
 
 			rv = set_net_rule(&np, gi);
 			if (rv < 0)
@@ -1384,14 +1384,10 @@ static int do_close_sock(struct graphene_info *gi, struct socket *sock,
 	inet = inet_sk(sk);
 	if (inet->inet_dport) {
 		err = sock->ops->getname(sock, addr, &len, 1);
-		if (err < 0)
+		if (err)
 			return err;
 
-		err = __common_net_perm(gi, OP_CONNECT, sock, addr, len);
-		if (err < 0)
-			return err;
-
-		return 0;
+		return __common_net_perm(gi, OP_CONNECT, sock, addr, len);
 	}
 
 	if (!inet->inet_num)
@@ -1401,7 +1397,7 @@ static int do_close_sock(struct graphene_info *gi, struct socket *sock,
 		err = __common_net_perm(gi, OP_LISTEN, sock, NULL, 0);
 	} else {
 		err = sock->ops->getname(sock, addr, &len, 0);
-		if (err < 0)
+		if (err)
 			return err;
 
 		err = __common_net_perm(gi, OP_BIND, sock, addr, len);
@@ -1539,7 +1535,7 @@ static int update_graphene(struct task_struct *current_tsk,
 		}
 		if (new->gi_unix->prefix.len) {
 			int err = add_graphene_unix(new->gi_unix);
-			if (err < 0)
+			if (err)
 				return err;
 		}
 		close_unix = 1;

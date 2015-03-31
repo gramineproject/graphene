@@ -151,20 +151,20 @@ void setup_elf_hash (struct link_map *map)
     map->l_chain = hash;
 }
 
-static void * __heap_base = NULL;
-
-static ElfW(Addr) __get_heap_base (size_t size)
+static ElfW(Addr) __get_map_addr (size_t size, enum object_type type)
 {
-    if (__heap_base == (void *) -1)
-        return 0;
+    return type == OBJECT_EXEC ?
+           (ElfW(Addr)) pal_config.user_addr_start :
+           (ElfW(Addr)) pal_config.user_addr_end - ALLOC_ALIGNUP(size);
+}
 
-    if (!__heap_base &&
-        !(__heap_base = pal_config.heap_base)) {
-        __heap_base = (void *) -1;
-        return 0;
-    }
-
-    return (ElfW(Addr)) (__heap_base -= ALLOC_ALIGNUP(size));
+static void __save_map_addr (ElfW(Addr) addr, size_t size,
+                             enum object_type type)
+{
+    if (type == OBJECT_EXEC)
+        pal_config.user_addr_start = (void *) ALLOC_ALIGNUP(addr + size);
+    else
+        pal_config.user_addr_end = (void *) ALLOC_ALIGNDOWN(addr);
 }
 
 /* Map in the shared object NAME, actually located in REALNAME, and already
@@ -183,7 +183,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
         errstring = "cannot stat shared object";
         errval = PAL_ERROR_INVAL;
 call_lose:
-        printf("%s (%d)\n", errstring, PAL_STRERROR(errval));
+        printf("%s (%s)\n", errstring, PAL_STRERROR(errval));
         return NULL;
     }
 
@@ -328,7 +328,7 @@ call_lose:
            As a refinement, sometimes we have an address that we would
            prefer to map such objects at; but this is only a preference,
            the OS can do whatever it likes. */
-        ElfW(Addr) mappref = __get_heap_base(maplength);
+        ElfW(Addr) mappref = __get_map_addr(maplength, type);
 
         /* Remember which part of the address space this object uses.  */
         errval = _DkStreamMap(handle, (void **) &mappref,
@@ -342,8 +342,9 @@ map_error:
             goto call_lose;
         }
 
+        __save_map_addr(mappref, maplength, type);
         l->l_map_start = mappref;
-        l->l_map_end = l->l_map_start + maplength;
+        l->l_map_end = mappref + maplength;
         l->l_addr = l->l_map_start - c->mapstart;
 
         if (has_holes)
@@ -361,6 +362,7 @@ map_error:
 
     /* Remember which part of the address space this object uses.  */
     l->l_map_start = c->mapstart + l->l_addr;
+    __save_map_addr(l->l_map_start, maplength, type);
     l->l_map_end = l->l_map_start + maplength;
 
     while (c < &loadcmds[nloadcmds]) {
@@ -1039,7 +1041,7 @@ void DkDebugDetachBinary (PAL_PTR start_addr)
 {
 }
 
-void start_execution (int argc, const char ** argv)
+void start_execution (int argc, const char ** argv, const char ** envp)
 {
     /* First we will try to run all the preloaded libraries which come with
        entry points */
@@ -1057,7 +1059,7 @@ void start_execution (int argc, const char ** argv)
     size_t ncookies = argc + 2; /* 1 for argc, argc + 1 for argv */
 
     /* Then we count envp */
-    for (const char ** e = pal_config.environments; *e; e++)
+    for (const char ** e = envp; *e; e++)
         ncookies++;
 
     ncookies++; /* for NULL-end */
@@ -1077,9 +1079,8 @@ void start_execution (int argc, const char ** argv)
 
     size_t cnt = argc + 2;
 
-    if (pal_config.environments)
-        for (i = 0 ; pal_config.environments[i]; i++)
-            cookies[cnt++] = (unsigned long int) pal_config.environments[i];
+    for (i = 0 ; envp[i]; i++)
+        cookies[cnt++] = (unsigned long int) envp[i];
 
     cookies[cnt++] = 0;
 
@@ -1148,7 +1149,7 @@ NO_PRELOAD:
         /* This part is awesome. Don't risk changing it!! */
 #if defined(__x86_64__)
         ret = ((int (*) (int, const char **, const char **))
-               exec_map->l_entry) (argc, argv, pal_config.environments);
+               exec_map->l_entry) (argc, argv, envp);
 #else
 # error "architecture not supported"
 #endif

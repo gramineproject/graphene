@@ -90,26 +90,6 @@ static inline int test_vma_overlap (struct shim_vma * tmp,
            test_vma_startin (tmp, addr, length - 1);
 }
 
-static void * heap_base = &__load_address;
-
-static int __set_heap_base (void)
-{
-    unsigned long heap_addr = (unsigned long) &__load_address;
-    unsigned long shim_size = (unsigned long) &__load_address_end -
-                              (unsigned long) &__load_address;
-    unsigned long base_size = allocsize;
-
-    while ((base_size >> 12) < shim_size)
-        base_size <<= 1;
-    while ((base_size << 6) < heap_addr)
-        base_size <<= 1;
-
-    heap_base = (void *) &__load_address - base_size;
-
-    debug("heap base is %p\n", heap_base);
-    return 0;
-}
-
 int bkeep_shim_heap (void);
 
 int init_vma (void)
@@ -118,7 +98,6 @@ int init_vma (void)
         return -ENOMEM;
 
     bkeep_shim_heap();
-    __set_heap_base();
     create_lock(vma_list_lock);
 
     return 0;
@@ -617,41 +596,43 @@ int bkeep_mprotect (void * addr, size_t length, int prot, const int * flags)
 
 void * get_unmapped_vma (size_t length, int flags)
 {
-    struct shim_vma * tmp, * prev = NULL, * new;
-    void * addr = heap_base;
-
-    new = get_new_vma();
+    struct shim_vma * new = get_new_vma();
     if (!new)
         return NULL;
 
+    struct shim_vma * tmp, * prev = NULL;
     lock(vma_list_lock);
 
-    list_for_each_entry_reverse(tmp, &vma_list, list) {
-        if (tmp->addr >= addr)
-            continue;
+    new->addr = pal_control.user_address_begin;
+    new->length = length;
+    new->flags = flags|VMA_UNMAPPED;
 
-        if (tmp->addr + tmp->length + length <= addr) {
+    list_for_each_entry(tmp, &vma_list, list) {
+        if (tmp->addr <= new->addr) {
+            if (tmp->addr + tmp->length > new->addr)
+                new->addr = tmp->addr + tmp->length;
             prev = tmp;
-            break;
+            continue;
         }
 
-        addr = tmp->addr;
+        if (tmp->addr >= new->addr + length)
+            break;
+
+        new->addr = tmp->addr + tmp->length;
+        prev = tmp;
     }
 
-    if ((unsigned long) addr < length) {
+    if (new->addr + length > pal_control.user_address_end) {
         unlock(vma_list_lock);
         put_vma(new);
         return NULL;
     }
 
-    new->addr   = (addr -= length);
-    new->length = length;
-    new->flags  = flags|VMA_UNMAPPED;
     assert(!prev || prev->addr + prev->length <= new->addr);
     get_vma(new);
     list_add(&new->list, prev ? &prev->list : &vma_list);
     unlock(vma_list_lock);
-    return addr;
+    return new->addr;
 }
 
 /* This might not give the same vma but we might need to
@@ -855,7 +836,7 @@ int dump_all_vmas (struct shim_thread * thread, char * buf, size_t size)
             if (vma->comment[0])
                 cnt += snprintf(buf + cnt, size - cnt,
                                 " %c%c%cp 00000000 00:00 0 [%s]\n",
-                                prot[0], prot[1], prot[2], vma->comment[0]);
+                                prot[0], prot[1], prot[2], vma->comment);
             else
                 cnt += snprintf(buf + cnt, size - cnt,
                                 " %c%c%cp 00000000 00:00 0\n",

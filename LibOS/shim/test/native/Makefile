@@ -1,8 +1,8 @@
 CFLAGS-libos = -L../../../build/libos -I../../include
 
+SPECIALS = static pie
 NATIVE_TESTS_CPP = $(patsubst %.cpp,%,$(wildcard *.cpp))
-NATIVE_TESTS_STATIC = static
-NATIVE_TESTS = $(filter-out $(NATIVE_TESTS_STATIC),$(patsubst %.c,%,$(wildcard *.c)))
+NATIVE_TESTS = $(patsubst %.c,%,$(wildcard *.c))
 
 targets = $(NATIVE_TESTS) $(NATIVE_TESTS_CPP) $(NATIVE_TESTS_STATIC) \
 	  manifest static.manifest pal pal_sec
@@ -28,19 +28,24 @@ test-helloworld.pthread = grep -q "Hello World" OUTPUT
 	rm -rf $@
 	cp $@.template $@
 
-$(NATIVE_TESTS): %: %.c
+$(filter-out $(SPECIALS),$(NATIVE_TESTS)): %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
-$(NATIVE_TESTS_CPP): %: %.cpp
+$(filter-out $(SPECIALS),$(NATIVE_TESTS_CPP)): %: %.cpp
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
-$(NATIVE_TESTS_STATIC): %: %.c
+static: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -o $@ -static $< \
+	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
+pie: %: %.c
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 test-helloworld = grep -q "Hello world" OUTPUT

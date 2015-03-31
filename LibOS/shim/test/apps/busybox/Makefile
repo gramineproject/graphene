@@ -1,4 +1,4 @@
-busybox_src = busybox-1.19.4
+busybox_src = busybox-1.23.1
 
 manifests = busybox.manifest busybox_nofork.manifest
 targets = busybox busybox_gdb busybox_nofork busybox_nofork_gdb $(manifests)
@@ -10,14 +10,14 @@ debug: MAKE_FLAGS=CC="gcc -g"
 debug: $(targets)
 
 busybox busybox_gdb: config_for_graphene
-	[ -d $(busybox_src) ] || tar -xzf $(busybox_src).tar.gz
+	[ -d $(busybox_src) ] || tar -xjf $(busybox_src).tar.bz2
 	cp config_for_graphene $(busybox_src)/.config
 	cd $(busybox_src) && make $(MAKE_FLAGS)
 	cp $(busybox_src)/busybox busybox
 	cp $(busybox_src)/busybox_unstripped busybox_gdb
 
 busybox_nofork busybox_nofork_gdb: $(busybox_src) config_for_graphene_nofork
-	[ -d $(busybox_src) ] || tar -xzf $(busybox_src).tar.gz
+	[ -d $(busybox_src) ] || tar -xjf $(busybox_src).tar.bz2
 	cp config_for_graphene_nofork $(busybox_src)/.config
 	cd $(busybox_src) && make $(MAKE_FLAGS)
 	cp $(busybox_src)/busybox busybox_nofork

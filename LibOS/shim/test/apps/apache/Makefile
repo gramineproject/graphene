@@ -10,7 +10,7 @@ endif
 HTTPD_DIR = httpd-2.4.3
 APR_DIR = apr-1.4.6
 APRUTIL_DIR = apr-util-1.5.1
-PHP_DIR = php-5.3.16
+PHP_DIR = php-5.6.6
 
 INSTALL_DIR = $(PWD)/obj
 SRC_DIRS = $(HTTPD_DIR) $(APR_DIR) $(APRUTIL_DIR) $(PHP_DIR)
