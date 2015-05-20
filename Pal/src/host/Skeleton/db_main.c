@@ -59,6 +59,7 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
-void _DkGetCPUInfo (void)
+void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
+    /* need to be implemented */
 }
