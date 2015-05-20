@@ -87,40 +87,4 @@ static const char * pal_errstring[] __attribute__((unused)) = {
     ({ int _e = -errno; ((_e > 0 && _e <= PAL_ERROR_BOUND) ?            \
                          pal_errstring[_e] : "Unknown error");   })
 
-#ifdef IN_PAL
-# include <asm-errno.h>
-
-static inline __attribute__((unused))
-int unix_to_pal_error (int unix_errno)
-{
-    switch(unix_errno) {
-        case ENOENT:
-            return -PAL_ERROR_STREAMNOTEXIST;
-        case EINTR:
-            return -PAL_ERROR_INTERRUPTED;
-        case EBADF:
-            return -PAL_ERROR_BADHANDLE;
-        case ETIMEDOUT:
-        case EAGAIN:
-            return -PAL_ERROR_TRYAGAIN;
-        case ENOMEM:
-            return -PAL_ERROR_NOMEM;
-        case EFAULT:
-            return -PAL_ERROR_BADADDR;
-        case EEXIST:
-            return -PAL_ERROR_STREAMEXIST;
-        case ENOTDIR:
-            return -PAL_ERROR_STREAMISFILE;
-        case EINVAL:
-            return -PAL_ERROR_INVAL;
-        case ENAMETOOLONG:
-            return -PAL_ERROR_TOOLONG;
-        case EISDIR:
-            return -PAL_ERROR_STREAMISDIR;
-        default:
-            return -PAL_ERROR_DENIED;
-    }
-}
-#endif /* IN_PAL */
-
 #endif

@@ -11,7 +11,7 @@ ifeq ($(OS),Linux)
 	LINUX_KERNEL := $(LINUX_SRC)/arch/x86/boot/bzImage
 endif
 
-DIRS = src test
+DIRS = src test regression
 
 all debug clean:
 	for d in $(DIRS); \
@@ -23,7 +23,7 @@ all debug clean:
 kernel: $(LINUX_KERNEL)
 
 ifneq ($(LINUX_KERNEL),)
-$(LINUX_KERNEL): $(LINUX_SRC)/Makefile $(LINUX_SRC)/.config
+$(LINUX_KERNEL): $(LINUX_SRC)/Makefile $(LINUX_SRC)/graphene $(LINUX_SRC)/.config
 	make -C $(LINUX_SRC) -j$(NPROCS)
 
 $(LINUX_SRC)/Makefile:
@@ -31,6 +31,9 @@ $(LINUX_SRC)/Makefile:
 	wget https://www.kernel.org/pub/linux/kernel/v$(LINUX_GEN)/$(LINUX_SRC).tar.gz
 	tar -xzf $(LINUX_SRC).tar.gz
 	[ ! -f $(LINUX_SRC).patch ] || git apply $(LINUX_SRC).patch
+
+$(LINUX_SRC)/graphene: linux-kernel/graphene
+	cd $(LINUX_SRC) && ln -s ../linux-kernel/graphene graphene
 
 $(LINUX_SRC)/.config: $(LINUX_SRC)/Makefile
 	cd $(LINUX_SRC) && make menuconfig
@@ -53,3 +56,7 @@ endif
 .PHONY: test
 test:
 	make -C test test
+
+.PHONY: pack
+pack:
+	make -C test pack

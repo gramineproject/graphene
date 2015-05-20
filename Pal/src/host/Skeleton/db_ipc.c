@@ -27,8 +27,6 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_error.h"
-#include "pal_security.h"
-#include "graphene-ipc.h"
 #include "api.h"
 
 int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
@@ -44,7 +42,7 @@ int gipc_close (PAL_HANDLE handle)
 
 const char * gipc_getrealpath (PAL_HANDLE handle)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    return NULL;
 }
 
 struct handle_ops gipc_ops = {
@@ -53,19 +51,19 @@ struct handle_ops gipc_ops = {
         .close              = &gipc_close,
     };
 
-int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key)
+int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, PAL_NUM * key)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries, const void ** addrs,
-                             unsigned long * sizes, int flags)
+int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries, PAL_PTR * addrs,
+                             PAL_NUM * sizes, int flags)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries, const void ** addrs,
-                          unsigned long * sizes, unsigned int * prots)
+int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries, PAL_PTR * addrs,
+                          PAL_NUM * sizes, PAL_FLG * prots)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

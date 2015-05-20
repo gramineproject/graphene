@@ -24,7 +24,6 @@ int main(int argc, char ** argv)
         exit(1);
     }
 
-
     if ((ret = creat(TESTDIR "/file", 0600)) < 0) {
         perror("open");
         exit(1);

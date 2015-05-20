@@ -544,12 +544,12 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...)
         if (ret_ptr < -4095L)
             PRINTF(") = %p\n", ret_ptr);
         else
-            PRINTF(") = %ld (%e)\n", (long) ret_ptr, -ret_ptr);
+            PRINTF(") = %ld\n", (long) ret_ptr);
     } else {
         if (ret_val >= 0)
             PRINTF(") = %d\n", ret_val);
         else
-            PRINTF(") = %d (%e)\n", ret_val, ret_val);
+            PRINTF(") = %d\n", ret_val);
     }
 
     va_end (ap);

@@ -1,3 +1,6 @@
+SYS ?= $(shell gcc -dumpmachine)
+export SYS
+
 LMBENCHDIR = lmbench-2.5
 LMBENCHMANIFEST = manifest-list
 
@@ -18,7 +21,7 @@ servers = lat_udp lat_tcp lat_rpc lat_connect bw_tcp
 	make -C .. lmbench/$@ appdir=lmbench/
 	echo $(if $(findstring $(notdir $(basename $@)),$(servers)),"loader.daemonize = 1") >> $@
 
-
+ifeq ($(SYS),x86_64-linux-gnu)
 $(LMBENCHDIR)/bin/linux: $(wildcard $(LMBENCHDIR)/src/*.c) $(wildcard $(LMBENCHDIR)/src/*.h)
 	make -C $(LMBENCHDIR)/src OS=linux CC="gcc -g"
 
@@ -32,6 +35,21 @@ manifest-list: $(LMBENCHDIR)/bin/linux
 		xargs -l ln -sf ../../../manifest.template
 	for f in `cat manifest-list`; do f=$${f%.manifest.template}; \
 		ln -sf $${f##*/}.manifest $$f ; done
+
+.PHONY: pack
+pack: $(LMBENCHDIR)/bin/linux manifest-list
+	tar -czf .packed/lmbench.tar.gz $^
+else
+$(LMBENCHDIR)/bin/linux manifest-list: .packed/lmbench.tar.gz
+	tar -xmozf $<
+	mkdir -p $(LMBENCHDIR)/bin/graphene
+	cp -n $(LMBENCHDIR)/bin/linux/* $(LMBENCHDIR)/bin/graphene
+	for f in `cat manifest-list`; \
+		do ln -sf ../../../manifest.template $$f ; done
+	for f in `cat manifest-list`; do f=$${f%.manifest.template}; \
+		ln -sf $${f##*/}.manifest $$f ; done
+endif
+
 
 config = $(shell $(LMBENCHDIR)/scripts/config)
 
@@ -52,5 +70,5 @@ test-graphene: config-graphene
 	make -C $(LMBENCHDIR) OS=graphene rerun
 
 clean:
-	rm -rf $(LMBENCHMANFIEST)
+	rm -rf $(LMBENCHMANFIEST) manifest-list
 	make -C $(LMBENCHDIR) clean

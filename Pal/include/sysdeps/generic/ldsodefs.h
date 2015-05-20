@@ -20,17 +20,12 @@
 #ifndef	_LDSODEFS_H
 #define	_LDSODEFS_H	1
 
-#include <features.h>
-
 #include <stdbool.h>
 #define __need_size_t
 #define __need_NULL
 #include <stddef.h>
 #include <sys/mman.h>
-
 #include <elf/elf.h>
-
-__BEGIN_DECLS
 
 /* We use this macro to refer to ELF types independent of the native wordsize.
    `ElfW(TYPE)' is used in place of `Elf32_TYPE' or `Elf64_TYPE'.  */
@@ -212,7 +207,5 @@ enum
 #define DL_LOOKUP_ADD_DEPENDENCY dl_lookup_add_dependency
 #define DL_LOOKUP_RETURN_NEWEST  dl_lookup_return_newest
 #define DL_LOOKUP_GSCOPE_LOCK    dl_lookup_gscope_lock
-
-__END_DECLS
 
 #endif /* ldsodefs.h */

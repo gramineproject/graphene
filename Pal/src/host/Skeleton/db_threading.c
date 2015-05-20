@@ -39,14 +39,6 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-/* PAL call DkThreadPrivate: set up the thread private area for the
-   current thread. if addr is 0, return the current thread private
-   area. */
-void * _DkThreadPrivate (void * addr)
-{
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 int _DkThreadDelayExecution (unsigned long * duration)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
@@ -56,11 +48,13 @@ int _DkThreadDelayExecution (unsigned long * duration)
    of the current thread. */
 void _DkThreadYieldExecution (void)
 {
+    /* need to be implemented */
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-void _DkThreadExit (int exitcode)
+void _DkThreadExit (void)
 {
+    /* need to be implemented */
 }
 
 int _DkThreadResume (PAL_HANDLE threadHandle)

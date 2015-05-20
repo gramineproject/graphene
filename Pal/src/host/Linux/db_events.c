@@ -33,7 +33,7 @@
 
 #include <atomic.h>
 #include <linux/futex.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 #include <linux/time.h>
 
 int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)

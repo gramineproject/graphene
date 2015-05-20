@@ -52,16 +52,11 @@ void __assert (void);
         }                                                                \
     } while (0)
 
-#else
+#endif /* IN_PAL */
 
-int pal_printf  (const char *fmt, ...);
-int pal_snprintf (char *buf, size_t n, const char *fmt, ...);
-int pal_atoi (const char *nptr);
-long int pal_atol (const char *nptr);
+int pal_printf (const char *fmt, ...);
 
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr);
 void DkDebugDetachBinary (PAL_PTR start_addr);
 
-#endif
-
-#endif
+#endif /* PAL_DEBUG_H */

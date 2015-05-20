@@ -1,5 +1,3 @@
-MAKEFLAGS += --check-symlink-times
-
 include Makefile.Host
 
 CC	= gcc
@@ -9,7 +7,7 @@ LD	= ld
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin
-LDFLAGS	= -shared -nostdlib -z combreloc -z defs
+LDFLAGS	= -shared -static -nostdlib -z combreloc -z defs
 ARFLAGS	=
 
 pal_loader = libpal.so
@@ -23,7 +21,12 @@ include host/$(OS)/Makefile.am
 
 CFLAGS	+= -I. -I../include -Ihost/$(OS) -I../lib
 
-pal_target = $(pal_lib) $(pal_lib_post) $(pal_static) $(pal_loader) $(pal_sec) pal pal_sec
+ifeq ($(PROFILING),1)
+CFLAGS	+= -DPROFILING=1
+endif
+
+pal_target = $(pal_lib) $(pal_lib_post) $(pal_static) $(pal_loader) $(pal_sec) \
+	     pal pal_sec user_start.o user_shared_start.o
 defs	= -DIN_PAL -DSRCDIR="$(PWD)/"
 objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf
@@ -38,10 +41,13 @@ debug: CC = gcc -gdwarf-2 -g3
 debug: CFLAGS += -DDEBUG
 debug: $(pal_target)
 
-.PHONY: $(host_lib) $(graphene_lib)
+.PHONY: $(host_lib) $(graphene_lib) $(pal_lib) $(pal_sec)
 
-$(graphene_lib):
+$(graphene_lib): host_endian.h
 	make -C ../lib $(debug)
+
+host_endian.h: host/$(OS)/host_endian.h
+	ln -sf $< $@
 
 $(host_lib):
 	@[ ! -d host/$(OS) ] || make -C host/$(OS) $(debug)
@@ -75,6 +81,14 @@ $(pal_static): $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib)
 	@objdump -S $<.o > $@
 	@rm $<.o
 
+user_start.o: user_start.S
+	@echo [ $@ ]
+	@$(CC) -c $< -o $@
+
+user_shared_start.o: user_start.S
+	@echo [ $@ ]
+	@$(CC) -DSHARED -fPIC -c $< -o $@
+
 %.o: %.c $(headers)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@ $(CFLAGS-suffix)
@@ -84,6 +98,6 @@ $(pal_static): $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib)
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
 
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(pal_target)
+	rm -rf $(addsuffix .o,$(objs)) $(pal_target) host_endian.h
 	@[ ! -d host/$(OS) ] || make -C host/$(OS) clean
 	@[ ! -d security/$(OS) ] || make -C security/$(OS) clean

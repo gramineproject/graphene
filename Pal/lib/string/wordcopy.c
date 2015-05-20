@@ -27,13 +27,9 @@
    block beginning at DSTP with LEN `op_t' words (not LEN bytes!).
    Both SRCP and DSTP should be aligned for memory operations on `op_t's.  */
 
-void
-_wordcopy_fwd_aligned (dstp, srcp, len)
-     long int dstp;
-     long int srcp;
-     size_t len;
+void _wordcopy_fwd_aligned (long int dstp, long int srcp, int len)
 {
-  op_t a0, a1;
+  op_t a0 = 0, a1 = 0;
 
   switch (len % 8)
     {
@@ -135,13 +131,9 @@ _wordcopy_fwd_aligned (dstp, srcp, len)
    DSTP should be aligned for memory operations on `op_t's, but SRCP must
    *not* be aligned.  */
 
-void
-_wordcopy_fwd_dest_aligned (dstp, srcp, len)
-     long int dstp;
-     long int srcp;
-     size_t len;
+void _wordcopy_fwd_dest_aligned (long int dstp, long int srcp, int len)
 {
-  op_t a0, a1, a2, a3;
+  op_t a0 = 0, a1 = 0, a2 = 0, a3 = 0;
   int sh_1, sh_2;
 
   /* Calculate how to shift a word read at the memory operation
@@ -222,13 +214,9 @@ _wordcopy_fwd_dest_aligned (dstp, srcp, len)
    (not LEN bytes!).  Both SRCP and DSTP should be aligned for memory
    operations on `op_t's.  */
 
-void
-_wordcopy_bwd_aligned (dstp, srcp, len)
-     long int dstp;
-     long int srcp;
-     size_t len;
+void _wordcopy_bwd_aligned (long int dstp, long int srcp, int len)
 {
-  op_t a0, a1;
+  op_t a0 = 0, a1 = 0;
 
   switch (len % 8)
     {
@@ -330,13 +318,9 @@ _wordcopy_bwd_aligned (dstp, srcp, len)
    words (not LEN bytes!).  DSTP should be aligned for memory
    operations on `op_t', but SRCP must *not* be aligned.  */
 
-void
-_wordcopy_bwd_dest_aligned (dstp, srcp, len)
-     long int dstp;
-     long int srcp;
-     size_t len;
+void _wordcopy_bwd_dest_aligned (long int dstp, long int srcp, int len)
 {
-  op_t a0, a1, a2, a3;
+  op_t a0 = 0, a1 = 0, a2 = 0, a3 = 0;
   int sh_1, sh_2;
 
   /* Calculate how to shift a word read at the memory operation

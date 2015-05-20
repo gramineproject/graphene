@@ -83,7 +83,6 @@ int str_close (struct shim_handle * hdl)
     }
 
     str_dput(hdl->dentry);
-
     return 0;
 }
 

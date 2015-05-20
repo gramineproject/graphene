@@ -117,7 +117,7 @@ static int pipe_poll (struct shim_handle * hdl, int poll_type)
     }
 
     if (poll_type == FS_POLL_SZ) {
-        ret = attr.size;
+        ret = attr.pending_size;
         goto out;
     }
 

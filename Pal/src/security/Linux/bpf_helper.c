@@ -16,10 +16,10 @@
 typedef __builtin_va_list __gnuc_va_list;
 
 #include "bpf-helper.h"
-#include "utils.h"
+#include "internal.h"
 
 int bpf_resolve_jumps(struct bpf_labels *labels,
-		      struct sock_filter *filter, size_t count)
+		      struct sock_filter *filter, int count)
 {
 	struct sock_filter *begin = filter;
 	__u8 insn = count - 1;
@@ -85,7 +85,7 @@ __u32 seccomp_bpf_label(struct bpf_labels *labels, const char *label)
 	return id;
 }
 
-void seccomp_bpf_print(struct sock_filter *filter, size_t count)
+void seccomp_bpf_print(struct sock_filter *filter, int count)
 {
 	struct sock_filter *end = filter + count;
 	for ( ; filter < end; ++filter)

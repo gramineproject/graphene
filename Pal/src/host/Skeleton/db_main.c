@@ -29,10 +29,9 @@
 #include "pal_internal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
-#include "pal_security.h"
 #include "api.h"
 
-/* must implement "pal_start" */
+/* must implement "pal_start", and call "pal_main" inside */
 void pal_start (void);
 
 unsigned long _DkGetPagesize (void)
@@ -45,7 +44,21 @@ unsigned long _DkGetAllocationAlignment (void)
     return 0;
 }
 
-int _DkInitHost (void)
+void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    /* need to be implemented */
+}
+
+PAL_NUM _DkGetProcessId (void)
+{
+    return 0;
+}
+
+PAL_NUM _DkGetHostId (void)
+{
+    return 0;
+}
+
+void _DkGetCPUInfo (void)
+{
 }

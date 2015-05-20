@@ -5,6 +5,7 @@
 
 #include "pal.h"
 #include "pal_debug.h"
+#include "api.h"
 
 int main (int argc, char ** argv)
 {
@@ -27,8 +28,7 @@ int main (int argc, char ** argv)
         // Sending pipe handle
         handles[0] = DkStreamOpen("pipe.srv:012", PAL_ACCESS_RDWR,
                                   0, PAL_CREAT_TRY, 0);
-
-        if (handles[0] == NULL) {
+        if (!handles[0]) {
             pal_printf("Parent: DkStreamOpen for pipe failed\n");
             goto out;
         }
@@ -36,18 +36,17 @@ int main (int argc, char ** argv)
         // Sending pipe handle
         handles[1] = DkStreamOpen("udp:127.0.0.1:8000", PAL_ACCESS_RDWR,
                                   0, PAL_CREAT_TRY, 0);
-
-        if (handles[1] == NULL) {
+        if (!handles[1]) {
             pal_printf("Parent: DkStreamOpen for socket failed\n");
             goto out;
         }
 
         for (i = 2 ; i < nsend; i++) {
-            pal_snprintf(uri, 80, "file:test_file_%d", i - 2);
-            handles[i] = DkStreamOpen(uri, PAL_ACCESS_RDWR,
-                                      0600, PAL_CREAT_TRY, 0);
+            snprintf(uri, 80, "file:test_file_%d", i - 2);
 
-            if (handles[i] == NULL) {
+            handles[i] = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0600,
+                                      PAL_CREAT_TRY, 0);
+            if (!handles[i]) {
                 pal_printf("Parent: DkStreamOpen failed\n");
                 goto out;
             }
@@ -57,11 +56,11 @@ int main (int argc, char ** argv)
 
         for (i = 0 ; i < nsend ; i++) {
             /* do some write */
-            pal_snprintf(content, sizeof(content), "%s%d", data, i);
+            snprintf(content, sizeof(content), "%s%d", data, i);
+
             bytes = DkStreamWrite(handles[i], 0, sizeof(content), content,
                                   NULL);
-
-            if (bytes < 0) {
+            if (!bytes) {
                 pal_printf("Parent: DKStreamWrite failed\n");
                 goto out;
             }
@@ -112,7 +111,7 @@ int main (int argc, char ** argv)
             pal_printf("Child: Handle %d Type ", i);
             char data[20];
 
-            switch(__PAL_GET_TYPE(handles[i])) {
+            switch(PAL_GET_TYPE(handles[i])) {
                 case pal_type_file:
                     if ((DkStreamRead(handles[i], 0, 20, data, NULL, 0)))
                         pal_printf("File Data: %s\n", data);

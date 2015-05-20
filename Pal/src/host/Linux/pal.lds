@@ -5,7 +5,7 @@ ENTRY(pal_start);
 SECTIONS
 {
   /* Read-only sections, merged into text segment; */
-  text_start = .;
+  __text_start = .;
   . = SEGMENT_START("text-segment", 0) + SIZEOF_HEADERS;
   .hash          : { *(.hash) }
   .note.gnu.build-id : { *(.note.gnu.build-id) }
@@ -31,11 +31,11 @@ SECTIONS
   }
   .eh_frame_hdr  : { *(.eh_frame_hdr) }
   .eh_frame      : ONLY_IF_RO { KEEP(*(.eh_frame)) }
-  text_end = .;
+  __text_end = .;
 
   /* now adjust the address for the data segment */
   . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
-  data_start = .;
+  __data_start = .;
   .data.rel.ro   : { KEEP(*(.data.rel.ro)) }
   .ctors         : { KEEP(*(.ctors)) }
   .dtors         : { KEEP(*(.dtors)) }
@@ -54,6 +54,6 @@ SECTIONS
     *(COMMON)
   }
   . = DATA_SEGMENT_END(.);
-  data_end = .;
+  __data_end = .;
 }
 

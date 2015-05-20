@@ -19,38 +19,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
-#include <asm-errno.h>
-
-/*
- * WARNING: Don't even consider trying to compile this on a system where
- * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
- */
-
-static int inet_pton4 (const char *src, unsigned char *dst);
-static int inet_pton6 (const char *src, unsigned char *dst);
-
-/* int inet_pton(af, src, dst)
- *    convert from presentation format (which usually means ASCII printable)
- *    to network format (which is usually some kind of binary format).
- * return:
- *    1 if the address was valid for the specified address family
- *    0 if the address wasn't valid (`dst' is untouched in this case)
- *    -1 if some other error occurred (`dst' is untouched in this case, too)
- * author:
- *    Paul Vixie, 1996.
- */
-int inet_pton (int af, const char *src, void *dst)
-{
-    switch (af) {
-    case AF_INET:
-        return (inet_pton4(src, dst));
-    case AF_INET6:
-        return (inet_pton6(src, dst));
-    default:
-        return -EAFNOSUPPORT;
-    }
-    /* NOTREACHED */
-}
 
 /* int inet_pton4(src, dst)
  *    like inet_aton() but without all the hexadecimal, octal (with the
@@ -62,8 +30,9 @@ int inet_pton (int af, const char *src, void *dst)
  * author:
  *    Paul Vixie, 1996.
  */
-static int inet_pton4 (const char *src, unsigned char *dst)
+int inet_pton4 (const char *src, void *dstp)
 {
+    unsigned char *dst = (unsigned char *) dstp;
     int saw_digit, octets, ch;
     unsigned char tmp[NS_INADDRSZ], *tp;
 
@@ -116,8 +85,9 @@ static int tolower (char c)
  * author:
  *    Paul Vixie, 1996.
  */
-static int inet_pton6 (const char *src, unsigned char *dst)
+int inet_pton6 (const char *src, void *dstp)
 {
+    unsigned char *dst = (unsigned char *) dstp;
     static const char xdigits[] = "0123456789abcdef";
     unsigned char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
     const char *curtok;

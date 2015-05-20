@@ -37,7 +37,7 @@
 #include <limits.h>
 #include <atomic.h>
 #include <cmpxchg.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 #include <linux/time.h>
 #include <unistd.h>
 
@@ -82,15 +82,21 @@ int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout)
     }
 
     while (!c) {
+        int val = atomic_read(m);
+        if (val == 1)
+            goto again;
+
         struct timespec waittime;
         long sec = timeout / 1000000;
         long microsec = timeout - (sec * 1000000);
         waittime.tv_sec = sec;
         waittime.tv_nsec = microsec * 1000;
 
-        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, 2, &waittime, NULL, 0);
+        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, val, &waittime, NULL, 0);
 
-        if (IS_ERR(ret) && ERRNO(ret) != EWOULDBLOCK) {
+        if (IS_ERR(ret) &&
+            ERRNO(ret) != EWOULDBLOCK &&
+            ERRNO(ret) != EINTR) {
             ret = unix_to_pal_error(ERRNO(ret));
             goto out;
         }
@@ -100,6 +106,7 @@ int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout)
             printf("mutex held by thread %d\n", mut->owner);
 #endif
 
+again:
         /* Upon wakeup, we still need to check whether mutex is unlocked or
          * someone else took it.
          * If c==0 upon return from xchg (i.e., the older value of m==0), we
@@ -134,9 +141,15 @@ int _DkMutexLock (struct mutex_handle * mut)
     /* The lock is now contended */
 
     while (!c) {
-        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, 2, NULL, NULL, 0);
+        int val = atomic_read(m);
+        if (val == 1)
+            goto again;
 
-        if (IS_ERR(ret) && ERRNO(ret) != EWOULDBLOCK) {
+        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, val, NULL, NULL, 0);
+
+        if (IS_ERR(ret) &&
+            ERRNO(ret) != EWOULDBLOCK &&
+            ERRNO(ret) != EINTR) {
             ret = unix_to_pal_error(ERRNO(ret));
             goto out;
         }
@@ -145,6 +158,8 @@ int _DkMutexLock (struct mutex_handle * mut)
         if (IS_ERR(ret))
             printf("mutex held by thread %d\n", mut->owner);
 #endif
+
+again:
         /* Upon wakeup, we still need to check whether mutex is unlocked or
          * someone else took it.
          * If c==0 upon return from xchg (i.e., the older value of m==0), we

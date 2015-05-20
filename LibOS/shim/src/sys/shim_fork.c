@@ -44,11 +44,12 @@ static void * __malloc (size_t size)
     size = ALIGN_UP(size);
     void * addr = get_unmapped_vma(size, flags);
 
-    addr = DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
+    addr = (void *)
+        DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
+    if (!addr)
+        return NULL;
 
-    if (addr)
-        bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0, NULL);
-
+    bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0, NULL);
     return addr;
 }
 

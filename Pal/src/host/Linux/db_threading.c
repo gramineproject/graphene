@@ -40,7 +40,7 @@
 #include <linux/wait.h>
 
 /* default size of a new thread */
-#define PAL_THREAD_STACK_SIZE allocsize
+#define THREAD_STACK_SIZE   (pal_state.alloc_align)
 
 /* _DkThreadCreate for internal use. Create an internal thread
    inside the current process. The arguments callback and param
@@ -50,13 +50,12 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     void * child_stack = NULL;
 
-    if (_DkVirtualMemoryAlloc(&child_stack,
-                              PAL_THREAD_STACK_SIZE, 0,
+    if (_DkVirtualMemoryAlloc(&child_stack, THREAD_STACK_SIZE, 0,
                               PAL_PROT_READ|PAL_PROT_WRITE) < 0)
         return -PAL_ERROR_NOMEM;
 
     /* move child_stack to the top of stack. */
-    child_stack += PAL_THREAD_STACK_SIZE;
+    child_stack += THREAD_STACK_SIZE;
 
     /* align child_stack to 16 */
     child_stack = (void *) ((uintptr_t) child_stack & ~16);
@@ -80,63 +79,6 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     /* _DkThreadAdd(tid); */
 
     return 0;
-}
-
-#if defined(__i386__)
-#include <asm/ldt.h>
-#else
-#include <asm/prctl.h>
-#endif
-
-/* PAL call DkThreadPrivate: set up the thread private area for the
-   current thread. if addr is 0, return the current thread private
-   area. */
-void * _DkThreadPrivate (void * addr)
-{
-    int ret = 0;
-
-    if ((void *) addr == 0) {
-#if defined(__i386__)
-        struct user_desc u_info;
-
-        ret = INLINE_SYSCALL(get_thread_area, 1, &u_info);
-
-        if (IS_ERR(ret))
-            return NULL;
-
-        void * thread_area = u_info->base_addr;
-#else
-        unsigned long ret_addr;
-
-        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, &ret_addr);
-
-        if (IS_ERR(ret))
-            return NULL;
-
-        void * thread_area = (void *) ret_addr;
-#endif
-        return thread_area;
-    } else {
-#if defined(__i386__)
-        struct user_desc u_info;
-
-        ret = INLINE_SYSCALL(get_thread_area, 1, &u_info);
-
-        if (IS_ERR(ret))
-            return NULL;
-
-        u_info->entry_number = -1;
-        u_info->base_addr = (unsigned int) addr;
-
-        ret = INLINE_SYSCALL(set_thread_area, 1, &u_info);
-#else
-        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
-#endif
-        if (IS_ERR(ret))
-            return NULL;
-
-        return addr;
-    }
 }
 
 int _DkThreadDelayExecution (unsigned long * duration)
@@ -171,15 +113,17 @@ void _DkThreadYieldExecution (void)
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-void _DkThreadExit (int exitcode)
+void _DkThreadExit (void)
 {
     INLINE_SYSCALL(exit, 1, 0);
 }
 
 int _DkThreadResume (PAL_HANDLE threadHandle)
 {
-    int ret = INLINE_SYSCALL(tgkill, 3, pal_linux_config.pid,
-                             threadHandle->thread.tid, SIGCONT);
+    int ret = INLINE_SYSCALL(tgkill, 3,
+                             linux_state.pid,
+                             threadHandle->thread.tid,
+                             SIGCONT);
 
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;

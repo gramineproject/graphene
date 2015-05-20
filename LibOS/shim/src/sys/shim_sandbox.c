@@ -300,7 +300,7 @@ struct cfg_arg {
     int offset;
 };
 
-static size_t __write (void * f, void * buf, size_t len)
+static int __write (void * f, void * buf, int len)
 {
     struct cfg_arg * arg = f;
 

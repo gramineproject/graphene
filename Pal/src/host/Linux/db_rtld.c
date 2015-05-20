@@ -61,8 +61,8 @@ extern __typeof(pal_r_debug) _r_debug
 /* The special symbol name is set as breakpoint in gdb */
 void __attribute__((noinline)) pal_dl_debug_state (void)
 {
-    if (pal_sec_info._dl_debug_state)
-        pal_sec_info._dl_debug_state();
+    if (pal_sec._dl_debug_state)
+        pal_sec._dl_debug_state();
 }
 
 extern __typeof(pal_dl_debug_state) _dl_debug_state
@@ -70,7 +70,8 @@ extern __typeof(pal_dl_debug_state) _dl_debug_state
 
 void _DkDebugAddMap (struct link_map * map)
 {
-    struct r_debug * dbg = pal_sec_info._r_debug ? : &pal_r_debug;
+#ifdef DEBUG
+    struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
     int len = map->l_name ? strlen(map->l_name) + 1 : 0;
 
     struct link_map ** prev = &dbg->r_map, * last = NULL,
@@ -108,11 +109,13 @@ void _DkDebugAddMap (struct link_map * map)
 
     dbg->r_state = RT_CONSISTENT;
     pal_dl_debug_state();
+#endif
 }
 
 void _DkDebugDelMap (struct link_map * map)
 {
-    struct r_debug * dbg = pal_sec_info._r_debug ? : &pal_r_debug;
+#ifdef DEBUG
+    struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
     int len = map->l_name ? strlen(map->l_name) + 1 : 0;
 
     struct link_map ** prev = &dbg->r_map, * last = NULL,
@@ -147,102 +150,78 @@ void _DkDebugDelMap (struct link_map * map)
 
     dbg->r_state = RT_CONSISTENT;
     pal_dl_debug_state();
+#endif
 }
 
 extern void setup_elf_hash (struct link_map *map);
 
-void setup_pal_map (const char * realname, ElfW(Dyn) ** dyn, ElfW(Addr) addr)
+void setup_pal_map (struct link_map * pal_map)
 {
-    assert (loaded_libraries == NULL);
+    const ElfW(Ehdr) * header = (void *) pal_map->l_addr;
 
-    const ElfW(Ehdr) * header = (void *) addr;
-    struct link_map * l = new_elf_object(realname, OBJECT_RTLD);
-    memcpy(l->l_info, dyn, sizeof(l->l_info));
-    l->l_real_ld = l->l_ld = (void *) elf_machine_dynamic();
-    l->l_addr  = addr;
-    l->l_entry = header->e_entry;
-    l->l_phdr  = (void *) (addr + header->e_phoff);
-    l->l_phnum = header->e_phnum;
-    l->l_relocated = true;
-    l->l_lookup_symbol = true;
-    l->l_soname = "libpal.so";
-    l->l_text_start = (ElfW(Addr)) &text_start;
-    l->l_text_end   = (ElfW(Addr)) &text_end;
-    l->l_data_start = (ElfW(Addr)) &data_start;
-    l->l_data_end   = (ElfW(Addr)) &data_end;
-    setup_elf_hash(l);
+    pal_map->l_real_ld = pal_map->l_ld = (void *) elf_machine_dynamic();
+    pal_map->l_type = OBJECT_RTLD;
+    pal_map->l_entry = header->e_entry;
+    pal_map->l_phdr  = (void *) (pal_map->l_addr + header->e_phoff);
+    pal_map->l_phnum = header->e_phnum;
+    setup_elf_hash(pal_map);
 
-    void * begin_hole = (void *) ALLOC_ALIGNUP(l->l_text_end);
-    void * end_hole = (void *) ALLOC_ALIGNDOWN(l->l_data_start);
-
-    /* Usually the test segment and data segment of a loaded library has
-       a gap between them. Need to fill the hole with a empty area */
-    if (begin_hole < end_hole) {
-        void * addr = begin_hole;
-        _DkVirtualMemoryAlloc(&addr, end_hole - begin_hole,
-                              PAL_ALLOC_RESERVE, PAL_PROT_NONE);
-    }
-
-    /* Set up debugging before the debugger is notified for the first time.  */
-    if (l->l_info[DT_DEBUG] != NULL)
-        l->l_info[DT_DEBUG]->d_un.d_ptr = (ElfW(Addr)) &pal_r_debug;
-
-    l->l_prev = l->l_next = NULL;
-    loaded_libraries = l;
-
-    _DkDebugAddMap(l);
+    _DkDebugAddMap(pal_map);
+    pal_map->l_prev = pal_map->l_next = NULL;
+    loaded_maps = pal_map;
 }
 
 #if USE_VDSO_GETTIME == 1
 void setup_vdso_map (ElfW(Addr) addr)
 {
     const ElfW(Ehdr) * header = (void *) addr;
-    struct link_map * l = new_elf_object("vdso", OBJECT_RTLD);
+    struct link_map vdso_map;
 
-    l->l_addr  = addr;
-    l->l_entry = header->e_entry;
-    l->l_phdr  = (void *) (addr + header->e_phoff);
-    l->l_phnum = header->e_phnum;
-    l->l_relocated = true;
-    l->l_soname = "libpal.so";
+    memset(&vdso_map, 0, sizeof(struct link_map));
+    vdso_map.l_name = "vdso";
+    vdso_map.l_type = OBJECT_RTLD;
+    vdso_map.l_addr  = addr;
+    vdso_map.l_entry = header->e_entry;
+    vdso_map.l_phdr  = (void *) (addr + header->e_phoff);
+    vdso_map.l_phnum = header->e_phnum;
 
     ElfW(Addr) load_offset = 0;
     const ElfW(Phdr) * ph;
-    for (ph = l->l_phdr; ph < &l->l_phdr[l->l_phnum]; ++ph)
+    for (ph = vdso_map.l_phdr; ph < &vdso_map.l_phdr[vdso_map.l_phnum]; ++ph)
         switch (ph->p_type) {
             case PT_LOAD:
                 load_offset = addr + (ElfW(Addr)) ph->p_offset
                               - (ElfW(Addr)) ph->p_vaddr;
                 break;
             case PT_DYNAMIC:
-                l->l_real_ld = l->l_ld = (void *) addr + ph->p_offset;
-                l->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
+                vdso_map.l_real_ld = vdso_map.l_ld = (void *) addr + ph->p_offset;
+                vdso_map.l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
                 break;
         }
 
     ElfW(Dyn) local_dyn[4];
     int ndyn = 0;
     ElfW(Dyn) * dyn;
-    for (dyn = l->l_ld ; dyn < &l->l_ld[l->l_ldnum]; ++dyn)
+    for (dyn = vdso_map.l_ld ; dyn < &vdso_map.l_ld[vdso_map.l_ldnum]; ++dyn)
         switch(dyn->d_tag) {
             case DT_STRTAB:
             case DT_SYMTAB:
                 local_dyn[ndyn] = *dyn;
                 local_dyn[ndyn].d_un.d_ptr += load_offset;
-                l->l_info[dyn->d_tag] = &local_dyn[ndyn++];
+                vdso_map.l_info[dyn->d_tag] = &local_dyn[ndyn++];
                 break;
             case DT_HASH: {
                 ElfW(Word) * h = (ElfW(Word) *) (D_PTR(dyn) + load_offset);
-                l->l_nbuckets = h[0];
-                l->l_buckets  = &h[2];
-                l->l_chain    = &h[l->l_nbuckets + 2];
+                vdso_map.l_nbuckets = h[0];
+                vdso_map.l_buckets  = &h[2];
+                vdso_map.l_chain    = &h[vdso_map.l_nbuckets + 2];
                 break;
             }
             case DT_VERSYM:
             case DT_VERDEF:
                 local_dyn[ndyn] = *dyn;
                 local_dyn[ndyn].d_un.d_ptr += load_offset;
-                l->l_info[VERSYMIDX(dyn->d_tag)] = &local_dyn[ndyn++];
+                vdso_map.l_info[VERSYMIDX(dyn->d_tag)] = &local_dyn[ndyn++];
                 break;
         }
 
@@ -255,16 +234,13 @@ void setup_vdso_map (ElfW(Addr) addr)
     long int hash = elf_hash(gettime);
     ElfW(Sym) * sym = NULL;
 
-    sym = do_lookup_map(NULL, gettime, fast_hash, hash, l);
+    sym = do_lookup_map(NULL, gettime, fast_hash, hash, &vdso_map);
     if (sym)
 #if USE_CLOCK_GETTIME == 1
-        __vdso_clock_gettime =
+        linux_state.vdso_clock_gettime = (void *) (load_offset + sym->st_value);
 #else
-        __vdso_gettimeofday =
+        linux_state.vdso_gettimeofday  = (void *) (load_offset + sym->st_value);
 #endif
-                (void *) (load_offset + sym->st_value);
-
-    free(l);
 }
 #endif
 

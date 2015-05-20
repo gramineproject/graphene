@@ -1,0 +1,13 @@
+#!$(PAL)
+
+# the executable to run
+loader.exec = file:Bootstrap
+loader.execname = Bootstrap
+
+# debug type: inline|file
+# loader.debug_type = inline
+
+# debug as file
+# loader.debug_file = <path>
+
+fs.mount.root.uri = file:

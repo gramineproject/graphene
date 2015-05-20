@@ -154,7 +154,7 @@ void allocate_tls (void * tcb_location, struct shim_thread * thread)
         tcb->shim_tcb.tid = 0;
     }
 
-    DkThreadPrivate(tcb);
+    DkSegmentRegister(PAL_SEGMENT_FS, tcb);
     assert(SHIM_TLS_CHECK_CANARY());
 }
 
@@ -171,7 +171,7 @@ void populate_tls (void * tcb_location, bool user)
         thread->user_tcb = user;
     }
 
-    DkThreadPrivate(tcb);
+    DkSegmentRegister(PAL_SEGMENT_FS, tcb);
     assert(SHIM_TLS_CHECK_CANARY());
 }
 
@@ -192,8 +192,8 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
                    NULL;
 
     if (user)
-        stack = DkVirtualMemoryAlloc(stack, size + protect_size,
-                                     0, PAL_PROT_READ|PAL_PROT_WRITE);
+        stack = (void *) DkVirtualMemoryAlloc(stack, size + protect_size,
+                                0, PAL_PROT_READ|PAL_PROT_WRITE);
     else
         stack = system_malloc(size + protect_size);
 
@@ -398,8 +398,8 @@ int init_manifest (PAL_HANDLE manifest_handle)
     if (!DkStreamAttributesQuerybyHandle(manifest_handle, &attr))
         return -PAL_ERRNO;
 
-    size_t cfg_size = attr.size;
-    void * cfg_addr = DkStreamMap(manifest_handle, NULL,
+    size_t cfg_size = attr.pending_size;
+    void * cfg_addr = (void *) DkStreamMap(manifest_handle, NULL,
                                   PAL_PROT_READ|PAL_PROT_WRITECOPY, 0,
                                   ALIGN_UP(cfg_size));
 
@@ -540,8 +540,18 @@ static int init_newproc (struct newproc_header * hdr)
     return hdr->failure;
 }
 
+DEFINE_PROFILE_CATAGORY(pal, );
+DEFINE_PROFILE_INTERVAL(pal_startup_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_host_specific_startup_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_relocation_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_linking_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_manifest_loading_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_allocation_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_tail_startup_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_child_creation_time, pal);
+
 DEFINE_PROFILE_CATAGORY(init, );
-DEFINE_PROFILE_INTERVAL(init_signal, init);
+DEFINE_PROFILE_INTERVAL(init_randgen, init);
 DEFINE_PROFILE_INTERVAL(init_heap, init);
 DEFINE_PROFILE_INTERVAL(init_slab, init);
 DEFINE_PROFILE_INTERVAL(init_str_mgr, init);
@@ -549,15 +559,14 @@ DEFINE_PROFILE_INTERVAL(init_internal_map, init);
 DEFINE_PROFILE_INTERVAL(init_vma, init);
 DEFINE_PROFILE_INTERVAL(init_fs, init);
 DEFINE_PROFILE_INTERVAL(init_handle, init);
-DEFINE_PROFILE_INTERVAL(init_randgen, init);
 DEFINE_PROFILE_INTERVAL(read_from_checkpoint, init);
 DEFINE_PROFILE_INTERVAL(read_from_file, init);
 DEFINE_PROFILE_INTERVAL(init_newproc, init);
-DEFINE_PROFILE_INTERVAL(init_checkpoint, init);
+DEFINE_PROFILE_INTERVAL(do_migration, init);
 DEFINE_PROFILE_INTERVAL(init_mount_root, init);
-DEFINE_PROFILE_INTERVAL(restore_from_checkpoint, init);
+DEFINE_PROFILE_INTERVAL(init_from_checkpoint_file, init);
 DEFINE_PROFILE_INTERVAL(restore_from_file, init);
-DEFINE_PROFILE_INTERVAL(restore_from_stack, init);
+DEFINE_PROFILE_INTERVAL(restore_checkpoint, init);
 DEFINE_PROFILE_INTERVAL(init_manifest, init);
 DEFINE_PROFILE_INTERVAL(init_ipc, init);
 DEFINE_PROFILE_INTERVAL(init_thread, init);
@@ -568,6 +577,7 @@ DEFINE_PROFILE_INTERVAL(init_stack, init);
 DEFINE_PROFILE_INTERVAL(read_environs, init);
 DEFINE_PROFILE_INTERVAL(init_loader, init);
 DEFINE_PROFILE_INTERVAL(init_ipc_helper, init);
+DEFINE_PROFILE_INTERVAL(init_signal, init);
 
 #define CALL_INIT(func, args ...)   func(args)
 
@@ -575,8 +585,8 @@ DEFINE_PROFILE_INTERVAL(init_ipc_helper, init);
     do {                                                                \
         int _err = CALL_INIT(func, ##__VA_ARGS__);                      \
         if (_err < 0) {                                                 \
-            sys_printf("shim initialization failed in " #func " (%e)",  \
-                       -_err);                                          \
+            sys_printf("shim initialization failed in " #func " (%d)",  \
+                       _err);                                           \
             shim_terminate();                                           \
         }                                                               \
         SAVE_PROFILE_INTERVAL(func);                                    \
@@ -587,6 +597,7 @@ extern PAL_HANDLE thread_start_event;
 int shim_init (int argc, void * args, void ** return_stack)
 {
     debug_handle = PAL_CB(debug_stream);
+    cur_process.vmid = (IDTYPE) PAL_CB(process_id);
 
     /* create the initial TCB, shim can not be run without a tcb */
     __libc_tcb_t tcb;
@@ -627,7 +638,7 @@ int shim_init (int argc, void * args, void ** return_stack)
 #endif
 
     BEGIN_PROFILE_INTERVAL();
-    RUN_INIT(init_signal);
+    RUN_INIT(init_randgen);
     RUN_INIT(init_heap);
     RUN_INIT(init_slab);
     RUN_INIT(init_str_mgr);
@@ -635,7 +646,6 @@ int shim_init (int argc, void * args, void ** return_stack)
     RUN_INIT(init_vma);
     RUN_INIT(init_fs);
     RUN_INIT(init_handle);
-    RUN_INIT(init_randgen);
 
     debug("shim loaded at %p, ready to initialize\n", &__load_address);
 
@@ -645,17 +655,8 @@ int shim_init (int argc, void * args, void ** return_stack)
             argc -= 2;
             argv += 2;
             RUN_INIT(init_mount_root);
-            RUN_INIT(restore_from_checkpoint, filename, &hdr.checkpoint,
+            RUN_INIT(init_from_checkpoint_file, filename, &hdr.checkpoint,
                      &cpaddr);
-            goto restore;
-        }
-
-        if (!memcmp(argv[0], "-resume-file", 13) && argc >= 2) {
-            const char * filename = *(argv + 1);
-            argc -= 2;
-            argv += 2;
-            RUN_INIT(init_mount_root);
-            RUN_INIT(restore_from_file, filename, &hdr.checkpoint, &cpaddr);
             goto restore;
         }
     }
@@ -669,13 +670,13 @@ int shim_init (int argc, void * args, void ** return_stack)
 #endif
 
         if (hdr.checkpoint.data.cpsize)
-            RUN_INIT(init_checkpoint, &hdr.checkpoint, &cpaddr);
+            RUN_INIT(do_migration, &hdr.checkpoint, &cpaddr);
     }
 
     if (cpaddr) {
 restore:
         thread_start_event = DkNotificationEventCreate(0);
-        RUN_INIT(restore_from_stack, cpaddr, &hdr.checkpoint.data, 0);
+        RUN_INIT(restore_checkpoint, cpaddr, &hdr.checkpoint.data, 0);
     }
 
     if (PAL_CB(manifest_handle))
@@ -691,6 +692,7 @@ restore:
     RUN_INIT(read_environs, envp);
     RUN_INIT(init_loader);
     RUN_INIT(init_ipc_helper);
+    RUN_INIT(init_signal);
 
     debug("shim process initialized\n");
 
@@ -699,6 +701,21 @@ restore:
         SAVE_PROFILE_INTERVAL_SINCE(child_total_migration_time,
                                     begin_create_time);
 #endif
+
+    SAVE_PROFILE_INTERVAL_SET(pal_startup_time, 0, pal_control.startup_time);
+    SAVE_PROFILE_INTERVAL_SET(pal_host_specific_startup_time, 0,
+                              pal_control.host_specific_startup_time);
+    SAVE_PROFILE_INTERVAL_SET(pal_relocation_time, 0,
+                              pal_control.relocation_time);
+    SAVE_PROFILE_INTERVAL_SET(pal_linking_time, 0, pal_control.linking_time);
+    SAVE_PROFILE_INTERVAL_SET(pal_manifest_loading_time, 0,
+                              pal_control.manifest_loading_time);
+    SAVE_PROFILE_INTERVAL_SET(pal_allocation_time, 0,
+                              pal_control.allocation_time);
+    SAVE_PROFILE_INTERVAL_SET(pal_tail_startup_time, 0,
+                              pal_control.tail_startup_time);
+    SAVE_PROFILE_INTERVAL_SET(pal_child_creation_time, 0,
+                              pal_control.child_creation_time);
 
     if (thread_start_event)
         DkEventSet(thread_start_event);

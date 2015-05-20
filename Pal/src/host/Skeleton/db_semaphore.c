@@ -37,7 +37,7 @@ _DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount)
 
 void _DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    /* need to be implemented */
 }
 
 int _DkSemaphoreAcquire (PAL_HANDLE sem, int count)
@@ -52,7 +52,7 @@ int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
 
 void _DkSemaphoreRelease (PAL_HANDLE sem, int count)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    /* need to be implemented */
 }
 
 int _DkSemaphoreGetCurrentCount (PAL_HANDLE sem)

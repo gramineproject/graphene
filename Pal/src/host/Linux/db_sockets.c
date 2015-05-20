@@ -39,9 +39,10 @@
 typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <netinet/tcp.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
@@ -63,7 +64,7 @@ static inline int addr_size (struct sockaddr * addr)
    the latest pointer of uri, length of socket address are returned. */
 static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
 {
-    char * tmp = *uri, * old;
+    char * tmp = *uri, * end;
     char * addr_str = NULL, * port_str;
     int af;
     void * addr_buf;
@@ -78,13 +79,13 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
         slen = sizeof(struct sockaddr_in6);
         memset(addr, 0, slen);
 
-        char * end = strchr(tmp + 1, ']');
+        end = strchr(tmp + 1, ']');
         if (!end || *(end + 1) != ':')
             goto inval;
 
         addr_str = tmp + 1;
-        *end = 0;
         port_str = end + 2;
+        for (end = port_str ; *end >= '0' && *end <= '9' ; end++);
         addr_in6->sin6_family = af = AF_INET6;
         addr_buf = &addr_in6->sin6_addr.s6_addr;
         port_buf = &addr_in6->sin6_port;
@@ -95,23 +96,28 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
         slen = sizeof(struct sockaddr_in);
         memset(addr, 0, slen);
 
-        char * end = strchr(tmp, ':');
+        end = strchr(tmp, ':');
         if (!end)
             goto inval;
 
         addr_str = tmp;
-        *end = 0;
         port_str = end + 1;
+        for (end = port_str ; *end >= '0' && *end <= '9' ; end++);
         addr_in->sin_family = af = AF_INET;
         addr_buf = &addr_in->sin_addr.s_addr;
         port_buf = &addr_in->sin_port;
     }
 
-    if (inet_pton(af, addr_str, addr_buf) < 0)
-        goto inval;
+    if (af == AF_INET) {
+        if (inet_pton4(addr_str, addr_buf) < 0)
+            goto inval;
+    } else {
+        if (inet_pton6(addr_str, addr_buf) < 0)
+            goto inval;
+    }
 
     *port_buf = __htons(atoi(port_str));
-    *uri = *old ? old : NULL;
+    *uri = *end ? end + 1 : NULL;
 
     if (addrlen)
         *addrlen = slen;
@@ -215,7 +221,7 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
         return NULL;
 
     memset(hdl, 0, sizeof(union pal_handle));
-    HANDLE_TYPE(hdl) = type;
+    PAL_GET_TYPE(hdl) = type;
     hdl->__in.flags |= RFD(0)|(type != pal_type_tcpsrv ? WFD(0) : 0);
     hdl->sock.fd = fd;
     void * addr = (void *) hdl + HANDLE_SIZE(sock);
@@ -236,7 +242,6 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
 
     hdl->sock.nonblocking   = (options & PAL_OPTION_NONBLOCK) ?
                               PAL_TRUE : PAL_FALSE;
-    hdl->sock.reuseaddr     = PAL_FALSE;
     hdl->sock.linger        = 0;
 
     if (type == pal_type_tcpsrv) {
@@ -332,6 +337,11 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
+
+    /* must set the socket to be reuseable */
+    int reuseaddr = 1;
+    INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr,
+                   sizeof(int));
 
     ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
 
@@ -953,32 +963,31 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
     int fd = handle->sock.fd, ret, val;
 
-    memset(attr, 0, sizeof(PAL_STREAM_ATTR));
-
-    attr->disconnected = handle->__in.flags & ERROR(0);
-
     if (handle->sock.conn) {
         /* try use ioctl FIONEAD to get the size of socket */
         ret = INLINE_SYSCALL(ioctl, 3, fd, FIONREAD, &val);
-        if (!IS_ERR(ret))
-            attr->size = val;
-        attr->readable = (attr->size > 0);
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
+
+        attr->pending_size = val;
+        attr->readable = !!attr->pending_size > 0;
     } else {
         attr->readable = !attr->disconnected;
     }
 
-    attr->writeable = handle->__in.flags & WRITEABLE(0);
+    attr->handle_type           = handle->__in.type;
+    attr->disconnected          = handle->__in.flags & ERROR(0);
+    attr->nonblocking           = handle->sock.nonblocking;
+    attr->writeable             = handle->__in.flags & WRITEABLE(0);
+    attr->socket.linger         = handle->sock.linger;
+    attr->socket.receivebuf     = handle->sock.receivebuf;
+    attr->socket.sendbuf        = handle->sock.sendbuf;
+    attr->socket.receivetimeout = handle->sock.receivetimeout;
+    attr->socket.sendtimeout    = handle->sock.sendtimeout;
+    attr->socket.tcp_cork       = handle->sock.tcp_cork;
+    attr->socket.tcp_keepalive  = handle->sock.tcp_keepalive;
+    attr->socket.tcp_nodelay    = handle->sock.tcp_nodelay;
 
-    attr->nonblocking    = handle->sock.nonblocking;
-    attr->reuseaddr      = handle->sock.reuseaddr;
-    attr->linger         = handle->sock.linger;
-    attr->receivebuf     = handle->sock.receivebuf;
-    attr->sendbuf        = handle->sock.sendbuf;
-    attr->receivetimeout = handle->sock.receivetimeout;
-    attr->sendtimeout    = handle->sock.sendtimeout;
-    attr->tcp_cork       = handle->sock.tcp_cork;
-    attr->tcp_keepalive  = handle->sock.tcp_keepalive;
-    attr->tcp_nodelay    = handle->sock.tcp_nodelay;
     return 0;
 }
 
@@ -999,116 +1008,104 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
         handle->sock.nonblocking = attr->nonblocking;
     }
 
-    if (attr->reuseaddr != handle->sock.reuseaddr) {
-        val = attr->reuseaddr ? 1 : 0;
-        ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR,
-                             &val, sizeof(int));
-
-        if (IS_ERR(ret))
-            return unix_to_pal_error(ERRNO(ret));
-
-        handle->sock.reuseaddr = attr->reuseaddr;
-    }
-
-    if (handle->__in.type != pal_type_tcpsrv) {
+    if (IS_HANDLE_TYPE(handle, tcpsrv)) {
 
         struct __kernel_linger {
             int l_onoff;
             int l_linger;
         };
 
-        if (attr->linger != handle->sock.linger) {
+        if (attr->socket.linger != handle->sock.linger) {
             struct __kernel_linger l;
-            l.l_onoff = attr->linger ? 1 : 0;
-            l.l_linger = attr->linger;
+            l.l_onoff = attr->socket.linger ? 1 : 0;
+            l.l_linger = attr->socket.linger;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_LINGER,
                                  &l, sizeof(struct __kernel_linger));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.linger = attr->linger;
+            handle->sock.linger = attr->socket.linger;
         }
 
-        if (attr->receivebuf != handle->sock.receivebuf) {
-            int val = attr->receivebuf;
+        if (attr->socket.receivebuf != handle->sock.receivebuf) {
+            int val = attr->socket.receivebuf;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_RCVBUF,
                                  &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.receivebuf = attr->receivebuf;
+            handle->sock.receivebuf = attr->socket.receivebuf;
         }
 
-        if (attr->sendbuf != handle->sock.sendbuf) {
-            int val = attr->sendbuf;
+        if (attr->socket.sendbuf != handle->sock.sendbuf) {
+            int val = attr->socket.sendbuf;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_SNDBUF,
                                  &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.sendbuf = attr->sendbuf;
+            handle->sock.sendbuf = attr->socket.sendbuf;
         }
 
-        if (attr->receivetimeout != handle->sock.receivetimeout) {
-            int val = attr->receivetimeout;
+        if (attr->socket.receivetimeout != handle->sock.receivetimeout) {
+            int val = attr->socket.receivetimeout;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_RCVTIMEO,
                                  &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.receivetimeout = attr->receivetimeout;
+            handle->sock.receivetimeout = attr->socket.receivetimeout;
         }
 
-        if (attr->sendtimeout != handle->sock.sendtimeout) {
-            int val = attr->sendtimeout;
+        if (attr->socket.sendtimeout != handle->sock.sendtimeout) {
+            int val = attr->socket.sendtimeout;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_SNDTIMEO,
                                  &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.sendtimeout = attr->sendtimeout;
+            handle->sock.sendtimeout = attr->socket.sendtimeout;
         }
     }
 
-    if (handle->__in.type == pal_type_tcp ||
-        handle->__in.type == pal_type_tcpsrv) {
+    if (IS_HANDLE_TYPE(handle, tcp) || IS_HANDLE_TYPE(handle, tcpsrv)) {
 
-        if (attr->tcp_cork != handle->sock.tcp_cork) {
-            val = attr->tcp_cork ? 1 : 0;
+        if (attr->socket.tcp_cork != handle->sock.tcp_cork) {
+            val = attr->socket.tcp_cork ? 1 : 0;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_TCP, TCP_CORK,
                                  &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.tcp_cork = attr->tcp_cork;
+            handle->sock.tcp_cork = attr->socket.tcp_cork;
         }
 
-        if (attr->tcp_keepalive != handle->sock.tcp_keepalive) {
-            val = attr->tcp_keepalive ? 1 : 0;
+        if (attr->socket.tcp_keepalive != handle->sock.tcp_keepalive) {
+            val = attr->socket.tcp_keepalive ? 1 : 0;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_KEEPALIVE,
                                  &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.tcp_keepalive = attr->tcp_keepalive;
+            handle->sock.tcp_keepalive = attr->socket.tcp_keepalive;
         }
 
-        if (attr->tcp_nodelay != handle->sock.tcp_nodelay) {
-            val = attr->tcp_nodelay ? 1 : 0;
+        if (attr->socket.tcp_nodelay != handle->sock.tcp_nodelay) {
+            val = attr->socket.tcp_nodelay ? 1 : 0;
             ret = INLINE_SYSCALL(setsockopt, 5, fd, SOL_TCP, TCP_NODELAY,
                                  &val, sizeof(int));
 
             if (IS_ERR(ret))
                 return unix_to_pal_error(ERRNO(ret));
 
-            handle->sock.tcp_nodelay = attr->tcp_nodelay;
+            handle->sock.tcp_nodelay = attr->socket.tcp_nodelay;
         }
     }
 
@@ -1124,7 +1121,7 @@ static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
     int prefix_len = 0;
     struct sockaddr * bind_addr = NULL, * dest_addr = NULL;
 
-    switch (HANDLE_TYPE(handle)) {
+    switch (PAL_GET_TYPE(handle)) {
         case pal_type_tcpsrv:
             prefix_len = 7;
             prefix = "tcp.srv";
@@ -1253,8 +1250,8 @@ static int mcast_c (PAL_HANDLE handle, int port)
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = __htonl(INADDR_ANY);
+    addr.sin_port = __htons(port);
     ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr));
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
@@ -1267,8 +1264,8 @@ static int mcast_c (PAL_HANDLE handle, int port)
         return -PAL_ERROR_DENIED;
 
     struct ip_mreq group;
-    inet_pton(AF_INET, MCAST_GROUP, &group.imr_multiaddr.s_addr);
-    group.imr_interface.s_addr = htonl(INADDR_ANY);
+    inet_pton4(MCAST_GROUP, &group.imr_multiaddr.s_addr);
+    group.imr_interface.s_addr = __htonl(INADDR_ANY);
     ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                          &group, sizeof(group));
     if (IS_ERR(ret))
@@ -1279,13 +1276,21 @@ static int mcast_c (PAL_HANDLE handle, int port)
     return 0;
 }
 
-PAL_HANDLE _DkBroadcastStreamOpen (int port)
+PAL_HANDLE _DkBroadcastStreamOpen (void)
 {
+    if (!pal_sec.mcast_port) {
+        unsigned short mcast_port;
+        _DkFastRandomBitsRead(&mcast_port, sizeof(unsigned short));
+        if (mcast_port < 1024)
+            mcast_port += 1024;
+        pal_sec.mcast_port = mcast_port > 1024 ? mcast_port : mcast_port + 1204;
+    }
+
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(mcast));
     SET_HANDLE_TYPE(hdl, mcast);
-    mcast_s(hdl, port);
-    mcast_c(hdl, port);
-    hdl->mcast.port = port;
+    mcast_s(hdl, pal_sec.mcast_port);
+    mcast_c(hdl, pal_sec.mcast_port);
+    hdl->mcast.port = pal_sec.mcast_port;
     return hdl;
 }
 
@@ -1297,8 +1302,8 @@ static int mcast_send (PAL_HANDLE handle, int offset, int size,
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    inet_pton(AF_INET, MCAST_GROUP, &addr.sin_addr.s_addr);
-    addr.sin_port = htons(handle->mcast.port);
+    inet_pton4(MCAST_GROUP, &addr.sin_addr.s_addr);
+    addr.sin_port = __htons(handle->mcast.port);
 
     struct msghdr hdr;
     struct iovec iov;
@@ -1379,16 +1384,18 @@ static int mcast_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     if (handle->mcast.cli == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    memset(attr, 0, sizeof(PAL_STREAM_ATTR));
-
     ret = INLINE_SYSCALL(ioctl, 3, handle->mcast.cli, FIONREAD, &val);
-    if (!IS_ERR(ret))
-        attr->size = val;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
+    attr->handle_type  = pal_type_mcast;
     attr->disconnected = handle->__in.flags & (ERROR(0)|ERROR(1));
-    attr->readable = attr->size > 0;
-    attr->writeable = handle->__in.flags & WRITEABLE(1);
-    attr->nonblocking = handle->mcast.nonblocking;
+    attr->nonblocking  = handle->mcast.nonblocking;
+    attr->readable     = !!val;
+    attr->writeable    = handle->__in.flags & WRITEABLE(1);
+    attr->runnable     = PAL_FALSE;
+    attr->pending_size = val;
+
     return 0;
 }
 

@@ -51,7 +51,6 @@ static inline int atomic_sub_and_test_nonnegative (int i, struct atomic_int * v)
     return c;
 }
 
-
 static inline void atomic_inc (struct atomic_int * v)
 {
     asm volatile(LOCK_PREFIX "incl %0"

@@ -39,13 +39,34 @@
 int __gettimeofday(struct timeval *tv, struct timezone *tz);
 #endif
 
-#if USE_VDSO_GETTIME == 1
-# if USE_CLOCK_GETTIME == 1
-long int (*__vdso_clock_gettime) (long int clk, struct timespec * tp);
-# else
-long int (*__vdso_gettimeofday) (struct timeval *, void *);
-# endif
+unsigned long _DkSystemTimeQueryEarly (void)
+{
+#if USE_CLOCK_GETTIME == 1
+    struct timespec time;
+    int ret;
+
+    ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time);
+
+    /* Come on, gettimeofday mostly never fails */
+    if (IS_ERR(ret))
+        return 0;
+
+    /* in microseconds */
+    return 1000000ULL * time.tv_sec + time.tv_nsec / 1000;
+#else
+    struct timeval time;
+    int ret;
+
+    ret = INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
+
+    /* Come on, gettimeofday mostly never fails */
+    if (IS_ERR(ret))
+        return 0;
+
+    /* in microseconds */
+    return 1000000ULL * time.tv_sec + time.tv_usec;
 #endif
+}
 
 unsigned long _DkSystemTimeQuery (void)
 {
@@ -54,11 +75,11 @@ unsigned long _DkSystemTimeQuery (void)
     int ret;
 
 #if USE_VDSO_GETTIME == 1
-    if (__vdso_clock_gettime) {
-        ret = __vdso_clock_gettime(CLOCK_REALTIME, &time);
+    if (linux_state.vdso_clock_gettime) {
+        ret = linux_state.vdso_clock_gettime(CLOCK_MONOTONIC, &time);
     } else {
 #endif
-        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_REALTIME, &time);
+        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time);
 #if USE_VDSO_GETTIME == 1
     }
 #endif
@@ -68,14 +89,14 @@ unsigned long _DkSystemTimeQuery (void)
         return 0;
 
     /* in microseconds */
-    return time.tv_sec * 1000000 + time.tv_nsec / 1000;
+    return 1000000ULL * time.tv_sec + time.tv_nsec / 1000;
 #else
     struct timeval time;
     int ret;
 
 #if USE_VDSO_GETTIME == 1
-    if (__vdso_gettimeofday) {
-        ret = __vdso_gettimeofday(&time, NULL);
+    if (linux_state.vdso_gettimeofday) {
+        ret = linux_state.vdso_gettimeofday(&time, NULL);
     } else {
 #endif
 #if defined(__x86_64__) && USE_VSYSCALL_GETTIME == 1
@@ -92,25 +113,125 @@ unsigned long _DkSystemTimeQuery (void)
         return 0;
 
     /* in microseconds */
-    return time.tv_sec * 1000000 + time.tv_usec;
+    return 1000000ULL * time.tv_sec + time.tv_usec;
 #endif
 }
 
+#if USE_ARCH_RDRAND == 1
 int _DkRandomBitsRead (void * buffer, int size)
 {
-    if (!pal_sec_info.rand_gen) {
-        int fd = INLINE_SYSCALL(open, 3, "/dev/urandom", O_RDONLY, 0);
-        if (IS_ERR(fd))
+    int total_bytes = 0;
+    do {
+        unsigned long rand;
+        asm volatile (".Lretry: rdrand %%rax\r\n jnc .Lretry\r\n"
+                      : "=a"(rand) :: "memory");
+
+        if (total_bytes + sizeof(rand) <= size) {
+            *(unsigned long *) (buffer + total_bytes) = rand;
+            total_bytes += sizeof(rand);
+        } else {
+            for (int i = 0 ; i < size - total_bytes ; i++)
+                *(unsigned char *) (buffer + total_bytes + i) = ((unsigned char *) &rand)[i];
+            total_bytes = size;
+        }
+    } while (total_bytes < size);
+    return total_bytes;
+}
+#else
+int _DkRandomBitsRead (void * buffer, int size)
+{
+    if (!pal_sec.rand_gen) {
+        int rand = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
+        if (IS_ERR(rand))
             return -PAL_ERROR_DENIED;
 
-        pal_sec_info.rand_gen = fd;
+        pal_sec.rand_gen = rand;
     }
 
-    int bytes = INLINE_SYSCALL(read, 3, pal_sec_info.rand_gen, buffer, size);
-    return IS_ERR(bytes) ? -PAL_ERROR_DENIED : bytes;
+    int total_bytes = 0;
+    do {
+        int bytes = INLINE_SYSCALL(read, 3, pal_sec.rand_gen,
+                                   buffer + total_bytes, size - total_bytes);
+        if (IS_ERR(bytes))
+            return -PAL_ERROR_DENIED;
+
+        total_bytes += bytes;
+    } while (total_bytes < size);
+
+    return total_bytes;
+}
+#endif
+
+#if defined(__i386__)
+#include <asm/ldt.h>
+#else
+#include <asm/prctl.h>
+#endif
+
+int _DkSegmentRegisterSet (int reg, const void * addr)
+{
+    int ret = 0;
+
+#if defined(__i386__)
+    struct user_desc u_info;
+
+    ret = INLINE_SYSCALL(get_thread_area, 1, &u_info);
+
+    if (IS_ERR(ret))
+        return NULL;
+
+    u_info->entry_number = -1;
+    u_info->base_addr = (unsigned int) addr;
+
+    ret = INLINE_SYSCALL(set_thread_area, 1, &u_info);
+#else
+    if (reg == PAL_SEGMENT_FS) {
+        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
+    } else if (reg == PAL_SEGMENT_GS) {
+        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, addr);
+    } else {
+        return -PAL_ERROR_INVAL;
+    }
+#endif
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    return 0;
 }
 
-int _DkInstructionCacheFlush (const void * addr, size_t size)
+int _DkSegmentRegisterGet (int reg, void ** addr)
+{
+    int ret;
+
+#if defined(__i386__)
+    struct user_desc u_info;
+
+    ret = INLINE_SYSCALL(get_thread_area, 1, &u_info);
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    *addr = (void *) u_info->base_addr;
+#else
+    unsigned long ret_addr;
+
+    if (reg == PAL_SEGMENT_FS) {
+        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, &ret_addr);
+    } else if (reg == PAL_SEGMENT_GS) {
+        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_GS, &ret_addr);
+    } else {
+        return -PAL_ERROR_INVAL;
+    }
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    *addr = (void *) ret_addr;
+#endif
+    return 0;
+}
+
+int _DkInstructionCacheFlush (const void * addr, int size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

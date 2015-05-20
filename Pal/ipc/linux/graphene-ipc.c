@@ -1,26 +1,23 @@
+#include <linux/module.h>
+#include <linux/kallsyms.h>
+#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/mm_types.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/mmu_notifier.h>
 #include <linux/slab.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 #include <linux/miscdevice.h>
-#include <linux/kallsyms.h>
 #include <linux/sched.h>
-#include <linux/dcache.h>
-#include <linux/namei.h>
 #include <linux/pagemap.h>
-#include <linux/version.h>
-#include <linux/vmalloc.h>
 #include <linux/bitmap.h>
 #include <asm/mman.h>
-
+#include <asm/tlb.h>
 #ifdef CONFIG_GRAPHENE_BULK_IPC
 # include "graphene.h"
-#else
-# include "my_tlb.h"
-# include "my_mmap.h"
 #endif
-
 #include "graphene-ipc.h"
 
 MODULE_LICENSE("Dual BSD/GPL");
@@ -28,7 +25,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define FILE_POISON LIST_POISON1
 
 struct kmem_cache *gipc_queue_cachep;
-struct kmem_cache *gipc_buf_cachep;
+struct kmem_cache *gipc_send_buffer_cachep;
 
 #define GIPC_DEBUG	0
 
@@ -40,35 +37,54 @@ struct kmem_cache *gipc_buf_cachep;
 # define GIPC_BUG_ON(cond)
 #endif
 
-#ifndef gipc_get_session
-u32 (*my_gipc_get_session) (struct task_struct *) = NULL;
+#if !defined(CONFIG_GRAPHENE_BULK_IPC)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
+typedef unsigned long (*do_mmap_pgoff_t) (struct file *, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long *);
+static do_mmap_pgoff_t my_do_mmap_pgoff = NULL;
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
+typedef unsigned long (*do_mmap_pgoff_t) (struct file *, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long, unsigned long);
+static do_mmap_pgoff_t my_do_mmap_pgoff = NULL;
+# endif //kernel version >=3.4
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
+typedef unsigned long (*flush_tlb_page_t) (struct vm_area_struct *, unsigned long);
+static flush_tlb_page_t my_flush_tlb_page = NULL;
+# endif
 #endif
 
-/* The page bufs going one direction */
-struct gipc_pages {
-	struct file *file; // indicates if the struct is taken or not
+#ifndef gipc_get_session
+u64 (*my_gipc_get_session) (struct task_struct *) = NULL;
+#endif
+
+struct gipc_queue {
+	struct list_head list;
+	s64 token;
+	u64 owner;
+	atomic_t count;
+
+	struct mutex send_lock, recv_lock;
+	wait_queue_head_t send, recv;
 	volatile int next, last;
 
-	struct gipc_page_buf {
+	struct {
 		struct page *page;
 		struct file *file;
 		u64 pgoff;
-	} page_buf[PAGE_BUFS];
-
-	struct mutex sender_lock;
-	struct mutex receiver_lock;
-	wait_queue_head_t send, recv;
-	struct gipc_sender_buf {
-		unsigned long bitmap[PAGE_BITS];
-		struct page *pages[PAGE_BUFS];
-		struct vm_area_struct *vmas[PAGE_BUFS];
-		struct file *files[PAGE_BUFS];
-		u64 pgoffs[PAGE_BUFS];
-	} *sender_buf;
+	} pages[PAGE_QUEUE];
 };
 
-#define GIPC_PAGES(queue) \
-	((struct gipc_pages *) ((void *) (queue) + sizeof(struct gipc_queue)))
+struct gipc_send_buffer {
+	unsigned long page_bit_map[PAGE_BITS];
+	struct page *pages[PAGE_QUEUE];
+	struct vm_area_struct *vmas[PAGE_QUEUE];
+	struct file *files[PAGE_QUEUE];
+	unsigned long pgoffs[PAGE_QUEUE];
+};
 
 struct {
 	spinlock_t lock;
@@ -76,63 +92,72 @@ struct {
 	 * For now, just make them monotonically increasing.  XXX: At
 	 * some point, do something smarter for security.
 	 */
-	int64_t max_token;
+	u64 max_token;
 	struct list_head channels; // gipc_queue structs
 } gdev;
+
+#ifdef gipc_get_session
+#define GIPC_OWNER gipc_get_session(current)
+#else
+#define GIPC_OWNER (my_gipc_get_session ? my_gipc_get_session(current) : 0)
+#endif
 
 static inline struct gipc_queue * create_gipc_queue(struct file *creator)
 {
 	struct gipc_queue *gq = kmem_cache_alloc(gipc_queue_cachep, GFP_KERNEL);
-	struct gipc_pages *gp = GIPC_PAGES(gq);
 
 	if (!gq)
 		return gq;
 
+	memset(gq, 0, sizeof(*gq));
 	INIT_LIST_HEAD(&gq->list);
-
-	memset(gp, 0, sizeof(struct gipc_pages) * 2);
-	mutex_init(&gp[0].sender_lock);
-	mutex_init(&gp[1].sender_lock);
-	mutex_init(&gp[0].receiver_lock);
-	mutex_init(&gp[1].receiver_lock);
-
-	init_waitqueue_head(&gp[0].send);
-	init_waitqueue_head(&gp[0].recv);
-	init_waitqueue_head(&gp[1].send);
-	init_waitqueue_head(&gp[1].recv);
-
-	gp[0].file = creator;
+	mutex_init(&gq->send_lock);
+	mutex_init(&gq->recv_lock);
+	init_waitqueue_head(&gq->send);
+	init_waitqueue_head(&gq->recv);
+	gq->owner = GIPC_OWNER;
 	creator->private_data = gq;
-	gp[1].file = NULL;
+	atomic_set(&gq->count, 1);
 
 	spin_lock(&gdev.lock);
 	list_add(&gq->list, &gdev.channels);
 	gq->token = gdev.max_token++;
-#ifdef gipc_get_session
-	gq->owner = gipc_get_session(current);
-#else
-	gq->owner = my_gipc_get_session ? my_gipc_get_session(current) : 0;
-#endif
 	spin_unlock(&gdev.lock);
+
 	return gq;
 }
 
-static inline void release_gipc_pages(struct gipc_pages *gps) {
+static inline void release_gipc_queue(struct gipc_queue *gq, bool locked)
+{
 	int idx;
-	while (gps->next != gps->last) {
-		idx = gps->next;
-		if (gps->page_buf[idx].page) {
-			page_cache_release(gps->page_buf[idx].page);
-			gps->page_buf[idx].page = NULL;
+
+	if (!atomic_dec_and_test(&gq->count))
+		return;
+
+	if (!locked)
+		spin_lock(&gdev.lock);
+
+	while (gq->next != gq->last) {
+		idx = gq->next;
+		if (gq->pages[idx].page) {
+			page_cache_release(gq->pages[idx].page);
+			gq->pages[idx].page = NULL;
 		}
-		if (gps->page_buf[idx].file) {
-			fput_atomic(gps->page_buf[idx].file);
-			gps->page_buf[idx].file = NULL;
-			gps->page_buf[idx].pgoff = 0;
+		if (gq->pages[idx].file) {
+			fput_atomic(gq->pages[idx].file);
+			gq->pages[idx].file = NULL;
+			gq->pages[idx].pgoff = 0;
 		}
-		gps->next++;
-		gps->next &= (PAGE_BUFS-1);
+		gq->next++;
+		gq->next &= (PAGE_QUEUE - 1);
 	}
+
+	list_del(&gq->list);
+
+	if (!locked)
+		spin_unlock(&gdev.lock);
+
+	kmem_cache_free(gipc_queue_cachep, gq);
 }
 
 #if defined(SPLIT_RSS_COUNTING)
@@ -152,476 +177,510 @@ static void add_mm_counter_fast(struct mm_struct *mm, int member, int val)
 #define inc_mm_counter_fast(mm, member) add_mm_counter_fast(mm, member, 1)
 #define dec_mm_counter_fast(mm, member) add_mm_counter_fast(mm, member, -1)
 
-inline int make_pages_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-			  unsigned long addr, int count)
+inline int make_page_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+			 unsigned long addr)
 {
-	int i = 0;
 	pgd_t *pgd;
-	unsigned long pgd_next;
 	pud_t *pud;
-	unsigned long pud_next;
 	pmd_t *pmd;
-	unsigned long pmd_next;
 	pte_t *pte;
 	spinlock_t *ptl;
-	unsigned long end = addr + (PAGE_SIZE * count);
-
-	/* Mark source COW */
-	do {
-		if ((vma->vm_flags & (VM_SHARED|VM_MAYWRITE)) != VM_MAYWRITE)
-			return VM_FAULT_OOM;
-
-		pgd = pgd_offset(mm, addr);
-
-		do {
-			pgd_next = pgd_addr_end(addr, end);
-
-			if (pgd_none(*pgd) || pgd_bad(*pgd))
-				return VM_FAULT_OOM;
-
-			pud = pud_offset(pgd, addr);
-			do {
-				pud_next = pud_addr_end(addr, pgd_next);
-				if (pud_none(*pud) || pud_bad(*pud))
-					return VM_FAULT_OOM;
-		
-				pmd = pmd_offset(pud, addr);
-				do {
-					pte_t *pte_base;
-					pmd_next = pmd_addr_end(addr, pud_next);
-					if (pmd_none(*pmd) || pmd_bad(*pmd))
-						return VM_FAULT_OOM;
-
-					pte_base = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-					if (!pte)
-						return VM_FAULT_OOM;
-
-					do {
-						if ((!pte_none(*pte)) && pte_present(*pte)) {
-							ptep_set_wrprotect(mm, addr, pte);
-							pte_wrprotect(*pte);
-						} else {
-							pte_unmap_unlock(pte, ptl);
-							return VM_FAULT_OOM;
-						}
-					} while (pte++, addr += PAGE_SIZE, i++,
-						 addr != pmd_next);
-
-					pte_unmap_unlock(pte_base, ptl);
-				} while (pmd++,
-					 addr < pud_next);
-			} while (pud++,
-				 addr < pgd_next);
-		} while (pgd++,
-			 addr < vma->vm_end && addr < end);
-
-		if (i < count) {
-			/* Find the next vma.  Leverage the fact that
-			 * addresses are increasing.
-			 */
-			while (vma && addr < vma->vm_end)
-				vma = vma->vm_next;
-		}
-	} while (addr < end && vma);
-
-	return 0;
-}
-
-static void fill_page_bitmap(struct mm_struct *mm, unsigned long addr,
-			     unsigned long * page_bit_map, int count)
-{
-	int i = 0;
-	spinlock_t *ptl;
-
-	pgd_t *pgd;
-	unsigned long pgd_next;
-	
-	pud_t *pud;
-	unsigned long pud_next;
-
-	pmd_t *pmd;
-	unsigned long pmd_next;
-
-	pte_t *pte;
-	
-	unsigned long end = addr + (PAGE_SIZE * count);
 
 	pgd = pgd_offset(mm, addr);
+	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+		goto no_page;
 
-	do {
-		pgd_next = pgd_addr_end(addr, end);
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+		goto no_page;
 
-		if (pgd_none(*pgd) || pgd_bad(*pgd)) {
-			while (addr < pgd_next) {
-				clear_bit(i, page_bit_map);
-				i++;
-				addr += PAGE_SIZE;
-			}
-			continue;
-		} 
-		
-		pud = pud_offset(pgd, addr);
-		do {
-			pud_next = pud_addr_end(addr, pgd_next);
-			if (pud_none(*pud) || pud_bad(*pud)) {
-				while (addr < pud_next) {
-					clear_bit(i, page_bit_map);
-					i++;
-					addr += PAGE_SIZE;
-				}
-				continue;
-			} 
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+		goto no_page;
 
-			pmd = pmd_offset(pud, addr);
-			do {
-				pmd_next = pmd_addr_end(addr, pud_next);
-				if(pmd_none(*pmd) || pmd_bad(*pmd)) {
-					while (addr < pmd_next) {
-						clear_bit(i, page_bit_map);
-						i++;
-						addr += PAGE_SIZE;
-					}
-					continue;
-				}
+	BUG_ON(pmd_trans_huge(*pmd));
 
-				pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-				do {
-					if ((!pte) || pte_none(*pte) || (!pte_present(*pte)))
-						clear_bit(i, page_bit_map);
-					else
-						set_bit(i, page_bit_map);
+	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+	if (!pte_present(*pte)) {
+		spin_unlock(ptl);
+		goto no_page;
+	}
 
-				} while (pte++, addr += PAGE_SIZE, i++,
-					 addr != pmd_next);
-
-				pte_unmap_unlock(pte - 1, ptl);
-				
-			} while (pmd++,
-				 addr < pud_next);
-			
-		} while (pud++,
-			 addr < pgd_next);
-	} while (pgd++, 
-		 addr < end);
+	ptep_set_wrprotect(mm, addr, pte);
+	spin_unlock(ptl);
+#if !defined(CONFIG_GRAPHENE_BULK_IPC) &&  LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
+	my_flush_tlb_page(vma, addr);
+#else
+	flush_tlb_page(vma, addr);
+#endif
+	DEBUG("make page COW at %lx\n", addr);
+	return 0;
+no_page:
+	return -EFAULT;
 }
 
-static int get_pages (struct task_struct *current_tsk,
-		      unsigned long address, unsigned long * page_bit_map,
-		      struct page *pages[PAGE_BUFS],
-		      struct vm_area_struct *vmas[PAGE_BUFS], int count)
+static void fill_page_bit_map(struct mm_struct *mm,
+			      unsigned long addr, unsigned long nr_pages,
+			      unsigned long page_bit_map[PAGE_BITS])
 {
-	int num_contiguous_bits= 0;
-	int index = 0;
-	int i = 0, start, rv, page_count = 0;
-	unsigned long addr = address;
-	struct vm_area_struct *last_vma = NULL;
+	int i = 0;
 
-	while ( index < count ) {
-		start = index;
+	DEBUG("GIPC_SEND fill_page_bit_map %lx - %lx\n",
+	      addr, addr + (nr_pages << PAGE_SHIFT));
 
-		if ( test_bit(start, page_bit_map) ) {
+	do {
+		struct vm_area_struct *vma;
+		pgd_t *pgd;
+		pud_t *pud;
+		pmd_t *pmd;
+		pte_t *pte;
+		spinlock_t *ptl;
+		bool has_page = false;
 
-			index = find_next_zero_bit(page_bit_map, PAGE_BUFS, start+1);
-			if (index > count)
-				index = count;
-			num_contiguous_bits = index - start;
+		vma = find_vma(mm, addr);
+		if (!vma)
+			goto next;
 
-			rv = get_user_pages(current_tsk,
-					    current_tsk->mm,
-					    addr,
-					    num_contiguous_bits,
-					    1,
-					    1,
-					    &pages[start],
-					    &vmas[start]);
+		BUG_ON(vma->vm_flags & VM_HUGETLB);
+
+		pgd = pgd_offset(mm, addr);
+		if (pgd_none(*pgd) || pgd_bad(*pgd))
+			goto next;
+
+		pud = pud_offset(pgd, addr);
+		if (pud_none(*pud) || pud_bad(*pud))
+			goto next;
+
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd))
+			goto next;
+
+		if (unlikely(pmd_trans_huge(*pmd))) {
+			has_page = true;
+			goto next;
+		}
+
+		if (pmd_bad(*pmd))
+			goto next;
+
+		pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+
+		if (pte_none(*pte))
+			goto next_locked;
+
+		if (unlikely(!pte_present(*pte)) && pte_file(*pte))
+			goto next_locked;
+
+		has_page = true;
+next_locked:
+		spin_unlock(ptl);
+next:
+		if (has_page) {
+			DEBUG("found a page at %lx\n", addr);
+			set_bit(i, page_bit_map);
+		} else {
+			clear_bit(i, page_bit_map);
+		}
+	} while (i++, addr += PAGE_SIZE, i < nr_pages);
+}
+
+static int get_pages (struct task_struct *task, unsigned long start,
+		      unsigned long nr_pages,
+		      unsigned long page_bit_map[PAGE_BITS],
+		      struct page *pages[PAGE_QUEUE],
+		      struct vm_area_struct *vmas[PAGE_QUEUE])
+{
+	struct mm_struct *mm = task->mm;
+	struct vm_area_struct *vma = NULL;
+	unsigned long addr = start, nr;
+	int i = 0, j, rv;
+
+	while (i < nr_pages) {
+		int last = i;
+
+		if (test_bit(last, page_bit_map)) {
+			i = find_next_zero_bit(page_bit_map, PAGE_QUEUE,
+					       last + 1);
+			if (i > nr_pages)
+				i = nr_pages;
+			nr = i - last;
+
+			DEBUG("GIPC_SEND get_user_pages %ld pages at %lx\n",
+			      addr, nr);
+
+			rv = __get_user_pages(task, mm, addr, nr,
+					      FOLL_GET|FOLL_FORCE|FOLL_SPLIT,
+					      pages + last, vmas + last, NULL);
 
 			if (rv <= 0) {
 				printk(KERN_ERR "Graphene error: "
 				       "get_user_pages at 0x%016lx-0x%016lx\n",
-				       addr,
-				       addr + PAGE_SIZE * num_contiguous_bits);
+				       addr, addr + (nr << PAGE_SHIFT));
 				return rv;
 			}
 
-			if (rv != num_contiguous_bits) {
+			if (rv != nr) {
 				printk(KERN_ERR "Graphene error: "
 				       "get_user_pages at 0x%016lx\n",
-				       addr + PAGE_SIZE * rv);
+				       addr + (rv << PAGE_SHIFT));
 				return -EACCES;
 			}
 
-			page_count += rv;
+			for (j = 0; j < nr; j++) {
+				/* Mark source COW */
+				rv = make_page_cow(mm, vmas[last + j],
+						   addr + (j << PAGE_SHIFT));
+				if (rv)
+					return rv;
 
-			/* Mark source COW */
-			rv = make_pages_cow(current_tsk->mm,
-					    vmas[start], addr, num_contiguous_bits);
-			if (rv) 
-				return rv;
-
-			/* Fix up the counters */
-			add_mm_counter_fast(current_tsk->mm, MM_FILEPAGES, num_contiguous_bits);
-			add_mm_counter_fast(current_tsk->mm, MM_ANONPAGES, -num_contiguous_bits);
-
-			for (i = 0; i < num_contiguous_bits; i++) {
-				pages[start + i]->mapping = NULL;
-				addr += PAGE_SIZE;
-			}
-
-			last_vma = vmas[start + num_contiguous_bits - 1];
-		} else {
-			/* This is the case where a page (or pages) are not currently mapped.
-			 * Handle the hole appropriately.
-			 */
-			index = find_next_bit(page_bit_map, PAGE_BUFS, start+1);
-			if (index > count)
-				index = count;
-			num_contiguous_bits = index - start;
-
-			for (i = 0; i < num_contiguous_bits; i++) {
-				struct vm_area_struct *my_vma;
-				pages[start + i] = NULL;
-
-				if ( !last_vma ) {
-					last_vma = find_vma(current_tsk->mm,
-							    addr);
-					my_vma = last_vma;
-				} else {
-					/* DEP 6/17/13 - these addresses should be
-					 * monotonically increasing.
-					 */
-					while (last_vma && addr >= last_vma->vm_end )
-						last_vma = last_vma->vm_next;
-
-					/* Leverage monotonic increasing vmas
-					 * to more quickly detect holes in the address space.
-					 */
-					if (addr < last_vma->vm_start)
-						my_vma = NULL;
-					else 
-						my_vma = last_vma;
+				if (PageAnon(pages[last + j])) {
+					/* Fix up the counters */
+					inc_mm_counter_fast(mm, MM_FILEPAGES);
+					dec_mm_counter_fast(mm, MM_ANONPAGES);
 				}
 
-				vmas[start + i] = my_vma;
-				page_count++;
+				pages[last + j]->mapping = NULL;
+			}
+
+			vma = vmas[i - 1];
+			addr += nr << PAGE_SHIFT;
+		} else {
+			/* This is the case where a page (or pages) are not
+			 * currently mapped.
+			 * Handle the hole appropriately. */
+			i = find_next_bit(page_bit_map, PAGE_QUEUE, last + 1);
+			if (i > nr_pages)
+				i = nr_pages;
+			nr = i - last;
+
+			DEBUG("GIPC_SEND skip %ld pages at %lx\n", addr, nr);
+
+			for (j = 0; j < nr; j++) {
+				if (!vma) {
+					vma = find_vma(mm, addr);
+				} else {
+					/* DEP 6/17/13 - these addresses should
+					 * be monotonically increasing. */
+					for (; vma && addr >= vma->vm_end;
+					     vma = vma->vm_next);
+
+					/* Leverage monotonic increasing vmas
+					 * to more quickly detect holes in the
+					 * address space. */
+					if (vma && addr < vma->vm_start)
+						vma = NULL;
+				}
+
+				pages[last + j] = NULL;
+				vmas[last + j] = vma;
 				addr += PAGE_SIZE;
 			}
 		}
 	}
 
-	return page_count;
+	return i;
+}
+
+static int do_gipc_send(struct task_struct *task, struct gipc_queue *gq,
+			struct gipc_send_buffer *gbuf,
+			unsigned long __user *uaddr, unsigned long __user *ulen,
+			unsigned long *copied_pages)
+{
+	struct mm_struct *mm = task->mm;
+	unsigned long addr, len, nr_pages;
+	int rv, i;
+
+	DEBUG("GIPC_SEND uaddr = %p, ulen = %p\n", uaddr, ulen);
+
+	rv = copy_from_user(&addr, uaddr, sizeof(unsigned long));
+	if (rv) {
+		printk(KERN_ALERT "Graphene SEND: bad buffer %p\n", uaddr);
+		return -EFAULT;
+	}
+
+	rv = copy_from_user(&len, ulen, sizeof(unsigned long));
+	if (rv) {
+		printk(KERN_ALERT "Graphene SEND: bad buffer %p\n", ulen);
+		return -EFAULT;
+	}
+
+	if (addr > addr + len) {
+		printk(KERN_ALERT "Graphene SEND: attempt to send %p - %p "
+		       " by thread %d FAIL: bad argument\n",
+		       (void *) addr, (void *) (addr + len), task->pid);
+		return -EINVAL;
+	}
+
+	DEBUG("GIPC_SEND addr = %lx, len = %ld\n", addr, len);
+
+	nr_pages = len >> PAGE_SHIFT;
+
+	if (!access_ok(VERIFY_READ, addr, len)) {
+		printk(KERN_ALERT "Graphene SEND:"
+		       " attempt to send %p - %p (%ld pages) "
+		       " by thread %d FAIL: bad permission\n",
+		       (void *) addr, (void *) (addr + len), nr_pages,
+		       task->pid);
+		return -EFAULT;
+	}
+
+	DEBUG("    %p - %p (%ld pages) sent by thread %d\n",
+	      (void *) addr, (void *) (addr + len), nr_pages, task->pid);
+
+	while (nr_pages) {
+		unsigned long nr =
+			(nr_pages <= PAGE_QUEUE) ? nr_pages : PAGE_QUEUE;
+
+		/* for each of these addresses - check if
+		 * demand faulting will be triggered
+		 * if vma is present, but there is no page
+		 * present(pmd/pud not present or PTE_PRESENT
+		 * is off) then get_user_pages will trigger
+		 * the creation of those */
+
+		down_write(&mm->mmap_sem);
+
+		fill_page_bit_map(mm, addr, nr, gbuf->page_bit_map);
+
+		rv = get_pages(task, addr, nr,
+			       gbuf->page_bit_map,
+			       gbuf->pages,
+			       gbuf->vmas);
+		if (rv < 0) {
+			up_write(&mm->mmap_sem);
+			break;
+		}
+
+		for (i = 0; i < nr; i++) {
+			BUG_ON((!gbuf->vmas[i]) && (!!gbuf->pages[i]));
+			if (gbuf->vmas[i] && gbuf->vmas[i]->vm_file) {
+				gbuf->files[i] = get_file(gbuf->vmas[i]->vm_file);
+				gbuf->pgoffs[i] =
+					((addr - gbuf->vmas[i]->vm_start) >> PAGE_SHIFT)
+					+ gbuf->vmas[i]->vm_pgoff;
+			} else {
+				gbuf->files[i] = NULL;
+				gbuf->pgoffs[i] = 0;
+			}
+			addr += PAGE_SIZE;
+		}
+
+		up_write(&mm->mmap_sem);
+
+		for (i = 0; i < nr ; i++) {
+			/* Put in the pending buffer*/
+			if (((gq->last + 1) & (PAGE_QUEUE - 1)) == gq->next) {
+				/* The blocking condition for send
+				 * and recv can't both be true! */
+				wake_up_all(&gq->recv);
+				wait_event_interruptible(gq->send,
+					((gq->last + 1) & (PAGE_QUEUE - 1)) != gq->next);
+				if (signal_pending(task)) {
+					rv = -ERESTARTSYS;
+					goto out;
+				}
+			}
+			gq->pages[gq->last].page = gbuf->pages[i];
+			gq->pages[gq->last].file = gbuf->files[i];
+			gq->pages[gq->last].pgoff = gbuf->pgoffs[i];
+			gq->last++;
+			gq->last &= PAGE_QUEUE - 1;
+			(*copied_pages)++;
+		}
+
+		wake_up_all(&gq->recv);
+		nr_pages -= nr;
+	}
+
+out:
+	return rv;
 }
 
 static inline
-int recv_next (struct task_struct *current_tsk,
-	       struct gipc_pages *pending)
+int recv_next (struct task_struct *task, struct gipc_queue *gq)
 {
-	if (pending->next == pending->last) {
-		/* The blocking condition for send
-		 * and recv can't both be true! */
-		wake_up_all(&pending->send);
-		wait_event_interruptible(pending->recv, (pending->next != pending->last));
-		if (signal_pending(current_tsk))
+	if (gq->next == gq->last) {
+		/* The blocking condition for send & recv can't both be true */
+		wake_up_all(&gq->send);
+		wait_event_interruptible(gq->recv, gq->next != gq->last);
+		if (signal_pending(task))
 			return -ERESTARTSYS;
 	}
 	
-	return pending->next;
+	return gq->next;
 }
 
-static
-int recv_helper (unsigned long *addr, unsigned long len, int prot,
-		 struct task_struct *current_tsk, struct gipc_pages *pending,
-		 struct file *file, int *physical_pages)
+static inline
+unsigned long __do_mmap_pgoff(struct file *file, unsigned long addr,
+			      unsigned long len, unsigned long prot,
+			      unsigned long flags, unsigned long pgoff)
 {
-	int page_count = len >> PAGE_SHIFT;
-	int i, found;
-	long rv = 0;
-	struct page *page;
-	struct file *vm_file;
-	u64 vm_pgoff;
-	int flags = MAP_PRIVATE;
-	struct vm_area_struct *vma;
-	unsigned long my_addr = *addr;
-
-	if (len & ~PAGE_MASK)
-		page_count++;
-
-	for (i = 0; i < page_count; ) {
-		unsigned long start_addr;
-
-		found = recv_next(current_tsk, pending);
-		if (found < 0)
-			return -ERESTARTSYS;
-			
-		page = pending->page_buf[found].page;
-		vm_file = pending->page_buf[found].file;
-		vm_pgoff = pending->page_buf[found].pgoff;
-
-		pending->next = ((pending->next + 1) & (PAGE_BUFS-1));
-		wake_up_all(&pending->send);
-
-		if (my_addr)
-			flags |= MAP_FIXED;
-
-		if (file)
-			flags = (flags & ~MAP_ANONYMOUS) | MAP_FILE;
-		else
-			flags = (flags & ~MAP_FILE) | MAP_ANONYMOUS;
-
-		/* Speculate that we will want the entire region under one 
-		 * vma.  Correct if not. 
-		 */
+	/* Speculate that we will want the entire region under one vma.
+	 * Correct if not.  */
 #if defined(CONFIG_GRAPHENE_BULK_IPC) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
-		my_addr = do_mmap_pgoff(vm_file, my_addr,
-					PAGE_SIZE * (page_count - i),
-					prot, flags, vm_pgoff);
+	addr = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
 #else
-		{
-			unsigned long populate;
-			my_addr = do_mmap_pgoff(vm_file, my_addr,
-						PAGE_SIZE * (page_count - i),
-						prot,
-						flags, vm_pgoff, &populate);
-		}
+	unsigned long populate;
+	addr = do_mmap_pgoff(file, addr, len, prot, flags, pgoff, &populate);
 #endif /* kernel_version >= 3.9.0 */
 #else
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
-		my_addr = my_do_mmap_pgoff(vm_file, my_addr,
-					   PAGE_SIZE * (page_count - i),
-					   prot, flags, vm_pgoff);
+	addr = my_do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
 #else
-		{
-			unsigned long populate;
-			my_addr = my_do_mmap_pgoff(vm_file, my_addr,
-						   PAGE_SIZE * (page_count - i),
-						   prot,
-						   flags, vm_pgoff, &populate);
-		}
+	unsigned long populate;
+	addr = my_do_mmap_pgoff(file, addr, len, prot, flags, pgoff, &populate);
 #endif /* kernel_version >= 3.9.0 */
 #endif
+	return addr;
+}
 
-		if (!my_addr) {
-			printk(KERN_ERR
-			       "Graphene error: failed to mmap %p\n",
-			       (void *) rv);
-			rv = -EINVAL;
-			goto finish_recv;
+static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
+			unsigned long __user *uaddr, unsigned long __user *ulen,
+			unsigned long __user *uprot,
+			unsigned long *copied_pages)
+{
+	struct mm_struct *mm = task->mm;
+	struct vm_area_struct *vma = NULL;
+	unsigned long start, addr, len, nr_pages, prot, pgoff;
+	struct page *page = NULL;
+	struct file *file = NULL;
+	int i = 0, rv;
+
+	rv = copy_from_user(&addr, uaddr, sizeof(unsigned long));
+	if (rv) {
+		printk(KERN_ALERT "Graphene RECV: bad buffer %p\n", uaddr);
+		return -EFAULT;
+	}
+
+	rv = copy_from_user(&len, ulen, sizeof(unsigned long));
+	if (rv) {
+		printk(KERN_ALERT "Graphene RECV: bad buffer %p\n", ulen);
+		return -EFAULT;
+	}
+
+	rv = copy_from_user(&prot, uprot, sizeof(unsigned long));
+	if (rv) {
+		printk(KERN_ALERT "Graphene RECV: bad buffer %p\n", uprot);
+		return -EFAULT;
+	}
+
+	nr_pages = len >> PAGE_SHIFT;
+	start = addr;
+	down_write(&mm->mmap_sem);
+
+	while (i < nr_pages) {
+		int found = recv_next(task, gq);
+		if (found < 0) {
+			rv = found;
+			goto finish;
 		}
 
-		/* Save our staring addr for COW-ing later */
-		*addr = start_addr = my_addr;
+		page = gq->pages[found].page;
+		file = gq->pages[found].file;
+		pgoff = gq->pages[found].pgoff;
+		gq->next++;
+		gq->next &= PAGE_QUEUE - 1;
+		wake_up_all(&gq->send);
 
-		vma = find_vma(current_tsk->mm, my_addr);
-		if (!vma) {
-			printk(KERN_ERR
-			       "Graphene error: can't find vma at %p\n",
-			       (void *) my_addr);
-			rv = -ENOENT;
-			goto finish_recv;
+		if (!vma || vma->vm_file != file ||
+		    vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT)
+		    != addr)  {
+			unsigned long flags = MAP_PRIVATE;
+
+			if (addr)
+				flags |= MAP_FIXED;
+			if (file)
+				flags |= MAP_FILE;
+			else
+				flags |= MAP_ANONYMOUS;
+
+			addr = __do_mmap_pgoff(file, addr,
+					       (nr_pages - i) << PAGE_SHIFT,
+					       prot, flags, pgoff);
+
+			if (IS_ERR_VALUE(addr)) {
+				rv = PTR_ERR((void *) addr);
+				printk(KERN_ERR
+				       "Graphene error: failed to mmap (%d)\n",
+				       -rv);
+				goto finish;
+			}
+
+			if (!start)
+				start = addr;
+
+			vma = find_vma(mm, addr);
+			if (!vma) {
+				printk(KERN_ERR
+				       "Graphene error: can't find vma at %p\n",
+				       (void *) addr);
+				rv = -ENOENT;
+				goto finish;
+			}
 		}
 
-		while (i < page_count) {
-			int last_time = ((i+1) == page_count);
-			int page_true = (page != NULL);
-				
-			/* Fill the vma with this page */
-			if (page) {
-				rv = vm_insert_page(vma, my_addr, page);
-				if (rv) {
-					printk(KERN_ERR
-					       "Graphene error: fail to insert page %p\n",
-					       (void *) rv);
-					goto finish_recv;
-				}
-				(*physical_pages)++;
-				page_cache_release(page);
-					
-				/* Avoid double-putting the page */
-				page = NULL;
+		if (page) {
+			rv = vm_insert_page(vma, addr, page);
+			if (rv) {
+				printk(KERN_ERR "Graphene error: "
+				       "fail to insert page %d\n", rv);
+				goto finish;
 			}
-
-			/* Check out the next page, maybe it can go in the same VMA */
-			if (!last_time) {
-				found = recv_next(current_tsk, pending);
-				if (found < 0)
-					return -ERESTARTSYS;
+			rv = make_page_cow(mm, vma, addr);
+			if (rv) {
+				printk(KERN_ERR "Graphene error: "
+				       "can't make vma copy-on-write at %p\n",
+				       (void *) addr);
+				goto finish;
 			}
-
-			if (page_true) {
-				/* If the next page will break the vma, isn't there,
-				 * or we are at the end of the VMA, go ahead
-				 * and mark the range we've mapped as COW.
-				 */
-				if ((i+1) == page_count
-				    || (!pending->page_buf[found].page)
-				    || pending->page_buf[found].file != vm_file) {
-					int sz = ((my_addr - start_addr) / PAGE_SIZE) + 1;
-					rv = make_pages_cow(current_tsk->mm, vma, 
-							    start_addr,
-							    sz);
-
-					start_addr = my_addr + PAGE_SIZE;
-					if (rv) {
-						printk(KERN_ERR
-						       "Graphene error: can't make vma copy-on-write at %p-%p\n",
-						       (void *) start_addr,
-						       (void *) my_addr);
-						goto finish_recv;
-					}
-				}
-			}
-
-			/* See if we can continue in the inner loop*/
-			if ((!last_time) && pending->page_buf[found].file == vm_file) {
-				page = pending->page_buf[found].page;
-				pending->next = ((pending->next + 1) & (PAGE_BUFS-1));
-				wake_up_all(&pending->send);
-				i++;
-				my_addr += PAGE_SIZE;
-				/* Handle the case where we had a run of missing pages
-				 * and then one shows up
-				 */
-				if (page && !page_true)
-					start_addr = my_addr;
-			} else 
-				break;
-
 		}
 
-finish_recv:
+finish:
 		/* Drop the kernel's reference to this page */
 		if (page)
 			page_cache_release(page);
-		if (vm_file)
-			fput_atomic(vm_file);
+		if (file)
+			fput_atomic(file);
 		if (rv)
-			return rv;
-
+			break;
 		i++;
-		my_addr += PAGE_SIZE;
+		addr += PAGE_SIZE;
+		(*copied_pages)++;
 	}
-	return page_count;
+
+	up_write(&mm->mmap_sem);
+
+	if (i)
+		DEBUG("    %p - %p (%d pages) received by thread %d\n",
+		      (void *) start, (void *) start + (i << PAGE_SHIFT), i,
+		      task->pid);
+
+	if (start) {
+		rv = copy_to_user(uaddr, &start, sizeof(unsigned long));
+		if (rv) {
+			printk(KERN_ERR "Graphene error: bad buffer %p\n",
+			       uaddr);
+			return -EFAULT;
+		}
+	}
+
+	return rv;
 }
 
 static long gipc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct task_struct *current_tsk = current;
+	struct task_struct *task = current;
+	struct gipc_queue *gq = NULL;
 	long rv = 0;
 
 	switch (cmd) {
+
 	case GIPC_SEND: {
-		unsigned long addrs[ADDR_ENTS], lens[ADDR_ENTS];
-		unsigned long *page_bitmap;
-		struct page **pages;
-		struct vm_area_struct **vmas;
-		struct file **files;
-		u64 *pgoffs;
 		struct gipc_send gs;
-		unsigned long page_count, total_page_count;
-		int page_copied = 0, physical_pages = 0;
-		int i, j;
-		struct gipc_queue *queue = NULL;
-		struct gipc_pages *pending = NULL;
+		struct gipc_send_buffer *gbuf;
+		int i;
+		unsigned long nr_pages = 0;
 
 		rv = copy_from_user(&gs, (void *) arg, sizeof(gs));
 		if (rv) {
@@ -630,207 +689,39 @@ static long gipc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 
-		if (gs.entries > ADDR_ENTS) {
-			printk(KERN_ALERT "Graphene SEND: too many entries\n");
-			return -EINVAL;
-		}
-
-		rv = copy_from_user(&addrs, gs.addr,
-				    sizeof(unsigned long) * gs.entries);
-		if (rv) {
-			printk(KERN_ALERT "Graphene SEND: bad buffer %p\n",
-			       gs.addr);
-			return -EFAULT;
-		}
-
-		rv = copy_from_user(&lens, gs.len,
-				    sizeof(unsigned long) * gs.entries);
-		if (rv) {
-			printk(KERN_ALERT "Graphene SEND: bad buffer %p\n",
-			       gs.len);
-			return -EFAULT;
-		}
-
-		for (j = 0; j < gs.entries; j++) {
-			unsigned long addr = addrs[j]; //user pointers
-			unsigned long len = lens[j];   //user supplied lens
-
-			if (addr > addr + len) {
-				printk(KERN_ALERT "Graphene SEND:"
-				       " attempt to send %p - %p "
-				       " by thread %d FAIL: bad length\n",
-				       (void *) addr, (void *) (addr + len),
-				       current_tsk->pid);
-				return -EINVAL;
-			}
-		}
-
 		/* Find/allocate the gipc_pages struct for our recipient */
-		queue = (struct gipc_queue *) file->private_data;
-		if (!queue)
+		gq = (struct gipc_queue *) file->private_data;
+		if (!gq)
 			return -EFAULT;
-		/* We want to put pages in the partner buf */
-		if (file == GIPC_PAGES(queue)[0].file) {
-			pending = &GIPC_PAGES(queue)[1];
-		} else {
-			pending = &GIPC_PAGES(queue)[0];
-			BUG_ON(pending->file != file);
-		}
 
+		gbuf = kmem_cache_alloc(gipc_send_buffer_cachep, GFP_KERNEL);
+		if (!gbuf)
+			return -ENOMEM;
 
 		DEBUG("GIPC_SEND %ld entries to token %lld by thread %d\n",
-		      gs.entries, queue->token, current_tsk->pid);
+		      gs.entries, gq->token, task->pid);
 
-		for (j = 0; j < gs.entries; j++) {
-			unsigned long addr = addrs[j]; //user pointers
-			unsigned long len = lens[j];   //user supplied lens
-			int get_page_failed = 0;
+		mutex_lock(&gq->send_lock);
 
-			total_page_count = len >> PAGE_SHIFT;
-			if (len & ~PAGE_MASK)
-				total_page_count++;
-
-			if (!access_ok(VERIFY_READ, addr,
-				       total_page_count << PAGE_SHIFT)) {
-				printk(KERN_ALERT "Graphene SEND:"
-				       " attempt to send %p - %p (%ld pages) "
-				       " by thread %d FAIL: bad permission\n",
-				       (void *) addr, (void *) (addr + len),
-				       total_page_count, current_tsk->pid);
-				return -EFAULT;
-			}
-
-			DEBUG("    %p - %p (%ld pages) sent by thread %d\n",
-			      (void *) addr, (void *) (addr + len),
-			      len >> PAGE_SHIFT, current_tsk->pid);
-
-			while (total_page_count) {
-				page_count = total_page_count <= PAGE_BUFS
-					? total_page_count : PAGE_BUFS;
-	
-				total_page_count -= page_count;
-				/* for each of these addresses - check if
-				 * demand faulting will be triggered
-				 * if vma is present, but there is no page
-				 * present(pmd/pud not present or PTE_PRESENT
-				 * is off) then get_user_pages will trigger
-				 * the creation of those */
-
-				mutex_lock(&pending->sender_lock);
-
-				if (!pending->sender_buf)
-					pending->sender_buf =
-						kmem_cache_alloc(gipc_buf_cachep,
-								 GFP_KERNEL);
-
-				page_bitmap = pending->sender_buf->bitmap;
-				pages = pending->sender_buf->pages;
-				vmas = pending->sender_buf->vmas;
-				files = pending->sender_buf->files;
-				pgoffs = pending->sender_buf->pgoffs;
-
-				down_write(&current_tsk->mm->mmap_sem);
-				fill_page_bitmap(current_tsk->mm,
-						 addr,
-						 page_bitmap,
-						 page_count);
-				rv = get_pages(current_tsk,
-					       addr,
-					       page_bitmap,
-					       pages,
-					       vmas,
-					       page_count);
-				if (rv < 0) {
-					up_write(&current_tsk->mm->mmap_sem);
-					mutex_unlock(&pending->sender_lock);
-					goto out;
-				}
-
-				for (i = 0; i < page_count; i++) {
-					BUG_ON((!vmas[i]) && (pages[i]));
-					if (vmas[i]) {
-						files[i] = vmas[i]->vm_file;
-						if (files[i]) {
-							get_file(files[i]);
-							pgoffs[i] = ((addr - vmas[i]->vm_start) >> PAGE_SHIFT)
-								+ vmas[i]->vm_pgoff;
-						} else {
-							pgoffs[i] = 0;
-						}
-					} else {
-						files[i] = NULL;
-						pgoffs[i] = 0;
-					}
-					if (pages[i])
-						physical_pages++;
-
-					addr += PAGE_SIZE;
-				}
-				up_write(&current_tsk->mm->mmap_sem);
-
-				for (i = 0; i < page_count ; i++) {
-					/* Put in the pending buffer*/
-					if ( ((pending->last + 1)
-					      & (PAGE_BUFS-1) )
-					     == pending->next) {
-						
-						/* The blocking condition for send
-						 * and recv can't both be true! */
-						wake_up_all(&pending->recv);
-						wait_event_interruptible(pending->send,
-									 ( ((pending->last + 1)
-									    & (PAGE_BUFS-1) )
-									  != pending->next));
-										 
-						if (signal_pending(current_tsk)) {
-							mutex_unlock(&pending->sender_lock);
-							return -ERESTARTSYS;
-						}
-					}
-					pending->page_buf[pending->last].page = pages[i];
-					pending->page_buf[pending->last].file = files[i];
-					pending->page_buf[pending->last].pgoff = pgoffs[i];
-					pending->last = ((pending->last + 1) & (PAGE_BUFS-1));
-				}
-				mutex_unlock(&pending->sender_lock);
-				wake_up_all(&pending->recv);
-				page_copied += page_count;
-				if (get_page_failed)
-					goto out;
-	        	}
-
-			if (get_page_failed)
-				goto out;
+		for (i = 0; i < gs.entries; i++) {
+			rv = do_gipc_send(task, gq, gbuf, gs.addr + i,
+					  gs.len + i, &nr_pages);
+			if (rv < 0)
+				break;
 		}
 
-out:
-		DEBUG("GIPC_SEND return to thread %d, %d pages "
-`		      "(%d physical pages) are sent\n",
-		      current_tsk->pid, page_copied, physical_pages);
-
-		rv = page_copied;
+		mutex_unlock(&gq->send_lock);
+		DEBUG("GIPC_SEND return to thread %d, %ld pages are sent\n",
+		      task->pid, nr_pages);
+		kmem_cache_free(gipc_send_buffer_cachep, gbuf);
+		rv = nr_pages ? : rv;
 		break;
 	}
-	case GIPC_RECV:
-	{
-		unsigned long addrs[ADDR_ENTS], lens[ADDR_ENTS];
-		int prots[ADDR_ENTS];
+
+	case GIPC_RECV: {
 		struct gipc_recv gr;
-		int page_copied = 0;
-		int j;
-		struct gipc_pages *pending = NULL;
-		struct gipc_queue *queue = (struct gipc_queue *) file->private_data;
-		int physical_pages = 0;
-
-		if (!queue)
-			return -EFAULT;
-
-		if (file == GIPC_PAGES(queue)[0].file)
-			pending = &GIPC_PAGES(queue)[0];
-		else {
-			pending = &GIPC_PAGES(queue)[1];
-			BUG_ON(pending->file != file);
-		}
+		int i;
+		unsigned long nr_pages = 0;
 
 		rv = copy_from_user(&gr, (void *) arg, sizeof(gr));
 		if (rv) {
@@ -839,109 +730,60 @@ out:
 			return -EFAULT;
 		}
 
-		if (gr.entries > ADDR_ENTS) {
-			printk(KERN_ALERT "Graphene RECV: too many entries\n");
-			return -EINVAL;
-		}
-
-		rv = copy_from_user(&addrs, gr.addr,
-				    sizeof(unsigned long) * gr.entries);
-		if (rv) {
-			printk(KERN_ALERT "Graphene RECV: bad buffer %p\n",
-			       gr.addr);
-			return -EFAULT;
-		}
-
-		rv = copy_from_user(&lens, gr.len,
-				    sizeof(unsigned long) * gr.entries);
-		if (rv) {
-			printk(KERN_ALERT "Graphene RECV: bad buffer %p\n",
-			       gr.len);
-			return -EFAULT;
-		}
-
-		rv = copy_from_user(&prots, gr.prot,
-				    sizeof(int) * gr.entries);
-		if (rv) {
-			printk(KERN_ALERT "Graphene RECV: bad buffer %p\n",
-			       gr.prot);
-			return -EFAULT;
-		}
-
-		down_write(&current_tsk->mm->mmap_sem);
-		mutex_lock(&pending->receiver_lock);
+		gq = (struct gipc_queue *) file->private_data;
+		if (!gq)
+			return -EBADF;
 
 		DEBUG("GIPC_RECV %ld entries to token %lld by thread %d\n",
-		      gr.entries, queue->token, current_tsk->pid);
+		      gr.entries, gq->token, task->pid);
+		mutex_lock(&gq->recv_lock);
 
-		for (j = 0; j < gr.entries; j++) {
-			rv = recv_helper(&addrs[j], lens[j], prots[j],
-					 current_tsk, pending, file,
-					 &physical_pages);
-			if (rv < 0) {
-				mutex_unlock(&pending->receiver_lock);
-				up_write(&current_tsk->mm->mmap_sem);
-				return rv;
-			}
-
-			DEBUG("    %p - %p (%ld pages) received by thread %d\n",
-			      (void *) addrs[j],
-			      (void *) addrs[j] + (rv << PAGE_SHIFT),
-			      rv, current_tsk->pid);
-
-			page_copied += rv;
-		}
-		
-		mutex_unlock(&pending->receiver_lock);
-		up_write(&current_tsk->mm->mmap_sem);
-
-		rv = copy_to_user(gr.addr, addrs,
-				  sizeof(unsigned long) * gr.entries);
-		if (rv) {
-			printk(KERN_ERR "Graphene error: bad buffer %p\n",
-			       (void *) arg);
-			return -EFAULT;
+		for (i = 0; i < gr.entries; i++) {
+			rv = do_gipc_recv(task, gq, gr.addr + i, gr.len + i,
+					  gr.prot + i, &nr_pages);
+			if (rv < 0)
+				break;
 		}
 
-		DEBUG("GIPC_RECV return to thread %d, %d pages "
-		      "(%d physical pages) are received\n",
-		      current_tsk->pid, page_copied, physical_pages);
-
-		rv = page_copied;
+		mutex_unlock(&gq->recv_lock);
+		DEBUG("GIPC_RECV return to thread %d, %ld pages are received\n",
+		      task->pid, nr_pages);
+		rv = nr_pages ? : rv;
 		break;
 	}
-	case GIPC_CREATE:
-	{
-		struct gipc_queue *gq = create_gipc_queue(file);
-		if (gq == NULL)
-			return -ENOMEM;
+
+	case GIPC_CREATE: {
+		gq = create_gipc_queue(file);
+		if (!gq) {
+			rv = -ENOMEM;
+			break;
+		}
+
 		DEBUG("GIPC_CREATE token %lld by thread %d\n", gq->token,
-		      current_tsk->pid);
+		      task->pid);
 		rv = gq->token;
 		break;
 	}
-	case GIPC_JOIN:
-	{
-		struct gipc_queue *gq;
-		s64 token = arg;
-#ifdef gipc_get_session
-		u32 session = gipc_get_session(current);
-#else
-		u32 session = my_gipc_get_session ? my_gipc_get_session(current_tsk) : 0;
-#endif
+
+	case GIPC_JOIN: {
+		struct gipc_queue *q;
+		u64 token = arg;
+		u64 session = GIPC_OWNER;
 
 		if (file->private_data != NULL)
 			return -EBUSY;
 
 		/* Search for this token */
 		spin_lock(&gdev.lock);
-		list_for_each_entry(gq, &gdev.channels, list) {
-			if (gq->token == token)
+		list_for_each_entry(q, &gdev.channels, list) {
+			if (q->token == token) {
+				gq = q;
 				break;
+			}
 		}
 
 		/* Fail if we didn't find it */
-		if (gq == NULL || &gq->list == &gdev.channels) {
+		if (!gq) {
 			spin_unlock(&gdev.lock);
 			return -ENOENT;
 		}
@@ -951,22 +793,17 @@ out:
 			return -EPERM;
 		}
 
-		if (GIPC_PAGES(gq)[1].file == NULL) {
-			GIPC_PAGES(gq)[1].file = file;
-			file->private_data = gq;
-		} else {
-			spin_unlock(&gdev.lock);
-			return -EBUSY;
-		}
+		atomic_inc(&gq->count);
+		file->private_data = gq;
 
 		/* Hold the lock until we allocate so only one process
 		 * gets the queue */
 		spin_unlock(&gdev.lock);
-		DEBUG("GIPC_JOIN token %lld by thread %d\n", token,
-		      current_tsk->pid);
+		DEBUG("GIPC_JOIN token %lld by thread %d\n", token, task->pid);
 		rv = 0;
 		break;
 	}
+
 	default:
 		printk(KERN_ALERT "Graphene unknown ioctl %u %lu\n", cmd, arg);
 		rv = -ENOSYS;
@@ -978,41 +815,13 @@ out:
 
 static int gipc_release(struct inode *inode, struct file *file)
 {
-	int free = 0;
 	struct gipc_queue *gq = (struct gipc_queue *) file->private_data;
-	struct gipc_pages *gp = GIPC_PAGES(gq);
 
-	if (gq) {
-		struct gipc_pages *local, *other;
-		spin_lock(&gdev.lock);
-		if (gp[0].file == file) {
-			local = &gp[0];
-			other = &gp[1];
-		} else {
-			local = &gp[1];
-			other = &gp[0];
-			BUG_ON(local->file != file);
-		}
-		release_gipc_pages(local);
-		/* Detect whether we are the last one out by poisoning the file field */
-		local->file = FILE_POISON;
-		if (other->file == FILE_POISON) {
-			free = 1;
-			list_del(&gq->list);
-		}
-		spin_unlock(&gdev.lock);
-	}
-
-	if (free) {
-		if (gp[0].sender_buf)
-			kmem_cache_free(gipc_buf_cachep, gp[0].sender_buf);
-		if (gp[1].sender_buf)
-			kmem_cache_free(gipc_buf_cachep, gp[1].sender_buf);
-
-		kmem_cache_free(gipc_queue_cachep, gq);
-	}
+	if (!gq)
+		return 0;
 
 	file->private_data = NULL;
+	release_gipc_queue(gq, false);
 	return 0;
 }
 
@@ -1053,79 +862,24 @@ static int __init gipc_init(void)
 	}
 #endif
 
+#if !defined(CONFIG_GRAPHENE_BULK_IPC) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
+	my_flush_tlb_page = (flush_tlb_page_t)
+		kallsyms_lookup_name("flush_tlb_page");
+	printk(KERN_ERR "resolved symbol flush_tlb_page %p\n", my_flush_tlb_page);
+	if (!my_flush_tlb_page) {
+		printk(KERN_ERR "Graphene error: "
+		       "can't find kernel function flush_tlb_page\n");
+		return -ENOENT;
+	}
+#endif
+
 #ifndef gipc_get_session
 	my_gipc_get_session = (void *) kallsyms_lookup_name("gipc_get_session");
 #endif
 
-#if 0 /* these functions are no longer used, keep here for future use. */
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
-	my_tlb_gather_mmu = (tlb_gather_mmu_t)
-		kallsyms_lookup_name("tlb_gather_mmu");
-	printk(KERN_ERR "resolved symbol tlb_gather_mmu %p\n", my_tlb_gather_mmu);
-	if (!my_tlb_gather_mmu) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function my_tlb_gather_mmu\n");
-		return -ENOENT;
-	}
-
-	my_tlb_flush_mmu = (tlb_flush_mmu_t)
-		kallsyms_lookup_name("tlb_flush_mmu");
-	if (!my_tlb_flush_mmu) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function my_tlb_flush_mmu\n");
-		return -ENOENT;
-	}
-
-	my_tlb_finish_mmu = (tlb_finish_mmu_t)
-		kallsyms_lookup_name("tlb_finish_mmu");
-	if (!my_tlb_finish_mmu) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function my_tlb_finish_mmu\n");
-		return -ENOENT;
-	}
-#else
-	pmmu_gathers = (struct mmu_gather *)
-		kallsyms_lookup_name("mmu_gathers");
-	if (!pmmu_gathers) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function mmu_gathers\n");
-		return -ENOENT;
-	}
-#endif /* kernel_version < 3.2 */
-
-	kern_free_pages_and_swap_cachep = (free_pages_and_swap_cache_t)
-		kallsyms_lookup_name("free_pages_and_swap_cache");
-	if (!kern_free_pages_and_swap_cachep) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function free_pages_and_swap_cache\n");
-		return -ENOENT;
-	}
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
-	kern_flush_tlb_mm = (flush_tlb_mm_t)
-		kallsyms_lookup_name("flush_tlb_mm");
-	if (!kern_flush_tlb_mm) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function flush_tlb_mm\n");
-		return -ENOENT;
-	}
-#endif
-
-	kern_free_pgtables = (free_pgtables_t)
-		kallsyms_lookup_name("free_pgtables");
-	if (!kern_free_pgtables) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function free_pgtables\n");
-		return -ENOENT;
-	}
-
-#endif
-
 	/* Register the kmem cache */
-	gipc_queue_cachep = kmem_cache_create("gipc_queues",
-					      sizeof(struct gipc_queue) +
-					      sizeof(struct gipc_pages) * 2,
+	gipc_queue_cachep = kmem_cache_create("gipc queue",
+					      sizeof(struct gipc_queue),
 					      0,
 					      SLAB_HWCACHE_ALIGN|
 					      SLAB_DESTROY_BY_RCU,
@@ -1136,13 +890,13 @@ static int __init gipc_init(void)
 		return -ENOMEM;
 	}
 
-	gipc_buf_cachep = kmem_cache_create("gipc_bufs",
-					    sizeof(struct gipc_sender_buf),
+	gipc_send_buffer_cachep = kmem_cache_create("gipc send buffer",
+					    sizeof(struct gipc_send_buffer),
 					    0,
 					    SLAB_HWCACHE_ALIGN|
 					    SLAB_DESTROY_BY_RCU,
 					    NULL);
-	if (!gipc_buf_cachep) {
+	if (!gipc_send_buffer_cachep) {
 		printk(KERN_ERR "Graphene error: "
 		       "failed to create a gipc buffers cache\n");
 		return -ENOMEM;
@@ -1167,12 +921,8 @@ static void __exit gipc_exit(void)
 {
 	struct gipc_queue *gq, *n;
 	spin_lock(&gdev.lock);
-	list_for_each_entry_safe(gq, n, &gdev.channels, list) {
-		release_gipc_pages(&GIPC_PAGES(gq)[0]);
-		release_gipc_pages(&GIPC_PAGES(gq)[1]);
-		list_del(&gq->list);
-		kmem_cache_free(gipc_queue_cachep, gq);
-	}
+	list_for_each_entry_safe(gq, n, &gdev.channels, list)
+		release_gipc_queue(gq, true);
 	spin_unlock(&gdev.lock);
 
 	misc_deregister(&gipc_dev);

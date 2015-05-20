@@ -27,12 +27,21 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_error.h"
-#include "pal_security.h"
 #include "api.h"
+
+int _DkInternalLock (PAL_LOCK * lock)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkInternalUnlock (PAL_LOCK * lock)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
 
 unsigned long _DkSystemTimeQuery (void)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    return 0;
 }
 
 int _DkRandomBitsRead (void * buffer, int size)
@@ -40,7 +49,17 @@ int _DkRandomBitsRead (void * buffer, int size)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkInstructionCacheFlush (const void * addr, size_t size)
+int _DkSegmentRegisterSet (int reg, const void * addr)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkSegmentRegisterGet (int reg, void ** addr)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkInstructionCacheFlush (const void * addr, int size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

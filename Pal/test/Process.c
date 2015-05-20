@@ -23,7 +23,7 @@ int main (int argc, char ** argv)
     if (argc == 1) {
         unsigned long time = DkSystemTimeQuery ();
         char time_arg[24];
-        pal_snprintf(time_arg, 24, "%ld", time);
+        snprintf(time_arg, 24, "%ld", time);
 
         const char * newargs[4] = { "Process", "0", time_arg, NULL };
 
@@ -38,7 +38,7 @@ int main (int argc, char ** argv)
             count++;
 
             char count_arg[8];
-            pal_snprintf(count_arg, 8, "%d", count);
+            snprintf(count_arg, 8, "%d", count);
             const char * newargs[4] = { "Process", count_arg, argv[2], NULL };
 
             PAL_HANDLE proc = DkProcessCreate ("file:Process", 0, newargs);

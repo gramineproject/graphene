@@ -46,8 +46,8 @@ int main (int argc, char ** argv)
     if (child == NULL) {
         pal_printf("in the child\n");
 
-        char *str = DkVirtualMemoryAlloc(NULL, 20, 0,
-                                         PAL_PROT_READ|PAL_PROT_WRITE);
+        char *str = (void *) DkVirtualMemoryAlloc(NULL, 20, 0,
+                                                  PAL_PROT_READ|PAL_PROT_WRITE);
         if (str == NULL) {
             pal_printf("DkVirtualMemoryAlloc failed\n");
             return -1;

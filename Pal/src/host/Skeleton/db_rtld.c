@@ -31,13 +31,20 @@
 #include "pal_internal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
-#include "pal_security.h"
 #include "pal_rtld.h"
 #include "api.h"
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 #include <bits/dlfcn.h>
+
+void _DkDebugAddMap (struct link_map * map)
+{
+}
+
+void _DkDebugDelMap (struct link_map * map)
+{
+}
 
 ElfW(Addr) resolve_rtld (const char * sym_name)
 {

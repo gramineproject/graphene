@@ -25,10 +25,12 @@
 
 #include "pal_defs.h"
 #include "pal_internal.h"
+#include "pal_error.h"
 #include "pal_debug.h"
 #include "linux_list.h"
 #include "api.h"
 
+static int slab_alignment;
 static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 
 #define system_lock()   _DkInternalLock(&slab_mgr_lock)
@@ -40,10 +42,12 @@ static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];
 #else
-# define PAGE_SIZE 4096
+# define PAGE_SIZE (slab_alignment)
 #endif
 
-static inline void * __malloc (size_t size)
+#define STARTUP_SIZE    8
+
+static inline void * __malloc (int size)
 {
 #if STATIC_SLAB == 1
     void * addr = (void *) bump;
@@ -51,7 +55,7 @@ static inline void * __malloc (size_t size)
     bump += size;
     if (bump >= mem_pool_end) {
         printf("Pal out of internal memory!\n");
-        DkProcessExit(-1);
+        _DkProcessExit(-1);
         return NULL;
     }
 #else
@@ -64,7 +68,7 @@ static inline void * __malloc (size_t size)
 
 #define system_malloc(size) __malloc(size)
 
-static inline void __free (void * addr, size_t size)
+static inline void __free (void * addr, int size)
 {
     _DkVirtualMemoryFree(addr, size);
 }
@@ -75,15 +79,30 @@ static inline void __free (void * addr, size_t size)
 
 static SLAB_MGR slab_mgr = NULL;
 
-void init_slab_mgr (void)
+void init_slab_mgr (int alignment)
 {
-    if (!slab_mgr) {
-        slab_mgr = create_slab_mgr();
-    }
+    if (slab_mgr)
+        return;
+
+#if PROFILING == 1
+    unsigned long before_slab = _DkSystemTimeQuery();
+#endif
+
+    slab_alignment = alignment;
+    slab_mgr = create_slab_mgr();
+    if (!slab_mgr)
+        init_fail(PAL_ERROR_NOMEM, "cannot initialize slab manager");
+
+#if PROFILING == 1
+    pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
+#endif
 }
 
 void * malloc (int size)
 {
+#if PROFILING == 1
+    unsigned long before_slab = _DkSystemTimeQuery();
+#endif
     void * ptr = slab_alloc(slab_mgr, size);
 
     /* the slab manger will always remain at least one byte of padding,
@@ -92,6 +111,9 @@ void * malloc (int size)
     if (ptr)
         *(((unsigned char *) ptr) - 1) = 0;
 
+#if PROFILING == 1
+    pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
+#endif
     return ptr;
 }
 
@@ -121,6 +143,14 @@ void * calloc (int nmem, int size)
 
 void free (void * ptr)
 {
+#if PROFILING == 1
+    unsigned long before_slab = _DkSystemTimeQuery();
+#endif
+
     ptr -= *(((unsigned char *) ptr) - 1);
     slab_free(slab_mgr, ptr);
+
+#if PROFILING == 1
+    pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
+#endif
 }

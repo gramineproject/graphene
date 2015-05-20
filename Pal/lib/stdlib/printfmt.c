@@ -85,7 +85,7 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 			   const char * fmt, va_list ap)
 {
 	register const char *p;
-	register int ch, err;
+	register int ch;
 #if !defined(__i386__)
 	unsigned long long num;
 #else
@@ -164,17 +164,6 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 		// character
 		case 'c':
 			(*_fputch) (f, va_arg(ap, int), putdat);
-			break;
-
-		// error message
-		case 'e':
-			err = va_arg(ap, int);
-			if (err < 0)
-				err = -err;
-			if ((p = sys_errlist_internal[err]) == NULL)
-				fprintfmt(_fputch, f, putdat, "error %d", err);
-			else
-				fprintfmt(_fputch, f, putdat, "%s", p);
 			break;
 
 		// string
@@ -274,4 +263,49 @@ fprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 	va_start(ap, fmt);
 	vfprintfmt(_fputch, f, putdat, fmt, ap);
 	va_end(ap);
+}
+
+struct sprintbuf {
+    char * buf;
+    char * ebuf;
+    int cnt;
+};
+
+static void
+sprintputch(void * f, int ch, struct sprintbuf * b)
+{
+    b->cnt++;
+    if (b->buf < b->ebuf)
+        *b->buf++ = ch;
+}
+
+static int
+vsprintf(char * buf, int n, const char * fmt, va_list ap)
+{
+    struct sprintbuf b = {buf, buf + n - 1, 0};
+
+    if (buf == NULL || n < 1) {
+        return -1;
+    }
+
+    // print the string to the buffer
+    vfprintfmt((void *) sprintputch, (void *) 0, &b, fmt, ap);
+
+    // null terminate the buffer
+    *b.buf = '\0';
+
+    return b.cnt;
+}
+
+int
+snprintf(char * buf, int n, const char * fmt, ...)
+{
+    va_list ap;
+    int rc;
+
+    va_start(ap, fmt);
+    rc = vsprintf(buf, n, fmt, ap);
+    va_end(ap);
+
+    return rc;
 }

@@ -3,6 +3,7 @@
 
 #include "pal.h"
 #include "pal_debug.h"
+#include "api.h"
 
 int main(int argc, char ** argv)
 {
@@ -12,37 +13,39 @@ int main(int argc, char ** argv)
         const char * args[3];
         char uri[20], uri2[20];
 
-        pal_snprintf(uri2, 20, "file:%s", argv[0]);
+        snprintf(uri2, 20, "file:%s", argv[0]);
 
         args[0] = "Ipc";
         args[1] = uri;
         args[2] = NULL;
 
-        void * mem = DkVirtualMemoryAlloc
-                        (NULL, 4096, 0, PAL_PROT_READ|PAL_PROT_WRITE);
+        void * mem = (void *) DkVirtualMemoryAlloc(NULL,
+                                                   pal_control.alloc_align, 0,
+                                                   PAL_PROT_READ|PAL_PROT_WRITE);
 
         pal_printf("mem = %p\n", mem);
-        pal_snprintf((char *) mem, 4096, "Hello World");
+        snprintf((char *) mem, 4096, "Hello World");
 
-        uint64_t key = 0;
+        PAL_NUM key = 0;
 
         PAL_HANDLE chdl = DkCreatePhysicalMemoryChannel(&key);
 
         if (chdl == NULL) {
-            pal_printf ("(parent) StreamOpen Failed ---"
+            pal_printf ("(parent) DkCreatePhysicalMemoryChannel Failed,"
                          " Make sure gipc module is loaded\n");
             return 0;
         }
 
-        pal_snprintf(uri, 20, "gipc:%lld", key);
+        snprintf(uri, 20, "gipc:%lld", key);
 
-        PAL_HANDLE phdl = DkProcessCreate (uri2, 0, args);
+        PAL_HANDLE phdl = DkProcessCreate(uri2, 0, args);
 
         if (phdl == NULL)
             pal_printf ("ProcessCreate Failed\n");
 
-        unsigned long size = 4096;
-        DkPhysicalMemoryCommit (chdl, 1, &mem, &size, 0);
+        PAL_PTR addr = (PAL_PTR) mem;
+        PAL_NUM size = pal_control.alloc_align;
+        DkPhysicalMemoryCommit(chdl, 1, &addr, &size, 0);
         DkObjectClose(chdl);
 
         char x;
@@ -55,15 +58,15 @@ int main(int argc, char ** argv)
     else {
         name = argv[1];
 
-        PAL_HANDLE chdl = DkStreamOpen (name, 0, 0, 0, 0);
+        PAL_HANDLE chdl = DkStreamOpen(name, 0, 0, 0, 0);
 
         if (chdl == NULL) {
             pal_printf("(child) StreamOpen Failed\n");
             return 0;
         }
 
-        PAL_BUF addr = NULL;
-        PAL_NUM size = 4096;
+        PAL_PTR addr = NULL;
+        PAL_NUM size = pal_control.alloc_align;
         PAL_FLG prot = PAL_PROT_READ|PAL_PROT_WRITE;
 
         int len = DkPhysicalMemoryMap (chdl, 1, &addr, &size, &prot);
@@ -76,6 +79,7 @@ int main(int argc, char ** argv)
         pal_printf("(child) mem = %p\n", addr);
         pal_printf("(child) receive string: %s\n", (char *) addr);
 
+        DkStreamDelete(chdl, 0);
         DkObjectClose(chdl);
 
         // Write a byte to the parent

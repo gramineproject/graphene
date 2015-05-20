@@ -18,7 +18,6 @@ getdents64
 getsockname
 gettimeofday
 ioctl
-kill
 listen
 lseek
 mkdir

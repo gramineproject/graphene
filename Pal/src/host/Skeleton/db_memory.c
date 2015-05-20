@@ -30,18 +30,33 @@
 #include "pal_debug.h"
 #include "api.h"
 
-int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
+bool _DkCheckMemoryMappable (const void * addr, int size)
+{
+    return true;
+}
+
+int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type,
                            int prot)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkVirtualMemoryFree (void * addr, size_t size)
+int _DkVirtualMemoryFree (void * addr, int size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkVirtualMemoryProtect (void * addr, size_t size, int prot)
+int _DkVirtualMemoryProtect (void * addr, int size, int prot)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+unsigned long _DkMemoryQuota (void)
+{
+    return 0;
+}
+
+unsigned long _DkMemoryAvailableQuota (void)
+{
+    return 0;
 }

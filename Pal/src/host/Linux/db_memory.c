@@ -33,8 +33,14 @@
 #include "api.h"
 
 #include <asm/mman.h>
+#include <asm/fcntl.h>
 
-int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
+bool _DkCheckMemoryMappable (const void * addr, int size)
+{
+    return (addr <= DATA_END && addr + size >= TEXT_START);
+}
+
+int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type,
                            int prot)
 {
     void * addr = *paddr, * mem = addr;
@@ -53,16 +59,87 @@ int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, size_t size)
+int _DkVirtualMemoryFree (void * addr, int size)
 {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-int _DkVirtualMemoryProtect (void * addr, size_t size, int prot)
+int _DkVirtualMemoryProtect (void * addr, int size, int prot)
 {
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, HOST_PROT(prot));
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
+}
+
+static int read_proc_meminfo (const char * key, unsigned long * val)
+{
+    int fd = INLINE_SYSCALL(open, 3, "/proc/meminfo", O_RDONLY, 0);
+
+    if (IS_ERR(fd))
+        return -PAL_ERROR_DENIED;
+
+    char buffer[40];
+    int r = 0, n, ret = 0, len = strlen(key);
+
+    ret = -PAL_ERROR_DENIED;
+    while (1) {
+        ret = INLINE_SYSCALL(read, 3, fd, buffer + r, 40 - r);
+        if (IS_ERR(ret)) {
+            ret = -PAL_ERROR_DENIED;
+            break;
+        }
+
+        for (n = r ; n < r + ret ; n++)
+            if (buffer[n] == '\n')
+                break;
+
+        r += ret;
+        if (n == r + ret || n <= len) {
+            ret = -PAL_ERROR_INVAL;
+            break;
+        }
+
+        if (!memcmp(key, buffer, len) && buffer[len] == ':') {
+            for (int i = len + 1; i < n ; i++)
+                if (buffer[i] != ' ') {
+                    *val = atol(buffer + i);
+                    break;
+                }
+            ret = 0;
+            break;
+        }
+
+        memmove(buffer, buffer + n + 1, r - n - 1);
+        r -= n + 1;
+    }
+
+    INLINE_SYSCALL(close, 1, fd);
+    return ret;
+}
+
+unsigned long _DkMemoryQuota (void)
+{
+    if (linux_state.memory_quota == (unsigned long) -1)
+        return 0;
+
+    if (linux_state.memory_quota)
+        return linux_state.memory_quota;
+
+    unsigned long quota = 0;
+    if (read_proc_meminfo("MemTotal", &quota) < 0) {
+        linux_state.memory_quota = (unsigned long) -1;
+        return 0;
+    }
+
+    return (linux_state.memory_quota = quota * 1024);
+}
+
+unsigned long _DkMemoryAvailableQuota (void)
+{
+    unsigned long quota = 0;
+    if (read_proc_meminfo("MemFree", &quota) < 0)
+        return 0;
+    return quota * 1024;
 }

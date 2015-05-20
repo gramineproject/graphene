@@ -36,53 +36,42 @@ DkCreatePhysicalMemoryChannel (PAL_NUM * key)
 
     PAL_HANDLE handle = NULL;
     int ret = _DkCreatePhysicalMemoryChannel(&handle, key);
-    if (ret < 0) {
-        notify_failure(-ret);
-        return NULL;
-    }
+    if (ret < 0)
+        leave_frame(NULL, -ret);
 
-    return handle;
+    leave_frame(handle, 0);
 }
 
 PAL_NUM
-DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_BUF * addrs,
+DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
                         PAL_NUM * sizes, PAL_FLG flags)
 {
     store_frame(PhysicalMemoryCommit);
 
-    if (!addrs || !sizes || !channel ||
-        !IS_HANDLE_TYPE(channel, gipc)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return 0;
-    }
+    if (!addrs || !sizes || !channel || !IS_HANDLE_TYPE(channel, gipc))
+        leave_frame(0, PAL_ERROR_INVAL);
 
     int ret = _DkPhysicalMemoryCommit(channel, entries, addrs, sizes, flags);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return 0;
-    }
+    if (ret < 0)
+        leave_frame(0, -ret);
 
-    return ret;
+    leave_frame(ret, 0);
 }
 
 PAL_NUM
-DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_BUF * addrs,
+DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
                      PAL_NUM * sizes, PAL_FLG * prots)
 {
     store_frame(PhysicalMemoryMap);
 
-    if (!sizes || !channel || !IS_HANDLE_TYPE(channel, gipc)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return 0;
-    }
+    if (!sizes || !channel || !IS_HANDLE_TYPE(channel, gipc))
+        leave_frame(0, PAL_ERROR_INVAL);
 
     int ret = _DkPhysicalMemoryMap(channel, entries, addrs, sizes, prots);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return 0;
-    }
+    if (ret < 0)
+        leave_frame(0, -ret);
 
-    return ret;
+    leave_frame(ret, 0);
 }

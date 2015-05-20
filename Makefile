@@ -1,6 +1,14 @@
-.PHONY: all debug clean install
+SYS ?= $(shell gcc -dumpmachine)
+export SYS
 
-all debug clean install:
+targets = all debug clean install
+
+ifeq ($(SYS),x86_64-linux-gnu)
+targets += pack
+endif
+
+.PHONY: $(targets)
+$(targets):
 	for d in Pal LibOS; \
 	do \
 		make -C $$d $@; \

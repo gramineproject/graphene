@@ -1,39 +1,26 @@
 CFLAGS-libos = -L../../../build/libos -I../../include
 
-SPECIALS = static pie
-NATIVE_TESTS_CPP = $(patsubst %.cpp,%,$(wildcard *.cpp))
-NATIVE_TESTS = $(patsubst %.c,%,$(wildcard *.c))
+special_executables = static pie
+c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
+cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
-targets = $(NATIVE_TESTS) $(NATIVE_TESTS_CPP) $(NATIVE_TESTS_STATIC) \
+target = $(special_executables) $(c_executables) $(cxx_executables) \
 	  manifest static.manifest pal pal_sec
-rtarget = helloworld clone vfork fork exec vfork_exec errno dup time \
-	  helloworld.pthread udp tcp unix file dev
-clean-extra = clean-exec
 
 level = ../
 include ../Makefile
-
-test-helloworld = grep -q "Hello World" OUTPUT
-test-clone = grep -q "in the child: pid = 2" OUTPUT
-test-vfork = grep -q "Hello, Dad!" OUTPUT
-test-fork = grep -q "Hello, Dad!" OUTPUT
-test-exec = grep -q "Hello World" OUTPUT
-test-file = grep -q "Hello World" OUTPUT && [ ! -f testfile ]
-test-errno = grep -q "errno = 22" OUTPUT
-test-dup = grep -q "Hello World" OUTPUT
-test-time = grep -q "Current timestamp" OUTPUT
-test-helloworld.pthread = grep -q "Hello World" OUTPUT
 
 %.manifest: %.manifest.template
 	rm -rf $@
 	cp $@.template $@
 
-$(filter-out $(SPECIALS),$(NATIVE_TESTS)): %: %.c
+ifeq ($(SYS),x86_64-linux-gnu)
+$(c_executables): %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
-$(filter-out $(SPECIALS),$(NATIVE_TESTS_CPP)): %: %.cpp
+$(cxx_executables): %: %.cpp
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
@@ -48,8 +35,10 @@ pie: %: %.c
 	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
-test-helloworld = grep -q "Hello world" OUTPUT
-
-clean-exec:
-	find -type f -executable -exec rm {} \;
-	rm -rf manifest static.manifest pal pal_sec
+.PHONY: pack
+pack: $(special_executables) $(c_executables) $(cxx_executables)
+	tar -czf .packed/test.tar.gz $^
+else
+$(special_executables) $(c_executables) $(cxx_executables): .packed/test.tar.gz
+	tar -xmozf $<
+endif

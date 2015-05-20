@@ -110,28 +110,22 @@ typedef union pal_handle
 
 /* PAL identifier poison value */
 #define PAL_IDX_POISON          ((PAL_IDX) -1)
-#define __PAL_GET_TYPE(h)       ((h)->__in.type)
-#define __PAL_CHECK_TYPE(h, t)  (__PAL_GET_TYPE(h) == pal_type_##t)
+#define PAL_GET_TYPE(h)         ((h)->__in.type)
+#define PAL_CHECK_TYPE(h, t)    (__PAL_GET_TYPE(h) == pal_type_##t)
+
+typedef struct { PAL_PTR start, end; }  PAL_PTR_RANGE;
 
 /********** PAL APIs **********/
 typedef struct {
+    /* An identifier of current picoprocess */
+    PAL_NUM process_id;
+    PAL_NUM host_id;
+
+    /***** Handles and executables *****/
     /* program manifest */
     PAL_HANDLE manifest_handle;
-    /* string for executable name */
+    /* executable name */
     PAL_STR executable;
-    /* address where executable is loaded */
-    PAL_BUF executable_begin;
-    PAL_BUF executable_end;
-    /* address where PAL is loaded */
-    PAL_BUF library_begin;
-    PAL_BUF library_end;
-    /* The range of address allowed for user */
-    PAL_BUF user_address_begin;
-    PAL_BUF user_address_end;
-    /* host page size */
-    PAL_NUM pagesize;
-    /* host allocation alignment */
-    PAL_NUM alloc_align;
     /* handle of parent process */
     PAL_HANDLE parent_process;
     /* handle of first thread */
@@ -140,10 +134,43 @@ typedef struct {
     PAL_HANDLE debug_stream;
     /* broadcast RPC stream */
     PAL_HANDLE broadcast_stream;
+
+    /***** Memory layout ******/
+    /* The range of user address */
+    PAL_PTR_RANGE user_address;
+    /* address where executable is loaded */
+    PAL_PTR_RANGE executable_range;
+
+    /***** Host information *****/
+    /* host page size / allocation alignment */
+    PAL_NUM pagesize, alloc_align;
+    /* CPU information (only required ones) */
+    struct {
+        PAL_NUM cpu_num;
+        PAL_STR cpu_vendor;
+        PAL_STR cpu_brand;
+        PAL_NUM cpu_family;
+        PAL_NUM cpu_model;
+        PAL_NUM cpu_stepping;
+        PAL_STR cpu_flags;
+    } cpu_info;
+    /* Memory information (only required ones) */
+    struct {
+        PAL_NUM mem_total;
+    } mem_info;
+
+    /* Purely for profiling */
+    PAL_NUM startup_time;
+    PAL_NUM host_specific_startup_time;
+    PAL_NUM relocation_time;
+    PAL_NUM linking_time;
+    PAL_NUM manifest_loading_time;
+    PAL_NUM allocation_time;
+    PAL_NUM tail_startup_time;
+    PAL_NUM child_creation_time;
 } PAL_CONTROL;
 
 #define pal_control (*pal_control_addr())
-
 PAL_CONTROL * pal_control_addr (void);
 
 /* The ABI includes three calls to allocate, free, and modify the
@@ -164,16 +191,15 @@ PAL_CONTROL * pal_control_addr (void);
 #define PAL_PROT_WRITECOPY  0x8     /* 0x8 Copy on write */
 
 
-PAL_BUF
-DkVirtualMemoryAlloc (PAL_BUF addr, PAL_NUM size, PAL_FLG alloc_type,
+PAL_PTR
+DkVirtualMemoryAlloc (PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type,
                       PAL_FLG prot);
 
 void
-DkVirtualMemoryFree (PAL_BUF addr, PAL_NUM size);
+DkVirtualMemoryFree (PAL_PTR addr, PAL_NUM size);
 
 PAL_BOL
-DkVirtualMemoryProtect (PAL_BUF addr, PAL_NUM size,
-                        PAL_FLG prot);
+DkVirtualMemoryProtect (PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 
 
 /* The ABI includes one call to create a child process and one call to
@@ -264,12 +290,12 @@ DkStreamWrite (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
 void
 DkStreamDelete (PAL_HANDLE handle, PAL_FLG access);
 
-PAL_BUF
-DkStreamMap (PAL_HANDLE handle, PAL_BUF address, PAL_FLG prot,
+PAL_PTR
+DkStreamMap (PAL_HANDLE handle, PAL_PTR address, PAL_FLG prot,
              PAL_NUM offset, PAL_NUM size);
 
 void
-DkStreamUnmap (PAL_BUF addr, PAL_NUM size);
+DkStreamUnmap (PAL_PTR addr, PAL_NUM size);
 
 PAL_NUM
 DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length);
@@ -285,27 +311,22 @@ DkReceiveHandle (PAL_HANDLE handle);
 
 /* stream attribute structure */
 typedef struct {
-    PAL_IDX type;
-    PAL_NUM file_id;
-    PAL_NUM size;
-    PAL_NUM access_time;
-    PAL_NUM change_time;
-    PAL_NUM create_time;
+    PAL_IDX handle_type;
     PAL_BOL disconnected;
-    PAL_BOL readable;
-    PAL_BOL writeable;
-    PAL_BOL runnable;
-    PAL_FLG share_flags;
     PAL_BOL nonblocking;
-    PAL_BOL reuseaddr;
-    PAL_NUM linger;
-    PAL_NUM receivebuf;
-    PAL_NUM sendbuf;
-    PAL_NUM receivetimeout;
-    PAL_NUM sendtimeout;
-    PAL_BOL tcp_cork;
-    PAL_BOL tcp_keepalive;
-    PAL_BOL tcp_nodelay;
+    PAL_BOL readable, writeable, runnable;
+    PAL_FLG share_flags;
+    PAL_NUM pending_size;
+    union {
+        struct {
+            PAL_NUM linger;
+            PAL_NUM receivebuf, sendbuf;
+            PAL_NUM receivetimeout, sendtimeout;
+            PAL_BOL tcp_cork;
+            PAL_BOL tcp_keepalive;
+            PAL_BOL tcp_nodelay;
+        } socket;
+    };
 } PAL_STREAM_ATTR;
 
 PAL_BOL
@@ -338,9 +359,6 @@ DkStreamChangeName (PAL_HANDLE handle, PAL_STR uri);
 
 PAL_HANDLE
 DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags);
-
-PAL_BUF
-DkThreadPrivate (PAL_BUF addr);
 
 // assuming duration to be in microseconds
 PAL_NUM
@@ -376,13 +394,13 @@ DkThreadResume (PAL_HANDLE thread);
 #define PAL_EVENT_PRIVATE      0x0001       /* upcall specific to thread */
 #define PAL_EVENT_RESET        0x0002       /* reset the event upcall */
 
-PAL_BOL
-DkSetExceptionHandler (void (*handler) (PAL_PTR event, PAL_NUM arg,
-                                        PAL_CONTEXT * context),
-                       PAL_NUM event, PAL_FLG flags);
+typedef void (*PAL_EVENT_HANDLER) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT *);
 
-void
-DkExceptionReturn (PAL_PTR event);
+PAL_BOL
+DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event,
+                       PAL_FLG flags);
+
+void DkExceptionReturn (PAL_PTR event);
 
 
 /* parameter: keeping int threadHandle for now (to be in sync with the paper).
@@ -429,6 +447,10 @@ DkEventClear (PAL_HANDLE eventHandle);
 PAL_HANDLE
 DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout);
 
+void DkObjectReference (PAL_HANDLE objectHandle);
+
+void DkObjectClose (PAL_HANDLE objectHandle);
+
 /* the ABI includes seven assorted calls to get wall clock
  * time, generate cryptographically-strong random bits, flush por-
  * tions of instruction caches, increment and decrement the reference
@@ -443,21 +465,25 @@ DkSystemTimeQuery (void);
 PAL_NUM
 DkRandomBitsRead (PAL_BUF buffer, PAL_NUM size);
 
-void
-DkObjectClose (PAL_HANDLE objectHandle);
-
 PAL_BOL
 DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size);
+
+#define PAL_SEGMENT_FS          0x1
+#define PAL_SEGMENT_GS          0x2
+
+PAL_PTR DkSegmentRegister (PAL_FLG reg, PAL_PTR addr);
 
 PAL_HANDLE
 DkCreatePhysicalMemoryChannel (PAL_NUM * key);
 
 PAL_NUM
-DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_BUF * addrs,
+DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
                         PAL_NUM * sizes, PAL_FLG flags);
 
 PAL_NUM
-DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_BUF * addrs,
+DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
                      PAL_NUM * sizes, PAL_FLG * prots);
+
+PAL_NUM DkMemoryAvailableQuota (void);
 
 #endif /* PAL_H */

@@ -30,10 +30,8 @@
 # error "cannot be included outside PAL"
 #endif
 
-typedef struct {
-    PAL_IDX type;
-    PAL_REF refcount;
-} PAL_HDR;
+typedef int PAL_LOCK;
+#define LOCK_INIT   (0)
 
 typedef union pal_handle
 {
@@ -45,8 +43,9 @@ typedef union pal_handle
 
     struct {
         PAL_IDX type;
-        PAL_REF refcount;
-        PAL_IDX fd;
+        PAL_REF ref;
+        PAL_FLG flags;
+        PAL_IDX fds[];
     } __in;
 
     struct {
@@ -55,6 +54,7 @@ typedef union pal_handle
 
     struct {
         PAL_HDR __in;
+    } pipe;
 
     struct {
         PAL_HDR __in;
@@ -62,6 +62,7 @@ typedef union pal_handle
 
     struct {
         PAL_HDR __in;
+        PAL_IDX dev_type;
     } dev;
 
     struct {

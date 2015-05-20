@@ -140,12 +140,11 @@ work lat_sig catch
 work lat_sig prot lat_sig
 
 #AF_UNIX
-echo "***"; echo "AF_UNIX TESTS"
+echo AF_UNIX socket latenct >> ${OUTPUT}
 for i in $(eval echo "{1..$N_RUNS}")
 do
     work lat_unix
 done
-echo "***"; echo "";
 
 #forks
 cp hello /tmp/hello
@@ -163,25 +162,11 @@ date >> ${OUTPUT}
 
 date >> ${OUTPUT}
 
-echo "sleeep for 30" 
-sleep 30
 echo Local networking >> ${OUTPUT}
-#if [ ! -d /tmp/webpage-lm ]
-#then	TAR=${PWD}/../../src/webpage-lm.tar
-#	(cd /tmp && tar xf ${TAR})
-#	sync
-#	sleep 5
-#fi
-#SERVERS="lat_udp lat_tcp lat_rpc lat_connect bw_tcp"
 
-#SERVERS="lat_udp lat_tcp"
-#for server in $SERVERS; do work $server -s; done
-
-#work env DOCROOT=/tmp/webpage-lm lmhttp 8008 &
-#sleep 60
-
-echo ""; echo"UDP TESTS"
-work lat_udp -s
+echo UDP socket latency >> ${OUTPUT}
+work lat_udp -s &
+sleep 5
 for i in $(eval echo "{1..$N_RUNS}")
 do
         work lat_udp 127.0.0.1
@@ -189,11 +174,10 @@ do
 done
 work lat_udp -127.0.0.1
 sleep 5
-echo "***"; echo "";
 
-
-echo "***"; echo"TCP TESTS"
-work lat_tcp -s
+echo TCP socket latency >> ${OUTPUT}
+work lat_tcp -s &
+sleep 5
 for i in $(eval echo "{1..$N_RUNS}")
 do
 	work lat_tcp 127.0.0.1
@@ -201,35 +185,6 @@ do
 done
 work lat_tcp -127.0.0.1
 sleep 5
-echo "***"; echo "";
-
-#done for graphene tests
-exit 0
-
-for remote in $REMOTE
-do	echo Networking to $remote >> ${OUTPUT}
-	$RCP $SERVERS lmhttp /tmp/webpage-lm.tar ${remote}:/tmp/rcp/
-	for server in $SERVERS
-	do	$RSH $remote -n /tmp/$server -s &
-	done
-	$RSH $remote -n 'cd /tmp; tar xf webpage-lm.tar; cd webpage-lm; ../lmhttp 8008' &
-	sleep 10
-	echo "[ Networking remote to $remote: `$RSH $remote uname -a` ]" 1>&2
-	work lat_udp $remote; lat_udp -$remote;
-	work lat_tcp $remote; lat_tcp -$remote;
-	#work lat_rpc $remote udp; lat_rpc $remote tcp; lat_rpc -$remote; 
-	work lat_connect $remote; lat_connect -$remote;
-	work bw_tcp $remote; bw_tcp -$remote
-	# I want a hot cache number
-	#work lat_http $remote 8008 < /tmp/webpage-lm/URLS > /dev/null 2>&1
-	#work lat_http $remote 8008 < /tmp/webpage-lm/URLS
-	#work lat_http -$remote 8008
-	RM=
-	for server in $SERVERS
-	do	RM="/tmp/$server $RM"
-	done
-	$RSH $remote rm $RM
-done
 
 exit #exit because we do not need these bandwith tests for the paper 
 date >> ${OUTPUT}

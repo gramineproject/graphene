@@ -1,26 +1,26 @@
-INLINE_TESTS_CPP = $(patsubst %.cpp,%,$(wildcard *.cpp))
-INLINE_TESTS = $(patsubst %.c,%,$(wildcard *.c))
+c_executables = $(patsubst %.c,%,$(wildcard *.c))
+cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
-rtarget = helloworld fork vfork
-targets = $(rtarget) manifest pal pal_sec
-clean-extra = clean-exec
+target = $(c_executables) $(cxx_executables) manifest pal pal_sec
 
 level = ../
 include ../Makefile
 
-$(INLINE_TESTS): %: %.c $(libs)
+CFLAGS-debug += -fno-builtin -nostdlib
+
+ifeq ($(SYS),x86_64-linux-gnu)
+$(c_executables): %: %.c $(libs) $(level)../../../Pal/src/user_start.o
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS-debug) -nostdlib -nostartfiles -e main $(LDFLAGS-debug) -o $@ $^
+	@$(CC) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^
 
-$(INLINE_TESTS_CPP): %: %.cpp $(libs)
+$(cxx_executables): %: %.cpp $(libs) $(level)../../../Pal/src/user_start.o
 	@echo [ $@ ]
-	@$(CXX) $(CFLAGS-debug) -nostdlib -nostartfiles -e main $(LDFLAGS-debug) -o $@ $^
+	@$(CXX) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^
 
-test-helloworld = grep -q "Hello world" OUTPUT
-test-printf = grep -q "1 printf printf" OUTPUT
-test-fork = grep -q "Hello, Dad" OUTPUT && grep -q "Hello, Kid" OUTPUT
-test-vfork = grep -q "Hello, Dad" OUTPUT && grep -q "Hello, Kid" OUTPUT
-
-clean-exec:
-	find -type f -executable -exec rm {} \;
-	rm -rf manifest pal pal_sec
+.PHONY: pack
+pack: $(c_executables) $(cxx_executables)
+	tar -czf .packed/test.tar.gz $^
+else
+$(c_executables) $(cxx_executables): .packed/test.tar.gz
+	tar -xmozf $<
+endif

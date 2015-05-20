@@ -4,7 +4,13 @@
 #ifndef PAL_DEFS_H
 #define PAL_DEFS_H
 
+/* enable caching loaded binaries for optimizing process creation */
+#define CACHE_LOADED_BINARIES   1
+
 /* statically allocate slab manager */
 #define STATIC_SLAB             1
+
+/* maximum length of URIs */
+#define URI_MAX                 256
 
 #endif /* PAL_DEFS_H */

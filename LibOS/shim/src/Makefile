@@ -1,4 +1,5 @@
-MAKEFLAGS += --check-symlink-times
+SYS ?= $(shell gcc -dumpmachine)
+export SYS
 
 CC	= gcc
 AS	= gcc
@@ -52,13 +53,14 @@ debug: CC = gcc -gdwarf-2 -g3
 debug: CFLAGS += -DDEBUG
 debug: $(shim_target)
 
-profile: CC = gcc
-profile: CFLAGS += -DPROFILE
-profile: $(shim_target)
+ifeq ($(PROFILING), 1)
+CFLAGS += -DPROFILE
+endif
 
 $(graphene_lib):
 	make -C ../../../Pal/lib $(debug)
 
+ifeq ($(SYS),x86_64-linux-gnu)
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
 	     $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
@@ -76,13 +78,23 @@ libsysdb.a: $(addsuffix .o,$(objs))
 	@echo [ $@ ]
 	$(AR) $(ARFLAGS) $@ $^
 
+.PHONY: pack
+pack: $(shim_target)
+	tar -czf .packed/shim.tar.gz $^
+else
+$(shim_target): .packed/shim.tar.gz
+	tar -xmozf $<
+endif
+
 %.asm: %.c $(headers)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
 	@objdump -S $<.o > $@
 	@rm $<.o
 
-$(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): ipc/*.h
+$(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)
+elf/shim_rtld.o: $(wildcard elf/*.h)
+
 
 %.o: %.c $(headers)
 	@echo [ $@ ]

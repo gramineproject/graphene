@@ -1,5 +1,3 @@
-MAKEFLAGS += --check-symlink-times
-
 CC	= gcc
 AS	= gcc
 AR	= ar rcs
@@ -7,12 +5,16 @@ AR	= ar rcs
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -Wall -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin \
-	  -I. -I../.. -I../../../include -I../../../lib -I../../../ipc/linux \
-	  -I../../../linux-3.5/graphene
+	  -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc/linux \
+	  -I../../../linux-kernel/graphene
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp \
-	  -I. -I../.. -I../../../include
+	  -I. -Iinclude -I../.. -I../../../include
 ARFLAGS	=
+
+ifeq ($(PROFILING),1)
+CFLAGS	+= -DPROFILING=1
+endif
 
 host_target = libpal-Linux.a
 
@@ -31,8 +33,11 @@ debug: CC = gcc -g
 debug: CFLAGS += -DDEBUG
 debug: $(host_target)
 
-$(graphene_lib):
+$(graphene_lib): ../../host_endian.h
 	make -C ../../../lib $(debug)
+
+../../host_endian.h: host_endian.h
+	make -C ../.. $<
 
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/Linux/$@ ]

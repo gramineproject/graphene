@@ -78,8 +78,8 @@ int init_brk_region (void)
     void * end_brk_region = NULL;
 
     // brk region assigned
-    brk_region = DkVirtualMemoryAlloc(brk_region, brk_max_size,
-                                      0, PAL_PROT_READ|PAL_PROT_WRITE);
+    brk_region = (void *) DkVirtualMemoryAlloc(brk_region, brk_max_size, 0,
+                                    PAL_PROT_READ|PAL_PROT_WRITE);
     if (!brk_region)
         return -ENOMEM;
 
@@ -196,10 +196,9 @@ RESUME_FUNC_BODY(brk)
     unsigned long brk_size = region.brk_end - region.brk_start;
 
     if (brk_size < brk_max_size) {
-        void * brk_region = DkVirtualMemoryAlloc(region.brk_end,
-                                                 brk_max_size - brk_size,
-                                                 0,
-                                                 PAL_PROT_READ|PAL_PROT_WRITE);
+        void * brk_region = (void *) DkVirtualMemoryAlloc(region.brk_end,
+                                            brk_max_size - brk_size, 0,
+                                            PAL_PROT_READ|PAL_PROT_WRITE);
         if (brk_region != region.brk_end)
             return -EACCES;
 

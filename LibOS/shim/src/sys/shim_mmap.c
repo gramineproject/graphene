@@ -47,7 +47,6 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
 
     int pal_alloc_type = ((flags & MAP_32BIT) ? PAL_ALLOC_32BIT : 0);
-    int pal_prot = prot;
 
     addr = addr ? : get_unmapped_vma(ALIGN_UP(length), flags);
 
@@ -58,8 +57,8 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     length = mapped_end - mapped;
 
     if (flags & MAP_ANONYMOUS) {
-        addr = DkVirtualMemoryAlloc(addr, length, pal_alloc_type,
-                                    pal_prot);
+        addr = (void *) DkVirtualMemoryAlloc(addr, length, pal_alloc_type,
+                                             PAL_PROT(prot, 0));
 
         if (!addr)
             return (void *) -PAL_ERRNO;
@@ -77,9 +76,6 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
             put_handle(hdl);
             return (void *) -ENODEV;
         }
-
-        if (flags & MAP_PRIVATE)
-            prot |= PAL_PROT_WRITECOPY;
 
         if ((ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, prot,
                                          flags, offset)) < 0) {

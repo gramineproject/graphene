@@ -37,68 +37,39 @@ PAL_NUM DkSystemTimeQuery (void)
 }
 
 static PAL_LOCK lock = LOCK_INIT;
-static unsigned long randval = 0;
+static unsigned long seed;
 
-static int init_randgen (void)
+int _DkFastRandomBitsRead (void * buffer, int size)
 {
-    unsigned long val;
-
-    if (_DkRandomBitsRead(&val, sizeof(val)) < sizeof(val))
-        return -PAL_ERROR_DENIED;
-
-    _DkInternalLock(&lock);
-    randval = val;
-    _DkInternalUnlock(&lock);
-    return 0;
-}
-
-int getrand (void * buffer, int size)
-{
-    unsigned long val;
+    unsigned long rand;
     int bytes = 0;
 
     _DkInternalLock(&lock);
-    while (!randval) {
+    rand = seed;
+    while (!seed) {
         _DkInternalUnlock(&lock);
-        if (init_randgen() < 0)
+        if (_DkRandomBitsRead(&rand, sizeof(rand)) < sizeof(rand))
             return -PAL_ERROR_DENIED;
+
         _DkInternalLock(&lock);
+        seed = rand;
     }
 
-    val = randval;
-    randval++;
-    _DkInternalUnlock(&lock);
-
-    while (bytes + sizeof(unsigned long) <= size) {
-        *(unsigned long *) (buffer + bytes) = val;
-        val = hash64(val);
-        bytes += sizeof(unsigned long);
-    }
-
-    if (bytes < size) {
-        switch (size - bytes) {
-            case 4:
-                *(unsigned int *) (buffer + bytes) = randval & 0xffffffff;
-                bytes += 4;
-                break;
-
-            case 2:
-                *(unsigned short *) (buffer + bytes) = randval & 0xffff;
-                bytes += 2;
-                break;
-
-            case 1:
-                *(unsigned char *) (buffer + bytes) = randval & 0xff;
-                bytes++;
-                break;
-
-            default: break;
+    do {
+        if (bytes + sizeof(rand) <= size) {
+            *(unsigned long *) (buffer + bytes) = rand;
+            bytes += sizeof(rand);
+        } else {
+            for (int i = 0 ; i < size - bytes ; i++)
+                *(unsigned char *) (buffer + bytes + i) = ((unsigned char *) &rand)[i];
+            bytes = size;
         }
-        randval = hash64(randval);
-    }
+        do {
+            rand = hash64(rand);
+        } while (!rand);
+    } while (bytes < size);
 
-    _DkInternalLock(&lock);
-    randval = val;
+    seed = rand;
     _DkInternalUnlock(&lock);
 
     return bytes;
@@ -108,36 +79,55 @@ PAL_NUM DkRandomBitsRead (PAL_BUF buffer, PAL_NUM size)
 {
     store_frame(RandomBitsRead);
 
-    if (!buffer || !size) {
-        notify_failure(PAL_ERROR_INVAL);
-        return 0;
-    }
+    if (!buffer || !size)
+        leave_frame(0, PAL_ERROR_INVAL);
 
     int ret = _DkRandomBitsRead(buffer, size);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return 0;
-    }
+    if (ret < 0)
+        leave_frame(0, -ret);
 
-    return ret;
+    leave_frame(ret, 0);
+}
+
+PAL_PTR DkSegmentRegister (PAL_FLG reg, PAL_PTR addr)
+{
+    store_frame(SegmentRegister);
+    int ret;
+
+    if (addr) {
+        ret = _DkSegmentRegisterSet(reg, addr);
+        if (ret < 0)
+            leave_frame(NULL, -ret);
+        leave_frame(addr, 0);
+    } else {
+        ret = _DkSegmentRegisterGet(reg, (void **) &addr);
+        if (ret < 0)
+            leave_frame(NULL, -ret);
+        leave_frame(addr, 0);
+    }
 }
 
 PAL_BOL DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size)
 {
     store_frame(InstructionCacheFlush);
 
-    if (!addr || !size) {
-        notify_failure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
-    }
+    if (!addr || !size)
+        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
 
     int ret = _DkInstructionCacheFlush(addr, size);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return PAL_FALSE;
-    }
+    if (ret < 0)
+        leave_frame(PAL_FALSE, -ret);
 
-    return PAL_TRUE;
+    leave_frame(PAL_TRUE, 0);
+}
+
+PAL_NUM DkMemoryAvailableQuota (void)
+{
+    store_frame(MemoryAvailableQuota);
+
+    long quota = _DkMemoryAvailableQuota();
+
+    leave_frame((quota < 0) ? 0 : quota, 0);
 }

@@ -224,7 +224,7 @@ static int __query_attr (struct shim_file_data * data, PAL_HANDLE pal_handle)
 
     /* need to correct the data type */
     if (data->type == FILE_UNKNOWN)
-        switch (pal_attr.type) {
+        switch (pal_attr.handle_type) {
             case pal_type_file: data->type = FILE_REGULAR;  break;
             case pal_type_dir:  data->type = FILE_DIR;      break;
             case pal_type_dev:  data->type = FILE_DEV;      break;
@@ -234,7 +234,7 @@ static int __query_attr (struct shim_file_data * data, PAL_HANDLE pal_handle)
                  (pal_attr.writeable ? S_IWUSR : 0) |
                  (pal_attr.runnable  ? S_IXUSR : 0);
 
-    atomic_set(&data->size, pal_attr.size);
+    atomic_set(&data->size, pal_attr.pending_size);
     data->queried = true;
 
     return 0;
@@ -590,7 +590,8 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     while (mapoff + maplen < file->marker + size)
         maplen *= 2;
 
-    void * mapbuf = DkStreamMap(hdl->pal_handle, NULL, prot, mapoff, maplen);
+    void * mapbuf =
+        (void *) DkStreamMap(hdl->pal_handle, NULL, prot, mapoff, maplen);
     if (!mapbuf)
         return -PAL_ERRNO;
 
@@ -774,7 +775,7 @@ static int chroot_mmap (struct shim_handle * hdl, void ** addr, size_t size,
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
 
-    int pal_prot = prot & (PROT_READ|PROT_WRITE|PROT_EXEC);
+    int pal_prot = PAL_PROT(prot, flags);
 
 #if MAP_FILE == 0
     if (flags & MAP_ANONYMOUS)
@@ -783,11 +784,8 @@ static int chroot_mmap (struct shim_handle * hdl, void ** addr, size_t size,
 #endif
         return -EINVAL;
 
-    if (flags & MAP_PRIVATE)
-        pal_prot |= PAL_PROT_WRITECOPY;
-
-    void * alloc_addr = DkStreamMap(hdl->pal_handle, *addr, pal_prot, offset,
-                                    size);
+    void * alloc_addr =
+        (void *) DkStreamMap(hdl->pal_handle, *addr, pal_prot, offset, size);
 
     if (!alloc_addr)
         return -PAL_ERRNO;

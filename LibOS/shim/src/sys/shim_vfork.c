@@ -70,7 +70,7 @@ int shim_do_vfork (void)
     void * dummy_stack = system_malloc(stack_size);
 
     if (!dummy_stack) {
-        debug("creation of stack failed: %e\n", PAL_ERRNO);
+        debug("creation of stack failed\n");
         put_thread(new_thread);
         return -PAL_ERRNO;
     }

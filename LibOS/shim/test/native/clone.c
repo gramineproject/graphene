@@ -9,11 +9,20 @@
 #include <signal.h>
 #include <sched.h>
 #include <stdio.h>
+#include <sys/syscall.h>
+#include <asm/prctl.h>
 
 // 64kB stack
 #define FIBER_STACK 1024 * 64
 
 __thread int mypid = 0;
+
+unsigned long gettls (void)
+{
+    unsigned long tls;
+    syscall(__NR_arch_prctl, ARCH_GET_FS, &tls);
+    return tls;
+}
 
 int thread_function (void * argument)
 {
@@ -21,6 +30,7 @@ int thread_function (void * argument)
     int * ptr = (int *) argument;
     printf("in the child: pid (%016lx) = %d\n", (unsigned long) &mypid, mypid);
     printf("in the child: pid = %d\n", getpid());
+    printf("in the child: tls = %08lx\n", gettls());
     printf("child thread exiting\n");
     printf("argument passed %d\n", *ptr);
     return 0;
@@ -51,7 +61,7 @@ int main (int argc, const char ** argv)
                 CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM,
                 &varx);
 
-    printf("clone() returned %d\n", pid);
+    printf("clone() creates new thread %d\n", pid);
 
     if (pid == -1) {
         perror("clone");
@@ -59,7 +69,7 @@ int main (int argc, const char ** argv)
     }
 
     // Wait for the child thread to exit
-    pid = waitpid(pid, 0, 0);
+    pid = waitpid(0, NULL, __WALL);
     if (pid == -1) {
         perror("waitpid");
         _exit(3);
@@ -70,6 +80,7 @@ int main (int argc, const char ** argv)
 
     printf("in the parent: pid (%016lx) = %d\n", (unsigned long) &mypid, mypid);
     printf("in the parent: pid = %d\n", getpid());
+    printf("in the parent: tls = %08lx\n", gettls());
 
     return 0;
 }

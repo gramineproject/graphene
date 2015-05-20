@@ -853,8 +853,8 @@ int CONCAT3(prepare, NS, leader) (void)
 static int connect_owner (IDTYPE idx, struct shim_ipc_port ** portptr,
                           IDTYPE * owner)
 {
-    struct CONCAT2(NS, range) range;
     struct shim_ipc_info * info = NULL;
+    struct CONCAT2(NS, range) range;
     memset(&range, 0, sizeof(struct CONCAT2(NS, range)));
 
     int ret = CONCAT3(get, NS, range) (idx, &range, &info);
@@ -870,6 +870,7 @@ static int connect_owner (IDTYPE idx, struct shim_ipc_port ** portptr,
 
     if (range.owner == cur_process.vmid) {
         ret = -ESRCH;
+        assert(!range.port);
         goto out;
     }
 
@@ -888,6 +889,7 @@ static int connect_owner (IDTYPE idx, struct shim_ipc_port ** portptr,
         }
 
         add_ipc_port_by_id(range.owner, pal_handle, type, NULL, &range.port);
+        assert(range.port);
     }
 
     lock(range_map_lock);
@@ -908,6 +910,8 @@ success:
 out:
     if (info)
         put_ipc_info(info);
+
+    assert(ret || range.port);
     return ret;
 }
 

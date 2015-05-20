@@ -36,58 +36,49 @@
 #define elf_machine_rel_relative    elf_machine_rela_relative
 
 #ifndef DO_ELF_MACHINE_REL_RELATIVE
-# define DO_ELF_MACHINE_REL_RELATIVE(l_addr, relative)     \
-    elf_machine_rel_relative (l_addr, relative,            \
-                              (void *) (l_addr + relative->r_offset))
+# define DO_ELF_MACHINE_REL_RELATIVE(l, relative)       \
+    elf_machine_rel_relative (l, relative,              \
+                              (void *) (l->l_addr + relative->r_offset))
 #endif
 
 static void __attribute__((unused))
-elf_dynamic_do_rel (ElfW(Dyn) **l_info, ElfW(Addr) l_addr,
-                    ElfW(Addr) reladdr, ElfW(Addr) relsize,
-                    bool do_rel, bool do_rel_relative)
+elf_dynamic_do_rel (struct link_map *l, ElfW(Addr) reladdr, int relsize)
 {
-    ElfW(Rel) *r = (void *) reladdr;
-    ElfW(Rel) *end = (void *) (reladdr + relsize);
-
-    if (!l_info[DT_SYMTAB])
+    if (!l->l_info[DT_SYMTAB])
         return;
 
-    {
-        ElfW(Sym) *symtab = (void *) D_PTR (l_info[DT_SYMTAB]);
-        ElfW(Word) nrelative = (l_info[RELCOUNT_IDX] == NULL
-                                ? 0 : l_info[RELCOUNT_IDX]->d_un.d_val);
-        ElfW(Rel) *relative = r;
-        r = r + MIN (nrelative, relsize / sizeof (ElfW(Rel)));
+    ElfW(Rel) *r = (void *) reladdr, *end = (void *) (reladdr + relsize);
+    ElfW(Sym) *symtab = (void *) D_PTR (l->l_info[DT_SYMTAB]);
+    ElfW(Word) nrelative = l->l_info[RELCOUNT_IDX]? l->l_info[RELCOUNT_IDX]->d_un.d_val : 0;
+    ElfW(Rel) *relative = r;
 
-        if (do_rel_relative)
+    r = r + MIN (nrelative, relsize / sizeof (ElfW(Rel)));
+
 #ifndef RTLD_BOOTSTRAP
-            /* This is defined in rtld.c, but nowhere in the static libc.a; make
-               the reference weak so static programs can still link.  This
-               declaration cannot be done when compiling rtld.c (i.e. #ifdef
-               RTLD_BOOTSTRAP) because rtld.c contains the common defn for
-               _dl_rtld_map, which is incompatible with a weak decl in the same
-               file.  */
-# if !defined DO_RELA || defined ELF_MACHINE_REL_RELATIVE
-            /* Rela platforms get the offset from r_addend and this must
-               be copied in the relocation address.  Therefore we can skip
-               the relative relocations only if this is for rel
-               relocations or rela relocations if they are computed as
-               memory_loc += l_addr...  */
-            if (l_addr != 0)
-# else
+    /* This is defined in rtld.c, but nowhere in the static libc.a; make
+       the reference weak so static programs can still link.  This
+       declaration cannot be done when compiling rtld.c (i.e. #ifdef
+       RTLD_BOOTSTRAP) because rtld.c contains the common defn for
+       _dl_rtld_map, which is incompatible with a weak decl in the same
+       file.  */
+#if !defined DO_RELA || defined ELF_MACHINE_REL_RELATIVE
+    /* Rela platforms get the offset from r_addend and this must
+       be copied in the relocation address.  Therefore we can skip
+       the relative relocations only if this is for rel
+       relocations or rela relocations if they are computed as
+       memory_loc += l_addr...  */
+    if (l->l_addr != 0)
+#else
             /* ...or we know the object has been prelinked.  */
-            if (l_addr != 0 || !l_info[VALIDX(DT_GNU_PRELINKED)])
-# endif
+    if (l->l_addr != 0 || !l->l_info[VALIDX(DT_GNU_PRELINKED)])
 #endif
-                for (; relative < r; ++relative)
-                    DO_ELF_MACHINE_REL_RELATIVE (l_addr, relative);
+#endif
+        for (; relative < r; ++relative)
+            DO_ELF_MACHINE_REL_RELATIVE (l, relative);
 
-        for (; r < end; ++r)
-            elf_machine_rel (l_info, l_addr, r,
-                             &symtab[ELFW(R_SYM) (r->r_info)],
-                             (void *) (l_addr + r->r_offset),
-                             do_rel, do_rel_relative);
-    }
+    for (; r < end; ++r)
+        elf_machine_rel (l, r, &symtab[ELFW(R_SYM) (r->r_info)],
+                         (void *) (l->l_addr + r->r_offset));
 }
 
 #undef elf_dynamic_do_rel

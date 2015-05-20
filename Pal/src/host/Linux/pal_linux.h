@@ -24,10 +24,12 @@
 #include "pal_linux_defs.h"
 #include "pal.h"
 #include "pal_internal.h"
+#include "pal_linux_error.h"
 
 #define PAL_LOADER XSTRINGIFY(PAL_LOADER_PATH)
 
 #include <sys/syscall.h>
+#include <sigset.h>
 
 #ifdef __x86_64__
 # include "sysdep-x86_64.h"
@@ -38,11 +40,30 @@
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
-extern struct pal_linux_config {
-    unsigned int    pid, uid, gid;
+struct timespec;
+struct timeval;
+
+extern struct pal_linux_state {
+    PAL_NUM         parent_process_id;
+    PAL_NUM         process_id;
+
+    /* credentails */
+    unsigned int    pid;
+    unsigned int    uid, gid;
+
+    /* currently enabled signals */
     __sigset_t      sigset;
-    bool            noexec;
-} pal_linux_config;
+
+    unsigned long   memory_quota;
+
+#if USE_VDSO_GETTIME == 1
+# if USE_CLOCK_GETTIME == 1
+    long int (*vdso_clock_gettime) (long int clk, struct timespec * tp);
+# else
+    long int (*vdso_gettimeofday) (struct timeval *, void *);
+# endif
+#endif
+} linux_state;
 
 #include <asm/mman.h>
 
@@ -73,12 +94,6 @@ extern struct pal_linux_config {
 # error "INLINE_SYSCALL not supported"
 #endif
 
-#define ARCH_FORK() INLINE_SYSCALL(clone, 4, CLONE_CHILD_SETTID, 0, \
-                                   NULL, &pal_linux_config.pid)
-
-#define ARCH_VFORK() INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, \
-                                    NULL, NULL)
-
 #define PRESET_PAGESIZE (1 << 12)
 
 #define DEFAULT_BACKLOG     2048
@@ -98,6 +113,13 @@ static inline int HOST_PROT (int prot)
 int __clone (int (*__fn) (void * __arg), void * __child_stack,
              int __flags, const void * __arg, ...);
 
+/* set/unset CLOEXEC flags of all fds in a handle */
+int handle_set_cloexec (PAL_HANDLE handle, bool enable);
+
+/* serialize/deserialize a handle into/from a malloc'ed buffer */
+int handle_serialize (PAL_HANDLE handle, void ** data);
+int handle_deserialize (PAL_HANDLE * handle, const void * data, int size);
+
 #define ACCESS_R    4
 #define ACCESS_W    2
 #define ACCESS_X    1
@@ -110,31 +132,17 @@ int _DkMutexLock (struct mutex_handle * mut);
 int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout);
 int _DkMutexUnlock (struct mutex_handle * mut);
 
-#include "pal_security.h"
+void init_child_process (PAL_HANDLE * parent, PAL_HANDLE * exec,
+                         PAL_HANDLE * manifest);
 
-struct pal_proc_args {
-    struct pal_sec_info pal_sec_info;
-    PAL_IDX             proc_fds[3];
-    unsigned int        parent_pid;
-    PAL_IDX             exec_fd;
-    unsigned short      exec_uri_offset;
-    bool                noexec;
-    PAL_IDX             manifest_fd;
-    unsigned short      manifest_uri_offset;
-    unsigned short      data_size;
-};
+void signal_setup (void);
 
-int init_child_process (struct pal_proc_args * proc_args, void * proc_data);
-int signal_setup (void);
+unsigned long _DkSystemTimeQueryEarly (void);
 
-#if USE_VDSO_GETTIME == 1
-# if USE_CLOCK_GETTIME == 1
-struct timespec;
-long int (*__vdso_clock_gettime) (long int clk, struct timespec * tp);
-# else
-struct timeval;
-long int (*__vdso_gettimeofday) (struct timeval *, void *);
-# endif
-#endif
+extern char __text_start, __text_end, __data_start, __data_end;
+#define TEXT_START (void *) (&__text_start)
+#define TEXT_END   (void *) (&__text_end)
+#define DATA_START (void *) (&__text_start)
+#define DATA_END   (void *) (&__text_end)
 
 #endif /* PAL_LINUX_H */

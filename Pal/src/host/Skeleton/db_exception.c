@@ -28,9 +28,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_error.h"
-#include "pal_security.h"
 #include "api.h"
-#include "linux_list.h"
 
 typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
 
@@ -46,6 +44,12 @@ int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])
         /* Failure    */ NULL,
     };
 
+void _DkRaiseFailure (int error)
+{
+    /* need to be implemented */
+}
+
 void _DkExceptionReturn (const void * event)
 {
+    /* need to be implemented */
 }

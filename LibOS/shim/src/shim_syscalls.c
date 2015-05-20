@@ -676,7 +676,8 @@ void * shim_do_arch_prctl (int code, void * addr)
             return NULL;
 
         case ARCH_GET_FS:
-            return DkThreadPrivate(NULL) ? : (void *) -PAL_ERRNO;
+            return (void *) DkSegmentRegister(PAL_SEGMENT_FS, NULL) ? :
+                   (void *) -PAL_ERRNO;
     }
 
     return (void *) -ENOSYS;

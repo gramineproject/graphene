@@ -40,22 +40,11 @@ DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags)
     PAL_HANDLE handle = NULL;
     int ret = _DkThreadCreate (&handle, (int (*)(void *)) addr,
                                param, flags);
-    if (ret < 0) {
-        notify_failure (-ret);
-        return NULL;
-    }
 
-    return handle;
-}
+    if (ret < 0)
+        leave_frame(NULL, -ret);
 
-PAL_BUF DkThreadPrivate (PAL_BUF addr)
-{
-    void * ret = _DkThreadPrivate(addr);
-
-    if (ret == NULL)
-        notify_failure(PAL_ERROR_DENIED);
-
-    return ret;
+    leave_frame(handle, 0);
 }
 
 /* PAL call DkThreadDelayExecution. Delay the current thread
@@ -69,9 +58,9 @@ DkThreadDelayExecution (PAL_NUM duration)
     int ret = _DkThreadDelayExecution(&dur);
 
     if (ret < 0)
-        notify_failure(PAL_ERROR_INTERRUPTED);
+        leave_frame(dur, PAL_ERROR_INTERRUPTED);
 
-    return dur;
+    leave_frame(duration, 0);
 }
 
 /* PAL call DkThreadYieldExecution. Yield the execution
@@ -86,10 +75,8 @@ void DkThreadYieldExecution (void)
 void DkThreadExit (void)
 {
     store_frame(ThreadExit);
-
-    _DkThreadExit(0);
-
-    notify_failure(PAL_ERROR_NOTKILLABLE);
+    _DkThreadExit();
+    leave_frame(, PAL_ERROR_NOTKILLABLE);
 }
 
 /* PAL call DkThreadResume: resume the execution of a thread
@@ -98,18 +85,13 @@ PAL_BOL DkThreadResume (PAL_HANDLE threadHandle)
 {
     store_frame(ThreadResume);
 
-    if (!threadHandle ||
-        !IS_HANDLE_TYPE(threadHandle, thread)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
-    }
+    if (!threadHandle || !IS_HANDLE_TYPE(threadHandle, thread))
+        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
 
     int ret = _DkThreadResume(threadHandle);
 
-    if (ret < 0) {
-        notify_failure(PAL_ERROR_DENIED);
-        return PAL_FALSE;
-    }
+    if (ret < 0)
+        leave_frame(PAL_FALSE, PAL_ERROR_DENIED);
 
-    return PAL_TRUE;
+    leave_frame(PAL_TRUE, 0);
 }

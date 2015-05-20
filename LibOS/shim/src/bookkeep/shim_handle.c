@@ -767,12 +767,10 @@ MIGRATE_FUNC_BODY(handle)
                                            sizeof(struct shim_handle));
 
     if (ENTRY_JUST_CREATED(off)) {
-        ADD_OFFSET(sizeof(struct shim_handle));
-        ADD_FUNC_ENTRY(*offset);
-        ADD_ENTRY(SIZE, sizeof(struct shim_handle));
+        off = ADD_OFFSET(sizeof(struct shim_handle));
 
         if (!dry) {
-            new_hdl = (struct shim_handle *) (base + *offset);
+            new_hdl = (struct shim_handle *) (base + off);
             memcpy(new_hdl, hdl, sizeof(struct shim_handle));
 
             if (fs && fs->fs_ops && fs->fs_ops->checkout)
@@ -785,16 +783,20 @@ MIGRATE_FUNC_BODY(handle)
             clear_lock(new_hdl->lock);
         }
 
+        DO_MIGRATE_IN_MEMBER(qstr, hdl, new_hdl, path, false);
+        DO_MIGRATE_IN_MEMBER(qstr, hdl, new_hdl, uri,  false);
+
+        ADD_FUNC_ENTRY(off);
+        ADD_ENTRY(SIZE, sizeof(struct shim_handle));
         ADD_ENTRY(PALHDL, new_hdl->pal_handle ?
                   *offset + offsetof(struct shim_handle, pal_handle) : 0);
-    } else if (!dry)
+
+    } else if (!dry) {
         new_hdl = (struct shim_handle *) (base + off);
+    }
 
     if (new_hdl && objp)
         *objp = (void *) new_hdl;
-
-    DO_MIGRATE_IN_MEMBER(qstr, hdl, new_hdl, path, false);
-    DO_MIGRATE_IN_MEMBER(qstr, hdl, new_hdl, uri,  false);
 
     if (new_hdl)
         assert(new_hdl->uri.len < 1024);

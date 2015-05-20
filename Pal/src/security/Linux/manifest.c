@@ -6,16 +6,58 @@
 #define __GNUC__ 1
 #endif
 
+#ifdef IN_PAL
+# include "pal_defs.h"
+# include "pal_linux_defs.h"
+# include "pal.h"
+# include "pal_internal.h"
+# include "pal_linux.h"
+# include "pal_debug.h"
+# include "pal_error.h"
+#else
+# include "internal.h"
+#endif
+
+#include "graphene.h"
+#include "pal_security.h"
+#include "api.h"
+
 #include <linux/unistd.h>
 #include <asm/mman.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 
-#include "../../security/Linux/utils.h"
-#include "graphene.h"
+static inline int is_file_uri (const char * uri)
+{
+    return uri[0] == 'f' && uri[1] == 'i' && uri[2] == 'l' && uri[3] == 'e' &&
+           uri[4] == ':';
+}
+
+static inline const char * file_uri_to_path (const char * uri, int len)
+{
+    char * path;
+
+    if (len == 5) {
+        path = malloc(2);
+        if (!path)
+            return NULL;
+
+        path[0] = '.';
+        path[1] = 0;
+        return path;
+    }
+
+    path = malloc(len - 4);
+    if (!path)
+        return NULL;
+
+    memcpy(path, uri + 5, len - 4);
+    return path;
+}
+
 
 static const char * __get_path (struct config_store * config, const char * key)
 {
@@ -87,13 +129,13 @@ int get_fs_paths (struct config_store * config, const char *** paths)
 
     char key[CONFIG_MAX], * k = keys, * n;
 
-    fast_strcpy(key, "fs.mount.other.", 15);
+    memcpy(key, "fs.mount.other.", 15);
 
     for (int i = 0 ; i < nkeys ; i++) {
         for (n = k ; *n ; n++);
         int len = n - k;
-        fast_strcpy(key + 15, k, len);
-        fast_strcpy(key + 15 + len, ".uri", 4);
+        memcpy(key + 15, k, len);
+        memcpy(key + 15 + len, ".uri", 5);
 
         const char * path = __get_path(config, key);
         if (path)
@@ -123,7 +165,7 @@ int get_net_rules (struct config_store * config,
     int nrules = 0;
     char key[CONFIG_MAX], * k = keys, * n;
 
-    fast_strcpy(key, "net.rules.", 10);
+    memcpy(key, "net.rules.", 10);
 
     for (int i = 0 ; i < nkeys ; i++) {
         struct graphene_net_policy * r = &rules[nrules];
@@ -131,7 +173,7 @@ int get_net_rules (struct config_store * config,
 
         for (n = k ; *n ; n++);
         int len = n - k;
-        fast_strcpy(key + 10, k, len);
+        memcpy(key + 10, k, len + 1);
         key[10 + len] = 0;
 
         int cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
@@ -224,12 +266,21 @@ int get_net_rules (struct config_store * config,
         c++;
 
         r->family = family;
-        if (inet_pton(family, bind_addr, &r->local.addr) < 0)
-            goto next;
         r->local.port_begin = bind_port_begin;
         r->local.port_end = bind_port_end;
-        if (inet_pton(family, conn_addr, &r->peer.addr) < 0)
-            goto next;
+
+        if (family == AF_INET) {
+            if (inet_pton4(bind_addr, &r->local.addr) < 0)
+                goto next;
+            if (inet_pton4(conn_addr, &r->peer.addr) < 0)
+                goto next;
+        } else {
+            if (inet_pton6(bind_addr, &r->local.addr) < 0)
+                goto next;
+            if (inet_pton6(conn_addr, &r->peer.addr) < 0)
+                goto next;
+        }
+
         r->peer.port_begin = conn_port_begin;
         r->peer.port_end = conn_port_end;
         nrules++;
@@ -239,6 +290,25 @@ next:
 
     *net_rules = rules;
     return nrules;
+}
+
+void set_mcast_rules (struct graphene_net_policy * rules,
+                      unsigned short mcast_port)
+{
+    memset(rules, 0, sizeof(struct graphene_net_policy) * 2);
+
+    rules[0].family = AF_INET;
+    rules[0].local.port_begin = mcast_port;
+    rules[0].local.port_end = mcast_port;
+    rules[0].peer.port_begin = 0;
+    rules[0].peer.port_end = 65535;
+
+    rules[1].family = AF_INET;
+    rules[1].local.port_begin = 0;
+    rules[1].local.port_end = 65535;
+    inet_pton4(MCAST_GROUP, &rules[1].peer.addr);
+    rules[1].peer.port_begin = mcast_port;
+    rules[1].peer.port_end = mcast_port;
 }
 
 int ioctl_set_graphene (struct config_store * config, int ndefault,

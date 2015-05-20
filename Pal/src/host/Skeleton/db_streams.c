@@ -33,11 +33,12 @@
 
 void _DkPrintConsole (const void * buf, int size)
 {
+    /* need to be implemented */
 }
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
-int _DkStreamUnmap (void * addr, size_t size)
+int _DkStreamUnmap (void * addr, int size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -51,7 +52,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
 
 /* _DkReceiveHandle for internal use. Receive and return a PAL_HANDLE over the
    given PAL_HANDLE else return negative value. */
-int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE cargo)
+int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

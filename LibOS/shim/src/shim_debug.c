@@ -121,11 +121,10 @@ MIGRATE_FUNC_BODY(gdb_map)
     struct gdb_link_map *newm = NULL;
 
     while (m) {
-        ADD_OFFSET(sizeof(struct gdb_link_map));
-        ADD_FUNC_ENTRY(*offset);
+        unsigned long off = ADD_OFFSET(sizeof(struct gdb_link_map));
 
         if (!dry) {
-            newm = (struct gdb_link_map *) (base + *offset);
+            newm = (struct gdb_link_map *) (base + off);
             memcpy(newm, m, sizeof(struct gdb_link_map));
             newm->l_prev = newm->l_next = NULL;
         }
@@ -137,6 +136,7 @@ MIGRATE_FUNC_BODY(gdb_map)
             memcpy(newm->l_name, m->l_name, strlen(m->l_name) + 1);
         }
 
+        ADD_FUNC_ENTRY(off);
         m = m->l_next;
     }
 }

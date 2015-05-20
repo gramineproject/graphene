@@ -123,7 +123,6 @@ struct link_map {
     enum object_type l_type;
 
 #define MAX_LOADCMDS    4
-
     struct loadcmd {
         ElfW(Addr) mapstart, mapend, dataend, allocend;
         off_t mapoff;
@@ -137,6 +136,14 @@ struct link_map {
         int prot;
         struct textrel * next;
     } * textrels;
+
+#define MAX_LINKSYMS    32
+    struct linksym {
+        void * rel;
+        ElfW(Sym) * sym;
+        void * reloc;
+    } linksyms[MAX_LINKSYMS];
+    int nlinksyms;
 };
 
 struct link_map * lookup_symbol (const char * undef_name, ElfW(Sym) ** ref);
@@ -196,7 +203,7 @@ static int protect_page (struct link_map * l, void * addr, size_t size)
     void * end = ALIGN_UP(addr + size);
 
     if (!DkVirtualMemoryProtect(start, end - start,
-                                PAL_PROT_READ|PAL_PROT_WRITE))
+                                PAL_PROT_READ|PAL_PROT_WRITE|prot))
         return -PAL_ERRNO;
 
     if (!c)
@@ -372,7 +379,7 @@ __map_elf_object (struct shim_handle * file,
         errstring = "shared object has to be backed by file";
         errval = -EINVAL;
 call_lose:
-        debug("loading %s: %s (%e)\n", l->l_name, errstring, errval);
+        debug("loading %s: %s\n", l->l_name, errstring);
         return NULL;
     }
 
@@ -790,7 +797,8 @@ static int __remove_elf_object (struct link_map * l)
 
 static int __free_elf_object (struct link_map * l)
 {
-    debug("removing %s as runtime object at %p\n", l->l_name, l->l_map_start);
+    debug("removing %s as runtime object loaded at %p\n", l->l_name,
+          l->l_map_start);
 
     struct loadcmd *c = l->loadcmds;
 
@@ -1044,7 +1052,7 @@ int load_elf_object (struct shim_handle * file, void * addr, size_t mapped)
         return -EINVAL;
 
     if (mapped)
-        debug("adding %s as runtime object at %p-%p\n",
+        debug("adding %s as runtime object loaded at %p-%p\n",
               file ? qstrgetstr(&file->uri) : "(unknown)", addr, addr + mapped);
     else
         debug("loading %s as runtime object at %p\n",
@@ -1153,7 +1161,7 @@ int reload_elf_object (struct shim_handle * file)
     if (!map)
         return -ENOENT;
 
-    debug("reloading %s as runtime object at %p-%p\n",
+    debug("reloading %s as runtime object loaded at %p-%p\n",
           qstrgetstr(&file->uri), map->l_map_start, map->l_map_end);
 
     return __load_elf_object(file, NULL, OBJECT_REMAP, map);
@@ -1234,7 +1242,8 @@ do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
     int len = strlen(undef_name);
 
     /* Nested routine to check whether the symbol matches.  */
-    ElfW(Sym) * check_match (ElfW(Sym) * sym) {
+    ElfW(Sym) * check_match (ElfW(Sym) * sym)
+    {
         unsigned int stt = ELFW(ST_TYPE) (sym->st_info);
 
         if (__builtin_expect ((sym->st_value == 0 /* No value.  */
@@ -1376,10 +1385,12 @@ static int do_relocate_object (struct link_map * l)
 {
     int ret = 0;
 
-    ELF_DYNAMIC_RELOCATE(l);
+    if (l->l_resolved)
+        ELF_REDO_DYNAMIC_RELOCATE(l);
+    else
+        ELF_DYNAMIC_RELOCATE(l);
 
-    ret = reprotect_map(l);
-    if (ret < 0)
+    if ((ret = reprotect_map(l)) < 0)
         return ret;
 
     return 0;
@@ -1550,25 +1561,24 @@ int init_loader (void)
     struct link_map * exec_map = __search_map_by_handle(exec);
 
     if (!exec_map) {
-        void * addr = (void *) PAL_CB(executable_begin);
-        void * addr_end = (void *) PAL_CB(executable_end);
-
-        if (!addr || !addr_end) {
-            ret = -EACCES;
-            goto out;
-        }
-
-        if ((ret = load_elf_object(exec, addr, addr_end - addr)) < 0)
+        if ((ret = load_elf_object(exec,
+                            (void *) PAL_CB(executable_range.start),
+                            PAL_CB(executable_range.end) -
+                            PAL_CB(executable_range.start))) < 0)
             goto out;
 
         exec_map = __search_map_by_handle(exec);
     }
 
-    if (!interp_map && __need_interp(exec_map))
-        ret = __load_interp_object(exec_map);
+    if (!interp_map
+        && __need_interp(exec_map)
+        && (ret = __load_interp_object(exec_map)) < 0)
+        goto out;
+
+    ret = 0;
 out:
     put_handle(exec);
-    return 0;
+    return ret;
 }
 
 int register_library (const char * name, unsigned long load_address)
@@ -1610,7 +1620,6 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
     auxp[5].a_type = AT_NULL;
 
-    int ret = 0;
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 
 #if defined(__x86_64__)
@@ -1628,15 +1637,8 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
 #else
 # error "architecture not supported"
 #endif
-    ret = 0;
-#if 0
-    int (*main_entry) (int, const char **, const char **, ElfW(auxv_t) *) =
-        (void *) exec_map->l_entry;
-
-    ret = main_entry(argc, argp, argp + argc + 1, auxp);
-#endif
-    shim_do_exit(ret);
-    return ret;
+    shim_do_exit(0);
+    return 0;
 }
 
 DEFINE_MIGRATE_FUNC(library)
@@ -1658,18 +1660,17 @@ MIGRATE_FUNC_BODY(library)
     int sonamelen = map->l_soname ? strlen(map->l_soname) : 0;
 
     if (ENTRY_JUST_CREATED(off)) {
-        ADD_OFFSET(sizeof(struct link_map));
-        ADD_FUNC_ENTRY(*offset);
-        ADD_ENTRY(SIZE, sizeof(struct link_map));
+        off = ADD_OFFSET(sizeof(struct link_map));
 
         if (!dry) {
-            new_map = (struct link_map *) (base + *offset);
+            new_map = (struct link_map *) (base + off);
             memcpy(new_map, map, sizeof(struct link_map));
 
             get_handle(file);
             new_map->l_file = file;
             new_map->l_prev = NULL;
             new_map->l_next = NULL;
+            new_map->textrels = NULL;
         }
 
         if (map->l_ld) {
@@ -1707,6 +1708,10 @@ MIGRATE_FUNC_BODY(library)
                 new_map->l_soname = soname;
             }
         }
+
+        ADD_FUNC_ENTRY(off);
+        ADD_ENTRY(SIZE, sizeof(struct link_map));
+
     } else if (!dry) {
         new_map = (struct link_map *) (base + off);
     }
@@ -1715,6 +1720,12 @@ MIGRATE_FUNC_BODY(library)
         *objp = (void *) new_map;
 }
 END_MIGRATE_FUNC
+
+DEFINE_PROFILE_CATAGORY(inside_resume_library,  resume_func);
+DEFINE_PROFILE_INTERVAL(clean_up_library,       inside_resume_library);
+DEFINE_PROFILE_INTERVAL(search_library_vma,     inside_resume_library);
+DEFINE_PROFILE_INTERVAL(relocate_library,       inside_resume_library);
+DEFINE_PROFILE_INTERVAL(add_or_replace_library, inside_resume_library);
 
 RESUME_FUNC_BODY(library)
 {
@@ -1731,10 +1742,14 @@ RESUME_FUNC_BODY(library)
         RESUME_REBASE(map->l_info);
     }
 
+    BEGIN_PROFILE_INTERVAL();
+
     struct link_map * old_map = __search_map_by_name(map->l_name);
 
     if (old_map)
         remove_r_debug((void *) old_map->l_addr);
+
+    SAVE_PROFILE_INTERVAL(clean_up_library);
 
     struct shim_vma * vma = NULL;
 
@@ -1752,15 +1767,20 @@ RESUME_FUNC_BODY(library)
     }
 
     put_vma(vma);
+    SAVE_PROFILE_INTERVAL(search_library_vma);
 
     if (internal_map && (!map->l_resolved ||
-        map->l_resolved_map != internal_map->l_addr))
+        map->l_resolved_map != internal_map->l_addr)) {
         do_relocate_object(map);
+        SAVE_PROFILE_INTERVAL(relocate_library);
+    }
 
     if (old_map)
         replace_link_map(map, old_map);
     else
         add_link_map(map);
+
+    SAVE_PROFILE_INTERVAL(add_or_replace_library);
 
 #ifdef DEBUG_RESUME
     debug("library: loaded at %p,name=%s\n", map->l_addr, map->l_name);

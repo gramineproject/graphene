@@ -1,11 +1,16 @@
 MAKEFLAGS += --check-symlink-times
 
-SRC_DIRS := src
-TESTS_DIRS := test
-DIRS := ${SRC_DIRS} ${TESTS_DIRS}
+SYS ?= $(shell gcc -dumpmachine)
+export SYS
 
-all debug clean: ${DIRS}
-	for d in ${DIRS}; \
+targets = all debug clean
+ifeq ($(SYS),x86_64-linux-gnu)
+targets += pack
+endif
+
+.PHONY: $(targets)
+$(targets): src test
+	for d in src test; \
 	do \
 		make $@ -C $$d; \
 	done

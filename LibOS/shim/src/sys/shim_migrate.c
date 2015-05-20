@@ -188,7 +188,7 @@ int join_checkpoint (struct shim_thread * cur, ucontext_t * context)
 
     ret = finish_checkpoint();
     if (ret < 0)
-        debug("failed creating checkpoint: %e\n", -ret);
+        debug("failed creating checkpoint\n");
     else
         debug("finish checkpointing, time to wake up all threads\n");
 

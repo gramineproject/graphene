@@ -151,8 +151,8 @@ static int socket_hstat (struct shim_handle * hdl, struct stat * stat)
 
     memset(stat, 0, sizeof(struct stat));
 
-    stat->st_ino    = (ino_t) attr.file_id;
-    stat->st_size   = (off_t) attr.size;
+    stat->st_ino    = 0;
+    stat->st_size   = (off_t) attr.pending_size;
     stat->st_mode   = S_IFSOCK;
 
     return 0;
@@ -225,7 +225,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
     }
 
     if (poll_type == FS_POLL_SZ) {
-        ret = attr.size;
+        ret = attr.pending_size;
         goto out;
     }
 

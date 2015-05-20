@@ -1,4 +1,7 @@
-subdirs = inline native apps
+subdirs = inline native benchmark regression apps
+
+SYS ?= $(shell gcc -dumpmachine)
+export SYS
 
 CC = gcc
 CXX = g++
@@ -14,15 +17,12 @@ LDFLAGS-debug = $(LDFLAGS) -L$(level)../src -L$(level)../../../Pal/src \
 libs = $(level)../src/libsysdb_debug.so $(level)../../../Pal/src/libpal.so
 glibc_dir = $(level)../../build
 
-all: $(targets) $(if $(level),,build-subdirs)
+all: $(target) $(if $(level),,build-subdirs)
 
 debug: DEBUG=debug
 debug: CC=gcc -g
 debug: CXX=g++ -g
-debug: $(targets) $(if $(level),,build-subdirs)
-
-$(subdirs): %:
-	cd $@ && make
+debug: $(target) $(if $(level),,build-subdirs)
 
 manifest: manifest.template
 	rm -rf $@
@@ -34,26 +34,21 @@ pal:
 pal_sec:
 	[ ! -f $(level)../../../Pal/src/pal_sec ] || ln -sf $(level)../../../Pal/src/pal_sec pal_sec
 
-# Regression Test
-rtest:	$(rtarget)
-	for d in $(rtarget); \
-	do \
-		make run-$$d || return $$?; \
-	done
-
-.PHONY: test rtest clean
-
-$(patsubst %,run-%,$(rtarget)): run-%: %
-	@echo [ run $< $(value arg-$<) ]
-	@./libpal.so $< $(value arg-$<) > OUTPUT 2> ERROR
-	@$(value test-$<)
-	@rm -rf OUTPUT ERROR
+.PHONY: test clean
 
 clean: $(clean-extra) $(if $(level),,clean-subdirs)
-	rm -rf $(targets)
+	rm -rf $(target)
 
 build-subdirs:
 	for f in $(subdirs); do (cd $$f; make $(DEBUG); cd ..); done
+
+ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(level),)
+.PHONY: pack
+pack:
+	for f in $(subdirs); do (cd $$f; make pack; cd ..); done
+endif
+endif
 
 clean-subdirs:
 	for f in $(subdirs); do (cd $$f; make clean; cd ..); done

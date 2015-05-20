@@ -33,9 +33,6 @@
 #include "pal_internal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
-#include "pal_security.h"
-#include "graphene.h"
-#include "graphene-ipc.h"
 #include "api.h"
 
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
@@ -46,7 +43,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
 
 void _DkProcessExit (int exitcode)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    /* need to be implemented */
 }
 
 int _DkProcessSandboxCreate (const char * manifest, int flags)

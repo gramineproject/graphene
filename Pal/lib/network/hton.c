@@ -17,7 +17,7 @@
    02111-1307 USA.  */
 
 #include "api.h"
-#include <endian.h>
+#include <host_endian.h>
 
 uint32_t __htonl (uint32_t x)
 {

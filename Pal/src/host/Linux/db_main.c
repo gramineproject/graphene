@@ -37,7 +37,7 @@
 #include <asm/mman.h>
 #include <asm/ioctls.h>
 #include <fcntl.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
 #include <sys/types.h>
@@ -61,16 +61,18 @@ asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".asciz \"" XSTRINGIFY(GDB_SCRIPT) "\"\r\n"
      ".popsection\r\n");
 
-struct pal_linux_config pal_linux_config;
+struct pal_linux_state linux_state;
+struct pal_sec pal_sec;
 
-static size_t pagesz = PRESET_PAGESIZE;
+static int pagesz = PRESET_PAGESIZE;
 static uid_t uid;
 static gid_t gid;
 #if USE_VDSO_GETTIME == 1
 static ElfW(Addr) sysinfo_ehdr;
 #endif
 
-static void pal_init_bootstrap (void * args, int * pargc,
+static void pal_init_bootstrap (void * args, const char ** pal_name,
+                                int * pargc,
                                 const char *** pargv,
                                 const char *** penvp)
 {
@@ -121,6 +123,7 @@ static void pal_init_bootstrap (void * args, int * pargc,
 #endif
         }
 
+    *pal_name = argv[0];
     argv++;
     argc--;
     *pargc = argc;
@@ -138,389 +141,269 @@ unsigned long _DkGetAllocationAlignment (void)
     return pagesz;
 }
 
-static PAL_HANDLE try_open_runnable (const char * name, bool try_path,
-                                     const char ** uri)
+void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
 {
-    PAL_HANDLE handle = NULL;
-    /* Try to open the manifest file specified by the first argument */
-    if (_DkStreamOpen(&handle, name, PAL_ACCESS_RDONLY, 0, 0, 0) == 0) {
-        if (uri)
-            *uri = name;
-        return handle;
+    void * end_addr = (void *) ALLOC_ALIGNDOWN(TEXT_START);
+    void * start_addr = pal_sec.user_addr_base ? :
+                        (void *) USER_ADDRESS_LOWEST;
+
+    assert(ALLOC_ALIGNED(start_addr) && ALLOC_ALIGNED(end_addr));
+
+    while (1) {
+        if (start_addr >= end_addr)
+            init_fail(PAL_ERROR_NOMEM, "no user memory available");
+
+        void * mem = (void *) ARCH_MMAP(start_addr,
+                                        pal_state.alloc_align,
+                                        PROT_NONE,
+                                        MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
+                                        -1, 0);
+        if (!IS_ERR_P(mem)) {
+            INLINE_SYSCALL(munmap, 2, mem, pal_state.alloc_align);
+            if (mem == start_addr)
+                break;
+        }
+
+        start_addr = (void *) ((unsigned long) start_addr << 1);
     }
 
-    if (!try_path)
-        return NULL;
-
-    /* might be a real path, let's try open it */
-    int fd = INLINE_SYSCALL(open, 3, name, O_RDONLY|O_CLOEXEC, 0);
-
-    if (IS_ERR(fd))
-        return NULL;
-
-    int len = strlen(name);
-    handle = malloc(HANDLE_SIZE(file) + len + 1);
-    SET_HANDLE_TYPE(handle, file);
-    handle->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
-    handle->file.fd = fd;
-    char * path = (void *) handle + HANDLE_SIZE(file);
-    memcpy(path, name, len + 1);
-    handle->file.realpath = path;
-
-    if (uri) {
-        char * new_uri = malloc(len + 6);
-        memcpy(new_uri, "file:", 5);
-        memcpy(new_uri + 5, name, len + 1);
-        *uri = new_uri;
-    }
-
-    return handle;
+    *end   = (PAL_PTR) end_addr - USER_ADDRESS_RESERVED;
+    *start = (PAL_PTR) start_addr;
 }
 
-int read_shebang (const char ** argv)
+PAL_NUM _DkGetProcessId (void)
 {
-    /* must be a shebang */
-    int fd = INLINE_SYSCALL(open, 3, *argv, O_RDONLY|O_CLOEXEC, 0);
+    return linux_state.process_id;
+}
 
-    if (IS_ERR(fd)) {
-bad_shebang:
-        INLINE_SYSCALL(close, 1, fd);
-        return -PAL_ERROR_INVAL;
-    }
-
-    /* the maximun length for shebang path is 80 chars */
-    char buffer[80];
-    int bytes = INLINE_SYSCALL(read, 3, fd, buffer, 80);
-    if (IS_ERR(bytes))
-        goto bad_shebang;
-
-    /* the format of shebang should be '#!/absoulte/path/of/pal' */
-    if (buffer[0] != '#' || buffer[1] != '!')
-        goto bad_shebang;
-
-    char * p = &buffer[2];
-    while (*p && *p != ' ' && *p != '\r' && *p != '\n')
-        p++;
-
-    int len = strlen(*argv);
-    PAL_HANDLE manifest = malloc(HANDLE_SIZE(file) + len + 1);
-    SET_HANDLE_TYPE(manifest, file);
-    manifest->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
-    manifest->file.fd = fd;
-    char * path = (void *) manifest + HANDLE_SIZE(file);
-    memcpy(path, *argv, len + 1);
-    manifest->file.realpath = path;
-    char * uri = malloc(len + 6);
-    memcpy(uri, "file:", 5);
-    memcpy(uri + 5, *argv, len + 1);
-    pal_config.manifest = uri;
-    pal_config.manifest_handle = manifest;
-
+PAL_NUM _DkGetHostId (void)
+{
     return 0;
 }
 
 #include "elf-x86_64.h"
 #include "dynamic_link.h"
 
-extern void setup_pal_map (const char * realname, ElfW(Dyn) ** dyn,
-                           ElfW(Addr) addr);
-
-void pal_linux_main (void * args)
-{
-    int argc;
-    const char ** argv, ** envp;
-
-    /* parse argc, argv, envp and auxv */
-    pal_init_bootstrap(args, &argc, &argv, &envp);
-
-    ElfW(Addr) pal_addr = elf_machine_load_address();
-    ElfW(Dyn) * pal_dyn[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM +
-                        DT_EXTRANUM + DT_VALNUM + DT_ADDRNUM];
-    memset(pal_dyn, 0, sizeof(pal_dyn));
-    elf_get_dynamic_info((void *) pal_addr + elf_machine_dynamic(), pal_dyn,
-                         pal_addr);
-    ELF_DYNAMIC_RELOCATE(pal_dyn, pal_addr);
-
-    allocsize  = PRESET_PAGESIZE;
-    allocshift = PRESET_PAGESIZE - 1;
-    allocmask  = ~(PRESET_PAGESIZE - 1);
-    init_slab_mgr();
-
-    setup_pal_map(XSTRINGIFY(SRCDIR) "/pal", pal_dyn, pal_addr);
-
-    /* jump to main function */
-    pal_main(argc, argv, envp);
-}
-
-int create_domain_dir (void)
-{
-    int ret = 0;
-    const char * path;
-
-    ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_PIPEDIR), 0777);
-
-    if (IS_ERR(ret) && ERRNO(ret) != EEXIST) {
-        if (ERRNO(ret) == ENOENT) {
-            ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_TEMPDIR), 0777);
-            if (!IS_ERR(ret)) {
-                INLINE_SYSCALL(chmod, 2, GRAPHENE_TEMPDIR, 0777);
-                ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_PIPEDIR), 0777);
-            }
-        }
-
-        if (IS_ERR(ret)) {
-            printf("Cannot create directory %s (%e), "
-                   "please check permission\n", path, ERRNO(ret));
-            return -PAL_ERROR_DENIED;
-        }
-    }
-
-    if (!IS_ERR(ret))
-        INLINE_SYSCALL(chmod, 2, GRAPHENE_PIPEDIR, 0777);
-
-    char * pipedir = __alloca(sizeof(GRAPHENE_PIPEDIR) + 10);
-    unsigned int id;
-
-    do {
-        if (!getrand(&id, sizeof(unsigned int))) {
-            printf("Unable to generate random numbers\n");
-            return -PAL_ERROR_DENIED;
-        }
-
-        snprintf(pipedir, sizeof(GRAPHENE_PIPEDIR) + 10,
-                 GRAPHENE_PIPEDIR "/%08x", id);
-
-        ret = INLINE_SYSCALL(mkdir, 2, pipedir, 0700);
-
-        if (IS_ERR(ret) && ERRNO(ret) != -EEXIST) {
-            printf("Cannot create directory %s (%e), "
-                   "please fix permission\n", pipedir, ERRNO(ret));
-            return -PAL_ERROR_DENIED;
-        }
-    } while (IS_ERR(ret));
-
-    pal_sec_info.domain_id = id;
-    return 0;
-}
+void setup_pal_map (struct link_map * map);
 
 #if USE_VDSO_GETTIME == 1
 void setup_vdso_map (ElfW(Addr) addr);
 #endif
 
-static int loader_filter (const char * key, int len)
+static struct link_map pal_map;
+
+void pal_linux_main (void * args)
 {
-    return memcmp(key, "loader.", 7);
-}
+    const char * pal_name = NULL;
+    PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
+    const char ** argv, ** envp;
+    int argc;
+    PAL_HANDLE first_thread;
 
-int _DkInitHost (int * pargc, const char *** pargv)
-{
-    int argc = *pargc;
-    const char ** argv = *pargv, * first_argv = NULL;
-    int ret = 0;
+    unsigned long start_time = _DkSystemTimeQueryEarly();
 
-    struct pal_proc_args proc_args;
-    void * proc_data;
-    bool in_child = false;
+    /* parse argc, argv, envp and auxv */
+    pal_init_bootstrap(args, &pal_name, &argc, &argv, &envp);
 
-    ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, &proc_args,
-                         sizeof(proc_args));
+    pal_map.l_addr = elf_machine_load_address();
+    pal_map.l_name = pal_name;
+    elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
+                         pal_map.l_info, pal_map.l_addr);
 
-    if (IS_ERR(ret) && ERRNO(ret) != EBADF)
-        return -PAL_ERROR_DENIED;
+    ELF_DYNAMIC_RELOCATE(&pal_map);
 
-    if (!IS_ERR(ret)) {
-        in_child = true;
-        proc_data = __alloca(proc_args.data_size);
-        ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_data,
-                             proc_args.data_size);
-        if (IS_ERR(ret) || ret < proc_args.data_size)
-            return -PAL_ERROR_DENIED;
-    }
+    init_slab_mgr(pagesz);
 
-    if (!in_child && !argc) {
-        printf("USAGE: libpal.so [executable|manifest] args ...\n");
-        return -PAL_ERROR_INVAL;
-    }
-
-    pal_linux_config.pid = INLINE_SYSCALL(getpid, 0);
-
-    pal_config.user_addr_end = (void *)
-                    ALLOC_ALIGNDOWN(pal_config.lib_text_start);
-
-    /* look for lowest mappable address, starting at 0x400000 */
-    if (pal_sec_info.user_addr_base) {
-        pal_config.user_addr_start = pal_sec_info.user_addr_base;
-    } else {
-        void * base = (void *) 0x400000;
-        for (; base < pal_config.user_addr_end ;
-             base = (void *) ((unsigned long) base << 4)) {
-            void * mem = (void *) ARCH_MMAP(base, allocsize,
-                                            PROT_NONE,
-                                            MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
-                                            -1, 0);
-            if (IS_ERR_P(mem))
-                continue;
-            INLINE_SYSCALL(munmap, 2, mem, allocsize);
-            if (mem == base)
-                break;
-        }
-
-        pal_sec_info.user_addr_base = pal_config.user_addr_start = base;
-    }
-
-    signal_setup();
-
-    if (in_child) {
-        if ((ret = init_child_process(&proc_args, proc_data)) < 0)
-            return ret;
-
-        goto read_manifest;
-    }
-
-    /* occupy PROC_INIT_FD so no one will use it */
-    INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
-
-    if (!(ret = read_shebang(argv)) < 0)
-        goto read_manifest;
-
-    PAL_HANDLE file = NULL;
-    const char * file_uri = NULL;
-
-    if (argv[0][0] != '-') {
-        file = try_open_runnable(argv[0], true, &file_uri);
-        if (!file)
-            return -PAL_ERROR_DENIED;
-
-        first_argv = argv[0];
-        argc--;
-        argv++;
-
-        /* the file laoded might be a executable */
-        if (check_elf_object(file)) {
-            pal_config.manifest        = file_uri;
-            pal_config.manifest_handle = file;
-            goto read_manifest;
-        }
-
-        pal_config.exec        = file_uri;
-        pal_config.exec_handle = file;
-
-        const char * manifest_uri;
-        char manifest_path[80];
-        snprintf(manifest_path, 80, "%s.manifest", pal_config.exec);
-
-        if ((file = try_open_runnable(manifest_path, false, &manifest_uri))) {
-            pal_config.manifest = manifest_uri;
-            pal_config.manifest_handle = file;
-            goto read_manifest;
-        }
-    }
-
-    if ((file = try_open_runnable("file:manifest", false, NULL))) {
-        pal_config.manifest = "file:manifest";
-        pal_config.manifest_handle = file;
-        goto read_manifest;
-    }
-
-read_manifest:
-    if (!pal_config.manifest_handle) {
-        printf("Can't fine any manifest, going to run without one\n");
-        goto done_init;
-    }
-
-    PAL_STREAM_ATTR attr;
-
-    if ((ret = _DkStreamAttributesQuerybyHandle(pal_config.manifest_handle,
-                                                &attr)) < 0)
-        return ret;
-
-    pal_config.user_addr_end -= ALLOC_ALIGNUP(attr.size);
-    void * cfg_addr = pal_config.user_addr_end;
-    size_t cfg_size = attr.size;
-
-    if ((ret = _DkStreamMap(pal_config.manifest_handle, &cfg_addr,
-                            PAL_PROT_READ, 0,
-                            ALLOC_ALIGNUP(cfg_size))) < 0)
-        return ret;
-
-    struct config_store * root_config = malloc(sizeof(struct config_store));
-    root_config->raw_data = cfg_addr;
-    root_config->raw_size = cfg_size;
-    root_config->malloc = malloc;
-    root_config->free = free;
-
-    const char * errstring = NULL;
-
-    if ((ret = read_config(root_config, loader_filter, &errstring)) < 0) {
-        printf("Can't read manifest: %s\n", errstring);
-        return -PAL_ERROR_INVAL;
-    }
-
-    pal_config.root_config = root_config;
-
-    char cfgbuf[CONFIG_MAX];
-    int len;
-
-    if (!pal_linux_config.noexec && !pal_config.exec_handle) {
-        /* find executable in the manifest */
-        if ((len = get_config(root_config, "loader.exec", cfgbuf,
-                              CONFIG_MAX)) > 0) {
-            if (!(file = try_open_runnable(cfgbuf, false, NULL)))
-                return -PAL_ERROR_DENIED;
-
-            if ((ret = check_elf_object(file)) < 0)
-                return ret;
-
-            pal_config.exec = remalloc(cfgbuf, len + 1);
-            pal_config.exec_handle = file;
-        }
-    }
-
-    if (!in_child) {
-        if ((len = get_config(root_config, "loader.execname", cfgbuf,
-                              CONFIG_MAX)) > 0)
-            first_argv = remalloc(cfgbuf, len + 1);
-
-        if (!first_argv)
-            first_argv = pal_config.exec;
-    }
-
-done_init:
-    if (!in_child && !pal_sec_info.domain_id) {
-        if ((ret = create_domain_dir()) < 0)
-            return ret;
-    }
-
-    PAL_HANDLE thread = malloc(HANDLE_SIZE(thread));
-    SET_HANDLE_TYPE(thread, thread);
-    thread->thread.tid = pal_linux_config.pid;
-    __pal_control.first_thread = thread;
+    setup_pal_map(&pal_map);
 
 #if USE_VDSO_GETTIME == 1
     if (sysinfo_ehdr)
         setup_vdso_map(sysinfo_ehdr);
 #endif
 
-    if (!pal_sec_info.mcast_port) {
-        unsigned short mcast_port;
-        getrand(&mcast_port, sizeof(unsigned short));
-        if (mcast_port < 1024)
-            mcast_port += 1024;
-        pal_sec_info.mcast_port = mcast_port > 1024 ? mcast_port :
-                                  mcast_port + 1204;
+    pal_state.start_time = start_time;
+    init_child_process(&parent, &exec, &manifest);
+
+    if (pal_sec.current_pid)
+        linux_state.pid = pal_sec.current_pid;
+    else
+        linux_state.pid = INLINE_SYSCALL(getpid, 0);
+
+    linux_state.uid = uid;
+    linux_state.gid = gid;
+    linux_state.process_id = (start_time & (~0xffff)) | linux_state.pid;
+
+    if (!linux_state.parent_process_id)
+        linux_state.parent_process_id = linux_state.process_id;
+
+    if (parent)
+        goto done_init;
+
+    /* check if it's a shebang */
+    int fd = INLINE_SYSCALL(open, 3, argv[0], O_RDONLY|O_CLOEXEC, 0);
+    if (IS_ERR(fd))
+        goto done_init;
+
+    int len = strlen(argv[0]);
+    PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len + 1);
+    SET_HANDLE_TYPE(file, file);
+    file->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    file->file.fd = fd;
+    char * path = (void *) file + HANDLE_SIZE(file);
+    memcpy(path, argv[0], len + 1);
+    file->file.realpath = path;
+
+    if (!check_elf_object(file)) {
+        exec = file;
+        goto done_init;
     }
 
-    __pal_control.broadcast_stream =
-                _DkBroadcastStreamOpen(pal_sec_info.mcast_port);
+#if 0
+    /* the maximun length for shebang path is 80 chars */
+    char buffer[80];
+    int bytes = INLINE_SYSCALL(read, 3, fd, buffer, 80);
+    if (IS_ERR(bytes))
+        goto done_init;
 
-    if (first_argv) {
-        argc++;
-        argv--;
-        argv[0] = first_argv;
+    /* the format of shebang should be '#!/absoulte/path/of/pal' */
+    if (buffer[0] != '#' || buffer[1] != '!')
+        goto done_init;
+#endif
+
+    manifest = file;
+
+done_init:
+    first_thread = malloc(HANDLE_SIZE(thread));
+    SET_HANDLE_TYPE(first_thread, thread);
+    first_thread->thread.tid = linux_state.pid;
+
+    signal_setup();
+
+    /* jump to main function */
+    pal_main(linux_state.parent_process_id,
+             (void *) pal_map.l_addr, pal_name, argc, argv, envp,
+             parent, first_thread, exec, manifest);
+}
+
+/* the following code is borrowed from CPUID */
+
+#define WORD_EAX  0
+#define WORD_EBX  1
+#define WORD_ECX  2
+#define WORD_EDX  3
+#define WORD_NUM  4
+
+static void cpuid (int cpuid_fd, unsigned int reg,
+                   unsigned int words[], unsigned int ecx)
+{
+  asm("cpuid"
+      : "=a" (words[WORD_EAX]),
+        "=b" (words[WORD_EBX]),
+        "=c" (words[WORD_ECX]),
+        "=d" (words[WORD_EDX])
+      : "a" (reg),
+        "c" (ecx));
+}
+
+#define FOUR_CHARS_VALUE(s, w)      \
+    (s)[0] = (w) & 0xff;            \
+    (s)[1] = ((w) >>  8) & 0xff;    \
+    (s)[2] = ((w) >> 16) & 0xff;    \
+    (s)[3] = ((w) >> 24) & 0xff;
+
+#define BPI  32
+#define POWER2(power) \
+   (1 << (power))
+#define RIGHTMASK(width) \
+   (((width) >= BPI) ? ~0 : POWER2(width)-1)
+
+#define BIT_EXTRACT_LE(value, start, after) \
+   (((value) & RIGHTMASK(after)) >> start)
+
+static char * cpu_flags[]
+      = { "fpu",    // "x87 FPU on chip"
+          "vme",    // "virtual-8086 mode enhancement"
+          "de",     // "debugging extensions"
+          "pse",    // "page size extensions"
+          "tsc",    // "time stamp counter"
+          "msr",    // "RDMSR and WRMSR support"
+          "pae",    // "physical address extensions"
+          "mce",    // "machine check exception"
+          "cx8",    // "CMPXCHG8B inst."
+          "apic",   // "APIC on chip"
+          NULL,
+          "sep",    // "SYSENTER and SYSEXIT"
+          "mtrr",   // "memory type range registers"
+          "pge",    // "PTE global bit"
+          "mca",    // "machine check architecture"
+          "cmov",   // "conditional move/compare instruction"
+          "pat",    // "page attribute table"
+          "pse36",  // "page size extension"
+          "pn",     // "processor serial number"
+          "clflush",    // "CLFLUSH instruction"
+          NULL,
+          "dts"     // "debug store"
+          "tm",     // "thermal monitor and clock ctrl"
+          "mmx",    // "MMX Technology"
+          "fxsr",   // "FXSAVE/FXRSTOR"
+          "sse",    // "SSE extensions"
+          "sse2",   // "SSE2 extensions"
+          "ss",     // "self snoop"
+          "ht",     // "hyper-threading / multi-core supported"
+          "tm",     // "therm. monitor"
+          "ia64",   // "IA64"
+          "pbe",    // "pending break event"
+        };
+
+void _DkGetCPUInfo (PAL_CPU_INFO * ci)
+{
+    unsigned int words[WORD_NUM];
+
+    char * vendor_id = malloc(12);
+    cpuid(2, 0, words, 0);
+
+    FOUR_CHARS_VALUE(&vendor_id[0], words[WORD_EBX]);
+    FOUR_CHARS_VALUE(&vendor_id[4], words[WORD_EDX]);
+    FOUR_CHARS_VALUE(&vendor_id[8], words[WORD_ECX]);
+    ci->cpu_vendor = vendor_id;
+
+    char * brand = malloc(48);
+    cpuid(-2, 0x80000002, words, 0);
+    memcpy(&brand[ 0], words, sizeof(unsigned int) * WORD_NUM);
+    cpuid(-2, 0x80000003, words, 0);
+    memcpy(&brand[16], words, sizeof(unsigned int) * WORD_NUM);
+    cpuid(-2, 0x80000004, words, 0);
+    memcpy(&brand[32], words, sizeof(unsigned int) * WORD_NUM);
+    ci->cpu_brand = brand;
+
+    cpuid(2, 1, words, 0);
+    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX], 16, 24);
+    ci->cpu_family   = BIT_EXTRACT_LE(words[WORD_EAX],  8, 12);
+    ci->cpu_model    = BIT_EXTRACT_LE(words[WORD_EAX],  4,  8);
+    ci->cpu_stepping = BIT_EXTRACT_LE(words[WORD_EAX],  0,  4);
+
+    int flen = 0, fmax = 80;
+    char * flags = malloc(fmax);
+
+    for (int i = 0 ; i < 32 ; i++) {
+        if (!cpu_flags[i])
+            continue;
+
+        if (BIT_EXTRACT_LE(words[WORD_EDX], i, i + 1)) {
+            int len = strlen(cpu_flags[i]);
+            if (flen + len + 1 > fmax) {
+                char * new_flags = malloc(fmax * 2);
+                memcpy(new_flags, flags, flen);
+                free(flags);
+                fmax *= 2;
+                flags = new_flags;
+            }
+            memcpy(flags + flen, cpu_flags[i], len);
+            flen += len;
+            flags[flen++] = ' ';
+        }
     }
 
-    *pargc = argc;
-    *pargv = argv;
-
-    return 0;
+    flags[flen ? flen - 1 : 0] = 0;
+    ci->cpu_flags = flags;
 }

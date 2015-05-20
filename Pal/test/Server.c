@@ -19,6 +19,7 @@
 
 #include "pal.h"
 #include "pal_debug.h"
+#include "api.h"
 
 int main (int argc, char ** argv)
 {
@@ -28,7 +29,7 @@ int main (int argc, char ** argv)
     }
 
     char uri[60];
-    pal_snprintf(uri, 60, "tcp.srv:127.0.0.1:%s", argv[1]);
+    snprintf(uri, 60, "tcp.srv:127.0.0.1:%s", argv[1]);
 
     PAL_HANDLE srv = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0,
                                   PAL_CREAT_TRY, 0);
@@ -38,9 +39,9 @@ int main (int argc, char ** argv)
         return -1;
     }
 
-    void * buffer = DkVirtualMemoryAlloc(NULL, 4096, 0,
-                                         PAL_PROT_READ|PAL_PROT_WRITE);
-    if (buffer == NULL) {
+    void * buffer = (void *) DkVirtualMemoryAlloc(NULL, 4096, 0,
+                                                  PAL_PROT_READ|PAL_PROT_WRITE);
+    if (!buffer) {
         pal_printf("DkVirtualMemoryAlloc failed\n");
         return -1;
     }

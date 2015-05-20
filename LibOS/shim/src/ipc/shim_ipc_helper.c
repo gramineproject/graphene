@@ -302,6 +302,7 @@ void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
     debug("adding port (handle %p) for process %u (type %04x)\n",
           hdl, vmid, type);
 
+    assert(!!hdl && PAL_GET_TYPE(hdl));
     lock(ipc_helper_lock);
 
     struct hlist_head * head = vmid ? &ipc_port_pool[PID_HASH(vmid)] : NULL;
@@ -517,7 +518,7 @@ int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
                    int exsize, int target_type)
 {
     struct shim_ipc_port ** exend = exclude + exsize, ** ex;
-    struct shim_ipc_port * pobj, * n;
+    struct shim_ipc_port * pobj;
 
     if (!target_type && broadcast_port) {
         for (ex = exclude ; ex < exend && *ex != broadcast_port ; ex++);
@@ -534,29 +535,47 @@ int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
 
     lock(ipc_helper_lock);
 
-    list_for_each_entry_safe(pobj, n, &pobj_list, list) {
-        debug("found port %p (handle %p) for process %u (type %04x)\n",
-              pobj, pobj->pal_handle, pobj->info.vmid, pobj->info.type);
-        if (pobj->info.type & target_type) {
-            debug("broadcast to port %p (handle %p) for process %u "
-                  "(type %x, target %x)\n",
-                  pobj, pobj->pal_handle, pobj->info.vmid,
-                  pobj->info.type, target_type);
-
-            if (exsize) {
-                for (ex = exclude ; ex < exend && *ex != pobj ; ex++);
-                if (ex != exend)
-                    continue;
-            }
-
-            msg->dst = pobj->info.vmid;
-            /* has to be assigned, so shim_send_ipc_message will not try
-               to grab ipc_helper_lock */
-            send_ipc_message(msg, pobj);
-        }
+    int ntargets = 0;
+    list_for_each_entry(pobj, &pobj_list, list) {
+        debug("found port %p (handle %p) for process %u (type %04x)\n", pobj,
+              pobj->pal_handle, pobj->info.vmid, pobj->info.type);
+        if (pobj->info.type & target_type)
+            ntargets++;
     }
 
+    struct shim_ipc_port ** targets = __alloca(sizeof(struct shim_ipc_port *)
+                                               * ntargets);
+    int i = 0;
+    list_for_each_entry(pobj, &pobj_list, list)
+        if (pobj->info.type & target_type) {
+            get_ipc_port(pobj);
+            targets[i++] = pobj;
+        }
+
     unlock(ipc_helper_lock);
+
+    for (i = 0 ; i < ntargets ; i++) {
+        pobj = targets[i];
+
+        debug("broadcast to port %p (handle %p) for process %u "
+              "(type %x, target %x)\n",
+              pobj, pobj->pal_handle, pobj->info.vmid,
+              pobj->info.type, target_type);
+
+        if (exsize) {
+            for (ex = exclude ; ex < exend && *ex != pobj ; ex++);
+            if (ex != exend)
+                continue;
+        }
+
+        msg->dst = pobj->info.vmid;
+
+        /* has to be assigned, so shim_send_ipc_message will not try
+           to grab ipc_helper_lock */
+        send_ipc_message(msg, pobj);
+        put_ipc_port(pobj);
+    }
+
     return 0;
 }
 

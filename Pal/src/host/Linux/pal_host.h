@@ -110,6 +110,7 @@ typedef union pal_handle
     struct {
         PAL_HDR __in;
         PAL_IDX fd;
+        PAL_NUM token;
     } gipc;
 
     struct {
@@ -174,7 +175,5 @@ typedef union pal_handle
 #define ERROR(n)        (01000 << (n))
 #define MAX_FDS         (3)
 #define HAS_FDS         (00077)
-
-#define HANDLE_TYPE(handle)  ((handle)->__in.type)
 
 #endif /* PAL_HOST_H */

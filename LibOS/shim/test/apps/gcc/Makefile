@@ -57,10 +57,12 @@ GCC_FLAGS = \
 GCC_MAKE_FLAGS = \
 	LD_LIBRARY_PATH="$(PWD)/obj/lib:/usr/lib:/lib"
 
+export CFLAGS
+export CXXFLAGS="-fpermissive"
 
 obj/bin/gcc: src/gcc-$(GCC_VER) obj/bin/ld $(addprefix obj/lib/,$(GMP_OBJ) $(PPL_OBJ) $(MPFR_OBJ) $(MPC_OBJ))
 	cd $< && ./configure --prefix=$(PWD)/obj $(GCC_FLAGS)
-	$(MAKE) -C $< $(GCC_MAKE_FLAGS) $(if $(CFLAGS),CFLAGS="$(CFLAGS)",)
+	$(MAKE) -C $< $(GCC_MAKE_FLAGS)
 	$(MAKE) -C $< install
 
 src/gcc-$(GCC_VER): gcc-$(GCC_VER).tar.bz2 src
@@ -68,43 +70,43 @@ src/gcc-$(GCC_VER): gcc-$(GCC_VER).tar.bz2 src
 
 obj/bin/ld: src/binutils-$(BINUTILS_VER)
 	cd $< && ./configure --prefix=$(PWD)/obj $(GCC_FLAGS)
-	$(MAKE) -C $< $(GCC_MAKE_FLAGS) $(if $(CFLAGS),CFLAGS="$(CFLAGS)",)
+	$(MAKE) -C $< $(GCC_MAKE_FLAGS)
 	$(MAKE) -C $< install
 
 src/binutils-$(BINUTILS_VER): binutils-$(BINUTILS_VER).tar.bz2 src
 	cd src && tar -xjf ../$<
 
 obj/lib/$(GMP_OBJ): src/$(GMP_SRC)
-	cd $< && ./configure --prefix=$(PWD)/obj --enable-cxx \
+	cd $< && ./configure --prefix=$(PWD)/obj --enable-shared --enable-cxx \
 	$(LINK_LIBC)
-	$(MAKE) -C $< $(if $(CFLAGS),CFLAGS="$(CFLAGS)",)
+	$(MAKE) -C $<
 	$(MAKE) -C $< install
 
 src/$(GMP_SRC): $(GMP_SRC).tar.bz2 src
 	cd src && tar -xjf ../$<
 
 obj/lib/$(PPL_OBJ): src/$(PPL_SRC) obj/lib/$(GMP_OBJ)
-	cd $< && ./configure --prefix=$(PWD)/obj --with-libgmp-prefix=$(PWD)/obj \
+	cd $< && ./configure --prefix=$(PWD)/obj --with-libgmp-prefix=$(PWD)/obj --enable-shared \
 	$(LINK_LIBC)
-	$(MAKE) -C $< $(if $(CFLAGS),CFLAGS="$(CFLAGS)",)
+	$(MAKE) -C $<
 	$(MAKE) -C $< install
 
 src/$(PPL_SRC): $(PPL_SRC).tar.gz src
 	cd src && tar -xzf ../$<
 
 obj/lib/$(MPFR_OBJ): src/$(MPFR_SRC) obj/lib/$(GMP_OBJ)
-	cd $< && ./configure --prefix=$(PWD)/obj \
+	cd $< && ./configure --prefix=$(PWD)/obj --enable-shared \
 	$(LINK_LIBC)
-	$(MAKE) -C $< $(if $(CFLAGS),CFLAGS="$(CFLAGS)",)
+	$(MAKE) -C $<
 	$(MAKE) -C $< install
 
 src/$(MPFR_SRC): $(MPFR_SRC).tar.bz2 src
 	cd src && tar -xjf ../$<
 
 obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
-	cd $< && ./configure --prefix=$(PWD)/obj --with-gmp=$(PWD)/obj \
+	cd $< && ./configure --prefix=$(PWD)/obj --with-gmp=$(PWD)/obj --enable-shared \
 	$(LINK_LIBC)
-	$(MAKE) -C $< $(if $(CFLAGS),CFLAGS="$(CFLAGS)",)
+	$(MAKE) -C $<
 	$(MAKE) -C $< install
 
 src/$(MPC_SRC): $(MPC_SRC).tar.gz src

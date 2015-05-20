@@ -1,22 +1,9 @@
-MAKEFLAGS += --check-symlink-times
-
-root	= ../../../
-include ../../../Makefile.in
-
-OMIT_FRAME_POINTER = no
-
 CC	= gcc
 AS	= gcc
 AR	= ar rcs
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -Wall -U_FORTIFY_SOURCE \
-	  -fno-stack-protector -fno-builtin \
-	  -I. -I../.. -I../../../include -I$(lib_dir) -I$(ipc_dir) -I$(kernel_dir)
-ifeq ($(OMIT_FRAME_POINTER),yes)
-	cflags += -DOMIT_FRAME_POINTER=1
-else
-	cflags += -DOMIT_FRAME_POINTER=0 -fno-omit-frame-pointer
-endif
+	  -fno-builtin -I. -I../.. -I../../../include -I../../../lib
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp \
 	  -I. -I../.. -I../../../include
@@ -26,10 +13,9 @@ host_target = libpal-Skeleton.a
 
 defs	= -DIN_PAL -DSRCDIR="$(PWD)/"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    semaphore mutex events process object main rtld misc ipc \
-	    exception) clone-x86_64 gettimeofday-x86_64
-graphene_lib = $(lib_dir)/graphene-lib.a
-headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard $(lib_dir)/*.h)
+	    semaphore events process object main rtld misc ipc exception)
+graphene_lib = ../../../lib/graphene-lib.a
+headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 all: $(host_target)
 
@@ -38,11 +24,14 @@ debug: CC = gcc -g
 debug: CFLAGS += -DDEBUG
 debug: $(host_target)
 
-$(graphene_lib):
-	make -C $(lib_dir) $(debug)
+$(graphene_lib): ../../host_endian.h
+	make -C ../../../lib $(debug)
+
+../../host_endian.h: host_endian.h
+	make -C ../../ $<
 
 libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
-	@echo [ $@ ]
+	@echo [ host/$(OS)/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
 
 %.asm: %.c $(headers)
@@ -51,20 +40,12 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@rm $<.o
 
 %.o: %.c $(headers)
-	@echo [ $@ ]
+	@echo [ host/$(OS)/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
 
-%.e: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
-
 %.o: %.S $(headers)
-	@echo [ $@ ]
+	@echo [ host/$(OS)/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
-
-%.e: %.S $(headers)
-	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
 clean:
 	rm -f $(addsuffix .o,$(objs)) $(host_target)

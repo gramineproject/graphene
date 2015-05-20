@@ -6,7 +6,7 @@
 // debugging file descriptor code!
 
 #include <linux/unistd.h>
-#include "utils.h"
+#include "internal.h"
 
 // Collect up to PRINTBUF_SIZE characters into a buffer
 // and perform ONE system call to print all of them,
@@ -65,43 +65,4 @@ printf(const char *fmt, ...)
 	va_end(ap);
 
 	return cnt;
-}
-
-static void
-sprintputch(int fd, int ch, struct sprintbuf * b)
-{
-	b->cnt++;
-	if (b->buf < b->ebuf)
-		*b->buf++ = ch;
-}
-
-int
-vsprintf(char * buf, int n, const char * fmt, va_list ap)
-{
-	struct sprintbuf b = {buf, buf + n - 1, 0};
-
-	if (buf == NULL || n < 1) {
-		return -1;
-	}
-
-	// print the string to the buffer
-	vfprintfmt((void *) sprintputch, (void *) 0, &b, fmt, ap);
-
-	// null terminate the buffer
-	*b.buf = '\0';
-
-	return b.cnt;
-}
-
-int
-snprintf(char * buf, size_t n, const char * fmt, ...)
-{
-	va_list ap;
-	int rc;
-
-	va_start(ap, fmt);
-	rc = vsprintf(buf, n, fmt, ap);
-	va_end(ap);
-
-	return rc;
 }

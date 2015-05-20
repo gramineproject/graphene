@@ -40,7 +40,7 @@ typedef __kernel_pid_t pid_t;
 #include <asm/poll.h>
 #include <sys/socket.h>
 #include <linux/un.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 
 #if USE_PIPE_SYSCALL == 1
 # include <linux/msg.h>
@@ -48,19 +48,20 @@ typedef __kernel_pid_t pid_t;
 
 static int pipe_path (int pipeid, char * path, int len)
 {
-    if (pal_sec_info.pipe_prefix)
-        return snprintf(path, len, GRAPHENE_PIPEDIR "/%08x/%s%08x",
-                        pal_sec_info.domain_id,
-                        pal_sec_info.pipe_prefix, pipeid);
+    /* use abstract UNIX sockets for pipes */
+    memset(path, 0, len);
+
+    if (pal_sec.pipe_prefix)
+        return snprintf(path + 1, len - 1, "/graphene/%016lx/%08x",
+                        pal_sec.pipe_prefix, pipeid);
     else
-        return snprintf(path, len, GRAPHENE_PIPEDIR "/%08x/%08x",
-                        pal_sec_info.domain_id, pipeid);
+        return snprintf(path + 1, len - 1, "/graphene/%08x", pipeid);
 }
 
 static int pipe_addr (int pipeid, struct sockaddr_un * addr)
 {
     addr->sun_family = AF_UNIX;
-    return pipe_path(pipeid, (char *) addr->sun_path, 108);
+    return pipe_path(pipeid, (char *) addr->sun_path, sizeof(addr->sun_path));
 }
 
 static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
@@ -77,8 +78,7 @@ static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
     if ((ret = pipe_addr(pipeid, &addr)) < 0)
         return ret;
 
-    ret = INLINE_SYSCALL(bind, 3, fd, &addr,
-                         sizeof(struct sockaddr_un));
+    ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr.sun_path) - 1);
 
     if (IS_ERR(ret)) {
         INLINE_SYSCALL(close, 1, fd);
@@ -198,8 +198,8 @@ static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, PAL_IDX connid,
     if ((ret = pipe_addr(pipeid, &addr)) < 0)
         return ret;
 
-    ret = INLINE_SYSCALL(connect, 3, fd, &addr,
-                         sizeof(struct sockaddr_un));
+    ret = INLINE_SYSCALL(connect, 3, fd, &addr, sizeof(addr.sun_path) - 1);
+
     if (IS_ERR(ret)) {
         INLINE_SYSCALL(close, 1, fd);
         switch (ERRNO(ret)) {
@@ -494,13 +494,6 @@ static int pipe_delete (PAL_HANDLE handle, int access)
         }
     }
 
-    if (IS_HANDLE_TYPE(handle, pipesrv)) {
-        char buffer[108];
-        pipe_path(handle->pipe.pipeid, buffer, 108);
-        INLINE_SYSCALL(unlink, 1, buffer);
-        return 0;
-    }
-
     if (handle->pipe.fd == PAL_IDX_POISON)
         return 0;
 
@@ -535,19 +528,20 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     if (handle->__in.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    memset(attr, 0, sizeof(PAL_STREAM_ATTR));
-
     ret = INLINE_SYSCALL(ioctl, 3, handle->__in.fds[0], FIONREAD, &val);
-    if (!IS_ERR(ret))
-        attr->size = val;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
+    attr->handle_type  = pal_type_pipe;
     attr->disconnected = handle->__in.flags & ERROR(0);
-    attr->readable = (attr->size > 0);
-    attr->writeable = handle->__in.flags &
-        ((HANDLE_TYPE(handle) == pal_type_pipeprv) ? WRITEABLE(1) : WRITEABLE(0));
-    attr->nonblocking = (handle->__in.type == pal_type_pipeprv) ?
-                        handle->pipeprv.nonblocking :
-                        handle->pipe.nonblocking;
+    attr->nonblocking  = (handle->__in.type == pal_type_pipeprv) ?
+                         handle->pipeprv.nonblocking : handle->pipe.nonblocking;
+    attr->readable     = val > 0;
+    if (PAL_GET_TYPE(handle) == pal_type_pipeprv)
+        attr->writeable = handle->__in.flags & WRITEABLE(1);
+    else
+        attr->writeable = handle->__in.flags & WRITEABLE(0);
+    attr->pending_size = val;
     return 0;
 }
 
@@ -582,7 +576,7 @@ static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
     const char * prefix = NULL;
     int prefix_len = 0;
 
-    switch (HANDLE_TYPE(handle)) {
+    switch (PAL_GET_TYPE(handle)) {
         case pal_type_pipesrv:
         case pal_type_pipecli:
             prefix_len = 8;

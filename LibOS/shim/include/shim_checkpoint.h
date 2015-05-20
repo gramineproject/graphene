@@ -129,7 +129,7 @@ struct shim_mem_entry {
     void * addr;
     int size;
     int prot;
-    bool need_alloc;
+    bool need_alloc, need_prot;
     struct shim_vma * vma;
     void * data;
 };
@@ -199,10 +199,7 @@ extern const resume_func  __resume_func;
         &migrate_func_##name - &__migrate_func;  })
 
 #define CP_FUNC(name)   CP_FUNC_BASE + CP_FUNC_INDEX(name)
-
 #define CP_FUNC_NAME(type)      (&__migrate_name)[(type) - CP_FUNC_BASE]
-
-#define DEBUG_CP_ENTRY      0
 
 #define ADD_ENTRY(type, value)                                      \
     do {                                                            \
@@ -212,26 +209,27 @@ extern const resume_func  __resume_func;
             tmp->cp_type = CP_##type;                               \
             tmp->cp_un.cp_val = (ptr_t) (value);                    \
                                                                     \
-            if (DEBUG_CP_ENTRY)                                     \
+            if (DEBUG_CHECKPOINT)                                   \
                 debug("ADD CP_" #type "(%p) :%d\n",                 \
                       tmp->cp_un.cp_val,                            \
                       tmp - (struct shim_cp_entry *) base);         \
         } else {                                                    \
-            if (DEBUG_CP_ENTRY)                                     \
+            if (DEBUG_CHECKPOINT)                                   \
                 debug("(dry) ADD CP_" #type "\n");                  \
         }                                                           \
     } while(0)
 
-#define ADD_OFFSET(size)                                        \
-    do {                                                        \
-        int _size = ((size) + 7) & ~7;                          \
-        USED += _size;                                          \
-        if (!dry)                                               \
-            *offset -= _size;                                   \
-        if (DEBUG_CP_ENTRY)                                     \
-            debug("%sADD OFFSET(%d)\n",                         \
-                  dry ? "(dry) " : "", _size);                  \
-    } while (0)
+#define ADD_OFFSET(size)                                            \
+    ({                                                              \
+        int _size = ((size) + 7) & ~7;                              \
+        USED += _size;                                              \
+        if (!dry)                                                   \
+            *offset -= _size;                                       \
+        if (DEBUG_CHECKPOINT)                                       \
+            debug("%sADD OFFSET(%d)\n",                             \
+                  dry ? "(dry) " : "", _size);                      \
+        dry ? 0 : *offset;                                          \
+    })
 
 #define ADD_FUNC_ENTRY(value)                                       \
     do {                                                            \
@@ -241,58 +239,58 @@ extern const resume_func  __resume_func;
             tmp->cp_type = CP_FUNC_TYPE;                            \
             tmp->cp_un.cp_val = (ptr_t) value;                      \
                                                                     \
-            if (DEBUG_CP_ENTRY)                                     \
+            if (DEBUG_CHECKPOINT)                                   \
                 debug("ADD CP_FUNC_%s(%p) :%d\n", CP_FUNC_NAME,     \
                       tmp->cp_un.cp_val,                            \
                       tmp - (struct shim_cp_entry *) base);         \
         } else {                                                    \
-            if (DEBUG_CP_ENTRY)                                     \
+            if (DEBUG_CHECKPOINT)                                   \
                 debug("(dry) ADD CP_FUNC_%s\n", CP_FUNC_NAME);      \
         }                                                           \
     } while(0)
 
 
-#define GET_ENTRY(type)                                         \
-    ({  struct shim_cp_entry * tmp = (*ent)++;                  \
-                                                                \
-        while (tmp->cp_type != CP_##type)                       \
-            tmp = (*ent)++;                                     \
-                                                                \
-        /* debug("GET CP_" #type "(%p) :%d\n",                  \
-                 tmp->cp_un.cp_val,                             \
-                 tmp - (struct shim_cp_entry *) base); */       \
-                                                                \
-        tmp->cp_un.cp_val;                                      \
+#define GET_ENTRY(type)                                             \
+    ({  struct shim_cp_entry * tmp = (*ent)++;                      \
+                                                                    \
+        while (tmp->cp_type != CP_##type)                           \
+            tmp = (*ent)++;                                         \
+                                                                    \
+        /* debug("GET CP_" #type "(%p) :%d\n",                      \
+                 tmp->cp_un.cp_val,                                 \
+                 tmp - (struct shim_cp_entry *) base); */           \
+                                                                    \
+        tmp->cp_un.cp_val;                                          \
      })
 
-#define GET_FUNC_ENTRY()                                        \
-    ({  struct shim_cp_entry * tmp = (*ent)++;                  \
-                                                                \
-        while (tmp->cp_type != CP_FUNC_TYPE)                    \
-            tmp = (*ent)++;                                     \
-                                                                \
-        /* debug("GET CP_FUNC_%s(%p) :%d\n", CP_FUNC_NAME,      \
-                 tmp->cp_un.cp_val,                             \
-                 tmp - (struct shim_cp_entry *) base); */       \
-                                                                \
-        tmp->cp_un.cp_val;                                      \
+#define GET_FUNC_ENTRY()                                            \
+    ({  struct shim_cp_entry * tmp = (*ent)++;                      \
+                                                                    \
+        while (tmp->cp_type != CP_FUNC_TYPE)                        \
+            tmp = (*ent)++;                                         \
+                                                                    \
+        /* debug("GET CP_FUNC_%s(%p) :%d\n", CP_FUNC_NAME,          \
+                 tmp->cp_un.cp_val,                                 \
+                 tmp - (struct shim_cp_entry *) base); */           \
+                                                                    \
+        tmp->cp_un.cp_val;                                          \
      })
 
 
-#define DEFINE_MIGRATE_FUNC(name)                                           \
-    const char * migrate_name_##name                                        \
-        __attribute__((section(".migrate_name." #name))) = #name;           \
-                                                                            \
-    extern MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS);             \
-    const migrate_func migrate_func_##name                                  \
-        __attribute__((section(".migrate." #name))) = &migrate_##name;      \
-                                                                            \
-    extern RESUME_FUNC_RET resume_##name (RESUME_FUNC_ARGS);                \
-    const resume_func resume_func_##name                                    \
-        __attribute__((section(".resume." #name))) = &resume_##name;        \
-                                                                            \
-    DEFINE_PROFILE_INTERVAL(migrate_##name, migrate_func);                  \
-    DEFINE_PROFILE_INTERVAL(resume_##name,  resume_func);                   \
+#define DEFINE_MIGRATE_FUNC(name)                                   \
+    const char * migrate_name_##name                                \
+        __attribute__((section(".migrate_name." #name))) = #name;   \
+                                                                    \
+    extern MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS);     \
+    const migrate_func migrate_func_##name                          \
+        __attribute__((section(".migrate." #name))) = &migrate_##name;\
+                                                                    \
+    extern RESUME_FUNC_RET resume_##name (RESUME_FUNC_ARGS);        \
+    const resume_func resume_func_##name                            \
+        __attribute__((section(".resume." #name))) = &resume_##name;\
+                                                                    \
+    DEFINE_PROFILE_INTERVAL(migrate_##name, migrate_func);          \
+    DEFINE_PROFILE_INTERVAL(resume_##name,  resume_func);           \
 
 
 #define MIGRATE_FUNC_BODY(name)                                 \
@@ -307,7 +305,7 @@ extern const resume_func  __resume_func;
         ASSIGN_PROFILE_INTERVAL(migrate_##name);
 
 #define END_MIGRATE_FUNC                                        \
-        SAVE_PROFILE_INTERVAL_ASSIGNED();                       \
+        if (!dry) SAVE_PROFILE_INTERVAL_ASSIGNED();             \
         return USED;                                            \
     }
 
@@ -451,30 +449,29 @@ static inline __attribute__((always_inline))
 ptr_t add_to_migrate_map (void * map, void * obj, ptr_t off,
                           size_t size, bool dry)
 {
-    struct shim_addr_map * _e = get_addr_map_entry(map,
+    struct shim_addr_map * e = get_addr_map_entry(map,
                     (ptr_t) obj, size, 1);
 
-    ptr_t _off = _e->offset;
-    if (dry)
-    {
-        if (_off & MAP_UNALLOCATED)
-            _e->offset = MAP_UNASSIGNED;
+    ptr_t result = e->offset;
+    if (dry) {
+        if (result & MAP_UNALLOCATED)
+            e->offset = MAP_UNASSIGNED;
         else
-            _off = 0;
-    }
-    else
-        if (_off & MAP_UNUSABLE)
-        {
-            _e->offset = (off) - (size);
-            _e->size = (size);
+            result = 0;
+    } else {
+        if (result & MAP_UNUSABLE) {
+            assert(size);
+            assert(off >= size);
+            e->offset = off - size;
+            e->size = size;
         }
+    }
 
-    return _off;
+    return result;
 }
 
 #define ADD_TO_MIGRATE_MAP(obj, off, size) \
         add_to_migrate_map(store->addr_map, (obj), dry ? 0 : (off), (size), dry)
-
 
 #define MIGRATE_DEF_ARGS    \
         struct shim_cp_store * store, void * data, size_t size, bool dry
@@ -503,7 +500,8 @@ ptr_t add_to_migrate_map (void * map, void * obj, ptr_t off,
                   dry ? 0 : &offset, (obj), (size), NULL, recursive, dry);  \
     } while (0)
 
-//#define DEBUG_RESUME
+#define DEBUG_RESUME      0
+#define DEBUG_CHECKPOINT  0
 
 #ifndef malloc_method
 #define malloc_method(size) system_malloc(size)
@@ -573,23 +571,14 @@ struct newproc_header {
 #endif
 };
 
-#ifdef NEWPROC_RESP
 struct newproc_response {
+    IDTYPE child_vmid;
     int failure;
 };
 
-# define NEWPROC_RESP_CONFLICT    140
-#endif
+int do_migration (struct newproc_cp_header * hdr, void ** cpptr);
 
-int init_checkpoint (struct newproc_cp_header * hdr, void ** cpptr);
-
-int restore_from_checkpoint (const char * filename,
-                             struct newproc_cp_header * hdr,
-                             void ** cpptr);
-int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
-                       void ** cpptr);
-
-int restore_from_stack (void * cpdata, struct cp_header * hdr, int type);
+int restore_checkpoint (void * cpdata, struct cp_header * hdr, int type);
 int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, void * cpdata,
                   long cprebase);
 int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
@@ -601,6 +590,12 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                                         struct shim_thread *, va_list),
                         struct shim_handle * exec, const char ** argv,
                         struct shim_thread * thread, ...);
+
+int init_from_checkpoint_file (const char * filename,
+                               struct newproc_cp_header * hdr,
+                               void ** cpptr);
+int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
+                       void ** cpptr);
 
 void restore_context (struct shim_context * context);
 

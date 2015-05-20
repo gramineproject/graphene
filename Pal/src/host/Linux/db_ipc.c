@@ -29,6 +29,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_error.h"
+#include "pal_debug.h"
 #include "pal_security.h"
 #include "graphene-ipc.h"
 #include "api.h"
@@ -59,6 +60,7 @@ int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(gipc));
     SET_HANDLE_TYPE(hdl, gipc);
     hdl->gipc.fd = fd;
+    hdl->gipc.token = token;
     *handle = hdl;
     return 0;
 }
@@ -67,10 +69,7 @@ int gipc_close (PAL_HANDLE handle)
 {
     int ret = INLINE_SYSCALL(close, 1, handle->gipc.fd);
 
-    if (IS_ERR(ret))
-        return -PAL_ERROR_BADHANDLE;
-
-    return 0;
+    return (IS_ERR(ret)) ? -PAL_ERROR_BADHANDLE : 0;
 }
 
 const char * gipc_getrealpath (PAL_HANDLE handle)
@@ -115,70 +114,60 @@ int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key)
     return -PAL_ERROR_DENIED;
 }
 
-int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries, void ** addrs,
-                             unsigned long * sizes, int flags)
+int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
+                             PAL_PTR * addrs, PAL_NUM * sizes, int flags)
 {
     int fd = channel->gipc.fd;
-
     struct gipc_send gs;
-    int nsent = 0, n;
-    unsigned long npagesent = 0;
 
-    while (nsent < entries) {
-        n = entries - nsent;
+    gs.addr = __alloca(sizeof(unsigned long) * entries);
+    gs.len  = __alloca(sizeof(unsigned long) * entries);
 
-        if (n > ADDR_ENTS)
-            n = ADDR_ENTS;
+    for (int i = 0 ; i < entries ; i++) {
+        if (!addrs[i] || !sizes[i] || !ALLOC_ALIGNED(addrs[i]) ||
+            !ALLOC_ALIGNED(sizes[i]))
+            return -PAL_ERROR_INVAL;
 
-        gs.entries  = n;
-        gs.addr = (unsigned long *) (addrs + nsent);
-        gs.len  = (unsigned long *) (sizes + nsent);
-
-        int ret = INLINE_SYSCALL(ioctl, 3, fd, GIPC_SEND, &gs);
-
-        if (IS_ERR(ret)) {
-            if (!npagesent)
-                return -PAL_ERROR_DENIED;
-            return npagesent;
-        }
-
-        npagesent += ret;
-        nsent += n;
+        gs.addr[i] = (unsigned long) addrs[i];
+        gs.len[i]  = sizes[i];
     }
 
-    return npagesent;
+    gs.entries = entries;
+    int ret = INLINE_SYSCALL(ioctl, 3, fd, GIPC_SEND, &gs);
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    return ret;
 }
 
-int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries, void ** addrs,
-                          unsigned long * sizes, unsigned int * prots)
+int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
+                          PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots)
 {
     int fd = channel->gipc.fd;
     struct gipc_recv gr;
-    int nrecv = 0, n;
-    unsigned long npagerecv = 0;
 
-    while (nrecv < entries) {
-        n = entries - nrecv;
+    gr.addr = __alloca(sizeof(unsigned long) * entries);
+    gr.len  = __alloca(sizeof(unsigned long) * entries);
+    gr.prot = __alloca(sizeof(unsigned long) * entries);
 
-        if (n > ADDR_ENTS)
-            n = ADDR_ENTS;
+    for (int i = 0 ; i < entries ; i++) {
+        if (!sizes[i] || !ALLOC_ALIGNED(addrs[i]) || !ALLOC_ALIGNED(sizes[i]))
+            return -PAL_ERROR_INVAL;
 
-        gr.entries = n;
-        gr.addr = (unsigned long *) (addrs + nrecv);
-        gr.len  = (unsigned long *) (sizes + nrecv);
-        gr.prot = (int *) (prots + nrecv);
-
-        int ret = INLINE_SYSCALL(ioctl, 3, fd, GIPC_RECV, &gr);
-
-        if (IS_ERR(ret)) {
-            if (!npagerecv)
-                return -PAL_ERROR_DENIED;
-            return npagerecv;
-        }
-
-        npagerecv += ret;
-        nrecv += n;
+        gr.addr[i] = (unsigned long) addrs[i];
+        gr.len[i]  = sizes[i];
+        gr.prot[i] = HOST_PROT(prots[i]);
     }
 
-    return npagerecv;
+    gr.entries = entries;
+    int ret = INLINE_SYSCALL(ioctl, 3, fd, GIPC_RECV, &gr);
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    for (int i = 0 ; i < entries ; i++)
+        addrs[i] = (PAL_PTR) gr.addr[i];
+
+    return ret;
 }

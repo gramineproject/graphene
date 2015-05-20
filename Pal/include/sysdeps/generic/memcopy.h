@@ -36,7 +36,7 @@
    exhaustive in the sense that I tried all alignment and length
    combinations, with and without overlap.  */
 
-#include <endian.h>
+#include <host_endian.h>
 
 /* Type to use for aligned memory operations.
    This should normally be the biggest type supported by a single load
@@ -50,10 +50,10 @@ typedef unsigned char byte;
 /* Optimal type for storing bytes in registers.  */
 #define	reg_char	char
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if BYTE_ORDER == LITTLE_ENDIAN
 #define MERGE(w0, sh_1, w1, sh_2) (((w0) >> (sh_1)) | ((w1) << (sh_2)))
 #endif
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if BYTE_ORDER == BIG_ENDIAN
 #define MERGE(w0, sh_1, w1, sh_2) (((w0) << (sh_1)) | ((w1) >> (sh_2)))
 #endif
 
@@ -62,7 +62,7 @@ typedef unsigned char byte;
 #define BYTE_COPY_FWD(dst_bp, src_bp, nbytes)				      \
   do									      \
     {									      \
-      size_t __nbytes = (nbytes);					      \
+      int __nbytes = (nbytes);					      \
       while (__nbytes > 0)						      \
 	{								      \
 	  byte __x = ((byte *) src_bp)[0];				      \
@@ -80,7 +80,7 @@ typedef unsigned char byte;
 #define BYTE_COPY_BWD(dst_ep, src_ep, nbytes)				      \
   do									      \
     {									      \
-      size_t __nbytes = (nbytes);					      \
+      int __nbytes = (nbytes);					      \
       while (__nbytes > 0)						      \
 	{								      \
 	  byte __x;							      \
@@ -96,8 +96,8 @@ typedef unsigned char byte;
    the assumption that DST_BP is aligned on an OPSIZ multiple.  If
    not all bytes could be easily copied, store remaining number of bytes
    in NBYTES_LEFT, otherwise store 0.  */
-extern void _wordcopy_fwd_aligned (long int, long int, size_t);
-extern void _wordcopy_fwd_dest_aligned (long int, long int, size_t);
+extern void _wordcopy_fwd_aligned (long int, long int, int);
+extern void _wordcopy_fwd_dest_aligned (long int, long int, int);
 #define WORD_COPY_FWD(dst_bp, src_bp, nbytes_left, nbytes)		      \
   do									      \
     {									      \
@@ -116,8 +116,8 @@ extern void _wordcopy_fwd_dest_aligned (long int, long int, size_t);
    DST_END_PTR is aligned on an OPSIZ multiple.  If not all bytes could be
    easily copied, store remaining number of bytes in NBYTES_REMAINING,
    otherwise store 0.  */
-extern void _wordcopy_bwd_aligned (long int, long int, size_t);
-extern void _wordcopy_bwd_dest_aligned (long int, long int, size_t);
+extern void _wordcopy_bwd_aligned (long int, long int, int);
+extern void _wordcopy_bwd_dest_aligned (long int, long int, int);
 #define WORD_COPY_BWD(dst_ep, src_ep, nbytes_left, nbytes)		      \
   do									      \
     {									      \

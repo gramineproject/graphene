@@ -569,7 +569,7 @@ static int inet_parse_addr (int domain, int type, const char * uri,
             char ip_buf[20];
             memcpy(ip_buf, ip_str, ip_len);
             ip_buf[ip_len] = 0;
-            inet_pton(AF_INET, ip_buf, &addr->addr.v4);
+            inet_pton4(ip_buf, &addr->addr.v4);
             addr->ext_port = atoi(port_str);
         }
 
@@ -577,7 +577,7 @@ static int inet_parse_addr (int domain, int type, const char * uri,
             char ip_buf[48];
             memcpy(ip_buf, ip_str, ip_len);
             ip_buf[ip_len] = 0;
-            inet_pton(AF_INET6, ip_str, &addr->addr.v6);
+            inet_pton6(ip_str, &addr->addr.v6);
             addr->ext_port = atoi(port_str);
         }
     }
@@ -1392,65 +1392,60 @@ query:
     if (level == SOL_SOCKET) {
         switch(optname) {
             case SO_KEEPALIVE:
-                if (bolval != attr->tcp_keepalive) {
-                    attr->tcp_keepalive = bolval;
+                if (bolval != attr->socket.tcp_keepalive) {
+                    attr->socket.tcp_keepalive = bolval;
                     goto set;
                 }
                 break;
             case SO_LINGER: {
-                                struct __kernel_linger * l =
-                                    (struct __kernel_linger *) optval;
-                                int linger = l->l_onoff ? l->l_linger : 0;
-                                if (linger != (int) attr->linger) {
-                                    attr->linger = linger;
-                                    goto set;
-                                }
-                                break;
-                            }
+                struct __kernel_linger * l = (struct __kernel_linger *) optval;
+                int linger = l->l_onoff ? l->l_linger : 0;
+                if (linger != (int) attr->socket.linger) {
+                    attr->socket.linger = linger;
+                    goto set;
+                }
+                break;
+            }
             case SO_RCVBUF:
-                            if (intval != (int) attr->receivebuf) {
-                                attr->receivebuf = intval;
-                                goto set;
-                            }
-                            break;
+                if (intval != (int) attr->socket.receivebuf) {
+                    attr->socket.receivebuf = intval;
+                    goto set;
+                }
+                break;
             case SO_SNDBUF:
-                            if (intval != (int) attr->sendbuf) {
-                                attr->sendbuf = intval;
-                                goto set;
-                            }
-                            break;
+                if (intval != (int) attr->socket.sendbuf) {
+                    attr->socket.sendbuf = intval;
+                    goto set;
+                }
+                break;
             case SO_RCVTIMEO:
-                            if (intval != (int) attr->receivetimeout) {
-                                attr->receivetimeout = intval;
-                                goto set;
-                            }
-                            break;
+                if (intval != (int) attr->socket.receivetimeout) {
+                    attr->socket.receivetimeout = intval;
+                    goto set;
+                }
+                break;
             case SO_SNDTIMEO:
-                            if (intval != (int) attr->sendtimeout) {
-                                attr->sendtimeout = intval;
-                                goto set;
-                            }
-                            break;
+                if (intval != (int) attr->socket.sendtimeout) {
+                    attr->socket.sendtimeout = intval;
+                    goto set;
+                }
+                break;
             case SO_REUSEADDR:
-                            if (bolval != attr->reuseaddr) {
-                                attr->reuseaddr = bolval;
-                                goto set;
-                            }
-                            break;
+                break;
         }
     }
 
     if (level == SOL_TCP) {
         switch(optname) {
             case TCP_CORK:
-                if (bolval != attr->tcp_cork) {
-                    attr->tcp_cork = bolval;
+                if (bolval != attr->socket.tcp_cork) {
+                    attr->socket.tcp_cork = bolval;
                     goto set;
                 }
                 break;
             case TCP_NODELAY:
-                if (bolval != attr->tcp_nodelay) {
-                    attr->tcp_nodelay = bolval;
+                if (bolval != attr->socket.tcp_nodelay) {
+                    attr->socket.tcp_nodelay = bolval;
                     goto set;
                 }
                 break;
@@ -1634,29 +1629,29 @@ query:
         if (level == SOL_SOCKET) {
             switch(optname) {
                 case SO_KEEPALIVE:
-                    *intval = attr.tcp_keepalive ? 1 : 0;
+                    *intval = attr.socket.tcp_keepalive ? 1 : 0;
                     break;
                 case SO_LINGER: {
                     struct __kernel_linger * l =
                             (struct __kernel_linger *) optval;
-                    l->l_onoff = attr.linger ? 1 : 0;
-                    l->l_linger = attr.linger;
+                    l->l_onoff = attr.socket.linger ? 1 : 0;
+                    l->l_linger = attr.socket.linger;
                     break;
                 }
                 case SO_RCVBUF:
-                    *intval = attr.receivebuf;
+                    *intval = attr.socket.receivebuf;
                     break;
                 case SO_SNDBUF:
-                    *intval = attr.sendbuf;
+                    *intval = attr.socket.sendbuf;
                     break;
                 case SO_RCVTIMEO:
-                    *intval = attr.receivetimeout;
+                    *intval = attr.socket.receivetimeout;
                     break;
                 case SO_SNDTIMEO:
-                    *intval = attr.sendtimeout;
+                    *intval = attr.socket.sendtimeout;
                     break;
                 case SO_REUSEADDR:
-                    *intval = attr.reuseaddr ? 1 : 0;
+                    *intval = 1;
                     break;
             }
         }
@@ -1664,10 +1659,10 @@ query:
         if (level == SOL_TCP) {
             switch(optname) {
                 case TCP_CORK:
-                    *intval = attr.tcp_cork ? 1 : 0;
+                    *intval = attr.socket.tcp_cork ? 1 : 0;
                     break;
                 case TCP_NODELAY:
-                    *intval = attr.tcp_nodelay ? 1 : 0;
+                    *intval = attr.socket.tcp_nodelay ? 1 : 0;
                     break;
             }
         }

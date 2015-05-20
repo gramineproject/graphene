@@ -26,7 +26,6 @@
 
 #include "pal_internal.h"
 #include "pal_error.h"
-#include "pal_security.h"
 #include "api.h"
 
 #include <sysdeps/generic/ldsodefs.h>
@@ -54,9 +53,9 @@ struct link_map {
     /* These first few members are part of the protocol with the debugger.
        This is the same format used in SVR4.  */
 
-    ElfW(Addr) l_addr;          /* Base address shared object is loaded at. */
+    ElfW(Addr)   l_addr;        /* Base address shared object is loaded at. */
     const char * l_name;        /* Absolute file name object was found in.  */
-    ElfW(Dyn) * l_real_ld;      /* Dynamic section of the shared object.    */
+    ElfW(Dyn) *  l_real_ld;     /* Dynamic section of the shared object.    */
     struct link_map * l_next, * l_prev;     /* Chain of loaded objects.     */
 
     /* All following members are internal to the dynamic linker.
@@ -64,20 +63,12 @@ struct link_map {
     enum object_type l_type;
 
     ElfW(Dyn) * l_ld;
-    char * l_soname;
-    bool l_relocated;
-    bool l_lookup_symbol;
-
     ElfW(Dyn) * l_info[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM
                        + DT_EXTRANUM + DT_VALNUM + DT_ADDRNUM];
     const ElfW(Phdr) * l_phdr;  /* Pointer to program header table in core.  */
     ElfW(Addr) l_entry;     /* Entry point location.  */
     ElfW(Half) l_phnum;     /* Number of program header entries.  */
     ElfW(Half) l_ldnum;     /* Number of dynamic segment entries.  */
-
-    /* End of the executable part of the mapping.  */
-    ElfW(Addr) l_text_start, l_text_end;
-    ElfW(Addr) l_data_start, l_data_end;
 
     /* Start and finish of memory map for this object.  l_map_start
        need not be the same as l_addr.  */
@@ -86,7 +77,7 @@ struct link_map {
     /* Information used to change permission after the relocations are
        done.   */
     ElfW(Addr) l_relro_addr;
-    size_t l_relro_size;
+    int l_relro_size;
 
     Elf_Symndx l_nbuckets;
 
@@ -100,6 +91,10 @@ struct link_map {
     const ElfW(Addr) * l_gnu_bitmask;
     const Elf32_Word * l_gnu_buckets;
     const Elf32_Word * l_gnu_chain_zero;
+
+#define NRELOCS 64
+    ElfW(Addr) * relocs[NRELOCS];
+    int nrelocs;
 };
 
 struct link_gdb_map {
@@ -112,7 +107,7 @@ struct link_gdb_map {
     struct link_map * l_next, * l_prev;     /* Chain of loaded objects.     */
 };
 
-extern struct link_map * loaded_libraries;
+extern struct link_map * loaded_maps;
 extern struct link_map * rtld_map;
 extern struct link_map * exec_map;
 
@@ -182,7 +177,7 @@ ELF_PREFERRED_ADDRESS_DATA;
                       + DT_EXTRANUM + DT_VALTAGIDX (tag))
 #endif
 
-#include <endian.h>
+#include <host_endian.h>
 #if BYTE_ORDER == BIG_ENDIAN
 # define byteorder ELFDATA2MSB
 #elif BYTE_ORDER == LITTLE_ENDIAN

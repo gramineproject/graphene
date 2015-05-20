@@ -19,7 +19,7 @@ int main (int argc, char ** argv)
         pal_printf("start time = %lu\n", time);
 
         char time_arg[24];
-        pal_snprintf(time_arg, 24, "%ld", time);
+        snprintf(time_arg, 24, "%ld", time);
 
         const char * newargs[4] = { "Tcp", time_arg, NULL };
 

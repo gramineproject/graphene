@@ -411,7 +411,7 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
                     ret = -PAL_ERRNO;
                     break;
                 }
-                size = attr.size;
+                size = attr.pending_size;
                 goto done_fioread;
             }
 

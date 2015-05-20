@@ -43,6 +43,7 @@ static LOCKTYPE slab_mgr_lock;
 #endif
 
 #define SLAB_CANARY
+#define STARTUP_SIZE    4
 
 #include <slabmgr.h>
 
@@ -94,8 +95,8 @@ static struct shim_heap * __alloc_enough_heap (size_t size)
         while (size > heap_size)
             heap_size *= 2;
 
-        if (!(start = DkVirtualMemoryAlloc(NULL, heap_size, 0,
-                                           PAL_PROT_WRITE|PAL_PROT_READ)))
+        if (!(start = (void *) DkVirtualMemoryAlloc(NULL, heap_size, 0,
+                                    PAL_PROT_WRITE|PAL_PROT_READ)))
             return NULL;
 
         debug("allocate internal heap at %p - %p\n", start, start + heap_size);
@@ -150,8 +151,8 @@ int init_heap (void)
 {
     create_lock(shim_heap_lock);
 
-    void * start = DkVirtualMemoryAlloc(NULL, INIT_SHIM_HEAP, 0,
-                                        PAL_PROT_WRITE|PAL_PROT_READ);
+    void * start = (void *) DkVirtualMemoryAlloc(NULL, INIT_SHIM_HEAP, 0,
+                                    PAL_PROT_WRITE|PAL_PROT_READ);
     if (!start)
         return -ENOMEM;
 

@@ -28,7 +28,6 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_error.h"
-#include "pal_security.h"
 #include "pal_debug.h"
 #include "api.h"
 

@@ -46,7 +46,9 @@ void DkObjectReference (PAL_HANDLE objectHandle)
     int ret = _DkObjectReference(objectHandle);
 
     if (ret < 0)
-        notify_failure(-ret);
+        leave_frame(, -ret);
+
+    leave_frame(, 0);
 }
 
 int _DkObjectClose (PAL_HANDLE objectHandle)
@@ -78,7 +80,9 @@ void DkObjectClose (PAL_HANDLE objectHandle)
     int ret = _DkObjectClose(objectHandle);
 
     if (ret < 0)
-        notify_failure(-ret);
+        leave_frame(, -ret);
+
+    leave_frame(, 0);
 }
 
 /* PAL call DkObjectsWaitAny: wait for any of the handles in the handle array.
@@ -89,10 +93,8 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
 {
     store_frame(ObjectsWaitAny);
 
-    if (!count || !handleArray) {
-        notify_failure(PAL_ERROR_INVAL);
-        return NULL;
-    }
+    if (!count || !handleArray)
+        leave_frame(NULL, PAL_ERROR_INVAL);
 
     for (int i = 0 ; i < count ; i++)
         if (UNKNOWN_HANDLE(handleArray[i]))
@@ -104,10 +106,8 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
                                  timeout == NO_TIMEOUT ? -1 : timeout,
                                  &polled);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return NULL;
-    }
+    if (ret < 0)
+        leave_frame(NULL, -ret);
 
-    return polled;
+    leave_frame(polled, 0);
 }

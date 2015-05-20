@@ -26,7 +26,7 @@
 
 #include <linux_list.h>
 #include <api.h>
-#include <asm-errno.h>
+#include <pal_error.h>
 
 struct config {
     const char * key, * val;
@@ -46,7 +46,7 @@ static int __add_config (struct config_store * store,
 
     while (klen) {
         if (e && e->val)
-            return -EINVAL;
+            return -PAL_ERROR_INVAL;
 
         const char * token = key;
         int len = 0;
@@ -60,7 +60,7 @@ static int __add_config (struct config_store * store,
 
         e = store->malloc(sizeof(struct config));
         if (!e)
-            return -ENOMEM;
+            return -PAL_ERROR_NOMEM;
 
         e->key  = token;
         e->klen = len;
@@ -82,7 +82,7 @@ next:
     }
 
     if (!e || e->val || !list_empty(&e->children))
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     e->val  = val;
     e->vlen = vlen;
@@ -123,15 +123,15 @@ next:
 }
 
 int get_config (struct config_store * store, const char * key,
-                char * val_buf, size_t size)
+                char * val_buf, int size)
 {
     struct config * e = __get_config(store, key);
 
     if (!e || !e->val)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     if (e->vlen >= size)
-        return -ENAMETOOLONG;
+        return -PAL_ERROR_TOOLONG;
 
     memcpy(val_buf, e->val, e->vlen);
     val_buf[e->vlen] = 0;
@@ -139,19 +139,19 @@ int get_config (struct config_store * store, const char * key,
 }
 
 int get_config_entries (struct config_store * store, const char * key,
-                        char * key_buf, size_t size)
+                        char * key_buf, int size)
 {
     struct config * e = __get_config(store, key);
 
     if (!e || e->val)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     struct list_head * children = &e->children;
     int nentries = 0;
 
     list_for_each_entry(e, children, siblings) {
         if (e->klen >= size)
-            return -ENAMETOOLONG;
+            return -PAL_ERROR_TOOLONG;
 
         memcpy(key_buf, e->key, e->klen);
         key_buf[e->klen] = 0;
@@ -179,11 +179,11 @@ static int __del_config (struct config_store * store,
         }
 
     if (!found)
-        return -ENOENT;
+        return -PAL_ERROR_INVAL;
 
     if (key[len]) {
         if (found->val)
-            return -ENOTDIR;
+            return -PAL_ERROR_INVAL;
         int ret = __del_config(store, &found->children, key + len + 1);
         if (ret < 0)
             return ret;
@@ -191,7 +191,7 @@ static int __del_config (struct config_store * store,
             return 0;
     } else {
         if (!found->val)
-            return -EISDIR;
+            return -PAL_ERROR_INVAL;
     }
 
     list_del(&found->siblings);
@@ -206,7 +206,7 @@ static int __del_config (struct config_store * store,
 int set_config (struct config_store * store, const char * key, const char * val)
 {
     if (!key)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     if (!val) { /* deletion */
         return __del_config(store, &store->root, key);
@@ -217,7 +217,7 @@ int set_config (struct config_store * store, const char * key, const char * val)
 
     char * buf = store->malloc(klen + vlen + 2);
     if (!buf)
-        return -ENOMEM;
+        return -PAL_ERROR_NOMEM;
 
     memcpy(buf, key, klen + 1);
     memcpy(buf + klen + 1, val, vlen + 1);
@@ -328,9 +328,9 @@ int read_config (struct config_store * store,
         if (!filter || !filter(key, klen)) {
             int ret = __add_config(store, key, klen, val, vlen, NULL);
             if (ret < 0) {
-                if (ret == -ENAMETOOLONG)
+                if (ret == -PAL_ERROR_TOOLONG)
                     GOTO_INVAL("key too long");
-                if (ret == -EINVAL)
+                if (ret == -PAL_ERROR_INVAL)
                     GOTO_INVAL("key format invalid");
 
                 GOTO_INVAL("unknown error");
@@ -344,7 +344,7 @@ inval:
     if (errstring)
         *errstring = err;
 
-    return -EINVAL;
+    return -PAL_ERROR_INVAL;
 }
 
 int free_config (struct config_store * store)
@@ -365,7 +365,7 @@ static int __dup_config (const struct config_store * ss,
                          const struct list_head * sr,
                          struct config_store * ts,
                          struct list_head * tr,
-                         void ** data, size_t * size)
+                         void ** data, int * size)
 {
     struct config * e, * new;
 
@@ -395,7 +395,7 @@ static int __dup_config (const struct config_store * ss,
         if (need) {
             buf = ts->malloc(need);
             if (!buf)
-                return -ENOMEM;
+                return -PAL_ERROR_NOMEM;
         }
 
         if (e->key && !key) {
@@ -410,7 +410,7 @@ static int __dup_config (const struct config_store * ss,
 
         new = ts->malloc(sizeof(struct config));
         if (!new)
-            return -ENOMEM;
+            return -PAL_ERROR_NOMEM;
 
         new->key  = key;
         new->klen = e->klen;
@@ -453,10 +453,10 @@ int copy_config (struct config_store * store, struct config_store * new_store)
     void * data = new_store->malloc(size);
 
     if (!data)
-        return -ENOMEM;
+        return -PAL_ERROR_NOMEM;
 
     void * dataptr = data;
-    size_t datasz = size;
+    int datasz = size;
 
     new_store->raw_data = data;
     new_store->raw_size = size;
@@ -465,10 +465,10 @@ int copy_config (struct config_store * store, struct config_store * new_store)
                         &dataptr, &datasz);
 }
 
-static int __write_config (void * f, size_t (*write) (void *, void *, size_t),
+static int __write_config (void * f, int (*write) (void *, void *, int),
                            struct config_store * store,
                            struct list_head * root,
-                           char * keybuf, size_t klen,
+                           char * keybuf, int klen,
                            unsigned long * offset)
 {
     struct config * e;
@@ -498,7 +498,7 @@ static int __write_config (void * f, size_t (*write) (void *, void *, size_t),
             *offset += total;
         } else {
             if (klen + e->klen + 1 > CONFIG_MAX)
-                return -ENAMETOOLONG;
+                return -PAL_ERROR_TOOLONG;
 
             memcpy(keybuf + klen, e->key, e->klen);
             keybuf[klen + e->klen] = '.';
@@ -511,7 +511,7 @@ static int __write_config (void * f, size_t (*write) (void *, void *, size_t),
     return 0;
 }
 
-int write_config (void * f, size_t (*write) (void *, void *, size_t),
+int write_config (void * f, int (*write) (void *, void *, int),
                   struct config_store * store)
 {
     char buf[CONFIG_MAX];

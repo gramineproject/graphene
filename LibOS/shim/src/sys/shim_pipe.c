@@ -44,20 +44,20 @@ int create_pipes (IDTYPE * pipeid, PAL_HANDLE * srv, PAL_HANDLE * cli,
 
     if ((ret = create_pipe(pipeid, uri, PIPE_URI_SIZE, &hdl0,
                            qstr)) < 0) {
-        debug("pipe creation failure: %e\n", -ret);
+        debug("pipe creation failure\n");
         return ret;
     }
 
     if (!(hdl2 = DkStreamOpen(uri, 0, 0, 0,
                               flags & O_NONBLOCK))) {
         ret = -PAL_ERRNO;
-        debug("pipe connection failure: %e\n", -ret);
+        debug("pipe connection failure\n");
         goto err;
     }
 
     if (!(hdl1 = DkStreamWaitForClient(hdl0))) {
         ret = -PAL_ERRNO;
-        debug("pipe acception failure: %e\n", -ret);
+        debug("pipe acception failure\n");
         goto err;
     }
 

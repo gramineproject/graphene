@@ -80,9 +80,6 @@ static int parse_device_uri (const char ** uri, const char ** type,
     return 0;
 }
 
-static inline void
-dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat);
-
 static int char_read (PAL_HANDLE handle, int offset, int count, void * buffer);
 static int char_write (PAL_HANDLE handle, int offset, int count,
                        const void * buffer);
@@ -240,7 +237,7 @@ static int dev_attrquerybyhdl (PAL_HANDLE handle,
 
 static const char * dev_getrealpath (PAL_HANDLE handle)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    return NULL;
 }
 
 struct handle_ops dev_ops = {

@@ -100,7 +100,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
 }
 
 static int file_rename (PAL_HANDLE handle, const char * type,
-                        const char * uri, int share)
+                        const char * uri)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -112,7 +112,7 @@ static int file_getname (PAL_HANDLE handle, char * buffer, int count)
 
 const char * file_getrealpath (PAL_HANDLE handle)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    return NULL;
 }
 
 struct handle_ops file_ops = {
@@ -167,7 +167,7 @@ static int dir_attrquerybyhdl (PAL_HANDLE handle,
 }
 
 static int dir_rename (PAL_HANDLE handle, const char * type,
-                       const char * uri, int share)
+                       const char * uri)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -179,7 +179,7 @@ static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
 
 static const char * dir_getrealpath (PAL_HANDLE handle)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    return NULL;
 }
 
 struct handle_ops dir_ops = {

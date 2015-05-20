@@ -24,8 +24,8 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-size_t strnlen (const char *str, size_t maxlen);
-size_t strlen (const char *str);
+int strnlen (const char *str, int maxlen);
+int strlen (const char *str);
 
 long strtol (const char *s, char **endptr, int base);
 int atoi (const char *nptr);
@@ -33,10 +33,10 @@ long int atol (const char *nptr);
 
 char * strchr (const char *s, int c_in);
 
-void * memcpy (void *dstpp, const void *srcpp, size_t len);
-void * memmove (void *dstpp, void *srcpp, size_t len);
-void * memset (void *dstpp, int c, size_t len);
-int memcmp (const void *s1, const void *s2, size_t len);
+void * memcpy (void *dstpp, const void *srcpp, int len);
+void * memmove (void *dstpp, void *srcpp, int len);
+void * memset (void *dstpp, int c, int len);
+int memcmp (const void *s1, const void *s2, int len);
 
 void fprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
                 const char * fmt, ...);
@@ -44,7 +44,10 @@ void fprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
 void vfprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
                  const char * fmt, va_list ap);
 
-int inet_pton(int af, const char *src, void *dst);
+int snprintf (char * buf, int n, const char * fmt, ...);
+
+int inet_pton4 (const char *src, void *dst);
+int inet_pton6 (const char *src, void *dst);
 
 uint32_t __htonl (uint32_t x);
 uint32_t __ntohl (uint32_t x);
@@ -61,24 +64,23 @@ extern const char * const * sys_errlist_internal;
 #include <linux_list.h>
 
 struct config_store {
-    struct list_head    root, entries;
-    void *              raw_data;
-    size_t              raw_size;
-    void *              (*malloc) (int);
-    void                (*free) (void *);
+    struct list_head root, entries;
+    void *           raw_data;
+    int              raw_size;
+    void *           (*malloc) (int);
+    void             (*free) (void *);
 };
 
-int read_config (struct config_store * store,
-                 int (*filter) (const char * key, int ken),
+int read_config (struct config_store * store, int (*filter) (const char *, int),
                  const char ** errstring);
 int free_config (struct config_store * store);
 int copy_config (struct config_store * store, struct config_store * new_store);
-int write_config (void * f, size_t (*write) (void *, void *, size_t),
+int write_config (void * file, int (*write) (void *, void *, int),
                   struct config_store * store);
 int get_config (struct config_store * cfg, const char * key,
-                char * val_buf, size_t size);
+                char * val_buf, int size);
 int get_config_entries (struct config_store * cfg, const char * key,
-                        char * key_buf, size_t size);
+                        char * key_buf, int size);
 int set_config (struct config_store * cfg, const char * key, const char * val);
 
 #define CONFIG_MAX      256

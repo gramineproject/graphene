@@ -39,7 +39,7 @@ typedef __kernel_pid_t pid_t;
 #include <linux/stat.h>
 #include <asm/stat.h>
 #include <asm/fcntl.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 
 /* 'open' operation for file streams */
 static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
@@ -212,20 +212,14 @@ static inline int file_stat_type (struct stat * stat)
 static inline void
 file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 {
-    memset(attr, 0, sizeof(PAL_STREAM_ATTR));
-
-    attr->type = file_stat_type(stat);
-    attr->file_id = stat->st_ino;
-    attr->size = stat->st_size;
-
-    attr->access_time = stat->st_atime;
-    attr->change_time = stat->st_mtime;
-    attr->create_time = stat->st_ctime;
-
-    attr->readable  = stataccess(stat, ACCESS_R);
-    attr->writeable = stataccess(stat, ACCESS_W);
-    attr->runnable  = stataccess(stat, ACCESS_X);
-    attr->share_flags = stat->st_mode;
+    attr->handle_type  = file_stat_type(stat);
+    attr->disconnected = PAL_FALSE;
+    attr->nonblocking  = PAL_FALSE;
+    attr->readable     = stataccess(stat, ACCESS_R);
+    attr->writeable    = stataccess(stat, ACCESS_W);
+    attr->runnable     = stataccess(stat, ACCESS_X);
+    attr->share_flags  = stat->st_mode;
+    attr->pending_size = stat->st_size;
 }
 
 /* 'attrquery' operation for file streams */

@@ -36,12 +36,10 @@ PAL_HANDLE DkNotificationEventCreate (PAL_BOL initialState)
     PAL_HANDLE handle = NULL;
     int ret = _DkEventCreate(&handle, initialState, true);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return NULL;
-    }
+    if (ret < 0)
+        leave_frame(NULL, -ret);
 
-    return handle;
+    leave_frame(handle, 0);
 }
 
 PAL_HANDLE DkSynchronizationEventCreate (PAL_BOL initialState)
@@ -51,69 +49,66 @@ PAL_HANDLE DkSynchronizationEventCreate (PAL_BOL initialState)
     PAL_HANDLE handle = NULL;
     int ret = _DkEventCreate(&handle, initialState, false);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return NULL;
-    }
+    if (ret < 0)
+        leave_frame(NULL, -ret);
 
-    return handle;
+    leave_frame(handle, 0);
 }
 
 void DkEventDestroy (PAL_HANDLE handle)
 {
     store_frame(EventDestroy);
 
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return;
-    }
+    if (!handle || !IS_HANDLE_TYPE(handle, event))
+        leave_frame(, PAL_ERROR_INVAL);
 
     _DkEventDestroy(handle);
+    leave_frame(, 0);
 }
 
 void DkEventSet (PAL_HANDLE handle)
 {
     store_frame(EventSet);
 
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return;
-    }
+    if (!handle || !IS_HANDLE_TYPE(handle, event))
+        leave_frame(, PAL_ERROR_INVAL);
 
     int ret = _DkEventSet (handle);
 
     if (ret < 0)
-        notify_failure(-ret);
+        leave_frame(, -ret);
+
+    leave_frame(, 0);
 }
 
 void DkEventWait (PAL_HANDLE handle)
 {
     store_frame(EventWait);
 
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return;
-    }
+    if (!handle || !IS_HANDLE_TYPE(handle, event))
+        leave_frame(, PAL_ERROR_INVAL);
 
     int ret = _DkEventWait(handle);
 
     if (ret < 0)
-        notify_failure(-ret);
+        leave_frame(, -ret);
+
+    leave_frame(, 0);
 }
 
 void DkEventClear (PAL_HANDLE handle)
 {
     store_frame(EventClear);
 
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return;
-    }
+    if (!handle || !IS_HANDLE_TYPE(handle, event))
+        leave_frame(, PAL_ERROR_INVAL);
 
     int ret = _DkEventClear(handle);
 
     if (ret < 0)
-        notify_failure(-ret);
+        leave_frame(, -ret);
+
+    leave_frame(, 0);
 }
 
 static int event_close (PAL_HANDLE handle)

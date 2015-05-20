@@ -10,7 +10,7 @@ ARFLAGS	=
 
 include ../src/host/$(OS)/Makefile.am
 
-CFLAGS += -I. -I../include
+CFLAGS += -I. -I../include -I../src
 subdirs = string stdlib network graphene
 objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
 headers = asm-errlist.h api.h

@@ -31,6 +31,10 @@
 #include "pal_error.h"
 #include "api.h"
 
+/* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
+   address */
+#define PAL_SOCKADDR_SIZE   96
+
 /* listen on a tcp socket */
 static int tcp_listen (PAL_HANDLE * handle, char * uri, int create)
 {
@@ -187,9 +191,9 @@ struct handle_ops udpsrv_ops = {
         .attrquerybyhdl = &socket_attrquerybyhdl,
     };
 
-PAL_HANDLE _DkBroadcastStreamOpen (int port)
+PAL_HANDLE _DkBroadcastStreamOpen (void)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    return NULL;
 }
 
 static int mcast_send (PAL_HANDLE handle, int offset, int size,

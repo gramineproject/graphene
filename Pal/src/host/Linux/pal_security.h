@@ -20,28 +20,29 @@
 #ifndef PAL_SECURITY_H
 #define PAL_SECURITY_H
 
-#include "pal.h"
+#include <linux/limits.h>
 
-#define PATH_MAX    80
-#define PIPE_MAX    32
+#include "pal.h"
 
 struct r_debug;
 
-extern struct pal_sec_info {
-    unsigned int        domain_id;
-    char                pipe_prefix[PIPE_MAX];
-    void *              user_addr_base;
-    int                 rand_gen;
+extern struct pal_sec {
+    unsigned long       pipe_prefix;
     unsigned short      mcast_port;
+    unsigned int        current_pid;
+    void *              user_addr_base;
+    unsigned int        rand_gen;
     void                (*_dl_debug_state) (void);
     struct r_debug *    _r_debug;
-} pal_sec_info;
+} pal_sec;
 
 #define GRAPHENE_TEMPDIR        "/tmp/graphene"
 #define GRAPHENE_PIPEDIR        GRAPHENE_TEMPDIR "/pipes"
 
-#define PROC_INIT_FD    3
+#define PROC_INIT_FD    255
 
 #define MCAST_GROUP "239.0.0.1"
+
+#define RANDGEN_DEVICE          "/dev/urandom"
 
 #endif /* PAL_SECURITY_H */

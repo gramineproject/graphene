@@ -30,6 +30,7 @@
 #include "pal_defs.h"
 #include "pal.h"
 #include "atomic.h"
+#include "api.h"
 
 #ifndef IN_PAL
 # error "pal_internal.h can only be included in PAL"
@@ -112,7 +113,7 @@ struct handle_ops {
 extern const struct handle_ops * pal_handle_ops [];
 
 #define HANDLE_OPS(handle)                              \
-    ({ int _type = HANDLE_TYPE(handle);                 \
+    ({ int _type = PAL_GET_TYPE(handle);                \
        (_type <= 0 || _type >= PAL_HANDLE_TYPE_BOUND) ? \
        NULL : pal_handle_ops[_type];                    \
     })
@@ -148,35 +149,35 @@ static inline uint64_t hash64 (uint64_t key)
 #define HANDLE_SIZE(type)  ({ PAL_HANDLE _h; sizeof(_h->type); })
 
 #define UNKNOWN_HANDLE(handle)     \
-    (HANDLE_TYPE(handle) == 0 || HANDLE_TYPE(handle) >= PAL_HANDLE_TYPE_BOUND)
+    (PAL_GET_TYPE(handle) == 0 || PAL_GET_TYPE(handle) >= PAL_HANDLE_TYPE_BOUND)
 
 static inline int handle_size (PAL_HANDLE handle)
 {
     static int handle_sizes[PAL_HANDLE_TYPE_BOUND]
             = { 0,
-                sizeof(handle->file),
-                sizeof(handle->pipe),
-                sizeof(handle->pipe),
-                sizeof(handle->pipe),
-                sizeof(handle->pipeprv),
-                sizeof(handle->dev),
-                sizeof(handle->dir),
-                sizeof(handle->sock),
-                sizeof(handle->sock),
-                sizeof(handle->sock),
-                sizeof(handle->sock),
-                sizeof(handle->process),
-                sizeof(handle->mcast),
-                sizeof(handle->thread),
-                sizeof(handle->semaphore),
-                sizeof(handle->event),
-                sizeof(handle->gipc),
+                [pal_type_file]      = sizeof(handle->file),
+                [pal_type_pipe]      = sizeof(handle->pipe),
+                [pal_type_pipesrv]   = sizeof(handle->pipe),
+                [pal_type_pipecli]   = sizeof(handle->pipe),
+                [pal_type_pipeprv]   = sizeof(handle->pipeprv),
+                [pal_type_dev]       = sizeof(handle->dev),
+                [pal_type_dir]       = sizeof(handle->dir),
+                [pal_type_tcp]       = sizeof(handle->sock),
+                [pal_type_tcpsrv]    = sizeof(handle->sock),
+                [pal_type_udp]       = sizeof(handle->sock),
+                [pal_type_udpsrv]    = sizeof(handle->sock),
+                [pal_type_process]   = sizeof(handle->process),
+                [pal_type_mcast]     = sizeof(handle->mcast),
+                [pal_type_thread]    = sizeof(handle->thread),
+                [pal_type_semaphore] = sizeof(handle->semaphore),
+                [pal_type_event]     = sizeof(handle->event),
+                [pal_type_gipc]      = sizeof(handle->gipc),
             };
 
     if (UNKNOWN_HANDLE(handle))
         return 0;
     else
-        return handle_sizes[HANDLE_TYPE(handle)];
+        return handle_sizes[PAL_GET_TYPE(handle)];
 }
 
 #ifdef __x86_64__
@@ -243,25 +244,38 @@ struct pal_frame {
     void *                      func;
     const char *                funcname;
     struct arch_frame           arch;
-    PAL_CONTEXT *               context;
-    unsigned long *             retval;
 };
 
 static inline
 void __store_frame (struct pal_frame * frame,
                     void * func, const char * funcname)
 {
-    frame->self = frame;
+    *(volatile void **) &frame->self = frame;
     frame->func = func;
     frame->funcname = funcname;
-    frame->context = NULL;
-    frame->retval = NULL;
     arch_store_frame(&frame->arch)
+}
+
+static inline
+void __clear_frame (struct pal_frame * frame)
+{
+    if (*(volatile void **) &frame->self == frame) {
+        asm volatile ("nop" ::: "memory");
+        *(volatile void **) &frame->self = NULL;
+        asm volatile ("nop" ::: "memory");
+    }
 }
 
 #define store_frame(f)                     \
     struct pal_frame frame;                \
     __store_frame(&frame, &Dk##f, "Dk" #f)
+
+#define leave_frame(ret, err)               \
+    do {                                    \
+        __clear_frame(&frame);              \
+        if (err) _DkRaiseFailure(err);      \
+        return ret;                         \
+    } while (0)
 
 /* failure notify. The rountine is called whenever a PAL call return
    error code. As the current design of PAL does not return error
@@ -271,25 +285,42 @@ void __store_frame (struct pal_frame * frame,
    optimization for SHIM. */
 void notify_failure (unsigned long error);
 
-#include <sigset.h>
-
 /* all pal config value */
-extern struct pal_config {
+extern struct pal_internal_state {
+    PAL_NUM         pal_token;
+    void *          pal_addr;
+
+    PAL_HANDLE      parent_handle;
+
     const char *    manifest;
-    const char *    exec;
     PAL_HANDLE      manifest_handle;
+
+    const char *    exec;
     PAL_HANDLE      exec_handle;
+
     struct config_store * root_config;
+
     unsigned long   pagesize;
-    unsigned long   alloc_align;
-    bool            daemonize;
-    void *          user_addr_start, * user_addr_end;
-    void *          lib_text_start, * lib_text_end;
-    void *          lib_data_start, * lib_data_end;
-    PAL_HANDLE      console_output;
+    unsigned long   alloc_align, alloc_shift, alloc_mask;
+
+    PAL_HANDLE      console;
+
     const char *    syscall_sym_name;
     void *          syscall_sym_addr;
-} pal_config;
+
+    bool            daemonize;
+
+    unsigned long   start_time;
+
+#if PROFILING == 1
+    unsigned long   relocation_time;
+    unsigned long   linking_time;
+    unsigned long   manifest_loading_time;
+    unsigned long   slab_time;
+    unsigned long   tail_startup_time;
+    unsigned long   process_create_time;
+#endif
+} pal_state;
 
 #define BREAK()                         \
     do {                                \
@@ -298,35 +329,45 @@ extern struct pal_config {
 
 extern PAL_CONTROL __pal_control;
 
-extern void * text_start, * text_end;
-extern void * data_start, * data_end;
-
-/* constants and macros to help rounding addresses to page
-   boundaries */
-extern unsigned long allocsize, allocshift, allocmask;
-
-#define ALLOC_ALIGNDOWN(addr)                           \
-    ({                                                  \
-        assert(allocsize && allocshift && allocmask);   \
-        ((unsigned long) (addr)) & allocmask;           \
+#define ALLOC_ALIGNDOWN(addr)                               \
+    ({                                                      \
+        assert(pal_state.alloc_mask);                       \
+        ((unsigned long) (addr)) & pal_state.alloc_mask;    \
     })
-#define ALLOC_ALIGNUP(addr)                             \
-    ({                                                  \
-        assert(allocsize && allocshift && allocmask);   \
-        (((unsigned long) (addr)) + allocshift) & allocmask;    \
+#define ALLOC_ALIGNUP(addr)                                 \
+    ({                                                      \
+        assert(pal_state.alloc_shift && pal_state.alloc_mask); \
+        (((unsigned long) (addr)) + pal_state.alloc_shift) & pal_state.alloc_mask; \
     })
-#define ALLOC_ALIGNED(addr)                             \
-    ({                                                  \
-        assert(allocsize && allocshift && allocmask);   \
-        (unsigned long) (addr) ==                       \
-            (((unsigned long) (addr)) & allocmask);     \
+#define ALLOC_ALIGNED(addr)                                 \
+    ({                                                      \
+        assert(pal_state.alloc_mask);                       \
+        (unsigned long) (addr) ==                           \
+            (((unsigned long) (addr)) & pal_state.alloc_mask); \
     })
 
 /* For initialization */
-void pal_main (int argc, const char ** argv, const char ** envp);
 unsigned long _DkGetPagesize (void);
 unsigned long _DkGetAllocationAlignment (void);
-int _DkInitHost (int * pargc, const char *** pargv);
+void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end);
+bool _DkCheckMemoryMappable (const void * addr, int size);
+PAL_NUM _DkGetProcessId (void);
+PAL_NUM _DkGetHostId (void);
+unsigned long _DkMemoryQuota (void);
+unsigned long _DkMemoryAvailableQuota (void);
+typedef typeof(__pal_control.cpu_info) PAL_CPU_INFO;
+void _DkGetCPUInfo (PAL_CPU_INFO * info);
+
+/* Main function called by host-dependent bootstrapper */
+void pal_main (PAL_NUM pal_token, void * pal_addr, const char * pal_name,
+               int argc, const char ** argv, const char ** envp,
+               PAL_HANDLE parent_handle,
+               PAL_HANDLE thread_handle,
+               PAL_HANDLE exec_handle,
+               PAL_HANDLE manifest_handle);
+
+void start_execution (const char * first_argv, int argc, const char ** argv,
+                      const char ** envp);
 
 #include <atomic.h>
 
@@ -345,20 +386,21 @@ int _DkStreamWrite (PAL_HANDLE handle, int offset, int count,
 int _DkStreamAttributesQuery (const char * uri, PAL_STREAM_ATTR * attr);
 int _DkStreamAttributesQuerybyHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
 int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, int offset,
-                  size_t size);
-int _DkStreamUnmap (void * addr, size_t size);
-int _DkStreamSetLength (PAL_HANDLE handle, size_t length);
+                  int size);
+int _DkStreamUnmap (void * addr, int size);
+int _DkStreamSetLength (PAL_HANDLE handle, int length);
 int _DkStreamFlush (PAL_HANDLE handle);
+int _DkStreamGetName (PAL_HANDLE handle, char * buf, int size);
 const char * _DkStreamRealpath (PAL_HANDLE hdl);
+int _DkStreamFile (PAL_HANDLE hdl, PAL_HANDLE * file);
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo);
-int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE cargo);
-PAL_HANDLE _DkBroadcastStreamOpen (int port);
+int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo);
+PAL_HANDLE _DkBroadcastStreamOpen (void);
 
 /* DkProcess and DkThread calls */
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * parem, int flags);
-void * _DkThreadPrivate (void * addr);
-void _DkThreadExit (int exitcode);
+void _DkThreadExit (void);
 int _DkThreadDelayExecution (unsigned long * duration);
 void _DkThreadYieldExecution (void);
 int _DkThreadResume (PAL_HANDLE threadHandle);
@@ -385,10 +427,9 @@ int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
 /* DkVirtualMemory calls */
-int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
-                           int prot);
-int _DkVirtualMemoryFree (void * addr, size_t size);
-int _DkVirtualMemoryProtect (void * addr, size_t size, int prot);
+int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type, int prot);
+int _DkVirtualMemoryFree (void * addr, int size);
+int _DkVirtualMemoryProtect (void * addr, int size, int prot);
 
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);
@@ -399,30 +440,30 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
 /* DkException calls & structures */
 typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
 int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND]) (int, PAL_UPCALL, int);
+void _DkRaiseFailure (int error);
 void _DkExceptionReturn (const void * event);
 
 /* other DK calls */
 unsigned long _DkSystemTimeQuery (void);
+int _DkFastRandomBitsRead (void * buffer, int size);
 int _DkRandomBitsRead (void * buffer, int size);
-int _DkInstructionCacheFlush (const void * addr, size_t size);
+int _DkSegmentRegisterSet (int reg, const void * addr);
+int _DkSegmentRegisterGet (int reg, void ** addr);
+int _DkInstructionCacheFlush (const void * addr, int size);
 int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key);
-int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries, void ** addrs,
-                             unsigned long * sizes, int flags);
-int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries, void ** addrs,
-                          unsigned long * sizes, unsigned int * prots);
+int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
+                             PAL_PTR * addrs, PAL_NUM * sizes, int flags);
+int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
+                          PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
+unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
+                                               unsigned long args[6]);
 
-/* To setup the system-wise signal handlers, including SIGKILL, SIGTERM,
- * SIGINT, SIGUSR1, etc */
-int signal_setup (void);
-
-/* random number generator: initialization and fetching */
-int getrand (void * buffer, int size);
-
-/* blocking and unblocking signals */
-int block_signals (int * sigs, int nsig);
-int unblock_signals (int * sigs, int nsig);
-
-void * find_address (void * addr);
+#define init_fail(exitcode, reason)                                     \
+    do {                                                                \
+        printf("PAL failed at " __FILE__ ":%s:%d (exitcode = %d, reason = %s)\n", \
+               __FUNCTION__, __LINE__, exitcode, reason);               \
+        _DkProcessExit(exitcode);                                       \
+    } while (0)
 
 /* function and definition for loading binaries */
 enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
@@ -431,7 +472,7 @@ int check_elf_object (PAL_HANDLE handle);
 int load_elf_object (const char * uri, enum object_type type);
 int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type);
 
-void init_slab_mgr (void);
+void init_slab_mgr (int alignment);
 void * malloc (int size);
 void * remalloc (const void * mem, int size);
 void * calloc (int nmem, int size);
@@ -440,12 +481,10 @@ void free (void * mem);
 #define attribute_hidden __attribute__ ((visibility ("hidden")))
 
 #define alias_str(name) #name
-
 #define extern_alias(name) \
     extern __typeof(name) pal_##name __attribute ((alias (alias_str(name))))
 
 void _DkPrintConsole (const void * buf, int size);
 int printf  (const char  *fmt, ...);
-int snprintf (char * buf, size_t n, const char * fmt, ...);
 
 #endif

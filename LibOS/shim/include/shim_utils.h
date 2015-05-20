@@ -34,8 +34,6 @@ struct shim_handle;
 
 void sysparser_printf (const char * fmt, ...);
 
-int snprintf (char * buf, size_t n, const char * fmt, ...);
-
 /* string object */
 struct shim_str * get_str_obj (void);
 int free_str_obj (struct shim_str * str);

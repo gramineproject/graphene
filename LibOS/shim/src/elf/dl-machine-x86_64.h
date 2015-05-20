@@ -58,9 +58,9 @@ elf_machine_matches_host (const Elf64_Ehdr * ehdr)
 /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
    MAP is the object containing the reloc.  */
 
-//#define DEBUG_RELOC
+#define DEBUG_RELOC
 
-static void
+static bool
 elf_machine_rela (struct link_map * l, ElfW(Rela) * reloc, Elf64_Sym * sym,
                   void * const reloc_addr_arg)
 {
@@ -71,7 +71,7 @@ elf_machine_rela (struct link_map * l, ElfW(Rela) * reloc, Elf64_Sym * sym,
                             (const void *) D_PTR (l->l_info[DT_STRTAB]);
 
 #ifdef DEBUG_RELOC
-#define elf_machine_rela_debug(r_type, sym, value)                  \
+#define debug_reloc(r_type, sym, value)                             \
     ({  if (strtab && sym && sym->st_name)                          \
             debug(#r_type ": %s\n", strtab + sym->st_name);         \
         else if (value)                                             \
@@ -80,52 +80,54 @@ elf_machine_rela (struct link_map * l, ElfW(Rela) * reloc, Elf64_Sym * sym,
             debug(#r_type "\n", value);                             \
     })
 #else
-#define elf_machine_rela_debug(...) ({})
+#define debug_reloc(...) ({})
 #endif
 
+    if (r_type == R_X86_64_RELATIVE || r_type == R_X86_64_NONE)
+        return false;
+
     Elf64_Sym * refsym = sym;
+    Elf64_Addr value;
     Elf64_Addr sym_map = RESOLVE_MAP(&strtab, &sym);
-#define SYM (sym ? : refsym)
 
-    if (!sym_map)
-        sym_map = l->l_addr;
+    if (!sym_map || !sym || refsym == sym)
+        return false;
 
-    Elf64_Addr value = sym_map + (sym == NULL ? refsym->st_value : sym->st_value);
+    value = sym_map + sym->st_value;
 
     /* We do a very special relocation for loaded libraries */
-    if (sym && refsym && refsym != sym) {
-        PROTECT_PAGE(l, refsym, sizeof(*refsym));
-        PROTECT_PAGE(l, reloc_addr, sizeof(*reloc_addr));
+    PROTECT_PAGE(l, refsym, sizeof(*refsym));
+    PROTECT_PAGE(l, reloc_addr, sizeof(*reloc_addr));
 
-        refsym->st_info = sym->st_info;
-        refsym->st_size = sym->st_size;
+    refsym->st_info = sym->st_info;
+    refsym->st_size = sym->st_size;
 
-        if (__builtin_expect (ELFW(ST_TYPE) (sym->st_info)
-                              == STT_GNU_IFUNC, 0)
-            && __builtin_expect (sym->st_shndx != SHN_UNDEF, 1))
-        {
-            value = ((Elf64_Addr (*) (void)) value) ();
+    if (__builtin_expect (ELFW(ST_TYPE) (sym->st_info)
+                          == STT_GNU_IFUNC, 0)
+        && __builtin_expect (sym->st_shndx != SHN_UNDEF, 1)) {
+        value = ((Elf64_Addr (*) (void)) value) ();
 
-            refsym->st_info ^= ELFW(ST_TYPE)(sym->st_info);
-            refsym->st_info |= STT_FUNC;
-        }
-
-        elf_machine_rela_debug ("shim symbol", SYM, value);
-
-        refsym->st_value = value - l->l_addr;
-        *reloc_addr = value +
-            ((r_type == R_X86_64_GLOB_DAT ||
-              r_type == R_X86_64_JUMP_SLOT ||
-              r_type == R_X86_64_64) ? reloc->r_addend : 0);
-
-        /* We have relocated the symbol, we don't want the
-           interpreter to relocate it again. */
-        if (r_type != R_X86_64_NONE) {
-            PROTECT_PAGE(l, reloc, sizeof(*reloc));
-            reloc->r_info = (reloc->r_info ^ ELF64_R_TYPE (reloc->r_info))|
-                            R_X86_64_NONE;
-        }
+        refsym->st_info ^= ELFW(ST_TYPE)(sym->st_info);
+        refsym->st_info |= STT_FUNC;
     }
+
+    debug_reloc("shim symbol", sym, value);
+
+    refsym->st_value = value - l->l_addr;
+    *reloc_addr = value +
+        ((r_type == R_X86_64_GLOB_DAT ||
+          r_type == R_X86_64_JUMP_SLOT ||
+          r_type == R_X86_64_64) ? reloc->r_addend : 0);
+
+    /* We have relocated the symbol, we don't want the
+       interpreter to relocate it again. */
+    if (r_type != R_X86_64_NONE) {
+        PROTECT_PAGE(l, reloc, sizeof(*reloc));
+        reloc->r_info = (reloc->r_info ^ ELF64_R_TYPE (reloc->r_info))|
+            R_X86_64_NONE;
+    }
+
+    return true;
 }
 
 #endif /* !dl_machine_h */

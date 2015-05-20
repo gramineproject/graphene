@@ -30,99 +30,67 @@
 #include "pal_debug.h"
 #include "api.h"
 
-bool check_memory_overlap (void * addr, size_t size)
-{
-    void * pal_min = pal_config.lib_text_start;
-    void * pal_max = pal_config.lib_data_end;
-
-    void * overlap_start = pal_min < addr ? addr : pal_min;
-    void * overlap_end = addr + size < pal_max ? addr + size : pal_max;
-
-    if (overlap_start < overlap_end) {
-        printf("WARNING: Attempt to change PAL-internal memory!!!!"
-               "   You seriously don't want to do this.\n");
-        return true;
-    }
-    return false;
-}
-
-PAL_BUF
-DkVirtualMemoryAlloc (PAL_BUF addr, PAL_NUM size, PAL_FLG alloc_type,
+PAL_PTR
+DkVirtualMemoryAlloc (PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type,
                       PAL_FLG prot)
 {
     store_frame(VirtualMemoryAlloc);
+    void * map_addr = (void *) addr;
 
-    if ((addr && !ALLOC_ALIGNED(addr)) || !size || !ALLOC_ALIGNED(size)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return NULL;
-    }
+    if ((addr && !ALLOC_ALIGNED(addr)) || !size || !ALLOC_ALIGNED(size))
+        leave_frame(NULL, PAL_ERROR_INVAL);
 
-    if (check_memory_overlap(addr, size)) {
-        notify_failure(PAL_ERROR_DENIED);
-        return NULL;
-    }
+    if (map_addr && _DkCheckMemoryMappable((void *) map_addr, size))
+        leave_frame(NULL, PAL_ERROR_DENIED);
 
-    int ret = _DkVirtualMemoryAlloc(&addr, size, alloc_type, prot);
+    int ret = _DkVirtualMemoryAlloc(&map_addr, size, alloc_type, prot);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return NULL;
-    }
+    if (ret < 0)
+        leave_frame(NULL, -ret);
 
-    return addr;
+    leave_frame(map_addr, 0);
 }
 
 void
-DkVirtualMemoryFree (PAL_BUF addr, PAL_NUM size)
+DkVirtualMemoryFree (PAL_PTR addr, PAL_NUM size)
 {
     store_frame(VirtualMemoryFree);
 
-    if (!addr || !size) {
-        notify_failure(PAL_ERROR_INVAL);
-        return;
-    }
+    if (!addr || !size)
+        leave_frame(, PAL_ERROR_INVAL);
 
-    if (!ALLOC_ALIGNED(addr) || !ALLOC_ALIGNED(size)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return;
-    }
+    if (!ALLOC_ALIGNED(addr) || !ALLOC_ALIGNED(size))
+        leave_frame(, PAL_ERROR_INVAL);
 
-    if (check_memory_overlap(addr, size)) {
-        notify_failure(PAL_ERROR_DENIED);
-        return;
-    }
+    if (_DkCheckMemoryMappable((void *) addr, size))
+        leave_frame(, PAL_ERROR_DENIED);
 
-    int ret = _DkVirtualMemoryFree(addr, size);
+    int ret = _DkVirtualMemoryFree((void *) addr, size);
+
     if (ret < 0)
-        notify_failure(-ret);
+        leave_frame(, -ret);
+
+    leave_frame(, 0);
 }
 
 PAL_BOL
-DkVirtualMemoryProtect (PAL_BUF addr, PAL_NUM size, PAL_FLG prot)
+DkVirtualMemoryProtect (PAL_PTR addr, PAL_NUM size, PAL_FLG prot)
 {
     store_frame(VirtualMemoryProtect);
 
-    if (!addr || !size) {
-        notify_failure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
-    }
+    if (!addr || !size)
+        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
 
-    if (!ALLOC_ALIGNED(addr) || !ALLOC_ALIGNED(size)) {
-        notify_failure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
-    }
+    if (!ALLOC_ALIGNED(addr) || !ALLOC_ALIGNED(size))
+        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
 
-    if (check_memory_overlap(addr, size)) {
-        notify_failure(PAL_ERROR_DENIED);
-        return NULL;
-    }
+    if (_DkCheckMemoryMappable((void *) addr, size))
+        leave_frame(PAL_FALSE, PAL_ERROR_DENIED);
 
-    int ret = _DkVirtualMemoryProtect(addr, size, prot);
+    int ret = _DkVirtualMemoryProtect((void *) addr, size, prot);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return PAL_FALSE;
-    }
+    if (ret < 0)
+        leave_frame(PAL_FALSE, -ret);
 
-    return PAL_TRUE;
+    leave_frame(PAL_TRUE, 0);
 }

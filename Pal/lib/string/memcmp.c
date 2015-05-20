@@ -30,7 +30,7 @@
 #endif /* C++ or ANSI C.  */
 
 # include <sysdeps/generic/memcopy.h>
-# include <endian.h>
+# include <host_endian.h>
 
 # if __BYTE_ORDER == __BIG_ENDIAN
 #  define WORDS_BIGENDIAN
@@ -80,7 +80,7 @@ static int memcmp_bytes (op_t a, op_t b)
 /* (memcmp_common_alignment -- Compare blocks at SRCP1 and SRCP2 with LEN `op_t'
    objects (not LEN bytes!).  Both SRCP1 and SRCP2 should be aligned for
    memory operations on `op_t's.  */
-static int memcmp_common_alignment (long srcp1, long srcp2, size_t len)
+static int memcmp_common_alignment (long srcp1, long srcp2, int len)
 {
     op_t a0, a1;
     op_t b0, b1;
@@ -158,7 +158,7 @@ do0:
 /* memcmp_not_common_alignment -- Compare blocks at SRCP1 and SRCP2 with LEN
    `op_t' objects (not LEN bytes!).  SRCP2 should be aligned for memory
    operations on `op_t', but SRCP1 *should be unaligned*.  */
-static int memcmp_not_common_alignment (long srcp1, long srcp2, size_t len)
+static int memcmp_not_common_alignment (long srcp1, long srcp2, int len)
 {
     op_t a0, a1, a2, a3;
     op_t b0, b1, b2, b3;
@@ -253,7 +253,7 @@ do0:
     return 0;
 }
 
-int memcmp (const __ptr_t s1, const __ptr_t s2, size_t len)
+int memcmp (const __ptr_t s1, const __ptr_t s2, int len)
 {
     op_t a0, b0, res;
     long int srcp1 = (long int) s1;

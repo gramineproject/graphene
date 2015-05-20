@@ -32,15 +32,12 @@
 #ifndef system_malloc
 #error "macro \"void * system_malloc(int size)\" not declared"
 #endif
-
 #ifndef system_free
 #error "macro \"void * system_free(void * ptr, int size)\" not declared"
 #endif
-
 #ifndef system_lock
 #define system_lock() ({})
 #endif
-
 #ifndef system_unlock
 #define system_unlock() ({})
 #endif
@@ -141,33 +138,33 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #ifdef PAGE_SIZE
 static inline int size_align_down(int slab_size, int size)
 {
-    size_t s = __MAX_MEM_SIZE(slab_size, size);
-    size_t p = s - (s & ~(PAGE_SIZE - 1));
-    size_t o = __SUM_OBJ_SIZE(slab_size, 1);
+    int s = __MAX_MEM_SIZE(slab_size, size);
+    int p = s - (s & ~(PAGE_SIZE - 1));
+    int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int size_align_up(int slab_size, int size)
 {
-    size_t s = __MAX_MEM_SIZE(slab_size, size);
-    size_t p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
-    size_t o = __SUM_OBJ_SIZE(slab_size, 1);
+    int s = __MAX_MEM_SIZE(slab_size, size);
+    int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
+    int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size + p / o;
 }
 
 static inline int init_align_down(int size)
 {
-    size_t s = __INIT_MAX_MEM_SIZE(size);
-    size_t p = s - (s & ~(PAGE_SIZE - 1));
-    size_t o = __INIT_SUM_OBJ_SIZE(1);
+    int s = __INIT_MAX_MEM_SIZE(size);
+    int p = s - (s & ~(PAGE_SIZE - 1));
+    int o = __INIT_SUM_OBJ_SIZE(1);
     return size - p /o - (p % o ? 1 : 0);
 }
 
 static inline int init_size_align_up(int size)
 {
-    size_t s = __INIT_MAX_MEM_SIZE(size);
-    size_t p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
-    size_t o = __INIT_SUM_OBJ_SIZE(1);
+    int s = __INIT_MAX_MEM_SIZE(size);
+    int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
+    int o = __INIT_SUM_OBJ_SIZE(1);
     return size + p / o;
 }
 #endif /* PAGE_SIZE */

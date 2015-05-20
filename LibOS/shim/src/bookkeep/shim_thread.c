@@ -591,7 +591,7 @@ void switch_dummy_thread (struct shim_thread * thread)
     real_thread->stack_top = thread->stack_top;
     real_thread->frameptr  = thread->frameptr;
 
-    DkThreadPrivate(real_thread->tcb);
+    DkSegmentRegister(PAL_SEGMENT_FS, real_thread->tcb);
     set_cur_thread(real_thread);
     debug("set tcb to %p\n", real_thread->tcb);
 
@@ -628,12 +628,10 @@ MIGRATE_FUNC_BODY(thread)
     unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset, size);
 
     if (ENTRY_JUST_CREATED(off)) {
-        ADD_OFFSET(sizeof(struct shim_thread));
-        ADD_FUNC_ENTRY(*offset);
-        ADD_ENTRY(SIZE, sizeof(struct shim_thread));
+        off = ADD_OFFSET(sizeof(struct shim_thread));
 
         if (!dry) {
-            new_thread = (struct shim_thread *) (base + *offset);
+            new_thread = (struct shim_thread *) (base + off);
             memcpy(new_thread, thread, sizeof(struct shim_thread));
 
             INIT_LIST_HEAD(&new_thread->children);
@@ -670,6 +668,13 @@ MIGRATE_FUNC_BODY(thread)
             }
         }
 
+        DO_MIGRATE_MEMBER(handle, thread, new_thread, exec, 0);
+        DO_MIGRATE_MEMBER_IF_RECURSIVE(handle_map, thread, new_thread,
+                                       handle_map, 1);
+
+        ADD_FUNC_ENTRY(off);
+        ADD_ENTRY(SIZE, sizeof(struct shim_thread));
+
         int rlen, clen;
         const char * rpath = dentry_get_path(thread->root, true, &rlen);
         const char * cpath = dentry_get_path(thread->cwd, true, &clen);
@@ -684,17 +689,13 @@ MIGRATE_FUNC_BODY(thread)
             memcpy(new_rpath, rpath, rlen + 1);
             memcpy(new_cpath, cpath, clen + 1);
         }
+
     } else if (!dry) {
         new_thread = (struct shim_thread *) (base + off);
     }
 
     if (new_thread && objp)
         *objp = (void *) new_thread;
-
-    DO_MIGRATE_MEMBER(handle, thread, new_thread, exec, 0);
-
-    DO_MIGRATE_MEMBER_IF_RECURSIVE(handle_map, thread, new_thread,
-                                   handle_map, 1);
 }
 END_MIGRATE_FUNC
 
@@ -733,13 +734,13 @@ RESUME_FUNC_BODY(thread)
     if (thread->handle_map)
         get_handle_map(thread->handle_map);
 
-//#ifdef DEBUG_RESUME
+#ifdef DEBUG_RESUME
     debug("thread: "
           "tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p\n",
           thread->tid, thread->tgid,
           thread->parent ? thread->parent->tid : thread->tid,
           thread->stack, thread->frameptr, thread->tcb);
-//#endif
+#endif
 }
 END_RESUME_FUNC
 
@@ -756,7 +757,7 @@ MIGRATE_FUNC_BODY(running_thread)
     DO_MIGRATE(thread, thread, thread_obj, recursive);
     ADD_FUNC_ENTRY(new_thread);
 
-    if (!thread->user_tcb) {
+    if (!thread->user_tcb && thread->tcb) {
         ADD_OFFSET(sizeof(__libc_tcb_t));
         if (!dry) {
             __libc_tcb_t * new_tcb = (void *) (base + *offset);
@@ -794,8 +795,10 @@ RESUME_FUNC_BODY(running_thread)
     RESUME_REBASE(thread);
     struct shim_thread * cur_thread = get_cur_thread();
     thread->in_vm = true;
-
     get_thread(thread);
+
+    if (!thread->user_tcb)
+        RESUME_REBASE(thread->tcb);
 
     if (cur_thread) {
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread, 0);

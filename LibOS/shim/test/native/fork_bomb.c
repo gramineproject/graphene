@@ -38,8 +38,8 @@ void sighand2 (int signum)
 int main(int argc, char ** argv)
 {
     int times = TEST_TIMES;
-    
-    for (int i = 0 ; i < times; i++ ) {
+
+    for (int i = 0 ; i < times; i++) {
         int pipes[2];
 
         pipe(pipes);

@@ -29,24 +29,21 @@
 #include "linux_list.h"
 #include <sys/mman.h>
 
+#ifndef OBJ_TYPE
+#error "OBJ_TYPE not defined"
+#endif
+
 #ifndef system_malloc
 #error "macro \"void * system_malloc(int size)\" not declared"
 #endif
-
 #ifndef system_free
 #error "macro \"void * system_free(void * ptr, int size)\" not declared"
 #endif
-
 #ifndef system_lock
 #define system_lock() ({})
 #endif
-
 #ifndef system_unlock
 #define system_unlock() ({})
-#endif
-
-#ifndef OBJ_TYPE
-#error "OBJ_TYPE not defined"
 #endif
 
 typedef struct mem_obj {
@@ -75,33 +72,33 @@ typedef struct mem_mgr {
 #ifdef PAGE_SIZE
 static inline int size_align_down(int size)
 {
-    size_t s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
-    size_t p = s - (s & ~(PAGE_SIZE - 1));
-    size_t o = __SUM_OBJ_SIZE(1);
+    int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
+    int p = s - (s & ~(PAGE_SIZE - 1));
+    int o = __SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int size_align_up(int size)
 {
-    size_t s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
-    size_t p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
-    size_t o = __SUM_OBJ_SIZE(1);
+    int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
+    int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
+    int o = __SUM_OBJ_SIZE(1);
     return size + p / o;
 }
 
 static inline int init_align_down(int size)
 {
-    size_t s = __MAX_MEM_SIZE(size);
-    size_t p = s - (s & ~(PAGE_SIZE - 1));
-    size_t o = __SUM_OBJ_SIZE(1);
+    int s = __MAX_MEM_SIZE(size);
+    int p = s - (s & ~(PAGE_SIZE - 1));
+    int o = __SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
 static inline int init_align_up(int size)
 {
-    size_t s = __MAX_MEM_SIZE(size);
-    size_t p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
-    size_t o = __SUM_OBJ_SIZE(1);
+    int s = __MAX_MEM_SIZE(size);
+    int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
+    int o = __SUM_OBJ_SIZE(1);
     return size + p / o;
 }
 #endif

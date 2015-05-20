@@ -47,6 +47,11 @@ void release_clear_child_id (int * clear_child_tid);
 
 int thread_exit(struct shim_thread * self, bool send_ipc)
 {
+    /* Chia-Che: Broadcast exit message as early as possible,
+       so other process can start early on responding. */
+    if (self->in_vm && send_ipc)
+        ipc_cld_exit_send(self->tid, self->exit_code);
+
     lock(self->lock);
 
     if (!self->is_alive) {
@@ -62,12 +67,10 @@ out:
         goto out;
 
     struct shim_handle_map * handle_map = self->handle_map;
-    self->handle_map = NULL;
-
     struct shim_handle * exec = self->exec;
-    self->exec = NULL;
-
     struct shim_thread * parent = self->parent;
+    self->handle_map = NULL;
+    self->exec = NULL;
 
     if (parent) {
         assert(parent != self);
@@ -113,10 +116,6 @@ out:
         release_clear_child_id (self->clear_child_tid);
 
     DkEventSet(self->exit_event);
-
-    if (self->in_vm && send_ipc)
-        ipc_cld_exit_send(self->tid, exit_code);
-
     return 0;
 }
 

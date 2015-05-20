@@ -404,9 +404,7 @@ MIGRATE_FUNC_BODY(mount)
                                            sizeof(struct shim_mount));
 
     if (ENTRY_JUST_CREATED(off)) {
-        ADD_OFFSET(sizeof(struct shim_mount));
-        ADD_FUNC_ENTRY(*offset);
-        ADD_ENTRY(SIZE, sizeof(struct shim_mount));
+        off = ADD_OFFSET(sizeof(struct shim_mount));
 
         if (dry) {
             mount->cpdata = NULL;
@@ -415,10 +413,7 @@ MIGRATE_FUNC_BODY(mount)
             if (mount->fs_ops &&
                 mount->fs_ops->checkpoint) {
                 void * cpdata = NULL;
-
-                int bytes = mount->fs_ops->checkpoint
-                                (&cpdata, mount->data);
-
+                int bytes = mount->fs_ops->checkpoint(&cpdata, mount->data);
                 if (bytes > 0 && cpdata) {
                     mount->cpdata = cpdata;
                     mount->cpsize = bytes;
@@ -426,16 +421,13 @@ MIGRATE_FUNC_BODY(mount)
                 }
             }
         } else {
-            new_mount = (struct shim_mount *) (base + *offset);
-
+            new_mount = (struct shim_mount *) (base + off);
             memcpy(new_mount, mount, sizeof(struct shim_mount));
 
             if (mount->cpdata) {
                 ADD_OFFSET(mount->cpsize);
                 new_mount->cpdata = (void *) (base + *offset);
-
-                memcpy (new_mount->cpdata, mount->cpdata,
-                        mount->cpsize);
+                memcpy(new_mount->cpdata, mount->cpdata, mount->cpsize);
             }
 
             new_mount->data = NULL;
@@ -443,15 +435,19 @@ MIGRATE_FUNC_BODY(mount)
             new_mount->root = NULL;
             INIT_LIST_HEAD(&new_mount->list);
         }
+
+        DO_MIGRATE_IN_MEMBER(qstr, mount, new_mount, path, false);
+        DO_MIGRATE_IN_MEMBER(qstr, mount, new_mount, uri,  false);
+
+        ADD_FUNC_ENTRY(off);
+        ADD_ENTRY(SIZE, sizeof(struct shim_mount));
+
     } else if (!dry) {
         new_mount = (struct shim_mount *) (base + off);
     }
 
     if (new_mount && objp)
         *objp = (void *) new_mount;
-
-    DO_MIGRATE_IN_MEMBER(qstr, mount, new_mount, path, false);
-    DO_MIGRATE_IN_MEMBER(qstr, mount, new_mount, uri,  false);
 }
 END_MIGRATE_FUNC
 

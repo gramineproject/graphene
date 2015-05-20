@@ -13,9 +13,6 @@
 #include <asm/prctl.h>
 #include <errno.h>
 
-#define MEMINFO_READ_PASSTHROUGH 1
-#define CPUINFO_READ_PASSTHROUGH 1
-
 static int proc_info_mode (const char * name, mode_t * mode)
 {
     *mode = 0444;
@@ -25,66 +22,13 @@ static int proc_info_mode (const char * name, mode_t * mode)
 static int proc_info_stat (const char * name, struct stat * buf)
 {
     memset(buf, 0, sizeof(struct stat));
-
     buf->st_dev = buf->st_ino = 1;
     buf->st_mode = 0444|S_IFDIR;
     buf->st_uid = 0;
     buf->st_gid = 0;
     buf->st_size = 0;
-
     return 0;
 }
-
-#if MEMINFO_READ_PASSTHROUGH == 1 || CPUINFO_READ_PASSTHROUGH == 1
-
-# define DEFAULT_BUFFER_SIZE 256
-
-static int proc_info_read_passthrough (const char * uri, char ** strptr)
-{
-    int size = DEFAULT_BUFFER_SIZE;
-    char * strbuf = malloc(size);
-    int bytes = 0, ret = 0;
-
-    if (!strbuf) {
-        ret = -ENOMEM;
-        goto out;
-    }
-
-    PAL_HANDLE hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
-
-    if (!hdl)
-        return -PAL_ERRNO;
-
-retry:
-    ret = DkStreamRead(hdl, bytes, size - bytes, strbuf + bytes, NULL, 0);
-
-    if (!ret) {
-        ret = -PAL_ERRNO;
-        goto out_free;
-    }
-
-    bytes += ret;
-
-    if (bytes == size) {
-        char * newbuf = malloc(size * 2);
-        memcpy(newbuf, strbuf, size);
-        free(strbuf);
-        strbuf = newbuf;
-        size *= 2;
-        goto retry;
-    }
-
-    ret = bytes;
-    *strptr = strbuf;
-    goto out;
-
-out_free:
-    free(strbuf);
-out:
-    DkObjectClose(hdl);
-    return ret;
-}
-#endif
 
 static int proc_meminfo_open (struct shim_handle * hdl, const char * name,
                               int flags)
@@ -92,20 +36,32 @@ static int proc_meminfo_open (struct shim_handle * hdl, const char * name,
     if (flags & (O_WRONLY|O_RDWR))
         return -EACCES;
 
+    int len, max = 128;
     char * str = NULL;
-    int ret = 0, len = 0;
-#if MEMINFO_READ_PASSTHROUGH == 1
-    ret = proc_info_read_passthrough("file:/proc/meminfo", &str);
 
-    if (ret >= 0) {
-        len = ret;
-        ret = 0;
+    struct { const char * fmt; unsigned long val; }
+        meminfo[] = {
+            { "MemTotal:      %8lu kB\n", pal_control.mem_info.mem_total / 1024, },
+            { "MemFree:       %8lu kB\n", DkMemoryAvailableQuota() / 1024, },
+        };
+
+retry:
+    if (str) free(str);
+    max *= 2;
+    len = 0;
+    str = malloc(max);
+    if (!str)
+        return -ENOMEM;
+
+    for (int i = 0 ; i < sizeof(meminfo) / sizeof(meminfo[0]) ; i++) {
+        int ret = snprintf(str + len, max - len, meminfo[i].fmt,
+                           meminfo[i].val);
+
+        if (len + ret == max)
+            goto retry;
+
+        len += ret;
     }
-#else
-    ret = -EACCES;
-#endif
-    if (ret < 0)
-        return ret;
 
     struct shim_str_data * data = malloc(sizeof(struct shim_str_data));
     if (!data) {
@@ -129,20 +85,48 @@ static int proc_cpuinfo_open (struct shim_handle * hdl, const char * name,
     if (flags & (O_WRONLY|O_RDWR))
         return -EACCES;
 
+    int len, max = 128;
     char * str = NULL;
-    int ret = 0, len = 0;
-#if CPUINFO_READ_PASSTHROUGH == 1
-    ret = proc_info_read_passthrough("file:/proc/cpuinfo", &str);
 
-    if (ret >= 0) {
-        len = ret;
-        ret = 0;
+    struct { const char * fmt; unsigned long val; }
+        cpuinfo[] = {
+            { "processor      : %lu\n", 0, },
+            { "vendor_id      : %s\n",  (unsigned long) pal_control.cpu_info.cpu_vendor, },
+            { "cpu_family     : %lu\n", pal_control.cpu_info.cpu_family, },
+            { "model          : %lu\n", pal_control.cpu_info.cpu_model, },
+            { "model name     : %s\n",  (unsigned long) pal_control.cpu_info.cpu_brand, },
+            { "stepping       : %lu\n", pal_control.cpu_info.cpu_stepping, },
+            { "core id        : %lu\n", 0, },
+            { "cpu_core       : %lu\n", pal_control.cpu_info.cpu_num, },
+        };
+
+retry:
+    if (str) free(str);
+    max *= 2;
+    len = 0;
+    str = malloc(max);
+    if (!str)
+        return -ENOMEM;
+
+    for (int n = 0 ; n < pal_control.cpu_info.cpu_num ; n++) {
+        cpuinfo[0].val = n;
+        cpuinfo[6].val = n;
+        for (int i = 0 ; i < sizeof(cpuinfo) / sizeof(cpuinfo[0]) ; i++) {
+            int ret = snprintf(str + len, max - len, cpuinfo[i].fmt,
+                               cpuinfo[i].val);
+
+            if (len + ret == max)
+                goto retry;
+
+            len += ret;
+        }
+
+        if (len >= max - 1)
+            goto retry;
+
+        str[len++] = '\n';
+        str[len] = 0;
     }
-#else
-    ret = -EACCES;
-#endif
-    if (ret < 0)
-        return ret;
 
     struct shim_str_data * data = malloc(sizeof(struct shim_str_data));
     if (!data) {

@@ -38,9 +38,8 @@
 #include <elf/elf.h>
 #include <bits/dlfcn.h>
 
-struct link_map * loaded_libraries = NULL;
+struct link_map * loaded_maps = NULL;
 struct link_map * exec_map = NULL;
-bool run_preload = false;
 
 struct link_map * lookup_symbol (const char *undef_name, ElfW(Sym) **ref);
 
@@ -151,27 +150,11 @@ void setup_elf_hash (struct link_map *map)
     map->l_chain = hash;
 }
 
-static ElfW(Addr) __get_map_addr (size_t size, enum object_type type)
-{
-    return type == OBJECT_EXEC ?
-           (ElfW(Addr)) pal_config.user_addr_start :
-           (ElfW(Addr)) pal_config.user_addr_end - ALLOC_ALIGNUP(size);
-}
-
-static void __save_map_addr (ElfW(Addr) addr, size_t size,
-                             enum object_type type)
-{
-    if (type == OBJECT_EXEC)
-        pal_config.user_addr_start = (void *) ALLOC_ALIGNUP(addr + size);
-    else
-        pal_config.user_addr_end = (void *) ALLOC_ALIGNDOWN(addr);
-}
-
 /* Map in the shared object NAME, actually located in REALNAME, and already
    opened on FD */
 struct link_map *
 map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
-                          void * fbp, size_t fbp_len,
+                          void * fbp, int fbp_len,
                           bool do_copy_dyn)
 {
     struct link_map * l = new_elf_object(_DkStreamRealpath(handle), type);
@@ -196,10 +179,10 @@ call_lose:
     l->l_entry = header->e_entry;
     l->l_phnum = header->e_phnum;
 
-    size_t maplength = header->e_phnum * sizeof (ElfW(Phdr));
+    int maplength = header->e_phnum * sizeof (ElfW(Phdr));
     ElfW(Phdr) * phdr;
 
-    if (header->e_phoff + maplength <= (size_t) fbp_len) {
+    if (header->e_phoff + maplength <= (int) fbp_len) {
         phdr = (void *) (fbp + header->e_phoff);
     } else {
         phdr = (ElfW(Phdr) *) malloc (maplength);
@@ -222,7 +205,7 @@ call_lose:
         int prot;
     } loadcmds[l->l_phnum], *c;
 
-    size_t nloadcmds = 0;
+    int nloadcmds = 0;
     bool has_holes = false;
 
     /* The struct is initialized to zero so this is not necessary:
@@ -249,9 +232,9 @@ call_lose:
             case PT_LOAD:
                 /* A load command tells us to map in part of the file.
                    We record the load commands and process them all later.  */
-                if (__builtin_expect ((ph->p_align & allocshift) != 0, 0)) {
+                if (__builtin_expect (!ALLOC_ALIGNED(ph->p_align), 0)) {
                     errstring = "ELF load command alignment not aligned";
-                    errval = ENOMEM;
+                    errval = PAL_ERROR_NOMEM;
                     goto call_lose;
                 }
 
@@ -259,7 +242,7 @@ call_lose:
                                        & (ph->p_align - 1)) != 0, 0)) {
                     errstring = "\
                         ELF load command address/offset not properly aligned";
-                    errval = ENOMEM;
+                    errval = PAL_ERROR_NOMEM;
                     goto call_lose;
                 }
 
@@ -328,10 +311,9 @@ call_lose:
            As a refinement, sometimes we have an address that we would
            prefer to map such objects at; but this is only a preference,
            the OS can do whatever it likes. */
-        ElfW(Addr) mappref = __get_map_addr(maplength, type);
-
+        void * mapaddr = NULL;
         /* Remember which part of the address space this object uses.  */
-        errval = _DkStreamMap(handle, (void **) &mappref,
+        errval = _DkStreamMap(handle, (void **) &mapaddr,
                               APPEND_WRITECOPY(c->prot), c->mapoff,
                               maplength);
 
@@ -342,9 +324,8 @@ map_error:
             goto call_lose;
         }
 
-        __save_map_addr(mappref, maplength, type);
-        l->l_map_start = mappref;
-        l->l_map_end = mappref + maplength;
+        l->l_map_start = (ElfW(Addr)) mapaddr;
+        l->l_map_end = (ElfW(Addr)) mapaddr + maplength;
         l->l_addr = l->l_map_start - c->mapstart;
 
         if (has_holes)
@@ -362,7 +343,6 @@ map_error:
 
     /* Remember which part of the address space this object uses.  */
     l->l_map_start = c->mapstart + l->l_addr;
-    __save_map_addr(l->l_map_start, maplength, type);
     l->l_map_end = l->l_map_start + maplength;
 
     while (c < &loadcmds[nloadcmds]) {
@@ -378,19 +358,9 @@ map_error:
         }
 
 postmap:
-        if (c->prot & PAL_PROT_EXEC) {
-            l->l_text_start = l->l_addr + c->mapstart;
-            l->l_text_end = l->l_addr + c->mapend;
-        }
-
-        if (c->prot & PAL_PROT_WRITE) {
-            l->l_data_start = l->l_addr + c->mapstart;
-            l->l_data_end = l->l_addr + c->mapend;
-        }
-
         if (l->l_phdr == 0
             && (ElfW(Off)) c->mapoff <= header->e_phoff
-            && ((size_t) (c->mapend - c->mapstart + c->mapoff)
+            && ((int) (c->mapend - c->mapstart + c->mapoff)
                 >= header->e_phoff + header->e_phnum * sizeof (ElfW(Phdr))))
             /* Found the program header in this segment.  */
             l->l_phdr = (void *) (c->mapstart + header->e_phoff - c->mapoff);
@@ -415,8 +385,8 @@ postmap:
                 {
                     /* Dag nab it.  */
                     if (_DkVirtualMemoryProtect((void *) ALLOC_ALIGNDOWN(zero),
-                                                allocsize,
-                                                c->prot|PAL_PROT_WRITE) < 0) {
+                                                pal_state.alloc_align,
+                                                c->prot | PAL_PROT_WRITE) < 0) {
                         errstring = "cannot change memory protections";
                         goto call_lose;
                     }
@@ -424,7 +394,7 @@ postmap:
                 memset ((void *) zero, '\0', zerosec - zero);
                 if (__builtin_expect ((c->prot & PAL_PROT_WRITE) == 0, 0))
                     _DkVirtualMemoryProtect((void *) ALLOC_ALIGNDOWN(zero),
-                                            allocsize, c->prot);
+                                            pal_state.alloc_align, c->prot);
             }
 
             if (zeroend > zerosec) {
@@ -457,12 +427,6 @@ postmap:
         l->l_ld = remalloc(l->l_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
 
     elf_get_dynamic_info(l->l_ld, l->l_info, l->l_addr);
-
-    /* When we profile the SONAME might be needed for something else but
-       loading.  Add it right away.  */
-    if (l->l_info[DT_STRTAB] && l->l_info[DT_SONAME])
-        l->l_soname =  (char *) (D_PTR (l->l_info[DT_STRTAB])
-                             + D_PTR (l->l_info[DT_SONAME]));
 
     if (l->l_phdr == NULL) {
         /* The program header is not contained in any of the segments.
@@ -523,7 +487,6 @@ int check_elf_object (PAL_HANDLE handle)
 
 void free_elf_object (struct link_map * map)
 {
-    /* unmap the exec_map */
     _DkVirtualMemoryFree((void *) map->l_map_start,
                          map->l_map_end - map->l_map_start);
 
@@ -534,8 +497,8 @@ void free_elf_object (struct link_map * map)
 
     _DkDebugDelMap(map);
 
-    if (loaded_libraries == map)
-        loaded_libraries = map->l_next;
+    if (loaded_maps == map)
+        loaded_maps = map->l_next;
 
     free(map);
 }
@@ -550,16 +513,6 @@ int load_elf_object (const char * uri, enum object_type type)
     if (ret < 0)
         return ret;
 
-    if (type == OBJECT_EXEC) {
-        struct link_map *map = loaded_libraries, *next;
-        while (map) {
-            next = map->l_next;
-            if (map->l_type == type)
-                free_elf_object(map);
-            map = next;
-        }
-    }
-
     ret = load_elf_object_by_handle(handle, type);
 
     _DkObjectClose(handle);
@@ -568,11 +521,251 @@ int load_elf_object (const char * uri, enum object_type type)
 
 static int relocate_elf_object (struct link_map *l);
 
+#if CACHE_LOADED_BINARIES == 1
+
+#define MAX_CACHED_LOADCMDS  32
+struct cached_elf_object {
+    PAL_NUM             pal_token;
+    void *              pal_addr;
+    struct link_map     map;
+    char                map_name[PATH_MAX];
+
+    struct cached_loadcmd {
+        void * mapstart;
+        unsigned long mapsize;
+        unsigned long mapoff;
+        int mapprot;
+    } loadcmds[MAX_CACHED_LOADCMDS];
+    int nloadcmds;
+
+    ElfW(Dyn)           dyn[];
+};
+
+void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
+{
+    char uri[URI_MAX + 8];
+    unsigned long cached_size = 0;
+
+    int ret = _DkStreamGetName(handle, uri, URI_MAX);
+    if (ret < 0)
+        return;
+
+    memcpy(uri + ret, ".cached", 8);
+    PAL_HANDLE cached_file;
+
+    while (1) {
+        ret = _DkStreamOpen(&cached_file, uri,
+                            PAL_ACCESS_RDWR,
+                            PAL_SHARE_OWNER_W|PAL_SHARE_OWNER_R,
+                            PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
+
+        if (ret != -PAL_ERROR_STREAMEXIST)
+            break;
+
+        if (_DkStreamOpen(&cached_file, uri, PAL_ACCESS_RDWR, 0, 0, 0) < 0)
+            return;
+
+        ret = _DkStreamDelete(cached_file, 0);
+        _DkObjectClose(cached_file);
+        if (ret < 0)
+            return;
+    }
+
+    if (ret < 0)
+        return;
+
+    struct cached_elf_object * obj = NULL;
+    unsigned long obj_size = sizeof(struct cached_elf_object);
+    if (map->l_ld != map->l_real_ld)
+        obj_size += sizeof(ElfW(Dyn)) * map->l_ldnum;
+    obj_size = ALLOC_ALIGNUP(obj_size);
+
+    cached_size = obj_size;
+    ret = _DkStreamSetLength(cached_file, obj_size);
+    if (ret < 0)
+        goto out;
+
+    ret = _DkStreamMap(cached_file, (void **) &obj,
+                       PAL_PROT_READ|PAL_PROT_WRITE, 0, obj_size);
+    if (ret < 0)
+        goto out;
+
+    obj->pal_token  = pal_state.pal_token;
+    obj->pal_addr   = pal_state.pal_addr;
+    memcpy(&obj->map, map, sizeof(struct link_map));
+    if (map->l_ld != map->l_real_ld) {
+        obj->map.l_ld   = NULL;
+        memcpy(obj->dyn, map->l_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
+        for (int i = 0 ;
+             i < sizeof(obj->map.l_info) / sizeof(obj->map.l_info[0]) ;
+             i++)
+            if (obj->map.l_info[i])
+                obj->map.l_info[i] =
+                    (void *) obj->map.l_info[i] - (unsigned long) map->l_ld;
+    }
+    obj->map.l_name = NULL;
+    memcpy(obj->map_name, map->l_name, PATH_MAX);
+    obj->nloadcmds  = 0;
+
+    const ElfW(Ehdr) * header = (void *) map->l_map_start;
+    const ElfW(Phdr) * phdr = (void *) header + header->e_phoff, * ph;
+
+    for (ph = phdr ; ph < &phdr[header->e_phnum] ; ph++)
+        if (ph->p_type == PT_LOAD) {
+            assert(obj->nloadcmds < MAX_CACHED_LOADCMDS);
+
+            void * mapstart = (void *)
+                    ALLOC_ALIGNDOWN(map->l_addr + ph->p_vaddr);
+            void * mapend = (void *)
+                    ALLOC_ALIGNUP(map->l_addr + ph->p_vaddr + ph->p_memsz);
+            unsigned long mapsize = mapend - mapstart;
+            int mapprot = 0;
+            void * cache_addr = NULL;
+
+            if (ph->p_flags & PF_R)
+                mapprot |= PAL_PROT_READ;
+            if (ph->p_flags & PF_W)
+                mapprot |= PAL_PROT_WRITE;
+            if (ph->p_flags & PF_X)
+                mapprot |= PAL_PROT_EXEC;
+
+            ret = _DkStreamSetLength(cached_file, cached_size + mapsize);
+            if (ret < 0)
+                goto out_mapped;
+
+            ret = _DkStreamMap(cached_file, &cache_addr,
+                               PAL_PROT_READ|PAL_PROT_WRITE, cached_size,
+                               mapsize);
+            if (ret < 0)
+                goto out_mapped;
+
+            obj->loadcmds[obj->nloadcmds].mapstart = mapstart;
+            obj->loadcmds[obj->nloadcmds].mapsize  = mapsize;
+            obj->loadcmds[obj->nloadcmds].mapprot  = mapprot;
+            obj->loadcmds[obj->nloadcmds].mapoff   = cached_size;
+            obj->nloadcmds++;
+            cached_size += mapsize;
+
+            memcpy(cache_addr, mapstart, mapsize);
+
+            ret = _DkStreamUnmap(cache_addr, mapsize);
+            if (ret < 0)
+                goto out_mapped;
+        }
+
+    ret = _DkStreamUnmap(obj, obj_size);
+    if (ret < 0)
+        return;
+
+    _DkObjectClose(cached_file);
+    return;
+
+out_mapped:
+    _DkStreamUnmap(obj, obj_size);
+out:
+    _DkStreamDelete(cached_file, 0);
+    _DkObjectClose(cached_file);
+}
+
+struct link_map * check_cached_elf_object (PAL_HANDLE handle)
+{
+    char uri[URI_MAX + 8];
+    int ret = _DkStreamGetName(handle, uri, URI_MAX);
+    if (ret < 0)
+        return NULL;
+
+    memcpy(uri + ret, ".cached", 8);
+    PAL_HANDLE cached_file;
+    ret = _DkStreamOpen(&cached_file, uri, PAL_ACCESS_RDWR, 0, 0, 0);
+    if (ret < 0)
+        return NULL;
+
+    struct cached_elf_object * obj = NULL;
+    unsigned long obj_size = ALLOC_ALIGNUP(sizeof(struct cached_elf_object));
+
+    ret = _DkStreamMap(cached_file, (void **) &obj,
+                       PAL_PROT_READ|PAL_PROT_WRITE|PAL_PROT_WRITECOPY,
+                       0, obj_size);
+    if (ret < 0)
+        goto out;
+
+    /* we want to check if there is a previously cached one, but if the
+     * process is the first one, force to update the cache. */
+    if (obj->pal_token != pal_state.pal_token)
+        goto out_mapped;
+
+    if (!obj->map.l_ld) {
+        obj->map.l_ld = obj->dyn;
+        for (int i = 0 ;
+             i < sizeof(obj->map.l_info) / sizeof(obj->map.l_info[0]) ;
+             i++)
+            if (obj->map.l_info[i])
+                obj->map.l_info[i] =
+                    (void *) obj->map.l_info[i] + (unsigned long) obj->map.l_ld;
+    }
+
+    struct cached_loadcmd * l = obj->loadcmds;
+    struct cached_loadcmd * last = &obj->loadcmds[obj->nloadcmds - 1];
+
+    if (l < last) {
+        ret = _DkStreamMap(cached_file, &l->mapstart,
+                           l->mapprot|PAL_PROT_WRITECOPY,
+                           l->mapoff,
+                           last->mapstart + last->mapsize - l->mapstart);
+        if (ret < 0)
+            goto out_more_mapped;
+
+        ret = _DkVirtualMemoryProtect(l->mapstart + l->mapsize,
+                                last->mapstart - (l->mapstart + l->mapsize),
+                                PAL_PROT_NONE);
+        if (ret < 0)
+            goto out_more_mapped;
+
+        l++;
+        goto map_next;
+    }
+
+    for ( ; l <= last ; l++) {
+map_next:
+        ret = _DkStreamMap(cached_file, &l->mapstart,
+                           l->mapprot|PAL_PROT_WRITECOPY,
+                           l->mapoff,
+                           l->mapsize);
+        if (ret < 0)
+            goto out_more_mapped;
+    }
+
+    if (pal_state.pal_addr != obj->pal_addr) {
+        long rebase = (long) pal_state.pal_addr - (long) obj->pal_addr;
+        for (int i = 0 ; i < obj->map.nrelocs ; i++)
+            *obj->map.relocs[i] += rebase;
+    }
+
+    obj->map.l_name = obj->map_name;
+    return &obj->map;
+
+out_more_mapped:
+    _DkStreamUnmap(obj->loadcmds[0].mapstart,
+                   last->mapstart + last->mapsize - obj->loadcmds[0].mapstart);
+out_mapped:
+    _DkStreamUnmap(obj, obj_size);
+out:
+    _DkObjectClose(cached_file);
+    return NULL;
+}
+#endif /* CACHE_LOADED_BINARIES == 1 */
+
 int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 {
-    char fb[FILEBUF_SIZE];
-    char * errstring;
+    struct link_map * map = NULL;
+    char fb[FILEBUF_SIZE], * errstring;
     int ret = 0;
+
+#if CACHE_LOADED_BINARIES == 1
+    map = check_cached_elf_object(handle);
+    if (map)
+        goto done;
+#endif
 
     /* Now we will start verify the file as a ELF header. This part of code
        is borrow from open_verify() */
@@ -604,8 +797,6 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 
 #define ELFOSABI_LINUX		3	/* Linux.  */
 
-    int maplength;
-
     /* See whether the ELF header is what we expect.  */
     if (__builtin_expect(
         memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 || (
@@ -618,9 +809,10 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     /* Chia-Che 11/23/13: Removing other checks, comparing the header
        should be enough */
 
-    maplength = ehdr->e_phnum * sizeof (ElfW(Phdr));
+    int maplength = ehdr->e_phnum * sizeof (ElfW(Phdr));
+
     /* if e_phoff + maplength is smaller than the data read */
-    if (ehdr->e_phoff + maplength <= (size_t) len) {
+    if (ehdr->e_phoff + maplength <= (int) len) {
         phdr = (void *) (&fb + ehdr->e_phoff);
     } else {
         /* ...otherwise, we have to read again */
@@ -635,8 +827,6 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
         }
     }
 
-    struct link_map * map;
-
     if (!(map = map_elf_object_by_handle(handle, type, &fb, len, true))) {
         errstring = "unexpected failure";
         goto verify_failed;
@@ -644,27 +834,20 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 
     relocate_elf_object(map);
 
+#if CACHE_LOADED_BINARIES == 1
+    cache_elf_object(handle, map);
+done:
+#endif
+
+    if (loaded_maps)
+        loaded_maps->l_prev = map;
+    map->l_next = loaded_maps;
+    map->l_prev = NULL;
+    loaded_maps = map;
     if (map->l_type == OBJECT_EXEC)
         exec_map = map;
 
-    if (map->l_type == OBJECT_PRELOAD && map->l_entry)
-        run_preload = true;
-
-    struct link_map * prev = NULL, ** pprev = &loaded_libraries,
-                    * next = loaded_libraries;
-
-    while (next) {
-        prev = next;
-        pprev = &next->l_next;
-        next = next->l_next;
-    }
-
-    *pprev = map;
-    map->l_prev = prev;
-    map->l_next = NULL;
-
     _DkDebugAddMap(map);
-
     return 0;
 
 verify_failed:
@@ -827,28 +1010,22 @@ static int do_lookup (const char * undef_name, ElfW(Sym) * ref,
     const uint_fast32_t fast_hash = elf_fast_hash(undef_name);
     const long int hash = elf_hash(undef_name);
     ElfW(Sym) * sym;
-    struct link_map * map = loaded_libraries;
+    struct link_map * map = loaded_maps;
+    struct sym_val weak_result = { .s = NULL, .m = NULL };
 
-    while (map) {
-        if (!map->l_lookup_symbol) {
-            map = map->l_next;
+    for (; map ; map = map->l_next) {
+        sym = do_lookup_map(ref, undef_name, fast_hash, hash, map);
+        if (!sym)
             continue;
-        }
-
-        sym = do_lookup_map (ref, undef_name, fast_hash, hash, map);
-
-        if (sym == NULL)
-            return 0;
 
         switch (__builtin_expect (ELFW(ST_BIND) (sym->st_info), STB_GLOBAL)) {
             case STB_WEAK:
                 /* Weak definition.  Use this value if we don't find another. */
-                if (!result->s) {
-                    result->s = sym;
-                    result->m = (struct link_map *) map;
+                if (!weak_result.s) {
+                    weak_result.s = sym;
+                    weak_result.m = (struct link_map *) map;
                 }
                 break;
-
                 /* FALLTHROUGH */
             case STB_GLOBAL:
             case STB_GNU_UNIQUE:
@@ -857,13 +1034,15 @@ static int do_lookup (const char * undef_name, ElfW(Sym) * ref,
                 result->s = sym;
                 result->m = (struct link_map *) map;
                 return 1;
-
             default:
                 /* Local symbols are ignored.  */
                 break;
         }
+    }
 
-        map = map->l_next;
+    if (weak_result.s) {
+        *result = weak_result;
+        return 1;
     }
 
     /* We have not found anything until now.  */
@@ -936,11 +1115,16 @@ static int relocate_elf_object (struct link_map * l)
             textrels = r;
         }
 
+#if PROFILING == 1
+    unsigned long before_relocate = _DkSystemTimeQuery();
+#endif
+
     /* Do the actual relocation of the object's GOT and other data.  */
-    if (l->l_type == OBJECT_EXEC)
-        ELF_DYNAMIC_SCAN(l->l_info, l->l_addr);
-    else
-        ELF_DYNAMIC_RELOCATE(l->l_info, l->l_addr);
+    ELF_DYNAMIC_RELOCATE(l);
+
+#if PROFILING == 1
+    pal_state.relocation_time += _DkSystemTimeQuery() - before_relocate;
+#endif
 
     while (textrels) {
        ret = _DkVirtualMemoryProtect((void *) textrels->start, textrels->len,
@@ -959,104 +1143,129 @@ static int relocate_elf_object (struct link_map * l)
         if ((ret = protect_relro(l)) < 0)
             return ret;
 
-    if (l->l_type == OBJECT_PRELOAD && pal_config.syscall_sym_name) {
-        uint_fast32_t fast_hash = elf_fast_hash(pal_config.syscall_sym_name);
-        long int hash = elf_hash(pal_config.syscall_sym_name);
+    if (l->l_type == OBJECT_PRELOAD && pal_state.syscall_sym_name) {
+        uint_fast32_t fast_hash = elf_fast_hash(pal_state.syscall_sym_name);
+        long int hash = elf_hash(pal_state.syscall_sym_name);
         ElfW(Sym) * sym = NULL;
 
-        sym = do_lookup_map(NULL, pal_config.syscall_sym_name, fast_hash,
+        sym = do_lookup_map(NULL, pal_state.syscall_sym_name, fast_hash,
                             hash, l);
 
         if (sym) {
-            pal_config.syscall_sym_addr =
+            pal_state.syscall_sym_addr =
                     (void *) (l->l_addr + sym->st_value);
         }
     }
 
-    l->l_relocated = true;
     return 0;
 }
 
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 {
-    if (memcmp(uri, "file:", 5))
+#ifdef DEBUG
+    const char * realname;
+
+    if (!memcmp(uri, "file:", 5))
+        realname = uri + 5;
+    else
         return;
 
-    struct link_map * l = new_elf_object(uri + 5, OBJECT_EXTERNAL);
+    struct link_map * l = new_elf_object(realname, OBJECT_EXTERNAL);
 
     /* This is the ELF header.  We read it in `open_verify'.  */
     const ElfW(Ehdr) * header = start_addr;
 
     l->l_entry = header->e_entry;
     l->l_phnum = header->e_phnum;
-    l->l_addr = l->l_map_start = (ElfW(Addr)) start_addr;
+    l->l_map_start = (ElfW(Addr)) start_addr;
 
     ElfW(Phdr) * phdr = (void *) (start_addr + header->e_phoff);
     const ElfW(Phdr) * ph;
+    ElfW(Addr) map_start = 0, map_end = 0;
 
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
-        switch (ph->p_type)
-        {
+        if (ph->p_type == PT_PHDR) {
+            if (!map_start || ph->p_vaddr < map_start)
+                map_start = ph->p_vaddr;
+            if (!map_end || ph->p_vaddr + ph->p_memsz > map_end)
+                map_end = ph->p_vaddr + ph->p_memsz;
+        }
+
+    l->l_addr = l->l_map_start - map_start;
+    l->l_map_end = l->l_addr + map_end;
+
+    for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
+        switch (ph->p_type) {
             /* These entries tell us where to find things once the file's
                segments are mapped in.  We record the addresses it says
                verbatim, and later correct for the run-time load address.  */
             case PT_DYNAMIC:
-                l->l_ld = l->l_real_ld = (void *) ph->p_vaddr;
+                l->l_ld = l->l_real_ld = (void *) l->l_addr + ph->p_vaddr;
                 l->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
                 break;
 
             case PT_PHDR:
-                l->l_phdr = (void *) ph->p_vaddr;
+                l->l_phdr = (void *) l->l_addr + ph->p_vaddr;
                 break;
-
-            case PT_LOAD: {
-                ElfW(Addr) start = l->l_addr + ALLOC_ALIGNDOWN(ph->p_vaddr);
-                ElfW(Addr) end = l->l_addr + ALLOC_ALIGNDOWN(ph->p_vaddr +
-                                                             ph->p_memsz);
-
-                if (ph->p_flags & PF_X) {
-                    l->l_text_start = start;
-                    l->l_text_end = end;
-                }
-
-                if (ph->p_flags & PF_W) {
-                    l->l_data_start = start;
-                    l->l_data_end = end;
-                }
-
-                l->l_map_end = end;
-                break;
-            }
 
             case PT_GNU_RELRO:
-                l->l_relro_addr = ph->p_vaddr;
+                l->l_relro_addr = l->l_addr + ph->p_vaddr;
                 l->l_relro_size = ph->p_memsz;
                 break;
         }
 
     _DkDebugAddMap(l);
+#endif
 }
 
 void DkDebugDetachBinary (PAL_PTR start_addr)
 {
+#ifdef DEBUG
+    for (struct link_map * l = loaded_maps; l; l = l->l_next)
+        if (l->l_map_start == (ElfW(Addr)) start_addr) {
+            _DkDebugDelMap(l);
+
+            if (l->l_type == OBJECT_EXTERNAL)
+                free_elf_object(l);
+            break;
+        }
+#endif
 }
 
-void start_execution (int argc, const char ** argv, const char ** envp)
-{
-    /* First we will try to run all the preloaded libraries which come with
+#if defined(__x86_64__)
+void * stack_before_call __attribute__((unused)) = NULL;
+
+#define CALL_ENTRY(l, cookies)                                          \
+    ({  long ret;                                                       \
+        asm volatile("movq %%rsp, stack_before_call(%%rip)\r\n"         \
+                     "leaq 1f(%%rip), %%rdx\r\n"                        \
+                     "movq %2, %%rsp\r\n"                               \
+                     "jmp *%1\r\n"                                      \
+                     "1: movq stack_before_call(%%rip), %%rsp\r\n"      \
+                                                                        \
+                     : "=a"(ret) : "a"(l->l_entry), "b"(cookies)        \
+                     : "rcx", "rdx", "rdi", "rsi", "r8", "r9",          \
+                       "r10", "r11", "memory");                         \
+        ret; })
+#else
+# error "architecture not supported"
+#endif
+
+void start_execution (const char * first_argv, int argc, const char ** argv,
+                      const char ** envp)
+{    /* First we will try to run all the preloaded libraries which come with
        entry points */
     if (exec_map) {
-        __pal_control.executable_begin = (void *) exec_map->l_map_start;
-        __pal_control.executable_end = (void *) exec_map->l_map_end;
+        __pal_control.executable_range.start = (void *) exec_map->l_map_start;
+        __pal_control.executable_range.end   = (void *) exec_map->l_map_end;
     }
 
-    int ret = 0;
-
-    if (!run_preload)
-        goto NO_PRELOAD;
+#if PROFILING == 1
+    unsigned long before_tail = _DkSystemTimeQuery();
+#endif
 
     /* Let's count the number of cookies, first we will have argc & argv */
-    size_t ncookies = argc + 2; /* 1 for argc, argc + 1 for argv */
+    int ncookies = argc + 3; /* 1 for argc, argc + 2 for argv */
 
     /* Then we count envp */
     for (const char ** e = envp; *e; e++)
@@ -1064,100 +1273,54 @@ void start_execution (int argc, const char ** argv, const char ** envp)
 
     ncookies++; /* for NULL-end */
 
-    size_t cookiesz = sizeof(unsigned long int) * ncookies
+    int cookiesz = sizeof(unsigned long int) * ncookies
                       + sizeof(ElfW(auxv_t)) * 6
-                      + sizeof(void *) * 3 + 16;
+                      + sizeof(void *) * 4 + 16;
 
     unsigned long int * cookies = __alloca(cookiesz);
 
     /* Let's copy the cookies */
-    cookies[0] = (unsigned long int) argc;
-    size_t i;
+    cookies[0] = (unsigned long int) argc + 1;
+    cookies[1] = (unsigned long int) first_argv;
+    for (int i = 0 ; i <= argc ; i++)
+        cookies[i + 2] = (unsigned long int) argv[i];
+    int cnt = argc + 3;
 
-    for (i = 0 ; i <= argc ; i++)
-        cookies[i + 1] = (unsigned long int) argv[i];
-
-    size_t cnt = argc + 2;
-
-    for (i = 0 ; envp[i]; i++)
+    for (int i = 0 ; envp[i]; i++)
         cookies[cnt++] = (unsigned long int) envp[i];
-
     cookies[cnt++] = 0;
 
     ElfW(auxv_t) * auxv = (ElfW(auxv_t) *) &cookies[cnt];
-
     auxv[0].a_type = AT_PHDR;
-    auxv[0].a_un.a_val = exec_map ?
-                         (__typeof(auxv[1].a_un.a_val)) exec_map->l_phdr : 0;
-
+    auxv[0].a_un.a_val = (__typeof(auxv[1].a_un.a_val))
+                        (exec_map ? exec_map->l_phdr  : 0);
     auxv[1].a_type = AT_PHNUM;
     auxv[1].a_un.a_val = exec_map ? exec_map->l_phnum : 0;
-
     auxv[2].a_type = AT_PAGESZ;
     auxv[2].a_un.a_val = __pal_control.pagesize;
-
     auxv[3].a_type = AT_ENTRY;
     auxv[3].a_un.a_val = exec_map ? exec_map->l_entry : 0;
-
     auxv[4].a_type = AT_BASE;
-    auxv[4].a_un.a_val = exec_map ? exec_map->l_addr : 0;
-
+    auxv[4].a_un.a_val = exec_map ? exec_map->l_addr  : 0;
     auxv[5].a_type = AT_NULL;
 
-    void * stack = (void *) &auxv[6] + sizeof(uint64_t);
-    ((uint64_t *) stack)[-1] = 0;
+    *(void **) &auxv[6] = NULL;
 
-    /* the previous cookiesz might be wrong, we have to recalculate it */
-    cookiesz = (PAL_PTR) &auxv[6] - (PAL_PTR) cookies;
-
-    for (struct link_map * l = loaded_libraries ; l ; l = l->l_next) {
-        if (l->l_type != OBJECT_PRELOAD || !l->l_entry)
-            continue;
-
-#if defined(__x86_64__)
-        asm volatile (
-              "movq %%rsp, 16(%3)\r\n"
-              "movq %2, %%rsp\r\n"
-
-              "leaq .LRET1(%%rip), %%rbx\r\n"
-              "movq %%rbx, 8(%3)\r\n"
-
-              "movq %%rbp, 0(%3)\r\n"
-
-              "jmp *%1\r\n"
-
-              ".LRET1:\r\n"
-              "popq %%rsp\r\n"
-
-              : "=a" (ret)
-
-              : "a"(l->l_entry),
-                "b"(cookies),
-                "S"(stack)
-
-              : "rcx", "rdx", "r8", "r9", "r10", "r11", "memory");
-#else
-# error "architecture not supported"
+#if PROFILING == 1
+    __pal_control.startup_time = _DkSystemTimeQuery() - pal_state.start_time;
+    __pal_control.tail_startup_time =
+            pal_state.tail_startup_time += _DkSystemTimeQuery() - before_tail;
 #endif
 
-        if (ret < 0)
-            _DkThreadExit(ret);
-    }
+    struct link_map * l = loaded_maps;
+    /* run entry point in reverse order */
+    for (; l->l_next ; l = l->l_next);
+    for (; l ; l = l->l_prev)
+        if (l->l_type == OBJECT_PRELOAD && l->l_entry)
+            CALL_ENTRY(l, cookies);
 
-NO_PRELOAD:
-    if (exec_map && exec_map->l_entry) {
-        /* This part is awesome. Don't risk changing it!! */
-#if defined(__x86_64__)
-        ret = ((int (*) (int, const char **, const char **))
-               exec_map->l_entry) (argc, argv, envp);
-#else
-# error "architecture not supported"
-#endif
-    }
+    if (exec_map)
+        CALL_ENTRY(exec_map, cookies);
 
-    /* If they ever return here, we will be exiting */
-    _DkProcessExit(ret);
-
-    /* Control should not get here */
-    assert(0);
+    _DkThreadExit();
 }

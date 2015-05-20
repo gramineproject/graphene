@@ -37,7 +37,7 @@
 #include <linux/wait.h>
 #include <atomic.h>
 #include <cmpxchg.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 
 #define DEFAULT_QUANTUM 500
 

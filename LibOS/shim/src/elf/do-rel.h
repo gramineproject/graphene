@@ -32,6 +32,7 @@
 #define Rel                         Rela
 #define elf_machine_rel             elf_machine_rela
 #define elf_machine_rel_relative    elf_machine_rela_relative
+#define elf_dynamic_redo_rel        elf_dynamic_redo_rela
 
 #ifndef DO_ELF_MACHINE_REL_RELATIVE
 # define DO_ELF_MACHINE_REL_RELATIVE(l, relative)           \
@@ -64,15 +65,32 @@ elf_dynamic_do_rel (struct link_map * l, ElfW(Addr) reladdr, int relsize)
     ElfW(Rel) * end = (void *) (reladdr + relsize);
     ElfW(Word) nrelative = l->l_info[RELCOUNT_IDX] == NULL
                            ? 0 : l->l_info[RELCOUNT_IDX]->d_un.d_val;
-    /* ElfW(Rel) * relative = r; */
     int nrelsize = relsize / sizeof (ElfW(Rel));
-    r = r + (nrelative < nrelsize ? nrelative : nrelsize);
 
-    for (; r < end; ++r)
-        elf_machine_rel(l, r, &symtab[ELFW(R_SYM) (r->r_info)],
-                        (void *) (l->l_addr + r->r_offset));
+    r = r + (nrelative < nrelsize ? nrelative : nrelsize);
+    for (; r < end; ++r) {
+        ElfW(Sym) * sym = &symtab[ELFW(R_SYM) (r->r_info)];
+        void * reloc = (void *) l->l_addr + r->r_offset;
+        if (elf_machine_rel(l, r, sym, reloc)) {
+            assert(l->nlinksyms < MAX_LINKSYMS);
+            l->linksyms[l->nlinksyms].rel = r;
+            l->linksyms[l->nlinksyms].sym = sym;
+            l->linksyms[l->nlinksyms].reloc = reloc;
+            l->nlinksyms++;
+        }
+    }
 }
 
+static void __attribute__((unused))
+elf_dynamic_redo_rel (struct link_map * l)
+{
+    for (int i = 0 ; i < l->nlinksyms ; i++)
+        elf_machine_rel(l, l->linksyms[i].rel,
+                        l->linksyms[i].sym,
+                        l->linksyms[i].reloc);
+}
+
+#if 0
 static void inline elf_copy_rel (struct link_map * l1, struct link_map * l2,
                                  int reloc, int reloc_sz)
 {
@@ -116,6 +134,7 @@ elf_dynamic_copy_rel (struct link_map * l1, struct link_map * l2)
     elf_copy_rel(l1, l2, dt_reloc, dt_reloc_sz);
     elf_copy_rel(l1, l2, DT_JMPREL, DT_PLTRELSZ);
 }
+#endif
 
 #undef elf_dynamic_do_rel
 #undef Rel
@@ -123,6 +142,7 @@ elf_dynamic_copy_rel (struct link_map * l1, struct link_map * l2)
 #undef elf_machine_rel_relative
 #undef DO_ELF_MACHINE_REL_RELATIVE
 #undef RELCOUNT_IDX
-#undef elf_dynamic_copy_rel
+//#undef elf_dynamic_copy_rel
 #undef dt_reloc
 #undef dt_reloc_sz
+#undef elf_dynamic_redo_rel

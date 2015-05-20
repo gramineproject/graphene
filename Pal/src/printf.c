@@ -34,12 +34,6 @@ struct printbuf {
     char buf[PRINTBUF_SIZE];
 };
 
-struct sprintbuf {
-    char * buf;
-    char * ebuf;
-    int cnt;
-};
-
 static void
 fputch(void * f, int ch, struct printbuf * b)
 {
@@ -77,43 +71,3 @@ printf(const char * fmt, ...)
     return cnt;
 }
 extern_alias(printf);
-
-static void
-sprintputch(void * f, int ch, struct sprintbuf * b)
-{
-    b->cnt++;
-    if (b->buf < b->ebuf)
-        *b->buf++ = ch;
-}
-
-static int
-vsprintf(char * buf, int n, const char * fmt, va_list ap)
-{
-    struct sprintbuf b = {buf, buf + n - 1, 0};
-
-    if (buf == NULL || n < 1) {
-        return -1;
-    }
-
-    // print the string to the buffer
-    vfprintfmt((void *) sprintputch, (void *) 0, &b, fmt, ap);
-
-    // null terminate the buffer
-    *b.buf = '\0';
-
-    return b.cnt;
-}
-
-int
-snprintf(char * buf, size_t n, const char * fmt, ...)
-{
-    va_list ap;
-    int rc;
-
-    va_start(ap, fmt);
-    rc = vsprintf(buf, n, fmt, ap);
-    va_end(ap);
-
-    return rc;
-}
-extern_alias(snprintf);

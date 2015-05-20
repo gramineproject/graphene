@@ -42,21 +42,18 @@ DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args)
 
     PAL_HANDLE handle = NULL;
     int ret = _DkProcessCreate(&handle, uri, flags, args);
-    if (ret < 0) {
-        notify_failure(-ret);
-        return NULL;
-    }
 
-    return handle;
+    if (ret < 0)
+        leave_frame(NULL, -ret);
+
+    leave_frame(handle, 0);
 }
 
 void DkProcessExit (PAL_NUM exitcode)
 {
     store_frame(ProcessExit);
-
     _DkProcessExit(exitcode);
-
-    notify_failure(PAL_ERROR_NOTKILLABLE);
+    leave_frame(, PAL_ERROR_NOTKILLABLE);
 }
 
 PAL_BOL DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags)
@@ -65,10 +62,8 @@ PAL_BOL DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags)
 
     int ret = _DkProcessSandboxCreate(manifest, flags);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return PAL_FALSE;
-    }
+    if (ret < 0)
+        leave_frame(PAL_FALSE, -ret);
 
-    return PAL_TRUE;
+    leave_frame(PAL_TRUE, 0);
 }

@@ -72,24 +72,27 @@ $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so: mod_auth_basic_sandbox.c $(INS
 
 
 conf:
-	cd $(INSTALL_DIR)/conf && ([ -f httpd.conf.old ] || mv httpd.conf httpd.conf.old)
-	cd $(INSTALL_DIR)/conf && \
-		sed -e "s/Listen 80/Listen $(HOST):$(PORT)/g" \
-		    -e "s/User daemon/#User root/g" \
-		    -e "s/Group daemon/#Group root/g" \
-		    -e "s/#EnableMMAP off/EnableMMAP off/g" \
-		    -e "s/#EnableSendfile on/EnableSendfile on/g" \
-		    -e "s/DirectoryIndex index.html/DirectoryIndex index.html index.php/g" \
-		    -e "s/^[ ]*CustomLog/#CustomLog/g" \
-		httpd.conf.old > httpd.conf.new
-	cd $(INSTALL_DIR)/conf && \
-		echo "\n\
+	[ -f $(INSTALL_DIR)/conf/httpd.conf.old ] || \
+		mv $(INSTALL_DIR)/conf/httpd.conf $(INSTALL_DIR)/conf/httpd.conf.old
+	sed -e "s/Listen 80/Listen $(HOST):$(PORT)/g" \
+	    -e "s/User daemon/#User root/g" \
+	    -e "s/Group daemon/#Group root/g" \
+	    -e "s/#EnableMMAP off/EnableMMAP off/g" \
+	    -e "s/#EnableSendfile on/EnableSendfile on/g" \
+	    -e "s/DirectoryIndex index.html/DirectoryIndex index.html index.php/g" \
+	    -e "s/^[ ]*CustomLog/#CustomLog/g" \
+	$(INSTALL_DIR)/conf/httpd.conf.old > $(INSTALL_DIR)/conf/httpd.conf.new
+	echo "\n\
 <IfModule mpm_prefork_module>\n\
     StartServers             4\n\
     MinSpareServers          1\n\
     MaxSpareServers          4\n\
     MaxConnectionsPerChild   0\n\
-</IfModule>\n" >> httpd.conf.new
+</IfModule>\n" >> $(INSTALL_DIR)/conf/httpd.conf.new
+	echo "\n\
+<IfModule mime_module>\n\
+    AddType application/x-httpd-php .php\n\
+</IfModule>\n" >> $(INSTALL_DIR)/conf/httpd.conf.new
 	cd $(INSTALL_DIR)/conf && ln -sf httpd.conf.new httpd.conf
 
 start-native-server:

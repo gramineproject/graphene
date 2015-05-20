@@ -31,7 +31,6 @@
 #define ELF_MACHINE_NAME "x86_64"
 
 #include <sys/param.h>
-#include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
 #include "pal_internal.h"
 
@@ -44,31 +43,31 @@
 //#define DEBUG_RELOC
 
 static void
-elf_machine_rela (Elf64_Dyn **l_info, Elf64_Addr l_addr,
-                  Elf64_Rela *reloc, Elf64_Sym *sym, void *const reloc_addr_arg,
-                  bool rel, bool rel_relative)
+elf_machine_rela (struct link_map *l, Elf64_Rela *reloc, Elf64_Sym *sym,
+                  void *const reloc_addr_arg)
 {
     Elf64_Addr *const reloc_addr = reloc_addr_arg;
     const unsigned long int r_type = ELF64_R_TYPE (reloc->r_info);
 
     const char * __attribute__ ((unused)) strtab =
-                            (const void *) D_PTR (l_info[DT_STRTAB]);
+                            (const void *) D_PTR (l->l_info[DT_STRTAB]);
 
 #ifdef DEBUG_RELOC
-#define elf_machine_rela_debug(r_type, sym, value)                  \
-    ({  if (strtab && sym && sym->st_name)                          \
-            printf(#r_type ": %s\n", strtab + sym->st_name);        \
+#define debug_reloc(r_type)                                         \
+    do {                                                            \
+        if (strtab && sym && sym->st_name)                          \
+            printf("%p " #r_type ": %s %p\n", reloc_addr,           \
+                   strtab + sym->st_name, value);                   \
         else if (value)                                             \
-            printf(#r_type ": %p\n", value);                        \
+            printf("%p " #r_type ": %p\n", reloc_addr, value);      \
         else                                                        \
-            printf(#r_type "\n", value);                            \
-    })
+            printf("%p " #r_type "\n", reloc_addr, value);          \
+    } while (0)
 #else
-#define elf_machine_rela_debug(...) ({})
+#define debug_reloc(...)  do {} while (0)
 #endif
 
-    if (__builtin_expect (r_type == R_X86_64_RELATIVE, 0))
-    {
+    if (__builtin_expect (r_type == R_X86_64_RELATIVE, 0)) {
         /* This is defined in rtld.c, but nowhere in the static libc.a;
            make the reference weak so static programs can still link.
            This declaration cannot be done when compiling rtld.c
@@ -76,70 +75,38 @@ elf_machine_rela (Elf64_Dyn **l_info, Elf64_Addr l_addr,
            common defn for _dl_rtld_map, which is incompatible with a
            weak decl in the same file.  */
 
-        if (rel_relative)
-        {
-#ifndef RTLD_BOOTSTRAP
-            elf_machine_rela_debug (R_X86_64_RELATIVE, sym, 0);
-            *reloc_addr = l_addr + reloc->r_addend;
-#endif
-        }
+        //*reloc_addr = l->l_addr + reloc->r_addend;
         return;
     }
 
     if (__builtin_expect (r_type == R_X86_64_NONE, 0))
-    {
-        elf_machine_rela_debug (R_X86_64_NONE, sym, 0);
         return;
-    }
 
-#ifdef RTLD_BOOTSTRAP
-    Elf64_Addr value = (sym == NULL ? 0 : l_addr + sym->st_value);
-#define SYM (sym)
-#else
-    Elf64_Sym *refsym = sym;
-    Elf64_Addr value;
+    Elf64_Addr value = l->l_addr + sym->st_value;
+#ifndef RTLD_BOOTSTRAP
+    Elf64_Sym * refsym = sym;
     Elf64_Addr sym_map = 0;
 
-    value = RESOLVE_RTLD(strtab + sym->st_name);
+    if (sym->st_shndx == SHN_UNDEF) {
+        value = RESOLVE_RTLD(strtab + sym->st_name);
 
-    if (value) {
-        /* We can't handle a IRELEATIVE symbol if it's found in RTLD,
-           they should never exist */
-        if (r_type == R_X86_64_IRELATIVE)
-            return;
-    } else {
-        sym_map = RESOLVE_MAP(&strtab, &sym) ? : l_addr;
-        value = sym_map + (sym ? sym->st_value : refsym->st_value);
-    }
+        if (!value) {
+            sym_map = RESOLVE_MAP(&strtab, &sym);
+            if (!sym_map)
+                return;
 
-#define SYM (sym ? : refsym)
+            assert(sym);
+            value = sym_map + sym->st_value;
+        }
 
-    /* We do a very special relocation for loaded libraries */
-    if (!rel) {
-        if (sym && refsym && refsym != sym) {
-            refsym->st_info = sym->st_info;
-            refsym->st_size = sym->st_size;
-
-            if (__builtin_expect (ELFW(ST_TYPE) (sym->st_info)
-                                  == STT_GNU_IFUNC, 0)
-                && __builtin_expect (sym->st_shndx != SHN_UNDEF, 1))
-            {
-                value = ((Elf64_Addr (*) (void)) value) ();
-
-                refsym->st_info ^= ELFW(ST_TYPE)(sym->st_info);
-                refsym->st_info |= STT_FUNC;
-            }
-
-            refsym->st_value = value - l_addr;
-        } else {
-            return;
+        if (!sym_map || (void *) sym_map == pal_state.pal_addr) {
+            assert(l->nrelocs < NRELOCS);
+            l->relocs[l->nrelocs++] = reloc_addr;
         }
     }
 #endif
 
-    if (sym != NULL
-        && __builtin_expect (ELFW(ST_TYPE) (sym->st_info)
-                             == STT_GNU_IFUNC, 0)
+    if (__builtin_expect (ELFW(ST_TYPE) (sym->st_info) == STT_GNU_IFUNC, 0)
         && __builtin_expect (sym->st_shndx != SHN_UNDEF, 1))
         value = ((Elf64_Addr (*) (void)) value) ();
 
@@ -147,47 +114,48 @@ elf_machine_rela (Elf64_Dyn **l_info, Elf64_Addr l_addr,
        R_ARCH_GLOB_DAT, R_ARCH_JUMP_SLOT appear in ld.so. We observed
        the same thing in libpal.so, so we are gonna to make the same
        assumption */
-    switch (r_type)
-    {
+    switch (r_type) {
         case R_X86_64_GLOB_DAT:
-            elf_machine_rela_debug (R_X86_64_GLOB_DAT, SYM, value);
+            debug_reloc(R_X86_64_GLOB_DAT);
             *reloc_addr = value + reloc->r_addend;
             break;
 
         case R_X86_64_JUMP_SLOT:
-            elf_machine_rela_debug (R_X86_64_JUMP_SLOT, SYM, value);
+            debug_reloc(R_X86_64_JUMP_SLOT);
             *reloc_addr = value + reloc->r_addend;
             break;
 
 #ifndef RTLD_BOOTSTRAP
         case R_X86_64_64:
-            elf_machine_rela_debug (R_X86_64_64, SYM, value);
+            debug_reloc(R_X86_64_64);
             *reloc_addr = value + reloc->r_addend;
             break;
 
         case R_X86_64_32:
-            elf_machine_rela_debug (R_X86_64_32, SYM, value);
+            debug_reloc(R_X86_64_32);
             value += reloc->r_addend;
             *(Elf64_Addr *) reloc_addr = value;
             break;
 
         /* Not needed for dl-conflict.c.  */
         case R_X86_64_PC32:
-            elf_machine_rela_debug (R_X86_64_PC32, SYM, value);
+            debug_reloc(R_X86_64_PC32);
             value += reloc->r_addend - (Elf64_Addr) reloc_addr;
             *(Elf64_Addr *) reloc_addr = value;
             break;
 
+#if 0
         case R_X86_64_COPY:
-            elf_machine_rela_debug (R_X86_64_COPY, SYM, value);
-            size_t sym_size = sym ? sym->st_size : 0;
-            size_t ref_size = refsym ? refsym->st_size : 0;
+            debug_reloc(R_X86_64_COPY);
+            int sym_size = sym ? sym->st_size : 0;
+            int ref_size = refsym ? refsym->st_size : 0;
             memcpy (reloc_addr_arg, (void *) value, MIN (sym_size,
                     ref_size));
             break;
+#endif
 
         case R_X86_64_IRELATIVE:
-            elf_machine_rela_debug (R_X86_64_IRELATIVE, SYM, value);
+            debug_reloc(R_X86_64_IRELATIVE);
             value = sym_map + reloc->r_addend;
             value = ((Elf64_Addr (*) (void)) value) ();
             *reloc_addr = value;
@@ -197,19 +165,20 @@ elf_machine_rela (Elf64_Dyn **l_info, Elf64_Addr l_addr,
             return;
     }
 
-    if (!rel)
-        /* We have relocated the symbol, we don't want the
-           interpreter to relocate it again. */
-        reloc->r_info ^= ELF64_R_TYPE (reloc->r_info);
+#ifndef RTLD_BOOTSTRAP
+    /* We have relocated the symbol, we don't want the
+       interpreter to relocate it again. */
+    reloc->r_info ^= ELF64_R_TYPE (reloc->r_info);
+#endif
 }
 
 static void
-elf_machine_rela_relative (Elf64_Addr l_addr, const Elf64_Rela *reloc,
+elf_machine_rela_relative (struct link_map *l, const Elf64_Rela *reloc,
                            void *const reloc_addr_arg)
 {
     Elf64_Addr *const reloc_addr = reloc_addr_arg;
     assert (ELF64_R_TYPE (reloc->r_info) == R_X86_64_RELATIVE);
-    *reloc_addr = l_addr + reloc->r_addend;
+    *reloc_addr = l->l_addr + reloc->r_addend;
 }
 
 #endif /* !dl_machine_h */

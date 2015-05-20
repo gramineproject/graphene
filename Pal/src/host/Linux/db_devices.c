@@ -38,7 +38,7 @@ typedef __kernel_pid_t pid_t;
 #include <linux/stat.h>
 #include <asm/stat.h>
 #include <asm/fcntl.h>
-#include <asm-errno.h>
+#include <asm/errno.h>
 
 #define DEVICE_OPS(handle)                              \
     ({ int _type = (handle)->dev.dev_type;              \
@@ -158,16 +158,11 @@ static int term_close (PAL_HANDLE handle)
 static int term_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
-    attr->type = pal_type_dev;
-    attr->file_id = 0;
-    attr->size = 0;
+    attr->handle_type = pal_type_dev;
     attr->readable  = PAL_TRUE;
     attr->writeable = PAL_TRUE;
     attr->runnable  = PAL_FALSE;
-    attr->access_time = 0;
-    attr->change_time = 0;
-    attr->create_time = 0;
-
+    attr->pending_size = 0;
     return 0;
 }
 
@@ -175,16 +170,11 @@ static int term_attrquery (const char * type, const char * uri,
 static int term_attrquerybyhdl (PAL_HANDLE hdl,
                                 PAL_STREAM_ATTR * attr)
 {
-    attr->type = pal_type_dev;
-    attr->file_id = 0;
-    attr->size = 0;
+    attr->handle_type = pal_type_dev;
     attr->readable  = (hdl->dev.fd_in  != PAL_IDX_POISON);
     attr->writeable = (hdl->dev.fd_out != PAL_IDX_POISON);
     attr->runnable  = PAL_FALSE;
-    attr->access_time = 0;
-    attr->change_time = 0;
-    attr->create_time = 0;
-
+    attr->pending_size = 0;
     return 0;
 }
 
@@ -374,18 +364,12 @@ static int dev_flush (PAL_HANDLE handle)
 static inline void
 dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 {
+    attr->handle_type = pal_type_dev;
     /* readable, writable and runnable are decied by euidstataccess */
     attr->readable  = stataccess(stat, ACCESS_R);
     attr->writeable = stataccess(stat, ACCESS_W);
     attr->runnable  = stataccess(stat, ACCESS_X);
-
-    attr->type = pal_type_dev;
-    attr->file_id = stat->st_ino;
-    attr->size = stat->st_size;
-
-    attr->access_time = stat->st_atime;
-    attr->change_time = stat->st_mtime;
-    attr->create_time = stat->st_ctime;
+    attr->pending_size = stat->st_size;
 }
 
 /* 'attrquery' operation for device streams */
@@ -419,24 +403,13 @@ static int dev_attrquerybyhdl (PAL_HANDLE handle,
     struct stat stat_buf, * stat_in = NULL, * stat_out = NULL;
     int ret;
 
-    attr->type = pal_type_dev;
-    attr->file_id = 0;
+    attr->handle_type = pal_type_dev;
 
     if (handle->dev.fd_in != PAL_IDX_POISON) {
         ret = INLINE_SYSCALL(fstat, 2, handle->dev.fd_in, &stat_buf);
 
         if (!IS_ERR(ret))
             stat_in = &stat_buf;
-    }
-
-    attr->readable = (stat_in && stataccess(stat_in, ACCESS_R));
-    attr->runnable = (stat_in && stataccess(stat_in, ACCESS_X));
-
-    if (stat_in) {
-        attr->size = stat_in->st_size;
-        attr->access_time = stat_in->st_atime;
-        attr->change_time = stat_in->st_mtime;
-        attr->create_time = stat_in->st_ctime;
     }
 
     if (handle->dev.fd_in != PAL_IDX_POISON) {
@@ -446,15 +419,11 @@ static int dev_attrquerybyhdl (PAL_HANDLE handle,
             stat_out = &stat_buf;
     }
 
+    attr->readable  = (stat_in  && stataccess(stat_in,  ACCESS_R));
+    attr->runnable  = (stat_in  && stataccess(stat_in,  ACCESS_X));
     attr->writeable = (stat_out && stataccess(stat_out, ACCESS_W));
-
-    if (!stat_in) {
-        attr->size = stat_out ? stat_out->st_size : 0;
-        attr->access_time = stat_out ? stat_out->st_atime : 0;
-        attr->change_time = stat_out ? stat_out->st_mtime : 0;
-        attr->create_time = stat_out ? stat_out->st_ctime : 0;
-    }
-
+    attr->pending_size = stat_in ? stat_in->st_size :
+                         (stat_out ? stat_out->st_size : 0);
     return 0;
 }
 

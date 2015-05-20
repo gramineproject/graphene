@@ -3,6 +3,7 @@
 
 #include "pal.h"
 #include "pal_debug.h"
+#include "api.h"
 
 #define NTRIES  10
 
@@ -14,7 +15,7 @@ int main (int argc, char ** argv)
     DkRandomBitsRead(&pipeid, sizeof(unsigned long));
     pipeid = pipeid % 1024;
 
-    pal_snprintf(uri, 40, "pipe.srv:%d", pipeid);
+    snprintf(uri, 40, "pipe.srv:%d", pipeid);
 
     PAL_HANDLE srv = DkStreamOpen(uri, 0, 0,
                                   PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
@@ -24,7 +25,7 @@ int main (int argc, char ** argv)
         return -1;
     }
 
-    pal_snprintf(uri, 40, "pipe:%d", pipeid);
+    snprintf(uri, 40, "pipe:%d", pipeid);
 
     PAL_HANDLE cli = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0,
                                   PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);

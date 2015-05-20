@@ -158,7 +158,7 @@ _elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
 
 static void __attribute__((unused))
 _elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
-                      void (*do_reloc) (struct link_map * l, ElfW(Addr), int))
+                      void (*do_reloc) (struct link_map *, ElfW(Addr), int))
 {
     struct { ElfW(Addr) start, size; } ranges[2];
     ranges[0].size = ranges[1].size = 0;
@@ -196,6 +196,7 @@ _elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
 #define _ELF_DYNAMIC_DO_RELOC(RELOC, reloc, l)                  \
     _elf_dynamic_do_reloc(l, DT_##RELOC, DT_##RELOC##SZ,        \
                           &elf_dynamic_do_##reloc)
+#define _ELF_DYNAMIC_REDO_RELOC(RELOC, reloc, l) elf_dynamic_redo_##reloc(l)
 
 #if ELF_MACHINE_NO_REL || ELF_MACHINE_NO_RELA
 # define _ELF_CHECK_REL 0
@@ -205,25 +206,27 @@ _elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
 
 #if ! ELF_MACHINE_NO_REL
 # include "do-rel.h"
-# define ELF_DYNAMIC_DO_REL(l) \
-  _ELF_DYNAMIC_DO_RELOC (REL, rel, l)
+# define ELF_DYNAMIC_DO_REL(l) _ELF_DYNAMIC_DO_RELOC (REL, rel, l)
 # define ELF_DYNAMIC_COPY_REL(l1, l2) elf_dynamic_copy_rel(l1, l2)
+# define ELF_DYNAMIC_REDO_REL(l) _ELF_DYNAMIC_REDO_RELOC (REL, rel, l)
 #else
 /* nothing to do */
 # define ELF_DYNAMIC_DO_REL(l)
-# define ELF_DYNAMIC_COPY_REL(l1, l2)
+//# define ELF_DYNAMIC_COPY_REL(l1, l2)
+# define ELF_DYNAMIC_REDO_REL(l)
 #endif
 
 #if ! ELF_MACHINE_NO_RELA
 # define DO_RELA
 # include "do-rel.h"
-# define ELF_DYNAMIC_DO_RELA(l) \
-  _ELF_DYNAMIC_DO_RELOC (RELA, rela, l)
-# define ELF_DYNAMIC_COPY_RELA(l1, l2) elf_dynamic_copy_rela(l, l2)
+# define ELF_DYNAMIC_DO_RELA(l) _ELF_DYNAMIC_DO_RELOC (RELA, rela, l)
+//# define ELF_DYNAMIC_COPY_RELA(l1, l2) elf_dynamic_copy_rela(l, l2)
+# define ELF_DYNAMIC_REDO_RELA(l) _ELF_DYNAMIC_REDO_RELOC (RELA, rela, l)
 #else
 /* nothing to do */
 # define ELF_DYNAMIC_DO_RELA(l)
-# define ELF_DYNAMIC_COPY_RELA(l1, l2)
+//# define ELF_DYNAMIC_COPY_RELA(l1, l2)
+# define ELF_DYNAMIC_REDO_RELA(l)
 #endif
 
 /* This can't just be an inline function because GCC is too dumb
@@ -234,8 +237,16 @@ _elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
         ELF_DYNAMIC_DO_RELA(l);        \
     } while (0)
 
+#if 0
 #define ELF_DYNAMIC_COPY(l1, l2)       \
     do {                               \
         ELF_DYNAMIC_COPY_REL(l1, l2);  \
         ELF_DYNAMIC_COPY_RELA(l1, l2); \
+    } while (0)
+#endif
+
+# define ELF_REDO_DYNAMIC_RELOCATE(l)  \
+    do {                               \
+        ELF_DYNAMIC_REDO_REL(l);       \
+        ELF_DYNAMIC_REDO_RELA(l);      \
     } while (0)

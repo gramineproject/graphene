@@ -32,26 +32,52 @@
 #include "linux_list.h"
 
 PAL_BOL
-DkSetExceptionHandler (void (*handler) (PAL_PTR event, PAL_NUM arg,
-                                        PAL_CONTEXT * context),
+DkSetExceptionHandler (void (*handler) (PAL_PTR, PAL_NUM, PAL_CONTEXT *),
                        PAL_NUM event, PAL_FLG flags)
 {
-    if (!handler || event <= 0 || event > PAL_EVENT_NUM_BOUND) {
-        notify_failure(PAL_ERROR_INVAL);
-        return PAL_FALSE;
-    }
+    store_frame(SetExceptionHandler);
+
+    if (!handler || event <= 0 || event > PAL_EVENT_NUM_BOUND)
+        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
 
     int ret = _DkExceptionHandlers[event](event, handler, flags);
 
-    if (ret < 0) {
-        notify_failure(-ret);
-        return PAL_FALSE;
-    }
+    if (ret < 0)
+        leave_frame(PAL_FALSE, -ret);
 
-    return PAL_TRUE;
+    leave_frame(PAL_TRUE, 0);
 }
 
 void DkExceptionReturn (PAL_PTR event)
 {
     _DkExceptionReturn(event);
+}
+
+unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
+                                               unsigned long args[6])
+{
+    printf("compatibility support: detected an unintercepted system call\n");
+
+    if (!pal_state.syscall_sym_addr)
+        _DkProcessExit(-1);
+
+    unsigned long ret;
+
+    asm volatile ("movq %6, %%r10\r\n"
+                  "movq %7, %%r8\r\n"
+                  "movq %8, %%r9\r\n"
+                  "callq *%1\r\n"
+                  "movq %%rax, %0\r\n"
+                  : "=a" (ret)
+                  : "r"(pal_state.syscall_sym_addr),
+                    "a" (syscallno),
+                    "D" (args[0]),
+                    "S" (args[1]),
+                    "d" (args[2]),
+                    "r" (args[3]),
+                    "r" (args[4]),
+                    "r" (args[5])
+                  : "memory", "r10", "r8", "r9");
+
+    return ret;
 }

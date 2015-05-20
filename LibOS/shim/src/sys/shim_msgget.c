@@ -787,8 +787,9 @@ static int __store_msg_persist (struct shim_msg_handle * msgq)
     if (DkStreamSetLength(file, expected_size) != expected_size)
         goto err_file;
 
-    void * mem = DkStreamMap(file, NULL, PAL_PROT_READ|PAL_PROT_WRITE,
-                             0, ALIGN_UP(expected_size));
+    void * mem = (void *) DkStreamMap(file, NULL,
+                                      PAL_PROT_READ|PAL_PROT_WRITE,
+                                      0, ALIGN_UP(expected_size));
     if (!mem) {
         ret = -EFAULT;
         goto err_file;
@@ -881,8 +882,8 @@ static int __load_msg_persist (struct shim_msg_handle * msgq, bool readmsg)
                         sizeof(struct msg_backup) * mback.nmsgs +
                         mback.currentsize;
 
-    void * mem = DkStreamMap(file, NULL, PAL_PROT_READ,
-                             0, ALIGN_UP(expected_size));
+    void * mem = (void *) DkStreamMap(file, NULL, PAL_PROT_READ, 0,
+                                      ALIGN_UP(expected_size));
 
     if (!mem) {
         ret = -PAL_ERRNO;
