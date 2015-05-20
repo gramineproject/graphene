@@ -36,7 +36,7 @@ int main (int argc, char ** argv, char ** envp)
         DkObjectClose(dir2);
     }
 
-    PAL_HANDLE dir3 = DkStreamOpen("dir:../rtest/dir_exist.tmp",
+    PAL_HANDLE dir3 = DkStreamOpen("dir:../regression/dir_exist.tmp",
                                     PAL_ACCESS_RDONLY, 0, 0, 0);
     if (dir3) {
         pal_printf("Directory Open Test 3 OK\n");

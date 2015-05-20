@@ -70,7 +70,7 @@ int main (int argc, char ** argv, char ** envp)
         DkObjectClose(file2);
     }
 
-    PAL_HANDLE file3 = DkStreamOpen("file:../rtest/file_exist.tmp",
+    PAL_HANDLE file3 = DkStreamOpen("file:../regression/file_exist.tmp",
                                     PAL_ACCESS_RDWR, 0, 0, 0);
     if (file3) {
         pal_printf("File Open Test 3 OK\n");
