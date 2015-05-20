@@ -1,16 +1,16 @@
-diff --git a/Pal/linux-3.14/Kconfig b/Pal/linux-3.14/Kconfig
+diff --git a/Kconfig b/Kconfig
 index c13f48d..e18713e 100644
---- a/Pal/linux-3.14/Kconfig
-+++ b/Pal/linux-3.14/Kconfig
+--- a/Kconfig
++++ b/Kconfig
 @@ -9,3 +9,4 @@ config SRCARCH
  	option env="SRCARCH"
  
  source "arch/$SRCARCH/Kconfig"
 +source "graphene/Kconfig"
-diff --git a/Pal/linux-3.14/Makefile b/Pal/linux-3.14/Makefile
+diff --git a/Makefile b/Makefile
 index e5ac8a6..116ac82 100644
---- a/Pal/linux-3.14/Makefile
-+++ b/Pal/linux-3.14/Makefile
+--- a/Makefile
++++ b/Makefile
 @@ -779,7 +779,7 @@ export mod_sign_cmd
  
  
@@ -20,10 +20,10 @@ index e5ac8a6..116ac82 100644
  
  vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
  		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
-diff --git a/Pal/linux-3.14/include/linux/miscdevice.h b/Pal/linux-3.14/include/linux/miscdevice.h
+diff --git a/include/linux/miscdevice.h b/include/linux/miscdevice.h
 index 3737f72..f7a4aba 100644
---- a/Pal/linux-3.14/include/linux/miscdevice.h
-+++ b/Pal/linux-3.14/include/linux/miscdevice.h
+--- a/include/linux/miscdevice.h
++++ b/include/linux/miscdevice.h
 @@ -3,6 +3,7 @@
  #include <linux/major.h>
  #include <linux/list.h>
@@ -32,10 +32,10 @@ index 3737f72..f7a4aba 100644
  
  /*
   *	These allocations are managed by device@lanana.org. If you use an
-diff --git a/Pal/linux-3.14/include/linux/sched.h b/Pal/linux-3.14/include/linux/sched.h
+diff --git a/include/linux/sched.h b/include/linux/sched.h
 index a781dec..3381137 100644
---- a/Pal/linux-3.14/include/linux/sched.h
-+++ b/Pal/linux-3.14/include/linux/sched.h
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
 @@ -1161,6 +1161,11 @@ enum perf_event_task_context {
  	perf_nr_task_contexts,
  };
@@ -60,10 +60,10 @@ index a781dec..3381137 100644
  };
  
  /* Future-safe accessor for struct task_struct's cpus_allowed. */
-diff --git a/Pal/linux-3.14/kernel/fork.c b/Pal/linux-3.14/kernel/fork.c
+diff --git a/kernel/fork.c b/kernel/fork.c
 index a17621c..41d5958 100644
---- a/Pal/linux-3.14/kernel/fork.c
-+++ b/Pal/linux-3.14/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
 @@ -11,6 +11,7 @@
   * management can be a bitch. See 'mm/memory.c': 'copy_page_range()'
   */
@@ -111,10 +111,10 @@ index a17621c..41d5958 100644
  	/*
  	 * One for us, one for whoever does the "release_task()" (usually
  	 * parent)
-diff --git a/Pal/linux-3.14/security/apparmor/lsm.c b/Pal/linux-3.14/security/apparmor/lsm.c
+diff --git a/security/apparmor/lsm.c b/security/apparmor/lsm.c
 index 4257b7e..b21c19d 100644
---- a/Pal/linux-3.14/security/apparmor/lsm.c
-+++ b/Pal/linux-3.14/security/apparmor/lsm.c
+--- a/security/apparmor/lsm.c
++++ b/security/apparmor/lsm.c
 @@ -36,6 +36,10 @@
  #include "include/policy.h"
  #include "include/procattr.h"

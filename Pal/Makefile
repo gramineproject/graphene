@@ -30,7 +30,7 @@ $(LINUX_SRC)/Makefile:
 	[ -f $(LINUX_SRC).tar.gz ] || \
 	wget https://www.kernel.org/pub/linux/kernel/v$(LINUX_GEN)/$(LINUX_SRC).tar.gz
 	tar -xzf $(LINUX_SRC).tar.gz
-	[ ! -f $(LINUX_SRC).patch ] || git apply $(LINUX_SRC).patch
+	cd $(LINUX_SRC) && patch -p1 < ../$(LINUX_SRC).patch
 
 $(LINUX_SRC)/graphene: linux-kernel/graphene
 	cd $(LINUX_SRC) && ln -s ../linux-kernel/graphene graphene

@@ -27,7 +27,7 @@ $(GLIBC_SRC)/configure:
 	[ -f $(GLIBC_SRC).tar.gz ] || \
 	wget http://ftp.gnu.org/gnu/glibc/$(GLIBC_SRC).tar.gz
 	tar -xzf $(GLIBC_SRC).tar.gz
-	[ ! -f $(GLIBC_SRC).patch ] || git apply $(GLIBC_SRC).patch
+	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
 
 .PHONY: pack
 pack: $(GLIBC_TARGET)
