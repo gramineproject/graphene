@@ -13,6 +13,7 @@ manifest_rules = \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):$(abspath ../../src/libsysdb.so):g' \
 	-e 's:\$$(GLIBCDIR):$(abspath $(glibc_dir))/:g' \
+	-e 's:\$$(HOSTNAME):$(shell hostname)/:g' \
 	$(extra_rules)
 
 %.manifest: %.manifest.template

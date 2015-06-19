@@ -8,6 +8,7 @@ loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
 loader.env.USERNAME =
 loader.env.HOME =
 loader.env.PWD =
+loader.env.HOSTNAME = $(HOSTNAME)
 loader.debug_type = none
 
 fs.mount.root.type = chroot

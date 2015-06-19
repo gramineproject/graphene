@@ -363,6 +363,8 @@ char * dentry_get_path (struct shim_dentry * dent, bool on_stack,
     } else {
         if (c != buffer && *(c - 1) == '/')
             c--;
+        if (c == buffer)
+            *(c++) = '/';
     }
 
     *c = 0;
