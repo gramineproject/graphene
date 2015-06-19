@@ -156,7 +156,7 @@ static int do_lookup (struct lookup * look, const char * name, int namelen,
     int err = 0;
     struct shim_dentry * dent = NULL;
 
-    if ((err = lookup_dentry(look->dentry, name, namelen,force, &dent)) < 0)
+    if ((err = lookup_dentry(look->dentry, name, namelen, force, &dent)) < 0)
         goto fail;
 
     path_reacquire(look, dent);
@@ -1054,8 +1054,10 @@ done_read:
     hdl->flags = flags;
     get_dentry(dent);
     hdl->info.dir.dot = dent;
-    put_dentry(dent->parent);
-    hdl->info.dir.dotdot = dent->parent;
+    if (dent->parent) {
+        get_dentry(dent->parent);
+        hdl->info.dir.dotdot = dent->parent;
+    }
     hdl->info.dir.buf = children;
     hdl->info.dir.ptr = children;
 out:

@@ -2,9 +2,12 @@
 
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:busybox
+loader.execname = busybox
 loader.env.PATH = /:/usr/sbin:/usr/bin:/sbin:/bin
-loader.env.LD_LIBRARY_PATH = /lib:/lib64
-loader.exclude_env = USERNAME,HOME,PWD
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
+loader.env.USERNAME =
+loader.env.HOME =
+loader.env.PWD =
 loader.debug_type = none
 
 fs.mount.root.type = chroot
@@ -15,5 +18,5 @@ fs.mount.other.lib1.path = /lib
 fs.mount.other.lib1.uri = file:$(GLIBCDIR)
 
 fs.mount.other.lib2.type = chroot
-fs.mount.other.lib2.path = /lib64
-fs.mount.other.lib2.uri = file:/lib
+fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
