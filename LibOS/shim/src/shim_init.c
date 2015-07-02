@@ -594,7 +594,7 @@ DEFINE_PROFILE_INTERVAL(init_signal, init);
 
 extern PAL_HANDLE thread_start_event;
 
-int shim_init (int argc, void * args, void ** return_stack)
+int shim_init (int argc, void * args)
 {
     debug_handle = PAL_CB(debug_stream);
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
@@ -730,7 +730,6 @@ restore:
         execute_elf_object(cur_thread->exec,
                            argc, argp, nauxv, auxp);
 
-    *return_stack = initial_stack;
     return 0;
 }
 

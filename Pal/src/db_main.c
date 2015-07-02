@@ -239,12 +239,6 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
 
     init_slab_mgr(pal_state.alloc_align);
 
-    if (is_parent && !exec_handle && !manifest_handle) {
-        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
-        _DkProcessExit(0);
-        return;
-    }
-
     char * exec = NULL, * manifest = NULL;
 
     if (exec_handle) {
@@ -265,15 +259,17 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
             unsigned long before_find_manifest = _DkSystemTimeQuery();
 #endif
             do {
-                assert(!!exec);
-                /* try open "<exec>.manifest" */
-                manifest = __alloca(URI_MAX);
-                snprintf(manifest, URI_MAX, "%s.manifest", exec);
-                ret = _DkStreamOpen(&manifest_handle,
-                                    manifest,
-                                    PAL_ACCESS_RDONLY, 0, 0, 0);
-                if (!ret)
-                    break;
+                if (exec_handle) {
+                    assert(!!exec);
+                    /* try open "<exec>.manifest" */
+                    manifest = __alloca(URI_MAX);
+                    snprintf(manifest, URI_MAX, "%s.manifest", exec);
+                    ret = _DkStreamOpen(&manifest_handle,
+                                        manifest,
+                                        PAL_ACCESS_RDONLY, 0, 0, 0);
+                    if (!ret)
+                        break;
+                }
 
                 /* try open "file:manifest" */
                 manifest = "file:manifest";
@@ -353,6 +349,12 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
         }
     }
 
+    if (is_parent && !exec_handle && !manifest_handle) {
+        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
+        _DkProcessExit(0);
+        return;
+    }
+
     pal_state.manifest        = manifest;
     pal_state.manifest_handle = manifest_handle;
     pal_state.exec            = exec;
@@ -362,7 +364,7 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
     argc--;
     argv++;
 
-    if (is_parent && exec) {
+    if (is_parent && exec_handle) {
         first_argv = exec;
         if (pal_state.root_config) {
             char cfgbuf[CONFIG_MAX];

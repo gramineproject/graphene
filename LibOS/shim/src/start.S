@@ -37,7 +37,6 @@ shim_start:
    The arguments are passed via registers and on the stack:
    argc:         %rdi
    argv:         %rsi
-   stack:        %rdx
 */
 
     /* Align the stack to a 16 byte boundary to follow the ABI.  */
@@ -47,16 +46,10 @@ shim_start:
     movq 0(%rbp), %rdi      /* Pop the argument count.  */
     leaq 8(%rbp), %rsi      /* argv starts just at the current stack top.  */
 
-/* Provide the highest stack address to the user code (for stacks
-   which grow downwards).  */
-
-    pushq %rbp
-    movq %rsp, %rdx
+    pushq %rdx
 
     movq shim_init@GOTPCREL(%rip), %r11
     call *%r11
 
-    popq %rbp
-    leaveq
     retq
     .cfi_endproc
