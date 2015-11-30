@@ -77,20 +77,29 @@ DEFINE_RESTORE_RT(__NR_rt_sigreturn)
 int set_sighandler (int * sigs, int nsig, void * handler)
 {
     struct sigaction action;
-    action.sa_handler = (void (*)(int)) handler;
-    action.sa_flags = SA_SIGINFO;
 
+    if (handler) {
+        action.sa_handler = (void (*)(int)) handler;
+        action.sa_flags = SA_SIGINFO;
 #if !defined(__i386__)
-    action.sa_flags |= SA_RESTORER;
-    action.sa_restorer = restore_rt;
+        action.sa_flags |= SA_RESTORER;
+        action.sa_restorer = restore_rt;
 #endif
+    } else {
+        action.sa_handler = SIG_IGN;
+    }
+
+#ifdef DEBUG
+    if (!linux_state.in_gdb)
+#endif
+        action.sa_flags |= SA_NOCLDWAIT;
 
     __sigemptyset((__sigset_t *) &action.sa_mask);
     __sigaddset((__sigset_t *) &action.sa_mask, SIGCONT);
 
     for (int i = 0 ; i < nsig ; i++) {
-        if (sigs[i] == SIGCHLD)
-            action.sa_flags |= SA_NOCLDSTOP|SA_NOCLDWAIT;
+        if (__sigismember(&linux_state.set_signals, sigs[i]))
+            continue;
 
 #if defined(__i386__)
         int ret = INLINE_SYSCALL(sigaction, 3, sigs[i], &action, NULL)
@@ -101,16 +110,18 @@ int set_sighandler (int * sigs, int nsig, void * handler)
         if (IS_ERR(ret))
             return -PAL_ERROR_DENIED;
 
-        action.sa_flags &= ~(SA_NOCLDSTOP|SA_NOCLDWAIT);
+        __sigaddset(&linux_state.set_signals, sigs[i]);
     }
+
 
     bool maskset = false;
     int ret = 0;
     __sigset_t mask;
     __sigemptyset(&mask);
+
     for (int i = 0 ; i < nsig ; i++)
-        if (__sigismember(&linux_state.sigset, sigs[i])) {
-            __sigdelset(&linux_state.sigset, sigs[i]);
+        if (__sigismember(&linux_state.blocked_signals, sigs[i])) {
+            __sigdelset(&linux_state.blocked_signals, sigs[i]);
             __sigaddset(&mask, sigs[i]);
             maskset = true;
         }
@@ -136,9 +147,10 @@ int block_signals (int * sigs, int nsig)
     int ret = 0;
     __sigset_t mask;
     __sigemptyset(&mask);
+
     for (int i = 0 ; i < nsig ; i++)
-        if (!__sigismember(&linux_state.sigset, sigs[i])) {
-            __sigaddset(&linux_state.sigset, sigs[i]);
+        if (!__sigismember(&linux_state.blocked_signals, sigs[i])) {
+            __sigaddset(&linux_state.blocked_signals, sigs[i]);
             __sigaddset(&mask, sigs[i]);
             maskset = true;
         }
@@ -165,8 +177,8 @@ int unblock_signals (int * sigs, int nsig)
     __sigset_t mask;
     __sigemptyset(&mask);
     for (int i = 0 ; i < nsig ; i++)
-        if (__sigismember(&linux_state.sigset, sigs[i])) {
-            __sigdelset(&linux_state.sigset, sigs[i]);
+        if (__sigismember(&linux_state.blocked_signals, sigs[i])) {
+            __sigdelset(&linux_state.blocked_signals, sigs[i]);
             __sigaddset(&mask, sigs[i]);
             maskset = true;
         }
@@ -183,21 +195,6 @@ int unblock_signals (int * sigs, int nsig)
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
-    return 0;
-}
-
-int unset_sighandler (int * sigs, int nsig)
-{
-    for (int i = 0 ; i < nsig ; i++) {
-#if defined(__i386__)
-        int ret = INLINE_SYSCALL(sigaction, 4, sigs[i], SIG_DFL, NULL)
-#else
-        int ret = INLINE_SYSCALL(rt_sigaction, 4, sigs[i], SIG_DFL, NULL,
-                                 sizeof(__sigset_t));
-#endif
-        if (IS_ERR(ret))
-            return -PAL_ERROR_DENIED;
-    }
     return 0;
 }
 
@@ -457,9 +454,7 @@ static int _DkPersistentSighandlerSetup (int event_num)
     int nsigs, * sigs = on_signals[event_num].signum;
     for (nsigs = 0 ; sigs[nsigs] ; nsigs++);
 
-    void * sighandler = on_signals[event_num].handler;
-
-    int ret = set_sighandler (sigs, nsigs, sighandler);
+    int ret = set_sighandler(sigs, nsigs, on_signals[event_num].handler);
     if (ret < 0)
         return ret;
 
@@ -483,7 +478,6 @@ static int _DkGenericEventUpcall (int event_num, PAL_UPCALL upcall,
     int nsigs, * sigs = on_signals[event_num].signum;
     for (nsigs = 0 ; sigs[nsigs] ; nsigs++);
 
-    void * sighandler = on_signals[event_num].handler;
     struct exception_handler * handler = pal_handlers[event_num];
     int ret = 0;
 
@@ -493,9 +487,9 @@ static int _DkGenericEventUpcall (int event_num, PAL_UPCALL upcall,
     _DkMutexUnlock(&handler->lock);
 
     if (upcall)
-        ret = set_sighandler (sigs, nsigs, sighandler);
+        ret = set_sighandler(sigs, nsigs, on_signals[event_num].handler);
     else
-        ret = block_signals (sigs, nsigs);
+        ret = block_signals(sigs, nsigs);
 
     return ret;
 }
@@ -540,8 +534,12 @@ static void _DkCompatibilitySighandler (int signum, siginfo_t * info,
 
 void signal_setup (void)
 {
-    int ret, sig;
-    __sigemptyset(&linux_state.sigset);
+    int ret, sig = SIGCHLD;
+
+#ifdef DEBUG
+    if (!linux_state.in_gdb)
+#endif
+        set_sighandler(&sig, 1, NULL);
 
     if ((ret = _DkPersistentEventUpcall(PAL_EVENT_DIVZERO,  NULL, 0)) < 0)
         goto err;

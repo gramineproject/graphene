@@ -70,13 +70,14 @@ int shim_do_chdir (const char * filename)
     struct shim_dentry * dent = NULL;
     int ret;
 
-    if ((ret = path_lookupat(NULL, filename, LOOKUP_SYNC, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, filename, LOOKUP_OPEN, &dent)) < 0)
         return ret;
 
     if (!dent)
         return -ENOENT;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
+        debug("%s is not a directory\n", dentry_get_path(dent, false, NULL));
         put_dentry(dent);
         return -ENOTDIR;
     }
@@ -98,6 +99,7 @@ int shim_do_fchdir (int fd)
     struct shim_dentry * dent = hdl->dentry;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
+        debug("%s is not a directory\n", dentry_get_path(dent, false, NULL));
         put_handle(hdl);
         return -ENOTDIR;
     }

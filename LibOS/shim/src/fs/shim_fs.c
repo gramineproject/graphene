@@ -81,8 +81,7 @@ int init_fs (void)
 
     create_lock(mount_mgr_lock);
     create_lock(mount_list_lock);
-
-    return init_dcache();
+    return 0;
 }
 
 static struct shim_mount * alloc_mount (void)
@@ -391,74 +390,72 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
     return ret < 0 ? ret : (nsrched ? 0 : -ESRCH);
 }
 
-DEFINE_MIGRATE_FUNC(mount)
-
-MIGRATE_FUNC_BODY(mount)
+BEGIN_CP_FUNC(mount)
 {
     assert(size == sizeof(struct shim_mount));
 
     struct shim_mount * mount = (struct shim_mount *) obj;
     struct shim_mount * new_mount = NULL;
 
-    unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset,
-                                           sizeof(struct shim_mount));
+    ptr_t off = GET_FROM_CP_MAP(obj);
 
-    if (ENTRY_JUST_CREATED(off)) {
-        off = ADD_OFFSET(sizeof(struct shim_mount));
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_mount));
+        ADD_TO_CP_MAP(obj, off);
 
-        if (dry) {
-            mount->cpdata = NULL;
-            mount->cpsize = 0;
-
-            if (mount->fs_ops &&
-                mount->fs_ops->checkpoint) {
-                void * cpdata = NULL;
-                int bytes = mount->fs_ops->checkpoint(&cpdata, mount->data);
-                if (bytes > 0 && cpdata) {
-                    mount->cpdata = cpdata;
-                    mount->cpsize = bytes;
-                    ADD_OFFSET(bytes);
-                }
+        if (!mount->cpdata &&
+            mount->fs_ops &&
+            mount->fs_ops->checkpoint) {
+            void * cpdata = NULL;
+            int bytes = mount->fs_ops->checkpoint(&cpdata, mount->data);
+            if (bytes > 0) {
+                mount->cpdata = cpdata;
+                mount->cpsize = bytes;
             }
-        } else {
-            new_mount = (struct shim_mount *) (base + off);
-            memcpy(new_mount, mount, sizeof(struct shim_mount));
-
-            if (mount->cpdata) {
-                ADD_OFFSET(mount->cpsize);
-                new_mount->cpdata = (void *) (base + *offset);
-                memcpy(new_mount->cpdata, mount->cpdata, mount->cpsize);
-            }
-
-            new_mount->data = NULL;
-            new_mount->mount_point = NULL;
-            new_mount->root = NULL;
-            INIT_LIST_HEAD(&new_mount->list);
         }
 
-        DO_MIGRATE_IN_MEMBER(qstr, mount, new_mount, path, false);
-        DO_MIGRATE_IN_MEMBER(qstr, mount, new_mount, uri,  false);
+        new_mount = (struct shim_mount *) (base + off);
+        *new_mount = *mount;
 
-        ADD_FUNC_ENTRY(off);
-        ADD_ENTRY(SIZE, sizeof(struct shim_mount));
+        if (mount->cpdata) {
+            struct shim_mem_entry * entry;
+            DO_CP_SIZE(memory, mount->cpdata, mount->cpsize, &entry);
+            new_mount->cpdata = NULL;
+            entry->paddr = &new_mount->cpdata;
+        }
 
-    } else if (!dry) {
+        new_mount->data = NULL;
+        new_mount->mount_point = NULL;
+        new_mount->root = NULL;
+        INIT_LIST_HEAD(&new_mount->list);
+
+        DO_CP_IN_MEMBER(qstr, new_mount, path);
+        DO_CP_IN_MEMBER(qstr, new_mount, uri);
+
+        if (mount->mount_point)
+            DO_CP_MEMBER(dentry, mount, new_mount, mount_point);
+
+        if (mount->root)
+            DO_CP_MEMBER(dentry, mount, new_mount, root);
+
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
         new_mount = (struct shim_mount *) (base + off);
     }
 
-    if (new_mount && objp)
+    if (objp)
         *objp = (void *) new_mount;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(mount)
 
-RESUME_FUNC_BODY(mount)
+BEGIN_RS_FUNC(mount)
 {
-    unsigned long off = GET_FUNC_ENTRY();
-    assert((size_t) GET_ENTRY(SIZE) == sizeof(struct shim_mount));
-    struct shim_mount * mount = (struct shim_mount *) (base + off);
+    struct shim_mount * mount = (void *) (base + GET_CP_FUNC_ENTRY());
 
-    RESUME_REBASE(mount->cpdata);
-    RESUME_REBASE(mount->list);
+    CP_REBASE(mount->cpdata);
+    CP_REBASE(mount->list);
+    CP_REBASE(mount->mount_point);
+    CP_REBASE(mount->root);
 
     struct shim_fs * fs = find_fs(mount->type);
 
@@ -472,55 +469,36 @@ RESUME_FUNC_BODY(mount)
     mount->fs_ops = fs->fs_ops;
     mount->d_ops = fs->d_ops;
 
+    list_add_tail(&mount->list, &mount_list);
+
     if (!qstrempty(&mount->path)) {
-        struct shim_dentry * dent = NULL;
-        const char * mount_point = qstrgetstr(&mount->path);
-
-        int err = path_lookupat(NULL, mount_point, 0, &dent);
-
-        if (!err && dent) {
-            err = __mount_fs(mount, dent);
-            assert(err == 0);
-        }
-
-#ifdef DEBUG_RESUME
-        debug("mount: type=%s,uri=%s,path=%s\n", mount->type,
-              qstrgetstr(&mount->uri), mount_point);
-#endif
+        DEBUG_RS("type=%s,uri=%s,path=%s", mount->type, qstrgetstr(&mount->uri),
+                 qstrgetstr(&mount->path));
+    } else {
+        DEBUG_RS("type=%s,uri=%s", mount->type, qstrgetstr(&mount->uri));
     }
-#ifdef DEBUG_RESUME
-    else {
-        debug("mount: type=%s,uri=%s\n", mount->type,
-              qstrgetstr(&mount->uri));
-    }
-#endif
 }
-END_RESUME_FUNC
+END_RS_FUNC(mount)
 
-DEFINE_MIGRATE_FUNC(all_mounts)
-
-MIGRATE_FUNC_BODY(all_mounts)
+BEGIN_CP_FUNC(all_mounts)
 {
     struct shim_mount * mount;
-
     lock(mount_list_lock);
     list_for_each_entry(mount, &mount_list, list)
-        DO_MIGRATE(mount, mount, NULL, recursive);
-
+        DO_CP(mount, mount, NULL);
     unlock(mount_list_lock);
 
     /* add an empty entry to mark as migrated */
-    ADD_FUNC_ENTRY(0);
+    ADD_CP_FUNC_ENTRY(0);
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(all_mounts)
 
-RESUME_FUNC_BODY(all_mounts)
+BEGIN_RS_FUNC(all_mounts)
 {
-    GET_FUNC_ENTRY();
     /* to prevent file system from being mount again */
     mount_migrated = true;
 }
-END_RESUME_FUNC
+END_RS_FUNC(all_mounts)
 
 const char * get_file_name (const char * path, size_t len)
 {

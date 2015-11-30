@@ -37,7 +37,7 @@
 #include <shim_profile.h>
 
 #include <errno.h>
-#include <fcntl.h>
+
 #include <asm/prctl.h>
 #include <asm/mman.h>
 
@@ -952,8 +952,9 @@ static int __read_elf_header (struct shim_handle * file, void * fbp)
         return -EACCES;
 
     (*seek) (file, 0, SEEK_SET);
-
-    return (*read) (file, fbp, FILEBUF_SIZE);
+    int ret = (*read) (file, fbp, FILEBUF_SIZE);
+    (*seek) (file, 0, SEEK_SET);
+    return ret;
 }
 
 static int __load_elf_header (struct shim_handle * file, void * fbp,
@@ -973,74 +974,15 @@ static int __load_elf_header (struct shim_handle * file, void * fbp,
     return 0;
 }
 
-int check_elf_object (struct shim_handle ** file)
+int check_elf_object (struct shim_handle * file)
 {
-    struct shim_handle * exec = *file;
     char fb[FILEBUF_SIZE];
-    int ret;
 
-    if (!exec)
-        return -EINVAL;
+    int l = __read_elf_header(file, &fb);
+    if (l < 0)
+        return l;
 
-    int len = __read_elf_header(exec, &fb);
-    if (len < 0)
-        return len;
-
-    if (!(ret = __check_elf_header(&fb, len)) || ret != -EINVAL)
-        return ret;
-
-    if (memcmp(fb, "#!", 2))
-        return -EACCES;
-
-    const char * shargs[16];
-    int shnargs = 0;
-    char * p = fb + 2, * e = fb + len;
-
-    while (p < e) {
-        assert(shnargs < 16);
-        char * np = p;
-        while (np < e && *np != ' ' && *np != '\n')
-            np++;
-        if (*np == '\n')
-            e = np;
-        *np = '\0';
-        shargs[shnargs++] = p;
-        p = np + 1;
-    }
-
-    if (!shnargs)
-        return -EINVAL;
-
-    debug("detected as script: run by %s\n", shargs[0]);
-
-    struct shim_dentry * dent = NULL;
-    if ((ret = path_lookupat(NULL, shargs[0], LOOKUP_OPEN, &dent)) < 0)
-        return ret;
-
-    if (!dent->fs || !dent->fs->d_ops ||
-        !dent->fs->d_ops->open) {
-        ret = -EACCES;
-err:
-        put_dentry(dent);
-        return ret;
-    }
-
-    struct shim_handle * new_exe = get_new_handle();
-    if (!new_exe) {
-        ret = -ENOMEM;
-        goto err;
-    }
-
-    set_handle_fs(new_exe, dent->fs);
-    new_exe->flags = O_RDONLY;
-    new_exe->acc_mode = MAY_READ;
-
-    if ((ret = dent->fs->d_ops->open(new_exe, dent, O_RDONLY)) < 0)
-        goto err;
-
-    flush_handle(*file);
-    *file = new_exe;
-    return 0;
+    return __check_elf_header(&fb, l);
 }
 
 static int __load_elf_object (struct shim_handle * file, void * addr,
@@ -1532,15 +1474,12 @@ int remove_loaded_libraries (void)
 }
 
 void * __load_address;
-
 void * migrated_shim_addr __attribute_migratable = &__load_address;
 
 int init_internal_map (void)
 {
     __load_elf_object(NULL, &__load_address, OBJECT_INTERNAL, NULL);
-
     internal_map->l_name = "libsysdb.so";
-
     return 0;
 }
 
@@ -1641,105 +1580,84 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     return 0;
 }
 
-DEFINE_MIGRATE_FUNC(library)
-
-MIGRATE_FUNC_BODY(library)
+BEGIN_CP_FUNC(library)
 {
     assert(size == sizeof(struct link_map));
 
     struct link_map * map = (struct link_map *) obj;
     struct link_map * new_map;
 
-    struct shim_handle * file = NULL;
+    ptr_t off = GET_FROM_CP_MAP(obj);
 
-    if (map->l_file)
-        __DO_MIGRATE(handle, map->l_file, &file, 1);
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct link_map));
+        ADD_TO_CP_MAP(obj, off);
 
-    unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset, size);
-    int namelen = map->l_name ? strlen(map->l_name) : 0;
-    int sonamelen = map->l_soname ? strlen(map->l_soname) : 0;
+        new_map = (struct link_map *) (base + off);
+        memcpy(new_map, map, sizeof(struct link_map));
 
-    if (ENTRY_JUST_CREATED(off)) {
-        off = ADD_OFFSET(sizeof(struct link_map));
+        new_map->l_prev = NULL;
+        new_map->l_next = NULL;
+        new_map->textrels = NULL;
 
-        if (!dry) {
-            new_map = (struct link_map *) (base + off);
-            memcpy(new_map, map, sizeof(struct link_map));
-
-            get_handle(file);
-            new_map->l_file = file;
-            new_map->l_prev = NULL;
-            new_map->l_next = NULL;
-            new_map->textrels = NULL;
-        }
+        if (map->l_file)
+            DO_CP_MEMBER(handle, map, new_map, l_file);
 
         if (map->l_ld) {
             int size = sizeof(ElfW(Dyn)) * map->l_ldnum;
-            ADD_OFFSET(size);
-            if (!dry) {
-                ElfW(Dyn) * ld = (void *) (base + *offset);
-                memcpy(ld, map->l_ld, size);
-                new_map->l_ld = ld;
-                for (ElfW(Dyn) ** dyn = new_map->l_info ;
-                     (void *) dyn < ((void *) new_map->l_info +
-                     sizeof(new_map->l_info)) ; dyn++)
-                    if (*dyn)
-                        *dyn = ((void *) *dyn + ((void *) ld -
-                                (void *) map->l_ld));
-            }
+            ElfW(Dyn) * ld = (void *) (base + ADD_CP_OFFSET(size));
+            memcpy(ld, map->l_ld, size);
+            new_map->l_ld = ld;
+
+            ElfW(Dyn) ** start = new_map->l_info;
+            ElfW(Dyn) ** end = (void *) start + sizeof(new_map->l_info);
+            ElfW(Dyn) ** dyn;
+            for (dyn = start ; dyn < end ; dyn++)
+                 if (*dyn)
+                    *dyn = (void *) *dyn + ((void *) ld - (void *) map->l_ld);
         }
 
         if (map->l_name) {
-            ADD_OFFSET(namelen + 1);
-
-            if (!dry && map->l_name) {
-                char * name = (char *) (base + *offset);
-                memcpy(name, map->l_name, namelen + 1);
-                new_map->l_name = name;
-            }
+            int namelen = strlen(map->l_name);
+            char * name = (char *) (base + ADD_CP_OFFSET(namelen + 1));
+            memcpy(name, map->l_name, namelen + 1);
+            new_map->l_name = name;
         }
 
         if (map->l_soname) {
-            ADD_OFFSET(sonamelen + 1);
-
-            if (!dry && map->l_soname) {
-                char * soname = (char *) (base + *offset);
-                memcpy(soname, map->l_soname, sonamelen + 1);
-                new_map->l_soname = soname;
-            }
+            int sonamelen = strlen(map->l_soname);
+            char * soname = (char *) (base + ADD_CP_OFFSET(sonamelen + 1));
+            memcpy(soname, map->l_soname, sonamelen + 1);
+            new_map->l_soname = soname;
         }
 
-        ADD_FUNC_ENTRY(off);
-        ADD_ENTRY(SIZE, sizeof(struct link_map));
-
-    } else if (!dry) {
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
         new_map = (struct link_map *) (base + off);
     }
 
-    if (new_map && objp)
+    if (objp)
         *objp = (void *) new_map;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(library)
 
-DEFINE_PROFILE_CATAGORY(inside_resume_library,  resume_func);
-DEFINE_PROFILE_INTERVAL(clean_up_library,       inside_resume_library);
-DEFINE_PROFILE_INTERVAL(search_library_vma,     inside_resume_library);
-DEFINE_PROFILE_INTERVAL(relocate_library,       inside_resume_library);
-DEFINE_PROFILE_INTERVAL(add_or_replace_library, inside_resume_library);
+DEFINE_PROFILE_CATAGORY(inside_rs_library, resume_func);
+DEFINE_PROFILE_INTERVAL(clean_up_library,       inside_rs_library);
+DEFINE_PROFILE_INTERVAL(search_library_vma,     inside_rs_library);
+DEFINE_PROFILE_INTERVAL(relocate_library,       inside_rs_library);
+DEFINE_PROFILE_INTERVAL(add_or_replace_library, inside_rs_library);
 
-RESUME_FUNC_BODY(library)
+BEGIN_RS_FUNC(library)
 {
-    unsigned long off = GET_FUNC_ENTRY();
-    assert((size_t) GET_ENTRY(SIZE) == sizeof(struct link_map));
-    struct link_map * map = (struct link_map *) (base + off);
+    struct link_map * map = (void *) (base + GET_CP_FUNC_ENTRY());
 
-    RESUME_REBASE(map->l_name);
-    RESUME_REBASE(map->l_soname);
-    RESUME_REBASE(map->l_file);
+    CP_REBASE(map->l_name);
+    CP_REBASE(map->l_soname);
+    CP_REBASE(map->l_file);
 
     if (map->l_ld && map->l_ld != map->l_real_ld) {
-        RESUME_REBASE(map->l_ld);
-        RESUME_REBASE(map->l_info);
+        CP_REBASE(map->l_ld);
+        CP_REBASE(map->l_info);
     }
 
     BEGIN_PROFILE_INTERVAL();
@@ -1750,24 +1668,6 @@ RESUME_FUNC_BODY(library)
         remove_r_debug((void *) old_map->l_addr);
 
     SAVE_PROFILE_INTERVAL(clean_up_library);
-
-    struct shim_vma * vma = NULL;
-
-    if (lookup_supervma((void *) map->l_map_start, allocsize, &vma) < 0 ||
-        vma->addr != (void *) map->l_map_start ||
-        !vma->received) {
-        sys_printf(vma ? "library %s (%p - %p) not received\n" :
-                   "library %s (%p - %p) not mapped\n",
-                   map->l_name, map->l_map_start, map->l_map_end);
-
-        if (vma)
-            put_vma(vma);
-
-        return -ENOMEM;
-    }
-
-    put_vma(vma);
-    SAVE_PROFILE_INTERVAL(search_library_vma);
 
     if (internal_map && (!map->l_resolved ||
         map->l_resolved_map != internal_map->l_addr)) {
@@ -1782,22 +1682,18 @@ RESUME_FUNC_BODY(library)
 
     SAVE_PROFILE_INTERVAL(add_or_replace_library);
 
-#ifdef DEBUG_RESUME
-    debug("library: loaded at %p,name=%s\n", map->l_addr, map->l_name);
-#endif
+    DEBUG_RS("base=%p,name=%s", map->l_addr, map->l_name);
 }
-END_RESUME_FUNC
+END_RS_FUNC(library)
 
-DEFINE_MIGRATE_FUNC(loaded_libraries)
-
-MIGRATE_FUNC_BODY(loaded_libraries)
+BEGIN_CP_FUNC(loaded_libraries)
 {
     struct link_map * map = loaded_libraries, * new_interp_map = NULL;
     while (map) {
-        struct link_map * new_map = NULL, ** map_obj = &new_map;
+        struct link_map * new_map = NULL;
 
         if (map != internal_map)
-            DO_MIGRATE(library, map, map_obj, recursive);
+            DO_CP(library, map, &new_map);
 
         if (map == interp_map)
             new_interp_map = new_map;
@@ -1805,19 +1701,17 @@ MIGRATE_FUNC_BODY(loaded_libraries)
         map = map->l_next;
     }
 
-    ADD_FUNC_ENTRY(new_interp_map);
+    ADD_CP_FUNC_ENTRY(new_interp_map);
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(loaded_libraries)
 
-RESUME_FUNC_BODY(loaded_libraries)
+BEGIN_RS_FUNC(loaded_libraries)
 {
-    interp_map = (struct link_map *) GET_FUNC_ENTRY();
+    interp_map = (void *) GET_CP_FUNC_ENTRY();
 
     if (interp_map) {
-        RESUME_REBASE(interp_map);
-#ifdef DEBUG_RESUME
-        debug("library: interpreter is %s\n", interp_map->l_name);
-#endif
+        CP_REBASE(interp_map);
+        DEBUG_RS("%s as interp", interp_map->l_name);
     }
 }
-END_RESUME_FUNC
+END_RS_FUNC(loaded_libraries)

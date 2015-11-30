@@ -44,6 +44,32 @@ void do_shell(void)
 	}
 }
 
+void do_vforkexec(void)
+{
+	int	pid;
+	char	*nav[2];
+	int	status;
+
+	nav[0] = PROG;
+	nav[1] = 0;
+	switch (pid = vfork()) {
+	    case -1:
+		perror("vfork");
+		exit(1);
+
+	    case 0: 	/* child */
+		close(1);
+		execve(PROG, nav, 0);
+		exit(1);
+
+	    default:
+		while (wait(&status) != pid)
+			;
+		if (WEXITSTATUS(status))
+			exit(WEXITSTATUS(status));
+	}
+}
+
 void do_forkexec(void)
 {
 	int	pid;
@@ -90,7 +116,7 @@ void do_fork(void)
 			exit(WEXITSTATUS(status));
 	}
 }
-	
+
 void do_dfork(void)
 {
 	int	pid;
@@ -162,6 +188,13 @@ main(int ac, char **av)
 #else
 		micro("Process double fork+exit", get_n());
 #endif
+	} else if (!strcmp("vfork", av[1])) {
+		BENCH(do_vforkexec(), 0);
+#ifdef STATIC
+		micro("Static Process vfork+execve", get_n());
+#else
+		micro("Process vfork+execve", get_n());
+#endif
 	} else if (!strcmp("exec", av[1])) {
 		BENCH(do_forkexec(), 0);
 #ifdef STATIC
@@ -184,7 +217,7 @@ main(int ac, char **av)
 		micro("Process fork+/bin/sh -c", get_n());
 #endif
 	} else {
-usage:		printf("Usage: %s fork|exec|shell|dfork|dforkexec\n", av[0]);
+usage:		printf("Usage: %s fork|vfork|exec|shell|dfork|dforkexec\n", av[0]);
 	}
 	return(0);
 }

@@ -1,0 +1,12 @@
+org/sample/generated/MyBenchmark_jmh_B3.class
+org/openjdk/jmh/infra/generated/Blackhole_jmh_B1.class
+org/openjdk/jmh/infra/generated/Blackhole_jmh.class
+org/sample/generated/MyBenchmark_jmh.class
+org/openjdk/jmh/infra/generated/Blackhole_jmh_B2.class
+META-INF/BenchmarkList
+org/sample/generated/MyBenchmark_jmh_B1.class
+org/sample/generated/MyBenchmark_jmh_B2.class
+META-INF/CompilerHints
+org/sample/generated/MyBenchmark_testMethod.class
+org/openjdk/jmh/infra/generated/Blackhole_jmh_B3.class
+org/sample/MyBenchmark.class

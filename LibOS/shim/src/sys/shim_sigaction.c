@@ -86,9 +86,9 @@ int shim_do_sigreturn (int __unused)
     return 0;
 }
 
-int shim_do_sigprocmask (int how, const sigset_t * set, sigset_t * oldset)
+int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset)
 {
-    sigset_t * old, tmp, set_tmp;
+    __sigset_t * old, tmp, set_tmp;
 
     if (how != SIG_BLOCK && how != SIG_UNBLOCK &&
         how != SIG_SETMASK)
@@ -101,7 +101,7 @@ int shim_do_sigprocmask (int how, const sigset_t * set, sigset_t * oldset)
 
     old = get_sig_mask(cur);
     if (oldset) {
-        memcpy(&tmp, old, sizeof(sigset_t));
+        memcpy(&tmp, old, sizeof(__sigset_t));
         old = &tmp;
     }
 
@@ -110,7 +110,7 @@ int shim_do_sigprocmask (int how, const sigset_t * set, sigset_t * oldset)
     if (!set)
         goto out;
 
-    memcpy(&set_tmp, old, sizeof(sigset_t));
+    memcpy(&set_tmp, old, sizeof(__sigset_t));
 
     switch (how) {
         case SIG_BLOCK:
@@ -122,7 +122,7 @@ int shim_do_sigprocmask (int how, const sigset_t * set, sigset_t * oldset)
             break;
 
         case SIG_SETMASK:
-            memcpy(&set_tmp, set, sizeof(sigset_t));
+            memcpy(&set_tmp, set, sizeof(__sigset_t));
             break;
     }
 
@@ -132,7 +132,7 @@ out:
     unlock(cur->lock);
 
     if (!err && oldset)
-        memcpy(oldset, old, sizeof(sigset_t));
+        memcpy(oldset, old, sizeof(__sigset_t));
 
     return err;
 }
@@ -153,7 +153,7 @@ static inline void __append_signal (struct shim_thread * thread, int sig,
     memset(&info, 0, sizeof(siginfo_t));
     info.si_signo = sig;
     info.si_pid   = sender;
-    append_signal(thread, sig, &info);
+    append_signal(thread, sig, &info, true);
 }
 
 static int __kill_proc (struct shim_thread * thread, void * arg,

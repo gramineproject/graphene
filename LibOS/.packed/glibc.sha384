@@ -1,0 +1,1 @@
+build/crt1.o build/crti.o build/crtn.o build/ld-linux-x86-64.so.2 build/libc.so.6 build/libdl.so.2 build/liblibos.so.1 build/libm.so.6 build/libpthread.so.0 build/libutil.so.1

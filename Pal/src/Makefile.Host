@@ -14,3 +14,5 @@ ifeq ($(findstring $(OS),$(all_hosts)),)
 $(error Unsupported platform: $(OS))
 endif
 endif
+
+OS_MACRO := $(shell echo $(OS) | tr '[:lower:]' '[:upper:]')

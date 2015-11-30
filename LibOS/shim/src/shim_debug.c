@@ -34,7 +34,24 @@
 #include <pal.h>
 #include <pal_error.h>
 
-#include <fcntl.h>
+#ifndef DEBUG
+
+void clean_link_map_list (void)
+{
+    /* do nothing */
+}
+
+void remove_r_debug (void * addr)
+{
+    /* do nothing */
+}
+
+void append_r_debug (const char * uri, void * addr, void * dyn_addr)
+{
+    /* do nothing */
+}
+
+#else /* !DEBUG */
 
 struct gdb_link_map
 {
@@ -113,43 +130,35 @@ void append_r_debug (const char * uri, void * addr, void * dyn_addr)
     DkDebugAttachBinary(uri, addr);
 }
 
-DEFINE_MIGRATE_FUNC(gdb_map)
-
-MIGRATE_FUNC_BODY(gdb_map)
+BEGIN_CP_FUNC(gdb_map)
 {
     struct gdb_link_map *m = link_map_list;
     struct gdb_link_map *newm = NULL;
 
     while (m) {
-        unsigned long off = ADD_OFFSET(sizeof(struct gdb_link_map));
+        ptr_t off = ADD_CP_OFFSET(sizeof(struct gdb_link_map));
+        newm = (struct gdb_link_map *) (base + off);
 
-        if (!dry) {
-            newm = (struct gdb_link_map *) (base + off);
-            memcpy(newm, m, sizeof(struct gdb_link_map));
-            newm->l_prev = newm->l_next = NULL;
-        }
+        memcpy(newm, m, sizeof(struct gdb_link_map));
+        newm->l_prev = newm->l_next = NULL;
 
-        ADD_OFFSET(strlen(m->l_name) + 1);
+        int len = strlen(newm->l_name);
+        newm->l_name = (char *) (base + ADD_CP_OFFSET(len + 1));
+        memcpy(newm->l_name, m->l_name, len + 1);
 
-        if (!dry) {
-            newm->l_name = (char *) (base + *offset);
-            memcpy(newm->l_name, m->l_name, strlen(m->l_name) + 1);
-        }
-
-        ADD_FUNC_ENTRY(off);
+        ADD_CP_FUNC_ENTRY(off);
         m = m->l_next;
     }
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(gdb_map)
 
-RESUME_FUNC_BODY(gdb_map)
+BEGIN_RS_FUNC(gdb_map)
 {
-    uint64_t off = GET_FUNC_ENTRY();
-    struct gdb_link_map *map = (struct gdb_link_map *) (base + off);
+    struct gdb_link_map * map = (void *) (base + GET_CP_FUNC_ENTRY());
 
-    RESUME_REBASE(map->l_name);
-    RESUME_REBASE(map->l_prev);
-    RESUME_REBASE(map->l_next);
+    CP_REBASE(map->l_name);
+    CP_REBASE(map->l_prev);
+    CP_REBASE(map->l_next);
 
     struct gdb_link_map *prev = NULL;
     struct gdb_link_map **tail = &link_map_list;
@@ -162,10 +171,10 @@ RESUME_FUNC_BODY(gdb_map)
     map->l_prev = prev;
     *tail = map;
 
-#ifdef DEBUG_RESUME
-    debug("gdb: %s loaded at %p\n", map->l_name, map->l_addr);
-#endif
-
     DkDebugAttachBinary(map->l_name, map->l_addr);
+
+    DEBUG_RS("base=%p,name=%s", map->l_addr, map->l_name);
 }
-END_RESUME_FUNC
+END_RS_FUNC(gdb_map)
+
+#endif

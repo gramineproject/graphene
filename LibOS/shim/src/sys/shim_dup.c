@@ -33,7 +33,6 @@
 #include <pal.h>
 #include <pal_error.h>
 
-#include <fcntl.h>
 #include <errno.h>
 
 int shim_do_dup (int fd)

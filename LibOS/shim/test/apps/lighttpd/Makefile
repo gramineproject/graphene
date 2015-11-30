@@ -9,14 +9,14 @@ conf_files = lighttpd-server.conf lighttpd.conf lighttpd-multithreaded.conf
 all: build/sbin/lighttpd $(manifests) $(conf_files) test-data
 
 %.manifest: %.manifest.template
-	make -C .. lighttpd/$@ appdir=lighttpd/ \
+	$(MAKE) -C .. lighttpd/$@ appdir=lighttpd/ \
 		extra_rules="-e 's:\\\$$\$$(HOST):$(HOST):g' -e 's:\\\$$\$$(PORT):$(PORT):g'"
 
 build/sbin/lighttpd: $(SRCDIR)
 	cd $(SRCDIR) && ./configure --prefix=$(PWD)/build \
 		--without-openssl --without-pcre --without-zlib --without-bzip2
-	make -C $(SRCDIR)
-	make -C $(SRCDIR) install
+	$(MAKE) -C $(SRCDIR)
+	$(MAKE) -C $(SRCDIR) install
 
 $(SRCDIR): %: %.tar.gz
 	tar -xzf $<
@@ -74,24 +74,24 @@ try-download:
 	time -a -o result -p wget -r http://$(HOST):$(PORT)/oscar-web-static/index.php -O wget-out;
 
 test-native: $(test-data)
-	make start-native-server & serverid=$$!; sleep 1; \
-	make try-download TESTNAME=native; \
+	$(MAKE) start-native-server & serverid=$$!; sleep 1; \
+	$(MAKE) try-download TESTNAME=native; \
 	rm wget-out; kill $$serverid
 
 test-multithreaded-native: $(test-data)
-	make start-multithreaded-native-server & serverid=$$!; sleep 1; \
-        make try-download TESTNAME=native; \
+	$(MAKE) start-multithreaded-native-server & serverid=$$!; sleep 1; \
+	$(MAKE) try-download TESTNAME=native; \
         rm wget-out; kill $$serverid
 
 
 test-graphene: $(test-data)
-	make start-graphene-server & serverid=$$!; sleep 1; \
-	make try-download TESTNAME=graphene; \
+	$(MAKE) start-graphene-server & serverid=$$!; sleep 1; \
+	$(MAKE) try-download TESTNAME=graphene; \
 	rm wget-out; kill $$serverid
 
 test-multithreaded-graphene: $(test-data)
-	make start-multithreaded-graphene-server & serverid=$$!; sleep 1; \
-        make try-download TESTNAME=graphene; \
+	$(MAKE) start-multithreaded-graphene-server & serverid=$$!; sleep 1; \
+        $(MAKE) try-download TESTNAME=graphene; \
         rm wget-out; kill $$serverid
 
 

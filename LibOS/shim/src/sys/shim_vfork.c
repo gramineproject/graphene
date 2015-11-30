@@ -113,6 +113,7 @@ int shim_do_vfork (void)
 
     /* set the current thread running */
     set_cur_thread(new_thread);
+    put_thread(new_thread);
 
     /* here we return immediately, no letting the hooks mes up our stack */
     return 0;

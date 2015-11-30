@@ -25,10 +25,10 @@ debug: CFLAGS += -DDEBUG
 debug: $(host_target)
 
 $(graphene_lib): ../../host_endian.h
-	make -C ../../../lib $(debug)
+	$(MAKE) -C ../../../lib $(debug)
 
 ../../host_endian.h: host_endian.h
-	make -C ../../ $<
+	$(MAKE) -C ../../ $<
 
 libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/$(OS)/$@ ]

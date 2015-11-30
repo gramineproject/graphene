@@ -33,8 +33,9 @@
 #include <pal.h>
 #include <pal_error.h>
 
-#include <fcntl.h>
 #include <errno.h>
+
+#include <linux/fcntl.h>
 
 int shim_do_fcntl (int fd, int cmd, unsigned long arg)
 {
@@ -135,11 +136,11 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
          *   Set the file status flags to the value specified by arg.  File
          *   access mode (O_RDONLY, O_WRONLY, O_RDWR) and file creation flags
          *   (i.e., O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC) in arg are ignored. On
-         *   Linux this command can only change the O_APPEND, O_ASYNC, O_DIRECT,
+         *   Linux this command can only change the O_APPEND, O_DIRECT,
          *   O_NOATIME, and O_NONBLOCK flags.
          */
 
-#define FCNTL_SETFL_MASK (O_APPEND|O_ASYNC|O_NONBLOCK)
+#define FCNTL_SETFL_MASK (O_APPEND|O_NONBLOCK)
 
         case F_SETFL:
             lock(hdl->lock);

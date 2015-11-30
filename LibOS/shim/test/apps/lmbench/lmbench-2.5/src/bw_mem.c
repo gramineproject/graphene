@@ -141,7 +141,7 @@ wr(register TYPE *p, register TYPE *lastone)
 		DOIT(104) DOIT(108) DOIT(112) DOIT(116) DOIT(120) DOIT(124);
 		p +=  128;
 	}
-	use_pointer((void*)p);
+	use_pointer((void *)p);
 }
 #undef	DOIT
 

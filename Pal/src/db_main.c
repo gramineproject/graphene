@@ -89,12 +89,18 @@ static void read_envs (const char *** envpp)
 
    /* loader.env.* and loader.exclude.env: filtering host environment
      * variables */
-    int nenvs = get_config_entries(pal_state.root_config, "loader.env",
+   struct env {
+        const char * str;
+        int len, idx;
+    } * envs = NULL;
+    int nenvs = 0;
+
+    if (pal_state.root_config)
+        nenvs = get_config_entries(pal_state.root_config, "loader.env",
                                    cfgbuf, CONFIG_MAX);
 
     if (nenvs > 0) {
-        struct env { const char * str; int len, idx; } * envs
-                                    = __alloca(sizeof(struct env) * nenvs);
+        envs = __alloca(sizeof(struct env) * nenvs);
         char * cfg = cfgbuf;
         for (int i = 0 ; i < nenvs ; i++) {
             int len = strlen(cfg);
@@ -105,54 +111,100 @@ static void read_envs (const char *** envpp)
             memcpy(str, cfg, len + 1);
             cfg += len + 1;
         }
+    }
 
-        int envc = 0, add = nenvs;
-        for (const char ** e = envp ; *e ; e++) {
-            envc++;
-            const char * p = *e;
-            while (*p && *p != '=')
-                p++;
+    int envc = 0, add = nenvs;
+    for (const char ** e = envp ; *e ; e++) {
+        const char * s = *e, * p = s;
+        envc++;
+        while (*p && *p != '=')
+            p++;
+        int l = p - s;
+        const char * v = p + 1;
 
-            for (int i = 0 ; i < nenvs ; i++)
-                if (envs[i].len == p - *e && !memcmp(envs[i].str, *e, p - *e)) {
-                    envs[i].idx = envc - 1;
-                    add--;
-                    break;
+        if (l > 8 &&
+            s[0] == 'P' && s[1] == 'A' && s[2] == 'L' && s[3] == '_' &&
+            s[4] == 'L' && s[5] == 'O' && s[6] == 'G' && s[7] == '_') {
+            /* PAL_LOG_STREAM = */
+            if (l == 14 && s[8] == 'S' && s[9] == 'T' &&
+                s[10] == 'R' && s[11] == 'E' && s[12] == 'A' && s[13] == 'M') {
+                PAL_HANDLE log;
+                if (!_DkStreamOpen(&log, v, PAL_ACCESS_APPEND,
+                                   PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
+                                   PAL_CREAT_TRY, 0)) {
+                    if (pal_state.log_stream)
+                        _DkObjectClose(pal_state.log_stream);
+                    pal_state.log_stream = log;
                 }
-        }
-
-        if (add) {
-            const char ** new_envp =
-                        malloc(sizeof(const char *) * (envc + add + 1));
-            memcpy(new_envp, envp, sizeof(const char *) * envc);
-            envp = new_envp;
-            envp[envc + add] = NULL;
-        }
-
-        char key[CONFIG_MAX] = "loader.env.";
-        const char ** ptr;
-
-        for (int i = 0 ; i < nenvs ; i++) {
-            const char * str = envs[i].str;
-            int len = envs[i].len;
-            int idx = envs[i].idx;
-            int bytes;
-            ptr = &envp[(idx == -1) ? envc++ : idx];
-            memcpy(key + 11, str, len + 1);
-            if ((bytes = get_config(pal_state.root_config, key, cfgbuf,
-                                    CONFIG_MAX)) > 0) {
-                char * e = malloc(len + bytes + 2);
-                memcpy(e, str, len);
-                e[len] = '=';
-                memcpy(e + len + 1, cfgbuf, bytes + 1);
-                *ptr = e;
-            } else {
-                char * e = malloc(len + 2);
-                memcpy(e, str, len);
-                e[len] = '=';
-                e[len + 1] = 0;
-                *ptr = e;
             }
+
+            /* PAL_LOG_TYPES = */
+            if (l == 13 && s[8] == 'T' && s[9] == 'Y' &&
+                s[10] == 'P' && s[11] == 'E' && s[12] == 'S') {
+                const char * t = v, * n;
+                while (*t) {
+                    for (n = t ; *n && *n != ',' ; n++);
+                    switch (n - t) {
+                        case 4:
+                            if (t[0] == 'f' && t[1] == 'i' && t[2] == 'l' &&
+                                t[3] == 'e')
+                                pal_state.log_types |= LOG_FILE;
+                            if (t[0] == 'p' && t[1] == 'i' && t[2] == 'p' &&
+                                t[3] == 'e')
+                                pal_state.log_types |= LOG_PIPE;
+                            break;
+                        case 6:
+                            if (t[0] == 's' && t[1] == 'o' && t[2] == 'c' &&
+                                t[3] == 'k' && t[4] == 'e' && t[5] == 't')
+                                pal_state.log_types |= LOG_SOCKET;
+                            break;
+                    }
+                    t = *n ? n + 1 : n;
+                }
+            }
+
+            continue;
+        }
+
+        for (int i = 0 ; i < nenvs ; i++)
+            if (envs[i].len == l && !memcmp(envs[i].str, s, l)) {
+                envs[i].idx = envc - 1;
+                add--;
+                break;
+            }
+    }
+
+    if (add) {
+        const char ** new_envp =
+            malloc(sizeof(const char *) * (envc + add + 1));
+        memcpy(new_envp, envp, sizeof(const char *) * envc);
+        envp = new_envp;
+        envp[envc + add] = NULL;
+    }
+
+    char key[CONFIG_MAX] = "loader.env.";
+    const char ** ptr;
+
+    for (int i = 0 ; i < nenvs ; i++) {
+        const char * str = envs[i].str;
+        int len = envs[i].len;
+        int idx = envs[i].idx;
+        int bytes;
+        ptr = &envp[(idx == -1) ? envc++ : idx];
+        memcpy(key + 11, str, len + 1);
+        if ((bytes = get_config(pal_state.root_config, key, cfgbuf,
+                                CONFIG_MAX)) > 0) {
+            char * e = malloc(len + bytes + 2);
+            memcpy(e, str, len);
+            e[len] = '=';
+            memcpy(e + len + 1, cfgbuf, bytes + 1);
+            *ptr = e;
+        } else {
+            char * e = malloc(len + 2);
+            memcpy(e, str, len);
+            e[len] = '=';
+            e[len + 1] = 0;
+            *ptr = e;
         }
     }
 
@@ -163,6 +215,9 @@ static void set_debug_type (void)
 {
     char cfgbuf[CONFIG_MAX];
     int ret;
+
+    if (!pal_state.root_config)
+        return;
 
     ret = get_config(pal_state.root_config, "loader.debug_type",
                      cfgbuf, CONFIG_MAX);
@@ -198,6 +253,9 @@ static void set_syscall_symbol (void)
 {
     char cfgbuf[CONFIG_MAX];
     int ret;
+
+    if (!pal_state.root_config)
+        return;
 
     ret = get_config(pal_state.root_config, "loader.syscall_symbol",
                      cfgbuf, CONFIG_MAX);
@@ -239,6 +297,12 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
 
     init_slab_mgr(pal_state.alloc_align);
 
+    if (is_parent && !exec_handle && !manifest_handle) {
+        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
+        _DkProcessExit(0);
+        return;
+    }
+
     char * exec = NULL, * manifest = NULL;
 
     if (exec_handle) {
@@ -259,17 +323,15 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
             unsigned long before_find_manifest = _DkSystemTimeQuery();
 #endif
             do {
-                if (exec_handle) {
-                    assert(!!exec);
-                    /* try open "<exec>.manifest" */
-                    manifest = __alloca(URI_MAX);
-                    snprintf(manifest, URI_MAX, "%s.manifest", exec);
-                    ret = _DkStreamOpen(&manifest_handle,
-                                        manifest,
-                                        PAL_ACCESS_RDONLY, 0, 0, 0);
-                    if (!ret)
-                        break;
-                }
+                assert(!!exec);
+                /* try open "<exec>.manifest" */
+                manifest = __alloca(URI_MAX);
+                snprintf(manifest, URI_MAX, "%s.manifest", exec);
+                ret = _DkStreamOpen(&manifest_handle,
+                                    manifest,
+                                    PAL_ACCESS_RDONLY, 0, 0, 0);
+                if (!ret)
+                    break;
 
                 /* try open "file:manifest" */
                 manifest = "file:manifest";
@@ -349,12 +411,6 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
         }
     }
 
-    if (is_parent && !exec_handle && !manifest_handle) {
-        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
-        _DkProcessExit(0);
-        return;
-    }
-
     pal_state.manifest        = manifest;
     pal_state.manifest_handle = manifest_handle;
     pal_state.exec            = exec;
@@ -364,7 +420,7 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
     argc--;
     argv++;
 
-    if (is_parent && exec_handle) {
+    if (is_parent && exec) {
         first_argv = exec;
         if (pal_state.root_config) {
             char cfgbuf[CONFIG_MAX];
@@ -373,6 +429,15 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
             if (ret > 0)
                 first_argv = remalloc(cfgbuf, ret + 1);
         }
+    }
+
+    read_envs(&envp);
+
+    if (pal_state.log_stream && (pal_state.log_types & LOG_FILE)) {
+        if (manifest)
+            log_stream(manifest);
+        if (exec)
+            log_stream(exec);
     }
 
     if (pal_state.root_config)
@@ -396,11 +461,8 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
     unsigned long before_tail = _DkSystemTimeQuery();
 #endif
 
-    if (pal_state.root_config) {
-        read_envs(&envp);
-        set_debug_type();
-        set_syscall_symbol();
-    }
+    set_debug_type();
+    set_syscall_symbol();
 
     __pal_control.process_id         = _DkGetProcessId();
     __pal_control.host_id            = _DkGetHostId();
@@ -436,4 +498,29 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
 
     /* We wish we will never reached here */
     init_fail(PAL_ERROR_DENIED, "unexpected termination");
+}
+
+void write_log (int nstrs, ...)
+{
+    const char ** strs = __alloca(sizeof(const char *) * nstrs);
+    int len = 0;
+    va_list ap;
+
+    va_start(ap, nstrs);
+    for (int i = 0 ; i < nstrs ; i++) {
+        strs[i] = va_arg(ap, const char *);
+        len += strlen(strs[i]);
+    }
+    va_end(ap);
+
+    char * buf = __alloca(len);
+    int cnt = 0;
+
+    for (int i = 0 ; i < nstrs ; i++) {
+        int l = strlen(strs[i]);
+        memcpy(buf + cnt, strs[i], l);
+        cnt += l;
+    }
+
+    _DkStreamWrite(pal_state.log_stream, 0, cnt, buf, NULL, 0);
 }

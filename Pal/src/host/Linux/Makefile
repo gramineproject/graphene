@@ -18,12 +18,12 @@ endif
 
 host_target = libpal-Linux.a
 
-defs	= -DIN_PAL -DSRCDIR="$(PWD)/" -DPAL_LOADER_PATH="$(shell readlink -f ../../pal)" \
+defs	= -DIN_PAL -DSRCDIR="$(PWD)/" -DPAL_LOADER_PATH="$(PWD)/pal" \
 	  -DGDB_SCRIPT="$(CURDIR)/pal-gdb.py"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    semaphore mutex events process object main rtld misc ipc \
 	    exception) manifest clone-x86_64 gettimeofday-x86_64
-graphene_lib = ../../../lib/graphene-lib.a
+graphene_lib = ../../.lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 all: $(host_target)
@@ -33,11 +33,8 @@ debug: CC = gcc -g
 debug: CFLAGS += -DDEBUG
 debug: $(host_target)
 
-$(graphene_lib): ../../host_endian.h
-	make -C ../../../lib $(debug)
-
 ../../host_endian.h: host_endian.h
-	make -C ../.. $<
+	$(MAKE) -C ../.. $<
 
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/Linux/$@ ]

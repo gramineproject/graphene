@@ -7,13 +7,37 @@ SECTIONS
   __load_address = .;
   . = SEGMENT_START("text-segment", 0) + SIZEOF_HEADERS;
   .note.gnu.build-id : { *(.note.gnu.build-id) }
+  .hash          : { *(.hash) }
+  .gnu.hash      : { *(.gnu.hash) }
   .dynsym        : { *(.dynsym) }
   .dynstr        : { *(.dynstr) }
   .gnu.version   : { *(.gnu.version) }
   .gnu.version_d : { *(.gnu.version_d) }
   .gnu.version_r : { *(.gnu.version_r) }
-  .rela.dyn      : { *(.rela.*) }
-  .init          : { KEEP(*(.init)) }
+  .rela.dyn       :
+     {
+      *(.rela.init)
+      *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+      *(.rela.fini)
+      *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+      *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+      *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+      *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+      *(.rela.ctors)
+      *(.rela.dtors)
+      *(.rela.got)
+      *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+      *(.rela.ldata .rela.ldata.* .rela.gnu.linkonce.l.*)
+      *(.rela.lbss .rela.lbss.* .rela.gnu.linkonce.lb.*)
+      *(.rela.lrodata .rela.lrodata.* .rela.gnu.linkonce.lr.*)
+      *(.rela.ifunc)
+    }
+  .rela.plt      :
+    {
+      *(.rela.plt)
+      *(.rela.iplt)
+    }
+  .init          : { *(.init) }
   .plt           : { *(.plt) *(.iplt) }
   .text :
   {
@@ -21,30 +45,29 @@ SECTIONS
     __code_address = .;
     *(.text .stub .text.*);
     . = ALIGN(8);
-    __migrate_name = .;
-    SORT(*)(SORT(.migrate_name.*));
-    __migrate_func = .;
-    SORT(*)(SORT(.migrate.*));
-    __resume_func = .;
-    SORT(*)(SORT(.resume.*));
+    __cp_name = .;
+    SORT(*)(SORT(.cp_name.*));
+    __cp_func = .;
+    SORT(*)(SORT(.cp_func.*));
+    __rs_func = .;
+    SORT(*)(SORT(.rs_func.*));
     __code_address_end = .;
   }
-  .fini          : { KEEP(*(.fini)) }
+  .fini          : { *(.fini) }
   .rodata :
   {
     /* the rest of rodata */
     *(.rodata .rodata.*)
   }
   .eh_frame_hdr  : { *(.eh_frame_hdr) }
-  .eh_frame      : ONLY_IF_RO { KEEP(*(.eh_frame)) }
-  .hash          : { *(.hash) }
+  .eh_frame      : ONLY_IF_RO { *(.eh_frame) }
 
   /* now adjust the address for the data segment */
   . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
-  .eh_frame      : ONLY_IF_RW { KEEP(*(.eh_frame)) }
-  .ctors         : { KEEP(*(.ctors)) }
-  .dtors         : { KEEP(*(.dtors)) }
-  .jcr           : { KEEP(*(.jcr)) }
+  .eh_frame      : ONLY_IF_RW { *(.eh_frame) }
+  .ctors         : { *(.ctors) }
+  .dtors         : { *(.dtors) }
+  .jcr           : { *(.jcr) }
   .dynamic       : { *(.dynamic) }
   .got           : { *(.got) *(.igot) }
   .got.plt       : { *(.got.plt) *(.igot.plt) }

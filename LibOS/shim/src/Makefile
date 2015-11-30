@@ -42,7 +42,7 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  $(addprefix shim_,init table syscalls checkpoint random malloc \
 	  async parser debug) syscallas start \
 	  $(patsubst %.c,%,$(wildcard sys/*.c))
-graphene_lib = ../../../Pal/lib/graphene-lib.a
+graphene_lib = .lib/graphene-lib.a
 pal_lib = $(abspath ../../../Pal/src/libpal.so)
 headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
 
@@ -56,9 +56,6 @@ debug: $(shim_target)
 ifeq ($(PROFILING), 1)
 CFLAGS += -DPROFILE
 endif
-
-$(graphene_lib):
-	make -C ../../../Pal/lib $(debug)
 
 ifeq ($(SYS),x86_64-linux-gnu)
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
@@ -74,16 +71,20 @@ libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 	$(LD) $(LDFLAGS-debug) -o $@ $(filter-out %.map %.lds,$^) -soname $@ \
 		-e shim_start
 
+.PHONY: $(graphene_lib)
+$(graphene_lib):
+	$(MAKE) -C ../../../Pal/lib $(debug) target=$(shell pwd)/.lib/
+
 libsysdb.a: $(addsuffix .o,$(objs))
 	@echo [ $@ ]
 	$(AR) $(ARFLAGS) $@ $^
 
 .PHONY: pack
-pack: $(shim_target)
-	tar -czf .packed/shim.tar.gz $^
+pack: $(shim_target) $(addsuffix .o,$(objs))
+	@../../../Scripts/pack_binaries.sh shim $^
 else
 $(shim_target): .packed/shim.tar.gz
-	tar -xmozf $<
+	tar -xmozf $< $@
 endif
 
 %.asm: %.c $(headers)
@@ -113,4 +114,4 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(shim_target)
+	rm -rf $(addsuffix .o,$(objs)) $(shim_target) .lib

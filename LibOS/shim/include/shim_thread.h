@@ -53,10 +53,10 @@ struct shim_thread {
     int * set_child_tid, * clear_child_tid;
 
     /* signal handling */
-    sigset_t signal_mask;
+    __sigset_t signal_mask;
     struct shim_signal_handle signal_handles[NUM_SIGS];
     struct shim_atomic has_signal;
-    struct shim_signal_log signal_logs[NUM_SIGS];
+    struct shim_signal_log * signal_logs;
 
     /* futex robust list */
     void * robust_list;
@@ -84,6 +84,10 @@ struct shim_thread {
 
     REFTYPE ref_count;
     LOCKTYPE lock;
+
+#ifdef PROFILE
+    unsigned long exit_time;
+#endif
 };
 
 struct shim_simple_thread {
@@ -101,6 +105,10 @@ struct shim_simple_thread {
 
     REFTYPE ref_count;
     LOCKTYPE lock;
+
+#ifdef PROFILE
+    unsigned long exit_time;
+#endif
 };
 
 int init_thread (void);
@@ -121,7 +129,7 @@ void put_thread (struct shim_thread * thread);
 void get_simple_thread (struct shim_simple_thread * thread);
 void put_simple_thread (struct shim_simple_thread * thread);
 
-void allocate_tls (void * tcb_location, struct shim_thread * thread);
+void allocate_tls (void * tcb_location, bool user, struct shim_thread * thread);
 void populate_tls (void * tcb_location, bool user);
 
 void debug_setprefix (shim_tcb_t * tcb);
@@ -159,14 +167,25 @@ void set_cur_thread (struct shim_thread * thread)
     (type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
-    if (tcb->tp)
-        put_thread(tcb->tp);
-
-    tcb->tp = thread;
-
     if (thread) {
+        if (tcb->tp && tcb->tp != thread)
+            put_thread(tcb->tp);
+
+        if (tcb->tp != thread)
+            get_thread(thread);
+
+        tcb->tp = thread;
         thread->tcb = container_of(tcb, __libc_tcb_t, shim_tcb);
         tid = thread->tid;
+
+        if (!IS_INTERNAL(thread) && !thread->signal_logs)
+            thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
+                                         NUM_SIGS);
+    } else if (tcb->tp) {
+        put_thread(tcb->tp);
+        tcb->tp = NULL;
+    } else {
+        bug();
     }
 
     if (tcb->tid != tid) {

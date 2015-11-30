@@ -11,5 +11,5 @@ endif
 $(targets):
 	for d in Pal LibOS; \
 	do \
-		make -C $$d $@; \
+		$(MAKE) -C $$d $@; \
 	done

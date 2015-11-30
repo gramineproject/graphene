@@ -31,20 +31,20 @@ struct shim_signal_handle {
 /* Clear all signals from SET.  */
 #  define __sigemptyset(set)                                    \
     (__extension__ ({ int __cnt = _SIGSET_NWORDS;               \
-            sigset_t *__set = (set);                            \
+            __sigset_t *__set = (set);                          \
             while (--__cnt >= 0) __set->__val[__cnt] = 0;       \
             0; }))
 
 /* Set all signals in SET.  */
 #  define __sigfillset(set)                                     \
     (__extension__ ({ int __cnt = _SIGSET_NWORDS;               \
-            sigset_t *__set = (set);                            \
+            __sigset_t *__set = (set);                          \
             while (--__cnt >= 0) __set->__val[__cnt] = ~0UL;    \
             0; }))
 
 #   define __sigisemptyset(set)                                 \
     (__extension__ ({ int __cnt = _SIGSET_NWORDS;               \
-            const sigset_t *__set = (set);                      \
+            const __sigset_t *__set = (set);                    \
             int __ret = __set->__val[--__cnt];                  \
             while (!__ret && --__cnt >= 0)                      \
                 __ret = __set->__val[__cnt];                    \
@@ -52,9 +52,9 @@ struct shim_signal_handle {
 
 #   define __sigandset(dest, left, right)                       \
     (__extension__ ({ int __cnt = _SIGSET_NWORDS;               \
-            sigset_t *__dest = (dest);                          \
-            const sigset_t *__left = (left);                    \
-            const sigset_t *__right = (right);                  \
+            __sigset_t *__dest = (dest);                        \
+            const __sigset_t *__left = (left);                  \
+            const __sigset_t *__right = (right);                \
             while (--__cnt >= 0)                                \
                 __dest->__val[__cnt] = (__left->__val[__cnt]    \
                                         & __right->__val[__cnt]); \
@@ -62,9 +62,9 @@ struct shim_signal_handle {
 
 #   define __sigorset(dest, left, right)                        \
     (__extension__ ({ int __cnt = _SIGSET_NWORDS;               \
-            sigset_t *__dest = (dest);                          \
-            const sigset_t *__left = (left);                    \
-            const sigset_t *__right = (right);                  \
+            __sigset_t *__dest = (dest);                        \
+            const __sigset_t *__left = (left);                  \
+            const __sigset_t *__right = (right);                \
             while (--__cnt >= 0)                                \
                 __dest->__val[__cnt] = (__left->__val[__cnt]    \
                                         | __right->__val[__cnt]); \
@@ -72,9 +72,9 @@ struct shim_signal_handle {
 
 #   define __signotset(dest, left, right)                       \
     (__extension__ ({ int __cnt = _SIGSET_NWORDS;               \
-            sigset_t *__dest = (dest);                          \
-            const sigset_t *__left = (left);                    \
-            const sigset_t *__right = (right);                  \
+            __sigset_t *__dest = (dest);                        \
+            const __sigset_t *__left = (left);                  \
+            const __sigset_t *__right = (right);                \
             while (--__cnt >= 0)                                \
                 __dest->__val[__cnt] = (__left->__val[__cnt]    \
                                         & ~__right->__val[__cnt]); \
@@ -111,6 +111,28 @@ struct shim_signal_log {
     struct shim_signal * logs[MAX_SIGNAL_LOG];
 };
 
+extern const char * const siglist[NUM_KNOWN_SIGS + 1];
+
+static inline const char * signal_name (int sig)
+{
+    if (sig <= NUM_KNOWN_SIGS)
+        return siglist[sig];
+
+    if (sig >= NUM_SIGS)
+        return "BAD SIGNAL";
+
+    char * str = __alloca(6);
+
+    str[0] = 'S';
+    str[1] = 'I';
+    str[2] = 'G';
+    str[3] = '0' + sig / 10;
+    str[4] = '0' + sig % 10;
+    str[5] = 0;
+
+    return str;
+}
+
 struct shim_thread;
 
 int init_signal (void);
@@ -118,13 +140,12 @@ int init_signal (void);
 void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
                       struct shim_signal * signal);
 
-void append_signal (struct shim_thread * thread, int sig, siginfo_t * info);
+void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
+                    bool wakeup);
 void deliver_signal (siginfo_t * info, PAL_CONTEXT * context);
 
-sigset_t * get_sig_mask (struct shim_thread * thread);
-sigset_t * set_sig_mask (struct shim_thread * thread, sigset_t * new_set);
-
-extern const char * const siglist[NUM_KNOWN_SIGS + 1];
+__sigset_t * get_sig_mask (struct shim_thread * thread);
+__sigset_t * set_sig_mask (struct shim_thread * thread, __sigset_t * new_set);
 
 int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
                     bool use_ipc);

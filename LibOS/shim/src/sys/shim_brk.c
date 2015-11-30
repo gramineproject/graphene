@@ -170,26 +170,24 @@ out:
     return brk;
 }
 
-DEFINE_MIGRATE_FUNC(brk)
-
-MIGRATE_FUNC_BODY(brk)
+BEGIN_CP_FUNC(brk)
 {
     if (region.brk_start) {
-        ADD_FUNC_ENTRY(region.brk_start);
-        ADD_ENTRY(ADDR, region.brk_current);
-        ADD_ENTRY(SIZE, region.brk_end - region.brk_start);
+        ADD_CP_FUNC_ENTRY(region.brk_start);
+        ADD_CP_ENTRY(ADDR, region.brk_current);
+        ADD_CP_ENTRY(SIZE, region.brk_end - region.brk_start);
         assert(brk_max_size);
-        ADD_ENTRY(SIZE, brk_max_size);
+        ADD_CP_ENTRY(SIZE, brk_max_size);
     }
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(bek)
 
-RESUME_FUNC_BODY(brk)
+BEGIN_RS_FUNC(brk)
 {
-    region.brk_start   = (void *) GET_FUNC_ENTRY();
-    region.brk_current = (void *) GET_ENTRY(ADDR);
-    region.brk_end     = region.brk_start + GET_ENTRY(SIZE);
-    brk_max_size       = GET_ENTRY(SIZE);
+    region.brk_start   = (void *) GET_CP_FUNC_ENTRY();
+    region.brk_current = (void *) GET_CP_ENTRY(ADDR);
+    region.brk_end     = region.brk_start + GET_CP_ENTRY(SIZE);
+    brk_max_size       = GET_CP_ENTRY(SIZE);
 
     debug("brk area: %p - %p\n", region.brk_start, region.brk_end);
 
@@ -214,9 +212,7 @@ RESUME_FUNC_BODY(brk)
                    NULL);
     }
 
-#ifdef DEBUG_RESUME
-    debug("brk: %p in %p - %p\n", region.brk_current, region.brk_start,
-          region.brk_end);
-#endif
+    DEBUG_RS("current=%p,region=%p-%p", region.brk_current, region.brk_start,
+             region.brk_end);
 }
-END_RESUME_FUNC
+END_RS_FUNC(brk)

@@ -15,18 +15,23 @@ subdirs = string stdlib network graphene
 objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
 headers = asm-errlist.h api.h
 
-all: graphene-lib.a
+all: $(target)graphene-lib.a
 
 debug: CC = gcc -g
 debug: CFLAGS += -DDEBUG
-debug: graphene-lib.a
+debug: $(target)graphene-lib.a
 
-graphene-lib.a: $(objs)
-	@echo [ $@ ]
+$(target)graphene-lib.a: $(addprefix $(target),$(objs))
+	@echo [ $(notdir $@) ]
+	@mkdir -p $(dir $@)
 	@$(AR) $(ARFLAGS) $@ $^
 
-%.o: %.c $(headers)
-	@echo [ $@ ]
+../src/host_endian.h:
+	@$(MAKE) -C ../src host_endian.h
+
+$(target)%.o: %.c $(headers) ../src/host_endian.h
+	@echo [ $(notdir $@) ]
+	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

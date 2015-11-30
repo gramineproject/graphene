@@ -35,8 +35,10 @@
 #include <pal.h>
 #include <pal_error.h>
 
-#include <fcntl.h>
 #include <errno.h>
+
+#include <linux/fcntl.h>
+
 #include <asm/mman.h>
 
 /* The kernel would look up the parent directory, and remove the child from

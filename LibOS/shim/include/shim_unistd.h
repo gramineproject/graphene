@@ -62,6 +62,15 @@ struct nameinfo {
 
 int checkpoint (const char * filename);
 
+struct sigcp {
+    int si_session;
+};
+
+#define si_cp_session(info) \
+    (((struct sigcp *) (info)->_sifields._pad)->si_session)
+
+#define SIGCP                   33
+
 #define SHIM_NSYSCALLS          311
 
 #endif /* _SHIM_UNISTD_H_ */

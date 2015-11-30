@@ -44,6 +44,7 @@ client_main(int ac, char **av)
 	char	t[512];
 	char*	buf;
 	char*	usage = "usage: %s -remotehost OR %s remotehost [msgsize]\n";
+	int	byte;
 
 	if (ac != 2 && ac != 3) {
 		(void)fprintf(stderr, usage, av[0], av[0]);
@@ -57,7 +58,10 @@ client_main(int ac, char **av)
 	 */
 	if (av[1][0] == '-') {
 		server = tcp_connect(&av[1][1], TCP_DATA, SOCKOPT_REUSE);
-		write(server, "0", 1);
+		if (write(server, "0", 1) < 0) {
+			perror("tcp write");
+			exit(1);
+		}
 		exit(0);
 	}
 
@@ -74,7 +78,7 @@ client_main(int ac, char **av)
 		exit(2);
 	}
 
-	(void)sprintf(t, "%llu", msgsize);
+	(void) sprintf(t, "%llu", msgsize);
 	if (write(server, t, strlen(t) + 1) != strlen(t) + 1) {
 		perror("control write");
 		exit(3);
@@ -87,7 +91,7 @@ client_main(int ac, char **av)
 	BENCH1(transfer(msgsize, server, buf), LONGER);
 
 	BENCH(transfer(msgsize, server, buf), 0);
-out:	(void)fprintf(stderr, "Socket bandwidth using %s: ", av[1]);
+out:	(void) fprintf(stderr, "Socket bandwidth using %s: ", av[1]);
 	mb(msgsize * get_n());
 	close(server);
 	exit(0);

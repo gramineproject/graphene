@@ -149,13 +149,14 @@ static int child_process (void * param)
         goto failed;
 
     if (proc_param->parent)
-        handle_set_cloexec(proc_param->parent,      false);
+        handle_set_cloexec(proc_param->parent,   false);
     if (proc_param->exec)
-        handle_set_cloexec(proc_param->exec,        false);
+        handle_set_cloexec(proc_param->exec,     false);
     if (proc_param->manifest)
-        handle_set_cloexec(proc_param->manifest,    false);
+        handle_set_cloexec(proc_param->manifest, false);
 
-    INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv, NULL);
+    INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv,
+                   linux_state.environ);
     ret = -PAL_ERROR_DENIED;
 
 failed:
@@ -169,6 +170,9 @@ int _DkProcessCreate (PAL_HANDLE * handle,
     PAL_HANDLE exec = NULL, exec_file = NULL;
     PAL_HANDLE parent_handle = NULL, child_handle = NULL;
     int ret;
+#if PROFILING == 1
+    unsigned long before_create = _DkSystemTimeQuery();
+#endif
 
     /* step 1: open uri and check whether it is an executable */
 
@@ -194,9 +198,6 @@ int _DkProcessCreate (PAL_HANDLE * handle,
     /* step 2: create parant and child process handle */
 
     struct proc_param param;
-#if PROFILING == 1
-    unsigned long before_create = _DkSystemTimeQuery();
-#endif
     ret = create_process_handle(&parent_handle, &child_handle);
     if (ret < 0)
         goto out;
@@ -284,7 +285,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
     proc_args->process_create_time = before_create;
 #endif
 
-    ret = INLINE_SYSCALL(vfork, 0);
+    ret = ARCH_VFORK();
     int child_ret = 0;
 
     if (IS_ERR(ret)) {
@@ -323,18 +324,16 @@ int _DkProcessCreate (PAL_HANDLE * handle,
 out:
     if (parent_handle)
         _DkObjectClose(parent_handle);
+    if (exec)
+        _DkObjectClose(exec);
+    if (exec_file)
+        _DkObjectClose(exec_file);
     if (ret < 0) {
         if (child_handle)
             _DkObjectClose(child_handle);
-        if (exec)
-            _DkObjectClose(exec);
-        if (exec_file)
-            _DkObjectClose(exec_file);
     }
     return ret;
 }
-
-#define LARGE_PROC_ARGS     4096
 
 void init_child_process (PAL_HANDLE * parent_handle,
                          PAL_HANDLE * exec_handle,
@@ -344,10 +343,11 @@ void init_child_process (PAL_HANDLE * parent_handle,
 
     /* try to do a very large reading, so it doesn't have to be read for the
        second time */
-    struct proc_args * proc_args = __alloca(LARGE_PROC_ARGS);
+    struct proc_args * proc_args = __alloca(sizeof(struct proc_args));
+    struct proc_args * new_proc_args;
 
     int bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_args,
-                               LARGE_PROC_ARGS);
+                               sizeof(*proc_args));
 
     if (IS_ERR(bytes)) {
         if (ERRNO(bytes) != EBADF)
@@ -366,21 +366,17 @@ void init_child_process (PAL_HANDLE * parent_handle,
     int datasz = proc_args->parent_data_size + proc_args->exec_data_size +
                  proc_args->manifest_data_size;
 
-    if (bytes < sizeof(struct proc_args) + datasz) {
-        int more_bytes = sizeof(struct proc_args) + datasz - bytes;
+    if (!datasz)
+        goto no_data;
 
-        struct proc_args * __new = __alloca(more_bytes);
-        memmove(__new, proc_args, bytes);
-        proc_args = __new;
-
-        ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, (void *) proc_args + bytes,
-                             more_bytes);
-
-        if (IS_ERR(ret) || ret < more_bytes)
-            init_fail(PAL_ERROR_DENIED, "communication fail with parent");
-    }
-
+    new_proc_args = __alloca(sizeof(*proc_args) + datasz);
+    memcpy(new_proc_args, proc_args, sizeof(*proc_args));
+    proc_args = new_proc_args;
     void * data = (void *) (proc_args + 1);
+
+    bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, data, datasz);
+    if (IS_ERR(bytes))
+        init_fail(PAL_ERROR_DENIED, "communication fail with parent");
 
     /* now deserialize the parent_handle */
     PAL_HANDLE parent = NULL;
@@ -389,6 +385,9 @@ void init_child_process (PAL_HANDLE * parent_handle,
         init_fail(-ret, "cannot deseilaize parent process handle");
     data += proc_args->parent_data_size;
     *parent_handle = parent;
+
+    /* occupy PROC_INIT_FD so no one will use it */
+    INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
 
     /* deserialize the executable handle */
     if (proc_args->exec_data_size) {
@@ -416,6 +415,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
         *manifest_handle = manifest;
     }
 
+no_data:
     linux_state.parent_process_id = proc_args->parent_process_id;
     linux_state.memory_quota = proc_args->memory_quota;
 #if PROFILING == 1
@@ -431,9 +431,6 @@ void _DkProcessExit (int exitcode)
 
 int ioctl_set_graphene (struct config_store * config, int ndefault,
                         const struct graphene_user_policy * default_policies);
-
-void set_mcast_rules (struct graphene_net_policy * rules,
-                      unsigned short mcast_port);
 
 static int set_graphene_task (const char * uri, int flags)
 {
@@ -477,18 +474,10 @@ static int set_graphene_task (const char * uri, int flags)
         p->value = &pal_sec.pipe_prefix;
         p++;
 
-        PAL_IDX mcast_port = 0;
-        _DkFastRandomBitsRead(&mcast_port, sizeof(PAL_IDX));
-        pal_sec.mcast_port = mcast_port % (65536 - 1024) + 1024;
+        p->type  = GRAPHENE_MCAST_PORT;
+        p->value = &pal_sec.mcast_port;
+        p++;
     }
-
-    struct graphene_net_policy mcast_rules[2];
-    set_mcast_rules(mcast_rules, pal_sec.mcast_port);
-    p[0].type  = GRAPHENE_NET_RULE;
-    p[0].value = &mcast_rules[0];
-    p[1].type  = GRAPHENE_NET_RULE;
-    p[1].value = &mcast_rules[1];
-    p += 2;
 
     p->type  = GRAPHENE_FS_PATH | GRAPHENE_FS_READ;
     p->value = "/proc/meminfo";

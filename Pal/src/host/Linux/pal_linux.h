@@ -47,12 +47,19 @@ extern struct pal_linux_state {
     PAL_NUM         parent_process_id;
     PAL_NUM         process_id;
 
+#ifdef DEBUG
+    bool            in_gdb;
+#endif
+
+    const char **   environ;
+
     /* credentails */
     unsigned int    pid;
     unsigned int    uid, gid;
 
     /* currently enabled signals */
-    __sigset_t      sigset;
+    __sigset_t      set_signals;
+    __sigset_t      blocked_signals;
 
     unsigned long   memory_quota;
 
@@ -65,6 +72,7 @@ extern struct pal_linux_state {
 #endif
 } linux_state;
 
+#include <asm/fcntl.h>
 #include <asm/mman.h>
 
 #ifdef INLINE_SYSCALL
@@ -94,6 +102,20 @@ extern struct pal_linux_state {
 # error "INLINE_SYSCALL not supported"
 #endif
 
+#ifndef SIGCHLD
+# define SIGCHLD 17
+#endif
+
+#ifdef DEBUG
+# define ARCH_VFORK()                                                       \
+    (linux_state.in_gdb ?                                                   \
+     INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK|SIGCHLD, 0, NULL, NULL) :\
+     INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
+#else
+# define ARCH_VFORK()                                                       \
+    (INLINE_SYSCALL(clone, 4, CLONE_VM|CLONE_VFORK, 0, NULL, NULL))
+#endif
+
 #define PRESET_PAGESIZE (1 << 12)
 
 #define DEFAULT_BACKLOG     2048
@@ -108,6 +130,12 @@ static inline int HOST_FLAGS (int alloc_type, int prot)
 static inline int HOST_PROT (int prot)
 {
     return prot & (PAL_PROT_READ|PAL_PROT_WRITE|PAL_PROT_EXEC);
+}
+
+static inline int HOST_ACCESS (int access)
+{
+    return (access & (PAL_ACCESS_RDONLY|PAL_ACCESS_WRONLY|PAL_ACCESS_RDWR)) |
+           ((access & PAL_ACCESS_APPEND) ? O_APPEND|O_WRONLY : 0);
 }
 
 int __clone (int (*__fn) (void * __arg), void * __child_stack,

@@ -33,12 +33,13 @@
 #include <pal.h>
 #include <pal_error.h>
 
-#include <fcntl.h>
+#include <errno.h>
+
+#include <linux/futex.h>
+
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <asm/prctl.h>
-#include <linux/futex.h>
-#include <errno.h>
 
 static int close_cloexec_handle (struct shim_handle_map * map)
 {
@@ -118,7 +119,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
     DkVirtualMemoryFree(old_stack_red, old_stack - old_stack_red);
-    int flags = VMA_INTERNAL;
+    int flags = 0;
     bkeep_munmap(old_stack, old_stack_top - old_stack, &flags);
     bkeep_munmap(old_stack_red, old_stack - old_stack_red, &flags);
 
@@ -139,6 +140,11 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     cur_thread->robust_list = NULL;
 
+#ifdef PROFILE
+    if (ENTER_TIME)
+        SAVE_PROFILE_INTERVAL_SINCE(syscall_execve, ENTER_TIME);
+#endif
+
     debug("execve: start execution\n");
     execute_elf_object(cur_thread->exec, new_argc, new_argp,
                        REQUIRED_ELF_AUXV, new_auxp);
@@ -146,22 +152,6 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     return 0;
 }
 
-static void * __malloc (size_t size)
-{
-    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
-    size = ALIGN_UP(size);
-    void * addr = get_unmapped_vma(size, flags);
-
-    addr = (void *)
-        DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
-    if (!addr)
-        return NULL;
-
-    bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0, NULL);
-    return addr;
-}
-
-#define malloc_method __malloc
 #include <shim_checkpoint.h>
 
 DEFINE_PROFILE_CATAGORY(exec, );
@@ -170,13 +160,12 @@ DEFINE_PROFILE_INTERVAL(open_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);
 
 static int migrate_execve (struct shim_cp_store * cpstore,
-                           struct shim_process * process,
-                           struct shim_thread * thread, va_list ap)
+                           struct shim_thread * thread,
+                           struct shim_process * process, va_list ap)
 {
-    struct shim_handle_map * handle_map = NULL;
+    struct shim_handle_map * handle_map;
+    const char ** envp = va_arg(ap, const char **);
     int ret;
-    const char ** envp = va_arg (ap, const char **);
-    size_t envsize = va_arg (ap, size_t);
 
     BEGIN_PROFILE_INTERVAL();
 
@@ -196,23 +185,22 @@ static int migrate_execve (struct shim_cp_store * cpstore,
             2. cur_threadrent filesystem
             3. handle mapping
             4. each handle              */
-    BEGIN_MIGRATION_DEF(execve, struct shim_process * proc,
+    BEGIN_MIGRATION_DEF(execve,
                         struct shim_thread * thread,
-                        const char ** envp, size_t envsize)
+                        struct shim_process * proc,
+                        const char ** envp)
     {
-        store->use_gipc = true;
-        DEFINE_MIGRATE(process, proc, sizeof(struct shim_process), false);
-        DEFINE_MIGRATE(all_mounts, NULL, 0, false);
-        DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread),
-                       false);
+        DEFINE_MIGRATE(process, proc, sizeof(struct shim_process));
+        DEFINE_MIGRATE(all_mounts, NULL, 0);
+        DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
         DEFINE_MIGRATE(handle_map, thread->handle_map,
-                       sizeof (struct shim_handle_map), true);
-        DEFINE_MIGRATE(migratable, NULL, 0, false);
-        DEFINE_MIGRATE(environ, envp, envsize, true);
+                       sizeof (struct shim_handle_map));
+        DEFINE_MIGRATE(migratable, NULL, 0);
+        DEFINE_MIGRATE(environ, envp, 0);
     }
-    END_MIGRATION_DEF
+    END_MIGRATION_DEF(execve)
 
-    return START_MIGRATE(cpstore, execve, 0, process, thread, envp, envsize);
+    return START_MIGRATE(cpstore, execve, thread, process, envp);
 }
 
 int shim_do_execve (const char * file, const char ** argv,
@@ -220,12 +208,23 @@ int shim_do_execve (const char * file, const char ** argv,
 {
     struct shim_thread * cur_thread = get_cur_thread();
     struct shim_dentry * dent = NULL;
-    int ret = 0;
+    int ret = 0, argc = 0;
+
+    for (const char ** a = argv ; *a ; a++, argc++);
 
     if (!envp)
         envp = initial_envp;
 
     BEGIN_PROFILE_INTERVAL();
+
+    LIST_HEAD(shargs);
+    struct sharg {
+        struct list_head list;
+        int len;
+        char arg[0];
+    };
+
+reopen:
 
     if ((ret = path_lookupat(NULL, file, LOOKUP_OPEN, &dent)) < 0)
         return ret;
@@ -241,7 +240,7 @@ err:
     }
 
     if (fs->d_ops->mode) {
-        mode_t mode;
+        __kernel_mode_t mode;
         if ((ret = fs->d_ops->mode(dent, &mode, 1)) < 0)
             goto err;
     }
@@ -265,13 +264,83 @@ err:
         return -EACCES;
     }
 
-    int sz;
-    char *path = dentry_get_path(dent, true, &sz);
-    qstrsetstr(&exec->path, path, sz);
+    int pathlen;
+    char *path = dentry_get_path(dent, true, &pathlen);
+    qstrsetstr(&exec->path, path, pathlen);
 
-    if ((ret = check_elf_object(&exec)) < 0) {
+    if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
         put_handle(exec);
         return ret;
+    }
+
+    if (ret == -EINVAL) { /* it's a shebang */
+        LIST_HEAD(new_shargs);
+        struct sharg * next = NULL;
+        bool ended = false, started = false;
+        char buf[80];
+
+        do {
+            ret = do_handle_read(exec, buf, 80);
+            if (ret <= 0)
+                break;
+
+            char * s = buf, * c = buf, * e = buf + ret;
+
+            if (!started) {
+                if (ret < 2 || buf[0] != '#' || buf[1] != '!')
+                    break;
+
+                s += 2;
+                c += 2;
+                started = true;
+            }
+
+            for (; c < e ; c++) {
+                if (*c == ' ' || *c == '\n' || c == e - 1) {
+                    int l = (*c == ' ' || * c == '\n') ? c - s : e - s;
+                    if (next) {
+                        struct sharg * sh =
+                            __alloca(sizeof(struct sharg) + next->len + l + 1);
+                        sh->len = next->len + l;
+                        memcpy(sh->arg, next->arg, next->len);
+                        memcpy(sh->arg + next->len, s, l);
+                        sh->arg[next->len + l] = 0;
+                        next = sh;
+                    } else {
+                        next = __alloca(sizeof(struct sharg) + l + 1);
+                        next->len = l;
+                        memcpy(next->arg, s, l);
+                        next->arg[l] = 0;
+                    }
+                    if (*c == ' ' || *c == '\n') {
+                        INIT_LIST_HEAD(&next->list);
+                        list_add_tail(&next->list, &new_shargs);
+                        next = NULL;
+                        s = c + 1;
+                        if (*c == '\n') {
+                            ended = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        } while (!ended);
+
+        if (started) {
+            if (next) {
+                INIT_LIST_HEAD(&next->list);
+                list_add_tail(&next->list, &new_shargs);
+            }
+
+            struct sharg * first =
+                list_first_entry(&new_shargs, struct sharg, list);
+            assert(first);
+            debug("detected as script: run by %s\n", first->arg);
+            file = first->arg;
+            list_splice(&new_shargs, &shargs);
+            put_handle(exec);
+            goto reopen;
+        }
     }
 
     SAVE_PROFILE_INTERVAL(open_file_for_exec);
@@ -282,19 +351,23 @@ err:
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
-    size_t envsize = allocsize;
-    void * envptr = NULL;
-    const char ** empty_argv = NULL;
-retry:
-    envptr = system_malloc(envsize);
-    if (!envptr)
-        return -ENOMEM;
+    if (!list_empty(&shargs)) {
+        struct sharg * sh;
+        int shargc = 0, cnt = 0;
+        list_for_each_entry(sh, &shargs, list)
+            shargc++;
 
-    ret = populate_user_stack(envptr, envsize, 0, NULL, &empty_argv, &envp);
-    if (ret == -ENOMEM) {
-        system_free(envptr, envsize);
-        envsize += allocsize;
-        goto retry;
+        const char ** new_argv =
+                __alloca(sizeof(const char *) * (argc + shargc + 1));
+
+        list_for_each_entry(sh, &shargs, list)
+            new_argv[cnt++] = sh->arg;
+
+        for (cnt = 0 ; cnt < argc ; cnt++)
+            new_argv[shargc + cnt] = argv[cnt];
+
+        new_argv[shargc + argc] = NULL;
+        argv = new_argv;
     }
 
     lock(cur_thread->lock);
@@ -315,10 +388,7 @@ retry:
     cur_thread->in_vm     = false;
     unlock(cur_thread->lock);
 
-    ret = do_migrate_process(&migrate_execve, exec, argv, cur_thread, envp,
-                             envptr + envsize - (void *) envp);
-
-    system_free(envptr, envsize);
+    ret = do_migrate_process(&migrate_execve, exec, argv, cur_thread, envp);
 
     lock(cur_thread->lock);
     cur_thread->stack       = stack;

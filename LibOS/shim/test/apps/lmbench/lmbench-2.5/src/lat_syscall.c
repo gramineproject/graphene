@@ -91,7 +91,7 @@ main(int ac, char **av)
 		micro("Simple write", get_n());
 		close(fd);
 	} else if (!strcmp("read", av[1])) {
-		file = av[2] ? av[2] : "/dev/null";
+		file = av[2] ? av[2] : "/dev/zero";
 		fd = open(file, 0);
 		if (fd == -1) {
 			fprintf(stderr, "Read from %s: %s\n", file, strerror(errno));

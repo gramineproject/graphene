@@ -37,23 +37,73 @@ struct kmem_cache *gipc_send_buffer_cachep;
 # define GIPC_BUG_ON(cond)
 #endif
 
-#if !defined(CONFIG_GRAPHENE_BULK_IPC)
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
-typedef unsigned long (*do_mmap_pgoff_t) (struct file *, unsigned long,
-					  unsigned long, unsigned long,
-					  unsigned long, unsigned long,
-					  unsigned long *);
-static do_mmap_pgoff_t my_do_mmap_pgoff = NULL;
-# elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
-typedef unsigned long (*do_mmap_pgoff_t) (struct file *, unsigned long,
-					  unsigned long, unsigned long,
-					  unsigned long, unsigned long);
-static do_mmap_pgoff_t my_do_mmap_pgoff = NULL;
-# endif //kernel version >=3.4
+#define LOOKUP_KALLSYMS(sym)						\
+	do {								\
+		my_##sym = (void *) kallsyms_lookup_name(#sym);		\
+		if (!my_##sym) {					\
+			printk(KERN_ERR "Graphene error: "		\
+			       "can't find kernel function " #sym "\n");\
+			return -ENOENT;					\
+		} else {						\
+			printk(KERN_INFO "resolved symbol " #sym " %p\n", \
+			       my_##sym);				\
+		}							\
+	} while (0)
 
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
-typedef unsigned long (*flush_tlb_page_t) (struct vm_area_struct *, unsigned long);
-static flush_tlb_page_t my_flush_tlb_page = NULL;
+#if defined(CONFIG_GRAPHENE_BULK_IPC) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
+#  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
+	({								\
+		unsigned long populate;					\
+		unsigned long rv = do_mmap_pgoff((file), (addr), (len), \
+						 (prot), (flags),	\
+			 			 (pgoff), &populate);	\
+	rv; })
+# else
+#  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
+	do_mmap_pgoff((file), (addr), (len), (prot), (flags), (pgoff))
+# endif /* kernel_version < 3.9.0 */
+#else
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
+#  define MY_DO_MMAP_PGOFF
+unsigned long (*my_do_mmap_pgoff) (struct file *, unsigned long,
+				   unsigned long, unsigned long,
+				   unsigned long, unsigned long,
+				   unsigned long *);
+#  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
+	({								\
+		unsigned long populate;					\
+		unsigned long rv = my_do_mmap_pgoff((file), (addr),	\
+						    (len), (prot),	\
+						    (flags), (pgoff), 	\
+						    &populate);		\
+	rv; })
+# else
+#  define MY_DO_MMAP_PGOFF
+unsigned long (*my_do_mmap_pgoff) (struct file *, unsigned long,
+				   unsigned long, unsigned long,
+				   unsigned long, unsigned long);
+#  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
+	my_do_mmap_pgoff((file), (addr), (len), (prot), (flags), (pgoff))
+# endif /* kernel version < 3.9 */
+#endif /* !CONFIG_GRAPHENE_BULK_IPC && kernel version > 3.4.0 */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)
+# ifdef CONFIG_GRAPHENE_BULK_IPC
+#  define FLUSH_TLB_MM_RANGE flush_tlb_mm_range
+# else
+#  define MY_FLUSH_TLB_MM_RANGE
+void (*my_flush_tlb_mm_range) (struct mm_struct *, unsigned long,
+			       unsigned long, unsigned long);
+#  define FLUSH_TLB_MM_RANGE my_flush_tlb_mm_range
+# endif
+#else /* LINUX_VERSION_CODE < 3.7.0 */
+# if defined(CONFIG_GRAPHENE_BULK_IPC) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0)
+#  define FLUSH_TLB_PAGE flush_tlb_page
+# else
+#  define MY_FLUSH_TLB_PAGE
+void (*my_flush_tlb_page) (struct vm_area_struct *, unsigned long);
+#  define FLUSH_TLB_PAGE my_flush_tlb_page
 # endif
 #endif
 
@@ -208,11 +258,6 @@ inline int make_page_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	ptep_set_wrprotect(mm, addr, pte);
 	spin_unlock(ptl);
-#if !defined(CONFIG_GRAPHENE_BULK_IPC) &&  LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
-	my_flush_tlb_page(vma, addr);
-#else
-	flush_tlb_page(vma, addr);
-#endif
 	DEBUG("make page COW at %lx\n", addr);
 	return 0;
 no_page:
@@ -296,6 +341,7 @@ static int get_pages (struct task_struct *task, unsigned long start,
 	int i = 0, j, rv;
 
 	while (i < nr_pages) {
+		unsigned long flushed, vmflags;
 		int last = i;
 
 		if (test_bit(last, page_bit_map)) {
@@ -326,10 +372,14 @@ static int get_pages (struct task_struct *task, unsigned long start,
 				return -EACCES;
 			}
 
+			flushed = addr;
+			vmflags = 0;
 			for (j = 0; j < nr; j++) {
+				unsigned long target = addr + (j << PAGE_SHIFT);
+
 				/* Mark source COW */
 				rv = make_page_cow(mm, vmas[last + j],
-						   addr + (j << PAGE_SHIFT));
+						   target);
 				if (rv)
 					return rv;
 
@@ -337,11 +387,28 @@ static int get_pages (struct task_struct *task, unsigned long start,
 					/* Fix up the counters */
 					inc_mm_counter_fast(mm, MM_FILEPAGES);
 					dec_mm_counter_fast(mm, MM_ANONPAGES);
+					pages[last + j]->mapping = NULL;
 				}
 
-				pages[last + j]->mapping = NULL;
+#ifdef FLUSH_TLB_MM_RANGE
+				if (vmflags == vmas[last + j]->vm_flags)
+					continue;
+				if (flushed < target)
+					FLUSH_TLB_MM_RANGE(mm, flushed, target,
+							   vmflags);
+				flushed = target;
+				vmflags = vmas[last + j]->vm_flags;
+#else
+				FLUSH_TLB_PAGE(vmas[last + j], target);
+#endif
 			}
 
+#ifdef FLUSH_TLB_MM_RANGE
+			if (flushed < addr + (nr << PAGE_SHIFT))
+				FLUSH_TLB_MM_RANGE(mm, flushed,
+						   addr + (nr << PAGE_SHIFT),
+						   vmflags);
+#endif
 			vma = vmas[i - 1];
 			addr += nr << PAGE_SHIFT;
 		} else {
@@ -510,31 +577,6 @@ int recv_next (struct task_struct *task, struct gipc_queue *gq)
 	return gq->next;
 }
 
-static inline
-unsigned long __do_mmap_pgoff(struct file *file, unsigned long addr,
-			      unsigned long len, unsigned long prot,
-			      unsigned long flags, unsigned long pgoff)
-{
-	/* Speculate that we will want the entire region under one vma.
-	 * Correct if not.  */
-#if defined(CONFIG_GRAPHENE_BULK_IPC) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
-	addr = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-#else
-	unsigned long populate;
-	addr = do_mmap_pgoff(file, addr, len, prot, flags, pgoff, &populate);
-#endif /* kernel_version >= 3.9.0 */
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
-	addr = my_do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-#else
-	unsigned long populate;
-	addr = my_do_mmap_pgoff(file, addr, len, prot, flags, pgoff, &populate);
-#endif /* kernel_version >= 3.9.0 */
-#endif
-	return addr;
-}
-
 static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
 			unsigned long __user *uaddr, unsigned long __user *ulen,
 			unsigned long __user *uprot,
@@ -571,6 +613,8 @@ static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
 
 	while (i < nr_pages) {
 		int found = recv_next(task, gq);
+		int need_map = 1;
+
 		if (found < 0) {
 			rv = found;
 			goto finish;
@@ -583,9 +627,19 @@ static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
 		gq->next &= PAGE_QUEUE - 1;
 		wake_up_all(&gq->send);
 
-		if (!vma || vma->vm_file != file ||
-		    vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT)
-		    != addr)  {
+		if (vma) {
+			need_map = 0;
+			if (vma->vm_file != file)
+				need_map = 1;
+			if (file && vma->vm_start +
+				    ((pgoff - vma->vm_pgoff) << PAGE_SHIFT)
+				    != addr)
+				need_map = 1;
+			if (prot != (vma->vm_flags & (VM_READ|VM_WRITE|VM_EXEC)))
+				need_map = 1;
+		}
+
+		if (need_map) {
 			unsigned long flags = MAP_PRIVATE;
 
 			if (addr)
@@ -595,9 +649,9 @@ static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
 			else
 				flags |= MAP_ANONYMOUS;
 
-			addr = __do_mmap_pgoff(file, addr,
-					       (nr_pages - i) << PAGE_SHIFT,
-					       prot, flags, pgoff);
+			addr = DO_MMAP_PGOFF(file, addr,
+					     (nr_pages - i) << PAGE_SHIFT,
+					     prot, flags, pgoff);
 
 			if (IS_ERR_VALUE(addr)) {
 				rv = PTR_ERR((void *) addr);
@@ -606,6 +660,14 @@ static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
 				       -rv);
 				goto finish;
 			}
+
+			if (file)
+				DEBUG("map %08lx-%08lx file %p\n", addr,
+				      addr + ((nr_pages - i) << PAGE_SHIFT),
+				      file);
+			else
+				DEBUG("map %08lx-%08lx\n", addr,
+				      addr + ((nr_pages - i) << PAGE_SHIFT));
 
 			if (!start)
 				start = addr;
@@ -618,6 +680,8 @@ static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
 				rv = -ENOENT;
 				goto finish;
 			}
+		} else {
+			BUG_ON(!vma);
 		}
 
 		if (page) {
@@ -847,30 +911,19 @@ static struct miscdevice gipc_dev = {
 	.mode		= 0666,
 };
 
+
 static int __init gipc_init(void)
 {
 	int rv = 0;
 
-#if !defined(CONFIG_GRAPHENE_BULK_IPC) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
-	my_do_mmap_pgoff = (do_mmap_pgoff_t)
-		kallsyms_lookup_name("do_mmap_pgoff");
-	printk(KERN_ERR "resolved symbol do_mmap_pgoff %p\n", my_do_mmap_pgoff);
-	if (!my_do_mmap_pgoff) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function do_mmap_pgoff\n");
-		return -ENOENT;
-	}
+#ifdef MY_DO_MMAP_PGOFF
+	LOOKUP_KALLSYMS(do_mmap_pgoff);
 #endif
-
-#if !defined(CONFIG_GRAPHENE_BULK_IPC) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
-	my_flush_tlb_page = (flush_tlb_page_t)
-		kallsyms_lookup_name("flush_tlb_page");
-	printk(KERN_ERR "resolved symbol flush_tlb_page %p\n", my_flush_tlb_page);
-	if (!my_flush_tlb_page) {
-		printk(KERN_ERR "Graphene error: "
-		       "can't find kernel function flush_tlb_page\n");
-		return -ENOENT;
-	}
+#ifdef MY_FLUSH_TLB_MM_RANGE
+	LOOKUP_KALLSYMS(flush_tlb_mm_range);
+#endif
+#ifdef MY_FLUSH_TLB_PAGE
+	LOOKUP_KALLSYMS(flush_tlb_page);
 #endif
 
 #ifndef gipc_get_session

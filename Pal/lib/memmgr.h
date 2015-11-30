@@ -55,14 +55,14 @@ typedef struct mem_obj {
 
 typedef struct mem_area {
     struct list_head __list;
-    uint64_t size;
+    unsigned int size;
     MEM_OBJ_TYPE objs[];
 } MEM_AREA_TYPE, * MEM_AREA;
 
 typedef struct mem_mgr {
     struct list_head area_list;
     struct list_head free_list;
-    unsigned int size;
+    MEM_OBJ_TYPE * obj, * obj_top;
 } MEM_MGR_TYPE, * MEM_MGR;
 
 #define __SUM_OBJ_SIZE(size) (sizeof(MEM_OBJ_TYPE) * (size))
@@ -70,7 +70,7 @@ typedef struct mem_mgr {
 #define __MAX_MEM_SIZE(size) (__MIN_MEM_SIZE() + __SUM_OBJ_SIZE(size))
 
 #ifdef PAGE_SIZE
-static inline int size_align_down(int size)
+static inline int size_align_down (int size)
 {
     int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
     int p = s - (s & ~(PAGE_SIZE - 1));
@@ -78,7 +78,7 @@ static inline int size_align_down(int size)
     return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int size_align_up(int size)
+static inline int size_align_up (int size)
 {
     int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
     int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
@@ -86,7 +86,7 @@ static inline int size_align_up(int size)
     return size + p / o;
 }
 
-static inline int init_align_down(int size)
+static inline int init_align_down (int size)
 {
     int s = __MAX_MEM_SIZE(size);
     int p = s - (s & ~(PAGE_SIZE - 1));
@@ -94,7 +94,7 @@ static inline int init_align_down(int size)
     return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int init_align_up(int size)
+static inline int init_align_up (int size)
 {
     int s = __MAX_MEM_SIZE(size);
     int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
@@ -105,14 +105,8 @@ static inline int init_align_up(int size)
 
 static inline void __set_free_mem_area (MEM_AREA area, MEM_MGR mgr, int size)
 {
-    int i;
-
-    for (i = 0 ; i < size ; i++) {
-        INIT_LIST_HEAD(&area->objs[i].__list);
-        list_add_tail(&area->objs[i].__list, &mgr->free_list);
-    }
-
-    mgr->size += size;
+    mgr->obj = area->objs;
+    mgr->obj_top = area->objs + area->size;
 }
 
 static inline MEM_MGR create_mem_mgr (unsigned int size)
@@ -126,16 +120,13 @@ static inline MEM_MGR create_mem_mgr (unsigned int size)
 
     mgr = (MEM_MGR) mem;
     area = (MEM_AREA) (mem + sizeof(MEM_MGR_TYPE));
-#if DEBUG_MEMMGR == 1
     area->size = size;
 
     INIT_LIST_HEAD(&area->__list);
     INIT_LIST_HEAD(&mgr->area_list);
     list_add(&area->__list, &mgr->area_list);
-#endif
 
     INIT_LIST_HEAD(&mgr->free_list);
-    mgr->size = 0;
     __set_free_mem_area(area, mgr, size);
 
     return mgr;
@@ -151,11 +142,9 @@ static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
         return NULL;
 
     system_lock();
-#if DEBUG_MEMMGR == 1
     area->size = size;
     INIT_LIST_HEAD(&area->__list);
     list_add(&area->__list, &mgr->area_list);
-#endif
     __set_free_mem_area(area, mgr, size);
     system_unlock();
     return mgr;
@@ -183,13 +172,18 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr (MEM_MGR mgr)
     MEM_OBJ mobj;
 
     system_lock();
-    if (list_empty(&mgr->free_list)) {
+    if (mgr->obj == mgr->obj_top && list_empty(&mgr->free_list)) {
         system_unlock();
         return NULL;
     }
 
-    mobj = list_first_entry(&mgr->free_list, MEM_OBJ_TYPE, __list);
-    list_del(&mobj->__list);
+    if (!list_empty(&mgr->free_list)) {
+        mobj = list_first_entry(&mgr->free_list, MEM_OBJ_TYPE, __list);
+        list_del_init(&mobj->__list);
+        check_list_head(&mgr->free_list);
+    } else {
+        mobj = mgr->obj++;
+    }
     system_unlock();
     return &mobj->obj;
 }
@@ -200,7 +194,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
     MEM_OBJ mobj;
 
     system_lock();
-    if (list_empty(&mgr->free_list)) {
+    if (mgr->obj == mgr->obj_top && list_empty(&mgr->free_list)) {
         system_unlock();
 
         if (!size)
@@ -213,17 +207,19 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
             return NULL;
 
         system_lock();
-#if DEBUG_MEMMGR == 1
         area->size = size;
         INIT_LIST_HEAD(&area->__list);
         list_add(&area->__list, &mgr->area_list);
-#endif
         __set_free_mem_area(area, mgr, size);
     }
 
-    mobj = list_first_entry(&mgr->free_list, MEM_OBJ_TYPE, __list);
-    list_del_init(&mobj->__list);
-    check_list_head(&mgr->free_list);
+    if (!list_empty(&mgr->free_list)) {
+        mobj = list_first_entry(&mgr->free_list, MEM_OBJ_TYPE, __list);
+        list_del_init(&mobj->__list);
+        check_list_head(&mgr->free_list);
+    } else {
+        mobj = mgr->obj++;
+    }
     system_unlock();
     return &mobj->obj;
 }
@@ -233,17 +229,12 @@ static inline void free_mem_obj_to_mgr (MEM_MGR mgr, OBJ_TYPE * obj)
     MEM_OBJ mobj = container_of(obj, MEM_OBJ_TYPE, obj);
 
     system_lock();
-
-#if DEBUG_MEMMGR == 1
     MEM_AREA area, found = NULL;
     list_for_each_entry(area, &mgr->area_list, __list)
         if (mobj >= area->objs && mobj < area->objs + area->size) {
             found = area;
             break;
         }
-#else
-    int found = 1;
-#endif /* DEBUG_MEMMGR != 1 */
 
     if (found) {
         INIT_LIST_HEAD(&mobj->__list);

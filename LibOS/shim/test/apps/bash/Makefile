@@ -14,7 +14,7 @@ $(bash_src): $(bash_src).tar.gz
 
 $(bash_src)/bash: $(bash_src)
 	cd $(bash_src) && ./configure --without-gnu-malloc
-	cd $(bash_src) && make CC="gcc -g"
+	cd $(bash_src) && $(MAKE) CC="gcc -g"
 
 test: all $(test_targets)
 
@@ -22,7 +22,7 @@ testsamplebash:
 	bash bash_test.sh
 
 %.manifest: %.manifest.template
-	make -C .. bash/$@ appdir=bash/
+	$(MAKE) -C .. bash/$@ appdir=bash/
 
 clean: clean-manifests
 

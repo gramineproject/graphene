@@ -32,11 +32,15 @@
 #include <pal.h>
 #include <pal_error.h>
 
+#include <errno.h>
+
+#include <linux/stat.h>
+#include <linux/fcntl.h>
+
+#include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/unistd.h>
 #include <asm/prctl.h>
-#include <fcntl.h>
-#include <errno.h>
 
 extern const struct proc_nm_ops nm_thread;
 extern const struct proc_fs_ops fs_thread;

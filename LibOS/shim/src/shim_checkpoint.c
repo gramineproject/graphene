@@ -41,78 +41,80 @@
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 
-DEFINE_PROFILE_CATAGORY(migrate_func, );
-DEFINE_PROFILE_CATAGORY(resume_func, );
+DEFINE_PROFILE_CATAGORY(migrate, );
 
-DEFINE_PROFILE_CATAGORY(checkpoint, );
-DEFINE_PROFILE_INTERVAL(checkpoint_predict_size, checkpoint);
-DEFINE_PROFILE_INTERVAL(checkpoint_alloc_memory, checkpoint);
-DEFINE_PROFILE_INTERVAL(checkpoint_copy_object, checkpoint);
-DEFINE_PROFILE_INTERVAL(checkpoint_destroy_addr_map, checkpoint);
+DEFINE_PROFILE_CATAGORY(checkpoint, migrate);
+DEFINE_PROFILE_INTERVAL(checkpoint_create_map,  checkpoint);
+DEFINE_PROFILE_INTERVAL(checkpoint_copy,        checkpoint);
+DEFINE_PROFILE_CATAGORY(checkpoint_func,        checkpoint);
+DEFINE_PROFILE_INTERVAL(checkpoint_destroy_map, checkpoint);
 
-DEFINE_PROFILE_OCCURENCE(checkpoint_count, checkpoint);
+DEFINE_PROFILE_OCCURENCE(checkpoint_count,      checkpoint);
 DEFINE_PROFILE_OCCURENCE(checkpoint_total_size, checkpoint);
 
-#define MAP_RANGE_SIZE (0x4000)
-#define MAP_RANGE_MASK (~0x3fff)
+DEFINE_PROFILE_CATAGORY(resume, migrate);
+DEFINE_PROFILE_INTERVAL(child_created_in_new_process,  resume);
+DEFINE_PROFILE_INTERVAL(child_wait_header,             resume);
+DEFINE_PROFILE_INTERVAL(child_receive_header,          resume);
+DEFINE_PROFILE_INTERVAL(do_migration,                  resume);
+DEFINE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc, resume);
+DEFINE_PROFILE_INTERVAL(child_load_memory_by_gipc,     resume);
+DEFINE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe, resume);
+DEFINE_PROFILE_INTERVAL(child_receive_handles,         resume);
+DEFINE_PROFILE_INTERVAL(restore_checkpoint,            resume);
+DEFINE_PROFILE_CATAGORY(resume_func,                   resume);
+DEFINE_PROFILE_INTERVAL(child_total_migration_time,    resume);
 
-#define ADDR_HASH_SIZE 4096
-#define ADDR_HASH_MASK (0xfff)
-
-#define HASH_POINTER(addr) ((hashfunc((ptr_t)(addr))) & ADDR_HASH_MASK)
-#define HASH_POINTER_ALIGNED(addr)  \
-                (HASH_POINTER((ptr_t)(addr) & MAP_RANGE_MASK))
+#define CP_HASH_SIZE    256
+#define CP_HASH(addr) ((hashfunc((ptr_t)(addr))) & (CP_HASH_SIZE - 1))
 
 typedef uint16_t FASTHASHTYPE;
 
-#define ADDR_MAP_ENTRY_NUM 64
+#define CP_MAP_ENTRY_NUM 64
 
-struct addr_map_entry
+struct cp_map_entry
 {
     struct hlist_node hlist;
-    struct shim_addr_map map;
+    struct shim_cp_map_entry entry;
 };
 
-struct addr_map_buffer {
-    struct addr_map_buffer * next;
-    size_t num, cnt;
-    struct addr_map_entry entries[0];
-};
-
-struct migrate_addr_map {
-    struct addr_map_buffer * buffer;
+struct cp_map {
+    struct cp_map_buffer {
+        struct cp_map_buffer * next;
+        int num, cnt;
+        struct cp_map_entry entries[0];
+    } * buffers;
 
     struct hash_map {
-        struct hlist_head head[ADDR_HASH_SIZE];
-    } addr_map;
+        struct hlist_head head[CP_HASH_SIZE];
+    } map;
 };
 
-void * create_addr_map (void)
+void * create_cp_map (void)
 {
-    size_t size_map = sizeof(struct migrate_addr_map);
-    void * data = malloc(size_map +
-                         sizeof(struct addr_map_buffer) +
-                         sizeof(struct addr_map_entry) *
-                         ADDR_MAP_ENTRY_NUM);
-    if (data == NULL)
+    void * data = malloc(sizeof(struct cp_map) + sizeof(struct cp_map_buffer) +
+                         sizeof(struct cp_map_entry) * CP_MAP_ENTRY_NUM);
+
+    if (!data)
         return NULL;
 
-    struct migrate_addr_map *map = (struct migrate_addr_map *) data;
-    struct addr_map_buffer *buffer =
-                    (struct addr_map_buffer *) (data + size_map);
-    memset(map, 0, size_map);
-    map->buffer = buffer;
+    struct cp_map * map = (struct cp_map *) data;
+    struct cp_map_buffer * buffer =
+                    (struct cp_map_buffer *) (data + sizeof(struct cp_map));
+
+    memset(map, 0, sizeof(*map));
+    map->buffers = buffer;
     buffer->next = NULL;
-    buffer->num = ADDR_MAP_ENTRY_NUM;
-    buffer->cnt = 0;
+    buffer->num  = CP_MAP_ENTRY_NUM;
+    buffer->cnt  = 0;
 
     return (void *) map;
 }
 
-void destroy_addr_map (void * map)
+void destroy_cp_map (void * map)
 {
-    struct migrate_addr_map * m = (struct migrate_addr_map *) map;
-    struct addr_map_buffer * buffer = m->buffer, * next;
+    struct cp_map * m = (struct cp_map *) map;
+    struct cp_map_buffer * buffer = m->buffers, * next;
 
     for (next = buffer ? buffer->next : NULL ;
          buffer && next ;
@@ -123,300 +125,228 @@ void destroy_addr_map (void * map)
 }
 
 static inline
-struct addr_map_buffer * extend_addr_map (struct migrate_addr_map * map)
+struct cp_map_buffer * extend_cp_map (struct cp_map * map)
 {
-    struct addr_map_buffer *buffer =
-                malloc(sizeof(struct addr_map_buffer) +
-                       sizeof(struct addr_map_entry) * ADDR_MAP_ENTRY_NUM);
+    struct cp_map_buffer * buffer =
+                malloc(sizeof(struct cp_map_buffer) +
+                       sizeof(struct cp_map_entry) * CP_MAP_ENTRY_NUM);
 
-    if (buffer == NULL)
+    if (!buffer)
         return NULL;
 
-    buffer->next = map->buffer;
-    map->buffer = buffer;
-    buffer->num = ADDR_MAP_ENTRY_NUM;
-    buffer->cnt = 0;
+    buffer->next = map->buffers;
+    map->buffers = buffer;
+    buffer->num  = CP_MAP_ENTRY_NUM;
+    buffer->cnt  = 0;
 
     return buffer;
 }
 
-struct shim_addr_map *
-get_addr_map_entry (void * map, ptr_t addr, size_t size, bool create)
+struct shim_cp_map_entry *
+get_cp_map_entry (void * map, void * addr, bool create)
 {
-    struct migrate_addr_map *m = (struct migrate_addr_map *) map;
+    struct cp_map * m = (struct cp_map *) map;
 
-    FASTHASHTYPE hash = HASH_POINTER(addr);
-    struct hlist_head *head = &m->addr_map.head[hash];
-
-    struct addr_map_entry *tmp;
-    struct hlist_node *pos;
-
-    struct shim_addr_map * e = NULL;
+    FASTHASHTYPE hash = CP_HASH(addr);
+    struct hlist_head * head = &m->map.head[hash];
+    struct hlist_node * pos;
+    struct cp_map_entry * tmp;
+    struct shim_cp_map_entry * e = NULL;
 
     hlist_for_each_entry(tmp, pos, head, hlist)
-        if (tmp->map.addr == addr)
-            e = &tmp->map;
+        if (tmp->entry.addr == addr)
+            e = &tmp->entry;
 
     if (create && !e) {
-        struct addr_map_buffer *buffer = m->buffer;
+        struct cp_map_buffer * buffer = m->buffers;
 
         if (buffer->cnt == buffer->num)
-            buffer = extend_addr_map (m);
+            buffer = extend_cp_map(m);
 
-        struct addr_map_entry *new = &buffer->entries[buffer->cnt++];
+        struct cp_map_entry *new = &buffer->entries[buffer->cnt++];
         INIT_HLIST_NODE(&new->hlist);
         hlist_add_head(&new->hlist, head);
 
-        new->map.offset = MAP_UNALLOCATED;
-        new->map.addr = addr;
-        new->map.size = size;
-        e = &new->map;
+        new->entry.addr = addr;
+        new->entry.off  = 0;
+        e = &new->entry;
     }
 
     return e;
 }
 
-DEFINE_MIGRATE_FUNC(memory)
-
-MIGRATE_FUNC_BODY(memory)
+BEGIN_CP_FUNC(memory)
 {
-    struct migrate_addr_map * map =
-                (struct migrate_addr_map *) store->addr_map;
-    ptr_t addr = (ptr_t) obj;
-
-    /* set the offset to 0, so the memory area will not be added to
-       range map (if there is one) */
-    struct shim_addr_map * e = get_addr_map_entry(map, addr, size, 1);
-
-    ptr_t off = e->offset;
-
-    if (dry) {
-        if (off & MAP_UNALLOCATED)
-            e->offset = MAP_UNASSIGNED;
-        else
-            off = 0;
-    }
-
-    struct shim_mem_entry * entry = NULL;
-
-    if (off & MAP_UNUSABLE) {
-        off = ADD_OFFSET(size);
-        void * data = dry ? NULL : (void *) base + off;
-        ptr_t entry_off = ADD_OFFSET(sizeof(struct shim_gipc_entry));
-
-        if (!dry) {
-            memcpy(data, obj, size);
-
-            entry = (struct shim_mem_entry *) (base + entry_off);
-            entry->addr = (void *) addr;
-            entry->size = size;
-            entry->data = data;
-            entry->prot = PROT_READ|PROT_WRITE;
-            entry->need_alloc = entry->need_prot = true;
-            entry->vma  = NULL;
-        }
-
-        ADD_FUNC_ENTRY(entry_off);
-    }
-
-    if (!dry && recursive) {
-        ptr_t p = (ptr_t) (base + off);
-
-        /* align p to pointer */
-        if (p & (sizeof(ptr_t) - 1))
-            p = (p + sizeof(ptr_t) - 1) & ~(sizeof(ptr_t) - 1);
-
-        while (p < addr + size) {
-            ptr_t val = *(ptr_t *) p;
-            struct shim_addr_map * e = get_addr_map_entry (map, val, 0, 0);
-
-            if (e)
-                *(ptr_t *) p = base + e->offset + (val - e->addr);
-
-            p += sizeof(ptr_t);
-        }
-    }
-
-    if (entry && objp)
-        *objp = (void *) entry;
-}
-END_MIGRATE_FUNC
-
-RESUME_FUNC_BODY(memory)
-{
-    unsigned long off = GET_FUNC_ENTRY();
     struct shim_mem_entry * entry =
-                (struct shim_mem_entry *) (base + off);
+            (void *) (base + ADD_CP_OFFSET(sizeof(struct shim_mem_entry)));
 
-    RESUME_REBASE(entry->data);
-    RESUME_REBASE(entry->vma);
+    entry->addr  = obj;
+    entry->size  = size;
+    entry->paddr = NULL;
+    entry->prot  = PAL_PROT_READ|PAL_PROT_WRITE;
+    entry->data  = NULL;
+    entry->prev  = store->last_mem_entry;
+    store->last_mem_entry = entry;
+    store->mem_nentries++;
+    store->mem_size += size;
 
-#ifdef DEBUG_RESUME
-    debug("dump: %p - %p copied to %p - %p\n",
-          entry->data, entry->data + entry->size,
-          entry->addr, entry->addr + entry->size);
-#endif
-
-    PAL_PTR mapaddr = ALIGN_DOWN(entry->addr);
-    PAL_NUM mapsize = ALIGN_UP(entry->addr + entry->size) - mapaddr;
-    int pal_prot = PAL_PROT(entry->prot, 0);
-
-    if (entry->need_alloc &&
-        !DkVirtualMemoryAlloc(mapaddr, mapsize, 0,
-                              pal_prot|PAL_PROT_READ|PAL_PROT_WRITE))
-        return -PAL_ERRNO;
-
-    if (entry->need_prot &&
-        !DkVirtualMemoryProtect(mapaddr, mapsize,
-                                pal_prot|PAL_PROT_READ|PAL_PROT_WRITE))
-        return -PAL_ERRNO;
-
-    memcpy(entry->addr, entry->data, entry->size);
-
-    if (entry->vma)
-        entry->vma->received = (entry->addr + entry->size) - entry->vma->addr;
-
-    if ((entry->need_alloc || entry->need_prot) &&
-        (pal_prot & (PAL_PROT_READ|PAL_PROT_WRITE)) !=
-        (PAL_PROT_READ|PAL_PROT_WRITE))
-        DkVirtualMemoryProtect(mapaddr, mapsize, pal_prot);
+    if (objp)
+        *objp = entry;
 }
-END_RESUME_FUNC
+END_CP_FUNC_NO_RS(memory)
 
-DEFINE_MIGRATE_FUNC(migratable)
-
-MIGRATE_FUNC_BODY(migratable)
+BEGIN_CP_FUNC(palhdl)
 {
-    size = &__migratable_end - &__migratable;
+    ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_palhdl_entry));
+    struct shim_palhdl_entry * entry = (void *) (base + off);
 
-    unsigned long off = ADD_OFFSET(size);
-    ADD_FUNC_ENTRY(*offset);
-    ADD_ENTRY(ADDR, &__migratable);
-    ADD_ENTRY(SIZE, size);
+    entry->handle = (PAL_HANDLE) obj;
+    entry->uri = NULL;
+    entry->phandle = NULL;
+    entry->prev = store->last_palhdl_entry;
+    store->last_palhdl_entry = entry;
+    store->palhdl_nentries++;
 
-    if (!dry)
-        memcpy((void *) (base + off), &__migratable, size);
+    ADD_CP_FUNC_ENTRY(off);
+
+    if (objp)
+        *objp = entry;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(palhdl)
 
-RESUME_FUNC_BODY(migratable)
+BEGIN_RS_FUNC(palhdl)
 {
-    ptr_t off = GET_FUNC_ENTRY();
-    GET_ENTRY(ADDR);
-    size_t size = GET_ENTRY(SIZE);
+    struct shim_palhdl_entry * ent = (void *) (base + GET_CP_FUNC_ENTRY());
 
-#ifdef DEBUG_RESUME
-    debug("dump (migratable): %p - %p copied to %p - %p\n", off, off + size,
-          &__migratable, &__migratable + size);
-#endif
-
-    memcpy((void *) &__migratable, (void *) (base + off), size);
+    if (ent->phandle && !ent->phandle && ent->uri) {
+        /* XXX: reopen the stream */
+    }
 }
-END_RESUME_FUNC
+END_RS_FUNC(palhdl)
 
-DEFINE_MIGRATE_FUNC(environ)
-
-MIGRATE_FUNC_BODY(environ)
+BEGIN_CP_FUNC(migratable)
 {
-    void * mem = ALIGN_DOWN(obj);
-    size_t memsize = ALIGN_UP(obj + size) - mem;
+    struct shim_mem_entry * mem_entry;
 
-    ADD_FUNC_ENTRY(obj);
+    DO_CP_SIZE(memory, &__migratable, &__migratable_end - &__migratable,
+               &mem_entry);
 
-    if (store->use_gipc)
-        DO_MIGRATE_SIZE(gipc, mem, memsize, NULL, false);
-    else
-        DO_MIGRATE_SIZE(memory, mem, memsize, NULL, false);
+    struct shim_cp_entry * entry = ADD_CP_FUNC_ENTRY(0);
+    mem_entry->paddr = (void **) &entry->cp_un.cp_val;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(migratable)
 
-RESUME_FUNC_BODY(environ)
+BEGIN_RS_FUNC(migratable)
 {
-    initial_envp = (const char **) GET_FUNC_ENTRY() ? : initial_envp;
+    void * data = (void *) GET_CP_FUNC_ENTRY();
+    CP_REBASE(data);
+    memcpy(&__migratable, data, &__migratable_end - &__migratable);
 }
-END_RESUME_FUNC
+END_RS_FUNC(migratable)
 
-DEFINE_MIGRATE_FUNC(qstr)
+BEGIN_CP_FUNC(environ)
+{
+    const char ** e, ** envp = (void *) obj;
+    int nenvp = 0;
+    int envp_bytes = 0;
 
-MIGRATE_FUNC_BODY(qstr)
+    for (e = envp ; *e ; e++) {
+        nenvp++;
+        envp_bytes += strlen(*e) + 1;
+    }
+
+    ptr_t off = ADD_CP_OFFSET(sizeof(char *) * (nenvp + 1) + envp_bytes);
+    const char ** new_envp = (void *) base + off;
+    char * ptr = (void *) base + off + sizeof(char *) * (nenvp + 1);
+
+    for (int i = 0 ; i < nenvp ; i++) {
+        int len = strlen(envp[i]);
+        new_envp[i] = ptr;
+        memcpy(ptr, envp[i], len + 1);
+        ptr += len + 1;
+    }
+
+    new_envp[nenvp] = NULL;
+    ADD_CP_FUNC_ENTRY(off);
+}
+END_CP_FUNC(environ)
+
+BEGIN_RS_FUNC(environ)
+{
+    const char ** envp = (void *) base + GET_CP_FUNC_ENTRY();
+    const char ** e;
+
+    for (e = envp ; *e ; e++) {
+        CP_REBASE(*e);
+        DEBUG_RS("%s", *e);
+    }
+
+    initial_envp = envp;
+}
+END_RS_FUNC(environ)
+
+BEGIN_CP_FUNC(qstr)
 {
     struct shim_qstr * qstr = (struct shim_qstr *) obj;
 
     if (qstr->len < QSTR_SIZE) {
-        if (!dry && qstr->oflow) {
+        if (qstr->oflow) {
             memcpy(qstr->name, qstr->oflow, qstr->len + 1);
             qstr->oflow = NULL;
         }
     } else {
-        unsigned long off = ADD_OFFSET(sizeof(struct shim_str));
-        ADD_FUNC_ENTRY(qstr - base);
-
-        if (!dry) {
-            struct shim_str * str = (struct shim_str *) (base + off);
-            memcpy(str, qstr->oflow, qstr->len + 1);
-            qstr->oflow = str;
-        }
+        struct shim_str * str =
+            (void *) (base + ADD_CP_OFFSET(qstr->len + 1));
+        memcpy(str, qstr->oflow, qstr->len + 1);
+        qstr->oflow = str;
+        ADD_CP_FUNC_ENTRY((ptr_t) qstr - base);
     }
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(qstr)
 
-RESUME_FUNC_BODY(qstr)
+BEGIN_RS_FUNC(qstr)
 {
-    struct shim_qstr * qstr = (struct shim_qstr *) (base + GET_FUNC_ENTRY());
-    assert(qstr->oflow);
-    RESUME_REBASE(qstr->oflow);
+    struct shim_qstr * qstr = (void *) (base + GET_CP_FUNC_ENTRY());
+    CP_REBASE(qstr->oflow);
 }
-END_RESUME_FUNC
+END_RS_FUNC(qstr)
 
-DEFINE_MIGRATE_FUNC(gipc)
-
-MIGRATE_FUNC_BODY(gipc)
+BEGIN_CP_FUNC(gipc)
 {
+    ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_gipc_entry));
+
     void * send_addr = (void *) ALIGN_DOWN(obj);
     size_t send_size = (void *) ALIGN_UP(obj + size) - send_addr;
 
-    unsigned long off = ADD_OFFSET(sizeof(struct shim_gipc_entry));
-    ADD_FUNC_ENTRY(off);
+    struct shim_gipc_entry * entry = (void *) (base + off);
 
-    if (!dry) {
-        struct shim_gipc_entry * entry = (void *) (base + off);
-        entry->addr_type = ABS_ADDR;
-        entry->addr   = send_addr;
-        entry->npages = send_size / allocsize;
-        entry->prot   = PROT_READ|PROT_WRITE;
-        entry->vma    = NULL;
-        entry->next   = NULL;
+    entry->mem.addr = send_addr;
+    entry->mem.size = send_size;
+    entry->mem.prot = PAL_PROT_READ|PAL_PROT_WRITE;
+    entry->mem.prev = (void *) store->last_gipc_entry;
+    store->last_gipc_entry = entry;
+    store->gipc_nentries++;
 
 #if HASH_GIPC == 1
-        struct md5_ctx ctx;
-        md5_init(&ctx);
-        md5_update(&ctx, send_addr, allocsize);
-        md5_final(&ctx);
-        entry->first_hash = *(unsigned long *) ctx.digest;
+    struct md5_ctx ctx;
+    md5_init(&ctx);
+    md5_update(&ctx, send_addr, allocsize);
+    md5_final(&ctx);
+    entry->first_hash = *(unsigned long *) ctx.digest;
 #endif /* HASH_GIPC == 1 */
 
-        if (!store->gipc_entries)
-            store->gipc_entries = entry;
-        if (store->gipc_entries_tail)
-            store->gipc_entries_tail->next = entry;
-        store->gipc_entries_tail = entry;
-        store->gipc_nentries++;
+    ADD_CP_FUNC_ENTRY(off);
 
-        if (objp)
-            *objp = entry;
-    }
+    if (objp)
+        *objp = entry;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(gipc)
 
-RESUME_FUNC_BODY(gipc)
+BEGIN_RS_FUNC(gipc)
 {
-    unsigned long off = GET_FUNC_ENTRY();
-    struct shim_gipc_entry * entry =
-                (struct shim_gipc_entry *) (base + off);
-
-    RESUME_REBASE(entry->vma);
-
 #if HASH_GIPC == 1
+    struct shim_gipc_entry * entry = (void *) (base + GET_CP_FUNC_ENTRY());
+
     PAL_FLG pal_prot = PAL_PROT(entry->prot, 0);
     if (!(pal_prot & PROT_READ))
         DkVirtualMemoryProtect(entry->addr, entry->npages * allocsize,
@@ -433,44 +363,66 @@ RESUME_FUNC_BODY(gipc)
                                pal_prot);
 #endif /* HASH_GIPC == 1 */
 }
-END_RESUME_FUNC
+END_RS_FUNC(gipc)
 
-int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
-                             struct shim_cp_store * cpstore)
+static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
+                                    struct shim_cp_store * store)
 {
-    PAL_PTR hdr_addr = cpstore->cpaddr;
-    PAL_NUM hdr_size = ALIGN_UP(cpstore->cpsize);
+    PAL_PTR hdr_addr = (PAL_PTR) store->base;
+    PAL_NUM hdr_size = (PAL_NUM) store->offset + store->mem_size;
     assert(ALIGNED(hdr_addr));
 
+    int mem_nentries = store->mem_nentries;
+
+    if (mem_nentries) {
+        struct shim_mem_entry ** mem_entries =
+                    __alloca(sizeof(struct shim_mem_entry *) * mem_nentries);
+        int mem_cnt = mem_nentries;
+        struct shim_mem_entry * mem_ent = store->last_mem_entry;
+
+        for (; mem_ent ; mem_ent = mem_ent->prev) {
+            if (!mem_cnt)
+                return -EINVAL;
+            mem_entries[--mem_cnt] = mem_ent;
+        }
+
+        mem_entries  += mem_cnt;
+        mem_nentries -= mem_cnt;
+
+        for (int i = 0 ; i < mem_nentries ; i++) {
+            void * mem_addr = (void *) store->base +
+                              __ADD_CP_OFFSET(mem_entries[i]->size);
+
+            assert(store->offset <= hdr_size);
+            memcpy(mem_addr, mem_entries[i]->addr, mem_entries[i]->size);
+            mem_entries[i]->data = mem_addr;
+        }
+    }
+
+    hdr_size = ALIGN_UP(hdr_size);
     int npages = DkPhysicalMemoryCommit(gipc_store, 1, &hdr_addr, &hdr_size, 0);
     if (!npages)
         return -EPERM;
 
-    int nentries = cpstore->gipc_nentries;
+    int nentries = store->gipc_nentries;
     PAL_PTR * gipc_addrs = __alloca(sizeof(PAL_BUF) * nentries);
     PAL_NUM * gipc_sizes = __alloca(sizeof(PAL_NUM) * nentries);
     int total_pages = 0;
-    int cnt = 0;
-    struct shim_gipc_entry * ent = cpstore->gipc_entries;
+    int cnt = nentries;
+    struct shim_gipc_entry * ent = store->last_gipc_entry;
 
-    for ( ; ent ; ent = ent->next, cnt++) {
-        switch(ent->addr_type) {
-            case ABS_ADDR:
-            case ANY_ADDR:
-                gipc_addrs[cnt] = ent->addr;
-                break;
-            case REL_ADDR:
-                gipc_addrs[cnt] = (void *) &__load_address + (unsigned long) ent->addr;
-                break;
-        }
-        gipc_sizes[cnt] = allocsize * ent->npages;
-        total_pages += ent->npages;
-#if 0
-        debug("gipc bulk send for %p - %p (%d pages)\n",
-              gipc_addrs[cnt], gipc_addrs[cnt] + gipc_sizes[cnt], ent->npages);
-#endif
-
+    for (; ent ; ent = (void *) ent->mem.prev) {
+        if (!cnt)
+            return -EINVAL;
+        cnt--;
+        gipc_addrs[cnt] = ent->mem.addr;
+        gipc_sizes[cnt] = ent->mem.size;
+        total_pages += ent->mem.size / allocsize;
     }
+
+    gipc_addrs += cnt;
+    gipc_sizes += cnt;
+    nentries   -= cnt;
 
     /* Chia-Che: sending an empty page can't ever be a smart idea.
        we might rather fail here */
@@ -483,118 +435,191 @@ int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
         return -ENOMEM;
     }
 
+    ADD_PROFILE_OCCURENCE(migrate_send_gipc_pages, npages);
     return 0;
 }
 
-int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, void * cpdata,
-                  long cprebase)
+static int send_checkpoint_on_stream (PAL_HANDLE stream,
+                                      struct shim_cp_store * store)
 {
-    struct shim_gipc_entry * gipc_entries =
-                (void *) (cpdata + hdr->gipc_entoffset);
-    int nentries = hdr->gipc_nentries;
+    int mem_nentries = store->mem_nentries;
+    struct shim_mem_entry ** mem_entries;
+
+    if (mem_nentries) {
+        mem_entries = __alloca(sizeof(struct shim_mem_entry *) * mem_nentries);
+        int mem_cnt = mem_nentries;
+        struct shim_mem_entry * mem_ent = store->last_mem_entry;
+
+        for (; mem_ent ; mem_ent = mem_ent->prev) {
+            if (!mem_cnt)
+                return -EINVAL;
+            mem_entries[--mem_cnt] = mem_ent;
+        }
+
+        void * mem_addr = (void *) store->base + store->offset;
+        mem_entries  += mem_cnt;
+        mem_nentries -= mem_cnt;
+
+        for (int i = 0 ; i < mem_nentries ; i++) {
+            int mem_size = mem_entries[i]->size;
+            mem_entries[i]->data = mem_addr;
+            mem_addr += mem_size;
+        }
+    }
+
+    int total_bytes = store->offset;
+    int bytes = 0;
+
+    do {
+        int ret = DkStreamWrite(stream, 0, total_bytes - bytes,
+                                (void *) store->base + bytes, NULL);
+
+        if (!ret)
+            return -PAL_ERRNO;
+
+        bytes += ret;
+    } while (bytes < total_bytes);
+
+    ADD_PROFILE_OCCURENCE(migrate_send_on_stream, total_bytes);
+
+    for (int i = 0 ; i < mem_nentries ; i++) {
+        int mem_size = mem_entries[i]->size;
+        void * mem_addr = mem_entries[i]->addr;
+        bytes = 0;
+        do {
+            int ret = DkStreamWrite(stream, 0, mem_size - bytes,
+                                    mem_addr + bytes, NULL);
+            if (!ret)
+                return -PAL_ERRNO;
+
+            bytes += ret;
+        } while (bytes < mem_entries[i]->size);
+
+        mem_entries[i]->size = mem_size;
+        ADD_PROFILE_OCCURENCE(migrate_send_on_stream, mem_size);
+    }
+
+    return 0;
+ }
+
+
+static int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, ptr_t base,
+                         long rebase)
+{
+    struct shim_gipc_entry * gipc_entries = (void *) (base + hdr->entoffset);
+    int nentries = hdr->nentries;
 
     if (!nentries)
         return 0;
 
     debug("restore memory by gipc: %d entries\n", nentries);
 
+    struct shim_gipc_entry ** entries =
+            __alloca(sizeof(struct shim_gipc_entry *) * nentries);
+
+    struct shim_gipc_entry * entry = gipc_entries;
+    int cnt = nentries;
+
+    while (entry) {
+        CP_REBASE(entry->mem.prev);
+        CP_REBASE(entry->mem.paddr);
+        if (!cnt)
+            return -EINVAL;
+        entries[--cnt] = entry;
+        entry = (void *) entry->mem.prev;
+    }
+
+    entries  += cnt;
+    nentries -= cnt;
     PAL_PTR * addrs = __alloca(sizeof(PAL_PTR) * nentries);
     PAL_NUM * sizes = __alloca(sizeof(PAL_NUM) * nentries);
     PAL_FLG * prots = __alloca(sizeof(PAL_FLG) * nentries);
 
-    struct shim_gipc_entry * ent = gipc_entries;
-    unsigned long total_pages = 0;
-
-    while (ent) {
-        RESUME_REBASE(ent->next);
-        ent = ent->next;
+    for (int i = 0 ; i < nentries ; i++) {
+        addrs[i] = entries[i]->mem.paddr ? NULL : (PAL_PTR) entries[i]->mem.addr;
+        sizes[i] = entries[i]->mem.size;
+        prots[i] = entries[i]->mem.prot;
     }
 
-    ent = gipc_entries;
-    for (int i = 0 ; i < nentries && ent ; i++) {
-        switch(ent->addr_type) {
-            case ABS_ADDR:
-                addrs[i] = ent->addr;
-                break;
-            case REL_ADDR:
-                addrs[i] = (void *) &__load_address + (unsigned long) ent->addr;
-                break;
-            case ANY_ADDR:
-                addrs[i] = NULL;
-                break;
-        }
-        sizes[i] = allocsize * ent->npages;
-        prots[i] = ent->prot;
-        total_pages += ent->npages;
-#if 0
-        debug("gipc bulk copy for %p - %p (%d pages)\n", addrs[i],
-              addrs[i] + sizes[i], ent->npages);
-#endif
-        ent = ent->next;
-    }
-
-    int received_pages = DkPhysicalMemoryMap(gipc, nentries, addrs, sizes,
-                                             prots);
-    if (!received_pages)
+    if (!DkPhysicalMemoryMap(gipc, nentries, addrs, sizes, prots))
         return -PAL_ERRNO;
 
-    ent = gipc_entries;
-    for (int i = 0 ; i < nentries && ent ; i++) {
-        int npages = ent->npages < received_pages ? ent->npages :
-                     received_pages;
-        received_pages -= npages;
-
-        if (ent->vma) {
-            struct shim_vma * vma = ent->vma;
-            RESUME_REBASE(vma);
-            vma->received = ent->addr + npages * allocsize - vma->addr;
-        }
-
-        ent = ent->next;
-    }
+    for (int i = 0 ; i < nentries ; i++)
+        if (entries[i]->mem.paddr)
+            *(void **) entries[i]->mem.paddr = (void *) addrs[i];
 
     return 0;
 }
 
-int restore_checkpoint (void * cpaddr, struct cp_header * cphdr, int type)
+int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
+                        ptr_t base, int type)
 {
-    struct shim_cp_entry * cpent =
-                (struct shim_cp_entry *) (cpaddr + cphdr->cpoffset);
-    ptr_t cpbase = (ptr_t) (cpaddr + cphdr->cpoffset);
-    size_t cplen = cphdr->cpsize;
-    long cprebase = cpaddr - cphdr->cpaddr;
+    ptr_t cpoffset = cphdr->offset;
+    ptr_t * offset = &cpoffset;
+    long rebase = base - (ptr_t) cphdr->addr;
     int ret = 0;
 
     if (type)
-        debug("start restoring checkpoint loaded at %p, rebase = %lld "
-              "(%s only)\n",
-              cpaddr, cprebase, CP_FUNC_NAME(type));
+        debug("restore checkpoint at %p rebased from %p (%s only)\n",
+              base, cphdr->addr, CP_FUNC_NAME(type));
     else
-        debug("start restoring checkpoint loaded at %p, rebase = %lld\n",
-              cpaddr, cprebase);
+        debug("restore checkpoint at %p rebased from %p\n",
+              base, cphdr->addr);
 
-    while (cpent->cp_type != CP_NULL) {
-        if (cpent->cp_type < CP_FUNC_BASE || (type && cpent->cp_type != type)) {
-            cpent++;
-            continue;
+    if (memhdr && memhdr->nentries) {
+        struct shim_mem_entry * entry =
+                    (void *) (base + memhdr->entoffset);
+
+        for (; entry ; entry = entry->prev) {
+            CP_REBASE(entry->prev);
+            CP_REBASE(entry->paddr);
+
+            if (entry->paddr) {
+                *entry->paddr = entry->data;
+            } else {
+                PAL_PTR addr = ALIGN_DOWN(entry->addr);
+                PAL_NUM size = ALIGN_UP(entry->addr + entry->size) -
+                               (void *) addr;
+                PAL_FLG prot = entry->prot;
+
+                if (!DkVirtualMemoryAlloc(addr, size, 0, prot|PAL_PROT_WRITE)) {
+                    debug("fail protecting %p-%p\n", addr, addr + size);
+                    return -PAL_ERRNO;
+                }
+
+                CP_REBASE(entry->data);
+                memcpy(entry->addr, entry->data, entry->size);
+
+                if (!(entry->prot & PAL_PROT_WRITE) &&
+                    !DkVirtualMemoryProtect(addr, size, prot)) {
+                    debug("fail protecting %p-%p\n", addr, addr + size);
+                    return -PAL_ERRNO;
+                }
+            }
         }
+    }
 
-        struct shim_cp_entry * ent = cpent;
-        resume_func resume =
-            (&__resume_func) [cpent->cp_type - CP_FUNC_BASE];
+    struct shim_cp_entry * cpent = NEXT_CP_ENTRY();
 
-        ret = (*resume) (&cpent, cpbase, cplen, cprebase);
-        if (ret < 0)
+    while (cpent) {
+        if (cpent->cp_type < CP_FUNC_BASE)
+            goto next;
+        if (type && cpent->cp_type != type)
+            goto next;
+
+        rs_func rs = (&__rs_func) [cpent->cp_type - CP_FUNC_BASE];
+        ret = (*rs) (cpent, base, offset, rebase);
+        if (ret < 0) {
+            debug("rs_%s failed at %p\n", CP_FUNC_NAME(cpent->cp_type),
+                  base + offset);
             return ret;
-
-        ent->cp_type = CP_IGNORE;
-
-        if (cpent == ent)
-            cpent++;
+        }
+next:
+        cpent = NEXT_CP_ENTRY();
     }
 
     debug("successfully restore checkpoint loaded at %p - %p\n",
-          cpaddr, cpaddr + cphdr->cpsize);
+          base, base + cphdr->size);
 
     return 0;
 }
@@ -683,45 +708,156 @@ int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
     if (ret < 0)
         goto out;
 
-    void * cpaddr = cphdr.cpaddr;
-    ret = fs->fs_ops->mmap(file, &cpaddr, ALIGN_UP(cphdr.cpsize),
+    void * cpaddr = cphdr.addr;
+    ret = fs->fs_ops->mmap(file, &cpaddr, ALIGN_UP(cphdr.size),
                            PROT_READ|PROT_WRITE,
                            MAP_PRIVATE|MAP_FILE, 0);
     if (ret < 0)
         goto out;
 
-    hdr->data = cphdr;
+    hdr->hdr = cphdr;
     *cpptr = cpaddr;
     migrated_memory_start = cpaddr;
-    migrated_memory_end = cpaddr + hdr->data.cpsize;
+    migrated_memory_end = cpaddr + hdr->hdr.size;
 out:
     close_handle(file);
     return ret;
 }
 
-int send_handles_on_stream (PAL_HANDLE stream, void * cpdata)
+int send_handles_on_stream (PAL_HANDLE stream, struct shim_cp_store * store)
 {
-    struct shim_cp_entry * cpent = cpdata;
+    int nentries = store->palhdl_nentries;
+    if (!nentries)
+        return 0;
 
-    for ( ; cpent->cp_type != CP_NULL ; cpent++)
-        if (cpent->cp_type == CP_PALHDL &&
-            cpent->cp_un.cp_val) {
-            PAL_HANDLE * pal_hdl = cpdata + cpent->cp_un.cp_val;
-            assert(*pal_hdl);
-            /* Chia-Che: If it fails, we can't handle it, the other side will
-               deal with it */
-            DkSendHandle(stream, *pal_hdl);
-            debug("handle %p sent\n", *pal_hdl);
-            *pal_hdl = NULL;
+    struct shim_palhdl_entry ** entries =
+            __alloca(sizeof(struct shim_palhdl_entry *) * nentries);
+
+    struct shim_palhdl_entry * entry = store->last_palhdl_entry;
+    int cnt = nentries;
+
+    for ( ; entry ; entry = entry->prev)
+        if (entry->handle) {
+            if (!cnt)
+                return -EINVAL;
+            entries[--cnt] = entry;
         }
+
+    entries  += cnt;
+    nentries -= cnt;
+
+    for (int i = 0 ; i < nentries ; i++)
+        if (!DkSendHandle(stream, entries[i]->handle))
+            entries[i]->handle = NULL;
 
     return 0;
 }
 
+int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
+                               long rebase)
+{
+    struct shim_palhdl_entry * palhdl_entries =
+                            (void *) (base + hdr->entoffset);
+    int nentries = hdr->nentries;
+
+    if (!nentries)
+        return 0;
+
+    debug("receive handles: %d entries\n", nentries);
+
+    struct shim_palhdl_entry ** entries =
+            __alloca(sizeof(struct shim_palhdl_entry *) * nentries);
+
+    struct shim_palhdl_entry * entry = palhdl_entries;
+    int cnt = nentries;
+
+    for ( ; entry ; entry = entry->prev) {
+        CP_REBASE(entry->prev);
+        CP_REBASE(entry->phandle);
+        if (!cnt)
+            return -EINVAL;
+        entries[--cnt] = entry;
+    }
+
+    entries  += cnt;
+    nentries -= cnt;
+
+    for (int i = 0 ; i < nentries ; i++) {
+        entry = entries[i];
+        if (entry->handle) {
+            PAL_HANDLE hdl = DkReceiveHandle(PAL_CB(parent_process));
+            if (hdl) {
+                *entry->phandle = hdl;
+                continue;
+            }
+        }
+    }
+
+    return 0;
+}
+
+#define NTRIES      4
+
+static void * cp_alloc (struct shim_cp_store * store, void * addr, int size)
+{
+    void * requested = addr;
+    struct shim_vma * vma;
+    int ret, n = 0;
+
+    if (!requested) {
+again:
+        if (n == NTRIES)
+            return NULL;
+        if (!(addr = get_unmapped_vma_for_cp(size)))
+            return NULL;
+    } else {
+        ret = lookup_overlap_vma(addr, size, &vma);
+
+        if (!ret) {
+            if (vma->addr != addr || vma->length != size ||
+                !(vma->flags & VMA_UNMAPPED)) {
+                put_vma(vma);
+                return NULL;
+            }
+        }
+    }
+
+    addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
+                                         PAL_PROT_READ|PAL_PROT_WRITE);
+
+    if (!addr) {
+        if (!requested)
+            goto again;
+        return NULL;
+    }
+
+    if (requested && addr != requested) {
+        DkVirtualMemoryFree(addr, size);
+        return NULL;
+    }
+
+    return addr;
+}
+
+DEFINE_PROFILE_CATAGORY(migrate_proc, migrate);
+DEFINE_PROFILE_INTERVAL(migrate_create_process,   migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_create_gipc,      migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_connect_ipc,      migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_init_checkpoint,  migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_save_checkpoint,  migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_send_header,      migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_send_checkpoint,  migrate_proc);
+DEFINE_PROFILE_OCCURENCE(migrate_send_on_stream,  migrate_proc);
+DEFINE_PROFILE_OCCURENCE(migrate_send_gipc_pages, migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_send_pal_handles, migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_free_checkpoint,  migrate_proc);
+DEFINE_PROFILE_INTERVAL(migrate_wait_response,    migrate_proc);
+
 int do_migrate_process (int (*migrate) (struct shim_cp_store *,
-                                        struct shim_process *,
-                                        struct shim_thread *, va_list),
-                        struct shim_handle * exec, const char ** argv,
+                                        struct shim_thread *,
+                                        struct shim_process *, va_list),
+                        struct shim_handle * exec,
+                        const char ** argv,
                         struct shim_thread * thread, ...)
 {
     int ret = 0;
@@ -729,11 +865,13 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     struct newproc_header hdr;
     struct shim_cp_store * cpstore = NULL;
     int bytes;
+    memset(&hdr, 0, sizeof(hdr));
 
 #ifdef PROFILE
     unsigned long begin_create_time = GET_PROFILE_INTERVAL();
     unsigned long create_time = begin_create_time;
 #endif
+    BEGIN_PROFILE_INTERVAL();
 
     PAL_HANDLE proc = DkProcessCreate(exec ? qstrgetstr(&exec->uri) : NULL,
                                       0, argv);
@@ -743,18 +881,22 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto err;
     }
 
+    SAVE_PROFILE_INTERVAL(migrate_create_process);
+
+    bool use_gipc = false;
     PAL_NUM gipc_key;
     PAL_HANDLE gipc_hdl = DkCreatePhysicalMemoryChannel(&gipc_key);
 
-    if (!gipc_hdl)
+    if (gipc_hdl) {
+        debug("created gipc store: gipc:%lu\n", gipc_key);
+        use_gipc = true;
+        SAVE_PROFILE_INTERVAL(migrate_create_gipc);
+    } else {
         sys_printf("WARNING: no physical memory support, process creation "
                    "will be slow.\n");
+    }
 
-    debug("created gipc store: gipc:%lu\n", gipc_key);
-
-    new_process = create_new_process(true);
-
-    if (!new_process) {
+    if (!(new_process = create_new_process(true))) {
         ret = -ENOMEM;
         goto err;
     }
@@ -764,35 +906,71 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto err;
     }
 
+    SAVE_PROFILE_INTERVAL(migrate_connect_ipc);
+
     cpstore = __alloca(sizeof(struct shim_cp_store));
-    INIT_CP_STORE(cpstore);
-    cpstore->use_gipc = (!!gipc_hdl);
+    memset(cpstore, 0, sizeof(struct shim_cp_store));
+    cpstore->alloc    = cp_alloc;
+    cpstore->use_gipc = use_gipc;
+    cpstore->bound    = CP_INIT_VMA_SIZE;
+
+    while (1) {
+        cpstore->base = (ptr_t) cp_alloc(cpstore, 0, cpstore->bound);
+        if (cpstore->base)
+            break;
+        cpstore->bound >>= 1;
+        if (cpstore->bound < allocsize)
+            break;
+    }
+
+    if (!cpstore->base) {
+        ret = -ENOMEM;
+        goto err;
+    }
+
+    SAVE_PROFILE_INTERVAL(migrate_init_checkpoint);
+
     va_list ap;
     va_start(ap, thread);
-    ret = migrate(cpstore, new_process, thread, ap);
+    ret = (*migrate) (cpstore, thread, new_process, ap);
     va_end(ap);
     if (ret < 0)
         goto err;
 
+    SAVE_PROFILE_INTERVAL(migrate_save_checkpoint);
+
     unsigned long checkpoint_time = GET_PROFILE_INTERVAL();
+    unsigned long checkpoint_size = cpstore->offset + cpstore->mem_size;
 
     debug("checkpoint of %u bytes created, %lu microsecond is spent.\n",
-         cpstore->cpsize, checkpoint_time);
+          checkpoint_size, checkpoint_time);
 
-    hdr.checkpoint.data.cpsize = cpstore->cpsize;
-    hdr.checkpoint.data.cpaddr = cpstore->cpaddr;
-    hdr.checkpoint.data.cpoffset = cpstore->cpdata - cpstore->cpaddr;
-    if (gipc_hdl) {
-        hdr.checkpoint.gipc.gipc_key = gipc_key;
-        hdr.checkpoint.gipc.gipc_entoffset = cpstore->gipc_entries ?
-                           (void *) cpstore->gipc_entries - cpstore->cpaddr : 0;
-        hdr.checkpoint.gipc.gipc_nentries  = cpstore->gipc_nentries;
-    } else {
-        hdr.checkpoint.gipc.gipc_key = 0;
-        hdr.checkpoint.gipc.gipc_entoffset = 0;
-        hdr.checkpoint.gipc.gipc_nentries  = 0;
+    hdr.checkpoint.hdr.addr = (void *) cpstore->base;
+    hdr.checkpoint.hdr.size = checkpoint_size;
+
+    if (cpstore->mem_nentries) {
+        hdr.checkpoint.mem.entoffset =
+                    (ptr_t) cpstore->last_mem_entry - cpstore->base;
+        hdr.checkpoint.mem.nentries  = cpstore->mem_nentries;
     }
-    hdr.failure = 0;
+
+    if (cpstore->use_gipc) {
+        snprintf(hdr.checkpoint.gipc.uri, sizeof(hdr.checkpoint.gipc.uri),
+                 "gipc:%lld", gipc_key);
+
+        if (cpstore->gipc_nentries) {
+            hdr.checkpoint.gipc.entoffset =
+                        (ptr_t) cpstore->last_gipc_entry - cpstore->base;
+            hdr.checkpoint.gipc.nentries  = cpstore->gipc_nentries;
+        }
+    }
+
+    if (cpstore->palhdl_nentries) {
+        hdr.checkpoint.palhdl.entoffset =
+                    (ptr_t) cpstore->last_palhdl_entry - cpstore->base;
+        hdr.checkpoint.palhdl.nentries  = cpstore->palhdl_nentries;
+    }
+
 #ifdef PROFILE
     hdr.begin_create_time  = begin_create_time;
     hdr.create_time = create_time;
@@ -800,24 +978,32 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 #endif
 
     bytes = DkStreamWrite(proc, 0, sizeof(struct newproc_header), &hdr, NULL);
-    if (bytes == 0) {
+    if (!bytes) {
         ret = -PAL_ERRNO;
         goto err;
-    }
-
-    if (gipc_hdl) {
-        if ((ret = send_checkpoint_by_gipc(gipc_hdl, cpstore)) < 0)
-            goto err;
-    } else {
-        ret = DkStreamWrite(proc, 0, cpstore->cpsize, cpstore->cpdata, NULL);
-        if (ret < cpstore->cpsize) {
-            ret = -PAL_ERRNO;
-            goto err;
-        }
-    }
-
-    if ((ret = send_handles_on_stream(proc, cpstore->cpdata)) < 0)
+    } else if (bytes < sizeof(struct newproc_header)) {
+        ret = -EACCES;
         goto err;
+    }
+
+    ADD_PROFILE_OCCURENCE(migrate_send_on_stream, bytes);
+    SAVE_PROFILE_INTERVAL(migrate_send_header);
+
+    ret = cpstore->use_gipc ? send_checkpoint_by_gipc(gipc_hdl, cpstore) :
+          send_checkpoint_on_stream(proc, cpstore);
+
+    if (ret < 0)
+        goto err;
+
+    SAVE_PROFILE_INTERVAL(migrate_send_checkpoint);
+
+    if ((ret = send_handles_on_stream(proc, cpstore)) < 0)
+        goto err;
+
+    SAVE_PROFILE_INTERVAL(migrate_send_pal_handles);
+
+    system_free((void *) cpstore->base, cpstore->bound);
+    SAVE_PROFILE_INTERVAL(migrate_free_checkpoint);
 
     struct newproc_response res;
     bytes = DkStreamRead(proc, 0, sizeof(struct newproc_response), &res,
@@ -827,14 +1013,14 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         goto err;
     }
 
+    SAVE_PROFILE_INTERVAL(migrate_wait_response);
+
     if (gipc_hdl)
         DkObjectClose(gipc_hdl);
 
     ipc_pid_sublease_send(res.child_vmid, thread->tid,
                           qstrgetstr(&new_process->self->uri),
                           NULL);
-
-    system_free(cpstore->cpaddr, cpstore->cpsize);
 
     add_ipc_port_by_id(res.child_vmid, proc,
                        IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
@@ -855,80 +1041,70 @@ err:
     return ret;
 }
 
-DEFINE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc, resume);
-DEFINE_PROFILE_INTERVAL(child_load_memory_by_gipc,     resume);
-DEFINE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe, resume);
-DEFINE_PROFILE_INTERVAL(child_receive_handles,         resume);
-
 int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 {
-    void *        cpaddr = hdr->data.cpaddr;
-    unsigned long cpsize = hdr->data.cpsize;
+    ptr_t base = (ptr_t) hdr->hdr.addr;
+    int   size = hdr->hdr.size;
     PAL_PTR mapaddr;
     PAL_NUM mapsize;
     unsigned long mapoff;
+    long rebase;
+    bool use_gipc = !!hdr->gipc.uri[0];
+    PAL_HANDLE gipc_store;
     int ret = 0;
 
     debug("checkpoint detected (%d bytes, expected at %p)\n",
-          cpsize, cpaddr);
+          size, base);
 
-    if (cpaddr &&
-        !lookup_overlap_vma(cpaddr, cpsize, NULL)) {
-        mapaddr = (PAL_PTR) ALIGN_DOWN(cpaddr);
-        mapsize = (PAL_PTR) ALIGN_UP(cpaddr + cpsize) - mapaddr;
-        mapoff  = cpaddr - (void *) mapaddr;
+    if (base && !lookup_overlap_vma((void *) base, size, NULL)) {
+        mapaddr = (PAL_PTR) ALIGN_DOWN(base);
+        mapsize = (PAL_PTR) ALIGN_UP(base + size) - mapaddr;
+        mapoff  = base - (ptr_t) mapaddr;
     } else {
         mapaddr = (PAL_PTR) 0;
-        mapsize = ALIGN_UP(cpsize);
+        mapsize = ALIGN_UP(size);
         mapoff  = 0;
     }
 
     BEGIN_PROFILE_INTERVAL();
 
-    if (hdr->gipc.gipc_key) {
-        char gipc_uri[20];
-        snprintf(gipc_uri, 20, "gipc:%lu", hdr->gipc.gipc_key);
-        debug("open gipc store: %s\n", gipc_uri);
+    if (use_gipc) {
+        debug("open gipc store: %s\n", hdr->gipc.uri);
 
         PAL_FLG mapprot = PAL_PROT_READ|PAL_PROT_WRITE;
-        PAL_HANDLE gipc_store = DkStreamOpen(gipc_uri, 0, 0, 0, 0);
+        gipc_store = DkStreamOpen(hdr->gipc.uri, 0, 0, 0, 0);
         if (!gipc_store ||
-            !DkPhysicalMemoryMap(gipc_store, 1, &mapaddr, &mapsize,
-                                 &mapprot))
+            !DkPhysicalMemoryMap(gipc_store, 1, &mapaddr, &mapsize, &mapprot))
             return -PAL_ERRNO;
 
-        debug("checkpoint loaded at %p\n", cpaddr);
-
-        bkeep_mmap((void *) mapaddr, mapsize,
-                   PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-                   NULL, 0, NULL);
-
         SAVE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc);
-
-        cpaddr = (void *) mapaddr + mapoff;
-        if ((ret = restore_gipc(gipc_store, &hdr->gipc, (void *) cpaddr,
-                                (long) cpaddr - (long) hdr->data.cpaddr)) < 0)
-            return ret;
-
-        SAVE_PROFILE_INTERVAL(child_load_memory_by_gipc);
-
-        DkStreamDelete(gipc_store, 0);
     } else {
         if (!(mapaddr = DkVirtualMemoryAlloc(mapaddr, mapsize, 0,
                                              PAL_PROT_READ|PAL_PROT_WRITE)))
             return -PAL_ERRNO;
+    }
 
-        bkeep_mmap((void *) mapaddr, mapsize,
-                   PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-                   NULL, 0, NULL);
+    bkeep_mmap((void *) mapaddr, mapsize,
+               PROT_READ|PROT_WRITE,
+               MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
+               NULL, 0, NULL);
 
-        cpaddr = (void *) mapaddr + mapoff;
-        for (int total_bytes = 0 ; total_bytes < cpsize ; ) {
+    base = (ptr_t) mapaddr + mapoff;
+    rebase = (long) base - (long) hdr->hdr.addr;
+    debug("checkpoint loaded at %p\n", base);
+
+    if (use_gipc) {
+        if ((ret = restore_gipc(gipc_store, &hdr->gipc, base, rebase)) < 0)
+            return ret;
+
+        SAVE_PROFILE_INTERVAL(child_load_memory_by_gipc);
+        DkStreamDelete(gipc_store, 0);
+    } else {
+        int total_bytes = 0;
+        while (total_bytes < size) {
             int bytes = DkStreamRead(PAL_CB(parent_process), 0,
-                                     cpsize - total_bytes,
-                                     (void *) cpaddr + total_bytes, NULL, 0);
+                                     size - total_bytes,
+                                     (void *) base + total_bytes, NULL, 0);
 
             if (!bytes)
                 return -PAL_ERRNO;
@@ -936,9 +1112,8 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
             total_bytes += bytes;
         }
 
-        debug("checkpoint loaded at %p\n", cpaddr);
-
         SAVE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe);
+        debug("%d bytes read on stream\n", total_bytes);
     }
 
     struct newproc_response res;
@@ -950,27 +1125,14 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     if (!bytes)
         return -PAL_ERRNO;
 
-    void * cpdata = (void *) cpaddr + hdr->data.cpoffset;
-    struct shim_cp_entry * cpent;
-    unsigned long nreceived __attribute__((unused)) = 0;
-
-    for (cpent = cpdata ; cpent->cp_type != CP_NULL ; cpent++)
-        if (cpent->cp_type == CP_PALHDL &&
-            cpent->cp_un.cp_val) {
-            PAL_HANDLE hdl = DkReceiveHandle(PAL_CB(parent_process));
-            if (hdl) {
-                nreceived++;
-                *((PAL_HANDLE *) (cpdata + cpent->cp_un.cp_val)) = hdl;
-            }
-        }
+    if ((ret = receive_handles_on_stream(&hdr->palhdl, base, rebase)) < 0)
+        return ret;
 
     SAVE_PROFILE_INTERVAL(child_receive_handles);
 
-    debug("received %ld handles\n", nreceived);
-
-    migrated_memory_start = (void *) cpaddr;
-    migrated_memory_end = (void *) cpaddr + hdr->data.cpsize;
-    *cpptr = (void *) cpdata;
+    migrated_memory_start = (void *) mapaddr;
+    migrated_memory_end = (void *) mapaddr + mapsize;
+    *cpptr = (void *) base;
     return 0;
 }
 

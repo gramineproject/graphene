@@ -329,7 +329,7 @@ int shim_do_munmap (void * addr, size_t len);
 void * shim_do_brk (void * brk);
 int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
                        struct __kernel_sigaction * oldact);
-int shim_do_sigprocmask (int how, const sigset_t * set, sigset_t * oldset);
+int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset);
 int shim_do_sigreturn (int __unused);
 int shim_do_ioctl (int fd, int cmd, unsigned long arg);
 size_t shim_do_pread64 (int fd, char * buf, size_t count, loff_t pos);
@@ -429,7 +429,7 @@ int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim);
 int shim_do_chroot (const char * filename);
 pid_t shim_do_gettid (void);
 int shim_do_tkill (int pid, int sig);
-int shim_do_time (time_t * tloc);
+time_t shim_do_time (time_t * tloc);
 int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                    unsigned int * uaddr2, int val3);
 int shim_do_set_tid_address (int * tidptr);
@@ -454,14 +454,14 @@ int shim_do_fchmodat (int dfd, const char * filename, mode_t mode);
 int shim_do_faccessat (int dfd, const char * filename, mode_t mode);
 int shim_do_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
                       fd_set * exceptfds, const struct __kernel_timespec * tsp,
-                      const sigset_t * sigmask);
+                      const __sigset_t * sigmask);
 int shim_do_ppoll (struct pollfd * fds, int nfds, struct timespec * tsp,
-                   const sigset_t * sigmask, size_t sigsetsize);
+                   const __sigset_t * sigmask, size_t sigsetsize);
 int shim_do_set_robust_list (struct robust_list_head * head, size_t len);
 int shim_do_get_robust_list (pid_t pid, struct robust_list_head ** head,
                              size_t * len);
 int shim_do_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
-                         int maxevents, int timeout, const sigset_t * sigmask,
+                         int maxevents, int timeout, const __sigset_t * sigmask,
                          size_t sigsetsize);
 int shim_do_accept4 (int sockfd, struct sockaddr * addr, socklen_t * addrlen,
                      int flags);
@@ -496,7 +496,7 @@ int shim_munmap (void * addr, size_t len);
 void * shim_brk (void * brk);
 int shim_rt_sigaction (int signum, const struct __kernel_sigaction * act,
                        struct __kernel_sigaction * oldact);
-int shim_rt_sigprocmask (int how, const sigset_t * set, sigset_t * oldset);
+int shim_rt_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset);
 int shim_rt_sigreturn (int __unused);
 int shim_ioctl (int fd, int cmd, unsigned long arg);
 size_t shim_pread64 (int fd, char * buf, size_t count, loff_t pos);
@@ -619,17 +619,17 @@ int shim_setfsgid (gid_t gid);
 int shim_getsid (pid_t pid);
 int shim_capget (cap_user_header_t header, cap_user_data_t dataptr);
 int shim_capset (cap_user_header_t header, const cap_user_data_t data);
-int shim_rt_sigpending (sigset_t * set, size_t sigsetsize);
-int shim_rt_sigtimedwait (const sigset_t * uthese, siginfo_t * uinfo,
+int shim_rt_sigpending (__sigset_t * set, size_t sigsetsize);
+int shim_rt_sigtimedwait (const __sigset_t * uthese, siginfo_t * uinfo,
                           const struct timespec * uts, size_t sigsetsize);
 int shim_rt_sigqueueinfo (int pid, int sig, siginfo_t * uinfo);
-int shim_rt_sigsuspend (const sigset_t * mask);
+int shim_rt_sigsuspend (const __sigset_t * mask);
 int shim_sigaltstack (const stack_t * ss, stack_t * oss);
 int shim_utime (char * filename, struct utimbuf * times);
 int shim_mknod (const char * filename, int mode, unsigned dev);
 int shim_uselib (const char * library);
 int shim_personality (unsigned int personality);
-int shim_ustat (unsigned dev, struct ustat * ubuf);
+int shim_ustat (unsigned dev, struct __kernel_ustat * ubuf);
 int shim_statfs (const char * path, struct statfs * buf);
 int shim_fstatfs (int fd, struct statfs * buf);
 int shim_sysfs (int option, unsigned long arg1, unsigned long arg2);
@@ -696,7 +696,7 @@ int shim_removexattr (const char * path, const char * name);
 int shim_lremovexattr (const char * path, const char * name);
 int shim_fremovexattr (int fd, const char * name);
 int shim_tkill (int pid, int sig);
-int shim_time (time_t * tloc);
+time_t shim_time (time_t * tloc);
 int shim_futex (unsigned int * uaddr, int op, int val, void * utime,
                 unsigned int * uaddr2, int val3);
 int shim_sched_setaffinity (pid_t pid, size_t len,
@@ -790,9 +790,9 @@ int shim_fchmodat (int dfd, const char * filename, mode_t mode);
 int shim_faccessat (int dfd, const char * filename, int mode);
 int shim_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
                    fd_set * exceptfds, const struct __kernel_timespec * tsp,
-                   const sigset_t * sigmask);
+                   const __sigset_t * sigmask);
 int shim_ppoll (struct pollfd * fds, int nfds, struct timespec * tsp,
-                const sigset_t * sigmask, size_t sigsetsize);
+                const __sigset_t * sigmask, size_t sigsetsize);
 int shim_unshare (int unshare_flags);
 int shim_set_robust_list (struct robust_list_head * head, size_t len);
 int shim_get_robust_list (pid_t pid, struct robust_list_head ** head,
@@ -808,9 +808,9 @@ int shim_move_pages (pid_t pid, unsigned long nr_pages, void ** pages,
 int shim_utimensat (int dfd, const char * filename, struct timespec *
                     utimes, int flags);
 int shim_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
-                      int maxevents, int timeout, const sigset_t * sigmask,
+                      int maxevents, int timeout, const __sigset_t * sigmask,
                       size_t sigsetsize);
-int shim_signalfd (int ufd, sigset_t * user_mask, size_t sizemask);
+int shim_signalfd (int ufd, __sigset_t * user_mask, size_t sizemask);
 int shim_timerfd_create (int clockid, int flags);
 int shim_eventfd (int count);
 int shim_fallocate (int fd, int mode, loff_t offset, loff_t len);
@@ -820,7 +820,7 @@ int shim_timerfd_settime (int ufd, int flags,
 int shim_timerfd_gettime (int ufd, struct __kernel_itimerspec * otmr);
 int shim_accept4 (int sockfd, struct sockaddr * addr, socklen_t * addrlen,
                   int flags);
-int shim_signalfd4 (int ufd, sigset_t * user_mask, size_t sizemask, int flags);
+int shim_signalfd4 (int ufd, __sigset_t * user_mask, size_t sizemask, int flags);
 int shim_eventfd2 (int count, int flags);
 int shim_epoll_create1 (int flags);
 int shim_dup3 (int oldfd, int newfd, int flags);

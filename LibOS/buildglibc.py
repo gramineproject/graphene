@@ -26,9 +26,9 @@ def appendText(filename, text) :
 
 try:
     home = os.getcwd()
-    glibc = "glibc-2.17"
+    glibc = "glibc-2.19"
     glibcParent = "" # glibc parent directory
-    glibcDir = ""    # glibc dir (ex. glibc-2.17)
+    glibcDir = ""    # glibc dir (ex. glibc-2.19)
     buildDir = "build"
     installDir = "/usr/local/graphene"
     commandStr = ""

@@ -15,10 +15,11 @@
 ###############################################################################
 ID="@(#)multi.sh:3.4 -- 5/15/91 19:30:24";
 instance=1
-time for (( c=1; c<2; c++ )) do
-while [ $instance -le $1 ]; do
-	/bin/bash "./tst.sh" &
-	instance=`expr $instance + 1`
-done
-wait
+for (( c=1; c<2; c++ ))
+do
+	while [ $instance -le $1 ]; do
+		/bin/bash "./tst.sh" &
+		instance=`expr $instance + 1`
+	done
+	wait
 done

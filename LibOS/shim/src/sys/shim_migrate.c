@@ -30,37 +30,36 @@
 #include <shim_vma.h>
 #include <shim_fs.h>
 #include <shim_ipc.h>
+#include <shim_checkpoint.h>
 
 #include <pal.h>
 #include <pal_error.h>
 
 #include <errno.h>
-#include <fcntl.h>
+
+#include <linux/fcntl.h>
+
 #include <asm/mman.h>
 
-#define malloc_method(size)     malloc_method_file(size)
-#include <shim_checkpoint.h>
+LIST_HEAD(cp_sessions);
 
-LIST_HEAD(created_sessions);
-
-struct cpsession {
-    IDTYPE                  session;
+struct cp_session {
+    IDTYPE                  sid;
     struct shim_handle *    cpfile;
     struct list_head        registered_threads;
     struct list_head        list;
     PAL_HANDLE              finish_event;
+    struct shim_cp_store    cpstore;
 };
 
-struct cpthread {
+struct cp_thread {
     struct shim_thread *    thread;
     struct list_head        list;
 };
 
-static struct cpsession * current_cpsession = NULL;
-
-int create_checkpoint (const char * cpdir, IDTYPE * session)
+int create_checkpoint (const char * cpdir, IDTYPE * sid)
 {
-    struct cpsession * cpsession = malloc(sizeof(struct cpsession));
+    struct cp_session * cpsession = malloc(sizeof(struct cp_session));
     if (!cpsession)
         return -ENOMEM;
 
@@ -94,30 +93,27 @@ int create_checkpoint (const char * cpdir, IDTYPE * session)
         goto err;
 
     open_handle(cpsession->cpfile);
-
     master_lock();
 
-    if (*session) {
-        struct cpsession * cps;
-        list_for_each_entry(cps, &created_sessions, list)
-            if (cps->session == *session) {
+    struct cp_session * s;
+    if (*sid) {
+        list_for_each_entry(s, &cp_sessions, list)
+            if (s->sid == *sid) {
                 ret = 0;
                 goto err_locked;
             }
     } else {
-        struct cpsession * cps;
 retry:
-        getrand(session, sizeof(IDTYPE));
-        list_for_each_entry(cps, &created_sessions, list)
-            if (cps->session == *session)
+        getrand(&cpsession->sid, sizeof(IDTYPE));
+
+        list_for_each_entry(s, &cp_sessions, list)
+            if (s->sid == cpsession->sid)
                 goto retry;
+
+        *sid = cpsession->sid;
     }
 
-    list_add_tail(&cpsession->list, &created_sessions);
-
-    if (!current_cpsession)
-        current_cpsession = cpsession;
-
+    list_add_tail(&cpsession->list, &cp_sessions);
     master_unlock();
     return 0;
 
@@ -132,50 +128,58 @@ err:
     return ret;
 }
 
-static int finish_checkpoint (void);
+static int finish_checkpoint (struct cp_session * session);
 
 static int check_thread (struct shim_thread * thread, void * arg,
                          bool * unlocked)
 {
     struct list_head * registered = (struct list_head *) arg;
-    struct cpthread * cpt;
+    struct cp_thread * t;
 
     if (!thread->in_vm || !thread->is_alive)
         return 0;
 
-    list_for_each_entry(cpt, registered, list)
-        if (cpt->thread == thread)
+    list_for_each_entry(t, registered, list)
+        if (t->thread == thread)
             return 0;
 
     return 1;
 }
 
-int join_checkpoint (struct shim_thread * cur, ucontext_t * context)
+int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
+                     IDTYPE sid)
 {
-    struct cpthread cpt;
+    struct cp_session * s, * cpsession = NULL;
+    struct cp_thread cpthread;
     int ret = 0;
     bool do_checkpoint = false;
 
     master_lock();
 
-    if (!current_cpsession) {
+    list_for_each_entry(s, &cp_sessions, list)
+        if (s->sid == sid) {
+            cpsession = s;
+            break;
+        }
+
+    if (!cpsession) {
         master_unlock();
         return -EINVAL;
     }
 
-    INIT_LIST_HEAD(&cpt.list);
-    cpt.thread = cur;
-    list_add_tail(&cpt.list, &current_cpsession->registered_threads);
+    INIT_LIST_HEAD(&cpthread.list);
+    cpthread.thread = thread;
+    list_add_tail(&cpthread.list, &cpsession->registered_threads);
 
     /* find out if there is any thread that is not registered yet */
     ret = walk_thread_list(&check_thread,
-                           &current_cpsession->registered_threads,
+                           &cpsession->registered_threads,
                            false);
 
     if (ret == -ESRCH)
         do_checkpoint = true;
 
-    PAL_HANDLE finish_event = current_cpsession->finish_event;
+    PAL_HANDLE finish_event = cpsession->finish_event;
     master_unlock();
 
     if (!do_checkpoint) {
@@ -186,7 +190,7 @@ int join_checkpoint (struct shim_thread * cur, ucontext_t * context)
 
     debug("ready for checkpointing\n");
 
-    ret = finish_checkpoint();
+    ret = finish_checkpoint(cpsession);
     if (ret < 0)
         debug("failed creating checkpoint\n");
     else
@@ -196,99 +200,58 @@ int join_checkpoint (struct shim_thread * cur, ucontext_t * context)
     return ret;
 }
 
-void * malloc_method_file (size_t size)
+static void * file_alloc (struct shim_cp_store * store, void * addr, int size)
 {
-    struct shim_handle * cpfile;
-
-    master_lock();
-    if (!current_cpsession || !current_cpsession->cpfile) {
-        master_unlock();
-        return NULL;
-    }
-    cpfile = current_cpsession->cpfile;
-    get_handle(cpfile);
-    master_unlock();
-
-    struct shim_mount * fs = cpfile->fs;
+    assert(store->cp_file);
+    struct shim_mount * fs = store->cp_file->fs;
 
     if (!fs || !fs->fs_ops ||
         !fs->fs_ops->truncate || !fs->fs_ops->mmap)
         return NULL;
 
-    if (fs->fs_ops->truncate(cpfile, size) < 0)
+    if (fs->fs_ops->truncate(store->cp_file, size) < 0)
         return NULL;
 
-    void * addr = NULL;
-    void * mem = fs->fs_ops->mmap(cpfile, &addr, ALIGN_UP(size),
-                            PROT_READ|PROT_WRITE,
-                            MAP_FILE|MAP_SHARED, 0) < 0 ? NULL : addr;
+    if (fs->fs_ops->mmap(store->cp_file, &addr, size,
+                         PROT_READ|PROT_WRITE,
+                         MAP_FILE|MAP_SHARED, 0) < 0)
+        return NULL;
 
-    put_handle(cpfile);
-    return mem;
+    return addr;
 }
 
-static int finish_checkpoint (void)
+static int finish_checkpoint (struct cp_session * cpsession)
 {
-    struct shim_cp_store cpstore;
+    struct shim_cp_store * cpstore = &cpsession->cpstore;
+    int ret;
 
-again:
-    INIT_CP_STORE(&cpstore);
+    cpstore->alloc = file_alloc;
 
     BEGIN_MIGRATION_DEF(checkpoint)
     {
-        store->use_gipc = false;
-        DEFINE_MIGRATE(process, &cur_process, sizeof(struct shim_process),
-                       false);
-        DEFINE_MIGRATE(all_mounts, NULL, 0, false);
-        DEFINE_MIGRATE(all_vmas, NULL, 0, true);
-        DEFINE_MIGRATE(all_running_threads, NULL, 0, true);
-        DEFINE_MIGRATE(brk, NULL, 0, false);
-        DEFINE_MIGRATE(loaded_libraries, NULL, 0, false);
-        DEFINE_MIGRATE(gdb_map, NULL, 0, false);
-        DEFINE_MIGRATE(migratable, NULL, 0, false);
+        DEFINE_MIGRATE(process, &cur_process, sizeof(struct shim_process));
+        DEFINE_MIGRATE(all_mounts, NULL, 0);
+        DEFINE_MIGRATE(all_vmas, NULL, 0);
+        DEFINE_MIGRATE(all_running_threads, NULL, 0);
+        DEFINE_MIGRATE(brk, NULL, 0);
+        DEFINE_MIGRATE(loaded_libraries, NULL, 0);
+#ifdef DEBUG
+        DEFINE_MIGRATE(gdb_map, NULL, 0);
+#endif
+        DEFINE_MIGRATE(migratable, NULL, 0);
     }
-    END_MIGRATION_DEF
+    END_MIGRATION_DEF(checkpoint)
 
-    int ret = START_MIGRATE(&cpstore, checkpoint, sizeof(struct cp_header));
-
-    if (ret < 0)
+    if ((ret = START_MIGRATE(cpstore, checkpoint)) < 0)
         return ret;
 
-    struct shim_cp_entry * cpent = cpstore.cpdata;
-    for ( ; cpent->cp_type != CP_NULL ; cpent++)
-        if (cpent->cp_type == CP_PALHDL &&
-            cpent->cp_un.cp_val) {
-            PAL_HANDLE * pal_hdl = cpstore.cpdata + cpent->cp_un.cp_val;
-            assert(*pal_hdl);
-            *pal_hdl = NULL;
-        }
+    struct cp_header * hdr = (struct cp_header *) cpstore->base;
+    hdr->addr = (void *) cpstore->base;
+    hdr->size = cpstore->offset;
 
-    struct cp_header * hdr = (struct cp_header *) cpstore.cpaddr;
-    hdr->cpaddr = cpstore.cpaddr;
-    hdr->cpsize = cpstore.cpsize;
-    hdr->cpoffset = cpstore.cpdata - cpstore.cpaddr;
+    DkStreamUnmap((void *) cpstore->base, cpstore->bound);
 
-    DkStreamUnmap(cpstore.cpaddr, cpstore.cpsize);
-
-    master_lock();
-    assert(current_cpsession);
-    struct shim_handle * cpfile = current_cpsession->cpfile;
-    bool do_again = false;
-    current_cpsession->cpfile = NULL;
-    if (current_cpsession->list.next != &created_sessions) {
-        current_cpsession = list_entry(current_cpsession->list.next,
-                                       struct cpsession, list);
-        do_again = true;
-    } else {
-        current_cpsession = NULL;
-    }
-    master_unlock();
-
-    close_handle(cpfile);
-
-    if (do_again)
-        goto again;
-
+    close_handle(cpstore->cp_file);
     return 0;
 }
 
@@ -313,9 +276,9 @@ int shim_do_checkpoint (const char * filename)
     }
 
     ipc_checkpoint_send(filename, session);
-    kill_all_threads(tcb->tp, CHECKPOINT_REQUESTED, SIGINT);
+    kill_all_threads(tcb->tp, session, SIGCP);
 
-    ret = join_checkpoint(tcb->tp, &signal.context);
+    ret = join_checkpoint(tcb->tp, &signal.context, session);
     if (ret < 0) {
         shim_do_rmdir(filename);
         return ret;

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+JAVA_FLAGS="-Xmx16m -Xss4m -XX:+UseSerialGC -XX:+DisableExplicitGC -XX:MaxPermSize=0"
+
+if [ "$1" = "-native" ]; then
+	shift
+	`make java_home`/bin/java $JAVA_FLAGS $*
+elif [ "$1" = "-gdb" ]; then
+	shift
+	./java.manifest -gdb $JAVA_FLAGS $*
+else
+	./java.manifest $JAVA_FLAGS $*
+fi

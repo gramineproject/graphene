@@ -49,18 +49,19 @@ int shim_do_gettimeofday (struct __kernel_timeval * tv,
     return 0;
 }
 
-int shim_do_time (time_t * tloc)
+time_t shim_do_time (time_t * tloc)
 {
-    if (!tloc)
-        return -EINVAL;
-
     long time = DkSystemTimeQuery();
 
     if (time == -1)
         return -PAL_ERRNO;
 
-    *tloc  = time / 1000000;
-    return 0;
+    time_t t = time / 1000000;
+
+    if (tloc)
+        *tloc = t;
+
+    return t;
 }
 
 int shim_do_clock_gettime (clockid_t which_clock,

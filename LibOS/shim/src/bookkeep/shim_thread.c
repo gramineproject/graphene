@@ -31,21 +31,7 @@
 #include <shim_checkpoint.h>
 
 #include <pal.h>
-
 #include <linux_list.h>
-
-#define THREAD_MGR_ALLOC    4
-
-static LOCKTYPE thread_mgr_lock;
-
-#define system_lock()   lock(thread_mgr_lock)
-#define system_unlock() unlock(thread_mgr_lock)
-#define PAGE_SIZE       allocsize
-
-#define OBJ_TYPE struct shim_thread
-#include <memmgr.h>
-
-static MEM_MGR thread_mgr = NULL;
 
 static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 
@@ -62,14 +48,8 @@ PAL_HANDLE thread_start_event = NULL;
 int init_thread (void)
 {
     create_lock(thread_list_lock);
-    create_lock(thread_mgr_lock);
-
-    thread_mgr = create_mem_mgr(init_align_up(THREAD_MGR_ALLOC));
-    if (!thread_mgr)
-        return -ENOMEM;
 
     struct shim_thread * cur_thread = get_cur_thread();
-
     if (cur_thread)
         return 0;
 
@@ -77,7 +57,6 @@ int init_thread (void)
         return -ENOMEM;
 
     cur_thread->in_vm = cur_thread->is_alive = true;
-    get_thread(cur_thread);
     set_cur_thread(cur_thread);
     add_thread(cur_thread);
     cur_thread->pal_handle = PAL_CB(first_thread);
@@ -115,7 +94,7 @@ shim_tcb_t * __get_cur_tcb (void)
     return SHIM_GET_TLS();
 }
 
-static IDTYPE get_pid (void)
+IDTYPE get_pid (void)
 {
     IDTYPE idx;
 
@@ -157,38 +136,9 @@ static IDTYPE get_internal_pid (void)
     return idx;
 }
 
-static inline int init_mem_mgr (void)
-{
-    if (thread_mgr)
-        return 0;
-
-    MEM_MGR mgr = create_mem_mgr(init_align_up(THREAD_MGR_ALLOC));
-    MEM_MGR old_mgr = NULL;
-
-    lock(thread_mgr_lock);
-
-    if (mgr) {
-        if (thread_mgr) {
-            old_mgr = mgr;
-            mgr = thread_mgr;
-        } else {
-            thread_mgr = mgr;
-        }
-    }
-
-    unlock(thread_mgr_lock);
-
-    if (old_mgr)
-        destroy_mem_mgr(old_mgr);
-
-    return mgr ? 0 : -ENOMEM;
-}
-
 struct shim_thread * alloc_new_thread (void)
 {
-    struct shim_thread * thread =
-            get_mem_obj_from_mgr_enlarge(thread_mgr,
-                                         size_align_up(THREAD_MGR_ALLOC));
+    struct shim_thread * thread = malloc(sizeof(struct shim_thread));
     if (!thread)
         return NULL;
 
@@ -203,9 +153,6 @@ struct shim_thread * alloc_new_thread (void)
 
 struct shim_thread * get_new_thread (IDTYPE new_tid)
 {
-    if (init_mem_mgr() < 0)
-        return NULL;
-
     if (!new_tid) {
         new_tid = get_pid();
         assert(new_tid);
@@ -270,6 +217,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
         }
     }
 
+    thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
+                                 NUM_SIGS);
     thread->vmid = cur_process.vmid;
     create_lock(thread->lock);
     thread->scheduler_event = DkNotificationEventCreate(1);
@@ -280,9 +229,6 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
 struct shim_thread * get_new_internal_thread (void)
 {
-    if (init_mem_mgr() < 0)
-        return NULL;
-
     IDTYPE new_tid = get_internal_pid();
     assert(new_tid);
 
@@ -368,7 +314,7 @@ void put_thread (struct shim_thread * thread)
         if (MEMORY_MIGRATED(thread))
             memset(thread, 0, sizeof(struct shim_thread));
         else
-            free_mem_obj_to_mgr(thread_mgr, thread);
+            free(thread);
     }
 }
 
@@ -608,118 +554,73 @@ void switch_dummy_thread (struct shim_thread * thread)
                  : "memory");
 }
 
-DEFINE_MIGRATE_FUNC(thread)
-
-MIGRATE_FUNC_BODY(thread)
+BEGIN_CP_FUNC(thread)
 {
     assert(size == sizeof(struct shim_thread));
 
     struct shim_thread * thread = (struct shim_thread *) obj;
     struct shim_thread * new_thread = NULL;
 
-    if (recursive) {
-        struct shim_vma * vma = NULL;
-        lookup_supervma(thread->stack, thread->stack_top - thread->stack,
-                        &vma);
-        assert(vma);
-        DO_MIGRATE(vma, vma, NULL, true);
-    }
+    ptr_t off = GET_FROM_CP_MAP(obj);
 
-    unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset, size);
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_thread));
+        ADD_TO_CP_MAP(obj, off);
+        new_thread = (struct shim_thread *) (base + off);
+        memcpy(new_thread, thread, sizeof(struct shim_thread));
 
-    if (ENTRY_JUST_CREATED(off)) {
-        off = ADD_OFFSET(sizeof(struct shim_thread));
+        INIT_LIST_HEAD(&new_thread->children);
+        INIT_LIST_HEAD(&new_thread->siblings);
+        INIT_LIST_HEAD(&new_thread->exited_children);
+        INIT_LIST_HEAD(&new_thread->list);
 
-        if (!dry) {
-            new_thread = (struct shim_thread *) (base + off);
-            memcpy(new_thread, thread, sizeof(struct shim_thread));
+        new_thread->in_vm  = false;
+        new_thread->parent = NULL;
+        new_thread->dummy  = NULL;
+        new_thread->handle_map = NULL;
+        new_thread->root   = NULL;
+        new_thread->cwd    = NULL;
+        new_thread->signal_logs = NULL;
+        new_thread->robust_list = NULL;
+        REF_SET(new_thread->ref_count, 0);
 
-            INIT_LIST_HEAD(&new_thread->children);
-            INIT_LIST_HEAD(&new_thread->siblings);
-            INIT_LIST_HEAD(&new_thread->exited_children);
-            INIT_LIST_HEAD(&new_thread->list);
-
-            new_thread->in_vm  = false;
-            new_thread->parent = NULL;
-            new_thread->dummy  = NULL;
-            new_thread->handle_map = NULL;
-            new_thread->root   = NULL;
-            new_thread->cwd    = NULL;
-            new_thread->robust_list = NULL;
-
-            if (!recursive)
-                new_thread->tcb = NULL;
-
-            REF_SET(new_thread->ref_count, 0);
-        }
-
-        for (int i = 0 ; i < NUM_SIGS ; i++) {
+        for (int i = 0 ; i < NUM_SIGS ; i++)
             if (thread->signal_handles[i].action) {
-                ADD_OFFSET(sizeof(struct __kernel_sigaction));
-
-                if (!dry) {
-                    new_thread->signal_handles[i].action
-                            = (struct __kernel_sigaction *) (base + *offset);
-
-                    memcpy(new_thread->signal_handles[i].action,
-                           thread->signal_handles[i].action,
-                           sizeof(struct __kernel_sigaction));
-                }
+                ptr_t soff = ADD_CP_OFFSET(sizeof(struct __kernel_sigaction));
+                new_thread->signal_handles[i].action
+                        = (struct __kernel_sigaction *) (base + soff);
+                memcpy(new_thread->signal_handles[i].action,
+                       thread->signal_handles[i].action,
+                       sizeof(struct __kernel_sigaction));
             }
-        }
 
-        DO_MIGRATE_MEMBER(handle, thread, new_thread, exec, 0);
-        DO_MIGRATE_MEMBER_IF_RECURSIVE(handle_map, thread, new_thread,
-                                       handle_map, 1);
-
-        ADD_FUNC_ENTRY(off);
-        ADD_ENTRY(SIZE, sizeof(struct shim_thread));
-
-        int rlen, clen;
-        const char * rpath = dentry_get_path(thread->root, true, &rlen);
-        const char * cpath = dentry_get_path(thread->cwd, true, &clen);
-        char * new_rpath, * new_cpath;
-
-        ADD_OFFSET(rlen + 1);
-        ADD_ENTRY(ADDR, (new_rpath = (void *) (base + *offset)));
-        ADD_OFFSET(clen + 1);
-        ADD_ENTRY(ADDR, (new_cpath = (void *) (base + *offset)));
-
-        if (!dry) {
-            memcpy(new_rpath, rpath, rlen + 1);
-            memcpy(new_cpath, cpath, clen + 1);
-        }
-
-    } else if (!dry) {
+        DO_CP_MEMBER(handle, thread, new_thread, exec);
+        DO_CP_MEMBER(handle_map, thread, new_thread, handle_map);
+        DO_CP_MEMBER(dentry, thread, new_thread, root);
+        DO_CP_MEMBER(dentry, thread, new_thread, cwd);
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
         new_thread = (struct shim_thread *) (base + off);
     }
 
-    if (new_thread && objp)
+    if (objp)
         *objp = (void *) new_thread;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(thread)
 
-RESUME_FUNC_BODY(thread)
+BEGIN_RS_FUNC(thread)
 {
-    unsigned long off = GET_FUNC_ENTRY();
-    size_t size = GET_ENTRY(SIZE);
-    assert(size == sizeof(struct shim_thread));
-    struct shim_thread * thread = (struct shim_thread *) (base + off);
+    struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
 
-    RESUME_REBASE(thread->children);
-    RESUME_REBASE(thread->siblings);
-    RESUME_REBASE(thread->exited_children);
-    RESUME_REBASE(thread->list);
-    RESUME_REBASE(thread->exec);
-    RESUME_REBASE(thread->handle_map);
-    RESUME_REBASE(thread->signal_handles);
-
-    const char * rpath = (const char *) GET_ENTRY(ADDR);
-    const char * cpath = (const char *) GET_ENTRY(ADDR);
-    RESUME_REBASE(rpath);
-    RESUME_REBASE(cpath);
-    path_lookupat(NULL, rpath, LOOKUP_OPEN, &thread->root);
-    path_lookupat(NULL, cpath, LOOKUP_OPEN, &thread->cwd);
+    CP_REBASE(thread->children);
+    CP_REBASE(thread->siblings);
+    CP_REBASE(thread->exited_children);
+    CP_REBASE(thread->list);
+    CP_REBASE(thread->exec);
+    CP_REBASE(thread->handle_map);
+    CP_REBASE(thread->root);
+    CP_REBASE(thread->cwd);
+    CP_REBASE(thread->signal_handles);
 
     create_lock(thread->lock);
     thread->scheduler_event = DkNotificationEventCreate(1);
@@ -734,39 +635,36 @@ RESUME_FUNC_BODY(thread)
     if (thread->handle_map)
         get_handle_map(thread->handle_map);
 
-#ifdef DEBUG_RESUME
-    debug("thread: "
-          "tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p\n",
-          thread->tid, thread->tgid,
-          thread->parent ? thread->parent->tid : thread->tid,
-          thread->stack, thread->frameptr, thread->tcb);
-#endif
+    if (thread->root)
+        get_dentry(thread->root);
+
+    if (thread->cwd)
+        get_dentry(thread->cwd);
+
+    DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p",
+             thread->tid, thread->tgid,
+             thread->parent ? thread->parent->tid : thread->tid,
+             thread->stack, thread->frameptr, thread->tcb);
 }
-END_RESUME_FUNC
+END_RS_FUNC(thread)
 
-DEFINE_MIGRATE_FUNC(running_thread)
-
-MIGRATE_FUNC_BODY(running_thread)
+BEGIN_CP_FUNC(running_thread)
 {
     assert(size == sizeof(struct shim_thread));
 
     struct shim_thread * thread = (struct shim_thread *) obj;
     struct shim_thread * new_thread = NULL;
-    struct shim_thread ** thread_obj = &new_thread;
 
-    DO_MIGRATE(thread, thread, thread_obj, recursive);
-    ADD_FUNC_ENTRY(new_thread);
+    DO_CP(thread, thread, &new_thread);
+    ADD_CP_FUNC_ENTRY((ptr_t) new_thread - base);
 
     if (!thread->user_tcb && thread->tcb) {
-        ADD_OFFSET(sizeof(__libc_tcb_t));
-        if (!dry) {
-            __libc_tcb_t * new_tcb = (void *) (base + *offset);
-            new_thread->tcb = new_tcb;
-            memcpy(new_tcb, thread->tcb, sizeof(__libc_tcb_t));
-        }
+        ptr_t toff = ADD_CP_OFFSET(sizeof(__libc_tcb_t));
+        new_thread->tcb = (void *) (base + toff);
+        memcpy(new_thread->tcb, thread->tcb, sizeof(__libc_tcb_t));
     }
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(running_thread)
 
 int resume_wrapper (void * param)
 {
@@ -779,7 +677,7 @@ int resume_wrapper (void * param)
     assert(tcb->context.sp);
 
     thread->in_vm = thread->is_alive = true;
-    allocate_tls(libc_tcb, thread);
+    allocate_tls(libc_tcb, thread->user_tcb, thread);
     debug_setbuf(tcb, true);
     debug("set tcb to %p\n", libc_tcb);
 
@@ -789,16 +687,17 @@ int resume_wrapper (void * param)
     return 0;
 }
 
-RESUME_FUNC_BODY(running_thread)
+BEGIN_RS_FUNC(running_thread)
 {
-    struct shim_thread * thread = (void *) GET_FUNC_ENTRY();
-    RESUME_REBASE(thread);
+    struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
     struct shim_thread * cur_thread = get_cur_thread();
     thread->in_vm = true;
-    get_thread(thread);
 
     if (!thread->user_tcb)
-        RESUME_REBASE(thread->tcb);
+        CP_REBASE(thread->tcb);
+
+    thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
+                                 NUM_SIGS);
 
     if (cur_thread) {
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread, 0);
@@ -813,7 +712,7 @@ RESUME_FUNC_BODY(running_thread)
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;
             assert(tcb->context.sp);
             tcb->debug_buf = SHIM_GET_TLS()->debug_buf;
-            allocate_tls(libc_tcb, thread);
+            allocate_tls(libc_tcb, thread->user_tcb, thread);
             debug_setprefix(tcb);
             debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
@@ -824,34 +723,23 @@ RESUME_FUNC_BODY(running_thread)
         thread->pal_handle = PAL_CB(first_thread);
     }
 
-#ifdef DEBUG_RESUME
-    debug("thread %d is attached to the current process\n", thread->tid);
-#endif
+    DEBUG_RS("tid=%d", thread->tid);
 }
-END_RESUME_FUNC
+END_RS_FUNC(running_thread)
 
-DEFINE_MIGRATE_FUNC(all_running_threads)
-
-MIGRATE_FUNC_BODY(all_running_threads)
+BEGIN_CP_FUNC(all_running_threads)
 {
     struct shim_thread * thread;
-
     lock(thread_list_lock);
 
     list_for_each_entry(thread, &thread_list, list) {
         if (!thread->in_vm || !thread->is_alive)
             continue;
 
-        DO_MIGRATE(running_thread, thread, NULL, recursive);
-        DO_MIGRATE(handle_map, thread->handle_map, NULL, recursive);
+        DO_CP(running_thread, thread, NULL);
+        DO_CP(handle_map, thread->handle_map, NULL);
     }
 
     unlock(thread_list_lock);
 }
-END_MIGRATE_FUNC
-
-RESUME_FUNC_BODY(all_running_threads)
-{
-    /* useless */
-}
-END_RESUME_FUNC
+END_CP_FUNC_NO_RS(all_running_threads)

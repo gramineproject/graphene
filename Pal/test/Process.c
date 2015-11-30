@@ -11,11 +11,11 @@
 
 int main (int argc, char ** argv)
 {
-    int count = 0, i;
+    int count = 0;
 
-#if DO_BEACH != 1
+#if DO_BENCH != 1
     pal_printf("In process: %s", argv[0]);
-    for (i = 1 ; i < argc ; i++)
+    for (int i = 1 ; i < argc ; i++)
         pal_printf(" %s", argv[i]);
     pal_printf("\n");
 #endif
@@ -29,12 +29,15 @@ int main (int argc, char ** argv)
 
         PAL_HANDLE proc = DkProcessCreate ("file:Process", 0, newargs);
 
+        if (!proc)
+            pal_printf("Can't creste process\n");
+
         DkObjectClose(proc);
+        DkThreadDelayExecution(30000000);
     } else {
         count = atoi (argv[1]);
 
-        if (count < 3)
-        {
+        if (count < 100) {
             count++;
 
             char count_arg[8];
@@ -42,6 +45,9 @@ int main (int argc, char ** argv)
             const char * newargs[4] = { "Process", count_arg, argv[2], NULL };
 
             PAL_HANDLE proc = DkProcessCreate ("file:Process", 0, newargs);
+
+            if (!proc)
+                pal_printf("Can't creste process\n");
 
             DkObjectClose(proc);
         } else {
@@ -51,6 +57,7 @@ int main (int argc, char ** argv)
         }
     }
 
+    DkProcessExit(0);
     return 0;
 }
 

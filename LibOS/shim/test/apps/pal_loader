@@ -44,4 +44,4 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-exec $GDB_CMD $PAL_CMD $MANIFEST $*
+exec $GDB_CMD $PAL_CMD $MANIFEST "$@"

@@ -37,8 +37,8 @@ pie: %: %.c
 
 .PHONY: pack
 pack: $(special_executables) $(c_executables) $(cxx_executables)
-	tar -czf .packed/test.tar.gz $^
+	@../../../../Scripts/pack_binaries.sh test $^
 else
 $(special_executables) $(c_executables) $(cxx_executables): .packed/test.tar.gz
-	tar -xmozf $<
+	tar -xmozf $< $@
 endif

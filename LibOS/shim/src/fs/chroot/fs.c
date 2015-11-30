@@ -34,11 +34,15 @@
 #include <pal.h>
 #include <pal_error.h>
 
+#include <errno.h>
+
+#include <linux/stat.h>
+#include <linux/fcntl.h>
+
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/unistd.h>
 #include <asm/prctl.h>
-#include <errno.h>
 
 #define URI_MAX_SIZE    STR_SIZE
 
@@ -351,6 +355,9 @@ static int chroot_lookup (struct shim_dentry * dent, bool force)
     if (!force)
         return -ESKIPPED;
 
+    if (dent->fs && dent == dent->fs->root)
+        return 0;
+
     return query_dentry(dent, NULL, NULL, NULL);
 }
 
@@ -375,20 +382,28 @@ static int __chroot_open (const char * uri, int len, int flags, mode_t mode,
         && accmode == O_WRONLY)
         accmode = O_RDWR;
 
-    PAL_HANDLE palhdl = DkStreamOpen(uri, accmode, mode, creat, option);
+    PAL_HANDLE palhdl;
 
-    if (!palhdl) {
-        if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED &&
-            accmode != oldmode)
-            palhdl = DkStreamOpen(uri, oldmode, mode, creat, option);
+    if (hdl && hdl->pal_handle) {
+        palhdl = hdl->pal_handle;
+    } else {
+        palhdl = DkStreamOpen(uri, accmode, mode, creat, option);
 
-        if (!palhdl)
-            return -PAL_ERRNO;
+        if (!palhdl) {
+            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED &&
+                accmode != oldmode)
+                palhdl = DkStreamOpen(uri, oldmode, mode, creat, option);
+
+            if (!palhdl)
+                return -PAL_ERRNO;
+        }
     }
 
-    lock(data->lock);
-    ret = __query_attr(data, palhdl);
-    unlock(data->lock);
+    if (!data->queried) {
+        lock(data->lock);
+        ret = __query_attr(data, palhdl);
+        unlock(data->lock);
+    }
 
     if (!hdl) {
         DkObjectClose(palhdl);
@@ -1006,7 +1021,6 @@ static int chroot_checkout (struct shim_handle * hdl)
     hdl->info.file.mapsize = 0;
     hdl->info.file.mapoffset = 0;
     hdl->info.file.mapbuf = NULL;
-
     hdl->pal_handle = NULL;
     return 0;
 }
@@ -1146,7 +1160,6 @@ static int chroot_chmod (struct shim_dentry * dent, mode_t mode)
     }
 
     DkObjectClose(pal_hdl);
-
     dent->mode = data->mode = mode;
 
     return 0;

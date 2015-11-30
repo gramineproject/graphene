@@ -40,15 +40,15 @@ clean: $(clean-extra) $(if $(level),,clean-subdirs)
 	rm -rf $(target)
 
 build-subdirs:
-	for f in $(subdirs); do (cd $$f; make $(DEBUG); cd ..); done
+	for f in $(subdirs); do (cd $$f; $(MAKE) $(DEBUG); cd ..); done
 
 ifeq ($(SYS),x86_64-linux-gnu)
 ifeq ($(level),)
 .PHONY: pack
 pack:
-	for f in $(subdirs); do (cd $$f; make pack; cd ..); done
+	for f in $(subdirs); do (cd $$f; $(MAKE) pack; cd ..); done
 endif
 endif
 
 clean-subdirs:
-	for f in $(subdirs); do (cd $$f; make clean; cd ..); done
+	for f in $(subdirs); do (cd $$f; $(MAKE) clean; cd ..); done

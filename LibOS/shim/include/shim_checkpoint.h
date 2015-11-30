@@ -48,16 +48,16 @@ extern char __migratable;
 extern char __migratable_end;
 
 /* TSAI 7/11/2012:
-   The migration scheme we are expecting is to support an easy syntax to
+   The checkpoint scheme we are expecting is to support an easy syntax to
    implement migration procedure. A migration procedure can be written
    in teh following syntax:
 
-   BEGIN_MIGRATE_DEFINITION(exec)
+   BEGIN_CP_DEFINITION(exec)
    {
-       DEFINE_MIGRATE(thread, );
-       DEFINE_MIGRATE(handle_map, );
+       DEFINE_CP(thread, ...);
+       DEFINE_CP(handle_map, ...);
    }
-   void *checkpoint = DO_MIGRATE(exec);
+   void * checkpoint = DO_CHECKPOINT(exec);
 
    The structure of checkpoint data will be a counting-down stack-like
    memory segment, with enough space reserved below for 1. in case the
@@ -66,32 +66,14 @@ extern char __migratable_end;
 
    Below is the figure for our checkpoint structure:
 
-   (later added by PAL:  argc        program arguments
-                         argv[0]
-                         argv[1]
-                         ...
-                         envp[0]     env variables
-                         envp[1]
-                         ...
-                         NULL-end
-                         auxv[0]     aux vectors
-                         auxv[1]
-                         ...
-                         auxv[n]     AT_NULL
    Low Bytes -------------------------------------------------
-                checkpoint base (identified by a magic number)
-             -------------------------------------------------
                 checkpoint_entry[0]
+                data section for checkpoint 0
                 checkpoint_entry[1]
+                data section for checkpoint 1
                 checkpoint_entry[2]
                 ...
                 checkpoint_entry[n]  CP_NULL
-              ------------------------------------------------
-                data section for checkpoint 0
-                data section for checkpoint 1
-                data section for checkpoint 2
-                ...
-                data section for checkpoint n-1
    High Bytes ------------------------------------------------
 
 
@@ -107,457 +89,340 @@ struct shim_cp_entry
     } cp_un;
 };
 
-struct shim_gipc_entry {
-    struct shim_gipc_entry * next;
-    enum { ABS_ADDR, REL_ADDR, ANY_ADDR } addr_type;
+struct shim_mem_entry {
+    struct shim_mem_entry * prev;
     void * addr;
-    int npages;
+    int size;
+    void ** paddr;
     int prot;
-    struct shim_vma * vma;
+    void * data;
+};
+
+struct shim_gipc_entry {
+    struct shim_mem_entry mem;
 #if HASH_GIPC == 1
     unsigned long first_hash;
 #endif
 };
 
-#define SET_GIPC_REL_ADDR(gipc)                                             \
-    do {                                                                    \
-         (gipc)->addr_type = REL_ADDR;                                      \
-         (gipc)->addr = (void *) ((gipc)->addr - (void *) &__load_address); \
-    } while (0)
-
-struct shim_mem_entry {
-    void * addr;
-    int size;
-    int prot;
-    bool need_alloc, need_prot;
-    struct shim_vma * vma;
-    void * data;
+struct shim_palhdl_entry {
+    struct shim_palhdl_entry * prev;
+    PAL_HANDLE handle;
+    struct shim_qstr * uri;
+    PAL_HANDLE * phandle;
 };
 
 struct shim_cp_store {
-    void * cpaddr;
-    void * cpdata;
-    size_t cpsize;
-    void * addr_map;
+    /* checkpoint data mapping */
+    void * cp_map;
+    struct shim_handle * cp_file;
+
+    /* allocation method for check point area */
+    void * (*alloc) (struct shim_cp_store * store, void * mem, int size);
+
+    /* check point area */
+    ptr_t base, offset, bound;
+
+    /* entries of gipc records */
     bool use_gipc;
-    struct shim_gipc_entry * gipc_entries, * gipc_entries_tail;
+    struct shim_gipc_entry * last_gipc_entry;
     int gipc_nentries;
+
+    /* entries of out-of-band data */
+    struct shim_mem_entry * last_mem_entry;
+    int mem_nentries;
+    int mem_size;
+
+    /* entries of pal handles to send */
+    struct shim_palhdl_entry * last_palhdl_entry;
+    int palhdl_nentries;
 };
 
-#define INIT_CP_STORE_GIPC(store)                       \
-    do {                                                \
-        (store)->use_gipc = false;                      \
-        (store)->gipc_entries = NULL;                   \
-        (store)->gipc_entries_tail = NULL;              \
-        (store)->gipc_nentries = 0;                     \
-    } while (0)
+#define CP_FUNC_ARGS                                    \
+    struct shim_cp_store * store, void * obj, int size, void ** objp
 
-#define INIT_CP_STORE(store)                            \
-    do {                                                \
-        (store)->cpaddr = NULL;                         \
-        (store)->cpdata = NULL;                         \
-        (store)->cpsize = 0;                            \
-        (store)->addr_map = create_addr_map();          \
-        INIT_CP_STORE_GIPC(store);                      \
-    } while (0)
+#define RS_FUNC_ARGS                                    \
+    struct shim_cp_entry * entry, ptr_t base, ptr_t * offset, long rebase
 
-#define MIGRATE_FUNC_ARGS                                                   \
-    struct shim_cp_store * store, struct shim_cp_entry ** ent, ptr_t base,  \
-    unsigned long * offset, void * obj, size_t size, void ** objp,          \
-    bool recursive, bool dry
+#define DEFINE_CP_FUNC(name) int cp_##name (CP_FUNC_ARGS)
+#define DEFINE_RS_FUNC(name) int rs_##name (RS_FUNC_ARGS)
 
-#define MIGRATE_FUNC_RET size_t
+typedef int (*cp_func) (CP_FUNC_ARGS);
+typedef int (*rs_func) (RS_FUNC_ARGS);
 
-#define RESUME_FUNC_ARGS                                                    \
-    struct shim_cp_entry ** ent, ptr_t base, size_t cpsize, long cprebase
+extern const char *  __cp_name;
+extern const cp_func __cp_func;
+extern const rs_func __rs_func;
 
-#define RESUME_FUNC_RET int
+enum {
+    CP_NULL = 0,
+    CP_IGNORE,
+    CP_OOB,
+    CP_ADDR,
+    CP_SIZE,
+    CP_FUNC_BASE,
+};
 
-typedef MIGRATE_FUNC_RET (*migrate_func) (MIGRATE_FUNC_ARGS);
-typedef RESUME_FUNC_RET (*resume_func) (RESUME_FUNC_ARGS);
-
-extern const char *       __migrate_name;
-extern const migrate_func __migrate_func;
-extern const resume_func  __resume_func;
-
-#define CP_NULL   0
-#define CP_IGNORE 1
-#define CP_BASE   2
-#define CP_ADDR   3
-#define CP_SIZE   4
-#define CP_PID    5
-#define CP_UID    6
-#define CP_GID    7
-#define CP_FD     8
-#define CP_BOOL   9
-#define CP_PALHDL 10
-
-#define CP_FUNC_BASE   11
-
-#define CP_FUNC_INDEX(name)                                             \
-    ({  extern const migrate_func migrate_func_##name;                  \
-        &migrate_func_##name - &__migrate_func;  })
+#define CP_FUNC_INDEX(name)                                         \
+    ({ extern const cp_func cp_func_##name; &cp_func_##name - &__cp_func; })
 
 #define CP_FUNC(name)   CP_FUNC_BASE + CP_FUNC_INDEX(name)
-#define CP_FUNC_NAME(type)      (&__migrate_name)[(type) - CP_FUNC_BASE]
+#define CP_FUNC_NAME(type)      (&__cp_name)[(type) - CP_FUNC_BASE]
 
-#define ADD_ENTRY(type, value)                                      \
-    do {                                                            \
-        USED += sizeof(struct shim_cp_entry);                       \
-        if (!dry) {                                                 \
-            struct shim_cp_entry * tmp = (*ent)++;                  \
-            tmp->cp_type = CP_##type;                               \
-            tmp->cp_un.cp_val = (ptr_t) (value);                    \
-                                                                    \
-            if (DEBUG_CHECKPOINT)                                   \
-                debug("ADD CP_" #type "(%p) :%d\n",                 \
-                      tmp->cp_un.cp_val,                            \
-                      tmp - (struct shim_cp_entry *) base);         \
-        } else {                                                    \
-            if (DEBUG_CHECKPOINT)                                   \
-                debug("(dry) ADD CP_" #type "\n");                  \
-        }                                                           \
-    } while(0)
-
-#define ADD_OFFSET(size)                                            \
+#define __ADD_CP_OFFSET(size)                                       \
     ({                                                              \
-        int _size = ((size) + 7) & ~7;                              \
-        USED += _size;                                              \
-        if (!dry)                                                   \
-            *offset -= _size;                                       \
-        if (DEBUG_CHECKPOINT)                                       \
-            debug("%sADD OFFSET(%d)\n",                             \
-                  dry ? "(dry) " : "", _size);                      \
-        dry ? 0 : *offset;                                          \
-    })
-
-#define ADD_FUNC_ENTRY(value)                                       \
-    do {                                                            \
-        USED += sizeof(struct shim_cp_entry);                       \
-        if (!dry) {                                                 \
-            struct shim_cp_entry * tmp = (*ent)++;                  \
-            tmp->cp_type = CP_FUNC_TYPE;                            \
-            tmp->cp_un.cp_val = (ptr_t) value;                      \
+        ptr_t _off = store->offset;                                 \
+        if (store->offset + (size) > store->bound) {                \
+            int new_bound = store->bound * 2;                       \
                                                                     \
-            if (DEBUG_CHECKPOINT)                                   \
-                debug("ADD CP_FUNC_%s(%p) :%d\n", CP_FUNC_NAME,     \
-                      tmp->cp_un.cp_val,                            \
-                      tmp - (struct shim_cp_entry *) base);         \
-        } else {                                                    \
-            if (DEBUG_CHECKPOINT)                                   \
-                debug("(dry) ADD CP_FUNC_%s\n", CP_FUNC_NAME);      \
+            while (store->offset + (size) > new_bound)              \
+                new_bound *= 2;                                     \
+                                                                    \
+            void * buf = store->alloc(store,                        \
+                                      (void *) store->base + store->bound, \
+                                      new_bound - store->bound);    \
+            if (!buf)                                               \
+                return -ENOMEM;                                     \
+                                                                    \
+            store->bound = new_bound;                               \
         }                                                           \
-    } while(0)
+        store->offset += size;                                      \
+    _off;  })
 
+#define ADD_CP_ENTRY(type, value)                                   \
+    ({                                                              \
+        struct shim_cp_entry * tmp =                                \
+                (void *) base +                                     \
+                __ADD_CP_OFFSET(sizeof(struct shim_cp_entry));      \
+        tmp->cp_type = CP_##type;                                   \
+        tmp->cp_un.cp_val = (ptr_t) (value);                        \
+        if (DEBUG_CHECKPOINT)                                       \
+            debug("ADD CP_" #type "(%p) >%d\n", tmp->cp_un.cp_val,  \
+                  store->offset);                                   \
+    tmp; })
 
-#define GET_ENTRY(type)                                             \
-    ({  struct shim_cp_entry * tmp = (*ent)++;                      \
+#define ADD_CP_OFFSET(size)                                         \
+    ({                                                              \
+        int _size = ((size) + sizeof(void *) - 1) &                 \
+                    ~(sizeof(void *) - 1);                          \
+        struct shim_cp_entry * oob =                                \
+                (void *) base +                                     \
+                __ADD_CP_OFFSET(sizeof(struct shim_cp_entry));      \
+        oob->cp_type = CP_OOB;                                      \
+        oob->cp_un.cp_val = (ptr_t) _size;                          \
+        ptr_t _off = (ptr_t) __ADD_CP_OFFSET(_size);                \
+        if (DEBUG_CHECKPOINT)                                       \
+            debug("ADD OFFSET(%d) >%d\n", (size), store->offset);   \
+    _off; })
+
+#define ADD_CP_FUNC_ENTRY(value)                                    \
+    ({                                                              \
+        struct shim_cp_entry * tmp =                                \
+                (void *) base +                                     \
+                __ADD_CP_OFFSET(sizeof(struct shim_cp_entry));      \
+        tmp->cp_type = CP_FUNC_TYPE;                                \
+        tmp->cp_un.cp_val = (ptr_t) (value);                        \
+        if (DEBUG_CHECKPOINT)                                       \
+            debug("ADD %s(%p) >%d\n", CP_FUNC_NAME, (value),        \
+                  store->offset);                                   \
+    tmp; })
+
+#define NEXT_CP_ENTRY()                                             \
+    ({  struct shim_cp_entry * tmp;                                 \
+        while (1) {                                                 \
+            tmp = (void *) base + *offset;                          \
+            if (tmp->cp_type == CP_NULL) {                          \
+                tmp = NULL;                                         \
+                break;                                              \
+            }                                                       \
+            *offset += sizeof(struct shim_cp_entry);                \
+            if (tmp->cp_type == CP_OOB)                             \
+                *offset += tmp->cp_un.cp_val;                       \
+            else                                                    \
+                break;                                              \
+        }                                                           \
+    tmp; })
+
+#define GET_CP_ENTRY(type)                                          \
+    ({  struct shim_cp_entry * tmp = NEXT_CP_ENTRY();               \
                                                                     \
         while (tmp->cp_type != CP_##type)                           \
-            tmp = (*ent)++;                                         \
+            tmp = NEXT_CP_ENTRY();                                  \
                                                                     \
-        /* debug("GET CP_" #type "(%p) :%d\n",                      \
-                 tmp->cp_un.cp_val,                                 \
-                 tmp - (struct shim_cp_entry *) base); */           \
-                                                                    \
-        tmp->cp_un.cp_val;                                          \
-     })
+        /* debug("GET CP_" #type "(%p)\n",tmp->cp_un.cp_val); */    \
+    tmp->cp_un.cp_val; })
 
-#define GET_FUNC_ENTRY()                                            \
-    ({  struct shim_cp_entry * tmp = (*ent)++;                      \
-                                                                    \
-        while (tmp->cp_type != CP_FUNC_TYPE)                        \
-            tmp = (*ent)++;                                         \
-                                                                    \
-        /* debug("GET CP_FUNC_%s(%p) :%d\n", CP_FUNC_NAME,          \
-                 tmp->cp_un.cp_val,                                 \
-                 tmp - (struct shim_cp_entry *) base); */           \
-                                                                    \
-        tmp->cp_un.cp_val;                                          \
-     })
+#define GET_CP_FUNC_ENTRY()                                         \
+    ({  /* debug("GET CP_FUNC_%s(%p) :%d\n", CP_FUNC_NAME,          \
+                 entry->cp_un.cp_val); */                           \
+    entry->cp_un.cp_val; })
 
-
-#define DEFINE_MIGRATE_FUNC(name)                                   \
-    const char * migrate_name_##name                                \
-        __attribute__((section(".migrate_name." #name))) = #name;   \
+#define BEGIN_CP_FUNC(name)                                         \
+    const char * cp_name_##name                                     \
+            __attribute__((section(".cp_name." #name))) = #name;    \
+    extern DEFINE_CP_FUNC(name);                                    \
+    extern DEFINE_RS_FUNC(name);                                    \
+    const cp_func cp_func_##name                                    \
+            __attribute__((section(".cp_func." #name))) = &cp_##name; \
+    const rs_func rs_func_##name                                    \
+            __attribute__((section(".rs_func." #name))) = &rs_##name; \
                                                                     \
-    extern MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS);     \
-    const migrate_func migrate_func_##name                          \
-        __attribute__((section(".migrate." #name))) = &migrate_##name;\
+    DEFINE_PROFILE_INTERVAL(cp_##name, checkpoint_func);            \
+    DEFINE_PROFILE_INTERVAL(rs_##name, resume_func);                \
                                                                     \
-    extern RESUME_FUNC_RET resume_##name (RESUME_FUNC_ARGS);        \
-    const resume_func resume_func_##name                            \
-        __attribute__((section(".resume." #name))) = &resume_##name;\
-                                                                    \
-    DEFINE_PROFILE_INTERVAL(migrate_##name, migrate_func);          \
-    DEFINE_PROFILE_INTERVAL(resume_##name,  resume_func);           \
+    DEFINE_CP_FUNC(name)                                            \
+    {                                                               \
+        int CP_FUNC_TYPE __attribute__((unused)) = CP_FUNC(name);   \
+        const char * CP_FUNC_NAME __attribute__((unused)) = #name;  \
+        ptr_t base __attribute__((unused)) = store->base;           \
+        BEGIN_PROFILE_INTERVAL();                                   \
+        ASSIGN_PROFILE_INTERVAL(cp_##name);
 
-
-#define MIGRATE_FUNC_BODY(name)                                 \
-    MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS)         \
-    {                                                           \
-        int CP_FUNC_TYPE __attribute__((unused))                \
-                                    = CP_FUNC(name);            \
-        const char * CP_FUNC_NAME __attribute__((unused))       \
-                                    = #name;                    \
-        size_t USED = 0;                                        \
-        BEGIN_PROFILE_INTERVAL();                               \
-        ASSIGN_PROFILE_INTERVAL(migrate_##name);
-
-#define END_MIGRATE_FUNC                                        \
-        if (!dry) SAVE_PROFILE_INTERVAL_ASSIGNED();             \
-        return USED;                                            \
+#define END_CP_FUNC(name)                                           \
+        SAVE_PROFILE_INTERVAL_ASSIGNED();                           \
+        return 0;                                                   \
     }
 
+#define END_CP_FUNC_NO_RS(name)                                     \
+    END_CP_FUNC(name)                                               \
+    BEGIN_RS_FUNC(name) {} END_RS_FUNC(name)
 
-#define RESUME_FUNC_BODY(name)                                  \
-    RESUME_FUNC_RET resume_##name (RESUME_FUNC_ARGS)            \
-    {                                                           \
-        int CP_FUNC_TYPE __attribute__((unused))                \
-                                    = CP_FUNC(name);            \
-        const char * CP_FUNC_NAME __attribute__((unused))       \
-                                    = #name;                    \
-        BEGIN_PROFILE_INTERVAL();                               \
-        ASSIGN_PROFILE_INTERVAL(resume_##name);
+#define BEGIN_RS_FUNC(name)                                         \
+    DEFINE_RS_FUNC(name)                                            \
+    {                                                               \
+        int CP_FUNC_TYPE __attribute__((unused)) = CP_FUNC(name);   \
+        const char * CP_FUNC_NAME __attribute__((unused)) = #name;  \
+        BEGIN_PROFILE_INTERVAL();                                   \
+        ASSIGN_PROFILE_INTERVAL(rs_##name);
 
-#define END_RESUME_FUNC \
-        SAVE_PROFILE_INTERVAL_ASSIGNED();                       \
-        return 0;                                               \
+#define END_RS_FUNC(name)                                           \
+        SAVE_PROFILE_INTERVAL_ASSIGNED();                           \
+        return 0;                                                   \
     }
 
-#define RESUME_REBASE(obj)                                      \
+#define CP_REBASE(obj)                                          \
     do {                                                        \
         void * _ptr = &(obj);                                   \
         size_t _size = sizeof(obj);                             \
         void ** _p;                                             \
         for (_p = _ptr ; _p < (void **)(_ptr + _size) ; _p++)   \
             if (*_p)                                            \
-                *_p += cprebase;                                \
+                *_p += rebase;                                  \
+    } while (0)
+
+#define DO_CP_SIZE(name, obj, size, objp)                       \
+    do {                                                        \
+        extern DEFINE_CP_FUNC(name);                            \
+        int ret = cp_##name(store, obj, size, (void **) objp);  \
+        if (ret < 0) return ret;                                \
     } while (0)
 
 
-struct shim_addr_map {
-    ptr_t addr;
-    unsigned long offset;
-    size_t size;
-};
+#define DO_CP(name, obj, objp)                                  \
+        DO_CP_SIZE(name, obj, sizeof(*obj), objp)
 
-void * create_addr_map (void);
-void destroy_addr_map (void * map);
+#define DO_CP_MEMBER(name, obj, newobj, member)                 \
+        DO_CP(name, (obj)->member, &((newobj)->member));
 
-struct shim_addr_map *
-get_addr_map_entry (void * map, ptr_t addr, size_t size, bool create);
+#define DO_CP_IN_MEMBER(name, obj, member)                      \
+        DO_CP(name, &((obj)->member), NULL)
 
-#define DO_MIGRATE_SIZE(name, obj, size, objp, recur)                       \
-    do {                                                                    \
-        extern MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS);         \
-                                                                            \
-        USED += migrate_##name (store, ent, base, offset,                   \
-                  obj, size, (void **) objp, recur, dry);                   \
+struct shim_cp_map_entry { void * addr; ptr_t off; };
+
+void * create_cp_map (void);
+void destroy_cp_map (void * map);
+
+struct shim_cp_map_entry *
+get_cp_map_entry (void * map, void * addr, bool create);
+
+#define GET_FROM_CP_MAP(obj)                                    \
+    ({                                                          \
+        struct shim_cp_map_entry * e =                          \
+                get_cp_map_entry(store->cp_map, (obj), false);  \
+    e ? e->off : 0; })
+
+#define ADD_TO_CP_MAP(obj, off)                                 \
+    do {                                                        \
+        struct shim_cp_map_entry * e =                          \
+                get_cp_map_entry(store->cp_map, (obj), true);   \
+        e->off = off;                                           \
     } while (0)
-
-
-#define __DO_MIGRATE(name, obj, objp, recur)                                \
-    do {                                                                    \
-        extern MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS);         \
-                                                                            \
-        USED += migrate_##name (store, ent, base, offset,                   \
-                  obj, sizeof(*(obj)), (void **) objp, recur, dry);         \
-    } while (0)
-
-#define DO_MIGRATE_MEMBER(name, obj, newobj, member, recur)                 \
-    do {                                                                    \
-        typeof(obj->member) *(objp) = (newobj) ?                            \
-                                      &(newobj)->member : NULL;             \
-                                                                            \
-        DO_MIGRATE(name, (obj)->member, (objp), (recur));                   \
-    } while (0);
-
-#define DO_MIGRATE(name, obj, objp, recur)                                  \
-    do {                                                                    \
-        if (!obj)                                                           \
-            break;                                                          \
-                                                                            \
-        struct shim_addr_map * _e = get_addr_map_entry (store->addr_map,    \
-                                (ptr_t) (obj), sizeof(*(obj)), 0);          \
-                                                                            \
-        if (_e && !ENTRY_JUST_CREATED(_e->offset) && !(recur))              \
-        {                                                                   \
-            if (!dry && objp)                                               \
-                *((typeof(obj) *) objp) = (typeof(obj))                     \
-                                          (base + _e->offset);              \
-            break;                                                          \
-        }                                                                   \
-                                                                            \
-        if (dry ? !_e || (recur) : _e != NULL)                              \
-            __DO_MIGRATE(name, (obj), (objp), (recur));                     \
-    } while (0)
-
-#define DO_MIGRATE_MEMBER_IF_RECURSIVE(name, obj, newobj, member, recur)    \
-    do {                                                                    \
-        typeof(obj->member) *(objp) = (newobj) ?                            \
-                                      &(newobj)->member : NULL;             \
-                                                                            \
-        DO_MIGRATE_IF_RECURSIVE(name, (obj)->member, (objp), (recur));      \
-    } while (0);
-
-#define DO_MIGRATE_IF_RECURSIVE(name, obj, objp, recur)                     \
-    do {                                                                    \
-        extern MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS);         \
-        if (!obj)                                                           \
-            break;                                                          \
-                                                                            \
-        struct shim_addr_map * _e = get_addr_map_entry (store->addr_map,    \
-                                (ptr_t) (obj), sizeof(*(obj)), 0);          \
-                                                                            \
-        if (!_e && !recursive)                                              \
-        {                                                                   \
-            if (!dry && objp) *objp = NULL;                                 \
-            break;                                                          \
-        }                                                                   \
-                                                                            \
-        if (_e && !ENTRY_JUST_CREATED(_e->offset) && !(recur))              \
-        {                                                                   \
-            if (!dry && objp)                                               \
-                *((typeof(obj) *) objp) = (typeof(obj))                     \
-                                          (base + _e->offset);              \
-            break;                                                          \
-        }                                                                   \
-                                                                            \
-        /* 3 condition we need to run a recursive search                    \
-               _e && !recursive && dry && recur                             \
-               !_e && recursive && dry                                      \
-               _e && !dry               */                                  \
-        if (dry ?                                                           \
-            (_e ? !recursive && (recur) : recursive) : _e != NULL)          \
-                __DO_MIGRATE(name, (obj), (objp), (recur));                 \
-    } while (0)
-
-#define DO_MIGRATE_IN_MEMBER(name, obj, newobj, member, recur)              \
-    __DO_MIGRATE(name, dry ? &(obj)->member : &(newobj)->member,            \
-                 NULL, (recur))
-
-#define CHECKPOINT_ADDR (NULL)
-
-#define MAP_UNALLOCATED 0x8000000000000000
-#define MAP_UNASSIGNED  0x4000000000000000
-#define MAP_UNUSABLE (MAP_UNALLOCATED|MAP_UNASSIGNED)
-
-#define ENTRY_JUST_CREATED(off) (off & MAP_UNUSABLE)
-
-static inline __attribute__((always_inline))
-ptr_t add_to_migrate_map (void * map, void * obj, ptr_t off,
-                          size_t size, bool dry)
-{
-    struct shim_addr_map * e = get_addr_map_entry(map,
-                    (ptr_t) obj, size, 1);
-
-    ptr_t result = e->offset;
-    if (dry) {
-        if (result & MAP_UNALLOCATED)
-            e->offset = MAP_UNASSIGNED;
-        else
-            result = 0;
-    } else {
-        if (result & MAP_UNUSABLE) {
-            assert(size);
-            assert(off >= size);
-            e->offset = off - size;
-            e->size = size;
-        }
-    }
-
-    return result;
-}
-
-#define ADD_TO_MIGRATE_MAP(obj, off, size) \
-        add_to_migrate_map(store->addr_map, (obj), dry ? 0 : (off), (size), dry)
-
-#define MIGRATE_DEF_ARGS    \
-        struct shim_cp_store * store, void * data, size_t size, bool dry
 
 #define BEGIN_MIGRATION_DEF(name, ...)                                  \
-    auto size_t migrate_def_##name (MIGRATE_DEF_ARGS, ##__VA_ARGS__)    \
+    int migrate_##name (struct shim_cp_store * store, ##__VA_ARGS__)    \
     {                                                                   \
-        size_t USED = 0;                                                \
-        unsigned long offset = size;                                    \
-        struct shim_cp_entry * ENTRY = (struct shim_cp_entry *) data;   \
-        struct shim_cp_entry * *ent = &ENTRY;                           \
-        uintptr_t base = (uintptr_t) data;
+        int ret = 0;                                                    \
+        ptr_t base = store->base;
 
-
-#define END_MIGRATION_DEF                                       \
-        ADD_ENTRY(NULL, 0);                                     \
-        return USED;                                            \
+#define END_MIGRATION_DEF(name)                                         \
+        ADD_CP_ENTRY(NULL, 0);                                          \
+        return 0;                                                       \
     }
 
-
-#define DEFINE_MIGRATE(name, obj, size, recursive)                          \
-    do {                                                                    \
-        extern MIGRATE_FUNC_RET migrate_##name (MIGRATE_FUNC_ARGS);         \
-                                                                            \
-        USED += migrate_##name(store, ent, dry ? 0 : base,                  \
-                  dry ? 0 : &offset, (obj), (size), NULL, recursive, dry);  \
+#define DEFINE_MIGRATE(name, obj, size)                                 \
+    do {                                                                \
+        extern DEFINE_CP_FUNC(name);                                    \
+        if ((ret = cp_##name(store, (obj), (size), NULL)) < 0)          \
+            return ret;                                                 \
     } while (0)
 
 #define DEBUG_RESUME      0
 #define DEBUG_CHECKPOINT  0
 
-#ifndef malloc_method
-#define malloc_method(size) system_malloc(size)
+#if DEBUG_RESUME == 1
+# define DEBUG_RS(fmt, ...)                                              \
+    debug("GET %s(%p): " fmt "\n", CP_FUNC_NAME, entry->cp_un.cp_val,    \
+          ##__VA_ARGS__)
+#else
+# define DEBUG_RS(...) do {} while (0)
 #endif
 
 #include <shim_profile.h>
 
-#define START_MIGRATE(store, name, preserve, ...)                           \
-    ({  int _ret = 0;                                                       \
+#define START_MIGRATE(store, name, ...)                                     \
+    ({  int ret = 0;                                                        \
         do {                                                                \
-            size_t size;                                                    \
-            void * data;                                                    \
-                                                                            \
             BEGIN_PROFILE_INTERVAL();                                       \
                                                                             \
-            size = migrate_def_##name((store), NULL, 0, true, ##__VA_ARGS__) \
-                   + (preserve);                                            \
-            SAVE_PROFILE_INTERVAL(checkpoint_predict_size);                 \
-            ADD_PROFILE_OCCURENCE(checkpoint_total_size, size);             \
+            if (!((store)->cp_map = create_cp_map())) {                     \
+                ret = -ENOMEM;                                              \
+                goto out;                                                   \
+            }                                                               \
+            SAVE_PROFILE_INTERVAL(checkpoint_create_map);                   \
+                                                                            \
+            ret = migrate_##name((store), ##__VA_ARGS__);                   \
+            if (ret < 0)                                                    \
+                goto out;                                                   \
+                                                                            \
+            SAVE_PROFILE_INTERVAL(checkpoint_copy);                         \
+            ADD_PROFILE_OCCURENCE(checkpoint_total_size, (store)->offset);  \
             INC_PROFILE_OCCURENCE(checkpoint_count);                        \
                                                                             \
-            data = malloc_method(size);                                     \
-            SAVE_PROFILE_INTERVAL(checkpoint_alloc_memory);                 \
-            debug("allocate checkpoint: %p\n", data);                       \
-                                                                            \
-            if (!data) {                                                    \
-                destroy_addr_map((store)->addr_map);                        \
-                (store)->addr_map = NULL;                                   \
-                SAVE_PROFILE_INTERVAL(checkpoint_destroy_addr_map);         \
-                _ret = -ENOMEM;                                             \
-                break;                                                      \
-            }                                                               \
-            (store)->cpaddr = data;                                         \
-            (store)->cpdata = data + (preserve);                            \
-            (store)->cpsize = size;                                         \
-                                                                            \
-            migrate_def_##name((store), data + (preserve), size - (preserve), \
-                               false, ##__VA_ARGS__);                       \
-            SAVE_PROFILE_INTERVAL(checkpoint_copy_object);                  \
             debug("complete checkpointing data\n");                         \
-                                                                            \
-            destroy_addr_map((store)->addr_map);                            \
-            SAVE_PROFILE_INTERVAL(checkpoint_destroy_addr_map);             \
+        out:                                                                \
+            destroy_cp_map((store)->cp_map);                                \
+            SAVE_PROFILE_INTERVAL(checkpoint_destroy_map);                  \
         } while (0);                                                        \
-        _ret; })
+        ret; })
 
 struct newproc_cp_header {
     struct cp_header {
-        unsigned long cpsize;
-        void * cpaddr;
-        unsigned long cpoffset;
-    } data;
+        unsigned long size;
+        void * addr;
+        unsigned long offset;
+    } hdr;
+    struct mem_header {
+        unsigned long entoffset;
+        int nentries;
+    } mem;
+    struct palhdl_header {
+        unsigned long entoffset;
+        int nentries;
+    } palhdl;
     struct gipc_header {
-        PAL_NUM gipc_key;
-        unsigned long gipc_entoffset;
-        int gipc_nentries;
+        char uri[16];
+        unsigned long entoffset;
+        int nentries;
     } gipc;
 };
 
@@ -578,30 +443,27 @@ struct newproc_response {
 
 int do_migration (struct newproc_cp_header * hdr, void ** cpptr);
 
-int restore_checkpoint (void * cpdata, struct cp_header * hdr, int type);
-int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, void * cpdata,
-                  long cprebase);
-int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
-                             struct shim_cp_store * cpstore);
-int send_handles_on_stream (PAL_HANDLE stream, void * cpdata);
+int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
+                        ptr_t base, int type);
 
 int do_migrate_process (int (*migrate) (struct shim_cp_store *,
-                                        struct shim_process *,
-                                        struct shim_thread *, va_list),
-                        struct shim_handle * exec, const char ** argv,
+                                        struct shim_thread *,
+                                        struct shim_process *, va_list),
+                        struct shim_handle * exec,
+                        const char ** argv,
                         struct shim_thread * thread, ...);
 
 int init_from_checkpoint_file (const char * filename,
                                struct newproc_cp_header * hdr,
                                void ** cpptr);
+
 int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
                        void ** cpptr);
 
 void restore_context (struct shim_context * context);
 
-#define CHECKPOINT_REQUESTED        ((IDTYPE) -1)
-
 int create_checkpoint (const char * cpdir, IDTYPE * session);
-int join_checkpoint (struct shim_thread * cur, ucontext_t * context);
+int join_checkpoint (struct shim_thread * cur, ucontext_t * context,
+                     IDTYPE sid);
 
 #endif /* _SHIM_CHECKPOINT_H_ */

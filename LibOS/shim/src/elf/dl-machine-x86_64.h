@@ -58,7 +58,7 @@ elf_machine_matches_host (const Elf64_Ehdr * ehdr)
 /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
    MAP is the object containing the reloc.  */
 
-#define DEBUG_RELOC
+//#define DEBUG_RELOC
 
 static bool
 elf_machine_rela (struct link_map * l, ElfW(Rela) * reloc, Elf64_Sym * sym,

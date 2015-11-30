@@ -298,6 +298,14 @@ extern struct pal_internal_state {
     const char *    exec;
     PAL_HANDLE      exec_handle;
 
+    PAL_HANDLE      log_stream;
+    enum {
+        LOG_FILE    = 0x01,
+        LOG_PIPE    = 0x02,
+        LOG_SOCKET  = 0x04,
+        LOG_GENERIC_TYPES = 0x08,
+    } log_types;
+
     struct config_store * root_config;
 
     unsigned long   pagesize;
@@ -307,8 +315,6 @@ extern struct pal_internal_state {
 
     const char *    syscall_sym_name;
     void *          syscall_sym_addr;
-
-    bool            daemonize;
 
     unsigned long   start_time;
 
@@ -486,5 +492,33 @@ void free (void * mem);
 
 void _DkPrintConsole (const void * buf, int size);
 int printf  (const char  *fmt, ...);
+void write_log (int nstrs, ...);
+
+static inline void log_stream (const char * uri)
+{
+    if (!uri || !pal_state.log_stream)
+        return;
+
+    bool logging = false;
+
+    if ((pal_state.log_types & LOG_FILE) &&
+        uri[0] == 'f' && uri[1] == 'i' && uri[2] == 'l' && uri[3] == 'e')
+        logging = true;
+
+    if ((pal_state.log_types & LOG_PIPE) &&
+        uri[0] == 'p' && uri[1] == 'i' && uri[2] == 'p' && uri[3] == 'e')
+        logging = true;
+
+    if ((pal_state.log_types & LOG_SOCKET) &&
+        uri[0] == 't' && uri[1] == 'c' && uri[2] == 'p')
+        logging = true;
+
+    if ((pal_state.log_types & LOG_SOCKET) &&
+        uri[0] == 'u' && uri[1] == 'd' && uri[2] == 'p')
+        logging = true;
+
+    if (logging)
+        write_log(2, uri, "\n");
+}
 
 #endif

@@ -32,8 +32,6 @@
 #include <pal.h>
 #include <pal_error.h>
 
-#include <fcntl.h>
-
 static LOCKTYPE handle_mgr_lock;
 
 #define HANDLE_MGR_ALLOC        32
@@ -465,7 +463,7 @@ void close_handle (struct shim_handle * hdl)
                 dir->dotdot = NULL;
             }
 
-            while (*dir->ptr) {
+            while (dir->ptr && *dir->ptr) {
                 struct shim_dentry * dent = *dir->ptr;
                 put_dentry(dent);
                 *(dir->ptr++) = NULL;
@@ -747,154 +745,108 @@ done:
     return ret;
 }
 
-DEFINE_MIGRATE_FUNC(handle)
-
-MIGRATE_FUNC_BODY(handle)
+BEGIN_CP_FUNC(handle)
 {
     assert(size == sizeof(struct shim_handle));
 
     struct shim_handle * hdl = (struct shim_handle *) obj;
     struct shim_handle * new_hdl = NULL;
 
-    lock(hdl->lock);
+    ptr_t off = GET_FROM_CP_MAP(obj);
 
-   struct shim_mount * fs = hdl->fs, * new_fs = NULL;
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_handle));
+        ADD_TO_CP_MAP(obj, off);
+        new_hdl = (struct shim_handle *) (base + off);
 
-    if (fs && fs->mount_point)
-        __DO_MIGRATE(mount, fs, &new_fs, 0);
+        lock(hdl->lock);
+        struct shim_mount * fs = hdl->fs;
+        *new_hdl = *hdl;
 
-    unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset,
-                                           sizeof(struct shim_handle));
+        if (fs && fs->fs_ops && fs->fs_ops->checkout)
+            fs->fs_ops->checkout(new_hdl);
 
-    if (ENTRY_JUST_CREATED(off)) {
-        off = ADD_OFFSET(sizeof(struct shim_handle));
+        new_hdl->dentry = NULL;
+        REF_SET(new_hdl->opened, 0);
+        REF_SET(new_hdl->ref_count, 0);
+        clear_lock(new_hdl->lock);
 
-        if (!dry) {
-            new_hdl = (struct shim_handle *) (base + off);
-            memcpy(new_hdl, hdl, sizeof(struct shim_handle));
+        DO_CP_IN_MEMBER(qstr, new_hdl, path);
+        DO_CP_IN_MEMBER(qstr, new_hdl, uri);
 
-            if (fs && fs->fs_ops && fs->fs_ops->checkout)
-                fs->fs_ops->checkout(new_hdl);
-
-            new_hdl->dentry = NULL;
-            new_hdl->fs = new_fs;
-            REF_SET(new_hdl->opened, 0);
-            REF_SET(new_hdl->ref_count, 0);
-            clear_lock(new_hdl->lock);
+        if (fs && hdl->dentry) {
+            DO_CP_MEMBER(mount, hdl, new_hdl, fs);
+        } else {
+            new_hdl->fs = NULL;
         }
 
-        DO_MIGRATE_IN_MEMBER(qstr, hdl, new_hdl, path, false);
-        DO_MIGRATE_IN_MEMBER(qstr, hdl, new_hdl, uri,  false);
+        if (hdl->dentry)
+            DO_CP_MEMBER(dentry, hdl, new_hdl, dentry);
 
-        ADD_FUNC_ENTRY(off);
-        ADD_ENTRY(SIZE, sizeof(struct shim_handle));
-        ADD_ENTRY(PALHDL, new_hdl->pal_handle ?
-                  *offset + offsetof(struct shim_handle, pal_handle) : 0);
+        if (new_hdl->pal_handle) {
+            struct shim_palhdl_entry * entry;
+            DO_CP(palhdl, hdl->pal_handle, &entry);
+            entry->uri = &new_hdl->uri;
+            entry->phandle = &new_hdl->pal_handle;
+        }
 
-    } else if (!dry) {
+        unlock(hdl->lock);
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
         new_hdl = (struct shim_handle *) (base + off);
     }
 
-    if (new_hdl && objp)
+    if (objp)
         *objp = (void *) new_hdl;
 
-    if (new_hdl)
-        assert(new_hdl->uri.len < 1024);
-
-    unlock(hdl->lock);
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(handle)
 
-DEFINE_PROFILE_CATAGORY(inside_resume_handle, resume_func);
-DEFINE_PROFILE_INTERVAL(dentry_lookup_for_handle, inside_resume_handle);
-
-RESUME_FUNC_BODY(handle)
+BEGIN_RS_FUNC(handle)
 {
-    unsigned long off = GET_FUNC_ENTRY();
-    assert((size_t) GET_ENTRY(SIZE) == sizeof(struct shim_handle));
-    GET_ENTRY(PALHDL);
+    struct shim_handle * hdl = (void *) (base + GET_CP_FUNC_ENTRY());
 
-    BEGIN_PROFILE_INTERVAL();
-
-    struct shim_handle * hdl = (struct shim_handle *) (base + off);
-
-    RESUME_REBASE(hdl->fs);
+    CP_REBASE(hdl->fs);
+    CP_REBASE(hdl->dentry);
 
     create_lock(hdl->lock);
 
-    if (!qstrempty(&hdl->path)) {
-        UPDATE_PROFILE_INTERVAL();
-        int ret = path_lookupat(NULL, qstrgetstr(&hdl->path), LOOKUP_OPEN,
-                                &hdl->dentry);
-        if (ret < 0)
-            return -EACCES;
-
-        get_dentry(hdl->dentry);
-        SAVE_PROFILE_INTERVAL(dentry_lookup_for_handle);
-    }
-
     if (!hdl->fs) {
-        if (hdl->dentry) {
-            set_handle_fs(hdl, hdl->dentry->fs);
-        } else {
-            struct shim_mount * fs = NULL;
-            assert(hdl->fs_type);
-            search_builtin_fs(hdl->fs_type, &fs);
-            if (fs)
-                set_handle_fs(hdl, fs);
-        }
+        assert(hdl->fs_type);
+        search_builtin_fs(hdl->fs_type, &hdl->fs);
+        if (!hdl->fs)
+            return -EINVAL;
     }
 
     if (hdl->fs && hdl->fs->fs_ops &&
         hdl->fs->fs_ops->checkin)
         hdl->fs->fs_ops->checkin(hdl);
 
-#ifdef DEBUG_RESUME
-    debug("handle: path=%s,fs_type=%s,uri=%s,flags=%03o\n",
-          qstrgetstr(&hdl->path), hdl->fs_type, qstrgetstr(&hdl->uri),
-          hdl->flags);
-#endif
+    DEBUG_RS("path=%s,type=%s,uri=%s,flags=%03o",
+             qstrgetstr(&hdl->path), hdl->fs_type, qstrgetstr(&hdl->uri),
+             hdl->flags);
 }
-END_RESUME_FUNC
+END_RS_FUNC(handle)
 
-DEFINE_MIGRATE_FUNC(fd_handle)
-
-MIGRATE_FUNC_BODY(fd_handle)
+BEGIN_CP_FUNC(fd_handle)
 {
     assert(size == sizeof(struct shim_fd_handle));
 
     struct shim_fd_handle * fdhdl = (struct shim_fd_handle *) obj;
     struct shim_fd_handle * new_fdhdl = NULL;
 
-    ADD_OFFSET(sizeof(struct shim_fd_handle));
-    ADD_FUNC_ENTRY(*offset);
-    ADD_ENTRY(SIZE, sizeof(struct shim_fd_handle));
+    ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_fd_handle));
+    new_fdhdl = (struct shim_fd_handle *) (base + off);
+    memcpy(new_fdhdl, fdhdl, sizeof(struct shim_fd_handle));
+    DO_CP(handle, fdhdl->handle, &new_fdhdl->handle);
+    ADD_CP_FUNC_ENTRY(off);
 
-    if (!dry) {
-        new_fdhdl = (struct shim_fd_handle *) (base + *offset);
-        memcpy(new_fdhdl, fdhdl, sizeof(struct shim_fd_handle));
-    }
-
-    if (new_fdhdl && objp)
+    if (objp)
         *objp = (void *) new_fdhdl;
-
-    struct shim_handle ** phdl = dry ? NULL : &(new_fdhdl->handle);
-    struct shim_handle * hdl = fdhdl->handle;
-
-    DO_MIGRATE_IF_RECURSIVE(handle, hdl, phdl, recursive);
 }
-END_MIGRATE_FUNC
+END_CP_FUNC_NO_RS(fd_handle)
 
-RESUME_FUNC_BODY(fd_handle)
-{
-    GET_FUNC_ENTRY();
-    assert((size_t) GET_ENTRY(SIZE) == sizeof(struct shim_fd_handle));
-}
-END_RESUME_FUNC
-
-DEFINE_MIGRATE_FUNC(handle_map)
-
-MIGRATE_FUNC_BODY(handle_map)
+BEGIN_CP_FUNC(handle_map)
 {
     assert(size >= sizeof(struct shim_handle_map));
 
@@ -910,82 +862,67 @@ MIGRATE_FUNC_BODY(handle_map)
     size = sizeof(struct shim_handle_map) +
            (sizeof(struct shim_fd_handle *) * fd_size);
 
-    unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset, size);
+    ptr_t off = GET_FROM_CP_MAP(obj);
 
-    if (ENTRY_JUST_CREATED(off)) {
-        ADD_OFFSET(size);
-        ADD_FUNC_ENTRY(*offset);
-        ADD_ENTRY(SIZE, size);
+    if (!off) {
+        off = ADD_CP_OFFSET(size);
+        new_handle_map = (struct shim_handle_map *) (base + off);
 
-        if (!dry) {
-            new_handle_map = (struct shim_handle_map *) (base + *offset);
+        memcpy(new_handle_map, handle_map,
+               sizeof(struct shim_handle_map));
 
-            memcpy(new_handle_map, handle_map,
-                   sizeof(struct shim_handle_map));
+        ptr_array = (void *) new_handle_map + sizeof(struct shim_handle_map);
 
-            ptr_array = (void *) new_handle_map +
-                                 sizeof(struct shim_handle_map);
+        new_handle_map->fd_size = fd_size;
+        new_handle_map->map = fd_size ? ptr_array : NULL;
 
-            new_handle_map->fd_size = fd_size;
-            new_handle_map->map = fd_size ? ptr_array : NULL;
-
-            REF_SET(new_handle_map->ref_count, 0);
-            clear_lock(new_handle_map->lock);
-        }
+        REF_SET(new_handle_map->ref_count, 0);
+        clear_lock(new_handle_map->lock);
 
         for (int i = 0 ; i < fd_size ; i++) {
-            if (HANDLE_ALLOCATED(handle_map->map[i])) {
-                struct shim_fd_handle ** new_hdl = dry ? NULL :
-                    &(ptr_array[i]);
-                __DO_MIGRATE(fd_handle, handle_map->map[i],
-                             new_hdl, 1);
-            } else if (!dry)
+            if (HANDLE_ALLOCATED(handle_map->map[i]))
+                DO_CP(fd_handle, handle_map->map[i], &ptr_array[i]);
+            else
                 ptr_array[i] = NULL;
         }
-    } else if (!dry)
+
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
         new_handle_map = (struct shim_handle_map *) (base + off);
+    }
 
     unlock(handle_map->lock);
 
-    if (new_handle_map && objp)
+    if (objp)
         *objp = (void *) new_handle_map;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(handle_map)
 
-RESUME_FUNC_BODY(handle_map)
+BEGIN_RS_FUNC(handle_map)
 {
-    unsigned long off = GET_FUNC_ENTRY();
-    assert((size_t) GET_ENTRY(SIZE) >= sizeof(struct shim_handle_map));
-    struct shim_handle_map * handle_map =
-                    (struct shim_handle_map *) (base + off);
+    struct shim_handle_map * handle_map = (void *) (base + GET_CP_FUNC_ENTRY());
 
-    RESUME_REBASE(handle_map->map);
+    CP_REBASE(handle_map->map);
     assert(handle_map->map);
 
-#ifdef DEBUG_RESUME
-    debug("handle_map: size=%d,top=%d\n", handle_map->fd_size,
-          handle_map->fd_top);
-#endif
+    DEBUG_RS("size=%d,top=%d", handle_map->fd_size, handle_map->fd_top);
 
     create_lock(handle_map->lock);
     lock(handle_map->lock);
 
     if (handle_map->fd_top != FD_NULL)
         for (int i = 0 ; i <= handle_map->fd_top ; i++) {
-            RESUME_REBASE(handle_map->map[i]);
+            CP_REBASE(handle_map->map[i]);
             if (HANDLE_ALLOCATED(handle_map->map[i])) {
-                RESUME_REBASE(handle_map->map[i]->handle);
+                CP_REBASE(handle_map->map[i]->handle);
                 struct shim_handle * hdl = handle_map->map[i]->handle;
                 assert(hdl);
                 open_handle(hdl);
-#ifdef DEBUG_RESUME
-                debug("handle_map[%d]: %s\n", i,
-                      !qstrempty(&hdl->uri) ? qstrgetstr(&hdl->uri) :
-                      hdl->fs_type);
-#endif
+                DEBUG_RS("[%d]%s", i, qstrempty(&hdl->uri) ? hdl->fs_type :
+                                      qstrgetstr(&hdl->uri));
             }
         }
 
     unlock(handle_map->lock);
 }
-END_RESUME_FUNC
+END_RS_FUNC(handle_map)

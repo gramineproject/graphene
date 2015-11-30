@@ -755,7 +755,7 @@ static void shim_ipc_helper (void * arg)
         return;
 
     __libc_tcb_t tcb;
-    allocate_tls(&tcb, self);
+    allocate_tls(&tcb, false, self);
     debug_setbuf(&tcb.shim_tcb, true);
     debug("set tcb to %p\n", &tcb);
 

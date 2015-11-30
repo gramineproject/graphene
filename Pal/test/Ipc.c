@@ -11,9 +11,7 @@ int main(int argc, char ** argv)
 
     if (argc == 1) {
         const char * args[3];
-        char uri[20], uri2[20];
-
-        snprintf(uri2, 20, "file:%s", argv[0]);
+        char uri[20];
 
         args[0] = "Ipc";
         args[1] = uri;
@@ -27,7 +25,6 @@ int main(int argc, char ** argv)
         snprintf((char *) mem, 4096, "Hello World");
 
         PAL_NUM key = 0;
-
         PAL_HANDLE chdl = DkCreatePhysicalMemoryChannel(&key);
 
         if (chdl == NULL) {
@@ -38,7 +35,7 @@ int main(int argc, char ** argv)
 
         snprintf(uri, 20, "gipc:%lld", key);
 
-        PAL_HANDLE phdl = DkProcessCreate(uri2, 0, args);
+        PAL_HANDLE phdl = DkProcessCreate("file:Ipc", 0, args);
 
         if (phdl == NULL)
             pal_printf ("ProcessCreate Failed\n");
@@ -54,8 +51,7 @@ int main(int argc, char ** argv)
             pal_printf("Failed to get exit signal from child, %d\n", rv);
             return -1;
         }
-    }
-    else {
+    } else {
         name = argv[1];
 
         PAL_HANDLE chdl = DkStreamOpen(name, 0, 0, 0, 0);

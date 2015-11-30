@@ -33,14 +33,12 @@
 #include <pal.h>
 #include <linux_list.h>
 
-#include <stdint.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <linux/shm.h>
-#include <linux/msg.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/un.h>
-#include <netinet/in.h>
+
+#include <asm/fcntl.h>
 
 /* start definition of shim handle */
 enum shim_handle_type {
@@ -74,7 +72,7 @@ struct shim_file_data {
     struct shim_atomic  version;
     bool                queried;
     enum shim_file_type type;
-    mode_t              mode;
+    mode_t     mode;
     struct shim_atomic  size;
     struct shim_qstr    host_uri;
     unsigned long       atime;
@@ -132,6 +130,23 @@ struct shim_pipe_handle {
     IDTYPE                  pipeid;
 #endif
 };
+
+#define SOCK_STREAM     1
+#define SOCK_DGRAM      2
+#define SOCK_NONBLOCK   04000
+#define SOCK_CLOEXEC    02000000
+
+#define SOL_TCP         6
+
+#define PF_LOCAL        1
+#define PF_UNIX         PF_LOCAL
+#define PF_FILE         PF_LOCAL
+#define PF_INET         2
+#define PF_INET6        10
+
+#define AF_UNIX         PF_UNIX
+#define AF_INET         PF_INET
+#define AF_INET6        PF_INET6
 
 enum shim_sock_state {
     SOCK_CREATED,
@@ -394,5 +409,8 @@ int init_handle (void);
 int init_important_handles (void);
 
 size_t get_file_size (struct shim_handle * file);
+
+int do_handle_read (struct shim_handle * hdl, void * buf, int count);
+int do_handle_write (struct shim_handle * hdl, const void * buf, int count);
 
 #endif /* _SHIM_HANDLE_H_ */

@@ -36,11 +36,13 @@
 #include <pal.h>
 #include <pal_error.h>
 
-#include <fcntl.h>
 #include <errno.h>
 #include <dirent.h>
 
-int do_handle_read (struct shim_handle * hdl, void * buf, size_t count)
+#include <linux/stat.h>
+#include <linux/fcntl.h>
+
+int do_handle_read (struct shim_handle * hdl, void * buf, int count)
 {
     if (!(hdl->acc_mode & MAY_READ))
         return -EACCES;
@@ -57,7 +59,6 @@ int do_handle_read (struct shim_handle * hdl, void * buf, size_t count)
     return fs->fs_ops->read(hdl, buf, count);
 }
 
-
 size_t shim_do_read (int fd, void * buf, size_t count)
 {
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
@@ -68,7 +69,7 @@ size_t shim_do_read (int fd, void * buf, size_t count)
     return ret;
 }
 
-int do_handle_write (struct shim_handle * hdl, const void * buf, size_t count)
+int do_handle_write (struct shim_handle * hdl, const void * buf, int count)
 {
     if (!(hdl->acc_mode & MAY_WRITE))
         return -EACCES;
@@ -367,7 +368,7 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
         dirhdl->dotdot = NULL;
     }
 
-    while (*dirhdl->ptr) {
+    while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
         ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
         put_dentry(dent);
@@ -436,7 +437,7 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
         dirhdl->dotdot = NULL;
     }
 
-    while (*dirhdl->ptr) {
+    while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
         ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
         put_dentry(dent);

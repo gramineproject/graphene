@@ -79,7 +79,6 @@ typedef union pal_handle
         PAL_HDR __in;
         PAL_IDX fd;
         PAL_NUM pipeid;
-        PAL_IDX connid;
         PAL_BOL nonblocking;
     } pipe;
 
@@ -144,6 +143,7 @@ typedef union pal_handle
         PAL_IDX srv;
         PAL_IDX port;
         PAL_BOL nonblocking;
+        PAL_BUF addr;
     } mcast;
 
     struct {
@@ -176,4 +176,5 @@ typedef union pal_handle
 #define MAX_FDS         (3)
 #define HAS_FDS         (00077)
 
+#define HANDLE_TYPE(handle)  ((handle)->__in.type)
 #endif /* PAL_HOST_H */

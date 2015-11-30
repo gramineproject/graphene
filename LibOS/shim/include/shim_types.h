@@ -4,20 +4,12 @@
 #ifndef _SHIM_TYPES_H_
 #define _SHIM_TYPES_H_
 
-#define _GNU_SOURCE
-#include <features.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ustat.h>
-#include <sys/socket.h>
-#include <sys/poll.h>
-#include <asm/statfs.h>
-#include <asm/ldt.h>
-#include <netinet/in.h>
+
+#define __KERNEL__
+
 #include <linux/types.h>
 #include <linux/utsname.h>
 #include <linux/times.h>
@@ -30,7 +22,29 @@
 #include <linux/aio_abi.h>
 #include <linux/perf_event.h>
 
-typedef unsigned int __u32;
+#include <asm/posix_types.h>
+#include <asm/statfs.h>
+#include <asm/stat.h>
+#include <asm/ldt.h>
+#include <asm/signal.h>
+#include <asm/siginfo.h>
+#include <asm/poll.h>
+
+typedef unsigned int        __u32;
+
+typedef unsigned long int   nfds_t;
+typedef unsigned long int   nlink_t;
+
+typedef __kernel_caddr_t    caddr_t;
+typedef __kernel_mode_t     mode_t;
+typedef __kernel_loff_t     loff_t;
+typedef __kernel_time_t     time_t;
+typedef __kernel_old_dev_t  dev_t;
+typedef __kernel_ino_t      ino_t;
+typedef __kernel_clockid_t  clockid_t;
+typedef __kernel_key_t      key_t;
+typedef __kernel_timer_t    timer_t;
+typedef __kernel_fd_set     fd_set;
 
 /* linux/time.h */
 struct __kernel_timespec {
@@ -141,6 +155,12 @@ struct __kernel_sigaction {
 /* linux/aio_abi.h (for io_setup which has no glibc wrapper) */
 typedef unsigned long aio_context_t;
 
+/* bits/sigset.h */
+# define _SIGSET_NWORDS	(1024 / (8 * sizeof (unsigned long int)))
+typedef struct {
+    unsigned long int __val[_SIGSET_NWORDS];
+} __sigset_t;
+
 /* linux/rlimit.h */
 struct __kernel_rusage {
     struct __kernel_timeval ru_utime;    /* user time used */
@@ -182,15 +202,161 @@ __attribute__((packed));
 ;
 #endif
 
-/* buts/socket.h */
-#ifndef __USE_GNU
+/* sys/ucontext.h */
+/* Type for general register.  */
+typedef long int greg_t;
+
+/* Number of general registers.  */
+#define NGREG    23
+
+/* Container for all general registers.  */
+typedef greg_t gregset_t[NGREG];
+
+/* Number of each register in the `gregset_t' array.  */
+enum
+{
+    REG_R8 = 0,
+# define REG_R8     REG_R8
+    REG_R9,
+# define REG_R9     REG_R9
+    REG_R10,
+# define REG_R10    REG_R10
+    REG_R11,
+# define REG_R11    REG_R11
+    REG_R12,
+# define REG_R12    REG_R12
+    REG_R13,
+# define REG_R13    REG_R13
+    REG_R14,
+# define REG_R14    REG_R14
+    REG_R15,
+# define REG_R15    REG_R15
+    REG_RDI,
+# define REG_RDI    REG_RDI
+    REG_RSI,
+# define REG_RSI    REG_RSI
+    REG_RBP,
+# define REG_RBP    REG_RBP
+    REG_RBX,
+# define REG_RBX    REG_RBX
+    REG_RDX,
+# define REG_RDX    REG_RDX
+    REG_RAX,
+# define REG_RAX    REG_RAX
+    REG_RCX,
+# define REG_RCX    REG_RCX
+    REG_RSP,
+# define REG_RSP    REG_RSP
+    REG_RIP,
+# define REG_RIP    REG_RIP
+    REG_EFL,
+# define REG_EFL    REG_EFL
+    REG_CSGSFS,        /* Actually short cs, gs, fs, __pad0.  */
+# define REG_CSGSFS REG_CSGSFS
+    REG_ERR,
+# define REG_ERR    REG_ERR
+    REG_TRAPNO,
+# define REG_TRAPNO REG_TRAPNO
+    REG_OLDMASK,
+# define REG_OLDMASK REG_OLDMASK
+    REG_CR2
+# define REG_CR2    REG_CR2
+};
+
+struct _libc_fpxreg {
+    unsigned short int significand[4];
+    unsigned short int exponent;
+    unsigned short int padding[3];
+};
+
+struct _libc_xmmreg {
+    __uint32_t    element[4];
+};
+
+struct _libc_fpstate {
+    /* 64-bit FXSAVE format.  */
+    __uint16_t          cwd;
+    __uint16_t          swd;
+    __uint16_t          ftw;
+    __uint16_t          fop;
+    __uint64_t          rip;
+    __uint64_t          rdp;
+    __uint32_t          mxcsr;
+    __uint32_t          mxcr_mask;
+    struct _libc_fpxreg st[8];
+    struct _libc_xmmreg _xmm[16];
+    __uint32_t          padding[24];
+};
+
+/* Structure to describe FPU registers.  */
+typedef struct _libc_fpstate *fpregset_t;
+
+/* Context to describe whole processor state.  */
+typedef struct {
+    gregset_t gregs;
+    /* Note that fpregs is a pointer.  */
+    fpregset_t fpregs;
+    unsigned long __reserved1 [8];
+} mcontext_t;
+
+/* Userlevel context.  */
+typedef struct ucontext {
+    unsigned long int uc_flags;
+    struct ucontext *uc_link;
+    stack_t uc_stack;
+    mcontext_t uc_mcontext;
+    __sigset_t uc_sigmask;
+    struct _libc_fpstate __fpregs_mem;
+} ucontext_t;
+
+/* bits/ustat.h */
+struct __kernel_ustat
+  {
+    __daddr_t f_tfree;		/* Number of free blocks.  */
+    __ino_t f_tinode;		/* Number of free inodes.  */
+    char f_fname[6];
+    char f_fpack[6];
+  };
+
+/* bits/socket.h */
+struct msghdr {
+    void *msg_name;         /* Address to send to/receive from.  */
+    socklen_t msg_namelen;  /* Length of address data.  */
+
+    struct iovec *msg_iov;  /* Vector of data to send/receive into.  */
+    size_t msg_iovlen;      /* Number of elements in the vector.  */
+
+    void *msg_control;      /* Ancillary data (eg BSD filedesc passing). */
+    size_t msg_controllen;  /* Ancillary data buffer length.
+                               !! The type should be socklen_t but the
+                               definition of the kernel is incompatible
+                               with this.  */
+
+    int msg_flags;          /* Flags on received message.  */
+};
+
 /* For `recvmmsg'.  */
 struct mmsghdr {
     struct msghdr msg_hdr;  /* Actual message header.  */
     unsigned int msg_len;   /* Number of received bytes for the entry.  */
 };
-#endif
 
+/* POSIX.1g specifies this type name for the `sa_family' member.  */
+typedef unsigned short int sa_family_t;
+
+/* This macro is used to declare the initial common members
+   of the data types used for socket addresses, `struct sockaddr',
+   `struct sockaddr_in', `struct sockaddr_un', etc.  */
+
+#define	__SOCKADDR_COMMON(sa_prefix) \
+  sa_family_t sa_prefix##family
+
+
+/* Structure describing a generic socket address.  */
+struct sockaddr {
+    __SOCKADDR_COMMON (sa_);    /* Common data: address family and length.  */
+    char sa_data[14];           /* Address data.  */
+};
 
 /* linux/mqueue.h */
 struct __kernel_mq_attr {
@@ -201,6 +367,12 @@ struct __kernel_mq_attr {
     long    __reserved[4];  /* ignored for input, zeroed for output */
 };
 
+/* bits/uio.h */
+/* Structure for scatter/gather I/O.  */
+struct iovec {
+    void * iov_base;    /* Pointer to data.  */
+    size_t iov_len;     /* Length of data.  */
+};
 
 /* bits/sched.h */
 /* Type for array elements in 'cpu_set_t'.  */
@@ -250,14 +422,14 @@ struct linux_dirent_tail {
 
 struct __kernel_addrinfo
 {
-  int ai_flags;			/* Input flags.  */
-  int ai_family;		/* Protocol family for socket.  */
-  int ai_socktype;		/* Socket type.  */
-  int ai_protocol;		/* Protocol for socket.  */
-  socklen_t ai_addrlen;		/* Length of socket address.  */
-  struct sockaddr *ai_addr;	/* Socket address for socket.  */
-  char *ai_canonname;		/* Canonical name for service location.  */
-  struct addrinfo *ai_next;	/* Pointer to next in list.  */
+  int ai_flags;                 /* Input flags.  */
+  int ai_family;                /* Protocol family for socket.  */
+  int ai_socktype;              /* Socket type.  */
+  int ai_protocol;              /* Protocol for socket.  */
+  socklen_t ai_addrlen;         /* Length of socket address.  */
+  struct sockaddr *ai_addr;     /* Socket address for socket.  */
+  char *ai_canonname;           /* Canonical name for service location.  */
+  struct addrinfo *ai_next;     /* Pointer to next in list.  */
 };
 
 #include "elf.h"

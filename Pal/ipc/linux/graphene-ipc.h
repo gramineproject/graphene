@@ -6,7 +6,6 @@
 #define GIPC_FILE   "/dev/gipc"
 #define GIPC_MINOR		240
 
-
 /* Ioctl codes */
 #define GIPC_SEND   _IOW('k', 0, void *)
 #define GIPC_RECV   _IOR('k', 1, void *)

@@ -34,9 +34,6 @@
 #include "graphene-ipc.h"
 #include "api.h"
 
-#include <fcntl.h>
-#include <sched.h>
-
 int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
                int access, int share, int create, int options)
 {

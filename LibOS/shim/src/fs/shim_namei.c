@@ -35,8 +35,10 @@
 
 #include <pal.h>
 
-#include <errno.h>
-#include <fcntl.h>
+#include <linux/stat.h>
+#include <linux/fcntl.h>
+
+#include <asm/fcntl.h>
 
 /* check permission of a dentry. If force is not set, permission
    is consider granted on invalid dentries */
@@ -156,7 +158,7 @@ static int do_lookup (struct lookup * look, const char * name, int namelen,
     int err = 0;
     struct shim_dentry * dent = NULL;
 
-    if ((err = lookup_dentry(look->dentry, name, namelen, force, &dent)) < 0)
+    if ((err = lookup_dentry(look->dentry, name, namelen,force, &dent)) < 0)
         goto fail;
 
     path_reacquire(look, dent);
@@ -541,6 +543,10 @@ static int path_lookup_walk (struct shim_dentry * start,
     return link_path_walk(name, look);
 }
 
+DEFINE_PROFILE_CATAGORY(path_lookup, dcache);
+DEFINE_PROFILE_INTERVAL(lookup_dcache_for_path_lookup, path_lookup);
+DEFINE_PROFILE_INTERVAL(lookup_walk_for_path_lookup,   path_lookup);
+
 int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                      struct shim_dentry ** dent)
 {
@@ -548,10 +554,13 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
     struct shim_dentry * found = NULL;
     int ret = 0;
     struct lookup look;
+    BEGIN_PROFILE_INTERVAL();
 
     ret = path_lookup_dcache(start, path, flags, &found, cur_thread);
     if (ret < 0)
         return ret;
+
+    SAVE_PROFILE_INTERVAL(lookup_dcache_for_path_lookup);
 
     if (!found) {
         if ((ret = path_lookup_walk(start, path, flags, &look, cur_thread)) < 0)
@@ -559,6 +568,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
 
         get_dentry(look.dentry);
         found = look.dentry;
+        SAVE_PROFILE_INTERVAL(lookup_walk_for_path_lookup);
 
         if (flags & LOOKUP_SYNC) {
             if ((ret = __do_lookup_dentry(found, true)) < 0)
@@ -595,6 +605,7 @@ int path_lookupat (struct shim_dentry * start, const char * path, int flags,
     struct lookup look;
 
     lock(dcache_lock);
+    BEGIN_PROFILE_INTERVAL();
 
     ret = path_lookup_dcache(start, path, flags, &found, cur_thread);
 
@@ -603,6 +614,8 @@ int path_lookupat (struct shim_dentry * start, const char * path, int flags,
         return ret;
     }
 
+    SAVE_PROFILE_INTERVAL(lookup_dcache_for_path_lookup);
+
     if (!found) {
         if ((ret = path_lookup_walk(start, path, flags, &look,
                                     cur_thread)) < 0)
@@ -610,6 +623,7 @@ int path_lookupat (struct shim_dentry * start, const char * path, int flags,
 
         get_dentry(look.dentry);
         found = look.dentry;
+        SAVE_PROFILE_INTERVAL(lookup_walk_for_path_lookup);
 
         if (flags & LOOKUP_SYNC) {
             if ((ret = __do_lookup_dentry(found, true)) < 0)
@@ -733,6 +747,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
     BEGIN_PROFILE_INTERVAL();
     lock(dcache_lock);
 
+#if 0
     err = path_lookup_dcache(start, path, lookup_flags|LOOKUP_OPEN,
                              &look.dentry, cur_thread);
 
@@ -749,6 +764,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
         SAVE_PROFILE_INTERVAL(end_open_namei);
         return err;
     }
+#endif
 
     if (look.dentry) {
         if (look.dentry->state & DENTRY_NEGATIVE) {
@@ -788,12 +804,16 @@ do_open:
         SAVE_PROFILE_INTERVAL(open_namei_permission);
         if (hdl) {
             if (look.dentry->state & DENTRY_ISDIRECTORY) {
-                assert(flags & O_DIRECTORY);
                 if ((err = directory_open(hdl, look.dentry, flags)) < 0)
                     goto exit;
                 SAVE_PROFILE_INTERVAL(open_namei_dir_open);
             } else {
-                assert(!(flags & O_DIRECTORY));
+                err = -ENOTDIR;
+                if (flags & O_DIRECTORY) {
+                    debug("%s is not a directory\n",
+                          dentry_get_path(look.dentry, true, NULL));
+                    goto exit;
+                }
                 if ((err = dentry_open(hdl, look.dentry, flags)) < 0)
                     goto exit;
                 SAVE_PROFILE_INTERVAL(open_namei_dentry_open);
@@ -814,6 +834,7 @@ do_open:
 
     struct shim_dentry * new = NULL;
     dir = look.dentry;
+    get_dentry(dir);
     err = lookup_dentry(dir, look.last, strlen(look.last), true, &new);
     SAVE_PROFILE_INTERVAL(open_namei_lookup_2);
     if (err < 0 && (err != -ENOENT || !new))
@@ -1021,30 +1042,31 @@ int directory_open (struct shim_handle * hdl, struct shim_dentry * dent,
 done_read:
     unlock(dcache_lock);
 
-    if (!(dent->state & DENTRY_LISTED))
-        return ret;
+    struct shim_dentry ** children = NULL;
 
-    int nchildren = dent->nchildren, count = 0;
-    struct shim_dentry ** children = malloc(sizeof(struct shim_dentry *) *
-                                            (nchildren + 1));
-    struct shim_dentry * child;
+    if (dent->state & DENTRY_LISTED) {
+        int nchildren = dent->nchildren, count = 0;
+        struct shim_dentry * child;
 
-    list_for_each_entry(child, &dent->children, siblings) {
-        if (count >= nchildren)
-            break;
+        children = malloc(sizeof(struct shim_dentry *) * (nchildren + 1));
 
-        struct shim_dentry * c = child;
+        list_for_each_entry(child, &dent->children, siblings) {
+            if (count >= nchildren)
+                break;
 
-        while (c->state & DENTRY_MOUNTPOINT)
-            c = c->mounted->root;
+            struct shim_dentry * c = child;
 
-        if (c->state & DENTRY_VALID) {
-            get_dentry(c);
-            children[count++] = c;
+            while (c->state & DENTRY_MOUNTPOINT)
+                c = c->mounted->root;
+
+            if (c->state & DENTRY_VALID) {
+                get_dentry(c);
+                children[count++] = c;
+            }
         }
-    }
 
-    children[count] = NULL;
+        children[count] = NULL;
+    }
 
     qstrsetstr(&hdl->path, path, size);
     hdl->type = TYPE_DIR;
@@ -1052,12 +1074,15 @@ done_read:
     memcpy(hdl->fs_type, fs->type, sizeof(fs->type));
     hdl->dentry = dent;
     hdl->flags = flags;
+
     get_dentry(dent);
     hdl->info.dir.dot = dent;
+
     if (dent->parent) {
         get_dentry(dent->parent);
         hdl->info.dir.dotdot = dent->parent;
     }
+
     hdl->info.dir.buf = children;
     hdl->info.dir.ptr = children;
 out:

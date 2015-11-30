@@ -8,6 +8,9 @@
 #define GRAPHENE_FILE   "/dev/graphene"
 #define GRAPHENE_MINOR		239
 
+#define GRAPHENE_UNIX_PREFIX_FMT	"/graphene/%016lx"
+#define GRAPHENE_MCAST_GROUP		"239.0.0.1"
+
 /* symbolic link this header file in include/linux */
 
 /* This header needs to be included in include/linux/sched.h */
@@ -19,15 +22,20 @@
 # define __user
 #endif
 
-#define GRAPHENE_LIB_NAME	0x01
-#define GRAPHENE_LIB_ADDR	0x02
-#define GRAPHENE_UNIX_PREFIX	0x03
-#define GRAPHENE_MCAST_PORT	0x04
-#define GRAPHENE_NET_RULE	0x05
-#define GRAPHENE_FS_PATH	0x06
-#define GRAPHENE_FS_RECURSIVE	0x07
-#define GRAPHENE_FS_READ	0x10
-#define GRAPHENE_FS_WRITE	0x20
+#define GRAPHENE_LIB_NAME	0001
+#define GRAPHENE_LIB_ADDR	0002
+#define GRAPHENE_UNIX_PREFIX	0003
+#define GRAPHENE_MCAST_PORT	0004
+#define GRAPHENE_FS_PATH	0005
+#define GRAPHENE_NET_RULE	0006
+
+#define GRAPHENE_POLICY_TYPES	0007
+
+#define GRAPHENE_FS_RECURSIVE	0010
+#define GRAPHENE_FS_READ	0020
+#define GRAPHENE_FS_WRITE	0040
+
+#define GRAPHENE_NET_BIND	0100
 
 struct graphene_user_policy {
 	int			type;
@@ -43,9 +51,9 @@ struct graphene_net_addr {
 	unsigned short		port_end;
 };
 
-struct graphene_net_policy {
+struct graphene_net_rule {
 	unsigned short			family;
-	struct graphene_net_addr	local, peer;
+	struct graphene_net_addr	addr;
 };
 
 #define GRAPHENE_SET_TASK	_IOW('k', 16, void *)
@@ -76,16 +84,14 @@ struct graphene_path {
 	int			type;
 };
 
-#define LOCAL_ADDR_ANY		0x1
-#define LOCAL_PORT_ANY		0x2
-#define PEER_ADDR_ANY		0x4
-#define PEER_PORT_ANY		0x8
+#define ADDR_ANY		0x1
+#define PORT_ANY		0x2
 
 struct graphene_net {
 	struct list_head	list;
 	short			family;
 	unsigned char		flags;
-	struct graphene_net_addr	local, peer;
+	struct graphene_net_addr	addr;
 };
 
 struct graphene_unix {
@@ -107,7 +113,10 @@ struct graphene_info {
 	char			gi_unix[28];	/* fmt: @/graphene/%016lx/ */
 	struct list_head	gi_paths;
 	struct list_head	gi_rpaths;
-	struct list_head	gi_net;
+	struct list_head	gi_binds;
+	struct list_head	gi_peers;
+	unsigned short		gi_mcast_port;
+	struct file *		gi_mcast_sock;
 	u64			gi_gipc_session;
 };
 

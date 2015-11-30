@@ -34,6 +34,6 @@ fs.mount.other.tmp.uri = file:/tmp
 
 fs.mount.other.pwd.type = chroot
 fs.mount.other.pwd.path = $(PWD)
-fs.mount.other.pwd.uri = file:
+fs.mount.other.pwd.uri = file:$(PWD)
 
 sys.brk.size = 524288   # 512KB

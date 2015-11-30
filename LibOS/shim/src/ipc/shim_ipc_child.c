@@ -36,9 +36,15 @@
 
 #include <errno.h>
 
-static int ipc_thread_exit (IDTYPE vmid, IDTYPE tid, unsigned int exitcode)
+static int ipc_thread_exit (IDTYPE vmid, IDTYPE tid, unsigned int exitcode,
+                            unsigned long exit_time)
 {
     assert(vmid != cur_process.vmid);
+
+#ifdef PROFILE
+    if (!exit_time)
+        exit_time = GET_PROFILE_INTERVAL();
+#endif
 
     struct shim_thread * thread = __lookup_thread(tid);
 
@@ -46,6 +52,9 @@ static int ipc_thread_exit (IDTYPE vmid, IDTYPE tid, unsigned int exitcode)
         int ret = 0;
         //assert(thread->vmid == vmid && !thread->in_vm);
         thread->exit_code = -exitcode;
+#ifdef PROFILE
+        thread->exit_time = exit_time;
+#endif
         ret = thread_exit(thread, false);
         put_thread(thread);
         return ret;
@@ -62,6 +71,9 @@ static int ipc_thread_exit (IDTYPE vmid, IDTYPE tid, unsigned int exitcode)
 
     sthread->is_alive = 0;
     sthread->exit_code = -exitcode;
+#ifdef PROFILE
+    sthread->exit_time = exit_time;
+#endif
     DkEventSet(sthread->exit_event);
     put_simple_thread(sthread);
     return 0;
@@ -162,12 +174,14 @@ static struct shim_ipc_port * get_parent_port (IDTYPE * dest)
     return port;
 }
 
+DEFINE_PROFILE_INTERVAL(ipc_cld_exit_turnaround, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_send, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_callback, ipc);
 
 int ipc_cld_exit_send (IDTYPE tid, unsigned int exitcode)
 {
-    BEGIN_PROFILE_INTERVAL();
+    unsigned long send_time = GET_PROFILE_INTERVAL();
+    BEGIN_PROFILE_INTERVAL_SET(send_time);
     int ret = 0;
 
     struct shim_ipc_msg * msg =
@@ -177,6 +191,9 @@ int ipc_cld_exit_send (IDTYPE tid, unsigned int exitcode)
                 (struct shim_ipc_cld_exit *) &msg->msg;
     msgin->tid = tid;
     msgin->exitcode = exitcode;
+#ifdef PROFILE
+    msgin->time = send_time;
+#endif
 
     debug("ipc broadcast: IPC_CLD_EXIT(%u, %d)\n", tid, exitcode);
 
@@ -187,14 +204,21 @@ int ipc_cld_exit_send (IDTYPE tid, unsigned int exitcode)
 
 int ipc_cld_exit_callback (IPC_CALLBACK_ARGS)
 {
-    BEGIN_PROFILE_INTERVAL();
     struct shim_ipc_cld_exit * msgin =
                 (struct shim_ipc_cld_exit *) &msg->msg;
+
+#ifdef PROFILE
+    unsigned long time = msgin->time;
+#else
+    unsigned long time = 0;
+#endif
+    BEGIN_PROFILE_INTERVAL_SET(time);
+    SAVE_PROFILE_INTERVAL(ipc_cld_exit_turnaround);
 
     debug("ipc callback from %u: IPC_CLD_EXIT(%u, %d)\n",
           msg->src, msgin->tid, msgin->exitcode);
 
-    int ret = ipc_thread_exit(msg->src, msgin->tid, msgin->exitcode);
+    int ret = ipc_thread_exit(msg->src, msgin->tid, msgin->exitcode, time);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_callback);
     return ret;
 }

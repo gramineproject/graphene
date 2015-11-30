@@ -31,12 +31,16 @@
 #include <shim_vma.h>
 #include <shim_checkpoint.h>
 #include <shim_signal.h>
+#include <shim_unistd.h>
 
 #include <pal.h>
 
 static struct shim_signal **
 allocate_signal_log (struct shim_thread * thread, int sig)
 {
+    if (!thread->signal_logs)
+        return NULL;
+
     struct shim_signal_log * log = &thread->signal_logs[sig - 1];
     int head, tail, old_tail;
 
@@ -135,6 +139,10 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
 void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
+
+    if (!tcb || !tcb->tp)
+        return;
+
     struct shim_thread * cur_thread = (struct shim_thread *) tcb->tp;
     int sig = info->si_signo;
 
@@ -310,40 +318,6 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (IS_INTERNAL_TID(get_cur_tid()))
         goto ret_exception;
 
-    if (ask_for_checkpoint) {
-        int ans =  message_confirm("checkpoint execution "
-                                   "(\'k\' to kill the process)",
-                                   "yk");
-
-        if (ans == 'K' || ans == 'k')
-            goto kill;
-
-        if (ans != 'Y' && ans != 'y')
-            goto ret_exception;
-
-        shim_tcb_t * tcb = SHIM_GET_TLS();
-        assert(tcb && tcb->tp);
-        struct shim_signal signal;
-        __store_context(tcb, context, &signal);
-
-        IDTYPE session = 0;
-        char cpdir[20];
-
-        if (create_dir("checkpoint-", cpdir, 20, NULL) < 0)
-            goto ret_exception;
-
-        sys_printf("creating checkpoint \"%s\"...\n", cpdir);
-
-        if (create_checkpoint(cpdir, &session) < 0)
-            goto ret_exception;
-
-        ipc_checkpoint_send(cpdir, session);
-        kill_all_threads(tcb->tp, CHECKPOINT_REQUESTED, SIGINT);
-        join_checkpoint(tcb->tp, &signal.context);
-        goto ret_exception;
-    }
-
-kill:
     deliver_signal(ALLOC_SIGINFO(SIGINT, si_pid, 0), NULL);
 
 ret_exception:
@@ -356,7 +330,9 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         goto ret_exception;
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
-    assert(tcb && tcb->tp);
+
+    if (!tcb || !tcb->tp)
+        return;
 
     __disable_preempt(tcb);
 
@@ -384,7 +360,7 @@ int init_signal (void)
     return 0;
 }
 
-sigset_t * get_sig_mask (struct shim_thread * thread)
+__sigset_t * get_sig_mask (struct shim_thread * thread)
 {
     if (!thread)
         thread = get_cur_thread();
@@ -394,7 +370,7 @@ sigset_t * get_sig_mask (struct shim_thread * thread)
     return &(thread->signal_mask);
 }
 
-sigset_t * set_sig_mask (struct shim_thread * thread, sigset_t * set)
+__sigset_t * set_sig_mask (struct shim_thread * thread, __sigset_t * set)
 {
     if (!thread)
         thread = get_cur_thread();
@@ -402,7 +378,7 @@ sigset_t * set_sig_mask (struct shim_thread * thread, sigset_t * set)
     assert(thread);
 
     if (set)
-        memcpy(&thread->signal_mask, set, sizeof(sigset_t));
+        memcpy(&thread->signal_mask, set, sizeof(__sigset_t));
 
     return &thread->signal_mask;
 }
@@ -415,18 +391,13 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
     struct shim_signal_handle * sighdl = &thread->signal_handles[sig - 1];
     void (*handler) (int, siginfo_t *, void *) = NULL;
-    //void (*restorer) (void) = NULL;
 
-    if (signal->info.si_signo == SIGINT &&
-        signal->info.si_pid == CHECKPOINT_REQUESTED) {
-        join_checkpoint(thread, &signal->context);
+    if (signal->info.si_signo == SIGCP) {
+        join_checkpoint(thread, &signal->context, si_cp_session(&signal->info));
         return;
     }
 
-    if (sig <= NUM_KNOWN_SIGS)
-        debug("handle %s\n", siglist[sig]);
-    else
-        debug("handle signal %d\n", sig);
+    debug("%s handled\n", signal_name(sig));
 
     lock(thread->lock);
 
@@ -518,8 +489,11 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
 void handle_signal (bool delayed_only)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
+
+    if (!tcb || !tcb->tp)
+        return;
+
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
-    assert(tcb && tcb->tp);
 
     /* Fast path */
     if (!thread->has_signal.counter)
@@ -540,7 +514,8 @@ out:
     __enable_preempt(tcb);
 }
 
-void append_signal (struct shim_thread * thread, int sig, siginfo_t * info)
+void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
+                    bool wakeup)
 {
     struct shim_signal * signal = malloc(sizeof(struct shim_signal));
     if (!signal)
@@ -558,8 +533,10 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info)
 
     if (signal_log) {
         *signal_log = signal;
-        debug("resuming thread %u\n", thread->tid);
-        DkThreadResume(thread->pal_handle);
+        if (wakeup) {
+            debug("resuming thread %u\n", thread->tid);
+            DkThreadResume(thread->pal_handle);
+        }
     } else {
         sys_printf("signal queue is full (TID = %u, SIG = %d)\n",
                    thread->tid, sig);
@@ -569,10 +546,7 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info)
 
 static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
 {
-    if (sig <= NUM_KNOWN_SIGS)
-        debug("killed by %s\n", siglist[sig]);
-    else
-        debug("killed by signal %d\n", sig);
+    debug("killed by %s\n", signal_name(sig));
 
     if (!info->si_pid)
         switch(sig) {

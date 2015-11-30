@@ -3,7 +3,7 @@
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:/usr/bin/python
 loader.execname = python
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = /graphene:/host:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = /usr/bin:/bin
 loader.env.USERNAME =
 loader.env.HOME =
@@ -14,11 +14,11 @@ fs.mount.root.type = chroot
 fs.mount.root.uri = file:
 
 fs.mount.other.lib1.type = chroot
-fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.path = /graphene
 fs.mount.other.lib1.uri = file:$(GLIBCDIR)
 
 fs.mount.other.lib2.type = chroot
-fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.other.lib2.path = /host
 fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
 
 fs.mount.other.bin.type = chroot

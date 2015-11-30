@@ -37,7 +37,7 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 #define system_unlock() _DkInternalUnlock(&slab_mgr_lock)
 
 #if STATIC_SLAB == 1
-# define POOL_SIZE 4096 * 20480
+# define POOL_SIZE 64 * 1024 /* 4MB by default */
 static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];
@@ -49,20 +49,17 @@ static char *mem_pool_end = &mem_pool[POOL_SIZE];
 
 static inline void * __malloc (int size)
 {
-#if STATIC_SLAB == 1
-    void * addr = (void *) bump;
-
-    bump += size;
-    if (bump >= mem_pool_end) {
-        printf("Pal out of internal memory!\n");
-        _DkProcessExit(-1);
-        return NULL;
-    }
-#else
     void * addr = NULL;
-    _DkVirtualMemory(&addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
-#endif /* STATIC_SLAB != 1 */
 
+#if STATIC_SLAB == 1
+    if (bump + size <= mem_pool_end) {
+        addr = bump;
+        bump += size;
+        return addr;
+    }
+#endif
+
+    _DkVirtualMemoryAlloc(&addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
     return addr;
 }
 
@@ -70,6 +67,11 @@ static inline void * __malloc (int size)
 
 static inline void __free (void * addr, int size)
 {
+#if STATIC_SLAB == 1
+    if (addr >= (void *) mem_pool && addr + size <= (void *) mem_pool_end)
+        return;
+#endif
+
     _DkVirtualMemoryFree(addr, size);
 }
 

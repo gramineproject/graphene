@@ -36,10 +36,30 @@
 #include <pal_error.h>
 
 #include <errno.h>
+
 #include <linux/fcntl.h>
-#include <linux/un.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+
+#include <asm/socket.h>
+
+/*
+ * User-settable options (used with setsockopt).
+ */
+#define TCP_NODELAY         1   /* Don't delay send to coalesce packets  */
+#define TCP_MAXSEG          2   /* Set maximum segment size  */
+#define TCP_CORK            3   /* Control sending of partial frames  */
+#define TCP_KEEPIDLE        4   /* Start keeplives after this period */
+#define TCP_KEEPINTVL       5   /* Interval between keepalives */
+#define TCP_KEEPCNT         6   /* Number of keepalives before death */
+#define TCP_SYNCNT          7   /* Number of SYN retransmits */
+#define TCP_LINGER2         8   /* Life time of orphaned FIN-WAIT-2 state */
+#define TCP_DEFER_ACCEPT    9   /* Wake up listener only when data arrive */
+#define TCP_WINDOW_CLAMP    10  /* Bound advertised window */
+#define TCP_INFO            11  /* Information about this connection. */
+#define TCP_QUICKACK        12  /* Bock/reenable quick ACKs.  */
+#define TCP_CONGESTION      13  /* Congestion control algorithm.  */
+#define TCP_MD5SIG          14  /* TCP MD5 Signature (RFC2385) */
 
 #define SOCK_URI_SIZE   64
 
@@ -90,25 +110,11 @@ int shim_do_socket (int family, int type, int protocol)
 
     int ret = -ENOSYS;
 
-#undef  NOTSUPPORT
-#define NOTSUPPORT(domain)  \
-    case domain:            \
-        debug("shim_socket: domain " #domain " not supported\n"); \
-        goto err;
-
     switch (sock->domain) {
         case AF_UNIX:             //Local communication
         case AF_INET:             //IPv4 Internet protocols          ip(7)
         case AF_INET6:            //IPv6 Internet protocols
             break;
-
-        NOTSUPPORT(AF_IPX)        //IPX - Novell protocols
-        NOTSUPPORT(AF_NETLINK)    //Kernel user interface device     netlink(7)
-        NOTSUPPORT(AF_X25)        //ITU-T X.25 / ISO-8208 protocol   x25(7)
-        NOTSUPPORT(AF_AX25)       //Amateur radio AX.25 protocol
-        NOTSUPPORT(AF_ATMPVC)     //Access to raw ATM PVCs
-        NOTSUPPORT(AF_APPLETALK)  //Appletalk                        ddp(7)
-        NOTSUPPORT(AF_PACKET)     //Low level packet interface       packet(7)
 
         default:
             debug("shim_socket: unknown socket domain %d\n",
@@ -116,23 +122,12 @@ int shim_do_socket (int family, int type, int protocol)
             goto err;
     }
 
-#undef  NOTSUPPORT
-#define NOTSUPPORT(type)    \
-    case type:              \
-        debug("shim_socket: type " #type " not supported\n"); \
-        goto err;
-
     switch (sock->sock_type) {
         case SOCK_STREAM:         //TCP
             break;
         case SOCK_DGRAM:          //UDP
             hdl->acc_mode = MAY_READ|MAY_WRITE;
             break;
-
-        NOTSUPPORT(SOCK_SEQPACKET)
-        NOTSUPPORT(SOCK_RAW)
-        NOTSUPPORT(SOCK_RDM)
-        NOTSUPPORT(SOCK_PACKET)
 
         default:
             debug("shim_socket: unknown socket type %d\n",
@@ -566,18 +561,12 @@ static int inet_parse_addr (int domain, int type, const char * uri,
         struct addr_inet * addr = round ? conn : bind;
 
         if (domain == AF_INET) {
-            char ip_buf[20];
-            memcpy(ip_buf, ip_str, ip_len);
-            ip_buf[ip_len] = 0;
-            inet_pton4(ip_buf, &addr->addr.v4);
+            inet_pton4(ip_str, ip_len, &addr->addr.v4);
             addr->ext_port = atoi(port_str);
         }
 
         if (domain == AF_INET6) {
-            char ip_buf[48];
-            memcpy(ip_buf, ip_str, ip_len);
-            ip_buf[ip_len] = 0;
-            inet_pton6(ip_str, &addr->addr.v6);
+            inet_pton6(ip_str, ip_len, &addr->addr.v6);
             addr->ext_port = atoi(port_str);
         }
     }
@@ -1193,6 +1182,10 @@ ssize_t shim_do_recvmsg (int sockfd, struct msghdr * msg, int flags)
     return do_recvmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags,
                       msg->msg_name, &msg->msg_namelen);
 }
+
+#define SHUT_RD     0
+#define SHUT_WR     1
+#define SHUT_RDWR   2
 
 int shim_do_shutdown (int sockfd, int how)
 {

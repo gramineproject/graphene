@@ -5,6 +5,10 @@ from regression import Regression
 
 loader = '../src/pal_sec'
 
+if not os.path.exists(loader):
+    print "Reference monitor mode is not available on this platform"
+    exit(0)
+
 regression = Regression(loader, "Process")
 
 def check_times(target, lines, times):

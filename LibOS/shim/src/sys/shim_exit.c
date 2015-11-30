@@ -60,6 +60,10 @@ out:
         return 0;
     }
 
+#ifdef PROFILE
+    self->exit_time = GET_PROFILE_INTERVAL();
+#endif
+
     int exit_code = self->exit_code;
     self->is_alive = false;
 
@@ -91,7 +95,7 @@ out:
             info.si_uid   = self->uid;
             info.si_status = (exit_code & 0xff) << 8;
 
-            append_signal(parent, SIGCHLD, &info);
+            append_signal(parent, SIGCHLD, &info, false);
         }
         unlock(parent->lock);
 

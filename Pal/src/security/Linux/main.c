@@ -336,7 +336,7 @@ postmap:
         if (zeropage > zero)
             memset((void *) zero, 0, zeropage - zero);
 
-        if (zeroend < zeropage)
+        if (zeroend <= zeropage)
             continue;
 
         addr = INLINE_SYSCALL(mmap, 6, zeropage, zeroend - zeropage, c->prot,
@@ -385,18 +385,6 @@ struct link_map {
 
 static struct link_map init_link_map;
 
-struct r_debug {
-    int r_version;
-    struct link_map * r_map;
-    ElfW(Addr) r_brk;
-    enum {
-        RT_CONSISTENT,
-        RT_ADD,
-        RT_DELETE
-    } r_state;
-    ElfW(Addr) r_ldbase;
-};
-
 struct r_debug ___r_debug =
     { 1, NULL, (ElfW(Addr)) &___dl_debug_state, RT_CONSISTENT, 0 };
 
@@ -406,21 +394,14 @@ extern __typeof(___r_debug) _r_debug
 int ioctl_set_graphene (struct config_store * sandbox_config, int npolices,
                         const struct graphene_user_policy * policies);
 
-void set_mcast_rules (struct graphene_net_policy * rules,
-                      unsigned short mcast_port);
-
 int set_sandbox (struct config_store * sandbox_config,
                  struct pal_sec * pal_sec_addr, void * pal_addr)
 {
-    struct graphene_net_policy mcast_rules[2];
-    set_mcast_rules(mcast_rules, pal_sec_addr->mcast_port);
-
     struct graphene_user_policy policies[] = {
         { .type = GRAPHENE_LIB_NAME,    .value = PAL_LOADER, },
         { .type = GRAPHENE_LIB_ADDR,    .value = pal_addr, },
         { .type = GRAPHENE_UNIX_PREFIX, .value = &pal_sec_addr->pipe_prefix, },
-        { .type = GRAPHENE_NET_RULE,    .value = &mcast_rules[0], },
-        { .type = GRAPHENE_NET_RULE,    .value = &mcast_rules[1], },
+        { .type = GRAPHENE_MCAST_PORT,  .value = &pal_sec_addr->mcast_port, },
         { .type = GRAPHENE_FS_PATH | GRAPHENE_FS_READ,
           .value = "/proc/meminfo", },
     };

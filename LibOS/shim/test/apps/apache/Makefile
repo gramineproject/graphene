@@ -1,5 +1,5 @@
-HOST := $(firstword $(shell ifconfig | grep 'inet addr:' | grep -v '127.0.0.1' -m 1 | cut -d: -f2))
-PORT := 8000
+HOST ?= $(firstword $(shell ifconfig | grep 'inet addr:' | grep -v '127.0.0.1' -m 1 | cut -d: -f2))
+PORT ?= 8000
 
 NPROCS := 1
 OS := $(shell uname -s)
@@ -35,27 +35,27 @@ debug: $(TARGET)
 $(INSTALL_DIR)/lib/libapr-1.so.0: $(APR_DIR)
 	#cd $< && patch -p1 < ../disable-epoll.patch
 	cd $< && ./configure --prefix=$(INSTALL_DIR)
-	cd $< && make -j$(NPROCS) $(MAKE_FLAGS)
-	cd $< && make install
+	cd $< && $(MAKE) -j$(NPROCS) $(MAKE_FLAGS)
+	cd $< && $(MAKE) install
 
 $(INSTALL_DIR)/lib/libaprutil-1.so.0: $(APRUTIL_DIR) $(INSTALL_DIR)/lib/libapr-1.so.0
 	cd $< && ./configure --prefix=$(INSTALL_DIR) --with-apr=$(INSTALL_DIR)
-	cd $< && make -j$(NPROCS) $(MAKE_FLAGS)
-	cd $< && make install
+	cd $< && $(MAKE) -j$(NPROCS) $(MAKE_FLAGS)
+	cd $< && $(MAKE) install
 
 $(INSTALL_DIR)/bin/httpd $(INSTALL_DIR)/bin/apxs: $(INSTALL_DIR)/lib/libapr-1.so.0 $(INSTALL_DIR)/lib/libaprutil-1.so.0
 	[ -d $(HTTPD_DIR) ] || tar -xzf $(HTTPD_DIR).tar.gz
 	[ -f $(HTTPD_DIR)/Makefile ] || \
 	cd $(HTTPD_DIR) && ./configure --prefix=$(INSTALL_DIR) --with-apr=$(INSTALL_DIR) \
 	--with-apr-util=$(INSTALL_DIR) --with-mpm=prefork
-	cd $(HTTPD_DIR) && make -j$(NPROCS) $(MAKE_FLAGS)
-	cd $(HTTPD_DIR) && make install
+	cd $(HTTPD_DIR) && $(MAKE) -j$(NPROCS) $(MAKE_FLAGS)
+	cd $(HTTPD_DIR) && $(MAKE) install
 
 $(INSTALL_DIR)/modules/libphp5.so: $(PHP_DIR) $(INSTALL_DIR)/bin/apxs
 	cd $< && ./configure --prefix=$(INSTALL_DIR) --with-apxs2=$(INSTALL_DIR)/bin/apxs \
 	--disable-cgi --disable-cli --disable-soap
-	cd $< && make -j$(NPROCS) $(MAKE_FLAGS)
-	cd $< && make install
+	cd $< && $(MAKE) -j$(NPROCS) $(MAKE_FLAGS)
+	cd $< && $(MAKE) install
 
 .PHONY: modules
 
@@ -67,14 +67,13 @@ $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so: mod_auth_basic_sandbox.c $(INS
 		-S LDFLAGS="-L../../../../build/libos -llibos" -c -i -A $<
 
 %.manifest: %.manifest.template
-	make -C .. apache/$@ appdir=apache/ \
+	$(MAKE) -C .. apache/$@ appdir=apache/ \
 		extra_rules="-e 's:\\\$$\$$(HOST):$(HOST):g' -e 's:\\\$$\$$(PORT):$(PORT):g'"
-
 
 conf:
 	[ -f $(INSTALL_DIR)/conf/httpd.conf.old ] || \
 		mv $(INSTALL_DIR)/conf/httpd.conf $(INSTALL_DIR)/conf/httpd.conf.old
-	sed -e "s/Listen 80/Listen $(HOST):$(PORT)/g" \
+	sed -e "s/Listen 80/#Listen 80/g" \
 	    -e "s/User daemon/#User root/g" \
 	    -e "s/Group daemon/#Group root/g" \
 	    -e "s/#EnableMMAP off/EnableMMAP off/g" \
@@ -96,11 +95,13 @@ conf:
 	cd $(INSTALL_DIR)/conf && ln -sf httpd.conf.new httpd.conf
 
 start-native-server:
-	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND
+	@echo "Listen on $(HOST):$(PORT)"
+	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile /httpd-$(HOST)-$(PORT).pid"
 
 start-graphene-server:
-	rm -rf $(INSTALL_DIR)/logs/httpd.pid
-	$(PREFIX) ./httpd.manifest -D FOREGROUND
+	rm -rf httpd-$(HOST)-$(PORT).pid
+	@echo "Listen on $(HOST):$(PORT)"
+	$(PREFIX) ./httpd.manifest -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile /httpd-$(HOST)-$(PORT).pid"
 
 random-data = $(foreach n,1 2 3 4 5 6 7 8 9 10,2K.$n.html) \
 	      $(foreach n,1 2 3 4 5,10K.$n.html) \

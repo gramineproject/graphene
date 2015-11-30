@@ -244,7 +244,8 @@ DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags);
 #define PAL_ACCESS_RDONLY   00
 #define PAL_ACCESS_WRONLY   01
 #define PAL_ACCESS_RDWR     02
-#define PAL_ACCESS_MASK     03
+#define PAL_ACCESS_APPEND   04
+#define PAL_ACCESS_MASK     07
 
 /* Stream Sharing Flags */
 #define PAL_SHARE_GLOBAL_X    01
@@ -351,11 +352,7 @@ DkStreamChangeName (PAL_HANDLE handle, PAL_STR uri);
  * block on synchronization objects
  */
 
-#define PAL_THREAD_PARENT       0x00008000  /* Have the same parent as cloner */
-#define PAL_THREAD_DETACHED     0x00400000  /* Thread deattached */
-#define PAL_THREAD_STOPPED      0x02000000  /* Start in stopped state */
-
-#define PAL_THREAD_MASK         0x02408000
+#define PAL_THREAD_MASK         0
 
 PAL_HANDLE
 DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags);

@@ -33,6 +33,7 @@
 #include "pal_security.h"
 #include "pal_debug.h"
 #include "api.h"
+#include "graphene.h"
 
 #include <linux/types.h>
 typedef __kernel_pid_t pid_t;
@@ -52,7 +53,7 @@ static int pipe_path (int pipeid, char * path, int len)
     memset(path, 0, len);
 
     if (pal_sec.pipe_prefix)
-        return snprintf(path + 1, len - 1, "/graphene/%016lx/%08x",
+        return snprintf(path + 1, len - 1, GRAPHENE_UNIX_PREFIX_FMT "/%08x",
                         pal_sec.pipe_prefix, pipeid);
     else
         return snprintf(path + 1, len - 1, "/graphene/%08x", pipeid);
@@ -102,7 +103,6 @@ static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
     hdl->__in.flags |= RFD(0);
     hdl->pipe.fd = fd;
     hdl->pipe.pipeid = pipeid;
-    hdl->pipe.connid = 0;
     hdl->pipe.nonblocking = options & PAL_OPTION_NONBLOCK ?
                             PAL_TRUE : PAL_FALSE;
     *handle = hdl;
@@ -164,22 +164,18 @@ static int pipe_waitforclient (PAL_HANDLE handle, PAL_HANDLE * client)
     clnt->pipeprv.fds[1] = pipes[1];
     *client = clnt;
 #else
-    PAL_IDX connid;
-    system_getrand(&connid, sizeof(PAL_IDX));
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(clnt, pipecli);
     clnt->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     clnt->pipe.fd = newfd;
     clnt->pipe.pipeid = handle->pipe.pipeid;
-    clnt->pipe.connid = connid;
     *client = clnt;
 #endif
 
     return 0;
 }
 
-static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, PAL_IDX connid,
-                         int options)
+static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
 {
     int ret, fd;
 
@@ -265,7 +261,6 @@ static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, PAL_IDX connid,
     hdl->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     hdl->pipe.fd = fd;
     hdl->pipe.pipeid = pipeid;
-    hdl->pipe.connid = 0;
     hdl->pipe.nonblocking = (options & PAL_OPTION_NONBLOCK) ?
                             PAL_TRUE : PAL_FALSE;
 #endif
@@ -312,10 +307,6 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 
     char * endptr;
     PAL_NUM pipeid = strtol(uri, &endptr, 10);
-    PAL_IDX connid = 0;
-
-    if (*endptr == ':')
-        connid = strtol(endptr + 1, &endptr, 10);
 
     if (*endptr)
         return -PAL_ERROR_INVAL;
@@ -324,7 +315,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
         return pipe_listen(handle, pipeid, options);
 
     if (!memcmp(type, "pipe:", 5))
-        return pipe_connect(handle, pipeid, connid, options);
+        return pipe_connect(handle, pipeid, options);
 
     return -PAL_ERROR_INVAL;
 }
@@ -347,6 +338,7 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
         bytes = INLINE_SYSCALL(read, 3, fd, buffer, len);
     } else {
 #endif
+#if PIPE_USE_SENDMSG_RECVMSG == 1
         struct msghdr hdr;
         struct iovec iov;
 
@@ -361,6 +353,9 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
         hdr.msg_flags = 0;
 
         bytes = INLINE_SYSCALL(recvmsg, 3, fd, &hdr, 0);
+#else
+        bytes = INLINE_SYSCALL(read, 3, fd, buffer, len);
+#endif
 #if USE_PIPE_SYSCALL == 1
     }
 #endif
@@ -399,6 +394,7 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
         bytes = INLINE_SYSCALL(write, 3, fd, buffer, len);
     } else {
 #endif
+#if PIPE_USE_SENDMSG_RECVMSG == 1
         struct msghdr hdr;
         struct iovec iov;
 
@@ -413,6 +409,9 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
         hdr.msg_flags = 0;
 
         bytes = INLINE_SYSCALL(sendmsg, 3, fd, &hdr, MSG_NOSIGNAL);
+#else
+        bytes = INLINE_SYSCALL(write, 3, fd, buffer, len);
+#endif
 #if USE_PIPE_SYSCALL == 1
     }
 #endif
@@ -599,12 +598,7 @@ static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
     buffer += prefix_len + 1;
     count -= prefix_len + 1;
 
-    if (handle->pipe.connid)
-        ret = snprintf(buffer, count, "%lu:%u\n", handle->pipe.pipeid,
-                       handle->pipe.connid);
-    else
-        ret = snprintf(buffer, count, "%lu\n", handle->pipe.pipeid);
-
+    ret = snprintf(buffer, count, "%lu\n", handle->pipe.pipeid);
     if (buffer[ret - 1] != '\n') {
         memset(buffer, 0, count);
         return -PAL_ERROR_OVERFLOW;

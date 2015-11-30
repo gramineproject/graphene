@@ -106,6 +106,7 @@ typedef struct slab_mgr {
     struct list_head area_list[SLAB_LEVEL];
     struct list_head free_list[SLAB_LEVEL];
     unsigned int size[SLAB_LEVEL];
+    void * addr[SLAB_LEVEL], * addr_top[SLAB_LEVEL];
 } SLAB_MGR_TYPE, * SLAB_MGR;
 
 typedef struct __attribute__((packed)) large_mem_obj {
@@ -174,28 +175,12 @@ static inline int init_size_align_up(int size)
 #endif
 
 static inline void __set_free_slab_area (SLAB_AREA area, SLAB_MGR mgr,
-                                         unsigned int level)
+                                         int level)
 {
-    int i, size = area->size;
     int slab_size = slab_levels[level] + SLAB_HDR_SIZE;
-    void * addr = (void *) area->raw;
-
-    for (i = 0 ; i < size ; i++, addr += slab_size) {
-        SLAB_OBJ obj = (SLAB_OBJ) addr;
-        OBJ_LEVEL(obj) = level;
-#ifdef SLAB_DEBUG
-        struct slab_debug * debug =
-                (struct slab_debug *) (addr + slab_size) - 1;
-        debug->alloc.file = NULL;
-        debug->alloc.line = 0;
-        debug->free.file  = NULL;
-        debug->free.line  = 0;
-#endif
-        INIT_LIST_HEAD(&obj->__list);
-        list_add_tail(&obj->__list, &mgr->free_list[level]);
-    }
-
-    mgr->size[level] += size;
+    mgr->addr[level] = (void *) area->raw;
+    mgr->addr_top[level] = (void *) area->raw + area->size * slab_size;
+    mgr->size[level] += area->size;
 }
 
 static inline SLAB_MGR create_slab_mgr (void)
@@ -256,7 +241,7 @@ static inline void destroy_slab_mgr (SLAB_MGR mgr)
     system_free(mgr, addr - (void *) mgr);
 }
 
-static inline SLAB_MGR enlarge_slab_mgr (SLAB_MGR mgr, unsigned int level)
+static inline SLAB_MGR enlarge_slab_mgr (SLAB_MGR mgr, int level)
 {
     SLAB_AREA area;
     int size;
@@ -289,7 +274,7 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
     int level = -1;
 
     for (i = 0 ; i < SLAB_LEVEL ; i++)
-        if (size < slab_levels[i]) {
+        if (size <= slab_levels[i]) {
             level = i;
             break;
         }
@@ -307,14 +292,21 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
     }
 
     system_lock();
-    if (list_empty(&mgr->free_list[level])) {
+    if (mgr->addr[level] == mgr->addr_top[level] &&
+        list_empty(&mgr->free_list[level])) {
         system_unlock();
         enlarge_slab_mgr(mgr, level);
         system_lock();
     }
 
-    mobj = list_first_entry(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
-    list_del(&mobj->__list);
+    if (!list_empty(&mgr->free_list[level])) {
+        mobj = list_first_entry(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
+        list_del(&mobj->__list);
+    } else {
+        mobj = (void *) mgr->addr[level];
+        mgr->addr[level] += slab_levels[level] + SLAB_HDR_SIZE;
+    }
+    OBJ_LEVEL(mobj) = level;
     system_unlock();
 
 #ifdef SLAB_CANARY
@@ -335,7 +327,7 @@ static inline void * slab_alloc_debug (SLAB_MGR mgr, int size,
     int level = -1;
 
     for (i = 0 ; i < SLAB_LEVEL ; i++)
-        if (size < slab_levels[i]) {
+        if (size <= slab_levels[i]) {
             level = i;
             break;
         }

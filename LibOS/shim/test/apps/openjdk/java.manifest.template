@@ -1,0 +1,34 @@
+#!$(PAL)
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:$(JAVA_HOME)/bin/java
+loader.execname = java
+loader.env.LD_LIBRARY_PATH = /jre/lib/amd64:/jre/lib/amd64/jli:/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.PATH = /jre/bin:/bin:/usr/bin
+loader.debug_type = none
+
+fs.mount.root.type = chroot
+fs.mount.root.uri = file:
+
+fs.mount.other.lib1.type = chroot
+fs.mount.other.lib1.path = /lib
+fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+
+fs.mount.other.lib2.type = chroot
+fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.other.jre.type = chroot
+fs.mount.other.jre.path = /jre
+fs.mount.other.jre.uri = file:$(JAVA_HOME)
+
+fs.mount.other.usr.type = chroot
+fs.mount.other.usr.path = /usr
+fs.mount.other.usr.uri = file:/usr
+
+fs.mount.other.nsswitch.type = chroot
+fs.mount.other.nsswitch.path = /etc/nsswitch.conf
+fs.mount.other.nsswitch.uri = file:/etc/nsswitch.conf
+
+sys.brk.size = 16777216  # 16M
+sys.stack.size = 262144  # 256K

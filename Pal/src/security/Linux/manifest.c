@@ -22,12 +22,10 @@
 #include "pal_security.h"
 #include "api.h"
 
-#include <linux/unistd.h>
-#include <asm/mman.h>
-#include <stdint.h>
-#include <stddef.h>
 #include <sys/socket.h>
-#include <fcntl.h>
+#include <linux/unistd.h>
+#include <asm/fcntl.h>
+#include <asm/mman.h>
 #include <asm/errno.h>
 
 static inline int is_file_uri (const char * uri)
@@ -147,168 +145,117 @@ out:
 }
 
 int get_net_rules (struct config_store * config,
-                   struct graphene_net_policy ** net_rules)
+                   struct graphene_net_rule ** net_rules,
+                   int * nbind_rules)
 {
-    char keys[CONFIG_MAX];
-    int nkeys;
+    char binds[CONFIG_MAX], peers[CONFIG_MAX];
+    int nbinds, npeers;
+    int nrules = 0;
 
-    if ((nkeys = get_config_entries(config, "net.rules", keys,
-                                    CONFIG_MAX)) < 0)
+    if ((nbinds = get_config_entries(config, "net.allow_bind", binds,
+                                     CONFIG_MAX)) < 0)
         return 0;
 
-    struct graphene_net_policy * rules =
-            malloc(sizeof(struct graphene_net_policy) * nkeys);
+    if ((npeers = get_config_entries(config, "net.allow_peer", peers,
+                                     CONFIG_MAX)) < 0)
+        return 0;
+
+    struct graphene_net_rule * rules =
+            malloc(sizeof(struct graphene_net_rule) * (nbinds + npeers));
 
     if (!rules)
         return -ENOMEM;
 
-    int nrules = 0;
-    char key[CONFIG_MAX], * k = keys, * n;
+    for (int t = 0 ; t < 2 ; t ++) {
+        char key[CONFIG_MAX], * k, * n;
+        int nadded;
 
-    memcpy(key, "net.rules.", 10);
-
-    for (int i = 0 ; i < nkeys ; i++) {
-        struct graphene_net_policy * r = &rules[nrules];
-        char cfgbuf[CONFIG_MAX];
-
-        for (n = k ; *n ; n++);
-        int len = n - k;
-        memcpy(key + 10, k, len + 1);
-        key[10 + len] = 0;
-
-        int cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
-        if (cfglen <= 0)
-            goto next;
-
-        char * bind_addr;
-        unsigned short bind_port_begin, bind_port_end;
-        char * conn_addr;
-        unsigned short conn_port_begin, conn_port_end;
-        char * c = cfgbuf, * end = cfgbuf + cfglen;
-        char * num;
-        int family = AF_INET;
-
-        bind_addr = c;
-        if (*c == '[') {
-            family = AF_INET6;
-            bind_addr++;
-            for ( ; c < end && *c != ']' ; c++);
-            if (c == end)
-                goto next;
-            *(c++) = 0;
-            if (c == end || *c != ':')
-                goto next;
+        if (t == 0) {
+            if (!nbinds)
+                continue;
+            k = binds;
+            nadded = nbinds;
+            memcpy(key, "net.allow_bind.", 15);
         } else {
-            for ( ; c < end && *c != ':' ; c++);
+            if (!npeers)
+                continue;
+            k = peers;
+            nadded = npeers;
+            memcpy(key, "net.allow_peer.", 15);
+        }
+
+        for (int i = 0 ; i < nadded ; i++) {
+            struct graphene_net_rule * r = &rules[nrules];
+            char cfgbuf[CONFIG_MAX];
+
+            for (n = k ; *n ; n++);
+            int len = n - k;
+            memcpy(key + 15, k, len + 1);
+            key[15 + len] = 0;
+
+            int cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
+            if (cfglen <= 0)
+                goto next;
+
+            char * c = cfgbuf, * end = cfgbuf + cfglen;
+            char * addr = c, * num;
+            int addrlen;
+            r->family = AF_INET;
+
+            if (*c == '[') {
+                r->family = AF_INET6;
+                addr++;
+                for ( ; c < end && *c != ']' ; c++);
+                if (c == end)
+                    goto next;
+                addrlen = c - addr;
+                c++;
+                if (c == end || *c != ':')
+                    goto next;
+            } else {
+                for ( ; c < end && *c != ':' ; c++);
+                if (c == end)
+                    goto next;
+                addrlen = c - addr;
+            }
+            c++;
+
             if (c == end)
                 goto next;
-        }
-        *(c++) = 0;
 
-        if (c == end)
-            goto next;
-        num = c;
-        for ( ; c < end && *c >= '0' && *c <= '9' ; c++);
-        if (c == num || c == end)
-            goto next;
-        bind_port_begin = atoi(num);
-        if (*c == '-') {
-            num = (++c);
-            for ( ; c < end && *c >= '0' && *c <= '9' ; c++);
-            if (c == num || c == end)
-                goto next;
-            bind_port_end = atoi(num);
-        } else {
-            bind_port_end = bind_port_begin;
-        }
-        if (*c != ':')
-            goto next;
-        c++;
-
-        conn_addr = c;
-        if (*c == '[') {
-            if (family != AF_INET6)
-                goto next;
-            conn_addr++;
-            for ( ; c < end && *c != ']' ; c++);
-            if (c == end)
-                goto next;
-            *(c++) = 0;
-            if (c == end || *c != ':')
-                goto next;
-        } else {
-            if (family != AF_INET)
-                goto next;
-            for ( ; c < end && *c != ':' ; c++);
-            if (c == end)
-                goto next;
-        }
-        *(c++) = 0;
-
-        if (c == end)
-            goto next;
-        num = c;
-        for ( ; c < end && *c >= '0' && *c <= '9' ; c++);
-        if (c == num)
-            goto next;
-        conn_port_begin = atoi(num);
-        if (c < end && *c == '-') {
-            num = (++c);
+            num = c;
             for ( ; c < end && *c >= '0' && *c <= '9' ; c++);
             if (c == num)
                 goto next;
-            conn_port_end = atoi(num);
-        } else {
-            conn_port_end = conn_port_begin;
-        }
-        if (c != end)
-            goto next;
-        c++;
+            r->addr.port_end = r->addr.port_begin = atoi(num);
 
-        r->family = family;
-        r->local.port_begin = bind_port_begin;
-        r->local.port_end = bind_port_end;
+            if (c < end && *c == '-') {
+                num = (++c);
+                for ( ; c < end && *c >= '0' && *c <= '9' ; c++);
+                if (c == num)
+                    goto next;
+                r->addr.port_end = atoi(num);
+            }
 
-        if (family == AF_INET) {
-            if (inet_pton4(bind_addr, &r->local.addr) < 0)
-                goto next;
-            if (inet_pton4(conn_addr, &r->peer.addr) < 0)
-                goto next;
-        } else {
-            if (inet_pton6(bind_addr, &r->local.addr) < 0)
-                goto next;
-            if (inet_pton6(conn_addr, &r->peer.addr) < 0)
-                goto next;
-        }
+            if (r->family == AF_INET) {
+                if (!inet_pton4(addr, addrlen, &r->addr.addr))
+                    goto next;
+            } else {
+                if (!inet_pton6(addr, addrlen, &r->addr.addr))
+                    goto next;
+            }
 
-        r->peer.port_begin = conn_port_begin;
-        r->peer.port_end = conn_port_end;
-        nrules++;
+            nrules++;
 next:
-        k = n + 1;
+            k = n + 1;
+        }
+
+        if (t == 0)
+            *nbind_rules = nrules;
     }
 
     *net_rules = rules;
     return nrules;
-}
-
-void set_mcast_rules (struct graphene_net_policy * rules,
-                      unsigned short mcast_port)
-{
-    memset(rules, 0, sizeof(struct graphene_net_policy) * 2);
-
-    rules[0].family = AF_INET;
-    rules[0].local.port_begin = mcast_port;
-    rules[0].local.port_end = mcast_port;
-    rules[0].peer.port_begin = 0;
-    rules[0].peer.port_end = 65535;
-
-    rules[1].family = AF_INET;
-    rules[1].local.port_begin = 0;
-    rules[1].local.port_end = 65535;
-    inet_pton4(MCAST_GROUP, &rules[1].peer.addr);
-    rules[1].peer.port_begin = mcast_port;
-    rules[1].peer.port_end = mcast_port;
 }
 
 int ioctl_set_graphene (struct config_store * config, int ndefault,
@@ -318,8 +265,8 @@ int ioctl_set_graphene (struct config_store * config, int ndefault,
     int ret = 0;
     const char ** preload_paths = NULL;
     const char ** fs_paths = NULL;
-    struct graphene_net_policy * net_rules = NULL;
-    int npreload = 0, nfs = 0, net = 0;
+    struct graphene_net_rule * net_rules = NULL;
+    int npreload = 0, nfs = 0, net = 0, bind_rules = 0;
     int fd = -1;
     int n = 0;
 
@@ -335,7 +282,7 @@ int ioctl_set_graphene (struct config_store * config, int ndefault,
         goto out;
     }
 
-    net = get_net_rules(config, &net_rules);
+    net = get_net_rules(config, &net_rules, &bind_rules);
     if (net < 0) {
         ret = net;
         goto out;
@@ -357,13 +304,15 @@ int ioctl_set_graphene (struct config_store * config, int ndefault,
     }
 
     for (int i = 0 ; i < nfs ; i++) {
-        p->policies[n].type = GRAPHENE_FS_RECURSIVE | rw;
+        p->policies[n].type = GRAPHENE_FS_PATH | GRAPHENE_FS_RECURSIVE | rw;
         p->policies[n].value = fs_paths[i];
         n++;
     }
 
     for (int i = 0 ; i < net ; i++) {
         p->policies[n].type = GRAPHENE_NET_RULE;
+        if (i < bind_rules)
+            p->policies[n].type |= GRAPHENE_NET_BIND;
         p->policies[n].value = &net_rules[i];
         n++;
     }

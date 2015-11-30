@@ -85,6 +85,9 @@ static void drop_graphene_info(struct graphene_info *info)
 	for (i = 0 ; i < 3 && info->gi_console[i].mnt ; i++)
 		path_put(&info->gi_console[i]);
 
+	if (info->gi_mcast_sock)
+		fput(info->gi_mcast_sock);
+
 	kfree(info);
 }
 
@@ -412,7 +415,7 @@ static int __unix_perm(struct sockaddr *address, int addrlen)
 	const char * sun_path =
 		((struct sockaddr_un *) address)->sun_path;
 
-	if (!gi->gi_unix)
+	if (!gi->gi_unix[1])
 		return -EPERM;
 
 	if (!memcmp(sun_path, gi->gi_unix, sizeof(gi->gi_unix)))
@@ -425,7 +428,7 @@ static int __unix_perm(struct sockaddr *address, int addrlen)
 	return -EPERM;
 }
 
-static int net_cmp(int family, int addr_any, int port_any,
+static int net_cmp(int family, bool addr_any, bool port_any,
 		   struct graphene_net_addr *ga,
 		   struct sockaddr *addr, int addrlen)
 {
@@ -469,13 +472,11 @@ static int net_cmp(int family, int addr_any, int port_any,
 }
 
 #ifdef CONFIG_GRAPHENE_DEBUG
-static void print_net(int allow, int family, int op,
-		      struct sockaddr *local_addr, int local_addrlen,
-		      struct sockaddr *peer_addr, int peer_addrlen)
+static void print_net(int allow, int family, int op, struct sockaddr *addr,
+		      int addrlen)
 {
 	const char *allow_str = allow ? "ALLOW" : "DENY";
-	const char *op_str = "";
-	int print_peer = (op == OP_CONNECT || op == OP_SENDMSG);
+	const char *op_str = "UNKNOWN OP";
 
 	switch(op) {
 		case OP_BIND:		op_str = "BIND";	break;
@@ -485,51 +486,38 @@ static void print_net(int allow, int family, int op,
 		case OP_RECVMSG:	op_str = "RECVMSG";	break;
 	}
 
-	if (family == AF_INET) {
-		struct sockaddr_in *la = (void *) local_addr;
-		u8 *a1 = (u8 *) &la->sin_addr.s_addr;
-		struct sockaddr_in *pa = (void *) peer_addr;
-		u8 *a2 = (u8 *) &pa->sin_addr.s_addr;
-
-		if (print_peer && peer_addr) {
-			printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
-			       "%d.%d.%d.%d:%d:%d.%d.%d.%d:%d\n",
-			       allow_str, op_str, current->pid,
-			       a1[0], a1[1], a1[2], a1[3], ntohs(la->sin_port),
-			       a2[0], a2[1], a2[2], a2[3], ntohs(pa->sin_port));
-		} else {
-			printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
-			       "%d.%d.%d.%d:%d\n",
-			       allow_str, op_str, current->pid,
-			       a1[0], a1[1], a1[2], a1[3], ntohs(la->sin_port));
-		}
+	if (!addr) {
+		printk(KERN_INFO "Graphene: %s %s PID %d SOCKET\n",
+		       allow_str, op_str, current->pid);
+		return;
 	}
+
+	switch(family) {
+	case AF_INET: {
+		struct sockaddr_in *a = (void *) addr;
+		u8 *a1 = (u8 *) &a->sin_addr.s_addr;
+
+		printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
+		       "%d.%d.%d.%d:%d\n",
+		       allow_str, op_str, current->pid,
+		       a1[0], a1[1], a1[2], a1[3], ntohs(a->sin_port));
+		}
+		break;
 
 #ifdef CONFIG_IPV6
-	if (family == AF_INET6) {
-		struct sockaddr_in6 *la = (void *) local_addr;
-		u16 *a1 = (u16 *) &la->sin6_addr.s6_addr;
-		struct sockaddr_in6 *pa = (void *) peer_addr;
-		u16 *a2 = (u16 *) &pa->sin6_addr.s6_addr;
+	case AF_INET6: {
+		struct sockaddr_in6 *a = (void *) addr;
+		u16 *a1 = (u16 *) &a->sin6_addr.s6_addr;
 
-		if (print_peer) {
-			printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
-			       "[%d:%d:%d:%d:%d:%d:%d:%d]:%d:"
-			       "[%d.%d.%d.%d:%d:%d:%d:%d]:%d\n",
-			       allow_str, op_str, current->pid,
-			       a1[0], a1[1], a1[2], a1[3],
-			       a1[4], a1[5], a1[6], a1[7], ntohs(la->sin6_port),
-			       a2[0], a2[1], a2[2], a2[3],
-			       a2[4], a2[5], a2[6], a2[7], ntohs(pa->sin6_port));
-		} else {
-			printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
-			       "[%d.%d.%d.%d:%d:%d:%d:%d]:%d\n",
-			       allow_str, op_str, current->pid,
-			       a1[0], a1[1], a1[2], a1[3],
-			       a1[4], a1[5], a1[6], a1[7], ntohs(la->sin6_port));
+		printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
+		       "[%d.%d.%d.%d:%d:%d:%d:%d]:%d\n",
+		       allow_str, op_str, current->pid,
+		       a1[0], a1[1], a1[2], a1[3],
+		       a1[4], a1[5], a1[6], a1[7], ntohs(a->sin6_port));
 		}
-	}
+		break;
 #endif
+	}
 }
 #else
 # define print_net(...) do {} while (0)
@@ -538,32 +526,24 @@ static void print_net(int allow, int family, int op,
 /*
  * network rules:
  *    bind:
- *        input addr/port match local addr/port
+ *        input addr/port match bind addr/port
  *    listen:
- *        local addr/port match local addr/port
- *        allow ANY peer addr/port
+ *        always allow
  *    connect:
- *        local/remote addr/port match local/remote addr/port
+ *        input addr/port match peer addr/port
  *    sendmsg:
- *        EITHER stream socket OR no inport addr/port OR
- *        local/remote addr/port match local/remote addr/port
+ *        EITHER stream socket OR no input addr/port OR
+ *        input addr/port match peer addr/port
  *    recvmsg:
- *        EITHER stream socket OR connected OR
- *        allow ANY peer addr/port
+ *        EITHER stream socket OR connected
  */
 static
 int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 		      struct sockaddr *address, int addrlen)
 {
 	struct sock *sk = sock->sk;
-	struct inet_sock *inet = inet_sk(sk);
+	struct list_head *head;
 	struct graphene_net *gn;
-	struct sockaddr_storage addrbuf;
-	struct sockaddr * local_addr = NULL, * peer_addr = NULL;
-	int local_addrlen, peer_addrlen;
-	int local_needcmp = 0, peer_needcmp = 0;
-	int local_needany = 0, peer_needany = 0;
-	int err;
 
 	if (sk->sk_type != SOCK_STREAM && sk->sk_type != SOCK_DGRAM)
 		return -EPERM;
@@ -575,77 +555,45 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 #endif
 		return -EPERM;
 
-	if (list_empty(&gi->gi_net))
-		return -EPERM;
-
-	if (op == OP_LISTEN)
-		peer_needany = 1;
-
-	if (op == OP_RECVMSG) {
-		if (inet->inet_dport)
+	switch(op) {
+		case OP_BIND:
+			head = &gi->gi_binds;
+			break;
+		case OP_CONNECT:
+		case OP_SENDMSG:
+			head = &gi->gi_peers;
+			break;
+		default:
+			print_net(1, sk->sk_family, op, address, addrlen);
 			return 0;
-
-		peer_needany = 1;
 	}
 
-	if (op == OP_CONNECT || op == OP_SENDMSG) {
-		BUG_ON(!address);
-		peer_addr = address;
-		peer_addrlen = addrlen;
-		peer_needcmp = 1;
-	}
+	BUG_ON(!address);
 
-	if (op == OP_BIND) {
-		BUG_ON(!address);
-		local_addr = address;
-		local_addrlen = addrlen;
-		local_needcmp = 1;
-		if (sk->sk_type == SOCK_DGRAM)
-			peer_needany = 1;
-	} else {
-		local_addr = (struct sockaddr *) &addrbuf;
-		local_needcmp = 1;
+	if (list_empty(head))
+		goto no_rules;
 
-		err = sock->ops->getname(sock, local_addr, &local_addrlen, 0);
-		if (err)
-			return err;
-	}
-
-	list_for_each_entry(gn, &gi->gi_net, list) {
+	list_for_each_entry(gn, head, list) {
 		if (gn->family != sk->sk_family)
 			continue;
 
-		if (local_needany &&
-		    (gn->flags & (LOCAL_ADDR_ANY|LOCAL_PORT_ANY)) !=
-		    (LOCAL_ADDR_ANY|LOCAL_PORT_ANY))
+		if (net_cmp(sk->sk_family,
+			    gn->flags & ADDR_ANY, gn->flags & PORT_ANY,
+			    &gn->addr, address, addrlen))
 			continue;
 
-		if (peer_needany &&
-		    (gn->flags & (PEER_ADDR_ANY|PEER_PORT_ANY)) !=
-		    (PEER_ADDR_ANY|PEER_PORT_ANY))
-			continue;
-
-		if (local_needcmp) {
-			if (net_cmp(sk->sk_family, gn->flags & LOCAL_ADDR_ANY,
-				    gn->flags & LOCAL_PORT_ANY,
-				    &gn->local, local_addr, local_addrlen))
-				continue;
-		}
-
-		if (peer_needcmp) {
-			if (net_cmp(sk->sk_family, gn->flags & PEER_ADDR_ANY,
-				    gn->flags & PEER_PORT_ANY,
-				    &gn->peer, peer_addr, peer_addrlen))
-				continue;
-		}
-
-		print_net(1, sk->sk_family, op, local_addr, local_addrlen,
-			  peer_addr, peer_addrlen);
+		print_net(1, sk->sk_family, op, address, addrlen);
 		return 0;
 	}
 
-	print_net(0, sk->sk_family, op, local_addr, local_addrlen,
-		  peer_addr, peer_addrlen);
+no_rules:
+	if (gi->gi_mcast_port && sk->sk_family == AF_INET &&
+	    ((struct sockaddr_in *) address)->sin_port == gi->gi_mcast_port) {
+		print_net(1, AF_INET, op, address, addrlen);
+		return 0;
+	}
+
+	print_net(0, sk->sk_family, op, address, addrlen);
 	return -EPERM;
 }
 
@@ -719,6 +667,7 @@ int graphene_socket_sendmsg(struct socket *sock,
 
 		if (!msg->msg_name)
 			return 0;
+
 
 		return __common_net_perm(gi, OP_SENDMSG, sock,
 					 msg->msg_name, msg->msg_namelen);
@@ -816,55 +765,49 @@ static void print_net_rule(const char *fmt, struct graphene_net *n)
 # endif
 
 	char str[ADDR_STR_MAX];
-	int len = 0, i;
+	int len = 0;
 
-	for (i = 0; i < 2; i++) {
-		unsigned char addr_any = i ? PEER_ADDR_ANY : LOCAL_ADDR_ANY;
-		unsigned char port_any = i ? PEER_PORT_ANY : LOCAL_PORT_ANY;
-		struct graphene_net_addr *a = i ? &n->peer : &n->local;
-
-		if (i)
-			str[len++] = ':';
-
+	if (n->flags & ADDR_ANY) {
+		str[len++] = 'A';
+		str[len++] = 'N';
+		str[len++] = 'Y';
+		str[len++] = ':';
+	} else {
 		switch(n->family) {
-		case AF_INET:
-			if (n->flags & addr_any) {
-				str[len++] = ':';
-			} else {
-				u8 *ip = (u8 *) &a->addr.sin_addr.s_addr;
-				len += snprintf(str + len,
-						ADDR_STR_MAX - len,
-						"%u.%u.%u.%u:",
-						ip[0], ip[1], ip[2], ip[3]);
+		case AF_INET: {
+			u8 *ip = (u8 *) &n->addr.addr.sin_addr.s_addr;
+			len += snprintf(str + len,
+					ADDR_STR_MAX - len,
+					"%u.%u.%u.%u:",
+					ip[0], ip[1], ip[2], ip[3]);
 			}
 			break;
 #ifdef CONFIG_IPV6
-		case AF_INET6:
-			if (n->flags & addr_any) {
-				str[len++] = '[';
-				str[len++] = ']';
-				str[len++] = ':';
-			} else {
-				u16 *ip = (u16 *) &a->addr.sin6_addr.s6_addr;
-				len += snprintf(str + len,
-						ADDR_STR_MAX - len,
-						"[%u:%u:%u:%u:%u:%u:%u:%u]:",
-						ip[0], ip[1], ip[2], ip[3],
-						ip[4], ip[5], ip[6], ip[7]);
+		case AF_INET6: {
+			u16 *ip = (u16 *) &n->addr.addr.sin6_addr.s6_addr;
+			len += snprintf(str + len,
+					ADDR_STR_MAX - len,
+					"[%u:%u:%u:%u:%u:%u:%u:%u]:",
+					ip[0], ip[1], ip[2], ip[3],
+					ip[4], ip[5], ip[6], ip[7]);
 			}
 			break;
 #endif /* CONFIG_IPV6 */
 		}
+	}
 
-		if (!(n->flags & port_any)) {
-			if (a->port_begin == a->port_end)
-				len += snprintf(str + len, ADDR_STR_MAX - len,
-						"%u", a->port_begin);
-			else
-				len += snprintf(str + len, ADDR_STR_MAX - len,
-						"%u-%u",
-						a->port_begin, a->port_end);
-		}
+	if (n->flags & PORT_ANY) {
+		str[len++] = 'A';
+		str[len++] = 'N';
+		str[len++] = 'Y';
+	} else {
+		if (n->addr.port_begin == n->addr.port_end)
+			len += snprintf(str + len, ADDR_STR_MAX - len,
+					"%u", n->addr.port_begin);
+		else
+			len += snprintf(str + len, ADDR_STR_MAX - len,
+					"%u-%u",
+					n->addr.port_begin, n->addr.port_end);
 	}
 
 	BUG_ON(len >= ADDR_STR_MAX);
@@ -875,16 +818,15 @@ static void print_net_rule(const char *fmt, struct graphene_net *n)
 # define print_net_rule(...) do {} while (0)
 #endif
 
-static int set_net_rule(struct graphene_net_policy *np,
-			struct graphene_info *gi)
+static int set_net_rule(struct graphene_net_rule *nr, struct graphene_info *gi,
+			bool bind)
 {
 	struct graphene_net *n;
-	int i;
 
 #ifdef CONFIG_IPV6
-	if (np->family != AF_INET && np->family != AF_INET6)
+	if (nr->family != AF_INET && nr->family != AF_INET6)
 #else
-	if (np->family != AF_INET)
+	if (nr->family != AF_INET)
 #endif
 		return -EINVAL;
 
@@ -892,36 +834,34 @@ static int set_net_rule(struct graphene_net_policy *np,
 	if (!n)
 		return -ENOMEM;
 
-	n->family  = np->family;
+	n->family  = nr->family;
 	n->flags   = 0;
-	n->local   = np->local;
-	n->peer    = np->peer;
+	n->addr    = nr->addr;
 
-	for (i = 0; i < 2; i++) {
-		unsigned char addr_any = i ? PEER_ADDR_ANY : LOCAL_ADDR_ANY;
-		unsigned char port_any = i ? PEER_PORT_ANY : LOCAL_PORT_ANY;
-		struct graphene_net_addr *a = i ? &n->peer : &n->local;
-
-		switch(n->family) {
-		case AF_INET:
-			if (!a->addr.sin_addr.s_addr)
-				n->flags |= addr_any;
-			break;
+	switch(n->family) {
+	case AF_INET:
+		if (!n->addr.addr.sin_addr.s_addr)
+			n->flags |= ADDR_ANY;
+		break;
 #ifdef CONFIG_IPV6
-		case AF_INET6:
-			if (!memcmp(&a->addr.sin6_addr.s6_addr, &in6addr_any, 16))
-				n->flags |= addr_any;
-			break;
+	case AF_INET6:
+		if (!memcmp(&n->addr.addr.sin6_addr.s6_addr, &in6addr_any, 16))
+			n->flags |= ADDR_ANY;
+		break;
 #endif /* CONFIG_IPV6 */
-		}
-
-		if (a->port_begin == 0 && a->port_end == 65535)
-			n->flags |= port_any;
 	}
 
+	if (n->addr.port_begin == 0 && n->addr.port_end == 65535)
+		n->flags |= PORT_ANY;
+
 	INIT_LIST_HEAD(&n->list);
-	list_add_tail(&n->list, &gi->gi_net);
-	print_net_rule(KERN_INFO "Graphene: PID %d NET RULE %s\n", n);
+	if (bind) {
+		list_add_tail(&n->list, &gi->gi_binds);
+		print_net_rule(KERN_INFO "Graphene: PID %d NET BIND %s\n", n);
+	} else {
+		list_add_tail(&n->list, &gi->gi_peers);
+		print_net_rule(KERN_INFO "Graphene: PID %d NET PEER %s\n", n);
+	}
 	return 0;
 }
 
@@ -968,7 +908,8 @@ int set_graphene(struct task_struct *current_tsk,
 	memset(gi, 0, sizeof(struct graphene_info));
 	INIT_LIST_HEAD(&gi->gi_paths);
 	INIT_LIST_HEAD(&gi->gi_rpaths);
-	INIT_LIST_HEAD(&gi->gi_net);
+	INIT_LIST_HEAD(&gi->gi_binds);
+	INIT_LIST_HEAD(&gi->gi_peers);
 	gi->gi_gipc_session = atomic64_inc_return(&gipc_session);
 
 #ifdef CONFIG_GRAPHENE_DEBUG
@@ -990,7 +931,7 @@ int set_graphene(struct task_struct *current_tsk,
 			goto err;
 		}
 
-		type = ptmp.type & ~(GRAPHENE_FS_READ | GRAPHENE_FS_WRITE);
+		type = ptmp.type & GRAPHENE_POLICY_TYPES;
 		flags = ptmp.type & ~type;
 
 		switch(type) {
@@ -1027,7 +968,7 @@ int set_graphene(struct task_struct *current_tsk,
 
 			gi->gi_unix[0] = '\0';
 			snprintf(gi->gi_unix + 1, sizeof(gi->gi_unix) - 1,
-				 "/graphene/%016lx", token);
+				 GRAPHENE_UNIX_PREFIX_FMT, token);
 			gi->gi_unix[sizeof(gi->gi_unix) - 1] = '/';
 
 			rv = copy_to_user((void *) ptmp.value, &token,
@@ -1044,17 +985,65 @@ int set_graphene(struct task_struct *current_tsk,
 			break;
 		}
 
-		case GRAPHENE_NET_RULE: {
-			struct graphene_net_policy np;
+		case GRAPHENE_MCAST_PORT: {
+			struct socket *sock;
+			struct sock *sk;
+			struct inet_sock *inet;
+			struct file *file;
+			unsigned short port;
 
-			rv = copy_from_user(&np, ptmp.value,
-					    sizeof(struct graphene_net_policy));
+			rv = sock_create_kern(AF_INET, SOCK_DGRAM, 0, &sock);
+			if (rv)
+				goto err;
+
+			file = sock_alloc_file(sock, 0, NULL);
+			if (unlikely(IS_ERR(file))) {
+				sock_release(sock);
+				rv = PTR_ERR(file);
+				goto err;
+			}
+
+			sk = sock->sk;
+			lock_sock(sk);
+			inet = inet_sk(sk);
+			sk->sk_reuse = SK_CAN_REUSE;
+			if (sk->sk_prot->get_port(sk, 0)) {
+				release_sock(sk);
+				sock_release(sock);
+				rv = -EAGAIN;
+				goto err;
+			}
+			port = inet->inet_sport = htons(inet->inet_num);
+			release_sock(sk);
+			gi->gi_mcast_port = port;
+			gi->gi_mcast_sock = file;
+			port = ntohs(port);
+
+			rv = copy_to_user((void *) ptmp.value, &port,
+					  sizeof(unsigned short));
 			if (rv) {
 				rv = -EFAULT;
 				goto err;
 			}
 
-			rv = set_net_rule(&np, gi);
+#ifdef CONFIG_GRAPHENE_DEBUG
+			printk(KERN_INFO "Graphene: PID %d MCAST PORT %d\n",
+			       current_tsk->pid, port);
+#endif
+			break;
+		}
+
+		case GRAPHENE_NET_RULE: {
+			struct graphene_net_rule nr;
+
+			rv = copy_from_user(&nr, ptmp.value,
+					    sizeof(struct graphene_net_rule));
+			if (rv) {
+				rv = -EFAULT;
+				goto err;
+			}
+
+			rv = set_net_rule(&nr, gi, flags & GRAPHENE_NET_BIND);
 			if (rv < 0)
 				goto err;
 
@@ -1062,7 +1051,6 @@ int set_graphene(struct task_struct *current_tsk,
 		}
 
 		case GRAPHENE_FS_PATH:
-		case GRAPHENE_FS_RECURSIVE:
 			rv = strncpy_from_user(kpath, ptmp.value, max);
 			if (rv < 0)
 				goto err;
@@ -1095,8 +1083,8 @@ int set_graphene(struct task_struct *current_tsk,
 			p->type = flags;
 			INIT_LIST_HEAD(&p->list);
 			list_add_tail(&p->list,
-				      type == GRAPHENE_FS_PATH ?
-				      &gi->gi_paths : &gi->gi_rpaths);
+				      (flags & GRAPHENE_FS_RECURSIVE) ?
+				      &gi->gi_rpaths : &gi->gi_paths);
 			break;
 		}
 	}
@@ -1161,23 +1149,20 @@ static int do_close_sock(struct graphene_info *gi, struct socket *sock,
 		if (err)
 			return err;
 
-		return __common_net_perm(gi, OP_CONNECT, sock, addr, len);
+		/* give it a chance, check if it match one of the peers */
+		err = __common_net_perm(gi, OP_CONNECT, sock, addr, len);
+		if (!err)
+			return 0;
 	}
 
 	if (!inet->inet_num)
 		return 0;
 
-	if (sk->sk_state == TCP_LISTEN) {
-		err = __common_net_perm(gi, OP_LISTEN, sock, NULL, 0);
-	} else {
-		err = sock->ops->getname(sock, addr, &len, 0);
-		if (err)
-			return err;
+	err = sock->ops->getname(sock, addr, &len, 0);
+	if (err)
+		return err;
 
-		err = __common_net_perm(gi, OP_BIND, sock, addr, len);
-	}
-
-	return err;
+	return __common_net_perm(gi, OP_BIND, sock, addr, len);
 }
 
 static int do_close_fds(struct graphene_info *gi, struct files_struct *files,
@@ -1243,13 +1228,13 @@ deny:
 }
 
 static
-int net_check (int family, int addr_any, int port_any,
+int net_check (int family,
 	       int flags1, struct graphene_net_addr * addr1,
 	       int flags2, struct graphene_net_addr * addr2)
 {
-	if (flags2 & addr_any)
+	if (flags2 & ADDR_ANY)
 		goto port;
-	if (flags1 & addr_any)
+	if (flags1 & ADDR_ANY)
 		goto port;
 	
 	switch (family) {
@@ -1268,15 +1253,78 @@ int net_check (int family, int addr_any, int port_any,
 	}
 
 port:
-	if (flags2 & port_any)
+	if (flags2 & PORT_ANY)
 		return 0;
-	if (flags1 & port_any)
+	if (flags1 & PORT_ANY)
 		return 0;
 
 	if (addr1->port_begin < addr2->port_begin ||
 	    addr1->port_end > addr2->port_end)
 		return -EPERM;
 
+	return 0;
+}
+
+static int net_check_fds(struct graphene_net *n, struct files_struct *files)
+{
+	struct fdtable *fdt;
+	int fd, i = 0;
+
+	rcu_read_lock();
+	fdt = files_fdtable(files);
+	for (;;) {
+		unsigned long set;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+		fd = i * BITS_PER_LONG;
+#else
+		fd = i * __NFDBITS;
+#endif
+		if (fd >= fdt->max_fds)
+			break;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+		set = fdt->open_fds[i++];
+#else
+		set = fdt->open_fds->fds_bits[i++];
+#endif
+		for ( ; set ; fd++, set >>= 1) {
+			struct file *file;
+			struct socket *sock;
+			struct sock *sk;
+			struct inet_sock *inet;
+			struct sockaddr_storage address;
+			struct sockaddr *addr = (void *) &address;
+			int len, err;
+
+			if (!(set & 1))
+				continue;
+
+			file = rcu_dereference_raw(fdt->fd[fd]);
+			if (!file)
+				continue;
+
+			sock = sock_from_file(file, &err);
+			if (!sock)
+				continue;
+
+			if (!(sk = sock->sk) || sk->sk_family != n->family)
+				continue;
+
+			inet = inet_sk(sk);
+			if (!inet->inet_dport)
+				continue;
+
+			err = sock->ops->getname(sock, addr, &len, 1);
+			if (err)
+				continue;
+
+			if (!net_cmp(n->family, false, false,
+				     &n->addr, addr, len)) {
+				rcu_read_unlock();
+				return 1;
+			}
+		}
+	}
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -1306,37 +1354,79 @@ static int update_graphene(struct task_struct *current_tsk,
 			return -EPERM;
 	}
 
-	list_for_each_entry(n1, &new->gi_net, list) {
+	list_for_each_entry(n1, &new->gi_binds, list) {
 		bool accepted = false;
-		print_net_rule(KERN_INFO "Graphene: PID %d CHECK RULE %s\n",
+		print_net_rule(KERN_INFO
+			       "Graphene: PID %d CHECK RULE BIND %s\n",
 			       n1);
-		list_for_each_entry(n2, &gi->gi_net, list) {
+
+		list_for_each_entry(n2, &gi->gi_binds, list) {
 			if (n1->family != n2->family)
 				continue;
 
 			if (net_check(n1->family,
-				      LOCAL_ADDR_ANY, LOCAL_PORT_ANY,
-				      n1->flags, &n1->local,
-				      n2->flags, &n2->local) < 0)
-				continue;
-
-			if (net_check(n1->family,
-				      PEER_ADDR_ANY, PEER_PORT_ANY,
-				      n1->flags, &n1->peer,
-				      n2->flags, &n2->peer) < 0)
+				      n1->flags, &n1->addr,
+				      n2->flags, &n2->addr) < 0)
 				continue;
 
 			accepted = true;
-			print_net_rule(KERN_INFO "Graphene: PID %d ALLOW %s\n",
+			print_net_rule(KERN_INFO
+				       "Graphene: PID %d ALLOW BIND %s\n",
 				       n1);
 			break;
 		}
 
 		if (!accepted) {
-			print_net_rule(KERN_INFO "Graphene: PID %d DENY %s\n",
+			print_net_rule(KERN_INFO
+				       "Graphene: PID %d DENY BIND %s\n",
 				       n1);
 			return -EPERM;
 		}
+	}
+
+	list_for_each_entry(n1, &new->gi_peers, list) {
+		bool accepted = false;
+		print_net_rule(KERN_INFO
+			       "Graphene: PID %d CHECK RULE CONNECT %s\n",
+			       n1);
+
+		list_for_each_entry(n2, &gi->gi_peers, list) {
+			if (n1->family != n2->family)
+				continue;
+
+			if (net_check(n1->family,
+				      n1->flags, &n1->addr,
+				      n2->flags, &n2->addr) < 0)
+				continue;
+
+			accepted = true;
+			print_net_rule(KERN_INFO
+				       "Graphene: PID %d ALLOW CONNECT %s\n",
+				       n1);
+			break;
+		}
+
+		if (!accepted && !(n1->flags & (ADDR_ANY|PORT_ANY)) &&
+		    net_check_fds(n1, current_tsk->files))
+			accepted = true;
+
+		if (!accepted) {
+			print_net_rule(KERN_INFO
+				       "Graphene: PID %d DENY CONNECT %s\n",
+				       n1);
+			return -EPERM;
+		}
+	}
+
+	if (!new->gi_unix[1] && gi->gi_unix[1])
+		memcpy(new->gi_unix, gi->gi_unix, sizeof(gi->gi_unix));
+
+	if (!new->gi_mcast_port)
+		new->gi_mcast_port = gi->gi_mcast_port;
+
+	if (!new->gi_mcast_sock && gi->gi_mcast_sock) {
+		atomic_long_inc(&gi->gi_mcast_sock->f_count);
+		new->gi_mcast_sock = gi->gi_mcast_sock;
 	}
 
 	spin_lock(&gs->g_lock);

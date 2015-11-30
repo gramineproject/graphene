@@ -2,13 +2,21 @@ SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
 LMBENCHDIR = lmbench-2.5
-LMBENCHMANIFEST = manifest-list
+HOST_BINARIES = /bin/sh /usr/include/x86_64-linux-gnu/sys/types.h
+BINARIES = $(LMBENCHDIR)/bin/linux test-list $(addprefix host,$(HOST_BINARIES))
+NO_MANIFEST = lmbench lmbench.a *.o hello INFO.*
 
 export CC
 export CFLAGS
 
-all debug: $(LMBENCHMANIFEST)
-	for f in `cat $(LMBENCHMANIFEST)`; do make $${f%.template}; done
+all debug: test-list $(LMBENCHDIR)/bin/linux
+	for f in `cat test-list`; do \
+		[ -f $(LMBENCHDIR)/bin/graphene/$$f.manifest ] || \
+		$(MAKE) $(LMBENCHDIR)/bin/graphene/$$f.manifest; \
+		ln -sf $$f.manifest $(LMBENCHDIR)/bin/graphene/$$f; \
+	done
+	cp -f $(foreach p,$(addprefix $(LMBENCHDIR)/bin/linux/,$(NO_MANIFEST)),$(wildcard $(p))) \
+		$(LMBENCHDIR)/bin/graphene
 
 debug: CC="gcc -g"
 
@@ -17,58 +25,62 @@ kvm: all
 
 servers = lat_udp lat_tcp lat_rpc lat_connect bw_tcp
 
-%.manifest: manifest.template
-	make -C .. lmbench/$@ appdir=lmbench/
-	echo $(if $(findstring $(notdir $(basename $@)),$(servers)),"loader.daemonize = 1") >> $@
+$(LMBENCHDIR)/bin/graphene/%.manifest: $(LMBENCHDIR)/bin/graphene/%.manifest.template
+	$(MAKE) -C .. lmbench/$@ appdir=lmbench/
+
+$(LMBENCHDIR)/bin/graphene/%.manifest.template: manifest.template $(LMBENCHDIR)/bin/graphene
+	ln -s ../../../$< $@
+
+$(LMBENCHDIR)/bin/graphene:
+	mkdir -p $@
 
 ifeq ($(SYS),x86_64-linux-gnu)
 $(LMBENCHDIR)/bin/linux: $(wildcard $(LMBENCHDIR)/src/*.c) $(wildcard $(LMBENCHDIR)/src/*.h)
-	make -C $(LMBENCHDIR)/src OS=linux CC="gcc -g"
+	$(MAKE) -C $(LMBENCHDIR)/src OS=linux CC="gcc -g"
 
-manifest-list: $(LMBENCHDIR)/bin/linux
-	mkdir -p $(LMBENCHDIR)/bin/graphene
-	cp -n $(LMBENCHDIR)/bin/linux/* $(LMBENCHDIR)/bin/graphene
-	find $(LMBENCHDIR)/bin/linux/ -type f -executable \
-		-not -name lmbench -not -name hello | \
-		sed 's:linux/\(.*\):graphene/\1.manifest.template:g' | \
-		tee manifest-list | \
-		xargs -l ln -sf ../../../manifest.template
-	for f in `cat manifest-list`; do f=$${f%.manifest.template}; \
-		ln -sf $${f##*/}.manifest $$f ; done
+test-list: $(LMBENCHDIR)/bin/linux
+	for f in `find $(LMBENCHDIR)/bin/linux/ \
+		-type f -executable \
+		$(subst *,\\*,$(addprefix -not -name ,$(NO_MANIFEST)))`;  \
+	do \
+		echo $${f##*/}; \
+	done > test-list
 
 .PHONY: pack
-pack: $(LMBENCHDIR)/bin/linux manifest-list
-	tar -czf .packed/lmbench.tar.gz $^
+$(addprefix host,$(HOST_BINARIES)):
+	@echo "$(patsubst host%,%,$@) -> $@"
+	@mkdir -p $(dir $@)
+	@cp -LTrf $(patsubst host%,%,$@) $@
+
+pack: $(BINARIES)
+	@../../../../../Scripts/pack_binaries.sh lmbench $^
 else
-$(LMBENCHDIR)/bin/linux manifest-list: .packed/lmbench.tar.gz
-	tar -xmozf $<
-	mkdir -p $(LMBENCHDIR)/bin/graphene
-	cp -n $(LMBENCHDIR)/bin/linux/* $(LMBENCHDIR)/bin/graphene
-	for f in `cat manifest-list`; \
-		do ln -sf ../../../manifest.template $$f ; done
-	for f in `cat manifest-list`; do f=$${f%.manifest.template}; \
-		ln -sf $${f##*/}.manifest $$f ; done
+all: $(addprefix /tmp/host,$(HOST_BINARIES))
+
+$(filter-out $(HOST_BINARIES),$(BINARIES)): .packed/lmbench.tar.gz
+	tar -xmozf $< $@
+
+$(addprefix /tmp/host,$(HOST_BINARIES)): .packed/lmbench.tar.gz
+	cd /tmp && tar -xmozf $(abspath $<) $(subst /tmp/,,$@)
 endif
 
+LMBENCHCONFIG = $(shell $(LMBENCHDIR)/scripts/config)
 
-config = $(shell $(LMBENCHDIR)/scripts/config)
+$(LMBENCHDIR)/bin/linux/$(LMBENCHCONFIG):
+	cd $(LMBENCHDIR)/scripts && env OS=linux ./config-run
 
-config-native: $(LMBENCHDIR)/bin/linux
-	[ -f "$(LMBENCHDIR)/bin/linux/$(config)" ] || \
-	(cd $(LMBENCHDIR)/scripts && env OS=linux ./config-run)
+/tmp/hello: $(LMBENCHDIR)/bin/linux/hello
+	cp -f $< $@
 
-test-native: config-native
-	make -C $(LMBENCHDIR) OS=linux rerun
+test-native: $(LMBENCHDIR)/bin/linux $(LMBENCHDIR)/bin/linux/$(LMBENCHCONFIG) /tmp/hello
+	cd $(LMBENCHDIR)/scripts && env OS=linux ./results
 
-config-graphene: config-native $(LMBENCHMANIFEST)
-	[ -f "$(LMBENCHDIR)/bin/graphene/$(config)" ] || \
-	sed -e "s/OS=\"linux\"/OS=\"graphene\"/g" "$(LMBENCHDIR)/bin/linux/$(config)" \
-	    > "$(LMBENCHDIR)/bin/graphene/$(config)"
-	cp $(LMBENCHDIR)/bin/graphene/hello /tmp
+$(LMBENCHDIR)/bin/graphene/$(LMBENCHCONFIG): $(LMBENCHDIR)/bin/linux/$(LMBENCHCONFIG)
+	sed -e "s/OS=\"linux\"/OS=\"graphene\"/g" $< > $@
 
-test-graphene: config-graphene
-	make -C $(LMBENCHDIR) OS=graphene rerun
+test-graphene: all $(LMBENCHDIR)/bin/graphene/$(LMBENCHCONFIG) /tmp/hello
+	cd $(LMBENCHDIR)/scripts && env OS=graphene ./results
 
 clean:
-	rm -rf $(LMBENCHMANFIEST) manifest-list
-	make -C $(LMBENCHDIR) clean
+	rm -rf test-list
+	$(MAKE) -C $(LMBENCHDIR) clean

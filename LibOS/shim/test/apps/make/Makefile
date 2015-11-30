@@ -19,7 +19,7 @@ $(make_src) $(test_tarballs): %: %.tar.gz
 
 $(make_src)/make:
 	cd $(make_src) && ./configure
-	cd $(make_src) && make CC="gcc -g"
+	cd $(make_src) && $(MAKE) CC="gcc -g"
 
 $(graphene_target): graphene/%: ../../../../../%
 	cd $< && git checkout-index -a -f --prefix=$(PWD)/graphene/
@@ -31,7 +31,7 @@ $(graphene_libs): graphene/%: ../../../../../%
 test: all $(test_targets)
 
 $(manifests): %: %.template
-	make -C .. make/$@ appdir=make/
+	$(MAKE) -C .. make/$@ appdir=make/
 
 configure: $(test_targets)
 	for d in $(test_targets); do \
@@ -43,10 +43,10 @@ configure: $(test_targets)
 clean: clean-manifests clean-tests
 
 distclean: clean-manifests clean-tests
-	rm -rf $(make_src) make result $(test_tarballs) $(graphene_target) $(graphene_libs)
+	rm -rf $(make_src) $(MAKE) result $(test_tarballs) $(graphene_target) $(graphene_libs)
 
 clean-manifests:
 	rm -rf $(manifests)
 
 clean-tests:
-	for d in $(test_targets); do ([ ! -d $$d ] || make -C $$d clean); done
+	for d in $(test_targets); do ([ ! -d $$d ] || $(MAKE) -C $$d clean); done

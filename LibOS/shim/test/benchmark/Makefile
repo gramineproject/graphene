@@ -26,8 +26,8 @@ $(cxx_executables): %: %.cpp
 
 .PHONY: pack
 pack: $(c_executables) $(cxx_executables)
-	tar -czf .packed/test.tar.gz $^
+	@../../../../Scripts/pack_binaries.sh test $^
 else
 $(c_executables) $(cxx_executables): .packed/test.tar.gz
-	tar -xmozf $<
+	tar -xmozf $< $@
 endif

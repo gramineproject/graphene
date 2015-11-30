@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ID=`id -u`
-PGIDS=`ps -a -o pgid,cmd | tail -n +2 | \
-	awk "{ if (\\\$2 ~ /\\/libpal.so\$/ ) print \\\$1 }" | uniq`
+PGIDS=`ps -a -o pgid,command | tail -n +2 | \
+	awk "{ if (\\\$2 ~ /\\/pal\$/ ) print \\\$1 }" | uniq`
 
 NONE=1
 for PGID in $PGIDS

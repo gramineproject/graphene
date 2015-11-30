@@ -1,7 +1,6 @@
 GLIBC {
     global:
-        # disabled: __tls_get_addr;
-        _r_debug; _dl_debug_state; _dl_debug_state_trigger;
+        _r_debug; _dl_debug_state;
 };
 PAL {
     global:

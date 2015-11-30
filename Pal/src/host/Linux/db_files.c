@@ -47,7 +47,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 {
     /* try to do the real open */
     int ret = INLINE_SYSCALL(open, 3, uri,
-                             access|create|options|O_CLOEXEC,
+                             HOST_ACCESS(access)|create|options|O_CLOEXEC,
                              share);
 
     if (IS_ERR(ret))

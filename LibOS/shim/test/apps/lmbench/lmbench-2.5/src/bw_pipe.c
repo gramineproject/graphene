@@ -114,7 +114,7 @@ reader(int controlfd, int pipefd, size_t bytes)
 	}
 	if (n < 0) perror("reader::write");
 	if (done < bytes) {
-		fprintf(stderr, "reader: bytes=%d, done=%d, todo=%d\n", bytes, done, todo);
+		fprintf(stderr, "reader: bytes=%ld, done=%d, todo=%ld\n", bytes, done, todo);
 	}
 }
 

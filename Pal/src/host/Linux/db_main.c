@@ -36,11 +36,9 @@
 
 #include <asm/mman.h>
 #include <asm/ioctls.h>
-#include <fcntl.h>
 #include <asm/errno.h>
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
-#include <sys/types.h>
 
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
@@ -56,17 +54,18 @@ asm (".global pal_start \n"
 /* pal_start is the entry point of libpal.so, which calls pal_main */
 #define _ENTRY pal_start
 
+#ifdef DEBUG
 asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".byte 1\r\n"
      ".asciz \"" XSTRINGIFY(GDB_SCRIPT) "\"\r\n"
      ".popsection\r\n");
+#endif
 
 struct pal_linux_state linux_state;
 struct pal_sec pal_sec;
 
 static int pagesz = PRESET_PAGESIZE;
-static uid_t uid;
-static gid_t gid;
+static int uid, gid;
 #if USE_VDSO_GETTIME == 1
 static ElfW(Addr) sysinfo_ehdr;
 #endif
@@ -100,10 +99,19 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
     const char ** envp = argv + argc + 1;
 
     /* fetch environment information from aux vectors */
-    void ** auxv = (void **) envp + 1;
-    for (; *(auxv - 1); auxv++);
+    const char ** e = envp;
+#ifdef DEBUG
+    for (; *e ; e++)
+        if ((*e)[0] == 'I' && (*e)[1] == 'N' && (*e)[2] == '_' &&
+            (*e)[3] == 'G' && (*e)[4] == 'D' && (*e)[5] == 'B' &&
+            (*e)[6] == '=' && (*e)[7] == '1' && !(*e)[8])
+            linux_state.in_gdb = true;
+#else
+    for (; *e ; e++);
+#endif
+
     ElfW(auxv_t) *av;
-    for (av = (ElfW(auxv_t) *)auxv ; av->a_type != AT_NULL ; av++)
+    for (av = (ElfW(auxv_t) *) (e + 1) ; av->a_type != AT_NULL ; av++)
         switch (av->a_type) {
             case AT_PAGESZ:
                 pagesz = av->a_un.a_val;
@@ -181,7 +189,6 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
-#include "elf-x86_64.h"
 #include "dynamic_link.h"
 
 void setup_pal_map (struct link_map * map);
@@ -191,6 +198,10 @@ void setup_vdso_map (ElfW(Addr) addr);
 #endif
 
 static struct link_map pal_map;
+
+#ifdef __x86_64__
+# include "elf-x86_64.h"
+#endif
 
 void pal_linux_main (void * args)
 {
@@ -211,6 +222,8 @@ void pal_linux_main (void * args)
                          pal_map.l_info, pal_map.l_addr);
 
     ELF_DYNAMIC_RELOCATE(&pal_map);
+
+    linux_state.environ = envp;
 
     init_slab_mgr(pagesz);
 

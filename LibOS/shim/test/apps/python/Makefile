@@ -1,6 +1,6 @@
 manifests = python.manifest python-local.manifest
 
-all debug: $(manifests)
+all debug: $(manifests) benchmarks
 
 PYTHON_SRC = Python-2.7.9
 PYTHON_INSTALL = $(PYTHON_SRC)/build
@@ -10,8 +10,8 @@ python-local: $(PYTHON_INSTALL)/bin/python
 	cp -f $< $@
 
 $(PYTHON_INSTALL)/bin/python: $(PYTHON_SRC)/Makefile
-	cd $(PYTHON_SRC) && make
-	cd $(PYTHON_SRC) && make install
+	cd $(PYTHON_SRC) && $(MAKE)
+	cd $(PYTHON_SRC) && $(MAKE) install
 
 $(PYTHON_SRC)/Makefile: $(PYTHON_SRC)/configure
 	cd $(PYTHON_SRC) && \
@@ -25,14 +25,22 @@ test_targets =  testsamplebash
 test: all $(test_targets)
 
 python.manifest: python.manifest.template
-	make -C .. python/$@ appdir=python/
+	$(MAKE) -C .. python/$@ appdir=python/
 
 python-local.manifest: python-local.manifest.template
-	make -C .. python/$@ appdir=python/ \
+	$(MAKE) -C .. python/$@ appdir=python/ \
 		extra_rules="-e 's:\\\$$\$$(PYTHONDIR):$(shell readlink -f $(PYTHON_INSTALL)):g'"
 
+benchmarks: benchmarks.tar.gz
+	tar -xzf $<
+
+BENCHMARK = all,-rietveld,-spitfire,-tornado_http
+
+test-graphene: benchmarks
+	cd benchmarks && ./perf.py -b $(BENCHMARK) --csv ../results.csv /usr/bin/python $(PWD)/python.manifest
+
 distclean: clean
-	rm -rf $(PYTHON_SRC) python-local
+	rm -rf $(PYTHON_SRC) python-local benchmarks
 
 clean: clean-manifests
 

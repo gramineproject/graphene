@@ -1,24 +1,24 @@
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-GLIBC_SRC = glibc-2.17
+GLIBC_SRC = glibc-2.19
 SHIM_DIR = shim
 BUILD_DIR = build
 GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthread.so.0 libm.so.6 libdl.so.2 libutil.so.1 crt1.o crti.o crtn.o liblibos.so.1)
 
 all: $(GLIBC_TARGET)
-	make -C $(SHIM_DIR) all
+	$(MAKE) -C $(SHIM_DIR) all
 
 debug: DEBUG=debug
 debug: $(GLIBC_TARGET)
-	make -C $(SHIM_DIR) debug
+	$(MAKE) -C $(SHIM_DIR) debug
 
 # nothing to install
 install:
 
 ifeq ($(SYS),x86_64-linux-gnu)
 $(GLIBC_TARGET): $(BUILD_DIR)/Makefile
-	cd $(BUILD_DIR) && make
+	cd $(BUILD_DIR) && $(MAKE)
 
 $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
 	./buildglibc.py --quiet $(DEBUG)
@@ -31,15 +31,15 @@ $(GLIBC_SRC)/configure:
 
 .PHONY: pack
 pack: $(GLIBC_TARGET)
-	tar -chzf .packed/glibc.tar.gz $^
-	make -C $(SHIM_DIR) pack
+	@../Scripts/pack_binaries.sh glibc $^
+	$(MAKE) -C $(SHIM_DIR) pack
 
 clean:
-	make -C $(SHIM_DIR) clean
+	$(MAKE) -C $(SHIM_DIR) clean
 	rm -rf $(BUILD_DIR)
 else
 $(GLIBC_TARGET): .packed/glibc.tar.gz
-	tar -xmozf $<
+	tar -xmozf $< $@
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -91,18 +91,16 @@ static struct shim_dentry * alloc_dentry (void)
     INIT_LIST_HEAD(&dent->list);
     INIT_LIST_HEAD(&dent->children);
     INIT_LIST_HEAD(&dent->siblings);
-    INIT_LIST_HEAD(&dent->alias);
 
     return dent;
 }
 
 DEFINE_PROFILE_CATAGORY(dcache, );
 DEFINE_PROFILE_INTERVAL(total_init_dcache, dcache);
-DEFINE_PROFILE_CATAGORY(init_dcache, dcache);
-DEFINE_PROFILE_INTERVAL(dcache_init_memory, init_dcache);
-DEFINE_PROFILE_INTERVAL(dcache_init_hash_table, init_dcache);
-DEFINE_PROFILE_INTERVAL(dcache_init_lock, init_dcache);
-DEFINE_PROFILE_INTERVAL(dcache_init_root_entry, init_dcache);
+DEFINE_PROFILE_CATAGORY(within_init_dcache, dcache);
+DEFINE_PROFILE_INTERVAL(dcache_init_memory, within_init_dcache);
+DEFINE_PROFILE_INTERVAL(dcache_init_lock, within_init_dcache);
+DEFINE_PROFILE_INTERVAL(dcache_init_root_entry, within_init_dcache);
 
 int init_dcache (void)
 {
@@ -113,10 +111,6 @@ int init_dcache (void)
 
     dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
     SAVE_PROFILE_INTERVAL(dcache_init_memory);
-
-    for (int i = 0 ; i < DCACHE_HASH_SIZE ; i++)
-        INIT_HLIST_HEAD(&dcache_htable[i]);
-    SAVE_PROFILE_INTERVAL(dcache_init_hash_table);
 
     create_lock(dcache_lock);
     SAVE_PROFILE_INTERVAL(dcache_init_lock);
@@ -451,3 +445,78 @@ resume:
 
     return 0;
 }
+
+BEGIN_CP_FUNC(dentry)
+{
+    assert(size == sizeof(struct shim_dentry));
+
+    struct shim_dentry * dent = (struct shim_dentry *) obj;
+    struct shim_dentry * new_dent = NULL;
+
+    ptr_t off = GET_FROM_CP_MAP(obj);
+
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_dentry));
+        ADD_TO_CP_MAP(obj, off);
+        new_dent = (struct shim_dentry *) (base + off);
+
+        lock(dent->lock);
+        *new_dent = *dent;
+        INIT_HLIST_NODE(&new_dent->hlist);
+        INIT_LIST_HEAD(&new_dent->list);
+        INIT_LIST_HEAD(&new_dent->children);
+        INIT_LIST_HEAD(&new_dent->siblings);
+        new_dent->data = NULL;
+        clear_lock(new_dent->lock);
+        REF_SET(new_dent->ref_count, 0);
+
+        DO_CP_IN_MEMBER(qstr, new_dent, rel_path);
+        DO_CP_IN_MEMBER(qstr, new_dent, name);
+
+        if (dent->fs)
+            DO_CP_MEMBER(mount, dent, new_dent, fs);
+
+        if (dent->parent)
+            DO_CP_MEMBER(dentry, dent, new_dent, parent);
+
+        if (dent->mounted)
+            DO_CP_MEMBER(mount, dent, new_dent, mounted);
+
+        unlock(dent->lock);
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
+        new_dent = (struct shim_dentry *) (base + off);
+    }
+
+    if (objp)
+        *objp = (void *) new_dent;
+}
+END_CP_FUNC(dentry)
+
+BEGIN_RS_FUNC(dentry)
+{
+    struct shim_dentry * dent = (void *) (base + GET_CP_FUNC_ENTRY());
+    BEGIN_PROFILE_INTERVAL();
+
+    CP_REBASE(dent->hlist);
+    CP_REBASE(dent->list);
+    CP_REBASE(dent->children);
+    CP_REBASE(dent->siblings);
+    CP_REBASE(dent->fs);
+    CP_REBASE(dent->parent);
+    CP_REBASE(dent->mounted);
+
+    create_lock(dent->lock);
+
+    if (dent->parent)
+        __set_parent_dentry(dent, dent->parent);
+
+    struct hlist_head * head = &dcache_htable[DCACHE_HASH(dent->rel_path.hash)];
+    hlist_add_head(&dent->hlist, head);
+    dent->state |= DENTRY_HASHED;
+
+    DEBUG_RS("hash=%08x,path=%s,fs=%s", dent->rel_path.hash,
+             dentry_get_path(dent, true, NULL),
+             dent->fs ? qstrgetstr(&dent->fs->path) : NULL);
+}
+END_RS_FUNC(dentry)

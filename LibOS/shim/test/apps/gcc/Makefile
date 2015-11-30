@@ -9,7 +9,7 @@ test_targets = $(c_targets) $(make_targets)
 test: all $(test_targets)
 
 %.manifest: %.manifest.template
-	make -C .. gcc/$@ appdir=gcc/
+	$(MAKE) -C .. gcc/$@ appdir=gcc/
 
 $(c_targets): %: %.c
 	echo "$@ (native):" >> result
@@ -24,29 +24,28 @@ $(c_targets): %: %.c
 
 $(make_targets): %:
 	echo "$@ (native2):" >> result
-	make -C $(dir $@) clean
-	time -a -o result -p make -C $(dir $@) $(notdir $@) CC=g++
+	$(MAKE) -C $(dir $@) clean
+	time -a -o result -p $(MAKE) -C $(dir $@) $(notdir $@) CC=g++
 	echo "$@ (graphene):" >> result
-	make -C $(dir $@) clean
-	time -a -o result -p make -C $(dir $@) $(notdir $@) CC=$(shell pwd)/g++.manifest
+	$(MAKE) -C $(dir $@) clean
+	time -a -o result -p $(MAKE) -C $(dir $@) $(notdir $@) CC=$(shell pwd)/g++.manifest
 
 gcc-local: obj/bin/gcc
 
-GCC_VER = 4.4.5
+GCC_VER = 4.8.4
 BINUTILS_VER = 2.20.1
-GMP_SRC = gmp-4.3.2
+GMP_SRC = gmp-5.1.3
 GMP_OBJ = libgmp.so.3
-PPL_SRC = ppl-0.10.2
+GMPXX_OBJ = libgmpxx.so.4
+PPL_SRC = ppl-1.1
 PPL_OBJ = libppl_c.so.2
-MPFR_SRC = mpfr-2.4.2
+MPFR_SRC = mpfr-3.1.2
 MPFR_OBJ = libmpfr.so.1
-MPC_SRC = mpc-0.8.1
+MPC_SRC = mpc-1.0.1
 MPC_OBJ = libmpc.so.2
 
 LINK_LIBC =
-MAKE = make #-j$(shell grep -c processor /proc/cpuinfo)
 GCC_FLAGS = \
-	--with-build-libsubdir=$(PWD)/../../../../build \
 	--build=x86_64-linux-gnu --host=x86_64-linux-gnu --target=x86_64-linux-gnu --with-gnu-ld \
 	--enable-languages=c,c++ --disable-shared --disable-multilib \
 	--with-gmp=$(PWD)/obj --with-mpfr=$(PWD)/obj --with-mpc=$(PWD)/obj --without-cloog \
@@ -57,10 +56,7 @@ GCC_FLAGS = \
 GCC_MAKE_FLAGS = \
 	LD_LIBRARY_PATH="$(PWD)/obj/lib:/usr/lib:/lib"
 
-export CFLAGS
-export CXXFLAGS="-fpermissive"
-
-obj/bin/gcc: src/gcc-$(GCC_VER) obj/bin/ld $(addprefix obj/lib/,$(GMP_OBJ) $(PPL_OBJ) $(MPFR_OBJ) $(MPC_OBJ))
+obj/bin/gcc: src/gcc-$(GCC_VER) obj/bin/ld $(addprefix obj/lib/,$(GMP_OBJ) $(GMPXX_OBJ) $(PPL_OBJ) $(MPFR_OBJ) $(MPC_OBJ))
 	cd $< && ./configure --prefix=$(PWD)/obj $(GCC_FLAGS)
 	$(MAKE) -C $< $(GCC_MAKE_FLAGS)
 	$(MAKE) -C $< install
@@ -69,15 +65,15 @@ src/gcc-$(GCC_VER): gcc-$(GCC_VER).tar.bz2 src
 	cd src && tar -xjf ../$<
 
 obj/bin/ld: src/binutils-$(BINUTILS_VER)
-	cd $< && ./configure --prefix=$(PWD)/obj $(GCC_FLAGS)
+	cd $< && ./configure --prefix=$(PWD)/obj $(GCC_FLAGS) --enable-shared
 	$(MAKE) -C $< $(GCC_MAKE_FLAGS)
 	$(MAKE) -C $< install
 
 src/binutils-$(BINUTILS_VER): binutils-$(BINUTILS_VER).tar.bz2 src
 	cd src && tar -xjf ../$<
 
-obj/lib/$(GMP_OBJ): src/$(GMP_SRC)
-	cd $< && ./configure --prefix=$(PWD)/obj --enable-shared --enable-cxx \
+obj/lib/$(GMP_OBJ) obj/lib/$(GMPXX_OBJ): src/$(GMP_SRC)
+	cd $< && ./configure --prefix=$(PWD)/obj --enable-cxx --enable-shared \
 	$(LINK_LIBC)
 	$(MAKE) -C $<
 	$(MAKE) -C $< install
@@ -87,7 +83,7 @@ src/$(GMP_SRC): $(GMP_SRC).tar.bz2 src
 
 obj/lib/$(PPL_OBJ): src/$(PPL_SRC) obj/lib/$(GMP_OBJ)
 	cd $< && ./configure --prefix=$(PWD)/obj --with-libgmp-prefix=$(PWD)/obj --enable-shared \
-	$(LINK_LIBC)
+	$(LINK_LIBC) CXXFLAGS=-fpermissive
 	$(MAKE) -C $<
 	$(MAKE) -C $< install
 
@@ -96,7 +92,7 @@ src/$(PPL_SRC): $(PPL_SRC).tar.gz src
 
 obj/lib/$(MPFR_OBJ): src/$(MPFR_SRC) obj/lib/$(GMP_OBJ)
 	cd $< && ./configure --prefix=$(PWD)/obj --enable-shared \
-	$(LINK_LIBC)
+	$(LINK_LIBC) CXXFLAGS=-D__gmp_const=const
 	$(MAKE) -C $<
 	$(MAKE) -C $< install
 
@@ -146,4 +142,4 @@ clean-manifests:
 	rm -rf $(addsuffix .manifest, $(manifests))
 
 clean-garbages:
-	rm -rf cc*.s cc*.c cc*.ld cc*.le cc*.o
+	rm -rf cc*.s cc*.c cc*.ld cc*.le cc*.o a.out

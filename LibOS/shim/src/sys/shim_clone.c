@@ -107,7 +107,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
 
     if (!my_thread->tcb)
         my_thread->tcb = __alloca(sizeof(__libc_tcb_t));
-    allocate_tls(my_thread->tcb, my_thread);
+    allocate_tls(my_thread->tcb, my_thread->user_tcb, my_thread);
     shim_tcb_t * tcb = &((__libc_tcb_t *) my_thread->tcb)->shim_tcb;
     debug_setbuf(tcb, true);
     debug("set tcb to %p\n", my_thread->tcb);
@@ -148,8 +148,8 @@ int clone_implementation_wrapper(struct clone_args * arg)
 }
 
 int migrate_fork (struct shim_cp_store * cpstore,
-                  struct shim_process * process,
-                  struct shim_thread * thread, va_list ap);
+                  struct shim_thread * thread,
+                  struct shim_process * process, va_list ap);
 
 /*  long int __arg0 - flags
  *  long int __arg1 - 16 bytes ( 2 words ) offset into the child stack allocated

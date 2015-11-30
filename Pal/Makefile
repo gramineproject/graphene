@@ -16,7 +16,7 @@ DIRS = src test regression
 all debug clean:
 	for d in $(DIRS); \
 	do \
-		make -C $$d $@; \
+		$(MAKE) -C $$d $@; \
 	done
 
 .PHONY: kernel
@@ -24,7 +24,7 @@ kernel: $(LINUX_KERNEL)
 
 ifneq ($(LINUX_KERNEL),)
 $(LINUX_KERNEL): $(LINUX_SRC)/Makefile $(LINUX_SRC)/graphene $(LINUX_SRC)/.config
-	make -C $(LINUX_SRC) -j$(NPROCS)
+	$(MAKE) -C $(LINUX_SRC) -j$(NPROCS)
 
 $(LINUX_SRC)/Makefile:
 	[ -f $(LINUX_SRC).tar.gz ] || \
@@ -39,24 +39,25 @@ $(LINUX_SRC)/.config: $(LINUX_SRC)/Makefile
 	cd $(LINUX_SRC) && make menuconfig
 
 install: $(LINUX_KERNEL)
-	make -C $(LINUX_SRC) install modules_install headers_install
+	$(MAKE) -C $(LINUX_SRC) install modules_install headers_install
 
 linux-deb:
-	if [ -f $(LINUX_SRC)/.config ]; then \
+	if [ ! -f $(LINUX_SRC)/.config ]; then \
 		cp /boot/config-$(shell uname -r) $(LINUX_SRC)/.config && \
-		cd $(LINUX_SRC) && make menuconfig; fi
+		cd $(LINUX_SRC) && $(MAKE) menuconfig; fi
 	cd $(LINUX_SRC) && \
 	CONCURRENCY_LEVEL=$(NPROCS) make-kpkg --rootcmd fakeroot \
 		--append-to-version -graphene --initrd \
-		kernel-image kernel-headers
+		kernel_image kernel_debug kernel_headers
 else
 install:
 endif
 
 .PHONY: test
 test:
-	make -C test test
+	$(MAKE) -C test test
 
 .PHONY: pack
 pack:
-	make -C test pack
+	$(MAKE) -C test pack
+	$(MAKE) -C regression pack

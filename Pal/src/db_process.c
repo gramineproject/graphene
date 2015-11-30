@@ -40,6 +40,8 @@ DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args)
 {
     store_frame(ProcessCreate);
 
+    log_stream(uri);
+
     PAL_HANDLE handle = NULL;
     int ret = _DkProcessCreate(&handle, uri, flags, args);
 

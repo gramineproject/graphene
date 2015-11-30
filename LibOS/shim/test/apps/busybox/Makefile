@@ -12,21 +12,21 @@ debug: $(targets)
 busybox busybox_gdb: config_for_graphene
 	[ -d $(busybox_src) ] || tar -xjf $(busybox_src).tar.bz2
 	cp config_for_graphene $(busybox_src)/.config
-	cd $(busybox_src) && make $(MAKE_FLAGS)
+	cd $(busybox_src) && $(MAKE) $(MAKE_FLAGS)
 	cp $(busybox_src)/busybox busybox
 	cp $(busybox_src)/busybox_unstripped busybox_gdb
 
 busybox_nofork busybox_nofork_gdb: $(busybox_src) config_for_graphene_nofork
 	[ -d $(busybox_src) ] || tar -xjf $(busybox_src).tar.bz2
 	cp config_for_graphene_nofork $(busybox_src)/.config
-	cd $(busybox_src) && make $(MAKE_FLAGS)
+	cd $(busybox_src) && $(MAKE) $(MAKE_FLAGS)
 	cp $(busybox_src)/busybox busybox_nofork
 	cp $(busybox_src)/busybox_unstripped busybox_nofork_gdb
 
 test: all $(test_targets)
 
 %.manifest: %.manifest.template
-	make -C .. busybox/$@ appdir=busybox/
+	$(MAKE) -C .. busybox/$@ appdir=busybox/
 
 distclean: clean
 	rm -rf $(busybox_src)

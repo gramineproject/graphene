@@ -84,7 +84,6 @@ elf_machine_rela (struct link_map *l, Elf64_Rela *reloc, Elf64_Sym *sym,
 
     Elf64_Addr value = l->l_addr + sym->st_value;
 #ifndef RTLD_BOOTSTRAP
-    Elf64_Sym * refsym = sym;
     Elf64_Addr sym_map = 0;
 
     if (sym->st_shndx == SHN_UNDEF) {

@@ -25,14 +25,21 @@ ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
 endif
 
-pal_target = $(pal_lib) $(pal_lib_post) $(pal_static) $(pal_loader) $(pal_sec) \
-	     pal pal_sec user_start.o user_shared_start.o
-defs	= -DIN_PAL -DSRCDIR="$(PWD)/"
+pal_target = $(pal_lib) $(pal_lib_post) $(pal_static) $(pal_loader) $(pal_sec) pal
+defs	= -DIN_PAL -D$(OS_MACRO) -DSRCDIR="$(shell pwd)/"
 objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf
-graphene_lib = ../lib/graphene-lib.a
+graphene_lib = .lib/graphene-lib.a
 host_lib = host/$(OS)/libpal-$(OS).a
 headers	= $(wildcard *.h) $(wildcard ../lib/*.h) host/$(OS)/pal_host.h
+
+ifneq ($(pal_sec),)
+pal_target += pal_sec
+endif
+
+ifeq ($(SYS),x86_64-linux-gnu)
+pal_target += user_start.o user_shared_start.o
+endif
 
 all: $(pal_target)
 
@@ -44,17 +51,17 @@ debug: $(pal_target)
 .PHONY: $(host_lib) $(graphene_lib) $(pal_lib) $(pal_sec)
 
 $(graphene_lib): host_endian.h
-	make -C ../lib $(debug)
+	$(MAKE) -C ../lib $(debug) target=$(shell pwd)/.lib/
 
 host_endian.h: host/$(OS)/host_endian.h
 	ln -sf $< $@
 
-$(host_lib):
-	@[ ! -d host/$(OS) ] || make -C host/$(OS) $(debug)
+$(host_lib): $(graphene_lib)
+	@[ ! -d host/$(OS) ] || $(MAKE) -C host/$(OS) $(debug)
 
 ifneq ($(pal_sec),)
-$(pal_sec):
-	@[ ! -d security/$(OS) ] || make -C security/$(OS) $(debug)
+$(pal_sec): $(graphene_lib)
+	@[ ! -d security/$(OS) ] || $(MAKE) -C security/$(OS) $(debug)
 
 pal_sec: $(pal_sec)
 	ln -sf $(pal_sec) pal_sec
@@ -69,7 +76,7 @@ pal: $(pal_loader)
 
 ifneq ($(pal_lib_post),)
 $(pal_lib_post): $(pal_lib)
-	make -C host/$(OS) ../../$@
+	$(MAKE) -C host/$(OS) ../../$@
 endif
 
 $(pal_static): $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib)
@@ -98,6 +105,6 @@ user_shared_start.o: user_start.S
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
 
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(pal_target) host_endian.h
-	@[ ! -d host/$(OS) ] || make -C host/$(OS) clean
-	@[ ! -d security/$(OS) ] || make -C security/$(OS) clean
+	rm -rf $(addsuffix .o,$(objs)) $(pal_target) host_endian.h .lib
+	@[ ! -d host/$(OS) ] || $(MAKE) -C host/$(OS) clean
+	@[ ! -d security/$(OS) ] || $(MAKE) -C security/$(OS) clean

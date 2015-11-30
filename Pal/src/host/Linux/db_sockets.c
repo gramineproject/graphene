@@ -33,6 +33,7 @@
 #include "pal_security.h"
 #include "pal_error.h"
 #include "api.h"
+#include "graphene.h"
 
 #include <linux/types.h>
 #include <linux/poll.h>
@@ -68,6 +69,7 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
     char * addr_str = NULL, * port_str;
     int af;
     void * addr_buf;
+    int addr_len;
     __be16 * port_buf;
     int slen;
 
@@ -84,6 +86,7 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
             goto inval;
 
         addr_str = tmp + 1;
+        addr_len = end - tmp + 1;
         port_str = end + 2;
         for (end = port_str ; *end >= '0' && *end <= '9' ; end++);
         addr_in6->sin6_family = af = AF_INET6;
@@ -101,6 +104,7 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
             goto inval;
 
         addr_str = tmp;
+        addr_len = end - tmp;
         port_str = end + 1;
         for (end = port_str ; *end >= '0' && *end <= '9' ; end++);
         addr_in->sin_family = af = AF_INET;
@@ -109,10 +113,10 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
     }
 
     if (af == AF_INET) {
-        if (inet_pton4(addr_str, addr_buf) < 0)
+        if (!inet_pton4(addr_str, addr_len, addr_buf))
             goto inval;
     } else {
-        if (inet_pton6(addr_str, addr_buf) < 0)
+        if (!inet_pton6(addr_str, addr_len, addr_buf))
             goto inval;
     }
 
@@ -936,9 +940,19 @@ static int socket_delete (PAL_HANDLE handle, int access)
     return 0;
 }
 
+struct __kernel_linger {
+    int l_onoff;
+    int l_linger;
+};
+
 static int socket_close (PAL_HANDLE handle)
 {
     if (handle->sock.fd != PAL_IDX_POISON) {
+        struct __kernel_linger l;
+        l.l_onoff = 1;
+        l.l_linger = 0;
+        INLINE_SYSCALL(setsockopt, 5, handle->sock.fd, SOL_SOCKET, SO_LINGER,
+                       &l, sizeof(struct __kernel_linger));
         INLINE_SYSCALL(close, 1, handle->sock.fd);
         handle->sock.fd = PAL_IDX_POISON;
     }
@@ -1009,12 +1023,6 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     }
 
     if (IS_HANDLE_TYPE(handle, tcpsrv)) {
-
-        struct __kernel_linger {
-            int l_onoff;
-            int l_linger;
-        };
-
         if (attr->socket.linger != handle->sock.linger) {
             struct __kernel_linger l;
             l.l_onoff = attr->socket.linger ? 1 : 0;
@@ -1212,70 +1220,6 @@ struct handle_ops udpsrv_ops = {
         .attrsetbyhdl   = &socket_attrsetbyhdl,
     };
 
-static int mcast_s (PAL_HANDLE handle, int port)
-{
-    handle->mcast.srv = PAL_IDX_POISON;
-    int ret = 0;
-
-    int fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
-
-    if (IS_ERR(fd))
-        return -PAL_ERROR_DENIED;
-
-    struct in_addr local;
-    local.s_addr  = INADDR_ANY;
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
-                         &local, sizeof(local));
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    handle->__in.flags |= WFD(1)|WRITEABLE(1);
-    handle->mcast.srv = fd;
-    return 0;
-}
-
-static int mcast_c (PAL_HANDLE handle, int port)
-{
-    handle->mcast.cli = PAL_IDX_POISON;
-    int ret = 0;
-
-    int fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
-
-    if (IS_ERR(fd))
-        return -PAL_ERROR_DENIED;
-
-    int reuse = 1;
-    INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR,
-                   &reuse, sizeof(reuse));
-
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = __htonl(INADDR_ANY);
-    addr.sin_port = __htons(port);
-    ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr));
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    struct in_addr local;
-    local.s_addr = INADDR_ANY;
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
-                         &local, sizeof(local));
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    struct ip_mreq group;
-    inet_pton4(MCAST_GROUP, &group.imr_multiaddr.s_addr);
-    group.imr_interface.s_addr = __htonl(INADDR_ANY);
-    ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                         &group, sizeof(group));
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    handle->mcast.cli = fd;
-    handle->mcast.nonblocking = PAL_FALSE;
-    return 0;
-}
-
 PAL_HANDLE _DkBroadcastStreamOpen (void)
 {
     if (!pal_sec.mcast_port) {
@@ -1286,12 +1230,71 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
         pal_sec.mcast_port = mcast_port > 1024 ? mcast_port : mcast_port + 1204;
     }
 
+    struct sockaddr_in addr;
+    int ret = 0;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = __htons(pal_sec.mcast_port);
+
+    /* set up server (sender) side */
+
+    int srv = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+
+    if (IS_ERR(srv))
+        goto err;
+
+    ret = INLINE_SYSCALL(setsockopt, 5, srv, IPPROTO_IP, IP_MULTICAST_IF,
+                         &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+    if (IS_ERR(ret))
+        goto err_srv;
+
+    /* set up client (receiver) side */
+
+    int cli = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+
+    if (IS_ERR(cli))
+        goto err_srv;
+
+    int reuse = 1;
+    INLINE_SYSCALL(setsockopt, 5, cli, SOL_SOCKET, SO_REUSEADDR,
+                   &reuse, sizeof(reuse));
+
+    ret = INLINE_SYSCALL(bind, 3, cli, &addr, sizeof(addr));
+    if (IS_ERR(ret))
+        goto err_cli;
+
+    ret = INLINE_SYSCALL(setsockopt, 5, cli, IPPROTO_IP, IP_MULTICAST_IF,
+                         &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+    if (IS_ERR(ret))
+        goto err_cli;
+
+    inet_pton4(GRAPHENE_MCAST_GROUP, sizeof(GRAPHENE_MCAST_GROUP) - 1,
+               &addr.sin_addr.s_addr);
+
+    struct ip_mreq group;
+    group.imr_multiaddr.s_addr = addr.sin_addr.s_addr;
+    group.imr_interface.s_addr = INADDR_ANY;
+    ret = INLINE_SYSCALL(setsockopt, 5, cli, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                         &group, sizeof(group));
+    if (IS_ERR(ret))
+        goto err_cli;
+
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(mcast));
     SET_HANDLE_TYPE(hdl, mcast);
-    mcast_s(hdl, pal_sec.mcast_port);
-    mcast_c(hdl, pal_sec.mcast_port);
+    hdl->__in.flags |= WFD(1)|WRITEABLE(1);
+    hdl->mcast.srv = srv;
+    hdl->mcast.cli = cli;
     hdl->mcast.port = pal_sec.mcast_port;
+    hdl->mcast.nonblocking = PAL_FALSE;
+    hdl->mcast.addr = remalloc(&addr, sizeof(addr));
     return hdl;
+
+err_cli:
+    INLINE_SYSCALL(close, 1, cli);
+err_srv:
+    INLINE_SYSCALL(close, 1, srv);
+err:
+    return NULL;
 }
 
 static int mcast_send (PAL_HANDLE handle, int offset, int size,
@@ -1300,17 +1303,12 @@ static int mcast_send (PAL_HANDLE handle, int offset, int size,
     if (handle->mcast.srv == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    inet_pton4(MCAST_GROUP, &addr.sin_addr.s_addr);
-    addr.sin_port = __htons(handle->mcast.port);
-
     struct msghdr hdr;
     struct iovec iov;
     iov.iov_base = (void *) buf;
     iov.iov_len = size;
-    hdr.msg_name = &addr;
-    hdr.msg_namelen = sizeof(addr);
+    hdr.msg_name = handle->mcast.addr;
+    hdr.msg_namelen = sizeof(struct sockaddr_in);
     hdr.msg_iov = &iov;
     hdr.msg_iovlen = 1;
     hdr.msg_control = NULL;
@@ -1364,19 +1362,6 @@ static int mcast_receive (PAL_HANDLE handle, int offset, int size, void * buf)
     return bytes;
 }
 
-static int mcast_close (PAL_HANDLE handle)
-{
-    if (handle->mcast.srv != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->mcast.srv);
-        handle->mcast.srv = PAL_IDX_POISON;
-    }
-    if (handle->mcast.cli != PAL_IDX_POISON) {
-        INLINE_SYSCALL(close, 1, handle->mcast.cli);
-        handle->mcast.cli = PAL_IDX_POISON;
-    }
-    return 0;
-}
-
 static int mcast_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
     int ret, val;
@@ -1423,7 +1408,6 @@ static int mcast_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 struct handle_ops mcast_ops = {
         .write              = &mcast_send,
         .read               = &mcast_receive,
-        .close              = &mcast_close,
         .attrquerybyhdl     = &mcast_attrquerybyhdl,
         .attrsetbyhdl       = &mcast_attrsetbyhdl,
     };

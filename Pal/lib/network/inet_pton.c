@@ -30,16 +30,17 @@
  * author:
  *    Paul Vixie, 1996.
  */
-int inet_pton4 (const char *src, void *dstp)
+int inet_pton4 (const char *src, int len, void *dstp)
 {
     unsigned char *dst = (unsigned char *) dstp;
+    const char *end = src + len;
     int saw_digit, octets, ch;
     unsigned char tmp[NS_INADDRSZ], *tp;
 
     saw_digit = 0;
     octets = 0;
     *(tp = tmp) = 0;
-    while ((ch = *src++) != '\0') {
+    while (src < end && (ch = *src++) != '\0') {
 
         if (ch >= '0' && ch <= '9') {
             u_int new = *tp * 10 + (ch - '0');
@@ -85,9 +86,10 @@ static int tolower (char c)
  * author:
  *    Paul Vixie, 1996.
  */
-int inet_pton6 (const char *src, void *dstp)
+int inet_pton6 (const char *src, int len, void *dstp)
 {
     unsigned char *dst = (unsigned char *) dstp;
+    const char *end = src + len;
     static const char xdigits[] = "0123456789abcdef";
     unsigned char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
     const char *curtok;
@@ -104,7 +106,7 @@ int inet_pton6 (const char *src, void *dstp)
     curtok = src;
     saw_xdigit = 0;
     val = 0;
-    while ((ch = tolower (*src++)) != '\0') {
+    while (src < end && (ch = tolower (*src++)) != '\0') {
         const char *pch;
 
         pch = strchr (xdigits, ch);
@@ -135,7 +137,7 @@ int inet_pton6 (const char *src, void *dstp)
             continue;
         }
         if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
-            inet_pton4(curtok, tp) > 0) {
+            inet_pton4(curtok, end - curtok, tp) > 0) {
             tp += NS_INADDRSZ;
             saw_xdigit = 0;
             break;    /* '\0' was seen by inet_pton4(). */

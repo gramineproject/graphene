@@ -34,8 +34,6 @@
 #include <pal.h>
 #include <linux_list.h>
 
-#include <sys/stat.h>
-
 struct shim_handle;
 
 #define FS_POLL_RD         0x01
@@ -143,9 +141,6 @@ struct shim_dentry {
     struct list_head children;
     struct list_head siblings;
 
-    struct shim_dentry * symlink;   /* point to symlink target, or
-                                       sources (aliases) of linking */
-    struct list_head alias;
     struct shim_mount * mounted;
     void * data;
     unsigned long ino;
@@ -242,7 +237,6 @@ extern struct shim_dentry * dentry_root;
 
 #define NO_MODE     ((mode_t) -1)
 
-#define O_ACCMODE   (O_RDONLY|O_WRONLY|O_RDWR)
 #define ACC_MODE(x) ((((x) == O_RDONLY || (x) == O_RDWR) ? MAY_READ : 0) | \
                      (((x) == O_WRONLY || (x) == O_RDWR) ? MAY_WRITE : 0))
 
@@ -339,39 +333,55 @@ void get_dentry (struct shim_dentry * dent);
 void put_dentry (struct shim_dentry * dent);
 
 static inline __attribute__((always_inline))
+void fast_pathcpy (char * dst, const char * src, int size, char ** ptr)
+{
+    char * d = dst;
+    const char * s = src;
+    for (int i = 0 ; i < size ; i++, s++, d++)
+        *d = *s;
+    *ptr = d;
+}
+
+static inline __attribute__((always_inline))
 char * dentry_get_path (struct shim_dentry * dent, bool on_stack,
                         int * sizeptr)
 {
     struct shim_mount * fs = dent->fs;
-    int bufsize = (fs ? fs->path.len + 1 : 0) + dent->rel_path.len;
-    char * buffer = on_stack ? __alloca(bufsize) : malloc(bufsize);
-    char * c = buffer;
+    char * buffer, * c;
+    int bufsize = dent->rel_path.len + 1;
 
-    if (!buffer)
-        return NULL;
+    if (fs)
+        bufsize += fs->path.len + 1;
 
-    if (fs && !qstrempty(&fs->path)) {
-        memcpy(c, qstrgetstr(&fs->path), fs->path.len);
-        c += fs->path.len;
+    if (on_stack) {
+        c = buffer = __alloca(bufsize);
+    } else {
+        if (!(c = buffer = malloc(bufsize)))
+            return NULL;
     }
+
+    if (fs && !qstrempty(&fs->path))
+        fast_pathcpy(c, qstrgetstr(&fs->path), fs->path.len, &c);
 
     if (dent->rel_path.len) {
-        if (c == buffer || *(c - 1) != '/')
-            *(c++) = '/';
-        memcpy(c, qstrgetstr(&dent->rel_path), dent->rel_path.len);
-        c += dent->rel_path.len;
-    } else {
-        if (c != buffer && *(c - 1) == '/')
-            c--;
-        if (c == buffer)
-            *(c++) = '/';
-    }
+        const char * path = qstrgetstr(&dent->rel_path);
+        int len = dent->rel_path.len;
 
-    *c = 0;
+        if (c > buffer && *(c - 1) == '/') {
+            if (*path == '/')
+                path++;
+        } else {
+            if (*path != '/')
+                *(c++) = '/';
+        }
+
+        fast_pathcpy(c, path, len, &c);
+    }
 
     if (sizeptr)
         *sizeptr = c - buffer;
 
+    *c = 0;
     return buffer;
 }
 

@@ -35,10 +35,9 @@
 #include <pal_error.h>
 #include <linux_list.h>
 
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/poll.h>
-#include <sys/select.h>
+
+#include <linux/fcntl.h>
 
 void __attribute__ ((noreturn))
 fortify_fail (const char *msg)
@@ -52,15 +51,6 @@ void __attribute__ ((noreturn))
 chk_fail (void)
 {
     fortify_fail ("buffer overflow detected");
-}
-
-unsigned long int
-__fdelt_chk (unsigned long int d)
-{
-    if (d > FD_SETSIZE)
-        chk_fail();
-
-    return d / __NFDBITS;
 }
 
 static inline __attribute__((always_inline))
@@ -422,7 +412,7 @@ out:
 }
 
 int shim_do_ppoll (struct pollfd * fds, int nfds, struct timespec * tsp,
-                   const sigset_t * sigmask, size_t sigsetsize)
+                   const __sigset_t * sigmask, size_t sigsetsize)
 {
     struct shim_thread * cur = get_cur_thread();
 
@@ -469,6 +459,35 @@ out:
     return ret;
 }
 
+typedef long int __fd_mask;
+
+#ifndef __NFDBITS
+#define __NFDBITS    (8 * (int) sizeof (__fd_mask))
+#endif
+#ifndef __FDS_BITS
+#define __FDS_BITS(set) ((set)->fds_bits)
+#endif
+
+/* We don't use `memset' because this would require a prototype and
+   the array isn't too big.  */
+# define __FD_ZERO(set)                                     \
+    do {                                                    \
+        unsigned int __i;                                   \
+        fd_set *__arr = (set);                              \
+        for (__i = 0; __i < sizeof (fd_set) / sizeof (__fd_mask); ++__i) \
+        __FDS_BITS (__arr)[__i] = 0;                        \
+    } while (0)
+
+#define __FD_ELT(d)     ((d) / __NFDBITS)
+#define __FD_MASK(d)    ((__fd_mask) 1 << ((d) % __NFDBITS))
+
+#define __FD_SET(d, set)                                    \
+  ((void) (__FDS_BITS (set)[__FD_ELT (d)] |= __FD_MASK (d)))
+#define __FD_CLR(d, set)                                    \
+  ((void) (__FDS_BITS (set)[__FD_ELT (d)] &= ~__FD_MASK (d)))
+#define __FD_ISSET(d, set)                                  \
+  ((__FDS_BITS (set)[__FD_ELT (d)] & __FD_MASK (d)) != 0)
+
 DEFINE_PROFILE_CATAGORY(select, );
 DEFINE_PROFILE_INTERVAL(select_tryalloca_1, select);
 DEFINE_PROFILE_INTERVAL(select_setup_array, select);
@@ -501,8 +520,8 @@ int shim_do_select (int nfds, fd_set * readfds, fd_set * writefds,
     SAVE_PROFILE_INTERVAL(select_tryalloca_1);
 
     for (int fd = 0 ; fd < nfds ; fd++) {
-        bool do_r = (readfds  && FD_ISSET(fd, readfds));
-        bool do_w = (writefds && FD_ISSET(fd, writefds));
+        bool do_r = (readfds  && __FD_ISSET(fd, readfds));
+        bool do_w = (writefds && __FD_ISSET(fd, writefds));
         if (!do_r && !do_w)
             continue;
         polls[npolls].fd = fd;
@@ -526,25 +545,25 @@ int shim_do_select (int nfds, fd_set * readfds, fd_set * writefds,
     ret = 0;
 
     if (readfds)
-        FD_ZERO(readfds);
+        __FD_ZERO(readfds);
     if (writefds)
-        FD_ZERO(writefds);
+        __FD_ZERO(writefds);
     if (errorfds)
-        FD_ZERO(errorfds);
+        __FD_ZERO(errorfds);
 
     SAVE_PROFILE_INTERVAL(select_fd_zero);
 
     for (int i = 0 ; i < npolls ; i++) {
         if (readfds && ((polls[i].flags & (DO_R|RET_R)) == (DO_R|RET_R))) {
-            FD_SET(polls[i].fd, readfds);
+            __FD_SET(polls[i].fd, readfds);
             ret++;
         }
         if (writefds && ((polls[i].flags & (DO_W|RET_W)) == (DO_W|RET_W))) {
-            FD_SET(polls[i].fd, writefds);
+            __FD_SET(polls[i].fd, writefds);
             ret++;
         }
         if (errorfds && ((polls[i].flags & (DO_R|DO_W|RET_E)) > RET_E)) {
-            FD_SET(polls[i].fd, errorfds);
+            __FD_SET(polls[i].fd, errorfds);
             ret++;
         }
     }
@@ -553,13 +572,12 @@ int shim_do_select (int nfds, fd_set * readfds, fd_set * writefds,
 out:
     __try_free(cur, polls);
     SAVE_PROFILE_INTERVAL(select_try_free);
-
     return ret;
 }
 
 int shim_do_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
                       fd_set * errorfds, const struct __kernel_timespec * tsp,
-                      const sigset_t * sigmask)
+                      const __sigset_t * sigmask)
 {
     if (!nfds)
         return tsp ? shim_do_nanosleep (tsp, NULL) : -EINVAL;
@@ -571,8 +589,8 @@ int shim_do_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
     int npolls = 0;
 
     for (int fd = 0 ; fd < nfds ; fd++) {
-        bool do_r = (readfds  && FD_ISSET(fd, readfds));
-        bool do_w = (writefds && FD_ISSET(fd, writefds));
+        bool do_r = (readfds  && __FD_ISSET(fd, readfds));
+        bool do_w = (writefds && __FD_ISSET(fd, writefds));
         if (!do_r && !do_w)
             continue;
         polls[npolls].fd = fd;
@@ -592,29 +610,28 @@ int shim_do_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
     ret = 0;
 
     if (readfds)
-        FD_ZERO(readfds);
+        __FD_ZERO(readfds);
     if (writefds)
-        FD_ZERO(writefds);
+        __FD_ZERO(writefds);
     if (errorfds)
-        FD_ZERO(errorfds);
+        __FD_ZERO(errorfds);
 
     for (int i = 0 ; i < npolls ; i++) {
         if (readfds && ((polls[i].flags & (DO_R|RET_R)) == (DO_R|RET_R))) {
-            FD_SET(polls[i].fd, readfds);
+            __FD_SET(polls[i].fd, readfds);
             ret++;
         }
         if (writefds && ((polls[i].flags & (DO_W|RET_W)) == (DO_W|RET_W))) {
-            FD_SET(polls[i].fd, writefds);
+            __FD_SET(polls[i].fd, writefds);
             ret++;
         }
         if (errorfds && ((polls[i].flags & (DO_R|DO_W|RET_E)) > RET_E)) {
-            FD_SET(polls[i].fd, errorfds);
+            __FD_SET(polls[i].fd, errorfds);
             ret++;
         }
     }
 
 out:
     __try_free(cur, polls);
-
     return ret;
 }

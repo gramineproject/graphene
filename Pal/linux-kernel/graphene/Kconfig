@@ -8,7 +8,7 @@ if GRAPHENE
 		default y
 
 	config GRAPHENE_BULK_IPC
-		tristate "Graphene Bulk IPC support (EXPERIMENTAL)"
+		tristate "Graphene bulk IPC support (EXPERIMENTAL)"
 		default y
 
 	config GRAPHENE_DEBUG

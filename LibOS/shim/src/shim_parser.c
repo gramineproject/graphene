@@ -33,15 +33,22 @@
 #include <pal.h>
 #include <pal_error.h>
 
+#include <errno.h>
+
+#include <asm/fcntl.h>
 #include <asm/unistd.h>
 #include <asm/prctl.h>
 #include <asm/mman.h>
 #include <asm/ioctls.h>
+
+#include <linux/stat.h>
+#include <linux/fcntl.h>
 #include <linux/sched.h>
 #include <linux/futex.h>
 #include <linux/wait.h>
-#include <errno.h>
-#include <fcntl.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <linux/un.h>
 
 static void parse_open_flags    (const char *, va_list);
 static void parse_open_mode     (const char *, va_list);
@@ -580,10 +587,6 @@ static void parse_open_flags (const char * type, va_list ap)
         PUTS("|O_TRUNC");
         flags &= ~O_TRUNC;
     }
-    if (flags & O_ASYNC) {
-        PUTS("|O_ASYNC");
-        flags &= ~O_ASYNC;
-    }
     if (flags & O_EXCL) {
         PUTS("|O_EXCL");
         flags &= ~O_EXCL;
@@ -793,14 +796,12 @@ static void parse_signum (const char * type, va_list ap)
     unsigned int signum = va_arg (ap, unsigned int);
 
     if (signum > 0 && signum <= NUM_KNOWN_SIGS)
-        PUTS(siglist[signum]);
-    else
-        PRINTF("Signal %u", signum);
+        PUTS(signal_name(signum));
 }
 
 static void parse_sigmask (const char * type, va_list ap)
 {
-    sigset_t * sigset = va_arg (ap, sigset_t *);
+    __sigset_t * sigset = va_arg(ap, __sigset_t *);
 
     if (!sigset) {
         PUTS("NULL");
@@ -811,11 +812,8 @@ static void parse_sigmask (const char * type, va_list ap)
 
     for (int signum = 1 ; signum <= sizeof(sigset) * 8 ; signum++)
         if (__sigismember(sigset, signum)) {
-            if (signum <= NUM_KNOWN_SIGS) {
-                PUTS(siglist[signum]);
-                PUTS(",");
-            } else
-                PRINTF("Signal %u,", signum);
+            PUTS(signal_name(signum));
+            PUTS(",");
         }
 
     PUTS("]");

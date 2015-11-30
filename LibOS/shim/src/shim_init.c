@@ -103,21 +103,19 @@ long convert_pal_errno (long err)
            pal_errno_to_unix_errno[err] : 0;
 }
 
-void * initial_stack = NULL;
-const char ** initial_envp __attribute_migratable = NULL;
+void * migrated_memory_start;
+void * migrated_memory_end;
+void * migrated_shim_addr;
 
-void * migrated_memory_start = 0;
-void * migrated_memory_end = 0;
+void * initial_stack;
+const char ** initial_envp __attribute_migratable;
 
-extern void * migrated_shim_addr;
-
-const char ** library_paths = NULL;
-
-bool in_gdb = false;
+const char ** library_paths;
 
 LOCKTYPE __master_lock;
+bool lock_enabled;
 
-bool lock_enabled = false;
+bool in_gdb;
 
 void init_tcb (shim_tcb_t * tcb)
 {
@@ -137,7 +135,7 @@ void copy_tcb (shim_tcb_t * new_tcb, const shim_tcb_t * old_tcb)
 }
 
 /* This function is used to allocate tls before interpreter start running */
-void allocate_tls (void * tcb_location, struct shim_thread * thread)
+void allocate_tls (void * tcb_location, bool user, struct shim_thread * thread)
 {
     __libc_tcb_t * tcb = tcb_location;
     assert(tcb);
@@ -146,7 +144,7 @@ void allocate_tls (void * tcb_location, struct shim_thread * thread)
 
     if (thread) {
         thread->tcb       = tcb;
-        thread->user_tcb  = false;
+        thread->user_tcb  = user;
         tcb->shim_tcb.tp  = thread;
         tcb->shim_tcb.tid = thread->tid;
     } else {
@@ -178,7 +176,7 @@ void populate_tls (void * tcb_location, bool user)
 DEFINE_PROFILE_OCCURENCE(alloc_stack, memory);
 DEFINE_PROFILE_OCCURENCE(alloc_stack_count, memory);
 
-#define STACK_FLAGS     (MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL)
+#define STACK_FLAGS     (MAP_PRIVATE|MAP_ANONYMOUS)
 
 void * allocate_stack (size_t size, size_t protect_size, bool user)
 {
@@ -389,8 +387,6 @@ static void __free (void * mem)
     free(mem);
 }
 
-extern bool ask_for_checkpoint;
-
 int init_manifest (PAL_HANDLE manifest_handle)
 {
     PAL_STREAM_ATTR attr;
@@ -420,13 +416,6 @@ int init_manifest (PAL_HANDLE manifest_handle)
         sys_printf("Unable to read manifest file: %s\n", errstring);
         return ret;
     }
-
-    char cfgbuf[CONFIG_MAX];
-
-    if (get_config(root_config, "sys.ask_for_checkpoint", cfgbuf,
-                   CONFIG_MAX) > 0 &&
-        cfgbuf[0] == '1' && !cfgbuf[1])
-        ask_for_checkpoint = true;
 
     return 0;
 }
@@ -523,61 +512,58 @@ static void set_profile_enabled (const char ** envp)
 }
 #endif
 
-DEFINE_PROFILE_CATAGORY(resume, );
-DEFINE_PROFILE_INTERVAL(child_created_in_new_process, resume);
-DEFINE_PROFILE_INTERVAL(child_receive_header, resume);
-DEFINE_PROFILE_INTERVAL(child_total_migration_time, resume);
-
 static int init_newproc (struct newproc_header * hdr)
 {
+    BEGIN_PROFILE_INTERVAL();
+
     int bytes = DkStreamRead(PAL_CB(parent_process), 0,
                              sizeof(struct newproc_header), hdr,
                              NULL, 0);
     if (!bytes)
         return -PAL_ERRNO;
 
+    SAVE_PROFILE_INTERVAL(child_wait_header);
     SAVE_PROFILE_INTERVAL_SINCE(child_receive_header, hdr->write_proc_time);
     return hdr->failure;
 }
 
 DEFINE_PROFILE_CATAGORY(pal, );
-DEFINE_PROFILE_INTERVAL(pal_startup_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_startup_time,               pal);
 DEFINE_PROFILE_INTERVAL(pal_host_specific_startup_time, pal);
-DEFINE_PROFILE_INTERVAL(pal_relocation_time, pal);
-DEFINE_PROFILE_INTERVAL(pal_linking_time, pal);
-DEFINE_PROFILE_INTERVAL(pal_manifest_loading_time, pal);
-DEFINE_PROFILE_INTERVAL(pal_allocation_time, pal);
-DEFINE_PROFILE_INTERVAL(pal_tail_startup_time, pal);
-DEFINE_PROFILE_INTERVAL(pal_child_creation_time, pal);
+DEFINE_PROFILE_INTERVAL(pal_relocation_time,            pal);
+DEFINE_PROFILE_INTERVAL(pal_linking_time,               pal);
+DEFINE_PROFILE_INTERVAL(pal_manifest_loading_time,      pal);
+DEFINE_PROFILE_INTERVAL(pal_allocation_time,            pal);
+DEFINE_PROFILE_INTERVAL(pal_tail_startup_time,          pal);
+DEFINE_PROFILE_INTERVAL(pal_child_creation_time,        pal);
 
 DEFINE_PROFILE_CATAGORY(init, );
-DEFINE_PROFILE_INTERVAL(init_randgen, init);
-DEFINE_PROFILE_INTERVAL(init_heap, init);
-DEFINE_PROFILE_INTERVAL(init_slab, init);
-DEFINE_PROFILE_INTERVAL(init_str_mgr, init);
-DEFINE_PROFILE_INTERVAL(init_internal_map, init);
-DEFINE_PROFILE_INTERVAL(init_vma, init);
-DEFINE_PROFILE_INTERVAL(init_fs, init);
-DEFINE_PROFILE_INTERVAL(init_handle, init);
-DEFINE_PROFILE_INTERVAL(read_from_checkpoint, init);
-DEFINE_PROFILE_INTERVAL(read_from_file, init);
-DEFINE_PROFILE_INTERVAL(init_newproc, init);
-DEFINE_PROFILE_INTERVAL(do_migration, init);
-DEFINE_PROFILE_INTERVAL(init_mount_root, init);
-DEFINE_PROFILE_INTERVAL(init_from_checkpoint_file, init);
-DEFINE_PROFILE_INTERVAL(restore_from_file, init);
-DEFINE_PROFILE_INTERVAL(restore_checkpoint, init);
-DEFINE_PROFILE_INTERVAL(init_manifest, init);
-DEFINE_PROFILE_INTERVAL(init_ipc, init);
-DEFINE_PROFILE_INTERVAL(init_thread, init);
-DEFINE_PROFILE_INTERVAL(init_important_handles, init);
-DEFINE_PROFILE_INTERVAL(init_mount, init);
-DEFINE_PROFILE_INTERVAL(init_async, init);
-DEFINE_PROFILE_INTERVAL(init_stack, init);
-DEFINE_PROFILE_INTERVAL(read_environs, init);
-DEFINE_PROFILE_INTERVAL(init_loader, init);
-DEFINE_PROFILE_INTERVAL(init_ipc_helper, init);
-DEFINE_PROFILE_INTERVAL(init_signal, init);
+DEFINE_PROFILE_INTERVAL(init_randgen,               init);
+DEFINE_PROFILE_INTERVAL(init_heap,                  init);
+DEFINE_PROFILE_INTERVAL(init_slab,                  init);
+DEFINE_PROFILE_INTERVAL(init_str_mgr,               init);
+DEFINE_PROFILE_INTERVAL(init_internal_map,          init);
+DEFINE_PROFILE_INTERVAL(init_vma,                   init);
+DEFINE_PROFILE_INTERVAL(init_fs,                    init);
+DEFINE_PROFILE_INTERVAL(init_dcache,                init);
+DEFINE_PROFILE_INTERVAL(init_handle,                init);
+DEFINE_PROFILE_INTERVAL(read_from_checkpoint,       init);
+DEFINE_PROFILE_INTERVAL(read_from_file,             init);
+DEFINE_PROFILE_INTERVAL(init_newproc,               init);
+DEFINE_PROFILE_INTERVAL(init_mount_root,            init);
+DEFINE_PROFILE_INTERVAL(init_from_checkpoint_file,  init);
+DEFINE_PROFILE_INTERVAL(restore_from_file,          init);
+DEFINE_PROFILE_INTERVAL(init_manifest,              init);
+DEFINE_PROFILE_INTERVAL(init_ipc,                   init);
+DEFINE_PROFILE_INTERVAL(init_thread,                init);
+DEFINE_PROFILE_INTERVAL(init_important_handles,     init);
+DEFINE_PROFILE_INTERVAL(init_mount,                 init);
+DEFINE_PROFILE_INTERVAL(init_async,                 init);
+DEFINE_PROFILE_INTERVAL(init_stack,                 init);
+DEFINE_PROFILE_INTERVAL(read_environs,              init);
+DEFINE_PROFILE_INTERVAL(init_loader,                init);
+DEFINE_PROFILE_INTERVAL(init_ipc_helper,            init);
+DEFINE_PROFILE_INTERVAL(init_signal,                init);
 
 #define CALL_INIT(func, args ...)   func(args)
 
@@ -594,7 +580,7 @@ DEFINE_PROFILE_INTERVAL(init_signal, init);
 
 extern PAL_HANDLE thread_start_event;
 
-int shim_init (int argc, void * args)
+int shim_init (int argc, void * args, void ** return_stack)
 {
     debug_handle = PAL_CB(debug_stream);
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
@@ -602,7 +588,7 @@ int shim_init (int argc, void * args)
     /* create the initial TCB, shim can not be run without a tcb */
     __libc_tcb_t tcb;
     memset(&tcb, 0, sizeof(__libc_tcb_t));
-    allocate_tls(&tcb, NULL);
+    allocate_tls(&tcb, false, NULL);
     debug_setbuf(&tcb.shim_tcb, true);
     debug("set tcb to %p\n", &tcb);
 
@@ -645,6 +631,7 @@ int shim_init (int argc, void * args)
     RUN_INIT(init_internal_map);
     RUN_INIT(init_vma);
     RUN_INIT(init_fs);
+    RUN_INIT(init_dcache);
     RUN_INIT(init_handle);
 
     debug("shim loaded at %p, ready to initialize\n", &__load_address);
@@ -669,14 +656,16 @@ int shim_init (int argc, void * args)
         begin_create_time = hdr.begin_create_time;
 #endif
 
-        if (hdr.checkpoint.data.cpsize)
+        if (hdr.checkpoint.hdr.size)
             RUN_INIT(do_migration, &hdr.checkpoint, &cpaddr);
     }
 
     if (cpaddr) {
 restore:
         thread_start_event = DkNotificationEventCreate(0);
-        RUN_INIT(restore_checkpoint, cpaddr, &hdr.checkpoint.data, 0);
+        RUN_INIT(restore_checkpoint,
+                 &hdr.checkpoint.hdr, &hdr.checkpoint.mem,
+                 (ptr_t) cpaddr, 0);
     }
 
     if (PAL_CB(manifest_handle))
@@ -730,6 +719,7 @@ restore:
         execute_elf_object(cur_thread->exec,
                            argc, argp, nauxv, auxp);
 
+    *return_stack = initial_stack;
     return 0;
 }
 
@@ -1008,7 +998,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
         }
     }
     if (total_interval_count) {
-        __sys_fprintf(hdl, "- (%11.11u) total: %u times, %lu msec\n",
+        __sys_fprintf(hdl, "                - (%11.11u) total: %u times, %lu msec\n",
                       total_interval_time, total_interval_count, 
                       total_interval_time / total_interval_count);
     }

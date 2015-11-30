@@ -29,6 +29,7 @@
 #include <shim_handle.h>
 #include <shim_ipc.h>
 #include <shim_checkpoint.h>
+#include <shim_unistd.h>
 #include <shim_profile.h>
 
 #include <pal.h>
@@ -642,112 +643,90 @@ int ipc_checkpoint_callback (IPC_CALLBACK_ARGS)
     if (ret < 0)
         goto out;
 
-    kill_all_threads(NULL, CHECKPOINT_REQUESTED, SIGINT);
+    kill_all_threads(NULL, msgin->cpsession, SIGCP);
     broadcast_ipc(msg, &port, 1, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD);
 out:
     SAVE_PROFILE_INTERVAL(ipc_checkpoint_callback);
     return ret;
 }
 
-DEFINE_MIGRATE_FUNC(ipc_info)
-
-MIGRATE_FUNC_BODY(ipc_info)
+BEGIN_CP_FUNC(ipc_info)
 {
     assert(size == sizeof(struct shim_ipc_info));
-
-    unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset,
-                                           sizeof(struct shim_ipc_info));
 
     struct shim_ipc_info * port = (struct shim_ipc_info *) obj;
     struct shim_ipc_info * new_port = NULL;
 
-    if (ENTRY_JUST_CREATED(off)) {
-        off = ADD_OFFSET(sizeof(struct shim_ipc_info));
+    ptr_t off = GET_FROM_CP_MAP(obj);
 
-        if (!dry) {
-            new_port = (struct shim_ipc_info *) (base + off);
-            *new_port = *port;
-            REF_SET(new_port->ref_count, 0);
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_ipc_info));
+
+        new_port = (struct shim_ipc_info *) (base + off);
+        memcpy(new_port, port, sizeof(struct shim_ipc_info));
+        REF_SET(new_port->ref_count, 0);
+
+        DO_CP_IN_MEMBER(qstr, new_port, uri);
+
+        if (port->pal_handle &&
+            port->pal_handle != IPC_FORCE_RECONNECT) {
+            struct shim_palhdl_entry * entry;
+            DO_CP(palhdl, port->pal_handle, &entry);
+            entry->uri = &new_port->uri;
+            entry->phandle = &new_port->pal_handle;
         }
-
-        ADD_ENTRY(PALHDL, port->pal_handle && port->pal_handle !=
-                  IPC_FORCE_RECONNECT ? off +
-                  offsetof(struct shim_ipc_info, pal_handle) : 0);
-
-        DO_MIGRATE_IN_MEMBER(qstr, port, new_port, uri, false);
-
-    } else if (!dry) {
+    } else {
         new_port = (struct shim_ipc_info *) (base + off);
     }
 
     if (new_port && objp)
         *objp = (void *) new_port;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC_NO_RS(ipc_info)
 
-RESUME_FUNC_BODY(ipc_info)
-{
-    /* do nothing */
-}
-END_RESUME_FUNC
-
-DEFINE_MIGRATE_FUNC(process)
-
-MIGRATE_FUNC_BODY(process)
+BEGIN_CP_FUNC(process)
 {
     assert(size == sizeof(struct shim_process));
-
-    unsigned long off = ADD_TO_MIGRATE_MAP(obj, *offset,
-                                           sizeof(struct shim_process));
 
     struct shim_process * proc = (struct shim_process *) obj;
     struct shim_process * new_proc = NULL;
 
-    if (ENTRY_JUST_CREATED(off)) {
-        off = ADD_OFFSET(sizeof(struct shim_process));
+    ptr_t off = GET_FROM_CP_MAP(obj);
 
-        if (!dry) {
-            new_proc = (struct shim_process *) (base + off);
-            *new_proc = *proc;
-        }
+    if (!off) {
+        off = ADD_CP_OFFSET(sizeof(struct shim_process));
+        ADD_TO_CP_MAP(obj, off);
+
+        new_proc = (struct shim_process *) (base + off);
+        memcpy(new_proc, proc, sizeof(struct shim_process));
 
         if (proc->self)
-            __DO_MIGRATE(ipc_info, proc->self,
-                         &new_proc->self,
-                         true);
+            DO_CP_MEMBER(ipc_info, proc, new_proc, self);
 
         if (proc->parent)
-            __DO_MIGRATE(ipc_info, proc->parent,
-                         &new_proc->parent,
-                         true);
+            DO_CP_MEMBER(ipc_info, proc, new_proc, parent);
 
         for (int i = 0 ; i < TOTAL_NS ; i++)
             if (proc->ns[i])
-                __DO_MIGRATE(ipc_info, proc->ns[i],
-                             &new_proc->ns[i],
-                             true);
+                DO_CP_MEMBER(ipc_info, proc, new_proc, ns[i]);
 
-        ADD_FUNC_ENTRY(off);
-        ADD_ENTRY(SIZE, sizeof(struct shim_process));
-
-    } else if (!dry) {
+        ADD_CP_FUNC_ENTRY(off);
+    } else {
         new_proc = (struct shim_process *) (base + off);
     }
 
-    if (new_proc && objp)
+    if (objp)
         *objp = (void *) new_proc;
 }
-END_MIGRATE_FUNC
+END_CP_FUNC(process)
 
-RESUME_FUNC_BODY(process)
+BEGIN_RS_FUNC(process)
 {
-    unsigned long off = GET_FUNC_ENTRY();
-    assert((size_t) GET_ENTRY(SIZE) == sizeof(struct shim_process));
-    struct shim_process * proc = (struct shim_process *) (base + off);
+    struct shim_process * proc = (void *) (base + GET_CP_FUNC_ENTRY());
 
-    RESUME_REBASE(proc->self);
-    RESUME_REBASE(proc->parent);
-    RESUME_REBASE(proc->ns);
+    CP_REBASE(proc->self);
+    CP_REBASE(proc->parent);
+    CP_REBASE(proc->ns);
 
     if (proc->self) {
         proc->self->vmid = cur_process.vmid;
@@ -765,11 +744,9 @@ RESUME_FUNC_BODY(process)
     memcpy(&cur_process, proc, sizeof(struct shim_process));
     create_lock(cur_process.lock);
 
-#ifdef DEBUG_RESUME
-    debug("process: vmid=%u, uri=%s, parent=%u(%s)\n", proc->vmid,
-          proc->self ? qstrgetstr(&proc->self->uri) : NULL,
-          proc->parent ? proc->parent->vmid : 0,
-          proc->parent ? qstrgetstr(&proc->parent->uri) : NULL);
-#endif
+    DEBUG_RS("vmid=%u,uri=%s,parent=%u(%s)", proc->vmid,
+             proc->self ? qstrgetstr(&proc->self->uri) : "",
+             proc->parent ? proc->parent->vmid : 0,
+             proc->parent ? qstrgetstr(&proc->parent->uri) : "");
 }
-END_RESUME_FUNC
+END_RS_FUNC(process)

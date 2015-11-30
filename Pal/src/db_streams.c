@@ -144,6 +144,8 @@ int _DkStreamOpen (PAL_HANDLE * handle, const char * uri,
     struct handle_ops * ops = NULL;
     const char * type = NULL;
 
+    log_stream(uri);
+
     int ret = parse_stream_uri(&uri, &type, &ops);
 
     if (ret < 0)
@@ -374,6 +376,8 @@ DkStreamAttributesQuery (PAL_STR uri, PAL_STREAM_ATTR * attr)
 
     if (!uri || !attr)
         leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
+
+    log_stream(uri);
 
     PAL_STREAM_ATTR attr_buf;
 

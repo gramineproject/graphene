@@ -1,0 +1,21 @@
+#!/bin/bash
+
+BASE=0x1021000
+PAL=$(SRCDIR)/pal
+PALGDBINIT=$(SRCDIR)/pal.gdbinit
+
+if [ ! -f $PALGDBINIT ] || [ $PAL -nt $PALGDBINIT ]; then
+	echo "symbol-file" > $PALGDBINIT
+	readelf -WS $PAL | (
+	SECTIONS=""
+	TEXT=""
+	while read -r line
+	do
+		echo ${line:5} | awk '{if ($3 ~ /^0/) { v = sprintf("%d", "0x" $3); if (v != 0) printf("section %s 0x%x\n", $1, sprintf("%d", "'$BASE'") + v) }}' >> $PALGDBINIT
+		TEXT+=$(echo ${line:5} | awk '{if ($1 == ".text") { v = sprintf("%d", "0x" $3); printf("0x%x", sprintf("%d", "'$BASE'") + v) }}')
+		SECTIONS+=$(echo ${line:5} | awk '{if ($1 != ".text" && $3 ~ /^0/) { v = sprintf("%d", "0x" $3); if (v != 0) printf(" -s %s 0x%x", $1, sprintf("%d", "'$BASE'") + v) }}')
+	done
+	echo add-symbol-file $PAL $TEXT $SECTIONS >> $PALGDBINIT)
+fi
+
+exec gdb -q -ex "source $PALGDBINIT" -ex "source $(SRCDIR)/host/FreeBSD/pal.gdb" --args $PAL "$@"

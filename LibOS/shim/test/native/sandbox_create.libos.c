@@ -5,8 +5,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <shim_unistd.h>
 #include <arpa/inet.h>
+
+#include <shim_unistd.h>
 
 int main(int argc, char ** argv)
 {

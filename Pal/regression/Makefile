@@ -13,15 +13,15 @@ manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.ma
 
 target = $(executables) $(preloads) $(manifests)
 
-graphene_lib = ../lib/graphene-lib.a
+graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
 all:	$(target)
 
 manifest_rules = \
-	-e 's:\$$(PAL):$(abspath $(PWD)/../src/pal):g' \
-	-e 's:\$$(PWD):$(PWD)/:g' \
+	-e 's:\$$(PAL):$(abspath ../src/pal):g' \
+	-e 's:\$$(PWD):$(shell pwd)/:g' \
 	$(extra_rules)
 
 manifest: manifest.template
@@ -35,7 +35,7 @@ manifest: manifest.template
 	chmod +x $@
 
 ../src/user_shared_start.o ../src/user_start.o: ../src/user_start.S
-	make -C ../src $(notdir $@)
+	$(MAKE) -C ../src $(notdir $@)
 
 ifeq ($(SYS),x86_64-linux-gnu)
 $(preloads): %.so: %.so.c ../src/user_shared_start.o \
@@ -48,30 +48,33 @@ $(executables): %: %.c ../src/user_start.o \
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $^ -o $@
 
+$(graphene_lib):
+	$(MAKE) -C ../lib target=$(shell pwd)/.lib/ $(debug)
+
 .PHONY: pack
 pack: $(preloads) $(executables)
-	tar -czf .packed/test.tar.gz $^
+	@../../Scripts/pack_binaries.sh test $^
 else
 $(preloads) $(executables): .packed/test.tar.gz
-	tar -xmozf $<
+	tar -xmozf $< $@
 endif
 
 PYTHONENV = "PYTHONPATH=../../Scripts"
 
 regression: $(target)
-	@echo "\n\nBasic Bootstrapping:"
+	@printf "\n\nBasic Bootstrapping:\n"
 	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f; done
-	@echo "\n\nException Handling:"
+	@printf "\n\nException Handling:\n"
 	@for f in $(wildcard 01_*.py); do env $(PYTHONENV) python $$f; done
-	@echo "\n\nSingle-Process Functionalities:"
+	@printf "\n\nSingle-Process Functionalities:\n"
 	@for f in $(wildcard 02_*.py); do env $(PYTHONENV) python $$f; done
-	@echo "\n\nProcess Creation:"
+	@printf "\n\nProcess Creation:\n"
 	@for f in $(wildcard 03_*.py); do env $(PYTHONENV) python $$f; done
-	@echo "\n\nMulti-Process Functionalities:"
+	@printf "\n\nMulti-Process Functionalities:\n"
 	@for f in $(wildcard 04_*.py); do env $(PYTHONENV) python $$f; done
-	@echo "\n\nReference Monitor (Optional):"
+	@printf "\n\nReference Monitor (Optional):\n"
 	@for f in $(wildcard 05_*.py); do env $(PYTHONENV) python $$f; done
-	@echo "\n\n"
+	@printf "\n\n"
 
 clean:
-	rm -rf $(target) *.tmp
+	rm -rf $(target) *.tmp .lib

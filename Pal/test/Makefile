@@ -11,7 +11,7 @@ manifests = manifest
 
 target = $(executables) $(manifests)
 
-graphene_lib = ../lib/graphene-lib.a
+graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
@@ -28,13 +28,16 @@ $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $^ -o $@
 
+$(graphene_lib):
+	$(MAKE) -C ../lib target=$(shell pwd)/.lib/ $(debug)
+
 .PHONY: pack
 pack: $(executables)
-	tar -czf .packed/test.tar.gz $^
+	@../../Scripts/pack_binaries.sh test $^
 else
 $(executables): .packed/test.tar.gz
-	tar -xmozf $<
+	tar -xmozf $< $@
 endif
 
 clean:
-	rm -rf $(target)
+	rm -rf $(target) .lib

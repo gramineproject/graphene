@@ -28,6 +28,7 @@
 #include <shim_thread.h>
 #include <shim_ipc.h>
 #include <shim_profile.h>
+#include <shim_checkpoint.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -38,47 +39,29 @@
 #include <asm/prctl.h>
 #include <linux/futex.h>
 
-static void * __malloc (size_t size)
+int migrate_fork (struct shim_cp_store * store,
+                  struct shim_thread * thread,
+                  struct shim_process * process, va_list ap)
 {
-    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
-    size = ALIGN_UP(size);
-    void * addr = get_unmapped_vma(size, flags);
-
-    addr = (void *)
-        DkVirtualMemoryAlloc(addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
-    if (!addr)
-        return NULL;
-
-    bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, flags, NULL, 0, NULL);
-    return addr;
-}
-
-#define malloc_method __malloc
-#include <shim_checkpoint.h>
-
-int migrate_fork (struct shim_cp_store * cpstore,
-                  struct shim_process * process,
-                  struct shim_thread * thread, va_list ap)
-{
-    BEGIN_MIGRATION_DEF(fork, struct shim_process * proc,
-                        struct shim_thread * thread)
+    BEGIN_MIGRATION_DEF(fork, struct shim_thread * thread,
+                        struct shim_process * process)
     {
-        DEFINE_MIGRATE(process, proc, sizeof(struct shim_process), false);
-        DEFINE_MIGRATE(all_mounts, NULL, 0, false);
-        DEFINE_MIGRATE(all_vmas, NULL, 0, true); /* recusive for the data */
-        DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread),
-                       true); /* recusive for the stack */
+        DEFINE_MIGRATE(process, process, sizeof(struct shim_process));
+        DEFINE_MIGRATE(all_mounts, NULL, 0);
+        DEFINE_MIGRATE(all_vmas, NULL, 0);
+        DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
         DEFINE_MIGRATE(handle_map, thread->handle_map,
-                       sizeof (struct shim_handle_map), true);
-                       /* recursive for the handles */
-        DEFINE_MIGRATE(brk, NULL, 0, false);
-        DEFINE_MIGRATE(loaded_libraries, NULL, 0, false);
-        DEFINE_MIGRATE(gdb_map, NULL, 0, false);
-        DEFINE_MIGRATE(migratable, NULL, 0, false);
+                       sizeof (struct shim_handle_map));
+        DEFINE_MIGRATE(brk, NULL, 0);
+        DEFINE_MIGRATE(loaded_libraries, NULL, 0);
+#ifdef DEBUG
+        DEFINE_MIGRATE(gdb_map, NULL, 0);
+#endif
+        DEFINE_MIGRATE(migratable, NULL, 0);
     }
-    END_MIGRATION_DEF
+    END_MIGRATION_DEF(fork)
 
-    int ret = START_MIGRATE(cpstore, fork, 0, process, thread);
+    int ret = START_MIGRATE(store, fork, thread, process);
 
     thread->in_vm = false;
 

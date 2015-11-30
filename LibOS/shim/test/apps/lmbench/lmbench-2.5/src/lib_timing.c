@@ -359,7 +359,7 @@ micro(char *s, uint64 n)
 	mean = getmeantime();
 	var = getvariancetime();
 	if (var < 0.0)
-	  var = 0.0;
+		var = 0.0;
 
 	if (!ftiming) ftiming = stderr;
 	fprintf(ftiming, "%s median=%.4lf [mean=%.4lf +/-%.4lf] microseconds\n",
@@ -556,7 +556,7 @@ void
 use_int(int result) { use_result_dummy += result; }
 
 void
-use_pointer(void *result) { use_result_dummy += (int)result; }
+use_pointer(void *result) { use_result_dummy += *(int *)result; }
 
 void
 insertinit(result_t *r)

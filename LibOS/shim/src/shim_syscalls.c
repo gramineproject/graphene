@@ -202,7 +202,7 @@ DEFINE_SHIM_SYSCALL (rt_sigaction, 3, shim_do_sigaction, int, int, signum,
 
 /* rt_sigprocmask: sys/shim_sigaction.c */
 DEFINE_SHIM_SYSCALL (rt_sigprocmask, 3, shim_do_sigprocmask, int, int, how,
-                     const sigset_t *, set, sigset_t *, oldset)
+                     const __sigset_t *, set, __sigset_t *, oldset)
 
 /* rt_sigreturn: sys/shim_sigaction.c */
 DEFINE_SHIM_SYSCALL (rt_sigreturn, 1, shim_do_sigreturn, int, int, __unused)
@@ -577,17 +577,17 @@ SHIM_SYSCALL_PASSTHROUGH (capget, 2, int, cap_user_header_t, header,
 SHIM_SYSCALL_PASSTHROUGH (capset, 2, int, cap_user_header_t, header,
                           const cap_user_data_t, data)
 
-SHIM_SYSCALL_PASSTHROUGH (rt_sigpending, 2, int, sigset_t *, set, size_t,
+SHIM_SYSCALL_PASSTHROUGH (rt_sigpending, 2, int, __sigset_t *, set, size_t,
                           sigsetsize)
 
-SHIM_SYSCALL_PASSTHROUGH (rt_sigtimedwait, 4, int, const sigset_t *, uthese,
+SHIM_SYSCALL_PASSTHROUGH (rt_sigtimedwait, 4, int, const __sigset_t *, uthese,
                           siginfo_t *, uinfo, const struct timespec *, uts,
                           size_t, sigsetsize)
 
 SHIM_SYSCALL_PASSTHROUGH (rt_sigqueueinfo, 3, int, int, pid, int, sig,
                           siginfo_t *, uinfo)
 
-SHIM_SYSCALL_PASSTHROUGH (rt_sigsuspend, 1, int, const sigset_t *, mask)
+SHIM_SYSCALL_PASSTHROUGH (rt_sigsuspend, 1, int, const __sigset_t *, mask)
 
 SHIM_SYSCALL_PASSTHROUGH (sigaltstack, 2, int, const stack_t *, ss, stack_t *,
                           oss)
@@ -602,7 +602,8 @@ SHIM_SYSCALL_PASSTHROUGH (uselib, 1, int, const char *, library)
 
 SHIM_SYSCALL_PASSTHROUGH (personality, 1, int, unsigned int, personality)
 
-SHIM_SYSCALL_PASSTHROUGH (ustat, 2, int, unsigned, dev, struct ustat *, ubuf)
+SHIM_SYSCALL_PASSTHROUGH (ustat, 2, int, unsigned, dev,
+                          struct __kernel_ustat *, ubuf)
 
 SHIM_SYSCALL_PASSTHROUGH (statfs, 2, int, const char *, path, struct statfs *,
                           buf)
@@ -808,7 +809,7 @@ SHIM_SYSCALL_PASSTHROUGH (fremovexattr, 2, int, int, fd, const char *, name)
 
 DEFINE_SHIM_SYSCALL (tkill, 2, shim_do_tkill, int, pid_t, pid, int, sig)
 
-DEFINE_SHIM_SYSCALL (time, 1, shim_do_time, int, time_t *, tloc)
+DEFINE_SHIM_SYSCALL (time, 1, shim_do_time, time_t, time_t *, tloc)
 
 /* futex: sys/shim_futex.c */
 DEFINE_SHIM_SYSCALL (futex, 6, shim_do_futex, int, unsigned int *, uaddr,
@@ -1048,12 +1049,12 @@ DEFINE_SHIM_SYSCALL (faccessat, 3, shim_do_faccessat, int, int, dfd,
 DEFINE_SHIM_SYSCALL (pselect6, 6, shim_do_pselect6, int, int, nfds,
                      fd_set *, readfds, fd_set *, writefds, fd_set *, errorfds,
                      const struct __kernel_timespec *, tsp,
-                     const sigset_t *, sigmask)
+                     const __sigset_t *, sigmask)
 
 /* ppoll: sys/shim_poll.c */
 DEFINE_SHIM_SYSCALL (ppoll, 5, shim_do_ppoll, int, struct pollfd *, fds,
                      int, nfds, struct timespec *, tsp,
-                     const sigset_t *, sigmask, size_t, sigsetsize)
+                     const __sigset_t *, sigmask, size_t, sigsetsize)
 
 SHIM_SYSCALL_PASSTHROUGH (unshare, 1, int, int, unshare_flags)
 
@@ -1086,10 +1087,10 @@ SHIM_SYSCALL_PASSTHROUGH (utimensat, 4, int, int, dfd, const char *, filename,
 
 DEFINE_SHIM_SYSCALL (epoll_pwait, 6, shim_do_epoll_pwait, int, int, epfd,
                           struct __kernel_epoll_event *, events, int, maxevents,
-                          int, timeout, const sigset_t *, sigmask,
+                          int, timeout, const __sigset_t *, sigmask,
                           size_t, sigsetsize)
 
-SHIM_SYSCALL_PASSTHROUGH (signalfd, 3, int, int, ufd, sigset_t *, user_mask,
+SHIM_SYSCALL_PASSTHROUGH (signalfd, 3, int, int, ufd, __sigset_t *, user_mask,
                           size_t, sizemask)
 
 SHIM_SYSCALL_PASSTHROUGH (timerfd_create, 2, int, int, clockid, int, flags)
@@ -1110,7 +1111,7 @@ SHIM_SYSCALL_PASSTHROUGH (timerfd_gettime, 2, int, int, ufd,
 DEFINE_SHIM_SYSCALL (accept4, 4, shim_do_accept4, int, int, sockfd,
                      struct sockaddr *, addr, socklen_t *, addrlen, int, flags)
 
-SHIM_SYSCALL_PASSTHROUGH (signalfd4, 4, int, int, ufd, sigset_t *, user_mask,
+SHIM_SYSCALL_PASSTHROUGH (signalfd4, 4, int, int, ufd, __sigset_t *, user_mask,
                           size_t, sizemask, int, flags)
 
 SHIM_SYSCALL_PASSTHROUGH (eventfd2, 2, int, int, count, int, flags)

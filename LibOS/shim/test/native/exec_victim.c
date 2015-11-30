@@ -9,7 +9,7 @@ int main(int argc, char ** argv, const char ** envp)
     FILE * out = stdout;
 
     if (argc > 1) {
-        int fd = atoi(argv[1]);
+        int fd = atoi(argv[argc - 1]);
         printf("inherited file descriptor %d\n", fd);
         out = fdopen(fd, "a");
         if (!out) {

@@ -25,7 +25,7 @@ char	*id = "$Id$\n";
 
 #define	TYPE	int
 #define	MINSZ	(sizeof(TYPE) * 128)
-#define	CHK(x)	if ((int)(x) == -1) { perror("x"); exit(1); }
+#define	CHK(x)	if ((long)(x) == -1) { perror("x"); exit(1); }
 
 void
 doit(register TYPE *p, register TYPE *lastone)

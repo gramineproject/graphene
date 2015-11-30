@@ -38,6 +38,9 @@
 #include <linux/wait.h>
 #include <errno.h>
 
+DEFINE_PROFILE_CATAGORY(wait, );
+DEFINE_PROFILE_INTERVAL(child_exit_notification, wait);
+
 pid_t shim_do_wait4 (pid_t pid, int * status, int option,
                      struct __kernel_rusage * ru)
 {
@@ -138,6 +141,7 @@ found:
         *status = (thread->exit_code & 0xff) << 8;
 
     ret = thread->tid;
+    SAVE_PROFILE_INTERVAL_SINCE(child_exit_notification, thread->exit_time);
     del_thread(thread);
     put_thread(thread);
     return ret;

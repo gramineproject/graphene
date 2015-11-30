@@ -34,8 +34,19 @@
 #include <pal_error.h>
 
 #include <errno.h>
-#include <sys/epoll.h>
-#include <sys/poll.h>
+
+#include <linux/eventpoll.h>
+
+#define EPOLLIN         0x001
+#define EPOLLPRI        0x002
+#define EPOLLOUT        0x004
+#define EPOLLRDNORM     0x040
+#define EPOLLRDBAND     0x080
+#define EPOLLWRNORM     0x100
+#define EPOLLERBAND     0x200
+#define EPOLLERR        0x008
+#define EPOLLHUP        0x010
+#define EPOLLRDHUP      0x2000
 
 #define MAX_EPOLL_FDS       1024
 
@@ -292,7 +303,7 @@ reply:
 }
 
 int shim_do_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
-                         int maxevents, int timeout, const sigset_t * sigmask,
+                         int maxevents, int timeout, const __sigset_t * sigmask,
                          size_t sigsetsize)
 {
     int ret = shim_do_epoll_wait (epfd, events, maxevents, timeout);

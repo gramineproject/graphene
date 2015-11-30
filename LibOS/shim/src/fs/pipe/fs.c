@@ -27,18 +27,22 @@
 #include <shim_thread.h>
 #include <shim_handle.h>
 #include <shim_fs.h>
+#include <shim_profile.h>
 
 #include <pal.h>
 #include <pal_error.h>
 #include <pal_debug.h>
 
-#include <linux/types.h>
-typedef __kernel_pid_t pid_t;
+#include <errno.h>
+
+#include <linux/stat.h>
+#include <linux/fcntl.h>
+
+#include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/unistd.h>
 #include <asm/prctl.h>
 #include <asm/fcntl.h>
-#include <errno.h>
 #include <shim_profile.h>
 
 static int pipe_read (struct shim_handle * hdl, void * buf,
@@ -83,8 +87,8 @@ static int pipe_hstat (struct shim_handle * hdl, struct stat * stat)
     stat->st_gid    = (gid_t) thread->gid;    /* group ID of owner */
     stat->st_rdev   = (dev_t) 0;     /* device ID (if special file) */
     stat->st_size   = (off_t) 0;     /* total size, in bytes */
-    stat->st_blksize = (blksize_t) 0;   /* blocksize for file system I/O */
-    stat->st_blocks = (blkcnt_t) 0;     /* number of 512B blocks allocated */
+    stat->st_blksize = 0;            /* blocksize for file system I/O */
+    stat->st_blocks = 0;             /* number of 512B blocks allocated */
     stat->st_atime  = (time_t) 0;    /* access time */
     stat->st_mtime  = (time_t) 0;    /* last modification */
     stat->st_ctime  = (time_t) 0;    /* last status change */

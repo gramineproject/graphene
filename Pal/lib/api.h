@@ -46,8 +46,8 @@ void vfprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
 
 int snprintf (char * buf, int n, const char * fmt, ...);
 
-int inet_pton4 (const char *src, void *dst);
-int inet_pton6 (const char *src, void *dst);
+int inet_pton4 (const char *src, int len, void *dst);
+int inet_pton6 (const char *src, int len, void *dst);
 
 uint32_t __htonl (uint32_t x);
 uint32_t __ntohl (uint32_t x);

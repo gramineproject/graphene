@@ -1,0 +1,53 @@
+GLIBC {
+    global:
+        r_debug; r_debug_state;
+};
+PAL {
+    global:
+        # Drawbridge ABIs
+        DkVirtualMemoryAlloc; DkVirtualMemoryFree; DkVirtualMemoryProtect;
+        DkThreadCreate; DkThreadDelayExecution;
+        DkThreadYieldExecution; DkThreadExit; DkThreadResume;
+
+        DkSemaphoreCreate; DkNotificationEventCreate;
+        DkSynchronizationEventCreate;
+        DkSemaphoreRelease;
+        DkEventSet;  DkEventClear;
+        DkObjectsWaitAny;
+
+        DkStreamOpen; DkStreamRead; DkStreamWrite;
+        DkStreamMap; DkStreamUnmap; DkStreamSetLength;
+        DkStreamFlush; DkStreamDelete;
+        DkSendHandle; DkReceiveHandle; # Added by us
+        DkStreamWaitForClient;
+        DkStreamGetName;
+        DkStreamAttributesQuerybyHandle; DkStreamAttributesQuery;
+
+        DkProcessCreate; DkProcessExit;
+
+        DkProcessSandboxCreate;
+
+        DkSystemTimeQuery; DkRandomBitsRead;
+        DkInstructionCacheFlush;
+        DkObjectReference; DkObjectClose;
+        # objects checkpoint?
+        # objects reload?
+
+        # The ABIs we added in the paper
+        DkSetExceptionHandler; DkExceptionReturn; # exceptions
+        DkCreatePhysicalMemoryChannel; # IPC
+        DkPhysicalMemoryCommit; # IPC
+        DkPhysicalMemoryMap; # IPC
+        DkSegmentRegister; # set segmentation registers
+        DkStreamChangeName;
+        DkStreamAttributesSetbyHandle;
+        DkMemoryAvailableQuota;
+
+        # Debugging ABIs
+        pal_printf; DkDebugAttachBinary; DkDebugDetachBinary;
+
+        # Control block
+        pal_control_addr; pal_sec;
+
+    local: *;
+};
