@@ -1,9 +1,9 @@
 #!$(PAL)
 
-loader.interp = file:$(SHIM)build/elf/ld.so
-loader.preload = file:$(SHIM)build/libsysdb.so
+loader.preload = file:$(SHIMPATH)
 loader.exec = file:$(PWD)obj/bin/g++
-loader.env.LD_LIBRARY_PATH = /lib:/usr/lib
+loader.env.LD_LIBRARY_PATH = /obj/lib:/lib:/lib/x86_64-linux-gnu
+loader.env.PATH = /obj/bin:/obj/libexec/gcc/x86_64-linux-gnu/4.8.4
 loader.debug_type = none
 
 fs.mount.root.type = chroot
@@ -11,7 +11,7 @@ fs.mount.root.uri = file:
 
 fs.mount.other.lib1.type = chroot
 fs.mount.other.lib1.path = /lib
-fs.mount.other.lib1.uri = file:$(SHIM)build
+fs.mount.other.lib1.uri = file:$(GLIBCDIR)
 
 fs.mount.other.lib2.type = chroot
 fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
