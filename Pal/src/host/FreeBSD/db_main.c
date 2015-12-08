@@ -418,7 +418,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     for (int i = 0 ; i < 32 ; i++) {
         if (!cpu_flags[i])
-            continue;
+            break;
 
         if (BIT_EXTRACT_LE(words[WORD_EDX], i, i + 1)) {
             int len = strlen(cpu_flags[i]);
