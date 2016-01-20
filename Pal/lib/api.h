@@ -42,7 +42,7 @@ void fprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
                 const char * fmt, ...);
 
 void vfprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
-                 const char * fmt, va_list ap);
+                 const char * fmt, va_list *ap);
 
 int snprintf (char * buf, int n, const char * fmt, ...);
 

@@ -38,42 +38,42 @@ printnum(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 // depending on the lflag parameter.
 #if !defined(__i386__)
 inline unsigned long long
-getuint(va_list ap, int lflag)
+getuint(va_list *ap, int lflag)
 #else
 inline unsigned long
-getuint(va_list ap, int lflag)
+getuint(va_list *ap, int lflag)
 #endif
 {
 #if !defined(__i386__)
 	if (lflag >= 2)
-		return va_arg(ap, unsigned long long);
+		return va_arg(*ap, unsigned long long);
 	else 
 #endif
 	if (lflag)
-		return va_arg(ap, unsigned long);
+		return va_arg(*ap, unsigned long);
 	else
-		return va_arg(ap, unsigned int);
+		return va_arg(*ap, unsigned int);
 }
 
 // Same as getuint but signed - can't use getuint
 // because of sign extension
 #if !defined(__i386__)
 inline long long
-getint(va_list ap, int lflag)
+getint(va_list *ap, int lflag)
 #else
 inline long
-getint(va_list ap, int lflag)
+getint(va_list *ap, int lflag)
 #endif
 {
 #if !defined(__i386__)
 	if (lflag >= 2)
-		return va_arg(ap, long long);
+		return va_arg(*ap, long long);
 	else
 #endif
 	if (lflag)
-		return va_arg(ap, long);
+		return va_arg(*ap, long);
 	else
-		return va_arg(ap, int);
+		return va_arg(*ap, int);
 }
 
 // Main function to format and print a string.
@@ -82,7 +82,7 @@ void fprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 
 void
 vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
-			   const char * fmt, va_list ap)
+			   const char * fmt, va_list *ap)
 {
 	register const char *p;
 	register int ch;
@@ -139,7 +139,7 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 			goto process_precision;
 
 		case '*':
-			precision = va_arg(ap, int);
+			precision = va_arg(*ap, int);
 			goto process_precision;
 
 		case '.':
@@ -163,12 +163,12 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 
 		// character
 		case 'c':
-			(*_fputch) (f, va_arg(ap, int), putdat);
+			(*_fputch) (f, va_arg(*ap, int), putdat);
 			break;
 
 		// string
 		case 's':
-			if ((p = va_arg(ap, char *)) == NULL)
+			if ((p = va_arg(*ap, char *)) == NULL)
 				p = "(null)";
 			if (width > 0 && padc != '-')
 				for (width -= strnlen(p, precision); width > 0; width--)
@@ -218,10 +218,10 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 			(*_fputch) (f, 'x', putdat);
 #if !defined(__i386__)
 			num = (unsigned long long)
-				(uintptr_t) va_arg(ap, void *);
+				(uintptr_t) va_arg(*ap, void *);
 #else
 			num = (unsigned long)
-				(uintptr_t) va_arg(ap, void *);
+				(uintptr_t) va_arg(*ap, void *);
 #endif
 			base = 16;
 			goto number;
@@ -261,7 +261,7 @@ fprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 	va_list ap;
 
 	va_start(ap, fmt);
-	vfprintfmt(_fputch, f, putdat, fmt, ap);
+	vfprintfmt(_fputch, f, putdat, fmt, &ap);
 	va_end(ap);
 }
 
@@ -280,7 +280,7 @@ sprintputch(void * f, int ch, struct sprintbuf * b)
 }
 
 static int
-vsprintf(char * buf, int n, const char * fmt, va_list ap)
+vsprintf(char * buf, int n, const char * fmt, va_list *ap)
 {
     struct sprintbuf b = {buf, buf + n - 1, 0};
 
@@ -304,7 +304,7 @@ snprintf(char * buf, int n, const char * fmt, ...)
     int rc;
 
     va_start(ap, fmt);
-    rc = vsprintf(buf, n, fmt, ap);
+    rc = vsprintf(buf, n, fmt, &ap);
     va_end(ap);
 
     return rc;

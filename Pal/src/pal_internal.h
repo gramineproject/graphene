@@ -427,7 +427,7 @@ int _DkSemaphoreGetCurrentCount (PAL_HANDLE sem);
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
 void _DkEventDestroy (PAL_HANDLE handle);
-int _DkEventSet (PAL_HANDLE event);
+int _DkEventSet (PAL_HANDLE event, int wakeup);
 int _DkEventWaitTimeout (PAL_HANDLE event, int timeout);
 int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
@@ -466,8 +466,9 @@ unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
 
 #define init_fail(exitcode, reason)                                     \
     do {                                                                \
-        printf("PAL failed at " __FILE__ ":%s:%d (exitcode = %d, reason = %s)\n", \
-               __FUNCTION__, __LINE__, exitcode, reason);               \
+        printf("PAL failed at " __FILE__  ":%s:%u (exitcode = %u, reason=%s)\n", \
+               __FUNCTION__, (unsigned int)__LINE__,                    \
+               (unsigned int) (exitcode), (const char *) (reason));     \
         _DkProcessExit(exitcode);                                       \
     } while (0)
 

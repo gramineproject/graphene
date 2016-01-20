@@ -42,7 +42,7 @@ fputch(int fd, int ch, struct printbuf *b)
 }
 
 static int
-vprintf(const char *fmt, va_list ap)
+vprintf(const char *fmt, va_list *ap)
 {
 	struct printbuf b;
 
@@ -61,7 +61,7 @@ printf(const char *fmt, ...)
 	int cnt;
 
 	va_start(ap, fmt);
-	cnt = vprintf(fmt, ap);
+	cnt = vprintf(fmt, &ap);
 	va_end(ap);
 
 	return cnt;

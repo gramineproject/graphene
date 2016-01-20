@@ -102,7 +102,7 @@ try:
     cflags = '{0} -O2 -U_FORTIFY_SOURCE -fno-stack-protector'.format(debug_flags)
     extra_defs = ''
     disabled_features = { 'nscd' }
-    extra_flags = '--with-tls --enable-add-ons=nptl --without-selinux {0}'.format(' '.join(['--disable-' + f for f in disabled_features]))
+    extra_flags = '--with-tls --enable-add-ons=nptl --without-selinux --disable-test {0}'.format(' '.join(['--disable-' + f for f in disabled_features]))
 
     ##    configure
     commandStr = r'CFLAGS="{2}" {3} {0}/configure --prefix={1} {4} | tee configure.out'.format(glibc, installDir, cflags, extra_defs, extra_flags)

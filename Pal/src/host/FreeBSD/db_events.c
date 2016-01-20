@@ -52,7 +52,7 @@ void _DkEventDestroy (PAL_HANDLE handle)
     free(handle);
 }
 
-int _DkEventSet (PAL_HANDLE event)
+int _DkEventSet (PAL_HANDLE event, int wakeup)
 {
     int ret = 0;
     if (event->event.isnotification) {
@@ -60,6 +60,9 @@ int _DkEventSet (PAL_HANDLE event)
         if (atomic_cmpxchg(&event->event.signaled, 0, 1) == 0) {
             int nwaiters = atomic_read(&event->event.nwaiters);
             if (nwaiters) {
+                if (wakeup != -1 && nwaiters > wakeup)
+                    nwaiters = wakeup;
+
                 ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled,
                                      UMTX_OP_WAKE, nwaiters, NULL, NULL);
                 if (IS_ERR(ret))
@@ -72,13 +75,13 @@ int _DkEventSet (PAL_HANDLE event)
                              UMTX_OP_WAKE, 1, NULL, NULL);
     }
 
-    return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : 0;
+    return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : ret;
 }
 
 int _DkEventWaitTimeout (PAL_HANDLE event, int timeout)
 {
     int ret = 0;
-    if (!atomic_read(&event->event.signaled)) {
+    if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         struct timespec waittime;
         unsigned long sec = timeout / 1000000UL;
         unsigned long microsec = timeout - (sec * 1000000UL);
@@ -98,7 +101,8 @@ int _DkEventWaitTimeout (PAL_HANDLE event, int timeout)
                     break;
                 }
             }
-        } while (!atomic_read(&event->event.signaled));
+        } while (event->event.isnotification &&
+                 !atomic_read(&event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -110,7 +114,7 @@ int _DkEventWait (PAL_HANDLE event)
 {
     int ret = 0;
 
-    if (!atomic_read(&event->event.signaled)) {
+    if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         atomic_inc(&event->event.nwaiters);
 
         do {
@@ -124,7 +128,8 @@ int _DkEventWait (PAL_HANDLE event)
                     break;
                 }
             }
-        } while (!atomic_read(&event->event.signaled));
+        } while (event->event.isnotification &&
+                 !atomic_read(&event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }

@@ -73,7 +73,7 @@ void DkEventSet (PAL_HANDLE handle)
     if (!handle || !IS_HANDLE_TYPE(handle, event))
         leave_frame(, PAL_ERROR_INVAL);
 
-    int ret = _DkEventSet (handle);
+    int ret = _DkEventSet(handle, -1);
 
     if (ret < 0)
         leave_frame(, -ret);

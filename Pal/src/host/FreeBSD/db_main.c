@@ -344,12 +344,13 @@ static void cpuid (int cpuid_fd, unsigned int reg,
 
 #define BPI  32
 #define POWER2(power) \
-   (1 << (power))
+   (1ULL << (power))
 #define RIGHTMASK(width) \
-   (((width) >= BPI) ? ~0 : POWER2(width)-1)
+   (((unsigned long) (width) >= BPI) ? ~0ULL : POWER2(width)-1ULL)
 
 #define BIT_EXTRACT_LE(value, start, after) \
-   (((value) & RIGHTMASK(after)) >> start)
+   (((unsigned long) (value) & RIGHTMASK(after)) >> start)
+
 
 static char * cpu_flags[]
        = { "fpu",    // "x87 FPU on chip"

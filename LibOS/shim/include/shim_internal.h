@@ -69,7 +69,7 @@ extern PAL_HANDLE debug_handle;
 void debug_printf (const char * fmt, ...);
 void debug_puts (const char * str);
 void debug_putch (int ch);
-void debug_vprintf (const char * fmt, va_list ap);
+void debug_vprintf (const char * fmt, va_list * ap);
 
 # define VMID_PREFIX     "[P%04u] "
 # define TID_PREFIX      "[%-5u] "
