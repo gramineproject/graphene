@@ -519,6 +519,51 @@ int load_elf_object (const char * uri, enum object_type type)
     return ret;
 }
 
+int add_elf_object(void * addr, PAL_HANDLE handle, int type)
+{
+    struct link_map * map = new_elf_object(_DkStreamRealpath(handle), type);
+    const ElfW(Ehdr) * header = (void *) addr;
+    int ret;
+
+    map->l_entry = header->e_entry;
+    map->l_phdr  = (void *) header->e_phoff;
+    map->l_phnum = header->e_phnum;
+
+    const ElfW(Phdr) * ph, * phdr;
+    phdr = __alloca(header->e_phnum * sizeof(ElfW(Phdr)));
+
+    if ((ret = _DkStreamRead(handle, header->e_phoff,
+                             header->e_phnum * sizeof(ElfW(Phdr)),
+                             (void *) phdr, NULL, 0)) < 0)
+        return ret;
+
+    for (ph = phdr; ph < &phdr[map->l_phnum]; ++ph)
+        switch (ph->p_type) {
+            case PT_DYNAMIC:
+                map->l_ld = (void *) ph->p_vaddr;
+                map->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
+                break;
+        }
+
+    map->l_real_ld = map->l_ld;
+    map->l_ld = remalloc(map->l_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
+
+    elf_get_dynamic_info(map->l_ld, map->l_info, 0);
+
+    setup_elf_hash(map);
+
+    //ELF_DYNAMIC_SCAN(map->l_info, 0);
+
+    struct link_map * prev = loaded_maps;
+    while (prev->l_next)
+        prev = prev->l_next;
+    map->l_prev = prev;
+    map->l_next = NULL;
+    prev->l_next = map;
+
+    return 0;
+}
+
 static int relocate_elf_object (struct link_map *l);
 
 #if CACHE_LOADED_BINARIES == 1
@@ -528,7 +573,7 @@ struct cached_elf_object {
     PAL_NUM             pal_token;
     void *              pal_addr;
     struct link_map     map;
-    char                map_name[PATH_MAX];
+    char                map_name[80];
 
     struct cached_loadcmd {
         void * mapstart;
@@ -604,7 +649,7 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
                     (void *) obj->map.l_info[i] - (unsigned long) map->l_ld;
     }
     obj->map.l_name = NULL;
-    memcpy(obj->map_name, map->l_name, PATH_MAX);
+    memcpy(obj->map_name, map->l_name, sizeof(obj->map_name));
     obj->nloadcmds  = 0;
 
     const ElfW(Ehdr) * header = (void *) map->l_map_start;
@@ -1253,7 +1298,8 @@ void * stack_before_call __attribute__((unused)) = NULL;
 
 void start_execution (const char * first_argv, int argc, const char ** argv,
                       const char ** envp)
-{    /* First we will try to run all the preloaded libraries which come with
+{
+    /* First we will try to run all the preloaded libraries which come with
        entry points */
     if (exec_map) {
         __pal_control.executable_range.start = (void *) exec_map->l_map_start;

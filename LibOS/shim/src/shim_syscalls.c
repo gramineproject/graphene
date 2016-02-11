@@ -899,8 +899,8 @@ SHIM_SYSCALL_PASSTHROUGH (clock_settime, 2, int, clockid_t, which_clock,
 DEFINE_SHIM_SYSCALL (clock_gettime, 2, shim_do_clock_gettime, int,
                      clockid_t, which_clock, struct timespec *, tp)
 
-SHIM_SYSCALL_PASSTHROUGH (clock_getres, 2, int, clockid_t, which_clock,
-                          struct timespec *, tp)
+DEFINE_SHIM_SYSCALL (clock_getres, 2, shim_do_clock_getres, int,
+                     clockid_t, which_clock, struct timespec *, tp)
 
 SHIM_SYSCALL_PASSTHROUGH (clock_nanosleep, 4, int, clockid_t, which_clock,
                           int, flags, const struct timespec *, rqtp,

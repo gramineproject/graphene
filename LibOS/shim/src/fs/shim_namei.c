@@ -414,7 +414,6 @@ static int link_path_walk (const char * name, struct lookup * look)
                     dent->state |= DENTRY_NEGATIVE;
                     err = 0;
                 } else {
-                    debug("lookup failure\n");
                     goto out;
                 }
             }

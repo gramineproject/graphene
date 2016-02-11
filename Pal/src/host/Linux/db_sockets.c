@@ -1225,9 +1225,7 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
     if (!pal_sec.mcast_port) {
         unsigned short mcast_port;
         _DkFastRandomBitsRead(&mcast_port, sizeof(unsigned short));
-        if (mcast_port < 1024)
-            mcast_port += 1024;
-        pal_sec.mcast_port = mcast_port > 1024 ? mcast_port : mcast_port + 1204;
+        pal_sec.mcast_port = mcast_port > 1024 ? mcast_port : mcast_port + 1024;
     }
 
     struct sockaddr_in addr;

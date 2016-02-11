@@ -443,6 +443,8 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
                        struct __kernel_epoll_event * event);
 int shim_do_clock_gettime (clockid_t which_clock,
                            struct timespec * tp);
+int shim_do_clock_getres (clockid_t which_clock,
+                          struct timespec * tp);
 int shim_do_exit_group (int error_code);
 int shim_do_tgkill (int tgid, int pid, int sig);
 int shim_do_openat (int dfd, const char * filename, int flags, int mode);

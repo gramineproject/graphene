@@ -105,7 +105,7 @@ static int pipe_checkout (struct shim_handle * hdl)
 
 static int pipe_poll (struct shim_handle * hdl, int poll_type)
 {
-    int ret = -EAGAIN;
+    int ret = 0;
 
     lock(hdl->lock);
 
@@ -126,7 +126,6 @@ static int pipe_poll (struct shim_handle * hdl, int poll_type)
     }
 
     ret = 0;
-
     if (attr.disconnected)
         ret |= FS_POLL_ER;
     if ((poll_type & FS_POLL_RD) && attr.readable)

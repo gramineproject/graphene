@@ -43,12 +43,17 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
 {
     struct shim_handle * hdl = NULL;
     long ret = -ENOMEM;
+    bool reserved = false;
 
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
 
     int pal_alloc_type = ((flags & MAP_32BIT) ? PAL_ALLOC_32BIT : 0);
 
-    addr = addr ? : get_unmapped_vma(ALIGN_UP(length), flags);
+    if (!addr) {
+        addr = get_unmapped_vma(ALIGN_UP(length), flags);
+        if (addr)
+            reserved = true;
+    }
 
     void * mapped = ALIGN_DOWN((void *) addr);
     void * mapped_end = ALIGN_UP((void *) addr + length);
@@ -60,27 +65,34 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         addr = (void *) DkVirtualMemoryAlloc(addr, length, pal_alloc_type,
                                              PAL_PROT(prot, 0));
 
-        if (!addr)
-            return (void *) -PAL_ERRNO;
+        if (!addr) {
+            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED) ? -EPERM : -PAL_ERRNO;
+            goto free_reserved;
+        }
 
         ADD_PROFILE_OCCURENCE(mmap, length);
     } else {
-        if (fd < 0)
-            return (void *) -EINVAL;
+        if (fd < 0) {
+            ret = -EINVAL;
+            goto free_reserved;
+        }
 
         hdl = get_fd_handle(fd, NULL, NULL);
-        if (!hdl)
-            return (void *) -EBADF;
+        if (!hdl) {
+            ret = -EBADF;
+            goto free_reserved;
+        }
 
         if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
             put_handle(hdl);
-            return (void *) -ENODEV;
+            ret = -ENODEV;
+            goto free_reserved;
         }
 
         if ((ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, prot,
                                          flags, offset)) < 0) {
             put_handle(hdl);
-            return (void *) ret;
+            goto free_reserved;
         }
     }
 
@@ -95,6 +107,11 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     if (hdl)
         put_handle(hdl);
     return addr;
+
+free_reserved:
+    if (reserved)
+        bkeep_munmap((void *) mapped, mapped_end - mapped, &flags);
+    return (void *) ret;
 }
 
 int shim_do_mprotect (void * addr, size_t len, int prot)

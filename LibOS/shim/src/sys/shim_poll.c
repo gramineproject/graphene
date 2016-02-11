@@ -214,23 +214,23 @@ no_op:
 
             if (need_poll) {
                 int polled = hdl->fs->fs_ops->poll(hdl, need_poll);
-                if (polled != -EAGAIN) {
-                    if (polled & FS_POLL_ER) {
-                        debug("fd %d known to have error\n", p->fd);
-                        p->flags |= KNOWN_R|KNOWN_W|RET_E;
-                    }
 
-                    if (do_r && (polled & FS_POLL_RD)) {
-                        debug("fd %d known to be readable\n", p->fd);
-                        p->flags |= KNOWN_R|RET_R;
-                        do_r = false;
-                    }
+                if (polled & FS_POLL_ER) {
+                    debug("fd %d known to have error\n", p->fd);
+                    p->flags |= KNOWN_R|KNOWN_W|RET_E;
+                    do_r = do_w = false;
+                }
 
-                    if (do_w && (polled & FS_POLL_WR)) {
-                        debug("fd %d known to be writeable\n", p->fd);
-                        p->flags |= KNOWN_W|RET_W;
-                        do_w = false;
-                    }
+                if ((polled & FS_POLL_RD)) {
+                    debug("fd %d known to be readable\n", p->fd);
+                    p->flags |= KNOWN_R|RET_R;
+                    do_r = false;
+                }
+
+                if (polled & FS_POLL_WR) {
+                    debug("fd %d known to be writeable\n", p->fd);
+                    p->flags |= KNOWN_W|RET_W;
+                    do_w = false;
                 }
             }
 
@@ -244,7 +244,7 @@ no_op:
 
         if (!(to_poll->flags & (POLL_R|POLL_W))) {
             if (!hdl->pal_handle) {
-                p->flags |= (KNOWN_R|KNOWN_W|RET_E);
+                p->flags |= KNOWN_R|KNOWN_W|RET_E;
                 do_r = do_w = false;
                 goto done_finding;
             }
@@ -280,7 +280,10 @@ done_finding:
     pals = __try_alloca(cur, sizeof(PAL_HANDLE) * npals);
     npals = 0;
 
-    for (n = &polling, p = polling ; p ; n = &p->next, p = p->next) {
+    n = &polling;
+    for (p = polling ; p ; p = p->next) {
+        assert(p->handle);
+
         if (!(p->flags & (POLL_R|POLL_W))) {
             *n = p->next;
             put_handle(p->handle);
@@ -289,6 +292,7 @@ done_finding:
         }
 
         pals[npals++] = p->handle->pal_handle;
+        n = &p->next;
     }
 
     SAVE_PROFILE_INTERVAL(do_poll_second_loop);
@@ -309,26 +313,31 @@ done_finding:
         if (!DkStreamAttributesQuerybyHandle(polled, &attr))
             break;
 
-        for (n = &polling, p = polling ; p ; n = &p->next, p = p->next)
+        n = &polling;
+        for (p = polling ; p ; p = p->next) {
             if (p->handle->pal_handle == polled)
                 break;
+            n = &p->next;
+        }
 
         if (!p)
             break;
 
         debug("handle %s is polled\n", qstrgetstr(&p->handle->uri));
 
+        p->flags |= KNOWN_R|KNOWN_W;
+
         if (attr.disconnected) {
             debug("handle is polled to be disconnected\n");
-            p->flags |= (KNOWN_R|KNOWN_W|RET_E);
+            p->flags |= RET_E;
         }
         if (attr.readable) {
             debug("handle is polled to be readable\n");
-            p->flags |= (KNOWN_R|RET_R);
+            p->flags |= RET_R;
         }
         if (attr.writeable) {
             debug("handle is polled to be writeable\n");
-            p->flags |= (KNOWN_W|RET_W);
+            p->flags |= RET_W;
         }
 
         for (q = p->children ; q ; q = q->next)
@@ -524,6 +533,7 @@ int shim_do_select (int nfds, fd_set * readfds, fd_set * writefds,
         bool do_w = (writefds && __FD_ISSET(fd, writefds));
         if (!do_r && !do_w)
             continue;
+        debug("poll fd %d %s%s\n", fd, do_r ? "R" : "", do_w ? "W" : "");
         polls[npolls].fd = fd;
         polls[npolls].flags = (do_r ? DO_R : 0)|(do_w ? DO_W : 0);
         npolls++;

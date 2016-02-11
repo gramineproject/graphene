@@ -159,15 +159,6 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                 hdl2->type = TYPE_FUTEX;
                 futex2 = &hdl2->info.futex;
                 futex2->uaddr = uaddr2;
-#if 0
-                futex2->event = DkSynchronizationEventCreate(0);
-                if (futex2->event == NULL) {
-                    ret = -PAL_ERRNO;
-                    unlock(futex_list_lock);
-                    put_handle(hdl2);
-                    goto out;
-                }
-#endif
                 get_handle(hdl2);
                 INIT_LIST_HEAD(&futex2->waiters);
                 INIT_LIST_HEAD(&futex2->list);

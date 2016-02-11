@@ -461,6 +461,7 @@ int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
                              PAL_PTR * addrs, PAL_NUM * sizes, int flags);
 int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
                           PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
+int _DkCpuIdRetrieve (unsigned int leaf, unsigned int values[4]);
 unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
                                                unsigned long args[6]);
 

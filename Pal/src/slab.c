@@ -37,11 +37,13 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 #define system_unlock() _DkInternalUnlock(&slab_mgr_lock)
 
 #if STATIC_SLAB == 1
-# define POOL_SIZE 64 * 1024 /* 4MB by default */
+# warning "Using static slab"
+# define POOL_SIZE 4 * 1024 * 1024 /* 4MB by default */
 static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];
 #else
+# warning "Using dynamic slab"
 # define PAGE_SIZE (slab_alignment)
 #endif
 

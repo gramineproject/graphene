@@ -81,3 +81,16 @@ int shim_do_clock_gettime (clockid_t which_clock,
     tp->tv_nsec = (time % 1000000) * 1000;
     return 0;
 }
+
+int shim_do_clock_getres (clockid_t which_clock,
+                          struct timespec * tp)
+{
+    /* all clock are the same */
+
+    if (!tp)
+        return -EINVAL;
+
+    tp->tv_sec  = 0;
+    tp->tv_nsec = 1000;
+    return 0;
+}

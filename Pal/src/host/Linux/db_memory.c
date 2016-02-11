@@ -37,7 +37,7 @@
 
 bool _DkCheckMemoryMappable (const void * addr, int size)
 {
-    return (addr <= DATA_END && addr + size >= TEXT_START);
+    return (addr < DATA_END && addr + size > TEXT_START);
 }
 
 int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type,

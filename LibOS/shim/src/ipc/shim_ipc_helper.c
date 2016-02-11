@@ -119,7 +119,8 @@ int init_ipc_ports (void)
     if ((ret = init_ipc_port(cur_process.self, NULL, IPC_PORT_SERVER)) < 0)
         return ret;
 
-    if ((ret = init_ipc_port(cur_process.parent, PAL_CB(parent_process),
+    if (PAL_CB(parent_process) &&
+        (ret = init_ipc_port(cur_process.parent, PAL_CB(parent_process),
                              IPC_PORT_DIRPRT|IPC_PORT_LISTEN)) < 0)
         return ret;
 

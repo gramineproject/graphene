@@ -98,24 +98,31 @@ struct shim_file_handle {
 #define FILE_DENTRY_DATA(dent)  ((struct shim_file_data *) (dent)->data)
 
 struct shim_dev_ops {
+    /* open: provide a filename relative to the mount point and flags,
+       modify the shim handle */
     int (*open) (struct shim_handle * hdl, const char * name, int flags);
 
+    /* close: clean up the file state inside the handle */
     int (*close) (struct shim_handle * hdl);
 
+    /* read: the content from the file opened as handle */
     int (*read) (struct shim_handle * hdl, void * buf, size_t count);
 
+    /* write: the content from the file opened as handle */
     int (*write) (struct shim_handle * hdl, const void * buf, size_t count);
 
+    /* flush: flush out user buffer */
     int (*flush) (struct shim_handle * hdl);
 
+    /* seek: the content from the file opened as handle */
     int (*seek) (struct shim_handle * hdl, off_t offset, int wence);
 
     int (*truncate) (struct shim_handle * hdl, int len);
 
     int (*mode) (const char * name, mode_t * mode);
 
+    /* stat, hstat: get status of the file */
     int (*stat) (const char * name, struct stat * buf);
-
     int (*hstat) (struct shim_handle * hdl, struct stat * buf);
 };
 

@@ -140,16 +140,15 @@ int shim_terminate (void);
 extern bool in_gdb;
 static inline void do_pause (void);
 
+#define BREAK_GDB() do { asm volatile ("int $3"); } while (0)
+
 #if USE_PAUSE == 1
 # define pause()                                                            \
     do {                                                                    \
-        if (in_gdb)                                                         \
-            asm volatile("int $3");                                         \
-        else                                                                \
-            do_pause();                                                     \
+        if (in_gdb) BREAK_GDB(); else do_pause();                           \
     } while (0)
 #else
-# define pause() do { if (in_gdb) asm volatile ("int $3"); } while (0)
+# define pause() do { if (in_gdb) BREAK_GDB(); } while (0)
 #endif
 
 #define bug()                                                               \
@@ -175,6 +174,9 @@ static inline void do_pause (void);
 # define assert(test) do {} while (0)
 #endif
 
+#define DEBUG_HERE() \
+    do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
+
 /* definition for syscall table */
 void handle_signal (bool delayed_only);
 long convert_pal_errno (long err);
@@ -199,10 +201,13 @@ long convert_pal_errno (long err);
 # define END_SYSCALL_PROFILE(name)      do {} while (0)
 #endif
 
+void check_stack_hook (void);
+
 #define BEGIN_SHIM(name, args ...)                          \
     SHIM_ARG_TYPE __shim_##name (args) {                    \
         SHIM_ARG_TYPE ret = 0;                              \
         /* handle_signal(true); */                          \
+        /* check_stack_hook(); */                           \
         BEGIN_SYSCALL_PROFILE();
 
 #define END_SHIM(name)                                      \
@@ -719,6 +724,8 @@ extern void * __code_address, * __code_address_end;
 
 int shim_clean (void);
 
+unsigned long parse_int (const char * str);
+
 extern void * initial_stack;
 extern const char ** initial_envp;
 
@@ -740,6 +747,13 @@ extern const char ** initial_envp;
         asm volatile ("movq %0, %%rbp" :: "r"(_rbp) : "memory");    \
         asm volatile ("movq %%rbp, %0" : "=r"(_stack) :: "memory"); \
         _stack;                                                     \
+    })
+
+#define current_stack()                                             \
+    ({                                                              \
+        void * _rsp;                                                \
+        asm volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
+        _rsp;                                                       \
     })
 
 void get_brk_region (void ** start, void ** end, void ** current);

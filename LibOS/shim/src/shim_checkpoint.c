@@ -873,7 +873,8 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 #endif
     BEGIN_PROFILE_INTERVAL();
 
-    PAL_HANDLE proc = DkProcessCreate(exec ? qstrgetstr(&exec->uri) : NULL,
+    PAL_HANDLE proc = DkProcessCreate(exec ? qstrgetstr(&exec->uri) :
+                                      pal_control.executable,
                                       0, argv);
 
     if (!proc) {

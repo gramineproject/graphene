@@ -12,9 +12,9 @@
 #endif
 
 /* statically allocate slab manager */
-#define STATIC_SLAB             1
+#define STATIC_SLAB              1
 
 /* maximum length of URIs */
-#define URI_MAX                 256
+#define URI_MAX                  256
 
 #endif /* PAL_DEFS_H */

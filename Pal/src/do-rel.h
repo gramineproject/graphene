@@ -41,6 +41,8 @@
                               (void *) (l->l_addr + relative->r_offset))
 #endif
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
 static void __attribute__((unused))
 elf_dynamic_do_rel (struct link_map *l, ElfW(Addr) reladdr, int relsize)
 {

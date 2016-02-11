@@ -32,6 +32,8 @@
 #include <pal.h>
 #include <pal_debug.h>
 
+#include <asm/mman.h>
+
 static LOCKTYPE slab_mgr_lock;
 
 #define system_lock()       lock(slab_mgr_lock)

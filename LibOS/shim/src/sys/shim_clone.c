@@ -41,14 +41,6 @@
 #include <linux/sched.h>
 #include <asm/prctl.h>
 
-struct clone_args {
-    PAL_HANDLE create_event;
-    PAL_HANDLE initialize_event;
-    struct shim_thread * thread, * parent;
-    void * stack;
-    void * return_pc;
-};
-
 /* from **sysdeps/unix/sysv/linux/x86_64/clone.S:
    The userland implementation is:
    int clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg),
@@ -127,6 +119,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     my_thread->stack_top = vma->addr + vma->length;
     my_thread->stack_red = my_thread->stack = vma->addr;
     snprintf(vma->comment, VMA_COMMENT_LEN, "stack:%d", my_thread->tid);
+    put_vma(vma);
 
     /* Don't signal the initialize event until we are actually init-ed */ 
     DkEventSet(pcargs->initialize_event);

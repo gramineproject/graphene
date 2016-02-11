@@ -71,7 +71,7 @@ struct shim_fs_ops {
 
     int (*truncate) (struct shim_handle * hdl, int len);
 
-    /* stat: get status of the file */
+    /* hstat: get status of the file */
     int (*hstat) (struct shim_handle * hdl, struct stat * buf);
 
     /* setflags: set flags of the file */

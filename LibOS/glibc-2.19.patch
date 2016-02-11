@@ -316,7 +316,7 @@ index 4c58fc9..0ae2fa8 100644
  dl-routines += dl-cache
  endif
 diff --git a/elf/Versions b/elf/Versions
-index 2383992..03fbd38 100644
+index 2383992..1cdf63a 100644
 --- a/elf/Versions
 +++ b/elf/Versions
 @@ -24,14 +24,15 @@ libc {
@@ -324,7 +324,7 @@ index 2383992..03fbd38 100644
      __libc_dlclose; __libc_dlopen_mode; __libc_dlsym;
    }
 +  SHIM {
-+    syscalldb;
++    syscalldb; glibc_option;
 +  }
  }
  
@@ -348,7 +348,7 @@ index 2383992..03fbd38 100644
      __pointer_chk_guard;
    }
 +  SHIM {
-+    syscalldb; glibc_vers_2_17; register_library;
++    syscalldb; glibc_vers_2_17; glibc_option; register_library;
 +  }
  }
 diff --git a/elf/circleload1.c b/elf/circleload1.c
@@ -699,6 +699,38 @@ index eef2bfd..a21d2ac 100644
  
  #define OUT \
    for (map = MAPS; map != NULL; map = map->l_next)			      \
+diff --git a/malloc/arena.c b/malloc/arena.c
+index 5088a25..d12cf1e 100644
+--- a/malloc/arena.c
++++ b/malloc/arena.c
+@@ -21,6 +21,27 @@
+ 
+ /* Compile-time constants.  */
+ 
++#ifndef HEAP_MAX_SIZE
++# ifdef DEFAULT_MMAP_THRESHOLD_MAX
++#  define DEFAULT_HEAP_MAX_SIZE (2 * DEFAULT_MMAP_THRESHOLD_MAX)
++# else
++#  define DEFAULT_HEAP_MAX_SIZE (1024 * 1024) /* must be a power of two */
++# endif
++# include <sysdep.h>
++static long int heap_max_size = 0;
++# define HEAP_MAX_SIZE								\
++	({									\
++		if (!heap_max_size) {						\
++			long int size = glibc_option("heap_size");		\
++			if (size > 0)						\
++				heap_max_size = size >> 1;			\
++			else							\
++				heap_max_size = DEFAULT_HEAP_MAX_SIZE;		\
++		}								\
++		heap_max_size;							\
++	})
++#endif
++
+ #define HEAP_MIN_SIZE (32 * 1024)
+ #ifndef HEAP_MAX_SIZE
+ # ifdef DEFAULT_MMAP_THRESHOLD_MAX
 diff --git a/nptl/Makefile b/nptl/Makefile
 index 57cc8c6..81f1bf4 100644
 --- a/nptl/Makefile
@@ -713,7 +745,7 @@ index 57cc8c6..81f1bf4 100644
  extra-libs := libpthread
  extra-libs-others := $(extra-libs)
 diff --git a/nptl/Versions b/nptl/Versions
-index bb11277..4480543 100644
+index bb11277..354149a 100644
 --- a/nptl/Versions
 +++ b/nptl/Versions
 @@ -31,6 +31,9 @@ libc {
@@ -721,7 +753,7 @@ index bb11277..4480543 100644
      __libc_dl_error_tsd;
    }
 +  SHIM {
-+    syscalldb;
++    syscalldb; glibc_option;
 +  }
  }
  
@@ -732,7 +764,7 @@ index bb11277..4480543 100644
    }
 +
 +  SHIM {
-+    syscalldb;
++    syscalldb; glibc_option;
 +  }
  }
 diff --git a/nptl/pthread_create.c b/nptl/pthread_create.c

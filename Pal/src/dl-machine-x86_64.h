@@ -30,7 +30,6 @@
 
 #define ELF_MACHINE_NAME "x86_64"
 
-#include <sys/param.h>
 #include <sysdeps/generic/ldsodefs.h>
 #include "pal_internal.h"
 
@@ -142,16 +141,6 @@ elf_machine_rela (struct link_map *l, Elf64_Rela *reloc, Elf64_Sym *sym,
             value += reloc->r_addend - (Elf64_Addr) reloc_addr;
             *(Elf64_Addr *) reloc_addr = value;
             break;
-
-#if 0
-        case R_X86_64_COPY:
-            debug_reloc(R_X86_64_COPY);
-            int sym_size = sym ? sym->st_size : 0;
-            int ref_size = refsym ? refsym->st_size : 0;
-            memcpy (reloc_addr_arg, (void *) value, MIN (sym_size,
-                    ref_size));
-            break;
-#endif
 
         case R_X86_64_IRELATIVE:
             debug_reloc(R_X86_64_IRELATIVE);

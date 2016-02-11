@@ -169,7 +169,7 @@ void put_vma (struct shim_vma * vma)
 
 static void __remove_vma (struct shim_vma * vma)
 {
-    list_del_init(&vma->list);
+    list_del(&vma->list);
     put_vma(vma);
 }
 
@@ -229,6 +229,8 @@ static int __bkeep_mmap (void * addr, int length,
     struct shim_vma * prev = NULL;
     struct shim_vma * tmp = __lookup_supervma(addr, length, &prev);
     int ret = 0;
+
+    debug("bkeep_mmap: %p - %p\n", addr, addr + length);
 
     if (file)
         get_handle(file);
@@ -315,7 +317,7 @@ static int __bkeep_mmap (void * addr, int length,
     tmp->file = file;
     tmp->offset = offset;
     __set_comment(tmp, comment);
-
+    assert(!prev || prev == tmp || prev->addr + prev->length <= tmp->addr);
     return 0;
 
 err:
@@ -348,6 +350,8 @@ int bkeep_mmap (void * addr, int length, int prot, int flags,
 static int __bkeep_munmap (void * addr, int length, const int * flags)
 {
     struct shim_vma * tmp, * n;
+
+    debug("bkeep_unmmap: %p - %p\n", addr, addr + length);
 
     list_for_each_entry_safe(tmp, n, &vma_list, list) {
         if (test_vma_equal (tmp, addr, length)) {
@@ -433,6 +437,8 @@ static int __bkeep_mprotect (void * addr, int length, int prot,
 {
     struct shim_vma * tmp = __lookup_vma(addr, length);
     int ret;
+
+    debug("bkeep_mprotect: %p - %p\n", addr, addr + length);
 
     if (tmp) {
         /* exact match */
@@ -622,26 +628,43 @@ static void __set_heap_top (void * bottom, void * top)
 
 void * get_unmapped_vma (int length, int flags)
 {
-    struct shim_vma * new = get_new_vma(), * tmp = NULL;
+    struct shim_vma * new = get_new_vma(), * prev = NULL;
     if (!new)
         return NULL;
 
     lock(vma_list_lock);
+
+    if (heap_top - heap_bottom < length) {
+        unlock(vma_list_lock);
+        put_vma(new);
+        return NULL;
+    }
 
     do {
         new->addr   = heap_top - length;
         new->length = length;
         new->flags  = flags|VMA_UNMAPPED;
 
-        list_for_each_entry_reverse(tmp, &vma_list, list) {
-            if (new->addr >= tmp->addr + tmp->length)
+        list_for_each_entry_reverse(prev, &vma_list, list) {
+            if (new->addr >= prev->addr + prev->length)
                 break;
 
             if (new->addr < heap_bottom)
                 break;
 
-            if (new->addr > tmp->addr - length)
-                new->addr = tmp->addr - length;
+            if (prev->addr - heap_bottom < length) {
+                unlock(vma_list_lock);
+                put_vma(new);
+                return NULL;
+            }
+
+            if (new->addr > prev->addr - length)
+                new->addr = prev->addr - length;
+        }
+
+        if (&prev->list == &vma_list) {
+            prev = NULL;
+            break;
         }
 
         if (new->addr < heap_bottom) {
@@ -656,8 +679,10 @@ void * get_unmapped_vma (int length, int flags)
         }
     } while (!new->addr);
 
+    assert(!prev || prev->addr + prev->length <= new->addr);
     get_vma(new);
-    list_add(&new->list, tmp ? &tmp->list : &vma_list);
+    list_add(&new->list, prev ? &prev->list : &vma_list);
+    debug("get unmapped: %p-%p\n", new->addr, new->addr + new->length);
     unlock(vma_list_lock);
     return new->addr;
 }

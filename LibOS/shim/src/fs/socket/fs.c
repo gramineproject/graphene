@@ -170,9 +170,8 @@ static int socket_checkout (struct shim_handle * hdl)
 
 static int socket_poll (struct shim_handle * hdl, int poll_type)
 {
-    int ret = -EAGAIN;
-
     struct shim_sock_handle * sock = &hdl->info.sock;
+    int ret = 0;
 
     lock(hdl->lock);
 
@@ -234,7 +233,6 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
     }
 
     ret = 0;
-
     if (attr.disconnected)
         ret |= FS_POLL_ER;
     if ((poll_type & FS_POLL_RD) && attr.readable)

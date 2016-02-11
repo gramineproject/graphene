@@ -103,6 +103,58 @@ long convert_pal_errno (long err)
            pal_errno_to_unix_errno[err] : 0;
 }
 
+unsigned long parse_int (const char * str)
+{
+    unsigned long num = 0;
+    int radix = 10;
+    char c;
+
+    if (str[0] == '0') {
+        str++;
+        radix = 8;
+        if (str[0] == 'x') {
+            str++;
+            radix = 16;
+        }
+    }
+
+    while ((c = *(str++))) {
+        int val;
+        if (c >= 'A' && c <= 'F')
+            val = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f')
+            val = c - 'a' + 10;
+        else if (c >= '0' && c <= '9')
+            val = c - '0';
+        else
+            break;
+        if (val >= radix)
+            break;
+        num = num * radix + val;
+    }
+
+    if (c == 'G' || c == 'g')
+        num *= 1024 * 1024 * 1024;
+    else if (c == 'M' || c == 'm')
+        num *= 1024 * 1024;
+    else if (c == 'K' || c == 'k')
+        num *= 1024;
+
+    return num;
+}
+
+long int * glibc_option (const char * opt)
+{
+    char cfg[CONFIG_MAX];
+
+    if (!memcmp(opt, "heap_size", 9)) {
+        return get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX) < 0 ?
+            -ENOENT : parse_int(cfg);
+    }
+
+    return -EINVAL;
+}
+
 void * migrated_memory_start;
 void * migrated_memory_end;
 void * migrated_shim_addr;
@@ -209,7 +261,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 
     if (user) {
         if (bkeep_mmap(stack, size, PROT_READ|PROT_WRITE,
-                       STACK_FLAGS, NULL, 0, "stack") < 0)
+                       STACK_FLAGS, NULL, 0, "[stack]") < 0)
             return NULL;
 
         if (protect_size &&
@@ -219,7 +271,6 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     }
 
     debug("allocated stack at %p (size = %d)\n", stack, size);
-
     return stack;
 }
 
@@ -296,7 +347,7 @@ int init_stack (const char ** argv, const char ** envp, const char *** argpp,
             char stack_cfg[CONFIG_MAX];
             if (get_config(root_config, "sys.stack.size", stack_cfg,
                            CONFIG_MAX) > 0)
-                sys_stack_size = ALIGN_UP(atoi(stack_cfg));
+                sys_stack_size = ALIGN_UP(parse_int(stack_cfg));
         }
     }
 
@@ -627,6 +678,7 @@ int shim_init (int argc, void * args, void ** return_stack)
     RUN_INIT(init_randgen);
     RUN_INIT(init_heap);
     RUN_INIT(init_slab);
+    RUN_INIT(read_environs, envp);
     RUN_INIT(init_str_mgr);
     RUN_INIT(init_internal_map);
     RUN_INIT(init_vma);
@@ -678,7 +730,6 @@ restore:
     RUN_INIT(init_mount);
     RUN_INIT(init_async);
     RUN_INIT(init_stack, argv, envp, &argp, nauxv, &auxp);
-    RUN_INIT(read_environs, envp);
     RUN_INIT(init_loader);
     RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
@@ -947,7 +998,7 @@ void check_stack_hook (void)
             sys_printf("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
                        rsp, cur_thread->stack, cur_thread->stack_top);
     } else {
-        sys_printf("*** context dismateched with thread stack (RSP = %p, stack = %p-%p) ***\n",
+        sys_printf("*** context dismatched with thread stack (RSP = %p, stack = %p-%p) ***\n",
                    rsp, cur_thread->stack, cur_thread->stack_top);
     }
 }

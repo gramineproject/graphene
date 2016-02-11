@@ -110,7 +110,7 @@ static int dev_null_truncate (struct shim_handle * hdl, int size)
 
 static int dev_random_mode (const char * name, mode_t * mode)
 {
-    *mode = 0444|S_IFCHR;
+    *mode = 0666|S_IFCHR;
     return 0;
 }
 
@@ -132,7 +132,7 @@ static int dev_urandom_read (struct shim_handle * hdl, void * buf,
 
 static int dev_random_stat (const char * name, struct stat * stat)
 {
-    stat->st_mode = 0444|S_IFCHR;
+    stat->st_mode = 0666|S_IFCHR;
     stat->st_uid = 0;
     stat->st_gid = 0;
     stat->st_size = 0;
@@ -408,6 +408,20 @@ static int dev_hstat (struct shim_handle * hdl, struct stat * buf)
     return hdl->info.dev.dev_ops.hstat(hdl, buf);
 }
 
+static int dev_poll (struct shim_handle * hdl, int poll_type)
+{
+    if (poll_type == FS_POLL_SZ)
+        return 0;
+
+    int ret = 0;
+    if ((poll_type & FS_POLL_RD) && hdl->info.dev.dev_ops.read)
+        ret |= FS_POLL_RD;
+    if ((poll_type & FS_POLL_WR) && hdl->info.dev.dev_ops.write)
+        ret |= FS_POLL_WR;
+
+    return ret;
+}
+
 static int dev_follow_link (struct shim_dentry * dent, struct shim_qstr * link)
 {
     const char * name = qstrgetstr(&dent->rel_path);
@@ -433,6 +447,7 @@ struct shim_fs_ops dev_fs_ops = {
         .write          = &dev_write,
         .seek           = &dev_seek,
         .hstat          = &dev_hstat,
+        .poll           = &dev_poll,
         .truncate       = &dev_truncate,
     };
 

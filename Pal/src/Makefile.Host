@@ -15,4 +15,4 @@ $(error Unsupported platform: $(OS))
 endif
 endif
 
-OS_MACRO := $(shell echo $(OS) | tr '[:lower:]' '[:upper:]')
+OS_MACRO := $(shell echo $(OS) | tr '[:lower:]' '[:upper:]' | tr '-' '_')

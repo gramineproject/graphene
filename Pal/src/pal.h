@@ -483,4 +483,6 @@ DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
 
 PAL_NUM DkMemoryAvailableQuota (void);
 
+PAL_BOL
+DkCpuIdRetrieve (PAL_NUM level, PAL_NUM values[4]);
 #endif /* PAL_H */
