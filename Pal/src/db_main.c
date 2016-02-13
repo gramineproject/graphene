@@ -354,7 +354,7 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
     }
 
     /* load manifest if there is one */
-    if (manifest_handle) {
+    if (manifest_handle && !pal_state.root_config) {
 #if PROFILING == 1
         unsigned long before_load_manifest = _DkSystemTimeQuery();
 #endif

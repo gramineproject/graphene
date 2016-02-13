@@ -140,6 +140,8 @@ typedef struct {
     PAL_PTR_RANGE user_address;
     /* address where executable is loaded */
     PAL_PTR_RANGE executable_range;
+    /* manifest preloaded here */
+    PAL_PTR_RANGE manifest_preload;
 
     /***** Host information *****/
     /* host page size / allocation alignment */

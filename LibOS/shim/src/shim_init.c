@@ -143,13 +143,20 @@ unsigned long parse_int (const char * str)
     return num;
 }
 
-long int * glibc_option (const char * opt)
+long int glibc_option (const char * opt)
 {
     char cfg[CONFIG_MAX];
 
     if (!memcmp(opt, "heap_size", 9)) {
-        return get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX) < 0 ?
-            -ENOENT : parse_int(cfg);
+        int ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
+        if (ret < 0) {
+            debug("no glibc option: %s (err=%d)\n", opt, ret);
+            return -ENOENT;
+        }
+
+        long int heap_size = parse_int(cfg);
+        debug("glibc option: heap_size = %ld\n", heap_size);
+        return (long int) heap_size;
     }
 
     return -EINVAL;
@@ -440,22 +447,33 @@ static void __free (void * mem)
 
 int init_manifest (PAL_HANDLE manifest_handle)
 {
-    PAL_STREAM_ATTR attr;
+    void * addr;
+    unsigned int size;
 
-    if (!DkStreamAttributesQuerybyHandle(manifest_handle, &attr))
-        return -PAL_ERRNO;
+    if (PAL_CB(manifest_preload.start)) {
+        addr = PAL_CB(manifest_preload.start);
+        size = PAL_CB(manifest_preload.end) - PAL_CB(manifest_preload.start);
+    } else {
+        PAL_STREAM_ATTR attr;
+        if (!DkStreamAttributesQuerybyHandle(manifest_handle, &attr))
+            return -PAL_ERRNO;
 
-    size_t cfg_size = attr.pending_size;
-    void * cfg_addr = (void *) DkStreamMap(manifest_handle, NULL,
-                                  PAL_PROT_READ|PAL_PROT_WRITECOPY, 0,
-                                  ALIGN_UP(cfg_size));
+        size = attr.pending_size;
+        addr = (void *) DkStreamMap(manifest_handle, NULL,
+                                  PAL_PROT_READ, 0,
+                                  ALIGN_UP(size));
 
-    if (!cfg_addr)
-        return -PAL_ERRNO;
+        if (!addr)
+            return -PAL_ERRNO;
+    }
+
+    bkeep_mmap(addr, ALIGN_UP(size), PROT_READ,
+               MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0,
+               "[manifest]");
 
     root_config = malloc(sizeof(struct config_store));
-    root_config->raw_data = cfg_addr;
-    root_config->raw_size = cfg_size;
+    root_config->raw_data = addr;
+    root_config->raw_size = size;
     root_config->malloc = __malloc;
     root_config->free = __free;
 

@@ -230,7 +230,7 @@ static int __bkeep_mmap (void * addr, int length,
     struct shim_vma * tmp = __lookup_supervma(addr, length, &prev);
     int ret = 0;
 
-    debug("bkeep_mmap: %p - %p\n", addr, addr + length);
+    debug("bkeep_mmap: %p-%p\n", addr, addr + length);
 
     if (file)
         get_handle(file);
@@ -351,7 +351,7 @@ static int __bkeep_munmap (void * addr, int length, const int * flags)
 {
     struct shim_vma * tmp, * n;
 
-    debug("bkeep_unmmap: %p - %p\n", addr, addr + length);
+    debug("bkeep_unmmap: %p-%p\n", addr, addr + length);
 
     list_for_each_entry_safe(tmp, n, &vma_list, list) {
         if (test_vma_equal (tmp, addr, length)) {
@@ -438,7 +438,7 @@ static int __bkeep_mprotect (void * addr, int length, int prot,
     struct shim_vma * tmp = __lookup_vma(addr, length);
     int ret;
 
-    debug("bkeep_mprotect: %p - %p\n", addr, addr + length);
+    debug("bkeep_mprotect: %p-%p\n", addr, addr + length);
 
     if (tmp) {
         /* exact match */
