@@ -102,10 +102,12 @@ $(JRE_DIR)/bin/java $(JAVAC): $(JAVA_SRC)
 		EXTRA_CFLAGS="-fPIC" \
 		NO_DOCS="true" \
 		BUILD_HEADLESS_ONLY="true" \
+		BUILD_HOTSPOT="true" BUILD_JDK="true" \
+		BUILD_LANGTOOLS="false" \
 		BUILD_JAXP="false" BUILD_JAXWS="false" BUILD_CORBA="false" \
 		HOTSPOT_BUILD_JOBS="$(NPROCS)" \
 		TEST_IN_BUILD="false" \
-		hotspot-build jdk-build
+		product_build
 
 $(JAVA_HOME)/bin/java: $(JRE_DIR)/bin/java
 	rm -rf $(JAVA_HOME)

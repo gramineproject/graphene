@@ -85,11 +85,11 @@ struct parser_table {
     { .slow = 0, .parser = { NULL } }, /* lstat */
     { .slow = 1, .parser = { NULL } }, /* poll */
     { .slow = 0, .parser = { NULL, NULL, &parse_seek } }, /* lseek */
-    { .slow = 0,                       /* mmap */
+    { .slow = 1,                       /* mmap */
       .parser = { NULL, NULL, &parse_mmap_prot, &parse_mmap_flags } },
-    { .slow = 0,                       /* mprotect */
+    { .slow = 1,                       /* mprotect */
       .parser = { NULL, NULL, &parse_mmap_prot } },
-    { .slow = 0, .parser = { NULL } }, /* munmap */
+    { .slow = 1, .parser = { NULL } }, /* munmap */
     { .slow = 0, .parser = { NULL } }, /* brk */
     { .slow = 0, .parser = { &parse_signum } }, /* rt_sigaction */
     { .slow = 0,                       /* rt_sigprocmask */

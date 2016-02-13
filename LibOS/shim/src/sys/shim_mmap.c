@@ -55,6 +55,11 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
             reserved = true;
     }
 
+    if (addr) {
+        void * cur_stack = current_stack();
+        assert(cur_stack < addr || cur_stack > addr + length);
+    }
+
     void * mapped = ALIGN_DOWN((void *) addr);
     void * mapped_end = ALIGN_UP((void *) addr + length);
 

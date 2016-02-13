@@ -1,6 +1,6 @@
 #!/bin/bash
 
-JAVA_FLAGS="-Xmx16m -Xss4m -XX:+UseSerialGC -XX:+DisableExplicitGC -XX:MaxPermSize=0"
+JAVA_FLAGS="-Xmx4m -Xms1m -XX:NewSize=256k -XX:MaxNewSize=1m -Xss1m -XX:+UseSerialGC -XX:-UsePerfData -XX:+DisableExplicitGC -XX:PermSize=1m -XX:MaxPermSize=4m -XX:MinHeapFreeRatio=0 -XX:MaxHeapFreeRatio=30"
 
 if [ "$1" = "-native" ]; then
 	shift
