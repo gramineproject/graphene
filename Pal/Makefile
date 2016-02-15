@@ -1,4 +1,5 @@
-OS ?= $(shell uname -s)
+import src/Makefile.Host
+
 ifeq ($(OS),Linux)
 	NPROCS ?= $(shell grep -c ^processor /proc/cpuinfo)
 else
@@ -19,6 +20,12 @@ all debug clean:
 		$(MAKE) -C $$d $@; \
 	done
 
+install:
+	[ -d ../Runtime ] || mkdir -p ../Runtime
+	[ -f ../Runtime/libpal.so ] || ln -sf ../Pal/src/libpal.so ../Runtime/libpal.so
+	[ -f ../Runtime/pal ] || ln -sf ../Pal/src/pal ../Runtime/pal
+	[ -f ../Runtime/pal_sec ] || ln -sf ../Pal/src/pal_sec ../Runtime/pal_sec
+
 .PHONY: kernel
 kernel: $(LINUX_KERNEL)
 
@@ -38,14 +45,8 @@ $(LINUX_SRC)/graphene: linux-kernel/graphene
 $(LINUX_SRC)/.config: $(LINUX_SRC)/Makefile
 	cd $(LINUX_SRC) && make menuconfig
 
-kernel_install: $(LINUX_KERNEL)
+kernel_install: kernel
 	$(MAKE) -C $(LINUX_SRC) install modules_install headers_install
-
-install:
-	[ -d ../Runtime ] || mkdir -p ../Runtime
-	[ -f ../Runtime/libpal.so ] || ln -sf ../Pal/src/libpal.so ../Runtime/libpal.so
-	[ -f ../Runtime/pal ] || ln -sf ../Pal/src/pal ../Runtime/pal
-	[ -f ../Runtime/pal_sec ] || ln -sf ../Pal/src/pal_sec ../Runtime/pal_sec
 
 linux-deb:
 	if [ ! -f $(LINUX_SRC)/.config ]; then \
@@ -56,7 +57,7 @@ linux-deb:
 		--append-to-version -graphene --initrd \
 		kernel_image kernel_debug kernel_headers
 else
-install:
+kernel_install:
 endif
 
 .PHONY: test
