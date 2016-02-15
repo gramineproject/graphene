@@ -23,28 +23,31 @@ def appendText(filename, text) :
         myfile.write(text)
 
 
+home = os.getcwd()
+glibc = "glibc-2.19"
+glibcParent = "" # glibc parent directory
+glibcDir = ""    # glibc dir (ex. glibc-2.19)
+buildDir = "build"
+installDir = os.path.dirname(home) + '/Runtime/'
+do_install = False
+commandStr = ""
+commandOutput = ""
+quiet = False
+debug_flags = ""
 
-try:
-    home = os.getcwd()
-    glibc = "glibc-2.19"
-    glibcParent = "" # glibc parent directory
-    glibcDir = ""    # glibc dir (ex. glibc-2.19)
-    buildDir = "build"
-    installDir = "/usr/local/graphene"
-    commandStr = ""
-    commandOutput = ""
-    quiet = False
-    debug_flags = ""
-
-    for arg in sys.argv[1:]:
-        if arg == '--quiet' or arg == '-q':
-            quiet = True
-        if arg == 'debug':
-            debug_flags = "-g"
+for arg in sys.argv[1:]:
+    if arg == '--quiet' or arg == '-q':
+        quiet = True
+    if arg == 'debug':
+        debug_flags = "-g"
+    if arg == 'install':
+        do_install = True
 
     #########################################
     #### get the locations of directories ###
     #########################################
+
+if not do_install:
 
     if not quiet:
         iput = raw_input('use {0} as the source of GNU libc? ([y]/n):'.format(glibc)).lower()
@@ -83,10 +86,11 @@ try:
     else :
         os.makedirs(buildDir)
 
-    if not quiet:
-        iput = raw_input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
-        if not iput == 'y' and not iput == '':
-            installDir = raw_input('the directory to install glibc in:  ')
+if do_install and not quiet:
+
+    iput = raw_input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
+    if not iput == 'y' and not iput == '':
+        installDir = raw_input('the directory to install glibc in:  ')
 
     installDir = os.path.abspath(installDir)
     print 'using install dir: {0}'.format(installDir)
@@ -96,6 +100,8 @@ try:
     ################################
     #### doctor glibc's Makefile ###
     ################################
+
+if not do_install:
 
     os.chdir(buildDir)
 
@@ -118,7 +124,7 @@ try:
     replaceAll('Makefile', r'# PARALLELMFLAGS = -j4', r'PARALLELMFLAGS = -j{0}'.format(numCPUs))
 
 
-    link_binaries = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
+link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
                       ( 'nptl',   'libpthread.so.0' ),
                       ( 'nptl_db','libthread_db.so.1' ),
                       ( 'math',   'libm.so.6' ),
@@ -129,12 +135,20 @@ try:
                       ( 'csu',    'crtn.o' ),
                       ( 'libos',  'liblibos.so.1' ) ]
 
+
+if not do_install:
+
     for (dir, bin) in link_binaries:
         print bin + ' -> ' + dir + '/' + bin
         os.symlink(dir + '/' + bin, bin)
 
-
     print '\n\n\nNow type \'make\' in \'{0}\'\n\n'.format(buildDir)
 
-except:
-    print 'uh-oh: {0}'.format(sys.exc_info()[0])
+
+
+if do_install:
+
+    for (dir, bin) in link_binaries:
+        print installDir + '/' + bin + ' -> ' + buildDir + '/' + dir + '/' + bin
+        if not os.path.lexists(installDir + '/' + bin):
+            os.symlink(os.path.relpath(buildDir + '/' + dir + '/' + bin, installDir), installDir + '/' + bin)

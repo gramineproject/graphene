@@ -103,10 +103,9 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
         struct shim_handle * exec = thread->exec;
         if (!exec->dentry) {
             unlock(thread->lock);
-            ret = -ENOENT;
+            ret = -EINVAL;
             goto out;
         }
-
         dent = exec->dentry;
         get_dentry(dent);
     }

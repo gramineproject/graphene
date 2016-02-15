@@ -744,8 +744,8 @@ restore:
     RUN_INIT(init_mount_root);
     RUN_INIT(init_ipc);
     RUN_INIT(init_thread);
-    RUN_INIT(init_important_handles);
     RUN_INIT(init_mount);
+    RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
     RUN_INIT(init_stack, argv, envp, &argp, nauxv, &auxp);
     RUN_INIT(init_loader);

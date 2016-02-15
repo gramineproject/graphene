@@ -390,6 +390,32 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
     return ret < 0 ? ret : (nsrched ? 0 : -ESRCH);
 }
 
+struct shim_mount * find_mount_from_uri (const char * uri)
+{
+    struct shim_mount * mount, * found = NULL;
+    int longest_path = 0;
+
+    lock(mount_list_lock);
+    list_for_each_entry(mount, &mount_list, list) {
+        if (qstrempty(&mount->uri))
+            continue;
+
+        if (!memcmp(qstrgetstr(&mount->uri), uri, mount->uri.len) &&
+            (uri[mount->uri.len] == '/' || uri[mount->uri.len] == '/')) {
+            if (mount->path.len > longest_path) {
+                longest_path = mount->path.len;
+                found = mount;
+            }
+        }
+    }
+
+    if (found)
+        get_mount(found);
+
+    unlock(mount_list_lock);
+    return found;
+}
+
 BEGIN_CP_FUNC(mount)
 {
     assert(size == sizeof(struct shim_mount));

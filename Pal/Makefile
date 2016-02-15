@@ -38,8 +38,14 @@ $(LINUX_SRC)/graphene: linux-kernel/graphene
 $(LINUX_SRC)/.config: $(LINUX_SRC)/Makefile
 	cd $(LINUX_SRC) && make menuconfig
 
-install: $(LINUX_KERNEL)
+kernel_install: $(LINUX_KERNEL)
 	$(MAKE) -C $(LINUX_SRC) install modules_install headers_install
+
+install:
+	[ -d ../Runtime ] || mkdir -p ../Runtime
+	[ -f ../Runtime/libpal.so ] || ln -sf ../Pal/src/libpal.so ../Runtime/libpal.so
+	[ -f ../Runtime/pal ] || ln -sf ../Pal/src/pal ../Runtime/pal
+	[ -f ../Runtime/pal_sec ] || ln -sf ../Pal/src/pal_sec ../Runtime/pal_sec
 
 linux-deb:
 	if [ ! -f $(LINUX_SRC)/.config ]; then \

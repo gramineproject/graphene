@@ -13,8 +13,10 @@ debug: DEBUG=debug
 debug: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) debug
 
-# nothing to install
 install:
+	[ -d ../Runtime ] || mkdir -p ../Runtime
+	[ -f ../Runtime/libsysdb.so ] || ln -sf ../LibOS/shim/src/libsysdb.so ../Runtime/libsysdb.so
+	./buildglibc.py install --quiet
 
 ifeq ($(SYS),x86_64-linux-gnu)
 $(GLIBC_TARGET): $(BUILD_DIR)/Makefile

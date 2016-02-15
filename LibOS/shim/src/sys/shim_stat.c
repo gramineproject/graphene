@@ -42,7 +42,7 @@ int shim_do_stat (const char * file, struct stat * stat)
     int ret;
     struct shim_dentry * dent = NULL;
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent)) < 0)
         goto out;
 
     struct shim_mount * fs = dent->fs;
@@ -113,25 +113,33 @@ int shim_do_readlink (const char * file, char * buf, int bufsize)
     if (bufsize <= 0)
         return -EINVAL;
 
-    /* The correct behavior is to return -EINVAL if file is not a
-       symbolic link */
-    return -EINVAL;
-
-#if 0
     int ret;
     struct shim_dentry * dent = NULL;
+    struct shim_qstr qstr;
 
     if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent)) < 0)
         return ret;
 
-    char * relpath;
-    int len;
+    ret = -EINVAL;
+    /* The correct behavior is to return -EINVAL if file is not a
+       symbolic link */
+    if (!(dent->state & DENTRY_ISLINK))
+        goto out;
 
-    relpath = dentry_get_path(dent, true, &len);
-    if (len > bufsize)
-        len = bufsize;
-    memcpy(buf, relpath, len);
+    if (!dent->fs || !dent->fs->d_ops || !dent->fs->d_ops->follow_link)
+        goto out;
+
+    ret = dent->fs->d_ops->follow_link(dent, &qstr);
+    if (ret < 0)
+        goto out;
+
+    ret = -ENAMETOOLONG;
+    if (qstr.len >= bufsize)
+        goto out;
+
+    memcpy(buf, qstrgetstr(&qstr), qstr.len);
+    ret = qstr.len;
+out:
     put_dentry(dent);
-    return len;
-#endif
+    return ret;
 }

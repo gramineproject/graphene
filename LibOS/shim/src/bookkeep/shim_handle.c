@@ -86,11 +86,25 @@ static inline int init_exec_handle (struct shim_thread * thread)
     if (!exec)
         return -ENOMEM;
 
-    set_handle_fs(exec, &chroot_builtin_fs);
     qstrsetstr(&exec->uri, PAL_CB(executable), strlen(PAL_CB(executable)));
     exec->type     = TYPE_FILE;
     exec->flags    = O_RDONLY;
     exec->acc_mode = MAY_READ;
+
+    struct shim_mount * fs = find_mount_from_uri(PAL_CB(executable));
+    if (fs) {
+        path_lookupat(fs->root, PAL_CB(executable) + fs->uri.len, 0,
+                      &exec->dentry);
+        set_handle_fs(exec, fs);
+        if (exec->dentry) {
+            int len;
+            const char * path = dentry_get_path(exec->dentry, true, &len);
+            qstrsetstr(&exec->path, path, len);
+        }
+        put_mount(fs);
+    } else {
+        set_handle_fs(exec, &chroot_builtin_fs);
+    }
 
     lock(thread->lock);
     thread->exec = exec;

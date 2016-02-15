@@ -324,10 +324,6 @@ static int link_path_walk (const char * name, struct lookup * look)
     }
 
     dent = look->dentry;
-
-    if (look->depth)
-        lookup_flags |= LOOKUP_FOLLOW;
-
     lookup_flags |= LOOKUP_CONTINUE;
 
     while (*name) {
@@ -348,7 +344,7 @@ static int link_path_walk (const char * name, struct lookup * look)
             while (*(++name) == '/');
 
             if (!*name) {
-                lookup_flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+                lookup_flags |= LOOKUP_DIRECTORY;
                 lookup_flags &= ~LOOKUP_CONTINUE;
             }
         }
@@ -392,7 +388,8 @@ static int link_path_walk (const char * name, struct lookup * look)
                 goto out;
         }
 
-        if (look->dentry->state & DENTRY_ISLINK) {
+        if ((look->dentry->state & DENTRY_ISLINK) &&
+            (look->last_type != LAST_NORM || look->flags & LOOKUP_FOLLOW)) {
             err = follow_link(look);
             if (err < 0)
                 goto out;

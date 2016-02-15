@@ -183,6 +183,9 @@ static int proc_lookup (struct shim_dentry * dent, bool force)
     if (!ret && ent->dir)
         dent->state |= DENTRY_ISDIRECTORY;
 
+    if (ent->fs_ops && ent->fs_ops->follow_link)
+        dent->state |= DENTRY_ISLINK;
+
      return ret;
 }
 

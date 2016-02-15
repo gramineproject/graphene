@@ -245,25 +245,20 @@ internal:
         goto ret_exception;
     }
 
+    if (context)
+        debug("memory fault at %p (IP = %p)\n", arg, context->IP);
+
     struct shim_vma * vma = NULL;
-
-    if (!(lookup_supervma((void *) arg, 0, &vma)) &&
-        !(vma->flags & VMA_INTERNAL)) {
-        int signo = SIGSEGV;
-
-        if (context)
-            debug("memory fault at %p (IP = %p)\n", arg, context->IP);
-
-        if (vma)
+    if (!lookup_supervma((void *) arg, 0, &vma)) {
+        if (vma->flags & VMA_INTERNAL) {
             put_vma(vma);
-
-        deliver_signal(ALLOC_SIGINFO(signo, si_addr, (void *) arg), context);
-    } else {
-        if (vma)
-            put_vma(vma);
-
-        goto internal;
+            goto internal;
+        }
+        put_vma(vma);
     }
+
+    int signo = SIGSEGV;
+    deliver_signal(ALLOC_SIGINFO(signo, si_addr, (void *) arg), context);
 
 ret_exception:
     DkExceptionReturn(event);

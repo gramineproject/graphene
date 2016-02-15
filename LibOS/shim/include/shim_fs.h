@@ -290,6 +290,8 @@ int search_builtin_fs (const char * type, struct shim_mount ** fs);
 void get_mount (struct shim_mount * mount);
 void put_mount (struct shim_mount * mount);
 
+struct shim_mount * find_mount_from_uri (const char * uri);
+
 #include <shim_utils.h>
 
 static inline void set_handle_fs (struct shim_handle * hdl,
