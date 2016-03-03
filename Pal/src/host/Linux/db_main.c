@@ -295,7 +295,7 @@ done_init:
     /* jump to main function */
     pal_main(linux_state.parent_process_id,
              (void *) pal_map.l_addr, pal_name, argc, argv, envp,
-             parent, first_thread, exec, manifest);
+             parent, first_thread, exec, NULL, manifest);
 }
 
 /* the following code is borrowed from CPUID */

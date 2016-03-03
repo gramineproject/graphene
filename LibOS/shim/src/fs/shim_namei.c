@@ -468,7 +468,7 @@ static int path_lookup_dcache (struct shim_dentry * start, const char * path,
     char * name = fullpath + startpathlen;
     int namelen;
 
-    if ((namelen = get_norm_path(path, name, STR_SIZE - startpathlen)) < 0)
+    if ((namelen = get_norm_path(path, name, 0, STR_SIZE - startpathlen)) < 0)
         return namelen;
 
     struct shim_dentry * found =

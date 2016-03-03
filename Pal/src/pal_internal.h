@@ -365,11 +365,12 @@ typedef typeof(__pal_control.cpu_info) PAL_CPU_INFO;
 void _DkGetCPUInfo (PAL_CPU_INFO * info);
 
 /* Main function called by host-dependent bootstrapper */
-void pal_main (PAL_NUM pal_token, void * pal_addr, const char * pal_name,
+void pal_main (PAL_NUM pal_token, void * pal_addr,
+               const char * pal_name,
                int argc, const char ** argv, const char ** envp,
                PAL_HANDLE parent_handle,
                PAL_HANDLE thread_handle,
-               PAL_HANDLE exec_handle,
+               PAL_HANDLE exec_handle, PAL_PTR_RANGE * exec_range,
                PAL_HANDLE manifest_handle);
 
 void start_execution (const char * first_argv, int argc, const char ** argv,
@@ -479,6 +480,7 @@ enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
 int check_elf_object (PAL_HANDLE handle);
 int load_elf_object (const char * uri, enum object_type type);
 int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type);
+int add_elf_object(void * addr, unsigned int size, PAL_HANDLE handle, int type);
 
 void init_slab_mgr (int alignment);
 void * malloc (int size);

@@ -56,13 +56,17 @@ int main (int argc, char ** argv, char ** envp)
             pal_printf("Memory Deallocation OK\n");
     }
 
-    void * mem3 = (void *) DkVirtualMemoryAlloc(pal_control.user_address.start,
-                                                UNIT, 0,
-                                                PAL_PROT_READ|PAL_PROT_WRITE);
-    void * mem4 = (void *) DkVirtualMemoryAlloc(pal_control.user_address.end - UNIT,
-                                                UNIT, 0,
-                                                PAL_PROT_READ|PAL_PROT_WRITE);
+    void * mem3 = (void *) pal_control.user_address.start;
+    void * mem4 = (void *) pal_control.user_address.end - UNIT;
 
+    if (mem3 >= pal_control.executable_range.start &&
+        mem3 < pal_control.executable_range.end)
+        mem3 = (void *) (((PAL_NUM) pal_control.executable_range.end + UNIT - 1) & ~(UNIT - 1));
+
+    mem3 = (void *) DkVirtualMemoryAlloc(mem3, UNIT, 0,
+                                         PAL_PROT_READ|PAL_PROT_WRITE);
+    mem4 = (void *) DkVirtualMemoryAlloc(mem4, UNIT, 0,
+                                         PAL_PROT_READ|PAL_PROT_WRITE);
 
     if (mem3 && mem4)
         pal_printf("Memory Allocation with Address OK\n");

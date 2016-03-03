@@ -1,4 +1,4 @@
-import src/Makefile.Host
+include src/Makefile.Host
 
 ifeq ($(OS),Linux)
 	NPROCS ?= $(shell grep -c ^processor /proc/cpuinfo)

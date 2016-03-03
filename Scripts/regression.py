@@ -9,13 +9,17 @@ class Result:
         self.code = code
 
 class Regression:
-    def __init__(self, loader = None, executable = '', prepare = None, timeout = 1000, keep_log = False):
+    def __init__(self, loader = None, executable = '', prepare = None, timeout = 0):
         self.loader = loader
         self.executable = executable
         self.prepare = prepare
         self.runs = dict()
-        self.timeout = timeout
-        self.keep_log = keep_log
+        default_timeout = int(os.getenv('TIMEOUT', '1000'))
+        if default_timeout > timeout:
+            self.timeout = default_timeout
+        else:
+            self.timeout = timeout
+        self.keep_log = (os.getenv('KEEP_LOG', '0') == '1')
 
     def add_check(self, name, check, times = 1, args = []):
         combined_args = ' '.join(args)
@@ -44,6 +48,8 @@ class Regression:
                 if self.prepare:
                     self.prepare(args)
 
+                time.sleep(0.1)
+
                 p = subprocess.Popen(args,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
@@ -60,20 +66,15 @@ class Regression:
                 if not finish and p.poll() is None:
                     p.kill()
 
+                time.sleep(0.1)
+
                 out = p.stdout.read()
                 log = p.stderr.read()
-
-                if self.keep_log:
-                    sargs = [re.sub(r"\W", '_', a).strip('_') for a in args]
-                    filename = '_'.join(sargs) + '_' + time.strftime("%Y%m%d_%H%M%S")
-                    with open(filename + '.log', 'w') as f:
-                        f.write(log)
-                    with open(filename + '.out', 'w') as f:
-                        f.write(out)
 
                 outputs.append(Result(out, log, p.returncode))
 
                 run_times = run_times + 1
+                keep_log = False
                 for (name, check, times) in self.runs[combined_args]:
                     if run_times == times:
                         result = check(outputs)
@@ -81,3 +82,11 @@ class Regression:
                             print '\033[92m[Success]\033[0m', name
                         else:
                             print '\033[93m[Fail   ]\033[0m', name
+                            keep_log = True
+
+                if self.keep_log and keep_log:
+                    sargs = [re.sub(r"\W", '_', a).strip('_') for a in args]
+                    filename = 'log-' + '_'.join(sargs) + '_' + time.strftime("%Y%m%d_%H%M%S")
+                    with open(filename, 'w') as f:
+                        f.write(log + out)
+                    print 'keep log to %s' % (filename)

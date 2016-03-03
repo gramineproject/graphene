@@ -519,23 +519,18 @@ int load_elf_object (const char * uri, enum object_type type)
     return ret;
 }
 
-int add_elf_object(void * addr, PAL_HANDLE handle, int type)
+int add_elf_object(void * addr, unsigned int size, PAL_HANDLE handle, int type)
 {
     struct link_map * map = new_elf_object(_DkStreamRealpath(handle), type);
     const ElfW(Ehdr) * header = (void *) addr;
-    int ret;
+    const ElfW(Phdr) * ph, * phdr = addr + header->e_phoff;
 
+    map->l_addr  = (header->e_type == ET_DYN) ? (ElfW(Addr)) addr : 0;
     map->l_entry = header->e_entry;
     map->l_phdr  = (void *) header->e_phoff;
     map->l_phnum = header->e_phnum;
-
-    const ElfW(Phdr) * ph, * phdr;
-    phdr = __alloca(header->e_phnum * sizeof(ElfW(Phdr)));
-
-    if ((ret = _DkStreamRead(handle, header->e_phoff,
-                             header->e_phnum * sizeof(ElfW(Phdr)),
-                             (void *) phdr, NULL, 0)) < 0)
-        return ret;
+    map->l_map_start = (ElfW(Addr)) addr;
+    map->l_map_end = (ElfW(Addr)) addr + size;
 
     for (ph = phdr; ph < &phdr[map->l_phnum]; ++ph)
         switch (ph->p_type) {
@@ -545,14 +540,12 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
                 break;
         }
 
-    map->l_real_ld = map->l_ld;
-    map->l_ld = remalloc(map->l_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
+    map->l_real_ld = (void *) map->l_addr + (unsigned long) map->l_ld;
+    map->l_ld = remalloc(map->l_real_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
 
-    elf_get_dynamic_info(map->l_ld, map->l_info, 0);
-
+    elf_get_dynamic_info(map->l_ld, map->l_info, map->l_addr);
     setup_elf_hash(map);
-
-    //ELF_DYNAMIC_SCAN(map->l_info, 0);
+    ELF_DYNAMIC_RELOCATE(map);
 
     struct link_map * prev = loaded_maps;
     while (prev->l_next)
@@ -560,7 +553,10 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
     map->l_prev = prev;
     map->l_next = NULL;
     prev->l_next = map;
+    if (type == OBJECT_EXEC)
+        exec_map = map;
 
+    _DkDebugAddMap(map);
     return 0;
 }
 

@@ -61,6 +61,8 @@ extern const char * const * sys_errlist_internal;
 #define XSTRINGIFY(x) STRINGIFY(x)
 #define STRINGIFY(x) #x
 
+int get_norm_path (const char * path, char * buf, int offset, int size);
+
 #include <linux_list.h>
 
 struct config_store {

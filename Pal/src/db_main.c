@@ -276,7 +276,7 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
                int argc, const char ** argv, const char ** envp,
                PAL_HANDLE parent_handle,
                PAL_HANDLE thread_handle,
-               PAL_HANDLE exec_handle,
+               PAL_HANDLE exec_handle, PAL_PTR_RANGE * exec_range,
                PAL_HANDLE manifest_handle)
 {
     int ret;
@@ -448,7 +448,11 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
         unsigned long before_load_exec = _DkSystemTimeQuery();
 #endif
 
-        ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
+        ret = exec_range ?
+              add_elf_object((void *) exec_range->start,
+                             exec_range->end - exec_range->start,
+                             exec_handle, OBJECT_EXEC) :
+              load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
         if (ret < 0)
             init_fail(ret, PAL_STRERROR(ret));
 

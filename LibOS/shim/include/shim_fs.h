@@ -276,9 +276,6 @@ int init_mount (void);
 
 /* path utilities */
 const char * get_file_name (const char * path, size_t len);
-int get_abs_path (const char * cwd, const char * path, char * buf,
-                  int size);
-int get_norm_path (const char * path, char * buf, int size);
 
 /* file system operations */
 int mount_fs (const char * mount_type, const char * mount_uri,
