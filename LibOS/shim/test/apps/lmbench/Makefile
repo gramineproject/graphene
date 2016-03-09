@@ -57,8 +57,8 @@ $(RUNDIR):
 	mkdir -p $@
 
 ifeq ($(SYS),x86_64-linux-gnu)
-$(addprefix $(LINUXDIR),$(LMBENCH_TESTS)): \
-	$(wildcard $(LMBENCHDIR)/src/*.c) $(wildcard $(LMBENCHDIR)/src/*.h)
+$(addprefix $(LINUXDIR),$(LMBENCH_TESTS)): $(LINUXDIR)
+$(LINUXDIR): $(wildcard $(LMBENCHDIR)/src/*.c) $(wildcard $(LMBENCHDIR)/src/*.h)
 	$(MAKE) -C $(LMBENCHDIR)/src OS=linux CC="gcc -g"
 .PHONY: pack
 $(addprefix host,$(HOST_BINARIES)):
