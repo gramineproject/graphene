@@ -47,7 +47,10 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
 
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
 
-    int pal_alloc_type = ((flags & MAP_32BIT) ? PAL_ALLOC_32BIT : 0);
+    if (flags & MAP_32BIT)
+        return -ENOSYS;
+
+    int pal_alloc_type = 0;
 
     if (!addr) {
         addr = get_unmapped_vma(ALIGN_UP(length), flags);

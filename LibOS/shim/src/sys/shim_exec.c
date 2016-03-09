@@ -345,9 +345,11 @@ err:
 
     SAVE_PROFILE_INTERVAL(open_file_for_exec);
 
+#if EXECVE_RTLD == 1
     int is_last = check_last_thread(cur_thread) == 0;
     if (is_last)
         return shim_do_execve_rtld(exec, argv, envp);
+#endif
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 

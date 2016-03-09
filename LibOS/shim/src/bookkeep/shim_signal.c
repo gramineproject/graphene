@@ -456,9 +456,6 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
 
     sig = begin_sig;
 
-    if (!thread->has_signal.counter)
-        return;
-
     while (atomic_read(&thread->has_signal)) {
         struct shim_signal * signal = NULL;
 
@@ -476,9 +473,8 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
         __handle_one_signal(tcb, sig, signal);
         free(signal);
         DkThreadYieldExecution();
+        tcb->context.preempt &= ~SIGNAL_DELAYED;
     }
-
-    tcb->context.preempt &= ~SIGNAL_DELAYED;
 }
 
 void handle_signal (bool delayed_only)

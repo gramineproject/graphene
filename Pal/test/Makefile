@@ -4,9 +4,11 @@ CC	= gcc
 CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib
 
+include ../src/Makefile.Test
+
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
 	      Memory Pipe Tcp Udp Yield Broadcast Ipc Server Wait HandleSend \
-	      Select Segment Cpuid Pie
+	      Select Segment Sleep Cpuid Pie
 manifests = manifest
 
 target = $(executables) $(manifests)
@@ -15,7 +17,7 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
-all:	$(target)
+all:	$(call expand_target,$(target))
 
 debug:	CC=gcc -g
 debug:	$(target)
@@ -43,4 +45,4 @@ $(executables): .packed/test.tar.gz
 endif
 
 clean:
-	rm -rf $(target) .lib
+	rm -rf $(call expand_target,$(target)) .lib

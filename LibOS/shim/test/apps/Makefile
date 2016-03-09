@@ -28,7 +28,6 @@ manifest_rules = \
 	$(extra_rules)
 
 %.manifest: %.manifest.template
-	rm -f $@ $@.backup
 	sed $(manifest_rules) $< >$@
 	chmod +x $@
 

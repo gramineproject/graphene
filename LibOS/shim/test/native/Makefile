@@ -4,11 +4,15 @@ special_executables = static pie
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
-target = $(special_executables) $(c_executables) $(cxx_executables) \
-	  manifest static.manifest pal pal_sec
+exec_target = $(special_executables) $(c_executables) $(cxx_executables)
+target = $(exec_target) manifest static.manifest pal pal_sec
 
 level = ../
 include ../Makefile
+
+manifest: manifest.template
+	rm -rf $@
+	cp $@.template $@
 
 %.manifest: %.manifest.template
 	rm -rf $@

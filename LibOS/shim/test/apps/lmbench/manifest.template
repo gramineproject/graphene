@@ -1,16 +1,12 @@
 #!$(PAL)
 
 loader.preload = file:$(SHIMPATH)
-loader.exec = file:$(PWD)lmbench-2.5/bin/linux/$(BIN)
+loader.exec = file:$(BIN)
 loader.env.LD_LIBRARY_PATH = /lib:/lib64
 loader.debug_type = none
 
 fs.mount.root.type = chroot
-fs.mount.root.uri = file:$(PWD)lmbench-2.5/bin/linux
-
-fs.mount.other.graphene.type = chroot
-fs.mount.other.graphene.path = /graphene
-fs.mount.other.graphene.uri = file:$(PWD)lmbench-2.5/bin/graphene
+fs.mount.root.uri = file:
 
 fs.mount.other.tmp1.type = chroot
 fs.mount.other.tmp1.path = /tmp
@@ -32,6 +28,11 @@ fs.mount.other.inc.type = chroot
 fs.mount.other.inc.path = /usr/include/x86_64-linux-gnu/sys/types.h
 fs.mount.other.inc.uri = file:$(HOSTDIR)/usr/include/x86_64-linux-gnu/sys/types.h
 
+fs.mount.other.tmp3.type = chroot
+fs.mount.other.tmp3.path = /tmp/hello
+fs.mount.other.tmp3.uri = file:../linux/hello
+
 net.allow_bind.1 = 0.0.0.0:31233-31237
 net.allow_bind.2 = 0.0.0.0:34297-34298
 net.allow_peer.1 = 127.0.0.1:0-65535
+

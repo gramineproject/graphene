@@ -197,6 +197,9 @@ static bool check_vma_flags (const struct shim_vma * vma, const int * flags)
     if (!flags)
         return true;
 
+    if (vma->flags & VMA_UNMAPPED)
+        return true;
+
     if ((vma->flags & VMA_INTERNAL) != ((*flags) & VMA_INTERNAL)) {
         bug();
         return false;
@@ -644,6 +647,7 @@ void * get_unmapped_vma (int length, int flags)
         new->addr   = heap_top - length;
         new->length = length;
         new->flags  = flags|VMA_UNMAPPED;
+        new->prot   = PROT_NONE;
 
         list_for_each_entry_reverse(prev, &vma_list, list) {
             if (new->addr >= prev->addr + prev->length)
@@ -699,10 +703,15 @@ void * get_unmapped_vma_for_cp (int length)
 
     unsigned long top = (unsigned long) PAL_CB(user_address.end) - length;
     unsigned long bottom = (unsigned long) heap_top;
+    int flags = MAP_ANONYMOUS|VMA_UNMAPPED|VMA_INTERNAL;
     void * addr;
 
-    if (bottom >= top)
-        return NULL;
+    if (bottom >= top) {
+        unlock(vma_list_lock);
+        return get_unmapped_vma(length, flags);
+    }
+
+    debug("find unmapped vma between %p-%p\n", bottom, top);
 
     for (int i = 0 ; i < NTRIES ; i++) {
         unsigned long rand;
@@ -714,13 +723,16 @@ void * get_unmapped_vma_for_cp (int length)
         addr = NULL;
     }
 
-    if (!addr)
+    if (!addr) {
+        unlock(vma_list_lock);
+        debug("cannot find unmapped vma for checkpoint\n");
         return NULL;
+    }
 
     new->addr   = addr;
     new->length = length;
-    new->flags  = MAP_ANONYMOUS|VMA_UNMAPPED|VMA_INTERNAL;
-    new->prot   = PROT_READ|PROT_WRITE;
+    new->flags  = flags;
+    new->prot   = PROT_NONE;
 
     list_add(&new->list, prev ? &prev->list : &vma_list);
     unlock(vma_list_lock);
@@ -758,12 +770,22 @@ int lookup_overlap_vma (const void * addr, int length,
                         struct shim_vma ** vma)
 {
     struct shim_vma * tmp = NULL;
+    void * tmp_addr = NULL;
+    int tmp_length;
     lock(vma_list_lock);
 
     if ((tmp = __lookup_overlap_vma(addr, length, NULL)) && vma)
         get_vma((tmp));
 
+    if (tmp) {
+        tmp_addr = tmp->addr;
+        tmp_length = tmp->length;
+    }
+
     unlock(vma_list_lock);
+
+    if (tmp)
+        debug("vma overlapped at %p-%p\n", tmp_addr, tmp_addr + tmp_length);
 
     if (vma)
         *vma = tmp;
@@ -1145,6 +1167,9 @@ BEGIN_RS_FUNC(vma)
 
     unlock(vma_list_lock);
 
+    debug ("vma: %p-%p flags %x prot %p\n", vma->addr, vma->addr +
+           vma->length, vma->flags, vma->prot);
+
     if (!(vma->flags & VMA_UNMAPPED)) {
         if (vma->file) {
             struct shim_mount * fs = vma->file->fs;
@@ -1177,7 +1202,7 @@ BEGIN_RS_FUNC(vma)
         }
 
         if (need_mapped < vma->addr + vma->length) {
-            int pal_alloc_type = (vma->flags & MAP_32BIT) ? PAL_ALLOC_32BIT : 0;
+            int pal_alloc_type = 0;
             int pal_prot = vma->prot;
             if (DkVirtualMemoryAlloc(need_mapped,
                                      vma->addr + vma->length - need_mapped,

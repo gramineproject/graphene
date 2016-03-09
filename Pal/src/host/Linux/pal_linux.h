@@ -122,8 +122,7 @@ extern struct pal_linux_state {
 
 static inline int HOST_FLAGS (int alloc_type, int prot)
 {
-    return ((alloc_type & PAL_ALLOC_32BIT) ? MAP_32BIT : 0) |
-           ((alloc_type & PAL_ALLOC_RESERVE) ? MAP_NORESERVE|MAP_UNINITIALIZED : 0) |
+    return ((alloc_type & PAL_ALLOC_RESERVE) ? MAP_NORESERVE|MAP_UNINITIALIZED : 0) |
            ((prot & PAL_PROT_WRITECOPY) ? MAP_PRIVATE : MAP_SHARED);
 }
 

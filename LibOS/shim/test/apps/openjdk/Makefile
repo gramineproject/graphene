@@ -4,7 +4,14 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
-all: java test java.manifest
+TEST_CLASS = $(patsubst %.java,%,$(wildcard classes/*.java))
+
+target = java test java.manifest
+exec_target = java.manifest
+clean-extra = clean-classes
+
+level = ../../
+include ../../Makefile
 
 USE_UBUNTU_SRC = no
 VERSION := 7
@@ -115,11 +122,9 @@ $(JAVA_HOME)/bin/java: $(JRE_DIR)/bin/java
 	find $(JAVA_HOME) -type f -executable -exec strip --strip-debug {} \;
 
 distclean: clean
-	rm -rf $(INSTALL_DIR) $(JAVA_HOME)
+	rm -rf $(JAVA_DIR) $(JAVA_HOME)
 
 endif
-
-TEST_CLASS = $(patsubst %.java,%,$(wildcard *.java))
 
 java: $(TARGET)
 test: $(addsuffix .class,$(TEST_CLASS))
@@ -134,5 +139,5 @@ java_home:
 %.class: %.java $(JAVAC)
 	$(JAVAC) $<
 
-clean:
-	rm -rf java.manifest $(addsuffix .class,$(TEST_CLASS))
+clean-classes:
+	rm -f $(addsuffix .class,$(TEST_CLASS))

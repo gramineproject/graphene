@@ -4,9 +4,6 @@ CC	= gcc -g
 CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib
 
-target	= $(patsubst %.c,%,$(wildcard *.c)) \
-	  manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template))
-
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
 executables = $(filter-out $(preloads),$(patsubst %.c,%,$(wildcard *.c)))
 manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template))
@@ -17,7 +14,9 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
-all:	$(target)
+include ../src/Makefile.Test
+
+all:	$(call expand_target,$(target))
 
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath ../src/pal):g' \
@@ -61,7 +60,7 @@ endif
 
 PYTHONENV = "PYTHONPATH=../../Scripts"
 
-regression: $(target)
+regression: $(call expand_target,$(target))
 	@printf "\n\nBasic Bootstrapping:\n"
 	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f; done
 	@printf "\n\nException Handling:\n"
@@ -77,4 +76,4 @@ regression: $(target)
 	@printf "\n\n"
 
 clean:
-	rm -rf $(target) *.tmp .lib
+	rm -rf $(call expand_target,$(target)) *.tmp .lib

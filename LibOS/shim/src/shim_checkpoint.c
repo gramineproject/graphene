@@ -577,13 +577,16 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
             if (entry->paddr) {
                 *entry->paddr = entry->data;
             } else {
+                debug("memory entry [%p]: %p-%p\n", entry, entry->addr,
+                      entry->addr + entry->size);
+
                 PAL_PTR addr = ALIGN_DOWN(entry->addr);
                 PAL_NUM size = ALIGN_UP(entry->addr + entry->size) -
                                (void *) addr;
                 PAL_FLG prot = entry->prot;
 
                 if (!DkVirtualMemoryAlloc(addr, size, 0, prot|PAL_PROT_WRITE)) {
-                    debug("fail protecting %p-%p\n", addr, addr + size);
+                    debug("failed allocating %p-%p\n", addr, addr + size);
                     return -PAL_ERRNO;
                 }
 
@@ -592,8 +595,7 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
 
                 if (!(entry->prot & PAL_PROT_WRITE) &&
                     !DkVirtualMemoryProtect(addr, size, prot)) {
-                    debug("fail protecting %p-%p\n", addr, addr + size);
-                    return -PAL_ERRNO;
+                    debug("failed protecting %p-%p (ignored)\n", addr, addr + size);
                 }
             }
         }
@@ -916,6 +918,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     cpstore->bound    = CP_INIT_VMA_SIZE;
 
     while (1) {
+        debug("try allocate checkpoint store (size = %d)\n", cpstore->bound);
         cpstore->base = (ptr_t) cp_alloc(cpstore, 0, cpstore->bound);
         if (cpstore->base)
             break;
@@ -926,6 +929,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (!cpstore->base) {
         ret = -ENOMEM;
+        debug("failed creating checkpoint store\n");
         goto err;
     }
 
@@ -935,8 +939,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     va_start(ap, thread);
     ret = (*migrate) (cpstore, thread, new_process, ap);
     va_end(ap);
-    if (ret < 0)
+    if (ret < 0) {
+        debug("failed creating checkpoint (ret = %d)\n", ret);
         goto err;
+    }
 
     SAVE_PROFILE_INTERVAL(migrate_save_checkpoint);
 
@@ -981,6 +987,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     bytes = DkStreamWrite(proc, 0, sizeof(struct newproc_header), &hdr, NULL);
     if (!bytes) {
         ret = -PAL_ERRNO;
+        debug("failed writing to process stream (ret = %d)\n", ret);
         goto err;
     } else if (bytes < sizeof(struct newproc_header)) {
         ret = -EACCES;
@@ -993,8 +1000,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     ret = cpstore->use_gipc ? send_checkpoint_by_gipc(gipc_hdl, cpstore) :
           send_checkpoint_on_stream(proc, cpstore);
 
-    if (ret < 0)
+    if (ret < 0) {
+        debug("failed sending checkpoint (ret = %d)\n", ret);
         goto err;
+    }
 
     SAVE_PROFILE_INTERVAL(migrate_send_checkpoint);
 
@@ -1057,7 +1066,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     debug("checkpoint detected (%d bytes, expected at %p)\n",
           size, base);
 
-    if (base && !lookup_overlap_vma((void *) base, size, NULL)) {
+    if (base && lookup_overlap_vma((void *) base, size, NULL) == -ENOENT) {
         mapaddr = (PAL_PTR) ALIGN_DOWN(base);
         mapsize = (PAL_PTR) ALIGN_UP(base + size) - mapaddr;
         mapoff  = base - (ptr_t) mapaddr;

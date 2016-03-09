@@ -1,7 +1,7 @@
 #!$(PAL)
 
 loader.preload = file:$(SHIMPATH)
-loader.exec = file:R-local
+loader.exec = file:$(RDIR)/bin/exec/R
 loader.execname = $(RDIR)/bin/exec/R
 loader.env.LD_LIBRARY_PATH = $(RDIR)/lib:/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = $(RDIR)/bin:/usr/bin:/bin
@@ -42,4 +42,6 @@ fs.mount.other.tmp.type = chroot
 fs.mount.other.tmp.path = /tmp
 fs.mount.other.tmp.uri = file:
 
-sys.brk.size = 262144  # 256K
+sys.stack.size = 256K
+sys.brk.size = 4M
+glibc.heap_size = 16M

@@ -182,8 +182,11 @@ PAL_CONTROL * pal_control_addr (void);
  */
 
 /* Memory Allocation Flags */
-#define PAL_ALLOC_32BIT       0x0001   /* Only give out 32-bit addresses */
-#define PAL_ALLOC_RESERVE     0x0002   /* Only reserve the memory */
+#define PAL_ALLOC_RESERVE     0x0001   /* Only reserve the memory */
+
+#ifdef IN_PAL
+#define PAL_ALLOC_INTERNAL    0x8000
+#endif
 
 /* Memory Protection Flags */
 #define PAL_PROT_NONE       0x0     /* 0x0 Page can not be accessed. */

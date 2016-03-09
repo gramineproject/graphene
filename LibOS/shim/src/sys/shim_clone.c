@@ -253,8 +253,6 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             thread->stack_red = thread->stack = vma->addr;
             tcb->shim_tcb.context.sp = user_stack_addr;
             tcb->shim_tcb.context.ret_ip = *(void **) user_stack_addr;
-        } else {
-            tcb->shim_tcb.context.ret_ip = *(void **) tcb->shim_tcb.context.sp;
         }
 
         thread->is_alive = true;

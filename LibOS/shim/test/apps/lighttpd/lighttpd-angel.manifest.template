@@ -28,7 +28,9 @@ fs.mount.other.pwd.type = chroot
 fs.mount.other.pwd.path = $(PWD)
 fs.mount.other.pwd.uri = file:
 
-sys.stack.size = 131072
-
 # allow to bind on port for listening
 net.rules.1 = $(HOST):$(PORT):0.0.0.0:0-65535
+
+sys.stack.size = 256K
+sys.brk.size = 4M
+glibc.heap_size = 16M

@@ -163,14 +163,14 @@ enum {
 
 /* CLD_EXIT: thread exit */
 struct shim_ipc_cld_exit {
-    IDTYPE tid;
+    IDTYPE ppid, tid;
     unsigned int exitcode;
 #ifdef PROFILE
     unsigned long time;
 #endif
 } __attribute__((packed));
 
-int ipc_cld_exit_send (IDTYPE tid, unsigned int exitcode);
+int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode);
 int ipc_cld_exit_callback (IPC_CALLBACK_ARGS);
 
 /* CLD_JOIN: child join the parent group */

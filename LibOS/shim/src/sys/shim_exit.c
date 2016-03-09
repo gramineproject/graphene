@@ -50,11 +50,12 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     /* Chia-Che: Broadcast exit message as early as possible,
        so other process can start early on responding. */
     if (self->in_vm && send_ipc)
-        ipc_cld_exit_send(self->tid, self->exit_code);
+        ipc_cld_exit_send(self->ppid, self->tid, self->exit_code);
 
     lock(self->lock);
 
     if (!self->is_alive) {
+        debug("thread %d is dead\n", self->tid);
 out:
         unlock(self->lock);
         return 0;
@@ -95,11 +96,14 @@ out:
             info.si_uid   = self->uid;
             info.si_status = (exit_code & 0xff) << 8;
 
-            append_signal(parent, SIGCHLD, &info, false);
+            append_signal(parent, SIGCHLD, &info, true);
         }
         unlock(parent->lock);
 
         DkEventSet(parent->child_exit_event);
+    } else {
+        debug("parent not here, need to tell another process\n");
+        ipc_cld_exit_send(self->ppid, self->tid, self->exit_code);
     }
 
     struct robust_list_head * robust_list = (void *) self->robust_list;
@@ -127,7 +131,8 @@ int try_process_exit (int error_code)
 {
     struct shim_thread * cur_thread = get_cur_thread();
 
-    thread_exit(cur_thread, true);
+    if (cur_thread->in_vm)
+        thread_exit(cur_thread, true);
 
     if (check_last_thread(cur_thread))
         return 0;
@@ -136,6 +141,8 @@ int try_process_exit (int error_code)
 
     if (!exit_with_ipc_helper(true))
         shim_clean();
+    else
+        DkThreadExit();
 
     return 0;
 }

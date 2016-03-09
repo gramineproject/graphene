@@ -83,7 +83,7 @@ int get_norm_path (const char * path, char * buf, int offset, int size)
                 continue;
             }
         }
-        if (offset || c != '/') {
+        if (offset || c != '/' || *path == '/') {
             if (offset >= size - 1)
                 return -PAL_ERROR_TOOLONG;
             buf[offset++] = c;

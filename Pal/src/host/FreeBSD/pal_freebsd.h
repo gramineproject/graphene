@@ -99,8 +99,7 @@ extern struct pal_bsd_state {
 
 static inline int HOST_FLAGS (int alloc_type, int prot)
 {
-    return ((alloc_type & PAL_ALLOC_32BIT) ? MAP_32BIT : 0) |
-           ((alloc_type & PAL_ALLOC_RESERVE) ? MAP_NORESERVE : 0) |
+    return ((alloc_type & PAL_ALLOC_RESERVE) ? MAP_NORESERVE : 0) |
            ((prot & PAL_PROT_WRITECOPY) ? MAP_PRIVATE : MAP_SHARED);
 }
 

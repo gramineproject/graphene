@@ -38,7 +38,7 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 
 #if STATIC_SLAB == 1
 # warning "Using static slab"
-# define POOL_SIZE 4 * 1024 * 1024 /* 4MB by default */
+# define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
 static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];
@@ -61,7 +61,8 @@ static inline void * __malloc (int size)
     }
 #endif
 
-    _DkVirtualMemoryAlloc(&addr, size, 0, PAL_PROT_READ|PAL_PROT_WRITE);
+    _DkVirtualMemoryAlloc(&addr, size, PAL_ALLOC_INTERNAL,
+                          PAL_PROT_READ|PAL_PROT_WRITE);
     return addr;
 }
 

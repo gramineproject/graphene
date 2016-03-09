@@ -38,4 +38,6 @@ fs.mount.other.tmp.type = chroot
 fs.mount.other.tmp.path = /tmp
 fs.mount.other.tmp.uri = file:
 
-sys.brk.size = 262144  # 256K
+sys.stack.size = 256K
+sys.brk.size = 4M
+glibc.heap_size = 16M

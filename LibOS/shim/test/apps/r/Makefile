@@ -1,13 +1,17 @@
-manifests = R.manifest R-local.manifest
+manifest = R$(if $(LOCAL),-local,).manifest
 
-all debug: $(manifests)
+target =
+exec_target = $(manifest)
+clean-extra = clean-local
+
+level = ../../
+include ../../Makefile
+
+local:
+	make LOCAL=1
 
 R_SRC = R-3.1.2
 R_INSTALL = $(R_SRC)/build
-local: R-local
-
-R-local: $(R_INSTALL)/lib/R/bin/exec/R
-	cp -f $< $@
 
 $(R_INSTALL)/lib/R/bin/exec/R: $(R_SRC)/Makefile
 	cd $(R_SRC) && $(MAKE)
@@ -27,14 +31,14 @@ test: all $(test_targets)
 R.manifest: R.manifest.template
 	$(MAKE) -C .. r/$@ appdir=r/
 
-R-local.manifest: R-local.manifest.template
+R-local.manifest: R-local.manifest.template $(R_INSTALL)/lib/R/bin/exec/R
 	$(MAKE) -C .. r/$@ appdir=r/ \
-		extra_rules="-e 's:\\\$$\$$(RDIR):$(shell readlink -f $(R_INSTALL)/lib/R):g'"
+		extra_rules="-e 's:\\\$$\$$(RDIR):$(shell readlink -f $(R_INSTALL)/lib/R)/:g'"
 
 distclean: clean
-	rm -rf $(R_SRC) R-local
+	rm -rf $(R_SRC)
 
-clean: clean-manifests
-
-clean-manifests:
-	rm -rf $(manifests)
+clean-local:
+ifneq ($(LOCAL),1)
+	make clean LOCAL=1
+endif

@@ -6,9 +6,14 @@ CORES = 4
 
 conf_files = lighttpd-server.conf lighttpd.conf lighttpd-multithreaded.conf
 
-all: build/sbin/lighttpd $(manifests) $(conf_files) test-data
+target = build/sbin/lighttpd $(conf_files) test-data
+exec_target = $(manifests)
+clean-extra = clean-others
 
-%.manifest: %.manifest.template
+level = ../../
+include ../../Makefile
+
+$(manifests): %.manifest: %.manifest.template build/sbin/lighttpd build/sbin/lighttpd-angel
 	$(MAKE) -C .. lighttpd/$@ appdir=lighttpd/ \
 		extra_rules="-e 's:\\\$$\$$(HOST):$(HOST):g' -e 's:\\\$$\$$(PORT):$(PORT):g'"
 
@@ -109,5 +114,5 @@ test-data: $(test-data)
 distclean: clean
 	rm -rf build $(SRCDIR)
 
-clean:
+clean-others:
 	rm -rf $(conf_files) $(test-data)

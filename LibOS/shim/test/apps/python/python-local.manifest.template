@@ -1,14 +1,14 @@
 #!$(PAL)
 
 loader.preload = file:$(SHIMPATH)
-loader.exec = file:python-local
+loader.exec = file:$(PYTHONDIR)bin/python
 loader.execname = python
-loader.env.LD_LIBRARY_PATH = $(PYTHONDIR)/lib:/graphene:/host:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = $(PYTHONDIR)lib:/graphene:/host:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = $(PYTHONDIR)/bin:/usr/bin:/bin
 loader.env.USERNAME =
 loader.env.HOME =
 loader.env.PWD =
-loader.env.PYTHONPATH = $(PYTHONDIR)/bin/python
+loader.env.PYTHONPATH = $(PYTHONDIR)bin/python
 loader.env.PYTHONHOME = $(PYTHONDIR)
 loader.debug_type = none
 
@@ -35,4 +35,6 @@ fs.mount.other.usr.type = chroot
 fs.mount.other.usr.path = /usr
 fs.mount.other.usr.uri = file:/usr
 
-sys.brk.size = 262144  # 256K
+sys.stack.size = 256K
+sys.brk.size = 4M
+glibc.heap_size = 16M

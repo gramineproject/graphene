@@ -9,11 +9,6 @@
 int main (int argc, char ** argv, char ** envp)
 {
     PAL_NUM values[4];
-    DkCpuIdRetrieve(0, values);
-
-    pal_printf("cpuid[0] = %08x %08x %08x %08x\n", values[0], values[1],
-               values[2], values[3]);
-
     asm volatile("mov $0, %%rax\n"
                  "cpuid\n"
                  : "=a"(values[0]),

@@ -1,4 +1,4 @@
-subdirs = inline native benchmark regression apps
+subdirs = native apps
 
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
@@ -14,19 +14,17 @@ LDFLAGS-debug = $(LDFLAGS) -L$(level)../src -L$(level)../../../Pal/src \
 		-Wl,-rpath-link=$(abspath $(level)../../../Pal/src) \
 		-lpal -lsysdb_debug
 
+include $(level)../../../Pal/src/Makefile.Test
+
 libs = $(level)../src/libsysdb_debug.so $(level)../../../Pal/src/libpal.so
 glibc_dir = $(level)../../build
 
-all: $(target) $(if $(level),,build-subdirs)
+all: $(call expand_target,$(exec_target)) $(target) $(if $(level),,build-subdirs)
 
 debug: DEBUG=debug
 debug: CC=gcc -g
 debug: CXX=g++ -g
 debug: $(target) $(if $(level),,build-subdirs)
-
-manifest: manifest.template
-	rm -rf $@
-	cp $@.template $@
 
 pal:
 	[ ! -f $(level)../../../Pal/src/pal ] || ln -sf $(level)../../../Pal/src/pal pal
@@ -37,7 +35,7 @@ pal_sec:
 .PHONY: test clean
 
 clean: $(clean-extra) $(if $(level),,clean-subdirs)
-	rm -rf $(target)
+	rm -rf $(call expand_target,$(exec_target)) $(target)
 
 build-subdirs:
 	for f in $(subdirs); do (cd $$f; $(MAKE) $(DEBUG); cd ..); done

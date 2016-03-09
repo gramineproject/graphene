@@ -29,4 +29,6 @@ fs.mount.other.usr.type = chroot
 fs.mount.other.usr.path = /usr
 fs.mount.other.usr.uri = file:/usr
 
-sys.brk.size = 262144  # 256K
+sys.stack.size = 256K
+sys.brk.size = 4M
+glibc.heap_size = 16M

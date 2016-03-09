@@ -15,4 +15,6 @@
 
 #define CP_INIT_VMA_SIZE            (64 * 1024 * 1024)  /* 64MB */
 
+#define EXECVE_RTLD                 1
+
 #endif /* _SHIM_DEFS_H_ */

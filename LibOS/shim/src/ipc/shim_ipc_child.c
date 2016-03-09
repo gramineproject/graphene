@@ -36,8 +36,8 @@
 
 #include <errno.h>
 
-static int ipc_thread_exit (IDTYPE vmid, IDTYPE tid, unsigned int exitcode,
-                            unsigned long exit_time)
+static int ipc_thread_exit (IDTYPE vmid, IDTYPE ppid, IDTYPE tid,
+                            unsigned int exitcode, unsigned long exit_time)
 {
     assert(vmid != cur_process.vmid);
 
@@ -178,7 +178,7 @@ DEFINE_PROFILE_INTERVAL(ipc_cld_exit_turnaround, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_send, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_callback, ipc);
 
-int ipc_cld_exit_send (IDTYPE tid, unsigned int exitcode)
+int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode)
 {
     unsigned long send_time = GET_PROFILE_INTERVAL();
     BEGIN_PROFILE_INTERVAL_SET(send_time);
@@ -189,13 +189,14 @@ int ipc_cld_exit_send (IDTYPE tid, unsigned int exitcode)
                                     sizeof(struct shim_ipc_cld_exit), 0);
     struct shim_ipc_cld_exit * msgin =
                 (struct shim_ipc_cld_exit *) &msg->msg;
+    msgin->ppid = ppid;
     msgin->tid = tid;
     msgin->exitcode = exitcode;
 #ifdef PROFILE
     msgin->time = send_time;
 #endif
 
-    debug("ipc broadcast: IPC_CLD_EXIT(%u, %d)\n", tid, exitcode);
+    debug("ipc broadcast: IPC_CLD_EXIT(%u, %u, %d)\n", ppid, tid, exitcode);
 
     ret = broadcast_ipc(msg, NULL, 0, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_send);
@@ -215,10 +216,11 @@ int ipc_cld_exit_callback (IPC_CALLBACK_ARGS)
     BEGIN_PROFILE_INTERVAL_SET(time);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_turnaround);
 
-    debug("ipc callback from %u: IPC_CLD_EXIT(%u, %d)\n",
-          msg->src, msgin->tid, msgin->exitcode);
+    debug("ipc callback from %u: IPC_CLD_EXIT(%u, %u, %d)\n",
+          msg->src, msgin->ppid, msgin->tid, msgin->exitcode);
 
-    int ret = ipc_thread_exit(msg->src, msgin->tid, msgin->exitcode, time);
+    int ret = ipc_thread_exit(msg->src, msgin->ppid, msgin->tid,
+                              msgin->exitcode, time);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_callback);
     return ret;
 }
