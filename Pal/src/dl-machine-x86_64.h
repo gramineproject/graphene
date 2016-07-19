@@ -48,7 +48,7 @@ elf_machine_rela (struct link_map *l, Elf64_Rela *reloc, Elf64_Sym *sym,
     Elf64_Addr *const reloc_addr = reloc_addr_arg;
     const unsigned long int r_type = ELF64_R_TYPE (reloc->r_info);
 
-    const char * __attribute__ ((unused)) strtab =
+    const char * __attribute_unused strtab =
                             (const void *) D_PTR (l->l_info[DT_STRTAB]);
 
 #ifdef DEBUG_RELOC
@@ -83,7 +83,7 @@ elf_machine_rela (struct link_map *l, Elf64_Rela *reloc, Elf64_Sym *sym,
 
     Elf64_Addr value = l->l_addr + sym->st_value;
 #ifndef RTLD_BOOTSTRAP
-    Elf64_Addr sym_map = 0;
+    struct link_map * sym_map = 0;
 
     if (sym->st_shndx == SHN_UNDEF) {
         value = RESOLVE_RTLD(strtab + sym->st_name);
@@ -94,13 +94,15 @@ elf_machine_rela (struct link_map *l, Elf64_Rela *reloc, Elf64_Sym *sym,
                 return;
 
             assert(sym);
-            value = sym_map + sym->st_value;
+            value = sym_map->l_addr + sym->st_value;
         }
 
-        if (!sym_map || (void *) sym_map == pal_state.pal_addr) {
+#if CACHE_LOADED_BINARIES == 1
+        if (!sym_map || sym_map->l_type == OBJECT_RTLD) {
             assert(l->nrelocs < NRELOCS);
             l->relocs[l->nrelocs++] = reloc_addr;
         }
+#endif
     }
 #endif
 
@@ -144,7 +146,7 @@ elf_machine_rela (struct link_map *l, Elf64_Rela *reloc, Elf64_Sym *sym,
 
         case R_X86_64_IRELATIVE:
             debug_reloc(R_X86_64_IRELATIVE);
-            value = sym_map + reloc->r_addend;
+            value = sym_map->l_addr + reloc->r_addend;
             value = ((Elf64_Addr (*) (void)) value) ();
             *reloc_addr = value;
             break;

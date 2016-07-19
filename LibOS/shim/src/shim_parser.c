@@ -403,7 +403,7 @@ struct parser_table {
 
 static inline int is_pointer (const char * type)
 {
-    return type[strlen(type) - 1] == '*' || !memcmp(type, "long", 5);
+    return type[strlen(type) - 1] == '*' || strcmp_static(type, "long");
 }
 
 #define PRINTF(fmt, ...)                            \
@@ -442,7 +442,7 @@ static inline void parse_syscall_args (va_list * ap)
 {
     const char * arg_type = va_arg(ap, const char *);
 
-    if (memcmp(arg_type, "const char *", 13) == 0)
+    if (strcmp_static(arg_type, "const char *"))
         parse_string_arg(ap);
     else if (is_pointer(arg_type))
         parse_pointer_arg(ap);
@@ -454,7 +454,7 @@ static inline void skip_syscall_args (va_list * ap)
 {
     const char * arg_type = va_arg (ap, const char *);
 
-    if (memcmp(arg_type, "const char *", 13) == 0)
+    if (strcmp_static(arg_type, "const char *"))
         va_arg(ap, const char *);
     else if (is_pointer(arg_type))
         va_arg(ap, void *);

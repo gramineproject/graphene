@@ -35,6 +35,13 @@ regression.run_checks()
 
 regression = Regression(loader, "Process2")
 
+regression.add_check(name="Process Creation with a Different Binary",
+    check=lambda res: check_times("User Program Started", res[0].log, 1))
+
+regression.run_checks()
+
+regression = Regression(loader, "Process3")
+
 regression.add_check(name="Process Creation without Executable",
     check=lambda res: check_times("Binary 1 Preloaded", res[0].log, 2) and
                       check_times("Binary 2 Preloaded", res[0].log, 2))

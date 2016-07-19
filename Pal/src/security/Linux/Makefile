@@ -13,10 +13,10 @@ graphene_lib = ../../.lib/graphene-lib.a
 
 all: libpal_sec.so
 
-debug: debug = debug
-debug: CC = gcc -g
-debug: CFLAGS += -DDEBUG
-debug: libpal_sec.so
+ifeq ($(DEBUG),1)
+CC += -g
+CFLAGS += -DDEBUG
+endif
 
 libpal_sec.so: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ security/Linux/$@ ]

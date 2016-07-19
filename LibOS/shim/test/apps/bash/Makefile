@@ -1,34 +1,23 @@
-bash_src = bash-4.1
+BASH_DIR = bash-4.1
 
-manifests = bash.manifest bash-local.manifest
+manifests = $(addsuffix .manifest,bash ls cp rm)
+exec_target = $(manifests)
 
-all debug: $(manifests)
+extra_rules = -e 's:\$$(PAL):../pal_loader:g'
 
-test_targets =  testsamplebash
+level = ../../
+include ../../Makefile
 
-bash-local: $(bash_src)/bash
-	cp $< bash-local
-
-$(bash_src): $(bash_src).tar.gz
+$(bash_src): $(BASH_DIR).tar.gz
 	tar -xzf $<
 
-$(bash_src)/bash: $(bash_src)
-	cd $(bash_src) && ./configure --without-gnu-malloc
-	cd $(bash_src) && $(MAKE) CC="gcc -g"
+$(bash_src)/bash: $(BASH_DIR)
+	cd $(BASH_DIR) && ./configure --without-gnu-malloc
+	cd $(BASH_DIR) && $(MAKE) CC="gcc -g"
 
-test: all $(test_targets)
-
-testsamplebash:
-	bash bash_test.sh
-
-%.manifest: %.manifest.template
-	$(MAKE) -C .. bash/$@ appdir=bash/
-
-clean: clean-manifests
+bash-local: $(BASH_DIR)/bash
+	cp $< bash-local
 
 distclean: clean-manifests
 	rm -rf $(bash_src)
 	rm -rf bash result $(test_targets)
-
-clean-manifests:
-	rm -rf $(manifests)

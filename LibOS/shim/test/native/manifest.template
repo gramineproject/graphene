@@ -1,22 +1,29 @@
-loader.preload = file:../../src/libsysdb.so
+loader.preload = file:$(SHIMPATH)
 loader.env.LD_LIBRARY_PATH = /lib
 loader.debug_type = inline
 loader.syscall_symbol = syscalldb
 
-fs.mount.root.type = chroot
-fs.mount.root.uri = file:
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(LIBCDIR)
 
-fs.mount.other.lib.type = chroot
-fs.mount.other.lib.path = /lib
-fs.mount.other.lib.uri = file:../../../build
+fs.mount.bin.type = chroot
+fs.mount.bin.path = /bin
+fs.mount.bin.uri = file:/bin
 
-fs.mount.other.bin.type = chroot
-fs.mount.other.bin.path = /bin
-fs.mount.other.bin.uri = file:/bin
+sys.brk.size = 32M
+sys.stack.size = 4M
 
 # allow to bind on port 8000
 net.allow_bind.1 = 127.0.0.1:8000
 # allow to connect to port 8000
 net.allow_peer.1 = 127.0.0.1:8000
 
-# sys.ask_for_checkpoint = 1
+# sgx-related
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.victim = file:exec_victim
+sgx.trusted_children.victim = file:exec_victim.sig

@@ -1,5 +1,5 @@
 
-                           Graphene Library OS
+              Graphene Library OS with Intel SGX Support
 
         A Linux-compatible Library OS for Multi-Process Applications
 
@@ -61,7 +61,7 @@ in the configuration:
 
 Each part of Graphene can be built separately in the subdirectories.
 
-To build Graphene library OS with debug symbol, run "make debug" instead of
+To build Graphene library OS with debug symbol, run "make DEBUG=1" instead of
 "make".
 
 For more details about the building and installation, see the Graphene github
@@ -116,11 +116,9 @@ Here is an example of manifest files:
 
     loader.preload = file:LibOS/shim/src/libsysdb.so
     loader.env.LDL_LIBRAY_PATH = /lib
-    fs.mount.root.type = chroot
-    fs.mount.root.uri = file:/
-    fs.mount.other.glibc.type = chroot
-    fs.mount.other.glibc.path = /lib
-    fs.mount.other.glibc.uri = file:LibOS/build
+    fs.mount.glibc.type = chroot
+    fs.mount.glibc.path = /lib
+    fs.mount.glibc.uri = file:LibOS/build
 
 More examples can be found in the test directories (LibOS/shim/test). We have
 also tested several commercial applications such as GCC, Bash and Apache,

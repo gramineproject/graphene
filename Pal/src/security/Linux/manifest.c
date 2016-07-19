@@ -30,15 +30,15 @@
 
 static inline int is_file_uri (const char * uri)
 {
-    return uri[0] == 'f' && uri[1] == 'i' && uri[2] == 'l' && uri[3] == 'e' &&
-           uri[4] == ':';
+    return strpartcmp_static(uri, "file:");
 }
 
 static inline const char * file_uri_to_path (const char * uri, int len)
 {
+    int prefix_len = static_strlen("file:");
     char * path;
 
-    if (len == 5) {
+    if (len == prefix_len) {
         path = malloc(2);
         if (!path)
             return NULL;
@@ -48,11 +48,11 @@ static inline const char * file_uri_to_path (const char * uri, int len)
         return path;
     }
 
-    path = malloc(len - 4);
+    path = malloc(len - prefix_len + 1);
     if (!path)
         return NULL;
 
-    memcpy(path, uri + 5, len - 4);
+    memcpy(path, uri + prefix_len, len - prefix_len + 1);
     return path;
 }
 
@@ -103,15 +103,10 @@ next:
 
 int get_fs_paths (struct config_store * config, const char *** paths)
 {
-    const char * root_path = __get_path(config, "fs.mount.root.uri");
-
-    if (!root_path)
-        return 0;
-
     char keys[CONFIG_MAX];
     int nkeys;
 
-    if ((nkeys = get_config_entries(config, "fs.mount.other", keys,
+    if ((nkeys = get_config_entries(config, "fs.mount", keys,
                                     CONFIG_MAX)) < 0)
         nkeys = 0;
 
@@ -119,21 +114,22 @@ int get_fs_paths (struct config_store * config, const char *** paths)
     if (!(*paths))
         return -ENOMEM;
 
-    (*paths)[0] = root_path;
+    (*paths)[0] = ".";
     int npaths = 1;
 
     if (!nkeys)
         goto out;
 
     char key[CONFIG_MAX], * k = keys, * n;
+    char * tmp;
 
-    memcpy(key, "fs.mount.other.", 15);
+    tmp = strcpy_static(key, "fs.mount.", CONFIG_MAX);
 
     for (int i = 0 ; i < nkeys ; i++) {
         for (n = k ; *n ; n++);
         int len = n - k;
-        memcpy(key + 15, k, len);
-        memcpy(key + 15 + len, ".uri", 5);
+        memcpy(tmp, k, len);
+        strcpy_static(tmp + len, ".uri", (key + CONFIG_MAX) - (tmp + len));
 
         const char * path = __get_path(config, key);
         if (path)
@@ -168,6 +164,7 @@ int get_net_rules (struct config_store * config,
 
     for (int t = 0 ; t < 2 ; t ++) {
         char key[CONFIG_MAX], * k, * n;
+        char * tmp;
         int nadded;
 
         if (t == 0) {
@@ -175,13 +172,13 @@ int get_net_rules (struct config_store * config,
                 continue;
             k = binds;
             nadded = nbinds;
-            memcpy(key, "net.allow_bind.", 15);
+            tmp = strcpy_static(key, "net.allow_bind.", CONFIG_MAX);
         } else {
             if (!npeers)
                 continue;
             k = peers;
             nadded = npeers;
-            memcpy(key, "net.allow_peer.", 15);
+            tmp = strcpy_static(key, "net.allow_peer.", CONFIG_MAX);
         }
 
         for (int i = 0 ; i < nadded ; i++) {
@@ -190,8 +187,8 @@ int get_net_rules (struct config_store * config,
 
             for (n = k ; *n ; n++);
             int len = n - k;
-            memcpy(key + 15, k, len + 1);
-            key[15 + len] = 0;
+            memcpy(tmp, k, len + 1);
+            tmp[len] = 0;
 
             int cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
             if (cfglen <= 0)

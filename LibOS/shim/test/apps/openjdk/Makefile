@@ -4,14 +4,17 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
-TEST_CLASS = $(patsubst %.java,%,$(wildcard classes/*.java))
-
-target = java test java.manifest
+target = build-java $(patsubst %.java,%.class,$(wildcard classes/*.java))
 exec_target = java.manifest
+
 clean-extra = clean-classes
+
+extra_rules = -e 's:\$$(PAL):../pal_loader:g' -e 's:\$$(JAVA_HOME):$(JAVA_HOME):g'
 
 level = ../../
 include ../../Makefile
+
+TEST_CLASS = $(patsubst %.java,%,$(wildcard classes/*.java))
 
 USE_UBUNTU_SRC = no
 VERSION := 7
@@ -94,7 +97,6 @@ INSTALL_DIR = $(JAVA_DIR)/build/linux-amd64
 JRE_DIR = $(INSTALL_DIR)/j2sdk-image/jre
 JDK_DIR = $(INSTALL_DIR)/j2sdk-image
 JAVAC = $(JDK_DIR)/bin/javac
-TARGET = $(JAVA_HOME)/bin/java $(JAVAC)
 
 $(JRE_DIR)/bin/java $(JAVAC): $(JAVA_SRC)
 	cd $(JAVA_DIR) && \
@@ -126,12 +128,7 @@ distclean: clean
 
 endif
 
-java: $(TARGET)
-test: $(addsuffix .class,$(TEST_CLASS))
-
-%.manifest: %.manifest.template
-	$(MAKE) -C .. openjdk/$@ appdir=openjdk/ \
-		extra_rules="-e 's:\\\$$\$$(JAVA_HOME):$(JAVA_HOME):g'"
+build-java: $(JAVA_HOME)/bin/java $(JAVAC)
 
 java_home:
 	@echo $(JAVA_HOME)

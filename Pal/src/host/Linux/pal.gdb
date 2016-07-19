@@ -13,7 +13,7 @@ command
     continue
 end
 
-break __thread_start
+break thread_start
 command
     silent
     continue

@@ -27,7 +27,7 @@ home = os.getcwd()
 glibc = "glibc-2.19"
 glibcParent = "" # glibc parent directory
 glibcDir = ""    # glibc dir (ex. glibc-2.19)
-buildDir = "build"
+buildDir = "glibc-build"
 installDir = os.path.dirname(home) + '/Runtime/'
 do_install = False
 commandStr = ""
@@ -38,7 +38,7 @@ debug_flags = ""
 for arg in sys.argv[1:]:
     if arg == '--quiet' or arg == '-q':
         quiet = True
-    if arg == 'debug':
+    if arg == '--debug':
         debug_flags = "-g"
     if arg == 'install':
         do_install = True

@@ -41,15 +41,15 @@
 #include <linux/time.h>
 #include <unistd.h>
 
-#if defined(__i386__)
-#define rmb()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
-#define cpu_relax()     asm volatile("rep; nop" ::: "memory");
+#ifdef __i386__
+# define rmb()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
+# define cpu_relax()     asm volatile("rep; nop" ::: "memory");
 #endif
 
-#if defined(__x86_64__)
-#include <unistd.h>
-#define rmb()           asm volatile("lfence" ::: "memory")
-#define cpu_relax()     asm volatile("rep; nop" ::: "memory");
+#ifdef __x86_64__
+# include <unistd.h>
+# define rmb()           asm volatile("lfence" ::: "memory")
+# define cpu_relax()     asm volatile("rep; nop" ::: "memory");
 #endif
 
 #define MUTEX_SPINLOCK_TIMES    20

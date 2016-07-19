@@ -1,8 +1,8 @@
 #!/bin/bash
 
 BASE=0x1021000
-PAL=$(SRCDIR)/pal
-PALGDBINIT=$(SRCDIR)/pal.gdbinit
+PAL=$(PAL_DIR)/pal
+PALGDBINIT=$(PAL_DIR)/pal.gdbinit
 
 if [ ! -f $PALGDBINIT ] || [ $PAL -nt $PALGDBINIT ]; then
 	echo "symbol-file" > $PALGDBINIT
@@ -18,4 +18,4 @@ if [ ! -f $PALGDBINIT ] || [ $PAL -nt $PALGDBINIT ]; then
 	echo add-symbol-file $PAL $TEXT $SECTIONS >> $PALGDBINIT)
 fi
 
-exec gdb -q -ex "source $PALGDBINIT" -ex "source $(SRCDIR)/host/FreeBSD/pal.gdb" --args $PAL "$@"
+exec gdb -q -ex "source $PALGDBINIT" -ex "source $(PAL_DIR)/pal.gdb" --args $PAL "$@"

@@ -99,9 +99,9 @@ typedef union pal_handle
         PAL_HDR __in;
         PAL_IDX fd;
         PAL_STR realpath;
-        PAL_BUF buf;
-        PAL_BUF ptr;
-        PAL_BUF end;
+        PAL_PTR buf;
+        PAL_PTR ptr;
+        PAL_PTR end;
         PAL_BOL endofstream;
     } dir;
 
@@ -114,8 +114,8 @@ typedef union pal_handle
     struct {
         PAL_HDR __in;
         PAL_IDX fd;
-        PAL_BUF bind;
-        PAL_BUF conn;
+        PAL_PTR bind;
+        PAL_PTR conn;
         PAL_BOL nonblocking;
         PAL_BOL reuseaddr;
         PAL_NUM linger;

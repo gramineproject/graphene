@@ -47,7 +47,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
 {
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
-    if (handle->__in.flags & HAS_FDS) {
+    if (HANDLE_HDR(handle)->flags & HAS_FDS) {
         struct timespec timeout_ts;
 
         if (timeout >= 0) {
@@ -64,17 +64,17 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
         for (int i = 0 ; i < MAX_FDS ; i++) {
             int events = 0;
 
-            if ((handle->__in.flags & RFD(i)) &&
-                !(handle->__in.flags & ERROR(i)))
+            if ((HANDLE_HDR(handle)->flags & RFD(i)) &&
+                !(HANDLE_HDR(handle)->flags & ERROR(i)))
                 events |= POLLIN;
 
-            if ((handle->__in.flags & WFD(i)) &&
-                !(handle->__in.flags & WRITEABLE(i)) &&
-                !(handle->__in.flags & ERROR(i)))
+            if ((HANDLE_HDR(handle)->flags & WFD(i)) &&
+                !(HANDLE_HDR(handle)->flags & WRITEABLE(i)) &&
+                !(HANDLE_HDR(handle)->flags & ERROR(i)))
                 events |= POLLOUT;
 
             if (events) {
-                fds[nfds].fd = handle->__in.fds[i];
+                fds[nfds].fd = HANDLE_HDR(handle)->fds[i];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 off[nfds] = i;
@@ -105,9 +105,9 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
             if (!fds[i].revents)
                 continue;
             if (fds[i].revents & POLLOUT)
-                handle->__in.flags |= WRITEABLE(off[i]);
+                HANDLE_HDR(handle)->flags |= WRITEABLE(off[i]);
             if (fds[i].revents & (POLLHUP|POLLERR))
-                handle->__in.flags |= ERROR(off[i]);
+                HANDLE_HDR(handle)->flags |= ERROR(off[i]);
         }
 
         return 0;
@@ -145,7 +145,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
         if (!hdl)
             continue;
 
-        if (!(hdl->__in.flags & HAS_FDS))
+        if (!(HANDLE_HDR(hdl)->flags & HAS_FDS))
             return -PAL_ERROR_NOTSUPPORT;
 
         /* eliminate repeated entries */
@@ -154,7 +154,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
                 break;
         if (j == i) {
             for (j = 0 ; j < MAX_FDS ; j++)
-                if (hdl->__in.flags & (RFD(j)|WFD(j)))
+                if (HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j)))
                     maxfds++;
         }
     }
@@ -177,17 +177,17 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
         for (j = 0 ; j < MAX_FDS ; j++) {
             int events = 0;
 
-            if ((hdl->__in.flags & RFD(j)) &&
-                !(hdl->__in.flags & ERROR(j)))
+            if ((HANDLE_HDR(hdl)->flags & RFD(j)) &&
+                !(HANDLE_HDR(hdl)->flags & ERROR(j)))
                 events |= POLLIN;
 
-            if ((hdl->__in.flags & WFD(j)) &&
-                !(hdl->__in.flags & WRITEABLE(j)) &&
-                !(hdl->__in.flags & ERROR(j)))
+            if ((HANDLE_HDR(hdl)->flags & WFD(j)) &&
+                !(HANDLE_HDR(hdl)->flags & WRITEABLE(j)) &&
+                !(HANDLE_HDR(hdl)->flags & ERROR(j)))
                 events |= POLLOUT;
 
-            if (events && hdl->__in.fds[j] != PAL_IDX_POISON) {
-                fds[nfds].fd = hdl->__in.fds[j];
+            if (events && HANDLE_HDR(hdl)->fds[j] != PAL_IDX_POISON) {
+                fds[nfds].fd = HANDLE_HDR(hdl)->fds[j];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 hdls[nfds] = hdl;
@@ -240,17 +240,17 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
         }
 
         for (j = 0 ; j < MAX_FDS ; j++)
-            if ((hdl->__in.flags & (RFD(j)|WFD(j))) &&
-                hdl->__in.fds[j] == fds[i].fd)
+            if ((HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j))) &&
+                HANDLE_HDR(hdl)->fds[j] == fds[i].fd)
                 break;
 
         if (j == MAX_FDS)
             continue;
 
         if (fds[i].revents & POLLOUT)
-            hdl->__in.flags |= WRITEABLE(j);
+            HANDLE_HDR(hdl)->flags |= WRITEABLE(j);
         if (fds[i].revents & (POLLHUP|POLLERR))
-            hdl->__in.flags |= ERROR(j);
+            HANDLE_HDR(hdl)->flags |= ERROR(j);
     }
 
     *polled = polled_hdl;

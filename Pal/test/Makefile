@@ -4,6 +4,7 @@ CC	= gcc
 CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib
 
+default: all
 include ../src/Makefile.Test
 
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
@@ -19,8 +20,10 @@ headers = $(wildcard ../include/pal/*.h)
 
 all:	$(call expand_target,$(target))
 
-debug:	CC=gcc -g
-debug:	$(target)
+ifeq ($(DEBUG),1)
+CC += -g
+endif
+export DEBUG
 
 manifest: manifest.template
 	cp -f $< $@
@@ -34,7 +37,7 @@ $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 	@$(CC) $(CFLAGS) $(if $(filter Pie,$@),-fPIC -pie,) $^ -o $@
 
 $(graphene_lib):
-	$(MAKE) -C ../lib target=$(shell pwd)/.lib/ $(debug)
+	$(MAKE) -C ../lib target=$(shell pwd)/.lib/
 
 .PHONY: pack
 pack: $(executables)
@@ -45,4 +48,4 @@ $(executables): .packed/test.tar.gz
 endif
 
 clean:
-	rm -rf $(call expand_target,$(target)) .lib
+	rm -rf $(call expand_target,$(target)) .lib *.cached

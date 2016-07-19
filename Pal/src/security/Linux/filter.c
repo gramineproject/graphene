@@ -87,6 +87,8 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_rt_sigaction,      ALLOW),              \
     SYSCALL(__NR_rt_sigprocmask,    ALLOW),              \
     SYSCALL(__NR_rt_sigreturn,      ALLOW)
+#else
+# error "Unsupported architecture"
 #endif
 
 #define SYSCALL_ACTIONS                                  \

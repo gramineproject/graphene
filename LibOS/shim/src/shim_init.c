@@ -147,7 +147,7 @@ long int glibc_option (const char * opt)
 {
     char cfg[CONFIG_MAX];
 
-    if (!memcmp(opt, "heap_size", 9)) {
+    if (strcmp_static(opt, "heap_size")) {
         int ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
         if (ret < 0) {
             debug("no glibc option: %s (err=%d)\n", opt, ret);
@@ -390,19 +390,20 @@ int read_environs (const char ** envp)
     for (const char ** e = envp ; *e ; e++) {
         switch ((*e)[0]) {
             case 'L': {
-                if (!memcmp(*e, "LD_LIBRARY_PATH=", 16)) {
+                if (strpartcmp_static(*e, "LD_LIBRARY_PATH=")) {
+                    const char * s = *e + static_strlen("LD_LIBRARY_PATH=");
                     int npaths = 0;
-                    for (const char * s = (*e) + 16 ; *s ; s++)
-                        if (*s == ':')
+                    for (const char * tmp = s ; *tmp ; tmp++)
+                        if (*tmp == ':')
                             npaths++;
                     const char ** paths = malloc(sizeof(const char *) *
                                                  (npaths + 1));
                     if (!paths)
                         return -ENOMEM;
 
-                    const char * s = (*e) + 16, * next;
                     int cnt = 0;
                     while (*s) {
+                        const char * next;
                         for (next = s ; *next && *next != ':' ; next++);
                         int len = next - s;
                         char * str = malloc(len + 1);
@@ -421,7 +422,7 @@ int read_environs (const char ** envp)
                 break;
             }
             case 'I': {
-                if (!memcmp(*e, "IN_GDB=1", 8)) {
+                if (strcmp_static(*e, "IN_GDB=1")) {
                     in_gdb = true;
                     break;
                 }
@@ -528,7 +529,7 @@ static void set_profile_enabled (const char ** envp)
 {
     const char ** p;
     for (p = envp ; (*p) ; p++)
-        if (!memcmp(*p, "PROFILE_ENABLED=", 16))
+        if (strpartcmp_static(*p, "PROFILE_ENABLED="))
             break;
     if (!(*p))
         return;
@@ -707,7 +708,7 @@ int shim_init (int argc, void * args, void ** return_stack)
     debug("shim loaded at %p, ready to initialize\n", &__load_address);
 
     if (argc && argv[0][0] == '-') {
-        if (!memcmp(argv[0], "-resume", 8) && argc >= 2) {
+        if (strcmp_static(argv[0], "-resume") && argc >= 2) {
             const char * filename = *(argv + 1);
             argc -= 2;
             argv += 2;
@@ -922,7 +923,7 @@ static int open_pal_handle (const char * uri, void * obj)
 {
     PAL_HANDLE hdl;
 
-    if (!memcmp(uri, "dir:", 4))
+    if (strpartcmp_static(uri, "dev:"))
         hdl = DkStreamOpen(uri, 0,
                            PAL_SHARE_OWNER_X|PAL_SHARE_OWNER_W|
                            PAL_SHARE_OWNER_R,
@@ -1163,7 +1164,7 @@ int message_confirm (const char * message, const char * options)
     }
 
 #define WRITE(buf, len)                                             \
-    ({  int _ret = DkStreamWrite(hdl, 0, len, buf, NULL);           \
+    ({  int _ret = DkStreamWrite(hdl, 0, len, (void *) buf, NULL);  \
         _ret ? : -PAL_ERRNO; })
 
 #define READ(buf, len)                                              \

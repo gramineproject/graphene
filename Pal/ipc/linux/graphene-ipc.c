@@ -312,10 +312,10 @@ static void fill_page_bit_map(struct mm_struct *mm,
 
 		if (pte_none(*pte))
 			goto next_locked;
-
+/*
 		if (unlikely(!pte_present(*pte)) && pte_file(*pte))
 			goto next_locked;
-
+*/
 		has_page = true;
 next_locked:
 		spin_unlock(ptl);

@@ -8,16 +8,19 @@ loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
 loader.env.USERNAME =
 loader.env.HOME =
 loader.env.PWD =
-loader.env.HOSTNAME = $(HOSTNAME)
+loader.env.HOSTNAME = test
 loader.debug_type = none
 
-fs.mount.root.type = chroot
-fs.mount.root.uri = file:
+fs.mount.lib1.type = chroot
+fs.mount.lib1.path = /lib
+fs.mount.lib1.uri = file:$(LIBCDIR)
 
-fs.mount.other.lib1.type = chroot
-fs.mount.other.lib1.path = /lib
-fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
 
-fs.mount.other.lib2.type = chroot
-fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.libcrypt = file:/lib/x86_64-linux-gnu/libcrypt.so.1

@@ -39,7 +39,7 @@ void _DkEventDestroy (PAL_HANDLE handle)
     /* need to be implemented */
 }
 
-int _DkEventSet (PAL_HANDLE event)
+int _DkEventSet (PAL_HANDLE event, int wakeup)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

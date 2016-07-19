@@ -1,10 +1,1 @@
-# the executable to run
-# loader.exec = file:./HelloWorld
-
-# debug type: inline|file
 loader.debug_type = inline
-
-# debug as file
-# loader.debug_file = <path>
-
-fs.mount.root.uri = file:

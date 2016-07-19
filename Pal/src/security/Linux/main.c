@@ -128,9 +128,10 @@ int open_manifest (const char ** argv)
 
     /* find a manifest file with the same name as executable */
     int len = strlen(*argv);
-    manifest_name = __alloca(len + 10);
+    manifest_name = __alloca(len + static_strlen(".manifest") + 1);
     memcpy((void *) manifest_name, &argv, len);
-    memcpy((void *) manifest_name + len, ".manifest", 9);
+    memcpy((void *) manifest_name + len, ".manifest",
+           static_strlen(".manifest"));
 
     fd = INLINE_SYSCALL(open, 3, manifest_name, O_RDONLY, 0);
     if (!IS_ERR(fd))
@@ -400,7 +401,7 @@ int set_sandbox (struct config_store * sandbox_config,
     struct graphene_user_policy policies[] = {
         { .type = GRAPHENE_LIB_NAME,    .value = PAL_LOADER, },
         { .type = GRAPHENE_LIB_ADDR,    .value = pal_addr, },
-        { .type = GRAPHENE_UNIX_PREFIX, .value = &pal_sec_addr->pipe_prefix, },
+        { .type = GRAPHENE_UNIX_PREFIX, .value = &pal_sec_addr->pipe_prefix_id, },
         { .type = GRAPHENE_MCAST_PORT,  .value = &pal_sec_addr->mcast_port, },
         { .type = GRAPHENE_FS_PATH | GRAPHENE_FS_READ,
           .value = "/proc/meminfo", },
@@ -508,11 +509,10 @@ void do_main (void * args)
         goto exit;
     }
 
-    pal_sec_addr->current_pid     = pid;
+    pal_sec_addr->process_id      = pid;
+    pal_sec_addr->random_device   = rand_gen;
+    pal_sec_addr->pipe_prefix_id  = 0;
     pal_sec_addr->mcast_port      = mcast_port % (65536 - 1024) + 1024;
-    pal_sec_addr->pipe_prefix     = 0;
-    pal_sec_addr->user_addr_base  = NULL;
-    pal_sec_addr->rand_gen        = rand_gen;
     pal_sec_addr->_dl_debug_state = &___dl_debug_state;
     pal_sec_addr->_r_debug        = &___r_debug;
 

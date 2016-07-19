@@ -35,9 +35,7 @@
 #include <linux/time.h>
 #include <asm/fcntl.h>
 
-#ifdef __x86_64__
 int __gettimeofday(struct timeval *tv, struct timezone *tz);
-#endif
 
 unsigned long _DkSystemTimeQueryEarly (void)
 {
@@ -99,7 +97,7 @@ unsigned long _DkSystemTimeQuery (void)
         ret = linux_state.vdso_gettimeofday(&time, NULL);
     } else {
 #endif
-#if defined(__x86_64__) && USE_VSYSCALL_GETTIME == 1
+#if USE_VSYSCALL_GETTIME == 1
         ret = __gettimeofday(&time, NULL);
 #else
         ret = INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
@@ -140,17 +138,17 @@ int _DkRandomBitsRead (void * buffer, int size)
 #else
 int _DkRandomBitsRead (void * buffer, int size)
 {
-    if (!pal_sec.rand_gen) {
-        int rand = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
-        if (IS_ERR(rand))
+    if (!pal_sec.random_device) {
+        int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
+        if (IS_ERR(fd))
             return -PAL_ERROR_DENIED;
 
-        pal_sec.rand_gen = rand;
+        pal_sec.random_device = fd;
     }
 
     int total_bytes = 0;
     do {
-        int bytes = INLINE_SYSCALL(read, 3, pal_sec.rand_gen,
+        int bytes = INLINE_SYSCALL(read, 3, pal_sec.random_device,
                                    buffer + total_bytes, size - total_bytes);
         if (IS_ERR(bytes))
             return -PAL_ERROR_DENIED;
@@ -232,6 +230,12 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
 }
 
 int _DkInstructionCacheFlush (const void * addr, int size)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
+                      unsigned int values[4])
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

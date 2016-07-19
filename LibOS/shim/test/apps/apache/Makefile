@@ -16,15 +16,28 @@ INSTALL_DIR = $(PWD)/obj
 SRC_DIRS = $(HTTPD_DIR) $(APR_DIR) $(APRUTIL_DIR) $(PHP_DIR)
 HTDOC=$(INSTALL_DIR)/htdocs
 
-TARGET = $(INSTALL_DIR)/bin/httpd $(INSTALL_DIR)/modules/libphp5.so \
-	 $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so \
-	 conf httpd.manifest test-data
+exec_target = httpd.manifest
 
-all: $(TARGET)
+target = build-apache build-modules build-conf test-data
 
-debug: MAKE_FLAGS=CC="gcc -g"
-debug: APXS_FLAGS=-S CC="gcc -g"
-debug: $(TARGET)
+clean-extra = clean-apache
+
+extra_rules = \
+	-e 's:\$$(PAL):../pal_loader:g' \
+	-e 's:\$$(HOST):$(HOST):g' \
+	-e 's:\$$(PORT):$(PORT):g'
+
+level = ../../
+include ../../Makefile
+
+.PHONY: build-apache build-modules build-conf
+
+build-apache: $(INSTALL_DIR)/bin/httpd $(INSTALL_DIR)/modules/libphp5.so
+
+ifeq ($(DEBUG),1)
+MAKE_FLAGS = CC="gcc -g"
+APXS_FLAGS = -S CC="gcc -g"
+endif
 
 %: %.tar.gz
 	tar -xzf $<
@@ -45,9 +58,9 @@ $(INSTALL_DIR)/lib/libaprutil-1.so.0: $(APRUTIL_DIR) $(INSTALL_DIR)/lib/libapr-1
 
 $(INSTALL_DIR)/bin/httpd $(INSTALL_DIR)/bin/apxs: $(INSTALL_DIR)/lib/libapr-1.so.0 $(INSTALL_DIR)/lib/libaprutil-1.so.0
 	[ -d $(HTTPD_DIR) ] || tar -xzf $(HTTPD_DIR).tar.gz
-	[ -f $(HTTPD_DIR)/Makefile ] || \
+	[ -f $(HTTPD_DIR)/Makefile ] || ( \
 	cd $(HTTPD_DIR) && ./configure --prefix=$(INSTALL_DIR) --with-apr=$(INSTALL_DIR) \
-	--with-apr-util=$(INSTALL_DIR) --with-mpm=prefork
+	--with-apr-util=$(INSTALL_DIR) --with-mpm=prefork)
 	cd $(HTTPD_DIR) && $(MAKE) -j$(NPROCS) $(MAKE_FLAGS)
 	cd $(HTTPD_DIR) && $(MAKE) install
 
@@ -57,20 +70,14 @@ $(INSTALL_DIR)/modules/libphp5.so: $(PHP_DIR) $(INSTALL_DIR)/bin/apxs
 	cd $< && $(MAKE) -j$(NPROCS) $(MAKE_FLAGS)
 	cd $< && $(MAKE) install
 
-.PHONY: modules
-
-modules: $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so
+build-modules: $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so
 
 $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so: mod_auth_basic_sandbox.c $(INSTALL_DIR)/bin/apxs
 	$(INSTALL_DIR)/bin/apxs $(APXS_FLAGS) \
-		-S CFLAGS="-I../../../include" \
-		-S LDFLAGS="-L../../../../build/libos -llibos" -c -i -A $<
+		-S CFLAGS="-I$(SHIMDIR)/../include" \
+		-S LDFLAGS="-L$(LIBCDIR)/libos -llibos" -c -i -A $<
 
-%.manifest: %.manifest.template
-	$(MAKE) -C .. apache/$@ appdir=apache/ \
-		extra_rules="-e 's:\\\$$\$$(HOST):$(HOST):g' -e 's:\\\$$\$$(PORT):$(PORT):g'"
-
-conf:
+build-conf:
 	[ -f $(INSTALL_DIR)/conf/httpd.conf.old ] || \
 		mv $(INSTALL_DIR)/conf/httpd.conf $(INSTALL_DIR)/conf/httpd.conf.old
 	sed -e "s/Listen 80/#Listen 80/g" \
@@ -96,12 +103,12 @@ conf:
 
 start-native-server:
 	@echo "Listen on $(HOST):$(PORT)"
-	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile /httpd-$(HOST)-$(PORT).pid"
+	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
 
 start-graphene-server:
 	rm -rf httpd-$(HOST)-$(PORT).pid
 	@echo "Listen on $(HOST):$(PORT)"
-	$(PREFIX) ./httpd.manifest -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile /httpd-$(HOST)-$(PORT).pid"
+	$(PREFIX) ../pal_loader $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
 
 random-data = $(foreach n,1 2 3 4 5 6 7 8 9 10,2K.$n.html) \
 	      $(foreach n,1 2 3 4 5,10K.$n.html) \
@@ -142,6 +149,5 @@ test-data: $(test-data)
 distclean: clean
 	rm -rf $(INSTALL_DIR) $(SRC_DIRS)
 
-clean:
-	rm -rf httpd.manifest $(test-data) \
-		$(addprefix mod_auth_basic_sandbox.,la lo o slo)
+clean-apache:
+	rm -rf $(test-data) $(addprefix mod_auth_basic_sandbox,.so .la .lo .o .slo)

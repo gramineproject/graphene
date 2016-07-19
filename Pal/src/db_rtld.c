@@ -45,20 +45,20 @@ struct link_map * lookup_symbol (const char *undef_name, ElfW(Sym) **ref);
 
 #ifdef assert
 /* This function can be used as a breakpoint to debug assertion */
-void __attribute__((noinline)) __assert (void)
+void __attribute_noinline __assert (void)
 {
     BREAK();
 }
 #endif
 
 /* This macro is used as a callback from the ELF_DYNAMIC_RELOCATE code.  */
-static ElfW(Addr) resolve_map (const char **strtab, ElfW(Sym) ** ref)
+static struct link_map * resolve_map (const char **strtab, ElfW(Sym) ** ref)
 {
     if (ELFW(ST_BIND) ((*ref)->st_info) != STB_LOCAL) {
         struct link_map * l = lookup_symbol((*strtab) + (*ref)->st_name, ref);
         if (l) {
             *strtab = (const void *) D_PTR (l->l_info[DT_STRTAB]);
-            return l->l_addr;
+            return l;
         }
     }
     return 0;
@@ -66,8 +66,8 @@ static ElfW(Addr) resolve_map (const char **strtab, ElfW(Sym) ** ref)
 
 extern ElfW(Addr) resolve_rtld (const char * sym_name);
 
-#define RESOLVE_RTLD(sym_name) resolve_rtld(sym_name)
-#define RESOLVE_MAP(strtab, ref) resolve_map(strtab, ref)
+#define RESOLVE_RTLD(sym_name)      resolve_rtld(sym_name)
+#define RESOLVE_MAP(strtab, ref)    resolve_map(strtab, ref)
 
 #include "dynamic_link.h"
 #include "dl-machine-x86_64.h"
@@ -183,7 +183,7 @@ call_lose:
     ElfW(Phdr) * phdr;
 
     if (header->e_phoff + maplength <= (int) fbp_len) {
-        phdr = (void *) (fbp + header->e_phoff);
+        phdr = (void *) ((char *) fbp + header->e_phoff);
     } else {
         phdr = (ElfW(Phdr) *) malloc (maplength);
 
@@ -203,7 +203,8 @@ call_lose:
         ElfW(Addr) mapstart, mapend, dataend, allocend;
         unsigned int mapoff;
         int prot;
-    } loadcmds[l->l_phnum], *c;
+    } * loadcmds, *c;
+    loadcmds = __alloca(sizeof(struct loadcmd) * l->l_phnum);
 
     int nloadcmds = 0;
     bool has_holes = false;
@@ -519,18 +520,17 @@ int load_elf_object (const char * uri, enum object_type type)
     return ret;
 }
 
-int add_elf_object(void * addr, unsigned int size, PAL_HANDLE handle, int type)
+int add_elf_object(void * addr, PAL_HANDLE handle, int type)
 {
     struct link_map * map = new_elf_object(_DkStreamRealpath(handle), type);
     const ElfW(Ehdr) * header = (void *) addr;
-    const ElfW(Phdr) * ph, * phdr = addr + header->e_phoff;
+    const ElfW(Phdr) * ph, * phdr =
+            (ElfW(Phdr) *) ((char *) addr + header->e_phoff);
 
-    map->l_addr  = (header->e_type == ET_DYN) ? (ElfW(Addr)) addr : 0;
-    map->l_entry = header->e_entry;
     map->l_phdr  = (void *) header->e_phoff;
     map->l_phnum = header->e_phnum;
-    map->l_map_start = (ElfW(Addr)) addr;
-    map->l_map_end = (ElfW(Addr)) addr + size;
+
+    ElfW(Addr) mapstart = 0, mapend = 0;
 
     for (ph = phdr; ph < &phdr[map->l_phnum]; ++ph)
         switch (ph->p_type) {
@@ -538,9 +538,25 @@ int add_elf_object(void * addr, unsigned int size, PAL_HANDLE handle, int type)
                 map->l_ld = (void *) ph->p_vaddr;
                 map->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
                 break;
+            case PT_LOAD: {
+                ElfW(Addr) start = (ElfW(Addr))
+                        ALLOC_ALIGNDOWN(map->l_addr + ph->p_vaddr);
+                ElfW(Addr) end = (ElfW(Addr))
+                        ALLOC_ALIGNUP(map->l_addr + ph->p_vaddr + ph->p_memsz);
+                if (!mapstart || start < mapstart)
+                    mapstart = start;
+                if (!mapend || end > mapend)
+                    mapend = end;
+            }
         }
 
-    map->l_real_ld = (void *) map->l_addr + (unsigned long) map->l_ld;
+    map->l_addr  = (ElfW(Addr)) addr - mapstart;
+    map->l_entry = header->e_entry;
+    map->l_map_start = (ElfW(Addr)) addr;
+    map->l_map_end = (ElfW(Addr)) addr + (mapend - mapstart);
+
+    map->l_real_ld = (ElfW(Dyn) *)
+            ((char *) map->l_addr + (unsigned long) map->l_ld);
     map->l_ld = remalloc(map->l_real_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
 
     elf_get_dynamic_info(map->l_ld, map->l_info, map->l_addr);
@@ -566,8 +582,8 @@ static int relocate_elf_object (struct link_map *l);
 
 #define MAX_CACHED_LOADCMDS  32
 struct cached_elf_object {
-    PAL_NUM             pal_token;
-    void *              pal_addr;
+    PAL_NUM             instance_id;
+    void *              loader_addr;    /* get the address of DkStreamOpen */
     struct link_map     map;
     char                map_name[80];
 
@@ -584,14 +600,14 @@ struct cached_elf_object {
 
 void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
 {
-    char uri[URI_MAX + 8];
+    char uri[URI_MAX];
     unsigned long cached_size = 0;
 
     int ret = _DkStreamGetName(handle, uri, URI_MAX);
     if (ret < 0)
         return;
 
-    memcpy(uri + ret, ".cached", 8);
+    strcpy_static(uri + ret, ".cached", URI_MAX - ret);
     PAL_HANDLE cached_file;
 
     while (1) {
@@ -631,8 +647,8 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
     if (ret < 0)
         goto out;
 
-    obj->pal_token  = pal_state.pal_token;
-    obj->pal_addr   = pal_state.pal_addr;
+    obj->instance_id = pal_state.instance_id;
+    obj->loader_addr = (void *) DkStreamOpen;
     memcpy(&obj->map, map, sizeof(struct link_map));
     if (map->l_ld != map->l_real_ld) {
         obj->map.l_ld   = NULL;
@@ -710,12 +726,12 @@ out:
 
 struct link_map * check_cached_elf_object (PAL_HANDLE handle)
 {
-    char uri[URI_MAX + 8];
+    char uri[URI_MAX];
     int ret = _DkStreamGetName(handle, uri, URI_MAX);
     if (ret < 0)
         return NULL;
 
-    memcpy(uri + ret, ".cached", 8);
+    strcpy_static(uri + ret, ".cached", URI_MAX - ret);
     PAL_HANDLE cached_file;
     ret = _DkStreamOpen(&cached_file, uri, PAL_ACCESS_RDWR, 0, 0, 0);
     if (ret < 0)
@@ -731,8 +747,8 @@ struct link_map * check_cached_elf_object (PAL_HANDLE handle)
         goto out;
 
     /* we want to check if there is a previously cached one, but if the
-     * process is the first one, force to update the cache. */
-    if (obj->pal_token != pal_state.pal_token)
+     * process is the first one, force to update the cached binary. */
+    if (pal_state.instance_id != obj->instance_id)
         goto out_mapped;
 
     if (!obj->map.l_ld) {
@@ -776,10 +792,9 @@ map_next:
             goto out_more_mapped;
     }
 
-    if (pal_state.pal_addr != obj->pal_addr) {
-        long rebase = (long) pal_state.pal_addr - (long) obj->pal_addr;
+    if ((void *) DkStreamOpen != obj->loader_addr) {
         for (int i = 0 ; i < obj->map.nrelocs ; i++)
-            *obj->map.relocs[i] += rebase;
+            *obj->map.relocs[i] += (void *) DkStreamOpen - obj->loader_addr;
     }
 
     obj->map.l_name = obj->map_name;
@@ -953,6 +968,39 @@ unsigned long int elf_hash (const char *name_arg)
     return hash;
 }
 
+/* Nested routine to check whether the symbol matches.  */
+static inline __attribute_always_inline
+ElfW(Sym) * check_match(ElfW(Sym) * sym, ElfW(Sym) * ref, const char * undef_name,
+                        const char * strtab)
+{
+    unsigned int stt = ELFW(ST_TYPE) (sym->st_info);
+    assert(ELF_RTYPE_CLASS_PLT == 1);
+
+    if (__builtin_expect((sym->st_value == 0 /* No value.  */
+        && stt != STT_TLS)
+        || sym->st_shndx == SHN_UNDEF, 0))
+        return NULL;
+
+    /* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
+    STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
+    code/data definitions.  */
+#define ALLOWED_STT     \
+        ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC)        \
+       | (1 << STT_COMMON) | (1 << STT_TLS)    | (1 << STT_GNU_IFUNC))
+
+    if (__builtin_expect(((1 << stt) & ALLOWED_STT) == 0, 0))
+        return NULL;
+
+    if (sym != ref && memcmp(strtab + sym->st_name, undef_name,
+        strlen(undef_name)))
+        /* Not the symbol we are looking for.  */
+        return NULL;
+
+    /* There cannot be another entry for this symbol so stop here.  */
+    return sym;
+}
+
+
 ElfW(Sym) *
 do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
                const uint_fast32_t hash, unsigned long int elf_hash,
@@ -964,37 +1012,6 @@ do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
     /* The tables for this map.  */
     ElfW(Sym) * symtab = (void *) D_PTR (map->l_info[DT_SYMTAB]);
     const char * strtab = (const void *) D_PTR (map->l_info[DT_STRTAB]);
-
-    /* Nested routine to check whether the symbol matches.  */
-    ElfW(Sym) * check_match (ElfW(Sym) *sym)
-    {
-        unsigned int stt = ELFW(ST_TYPE) (sym->st_info);
-        assert (ELF_RTYPE_CLASS_PLT == 1);
-
-        if (__builtin_expect ((sym->st_value == 0 /* No value.  */
-                               && stt != STT_TLS)
-            || sym->st_shndx == SHN_UNDEF, 0))
-            return NULL;
-
-        /* Ignore all but STT_NOTYPE, STT_OBJECT, STT_FUNC,
-           STT_COMMON, STT_TLS, and STT_GNU_IFUNC since these are no
-           code/data definitions.  */
-#define ALLOWED_STT     \
-        ((1 << STT_NOTYPE) | (1 << STT_OBJECT) | (1 << STT_FUNC)        \
-       | (1 << STT_COMMON) | (1 << STT_TLS)    | (1 << STT_GNU_IFUNC))
-
-        if (__builtin_expect (((1 << stt) & ALLOWED_STT) == 0, 0))
-            return NULL;
-
-        if (sym != ref && memcmp(strtab + sym->st_name, undef_name,
-                                 strlen(undef_name)))
-            /* Not the symbol we are looking for.  */
-            return NULL;
-
-        /* There cannot be another entry for this symbol so stop here.  */
-        return sym;
-    }
-
     const ElfW(Addr) * bitmask = map->l_gnu_bitmask;
 
     if (__builtin_expect (bitmask != NULL, 1)) {
@@ -1016,7 +1033,7 @@ do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
                 do
                     if (((*hasharr ^ hash) >> 1) == 0) {
                         symidx = hasharr - map->l_gnu_chain_zero;
-                        sym = check_match (&symtab[symidx]);
+                        sym = check_match (&symtab[symidx], ref, undef_name, strtab);
                         if (sym != NULL)
                             return sym;
                     }
@@ -1033,7 +1050,7 @@ do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
         for (symidx = map->l_buckets[elf_hash % map->l_nbuckets];
              symidx != STN_UNDEF;
              symidx = map->l_chain[symidx]) {
-            sym = check_match (&symtab[symidx]);
+            sym = check_match (&symtab[symidx], ref, undef_name, strtab);
             if (sym != NULL)
                 return sym;
         }
@@ -1206,21 +1223,21 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 #ifdef DEBUG
     const char * realname;
 
-    if (!memcmp(uri, "file:", 5))
-        realname = uri + 5;
+    if (strpartcmp_static(uri, "file:"))
+        realname = uri + static_strlen("file:");
     else
         return;
 
     struct link_map * l = new_elf_object(realname, OBJECT_EXTERNAL);
 
     /* This is the ELF header.  We read it in `open_verify'.  */
-    const ElfW(Ehdr) * header = start_addr;
+    const ElfW(Ehdr) * header = (ElfW(Ehdr) *) start_addr;
 
     l->l_entry = header->e_entry;
     l->l_phnum = header->e_phnum;
     l->l_map_start = (ElfW(Addr)) start_addr;
 
-    ElfW(Phdr) * phdr = (void *) (start_addr + header->e_phoff);
+    ElfW(Phdr) * phdr = (void *) ((char *) start_addr + header->e_phoff);
     const ElfW(Phdr) * ph;
     ElfW(Addr) map_start = 0, map_end = 0;
 
@@ -1241,12 +1258,13 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
                segments are mapped in.  We record the addresses it says
                verbatim, and later correct for the run-time load address.  */
             case PT_DYNAMIC:
-                l->l_ld = l->l_real_ld = (void *) l->l_addr + ph->p_vaddr;
+                l->l_ld = l->l_real_ld = (ElfW(Dyn) *)
+                        ((char *) l->l_addr + ph->p_vaddr);
                 l->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
                 break;
 
             case PT_PHDR:
-                l->l_phdr = (void *) l->l_addr + ph->p_vaddr;
+                l->l_phdr = (ElfW(Phdr) *) ((char *) l->l_addr + ph->p_vaddr);
                 break;
 
             case PT_GNU_RELRO:
@@ -1273,8 +1291,9 @@ void DkDebugDetachBinary (PAL_PTR start_addr)
 #endif
 }
 
-#if defined(__x86_64__)
-void * stack_before_call __attribute__((unused)) = NULL;
+#ifndef CALL_ENTRY
+#ifdef __x86_64__
+void * stack_before_call __attribute_unused = NULL;
 
 #define CALL_ENTRY(l, cookies)                                          \
     ({  long ret;                                                       \
@@ -1289,28 +1308,34 @@ void * stack_before_call __attribute__((unused)) = NULL;
                        "r10", "r11", "memory");                         \
         ret; })
 #else
-# error "architecture not supported"
+# error "unsupported architecture"
 #endif
+#endif /* !CALL_ENTRY */
 
-void start_execution (const char * first_argv, int argc, const char ** argv,
-                      const char ** envp)
+void start_execution (const char * first_argument, const char ** arguments,
+                      const char ** environs)
 {
     /* First we will try to run all the preloaded libraries which come with
        entry points */
     if (exec_map) {
-        __pal_control.executable_range.start = (void *) exec_map->l_map_start;
-        __pal_control.executable_range.end   = (void *) exec_map->l_map_end;
+        __pal_control.executable_range.start = (PAL_PTR) exec_map->l_map_start;
+        __pal_control.executable_range.end   = (PAL_PTR) exec_map->l_map_end;
     }
 
 #if PROFILING == 1
     unsigned long before_tail = _DkSystemTimeQuery();
 #endif
 
+    int narguments = 0;
+    if (first_argument)
+        narguments++;
+    for (const char ** a = arguments; *a ; a++, narguments++);
+
     /* Let's count the number of cookies, first we will have argc & argv */
-    int ncookies = argc + 3; /* 1 for argc, argc + 2 for argv */
+    int ncookies = narguments + 3; /* 1 for argc, argc + 2 for argv */
 
     /* Then we count envp */
-    for (const char ** e = envp; *e; e++)
+    for (const char ** e = environs; *e; e++)
         ncookies++;
 
     ncookies++; /* for NULL-end */
@@ -1320,22 +1345,23 @@ void start_execution (const char * first_argv, int argc, const char ** argv,
                       + sizeof(void *) * 4 + 16;
 
     unsigned long int * cookies = __alloca(cookiesz);
+    int cnt = 0;
 
     /* Let's copy the cookies */
-    cookies[0] = (unsigned long int) argc + 1;
-    cookies[1] = (unsigned long int) first_argv;
-    for (int i = 0 ; i <= argc ; i++)
-        cookies[i + 2] = (unsigned long int) argv[i];
-    int cnt = argc + 3;
+    cookies[cnt++] = (unsigned long int) narguments;
+    if (first_argument)
+        cookies[cnt++] = (unsigned long int) first_argument;
 
-    for (int i = 0 ; envp[i]; i++)
-        cookies[cnt++] = (unsigned long int) envp[i];
+    for (int i = 0 ; arguments[i] ; i++)
+        cookies[cnt++] = (unsigned long int) arguments[i];
+    cookies[cnt++] = 0;
+    for (int i = 0 ; environs[i]; i++)
+        cookies[cnt++] = (unsigned long int) environs[i];
     cookies[cnt++] = 0;
 
     ElfW(auxv_t) * auxv = (ElfW(auxv_t) *) &cookies[cnt];
     auxv[0].a_type = AT_PHDR;
-    auxv[0].a_un.a_val = (__typeof(auxv[1].a_un.a_val))
-                        (exec_map ? exec_map->l_phdr  : 0);
+    auxv[0].a_un.a_val = exec_map ? (unsigned long) exec_map->l_phdr  : 0;
     auxv[1].a_type = AT_PHNUM;
     auxv[1].a_un.a_val = exec_map ? exec_map->l_phnum : 0;
     auxv[2].a_type = AT_PAGESZ;

@@ -7,11 +7,7 @@
 
 int main (int argc, char ** argv, char ** envp)
 {
-    PAL_STR args[2] = { "Child", 0 };
-    PAL_HANDLE child = DkProcessCreate(NULL, 0, args);
-
-    if (child)
-        pal_printf("Create Process without Executable OK\n");
-
+    PAL_STR args[1] = { 0 };
+    DkProcessCreate("file:Bootstrap", 0, args);
     return 0;
 }

@@ -280,7 +280,6 @@ void pal_bsd_main (void * args)
     if (parent)
         goto done_init;
 
-    /* check if it's a shebang */
     int fd = INLINE_SYSCALL(open, 3, argv[0], O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(fd))
         goto done_init;

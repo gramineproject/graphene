@@ -1,17 +1,15 @@
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
+export DEBUG
+
 GLIBC_SRC = glibc-2.19
 SHIM_DIR = shim
-BUILD_DIR = build
+BUILD_DIR = glibc-build
 GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthread.so.0 libm.so.6 libdl.so.2 libutil.so.1 crt1.o crti.o crtn.o liblibos.so.1)
 
 all: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) all
-
-debug: DEBUG=debug
-debug: $(GLIBC_TARGET)
-	$(MAKE) -C $(SHIM_DIR) debug
 
 install:
 	[ -d ../Runtime ] || mkdir -p ../Runtime
@@ -23,7 +21,11 @@ $(GLIBC_TARGET): $(BUILD_DIR)/Makefile
 	cd $(BUILD_DIR) && $(MAKE)
 
 $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
-	./buildglibc.py --quiet $(DEBUG)
+ifeq ($(DEBUG),1)
+	./buildglibc.py --quiet --debug
+else
+	./buildglibc.py --quiet
+endif
 
 $(GLIBC_SRC)/configure:
 	[ -f $(GLIBC_SRC).tar.gz ] || \

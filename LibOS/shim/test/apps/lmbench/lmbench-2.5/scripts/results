@@ -5,8 +5,12 @@
 if [ -z "$OS" ]; then
 	OS=`../scripts/os`
 fi
-CONFIG=`../scripts/config`
-RESULTS=results/$OS
+if [ -z "$CONFIG" ]; then
+	CONFIG=`../scripts/config`
+fi
+if [ -z "$RESULTS" ]; then
+	RESULTS=results/$OS
+fi
 BASE=../$RESULTS/`uname -n`
 EXT=0
 

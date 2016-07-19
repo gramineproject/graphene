@@ -23,12 +23,15 @@
  * This file contains implementation of PAL's internal memory allocator.
  */
 
-#include "pal_defs.h"
 #include "pal_internal.h"
+#include "api.h"
+
+#ifndef NO_INTERNAL_ALLOC
+
+#include "pal_defs.h"
 #include "pal_error.h"
 #include "pal_debug.h"
 #include "linux_list.h"
-#include "api.h"
 
 static int slab_alignment;
 static PAL_LOCK slab_mgr_lock = LOCK_INIT;
@@ -37,17 +40,15 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 #define system_unlock() _DkInternalUnlock(&slab_mgr_lock)
 
 #if STATIC_SLAB == 1
-# warning "Using static slab"
 # define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
 static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];
 #else
-# warning "Using dynamic slab"
 # define PAGE_SIZE (slab_alignment)
 #endif
 
-#define STARTUP_SIZE    8
+#define STARTUP_SIZE    2
 
 static inline void * __malloc (int size)
 {
@@ -71,7 +72,7 @@ static inline void * __malloc (int size)
 static inline void __free (void * addr, int size)
 {
 #if STATIC_SLAB == 1
-    if (addr >= (void *) mem_pool && addr + size <= (void *) mem_pool_end)
+    if ((char *) addr >= (char *) mem_pool && (char *) addr + size <= (char *) mem_pool_end)
         return;
 #endif
 
@@ -139,8 +140,8 @@ void * calloc (int nmem, int size)
 
     if (ptr) {
         // align ptr to size
-        ptr += size - 1 - ((uintptr_t) ptr + size - 1) % size;
-        *(((unsigned char *) ptr) - 1) = ptr - old_ptr;
+        ptr = (char *) ptr + size - 1 - ((uintptr_t) ptr + size - 1) % size;
+        *(((char *) ptr) - 1) = (char *) ptr - (char *) old_ptr;
     }
 
     return ptr;
@@ -152,10 +153,12 @@ void free (void * ptr)
     unsigned long before_slab = _DkSystemTimeQuery();
 #endif
 
-    ptr -= *(((unsigned char *) ptr) - 1);
+    ptr = (char *) ptr - *(((unsigned char *) ptr) - 1);
     slab_free(slab_mgr, ptr);
 
 #if PROFILING == 1
     pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
 #endif
 }
+
+#endif /* !NO_INTERNAL_ALLOC */

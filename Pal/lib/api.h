@@ -24,6 +24,25 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+/* Macros */
+
+#ifndef likely
+# define likely(x)	__builtin_expect((!!(x)),1)
+#endif
+#ifndef unlikely
+# define unlikely(x)	__builtin_expect((!!(x)),0)
+#endif
+
+#define __alloca __builtin_alloca
+
+#define XSTRINGIFY(x) STRINGIFY(x)
+#define STRINGIFY(x) #x
+
+#define static_strlen(str) (sizeof(str) - 1)
+
+/* Libc functions */
+
+/* Libc String functions */
 int strnlen (const char *str, int maxlen);
 int strlen (const char *str);
 
@@ -38,6 +57,26 @@ void * memmove (void *dstpp, void *srcpp, int len);
 void * memset (void *dstpp, int c, int len);
 int memcmp (const void *s1, const void *s2, int len);
 
+/* Some useful macro */
+/* force failure if str is not a static string */
+#define force_static(str)   ("" str "")
+
+/* check if the var is exactly the same as the static string */
+#define strcmp_static(var, str) \
+    (!memcmp((var), force_static(str), static_strlen(force_static(str)) + 1))
+
+/* check if the var starts with the static string */
+#define strpartcmp_static(var, str) \
+    (!memcmp((var), force_static(str), static_strlen(force_static(str))))
+
+/* copy static string and return the address of the null end (null if the dest
+ * is not large enough).*/
+#define strcpy_static(var, str, max) \
+    (static_strlen(force_static(str)) + 1 > max ? NULL : \
+     memcpy((var), force_static(str), static_strlen(force_static(str)) + 1) + \
+     static_strlen(force_static(str)))
+
+/* Libc printf functions */
 void fprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
                 const char * fmt, ...);
 
@@ -45,6 +84,8 @@ void vfprintfmt (void (*_fputch)(void *, int, void *), void * f, void * putdat,
                  const char * fmt, va_list *ap);
 
 int snprintf (char * buf, int n, const char * fmt, ...);
+
+/* Miscelleneous */
 
 int inet_pton4 (const char *src, int len, void *dst);
 int inet_pton6 (const char *src, int len, void *dst);
@@ -56,12 +97,13 @@ uint16_t __ntohs (uint16_t x);
 
 extern const char * const * sys_errlist_internal;
 
-#define __alloca __builtin_alloca
-
-#define XSTRINGIFY(x) STRINGIFY(x)
-#define STRINGIFY(x) #x
+/* Graphene functions */
 
 int get_norm_path (const char * path, char * buf, int offset, int size);
+
+int get_base_name (const char * path, char * buf, int size);
+
+/* Loading configs / manifests */
 
 #include <linux_list.h>
 

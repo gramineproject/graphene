@@ -28,7 +28,6 @@
 #define ELF_MACHINE_NAME "x86_64"
 
 #include <sys/param.h>
-#include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
 #include "pal_internal.h"
 

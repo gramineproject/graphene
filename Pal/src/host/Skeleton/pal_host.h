@@ -46,55 +46,55 @@ typedef union pal_handle
         PAL_REF ref;
         PAL_FLG flags;
         PAL_IDX fds[];
-    } __in;
+    } hdr;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } file;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } pipe;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } pipeprv;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX dev_type;
     } dev;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } dir;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } gipc;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } sock;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } process;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } mcast;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } thread;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } semaphore;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
     } event;
 } * PAL_HANDLE;
 

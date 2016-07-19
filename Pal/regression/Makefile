@@ -1,6 +1,6 @@
 SYS ?= $(shell gcc -dumpmachine)
 
-CC	= gcc -g
+CC	= gcc
 CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib
 
@@ -8,15 +8,21 @@ preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
 executables = $(filter-out $(preloads),$(patsubst %.c,%,$(wildcard *.c)))
 manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template))
 
-target = $(executables) $(preloads) $(manifests)
+target = $(executables) $(manifests)
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
+default: all
 include ../src/Makefile.Test
 
-all:	$(call expand_target,$(target))
+all: $(call expand_target,$(target)) $(preloads)
+
+ifeq ($(DEBUG),1)
+CC += -g
+endif
+export DEBUG
 
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath ../src/pal):g' \
@@ -24,14 +30,11 @@ manifest_rules = \
 	$(extra_rules)
 
 manifest: manifest.template
-	rm -f $@
 	sed $(manifest_rules) $< >$@
-	chmod +x $@
 
 %.manifest: %.manifest.template
-	rm -f $@
 	sed $(manifest_rules) $< >$@
-	chmod +x $@
+	(grep -q "#\!" $@ && chmod +x $@) || true
 
 ../src/user_shared_start.o ../src/user_start.o: ../src/user_start.S
 	$(MAKE) -C ../src $(notdir $@)
@@ -48,7 +51,7 @@ $(executables): %: %.c ../src/user_start.o \
 	@$(CC) $(CFLAGS) $^ -o $@
 
 $(graphene_lib):
-	$(MAKE) -C ../lib target=$(shell pwd)/.lib/ $(debug)
+	$(MAKE) -C ../lib target=$(shell pwd)/.lib/
 
 .PHONY: pack
 pack: $(preloads) $(executables)
@@ -59,6 +62,10 @@ $(preloads) $(executables): .packed/test.tar.gz
 endif
 
 PYTHONENV = "PYTHONPATH=../../Scripts"
+
+ifeq ($(SGX_RUN),1)
+	PYTHONENV += "TIMEOUT=5000"
+endif
 
 regression: $(call expand_target,$(target))
 	@printf "\n\nBasic Bootstrapping:\n"
@@ -76,4 +83,4 @@ regression: $(call expand_target,$(target))
 	@printf "\n\n"
 
 clean:
-	rm -rf $(call expand_target,$(target)) *.tmp .lib
+	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached

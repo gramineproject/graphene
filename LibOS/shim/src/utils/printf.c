@@ -37,7 +37,7 @@ struct debugbuf {
 static inline void
 debug_fputs (void * f, const char * buf, int len)
 {
-    DkStreamWrite(debug_handle, 0, len, buf, NULL);
+    DkStreamWrite(debug_handle, 0, len, (void *) buf, NULL);
 }
 
 static void
@@ -141,7 +141,7 @@ struct sysbuf {
 static inline void
 sys_fputs (void * f, const char * str, int len)
 {
-    DkStreamWrite((PAL_HANDLE) f, 0, len, str, NULL);
+    DkStreamWrite((PAL_HANDLE) f, 0, len, (void *) str, NULL);
 }
 
 static void

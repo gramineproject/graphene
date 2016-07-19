@@ -306,8 +306,6 @@ ret_exception:
     DkExceptionReturn(event);
 }
 
-bool ask_for_checkpoint = false;
-
 static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     if (IS_INTERNAL_TID(get_cur_tid()))

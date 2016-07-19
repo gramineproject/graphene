@@ -54,10 +54,11 @@ asm (".global pal_start \n"
 /* pal_start is the entry point of libpal.so, which calls pal_main */
 #define _ENTRY pal_start
 
+/* use objfile-gdb convention instead of .debug_gdb_scripts */
 #ifdef DEBUG
 asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".byte 1\r\n"
-     ".asciz \"" XSTRINGIFY(GDB_SCRIPT) "\"\r\n"
+     ".asciz \"" PAL_FILE("host/Linux/pal-gdb.py") "\"\r\n"
      ".popsection\r\n");
 #endif
 
@@ -152,8 +153,7 @@ unsigned long _DkGetAllocationAlignment (void)
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
 {
     void * end_addr = (void *) ALLOC_ALIGNDOWN(TEXT_START);
-    void * start_addr = pal_sec.user_addr_base ? :
-                        (void *) USER_ADDRESS_LOWEST;
+    void * start_addr = (void *) USER_ADDRESS_LOWEST;
 
     assert(ALLOC_ALIGNED(start_addr) && ALLOC_ALIGNED(end_addr));
 
@@ -201,6 +201,8 @@ static struct link_map pal_map;
 
 #ifdef __x86_64__
 # include "elf-x86_64.h"
+#else
+# error "unsupported architecture"
 #endif
 
 void pal_linux_main (void * args)
@@ -237,10 +239,9 @@ void pal_linux_main (void * args)
     pal_state.start_time = start_time;
     init_child_process(&parent, &exec, &manifest);
 
-    if (pal_sec.current_pid)
-        linux_state.pid = pal_sec.current_pid;
-    else
-        linux_state.pid = INLINE_SYSCALL(getpid, 0);
+    if (!pal_sec.process_id)
+        pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
+    linux_state.pid = pal_sec.process_id;
 
     linux_state.uid = uid;
     linux_state.gid = gid;
@@ -252,7 +253,6 @@ void pal_linux_main (void * args)
     if (parent)
         goto done_init;
 
-    /* check if it's a shebang */
     int fd = INLINE_SYSCALL(open, 3, argv[0], O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(fd))
         goto done_init;
@@ -260,7 +260,7 @@ void pal_linux_main (void * args)
     int len = strlen(argv[0]);
     PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(file, file);
-    file->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    HANDLE_HDR(file)->flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     file->file.fd = fd;
     char * path = (void *) file + HANDLE_SIZE(file);
     memcpy(path, argv[0], len + 1);
@@ -271,31 +271,24 @@ void pal_linux_main (void * args)
         goto done_init;
     }
 
-#if 0
-    /* the maximun length for shebang path is 80 chars */
-    char buffer[80];
-    int bytes = INLINE_SYSCALL(read, 3, fd, buffer, 80);
-    if (IS_ERR(bytes))
-        goto done_init;
-
-    /* the format of shebang should be '#!/absoulte/path/of/pal' */
-    if (buffer[0] != '#' || buffer[1] != '!')
-        goto done_init;
-#endif
-
     manifest = file;
 
 done_init:
+    if (!parent && !exec && !manifest) {
+        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
+        _DkProcessExit(0);
+        return;
+    }
+
     first_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = linux_state.pid;
 
     signal_setup();
 
-    /* jump to main function */
-    pal_main(linux_state.parent_process_id,
-             (void *) pal_map.l_addr, pal_name, argc, argv, envp,
-             parent, first_thread, exec, NULL, manifest);
+    /* call to main function */
+    pal_main((PAL_NUM) linux_state.parent_process_id,
+             manifest, exec, NULL, parent, first_thread, argv, envp);
 }
 
 /* the following code is borrowed from CPUID */

@@ -64,10 +64,10 @@ typedef union pal_handle
         PAL_REF ref;
         PAL_FLG flags;
         PAL_IDX fds[];
-    } __in;
+    } hdr;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX fd;
         PAL_NUM offset;
         PAL_BOL append;
@@ -76,20 +76,20 @@ typedef union pal_handle
     } file;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX fd;
         PAL_NUM pipeid;
         PAL_BOL nonblocking;
     } pipe;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX fds[2];
         PAL_BOL nonblocking;
     } pipeprv;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX fd_in, fd_out;
         PAL_IDX dev_type;
         PAL_BOL destroy;
@@ -97,26 +97,26 @@ typedef union pal_handle
     } dev;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX fd;
         PAL_STR realpath;
-        PAL_BUF buf;
-        PAL_BUF ptr;
-        PAL_BUF end;
+        PAL_PTR buf;
+        PAL_PTR ptr;
+        PAL_PTR end;
         PAL_BOL endofstream;
     } dir;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX fd;
         PAL_NUM token;
     } gipc;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX fd;
-        PAL_BUF bind;
-        PAL_BUF conn;
+        PAL_PTR bind;
+        PAL_PTR conn;
         PAL_BOL nonblocking;
         PAL_BOL reuseaddr;
         PAL_NUM linger;
@@ -130,7 +130,7 @@ typedef union pal_handle
     } sock;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX stream_in, stream_out;
         PAL_IDX cargo;
         PAL_IDX pid;
@@ -138,21 +138,21 @@ typedef union pal_handle
     } process;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX cli;
         PAL_IDX srv;
         PAL_IDX port;
         PAL_BOL nonblocking;
-        PAL_BUF addr;
+        PAL_PTR addr;
     } mcast;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         PAL_IDX tid;
     } thread;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         struct atomic_int nwaiters;
         PAL_NUM max_value;
         union {
@@ -162,7 +162,7 @@ typedef union pal_handle
     } semaphore;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR reserved;
         struct atomic_int signaled;
         struct atomic_int nwaiters;
         PAL_BOL isnotification;
@@ -176,5 +176,94 @@ typedef union pal_handle
 #define MAX_FDS         (3)
 #define HAS_FDS         (00077)
 
-#define HANDLE_TYPE(handle)  ((handle)->__in.type)
+#define HANDLE_TYPE(handle)  ((handle)->hdr.type)
+
+struct arch_frame {
+#ifdef __x86_64__
+    unsigned long rsp, rbp, rbx, rsi, rdi, r12, r13, r14, r15;
+#else
+# error "unsupported architecture"
+#endif
+};
+
+#ifdef __x86_64__
+# define store_register(reg, var)     \
+    asm volatile ("movq %%" #reg ", %0" : "=g" (var) :: "memory");
+
+# define store_register_in_frame(reg, f)     store_register(reg, (f)->reg)
+
+# define arch_store_frame(f)                     \
+    store_register_in_frame(rsp, f)              \
+    store_register_in_frame(rbp, f)              \
+    store_register_in_frame(rbx, f)              \
+    store_register_in_frame(rsi, f)              \
+    store_register_in_frame(rdi, f)              \
+    store_register_in_frame(r12, f)              \
+    store_register_in_frame(r13, f)              \
+    store_register_in_frame(r14, f)              \
+    store_register_in_frame(r15, f)
+
+# define restore_register(reg, var, clobber...)  \
+    asm volatile ("movq %0, %%" #reg :: "g" (var) : "memory", ##clobber);
+
+# define restore_register_in_frame(reg, f)       \
+    restore_register(reg, (f)->reg,              \
+                     "r15", "r14", "r13", "r12", "rdi", "rsi", "rbx")
+
+# define arch_restore_frame(f)                   \
+    restore_register_in_frame(r15, f)            \
+    restore_register_in_frame(r14, f)            \
+    restore_register_in_frame(r13, f)            \
+    restore_register_in_frame(r12, f)            \
+    restore_register_in_frame(rdi, f)            \
+    restore_register_in_frame(rsi, f)            \
+    restore_register_in_frame(rbx, f)            \
+    restore_register_in_frame(rbp, f)            \
+    restore_register_in_frame(rsp, f)
+#else /* __x86_64__ */
+# error "unsupported architecture"
+#endif
+
+struct pal_frame {
+    volatile struct pal_frame * self;
+    void *                      func;
+    const char *                funcname;
+    struct arch_frame           arch;
+};
+
+static inline
+void __store_frame (struct pal_frame * frame,
+                    void * func, const char * funcname)
+{
+    *(volatile void **) &frame->self = frame;
+    frame->func = func;
+    frame->funcname = funcname;
+    arch_store_frame(&frame->arch)
+}
+
+#define ENTER_PAL_CALL(name)                \
+    struct pal_frame frame;                 \
+    __store_frame(&frame, &(name), #name)
+
+
+static inline
+void __clear_frame (struct pal_frame * frame)
+{
+    if (*(volatile void **) &frame->self == frame) {
+        asm volatile ("nop" ::: "memory");
+        *(volatile void **) &frame->self = NULL;
+    }
+}
+
+#define LEAVE_PAL_CALL()                    \
+    do {                                    \
+        __clear_frame(&frame);              \
+    } while (0)
+
+#define LEAVE_PAL_CALL_RETURN(retval)       \
+    do {                                    \
+        __clear_frame(&frame);              \
+        return (retval);                    \
+    } while (0)
+
 #endif /* PAL_HOST_H */

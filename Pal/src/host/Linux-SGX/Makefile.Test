@@ -1,0 +1,45 @@
+SGX_DIR = $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+LIBPAL = $(SGX_DIR)/../../libpal-enclave.so
+SGX_SIGNER_KEY = $(SGX_DIR)/signer/enclave-key.pem
+SGX_SIGN = $(SGX_DIR)/signer/pal-sgx-sign -libpal $(LIBPAL) -key $(SGX_SIGNER_KEY)
+SGX_GET_TOKEN = $(SGX_DIR)/signer/pal-sgx-get-token
+
+ifeq ($(SGX_RUN),1)
+
+expand_target = $(foreach t,$(filter-out manifest,$(1)),$(patsubst %.manifest,%,$(t)).token)
+
+%.token: %.sig
+	@echo [ Token: $(patsubst %.token,%,$@) ]
+	@$(SGX_GET_TOKEN) -output $@ -sig $(patsubst %.token,%.sig,$@)
+
+else
+
+expand_target = $(1) $(foreach t,$(filter-out manifest,$(1)), \
+		$(patsubst %.manifest,%,$(t)).manifest.sgx) *.sig *.token
+
+$(SGX_SIGNER_KEY):
+	$(error "Cannot find any enclave key. Generate $(abspath $(SGX_SIGNER_KEY)) or specify 'SGX_SIGNER_KEY=' with make")
+
+prerequisite = \
+	for f in `grep -Po 'sgx.trusted_children.[^\\s=]+\\s*=\\s*file:\\K\\S+' $(1)`; do \
+		$(MAKE) $${f%.sig}.manifest.sgx; \
+	done
+
+find_manifest = $(patsubst %.template,%,$(if $(wildcard $(1).manifest.template),$(1).manifest.template,manifest.template))
+
+%.manifest.sgx: % $(LIBPAL) $(SGX_SIGNER_KEY)
+	$(eval $@-manifest := $(call find_manifest,$<))
+	@$(MAKE) $($@-manifest)
+	$(call prerequisite,$($@-manifest))
+	@echo [ $@ ]
+	$(SGX_SIGN) -output $@ -exec $< -manifest $($@-manifest)
+
+%.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY)
+	$(call prerequisite,$<)
+	@$(MAKE) $<
+	@echo [ $@ ]
+	$(SGX_SIGN) -output $@ -manifest $<
+
+*.sig *.token nothing:
+
+endif

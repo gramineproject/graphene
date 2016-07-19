@@ -18,8 +18,7 @@ endif
 
 host_target = libpal-Linux.a
 
-defs	= -DIN_PAL -DSRCDIR="$(PWD)/" -DPAL_LOADER_PATH="$(PWD)/pal" \
-	  -DGDB_SCRIPT="$(CURDIR)/pal-gdb.py"
+defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    semaphore mutex events process object main rtld misc ipc \
 	    exception) manifest clone-x86_64 gettimeofday-x86_64
@@ -28,10 +27,11 @@ headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 all: $(host_target)
 
-debug: debug = debug
-debug: CC = gcc -g
-debug: CFLAGS += -DDEBUG
-debug: $(host_target)
+ifeq ($(DEBUG),1)
+CC += -gdwarf-2 -g3
+CFLAGS += -DDEBUG
+export DEBUG
+endif
 
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../.. $<

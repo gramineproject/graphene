@@ -305,7 +305,7 @@ static int pipe_private (PAL_HANDLE * handle, int options)
 static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
-    if (!memcmp(type, "pipe:", 5) && !*uri)
+    if (strpartcmp_static(type, "pipe:") && !*uri)
         return pipe_private(handle, options);
 
     char * endptr;
@@ -316,10 +316,10 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 
     options = HOST_OPTIONS(options & PAL_OPTION_MASK);
 
-    if (!memcmp(type, "pipe.srv:", 9))
+    if (strpartcmp_static(type, "pipe.srv:"))
         return pipe_listen(handle, pipeid, options);
 
-    if (!memcmp(type, "pipe:", 5))
+    if (strpartcmp_static(type, "pipe:"))
         return pipe_connect(handle, pipeid, options);
 
     return -PAL_ERROR_INVAL;
@@ -589,7 +589,7 @@ static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
     memcpy(buffer, prefix, prefix_len);
     buffer[prefix_len] = ':';
     buffer += prefix_len + 1;
-    count -= prefix_len + 1;
+    count  -= prefix_len + 1;
 
     ret = snprintf(buffer, count, "%lu\n", handle->pipe.pipeid);
 
@@ -600,8 +600,7 @@ static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
 
     buffer[ret - 1] = 0;
     buffer += ret - 1;
-    count -= ret - 1;
-
+    count  -= ret - 1;
     return old_count - count;
 }
 

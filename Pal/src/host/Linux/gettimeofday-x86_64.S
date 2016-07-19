@@ -23,7 +23,6 @@
  */
 
 #include <asm/unistd.h>
-#include <sysdep.h>
 
 #include "sysdep-x86_64.h"
 
@@ -41,8 +40,8 @@ ENTRY (gettimeofday)
 	/* cmpl	$-4095, %eax */
 	/* jae	SYSCALL_ERROR_LABEL */
 
-L(pseudo_end):
+pseudo_end:
 	add	$0x8, %rsp
 	cfi_adjust_cfa_offset(-8)
 	ret
-PSEUDO_END(gettimeofday)
+END(gettimeofday)

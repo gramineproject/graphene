@@ -61,11 +61,11 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     child_stack = (void *) ((uintptr_t) child_stack & ~16);
 
     int tid = 0;
-    int ret = __clone(callback, child_stack,
-                      CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
-                      CLONE_THREAD|CLONE_SIGHAND|CLONE_PTRACE|
-                      CLONE_PARENT_SETTID,
-                      param, &tid, NULL);
+    int ret = clone(callback, child_stack,
+                    CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
+                    CLONE_THREAD|CLONE_SIGHAND|CLONE_PTRACE|
+                    CLONE_PARENT_SETTID,
+                    param, &tid, NULL);
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 

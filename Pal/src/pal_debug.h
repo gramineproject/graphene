@@ -30,6 +30,7 @@
 
 #ifdef IN_PAL
 
+#ifndef assert
 void __assert (void);
 
 #define assert(val)                                                      \
@@ -41,16 +42,7 @@ void __assert (void);
             _DkProcessExit(1);                                           \
         }                                                                \
     } while (0)
-
-#define abort(msg)                                                       \
-    do {                                                                 \
-        if (!(val)) {                                                    \
-            printf("Assertion failed (%s): %s: %d\n", msg,               \
-                   __FILE__, __LINE__);                                  \
-            __assert();                                                  \
-            _DkProcessExit(1);                                           \
-        }                                                                \
-    } while (0)
+#endif
 
 #endif /* IN_PAL */
 

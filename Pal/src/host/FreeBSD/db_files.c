@@ -285,13 +285,13 @@ static int file_getname (PAL_HANDLE handle, char * buffer, int count)
         return 0;
 
     int len = strlen(handle->file.realpath);
+    char * tmp = strcpy_static(buffer, "file:", count);
 
-    if (len + 5 >= count)
+    if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
 
-    memcpy(buffer, "file:", 5);
-    memcpy(buffer + 5, handle->file.realpath, len + 1);
-    return len + 5;
+    memcpy(tmp, handle->file.realpath, len + 1);
+    return tmp + len - buffer;
 }
 
 const char * file_getrealpath (PAL_HANDLE handle)
@@ -504,15 +504,13 @@ static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
         return 0;
 
     int len = strlen(handle->dir.realpath);
+    char * tmp = strcpy_static(buffer, "file:", count);
 
-    if (len + 6 >= count)
+    if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
 
-    memcpy(buffer, "file:", 5);
-    memcpy(buffer + 5, handle->dir.realpath, len);
-    buffer[len + 5] = '/';
-    buffer[len + 6] = 0;
-    return len + 6;
+    memcpy(tmp, handle->dir.realpath, len + 1);
+    return tmp + len - buffer;
 }
 
 static const char * dir_getrealpath (PAL_HANDLE handle)

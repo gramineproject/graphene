@@ -14,7 +14,7 @@ endif
 
 DIRS = src test regression
 
-all debug clean:
+all clean:
 	for d in $(DIRS); \
 	do \
 		$(MAKE) -C $$d $@; \

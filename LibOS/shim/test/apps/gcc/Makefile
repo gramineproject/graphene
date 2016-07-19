@@ -1,36 +1,11 @@
-manifests = gcc g++ gcc-huge g++-huge gcc-local g++-local
+exec_target = $(addsuffix .manifest,gcc g++ gcc-huge g++-huge)
 
-all debug: $(addsuffix .manifest, $(manifests))
+clean-extra = clean-garbages
 
-c_targets = helloworld gzip oggenc.m single-gcc
+extra_rules = -e 's:\$$(PAL):../pal_loader:g'
 
-test_targets = $(c_targets) $(make_targets)
-
-test: all $(test_targets)
-
-%.manifest: %.manifest.template
-	$(MAKE) -C .. gcc/$@ appdir=gcc/
-
-$(c_targets): %: %.c
-	echo "$@ (native):" >> result
-	rm -rf $@
-	time -a -o result -p gcc -o $@ $^ \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-	sleep 0.5
-	echo "$@ (graphene):" >> result
-	rm -rf $@
-	time -a -o result -p ./gcc.manifest -o $@ $^ \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-$(make_targets): %:
-	echo "$@ (native2):" >> result
-	$(MAKE) -C $(dir $@) clean
-	time -a -o result -p $(MAKE) -C $(dir $@) $(notdir $@) CC=g++
-	echo "$@ (graphene):" >> result
-	$(MAKE) -C $(dir $@) clean
-	time -a -o result -p $(MAKE) -C $(dir $@) $(notdir $@) CC=$(shell pwd)/g++.manifest
-
-gcc-local: obj/bin/gcc
+level = ../../
+include ../../Makefile
 
 GCC_VER = 4.8.4
 BINUTILS_VER = 2.20.1
@@ -134,12 +109,6 @@ test-graphene:
 
 distclean: clean
 	rm -rf src obj
-
-clean: clean-manifests clean-garbages
-	rm -rf result $(test_targets)
-
-clean-manifests:
-	rm -rf $(addsuffix .manifest, $(manifests))
 
 clean-garbages:
 	rm -rf cc*.s cc*.c cc*.ld cc*.le cc*.o a.out

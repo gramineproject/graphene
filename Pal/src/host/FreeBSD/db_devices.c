@@ -67,14 +67,8 @@ static int parse_device_uri (const char ** uri, const char ** type,
 
     for (p = u ; (*p) && (*p) != ',' && (*p) != '/' ; p++);
 
-    switch (p - u) {
-        case 3:
-            if (!memcmp(u, "tty", 3))
-                dops = &term_ops;
-            break;
-        default:
-            break;
-    }
+    if (strpartcmp_static(u, "tty"))
+        dops = &term_ops;
 
     if (!dops)
         return -PAL_ERROR_NOTSUPPORT;

@@ -54,7 +54,11 @@
 
 #define PAL_ERROR_BOUND                25
 
-static const char * pal_errstring[] __attribute__((unused)) = {
+static const char * pal_errstring[]
+#ifdef __GNUC__
+__attribute__((unused))
+#endif
+= {
         /*  0. */ "Success",
         /*  1. */ "Function not implemented",
         /*  2. */ "Symbol not defined",
@@ -83,8 +87,12 @@ static const char * pal_errstring[] __attribute__((unused)) = {
         /* 25. */ "Resource address not exist",
     };
 
-#define PAL_STRERROR(errno)                                             \
-    ({ int _e = -errno; ((_e > 0 && _e <= PAL_ERROR_BOUND) ?            \
-                         pal_errstring[_e] : "Unknown error");   })
+static inline const char * PAL_STRERROR (int errno)
+{
+    int _e = -errno;
+    if (_e > 0 && _e <= PAL_ERROR_BOUND)
+        return pal_errstring[_e];
+    return "Unknown error";
+}
 
 #endif

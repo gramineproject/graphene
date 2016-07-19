@@ -38,34 +38,39 @@
 PAL_HANDLE
 DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args)
 {
-    store_frame(ProcessCreate);
+    ENTER_PAL_CALL(DkProcessCreate);
 
     log_stream(uri);
 
     PAL_HANDLE handle = NULL;
     int ret = _DkProcessCreate(&handle, uri, flags, args);
 
-    if (ret < 0)
-        leave_frame(NULL, -ret);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        handle = NULL;
+    }
 
-    leave_frame(handle, 0);
+    LEAVE_PAL_CALL_RETURN(handle);
 }
 
 void DkProcessExit (PAL_NUM exitcode)
 {
-    store_frame(ProcessExit);
+    ENTER_PAL_CALL(DkProcessExit);
     _DkProcessExit(exitcode);
-    leave_frame(, PAL_ERROR_NOTKILLABLE);
+    _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
+    LEAVE_PAL_CALL();
 }
 
 PAL_BOL DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags)
 {
-    store_frame(ProcessSandboxCreate);
+    ENTER_PAL_CALL(DkProcessSandboxCreate);
 
     int ret = _DkProcessSandboxCreate(manifest, flags);
 
-    if (ret < 0)
-        leave_frame(PAL_FALSE, -ret);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
 
-    leave_frame(PAL_TRUE, 0);
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }

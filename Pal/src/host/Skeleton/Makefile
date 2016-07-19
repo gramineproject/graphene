@@ -11,7 +11,7 @@ ARFLAGS	=
 
 host_target = libpal-Skeleton.a
 
-defs	= -DIN_PAL -DSRCDIR="$(PWD)/"
+defs	= -DIN_PAL
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    semaphore events process object main rtld misc ipc exception)
 graphene_lib = ../../../lib/graphene-lib.a
@@ -19,13 +19,11 @@ headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 all: $(host_target)
 
-debug: debug = debug
-debug: CC = gcc -g
-debug: CFLAGS += -DDEBUG
-debug: $(host_target)
-
-$(graphene_lib): ../../host_endian.h
-	$(MAKE) -C ../../../lib $(debug)
+ifeq ($(DEBUG),1)
+CC += -gdwarf-2 -g3
+CFLAGS += -DDEBUG
+export DEBUG
+endif
 
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<

@@ -20,6 +20,8 @@
 #include "pal_internal.h"
 #include "api.h"
 
+#ifndef NO_INTERNAL_PRINTF
+
 // Collect up to PRINTBUF_SIZE characters into a buffer
 // and perform ONE system call to print all of them,
 // in order to make the lines output to the console atomic
@@ -71,3 +73,5 @@ printf(const char * fmt, ...)
     return cnt;
 }
 extern_alias(printf);
+
+#endif

@@ -1,13 +1,11 @@
 #!/bin/bash
 
-JAVA_FLAGS="-Xmx4m -Xms1m -XX:NewSize=256k -XX:MaxNewSize=1m -Xss1m -XX:+UseSerialGC -XX:-UsePerfData -XX:+DisableExplicitGC -XX:PermSize=1m -XX:MaxPermSize=4m -XX:MinHeapFreeRatio=0 -XX:MaxHeapFreeRatio=30"
+JAVA_FLAGS="-Xmx4m -Xms1m -XX:NewSize=256k -XX:MaxNewSize=1m -Xss1m -XX:+UseSerialGC -XX:-UsePerfData -XX:+DisableExplicitGC -XX:PermSize=4m -XX:MaxPermSize=16m -XX:MinHeapFreeRatio=0 -XX:MaxHeapFreeRatio=30 -XX:-UseCompiler"
 
+PAL=../pal_loader
 if [ "$1" = "-native" ]; then
 	shift
-	`make java_home`/bin/java $JAVA_FLAGS $*
-elif [ "$1" = "-gdb" ]; then
-	shift
-	./java.manifest -gdb $JAVA_FLAGS $*
-else
-	./java.manifest $JAVA_FLAGS $*
+	PAL=
 fi
+
+exec $PAL `make java_home`/bin/java $JAVA_FLAGS $*

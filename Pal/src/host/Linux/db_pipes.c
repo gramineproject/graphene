@@ -52,9 +52,9 @@ static int pipe_path (int pipeid, char * path, int len)
     /* use abstract UNIX sockets for pipes */
     memset(path, 0, len);
 
-    if (pal_sec.pipe_prefix)
+    if (pal_sec.pipe_prefix_id)
         return snprintf(path + 1, len - 1, GRAPHENE_UNIX_PREFIX_FMT "/%08x",
-                        pal_sec.pipe_prefix, pipeid);
+                        pal_sec.pipe_prefix_id, pipeid);
     else
         return snprintf(path + 1, len - 1, "/graphene/%08x", pipeid);
 }
@@ -100,7 +100,7 @@ static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(hdl, pipesrv);
-    hdl->__in.flags |= RFD(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0);
     hdl->pipe.fd = fd;
     hdl->pipe.pipeid = pipeid;
     hdl->pipe.nonblocking = options & PAL_OPTION_NONBLOCK ?
@@ -166,7 +166,7 @@ static int pipe_waitforclient (PAL_HANDLE handle, PAL_HANDLE * client)
 #else
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(clnt, pipecli);
-    clnt->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    HANDLE_HDR(clnt)->flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     clnt->pipe.fd = newfd;
     clnt->pipe.pipeid = handle->pipe.pipeid;
     *client = clnt;
@@ -250,7 +250,7 @@ static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
     SET_HANDLE_TYPE(hdl, pipeprv);
-    hdl->__in.flags |= RFD(0)|WFD(1)|WRITEABLE(1);
+    HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(1)|WRITEABLE(1);
     hdl->pipeprv.fds[0] = pipes[0];
     hdl->pipeprv.fds[1] = pipes[1];
     hdl->pipeprv.nonblocking = (options & PAL_OPTION_NONBLOCK) ?
@@ -258,7 +258,7 @@ static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
 #else
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(hdl, pipe);
-    hdl->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     hdl->pipe.fd = fd;
     hdl->pipe.pipeid = pipeid;
     hdl->pipe.nonblocking = (options & PAL_OPTION_NONBLOCK) ?
@@ -284,7 +284,7 @@ static int pipe_private (PAL_HANDLE * handle, int options)
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
     SET_HANDLE_TYPE(hdl, pipeprv);
-    hdl->__in.flags |= RFD(0)|WFD(1)|WRITEABLE(1);
+    HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(1)|WRITEABLE(1);
     hdl->pipeprv.fds[0] = fds[0];
     hdl->pipeprv.fds[1] = fds[1];
     hdl->pipeprv.nonblocking = (options & PAL_OPTION_NONBLOCK) ?
@@ -302,7 +302,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 {
     options &= PAL_OPTION_MASK;
 
-    if (!memcmp(type, "pipe:", 5) && !*uri)
+    if (strpartcmp_static(type, "pipe:") && !*uri)
         return pipe_private(handle, options);
 
     char * endptr;
@@ -311,10 +311,10 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
     if (*endptr)
         return -PAL_ERROR_INVAL;
 
-    if (!memcmp(type, "pipe.srv:", 9))
+    if (strpartcmp_static(type, "pipe.srv:"))
         return pipe_listen(handle, pipeid, options);
 
-    if (!memcmp(type, "pipe:", 5))
+    if (strpartcmp_static(type, "pipe:"))
         return pipe_connect(handle, pipeid, options);
 
     return -PAL_ERROR_INVAL;
@@ -422,7 +422,7 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                handle->__in.flags &= ~writeable;
+                HANDLE_HDR(handle)->flags &= ~writeable;
                 return-PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
@@ -431,9 +431,9 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
         }
 
     if (bytes == len)
-        handle->__in.flags |= writeable;
+        HANDLE_HDR(handle)->flags |= writeable;
     else
-        handle->__in.flags &= ~writeable;
+        HANDLE_HDR(handle)->flags &= ~writeable;
 
     return bytes;
 }
@@ -524,38 +524,38 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
     int ret, val;
 
-    if (handle->__in.fds[0] == PAL_IDX_POISON)
+    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    ret = INLINE_SYSCALL(ioctl, 3, handle->__in.fds[0], FIONREAD, &val);
+    ret = INLINE_SYSCALL(ioctl, 3, HANDLE_HDR(handle)->fds[0], FIONREAD, &val);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
     attr->handle_type  = pal_type_pipe;
-    attr->disconnected = handle->__in.flags & ERROR(0);
-    attr->nonblocking  = (handle->__in.type == pal_type_pipeprv) ?
+    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
+    attr->nonblocking  = (HANDLE_HDR(handle)->type == pal_type_pipeprv) ?
                          handle->pipeprv.nonblocking : handle->pipe.nonblocking;
     attr->readable     = val > 0;
     if (PAL_GET_TYPE(handle) == pal_type_pipeprv)
-        attr->writeable = handle->__in.flags & WRITEABLE(1);
+        attr->writeable = HANDLE_HDR(handle)->flags & WRITEABLE(1);
     else
-        attr->writeable = handle->__in.flags & WRITEABLE(0);
+        attr->writeable = HANDLE_HDR(handle)->flags & WRITEABLE(0);
     attr->pending_size = val;
     return 0;
 }
 
 static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (handle->__in.fds[0] == PAL_IDX_POISON)
+    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     int ret;
-    PAL_BOL * nonblocking = (handle->__in.type == pal_type_pipeprv) ?
+    PAL_BOL * nonblocking = (HANDLE_HDR(handle)->type == pal_type_pipeprv) ?
                             &handle->pipeprv.nonblocking :
                             &handle->pipe.nonblocking;
 
     if (attr->nonblocking != *nonblocking) {
-        ret = INLINE_SYSCALL(fcntl, 3, handle->__in.fds[0], F_SETFL,
+        ret = INLINE_SYSCALL(fcntl, 3, HANDLE_HDR(handle)->fds[0], F_SETFL,
                              *nonblocking ? O_NONBLOCK : 0);
 
         if (IS_ERR(ret))

@@ -43,11 +43,17 @@ int main (int argc, char ** argv, char ** envp)
         PAL_HANDLE children[3];
 
         for (int i = 0 ; i < 3 ; i++) {
+            pal_printf("Creating process\n");
+
             children[i] = DkProcessCreate("file:Process", 0, args);
 
-            if (children[i])
+            if (children[i]) {
+                pal_printf("Process created %d\n", i + 1);
                 DkStreamRead(children[i], 0, 20, buffer4, NULL, 0);
+            }
         }
+
+        pal_printf("Broadcasting message\n");
 
         ret = DkStreamWrite(pal_control.broadcast_stream, 0, 20, buffer1, NULL);
         if (ret > 0)

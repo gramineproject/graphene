@@ -1,0 +1,8 @@
+loader.debug_type = inline
+
+# allow to bind on port 8000
+net.allow_bind.1 = 127.0.0.1:8000
+# allow to connect to port 8000
+net.allow_peer.1 = 127.0.0.1:8000
+
+sgx.allowed_files.tmp = file:to_send.tmp

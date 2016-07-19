@@ -1167,8 +1167,8 @@ BEGIN_RS_FUNC(vma)
 
     unlock(vma_list_lock);
 
-    debug ("vma: %p-%p flags %x prot %p\n", vma->addr, vma->addr +
-           vma->length, vma->flags, vma->prot);
+    debug("vma: %p-%p flags %x prot %p\n", vma->addr, vma->addr + vma->length,
+          vma->flags, vma->prot);
 
     if (!(vma->flags & VMA_UNMAPPED)) {
         if (vma->file) {

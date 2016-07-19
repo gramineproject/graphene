@@ -48,10 +48,11 @@ headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
 
 all: $(shim_target)
 
-debug: debug = debug
-debug: CC = gcc -gdwarf-2 -g3
-debug: CFLAGS += -DDEBUG
-debug: $(shim_target)
+ifeq ($(DEBUG),1)
+CC += -gdwarf-2 -g3
+CFLAGS += -DDEBUG
+endif
+export DEBUG
 
 ifeq ($(PROFILING), 1)
 CFLAGS += -DPROFILE

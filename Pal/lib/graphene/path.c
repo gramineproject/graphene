@@ -94,4 +94,43 @@ int get_norm_path (const char * path, char * buf, int offset, int size)
     return offset;
 }
 
+int get_base_name (const char * path, char * buf, int size)
+{
+    const char * p = path;
 
+    for (; *p ; p++) {
+        if (*p == '/')
+            continue;
+        if (*p == '.') {
+            if (*(p + 1) == '/' || !*(p + 1)) {
+                p++;
+                continue;
+            }
+            if (*(p + 1) == '.') {
+                if (*(p + 2) == '/' || !*(p + 2)) {
+                    p += 2;
+                    continue;
+                }
+                return -PAL_ERROR_INVAL;
+            }
+        }
+
+        const char * e = p + 1;
+        for (; *e && *e != '/' ; e++);
+        if (*e) {
+            p = e - 1;
+            continue;
+        }
+
+        if (e - p > size - 1)
+            return -PAL_ERROR_TOOLONG;
+
+        int offset = 0;
+        for (; p < e ; p++, offset++)
+            buf[offset] = *p;
+        buf[offset] = 0;
+        return offset;
+    }
+
+    return 0;
+}

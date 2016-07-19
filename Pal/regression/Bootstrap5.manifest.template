@@ -1,13 +1,2 @@
-# the executable to run
-# loader.exec = file:./HelloWorld
-
-# debug type: inline|file
 loader.debug_type = inline
-
-# preload library
 loader.preload = file:Preload1.so,file:Preload2.so
-
-# debug as file
-# loader.debug_file = <path>
-
-fs.mount.root.uri = file:

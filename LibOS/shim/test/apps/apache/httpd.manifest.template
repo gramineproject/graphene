@@ -6,24 +6,41 @@ loader.execname = httpd
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.debug_type = none
 
-fs.mount.root.type = chroot
-fs.mount.root.uri = file:
+fs.mount.lib1.type = chroot
+fs.mount.lib1.path = /lib
+fs.mount.lib1.uri = file:$(LIBCDIR)
 
-fs.mount.other.lib1.type = chroot
-fs.mount.other.lib1.path = /lib
-fs.mount.other.lib1.uri = file:$(GLIBCDIR)
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
 
-fs.mount.other.lib2.type = chroot
-fs.mount.other.lib2.path = /lib/x86_64-linux-gnu
-fs.mount.other.lib2.uri = file:/lib/x86_64-linux-gnu
+fs.mount.usr.type = chroot
+fs.mount.usr.path = /usr
+fs.mount.usr.uri = file:/usr
 
-fs.mount.other.usr.type = chroot
-fs.mount.other.usr.path = /usr
-fs.mount.other.usr.uri = file:/usr
-
-fs.mount.other.cwd.type = chroot
-fs.mount.other.cwd.path = $(PWD)
-fs.mount.other.cwd.uri = file:
+fs.mount.cwd.type = chroot
+fs.mount.cwd.path = $(PWD)
+fs.mount.cwd.uri = file:
 
 # allow to bind on port for listening
 net.rules.1 = $(HOST):$(PORT):0.0.0.0:0-65535
+
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.libpcre = file:/lib/x86_64-linux-gnu/libpcre.so.3
+sgx.trusted_files.libapr = file:obj/lib/libapr-1.so.0
+sgx.trusted_files.libaprutil = file:obj/lib/libaprutil-1.so.0
+sgx.trusted_files.libexpat = file:/lib/x86_64-linux-gnu/libexpat.so.1
+sgx.trusted_files.libcrypt = file:/lib/x86_64-linux-gnu/libcrypt.so.1
+sgx.trusted_files.libresolv = file:/lib/x86_64-linux-gnu/libresolv.so.2
+sgx.trusted_files.libxml2 = file:/usr/lib/x86_64-linux-gnu/libxml2.so.2
+sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
+sgx.trusted_files.liblzma = file:/lib/x86_64-linux-gnu/liblzma.so.5
+
+sgx.allowed_files.modules = file:obj/modules
+sgx.allowed_files.conf = file:obj/conf
+sgx.allowed_files.htdocs = file:obj/htdocs
+sgx.allowed_files.logs = file:obj/logs

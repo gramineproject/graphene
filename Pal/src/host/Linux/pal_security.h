@@ -60,13 +60,17 @@ void pal_dl_debug_state (void);
 extern struct r_debug pal_r_debug;
 
 extern struct pal_sec {
-    unsigned long       pipe_prefix;
-    unsigned short      mcast_port;
-    unsigned int        current_pid;
-    void *              user_addr_base;
-    unsigned int        rand_gen;
-    void                (*_dl_debug_state) (void);
-    struct r_debug *    _r_debug;
+    /* system variables */
+    unsigned int    process_id;
+    int             random_device;
+
+    /* pipes and sockets */
+    unsigned long   pipe_prefix_id;
+    unsigned short  mcast_port;
+
+    /* for debugger */
+    void (*_dl_debug_state) (void);
+    struct r_debug * _r_debug;
 } pal_sec;
 
 #define PROC_INIT_FD    255

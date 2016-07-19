@@ -1,38 +1,30 @@
-busybox_src = busybox-1.23.1
+exec_target = busybox.manifest busybox_nofork.manifest
+target = busybox busybox_gdb busybox_nofork busybox_nofork_gdb
 
-manifests = busybox.manifest busybox_nofork.manifest
-targets = busybox busybox_gdb busybox_nofork busybox_nofork_gdb $(manifests)
-test_targets =
+extra_rules = -e 's:\$$(PAL):../pal_loader:g'
 
-all: $(targets)
+level = ../../
+include ../../Makefile
 
-debug: MAKE_FLAGS=CC="gcc -g"
-debug: $(targets)
+BUSYBOX_DIR = busybox-1.23.1
 
-busybox busybox_gdb: config_for_graphene
-	[ -d $(busybox_src) ] || tar -xjf $(busybox_src).tar.bz2
-	cp config_for_graphene $(busybox_src)/.config
-	cd $(busybox_src) && $(MAKE) $(MAKE_FLAGS)
-	cp $(busybox_src)/busybox busybox
-	cp $(busybox_src)/busybox_unstripped busybox_gdb
+ifeq ($(DEBUG),1)
+MAKE_FLAGS = CC="gcc -g"
+endif
 
-busybox_nofork busybox_nofork_gdb: $(busybox_src) config_for_graphene_nofork
-	[ -d $(busybox_src) ] || tar -xjf $(busybox_src).tar.bz2
-	cp config_for_graphene_nofork $(busybox_src)/.config
-	cd $(busybox_src) && $(MAKE) $(MAKE_FLAGS)
-	cp $(busybox_src)/busybox busybox_nofork
-	cp $(busybox_src)/busybox_unstripped busybox_nofork_gdb
+busybox busybox_gdb: config-graphene
+	[ -d $(BUSYBOX_DIR) ] || tar -xjf $(BUSYBOX_DIR).tar.bz2
+	cp config-graphene $(BUSYBOX_DIR)/.config
+	cd $(BUSYBOX_DIR) && $(MAKE) $(MAKE_FLAGS)
+	cp $(BUSYBOX_DIR)/busybox busybox
+	cp $(BUSYBOX_DIR)/busybox_unstripped busybox_gdb
 
-test: all $(test_targets)
-
-%.manifest: %.manifest.template
-	$(MAKE) -C .. busybox/$@ appdir=busybox/
+busybox_nofork busybox_nofork_gdb: $(BUSYBOX_DIR) config-graphene-nofork
+	[ -d $(BUSYBOX_DIR) ] || tar -xjf $(BUSYBOX_DIR).tar.bz2
+	cp config-graphene-nofork $(BUSYBOX_DIR)/.config
+	cd $(BUSYBOX_DIR) && $(MAKE) $(MAKE_FLAGS)
+	cp $(BUSYBOX_DIR)/busybox busybox_nofork
+	cp $(BUSYBOX_DIR)/busybox_unstripped busybox_nofork_gdb
 
 distclean: clean
-	rm -rf $(busybox_src)
-
-clean: clean-manifests
-	rm -rf result $(test_targets) busybox busybox_gdb
-
-clean-manifests:
-	rm -rf $(manifests)
+	rm -rf $(BUSYBOX_DIR)

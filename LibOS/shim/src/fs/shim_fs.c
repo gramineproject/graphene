@@ -94,25 +94,11 @@ static bool mount_migrated = false;
 
 static int __mount_root (void)
 {
-    const char * root_type = "chroot", * root_uri = "file:";
     int ret;
-
-    if (root_config) {
-        char t[CONFIG_MAX], u[CONFIG_MAX];
-
-        if (get_config(root_config, "fs.mount.root.type", t, CONFIG_MAX) > 0)
-            root_type = t;
-        if (get_config(root_config, "fs.mount.root.uri",  u, CONFIG_MAX) > 0)
-            root_uri  = u;
-    }
-
-    debug("mounting as %s filesystem: from %s to root\n", root_type, root_uri);
-
-    if ((ret = mount_fs(root_type, root_uri, "/")) < 0) {
-        debug("mounting root filesystem failed( %e)\n", ret);
+    if ((ret = mount_fs("chroot", "file:", "/")) < 0) {
+        debug("mounting root filesystem failed (%e)\n", ret);
         return ret;
     }
-
     return 0;
 }
 
@@ -154,9 +140,9 @@ static int __mount_one_other (const char * key, int keylen)
     char * uri = NULL;
     int ret;
 
-    memcpy(k, "fs.mount.other.", 15);
-    memcpy(k + 15, key, keylen);
-    char * kp = k + 15 + keylen;
+    memcpy(k, "fs.mount.", 9);
+    memcpy(k + 9, key, keylen);
+    char * kp = k + 9 + keylen;
 
     memcpy(kp, ".path", 6);
     if (get_config(root_config, k, p, CONFIG_MAX) <= 0)
@@ -189,7 +175,7 @@ static int __mount_others (void)
     int nkeys, keybuf_size = CONFIG_MAX;
     char * keybuf = __alloca(keybuf_size);
 
-    while ((nkeys = get_config_entries(root_config, "fs.mount.other", keybuf,
+    while ((nkeys = get_config_entries(root_config, "fs.mount", keybuf,
                                        keybuf_size)) == -ENAMETOOLONG) {
         keybuf = __alloca(keybuf_size);
         keybuf_size *= 2;

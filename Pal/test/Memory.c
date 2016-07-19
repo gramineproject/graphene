@@ -6,6 +6,8 @@
 #include "pal.h"
 #include "pal_debug.h"
 
+#include <stdint.h>
+
 int main (int argc, char ** argv, char **envp)
 {
     void * p1 = (void *) DkVirtualMemoryAlloc (NULL,

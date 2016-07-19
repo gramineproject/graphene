@@ -25,6 +25,7 @@
  */
 
 #include <pal_rtld.h>
+#include <pal_internal.h>
 #include <elf/elf.h>
 #include <dl-machine-x86_64.h>
 
@@ -39,28 +40,28 @@
    copying memory, breaking the very code written to handle the
    unaligned cases.  */
 #if ! ELF_MACHINE_NO_REL
-static inline void __attribute__((always_inline))
+static inline void __attribute_always_inline
 elf_machine_rel (struct link_map *l, ElfW(Rel) *reloc, ElfW(Sym) *sym,
                  void *const reloc_addr);
 
-static inline void __attribute__((always_inline))
+static inline void __attribute_always_inline
 elf_machine_rel_relative (struct link_map *l, const ElfW(Rel) *reloc,
                           void *const reloc_addr);
 #endif
 
 #if ! ELF_MACHINE_NO_RELA
-static inline void __attribute__((always_inline))
+static inline void __attribute_always_inline
 elf_machine_rela (struct link_map *l, ElfW(Rela) *reloc, ElfW(Sym) *sym,
                   void *const reloc_addr);
 
-static inline void __attribute__((always_inline))
+static inline void __attribute_always_inline
 elf_machine_rela_relative (struct link_map *l, const ElfW(Rela) *reloc,
                            void *const reloc_addr);
 #endif
 
 /* Read the dynamic section at DYN and fill in INFO with indices DT_*.  */
 static inline
-void __attribute__ ((unused, always_inline))
+void __attribute_unused __attribute_always_inline
 elf_get_dynamic_info (ElfW(Dyn) *dyn, ElfW(Dyn) **l_info, ElfW(Addr) l_addr)
 {
 #if __ELF_NATIVE_CLASS == 32
@@ -200,7 +201,7 @@ _elf_dynamic_do_reloc(struct link_map *l, int dt_reloc, int dt_reloc_sz,
 #else
 /* Now this part is for our x86s machines */
 
-static void __attribute__((unused))
+static void __attribute_unused
 _elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
                       void (*do_reloc) (struct link_map *, ElfW(Addr), int))
 {

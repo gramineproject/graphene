@@ -35,16 +35,18 @@
 PAL_HANDLE
 DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags)
 {
-    store_frame(ThreadCreate);
+    ENTER_PAL_CALL(DkThreadCreate);
 
     PAL_HANDLE handle = NULL;
     int ret = _DkThreadCreate (&handle, (int (*)(void *)) addr,
-                               param, flags);
+                               (const void *) param, flags);
 
-    if (ret < 0)
-        leave_frame(NULL, -ret);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        handle = NULL;
+    }
 
-    leave_frame(handle, 0);
+    LEAVE_PAL_CALL_RETURN(handle);
 }
 
 /* PAL call DkThreadDelayExecution. Delay the current thread
@@ -52,46 +54,55 @@ DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags)
 PAL_NUM
 DkThreadDelayExecution (PAL_NUM duration)
 {
-    store_frame(ThreadDelayExecution);
+    ENTER_PAL_CALL(DkThreadDelayExecution);
 
     unsigned long dur = duration;
     int ret = _DkThreadDelayExecution(&dur);
 
-    if (ret < 0)
-        leave_frame(dur, PAL_ERROR_INTERRUPTED);
+    if (ret < 0) {
+        _DkRaiseFailure(PAL_ERROR_INTERRUPTED);
+        duration = dur;
+    }
 
-    leave_frame(duration, 0);
+    LEAVE_PAL_CALL_RETURN(duration);
 }
 
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
 void DkThreadYieldExecution (void)
 {
+    ENTER_PAL_CALL(DkThreadYieldExecution);
     _DkThreadYieldExecution();
+    LEAVE_PAL_CALL();
 }
 
 /* PAL call DkThreadExit: simply exit the current thread
    no matter what */
 void DkThreadExit (void)
 {
-    store_frame(ThreadExit);
+    ENTER_PAL_CALL(DkThreadExit);
     _DkThreadExit();
-    leave_frame(, PAL_ERROR_NOTKILLABLE);
+    _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
+    LEAVE_PAL_CALL();
 }
 
 /* PAL call DkThreadResume: resume the execution of a thread
    which is delayed before */
 PAL_BOL DkThreadResume (PAL_HANDLE threadHandle)
 {
-    store_frame(ThreadResume);
+    ENTER_PAL_CALL(DkThreadResume);
 
-    if (!threadHandle || !IS_HANDLE_TYPE(threadHandle, thread))
-        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
+    if (!threadHandle || !IS_HANDLE_TYPE(threadHandle, thread)) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
 
     int ret = _DkThreadResume(threadHandle);
 
-    if (ret < 0)
-        leave_frame(PAL_FALSE, PAL_ERROR_DENIED);
+    if (ret < 0) {
+        _DkRaiseFailure(PAL_ERROR_DENIED);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
 
-    leave_frame(PAL_TRUE, 0);
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }

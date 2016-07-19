@@ -50,10 +50,10 @@ static struct shim_dcache_stats dcache_stats;
 
 long get_dcache_stats (const char * name)
 {
-    if (memcmp(name, "memsize", 8) == 0)
+    if (strcmp_static(name, "memsize"))
         return dcache_stats.memsize;
 
-    if (memcmp(name, "nentries", 9) == 0)
+    if (strcmp_static(name, "nentries"))
         return dcache_stats.nentries;
 
     return 0;

@@ -36,6 +36,7 @@
 #include <bits/dlfcn.h>
 
 PAL_CONTROL __pal_control;
+
 PAL_CONTROL * pal_control_addr (void)
 {
     return &__pal_control;
@@ -82,116 +83,63 @@ static void load_libraries (void)
         }
 }
 
-static void read_envs (const char *** envpp)
+static void read_environments (const char *** envpp)
 {
     const char ** envp = *envpp;
     char cfgbuf[CONFIG_MAX];
 
-   /* loader.env.* and loader.exclude.env: filtering host environment
-     * variables */
-   struct env {
+    /* loader.env.*: rewriting host environment variables */
+    struct setenv {
         const char * str;
         int len, idx;
-    } * envs = NULL;
-    int nenvs = 0;
+    } * setenvs = NULL;
+    int nsetenvs = 0;
 
     if (pal_state.root_config)
-        nenvs = get_config_entries(pal_state.root_config, "loader.env",
-                                   cfgbuf, CONFIG_MAX);
+        nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
+                                      cfgbuf, CONFIG_MAX);
 
-    if (nenvs > 0) {
-        envs = __alloca(sizeof(struct env) * nenvs);
-        char * cfg = cfgbuf;
-        for (int i = 0 ; i < nenvs ; i++) {
-            int len = strlen(cfg);
-            char * str = __alloca(len + 1);
-            envs[i].str = str;
-            envs[i].len = len;
-            envs[i].idx = -1;
-            memcpy(str, cfg, len + 1);
-            cfg += len + 1;
-        }
+    if (nsetenvs <= 0)
+        return;
+
+    setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
+    char * cfg = cfgbuf;
+    for (int i = 0 ; i < nsetenvs ; i++) {
+        int len = strlen(cfg);
+        char * str = __alloca(len + 1);
+        setenvs[i].str = str;
+        setenvs[i].len = len;
+        setenvs[i].idx = -1;
+        memcpy(str, cfg, len + 1);
+        cfg += len + 1;
     }
 
-    int envc = 0, add = nenvs;
-    for (const char ** e = envp ; *e ; e++) {
-        const char * s = *e, * p = s;
-        envc++;
-        while (*p && *p != '=')
-            p++;
-        int l = p - s;
-        const char * v = p + 1;
-
-        if (l > 8 &&
-            s[0] == 'P' && s[1] == 'A' && s[2] == 'L' && s[3] == '_' &&
-            s[4] == 'L' && s[5] == 'O' && s[6] == 'G' && s[7] == '_') {
-            /* PAL_LOG_STREAM = */
-            if (l == 14 && s[8] == 'S' && s[9] == 'T' &&
-                s[10] == 'R' && s[11] == 'E' && s[12] == 'A' && s[13] == 'M') {
-                PAL_HANDLE log;
-                if (!_DkStreamOpen(&log, v, PAL_ACCESS_APPEND,
-                                   PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
-                                   PAL_CREAT_TRY, 0)) {
-                    if (pal_state.log_stream)
-                        _DkObjectClose(pal_state.log_stream);
-                    pal_state.log_stream = log;
-                }
-            }
-
-            /* PAL_LOG_TYPES = */
-            if (l == 13 && s[8] == 'T' && s[9] == 'Y' &&
-                s[10] == 'P' && s[11] == 'E' && s[12] == 'S') {
-                const char * t = v, * n;
-                while (*t) {
-                    for (n = t ; *n && *n != ',' ; n++);
-                    switch (n - t) {
-                        case 4:
-                            if (t[0] == 'f' && t[1] == 'i' && t[2] == 'l' &&
-                                t[3] == 'e')
-                                pal_state.log_types |= LOG_FILE;
-                            if (t[0] == 'p' && t[1] == 'i' && t[2] == 'p' &&
-                                t[3] == 'e')
-                                pal_state.log_types |= LOG_PIPE;
-                            break;
-                        case 6:
-                            if (t[0] == 's' && t[1] == 'o' && t[2] == 'c' &&
-                                t[3] == 'k' && t[4] == 'e' && t[5] == 't')
-                                pal_state.log_types |= LOG_SOCKET;
-                            break;
-                    }
-                    t = *n ? n + 1 : n;
-                }
-            }
-
-            continue;
-        }
-
-        for (int i = 0 ; i < nenvs ; i++)
-            if (envs[i].len == l && !memcmp(envs[i].str, s, l)) {
-                envs[i].idx = envc - 1;
-                add--;
+    int nenvs = 0, noverwrite = 0;
+    for (const char ** e = envp ; *e ; e++, nenvs++)
+        for (int i = 0 ; i < nsetenvs ; i++)
+            if (!memcmp(setenvs[i].str, *e, setenvs[i].len) &&
+                (*e)[setenvs[i].len] == '=') {
+                setenvs[i].idx = nenvs;
+                noverwrite++;
                 break;
             }
-    }
 
-    if (add) {
-        const char ** new_envp =
-            malloc(sizeof(const char *) * (envc + add + 1));
-        memcpy(new_envp, envp, sizeof(const char *) * envc);
-        envp = new_envp;
-        envp[envc + add] = NULL;
-    }
+    const char ** new_envp =
+            malloc(sizeof(const char *) * (nenvs + nsetenvs - noverwrite + 1));
+    memcpy(new_envp, envp, sizeof(const char *) * nenvs);
+    envp = new_envp;
 
     char key[CONFIG_MAX] = "loader.env.";
+    int prefix_len = static_strlen("loader.env.");
     const char ** ptr;
 
-    for (int i = 0 ; i < nenvs ; i++) {
-        const char * str = envs[i].str;
-        int len = envs[i].len;
-        int idx = envs[i].idx;
+    for (int i = 0 ; i < nsetenvs ; i++) {
+        const char * str = setenvs[i].str;
+        int len = setenvs[i].len;
+        int idx = setenvs[i].idx;
         int bytes;
-        ptr = &envp[(idx == -1) ? envc++ : idx];
-        memcpy(key + 11, str, len + 1);
+        ptr = &envp[(idx == -1) ? nenvs++ : idx];
+        memcpy(key + prefix_len, str, len + 1);
         if ((bytes = get_config(pal_state.root_config, key, cfgbuf,
                                 CONFIG_MAX)) > 0) {
             char * e = malloc(len + bytes + 2);
@@ -214,7 +162,7 @@ static void read_envs (const char *** envpp)
 static void set_debug_type (void)
 {
     char cfgbuf[CONFIG_MAX];
-    int ret;
+    int ret = 0;
 
     if (!pal_state.root_config)
         return;
@@ -226,11 +174,12 @@ static void set_debug_type (void)
 
     PAL_HANDLE handle = NULL;
 
-    if (!memcmp(cfgbuf, "inline", 7)) {
+    if (strcmp_static(cfgbuf, "inline")) {
         ret = _DkStreamOpen(&handle, "dev:tty", PAL_ACCESS_RDWR, 0, 0, 0);
-        if (ret < 0)
-            init_fail(-ret, "cannot open debug stream");
-    } else if (!memcmp(cfgbuf, "file", 5)) {
+        goto out;
+    }
+
+    if (strcmp_static(cfgbuf, "file")) {
         ret = get_config(pal_state.root_config, "loader.debug_file",
                          cfgbuf, CONFIG_MAX);
         if (ret <= 0)
@@ -240,11 +189,17 @@ static void set_debug_type (void)
                             PAL_ACCESS_RDWR,
                             PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
                             PAL_CREAT_TRY, 0);
-        if (ret < 0)
-            init_fail(-ret, "cannot open debug file");
-    } else if (memcmp(cfgbuf, "none", 5)) {
-        init_fail(PAL_ERROR_INVAL, "unknown debug type");
+        goto out;
     }
+
+    if (strcmp_static(cfgbuf, "none"))
+        goto out;
+
+    init_fail(PAL_ERROR_INVAL, "unknown debug type");
+
+out:
+    if (ret < 0)
+        init_fail(-ret, "cannot open debug stream");
 
     __pal_control.debug_stream = handle;
 }
@@ -267,94 +222,98 @@ static void set_syscall_symbol (void)
 
 static int loader_filter (const char * key, int len)
 {
+    /* try to do this as fast as possible */
     return (key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
             key[4] == 'e' && key[5] == 'r' && key[6] == '.') ? 0 : 1;
 }
 
-void pal_main (PAL_NUM pal_token, void * pal_addr,
-               const char * pal_name,
-               int argc, const char ** argv, const char ** envp,
-               PAL_HANDLE parent_handle,
-               PAL_HANDLE thread_handle,
-               PAL_HANDLE exec_handle, PAL_PTR_RANGE * exec_range,
-               PAL_HANDLE manifest_handle)
+void start_execution (const char * first_argument, const char ** arguments,
+                      const char ** environments);
+
+/* 'pal_main' must be called by the host-specific bootloader */
+void pal_main (
+        PAL_NUM    instance_id,      /* current instance id */
+        PAL_HANDLE manifest_handle,  /* manifest handle if opened */
+        PAL_HANDLE exec_handle,      /* executable handle if opened */
+        PAL_PTR    exec_loaded_addr, /* executable addr if loaded */
+        PAL_HANDLE parent_process,   /* parent process if it's a child */
+        PAL_HANDLE first_thread,     /* first thread handle */
+        PAL_STR *  arguments,        /* application arguments */
+        PAL_STR *  environments      /* environment variables */
+    )
 {
-    int ret;
-    bool is_parent = !parent_handle;
+    bool is_parent = (parent_process == NULL);
 
 #if PROFILING == 1
     __pal_control.host_specific_startup_time =
             _DkSystemTimeQuery() - pal_state.start_time;
 #endif
 
-    pal_state.pal_token     = pal_token;
-    pal_state.pal_addr      = pal_addr;
-    pal_state.parent_handle = parent_handle;
-    pal_state.pagesize      = _DkGetPagesize();
-    pal_state.alloc_align   = _DkGetAllocationAlignment();
-    pal_state.alloc_shift   = pal_state.alloc_align - 1;
-    pal_state.alloc_mask    = ~pal_state.alloc_shift;
+    pal_state.instance_id = instance_id;
+    pal_state.pagesize    = _DkGetPagesize();
+    pal_state.alloc_align = _DkGetAllocationAlignment();
+    pal_state.alloc_shift = pal_state.alloc_align - 1;
+    pal_state.alloc_mask  = ~pal_state.alloc_shift;
 
     init_slab_mgr(pal_state.alloc_align);
 
-    if (is_parent && !exec_handle && !manifest_handle) {
-        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
-        _DkProcessExit(0);
-        return;
-    }
+    pal_state.parent_process = parent_process;
 
-    char * exec = NULL, * manifest = NULL;
+    char uri_buf[URI_MAX];
+    char * manifest_uri = NULL, * exec_uri = NULL;
+    int ret;
 
     if (exec_handle) {
-        exec = __alloca(URI_MAX);
-        ret = _DkStreamGetName(exec_handle, exec, URI_MAX);
+        ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
         if (ret < 0)
             init_fail(-ret, "cannot get executable name");
+
+        exec_uri = remalloc(uri_buf, ret + 1);
     }
 
     if (manifest_handle) {
-        manifest = __alloca(URI_MAX);
-        ret = _DkStreamGetName(manifest_handle, manifest, URI_MAX);
+        ret = _DkStreamGetName(manifest_handle, uri_buf, URI_MAX);
         if (ret < 0)
             init_fail(-ret, "cannot get manifest name");
-    } else {
-        if (is_parent) {
-#if PROFILING == 1
-            unsigned long before_find_manifest = _DkSystemTimeQuery();
-#endif
-            do {
-                assert(!!exec);
-                /* try open "<exec>.manifest" */
-                manifest = __alloca(URI_MAX);
-                snprintf(manifest, URI_MAX, "%s.manifest", exec);
-                ret = _DkStreamOpen(&manifest_handle,
-                                    manifest,
-                                    PAL_ACCESS_RDONLY, 0, 0, 0);
-                if (!ret)
-                    break;
 
-                /* try open "file:manifest" */
-                manifest = "file:manifest";
-                ret = _DkStreamOpen(&manifest_handle,
-                                    manifest,
-                                    PAL_ACCESS_RDONLY, 0, 0, 0);
-                if (!ret)
-                    break;
-
-                /* well, there is no manifest file, leave it alone */
-                if (!manifest_handle)
-                    printf("Can't fine any manifest, will run without one\n");
-            } while (0);
-
-#if PROFILING == 1
-            pal_state.manifest_loading_time +=
-                            _DkSystemTimeQuery() - before_find_manifest;
-#endif
-        }
+        manifest_uri = remalloc(uri_buf, ret + 1);
+        goto has_manifest;
     }
 
+    if (!exec_handle)
+        init_fail(PAL_ERROR_INVAL, "Must have manifest or executable");
+
+#if PROFILING == 1
+    unsigned long before_find_manifest = _DkSystemTimeQuery();
+#endif
+
+    /* The rule is to only find the manifest in the current directory */
+    /* try open "<execname>.manifest" */
+    ret = get_base_name(exec_uri, uri_buf, URI_MAX);
+
+    strcpy_static(uri_buf + ret, ".manifest", URI_MAX - ret);
+    ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
+    if (!ret)
+        goto has_manifest;
+
+    /* try open "file:manifest" */
+    manifest_uri = "file:manifest";
+    ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY,
+                        0, 0, 0);
+    if (!ret)
+        goto has_manifest;
+
+#if PROFILING == 1
+    pal_state.manifest_loading_time +=
+            _DkSystemTimeQuery() - before_find_manifest;
+#endif
+
+    /* well, there is no manifest file, leave it alone */
+    printf("Can't fine any manifest, will run without one.\n");
+
+has_manifest:
     /* load manifest if there is one */
-    if (manifest_handle && !pal_state.root_config) {
+    if (!pal_state.root_config && manifest_handle) {
 #if PROFILING == 1
         unsigned long before_load_manifest = _DkSystemTimeQuery();
 #endif
@@ -392,53 +351,40 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
     }
 
     /* if there is no executable, try to find one in the manifest */
-    if (is_parent && !exec_handle) {
-        exec = __alloca(URI_MAX);
-        assert(!!pal_state.root_config);
-
-        ret = get_config(pal_state.root_config, "loader.exec", exec, URI_MAX);
+    if (!exec_handle && pal_state.root_config) {
+        ret = get_config(pal_state.root_config, "loader.exec",
+                         uri_buf, URI_MAX);
         if (ret > 0) {
-            ret = _DkStreamOpen(&exec_handle, exec, PAL_ACCESS_RDONLY,
+            exec_uri = remalloc(uri_buf, ret + 1);
+            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
                                 0, 0, 0);
             if (ret < 0)
                 init_fail(-ret, "cannot open executable");
-
-            /* must be a ELF */
-            if (check_elf_object(exec_handle) < 0)
-                init_fail(PAL_ERROR_INVAL, "executable is not a ELF binary");
-        } else {
-            exec = NULL;
         }
     }
 
-    pal_state.manifest        = manifest;
+    /* must be a ELF */
+    if (exec_handle && check_elf_object(exec_handle) < 0)
+        init_fail(PAL_ERROR_INVAL, "executable is not a ELF binary");
+
+    pal_state.manifest        = manifest_uri;
     pal_state.manifest_handle = manifest_handle;
-    pal_state.exec            = exec;
+    pal_state.exec            = exec_uri;
     pal_state.exec_handle     = exec_handle;
 
-    const char * first_argv = *argv;
-    argc--;
-    argv++;
+    const char * first_argument =
+        (is_parent && exec_uri) ? exec_uri : *arguments;
+    arguments++;
 
-    if (is_parent && exec) {
-        first_argv = exec;
-        if (pal_state.root_config) {
-            char cfgbuf[CONFIG_MAX];
-            ret = get_config(pal_state.root_config, "loader.execname", cfgbuf,
-                             CONFIG_MAX);
-            if (ret > 0)
-                first_argv = remalloc(cfgbuf, ret + 1);
-        }
+    if (pal_state.root_config) {
+        char cfgbuf[CONFIG_MAX];
+        ret = get_config(pal_state.root_config, "loader.execname", cfgbuf,
+                         CONFIG_MAX);
+        if (ret > 0)
+            first_argument = remalloc(cfgbuf, ret + 1);
     }
 
-    read_envs(&envp);
-
-    if (pal_state.log_stream && (pal_state.log_types & LOG_FILE)) {
-        if (manifest)
-            log_stream(manifest);
-        if (exec)
-            log_stream(exec);
-    }
+    read_environments(&environments);
 
     if (pal_state.root_config)
         load_libraries();
@@ -448,11 +394,12 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
         unsigned long before_load_exec = _DkSystemTimeQuery();
 #endif
 
-        ret = exec_range ?
-              add_elf_object((void *) exec_range->start,
-                             exec_range->end - exec_range->start,
-                             exec_handle, OBJECT_EXEC) :
-              load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
+        if (exec_loaded_addr) {
+            ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
+        } else {
+            ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
+        }
+
         if (ret < 0)
             init_fail(ret, PAL_STRERROR(ret));
 
@@ -471,9 +418,9 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
     __pal_control.process_id         = _DkGetProcessId();
     __pal_control.host_id            = _DkGetHostId();
     __pal_control.manifest_handle    = manifest_handle;
-    __pal_control.executable         = exec;
-    __pal_control.parent_process     = parent_handle;
-    __pal_control.first_thread       = thread_handle;
+    __pal_control.executable         = exec_uri;
+    __pal_control.parent_process     = parent_process;
+    __pal_control.first_thread       = first_thread;
 
     _DkGetAvailableUserAddressRange(&__pal_control.user_address.start,
                                     &__pal_control.user_address.end);
@@ -498,7 +445,7 @@ void pal_main (PAL_NUM pal_token, void * pal_addr,
 #endif
 
     /* Now we will start the execution */
-    start_execution(first_argv, argc, argv, envp);
+    start_execution(first_argument, arguments, environments);
 
     /* We wish we will never reached here */
     init_fail(PAL_ERROR_DENIED, "unexpected termination");
@@ -512,7 +459,7 @@ void write_log (int nstrs, ...)
 
     va_start(ap, nstrs);
     for (int i = 0 ; i < nstrs ; i++) {
-        strs[i] = va_arg(ap, const char *);
+        strs[i] = va_arg(ap, char *);
         len += strlen(strs[i]);
     }
     va_end(ap);

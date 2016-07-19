@@ -1,6 +1,7 @@
 #!/bin/bash
 
-PAL_DIR=$(readlink -f $(dirname ${BASH_SOURCE[0]})/../../../../Pal/src)
+PAL_LOADER=$(readlink -f ${BASH_SOURCE[0]})
+PAL_DIR=$(readlink -f $(dirname $PAL_LOADER)/../../../../Pal/src)
 PAL=$PAL_DIR/pal
 PAL_SEC=$PAL_DIR/pal_sec
 
@@ -9,7 +10,11 @@ GDB_CMD=
 PAL_CMD=$PAL
 
 if [ "$GDB" == "1" ]; then
-	GDB_CMD="gdb --args"
+	GDB="gdb"
+fi
+
+if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
+	GDB_CMD="$GDB --args"
 fi
 
 if [ "$SEC" == "1" ]; then

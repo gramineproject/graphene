@@ -86,7 +86,7 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
             goto inval;
 
         addr_str = tmp + 1;
-        addr_len = end - tmp + 1;
+        addr_len = end - tmp - 1;
         port_str = end + 2;
         for (end = port_str ; *end >= '0' && *end <= '9' ; end++);
         addr_in6->sin6_family = af = AF_INET6;
@@ -226,22 +226,22 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
 
     memset(hdl, 0, sizeof(union pal_handle));
     PAL_GET_TYPE(hdl) = type;
-    hdl->__in.flags |= RFD(0)|(type != pal_type_tcpsrv ? WFD(0) : 0);
+    HANDLE_HDR(hdl)->flags |= RFD(0)|(type != pal_type_tcpsrv ? WFD(0) : 0);
     hdl->sock.fd = fd;
     void * addr = (void *) hdl + HANDLE_SIZE(sock);
     if (bind_addr) {
-        hdl->sock.bind = addr;
+        hdl->sock.bind = (PAL_PTR) addr;
         memcpy(addr, bind_addr, bind_addrlen);
         addr += bind_addrlen;
     } else {
-        hdl->sock.bind = NULL;
+        hdl->sock.bind = (PAL_PTR) NULL;
     }
     if (dest_addr) {
-        hdl->sock.conn = addr;
+        hdl->sock.conn = (PAL_PTR) addr;
         memcpy(addr, dest_addr, dest_addrlen);
         addr += dest_addrlen;
     } else {
-        hdl->sock.conn = NULL;
+        hdl->sock.conn = (PAL_PTR) NULL;
     }
 
     hdl->sock.nonblocking   = (options & PAL_OPTION_NONBLOCK) ?
@@ -517,10 +517,10 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
     char uri_buf[PAL_SOCKADDR_SIZE];
     memcpy(uri_buf, uri, uri_len);
 
-    if (!memcmp(type, "tcp.srv:", 8))
+    if (strpartcmp_static(type, "tcp.srv:"))
         return tcp_listen(handle, uri_buf, options);
 
-    if (!memcmp(type, "tcp:", 4))
+    if (strpartcmp_static(type, "tcp:"))
         return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -592,16 +592,16 @@ static int tcp_write (PAL_HANDLE handle, int offset, int len, const void * buf)
             case EPIPE:
                 return -PAL_ERROR_CONNFAILED;
             case EWOULDBLOCK:
-                handle->__in.flags &= ~WRITEABLE(0);
+                HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
                 return -PAL_ERROR_TRYAGAIN;
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
     if (bytes == len)
-        handle->__in.flags |= WRITEABLE(0);
+        HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
-        handle->__in.flags &= ~WRITEABLE(0);
+        HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
 
     return bytes;
 }
@@ -722,10 +722,10 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     memcpy(buf, uri, len + 1);
     options &= PAL_OPTION_MASK;
 
-    if (!memcmp(type, "udp.srv:", 8))
+    if (strpartcmp_static(type, "udp.srv:"))
         return udp_bind(hdl, buf, options);
 
-    if (!memcmp(type, "udp:", 4))
+    if (strpartcmp_static(type, "udp:"))
         return udp_connect(hdl, buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -804,11 +804,12 @@ static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
-    if (addrlen < 5)
+    char * addr_uri = strcpy_static(addr, "udp:", addrlen);
+    if (!addr_uri)
         return -PAL_ERROR_OVERFLOW;
 
-    memcpy(addr, "udp:", 5);
-    inet_create_uri(addr + 4, addrlen - 4, &conn_addr, hdr.msg_namelen);
+    inet_create_uri(addr_uri, addr + addrlen - addr_uri, &conn_addr,
+                    hdr.msg_namelen);
 
     return bytes;
 }
@@ -825,8 +826,8 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
     struct iovec iov;
     iov.iov_base = (void *) buf;
     iov.iov_len = len;
-    hdr.msg_name = handle->sock.conn;
-    hdr.msg_namelen = addr_size(handle->sock.conn);
+    hdr.msg_name = (void *) handle->sock.conn;
+    hdr.msg_namelen = addr_size((struct sockaddr *) handle->sock.conn);
     hdr.msg_iov = &iov;
     hdr.msg_iovlen = 1;
     hdr.msg_control = NULL;
@@ -838,7 +839,7 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EAGAIN:
-                handle->__in.flags &= ~WRITEABLE(0);
+                HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
                 return -PAL_ERROR_TRYAGAIN;
             case ECONNRESET:
             case EPIPE:
@@ -848,9 +849,9 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
         }
 
     if (bytes == len)
-        handle->__in.flags |= WRITEABLE(0);
+        HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
-        handle->__in.flags &= ~WRITEABLE(0);
+        HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
 
     return bytes;
 }
@@ -864,7 +865,7 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (memcmp(addr, "udp:", 4))
+    if (!strpartcmp_static(addr, "udp:"))
         return -PAL_ERROR_INVAL;
 
     char * addrbuf = __alloca(addrlen - 3);
@@ -897,15 +898,15 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
             case EPIPE:
                 return -PAL_ERROR_CONNFAILED;
             case EAGAIN:
-                handle->__in.flags &= ~WRITEABLE(0);
+                HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
     if (bytes == len)
-        handle->__in.flags |= WRITEABLE(0);
+        HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
-        handle->__in.flags &= ~WRITEABLE(0);
+        HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
 
     return bytes;
 }
@@ -958,10 +959,10 @@ static int socket_close (PAL_HANDLE handle)
     }
 
     if (handle->sock.bind)
-        handle->sock.bind = NULL;
+        handle->sock.bind = (PAL_PTR) NULL;
 
     if (handle->sock.conn)
-        handle->sock.conn = NULL;
+        handle->sock.conn = (PAL_PTR) NULL;
 
     return 0;
 }
@@ -989,10 +990,10 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
         attr->readable = !attr->disconnected;
     }
 
-    attr->handle_type           = handle->__in.type;
-    attr->disconnected          = handle->__in.flags & ERROR(0);
+    attr->handle_type           = HANDLE_HDR(handle)->type;
+    attr->disconnected          = HANDLE_HDR(handle)->flags & ERROR(0);
     attr->nonblocking           = handle->sock.nonblocking;
-    attr->writeable             = handle->__in.flags & WRITEABLE(0);
+    attr->writeable             = HANDLE_HDR(handle)->flags & WRITEABLE(0);
     attr->socket.linger         = handle->sock.linger;
     attr->socket.receivebuf     = handle->sock.receivebuf;
     attr->socket.sendbuf        = handle->sock.sendbuf;
@@ -1131,26 +1132,26 @@ static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
 
     switch (PAL_GET_TYPE(handle)) {
         case pal_type_tcpsrv:
-            prefix_len = 7;
+            prefix_len = static_strlen("tcp.srv");
             prefix = "tcp.srv";
-            bind_addr = handle->sock.bind;
+            bind_addr = (struct sockaddr *) handle->sock.bind;
             break;
         case pal_type_tcp:
-            prefix_len = 3;
+            prefix_len = static_strlen("tcp");
             prefix = "tcp";
-            bind_addr = handle->sock.bind;
-            dest_addr = handle->sock.conn;
+            bind_addr = (struct sockaddr *) handle->sock.bind;
+            dest_addr = (struct sockaddr *) handle->sock.conn;
             break;
         case pal_type_udpsrv:
-            prefix_len = 7;
+            prefix_len = static_strlen("udp.srv");
             prefix = "udp.srv";
-            bind_addr = handle->sock.bind;
+            bind_addr = (struct sockaddr *) handle->sock.bind;
             break;
         case pal_type_udp:
-            prefix_len = 3;
+            prefix_len = static_strlen("udp");
             prefix = "udp";
-            bind_addr = handle->sock.bind;
-            dest_addr = handle->sock.conn;
+            bind_addr = (struct sockaddr *) handle->sock.bind;
+            dest_addr = (struct sockaddr *) handle->sock.conn;
             break;
         default:
             return -PAL_ERROR_INVAL;
@@ -1161,7 +1162,7 @@ static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
 
     memcpy(buffer, prefix, prefix_len + 1);
     buffer += prefix_len;
-    count -= prefix_len;
+    count  -= prefix_len;
 
     for (int i = 0 ; i < 2 ; i++) {
         struct sockaddr * addr = i ? dest_addr : bind_addr;
@@ -1179,7 +1180,7 @@ static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
                 return ret;
 
             buffer += ret;
-            count -= ret;
+            count  -= ret;
         }
     }
 
@@ -1279,12 +1280,12 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(mcast));
     SET_HANDLE_TYPE(hdl, mcast);
-    hdl->__in.flags |= WFD(1)|WRITEABLE(1);
+    HANDLE_HDR(hdl)->flags |= WFD(1)|WRITEABLE(1);
     hdl->mcast.srv = srv;
     hdl->mcast.cli = cli;
-    hdl->mcast.port = pal_sec.mcast_port;
+    hdl->mcast.port = (PAL_NUM) pal_sec.mcast_port;
     hdl->mcast.nonblocking = PAL_FALSE;
-    hdl->mcast.addr = remalloc(&addr, sizeof(addr));
+    hdl->mcast.addr = (PAL_PTR) remalloc(&addr, sizeof(addr));
     return hdl;
 
 err_cli:
@@ -1305,7 +1306,7 @@ static int mcast_send (PAL_HANDLE handle, int offset, int size,
     struct iovec iov;
     iov.iov_base = (void *) buf;
     iov.iov_len = size;
-    hdr.msg_name = handle->mcast.addr;
+    hdr.msg_name = (char *) handle->mcast.addr;
     hdr.msg_namelen = sizeof(struct sockaddr_in);
     hdr.msg_iov = &iov;
     hdr.msg_iovlen = 1;
@@ -1322,15 +1323,15 @@ static int mcast_send (PAL_HANDLE handle, int offset, int size,
             case EPIPE:
                 return -PAL_ERROR_CONNFAILED;
             case EAGAIN:
-                handle->__in.flags &= ~WRITEABLE(1);
+                HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
     if (bytes == size)
-        handle->__in.flags |= WRITEABLE(1);
+        HANDLE_HDR(handle)->flags |= WRITEABLE(1);
     else
-        handle->__in.flags &= ~WRITEABLE(1);
+        HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
 
     return bytes;
 }
@@ -1372,10 +1373,10 @@ static int mcast_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
         return unix_to_pal_error(ERRNO(ret));
 
     attr->handle_type  = pal_type_mcast;
-    attr->disconnected = handle->__in.flags & (ERROR(0)|ERROR(1));
+    attr->disconnected = HANDLE_HDR(handle)->flags & (ERROR(0)|ERROR(1));
     attr->nonblocking  = handle->mcast.nonblocking;
     attr->readable     = !!val;
-    attr->writeable    = handle->__in.flags & WRITEABLE(1);
+    attr->writeable    = HANDLE_HDR(handle)->flags & WRITEABLE(1);
     attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
 

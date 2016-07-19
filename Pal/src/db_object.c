@@ -29,26 +29,27 @@
 #include "pal_error.h"
 #include "pal_debug.h"
 #include "api.h"
+#include "atomic.h"
 
 int _DkObjectReference (PAL_HANDLE objectHandle)
 {
     if (!objectHandle || UNKNOWN_HANDLE(objectHandle))
         return -PAL_ERROR_INVAL;
 
-    atomic_inc(&objectHandle->__in.ref);
+    atomic_inc(&HANDLE_HDR(objectHandle)->ref);
     return 0;
 }
 
 void DkObjectReference (PAL_HANDLE objectHandle)
 {
-    store_frame(ObjectReference);
+    ENTER_PAL_CALL(DkObjectReference);
 
     int ret = _DkObjectReference(objectHandle);
 
     if (ret < 0)
-        leave_frame(, -ret);
+        _DkRaiseFailure(-ret);
 
-    leave_frame(, 0);
+    LEAVE_PAL_CALL();
 }
 
 int _DkObjectClose (PAL_HANDLE objectHandle)
@@ -56,7 +57,7 @@ int _DkObjectClose (PAL_HANDLE objectHandle)
     if (!objectHandle || UNKNOWN_HANDLE(objectHandle))
         return -PAL_ERROR_INVAL;
 
-    if (atomic_dec_and_test_nonnegative(&objectHandle->__in.ref))
+    if (atomic_dec_and_test_nonnegative(&HANDLE_HDR(objectHandle)->ref))
         return 0;
 
     const struct handle_ops * ops = HANDLE_OPS(objectHandle);
@@ -75,14 +76,14 @@ int _DkObjectClose (PAL_HANDLE objectHandle)
    deleted. */
 void DkObjectClose (PAL_HANDLE objectHandle)
 {
-    store_frame(ObjectClose);
+    ENTER_PAL_CALL(DkObjectClose);
 
     int ret = _DkObjectClose(objectHandle);
 
     if (ret < 0)
-        leave_frame(, -ret);
+        _DkRaiseFailure(-ret);
 
-    leave_frame(, 0);
+    LEAVE_PAL_CALL();
 }
 
 /* PAL call DkObjectsWaitAny: wait for any of the handles in the handle array.
@@ -91,10 +92,12 @@ void DkObjectClose (PAL_HANDLE objectHandle)
 PAL_HANDLE
 DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
 {
-    store_frame(ObjectsWaitAny);
+    ENTER_PAL_CALL(DkObjectsWaitAny);
 
-    if (!count || !handleArray)
-        leave_frame(NULL, PAL_ERROR_INVAL);
+    if (!count || !handleArray) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(NULL);
+    }
 
     for (int i = 0 ; i < count ; i++)
         if (UNKNOWN_HANDLE(handleArray[i]))
@@ -106,8 +109,10 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
                                  timeout == NO_TIMEOUT ? -1 : timeout,
                                  &polled);
 
-    if (ret < 0)
-        leave_frame(NULL, -ret);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        polled = NULL;
+    }
 
-    leave_frame(polled, 0);
+    LEAVE_PAL_CALL_RETURN(polled);
 }

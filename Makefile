@@ -1,7 +1,7 @@
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-targets = all debug clean install
+targets = all clean install
 
 ifeq ($(SYS),x86_64-linux-gnu)
 targets += pack

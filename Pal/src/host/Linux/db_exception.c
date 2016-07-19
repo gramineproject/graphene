@@ -285,7 +285,7 @@ void _DkGenericEventTrigger (int event_num, PAL_UPCALL upcall,
     event.uc = uc;
     event.eframe = eframe;
 
-    (*upcall) (&event, arg, &event.context);
+    (*upcall) ((PAL_PTR) &event, arg, &event.context);
 }
 
 static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
@@ -563,9 +563,32 @@ err:
     init_fail(-ret, "cannot setup signal handlers");
 }
 
-void _DkExceptionReturn (const void * event)
+void _DkExceptionReturn (void * event)
 {
-    const struct exception_event * e = (const struct exception_event *) event;
+    struct exception_event * e = (struct exception_event *) event;
+
+    if (e->eframe) {
+        struct pal_frame * frame = (struct pal_frame *) e->eframe;
+        int err = 0;
+
+        switch (e->event_num) {
+            case PAL_EVENT_MEMFAULT:
+                err = PAL_ERROR_BADADDR;
+                break;
+            case PAL_EVENT_QUIT:
+            case PAL_EVENT_SUSPEND:
+            case PAL_EVENT_RESUME:
+                err = PAL_ERROR_INTERRUPTED;
+                break;
+        }
+
+        if (err)
+            _DkRaiseFailure(err);
+
+        __clear_frame(frame);
+        e->context.rax = 0;
+    }
+
     if (e->uc) {
         /* copy the context back to ucontext */
         memcpy(e->uc->uc_mcontext.gregs, &e->context, sizeof(PAL_CONTEXT));

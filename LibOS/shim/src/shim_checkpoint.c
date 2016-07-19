@@ -405,7 +405,7 @@ static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
         return -EPERM;
 
     int nentries = store->gipc_nentries;
-    PAL_PTR * gipc_addrs = __alloca(sizeof(PAL_BUF) * nentries);
+    PAL_PTR * gipc_addrs = __alloca(sizeof(PAL_PTR) * nentries);
     PAL_NUM * gipc_sizes = __alloca(sizeof(PAL_NUM) * nentries);
     int total_pages = 0;
     int cnt = nentries;
@@ -612,8 +612,8 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
         rs_func rs = (&__rs_func) [cpent->cp_type - CP_FUNC_BASE];
         ret = (*rs) (cpent, base, offset, rebase);
         if (ret < 0) {
-            debug("rs_%s failed at %p\n", CP_FUNC_NAME(cpent->cp_type),
-                  base + offset);
+            debug("restoring %s failed at %p (err=%d)\n", CP_FUNC_NAME(cpent->cp_type),
+                  base + offset, -ret);
             return ret;
         }
 next:

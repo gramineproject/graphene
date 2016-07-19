@@ -35,17 +35,21 @@ PAL_BOL
 DkSetExceptionHandler (void (*handler) (PAL_PTR, PAL_NUM, PAL_CONTEXT *),
                        PAL_NUM event, PAL_FLG flags)
 {
-    store_frame(SetExceptionHandler);
+    ENTER_PAL_CALL(DkSetExceptionHandler);
 
-    if (!handler || event <= 0 || event > PAL_EVENT_NUM_BOUND)
-        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
+    if (!handler || event <= 0 || event > PAL_EVENT_NUM_BOUND) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
 
     int ret = _DkExceptionHandlers[event](event, handler, flags);
 
-    if (ret < 0)
-        leave_frame(PAL_FALSE, -ret);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
 
-    leave_frame(PAL_TRUE, 0);
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
 void DkExceptionReturn (PAL_PTR event)
@@ -53,6 +57,7 @@ void DkExceptionReturn (PAL_PTR event)
     _DkExceptionReturn(event);
 }
 
+#ifndef NO_HANDLE_COMPATIBILITY
 unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
                                                unsigned long args[6])
 {
@@ -81,3 +86,4 @@ unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
 
     return ret;
 }
+#endif

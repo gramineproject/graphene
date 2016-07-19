@@ -26,25 +26,71 @@
 #ifndef PAL_H
 #define PAL_H
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 
-#ifdef __x86_64__
 typedef unsigned long PAL_NUM;
-#endif
 typedef const char *  PAL_STR;
-typedef const void *  PAL_PTR;
-typedef void *        PAL_BUF;
+typedef void *        PAL_PTR;
 typedef unsigned int  PAL_FLG;
 typedef unsigned int  PAL_IDX;
-typedef char          PAL_CHR;
 typedef bool          PAL_BOL;
+
+#ifdef IN_PAL
+struct atomic_int {
+    volatile int counter;
+}
+#ifdef __GNUC__
+__attribute__((aligned(sizeof(int))))
+#endif
+;
+
+typedef struct atomic_int PAL_REF;
+
+typedef struct {
+    PAL_IDX type;
+    PAL_REF ref;
+    PAL_FLG flags;
+} PAL_HDR;
+
+# include "pal_host.h"
+
+# ifndef HANDLE_HDR
+#  define HANDLE_HDR(handle) (&((handle)->hdr))
+# endif
+
+# define SET_HANDLE_TYPE(handle, t)             \
+    do {                                        \
+        HANDLE_HDR(handle)->type = pal_type_##t;\
+        HANDLE_HDR(handle)->ref.counter = 0;    \
+        HANDLE_HDR(handle)->flags = 0;          \
+    } while (0)
+
+# define IS_HANDLE_TYPE(handle, t)              \
+    (HANDLE_HDR(handle)->type == pal_type_##t)
+
+#else
+typedef union pal_handle
+{
+    struct {
+        PAL_IDX type;
+    } hdr;
+} * PAL_HANDLE;
+
+# ifndef HANDLE_HDR
+#  define HANDLE_HDR(handle) (&((handle)->hdr))
+# endif
+
+#endif /* !IN_PAL */
 
 typedef struct {
 #ifdef __x86_64__
-    uint64_t r8, r9, r10, r11, r12, r13, r14, r15, rdi, rsi, rbp, rbx, rdx, rax,
-             rcx, rsp, rip, efl, csgsfs, err, trapno, oldmask, cr2;
+    PAL_NUM r8, r9, r10, r11, r12, r13, r14, r15;
+    PAL_NUM rdi, rsi, rbp, rbx, rdx, rax, rcx;
+    PAL_NUM rsp, rip;
+    PAL_NUM efl, csgsfs, err, trapno, oldmask, cr2;
+#else
+# error "Unsupported architecture"
 #endif
 } PAL_CONTEXT;
 
@@ -74,46 +120,27 @@ enum {
     PAL_HANDLE_TYPE_BOUND,
 };
 
-#ifdef IN_PAL
-struct atomic_int {
-    volatile int counter;
-} __attribute__((aligned(sizeof(int))));
-
-typedef struct atomic_int PAL_REF;
-
-typedef struct {
-    PAL_IDX type;
-    PAL_REF ref;
-    PAL_FLG flags;
-} PAL_HDR;
-
-# include "pal_host.h"
-
-# define SET_HANDLE_TYPE(handle, t)             \
-    do {                                        \
-        (handle)->__in.type = pal_type_##t;     \
-        (handle)->__in.ref.counter = 0;         \
-        (handle)->__in.flags = 0;               \
-    } while (0)
-
-# define IS_HANDLE_TYPE(handle, t)              \
-    ((handle)->__in.type == pal_type_##t)
-
-#else
-typedef union pal_handle
-{
-    struct {
-        PAL_IDX type;
-    } __in;
-} * PAL_HANDLE;
-#endif /* !IN_PAL */
 
 /* PAL identifier poison value */
 #define PAL_IDX_POISON          ((PAL_IDX) -1)
-#define PAL_GET_TYPE(h)         ((h)->__in.type)
-#define PAL_CHECK_TYPE(h, t)    (__PAL_GET_TYPE(h) == pal_type_##t)
+#define PAL_GET_TYPE(h)         (HANDLE_HDR(h)->type)
+#define PAL_CHECK_TYPE(h, t)    (PAL_GET_TYPE(h) == pal_type_##t)
 
 typedef struct { PAL_PTR start, end; }  PAL_PTR_RANGE;
+
+typedef struct {
+    PAL_NUM cpu_num;
+    PAL_STR cpu_vendor;
+    PAL_STR cpu_brand;
+    PAL_NUM cpu_family;
+    PAL_NUM cpu_model;
+    PAL_NUM cpu_stepping;
+    PAL_STR cpu_flags;
+} PAL_CPU_INFO;
+
+typedef struct {
+    PAL_NUM mem_total;
+} PAL_MEM_INFO;
 
 /********** PAL APIs **********/
 typedef struct {
@@ -147,19 +174,9 @@ typedef struct {
     /* host page size / allocation alignment */
     PAL_NUM pagesize, alloc_align;
     /* CPU information (only required ones) */
-    struct {
-        PAL_NUM cpu_num;
-        PAL_STR cpu_vendor;
-        PAL_STR cpu_brand;
-        PAL_NUM cpu_family;
-        PAL_NUM cpu_model;
-        PAL_NUM cpu_stepping;
-        PAL_STR cpu_flags;
-    } cpu_info;
+    PAL_CPU_INFO cpu_info;
     /* Memory information (only required ones) */
-    struct {
-        PAL_NUM mem_total;
-    } mem_info;
+    PAL_MEM_INFO mem_info;
 
     /* Purely for profiling */
     PAL_NUM startup_time;
@@ -284,7 +301,7 @@ DkStreamWaitForClient (PAL_HANDLE handle);
 
 PAL_NUM
 DkStreamRead (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
-              PAL_BUF buffer, PAL_BUF source, PAL_NUM size);
+              PAL_PTR buffer, PAL_PTR source, PAL_NUM size);
 
 PAL_NUM
 DkStreamWrite (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
@@ -346,7 +363,7 @@ PAL_BOL
 DkStreamAttributesSetbyHandle (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
 
 PAL_NUM
-DkStreamGetName (PAL_HANDLE handle, PAL_BUF buffer, PAL_NUM size);
+DkStreamGetName (PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size);
 
 PAL_BOL
 DkStreamChangeName (PAL_HANDLE handle, PAL_STR uri);
@@ -465,7 +482,7 @@ PAL_NUM
 DkSystemTimeQuery (void);
 
 PAL_NUM
-DkRandomBitsRead (PAL_BUF buffer, PAL_NUM size);
+DkRandomBitsRead (PAL_PTR buffer, PAL_NUM size);
 
 PAL_BOL
 DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size);
@@ -489,5 +506,6 @@ DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
 PAL_NUM DkMemoryAvailableQuota (void);
 
 PAL_BOL
-DkCpuIdRetrieve (PAL_NUM level, PAL_NUM values[4]);
+DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
+
 #endif /* PAL_H */

@@ -17,9 +17,10 @@ headers = asm-errlist.h api.h
 
 all: $(target)graphene-lib.a
 
-debug: CC = gcc -g
-debug: CFLAGS += -DDEBUG
-debug: $(target)graphene-lib.a
+ifeq ($(DEBUG),1)
+CC += -g
+CFLAGS += -DDEBUG
+endif
 
 $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@echo [ $(notdir $@) ]

@@ -228,7 +228,7 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
 
     if (!hdl)
         return NULL;
-    
+
     options = HOST_SOCKET_OPTIONS(options);
 
     memset(hdl, 0, sizeof(union pal_handle));
@@ -528,10 +528,10 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
     char uri_buf[PAL_SOCKADDR_SIZE];
     memcpy(uri_buf, uri, uri_len);
 
-    if (!memcmp(type, "tcp.srv:", 8))
+    if (strpartcmp_static(type, "tcp.srv:"))
         return tcp_listen(handle, uri_buf, options);
 
-    if (!memcmp(type, "tcp:", 4))
+    if (strpartcmp_static(type, "tcp:"))
         return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -545,7 +545,7 @@ static int tcp_read (PAL_HANDLE handle, int offset, int len, void * buf)
 
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_ENDOFSTREAM;
-    
+
     struct msghdr hdr;
     struct iovec iov;
     iov.iov_base = buf;
@@ -736,10 +736,10 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     memcpy(buf, uri, len + 1);
     options &= PAL_OPTION_MASK;
 
-    if (!memcmp(type, "udp.srv:", 8))
+    if (!strpartcmp_static(type, "udp.srv:"))
         return udp_bind(hdl, buf, options);
 
-    if (!memcmp(type, "udp:", 4))
+    if (!strpartcmp_static(type, "udp:"))
         return udp_connect(hdl, buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -818,11 +818,11 @@ static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
-    if (addrlen < 5)
+    char * tmp = strcpy_static(addr, "udp:", addrlen);
+    if (!tmp)
         return -PAL_ERROR_OVERFLOW;
 
-    memcpy(addr, "udp:", 5);
-    inet_create_uri(addr + 4, addrlen - 4, &conn_addr, hdr.msg_namelen);
+    inet_create_uri(tmp, addr + addrlen - tmp, &conn_addr, hdr.msg_namelen);
 
     return bytes;
 }
@@ -846,7 +846,7 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
     hdr.msg_control = NULL;
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
-    
+
     int bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
@@ -878,11 +878,13 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (memcmp(addr, "udp:", 4))
+    if (strpartcmp_static(addr, "udp:"))
         return -PAL_ERROR_INVAL;
 
-    char * addrbuf = __alloca(addrlen - 3);
-    memcpy(addrbuf, addr + 4, addrlen - 3);
+    addr += static_strlen("udp:");
+    addrlen -= static_strlen("udp:");
+    char * addrbuf = __alloca(addrlen + 1);
+    memcpy(addrbuf, addr, addrlen + 1);
 
     struct sockaddr conn_addr;
     int conn_addrlen;
@@ -902,7 +904,7 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     hdr.msg_control = NULL;
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
-    
+
     int bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))

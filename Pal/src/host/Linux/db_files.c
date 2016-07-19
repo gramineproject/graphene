@@ -57,14 +57,14 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(hdl, file);
-    hdl->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     hdl->file.fd = ret;
     hdl->file.offset = 0;
     hdl->file.append = 0;
     hdl->file.pass = 0;
     char * path = (void *) hdl + HANDLE_SIZE(file);
     memcpy(path, uri, len + 1);
-    hdl->file.realpath = path;
+    hdl->file.realpath = (PAL_STR) path;
     *handle = hdl;
     return 0;
 }
@@ -242,7 +242,7 @@ static int file_attrquery (const char * type, const char * uri,
 static int file_attrquerybyhdl (PAL_HANDLE handle,
                                 PAL_STREAM_ATTR * attr)
 {
-    int fd = handle->__in.fds[0];
+    int fd = HANDLE_HDR(handle)->fds[0];
     struct stat stat_buf;
 
     int ret = INLINE_SYSCALL(fstat, 2, fd, &stat_buf);
@@ -257,7 +257,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
 static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
-    int fd = handle->__in.fds[0], ret;
+    int fd = HANDLE_HDR(handle)->fds[0], ret;
 
     ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags);
     if (IS_ERR(ret))
@@ -284,13 +284,13 @@ static int file_getname (PAL_HANDLE handle, char * buffer, int count)
         return 0;
 
     int len = strlen(handle->file.realpath);
+    char * tmp = strcpy_static(buffer, "file:", count);
 
-    if (len + 5 >= count)
+    if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
 
-    memcpy(buffer, "file:", 5);
-    memcpy(buffer + 5, handle->file.realpath, len + 1);
-    return len + 5;
+    memcpy(tmp, handle->file.realpath, len + 1);
+    return tmp + len - buffer;
 }
 
 const char * file_getrealpath (PAL_HANDLE handle)
@@ -339,15 +339,15 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
     SET_HANDLE_TYPE(hdl, dir);
-    hdl->__in.flags |= RFD(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0);
     hdl->dir.fd = ret;
     char * path = (void *) hdl + HANDLE_SIZE(dir);
     memcpy(path, uri, len + 1);
-    hdl->dir.realpath = path;
-    hdl->dir.buf = NULL;
-    hdl->dir.ptr = NULL;
-    hdl->dir.end = NULL;
-    hdl->dir.endofstream = false;
+    hdl->dir.realpath = (PAL_STR) path;
+    hdl->dir.buf = (PAL_PTR) NULL;
+    hdl->dir.ptr = (PAL_PTR) NULL;
+    hdl->dir.end = (PAL_PTR) NULL;
+    hdl->dir.endofstream = PAL_FALSE;
     *handle = hdl;
     return 0;
 }
@@ -376,9 +376,9 @@ struct linux_dirent64 {
    need a 'write' operat4on. */
 int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
 {
-    void * dent_buf = handle->dir.buf ? : __alloca(DIRBUF_SIZE);
-    void * ptr = handle->dir.ptr;
-    void * end = handle->dir.end;
+    void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
+    void * ptr = (void *) handle->dir.ptr;
+    void * end = (void *) handle->dir.end;
     int bytes = 0;
 
     if (ptr && ptr < end)
@@ -430,12 +430,12 @@ next:
 
     if (ptr < end) {
         if (!handle->dir.buf)
-            handle->dir.buf = malloc(DIRBUF_SIZE);
+            handle->dir.buf = (PAL_PTR) malloc(DIRBUF_SIZE);
 
-        if (handle->dir.buf != ptr) {
-            memmove(handle->dir.buf, ptr, end - ptr);
-            end = handle->dir.buf + (end - ptr);
-            ptr = handle->dir.buf;
+        if ((void *) handle->dir.buf != ptr) {
+            memmove((void *) handle->dir.buf, ptr, end - ptr);
+            end = (void *) handle->dir.buf + (end - ptr);
+            ptr = (void *) handle->dir.buf;
         }
 
         if (!bytes)
@@ -453,8 +453,8 @@ static int dir_close (PAL_HANDLE handle)
     int ret = INLINE_SYSCALL(close, 1, fd);
 
     if (handle->dir.buf) {
-        free(handle->dir.buf);
-        handle->dir.buf = handle->dir.ptr = handle->dir.end = NULL;
+        free((void *) handle->dir.buf);
+        handle->dir.buf = handle->dir.ptr = handle->dir.end = (PAL_PTR) NULL;
     }
 
     if (handle->dir.realpath &&
@@ -502,15 +502,13 @@ static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
         return 0;
 
     int len = strlen(handle->dir.realpath);
+    char * tmp = strcpy_static(buffer, "dir:", count);
 
-    if (len + 6 >= count)
+    if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
 
-    memcpy(buffer, "file:", 5);
-    memcpy(buffer + 5, handle->dir.realpath, len);
-    buffer[len + 5] = '/';
-    buffer[len + 6] = 0;
-    return len + 6;
+    memcpy(tmp, handle->dir.realpath, len + 1);
+    return tmp + len - buffer;
 }
 
 static const char * dir_getrealpath (PAL_HANDLE handle)

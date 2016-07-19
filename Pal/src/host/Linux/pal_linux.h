@@ -26,7 +26,7 @@
 #include "pal_internal.h"
 #include "pal_linux_error.h"
 
-#define PAL_LOADER XSTRINGIFY(PAL_LOADER_PATH)
+#define PAL_LOADER PAL_FILE("libpal.so")
 
 #include <sys/syscall.h>
 #include <sigset.h>
@@ -137,8 +137,8 @@ static inline int HOST_ACCESS (int access)
            ((access & PAL_ACCESS_APPEND) ? O_APPEND|O_WRONLY : 0);
 }
 
-int __clone (int (*__fn) (void * __arg), void * __child_stack,
-             int __flags, const void * __arg, ...);
+int clone (int (*__fn) (void * __arg), void * __child_stack,
+           int __flags, const void * __arg, ...);
 
 /* set/unset CLOEXEC flags of all fds in a handle */
 int handle_set_cloexec (PAL_HANDLE handle, bool enable);

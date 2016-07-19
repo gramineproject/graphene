@@ -48,7 +48,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
 
     if (flags & MAP_32BIT)
-        return -ENOSYS;
+        return (void *) -ENOSYS;
 
     int pal_alloc_type = 0;
 

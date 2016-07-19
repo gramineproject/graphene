@@ -884,7 +884,7 @@ static int connect_owner (IDTYPE idx, struct shim_ipc_port ** portptr,
                                              0, 0, 0, 0);
 
         if (!pal_handle) {
-            ret = -PAL_ERRNO;
+            ret = -PAL_ERRNO ? : -EACCES;
             goto out;
         }
 

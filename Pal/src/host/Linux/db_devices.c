@@ -69,14 +69,8 @@ static int parse_device_uri (const char ** uri, const char ** type,
 
     for (p = u ; (*p) && (*p) != ',' && (*p) != '/' ; p++);
 
-    switch (p - u) {
-        case 3:
-            if (!memcmp(u, "tty", 3))
-                dops = &term_ops;
-            break;
-        default:
-            break;
-    }
+    if (strpartcmp_static(u, "tty"))
+        dops = &term_ops;
 
     if (!dops)
         return -PAL_ERROR_NOTSUPPORT;
@@ -112,12 +106,12 @@ static int open_standard_term (PAL_HANDLE * handle, const char * param,
     hdl->dev.dev_type = device_type_term;
 
     if (!(access & PAL_ACCESS_WRONLY)) {
-        hdl->__in.flags |= RFD(0);
+        HANDLE_HDR(hdl)->flags |= RFD(0);
         hdl->dev.fd_in = 0;
     }
 
     if (access & (PAL_ACCESS_WRONLY|PAL_ACCESS_RDWR)) {
-        hdl->__in.flags |= WFD(1);
+        HANDLE_HDR(hdl)->flags |= WFD(1);
         hdl->dev.fd_out = 1;
     }
 

@@ -89,10 +89,10 @@ int _DkStreamFile (PAL_HANDLE hdl, PAL_HANDLE * file)
 int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 {
     for (int i = 0 ; i < MAX_FDS ; i++)
-        if (handle->__in.flags & (RFD(i)|WFD(i))) {
+        if (HANDLE_HDR(handle)->flags & (RFD(i)|WFD(i))) {
             long flags = enable ? FD_CLOEXEC : 0;
             int ret = INLINE_SYSCALL(fcntl, 3,
-                                     handle->__in.fds[i], F_SETFD,
+                                     HANDLE_HDR(handle)->fds[i], F_SETFD,
                                      flags);
             if (IS_ERR(ret) && ERRNO(ret) != EBADF)
                 return -PAL_ERROR_DENIED;
@@ -162,11 +162,11 @@ int handle_serialize (PAL_HANDLE handle, void ** data)
         case pal_type_udp:
         case pal_type_udpsrv:
             if (handle->sock.bind) {
-                d1 = handle->sock.bind;
+                d1 = (const void *) handle->sock.bind;
                 dsz1 = addr_size(handle->sock.bind);
             }
             if (handle->sock.conn) {
-                d2 = handle->sock.conn;
+                d2 = (const void *) handle->sock.conn;
                 dsz2 = addr_size(handle->sock.conn);
             }
             break;
@@ -260,11 +260,11 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
             memcpy(hdl, hdl_data, hdlsz);
             if (s1) {
                 memcpy((void *) hdl + hdlsz, data, s1);
-                hdl->sock.bind = (void *) hdl + hdlsz;
+                hdl->sock.bind = (PAL_PTR) hdl + hdlsz;
             }
             if (s2) {
                 memcpy((void *) hdl + hdlsz + s1, data + s1, s2);
-                hdl->sock.conn = (void *) hdl + hdlsz + s2;
+                hdl->sock.conn = (PAL_PTR) hdl + hdlsz + s2;
             }
             break;
         }
@@ -303,9 +303,9 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     int fds[MAX_FDS];
     int nfds = 0;
     for (int i = 0 ; i < MAX_FDS ; i++)
-        if (cargo->__in.flags & (RFD(i)|WFD(1))) {
+        if (HANDLE_HDR(cargo)->flags & (RFD(i)|WFD(1))) {
             hdl_hdr.fds |= 1U << i;
-            fds[nfds++] = cargo->__in.fds[i];
+            fds[nfds++] = HANDLE_HDR(cargo)->fds[i];
         }
 
     // ~ Initialize common parameter formessage passing
@@ -457,9 +457,9 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < total_fds) {
-                handle->__in.fds[i] = ((int *) CMSG_DATA(chdr))[n++];
+                HANDLE_HDR(handle)->fds[i] = ((int *) CMSG_DATA(chdr))[n++];
             } else {
-                handle->__in.flags &= ~(RFD(i)|WFD(i));
+                HANDLE_HDR(handle)->flags &= ~(RFD(i)|WFD(i));
             }
         }
 

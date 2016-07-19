@@ -67,11 +67,12 @@ static int chroot_mount (const char * uri, const char * root,
 {
     enum shim_file_type type;
 
-    if (!memcmp(uri, "file:", 5)) {
+    if (strpartcmp_static(uri, "file:")) {
         type = FILE_UNKNOWN;
         uri += 5;
-    } else if (!memcmp(uri, "dev:", 4)) {
-        type = memcmp(uri + 4, "tty", 3) ? FILE_DEV : FILE_TTY;
+    } else if (strpartcmp_static(uri, "dev:")) {
+        type = strpartcmp_static(uri + static_strlen("dev"), "tty") ?
+               FILE_DEV : FILE_TTY;
         uri += 4;
     } else
         return -EINVAL;
@@ -104,48 +105,42 @@ static inline int concat_uri (char * buffer, int size, int type,
                               const char * root, int root_len,
                               const char * trim, int trim_len)
 {
-    int len = 0;
+    char * tmp = NULL;
 
     switch (type) {
         case FILE_UNKNOWN:
         case FILE_REGULAR:
-            if (size < 7 + root_len + trim_len)
-                return -ENAMETOOLONG;
-            memcpy(buffer, "file:", 6);
-            len += 5;
+            tmp = strcpy_static(buffer, "file:", size);
             break;
 
         case FILE_DIR:
-            if (size < 6 + root_len + trim_len)
-                return -ENAMETOOLONG;
-            memcpy(buffer, "dir:", 5);
-            len += 4;
+            tmp = strcpy_static(buffer, "dir:", size);
             break;
 
         case FILE_DEV:
         case FILE_TTY:
-            if (size < 6 + root_len + trim_len)
-                return -ENAMETOOLONG;
-            memcpy(buffer, "dev:", 5);
-            len += 4;
+            tmp = strcpy_static(buffer, "dev:", size);
             break;
 
         default:
             return -EINVAL;
     }
 
+    if (!tmp || tmp + root_len + trim_len + 2 > buffer + size)
+        return -ENAMETOOLONG;
+
     if (root_len) {
-        memcpy(buffer + len, root, root_len + 1);
-        len += root_len;
+        memcpy(tmp, root, root_len + 1);
+        tmp += root_len;
     }
 
     if (trim_len) {
-        buffer[len++] = '/';
-        memcpy(buffer + len, trim, trim_len + 1);
-        len += trim_len;
+        *(tmp++) = '/';
+        memcpy(tmp, trim, trim_len + 1);
+        tmp += trim_len;
     }
 
-    return len;
+    return tmp - buffer;
 }
 
 /* simply just create data, sometimes it is individually called when the
@@ -672,7 +667,7 @@ static int map_write (struct shim_handle * hdl, const void * buf,
     if (file->marker + count > file->size) {
         file->size = file->marker + count;
 
-        ret = DkStreamWrite(hdl->pal_handle, file->marker, count, buf, NULL);
+        ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL);
 
         if (!ret) {
             ret = -PAL_ERRNO;
@@ -771,7 +766,7 @@ static int chroot_write (struct shim_handle * hdl, const void * buf,
         lock(hdl->lock);
     }
 
-    ret = DkStreamWrite(hdl->pal_handle, file->marker, count, buf, NULL) ? :
+    ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL) ? :
           -PAL_ERRNO;
 
     if (ret > 0)
@@ -905,7 +900,7 @@ static int chroot_readdir (struct shim_dentry * dent,
 
     chroot_update_ino(dent);
 
-    assert(!memcmp(qstrgetstr(&data->host_uri), "dir:", 4));
+    assert(strpartcmp_static(qstrgetstr(&data->host_uri), "dir:"));
 
     PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&data->host_uri),
                                       PAL_ACCESS_RDONLY, 0, 0, 0);

@@ -72,7 +72,7 @@ echo \[LOOP_O: ${LOOP_O}] 1>&2
 echo \[MB: ${MB}] 1>&2
 echo \[MHZ: ${MHZ}] 1>&2
 echo \[MOTHERBOARD: ${MOTHERBOARD}] 1>&2
-echo \[NETWORKS: ${NETWORKS}] 1>&2
+echo \[NETrunS: ${NETrunS}] 1>&2
 echo \[PROCESSORS: ${PROCESSORS}] 1>&2
 echo \[REMOTE: ${REMOTE}] 1>&2
 echo \[SLOWFS: ${SLOWFS}] 1>&2
@@ -115,114 +115,108 @@ then	echo "Can't make a file - $STAT - in $FSDIR" >> ${OUTPUT}
 	exit 1
 fi
 
-function work {
+function run {
 	echo "$@"
 	TMPOUT=/tmp/OUT
 	rm -rf $TMPOUT
-	"$@" 2>>$TMPOUT | tee -a $TMPOUT
+	$LOADER "$@" 2>>$TMPOUT | tee -a $TMPOUT
 	cat $TMPOUT 1>&2
 }
 
 date >> ${OUTPUT}
 echo Latency measurements >> ${OUTPUT}
 msleep 250
-work lat_syscall null
-work lat_syscall read
-work lat_syscall write
-work lat_syscall stat $STAT
-work lat_syscall fstat $STAT
-work lat_syscall open $STAT
+run lat_syscall null
+run lat_syscall read
+run lat_syscall write
+run lat_syscall stat $STAT
+run lat_syscall fstat $STAT
+run lat_syscall open $STAT
 
 #select file (500), select tcp (500)
-work lat_select file 500
-work lat_select tcp 500
+run lat_select file 500
+run lat_select tcp 500
 
 #sig install, sig_overhead, prot. Fault
-work lat_sig install
-work lat_sig catch
-work lat_sig prot lat_sig
+run lat_sig install
+run lat_sig catch
+run lat_sig prot lat_sig
 
 #AF_UNIX
 echo AF_UNIX socket latency >> ${OUTPUT}
 for i in $(eval echo "{1..$N_RUNS}")
-do	work lat_unix
+do	run lat_unix
 done
 
 #forks
 cp hello /tmp/hello
 for i in fork dfork vfork exec dforkexec shell
-do	work lat_proc $i
+do	run lat_proc $i
 done
-rm -f /tmp/hello 
+rm -f /tmp/hello
 
 for i in $(eval echo "{1..$N_RUNS}")
 do	rm -f $FILE
-	work lmdd label="File $FILE write bandwidth:" of=$FILE move=${MB}m fsync=1 print=3
+	run lmdd label="File $FILE write bandwidth:" of=$FILE move=${MB}m fsync=1 print=3
 done
-
-#work lat_pagefault $FILE
-#echo "" 1>&2
-#echo \"mappings 1>&2
-#for i in $ALL; do work lat_mmap $i $FILE; done
-#echo "" 1>&2
 
 #0,4,10KB create/delete
 date >> ${OUTPUT}
 	echo Calculating file system latency >> ${OUTPUT}
 	echo '"File system latency' 1>&2
-	work lat_fs $FSDIR
+	run lat_fs $FSDIR
 	echo "" 1>&2
 
 date >> ${OUTPUT}
-echo Local networking >> ${OUTPUT}
+echo Local netruning >> ${OUTPUT}
 
 echo UDP socket latency >> ${OUTPUT}
-work lat_udp -s &
+run lat_udp -s &
 sleep 3
 for i in $(eval echo "{1..$N_RUNS}")
-do	work lat_udp 127.0.0.1
+do	run lat_udp 127.0.0.1
 	sleep 1
 done
-work lat_udp -127.0.0.1
+run lat_udp -127.0.0.1
 sleep 3
 
 echo TCP socket latency >> ${OUTPUT}
-work lat_tcp -s &
+run lat_tcp -s &
 sleep 3
 for i in $(eval echo "{1..$N_RUNS}")
-do	work lat_tcp 127.0.0.1
+do	run lat_tcp 127.0.0.1
 	sleep 1
 done
-work lat_tcp -127.0.0.1
+run lat_tcp -127.0.0.1
 sleep 3
 
 echo TCP connect latency >> ${OUTPUT}
-work lat_connect -s &
+run lat_connect -s &
 sleep 3
-work lat_connect 127.0.0.1
+run lat_connect 127.0.0.1
 sleep 1
-work lat_connect -127.0.0.1
+run lat_connect -127.0.0.1
 sleep 3
 
 echo TCP socket bandwidth >> ${OUTPUT}
-work bw_tcp -s &
+run bw_tcp -s &
 sleep 3
 for i in $(eval echo "{1..$N_RUNS}")
-do	work bw_tcp 127.0.0.1
+do	run bw_tcp 127.0.0.1
 	sleep 1
 done
-work bw_tcp -127.0.0.1
+run bw_tcp -127.0.0.1
 sleep 3
 
 date >> ${OUTPUT}
 echo Bandwidth measurements >> ${OUTPUT}
 
 for i in $(eval echo "{1..$N_RUNS}")
-do	work bw_unix
+do	run bw_unix
 done
 
 for i in $(eval echo "{1..$N_RUNS}")
-do	work bw_pipe
+do	run bw_pipe
 done
 
 date >> ${OUTPUT}
@@ -238,7 +232,7 @@ fi
 	
 for size in $CTX
 do	for i in $(eval echo "{1..$N_RUNS}")
-	do	work lat_ctx -s $size $N
+	do	run lat_ctx -s $size $N
 	done
 done
 
@@ -248,8 +242,8 @@ msleep 250
 echo "" 1>&2
 echo "Memory load latency" 1>&2
 if [ X$FASTMEM = XYES ]
-then	work lat_mem_rd $MB 128
-else	work lat_mem_rd $MB 16 32 64 128 256 512 1024 
+then	run lat_mem_rd $MB 128
+else	run lat_mem_rd $MB 16 32 64 128 256 512 1024 
 fi
 date >> ${OUTPUT}
 echo '' 1>&2
@@ -261,51 +255,51 @@ msleep 250
 
 echo "" 1>&2
 echo \"read bandwidth 1>&2
-for i in $ALL; do work bw_file_rd $i io_only $FILE; done
+for i in $ALL; do run bw_file_rd $i io_only $FILE; done
 echo "" 1>&2
 
 echo "" 1>&2
 echo \"read open2close bandwidth 1>&2
-for i in $ALL; do work bw_file_rd $i open2close $FILE; done
+for i in $ALL; do run bw_file_rd $i open2close $FILE; done
 echo "" 1>&2
 
 echo \"Mmap read bandwidth 1>&2
-for i in $ALL; do work bw_mmap_rd $i mmap_only $FILE; done
+for i in $ALL; do run bw_mmap_rd $i mmap_only $FILE; done
 echo "" 1>&2
 
 echo \"Mmap read open2close bandwidth 1>&2
-for i in $ALL; do work bw_mmap_rd $i open2close $FILE; done
+for i in $ALL; do run bw_mmap_rd $i open2close $FILE; done
 echo "" 1>&2
 rm -f $FILE
 
 echo \"libc bcopy unaligned 1>&2
-for i in $HALF; do work bw_mem $i bcopy; done; echo "" 1>&2
+for i in $HALF; do run bw_mem $i bcopy; done; echo "" 1>&2
 
 echo \"libc bcopy aligned 1>&2
-for i in $HALF; do work bw_mem $i bcopy conflict; done; echo "" 1>&2
+for i in $HALF; do run bw_mem $i bcopy conflict; done; echo "" 1>&2
 
 echo \"unrolled bcopy unaligned 1>&2
-for i in $HALF; do work bw_mem $i fcp; done; echo "" 1>&2
+for i in $HALF; do run bw_mem $i fcp; done; echo "" 1>&2
 
 echo \"unrolled partial bcopy unaligned 1>&2
-for i in $HALF; do work bw_mem $i cp; done; echo "" 1>&2
+for i in $HALF; do run bw_mem $i cp; done; echo "" 1>&2
 
 echo "Memory read bandwidth" 1>&2
-for i in $ALL; do work bw_mem $i frd; done; echo "" 1>&2
+for i in $ALL; do run bw_mem $i frd; done; echo "" 1>&2
 
 echo "Memory partial read bandwidth" 1>&2
-for i in $ALL; do work bw_mem $i rd; done; echo "" 1>&2
+for i in $ALL; do run bw_mem $i rd; done; echo "" 1>&2
 
 echo "Memory write bandwidth" 1>&2
-for i in $ALL; do work bw_mem $i fwr; done; echo "" 1>&2
+for i in $ALL; do run bw_mem $i fwr; done; echo "" 1>&2
 
 echo "Memory partial write bandwidth" 1>&2
-for i in $ALL; do work bw_mem $i wr; done; echo "" 1>&2
+for i in $ALL; do run bw_mem $i wr; done; echo "" 1>&2
 
 echo "Memory partial read/write bandwidth" 1>&2
-for i in $ALL; do work bw_mem $i rdwr; done; echo "" 1>&2
+for i in $ALL; do run bw_mem $i rdwr; done; echo "" 1>&2
 
 echo "Memory bzero bandwidth" 1>&2
-for i in $ALL; do work bw_mem $i bzero; done; echo "" 1>&2
+for i in $ALL; do run bw_mem $i bzero; done; echo "" 1>&2
 
 exit 0

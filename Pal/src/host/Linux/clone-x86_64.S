@@ -26,7 +26,6 @@
    and invokes a function in the right context after its all over.  */
 
 #include <asm/unistd.h>
-#include <sysdep.h>
 #include <asm/errno.h>
 
 #include "sysdep-x86_64.h"
@@ -89,12 +88,10 @@ ENTRY (clone)
 	testq	%rax, %rax
 	/* jl	SYSCALL_ERROR_LABEL */
 	jz	thread_start
-
-L(pseudo_end):
 	ret
 
 ENTRY (thread_start)
-L(thread_start):
+thread_start:
 	cfi_startproc
 	/* Clearing frame pointer is insufficient, use CFI.  */
 	cfi_undefined (rip)
@@ -111,8 +108,8 @@ L(thread_start):
 	/* movl $SYS_ify(exit), %eax */
 	/* syscall */
 	/* Instead of syscall exit, let's call _DkThreadExit */
-	call _DkThreadExit(%rip)
+	call *_DkThreadExit(%rip)
 	cfi_endproc
 
 	cfi_startproc
-PSEUDO_END (clone)
+END (clone)

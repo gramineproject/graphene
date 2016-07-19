@@ -4,17 +4,14 @@ special_executables = bootstrap_static bootstrap_pie
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
-target = $(special_executables) $(c_executables) $(cxx_executables) \
-	  manifest pal pal_sec
+exec_target = $(special_executables) $(c_executables) $(cxx_executables)
+target = $(exec_target) manifest pal pal_sec
 
 clean-extra += clean-tmp
 
+default: all
 level = ../
 include ../Makefile
-
-%.manifest: %.manifest.template
-	rm -rf $@
-	cp $@.template $@
 
 ifeq ($(SYS),x86_64-linux-gnu)
 $(c_executables): %: %.c

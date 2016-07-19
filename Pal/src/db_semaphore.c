@@ -32,40 +32,47 @@
 PAL_HANDLE
 DkSemaphoreCreate (PAL_NUM initialCount, PAL_NUM maxCount)
 {
-    store_frame(SemaphoreCreate);
+    ENTER_PAL_CALL(DkSemaphoreCreate);
 
     PAL_HANDLE handle = (PAL_HANDLE) malloc(HANDLE_SIZE(semaphore));
 
     int ret = _DkSemaphoreCreate(handle, initialCount, maxCount);
 
-    if (ret < 0)
-        leave_frame(NULL, -ret);
+    if (ret < 0) {
+        free(handle);
+        _DkRaiseFailure(-ret);
+        handle = NULL;
+    }
 
-    leave_frame(handle, -ret);
+    LEAVE_PAL_CALL_RETURN(handle);
 }
 
 void
 DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle)
 {
-    store_frame(SemaphoreDestroy);
+    ENTER_PAL_CALL(DkSemaphoreDestroy);
 
-    if (!semaphoreHandle)
-        leave_frame(, PAL_ERROR_INVAL);
+    if (!semaphoreHandle) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL();
+    }
 
     _DkSemaphoreDestroy(semaphoreHandle);
-    leave_frame(, 0);
+    LEAVE_PAL_CALL();
 }
 
 void DkSemaphoreRelease (PAL_HANDLE handle, PAL_NUM count)
 {
-    store_frame(SemaphoreRelease);
+    ENTER_PAL_CALL(DkSemaphoreRelease);
 
     if (!handle ||
-        !IS_HANDLE_TYPE(handle, semaphore))
-        leave_frame(, 0);
+        !IS_HANDLE_TYPE(handle, semaphore)) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL();
+    }
 
     _DkSemaphoreRelease (handle, count);
-    leave_frame(, 0);
+    LEAVE_PAL_CALL();
 }
 
 static int sem_wait (PAL_HANDLE handle, int timeout)

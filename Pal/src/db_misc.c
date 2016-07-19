@@ -31,7 +31,7 @@
 
 PAL_NUM DkSystemTimeQuery (void)
 {
-    store_frame(SystemTimeQuery);
+    ENTER_PAL_CALL(DkSystemTimeQuery);
     unsigned long time = _DkSystemTimeQuery();
     return time;
 }
@@ -57,11 +57,11 @@ int _DkFastRandomBitsRead (void * buffer, int size)
 
     do {
         if (bytes + sizeof(rand) <= size) {
-            *(unsigned long *) (buffer + bytes) = rand;
+            *(unsigned long *) ((char *) buffer + bytes) = rand;
             bytes += sizeof(rand);
         } else {
             for (int i = 0 ; i < size - bytes ; i++)
-                *(unsigned char *) (buffer + bytes + i) = ((unsigned char *) &rand)[i];
+                *(unsigned char *) ((char *) buffer + bytes + i) = ((unsigned char *) &rand)[i];
             bytes = size;
         }
         do {
@@ -75,59 +75,91 @@ int _DkFastRandomBitsRead (void * buffer, int size)
     return bytes;
 }
 
-PAL_NUM DkRandomBitsRead (PAL_BUF buffer, PAL_NUM size)
+PAL_NUM DkRandomBitsRead (PAL_PTR buffer, PAL_NUM size)
 {
-    store_frame(RandomBitsRead);
+    ENTER_PAL_CALL(DkRandomBitsRead);
 
-    if (!buffer || !size)
-        leave_frame(0, PAL_ERROR_INVAL);
+    if (!buffer || !size) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(0);
+    }
 
-    int ret = _DkRandomBitsRead(buffer, size);
+    int ret = _DkRandomBitsRead((void *) buffer, size);
 
-    if (ret < 0)
-        leave_frame(0, -ret);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        ret = 0;
+    }
 
-    leave_frame(ret, 0);
+    LEAVE_PAL_CALL_RETURN(ret);
 }
 
 PAL_PTR DkSegmentRegister (PAL_FLG reg, PAL_PTR addr)
 {
-    store_frame(SegmentRegister);
+    ENTER_PAL_CALL(DkSegmentRegister);
+    void * seg_addr = (void *) addr;
     int ret;
 
     if (addr) {
-        ret = _DkSegmentRegisterSet(reg, addr);
-        if (ret < 0)
-            leave_frame(NULL, -ret);
-        leave_frame(addr, 0);
+        ret = _DkSegmentRegisterSet(reg, seg_addr);
     } else {
-        ret = _DkSegmentRegisterGet(reg, (void **) &addr);
-        if (ret < 0)
-            leave_frame(NULL, -ret);
-        leave_frame(addr, 0);
+        ret = _DkSegmentRegisterGet(reg, &seg_addr);
     }
+
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        seg_addr = NULL;
+    }
+
+    LEAVE_PAL_CALL_RETURN((PAL_PTR) seg_addr);
 }
 
 PAL_BOL DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size)
 {
-    store_frame(InstructionCacheFlush);
+    ENTER_PAL_CALL(DkInstructionCacheFlush);
 
-    if (!addr || !size)
-        leave_frame(PAL_FALSE, PAL_ERROR_INVAL);
+    if (!addr || !size) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
 
-    int ret = _DkInstructionCacheFlush(addr, size);
+    int ret = _DkInstructionCacheFlush((void *) addr, size);
 
-    if (ret < 0)
-        leave_frame(PAL_FALSE, -ret);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
 
-    leave_frame(PAL_TRUE, 0);
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
 PAL_NUM DkMemoryAvailableQuota (void)
 {
-    store_frame(MemoryAvailableQuota);
+    ENTER_PAL_CALL(DkMemoryAvailableQuota);
 
     long quota = _DkMemoryAvailableQuota();
+    if (quota < 0)
+        quota = 0;
 
-    leave_frame((quota < 0) ? 0 : quota, 0);
+    LEAVE_PAL_CALL_RETURN((PAL_NUM) quota);
+}
+
+PAL_BOL
+DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4])
+{
+    ENTER_PAL_CALL(DkCpuIdRetrieve);
+
+    unsigned int vals[4];
+    int ret = _DkCpuIdRetrieve(leaf, subleaf, vals);
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
+    }
+
+    values[0] = vals[0];
+    values[1] = vals[1];
+    values[2] = vals[2];
+    values[3] = vals[3];
+
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }

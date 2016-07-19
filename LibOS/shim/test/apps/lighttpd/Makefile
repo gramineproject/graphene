@@ -1,4 +1,4 @@
-manifests = lighttpd.manifest lighttpd-angel.manifest 
+manifests = lighttpd.manifest lighttpd-angel.manifest
 SRCDIR = lighttpd-1.4.30
 HOST = $(firstword $(shell ifconfig | grep 'inet addr:'| grep -v '127.0.0.1' -m 1 | cut -d: -f2))
 PORT = 8000
@@ -6,16 +6,19 @@ CORES = 4
 
 conf_files = lighttpd-server.conf lighttpd.conf lighttpd-multithreaded.conf
 
-target = build/sbin/lighttpd $(conf_files) test-data
+target = build-lighttpd $(conf_files) test-data
 exec_target = $(manifests)
 clean-extra = clean-others
+
+extra_rules = \
+	-e 's:\$$(PAL):../pal_loader:g' \
+	-e 's:\$$(HOST):$(HOST):g' \
+	-e 's:\$$(PORT):$(PORT):g'
 
 level = ../../
 include ../../Makefile
 
-$(manifests): %.manifest: %.manifest.template build/sbin/lighttpd build/sbin/lighttpd-angel
-	$(MAKE) -C .. lighttpd/$@ appdir=lighttpd/ \
-		extra_rules="-e 's:\\\$$\$$(HOST):$(HOST):g' -e 's:\\\$$\$$(PORT):$(PORT):g'"
+build-lighttpd: build/sbin/lighttpd
 
 build/sbin/lighttpd: $(SRCDIR)
 	cd $(SRCDIR) && ./configure --prefix=$(PWD)/build \
@@ -52,11 +55,11 @@ start-multithreaded-native-server:
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
 start-graphene-server:
-	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
+	$(PREFIX) ../pal_loader build/sbin/lighttpd -D -m /lighttpd -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
 
 start-multithreaded-graphene-server:
-	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
+	$(PREFIX) ../pal_loader build/sbin/lighttpd -D -m /lighttpd -f \
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
 

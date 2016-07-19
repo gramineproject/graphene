@@ -1,15 +1,4 @@
-# Binaries
-Exception
-Fork
-HelloWorld
-HelloWorldEvent
-HelloWorldMutex
-Ipc
-Process
-Server
-Thread
-fake-fork
-Memory
-
-# mem dir
-mem
+*
+!*.c
+!*.template
+!Makefile*

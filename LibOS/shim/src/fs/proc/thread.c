@@ -33,8 +33,10 @@ static int parse_thread_name (const char * name,
     if (*p == '/')
         p++;
 
-    if (!memcmp(p, "self", 4) && (!*(p + 4) || *(p + 4) == '/')) {
-        p += 4;
+    if (strpartcmp_static(p, "self")) {
+        p += static_strlen("self");
+        if (*p && *p != '/')
+            return -ENOENT;
         pid = get_cur_tid();
     } else {
         for ( ; *p && *p != '/' ; p++) {
@@ -89,17 +91,17 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
 
     lock(thread->lock);
 
-    if (next_len == 4 && !memcmp(next, "root", next_len)) {
+    if (next_len == static_strlen("root") && !memcmp(next, "root", next_len)) {
         dent = thread->root;
         get_dentry(dent);
     }
 
-    if (next_len == 3 && !memcmp(next, "cwd", next_len)) {
+    if (next_len == static_strlen("cwd") && !memcmp(next, "cwd", next_len)) {
         dent = thread->cwd;
         get_dentry(dent);
     }
 
-    if (next_len == 3 && !memcmp(next, "exe", next_len)) {
+    if (next_len == static_strlen("exe") && !memcmp(next, "exe", next_len)) {
         struct shim_handle * exec = thread->exec;
         if (!exec->dentry) {
             unlock(thread->lock);

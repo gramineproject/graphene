@@ -14,6 +14,8 @@
 
 #ifdef __x86_64__
 # include "sysdep-x86_64.h"
+#else
+# error "unsupported architecture"
 #endif
 
 #define IS_ERR INTERNAL_SYSCALL_ERROR

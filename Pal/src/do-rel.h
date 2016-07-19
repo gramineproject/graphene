@@ -43,7 +43,7 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-static void __attribute__((unused))
+static void __attribute_unused
 elf_dynamic_do_rel (struct link_map *l, ElfW(Addr) reladdr, int relsize)
 {
     if (!l->l_info[DT_SYMTAB])
