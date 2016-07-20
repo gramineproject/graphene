@@ -12,6 +12,16 @@ machines, Graphene can run applications in an isolated environment, with
 virtualization benefits such as guest customization, platform independence
 and migration.
 
+Graphene Library OS supports native, unmodified Linux appliations upon
+any platform that Graphene Library OS has been ported to. Currently,
+Graphene Library OS is successfully ported to Linux, FreeBSD and Intel SGX
+enclaves upon Linux platforms.
+
+With the Intel SGX support, Graphene Library OS can secure a critical
+application in a hardware encrypted memory region. Graphene Library OS can
+protect applications against malicious system stack, with minimal porting
+effort.
+
 Graphene Library OS is a work published in Eurosys 2014. For more
 information. see the paper: Tsai, et al, "Cooperation and Security Isolation
 of Library OSes for Multi-Process Applications", Eurosys 2014.
@@ -61,11 +71,47 @@ in the configuration:
 
 Each part of Graphene can be built separately in the subdirectories.
 
-To build Graphene library OS with debug symbol, run "make DEBUG=1" instead of
+To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 "make".
 
 For more details about the building and installation, see the Graphene github
 Wiki page: <https://github.com/oscarlab/graphene/wiki>.
+
+
+    2-1. BUILD WITH INTEL SGX SUPPORT
+
+To build Graphene Library OS with Intel SGX support, run "make SGX=1" instead
+of "make". "DEBUG=1" can be used to build with debug symbols. Using "make SGX=1"
+in the test or regression directory will automatically generate the enclave
+signatures (in .sig files).
+
+A 3072-bit RSA private key (PEM format) is required for signing the enclaves.
+The default enclave key is placed in 'host/Linux-SGX/signer/enclave-key.pem',
+or the key can be specified through environment variable 'SGX_ENCLAVE_KEY'
+when building Graphene with Intel SGX support. If you don't have a private key,
+create it with the following command:
+
+    openssl genrsa -3 -out enclave-key.pem 3072
+
+After signing the enclaves, users may ship the application files with the
+built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
+files) and the signatures, to the Intel SGX-enanled hosts. The Intel SGX
+Linux SDK is required for running Graphene Library OS. Download and install
+from the official Intel github repositories:
+
+    <https://github.com/01org/linux-sgx>
+    <https://github.com/01org/linux-sgx-driver>
+
+A Linux driver must be installed before runing Graphene Library OS in enclaves.
+Simply run the following command to build the driver:
+
+    cd Pal/src/host/Linux-SGX/sgx-driver
+    make
+    (The console will be prompted to ask for the path of Intel SGX driver code)
+    sudo ./load.sh
+
+Finally generating the runtime enclave tokens by running "make SGX_RUN=1".
+
 
 
 

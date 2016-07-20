@@ -9,7 +9,5 @@ endif
 
 .PHONY: $(targets)
 $(targets):
-	for d in Pal LibOS; \
-	do \
-		$(MAKE) -C $$d $@; \
-	done
+	$(MAKE) -C Pal $@
+	$(MAKE) -C LibOS $@
