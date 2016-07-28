@@ -9,6 +9,7 @@ import subprocess
 import hashlib
 import binascii
 import shutil
+import tempfile
 
 """ Default / Architectural Options """
 
@@ -394,7 +395,7 @@ def generate_measurement(attr, areas):
     class mrenclave_digest:
         def __init__(self):
             self.digest = hashlib.sha256()
-            self.file = open("/tmp/hash", "wb")
+            self.file = tempfile.TemporaryFile()
 
         def update(self, payload):
             for er in range(0, len(payload), 64):
