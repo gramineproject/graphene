@@ -394,12 +394,10 @@ def generate_measurement(attr, areas):
     class mrenclave_digest:
         def __init__(self):
             self.digest = hashlib.sha256()
-            self.file = open("/tmp/hash", "wb")
 
         def update(self, payload):
             for er in range(0, len(payload), 64):
                 self.digest.update(payload[er:er+64])
-            self.file.write(payload)
 
         def finalize(self):
             return self.digest.digest()
