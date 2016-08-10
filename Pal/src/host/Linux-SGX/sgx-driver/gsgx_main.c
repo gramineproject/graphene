@@ -42,6 +42,10 @@ static long gsgx_ioctl_enclave_create(struct file *filep, unsigned int cmd,
 		old_mmap_min_addr = 0;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+	write_cr4(read_cr4() | X86_CR4_FSGSBASE);
+#endif
+
 	isgx_create.secs = createp->secs;
 	filep->private_data = (void *) createp->addr;
 
@@ -258,7 +262,6 @@ static int gsgx_setup(void)
 	for_each_online_cpu(cpu) {
 		per_cpu(cpu_tlbstate.cr4, cpu) |= X86_CR4_FSGSBASE;
 	}
-#else
 #endif
 
 	return 0;
@@ -268,6 +271,7 @@ static void gsgx_teardown(void)
 {
 	if (gsgx_dev.this_device)
 		misc_deregister(&gsgx_dev);
+
 	if (isgx_dev)
 		filp_close(isgx_dev, NULL);
 }
