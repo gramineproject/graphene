@@ -291,7 +291,7 @@ void pal_bsd_main (void * args)
     file->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     file->file.fd = fd;
     char * path = (void *) file + HANDLE_SIZE(file);
-    memcpy(path, argv[0], len + 1);
+    get_norm_path(argv[0], path, 0, len + 1);
     file->file.realpath = path;
 
     if (!check_elf_object(file)) {
