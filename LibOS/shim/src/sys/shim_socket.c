@@ -61,7 +61,7 @@
 #define TCP_CONGESTION      13  /* Congestion control algorithm.  */
 #define TCP_MD5SIG          14  /* TCP MD5 Signature (RFC2385) */
 
-#define SOCK_URI_SIZE   64
+#define SOCK_URI_SIZE   108
 
 static int rebase_on_lo __attribute_migratable = -1;
 
@@ -207,7 +207,8 @@ static int inet_translate_addr (int domain, char * uri, int count,
 
     if (domain == AF_INET6) {
         unsigned short * ad = (void *) &addr->addr.v6.s6_addr;
-        int bytes = snprintf(uri, count, "[%x:%x:%x:%x:%x:%x:%x:%x]:%u",
+        int bytes = snprintf(uri, count,
+                             "[%04x:%04x:%x:%04x:%04x:%04x:%04x:%04x]:%u",
                              ad[0], ad[1], ad[2], ad[3],
                              ad[4], ad[5], ad[6], ad[7], addr->ext_port);
         return bytes == count ? -ENAMETOOLONG : bytes;
@@ -557,6 +558,8 @@ static int inet_parse_addr (int domain, int type, const char * uri,
 
         port_str++;
         next_str = strchr(port_str, ':');
+        if (next_str)
+            next_str++;
 
         struct addr_inet * addr = round ? conn : bind;
 

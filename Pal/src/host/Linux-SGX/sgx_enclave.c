@@ -421,6 +421,9 @@ static int sgx_ocall_sock_recv(void * pms)
                          ms->ms_sockfd, ms->ms_buf, ms->ms_count, 0,
                          addr, addr ? &addrlen : NULL);
 
+    if (!IS_ERR(ret) && addr)
+        ms->ms_addrlen = addrlen;
+
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

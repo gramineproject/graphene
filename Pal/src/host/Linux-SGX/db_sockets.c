@@ -72,7 +72,7 @@ static int inet_parse_uri (char ** uri, struct sockaddr * addr, unsigned int * a
 
     if (tmp[0] == '[') {
         /* for IPv6, the address will be in the form of
-           "[xx:xx:xx:xx:xx:xx:xx:xx]:port". */
+           "[xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]:port". */
         struct sockaddr_in6 * addr_in6 = (struct sockaddr_in6 *) addr;
 
         slen = sizeof(struct sockaddr_in6);
@@ -154,17 +154,20 @@ static int inet_create_uri (char * uri, int count, struct sockaddr * addr,
             return PAL_ERROR_INVAL;
 
         struct sockaddr_in6 * addr_in6 = (struct sockaddr_in6 *) addr;
-        short * addr = (short *) &addr_in6->sin6_addr.s6_addr;
+        unsigned short * addr = (unsigned short *) &addr_in6->sin6_addr.s6_addr;
 
         /* for IPv6, the address will be in the form of
-           "[xx:xx:xx:xx:xx:xx:xx:xx]:port". */
-        len = snprintf(uri, count, "[%x:%x:%x:%x:%x:%x:%x:%x]:%u",
+           "[xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]:port". */
+        len = snprintf(uri, count, "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]:%u",
                        addr[0], addr[1], addr[2], addr[3],
                        addr[4], addr[5], addr[6], addr[7],
                        __ntohs(addr_in6->sin6_port));
     } else {
         return -PAL_ERROR_INVAL;
     }
+
+    if (len >= count)
+        return -PAL_ERROR_TOOLONG;
 
     return len;
 }
@@ -607,11 +610,14 @@ static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
     if (bytes < 0)
         return bytes;
 
-    if (addrlen < 5)
+    char * addr_uri = strcpy_static(addr, "udp:", addrlen);
+    if (!addr_uri)
         return -PAL_ERROR_OVERFLOW;
 
-    memcpy(addr, "udp:", 5);
-    inet_create_uri(addr + 4, addrlen - 4, &conn_addr, conn_addrlen);
+    int ret = inet_create_uri(addr_uri, addr + addrlen - addr_uri, &conn_addr,
+                              conn_addrlen);
+    if (ret < 0)
+        return ret;
 
     return bytes;
 }
@@ -652,8 +658,11 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     if (!strpartcmp_static(addr, "udp:"))
         return -PAL_ERROR_INVAL;
 
-    char * addrbuf = __alloca(addrlen - 3);
-    memcpy(addrbuf, addr + 4, addrlen - 3);
+    addr    += static_strlen("udp:");
+    addrlen -= static_strlen("udp:");
+
+    char * addrbuf = __alloca(addrlen);
+    memcpy(addrbuf, addr, addrlen);
 
     struct sockaddr conn_addr;
     unsigned int conn_addrlen = sizeof(struct sockaddr);
@@ -730,23 +739,11 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    int fd = handle->sock.fd, ret;
-
-    memset(attr, 0, sizeof(PAL_STREAM_ATTR));
-
-    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-
-    if (handle->sock.conn) {
-        /* try use ioctl FIONEAD to get the size of socket */
-        ret = ocall_fionread(fd);
-        if (ret >= 0)
-            attr->pending_size = ret;
-    }
-
-    attr->readable  = (attr->pending_size > 0);
-    attr->writeable = HANDLE_HDR(handle)->flags & WRITEABLE(0);
-
+    attr->handle_type           = HANDLE_HDR(handle)->type;
+    attr->disconnected          = HANDLE_HDR(handle)->flags & ERROR(0);
     attr->nonblocking           = handle->sock.nonblocking;
+    attr->writeable             = HANDLE_HDR(handle)->flags & WRITEABLE(0);
+    attr->pending_size          = 0; /* fill in later */
     attr->socket.linger         = handle->sock.linger;
     attr->socket.receivebuf     = handle->sock.receivebuf;
     attr->socket.sendbuf        = handle->sock.sendbuf;
@@ -755,6 +752,21 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     attr->socket.tcp_cork       = handle->sock.tcp_cork;
     attr->socket.tcp_keepalive  = handle->sock.tcp_keepalive;
     attr->socket.tcp_nodelay    = handle->sock.tcp_nodelay;
+
+    int fd = handle->sock.fd, ret;
+
+    if (handle->sock.conn) {
+        /* try use ioctl FIONEAD to get the size of socket */
+        ret = ocall_fionread(fd);
+        if (ret < 0)
+            return ret;
+
+        attr->pending_size = ret;
+        attr->readable = !!attr->pending_size > 0;
+    } else {
+        attr->readable = !attr->disconnected;
+    }
+
     return 0;
 }
 

@@ -205,7 +205,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             break;
     }
 
-    param.addr = (uint64_t) addr;
+    param.addr = secs->baseaddr + (uint64_t) addr;
     param.user_addr = (uint64_t) user_addr;
     param.size = size;
     param.secinfo = &secinfo;
