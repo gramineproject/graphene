@@ -12,26 +12,31 @@
 // Print a number (base <= 16) in reverse order,
 // using specified fputch function and associated pointer putdat.
 #if !defined(__i386__)
-static void
-printnum(void (*_fputch)(void *, int, void *), void * f, void * putdat,
+static int
+printnum(int (*_fputch)(void *, int, void *), void * f, void * putdat,
 	 unsigned long long num, unsigned base, int width, int padc)
 #else
-static void
-printnum(void (*_fputch)(void *, int, void *), void * f, void * putdat,
+static int
+printnum(int (*_fputch)(void *, int, void *), void * f, void * putdat,
 	 unsigned long num, unsigned base, int width, int padc)
 #endif
 {
 	// first recursively print all preceding (more significant) digits
 	if (num >= base) {
-		printnum(_fputch, f, putdat, num / base, base, width - 1, padc);
+		if (printnum(_fputch, f, putdat, num / base, base, width - 1, padc) == -1)
+			return -1;
 	} else {
 		// print any needed pad characters before first digit
 		while (--width > 0)
-			(*_fputch) (f, padc, putdat);
+			if ((*_fputch) (f, padc, putdat) == -1)
+				return -1;
 	}
 
 	// then print this (the least significant) digit
-	(*_fputch) (f, "0123456789abcdef"[num % base], putdat);
+	if ((*_fputch) (f, "0123456789abcdef"[num % base], putdat) == -1)
+		return -1;
+
+	return 0;
 }
 
 // Get an unsigned int of various possible sizes from a varargs list,
@@ -77,12 +82,12 @@ getint(va_list *ap, int lflag)
 }
 
 // Main function to format and print a string.
-void fprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
-			        const char * fmt, ...);
+void fprintfmt(int (*_fputch)(void *, int, void *), void * f, void * putdat,
+			      const char * fmt, ...);
 
 void
-vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
-			   const char * fmt, va_list *ap)
+vfprintfmt(int (*_fputch)(void *, int, void *), void * f, void * putdat,
+			  const char * fmt, va_list *ap)
 {
 	register const char *p;
 	register int ch;
@@ -98,7 +103,8 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 		while ((ch = *(unsigned char *) (fmt++)) != '%') {
 			if (ch == '\0')
 				return;
-			(*_fputch) (f, ch, putdat);
+			if ((*_fputch) (f, ch, putdat) < 0)
+				return;
 		}
 
 		// Process a %-escape sequence
@@ -163,7 +169,8 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 
 		// character
 		case 'c':
-			(*_fputch) (f, va_arg(*ap, int), putdat);
+			if ((*_fputch) (f, va_arg(*ap, int), putdat) == -1)
+				return;
 			break;
 
 		// string
@@ -172,14 +179,19 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 				p = "(null)";
 			if (width > 0 && padc != '-')
 				for (width -= strnlen(p, precision); width > 0; width--)
-					(*_fputch) (f, padc, putdat);
+					if ((*_fputch) (f, padc, putdat) == -1)
+						return;
 			for (; (ch = *p++) != '\0' && (precision < 0 || --precision >= 0); width--)
-				if (altflag && (ch < ' ' || ch > '~'))
-					(*_fputch) (f, '?', putdat);
-				else
-					(*_fputch) (f, ch, putdat);
+				if (altflag && (ch < ' ' || ch > '~')) {
+					if ((*_fputch) (f, '?', putdat) == -1)
+						return;
+				} else {
+					if ((*_fputch) (f, ch, putdat) == -1)
+						return;
+				}
 			for (; width > 0; width--)
-				(*_fputch) (f, ' ', putdat);
+				if ((*_fputch) (f, ' ', putdat) == -1)
+					return;
 			break;
 
 		// (signed) decimal
@@ -187,12 +199,14 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 			num = getint(ap, lflag);
 #if !defined(__i386__)
 			if ((long long) num < 0) {
-				(*_fputch) (f, '-', putdat);
+				if ((*_fputch) (f, '-', putdat) == -1)
+					return;
 				num = -(long long) num;
 			}
 #else
 			if ((long) num < 0) {
-				(*_fputch) (f, '-', putdat);
+				if ((*_fputch) (f, '-', putdat) == -1)
+					return;
 				num = -(long) num;
 			}
 #endif
@@ -214,8 +228,10 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 
 		// pointer
 		case 'p':
-			(*_fputch) (f, '0', putdat);
-			(*_fputch) (f, 'x', putdat);
+			if ((*_fputch) (f, '0', putdat) == -1)
+				return;
+			if ((*_fputch) (f, 'x', putdat) == -1)
+				return;
 #if !defined(__i386__)
 			num = (unsigned long long)
 				(uintptr_t) va_arg(*ap, void *);
@@ -231,13 +247,15 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 			num = getuint(ap, lflag);
 			base = 16;
 		number:
-			printnum(_fputch, f, putdat, num, base, width, padc);
+			if (printnum(_fputch, f, putdat, num, base, width, padc) == -1)
+				return;
 			break;
 
-                // escape character
-                case '^':
-                        (*_fputch) (f, 0x1b, putdat);
-                        break;
+		// escape character
+		case '^':
+			if ((*_fputch) (f, 0x1b, putdat) == -1)
+				return;
+			break;
 
 		// escaped '%' character
 		case '%':
@@ -255,7 +273,7 @@ vfprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 }
 
 void
-fprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
+fprintfmt(int (*_fputch)(void *, int, void *), void * f, void * putdat,
 			   const char * fmt, ...)
 {
 	va_list ap;
@@ -266,46 +284,47 @@ fprintfmt(void (*_fputch)(void *, int, void *), void * f, void * putdat,
 }
 
 struct sprintbuf {
-    char * buf;
-    char * ebuf;
-    int cnt;
+	int cnt, max;
+	char * buf;
 };
 
-static void
+static int
 sprintputch(void * f, int ch, struct sprintbuf * b)
 {
-    b->cnt++;
-    if (b->buf < b->ebuf)
-        *b->buf++ = ch;
+	if (b->cnt >= b->max)
+		return -1;
+
+	b->buf[b->cnt++] = ch;
+	return 0;
 }
 
 static int
 vsprintf(char * buf, int n, const char * fmt, va_list *ap)
 {
-    struct sprintbuf b = {buf, buf + n - 1, 0};
+	struct sprintbuf b = { 0, n, buf };
 
-    if (buf == NULL || n < 1) {
-        return -1;
-    }
+	if (!buf || n < 1)
+		return 0;
 
-    // print the string to the buffer
-    vfprintfmt((void *) sprintputch, (void *) 0, &b, fmt, ap);
+	// print the string to the buffer
+	vfprintfmt((void *) sprintputch, (void *) 0, &b, fmt, ap);
 
-    // null terminate the buffer
-    *b.buf = '\0';
+	// null terminate the buffer
+	if (b.cnt < n)
+		b.buf[b.cnt] = '\0';
 
-    return b.cnt;
+	return b.cnt;
 }
 
 int
 snprintf(char * buf, int n, const char * fmt, ...)
 {
-    va_list ap;
-    int rc;
+	va_list ap;
+	int rc;
 
-    va_start(ap, fmt);
-    rc = vsprintf(buf, n, fmt, &ap);
-    va_end(ap);
+	va_start(ap, fmt);
+	rc = vsprintf(buf, n, fmt, &ap);
+	va_end(ap);
 
-    return rc;
+	return rc;
 }

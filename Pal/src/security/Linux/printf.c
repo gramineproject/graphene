@@ -30,15 +30,16 @@ struct sprintbuf {
 
 #define sys_cputs(fd, bf, cnt) INLINE_SYSCALL(write, 3, (fd), (bf), (cnt))
 
-static void
+static int
 fputch(int fd, int ch, struct printbuf *b)
 {
 	b->buf[b->idx++] = ch;
-	if (b->idx == PRINTBUF_SIZE-1) {
+	if (b->idx == PRINTBUF_SIZE - 1) {
 		sys_cputs(fd, b->buf, b->idx);
 		b->idx = 0;
 	}
 	b->cnt++;
+	return 0;
 }
 
 static int

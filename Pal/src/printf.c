@@ -36,15 +36,16 @@ struct printbuf {
     char buf[PRINTBUF_SIZE];
 };
 
-static void
+static int
 fputch(void * f, int ch, struct printbuf * b)
 {
     b->buf[b->idx++] = ch;
-    if (b->idx == PRINTBUF_SIZE-1) {
+    if (b->idx == PRINTBUF_SIZE - 1) {
         _DkPrintConsole(b->buf, b->idx);
         b->idx = 0;
     }
     b->cnt++;
+    return 0;
 }
 
 static int

@@ -34,22 +34,26 @@ struct debugbuf {
     char buf[DEBUGBUF_SIZE];
 };
 
-static inline void
+static inline int
 debug_fputs (void * f, const char * buf, int len)
 {
-    DkStreamWrite(debug_handle, 0, len, (void *) buf, NULL);
+    if (DkStreamWrite(debug_handle, 0, len, (void *) buf, NULL) == len)
+        return 0;
+    else
+        return -1;
 }
 
-static void
+static int
 debug_fputch (void * f, int ch, void * b)
 {
     struct debug_buf * buf = (struct debug_buf *) b;
     buf->buf[buf->end++] = ch;
 
     if (ch == '\n') {
-        debug_fputs(NULL, buf->buf, buf->end);
+        if (debug_fputs(NULL, buf->buf, buf->end) == -1)
+            return -1;
         buf->end = buf->start;
-        return;
+        return 0;
     }
 
     if (buf->end == DEBUGBUF_SIZE - 4) {
@@ -61,6 +65,8 @@ debug_fputch (void * f, int ch, void * b)
         buf->buf[buf->end++] = '.';
         buf->buf[buf->end++] = '.';
     }
+
+    return 0;
 }
 
 void debug_puts (const char * str)
