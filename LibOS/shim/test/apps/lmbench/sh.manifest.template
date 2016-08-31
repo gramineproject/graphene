@@ -1,7 +1,7 @@
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:/bin/sh
 loader.env.LD_LIBRARY_PATH = /lib:/lib64
-loader.debug_type = none
+loader.debug_type = inline
 
 fs.mount.tmp1.type = chroot
 fs.mount.tmp1.path = /tmp
@@ -15,14 +15,6 @@ fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(LIBCDIR)
 
-fs.mount.inc.type = chroot
-fs.mount.inc.path = /usr/include/x86_64-linux-gnu/sys/types.h
-fs.mount.inc.uri = file:/usr/include/x86_64-linux-gnu/sys/types.h
-
-net.allow_bind.1 = 0.0.0.0:31233-31237
-net.allow_bind.2 = 0.0.0.0:34297-34298
-net.allow_peer.1 = 127.0.0.1:0-65535
-
 sys.brk.size = 32M
 sys.stack.size = 4M
 
@@ -31,3 +23,5 @@ sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+
+sgx.trusted_children.hello = file:hello.sig

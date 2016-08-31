@@ -30,19 +30,21 @@
 #include <pal.h>
 
 static LOCKTYPE randgen_lock;
-static unsigned long randval __attribute_migratable;
+static unsigned long randval;
 
 int init_randgen (void)
 {
     if (DkRandomBitsRead (&randval, sizeof(randval)) < sizeof(randval))
         return -EACCES;
 
+    debug("initial random value: %08llx\n", randval);
     create_lock(randgen_lock);
     return 0;
 }
 
 int getrand (void * buffer, size_t size)
 {
+    unsigned long old_randval = randval;
     int bytes = 0;
     lock(randgen_lock);
 

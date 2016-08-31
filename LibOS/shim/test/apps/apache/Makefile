@@ -101,14 +101,15 @@ build-conf:
 </IfModule>\n" >> $(INSTALL_DIR)/conf/httpd.conf.new
 	cd $(INSTALL_DIR)/conf && ln -sf httpd.conf.new httpd.conf
 
+
 start-native-server:
 	@echo "Listen on $(HOST):$(PORT)"
-	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
+	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "ServerName $(HOST)" -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
 
 start-graphene-server:
 	rm -rf httpd-$(HOST)-$(PORT).pid
 	@echo "Listen on $(HOST):$(PORT)"
-	$(PREFIX) ../pal_loader $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
+	$(PREFIX) ../pal_loader httpd.manifest.sgx -D FOREGROUND -C "ServerName $(HOST)" -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
 
 random-data = $(foreach n,1 2 3 4 5 6 7 8 9 10,2K.$n.html) \
 	      $(foreach n,1 2 3 4 5,10K.$n.html) \

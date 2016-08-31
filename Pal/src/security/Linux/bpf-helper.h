@@ -146,7 +146,7 @@ union arg64 {
 	       ((union arg64){.u64 = (x)}).hi32, \
 	       EXPAND(jt))
 #define ARG(i) ARG_64(i)
-#define ARG_FLAG(i,flag) ARG_FLAG_64(i,flag)
+#define ARG_FLAG(i, flag) ARG_FLAG_64(i, flag)
 #define IP IP_64
 
 #else
@@ -177,7 +177,7 @@ union arg64 {
 	BPF_STMT(BPF_ST, 1) /* hi -> M[1] */
 
 /* Loads hi into A and lo in X */
-#define ARG_FLAG_64(idx,flag) \
+#define ARG_FLAG_64(idx, flag) \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, LO_ARG(idx)), \
 	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, LO_FLAG(flag)), \
 	BPF_STMT(BPF_ST, 0), /* lo -> M[0] */ \

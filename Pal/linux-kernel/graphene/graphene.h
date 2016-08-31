@@ -141,6 +141,11 @@ void put_graphene_struct(struct task_struct *task);
  */
 int graphene_execve_open(struct file *file);
 
+unsigned long
+graphene_execve_get_area(struct file *file, unsigned long addr,
+			 unsigned long len, unsigned long pgoff,
+			 unsigned long flags);
+
 /*
  * add the following lines to common_perm (security/apparmor/lsm.c):
  * if (GRAPHENE_ENABLED() &&

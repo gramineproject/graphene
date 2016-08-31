@@ -1,8 +1,8 @@
 #!$(PAL)
 
 loader.preload = file:$(SHIMPATH)
-loader.exec = file:/usr/bin/gcc
-loader.execname = /usr/bin/gcc
+loader.exec = file:/usr/bin/ld
+loader.execname = /usr/bin/ld
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = /bin:/usr/bin
 loader.debug_type = $(DEBUGTYPE)
@@ -23,19 +23,24 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
+sgx.enclave_size = 512M
+
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-
-sgx.trusted_files.cc1 = file:$(GCCDIR)/cc1
-sgx.trusted_files.collect2 = file:$(GCCDIR)/collect2
-sgx.trusted_files.as = file:/usr/bin/as
+sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
+sgx.trusted_files.libbfd = file:/usr/lib/libbfd-2.24-system.so
+sgx.trusted_files.libgcc = file:$(GCCDIR)/libgcc_s.so
+sgx.trusted_files.libgcca = file:$(GCCDIR)/libgcc.a
+sgx.trusted_files.crtend = file:$(GCCDIR)/crtend.o
+sgx.trusted_files.crtbegin = file:$(GCCDIR)/crtbegin.o
 
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files
+sgx.allowed_files.aout = file:a.out
 
-sgx.trusted_children.cc1 = file:cc1.sig
-sgx.trusted_children.collect2 = file:collect2.sig
-sgx.trusted_children.as = file:as.sig
+sgx.allowed_files.hostdebug = file:/usr/lib/debug/usr/lib/x86_64-linux-gnu
+sgx.allowed_files.hostusrlib = file:/usr/lib/x86_64-linux-gnu
+sgx.allowed_files.hostlib = file:/lib/x86_64-linux-gnu

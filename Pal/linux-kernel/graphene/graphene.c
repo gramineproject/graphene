@@ -124,6 +124,7 @@ struct graphene_info *get_graphene_info(struct graphene_struct *gs)
 	return info;
 }
 
+#if 0
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
 # define FILE_INODE(file) ((file)->f_inode)
 #else
@@ -146,10 +147,13 @@ static ssize_t graphene_lib_read (struct file *file, char __user *buf,
 				  size_t len, loff_t *ppos)
 {
 	struct inode *inode = FILE_INODE(file);
+	const struct file_operations *fops;
 
 	if (!inode)
 		return -EINVAL;
-	if (!inode->i_fop || !inode->i_fop->read)
+
+	fops = fops_get(inode->i_fop);
+	if (unlikely(!fops))
 		return -EINVAL;
 
 	return inode->i_fop->read(file, buf, len, ppos);
@@ -188,6 +192,7 @@ static int graphene_lib_release(struct inode *inode, struct file *file)
 		return -EINVAL;
 	return inode->i_fop->release(inode, file);
 }
+#endif
 
 #define DEFINE_PATH_BUFFER(kpath, max) char * kpath; int max;
 
@@ -204,6 +209,7 @@ static int graphene_lib_release(struct inode *inode, struct file *file)
 
 #define PUT_PATH_BUFFER(kpath) __putname(kpath);
 
+#if 0
 static unsigned long
 graphene_lib_get_area(struct file *file, unsigned long addr, unsigned long len,
 		      unsigned long pgoff, unsigned long flags)
@@ -254,6 +260,7 @@ static struct file_operations graphene_lib_operations = {
 	.get_unmapped_area	= graphene_lib_get_area,
 	.release		= graphene_lib_release,
 };
+#endif
 
 #ifdef CONFIG_GRAPHENE_DEBUG
 static void print_path(const char * fmt, struct path *path)
@@ -284,11 +291,49 @@ int graphene_execve_open(struct file *file)
 	if (!gi->gi_libaddr)
 		goto accepted;
 
-	file->f_op = &graphene_lib_operations;
+	//file->f_op = &graphene_lib_operations;
 accepted:
 	print_path(KERN_INFO "Graphene: ALLOW EXEC PID %d PATH %s\n",
 		   &file->f_path);
 	return 0;
+}
+
+unsigned long
+graphene_execve_get_area(struct file *file, unsigned long addr,
+			 unsigned long len, unsigned long pgoff,
+			 unsigned long flags)
+{
+	unsigned long (*get_area) (struct file *, unsigned long, unsigned long,
+				   unsigned long, unsigned long);
+
+	struct task_struct *current_tsk = current;
+	struct graphene_info *gi = get_graphene_info(current_tsk->graphene);
+
+	BUG_ON(!file);
+
+	if (gi->gi_libaddr) {
+		if (!addr)
+			addr = gi->gi_libaddr + pgoff * PAGE_SIZE;
+
+#ifdef CONFIG_GRAPHENE_DEBUG
+		{
+			DEFINE_PATH(dp, &file->f_path, kpath, max)
+			if (!IS_ERR(dp))
+				printk(KERN_INFO "Graphene: PID %d MAP FILE %s"
+				       " OFF 0x%08lx AT 0x%016lx\n",
+				       current->pid, dp,
+				       pgoff * PAGE_SIZE, addr);
+			PUT_PATH_BUFFER(kpath)
+		}
+#endif
+		return addr;
+	}
+
+	get_area = current_tsk->mm->get_unmapped_area;
+	if (file->f_op->get_unmapped_area)
+		get_area = file->f_op->get_unmapped_area;
+
+	return get_area(file, addr, len, pgoff, flags);
 }
 
 static int graphene_check_path(struct graphene_info *gi, int op, u32 mask,

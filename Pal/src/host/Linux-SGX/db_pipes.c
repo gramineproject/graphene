@@ -355,7 +355,7 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
                             &handle->pipe.nonblocking;
 
     if (attr->nonblocking != *nonblocking) {
-        int ret = ocall_fsetnonblock(HANDLE_HDR(handle)->fds[0], *nonblocking);
+        int ret = ocall_fsetnonblock(HANDLE_HDR(handle)->fds[0], attr->nonblocking);
         if (ret < 0)
             return ret;
 

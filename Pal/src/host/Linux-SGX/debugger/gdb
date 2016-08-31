@@ -1,7 +1,9 @@
 #!/bin/bash
 
 DIR=$(dirname $(readlink -f ${BASH_SOURCE[0]}))
-GDB_SCRIPT=$DIR/../pal-gdb.py
+GDB_SCRIPT=$DIR/pal-gdb.py
 GDB_SO=$DIR/sgx_gdb.so
 
-LD_PRELOAD=$GDB_SO gdb -iex "set auto-load safe-path $GDB_SCRIPT" $@
+set -x
+
+LD_PRELOAD=$GDB_SO gdb -iex "set auto-load safe-path $GDB_SCRIPT" "$@"

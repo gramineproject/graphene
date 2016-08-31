@@ -1,8 +1,8 @@
 #!$(PAL)
 
 loader.preload = file:$(SHIMPATH)
-loader.exec = file:/usr/bin/gcc
-loader.execname = /usr/bin/gcc
+loader.exec = file:$(GCCDIR)/collect2
+loader.execname = collect2
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = /bin:/usr/bin
 loader.debug_type = $(DEBUGTYPE)
@@ -29,13 +29,9 @@ sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
 
-sgx.trusted_files.cc1 = file:$(GCCDIR)/cc1
-sgx.trusted_files.collect2 = file:$(GCCDIR)/collect2
-sgx.trusted_files.as = file:/usr/bin/as
+sgx.trusted_files.linker = file:/usr/bin/ld
 
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files
 
-sgx.trusted_children.cc1 = file:cc1.sig
-sgx.trusted_children.collect2 = file:collect2.sig
-sgx.trusted_children.as = file:as.sig
+sgx.trusted_children.linker = file:ld.sig

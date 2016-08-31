@@ -16,9 +16,8 @@ typedef struct {
 struct pal_sec;
 
 typedef struct {
-    int ms_argc;
-    const char ** ms_argv;
-    const char ** ms_envp;
+    const char ** ms_arguments;
+    const char ** ms_environments;
     void * ms_addr;
     struct pal_sec * ms_sec_info;
     void * ms_enclave_base;

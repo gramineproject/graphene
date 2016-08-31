@@ -360,7 +360,10 @@ def populate_memory_areas(manifest, attr, areas):
         area.addr = populating - area.size
         if area.addr < ENCLAVE_HEAP_MIN:
             raise Exception("Enclave size is not large enough")
-        populating = area.addr - MEMORY_GAP
+        if area.desc == 'exec':
+            populating = area.addr;
+        else:
+            populating = area.addr - MEMORY_GAP
 
     free_areas = []
     for area in areas:
@@ -678,7 +681,7 @@ if __name__ == "__main__":
     args['root'] = os.path.dirname(os.path.abspath(args['output']))
 
     if 'sgx.sigfile' in manifest:
-        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'])
+        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'], False)
     else:
         sigfile = args['output']
         for ext in ['.manifest.sgx', '.manifest']:

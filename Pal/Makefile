@@ -8,7 +8,7 @@ endif
 
 ifeq ($(OS),Linux)
 	LINUX_GEN := 3.x
-	LINUX_SRC := linux-3.14
+	LINUX_SRC := linux-3.19
 	LINUX_KERNEL := $(LINUX_SRC)/arch/x86/boot/bzImage
 endif
 
@@ -26,8 +26,8 @@ install:
 	[ -f ../Runtime/pal ] || ln -sf ../Pal/src/pal ../Runtime/pal
 	[ -f ../Runtime/pal_sec ] || ln -sf ../Pal/src/pal_sec ../Runtime/pal_sec
 
-.PHONY: kernel
-kernel: $(LINUX_KERNEL)
+.PHONY: linux-kernel
+linux-kernel: $(LINUX_KERNEL)
 
 ifneq ($(LINUX_KERNEL),)
 $(LINUX_KERNEL): $(LINUX_SRC)/Makefile $(LINUX_SRC)/graphene $(LINUX_SRC)/.config
@@ -55,7 +55,7 @@ linux-deb:
 	cd $(LINUX_SRC) && \
 	CONCURRENCY_LEVEL=$(NPROCS) make-kpkg --rootcmd fakeroot \
 		--append-to-version -graphene --initrd \
-		kernel_image kernel_debug kernel_headers
+		kernel_image kernel_headers $(if $(DEBUG),kernel_debug,)
 else
 kernel_install:
 endif

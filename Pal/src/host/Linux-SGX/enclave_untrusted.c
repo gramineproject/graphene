@@ -25,12 +25,13 @@
 
 #include "enclave_ocalls.h"
 
-#define allocator pal_sec.untrusted_allocator
-#define untrusted_slabmgr (allocator.slabmgr)
-#define system_lock()   _DkMutexLock(allocator.lock)
-#define system_unlock() _DkMutexUnlock(allocator.lock)
+static PAL_LOCK malloc_lock = LOCK_INIT;
+static int pagesize = PRESET_PAGESIZE;
 
-#define PAGE_SIZE (allocator.alignment)
+#define system_lock()   _DkSpinLock(&malloc_lock)
+#define system_unlock() _DkSpinUnlock(&malloc_lock)
+
+#define PAGE_SIZE pagesize
 
 static inline void * __malloc (int size)
 {
@@ -50,6 +51,18 @@ static inline void __free (void * addr, int size)
 #define system_free(addr, size) __free(addr, size)
 
 #include "slabmgr.h"
+
+static SLAB_MGR untrusted_slabmgr = NULL;
+
+void init_untrusted_slab_mgr (int pagesize)
+{
+    if (untrusted_slabmgr)
+        return;
+
+    untrusted_slabmgr = create_slab_mgr();
+    if (!untrusted_slabmgr)
+        init_fail(PAL_ERROR_NOMEM, "cannot initialize slab manager");
+}
 
 void * malloc_untrusted (int size)
 {

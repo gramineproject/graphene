@@ -1,0 +1,222 @@
+diff --git a/Kconfig b/Kconfig
+index c13f48d..e18713e 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -9,3 +9,4 @@ config SRCARCH
+ 	option env="SRCARCH"
+ 
+ source "arch/$SRCARCH/Kconfig"
++source "graphene/Kconfig"
+diff --git a/Makefile b/Makefile
+index e5ac8a6..116ac82 100644
+--- a/Makefile
++++ b/Makefile
+@@ -779,7 +779,7 @@ export mod_sign_cmd
+ 
+ 
+ ifeq ($(KBUILD_EXTMOD),)
+-core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/
++core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/ graphene/
+ 
+ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+ 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
+diff --git a/include/linux/miscdevice.h b/include/linux/miscdevice.h
+index 3737f72..f7a4aba 100644
+--- a/include/linux/miscdevice.h
++++ b/include/linux/miscdevice.h
+@@ -3,6 +3,7 @@
+ #include <linux/major.h>
+ #include <linux/list.h>
+ #include <linux/types.h>
++#include <../graphene/graphene.h>
+ 
+ /*
+  *	These allocations are managed by device@lanana.org. If you use an
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a781dec..3381137 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1161,6 +1161,11 @@ enum perf_event_task_context {
+ 	perf_nr_task_contexts,
+ };
+ 
++#ifdef CONFIG_GRAPHENE
++# include <../graphene/graphene.h>
++struct graphene_struct;
++#endif
++
+ struct task_struct {
+ 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+ 	void *stack;
+@@ -1581,6 +1586,11 @@ struct task_struct {
+ 	unsigned int	sequential_io;
+ 	unsigned int	sequential_io_avg;
+ #endif
++
++#ifdef CONFIG_GRAPHENE
++	/* for graphene tasks */
++	struct graphene_struct *graphene; /* structure to store graphene info */
++#endif
+ };
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index a17621c..41d5958 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -11,6 +11,7 @@
+  * management can be a bitch. See 'mm/memory.c': 'copy_page_range()'
+  */
+ 
++#include <linux/version.h>
+ #include <linux/slab.h>
+ #include <linux/init.h>
+ #include <linux/unistd.h>
+@@ -84,6 +85,10 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/task.h>
+ 
++#ifdef CONFIG_GRAPHENE
++# include <../graphene/graphene.h>
++#endif
++
+ /*
+  * Protected counters by write_lock_irq(&tasklist_lock)
+  */
+@@ -242,6 +247,10 @@ void __put_task_struct(struct task_struct *tsk)
+ 	delayacct_tsk_free(tsk);
+ 	put_signal_struct(tsk->signal);
+ 
++#ifdef CONFIG_GRAPHENE
++	put_graphene_struct(tsk);
++#endif
++
+ 	if (!profile_handoff_task(tsk))
+ 		free_task(tsk);
+ }
+@@ -322,6 +331,16 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	tsk->stack_canary = get_random_int();
+ #endif
+ 
++#ifdef CONFIG_GRAPHENE
++	err = dup_graphene_struct(tsk);
++	if (err)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
++		goto free_ti;
++#else
++		goto out;
++#endif
++#endif
++
+ 	/*
+ 	 * One for us, one for whoever does the "release_task()" (usually
+ 	 * parent)
+diff -ruNp linux-3.19/mm/mmap.c linux-3.19.new/mm/mmap.c
+--- linux-3.19/mm/mmap.c	2015-02-08 21:54:22.000000000 -0500
++++ linux-3.19.new/mm/mmap.c	2016-08-23 22:15:18.387511888 -0400
+@@ -2000,6 +2000,10 @@ arch_get_unmapped_area_topdown(struct fi
+ }
+ #endif
+ 
++#ifdef CONFIG_GRAPHENE
++# include <../graphene/graphene.h>
++#endif
++
+ unsigned long
+ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+ 		unsigned long pgoff, unsigned long flags)
+@@ -2018,6 +2022,10 @@ get_unmapped_area(struct file *file, uns
+ 	get_area = current->mm->get_unmapped_area;
+ 	if (file && file->f_op->get_unmapped_area)
+ 		get_area = file->f_op->get_unmapped_area;
++#ifdef CONFIG_GRAPHENE
++	if (file && current->in_execve && GRAPHENE_ENABLED())
++		get_area = graphene_execve_get_area;
++#endif
+ 	addr = get_area(file, addr, len, pgoff, flags);
+ 	if (IS_ERR_VALUE(addr))
+ 		return addr;
+diff --git a/security/apparmor/lsm.c b/security/apparmor/lsm.c
+index 4257b7e..b21c19d 100644
+--- a/security/apparmor/lsm.c
++++ b/security/apparmor/lsm.c
+@@ -36,6 +36,10 @@
+ #include "include/policy.h"
+ #include "include/procattr.h"
+ 
++#ifdef CONFIG_GRAPHENE
++# include <../graphene/graphene.h>
++#endif
++
+ /* Flag indicating whether initialization completed */
+ int apparmor_initialized __initdata;
+ 
+@@ -165,6 +169,12 @@ static int common_perm(int op, struct path *path, u32 mask,
+ 	struct aa_profile *profile;
+ 	int error = 0;
+ 
++#ifdef CONFIG_GRAPHENE
++	if (GRAPHENE_ENABLED() &&
++	    (error = graphene_common_perm(op, path, mask)))
++		return error;
++#endif
++
+ 	profile = __aa_current_profile();
+ 	if (!unconfined(profile))
+ 		error = aa_path_perm(op, profile, path, 0, mask, cond);
+@@ -377,6 +387,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
+ {
+ 	struct aa_file_cxt *fcxt = file->f_security;
+ 	struct aa_profile *profile;
++	u32 mask;
+ 	int error = 0;
+ 
+ 	if (!mediated_filesystem(file_inode(file)))
+@@ -388,10 +399,21 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
+ 	 * actually execute the image.
+ 	 */
+ 	if (current->in_execve) {
++#ifdef CONFIG_GRAPHENE
++		if (GRAPHENE_ENABLED() && (error = graphene_execve_open(file)))
++			return error;
++#endif
+ 		fcxt->allow = MAY_EXEC | MAY_READ | AA_EXEC_MMAP;
+ 		return 0;
+ 	}
+ 
++#ifdef CONFIG_GRAPHENE
++	mask = aa_map_file_to_perms(file);
++	if (GRAPHENE_ENABLED() &&
++	    (error = graphene_common_perm(OP_OPEN, &file->f_path, mask)))
++		return error;
++#endif
++
+ 	profile = aa_cred_profile(cred);
+ 	if (!unconfined(profile)) {
+ 		struct inode *inode = file_inode(file);
+@@ -647,6 +669,14 @@ static struct security_operations apparmor_ops = {
+ 	.getprocattr =			apparmor_getprocattr,
+ 	.setprocattr =			apparmor_setprocattr,
+ 
++#ifdef CONFIG_GRAPHENE
++	.socket_bind =			graphene_socket_bind,
++	.socket_listen =		graphene_socket_listen,
++	.socket_connect =		graphene_socket_connect,
++	.socket_sendmsg =		graphene_socket_sendmsg,
++	.socket_recvmsg =		graphene_socket_recvmsg,
++#endif
++
+ 	.cred_alloc_blank =		apparmor_cred_alloc_blank,
+ 	.cred_free =			apparmor_cred_free,
+ 	.cred_prepare =			apparmor_cred_prepare,
+@@ -658,6 +688,10 @@ static struct security_operations apparmor_ops = {
+ 	.bprm_secureexec =		apparmor_bprm_secureexec,
+ 
+ 	.task_setrlimit =		apparmor_task_setrlimit,
++
++#ifdef CONFIG_GRAPHENE
++	.task_kill =			graphene_task_kill,
++#endif
+ };
+ 
+ /*

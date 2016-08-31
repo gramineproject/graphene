@@ -697,14 +697,13 @@ void * ocall_table[OCALL_NR] = {
 
 #define EDEBUG(code, ms) do {} while (0)
 
-int ecall_pal_main (int argc, const char ** argv, const char ** envp)
+int ecall_pal_main (const char ** arguments, const char ** environments)
 {
     struct pal_enclave * enclave = current_enclave;
     ms_ecall_pal_main_t ms;
 
-    ms.ms_argc = argc;
-    ms.ms_argv = argv;
-    ms.ms_envp = envp;
+    ms.ms_arguments = arguments;
+    ms.ms_environments = environments;
     ms.ms_sec_info = PAL_SEC();
     ms.ms_enclave_base = (void *) enclave->baseaddr;
     ms.ms_enclave_size = enclave->size;

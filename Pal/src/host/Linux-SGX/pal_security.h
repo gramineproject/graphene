@@ -31,6 +31,7 @@ struct pal_sec {
     PAL_IDX         ppid, pid, uid, gid;
 
     /* file name of enclave image */
+    PAL_PTR         enclave_addr;
     PAL_SEC_STR     enclave_image;
 
     /* enclave information */
@@ -59,13 +60,6 @@ struct pal_sec {
     /* additional information */
     PAL_SEC_STR     pipe_prefix;
     PAL_IDX         mcast_port, mcast_srv, mcast_cli;
-
-    /* an untrusted allocator shared with enclave */
-    struct {
-        unsigned int alignment;
-        void * slabmgr;
-        struct mutex_handle * lock;
-    } untrusted_allocator;
 
 #ifdef DEBUG
     PAL_BOL         in_gdb;

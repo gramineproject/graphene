@@ -89,6 +89,9 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
     unsigned int total = handle->file.total;
     int ret;
 
+    if (offset >= total)
+        return 0;
+
     unsigned long end = (offset + count > total) ? total : offset + count;
     unsigned long map_start, map_end;
 

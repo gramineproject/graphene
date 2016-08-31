@@ -556,7 +556,7 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
     if (attr->nonblocking != *nonblocking) {
         ret = INLINE_SYSCALL(fcntl, 3, HANDLE_HDR(handle)->fds[0], F_SETFL,
-                             *nonblocking ? O_NONBLOCK : 0);
+                             attr->nonblocking ? O_NONBLOCK : 0);
 
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));

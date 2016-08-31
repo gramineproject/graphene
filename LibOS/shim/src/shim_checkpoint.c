@@ -1089,9 +1089,22 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
         SAVE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc);
     } else {
-        if (!(mapaddr = DkVirtualMemoryAlloc(mapaddr, mapsize, 0,
-                                             PAL_PROT_READ|PAL_PROT_WRITE)))
-            return -PAL_ERRNO;
+        void * mapped = NULL;
+
+        for (int tries = 3 ; tries ; tries--) {
+            if ((mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0,
+                                               PAL_PROT_READ|PAL_PROT_WRITE)))
+                break;
+
+            debug("cannot map address %p-%p\n", mapaddr, mapaddr + mapsize);
+            ret =-PAL_ERRNO;
+            mapaddr = NULL;
+        }
+
+        if (!mapped)
+            return ret;
+
+        mapaddr = mapped;
     }
 
     bkeep_mmap((void *) mapaddr, mapsize,

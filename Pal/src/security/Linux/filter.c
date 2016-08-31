@@ -91,6 +91,10 @@ typedef __builtin_va_list __gnuc_va_list;
 # error "Unsupported architecture"
 #endif
 
+#ifndef SIGCHLD
+# define SIGCHLD 17
+#endif
+
 #define SYSCALL_ACTIONS                                  \
     DENY,                                                \
                                                          \
@@ -116,8 +120,9 @@ typedef __builtin_va_list __gnuc_va_list;
     DENY,                                                \
                                                          \
     LABEL(&labels, clone),                               \
-    ARG_FLAG(2, CLONE_IO),                               \
+    ARG_FLAG(2, (CLONE_IO|CLONE_VM|CLONE_VFORK)),        \
     JEQ(0, ALLOW),                                       \
+    JEQ(SIGCHLD, ALLOW),                                 \
     DENY,                                                \
                                                          \
     LABEL(&labels, socket),                              \
@@ -149,7 +154,6 @@ int install_initial_syscall_filter (void)
 #else
         SYSCALL(__NR_gettimeofday,  ALLOW),
 #endif
-
         SYSCALL(__NR_prctl,     JUMP(&labels, prctl)),
 
         SYSCALL_ACTIONS,
@@ -186,6 +190,8 @@ int install_syscall_filter (void * code_start, void * code_end)
 {
     int err = 0;
     struct bpf_labels labels = { .count = 0 };
+
+    printf("set up filter in %p-%p\n", code_start, code_end);
 
     struct sock_filter filter[] = {
         IP,

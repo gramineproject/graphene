@@ -38,8 +38,7 @@
 
 unsigned long mem_max_npages __attribute_migratable = DEFAULT_MEM_MAX_NPAGES;
 
-static void * heap_top    __attribute_migratable;
-static void * heap_bottom __attribute_migratable;
+static void * heap_top, * heap_bottom;
 
 #define VMA_MGR_ALLOC   64
 #define PAGE_SIZE       allocsize
@@ -98,8 +97,10 @@ static void __set_heap_top (void * bottom, void * top);
 
 int init_vma (void)
 {
-    if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC))))
+    if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
+        debug("failed allocating VMAs\n");
         return -ENOMEM;
+    }
 
     heap_bottom = (void *) PAL_CB(user_address.start);
     if (heap_bottom + DEFAULT_HEAP_MIN_SIZE > PAL_CB(executable_range.start) &&

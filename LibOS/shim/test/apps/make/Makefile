@@ -1,4 +1,4 @@
-manifests = make.manifest make-huge.manifest
+manifests = make.manifest
 
 graphene_dirs = LibOS/shim/src LibOS/shim/include Pal/lib Pal/include Pal/src
 graphene_target = $(addprefix graphene/,$(graphene_dirs))
@@ -8,6 +8,14 @@ target = configure $(graphene_target) $(graphene_libs)
 exec_target = $(manifests)
 
 clean-extra = clean-tests
+
+huge_rule = sys.stack.size = 64M\nsys.brk.size = 256M\nglibc.heap_size = 16M\nsgx.enclave_size = 2G
+
+extra_rules = \
+	-e 's:\$$(PAL):../pal_loader:g' \
+	-e 's:\$$(DEBUGTYPE):$(if $(DEBUG),inline,none):g' \
+	-e 's:\$$(GCCDIR):$(patsubst %/cc1,%,$(shell gcc -print-file-name=cc1)):g' \
+	-e 's:\$$(HUGERULE):$(if $(HUGE),$(huge_rule),):g'
 
 level = ../../
 include ../../Makefile

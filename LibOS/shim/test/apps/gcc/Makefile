@@ -1,8 +1,16 @@
-exec_target = $(addsuffix .manifest,gcc g++ gcc-huge g++-huge)
+test_files = test_files
+
+exec_target = $(addsuffix .manifest,gcc as ld cc1 collect2)
 
 clean-extra = clean-garbages
 
-extra_rules = -e 's:\$$(PAL):../pal_loader:g'
+huge_rule = sys.stack.size = 64M\nsys.brk.size = 256M\nglibc.heap_size = 16M\nsgx.enclave_size = 2G
+
+extra_rules = \
+	-e 's:\$$(PAL):../pal_loader:g' \
+	-e 's:\$$(DEBUGTYPE):$(if $(DEBUG),inline,none):g' \
+	-e 's:\$$(GCCDIR):$(patsubst %/cc1,%,$(shell gcc -print-file-name=cc1)):g' \
+	-e 's:\$$(HUGERULE):$(if $(HUGE),$(huge_rule),):g'
 
 level = ../../
 include ../../Makefile
@@ -85,27 +93,6 @@ src/$(MPC_SRC): $(MPC_SRC).tar.gz src
 
 src:
 	mkdir -p src
-
-test-native:
-	echo "Result for helloworld(native)" >> result
-	/usr/bin/time -a -o result -p gcc helloworld.c
-	echo "Result for gzip.c(native)" >> result
-	/usr/bin/time -a -o result -p gcc gzip.c
-	echo "Result for oggenc.m.c(native)" >> result
-	/usr/bin/time -a -o result -p gcc oggenc.m.c -lm
-	echo "Result for single-gcc.c(native)" >> result
-	/usr/bin/time -a -o result -p gcc single-gcc.c
-
-
-test-graphene:
-	echo "Result for helloworld(graphene)" >> result
-	/usr/bin/time -a -o result -p ./gcc.manifest helloworld.c
-	echo "Result for gzip.c(graphene)" >> result
-	/usr/bin/time -a -o result -p ./gcc-huge.manifest gzip.c
-	echo "Result for oggenc.m.c(graphene)" >> result
-	/usr/bin/time -a -o result -p ./gcc-huge.manifest oggenc.m.c -lm
-	echo "Result for single-gcc.c(graphene)" >> result
-	/usr/bin/time -a -o result -p ./gcc-huge.manifest single-gcc.c
 
 distclean: clean
 	rm -rf src obj

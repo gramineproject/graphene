@@ -18,6 +18,7 @@ if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
 fi
 
 if [ "$SEC" == "1" ]; then
+	echo "Use reference monitor"
 	PAL_CMD=$PAL_SEC
 fi
 
@@ -48,5 +49,7 @@ if [ ! -f "$PAL_CMD" ]; then
 	echo "$PAL_CMD is not built, or security mode is not supported"
 	exit 1
 fi
+
+set -x
 
 exec $GDB_CMD $PAL_CMD $MANIFEST "$@"

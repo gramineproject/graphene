@@ -641,8 +641,7 @@ DEFINE_PROFILE_INTERVAL(init_signal,                init);
     do {                                                                \
         int _err = CALL_INIT(func, ##__VA_ARGS__);                      \
         if (_err < 0) {                                                 \
-            sys_printf("shim initialization failed in " #func " (%d)",  \
-                       _err);                                           \
+            debug("initialization failed in " #func " (%d)\n", _err);   \
             shim_terminate();                                           \
         }                                                               \
         SAVE_PROFILE_INTERVAL(func);                                    \
@@ -823,6 +822,7 @@ static int name_pipe (char * uri, size_t size, void * id)
     int len;
     if (getrand(&pipeid, sizeof(IDTYPE)) < sizeof(IDTYPE))
         return -EACCES;
+    debug("creating pipe: pipe.srv:%u\n", pipeid);
     if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) == size)
         return -ERANGE;
     *((IDTYPE *) id) = pipeid;

@@ -7,7 +7,7 @@
 #define assert(cond) \
     do { if (!(cond)) INLINE_SYSCALL(exit_group, 1, 0); } while (0);
 
-int ecall_pal_main (int argc, const char ** argv, const char ** envp);
+int ecall_pal_main (const char ** arguments, const char ** environments);
 
 int ecall_thread_start (void (*func) (void *, void *),
                         void * args, unsigned int * child_tid,

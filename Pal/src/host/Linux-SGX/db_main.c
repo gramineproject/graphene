@@ -82,6 +82,7 @@ PAL_NUM _DkGetHostId (void)
 void setup_pal_map (struct link_map * map);
 static struct link_map pal_map;
 
+int init_untrusted_slab_mgr (int pagesize);
 int init_enclave (void);
 int init_child_process (PAL_HANDLE * parent_handle);
 
@@ -118,15 +119,15 @@ static int loader_filter (const char * key, int len)
     return 1;
 }
 
-void pal_linux_main(int argc, const char ** argv, const char ** envp,
+void pal_linux_main(const char ** arguments, const char ** environments,
                     struct pal_sec * sec_info)
 {
     PAL_HANDLE parent = NULL;
     unsigned long start_time = _DkSystemTimeQuery();
 
     /* relocate PAL itself */
-    pal_map.l_addr = elf_machine_load_address();
-    pal_map.l_name = pal_sec.enclave_image;
+    pal_map.l_addr = sec_info->enclave_addr;
+    pal_map.l_name = sec_info->enclave_image;
     elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
                          pal_map.l_info, pal_map.l_addr);
 
@@ -136,6 +137,7 @@ void pal_linux_main(int argc, const char ** argv, const char ** envp,
 
     /* set up page allocator and slab manager */
     init_slab_mgr(pagesz);
+    init_untrusted_slab_mgr(pagesz);
     init_pages();
 
     /* now we can add a link map for PAL itself */
@@ -200,8 +202,9 @@ void pal_linux_main(int argc, const char ** argv, const char ** envp,
     ENCLAVE_TLS(thread) = __pal_control.first_thread = first_thread;
 
     /* call main function */
-    pal_main(pal_sec.instance_id, manifest, exec, pal_sec.exec_addr,
-             parent, first_thread, argv, envp);
+    pal_main(pal_sec.instance_id, manifest, exec,
+             pal_sec.exec_addr, parent, first_thread,
+             arguments, environments);
 }
 
 /* the following code is borrowed from CPUID */

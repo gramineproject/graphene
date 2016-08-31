@@ -26,7 +26,7 @@ fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
 # allow to bind on port for listening
-net.rules.1 = $(HOST):$(PORT):0.0.0.0:0-65535
+net.allow_bind.1 = $(HOST):$(PORT)
 
 sys.stack.size = 256K
 sys.brk.size = 4M

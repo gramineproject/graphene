@@ -11,7 +11,7 @@
 
 extern void * enclave_base, * enclave_top;
 
-void pal_linux_main (int argc, const char ** argv, const char ** envp,
+void pal_linux_main (const char ** arguments, const char ** environments,
                      struct pal_sec * sec_info);
 
 int enclave_ecall_pal_main (void * pms)
@@ -23,8 +23,8 @@ int enclave_ecall_pal_main (void * pms)
     enclave_base = ms->ms_enclave_base;
     enclave_top = ms->ms_enclave_base + ms->ms_enclave_size;
 
-    pal_linux_main(ms->ms_argc, ms->ms_argv,
-                   ms->ms_envp,
+    pal_linux_main(ms->ms_arguments,
+                   ms->ms_environments,
                    ms->ms_sec_info);
 
     ocall_exit();
