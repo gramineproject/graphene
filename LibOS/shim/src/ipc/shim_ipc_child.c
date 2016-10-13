@@ -100,46 +100,46 @@ void ipc_parent_exit (struct shim_ipc_port * port, IDTYPE vmid,
         put_ipc_info(parent);
 }
 
+struct thread_info {
+    IDTYPE vmid;
+    unsigned int exitcode;
+};
+
+static int child_sthread_exit (struct shim_simple_thread * thread, void * arg,
+                               bool * unlocked)
+{
+    struct thread_info * info = (struct thread_info *) arg;
+    if (thread->vmid == info->vmid) {
+        if (thread->is_alive) {
+            thread->exit_code = -info->exitcode;
+            thread->is_alive = false;
+            DkEventSet(thread->exit_event);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+static int child_thread_exit (struct shim_thread * thread, void * arg,
+                              bool * unlocked)
+{
+    struct thread_info * info = (struct thread_info *) arg;
+    if (thread->vmid == info->vmid) {
+        if (thread->is_alive) {
+            thread->exit_code = -info->exitcode;
+            thread_exit(thread, false);
+        }
+        return 1;
+    }
+    return 0;
+}
+
 int remove_child_thread (IDTYPE vmid, unsigned int exitcode)
 {
-    assert(vmid != cur_process.vmid);
-
-    struct thread_info {
-        IDTYPE vmid;
-        unsigned int exitcode;
-    };
-
-    int child_sthread_exit (struct shim_simple_thread * thread, void * arg,
-                            bool * unlocked)
-    {
-        struct thread_info * info = (struct thread_info *) arg;
-        if (thread->vmid == info->vmid) {
-            if (thread->is_alive) {
-                thread->exit_code = -info->exitcode;
-                thread->is_alive = false;
-                DkEventSet(thread->exit_event);
-            }
-            return 1;
-        }
-        return 0;
-    }
-
-    int child_thread_exit (struct shim_thread * thread, void * arg,
-                           bool * unlocked)
-    {
-        struct thread_info * info = (struct thread_info *) arg;
-        if (thread->vmid == info->vmid) {
-            if (thread->is_alive) {
-                thread->exit_code = -info->exitcode;
-                thread_exit(thread, false);
-            }
-            return 1;
-        }
-        return 0;
-    }
-
     struct thread_info info = { .vmid = vmid, .exitcode = exitcode };
     int nkilled = 0, ret;
+
+    assert(vmid != cur_process.vmid);
 
     if ((ret = walk_thread_list(&child_thread_exit, &info, false)) > 0)
         nkilled += ret;

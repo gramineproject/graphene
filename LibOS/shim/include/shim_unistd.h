@@ -71,6 +71,6 @@ struct sigcp {
 
 #define SIGCP                   33
 
-#define SHIM_NSYSCALLS          311
+#include "shim_unistd_defs.h"
 
 #endif /* _SHIM_UNISTD_H_ */

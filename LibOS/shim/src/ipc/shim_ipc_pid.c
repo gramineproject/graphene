@@ -42,6 +42,19 @@
 
 #include "shim_ipc_nsimpl.h"
 
+static int thread_add_subrange (struct shim_thread * thread, void * arg,
+                                bool * unlocked)
+{
+    if (!thread->in_vm)
+        return 0;
+
+    struct shim_ipc_info * info = (struct shim_ipc_info *) arg;
+
+    add_pid_subrange(thread->tid, info->vmid,
+                     qstrgetstr(&info->uri), &thread->tid_lease);
+    return 0;
+}
+
 int init_ns_pid (void)
 {
     struct shim_ipc_info * info;
@@ -51,19 +64,6 @@ int init_ns_pid (void)
 
     if ((ret = create_ipc_location(&info)) < 0)
         return ret;
-
-    int thread_add_subrange (struct shim_thread * thread, void * arg,
-                             bool * unlocked)
-    {
-        if (!thread->in_vm)
-            return 0;
-
-        struct shim_ipc_info * info = (struct shim_ipc_info *) arg;
-
-        add_pid_subrange(thread->tid, info->vmid,
-                         qstrgetstr(&info->uri), &thread->tid_lease);
-        return 0;
-    }
 
     walk_thread_list(&thread_add_subrange, info, false);
     return 0;

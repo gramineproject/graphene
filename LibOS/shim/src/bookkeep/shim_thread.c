@@ -457,6 +457,8 @@ int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
 relock:
     lock(thread_list_lock);
 
+    debug("walk_thread_list(callback=%p)\n", callback);
+
     list_for_each_entry_safe(tmp, n, &thread_list, list) {
         if (tmp->tid <= min_tid)
             continue;

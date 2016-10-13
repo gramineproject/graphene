@@ -41,18 +41,18 @@
 #include <sys/mman.h>
 #include <asm/prctl.h>
 
+static int close_on_exec (struct shim_fd_handle * fd_hdl,
+                          struct shim_handle_map * map, void * arg)
+{
+    if (fd_hdl->flags & FD_CLOEXEC) {
+        struct shim_handle * hdl = __detach_fd_handle(fd_hdl, NULL, map);
+        close_handle(hdl);
+    }
+    return 0;
+}
+
 static int close_cloexec_handle (struct shim_handle_map * map)
 {
-    auto int close_on_exec (struct shim_fd_handle * fd_hdl,
-                           struct shim_handle_map * map, void * arg)
-    {
-        if (fd_hdl->flags & FD_CLOEXEC) {
-            struct shim_handle * hdl = __detach_fd_handle(fd_hdl, NULL, map);
-            close_handle(hdl);
-        }
-        return 0;
-    }
-
     return walk_handle_map(&close_on_exec, map, NULL);
 }
 

@@ -51,6 +51,7 @@ all: $(shim_target)
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
+ASFLAGS += -DDEBUG
 endif
 export DEBUG
 

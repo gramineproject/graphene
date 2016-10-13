@@ -142,10 +142,6 @@ static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
         case TIOCGETD:
         /* 0x00005425 TCSBRKP int */
         case TCSBRKP:
-        /* 0x00005450 FIONCLEX void */
-        case FIONCLEX:
-        /* 0x00005451 FIOCLEX void */
-        case FIOCLEX:
         /* 0x00005452 FIOASYNC const int * */
         case FIOASYNC:
         /* 0x00005453 TIOCSERCONFIG void */
@@ -343,8 +339,16 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
         case TIOCSETD:
         case TIOCGETD:
         case TCSBRKP:
+            ret = ioctl_termios(hdl, cmd, arg);
+            break;
         case FIONCLEX:
+            hdl->flags &= ~FD_CLOEXEC;
+            ret = 0;
+            break;
         case FIOCLEX:
+            hdl->flags |= FD_CLOEXEC;
+            ret = 0;
+            break;
         case FIOASYNC:
         case TIOCSERCONFIG:
         case TIOCSERGWILD:

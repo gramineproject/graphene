@@ -618,36 +618,38 @@ static int proc_match_thread (const char * name)
     return thread ? 1 : 0;
 }
 
+struct walk_thread_arg {
+    struct shim_dirent * buf, * buf_end;
+};
+
+static int walk_cb (struct shim_thread * thread, void * arg, bool * unlocked)
+{
+    struct walk_thread_arg * args = (struct walk_thread_arg *) arg;
+    IDTYPE pid = thread->tid;
+    int p = pid, l = 0;
+    for ( ; p ; p /= 10, l++);
+
+    if ((void *) (args->buf + 1) + l + 1 > (void *) args->buf_end)
+        return -ENOBUFS;
+
+    struct shim_dirent * buf = args->buf;
+
+    buf->next = (void *) (buf + 1) + l + 1;
+    buf->ino = 1;
+    buf->type = LINUX_DT_DIR;
+    buf->name[l--] = 0;
+    for (p = pid ; p ; p /= 10)
+        buf->name[l--] = p % 10 + '0';
+
+    args->buf = buf->next;
+    return 1;
+}
+
 static int proc_list_thread (const char * name, struct shim_dirent ** buf,
                              int len)
 {
-    struct walk_thread_arg {
-        struct shim_dirent * buf, * buf_end;
-    } args = {
-        .buf = *buf, .buf_end = (void *) *buf + len,
-    };
-
-    int walk_cb (struct shim_thread * thread, void * arg, bool * unlocked) {
-        struct walk_thread_arg * args = (struct walk_thread_arg *) arg;
-        IDTYPE pid = thread->tid;
-        int p = pid, l = 0;
-        for ( ; p ; p /= 10, l++);
-
-        if ((void *) (args->buf + 1) + l + 1 > (void *) args->buf_end)
-            return -ENOBUFS;
-
-        struct shim_dirent * buf = args->buf;
-
-        buf->next = (void *) (buf + 1) + l + 1;
-        buf->ino = 1;
-        buf->type = LINUX_DT_DIR;
-        buf->name[l--] = 0;
-        for (p = pid ; p ; p /= 10)
-            buf->name[l--] = p % 10 + '0';
-
-        args->buf = buf->next;
-        return 1;
-    }
+    struct walk_thread_arg args =
+        { .buf = *buf, .buf_end = (void *) *buf + len, };
 
     int ret = walk_thread_list(&walk_cb, &args, false);
     if (ret < 0)

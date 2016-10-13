@@ -24,6 +24,11 @@
  */
 
 #include <shim_table.h>
+#include <shim_internal.h>
+
+void debug_unsupp (int num){
+    debug ("Unsupported system call %d\n", num);
+}
 
 shim_fp shim_table [SHIM_NSYSCALLS] = {
     (shim_fp) __shim_read,

@@ -21,11 +21,12 @@
  */
 
 #include <shim_tls.h>
+#include <shim_unistd_defs.h>
 
-.text
         .global syscalldb
         .type syscalldb, @function
-        .extern shim_table
+        .extern shim_table, debug_unsupp
+
 
 syscalldb:
         .cfi_startproc
@@ -42,6 +43,9 @@ syscalldb:
         .cfi_def_cfa_register 6
 
         pushq %rbx
+
+        cmp $SHIM_NSYSCALLS, %rax
+        jge isundef
 
         leaq shim_table(%rip), %rbx
         movq (%rbx,%rax,8), %rbx
@@ -88,6 +92,10 @@ isdef:
         jmp ret
 
 isundef:
+#ifdef DEBUG
+        mov %rax, %rdi
+        call debug_unsupp
+#endif
         movq $-38, %rax
 
 ret:
