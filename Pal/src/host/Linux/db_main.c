@@ -254,8 +254,14 @@ void pal_linux_main (void * args)
         goto done_init;
 
     int fd = INLINE_SYSCALL(open, 3, argv[0], O_RDONLY|O_CLOEXEC, 0);
-    if (IS_ERR(fd))
+    if (IS_ERR(fd)) {
+        // DEP 10/20/16: Don't silently swallow permission errors
+        // accessing the manifest
+        if (fd == -13) {
+            printf("Warning: Attempt to open file %s failed with permission denied\n", argv[0]);
+        }
         goto done_init;
+    }
 
     int len = strlen(argv[0]);
     PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len + 1);
