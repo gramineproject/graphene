@@ -420,7 +420,9 @@ SHIM_SYSCALL_PASSTHROUGH (flock, 2, int, int, fd, int, cmd)
 /* fsync: sys/shim_open.c */
 DEFINE_SHIM_SYSCALL (fsync, 1, shim_do_fsync, int, int, fd)
 
-SHIM_SYSCALL_PASSTHROUGH (fdatasync, 1, int, int, fd)
+/* fdatasync: sys/shim_open.c */
+DEFINE_SHIM_SYSCALL (fdatasync, 1, shim_do_fdatasync, int, int, fd)
+
 
 /* truncate: sys/shim_open.c */
 DEFINE_SHIM_SYSCALL (truncate, 2, shim_do_truncate, int, const char *, path,

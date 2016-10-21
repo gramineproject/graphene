@@ -481,6 +481,13 @@ out:
     return ret;
 }
 
+// DEP 10/20/16: Assuming fsync >> fdatasync for now
+//  and no app depends on only syncing data for correctness.
+int shim_do_fdatasync (int fd)
+{
+    return shim_do_fsync(fd);
+}
+
 int shim_do_truncate (const char * path, loff_t length)
 {
     struct shim_dentry * dent = NULL;

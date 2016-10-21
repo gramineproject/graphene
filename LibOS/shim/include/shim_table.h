@@ -394,6 +394,7 @@ int shim_do_msgrcv (int msqid, void * msgp, size_t msgsz, long msgtyp,
 int shim_do_msgctl (int msqid, int cmd, struct msqid_ds * buf);
 int shim_do_fcntl (int fd, int cmd, unsigned long arg);
 int shim_do_fsync (int fd);
+int shim_do_fdatasync (int fd);
 int shim_do_truncate (const char * path, loff_t length);
 int shim_do_ftruncate (int fd, loff_t length);
 size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count);
