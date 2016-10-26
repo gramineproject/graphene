@@ -66,7 +66,7 @@ bool _DkCheckMemoryMappable (const void * addr, int size)
     return false;
 }
 
-int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type, int prot)
+int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int prot)
 {
     void * addr = *paddr, * mem;
 
@@ -102,13 +102,13 @@ int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type, int prot)
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, int size)
+int _DkVirtualMemoryFree (void * addr, uint64_t size)
 {
     free_pages(addr, size);
     return 0;
 }
 
-int _DkVirtualMemoryProtect (void * addr, int size, int prot)
+int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 {
     return 0;
 }

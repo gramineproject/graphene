@@ -103,7 +103,7 @@ static int dev_null_hstat (struct shim_handle * hdl, struct stat * stat)
     return 0;
 }
 
-static int dev_null_truncate (struct shim_handle * hdl, int size)
+static int dev_null_truncate (struct shim_handle * hdl, uint64_t size)
 {
     return 0;
 }
@@ -308,7 +308,7 @@ static int dev_seek (struct shim_handle * hdl, off_t offset, int wence)
     return hdl->info.dev.dev_ops.seek(hdl, offset, wence);
 }
 
-static int dev_truncate (struct shim_handle * hdl, int len)
+static int dev_truncate (struct shim_handle * hdl, uint64_t len)
 {
     if (!hdl->info.dev.dev_ops.truncate)
         return -EACCES;

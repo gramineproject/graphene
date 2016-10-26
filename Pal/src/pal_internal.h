@@ -75,12 +75,12 @@ struct handle_ops {
     /* 'map' and 'unmap' will map or unmap the handle into memory space,
        it's not necessary mapped by mmap, so unmap also needs 'handle'
        to deal with special cases */
-    int (*map) (PAL_HANDLE handle, void ** address, int prot, int offset,
-                int size);
+    int (*map) (PAL_HANDLE handle, void ** address, int prot, uint64_t offset,
+                uint64_t size);
 
     /* 'setlength' is used by DkStreamFlush. It truncate the stream
        to certain size. */
-    int (*setlength) (PAL_HANDLE handle, int length);
+    uint64_t (*setlength) (PAL_HANDLE handle, uint64_t length);
 
     /* 'flush' is used by DkStreamFlush. It syncs the stream to the device */
     int (*flush) (PAL_HANDLE handle);
@@ -298,10 +298,10 @@ int _DkStreamWrite (PAL_HANDLE handle, int offset, int count,
                     const void * buf, const char * addr, int addrlen);
 int _DkStreamAttributesQuery (const char * uri, PAL_STREAM_ATTR * attr);
 int _DkStreamAttributesQuerybyHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
-int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, int offset,
-                  int size);
-int _DkStreamUnmap (void * addr, int size);
-int _DkStreamSetLength (PAL_HANDLE handle, int length);
+int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, uint64_t offset,
+                  uint64_t size);
+int _DkStreamUnmap (void * addr, uint64_t size);
+uint64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length);
 int _DkStreamFlush (PAL_HANDLE handle);
 int _DkStreamGetName (PAL_HANDLE handle, char * buf, int size);
 const char * _DkStreamRealpath (PAL_HANDLE hdl);
@@ -340,9 +340,9 @@ int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
 /* DkVirtualMemory calls */
-int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type, int prot);
-int _DkVirtualMemoryFree (void * addr, int size);
-int _DkVirtualMemoryProtect (void * addr, int size, int prot);
+int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int prot);
+int _DkVirtualMemoryFree (void * addr, uint64_t size);
+int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot);
 
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);

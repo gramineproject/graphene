@@ -534,8 +534,8 @@ PAL_NUM DkStreamGetName (PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size)
 
 /* _DkStreamMap for internal use. Map specific handle to certain memory,
    with given protection, offset and size */
-int _DkStreamMap (PAL_HANDLE handle, void ** paddr, int prot, int offset,
-                  int size)
+int _DkStreamMap (PAL_HANDLE handle, void ** paddr, int prot, uint64_t offset,
+                  uint64_t size)
 {
     void * addr = *paddr;
     int ret;
@@ -618,7 +618,7 @@ void DkStreamUnmap (PAL_PTR addr, PAL_NUM size)
 
 /* _DkStreamSetLength for internal use. This function truncate the stream
    to certain length. This call might not be support for certain streams */
-int _DkStreamSetLength (PAL_HANDLE handle, int length)
+uint64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length)
 {
     if (UNKNOWN_HANDLE(handle))
         return -PAL_ERROR_BADHANDLE;
@@ -643,7 +643,7 @@ DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length)
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    int ret = _DkStreamSetLength(handle, length);
+    uint64_t ret = _DkStreamSetLength(handle, length);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

@@ -3,3 +3,4 @@
 !*.cpp
 !*.template
 !Makefile*
+!*.py

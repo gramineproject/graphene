@@ -5,7 +5,7 @@ loader.syscall_symbol = syscalldb
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
-fs.mount.lib.uri = file:../../../build
+fs.mount.lib.uri = file:../../../../Runtime
 
 fs.mount.bin.type = chroot
 fs.mount.bin.path = /bin

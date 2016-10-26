@@ -42,10 +42,10 @@ struct shim_handle;
 struct shim_vma {
     REFTYPE                 ref_count;
     void *                  addr;
-    int                     length;
+    uint64_t                length;
     int                     prot;
     int                     flags;
-    int                     offset;
+    uint64_t                offset;
     struct shim_handle *    file;
     struct list_head        list;
     char                    comment[VMA_COMMENT_LEN];
@@ -89,35 +89,35 @@ static inline PAL_FLG PAL_PROT (int prot, int flags)
 int init_vma (void);
 
 /* Bookkeeping mmap() system call */
-int bkeep_mmap (void * addr, int length, int prot, int flags,
-                struct shim_handle * file, int offset, const char * comment);
+int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
+                struct shim_handle * file, uint64_t offset, const char * comment);
 
 /* Bookkeeping munmap() system call */
-int bkeep_munmap (void * addr, int length, const int * flags);
+int bkeep_munmap (void * addr, uint64_t length, const int * flags);
 
 /* Bookkeeping mprotect() system call */
-int bkeep_mprotect (void * addr, int length, int prot, const int * flags);
+int bkeep_mprotect (void * addr, uint64_t length, int prot, const int * flags);
 
 /* Get vma bookkeeping handle */
 void get_vma (struct shim_vma * vma);
 void put_vma (struct shim_vma * vma);
 
-int lookup_supervma (const void * addr, int len, struct shim_vma ** vma);
-int lookup_overlap_vma (const void * addr, int len, struct shim_vma ** vma);
+int lookup_supervma (const void * addr, uint64_t len, struct shim_vma ** vma);
+int lookup_overlap_vma (const void * addr, uint64_t len, struct shim_vma ** vma);
 
 struct shim_vma * next_vma (struct shim_vma * vma);
 
-void * get_unmapped_vma (int len, int flags);
-void * get_unmapped_vma_for_cp (int len);
+void * get_unmapped_vma (uint64_t len, int flags);
+void * get_unmapped_vma_for_cp (uint64_t len);
 
-int dump_all_vmas (struct shim_thread * thread, char * buf, int size);
+int dump_all_vmas (struct shim_thread * thread, char * buf, uint64_t size);
 
 void unmap_all_vmas (void);
 
 /* Debugging */
 void debug_print_vma_list (void);
 
-void print_vma_hash (struct shim_vma * vma, void * addr, int len,
+void print_vma_hash (struct shim_vma * vma, void * addr, uint64_t len,
                      bool force_protect);
 
 /* Constants */

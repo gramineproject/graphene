@@ -40,7 +40,7 @@ bool _DkCheckMemoryMappable (const void * addr, int size)
     return (addr < DATA_END && addr + size > TEXT_START);
 }
 
-int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type,
+int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type,
                            int prot)
 {
     void * addr = *paddr, * mem = addr;
@@ -59,14 +59,14 @@ int _DkVirtualMemoryAlloc (void ** paddr, int size, int alloc_type,
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, int size)
+int _DkVirtualMemoryFree (void * addr, uint64_t size)
 {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-int _DkVirtualMemoryProtect (void * addr, int size, int prot)
+int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 {
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, HOST_PROT(prot));
 

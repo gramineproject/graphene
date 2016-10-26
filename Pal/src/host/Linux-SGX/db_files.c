@@ -176,7 +176,7 @@ static int file_delete (PAL_HANDLE handle, int access)
 
 /* 'map' operation for file stream. */
 static int file_map (PAL_HANDLE handle, void ** addr, int prot,
-                     int offset, int size)
+                     uint64_t offset, uint64_t size)
 {
     sgx_checksum_t * stubs = (sgx_checksum_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
@@ -229,7 +229,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 }
 
 /* 'setlength' operation for file stream. */
-static int file_setlength (PAL_HANDLE handle, int length)
+static uint64_t file_setlength (PAL_HANDLE handle, uint64_t length)
 {
     int ret = ocall_ftruncate(handle->file.fd, length);
     if (ret < 0)

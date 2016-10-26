@@ -97,7 +97,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
             goto free_reserved;
         }
 
-        if ((ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, prot,
+        if ((ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, PAL_PROT(prot, flags),
                                          flags, offset)) < 0) {
             put_handle(hdl);
             goto free_reserved;

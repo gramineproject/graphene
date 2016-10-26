@@ -117,7 +117,7 @@ struct shim_dev_ops {
     /* seek: the content from the file opened as handle */
     int (*seek) (struct shim_handle * hdl, off_t offset, int wence);
 
-    int (*truncate) (struct shim_handle * hdl, int len);
+    int (*truncate) (struct shim_handle * hdl, uint64_t len);
 
     int (*mode) (const char * name, mode_t * mode);
 

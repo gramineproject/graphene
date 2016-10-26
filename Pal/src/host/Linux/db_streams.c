@@ -103,7 +103,7 @@ int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
-int _DkStreamUnmap (void * addr, int size)
+int _DkStreamUnmap (void * addr, uint64_t size)
 {
     /* Just let the kernel tell us if the mapping isn't good. */
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);

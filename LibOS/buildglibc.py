@@ -126,6 +126,8 @@ if not do_install:
 
 link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
                       ( 'nptl',   'libpthread.so.0' ),
+                      ( '',   'libc.so' ),
+                      ( '',   'libc.so.6' ),
                       ( 'nptl_db','libthread_db.so.1' ),
                       ( 'math',   'libm.so.6' ),
                       ( 'dlfcn',  'libdl.so.2' ),

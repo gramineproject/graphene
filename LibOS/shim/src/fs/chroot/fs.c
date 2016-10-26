@@ -848,9 +848,9 @@ out:
     return ret;
 }
 
-static int chroot_truncate (struct shim_handle * hdl, int len)
+static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
 {
-    int ret = 0;
+    uint64_t ret = 0;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
@@ -865,8 +865,12 @@ static int chroot_truncate (struct shim_handle * hdl, int len)
         atomic_set(&data->size, len);
     }
 
-    if ((ret = DkStreamSetLength(hdl->pal_handle, len)) != len)
+    if ((ret = DkStreamSetLength(hdl->pal_handle, len)) != len) {
         goto out;
+    }
+
+    // DEP 10/25/16: Truncate returns 0 on success, not the length
+    ret = 0;
 
     if (file->marker > len)
         file->marker = len;

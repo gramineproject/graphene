@@ -57,35 +57,35 @@ static LIST_HEAD(vma_list);
 static LOCKTYPE vma_list_lock;
 
 static inline int test_vma_equal (struct shim_vma * tmp,
-                                  const void * addr, int length)
+                                  const void * addr, uint64_t length)
 {
     return tmp->addr == addr &&
            tmp->addr + tmp->length == addr + length;
 }
 
 static inline int test_vma_contain (struct shim_vma * tmp,
-                                    const void * addr, int length)
+                                    const void * addr, uint64_t length)
 {
     return tmp->addr <= addr &&
            tmp->addr + tmp->length >= addr + length;
 }
 
 static inline int test_vma_startin (struct shim_vma * tmp,
-                                    const void * addr, int length)
+                                    const void * addr, uint64_t length)
 {
     return tmp->addr >= addr &&
            tmp->addr < addr + length;
 }
 
 static inline int test_vma_endin (struct shim_vma * tmp,
-                                  const void * addr, int length)
+                                  const void * addr, uint64_t length)
 {
     return tmp->addr + tmp->length > addr &&
            tmp->addr + tmp->length <= addr + length;
 }
 
 static inline int test_vma_overlap (struct shim_vma * tmp,
-                                    const void * addr, int length)
+                                    const void * addr, uint64_t length)
 {
     return test_vma_contain (tmp, addr + 1, 0) ||
            test_vma_contain (tmp, addr + length - 1, 0) ||
@@ -130,10 +130,10 @@ static inline void assert_vma (void)
     }
 }
 
-static struct shim_vma * __lookup_vma (const void * addr, int len);
-static struct shim_vma * __lookup_supervma (const void * addr, int length,
+static struct shim_vma * __lookup_vma (const void * addr, uint64_t len);
+static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
                                             struct shim_vma ** prev);
-static struct shim_vma * __lookup_overlap_vma (const void * addr, int length,
+static struct shim_vma * __lookup_overlap_vma (const void * addr, uint64_t length,
                                                struct shim_vma ** prev);
 
 void get_vma (struct shim_vma * vma)
@@ -174,11 +174,11 @@ static void __remove_vma (struct shim_vma * vma)
     put_vma(vma);
 }
 
-static int __bkeep_mmap (void * addr, int length, int prot, int flags,
-                         struct shim_handle * file, int offset,
+static int __bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
+                         struct shim_handle * file, uint64_t offset,
                          const char * comment);
 
-static int __bkeep_mprotect (void * addr, int length, int prot,
+static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
                              const int * flags);
 
 static struct shim_vma * get_new_vma (void)
@@ -217,7 +217,7 @@ static inline void __set_comment (struct shim_vma * vma, const char * comment)
         return;
     }
 
-    int len = strlen(comment);
+    uint64_t len = strlen(comment);
 
     if (len > VMA_COMMENT_LEN - 1)
         len = VMA_COMMENT_LEN - 1;
@@ -225,9 +225,9 @@ static inline void __set_comment (struct shim_vma * vma, const char * comment)
     memcpy(vma->comment, comment, len + 1);
 }
 
-static int __bkeep_mmap (void * addr, int length,
+static int __bkeep_mmap (void * addr, uint64_t length,
                          int prot, int flags,
-                         struct shim_handle * file, int offset,
+                         struct shim_handle * file, uint64_t offset,
                          const char * comment)
 {
     struct shim_vma * prev = NULL;
@@ -331,8 +331,8 @@ err:
     return ret;
 }
 
-int bkeep_mmap (void * addr, int length, int prot, int flags,
-                struct shim_handle * file, int offset, const char * comment)
+int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
+                struct shim_handle * file, uint64_t offset, const char * comment)
 {
     if (!addr || !length)
         return -EINVAL;
@@ -351,7 +351,7 @@ int bkeep_mmap (void * addr, int length, int prot, int flags,
  * We need to split the area aur reduce the size
  * Check the address falls between alread allocated area or not
  */
-static int __bkeep_munmap (void * addr, int length, const int * flags)
+static int __bkeep_munmap (void * addr, uint64_t length, const int * flags)
 {
     struct shim_vma * tmp, * n;
 
@@ -423,7 +423,7 @@ static int __bkeep_munmap (void * addr, int length, const int * flags)
     return 0;
 }
 
-int bkeep_munmap (void * addr, int length, const int * flags)
+int bkeep_munmap (void * addr, uint64_t length, const int * flags)
 {
     if (!addr || !length)
         return -EINVAL;
@@ -436,7 +436,7 @@ int bkeep_munmap (void * addr, int length, const int * flags)
     return ret;
 }
 
-static int __bkeep_mprotect (void * addr, int length, int prot,
+static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
                              const int * flags)
 {
     struct shim_vma * tmp = __lookup_vma(addr, length);
@@ -469,11 +469,11 @@ static int __bkeep_mprotect (void * addr, int length, int prot,
         if (!check_vma_flags(tmp, flags))
             return -EACCES;
 
-        int before_length = addr - tmp->addr;
-        int after_length  = tmp->addr + tmp->length - addr - length;
-        int after_offset  = tmp->file ? tmp->offset + tmp->length -
+        uint64_t before_length = addr - tmp->addr;
+        uint64_t after_length  = tmp->addr + tmp->length - addr - length;
+        uint64_t after_offset  = tmp->file ? tmp->offset + tmp->length -
                             after_length : 0;
-        int inside_offset = tmp->file ? tmp->offset + before_length : 0;
+        uint64_t inside_offset = tmp->file ? tmp->offset + before_length : 0;
 
         /* split the handler first, because we might call bkeep_mmap */
         tmp->addr = (void *) addr;
@@ -519,7 +519,7 @@ static int __bkeep_mprotect (void * addr, int length, int prot,
      * the mapping if it fails
      */
 
-    int o_length = length;
+    uint64_t o_length = length;
 
     while (length) {
         struct shim_vma * candidate = NULL;
@@ -529,15 +529,15 @@ static int __bkeep_mprotect (void * addr, int length, int prot,
                 if (!check_vma_flags(tmp, flags))
                     return -EACCES;
 
-                int before_length = addr - tmp->addr;
-                int after_length  = tmp->addr + tmp->length > addr + length ?
+                uint64_t before_length = addr - tmp->addr;
+                uint64_t after_length  = tmp->addr + tmp->length > addr + length ?
                                     tmp->addr + tmp->length - addr - length : 0;
-                int after_offset  = tmp->file ? tmp->offset + tmp->length -
+                uint64_t after_offset  = tmp->file ? tmp->offset + tmp->length -
                                     after_length : 0;
-                int inside_length = tmp->addr + tmp->length > addr + length ?
+                uint64_t inside_length = tmp->addr + tmp->length > addr + length ?
                                     length :
                                     addr + length - tmp->addr - tmp->length;
-                int inside_offset = tmp->file ? tmp->offset + before_length : 0;
+                uint64_t inside_offset = tmp->file ? tmp->offset + before_length : 0;
 
                 /* split the handler first, because we might call bkeep_mmap */
                 tmp->addr = (void *) addr;
@@ -600,7 +600,7 @@ static int __bkeep_mprotect (void * addr, int length, int prot,
     return 0;
 }
 
-int bkeep_mprotect (void * addr, int length, int prot, const int * flags)
+int bkeep_mprotect (void * addr, uint64_t length, int prot, const int * flags)
 {
     if (!addr || !length)
         return -EINVAL;
@@ -630,7 +630,7 @@ static void __set_heap_top (void * bottom, void * top)
     debug("heap top adjusted to %p\n", heap_top);
 }
 
-void * get_unmapped_vma (int length, int flags)
+void * get_unmapped_vma (uint64_t length, int flags)
 {
     struct shim_vma * new = get_new_vma(), * prev = NULL;
     if (!new)
@@ -694,7 +694,7 @@ void * get_unmapped_vma (int length, int flags)
 
 #define NTRIES  4
 
-void * get_unmapped_vma_for_cp (int length)
+void * get_unmapped_vma_for_cp (uint64_t length)
 {
     struct shim_vma * new = get_new_vma(), * prev = NULL;
     if (!new)
@@ -742,7 +742,7 @@ void * get_unmapped_vma_for_cp (int length)
 
 /* This might not give the same vma but we might need to
    split after we find something */
-static struct shim_vma * __lookup_overlap_vma (const void * addr, int length,
+static struct shim_vma * __lookup_overlap_vma (const void * addr, uint64_t length,
                                                struct shim_vma ** pprev)
 {
     struct shim_vma * tmp, * prev = NULL;
@@ -767,12 +767,12 @@ static struct shim_vma * __lookup_overlap_vma (const void * addr, int length,
     return NULL;
 }
 
-int lookup_overlap_vma (const void * addr, int length,
+int lookup_overlap_vma (const void * addr, uint64_t length,
                         struct shim_vma ** vma)
 {
     struct shim_vma * tmp = NULL;
     void * tmp_addr = NULL;
-    int tmp_length;
+    uint64_t tmp_length;
     lock(vma_list_lock);
 
     if ((tmp = __lookup_overlap_vma(addr, length, NULL)) && vma)
@@ -793,7 +793,7 @@ int lookup_overlap_vma (const void * addr, int length,
     return tmp ? 0: -ENOENT;
 }
 
-static struct shim_vma * __lookup_vma (const void * addr, int length)
+static struct shim_vma * __lookup_vma (const void * addr, uint64_t length)
 {
     struct shim_vma * tmp;
     struct shim_vma * prev __attribute__((unused)) = NULL;
@@ -810,7 +810,7 @@ static struct shim_vma * __lookup_vma (const void * addr, int length)
     return NULL;
 }
 
-static struct shim_vma * __lookup_supervma (const void * addr, int length,
+static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
                                             struct shim_vma ** pprev)
 {
     struct shim_vma * tmp, * prev = NULL;
@@ -835,7 +835,7 @@ static struct shim_vma * __lookup_supervma (const void * addr, int length,
     return NULL;
 }
 
-int lookup_supervma (const void * addr, int length, struct shim_vma ** vma)
+int lookup_supervma (const void * addr, uint64_t length, struct shim_vma ** vma)
 {
     struct shim_vma * tmp = NULL;
 
@@ -922,7 +922,7 @@ unmap:
     }
 }
 
-int dump_all_vmas (struct shim_thread * thread, char * buf, int size)
+int dump_all_vmas (struct shim_thread * thread, char * buf, uint64_t size)
 {
     struct shim_vma * vma;
     int cnt = 0;
@@ -1074,11 +1074,11 @@ BEGIN_CP_FUNC(vma)
 #endif
 
         void * send_addr = vma->addr;
-        int    send_size = vma->length;
+        uint64_t    send_size = vma->length;
         bool protected = false;
 
         if (vma->file) {
-            int file_len = get_file_size(vma->file);
+            uint64_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
                 vma->offset + vma->length > file_len)
                 send_size = file_len > vma->offset ?
@@ -1299,7 +1299,7 @@ void debug_print_vma_list (void)
     }
 }
 
-void print_vma_hash (struct shim_vma * vma, void * addr, int len,
+void print_vma_hash (struct shim_vma * vma, void * addr, uint64_t len,
                      bool force_protect)
 {
     if (!addr)

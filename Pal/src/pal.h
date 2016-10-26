@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef unsigned long PAL_NUM;
 typedef const char *  PAL_STR;

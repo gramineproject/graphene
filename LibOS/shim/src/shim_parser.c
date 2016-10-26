@@ -435,7 +435,7 @@ static inline void parse_pointer_arg (va_list * ap)
 
 static inline void parse_integer_arg (va_list * ap)
 {
-    VPRINTF("%d", ap);
+    VPRINTF("%ld", ap);
 }
 
 static inline void parse_syscall_args (va_list * ap)
