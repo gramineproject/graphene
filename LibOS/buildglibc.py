@@ -126,8 +126,8 @@ if not do_install:
 
 link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
                       ( 'nptl',   'libpthread.so.0' ),
-                      ( '',   'libc.so' ),
-                      ( '',   'libc.so.6' ),
+                      ( '',       'libc.so' ),
+                      ( '',       'libc.so.6' ),
                       ( 'nptl_db','libthread_db.so.1' ),
                       ( 'math',   'libm.so.6' ),
                       ( 'dlfcn',  'libdl.so.2' ),
@@ -141,8 +141,9 @@ link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
 if not do_install:
 
     for (dir, bin) in link_binaries:
-        print bin + ' -> ' + dir + '/' + bin
-        os.symlink(dir + '/' + bin, bin)
+        if dir != '':
+            print bin + ' -> ' + dir + '/' + bin
+            os.symlink(dir + '/' + bin, bin)
 
     print '\n\n\nNow type \'make\' in \'{0}\'\n\n'.format(buildDir)
 
