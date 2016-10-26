@@ -12,6 +12,7 @@ regression.add_check(name="Ftruncate",
     check=lambda res: "large-mmap: ftruncate OK" in res[0].out)
 
 regression.add_check(name="Large mmap",
-    check=lambda res: "large-mmap: test completed OK" in res[0].out)
+    check=lambda res: "large-mmap: mmap 1 completed OK" in res[0].out and \
+                     "large-mmap: mmap 2 completed OK" in res[0].out)
 
 regression.run_checks()
