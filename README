@@ -51,6 +51,8 @@ with 'apt-get install')
    - build-essential
    - autoconf
    - gawk
+   - python-protobuf (for SGX signing tool)
+   - python-crypto (for SGX signing tool)
 
 To build the system, simply run the following commands in the root of the
 source tree:
