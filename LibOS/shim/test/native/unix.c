@@ -151,7 +151,7 @@ int client(void)
 int main(int argc, char ** argv)
 {
     char fnamebuf[40];
-    strcpy(fnamebuf, argv[0]);
+    strcpy(fnamebuf, "unix");
     strcat(fnamebuf, ".c");
     fname = fnamebuf;
 
