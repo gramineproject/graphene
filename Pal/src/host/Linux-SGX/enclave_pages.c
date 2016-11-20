@@ -11,7 +11,7 @@
 
 static unsigned long pgsz = PRESET_PAGESIZE;
 void * heap_base;
-static unsigned long heap_size;
+static uint64_t heap_size;
 
 struct heap_vma {
     struct list_head list;
@@ -64,7 +64,7 @@ static void assert_vma_list (void)
 #endif
 }
 
-void * get_reserved_pages(void * addr, unsigned int size)
+void * get_reserved_pages(void * addr, uint64_t size)
 {
     if (!size)
         return NULL;
@@ -121,7 +121,7 @@ void * get_reserved_pages(void * addr, unsigned int size)
     _DkInternalUnlock(&heap_vma_lock);
 
     asm volatile("int $3");
-    SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %d) ***\n", size);
+    SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %llu) ***\n", size);
     return NULL;
 
 allocated:
@@ -213,7 +213,7 @@ allocated:
     return addr;
 }
 
-void free_pages(void * addr, unsigned int size)
+void free_pages(void * addr, uint64_t size)
 {
     void * addr_top = addr + size;
 

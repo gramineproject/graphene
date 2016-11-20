@@ -105,7 +105,7 @@ int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_sigstruct_t * sigstruct,
                  sgx_arch_token_t * token);
 
-int destroy_enclave(void * base_addr);
+int destroy_enclave(void * base_addr, size_t length);
 void exit_process (int status);
 
 int sgx_ecall (long ecall_no, void * ms);

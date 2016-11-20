@@ -959,7 +959,7 @@ int pal_init_enclave (const char * manifest_uri,
 void exit_process (int status)
 {
     struct pal_enclave * enclave = current_enclave;
-    destroy_enclave((void *) enclave->baseaddr);
+    destroy_enclave((void *) enclave->baseaddr, enclave->size);
     free(enclave->config);
     free(enclave);
 

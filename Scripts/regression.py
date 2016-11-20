@@ -14,7 +14,7 @@ class Regression:
         self.executable = executable
         self.prepare = prepare
         self.runs = dict()
-        default_timeout = int(os.getenv('TIMEOUT', '1000'))
+        default_timeout = int(os.getenv('TIMEOUT', '10000'))
         if default_timeout > timeout:
             self.timeout = default_timeout
         else:

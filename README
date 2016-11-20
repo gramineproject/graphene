@@ -54,6 +54,10 @@ with 'apt-get install')
    - python-protobuf (for SGX signing tool)
    - python-crypto (for SGX signing tool)
 
+The following packages are also required for building Graphene for SGX (can
+be installed with 'apt-get install'):
+   - python-protobuf
+
 To build the system, simply run the following commands in the root of the
 source tree:
 

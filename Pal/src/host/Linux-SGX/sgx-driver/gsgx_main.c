@@ -32,13 +32,13 @@ static long gsgx_ioctl_enclave_create(struct file *filep, unsigned int cmd,
 				      unsigned long arg)
 {
 	struct gsgx_enclave_create *createp = (struct gsgx_enclave_create *) arg;
-	struct isgx_create_param isgx_create;
+	struct sgx_enclave_create isgx_create;
 	unsigned long old_mmap_min_addr = *KSYM(dac_mmap_min_addr);
 	int ret;
 
-	if (createp->addr != GSGX_ENCLAVE_CREATE_NO_ADDR &&
-	    createp->addr < old_mmap_min_addr) {
-		*KSYM(dac_mmap_min_addr) = createp->addr;
+	if (createp->src != GSGX_ENCLAVE_CREATE_NO_ADDR &&
+	    createp->src < old_mmap_min_addr) {
+		*KSYM(dac_mmap_min_addr) = createp->src;
 		old_mmap_min_addr = 0;
 	}
 
@@ -46,14 +46,11 @@ static long gsgx_ioctl_enclave_create(struct file *filep, unsigned int cmd,
 	write_cr4(read_cr4() | X86_CR4_FSGSBASE);
 #endif
 
-	isgx_create.secs = createp->secs;
-	filep->private_data = (void *) createp->addr;
+	isgx_create.src = createp->src;
+	filep->private_data = (void *) createp->src;
 
-	ret = KSYM(isgx_ioctl_enclave_create)(filep, ISGX_IOCTL_ENCLAVE_CREATE,
+	ret = KSYM(isgx_ioctl_enclave_create)(filep, SGX_IOC_ENCLAVE_CREATE,
 					      (unsigned long) &isgx_create);
-
-	if (!ret)
-		createp->addr = isgx_create.addr;
 
 	if (old_mmap_min_addr)
 		*KSYM(dac_mmap_min_addr) = old_mmap_min_addr;
@@ -64,8 +61,8 @@ static long gsgx_ioctl_enclave_add_pages(struct file *filep, unsigned int cmd,
 					 unsigned long arg)
 {
 	struct gsgx_enclave_add_pages *addp = (struct gsgx_enclave_add_pages *) arg;
-	struct isgx_add_param isgx_add;
-	unsigned long off;
+	struct sgx_enclave_add_page isgx_add;
+	uint64_t off;
 	int ret = 0;
 
 	if (!addp->addr || (addp->addr & (PAGE_SIZE - 1)))
@@ -79,14 +76,14 @@ static long gsgx_ioctl_enclave_add_pages(struct file *filep, unsigned int cmd,
 
 	for (off = 0 ; off < addp->size ; off += PAGE_SIZE) {
 		isgx_add.addr = addp->addr + off;
-		isgx_add.user_addr =
+		isgx_add.src =
 			addp->flags & GSGX_ENCLAVE_ADD_PAGES_REPEAT_SRC ?
 			addp->user_addr : addp->user_addr + off;
-		isgx_add.flags =
+		isgx_add.mrmask =
 			addp->flags & GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND ?
-			ISGX_ADD_SKIP_EEXTEND : 0;
+ 		        0 : ~0;
 		ret = KSYM(isgx_ioctl_enclave_add_page)(filep,
-			ISGX_IOCTL_ENCLAVE_ADD_PAGE, (unsigned long) &isgx_add);
+			SGX_IOC_ENCLAVE_ADD_PAGE, (unsigned long) &isgx_add);
 		if (ret < 0)
 			break;
 	}
@@ -98,26 +95,14 @@ static long gsgx_ioctl_enclave_init(struct file *filep, unsigned int cmd,
 				    unsigned long arg)
 {
 	struct gsgx_enclave_init *initp = (struct gsgx_enclave_init *) arg;
-	struct isgx_init_param isgx_init;
+	struct sgx_enclave_init isgx_init;
 
 	isgx_init.addr = initp->addr;
 	isgx_init.sigstruct = initp->sigstruct;
 	isgx_init.einittoken = initp->einittoken;
 
-	return KSYM(isgx_ioctl_enclave_init)(filep, ISGX_IOCTL_ENCLAVE_INIT,
+	return KSYM(isgx_ioctl_enclave_init)(filep, SGX_IOC_ENCLAVE_INIT,
 					     (unsigned long) &isgx_init);
-}
-
-static long gsgx_ioctl_enclave_destroy(struct file *filep, unsigned int cmd,
-				       unsigned long arg)
-{
-	struct gsgx_enclave_destroy *destroyp = (struct gsgx_enclave_destroy *) arg;
-	struct isgx_destroy_param isgx_destroy;
-
-	isgx_destroy.addr = destroyp->addr;
-
-	return KSYM(isgx_ioctl_enclave_destroy)(filep, ISGX_IOCTL_ENCLAVE_DESTROY,
-						(unsigned long) &isgx_destroy);
 }
 
 typedef long (*ioctl_t)(struct file *filep, unsigned int cmd, unsigned long arg);
@@ -137,9 +122,6 @@ long gsgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			break;
 		case GSGX_IOCTL_ENCLAVE_INIT:
 			handler = gsgx_ioctl_enclave_init;
-			break;
-		case GSGX_IOCTL_ENCLAVE_DESTROY:
-			handler = gsgx_ioctl_enclave_destroy;
 			break;
 		default:
 			return -EINVAL;
@@ -208,8 +190,6 @@ IMPORT_KSYM_PROTO(isgx_ioctl_enclave_init, long,
 	struct file *filep, unsigned int cmd, unsigned long arg);
 IMPORT_KSYM_PROTO(isgx_ioctl_enclave_add_page, long,
 	struct file *filep, unsigned int cmd, unsigned long arg);
-IMPORT_KSYM_PROTO(isgx_ioctl_enclave_destroy, long,
-	struct file *filep, unsigned int cmd, unsigned long arg);
 
 IMPORT_KSYM(isgx_enclave_release);
 IMPORT_KSYM_PROTO(isgx_mmap, int, struct file *, struct vm_area_struct *);
@@ -227,8 +207,6 @@ static int gsgx_lookup_ksyms(void)
 	if ((ret = LOOKUP_KSYM(isgx_ioctl_enclave_init)))
 		return ret;
 	if ((ret = LOOKUP_KSYM(isgx_ioctl_enclave_add_page)))
-		return ret;
-	if ((ret = LOOKUP_KSYM(isgx_ioctl_enclave_destroy)))
 		return ret;
 	if ((ret = LOOKUP_KSYM(isgx_enclave_release)))
 		return ret;

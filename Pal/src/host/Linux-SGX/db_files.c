@@ -66,11 +66,11 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     hdl->file.realpath = (PAL_STR) path;
 
     sgx_checksum_t * stubs;
-    unsigned int total;
+    uint64_t total;
     int ret = load_trusted_file(hdl, &stubs, &total);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Accessing file:%s is denied. "
-                "This file is not trusted or allowed.\n", hdl->file.realpath);
+        SGX_DBG(DBG_E, "Accessing file:%s is denied. (%d)"
+                "This file is not trusted or allowed.\n", hdl->file.realpath, ret);
         free(hdl);
         return -PAL_ERROR_DENIED;
     }
@@ -184,8 +184,10 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     void * umem;
     int ret;
 
-    if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE))
+    if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {
+        SGX_DBG(DBG_E, "file_map does not currently support writeable pass-through mappings on SGX.  You may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your file mapping to keep the writes inside the enclave but they won't be reflected outside of the enclave.\n");
         return -PAL_ERROR_DENIED;
+    }
 
     unsigned long end = (offset + size > total) ? total : offset + size;
     unsigned long map_start, map_end;
@@ -200,8 +202,10 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 
     ret = ocall_map_untrusted(handle->file.fd, map_start,
                               map_end - map_start, PROT_READ, &umem);
-    if (ret < 0)
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "file_map - ocall returned %d\n", ret);
         return ret;
+    }
 
     if (stubs) {
         ret = verify_trusted_file(handle->file.realpath, umem,
@@ -209,6 +213,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                                   stubs, total);
 
         if (ret < 0) {
+            SGX_DBG(DBG_E, "file_map - verify trusted returned %d\n", ret);
             ocall_unmap_untrusted(umem, map_start - map_end);
             return ret;
         }

@@ -95,8 +95,8 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
 struct trusted_file {
     struct list_head list;
-    int index;
-    unsigned int size;
+    int64_t index;
+    uint64_t size;
     int uri_len;
     char uri[URI_MAX];
     sgx_checksum_t checksum, * stubs;
@@ -109,13 +109,13 @@ static int trusted_file_indexes = 0;
 #include <crypto/sha256.h>
 
 int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
-                       unsigned int * sizeptr)
+                       uint64_t * sizeptr)
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
     int ret, fd = HANDLE_HDR(file)->fds[0], uri_len;
 
-    if (!(HANDLE_HDR(file)->flags & RFD(0)))
+    if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;
 
     uri_len = _DkStreamGetName(file, uri, URI_MAX);
@@ -143,10 +143,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
 
     _DkSpinUnlock(&trusted_file_lock);
 
-    if (!tf)
+    if (!tf) 
         return -PAL_ERROR_DENIED;
 
-    if (tf->index < 0)
+    if (tf->index < 0) 
         return tf->index;
 
     if (tf->index && tf->stubs) {
@@ -170,10 +170,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
     sgx_checksum_t * stubs = malloc(sizeof(sgx_checksum_t) * nstubs);
-    if (!tf)
+    if (!tf) 
         return -PAL_ERROR_NOMEM;
 
-    unsigned long offset = 0;
+    uint64_t offset = 0;
     SHA256 sha;
     void * umem;
 
@@ -182,7 +182,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
         goto failed;
 
     for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE) {
-        unsigned long mapping_size = tf->size - offset;
+        uint64_t mapping_size = tf->size - offset;
         if (mapping_size > TRUSTED_STUB_SIZE)
             mapping_size = TRUSTED_STUB_SIZE;
 

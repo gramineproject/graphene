@@ -89,6 +89,9 @@ int host_peekdata (pid_t pid, void * addr, void * data, int size)
     return 0;
 }
 
+// DEP 11/6/16: Can't figure out where this is used, but reluctant to delete
+// just yet
+#if 0
 static
 int host_pokedata (pid_t pid, void * addr, void * data, int size)
 {
@@ -102,6 +105,7 @@ int host_pokedata (pid_t pid, void * addr, void * data, int size)
 
     return 0;
 }
+#endif
 
 static inline
 int host_peektids (int memdev, struct enclave_dbginfo * ei)
@@ -234,6 +238,9 @@ int host_peekregs (int memdev, pid_t pid, struct enclave_dbginfo * ei,
     return 0;
 }
 
+// DEP 11/6/16: Can't figure out where this is used, but reluctant to delete
+// just yet
+#if 0
 static
 int host_peekfpregs (int memdev,pid_t pid, struct enclave_dbginfo * ei,
                      struct user_fpregs_struct * fpregdata)
@@ -247,6 +254,7 @@ int host_peekfpregs (int memdev,pid_t pid, struct enclave_dbginfo * ei,
 
     return 0;
 }
+#endif
 
 
 static struct { pid_t pid; int memdev; struct enclave_dbginfo ei; } memdevs[32];

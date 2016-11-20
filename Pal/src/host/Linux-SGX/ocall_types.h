@@ -62,15 +62,15 @@ typedef struct {
 
 typedef struct {
     int ms_fd;
-    unsigned int ms_offset;
-    unsigned int ms_size;
+    uint64_t ms_offset;
+    uint64_t ms_size;
     unsigned short ms_prot;
     void * ms_mem;
 } ms_ocall_map_untrusted_t;
 
 typedef struct {
     const void * ms_mem;
-    int ms_size;
+    uint64_t ms_size;
 } ms_ocall_unmap_untrusted_t;
 
 typedef struct {

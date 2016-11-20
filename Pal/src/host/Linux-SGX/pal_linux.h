@@ -97,7 +97,7 @@ typedef struct { unsigned char bytes[32]; } sgx_checksum_t;
 
 int init_trusted_files (void);
 int load_trusted_file
-    (PAL_HANDLE file, sgx_checksum_t ** stubptr, unsigned int * sizeptr);
+    (PAL_HANDLE file, sgx_checksum_t ** stubptr, uint64_t * sizeptr);
 int verify_trusted_file
     (const char * uri, void * mem, unsigned int offset, unsigned int size,
      sgx_checksum_t * stubs, unsigned int total_size);

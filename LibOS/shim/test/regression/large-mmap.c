@@ -17,16 +17,16 @@ int main() {
     else 
         printf("large-mmap: ftruncate OK\n");
 
-    void* a=mmap(NULL, TEST_LENGTH2, PROT_READ|PROT_WRITE, MAP_SHARED, fileno(fp), 0);
-    if (!a) { perror("mmap"); return 1; }
+    void* a=mmap(NULL, TEST_LENGTH2, PROT_READ|PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
+    if (a==MAP_FAILED) { perror("mmap 1"); return 1; }
     ((char*)a)[0x80000000]=0xff;
     printf("large-mmap: mmap 1 completed OK\n");
 
     rv = munmap(a, TEST_LENGTH2);
     if (rv) { perror("mumap"); return 1; }
 
-    a=mmap(NULL, TEST_LENGTH, PROT_READ|PROT_WRITE, MAP_SHARED, fileno(fp), 0);
-    if (!a) { perror("mmap"); return 1; }
+    a=mmap(NULL, TEST_LENGTH, PROT_READ|PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
+    if (a==MAP_FAILED) { perror("mmap 2"); return 1; }
     ((char*)a)[0x100000000]=0xff;
     printf("large-mmap: mmap 2 completed OK\n");
 

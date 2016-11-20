@@ -54,7 +54,7 @@ int main (void)
     asm volatile("nop");
 
     DkSetExceptionHandler(handler3, PAL_EVENT_MEMFAULT, 0);
-    *(volatile long *) 0x10000 = 0;
+    *(volatile long *) 0x1000 = 0;
     asm volatile("nop");
 
     return 0;
