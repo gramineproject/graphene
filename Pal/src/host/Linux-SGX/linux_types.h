@@ -14,6 +14,7 @@
 #include <asm/stat.h>
 #include <asm/fcntl.h>
 #include <sigset.h>
+#include <stdint.h>
 
 #ifndef size_t
 typedef __kernel_size_t size_t;

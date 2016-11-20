@@ -17,11 +17,11 @@ int ocall_print_string (const char * str, unsigned int length);
 
 int ocall_alloc_untrusted (unsigned int size, void ** mem);
 
-int ocall_map_untrusted (int fd, unsigned int offset,
-                         unsigned int size, unsigned short prot,
+int ocall_map_untrusted (int fd, uint64_t offset,
+                         uint64_t size, unsigned short prot,
                          void ** mem);
 
-int ocall_unmap_untrusted (const void * mem, unsigned int size);
+int ocall_unmap_untrusted (const void * mem, uint64_t size);
 
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
                  unsigned int values[4]);

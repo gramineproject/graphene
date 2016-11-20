@@ -3,5 +3,5 @@
 
 extern void * heap_base;
 void init_pages (void);
-void * get_reserved_pages (void * addr, unsigned int size);
-void free_pages (void * addr, unsigned int size);
+void * get_reserved_pages (void * addr, uint64_t size);
+void free_pages (void * addr, uint64_t size);

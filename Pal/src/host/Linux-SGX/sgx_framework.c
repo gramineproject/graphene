@@ -11,6 +11,8 @@
 #include <asm/errno.h>
 
 int gsgx_device = -1;
+int isgx_device = -1;
+#define ISGX_FILE "/dev/isgx"
 
 void * zero_page;
 
@@ -21,6 +23,13 @@ int open_gsgx(void)
         return -ERRNO(fd);
 
     gsgx_device = fd;
+
+    fd = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR, 0);
+    if (IS_ERR(fd))
+        return -ERRNO(fd);
+
+    isgx_device = fd;
+    
     return 0;
 }
 
@@ -115,6 +124,7 @@ int create_enclave(sgx_arch_secs_t * secs,
                    unsigned long size,
                    sgx_arch_token_t * token)
 {
+    int flags = MAP_SHARED;
     if (gsgx_device == -1)
         return -EACCES;
 
@@ -139,29 +149,43 @@ int create_enclave(sgx_arch_secs_t * secs,
     memcpy(&secs->mrsigner,  &token->mrsigner,  sizeof(sgx_arch_hash_t));
 
     struct gsgx_enclave_create param;
-    param.secs = secs;
-    if (baseaddr)
-        param.addr = (unsigned long) baseaddr & ~(secs->size - 1);
-    else
-        param.addr = GSGX_ENCLAVE_CREATE_NO_ADDR;
+    if (baseaddr) {
+        secs->baseaddr = (unsigned long) baseaddr & ~(secs->size - 1);
+        flags |= MAP_FIXED;
+    } else 
+        secs->baseaddr = 0ULL;
 
+    secs->baseaddr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, size,
+                                    PROT_READ|PROT_WRITE|PROT_EXEC, flags,
+                                    isgx_device, 0);
+
+    if (IS_ERR_P(secs->baseaddr)) {
+        if (ERRNO_P(secs->baseaddr) == 1 && (flags | MAP_FIXED))
+            pal_printf("Permission denied on mapping enclave.  You may need to set sysctl vm.mmap_min_addr to zero\n");
+        SGX_DBG(DBG_I, "enclave ECREATE failed in allocating EPC memory - %d\n", ERRNO_P(secs->baseaddr));
+        return -ENOMEM;
+    }
+
+    param.src = (unsigned long) secs;
     int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_CREATE,
                          &param);
+    
     if (IS_ERR(ret)) {
         if (ERRNO(ret) == EBADF)
             gsgx_device = -1;
+        SGX_DBG(DBG_I, "enclave ECREATE failed in enclave creation ioctl - %d\n", ERRNO(ret));
         return -ERRNO(ret);
     }
 
     if (ret) {
-        SGX_DBG(DBG_I, "enclave ECREATE failed\n");
+        SGX_DBG(DBG_I, "enclave ECREATE failed - %d\n", ret);
         return -EPERM;
     }
 
     secs->attributes.flags |= SGX_FLAGS_INITIALIZED;
 
     SGX_DBG(DBG_I, "enclave created:\n");
-    SGX_DBG(DBG_I, "    base:         0x%016lx\n", param.addr);
+    SGX_DBG(DBG_I, "    base:         0x%016lx\n", secs->baseaddr);
     SGX_DBG(DBG_I, "    size:         0x%x\n",     secs->size);
     SGX_DBG(DBG_I, "    attr:         0x%016lx\n", secs->attributes.flags);
     SGX_DBG(DBG_I, "    xfrm:         0x%016lx\n", secs->attributes.xfrm);
@@ -169,7 +193,6 @@ int create_enclave(sgx_arch_secs_t * secs,
     SGX_DBG(DBG_I, "    isvprodid:    0x%08x\n",   secs->isvprodid);
     SGX_DBG(DBG_I, "    isvsvn:       0x%08x\n",   secs->isvsvn);
 
-    secs->baseaddr = param.addr;
     return 0;
 }
 
@@ -208,9 +231,11 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
     param.addr = secs->baseaddr + (uint64_t) addr;
     param.user_addr = (uint64_t) user_addr;
     param.size = size;
-    param.secinfo = &secinfo;
+    param.secinfo = (uint64_t) &secinfo;
     param.flags = skip_eextend ? GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND : 0;
 
+    SGX_DBG(DBG_I, "User addr %x, addr %x (%x, %x), skip_eexten %d\n", param.user_addr, param.addr, secs->baseaddr, addr, skip_eextend);
+    
     if (!param.user_addr) {
         param.user_addr = (unsigned long) zero_page;
         param.flags |= GSGX_ENCLAVE_ADD_PAGES_REPEAT_SRC;
@@ -241,6 +266,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                              GSGX_IOCTL_ENCLAVE_ADD_PAGES,
                              &param);
     if (IS_ERR(ret)) {
+        SGX_DBG(DBG_I, "Enclave add page returned %d\n", ret);
         if (ERRNO(ret) == EBADF)
             gsgx_device = -1;
         return -ERRNO(ret);
@@ -268,8 +294,10 @@ int init_enclave(sgx_arch_secs_t * secs,
 
     struct gsgx_enclave_init param;
     param.addr = enclave_valid_addr;
-    param.sigstruct = sigstruct;
-    param.einittoken = token;
+    // DEP 11/6/16: I think sigstruct and token are supposed to
+    //              be pointers in the new driver
+    param.sigstruct = (uint64_t) sigstruct;
+    param.einittoken = (uint64_t) token;
 
     int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_INIT,
                              &param);
@@ -287,27 +315,16 @@ int init_enclave(sgx_arch_secs_t * secs,
     return 0;
 }
 
-int destroy_enclave(void * base_addr)
+int destroy_enclave(void * base_addr, size_t length)
 {
-    if (gsgx_device == -1)
-        return -EACCES;
-
-    struct gsgx_enclave_destroy param;
-    param.addr = (unsigned long) base_addr;
 
     SGX_DBG(DBG_I, "destroying enclave...\n");
 
-    int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_DESTROY,
-                             &param);
-    if (IS_ERR(ret)) {
-        if (ERRNO(ret) == EBADF)
-            gsgx_device = -1;
-        return -ERRNO(ret);
-    }
+    int ret = INLINE_SYSCALL(munmap, 2, base_addr, length);
 
-    if (ret) {
+    if (IS_ERR(ret)) {
         SGX_DBG(DBG_I, "enclave EDESTROY failed\n");
-        return -EPERM;
+        return -ERRNO(ret);
     }
 
     return 0;
