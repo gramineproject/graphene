@@ -589,6 +589,10 @@ static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
 
                 candidate = __lookup_vma((void *) addr, length);
                 assert(candidate);
+
+                /* DEP 10/19/16: If we make a vma that perfectly matches this
+                 * region, we want to break the loop and stop. */
+                length = 0;
             }
 
             length -= candidate->addr - addr;

@@ -183,11 +183,6 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
                 ret = -ENOTCONN;
                 goto out;
             }
-
-            if (sock->sock_state == SOCK_LISTENED) {
-                ret = -EAGAIN;
-                goto out;
-            }
         }
 
         if (sock->sock_type == SOCK_DGRAM &&
@@ -223,6 +218,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
 
     PAL_STREAM_ATTR attr;
     if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr)) {
+        debug("socket_poll: Setting -PAL_ERRNO %d\n", PAL_ERRNO);
         ret = -PAL_ERRNO;
         goto out;
     }
@@ -233,7 +229,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
     }
 
     ret = 0;
-    if (attr.disconnected)
+    if (attr.disconnected) 
         ret |= FS_POLL_ER;
     if ((poll_type & FS_POLL_RD) && attr.readable)
         ret |= FS_POLL_RD;
@@ -241,8 +237,10 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
         ret |= FS_POLL_WR;
 
 out:
-    if (ret < 0)
+    if (ret < 0) {
+        debug("Setting sock error %d\n", ret);
         sock->error = -ret;
+    }
 
     unlock(hdl->lock);
     return ret;
