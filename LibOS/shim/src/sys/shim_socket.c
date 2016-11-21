@@ -450,13 +450,14 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
         sock->addr.un.data = data;
         sock->addr.un.dentry = dent;
     }
+	else { /* AF_INET/INET6 case */
+		if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
+					sizeof(struct sockaddr_in6)))
+			goto out;
 
-    if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
-                    sizeof(struct sockaddr_in6)))
-            goto out;
-
-    inet_save_addr(sock->domain, &sock->addr.in.bind, addr);
-    inet_rebase_port(false, sock->domain, &sock->addr.in.bind, true);
+		inet_save_addr(sock->domain, &sock->addr.in.bind, addr);
+		inet_rebase_port(false, sock->domain, &sock->addr.in.bind, true);
+	}
 
     sock->sock_state = SOCK_BOUND;
 
@@ -699,12 +700,14 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
         hdl->pal_handle = NULL;
     }
 
-    if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
-                    sizeof(struct sockaddr_in6)))
-            goto out;
+	if (sock->domain != AF_UNIX) {
+		if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
+					sizeof(struct sockaddr_in6)))
+			goto out;
 
-    inet_save_addr(sock->domain, &sock->addr.in.conn, addr);
-    inet_rebase_port(false, sock->domain, &sock->addr.in.conn, false);
+		inet_save_addr(sock->domain, &sock->addr.in.conn, addr);
+		inet_rebase_port(false, sock->domain, &sock->addr.in.conn, false);
+	}
 
     sock->sock_state = (state == SOCK_BOUND) ? SOCK_BOUNDCONNECTED :
                                                SOCK_CONNECTED;
