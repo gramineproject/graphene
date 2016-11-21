@@ -407,10 +407,9 @@ static int create_socket_uri (struct shim_handle * hdl)
 int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
 {
     struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
+    int ret = -EINVAL;
     if (!hdl)
         return -EBADF;
-
-    int ret = -EINVAL;
 
     if (hdl->type != TYPE_SOCK) {
         put_handle(hdl);
@@ -427,15 +426,16 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
     }
 
     if (sock->domain == AF_UNIX) {
-        if (addrlen != sizeof(struct sockaddr_un))
+        if (addrlen != sizeof(struct sockaddr_un)) 
             goto out;
 
         struct sockaddr_un * saddr = (struct sockaddr_un *) addr;
         char * spath = saddr->sun_path;
         struct shim_dentry * dent = NULL;
 
-        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent)) < 0)
+        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent)) < 0) 
             goto out;
+
 
         if (dent->state & DENTRY_VALID &&
             !(dent->state & DENTRY_NEGATIVE)) {
@@ -449,18 +449,21 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
         sock->addr.un.pipeid = data->pipeid;
         sock->addr.un.data = data;
         sock->addr.un.dentry = dent;
-    } else if (sock->domain == AF_INET || sock->domain == AF_INET6) {
-		if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
-					sizeof(struct sockaddr_in6)))
-			goto out;
 
-		inet_save_addr(sock->domain, &sock->addr.in.bind, addr);
-		inet_rebase_port(false, sock->domain, &sock->addr.in.bind, true);
-	}
+    } else if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+
+        if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
+                        sizeof(struct sockaddr_in6))) {
+            goto out;
+        }
+        
+        inet_save_addr(sock->domain, &sock->addr.in.bind, addr);
+        inet_rebase_port(false, sock->domain, &sock->addr.in.bind, true);
+    }
 
     sock->sock_state = SOCK_BOUND;
 
-    if ((ret = create_socket_uri(hdl)) < 0)
+    if ((ret = create_socket_uri(hdl)) < 0) 
         goto out;
 
     PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri),
@@ -468,8 +471,8 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
                                       hdl->flags & O_NONBLOCK);
 
     if (!pal_hdl) {
-        debug("bind: invalid handle returned\n");
         ret = (PAL_NATIVE_ERRNO == PAL_ERROR_STREAMEXIST) ? -EADDRINUSE : -PAL_ERRNO;
+        debug("bind: invalid handle returned\n");
         goto out;
     }
 

@@ -527,11 +527,15 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    ret = INLINE_SYSCALL(ioctl, 3, HANDLE_HDR(handle)->fds[0], FIONREAD, &val);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    attr->handle_type  = PAL_GET_TYPE(handle);
 
-    attr->handle_type  = pal_type_pipe;
+    if (attr->handle_type == pal_type_pipe) {
+        ret = INLINE_SYSCALL(ioctl, 3, HANDLE_HDR(handle)->fds[0], FIONREAD, &val);
+        if (IS_ERR(ret)) {
+            return unix_to_pal_error(ERRNO(ret));
+        }
+    }
+
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
     attr->nonblocking  = (HANDLE_HDR(handle)->type == pal_type_pipeprv) ?
                          handle->pipeprv.nonblocking : handle->pipe.nonblocking;
