@@ -449,8 +449,7 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
         sock->addr.un.pipeid = data->pipeid;
         sock->addr.un.data = data;
         sock->addr.un.dentry = dent;
-    }
-	else { /* AF_INET/INET6 case */
+    } else if (sock->domain == AF_INET || sock->domain == AF_INET6) {
 		if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
 					sizeof(struct sockaddr_in6)))
 			goto out;
