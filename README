@@ -51,12 +51,11 @@ with 'apt-get install')
    - build-essential
    - autoconf
    - gawk
-   - python-protobuf (for SGX signing tool)
-   - python-crypto (for SGX signing tool)
 
 The following packages are also required for building Graphene for SGX (can
 be installed with 'apt-get install'):
    - python-protobuf
+   - python-crypto
 
 To build the system, simply run the following commands in the root of the
 source tree:
@@ -101,7 +100,7 @@ create it with the following command:
 
 After signing the enclaves, users may ship the application files with the
 built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
-files) and the signatures, to the Intel SGX-enanled hosts. The Intel SGX
+files) and the signatures, to the Intel SGX-enabled hosts. The Intel SGX
 Linux SDK is required for running Graphene Library OS. Download and install
 from the official Intel github repositories:
 
