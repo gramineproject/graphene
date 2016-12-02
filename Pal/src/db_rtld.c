@@ -419,13 +419,12 @@ postmap:
             goto call_lose;
         }
     } else {
-        l->l_ld = (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+        l->l_real_ld = l->l_ld =
+            (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+
+        if (do_copy_dyn)
+            l->l_ld = remalloc(l->l_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
     }
-
-    l->l_real_ld = l->l_ld;
-
-    if (do_copy_dyn)
-        l->l_ld = remalloc(l->l_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
 
     elf_get_dynamic_info(l->l_ld, l->l_info, l->l_addr);
 
@@ -496,7 +495,9 @@ void free_elf_object (struct link_map * map)
     if (map->l_next)
         map->l_next->l_prev = map->l_prev;
 
+#ifdef DEBUG
     _DkDebugDelMap(map);
+#endif
 
     if (loaded_maps == map)
         loaded_maps = map->l_next;
@@ -572,7 +573,10 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
     if (type == OBJECT_EXEC)
         exec_map = map;
 
+#ifdef DEBUG
     _DkDebugAddMap(map);
+#endif
+
     return 0;
 }
 
@@ -903,7 +907,10 @@ done:
     if (map->l_type == OBJECT_EXEC)
         exec_map = map;
 
+#ifdef DEBUG
     _DkDebugAddMap(map);
+#endif
+
     return 0;
 
 verify_failed:
@@ -1201,33 +1208,16 @@ static int relocate_elf_object (struct link_map * l)
         if ((ret = protect_relro(l)) < 0)
             return ret;
 
-    if (l->l_type == OBJECT_PRELOAD && pal_state.syscall_sym_name) {
-        uint_fast32_t fast_hash = elf_fast_hash(pal_state.syscall_sym_name);
-        long int hash = elf_hash(pal_state.syscall_sym_name);
-        ElfW(Sym) * sym = NULL;
-
-        sym = do_lookup_map(NULL, pal_state.syscall_sym_name, fast_hash,
-                            hash, l);
-
-        if (sym) {
-            pal_state.syscall_sym_addr =
-                    (void *) (l->l_addr + sym->st_value);
-        }
-    }
-
     return 0;
 }
 
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 {
 #ifdef DEBUG
-    const char * realname;
-
-    if (strpartcmp_static(uri, "file:"))
-        realname = uri + static_strlen("file:");
-    else
+    if (!strpartcmp_static(uri, "file:"))
         return;
 
+    const char * realname = uri + static_strlen("file:");
     struct link_map * l = new_elf_object(realname, OBJECT_EXTERNAL);
 
     /* This is the ELF header.  We read it in `open_verify'.  */

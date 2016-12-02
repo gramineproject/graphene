@@ -56,6 +56,7 @@ debug_fputch (void * f, int ch, void * b)
         return 0;
     }
 
+#if DEBUGBUF_BREAK == 1
     if (buf->end == DEBUGBUF_SIZE - 4) {
         buf->buf[buf->end++] = '.';
         buf->buf[buf->end++] = '.';
@@ -65,6 +66,11 @@ debug_fputch (void * f, int ch, void * b)
         buf->buf[buf->end++] = '.';
         buf->buf[buf->end++] = '.';
     }
+#else
+    if (buf->end == DEBUGBUF_SIZE) {
+        debug_fputs(NULL, buf->buf, buf->end);
+    }
+#endif
 
     return 0;
 }

@@ -204,22 +204,6 @@ out:
     __pal_control.debug_stream = handle;
 }
 
-static void set_syscall_symbol (void)
-{
-    char cfgbuf[CONFIG_MAX];
-    int ret;
-
-    if (!pal_state.root_config)
-        return;
-
-    ret = get_config(pal_state.root_config, "loader.syscall_symbol",
-                     cfgbuf, CONFIG_MAX);
-    if (ret <= 0)
-        return;
-
-    pal_state.syscall_sym_name = remalloc(cfgbuf, ret + 1);
-}
-
 static int loader_filter (const char * key, int len)
 {
     /* try to do this as fast as possible */
@@ -413,7 +397,6 @@ has_manifest:
 #endif
 
     set_debug_type();
-    set_syscall_symbol();
 
     __pal_control.process_id         = _DkGetProcessId();
     __pal_control.host_id            = _DkGetHostId();

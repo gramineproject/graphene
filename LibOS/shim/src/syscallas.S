@@ -31,15 +31,11 @@
 syscalldb:
         .cfi_startproc
 
-        # avoid red zone for previous rsp
-        subq $128, %rsp
-        .cfi_def_cfa_offset 136
-
         # DEP 7/9/12: Push a stack pointer so clone can find the return address
         pushq %rbp
-        .cfi_def_cfa_offset 144
+        .cfi_def_cfa_offset 16
         movq %rsp, %rbp
-        .cfi_offset 6,-144
+        .cfi_offset 6,-16
         .cfi_def_cfa_register 6
 
         pushq %rbx
@@ -59,15 +55,17 @@ isdef:
         pushq %rcx
         pushq %r8
         pushq %r9
+        pushq %r10
+        pushq %r11
         pushq %r12
         pushq %r13
         pushq %r14
         pushq %r15
 
         movq %rax, %fs:(SHIM_TCB_OFFSET + 24)
-        leaq 232(%rsp), %rax
+        leaq 8(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + 32)
-        movq -8(%rax), %rax
+        movq (%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + 40)
         movq %rsp, %fs:(SHIM_TCB_OFFSET + 48)
 
@@ -82,6 +80,8 @@ isdef:
         popq %r14
         popq %r13
         popq %r12
+        popq %r11
+        popq %r10
         popq %r9
         popq %r8
         popq %rcx
@@ -101,7 +101,6 @@ isundef:
 ret:
         popq %rbx
         popq %rbp
-        addq $128, %rsp
         retq
 
         .cfi_endproc

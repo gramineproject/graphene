@@ -49,7 +49,7 @@ unsigned long allocmask;
    SHIM libraries */
 #include "glibc-version.h"
 
-const unsigned int glibc_vers_2_17   = GLIBC_VERSION_2_17;
+const unsigned int glibc_version = GLIBC_VERSION;
 
 static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
@@ -173,8 +173,6 @@ const char ** library_paths;
 
 LOCKTYPE __master_lock;
 bool lock_enabled;
-
-bool in_gdb;
 
 void init_tcb (shim_tcb_t * tcb)
 {
@@ -417,13 +415,6 @@ int read_environs (const char ** envp)
 
                     paths[cnt] = NULL;
                     library_paths = paths;
-                    break;
-                }
-                break;
-            }
-            case 'I': {
-                if (strcmp_static(*e, "IN_GDB=1")) {
-                    in_gdb = true;
                     break;
                 }
                 break;

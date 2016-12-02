@@ -389,8 +389,10 @@ int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
         unlock(port->msgs_lock);
     }
 
-    if (msg->thread)
+    if (msg->thread) {
         put_thread(msg->thread);
+        msg->thread = NULL;
+    }
 
     return 0;
 }

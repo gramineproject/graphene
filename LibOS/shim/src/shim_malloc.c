@@ -106,7 +106,9 @@ static struct shim_heap * __alloc_enough_heap (size_t size)
         if (heap == smallest && heap->current != heap->end) {
             DkVirtualMemoryFree(heap->current, heap->end - heap->current);
             int flags = VMA_INTERNAL;
+            unlock(shim_heap_lock);
             bkeep_munmap(heap->current, heap->end - heap->current, &flags);
+            lock(shim_heap_lock);
         }
 
         heap->start = heap->current = start;

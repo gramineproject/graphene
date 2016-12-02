@@ -60,6 +60,9 @@
 static void __attribute__((unused))
 elf_dynamic_do_rel (struct link_map * l, ElfW(Addr) reladdr, int relsize)
 {
+    if (!l->l_info[DT_SYMTAB])
+        return;
+
     ElfW(Sym) * symtab = (void *) D_PTR (l->l_info[DT_SYMTAB]);
     ElfW(Rel) * r = (void *) reladdr;
     ElfW(Rel) * end = (void *) (reladdr + relsize);

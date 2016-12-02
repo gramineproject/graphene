@@ -39,43 +39,11 @@
 #include <linux/signal.h>
 #include <ucontext.h>
 
-struct exception_handler {
-    struct spinlock lock;
-    int flags;
-    PAL_UPCALL upcall;
-} __attribute__((aligned(sizeof(int))));
-
-struct exception_event {
-    int event_num;
-    int flags;
-    PAL_CONTEXT * context;
-    struct pal_frame * frame;
-};
-
-#define DECLARE_HANDLER_HEAD(event)                     \
-    static struct exception_handler handler_##event =   \
-        { .lock = LOCK_INIT,                            \
-          .upcall = NULL,                               \
-          .flags = 0, }
-
-DECLARE_HANDLER_HEAD(DivZero);
-DECLARE_HANDLER_HEAD(MemFault);
-DECLARE_HANDLER_HEAD(Illegal);
-DECLARE_HANDLER_HEAD(Quit);
-DECLARE_HANDLER_HEAD(Suspend);
-DECLARE_HANDLER_HEAD(Resume);
-DECLARE_HANDLER_HEAD(Failure);
-
-struct exception_handler * pal_handlers [PAL_EVENT_NUM_BOUND] = {
-        NULL, /* reserved */
-        &handler_DivZero,
-        &handler_MemFault,
-        &handler_Illegal,
-        &handler_Quit,
-        &handler_Suspend,
-        &handler_Resume,
-        &handler_Failure,
-    };
+typedef struct exception_event {
+    PAL_IDX             event_num;
+    PAL_CONTEXT *       context;
+    struct pal_frame *  frame;
+} PAL_EVENT;
 
 #define SIGNAL_MASK_TIME 1000
 
@@ -84,30 +52,27 @@ struct exception_handler * pal_handlers [PAL_EVENT_NUM_BOUND] = {
                   "movq %%rax, %0\r\n"              \
                   : "=b"(ptr) :: "memory", "rax")
 
-void _DkGenericEventTrigger (int event_num, PAL_UPCALL upcall,
-                             int flags, PAL_NUM arg, struct pal_frame * frame,
+void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
+                             PAL_NUM arg, struct pal_frame * frame,
                              PAL_CONTEXT * context)
 {
     struct exception_event event;
+
     event.event_num = event_num;
-    event.flags = flags;
     event.context = context;
     event.frame = frame;
+
     (*upcall) ((PAL_PTR) &event, arg, context);
 }
 
-static bool _DkGenericSignalHandle (int event_num, PAL_NUM arg,
-                                    struct pal_frame * frame,
-                                    PAL_CONTEXT * context)
+static bool
+_DkGenericSignalHandle (int event_num, PAL_NUM arg, struct pal_frame * frame,
+                        PAL_CONTEXT * context)
 {
-    struct exception_handler * handler = pal_handlers[event_num];
-    _DkSpinLock(&handler->lock);
-    PAL_UPCALL upcall = handler->upcall;
-    int flags = handler->flags;
-    _DkSpinUnlock(&handler->lock);
+    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
 
     if (upcall) {
-        _DkGenericEventTrigger(event_num, upcall, flags, arg, frame, context);
+        _DkGenericEventTrigger(event_num, upcall, arg, frame, context);
         return true;
     }
 
@@ -146,30 +111,6 @@ static struct pal_frame * get_frame (sgx_context_t * uc)
     return NULL;
 }
 
-static int _DkEventUpcall (int event_num, PAL_UPCALL upcall, int flags)
-{
-    struct exception_handler * handler = pal_handlers[event_num];
-    _DkSpinLock(&handler->lock);
-    handler->upcall = upcall;
-    handler->flags = flags;
-    _DkSpinUnlock(&handler->lock);
-    return 0;
-}
-
-typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
-
-int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])
-    (int, PAL_UPCALL, int) = {
-        /* reserved   */ NULL,
-        /* DivZero    */ &_DkEventUpcall,
-        /* MemFault   */ &_DkEventUpcall,
-        /* Illegal    */ &_DkEventUpcall,
-        /* Quit       */ &_DkEventUpcall,
-        /* Suspend    */ &_DkEventUpcall,
-        /* Resume     */ &_DkEventUpcall,
-        /* Failure    */ &_DkEventUpcall,
-    };
-
 asm (".type arch_exception_return_asm, @function;"
      "arch_exception_return_asm:"
      "  pop %rax;"
@@ -190,8 +131,8 @@ asm (".type arch_exception_return_asm, @function;"
 
 extern void arch_exception_return (void) asm ("arch_exception_return_asm");
 
-void _DkExceptionRealHandler (int event, PAL_CONTEXT * context, PAL_NUM arg,
-                              struct pal_frame * frame)
+void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
+                              PAL_CONTEXT * context)
 {
     if (frame) {
         frame = __alloca(sizeof(struct pal_frame));
@@ -341,25 +282,28 @@ handle_event:
     struct pal_frame * frame = get_frame(uc);
 
     PAL_NUM arg = 0;
-    _DkExceptionRealHandler(event_num, ctx, arg, frame);
+    _DkExceptionRealHandler(event_num, arg, frame, ctx);
     restore_sgx_context(uc);
 }
 
 void _DkRaiseFailure (int error)
 {
-    _DkSpinLock(&handler_Failure.lock);
-    PAL_UPCALL upcall = handler_Failure.upcall;
-    int flags = handler_Failure.flags;
-    _DkSpinUnlock(&handler_Failure.lock);
+    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
 
-    if (upcall)
-        _DkGenericEventTrigger(PAL_EVENT_FAILURE, upcall, flags, error,
-                               NULL, NULL);
+    if (!upcall)
+        return;
+
+    PAL_EVENT event;
+    event.event_num = PAL_EVENT_FAILURE;
+    event.context   = NULL;
+    event.frame     = NULL;
+
+    (*upcall) ((PAL_PTR) &event, error, NULL);
 }
 
 void _DkExceptionReturn (void * event)
 {
-    struct exception_event * e = (struct exception_event *) event;
+    PAL_EVENT * e = event;
     sgx_context_t uc;
     PAL_CONTEXT * ctx = e->context;
 

@@ -3,9 +3,10 @@
 SCRIPT=`readlink -f "${BASH_SOURCE[0]}"`
 DIR=`dirname $SCRIPT`
 MOD=graphene-ipc
+MODNAME=graphene_ipc
 VER=0.0.1
 
-/sbin/lsmod | grep -q graphene_ipc
+/sbin/lsmod | grep -q $MODNAME
 if [ $? -eq 0 ]; then
 	echo "$MOD already running"
 	exit 0

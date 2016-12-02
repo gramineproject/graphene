@@ -804,6 +804,9 @@ BEGIN_CP_FUNC(handle)
             entry->phandle = &new_hdl->pal_handle;
         }
 
+        if (hdl->type == TYPE_EPOLL)
+            DO_CP(epoll_fd, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
+
         unlock(hdl->lock);
         ADD_CP_FUNC_ENTRY(off);
     } else {
