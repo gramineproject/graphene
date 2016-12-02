@@ -20,18 +20,20 @@ ifeq ($(SYS),x86_64-linux-gnu)
 $(GLIBC_TARGET): $(BUILD_DIR)/Makefile
 	cd $(BUILD_DIR) && $(MAKE)
 
-$(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
+$(BUILD_DIR)/Makefile: $(addprefix $(GLIBC_SRC)/,configure elf/Versions nptl/Versions dlfcn/Versions)
 ifeq ($(DEBUG),1)
 	./buildglibc.py --quiet --debug
 else
 	./buildglibc.py --quiet
 endif
 
-$(GLIBC_SRC)/configure:
+ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
+$(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
 	[ -f $(GLIBC_SRC).tar.gz ] || \
 	wget http://ftp.gnu.org/gnu/glibc/$(GLIBC_SRC).tar.gz
 	tar -xzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
+endif
 
 .PHONY: pack
 pack: $(GLIBC_TARGET)

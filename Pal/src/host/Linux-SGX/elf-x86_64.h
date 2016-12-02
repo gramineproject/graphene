@@ -37,13 +37,9 @@
 static inline Elf64_Addr __attribute__ ((unused))
 elf_machine_dynamic (void)
 {
-    Elf64_Addr addr;
-
     /* This works because we have our GOT address available in the small PIC
        model.  */
-    addr = (Elf64_Addr) &_DYNAMIC;
-
-    return addr;
+    return (Elf64_Addr) &_DYNAMIC;
 }
 
 /* Return the run-time load address of the shared object.  */

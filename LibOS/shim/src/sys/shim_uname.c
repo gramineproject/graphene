@@ -36,7 +36,7 @@
 static struct old_utsname graphene_uname = {
     .sysname = "Linux",
     .nodename = "localhost",
-    .release = "3.10",
+    .release = "3.10.0",
     .version = "1",
     .machine = "x86_64"
 };

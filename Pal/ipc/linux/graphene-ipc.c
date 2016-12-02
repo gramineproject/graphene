@@ -15,10 +15,9 @@
 #include <linux/bitmap.h>
 #include <asm/mman.h>
 #include <asm/tlb.h>
-#ifdef CONFIG_GRAPHENE_BULK_IPC
-# include "graphene.h"
-#endif
+
 #include "graphene-ipc.h"
+#include "ksyms.h"
 
 MODULE_LICENSE("Dual BSD/GPL");
 
@@ -37,19 +36,6 @@ struct kmem_cache *gipc_send_buffer_cachep;
 # define GIPC_BUG_ON(cond)
 #endif
 
-#define LOOKUP_KALLSYMS(sym)						\
-	do {								\
-		my_##sym = (void *) kallsyms_lookup_name(#sym);		\
-		if (!my_##sym) {					\
-			printk(KERN_ERR "Graphene error: "		\
-			       "can't find kernel function " #sym "\n");\
-			return -ENOENT;					\
-		} else {						\
-			printk(KERN_INFO "resolved symbol " #sym " %p\n", \
-			       my_##sym);				\
-		}							\
-	} while (0)
-
 #if defined(CONFIG_GRAPHENE_BULK_IPC) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)
 # if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
 #  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
@@ -64,27 +50,30 @@ struct kmem_cache *gipc_send_buffer_cachep;
 	do_mmap_pgoff((file), (addr), (len), (prot), (flags), (pgoff))
 # endif /* kernel_version < 3.9.0 */
 #else
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
-#  define MY_DO_MMAP_PGOFF
-unsigned long (*my_do_mmap_pgoff) (struct file *, unsigned long,
-				   unsigned long, unsigned long,
-				   unsigned long, unsigned long,
-				   unsigned long *);
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#  define MY_DO_MMAP
 #  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
 	({								\
 		unsigned long populate;					\
-		unsigned long rv = my_do_mmap_pgoff((file), (addr),	\
-						    (len), (prot),	\
-						    (flags), (pgoff), 	\
-						    &populate);		\
+		unsigned long rv;					\
+	 	rv = KSYM(do_mmap)((file), (addr), (len),		\
+				   (prot), (flags), 0, (pgoff),		\
+				   &populate);				\
+	rv; })
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
+#  define MY_DO_MMAP_PGOFF
+#  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
+	({								\
+		unsigned long populate;					\
+		unsigned long rv;					\
+	 	rv = KSYM(do_mmap_pgoff)((file), (addr), (len),		\
+					 (prot), (flags), (pgoff),	\
+					 &populate);			\
 	rv; })
 # else
 #  define MY_DO_MMAP_PGOFF
-unsigned long (*my_do_mmap_pgoff) (struct file *, unsigned long,
-				   unsigned long, unsigned long,
-				   unsigned long, unsigned long);
 #  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
-	my_do_mmap_pgoff((file), (addr), (len), (prot), (flags), (pgoff))
+	KSYM(do_mmap_pgoff)((file), (addr), (len), (prot), (flags), (pgoff))
 # endif /* kernel version < 3.9 */
 #endif /* !CONFIG_GRAPHENE_BULK_IPC && kernel version > 3.4.0 */
 
@@ -93,18 +82,28 @@ unsigned long (*my_do_mmap_pgoff) (struct file *, unsigned long,
 #  define FLUSH_TLB_MM_RANGE flush_tlb_mm_range
 # else
 #  define MY_FLUSH_TLB_MM_RANGE
-void (*my_flush_tlb_mm_range) (struct mm_struct *, unsigned long,
-			       unsigned long, unsigned long);
-#  define FLUSH_TLB_MM_RANGE my_flush_tlb_mm_range
+#  define FLUSH_TLB_MM_RANGE KSYM(flush_tlb_mm_range)
 # endif
 #else /* LINUX_VERSION_CODE < 3.7.0 */
 # if defined(CONFIG_GRAPHENE_BULK_IPC) || LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0)
 #  define FLUSH_TLB_PAGE flush_tlb_page
 # else
 #  define MY_FLUSH_TLB_PAGE
-void (*my_flush_tlb_page) (struct vm_area_struct *, unsigned long);
-#  define FLUSH_TLB_PAGE my_flush_tlb_page
+#  define FLUSH_TLB_PAGE KSYM(flush_tlb_page)
 # endif
+#endif
+
+#ifdef MY_DO_MMAP
+	IMPORT_KSYM(do_mmap);
+#endif
+#ifdef MY_DO_MMAP_PGOFF
+	IMPORT_KSYM(do_mmap_pgoff);
+#endif
+#ifdef MY_FLUSH_TLB_MM_RANGE
+	IMPORT_KSYM(flush_tlb_mm_range);
+#endif
+#ifdef MY_FLUSH_TLB_PAGE
+	IMPORT_KSYM(flush_tlb_page);
 #endif
 
 #ifndef gipc_get_session
@@ -916,14 +915,17 @@ static int __init gipc_init(void)
 {
 	int rv = 0;
 
+#ifdef MY_DO_MMAP
+	LOOKUP_KSYM(do_mmap);
+#endif
 #ifdef MY_DO_MMAP_PGOFF
-	LOOKUP_KALLSYMS(do_mmap_pgoff);
+	LOOKUP_KSYM(do_mmap_pgoff);
 #endif
 #ifdef MY_FLUSH_TLB_MM_RANGE
-	LOOKUP_KALLSYMS(flush_tlb_mm_range);
+	LOOKUP_KSYM(flush_tlb_mm_range);
 #endif
 #ifdef MY_FLUSH_TLB_PAGE
-	LOOKUP_KALLSYMS(flush_tlb_page);
+	LOOKUP_KSYM(flush_tlb_page);
 #endif
 
 #ifndef gipc_get_session

@@ -17,4 +17,8 @@
 
 #define EXECVE_RTLD                 1
 
+/* debug message printout */
+#define DEBUGBUF_SIZE               256
+#define DEBUGBUF_BREAK              0
+
 #endif /* _SHIM_DEFS_H_ */

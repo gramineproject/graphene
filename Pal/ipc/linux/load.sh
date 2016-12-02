@@ -1,11 +1,12 @@
 #!/bin/sh
 
-module="graphene-ipc"
+MOD=graphene-ipc
+MODNAME=graphene_ipc
 
-(/sbin/lsmod | grep -q "graphene_ipc") && \
-((echo "unloading graphene_ipc..."; /sbin/rmmod graphene_ipc) || exit 1) || continue
+(/sbin/lsmod | grep -q $MODNAME) && \
+((echo "unloading $MODNAME..."; /sbin/rmmod $MODNAME) || exit 1) || continue
 
 # invoke insmod with all arguments we got
 # and use a pathname, as newer modutils don't look in . by default
-echo "loading graphene_ipc..."
-/sbin/insmod ./$module.ko $* || exit 1
+echo "loading $MODNAME..."
+/sbin/insmod ./$MOD.ko $* || exit 1

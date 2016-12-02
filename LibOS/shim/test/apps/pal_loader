@@ -3,7 +3,6 @@
 PAL_LOADER=$(readlink -f ${BASH_SOURCE[0]})
 PAL_DIR=$(readlink -f $(dirname $PAL_LOADER)/../../../../Pal/src)
 PAL=$PAL_DIR/pal
-PAL_SEC=$PAL_DIR/pal_sec
 
 MANIFEST=
 GDB_CMD=
@@ -19,23 +18,10 @@ fi
 
 if [ "$SEC" == "1" ]; then
 	echo "Use reference monitor"
-	PAL_CMD=$PAL_SEC
 fi
 
 while [ "$1" != "" ];
 do
-	if [ "$1" = "-gdb" ]; then
-		GDB_CMD="gdb --args"
-		shift
-		continue
-	fi
-
-	if [ "$1" = "-sec" ]; then
-		PAL_CMD=$PAL_SEC
-		shift
-		continue
-	fi
-
 	if [ "$MANIFEST" == "" ]; then
 		MANIFEST=$1
 		shift
