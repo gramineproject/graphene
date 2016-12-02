@@ -974,7 +974,7 @@ static void parse_ioctlop (const char * type, va_list * ap)
         PUTS(opnames[op - TCGETS]);
         return;
     }
-    PRINTF("OP 0x%04u", op);
+    PRINTF("OP 0x%04x", op);
 }
 
 static void parse_seek (const char * type, va_list * ap)
