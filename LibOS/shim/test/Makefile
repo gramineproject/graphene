@@ -39,7 +39,7 @@ manifest_rules = \
 
 %manifest: %manifest.template
 	@echo [ $@ ]
-	RELDIR=$(filter-out ./,$(shell realpath --relative-to=$(abspath $(dir $@)) $(PWD))/) && \
+	RELDIR=$(filter-out ./,$(python -c "import os.path; print os.path.relpath($(abspath $(dir $@)) $(PWD))")) && \
 	sed $(manifest_rules) $< > $@
 	(grep -q '^#!' $@ && chmod +x $@) || true
 
