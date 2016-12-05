@@ -316,7 +316,7 @@ index 4c58fc9..0ae2fa8 100644
  dl-routines += dl-cache
  endif
 diff --git a/elf/Versions b/elf/Versions
-index 2383992..1cdf63a 100644
+index 2383992..98687f6 100644
 --- a/elf/Versions
 +++ b/elf/Versions
 @@ -24,14 +24,15 @@ libc {
@@ -348,7 +348,7 @@ index 2383992..1cdf63a 100644
      __pointer_chk_guard;
    }
 +  SHIM {
-+    syscalldb; glibc_vers_2_17; glibc_option; register_library;
++    syscalldb; glibc_version; glibc_option; register_library;
 +  }
  }
 diff --git a/elf/circleload1.c b/elf/circleload1.c
@@ -563,7 +563,7 @@ index 0ae0b7f..f883910 100644
  static int
  check_loaded_objects (const char **loaded)
 diff --git a/elf/rtld.c b/elf/rtld.c
-index 6dcbabc..82cfb7d 100644
+index 6dcbabc..c87c773 100644
 --- a/elf/rtld.c
 +++ b/elf/rtld.c
 @@ -356,6 +356,23 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
@@ -574,15 +574,15 @@ index 6dcbabc..82cfb7d 100644
 +   library. If not, tell the user to update glibc. */
 +#include "glibc-version.h"
 +
-+volatile const int glibc_vers_2_17 __attribute__((weak)) = GLIBC_VERSION_2_17;
++volatile const int glibc_version __attribute__((weak)) = GLIBC_VERSION;
 +
 +static void __attribute__((noinline,optimize("-O0")))
 +check_glibc_version (void)
 +{
-+  if (glibc_vers_2_17 != GLIBC_VERSION_2_17)
++  if (glibc_version != GLIBC_VERSION)
 +    {
 +      _dl_fatal_printf ("Warning from Graphene: "
-+			"Glibc version is incorrect. Please rebuild Glibc.\n");
++                        "Glibc version is incorrect. Please rebuild Glibc.\n");
 +      _exit (1);
 +    }
 +}
@@ -994,7 +994,7 @@ index a036b92..40a1eaf 100644
  
  #include "../fork.c"
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S b/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
-index f2dca07..e5b3f2f 100644
+index f2dca07..0ce7c67 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.S
 @@ -90,7 +90,7 @@ __lll_lock_wait_private:
@@ -1002,7 +1002,7 @@ index f2dca07..e5b3f2f 100644
  1:	LIBC_PROBE (lll_lock_wait_private, 1, %rdi)
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  2:	movl	%edx, %eax
  	xchgl	%eax, (%rdi)	/* NB:	 lock is implied */
@@ -1011,7 +1011,7 @@ index f2dca07..e5b3f2f 100644
  1:	LIBC_PROBE (lll_lock_wait, 2, %rdi, %rsi)
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  2:	movl	%edx, %eax
  	xchgl	%eax, (%rdi)	/* NB:	 lock is implied */
@@ -1020,7 +1020,7 @@ index f2dca07..e5b3f2f 100644
  1:	movl	$SYS_futex, %eax
  	movl	$2, %edx
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  2:	xchgl	%edx, (%rdi)	/* NB:   lock is implied */
  
@@ -1029,7 +1029,7 @@ index f2dca07..e5b3f2f 100644
  	movq	%r12, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* NB: %edx == 2 */
  	xchgl	%edx, (%r12)
@@ -1038,7 +1038,7 @@ index f2dca07..e5b3f2f 100644
  	movl	$1, %edx	/* Wake one thread.  */
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	popq	%rdx
  	cfi_adjust_cfa_offset(-8)
@@ -1047,7 +1047,7 @@ index f2dca07..e5b3f2f 100644
  	movl	$1, %edx	/* Wake one thread.  */
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	popq	%rdx
  	cfi_adjust_cfa_offset(-8)
@@ -1056,7 +1056,7 @@ index f2dca07..e5b3f2f 100644
  	movq	%r12, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	cmpl	$0, (%rdi)
  	jne	1f
@@ -1110,7 +1110,7 @@ index 0a26739..8aae14a 100644
  			"jne 1b"					      \
  			: "=&a" (__ignore)				      \
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S b/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
-index 990b6f9..89dbe32 100644
+index 990b6f9..b01214d 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevelrobustlock.S
 @@ -80,7 +80,7 @@ __lll_robust_lock_wait:
@@ -1118,7 +1118,7 @@ index 990b6f9..89dbe32 100644
  
  1:	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	movl	(%rdi), %eax
  
@@ -1127,7 +1127,7 @@ index 990b6f9..89dbe32 100644
  
  5:	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movl	%eax, %ecx
  
  	movl	(%rdi), %eax
@@ -1136,12 +1136,12 @@ index 990b6f9..89dbe32 100644
  	movq	%r12, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movq	%rax, %rcx
  
  	movl	(%r12), %eax
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_barrier_wait.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_barrier_wait.S
-index eec17f2..4472960 100644
+index eec17f2..a350340 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_barrier_wait.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_barrier_wait.S
 @@ -62,7 +62,7 @@ pthread_barrier_wait:
@@ -1149,7 +1149,7 @@ index eec17f2..4472960 100644
  	xorq	%r10, %r10
  8:	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* Don't return on spurious wakeups.  The syscall does not change
  	   any register except %eax so there is no need to reload any of
@@ -1158,12 +1158,12 @@ index eec17f2..4472960 100644
  	orl	PRIVATE(%rdi), %esi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* Increment LEFT.  If this brings the count back to the
  	   initial count unlock the object.  */
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
-index 985e0f1..f180ab1 100644
+index 985e0f1..d559456 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_broadcast.S
 @@ -90,7 +90,7 @@ __pthread_cond_broadcast:
@@ -1171,7 +1171,7 @@ index 985e0f1..f180ab1 100644
  	movl	$1, %edx
  	movl	$0x7fffffff, %r10d
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* For any kind of error, which mainly is EAGAIN, we try again
  	   with WAKE.  The general test also covers running on old
@@ -1180,7 +1180,7 @@ index 985e0f1..f180ab1 100644
  	movl	$1, %edx
  	movl	$0x7fffffff, %r10d
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* For any kind of error, which mainly is EAGAIN, we try again
  	   with WAKE.  The general test also covers running on old
@@ -1189,12 +1189,12 @@ index 985e0f1..f180ab1 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	jmp	10b
  	.size	__pthread_cond_broadcast, .-__pthread_cond_broadcast
  versioned_symbol (libpthread, __pthread_cond_broadcast, pthread_cond_broadcast,
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
-index 53d65b6..8724325 100644
+index 53d65b6..16df581 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_signal.S
 @@ -82,7 +82,7 @@ __pthread_cond_signal:
@@ -1202,7 +1202,7 @@ index 53d65b6..8724325 100644
  #endif
  	movl	$FUTEX_OP_CLEAR_WAKE_IF_GT_ONE, %r9d
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  #if cond_lock != 0
  	subq	$cond_lock, %r8
  #endif
@@ -1211,7 +1211,7 @@ index 53d65b6..8724325 100644
  	xorq	%r10, %r10
  	movl	(%rdi), %r9d	// XXX Can this be right?
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	leaq	-cond_futex(%rdi), %r8
  
@@ -1220,12 +1220,12 @@ index 53d65b6..8724325 100644
  	/* %rdx should be 1 already from $FUTEX_WAKE_OP syscall.
  	movl	$1, %edx  */
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* Unlock.  */
  4:	LOCK
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
-index 0dc2340..cac13bf 100644
+index 0dc2340..8aff242 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S
 @@ -188,7 +188,7 @@ __pthread_cond_timedwait:
@@ -1233,7 +1233,7 @@ index 0dc2340..cac13bf 100644
  	addq	$cond_futex, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	cmpl	$0, %eax
  	sete	%r15b
@@ -1242,7 +1242,7 @@ index 0dc2340..cac13bf 100644
  	addq	$cond_futex, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  62:	movq	%rax, %r14
  
  	movl	(%rsp), %edi
@@ -1251,7 +1251,7 @@ index 0dc2340..cac13bf 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	subq	$cond_nwaiters, %rdi
  
  55:	LOCK
@@ -1268,7 +1268,7 @@ index 0dc2340..cac13bf 100644
  	movl	$__NR_clock_gettime, %eax
 -	syscall
 -#  endif
-+	SYSCALL
++	SYSCALLDB
  
  	/* Compute relative timeout.  */
  	movq	(%r13), %rcx
@@ -1277,7 +1277,7 @@ index 0dc2340..cac13bf 100644
  	addq	$cond_futex, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movq	%rax, %r14
  
  	movl	(%rsp), %edi
@@ -1286,7 +1286,7 @@ index 0dc2340..cac13bf 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	subq	$cond_nwaiters, %rdi
  	movl	$1, %r12d
  
@@ -1295,12 +1295,12 @@ index 0dc2340..cac13bf 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* Lock the mutex only if we don't own it already.  This only happens
  	   in case of PI mutexes, if we got cancelled after a successful
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
-index 0e61d0a..60e104b 100644
+index 0e61d0a..b4bcc15 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S
 @@ -138,7 +138,7 @@ __pthread_cond_wait:
@@ -1308,7 +1308,7 @@ index 0e61d0a..60e104b 100644
  	movl	$(FUTEX_WAIT_REQUEUE_PI|FUTEX_PRIVATE_FLAG), %esi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	cmpl	$0, %eax
  	sete	%r8b
@@ -1317,7 +1317,7 @@ index 0e61d0a..60e104b 100644
  60:	xorb	%r8b, %r8b
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  62:	movl	(%rsp), %edi
  	callq	__pthread_disable_asynccancel
@@ -1326,7 +1326,7 @@ index 0e61d0a..60e104b 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	subq	$cond_nwaiters, %rdi
  
  17:	LOCK
@@ -1335,7 +1335,7 @@ index 0e61d0a..60e104b 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	subq	$cond_nwaiters, %rdi
  	movl	$1, %ecx
  
@@ -1344,12 +1344,12 @@ index 0e61d0a..60e104b 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* Lock the mutex only if we don't own it already.  This only happens
  	   in case of PI mutexes, if we got cancelled after a successful
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_once.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_once.S
-index 2cbe2fa..d4e229a 100644
+index 2cbe2fa..489998a 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_once.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_once.S
 @@ -90,7 +90,7 @@ __pthread_once:
@@ -1357,7 +1357,7 @@ index 2cbe2fa..d4e229a 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	jmp	6b
  
  	/* Preserve the pointer to the control variable.  */
@@ -1366,7 +1366,7 @@ index 2cbe2fa..d4e229a 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  4:	addq	$8, %rsp
  	cfi_adjust_cfa_offset(-8)
@@ -1375,12 +1375,12 @@ index 2cbe2fa..d4e229a 100644
  #endif
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	movq	%r8, %rdi
  .LcallUR:
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_rdlock.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_rdlock.S
-index 3bbb4c7..8ebf317 100644
+index 3bbb4c7..53d5ca6 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_rdlock.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_rdlock.S
 @@ -82,7 +82,7 @@ __pthread_rwlock_rdlock:
@@ -1388,12 +1388,12 @@ index 3bbb4c7..8ebf317 100644
  	addq	$READERS_WAKEUP, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	subq	$READERS_WAKEUP, %rdi
  
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedrdlock.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedrdlock.S
-index 40bcc04..d6c9c82 100644
+index 40bcc04..348170e 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedrdlock.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedrdlock.S
 @@ -109,7 +109,7 @@ pthread_rwlock_timedrdlock:
@@ -1401,12 +1401,12 @@ index 40bcc04..d6c9c82 100644
  21:	leaq	READERS_WAKEUP(%r12), %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movq	%rax, %rdx
  
  #ifndef __ASSUME_FUTEX_CLOCK_REALTIME
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedwrlock.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedwrlock.S
-index f57ef52..78a2655 100644
+index f57ef52..e9ac77f 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedwrlock.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_timedwrlock.S
 @@ -106,7 +106,7 @@ pthread_rwlock_timedwrlock:
@@ -1414,12 +1414,12 @@ index f57ef52..78a2655 100644
  21:	leaq	WRITERS_WAKEUP(%r12), %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movq	%rax, %rdx
  
  #ifndef __ASSUME_FUTEX_CLOCK_REALTIME
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_unlock.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_unlock.S
-index d779f7b..4dec0c0 100644
+index d779f7b..849c74f 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_unlock.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_unlock.S
 @@ -79,7 +79,7 @@ __pthread_rwlock_unlock:
@@ -1427,12 +1427,12 @@ index d779f7b..4dec0c0 100644
  	movl	$SYS_futex, %eax
  	movq	%r10, %rdi
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	xorl	%eax, %eax
  	retq
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_wrlock.S b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_wrlock.S
-index e444def..ba31821 100644
+index e444def..fd94930 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_wrlock.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_rwlock_wrlock.S
 @@ -80,7 +80,7 @@ __pthread_rwlock_wrlock:
@@ -1440,12 +1440,12 @@ index e444def..ba31821 100644
  	addq	$WRITERS_WAKEUP, %rdi
  	movl	$SYS_futex, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	subq	$WRITERS_WAKEUP, %rdi
  
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/sem_post.S b/nptl/sysdeps/unix/sysv/linux/x86_64/sem_post.S
-index 1c11600..d276efa 100644
+index 1c11600..bd166cf 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/sem_post.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/sem_post.S
 @@ -52,7 +52,7 @@ sem_post:
@@ -1453,12 +1453,12 @@ index 1c11600..d276efa 100644
  	orl	PRIVATE(%rdi), %esi
  	movl	$1, %edx
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	testq	%rax, %rax
  	js	1f
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/sem_timedwait.S b/nptl/sysdeps/unix/sysv/linux/x86_64/sem_timedwait.S
-index 880610e..06fd57c 100644
+index 880610e..e520049 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/sem_timedwait.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/sem_timedwait.S
 @@ -97,7 +97,7 @@ sem_timedwait:
@@ -1466,7 +1466,7 @@ index 880610e..06fd57c 100644
  	movl	$SYS_futex, %eax
  	xorl	%edx, %edx
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movq	%rax, %r9
  #if VALUE != 0
  	leaq	-VALUE(%rdi), %rdi
@@ -1475,12 +1475,12 @@ index 880610e..06fd57c 100644
  	movl	$SYS_futex, %eax
  	xorl	%edx, %edx
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movq	%rax, %r14
  
  	movl	16(%rsp), %edi
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/sem_wait.S b/nptl/sysdeps/unix/sysv/linux/x86_64/sem_wait.S
-index 8f4d068..d9b49e4 100644
+index 8f4d068..fe6dfbf 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/sem_wait.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/sem_wait.S
 @@ -81,7 +81,7 @@ sem_wait:
@@ -1488,34 +1488,34 @@ index 8f4d068..d9b49e4 100644
  #endif
  	xorl	%edx, %edx
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	movq	%rax, %rcx
  
  	xchgq	%r8, %rdi
 diff --git a/nptl/sysdeps/x86_64/pthreaddef.h b/nptl/sysdeps/x86_64/pthreaddef.h
-index 18a15a1..ac3d6d3 100644
+index 18a15a1..f050241 100644
 --- a/nptl/sysdeps/x86_64/pthreaddef.h
 +++ b/nptl/sysdeps/x86_64/pthreaddef.h
-@@ -48,4 +48,5 @@
+@@ -48,4 +48,4 @@
  
  /* While there is no such syscall.  */
  #define __exit_thread_inline(val) \
 -  asm volatile ("syscall" :: "a" (__NR_exit), "D" (val))
-+  asm volatile ("pushq %%rbx\n\tmovq syscalldb@GOTPCREL(%%rip), %%rbx\n\t" \
-+		"call %%rbx\n\t" :: "a" (__NR_exit), "D" (val) : "bx" )
++  asm volatile (SYSCALLDB :: "a" (__NR_exit), "D" (val))
 diff --git a/nptl/sysdeps/x86_64/tls.h b/nptl/sysdeps/x86_64/tls.h
-index cbb5e9e..19b18ef 100644
+index cbb5e9e..9b87e25 100644
 --- a/nptl/sysdeps/x86_64/tls.h
 +++ b/nptl/sysdeps/x86_64/tls.h
-@@ -28,6 +28,7 @@
+@@ -28,6 +28,8 @@
  # include <sysdep.h>
  # include <libc-internal.h>
  # include <kernel-features.h>
 +# include <shim_tls.h>
++# include <syscalldb.h>
  
  /* Replacement type for __m128 since this file is included by ld.so,
     which is compiled with -mno-sse.  It must not change the alignment
-@@ -67,6 +68,10 @@ typedef struct
+@@ -67,6 +69,10 @@ typedef struct
  # else
    int __glibc_reserved1;
  # endif
@@ -1526,20 +1526,15 @@ index cbb5e9e..19b18ef 100644
    int rtld_must_xmm_save;
    /* Reservation of some values for the TM ABI.  */
    void *__private_tm[4];
-@@ -137,6 +142,12 @@ typedef struct
+@@ -137,7 +143,6 @@ typedef struct
  # define GET_DTV(descr) \
    (((tcbhead_t *) (descr))->dtv)
  
-+/* For Graphene */
-+#define SYSCALLDB							      \
-+	"pushq %%rbx\n\t"						      \
-+	"movq syscalldb@GOTPCREL(%%rip), %%rbx\n\t"			      \
-+	"callq *%%rbx\n\t"						      \
-+	"popq %%rbx\n\t"
- 
+-
  /* Code to initially initialize the thread pointer.  This might need
     special attention since 'errno' is not yet available and if the
-@@ -154,7 +165,7 @@ typedef struct
+    operation can cause a failure 'errno' must not be touched.
+@@ -154,7 +159,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \
       /* It is a simple syscall to set the %fs value for the thread.  */	      \
@@ -1605,7 +1600,7 @@ index 2468228..a9f1cd6 100644
  #ifdef ABORT_INSTRUCTION
        ABORT_INSTRUCTION;
 diff --git a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
-index 49f0384..ee59c00 100644
+index 49f0384..6b1a975 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 @@ -84,7 +84,8 @@ ENTRY(____longjmp_chk)
@@ -1613,7 +1608,7 @@ index 49f0384..ee59c00 100644
  	lea	-sizeSS(%rsp), %RSI_LP
  	movl	$__NR_sigaltstack, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
 +
  	/* Without working sigaltstack we cannot perform the test.  */
  	testl	%eax, %eax
@@ -1637,7 +1632,7 @@ index f712110..f6bad14 100644
  
  #include "../clock_gettime.c"
 diff --git a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x86_64/clone.S
-index 0508730..c011e7a 100644
+index 0508730..e1b35ec 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/clone.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/clone.S
 @@ -59,11 +59,15 @@ ENTRY (__clone)
@@ -1663,7 +1658,7 @@ index 0508730..c011e7a 100644
  	   wrong.  */
  	cfi_endproc;
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
 +L(clone_return):
  	testq	%rax,%rax
@@ -1674,7 +1669,7 @@ index 0508730..c011e7a 100644
  	jne	2f
  	movl	$SYS_ify(getpid), %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  2:	movl	%eax, %fs:PID
  	movl	%eax, %fs:TID
  1:
@@ -1686,7 +1681,7 @@ index 0508730..c011e7a 100644
  	popq	%rdi		/* Argument.  */
  	call	*%rax
 diff --git a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
-index 140db03..870fb02 100644
+index 140db03..6967f10 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 @@ -75,7 +75,7 @@ ENTRY(__getcontext)
@@ -1694,7 +1689,7 @@ index 140db03..870fb02 100644
  	movl	$_NSIG8,%r10d
  	movl	$__NR_rt_sigprocmask, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
@@ -1728,7 +1723,7 @@ index 440ca7f..571125d 100644
  weak_alias (__gettimeofday, gettimeofday)
  libc_hidden_weak (gettimeofday)
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S b/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S
-index 0fd47f2..0247e2f 100644
+index 0fd47f2..7a82975 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S
 @@ -30,6 +30,7 @@ ENTRY (sched_getcpu)
@@ -1752,7 +1747,7 @@ index 0fd47f2..0247e2f 100644
  	movl	$__NR_getcpu, %eax
 -	syscall
 -#  ifndef __ASSUME_GETCPU_SYSCALL
-+	SYSCALL
++	SYSCALLDB
 +#endif
 +
 +#if 0 /* for Graphene, never do vsyscall */
@@ -1767,7 +1762,7 @@ index 0fd47f2..0247e2f 100644
  	callq	*%rax
  1:
 diff --git a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
-index b726fa0..96bf0ec 100644
+index b726fa0..bb3ae34 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 @@ -43,7 +43,7 @@ ENTRY(__setcontext)
@@ -1775,26 +1770,25 @@ index b726fa0..96bf0ec 100644
  	movl	$_NSIG8,%r10d
  	movl	$__NR_rt_sigprocmask, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	popq	%rdi			/* Reload %rdi, adjust stack.  */
  	cfi_adjust_cfa_offset(-8)
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sigaction.c b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
-index ab23985..39d0bdc 100644
+index ab23985..38a6b69 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sigaction.c
 +++ b/sysdeps/unix/sysv/linux/x86_64/sigaction.c
-@@ -129,7 +129,8 @@ asm									\
+@@ -129,7 +129,7 @@ asm									\
     "	.type __" #name ",@function\n"					\
     "__" #name ":\n"							\
     "	movq $" #syscall ", %rax\n"					\
 -   "	syscall\n"							\
-+   "	movq syscalldb@GOTPCREL(%rip), %rbx\n"				\
-+   "	call *%rbx\n"							\
++   SYSCALLDB_ASM							\
     ".LEND_" #name ":\n"							\
     ".section .eh_frame,\"a\",@progbits\n"				\
     ".LSTARTFRAME_" #name ":\n"						\
 diff --git a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
-index b3854fa..fd42f66 100644
+index b3854fa..6369bfe 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/swapcontext.S
 @@ -75,7 +75,7 @@ ENTRY(__swapcontext)
@@ -1802,12 +1796,12 @@ index b3854fa..fd42f66 100644
  	movl	$_NSIG8,%r10d
  	movl	$__NR_rt_sigprocmask, %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-index 92c2f5b..7b7ee12 100644
+index 92c2f5b..33f820f 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
 @@ -34,7 +34,7 @@ ENTRY (syscall)
@@ -1815,12 +1809,12 @@ index 92c2f5b..7b7ee12 100644
  	movq %r9, %r8
  	movq 8(%rsp),%r9	/* arg6 is on the stack.  */
 -	syscall			/* Do the system call.  */
-+	SYSCALL			/* Do the system call.  */
++	SYSCALLDB		/* Do the system call.  */
  	cmpq $-4095, %rax	/* Check %rax for error.  */
  	jae SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  	ret			/* Return to caller.  */
 diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
-index 4a9a9d9..3b7434d 100644
+index 4a9a9d9..dc452ed 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 +++ b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
 @@ -21,6 +21,7 @@
@@ -1831,33 +1825,23 @@ index 4a9a9d9..3b7434d 100644
  
  #ifdef IS_IN_rtld
  # include <dl-sysdep.h>		/* Defines RTLD_PRIVATE_ERRNO.  */
-@@ -172,11 +173,18 @@
- 
-     Syscalls of more than 6 arguments are not supported.  */
- 
-+# undef	SYSCALL
-+# define SYSCALL				\
-+    pushq %rbx;					\
-+    movq syscalldb@GOTPCREL(%rip), %rbx;	\
-+    call *%rbx;					\
-+    popq %rbx;
-+
- # undef	DO_CALL
+@@ -176,7 +177,7 @@
  # define DO_CALL(syscall_name, args)		\
      DOARGS_##args				\
      movl $SYS_ify (syscall_name), %eax;		\
 -    syscall;
-+    SYSCALL
++    SYSCALLDB
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */
-@@ -190,9 +198,20 @@
+@@ -190,9 +191,20 @@
  /* Define a macro which expands inline into the wrapper code for a system
     call.  */
  # undef INLINE_SYSCALL
 -# define INLINE_SYSCALL(name, nr, args...) \
 +# define INLINE_SYSCALL(name, nr_args...) \
-+  ({									      \
+   ({									      \
+-    unsigned long int resultvar = INTERNAL_SYSCALL (name, , nr, args);	      \
 +    unsigned long int resultvar = INTERNAL_SYSCALL (name, , ##nr_args);	      \
 +    if (__builtin_expect (INTERNAL_SYSCALL_ERROR_P (resultvar, ), 0))	      \
 +      {									      \
@@ -1868,13 +1852,12 @@ index 4a9a9d9..3b7434d 100644
 +
 +# undef INLINE_SYSCALL_ASM
 +# define INLINE_SYSCALL_ASM(name, nr_args...) \
-   ({									      \
--    unsigned long int resultvar = INTERNAL_SYSCALL (name, , nr, args);	      \
++  ({									      \
 +    unsigned long int resultvar = INTERNAL_SYSCALL_ASM (name, , ##nr_args);   \
      if (__builtin_expect (INTERNAL_SYSCALL_ERROR_P (resultvar, ), 0))	      \
        {									      \
  	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-@@ -204,9 +223,9 @@
+@@ -204,9 +216,9 @@
     into the wrapper code for a system call.  It should be used when size
     of any argument > size of long int.  */
  # undef INLINE_SYSCALL_TYPES
@@ -1886,16 +1869,14 @@ index 4a9a9d9..3b7434d 100644
      if (__builtin_expect (INTERNAL_SYSCALL_ERROR_P (resultvar, ), 0))	      \
        {									      \
  	__set_errno (INTERNAL_SYSCALL_ERRNO (resultvar, ));		      \
-@@ -223,13 +242,20 @@
+@@ -223,13 +235,19 @@
      LOAD_ARGS_##nr (args)						      \
      LOAD_REGS_##nr							      \
      asm volatile (							      \
 -    "syscall\n\t"							      \
-+    "movq syscalldb@GOTPCREL(%%rip), %%rbx\n\t"				      \
-+    "call *%%rbx\n\t"							      \
++    SYSCALLDB								      \
      : "=a" (resultvar)							      \
--    : "0" (name) ASM_ARGS_##nr : "memory", "cc", "r11", "cx");		      \
-+    : "0" (name) ASM_ARGS_##nr : "memory", "cc", "r11", "cx", "bx");	      \
+     : "0" (name) ASM_ARGS_##nr : "memory", "cc", "r11", "cx");		      \
      (long int) resultvar; })
 +# define INTERNAL_SYSCALL_NCS_ASM INTERNAL_SYSCALL_NCS
 +
@@ -1911,20 +1892,16 @@ index 4a9a9d9..3b7434d 100644
  
  # define INTERNAL_SYSCALL_NCS_TYPES(name, err, nr, args...) \
    ({									      \
-@@ -237,9 +263,10 @@
+@@ -237,7 +255,7 @@
      LOAD_ARGS_TYPES_##nr (args)						      \
      LOAD_REGS_TYPES_##nr (args)						      \
      asm volatile (							      \
 -    "syscall\n\t"							      \
-+    "movq syscalldb@GOTPCREL(%%rip), %%rbx\n\t"				      \
-+    "call *%%rbx\n\t"							      \
++    SYSCALLDB								      \
      : "=a" (resultvar)							      \
--    : "0" (name) ASM_ARGS_##nr : "memory", "cc", "r11", "cx");		      \
-+    : "0" (name) ASM_ARGS_##nr : "memory", "cc", "r11", "cx", "bx");	      \
+     : "0" (name) ASM_ARGS_##nr : "memory", "cc", "r11", "cx");		      \
      (long int) resultvar; })
- # undef INTERNAL_SYSCALL_TYPES
- # define INTERNAL_SYSCALL_TYPES(name, err, nr, args...) \
-@@ -252,6 +279,7 @@
+@@ -252,6 +270,7 @@
  # undef INTERNAL_SYSCALL_ERRNO
  # define INTERNAL_SYSCALL_ERRNO(val, err)	(-(val))
  
@@ -1932,7 +1909,7 @@ index 4a9a9d9..3b7434d 100644
  # ifdef SHARED
  #  define INLINE_VSYSCALL(name, nr, args...) \
    ({									      \
-@@ -300,12 +328,13 @@
+@@ -300,12 +319,13 @@
      v_ret;								      \
    })
  
@@ -2018,7 +1995,7 @@ index 79f1fab..0000000
 -
 -#endif
 diff --git a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
-index d3b450a..76bda33 100644
+index d3b450a..75a63e1 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/vfork.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/vfork.S
 @@ -38,7 +38,7 @@ ENTRY (__vfork)
@@ -2026,7 +2003,7 @@ index d3b450a..76bda33 100644
  	/* Stuff the syscall number in RAX and enter into the kernel.  */
  	movl	$SYS_ify (vfork), %eax
 -	syscall
-+	SYSCALL
++	SYSCALLDB
  
  	/* Push back the return PC.  */
  	pushq	%rdi

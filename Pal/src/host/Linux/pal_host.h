@@ -188,7 +188,7 @@ struct arch_frame {
 
 #ifdef __x86_64__
 # define store_register(reg, var)     \
-    asm volatile ("movq %%" #reg ", %0" : "=g" (var) :: "memory");
+    asm volatile ("movq %%" #reg ", %0" : "=a" (var) :: "memory");
 
 # define store_register_in_frame(reg, f)     store_register(reg, (f)->reg)
 
@@ -235,10 +235,10 @@ static inline
 void __store_frame (struct pal_frame * frame,
                     void * func, const char * funcname)
 {
+    arch_store_frame(&frame->arch)
     *(volatile void **) &frame->self = frame;
     frame->func = func;
     frame->funcname = funcname;
-    arch_store_frame(&frame->arch)
 }
 
 #define ENTER_PAL_CALL(name)                \

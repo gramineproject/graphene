@@ -167,9 +167,7 @@ void free (void * mem);
 void * remalloc (const void * mem, size_t size);
 #endif
 
-static inline
-__attribute__((always_inline))
-char * qstrtostr (struct shim_qstr * qstr, bool on_stack)
+static_inline char * qstrtostr (struct shim_qstr * qstr, bool on_stack)
 {
     int len = qstr->len;
     char * buf = on_stack ? __alloca(len + 1) : malloc(len + 1);

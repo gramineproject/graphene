@@ -230,11 +230,7 @@ extern struct pal_internal_state {
 
     PAL_HANDLE      console;
 
-    const char *    syscall_sym_name;
-    void *          syscall_sym_addr;
-
     unsigned long   start_time;
-
 #if PROFILING == 1
     unsigned long   relocation_time;
     unsigned long   linking_time;
@@ -351,8 +347,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
                        PAL_HANDLE * polled);
 
 /* DkException calls & structures */
-typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
-int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND]) (int, PAL_UPCALL, int);
+PAL_EVENT_HANDLER _DkGetExceptionHandler (PAL_NUM event_num);
 void _DkRaiseFailure (int error);
 void _DkExceptionReturn (void * event);
 
@@ -371,8 +366,6 @@ int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
 int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
                           PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
-unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
-                                               unsigned long args[6]);
 
 #define init_fail(exitcode, reason)                                     \
     do {                                                                \

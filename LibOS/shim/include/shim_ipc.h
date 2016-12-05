@@ -535,7 +535,7 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
 int __init_ipc_msg (struct shim_ipc_msg * msg, int code, int size, IDTYPE dest);
 struct shim_ipc_msg * create_ipc_msg (int code, int size, IDTYPE dest);
 
-static inline __attribute__((always_inline))
+static_inline
 struct shim_ipc_msg * create_ipc_msg_on_stack (int code, int size, IDTYPE dest)
 {
     struct shim_ipc_msg * msg = __alloca(IPC_MSG_SIZE(size));
@@ -548,7 +548,7 @@ int __init_ipc_msg_duplex (struct shim_ipc_msg_obj * msg, int code, int size,
 struct shim_ipc_msg_obj *
 create_ipc_msg_duplex (int code, int size, IDTYPE dest);
 
-static inline __attribute__((always_inline))
+static_inline
 struct shim_ipc_msg_obj *
 create_ipc_msg_duplex_on_stack (int code, int size, IDTYPE dest)
 {
@@ -563,7 +563,7 @@ int __init_ipc_resp_msg (struct shim_ipc_msg * resp, int ret,
 struct shim_ipc_msg *
 create_ipc_resp_msg (int ret, IDTYPE dest, unsigned long seq);
 
-static inline __attribute__((always_inline))
+static_inline
 struct shim_ipc_msg *
 create_ipc_resp_msg_on_stack (int ret, IDTYPE dest, unsigned long seq)
 {

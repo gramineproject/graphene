@@ -28,19 +28,18 @@ CXX += -g
 endif
 export DEBUG
 
-reldir = $(shell p=`dirname $(1)` ; d=; while [ "$$p" != "." ]; do p=`dirname $$p`; d=../$$d; done; echo $$d)
-
 manifest_rules = \
-	-e 's:\$$(PALDIR):$(PALDIR):g' \
+	-e 's:\$$(PALDIR):'$$RELDIR'$(PALDIR):g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
-	-e 's:\$$(SHIMDIR):$(SHIMDIR):g' \
-	-e 's:\$$(SHIMPATH):$(SHIMDIR)/libsysdb.so:g' \
-	-e 's:\$$(LIBCDIR):$(LIBCDIR):g' \
+	-e 's:\$$(SHIMDIR):'$$RELDIR'$(SHIMDIR):g' \
+	-e 's:\$$(SHIMPATH):'$$RELDIR'$(SHIMDIR)/libsysdb.so:g' \
+	-e 's:\$$(LIBCDIR):'$$RELDIR'$(LIBCDIR):g' \
 	$(extra_rules)
 
 %manifest: %manifest.template
 	@echo [ $@ ]
+	RELDIR=$(filter-out ./,$(shell realpath --relative-to=$(abspath $(dir $@)) $(PWD))/) && \
 	sed $(manifest_rules) $< > $@
 	(grep -q '^#!' $@ && chmod +x $@) || true
 

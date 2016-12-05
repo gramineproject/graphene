@@ -35,6 +35,8 @@
 #define extern_alias(name) \
     extern __typeof(name) shim_##name __attribute ((alias (alias_str(name))))
 
+#define static_inline static inline __attribute__((always_inline))
+
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <shim_atomic.h>
@@ -48,9 +50,6 @@
 #define IS_INTERNAL_TID(tid)    ((tid) >= INTERNAL_TID_BASE)
 #define IS_INTERNAL(thread)     ((thread)->tid >= INTERNAL_TID_BASE)
 #define TID_PRINTFMT
-
-/* debug message printout */
-# define DEBUGBUF_SIZE       80
 
 struct debug_buf {
     int start;
@@ -137,18 +136,12 @@ int shim_terminate (void);
 #define USE_PAUSE       1
 #define USE_ASSERT      1
 
-extern bool in_gdb;
 static inline void do_pause (void);
 
-#define BREAK_GDB() do { asm volatile ("int $3"); } while (0)
-
 #if USE_PAUSE == 1
-# define pause()                                                            \
-    do {                                                                    \
-        if (in_gdb) BREAK_GDB(); else do_pause();                           \
-    } while (0)
+# define pause() do { do_pause(); } while (0)
 #else
-# define pause() do { if (in_gdb) BREAK_GDB(); } while (0)
+# define pause() do {} while (0)
 #endif
 
 #define bug()                                                               \

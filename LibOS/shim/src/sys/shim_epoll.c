@@ -29,6 +29,7 @@
 #include <shim_thread.h>
 #include <shim_handle.h>
 #include <shim_fs.h>
+#include <shim_checkpoint.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -64,6 +65,9 @@ struct shim_epoll_fd {
 
 int shim_do_epoll_create1 (int flags)
 {
+    if ((flags & ~EPOLL_CLOEXEC))
+        return -EINVAL;
+
     struct shim_handle * hdl = get_new_handle();
     if (!hdl)
         return -ENOMEM;
@@ -79,7 +83,8 @@ int shim_do_epoll_create1 (int flags)
     create_event(&epoll->event);
     INIT_LIST_HEAD(&epoll->fds);
 
-    int vfd = set_new_fd_handle(hdl, flags, NULL);
+    int vfd = set_new_fd_handle(hdl, (flags & EPOLL_CLOEXEC) ? FD_CLOEXEC : 0,
+                                NULL);
     put_handle(hdl);
     return vfd;
 }
@@ -87,6 +92,9 @@ int shim_do_epoll_create1 (int flags)
 /* the 'size' argument of epoll_create is not used */
 int shim_do_epoll_create (int size)
 {
+    if (size < 0)
+        return -EINVAL;
+
     return shim_do_epoll_create1(0);
 }
 
@@ -321,3 +329,58 @@ struct shim_fs_ops epoll_fs_ops = {
 
 struct shim_mount epoll_builtin_fs = { .type = "epoll",
                                        .fs_ops = &epoll_fs_ops, };
+
+BEGIN_CP_FUNC(epoll_fd)
+{
+    assert(size == sizeof(struct list_head));
+
+    struct list_head * old_list = (struct list_head *) obj;
+    struct list_head * new_list = (struct list_head *) objp;
+    struct shim_epoll_fd * epoll_fd;
+
+    debug("checkpoint epoll: %p -> %p (base = %p)\n", old_list, new_list, base);
+
+    INIT_LIST_HEAD(new_list);
+
+    list_for_each_entry(epoll_fd, old_list, list) {
+        ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_epoll_fd));
+
+        struct shim_epoll_fd * new_epoll_fd =
+                    (struct shim_epoll_fd *) (base + off);
+
+        new_epoll_fd->fd      = epoll_fd->fd;
+        new_epoll_fd->events  = epoll_fd->events;
+        new_epoll_fd->data    = epoll_fd->data;
+        new_epoll_fd->revents = epoll_fd->revents;
+        new_epoll_fd->pal_handle = NULL;
+        list_add(new_list, &new_epoll_fd->list);
+
+        DO_CP(handle, epoll_fd->handle, &new_epoll_fd->handle);
+    }
+
+    ADD_CP_FUNC_ENTRY((ptr_t) objp - base);
+}
+END_CP_FUNC(epoll_fd)
+
+BEGIN_RS_FUNC(epoll_fd)
+{
+    struct list_head * list = (void *) (base + GET_CP_FUNC_ENTRY());
+    struct list_head * e;
+
+    CP_REBASE(*list);
+
+    for (e = list->next ; e != list ; e = e->next) {
+        struct shim_epoll_fd * epoll_fd =
+                list_entry(e, struct shim_epoll_fd, list);
+
+        CP_REBASE(epoll_fd->handle);
+        epoll_fd->pal_handle = epoll_fd->handle->pal_handle;
+        CP_REBASE(*e);
+
+        DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s",
+                 epoll_fd->fd, qstrgetstr(&epoll_fd->handle->path),
+                 epoll_fd->handle->fs_type,
+                 qstrgetstr(&epoll_fd->handle->uri));
+    }
+}
+END_RS_FUNC(epoll_fd)

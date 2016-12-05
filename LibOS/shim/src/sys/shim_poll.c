@@ -117,6 +117,7 @@ static int __do_poll (int npolls, struct poll_handle * polls,
     struct poll_handle * polling = NULL;
     struct poll_handle * p, ** n, * q;
     PAL_HANDLE * pals = NULL;
+    int ret = 0;
 
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();
@@ -215,22 +216,28 @@ no_op:
             if (need_poll) {
                 int polled = hdl->fs->fs_ops->poll(hdl, need_poll);
 
-                if (polled & FS_POLL_ER) {
-                    debug("fd %d known to have error\n", p->fd);
-                    p->flags |= KNOWN_R|KNOWN_W|RET_E;
+                if (polled < 0) {
+                    if (polled != -EAGAIN) {
+                        ret = polled;
+                        goto done_polling;
+                    }
+                } else {
+                    if (polled & FS_POLL_ER) {
+                        debug("fd %d known to have error\n", p->fd);
+                        p->flags |= KNOWN_R|KNOWN_W|RET_E;
+                    }
+
+                    if ((polled & FS_POLL_RD)) {
+                        debug("fd %d known to be readable\n", p->fd);
+                        p->flags |= KNOWN_R|RET_R;
+                    }
+
+                    if (polled & FS_POLL_WR) {
+                        debug("fd %d known to be writeable\n", p->fd);
+                        p->flags |= KNOWN_W|RET_W;
+                    }
+
                     do_r = do_w = false;
-                }
-
-                if ((polled & FS_POLL_RD)) {
-                    debug("fd %d known to be readable\n", p->fd);
-                    p->flags |= KNOWN_R|RET_R;
-                    do_r = false;
-                }
-
-                if (polled & FS_POLL_WR) {
-                    debug("fd %d known to be writeable\n", p->fd);
-                    p->flags |= KNOWN_W|RET_W;
-                    do_w = false;
                 }
             }
 
@@ -274,8 +281,10 @@ done_finding:
 
     SAVE_PROFILE_INTERVAL_SINCE(do_poll_first_loop, begin_time);
 
-    if (!npals)
+    if (!npals) {
+        ret = 0;
         goto done_polling;
+    }
 
     pals = __try_alloca(cur, sizeof(PAL_HANDLE) * npals);
     npals = 0;
@@ -364,6 +373,7 @@ done_finding:
         SAVE_PROFILE_INTERVAL(do_poll_third_loop);
     }
 
+    ret = 0;
 done_polling:
     for (p = polling ; p ; p = p->next)
         put_handle(p->handle);
@@ -373,7 +383,7 @@ done_polling:
     if (pals)
         __try_free(cur, pals);
 
-    return 0;
+    return ret;
 }
 
 int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout)

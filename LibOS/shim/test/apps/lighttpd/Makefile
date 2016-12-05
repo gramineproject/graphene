@@ -55,7 +55,7 @@ start-multithreaded-native-server:
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
 start-graphene-server:
-	$(PREFIX) ./lighttpd.manifest.sgx -D -m /lighttpd -f \
+	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
 
 start-multithreaded-graphene-server:

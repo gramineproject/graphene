@@ -34,6 +34,9 @@ elf_get_dynamic_info (struct link_map * l)
 #endif
     ElfW(Dyn) * dyn = l->l_ld;
 
+    if (dyn == NULL)
+        return;
+
     while (dyn->d_tag != DT_NULL) {
         int tag = 0;
 

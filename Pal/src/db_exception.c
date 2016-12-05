@@ -31,23 +31,50 @@
 #include "api.h"
 #include "linux_list.h"
 
+#define INIT_EVENT_HANDLER      { .lock = LOCK_INIT }
+
+struct pal_event_handler {
+    PAL_LOCK lock;
+    PAL_EVENT_HANDLER upcall;
+};
+
+struct pal_event_handler handlers[] = {
+        [PAL_EVENT_DIVZERO]     = INIT_EVENT_HANDLER,
+        [PAL_EVENT_MEMFAULT]    = INIT_EVENT_HANDLER,
+        [PAL_EVENT_ILLEGAL]     = INIT_EVENT_HANDLER,
+        [PAL_EVENT_QUIT]        = INIT_EVENT_HANDLER,
+        [PAL_EVENT_SUSPEND]     = INIT_EVENT_HANDLER,
+        [PAL_EVENT_RESUME]      = INIT_EVENT_HANDLER,
+        [PAL_EVENT_FAILURE]     = INIT_EVENT_HANDLER,
+    };
+
+PAL_EVENT_HANDLER _DkGetExceptionHandler (PAL_NUM event)
+{
+    struct pal_event_handler * eh = &handlers[event];
+
+    _DkInternalLock(&eh->lock);
+    PAL_EVENT_HANDLER upcall = eh->upcall;
+    _DkInternalUnlock(&eh->lock);
+
+    return upcall;
+}
+
 PAL_BOL
-DkSetExceptionHandler (void (*handler) (PAL_PTR, PAL_NUM, PAL_CONTEXT *),
-                       PAL_NUM event, PAL_FLG flags)
+DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event, PAL_FLG flags)
 {
     ENTER_PAL_CALL(DkSetExceptionHandler);
 
-    if (!handler || event <= 0 || event > PAL_EVENT_NUM_BOUND) {
+    if (!handler || event == 0 ||
+        event > sizeof(handlers) / sizeof(handlers[0])) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    int ret = _DkExceptionHandlers[event](event, handler, flags);
+    struct pal_event_handler * eh = &handlers[event];
 
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
-    }
+    _DkInternalLock(&eh->lock);
+    eh->upcall = handler;
+    _DkInternalUnlock(&eh->lock);
 
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
@@ -56,34 +83,3 @@ void DkExceptionReturn (PAL_PTR event)
 {
     _DkExceptionReturn(event);
 }
-
-#ifndef NO_HANDLE_COMPATIBILITY
-unsigned long _DkHandleCompatibilityException (unsigned long syscallno,
-                                               unsigned long args[6])
-{
-    printf("compatibility support: detected an unintercepted system call\n");
-
-    if (!pal_state.syscall_sym_addr)
-        _DkProcessExit(-1);
-
-    unsigned long ret;
-
-    asm volatile ("movq %6, %%r10\r\n"
-                  "movq %7, %%r8\r\n"
-                  "movq %8, %%r9\r\n"
-                  "callq *%1\r\n"
-                  "movq %%rax, %0\r\n"
-                  : "=a" (ret)
-                  : "r"(pal_state.syscall_sym_addr),
-                    "a" (syscallno),
-                    "D" (args[0]),
-                    "S" (args[1]),
-                    "d" (args[2]),
-                    "r" (args[3]),
-                    "r" (args[4]),
-                    "r" (args[5])
-                  : "memory", "r10", "r8", "r9");
-
-    return ret;
-}
-#endif

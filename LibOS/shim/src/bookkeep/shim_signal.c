@@ -115,6 +115,9 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
             context->uc_mcontext.gregs[REG_R15] = regs->r15;
             context->uc_mcontext.gregs[REG_R14] = regs->r14;
             context->uc_mcontext.gregs[REG_R13] = regs->r13;
+            context->uc_mcontext.gregs[REG_R12] = regs->r12;
+            context->uc_mcontext.gregs[REG_R11] = regs->r11;
+            context->uc_mcontext.gregs[REG_R10] = regs->r10;
             context->uc_mcontext.gregs[REG_R9]  = regs->r9;
             context->uc_mcontext.gregs[REG_R8]  = regs->r8;
             context->uc_mcontext.gregs[REG_RCX] = regs->rcx;
@@ -268,7 +271,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
 internal:
-        internal_fault("Internal memory fault", arg, context);
+        internal_fault("Internal illegal fault", arg, context);
         pause();
         goto ret_exception;
     }

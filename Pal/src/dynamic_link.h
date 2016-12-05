@@ -70,6 +70,11 @@ elf_get_dynamic_info (ElfW(Dyn) *dyn, ElfW(Dyn) **l_info, ElfW(Addr) l_addr)
     typedef Elf64_Xword d_tag_utype;
 #endif
 
+#ifndef RTLD_BOOTSTRAP
+    if (dyn == NULL)
+        return;
+#endif
+
     while (dyn->d_tag != DT_NULL) {
         if ((d_tag_utype) dyn->d_tag < DT_NUM)
             l_info[dyn->d_tag] = dyn;
