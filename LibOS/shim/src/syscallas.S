@@ -63,9 +63,9 @@ isdef:
         pushq %r15
 
         movq %rax, %fs:(SHIM_TCB_OFFSET + 24)
-        leaq 8(%rbp), %rax
+        leaq 16(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + 32)
-        movq (%rbp), %rax
+        movq 8(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + 40)
         movq %rsp, %fs:(SHIM_TCB_OFFSET + 48)
 
