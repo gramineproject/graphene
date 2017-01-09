@@ -1,2 +1,7 @@
 language: c
 script: make && make install
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
