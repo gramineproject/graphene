@@ -90,7 +90,7 @@ __attribute__((unused))
 static inline const char * PAL_STRERROR (int errno)
 {
     int _e = -errno;
-    if (_e > 0 && _e <= PAL_ERROR_BOUND)
+    if (_e >= 0 && _e <= PAL_ERROR_BOUND)
         return pal_errstring[_e];
     return "Unknown error";
 }

@@ -74,7 +74,7 @@ struct parser_table {
     int slow;
     int stop;
     void (*parser[6]) (const char *, va_list *);
-} syscall_parser_table[SHIM_NSYSCALLS] = {
+} syscall_parser_table[LIBOS_SYSCALL_BOUND] = {
     { .slow = 1, .parser = { NULL } }, /* read */
     { .slow = 1, .parser = { NULL } }, /* write */
     { .slow = 1,                       /* open */
@@ -389,7 +389,9 @@ struct parser_table {
     { .slow = 0, .parser = { NULL } }, /* rt_tgsigqueueinfo */
     { .slow = 0, .parser = { NULL } }, /* perf_event_open */
     { .slow = 0, .parser = { NULL } }, /* recvmmsg */
-    { .slow = 0, .parser = { NULL } },
+
+    [LIBOS_SYSCALL_BASE] =  { .slow = 0, .parser = { NULL } },
+
     { .slow = 1, .parser = { NULL } }, /* checkpoint */
     { .slow = 1, .parser = { NULL } }, /* restore */
     { .slow = 1, .parser = { NULL } }, /* sandbox_create */
@@ -874,8 +876,11 @@ static void parse_sockaddr (const char * type, va_list *ap)
             unsigned short * ip = (void *) &a->sin6_addr.s6_addr;
             PRINTF("{family=INET,ip=[%x:%x:%x:%x:%x:%x:%x:%x],"
                    "port=htons(%u)}",
-                   ip[0], ip[1], ip[2], ip[3], ip[4], ip[5], ip[6],
-                   ip[7], __ntohs(a->sin6_port));
+                   __ntohs(ip[0]), __ntohs(ip[1]),
+                   __ntohs(ip[2]), __ntohs(ip[3]),
+                   __ntohs(ip[4]), __ntohs(ip[5]),
+                   __ntohs(ip[6]), __ntohs(ip[7]),
+                   __ntohs(a->sin6_port));
             break;
         }
 

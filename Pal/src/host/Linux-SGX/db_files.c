@@ -69,8 +69,9 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     uint64_t total;
     int ret = load_trusted_file(hdl, &stubs, &total);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Accessing file:%s is denied. (%e) "
-                "This file is not trusted or allowed.\n", hdl->file.realpath, ret);
+        SGX_DBG(DBG_E, "Accessing file:%s is denied. (%s) "
+                "This file is not trusted or allowed.\n", hdl->file.realpath,
+                PAL_STRERROR(-ret));
         free(hdl);
         return -PAL_ERROR_DENIED;
     }
@@ -214,7 +215,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 
         if (ret < 0) {
             SGX_DBG(DBG_E, "file_map - verify trusted returned %d\n", ret);
-            ocall_unmap_untrusted(umem, map_start - map_end);
+            ocall_unmap_untrusted(umem, map_end - map_start);
             return ret;
         }
     }
@@ -229,7 +230,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
         *addr = mem;
     }
 
-    ocall_unmap_untrusted(umem, map_start - map_end);
+    ocall_unmap_untrusted(umem, map_end - map_start);
     return mem ? 0 : -PAL_ERROR_NOMEM;
 }
 

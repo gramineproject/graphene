@@ -21,6 +21,7 @@
 #include <linux/futex.h>
 #include <linux/aio_abi.h>
 #include <linux/perf_event.h>
+#include <linux/timex.h>
 
 #include <asm/posix_types.h>
 #include <asm/statfs.h>
@@ -182,8 +183,11 @@ struct __kernel_rusage {
 };
 
 struct __kernel_rlimit {
-    unsigned long    rlim_cur;
-    unsigned long    rlim_max;
+    unsigned long rlim_cur, rlim_max;
+};
+
+struct __kernel_rlimit64 {
+    uint64_t rlim_cur, rlim_max;
 };
 
 /* linux/eventpoll.h
@@ -387,6 +391,10 @@ typedef struct {
   __kernel_cpu_mask __bits[__CPU_SETSIZE / __NCPUBITS];
 } __kernel_cpu_set_t;
 
+struct getcpu_cache {
+    unsigned long blob[128 / sizeof(long)];
+};
+
 # undef __CPU_SETSIZE
 # undef __NCPUBITS
 
@@ -418,6 +426,12 @@ struct linux_dirent {
 struct linux_dirent_tail {
     char                pad;
     unsigned char       d_type;
+};
+
+struct linux_file_handle {
+    unsigned int handle_bytes;
+    int handle_type;
+    unsigned char f_handle[0];
 };
 
 struct __kernel_addrinfo

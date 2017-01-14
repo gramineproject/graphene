@@ -203,7 +203,8 @@ static int inet_translate_addr (int domain, char * uri, int count,
     if (domain == AF_INET) {
         unsigned char * ad = (unsigned char *) &addr->addr.v4.s_addr;
         int bytes = snprintf(uri, count, "%u.%u.%u.%u:%u",
-                             ad[0], ad[1], ad[2], ad[3], addr->ext_port);
+                             ad[0], ad[1], ad[2], ad[3],
+                             addr->ext_port);
         return bytes == count ? -ENAMETOOLONG : bytes;
     }
 
@@ -211,8 +212,11 @@ static int inet_translate_addr (int domain, char * uri, int count,
         unsigned short * ad = (void *) &addr->addr.v6.s6_addr;
         int bytes = snprintf(uri, count,
                              "[%04x:%04x:%x:%04x:%04x:%04x:%04x:%04x]:%u",
-                             ad[0], ad[1], ad[2], ad[3],
-                             ad[4], ad[5], ad[6], ad[7], addr->ext_port);
+                             __ntohs(ad[0]), __ntohs(ad[1]),
+                             __ntohs(ad[2]), __ntohs(ad[3]),
+                             __ntohs(ad[4]), __ntohs(ad[5]),
+                             __ntohs(ad[6]), __ntohs(ad[7]),
+                             addr->ext_port);
         return bytes == count ? -ENAMETOOLONG : bytes;
     }
 
@@ -1101,6 +1105,25 @@ ssize_t shim_do_sendmsg (int sockfd, struct msghdr * msg, int flags)
                       msg->msg_name, msg->msg_namelen);
 }
 
+int shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags)
+{
+    int i, total = 0;
+
+    for (i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
+        struct msghdr * m = &msg[i].msg_hdr;
+
+        int bytes = do_sendmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
+                               m->msg_name, m->msg_namelen);
+        if (bytes < 0)
+            return total ? : bytes;
+
+        msg[i].msg_len = bytes;
+        total++;
+    }
+
+    return total;
+}
+
 static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
                            struct sockaddr * addr, socklen_t * addrlen)
 {
@@ -1228,6 +1251,26 @@ ssize_t shim_do_recvmsg (int sockfd, struct msghdr * msg, int flags)
 {
     return do_recvmsg(sockfd, msg->msg_iov, msg->msg_iovlen, flags,
                       msg->msg_name, &msg->msg_namelen);
+}
+
+int shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags,
+                      struct __kernel_timespec * timeout)
+{
+    int i, total = 0;
+
+    for (i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
+        struct msghdr * m = &msg[i].msg_hdr;
+
+        int bytes = do_recvmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
+                               m->msg_name, m->msg_namelen);
+        if (bytes < 0)
+            return total ? : bytes;
+
+        msg[i].msg_len = bytes;
+        total++;
+    }
+
+    return total;
 }
 
 #define SHUT_RD     0

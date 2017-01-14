@@ -9,6 +9,11 @@
 
 #ifdef IN_SHIM
 
+typedef void (*shim_fp)(void);
+
+extern shim_fp shim_table[];
+
+/* syscall entries */
 long __shim_read (long, long , long);
 long __shim_write (long, long, long);
 long __shim_open (long, long , long);
@@ -301,6 +306,18 @@ long __shim_pwritev (long, long, long, long, long);
 long __shim_rt_tgsigqueueinfo (long, long, long, long);
 long __shim_perf_event_open (long, long, long, long, long);
 long __shim_recvmmsg (long, long, long, long, long);
+long __shim_fanotify_init (long, long);
+long __shim_fanotify_mark (long, long, long, long, long);
+long __shim_prlimit64 (long, long, long, long);
+long __shim_name_to_handle_at (long, long, long, long, long);
+long __shim_open_by_handle_at (long, long, long);
+long __shim_clock_adjtime (long, long);
+long __shim_syncfs (long);
+long __shim_sendmmsg (long, long, long, long);
+long __shim_setns (long, long);
+long __shim_getcpu (long, long, long);
+
+/* libos call entries */
 long __shim_sandbox_create (long, long, long);
 long __shim_sandbox_attach (long);
 long __shim_sandbox_current (void);
@@ -310,9 +327,7 @@ long __shim_send_rpc (long, long, long);
 long __shim_recv_rpc (long, long, long);
 long __shim_checkpoint(long);
 
-typedef void (*shim_fp)(void);
-extern shim_fp shim_table [SHIM_NSYSCALLS];
-
+/* syscall implementation */
 size_t shim_do_read (int fd, void * buf, size_t count);
 size_t shim_do_write (int fd, const void * buf, size_t count);
 int shim_do_open (const char * file, int flags, mode_t mode);
@@ -476,6 +491,11 @@ int shim_do_accept4 (int sockfd, struct sockaddr * addr, socklen_t * addrlen,
 int shim_do_dup3 (int oldfd, int newfd, int flags);
 int shim_do_epoll_create1 (int flags);
 int shim_do_pipe2 (int * fildes, int flags);
+int shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags,
+                      struct __kernel_timespec * timeout);
+int shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags);
+
+/* libos call implementation */
 long shim_do_sandbox_create (int flags, const char * fs_sb,
                              struct net_sb * net_sb);
 int shim_do_sandbox_attach (unsigned int sbid);
@@ -488,6 +508,7 @@ int shim_do_checkpoint(const char * filename);
 
 #endif /* ! IN_SHIM */
 
+/* syscall wrappers */
 size_t shim_read (int fd, void * buf, size_t count);
 size_t shim_write (int fd, const void * buf, size_t count);
 int shim_open (const char * file, int flags, mode_t mode);
@@ -841,8 +862,11 @@ int shim_pwritev (unsigned long fd, const struct iovec * vec,
 int shim_rt_tgsigqueueinfo (pid_t tgid, pid_t pid, int sig, siginfo_t * uinfo);
 int shim_perf_event_open (struct perf_event_attr * attr_uptr, pid_t pid,
                           int cpu, int group_fd, int flags);
-int shim_recvmmsg (int fd, struct mmsghdr * msg, int vlen, int flags,
+int shim_recvmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags,
                    struct __kernel_timespec * timeout);
+int shim_sendmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags);
+
+/* libos call wrappers */
 long shim_sandbox_create (int flags, const char * fs_sb, struct net_sb * net_sb);
 int shim_sandbox_attach (unsigned int sbid);
 long shim_sandbox_current (void);

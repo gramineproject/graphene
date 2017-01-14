@@ -30,7 +30,7 @@ void debug_unsupp (int num){
     debug ("Unsupported system call %d\n", num);
 }
 
-shim_fp shim_table [SHIM_NSYSCALLS] = {
+shim_fp shim_table [LIBOS_SYSCALL_BOUND] = {
     (shim_fp) __shim_read,
     (shim_fp) __shim_write,
     (shim_fp) __shim_open,
@@ -331,9 +331,19 @@ shim_fp shim_table [SHIM_NSYSCALLS] = {
     (shim_fp) __shim_rt_tgsigqueueinfo,
     (shim_fp) __shim_perf_event_open,
     (shim_fp) __shim_recvmmsg,
-    (shim_fp) NULL,
-    (shim_fp) NULL,
-    (shim_fp) NULL,
+    (shim_fp) __shim_fanotify_init,
+    (shim_fp) __shim_fanotify_mark,
+    (shim_fp) __shim_prlimit64,
+    (shim_fp) __shim_name_to_handle_at,
+    (shim_fp) __shim_open_by_handle_at,
+    (shim_fp) __shim_clock_adjtime,
+    (shim_fp) __shim_syncfs,
+    (shim_fp) __shim_sendmmsg,
+    (shim_fp) __shim_setns,
+    (shim_fp) __shim_getcpu,
+
+    [LIBOS_SYSCALL_BASE] = (shim_fp) NULL,
+
     (shim_fp) __shim_sandbox_create,    /* 303 */
     (shim_fp) __shim_sandbox_attach,    /* 304 */
     (shim_fp) __shim_sandbox_current,   /* 305 */
