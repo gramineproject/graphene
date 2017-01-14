@@ -248,7 +248,7 @@ internal:
     }
 
     if (context)
-        pal_printf("memory fault at %p (IP = %p)\n", arg, context->IP);
+        debug("memory fault at %p (IP = %p)\n", arg, context->IP);
 
     struct shim_vma * vma = NULL;
     if (!lookup_supervma((void *) arg, 0, &vma)) {
