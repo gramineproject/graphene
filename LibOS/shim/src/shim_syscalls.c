@@ -1144,9 +1144,41 @@ SHIM_SYSCALL_PASSTHROUGH (perf_event_open, 5, int, struct perf_event_attr *,
                           attr_uptr, pid_t, pid, int, cpu, int, group_fd,
                           int, flags)
 
-SHIM_SYSCALL_PASSTHROUGH (recvmmsg, 5, int, int, fd, struct mmsghdr *, msg,
-                          int, vlen, int, flags, struct __kernel_timespec *,
-                          timeout)
+DEFINE_SHIM_SYSCALL (recvmmsg, 5, shim_do_recvmmsg, int, int, fd,
+                     struct mmsghdr *, msg, int, vlen, int, flags,
+                     struct __kernel_timespec *, timeout)
+
+SHIM_SYSCALL_PASSTHROUGH (fanotify_init, 2, int, int, flags, int, event_f_flags)
+
+SHIM_SYSCALL_PASSTHROUGH (fanotify_mark, 5, int, int, fanotify_fd, int, flags,
+                          unsigned long, mask, int, fd, const char  *, pathname)
+
+SHIM_SYSCALL_PASSTHROUGH (prlimit64, 4, int, pid_t, pid, int, resource,
+                          const struct __kernel_rlimit64 *, new_rlim,
+                          struct __kernel_rlimit64 *, old_rlim)
+
+SHIM_SYSCALL_PASSTHROUGH (name_to_handle_at, 5, int, int, dfd,
+                          const char *, name,
+                          struct linux_file_handle *, handle, int *, mnt_id,
+                          int, flag)
+
+SHIM_SYSCALL_PASSTHROUGH (open_by_handle_at, 3, int, int, mountdirfd,
+                          struct linux_file_handle *, handle, int, flags)
+
+SHIM_SYSCALL_PASSTHROUGH (clock_adjtime, 2, int, clockid_t, which_clock,
+                          struct timex *, tx)
+
+SHIM_SYSCALL_PASSTHROUGH (syncfs, 1, int, int, fd)
+
+DEFINE_SHIM_SYSCALL (sendmmsg, 4, shim_do_sendmmsg, int, int, fd,
+                     struct mmsghdr *, msg, int, vlen, int, flags)
+
+SHIM_SYSCALL_PASSTHROUGH (setns, 2, int, int, fd, int, nstype)
+
+SHIM_SYSCALL_PASSTHROUGH (getcpu, 3, int, unsigned *, cpu, unsigned *, node,
+                          struct getcpu_cache *, cache)
+
+/* libos calls */
 
 DEFINE_SHIM_SYSCALL (sandbox_create, 3, shim_do_sandbox_create, long,
                      int, flags, const char *, fs_sb, struct net_sb *, net_sb)
@@ -1170,34 +1202,3 @@ DEFINE_SHIM_SYSCALL (recv_rpc, 3, shim_do_recv_rpc, size_t, pid_t *, pid,
 
 DEFINE_SHIM_SYSCALL (checkpoint, 1, shim_do_checkpoint, int,
                      const char *, filename)
-
-/*
-SHIM_SYSCALL_PASSTHROUGH (fanotify_init, 2, int, int, flags, int, event_f_flags)
-
-SHIM_SYSCALL_PASSTHROUGH (fanotify_mark, 5, int, int, fanotify_fd, int, flags,
-                          unsigned long, mask, int, fd, const char  *, pathname)
-
-SHIM_SYSCALL_PASSTHROUGH (prlimit64, 4, int, pid_t, pid, int, resource,
-                          const struct rlimit64 *, new_rlim, struct rlimit64 *,
-                          old_rlim)
-
-SHIM_SYSCALL_PASSTHROUGH (name_to_handle_at, 5, int, int, dfd, const char *,
-                          name, struct file_handle *, handle, int *, mnt_id,
-                          int, flag)
-
-SHIM_SYSCALL_PASSTHROUGH (open_by_handle_at, 3, int, int, mountdirfd,
-                          struct file_handle *, handle, int, flags)
-
-SHIM_SYSCALL_PASSTHROUGH (clock_adjtime, 2, int, clockid_t, which_clock,
-                          struct timex *, tx)
-
-SHIM_SYSCALL_PASSTHROUGH (syncfs, 1, int, int, fd)
-
-SHIM_SYSCALL_PASSTHROUGH (sendmmsg, 4, int, int, fd, struct mmsghdr *, msg,
-                          int, vlen, int, flags)
-
-SHIM_SYSCALL_PASSTHROUGH (setns, 2, int, int, fd, int, nstype)
-
-SHIM_SYSCALL_PASSTHROUGH (getcpu, 3, int, unsigned *, cpu, unsigned *, node,
-                          struct getcpu_cache *, cache)
-*/

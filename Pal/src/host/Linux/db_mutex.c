@@ -105,7 +105,7 @@ success:
 out:
 #ifdef DEBUG_MUTEX
     if (ret < 0)
-        printf("mutex failed (%e, tid = %d)\n", -ret, tid);
+        printf("mutex failed (%s, tid = %d)\n", PAL_STRERROR(ret), tid);
 #endif
     return ret;
 }
@@ -145,7 +145,7 @@ success:
 out:
 #ifdef DEBUG_MUTEX
     if (ret < 0)
-        printf("mutex failed (%e, tid = %d)\n", -ret, tid);
+        printf("mutex failed (%s, tid = %d)\n", PAL_STRERROR(ret), tid);
 #endif
     return ret;
 }

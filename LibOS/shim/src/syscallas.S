@@ -40,12 +40,12 @@ syscalldb:
 
         pushq %rbx
 
-        cmp $SHIM_NSYSCALLS, %rax
+        cmp $LIBOS_SYSCALL_BOUND, %rax
         jge isundef
 
         leaq shim_table(%rip), %rbx
         movq (%rbx,%rax,8), %rbx
-        cmp $0, (%rbx)
+        cmp $0, %rbx
         je isundef
 
 isdef:

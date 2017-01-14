@@ -30,8 +30,6 @@
 # error "cannot be included outside PAL"
 #endif
 
-#define DEBUG_MUTEX 1
-
 /* internal Mutex design, the structure has to align at integer boundary
    because it is required by futex call. If DEBUG_MUTEX is defined,
    mutex_handle will record the owner of mutex locking. */

@@ -627,8 +627,8 @@ static int create_instance (struct pal_sec * pal_sec)
         }
 
         if (IS_ERR(ret)) {
-            SGX_DBG(DBG_E, "Cannot create directory %s (%e), "
-                   "please check permission\n", path, ERRNO(ret));
+            SGX_DBG(DBG_E, "Cannot create directory %s (%s), "
+                   "please check permission\n", path, PAL_STRERROR(-ERRNO(ret)));
             return -PAL_ERROR_DENIED;
         }
     }
@@ -649,10 +649,10 @@ static int create_instance (struct pal_sec * pal_sec)
 
         ret = INLINE_SYSCALL(mkdir, 2, pal_sec->pipe_prefix, 0700);
 
-        if (IS_ERR(ret) && ERRNO(ret) != -EEXIST) {
-            SGX_DBG(DBG_E, "Cannot create directory %s (%e), "
+        if (IS_ERR(ret) && ERRNO(ret) != EEXIST) {
+            SGX_DBG(DBG_E, "Cannot create directory %s (%s), "
                    "please fix permission\n",
-                   pal_sec->pipe_prefix, ERRNO(ret));
+                   pal_sec->pipe_prefix, PAL_STRERROR(-ERRNO(ret)));
             return -PAL_ERROR_DENIED;
         }
     } while (IS_ERR(ret));

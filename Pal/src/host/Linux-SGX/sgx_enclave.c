@@ -394,6 +394,15 @@ static int sgx_ocall_sock_connect(void * pms)
     }
 
     ret = INLINE_SYSCALL(connect, 3, fd, ms->ms_addr, ms->ms_addrlen);
+
+    if (IS_ERR(ret) && ERRNO(ret) == EINPROGRESS) {
+        do {
+            struct pollfd pfd = { .fd = fd, .events = POLLOUT, .revents = 0, };
+            ret = INLINE_SYSCALL(ppoll, 4, &pfd, 1, NULL, NULL);
+        } while (IS_ERR(ret) &&
+                 ERRNO(ret) == -EWOULDBLOCK);
+    }
+
     if (IS_ERR(ret)) {
         ret = unix_to_pal_error(ERRNO(ret));
         goto err_fd;
