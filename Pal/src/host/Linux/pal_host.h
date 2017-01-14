@@ -30,20 +30,27 @@
 # error "cannot be included outside PAL"
 #endif
 
+#define DEBUG_MUTEX 1
+
 /* internal Mutex design, the structure has to align at integer boundary
    because it is required by futex call. If DEBUG_MUTEX is defined,
    mutex_handle will record the owner of mutex locking. */
 typedef struct mutex_handle {
-    struct atomic_int value;
+    union {
+        unsigned int u;
+        struct {
+            unsigned char locked;
+            unsigned char contended;
+        } b;
+    };
 #ifdef DEBUG_MUTEX
     int owner;
 #endif
 } PAL_LOCK;
 
 /* Initializer of Mutexes */
-#define MUTEX_HANDLE_INIT    { .value = { .counter = 1 } }
-#define INIT_MUTEX_HANDLE(mut)  \
-    do { atomic_set(&(mut)->value, 1); } while (0)
+#define MUTEX_HANDLE_INIT    { .u = 0 }
+#define INIT_MUTEX_HANDLE(m)  do { m->u = 0; } while (0)
 
 #define LOCK_INIT MUTEX_HANDLE_INIT
 #define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock);
@@ -224,8 +231,10 @@ struct arch_frame {
 # error "unsupported architecture"
 #endif
 
+#define PAL_FRAME_IDENTIFIER    (0xdeaddeadbeefbeef)
+
 struct pal_frame {
-    volatile struct pal_frame * self;
+    volatile uint64_t           identifier;
     void *                      func;
     const char *                funcname;
     struct arch_frame           arch;
@@ -236,9 +245,10 @@ void __store_frame (struct pal_frame * frame,
                     void * func, const char * funcname)
 {
     arch_store_frame(&frame->arch)
-    *(volatile void **) &frame->self = frame;
     frame->func = func;
     frame->funcname = funcname;
+    asm volatile ("nop" ::: "memory");
+    frame->identifier = PAL_FRAME_IDENTIFIER;
 }
 
 #define ENTER_PAL_CALL(name)                \
@@ -249,9 +259,9 @@ void __store_frame (struct pal_frame * frame,
 static inline
 void __clear_frame (struct pal_frame * frame)
 {
-    if (*(volatile void **) &frame->self == frame) {
+    if (frame->identifier == PAL_FRAME_IDENTIFIER) {
         asm volatile ("nop" ::: "memory");
-        *(volatile void **) &frame->self = NULL;
+        frame->identifier = 0;
     }
 }
 

@@ -28,6 +28,13 @@ MODULE_VERSION(DRV_VERSION);
 
 IMPORT_KSYM(dac_mmap_min_addr);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+static void __enable_fsgsbase(void *v)
+{
+	write_cr4(read_cr4() | X86_CR4_FSGSBASE);
+}
+#endif
+
 static long gsgx_ioctl_enclave_create(struct file *filep, unsigned int cmd,
 				      unsigned long arg)
 {
@@ -43,7 +50,8 @@ static long gsgx_ioctl_enclave_create(struct file *filep, unsigned int cmd,
 	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-	write_cr4(read_cr4() | X86_CR4_FSGSBASE);
+	__enable_fsgsbase(NULL);
+	smp_call_function(__enable_fsgsbase, NULL, 1);
 #endif
 
 	isgx_create.src = createp->src;

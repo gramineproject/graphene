@@ -45,6 +45,7 @@
 
 struct futex_waiter {
     struct shim_thread * thread;
+    uint32_t bitset;
     struct list_head list;
 };
 
@@ -54,8 +55,11 @@ static LOCKTYPE futex_list_lock;
 int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                    unsigned int * uaddr2, int val3)
 {
-    struct shim_futex_handle * tmp = NULL, * futex = NULL;
-    struct shim_handle * hdl;
+    struct shim_futex_handle * tmp = NULL, * futex = NULL, * futex2 = NULL;
+    struct shim_handle * hdl = NULL, * hdl2 = NULL;
+    uint32_t futex_op = (op & FUTEX_CMD_MASK);
+
+    uint32_t val2 = 0;
     int ret = 0;
 
     if (!uaddr || ((uintptr_t) uaddr % sizeof(unsigned int)))
@@ -88,28 +92,118 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
         list_add_tail(&futex->list, &futex_list);
     }
 
+    if (futex_op == FUTEX_WAKE_OP || futex_op == FUTEX_REQUEUE) {
+        list_for_each_entry(tmp, &futex_list, list)
+            if (tmp->uaddr == uaddr2) {
+                futex2 = tmp;
+                break;
+            }
+
+        if (futex2) {
+            hdl2 = container_of(futex2, struct shim_handle, info.futex);
+            get_handle(hdl2);
+        } else {
+            if (!(hdl2 = get_new_handle())) {
+                unlock(futex_list_lock);
+                return -ENOMEM;
+            }
+
+            hdl2->type = TYPE_FUTEX;
+            futex2 = &hdl2->info.futex;
+            futex2->uaddr = uaddr2;
+            get_handle(hdl2);
+            INIT_LIST_HEAD(&futex2->waiters);
+            INIT_LIST_HEAD(&futex2->list);
+            list_add_tail(&futex2->list, &futex_list);
+        }
+
+        val2 = (uint32_t)(uint64_t) utime;
+    }
+
     unlock(futex_list_lock);
     lock(hdl->lock);
 
-    switch (op & FUTEX_CMD_MASK) {
+    switch (futex_op) {
         case FUTEX_WAIT:
-            debug("FUTEX_WAIT: %p (val = %d) vs %d\n", uaddr, *uaddr, val);
-            if (*uaddr != val)
+        case FUTEX_WAIT_BITSET: {
+            uint32_t bitset = (futex_op == FUTEX_WAIT_BITSET) ? val3 :
+                              0xffffffff;
+            debug("FUTEX_WAIT: %p (val = %d) vs %d mask = %08x\n",
+                  uaddr, *uaddr, val, bitset);
+
+            if (*uaddr != val) {
+                ret = -EAGAIN;
                 break;
+            }
 
             struct futex_waiter waiter;
             thread_setwait(&waiter.thread, NULL);
             INIT_LIST_HEAD(&waiter.list);
+            waiter.bitset = (futex_op == FUTEX_WAIT_BITSET) ? val3 : 0xffffffff;
             list_add_tail(&waiter.list, &futex->waiters);
 
             unlock(hdl->lock);
             thread_sleep();
             lock(hdl->lock);
             break;
+        }
 
-        case FUTEX_WAKE: {
-            debug("FUTEX_WAKE: %p (val = %d)\n", uaddr, *uaddr);
-            int cnt;
+        case FUTEX_WAKE:
+        case FUTEX_WAKE_BITSET: {
+            uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? val3 :
+                              0xffffffff;
+            debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",
+                  uaddr, *uaddr, val, bitset);
+            int cnt, nwaken = 0;
+            for (cnt = 0 ; cnt < val ; cnt++) {
+                if (list_empty(&futex->waiters))
+                    break;
+
+                struct futex_waiter * waiter = list_entry(futex->waiters.next,
+                                                          struct futex_waiter,
+                                                          list);
+
+                if (!(bitset & waiter->bitset))
+                    continue;
+
+                debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
+                      waiter->thread->tid, uaddr, *uaddr);
+                list_del(&waiter->list);
+                thread_wakeup(waiter->thread);
+                nwaken++;
+            }
+
+            ret = nwaken;
+            debug("FUTEX_WAKE done: %p (val = %d)\n", uaddr, *uaddr);
+            break;
+        }
+
+        case FUTEX_WAKE_OP: {
+            assert(futex2);
+            int oldval = *(int *) uaddr2, newval, cmpval;
+
+            newval = (val3 >> 12) & 0xfff;
+            switch ((val3 >> 28) & 0xf) {
+                case FUTEX_OP_SET:  break;
+                case FUTEX_OP_ADD:  newval = oldval + newval;  break;
+                case FUTEX_OP_OR:   newval = oldval | newval;  break;
+                case FUTEX_OP_ANDN: newval = oldval & ~newval; break;
+                case FUTEX_OP_XOR:  newval = oldval ^ newval;  break;
+            }
+
+            cmpval = val3 & 0xfff;
+            switch ((val3 >> 24) & 0xf) {
+                case FUTEX_OP_CMP_EQ: cmpval = (oldval == cmpval); break;
+                case FUTEX_OP_CMP_NE: cmpval = (oldval != cmpval); break;
+                case FUTEX_OP_CMP_LT: cmpval = (oldval < cmpval);  break;
+                case FUTEX_OP_CMP_LE: cmpval = (oldval <= cmpval); break;
+                case FUTEX_OP_CMP_GT: cmpval = (oldval > cmpval);  break;
+                case FUTEX_OP_CMP_GE: cmpval = (oldval >= cmpval); break;
+            }
+
+            *(int *) uaddr2 = newval;
+            int cnt, nwaken = 0;
+            debug("FUTEX_WAKE: %p (val = %d) count = %d\n", uaddr, *uaddr, val);
             for (cnt = 0 ; cnt < val ; cnt++) {
                 if (list_empty(&futex->waiters))
                     break;
@@ -122,9 +216,32 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                       waiter->thread->tid, uaddr, *uaddr);
                 list_del(&waiter->list);
                 thread_wakeup(waiter->thread);
+                nwaken++;
             }
-            ret = cnt;
-            debug("FUTEX_WAKE done: %p (val = %d)\n", uaddr, *uaddr);
+
+            if (cmpval) {
+                unlock(hdl->lock);
+                put_handle(hdl);
+                hdl = hdl2;
+                lock(hdl->lock);
+                debug("FUTEX_WAKE: %p (val = %d) count = %d\n", uaddr2,
+                      *uaddr2, val2);
+                for (cnt = 0 ; cnt < val2 ; cnt++) {
+                    if (list_empty(&futex2->waiters))
+                        break;
+
+                    struct futex_waiter * waiter = list_entry(futex2->waiters.next,
+                                                              struct futex_waiter,
+                                                              list);
+
+                    debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
+                          waiter->thread->tid, uaddr2, *uaddr2);
+                    list_del(&waiter->list);
+                    thread_wakeup(waiter->thread);
+                    nwaken++;
+                }
+            }
+            ret = nwaken;
             break;
         }
 
@@ -135,38 +252,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             }
 
         case FUTEX_REQUEUE: {
-            struct shim_futex_handle * futex2 = NULL;
-            struct shim_handle * hdl2;
-
-            lock(futex_list_lock);
-
-            list_for_each_entry(tmp, &futex_list, list)
-                if (tmp->uaddr == uaddr2) {
-                    futex2 = tmp;
-                    break;
-                }
-
-            if (futex2) {
-                hdl2 = container_of(futex2, struct shim_handle, info.futex);
-                get_handle(hdl2);
-            } else {
-                if (!(hdl2 = get_new_handle())) {
-                    unlock(futex_list_lock);
-                    ret = -ENOMEM;
-                    goto out;
-                }
-
-                hdl2->type = TYPE_FUTEX;
-                futex2 = &hdl2->info.futex;
-                futex2->uaddr = uaddr2;
-                get_handle(hdl2);
-                INIT_LIST_HEAD(&futex2->waiters);
-                INIT_LIST_HEAD(&futex2->list);
-                list_add_tail(&futex2->list, &futex_list);
-            }
-
-            unlock(futex_list_lock);
-
+            assert(futex2);
             int cnt;
             for (cnt = 0 ; cnt < val ; cnt++) {
                 if (list_empty(&futex->waiters))
@@ -181,14 +267,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             }
 
             lock(hdl2->lock);
-            while (!list_empty(&futex->waiters)) {
-                struct futex_waiter * waiter = list_entry(futex->waiters.next,
-                                                          struct futex_waiter,
-                                                          list);
-
-                list_del(&waiter->list);
-                list_add_tail(&waiter->list, &futex2->waiters);
-            }
+            list_splice_init(&futex->waiters, &futex2->waiters);
             unlock(hdl2->lock);
             put_handle(hdl2);
             ret = cnt;
@@ -206,7 +285,6 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
     }
 
     unlock(hdl->lock);
-out:
     put_handle(hdl);
     return ret;
 }

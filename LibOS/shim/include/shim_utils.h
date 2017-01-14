@@ -235,7 +235,7 @@ int create_handle (const char * prefix, char * path, size_t size,
 
 /* Asynchronous event support */
 int init_async (void);
-int install_async_event (unsigned long time,
+int install_async_event (PAL_HANDLE object, unsigned long time,
                          void (*callback) (IDTYPE caller, void * arg),
                          void * arg);
 int create_async_helper (void);

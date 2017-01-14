@@ -476,10 +476,10 @@ DEFINE_SHIM_SYSCALL (chmod, 2, shim_do_chmod, int, const char *, filename,
 
 DEFINE_SHIM_SYSCALL (fchmod, 2, shim_do_fchmod, int, int, fd, mode_t, mode)
 
-SHIM_SYSCALL_PASSTHROUGH (chown, 3, int, const char *, filename,
-                          uid_t, user, gid_t, group)
+DEFINE_SHIM_SYSCALL (chown, 3, shim_do_chown, int, const char *, filename,
+                     uid_t, user, gid_t, group)
 
-SHIM_SYSCALL_PASSTHROUGH (fchown, 3, int, int, fd, uid_t, user, gid_t, group)
+DEFINE_SHIM_SYSCALL (fchown, 3, shim_do_fchown, int, int, fd, uid_t, user, gid_t, group)
 
 SHIM_SYSCALL_PASSTHROUGH (lchown, 3, int, const char *, filename,
                           uid_t, user, gid_t, group)
@@ -588,7 +588,7 @@ SHIM_SYSCALL_PASSTHROUGH (rt_sigtimedwait, 4, int, const __sigset_t *, uthese,
 SHIM_SYSCALL_PASSTHROUGH (rt_sigqueueinfo, 3, int, int, pid, int, sig,
                           siginfo_t *, uinfo)
 
-SHIM_SYSCALL_PASSTHROUGH (rt_sigsuspend, 1, int, const __sigset_t *, mask)
+DEFINE_SHIM_SYSCALL (rt_sigsuspend, 1, shim_do_sigsuspend, int, const __sigset_t *, mask)
 
 SHIM_SYSCALL_PASSTHROUGH (sigaltstack, 2, int, const stack_t *, ss, stack_t *,
                           oss)
@@ -1012,8 +1012,8 @@ DEFINE_SHIM_SYSCALL (mkdirat, 3, shim_do_mkdirat, int, int, dfd,
 SHIM_SYSCALL_PASSTHROUGH (mknodat, 4, int, int, dfd, const char *, filename,
                           int, mode, unsigned, dev)
 
-SHIM_SYSCALL_PASSTHROUGH (fchownat, 5, int, int, dfd, const char *, filename,
-                          uid_t, user, gid_t, group, int, flag)
+DEFINE_SHIM_SYSCALL (fchownat, 5, shim_do_fchownat, int, int, dfd,
+                     const char *, filename, uid_t, user, gid_t, group, int, flag)
 
 SHIM_SYSCALL_PASSTHROUGH (futimesat, 3, int, int, dfd, const char *, filename,
                           struct timeval *, utimes)

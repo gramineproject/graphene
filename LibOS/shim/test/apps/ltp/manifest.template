@@ -1,0 +1,18 @@
+loader.preload = file:$(SHIMPATH)
+loader.env.LD_LIBRARY_PATH = /lib:/lib64:/usr/lib:/usr/lib64
+loader.debug_type = none
+
+fs.mount.tmp1.type = chroot
+fs.mount.tmp1.path = /tmp
+fs.mount.tmp1.uri = file:/tmp
+
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(LIBCDIR)
+
+fs.mount.usr.type = chroot
+fs.mount.usr.path = /usr
+fs.mount.usr.uri = file:/usr
+
+sys.brk.size = 32M
+sys.stack.size = 4M

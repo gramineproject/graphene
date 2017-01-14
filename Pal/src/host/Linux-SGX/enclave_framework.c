@@ -71,6 +71,8 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
 
 #include "crypto/cmac.h"
 
+static sgx_arch_key128_t enclave_key;
+
 int sgx_verify_report (sgx_arch_report_t * report)
 {
     sgx_arch_keyrequest_t keyrequest;
@@ -78,19 +80,30 @@ int sgx_verify_report (sgx_arch_report_t * report)
     keyrequest.keyname = REPORT_KEY;
     memcpy(keyrequest.keyid, report->keyid, sizeof(keyrequest.keyid));
 
-    sgx_arch_key128_t key;
-    int ret = sgx_getkey(&keyrequest, &key);
+    int ret = sgx_getkey(&keyrequest, &enclave_key);
     if (ret) {
         SGX_DBG(DBG_S, "Can't get report key\n");
         return -PAL_ERROR_DENIED;
     }
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n", hex2str(key));
 
-    sgx_arch_mac_t mac;
-    AES_CMAC((void *) &key, (void *) report, SGX_REPORT_SIGNED_SIZE, mac);
-    SGX_DBG(DBG_S, "Generated mac: %s\n", hex2str(mac));
+    SGX_DBG(DBG_S, "Get report key for verification: %s\n", hex2str(enclave_key));
+    return 0;
+}
 
-    return memcmp(mac, report->mac, sizeof(sgx_arch_mac_t)) ? 1 : 0;
+int init_enclave_key (void)
+{
+    sgx_arch_keyrequest_t keyrequest;
+    memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
+    keyrequest.keyname = SEAL_KEY;
+
+    int ret = sgx_getkey(&keyrequest, &enclave_key);
+    if (ret) {
+        SGX_DBG(DBG_S, "Can't get report key\n");
+        return -PAL_ERROR_DENIED;
+    }
+
+    SGX_DBG(DBG_S, "Get sealing key: %s\n", hex2str(enclave_key));
+    return 0;
 }
 
 struct trusted_file {
@@ -99,7 +112,8 @@ struct trusted_file {
     uint64_t size;
     int uri_len;
     char uri[URI_MAX];
-    sgx_checksum_t checksum, * stubs;
+    sgx_checksum_t checksum;
+    sgx_arch_mac_t * stubs;
 };
 
 static LIST_HEAD(trusted_file_list);
@@ -108,7 +122,7 @@ static int trusted_file_indexes = 0;
 
 #include <crypto/sha256.h>
 
-int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
+int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
                        uint64_t * sizeptr)
 {
     struct trusted_file * tf = NULL, * tmp;
@@ -149,11 +163,13 @@ int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
     if (tf->index < 0) 
         return tf->index;
 
+#if CACHE_FILE_STUBS == 1
     if (tf->index && tf->stubs) {
         *stubptr = tf->stubs;
         *sizeptr = tf->size;
         return 0;
     }
+#endif
 
     if (!tf->index) {
         *stubptr = NULL;
@@ -169,10 +185,11 @@ int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
-    sgx_checksum_t * stubs = malloc(sizeof(sgx_checksum_t) * nstubs);
-    if (!tf) 
+    sgx_arch_mac_t * stubs = malloc(sizeof(sgx_arch_mac_t) * nstubs);
+    if (!tf)
         return -PAL_ERROR_NOMEM;
 
+    sgx_arch_mac_t * s = stubs;
     uint64_t offset = 0;
     SHA256 sha;
     void * umem;
@@ -181,7 +198,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
     if (ret < 0)
         goto failed;
 
-    for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE) {
+    for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE, s++) {
         uint64_t mapping_size = tf->size - offset;
         if (mapping_size > TRUSTED_STUB_SIZE)
             mapping_size = TRUSTED_STUB_SIZE;
@@ -190,20 +207,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_checksum_t ** stubptr,
         if (ret < 0)
             goto unmap;
 
-        /* calculate stub checksum */
-        SHA256 stub_sha;
-        ret = SHA256Init(&stub_sha);
-        if (ret < 0)
-            goto unmap;
-
-        ret = SHA256Update(&stub_sha, umem, mapping_size);
-        if (ret < 0)
-            goto unmap;
-
-        ret = SHA256Final(&stub_sha,
-                          (uint8_t *) stubs[offset / TRUSTED_STUB_SIZE].bytes);
-        if (ret < 0)
-            goto unmap;
+        AES_CMAC((void *) &enclave_key, umem, mapping_size, (uint8_t *) s);
 
         /* update the file checksum */
         ret = SHA256Update(&sha, umem, mapping_size);
@@ -226,12 +230,9 @@ unmap:
     }
 
     _DkSpinLock(&trusted_file_lock);
-    if (tf->stubs || tf->index == -PAL_ERROR_DENIED) {
-        free(stubs);
-        *stubptr = tf->stubs;
-    } else {
-        *stubptr = tf->stubs = stubs;
-    }
+    if (tf->stubs || tf->index == -PAL_ERROR_DENIED)
+        free(tf->stubs);
+    *stubptr = tf->stubs = stubs;
     *sizeptr = tf->size;
     ret = tf->index;
     _DkSpinUnlock(&trusted_file_lock);
@@ -255,12 +256,11 @@ failed:
 
 int verify_trusted_file (const char * uri, void * mem,
                          unsigned int offset, unsigned int size,
-                         sgx_checksum_t * stubs,
+                         sgx_arch_mac_t * stubs,
                          unsigned int total_size)
 {
     unsigned long checking = offset;
-    sgx_checksum_t * s = stubs + checking / TRUSTED_STUB_SIZE;
-    char checksum_text[sizeof(sgx_checksum_t) * 2 + 1] = "\0";
+    sgx_arch_mac_t * s = stubs + checking / TRUSTED_STUB_SIZE;
     int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
@@ -268,29 +268,13 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-        /* calculate stub checksum */
-        sgx_checksum_t checksum;
-        SHA256 stub_sha;
-        ret = SHA256Init(&stub_sha);
-        if (ret < 0)
-            return -PAL_ERROR_DENIED;
+        sgx_arch_mac_t mac;
+        AES_CMAC((void *) &enclave_key, mem + checking - offset,
+                 checking_size, (uint8_t *) &mac);
 
-        ret = SHA256Update(&stub_sha, mem + checking - offset,
-                           checking_size);
-        if (ret < 0)
-            return -PAL_ERROR_DENIED;
-
-        ret = SHA256Final(&stub_sha, (uint8_t *) checksum.bytes);
-        if (ret < 0)
-            return -PAL_ERROR_DENIED;
-
-        for (int i = 0 ; i < sizeof(sgx_checksum_t) ; i++)
-            snprintf(checksum_text + i * 2, 3, "%02x",
-                     checksum.bytes[i]);
-
-        if (memcmp(s, &checksum, sizeof(sgx_checksum_t))) {
+        if (memcmp(s, &mac, sizeof(sgx_arch_mac_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "
-                    "Does not match with its checksum.\n", uri);
+                    "Does not match with its MAC.\n", uri);
             return -PAL_ERROR_DENIED;
         }
     }

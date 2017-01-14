@@ -197,7 +197,7 @@ static struct pal_frame * get_frame (ucontext_t * uc)
 {
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
     unsigned long rbp = uc->uc_mcontext.gregs[REG_RBP];
-    unsigned long last_rbp = rbp - 1024;
+    unsigned long last_rbp = rbp - 64;
 
     if (!ADDR_IN_PAL(rip))
         return NULL;
@@ -211,7 +211,7 @@ static struct pal_frame * get_frame (ucontext_t * uc)
     for (unsigned long ptr = rbp - sizeof(unsigned long) ;
          ptr > last_rbp ; ptr -= 8) {
         struct pal_frame * frame = (struct pal_frame *) ptr;
-        if (frame->self == frame)
+        if (frame->identifier == PAL_FRAME_IDENTIFIER)
             return frame;
     }
 
@@ -245,11 +245,15 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
         msg[20] = '0' + (pid / 10) % 10;
         msg[21] = '0' + pid % 10;
         INLINE_SYSCALL(write, 3, 1, msg, 24);
+        while(1);
     }
 #endif
 
     struct pal_frame * frame = get_frame(uc);
     void * eframe;
+
+    if (signum == SIGCONT && frame && frame->func == DkObjectsWaitAny)
+        return;
 
     asm volatile ("movq %%rbp, %0" : "=r"(eframe));
 

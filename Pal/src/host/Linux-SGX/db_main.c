@@ -84,6 +84,7 @@ static struct link_map pal_map;
 
 int init_untrusted_slab_mgr (int pagesize);
 int init_enclave (void);
+int init_enclave_key (void);
 int init_child_process (PAL_HANDLE * parent_handle);
 
 static PAL_HANDLE setup_file_handle (const char * name, int fd)
@@ -139,6 +140,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     init_slab_mgr(pagesz);
     init_untrusted_slab_mgr(pagesz);
     init_pages();
+    init_enclave_key();
 
     /* now we can add a link map for PAL itself */
     setup_pal_map(&pal_map);

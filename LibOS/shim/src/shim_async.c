@@ -35,6 +35,7 @@ struct async_event {
     struct list_head    list;
     void                (*callback) (IDTYPE caller, void * arg);
     void *              arg;
+    PAL_HANDLE          object;
     unsigned long       install_time;
     unsigned long       expire_time;
 };
@@ -43,13 +44,13 @@ static LIST_HEAD(async_list);
 
 enum {  HELPER_NOTALIVE, HELPER_ALIVE };
 
-static struct shim_atomic       async_helper_state;
-static struct shim_thread *     async_helper_thread;
-static PAL_HANDLE               async_helper_event;
+static struct shim_atomic   async_helper_state;
+static struct shim_thread * async_helper_thread;
+static AEVENTTYPE           async_helper_event;
 
 static LOCKTYPE async_helper_lock;
 
-int install_async_event (unsigned long time,
+int install_async_event (PAL_HANDLE object, unsigned long time,
                          void (*callback) (IDTYPE caller, void * arg),
                          void * arg)
 {
@@ -63,8 +64,9 @@ int install_async_event (unsigned long time,
     event->callback     = callback;
     event->arg          = arg;
     event->caller       = get_cur_tid();
-    event->install_time = install_time;
-    event->expire_time  = install_time + time;
+    event->object       = object;
+    event->install_time = time ? install_time : 0;
+    event->expire_time  = time ? install_time + time : 0;
 
     lock(async_helper_lock);
 
@@ -72,7 +74,7 @@ int install_async_event (unsigned long time,
     struct list_head * prev = &async_list;
 
     list_for_each_entry(tmp, &async_list, list) {
-        if (tmp->expire_time > event->expire_time)
+        if (event->expire_time && tmp->expire_time > event->expire_time)
             break;
         prev = &tmp->list;
     }
@@ -85,7 +87,7 @@ int install_async_event (unsigned long time,
     if (atomic_read(&async_helper_state) == HELPER_NOTALIVE)
         create_async_helper();
 
-    DkEventSet(async_helper_event);
+    set_event(&async_helper_event, 1);
     return 0;
 }
 
@@ -93,7 +95,7 @@ int init_async (void)
 {
     atomic_set(&async_helper_state, HELPER_NOTALIVE);
     create_lock(async_helper_lock);
-    async_helper_event = DkSynchronizationEventCreate(0);
+    create_event(&async_helper_event);
     return 0;
 }
 
@@ -112,8 +114,10 @@ static void shim_async_helper (void * arg)
     debug("set tcb to %p\n", &tcb);
 
     lock(async_helper_lock);
+    bool notme = (self != async_helper_thread);
+    unlock(async_helper_lock);
 
-    if (self != async_helper_thread) {
+    if (notme) {
         put_thread(self);
         DkThreadExit();
         return;
@@ -126,37 +130,102 @@ static void shim_async_helper (void * arg)
        swap any stack */
     unsigned long idle_cycles = 0;
     unsigned long latest_time;
-    struct async_event * next_event, * finished_event = NULL;
+    struct async_event * next_event = NULL;
+    PAL_HANDLE async_event_handle = event_handle(&async_helper_event);
 
-    goto update;
+    int object_list_size = 32, object_num;
+    PAL_HANDLE polled;
+    PAL_HANDLE * local_objects =
+            malloc(sizeof(PAL_HANDLE) * (1 + object_list_size));
+    local_objects[0] = async_event_handle;
+
+    goto update_status;
 
     while (atomic_read(&async_helper_state) == HELPER_ALIVE) {
+        unsigned long sleep_time;
+        if (next_event) {
+            sleep_time = next_event->expire_time - latest_time;
+            idle_cycles = 0;
+        } else if (object_num) {
+            sleep_time = NO_TIMEOUT;
+            idle_cycles = 0;
+        } else {
+            sleep_time = IDLE_SLEEP_TIME;
+            idle_cycles++;
+        }
+
+        polled = DkObjectsWaitAny(object_num + 1, local_objects, sleep_time);
+
+        if (!polled) {
+            if (next_event) {
+                debug("async event trigger at %llu\n",
+                      next_event->expire_time);
+
+                next_event->callback(next_event->caller, next_event->arg);
+
+                lock(async_helper_lock);
+                list_del(&next_event->list);
+                free(next_event);
+                goto update_list;
+            }
+            continue;
+        }
+
+        if (polled == async_event_handle) {
+            clear_event(&async_helper_event);
+update_status:
+            latest_time = DkSystemTimeQuery();
+            if (atomic_read(&async_helper_state) == HELPER_NOTALIVE) {
+                break;
+            } else {
+                lock(async_helper_lock);
+                goto update_list;
+            }
+        }
+
+        struct async_event * tmp, * n;
+
         lock(async_helper_lock);
-update:
-        latest_time = DkSystemTimeQuery();
+
+        list_for_each_entry_safe(tmp, n, &async_list, list) {
+            if (tmp->object == polled) {
+                debug("async event trigger at %llu\n",
+                      latest_time);
+                unlock(async_helper_lock);
+                tmp->callback(tmp->caller, tmp->arg);
+                lock(async_helper_lock);
+                break;
+            }
+        }
+
+update_list:
         next_event = NULL;
+        object_num = 0;
 
         if (!list_empty(&async_list)) {
-            if (finished_event) {
-                list_del(&finished_event->list);
-                free(finished_event);
-                finished_event = NULL;
-            }
-
             struct async_event * tmp, * n;
 
             list_for_each_entry_safe(tmp, n, &async_list, list) {
+                if (tmp->object) {
+                    local_objects[object_num + 1] = tmp->object;
+                    object_num++;
+                }
+
+                if (!tmp->install_time)
+                    continue;
+
                 if (tmp->expire_time > latest_time) {
                     next_event = tmp;
                     break;
                 }
 
-                debug("async event trigger at %llu (expect expiring at %llu)\n",
+                debug("async event trigger at %llu (expire at %llu)\n",
                       latest_time, tmp->expire_time);
-
                 list_del(&tmp->list);
+                unlock(async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
                 free(tmp);
+                lock(async_helper_lock);
             }
 
             idle_cycles = 0;
@@ -164,26 +233,11 @@ update:
 
         unlock(async_helper_lock);
 
-        if (!next_event && idle_cycles++ == MAX_IDLE_CYCLES) {
+        if (idle_cycles++ == MAX_IDLE_CYCLES) {
             debug("async helper thread reach helper cycle\n");
             /* walking away, if someone is issueing an event,
                they have to create another thread */
             break;
-        }
-
-        unsigned long sleep_time = next_event ?
-                                   next_event->expire_time - latest_time :
-                                   IDLE_SLEEP_TIME;
-
-        PAL_HANDLE notify = DkObjectsWaitAny(1, &async_helper_event,
-                                             sleep_time);
-
-        /* if we are not waken up by someone, the waiting has finished */
-        if (!notify && next_event) {
-            debug("async event trigger at %llu\n", next_event->expire_time);
-
-            finished_event = next_event;
-            next_event->callback(next_event->caller, next_event->arg);
         }
     }
 
@@ -245,6 +299,6 @@ int terminate_async_helper (void)
     lock(async_helper_lock);
     atomic_xchg(&async_helper_state, HELPER_NOTALIVE);
     unlock(async_helper_lock);
-    DkEventSet(async_helper_event);
+    set_event(&async_helper_event, 1);
     return 0;
 }

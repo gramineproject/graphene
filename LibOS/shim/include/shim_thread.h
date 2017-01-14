@@ -57,6 +57,7 @@ struct shim_thread {
     struct shim_signal_handle signal_handles[NUM_SIGS];
     struct shim_atomic has_signal;
     struct shim_signal_log * signal_logs;
+    bool suspend_on_signal;
 
     /* futex robust list */
     void * robust_list;
@@ -201,7 +202,8 @@ static inline void thread_setwait (struct shim_thread ** queue,
         thread = get_cur_thread();
     get_thread(thread);
     DkEventClear(thread->scheduler_event);
-    *queue = thread;
+    if (queue)
+        *queue = thread;
 }
 
 static inline void thread_sleep (void)

@@ -1,0 +1,18 @@
+--- runltp.old	2016-10-24 17:04:25.557950335 -0400
++++ runltp	2016-10-24 18:20:37.168448299 -0400
+@@ -813,6 +813,15 @@ main()
+ 		fi
+ 	fi
+ 
++	## Running all test in Graphene if $GRAPHENE_RUN = 1
++	if [ $GRAPHENE_RUN ]; then
++		awk -f ${LTPROOT}/bin/run_in_graphene.awk \
++			${TMP}/alltests > \
++			${TMP}/alltests.tmp
++		cp ${TMP}/alltests.tmp ${TMP}/alltests
++		rm -rf ${TMP}/alltests.tmp
++	fi
++
+ 	## Valgrind Check will work only when Kernel Fault Injection is not expected,
+ 	## We do not want to test Faults when valgrind is running
+ 	if [ $VALGRIND_CHECK ]; then

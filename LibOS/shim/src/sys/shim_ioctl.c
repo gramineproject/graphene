@@ -132,8 +132,6 @@ static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
         case TIOCSSERIAL:
         /* 0x00005420 TIOCPKT const int * */
         case TIOCPKT:
-        /* 0x00005421 FIONBIO const int * */
-        case FIONBIO:
         /* 0x00005422 TIOCNOTTY void */
         case TIOCNOTTY:
         /* 0x00005423 TIOCSETD const int * */
@@ -142,8 +140,6 @@ static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
         case TIOCGETD:
         /* 0x00005425 TCSBRKP int */
         case TCSBRKP:
-        /* 0x00005452 FIOASYNC const int * */
-        case FIOASYNC:
         /* 0x00005453 TIOCSERCONFIG void */
         case TIOCSERCONFIG:
         /* 0x00005454 TIOCSERGWILD int * */
@@ -294,6 +290,17 @@ static int ioctl_netdevice (struct shim_handle * hdl, unsigned int cmd,
     return -EAGAIN;
 }
 
+void signal_io (IDTYPE target, void * arg)
+{
+    debug("detecting input, signaling thread %u\n", target);
+
+    struct shim_thread * thread = lookup_thread(target);
+    if (!thread)
+        return;
+
+    append_signal(thread, SIGIO, NULL, true);
+}
+
 int shim_do_ioctl (int fd, int cmd, unsigned long arg)
 {
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
@@ -334,12 +341,18 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
         case TIOCGSERIAL:
         case TIOCSSERIAL:
         case TIOCPKT:
-        case FIONBIO:
         case TIOCNOTTY:
         case TIOCSETD:
         case TIOCGETD:
         case TCSBRKP:
             ret = ioctl_termios(hdl, cmd, arg);
+            break;
+        case FIONBIO:
+            if (hdl->fs && hdl->fs->fs_ops &&
+                hdl->fs->fs_ops->setflags)
+                hdl->fs->fs_ops->setflags(hdl, hdl->flags | O_NONBLOCK);
+            hdl->flags |= O_NONBLOCK;
+            ret = 0;
             break;
         case FIONCLEX:
             hdl->flags &= ~FD_CLOEXEC;
@@ -350,6 +363,8 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
             ret = 0;
             break;
         case FIOASYNC:
+            ret = install_async_event(hdl->pal_handle, 0, &signal_io, NULL);
+            break;
         case TIOCSERCONFIG:
         case TIOCSERGWILD:
         case TIOCSERSWILD:

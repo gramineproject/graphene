@@ -225,19 +225,20 @@ no_op:
                     if (polled & FS_POLL_ER) {
                         debug("fd %d known to have error\n", p->fd);
                         p->flags |= KNOWN_R|KNOWN_W|RET_E;
+                        do_r = do_w = false;
                     }
 
                     if ((polled & FS_POLL_RD)) {
                         debug("fd %d known to be readable\n", p->fd);
                         p->flags |= KNOWN_R|RET_R;
+                        do_r = false;
                     }
 
                     if (polled & FS_POLL_WR) {
                         debug("fd %d known to be writeable\n", p->fd);
                         p->flags |= KNOWN_W|RET_W;
+                        do_w = false;
                     }
-
-                    do_r = do_w = false;
                 }
             }
 

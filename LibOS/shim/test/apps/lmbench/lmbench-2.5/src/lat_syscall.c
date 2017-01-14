@@ -34,6 +34,15 @@ do_read(int fd, char *s)
 }
 
 void
+do_read_size(int fd, void * buf, size_t size, char *s)
+{
+	if (read(fd, buf, size) == -1) {
+		perror(s);
+		return;
+	}
+}
+
+void
 do_stat(char *s)
 {
 	struct	stat sbuf;
@@ -98,6 +107,18 @@ main(int ac, char **av)
 			return(1);
 		}
 		BENCH(do_read(fd, file), 0);
+		micro("Simple read", get_n());
+		close(fd);
+	} else if (!strcmp("read-size", av[1])) {
+		size_t size = bytes(av[2]);
+		void * buf = malloc(size);
+		file = av[3] ? av[3] : "/dev/zero";
+		fd = open(file, 0);
+		if (fd == -1) {
+			fprintf(stderr, "Read from %s: %s\n", file, strerror(errno));
+			return(1);
+		}
+		BENCH(do_read_size(fd, buf, size, file), 0);
 		micro("Simple read", get_n());
 		close(fd);
 	} else if (!strcmp("stat", av[1])) {

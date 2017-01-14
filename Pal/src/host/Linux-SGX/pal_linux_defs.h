@@ -18,4 +18,8 @@
 
 #define TRUSTED_STUB_SIZE   (PRESET_PAGESIZE * 32)
 
+#define CACHE_FILE_STUBS    (1)
+
+#define USE_AES_NI          (1)
+
 #endif /* PAL_LINUX_DEFS_H */

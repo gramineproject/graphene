@@ -6,7 +6,7 @@ LD	= ld
 include Makefile.am
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
-	  -fno-omit-frame-pointer \
+	  -fno-omit-frame-pointer -maes \
 	  -fno-stack-protector -fno-builtin \
 	  -I. -Iinclude -I../.. -I../../../include -I../../../lib
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
@@ -23,7 +23,7 @@ enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 		 exception misc ipc spinlock) \
 	       $(addprefix enclave_,ocalls ecalls framework pages untrusted) \
 	       $(patsubst %.c,%,$(wildcard crypto/*.c))
-enclave-asm-objs = enclave_entry
+enclave-asm-objs = enclave_entry $(patsubst %.S,%,$(wildcard crypto/*.S))
 urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene)
 urts-asm-objs = sgx_entry
 graphene_lib = ../../.lib/graphene-lib.a

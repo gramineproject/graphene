@@ -69,7 +69,7 @@ _DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount)
 
     /* optimization: if maxCount == 1, we make it into mutex */
     if (handle->semaphore.max_value == 1) {
-        atomic_set(&handle->semaphore.value.mut.value, 1 - initialCount);
+        handle->semaphore.value.mut.u = initialCount;
     } else {
         atomic_set(&handle->semaphore.value.i, maxCount - initialCount);
     }
@@ -255,9 +255,8 @@ void _DkSemaphoreRelease (PAL_HANDLE sem, int count)
 int _DkSemaphoreGetCurrentCount (PAL_HANDLE sem)
 {
     if (sem->semaphore.max_value == 1) {
-        struct mutex_handle * mut =
-            &sem->semaphore.value.mut;
-        return atomic_read(&mut->value);
+        struct mutex_handle * m = &sem->semaphore.value.mut;
+        return m->b.locked;
     }
 
     int c = atomic_read(&sem->semaphore.value.i);

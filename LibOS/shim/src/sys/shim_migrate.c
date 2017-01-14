@@ -67,7 +67,7 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
 
     INIT_LIST_HEAD(&cpsession->registered_threads);
     INIT_LIST_HEAD(&cpsession->list);
-    cpsession->finish_event = DkNotificationEventCreate(0);
+    cpsession->finish_event = DkNotificationEventCreate(PAL_FALSE);
     cpsession->cpfile = NULL;
 
     int len = strlen(cpdir);

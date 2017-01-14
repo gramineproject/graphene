@@ -529,22 +529,29 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
     attr->handle_type  = PAL_GET_TYPE(handle);
 
-    if (attr->handle_type == pal_type_pipe) {
+    if (attr->handle_type != pal_type_pipesrv) {
         ret = INLINE_SYSCALL(ioctl, 3, HANDLE_HDR(handle)->fds[0], FIONREAD, &val);
         if (IS_ERR(ret)) {
             return unix_to_pal_error(ERRNO(ret));
         }
+
+        attr->readable     = val > 0;
+        attr->pending_size = val;
+        attr->writeable    = HANDLE_HDR(handle)->flags & (
+            (PAL_GET_TYPE(handle) == pal_type_pipeprv) ? WRITEABLE(1) :
+            WRITEABLE(0));
+    } else {
+        struct pollfd pfd = { .fd = HANDLE_HDR(handle)->fds[0], .events = POLLIN, .revents = 0 };
+        struct timespec tp = { 0, 0 };
+        ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+        attr->readable = (ret == 1 && pfd.revents == POLLIN);
+        attr->pending_size = 0;
+        attr->writeable    = PAL_FALSE;
     }
 
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->nonblocking  = (HANDLE_HDR(handle)->type == pal_type_pipeprv) ?
+    attr->nonblocking  = (PAL_GET_TYPE(handle) == pal_type_pipeprv) ?
                          handle->pipeprv.nonblocking : handle->pipe.nonblocking;
-    attr->readable     = val > 0;
-    if (PAL_GET_TYPE(handle) == pal_type_pipeprv)
-        attr->writeable = HANDLE_HDR(handle)->flags & WRITEABLE(1);
-    else
-        attr->writeable = HANDLE_HDR(handle)->flags & WRITEABLE(0);
-    attr->pending_size = val;
     return 0;
 }
 

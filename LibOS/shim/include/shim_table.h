@@ -409,6 +409,8 @@ int shim_do_unlink (const char * file);
 int shim_do_readlink (const char * file, char * buf, int bufsize);
 int shim_do_chmod (const char * filename, mode_t mode);
 int shim_do_fchmod (int fd, mode_t mode);
+int shim_do_chown (const char * filename, uid_t user, gid_t group);
+int shim_do_fchown (int fd, uid_t user, gid_t group);
 mode_t shim_do_umask (mode_t mask);
 int shim_do_gettimeofday (struct __kernel_timeval * tv,
                           struct __kernel_timezone * tz);
@@ -425,6 +427,7 @@ pid_t shim_do_getpgrp (void);
 int shim_do_setsid (void);
 int shim_do_getpgid (pid_t pid);
 int shim_do_getsid (pid_t pid);
+int shim_do_sigsuspend (const __sigset_t * mask);
 void * shim_do_arch_prctl (int code, void * addr);
 int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim);
 int shim_do_chroot (const char * filename);
@@ -454,6 +457,8 @@ int shim_do_unlinkat (int dfd, const char * pathname, int flag);
 int shim_do_renameat (int olddfd, const char * pathname, int newdfd,
                       const char * newname);
 int shim_do_fchmodat (int dfd, const char * filename, mode_t mode);
+int shim_do_fchownat (int dfd, const char * filename, uid_t user, gid_t group,
+                      int flags);
 int shim_do_faccessat (int dfd, const char * filename, mode_t mode);
 int shim_do_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
                       fd_set * exceptfds, const struct __kernel_timespec * tsp,

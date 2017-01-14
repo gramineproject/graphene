@@ -61,6 +61,8 @@
 #define TCP_CONGESTION      13  /* Congestion control algorithm.  */
 #define TCP_MD5SIG          14  /* TCP MD5 Signature (RFC2385) */
 
+#define AF_UNSPEC       0
+
 #define SOCK_URI_SIZE   108
 
 static int rebase_on_lo __attribute_migratable = -1;
@@ -316,6 +318,28 @@ static inline void unix_copy_addr (struct sockaddr * saddr,
     memcpy(un->sun_path, path, size + 1);
 }
 
+static bool inet_check_addr (int domain, struct sockaddr * addr, int addrlen)
+{
+    if (domain == AF_INET) {
+        if (addr->sa_family != AF_INET ||
+            addrlen != sizeof(struct sockaddr_in))
+            return false;
+        return true;
+    }
+
+    if (domain == AF_INET6) {
+        if (addr->sa_family != AF_INET && addr->sa_family != AF_INET6)
+            return false;
+        if (addrlen != ((addr->sa_family == AF_INET) ?
+                        sizeof(struct sockaddr_in) :
+                        sizeof(struct sockaddr_in6)))
+            return false;
+        return true;
+    }
+
+    return false;
+}
+
 static int inet_copy_addr (int domain, struct sockaddr * saddr,
                            const struct addr_inet * addr)
 {
@@ -349,9 +373,18 @@ static void inet_save_addr (int domain, struct addr_inet * addr,
     }
 
     if (domain == AF_INET6) {
-        const struct sockaddr_in6 * in6 = (const struct sockaddr_in6 *) saddr;
-        addr->port = __ntohs(in6->sin6_port);
-        addr->addr.v6 = in6->sin6_addr;
+        if (saddr->sa_family == AF_INET) {
+            const struct sockaddr_in * in = (const struct sockaddr_in *) saddr;
+            addr->port = __ntohs(in->sin_port);
+            ((uint32_t *) &addr->addr.v6.s6_addr)[0] = 0;
+            ((uint32_t *) &addr->addr.v6.s6_addr)[1] = 0;
+            ((uint32_t *) &addr->addr.v6.s6_addr)[2] = 0xffff0000;
+            ((uint32_t *) &addr->addr.v6.s6_addr)[3] = in->sin_addr.s_addr;
+        } else {
+            const struct sockaddr_in6 * in6 = (const struct sockaddr_in6 *) saddr;
+            addr->port = __ntohs(in6->sin6_port);
+            addr->addr.v6 = in6->sin6_addr;
+        }
         return;
     }
 }
@@ -451,12 +484,8 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
         sock->addr.un.dentry = dent;
 
     } else if (sock->domain == AF_INET || sock->domain == AF_INET6) {
-
-        if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
-                        sizeof(struct sockaddr_in6))) {
+        if (!inet_check_addr(sock->domain, addr, addrlen))
             goto out;
-        }
-        
         inet_save_addr(sock->domain, &sock->addr.in.bind, addr);
         inet_rebase_port(false, sock->domain, &sock->addr.in.bind, true);
     }
@@ -657,6 +686,18 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
     int ret = -EINVAL;
 
     if (state == SOCK_CONNECTED) {
+        if (addr->sa_family == AF_UNSPEC) {
+            sock->sock_state = SOCK_CREATED;
+            if (sock->sock_type == SOCK_STREAM && hdl->pal_handle) {
+                DkStreamDelete(hdl->pal_handle, 0);
+                DkObjectClose(hdl->pal_handle);
+                hdl->pal_handle = NULL;
+            }
+            debug("shim_connect: reconnect on a stream socket\n");
+            ret = 0;
+            goto out;
+        }
+
         debug("shim_connect: reconnect on a stream socket\n");
         goto out;
     }
@@ -702,14 +743,12 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
         hdl->pal_handle = NULL;
     }
 
-	if (sock->domain != AF_UNIX) {
-		if (addrlen != ((sock->domain == AF_INET) ? sizeof(struct sockaddr_in) :
-					sizeof(struct sockaddr_in6)))
-			goto out;
-
-		inet_save_addr(sock->domain, &sock->addr.in.conn, addr);
-		inet_rebase_port(false, sock->domain, &sock->addr.in.conn, false);
-	}
+    if (sock->domain != AF_UNIX) {
+        if (!inet_check_addr(sock->domain, addr, addrlen))
+            goto out;
+        inet_save_addr(sock->domain, &sock->addr.in.conn, addr);
+        inet_rebase_port(false, sock->domain, &sock->addr.in.conn, false);
+    }
 
     sock->sock_state = (state == SOCK_BOUND) ? SOCK_BOUNDCONNECTED :
                                                SOCK_CONNECTED;

@@ -11,11 +11,12 @@ CFLAGS-debug += -fno-builtin -nostdlib
 ifeq ($(SYS),x86_64-linux-gnu)
 $(c_executables): %: %.c $(libs) $(level)../../../Pal/src/user_start.o
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^
+	$(CC) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^ -lpal -lsysdb_debug
+
 
 $(cxx_executables): %: %.cpp $(libs) $(level)../../../Pal/src/user_start.o
 	@echo [ $@ ]
-	@$(CXX) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^
+	$(CXX) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^ -lpal -lsysdb_debug
 
 .PHONY: pack
 pack: $(c_executables) $(cxx_executables)

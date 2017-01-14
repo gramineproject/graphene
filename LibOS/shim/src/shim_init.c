@@ -723,7 +723,7 @@ int shim_init (int argc, void * args, void ** return_stack)
 
     if (cpaddr) {
 restore:
-        thread_start_event = DkNotificationEventCreate(0);
+        thread_start_event = DkNotificationEventCreate(PAL_FALSE);
         RUN_INIT(restore_checkpoint,
                  &hdr.checkpoint.hdr, &hdr.checkpoint.mem,
                  (ptr_t) cpaddr, 0);

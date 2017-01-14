@@ -30,12 +30,14 @@
 
 #include <asm/resource.h>
 
+unsigned int max_fds = DEFAULT_MAX_FDS;
+
 int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 {
     switch (resource) {
         case RLIMIT_NOFILE:
-            rlim->rlim_cur = MAX_FDS;
-            rlim->rlim_max = MAX_FDS;
+            rlim->rlim_cur = max_fds;
+            rlim->rlim_max = MAX_MAX_FDS;
             return 0;
 
         case RLIMIT_RSS:
@@ -60,5 +62,18 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 
 int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
 {
-    return -EPERM;
+    switch (resource) {
+        case RLIMIT_NOFILE:
+            if (rlim->rlim_cur > MAX_MAX_FDS)
+                return -EINVAL;
+            max_fds = rlim->rlim_cur;
+            return 0;
+
+        case RLIMIT_STACK:
+            sys_stack_size = rlim->rlim_cur;
+            return 0;
+
+        default:
+            return -ENOSYS;
+    }
 }

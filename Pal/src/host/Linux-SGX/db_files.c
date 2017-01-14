@@ -65,11 +65,11 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     get_norm_path(uri, path, 0, len + 1);
     hdl->file.realpath = (PAL_STR) path;
 
-    sgx_checksum_t * stubs;
+    sgx_arch_mac_t * stubs;
     uint64_t total;
     int ret = load_trusted_file(hdl, &stubs, &total);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Accessing file:%s is denied. (%d)"
+        SGX_DBG(DBG_E, "Accessing file:%s is denied. (%e) "
                 "This file is not trusted or allowed.\n", hdl->file.realpath, ret);
         free(hdl);
         return -PAL_ERROR_DENIED;
@@ -85,7 +85,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 static int file_read (PAL_HANDLE handle, int offset, int count,
                       void * buffer)
 {
-    sgx_checksum_t * stubs = (sgx_checksum_t *) handle->file.stubs;
+    sgx_arch_mac_t * stubs = (sgx_arch_mac_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
     int ret;
 
@@ -178,7 +178,7 @@ static int file_delete (PAL_HANDLE handle, int access)
 static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                      uint64_t offset, uint64_t size)
 {
-    sgx_checksum_t * stubs = (sgx_checksum_t *) handle->file.stubs;
+    sgx_arch_mac_t * stubs = (sgx_arch_mac_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
     void * mem = *addr;
     void * umem;

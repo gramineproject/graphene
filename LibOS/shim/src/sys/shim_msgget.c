@@ -100,7 +100,7 @@ static int __add_msg_handle (unsigned long key, IDTYPE msqid, bool owned,
     msgq->owned     = owned;
     msgq->deleted   = false;
     msgq->currentsize = 0;
-    msgq->event     = DkSynchronizationEventCreate(0);
+    msgq->event     = DkSynchronizationEventCreate(PAL_FALSE);
 
     msgq->queue     = malloc(MSG_QOBJ_SIZE * DEFAULT_MSG_QUEUE_SIZE);
     msgq->queuesize = DEFAULT_MSG_QUEUE_SIZE;

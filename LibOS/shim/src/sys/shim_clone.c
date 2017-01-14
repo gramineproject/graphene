@@ -285,13 +285,13 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     struct clone_args * new_args = __alloca(sizeof(struct clone_args));
     memset(new_args, 0, sizeof(struct clone_args));
 
-    new_args->create_event = DkNotificationEventCreate(0);
+    new_args->create_event = DkNotificationEventCreate(PAL_FALSE);
     if (!new_args->create_event) {
         ret = -PAL_ERRNO;
         goto clone_thread_failed;
     }
 
-    new_args->initialize_event = DkNotificationEventCreate(0);
+    new_args->initialize_event = DkNotificationEventCreate(PAL_FALSE);
     if (!new_args->initialize_event) {
         ret = -PAL_ERRNO;
         goto clone_thread_failed;
