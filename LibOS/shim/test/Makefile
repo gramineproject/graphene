@@ -10,12 +10,11 @@ LIBCDIR = $(level)../../glibc-build
 CC = gcc
 CXX = g++
 CFLAGS 	= -std=gnu99
-CFLAGS-debug = $(CFLAGS) -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib
+CFLAGS-debug = $(CFLAGS) -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib
 LDFLAGS	=
-LDFLAGS-debug = $(LDFLAGS) -L$(SHIMDIR) \
+LDFLAGS-debug = $(LDFLAGS) -L$(SHIMDIR) -L$(PALDIR) \
 		-Wl,-rpath-link=$(abspath $(SHIMDIR)) \
-		-Wl,-rpath-link=$(abspath $(PALDIR)) \
-		-lpal -lsysdb_debug
+		-Wl,-rpath-link=$(abspath $(PALDIR))
 
 default: all
 include $(PALDIR)/Makefile.Test
@@ -37,9 +36,11 @@ manifest_rules = \
 	-e 's:\$$(LIBCDIR):'$$RELDIR'$(LIBCDIR):g' \
 	$(extra_rules)
 
+relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspath $2)\",\"$(abspath $1)\")")
+
 %manifest: %manifest.template
 	@echo [ $@ ]
-	RELDIR=$(filter-out ./,$(python -c "import os.path; print os.path.relpath($(abspath $(dir $@)) $(PWD))")) && \
+	RELDIR=$(filter-out ./,$(call relative-to,$(dir $@),$(shell pwd))/) && \
 	sed $(manifest_rules) $< > $@
 	(grep -q '^#!' $@ && chmod +x $@) || true
 

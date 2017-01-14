@@ -137,6 +137,30 @@ out:
     return err;
 }
 
+int shim_do_sigsuspend (const __sigset_t * mask)
+{
+    __sigset_t * old, tmp;
+    struct shim_thread * cur = get_cur_thread();
+    int err = 0;
+
+    lock(cur->lock);
+
+    old = get_sig_mask(cur);
+    memcpy(&tmp, old, sizeof(__sigset_t));
+    old = &tmp;
+
+    set_sig_mask(cur, mask);
+    cur->suspend_on_signal = true;
+    thread_setwait(NULL, NULL);
+    thread_sleep();
+out:
+    unlock(cur->lock);
+    set_sig_mask(cur, old);
+
+    return err;
+
+}
+
 struct walk_arg {
     struct shim_thread * current;
     IDTYPE sender;

@@ -42,6 +42,18 @@ typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
 #include <asm-generic/socket.h>
 
+#ifndef SOL_TCP
+# define SOL_TCP 6
+#endif
+
+#ifndef TCP_NODELAY
+# define TCP_NODELAY 1
+#endif
+
+#ifndef TCP_CORK
+# define TCP_CORK 3
+#endif
+
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
 #define PAL_SOCKADDR_SIZE   96
@@ -755,7 +767,14 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
     int fd = handle->sock.fd, ret;
 
-    if (handle->sock.conn) {
+    if (IS_HANDLE_TYPE(handle, tcpsrv)) {
+        struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+        unsigned long waittime = 0;
+        int ret = ocall_poll(&pfd, 1, &waittime);
+        if (ret < 0)
+            return ret;
+        attr->readable = (ret == 1 && pfd.revents == POLLIN);
+    } else {
         /* try use ioctl FIONEAD to get the size of socket */
         ret = ocall_fionread(fd);
         if (ret < 0)
@@ -763,24 +782,10 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
         attr->pending_size = ret;
         attr->readable = !!attr->pending_size > 0;
-    } else {
-        attr->readable = !attr->disconnected;
     }
 
     return 0;
 }
-
-#ifndef SOL_TCP
-# define SOL_TCP 6
-#endif
-
-#ifndef TCP_NODELAY
-# define TCP_NODELAY 1
-#endif
-
-#ifndef TCP_CORK
-# define TCP_CORK 3
-#endif
 
 static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 {

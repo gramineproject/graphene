@@ -102,7 +102,7 @@ static struct pal_frame * get_frame (sgx_context_t * uc)
     struct pal_frame * frame = (struct pal_frame *) rbp - 1;
 
     for (int i = 0 ; i < 8 ; i++) {
-        if (frame->self == frame)
+        if (frame->identifier == PAL_FRAME_IDENTIFIER)
             return frame;
 
         frame = (struct pal_frame *) ((void *) frame - 8);
@@ -136,7 +136,7 @@ void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
 {
     if (frame) {
         frame = __alloca(sizeof(struct pal_frame));
-        frame->self     = frame;
+        frame->identifier = PAL_FRAME_IDENTIFIER;
         frame->func     = &_DkExceptionRealHandler;
         frame->funcname = "_DkExceptionRealHandler";
 
@@ -351,9 +351,13 @@ void _DkCheckExternalEvent (void)
     ENCLAVE_TLS(external_event) = 0;
     struct pal_frame * frame = get_frame(NULL);
 
+    if (event == PAL_EVENT_RESUME &&
+        frame && frame->func == DkObjectsWaitAny)
+        return;
+
     if (!frame) {
         frame = __alloca(sizeof(struct pal_frame));
-        frame->self = frame;
+        frame->identifier = PAL_FRAME_IDENTIFIER;
         frame->func = &_DkCheckExternalEvent;
         frame->funcname = "DkCheckExternalEvent";
         arch_store_frame(&frame->arch);

@@ -181,6 +181,15 @@ main(int ac, char **av)
 #else
 		micro("Process fork+exit", get_n());
 #endif
+	} else if (!strcmp("fork-size", av[1])) {
+		size_t size = bytes(av[2]);
+		memset(malloc(size), 0, size);
+		BENCH(do_fork(), 0);
+#ifdef STATIC
+		micro("Static Process fork+exit", get_n());
+#else
+		micro("Process fork+exit", get_n());
+#endif
 	} else if (!strcmp("dfork", av[1])) {
 		BENCH(do_dfork(), 0);
 #ifdef STATIC

@@ -627,12 +627,12 @@ static struct shim_handle_map * __enlarge_handle_map
 
     size_t copy_size = sizeof(struct shim_fd_handle *) * map->fd_size;
     map->fd_size = size;
-    if (old_map && copy_size)
-        memcpy(map->map, old_map, copy_size);
-    memset(&map->map[map->fd_size], 0,
-           (sizeof(struct shim_fd_handle *) * size) - copy_size);
-    if (old_map)
+    memset(map->map, 0, sizeof(struct shim_fd_handle *) * size);
+    if (old_map) {
+        if (copy_size)
+            memcpy(map->map, old_map, copy_size);
         free(old_map);
+    }
     return map;
 }
 

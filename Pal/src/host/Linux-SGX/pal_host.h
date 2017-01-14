@@ -53,8 +53,18 @@ void free_untrusted (void * mem);
    because it is required by futex call. If DEBUG_MUTEX is defined,
    mutex_handle will record the owner of mutex locking. */
 struct mutex_handle {
-    struct atomic_int value;
+    union {
+        unsigned int u;
+        struct {
+            unsigned char locked;
+            unsigned char contended;
+        } b;
+    };
 };
+
+/* Initializer of Mutexes */
+#define MUTEX_HANDLE_INIT    { .u = 0 }
+#define INIT_MUTEX_HANDLE(m)  do { m->u = 0; } while (0)
 
 typedef union pal_handle
 {
@@ -228,8 +238,10 @@ struct arch_frame {
 # error "unsupported architecture"
 #endif
 
+#define PAL_FRAME_IDENTIFIER    (0xdeaddeadbeefbeef)
+
 struct pal_frame {
-    volatile struct pal_frame * self;
+    volatile uint64_t           identifier;
     void *                      func;
     const char *                funcname;
     struct arch_frame           arch;
@@ -239,10 +251,11 @@ static inline
 void __store_frame (struct pal_frame * frame,
                     void * func, const char * funcname)
 {
-    *(volatile void **) &frame->self = frame;
+    arch_store_frame(&frame->arch)
     frame->func = func;
     frame->funcname = funcname;
-    arch_store_frame(&frame->arch)
+    asm volatile ("nop" ::: "memory");
+    frame->identifier = PAL_FRAME_IDENTIFIER;
 }
 
 #define ENTER_PAL_CALL(name)                \
@@ -253,9 +266,9 @@ void __store_frame (struct pal_frame * frame,
 static inline
 void __clear_frame (struct pal_frame * frame)
 {
-    if (*(volatile void **) &frame->self == frame) {
+    if (frame->identifier == PAL_FRAME_IDENTIFIER) {
         asm volatile ("nop" ::: "memory");
-        *(volatile void **) &frame->self = NULL;
+        frame->identifier = 0;
     }
 }
 

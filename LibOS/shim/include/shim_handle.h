@@ -278,7 +278,6 @@ struct shim_sem_handle {
 };
 
 struct shim_futex_handle {
-    PAL_HANDLE          event;
     unsigned int *      uaddr;
     struct list_head    waiters;
     struct shim_vma *   vma;
@@ -369,7 +368,9 @@ struct shim_fd_handle {
     struct shim_handle * handle;
 };
 
-#define MAX_FDS     1024
+#define MAX_MAX_FDS         (65536)
+#define DEFAULT_MAX_FDS     (1024)
+extern unsigned int max_fds;
 
 struct shim_handle_map {
     /* the top of created file descriptors */

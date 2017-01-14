@@ -25,6 +25,7 @@
 #include "aes.h"
 #include "error-crypt.h"
 #include "api.h"
+#include "pal_linux_defs.h"
 
 #define XMEMSET memset
 #define XMEMCPY memcpy
@@ -756,6 +757,105 @@ static const word32 Td[5][256] = {
 
 #define GETBYTE(x, y) (word32)((byte)((x) >> (8  *(y))))
 
+#if USE_AES_NI == 1
+
+#include <wmmintrin.h>
+
+/* tell C compiler these are asm functions in case any mix up of ABI underscore
+   prefix between clang/gcc/llvm etc */
+void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
+                     unsigned char* ivec, unsigned long length,
+                     const unsigned char* KS, int nr);
+
+
+void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
+                     unsigned char* ivec, unsigned long length,
+                     const unsigned char* KS, int nr);
+
+void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
+                     unsigned long length, const unsigned char* KS, int nr);
+
+
+void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
+                     unsigned long length, const unsigned char* KS, int nr);
+
+void AES_128_Key_Expansion(const unsigned char* userkey,
+                           unsigned char* key_schedule);
+
+void AES_192_Key_Expansion(const unsigned char* userkey,
+                           unsigned char* key_schedule);
+
+void AES_256_Key_Expansion(const unsigned char* userkey,
+                           unsigned char* key_schedule);
+
+
+static int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
+                               AES* aes)
+{
+    if (!userKey || !aes)
+        return BAD_FUNC_ARG;
+
+    if (bits == 128) {
+       AES_128_Key_Expansion (userKey,(byte*)aes->key); aes->rounds = 10;
+       return 0;
+    }
+    else if (bits == 192) {
+       AES_192_Key_Expansion (userKey,(byte*)aes->key); aes->rounds = 12;
+       return 0;
+    }
+    else if (bits == 256) {
+       AES_256_Key_Expansion (userKey,(byte*)aes->key); aes->rounds = 14;
+       return 0;
+    }
+    return BAD_FUNC_ARG;
+}
+
+
+static int AES_set_decrypt_key(const unsigned char* userKey, const int bits,
+                               AES* aes)
+{
+    int nr;
+    AES temp_key;
+    __m128i *Key_Schedule = (__m128i*)aes->key;
+    __m128i *Temp_Key_Schedule = (__m128i*)temp_key.key;
+
+    if (!userKey || !aes)
+        return BAD_FUNC_ARG;
+
+    if (AES_set_encrypt_key(userKey,bits,&temp_key) == BAD_FUNC_ARG)
+        return BAD_FUNC_ARG;
+
+    nr = temp_key.rounds;
+    aes->rounds = nr;
+
+    Key_Schedule[nr] = Temp_Key_Schedule[0];
+    Key_Schedule[nr-1] = _mm_aesimc_si128(Temp_Key_Schedule[1]);
+    Key_Schedule[nr-2] = _mm_aesimc_si128(Temp_Key_Schedule[2]);
+    Key_Schedule[nr-3] = _mm_aesimc_si128(Temp_Key_Schedule[3]);
+    Key_Schedule[nr-4] = _mm_aesimc_si128(Temp_Key_Schedule[4]);
+    Key_Schedule[nr-5] = _mm_aesimc_si128(Temp_Key_Schedule[5]);
+    Key_Schedule[nr-6] = _mm_aesimc_si128(Temp_Key_Schedule[6]);
+    Key_Schedule[nr-7] = _mm_aesimc_si128(Temp_Key_Schedule[7]);
+    Key_Schedule[nr-8] = _mm_aesimc_si128(Temp_Key_Schedule[8]);
+    Key_Schedule[nr-9] = _mm_aesimc_si128(Temp_Key_Schedule[9]);
+
+    if(nr>10) {
+        Key_Schedule[nr-10] = _mm_aesimc_si128(Temp_Key_Schedule[10]);
+        Key_Schedule[nr-11] = _mm_aesimc_si128(Temp_Key_Schedule[11]);
+    }
+
+    if(nr>12) {
+        Key_Schedule[nr-12] = _mm_aesimc_si128(Temp_Key_Schedule[12]);
+        Key_Schedule[nr-13] = _mm_aesimc_si128(Temp_Key_Schedule[13]);
+    }
+
+    Key_Schedule[0] = Temp_Key_Schedule[nr];
+
+    return 0;
+}
+
+#endif /* USE_AES_NI == 1 */
+
 void AESEncrypt(AES *aes, const byte *inBlock, byte *outBlock)
 {
     word32 s0, s1, s2, s3;
@@ -766,6 +866,14 @@ void AESEncrypt(AES *aes, const byte *inBlock, byte *outBlock)
     if (r > 7 || r == 0)
         return;  /* stop instead of segfaulting, set up your keys! */
 
+#if USE_AES_NI == 1
+    /* check alignment, decrypt doesn't need alignment */
+    if (!((uint64_t) inBlock % 16)) {
+        AES_ECB_encrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
+                        aes->rounds);
+        return;
+    }
+#endif
     /*
       *map byte array block to cipher state
       *and add initial round key:
@@ -897,6 +1005,14 @@ void AESDecrypt(AES *aes, const byte *inBlock, byte *outBlock)
     const word32 *rk = aes->key;
     if (r > 7 || r == 0)
         return;  /* stop instead of segfaulting, set up your keys! */
+
+#if USE_AES_NI == 1
+    /* if input and output same will overwrite input iv */
+    XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
+    AES_ECB_decrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
+                    aes->rounds);
+    return;
+#endif
 
     /*
       *map byte array block to cipher state

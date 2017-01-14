@@ -1,0 +1,54 @@
+#!$(PAL)
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:memcached
+loader.env.LD_LIBRARY_PATH = /lib:/usr/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
+loader.debug_type = none
+
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(LIBCDIR)
+
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.usr.type = chroot
+fs.mount.usr.path = /usr
+fs.mount.usr.uri = file:/usr
+
+fs.mount.passwd.type = chroot
+fs.mount.passwd.path = /etc/passwd
+fs.mount.passwd.uri = file:/etc/passwd
+
+fs.mount.shadow.type = chroot
+fs.mount.shadow.path = /etc/shadow
+fs.mount.shadow.uri = file:/etc/shadow
+
+fs.mount.tmp.type = chroot
+fs.mount.tmp.path = /tmp
+fs.mount.tmp.uri = file:/tmp
+
+# allow to bind on port for listening
+net.allow_bind.1 = $(HOST):$(PORT)
+
+sys.stack.size = 1m
+sys.brk.size = 64M
+glibc.heap_size = 16M
+
+sgx.enclave_size = $(MEMSIZE)
+sgx.thread_num = $(THREADNUM)
+
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.libnss1 = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_files.libnss2 = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnss3 = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+sgx.trusted_files.libevent = file:/usr/lib/x86_64-linux-gnu/libevent-2.0.so.5
+
+sgx.allowed_files.passwd = file:/etc/passwd
+sgx.allowed_files.shadow = file:/etc/shadow

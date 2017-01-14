@@ -221,9 +221,9 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
                                  NUM_SIGS);
     thread->vmid = cur_process.vmid;
     create_lock(thread->lock);
-    thread->scheduler_event = DkNotificationEventCreate(1);
-    thread->exit_event = DkNotificationEventCreate(0);
-    thread->child_exit_event = DkNotificationEventCreate(0);
+    thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
+    thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
+    thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
     return thread;
 }
 
@@ -240,7 +240,7 @@ struct shim_thread * get_new_internal_thread (void)
     thread->tid   = new_tid;
     thread->in_vm = thread->is_alive = true;
     create_lock(thread->lock);
-    thread->exit_event = DkNotificationEventCreate(0);
+    thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     return thread;
 }
 
@@ -278,7 +278,7 @@ struct shim_simple_thread * get_new_simple_thread (void)
     INIT_LIST_HEAD(&thread->list);
 
     create_lock(thread->lock);
-    thread->exit_event = DkNotificationEventCreate(0);
+    thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
 
     return thread;
 }
@@ -625,9 +625,9 @@ BEGIN_RS_FUNC(thread)
     CP_REBASE(thread->signal_handles);
 
     create_lock(thread->lock);
-    thread->scheduler_event = DkNotificationEventCreate(1);
-    thread->exit_event = DkNotificationEventCreate(0);
-    thread->child_exit_event = DkNotificationEventCreate(0);
+    thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
+    thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
+    thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
 
     add_thread(thread);
 

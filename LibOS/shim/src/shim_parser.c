@@ -216,7 +216,7 @@ struct parser_table {
     { .slow = 0, .parser = { NULL } }, /* rt_sigpending */
     { .slow = 0, .parser = { NULL } }, /* rt_sigtimedwait */
     { .slow = 0, .parser = { NULL } }, /* rt_sigqueueinfo */
-    { .slow = 0, .parser = { NULL } }, /* rt_sigsuspend */
+    { .slow = 1, .parser = { NULL } }, /* rt_sigsuspend */
     { .slow = 0, .parser = { NULL } }, /* sigaltstack */
     { .slow = 0, .parser = { NULL } }, /* utime */
     { .slow = 0, .parser = { NULL } }, /* mknod */
@@ -915,8 +915,14 @@ static void parse_futexop (const char * type, va_list * ap)
         case FUTEX_WAIT:
             PUTS("FUTEX_WAIT");
             break;
+        case FUTEX_WAIT_BITSET:
+            PUTS("FUTEX_WAIT_BITSET");
+            break;
         case FUTEX_WAKE:
             PUTS("FUTEX_WAKE");
+            break;
+        case FUTEX_WAKE_BITSET:
+            PUTS("FUTEX_WAKE_BITSET");
             break;
         case FUTEX_FD:
             PUTS("FUTEX_FD");

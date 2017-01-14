@@ -90,7 +90,7 @@ static int __add_sem_handle (unsigned long key, IDTYPE semid,
     tmp->semkey = key;
     tmp->semid  = semid;
     tmp->owned  = owned;
-    tmp->event  = DkNotificationEventCreate(0);
+    tmp->event  = DkNotificationEventCreate(PAL_FALSE);
 
     if (owned && nsems) {
         tmp->nsems  = nsems;

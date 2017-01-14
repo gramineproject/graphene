@@ -45,6 +45,22 @@ typedef __kernel_pid_t pid_t;
 #include <netinet/tcp.h>
 #include <asm/errno.h>
 
+#ifndef SOL_TCP
+# define SOL_TCP 6
+#endif
+
+#ifndef TCP_NODELAY
+# define TCP_NODELAY 1
+#endif
+
+#ifndef TCP_CORK
+# define TCP_CORK 3
+#endif
+
+#ifndef SOL_IPV6
+# define SOL_IPV6 41
+#endif
+
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
 #define PAL_SOCKADDR_SIZE   96
@@ -345,6 +361,12 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
 
+    if (bind_addr->sa_family == AF_INET6) {
+        int ipv6only = 1;
+        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only,
+                       sizeof(int));
+    }
+
     /* must set the socket to be reuseable */
     int reuseaddr = 1;
     INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr,
@@ -472,6 +494,12 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
                     goto failed;
             }
         }
+    }
+
+    if (dest_addr->sa_family == AF_INET6) {
+        int ipv6only = 1;
+        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only,
+                       sizeof(int));
     }
 
     ret = INLINE_SYSCALL(connect, 3, fd, dest_addr, dest_addrlen);
@@ -629,6 +657,12 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
 
+    if (bind_addr->sa_family == AF_INET6) {
+        int ipv6only = 1;
+        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only,
+                       sizeof(int));
+    }
+
     ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
 
     if (IS_ERR(ret)) {
@@ -677,6 +711,12 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
+
+    if (dest_addr->sa_family == AF_INET6) {
+        int ipv6only = 1;
+        INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only,
+                       sizeof(int));
+    }
 
     if (bind_addr) {
         ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
@@ -1000,7 +1040,12 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
     int fd = handle->sock.fd, ret, val;
 
-    if (handle->sock.conn) {
+    if (IS_HANDLE_TYPE(handle, tcpsrv)) {
+        struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+        struct timespec tp = { 0, 0 };
+        ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+        attr->readable = (ret == 1 && pfd.revents == POLLIN);
+    } else {
         /* try use ioctl FIONEAD to get the size of socket */
         ret = INLINE_SYSCALL(ioctl, 3, fd, FIONREAD, &val);
         if (IS_ERR(ret))
@@ -1008,8 +1053,6 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
         attr->pending_size = val;
         attr->readable = !!attr->pending_size > 0;
-    } else {
-        attr->readable = !attr->disconnected;
     }
 
     return 0;

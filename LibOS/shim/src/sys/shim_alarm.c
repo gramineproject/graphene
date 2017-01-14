@@ -42,9 +42,8 @@ void signal_alarm (IDTYPE target, void * arg)
 
 int shim_do_alarm (unsigned int seconds)
 {
-    return install_async_event(seconds * 1000000,
-                               &signal_alarm,
-                               NULL);
+    uint64_t usecs = 1000000ULL * seconds;
+    return install_async_event(NULL, usecs, &signal_alarm, NULL);
 }
 
 static struct {
@@ -92,7 +91,7 @@ int shim_do_setitimer (int which, struct __kernel_itimerval * value,
                                     real_itimer.timeout - setup_time : 0;
     unsigned long current_reset = real_itimer.reset;
 
-    int ret = install_async_event(next_value, &signal_itimer,
+    int ret = install_async_event(NULL, next_value, &signal_itimer,
                                   (void *) (setup_time + next_value));
 
     if (ret < 0) {

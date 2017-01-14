@@ -124,7 +124,6 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
             context->uc_mcontext.gregs[REG_RDX] = regs->rdx;
             context->uc_mcontext.gregs[REG_RSI] = regs->rsi;
             context->uc_mcontext.gregs[REG_RDI] = regs->rdi;
-            context->uc_mcontext.gregs[REG_R12] = regs->r12;
             context->uc_mcontext.gregs[REG_RBX] = regs->rbx;
             context->uc_mcontext.gregs[REG_RBP] = regs->rbp;
         }
@@ -249,7 +248,7 @@ internal:
     }
 
     if (context)
-        debug("memory fault at %p (IP = %p)\n", arg, context->IP);
+        pal_printf("memory fault at %p (IP = %p)\n", arg, context->IP);
 
     struct shim_vma * vma = NULL;
     if (!lookup_supervma((void *) arg, 0, &vma)) {

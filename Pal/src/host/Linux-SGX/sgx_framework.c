@@ -150,23 +150,28 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     struct gsgx_enclave_create param;
     if (baseaddr) {
-        secs->baseaddr = (unsigned long) baseaddr & ~(secs->size - 1);
+        secs->baseaddr = (uint64_t) baseaddr & ~(secs->size - 1);
         flags |= MAP_FIXED;
-    } else 
+    } else {
         secs->baseaddr = 0ULL;
+    }
 
-    secs->baseaddr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, size,
-                                    PROT_READ|PROT_WRITE|PROT_EXEC, flags,
-                                    isgx_device, 0);
+    uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, size,
+                                   PROT_READ|PROT_WRITE|PROT_EXEC, flags,
+                                   isgx_device, 0);
 
-    if (IS_ERR_P(secs->baseaddr)) {
-        if (ERRNO_P(secs->baseaddr) == 1 && (flags | MAP_FIXED))
-            pal_printf("Permission denied on mapping enclave.  You may need to set sysctl vm.mmap_min_addr to zero\n");
-        SGX_DBG(DBG_I, "enclave ECREATE failed in allocating EPC memory - %d\n", ERRNO_P(secs->baseaddr));
+    if (IS_ERR_P(addr)) {
+        if (ERRNO_P(addr) == 1 && (flags | MAP_FIXED))
+            pal_printf("Permission denied on mapping enclave. "
+                       "You may need to set sysctl vm.mmap_min_addr to zero\n");
+
+        SGX_DBG(DBG_I, "enclave ECREATE failed in allocating EPC memory "
+                "(errno = %d)\n", ERRNO_P(addr));
         return -ENOMEM;
     }
 
-    param.src = (unsigned long) secs;
+    secs->baseaddr = addr;
+    param.src = (uint64_t) secs;
     int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_CREATE,
                          &param);
     

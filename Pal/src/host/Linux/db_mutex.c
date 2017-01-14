@@ -42,167 +42,140 @@
 #include <unistd.h>
 
 #ifdef __i386__
+# define barrier()       asm volatile("" ::: "memory");
 # define rmb()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 # define cpu_relax()     asm volatile("rep; nop" ::: "memory");
 #endif
 
 #ifdef __x86_64__
 # include <unistd.h>
+# define barrier()       asm volatile("" ::: "memory");
 # define rmb()           asm volatile("lfence" ::: "memory")
 # define cpu_relax()     asm volatile("rep; nop" ::: "memory");
 #endif
 
-#define MUTEX_SPINLOCK_TIMES    20
+#define MUTEX_SPINLOCK_TIMES    100
 
-int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout)
+int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
 {
-    int i, c = 0;
+    int ret = 0;
+#ifdef DEBUG_MUTEX
+    int tid = INLINE_SYSCALL(gettid, 0);
+#endif
 
     if (timeout == -1)
-        return -_DkMutexLock(mut);
+        return -_DkMutexLock(m);
 
-    struct atomic_int * m = &mut->value;
-
-    /* Spin and try to take lock */
-    for (i = 0 ; i < MUTEX_SPINLOCK_TIMES ; i++)
-    {
-        c = atomic_dec_and_test(m);
-        if (c)
-            goto success;
-        cpu_relax();
-    }
-
-    /* The lock is now contended */
-
-    int ret;
+    if (!xchg(&m->b.locked, 1))
+        goto success;
 
     if (timeout == 0) {
-        ret = c ? 0 : -PAL_ERROR_TRYAGAIN;
+        ret = -PAL_ERROR_TRYAGAIN;
         goto out;
     }
 
-    while (!c) {
-        int val = atomic_read(m);
-        if (val == 1)
-            goto again;
-
+    while (xchg(&m->u, 257) & 1) {
         struct timespec waittime;
         long sec = timeout / 1000000;
         long microsec = timeout - (sec * 1000000);
         waittime.tv_sec = sec;
         waittime.tv_nsec = microsec * 1000;
 
-        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, val, &waittime, NULL, 0);
+        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, 257, &waittime, NULL, 0);
 
-        if (IS_ERR(ret) &&
-            ERRNO(ret) != EWOULDBLOCK &&
-            ERRNO(ret) != EINTR) {
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == EWOULDBLOCK) {
+                xchg(&m->b.contended, 0);
+                ret = -PAL_ERROR_TRYAGAIN;
+                goto out;
+            }
+#ifdef DEBUG_MUTEX
+            printf("futex failed (err = %d)\n", ERRNO(ret));
+#endif
             ret = unix_to_pal_error(ERRNO(ret));
             goto out;
         }
-
-#ifdef DEBUG_MUTEX
-        if (IS_ERR(ret))
-            printf("mutex held by thread %d\n", mut->owner);
-#endif
-
-again:
-        /* Upon wakeup, we still need to check whether mutex is unlocked or
-         * someone else took it.
-         * If c==0 upon return from xchg (i.e., the older value of m==0), we
-         * will exit the loop. Else, we sleep again (through a futex call).
-         */
-        c = atomic_dec_and_test(m);
     }
 
 success:
 #ifdef DEBUG_MUTEX
-    mut->owner = INLINE_SYSCALL(gettid, 0);
+    m->owner = tid;
 #endif
     ret = 0;
 out:
+#ifdef DEBUG_MUTEX
+    if (ret < 0)
+        printf("mutex failed (%e, tid = %d)\n", -ret, tid);
+#endif
     return ret;
 }
 
-int _DkMutexLock (struct mutex_handle * mut)
+int _DkMutexLock (struct mutex_handle * m)
 {
-    int i, c = 0;
-    int ret;
-    struct atomic_int * m = &mut->value;
+    int ret = 0, i;
+#ifdef DEBUG_MUTEX
+    int tid = INLINE_SYSCALL(gettid, 0);
+#endif
 
     /* Spin and try to take lock */
     for (i = 0; i < MUTEX_SPINLOCK_TIMES; i++) {
-        c = atomic_dec_and_test(m);
-        if (c)
+        if (!xchg(&m->b.locked, 1))
             goto success;
         cpu_relax();
     }
 
-    /* The lock is now contended */
-
-    while (!c) {
-        int val = atomic_read(m);
-        if (val == 1)
-            goto again;
-
-        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, val, NULL, NULL, 0);
+    while (xchg(&m->u, 257) & 1) {
+        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, 257, NULL, NULL, 0);
 
         if (IS_ERR(ret) &&
-            ERRNO(ret) != EWOULDBLOCK &&
-            ERRNO(ret) != EINTR) {
+            ERRNO(ret) != EWOULDBLOCK) {
+#ifdef DEBUG_MUTEX
+            printf("futex failed (err = %d)\n", ERRNO(ret));
+#endif
             ret = unix_to_pal_error(ERRNO(ret));
             goto out;
         }
-
-#ifdef DEBUG_MUTEX
-        if (IS_ERR(ret))
-            printf("mutex held by thread %d\n", mut->owner);
-#endif
-
-again:
-        /* Upon wakeup, we still need to check whether mutex is unlocked or
-         * someone else took it.
-         * If c==0 upon return from xchg (i.e., the older value of m==0), we
-         * will exit the loop. Else, we sleep again (through a futex call).
-         */
-        c = atomic_dec_and_test(m);
     }
 
 success:
 #ifdef DEBUG_MUTEX
-    mut->owner = INLINE_SYSCALL(gettid, 0);
+    m->owner = tid;
 #endif
     ret = 0;
 out:
+#ifdef DEBUG_MUTEX
+    if (ret < 0)
+        printf("mutex failed (%e, tid = %d)\n", -ret, tid);
+#endif
     return ret;
 }
 
-int _DkMutexUnlock (struct mutex_handle * mut)
+int _DkMutexUnlock (struct mutex_handle * m)
 {
-    int ret = 0;
-    int must_wake = 0;
-    struct atomic_int * m = &mut->value;
+    int ret = 0, i;
 
 #ifdef DEBUG_MUTEX
-    mut->owner = 0;
+    m->owner = 0;
 #endif
 
     /* Unlock, and if not contended then exit. */
-    if (atomic_read(m) < 0)
-        must_wake = 1;
+    if ((m->u == 1) && (cmpxchg(&m->u, 1, 0) == 1)) return 0;
+    m->b.locked = 0;
+    barrier();
 
-    atomic_set(m, 1);
-
-    if (must_wake) {
-        /* We need to wake someone up */
-        ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAKE, 1, NULL, NULL, 0);
+    /* Spin and try to take lock */
+    for (i = 0; i < MUTEX_SPINLOCK_TIMES * 2; i++) {
+        if (m->b.locked)
+            goto success;
+        cpu_relax();
     }
 
-    if (IS_ERR(ret)) {
-        ret = -PAL_ERROR_TRYAGAIN;
-        goto out;
-    }
+    m->b.contended = 0;
 
+    /* We need to wake someone up */
+    INLINE_SYSCALL(futex, 6, m, FUTEX_WAKE, 1, NULL, NULL, 0);
+
+success:
     ret = 0;
 out:
     return ret;
