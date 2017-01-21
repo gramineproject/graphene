@@ -36,6 +36,7 @@ class Regression:
 
             run_times = 0
             outputs = []
+            timed_out = False
             while run_times < needed_times:
                 args = []
                 if self.loader:
@@ -64,6 +65,7 @@ class Regression:
                     sleep_time += 1
 
                 if not finish and p.poll() is None:
+                    timed_out = True
                     p.kill()
 
                 time.sleep(0.1)
@@ -82,6 +84,7 @@ class Regression:
                             print '\033[92m[Success]\033[0m', name
                         else:
                             print '\033[93m[Fail   ]\033[0m', name
+                            if timed_out : print 'Test timed out!'
                             keep_log = True
 
                 if self.keep_log and keep_log:
