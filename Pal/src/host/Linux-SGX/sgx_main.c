@@ -269,6 +269,14 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     enclave->size = parse_int(cfgbuf);
 
+    /* DEP 1/21/17: SGX currently only supports power-of-two enclaves.
+     * Give users a better warning about this. */
+    if (enclave->size & (enclave->size - 1)) {
+        SGX_DBG(DBG_E, "Enclave size not a power of two.  SGX requires power-of-two enclaves.\n");
+        ret = -EINVAL;
+        goto err;
+    }
+
     /* Reading sgx.thread_num from manifest */
     if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0)
         enclave->thread_num = parse_int(cfgbuf);
