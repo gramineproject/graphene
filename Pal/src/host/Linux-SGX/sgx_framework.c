@@ -191,7 +191,7 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     SGX_DBG(DBG_I, "enclave created:\n");
     SGX_DBG(DBG_I, "    base:         0x%016lx\n", secs->baseaddr);
-    SGX_DBG(DBG_I, "    size:         0x%x\n",     secs->size);
+    SGX_DBG(DBG_I, "    size:         0x%016lx\n", secs->size);
     SGX_DBG(DBG_I, "    attr:         0x%016lx\n", secs->attributes.flags);
     SGX_DBG(DBG_I, "    xfrm:         0x%016lx\n", secs->attributes.xfrm);
     SGX_DBG(DBG_I, "    ssaframesize: %ld\n",      secs->ssaframesize);

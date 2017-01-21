@@ -98,3 +98,12 @@ regression.add_check(name="Bootstrap without Executable but Preload Libraries",
                       "Binary 2 Preloaded" in res[0].log)
 
 regression.run_checks()
+
+# Running Bootstrap6.manifest
+regression = Regression(loader, manifest_file("Bootstrap6"), timeout = 100000)
+
+regression.add_check(name="8GB Enclave Creation (SGX Only)",
+    check=lambda res: "Loaded Manifest: file:Bootstrap6.manifest.sgx" in res[0].log and
+                      "Executable Range OK" in res[0].log)
+
+regression.run_checks()
