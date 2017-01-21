@@ -59,8 +59,6 @@ int install_async_event (PAL_HANDLE object, unsigned long time,
 
     unsigned long install_time = DkSystemTimeQuery();
 
-    debug("install async event at %llu\n", install_time);
-
     event->callback     = callback;
     event->arg          = arg;
     event->caller       = get_cur_tid();
@@ -79,16 +77,58 @@ int install_async_event (PAL_HANDLE object, unsigned long time,
         prev = &tmp->list;
     }
 
+    /* 
+     * man page of alarm system call :
+     * DESCRIPTION
+     * alarm() arranges for a SIGALRM signal to be delivered to the 
+	 * calling process in seconds seconds.
+     * If seconds is zero, any pending alarm is canceled.
+     * In any event any previously set alarm() is canceled.
+     */
+    if (!list_empty(&async_list)) {
+        tmp = list_entry((&async_list)->prev, struct async_event, list);
+        /*
+         * any previously set alarm() is canceled.
+         * There should be exactly only one timer pending
+         */
+		list_del(&tmp->list);
+        free(tmp);
+    } else
+	   tmp = NULL;
+    
     INIT_LIST_HEAD(&event->list);
-    list_add(&event->list, prev);
-
+    if (!time)    // If seconds is zero, any pending alarm is canceled.
+        free(event);
+    else
+        list_add_tail(&event->list, &async_list);   
+    
     unlock(async_helper_lock);
 
     if (atomic_read(&async_helper_state) == HELPER_NOTALIVE)
         create_async_helper();
 
-    set_event(&async_helper_event, 1);
-    return 0;
+    DkEventSet(async_helper_event);
+
+    /* 
+     * man page of alarm system call :
+     * RETURN VALUE
+     * alarm()  returns the number of seconds remaining until 
+     * any previously scheduled alarm was due to be delivered,
+     * or zero if there was no previously scheduled alarm.
+     * reference : lxr.free-electrons.com/source/kernel/itimer.c?v=2.6.35#L272
+     */
+    unsigned long ret;
+    unsigned long sec = 0;
+    unsigned long usec = 0;
+    
+    if (tmp) {
+    	ret = tmp->expire_time - install_time;
+    	sec = ret / 1000000;
+    	usec = ret % 1000000;
+    	if ((!sec && usec) || usec >=500000)
+    		sec++;
+    }
+    return sec;
 }
 
 int init_async (void)

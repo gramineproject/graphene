@@ -20,7 +20,7 @@
 #
 # Chia-Che Tsai, Fall 2016
 #
-NF && ! /^#/ {
+NF && ! /^#/ && ! /epoll/ {
 	s=$1 "_graphene ./pal_loader"
 	for (i = 2; i <= NF; i++) {
 		s = s " " $i

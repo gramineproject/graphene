@@ -49,7 +49,8 @@ regression: $(target)
 	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f; done
 	@echo "\n\nLarge File Support:"
 	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f; done
-	@echo "\n\n"
+	@echo "\n\nLTP tests for system calls:"
+	../apps/ltp/syscalls.sh
 
 clean-tmp:
-	rm -rf *.tmp
+	rm -rf *.tmp ../apps/ltp/*.csv
