@@ -1,0 +1,29 @@
+LTP FOR GRAPHENE
+----------------
+
+Running LTP test cases in Graphene :
+1) run 'make' in LibOS/shim/test/apps/ltp 
+2) cd Graphene/LibOS/shim/test/regression
+3) make regression
+
+The above command will start running LTP system call test cases in Graphene.
+
+It works in 2 steps:
+1) Creates a testfile (Graphene/LibOS/shim/test/apps/ltp/syscalls.graphene) with all the LTP system call test cases to run, excluding the ones mentioned in Graphene/LibOS/shim/test/apps/ltp/BLOCKED. “BLOCKED” contains all the test cases which are hanging in the Graphene and thus are excluded from regression tests.
+2) Calls Graphene/LibOS/shim/test/apps/ltp/fetch.py It runs the LTP test cases and display output on the terminal. 
+   Some LTP testcases hangs in Graphene. This python script sets a timeout for each testcase referring the file 'TIMEOUTS'. Default timeout is set 20 seconds in the script.
+   It also shows, ‘new passed testcases’ (passed testcases which are not in Graphene/LibOS/shim/test/apps/ltp/PASSED) and ‘new failed testcases’ (failed testcases which are in ‘PASSED’). 
+It also creates files ‘run_output’, ‘Failed.csv’, ‘Passed.csv’, ‘Blocked.csv’ under Graphene/LibOS/shim/test/apps/ltp for reference.
+Results are of 4 types :
+[Pass]   -> Testcase passed
+[Failed] -> Testcase failed
+[Hanged] -> Testcase hanged and thereafter killed
+[Broken] -> Either system call is not implemented in Graphene or test preparation failed
+
+To run one particular testcase, execute following :
+1) cd LibOS/shim/test/native
+2) ./pal <ltp-repo>/ltp/testcases/kernel/syscalls/alarm/alarm01
+
+In this way, one can debug one particular syscall testcase, 'alarm01' in this case.
+
+As you fix bugs, keep updating PASSED BLOCKED lists.

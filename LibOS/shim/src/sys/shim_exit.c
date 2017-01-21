@@ -131,6 +131,8 @@ int try_process_exit (int error_code)
 {
     struct shim_thread * cur_thread = get_cur_thread();
 
+    cur_thread->exit_code = -error_code;
+
     if (cur_thread->in_vm)
         thread_exit(cur_thread, true);
 
