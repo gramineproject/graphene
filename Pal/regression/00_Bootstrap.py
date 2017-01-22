@@ -44,6 +44,13 @@ regression.add_check(name="Control Block: Executable Range",
 
 regression.run_checks()
 
+# Running ..Bootstrap
+regression = Regression(loader, "..Bootstrap")
+
+regression.add_check(name="Dotdot handled properly",
+    check=lambda res: "User Program Started" in res[0].log)
+regression.run_checks()
+
 # Running Bootstrap2
 regression = Regression(loader, "Bootstrap2")
 
