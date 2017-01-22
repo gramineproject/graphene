@@ -5,7 +5,7 @@ CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
-executables = $(filter-out $(preloads),$(patsubst %.c,%,$(wildcard *.c)))
+executables = $(filter-out $(preloads),$(patsubst %.c,%,$(wildcard *.c))) ..Bootstrap
 manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template))
 
 target = $(executables) $(manifests)
