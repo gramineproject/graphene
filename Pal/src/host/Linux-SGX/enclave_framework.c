@@ -186,7 +186,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
     sgx_arch_mac_t * stubs = malloc(sizeof(sgx_arch_mac_t) * nstubs);
-    if (!tf)
+    if (!stubs)
         return -PAL_ERROR_NOMEM;
 
     sgx_arch_mac_t * s = stubs;
