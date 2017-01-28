@@ -10,7 +10,5 @@ endif
 
 .PHONY: $(targets)
 $(targets): src test
-	for d in src test; \
-	do \
-		make $@ -C $$d; \
-	done
+	make $@ -C src
+	make $@ -C test
