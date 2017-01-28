@@ -115,7 +115,11 @@ int _DkMutexLock (struct mutex_handle * m)
         cpu_relax();
     }
 
+    // Mutex is union of u8 array and u32; this assumes a little-endian machine.
     while (xchg(&m->u, 257) & 1) {
+        // This is broken. The mutex is in enclave memory, the URTS can't
+        // do FUTEX_WAIT on it. This call will always fail and the next level
+        // up needs to retry.
         ret = ocall_futex((int *) m, FUTEX_WAIT, 257, NULL);
         if (ret < 0 &&
             ret != -PAL_ERROR_TRYAGAIN) {
@@ -152,7 +156,7 @@ int _DkMutexUnlock (struct mutex_handle * m)
     m->b.locked = 0;
     barrier();
 
-    /* Spin and try to take lock */
+    /* See if somebody else takes the lock */
     for (i = 0; i < MUTEX_SPINLOCK_TIMES * 2; i++) {
         if (m->b.locked)
             goto success;
@@ -161,7 +165,7 @@ int _DkMutexUnlock (struct mutex_handle * m)
 
     m->b.contended = 0;
 
-    /* We need to wake someone up */
+    /* Nobody took it, we need to wake someone up */
     ocall_futex((int *) m, FUTEX_WAKE, 1, NULL);
 
 success:

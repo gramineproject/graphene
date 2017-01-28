@@ -133,7 +133,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
 int shim_terminate (void);
 
 /* assertions */
-#define USE_PAUSE       1
+#define USE_PAUSE       0
 #define USE_ASSERT      1
 
 static inline void do_pause (void);

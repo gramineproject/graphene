@@ -159,6 +159,9 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                 if (list_empty(&futex->waiters))
                     break;
 
+                // BUG: if the first entry in the list isn't eligible, do we
+                // ever wake anything up? doesn't this check the first entry
+                // over and over?
                 struct futex_waiter * waiter = list_entry(futex->waiters.next,
                                                           struct futex_waiter,
                                                           list);
