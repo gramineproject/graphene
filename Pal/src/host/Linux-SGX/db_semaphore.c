@@ -88,8 +88,7 @@ int _DkSemaphoreAcquire (PAL_HANDLE sem, int count)
     /* optimization: use it as a mutex */
     if (sem->semaphore.max_value == 1) {
         struct mutex_handle * mut = &sem->semaphore.value.mut;
-        _DkMutexLock(mut);
-        return 0;
+        return _DkMutexLock(mut);
     }
 
     if (count > sem->semaphore.max_value)
@@ -156,8 +155,7 @@ int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
     /* optimization: use it as a mutex */
     if (sem->semaphore.max_value == 1) {
         struct mutex_handle * mut = & sem->semaphore.value.mut;
-        _DkMutexLockTimeout(mut, timeout);
-        return 0;
+        return _DkMutexLockTimeout(mut, timeout);
     }
 
     if (count > sem->semaphore.max_value)
@@ -184,6 +182,7 @@ int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
         atomic_add (count, (struct atomic_int *) value);
 
     if (!timeout)
+        // BUG: Really? shouldn't we fail if we didn't get the lock?
         return 0;
 
     unsigned long waittime = timeout;
@@ -227,7 +226,9 @@ void _DkSemaphoreRelease (PAL_HANDLE sem, int count)
         struct mutex_handle * mut =
             &sem->semaphore.value.mut;
 
-        _DkMutexUnlock(mut);
+        int ret = _DkMutexUnlock(mut);
+        if (ret < 0)
+            _DkRaiseFailure(ret);
         return;
     }
 
