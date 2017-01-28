@@ -777,7 +777,7 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
     thread_setwait(&r->thread, NULL);
     list_add_tail(&r->list, &rpc_reqs);
     unlock(rpc_queue_lock);
-    thread_sleep();
+    thread_sleep(NO_TIMEOUT);
     put_thread(r->thread);
     if (sender)
         *sender = r->sender;

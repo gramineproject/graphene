@@ -38,6 +38,7 @@ class RunCmd(threading.Thread):
             del self.p
 
         if (finish):
+            reported = False
             name.seek(0)
             for output in name.readlines():
                 toks = output.split()
@@ -45,7 +46,7 @@ class RunCmd(threading.Thread):
                     continue
                 test_subtest = self.test + "," + toks[1]
                 self.test_subtest = test_subtest
-                if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or self.test in current_hanged or test_subtest in current_blocked:
+                if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or self.test in current_hanged or test_subtest in current_broken:
                     continue
                 if output:
                     output = output.strip()
@@ -54,17 +55,23 @@ class RunCmd(threading.Thread):
                     print >>failed_tests_fh, test_subtest
                     print CRED + "[Fail   ] " + test_subtest + CEND
                     current_failed[test_subtest] = 1
+                    reported = True
                 elif "TPASS" in output:
                     print >>passed_tests_fh, test_subtest
                     print CGREEN + "[Pass   ] " + test_subtest + CEND
                     current_passed[test_subtest] = 1
+                    reported = True
                 elif "TCONF" in output or "TBROK" in output or "error" in output:
                     print >>broken_tests_fh, test_subtest
                     print "[Broken ] " + test_subtest      #Syscall not implemented or test preparation failed
-                    current_blocked[test_subtest] = 1
+                    current_broken[test_subtest] = 1
+                    reported = True
             #else:
             #    print "[Broken ] " + self.test      #Syscall not implemented or test preparation failed
-
+            if (not reported):
+                print >>broken_tests_fh, self.test
+                print CRED + "[Broken ] " + self.test + CEND
+                current_broken[self.test] = 1
     def Run(self):
         self.start()
         self.join()
@@ -92,7 +99,7 @@ broken_tests_fh.write("Test,Subtest number,Status\n")
 
 current_passed = dict()
 current_failed = dict()
-current_blocked = dict()
+current_broken = dict()
 current_hanged = dict()
 timeouts_dict = dict()
 

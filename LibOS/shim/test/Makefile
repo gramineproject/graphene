@@ -5,7 +5,7 @@ export SYS
 
 PALDIR  = $(level)../../../Pal/src
 SHIMDIR = $(level)../src
-LIBCDIR = $(level)../../glibc-build
+LIBCDIR = $(level)../../../Runtime
 
 CC = gcc
 CXX = g++

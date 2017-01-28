@@ -9,7 +9,7 @@ target = $(exec_target) $(manifests) pal
 level = ../
 include ../Makefile
 
-CFLAGS-libos = -I$(SHIMDIR)/../include -L$(LIBCDIR)/libos
+CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
 
 ifeq ($(SYS),x86_64-linux-gnu)
 $(c_executables): %: %.c
