@@ -4,64 +4,71 @@ import os
 import threading
 import time
 import signal
+import tempfile
 
 class RunCmd(threading.Thread):
     def __init__(self, cmd, timeout, test):
         threading.Thread.__init__(self)
         self.cmd = cmd
-        self.timeout = int(timeout)
+        self.timeout = int(timeout)*100
         self.output = ""
         self.test = test
+        self.test_subtest = test
 
     def run(self):
-        self.p = subprocess.Popen(self.cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, preexec_fn=os.setsid)
-        self.output, error = self.p.communicate()
-        outt = self.output.split("\n")
-        for output in outt:
-            toks = output.split()
-            subtest = "1"
-            if output:
-                output = output.strip()
-                print >>f1, output
-                out = output.split( )
-            if "TFAIL" in output:
-                subtest = str(toks[1])
-                test_subtest = toks[0] + "," + subtest
-                print >>failed_tests_fh, test_subtest
-                if test_subtest not in current_failed:
-                    print CRED + "[Fail   ] " + self.test + "," + str(subtest) + CEND
+        name = tempfile.NamedTemporaryFile(mode='w+b')
+        self.p = subprocess.Popen(self.cmd, shell=True, stdout=name, stderr=subprocess.STDOUT, preexec_fn=os.setsid, close_fds=True)
+        self.curtime = time.time()
+        self.endtime = self.curtime + self.timeout
+        needed_times = self.timeout
+        sleep_time = 0
+        finish = False
+        while sleep_time < self.timeout:
+            if self.p.poll() is not None:
+                finish = True
+                break
+            sleep_time += 1
+            time.sleep(.01)
+
+        if not finish and self.p.poll() is None:
+            timed_out = True
+            print CRED + "[Hanged ] " + self.test_subtest + CEND
+            current_hanged[self.test_subtest] = 1
+            os.killpg(os.getpgid(self.p.pid), signal.SIGKILL)
+            del self.p
+
+        if (finish):
+            name.seek(0)
+            for output in name.readlines():
+                toks = output.split()
+                if len(toks)<2 or (toks[0] != self.test and self.test != "memcmp01" and self.test != "memcpy01"):
+                    continue
+                test_subtest = self.test + "," + toks[1]
+                self.test_subtest = test_subtest
+                if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or self.test in current_hanged or test_subtest in current_blocked:
+                    continue
+                if output:
+                    output = output.strip()
+                    print >>f1, output
+                if "TFAIL" in output:
+                    print >>failed_tests_fh, test_subtest
+                    print CRED + "[Fail   ] " + test_subtest + CEND
                     current_failed[test_subtest] = 1
-            elif "TPASS" in output:
-                subtest = toks[1]
-                test_subtest = toks[0] + "," + subtest
-                print >>passed_tests_fh, test_subtest
-                if test_subtest not in current_passed:
+                elif "TPASS" in output:
+                    print >>passed_tests_fh, test_subtest
+                    print CGREEN + "[Pass   ] " + test_subtest + CEND
                     current_passed[test_subtest] = 1
-                    print CGREEN + "[Pass   ] " + self.test + "," + str(subtest) + CEND
-            elif "TINFO" in output:
-                continue
-            elif "TCONF" in output or "TBROK" in output or "error" in output:
-                if toks[0] == "self.test":
-                    subtest = str(toks[1])
-                test_subtest = toks[0] + "," + subtest
-                print >>broken_tests_fh, toks[0] + "," + subtest
-                if test_subtest not in current_blocked and toks[0] not in current_hanged:
-                    print "[Broken ] " + self.test + "," + str(subtest)      #Syscall not implemented or test preparation failed
+                elif "TCONF" in output or "TBROK" in output or "error" in output:
+                    print >>broken_tests_fh, test_subtest
+                    print "[Broken ] " + test_subtest      #Syscall not implemented or test preparation failed
                     current_blocked[test_subtest] = 1
             #else:
             #    print "[Broken ] " + self.test      #Syscall not implemented or test preparation failed
-        self.p.wait()
 
     def Run(self):
         self.start()
-        self.join(self.timeout)
+        self.join()
 
-        if self.is_alive():
-            os.killpg(os.getpgid(self.p.pid), signal.SIGTERM)
-            print CRED + "[Hanged ] " + self.test + CEND
-            current_hanged[self.test] = 1
-            time.sleep(1)
-            
 CRED = '\033[91m'
 CGREEN = '\033[92m'
 CEND = '\033[0m'
@@ -108,7 +115,8 @@ with open('../../../../syscalls.graphene') as testcases:
             timeout = timeouts_dict[test]
         except KeyError:
             timeout = DEFAULT_TIMEOUT
-        RunCmd([line], timeout, test).Run() 
+        RunCmd([line], timeout, test).Run()
+        time.sleep(.1)
 os.chdir("../../../..")
     
 stable_passed = dict()
