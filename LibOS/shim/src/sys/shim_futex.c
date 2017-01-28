@@ -128,8 +128,10 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
         case FUTEX_WAIT_BITSET: {
             uint32_t bitset = (futex_op == FUTEX_WAIT_BITSET) ? val3 :
                               0xffffffff;
-            debug("FUTEX_WAIT: %p (val = %d) vs %d mask = %08x\n",
-                  uaddr, *uaddr, val, bitset);
+            uint64_t timeout_us = NO_TIMEOUT;
+            
+            debug("FUTEX_WAIT: %p (val = %d) vs %d mask = %08x, timeout ptr %p\n",
+                  uaddr, *uaddr, val, bitset, utime);
 
             if (*uaddr != val) {
                 ret = -EAGAIN;
@@ -139,11 +141,31 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             struct futex_waiter waiter;
             thread_setwait(&waiter.thread, NULL);
             INIT_LIST_HEAD(&waiter.list);
-            waiter.bitset = (futex_op == FUTEX_WAIT_BITSET) ? val3 : 0xffffffff;
+            waiter.bitset = bitset;
             list_add_tail(&waiter.list, &futex->waiters);
 
             unlock(hdl->lock);
-            thread_sleep();
+            if (utime) {
+                struct timespec *ts = (struct timespec*) utime;
+                // Round to microsecs
+                timeout_us = (ts->tv_sec * 1000000) + (ts->tv_nsec / 1000);
+                // Check for the CLOCK_REALTIME flag
+                if (futex_op == FUTEX_WAIT_BITSET)  {
+                    // DEP 1/28/17: Should really differentiate clocks, but
+                    // Graphene only has one for now.
+                    //&& 0 != (op & FUTEX_CLOCK_REALTIME)) {
+                    uint64_t current_time = DkSystemTimeQuery();
+                    if (current_time == 0) {
+                        ret = -EINVAL;
+                        break;
+                    }
+                    timeout_us -= current_time;
+                }
+            }
+            ret = thread_sleep(timeout_us);
+            /* DEP 1/28/17: Should return ETIMEDOUT, not EAGAIN, on timeout. */
+            if (ret == -EAGAIN)
+                ret = -ETIMEDOUT;
             lock(hdl->lock);
             break;
         }

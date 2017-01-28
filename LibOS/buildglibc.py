@@ -135,8 +135,8 @@ link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
                       ( 'csu',    'crt1.o' ),
                       ( 'csu',    'crti.o' ),
                       ( 'csu',    'crtn.o' ),
+                      ( 'rt',     'librt.so.1' ),
                       ( 'libos',  'liblibos.so.1' ) ]
-
 
 if not do_install:
 

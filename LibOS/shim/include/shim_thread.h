@@ -206,18 +206,21 @@ static inline void thread_setwait (struct shim_thread ** queue,
         *queue = thread;
 }
 
-static inline void thread_sleep (void)
+static inline int thread_sleep (uint64_t timeout_us)
 {
     struct shim_thread * cur_thread = get_cur_thread();
 
     if (!cur_thread)
-        return;
+        return -EINVAL;
 
     PAL_HANDLE event = cur_thread->scheduler_event;
     if (!event)
-        return;
+        return -EINVAL;
 
-    DkObjectsWaitAny(1, &event, NO_TIMEOUT);
+    if ( NULL == DkObjectsWaitAny(1, &event, timeout_us))
+        return -PAL_ERRNO;
+
+    return 0;
 }
 
 static inline void thread_wakeup (struct shim_thread * thread)

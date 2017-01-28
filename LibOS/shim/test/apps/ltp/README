@@ -21,9 +21,8 @@ Results are of 4 types :
 [Broken] -> Either system call is not implemented in Graphene or test preparation failed
 
 To run one particular testcase, execute following :
-1) cd LibOS/shim/test/native
-2) ./pal <ltp-repo>/ltp/testcases/kernel/syscalls/alarm/alarm01
+ ~/Runtime/pal <ltp-repo>/opt/ltp/testcases/bin/<test>
 
-In this way, one can debug one particular syscall testcase, 'alarm01' in this case.
+In this way, one can debug one particular syscall testcase.
 
 As you fix bugs, keep updating PASSED BLOCKED lists.

@@ -460,7 +460,7 @@ int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
         goto out;
 
     debug("wait for response (seq = %lu)\n", msg->msg.seq);
-    thread_sleep();
+    thread_sleep(NO_TIMEOUT);
 
     ret = msg->retval;
 out:
