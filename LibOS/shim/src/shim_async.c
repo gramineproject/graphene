@@ -107,7 +107,7 @@ int install_async_event (PAL_HANDLE object, unsigned long time,
     if (atomic_read(&async_helper_state) == HELPER_NOTALIVE)
         create_async_helper();
 
-    DkEventSet(async_helper_event);
+    set_event(&async_helper_event, 1);
 
     /* 
      * man page of alarm system call :
