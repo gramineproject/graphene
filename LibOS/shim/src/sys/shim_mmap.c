@@ -45,6 +45,10 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     long ret = -ENOMEM;
     bool reserved = false;
 
+    if (addr + length < addr) {
+        return (void *) -EINVAL;
+    }
+
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
 
     if (flags & MAP_32BIT)
@@ -52,15 +56,29 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
 
     int pal_alloc_type = 0;
 
-    if (!addr) {
-        addr = get_unmapped_vma(ALIGN_UP(length), flags);
-        if (addr)
-            reserved = true;
+    if ((flags & MAP_FIXED) && (addr != NULL)) {
+        struct shim_vma * tmp = NULL;
+
+        if (lookup_overlap_vma(addr, length, &tmp) == 0) {
+            debug("mmap: allowing overlapping MAP_FIXED allocation at %p with length %lu\n",
+                  addr, length);
+        }
+    } else {
+        /* For calls without MAP_FIXED, don't even attempt to honor the
+         * caller's requested address. Such requests are likely to be assuming
+         * things about the address space that aren't valid in graphene. */
+        addr = NULL;
     }
 
-    if (addr) {
-        void * cur_stack = current_stack();
-        assert(cur_stack < addr || cur_stack > addr + length);
+    if (!addr) {
+        addr = get_unmapped_vma(ALIGN_UP(length), flags);
+
+        if (addr) {
+            reserved = true;
+            // Approximate check only, to help root out bugs.
+            void * cur_stack = current_stack();
+            assert(cur_stack < addr || cur_stack > addr + length);
+        }
     }
 
     void * mapped = ALIGN_DOWN((void *) addr);
