@@ -953,7 +953,7 @@ index 9d7f52f..72d50ae 100644
    /* If the thread is detached free the TCB.  */
    if (IS_DETACHED (pd))
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
-index 89fda5e..594dd72 100644
+index 89fda5e..f6963f6 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 @@ -111,7 +111,8 @@ ENTRY(__pthread_disable_asynccancel)
@@ -961,7 +961,7 @@ index 89fda5e..594dd72 100644
  	addq	$CANCELHANDLING, %rdi
  	LOAD_PRIVATE_FUTEX_WAIT (%esi)
 -	syscall
-+	SYSCALL
++	SYSCALLDB
 +
  	movl	%fs:CANCELHANDLING, %eax
  	jmp	3b
@@ -1801,11 +1801,18 @@ index b3854fa..6369bfe 100644
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
 diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-index 92c2f5b..33f820f 100644
+index 92c2f5b..e32ebb2 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-@@ -34,7 +34,7 @@ ENTRY (syscall)
- 	movq %r8, %r10
+@@ -31,10 +31,13 @@ ENTRY (syscall)
+ 	movq %rsi, %rdi		/* shift arg1 - arg5.  */
+ 	movq %rdx, %rsi
+ 	movq %rcx, %rdx
+-	movq %r8, %r10
++	/* DEP 1/28/17: This is not the Linux kernel; use user-space calling
++	 * 	convention	 */
++	/*	movq %r8, %r10 */
++	movq %r8, %rcx
  	movq %r9, %r8
  	movq 8(%rsp),%r9	/* arg6 is on the stack.  */
 -	syscall			/* Do the system call.  */
