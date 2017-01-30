@@ -10,7 +10,7 @@
 #define TEST_LENGTH2 0x8000f000
 
 int main() {
-    FILE*fp=fopen("testfil","a+");
+    FILE*fp=fopen("testfile","a+");
     if (!fp) { perror("fopen"); return 1; }
     int rv = ftruncate(fileno(fp), TEST_LENGTH);
     if (rv) {perror ("ftruncate"); return 1;}

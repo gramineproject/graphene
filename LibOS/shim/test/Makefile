@@ -28,6 +28,7 @@ endif
 export DEBUG
 
 manifest_rules = \
+	-e 's:\$$(PAL):$(abspath $(level)pal_loader):g' \
 	-e 's:\$$(PALDIR):'$$RELDIR'$(PALDIR):g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
@@ -47,9 +48,6 @@ relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspa
 manifest: manifest.template
 	@echo [ $@ ]
 	sed $(manifest_rules) $< > $@
-
-pal pal_sec:
-	ln -sf $(level)../../../Pal/src/$@ $@
 
 .PHONY: test clean
 

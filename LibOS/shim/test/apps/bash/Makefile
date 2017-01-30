@@ -3,8 +3,6 @@ BASH_DIR = bash-4.1
 manifests = $(addsuffix .manifest,bash ls cp rm)
 exec_target = $(manifests)
 
-extra_rules = -e 's:\$$(PAL):../pal_loader:g'
-
 level = ../../
 include ../../Makefile
 

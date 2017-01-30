@@ -3,7 +3,7 @@
 import os, sys, mmap
 from regression import Regression
 
-loader = '../src/pal'
+loader = os.environ['PAL_LOADER']
 
 def prepare_files(args):
     with open("ipc_mapping.tmp", "w") as f:

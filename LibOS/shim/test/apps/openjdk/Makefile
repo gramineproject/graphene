@@ -9,7 +9,7 @@ exec_target = java.manifest
 
 clean-extra = clean-classes
 
-extra_rules = -e 's:\$$(PAL):../pal_loader:g' -e 's:\$$(JAVA_HOME):$(JAVA_HOME):g'
+extra_rules = -e 's:\$$(JAVA_HOME):$(JAVA_HOME):g'
 
 level = ../../
 include ../../Makefile

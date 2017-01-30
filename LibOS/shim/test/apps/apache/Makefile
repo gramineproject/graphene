@@ -22,10 +22,7 @@ target = build-apache build-modules build-conf test-data
 
 clean-extra = clean-apache
 
-extra_rules = \
-	-e 's:\$$(PAL):../pal_loader:g' \
-	-e 's:\$$(HOST):$(HOST):g' \
-	-e 's:\$$(PORT):$(PORT):g'
+extra_rules = -e 's:\$$(HOST):$(HOST):g' -e 's:\$$(PORT):$(PORT):g'
 
 level = ../../
 include ../../Makefile

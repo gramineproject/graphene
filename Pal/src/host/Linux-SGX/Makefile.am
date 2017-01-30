@@ -1,15 +1,24 @@
 # Add host-specific compilation rules here
+HOST_DIR = host/$(OS)
 
-SGX_SDK ?= /opt/intel/sgxsdk
+CC	= gcc
+AS	= gcc
+AR	= ar rcs
+LD	= ld
 
-SGX_LIBRARY_PATH := $(SGX_SDK)/lib64
-SGX_SIGNER := $(SGX_SDK)/bin/x64/sgx_sign
+CFLAGS	= -Wall -fPIC -O2 -maes -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
+	  -fno-omit-frame-pointer \
+	  -fno-stack-protector -fno-builtin -DIN_ENCLAVE
+ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
+	  -x assembler-with-cpp -DIN_ENCLAVE
+LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
+	  --version-script $(HOST_DIR)/pal.map -T host/$(OS)/enclave.lds \
+	  --hash-style=gnu -e enclave_entry
+ARFLAGS	=
 
 pal_loader = host/$(OS)/pal-sgx
+pal_sec =
 pal_lib = libpal-enclave.so
 pal_lib_deps = host/$(OS)/enclave.lds host/$(OS)/pal.map
 pal_lib_post = libpal.so
-
-CFLAGS += -DIN_ENCLAVE
-LDFLAGS += --version-script host/$(OS)/pal.map \
-	   -T host/$(OS)/enclave.lds --hash-style=gnu -e enclave_entry
+pal_static = libpal.a

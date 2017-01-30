@@ -11,11 +11,6 @@ GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthre
 all: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) all
 
-install:
-	[ -d ../Runtime ] || mkdir -p ../Runtime
-	[ -f ../Runtime/libsysdb.so ] || ln -sf ../LibOS/shim/src/libsysdb.so ../Runtime/libsysdb.so
-	./buildglibc.py install --quiet
-
 ifeq ($(SYS),x86_64-linux-gnu)
 $(GLIBC_TARGET): $(BUILD_DIR)/Makefile
 	cd $(BUILD_DIR) && $(MAKE)

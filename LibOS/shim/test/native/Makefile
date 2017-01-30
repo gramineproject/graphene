@@ -4,7 +4,7 @@ cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
 
 exec_target = $(special_executables) $(c_executables) $(cxx_executables) ls.manifest
-target = $(exec_target) $(manifests) pal
+target = $(exec_target) $(manifests)
 
 level = ../
 include ../Makefile

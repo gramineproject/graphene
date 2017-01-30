@@ -17,6 +17,11 @@ headers = $(wildcard ../include/pal/*.h)
 default: all
 include ../src/Makefile.Test
 
+RUNTIME_DIR = $(CURDIR)/../../Runtime
+
+export PAL_LOADER = $(RUNTIME_DIR)/pal-$(OS)
+export PAL_SEC = $(RUNTIME_DIR)/pal_sec-$(OS)
+
 all: $(call expand_target,$(target)) $(preloads)
 
 ifeq ($(DEBUG),1)

@@ -3,7 +3,7 @@
 import os, sys, mmap
 from regression import Regression
 
-loader = '../src/pal_sec'
+loader = os.environ['PAL_SEC']
 
 if not os.path.exists(loader):
     print "Reference monitor mode is not available on this platform"

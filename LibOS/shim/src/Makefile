@@ -1,3 +1,5 @@
+RUNTIME_DIR = $(CURDIR)/../../../Runtime
+
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
@@ -27,7 +29,8 @@ LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
 LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
 
-shim_target = libsysdb.a libsysdb.so libsysdb_debug.so
+files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
+files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 
 defs	= -DIN_SHIM
 fs	= chroot str pipe socket proc dev
@@ -46,7 +49,7 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = $(abspath ../../../Pal/src/libpal.so)
 headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
 
-all: $(shim_target)
+all: $(files_to_build) $(files_to_install)
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -58,6 +61,9 @@ export DEBUG
 ifeq ($(PROFILING), 1)
 CFLAGS += -DPROFILE
 endif
+
+$(files_to_install): $(RUNTIME_DIR)/%: %
+	cp -f $< $@
 
 ifeq ($(SYS),x86_64-linux-gnu)
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \

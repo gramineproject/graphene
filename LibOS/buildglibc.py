@@ -3,7 +3,6 @@
 
 import sys, os, string, subprocess, shutil, fileinput, multiprocessing, re, resource
 
-
 def replaceAll(fd,searchExp,replaceExp):
     for line in fileinput.input(fd, inplace=1):
         if searchExp in line:
@@ -29,7 +28,6 @@ glibcParent = "" # glibc parent directory
 glibcDir = ""    # glibc dir (ex. glibc-2.19)
 buildDir = "glibc-build"
 installDir = os.path.dirname(home) + '/Runtime/'
-do_install = False
 commandStr = ""
 commandOutput = ""
 quiet = False
@@ -40,14 +38,12 @@ for arg in sys.argv[1:]:
         quiet = True
     if arg == '--debug':
         debug_flags = "-g"
-    if arg == 'install':
-        do_install = True
+
+if True:
 
     #########################################
     #### get the locations of directories ###
     #########################################
-
-if not do_install:
 
     if not quiet:
         iput = raw_input('use {0} as the source of GNU libc? ([y]/n):'.format(glibc)).lower()
@@ -71,6 +67,7 @@ if not do_install:
 
     buildDir = os.path.abspath(buildDir)
     print 'using build dir: {0}'.format(buildDir)
+
     if os.path.isdir(buildDir) :
         if not quiet:
             clean = raw_input('clean build (delete {0}, rerun configure, etc.)? ([y]/n): '.format(buildDir))
@@ -86,22 +83,20 @@ if not do_install:
     else :
         os.makedirs(buildDir)
 
-if do_install and not quiet:
-
-    iput = raw_input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
-    if not iput == 'y' and not iput == '':
-        installDir = raw_input('the directory to install glibc in:  ')
+    if not quiet:
+        iput = raw_input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
+        if not iput == 'y' and not iput == '':
+            installDir = raw_input('the directory to install glibc in:  ')
 
     installDir = os.path.abspath(installDir)
     print 'using install dir: {0}'.format(installDir)
 
 
+if True:
 
     ################################
     #### doctor glibc's Makefile ###
     ################################
-
-if not do_install:
 
     os.chdir(buildDir)
 
@@ -138,20 +133,11 @@ link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
                       ( 'rt',     'librt.so.1' ),
                       ( 'libos',  'liblibos.so.1' ) ]
 
-if not do_install:
+if True:
 
     for (dir, bin) in link_binaries:
-        if dir != '':
-            print bin + ' -> ' + dir + '/' + bin
-            os.symlink(dir + '/' + bin, bin)
+        if os.path.lexists(installDir + '/' + bin):
+            continue
 
-    print '\n\n\nNow type \'make\' in \'{0}\'\n\n'.format(buildDir)
-
-
-
-if do_install:
-
-    for (dir, bin) in link_binaries:
         print installDir + '/' + bin + ' -> ' + buildDir + '/' + dir + '/' + bin
-        if not os.path.lexists(installDir + '/' + bin):
-            os.symlink(os.path.relpath(buildDir + '/' + dir + '/' + bin, installDir), installDir + '/' + bin)
+        os.symlink(os.path.relpath(buildDir + '/' + dir + '/' + bin, installDir), installDir + '/' + bin)

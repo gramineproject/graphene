@@ -5,7 +5,7 @@ c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard 
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
 exec_target = $(special_executables) $(c_executables) $(cxx_executables)
-target = $(exec_target) manifest pal pal_sec
+target = $(exec_target) manifest
 
 clean-extra += clean-tmp
 

@@ -3,7 +3,7 @@
 import os, sys, mmap, random, string
 from regression import Regression
 
-loader = '../src/pal'
+loader = os.environ['PAL_LOADER']
 
 def prepare_files(args):
     global file_exist

@@ -1,31 +1,24 @@
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
+include Makefile.am
 
-CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -Wall -U_FORTIFY_SOURCE \
-	  -fno-omit-frame-pointer \
-	  -fno-stack-protector -fno-builtin \
-	  -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc/linux \
-	  -I../../../linux-kernel/graphene
-ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
-	  -x assembler-with-cpp \
-	  -I. -Iinclude -I../.. -I../../../include
-ARFLAGS	=
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib \
+	   -I../../../ipc/linux \
+	   -I../../../linux-kernel/graphene
+ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
 ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
 endif
 
-host_target = libpal-Linux.a
+host_files = libpal-Linux.a
 
-defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
+defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    semaphore mutex events process object main rtld misc ipc \
 	    exception) manifest clone-x86_64 gettimeofday-x86_64
 graphene_lib = ../../.lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
-all: $(host_target)
+all: $(host_files)
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -62,4 +55,4 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_target)
+	rm -f $(addsuffix .o,$(objs)) $(host_files)

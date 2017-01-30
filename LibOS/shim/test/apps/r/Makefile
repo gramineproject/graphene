@@ -6,9 +6,7 @@ manifests = R.manifest $(if $(wildcard R-local),R-local.manifest,)
 target =
 exec_target = $(manifests)
 
-extra_rules = \
-	-e 's:\$$(PAL):../pal_loader:g' \
-	-e 's:\$$(RDIR):$(R_INSTALL)/lib/R/:g'
+extra_rules = -e 's:\$$(RDIR):$(R_INSTALL)/lib/R/:g'
 
 level = ../../
 include ../../Makefile
