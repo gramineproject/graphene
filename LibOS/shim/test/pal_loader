@@ -39,5 +39,4 @@ fi
 
 set -x
 
-echo "Host: $PAL_HOST"
 exec $GDB_CMD $PAL_CMD $MANIFEST "$@"
