@@ -1,8 +1,6 @@
 exec_target = busybox.manifest busybox_nofork.manifest
 target = busybox busybox_gdb busybox_nofork busybox_nofork_gdb
 
-extra_rules = -e 's:\$$(PAL):../pal_loader:g'
-
 level = ../../
 include ../../Makefile
 

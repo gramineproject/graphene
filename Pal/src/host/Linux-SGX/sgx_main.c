@@ -18,7 +18,7 @@
 #include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
 
-#define ENCLAVE_FILENAME PAL_FILE("libpal-enclave.so")
+#define ENCLAVE_FILENAME RUNTIME_FILE("libpal-Linux-SGX.so")
 
 unsigned long pagesize  = PRESET_PAGESIZE;
 unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);

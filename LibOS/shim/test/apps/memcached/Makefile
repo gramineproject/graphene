@@ -12,7 +12,6 @@ exec_target = memcached
 clean-extra = clean-build
 
 extra_rules = \
-	-e 's:\$$(PAL):../pal_loader:g' \
 	-e 's:\$$(HOST):$(HOST):g' \
 	-e 's:\$$(PORT):$(PORT):g' \
 	-e 's:\$$(MEMSIZE):$(shell expr $(MAXMEM) + $(MAXMEM))M:g' \

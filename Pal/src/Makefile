@@ -1,24 +1,23 @@
+export PAL_DIR = $(CURDIR)
+export RUNTIME_DIR = $(CURDIR)/../../Runtime
+
 include Makefile.Host
 -include Makefile.Status
 
-CC	= gcc
-AR	= ar rcs
-LD	= ld
+ifeq ($(DEBUG),1)
+BUILD_TARGET = $(OS)-debug
+else
+BUILD_TARGET = $(OS)
+endif
 
-CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
-	  -fno-omit-frame-pointer \
-	  -fno-stack-protector -fno-builtin
-LDFLAGS	= -shared -nostdlib -z combreloc -z defs
-ARFLAGS	=
-
-export PAL_DIR = $(shell pwd)
-
-pal_loader = libpal.so
+# Customizable PAL Targets
+# (specify in Makefile.am in host-specific directories)
+pal_loader =
 pal_sec =
-pal_lib = libpal.so
+pal_lib =
 pal_lib_deps =
 pal_lib_post =
-pal_static = libpal.a
+pal_static =
 
 include host/$(OS)/Makefile.am
 
@@ -28,23 +27,20 @@ ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
 endif
 
-pal_target = $(pal_lib) $(pal_lib_post) $(pal_static) $(pal_loader) $(pal_sec) pal
-defs	= -DIN_PAL -D$(OS_MACRO) -DPAL_DIR="$(PAL_DIR)"
+files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
+		 $(pal_loader) $(pal_sec)
+
+defs	= -DIN_PAL -D$(OS_MACRO) -DPAL_DIR=$(PAL_DIR) \
+	  -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf
 graphene_lib = .lib/graphene-lib.a
 host_lib = host/$(OS)/libpal-$(OS).a
 headers	= $(wildcard *.h) $(wildcard ../lib/*.h) host/$(OS)/pal_host.h
 
-ifneq ($(pal_sec),)
-pal_target += pal_sec
-endif
-
 ifeq ($(SYS),x86_64-linux-gnu)
-pal_target += user_start.o user_shared_start.o
+files_to_build += user_start.o user_shared_start.o
 endif
-
-all: | check_target $(pal_target)
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -52,11 +48,19 @@ CFLAGS += -DDEBUG
 endif
 export DEBUG
 
-ifeq ($(DEBUG),1)
-BUILD_TARGET = $(OS)-debug
-else
-BUILD_TARGET = $(OS)
+runtime_loader = $(RUNTIME_DIR)/pal-$(OS)
+
+ifneq ($(pal_lib),)
+	runtime_lib += $(RUNTIME_DIR)/libpal-$(OS)$(suffix $(pal_lib))
 endif
+
+ifneq ($(pal_sec),)
+	runtime_sec += $(RUNTIME_DIR)/pal_sec-$(OS)
+endif
+
+files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
+
+all: | check_target $(files_to_build) $(files_to_install)
 
 ifndef SAVED_TARGET
 SAVED_TARGET = $(BUILD_TARGET)
@@ -83,20 +87,27 @@ host_endian.h: host/$(OS)/host_endian.h
 $(host_lib): $(graphene_lib)
 	@[ ! -d host/$(OS) ] || $(MAKE) -C host/$(OS)
 
-ifneq ($(pal_sec),)
-$(pal_sec): $(graphene_lib)
-	@[ ! -d security/$(OS) ] || $(MAKE) -C security/$(OS)
+$(pal_loader) $(pal_sec): $(host_lib)
 
-pal_sec: $(pal_sec)
-	ln -sf $(pal_sec) pal_sec
-endif
+$(runtime_loader): $(pal_loader)
+	cp -f $< $@
 
+ifneq ($(pal_lib),)
 $(pal_lib): $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib) $(pal_lib_deps)
 	@echo [ $@ ]
 	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) $(LDFLAGS-suffix)
 
-pal: $(pal_loader)
-	ln -sf $(pal_loader) pal
+$(runtime_lib): $(pal_lib)
+	cp -f $< $@
+endif
+
+ifneq ($(pal_sec),)
+$(pal_sec): $(graphene_lib)
+	@[ ! -d security/$(OS) ] || $(MAKE) -C security/$(OS)
+
+$(runtime_sec): $(pal_sec)
+	cp -f $< $@
+endif
 
 ifneq ($(pal_lib_post),)
 $(pal_lib_post): $(pal_lib)
@@ -132,7 +143,6 @@ clean:
 ifneq ($(SAVED_OS),$(OS))
 	$(MAKE) clean OS=$(SAVED_OS)
 endif
-	rm -rf $(addsuffix .o,$(objs)) $(pal_target) host_endian.h .lib Makefile.Status
+	rm -rf $(addsuffix .o,$(objs)) $(files_to_build) host_endian.h .lib Makefile.Status
 	@[ ! -d host/$(OS) ] || $(MAKE) -C host/$(OS) clean
 	@[ ! -d security/$(OS) ] || $(MAKE) -C security/$(OS) clean
-

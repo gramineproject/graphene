@@ -7,7 +7,6 @@ clean-extra = clean-garbages
 huge_rule = sys.stack.size = 64M\nsys.brk.size = 256M\nglibc.heap_size = 16M\nsgx.enclave_size = 2G
 
 extra_rules = \
-	-e 's:\$$(PAL):../pal_loader:g' \
 	-e 's:\$$(DEBUGTYPE):$(if $(DEBUG),inline,none):g' \
 	-e 's:\$$(GCCDIR):$(patsubst %/cc1,%,$(shell gcc -print-file-name=cc1)):g' \
 	-e 's:\$$(HUGERULE):$(if $(HUGE),$(huge_rule),):g'

@@ -27,7 +27,7 @@ $(BUILDDIR)/bin/run_in_graphene.awk: run_in_graphene.awk $(BUILDDIR)/runltp
 	cp -f $< $@
 
 $(TESTCASEDIR)/pal_loader: $(BUILDDIR)/runltp
-	ln -sf $(call relative-to,$(dir $@),../pal_loader) $@
+	ln -sf $(call relative-to,$(dir $@),../../pal_loader) $@
 
 $(TESTCASEDIR)/manifest.template: manifest.template
 	cp -f $< $@

@@ -3,7 +3,7 @@
 import os, sys, mmap
 from regression import Regression
 
-loader = '../src/pal'
+loader = os.environ['PAL_LOADER']
 
 def manifest_file(file):
     if 'SGX_RUN' in os.environ and os.environ['SGX_RUN'] == '1':

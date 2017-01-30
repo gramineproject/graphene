@@ -20,12 +20,6 @@ all clean:
 		$(MAKE) -C $$d $@; \
 	done
 
-install:
-	[ -d ../Runtime ] || mkdir -p ../Runtime
-	[ -f ../Runtime/libpal.so ] || ln -sf ../Pal/src/libpal.so ../Runtime/libpal.so
-	[ -f ../Runtime/pal ] || ln -sf ../Pal/src/pal ../Runtime/pal
-	[ -f ../Runtime/pal_sec ] || ln -sf ../Pal/src/pal_sec ../Runtime/pal_sec
-
 .PHONY: linux-kernel
 linux-kernel: $(LINUX_KERNEL)
 

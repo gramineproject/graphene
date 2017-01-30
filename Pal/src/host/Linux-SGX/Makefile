@@ -1,23 +1,11 @@
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
-LD	= ld
-
 include Makefile.am
 
-CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
-	  -fno-omit-frame-pointer -maes \
-	  -fno-stack-protector -fno-builtin \
-	  -I. -Iinclude -I../.. -I../../../include -I../../../lib
-ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
-	  -x assembler-with-cpp \
-	  -I. -I../.. -I../../../include
-ARFLAGS	=
-LDFLAGS	= -shared -nostdlib -z combreloc -z defs
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib
+ASFLAGS += -I. -I../.. -I../../../include
 
-host_target = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so
+host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so
 
-defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR)
+defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 		 threading semaphore mutex events process object main rtld \
 		 exception misc ipc spinlock) \
@@ -29,7 +17,7 @@ urts-asm-objs = sgx_entry
 graphene_lib = ../../.lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
-all: $(host_target)
+all: $(host_files)
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -58,15 +46,15 @@ $(addsuffix .o,$(enclave-asm-objs)): %.o: %.S $(headers)
 
 $(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -DLOADER=$(abspath pal-sgx) -c $< -o $@
+	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -DLOADER=$(abspath pal-sgx) -c $< -o $@
 
 $(addsuffix .e,$(urts-objs)): %.e: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -DLOADER=$(abspath pal-sgx) -E $< -o $@
+	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -DLOADER=$(abspath pal-sgx) -E $< -o $@
 
 $(addsuffix .o,$(urts-asm-objs)): %.o: %.S $(headers)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -DLOADER=$(abspath pal-sgx) -c $< -o $@
+	@$(AS) $(filter-out -DIN_ENCLAVE,$(ASFLAGS)) $(defs) -DLOADER=$(abspath pal-sgx) -c $< -o $@
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]
@@ -81,4 +69,4 @@ debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	ln -s libpal-enclave.so $@
 
 clean:
-	rm -f *.o *.e $(host_target)
+	rm -f *.o *.e $(host_files)

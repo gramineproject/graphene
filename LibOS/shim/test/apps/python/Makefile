@@ -6,9 +6,7 @@ manifests = python.manifest
 target = benchmarks
 exec_target = $(manifests)
 
-extra_rules = \
-	-e 's:\$$(PAL):../pal_loader:g' \
-	-e 's:\$$(PYTHONDIR):$(PYTHON_INSTALL)/:g'
+extra_rules = -e 's:\$$(PYTHONDIR):$(PYTHON_INSTALL)/:g'
 
 level = ../../
 include ../../Makefile

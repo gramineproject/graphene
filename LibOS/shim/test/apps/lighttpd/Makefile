@@ -10,10 +10,7 @@ target = build-lighttpd $(conf_files) test-data
 exec_target = $(manifests)
 clean-extra = clean-others
 
-extra_rules = \
-	-e 's:\$$(PAL):../pal_loader:g' \
-	-e 's:\$$(HOST):$(HOST):g' \
-	-e 's:\$$(PORT):$(PORT):g'
+extra_rules = -e 's:\$$(HOST):$(HOST):g' -e 's:\$$(PORT):$(PORT):g'
 
 level = ../../
 include ../../Makefile

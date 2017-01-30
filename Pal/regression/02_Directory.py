@@ -3,7 +3,7 @@
 import os, sys, mmap, random, string, shutil
 from regression import Regression
 
-loader = '../src/pal'
+loader = os.environ['PAL_LOADER']
 
 def prepare_dirs(args):
     if os.path.exists("dir_exist.tmp"):
