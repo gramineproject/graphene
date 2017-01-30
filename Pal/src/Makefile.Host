@@ -26,5 +26,5 @@ endif
 export OS
 export OS_MACRO = $(shell echo $(OS) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
-print:
+print_host:
 	@echo $(OS)
