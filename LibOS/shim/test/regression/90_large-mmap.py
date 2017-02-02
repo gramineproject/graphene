@@ -6,7 +6,7 @@ from regression import Regression
 loader = sys.argv[1]
 
 # Running Bootstrap
-regression = Regression(loader, "large-mmap")
+regression = Regression(loader, "large-mmap", None, 30000)
 
 regression.add_check(name="Ftruncate",
     check=lambda res: "large-mmap: ftruncate OK" in res[0].out)
