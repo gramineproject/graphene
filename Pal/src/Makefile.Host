@@ -1,11 +1,11 @@
 all_hosts = Skeleton Linux Linux-SGX FreeBSD
 
-ifeq ($(OS),)
+ifeq ($(PAL_HOST),)
 SYS := $(shell gcc -dumpmachine)
 ifeq ($(SYS),x86_64-linux-gnu)
-OS := Linux
+PAL_HOST := Linux
 else ifeq ($(findstring freebsd,$(SYS)),freebsd)
-OS := FreeBSD
+PAL_HOST := FreeBSD
 else
 $(error Unsupported platform: $(SYS))
 endif
@@ -16,15 +16,16 @@ ifeq ($(SGX)$(SGX_RUN),11)
 	$(error "Do not use SGX=1 and SGX_RUN=1 at the same time")
 endif
 ifeq ($(SGX)$(SGX_RUN),1)
-	OS := $(patsubst %-SGX,%,$(OS))-SGX
+	PAL_HOST := $(patsubst %-SGX,%,$(PAL_HOST))-SGX
 endif
 
-ifeq ($(findstring $(OS),$(all_hosts)),)
-$(error Unsupported platform: $(OS))
+ifeq ($(findstring $(PAL_HOST),$(all_hosts)),)
+$(error Unsupported platform: $(PAL_HOST))
 endif
 
-export OS
-export OS_MACRO = $(shell echo $(OS) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+export PAL_HOST
+export PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
+.DEFAULT_GOAL := all
 print_host:
-	@echo $(OS)
+	@echo $(PAL_HOST)

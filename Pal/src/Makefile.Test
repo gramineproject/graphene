@@ -2,4 +2,4 @@ DIR = $(dir $(lastword $(MAKEFILE_LIST)))
 expand_target = $(1)
 
 include $(DIR)/Makefile.Host
--include $(DIR)/host/$(OS)/Makefile.Test
+-include $(DIR)/host/$(PAL_HOST)/Makefile.Test

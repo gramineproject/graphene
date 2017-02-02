@@ -5,9 +5,9 @@ include Makefile.Host
 -include Makefile.Status
 
 ifeq ($(DEBUG),1)
-BUILD_TARGET = $(OS)-debug
+BUILD_TARGET = $(PAL_HOST)-debug
 else
-BUILD_TARGET = $(OS)
+BUILD_TARGET = $(PAL_HOST)
 endif
 
 # Customizable PAL Targets
@@ -19,9 +19,9 @@ pal_lib_deps =
 pal_lib_post =
 pal_static =
 
-include host/$(OS)/Makefile.am
+include host/$(PAL_HOST)/Makefile.am
 
-CFLAGS	+= -I. -I../include -Ihost/$(OS) -I../lib
+CFLAGS	+= -I. -I../include -Ihost/$(PAL_HOST) -I../lib
 
 ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
@@ -30,13 +30,13 @@ endif
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader) $(pal_sec)
 
-defs	= -DIN_PAL -D$(OS_MACRO) -DPAL_DIR=$(PAL_DIR) \
+defs	= -DIN_PAL -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
 	  -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf
 graphene_lib = .lib/graphene-lib.a
-host_lib = host/$(OS)/libpal-$(OS).a
-headers	= $(wildcard *.h) $(wildcard ../lib/*.h) host/$(OS)/pal_host.h
+host_lib = host/$(PAL_HOST)/libpal-$(PAL_HOST).a
+headers	= $(wildcard *.h) $(wildcard ../lib/*.h) host/$(PAL_HOST)/pal_host.h
 
 ifeq ($(SYS),x86_64-linux-gnu)
 files_to_build += user_start.o user_shared_start.o
@@ -48,14 +48,14 @@ CFLAGS += -DDEBUG
 endif
 export DEBUG
 
-runtime_loader = $(RUNTIME_DIR)/pal-$(OS)
+runtime_loader = $(RUNTIME_DIR)/pal-$(PAL_HOST)
 
 ifneq ($(pal_lib),)
-	runtime_lib += $(RUNTIME_DIR)/libpal-$(OS)$(suffix $(pal_lib))
+	runtime_lib += $(RUNTIME_DIR)/libpal-$(PAL_HOST)$(suffix $(pal_lib))
 endif
 
 ifneq ($(pal_sec),)
-	runtime_sec += $(RUNTIME_DIR)/pal_sec-$(OS)
+	runtime_sec += $(RUNTIME_DIR)/pal_sec-$(PAL_HOST)
 endif
 
 files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
@@ -81,11 +81,11 @@ endif
 $(graphene_lib): host_endian.h
 	$(MAKE) -C ../lib target=$(shell pwd)/.lib/
 
-host_endian.h: host/$(OS)/host_endian.h
+host_endian.h: host/$(PAL_HOST)/host_endian.h
 	ln -sf $< $@
 
 $(host_lib): $(graphene_lib)
-	@[ ! -d host/$(OS) ] || $(MAKE) -C host/$(OS)
+	@[ ! -d host/$(PAL_HOST) ] || $(MAKE) -C host/$(PAL_HOST)
 
 $(pal_loader) $(pal_sec): $(host_lib)
 
@@ -103,7 +103,7 @@ endif
 
 ifneq ($(pal_sec),)
 $(pal_sec): $(graphene_lib)
-	@[ ! -d security/$(OS) ] || $(MAKE) -C security/$(OS)
+	@[ ! -d security/$(PAL_HOST) ] || $(MAKE) -C security/$(PAL_HOST)
 
 $(runtime_sec): $(pal_sec)
 	cp -f $< $@
@@ -111,7 +111,7 @@ endif
 
 ifneq ($(pal_lib_post),)
 $(pal_lib_post): $(pal_lib)
-	$(MAKE) -C host/$(OS) ../../$@
+	$(MAKE) -C host/$(PAL_HOST) ../../$@
 endif
 
 $(pal_static): $(addsuffix .o,$(objs)) $(host_lib) $(graphene_lib)
@@ -140,9 +140,9 @@ user_shared_start.o: user_start.S
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
 
 clean:
-ifneq ($(SAVED_OS),$(OS))
-	$(MAKE) clean OS=$(SAVED_OS)
+ifneq ($(SAVED_OS),$(PAL_HOST))
+	$(MAKE) clean PAL_HOST=$(SAVED_OS)
 endif
 	rm -rf $(addsuffix .o,$(objs)) $(files_to_build) host_endian.h .lib Makefile.Status
-	@[ ! -d host/$(OS) ] || $(MAKE) -C host/$(OS) clean
-	@[ ! -d security/$(OS) ] || $(MAKE) -C security/$(OS) clean
+	@[ ! -d host/$(PAL_HOST) ] || $(MAKE) -C host/$(PAL_HOST) clean
+	@[ ! -d security/$(PAL_HOST) ] || $(MAKE) -C security/$(PAL_HOST) clean
