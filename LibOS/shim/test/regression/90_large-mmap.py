@@ -3,7 +3,7 @@
 import os, sys, mmap
 from regression import Regression
 
-loader = './pal'
+loader = sys.argv[1]
 
 # Running Bootstrap
 regression = Regression(loader, "large-mmap")

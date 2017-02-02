@@ -5,21 +5,19 @@ export SYS
 
 PALDIR  = $(level)../../../Pal/src
 SHIMDIR = $(level)../src
-LIBCDIR = $(level)../../../Runtime
+RUNTIME = $(level)../../../Runtime
 
 CC = gcc
 CXX = g++
 CFLAGS 	= -std=gnu99
 CFLAGS-debug = $(CFLAGS) -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib
 LDFLAGS	=
-LDFLAGS-debug = $(LDFLAGS) -L$(SHIMDIR) -L$(PALDIR) \
-		-Wl,-rpath-link=$(abspath $(SHIMDIR)) \
-		-Wl,-rpath-link=$(abspath $(PALDIR))
+LDFLAGS-debug = $(LDFLAGS) -L$(SHIMDIR) -L$(PALDIR) -Wl,-rpath-link=$(abspath $(RUNTIME))
 
 default: all
 include $(PALDIR)/Makefile.Test
 
-all: $(target) $(if $(level),,build-subdirs) | $(call expand_target,$(exec_target))
+all: pal_loader $(target) $(if $(level),,build-subdirs) | $(call expand_target,$(exec_target))
 
 ifeq ($(DEBUG),1)
 CC += -g
@@ -28,14 +26,15 @@ endif
 export DEBUG
 
 manifest_rules = \
-	-e 's:\$$(PAL):$(abspath $(level)pal_loader):g' \
-	-e 's:\$$(PALDIR):'$$RELDIR'$(PALDIR):g' \
+	-e 's:\$$(PAL):$(abspath $(RUNTIME)/pal_loader):g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
-	-e 's:\$$(SHIMDIR):'$$RELDIR'$(SHIMDIR):g' \
-	-e 's:\$$(SHIMPATH):'$$RELDIR'$(SHIMDIR)/libsysdb.so:g' \
-	-e 's:\$$(LIBCDIR):'$$RELDIR'$(LIBCDIR):g' \
+	-e 's:\$$(SHIMPATH):'$$RELDIR'$(RUNTIME)/libsysdb.so:g' \
+	-e 's:\$$(LIBCDIR):'$$RELDIR'$(RUNTIME):g' \
 	$(extra_rules)
+
+pal_loader:
+	ln -s $(RUNTIME)/pal_loader
 
 relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspath $2)\",\"$(abspath $1)\")")
 
@@ -52,7 +51,7 @@ manifest: manifest.template
 .PHONY: test clean
 
 clean: $(clean-extra) $(if $(level),,clean-subdirs)
-	rm -rf $(call expand_target,$(exec_target)) $(target)
+	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target)
 
 build-subdirs:
 	for f in $(subdirs); do (cd $$f; $(MAKE); cd ..); done
