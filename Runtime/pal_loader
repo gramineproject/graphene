@@ -8,7 +8,10 @@ GDB_CMD=
 PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
 
 if [ "$GDB" == "1" ]; then
-	GDB="/usr/bin/gdb"
+	GDB=$RUNTIME_DIR/pal_gdb-$PAL_HOST
+	if [ ! -f $GDB ]; then
+		GDB="/usr/bin/gdb"
+	fi
 fi
 
 if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then

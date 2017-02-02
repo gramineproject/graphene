@@ -53,4 +53,4 @@ regression: $(target)
 	../apps/ltp/syscalls.sh
 
 clean-tmp:
-	rm -rf *.tmp ../apps/ltp/*.csv
+	rm -rf *.tmp ../apps/ltp/*.csv *.cached *.manifest.sgx *~ *.sig *.token
