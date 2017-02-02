@@ -8,7 +8,7 @@ CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin
 ARFLAGS	=
 
-include ../src/host/$(OS)/Makefile.am
+include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src
 subdirs = string stdlib network graphene

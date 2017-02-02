@@ -1,6 +1,6 @@
 # Add host-specific compilation rules here
-HOST_DIR = host/$(OS)
-SEC_DIR = security/$(OS)
+HOST_DIR = host/$(PAL_HOST)
+SEC_DIR = security/$(PAL_HOST)
 
 CC	= gcc
 AS	= gcc
