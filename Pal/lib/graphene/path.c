@@ -54,9 +54,14 @@ int get_norm_path (const char * path, char * buf, int offset, int size)
                     continue;
                 if (c1 == '.') {    /* must be dot-dot */
                     c1 = *(++p);
-                    if (c1 != 0 && c1 != '/')   /* Paths can start with a dot
+                    if (c1 != 0 && c1 != '/') { /* Paths can start with a dot
                                                  * dot: ..xyz is ok */
+                        if (offset >= size - 2)
+                            return -PAL_ERROR_TOOLONG;
+                        buf[offset++] = '.';
+                        buf[offset++] = '.';
                         continue;
+                    }
                     if (offset > head) {    /* remove the last token */
                         while (offset > head && buf[--offset] != '/');
                     } else {
@@ -112,7 +117,6 @@ int get_base_name (const char * path, char * buf, int size)
                     p += 2;
                     continue;
                 }
-                return -PAL_ERROR_INVAL;
             }
         }
 
