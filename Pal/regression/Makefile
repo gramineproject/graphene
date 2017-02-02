@@ -19,8 +19,8 @@ include ../src/Makefile.Test
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 
-export PAL_LOADER = $(RUNTIME_DIR)/pal-$(OS)
-export PAL_SEC = $(RUNTIME_DIR)/pal_sec-$(OS)
+export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
+export PAL_SEC = $(RUNTIME_DIR)/pal_sec-$(PAL_HOST)
 
 all: $(call expand_target,$(target)) $(preloads)
 
