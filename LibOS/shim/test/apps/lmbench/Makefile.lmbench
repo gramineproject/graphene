@@ -15,5 +15,5 @@ include ../../../../../Makefile
 $(addsuffix .template,$(manifests)): %: ../../../%
 	ln -sf $< $@
 
-pal_loader: ../../../../pal_loader
+pal_loader: ../../../../../pal_loader
 	ln -sf $< $@

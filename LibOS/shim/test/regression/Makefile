@@ -46,9 +46,9 @@ PYTHONENV="PYTHONPATH=../../../../Scripts"
 
 regression: $(target)
 	@echo "\n\nBasic Bootstrapping:"
-	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f; done
+	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
 	@echo "\n\nLarge File Support:"
-	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f; done
+	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
 	@echo "\n\nLTP tests for system calls:"
 	../apps/ltp/syscalls.sh
 
