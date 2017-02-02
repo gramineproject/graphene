@@ -28,7 +28,7 @@ endif
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
 
-libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs)) $(graphene_lib)
+libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
 	@echo [ host/Linux-SGX/$@ ]
 	$(AR) $(ARFLAGS) $@ $^
 

@@ -21,4 +21,4 @@ sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
 
 sgx.allowed_files.testfile = file:testfile
 
-sgx.enclave_size = 5G
+sgx.enclave_size = 8G

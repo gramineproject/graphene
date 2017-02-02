@@ -22,3 +22,4 @@ pal_lib = libpal-enclave.so
 pal_lib_deps = $(HOST_DIR)/enclave.lds $(HOST_DIR)/pal.map
 pal_lib_post = libpal.so
 pal_static = libpal.a
+pal_gdb = $(HOST_DIR)/debugger/gdb
