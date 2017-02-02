@@ -30,7 +30,7 @@ endif
 export DEBUG
 
 manifest_rules = \
-	-e 's:\$$(PAL):$(abspath ../src/pal):g' \
+	-e 's:\$$(PAL):$(abspath ../../Runtime/pal_loader):g' \
 	-e 's:\$$(PWD):$(shell pwd)/:g' \
 	$(extra_rules)
 
