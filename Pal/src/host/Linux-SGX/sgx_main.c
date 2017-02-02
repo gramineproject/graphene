@@ -916,29 +916,35 @@ int main (int argc, const char ** argv, const char ** envp)
     INLINE_SYSCALL(read, 3, fd, filebuf, 4);
     INLINE_SYSCALL(close, 1, fd);
 
+    char sgx_manifest[URI_MAX];
+    int len = get_base_name(exec_uri + static_strlen("file:"), sgx_manifest,
+                            URI_MAX);
+    if (len < 0)
+        return len;
+
+    if (strcmp_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
+        strcpy_static(sgx_manifest + len, ".sgx", URI_MAX - len);
+    } else if (!strcmp_static(sgx_manifest + len - strlen(".manifest.sgx"),
+                              ".manifest.sgx")) {
+        strcpy_static(sgx_manifest + len, ".manifest.sgx", URI_MAX - len);
+    }
+
     if (memcmp(filebuf, "\177ELF", 4)) {
         manifest_uri = exec_uri;
         exec_uri = NULL;
-        SGX_DBG(DBG_I, "manifest file: %s\n", manifest_uri);
-    } else {
-        char path[URI_MAX];
-        int len = get_base_name(exec_uri + static_strlen("file:"),
-                                path, URI_MAX);
-        if (len < 0)
-            return len;
-
-        strcpy_static(path + len, ".manifest.sgx", URI_MAX - len);
-
-        fd = INLINE_SYSCALL(open, 3, path, O_RDONLY|O_CLOEXEC, 0);
-        if (IS_ERR(fd)) {
-            SGX_DBG(DBG_E, "cannot open manifest file: %s\n", path);
-            goto usage;
-        }
-
-        manifest_uri = alloc_concat("file:", static_strlen("file:"), path, -1);
-        INLINE_SYSCALL(close, 1, fd);
-        SGX_DBG(DBG_I, "manifest file: %s\n", manifest_uri);
     }
+
+    fd = INLINE_SYSCALL(open, 3, sgx_manifest, O_RDONLY|O_CLOEXEC, 0);
+    if (!IS_ERR(fd)) {
+        manifest_uri = alloc_concat("file:", static_strlen("file:"),
+                                    sgx_manifest, -1);
+        INLINE_SYSCALL(close, 1, fd);
+    } else if (!manifest_uri) {
+        SGX_DBG(DBG_E, "cannot open manifest file: %s\n", sgx_manifest);
+        goto usage;
+    }
+
+    SGX_DBG(DBG_I, "manifest file: %s\n", manifest_uri);
 
     return load_enclave(enclave, manifest_uri, exec_uri, argv, envp);
 
