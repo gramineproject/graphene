@@ -13,6 +13,7 @@ endif
 $(targets):
 	$(MAKE) -C Pal $@
 	$(MAKE) -C LibOS $@
+	$(MAKE) -C Runtime $@
 
 .PHONY: install
 install:

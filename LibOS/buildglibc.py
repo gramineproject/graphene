@@ -131,6 +131,8 @@ link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
                       ( 'csu',    'crti.o' ),
                       ( 'csu',    'crtn.o' ),
                       ( 'rt',     'librt.so.1' ),
+                      ( 'resolv', 'libnss_dns.so.2' ),
+                      ( 'resolv', 'libresolv.so.2' ),
                       ( 'libos',  'liblibos.so.1' ) ]
 
 if True:

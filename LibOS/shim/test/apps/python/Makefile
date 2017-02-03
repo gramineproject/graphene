@@ -7,6 +7,7 @@ target = benchmarks
 exec_target = $(manifests)
 
 extra_rules = -e 's:\$$(PYTHONDIR):$(PYTHON_INSTALL)/:g'
+clean-extra += clean-tmp
 
 level = ../../
 include ../../Makefile
@@ -26,6 +27,9 @@ benchmarks: benchmarks.tar.gz
 	tar -xzf $<
 
 BENCHMARK = all,-rietveld,-spitfire,-tornado_http
+
+clean-tmp:
+	rm -f python.manifest.sgx
 
 distclean: clean
 	rm -rf $(PYTHON_SRC) benchmarks
