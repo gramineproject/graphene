@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$1" == "SGX" ]; then
+    export SGX=1
+    shift
+fi
+
 RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
 PAL_HOST=$(/usr/bin/make --quiet -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
 

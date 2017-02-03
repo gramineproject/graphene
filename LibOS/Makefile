@@ -6,7 +6,8 @@ export DEBUG
 GLIBC_SRC = glibc-2.19
 SHIM_DIR = shim
 BUILD_DIR = glibc-build
-GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthread.so.0 libm.so.6 libdl.so.2 libutil.so.1 crt1.o crti.o crtn.o liblibos.so.1)
+GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthread.so.0 libm.so.6 libdl.so.2 libutil.so.1 crt1.o crti.o crtn.o liblibos.so.1 libnss_dns.so.2 libresolv.so.2)
+
 
 all: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) all
@@ -38,6 +39,7 @@ pack: $(GLIBC_TARGET)
 clean:
 	$(MAKE) -C $(SHIM_DIR) clean
 	rm -rf $(BUILD_DIR)
+
 else
 $(GLIBC_TARGET): .packed/glibc.tar.gz
 	tar -xmozf $< $@

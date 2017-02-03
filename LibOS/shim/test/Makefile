@@ -7,6 +7,12 @@ PALDIR  = $(level)../../../Pal/src
 SHIMDIR = $(level)../src
 RUNTIME = $(level)../../../Runtime
 
+ifeq ($(SGX),1)
+PAL_LOADER = pal_loader SGX
+else
+PAL_LOADER = pal_loader 
+endif
+
 CC = gcc
 CXX = g++
 CFLAGS 	= -std=gnu99
@@ -26,7 +32,7 @@ endif
 export DEBUG
 
 manifest_rules = \
-	-e 's:\$$(PAL):$(abspath $(RUNTIME)/pal_loader):g' \
+	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):'$$RELDIR'$(RUNTIME)/libsysdb.so:g' \
@@ -34,7 +40,7 @@ manifest_rules = \
 	$(extra_rules)
 
 pal_loader:
-	ln -s $(RUNTIME)/pal_loader
+	ln -sf $(RUNTIME)/pal_loader
 
 relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspath $2)\",\"$(abspath $1)\")")
 
