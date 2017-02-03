@@ -29,7 +29,7 @@ benchmarks: benchmarks.tar.gz
 BENCHMARK = all,-rietveld,-spitfire,-tornado_http
 
 clean-tmp:
-	rm -f python.manifest.sgx
+	rm -f python.manifest.sgx python.sig python.token
 
 distclean: clean
 	rm -rf $(PYTHON_SRC) benchmarks

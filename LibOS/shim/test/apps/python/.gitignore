@@ -1,1 +1,7 @@
 *.pyc
+python.manifest
+python.manifest.sgx
+python.sig
+python.token
+benchmarks/
+pal_loader
