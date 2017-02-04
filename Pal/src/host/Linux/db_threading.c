@@ -39,8 +39,12 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-/* default size of a new thread */
-#define THREAD_STACK_SIZE   (pal_state.alloc_align)
+/* default size of a new thread stack */
+/* DEP 2/4/17: There is enough stuff allocated on the PAL stack now
+ *   that we need two pages in Linux host mode.  In SGX mode,
+ *   the enclave/non-clave split makes 1 page in/1 out sufficient.
+ */
+#define THREAD_STACK_SIZE   (pal_state.alloc_align * 2) 
 
 /* _DkThreadCreate for internal use. Create an internal thread
    inside the current process. The arguments callback and param
