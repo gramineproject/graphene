@@ -174,20 +174,15 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
         case FUTEX_WAKE_BITSET: {
             uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? val3 :
                               0xffffffff;
+            struct list_head *cursor;
             debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",
                   uaddr, *uaddr, val, bitset);
             int cnt, nwaken = 0;
-            for (cnt = 0 ; cnt < val ; cnt++) {
-                if (list_empty(&futex->waiters))
-                    break;
 
-                // BUG: if the first entry in the list isn't eligible, do we
-                // ever wake anything up? doesn't this check the first entry
-                // over and over?
-                struct futex_waiter * waiter = list_entry(futex->waiters.next,
+            list_for_each(cursor, &futex->waiters) {
+                struct futex_waiter * waiter = list_entry(cursor,
                                                           struct futex_waiter,
                                                           list);
-
                 if (!(bitset & waiter->bitset))
                     continue;
 
@@ -196,10 +191,11 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                 list_del(&waiter->list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
+                if (nwaken >= val) break;
             }
-
+            
             ret = nwaken;
-            debug("FUTEX_WAKE done: %p (val = %d)\n", uaddr, *uaddr);
+            debug("FUTEX_WAKE done: %p (val = %d) woke %d threads\n", uaddr, *uaddr, ret);
             break;
         }
 
