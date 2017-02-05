@@ -427,7 +427,10 @@ void DkExceptionReturn (PAL_PTR event);
  * We may want to replace it with a PAL_HANDLE. Ideally, either use PAL_HANDLE
  * or threadHandle.
  */
-
+/* maxcount sets the number of threads allowed to hold the semaphore
+ * at once.  For 1, this becomes a mutex.
+ * initialCount of 0 is totally unlocked; an initialCount that
+ * equals maxCount means that all resources are taken. */ 
 PAL_HANDLE
 DkSemaphoreCreate (PAL_NUM initialCount, PAL_NUM maxCount);
 
@@ -464,6 +467,7 @@ DkEventClear (PAL_HANDLE eventHandle);
 #define NO_TIMEOUT      ((PAL_NUM) -1)
 
 /* assuming timeout to be in microseconds */
+/* Returns: NULL if the call times out, the ready handle on success */
 PAL_HANDLE
 DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout);
 

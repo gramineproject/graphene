@@ -182,8 +182,7 @@ int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
         atomic_add (count, (struct atomic_int *) value);
 
     if (!timeout)
-        // BUG: Really? shouldn't we fail if we didn't get the lock?
-        return 0;
+        return -PAL_ERROR_TRYAGAIN;
 
     unsigned long waittime = timeout;
     int ret = 0;

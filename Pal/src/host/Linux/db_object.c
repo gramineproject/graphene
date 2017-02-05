@@ -42,7 +42,10 @@
 #define DEFAULT_QUANTUM 500
 
 /* internally to wait for one object. Also used as a shortcut to wait
-   on events and semaphores */
+ *  on events and semaphores.
+ *
+ *  Returns 0 on success, negative value on failure (e.g., -PAL_ERROR_TRYAGAIN)
+ */
 static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
 {
     /* only for all these handle which has a file descriptor, or
@@ -130,8 +133,10 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
         return 0;
 
     if (count == 1) {
-        *polled = handleArray[0];
-        return _DkObjectWaitOne(handleArray[0], timeout);
+        int rv = _DkObjectWaitOne(handleArray[0], timeout);
+        if (rv == 0)
+            *polled = handleArray[0];
+        return rv;
     }
 
     int i, j, ret, maxfds = 0, nfds = 0;
