@@ -103,7 +103,11 @@ struct handle_ops {
        the attributes of a stream handle */
     int (*attrsetbyhdl) (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
 
-    /* 'wait' is used for synchronous wait */
+    /* 'wait' is used for synchronous wait.
+     * Returns 0 on success, a negative value on failure.
+     * Timeout: -PAL_ERROR_TRYAGAIN
+     * Positive return values are undefined.
+     */
     int (*wait) (PAL_HANDLE handle, int time);
 
     /* 'rename' is used to change name of a stream, or reset its share

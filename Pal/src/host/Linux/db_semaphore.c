@@ -160,8 +160,7 @@ int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
     /* optimization: use it as a mutex */
     if (sem->semaphore.max_value == 1) {
         struct mutex_handle * mut = & sem->semaphore.value.mut;
-        _DkMutexLockTimeout(mut, timeout);
-        return 0;
+        return _DkMutexLockTimeout(mut, timeout);
     }
 
     if (count > sem->semaphore.max_value)
@@ -188,7 +187,7 @@ int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
         atomic_add (count, value);
 
     if (!timeout)
-        return 0;
+        return -PAL_ERROR_TRYAGAIN;
 
     struct timespec waittime;
     long sec = timeout / 1000000;
