@@ -51,7 +51,7 @@ enclave_entry:
 	sub %gs:SGX_TCS_OFFSET, %rbx
 	mov %rbx, %r8
 
-	# move unstruct stack address to RCX
+	# push untructed stack address to RCX
 	mov %rsp, %rcx
 
 	# switch to the enclve stack: R8 + %gs:SGX_INITIAL_STACK_OFFSET
