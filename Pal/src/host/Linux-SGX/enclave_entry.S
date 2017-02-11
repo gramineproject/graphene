@@ -20,8 +20,13 @@ enclave_entry:
 	# AEP address in RCX (Trusted)
 	mov %rcx, %gs:SGX_AEP
 
-	# A vulnerability found by Jo Van Bulck
-	# https://github.com/oscarlab/graphene/issues/28
+	# The following code is hardened to defend attacks from untrusted host.
+	# Any states given by the host instread of the hardware must be assumed
+	# potentially malicious.
+	#
+	# For instance, Jo Van Bulck contributed a detailed vulvurability report
+	# in https://github.com/oscarlab/graphene/issues/28. (Fixed)
+	# Brief description of the vulnerabilities:
 	# The previous implementation does not check the index of entry
 	# functions (RDI at enclave entry) given by the untrusted PAL.
 	# An attacker can cause overflow/underflow to jump to random
