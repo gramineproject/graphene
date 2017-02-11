@@ -5,7 +5,7 @@ loader.exec = file:$(JAVA_HOME)/bin/java
 loader.execname = java
 loader.env.LD_LIBRARY_PATH = $(JAVA_HOME)/lib/amd64:$(JAVA_HOME)/lib/amd64/jli:/graphene:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = /jre/bin:/bin:/usr/bin
-loader.debug_type = none
+loader.debug_type = $(DEBUGTYPE)
 
 fs.mount.lib1.type = chroot
 fs.mount.lib1.path = /graphene
@@ -27,13 +27,7 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
-sys.stack.size = 1M
-sys.brk.size = 16M
-glibc.heap_size = 4M
-
-sgx.enclave_size = 8G
-sgx.thread_num = 40
-sgx.heap_min = 0x80000000
+$(RESOURCE_RULE)
 
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6

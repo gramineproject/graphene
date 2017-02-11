@@ -1,8 +1,10 @@
 #!/bin/bash
 
 if [ "$1" == "SGX" ]; then
-    export SGX=1
-    shift
+	if [ "$SGX" != "0" ]; then
+		export SGX=1
+	fi
+	shift
 fi
 
 RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))

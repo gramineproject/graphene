@@ -85,7 +85,7 @@ int clone_thread (void)
 
 int interrupt_thread (void * tcs)
 {
-    int index = current_tcs - enclave_tcs;
+    int index = (sgx_arch_tcs_t *) tcs - enclave_tcs;
     struct thread_map * map = &enclave_thread_map[index];
     if (index >= enclave_thread_num)
         return -PAL_ERROR_INVAL;

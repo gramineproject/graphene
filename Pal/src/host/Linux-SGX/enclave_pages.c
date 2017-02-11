@@ -105,7 +105,9 @@ void * get_reserved_pages(void * addr, uint64_t size)
     void * avail_top = heap_base + heap_size;
 
     list_for_each_entry(vma, &heap_vma_list, list) {
-        if (avail_top - vma->top > size) {
+        if (vma->top < heap_base)
+            break;
+        if (avail_top >= vma->top + size) {
             addr = avail_top - size;
             goto allocated;
         }
@@ -113,15 +115,15 @@ void * get_reserved_pages(void * addr, uint64_t size)
         avail_top = prev->bottom;
     }
 
-    if (avail_top - heap_base > size) {
+    if (avail_top >= heap_base + size) {
         addr = avail_top - size;
         goto allocated;
     }
 
     _DkInternalUnlock(&heap_vma_lock);
 
-    asm volatile("int $3");
     SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %llu) ***\n", size);
+    asm volatile("int $3");
     return NULL;
 
 allocated:
