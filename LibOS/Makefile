@@ -13,10 +13,14 @@ all: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) all
 
 ifeq ($(SYS),x86_64-linux-gnu)
-$(GLIBC_TARGET): $(BUILD_DIR)/Makefile
+
+.INTERMEDIATE: $(BUILD_DIR)/Build.success
+
+$(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
-	@rm -f $(BUILD_DIR)/build.log
 	cd $(BUILD_DIR) && (($(MAKE) >> build.log) 2>&1 | tee -a build.log)
+
+$(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
 $(BUILD_DIR)/Makefile: $(addprefix $(GLIBC_SRC)/,configure elf/Versions nptl/Versions dlfcn/Versions)
 ifeq ($(DEBUG),1)
