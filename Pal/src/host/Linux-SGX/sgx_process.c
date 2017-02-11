@@ -38,7 +38,7 @@
 #include <asm/errno.h>
 #include <linux/fs.h>
 
-#define PAL_LOADER XSTRINGIFY(LOADER)
+#define PAL_LOADER RUNTIME_FILE("pal-Linux-SGX")
 
 struct proc_args {
     PAL_SEC_STR     exec_name;

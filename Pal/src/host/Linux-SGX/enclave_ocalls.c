@@ -28,12 +28,9 @@ int printf(const char * fmt, ...);
 
 #define SGX_OCALL(code, ms) sgx_ocall(code, ms)
 
-void _DkCheckExternalEvent (void);
-
 #define OCALL_EXIT()                                    \
     do {                                                \
         sgx_ocfree();                                   \
-        _DkCheckExternalEvent();                        \
     } while (0)
 
 #define ALLOC_IN_USER(var, size)                    \
@@ -392,22 +389,9 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
     return retval;
 }
 
-int ocall_clone_thread (void (*func) (void *), const void * arg,
-                        unsigned int * child_tid, unsigned int * tid)
+int ocall_wake_thread (void * tcs)
 {
-    int retval = 0;
-    ms_ocall_clone_thread_t *ms;
-    OCALLOC(ms, ms_ocall_clone_thread_t *, sizeof(*ms));
-
-    ms->ms_func = func;
-    ms->ms_arg = arg;
-    ms->ms_child_tid = child_tid;
-
-    retval = SGX_OCALL(OCALL_CLONE_THREAD, ms);
-    if (!retval && tid)
-        *tid = ms->ms_tid;
-    OCALL_EXIT();
-    return retval;
+    return SGX_OCALL(OCALL_WAKE_THREAD, tcs);
 }
 
 int ocall_create_process (const char * uri,
@@ -436,19 +420,6 @@ int ocall_create_process (const char * uri,
         procfds[1] = ms->ms_proc_fds[1];
         procfds[2] = ms->ms_proc_fds[2];
     }
-    OCALL_EXIT();
-    return retval;
-}
-
-int ocall_exit_process (int exit_retval)
-{
-    int retval = 0;
-    ms_ocall_exit_process_t * ms;
-    OCALLOC(ms, ms_ocall_exit_process_t *, sizeof(*ms));
-
-    ms->ms_status = exit_retval;
-
-    retval = SGX_OCALL(OCALL_EXIT_PROCESS, ms);
     OCALL_EXIT();
     return retval;
 }
@@ -734,11 +705,15 @@ int ocall_sleep (unsigned long * microsec)
     ms_ocall_sleep_t * ms;
     OCALLOC(ms, ms_ocall_sleep_t *, sizeof(*ms));
 
-    ms->ms_microsec = *microsec;
+    ms->ms_microsec = microsec ? *microsec : 0;
 
     retval = SGX_OCALL(OCALL_SLEEP, ms);
-    if (retval == -EINTR)
-        *microsec = ms->ms_microsec;
+    if (microsec) {
+        if (!retval)
+            *microsec = 0;
+        else if (retval == -EINTR)
+            *microsec = ms->ms_microsec;
+    }
     OCALL_EXIT();
     return retval;
 }
@@ -788,19 +763,6 @@ int ocall_delete (const char * pathname)
     ms->ms_pathname = COPY_TO_USER(pathname, len);
 
     retval = SGX_OCALL(OCALL_DELETE, ms);
-    OCALL_EXIT();
-    return retval;
-}
-
-int ocall_schedule (unsigned int tid)
-{
-    int retval = 0;
-    ms_ocall_schedule_t * ms;
-    OCALLOC(ms, ms_ocall_schedule_t *, sizeof(*ms));
-
-    ms->ms_tid = tid;
-
-    retval = SGX_OCALL(OCALL_SCHEDULE, ms);
     OCALL_EXIT();
     return retval;
 }

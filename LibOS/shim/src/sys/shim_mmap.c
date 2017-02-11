@@ -56,18 +56,16 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
 
     int pal_alloc_type = 0;
 
-    if ((flags & MAP_FIXED) && (addr != NULL)) {
+    if ((flags & MAP_FIXED) || addr) {
         struct shim_vma * tmp = NULL;
 
-        if (lookup_overlap_vma(addr, length, &tmp) == 0) {
+        if (!lookup_overlap_vma(addr, length, &tmp)) {
             debug("mmap: allowing overlapping MAP_FIXED allocation at %p with length %lu\n",
                   addr, length);
+
+            if (!(flags & MAP_FIXED))
+                addr = NULL;
         }
-    } else {
-        /* For calls without MAP_FIXED, don't even attempt to honor the
-         * caller's requested address. Such requests are likely to be assuming
-         * things about the address space that aren't valid in graphene. */
-        addr = NULL;
     }
 
     if (!addr) {

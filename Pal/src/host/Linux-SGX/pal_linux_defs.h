@@ -7,7 +7,7 @@
 #define SSAFRAMENUM         (2)
 #define MEMORY_GAP          (PRESET_PAGESIZE)
 #define ENCLAVE_STACK_SIZE  (PRESET_PAGESIZE * 16)
-#define ENCLAVE_MIN_ADDR    (0x10000)
+#define DEAFULT_HEAP_MIN    (0x10000)
 #define TRACE_ECALL         (1)
 #define TRACE_OCALL         (1)
 
@@ -16,10 +16,12 @@
 
 #define SGX_HAS_FSGSBASE    (1)
 
-#define TRUSTED_STUB_SIZE   (PRESET_PAGESIZE * 32)
+#define TRUSTED_STUB_SIZE   (PRESET_PAGESIZE * 4)
 
 #define CACHE_FILE_STUBS    (1)
 
 #define USE_AES_NI          (1)
+
+#define PRINT_ENCLAVE_STAT  (0)
 
 #endif /* PAL_LINUX_DEFS_H */

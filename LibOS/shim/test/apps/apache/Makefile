@@ -7,6 +7,8 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
+PREFORK_WORKERS := $(shell expr $(NPROCS) + 1)
+
 HTTPD_DIR = httpd-2.4.3
 APR_DIR = apr-1.4.6
 APRUTIL_DIR = apr-util-1.5.1
@@ -87,9 +89,9 @@ build-conf:
 	$(INSTALL_DIR)/conf/httpd.conf.old > $(INSTALL_DIR)/conf/httpd.conf.new
 	echo "\n\
 <IfModule mpm_prefork_module>\n\
-    StartServers             4\n\
+    StartServers             $(PREFORK_WORKERS)\n\
     MinSpareServers          1\n\
-    MaxSpareServers          4\n\
+    MaxSpareServers          $(PREFORK_WORKERS)\n\
     MaxConnectionsPerChild   0\n\
 </IfModule>\n" >> $(INSTALL_DIR)/conf/httpd.conf.new
 	echo "\n\
@@ -98,7 +100,6 @@ build-conf:
 </IfModule>\n" >> $(INSTALL_DIR)/conf/httpd.conf.new
 	cd $(INSTALL_DIR)/conf && ln -sf httpd.conf.new httpd.conf
 
-
 start-native-server:
 	@echo "Listen on $(HOST):$(PORT)"
 	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "ServerName $(HOST)" -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
@@ -106,7 +107,7 @@ start-native-server:
 start-graphene-server:
 	rm -rf httpd-$(HOST)-$(PORT).pid
 	@echo "Listen on $(HOST):$(PORT)"
-	$(PREFIX) ../pal_loader httpd.manifest.sgx -D FOREGROUND -C "ServerName $(HOST)" -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
+	$(PREFIX) ./httpd.manifest -D FOREGROUND -C "ServerName $(HOST)" -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
 
 random-data = $(foreach n,1 2 3 4 5 6 7 8 9 10,2K.$n.html) \
 	      $(foreach n,1 2 3 4 5,10K.$n.html) \

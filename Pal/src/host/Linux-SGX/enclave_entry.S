@@ -8,42 +8,65 @@
 	.type enclave_entry, @function
 
 enclave_entry:
-	# current SSA is in RAX
+	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
+	# RCX is the address of AEP. Other registers are not trusted.
+
+	# current SSA is in RAX (Trusted)
 	cmp $0, %rax
 	jne .Lhandle_resume
 
-	# AEP address in RCX
+	# TCS is in RBX (Trusted)
+
+	# AEP address in RCX (Trusted)
 	mov %rcx, %gs:SGX_AEP
 
-	cmp $RETURN_FROM_OCALL, %rdi
-	je .Lreturn_from_ocall
+	# A vulnerability found by Jo Van Bulck
+	# https://github.com/oscarlab/graphene/issues/28
+	# The previous implementation does not check the index of entry
+	# functions (RDI at enclave entry) given by the untrusted PAL.
+	# An attacker can cause overflow/underflow to jump to random
+	# locaion in enclaves. Moreover, we used a specific index
+	# (RETURN_FROM_OCALL) to tell if the control flow is returned
+	# from a OCALL in the untrusted PAL. Attackers can manipulate RDI
+	# to deceive the trusted PAL.
 
-	# move stack address to both urts_orig_stack and urts_stack
-	mov %rsp, %gs:SGX_URTS_INITIAL_STACK
-	mov %rsp, %gs:SGX_URTS_STACK
+	# A safe design: check if %gs:SGX_EXIT_TARGET is ever assigned
+	mov %gs:SGX_EXIT_TARGET, %rcx
+	cmp $0, %rcx
+	jne .Lreturn_from_ocall
 
-	# switch the stack specified in TLS
-	mov %gs:SGX_INITIAL_STACK, %rsp
+	# PAL convention:
+	# RDI - index in ecall_table
+	# RSI - prointer to ecall arguments
+	# RDX - exit target
+	# RCX (former RSP) - The unstrusted stack
+	# R8  - enclave base
 
-	# exit target in RDX
-	mov %rdx, %gs:SGX_EXIT_TARGET
+	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
+	sub %gs:SGX_TCS_OFFSET, %rbx
+	mov %rbx, %r8
 
-	# debug counter register in R8
-	mov %r8, %gs:SGX_DEBUG_REGISTER
+	# move unstruct stack address to RCX
+	mov %rsp, %rcx
 
-	cmp $0, %rdi
-	jne .Lhandle_ecall
+	# switch to the enclve stack: R8 + %gs:SGX_INITIAL_STACK_OFFSET
+	add %gs:SGX_INITIAL_STACK_OFFSET, %rbx
+	mov %rbx, %rsp
 
-	lea enclave_ecall_pal_main(%rip), %rbx
-	jmp .Lcall_ecall
+	# clear the rest of register states
+	xor %rax, %rax
+	xor %rbx, %rbx
+	xor %r9,  %r9
+	xor %r10, %r10
+	xor %r11, %r11
+	xor %r12, %r12
+	xor %r13, %r13
+	xor %r14, %r14
+	xor %r15, %r15
 
-.Lhandle_ecall:
-	lea ecall_table(%rip), %rbx
-	mov (%rbx,%rdi,8), %rbx
-
-.Lcall_ecall:
-	mov %rsi, %rdi
-	call *%rbx
+	# register states need to be carefully checked, so we move the handling
+	# to handle_ecall() in enclave_ecalls.c
+	call handle_ecall
 
 	# never return to this point (should die)
 	xor %rdi, %rdi
@@ -51,20 +74,23 @@ enclave_entry:
 	jmp .Leexit
 
 .Lhandle_resume:
+	# PAL convention:
+	# RDI - external event
+
 	# get some information from GPR
 	mov %gs:SGX_GPR, %rbx
 
-	# check if there is external event in R9
-	cmp $0, %r9
-	je .Lno_external_event_in_resume
-	mov %r9, %rdi
-	jmp .Lhandle_exception
-
-.Lno_external_event_in_resume:
+	mov %rdi, %rsi
 	xor %rdi, %rdi
 	mov SGX_GPR_EXITINFO(%rbx), %edi
 	test $0x80000000, %edi
 	jnz .Lhandle_exception
+
+	mov %esi, %edi
+	# use external event - only the first 8 bits count
+	and $0xff, %edi
+	cmp $0, %edi
+	jne .Lhandle_exception
 
 #if SGX_HAS_FSGSBASE == 0
 	mov %gs:SGX_FSBASE, %rdi
@@ -97,10 +123,10 @@ enclave_entry:
 
 #if SGX_HAS_FSGSBASE == 0
 .Lafter_resume:
-	mov %rax, -8(%rsp)
-	pop %rax
-	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd0 /* WRFSBASE %RAX */
-	mov -16(%rsp), %rax
+	mov %rbx, -8(%rsp)
+	pop %rbx
+	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
+	mov -16(%rsp), %rbx
 	ret
 #endif
 
@@ -173,28 +199,35 @@ sgx_ocall:
 	push %rbp
 	mov %rsp, %rbp
 
-	sub $XSAVE_SIZE, %rsp
-	and $XSAVE_ALIGN, %rsp
-
-	fxsave (%rsp)
-
+	mov 8(%rbp), %rax
+	push %rax	# previous RIP
+	pushfq
+	push %r15
+	push %r14
+	push %r13
+	push %r12
+	push %r11
+	push %r10
+	push %r9
+	push %r8
+	push %rdi
+	push %rsi
+	mov (%rbp), %rax
+	push %rax	# previous RBP
+	lea 16(%rbp), %rax
+	push %rax	# previous RSP
 	push %rbx
 	push %rdx
 	push %rcx
-	push %rsi
-	push %rdi
-	push %r8
-	push %r9
-	push %r10
-	push %r11
-	push %r12
-	push %r13
-	push %r14
-	push %r15
-	push %rbp
-	pushfq
+	# no RAX
 
-	mov %rsp, %gs:SGX_LAST_STACK
+	mov %rsp, %rbp
+	sub $XSAVE_SIZE,  %rsp
+	and $XSAVE_ALIGN, %rsp
+	fxsave (%rsp)
+
+	push %rbp
+	mov %rsp, %gs:SGX_STACK
 
 	jmp .Leexit
 
@@ -212,7 +245,7 @@ sgx_ocall:
 	xor %r15, %r15
 	xor %rbp, %rbp
 
-	mov %gs:SGX_URTS_STACK, %rsp
+	mov %gs:SGX_USTACK, %rsp
 	and $STACK_ALIGN, %rsp
 
 	mov %gs:SGX_EXIT_TARGET, %rbx
@@ -221,45 +254,52 @@ sgx_ocall:
 	ENCLU
 
 .Lreturn_from_ocall:
-	# save ocall return value
-	mov %rsi, %gs:SGX_LAST_OCALL_RESULT
+	# PAL convention:
+	# RDI - return value
+	# RSI - external event (if there is any)
 
-	# check if there is external event in R9
-	cmp $0, %r9
-	je .Lno_external_event
-	mov %r9, %gs:SGX_EXTERNAL_EVENT
+	mov %rdi, %rax
 
-.Lno_external_event:
+	# restore FSBASE if necessary
+	mov %gs:SGX_FSBASE, %rbx
+	cmp $0, %rbx
+	je .Lno_fsbase
+	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
+.Lno_fsbase:
 
 	# restore the stack
-	mov %gs:SGX_LAST_STACK, %rsp
+	mov %gs:SGX_STACK, %rsp
 
-	popfq
 	pop %rbp
-	pop %r15
-	pop %r14
-	pop %r13
-	pop %r12
-	pop %r11
-	pop %r10
-	pop %r9
-	pop %r8
-	pop %rdi
-	pop %rsi
+	fxrstor (%rsp)
+	mov %rbp, %rsp
+
+	cmp $0, %rsi
+	je .Lno_external_event
+	push %rax
+	mov %rsi, %rdi
+	mov %rsp, %rsi
+	call _DkHandleExternelEvent
+	pop %rax
+.Lno_external_event:
+
 	pop %rcx
 	pop %rdx
 	pop %rbx
-
-	fxrstor (%rsp)
-
-	mov %gs:SGX_FSBASE, %rax
-	cmp $0, %rax
-	je .Lno_fsbase
-	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd0 /* WRFSBASE %RAX */
-.Lno_fsbase:
-
-	mov %gs:SGX_LAST_OCALL_RESULT, %rax
-	leave
+	add $16, %rsp	# skip RSP and RBP
+	pop %rsi
+	pop %rdi
+	pop %r8
+	pop %r9
+	pop %r10
+	pop %r11
+	pop %r12
+	pop %r13
+	pop %r14
+	pop %r15
+	popfq
+	add $8, %rsp	# skip RIP
+	pop %rbp
 	ret
 
 /*

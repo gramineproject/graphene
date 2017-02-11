@@ -195,6 +195,19 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
         case F_GETLK:
             ret = -ENOSYS;
             break;
+
+        /* F_SETOWN (int)
+         *   Set  the process ID or process group ID that will receive SIGIO
+         *   and SIGURG signals for events on file descriptor fd to the ID given
+         *   in arg.  A process ID is specified as a positive value; a process
+         *   group ID is specified as a negative value.  Most commonly, the
+         *   calling process specifies itself as the owner (that is, arg is
+         *   specified as getpid(2)).
+         */
+        case F_SETOWN:
+            ret = 0;
+            /* XXX: DUMMY for now */
+            break;
     }
 
     put_handle(hdl);

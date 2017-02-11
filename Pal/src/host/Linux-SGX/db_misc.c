@@ -85,7 +85,7 @@ int _DkSegmentRegisterSet (int reg, const void * addr)
     if (reg != PAL_SEGMENT_FS)
         return -PAL_ERROR_DENIED;
 
-    ENCLAVE_TLS(fsbase) = (void *) addr;
+    SET_ENCLAVE_TLS(fsbase, (void *) addr);
     wrfsbase((uint64_t) addr);
     return 0;
 }
@@ -96,7 +96,7 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
     if (reg != PAL_SEGMENT_FS)
         return -PAL_ERROR_DENIED;
 
-    *addr = ENCLAVE_TLS(fsbase);
+    *addr = (void *) GET_ENCLAVE_TLS(fsbase);
     return 0;
 }
 

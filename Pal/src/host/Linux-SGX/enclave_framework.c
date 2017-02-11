@@ -11,27 +11,24 @@
 #include "enclave_pages.h"
 
 struct pal_enclave_state pal_enclave_state;
+struct pal_enclave pal_enclave;
 
-void * enclave_base, * enclave_top;
-
-struct pal_enclave_config pal_enclave_config;
-
-int sgx_is_within_enclave (const void * addr, size_t size)
+bool sgx_is_within_enclave (const void * addr, uint64_t size)
 {
-    return (addr >= enclave_base &&
-            addr + size <= enclave_top) ? 1 : 0;
+    return addr >= pal_enclave.enclave_base &&
+           addr + size <= pal_enclave.enclave_base + pal_enclave.enclave_size;
 }
 
-void * sgx_ocalloc (size_t size)
+void * sgx_ocalloc (uint64_t size)
 {
-    struct enclave_tls * tls = ENCLAVE_TLS_SELF();
-    return (tls->urts_stack -= size);
+    void * ustack = GET_ENCLAVE_TLS(ustack) - size;
+    SET_ENCLAVE_TLS(ustack, ustack);
+    return ustack;
 }
 
 void sgx_ocfree (void)
 {
-    struct enclave_tls * tls = ENCLAVE_TLS_SELF();
-    tls->urts_stack = tls->urts_initial_stack;
+    SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
 }
 
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
@@ -108,12 +105,12 @@ int init_enclave_key (void)
 
 struct trusted_file {
     struct list_head list;
-    int64_t index;
-    uint64_t size;
-    int uri_len;
-    char uri[URI_MAX];
-    sgx_checksum_t checksum;
-    sgx_arch_mac_t * stubs;
+    int64_t         index;
+    uint64_t        size;
+    int             uri_len;
+    char            uri[URI_MAX];
+    sgx_checksum_t  checksum;
+    sgx_stub_t *    stubs;
 };
 
 static LIST_HEAD(trusted_file_list);
@@ -121,8 +118,9 @@ static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 
 #include <crypto/sha256.h>
+#include <crypto/sha512.h>
 
-int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
+int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr)
 {
     struct trusted_file * tf = NULL, * tmp;
@@ -157,10 +155,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
 
     _DkSpinUnlock(&trusted_file_lock);
 
-    if (!tf) 
+    if (!tf)
         return -PAL_ERROR_DENIED;
 
-    if (tf->index < 0) 
+    if (tf->index < 0)
         return tf->index;
 
 #if CACHE_FILE_STUBS == 1
@@ -185,16 +183,21 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
-    sgx_arch_mac_t * stubs = malloc(sizeof(sgx_arch_mac_t) * nstubs);
+    sgx_stub_t * stubs = malloc(sizeof(sgx_stub_t) * nstubs);
     if (!stubs)
         return -PAL_ERROR_NOMEM;
 
-    sgx_arch_mac_t * s = stubs;
+    sgx_stub_t * s = stubs;
     uint64_t offset = 0;
     SHA256 sha;
     void * umem;
+    uint8_t hash[512/8];
 
     ret = SHA256Init(&sha);
+    if (ret < 0)
+        goto failed;
+
+    ret = ocall_map_untrusted(fd, 0, tf->size, PROT_READ, &umem);
     if (ret < 0)
         goto failed;
 
@@ -203,28 +206,20 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
         if (mapping_size > TRUSTED_STUB_SIZE)
             mapping_size = TRUSTED_STUB_SIZE;
 
-        ret = ocall_map_untrusted(fd, offset, mapping_size, PROT_READ, &umem);
-        if (ret < 0)
-            goto unmap;
-
-        AES_CMAC((void *) &enclave_key, umem, mapping_size, (uint8_t *) s);
+        SHA512Hash(umem + offset, mapping_size, hash);
+        memcpy(s, hash, sizeof(sgx_stub_t));
 
         /* update the file checksum */
-        ret = SHA256Update(&sha, umem, mapping_size);
-
-unmap:
-        ocall_unmap_untrusted(umem, mapping_size);
-        if (ret < 0)
-            goto failed;
+        ret = SHA256Update(&sha, umem + offset, mapping_size);
     }
 
-    sgx_checksum_t hash;
+    ocall_unmap_untrusted(umem, tf->size);
 
-    ret = SHA256Final(&sha, (uint8_t *) hash.bytes);
+    ret = SHA256Final(&sha, (uint8_t *) hash);
     if (ret < 0)
         goto failed;
 
-    if (memcmp(&hash, &tf->checksum, sizeof(sgx_checksum_t))) {
+    if (memcmp(hash, &tf->checksum, sizeof(sgx_checksum_t))) {
         ret = -PAL_ERROR_DENIED;
         goto failed;
     }
@@ -251,16 +246,26 @@ failed:
     }
     _DkSpinUnlock(&trusted_file_lock);
 
+#if PRINT_ENCLAVE_STAT
+    if (!ret) {
+        sgx_stub_t * loaded_stub;
+        uint64_t loaded_size;
+        PAL_HANDLE handle = NULL;
+        if (!_DkStreamOpen(&handle, uri, PAL_ACCESS_RDONLY, 0, 0, 0))
+            load_trusted_file (handle, &loaded_stub, &loaded_size);
+    }
+#endif
+
     return ret;
 }
 
 int verify_trusted_file (const char * uri, void * mem,
                          unsigned int offset, unsigned int size,
-                         sgx_arch_mac_t * stubs,
+                         sgx_stub_t * stubs,
                          unsigned int total_size)
 {
     unsigned long checking = offset;
-    sgx_arch_mac_t * s = stubs + checking / TRUSTED_STUB_SIZE;
+    sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
     int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
@@ -268,11 +273,10 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-        sgx_arch_mac_t mac;
-        AES_CMAC((void *) &enclave_key, mem + checking - offset,
-                 checking_size, (uint8_t *) &mac);
+        uint8_t hash[512/8];
+        SHA512Hash(mem + checking - offset, checking_size, hash);
 
-        if (memcmp(s, &mac, sizeof(sgx_arch_mac_t))) {
+        if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "
                     "Does not match with its MAC.\n", uri);
             return -PAL_ERROR_DENIED;
@@ -463,6 +467,7 @@ int init_trusted_files (void)
         }
     }
 
+    
     return 0;
 }
 
@@ -631,21 +636,25 @@ int init_enclave (void)
         goto out_free;
     }
 
-    SHA256 sha256;
+    SHA512 sha512;
+    uint8_t hash[512/8];
 
-    ret = SHA256Init(&sha256);
+    ret = SHA512Init(&sha512);
     if (ret < 0)
         goto out_free;
 
-    ret = SHA256Update(&sha256, n, nsz);
+    ret = SHA512Update(&sha512, n, nsz);
     if (ret < 0)
         goto out_free;
 
-    ret = SHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
+    ret = SHA512Final(&sha512, hash);
     if (ret < 0)
         goto out_free;
 
-    pal_enclave_config.enclave_key = rsa;
+    memcpy(&pal_enclave_state.enclave_keyhash, hash,
+           sizeof(sgx_checksum_t));
+
+    pal_enclave.enclave_key = rsa;
 
     SGX_DBG(DBG_S, "enclave (software) key hash: %s\n",
            hex2str(pal_enclave_state.enclave_keyhash));

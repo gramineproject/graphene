@@ -2,7 +2,7 @@ SRCDIR = ltp-master
 BUILDDIR = opt/ltp
 TESTCASEDIR = $(BUILDDIR)/testcases/bin
 
-target = $(BUILDDIR)/bin/run_in_graphene.awk $(TESTCASEDIR)/pal_loader $(TESTCASEDIR)/manifest
+target = $(BUILDDIR)/bin/run_in_graphene.awk $(TESTCASEDIR)/pal_loader build-manifest
 exec_target =
 
 clean-extra = clean-build
@@ -27,10 +27,16 @@ $(BUILDDIR)/bin/run_in_graphene.awk: run_in_graphene.awk $(BUILDDIR)/runltp
 	cp -f $< $@
 
 $(TESTCASEDIR)/pal_loader: $(BUILDDIR)/runltp
-	ln -sf $(call relative-to,$(dir $@),../../pal_loader) $@
+	ln -sf $(call relative-to,$(dir $@),../../../Runtime/pal_loader) $@
+
+build-manifest: $(TESTCASEDIR)/manifest.template $(TESTCASEDIR)/Makefile
+	cd $(TESTCASEDIR) && make
 
 $(TESTCASEDIR)/manifest.template: manifest.template
 	cp -f $< $@
+
+$(TESTCASEDIR)/Makefile: Makefile.testcases
+	ln -sf ../../../../$< $@
 
 clean-build:
 	rm -rf $(BUILDDIR)

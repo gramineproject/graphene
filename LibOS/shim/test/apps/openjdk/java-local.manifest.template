@@ -1,0 +1,46 @@
+#!$(PAL)
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:$(JAVA_HOME)/bin/java
+loader.execname = java
+loader.env.LD_LIBRARY_PATH = /jre/lib/amd64:/jre/lib/amd64/jli:/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.PATH = /jre/bin:/bin:/usr/bin
+loader.debug_type = none
+
+fs.mount.lib1.type = chroot
+fs.mount.lib1.path = /lib
+fs.mount.lib1.uri = file:$(LIBCDIR)
+
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.jre.type = chroot
+fs.mount.jre.path = /jre
+fs.mount.jre.uri = file:$(JAVA_HOME)
+
+fs.mount.usr.type = chroot
+fs.mount.usr.path = /usr
+fs.mount.usr.uri = file:/usr
+
+sys.stack.size = 256K
+sys.brk.size = 16M
+glibc.heap_size = 16M
+
+sgx.enclave_size = 512M
+sgx.thread_num = 16
+
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.librt = file:/lib/x86_64-linux-gnu/librt.so.1
+sgx.trusted_files.libgcc = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+sgx.trusted_files.libcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+sgx.trusted_files.libnss1 = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_files.libnss2 = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+
+sgx.allowed_files.java_home = file:$(JAVA_HOME)
+sgx.allowed_files.classes = file:classes

@@ -24,7 +24,7 @@ SSAFRAMENUM = 2
 ENCLAVE_STACK_SIZE = PAGESIZE * 16
 DEFAULT_ENCLAVE_SIZE = '256M'
 DEFAULT_THREAD_NUM = 4
-ENCLAVE_HEAP_MIN = 0x10000
+DEFAULT_HEAP_MIN = '0x10000'
 
 """ Utilities """
 
@@ -352,13 +352,14 @@ def get_memory_areas(manifest, attr, args):
 
 def populate_memory_areas(manifest, attr, areas):
     populating = attr['enclave_size']
+    heap_min = attr['heap_min']
 
     for area in areas:
         if area.addr is not None:
             continue
 
         area.addr = populating - area.size
-        if area.addr < ENCLAVE_HEAP_MIN:
+        if area.addr < heap_min:
             raise Exception("Enclave size is not large enough")
         if area.desc == 'exec':
             populating = area.addr;
@@ -368,14 +369,17 @@ def populate_memory_areas(manifest, attr, areas):
     free_areas = []
     for area in areas:
         if area.addr + area.size < populating:
-            addr = area.addr + area.size
-            free_areas.append(MemoryArea('free', addr=addr, size=populating - addr,
-                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
+            if populating > heap_min:
+                addr = area.addr + area.size
+                if  addr < heap_min:
+                    addr = heap_min
+                free_areas.append(MemoryArea('free', addr=addr, size=populating - addr,
+                                  flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
             populating = area.addr
 
-    if populating > ENCLAVE_HEAP_MIN:
-        free_areas.append(MemoryArea('free', addr=ENCLAVE_HEAP_MIN,
-                                     size=populating - ENCLAVE_HEAP_MIN,
+    if populating > heap_min:
+        free_areas.append(MemoryArea('free', addr=heap_min,
+                                     size=populating - heap_min,
                                      flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
 
     return areas + free_areas
@@ -696,6 +700,7 @@ if __name__ == "__main__":
 
     for key, default, parse in [
         ('enclave_size', DEFAULT_ENCLAVE_SIZE,    parse_size),
+        ('heap_min',     DEFAULT_HEAP_MIN,        parse_int),
         ('thread_num',   str(DEFAULT_THREAD_NUM), parse_int),
         ('isvprodid',    '0',                     parse_int),
         ('isvsvn',       '0',                     parse_int),

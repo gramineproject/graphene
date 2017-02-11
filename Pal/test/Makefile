@@ -18,12 +18,15 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
-all:	$(call expand_target,$(target))
+all:	pal_loader $(call expand_target,$(target))
 
 ifeq ($(DEBUG),1)
 CC += -g
 endif
 export DEBUG
+
+pal_loader:
+	ln -sf ../../Runtime/pal_loader
 
 manifest: manifest.template
 	cp -f $< $@
@@ -48,4 +51,4 @@ $(executables): .packed/test.tar.gz
 endif
 
 clean:
-	rm -rf $(call expand_target,$(target)) .lib *.cached
+	rm -rf pal_loader $(call expand_target,$(target)) .lib *.cached

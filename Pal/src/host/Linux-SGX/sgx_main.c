@@ -240,6 +240,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     sgx_arch_secs_t      enclave_secs;
     unsigned long        enclave_entry_addr;
     unsigned long        enclave_thread_gprs[MAX_DBG_THREADS];
+    unsigned long        heap_min = DEAFULT_HEAP_MIN;
 
 #define TRY(func, ...)                                              \
     ({                                                              \
@@ -277,6 +278,10 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto err;
     }
 
+    /* Reading sgx.heap_min from manifest */
+    if (get_config(enclave->config, "sgx.heap_min", cfgbuf, CONFIG_MAX) > 0)
+        heap_min = parse_int(cfgbuf);
+
     /* Reading sgx.thread_num from manifest */
     if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0)
         enclave->thread_num = parse_int(cfgbuf);
@@ -290,7 +295,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     /* Reading sgx.static_address from manifest */
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 &&
         cfgbuf[0] == '1')
-        enclave->baseaddr = ENCLAVE_MIN_ADDR;
+        enclave->baseaddr = DEAFULT_HEAP_MIN;
     else
         enclave->baseaddr = 0;
 
@@ -313,6 +318,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     /* Start populating enclave memory */
     struct mem_area {
         const char * desc;
+        bool skip_eextend;
         bool is_binary;
         int fd;
         unsigned long addr, size, prot;
@@ -323,42 +329,46 @@ int initialize_enclave (struct pal_enclave * enclave)
         __alloca(sizeof(areas[0]) * (10 + enclave->thread_num));
     int area_num = 0;
 
-#define set_area(_desc, _is_binary, _fd, _addr, _size, _prot, _type)    \
+#define set_area(_desc, _skip_eextend, _is_binary, _fd, _addr, _size, _prot, _type)\
     ({                                                                  \
         struct mem_area * _a = &areas[area_num++];                      \
-        _a->desc = _desc; _a->is_binary = _is_binary;                   \
+        _a->desc = _desc; _a->skip_eextend = _skip_eextend;             \
+        _a->is_binary = _is_binary;                                     \
         _a->fd = _fd; _a->addr = _addr; _a->size = _size;               \
         _a->prot = _prot; _a->type = _type; _a;                         \
     })
 
     struct mem_area * manifest_area =
-        set_area("manifest", false, enclave->manifest,
+        set_area("manifest", false, false, enclave->manifest,
                  0, ALLOC_ALIGNUP(manifest_size),
                  PROT_READ, SGX_PAGE_REG);
     struct mem_area * ssa_area =
-        set_area("ssa", false, -1, 0,
+        set_area("ssa", true, false, -1, 0,
                  enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
+    /* XXX: TCS should be part of measurement */
     struct mem_area * tcs_area =
-        set_area("tcs", false, -1, 0, enclave->thread_num * pagesize,
+        set_area("tcs", true, false, -1, 0, enclave->thread_num * pagesize,
                  0, SGX_PAGE_TCS);
+    /* XXX: TLS should be part of measurement */
     struct mem_area * tls_area =
-        set_area("tls", false, -1, 0, enclave->thread_num * pagesize,
+        set_area("tls", true, false, -1, 0, enclave->thread_num * pagesize,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
+    /* XXX: the enclave stack should be part of measurement */
     struct mem_area * stack_areas = &areas[area_num];
     for (int t = 0 ; t < enclave->thread_num ; t++)
-        set_area("stack", false, -1, 0, ENCLAVE_STACK_SIZE,
+        set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     struct mem_area * pal_area =
-        set_area("pal", true, enclave_image, 0, 0, 0, SGX_PAGE_REG);
+        set_area("pal", false, true, enclave_image, 0, 0, 0, SGX_PAGE_REG);
     TRY(scan_enclave_binary,
         enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
 
     struct mem_area * exec_area = NULL;
     if (enclave->exec != -1) {
-        exec_area = set_area("exec", true, enclave->exec, 0, 0,
+        exec_area = set_area("exec", false, true, enclave->exec, 0, 0,
                              PROT_WRITE, SGX_PAGE_REG);
         TRY(scan_enclave_binary,
             enclave->exec, &exec_area->addr, &exec_area->size, NULL);
@@ -379,17 +389,20 @@ int initialize_enclave (struct pal_enclave * enclave)
             return -EINVAL;
 
         if (exec_area->addr + exec_area->size < populating) {
-            unsigned long addr = exec_area->addr + exec_area->size;
-            set_area("free", false, -1, addr, populating - addr,
-                     PROT_READ|PROT_WRITE|PROT_EXEC, SGX_PAGE_REG);
-        }
+            if (populating > heap_min) {
+                unsigned long addr = exec_area->addr + exec_area->size;
+                if (addr < heap_min)
+                    addr = heap_min;
+                set_area("free", true, false, -1, addr, populating - addr,
+                         PROT_READ|PROT_WRITE|PROT_EXEC, SGX_PAGE_REG);
+            }
 
-        populating = exec_area->addr;
+            populating = exec_area->addr;
+        }
     }
 
-    if (populating > ENCLAVE_MIN_ADDR) {
-        unsigned long addr = ENCLAVE_MIN_ADDR;
-        set_area("free", false, -1, addr, populating - addr,
+    if (populating > heap_min) {
+        set_area("free", true, false, -1, heap_min, populating - heap_min,
                  PROT_READ|PROT_WRITE|PROT_EXEC, SGX_PAGE_REG);
     }
 
@@ -409,12 +422,10 @@ int initialize_enclave (struct pal_enclave * enclave)
 
             for (int t = 0 ; t < enclave->thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
-                gs->self = (void *) tls_area->addr + pagesize * t +
-                    enclave_secs.baseaddr;
-                gs->initial_stack = (void *)
-                    stack_areas[t].addr + ENCLAVE_STACK_SIZE +
-                    enclave_secs.baseaddr;
-                gs->ssaframesize = enclave->ssaframesize;
+                gs->enclave_size = enclave->size;
+                gs->tcs_offset = tcs_area->addr + pagesize * t;
+                gs->initial_stack_offset =
+                    stack_areas[t].addr + ENCLAVE_STACK_SIZE;
                 gs->ssa = (void *) ssa_area->addr +
                     enclave->ssaframesize * SSAFRAMENUM * t +
                     enclave_secs.baseaddr;
@@ -456,7 +467,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 add_pages:
         TRY(add_pages_to_enclave,
             &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
-            areas[i].type, areas[i].prot, (areas[i].fd == -1),
+            areas[i].type, areas[i].prot, areas[i].skip_eextend,
             areas[i].desc);
 
         if (data)
@@ -472,7 +483,7 @@ add_pages:
 
     pal_sec->enclave_addr = (PAL_PTR) (enclave_secs.baseaddr + pal_area->addr);
 
-    pal_sec->heap_min = (void *) enclave_secs.baseaddr + ENCLAVE_MIN_ADDR;
+    pal_sec->heap_min = (void *) enclave_secs.baseaddr + heap_min;
     pal_sec->heap_max = (void *) enclave_secs.baseaddr + pal_area->addr - MEMORY_GAP;
 
     if (exec_area) {
@@ -620,51 +631,13 @@ int getrand (void * buffer, int size)
 
 static int create_instance (struct pal_sec * pal_sec)
 {
-    int ret = 0;
-    const char * path;
-
-    ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_PIPEDIR), 0777);
-
-    if (IS_ERR(ret) && ERRNO(ret) != EEXIST) {
-        if (ERRNO(ret) == ENOENT) {
-            ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_TEMPDIR), 0777);
-            if (!IS_ERR(ret)) {
-                INLINE_SYSCALL(chmod, 2, GRAPHENE_TEMPDIR, 0777);
-                ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_PIPEDIR), 0777);
-            }
-        }
-
-        if (IS_ERR(ret)) {
-            SGX_DBG(DBG_E, "Cannot create directory %s (%s), "
-                   "please check permission\n", path, PAL_STRERROR(-ERRNO(ret)));
-            return -PAL_ERROR_DENIED;
-        }
-    }
-
-    if (!IS_ERR(ret))
-        INLINE_SYSCALL(chmod, 2, GRAPHENE_PIPEDIR, 0777);
-
     unsigned int id;
-
-    do {
-        if (!getrand(&id, sizeof(unsigned int))) {
-            SGX_DBG(DBG_E, "Unable to generate random numbers\n");
-            return -PAL_ERROR_DENIED;
-        }
-
-        snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix),
-                 GRAPHENE_PIPEDIR "/%08x/", id);
-
-        ret = INLINE_SYSCALL(mkdir, 2, pal_sec->pipe_prefix, 0700);
-
-        if (IS_ERR(ret) && ERRNO(ret) != EEXIST) {
-            SGX_DBG(DBG_E, "Cannot create directory %s (%s), "
-                   "please fix permission\n",
-                   pal_sec->pipe_prefix, PAL_STRERROR(-ERRNO(ret)));
-            return -PAL_ERROR_DENIED;
-        }
-    } while (IS_ERR(ret));
-
+    if (!getrand(&id, sizeof(unsigned int))) {
+        SGX_DBG(DBG_E, "Unable to generate random numbers\n");
+        return -PAL_ERROR_DENIED;
+    }
+    snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix),
+             "/graphene/%x/", id);
     pal_sec->instance_id = id;
     return 0;
 }
@@ -713,6 +686,12 @@ static int load_enclave (struct pal_enclave * enclave,
     struct pal_sec * pal_sec = &enclave->pal_sec;
     int ret;
     const char * errstring;
+    struct timeval tv;
+
+#if PRINT_ENCLAVE_STAT == 1
+    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
+    pal_sec->start_time = tv.tv_sec * 1000000UL + tv.tv_usec;
+#endif
 
     ret = open_gsgx();
     if (ret < 0) {
@@ -727,10 +706,7 @@ static int load_enclave (struct pal_enclave * enclave,
     if (!ret)
         return -EPERM;
 
-    struct timeval tv;
-    ret = INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
+    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
     randval = tv.tv_sec * 1000000UL + tv.tv_usec;
 
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
@@ -866,10 +842,16 @@ static int load_enclave (struct pal_enclave * enclave,
     map_tcs(INLINE_SYSCALL(gettid, 0));
 
     /* start running trusted PAL */
-    ecall_pal_main(arguments, environments);
+    ecall_enclave_start(arguments, environments);
+
+    PAL_NUM exit_time = 0;
+#if PRINT_ENCLAVE_STAT == 1
+    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
+    exit_time = tv.tv_sec * 1000000UL + tv.tv_usec;
+#endif
 
     unmap_tcs();
-    exit_process(0);
+    INLINE_SYSCALL(exit, 0);
     return 0;
 }
 
@@ -968,14 +950,4 @@ int pal_init_enclave (const char * manifest_uri,
 
     return load_enclave(enclave, manifest_uri, exec_uri,
                         arguments, environments);
-}
-
-void exit_process (int status)
-{
-    struct pal_enclave * enclave = current_enclave;
-    destroy_enclave((void *) enclave->baseaddr, enclave->size);
-    free(enclave->config);
-    free(enclave);
-
-    INLINE_SYSCALL(exit, 1, status);
 }

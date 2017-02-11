@@ -18,6 +18,7 @@ pal_lib =
 pal_lib_deps =
 pal_lib_post =
 pal_static =
+pal_gdb =
 
 include host/$(PAL_HOST)/Makefile.am
 
@@ -58,7 +59,11 @@ ifneq ($(pal_sec),)
 	runtime_sec += $(RUNTIME_DIR)/pal_sec-$(PAL_HOST)
 endif
 
-files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec)
+ifneq ($(pal_gdb),)
+	runtime_gdb += $(RUNTIME_DIR)/pal_gdb-$(PAL_HOST)
+endif
+
+files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb)
 
 all: | check_target $(files_to_build) $(files_to_install)
 
@@ -107,6 +112,15 @@ $(pal_sec): $(graphene_lib)
 
 $(runtime_sec): $(pal_sec)
 	cp -f $< $@
+endif
+
+ifneq ($(pal_gdb),)
+$(runtime_gdb): $(pal_gdb)
+ifeq ($(abspath $(pal_gdb)),$(pal_gdb))
+	ln -sf $< $@
+else
+	ln -sf ../Pal/src/$< $@
+endif
 endif
 
 ifneq ($(pal_lib_post),)

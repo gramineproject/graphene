@@ -46,15 +46,15 @@ $(addsuffix .o,$(enclave-asm-objs)): %.o: %.S $(headers)
 
 $(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -DLOADER=$(abspath pal-sgx) -c $< -o $@
+	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -c $< -o $@
 
 $(addsuffix .e,$(urts-objs)): %.e: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -DLOADER=$(abspath pal-sgx) -E $< -o $@
+	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -E $< -o $@
 
 $(addsuffix .o,$(urts-asm-objs)): %.o: %.S $(headers)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(AS) $(filter-out -DIN_ENCLAVE,$(ASFLAGS)) $(defs) -DLOADER=$(abspath pal-sgx) -c $< -o $@
+	@$(AS) $(filter-out -DIN_ENCLAVE,$(ASFLAGS)) $(defs) -c $< -o $@
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]

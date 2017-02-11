@@ -41,11 +41,11 @@ void init_pages (void)
     }
 }
 
-#define ASSERT_VMA          1
+#define ASSERT_VMA          0
 
 static void assert_vma_list (void)
 {
-#ifdef ASSERT_VMA
+#if ASSERT_VMA == 1
     void * last_addr = heap_base + heap_size;
     struct heap_vma * vma;
 
@@ -57,7 +57,7 @@ static void assert_vma_list (void)
             if (pal_sec.in_gdb)
                 asm volatile ("int $3" ::: "memory");
 #endif
-            ocall_exit_process(1);
+            ocall_exit();
         }
         last_addr = vma->bottom;
     }
@@ -205,6 +205,14 @@ allocated:
         list_add(&vma->list, prev ? &prev->list : &heap_vma_list);
     }
 
+    if (vma->bottom >= vma->top) {
+        SGX_DBG(DBG_E, "*** Bad memory bookkeeping: %p - %p ***\n",
+                vma->bottom, vma->top);
+#ifdef DEBUG
+        if (pal_sec.in_gdb)
+            asm volatile ("int $3" ::: "memory");
+#endif
+    }
     assert_vma_list();
 
     _DkInternalUnlock(&heap_vma_lock);
@@ -274,6 +282,8 @@ void print_alloced_pages (void)
 {
     unsigned int val = atomic_read(&alloced_pages);
     unsigned int max = atomic_read(&max_alloced_pages);
-    SGX_DBG(DBG_M, "alloced heap: %d pages / %d pages\n",
-            val > max ? val : max, heap_size / pgsz);
+
+    printf("                >>>>>>>> "
+           "Enclave heap size =         %10ld pages / %10ld pages\n",
+           val > max ? val : max, heap_size / pgsz);
 }

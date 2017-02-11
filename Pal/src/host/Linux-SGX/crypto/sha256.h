@@ -25,14 +25,7 @@
 #ifndef CTAO_CRYPT_SHA256_H
 #define CTAO_CRYPT_SHA256_H
 
-#include <stdint.h>
-
-#ifndef word32
-typedef uint32_t word32;
-#endif
-#ifndef byte
-typedef uint8_t byte;
-#endif
+#include "crypto/integer.h"
 
 /* in bytes */
 enum {

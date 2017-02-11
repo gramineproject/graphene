@@ -158,7 +158,7 @@ int migrate_fork (struct shim_cp_store * cpstore,
  *                    by the parent     */
 
 int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
-                   void * tls, int * child_tidptr)
+                   int * child_tidptr, void * tls)
 {
     //The Clone Implementation in glibc has setup the child's stack
     //with the function pointer and the argument to the funciton.

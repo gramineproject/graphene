@@ -1,8 +1,6 @@
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-.SILENT:
-
 targets = all clean
 
 ifeq ($(SYS),x86_64-linux-gnu)

@@ -14,7 +14,7 @@ struct shim_signal_handle {
 };
 
 #define NUM_SIGS            64
-#define NUM_KNOWN_SIGS      22
+#define NUM_KNOWN_SIGS      32
 
 # define BITS_PER_WORD sizeof(unsigned long)
 /* The standard def of this macro is dumb */
@@ -102,6 +102,7 @@ struct shim_signal {
     siginfo_t   info;
     bool        context_stored;
     ucontext_t  context;
+    PAL_CONTEXT * pal_context;
 };
 
 #define MAX_SIGNAL_LOG      32

@@ -1,0 +1,72 @@
+#!$(PAL)
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:/usr/bin/Rscript
+loader.execname = /usr/bin/Rscript
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.PATH = /usr/lib/R/bin:/usr/bin:/bin
+loader.env.USERNAME =
+loader.env.HOME =
+loader.env.PWD =
+loader.env.R_ARCH =
+loader.env.R_HOME = /usr/lib/R
+loader.env.R_SHARE_DIR = /usr/share/R/share
+loader.env.R_INCLUDE_DIR = /usr/share/R/include
+loader.env.R_DOC_DIR = /usr/share/R/doc
+loader.debug_type = none
+
+fs.mount.lib1.type = chroot
+fs.mount.lib1.path = /lib
+fs.mount.lib1.uri = file:$(LIBCDIR)
+
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.usr.type = chroot
+fs.mount.usr.path = /usr
+fs.mount.usr.uri = file:/usr
+
+fs.mount.bin.type = chroot
+fs.mount.bin.path = /bin
+fs.mount.bin.uri = file:/bin
+
+fs.mount.tmp.type = chroot
+fs.mount.tmp.path = /tmp
+fs.mount.tmp.uri = file:/tmp
+
+sys.stack.size = 256K
+sys.brk.size = 4M
+glibc.heap_size = 16M
+
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.libutil = file:$(LIBCDIR)/libutil.so.1
+sgx.trusted_files.librt = file:$(LIBCDIR)/librt.so.1
+sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+sgx.trusted_files.libreadline = file:/lib/x86_64-linux-gnu/libreadline.so.6
+sgx.trusted_files.libpcre = file:/lib/x86_64-linux-gnu/libpcre.so.3
+sgx.trusted_files.liblzma = file:/lib/x86_64-linux-gnu/liblzma.so.5
+sgx.trusted_files.libz2 = file:/lib/x86_64-linux-gnu/libbz2.so.1.0
+sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
+sgx.trusted_files.libtinfo = file:/lib/x86_64-linux-gnu/libtinfo.so.5
+sgx.trusted_files.libgomp = file:/usr/lib/x86_64-linux-gnu/libgomp.so.1
+sgx.trusted_files.libR = file:/usr/lib/libR.so
+sgx.trusted_files.libblas = file:/usr/lib/libblas.so.3
+sgx.trusted_files.liblapack = file:/usr/lib/liblapack.so.3
+sgx.trusted_files.libnssfiles = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnsscompact = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_files.libnssnis = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+sgx.trusted_files.libgfortran = file:/usr/lib/x86_64-linux-gnu/libgfortran.so.3
+sgx.trusted_files.libgcc = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+sgx.trusted_files.libquadmath = file:/usr/lib/x86_64-linux-gnu/libquadmath.so.0
+sgx.trusted_files.sh = file:/bin/sh
+
+sgx.allowed_files.rhome = file:/usr/lib/R
+sgx.allowed_files.scripts = file:scripts
+
+sgx.trusted_children.R = file:R.sig
+sgx.trusted_children.sh = file:sh.sig

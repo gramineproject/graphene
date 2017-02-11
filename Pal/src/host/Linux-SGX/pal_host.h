@@ -161,8 +161,9 @@ typedef union pal_handle
 
     struct {
         PAL_HDR reserved;
-        PAL_IDX tid;
-        struct hlist_node hlist;
+        PAL_PTR tcs;
+        struct list_head list;
+        void * param;
     } thread;
 
     struct {

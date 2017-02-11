@@ -1,5 +1,5 @@
 # Add host-specific compilation rules here
-HOST_DIR = host/$(OS)
+HOST_DIR = host/$(PAL_HOST)
 
 CC	= gcc
 AS	= gcc

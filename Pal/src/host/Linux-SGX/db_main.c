@@ -152,7 +152,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     /* if there is a parent, create parent handle */
     if (pal_sec.ppid) {
         if (init_child_process(&parent) < 0)
-            ocall_exit_process(0);
+            ocall_exit();
     }
 
     linux_state.uid = pal_sec.uid;
@@ -186,7 +186,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     const char * errstring = NULL;
     if (read_config(root_config, loader_filter, &errstring) < 0) {
         SGX_DBG(DBG_E, "Can't read manifest: %s\n", errstring);
-        ocall_exit_process(0);
+        ocall_exit();
     }
 
     pal_state.root_config = root_config;
@@ -197,11 +197,18 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     init_trusted_files();
     init_trusted_children();
 
+#if PRINT_ENCLAVE_STAT == 1
+    printf("                >>>>>>>> "
+           "Enclave loading time =      %10ld milliseconds\n",
+           _DkSystemTimeQuery() - sec_info->start_time);
+#endif
+
     /* set up thread handle */
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(first_thread, thread);
-    first_thread->thread.tid = pal_sec.pid;
-    ENCLAVE_TLS(thread) = __pal_control.first_thread = first_thread;
+    first_thread->thread.tcs =
+        pal_enclave.enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+    SET_ENCLAVE_TLS(thread, (__pal_control.first_thread = first_thread));
 
     /* call main function */
     pal_main(pal_sec.instance_id, manifest, exec,

@@ -266,7 +266,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 
     if (user) {
         if (bkeep_mmap(stack, size, PROT_READ|PROT_WRITE,
-                       STACK_FLAGS, NULL, 0, "[stack]") < 0)
+                       STACK_FLAGS, NULL, 0, "stack") < 0)
             return NULL;
 
         if (protect_size &&
@@ -461,7 +461,7 @@ int init_manifest (PAL_HANDLE manifest_handle)
 
     bkeep_mmap(addr, ALIGN_UP(size), PROT_READ,
                MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0,
-               "[manifest]");
+               "manifest");
 
     root_config = malloc(sizeof(struct config_store));
     root_config->raw_data = addr;

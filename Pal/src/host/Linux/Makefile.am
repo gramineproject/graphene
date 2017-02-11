@@ -22,3 +22,4 @@ pal_lib = libpal.so
 pal_lib_deps = $(HOST_DIR)/pal.map $(HOST_DIR)/pal.lds
 pal_lib_post =
 pal_static = libpal.a
+pal_gdb =

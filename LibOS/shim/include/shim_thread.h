@@ -58,6 +58,7 @@ struct shim_thread {
     struct shim_atomic has_signal;
     struct shim_signal_log * signal_logs;
     bool suspend_on_signal;
+    stack_t signal_altstack;
 
     /* futex robust list */
     void * robust_list;
@@ -82,6 +83,9 @@ struct shim_thread {
     void * tcb;
     bool user_tcb; /* is tcb assigned by user? */
     void * frameptr;
+
+    /* to save vma bookkeeping */
+    struct { void * addr; uint64_t length; } delayed_bkeep_mmap;
 
     REFTYPE ref_count;
     LOCKTYPE lock;

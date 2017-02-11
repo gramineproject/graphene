@@ -29,7 +29,7 @@ endif
 	$(MAKE) -C ../../ $<
 
 libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
-	@echo [ host/$(OS)/$@ ]
+	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
 
 %.asm: %.c $(headers)
@@ -38,11 +38,11 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@rm $<.o
 
 %.o: %.c $(headers)
-	@echo [ host/$(OS)/$@ ]
+	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
 
 %.o: %.S $(headers)
-	@echo [ host/$(OS)/$@ ]
+	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
 
 clean:
