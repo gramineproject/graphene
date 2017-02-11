@@ -36,3 +36,4 @@ sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
 sgx.trusted_files.libstdbuf = file:/usr/lib/x86_64-linux-gnu/coreutils/libstdbuf.so
 
 sgx.allowed_files.tmp = file:/tmp
+

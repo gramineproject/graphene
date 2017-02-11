@@ -278,6 +278,10 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto err;
     }
 
+    /* Reading sgx.heap_min from manifest */
+    if (get_config(enclave->config, "sgx.heap_min", cfgbuf, CONFIG_MAX) > 0)
+        heap_min = parse_int(cfgbuf);
+
     /* Reading sgx.thread_num from manifest */
     if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0)
         enclave->thread_num = parse_int(cfgbuf);
@@ -291,7 +295,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     /* Reading sgx.static_address from manifest */
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 &&
         cfgbuf[0] == '1')
-        enclave->baseaddr = heap_min;
+        enclave->baseaddr = DEAFULT_HEAP_MIN;
     else
         enclave->baseaddr = heap_min = 0;
 
@@ -842,6 +846,7 @@ static int load_enclave (struct pal_enclave * enclave,
 
     /* start running trusted PAL */
     ecall_enclave_start(arguments, environments);
+
 
 #if PRINT_ENCLAVE_STAT == 1
     PAL_NUM exit_time = 0;

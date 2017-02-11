@@ -13,6 +13,9 @@ struct shim_signal_handle {
     struct __kernel_sigaction * action;
 };
 
+#define NUM_SIGS            64
+#define NUM_KNOWN_SIGS      32
+
 # define BITS_PER_WORD sizeof(unsigned long)
 /* The standard def of this macro is dumb */
 #undef _SIGSET_NWORDS

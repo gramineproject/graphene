@@ -41,5 +41,11 @@ sgx.allowed_files.tmp1 = file:/tmp
 sgx.allowed_files.tmp2 = file:/var/tmp
 sgx.allowed_files.inc = file:/usr/include/x86_64-linux-gnu/sys/types.h
 
+sgx.trusted_files.test1 = file:random.64K
+sgx.trusted_files.test2 = file:random.256K
+sgx.trusted_files.test3 = file:random.1M
+sgx.trusted_files.test4 = file:random.4M
+sgx.trusted_files.test5 = file:random.16M
+
 sgx.trusted_children.hello = file:hello.sig
 sgx.trusted_children.sh = file:sh.sig

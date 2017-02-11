@@ -76,7 +76,6 @@ To build the Graphene Linux kernel, do the following steps:
     cd Pal/linux-3.19
     make menuconfig
     make
-    make install
     (Add Graphene kernel as a boot option by commands like "update-grub")
     (reboot and choose the Graphene kernel)
 

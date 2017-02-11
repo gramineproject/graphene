@@ -3,7 +3,7 @@
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:$(JAVA_HOME)/bin/java
 loader.execname = java
-loader.env.LD_LIBRARY_PATH = /jre/lib/amd64:/jre/lib/amd64/jli:/graphene:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = $(JAVA_HOME)/lib/amd64:$(JAVA_HOME)/lib/amd64/jli:/graphene:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = /jre/bin:/bin:/usr/bin
 loader.debug_type = $(DEBUGTYPE)
 
@@ -16,7 +16,7 @@ fs.mount.lib2.path = /lib/x86_64-linux-gnu
 fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
 
 fs.mount.jre.type = chroot
-fs.mount.jre.path = /jre
+fs.mount.jre.path = $(JAVA_HOME)
 fs.mount.jre.uri = file:$(JAVA_HOME)
 
 fs.mount.usr.type = chroot
@@ -52,6 +52,7 @@ sgx.trusted_files.rt = file:$(JAVA_HOME)/lib/rt.jar
 sgx.trusted_files.resources = file:$(JAVA_HOME)/lib/resources.jar
 
 sgx.allowed_files.ext = file:$(JAVA_HOME)/lib/ext
+
 sgx.allowed_files.classes = file:classes
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.xml_out = file:xml_out

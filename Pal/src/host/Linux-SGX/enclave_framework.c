@@ -117,6 +117,9 @@ static LIST_HEAD(trusted_file_list);
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 
+#include <crypto/sha256.h>
+#include <crypto/sha512.h>
+
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr)
 {

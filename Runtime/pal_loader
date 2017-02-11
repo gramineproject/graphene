@@ -41,6 +41,10 @@ if [ "$MEMUSG" == "1" ]; then
 	PREFIX="$RUNTIME_DIR/../Scripts/memusg"
 fi
 
+if [ "$PERF" == "1" ]; then
+	GDB_CMD="perf stat"
+fi
+
 if [ "$SEC" == "1" ]; then
 	echo "Use reference monitor"
 	PAL_CMD=$RUNTIME_DIR/pal_sec-$PAL_HOST

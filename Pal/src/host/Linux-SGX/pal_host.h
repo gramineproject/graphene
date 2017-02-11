@@ -72,98 +72,114 @@ typedef union pal_handle
      * handles, so we hide the type name of these handles on purpose.
      */
 
+    struct {
+        PAL_IDX type;
+        PAL_REF ref;
+        PAL_FLG flags;
+        PAL_IDX fds[];
+    } hdr;
 
-    PAL_HDR hdr;
-    union {
-        struct {
-            PAL_IDX fds[2];
-        } generic;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX fd;
+        PAL_BOL append;
+        PAL_BOL pass;
+        PAL_STR realpath;
+        PAL_NUM total;
+        PAL_PTR stubs;
+    } file;
 
-        struct {
-            PAL_IDX fd;
-            PAL_BOL append;
-            PAL_BOL pass;
-            PAL_STR realpath;
-            PAL_NUM total;
-            PAL_PTR stubs;
-        } file;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX fd;
+        PAL_NUM pipeid;
+        PAL_BOL nonblocking;
+    } pipe;
 
-        struct {
-            PAL_IDX fd;
-            PAL_NUM pipeid;
-            PAL_BOL nonblocking;
-        } pipe;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX fds[2];
+        PAL_BOL nonblocking;
+    } pipeprv;
 
-        struct {
-            PAL_IDX fds[2];
-            PAL_BOL nonblocking;
-        } pipeprv;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX fd_in, fd_out;
+        PAL_IDX dev_type;
+        PAL_BOL destroy;
+        PAL_STR realpath;
+    } dev;
 
-        struct {
-            PAL_IDX fd_in, fd_out;
-            PAL_IDX dev_type;
-            PAL_BOL destroy;
-            PAL_STR realpath;
-        } dev;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX fd;
+        PAL_STR realpath;
+        PAL_PTR buf;
+        PAL_PTR ptr;
+        PAL_PTR end;
+        PAL_BOL endofstream;
+    } dir;
 
-        struct {
-            PAL_IDX fd;
-            PAL_STR realpath;
-            PAL_PTR buf;
-            PAL_PTR ptr;
-            PAL_PTR end;
-            PAL_BOL endofstream;
-        } dir;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX fd;
+    } gipc;
 
-        struct {
-            PAL_IDX fd;
-        } gipc;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX fd;
+        PAL_PTR bind;
+        PAL_PTR conn;
+        PAL_BOL nonblocking;
+        PAL_NUM linger;
+        PAL_NUM receivebuf;
+        PAL_NUM sendbuf;
+        PAL_NUM receivetimeout;
+        PAL_NUM sendtimeout;
+        PAL_BOL tcp_cork;
+        PAL_BOL tcp_keepalive;
+        PAL_BOL tcp_nodelay;
+    } sock;
 
-        struct {
-            PAL_IDX fd;
-            PAL_PTR bind;
-            PAL_PTR conn;
-            PAL_BOL nonblocking;
-            PAL_NUM linger;
-            PAL_NUM receivebuf;
-            PAL_NUM sendbuf;
-            PAL_NUM receivetimeout;
-            PAL_NUM sendtimeout;
-            PAL_BOL tcp_cork;
-            PAL_BOL tcp_keepalive;
-            PAL_BOL tcp_nodelay;
-        } sock;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX stream_in, stream_out;
+        PAL_IDX cargo;
+        PAL_IDX pid;
+        PAL_BOL nonblocking;
+    } process;
 
-        struct {
-            PAL_IDX stream_in, stream_out;
-            PAL_IDX cargo;
-            PAL_IDX pid;
-            PAL_BOL nonblocking;
-        } process;
+    struct {
+        PAL_HDR reserved;
+        PAL_IDX cli;
+        PAL_IDX srv;
+        PAL_IDX port;
+        PAL_BOL nonblocking;
+    } mcast;
 
-        struct {
-            PAL_IDX cli;
-            PAL_IDX srv;
-            PAL_IDX port;
-            PAL_BOL nonblocking;
-        } mcast;
+    struct {
+        PAL_HDR reserved;
+        PAL_PTR tcs;
+        struct list_head list;
+        void * param;
+    } thread;
 
-        struct pal_handle_thread thread;
+    struct {
+        PAL_HDR reserved;
+        struct atomic_int nwaiters;
+        PAL_NUM max_value;
+        union {
+            struct mutex_handle mut;
+            struct atomic_int i;
+        } value;
+    } semaphore;
 
-        struct {
-            struct atomic_int nwaiters;
-            PAL_NUM max_value;
-            union {
-                struct mutex_handle mut;
-            } mutex;
-
-            struct {
-                struct atomic_int * signaled;
-                struct atomic_int nwaiters;
-                PAL_BOL isnotification;
-            } event;
-        };
-    };
+    struct {
+        PAL_HDR reserved;
+        struct atomic_int signaled;
+        struct atomic_int nwaiters;
+        PAL_BOL isnotification;
+    } event;
 } * PAL_HANDLE;
 
 #define RFD(n)          (00001 << (n))

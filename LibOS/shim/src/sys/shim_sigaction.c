@@ -146,6 +146,7 @@ int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
         return -EINVAL;
 
     struct shim_thread * cur = get_cur_thread();
+
     lock(cur->lock);
 
     if (oss)

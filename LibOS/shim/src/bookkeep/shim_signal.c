@@ -266,6 +266,7 @@ internal:
             put_vma(vma);
             goto internal;
         }
+
         if (vma->file && vma->file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
              * then return a SIGBUS. */

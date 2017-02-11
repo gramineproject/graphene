@@ -4,7 +4,7 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
-target = build-java $(patsubst %.java,%.class,$(wildcard classes/*.java))
+target = $(patsubst %.java,%.class,$(wildcard classes/*.java))
 exec_target = java.manifest
 
 clean-extra = clean-classes
@@ -89,13 +89,19 @@ $(JAVA_HOME)/bin/java: $(JRE_DIR)/bin/java
 distclean: clean
 	rm -rf $(JAVA_DIR) $(JAVA_HOME)
 
+<<<<<<< HEAD
 build-java: $(JAVA_HOME)/bin/java $(JAVAC)
+=======
+endif
+
+build-java: $(JAVA_HOME)/bin/java
+>>>>>>> 76967f3... Bugfixes:
 
 java_home:
 	@echo $(JAVA_HOME)
 
-%.class: %.java $(JAVAC)
-	$(JAVAC) $<
+%.class: %.java
+	javac $<
 
 clean-classes:
 	rm -f $(addsuffix .class,$(TEST_CLASS))
