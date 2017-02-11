@@ -24,7 +24,7 @@ enclave_entry:
 	# Any states given by the host instead of the ISA must be assumed
 	# potentially malicious.
 	#
-	# For instance, Jo Van Bulck contributed a detailed vulvurability report
+	# For instance, Jo Van Bulck contributed a detailed vulnerability report
 	# in https://github.com/oscarlab/graphene/issues/28. (Fixed)
 	# Brief description of the vulnerabilities:
 	# The previous implementation does not check the index of entry
