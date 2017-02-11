@@ -21,7 +21,7 @@ enclave_entry:
 	mov %rcx, %gs:SGX_AEP
 
 	# The following code is hardened to defend attacks from untrusted host.
-	# Any states given by the host instread of the hardware must be assumed
+	# Any states given by the host instead of the ISA must be assumed
 	# potentially malicious.
 	#
 	# For instance, Jo Van Bulck contributed a detailed vulvurability report
