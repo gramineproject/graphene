@@ -86,7 +86,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
     if (!mem)
         return addr ? -PAL_ERROR_DENIED : -PAL_ERROR_NOMEM;
 
-    memset(mem, 0, size);
+    //memset(mem, 0, size);
 
     if (alloc_type & PAL_ALLOC_INTERNAL) {
         SGX_DBG(DBG_M, "pal allocates %p-%p for internal use\n", mem, mem + size);
