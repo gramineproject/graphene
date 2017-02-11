@@ -92,7 +92,9 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
         list_add_tail(&futex->list, &futex_list);
     }
 
-    if (futex_op == FUTEX_WAKE_OP || futex_op == FUTEX_REQUEUE) {
+    if (futex_op == FUTEX_WAKE_OP ||
+        futex_op == FUTEX_CMP_REQUEUE ||
+        futex_op == FUTEX_REQUEUE) {
         list_for_each_entry(tmp, &futex_list, list)
             if (tmp->uaddr == uaddr2) {
                 futex2 = tmp;
@@ -122,30 +124,11 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
 
     unlock(futex_list_lock);
     lock(hdl->lock);
+    uint64_t timeout_us = NO_TIMEOUT;
 
     switch (futex_op) {
-        case FUTEX_WAIT:
-        case FUTEX_WAIT_BITSET: {
-            uint32_t bitset = (futex_op == FUTEX_WAIT_BITSET) ? val3 :
-                              0xffffffff;
-            uint64_t timeout_us = NO_TIMEOUT;
-            
-            debug("FUTEX_WAIT: %p (val = %d) vs %d mask = %08x, timeout ptr %p\n",
-                  uaddr, *uaddr, val, bitset, utime);
-
-            if (*uaddr != val) {
-                ret = -EAGAIN;
-                break;
-            }
-
-            struct futex_waiter waiter;
-            thread_setwait(&waiter.thread, NULL);
-            INIT_LIST_HEAD(&waiter.list);
-            waiter.bitset = bitset;
-            list_add_tail(&waiter.list, &futex->waiters);
-
-            unlock(hdl->lock);
-            if (utime) {
+        case FUTEX_WAIT_BITSET:
+            if (utime && timeout_us == NO_TIMEOUT) {
                 struct timespec *ts = (struct timespec*) utime;
                 // Round to microsecs
                 timeout_us = (ts->tv_sec * 1000000) + (ts->tv_nsec / 1000);
@@ -162,38 +145,72 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                     timeout_us -= current_time;
                 }
             }
+
+        /* Note: for FUTEX_WAIT, timeout is interpreted as a relative
+         * value.  This differs from other futex operations, where
+         * timeout is interpreted as an absolute value.  To obtain the
+         * equivalent of FUTEX_WAIT with an absolute timeout, employ
+         * FUTEX_WAIT_BITSET with val3 specified as
+         * FUTEX_BITSET_MATCH_ANY. */
+
+        case FUTEX_WAIT:
+            if (utime && timeout_us == NO_TIMEOUT) {
+                struct timespec *ts = (struct timespec*) utime;
+                // Round to microsecs
+                timeout_us = (ts->tv_sec * 1000000) + (ts->tv_nsec / 1000);
+            }
+
+        {
+            uint32_t bitset = (futex_op == FUTEX_WAIT_BITSET) ? val3 :
+                              0xffffffff;
+
+            debug("FUTEX_WAIT: %p (val = %d) vs %d mask = %08x, timeout ptr %p\n",
+                  uaddr, *uaddr, val, bitset, utime);
+
+            if (*uaddr != val) {
+                ret = -EAGAIN;
+                break;
+            }
+
+            struct futex_waiter waiter;
+            thread_setwait(&waiter.thread, NULL);
+            INIT_LIST_HEAD(&waiter.list);
+            waiter.bitset = bitset;
+            list_add_tail(&waiter.list, &futex->waiters);
+
+            unlock(hdl->lock);
             ret = thread_sleep(timeout_us);
             /* DEP 1/28/17: Should return ETIMEDOUT, not EAGAIN, on timeout. */
             if (ret == -EAGAIN)
                 ret = -ETIMEDOUT;
             lock(hdl->lock);
+            if (!list_empty(&waiter.list))
+                list_del(&waiter.list);
             break;
         }
 
         case FUTEX_WAKE:
         case FUTEX_WAKE_BITSET: {
+            struct futex_waiter * waiter;
+            int nwaken = 0;
             uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? val3 :
                               0xffffffff;
-            struct list_head *cursor;
+
             debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",
                   uaddr, *uaddr, val, bitset);
-            int cnt, nwaken = 0;
 
-            list_for_each(cursor, &futex->waiters) {
-                struct futex_waiter * waiter = list_entry(cursor,
-                                                          struct futex_waiter,
-                                                          list);
+            list_for_each_entry(waiter, &futex->waiters, list) {
                 if (!(bitset & waiter->bitset))
                     continue;
 
                 debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
-                list_del(&waiter->list);
+                list_del_init(&waiter->list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
                 if (nwaken >= val) break;
             }
-            
+
             ret = nwaken;
             debug("FUTEX_WAKE done: %p (val = %d) woke %d threads\n", uaddr, *uaddr, ret);
             break;
@@ -235,7 +252,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
 
                 debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
-                list_del(&waiter->list);
+                list_del_init(&waiter->list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
             }
@@ -257,7 +274,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
 
                     debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
                           waiter->thread->tid, uaddr2, *uaddr2);
-                    list_del(&waiter->list);
+                    list_del_init(&waiter->list);
                     thread_wakeup(waiter->thread);
                     nwaken++;
                 }
@@ -283,7 +300,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                                                           struct futex_waiter,
                                                           list);
 
-                list_del(&waiter->list);
+                list_del_init(&waiter->list);
                 thread_wakeup(waiter->thread);
             }
 
@@ -380,7 +397,7 @@ void release_robust_list (struct robust_list_head * head)
                                                       struct futex_waiter,
                                                       list);
 
-            list_del(&waiter->list);
+            list_del_init(&waiter->list);
             thread_wakeup(waiter->thread);
         }
 
@@ -422,7 +439,7 @@ void release_clear_child_id (int * clear_child_tid)
                                                   struct futex_waiter,
                                                   list);
 
-        list_del(&waiter->list);
+        list_del_init(&waiter->list);
         thread_wakeup(waiter->thread);
     }
 

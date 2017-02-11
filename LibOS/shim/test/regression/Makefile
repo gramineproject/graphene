@@ -44,6 +44,10 @@ endif
 
 PYTHONENV="PYTHONPATH=../../../../Scripts"
 
+ifeq ($(SGX_RUN),1)
+	PYTHONENV += "TIMEOUT=5000"
+endif
+
 regression: $(target)
 	@echo "\n\nBasic Bootstrapping:"
 	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done

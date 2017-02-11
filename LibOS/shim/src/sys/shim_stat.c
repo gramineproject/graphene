@@ -115,7 +115,7 @@ int shim_do_readlink (const char * file, char * buf, int bufsize)
 
     int ret;
     struct shim_dentry * dent = NULL;
-    struct shim_qstr qstr;
+    struct shim_qstr qstr = QSTR_INIT;
 
     if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent)) < 0)
         return ret;

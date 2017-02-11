@@ -44,9 +44,7 @@ static int pipe_path (int pipeid, char * path, int len)
 {
     /* use abstrace UNIX sockets for pipes */
     memset(path, 0, len);
-
-    return snprintf(path + 1, len - 1, GRAPHENE_UNIX_PREFIX_FMT "/%08x",
-                    pal_sec.pipe_prefix, pipeid);
+    return snprintf(path + 1, len - 1, "%s%08x", pal_sec.pipe_prefix, pipeid);
 }
 
 static int pipe_addr (int pipeid, struct sockaddr_un * addr)
@@ -329,19 +327,35 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    int ret = ocall_fionread(HANDLE_HDR(handle)->fds[0]);
-    if (ret < 0)
-        return -ret;
+    attr->handle_type  = PAL_GET_TYPE(handle);
 
-    memset(attr, 0, sizeof(PAL_STREAM_ATTR));
-    attr->pending_size = ret;
-    attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->readable = (attr->pending_size > 0);
-    attr->writeable = HANDLE_HDR(handle)->flags &
-        ((HANDLE_TYPE(handle) == pal_type_pipeprv) ? WRITEABLE(1) : WRITEABLE(0));
-    attr->nonblocking = (HANDLE_HDR(handle)->type == pal_type_pipeprv) ?
-                        handle->pipeprv.nonblocking :
-                        handle->pipe.nonblocking;
+    int read_fd = HANDLE_HDR(handle)->fds[0];
+    int flags = HANDLE_HDR(handle)->flags;
+
+    if (!IS_HANDLE_TYPE(handle, pipesrv)) {
+        int ret = ocall_fionread(read_fd);
+        if (ret < 0)
+            return -ret;
+
+        attr->pending_size = ret;
+        attr->writeable    = flags & (
+            IS_HANDLE_TYPE(handle, pipeprv) ? WRITEABLE(1) : WRITEABLE(0));
+    } else {
+        attr->pending_size = 0;
+        attr->writeable    = PAL_FALSE;
+    }
+
+    struct pollfd pfd = { .fd = read_fd, .events = POLLIN, .revents = 0 };
+    unsigned long waittime = 0;
+    int ret = ocall_poll(&pfd, 1, &waittime);
+    if (ret < 0)
+        return ret;
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+
+    attr->disconnected = flags & ERROR(0);
+    attr->nonblocking  = IS_HANDLE_TYPE(handle, pipeprv) ?
+                         handle->pipeprv.nonblocking : handle->pipe.nonblocking;
+
     return 0;
 }
 

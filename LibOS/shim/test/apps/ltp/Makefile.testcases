@@ -1,0 +1,11 @@
+manifests = $(wildcard ../../../../*.manifest.template) manifest
+testcases = $(filter-out $(wildcard *.*) $(patsubst %/,%,$(wildcard */)) Makefile manifest pal_loader,$(wildcard *))
+
+exec_target = $(testcases)
+target = $(manifests) $(testcases)
+
+level = ../../../../../../
+include ../../../../../../Makefile
+
+$(addsuffix .template,$(manifests)): %: ../../../../%
+	ln -sf $< $@

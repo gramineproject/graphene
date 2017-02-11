@@ -198,7 +198,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
 {
 #if SGX_HAS_FSGSBASE == 0
     /* set the FS first if necessary */
-    uint64_t fsbase = (uint64_t) ENCLAVE_TLS(fsbase);
+    uint64_t fsbase = (uint64_t) GET_ENCLAVE_TLS(fsbase);
     if (fsbase)
         wrfsbase(fsbase);
 #endif
@@ -342,14 +342,9 @@ void _DkExceptionReturn (void * event)
     restore_sgx_context(&uc);
 }
 
-void _DkCheckExternalEvent (void)
+void _DkHandleExternelEvent (PAL_NUM event, sgx_context_t * uc)
 {
-    if (!ENCLAVE_TLS(external_event))
-        return;
-
-    unsigned long event = ENCLAVE_TLS(external_event);
-    ENCLAVE_TLS(external_event) = 0;
-    struct pal_frame * frame = get_frame(NULL);
+    struct pal_frame * frame = get_frame(uc);
 
     if (event == PAL_EVENT_RESUME &&
         frame && frame->func == DkObjectsWaitAny)
@@ -358,8 +353,8 @@ void _DkCheckExternalEvent (void)
     if (!frame) {
         frame = __alloca(sizeof(struct pal_frame));
         frame->identifier = PAL_FRAME_IDENTIFIER;
-        frame->func = &_DkCheckExternalEvent;
-        frame->funcname = "DkCheckExternalEvent";
+        frame->func = &_DkHandleExternelEvent;
+        frame->funcname = "_DkHandleExternelEvent";
         arch_store_frame(&frame->arch);
     }
 

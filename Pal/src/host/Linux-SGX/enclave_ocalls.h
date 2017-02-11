@@ -81,15 +81,12 @@ int ocall_sock_setopt (int sockfd, int level, int optname,
 
 int ocall_sock_shutdown (int sockfd, int how);
 
-int ocall_clone_thread (void  (*func) (void *), const void * arg,
-                        unsigned int * child_tid, unsigned int * tid);
+int ocall_wake_thread (void * tcs);
 
 int ocall_create_process (const char * uri,
                           int nargs, const char ** args,
                           int procfds[3],
                           unsigned int * pid);
-
-int ocall_exit_process (int status);
 
 int ocall_futex (int * uaddr, int op, int val, const unsigned long * timeout);
 
@@ -104,7 +101,5 @@ int ocall_poll (struct pollfd * fds, int nfds, unsigned long * microsec);
 int ocall_rename (const char * oldpath, const char * newpath);
 
 int ocall_delete (const char * pathname);
-
-int ocall_schedule (unsigned int tid);
 
 int ocall_load_debug (const char * command);

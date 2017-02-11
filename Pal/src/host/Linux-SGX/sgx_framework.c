@@ -239,8 +239,6 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
     param.secinfo = (uint64_t) &secinfo;
     param.flags = skip_eextend ? GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND : 0;
 
-    SGX_DBG(DBG_I, "User addr %x, addr %x (%x, %x), skip_eexten %d\n", param.user_addr, param.addr, secs->baseaddr, addr, skip_eextend);
-    
     if (!param.user_addr) {
         param.user_addr = (unsigned long) zero_page;
         param.flags |= GSGX_ENCLAVE_ADD_PAGES_REPEAT_SRC;

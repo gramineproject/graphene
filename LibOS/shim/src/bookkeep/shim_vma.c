@@ -48,6 +48,26 @@ static LOCKTYPE vma_mgr_lock;
 #define system_lock()       lock(vma_mgr_lock)
 #define system_unlock()     unlock(vma_mgr_lock)
 
+static inline void * __vma_malloc (size_t size)
+{
+    struct shim_thread * thread = get_cur_thread();
+
+    if (!thread)
+        return system_malloc(size);
+
+    size = ALIGN_UP(size);
+    void * addr = (void *) DkVirtualMemoryAlloc(NULL, size, 0,
+                                                PAL_PROT_WRITE|PAL_PROT_READ);
+
+    debug("allocate %p-%p for vmas\n", addr, addr + size);
+    thread->delayed_bkeep_mmap.addr = addr;
+    thread->delayed_bkeep_mmap.length = size;
+    return addr;
+}
+
+#undef system_malloc
+#define system_malloc(size) __vma_malloc(size)
+
 #define OBJ_TYPE struct shim_vma
 #include <memmgr.h>
 
@@ -181,6 +201,26 @@ static int __bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
 static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
                              const int * flags);
 
+static void __check_delayed_bkeep (void)
+{
+    struct shim_thread * thread = get_cur_thread();
+
+    if (!thread)
+        return;
+    if (!thread->delayed_bkeep_mmap.addr)
+        return;
+
+    void * bkeep_addr = thread->delayed_bkeep_mmap.addr;
+    uint64_t bkeep_length = thread->delayed_bkeep_mmap.length;
+    thread->delayed_bkeep_mmap.addr = NULL;
+    thread->delayed_bkeep_mmap.length = 0;
+
+    __bkeep_mmap(bkeep_addr, bkeep_length,
+                 PROT_READ|PROT_WRITE,
+                 MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
+                 NULL, 0, NULL);
+}
+
 static struct shim_vma * get_new_vma (void)
 {
     struct shim_vma * tmp =
@@ -258,12 +298,9 @@ static int __bkeep_mmap (void * addr, uint64_t length,
             prev->length <= length) { /* find a vma at the same addr */
             cont = tmp = prev;
         } else { /* need to add a new vma */
-            unlock(vma_list_lock);
-
             if (!(tmp = get_new_vma()))
                 return -ENOMEM;
 
-            lock(vma_list_lock);
             if (prev) { /* has a precendent vma */
                 if (test_vma_endin(prev, addr, length)) {
                     if (!check_vma_flags(prev, &flags)) {
@@ -340,9 +377,9 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
     lock(vma_list_lock);
     int ret = __bkeep_mmap(addr, length, prot, flags, file, offset,
                            comment);
-    assert_vma();
+    //assert_vma();
+    __check_delayed_bkeep();
     unlock(vma_list_lock);
-
     return ret;
 }
 
@@ -430,7 +467,8 @@ int bkeep_munmap (void * addr, uint64_t length, const int * flags)
 
     lock(vma_list_lock);
     int ret = __bkeep_munmap(addr, length, flags);
-    assert_vma();
+    //assert_vma();
+    __check_delayed_bkeep();
     unlock(vma_list_lock);
 
     return ret;
@@ -611,7 +649,7 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, const int * flags)
 
     lock(vma_list_lock);
     int ret = __bkeep_mprotect(addr, length, prot, flags);
-    assert_vma();
+    //assert_vma();
     unlock(vma_list_lock);
 
     return ret;
@@ -641,6 +679,8 @@ void * get_unmapped_vma (uint64_t length, int flags)
         return NULL;
 
     lock(vma_list_lock);
+
+    __check_delayed_bkeep();
 
     if (heap_top - heap_bottom < length) {
         unlock(vma_list_lock);
@@ -705,6 +745,8 @@ void * get_unmapped_vma_for_cp (uint64_t length)
         return NULL;
 
     lock(vma_list_lock);
+
+    __check_delayed_bkeep();
 
     unsigned long top = (unsigned long) PAL_CB(user_address.end) - length;
     unsigned long bottom = (unsigned long) heap_top;
@@ -1169,6 +1211,8 @@ BEGIN_RS_FUNC(vma)
     list_add(&vma->list, prev ? &prev->list : &vma_list);
     assert_vma();
     SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
+
+    __check_delayed_bkeep();
 
     unlock(vma_list_lock);
 

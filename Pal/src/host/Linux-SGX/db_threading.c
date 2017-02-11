@@ -41,30 +41,39 @@
 
 #include <linux_list.h>
 
-/* default size of a new thread */
-#define PAL_THREAD_STACK_SIZE allocsize
+static PAL_LOCK thread_list_lock = LOCK_INIT;
+static LIST_HEAD(thread_list);
 
 struct thread_param {
     int (*callback) (void *);
     const void * param;
-    PAL_HANDLE event, thread;
 };
 
-void pal_start_thread (void * __param)
+void pal_start_thread (void)
 {
-    struct thread_param * pal_param = (struct thread_param *) __param;
+    PAL_HANDLE new_thread = NULL, tmp;
 
-    int (*callback) (void *) = *(void * volatile *) &pal_param->callback;
-    void *param = *(void * volatile *) &pal_param->param;
+    _DkInternalLock(&thread_list_lock);
+    list_for_each_entry(tmp, &thread_list, thread.list)
+        if (!tmp->thread.tcs) {
+            new_thread = tmp;
+            new_thread->thread.tcs =
+                pal_enclave.enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+            break;
+        }
+    _DkInternalUnlock(&thread_list_lock);
 
-    _DkEventWait(pal_param->event);
-    volatile PAL_HANDLE thread = pal_param->thread;
-    _DkEventDestroy(pal_param->event);
-    free(pal_param);
+    if (!new_thread)
+        return;
 
-    ENCLAVE_TLS(thread) = thread;
-
-    callback(param);
+    struct thread_param * thread_param =
+            (struct thread_param *) new_thread->thread.param;
+    int (*callback) (void *) = thread_param->callback;
+    const void * param = thread_param->param;
+    free(thread_param);
+    new_thread->thread.param = NULL;
+    SET_ENCLAVE_TLS(thread, new_thread);
+    callback((void *) param);
 }
 
 /* _DkThreadCreate for internal use. Create an internal thread
@@ -73,23 +82,24 @@ void pal_start_thread (void * __param)
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param, int flags)
 {
-    struct thread_param * pal_param = malloc(sizeof(struct thread_param));
-    pal_param->callback = callback;
-    pal_param->param = param;
-    _DkEventCreate(&pal_param->event, false, true);
-    flags &= PAL_THREAD_MASK;
+    PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
+    SET_HANDLE_TYPE(new_thread, thread);
+    new_thread->thread.tcs = NULL;
+    INIT_LIST_HEAD(&new_thread->thread.list);
+    struct thread_param * thread_param = malloc(sizeof(struct thread_param));
+    thread_param->callback = callback;
+    thread_param->param = param;
+    new_thread->thread.param = (void *) thread_param;
 
-    unsigned int tid = 0;
-    int ret = ocall_clone_thread(pal_start_thread, pal_param, NULL, &tid);
+    _DkInternalLock(&thread_list_lock);
+    list_add_tail(&new_thread->thread.list, &thread_list);
+    _DkInternalUnlock(&thread_list_lock);
+
+    int ret = ocall_wake_thread(NULL);
     if (ret < 0)
         return ret;
 
-    assert(tid);
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(thread));
-    SET_HANDLE_TYPE(hdl, thread);
-    hdl->thread.tid = tid;
-    pal_param->thread = *handle = hdl;
-    _DkEventSet(pal_param->event, 1);
+    *handle = new_thread;
     return 0;
 }
 
@@ -102,7 +112,7 @@ int _DkThreadDelayExecution (unsigned long * duration)
    of the current thread. */
 void _DkThreadYieldExecution (void)
 {
-    ocall_schedule(0);
+    ocall_sleep(NULL);
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
@@ -113,12 +123,12 @@ void _DkThreadExit (void)
 
 int _DkThreadResume (PAL_HANDLE threadHandle)
 {
-    return ocall_schedule(threadHandle->thread.tid);
+    return ocall_wake_thread(threadHandle->thread.tcs);
 }
 
 int _DkThreadGetCurrent (PAL_HANDLE * threadHandle)
 {
-    *threadHandle = (PAL_HANDLE) ENCLAVE_TLS(thread);
+    *threadHandle = (PAL_HANDLE) GET_ENCLAVE_TLS(thread);
     return 0;
 }
 

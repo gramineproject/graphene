@@ -7,13 +7,10 @@ lmbench_tests = lat_syscall lat_connect lat_fcntl \
 		bw_pipe bw_file_rd bw_mmap_rd lmhttp lmdd sh.manifest
 
 exec_target = $(lmbench_tests)
-target = $(lmbench_tests) $(manifests) pal_loader
+target = $(manifests)
 
 level = ../../../../../
 include ../../../../../Makefile
 
 $(addsuffix .template,$(manifests)): %: ../../../%
-	ln -sf $< $@
-
-pal_loader: ../../../../../pal_loader
 	ln -sf $< $@

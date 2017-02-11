@@ -141,7 +141,7 @@ static inline void do_pause (void);
 #if USE_PAUSE == 1
 # define pause() do { do_pause(); } while (0)
 #else
-# define pause() do {} while (0)
+# define pause() do { asm volatile ("int $3"); } while (0)
 #endif
 
 #define bug()                                                               \

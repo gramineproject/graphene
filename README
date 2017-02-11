@@ -62,7 +62,6 @@ To build the system, simply run the following commands in the root of the
 source tree:
 
     make
-    make install
     (Add Graphene kernel as a boot option by commands like "update-grub")
     (reboot and choose the Graphene kernel)
 
@@ -130,11 +129,11 @@ file" given from the command line. Graphene provides three options for
 spcifying the programs and manifest files:
 
     option 1: (automatic manifest)
-    [PATH TO Pal/src]/pal [PROGRAM] [ARGUMENTS]...
+    [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
     option 2: (given manifest)
-    [PATH TO Pal/src]/pal [MANIFEST] [ARGUMENTS]...
+    [PATH TO Runtime]/pal_loader [MANIFEST] [ARGUMENTS]...
 
     option 3: (manifest as a script)
     [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
@@ -148,14 +147,14 @@ reference monitor loader (libpal_sec.so). Graphene provides three options for
 spcifying the programs and manifest files to the loader:
 
     option 4: (automatic manifest - with reference monitor)
-    [PATH TO Pal/src]/pal_sec [PROGRAM] [ARGUMENTS]...
+    SEC=1 [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
     option 5: (given manifest - with reference monitor)
-    [PATH TO Pal/src]/pal_sec [MANIFEST] [ARGUMENTS]...
+    SEC=1 [PATH TO Pal/src]/pal_loader [MANIFEST] [ARGUMENTS]...
 
     option 6: (manifest as a script - with reference monitor)
-    [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
+    SEC=1 [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH TO Pal/src]/pal_sec" as the first line)
 
 Although manifest files are optional for Graphene, running an application

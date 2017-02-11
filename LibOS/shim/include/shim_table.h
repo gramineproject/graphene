@@ -390,7 +390,7 @@ int shim_do_setsockopt (int fd, int level, int optname, char * optval,
 int shim_do_getsockopt (int fd, int level, int optname, char * optval,
                         int * optlen);
 int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
-                   void * tls, int * child_tidptr);
+                   int * child_tidptr, void * tls);
 int shim_do_fork (void);
 int shim_do_vfork (void);
 int shim_do_execve (const char * file, const char ** argv, const char ** envp);
@@ -442,6 +442,7 @@ pid_t shim_do_getpgrp (void);
 int shim_do_setsid (void);
 int shim_do_getpgid (pid_t pid);
 int shim_do_getsid (pid_t pid);
+int shim_do_sigaltstack (const stack_t * ss, stack_t * oss);
 int shim_do_sigsuspend (const __sigset_t * mask);
 void * shim_do_arch_prctl (int code, void * addr);
 int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim);
@@ -575,7 +576,7 @@ int shim_setsockopt (int fd, int level, int optname, char * optval, int optlen);
 int shim_getsockopt (int fd, int level, int optname, char * optval,
                      int * optlen);
 int shim_clone (int flags, void * user_stack_addr, int * parent_tidptr,
-                void * tls, int * child_tidptr);
+                int * child_tidptr, void * tls);
 int shim_fork (void);
 int shim_vfork (void);
 int shim_execve (const char * file, const char ** argv, const char ** envp);

@@ -31,13 +31,23 @@ CXX += -g
 endif
 export DEBUG
 
+ifeq ($(ABSPATH_IN_MANIFEST),yes)
 manifest_rules = \
+	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
+	-e 's:\$$(PWD):$(PWD):g' \
+	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
+	-e 's:\$$(SHIMPATH):$(abspath $(RUNTIME))/libsysdb.so:g' \
+	-e 's:\$$(LIBCDIR):$(abspath $(RUNTIME)):g' \
+	$(extra_rules)
+else
+manifest_rules= \
 	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):'$$RELDIR'$(RUNTIME)/libsysdb.so:g' \
 	-e 's:\$$(LIBCDIR):'$$RELDIR'$(RUNTIME):g' \
 	$(extra_rules)
+endif
 
 pal_loader:
 	ln -sf $(RUNTIME)/pal_loader

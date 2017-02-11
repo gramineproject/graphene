@@ -4,12 +4,15 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
-target = build-java $(patsubst %.java,%.class,$(wildcard classes/*.java))
+target = $(patsubst %.java,%.class,$(wildcard classes/*.java))
 exec_target = java.manifest
 
 clean-extra = clean-classes
 
-extra_rules = -e 's:\$$(JAVA_HOME):$(JAVA_HOME):g'
+JAVA_HOST_HOME = $(shell readlink -f /usr/bin/java | xargs dirname | xargs dirname)
+
+ABSPATH_IN_MANIFEST = yes
+extra_rules = -e 's:\$$(JAVA_HOME):$(JAVA_HOST_HOME):g'
 
 level = ../../
 include ../../Makefile
@@ -128,13 +131,13 @@ distclean: clean
 
 endif
 
-build-java: $(JAVA_HOME)/bin/java $(JAVAC)
+build-java: $(JAVA_HOME)/bin/java
 
 java_home:
 	@echo $(JAVA_HOME)
 
-%.class: %.java $(JAVAC)
-	$(JAVAC) $<
+%.class: %.java
+	javac $<
 
 clean-classes:
 	rm -f $(addsuffix .class,$(TEST_CLASS))

@@ -767,22 +767,20 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
     int fd = handle->sock.fd, ret;
 
-    if (IS_HANDLE_TYPE(handle, tcpsrv)) {
-        struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
-        unsigned long waittime = 0;
-        int ret = ocall_poll(&pfd, 1, &waittime);
-        if (ret < 0)
-            return ret;
-        attr->readable = (ret == 1 && pfd.revents == POLLIN);
-    } else {
+    if (!IS_HANDLE_TYPE(handle, tcpsrv)) {
         /* try use ioctl FIONEAD to get the size of socket */
         ret = ocall_fionread(fd);
         if (ret < 0)
             return ret;
-
         attr->pending_size = ret;
-        attr->readable = !!attr->pending_size > 0;
     }
+
+    struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+    unsigned long waittime = 0;
+    ret = ocall_poll(&pfd, 1, &waittime);
+    if (ret < 0)
+        return ret;
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     return 0;
 }

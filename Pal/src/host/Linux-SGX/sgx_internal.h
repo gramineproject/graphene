@@ -106,7 +106,7 @@ int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_token_t * token);
 
 int destroy_enclave(void * base_addr, size_t length);
-void exit_process (int status);
+void exit_process (int status, uint64_t start_exiting);
 
 int sgx_ecall (long ecall_no, void * ms);
 int sgx_raise (int event);
@@ -116,13 +116,18 @@ void async_exit_pointer (void);
 void double_async_exit (void);
 #endif
 
+int interrupt_thread (void * tcs);
+int clone_thread (void);
+
 void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
 void map_tcs (unsigned int tid);
 void unmap_tcs (void);
 
 extern __thread struct pal_enclave * current_enclave;
 
-extern __thread void * current_tcs
+#define PAL_SEC() (&current_enclave->pal_sec)
+
+extern __thread sgx_arch_tcs_t * current_tcs
             __attribute__((tls_model ("initial-exec")));
 
 extern __thread unsigned long debug_register

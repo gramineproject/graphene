@@ -72,8 +72,6 @@ static inline int HOST_PROT (int prot)
 struct stat;
 bool stataccess (struct stat * stats, int acc);
 
-#define GRAPHENE_UNIX_PREFIX_FMT    "/graphene/%016lx"
-
 #ifdef IN_ENCLAVE
 
 /* Locking and unlocking of Mutexes */
@@ -93,14 +91,15 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START (void *) (&__text_start)
 #define DATA_END   (void *) (&__text_end)
 
-typedef struct { unsigned char bytes[32]; } sgx_checksum_t;
+typedef struct { char bytes[32]; } sgx_checksum_t;
+typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
 int load_trusted_file
-    (PAL_HANDLE file, sgx_arch_mac_t ** stubptr, uint64_t * sizeptr);
+    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr);
 int verify_trusted_file
     (const char * uri, void * mem, unsigned int offset, unsigned int size,
-     sgx_arch_mac_t * stubs, unsigned int total_size);
+     sgx_stub_t * stubs, unsigned int total_size);
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mrenclave_str);
@@ -149,11 +148,13 @@ extern struct pal_enclave_state {
 
 #define PAL_ENCLAVE_INITIALIZED     0x0001ULL
 
-extern struct pal_enclave_config {
+extern struct pal_enclave {
+    void *                 enclave_base;
+    uint64_t               enclave_size;
     sgx_arch_hash_t        mrenclave;
     sgx_arch_attributes_t  enclave_attributes;
     void *                 enclave_key;
-} pal_enclave_config;
+} pal_enclave;
 
 static inline __attribute__((always_inline))
 char * __hex2str(void * hex, int size)

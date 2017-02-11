@@ -529,28 +529,29 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
     attr->handle_type  = PAL_GET_TYPE(handle);
 
-    if (attr->handle_type != pal_type_pipesrv) {
-        ret = INLINE_SYSCALL(ioctl, 3, HANDLE_HDR(handle)->fds[0], FIONREAD, &val);
+    int read_fd = HANDLE_HDR(handle)->fds[0];
+    int flags = HANDLE_HDR(handle)->flags;
+
+    if (!IS_HANDLE_TYPE(handle, pipesrv)) {
+        ret = INLINE_SYSCALL(ioctl, 3, read_fd, FIONREAD, &val);
         if (IS_ERR(ret)) {
             return unix_to_pal_error(ERRNO(ret));
         }
-
-        attr->readable     = val > 0;
         attr->pending_size = val;
-        attr->writeable    = HANDLE_HDR(handle)->flags & (
-            (PAL_GET_TYPE(handle) == pal_type_pipeprv) ? WRITEABLE(1) :
-            WRITEABLE(0));
+        attr->writeable    = flags & (
+            IS_HANDLE_TYPE(handle, pipeprv) ? WRITEABLE(1) : WRITEABLE(0));
     } else {
-        struct pollfd pfd = { .fd = HANDLE_HDR(handle)->fds[0], .events = POLLIN, .revents = 0 };
-        struct timespec tp = { 0, 0 };
-        ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-        attr->readable = (ret == 1 && pfd.revents == POLLIN);
         attr->pending_size = 0;
         attr->writeable    = PAL_FALSE;
     }
 
+    struct pollfd pfd = { .fd = read_fd, .events = POLLIN, .revents = 0 };
+    struct timespec tp = { 0, 0 };
+    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
+
     attr->disconnected = HANDLE_HDR(handle)->flags & ERROR(0);
-    attr->nonblocking  = (PAL_GET_TYPE(handle) == pal_type_pipeprv) ?
+    attr->nonblocking  = IS_HANDLE_TYPE(handle, pipeprv) ?
                          handle->pipeprv.nonblocking : handle->pipe.nonblocking;
     return 0;
 }

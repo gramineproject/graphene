@@ -36,6 +36,8 @@
 
 #include <errno.h>
 
+#include <linux/signal.h>
+
 int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
                        struct __kernel_sigaction * oldact)
 {
@@ -135,6 +137,25 @@ out:
         memcpy(oldset, old, sizeof(__sigset_t));
 
     return err;
+}
+
+int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
+{
+    if (ss && (ss->ss_flags & ~SS_DISABLE))
+        return -EINVAL;
+
+    struct shim_thread * cur = get_cur_thread();
+    int err = 0;
+
+    lock(cur->lock);
+
+    if (oss)
+        *oss = cur->signal_altstack;
+    if (ss)
+        cur->signal_altstack = *ss;
+
+    unlock(cur->lock);
+    return 0;
 }
 
 int shim_do_sigsuspend (const __sigset_t * mask)

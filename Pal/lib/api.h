@@ -127,6 +127,6 @@ int get_config_entries (struct config_store * cfg, const char * key,
                         char * key_buf, int size);
 int set_config (struct config_store * cfg, const char * key, const char * val);
 
-#define CONFIG_MAX      256
+#define CONFIG_MAX      4096
 
 #endif /* API_H */

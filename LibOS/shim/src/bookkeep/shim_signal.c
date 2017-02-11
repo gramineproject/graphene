@@ -155,6 +155,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     memset(signal, 0, sizeof(struct shim_signal));
     __store_info(info, signal);
     __store_context(tcb, context, signal);
+    signal->pal_context = context;
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1)
         goto delay;
@@ -187,11 +188,12 @@ out:
     __enable_preempt(tcb);
 }
 
-#define ALLOC_SIGINFO(signo, member, value)                 \
+#define ALLOC_SIGINFO(signo, code, member, value)           \
     ({                                                      \
         siginfo_t * _info = __alloca(sizeof(siginfo_t));    \
         memset(_info, 0, sizeof(siginfo_t));                \
         _info->si_signo = (signo);                          \
+        _info->si_code = (code);                            \
         _info->member = (value);                            \
         _info;                                              \
     })
@@ -232,7 +234,7 @@ static void divzero_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (context)
         debug("arithmetic fault at %p\n", context->IP);
 
-    deliver_signal(ALLOC_SIGINFO(SIGFPE, si_addr, (void *) arg), context);
+    deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV, si_addr, (void *) arg), context);
 
 ret_exception:
     DkExceptionReturn(event);
@@ -251,16 +253,28 @@ internal:
         debug("memory fault at %p (IP = %p)\n", arg, context->IP);
 
     struct shim_vma * vma = NULL;
-    if (!lookup_supervma((void *) arg, 0, &vma)) {
+    int signo = SIGSEGV;
+    int code;
+    if (!arg) {
+        code = SEGV_MAPERR;
+    } else if (!lookup_supervma((void *) arg, 0, &vma)) {
         if (vma->flags & VMA_INTERNAL) {
             put_vma(vma);
             goto internal;
         }
+        if (vma->file) {
+            /* XXX: need more sophisticated judgement */
+            signo = SIGBUS;
+            code = BUS_ADRERR;
+        } else {
+            code = SEGV_ACCERR;
+        }
         put_vma(vma);
+    } else {
+        code = SEGV_MAPERR;
     }
 
-    int signo = SIGSEGV;
-    deliver_signal(ALLOC_SIGINFO(signo, si_addr, (void *) arg), context);
+    deliver_signal(ALLOC_SIGINFO(signo, code, si_addr, (void *) arg), context);
 
 ret_exception:
     DkExceptionReturn(event);
@@ -285,7 +299,7 @@ internal:
         if (vma)
             put_vma(vma);
 
-        deliver_signal(ALLOC_SIGINFO(SIGILL, si_addr, (void *) arg), context);
+        deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
     } else {
         if (vma)
             put_vma(vma);
@@ -302,7 +316,7 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (IS_INTERNAL_TID(get_cur_tid()))
         goto ret_exception;
 
-    deliver_signal(ALLOC_SIGINFO(SIGTERM, si_pid, 0), NULL);
+    deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
 
 ret_exception:
     DkExceptionReturn(event);
@@ -313,7 +327,7 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (IS_INTERNAL_TID(get_cur_tid()))
         goto ret_exception;
 
-    deliver_signal(ALLOC_SIGINFO(SIGINT, si_pid, 0), NULL);
+    deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
 
 ret_exception:
     DkExceptionReturn(event);
@@ -444,6 +458,10 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 
     if (context)
         memcpy(&tcb->context, context, sizeof(struct shim_context));
+
+    if (signal->pal_context)
+        memcpy(signal->pal_context, signal->context.uc_mcontext.gregs,
+               sizeof(PAL_CONTEXT));
 }
 
 void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)

@@ -504,6 +504,11 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
 
     ret = INLINE_SYSCALL(connect, 3, fd, dest_addr, dest_addrlen);
 
+    if (IS_ERR(ret) && ERRNO(ret) == EINPROGRESS) {
+        struct pollfd pfd = { .fd = fd, .events = POLLOUT, .revents = 0 };
+        ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, NULL, NULL, 0);
+    }
+
     if (IS_ERR(ret)) {
         ret = unix_to_pal_error(ERRNO(ret));
         goto failed;
@@ -1040,20 +1045,18 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
     int fd = handle->sock.fd, ret, val;
 
-    if (IS_HANDLE_TYPE(handle, tcpsrv)) {
-        struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
-        struct timespec tp = { 0, 0 };
-        ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
-        attr->readable = (ret == 1 && pfd.revents == POLLIN);
-    } else {
+    if (!IS_HANDLE_TYPE(handle, tcpsrv)) {
         /* try use ioctl FIONEAD to get the size of socket */
         ret = INLINE_SYSCALL(ioctl, 3, fd, FIONREAD, &val);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
-
         attr->pending_size = val;
-        attr->readable = !!attr->pending_size > 0;
     }
+
+    struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+    struct timespec tp = { 0, 0 };
+    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     return 0;
 }

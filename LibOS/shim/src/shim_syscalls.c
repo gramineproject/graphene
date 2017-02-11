@@ -355,9 +355,9 @@ DEFINE_SHIM_SYSCALL (getsockopt, 5, shim_do_getsockopt, int, int, fd,
                      int, level, int, optname, char *, optval, int *, optlen)
 
 /* clone: sys/shim_clone.c */
-DEFINE_SHIM_SYSCALL (clone, 5, shim_do_clone, int, int, flags, void *,
-                     user_stack_addr, int *, parent_tidptr, void *, tls,
-                     int *, child_tidptr)
+DEFINE_SHIM_SYSCALL (clone, 5, shim_do_clone, int, int, flags,
+                     void *, user_stack_addr, int *, parent_tidptr,
+                     int *, child_tidptr, void *, tls)
 
 /* fork: sys/shim_fork.c */
 DEFINE_SHIM_SYSCALL (fork, 0, shim_do_fork, int)
@@ -590,8 +590,8 @@ SHIM_SYSCALL_PASSTHROUGH (rt_sigqueueinfo, 3, int, int, pid, int, sig,
 
 DEFINE_SHIM_SYSCALL (rt_sigsuspend, 1, shim_do_sigsuspend, int, const __sigset_t *, mask)
 
-SHIM_SYSCALL_PASSTHROUGH (sigaltstack, 2, int, const stack_t *, ss, stack_t *,
-                          oss)
+DEFINE_SHIM_SYSCALL (sigaltstack, 2, shim_do_sigaltstack, int, const stack_t *, ss,
+                     stack_t *, oss)
 
 SHIM_SYSCALL_PASSTHROUGH (utime, 2, int, char *, filename, struct utimbuf *,
                           times)

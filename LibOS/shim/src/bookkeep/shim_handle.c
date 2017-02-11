@@ -285,6 +285,7 @@ struct shim_handle * get_new_handle (void)
     REF_SET(new_handle->ref_count, 1);
     create_lock(new_handle->lock);
     new_handle->owner = cur_process.vmid;
+    INIT_LIST_HEAD(&new_handle->epolls);
     return new_handle;
 }
 
@@ -454,6 +455,8 @@ void open_handle (struct shim_handle * hdl)
 #endif
 }
 
+extern int delete_from_epoll_handles (struct shim_handle * handle);
+
 void close_handle (struct shim_handle * hdl)
 {
     int opened = REF_DEC(hdl->opened);
@@ -487,6 +490,8 @@ void close_handle (struct shim_handle * hdl)
                 hdl->fs->fs_ops->close)
                 hdl->fs->fs_ops->close(hdl);
         }
+
+        delete_from_epoll_handles(hdl);
     }
 
     put_handle(hdl);
@@ -807,6 +812,8 @@ BEGIN_CP_FUNC(handle)
         if (hdl->type == TYPE_EPOLL)
             DO_CP(epoll_fd, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
 
+        INIT_LIST_HEAD(&new_hdl->epolls);
+
         unlock(hdl->lock);
         ADD_CP_FUNC_ENTRY(off);
     } else {
@@ -825,6 +832,7 @@ BEGIN_RS_FUNC(handle)
 
     CP_REBASE(hdl->fs);
     CP_REBASE(hdl->dentry);
+    CP_REBASE(hdl->epolls);
 
     create_lock(hdl->lock);
 

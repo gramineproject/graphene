@@ -26,9 +26,8 @@ enum {
     OCALL_FTRUNCATE,
     OCALL_MKDIR,
     OCALL_GETDENTS,
-    OCALL_CLONE_THREAD,
+    OCALL_WAKE_THREAD,
     OCALL_CREATE_PROCESS,
-    OCALL_EXIT_PROCESS,
     OCALL_FUTEX,
     OCALL_SOCKETPAIR,
     OCALL_SOCK_LISTEN,
@@ -45,7 +44,6 @@ enum {
     OCALL_POLL,
     OCALL_RENAME,
     OCALL_DELETE,
-    OCALL_SCHEDULE,
     OCALL_LOAD_DEBUG,
     OCALL_NR,
 };
@@ -146,23 +144,12 @@ typedef struct {
 } ms_ocall_getdents_t;
 
 typedef struct {
-    void (*ms_func) (void *);
-    const void * ms_arg;
-    unsigned int * ms_child_tid;
-    unsigned int ms_tid;
-} ms_ocall_clone_thread_t;
-
-typedef struct {
     unsigned int ms_pid;
     const char * ms_uri;
     int ms_proc_fds[3];
     int ms_nargs;
     const char * ms_args[];
 } ms_ocall_create_process_t;
-
-typedef struct {
-    int ms_status;
-} ms_ocall_exit_process_t;
 
 typedef struct {
     int * ms_futex;

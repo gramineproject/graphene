@@ -64,8 +64,11 @@ static void parse_sigmask       (const char *, va_list *);
 static void parse_sigprocmask_how (const char *, va_list *);
 static void parse_timespec      (const char *, va_list *);
 static void parse_sockaddr      (const char *, va_list *);
+static void parse_domain        (const char *, va_list *);
+static void parse_socktype      (const char *, va_list *);
 static void parse_futexop       (const char *, va_list *);
 static void parse_ioctlop       (const char *, va_list *);
+static void parse_fcntlop       (const char *, va_list *);
 static void parse_seek          (const char *, va_list *);
 static void parse_at_fdcwd      (const char *, va_list *);
 static void parse_wait_option   (const char *, va_list *);
@@ -123,7 +126,8 @@ struct parser_table {
     { .slow = 0, .parser = { NULL } }, /* setitimer */
     { .slow = 0, .parser = { NULL } }, /* getpid */
     { .slow = 0, .parser = { NULL } }, /* sendfile */
-    { .slow = 0, .parser = { NULL } }, /* socket */
+    { .slow = 0, .parser = { &parse_domain, &parse_socktype } }, /* socket */
+
     { .slow = 1, .parser = { NULL, &parse_sockaddr } }, /* connect */
     { .slow = 1, .parser = { NULL } }, /* accept */
     { .slow = 0, .parser = { NULL } }, /* sendto */
@@ -136,7 +140,7 @@ struct parser_table {
     { .slow = 0, .parser = { NULL } }, /* getsockname */
     { .slow = 0, .parser = { NULL } }, /* getpeername */
     { .slow = 0, .stop = 3,            /* socketpair */
-      .parser = { NULL, NULL, NULL, &parse_pipe_fds } },
+      .parser = { &parse_domain, &parse_socktype, NULL, &parse_pipe_fds } },
     { .slow = 0, .parser = { NULL } }, /* setsockopt */
     { .slow = 0, .parser = { NULL } }, /* getsockopt */
     { .slow = 1, .parser = { &parse_clone_flags } }, /* clone */
@@ -158,7 +162,7 @@ struct parser_table {
     { .slow = 1, .parser = { NULL } }, /* msgsnd */
     { .slow = 1, .parser = { NULL } }, /* msgrcv */
     { .slow = 1, .parser = { NULL } }, /* msgctl */
-    { .slow = 0, .parser = { NULL } }, /* fcntl */
+    { .slow = 0, .parser = { NULL, &parse_fcntlop } }, /* fcntl */
     { .slow = 0, .parser = { NULL } }, /* flock */
     { .slow = 0, .parser = { NULL } }, /* fsync */
     { .slow = 0, .parser = { NULL } }, /* fdatasync */
@@ -405,7 +409,9 @@ struct parser_table {
 
 static inline int is_pointer (const char * type)
 {
-    return type[strlen(type) - 1] == '*' || strcmp_static(type, "long");
+    return type[strlen(type) - 1] == '*'
+           || strcmp_static(type, "long")
+           || strcmp_static(type, "unsigned long");
 }
 
 #define PRINTF(fmt, ...)                            \
@@ -437,7 +443,7 @@ static inline void parse_pointer_arg (va_list * ap)
 
 static inline void parse_integer_arg (va_list * ap)
 {
-    VPRINTF("%ld", ap);
+    VPRINTF("%d", ap);
 }
 
 static inline void parse_syscall_args (va_list * ap)
@@ -769,7 +775,8 @@ static void parse_pipe_fds (const char * type, va_list * ap)
 #define S(sig) #sig
 
 const char *const siglist[NUM_KNOWN_SIGS + 1] =
-    {   NULL,
+    {
+        S(SIGUNUSED),
         S(SIGHUP),
         S(SIGINT),
         S(SIGQUIT),
@@ -791,14 +798,27 @@ const char *const siglist[NUM_KNOWN_SIGS + 1] =
         S(SIGSTOP),
         S(SIGTSTP),
         S(SIGTTIN),
-        S(SIGTTOU),  };
+        S(SIGTTOU),
+        S(SIGURG),
+        S(SIGXCPU),
+        S(SIGXFSZ),
+        S(SIGVTALRM),
+        S(SIGPROF),
+        S(SIGWINCH),
+        S(SIGIO),
+        S(SIGPWR),
+        S(SIGSYS),
+        S(SIGRTMIN),
+    };
 
 static void parse_signum (const char * type, va_list * ap)
 {
     unsigned int signum = va_arg(*ap, unsigned int);
 
-    if (signum > 0 && signum <= NUM_KNOWN_SIGS)
+    if (signum >= 0 && signum <= NUM_KNOWN_SIGS)
         PUTS(signal_name(signum));
+    else
+        PRINTF("[SIG %d]", signum);
 }
 
 static void parse_sigmask (const char * type, va_list * ap)
@@ -896,6 +916,106 @@ static void parse_sockaddr (const char * type, va_list *ap)
     }
 }
 
+static void parse_domain (const char * type, va_list * ap)
+{
+    int domain = va_arg(*ap, int);
+
+#define PF_UNSPEC   0   /* Unspecified.  */
+#define PF_INET     2   /* IP protocol family.  */
+#define PF_AX25     3   /* Amateur Radio AX.25.  */
+#define PF_IPX      4   /* Novell Internet Protocol.  */
+#define PF_APPLETALK    5   /* Appletalk DDP.  */
+#define PF_ATMPVC   8   /* ATM PVCs.  */
+#define PF_X25      9   /* Reserved for X.25 project.  */
+#define PF_INET6    10  /* IP version 6.  */
+#define PF_NETLINK  16
+#define PF_PACKET   17  /* Packet family.  */
+
+    switch (domain) {
+        case PF_UNSPEC:
+            PUTS("UNSPEC");
+            break;
+        case PF_UNIX:
+            PUTS("UNIX");
+            break;
+        case PF_INET:
+            PUTS("INET");
+            break;
+        case PF_INET6:
+            PUTS("INET6");
+            break;
+        case PF_IPX:
+            PUTS("IPX");
+            break;
+        case PF_NETLINK:
+            PUTS("NETLINK");
+            break;
+        case PF_X25:
+            PUTS("X25");
+            break;
+        case PF_AX25:
+            PUTS("AX25");
+            break;
+        case PF_ATMPVC:
+            PUTS("ATMPVC");
+            break;
+        case PF_APPLETALK:
+            PUTS("APPLETALK");
+            break;
+        case PF_PACKET:
+            PUTS("PACKET");
+            break;
+        default:
+            PUTS("UNKNOWN");
+            break;
+    }
+}
+
+static void parse_socktype (const char * type, va_list * ap)
+{
+    int socktype = va_arg(*ap, int);
+
+    if (socktype & SOCK_NONBLOCK) {
+        socktype &= ~SOCK_NONBLOCK;
+        PUTS("SOCK_NONBLOCK|");
+    }
+
+    if (socktype & SOCK_CLOEXEC) {
+        socktype &= ~SOCK_CLOEXEC;
+        PUTS("SOCK_CLOEXEC|");
+    }
+
+#define SOCK_RAW    3   /* Raw protocol interface.  */
+#define SOCK_RDM    4   /* Reliably-delivered messages.  */
+#define SOCK_SEQPACKET  5   /* Sequenced, reliable, connection-based, */
+#define SOCK_DCCP   6   /* Datagram Congestion Control Protocol.  */
+#define SOCK_PACKET 10  /* Linux specific way of getting packets */
+
+    switch (socktype) {
+        case SOCK_STREAM:
+            PUTS("STREAM");
+            break;
+        case SOCK_DGRAM:
+            PUTS("DGRAM");
+            break;
+        case SOCK_SEQPACKET:
+            PUTS("SEQPACKET");
+            break;
+        case SOCK_RAW:
+            PUTS("RAW");
+            break;
+        case SOCK_RDM:
+            PUTS("RDM");
+            break;
+        case SOCK_PACKET:
+            PUTS("PACKET");
+            break;
+        default:
+            PUTS("UNKNOWN");
+            break;
+    }
+}
+
 static void parse_futexop (const char * type, va_list * ap)
 {
     int op = va_arg(*ap, int);
@@ -947,6 +1067,71 @@ static void parse_futexop (const char * type, va_list * ap)
     }
 }
 
+static void parse_fcntlop (const char * type, va_list * ap)
+{
+    int op = va_arg(*ap, int);
+
+    switch (op) {
+        case F_DUPFD:
+            PUTS("F_DUPFD");
+            break;
+        case F_GETFD:
+            PUTS("F_GETFD");
+            break;
+        case F_SETFD:
+            PUTS("F_SETFD");
+            break;
+        case F_GETFL:
+            PUTS("F_GETFL");
+            break;
+        case F_SETFL:
+            PUTS("F_SETFL");
+            break;
+        case F_GETLK:
+            PUTS("F_GETLK");
+            break;
+        case F_SETLK:
+            PUTS("F_SETLK");
+            break;
+        case F_SETLKW:
+            PUTS("F_SETLKW");
+            break;
+        case F_SETOWN:
+            PUTS("F_SETOWN");
+            break;
+        case F_GETOWN:
+            PUTS("F_GETOWN");
+            break;
+        case F_SETSIG:
+            PUTS("F_SETSIG");
+            break;
+        case F_GETSIG:
+            PUTS("F_GETSIG");
+            break;
+        case F_GETLK64:
+            PUTS("F_GETLK64");
+            break;
+        case F_SETLK64:
+            PUTS("F_SETLK64");
+            break;
+        case F_SETLKW64:
+            PUTS("F_SETLKW64");
+            break;
+        case F_SETOWN_EX:
+            PUTS("F_SETOWN_EX");
+            break;
+        case F_GETOWN_EX:
+            PUTS("F_GETOWN_EX");
+            break;
+        case F_GETOWNER_UIDS:
+            PUTS("F_GETOWNER_UIDS");
+            break;
+        default:
+            PRINTF("OP %d", op);
+            break;
+    }
+}
+
 static void parse_ioctlop (const char * type, va_list * ap)
 {
     int op = va_arg(*ap, int);
@@ -985,6 +1170,26 @@ static void parse_ioctlop (const char * type, va_list * ap)
         PUTS(opnames[op - TCGETS]);
         return;
     }
+
+    if (op >= FIONCLEX && op <= TIOCSERSETMULTI) {
+        const char * opnames[] = {
+            "FIONCLEX",         /* 0x5450 */    "FIOCLEX",          /* 0x5451 */
+            "FIOASYNC",         /* 0x5452 */    "TIOCSERCONFIG",    /* 0x5453 */
+            "TIOCSERGWILD",     /* 0x5454 */    "TIOCSERSWILD",     /* 0x5455 */
+            "TIOCGLCKTRMIOS",   /* 0x5456 */    "TIOCSLCKTRMIOS",   /* 0x5457 */
+            "TIOCSERGSTRUCT",   /* 0x5458 */    "TIOCSERGETLSR",    /* 0x5459 */
+            "TIOCSERGETMULTI",  /* 0x545A */    "TIOCSERSETMULTI",  /* 0x545B */
+        };
+        PUTS(opnames[op - FIONCLEX]);
+        return;
+    }
+
+
+
+#define TIOCMIWAIT	0x545C	/* wait for a change on serial input line(s) */
+#define TIOCGICOUNT	0x545D	/* read serial port __inline__ interrupt counts */
+
+
     PRINTF("OP 0x%04x", op);
 }
 

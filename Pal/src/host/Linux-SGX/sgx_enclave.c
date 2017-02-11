@@ -10,7 +10,6 @@
 #include <asm/mman.h>
 #include <asm/ioctls.h>
 #include <asm/socket.h>
-#include <asm/signal.h>
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -20,8 +19,6 @@
 #ifndef SOL_IPV6
 # define SOL_IPV6 41
 #endif
-
-#define PAL_SEC() (&current_enclave->pal_sec)
 
 #define ODEBUG(code, ms) do {} while (0)
 
@@ -215,17 +212,10 @@ static int sgx_ocall_getdents(void * pms)
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-int clone_thread(void (*func) (void *),
-                 void * args,
-                 unsigned int * child_tid,
-                 unsigned int * tid);
-
-static int sgx_ocall_clone_thread(void * pms)
+static int sgx_ocall_wake_thread(void * pms)
 {
-    ms_ocall_clone_thread_t * ms = (ms_ocall_clone_thread_t *) pms;
-    ODEBUG(OCALL_CLONE_THREAD, ms);
-    return clone_thread(ms->ms_func, (void *) ms->ms_arg,
-                        ms->ms_child_tid, &ms->ms_tid);
+    ODEBUG(OCALL_WAKE_THREAD, pms);
+    return pms ? interrupt_thread(pms) : clone_thread();
 }
 
 int sgx_create_process (const char * uri,
@@ -241,14 +231,6 @@ static int sgx_ocall_create_process(void * pms)
     if (ret < 0)
         return ret;
     ms->ms_pid = ret;
-    return 0;
-}
-
-static int sgx_ocall_exit_process(void * pms)
-{
-    ms_ocall_exit_process_t * ms = (ms_ocall_exit_process_t *) pms;
-    ODEBUG(OCALL_EXIT_PROCESS, ms);
-    exit_process(ms->ms_status);
     return 0;
 }
 
@@ -609,6 +591,10 @@ static int sgx_ocall_sleep(void * pms)
     ms_ocall_sleep_t * ms = (ms_ocall_sleep_t *) pms;
     int ret;
     ODEBUG(OCALL_SLEEP, ms);
+    if (!ms->ms_microsec) {
+        INLINE_SYSCALL(sched_yield, 0);
+        return 0;
+    }
     struct timespec req, rem;
     req.tv_sec  = ms->ms_microsec / 1000000;
     req.tv_nsec = (ms->ms_microsec - req.tv_sec * 1000000) * 1000;
@@ -656,18 +642,6 @@ static int sgx_ocall_delete(void * pms)
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-static int sgx_ocall_schedule(void * pms)
-{
-    ms_ocall_schedule_t * ms = (ms_ocall_schedule_t *) pms;
-    ODEBUG(OCALL_SCHEDULE, ms);
-    if (ms->ms_tid) {
-        INLINE_SYSCALL(tgkill, 3, PAL_SEC()->pid, ms->ms_tid, SIGCONT);
-    } else {
-        INLINE_SYSCALL(sched_yield, 0);
-    }
-    return 0;
-}
-
 void load_gdb_command (const char * command);
 
 static int sgx_ocall_load_debug(void * pms)
@@ -697,9 +671,8 @@ void * ocall_table[OCALL_NR] = {
         [OCALL_FTRUNCATE]       = (void *) sgx_ocall_ftruncate,
         [OCALL_MKDIR]           = (void *) sgx_ocall_mkdir,
         [OCALL_GETDENTS]        = (void *) sgx_ocall_getdents,
-        [OCALL_CLONE_THREAD]    = (void *) sgx_ocall_clone_thread,
+        [OCALL_WAKE_THREAD]     = (void *) sgx_ocall_wake_thread,
         [OCALL_CREATE_PROCESS]  = (void *) sgx_ocall_create_process,
-        [OCALL_EXIT_PROCESS]    = (void *) sgx_ocall_exit_process,
         [OCALL_FUTEX]           = (void *) sgx_ocall_futex,
         [OCALL_SOCKETPAIR]      = (void *) sgx_ocall_socketpair,
         [OCALL_SOCK_LISTEN]     = (void *) sgx_ocall_sock_listen,
@@ -716,39 +689,23 @@ void * ocall_table[OCALL_NR] = {
         [OCALL_POLL]            = (void *) sgx_ocall_poll,
         [OCALL_RENAME]          = (void *) sgx_ocall_rename,
         [OCALL_DELETE]          = (void *) sgx_ocall_delete,
-        [OCALL_SCHEDULE]        = (void *) sgx_ocall_schedule,
         [OCALL_LOAD_DEBUG]      = (void *) sgx_ocall_load_debug,
     };
 
 #define EDEBUG(code, ms) do {} while (0)
 
-int ecall_pal_main (const char ** arguments, const char ** environments)
+int ecall_enclave_start (const char ** arguments, const char ** environments)
 {
-    struct pal_enclave * enclave = current_enclave;
-    ms_ecall_pal_main_t ms;
-
+    ms_ecall_enclave_start_t ms;
     ms.ms_arguments = arguments;
     ms.ms_environments = environments;
     ms.ms_sec_info = PAL_SEC();
-    ms.ms_enclave_base = (void *) enclave->baseaddr;
-    ms.ms_enclave_size = enclave->size;
-
-    EDEBUG(ECALL_PAL_MAIN, &ms);
-
-    return sgx_ecall(ECALL_PAL_MAIN, &ms);
+    EDEBUG(ECALL_ENCLAVE_START, &ms);
+    return sgx_ecall(ECALL_ENCLAVE_START, &ms);
 }
 
-int ecall_thread_start (void (*func) (void *), void * arg,
-                        unsigned int * child_tid, unsigned int tid)
+int ecall_thread_start (void)
 {
-    ms_ecall_thread_start_t ms;
-
-    ms.ms_func = func;
-    ms.ms_arg = arg;
-    ms.ms_child_tid = child_tid;
-    ms.ms_tid = tid;
-
-    EDEBUG(ECALL_THREAD_START, &ms);
-
-    return sgx_ecall(ECALL_THREAD_START, &ms);
+    EDEBUG(ECALL_THREAD_START, NULL);
+    return sgx_ecall(ECALL_THREAD_START, NULL);
 }

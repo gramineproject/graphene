@@ -69,6 +69,9 @@ isdef:
         movq %rax, %fs:(SHIM_TCB_OFFSET + 40)
         movq %rsp, %fs:(SHIM_TCB_OFFSET + 48)
 
+        /* Translating x86_64 kernel calling convention to user-space
+         * calling convention */
+        movq %r10, %rcx
         call *%rbx
 
         movq $0, %fs:(SHIM_TCB_OFFSET + 24)

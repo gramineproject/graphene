@@ -301,7 +301,7 @@ static int proc_list_thread_each_fd (const char * name,
 
     lock(handle_map->lock);
 
-    for (int i = 0 ; i < handle_map->fd_size ; i++, dirent = dirent->next)
+    for (int i = 0 ; i < handle_map->fd_size ; i++)
         if (handle_map->map[i] &&
             handle_map->map[i]->handle) {
             int d = i, l = 0;
@@ -322,6 +322,7 @@ static int proc_list_thread_each_fd (const char * name,
             for (d = i ; d ; d /= 10)
                 dirent->name[l--] = '0' + d % 10;
             last = &dirent->next;
+            dirent = dirent->next;
         }
 
     unlock(handle_map->lock);

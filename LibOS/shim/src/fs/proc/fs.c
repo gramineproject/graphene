@@ -287,7 +287,7 @@ retry:
             if (ret < 0)
                 ptr = d;
             else
-                for ( ; d != ptr ; d = d->next)
+                for ( ; d && d != ptr ; d = d->next)
                     last = &d->next;
             continue;
         }

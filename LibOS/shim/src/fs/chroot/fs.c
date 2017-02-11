@@ -590,12 +590,12 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
 
     /* second, reallocate the buffer */
     int bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
-    int prot = PROT_READ;
+    int prot = PAL_PROT_READ;
     unsigned long mapoff = file->marker & ~(bufsize - 1);
     unsigned long maplen = bufsize;
 
     if (hdl->acc_mode & MAY_WRITE)
-        prot |= PROT_WRITE;
+        prot |= PAL_PROT_WRITE;
 
     while (mapoff + maplen < file->marker + size)
         maplen *= 2;

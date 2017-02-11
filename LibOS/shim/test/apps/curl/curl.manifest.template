@@ -1,0 +1,91 @@
+#!$(PAL)
+
+loader.preload = file:$(SHIMPATH)
+loader.exec = file:/usr/bin/curl
+loader.execname = /usr/bin/curl
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.PATH = /usr/bin:/bin
+loader.env.USERNAME =
+loader.env.HOME =
+loader.env.PWD =
+loader.debug_type = none
+
+fs.mount.lib1.type = chroot
+fs.mount.lib1.path = /lib
+fs.mount.lib1.uri = file:$(LIBCDIR)
+
+fs.mount.lib2.type = chroot
+fs.mount.lib2.path = /lib/x86_64-linux-gnu
+fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.bin.type = chroot
+fs.mount.bin.path = /bin
+fs.mount.bin.uri = file:/bin
+
+fs.mount.usr.type = chroot
+fs.mount.usr.path = /usr
+fs.mount.usr.uri = file:/usr
+
+fs.mount.etc.type = chroot
+fs.mount.etc.path = /etc
+fs.mount.etc.uri = file:
+
+fs.mount.tmp.type = chroot
+fs.mount.tmp.path = /tmp
+fs.mount.tmp.uri = file:/tmp
+
+
+sys.stack.size = 256K
+sys.brk.size = 4M
+glibc.heap_size = 16M
+
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
+sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
+sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.liburil = file:$(LIBCDIR)/libutil.so.1
+sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
+sgx.trusted_files.libnss1 = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_files.libnss2 = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_files.libnss3 = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+sgx.trusted_files.libnss4 = file:$(LIBCDIR)/libnss_dns.so.2
+sgx.trusted_files.libssl = file:/lib/x86_64-linux-gnu/libssl.so.1.0.0
+sgx.trusted_files.libcrypto = file:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0
+sgx.trusted_files.libresolv = file:$(LIBCDIR)/libresolv.so.2
+sgx.trusted_files.libcurl = file:/usr/lib/x86_64-linux-gnu/libcurl.so.4
+sgx.trusted_files.libidn = file:/usr/lib/x86_64-linux-gnu/libidn.so.11
+sgx.trusted_files.librtmp = file:/usr/lib/x86_64-linux-gnu/librtmp.so.0
+sgx.trusted_files.libgssapi_krb5 = file:/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2
+sgx.trusted_files.liblber = file:/usr/lib/x86_64-linux-gnu/liblber-2.4.so.2
+sgx.trusted_files.libldap_r = file:/usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+sgx.trusted_files.libgnutls = file:/usr/lib/x86_64-linux-gnu/libgnutls.so.26
+sgx.trusted_files.libgcrypt = file:/lib/x86_64-linux-gnu/libgcrypt.so.11
+sgx.trusted_files.libk5crypto = file:/usr/lib/x86_64-linux-gnu/libk5crypto.so.3
+sgx.trusted_files.libcom_err = file:/lib/x86_64-linux-gnu/libcom_err.so.2
+sgx.trusted_files.libkrb5support = file:/usr/lib/x86_64-linux-gnu/libkrb5support.so.0
+sgx.trusted_files.libsasl2 = file:/usr/lib/x86_64-linux-gnu/libsasl2.so.2
+sgx.trusted_files.libgssapi = file:/usr/lib/x86_64-linux-gnu/libgssapi.so.3
+sgx.trusted_files.libtasn1 = file:/usr/lib/x86_64-linux-gnu/libtasn1.so.6
+sgx.trusted_files.libp11kit = file:/usr/lib/x86_64-linux-gnu/libp11-kit.so.0
+sgx.trusted_files.libgpgerror = file:/lib/x86_64-linux-gnu/libgpg-error.so.0
+sgx.trusted_files.libkeyutils = file:/lib/x86_64-linux-gnu/libkeyutils.so.1
+sgx.trusted_files.libheimntlm = file:/usr/lib/x86_64-linux-gnu/libheimntlm.so.0
+sgx.trusted_files.libkrb5 = file:/usr/lib/x86_64-linux-gnu/libkrb5.so.3
+sgx.trusted_files.libkrb5_26 = file:/usr/lib/x86_64-linux-gnu/libkrb5.so.26
+sgx.trusted_files.libasn1 = file:/usr/lib/x86_64-linux-gnu/libasn1.so.8
+sgx.trusted_files.libroken = file:/usr/lib/x86_64-linux-gnu/libroken.so.18
+sgx.trusted_files.libffi = file:/usr/lib/x86_64-linux-gnu/libffi.so.6
+sgx.trusted_files.libwind = file:/usr/lib/x86_64-linux-gnu/libwind.so.0
+sgx.trusted_files.libheimbase = file:/usr/lib/x86_64-linux-gnu/libheimbase.so.1
+sgx.trusted_files.libhx509 = file:/usr/lib/x86_64-linux-gnu/libhx509.so.5
+sgx.trusted_files.libsqlite3 = file:/usr/lib/x86_64-linux-gnu/libsqlite3.so.0
+sgx.trusted_files.libcrypt = file:/lib/x86_64-linux-gnu/libcrypt.so.1
+sgx.trusted_files.libhcrypto = file:/usr/lib/x86_64-linux-gnu/libhcrypto.so.4
+sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
+
+sgx.trusted_files.hosts = file:hosts
+sgx.trusted_files.resolv = file:resolv.conf
+sgx.trusted_files.gai = file:gai.conf
+
+sgx.allowed_files.tmp = file:/tmp

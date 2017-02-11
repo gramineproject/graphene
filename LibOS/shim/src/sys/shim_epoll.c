@@ -59,8 +59,10 @@ struct shim_epoll_fd {
     __u64                       data;
     unsigned int                revents;
     struct shim_handle *        handle;
+    struct shim_handle *        epoll;
     PAL_HANDLE                  pal_handle;
     struct list_head            list;
+    struct list_head            back;
 };
 
 int shim_do_epoll_create1 (int flags)
@@ -104,9 +106,15 @@ static void update_epoll (struct shim_epoll_handle * epoll)
     int npals = 0;
     epoll->nread = 0;
 
+    debug("update pal handles of epoll handle %p\n", epoll);
+
     list_for_each_entry(tmp, &epoll->fds, list) {
         if (!tmp->pal_handle)
             continue;
+
+        debug("found handle %p (pal handle %p) from epoll handle %p\n",
+              tmp->handle, tmp->pal_handle, epoll);
+
         epoll->pal_fds[npals] = tmp->fd;
         epoll->pal_handles[npals] = tmp->pal_handle;
         npals++;
@@ -118,6 +126,42 @@ static void update_epoll (struct shim_epoll_handle * epoll)
 
     if (epoll->nwaiters)
         set_event(&epoll->event, epoll->nwaiters);
+}
+
+int delete_from_epoll_handles (struct shim_handle * handle)
+{
+    while (1) {
+        lock(handle->lock);
+
+        if (list_empty(&handle->epolls)) {
+            unlock(handle->lock);
+            break;
+        }
+
+        struct shim_epoll_fd * epoll_fd = list_first_entry(&handle->epolls,
+                                 struct shim_epoll_fd, back);
+
+        list_del(&epoll_fd->back);
+        unlock(handle->lock);
+        put_handle(handle);
+
+        struct shim_handle * epoll_hdl = epoll_fd->epoll;
+
+        debug("delete handle %p from epoll handle %p\n", handle,
+              &epoll_hdl->info.epoll);
+
+        lock(epoll_hdl->lock);
+
+        list_del(&epoll_fd->list);
+        free(epoll_fd);
+
+        epoll_hdl->info.epoll.nfds--;
+        update_epoll(&epoll_hdl->info.epoll);
+        unlock(epoll_hdl->lock);
+        put_handle(epoll_hdl);
+    }
+
+    return 0;
 }
 
 int shim_do_epoll_ctl (int epfd, int op, int fd,
@@ -164,14 +208,23 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
                 goto out;
             }
 
+            debug("add handle %p to epoll handle %p\n", hdl, epoll);
+
             epoll_fd = malloc(sizeof(struct shim_epoll_fd));
             epoll_fd->fd = fd;
             epoll_fd->events = event->events;
             epoll_fd->data = event->data;
             epoll_fd->revents = 0;
             epoll_fd->handle = hdl;
+            epoll_fd->epoll = epoll_hdl;
             epoll_fd->pal_handle = hdl->pal_handle;
 
+            lock(hdl->lock);
+            INIT_LIST_HEAD(&epoll_fd->back);
+            list_add_tail(&epoll_fd->back, &hdl->epolls);
+            unlock(hdl->lock);
+
+            get_handle(epoll_hdl);
             INIT_LIST_HEAD(&epoll_fd->list);
             list_add_tail(&epoll_fd->list, &epoll->fds);
             epoll->nfds++;
@@ -193,10 +246,20 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
         case EPOLL_CTL_DEL: {
             list_for_each_entry(epoll_fd, &epoll->fds, list)
                 if (epoll_fd->fd == fd) {
+                    struct shim_handle * hdl = epoll_fd->handle;
+                    lock(hdl->lock);
+                    list_del(&epoll_fd->back);
+                    put_handle(hdl);
+                    unlock(hdl->lock);
+
+                    debug("delete handle %p from epoll handle %p\n",
+                          hdl, epoll);
+
                     list_del(&epoll_fd->list);
-                    put_handle(epoll_fd->handle);
-                    free(epoll_fd);
+                    put_handle(epoll_hdl);
                     epoll->nfds--;
+
+                    free(epoll_fd);
                     goto update;
                 }
 
@@ -273,7 +336,10 @@ retry:
 
     list_for_each_entry(epoll_fd, &epoll->fds, list)
         if (polled == epoll_fd->pal_handle) {
-            debug("epoll: fd %d polled\n", epoll_fd->fd);
+
+            debug("epoll: fd %d (handle %p) polled\n", epoll_fd->fd,
+                  epoll_fd->handle);
+
             if (attr.disconnected) {
                 epoll_fd->revents |= EPOLLERR|EPOLLHUP|EPOLLRDHUP;
                 epoll_fd->pal_handle = NULL;
@@ -354,6 +420,7 @@ BEGIN_CP_FUNC(epoll_fd)
         new_epoll_fd->revents = epoll_fd->revents;
         new_epoll_fd->pal_handle = NULL;
         list_add(new_list, &new_epoll_fd->list);
+        INIT_LIST_HEAD(&new_epoll_fd->back);
 
         DO_CP(handle, epoll_fd->handle, &new_epoll_fd->handle);
     }
@@ -374,7 +441,9 @@ BEGIN_RS_FUNC(epoll_fd)
                 list_entry(e, struct shim_epoll_fd, list);
 
         CP_REBASE(epoll_fd->handle);
+        CP_REBASE(epoll_fd->back);
         epoll_fd->pal_handle = epoll_fd->handle->pal_handle;
+        list_add_tail(&epoll_fd->back, &epoll_fd->handle->epolls);
         CP_REBASE(*e);
 
         DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s",

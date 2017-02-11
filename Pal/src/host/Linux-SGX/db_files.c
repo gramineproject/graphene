@@ -65,7 +65,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     get_norm_path(uri, path, 0, len + 1);
     hdl->file.realpath = (PAL_STR) path;
 
-    sgx_arch_mac_t * stubs;
+    sgx_stub_t * stubs;
     uint64_t total;
     int ret = load_trusted_file(hdl, &stubs, &total);
     if (ret < 0) {
@@ -86,7 +86,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 static int file_read (PAL_HANDLE handle, int offset, int count,
                       void * buffer)
 {
-    sgx_arch_mac_t * stubs = (sgx_arch_mac_t *) handle->file.stubs;
+    sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
     int ret;
 
@@ -179,11 +179,19 @@ static int file_delete (PAL_HANDLE handle, int access)
 static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                      uint64_t offset, uint64_t size)
 {
-    sgx_arch_mac_t * stubs = (sgx_arch_mac_t *) handle->file.stubs;
+    sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
     void * mem = *addr;
     void * umem;
     int ret;
+
+    if (!stubs && !mem) {
+        ret = ocall_map_untrusted(handle->file.fd, offset, size,
+                                  HOST_PROT(prot), &mem);
+        if (!ret)
+            *addr = mem;
+        return ret;
+    }
 
     if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {
         SGX_DBG(DBG_E, "file_map does not currently support writeable pass-through mappings on SGX.  You may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your file mapping to keep the writes inside the enclave but they won't be reflected outside of the enclave.\n");

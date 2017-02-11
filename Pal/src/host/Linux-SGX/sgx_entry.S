@@ -13,11 +13,6 @@ sgx_ecall:
 	# other arguments: RDI - code, RSI - ms
 
 .Ldo_ecall:
-	# put debug register in R8, so we can know the enclave actually runs
-	mov debug_register@gottpoff(%rip), %r8
-	mov %fs:0, %rcx
-	lea (%rcx,%r8), %r8
-
 	# RBX has to be the TCS of the thread
 	mov current_tcs@gottpoff(%rip), %rbx
 	mov %fs:(%rbx), %rbx
@@ -34,11 +29,6 @@ sgx_ecall:
 #if SGX_HAS_FSGSBASE == 0
 async_exit_pointer:
 	# because ERESUME doesn't restore FS/GS, we must do EENTER
-
-	# put debug register in R8, so we can know the enclave actually runs
-	mov debug_register@gottpoff(%rip), %r8
-	mov %fs:0, %rcx
-	lea (%rcx,%r8), %r8
 
 	mov current_tcs@gottpoff(%rip), %rbx
 	mov %fs:(%rbx), %rbx
@@ -75,8 +65,6 @@ async_exit_pointer:
 	.type sgx_raise, @function
 
 sgx_raise:
-	mov %edi, %r9d
-	xor %rdi, %rdi
 	lea .Lafter_resume(%rip), %rdx
 	jmp .Ldo_ecall
 
@@ -92,18 +80,17 @@ sgx_entry:
 	mov %rsi, %rdi
 	call *%rbx
 
-	xor %r9, %r9
+	mov %rax, %rdi
+	# Not interrupted
+	xor %rsi, %rsi
 
 	.global sgx_entry_return
 	.type sgx_entry_return, @function
 
 sgx_entry_return:
-	# return to enclave, arguments: RDI = -1, RSI - return value
-	mov $RETURN_FROM_OCALL, %rdi
-	mov %rax, %rsi
-
-	# external event in R9, so we can know if it happens
-
+	# return to enclave, arguments:
+	# RDI - return value
+	# RSI - externel event
 	jmp .Ldo_ecall
 
 /*

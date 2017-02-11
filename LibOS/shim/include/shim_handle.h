@@ -325,6 +325,7 @@ struct shim_handle {
     struct shim_mount *     fs;
     struct shim_qstr        path;
     struct shim_dentry *    dentry;
+    struct list_head        epolls;
 
     struct shim_qstr        uri;    /* URI representing this handle, it is not
                                      * necessary to be set. */
