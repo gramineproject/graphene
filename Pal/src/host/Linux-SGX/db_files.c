@@ -130,7 +130,7 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
 static int file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count,
 			const void* buffer)	
 {
-    uint64_t map_start = ALLOC_ALIGNDOWN(offset); 
+    uint64_t map_start = ALLOC_ALIGNDOWN(offset);
     uint64_t map_end = ALLOC_ALIGNUP(offset + count);
     void * umem;
     int ret;

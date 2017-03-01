@@ -129,7 +129,6 @@ typedef struct {
 
 typedef struct {
     int ms_fd;
-    //unsigned int ms_length;
     uint64_t ms_length;
 } ms_ocall_ftruncate_t;
 
