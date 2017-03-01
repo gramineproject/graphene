@@ -47,8 +47,7 @@
 
 #define ATOMIC_INIT(i)      { (i) }
 
-//static inline int atomic_read (const struct shim_atomic * v)
-static inline uint64_t atomic_read (const struct shim_atomic * v) 	// Adil
+static inline uint64_t atomic_read (const struct shim_atomic * v)
 {
     return (*(volatile long *)&(v)->counter);
 }
