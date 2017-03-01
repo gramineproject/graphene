@@ -47,7 +47,8 @@
 
 #define ATOMIC_INIT(i)      { (i) }
 
-static inline int atomic_read (const struct shim_atomic * v)
+//static inline int atomic_read (const struct shim_atomic * v)
+static inline uint64_t atomic_read (const struct shim_atomic * v) 	// Adil
 {
     return (*(volatile long *)&(v)->counter);
 }
@@ -118,7 +119,7 @@ static inline int atomic_dec_and_test (struct shim_atomic * v)
 # include "cmpxchg_32.h"
 #endif
 
-static inline int atomic_cmpxchg (struct shim_atomic * v, int old, int new)
+static inline uint64_t atomic_cmpxchg (struct shim_atomic * v, uint64_t old, uint64_t new)
 {
     return cmpxchg(&v->counter, old, new);
 }

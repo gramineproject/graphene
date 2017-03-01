@@ -85,12 +85,16 @@ struct shim_file_handle {
     struct shim_file_data * data;
 
     enum shim_file_type type;
-    unsigned long       size;
-    unsigned long       marker;
+    //unsigned long       size;
+    uint64_t		size;		// Adil
+    //unsigned long       marker;
+    uint64_t 		marker;		// Adil
 
     enum { FILEBUF_MAP, FILEBUF_NONE } buf_type;
-    unsigned long       mapsize;
-    unsigned long       mapoffset;
+    //unsigned long       mapsize;
+    uint64_t 		mapsize;	// Adil
+    //unsigned long       mapoffset;
+    uint64_t 		mapoffset;	// Adil
     void *              mapbuf;
 };
 
