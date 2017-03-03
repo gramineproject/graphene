@@ -263,9 +263,16 @@ internal:
             goto internal;
         }
         if (vma->file) {
-            /* XXX: need more sophisticated judgement */
-            signo = SIGBUS;
-            code = BUS_ADRERR;
+            /* DEP 3/3/17: If the page fault gives a write error, and
+             * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
+            if ((context->err & 4) && !(vma->flags & PROT_WRITE)) {
+                    signo = SIGSEGV;
+                    code = SEGV_ACCERR;
+            } else {
+                /* XXX: need more sophisticated judgement */
+                signo = SIGBUS;
+                code = BUS_ADRERR;
+            }
         } else {
             code = SEGV_ACCERR;
         }
