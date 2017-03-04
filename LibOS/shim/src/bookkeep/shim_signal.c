@@ -262,12 +262,18 @@ internal:
             put_vma(vma);
             goto internal;
         }
-        if (vma->file) {
-            /* DEP 3/3/17: If the page fault gives a write error, and
-             * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
-            if ((context->err & 4) && !(vma->flags & PROT_WRITE)) {
-                    signo = SIGSEGV;
-                    code = SEGV_ACCERR;
+        if (vma->file && vma->file->type == TYPE_FILE) {
+            /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
+             * then return a SIGBUS. */
+            uint64_t eof_in_vma = (uint64_t) vma->addr + vma->offset + vma->file->info.file.size;
+            if (arg > eof_in_vma) {
+                signo = SIGBUS;
+                code = BUS_ADRERR;
+            } else if ((context->err & 4) && !(vma->flags & PROT_WRITE)) {
+                /* DEP 3/3/17: If the page fault gives a write error, and
+                 * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
+                signo = SIGSEGV;
+                code = SEGV_ACCERR;
             } else {
                 /* XXX: need more sophisticated judgement */
                 signo = SIGBUS;
