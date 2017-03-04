@@ -628,7 +628,6 @@ tkill01,2
 truncate01,1
 truncate01_64,1
 umask01,1
-umask02,1
 uname01,1
 uname03,1
 unlink05,1
@@ -646,8 +645,6 @@ wait401,2
 waitpid01,1
 waitpid02,1
 waitpid02,3
-waitpid03,1
-waitpid03,2
 waitpid05,1
 waitpid05,11
 waitpid05,14
