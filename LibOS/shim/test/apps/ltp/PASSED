@@ -135,6 +135,7 @@ getcontext01,1
 getdents02,1
 getdents02,2
 getdents02,3
+getdents02,4
 getdomainname01,1
 getdtablesize01,1
 getegid01,1
@@ -261,7 +262,6 @@ pselect01_64,6
 pselect01_64,7
 pselect01_64,8
 pselect01_64,9
-ptrace05,1
 pwrite01,1
 pwrite04,2
 read01,1
@@ -570,7 +570,6 @@ socketcall02,1
 socketcall03,1
 socketcall04,1
 sockioctl01,1
-splice02,1
 stat05,1
 string01,1
 sync01,1
