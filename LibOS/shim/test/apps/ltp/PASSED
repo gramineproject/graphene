@@ -627,7 +627,6 @@ tkill01,1
 tkill01,2
 truncate01,1
 truncate01_64,1
-umask01,1
 uname01,1
 uname03,1
 unlink05,1
