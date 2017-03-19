@@ -37,7 +37,7 @@
 #include <errno.h>
 
 static int ipc_thread_exit (IDTYPE vmid, IDTYPE ppid, IDTYPE tid,
-                            unsigned int exitcode, unsigned long exit_time)
+                            unsigned int exitcode, unsigned int term_signal, unsigned long exit_time)
 {
     assert(vmid != cur_process.vmid);
 
@@ -52,6 +52,7 @@ static int ipc_thread_exit (IDTYPE vmid, IDTYPE ppid, IDTYPE tid,
         int ret = 0;
         //assert(thread->vmid == vmid && !thread->in_vm);
         thread->exit_code = -exitcode;
+        thread->term_signal = term_signal;
 #ifdef PROFILE
         thread->exit_time = exit_time;
 #endif
@@ -71,6 +72,7 @@ static int ipc_thread_exit (IDTYPE vmid, IDTYPE ppid, IDTYPE tid,
 
     sthread->is_alive = 0;
     sthread->exit_code = -exitcode;
+    sthread->term_signal = term_signal;
 #ifdef PROFILE
     sthread->exit_time = exit_time;
 #endif
@@ -80,7 +82,7 @@ static int ipc_thread_exit (IDTYPE vmid, IDTYPE ppid, IDTYPE tid,
 }
 
 void ipc_parent_exit (struct shim_ipc_port * port, IDTYPE vmid,
-                      unsigned int exitcode)
+                      unsigned int exitcode, unsigned int term_signal)
 {
     debug("ipc port %p of process %u closed suggests parent exiting\n",
           port, vmid);
@@ -103,6 +105,7 @@ void ipc_parent_exit (struct shim_ipc_port * port, IDTYPE vmid,
 struct thread_info {
     IDTYPE vmid;
     unsigned int exitcode;
+    unsigned int term_signal;
 };
 
 static int child_sthread_exit (struct shim_simple_thread * thread, void * arg,
@@ -112,6 +115,7 @@ static int child_sthread_exit (struct shim_simple_thread * thread, void * arg,
     if (thread->vmid == info->vmid) {
         if (thread->is_alive) {
             thread->exit_code = -info->exitcode;
+            thread->term_signal = info->term_signal;
             thread->is_alive = false;
             DkEventSet(thread->exit_event);
         }
@@ -127,6 +131,7 @@ static int child_thread_exit (struct shim_thread * thread, void * arg,
     if (thread->vmid == info->vmid) {
         if (thread->is_alive) {
             thread->exit_code = -info->exitcode;
+            thread->term_signal = info->term_signal;
             thread_exit(thread, false);
         }
         return 1;
@@ -134,9 +139,9 @@ static int child_thread_exit (struct shim_thread * thread, void * arg,
     return 0;
 }
 
-int remove_child_thread (IDTYPE vmid, unsigned int exitcode)
+int remove_child_thread (IDTYPE vmid, unsigned int exitcode, unsigned int term_signal)
 {
-    struct thread_info info = { .vmid = vmid, .exitcode = exitcode };
+    struct thread_info info = { .vmid = vmid, .exitcode = exitcode, .term_signal = term_signal };
     int nkilled = 0, ret;
 
     assert(vmid != cur_process.vmid);
@@ -154,12 +159,12 @@ int remove_child_thread (IDTYPE vmid, unsigned int exitcode)
 }
 
 void ipc_child_exit (struct shim_ipc_port * port, IDTYPE vmid,
-                     unsigned int exitcode)
+                     unsigned int exitcode, unsigned int term_signal)
 {
     debug("ipc port %p of process %u closed suggests child exiting\n",
           port, vmid);
 
-    remove_child_thread(vmid, 0);
+    remove_child_thread(vmid, 0, term_signal);
 }
 
 static struct shim_ipc_port * get_parent_port (IDTYPE * dest)
@@ -178,7 +183,7 @@ DEFINE_PROFILE_INTERVAL(ipc_cld_exit_turnaround, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_send, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_callback, ipc);
 
-int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode)
+int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal)
 {
     unsigned long send_time = GET_PROFILE_INTERVAL();
     BEGIN_PROFILE_INTERVAL_SET(send_time);
@@ -192,6 +197,7 @@ int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode)
     msgin->ppid = ppid;
     msgin->tid = tid;
     msgin->exitcode = exitcode;
+    msgin->term_signal = term_signal;
 #ifdef PROFILE
     msgin->time = send_time;
 #endif
@@ -220,7 +226,8 @@ int ipc_cld_exit_callback (IPC_CALLBACK_ARGS)
           msg->src, msgin->ppid, msgin->tid, msgin->exitcode);
 
     int ret = ipc_thread_exit(msg->src, msgin->ppid, msgin->tid,
-                              msgin->exitcode, time);
+                              msgin->exitcode, msgin->term_signal,
+                              time);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_callback);
     return ret;
 }

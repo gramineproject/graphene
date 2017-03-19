@@ -578,8 +578,15 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
                 break;
         }
 
-    try_process_exit(0);
+    try_process_exit(0, sig);
     DkThreadExit();
+}
+
+/* We don't currently implement core dumps, but put a wrapper
+ * in case we do in the future */
+static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
+{
+    sighandler_kill(sig, info, ucontext);
 }
 
 static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
@@ -588,7 +595,7 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
         /* SIGINT */    &sighandler_kill,
         /* SIGQUIT */   &sighandler_kill,
         /* SIGILL */    &sighandler_kill,
-        /* SIGTRAP */   NULL,
+        /* SIGTRAP */   &sighandler_core,
         /* SIGABRT */   &sighandler_kill,
         /* SIGBUS */    &sighandler_kill,
         /* SIGFPE */    &sighandler_kill,
@@ -597,7 +604,7 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
         /* SIGSEGV */   &sighandler_kill,
         /* SIGUSR2 */   NULL,
         /* SIGPIPE */   &sighandler_kill,
-        /* SIGALRM */   NULL,
+        /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
         /* SIGSTKFLT */ NULL,
         /* SIGCHLD */   NULL,

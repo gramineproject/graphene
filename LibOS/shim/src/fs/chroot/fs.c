@@ -212,9 +212,14 @@ static int create_data (struct shim_dentry * dent, const char * uri, int len)
     return 0;
 }
 
-static int __query_attr (struct shim_file_data * data, PAL_HANDLE pal_handle)
+static int chroot_readdir (struct shim_dentry * dent,
+                           struct shim_dirent ** dirent);
+
+static int __query_attr (struct shim_dentry * dent,
+                         struct shim_file_data * data, PAL_HANDLE pal_handle)
 {
     PAL_STREAM_ATTR pal_attr;
+    enum shim_file_type old_type = data->type;
 
     if (pal_handle ?
         !DkStreamAttributesQuerybyHandle(pal_handle, &pal_attr) :
@@ -234,6 +239,42 @@ static int __query_attr (struct shim_file_data * data, PAL_HANDLE pal_handle)
                  (pal_attr.runnable  ? S_IXUSR : 0);
 
     atomic_set(&data->size, pal_attr.pending_size);
+
+    if (data->type == FILE_DIR) {
+        int ret;
+        /* Move up the uri update; need to convert manifest-level file:
+         * directives to 'dir:' uris */
+        if (old_type != FILE_DIR) {
+            dent->state |= DENTRY_ISDIRECTORY;
+            if ((ret = make_uri(dent)) < 0) {
+                unlock(data->lock);
+                return ret;
+            }
+        }
+        
+        /* DEP 3/18/17: If we have a directory, we need to find out how many
+         * children it has by hand. */
+        /* XXX: Keep coherent with rmdir/mkdir/creat, etc */
+        struct shim_dirent *d, *dbuf = NULL;
+        int nlink = 0;
+        int rv = chroot_readdir(dent, &dbuf);
+        if (rv != 0)
+            return rv;
+        if (dbuf) {
+            for (d = dbuf; d; d = d->next)
+                nlink++;
+            free(dbuf);
+            debug("Querying a directory; I count %d links.\n", nlink);
+        } else
+            nlink = 2; // Educated guess...
+        data->nlink = nlink;
+    } else {
+        /* DEP 3/18/17: Right now, we don't support hard links,
+         * so just return 1;
+         */ 
+        data->nlink = 1;
+    }
+    
     data->queried = true;
 
     return 0;
@@ -287,19 +328,9 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
 
     lock(data->lock);
 
-    enum shim_file_type old_type = data->type;
-
-    if (!data->queried && (ret = __query_attr(data, pal_handle)) < 0) {
+    if (!data->queried && (ret = __query_attr(dent, data, pal_handle)) < 0) {
         unlock(data->lock);
         return ret;
-    }
-
-    if (data->type == FILE_DIR && old_type != FILE_DIR) {
-        dent->state |= DENTRY_ISDIRECTORY;
-        if ((ret = make_uri(dent)) < 0) {
-            unlock(data->lock);
-            return ret;
-        }
     }
 
     if (mode)
@@ -318,14 +349,23 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
         stat->st_atime  = (time_t) data->atime;
         stat->st_mtime  = (time_t) data->mtime;
         stat->st_ctime  = (time_t) data->ctime;
+        stat->st_nlink  = data->nlink;
 
+        
         switch (data->type) {
-            case FILE_REGULAR:  stat->st_mode |= S_IFREG;   break;
-            case FILE_DIR:      stat->st_mode |= S_IFDIR;   break;
+            case FILE_REGULAR:
+                stat->st_mode |= S_IFREG;
+                break;
+            case FILE_DIR:
+                stat->st_mode |= S_IFDIR;
+                break;
             case FILE_DEV:
-            case FILE_TTY:      stat->st_mode |= S_IFCHR;   break;
+            case FILE_TTY:
+                stat->st_mode |= S_IFCHR;
+                break;
             default:            break;
         }
+        debug("Stat: Returning link cound %d\n", stat->st_nlink);
     }
 
     unlock(data->lock);
@@ -356,7 +396,8 @@ static int chroot_lookup (struct shim_dentry * dent, bool force)
     return query_dentry(dent, NULL, NULL, NULL);
 }
 
-static int __chroot_open (const char * uri, int len, int flags, mode_t mode,
+static int __chroot_open (struct shim_dentry * dent,
+                          const char * uri, int len, int flags, mode_t mode,
                           struct shim_handle * hdl,
                           struct shim_file_data * data)
 {
@@ -396,7 +437,7 @@ static int __chroot_open (const char * uri, int len, int flags, mode_t mode,
 
     if (!data->queried) {
         lock(data->lock);
-        ret = __query_attr(data, palhdl);
+        ret = __query_attr(dent, data, palhdl);
         unlock(data->lock);
     }
 
@@ -422,7 +463,7 @@ static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
-    if ((ret = __chroot_open(NULL, 0, flags, dent->mode, hdl, data)) < 0)
+    if ((ret = __chroot_open(dent, NULL, 0, flags, dent->mode, hdl, data)) < 0)
         return ret;
 
     struct shim_file_handle * file = &hdl->info.file;
@@ -448,7 +489,7 @@ static int chroot_creat (struct shim_handle * hdl, struct shim_dentry * dir,
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
-    if ((ret = __chroot_open(NULL, 0, flags|O_CREAT|O_EXCL, mode, hdl,
+    if ((ret = __chroot_open(dent, NULL, 0, flags|O_CREAT|O_EXCL, mode, hdl,
                              data)) < 0)
         return ret;
 
@@ -467,6 +508,14 @@ static int chroot_creat (struct shim_handle * hdl, struct shim_dentry * dir,
     hdl->acc_mode   = ACC_MODE(flags & O_ACCMODE);
     qstrcopy(&hdl->uri, &data->host_uri);
 
+    /* Increment the parent's link count */
+    struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
+    if (parent_data) {
+        lock(parent_data->lock);
+        if (parent_data->queried)
+            parent_data->nlink++;
+        unlock(parent_data->lock);
+    }
     return 0;
 }
 
@@ -485,7 +534,17 @@ static int chroot_mkdir (struct shim_dentry * dir, struct shim_dentry * dent,
             return ret;
     }
 
-    return __chroot_open(NULL, 0, O_CREAT|O_EXCL, mode, NULL, data);
+    ret = __chroot_open(dent, NULL, 0, O_CREAT|O_EXCL, mode, NULL, data);
+
+    /* Increment the parent's link count */
+    struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
+    if (parent_data) {
+        lock(parent_data->lock);
+        if (parent_data->queried)
+            parent_data->nlink++;
+        unlock(parent_data->lock);
+    }
+    return ret;
 }
 
 #define NEED_RECREATE(hdl)   (!FILE_HANDLE_DATA(hdl))
@@ -512,7 +571,7 @@ static int chroot_recreate (struct shim_handle * hdl)
         qstrsetstr(&data->host_uri, uri, len);
     }
 
-    return __chroot_open(uri, len, hdl->flags, 0, hdl, data);
+    return __chroot_open(hdl->dentry, uri, len, hdl->flags, 0, hdl, data);
 }
 
 static inline bool check_version (struct shim_handle * hdl)
@@ -1067,6 +1126,15 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
     atomic_inc(&data->version);
     atomic_set(&data->size, 0);
 
+    /* Drop the parent's link count */
+    struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
+    if (parent_data) { 
+        lock(parent_data->lock);
+        if (parent_data->queried)
+            parent_data->nlink--;
+        unlock(parent_data->lock);
+    }
+    
     return 0;
 }
 
