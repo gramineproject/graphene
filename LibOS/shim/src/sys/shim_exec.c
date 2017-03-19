@@ -414,6 +414,6 @@ err:
     if (cur_thread->dummy)
         switch_dummy_thread(cur_thread);
 
-    try_process_exit(0);
+    try_process_exit(0, 0);
     return 0;
 }

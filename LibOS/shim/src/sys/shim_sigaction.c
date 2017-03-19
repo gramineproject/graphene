@@ -471,7 +471,7 @@ int shim_do_kill (pid_t pid, int sig)
        specified by pid. */
     else if (pid > 0) {
         ret = do_kill_proc(cur->tid, pid, sig, true);
-        send_to_self = (pid == cur->pgid);
+        send_to_self = (pid == cur->tgid);
     }
 
     /* If pid is less than -1, then sig is sent to every process in the

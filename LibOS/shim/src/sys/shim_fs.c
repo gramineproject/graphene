@@ -58,7 +58,7 @@ int shim_do_unlink (const char * file)
     if (!dent->parent)
         return -EACCES;
 
-    if (dent->state & DENTRY_ISDIRECTORY)
+    if (dent->state & DENTRY_ISDIRECTORY) 
         return -EISDIR;
 
     if (dent->fs && dent->fs->d_ops &&
