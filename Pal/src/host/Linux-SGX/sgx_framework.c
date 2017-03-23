@@ -311,8 +311,15 @@ int init_enclave(sgx_arch_secs_t * secs,
     }
 
     if (ret) {
-        SGX_DBG(DBG_I, "enclave EINIT failed\n");
-        return -EPERM;
+        /* DEP 3/22/17: Try to improve error messages */
+        switch(ret) {
+        case 4:
+            SGX_DBG(DBG_I, "enclave EINIT failed - Invalid Measurement\n");
+            break;
+        default:
+            SGX_DBG(DBG_I, "enclave EINIT failed - %d\n", ret);
+        }
+        return -EPERM; 
     }
 
     return 0;
