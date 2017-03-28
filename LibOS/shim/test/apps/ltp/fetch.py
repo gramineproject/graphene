@@ -118,7 +118,11 @@ pool = multiprocessing.Pool()
 with open('../../../../syscalls.graphene') as testcases:
     for line in testcases:
         tokens = line.split( )
-        test = tokens[1]
+        if (tokens[1] == "SGX") :
+            test = tokens[2]
+        else :
+            test = tokens[1]
+
         if test=="seq":
             test = tokens[6]     #splice02
         try: 
