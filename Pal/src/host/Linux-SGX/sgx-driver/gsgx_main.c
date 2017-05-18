@@ -57,7 +57,7 @@ static long gsgx_ioctl_enclave_create(struct file *filep, unsigned int cmd,
 	isgx_create.src = createp->src;
 	filep->private_data = (void *) createp->src;
 
-	ret = KSYM(isgx_ioctl_enclave_create)(filep, SGX_IOC_ENCLAVE_CREATE,
+	ret = KSYM(sgx_ioc_enclave_create)(filep, SGX_IOC_ENCLAVE_CREATE,
 					      (unsigned long) &isgx_create);
 
 	if (old_mmap_min_addr)
@@ -90,7 +90,7 @@ static long gsgx_ioctl_enclave_add_pages(struct file *filep, unsigned int cmd,
 		isgx_add.mrmask =
 			addp->flags & GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND ?
  		        0 : ~0;
-		ret = KSYM(isgx_ioctl_enclave_add_page)(filep,
+		ret = KSYM(sgx_ioc_enclave_add_page)(filep,
 			SGX_IOC_ENCLAVE_ADD_PAGE, (unsigned long) &isgx_add);
 		if (ret < 0)
 			break;
@@ -109,7 +109,7 @@ static long gsgx_ioctl_enclave_init(struct file *filep, unsigned int cmd,
 	isgx_init.sigstruct = initp->sigstruct;
 	isgx_init.einittoken = initp->einittoken;
 
-	return KSYM(isgx_ioctl_enclave_init)(filep, SGX_IOC_ENCLAVE_INIT,
+	return KSYM(sgx_ioc_enclave_init)(filep, SGX_IOC_ENCLAVE_INIT,
 					     (unsigned long) &isgx_init);
 }
 
@@ -150,7 +150,7 @@ long gsgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 static int gsgx_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	return KSYM(isgx_mmap)(file, vma);
+	return KSYM(sgx_mmap)(file, vma);
 }
 
 static unsigned long gsgx_get_unmapped_area(struct file *file,
@@ -161,7 +161,7 @@ static unsigned long gsgx_get_unmapped_area(struct file *file,
 {
 	if (file->private_data == (void *) GSGX_ENCLAVE_CREATE_NO_ADDR) {
 		unsigned long unmapped_addr =
-			KSYM(isgx_get_unmapped_area)(file, addr, len,
+			KSYM(sgx_get_unmapped_area)(file, addr, len,
 						     pgoff, flags);
 		file->private_data = (void *) unmapped_addr;
 		return unmapped_addr;
@@ -192,16 +192,16 @@ static struct miscdevice gsgx_dev = {
 	.mode	= S_IRUGO | S_IWUGO,
 };
 
-IMPORT_KSYM_PROTO(isgx_ioctl_enclave_create, long,
+IMPORT_KSYM_PROTO(sgx_ioc_enclave_create, long,
 	struct file *filep, unsigned int cmd, unsigned long arg);
-IMPORT_KSYM_PROTO(isgx_ioctl_enclave_init, long,
+IMPORT_KSYM_PROTO(sgx_ioc_enclave_init, long,
 	struct file *filep, unsigned int cmd, unsigned long arg);
-IMPORT_KSYM_PROTO(isgx_ioctl_enclave_add_page, long,
+IMPORT_KSYM_PROTO(sgx_ioc_enclave_add_page, long,
 	struct file *filep, unsigned int cmd, unsigned long arg);
 
-IMPORT_KSYM(isgx_enclave_release);
-IMPORT_KSYM_PROTO(isgx_mmap, int, struct file *, struct vm_area_struct *);
-IMPORT_KSYM_PROTO(isgx_get_unmapped_area, unsigned long,
+IMPORT_KSYM(sgx_encl_release);
+IMPORT_KSYM_PROTO(sgx_mmap, int, struct file *, struct vm_area_struct *);
+IMPORT_KSYM_PROTO(sgx_get_unmapped_area, unsigned long,
 	struct file *, unsigned long, unsigned long,
 	unsigned long, unsigned long);
 
@@ -210,17 +210,17 @@ static int gsgx_lookup_ksyms(void)
 	int ret;
 	if ((ret = LOOKUP_KSYM(dac_mmap_min_addr)))
 		return ret;
-	if ((ret = LOOKUP_KSYM(isgx_ioctl_enclave_create)))
+	if ((ret = LOOKUP_KSYM(sgx_ioc_enclave_create)))
 		return ret;
-	if ((ret = LOOKUP_KSYM(isgx_ioctl_enclave_init)))
+	if ((ret = LOOKUP_KSYM(sgx_ioc_enclave_init)))
 		return ret;
-	if ((ret = LOOKUP_KSYM(isgx_ioctl_enclave_add_page)))
+	if ((ret = LOOKUP_KSYM(sgx_ioc_enclave_add_page)))
 		return ret;
-	if ((ret = LOOKUP_KSYM(isgx_enclave_release)))
+	if ((ret = LOOKUP_KSYM(sgx_encl_release)))
 		return ret;
-	if ((ret = LOOKUP_KSYM(isgx_mmap)))
+	if ((ret = LOOKUP_KSYM(sgx_mmap)))
 		return ret;
-	if ((ret = LOOKUP_KSYM(isgx_get_unmapped_area)))
+	if ((ret = LOOKUP_KSYM(sgx_get_unmapped_area)))
 		return ret;
 	return 0;
 }
