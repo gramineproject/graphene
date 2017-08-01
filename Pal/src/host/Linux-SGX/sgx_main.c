@@ -467,7 +467,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 add_pages:
         TRY(add_pages_to_enclave,
             &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
-            areas[i].type, areas[i].prot, areas[i].skip_eextend,
+            areas[i].type, areas[i].prot, (areas[i].fd == -1),
             areas[i].desc);
 
         if (data)

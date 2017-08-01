@@ -23,7 +23,12 @@
 #include "error-crypt.h"
 #include "api.h"
 
+#ifdef IN_PAL
 int _DkRandomBitsRead (void  *buffer, int size);
+#define DkRandomBitsRead _DkRandomBitsRead
+#else
+int DkRandomBitsRead (void  *buffer, int size);
+#endif
 
 void * malloc (int size);
 void free (void * mem);
@@ -95,7 +100,7 @@ static int RSAPad(const byte *input, word32 inputLen, byte *pkcsBlock,
     else {
         /* pad with non-zero random bytes */
         word32 padLen = pkcsBlockLen - inputLen - 1, i;
-        int    ret    = _DkRandomBitsRead(&pkcsBlock[1], padLen);
+        int    ret    = DkRandomBitsRead(&pkcsBlock[1], padLen);
 
         if (ret < 0)
             return ret;
@@ -454,7 +459,7 @@ static int rand_prime(mp_int *N, int len)
 
     do {
         /* generate value */
-        err = _DkRandomBitsRead(buf, len);
+        err = DkRandomBitsRead(buf, len);
         if (err < 0) {
             XFREE(buf);
             return err;

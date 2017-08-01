@@ -49,6 +49,8 @@ struct thread_param {
     const void * param;
 };
 
+extern void * enclave_base;
+
 void pal_start_thread (void)
 {
     PAL_HANDLE new_thread = NULL, tmp;
@@ -58,7 +60,7 @@ void pal_start_thread (void)
         if (!tmp->thread.tcs) {
             new_thread = tmp;
             new_thread->thread.tcs =
-                pal_enclave.enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+                enclave_base + GET_ENCLAVE_TLS(tcs_offset);
             break;
         }
     _DkInternalUnlock(&thread_list_lock);
