@@ -1,0 +1,4 @@
+Graphene also includes the following third party sources (and licenses):
+mbedtls - Apache 2.0
+wolfssl - GPL v2
+[incomplete: more to come]
