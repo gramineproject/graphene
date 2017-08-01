@@ -33,9 +33,23 @@ void * malloc (int size);
 void free (void * mem);
 void * remalloc (const void * mem, int size);
 
+void memcpy(void *, void *, size_t);
+
 #define XMALLOC  malloc
 #define XFREE    free
-#define XREALLOC remalloc
+#define XREALLOC internal_realloc
+
+/* Implement realloc by ourselves, since the library doesn't provide realloc.
+ */
+void * internal_realloc(void *old, int old_size, int new_size)
+{
+    void *new = XMALLOC(new_size);
+    if (new == NULL)
+        return NULL;
+    memcpy(new, old, old_size);
+    XFREE(old);
+    return new;
+}
 
 static inline int toupper (int c)
 {
@@ -297,7 +311,10 @@ int mp_grow (mp_int * a, int size)
      * in case the operation failed we don't want
      * to overwrite the dp member of a.
      */
-    tmp = OPT_CAST(mp_digit) XREALLOC (a->dp, sizeof (mp_digit) * size);
+    //tmp = OPT_CAST(mp_digit) XREALLOC (a->dp, sizeof (mp_digit) * size);
+    tmp = OPT_CAST(mp_digit) internal_realloc(a->dp,
+                                              sizeof (mp_digit) * a->alloc,
+                                              sizeof (mp_digit) * size);
     if (tmp == NULL) {
       /* reallocation failed but "a" is still valid [can be freed] */
       return MP_MEM;

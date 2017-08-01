@@ -1,5 +1,4 @@
 /* Copyright (C) 2014 OSCAR lab, Stony Brook University
-   Copyright (C) 2017 Fortanix, Inc.
 
    This file is part of Graphene Library OS.
 

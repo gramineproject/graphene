@@ -105,6 +105,9 @@ static PAL_HANDLE setup_file_handle (const char * name, int fd)
     get_norm_path(name, path, 0, len + 1);
     handle->file.realpath = path;
 
+    handle->file.total = 0;
+    handle->file.stubs = NULL;
+
     return handle;
 }
 
