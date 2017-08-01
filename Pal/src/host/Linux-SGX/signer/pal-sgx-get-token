@@ -67,7 +67,7 @@ def connect_aesmd(attr):
     req_msg_raw = req_msg.SerializeToString()
 
     aesm_service = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    aesm_service.connect("\0sgx_aesm_socket_base" + "\0" * 87)
+    aesm_service.connect("/var/run/aesmd/aesm.socket")
 
     aesm_service.send(struct.pack("<I", len(req_msg_raw)))
     aesm_service.send(req_msg_raw)

@@ -7,10 +7,10 @@ else
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD  := $(shell pwd)
 
-default: linux-sgx-driver/isgx.h
+default: linux-sgx-driver/sgx.h
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) CFLAGS_MODULE="-DDEBUG -g -O0" modules
 
-linux-sgx-driver/isgx.h:
+linux-sgx-driver/sgx.h:
 	@./link-intel-driver.py
 endif
 

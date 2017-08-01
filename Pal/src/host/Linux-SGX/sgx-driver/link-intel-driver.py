@@ -12,7 +12,7 @@ try:
           "from https://github.com/01org/linux-sgx-driver."
     while True:
         isgx = raw_input('Enter the Intel sgx driver derctory: ')
-        if os.path.exists(isgx + '/isgx.h'):
+        if os.path.exists(isgx + '/sgx.h'):
             break
         print '{0} is not a directory for the Intel sgx driver'.format(isgx)
 

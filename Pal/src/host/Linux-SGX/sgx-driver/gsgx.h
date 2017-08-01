@@ -11,9 +11,9 @@
 #ifndef __ARCH_GSGX_H__
 #define __ARCH_GSGX_H__
 
-#include <isgx.h>
-#include <isgx_arch.h>
-#include <isgx_user.h>
+#include <sgx.h>
+#include <sgx_arch.h>
+#include <sgx_user.h>
 
 #include "graphene-sgx.h"
 #include "isgx_ksyms.h"
