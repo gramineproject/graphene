@@ -56,14 +56,14 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
 
     if (!self->is_alive) {
         debug("thread %d is dead\n", self->tid);
-out:
+    out:
         unlock(self->lock);
         return 0;
     }
 
-#ifdef PROFILE
+    #ifdef PROFILE
     self->exit_time = GET_PROFILE_INTERVAL();
-#endif
+    #endif
 
     int exit_code = self->exit_code;
     self->is_alive = false;
@@ -83,8 +83,9 @@ out:
         debug("thread exits, notifying thread %d\n", parent->tid);
 
         lock(parent->lock);
-        list_del_init(&self->siblings);
-        list_add_tail(&self->siblings, &parent->exited_children);
+        listp_del_init(self, &parent->children, siblings);
+        listp_add_tail(self, &parent->exited_children, siblings);
+
         if (!self->in_vm) {
             debug("deliver SIGCHLD (thread = %d, exitval = %d)\n",
                   self->tid, exit_code);

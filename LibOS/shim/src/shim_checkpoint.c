@@ -35,7 +35,7 @@
 
 #include <pal.h>
 #include <pal_error.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include <stdarg.h>
 #include <asm/fcntl.h>
@@ -72,12 +72,14 @@ typedef uint16_t FASTHASHTYPE;
 
 #define CP_MAP_ENTRY_NUM 64
 
+DEFINE_LIST(cp_map_entry);
 struct cp_map_entry
 {
-    struct hlist_node hlist;
+    LIST_TYPE(cp_map_entry) hlist;
     struct shim_cp_map_entry entry;
 };
 
+DEFINE_LISTP(cp_map_entry);
 struct cp_map {
     struct cp_map_buffer {
         struct cp_map_buffer * next;
@@ -86,7 +88,7 @@ struct cp_map {
     } * buffers;
 
     struct hash_map {
-        struct hlist_head head[CP_HASH_SIZE];
+        LISTP_TYPE(cp_map_entry) head[CP_HASH_SIZE];
     } map;
 };
 
@@ -148,12 +150,11 @@ get_cp_map_entry (void * map, void * addr, bool create)
     struct cp_map * m = (struct cp_map *) map;
 
     FASTHASHTYPE hash = CP_HASH(addr);
-    struct hlist_head * head = &m->map.head[hash];
-    struct hlist_node * pos;
+    LISTP_TYPE(cp_map_entry) * head = &m->map.head[hash];
     struct cp_map_entry * tmp;
     struct shim_cp_map_entry * e = NULL;
 
-    hlist_for_each_entry(tmp, pos, head, hlist)
+    listp_for_each_entry(tmp, head, hlist)
         if (tmp->entry.addr == addr)
             e = &tmp->entry;
 
@@ -164,8 +165,8 @@ get_cp_map_entry (void * map, void * addr, bool create)
             buffer = extend_cp_map(m);
 
         struct cp_map_entry *new = &buffer->entries[buffer->cnt++];
-        INIT_HLIST_NODE(&new->hlist);
-        hlist_add_head(&new->hlist, head);
+        INIT_LIST_HEAD(new, hlist);
+        listp_add(new, head, hlist);
 
         new->entry.addr = addr;
         new->entry.off  = 0;

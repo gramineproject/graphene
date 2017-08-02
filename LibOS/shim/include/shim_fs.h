@@ -32,7 +32,7 @@
 #include <shim_utils.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
 struct shim_handle;
 
@@ -121,6 +121,8 @@ struct shim_fs_ops {
 #define DCACHE_HASH_SIZE    1024
 #define DCACHE_HASH(hash) ((hash) & (DCACHE_HASH_SIZE - 1))
 
+DEFINE_LIST(shim_dentry);
+DEFINE_LISTP(shim_dentry);
 struct shim_dentry {
     int state;  /* flags for managing state */
 
@@ -130,16 +132,16 @@ struct shim_dentry {
     struct shim_qstr name;          /* caching the file's name. */
 
 
-    struct hlist_node hlist;        /* to resolve collisions in
+    LIST_TYPE(shim_dentry) hlist;    /* to resolve collisions in
                                        the hash table */
-    struct list_head list;          /* put dentry to different list
+    LIST_TYPE(shim_dentry) list;     /* put dentry to different list
                                        according to its availability,
                                        persistent or freeable */
 
     struct shim_dentry * parent;
     int nchildren;
-    struct list_head children;
-    struct list_head siblings;
+    LISTP_TYPE(shim_dentry) children; /* These children and siblings link */
+    LIST_TYPE(shim_dentry) siblings;
 
     struct shim_mount * mounted;
     void * data;
@@ -198,6 +200,7 @@ struct shim_d_ops {
 
 #define MAX_PATH        4096
 
+DEFINE_LIST(shim_mount);
 struct shim_mount {
     char type[8];
 
@@ -217,8 +220,8 @@ struct shim_mount {
     size_t cpsize;
 
     REFTYPE ref_count;
-    struct hlist_node hlist;
-    struct list_head list;
+    LIST_TYPE(shim_mount) hlist;
+    LIST_TYPE(shim_mount) list;
 };
 
 extern struct shim_dentry * dentry_root;
@@ -400,8 +403,6 @@ void __unset_parent_dentry (struct shim_dentry * child,
 
 void __add_dcache (struct shim_dentry * dent, HASHTYPE * hashptr);
 void add_dcache (struct shim_dentry * dent, HASHTYPE * hashptr);
-void __del_dcache (struct shim_dentry * dent);
-void del_dcache (struct shim_dentry * dent);
 
 struct shim_dentry *
 __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,

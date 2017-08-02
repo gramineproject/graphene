@@ -203,6 +203,7 @@ static int migrate_execve (struct shim_cp_store * cpstore,
     return START_MIGRATE(cpstore, execve, thread, process, envp);
 }
 
+
 int shim_do_execve (const char * file, const char ** argv,
                     const char ** envp)
 {
@@ -217,12 +218,15 @@ int shim_do_execve (const char * file, const char ** argv,
 
     BEGIN_PROFILE_INTERVAL();
 
-    LIST_HEAD(shargs);
+    
+    DEFINE_LIST(sharg);
     struct sharg {
-        struct list_head list;
+        LIST_TYPE(sharg)  list;
         int len;
         char arg[0];
     };
+    DEFINE_LISTP(sharg);
+    LISTP_TYPE(sharg) shargs;
 
 reopen:
 
@@ -274,7 +278,7 @@ err:
     }
 
     if (ret == -EINVAL) { /* it's a shebang */
-        LIST_HEAD(new_shargs);
+        LISTP_TYPE(sharg) new_shargs;
         struct sharg * next = NULL;
         bool ended = false, started = false;
         char buf[80];
@@ -313,8 +317,8 @@ err:
                         next->arg[l] = 0;
                     }
                     if (*c == ' ' || *c == '\n') {
-                        INIT_LIST_HEAD(&next->list);
-                        list_add_tail(&next->list, &new_shargs);
+                        INIT_LIST_HEAD(next, list);
+                        listp_add_tail(next, &new_shargs, list);
                         next = NULL;
                         s = c + 1;
                         if (*c == '\n') {
@@ -328,16 +332,16 @@ err:
 
         if (started) {
             if (next) {
-                INIT_LIST_HEAD(&next->list);
-                list_add_tail(&next->list, &new_shargs);
+                INIT_LIST_HEAD(next, list);
+                listp_add_tail(next, &new_shargs, list);
             }
 
             struct sharg * first =
-                list_first_entry(&new_shargs, struct sharg, list);
+                listp_first_entry(&new_shargs, struct sharg, list);
             assert(first);
             debug("detected as script: run by %s\n", first->arg);
             file = first->arg;
-            list_splice(&new_shargs, &shargs);
+            listp_splice(&new_shargs, &shargs, list, sharg);
             put_handle(exec);
             goto reopen;
         }
@@ -353,16 +357,16 @@ err:
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
-    if (!list_empty(&shargs)) {
+    if (!listp_empty(&shargs)) {
         struct sharg * sh;
         int shargc = 0, cnt = 0;
-        list_for_each_entry(sh, &shargs, list)
+        listp_for_each_entry(sh, &shargs, list)
             shargc++;
 
         const char ** new_argv =
                 __alloca(sizeof(const char *) * (argc + shargc + 1));
 
-        list_for_each_entry(sh, &shargs, list)
+        listp_for_each_entry(sh, &shargs, list)
             new_argv[cnt++] = sh->arg;
 
         for (cnt = 0 ; cnt < argc ; cnt++)

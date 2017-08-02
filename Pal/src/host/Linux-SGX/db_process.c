@@ -45,13 +45,15 @@
 typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
 
+DEFINE_LIST(trusted_child);
 struct trusted_child {
-    struct list_head list;
+    LIST_TYPE(trusted_child) list;
     sgx_arch_hash_t mrenclave;
     char uri[];
 };
 
-static LIST_HEAD(trusted_children);
+DEFINE_LISTP(trusted_child);
+static LISTP_TYPE(trusted_child) trusted_children = LISTP_INIT;
 static struct spinlock trusted_children_lock = LOCK_INIT;
 
 int register_trusted_child(const char * uri, const char * mrenclave_str)
@@ -61,7 +63,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
 
     _DkSpinLock(&trusted_children_lock);
 
-    list_for_each_entry(tc, &trusted_children, list) {
+    listp_for_each_entry(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
             _DkSpinUnlock(&trusted_children_lock);
             return 0;
@@ -73,7 +75,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
     if (!new)
         return -PAL_ERROR_NOMEM;
 
-    INIT_LIST_HEAD(&new->list);
+    INIT_LIST_HEAD(new, list);
     memcpy(new->uri, uri, uri_len + 1);
 
     char mrenclave_text[sizeof(sgx_arch_hash_t) * 2 + 1] = "\0";
@@ -118,7 +120,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
 
     _DkSpinLock(&trusted_children_lock);
 
-    list_for_each_entry(tc, &trusted_children, list) {
+    listp_for_each_entry(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
             _DkSpinUnlock(&trusted_children_lock);
             free(new);
@@ -126,7 +128,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
         }
     }
 
-    list_add_tail(&new->list, &trusted_children);
+    listp_add_tail(new, &trusted_children, list);
     _DkSpinUnlock(&trusted_children_lock);
     return 0;
 }
@@ -175,7 +177,7 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     struct trusted_child * tc;
     _DkSpinLock(&trusted_children_lock);
 
-    list_for_each_entry(tc, &trusted_children, list) {
+    listp_for_each_entry(tc, &trusted_children, list) {
         if (!memcmp(mrenclave, tc->mrenclave, sizeof(sgx_arch_hash_t))) {
             _DkSpinUnlock(&trusted_children_lock);
             SGX_DBG(DBG_S, "trusted child: %s\n", tc->uri);

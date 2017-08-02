@@ -31,13 +31,15 @@
 #include <shim_fs.h>
 #include <shim_checkpoint.h>
 
-#include <linux_list.h>
+#include <list.h>
 
-static LIST_HEAD(dcache_list);
-static LIST_HEAD(unused);
-static LIST_HEAD(persistent);
+/* As best I can tell, dentries are added to this list and then never touched
+ * again */
+/* Links to shim_dentry->list */
+static LISTP_TYPE(shim_dentry) unused = LISTP_INIT;
 
-static struct hlist_head dcache_htable[DCACHE_HASH_SIZE] = { HLIST_HEAD_INIT };
+/* Attaches to shim_dentry->hlist */
+static LISTP_TYPE(shim_dentry) dcache_htable[DCACHE_HASH_SIZE] = { LISTP_INIT };
 
 LOCKTYPE dcache_lock;
 
@@ -87,10 +89,10 @@ static struct shim_dentry * alloc_dentry (void)
 
     dent->mode = NO_MODE;
 
-    INIT_HLIST_NODE(&dent->hlist);
-    INIT_LIST_HEAD(&dent->list);
-    INIT_LIST_HEAD(&dent->children);
-    INIT_LIST_HEAD(&dent->siblings);
+    INIT_LIST_HEAD(dent, hlist);
+    INIT_LIST_HEAD(dent, list);
+    INIT_LISTP(&dent->children);
+    INIT_LIST_HEAD(dent, siblings);
 
     return dent;
 }
@@ -135,13 +137,16 @@ int reinit_dcache (void)
 }
 
 /* remove from the hash table, so that a lookup will fail. */
-void __del_dcache (struct shim_dentry * dent)
+static void __del_dcache (struct shim_dentry * dent)
 {
     if (!(dent->state & DENTRY_HASHED))
         return;
 
+    /* DEP 5/15/17: I believe that, if a dentry is in the DENTRY_HASHED state,
+     * that the hash field is always valid. */
+    LISTP_TYPE(shim_dentry) * head = &dcache_htable[DCACHE_HASH(dent->rel_path.hash)];
     dent->state &= ~DENTRY_HASHED;
-    hlist_del_init(&dent->hlist);
+    listp_del_init(dent, head, hlist);
 
 #ifdef DEBUG_DCACHE
     debug("del dcache %p(%s/%s) (mount = %p)\n",
@@ -152,13 +157,7 @@ void __del_dcache (struct shim_dentry * dent)
 
 static int __internal_put_dentry (struct shim_dentry * dent);
 
-void del_dcache (struct shim_dentry * dent)
-{
-    lock(dcache_lock);
-    __del_dcache(dent);
-    unlock(dcache_lock);
-}
-
+/* Release a dentry whose ref count has gone to zero. */
 static inline void __dput_dentry (struct shim_dentry * dent)
 {
     while (1) {
@@ -170,9 +169,14 @@ static inline void __dput_dentry (struct shim_dentry * dent)
         /* move the node to unused list unless it is persistent */
         if (!(dent->state & DENTRY_PERSIST)) {
             dent->state |= DENTRY_RECENTLY;
-            list_del(&dent->list);
-            INIT_LIST_HEAD(&dent->list);
-            list_add(&dent->list, &unused);
+            /* DEP: The only reference I see to this field is being placed on 
+             * the unused list. It seems that sometimes the dent is not
+             * on a list; just hack this for now; this code will be reworked
+             * soon anyway.
+             */
+            if (!list_empty(dent, list))
+                listp_del_init(dent, &unused, list);
+            listp_add(dent, &unused, list);
         }
 
         /* we don't delete the dentry from dcache because it might
@@ -189,7 +193,7 @@ kill:   {
             if (!parent)
                 break;
 
-            list_del(&dent->siblings); /* remove from parent's list of children */
+            listp_del_init(dent, &parent->children, siblings); /* remove from parent's list of children */
             dent->parent = NULL;
             dent = parent;
 
@@ -275,7 +279,7 @@ void __set_parent_dentry (struct shim_dentry * child,
 
     assert(!child->parent);
     get_dentry(parent);
-    list_add_tail(&child->siblings, &parent->children);
+    listp_add_tail(child, &parent->children, siblings);
     child->parent = parent;
     parent->nchildren++;
 }
@@ -287,8 +291,9 @@ void __unset_parent_dentry (struct shim_dentry * child,
         return;
 
     assert(child->parent);
+    listp_del_init(child, &parent->children, siblings);
     child->parent = NULL;
-    list_del_init(&child->siblings);
+
     parent->nchildren--;
     put_dentry(parent);
 }
@@ -302,7 +307,7 @@ HASHTYPE hash_dentry (struct shim_dentry * start, const char * path, int len)
 
 void __add_dcache (struct shim_dentry * dent, HASHTYPE * hashptr)
 {
-    struct hlist_head * head;
+    LISTP_TYPE(shim_dentry) * head;
 
     if (hashptr) {
         dent->rel_path.hash = *hashptr;
@@ -319,7 +324,7 @@ void __add_dcache (struct shim_dentry * dent, HASHTYPE * hashptr)
 
 add_hash:
     head = &dcache_htable[DCACHE_HASH(dent->rel_path.hash)];
-    hlist_add_head(&dent->hlist, head);
+    listp_add(dent, head, hlist);
     dent->state |= DENTRY_HASHED;
 
 #ifdef DEBUG_DCACHE
@@ -342,12 +347,11 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
 {
     HASHTYPE hash = hash_dentry(start, name, namelen);
     struct shim_dentry * dent, * found = NULL;
-    struct hlist_node * node;
-    struct hlist_head * head = &dcache_htable[DCACHE_HASH(hash)];
+    LISTP_TYPE(shim_dentry) * head = &dcache_htable[DCACHE_HASH(hash)];
 
     /* walk through all the nodes in the hash bucket, find the droids we're
        looking for */
-    hlist_for_each_entry(dent, node, head, hlist) {
+    listp_for_each_entry(dent, head, hlist) {
         if ((dent->state & DENTRY_MOUNTPOINT) ||
             dent->rel_path.hash != hash)
             continue;
@@ -404,23 +408,22 @@ lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
 int __del_dentry_tree (struct shim_dentry * root)
 {
     struct shim_dentry * this_parent = root;
-    struct list_head * next;
+    struct shim_dentry * next;
 
 repeat:
-    next = this_parent->children.next;
+    next = this_parent->children.first;
 
 resume:
-    while (next != &this_parent->children) {
-        struct list_head * tmp = next;
-        struct shim_dentry * d = list_entry(tmp, struct shim_dentry,
-                                            siblings);
-        next = tmp->next;
+    while (next != this_parent->children.first) {
+        struct shim_dentry *d, * tmp;
+        d = tmp = next;
+        next = tmp->siblings.next;
         if (d->state & DENTRY_MOUNTPOINT) {
             this_parent = d->mounted->root;
             goto repeat;
         }
 
-        if (!list_empty(&d->children)) {
+        if (!listp_empty(&d->children)) {
             this_parent = d;
             goto repeat;
         }
@@ -462,10 +465,10 @@ BEGIN_CP_FUNC(dentry)
 
         lock(dent->lock);
         *new_dent = *dent;
-        INIT_HLIST_NODE(&new_dent->hlist);
-        INIT_LIST_HEAD(&new_dent->list);
-        INIT_LIST_HEAD(&new_dent->children);
-        INIT_LIST_HEAD(&new_dent->siblings);
+        INIT_LIST_HEAD(new_dent, hlist);
+        INIT_LIST_HEAD(new_dent, list);
+        INIT_LISTP(&new_dent->children);
+        INIT_LIST_HEAD(new_dent, siblings);
         new_dent->data = NULL;
         clear_lock(new_dent->lock);
         REF_SET(new_dent->ref_count, 0);
@@ -511,8 +514,8 @@ BEGIN_RS_FUNC(dentry)
     if (dent->parent)
         __set_parent_dentry(dent, dent->parent);
 
-    struct hlist_head * head = &dcache_htable[DCACHE_HASH(dent->rel_path.hash)];
-    hlist_add_head(&dent->hlist, head);
+    LISTP_TYPE(shim_dentry) * head = &dcache_htable[DCACHE_HASH(dent->rel_path.hash)];
+    listp_add(dent, head, hlist);
     dent->state |= DENTRY_HASHED;
 
     DEBUG_RS("hash=%08x,path=%s,fs=%s", dent->rel_path.hash,

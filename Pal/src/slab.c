@@ -31,7 +31,6 @@
 #include "pal_defs.h"
 #include "pal_error.h"
 #include "pal_debug.h"
-#include "linux_list.h"
 
 static int slab_alignment;
 static PAL_LOCK slab_mgr_lock = LOCK_INIT;

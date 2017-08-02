@@ -7,7 +7,7 @@
 #include <pal_security.h>
 #include <pal_crypto.h>
 #include <api.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include "enclave_pages.h"
 
@@ -105,17 +105,19 @@ int init_enclave_key (void)
     return 0;
 }
 
+DEFINE_LIST(trusted_file);
 struct trusted_file {
-    struct list_head list;
-    int64_t         index;
-    uint64_t        size;
-    int             uri_len;
-    char            uri[URI_MAX];
-    sgx_checksum_t  checksum;
-    sgx_arch_mac_t *    stubs;
+    LIST_TYPE(trusted_file) list;
+    int64_t index;
+    uint64_t size;
+    int uri_len;
+    char uri[URI_MAX];
+    sgx_checksum_t checksum;
+    sgx_arch_mac_t * stubs;
 };
 
-static LIST_HEAD(trusted_file_list);
+DEFINE_LISTP(trusted_file);
+static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 
@@ -135,7 +137,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
 
     _DkSpinLock(&trusted_file_lock);
 
-    list_for_each_entry(tmp, &trusted_file_list, list)
+    listp_for_each_entry(tmp, &trusted_file_list, list)
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
             if (tmp->uri_len == uri_len && !memcmp(tmp->uri, uri, uri_len + 1)) {
@@ -287,7 +289,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
 
     _DkSpinLock(&trusted_file_lock);
 
-    list_for_each_entry(tf, &trusted_file_list, list) {
+    listp_for_each_entry(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
             _DkSpinUnlock(&trusted_file_lock);
             return 0;
@@ -299,7 +301,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
     if (!new)
         return -PAL_ERROR_NOMEM;
 
-    INIT_LIST_HEAD(&new->list);
+    INIT_LIST_HEAD(new, list);
     new->uri_len = uri_len;
     memcpy(new->uri, uri, uri_len + 1);
     new->size = 0;
@@ -360,7 +362,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
 
     _DkSpinLock(&trusted_file_lock);
 
-    list_for_each_entry(tf, &trusted_file_list, list) {
+    listp_for_each_entry(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
             _DkSpinUnlock(&trusted_file_lock);
             free(new);
@@ -368,7 +370,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
         }
     }
 
-    list_add_tail(&new->list, &trusted_file_list);
+    listp_add_tail(new, &trusted_file_list, list);
     _DkSpinUnlock(&trusted_file_lock);
     return 0;
 }

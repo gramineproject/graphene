@@ -70,12 +70,14 @@ block_pid:
             return 0;
         }
 
-        if (!list_empty(&thread->siblings)) {
+        if (!list_empty(thread, siblings)) {
+            debug("reaping thread %p\n", thread);
             struct shim_thread * parent = thread->parent;
             assert(parent);
 
             lock(parent->lock);
-            list_del_init(&thread->siblings);
+            /* DEP 5/15/17: These threads are exited */
+            listp_del_init(thread, &thread->parent->exited_children, siblings);
             unlock(parent->lock);
 
             put_thread(parent);
@@ -89,8 +91,8 @@ block_pid:
 
     lock(cur->lock);
 
-    if (list_empty(&cur->children) &&
-        list_empty(&cur->exited_children)) {
+    if (listp_empty(&cur->children) &&
+        listp_empty(&cur->exited_children)) {
         unlock(cur->lock);
         return -ECHILD;
     }
@@ -98,7 +100,7 @@ block_pid:
     if (!(option & WNOHANG)) {
 block:
         if (cur->child_exit_event)
-            while (list_empty(&cur->exited_children)) {
+            while (listp_empty(&cur->exited_children)) {
                 unlock(cur->lock);
                 DkObjectsWaitAny(1, &cur->child_exit_event, NO_TIMEOUT);
                 lock(cur->lock);
@@ -109,16 +111,16 @@ block:
         if (pid == 0)
             pid = -cur->pgid;
 
-        list_for_each_entry(thread, &cur->exited_children, siblings)
+        listp_for_each_entry(thread, &cur->exited_children, siblings)
             if (thread->pgid == -pid)
                 goto found_child;
 
         if (!(option & WNOHANG))
             goto block;
     } else {
-        if (!list_empty(&cur->exited_children)) {
-            thread = list_first_entry(&cur->exited_children,
-                                      struct shim_thread, siblings);
+        if (!listp_empty(&cur->exited_children)) {
+            thread = listp_first_entry(&cur->exited_children,
+                                       struct shim_thread, siblings);
             goto found_child;
         }
     }
@@ -127,11 +129,11 @@ block:
     return 0;
 
 found_child:
-    list_del_init(&thread->siblings);
+    listp_del_init(thread, &cur->exited_children, siblings);
     put_thread(cur);
     thread->parent = NULL;
 
-    if (list_empty(&cur->exited_children))
+    if (listp_empty(&cur->exited_children))
         DkEventClear(cur->child_exit_event);
 
     unlock(cur->lock);

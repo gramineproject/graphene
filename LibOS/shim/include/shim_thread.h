@@ -13,7 +13,7 @@
 #include <shim_vma.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
 struct shim_handle;
 struct shim_fd_map;
@@ -21,6 +21,8 @@ struct shim_dentry;
 struct shim_signal_handle;
 struct shim_signal_log;
 
+DEFINE_LIST(shim_thread);
+DEFINE_LISTP(shim_thread);
 struct shim_thread {
     /* thread identifiers */
     IDTYPE vmid;
@@ -40,12 +42,12 @@ struct shim_thread {
     struct shim_thread * leader;
     /* dummy thread */
     struct shim_thread * dummy;
-    /* child handles */
-    struct list_head children;
-    /* nodes in child handles */
-    struct list_head siblings;
-    /* nodes in global handles */
-    struct list_head list;
+    /* child handles; protected by thread->lock */
+    LISTP_TYPE(shim_thread) children;
+    /* nodes in child handles; protected by the parent's lock */
+    LIST_TYPE(shim_thread) siblings;
+    /* nodes in global handles; protected by thread_list_lock */
+    LIST_TYPE(shim_thread) list;
 
     struct shim_handle_map * handle_map;
 
@@ -70,7 +72,7 @@ struct shim_thread {
     bool is_alive;
 
     PAL_HANDLE child_exit_event;
-    struct list_head exited_children;
+    LISTP_TYPE(shim_thread) exited_children;
 
     /* file system */
     struct shim_dentry * root, * cwd;
@@ -95,6 +97,7 @@ struct shim_thread {
 #endif
 };
 
+DEFINE_LIST(shim_simple_thread);
 struct shim_simple_thread {
     /* VMID and PIDs */
     IDTYPE vmid;
@@ -106,7 +109,7 @@ struct shim_simple_thread {
     bool is_alive;
 
     /* nodes in global handles */
-    struct list_head list;
+    LIST_TYPE(shim_simple_thread) list;
 
     REFTYPE ref_count;
     LOCKTYPE lock;

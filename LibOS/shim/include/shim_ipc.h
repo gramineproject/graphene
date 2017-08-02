@@ -33,14 +33,15 @@
 #include <shim_sysv.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
+DEFINE_LIST(shim_ipc_info);
 struct shim_ipc_info {
     IDTYPE                  vmid;
     struct shim_ipc_port *  port;
     PAL_HANDLE              pal_handle;
     struct shim_qstr        uri;
-    struct hlist_node       hlist;
+    LIST_TYPE(shim_ipc_info) hlist;
     REFTYPE                 ref_count;
 };
 
@@ -73,9 +74,10 @@ struct shim_ipc_msg {
 struct shim_ipc_port;
 struct shim_thread;
 
+DEFINE_LIST(shim_ipc_msg_obj);
 struct shim_ipc_msg_obj {
     struct shim_thread *    thread;
-    struct list_head        list;
+    LIST_TYPE(shim_ipc_msg_obj) list;
     int                     retval;
     void *                  private;
     struct shim_ipc_msg     msg;
@@ -86,13 +88,15 @@ typedef void (*port_fini) (struct shim_ipc_port *, IDTYPE vmid,
 
 #define MAX_IPC_PORT_FINI_CB        3
 
+DEFINE_LIST(shim_ipc_port);
+DEFINE_LISTP(shim_ipc_msg_obj);
 struct shim_ipc_port {
     PAL_HANDLE          pal_handle;
 
     REFTYPE             ref_count;
-    struct hlist_node   hlist;
-    struct list_head    list;
-    struct list_head    msgs;
+    LIST_TYPE(shim_ipc_port) hlist;
+    LIST_TYPE(shim_ipc_port) list;
+    LISTP_TYPE(shim_ipc_msg_obj) msgs;
     LOCKTYPE            msgs_lock;
 
     port_fini           fini[MAX_IPC_PORT_FINI_CB];

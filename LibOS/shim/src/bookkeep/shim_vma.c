@@ -31,7 +31,7 @@
 #include <shim_fs.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include <asm/mman.h>
 #include <errno.h>
@@ -73,7 +73,8 @@ static inline void * __vma_malloc (size_t size)
 
 static MEM_MGR vma_mgr = NULL;
 
-static LIST_HEAD(vma_list);
+DEFINE_LISTP(shim_vma);
+static LISTP_TYPE(shim_vma) vma_list = LISTP_INIT;
 static LOCKTYPE vma_list_lock;
 
 static inline int test_vma_equal (struct shim_vma * tmp,
@@ -142,7 +143,7 @@ static inline void assert_vma (void)
     struct shim_vma * tmp;
     struct shim_vma * prev __attribute__((unused)) = NULL;
 
-    list_for_each_entry(tmp, &vma_list, list) {
+    listp_for_each_entry(tmp, &vma_list, list) {
         /* Assert we are really sorted */
         assert(tmp->length > 0);
         assert(!prev || prev->addr + prev->length <= tmp->addr);
@@ -190,7 +191,9 @@ void put_vma (struct shim_vma * vma)
 
 static void __remove_vma (struct shim_vma * vma)
 {
-    list_del(&vma->list);
+    /* We assume all vmas are on the vma_list.  
+     * Perhaps worth asserting?  */
+    listp_del(vma, &vma_list, list);
     put_vma(vma);
 }
 
@@ -229,6 +232,7 @@ static struct shim_vma * get_new_vma (void)
         return NULL;
 
     memset(tmp, 0, sizeof(struct shim_vma));
+    INIT_LIST_HEAD(tmp, list);
     REF_SET(tmp->ref_count, 1);
     return tmp;
 }
@@ -292,7 +296,7 @@ static int __bkeep_mmap (void * addr, uint64_t length,
         }
     } else {
         struct shim_vma * cont = NULL, * n; /* cont: continue to scan vmas */
-        struct list_head * pos = NULL; /* pos: position to add the vma */
+        struct shim_vma * pos = NULL; /* pos: position to add the vma */
 
         if (prev && prev->addr == addr &&
             prev->length <= length) { /* find a vma at the same addr */
@@ -316,15 +320,15 @@ static int __bkeep_mmap (void * addr, uint64_t length,
 
                 assert(prev->addr + prev->length <= addr);
                 cont = prev;
-                pos = &prev->list;
+                pos = prev;
             } else { /* has no precendent vma */
                 cont = tmp;
-                list_add(&tmp->list, &vma_list);
+                listp_add(tmp, &vma_list, list);
             }
         }
 
         if (cont)
-            list_for_each_entry_safe_continue(cont, n, &vma_list, list) {
+            listp_for_each_entry_safe_continue(cont, n, &vma_list, list) {
                 if (!test_vma_startin(cont, addr, length))
                     break;
 
@@ -348,7 +352,7 @@ static int __bkeep_mmap (void * addr, uint64_t length,
             }
 
         if (tmp && pos)
-            list_add(&tmp->list, pos);
+            list_add(tmp, pos, list);
     }
 
     tmp->addr = addr;
@@ -394,7 +398,7 @@ static int __bkeep_munmap (void * addr, uint64_t length, const int * flags)
 
     debug("bkeep_unmmap: %p-%p\n", addr, addr + length);
 
-    list_for_each_entry_safe(tmp, n, &vma_list, list) {
+    listp_for_each_entry_safe(tmp, n, &vma_list, list) {
         if (test_vma_equal (tmp, addr, length)) {
             if (!check_vma_flags(tmp, flags))
                 return -EACCES;
@@ -562,7 +566,7 @@ static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
     while (length) {
         struct shim_vma * candidate = NULL;
 
-        list_for_each_entry(tmp, &vma_list, list) {
+        listp_for_each_entry(tmp, &vma_list, list) {
             if (test_vma_contain (tmp, addr, 1)) {
                 if (!check_vma_flags(tmp, flags))
                     return -EACCES;
@@ -689,17 +693,22 @@ void * get_unmapped_vma (uint64_t length, int flags)
     }
 
     do {
+        int found = 0;
         new->addr   = heap_top - length;
         new->length = length;
         new->flags  = flags|VMA_UNMAPPED;
         new->prot   = PROT_NONE;
 
-        list_for_each_entry_reverse(prev, &vma_list, list) {
-            if (new->addr >= prev->addr + prev->length)
+        listp_for_each_entry_reverse(prev, &vma_list, list) {
+            if (new->addr >= prev->addr + prev->length) {
+                found = 1;
                 break;
+            }
 
-            if (new->addr < heap_bottom)
+            if (new->addr < heap_bottom) {
+                found = 1;
                 break;
+            }
 
             if (prev->addr - heap_bottom < length) {
                 unlock(vma_list_lock);
@@ -711,7 +720,12 @@ void * get_unmapped_vma (uint64_t length, int flags)
                 new->addr = prev->addr - length;
         }
 
-        if (&prev->list == &vma_list) {
+
+        /* DEP 6/4/17: This case appears to be detecting whether you wrapped around the
+         * list wtihout finding anything. Let's add an explicit variable for
+         * this case, but keep the check for now to be safe. */
+        if (listp_empty(&vma_list)
+            || (!found && (prev == listp_last_entry(&vma_list, shim_vma, list)))) {
             prev = NULL;
             break;
         }
@@ -730,7 +744,7 @@ void * get_unmapped_vma (uint64_t length, int flags)
 
     assert(!prev || prev->addr + prev->length <= new->addr);
     get_vma(new);
-    list_add(&new->list, prev ? &prev->list : &vma_list);
+    listp_add_after(new, prev, &vma_list, list);
     debug("get unmapped: %p-%p\n", new->addr, new->addr + new->length);
     unlock(vma_list_lock);
     return new->addr;
@@ -781,7 +795,7 @@ void * get_unmapped_vma_for_cp (uint64_t length)
     new->flags  = flags;
     new->prot   = PROT_NONE;
 
-    list_add(&new->list, prev ? &prev->list : &vma_list);
+    listp_add_after(new, prev, &vma_list, list);
     unlock(vma_list_lock);
     return addr;
 }
@@ -793,7 +807,7 @@ static struct shim_vma * __lookup_overlap_vma (const void * addr, uint64_t lengt
 {
     struct shim_vma * tmp, * prev = NULL;
 
-    list_for_each_entry(tmp, &vma_list, list) {
+    listp_for_each_entry(tmp, &vma_list, list) {
         if (test_vma_overlap (tmp, addr, length)) {
             if (pprev)
                 *pprev = prev;
@@ -844,7 +858,7 @@ static struct shim_vma * __lookup_vma (const void * addr, uint64_t length)
     struct shim_vma * tmp;
     struct shim_vma * prev __attribute__((unused)) = NULL;
 
-    list_for_each_entry(tmp, &vma_list, list) {
+    listp_for_each_entry(tmp, &vma_list, list) {
         if (test_vma_equal(tmp, addr, length))
             return tmp;
 
@@ -861,7 +875,7 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
 {
     struct shim_vma * tmp, * prev = NULL;
 
-    list_for_each_entry(tmp, &vma_list, list) {
+    listp_for_each_entry(tmp, &vma_list, list) {
         if (test_vma_contain(tmp, addr, length)) {
             if (pprev)
                 *pprev = prev;
@@ -905,20 +919,20 @@ struct shim_vma * next_vma (struct shim_vma * vma)
     lock(vma_list_lock);
 
     if (!tmp) {
-        if (!list_empty(&vma_list) &&
-            (tmp = list_first_entry(&vma_list, struct shim_vma, list)))
+        if (!listp_empty(&vma_list) &&
+            (tmp = listp_first_entry(&vma_list, struct shim_vma, list)))
             get_vma(tmp);
 
         unlock(vma_list_lock);
         return tmp;
     }
 
-    if (tmp->list.next == &vma_list) {
+    if (tmp->list.next == listp_first_entry(&vma_list, NULL, NULL)) {
         tmp = NULL;
-    } else if (tmp->list.next == &tmp->list) {
+    } else if (tmp->list.next == tmp) {
         struct shim_vma * tmp2;
         tmp = NULL;
-        list_for_each_entry(tmp2, &vma_list, list)
+        listp_for_each_entry(tmp2, &vma_list, list)
             if (tmp2->addr >= vma->addr) {
                 tmp = tmp2;
                 get_vma(tmp);
@@ -939,7 +953,7 @@ void __shrink_vmas (void)
 {
     struct shim_vma * vma, * n, * last;
 
-    list_for_each_entry_safe(vma, n, &vma_list, list) {
+    listp_for_each_entry_safe(vma, n, &vma_list, list) {
         if (!last)
             goto unmap;
 
@@ -974,7 +988,7 @@ int dump_all_vmas (struct shim_thread * thread, char * buf, uint64_t size)
     int cnt = 0;
     lock(vma_list_lock);
 
-    list_for_each_entry(vma, &vma_list, list) {
+    listp_for_each_entry(vma, &vma_list, list) {
         void * start = vma->addr, * end = vma->addr + vma->length;
 
         if ((vma->flags & (VMA_INTERNAL|VMA_UNMAPPED)) && !vma->comment[0])
@@ -1039,7 +1053,7 @@ void unmap_all_vmas (void)
     void * start = NULL, * end = NULL;
     lock(vma_list_lock);
 
-    list_for_each_entry_safe(tmp, n, &vma_list, list) {
+    listp_for_each_entry_safe(tmp, n, &vma_list, list) {
         /* a adhoc vma can never be removed */
         if (tmp->flags & VMA_INTERNAL)
             continue;
@@ -1102,7 +1116,7 @@ BEGIN_CP_FUNC(vma)
             DO_CP(handle, vma->file, &new_vma->file);
 
         REF_SET(new_vma->ref_count, 0);
-        INIT_LIST_HEAD(&new_vma->list);
+        INIT_LIST_HEAD(new_vma, list);
 
         void * need_mapped = vma->addr;
 
@@ -1202,13 +1216,13 @@ BEGIN_RS_FUNC(vma)
         if ((ret = __bkeep_munmap(vma->addr, vma->length, &vma->flags)) < 0)
             return ret;
 
-        if (prev->list.next == &tmp->list &&
+        if (prev->list.next == tmp &&
             tmp->addr < vma->addr)
             prev = tmp;
     }
 
     get_vma(vma);
-    list_add(&vma->list, prev ? &prev->list : &vma_list);
+    listp_add_after(vma, prev, &vma_list, list);
     assert_vma();
     SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
 
@@ -1290,7 +1304,7 @@ BEGIN_CP_FUNC(all_vmas)
 
     __shrink_vmas();
 
-    list_for_each_entry(tmp, &vma_list, list)
+    listp_for_each_entry(tmp, &vma_list, list)
         if (!(tmp->flags & VMA_INTERNAL))
             nvmas++;
 
@@ -1301,7 +1315,7 @@ BEGIN_CP_FUNC(all_vmas)
 
     vmas = __alloca(sizeof(struct shim_vam *) * nvmas);
 
-    list_for_each_entry(tmp, &vma_list, list)
+    listp_for_each_entry(tmp, &vma_list, list)
         if (!(tmp->flags & VMA_INTERNAL)) {
             get_vma(tmp);
             vmas[cnt++] = tmp;
@@ -1321,7 +1335,7 @@ void debug_print_vma_list (void)
     sys_printf("vma bookkeeping:\n");
 
     struct shim_vma * vma;
-    list_for_each_entry(vma, &vma_list, list) {
+    listp_for_each_entry(vma, &vma_list, list) {
         const char * type = "", * name = "";
 
         if (vma->file) {

@@ -53,6 +53,8 @@
 
 struct shim_mount epoll_builtin_fs;
 
+/* shim_epoll_fds are linked as a list (by the list field), 
+ * hanging off of a shim_epoll_handle (by the fds field) */
 struct shim_epoll_fd {
     FDTYPE                      fd;
     unsigned int                events;
@@ -61,8 +63,8 @@ struct shim_epoll_fd {
     struct shim_handle *        handle;
     struct shim_handle *        epoll;
     PAL_HANDLE                  pal_handle;
-    struct list_head            list;
-    struct list_head            back;
+    LIST_TYPE(shim_epoll_fd)    list;
+    LIST_TYPE(shim_epoll_fd)    back;
 };
 
 int shim_do_epoll_create1 (int flags)
@@ -83,7 +85,7 @@ int shim_do_epoll_create1 (int flags)
     epoll->pal_fds = malloc(sizeof(FDTYPE) * MAX_EPOLL_FDS);
     epoll->pal_handles = malloc(sizeof(PAL_HANDLE) * MAX_EPOLL_FDS);
     create_event(&epoll->event);
-    INIT_LIST_HEAD(&epoll->fds);
+    INIT_LISTP(&epoll->fds);
 
     int vfd = set_new_fd_handle(hdl, (flags & EPOLL_CLOEXEC) ? FD_CLOEXEC : 0,
                                 NULL);
@@ -106,9 +108,7 @@ static void update_epoll (struct shim_epoll_handle * epoll)
     int npals = 0;
     epoll->nread = 0;
 
-    debug("update pal handles of epoll handle %p\n", epoll);
-
-    list_for_each_entry(tmp, &epoll->fds, list) {
+    listp_for_each_entry(tmp, &epoll->fds, list) {
         if (!tmp->pal_handle)
             continue;
 
@@ -133,26 +133,27 @@ int delete_from_epoll_handles (struct shim_handle * handle)
     while (1) {
         lock(handle->lock);
 
-        if (list_empty(&handle->epolls)) {
+        if (listp_empty(&handle->epolls)) {
             unlock(handle->lock);
             break;
         }
 
-        struct shim_epoll_fd * epoll_fd = list_first_entry(&handle->epolls,
+        struct shim_epoll_fd * epoll_fd = listp_first_entry(&handle->epolls,
                                  struct shim_epoll_fd, back);
 
-        list_del(&epoll_fd->back);
+        listp_del(epoll_fd, &handle->epolls, back);
         unlock(handle->lock);
         put_handle(handle);
 
         struct shim_handle * epoll_hdl = epoll_fd->epoll;
+        struct shim_epoll_handle * epoll = &epoll_hdl->info.epoll;
 
         debug("delete handle %p from epoll handle %p\n", handle,
               &epoll_hdl->info.epoll);
 
         lock(epoll_hdl->lock);
 
-        list_del(&epoll_fd->list);
+        listp_del(epoll_fd, &epoll->fds, list);
         free(epoll_fd);
 
         epoll_hdl->info.epoll.nfds--;
@@ -185,7 +186,7 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
 
     switch (op) {
         case EPOLL_CTL_ADD: {
-            list_for_each_entry(epoll_fd, &epoll->fds, list)
+            listp_for_each_entry(epoll_fd, &epoll->fds, list)
                 if (epoll_fd->fd == fd) {
                     ret = -EEXIST;
                     goto out;
@@ -219,20 +220,14 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
             epoll_fd->epoll = epoll_hdl;
             epoll_fd->pal_handle = hdl->pal_handle;
 
-            lock(hdl->lock);
-            INIT_LIST_HEAD(&epoll_fd->back);
-            list_add_tail(&epoll_fd->back, &hdl->epolls);
-            unlock(hdl->lock);
-
-            get_handle(epoll_hdl);
-            INIT_LIST_HEAD(&epoll_fd->list);
-            list_add_tail(&epoll_fd->list, &epoll->fds);
+            INIT_LIST_HEAD(epoll_fd, list);
+            listp_add_tail(epoll_fd, &epoll->fds, list);
             epoll->nfds++;
             goto update;
         }
 
         case EPOLL_CTL_MOD: {
-            list_for_each_entry(epoll_fd, &epoll->fds, list)
+            listp_for_each_entry(epoll_fd, &epoll->fds, list)
                 if (epoll_fd->fd == fd) {
                     epoll_fd->events = event->events;
                     epoll_fd->data = event->data;
@@ -244,19 +239,11 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
         }
 
         case EPOLL_CTL_DEL: {
-            list_for_each_entry(epoll_fd, &epoll->fds, list)
+            listp_for_each_entry(epoll_fd, &epoll->fds, list)
                 if (epoll_fd->fd == fd) {
-                    struct shim_handle * hdl = epoll_fd->handle;
-                    lock(hdl->lock);
-                    list_del(&epoll_fd->back);
-                    put_handle(hdl);
-                    unlock(hdl->lock);
-
-                    debug("delete handle %p from epoll handle %p\n",
-                          hdl, epoll);
-
-                    list_del(&epoll_fd->list);
-                    put_handle(epoll_hdl);
+                    listp_del(epoll_fd, &epoll->fds, list);
+                    put_handle(epoll_fd->handle);
+                    free(epoll_fd);
                     epoll->nfds--;
 
                     free(epoll_fd);
@@ -334,7 +321,7 @@ retry:
     if (!DkStreamAttributesQuerybyHandle(polled, &attr))
         goto reply;
 
-    list_for_each_entry(epoll_fd, &epoll->fds, list)
+    listp_for_each_entry(epoll_fd, &epoll->fds, list)
         if (polled == epoll_fd->pal_handle) {
 
             debug("epoll: fd %d (handle %p) polled\n", epoll_fd->fd,
@@ -353,7 +340,7 @@ retry:
         }
 
 reply:
-    list_for_each_entry(epoll_fd, &epoll->fds, list) {
+    listp_for_each_entry(epoll_fd, &epoll->fds, list) {
         if (nevents == maxevents)
             break;
 
@@ -398,17 +385,17 @@ struct shim_mount epoll_builtin_fs = { .type = "epoll",
 
 BEGIN_CP_FUNC(epoll_fd)
 {
-    assert(size == sizeof(struct list_head));
+    assert(size == sizeof(LISTP_TYPE(shim_epoll_fd)));
 
-    struct list_head * old_list = (struct list_head *) obj;
-    struct list_head * new_list = (struct list_head *) objp;
+    LISTP_TYPE(shim_epoll_fd) * old_list = (LISTP_TYPE(shim_epoll_fd) *) obj;
+    LISTP_TYPE(shim_epoll_fd) * new_list = (LISTP_TYPE(shim_epoll_fd) *) objp;
     struct shim_epoll_fd * epoll_fd;
 
     debug("checkpoint epoll: %p -> %p (base = %p)\n", old_list, new_list, base);
 
-    INIT_LIST_HEAD(new_list);
+    INIT_LISTP(new_list);
 
-    list_for_each_entry(epoll_fd, old_list, list) {
+    listp_for_each_entry(epoll_fd, old_list, list) {
         ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_epoll_fd));
 
         struct shim_epoll_fd * new_epoll_fd =
@@ -419,8 +406,9 @@ BEGIN_CP_FUNC(epoll_fd)
         new_epoll_fd->data    = epoll_fd->data;
         new_epoll_fd->revents = epoll_fd->revents;
         new_epoll_fd->pal_handle = NULL;
-        list_add(new_list, &new_epoll_fd->list);
-        INIT_LIST_HEAD(&new_epoll_fd->back);
+        /* DEP XXX: Is the new_epoll_fd being added to new_list? */
+        //list_add(new_list, &new_epoll_fd->list);
+        listp_add(new_epoll_fd, new_list, list);
 
         DO_CP(handle, epoll_fd->handle, &new_epoll_fd->handle);
     }
@@ -431,20 +419,17 @@ END_CP_FUNC(epoll_fd)
 
 BEGIN_RS_FUNC(epoll_fd)
 {
-    struct list_head * list = (void *) (base + GET_CP_FUNC_ENTRY());
-    struct list_head * e;
+    LISTP_TYPE(shim_epoll_fd) * list = (void *) (base + GET_CP_FUNC_ENTRY());
+    struct shim_epoll_fd * epoll_fd;
 
     CP_REBASE(*list);
 
-    for (e = list->next ; e != list ; e = e->next) {
-        struct shim_epoll_fd * epoll_fd =
-                list_entry(e, struct shim_epoll_fd, list);
+    listp_for_each_entry(epoll_fd, list, list) {
 
         CP_REBASE(epoll_fd->handle);
         CP_REBASE(epoll_fd->back);
         epoll_fd->pal_handle = epoll_fd->handle->pal_handle;
-        list_add_tail(&epoll_fd->back, &epoll_fd->handle->epolls);
-        CP_REBASE(*e);
+        CP_REBASE(epoll_fd->list);
 
         DEBUG_RS("fd=%d,path=%s,type=%s,uri=%s",
                  epoll_fd->fd, qstrgetstr(&epoll_fd->handle->path),
