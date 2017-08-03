@@ -11,15 +11,25 @@
 #ifndef __ARCH_GSGX_H__
 #define __ARCH_GSGX_H__
 
-#include <isgx.h>
-#include <isgx_arch.h>
-#include <isgx_user.h>
-
+#include "isgx_version.h"
 #include "graphene-sgx.h"
+
+#if SDK_DRIVER_VERSION < KERNEL_VERSION(1, 8, 0)
+
 #include "isgx_ksyms.h"
 
-extern struct vm_operations_struct gsgx_vm_ops;
+extern struct file *isgx_dev;
 
-long gsgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
+extern long gsgx_ioctl(struct file *, unsigned int, unsigned long);
+extern int gsgx_mmap(struct file *, struct vm_area_struct *);
+extern unsigned long gsgx_get_unmapped_area(struct file *, unsigned long,
+					    unsigned long, unsigned long,
+					    unsigned long);
 
-#endif /* __ARCH_X86_GSGX_H__ */
+extern int gsgx_lookup_ksyms(void);
+
+#endif
+
+extern int gsgx_open(struct inode *, struct file *);
+
+#endif /* __ARCH_GSGX_H__ */
