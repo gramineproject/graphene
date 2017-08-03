@@ -7,3 +7,4 @@ Module.symvers
 modules.order
 .tmp_versions
 linux-sgx-driver
+isgx_version.h
