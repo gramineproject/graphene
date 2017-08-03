@@ -21,9 +21,4 @@ net.rules.1 = 127.0.0.1:8000:0.0.0.0:0-65535
 net.rules.2 = 0.0.0.0:0-65535:127.0.0.1:8000
 
 # sgx-related
-sgx.trusted_files.ld.uri = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc.uri = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libselinux.uri = file:/lib/x86_64-linux-gnu/libselinux.so.1
-sgx.trusted_files.libacl.uri = file:/lib/x86_64-linux-gnu/libacl.so.1
-sgx.trusted_files.libpcre.uri = file:/lib/x86_64-linux-gnu/libpcre.so.3
-sgx.trusted_files.libattr.uri = file:/lib/x86_64-linux-gnu/libattr.so.1
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)

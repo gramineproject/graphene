@@ -32,17 +32,13 @@ sys.stack.size = 256K
 sys.brk.size = 4M
 glibc.heap_size = 16M
 
-sgx.thread_num = 28
+sgx.thread_num = 32
 
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
 
-sgx.trusted_files.lib1 = file:build/lib/mod_indexfile.so
-sgx.trusted_files.lib2 = file:build/lib/mod_dirlisting.so
-sgx.trusted_files.lib3 = file:build/lib/mod_staticfile.so
+sgx.trusted_libs.mod1 = file:build/lib/mod_indexfile.so
+sgx.trusted_libs.mod2 = file:build/lib/mod_dirlisting.so
+sgx.trusted_libs.mod3 = file:build/lib/mod_staticfile.so
 
 sgx.trusted_files.conf1 = file:lighttpd.conf
 sgx.trusted_files.conf2 = file:lighttpd-generic.conf

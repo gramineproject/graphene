@@ -209,19 +209,96 @@ def get_checksum(file):
         digest.update(f.read())
     return digest.digest()
 
-def get_trusted_files(manifest, args):
+def get_search_trusted_libs(manifest, args):
     targets = dict()
 
+    for (key, val) in manifest.items():
+        if not key.startswith('sgx.search_trusted_libs.'):
+            continue
+        key = key[len('sgx.search_trusted_libs.'):]
+        if key in targets:
+            raise Exception('repeated key in manifest: sgx.search_trusted_libs.' + key)
+        targets[key] = (val, resolve_uri(val))
+
+    return targets
+
+def get_dependencies(target):
+    p = subprocess.Popen(['/usr/bin/ldd', target], stdout=subprocess.PIPE)
+    lines = p.communicate()[0]
+    p.wait()
+    if p.returncode != 0:
+        return []
+
+    print "    Find dependencies of \"" + target + "\""
+    deps = []
+    for line in lines.split('\n'):
+        line = line.strip()
+        if line == 'statically linked':
+            break
+        if re.search('version `\S+\' not found', line):
+            continue
+        if line.endswith('not found'):
+            line = line[:-9]
+
+        tokens = line.split()
+        if len(tokens) > 1 and re.match('\(0x[0-9a-f]+\)', tokens[-1]):
+            tokens = tokens[:-1]
+
+        dep = None
+        if len(tokens) > 0:
+            dep = tokens[0]
+        if len(tokens) > 2:
+            dep = tokens[2]
+
+        if dep is not None and not dep.startswith('linux-vdso.so'):
+            print "        " + dep
+            deps.append(dep)
+
+    return deps
+
+def get_trusted_files(manifest, args):
+    targets = dict()
+    deps = []
+    uris = []
+
+    # Chia-Che Tsai: 08/03/2017
+    #
+    # sgx.search_trusted_libs for automatically searching dependency
+    # of executables and libraries to sign.
+    #
+    # exec and sgx.trusted_libs will be included in depedenncy search.
+
     if 'exec' in args:
-        targets['exec'] = (args['exec'], resolve_uri(args['exec']))
+        exec_path = resolve_uri(args['exec'])
+        deps.append(exec_path)
+        uris.append('file:' + exec_path)
+        targets['exec'] = ('file:' + exec_path, exec_path)
+
+    for (key, val) in manifest.items():
+        if not key.startswith('sgx.trusted_libs.'):
+            continue
+        key = key[len('sgx.trusted_libs.'):]
+        if key in targets:
+            raise Exception('repeated key in manifest: sgx.trusted_libs.' + key)
+        if val not in uris:
+            lib_path = resolve_uri(val)
+            deps.append(lib_path)
+            uris.append(val)
+            targets[key] = (val, lib_path)
+
+
+    # preloaded libraries and sgx.trusted_files are not included
+    # in dependency search.
 
     if 'loader.preload' in manifest:
         i = 0
         preloads = []
         for uri in str.split(manifest['loader.preload'], ','):
-            targets['preload' + str(i)] = (uri, resolve_uri(uri))
-            preloads.append(uri)
-            i += 1
+            if uri not in uris:
+                uris.append(uri)
+                targets['preload' + str(i)] = (uri, resolve_uri(uri))
+                preloads.append(uri)
+                i += 1
 
     for (key, val) in manifest.items():
         if not key.startswith('sgx.trusted_files.'):
@@ -229,7 +306,39 @@ def get_trusted_files(manifest, args):
         key = key[len('sgx.trusted_files.'):]
         if key in targets:
             raise Exception('repeated key in manifest: sgx.trusted_files.' + key)
-        targets[key] = (val, resolve_uri(val))
+        if val not in uris:
+            uris.append(val)
+            targets[key] = (val, resolve_uri(val))
+
+    new_targets = dict()
+    i = 0
+    for target in deps:
+        for dep in get_dependencies(target):
+            found = None
+            for search_path in args['search_paths']:
+                path = os.path.join(search_path, os.path.basename(dep))
+                if os.path.exists(path):
+                    found = path
+                    break
+
+            for (key, val) in targets.items():
+                (uri, target) = val
+                if target == found:
+                    found = None
+                    break
+
+            if found is not None:
+                dep = found
+
+            uri = 'file:' + dep
+            if uri not in uris:
+                uris.append(uri)
+                manifest['sgx.trusted_files.dep' + str(i)] = uri
+                new_targets['dep' + str(i)] = (uri, dep)
+                i += 1
+
+    for (key, val) in new_targets.items():
+        targets[key] = val
 
     for (key, val) in targets.items():
         (uri, target) = val
@@ -716,6 +825,13 @@ if __name__ == "__main__":
     print >>sys.stderr, "    miscs:     %08x"  % (bytes_to_int(attr['miscs']))
 
     # Get trusted checksums and measurements
+    print >>sys.stderr, "Paths to search trusted libraries:"
+    args['search_paths'] = []
+    for key, val in get_search_trusted_libs(manifest, args).items():
+        (uri, target) = val
+        print >>sys.stderr, "    %s" % (uri)
+        args['search_paths'].append(target)
+
     print >>sys.stderr, "Trusted files:"
     for key, val in get_trusted_files(manifest, args).items():
         (uri, target, checksum) = val

@@ -30,12 +30,7 @@ glibc.heap_size = 16M
 sys.brk.size = 32M
 sys.stack.size = 4M
 
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-sgx.trusted_files.sh = file:/bin/sh
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
 
 sgx.allowed_files.tmp1 = file:/tmp
 sgx.allowed_files.tmp2 = file:/var/tmp

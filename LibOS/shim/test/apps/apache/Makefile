@@ -20,7 +20,7 @@ HTDOC=$(INSTALL_DIR)/htdocs
 
 exec_target = httpd.manifest
 
-target = build-apache build-modules build-conf test-data
+target = build-apache build-conf test-data
 
 clean-extra = clean-apache
 
@@ -31,7 +31,7 @@ include ../../Makefile
 
 .PHONY: build-apache build-modules build-conf
 
-build-apache: $(INSTALL_DIR)/bin/httpd $(INSTALL_DIR)/modules/libphp5.so
+build-apache: $(INSTALL_DIR)/bin/httpd # $(INSTALL_DIR)/modules/libphp5.so
 
 ifeq ($(DEBUG),1)
 MAKE_FLAGS = CC="gcc -g"

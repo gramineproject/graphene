@@ -2,7 +2,7 @@
 
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:/bin/bash
-loader.execname = /bin/bash
+loader.execname = bash
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = /bin:/usr/bin
 loader.env.USERNAME = root
@@ -27,15 +27,7 @@ fs.mount.usr.uri = file:/usr
 
 sys.brk.size = 256K
 
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-sgx.trusted_files.libtinfo = file:/lib/x86_64-linux-gnu/libtinfo.so.5
-sgx.trusted_files.ls = file:/bin/ls
-sgx.trusted_files.cp = file:/bin/cp
-sgx.trusted_files.rm = file:/bin/rm
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
 
 sgx.trusted_children.ls = file:ls.sig
 sgx.trusted_children.cp = file:cp.sig

@@ -34,22 +34,11 @@ sys.stack.size = 256K
 sys.brk.size = 4M
 glibc.heap_size = 16M
 
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-sgx.trusted_files.liburil = file:$(LIBCDIR)/libutil.so.1
-sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
-sgx.trusted_files.libnss1 = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
-sgx.trusted_files.libnss2 = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnss3 = file:$(LIBCDIR)/libnss_dns.so.2
-sgx.trusted_files.libssl = file:/lib/x86_64-linux-gnu/libssl.so.1.0.0
-sgx.trusted_files.libcrypto = file:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0
-sgx.trusted_files.libresolv = file:$(LIBCDIR)/libresolv.so.2
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+
 sgx.trusted_files.hosts = file:hosts
 sgx.trusted_files.resolv = file:resolv.conf
 sgx.trusted_files.gai = file:gai.conf
 
-sgx.allowed_files.pyhome = file:/usr/lib/python2.7
+sgx.allowed_files.python = file:/usr/lib/python2.7
 sgx.allowed_files.scripts = file:scripts

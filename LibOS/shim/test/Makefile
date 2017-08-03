@@ -70,6 +70,7 @@ manifest: manifest.template
 .PHONY: clean
 clean: $(clean-extra) $(if $(level),,clean-subdirs)
 	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target)
+	rm -rf *.manifest.sgx *.sig *.token
 
 .PHONY: build-subdirs
 build-subdirs:

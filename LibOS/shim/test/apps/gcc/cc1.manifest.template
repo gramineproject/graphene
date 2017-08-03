@@ -25,6 +25,7 @@ fs.mount.tmp.uri = file:/tmp
 
 $(HUGERULE)
 
+<<<<<<< HEAD
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
@@ -36,6 +37,9 @@ sgx.trusted_files.isl = file:/usr/lib/x86_64-linux-gnu/libisl.so
 sgx.trusted_files.mpc = file:/usr/lib/x86_64-linux-gnu/libmpc.so.3
 sgx.trusted_files.mpfr = file:/usr/lib/x86_64-linux-gnu/libmpfr.so.4
 sgx.trusted_files.gmp = file:/usr/lib/x86_64-linux-gnu/libgmp.so.10
+=======
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+>>>>>>> 27d5e01... Automatic library searching when signing SGX enclaves
 
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files

@@ -3,7 +3,7 @@
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:obj/bin/httpd
 loader.execname = httpd
-loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
+loader.env.LD_LIBRARY_PATH = $(PWD)/obj/modules:/lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.debug_type = none
 
 fs.mount.lib1.type = chroot
@@ -25,31 +25,36 @@ fs.mount.cwd.uri = file:
 # allow to bind on port for listening
 net.allow_bind.1 = $(HOST):$(PORT)
 
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-sgx.trusted_files.libresolv = file:$(LIBCDIR)/libresolv.so.2
-sgx.trusted_files.libnssdns = file:/lib/x86_64-linux-gnu/libnss_dns.so.2
-sgx.trusted_files.libnssfiles = file:/lib/x86_64-linux-gnu/libnss_files.so.2
-sgx.trusted_files.libnsscompact = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
-sgx.trusted_files.libnssnis = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
-sgx.trusted_files.libpcre = file:/lib/x86_64-linux-gnu/libpcre.so.3
-sgx.trusted_files.libapr = file:obj/lib/libapr-1.so.0
-sgx.trusted_files.libaprutil = file:obj/lib/libaprutil-1.so.0
-sgx.trusted_files.libexpat = file:/lib/x86_64-linux-gnu/libexpat.so.1
-sgx.trusted_files.libcrypt = file:/lib/x86_64-linux-gnu/libcrypt.so.1
-sgx.trusted_files.libxml2 = file:/usr/lib/x86_64-linux-gnu/libxml2.so.2
-sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
-sgx.trusted_files.liblzma = file:/lib/x86_64-linux-gnu/liblzma.so.5
-sgx.trusted_files.libnsl = file:/lib/x86_64-linux-gnu/libnsl.so.1
-sgx.trusted_files.libicuuc = file:/usr/lib/x86_64-linux-gnu/libicuuc.so.55
-sgx.trusted_files.libicudata = file:/usr/lib/x86_64-linux-gnu/libicudata.so.55
-sgx.trusted_files.libstdcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
-sgx.trusted_files.libgcc_c = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs.obj = file:obj/lib
 
-sgx.allowed_files.modules = file:obj/modules
+sgx.trusted_libs.nss1 = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
+sgx.trusted_libs.nss2 = file:/lib/x86_64-linux-gnu/libnss_files.so.2
+sgx.trusted_libs.nss3 = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
+
+sgx.trusted_libs.mod01 = file:obj/modules/mod_authn_file.so
+sgx.trusted_libs.mod02 = file:obj/modules/mod_authn_core.so
+sgx.trusted_libs.mod03 = file:obj/modules/mod_authz_host.so
+sgx.trusted_libs.mod04 = file:obj/modules/mod_authz_groupfile.so
+sgx.trusted_libs.mod05 = file:obj/modules/mod_authz_user.so
+sgx.trusted_libs.mod06 = file:obj/modules/mod_authz_core.so
+sgx.trusted_libs.mod07 = file:obj/modules/mod_access_compat.so
+sgx.trusted_libs.mod08 = file:obj/modules/mod_auth_basic.so
+sgx.trusted_libs.mod09 = file:obj/modules/mod_reqtimeout.so
+sgx.trusted_libs.mod10 = file:obj/modules/mod_filter.so
+sgx.trusted_libs.mod11 = file:obj/modules/mod_mime.so
+sgx.trusted_libs.mod12 = file:obj/modules/mod_log_config.so
+sgx.trusted_libs.mod13 = file:obj/modules/mod_env.so
+sgx.trusted_libs.mod14 = file:obj/modules/mod_headers.so
+sgx.trusted_libs.mod15 = file:obj/modules/mod_setenvif.so
+sgx.trusted_libs.mod16 = file:obj/modules/mod_version.so
+sgx.trusted_libs.mod17 = file:obj/modules/mod_unixd.so
+sgx.trusted_libs.mod18 = file:obj/modules/mod_status.so
+sgx.trusted_libs.mod19 = file:obj/modules/mod_autoindex.so
+sgx.trusted_libs.mod20 = file:obj/modules/mod_dir.so
+sgx.trusted_libs.mod21 = file:obj/modules/mod_alias.so
+
+>>>>>>> 27d5e01... Automatic library searching when signing SGX enclaves
 sgx.allowed_files.conf = file:obj/conf
 sgx.allowed_files.htdocs = file:obj/htdocs
 sgx.allowed_files.logs = file:obj/logs

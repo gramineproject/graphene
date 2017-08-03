@@ -2,7 +2,7 @@
 
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:/usr/bin/as
-loader.execname = /usr/bin/as
+loader.execname = as
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib/x86_64-linux-gnu
 loader.env.PATH = /bin:/usr/bin
 loader.debug_type = $(DEBUGTYPE)
@@ -23,14 +23,7 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-sgx.trusted_files.libz = file:/lib/x86_64-linux-gnu/libz.so.1
-sgx.trusted_files.libopcodes = file:/usr/lib/x86_64-linux-gnu/libopcodes-2.26-system.so
-sgx.trusted_files.libbfd = file:/usr/lib/x86_64-linux-gnu/libbfd-2.26.1-system.so
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
 
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files

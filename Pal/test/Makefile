@@ -8,9 +8,7 @@ CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 default: all
 include ../src/Makefile.Test
 
-executables = HelloWorld File Failure Thread Fork Event Process Exception \
-	      Memory Pipe Tcp Udp Yield Broadcast Ipc Server Wait HandleSend \
-	      Select Segment Sleep Cpuid Pie
+executables = $(patsubst %.c,%,$(wildcard *.c))
 manifests = manifest
 
 target = $(executables) $(manifests)

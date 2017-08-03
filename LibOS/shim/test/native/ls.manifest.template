@@ -16,11 +16,4 @@ fs.mount.bin.path = /bin
 fs.mount.bin.uri = file:/bin
 
 # sgx-related
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-sgx.trusted_files.libselinux = file:/lib/x86_64-linux-gnu/libselinux.so.1
-sgx.trusted_files.libacl = file:/lib/x86_64-linux-gnu/libacl.so.1
-sgx.trusted_files.libpcre = file:/lib/x86_64-linux-gnu/libpcre.so.3
-sgx.trusted_files.libattr = file:/lib/x86_64-linux-gnu/libattr.so.1
+sgx.search_trusted_libs.libc = file:$(LIBCDIR)
