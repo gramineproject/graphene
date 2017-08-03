@@ -26,8 +26,7 @@
 
 /*
  * You can change which crypto library will be used by changing this
- * define. Currently supported options:
- * - wolfSSL
+ * define to one of the PAL_CRYPTO_* values below.
  */
 #define PAL_CRYPTO_PROVIDER PAL_CRYPTO_MBEDTLS
 
@@ -43,20 +42,43 @@
 
 #if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
 #include "crypto/sha256.h"
+#include "crypto/dh.h"
 typedef SHA256 PAL_SHA256_CONTEXT;
+
+#define DH_SIZE 128
+
+typedef struct {
+    uint8_t priv[DH_SIZE];
+    uint32_t priv_size;
+    DhKey key;
+} PAL_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
 
 #elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
 #include "crypto/mbedtls/mbedtls/sha256.h"
 typedef mbedtls_sha256_context PAL_SHA256_CONTEXT;
 
+/* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
+#define DH_SIZE 256
+#include "crypto/mbedtls/mbedtls/dhm.h"
+typedef mbedtls_dhm_context PAL_DH_CONTEXT;
+
 #else
 # error "Unknown crypto provider. Set PAL_CRYPTO_PROVIDER in pal_crypto.h"
 #endif
 
+/* SHA256 */
 int DkSHA256Init(PAL_SHA256_CONTEXT *context);
 int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
                    PAL_NUM len);
 int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output);
-                  
+
+/* Diffie-Hellman Key Exchange */
+int DkDhInit(PAL_DH_CONTEXT *context);
+int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
+                     PAL_NUM *public_size);
+int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
+                   uint8_t *secret, PAL_NUM *secret_size);
+void DkDhFinal(PAL_DH_CONTEXT *context);
+
 
 #endif

@@ -17,8 +17,16 @@ headers = asm-errlist.h api.h
 
 # Select which crypto adpater you want to use here. This has to match
 # the #define in pal_crypto.h.
+#
+# Unfortunately, we cannot use just one .c file for the adapter. The LibOS
+# shim links against the crypto library, but it doesn't use Diffie-Hellman.
+# If the Diffie-Hellman stubs are in the same .o file as the SHA1 stubs,
+# this pulls Diffie-Hellman code into LibOS shim, resulting in unsatisfied
+# symbols.
 objs += crypto/adapters/mbedtls_adapter.o
+objs += crypto/adapters/mbedtls_dh.o
 #objs += crypto/adapters/wolfssl_adapter.o
+#objs += crypto/adapters/wolfssl_dh.o
 
 all: $(target)graphene-lib.a
 

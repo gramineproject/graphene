@@ -1,0 +1,105 @@
+/* Copyright (C) 2017 Fortanix, Inc.
+
+   This file is part of Graphene Library OS.
+
+   Graphene Library OS is free software: you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   Graphene Library OS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
+#include <errno.h>
+#include <string.h>
+#include "pal.h"
+#include "pal_crypto.h"
+#include "pal_debug.h"
+
+/* This is declared in pal_internal.h, but that can't be included here. */
+int _DkRandomBitsRead(void *buffer, int size);
+
+/* Wrapper to provide mbedtls the RNG interface it expects. It passes an
+ * extra context parameter, and expects a return value of 0 for success
+ * and nonzero for failure. */
+static int RandomWrapper(void *private, unsigned char *data, size_t size)
+{
+    return _DkRandomBitsRead(data, size) != size;
+}
+
+int DkDhInit(PAL_DH_CONTEXT *context)
+{
+    int ret;
+    mbedtls_dhm_init(context);
+
+    /* Configure parameters. Note that custom Diffie-Hellman parameters 
+     * are considered more secure, but require more data be exchanged
+     * between the two parties to establish the parameters, so we haven't
+     * implemented that yet. */
+    ret = mbedtls_mpi_read_string(&context->P, 16 /* radix */,
+                                  MBEDTLS_DHM_RFC3526_MODP_2048_P);
+    if (ret != 0) {
+        pal_printf("D-H initialization failed: %d\n", ret);
+        return ret;
+    }
+
+    ret = mbedtls_mpi_read_string(&context->G, 16 /* radix */,
+                                  MBEDTLS_DHM_RFC3526_MODP_2048_G);
+    if (ret != 0) {
+        pal_printf("D-H initialization failed: %d\n", ret);
+        return ret;
+    }
+
+    context->len = mbedtls_mpi_size(&context->P);
+
+    return 0;
+}
+
+int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
+                     PAL_NUM *public_size)
+{
+    int ret;
+    
+    if (*public_size != DH_SIZE)
+        return -EINVAL;
+
+    /* The RNG here is used to generate secret exponent X. */
+    ret = mbedtls_dhm_make_public(context, context->len, public, *public_size,
+                                  RandomWrapper, NULL);
+    if (ret != 0)
+        return ret;
+
+    /* mbedtls writes leading zeros in the big-endian output to pad to
+     * public_size, so leave caller's public_size unchanged */
+    return 0;
+}
+
+int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
+                   uint8_t *secret, PAL_NUM *secret_size)
+{
+    int ret;
+
+    if (*secret_size != DH_SIZE)
+        return -EINVAL;
+
+    ret = mbedtls_dhm_read_public(context, peer, peer_size);
+    if (ret != 0)
+        return ret;
+
+    /* The RNG here is used for blinding against timing attacks if X is
+     * reused and not used otherwise. mbedtls recommends always passing
+     * in an RNG. */
+    return mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size,
+                                   RandomWrapper, NULL);
+}
+
+void DkDhFinal(PAL_DH_CONTEXT *context)
+{
+    /* This call zeros out context for us. */
+    mbedtls_dhm_free(context);
+}

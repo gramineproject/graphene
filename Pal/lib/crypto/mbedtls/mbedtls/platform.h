@@ -1,4 +1,6 @@
-/* This file is part of Graphene Library OS.
+/* Copyright (C) 2017 Fortanix, Inc.
+
+   This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -13,12 +15,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef MBEDTLS_CONFIG_H
-#define MBEDTLS_CONFIG_H
+#ifndef MBEDTLS_PLATFORM_H
+#define MBEDTLS_PLATFORM_H
 
-#define MBEDTLS_BIGNUM_C
-#define MBEDTLS_DHM_C
-#define MBEDTLS_SHA256_C
-#define MBEDTLS_PLATFORM_C
+#define mbedtls_calloc calloc
+#define mbedtls_free free
 
 #endif
