@@ -42,9 +42,9 @@
 
 /* Libc functions */
 
-/* Libc String functions */
-int strnlen (const char *str, int maxlen);
-int strlen (const char *str);
+/* Libc String functions string.h/stdlib.h */
+size_t strnlen (const char *str, size_t maxlen);
+size_t strlen (const char *str);
 
 long strtol (const char *s, char **endptr, int base);
 int atoi (const char *nptr);
@@ -56,6 +56,11 @@ void * memcpy (void *dstpp, const void *srcpp, int len);
 void * memmove (void *dstpp, void *srcpp, int len);
 void * memset (void *dstpp, int c, int len);
 int memcmp (const void *s1, const void *s2, int len);
+
+/* Libc memory allocation functions. stdlib.h. */
+void *malloc(size_t size);
+void free(void *ptr);
+void *calloc(size_t nmemb, size_t size);
 
 /* Some useful macro */
 /* force failure if str is not a static string */
@@ -76,7 +81,7 @@ int memcmp (const void *s1, const void *s2, int len);
      memcpy((var), force_static(str), static_strlen(force_static(str)) + 1) + \
      static_strlen(force_static(str)))
 
-/* Libc printf functions */
+/* Libc printf functions. stdio.h/stdarg.h. */
 void fprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
                 const char * fmt, ...);
 

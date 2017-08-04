@@ -18,6 +18,9 @@
 #ifndef MBEDTLS_PLATFORM_H
 #define MBEDTLS_PLATFORM_H
 
+/* For standard library apis. */
+#include "../lib/api.h"
+
 #define mbedtls_calloc calloc
 #define mbedtls_free free
 

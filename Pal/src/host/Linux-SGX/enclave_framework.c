@@ -206,7 +206,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
         if (ret < 0)
             goto unmap;
 
-        AES_CMAC((void *) &enclave_key, umem, mapping_size, (uint8_t *) s);
+        DkAESCMAC((void *) &enclave_key, PAL_AES_CMAC_KEY_LEN, umem,
+                  mapping_size, (uint8_t *) s, sizeof *s);
 
         /* update the file checksum */
         ret = DkSHA256Update(&sha, umem, mapping_size);
@@ -268,8 +269,9 @@ int verify_trusted_file (const char * uri, void * mem,
             checking_size = total_size - checking;
 
         sgx_arch_mac_t mac;
-        AES_CMAC((void *) &enclave_key, mem + checking - offset,
-                 checking_size, (uint8_t *) &mac);
+        DkAESCMAC((void *) &enclave_key, PAL_AES_CMAC_KEY_LEN,
+                  mem + checking - offset, checking_size, (uint8_t *) &mac,
+                  sizeof mac);
 
         if (memcmp(s, &mac, sizeof(sgx_arch_mac_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "

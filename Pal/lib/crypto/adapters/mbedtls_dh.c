@@ -16,10 +16,12 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <errno.h>
-#include <string.h>
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
+#include "../lib/assert.h"
+
+#define BITS_PER_BYTE 8
 
 /* This is declared in pal_internal.h, but that can't be included here. */
 int _DkRandomBitsRead(void *buffer, int size);
@@ -102,4 +104,35 @@ void DkDhFinal(PAL_DH_CONTEXT *context)
 {
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);
+}
+
+int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
+              PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len) {
+    mbedtls_cipher_type_t cipher;
+
+    switch (key_len) {
+    case 16:
+        cipher = MBEDTLS_CIPHER_AES_128_ECB;
+        break;
+    case 24:
+        cipher = MBEDTLS_CIPHER_AES_192_ECB;
+        break;
+    case 32:
+        cipher = MBEDTLS_CIPHER_AES_256_ECB;
+        break;
+    default:
+        printf("Invalid key length %d requested for CMAC\n", key_len);
+        return -EINVAL;
+    }
+
+    const mbedtls_cipher_info_t *cipher_info =
+        mbedtls_cipher_info_from_type(cipher);
+
+    if (mac_len < cipher_info->block_size) {
+        return -EINVAL;
+    }
+
+    return mbedtls_cipher_cmac(cipher_info,
+                               key, key_len * BITS_PER_BYTE,
+                               input, input_len, mac);
 }

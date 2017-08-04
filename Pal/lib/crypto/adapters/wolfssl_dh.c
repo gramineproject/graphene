@@ -19,6 +19,7 @@
 #include <string.h>
 #include "pal.h"
 #include "pal_crypto.h"
+#include "../cmac.h"
 
 static struct {
     uint8_t p[DH_SIZE], q[20], g[DH_SIZE];
@@ -119,4 +120,16 @@ void DkDhFinal(PAL_DH_CONTEXT *context)
 
     /* Clear the buffer to avoid any potential information leaks. */
     memset(context, 0, sizeof *context);
+}
+
+int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
+              PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len)
+{
+    /* The old code only supports 128-bit AES CMAC, and length is a 32-bit
+     * value. */
+    if (key_len != 16 || input_len > INT32_MAX || mac_len < 16) {
+        return -EINVAL;
+    }
+    AES_CMAC((unsigned char *) key, (unsigned char *) input, length, mac);
+    return 0;
 }

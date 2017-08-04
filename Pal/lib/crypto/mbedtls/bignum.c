@@ -46,11 +46,10 @@
 #include "mbedtls/bignum.h"
 #include "mbedtls/bn_mul.h"
 
-#include <string.h>
-
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define mbedtls_printf     printf

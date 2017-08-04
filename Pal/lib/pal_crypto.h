@@ -24,6 +24,8 @@
 #ifndef PAL_CRYPTO_H
 #define PAL_CRYPTO_H
 
+#include "pal.h"
+
 /*
  * You can change which crypto library will be used by changing this
  * define to one of the PAL_CRYPTO_* values below.
@@ -31,8 +33,6 @@
 #define PAL_CRYPTO_PROVIDER PAL_CRYPTO_MBEDTLS
 
 /* These cryptosystems are still unconditionally provided by WolfSSL. */
-#include "crypto/cmac.h"
-#include "crypto/dh.h"
 #include "crypto/rsa.h"
 
 #define PAL_CRYPTO_WOLFSSL 1
@@ -40,9 +40,18 @@
 
 #define SHA256_DIGEST_LEN 32
 
+#define PAL_AES_CMAC_KEY_LEN 16
+
+typedef enum {
+    PAL_ENCRYPT,
+    PAL_DECRYPT
+} PAL_CRYPTO_TYPE;
+
 #if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
-#include "crypto/sha256.h"
+#include "crypto/cmac.h"
+#include "crypto/aes.h"
 #include "crypto/dh.h"
+#include "crypto/sha256.h"
 typedef SHA256 PAL_SHA256_CONTEXT;
 
 #define DH_SIZE 128
@@ -53,13 +62,16 @@ typedef struct {
     DhKey key;
 } PAL_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
 
+typedef struct AES PAL_AES_CONTEXT;
+
 #elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
+#include "crypto/mbedtls/mbedtls/cmac.h"
+#include "crypto/mbedtls/mbedtls/dhm.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
 typedef mbedtls_sha256_context PAL_SHA256_CONTEXT;
 
 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
 #define DH_SIZE 256
-#include "crypto/mbedtls/mbedtls/dhm.h"
 typedef mbedtls_dhm_context PAL_DH_CONTEXT;
 
 #else
@@ -80,5 +92,9 @@ int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
                    uint8_t *secret, PAL_NUM *secret_size);
 void DkDhFinal(PAL_DH_CONTEXT *context);
 
+/* AES-CMAC */
+int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
+              PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len);
+                  
 
 #endif
