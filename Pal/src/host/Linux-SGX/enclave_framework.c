@@ -559,8 +559,6 @@ void test_dh (void)
 }
 #endif
 
-#include "crypto/rsa.h"
-
 #define RSA_KEY_SIZE        2048
 #define RSA_E               3
 

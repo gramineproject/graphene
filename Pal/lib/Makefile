@@ -27,8 +27,6 @@ headers = asm-errlist.h api.h pal_crypto.h \
 # symbols.
 objs += crypto/adapters/mbedtls_adapter.o
 objs += crypto/adapters/mbedtls_dh.o
-#objs += crypto/adapters/wolfssl_adapter.o
-#objs += crypto/adapters/wolfssl_dh.o
 
 all: $(target)graphene-lib.a
 

@@ -32,9 +32,7 @@
  */
 #define PAL_CRYPTO_PROVIDER PAL_CRYPTO_MBEDTLS
 
-
-#define PAL_CRYPTO_WOLFSSL 1
-#define PAL_CRYPTO_MBEDTLS 2
+#define PAL_CRYPTO_MBEDTLS 1
 
 #define SHA256_DIGEST_LEN 32
 
@@ -45,27 +43,7 @@ typedef enum {
     PAL_DECRYPT
 } PAL_CRYPTO_TYPE;
 
-#if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
-#include "crypto/cmac.h"
-#include "crypto/aes.h"
-#include "crypto/dh.h"
-#include "crypto/rsa.h"
-#include "crypto/sha256.h"
-
-typedef SHA256 PAL_SHA256_CONTEXT;
-
-#define DH_SIZE 128
-
-typedef struct {
-    uint8_t priv[DH_SIZE];
-    uint32_t priv_size;
-    DhKey key;
-} PAL_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
-
-typedef struct AES PAL_AES_CONTEXT;
-typedef RSAKey PAL_RSA_KEY;
-
-#elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
+#if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
 #include "crypto/mbedtls/mbedtls/cmac.h"
 #include "crypto/mbedtls/mbedtls/dhm.h"
 #include "crypto/mbedtls/mbedtls/rsa.h"
