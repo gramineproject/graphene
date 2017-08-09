@@ -330,6 +330,12 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
     struct linux_dirent * b = buf;
     int bytes = 0;
 
+    /* If we haven't listed the directory, do this first */
+    if (!(dent->state & DENTRY_LISTED)) {
+        ret = list_directory_dentry(dent);
+        if (ret) goto out;
+    }
+
 #define DIRENT_SIZE(len)  (sizeof(struct linux_dirent) +                \
                            sizeof(struct linux_dirent_tail) + (len) + 1)
 
@@ -368,6 +374,11 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
         dirhdl->dotdot = NULL;
     }
 
+    if (dirhdl->ptr == (void *) -1) {
+        ret = list_directory_handle(dent, hdl);
+        if (ret) goto out;
+    }
+    
     while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
         ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
@@ -406,6 +417,12 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
     struct linux_dirent64 * b = buf;
     int bytes = 0;
 
+    /* If we haven't listed the directory, do this first */
+    if (!(dent->state & DENTRY_LISTED)) {
+        ret = list_directory_dentry(dent);
+        if (ret) goto out;
+    }
+    
 #define DIRENT_SIZE(len)  (sizeof(struct linux_dirent64) + (len) + 1)
 
 #define ASSIGN_DIRENT(dent, name, type)                                 \
@@ -437,6 +454,11 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
         dirhdl->dotdot = NULL;
     }
 
+    if (dirhdl->ptr == (void *) -1) {
+        ret = list_directory_handle(dent, hdl);
+        if (ret) goto out;
+    }
+    
     while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
         ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
@@ -495,7 +517,7 @@ int shim_do_truncate (const char * path, loff_t length)
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_lookupat(NULL, path, 0, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, path, 0, &dent, NULL)) < 0)
         return ret;
 
     struct shim_mount * fs = dent->fs;

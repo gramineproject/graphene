@@ -60,7 +60,7 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {

@@ -1400,7 +1400,7 @@ static int __load_interp_object (struct link_map * exec_map)
         struct shim_dentry * dent = NULL;
         int ret = 0;
 
-        if ((ret = path_lookupat(NULL, interp_path, LOOKUP_OPEN, &dent)) < 0 ||
+        if ((ret = path_lookupat(NULL, interp_path, LOOKUP_OPEN, &dent, NULL)) < 0 ||
             dent->state & DENTRY_NEGATIVE)
             continue;
 

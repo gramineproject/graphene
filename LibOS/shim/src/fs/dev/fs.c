@@ -240,6 +240,7 @@ static int dev_open (struct shim_handle * hdl, struct shim_dentry * dent,
 static int dev_lookup (struct shim_dentry * dent, bool force)
 {
     if (qstrempty(&dent->rel_path)) {
+        dent->state |= DENTRY_ISDIRECTORY;
         dent->ino = DEV_INO_BASE;
         return 0;
     }

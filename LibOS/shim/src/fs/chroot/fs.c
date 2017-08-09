@@ -347,8 +347,6 @@ static int chroot_stat (struct shim_dentry * dent, struct stat * statbuf)
 
 static int chroot_lookup (struct shim_dentry * dent, bool force)
 {
-    if (!force)
-        return -ESKIPPED;
 
     if (dent->fs && dent == dent->fs->root)
         return 0;
