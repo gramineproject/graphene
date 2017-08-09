@@ -567,36 +567,36 @@ void test_dh (void)
 int init_enclave (void)
 {
     int ret;
-    RSAKey *rsa = malloc(sizeof(RSAKey));
-    InitRSAKey(rsa);
+    PAL_RSA_KEY *rsa = malloc(sizeof(PAL_RSA_KEY));
+    DkRSAInitKey(rsa);
 
-    ret = MakeRSAKey(rsa, RSA_KEY_SIZE, RSA_E);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "MakeRSAKey failed: %d\n", ret);
+    ret = DkRSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
+    if (ret != 0) {
+        SGX_DBG(DBG_S, "DkRSAGenerateKey failed: %d\n", ret);
         return ret;
     }
 
-    uint32_t nsz = RSA_KEY_SIZE / 8, esz = 1;
+    PAL_NUM nsz = RSA_KEY_SIZE / 8, esz = 1;
     uint8_t n[nsz], e[esz];
 
-    ret = RSAFlattenPublicKey(rsa, e, &esz, n, &nsz);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "RSAFlattenPublicKey failed: %d\n", ret);
+    ret = DkRSAExportPublicKey(rsa, e, &esz, n, &nsz);
+    if (ret != 0) {
+        SGX_DBG(DBG_S, "DkRSAExtractPublicKey failed: %d\n", ret);
         goto out_free;
     }
 
     PAL_SHA256_CONTEXT sha256;
 
     ret = DkSHA256Init(&sha256);
-    if (ret < 0)
+    if (ret != 0)
         goto out_free;
 
     ret = DkSHA256Update(&sha256, n, nsz);
-    if (ret < 0)
+    if (ret != 0)
         goto out_free;
 
     ret = DkSHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
-    if (ret < 0)
+    if (ret != 0)
         goto out_free;
 
     pal_enclave_config.enclave_key = rsa;
@@ -607,7 +607,7 @@ int init_enclave (void)
     return 0;
 
 out_free:
-    FreeRSAKey(rsa);
+    DkRSAFreeKey(rsa);
     free(rsa);
     return ret;
 }

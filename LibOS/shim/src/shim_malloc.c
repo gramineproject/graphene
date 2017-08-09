@@ -273,6 +273,15 @@ void * malloc (size_t size)
 extern_alias(malloc);
 #endif
 
+void * calloc (size_t nmemb, size_t size)
+{
+    size_t total = nmemb * size;
+    void *ptr = malloc(total);
+    memset(ptr, 0, total);
+    return ptr;
+}
+extern_alias(calloc);
+
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
 void * __remalloc_debug (const void * mem, size_t size,
                    const char * file, int line)

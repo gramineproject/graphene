@@ -17,7 +17,7 @@
 
 /*
  * Cryptographic primitive abstractions. This layer provides a way to
- * change the crypto library without changing the rest of Graphene code 
+ * change the crypto library without changing the rest of Graphene code
  * by providing a small crypto library adaptor implementing these methods.
  */
 
@@ -32,8 +32,6 @@
  */
 #define PAL_CRYPTO_PROVIDER PAL_CRYPTO_MBEDTLS
 
-/* These cryptosystems are still unconditionally provided by WolfSSL. */
-#include "crypto/rsa.h"
 
 #define PAL_CRYPTO_WOLFSSL 1
 #define PAL_CRYPTO_MBEDTLS 2
@@ -51,7 +49,9 @@ typedef enum {
 #include "crypto/cmac.h"
 #include "crypto/aes.h"
 #include "crypto/dh.h"
+#include "crypto/rsa.h"
 #include "crypto/sha256.h"
+
 typedef SHA256 PAL_SHA256_CONTEXT;
 
 #define DH_SIZE 128
@@ -63,16 +63,21 @@ typedef struct {
 } PAL_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
 
 typedef struct AES PAL_AES_CONTEXT;
+typedef RSAKey PAL_RSA_KEY;
 
 #elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
 #include "crypto/mbedtls/mbedtls/cmac.h"
 #include "crypto/mbedtls/mbedtls/dhm.h"
+#include "crypto/mbedtls/mbedtls/rsa.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
+
 typedef mbedtls_sha256_context PAL_SHA256_CONTEXT;
 
 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
 #define DH_SIZE 256
 typedef mbedtls_dhm_context PAL_DH_CONTEXT;
+
+typedef mbedtls_rsa_context PAL_RSA_KEY;
 
 #else
 # error "Unknown crypto provider. Set PAL_CRYPTO_PROVIDER in pal_crypto.h"
@@ -95,6 +100,31 @@ void DkDhFinal(PAL_DH_CONTEXT *context);
 /* AES-CMAC */
 int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
               PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len);
-                  
+
+/* RSA. Limited functionality. */
+// Initializes the key structure
+int DkRSAInitKey(PAL_RSA_KEY *key);
+// Must call DkRSAInitKey first
+int DkRSAGenerateKey(PAL_RSA_KEY *key, PAL_NUM length_in_bits,
+                     PAL_NUM exponent);
+
+int DkRSAExportPublicKey(PAL_RSA_KEY *key, uint8_t *e, PAL_NUM *e_size,
+                         uint8_t *n, PAL_NUM *n_size);
+
+int DkRSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
+                         const uint8_t *n, PAL_NUM n_size);
+
+// Sign and verify signatures.
+
+// This function must implement RSA signature verification using PKCS#1 v1.5
+// padding, with SHA256 as the hash mechanism. These signatures are generated
+// by the Graphene filesystem build (so outside of a running Graphene
+// application), but are verified within the Graphene application.
+int DkRSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
+                      PAL_NUM signature_len, uint8_t *signed_data_out,
+                      PAL_NUM signed_data_out_len);
+
+// Frees memory allocated in DkRSAInitKey.
+int DkRSAFreeKey(PAL_RSA_KEY *key);
 
 #endif
