@@ -197,23 +197,25 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (ret < 0)
         goto failed;
 
-    ret = ocall_map_untrusted(fd, 0, tf->size, PROT_READ, &umem);
-    if (ret < 0)
-        goto failed;
+    if (tf->size) {
+        ret = ocall_map_untrusted(fd, 0, tf->size, PROT_READ, &umem);
+        if (ret < 0)
+            goto failed;
 
-    for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE, s++) {
-        uint64_t mapping_size = tf->size - offset;
-        if (mapping_size > TRUSTED_STUB_SIZE)
-            mapping_size = TRUSTED_STUB_SIZE;
+        for (; offset < tf->size; offset += TRUSTED_STUB_SIZE, s++) {
+            uint64_t mapping_size = tf->size - offset;
+            if (mapping_size > TRUSTED_STUB_SIZE)
+                mapping_size = TRUSTED_STUB_SIZE;
 
-        SHA512Hash(umem + offset, mapping_size, hash);
-        memcpy(s, hash, sizeof(sgx_stub_t));
+            SHA512Hash(umem + offset, mapping_size, hash);
+            memcpy(s, hash, sizeof(sgx_stub_t));
 
-        /* update the file checksum */
-        ret = SHA256Update(&sha, umem + offset, mapping_size);
+            /* update the file checksum */
+            ret = SHA256Update(&sha, umem + offset, mapping_size);
+        }
+
+        ocall_unmap_untrusted(umem, tf->size);
     }
-
-    ocall_unmap_untrusted(umem, tf->size);
 
     ret = SHA256Final(&sha, (uint8_t *) hash);
     if (ret < 0)
