@@ -10,6 +10,10 @@ fs.mount.usr.type = chroot
 fs.mount.usr.path = /usr
 fs.mount.usr.uri = file:/usr
 
+fs.mount.tmp.type = chroot
+fs.mount.tmp.path = /tmp
+fs.mount.tmp.uri = file:/tmp
+
 sys.brk.size = 32M
 sys.stack.size = 4M
 
