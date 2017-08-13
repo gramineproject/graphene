@@ -1157,9 +1157,11 @@ BEGIN_CP_FUNC(vma)
         if (vma->file) {
             uint64_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
-                vma->offset + vma->length > file_len)
+                vma->offset + vma->length > file_len) {
                 send_size = file_len > vma->offset ?
-                    file_len - vma->offset : 0;
+                            file_len - vma->offset : 0;
+                send_size = ALIGN_UP(send_size);
+            }
         }
 
         if (!send_size)
