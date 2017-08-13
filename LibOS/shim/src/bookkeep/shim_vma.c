@@ -1124,6 +1124,21 @@ BEGIN_CP_FUNC(vma)
         bool protected = false;
 
         if (vma->file) {
+            /*
+             * Chia-Che 8/13/2017:
+             * A fix for cloning a private VMA which maps a file to a process.
+             *
+             * (1) Application can access any page backed by the file, wholly
+             *     or partially.
+             *
+             * (2) Access beyond the last file-backed page will cause SIGBUS.
+             *     For reducing fork latency, the following code truncates the
+             *     memory size for migrating a process. The memory size is
+             *     truncated to the file size, round up to pages.
+             *
+             * (3) Data in the last file-backed page is valid before or after
+             *     forking. Has to be included in process migration.
+             */
             uint64_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
                 vma->offset + vma->length > file_len) {
