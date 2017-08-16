@@ -1,6 +1,6 @@
 include Makefile.am
 
-CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so
@@ -15,7 +15,8 @@ enclave-asm-objs = enclave_entry $(patsubst %.S,%,$(wildcard crypto/*.S))
 urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene)
 urts-asm-objs = sgx_entry
 graphene_lib = ../../.lib/graphene-lib.a
-headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
+headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
+	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h)
 
 all: $(host_files)
 
@@ -64,6 +65,9 @@ debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
 	$(CC) -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -c debugger/sgx_gdb.c -o debugger/sgx_gdb.o
 	$(LD) -shared debugger/sgx_gdb.o -o debugger/sgx_gdb.so -lc
+
+sgx-driver/isgx_version.h:
+	cd sgx-driver && make isgx_version.h
 
 ../../libpal.so: ../../libpal-enclave.so
 	ln -s libpal-enclave.so $@
