@@ -4,4 +4,9 @@ wolfssl - GPL v2
 
 RSA's MD5 algorithm (LibOS/shim/src/utils/md5.c) - RSA custom attribution license
 
+Linux kernel - GPL v2
+ - dcache implementation
+ - linked list implementation
+ - atomic_add, cmpxchg and friends implementation
+
 [incomplete: more to come]
