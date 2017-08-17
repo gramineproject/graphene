@@ -82,7 +82,7 @@ void _DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle)
     free(semaphoreHandle);
 }
 
-int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout);
+int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
 
 int _DkSemaphoreAcquire (PAL_HANDLE sem, int count)
 {
@@ -151,10 +151,10 @@ int _DkSemaphoreAcquire (PAL_HANDLE sem, int count)
     return ret;
 }
 
-int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
+int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, uint64_t timeout)
 {
     /* Pass it up to the no-timeout version if no timeout requested */
-    if (timeout == -1)
+    if (timeout == NO_TIMEOUT)
         return _DkSemaphoreAcquire(sem, count);
 
     /* optimization: use it as a mutex */

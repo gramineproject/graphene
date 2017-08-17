@@ -104,11 +104,12 @@ struct handle_ops {
     int (*attrsetbyhdl) (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
 
     /* 'wait' is used for synchronous wait.
+     * Time is in microseconds, NO_TIMEOUT means no timeout.
      * Returns 0 on success, a negative value on failure.
      * Timeout: -PAL_ERROR_TRYAGAIN
      * Positive return values are undefined.
      */
-    int (*wait) (PAL_HANDLE handle, int time);
+    int (*wait) (PAL_HANDLE handle, uint64_t time);
 
     /* 'rename' is used to change name of a stream, or reset its share
        option */
@@ -327,7 +328,7 @@ int _DkProcessSandboxCreate (const char * manifest, int flags);
 int _DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount);
 void _DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle);
 int _DkSemaphoreAcquire (PAL_HANDLE sem, int count);
-int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout);
+int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, uint64_t timeout);
 void _DkSemaphoreRelease (PAL_HANDLE sem, int count);
 int _DkSemaphoreGetCurrentCount (PAL_HANDLE sem);
 
@@ -336,7 +337,7 @@ int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
 void _DkEventDestroy (PAL_HANDLE handle);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
-int _DkEventWaitTimeout (PAL_HANDLE event, int timeout);
+int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout);
 int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
@@ -348,7 +349,7 @@ int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot);
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);
 int _DkObjectClose (PAL_HANDLE objectHandle);
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                        PAL_HANDLE * polled);
 
 /* DkException calls & structures */
