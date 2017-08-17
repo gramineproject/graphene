@@ -76,9 +76,6 @@ fchmodat01,5
 fchmodat01,6
 fchown01,1
 fchown02,4
-fcntl02,1
-fcntl03,1
-fcntl04,1
 fcntl08,1
 fcntl13,6
 fcntl27,1
@@ -645,8 +642,6 @@ waitpid01,2
 waitpid02,1
 waitpid02,2
 waitpid02,3
-waitpid03,1
-waitpid03,2
 waitpid05,1
 waitpid05,2
 waitpid05,3
