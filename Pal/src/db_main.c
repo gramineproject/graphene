@@ -33,7 +33,6 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
-#include <bits/dlfcn.h>
 
 PAL_CONTROL __pal_control;
 
