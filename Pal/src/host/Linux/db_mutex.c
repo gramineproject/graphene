@@ -56,7 +56,7 @@
 
 #define MUTEX_SPINLOCK_TIMES    100
 
-int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
+int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
 {
     int ret = 0;
 #ifdef DEBUG_MUTEX
