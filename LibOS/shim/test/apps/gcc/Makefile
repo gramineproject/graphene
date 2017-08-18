@@ -90,6 +90,10 @@ obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
 src/$(MPC_SRC): $(MPC_SRC).tar.gz src
 	cd src && tar -xzf ../$<
 
+regress_gcc: all
+	./gcc.manifest /test_files/helloworld.c -o hello
+	./hello
+
 src:
 	mkdir -p src
 
