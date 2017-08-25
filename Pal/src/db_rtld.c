@@ -36,7 +36,6 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
-#include <bits/dlfcn.h>
 
 struct link_map * loaded_maps = NULL;
 struct link_map * exec_map = NULL;

@@ -58,7 +58,7 @@ int shim_do_unlink (const char * file)
     if (!dent->parent)
         return -EACCES;
 
-    if (dent->state & DENTRY_ISDIRECTORY)
+    if (dent->state & DENTRY_ISDIRECTORY) 
         return -EISDIR;
 
     if (dent->fs && dent->fs->d_ops &&
@@ -275,9 +275,7 @@ int shim_do_chown (const char * path, uid_t uid, gid_t gid)
     if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent)) < 0)
         return ret;
 
-    /* do nothing*/
-
-out:
+    /* XXX: do nothing now */
     put_dentry(dent);
     return ret;
 }
@@ -300,9 +298,7 @@ int shim_do_fchownat (int dfd, const char * filename, uid_t uid, gid_t gid,
     if ((ret = path_lookupat(dir, filename, LOOKUP_OPEN, &dent)) < 0)
         goto out;
 
-    /* do nothing */
-
-out_dent:
+    /* XXX: do nothing now */
     put_dentry(dent);
 out:
     put_dentry(dir);
@@ -315,14 +311,8 @@ int shim_do_fchown (int fd, uid_t uid, gid_t gid)
     if (!hdl)
         return -EBADF;
 
-    struct shim_dentry * dent = hdl->dentry;
-    int ret = 0;
-
-    /* do nothing */
-
-out:
-    put_handle(hdl);
-    return ret;
+    /* XXX: do nothing now */
+    return 0;
 }
 
 #define MAP_SIZE    (allocsize * 4)
