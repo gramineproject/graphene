@@ -168,7 +168,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 }
 
 /* 'setlength' operation for file stream. */
-static uint64_t file_setlength (PAL_HANDLE handle, uint64_t length)
+static int64_t file_setlength (PAL_HANDLE handle, uint64_t length)
 {
     int ret = INLINE_SYSCALL(ftruncate, 2, handle->file.fd, length);
 
@@ -176,7 +176,7 @@ static uint64_t file_setlength (PAL_HANDLE handle, uint64_t length)
         return (ERRNO(ret) == EINVAL || ERRNO(ret) == EBADF) ?
                -PAL_ERROR_BADHANDLE : -PAL_ERROR_DENIED;
 
-    return length;
+    return (int64_t) length;
 }
 
 /* 'flush' operation for file stream. */
@@ -258,7 +258,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
 {
     int fd = HANDLE_HDR(handle)->fds[0], ret;
 
-    ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags);
+    ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags | 0600);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 

@@ -243,13 +243,13 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 }
 
 /* 'setlength' operation for file stream. */
-static uint64_t file_setlength (PAL_HANDLE handle, uint64_t length)
+static int64_t file_setlength (PAL_HANDLE handle, uint64_t length)
 {
     int ret = ocall_ftruncate(handle->file.fd, length);
     if (ret < 0)
         return ret;
     handle->file.total = length;
-    return length;
+    return (int64_t) length;
 }
 
 /* 'flush' operation for file stream. */
@@ -330,7 +330,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
     int fd = HANDLE_HDR(handle)->fds[0];
-    int ret = ocall_fchmod(fd, attr->share_flags);
+    int ret = ocall_fchmod(fd, attr->share_flags | 0600);
     if (ret < 0)
         return ret;
 
