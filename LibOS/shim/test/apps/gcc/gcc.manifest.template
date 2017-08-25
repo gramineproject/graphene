@@ -23,7 +23,7 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
-gx.enclave_size = 1G
+sgx.enclave_size = 1G
 
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
