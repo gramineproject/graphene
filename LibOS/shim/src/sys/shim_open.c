@@ -563,18 +563,14 @@ int shim_do_ftruncate (int fd, loff_t length)
         return -EBADF;
 
     struct shim_mount * fs = hdl->fs;
-    int ret = -EACCES;
+    int ret = -EINVAL;
 
     if (!fs || !fs->fs_ops)
         goto out;
 
-    if (hdl->type == TYPE_DIR)
+    if (hdl->type == TYPE_DIR ||
+        !fs->fs_ops->truncate)
         goto out;
-
-    if (!fs->fs_ops->truncate) {
-        ret = -EROFS;
-        goto out;
-    }
 
     ret = fs->fs_ops->truncate(hdl, length);
 out:

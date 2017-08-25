@@ -571,7 +571,13 @@ static int chroot_recreate (struct shim_handle * hdl)
         qstrsetstr(&data->host_uri, uri, len);
     }
 
-    return __chroot_open(hdl->dentry, uri, len, hdl->flags, 0, hdl, data);
+    /*
+     * Chia-Che Tsai 8/24/2017:
+     * when recreating a file handle after migration, the file should
+     * not be created again.
+     */
+    return __chroot_open(hdl->dentry, uri, len, hdl->flags & ~(O_CREAT|O_EXCL),
+                         0, hdl, data);
 }
 
 static inline bool check_version (struct shim_handle * hdl)
@@ -914,6 +920,9 @@ static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
 
+    if (!(hdl->acc_mode & MAY_WRITE))
+        return -EINVAL;
+
     struct shim_file_handle * file = &hdl->info.file;
     lock(hdl->lock);
 
@@ -1076,10 +1085,20 @@ static int chroot_checkout (struct shim_handle * hdl)
             hdl->info.file.data = NULL;
     }
 
+    if (hdl->pal_handle) {
+        /*
+         * Chia-Che 8/24/2017:
+         * if the file still exists in the host, no need to send
+         * the handle over RPC; otherwise, send it.
+         */
+        PAL_STREAM_ATTR attr;
+        if (DkStreamAttributesQuery(qstrgetstr(&hdl->uri), &attr))
+            hdl->pal_handle = NULL;
+    }
+
     hdl->info.file.mapsize = 0;
     hdl->info.file.mapoffset = 0;
     hdl->info.file.mapbuf = NULL;
-    hdl->pal_handle = NULL;
     return 0;
 }
 
@@ -1128,13 +1147,13 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
 
     /* Drop the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
-    if (parent_data) { 
+    if (parent_data) {
         lock(parent_data->lock);
         if (parent_data->queried)
             parent_data->nlink--;
         unlock(parent_data->lock);
     }
-    
+
     return 0;
 }
 

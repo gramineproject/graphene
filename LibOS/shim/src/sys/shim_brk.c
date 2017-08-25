@@ -59,7 +59,7 @@ void get_brk_region (void ** start, void ** end, void ** current)
     master_unlock();
 }
 
-int init_brk_region (void)
+int init_brk_region (void * brk_region)
 {
     if (region.brk_start)
         return 0;
@@ -73,8 +73,37 @@ int init_brk_region (void)
             brk_max_size = DEFAULT_BRK_MAX_SIZE;
     }
 
-    void * brk_region = get_unmapped_vma(brk_max_size,
-                                         MAP_PRIVATE|MAP_ANONYMOUS);
+    /*
+     * Chia-Che 8/24/2017
+     * Adding an argument to specify the initial starting
+     * address of brk region.
+     * The general assumption of Linux is that the brk region
+     * should be within [exec-data-end, exec-data-end + 0x2000000)
+     */
+    if (brk_region) {
+        while (true) {
+            uint32_t rand;
+            getrand(&rand, sizeof(rand));
+            rand %= 0x2000000;
+            rand = ALIGN_UP(rand);
+
+            struct shim_vma * vma;
+            if (lookup_overlap_vma(brk_region + rand, brk_max_size, &vma)
+                == -ENOENT) {
+                brk_region += rand;
+                break;
+            }
+
+            brk_region = vma->addr + vma->length;
+            put_vma(vma);
+        }
+    } else {
+        brk_region = get_unmapped_vma(brk_max_size,
+                                      MAP_PRIVATE|MAP_ANONYMOUS);
+        if (!brk_region)
+            return -ENOMEM;
+    }
+
     void * end_brk_region = NULL;
 
     // brk region assigned
@@ -106,7 +135,7 @@ int init_brk_region (void)
     return 0;
 }
 
-int init_brk (void)
+int reset_brk (void)
 {
     master_lock();
 
@@ -132,7 +161,7 @@ int init_brk (void)
 void * shim_do_brk (void * brk)
 {
     master_lock();
-    init_brk_region();
+    init_brk_region(NULL);
 
     if (!brk) {
 unchanged:
