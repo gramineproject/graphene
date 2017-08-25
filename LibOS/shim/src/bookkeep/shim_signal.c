@@ -392,7 +392,8 @@ __sigset_t * get_sig_mask (struct shim_thread * thread)
     return &(thread->signal_mask);
 }
 
-__sigset_t * set_sig_mask (struct shim_thread * thread, __sigset_t * set)
+__sigset_t * set_sig_mask (struct shim_thread * thread,
+                           const __sigset_t * set)
 {
     if (!thread)
         thread = get_cur_thread();
