@@ -951,7 +951,7 @@ int shim_do_accept (int fd, struct sockaddr * addr, socklen_t * addrlen)
     if (!hdl)
         return -EBADF;
 
-    int ret = __do_accept(hdl, flags & FD_CLOEXEC ? O_CLOEXEC : 0,
+    int ret = __do_accept(hdl, flags & O_CLOEXEC,
                           addr, addrlen);
     put_handle(hdl);
     return ret;
@@ -965,7 +965,7 @@ int shim_do_accept4 (int fd, struct sockaddr * addr, socklen_t * addrlen,
         return -EBADF;
 
     int ret = __do_accept(hdl,
-                          (flags & SOCK_CLOEXEC ? FD_CLOEXEC : 0) |
+                          (flags & SOCK_CLOEXEC ? O_CLOEXEC : 0) |
                           (flags & SOCK_NONBLOCK ? O_NONBLOCK : 0),
                           addr, addrlen);
     put_handle(hdl);
@@ -1262,7 +1262,7 @@ int shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags,
         struct msghdr * m = &msg[i].msg_hdr;
 
         int bytes = do_recvmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
-                               m->msg_name, m->msg_namelen);
+                               m->msg_name, &m->msg_namelen);
         if (bytes < 0)
             return total ? : bytes;
 

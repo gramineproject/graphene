@@ -425,7 +425,7 @@ int ocall_create_process (const char * uri,
 }
 
 int ocall_futex (int * futex, int op, int val,
-                 const unsigned long * timeout)
+                 const uint64_t * timeout)
 {
     int retval = 0;
     ms_ocall_futex_t * ms;
@@ -439,7 +439,7 @@ int ocall_futex (int * futex, int op, int val,
     ms->ms_futex = futex;
     ms->ms_op = op;
     ms->ms_val = val;
-    ms->ms_timeout = timeout ? *timeout : (unsigned long) -1;
+    ms->ms_timeout = timeout ? *timeout : OCALL_NO_TIMEOUT;
 
     retval = SGX_OCALL(OCALL_FUTEX, ms);
     OCALL_EXIT();
@@ -718,7 +718,7 @@ int ocall_sleep (unsigned long * microsec)
     return retval;
 }
 
-int ocall_poll (struct pollfd * fds, int nfds, unsigned long * timeout)
+int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
 {
     int retval = 0;
     ms_ocall_poll_t * ms;
@@ -726,7 +726,7 @@ int ocall_poll (struct pollfd * fds, int nfds, unsigned long * timeout)
 
     ms->ms_fds = COPY_TO_USER(fds, sizeof(struct pollfd) * nfds);
     ms->ms_nfds = nfds;
-    ms->ms_timeout = timeout ? *timeout : (unsigned long) -1;
+    ms->ms_timeout = timeout ? *timeout : OCALL_NO_TIMEOUT;
 
     retval = SGX_OCALL(OCALL_POLL, ms);
     if (retval == -EINTR && timeout)

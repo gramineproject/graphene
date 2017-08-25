@@ -1804,19 +1804,17 @@ diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/
 index 92c2f5b..e32ebb2 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-@@ -31,10 +31,13 @@ ENTRY (syscall)
+@@ -31,10 +31,12 @@
  	movq %rsi, %rdi		/* shift arg1 - arg5.  */
  	movq %rdx, %rsi
  	movq %rcx, %rdx
--	movq %r8, %r10
-+	/* DEP 1/28/17: This is not the Linux kernel; use user-space calling
-+	 * 	convention	 */
-+	/*	movq %r8, %r10 */
-+	movq %r8, %rcx
++	/* DEP 8/17/17: Keep kernel calling
++	 * 	convention and fix in libOS */
+ 	movq %r8, %r10
  	movq %r9, %r8
  	movq 8(%rsp),%r9	/* arg6 is on the stack.  */
 -	syscall			/* Do the system call.  */
-+	SYSCALLDB		/* Do the system call.  */
++	SYSCALLDB			/* Do the system call.  */
  	cmpq $-4095, %rax	/* Check %rax for error.  */
  	jae SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  	ret			/* Return to caller.  */
