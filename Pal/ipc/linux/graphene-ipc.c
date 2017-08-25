@@ -189,7 +189,11 @@ static inline void release_gipc_queue(struct gipc_queue *gq, bool locked)
 	while (gq->next != gq->last) {
 		idx = gq->next;
 		if (gq->pages[idx].page) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+			put_page(gq->pages[idx].page);
+#else
 			page_cache_release(gq->pages[idx].page);
+#endif
 			gq->pages[idx].page = NULL;
 		}
 		if (gq->pages[idx].file) {
@@ -353,10 +357,15 @@ static int get_pages (struct task_struct *task, unsigned long start,
 			DEBUG("GIPC_SEND get_user_pages %ld pages at %lx\n",
 			      addr, nr);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+			rv = get_user_pages(addr, nr,
+					    FOLL_GET|FOLL_FORCE|FOLL_SPLIT,
+					    pages + last, vmas + last);
+#else
 			rv = __get_user_pages(task, mm, addr, nr,
 					      FOLL_GET|FOLL_FORCE|FOLL_SPLIT,
 					      pages + last, vmas + last, NULL);
-
+#endif
 			if (rv <= 0) {
 				printk(KERN_ERR "Graphene error: "
 				       "get_user_pages at 0x%016lx-0x%016lx\n",
@@ -702,7 +711,11 @@ static int do_gipc_recv(struct task_struct *task, struct gipc_queue *gq,
 finish:
 		/* Drop the kernel's reference to this page */
 		if (page)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+			put_page(page);
+#else
 			page_cache_release(page);
+#endif
 		if (file)
 			fput_atomic(file);
 		if (rv)

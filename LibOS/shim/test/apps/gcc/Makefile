@@ -90,7 +90,10 @@ obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
 src/$(MPC_SRC): $(MPC_SRC).tar.gz src
 	cd src && tar -xzf ../$<
 
-regression: all
+regression:
+	@echo "\n\nBuilding GCC..."
+	@$(MAKE) >> /dev/null 2>&1
+
 	@echo "\n\nCompile hello.c:"
 	./gcc.manifest test_files/helloworld.c -o hello
 	@chmod 755 hello
