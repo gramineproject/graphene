@@ -40,5 +40,9 @@ $(TESTCASEDIR)/manifest.template: manifest.template
 $(TESTCASEDIR)/Makefile: Makefile.testcases
 	ln -sf ../../../../$< $@
 
+regression: $(target)
+	@echo "\n\nLTP tests for system calls:"
+	./syscalls.sh
+
 clean-build:
 	rm -rf $(BUILDDIR)

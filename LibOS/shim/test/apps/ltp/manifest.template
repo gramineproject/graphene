@@ -1,14 +1,19 @@
 loader.preload = file:$(SHIMPATH)
-loader.env.LD_LIBRARY_PATH = /lib:/lib64:/usr/lib:/usr/lib64
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib:/usr/lib64
+loader.env.PATH = /bin:/usr/bin:.
 loader.debug_type = none
 
 fs.mount.shm.type = chroot
 fs.mount.shm.path = /dev/shm
-fs.mount.shm.uri = file:/dev/shm
+fs.mount.shm.uri = file:/tmp
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(LIBCDIR)
+
+fs.mount.lib64.type = chroot
+fs.mount.lib64.path = /lib/x86_64-linux-gnu
+fs.mount.lib64.uri = file:/lib/x86_64-linux-gnu
 
 fs.mount.usr.type = chroot
 fs.mount.usr.path = /usr

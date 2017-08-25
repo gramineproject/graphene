@@ -43,38 +43,48 @@ def finish(result):
             current_hanged[test] = 1
         else:
             reported = False
+            count = 1
             for output in result['output']:
-                toks = output.split()
-                if len(toks)<2 or (toks[0] != test and test != "memcmp01" and test != "memcpy01"):
+                tokens = output.split()
+                if len(tokens) < 2:
                     continue
-                test_subtest = test + "," + toks[1]
-                test_subtest = test_subtest
+                if tokens[1].isdigit():
+                    test_subtest = test + "," + tokens[1]
+                    count = int(tokens[1]) + 1
+                else:
+                    test_subtest = test + "," + str(count)
+                    count = count + 1
                 if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or test in current_hanged or test_subtest in current_broken:
                     continue
+
                 if output:
                     output = output.strip()
                     print >>f1, output
+
                 if "TFAIL" in output:
                     print >>failed_tests_fh, test_subtest
                     print CRED + "[Fail   ] " + test_subtest + CEND
                     current_failed[test_subtest] = 1
                     reported = True
-                elif "TPASS" in output:
+
+                elif "TPASS" in output or "PASS:" in output:
                     print >>passed_tests_fh, test_subtest
                     print CGREEN + "[Pass   ] " + test_subtest + CEND
                     current_passed[test_subtest] = 1
                     reported = True
-                elif "TCONF" in output or "TBROK" in output or "error" in output:
+
+                elif "TCONF" in output or "TBROK" in output or "BROK" in output or "error" in output:
                     print >>broken_tests_fh, test_subtest
-                    print "[Broken ] " + test_subtest      #Syscall not implemented or test preparation failed
+                    # Syscall not implemented or test preparation failed
+                    print "[Broken ] " + test_subtest
                     current_broken[test_subtest] = 1
                     reported = True
-            #else:
-            #    print "[Broken ] " + test      #Syscall not implemented or test preparation failed
+
             if (not reported):
                 print >>broken_tests_fh, test
                 print CRED + "[Broken ] " + test + CEND
                 current_broken[test] = 1
+
     except Exception as e:
         print str(e)
 
@@ -117,6 +127,7 @@ os.chdir("opt/ltp/testcases/bin")
 pool = multiprocessing.Pool()
 with open('../../../../syscalls.graphene') as testcases:
     for line in testcases:
+        line = line.strip('\r\n\t')
         tokens = line.split( )
         if (tokens[1] == "SGX") :
             test = tokens[2]
@@ -145,11 +156,11 @@ with open(stablePass, 'rb') as csvfile:
 
 print "\n\nRESULT [Difference] :\n---------------------\n"
 
-for test in stable_passed:
+for test in sorted(stable_passed):
     if not test in current_passed:
         print CRED + "Test '" + test + "' did not pass in the current run!!" + CEND
 
-for test in current_passed:
+for test in sorted(current_passed):
     if not test in stable_passed:
         print CGREEN + "Test '" + test + "' passed in the current run!!" + CEND
 print "\n"
