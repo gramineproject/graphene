@@ -78,6 +78,7 @@ struct shim_file_data {
     unsigned long       atime;
     unsigned long       mtime;
     unsigned long       ctime;
+    unsigned long       nlink;
 };
 
 struct shim_file_handle {

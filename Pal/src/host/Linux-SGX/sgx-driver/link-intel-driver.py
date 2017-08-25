@@ -2,6 +2,10 @@
 
 import sys, os, re
 
+
+isgx_path    = os.getenv("ISGX_DRIVER_PATH")
+isgx_version = os.getenv("ISGX_DRIVER_VERSION")
+
 try:
     # get the locations of directories
     print "\n" + \
@@ -12,17 +16,20 @@ try:
           "\n"
 
     while True:
-        isgx_path = raw_input('Enter the Intel SGX driver derctory: ')
+        if not isgx_path:
+            isgx_path = raw_input('Enter the Intel SGX driver derctory: ')
         if os.path.exists(isgx_path + '/sgx.h'):
             break
         if os.path.exists(isgx_path + '/isgx.h'):
             break
         print '{0} is not a directory for the Intel SGX driver'.format(isgx_path)
+        isgx_path = None
 
 
     # get the driver version
     while True:
-        isgx_version = raw_input('Enter the driver version (default: 1.8): ')
+        if not isgx_version:
+            isgx_version = raw_input('Enter the driver version (default: 1.8): ')
         if not isgx_version:
             isgx_version_major = 1
             isgx_version_minor = 8
@@ -33,6 +40,7 @@ try:
             isgx_version_minor = m.group(2)
             break
         print '{0} is not a valid version (x.xx)'.format(isgx_version)
+        isgx_version = None
 
 
     # create a symbolic link called 'linux-sgx-driver'

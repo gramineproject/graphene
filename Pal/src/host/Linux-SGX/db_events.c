@@ -81,7 +81,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, int timeout)
+int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
 {
     int ret = 0;
 

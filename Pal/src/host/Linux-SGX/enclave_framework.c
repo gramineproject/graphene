@@ -125,7 +125,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
-    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len;
+    char normpath[URI_MAX];
+    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len, len;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;
@@ -134,24 +135,38 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (uri_len < 0)
         return uri_len;
 
+    /* Normalize the uri */
+    if (!strpartcmp_static(uri, "file:")) {
+        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
+        return -PAL_ERROR_INVAL;
+    }
+    normpath [0] = 'f';
+    normpath [1] = 'i';
+    normpath [2] = 'l';
+    normpath [3] = 'e';
+    normpath [4] = ':';
+    len = get_norm_path(uri + 5, normpath + 5, 0, URI_MAX);
+    uri_len = len + 5;
+
     _DkSpinLock(&trusted_file_lock);
 
-    list_for_each_entry(tmp, &trusted_file_list, list)
+    list_for_each_entry(tmp, &trusted_file_list, list) {
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
-            if (tmp->uri_len == uri_len && !memcmp(tmp->uri, uri, uri_len + 1)) {
+            if (tmp->uri_len == uri_len && !memcmp(tmp->uri, normpath, uri_len + 1)) {
                 tf = tmp;
                 break;
             }
         } else {
             /* allowed files: must be a subfolder or file */
             if (tmp->uri_len <= uri_len &&
-                !memcmp(tmp->uri, uri, tmp->uri_len) &&
-                (!uri[tmp->uri_len] || uri[tmp->uri_len] == '/')) {
+                !memcmp(tmp->uri, normpath, tmp->uri_len) &&
+                (!normpath[tmp->uri_len] || normpath[tmp->uri_len] == '/')) {
                 tf = tmp;
                 break;
             }
         }
+    }
 
     _DkSpinUnlock(&trusted_file_lock);
 
@@ -172,7 +187,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (!tf->index) {
         *stubptr = NULL;
         PAL_STREAM_ATTR attr;
-        ret = _DkStreamAttributesQuery(uri, &attr);
+        ret = _DkStreamAttributesQuery(normpath, &attr);
         if (!ret)
             *sizeptr = attr.pending_size;
         else
@@ -251,7 +266,7 @@ failed:
         sgx_stub_t * loaded_stub;
         uint64_t loaded_size;
         PAL_HANDLE handle = NULL;
-        if (!_DkStreamOpen(&handle, uri, PAL_ACCESS_RDONLY, 0, 0, 0))
+        if (!_DkStreamOpen(&handle, normpath, PAL_ACCESS_RDONLY, 0, 0, 0))
             load_trusted_file (handle, &loaded_stub, &loaded_size);
     }
 #endif
@@ -384,7 +399,8 @@ static int init_trusted_file (const char * key, const char * uri)
 {
     char cskey[URI_MAX], * tmp;
     char checksum[URI_MAX];
-
+    char normpath[URI_MAX];
+    
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
@@ -392,7 +408,19 @@ static int init_trusted_file (const char * key, const char * uri)
     if (len < 0)
         return 0;
 
-    return register_trusted_file(uri, checksum);
+    /* Normalize the uri */
+    if (!strpartcmp_static(uri, "file:")) {
+        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
+        return -PAL_ERROR_INVAL;
+    }
+    normpath [0] = 'f';
+    normpath [1] = 'i';
+    normpath [2] = 'l';
+    normpath [3] = 'e';
+    normpath [4] = ':';
+    len = get_norm_path(uri + 5, normpath + 5, 0, URI_MAX);
+
+    return register_trusted_file(normpath, checksum);
 }
 
 int init_trusted_files (void)
