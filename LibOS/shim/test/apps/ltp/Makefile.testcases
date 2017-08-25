@@ -2,10 +2,21 @@ manifests = $(wildcard ../../../../*.manifest.template) manifest
 testcases = $(filter-out $(wildcard *.*) $(patsubst %/,%,$(wildcard */)) Makefile manifest pal_loader,$(wildcard *))
 
 exec_target = $(testcases)
-target = $(manifests) $(testcases)
+target = $(manifests) $(testcases) /tmp/shm etc/nsswitch.conf etc/passwd
 
 level = ../../../../../../
 include ../../../../../../Makefile
 
 $(addsuffix .template,$(manifests)): %: ../../../../%
 	ln -sf $< $@
+
+/tmp/shm:
+	mkdir -p $@
+
+etc/nsswitch.conf:
+	mkdir -p etc
+	echo "passwd: compat\ngroup: compat\nshadow: compat\nhosts: files" > $@
+
+etc/passwd:
+	mkdir -p etc
+	echo "root:x:0:0:root:/root:/bin/bash\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin" > $@
