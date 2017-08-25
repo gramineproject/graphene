@@ -19,8 +19,8 @@ N_RUNS=6
 
 if [ -f $1 ]
 then	. $1
-	echo Using config in $1 >> ${OUTPUT}
-else	echo Using defaults >> ${OUTPUT}
+	echo Using config in $1
+else	echo Using defaults
 	ENOUGH=1000000
 	TIMING_O=0
 	LOOP_O=0
@@ -29,7 +29,7 @@ export ENOUGH TIMING_O LOOP_O
 
 if [ X$FILE = X ]
 then	FILE=/tmp/XXX
-	touch $FILE || echo Can not create $FILE >> ${OUTPUT}
+	touch $FILE || echo Can not create $FILE
 fi
 if [ X$MB = X ]
 then	MB=8
@@ -110,7 +110,7 @@ STAT=$FSDIR/lmbench
 mkdir $FSDIR 2>/dev/null
 touch $STAT 2>/dev/null
 if [ ! -f $STAT ]
-then	echo "Can't make a file - $STAT - in $FSDIR" >> ${OUTPUT}
+then	echo "Can't make a file - $STAT - in $FSDIR"
 	touch $STAT
 	exit 1
 fi
@@ -123,8 +123,8 @@ function run {
 	cat $TMPOUT 1>&2
 }
 
-date >> ${OUTPUT}
-echo Latency measurements >> ${OUTPUT}
+date
+echo Latency measurements
 msleep 250
 run lat_syscall null
 run lat_syscall read
@@ -143,7 +143,7 @@ run lat_sig catch
 run lat_sig prot lat_sig
 
 #AF_UNIX
-echo AF_UNIX socket latency >> ${OUTPUT}
+echo AF_UNIX socket latency
 for i in $(eval echo "{1..$N_RUNS}")
 do	run lat_unix
 done
@@ -161,16 +161,16 @@ do	rm -f $FILE
 done
 
 #0,4,10KB create/delete
-date >> ${OUTPUT}
-	echo Calculating file system latency >> ${OUTPUT}
+date
+	echo Calculating file system latency
 	echo '"File system latency' 1>&2
 	run lat_fs $FSDIR
 	echo "" 1>&2
 
-date >> ${OUTPUT}
-echo Local netruning >> ${OUTPUT}
+date
+echo Local netruning
 
-echo UDP socket latency >> ${OUTPUT}
+echo UDP socket latency
 run lat_udp -s &
 sleep 3
 for i in $(eval echo "{1..$N_RUNS}")
@@ -180,7 +180,7 @@ done
 run lat_udp -127.0.0.1
 sleep 3
 
-echo TCP socket latency >> ${OUTPUT}
+echo TCP socket latency
 run lat_tcp -s &
 sleep 3
 for i in $(eval echo "{1..$N_RUNS}")
@@ -190,7 +190,7 @@ done
 run lat_tcp -127.0.0.1
 sleep 3
 
-echo TCP connect latency >> ${OUTPUT}
+echo TCP connect latency
 run lat_connect -s &
 sleep 3
 run lat_connect 127.0.0.1
@@ -198,7 +198,7 @@ sleep 1
 run lat_connect -127.0.0.1
 sleep 3
 
-echo TCP socket bandwidth >> ${OUTPUT}
+echo TCP socket bandwidth
 run bw_tcp -s &
 sleep 3
 for i in $(eval echo "{1..$N_RUNS}")
@@ -208,8 +208,8 @@ done
 run bw_tcp -127.0.0.1
 sleep 3
 
-date >> ${OUTPUT}
-echo Bandwidth measurements >> ${OUTPUT}
+date
+echo Bandwidth measurements
 
 for i in $(eval echo "{1..$N_RUNS}")
 do	run bw_unix
@@ -218,89 +218,5 @@ done
 for i in $(eval echo "{1..$N_RUNS}")
 do	run bw_pipe
 done
-
-date >> ${OUTPUT}
-msleep 250
-echo Calculating context switch overhead >> ${OUTPUT}
-if [ $MB -ge 8 ]
-then	CTX="0 4 8 16 32 64"
-	N="2 4 8 16 24 32 64 96"
-else
-	CTX="0 4 8 16 32"
-	N="2 4 8 16 24 32 64 96"
-fi
-
-## dep: This test is currently flaky; for the moment, let's comment it out for regression testing
-#for size in $CTX
-#do	for i in $(eval echo "{1..$N_RUNS}")
-#	do	run lat_ctx -s $size $N
-#	done
-#done
-
-date >> ${OUTPUT}
-echo Calculating memory load latency >> ${OUTPUT}
-msleep 250
-echo "" 1>&2
-echo "Memory load latency" 1>&2
-if [ X$FASTMEM = XYES ]
-then	run lat_mem_rd $MB 128
-else	run lat_mem_rd $MB 16 32 64 128 256 512 1024 
-fi
-date >> ${OUTPUT}
-echo '' 1>&2
-echo \[`date`] 1>&2
-
-date >> ${OUTPUT}
-echo Calculating memory bandwidths >> ${OUTPUT}
-msleep 250
-
-echo "" 1>&2
-echo \"read bandwidth 1>&2
-for i in $ALL; do run bw_file_rd $i io_only $FILE; done
-echo "" 1>&2
-
-echo "" 1>&2
-echo \"read open2close bandwidth 1>&2
-for i in $ALL; do run bw_file_rd $i open2close $FILE; done
-echo "" 1>&2
-
-echo \"Mmap read bandwidth 1>&2
-for i in $ALL; do run bw_mmap_rd $i mmap_only $FILE; done
-echo "" 1>&2
-
-echo \"Mmap read open2close bandwidth 1>&2
-for i in $ALL; do run bw_mmap_rd $i open2close $FILE; done
-echo "" 1>&2
-rm -f $FILE
-
-echo \"libc bcopy unaligned 1>&2
-for i in $HALF; do run bw_mem $i bcopy; done; echo "" 1>&2
-
-echo \"libc bcopy aligned 1>&2
-for i in $HALF; do run bw_mem $i bcopy conflict; done; echo "" 1>&2
-
-echo \"unrolled bcopy unaligned 1>&2
-for i in $HALF; do run bw_mem $i fcp; done; echo "" 1>&2
-
-echo \"unrolled partial bcopy unaligned 1>&2
-for i in $HALF; do run bw_mem $i cp; done; echo "" 1>&2
-
-echo "Memory read bandwidth" 1>&2
-for i in $ALL; do run bw_mem $i frd; done; echo "" 1>&2
-
-echo "Memory partial read bandwidth" 1>&2
-for i in $ALL; do run bw_mem $i rd; done; echo "" 1>&2
-
-echo "Memory write bandwidth" 1>&2
-for i in $ALL; do run bw_mem $i fwr; done; echo "" 1>&2
-
-echo "Memory partial write bandwidth" 1>&2
-for i in $ALL; do run bw_mem $i wr; done; echo "" 1>&2
-
-echo "Memory partial read/write bandwidth" 1>&2
-for i in $ALL; do run bw_mem $i rdwr; done; echo "" 1>&2
-
-echo "Memory bzero bandwidth" 1>&2
-for i in $ALL; do run bw_mem $i bzero; done; echo "" 1>&2
 
 exit 0
