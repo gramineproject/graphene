@@ -81,7 +81,7 @@ struct handle_ops {
 
     /* 'setlength' is used by DkStreamFlush. It truncate the stream
        to certain size. */
-    uint64_t (*setlength) (PAL_HANDLE handle, uint64_t length);
+    int64_t (*setlength) (PAL_HANDLE handle, uint64_t length);
 
     /* 'flush' is used by DkStreamFlush. It syncs the stream to the device */
     int (*flush) (PAL_HANDLE handle);
@@ -303,7 +303,7 @@ int _DkStreamAttributesQuerybyHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
 int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, uint64_t offset,
                   uint64_t size);
 int _DkStreamUnmap (void * addr, uint64_t size);
-uint64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length);
+int64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length);
 int _DkStreamFlush (PAL_HANDLE handle);
 int _DkStreamGetName (PAL_HANDLE handle, char * buf, int size);
 const char * _DkStreamRealpath (PAL_HANDLE hdl);
