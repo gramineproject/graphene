@@ -66,11 +66,11 @@ test-graphene: all $(lmbench_config)
 		env LOADER=./pal_loader OS=linux RESULTS=results/graphene \
 		./results
 
-regress-graphene: all $(lmbench_config)
-	cp $(LMBENCHDIR)/scripts/lmbench-graphene-regress $(LMBENCHDIR)/bin/linux
-	cd $(LMBENCHDIR)/scripts && \
-		env LOADER=./pal_loader OS=linux RESULTS=results/graphene \
-		./results-regression
+regression: all
+	cp -f lmbench-regression $(LMBENCHDIR)/bin/linux
+	cd $(LMBENCHDIR)/bin/linux && \
+		env LOADER=./pal_loader OS=linux \
+		./lmbench-regression
 
 clean-lmbench:
 	$(MAKE) -C $(LMBENCHDIR) clean
