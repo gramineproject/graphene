@@ -2,16 +2,13 @@ manifests = $(wildcard ../../../../*.manifest.template) manifest
 testcases = $(filter-out $(wildcard *.*) $(patsubst %/,%,$(wildcard */)) Makefile manifest pal_loader,$(wildcard *))
 
 exec_target = $(testcases)
-target = $(manifests) $(testcases) /tmp/shm etc/nsswitch.conf etc/passwd
+target = $(manifests) $(testcases) etc/nsswitch.conf etc/passwd
 
 level = ../../../../../../
 include ../../../../../../Makefile
 
 $(addsuffix .template,$(manifests)): %: ../../../../%
 	ln -sf $< $@
-
-/tmp/shm:
-	mkdir -p $@
 
 etc/nsswitch.conf:
 	mkdir -p etc
