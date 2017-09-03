@@ -33,19 +33,12 @@
 typedef unsigned long PAL_NUM;
 typedef const char *  PAL_STR;
 typedef void *        PAL_PTR;
-typedef unsigned int  PAL_FLG;
-typedef unsigned int  PAL_IDX;
+typedef uint32_t      PAL_FLG;
+typedef uint32_t      PAL_IDX;
 typedef bool          PAL_BOL;
 
 #ifdef IN_PAL
-struct atomic_int {
-    volatile int counter;
-}
-#ifdef __GNUC__
-__attribute__((aligned(sizeof(int))))
-#endif
-;
-
+#include <atomic.h>
 typedef struct atomic_int PAL_REF;
 
 typedef struct {
@@ -60,12 +53,14 @@ typedef struct {
 #  define HANDLE_HDR(handle) (&((handle)->hdr))
 # endif
 
-# define SET_HANDLE_TYPE(handle, t)             \
-    do {                                        \
-        HANDLE_HDR(handle)->type = pal_type_##t;\
-        HANDLE_HDR(handle)->ref.counter = 0;    \
-        HANDLE_HDR(handle)->flags = 0;          \
-    } while (0)
+static inline void init_handle_hdr(PAL_HDR *hdr, int pal_type) {
+    hdr->type = pal_type;
+    hdr->ref.counter = 1;
+    hdr->flags = 0;
+}
+
+# define SET_HANDLE_TYPE(handle, t) \
+    init_handle_hdr(HANDLE_HDR(handle), pal_type_##t)
 
 # define IS_HANDLE_TYPE(handle, t)              \
     (HANDLE_HDR(handle)->type == pal_type_##t)
@@ -115,7 +110,7 @@ enum {
     pal_type_process,
     pal_type_mcast,
     pal_type_thread,
-    pal_type_semaphore,
+    pal_type_mutex,
     pal_type_event,
     pal_type_gipc,
     PAL_HANDLE_TYPE_BOUND,
@@ -427,26 +422,16 @@ void DkExceptionReturn (PAL_PTR event);
  * We may want to replace it with a PAL_HANDLE. Ideally, either use PAL_HANDLE
  * or threadHandle.
  */
-/* maxcount sets the number of threads allowed to hold the semaphore
- * at once.  For 1, this becomes a mutex.
- * initialCount of 0 is totally unlocked; an initialCount that
- * equals maxCount means that all resources are taken. */ 
+/* Create a Mutex.
+ * initialCount of 0 is totally unlocked; an initialCount of 1
+ * is initialized to locked. */ 
 PAL_HANDLE
-DkSemaphoreCreate (PAL_NUM initialCount, PAL_NUM maxCount);
+DkMutexCreate (PAL_NUM initialCount);
 
-/* DkSemaphoreDestroy deprecated, replaced by DkObjectClose */
-
-/* TSAI: I preserve this API because DkObjectsWaitAny can't acquire multiple
- * counts of a semaphore. Acquiring multiple counts is required for
- * implementing a read-write-lock. To make this API complementary to
- * DkObjectsWaitAny, I added a 'timeout' to its arguments */
-
-/* DkSemaphoreAcquire deprecated */
+/* Destroy a mutex using DkObjectClose */
 
 void
-DkSemaphoreRelease (PAL_HANDLE semaphoreHandle, PAL_NUM count);
-
-/* DkSemaphoreGetCurrentCount deprecated */
+DkMutexRelease (PAL_HANDLE mutexHandle);
 
 PAL_HANDLE
 DkNotificationEventCreate (PAL_BOL initialState);

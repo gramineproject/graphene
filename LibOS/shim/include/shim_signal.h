@@ -108,7 +108,7 @@ struct shim_signal {
 #define MAX_SIGNAL_LOG      32
 
 struct shim_signal_log {
-    struct shim_atomic head, tail;
+    struct atomic_int head, tail;
     struct shim_signal * logs[MAX_SIGNAL_LOG];
 };
 

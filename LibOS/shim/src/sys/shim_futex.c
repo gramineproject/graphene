@@ -49,6 +49,9 @@ struct futex_waiter {
     struct shim_thread * thread;
     uint32_t bitset;
     LIST_TYPE(futex_waiter) list;
+    /* This is the handle for the waiter's current futex. It is updated on requeue. */
+    struct shim_handle * hdl;
+    struct atomic_int wakeup;
 };
 
 // Links shim_futex_handle by the list field

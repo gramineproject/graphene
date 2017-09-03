@@ -45,7 +45,7 @@ extern struct handle_ops udpsrv_ops;
 extern struct hadnle_ops udppacket_ops;
 extern struct handle_ops thread_ops;
 extern struct handle_ops proc_ops;
-extern struct handle_ops sem_ops;
+extern struct handle_ops mutex_ops;
 extern struct handle_ops event_ops;
 extern struct handle_ops gipc_ops;
 extern struct handle_ops mcast_ops;
@@ -65,7 +65,7 @@ const struct handle_ops * pal_handle_ops [PAL_HANDLE_TYPE_BOUND] = {
             [pal_type_process]   = &proc_ops,
             [pal_type_mcast]     = &mcast_ops,
             [pal_type_thread]    = &thread_ops,
-            [pal_type_semaphore] = &sem_ops,
+            [pal_type_mutex]     = &mutex_ops,
             [pal_type_event]     = &event_ops,
             [pal_type_gipc]      = &gipc_ops,
         };

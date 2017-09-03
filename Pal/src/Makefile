@@ -31,9 +31,8 @@ endif
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader) $(pal_sec)
 
-defs	= -DIN_PAL -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
-	  -DRUNTIME_DIR=$(RUNTIME_DIR)
-objs	= $(addprefix db_,streams memory threading semaphore events process \
+defs	= -DIN_PAL -D$(PAL_HOST_MACRO)
+objs	= $(addprefix db_,streams memory threading mutex events process \
 	    object main misc ipc exception rtld) slab printf
 graphene_lib = .lib/graphene-lib.a
 host_lib = host/$(PAL_HOST)/libpal-$(PAL_HOST).a

@@ -49,6 +49,8 @@ struct shim_thread {
     /* nodes in global handles; protected by thread_list_lock */
     LIST_TYPE(shim_thread) list;
 
+    struct atomic_int threads_in_group;
+
     struct shim_handle_map * handle_map;
 
     /* child tid */
@@ -57,7 +59,7 @@ struct shim_thread {
     /* signal handling */
     __sigset_t signal_mask;
     struct shim_signal_handle signal_handles[NUM_SIGS];
-    struct shim_atomic has_signal;
+    struct atomic_int has_signal;
     struct shim_signal_log * signal_logs;
     bool suspend_on_signal;
     stack_t signal_altstack;

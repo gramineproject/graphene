@@ -48,8 +48,8 @@ int main (int argc, char ** argv, char ** envp)
     print_symbol(DkSetExceptionHandler);
     print_symbol(DkExceptionReturn);
 
-    print_symbol(DkSemaphoreCreate);
-    print_symbol(DkSemaphoreRelease);
+    print_symbol(DkMutexCreate);
+    print_symbol(DkMutexRelease);
     print_symbol(DkNotificationEventCreate);
     print_symbol(DkSynchronizationEventCreate);
     print_symbol(DkEventSet);

@@ -36,7 +36,6 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <atomic.h>
-#include <cmpxchg.h>
 #include <asm/errno.h>
 
 #define DEFAULT_QUANTUM 500
@@ -77,7 +76,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
                 events |= POLLOUT;
 
             if (events) {
-                fds[nfds].fd = HANDLE_HDR(handle)->fds[i];
+                fds[nfds].fd = handle->generic.fds[i];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 off[nfds] = i;
@@ -191,8 +190,8 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
                 !(HANDLE_HDR(hdl)->flags & ERROR(j)))
                 events |= POLLOUT;
 
-            if (events && HANDLE_HDR(hdl)->fds[j] != PAL_IDX_POISON) {
-                fds[nfds].fd = HANDLE_HDR(hdl)->fds[j];
+            if (events && hdl->generic.fds[j] != PAL_IDX_POISON) {
+                fds[nfds].fd = hdl->generic.fds[j];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 hdls[nfds] = hdl;
@@ -246,7 +245,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
 
         for (j = 0 ; j < MAX_FDS ; j++)
             if ((HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j))) &&
-                HANDLE_HDR(hdl)->fds[j] == fds[i].fd)
+                hdl->generic.fds[j] == fds[i].fd)
                 break;
 
         if (j == MAX_FDS)
