@@ -8,7 +8,7 @@ pipeline {
                             cd Pal/src
                             make
                             cd ../ipc/linux
-                            sudo ./load.sh
+                            ./load.sh
                             cd ../../../LibOS
                             make
                             cd ..
