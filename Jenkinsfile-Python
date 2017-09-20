@@ -11,6 +11,7 @@ pipeline {
                 stage('Test') {
                     steps {
                         sh '''
+                            ls
                             ./python.manifest.template scripts/helloworld.py
                             ./python.manifest.template scripts/fibonacci.py
                            '''
