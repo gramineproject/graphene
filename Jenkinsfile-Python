@@ -13,8 +13,8 @@ pipeline {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/python
-                            ./python.manifest.template scripts/helloworld.py
-                            ./python.manifest.template scripts/fibonacci.py
+                            sudo ./python.manifest.template scripts/helloworld.py
+                            sudo ./python.manifest.template scripts/fibonacci.py
                            '''
                         input 'Tests complete. Do you wish to deploy?'
                     }
