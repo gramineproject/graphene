@@ -12,7 +12,7 @@ pipeline {
                 stage('Test') {
                     steps {
                         sh "cd LibOS/shim/test/apps/python"
-                        sh -o StrictHostKeyChecking=no '''
+                        sh '''
                             sudo ./python.manifest.template scripts/helloworld.py
                             sudo ./python.manifest.template scripts/fibonacci.py
                         '''
