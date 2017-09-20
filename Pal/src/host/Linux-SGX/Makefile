@@ -69,8 +69,5 @@ debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 sgx-driver/isgx_version.h:
 	cd sgx-driver && make isgx_version.h
 
-../../libpal.so: ../../libpal-enclave.so
-	ln -s libpal-enclave.so $@
-
 clean:
 	rm -f *.o *.e $(host_files)
