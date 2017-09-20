@@ -26,6 +26,29 @@ $(PYTHON_SRC)/configure: $(PYTHON_SRC).tgz
 benchmarks: benchmarks.tar.gz
 	tar -xzf $<
 
+regression:
+	@echo "\n\nBuilding Python..."
+	@$(MAKE) >> /dev/null 2>&1
+
+	@echo "\n\nRun helloworld.py:"
+	./python.manifest scripts/helloworld.py > OUTPUT
+	grep -q "Hello World" OUTPUT
+	@rm OUTPUT
+
+	@echo "\n\nRun fibonacci.py:"
+	./python.manifest scripts/fibonacci.py  > OUTPUT
+	grep -q "fib2              55" OUTPUT
+	@rm OUTPUT
+
+	@echo "\n\nRun test-http.py:"
+	./python.manifest scripts/test-http.py  > OUTPUT
+	wget -q http://google.com/ -O OUTPUT2
+	@DS=`sdiff -B -b -s OUTPUT OUTPUT2 | wc -c`; \
+	TS=`stat -c%s OUTPUT2`; \
+	awk "BEGIN{ percentage = 100.0 * $$DS / $$TS; printf(\"%.3f%% is different\\n\", percentage); if (percentage > 10.0) { exit 1; }}"
+	@rm OUTPUT OUTPUT2
+
+
 BENCHMARK = all,-rietveld,-spitfire,-tornado_http
 
 clean-tmp:
