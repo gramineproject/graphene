@@ -112,14 +112,14 @@ struct trusted_file {
     int             uri_len;
     char            uri[URI_MAX];
     sgx_checksum_t  checksum;
-    sgx_arch_mac_t *    stubs;
+    sgx_stub_t *    stubs;
 };
 
 static LIST_HEAD(trusted_file_list);
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 
-int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
+int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr)
 {
     struct trusted_file * tf = NULL, * tmp;
@@ -169,10 +169,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
 
     _DkSpinUnlock(&trusted_file_lock);
 
-    if (!tf) 
+    if (!tf)
         return -PAL_ERROR_DENIED;
 
-    if (tf->index < 0) 
+    if (tf->index < 0)
         return tf->index;
 
 #if CACHE_FILE_STUBS == 1
@@ -197,11 +197,11 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
-    sgx_arch_mac_t * stubs = malloc(sizeof(sgx_arch_mac_t) * nstubs);
+    sgx_stub_t * stubs = malloc(sizeof(sgx_stub_t) * nstubs);
     if (!stubs)
         return -PAL_ERROR_NOMEM;
 
-    sgx_arch_mac_t * s = stubs;
+    sgx_stub_t * s = stubs;
     uint64_t offset = 0;
     PAL_SHA256_CONTEXT sha;
     void * umem;
@@ -278,7 +278,7 @@ failed:
 
 int verify_trusted_file (const char * uri, void * mem,
                          unsigned int offset, unsigned int size,
-                         sgx_arch_mac_t * stubs,
+                         sgx_stub_t * stubs,
                          unsigned int total_size)
 {
     unsigned long checking = offset;
