@@ -11,12 +11,7 @@ pipeline {
                             ./python.manifest scripts/helloworld.py
                             ./python.manifest scripts/fibonacci.py
                         '''
-                        sh "ls"
-                        sh "make"
-                        sh "ls"
-                        sh '''
-                            
-                        '''
+
                         input 'Tests complete. Do you wish to deploy?'
                     }
                 }
