@@ -3,13 +3,19 @@ pipeline {
         stages {
                 stage('Test') {
                     steps {
-                        sh "cd LibOS/shim/test/apps/python"
+                        sh '''
+                            cd LibOS/shim/test/apps/python
+                            ls
+                            make
+                            ls
+                            ./python.manifest scripts/helloworld.py
+                            ./python.manifest scripts/fibonacci.py
+                        '''
                         sh "ls"
                         sh "make"
                         sh "ls"
                         sh '''
-                            ./python.manifest scripts/helloworld.py
-                            ./python.manifest scripts/fibonacci.py
+                            
                         '''
                         input 'Tests complete. Do you wish to deploy?'
                     }
