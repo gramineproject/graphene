@@ -3,10 +3,9 @@ pipeline {
         stages {
                 stage('Test') {
                     steps {
-                        sh '''
-                            cd LibOS/shim/test/apps/python
-                            make
-                           '''
+                        sh "cd LibOS/shim/test/apps/python"
+                        sh "make"
+                        sh "ls"
                         sh '''
                             ./python.manifest scripts/helloworld.py
                             ./python.manifest scripts/fibonacci.py
