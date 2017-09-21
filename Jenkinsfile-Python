@@ -3,15 +3,15 @@ pipeline {
         stages {
                 stage('Build') {
                     steps {
-                        sh '''
-                            cd LibOS/shim/test/apps/python
-                            make
-                           '''
+                        
                     }
                 }
                 stage('Test') {
                     steps {
-                        sh "cd LibOS/shim/test/apps/python"
+                        sh '''
+                            cd LibOS/shim/test/apps/python
+                            make
+                           '''
                         sh '''
                             ./python.manifest scripts/helloworld.py
                             ./python.manifest scripts/fibonacci.py
