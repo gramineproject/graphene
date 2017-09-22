@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include "pal.h"
 #include "pal_crypto.h"
-#include "../sha256.h"
+#include "crypto/wolfssl/sha256.h"
 
 int DkSHA256Init(PAL_SHA256_CONTEXT *context)
 {

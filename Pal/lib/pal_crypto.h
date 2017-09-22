@@ -43,7 +43,7 @@
 #define SHA256_DIGEST_LEN 32
 
 #if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
-#include "crypto/sha256.h"
+#include "crypto/wolfssl/sha256.h"
 typedef SHA256 PAL_SHA256_CONTEXT;
 
 #elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
