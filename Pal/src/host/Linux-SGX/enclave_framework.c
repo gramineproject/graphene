@@ -282,7 +282,7 @@ int verify_trusted_file (const char * uri, void * mem,
                          unsigned int total_size)
 {
     unsigned long checking = offset;
-    sgx_arch_mac_t * s = stubs + checking / TRUSTED_STUB_SIZE;
+    sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
     int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
@@ -290,11 +290,11 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-        sgx_arch_mac_t mac;
+        uint8_t hash[256/8]; // AES_CMAC hash size is 256 bits
         AES_CMAC((void *) &enclave_key, mem + checking - offset,
-                 checking_size, (uint8_t *) &mac);
+                 checking_size, hash);
 
-        if (memcmp(s, &mac, sizeof(sgx_arch_mac_t))) {
+        if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "
                     "Does not match with its MAC.\n", uri);
             return -PAL_ERROR_DENIED;
