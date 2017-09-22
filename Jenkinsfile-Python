@@ -1,23 +1,17 @@
 pipeline {
         agent any
         stages {
-                stage('Build') {
+                stage('Test') {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/python
+                            ls
                             make
-                           '''
-                    }
-                }
-                stage('Test') {
-                    steps {
-                        sh 'make'
-                        sh 'cd LibOS/shim/test/apps/python'
-                        sh 'ls'
-                        sh '''
-                            sudo ./python.manifest scripts/helloworld.py
-                            sudo ./python.manifest scripts/fibonacci.py
+                            ls
+                            ./python.manifest scripts/helloworld.py
+                            ./python.manifest scripts/fibonacci.py
                         '''
+
                         input 'Tests complete. Do you wish to deploy?'
                     }
                 }
