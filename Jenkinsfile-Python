@@ -11,10 +11,12 @@ pipeline {
                 }
                 stage('Test') {
                     steps {
-                        sh "cd LibOS/shim/test/apps/python"
+                        sh 'make'
+                        sh 'cd LibOS/shim/test/apps/python'
+                        sh 'ls'
                         sh '''
-                            sudo ./python.manifest.template scripts/helloworld.py
-                            sudo ./python.manifest.template scripts/fibonacci.py
+                            sudo ./python.manifest scripts/helloworld.py
+                            sudo ./python.manifest scripts/fibonacci.py
                         '''
                         input 'Tests complete. Do you wish to deploy?'
                     }
