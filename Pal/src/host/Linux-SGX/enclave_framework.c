@@ -206,7 +206,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     PAL_SHA256_CONTEXT sha;
     void * umem;
 
-    ret = DkSHA256Init(&sha);
+    ret = lib_SHA256Init(&sha);
     if (ret < 0)
         goto failed;
 
@@ -222,7 +222,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         AES_CMAC((void *) &enclave_key, umem, mapping_size, (uint8_t *) s);
 
         /* update the file checksum */
-        ret = DkSHA256Update(&sha, umem, mapping_size);
+        ret = lib_SHA256Update(&sha, umem, mapping_size);
 
 unmap:
         ocall_unmap_untrusted(umem, mapping_size);
@@ -232,7 +232,7 @@ unmap:
 
     sgx_checksum_t hash;
 
-    ret = DkSHA256Final(&sha, (uint8_t *) hash.bytes);
+    ret = lib_SHA256Final(&sha, (uint8_t *) hash.bytes);
     if (ret < 0)
         goto failed;
 
@@ -669,15 +669,15 @@ int init_enclave (void)
 
     PAL_SHA256_CONTEXT sha256;
 
-    ret = DkSHA256Init(&sha256);
+    ret = lib_SHA256Init(&sha256);
     if (ret < 0)
         goto out_free;
 
-    ret = DkSHA256Update(&sha256, n, nsz);
+    ret = lib_SHA256Update(&sha256, n, nsz);
     if (ret < 0)
         goto out_free;
 
-    ret = DkSHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
+    ret = lib_SHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
     if (ret < 0)
         goto out_free;
 

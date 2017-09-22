@@ -44,20 +44,22 @@
 
 #if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
 #include "crypto/wolfssl/sha256.h"
-typedef SHA256 PAL_SHA256_CONTEXT;
+typedef SHA256 LIB_SHA256_CONTEXT;
 
 #elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
 #include "crypto/mbedtls/mbedtls/sha256.h"
-typedef mbedtls_sha256_context PAL_SHA256_CONTEXT;
+typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
 #else
 # error "Unknown crypto provider. Set PAL_CRYPTO_PROVIDER in pal_crypto.h"
 #endif
 
-int DkSHA256Init(PAL_SHA256_CONTEXT *context);
-int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
-                   PAL_NUM len);
-int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output);
+typedef LIB_SHA256_CONTEXT PAL_SHA256_CONTEXT;
+
+int lib_SHA256Init(LIB_SHA256_CONTEXT *context);
+int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
+		     uint64_t len);
+int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output);
                   
 
 #endif

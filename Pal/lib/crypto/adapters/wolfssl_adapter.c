@@ -20,22 +20,22 @@
 #include "pal_crypto.h"
 #include "crypto/wolfssl/sha256.h"
 
-int DkSHA256Init(PAL_SHA256_CONTEXT *context)
+int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
     return SHA256Init(context);
 }
 
-int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
-                   PAL_NUM len)
+int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
+                   uint64_t len)
 {
-    /* PAL_NUM is a 64-bit value, but SHA256Update takes a 32-bit len. */
+    /* uint64_t is a 64-bit value, but SHA256Update takes a 32-bit len. */
     if (len > UINT32_MAX) {
         return -1;
     }
     return SHA256Update(context, data, len);
 }
 
-int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output)
+int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
 {
     return SHA256Final(context, output);
 }
