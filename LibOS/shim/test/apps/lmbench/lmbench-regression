@@ -120,7 +120,15 @@ function run {
 	TMPOUT=/tmp/OUT
 	rm -rf $TMPOUT
 	$LOADER "$@" 2>>$TMPOUT | tee -a $TMPOUT
-	cat $TMPOUT 1>&2
+	echo $?
+	echo "Done"
+	if [ $? -ne 0 ]
+	then
+	    cat $TMPOUT 1>&2
+	    exit 1
+	else
+	    cat $TMPOUT 1>&2
+	fi
 }
 
 date
