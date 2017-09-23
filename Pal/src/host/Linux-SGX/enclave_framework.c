@@ -113,7 +113,7 @@ struct trusted_file {
     int uri_len;
     char uri[URI_MAX];
     sgx_checksum_t checksum;
-    sgx_arch_mac_t * stubs;
+    sgx_stub_t * stubs;
 };
 
 DEFINE_LISTP(trusted_file);
@@ -121,12 +121,13 @@ static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 
-int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
+int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr)
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
-    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len;
+    char normpath[URI_MAX];
+    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len, len;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;
@@ -135,31 +136,45 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
     if (uri_len < 0)
         return uri_len;
 
+    /* Normalize the uri */
+    if (!strpartcmp_static(uri, "file:")) {
+        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
+        return -PAL_ERROR_INVAL;
+    }
+    normpath [0] = 'f';
+    normpath [1] = 'i';
+    normpath [2] = 'l';
+    normpath [3] = 'e';
+    normpath [4] = ':';
+    len = get_norm_path(uri + 5, normpath + 5, 0, URI_MAX);
+    uri_len = len + 5;
+
     _DkSpinLock(&trusted_file_lock);
 
-    listp_for_each_entry(tmp, &trusted_file_list, list)
+    listp_for_each_entry(tmp, &trusted_file_list, list) {
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
-            if (tmp->uri_len == uri_len && !memcmp(tmp->uri, uri, uri_len + 1)) {
+            if (tmp->uri_len == uri_len && !memcmp(tmp->uri, normpath, uri_len + 1)) {
                 tf = tmp;
                 break;
             }
         } else {
             /* allowed files: must be a subfolder or file */
             if (tmp->uri_len <= uri_len &&
-                !memcmp(tmp->uri, uri, tmp->uri_len) &&
-                (!uri[tmp->uri_len] || uri[tmp->uri_len] == '/')) {
+                !memcmp(tmp->uri, normpath, tmp->uri_len) &&
+                (!normpath[tmp->uri_len] || normpath[tmp->uri_len] == '/')) {
                 tf = tmp;
                 break;
             }
         }
+    }
 
     _DkSpinUnlock(&trusted_file_lock);
 
-    if (!tf) 
+    if (!tf)
         return -PAL_ERROR_DENIED;
 
-    if (tf->index < 0) 
+    if (tf->index < 0)
         return tf->index;
 
 #if CACHE_FILE_STUBS == 1
@@ -173,7 +188,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
     if (!tf->index) {
         *stubptr = NULL;
         PAL_STREAM_ATTR attr;
-        ret = _DkStreamAttributesQuery(uri, &attr);
+        ret = _DkStreamAttributesQuery(normpath, &attr);
         if (!ret)
             *sizeptr = attr.pending_size;
         else
@@ -184,16 +199,16 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
 
-    sgx_arch_mac_t * stubs = malloc(sizeof(sgx_arch_mac_t) * nstubs);
+    sgx_stub_t * stubs = malloc(sizeof(sgx_stub_t) * nstubs);
     if (!stubs)
         return -PAL_ERROR_NOMEM;
 
-    sgx_arch_mac_t * s = stubs;
+    sgx_stub_t * s = stubs;
     uint64_t offset = 0;
     PAL_SHA256_CONTEXT sha;
     void * umem;
 
-    ret = DkSHA256Init(&sha);
+    ret = lib_SHA256Init(&sha);
     if (ret < 0)
         goto failed;
 
@@ -209,7 +224,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_arch_mac_t ** stubptr,
         AES_CMAC((void *) &enclave_key, umem, mapping_size, (uint8_t *) s);
 
         /* update the file checksum */
-        ret = DkSHA256Update(&sha, umem, mapping_size);
+        ret = lib_SHA256Update(&sha, umem, mapping_size);
 
 unmap:
         ocall_unmap_untrusted(umem, mapping_size);
@@ -219,7 +234,7 @@ unmap:
 
     sgx_checksum_t hash;
 
-    ret = DkSHA256Final(&sha, (uint8_t *) hash.bytes);
+    ret = lib_SHA256Final(&sha, (uint8_t *) hash.bytes);
     if (ret < 0)
         goto failed;
 
@@ -250,16 +265,26 @@ failed:
     }
     _DkSpinUnlock(&trusted_file_lock);
 
+#if PRINT_ENCLAVE_STAT
+    if (!ret) {
+        sgx_stub_t * loaded_stub;
+        uint64_t loaded_size;
+        PAL_HANDLE handle = NULL;
+        if (!_DkStreamOpen(&handle, normpath, PAL_ACCESS_RDONLY, 0, 0, 0))
+            load_trusted_file (handle, &loaded_stub, &loaded_size);
+    }
+#endif
+
     return ret;
 }
 
 int verify_trusted_file (const char * uri, void * mem,
                          unsigned int offset, unsigned int size,
-                         sgx_arch_mac_t * stubs,
+                         sgx_stub_t * stubs,
                          unsigned int total_size)
 {
     unsigned long checking = offset;
-    sgx_arch_mac_t * s = stubs + checking / TRUSTED_STUB_SIZE;
+    sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
     int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
@@ -267,11 +292,11 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-        sgx_arch_mac_t mac;
+        uint8_t hash[256/8]; // AES_CMAC hash size is 256 bits
         AES_CMAC((void *) &enclave_key, mem + checking - offset,
-                 checking_size, (uint8_t *) &mac);
+                 checking_size, hash);
 
-        if (memcmp(s, &mac, sizeof(sgx_arch_mac_t))) {
+        if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "
                     "Does not match with its MAC.\n", uri);
             return -PAL_ERROR_DENIED;
@@ -379,7 +404,8 @@ static int init_trusted_file (const char * key, const char * uri)
 {
     char cskey[URI_MAX], * tmp;
     char checksum[URI_MAX];
-
+    char normpath[URI_MAX];
+    
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
@@ -387,7 +413,19 @@ static int init_trusted_file (const char * key, const char * uri)
     if (len < 0)
         return 0;
 
-    return register_trusted_file(uri, checksum);
+    /* Normalize the uri */
+    if (!strpartcmp_static(uri, "file:")) {
+        SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
+        return -PAL_ERROR_INVAL;
+    }
+    normpath [0] = 'f';
+    normpath [1] = 'i';
+    normpath [2] = 'l';
+    normpath [3] = 'e';
+    normpath [4] = ':';
+    len = get_norm_path(uri + 5, normpath + 5, 0, URI_MAX);
+
+    return register_trusted_file(normpath, checksum);
 }
 
 int init_trusted_files (void)
@@ -633,15 +671,15 @@ int init_enclave (void)
 
     PAL_SHA256_CONTEXT sha256;
 
-    ret = DkSHA256Init(&sha256);
+    ret = lib_SHA256Init(&sha256);
     if (ret < 0)
         goto out_free;
 
-    ret = DkSHA256Update(&sha256, n, nsz);
+    ret = lib_SHA256Update(&sha256, n, nsz);
     if (ret < 0)
         goto out_free;
 
-    ret = DkSHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
+    ret = lib_SHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
     if (ret < 0)
         goto out_free;
 

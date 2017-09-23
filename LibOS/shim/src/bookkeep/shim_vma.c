@@ -246,6 +246,7 @@ static bool check_vma_flags (const struct shim_vma * vma, const int * flags)
         return true;
 
     if ((vma->flags & VMA_INTERNAL) != ((*flags) & VMA_INTERNAL)) {
+        debug("Check vma flag failure: vma flags %x, checked flags %x\n", vma->flags, *flags);
         bug();
         return false;
     }
