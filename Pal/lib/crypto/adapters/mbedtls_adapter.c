@@ -1,4 +1,6 @@
-/* This file is part of Graphene Library OS.
+/* Copyright (C) 2017 Fortanix, Inc.
+
+   This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
    modify it under the terms of the GNU General Public License
