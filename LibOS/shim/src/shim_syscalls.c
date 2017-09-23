@@ -197,8 +197,9 @@ void * shim_do_brk (void * brk)
 #endif
 
 /* rt_sigaction: sys/shim_sigaction.c */
-DEFINE_SHIM_SYSCALL (rt_sigaction, 3, shim_do_sigaction, int, int, signum,
-                     const struct __kernel_sigaction *, act, struct __kernel_sigaction *, oldact)
+DEFINE_SHIM_SYSCALL (rt_sigaction, 4, shim_do_sigaction, int, int, signum,
+                     const struct __kernel_sigaction *, act,
+                     struct __kernel_sigaction *, oldact, size_t, sigsetsize)
 
 /* rt_sigprocmask: sys/shim_sigaction.c */
 DEFINE_SHIM_SYSCALL (rt_sigprocmask, 3, shim_do_sigprocmask, int, int, how,
@@ -578,8 +579,8 @@ SHIM_SYSCALL_PASSTHROUGH (capget, 2, int, cap_user_header_t, header,
 SHIM_SYSCALL_PASSTHROUGH (capset, 2, int, cap_user_header_t, header,
                           const cap_user_data_t, data)
 
-SHIM_SYSCALL_PASSTHROUGH (rt_sigpending, 2, int, __sigset_t *, set, size_t,
-                          sigsetsize)
+DEFINE_SHIM_SYSCALL (rt_sigpending, 2, shim_do_sigpending, int,
+                     __sigset_t *, set, size_t, sigsetsize)
 
 SHIM_SYSCALL_PASSTHROUGH (rt_sigtimedwait, 4, int, const __sigset_t *, uthese,
                           siginfo_t *, uinfo, const struct timespec *, uts,

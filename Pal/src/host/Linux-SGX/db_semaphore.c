@@ -146,7 +146,7 @@ int _DkSemaphoreAcquire (PAL_HANDLE sem, int count)
     return ret;
 }
 
-int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
+int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, uint64_t timeout)
 {
     /* Pass it up to the no-timeout version if no timeout requested */
     if (timeout == -1)

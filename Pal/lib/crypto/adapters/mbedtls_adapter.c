@@ -18,15 +18,15 @@
 #include "pal_crypto.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
 
-int DkSHA256Init(PAL_SHA256_CONTEXT *context)
+int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
     mbedtls_sha256_init(context);
     mbedtls_sha256_starts(context, 0 /* 0 = use SSH256 */);
     return 0;
 }
 
-int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
-                   PAL_NUM len)
+int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
+                   uint64_t len)
 {
     /* For compatibility with other SHA256 providers, don't support
      * large lengths. */
@@ -37,7 +37,7 @@ int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
     return 0;
 }
 
-int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output)
+int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
 {
     mbedtls_sha256_finish(context, output);
     /* This function is called free, but it doesn't actually free the memory.
