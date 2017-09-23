@@ -8,8 +8,8 @@ pipeline {
                             cd LibOS/shim/test/apps/gcc
                             make
                             ls
-                            ./gcc.manifest -o helloworld helloworld.c
-                            ./gcc-huge.manifest -o single-gcc single-gcc.c
+                            ./gcc.manifest -o helloworld test_files/helloworld.c
+                            ./gcc-huge.manifest -o single-gcc test_files/single-gcc.c
                         '''
 
                     }
