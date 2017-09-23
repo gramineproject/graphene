@@ -2,7 +2,9 @@ pipeline {
         agent any
         stages {
                 stage('Build') {
-                    sh 'make'
+                    steps {
+                        sh 'make'
+                    }
                 }
                 stage('Test') {
                     steps {
