@@ -1,9 +1,11 @@
 pipeline {
         agent any
         stages {
+                stage('Build') {
+                    sh 'make'
+                }
                 stage('Test') {
                     steps {
-                        sh 'make'
                         sh '''
                             cd LibOS/shim/test/apps/python
                             ls
