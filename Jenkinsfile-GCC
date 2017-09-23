@@ -14,6 +14,7 @@ pipeline {
                 stage('Test') {
                     steps {
                         sh '''
+                            ls
                             ./gcc.manifest -o helloworld helloworld.c
                             ./gcc-huge.manifest -o single-gcc single-gcc.c
                         '''
