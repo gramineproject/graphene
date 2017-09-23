@@ -36,6 +36,7 @@
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "pal_security.h"
+#include "pal_crypto.h"
 #include "api.h"
 
 #include <linux/sched.h>
@@ -139,8 +140,6 @@ struct check_child_param {
     PAL_MAC_KEY     mac_key;
     const char *    uri;
 };
-
-#include "crypto/cmac.h"
 
 static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
                                   void * signed_data, void * check_param)

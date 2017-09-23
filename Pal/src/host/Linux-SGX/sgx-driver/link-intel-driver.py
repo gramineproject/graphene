@@ -29,10 +29,10 @@ try:
     # get the driver version
     while True:
         if not isgx_version:
-            isgx_version = raw_input('Enter the driver version (default: 1.8): ')
+            isgx_version = raw_input('Enter the driver version (default: 1.9, 1.9 means "1.9 and above"): ')
         if not isgx_version:
             isgx_version_major = 1
-            isgx_version_minor = 8
+            isgx_version_minor = 9
             break
         m = re.match('([1-9])\.([0-9]+)', isgx_version)
         if m:

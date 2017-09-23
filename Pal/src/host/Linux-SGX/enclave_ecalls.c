@@ -15,15 +15,17 @@ void pal_linux_main (const char ** arguments, const char ** environments,
 
 void pal_start_thread (void);
 
+extern void * enclave_base, * enclave_top;
+
 int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
-                  void * untrusted_stack, void * enclave_base)
+                  void * untrusted_stack, void * enclave_base_addr)
 {
     if (ecall_index < 0 || ecall_index >= ECALL_NR)
         return -PAL_ERROR_INVAL;
 
-    if (!pal_enclave.enclave_base) {
-        pal_enclave.enclave_base = enclave_base;
-        pal_enclave.enclave_size = GET_ENCLAVE_TLS(enclave_size);
+    if (!enclave_base) {
+        enclave_base = enclave_base_addr;
+        enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
     if (sgx_is_within_enclave(exit_target, 0))

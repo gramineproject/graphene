@@ -20,7 +20,7 @@
 
 #define CACHE_FILE_STUBS    (1)
 
-#define USE_AES_NI          (1)
+//#define USE_AES_NI          (1)
 
 #define PRINT_ENCLAVE_STAT  (0)
 

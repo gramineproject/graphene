@@ -148,13 +148,11 @@ extern struct pal_enclave_state {
 
 #define PAL_ENCLAVE_INITIALIZED     0x0001ULL
 
-extern struct pal_enclave {
-    void *                 enclave_base;
-    uint64_t               enclave_size;
+extern struct pal_enclave_config {
     sgx_arch_hash_t        mrenclave;
     sgx_arch_attributes_t  enclave_attributes;
     void *                 enclave_key;
-} pal_enclave;
+} pal_enclave_config;
 
 static inline __attribute__((always_inline))
 char * __hex2str(void * hex, int size)
