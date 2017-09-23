@@ -111,7 +111,7 @@ struct config_store {
     struct list_head root, entries;
     void *           raw_data;
     int              raw_size;
-    void *           (*malloc) (int);
+    void *           (*malloc) (size_t);
     void             (*free) (void *);
 };
 

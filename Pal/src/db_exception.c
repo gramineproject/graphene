@@ -83,3 +83,17 @@ void DkExceptionReturn (PAL_PTR event)
 {
     _DkExceptionReturn(event);
 }
+
+/* This does not return */
+void __abort(void) {
+    _DkProcessExit(1);
+}
+
+void warn (const char *format, ...)
+{ 
+    va_list args;
+    va_start (args, format);
+    printf(format, args);
+    va_end (args);
+}
+

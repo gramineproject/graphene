@@ -123,8 +123,11 @@ static void read_environments (const char *** envpp)
                 break;
             }
 
+    /* TODO: This code appears to rely on the memory buffer being zero-
+     * initialized, so we use calloc here to get zeroed memory. We should
+     * audit this code to verify that it's correct. */
     const char ** new_envp =
-            malloc(sizeof(const char *) * (nenvs + nsetenvs - noverwrite + 1));
+        calloc((nenvs + nsetenvs - noverwrite + 1), sizeof(const char *));
     memcpy(new_envp, envp, sizeof(const char *) * nenvs);
     envp = new_envp;
 
