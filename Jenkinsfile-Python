@@ -3,8 +3,8 @@ pipeline {
         stages {
                 stage('Test') {
                     steps {
+                        sh 'make'
                         sh '''
-                            make
                             cd LibOS/shim/test/apps/python
                             ls
                             make
