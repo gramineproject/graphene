@@ -16,11 +16,13 @@
 #define __packed __attribute__((packed))
 #endif
 
+#if SDK_DRIVER_VERSION > KERNEL_VERSION(1, 8, 0)
 #include "linux-sgx-driver/sgx_user.h"
+#else // 1.8
+#include "linux-sgx-driver/isgx_user.h"
+#endif 
 
-#endif
-
-#if SDK_DRIVER_VERSION < KERNEL_VERSION(1, 8, 0)
+#else // SDK_DRIVER_VERSION < KERNEL_VERSION(1, 8, 0)
 
 #include "linux-sgx-driver/isgx_user.h"
 
