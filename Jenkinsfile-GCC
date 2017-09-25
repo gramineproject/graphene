@@ -9,7 +9,6 @@ pipeline {
                             make
                             ls
                             ./gcc.manifest -o helloworld test_files/helloworld.c
-                            ./gcc-huge.manifest -o single-gcc test_files/single-gcc.c
                         '''
 
                     }
