@@ -1,0 +1,40 @@
+pipeline {
+        agent any
+        stages {
+                stage('Build') {
+                    steps {
+                        sh 'make SGX=1'
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd LibOS/shim/test/apps/python
+                            ls
+                            make SGX=1
+                            make SGX_RUN=1
+                            ls
+                            ./python.manifest scripts/helloworld.py
+                            ./python.manifest scripts/fibonacci.py
+                        '''
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+        }
+}
+
