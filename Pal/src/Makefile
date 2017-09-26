@@ -73,12 +73,11 @@ endif
 
 SAVED_OS = $(patsubst %-debug,%,$(SAVED_TARGET))
 
+all: ; $(info $$var is [${var}])echo ${SAVED_TARGET}
 .PHONY: check_target
 check_target:
 	@echo "Building target: $(BUILD_TARGET)"
 ifneq ($(SAVED_TARGET),$(BUILD_TARGET))
-	@echo "Build target: $(BUILD_TARGET)"
-	@echo "Saved target: $(SAVED_TARGET)"
 	$(error "A different target is built earlier. Prune the directory first.")
 endif
 	@echo "SAVED_TARGET = $(BUILD_TARGET)" > Makefile.Status
