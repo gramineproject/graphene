@@ -6,7 +6,12 @@ pipeline {
                         sh 'openssl genrsa -3 -out enclave-key.pem 3072'
                         sh 'mv enclave-key.pem Pal/src/host/Linux-SGX/signer'
                         sh 'ls Pal/src/host/Linux-SGX/signer'
+                        sh 'cd Pal/src'
                         sh 'make SGX=1'
+                        sh 'cd host/Linux-SGX/sgx-driver'
+                        sh 'make'
+                        sh 'cd ../../../../LibOS'
+                        sh 'make'
                     }
                 }
                 stage('Test') {
