@@ -69,9 +69,8 @@ files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb
 
 all: | check_target $(files_to_build) $(files_to_install)
 $(info Saved Target is $(SAVED_TARGET))
-ifndef SAVED_TARGET
+
 SAVED_TARGET = $(BUILD_TARGET)
-endif
 
 SAVED_OS = $(patsubst %-debug,%,$(SAVED_TARGET))
 
