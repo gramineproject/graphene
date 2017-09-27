@@ -8,7 +8,7 @@ pipeline {
                             mv enclave-key.pem Pal/src/host/Linux-SGX/signer
                             ls Pal/src/host/Linux-SGX/signer
                             cd Pal/src
-                            make SGX=1
+                            make
                             cd host/Linux-SGX/sgx-driver
                             make
                             cd ../../../../LibOS
