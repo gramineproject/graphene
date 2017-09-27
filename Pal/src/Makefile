@@ -21,7 +21,7 @@ pal_lib_deps =
 pal_lib_post =
 pal_static =
 pal_gdb =
-
+$(info Saved Target is $(SAVED_TARGET))
 include host/$(PAL_HOST)/Makefile.am
 
 CFLAGS	+= -I. -I../include -Ihost/$(PAL_HOST) -I../lib
@@ -29,7 +29,7 @@ CFLAGS	+= -I. -I../include -Ihost/$(PAL_HOST) -I../lib
 ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
 endif
-
+$(info Saved Target is $(SAVED_TARGET))
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader) $(pal_sec)
 
@@ -40,7 +40,7 @@ objs	= $(addprefix db_,streams memory threading semaphore events process \
 graphene_lib = .lib/graphene-lib.a
 host_lib = host/$(PAL_HOST)/libpal-$(PAL_HOST).a
 headers	= $(wildcard *.h) $(wildcard ../lib/*.h) host/$(PAL_HOST)/pal_host.h
-
+$(info Saved Target is $(SAVED_TARGET))
 ifeq ($(SYS),x86_64-linux-gnu)
 files_to_build += user_start.o user_shared_start.o
 endif
@@ -50,7 +50,7 @@ CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 endif
 export DEBUG
-
+$(info Saved Target is $(SAVED_TARGET))
 runtime_loader = $(RUNTIME_DIR)/pal-$(PAL_HOST)
 
 ifneq ($(pal_lib),)
@@ -68,7 +68,7 @@ endif
 files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb)
 
 all: | check_target $(files_to_build) $(files_to_install)
-
+$(info Saved Target is $(SAVED_TARGET))
 ifndef SAVED_TARGET
 SAVED_TARGET = $(BUILD_TARGET)
 endif
