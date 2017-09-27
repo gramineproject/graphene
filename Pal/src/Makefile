@@ -73,7 +73,8 @@ endif
 
 SAVED_OS = $(patsubst %-debug,%,$(SAVED_TARGET))
 
-all: ; $(info $$var is [${var}])echo ${SAVED_TARGET}
+$(info Saved Target is $(SAVED_TARGET))
+$(info Build Target is $(BUILD_TARGET))
 .PHONY: check_target
 check_target:
 	@echo "Building target: $(BUILD_TARGET)"
