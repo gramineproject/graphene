@@ -4,7 +4,6 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            export ISGX_DRIVER_PATH="/afs/cs.unc.edu/home/neilbd/linux-sgx-driver"
                             openssl genrsa -3 -out enclave-key.pem 3072
                             mv enclave-key.pem Pal/src/host/Linux-SGX/signer
                             ls Pal/src/host/Linux-SGX/signer
