@@ -19,8 +19,7 @@ RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
 PAL_HOST=$(/usr/bin/make --quiet -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
 
 MANIFEST=
-PERF_CMD=
-GDB_CMD=
+PREFIX=
 PAL_CMD=$RUNTIME_DIR/pal-$PAL_HOST
 
 if [ "$GDB" == "1" ]; then
@@ -31,11 +30,15 @@ if [ "$GDB" == "1" ]; then
 fi
 
 if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
-	GDB_CMD="$GDB --args"
+	PREFIX="$GDB --args"
 fi
 
 if [ "$PERF" == "1" ]; then
-	GDB_CMD="perf stat"
+	PREFIX="perf stat"
+fi
+
+if [ "$MEMUSG" == "1" ]; then
+	PREFIX="$RUNTIME_DIR/../Scripts/memusg"
 fi
 
 if [ "$SEC" == "1" ]; then
@@ -59,4 +62,4 @@ if [ ! -f "$PAL_CMD" ]; then
 	exit 1
 fi
 
-exec $GDB_CMD $PAL_CMD $MANIFEST "$@"
+exec $PREFIX $PAL_CMD $MANIFEST "$@"
