@@ -177,6 +177,8 @@ static void __put_ipc_port (struct shim_ipc_port * pobj)
             pobj->pal_handle = NULL;
         }
 
+        destroy_lock(pobj->msgs_lock);
+
         free_mem_obj_to_mgr(port_mgr, pobj);
     }
 }

@@ -55,7 +55,7 @@ static inline int atomic_dec_if_positive (struct atomic_int *v)
 }
 
 int
-_DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount)
+_DkSemaphoreCreate (PAL_HANDLE * sem, int initialCount, int maxCount)
 {
     /*
      * 1. Allocate memory for db_sem (this includes a futex variable).
@@ -63,6 +63,7 @@ _DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount)
      * 3. Set the semaphore object with the argument values (count, maxCount)
      */
 
+    PAL_HANDLE handle = malloc(HANDLE_SIZE(semaphore));
     SET_HANDLE_TYPE(handle, semaphore);
     atomic_set(&handle->semaphore.nwaiters, 0);
     handle->semaphore.max_value = maxCount;
@@ -74,12 +75,8 @@ _DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount)
         atomic_set(&handle->semaphore.value.i, maxCount - initialCount);
     }
 
+    *sem = handle;
     return 0;
-}
-
-void _DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle)
-{
-    free(semaphoreHandle);
 }
 
 int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);

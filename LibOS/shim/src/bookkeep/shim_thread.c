@@ -305,11 +305,21 @@ void put_thread (struct shim_thread * thread)
 #endif
 
     if (!ref_count) {
-       if (thread->exec)
+        if (thread->exec)
             put_handle(thread->exec);
 
         if (!IS_INTERNAL(thread))
             release_pid(thread->tid);
+
+        if (thread->pal_handle) {
+            DkObjectClose(thread->pal_handle);
+            thread->pal_handle = NULL;
+        }
+
+        DkObjectClose(thread->scheduler_event);
+        DkObjectClose(thread->exit_event);
+        DkObjectClose(thread->child_exit_event);
+        destroy_lock(thread->lock);
 
         if (MEMORY_MIGRATED(thread))
             memset(thread, 0, sizeof(struct shim_thread));
@@ -329,6 +339,8 @@ void put_simple_thread (struct shim_simple_thread * thread)
 
     if (!ref_count) {
         list_del(&thread->list);
+        DkObjectClose(thread->exit_event);
+        destroy_lock(thread->lock);
         free(thread);
     }
 }

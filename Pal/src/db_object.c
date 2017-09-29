@@ -31,52 +31,34 @@
 #include "api.h"
 #include "atomic.h"
 
-int _DkObjectReference (PAL_HANDLE objectHandle)
-{
-    if (!objectHandle || UNKNOWN_HANDLE(objectHandle))
-        return -PAL_ERROR_INVAL;
-
-    atomic_inc(&HANDLE_HDR(objectHandle)->ref);
-    return 0;
-}
-
-void DkObjectReference (PAL_HANDLE objectHandle)
-{
-    ENTER_PAL_CALL(DkObjectReference);
-
-    int ret = _DkObjectReference(objectHandle);
-
-    if (ret < 0)
-        _DkRaiseFailure(-ret);
-
-    LEAVE_PAL_CALL();
-}
+/* Deprecated DkObjectReference. */
 
 int _DkObjectClose (PAL_HANDLE objectHandle)
 {
-    if (!objectHandle || UNKNOWN_HANDLE(objectHandle))
-        return -PAL_ERROR_INVAL;
-
-    if (atomic_dec_and_test_nonnegative(&HANDLE_HDR(objectHandle)->ref))
-        return 0;
-
     const struct handle_ops * ops = HANDLE_OPS(objectHandle);
+    int ret = 0;
 
     /* if the operation 'close' is defined, call the function. */
     if (ops && ops->close)
-        return ops->close(objectHandle);
+        ret = ops->close(objectHandle);
 
-    free(objectHandle);
-    return 0;
+    if (!ret)
+        free(objectHandle);
+
+    return ret;
 }
 
-/* PAL call DkObjectClose: Close the given object handle. This function is
-   different from DkStreamDelete. It works on all kinds of handles, and it
-   simply close the reference to the object, the stream is not actually
-   deleted. */
+/* PAL call DkObjectClose: Close the given object handle. */
 void DkObjectClose (PAL_HANDLE objectHandle)
 {
     ENTER_PAL_CALL(DkObjectClose);
+
+    if (!objectHandle || UNKNOWN_HANDLE(objectHandle)) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL();
+    }
+
+    UNTRACE_HEAP(objectHandle);
 
     int ret = _DkObjectClose(objectHandle);
 

@@ -97,11 +97,19 @@ static inline int init_exec_handle (struct shim_thread * thread)
                       &exec->dentry);
         set_handle_fs(exec, fs);
         if (exec->dentry) {
+            int ret = fs->d_ops->open(exec, exec->dentry, O_WRONLY);
+            if (ret < 0) {
+                put_mount(fs);
+                put_handle(exec);
+                return ret;
+            }
+
             int len;
             const char * path = dentry_get_path(exec->dentry, true, &len);
             qstrsetstr(&exec->path, path, len);
         }
         put_mount(fs);
+
     } else {
         set_handle_fs(exec, &chroot_builtin_fs);
     }
@@ -536,8 +544,13 @@ void put_handle (struct shim_handle * hdl)
         qstrfree(&hdl->path);
         qstrfree(&hdl->uri);
 
-        if (hdl->pal_handle)
+        if (hdl->pal_handle) {
+#ifdef DEBUG_REF
+            debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
+#endif
             DkObjectClose(hdl->pal_handle);
+            hdl->pal_handle = NULL;
+        }
 
         if (hdl->dentry)
             put_dentry(hdl->dentry);

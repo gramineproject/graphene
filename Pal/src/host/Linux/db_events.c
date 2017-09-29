@@ -47,11 +47,6 @@ int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
     return 0;
 }
 
-void _DkEventDestroy (PAL_HANDLE handle)
-{
-    free(handle);
-}
-
 int _DkEventSet (PAL_HANDLE event, int wakeup)
 {
     int ret = 0;

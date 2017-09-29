@@ -175,6 +175,7 @@ DkStreamOpen (PAL_STR uri, PAL_FLG access, PAL_FLG share, PAL_FLG create,
     assert(handle);
     assert(PAL_GET_TYPE(handle));
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
@@ -206,6 +207,7 @@ DkStreamWaitForClient (PAL_HANDLE handle)
         client = NULL;
     }
 
+    TRACE_HEAP(client);
     LEAVE_PAL_CALL_RETURN(client);
 }
 

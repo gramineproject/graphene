@@ -50,7 +50,6 @@ typedef struct atomic_int PAL_REF;
 
 typedef struct {
     PAL_IDX type;
-    PAL_REF ref;
     PAL_FLG flags;
 } PAL_HDR;
 
@@ -60,10 +59,17 @@ typedef struct {
 #  define HANDLE_HDR(handle) (&((handle)->hdr))
 # endif
 
+# ifndef TRACE_HEAP
+#  define TRACE_HEAP(handle) do {} while (0)
+# endif
+
+# ifndef UNTRACE_HEAP
+#  define UNTRACE_HEAP(handle) do {} while (0)
+# endif
+
 # define SET_HANDLE_TYPE(handle, t)             \
     do {                                        \
         HANDLE_HDR(handle)->type = pal_type_##t;\
-        HANDLE_HDR(handle)->ref.counter = 0;    \
         HANDLE_HDR(handle)->flags = 0;          \
     } while (0)
 
@@ -75,6 +81,7 @@ typedef union pal_handle
 {
     struct {
         PAL_IDX type;
+        /* the PAL-level reference counting is deprecated */
     } hdr;
 } * PAL_HANDLE;
 
@@ -473,7 +480,7 @@ DkEventClear (PAL_HANDLE eventHandle);
 PAL_HANDLE
 DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout);
 
-void DkObjectReference (PAL_HANDLE objectHandle);
+/* Deprecate DkObjectReference */
 
 void DkObjectClose (PAL_HANDLE objectHandle);
 

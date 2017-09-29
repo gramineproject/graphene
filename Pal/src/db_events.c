@@ -41,6 +41,7 @@ PAL_HANDLE DkNotificationEventCreate (PAL_BOL initialState)
         handle = NULL;
     }
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
@@ -56,21 +57,11 @@ PAL_HANDLE DkSynchronizationEventCreate (PAL_BOL initialState)
         handle = NULL;
     }
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-void DkEventDestroy (PAL_HANDLE handle)
-{
-    ENTER_PAL_CALL(DkEventDestroy);
-
-    if (!handle || !IS_HANDLE_TYPE(handle, event)) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL();
-    }
-
-    _DkEventDestroy(handle);
-    LEAVE_PAL_CALL();
-}
+/* DkEventDestroy deprecated, replaced by DkObjectClose */
 
 void DkEventSet (PAL_HANDLE handle)
 {

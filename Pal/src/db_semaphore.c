@@ -34,32 +34,19 @@ DkSemaphoreCreate (PAL_NUM initialCount, PAL_NUM maxCount)
 {
     ENTER_PAL_CALL(DkSemaphoreCreate);
 
-    PAL_HANDLE handle = (PAL_HANDLE) malloc(HANDLE_SIZE(semaphore));
-
-    int ret = _DkSemaphoreCreate(handle, initialCount, maxCount);
+    PAL_HANDLE handle = NULL;
+    int ret = _DkSemaphoreCreate(&handle, initialCount, maxCount);
 
     if (ret < 0) {
-        free(handle);
         _DkRaiseFailure(-ret);
         handle = NULL;
     }
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-void
-DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle)
-{
-    ENTER_PAL_CALL(DkSemaphoreDestroy);
-
-    if (!semaphoreHandle) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL();
-    }
-
-    _DkSemaphoreDestroy(semaphoreHandle);
-    LEAVE_PAL_CALL();
-}
+/* DkSemaphoreDestroy deprecated, replaced by DkObjectClose */
 
 void DkSemaphoreRelease (PAL_HANDLE handle, PAL_NUM count)
 {

@@ -325,8 +325,7 @@ void _DkProcessExit (int exitCode);
 int _DkProcessSandboxCreate (const char * manifest, int flags);
 
 /* DkSemaphore calls */
-int _DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount);
-void _DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle);
+int _DkSemaphoreCreate (PAL_HANDLE * sem, int initialCount, int maxCount);
 int _DkSemaphoreAcquire (PAL_HANDLE sem, int count);
 int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, uint64_t timeout);
 void _DkSemaphoreRelease (PAL_HANDLE sem, int count);
@@ -335,7 +334,6 @@ int _DkSemaphoreGetCurrentCount (PAL_HANDLE sem);
 /* DkEvent calls */
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
-void _DkEventDestroy (PAL_HANDLE handle);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
 int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout);
 int _DkEventWait (PAL_HANDLE event);
