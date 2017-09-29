@@ -316,9 +316,12 @@ void put_thread (struct shim_thread * thread)
             thread->pal_handle = NULL;
         }
 
-        DkObjectClose(thread->scheduler_event);
-        DkObjectClose(thread->exit_event);
-        DkObjectClose(thread->child_exit_event);
+        if (thread->scheduler_event)
+            DkObjectClose(thread->scheduler_event);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
+        if (thread->child_exit_event)
+            DkObjectClose(thread->child_exit_event);
         destroy_lock(thread->lock);
 
         if (MEMORY_MIGRATED(thread))

@@ -159,7 +159,7 @@ failed:
 int _DkProcessCreate (PAL_HANDLE * handle,
                       const char * uri, int flags, const char ** args)
 {
-    PAL_HANDLE exec = NULL, exec_file = NULL;
+    PAL_HANDLE exec = NULL;
     PAL_HANDLE parent_handle = NULL, child_handle = NULL;
     int ret;
 
@@ -169,19 +169,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
         if ((ret = _DkStreamOpen(&exec, uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
             return ret;
 
-        ret = _DkStreamFile(exec, &exec_file);
-        if (ret < 0)
-            goto out;
-
-        _DkObjectClose(exec);
-        exec = NULL;
-
-        if (check_elf_object(exec_file) < 0) {
-            ret = -PAL_ERROR_INVAL;
-            goto out;
-        }
-
-        handle_set_cloexec(exec_file, true);
+        handle_set_cloexec(exec, true);
     }
 
     /* step 2: create parant and child process handle */
@@ -194,7 +182,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
 
 
     param.parent = parent_handle;
-    param.exec = exec_file;
+    param.exec = exec;
     param.manifest = pal_state.manifest_handle;
 
     /* step 3: compose process parameter */
@@ -209,8 +197,8 @@ int _DkProcessCreate (PAL_HANDLE * handle,
         goto out;
     parent_datasz = ret;
 
-    if (exec_file) {
-        ret = handle_serialize(exec_file, &exec_data);
+    if (exec) {
+        ret = handle_serialize(exec, &exec_data);
         if (ret < 0) {
             free(parent_data);
             goto out;
@@ -308,8 +296,6 @@ out:
             _DkObjectClose(child_handle);
         if (exec)
             _DkObjectClose(exec);
-        if (exec_file)
-            _DkObjectClose(exec_file);
     }
     return ret;
 }
