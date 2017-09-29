@@ -4,20 +4,17 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
-target = $(patsubst %.java,%.class,$(wildcard classes/*.java))
+target = build-java $(patsubst %.java,%.class,$(wildcard classes/*.java))
 exec_target = java.manifest
 
 clean-extra = clean-classes
 
-JAVA_HOST_HOME = $(shell readlink -f /usr/bin/java | xargs dirname | xargs dirname)
+compact_rule = sys.stack.size = 1M\nsys.brk.size = 16M\nglibc.heap_size =  4M\nsgx.enclave_size = 2G\nsgx.thread_num = 16\nsgx.heap_min = 0x80000000
+large_rule   = sys.stack.size = 4M\nsys.brk.size = 64M\nglibc.heap_size = 16M\nsgx.enclave_size = 8G\nsgx.thread_num = 32\nsgx.heap_min = 0x40000000
 
-compact_rule = sys.stack.size = 1M\nsys.brk.size = 16M\nglibc.heap_size = 4M\nsgx.enclave_size = 4G\nsgx.thread_num = 16
-large_rule = sys.stack.size = 4M\nsys.brk.size = 64M\nglibc.heap_size = 16M\nsgx.enclave_size = 8G\nsgx.thread_num = 32
-
-ABSPATH_IN_MANIFEST = yes
 extra_rules = \
 	-e 's:\$$(DEBUGTYPE):$(if $(DEBUG),inline,none):g' \
-	-e 's:\$$(JAVA_HOME):$(JAVA_HOST_HOME):g' \
+	-e 's:\$$(JAVA_HOME):$(JAVA_HOME):g' \
 	-e 's:\$$(RESOURCE_RULE):$(if $(COMPACT),$(compact_rule),$(large_rule)):g'
 
 level = ../../
@@ -137,13 +134,13 @@ distclean: clean
 
 endif
 
-build-java: $(JAVA_HOME)/bin/java
+build-java: $(JAVA_HOME)/bin/java $(JAVAC)
 
 java_home:
 	@echo $(JAVA_HOME)
 
-%.class: %.java
-	javac $<
+%.class: %.java $(JAVAC)
+	$(JAVAC) $<
 
 clean-classes:
 	rm -f $(addsuffix .class,$(TEST_CLASS))
