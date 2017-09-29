@@ -18,6 +18,6 @@
 #define URI_MAX                  256
 
 /* turn on the following option to trace heap memory leak */
-#define TRACE_HEAP_LEAK          1
+#define TRACE_HEAP_LEAK          0
 
 #endif /* PAL_DEFS_H */
