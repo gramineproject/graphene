@@ -77,7 +77,6 @@ out:
 int _DkStreamFile (PAL_HANDLE hdl, PAL_HANDLE * file)
 {
     if (IS_HANDLE_TYPE(hdl, file)) {
-        _DkObjectReference(hdl);
         *file = hdl;
         return 0;
     }

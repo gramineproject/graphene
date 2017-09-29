@@ -43,7 +43,6 @@ typedef union pal_handle
 
     struct {
         PAL_IDX type;
-        PAL_REF ref;
         PAL_FLG flags;
         PAL_IDX fds[];
     } hdr;
