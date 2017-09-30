@@ -342,7 +342,8 @@ void put_simple_thread (struct shim_simple_thread * thread)
 
     if (!ref_count) {
         list_del(&thread->list);
-        DkObjectClose(thread->exit_event);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
         destroy_lock(thread->lock);
         free(thread);
     }
