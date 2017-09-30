@@ -309,7 +309,7 @@ typedef struct {
     PAL_NUM count;
 } HEAP_ALLOC_RECORD;
 
-extern HEAP_ALLOC_RECORD * collect_heap_alloc_trace (PAL_NUM max_record);
+extern HEAP_ALLOC_RECORD * collect_heap_alloc_records (PAL_NUM max_records);
 
 static inline
 void __trace_heap (PAL_HANDLE handle, struct pal_frame * frame)

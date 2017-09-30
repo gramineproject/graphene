@@ -267,7 +267,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
 PAL_HANDLE heap_alloc_head;
 PAL_LOCK   heap_alloc_trace_lock = LOCK_INIT;
 
-HEAP_ALLOC_RECORD * collect_handle_trace_list (PAL_NUM max_records)
+HEAP_ALLOC_RECORD * collect_heap_alloc_records (PAL_NUM max_records)
 {
     HEAP_ALLOC_RECORD * records =
             malloc(sizeof(HEAP_ALLOC_RECORD) * max_records);
