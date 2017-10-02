@@ -63,6 +63,11 @@ _DkSemaphoreCreate (PAL_HANDLE * sem, int initialCount, int maxCount)
      * 3. Set the semaphore object with the argument values (count, maxCount)
      */
 
+    /*
+     * Chia-Che 10/1/2017:
+     * Deprecating _DkSemaphoreDestroy(); the freeing will be done
+     * in DkObjectClose().
+     */
     PAL_HANDLE handle = malloc(HANDLE_SIZE(semaphore));
     SET_HANDLE_TYPE(handle, semaphore);
     atomic_set(&handle->semaphore.nwaiters, 0);
