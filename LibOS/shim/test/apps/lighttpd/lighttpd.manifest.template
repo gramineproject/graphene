@@ -2,12 +2,17 @@
 
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:build/sbin/lighttpd
-loader.env.LD_LIBRARY_PATH = /lib:/lighttpd
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/lighttpd
 loader.debug_type = none
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(LIBCDIR)
+
+fs.mount.lib64.type = chroot
+fs.mount.lib64.path = /lib/x86_64-linux-gnu
+fs.mount.lib64.uri = file:/lib/x86_64-linux-gnu
+
 
 fs.mount.build.type = chroot
 fs.mount.build.path = /lighttpd
@@ -39,6 +44,8 @@ sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.libssl = file:/lib/x86_64-linux-gnu/libssl.so.1.0.0
+sgx.trusted_files.libcrypto = file:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0
 
 sgx.trusted_files.lib1 = file:build/lib/mod_indexfile.so
 sgx.trusted_files.lib2 = file:build/lib/mod_dirlisting.so
@@ -48,5 +55,8 @@ sgx.trusted_files.conf1 = file:lighttpd.conf
 sgx.trusted_files.conf2 = file:lighttpd-generic.conf
 sgx.trusted_files.conf3 = file:lighttpd-server.conf
 sgx.trusted_files.conf4 = file:lighttpd-multithreaded.conf
+sgx.trusted_files.conf5 = file:lighttpd-ssl.conf
+
+sgx.trusted_files.server_key = file:server.pem
 
 sgx.allowed_files.html = file:html
