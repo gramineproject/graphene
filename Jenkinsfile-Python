@@ -6,7 +6,7 @@ pipeline {
                         sh '''
                             make
                             cd LibOS/shim/test/apps/python
-                            make
+                            make regression
                         '''
                     }
                 }
