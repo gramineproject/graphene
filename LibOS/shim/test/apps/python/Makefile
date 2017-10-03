@@ -46,7 +46,7 @@ regression:
 	@echo "\n\nRun test-http.py:"
 	-./python.manifest scripts/test-http.py 127.0.0.1 8000 > OUTPUT1
 	-wget -q http://127.0.0.1:8000/ -O OUTPUT2
-	diff -q OUTPUT1 OUTPUT2
+	-diff -q OUTPUT1 OUTPUT2
 	@kill `cat server.PID`
 	@rm -f OUTPUT1 OUTPUT2 server.PID
 
