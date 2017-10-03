@@ -4,9 +4,9 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make regression
+                            make          
                             cd LibOS/shim/test/apps/python
-                            make regression
+                            make
                         '''
                     }
                 }
