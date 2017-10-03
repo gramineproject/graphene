@@ -7,8 +7,6 @@ pipeline {
                             make
                             cd LibOS/shim/test/apps/gcc
                             make
-                            ls
-                            ./gcc.manifest -o helloworld test_files/helloworld.c
                         '''
 
                     }
@@ -16,7 +14,8 @@ pipeline {
                 stage('Test') {
                     steps {
                         sh '''
-
+                            ls
+                            ./gcc.manifest -o helloworld test_files/helloworld.c
                         '''
 
                         input 'Tests complete. Do you wish to deploy?'
