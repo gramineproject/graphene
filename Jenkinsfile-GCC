@@ -15,7 +15,6 @@ pipeline {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/gcc
-                            ls
                             ./gcc.manifest -o helloworld test_files/helloworld.c
                         '''
 
