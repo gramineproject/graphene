@@ -40,12 +40,12 @@ regression:
 	grep -q "fib2              55" OUTPUT
 	@rm OUTPUT
 
+	@echo "\n\nRun a HTTP server in the background"
+	python scripts/dummy-web-server.py 8000
 	@echo "\n\nRun test-http.py:"
-	./python.manifest scripts/test-http.py  > OUTPUT
-	wget -q http://google.com/ -O OUTPUT2
-	@DS=`sdiff -B -b -s OUTPUT OUTPUT2 | wc -c`; \
-	TS=`stat -c%s OUTPUT2`; \
-	awk "BEGIN{ percentage = 100.0 * $$DS / $$TS; printf(\"%.3f%% is different\\n\", percentage); if (percentage > 10.0) { exit 1; }}"
+	./python.manifest scripts/test-http.py 127.0.0.1 8000 > OUTPUT
+	wget -q http://127.0.0.1:8000/ -O OUTPUT2
+	diff -q OUTPUT1 OUTPUT2
 	@rm OUTPUT OUTPUT2
 
 
