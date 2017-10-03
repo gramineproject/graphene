@@ -1,6 +1,6 @@
 import urllib2
 
-request = urllib2.Request("http://google.com/")
+request = urllib2.Request("http://" + argv[1] + ":" + argv[2] + "/index.html")
 opener = urllib2.build_opener()
 response = opener.open(request, timeout=10)
 while True:
