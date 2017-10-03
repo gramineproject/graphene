@@ -162,6 +162,22 @@ int get_config_entries (struct config_store * store, const char * key,
 
     return nentries;
 }
+int get_config_entries_size (struct config_store * store, const char * key)
+{
+    struct config * e = __get_config(store, key);
+
+    if (!e || e->val)
+        return -PAL_ERROR_INVAL;
+
+    struct list_head * children = &e->children;
+    int size = 0;
+
+    list_for_each_entry(e, children, siblings) {
+        size += e->klen + 1;
+    }
+
+    return size;
+}
 
 static int __del_config (struct config_store * store,
                          struct list_head * root, const char * key)
