@@ -95,24 +95,24 @@ regression:
 	@$(MAKE) >> /dev/null 2>&1
 
 	@echo "\n\nCompile hello.c:"
-	./gcc.manifest test_files/helloworld.c -o hello
+	-./gcc.manifest test_files/helloworld.c -o hello
 	@chmod 755 hello
-	./hello
+	-./hello
 
 	@echo "\n\nCompile bzip2.c:"
-	./gcc.manifest test_files/bzip2.c -o bzip2
+	-./gcc.manifest test_files/bzip2.c -o bzip2
 	@chmod 755 bzip2
 	@[ ! -f bzip2.tmp ] || rm -f bzip2.tmp
 	@cp -f bzip2 bzip2.copy
-	./bzip2 -z bzip2.copy && ./bzip2 -d bzip2.copy.bz2
+	-./bzip2 -z bzip2.copy && ./bzip2 -d bzip2.copy.bz2
 	diff -q bzip2 bzip2.copy
 	@rm -f bzip2.copy
 
 	@echo "\n\nCompile gzip.c:"
-	./gcc.manifest test_files/gzip.c -o gzip
+	-./gcc.manifest test_files/gzip.c -o gzip
 	@chmod 755 gzip
 	@cp -f gzip gzip.copy
-	./gzip gzip.copy && ./gzip -d gzip.copy.gz
+	-./gzip gzip.copy && ./gzip -d gzip.copy.gz
 	diff -q gzip gzip.copy
 	@rm -f gzip.copy
 
