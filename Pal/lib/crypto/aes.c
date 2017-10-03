@@ -25,7 +25,6 @@
 #include "aes.h"
 #include "error-crypt.h"
 #include "api.h"
-#include "pal_linux_defs.h"
 
 #define XMEMSET memset
 #define XMEMCPY memcpy
@@ -867,7 +866,15 @@ void AESEncrypt(AES *aes, const byte *inBlock, byte *outBlock)
     if (r > 7 || r == 0)
         return;  /* stop instead of segfaulting, set up your keys! */
 
-   /*
+#if USE_AES_NI == 1
+    /* check alignment, decrypt doesn't need alignment */
+    if (!((uint64_t) inBlock % 16)) {
+        AES_ECB_encrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
+                        aes->rounds);
+        return;
+    }
+#endif
+    /*
       *map byte array block to cipher state
       *and add initial round key:
      */
@@ -998,6 +1005,14 @@ void AESDecrypt(AES *aes, const byte *inBlock, byte *outBlock)
     const word32 *rk = aes->key;
     if (r > 7 || r == 0)
         return;  /* stop instead of segfaulting, set up your keys! */
+
+#if USE_AES_NI == 1
+    /* if input and output same will overwrite input iv */
+    XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
+    AES_ECB_decrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
+                    aes->rounds);
+    return;
+#endif
 
     /*
       *map byte array block to cipher state

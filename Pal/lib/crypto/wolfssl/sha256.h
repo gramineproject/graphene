@@ -46,5 +46,6 @@ typedef struct SHA256 {
 int SHA256Init(SHA256 *);
 int SHA256Update(SHA256 *, const byte *, word32);
 int SHA256Final(SHA256 *, byte *);
+int SHA256Hash(const byte *, word32, byte *);
 
 #endif /* CTAO_CRYPT_SHA256_H */

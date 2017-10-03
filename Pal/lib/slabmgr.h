@@ -27,6 +27,7 @@
 #define SLABMGR_H
 
 #include "linux_list.h"
+#include <assert.h>
 #include <sys/mman.h>
 
 #ifndef system_malloc
@@ -42,20 +43,49 @@
 #define system_unlock() ({})
 #endif
 
-#define SLAB_PADDING   7
+/* malloc is supposed to provide some kind of alignment guarantees, but
+ * I can't find a specific reference to what that should be for x86_64.
+ * The first link here is a reference to a technical report from Mozilla,
+ * which seems to indicate that 64-bit platforms align return values to
+ * 16-bytes. calloc and malloc provide the same alignment guarantees.
+ * calloc additionally sets the memory to 0, which malloc is not required
+ * to do.
+ *
+ * http://www.erahm.org/2016/03/24/minimum-alignment-of-allocation-across-platforms/
+ * http://pubs.opengroup.org/onlinepubs/9699919799/functions/malloc.html
+ */
+#define MIN_MALLOC_ALIGNMENT 16
+
+/* Slab objects need to be a multiple of 16 bytes to ensure proper address
+ * alignment for malloc and calloc. */
+#define OBJ_PADDING   15
+
+#define LARGE_OBJ_PADDING 8
+
+/* Returns the smallest exact multiple of _y that is at least as large as _x.
+ * In other words, returns _x if _x is a multiple of _y, otherwise rounds
+ * _x up to be a multiple of _y.
+ */
+#define ROUND_UP(_x, _y) ((((_x) + (_y) - 1) / (_y)) * (_y))
 
 typedef struct __attribute__((packed)) slab_obj {
     unsigned char level;
-    unsigned char padding[SLAB_PADDING];
+    unsigned char padding[OBJ_PADDING];
     union {
         struct list_head __list;
         unsigned char *raw;
     };
 } SLAB_OBJ_TYPE, * SLAB_OBJ;
 
+/* In order for slab elements to be 16-byte aligned, struct slab_area must
+ * be a multiple of 16 bytes. TODO: Add compile time assertion that this
+ * invariant is respected. */
+#define AREA_PADDING 12
+
 typedef struct __attribute__((packed)) slab_area {
     struct list_head __list;
     unsigned int size;
+    unsigned char pad[AREA_PADDING];
     unsigned char raw[];
 } SLAB_AREA_TYPE, * SLAB_AREA;
 
@@ -79,8 +109,10 @@ struct slab_debug {
 # define SLAB_CANARY_SIZE   0
 #endif
 
-#define SLAB_HDR_SIZE (sizeof(SLAB_OBJ_TYPE) - sizeof(struct list_head) + \
-                       SLAB_DEBUG_SIZE + SLAB_CANARY_SIZE)
+#define SLAB_HDR_SIZE \
+    ROUND_UP((sizeof(SLAB_OBJ_TYPE) - sizeof(struct list_head) +    \
+              SLAB_DEBUG_SIZE + SLAB_CANARY_SIZE), \
+             MIN_MALLOC_ALIGNMENT)
 
 #ifndef SLAB_LEVEL
 #define SLAB_LEVEL 8
@@ -110,9 +142,13 @@ typedef struct slab_mgr {
 } SLAB_MGR_TYPE, * SLAB_MGR;
 
 typedef struct __attribute__((packed)) large_mem_obj {
+    // offset 0
     unsigned long size;
+    unsigned char large_padding[LARGE_OBJ_PADDING];
+    // offset 16
     unsigned char level;
-    unsigned char padding[SLAB_PADDING];
+    unsigned char padding[OBJ_PADDING];
+    // offset 32
     unsigned char raw[];
 } LARGE_MEM_OBJ_TYPE, * LARGE_MEM_OBJ;
 
@@ -120,7 +156,7 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #define OBJ_RAW(obj) (&(obj)->raw)
 
 #define RAW_TO_LEVEL(raw_ptr) \
-            (*((unsigned char *) (raw_ptr) - SLAB_PADDING - 1))
+            (*((unsigned char *) (raw_ptr) - OBJ_PADDING - 1))
 #define RAW_TO_OBJ(raw_ptr, type) container_of((raw_ptr), type, raw)
 
 #define __SUM_OBJ_SIZE(slab_size, size) \
@@ -346,6 +382,12 @@ static inline void * slab_alloc_debug (SLAB_MGR mgr, int size,
 
 static inline void slab_free (SLAB_MGR mgr, void * obj)
 {
+    /* In a general purpose allocator, free of NULL is allowed (and is a 
+     * nop). We might want to enforce stricter rules for our allocator if
+     * we're sure that no clients rely on being able to free NULL. */
+    if (obj == NULL)
+        return;
+    
     unsigned char level = RAW_TO_LEVEL(obj);
 
     if (level == (unsigned char) -1) {
@@ -354,8 +396,17 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
         return;
     }
 
-    if (level >= SLAB_LEVEL)
-        return;
+    /* If this happens, either the heap is already corrupted, or someone's
+     * freeing something that's wrong, which will most likely lead to heap
+     * corruption. Either way, panic if this happens. TODO: this doesn't allow
+     * us to detect cases where the heap headers have been zeroed, which
+     * is a common type of heap corruption. We could make this case slightly
+     * more likely to be detected by adding a non-zero offset to the level,
+     * so a level of 0 in the header would no longer be a valid level. */
+    if (level >= SLAB_LEVEL) {
+        pal_printf("Heap corruption detected: invalid heap level %ud\n", level);
+        assert(0); // panic
+    }
 
 #ifdef SLAB_CANARY
     unsigned long * m = (unsigned long *) (obj + slab_levels[level]);
@@ -375,6 +426,9 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
 static inline void slab_free_debug (SLAB_MGR mgr, void * obj,
                                     const char * file, int line)
 {
+    if (obj == NULL)
+        return;
+    
     unsigned char level = RAW_TO_LEVEL(obj);
 
     if (level < SLAB_LEVEL) {

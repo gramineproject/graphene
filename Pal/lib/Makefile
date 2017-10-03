@@ -11,9 +11,16 @@ ARFLAGS	=
 include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src
-subdirs = string stdlib network graphene
-objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
+subdirs = string stdlib network graphene util crypto
 headers = api.h
+
+# Select which crypto adpater you want to use here. This has to match
+# the #define in pal_crypto.h.
+subdirs += crypto/mbedtls
+#subdirs += crypto/wolfssl
+objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
+objs += crypto/adapters/mbedtls_adapter.o
+#objs += crypto/adapters/wolfssl_adapter.o
 
 all: $(target)graphene-lib.a
 

@@ -104,18 +104,19 @@ void init_slab_mgr (int alignment)
 #endif
 }
 
-void * malloc (int size)
+void * malloc (size_t size)
 {
 #if PROFILING == 1
     unsigned long before_slab = _DkSystemTimeQuery();
 #endif
     void * ptr = slab_alloc(slab_mgr, size);
 
-    /* the slab manger will always remain at least one byte of padding,
-       so we can feel free to assign an offset at the byte prior to
-       the pointer */
+#ifdef DEBUG
+    /* In debug builds, try to break code that uses uninitialized heap
+     * memory by explicitly initializing to a non-zero value. */
     if (ptr)
-        *(((unsigned char *) ptr) - 1) = 0;
+        memset(ptr, 0xa5, size);
+#endif
 
 #if PROFILING == 1
     pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
@@ -123,7 +124,12 @@ void * malloc (int size)
     return ptr;
 }
 
-void * remalloc (const void * mem, int size)
+/* This function is not realloc(). remalloc() allocates a new buffer
+ * with with a provided size and copies the contents of the old buffer
+ * to the new buffer. The old buffer is not freed. The old buffer must
+ * be at least size bytes long. This function should probably be renamed
+ * to something less likely to be confused with realloc. */
+void * remalloc (const void * mem, size_t size)
 {
     void * nmem = malloc(size);
 
@@ -133,16 +139,23 @@ void * remalloc (const void * mem, int size)
     return nmem;
 }
 
-void * calloc (int nmem, int size)
+char * strdup (const char *s)
 {
-    void * ptr = malloc(nmem * size + size);
-    void * old_ptr = ptr;
+    size_t len = strlen(s) + 1;
+    char *new = malloc(len);
 
-    if (ptr) {
-        // align ptr to size
-        ptr = (char *) ptr + size - 1 - ((uintptr_t) ptr + size - 1) % size;
-        *(((char *) ptr) - 1) = (char *) ptr - (char *) old_ptr;
-    }
+    if (new)
+        memcpy(new, s, len);
+    
+    return new;
+}
+
+void * calloc (size_t nmem, size_t size)
+{
+    void * ptr = malloc(nmem * size);
+
+    if (ptr)
+        memset(ptr, 0, nmem * size);
 
     return ptr;
 }
@@ -152,8 +165,6 @@ void free (void * ptr)
 #if PROFILING == 1
     unsigned long before_slab = _DkSystemTimeQuery();
 #endif
-
-    ptr = (char *) ptr - *(((unsigned char *) ptr) - 1);
     slab_free(slab_mgr, ptr);
 
 #if PROFILING == 1

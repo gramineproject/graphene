@@ -110,8 +110,6 @@ void padding (unsigned char *lastb, unsigned char *pad, int length)
     }
 }
 
-#include "pal_linux.h"
-#include "pal_internal.h"
 #include "api.h"
 
 void AES_CMAC (unsigned char *key, unsigned char *input, int length,

@@ -236,3 +236,21 @@ int SHA256Final(SHA256 *sha256, byte *hash)
 
     return SHA256Init(sha256);  /* reset state */
 }
+
+int SHA256Hash(const byte * data, word32 len, byte * hash)
+{
+    int ret = 0;
+    SHA256 sha256;
+
+    if ((ret = SHA256Init(&sha256)) != 0) {
+        printf("SHA256Init failed");
+    }
+    else if ((ret = SHA256Update(&sha256, data, len)) != 0) {
+        printf("SHA256Update failed");
+    }
+    else if ((ret = SHA256Final(&sha256, hash)) != 0) {
+        printf("SHA256Final failed");
+    }
+
+    return ret;
+}

@@ -344,7 +344,9 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     if (ret < 0)
         return ret;
 
-    handle->file.realpath = remalloc(uri, strlen(uri));
+    /* TODO: old realpath memory is potentially leaked here, and need
+     * to check for strdup memory allocation failure. */
+    handle->file.realpath = strdup(uri);
     return 0;
 }
 
@@ -532,7 +534,9 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     if (ret < 0)
         return ret;
 
-    handle->dir.realpath = remalloc(uri, strlen(uri));
+    /* TODO: old realpath memory is potentially leaked here, and need
+     * to check for strdup memory allocation failure. */
+    handle->dir.realpath = strdup(uri);
     return 0;
 }
 
