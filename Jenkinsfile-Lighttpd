@@ -14,9 +14,8 @@ pipeline {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
-                            ls
-                            ./python.manifest scripts/helloworld.py
-                            ./python.manifest scripts/fibonacci.py
+                            make start-graphene-server
+                            ./run-apachebench.sh 127.0.0.1 8000
                         '''
 
                         input 'Tests complete. Do you wish to deploy?'
