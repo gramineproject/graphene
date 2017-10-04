@@ -139,7 +139,7 @@ int get_config (struct config_store * store, const char * key,
 }
 
 int get_config_entries (struct config_store * store, const char * key,
-                        char * key_buf, int size)
+                        char * key_buf)
 {
     struct config * e = __get_config(store, key);
 
@@ -150,13 +150,9 @@ int get_config_entries (struct config_store * store, const char * key,
     int nentries = 0;
 
     list_for_each_entry(e, children, siblings) {
-        if (e->klen >= size)
-            return -PAL_ERROR_TOOLONG;
-
         memcpy(key_buf, e->key, e->klen);
         key_buf[e->klen] = 0;
         key_buf += e->klen + 1;
-        size -= e->klen + 1;
         nentries++;
     }
 
