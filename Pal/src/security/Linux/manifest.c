@@ -148,11 +148,11 @@ int get_net_rules (struct config_store * config,
     int nbinds, npeers;
     int nrules = 0;
 
-    binds = __alloca(get_config_entries_size(config, "net.allow_bind");
+    binds = __alloca(get_config_entries_size(config, "net.allow_bind"));
     if ((nbinds = get_config_entries(config, "net.allow_bind", binds)) < 0)
         return 0;
 
-    peers = __alloca(get_config_entries_size(config, "net.allow_peer");
+    peers = __alloca(get_config_entries_size(config, "net.allow_peer"));
     if ((npeers = get_config_entries(config, "net.allow_peer", peers)) < 0)
         return 0;
 
