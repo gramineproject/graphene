@@ -363,7 +363,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
     PAL_HANDLE parent = NULL;
     ret = handle_deserialize(&parent, data, proc_args->parent_data_size);
     if (ret < 0)
-        init_fail(-ret, "cannot deseilaize parent process handle");
+        init_fail(-ret, "cannot deserialize parent process handle");
     data += proc_args->parent_data_size;
     *parent_handle = parent;
 

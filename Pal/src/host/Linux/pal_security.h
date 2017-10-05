@@ -25,6 +25,7 @@
 
 #include "pal.h"
 
+#ifdef DEBUG
 /* Rendezvous structure used by the run-time dynamic linker to communicate
    details of shared object loading to the debugger.  If the executable's
    dynamic section has a DT_DEBUG element, the run-time linker sets that
@@ -51,16 +52,17 @@ struct r_debug {
     ElfW(Addr) r_ldbase;    /* Base address the linker is loaded at.  */
 };
 
-void pal_dl_debug_state (void);
 
 /* This structure communicates dl state to the debugger.  The debugger
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
    a statically-linked program there is no dynamic section for the debugger
    to examine and it looks for this particular symbol name.  */
 extern struct r_debug pal_r_debug;
+#endif
 
 extern struct pal_sec {
     /* system variables */
+    void *          load_address;
     unsigned int    process_id;
     int             random_device;
 
@@ -68,9 +70,10 @@ extern struct pal_sec {
     unsigned long   pipe_prefix_id;
     unsigned short  mcast_port;
 
-    /* for debugger */
-    void (*_dl_debug_state) (void);
-    struct r_debug * _r_debug;
+#ifdef DEBUG
+    struct r_debug * r_debug_addr;
+    void (*dl_debug_state_addr) (void);
+#endif
 } pal_sec;
 
 #define PROC_INIT_FD    255

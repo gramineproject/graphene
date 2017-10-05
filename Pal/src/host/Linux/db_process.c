@@ -243,8 +243,6 @@ int _DkProcessCreate (PAL_HANDLE * handle,
 
     proc_args->parent_process_id = linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
-    proc_args->pal_sec._dl_debug_state = NULL;
-    proc_args->pal_sec._r_debug = NULL;
     proc_args->memory_quota = linux_state.memory_quota;
 
     void * data = (void *) (proc_args + 1);
@@ -382,7 +380,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
     PAL_HANDLE parent = NULL;
     ret = handle_deserialize(&parent, data, proc_args->parent_data_size);
     if (ret < 0)
-        init_fail(-ret, "cannot deseilaize parent process handle");
+        init_fail(-ret, "cannot deserialize parent process handle");
     data += proc_args->parent_data_size;
     *parent_handle = parent;
 

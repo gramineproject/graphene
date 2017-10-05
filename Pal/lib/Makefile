@@ -5,6 +5,7 @@ AR	= ar rcs
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
+	  -ffunction-sections -fdata-sections \
 	  -fno-stack-protector -fno-builtin
 ARFLAGS	=
 

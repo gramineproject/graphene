@@ -186,19 +186,20 @@ failed:
     return -ERRNO(err);
 }
 
-int install_syscall_filter (void * code_start, void * code_end)
+int install_syscall_filter (void * pal_code_start, void * pal_code_end)
 {
     int err = 0;
     struct bpf_labels labels = { .count = 0 };
 
-    printf("set up filter in %p-%p\n", code_start, code_end);
-
     struct sock_filter filter[] = {
-        IP,
-        JLT((unsigned long) code_start, DENY),
-        JGT((unsigned long) code_end,   DENY),
-
         SYSCALL(__NR_prctl,     DENY),
+
+        IP,
+        JLT((uint64_t) TEXT_START,     DENY),
+        JLT((uint64_t) TEXT_END,       ALLOW),
+        JLT((uint64_t) pal_code_start, DENY),
+        JGT((uint64_t) pal_code_end,   DENY),
+
         ALLOW,
     };
 

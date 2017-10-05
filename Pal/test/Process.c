@@ -29,8 +29,10 @@ int main (int argc, char ** argv)
 
         PAL_HANDLE proc = DkProcessCreate ("file:Process", 0, newargs);
 
-        if (!proc)
+        if (!proc) {
             pal_printf("Can't create process\n");
+            goto out;
+        }
 
         DkObjectClose(proc);
         DkThreadDelayExecution(30000000);
@@ -46,8 +48,10 @@ int main (int argc, char ** argv)
 
             PAL_HANDLE proc = DkProcessCreate ("file:Process", 0, newargs);
 
-            if (!proc)
+            if (!proc) {
                 pal_printf("Can't creste process\n");
+                goto out;
+            }
 
             DkObjectClose(proc);
         } else {
@@ -57,6 +61,7 @@ int main (int argc, char ** argv)
         }
     }
 
+out:
     DkProcessExit(0);
     return 0;
 }

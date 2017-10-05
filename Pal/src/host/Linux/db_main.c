@@ -213,8 +213,6 @@ void pal_linux_main (void * args)
     int argc;
     PAL_HANDLE first_thread;
 
-    unsigned long start_time = _DkSystemTimeQueryEarly();
-
     /* parse argc, argv, envp and auxv */
     pal_init_bootstrap(args, &pal_name, &argc, &argv, &envp);
 
@@ -236,7 +234,6 @@ void pal_linux_main (void * args)
         setup_vdso_map(sysinfo_ehdr);
 #endif
 
-    pal_state.start_time = start_time;
     init_child_process(&parent, &exec, &manifest);
 
     if (!pal_sec.process_id)
@@ -245,7 +242,7 @@ void pal_linux_main (void * args)
 
     linux_state.uid = uid;
     linux_state.gid = gid;
-    linux_state.process_id = (start_time & (~0xffff)) | linux_state.pid;
+    linux_state.process_id = linux_state.pid;
 
     if (!linux_state.parent_process_id)
         linux_state.parent_process_id = linux_state.process_id;

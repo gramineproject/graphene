@@ -39,7 +39,7 @@ if [ "$PERF" == "1" ]; then
 fi
 
 if [ "$SEC" == "1" ]; then
-	echo "Use reference monitor"
+	echo "Using secure loader"
 	PAL_CMD=$RUNTIME_DIR/pal_sec-$PAL_HOST
 fi
 

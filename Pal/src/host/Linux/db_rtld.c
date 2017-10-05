@@ -42,6 +42,10 @@
 
 #include "elf-x86_64.h"
 
+#ifdef DEBUG
+
+void pal_dl_debug_state (void);
+
 /* This structure communicates dl state to the debugger.  The debugger
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
    a statically-linked program there is no dynamic section for the debugger
@@ -52,6 +56,8 @@ struct r_debug pal_r_debug =
 extern __typeof(pal_r_debug) _r_debug
     __attribute ((alias ("pal_r_debug")));
 
+struct r_debug * r_debug_addr = &pal_r_debug;
+
 /* This function exists solely to have a breakpoint set on it by the
    debugger.  The debugger is supposed to find this function's address by
    examining the r_brk member of struct r_debug, but GDB 4.15 in fact looks
@@ -60,17 +66,21 @@ extern __typeof(pal_r_debug) _r_debug
 /* The special symbol name is set as breakpoint in gdb */
 void __attribute__((noinline)) pal_dl_debug_state (void)
 {
-    if (pal_sec._dl_debug_state)
-        pal_sec._dl_debug_state();
+    if (pal_sec.dl_debug_state_addr)
+        (*pal_sec.dl_debug_state_addr)();
 }
 
 extern __typeof(pal_dl_debug_state) _dl_debug_state
     __attribute ((alias ("pal_dl_debug_state")));
 
+void (*dl_debug_state_addr) (void) = &pal_dl_debug_state;
+
+#endif
+
 void _DkDebugAddMap (struct link_map * map)
 {
 #ifdef DEBUG
-    struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
+    struct r_debug * dbg = pal_sec.r_debug_addr ? : &pal_r_debug;
     int len = map->l_name ? strlen(map->l_name) + 1 : 0;
 
     struct link_map ** prev = &dbg->r_map, * last = NULL,
@@ -114,7 +124,7 @@ void _DkDebugAddMap (struct link_map * map)
 void _DkDebugDelMap (struct link_map * map)
 {
 #ifdef DEBUG
-    struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
+    struct r_debug * dbg = pal_sec.r_debug_addr ? : &pal_r_debug;
     int len = map->l_name ? strlen(map->l_name) + 1 : 0;
 
     struct link_map ** prev = &dbg->r_map, * last = NULL,

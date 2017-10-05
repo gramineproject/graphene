@@ -1,6 +1,8 @@
 GLIBC {
     global:
         _r_debug; _dl_debug_state;
+        r_debug_addr;
+        dl_debug_state_addr;
 };
 PAL {
     global:

@@ -24,7 +24,13 @@
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
 int printf (const char * fmt, ...);
-void * malloc (int size);
+void * malloc (size_t size);
 void free (void * mem);
+
+extern char __text_start, __text_end, __data_start, __data_end;
+#define TEXT_START (void *) (&__text_start)
+#define TEXT_END   (void *) (&__text_end)
+#define DATA_START (void *) (&__text_start)
+#define DATA_END   (void *) (&__text_end)
 
 #endif /* __INTERNAL_H__ */
