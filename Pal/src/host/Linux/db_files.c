@@ -225,7 +225,7 @@ static int file_attrquery (const char * type, const char * uri,
 {
     struct stat stat_buf;
     /* try to do the real open */
-    int ret = INLINE_SYSCALL(stat, 2, uri, &stat_buf);
+    int ret = sys_stat(uri, &stat_buf);
 
     /* if it failed, return the right error code */
     if (IS_ERR(ret))

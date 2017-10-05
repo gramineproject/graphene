@@ -154,9 +154,9 @@ static int child_process (void * param)
     if (proc_param->manifest)
         handle_set_cloexec(proc_param->manifest, false);
 
-    INLINE_SYSCALL(execve, 3, linux_state.loader_name ? : PAL_LOADER,
-                   proc_param->argv,
-                   linux_state.environ);
+    sys_execve(linux_state.loader_name ? : PAL_LOADER,
+               proc_param->argv,
+               linux_state.environ);
     ret = -PAL_ERROR_DENIED;
 
 failed:

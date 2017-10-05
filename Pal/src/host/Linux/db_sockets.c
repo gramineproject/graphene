@@ -372,7 +372,7 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
     INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr,
                    sizeof(int));
 
-    ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
+    ret = sys_bind(fd, bind_addr, bind_addrlen);
 
     if (IS_ERR(ret)) {
         switch(ERRNO(ret)) {
@@ -502,7 +502,7 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
                        sizeof(int));
     }
 
-    ret = INLINE_SYSCALL(connect, 3, fd, dest_addr, dest_addrlen);
+    ret = sys_connect(fd, dest_addr, dest_addrlen);
 
     if (IS_ERR(ret) && ERRNO(ret) == EINPROGRESS) {
         struct pollfd pfd = { .fd = fd, .events = POLLOUT, .revents = 0 };
@@ -668,7 +668,7 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
                        sizeof(int));
     }
 
-    ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
+    ret = sys_bind(fd, bind_addr, bind_addrlen);
 
     if (IS_ERR(ret)) {
         switch (ERRNO(ret)) {
@@ -724,7 +724,7 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
     }
 
     if (bind_addr) {
-        ret = INLINE_SYSCALL(bind, 3, fd, bind_addr, bind_addrlen);
+        ret = sys_bind(fd, bind_addr, bind_addrlen);
 
         if (IS_ERR(ret)) {
             switch (ERRNO(ret)) {
@@ -1313,7 +1313,7 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
     INLINE_SYSCALL(setsockopt, 5, cli, SOL_SOCKET, SO_REUSEADDR,
                    &reuse, sizeof(reuse));
 
-    ret = INLINE_SYSCALL(bind, 3, cli, &addr, sizeof(addr));
+    ret = sys_bind(cli, (struct sockaddr *) &addr, sizeof(addr));
     if (IS_ERR(ret))
         goto err_cli;
 

@@ -165,10 +165,15 @@ void init_child_process (PAL_HANDLE * parent, PAL_HANDLE * exec,
 
 void signal_setup (void);
 
+struct stat;
+struct sockaddr;
+
 int sys_open(const char * path, int flags, int mode);
-int sys_stat(const char * path, struct stat *statbuf);
+int sys_stat(const char * path, struct stat * statbuf);
 int sys_execve (const char * path, const char * const * argv,
                 const char * const * envp);
+int sys_bind (int sockfd, struct sockaddr * addr, int addrlen);
+int sys_connect (int sockfd, struct sockaddr * addr, int addrlen);
 
 unsigned long _DkSystemTimeQueryEarly (void);
 

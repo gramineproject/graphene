@@ -431,7 +431,7 @@ int set_sandbox (struct config_store * sandbox_config,
                               policies);
 }
 
-int install_initial_syscall_filter (void);
+int install_initial_syscall_filter (int has_reference_monitor);
 int install_syscall_filter (void * pal_code_start, void * pal_code_end);
 
 void start(void);
@@ -490,7 +490,7 @@ void do_main (void * args)
         /* get the pid before it closes */
         pid = INLINE_SYSCALL(getpid, 0);
 
-        ret = install_initial_syscall_filter();
+        ret = install_initial_syscall_filter((refmon > 0));
         if (ret < 0) {
             printf("Unable to install initial system call filter\n");
             goto exit;

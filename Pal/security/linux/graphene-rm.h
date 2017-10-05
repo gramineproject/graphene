@@ -14,11 +14,7 @@ struct sys_open_param {
 
 struct sys_stat_param {
 	const char	*filename;
-	struct kstat	*statbuf;
-};
-
-struct sys_unlink_param {
-	const char	*filename;
+	struct stat	*statbuf;
 };
 
 struct sys_bind_connect_param {
@@ -36,10 +32,11 @@ struct sys_execve_param {
 /* Ioctl codes */
 #define GRM_SYS_OPEN    _IOR('k', 0, struct sys_open_param)
 #define GRM_SYS_STAT    _IOR('k', 1, struct sys_stat_param)
-#define GRM_SYS_UNLINK  _IOR('k', 2, struct sys_unlink_param)
-#define GRM_SYS_BIND    _IOR('k', 3, struct sys_bind_connect_param)
-#define GRM_SYS_CONNECT _IOR('k', 4, struct sys_bind_connect_param)
-#define GRM_SYS_EXECVE  _IOR('k', 5, struct sys_execve_param)
+#define GRM_SYS_UNLINK  _IOR('k', 2, void *)
+#define GRM_SYS_RMDIR   _IOR('k', 3, void *)
+#define GRM_SYS_BIND    _IOR('k', 4, struct sys_bind_connect_param)
+#define GRM_SYS_CONNECT _IOR('k', 5, struct sys_bind_connect_param)
+#define GRM_SYS_EXECVE  _IOR('k', 6, struct sys_execve_param)
 
 
 #endif // _GRAPHENE_IPC_H

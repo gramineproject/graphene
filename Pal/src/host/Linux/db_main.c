@@ -429,4 +429,62 @@ int sys_open(const char * path, int flags, int mode)
     }
 }
 
+int sys_stat(const char * path, struct stat * statbuf)
+{
+    if (pal_sec.reference_monitor) {
+        struct sys_stat_param param = {
+            .filename = path,
+            .statbuf  = statbuf,
+        };
+        return INLINE_SYSCALL(ioctl, 3, pal_sec.reference_monitor,
+                              GRM_SYS_STAT, &param);
+    } else {
+        return INLINE_SYSCALL(stat, 2, path, statbuf);
+    }
+}
 
+int sys_execve (const char * path, const char * const * argv,
+                const char * const * envp)
+{
+    if (pal_sec.reference_monitor) {
+        struct sys_execve_param param = {
+            .filename = path,
+            .argv     = (void *) argv,
+            .envp     = (void *) envp,
+        };
+        return INLINE_SYSCALL(ioctl, 3, pal_sec.reference_monitor,
+                              GRM_SYS_EXECVE, &param);
+    } else {
+        return INLINE_SYSCALL(execve, 3, path, argv, envp);
+    }
+}
+
+int sys_bind (int sockfd, struct sockaddr * addr, int addrlen)
+{
+    if (pal_sec.reference_monitor) {
+        struct sys_bind_connect_param param = {
+            .sockfd   = sockfd,
+            .addr     = addr,
+            .addrlen  = addrlen,
+        };
+        return INLINE_SYSCALL(ioctl, 3, pal_sec.reference_monitor,
+                              GRM_SYS_BIND, &param);
+    } else {
+        return INLINE_SYSCALL(bind, 3, sockfd, addr, addrlen);
+    }
+}
+
+int sys_connect (int sockfd, struct sockaddr * addr, int addrlen)
+{
+    if (pal_sec.reference_monitor) {
+        struct sys_bind_connect_param param = {
+            .sockfd   = sockfd,
+            .addr     = addr,
+            .addrlen  = addrlen,
+        };
+        return INLINE_SYSCALL(ioctl, 3, pal_sec.reference_monitor,
+                              GRM_SYS_CONNECT, &param);
+    } else {
+        return INLINE_SYSCALL(connect, 3, sockfd, addr, addrlen);
+    }
+}

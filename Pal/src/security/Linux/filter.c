@@ -33,15 +33,11 @@ typedef __builtin_va_list __gnuc_va_list;
 #define SYSCALL_FILTERS                                  \
     LOAD_SYSCALL_NR,                                     \
                                                          \
-    SYSCALL(__NR_open,          ALLOW),                  \
     SYSCALL(__NR_fstat,         ALLOW),                  \
     SYSCALL(__NR_accept4,       ALLOW),                  \
-    SYSCALL(__NR_bind,          ALLOW),                  \
     SYSCALL(__NR_clone,         JUMP(&labels, clone)),   \
     SYSCALL(__NR_close,         ALLOW),                  \
     SYSCALL(__NR_dup2,          ALLOW),                  \
-    SYSCALL(__NR_connect,       ALLOW),                  \
-    SYSCALL(__NR_execve,        ALLOW),                  \
     SYSCALL(__NR_exit,          ALLOW),                  \
     SYSCALL(__NR_exit_group,    ALLOW),                  \
     SYSCALL(__NR_fchmod,        ALLOW),                  \
@@ -86,10 +82,17 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_arch_prctl,        ALLOW),              \
     SYSCALL(__NR_rt_sigaction,      ALLOW),              \
     SYSCALL(__NR_rt_sigprocmask,    ALLOW),              \
-    SYSCALL(__NR_rt_sigreturn,      ALLOW)
+    SYSCALL(__NR_rt_sigreturn,      ALLOW),
 #else
 # error "Unsupported architecture"
 #endif
+
+#define SYSCALL_UNSAFE_FILTERS                           \
+    SYSCALL(__NR_open,          ALLOW),                  \
+    SYSCALL(__NR_stat,          ALLOW),                  \
+    SYSCALL(__NR_bind,          ALLOW),                  \
+    SYSCALL(__NR_connect,       ALLOW),                  \
+    SYSCALL(__NR_execve,        ALLOW),
 
 #ifndef SIGCHLD
 # define SIGCHLD 17
@@ -105,14 +108,18 @@ typedef __builtin_va_list __gnuc_va_list;
                                                          \
     LABEL(&labels, ioctl),                               \
     ARG(1),                                              \
+    JEQ(GRM_SYS_OPEN,   ALLOW),                          \
+    JEQ(GRM_SYS_STAT,   ALLOW),                          \
+    JEQ(GRM_SYS_UNLINK, ALLOW),                          \
+    JEQ(GRM_SYS_RMDIR,  ALLOW),                          \
+    JEQ(GRM_SYS_BIND,   ALLOW),                          \
+    JEQ(GRM_SYS_CONNECT,ALLOW),                          \
     JEQ(FIONREAD,       ALLOW),                          \
     JEQ(GIPC_CREATE,    ALLOW),                          \
     JEQ(GIPC_JOIN,      ALLOW),                          \
     JEQ(GIPC_RECV,      ALLOW),                          \
     JEQ(GIPC_SEND,      ALLOW),                          \
     JEQ(GRAPHENE_SET_TASK,  ALLOW),                      \
-    JEQ(GRM_SYS_OPEN,   ALLOW),                          \
-    JEQ(GRM_SYS_STAT,   ALLOW),                          \
     DENY,                                                \
                                                          \
     LABEL(&labels, fcntl),                               \
@@ -137,7 +144,7 @@ typedef __builtin_va_list __gnuc_va_list;
     JEQ(AF_UNIX,    ALLOW),                              \
     JEQ(AF_INET,    ALLOW),                              \
     JEQ(AF_INET6,   ALLOW),                              \
-    DENY
+    DENY,
 
 
 /* VERY IMPORTANT: This is the filter that gets applied to the startup code
@@ -148,13 +155,13 @@ typedef __builtin_va_list __gnuc_va_list;
  * as well.
  */
 
-int install_initial_syscall_filter (void)
+int install_initial_syscall_filter (int has_reference_monitor)
 {
     int err = 0;
     struct bpf_labels labels = { .count = 0 };
 
     struct sock_filter filter[] = {
-        SYSCALL_FILTERS,
+        SYSCALL_FILTERS
 
 #if USE_CLOCK_GETTIME == 1
         SYSCALL(__NR_clock_gettime, ALLOW),
@@ -163,8 +170,25 @@ int install_initial_syscall_filter (void)
 #endif
         SYSCALL(__NR_prctl,     JUMP(&labels, prctl)),
 
-        SYSCALL_ACTIONS,
+        SYSCALL_ACTIONS
+        LABEL(&labels, prctl),
+        ARG(0),
+        JEQ(PR_SET_SECCOMP,     ALLOW),
+        DENY,
+    };
 
+    struct sock_filter filter_unsafe[] = {
+        SYSCALL_FILTERS
+        SYSCALL_UNSAFE_FILTERS
+
+#if USE_CLOCK_GETTIME == 1
+        SYSCALL(__NR_clock_gettime, ALLOW),
+#else
+        SYSCALL(__NR_gettimeofday,  ALLOW),
+#endif
+        SYSCALL(__NR_prctl,     JUMP(&labels, prctl)),
+
+        SYSCALL_ACTIONS
         LABEL(&labels, prctl),
         ARG(0),
         JEQ(PR_SET_SECCOMP,     ALLOW),
@@ -175,6 +199,12 @@ int install_initial_syscall_filter (void)
         .len = (unsigned short) (sizeof(filter) / sizeof(filter[0])),
         .filter = filter,
     };
+
+    if (!has_reference_monitor) {
+        prog.len = (unsigned short)
+            (sizeof(filter_unsafe) / sizeof(filter_unsafe[0]));
+        prog.filter = filter_unsafe;
+    }
 
     bpf_resolve_jumps(&labels, filter, prog.len);
 
