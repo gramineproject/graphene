@@ -76,19 +76,7 @@ int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 
 static int read_proc_meminfo (const char * key, unsigned long * val)
 {
-    int fd;
-
-    if (pal_sec.reference_monitor) {
-        struct sys_open_param param = {
-            .filename = "/proc/meminfo",
-            .flags = O_RDONLY,
-            .mode  = 0,
-        };
-        fd = INLINE_SYSCALL(ioctl, 3, pal_sec.reference_monitor,
-                            GRM_SYS_OPEN, &param);
-    } else {
-        fd = INLINE_SYSCALL(open, 3, "/proc/meminfo", O_RDONLY, 0);
-    }
+    int fd = sys_open("/proc/meminfo", O_RDONLY, 0);
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;

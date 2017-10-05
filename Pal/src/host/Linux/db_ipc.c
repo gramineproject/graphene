@@ -40,7 +40,7 @@ int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int64_t token;
     int rv;
 
-    int fd = INLINE_SYSCALL(open, 3, GIPC_FILE, O_RDONLY|O_CLOEXEC, 0);
+    int fd = sys_open(GIPC_FILE, O_RDONLY|O_CLOEXEC, 0);
 
     if (IS_ERR(fd))
         return -PAL_ERROR_DENIED;
@@ -83,7 +83,7 @@ struct handle_ops gipc_ops = {
 int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key)
 {
     unsigned long token = 0;
-    int fd = INLINE_SYSCALL(open, 3, GIPC_FILE, O_RDONLY|O_CLOEXEC, 0);
+    int fd = sys_open(GIPC_FILE, O_RDONLY|O_CLOEXEC, 0);
 
     if (IS_ERR(fd))
         goto err;

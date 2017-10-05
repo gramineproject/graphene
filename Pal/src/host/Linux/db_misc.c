@@ -139,7 +139,7 @@ int _DkRandomBitsRead (void * buffer, int size)
 int _DkRandomBitsRead (void * buffer, int size)
 {
     if (!pal_sec.random_device) {
-        int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
+        int fd = sys_open(RANDGEN_DEVICE, O_RDONLY, 0);
         if (IS_ERR(fd))
             return -PAL_ERROR_DENIED;
 

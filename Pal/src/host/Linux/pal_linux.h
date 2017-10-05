@@ -165,6 +165,11 @@ void init_child_process (PAL_HANDLE * parent, PAL_HANDLE * exec,
 
 void signal_setup (void);
 
+int sys_open(const char * path, int flags, int mode);
+int sys_stat(const char * path, struct stat *statbuf);
+int sys_execve (const char * path, const char * const * argv,
+                const char * const * envp);
+
 unsigned long _DkSystemTimeQueryEarly (void);
 
 extern char __text_start, __text_end, __data_start, __data_end;

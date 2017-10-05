@@ -247,7 +247,7 @@ void pal_linux_main (void * args)
     if (parent)
         goto done_init;
 
-    int fd = INLINE_SYSCALL(open, 3, argv[0], O_RDONLY|O_CLOEXEC, 0);
+    int fd = sys_open(argv[0], O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(fd)) {
         // DEP 10/20/16: Don't silently swallow permission errors
         // accessing the manifest
@@ -413,3 +413,20 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
 }
+
+int sys_open(const char * path, int flags, int mode)
+{
+    if (pal_sec.reference_monitor) {
+        struct sys_open_param param = {
+            .filename = path,
+            .flags    = flags,
+            .mode     = mode,
+        };
+        return INLINE_SYSCALL(ioctl, 3, pal_sec.reference_monitor,
+                              GRM_SYS_OPEN, &param);
+    } else {
+        return INLINE_SYSCALL(open, 3, path, flags, mode);
+    }
+}
+
+
