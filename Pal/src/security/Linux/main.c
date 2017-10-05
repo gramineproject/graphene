@@ -489,11 +489,11 @@ void do_main (void * args)
         pid = parent_pal_sec->process_id;
     }
 
+#ifdef DEBUG
     init_link_map.l_addr = (ElfW(Addr)) TEXT_START;
     init_link_map.l_ld = NULL;
     init_link_map.l_name = argv[0];
 
-#ifdef DEBUG
     _r_debug.r_state = RT_ADD;
     _dl_debug_state();
 
