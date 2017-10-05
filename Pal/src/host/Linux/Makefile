@@ -1,7 +1,7 @@
 include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib \
-	   -I../../../ipc/linux \
+	   -I../../../ipc/linux -I../../../security/linux \
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 

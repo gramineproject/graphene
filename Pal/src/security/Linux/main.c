@@ -453,6 +453,7 @@ void do_main (void * args)
     int argc;
     const char ** argv, ** envp;
     ElfW(auxv_t) * auxv;
+    unsigned int refmon = 0;
     pid_t pid;
     bool do_sandbox = false;
     int ret = 0;
@@ -476,6 +477,15 @@ void do_main (void * args)
         /* occupy PAL_INIT_FD */
         INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
         parent_pal_sec = NULL;
+
+        /* open the ioctl device of reference monitor */
+        ret = INLINE_SYSCALL(open, 2, GRM_FILE, O_RDONLY);
+        if (ret < 0) {
+            printf("Unable to open the ioctl device of reference monitor\n");
+            goto exit;
+        } else {
+            refmon = ret;
+        }
 
         /* get the pid before it closes */
         pid = INLINE_SYSCALL(getpid, 0);
@@ -573,6 +583,7 @@ void do_main (void * args)
         goto exit;
     }
 
+    pal_sec_addr->reference_monitor = refmon;
     pal_sec_addr->load_address    = pal_addr;
     pal_sec_addr->process_id      = pid;
     pal_sec_addr->random_device   = rand_gen;

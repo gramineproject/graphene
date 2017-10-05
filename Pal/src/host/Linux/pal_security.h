@@ -60,12 +60,17 @@ struct r_debug {
 extern struct r_debug pal_r_debug;
 #endif
 
+#include <graphene-rm.h>
+
 extern struct pal_sec {
     /* system variables */
     void *          load_address;
     unsigned int    parent_process_id;
     unsigned int    process_id;
-    int             random_device;
+    unsigned int    random_device;
+
+    /* fd for reference monitor */
+    unsigned int    reference_monitor;
 
     /* pipes and sockets */
     unsigned long   pipe_prefix_id;

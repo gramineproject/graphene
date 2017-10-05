@@ -8,6 +8,7 @@ typedef __builtin_va_list __gnuc_va_list;
 #include "internal.h"
 #include "graphene-ipc.h"
 #include "graphene.h"
+#include "graphene-rm.h"
 
 #include <linux/types.h>
 #include <linux/filter.h>
@@ -36,7 +37,7 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_fstat,         ALLOW),                  \
     SYSCALL(__NR_accept4,       ALLOW),                  \
     SYSCALL(__NR_bind,          ALLOW),                  \
-    SYSCALL(__NR_clone,         ALLOW),                  \
+    SYSCALL(__NR_clone,         JUMP(&labels, clone)),   \
     SYSCALL(__NR_close,         ALLOW),                  \
     SYSCALL(__NR_dup2,          ALLOW),                  \
     SYSCALL(__NR_connect,       ALLOW),                  \
@@ -70,12 +71,11 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_sendmsg,       ALLOW),                  \
     SYSCALL(__NR_setsockopt,    ALLOW),                  \
     SYSCALL(__NR_shutdown,      ALLOW),                  \
-    SYSCALL(__NR_socket,        ALLOW),                  \
-    SYSCALL(__NR_socketpair,    ALLOW),                  \
+    SYSCALL(__NR_socket,        JUMP(&labels, socket)),  \
+    SYSCALL(__NR_socketpair,    JUMP(&labels, socket)),  \
     SYSCALL(__NR_stat,          ALLOW),                  \
     SYSCALL(__NR_tgkill,        ALLOW),                  \
     SYSCALL(__NR_unlink,        ALLOW),                  \
-    SYSCALL(__NR_vfork,         ALLOW),                  \
     SYSCALL(__NR_wait4,         ALLOW),                  \
     SYSCALL(__NR_write,         ALLOW),                  \
                                                          \
@@ -95,6 +95,11 @@ typedef __builtin_va_list __gnuc_va_list;
 # define SIGCHLD 17
 #endif
 
+#define CLONE_ALLOWED_FLAGS                              \
+    (CLONE_FILES|CLONE_FS|CLONE_IO|CLONE_THREAD|         \
+     CLONE_SIGHAND|CLONE_PTRACE|CLONE_SYSVSEM|CLONE_VM|  \
+     CLONE_VFORK|CLONE_PARENT_SETTID)
+
 #define SYSCALL_ACTIONS                                  \
     DENY,                                                \
                                                          \
@@ -106,6 +111,8 @@ typedef __builtin_va_list __gnuc_va_list;
     JEQ(GIPC_RECV,      ALLOW),                          \
     JEQ(GIPC_SEND,      ALLOW),                          \
     JEQ(GRAPHENE_SET_TASK,  ALLOW),                      \
+    JEQ(GRM_SYS_OPEN,   ALLOW),                          \
+    JEQ(GRM_SYS_STAT,   ALLOW),                          \
     DENY,                                                \
                                                          \
     LABEL(&labels, fcntl),                               \
@@ -120,7 +127,7 @@ typedef __builtin_va_list __gnuc_va_list;
     DENY,                                                \
                                                          \
     LABEL(&labels, clone),                               \
-    ARG_FLAG(2, (CLONE_IO|CLONE_VM|CLONE_VFORK)),        \
+    ARG_FLAG(2, CLONE_ALLOWED_FLAGS),                    \
     JEQ(0, ALLOW),                                       \
     JEQ(SIGCHLD, ALLOW),                                 \
     DENY,                                                \
