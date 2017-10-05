@@ -63,12 +63,15 @@ extern struct r_debug pal_r_debug;
 extern struct pal_sec {
     /* system variables */
     void *          load_address;
+    unsigned int    parent_process_id;
     unsigned int    process_id;
     int             random_device;
 
     /* pipes and sockets */
     unsigned long   pipe_prefix_id;
     unsigned short  mcast_port;
+
+    uint64_t        memory_quota;
 
 #ifdef DEBUG
     struct r_debug * r_debug_addr;

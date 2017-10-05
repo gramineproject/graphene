@@ -44,6 +44,8 @@ struct timespec;
 struct timeval;
 
 extern struct pal_linux_state {
+    const char *    loader_name;
+
     PAL_NUM         parent_process_id;
     PAL_NUM         process_id;
 
@@ -54,7 +56,6 @@ extern struct pal_linux_state {
     const char **   environ;
 
     /* credentails */
-    unsigned int    pid;
     unsigned int    uid, gid;
 
     /* currently enabled signals */
@@ -169,7 +170,7 @@ unsigned long _DkSystemTimeQueryEarly (void);
 extern char __text_start, __text_end, __data_start, __data_end;
 #define TEXT_START (void *) (&__text_start)
 #define TEXT_END   (void *) (&__text_end)
-#define DATA_START (void *) (&__text_start)
-#define DATA_END   (void *) (&__text_end)
+#define DATA_START (void *) (&__data_start)
+#define DATA_END   (void *) (&__data_end)
 
 #endif /* PAL_LINUX_H */

@@ -123,7 +123,7 @@ void _DkThreadExit (void)
 int _DkThreadResume (PAL_HANDLE threadHandle)
 {
     int ret = INLINE_SYSCALL(tgkill, 3,
-                             linux_state.pid,
+                             linux_state.process_id,
                              threadHandle->thread.tid,
                              SIGCONT);
 

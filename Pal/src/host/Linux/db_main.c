@@ -223,6 +223,7 @@ void pal_linux_main (void * args)
 
     ELF_DYNAMIC_RELOCATE(&pal_map);
 
+    linux_state.loader_name = pal_name;
     linux_state.environ = envp;
 
     init_slab_mgr(pagesz);
@@ -236,16 +237,12 @@ void pal_linux_main (void * args)
 
     init_child_process(&parent, &exec, &manifest);
 
-    if (!pal_sec.process_id)
-        pal_sec.process_id = INLINE_SYSCALL(getpid, 0);
-    linux_state.pid = pal_sec.process_id;
-
+    linux_state.parent_process_id = pal_sec.parent_process_id;
+    linux_state.process_id = pal_sec.process_id
+        = pal_sec.process_id ? : INLINE_SYSCALL(getpid, 0);
     linux_state.uid = uid;
     linux_state.gid = gid;
-    linux_state.process_id = linux_state.pid;
-
-    if (!linux_state.parent_process_id)
-        linux_state.parent_process_id = linux_state.process_id;
+    linux_state.memory_quota = pal_sec.memory_quota;
 
     if (parent)
         goto done_init;
@@ -285,7 +282,7 @@ done_init:
 
     first_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(first_thread, thread);
-    first_thread->thread.tid = linux_state.pid;
+    first_thread->thread.tid = linux_state.process_id;
 
     signal_setup();
 

@@ -258,7 +258,7 @@ static int load_static (const char * filename, void ** load_addr,
     const ElfW(Phdr) * phdr = (void *) filebuf + header->e_phoff;
     const ElfW(Phdr) * ph;
     ElfW(Dyn) * dynamic = NULL;
-    ElfW(Addr) base = 0;
+    ElfW(Addr) base = (ElfW(Addr)) *load_addr;
 
     *phoff = header->e_phoff;
     *phnum = header->e_phnum;
@@ -299,8 +299,9 @@ static int load_static (const char * filename, void ** load_addr,
     c = loadcmds;
     int maplength = loadcmds[nloadcmds - 1].allocend - c->mapstart;
 
-    base = INLINE_SYSCALL(mmap, 6, NULL, maplength, c->prot,
-                          MAP_PRIVATE | MAP_FILE, fd, c->mapoff);
+    base = INLINE_SYSCALL(mmap, 6, base, maplength, c->prot,
+                          (base ? MAP_FIXED : 0) | MAP_PRIVATE | MAP_FILE,
+                          fd, c->mapoff);
 
     if (IS_ERR(base)) {
         ret = -ERRNO_P(base);
@@ -452,7 +453,7 @@ void do_main (void * args)
     int argc;
     const char ** argv, ** envp;
     ElfW(auxv_t) * auxv;
-    unsigned long pid = INLINE_SYSCALL(getpid, 0);
+    pid_t pid;
     bool do_sandbox = false;
     int ret = 0;
 
@@ -463,14 +464,30 @@ void do_main (void * args)
      * If you face any issues, you may have to enable certain syscalls here to
      * successfully make changes to startup code. */
 
-    ret = install_initial_syscall_filter();
-    if (ret < 0) {
-        printf("Unable to install initial system call filter\n");
-        goto exit;
-    }
+    struct pal_sec * parent_pal_sec = __alloca(sizeof(struct pal_sec));
 
-    /* occupy PAL_INIT_FD */
-    INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
+    ret = INLINE_SYSCALL(read,  3, PROC_INIT_FD,
+                          parent_pal_sec, sizeof(struct pal_sec));
+
+    if (ret != sizeof(struct pal_sec)) {
+        if (ERRNO(ret) != EBADF)
+            goto exit;
+
+        /* occupy PAL_INIT_FD */
+        INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
+        parent_pal_sec = NULL;
+
+        /* get the pid before it closes */
+        pid = INLINE_SYSCALL(getpid, 0);
+
+        ret = install_initial_syscall_filter();
+        if (ret < 0) {
+            printf("Unable to install initial system call filter\n");
+            goto exit;
+        }
+    } else {
+        pid = parent_pal_sec->process_id;
+    }
 
     init_link_map.l_addr = (ElfW(Addr)) TEXT_START;
     init_link_map.l_ld = NULL;
@@ -512,6 +529,11 @@ void do_main (void * args)
     ElfW(Sym) *   pal_symtab = NULL;
     const char *  pal_strtab = NULL;
 
+    /* if the current process is a child, load PAL at the exactly
+       same address as in the parent */
+    if (parent_pal_sec)
+        pal_addr = parent_pal_sec->load_address;
+
     ret = load_static(PAL_LOADER, &pal_addr, &pal_entry, &pal_dyn,
                       &pal_phoff, &pal_phnum,
                       &pal_code_start, &pal_code_end,
@@ -524,12 +546,6 @@ void do_main (void * args)
         goto exit;
     }
 
-    int rand_gen = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
-    if (IS_ERR(rand_gen)) {
-        printf("Unable to open random generator device\n");
-        goto exit;
-    }
-
     struct pal_sec * pal_sec_addr =
             find_symbol(pal_addr, pal_hashbuckets, pal_hashsize,
                         pal_hashchain, pal_symtab, pal_strtab,
@@ -539,24 +555,16 @@ void do_main (void * args)
         goto exit;
     }
 
-#ifdef DEBUG
-    pal_sec_addr->r_debug_addr = &_r_debug;
-    pal_sec_addr->dl_debug_state_addr = &_dl_debug_state;
+    if (parent_pal_sec) {
+        memcpy(pal_sec_addr, parent_pal_sec, sizeof(struct pal_sec));
+        goto done_child;
+    }
 
-    struct link_map * pal_map = malloc(sizeof(struct link_map));
-    pal_map->l_name = PAL_LOADER;
-    pal_map->l_addr = (ElfW(Addr)) pal_addr;
-    pal_map->l_ld   = pal_dyn;
-
-    _r_debug.r_state = RT_ADD;
-    _dl_debug_state();
-
-    init_link_map.l_next = pal_map;
-    pal_map->l_prev = &init_link_map;
-
-    _r_debug.r_state = RT_CONSISTENT;
-    _dl_debug_state();
-#endif
+    int rand_gen = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
+    if (IS_ERR(rand_gen)) {
+        printf("Unable to open random generator device\n");
+        goto exit;
+    }
 
     unsigned short mcast_port = 0;
     ret = INLINE_SYSCALL(read, 3, rand_gen, &mcast_port, sizeof(mcast_port));
@@ -592,14 +600,36 @@ void do_main (void * args)
         }
     }
 
-    /* free PAL_INIT_FD */
-    INLINE_SYSCALL(close, 1, PROC_INIT_FD);
-
-    ret = install_syscall_filter(pal_code_start, pal_code_end);
+   ret = install_syscall_filter(pal_code_start, pal_code_end);
     if (ret < 0) {
         printf("Unable to install system call filter\n");
         goto exit;
     }
+
+    /* free PAL_INIT_FD */
+    INLINE_SYSCALL(close, 1, PROC_INIT_FD);
+
+ 
+done_child:
+
+#ifdef DEBUG
+    pal_sec_addr->r_debug_addr = &_r_debug;
+    pal_sec_addr->dl_debug_state_addr = &_dl_debug_state;
+
+    struct link_map * pal_map = malloc(sizeof(struct link_map));
+    pal_map->l_name = PAL_LOADER;
+    pal_map->l_addr = (ElfW(Addr)) pal_addr;
+    pal_map->l_ld   = pal_dyn;
+
+    _r_debug.r_state = RT_ADD;
+    _dl_debug_state();
+
+    init_link_map.l_next = pal_map;
+    pal_map->l_prev = &init_link_map;
+
+    _r_debug.r_state = RT_CONSISTENT;
+    _dl_debug_state();
+#endif
 
     /* just hand the original stack to the PAL loader */
     for (ElfW(auxv_t) * av = auxv ; av->a_type != AT_NULL ; av++)

@@ -192,13 +192,14 @@ int install_syscall_filter (void * pal_code_start, void * pal_code_end)
     struct bpf_labels labels = { .count = 0 };
 
     struct sock_filter filter[] = {
+        LOAD_SYSCALL_NR,
         SYSCALL(__NR_prctl,     DENY),
 
         IP,
-        JLT((uint64_t) TEXT_START,     DENY),
-        JLT((uint64_t) TEXT_END,       ALLOW),
-        JLT((uint64_t) pal_code_start, DENY),
-        JGT((uint64_t) pal_code_end,   DENY),
+        JLT((uint64_t) TEXT_START,         TRAP),
+        JLT((uint64_t) TEXT_END,           ALLOW),
+        JLT((uint64_t) pal_code_start,     TRAP),
+        JGT((uint64_t) pal_code_end,       TRAP),
 
         ALLOW,
     };

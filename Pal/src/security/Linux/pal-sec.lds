@@ -5,7 +5,7 @@ ENTRY(start);
 SECTIONS
 {
   /* Read-only sections, merged into text segment; */
-  __text_start = SEGMENT_START("text-segment", 0x100000);
+  __text_start = SEGMENT_START("text-segment", 0x10000);
   . = SEGMENT_START("text-segment", 0x10000) + SIZEOF_HEADERS;
   .note.gnu.build-id : { *(.note.gnu.build-id) }
   .hash          : { *(.hash) }

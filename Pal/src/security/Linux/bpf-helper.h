@@ -244,7 +244,7 @@ union arg64 {
 	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 2, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (lo), 2, 0), \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
 	jt, \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
@@ -268,8 +268,8 @@ union arg64 {
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JLE64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 6, 0), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 3), \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
 	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 2, 0), \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \

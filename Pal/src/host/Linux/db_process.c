@@ -83,7 +83,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     phdl->process.stream_in   = proc_fds[0][0];
     phdl->process.stream_out  = proc_fds[0][1];
     phdl->process.cargo       = proc_fds[0][2];
-    phdl->process.pid         = linux_state.pid;
+    phdl->process.pid         = linux_state.process_id;
     phdl->process.nonblocking = PAL_FALSE;
 
     chdl = malloc(HANDLE_SIZE(process));
@@ -124,13 +124,12 @@ struct proc_param {
 };
 
 struct proc_args {
-    PAL_NUM         parent_process_id;
+    /* always starts with pal_sec (will be read by security loader) */
     struct pal_sec  pal_sec;
 
 #if PROFILING == 1
     unsigned long   process_create_time;
 #endif
-    unsigned long   memory_quota;
 
     unsigned int    parent_data_size;
     unsigned int    exec_data_size;
@@ -155,7 +154,8 @@ static int child_process (void * param)
     if (proc_param->manifest)
         handle_set_cloexec(proc_param->manifest, false);
 
-    INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv,
+    INLINE_SYSCALL(execve, 3, linux_state.loader_name ? : PAL_LOADER,
+                   proc_param->argv,
                    linux_state.environ);
     ret = -PAL_ERROR_DENIED;
 
@@ -241,9 +241,13 @@ int _DkProcessCreate (PAL_HANDLE * handle,
     struct proc_args * proc_args =
             __alloca(sizeof(struct proc_args) + datasz);
 
-    proc_args->parent_process_id = linux_state.parent_process_id;
+    /* copy the pal_sec data to the child */
     memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
-    proc_args->memory_quota = linux_state.memory_quota;
+
+    /* update specific fields inside pal_sec */
+    proc_args->pal_sec.parent_process_id = linux_state.process_id;
+    proc_args->pal_sec.process_id = 0;
+    proc_args->pal_sec.memory_quota = linux_state.memory_quota;
 
     void * data = (void *) (proc_args + 1);
 
@@ -274,7 +278,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
     if (args)
         for (; args[argc] ; argc++);
     param.argv = __alloca(sizeof(const char *) * (argc + 2));
-    param.argv[0] = PAL_LOADER;
+    param.argv[0] = linux_state.loader_name ? : PAL_LOADER;
     if (args)
         memcpy(&param.argv[1], args, sizeof(const char *) * argc);
     param.argv[argc + 1] = NULL;
@@ -337,15 +341,24 @@ void init_child_process (PAL_HANDLE * parent_handle,
                          PAL_HANDLE * exec_handle,
                          PAL_HANDLE * manifest_handle)
 {
-    int ret = 0;
+    int ret = 0, bytes;
 
     /* try to do a very large reading, so it doesn't have to be read for the
        second time */
-    struct proc_args * proc_args = __alloca(sizeof(struct proc_args));
+    struct proc_args * proc_args = __alloca(sizeof(*proc_args));
     struct proc_args * new_proc_args;
 
-    int bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_args,
-                               sizeof(*proc_args));
+    /* if the current process already has a parent_process_id,
+       it comes from the security loader */
+    if (pal_sec.parent_process_id) {
+        /* skip readng the pal_sec part */
+        bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD,
+                    ((void *) proc_args) + sizeof(struct pal_sec),
+                    sizeof(*proc_args)   - sizeof(struct pal_sec));
+    } else {
+        bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_args,
+                               sizeof(struct proc_args));
+    }
 
     if (IS_ERR(bytes)) {
         if (ERRNO(bytes) != EBADF)
@@ -414,12 +427,12 @@ void init_child_process (PAL_HANDLE * parent_handle,
     }
 
 no_data:
-    linux_state.parent_process_id = proc_args->parent_process_id;
-    linux_state.memory_quota = proc_args->memory_quota;
+    if (!pal_sec.parent_process_id)
+        memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
+
 #if PROFILING == 1
     pal_state.process_create_time = proc_args->process_create_time;
 #endif
-    memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
 }
 
 void _DkProcessExit (int exitcode)
