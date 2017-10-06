@@ -393,7 +393,13 @@ static int get_pages (struct task_struct *task, unsigned long start,
 
 				if (PageAnon(pages[last + j])) {
 					/* Fix up the counters */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
+					/* Chia-Che: For Linux 4.5+, the
+					 * counter is slightly different */
+					inc_mm_counter_fast(mm, mm_counter_file(pages[last + j]));
+#else
 					inc_mm_counter_fast(mm, MM_FILEPAGES);
+#endif
 					dec_mm_counter_fast(mm, MM_ANONPAGES);
 					pages[last + j]->mapping = NULL;
 				}

@@ -16,6 +16,7 @@
 
 #include "graphene-rm.h"
 #include "graphene-sandbox.h"
+#include "util.h"
 #include "ksyms.h"
 
 MODULE_LICENSE("Dual BSD/GPL");
@@ -202,39 +203,13 @@ long grm_sys_connect (struct graphene_info *gi,
 }
 
 long grm_sys_execve (struct graphene_info *gi,
-		     const char __user *filename,
 		     const char __user *const __user *argv,
 		     const char __user *const __user *envp)
 {
-	struct filename *tmp;
-	int len;
+	struct filename *tmp = __getname();
 
-	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
-	if (unlikely(!tmp))
-		return -ENOMEM;
-
-	tmp->name = __getname();
-	if (unlikely(!tmp->name)) {
-		kfree(tmp);
-		return -ENOMEM;
-	}
-
-	len = strncpy_from_user((char *) tmp->name, filename, PATH_MAX);
-	if (unlikely(len < 0)) {
-		__putname(tmp->name);
-		kfree(tmp);
-		return len;
-	}
-
-	/* Reference monitor: check "filename" */
-	if (gi) {
-		int error = check_execve_path(gi, tmp->name);
-		if (error < 0) {
-			__putname(tmp->name);
-			kfree(tmp);
-			return error;
-		}
-	}
+	memcpy((char *) &tmp->iname, "/proc/self/exec", 16);
+	init_filename(tmp);
 
 	return KSYM(do_execve)(tmp, argv, envp);
 }
@@ -297,9 +272,7 @@ static long grm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case GRM_SYS_EXECVE: {
 		struct sys_execve_param *param = (void *) &data;
-		rv = grm_sys_execve(gi, param->filename,
-				    param->argv,
-				    param->envp);
+		rv = grm_sys_execve(gi, param->argv, param->envp);
 		break;
 	}
 

@@ -6,7 +6,7 @@
 
 /* enable caching loaded binaries for optimizing process creation */
 #ifdef LINUX
-# define CACHE_LOADED_BINARIES   1
+# define CACHE_LOADED_BINARIES   0
 #else
 # define CACHE_LOADED_BINARIES   0
 #endif

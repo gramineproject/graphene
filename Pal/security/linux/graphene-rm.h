@@ -24,7 +24,7 @@ struct sys_bind_connect_param {
 };
 
 struct sys_execve_param {
-	const char	*filename;
+	/* take no filename; only allow to exec the same loader */
 	const char * const *argv;
 	const char * const *envp;
 };

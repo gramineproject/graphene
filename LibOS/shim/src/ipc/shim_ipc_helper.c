@@ -774,8 +774,10 @@ static void shim_ipc_helper (void * arg)
 
     void * stack = allocate_stack(IPC_HELPER_STACK_SIZE, allocsize, false);
 
-    if (!stack)
+    if (!stack) {
+        debug("ipc helper failed to create stack\n");
         goto end;
+    }
 
     self->stack_top = stack + IPC_HELPER_STACK_SIZE;
     self->stack = stack;
@@ -954,6 +956,9 @@ update_list:
         struct shim_ipc_port * pobj = local_pobjs[i];
         __put_ipc_port(pobj);
     }
+
+    if (!nalive)
+        debug("ipc helper: no alive ports\n");
 
 end:
     /* DP: Put our handle map reference */

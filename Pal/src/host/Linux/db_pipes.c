@@ -79,7 +79,7 @@ static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
     if ((ret = pipe_addr(pipeid, &addr)) < 0)
         return ret;
 
-    ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr.sun_path) - 1);
+    ret = sys_bind(fd, (struct sockaddr *) &addr, sizeof(addr.sun_path) - 1);
 
     if (IS_ERR(ret)) {
         INLINE_SYSCALL(close, 1, fd);
@@ -194,7 +194,7 @@ static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
     if ((ret = pipe_addr(pipeid, &addr)) < 0)
         return ret;
 
-    ret = INLINE_SYSCALL(connect, 3, fd, &addr, sizeof(addr.sun_path) - 1);
+    ret = sys_connect(fd, (struct sockaddr *) &addr, sizeof(addr.sun_path) - 1);
 
     if (IS_ERR(ret)) {
         INLINE_SYSCALL(close, 1, fd);

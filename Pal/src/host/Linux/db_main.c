@@ -448,7 +448,8 @@ int sys_execve (const char * path, const char * const * argv,
 {
     if (pal_sec.reference_monitor) {
         struct sys_execve_param param = {
-            .filename = path,
+            /* mask out the filename, the reference monitor
+               always run the same executable */
             .argv     = (void *) argv,
             .envp     = (void *) envp,
         };

@@ -127,13 +127,13 @@ struct proc_args {
     /* always starts with pal_sec (will be read by security loader) */
     struct pal_sec  pal_sec;
 
-#if PROFILING == 1
-    unsigned long   process_create_time;
-#endif
+    unsigned int parent_data_size;
+    unsigned int exec_data_size;
+    unsigned int manifest_data_size;
 
-    unsigned int    parent_data_size;
-    unsigned int    exec_data_size;
-    unsigned int    manifest_data_size;
+#if PROFILING == 1
+    uint64_t process_create_time;
+#endif
 };
 
 static int child_process (void * param)
@@ -353,8 +353,9 @@ void init_child_process (PAL_HANDLE * parent_handle,
     if (pal_sec.parent_process_id) {
         /* skip readng the pal_sec part */
         bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD,
-                    ((void *) proc_args) + sizeof(struct pal_sec),
-                    sizeof(*proc_args)   - sizeof(struct pal_sec));
+                    (void *) &proc_args->parent_data_size,
+                    sizeof(struct proc_args) -
+                    offsetof(struct proc_args, parent_data_size));
     } else {
         bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_args,
                                sizeof(struct proc_args));

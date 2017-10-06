@@ -29,12 +29,12 @@ unsigned long pagesize  = PRESET_PAGESIZE;
 unsigned long pageshift = PRESET_PAGESIZE - 1;
 unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
 
-/* Chia-Che: setting the pool size to 8 pages,
-   so that the end of the data segment won't exceed a 0x10000 boundary */
-#define POOL_SIZE 4096 * 8
-static char mem_pool[POOL_SIZE];
-static char *bump = mem_pool;
-static char *mem_pool_end = &mem_pool[POOL_SIZE];
+/* Chia-Che: setting the minimal pool size to 1 page.
+   The end of the data segment shouldn't exceed 0x10000 boundary */
+#define MIN_POOL_SIZE   PRESET_PAGESIZE
+char mem_pool[MIN_POOL_SIZE] __attribute__((section(".pool")));
+static char *bump = &__pool_start;
+static char *mem_pool_end = &__pool_end;
 
 void * malloc (size_t size)
 {
@@ -340,7 +340,8 @@ static int load_static (const char * filename, void ** load_addr,
 
 postmap:
         if (c == loadcmds)
-            INLINE_SYSCALL(munmap, 2, base + c->mapend, maplength - c->mapend);
+            INLINE_SYSCALL(mprotect, 3, base + c->mapend, maplength -
+                           c->mapend, PROT_NONE);
 
         if (c->allocend <= c->dataend)
             continue;
@@ -481,26 +482,39 @@ void do_main (void * args)
      * If you face any issues, you may have to enable certain syscalls here to
      * successfully make changes to startup code. */
 
-    struct pal_sec * parent_pal_sec = __alloca(sizeof(struct pal_sec));
+    struct pal_sec * __pal_sec = __alloca(sizeof(struct pal_sec));
 
-    ret = INLINE_SYSCALL(read,  3, PROC_INIT_FD,
-                          parent_pal_sec, sizeof(struct pal_sec));
+    ret = INLINE_SYSCALL(read, 3, PROC_INIT_FD, __pal_sec,
+                         sizeof(struct pal_sec));
 
-    if (ret != sizeof(struct pal_sec)) {
+    if (IS_ERR(ret)) {
         if (ERRNO(ret) != EBADF)
             goto exit;
 
+        for (const char ** env = envp ; *env ; env++) {
+            /* check if "SANDBOX=1" is specified in the environment variables */
+            const char * e = *env;
+            if (e[0] == 'S' && e[1] == 'A' && e[2] == 'N' && e[3] == 'D' &&
+                e[4] == 'B' && e[5] == 'O' && e[6] == 'X' && e[7] == '=' &&
+                e[8] == '1' && e[9] == 0) {
+                do_sandbox = true;
+                break;
+            }
+        }
+
         /* occupy PAL_INIT_FD */
         INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
-        parent_pal_sec = NULL;
+        __pal_sec = NULL;
 
-        /* open the ioctl device of reference monitor */
-        ret = INLINE_SYSCALL(open, 2, GRM_FILE, O_RDONLY);
-        if (ret < 0) {
-            printf("Unable to open the ioctl device of reference monitor\n");
-            goto exit;
-        } else {
-            reference_monitor = ret;
+        if (do_sandbox) {
+            /* open the ioctl device of reference monitor */
+            ret = INLINE_SYSCALL(open, 2, GRM_FILE, O_RDONLY);
+            if (ret < 0) {
+                printf("Unable to open the ioctl device of reference monitor\n");
+                goto exit;
+            } else {
+                reference_monitor = ret;
+            }
         }
 
         /* get the pid before it closes */
@@ -512,8 +526,14 @@ void do_main (void * args)
             goto exit;
         }
     } else {
-        pid = parent_pal_sec->process_id;
-        reference_monitor = parent_pal_sec->reference_monitor;
+        if (ret != sizeof(struct pal_sec)) {
+            ret = -EINVAL;
+            goto exit;
+        }
+
+        pid = __pal_sec->process_id;
+        reference_monitor = __pal_sec->reference_monitor;
+        do_sandbox = (reference_monitor != 0);
     }
 
 #ifdef DEBUG
@@ -531,18 +551,6 @@ void do_main (void * args)
 #endif
 
 
-    for (const char ** env = envp ; *env ; env++) {
-        const char * e = *env;
-        if (e[0]  == 'G' && e[1]  == 'R' && e[2]  == 'A' && e[3]  == 'P' &&
-            e[4]  == 'H' && e[5]  == 'E' && e[6]  == 'N' && e[7]  == 'E' &&
-            e[8]  == '_' && e[9]  == 'S' && e[10] == 'A' && e[11] == 'N' &&
-            e[12] == 'D' && e[13] == 'B' && e[14] == 'O' && e[15] == 'X' &&
-            e[16] == '=' && e[17] == '1' && e[18] == 0) {
-            do_sandbox = true;
-            break;
-        }
-    }
-
     void *        pal_addr  = NULL;
     void *        pal_entry = NULL;
     ElfW(Dyn) *   pal_dyn   = NULL;
@@ -558,8 +566,8 @@ void do_main (void * args)
 
     /* if the current process is a child, load PAL at the exactly
        same address as in the parent */
-    if (parent_pal_sec)
-        pal_addr = parent_pal_sec->load_address;
+    if (__pal_sec)
+        pal_addr = __pal_sec->load_address;
 
     ret = load_static(PAL_LOADER, &pal_addr, &pal_entry, &pal_dyn,
                       &pal_phoff, &pal_phnum,
@@ -582,8 +590,8 @@ void do_main (void * args)
         goto exit;
     }
 
-    if (parent_pal_sec) {
-        memcpy(pal_sec_addr, parent_pal_sec, sizeof(struct pal_sec));
+    if (__pal_sec) {
+        memcpy(pal_sec_addr, __pal_sec, sizeof(struct pal_sec));
         goto done_child;
     }
 
@@ -607,7 +615,7 @@ void do_main (void * args)
     pal_sec_addr->pipe_prefix_id  = 0;
     pal_sec_addr->mcast_port      = mcast_port % (65536 - 1024) + 1024;
 
-    /* if "GRAPHENE_SANDBOX=1" if given, initiate the reference monitor */
+    /* if "SANDBOX=1" if given, initiate the reference monitor */
     if (do_sandbox) {
         int manifest;
         if (!argc || (manifest = open_manifest(argv + 1)) < 0) {
@@ -629,7 +637,7 @@ void do_main (void * args)
         }
     }
 
-   ret = install_syscall_filter(pal_code_start, pal_code_end);
+    ret = install_syscall_filter(pal_code_start, pal_code_end);
     if (ret < 0) {
         printf("Unable to install system call filter\n");
         goto exit;
@@ -638,7 +646,6 @@ void do_main (void * args)
     /* free PAL_INIT_FD */
     INLINE_SYSCALL(close, 1, PROC_INIT_FD);
 
- 
 done_child:
 
 #ifdef DEBUG

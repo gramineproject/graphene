@@ -258,27 +258,38 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     else
         stack = system_malloc(size + protect_size);
 
-    if (!stack)
+    if (!stack) {
+        debug("system_malloc() returns NULL\n");
         return NULL;
+    }
 
     ADD_PROFILE_OCCURENCE(alloc_stack, size + protect_size);
     INC_PROFILE_OCCURENCE(alloc_stack_count);
 
     if (protect_size &&
-        !DkVirtualMemoryProtect(stack, protect_size, PAL_PROT_NONE))
+        !DkVirtualMemoryProtect(stack, protect_size, PAL_PROT_NONE)) {
+        debug("can't protect memory %p-%p\n", stack, stack + protect_size);
         return NULL;
+    }
 
     stack += protect_size;
 
     if (user) {
-        if (bkeep_mmap(stack, size, PROT_READ|PROT_WRITE,
-                       STACK_FLAGS, NULL, 0, "stack") < 0)
+        int ret = bkeep_mmap(stack, size, PROT_READ|PROT_WRITE,
+                             STACK_FLAGS, NULL, 0, "stack");
+        if (ret < 0) {
+            debug("bkeep_mmap failed (err = %d)\n", ret);
             return NULL;
+        }
 
-        if (protect_size &&
-            bkeep_mmap(stack - protect_size, protect_size, 0,
-                       STACK_FLAGS, NULL, 0, NULL) < 0)
-            return NULL;
+        if (protect_size) {
+            ret = bkeep_mmap(stack - protect_size, protect_size, 0,
+                             STACK_FLAGS, NULL, 0, NULL);
+            if (ret < 0) {
+                debug("bkeep_mmap failed (err = %d)\n", ret);
+                return NULL;
+            }
+        }
     }
 
     debug("allocated stack at %p (size = %d)\n", stack, size);

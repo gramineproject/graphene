@@ -5,7 +5,8 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 
-#define GRAPHENE_UNIX_PREFIX_FMT	"/graphene/%016lu/"
+#define GRAPHENE_UNIX_PREFIX_FMT	"/graphene/%08lx"
+#define GRAPHENE_UNIX_PREFIX_SIZE	(sizeof("/graphene/") + 8 + 1) /* remember to plus 1 for the prefix "\0" */
 #define GRAPHENE_MCAST_GROUP	"239.0.0.1"
 
 #define GRM_SET_SANDBOX		_IOW('k', 16, void *)
@@ -63,6 +64,7 @@ struct qstr;
 struct graphene_path {
 	struct list_head	list;
 	struct filename *	path;
+	int			path_len;
 	int			type;
 };
 
@@ -86,7 +88,7 @@ struct graphene_unix {
 struct graphene_info {
 	atomic_t		gi_count;
 	struct filename *	gi_loader_name;
-	char			gi_unix[28];	/* fmt: @/graphene/%016lx/ */
+	char			gi_unix[GRAPHENE_UNIX_PREFIX_SIZE];
 	struct list_head	gi_paths;
 	struct list_head	gi_rpaths;
 	struct list_head	gi_binds;
@@ -105,8 +107,6 @@ int check_bind_addr(struct graphene_info *gi, struct socket *sock,
 
 int check_connect_addr(struct graphene_info *gi, struct socket *sock,
 		        struct sockaddr *addr, int addrlen);
-
-int check_execve_path(struct graphene_info *gi, const char *path);
 
 int set_sandbox(struct file *file,
 		const struct graphene_policies __user *gpolicies);

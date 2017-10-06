@@ -17,13 +17,16 @@
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/uaccess.h>
+#include <linux/socket.h>
 #include <linux/un.h>
 #include <linux/net.h>
 #include <linux/atomic.h>
 #include <net/sock.h>
 #include <net/inet_sock.h>
 #include <net/tcp_states.h>
+
 #include "graphene-sandbox.h"
+#include "util.h"
 
 #define GRAPHENE_DEBUG
 
@@ -31,8 +34,6 @@ enum {
 	OP_OPEN,
 	OP_STAT,
 	OP_BIND,
-	OP_LISTEN,
-	OP_ACCEPT,
 	OP_CONNECT,
 	OP_SENDMSG,
 	OP_RECVMSG,
@@ -46,17 +47,21 @@ static void drop_graphene_info(struct graphene_info *info)
 	struct graphene_path *p, *n;
 
 	list_for_each_entry_safe(p, n, &info->gi_paths, list) {
-		__putname(p->path);
+		__putname(p->path->name);
+		kfree(p->path);
 		kfree(p);
 	}
 
 	list_for_each_entry_safe(p, n, &info->gi_rpaths, list) {
-		__putname(p->path);
+		__putname(p->path->name);
+		kfree(p->path);
 		kfree(p);
 	}
 
-	if (info->gi_loader_name)
-		__putname(info->gi_loader_name);
+	if (info->gi_loader_name) {
+		__putname(info->gi_loader_name->name);
+		kfree(info->gi_loader_name);
+	}
 
 	if (info->gi_mcast_sock)
 		fput(info->gi_mcast_sock);
@@ -70,30 +75,29 @@ void put_graphene_info(struct graphene_info *info)
 		drop_graphene_info(info);
 }
 
-int check_execve_path(struct graphene_info *gi, const char *path)
-{
-	if (!strncmp(gi->gi_loader_name->name, path, strlen(path))) {
-#ifdef GRAPHENE_DEBUG
-		printk(KERN_INFO "Graphene: DENY EXEC PID %d PATH %s\n",
-		       current->pid, path);
-#endif
-		return -EPERM;
-	}
-
-#ifdef GRAPHENE_DEBUG
-	printk(KERN_INFO "Graphene: ALLOW EXEC PID %d PATH %s\n",
-	       current->pid, path);
-#endif
-	return 0;
-}
-
 static int check_path(struct graphene_path *gp,
 		      const char *path, int len, u32 mask,
 		      int is_recursive)
 {
-	if (!strncmp(gp->path->name, path, len))
+	if (unlikely(!gp->path_len)) {
+		if (path[0] != '/')
+			goto matched;
 		return 0;
+	}
 
+	if (gp->path_len == len) {
+		if (!strncmp(gp->path->name, path, len))
+			goto matched;
+	} else if (is_recursive &&
+		   gp->path_len < len) {
+		if (!strncmp(gp->path->name, path, gp->path_len) &&
+		    path[gp->path_len] == '/')
+			goto matched;
+	}
+
+	return 0;
+
+matched:
 	if (mask & (MAY_READ|MAY_EXEC|MAY_ACCESS)) {
 		if (!(gp->type & GRAPHENE_FS_READ))
 			return -EPERM;
@@ -131,10 +135,10 @@ out:
 	if (rv >= 0) {
 		rv = 0;
 #ifdef GRAPHENE_DEBUG
-		printk(KERN_INFO "Graphene: ALLOW PID %d PATH %s\n",
+		printk(KERN_INFO "Graphene: PID %d PATH %s PASSED\n",
 		       current->pid, path);
 	} else {
-		printk(KERN_INFO "Graphene: DENY PID %d PATH %s\n",
+		printk(KERN_INFO "Graphene: PID %d PATH %s DENIED\n",
 		       current->pid, path);
 #endif
 	}
@@ -165,7 +169,7 @@ int __unix_perm(struct graphene_info *gi,
 		return 0;
 
 #ifdef GRAPHENE_DEBUG
-	printk(KERN_INFO "Graphene: DENY PID %d SOCKET %s\n",
+	printk(KERN_INFO "Graphene: PID %d UNIX %s DENIED\n",
 	       current->pid, sun_path);
 #endif
 	return -EPERM;
@@ -191,7 +195,6 @@ static int net_cmp(int family, bool addr_any, bool port_any,
 
 		break;
 	}
-#ifdef CONFIG_IPV6
 	case AF_INET6: {
 		struct sockaddr_in6 *a6 = (void *) addr;
 
@@ -208,7 +211,6 @@ static int net_cmp(int family, bool addr_any, bool port_any,
 
 		break;
 	}
-#endif
 	}
 
 	return 0;
@@ -218,20 +220,19 @@ static int net_cmp(int family, bool addr_any, bool port_any,
 static void print_net(int allow, int family, int op, struct sockaddr *addr,
 		      int addrlen)
 {
-	const char *allow_str = allow ? "ALLOW" : "DENY";
+	const char *allow_str = allow ? "PASSED" : "DENIED";
 	const char *op_str = "UNKNOWN OP";
 
 	switch(op) {
 		case OP_BIND:		op_str = "BIND";	break;
-		case OP_LISTEN:		op_str = "LISTEN";	break;
 		case OP_CONNECT:	op_str = "CONNECT";	break;
 		case OP_SENDMSG:	op_str = "SENDMSG";	break;
 		case OP_RECVMSG:	op_str = "RECVMSG";	break;
 	}
 
 	if (!addr) {
-		printk(KERN_INFO "Graphene: %s %s PID %d SOCKET\n",
-		       allow_str, op_str, current->pid);
+		printk(KERN_INFO "Graphene: PID %d SOCKET %s %s\n",
+		       current->pid, op_str, allow_str);
 		return;
 	}
 
@@ -240,26 +241,26 @@ static void print_net(int allow, int family, int op, struct sockaddr *addr,
 		struct sockaddr_in *a = (void *) addr;
 		u8 *a1 = (u8 *) &a->sin_addr.s_addr;
 
-		printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
-		       "%d.%d.%d.%d:%d\n",
-		       allow_str, op_str, current->pid,
-		       a1[0], a1[1], a1[2], a1[3], ntohs(a->sin_port));
+		printk(KERN_INFO "Graphene: PID %d SOCKET %s "
+		       "%d.%d.%d.%d:%d %s\n",
+		       current->pid, op_str,
+		       a1[0], a1[1], a1[2], a1[3], ntohs(a->sin_port),
+		       allow_str);
 		}
 		break;
 
-#ifdef CONFIG_IPV6
 	case AF_INET6: {
 		struct sockaddr_in6 *a = (void *) addr;
 		u16 *a1 = (u16 *) &a->sin6_addr.s6_addr;
 
-		printk(KERN_INFO "Graphene: %s %s PID %d SOCKET "
-		       "[%d.%d.%d.%d:%d:%d:%d:%d]:%d\n",
-		       allow_str, op_str, current->pid,
+		printk(KERN_INFO "Graphene: PID %d SOCKET %s "
+		       "[%d.%d.%d.%d:%d:%d:%d:%d]:%d %s\n",
+		       current->pid, op_str,
 		       a1[0], a1[1], a1[2], a1[3],
-		       a1[4], a1[5], a1[6], a1[7], ntohs(a->sin6_port));
+		       a1[4], a1[5], a1[6], a1[7], ntohs(a->sin6_port),
+		       allow_str);
 		}
 		break;
-#endif
 	}
 }
 #else
@@ -373,8 +374,7 @@ int check_connect_addr(struct graphene_info *gi,
 				 addrlen);
 }
 
-#if 0
-int check_sendmsg_addr(strut graphene_info *gi,
+int check_sendmsg_addr(struct graphene_info *gi,
 		       struct socket *sock,
 		       struct msghdr *msg, int size)
 {
@@ -392,7 +392,7 @@ int check_sendmsg_addr(strut graphene_info *gi,
 				 msg->msg_name, msg->msg_namelen);
 }
 
-int check_recvmsg_addr(struct grapheen_info *gi,
+int check_recvmsg_addr(struct graphene_info *gi,
 		       struct socket *sock,
 		       struct msghdr *msg, int size, int flags)
 {
@@ -404,7 +404,6 @@ int check_recvmsg_addr(struct grapheen_info *gi,
 
 	return __common_net_perm(gi, OP_RECVMSG, sock, NULL, 0);
 }
-#endif
 
 #ifdef GRAPHENE_DEBUG
 static void print_net_rule(const char *fmt, struct graphene_net *n)
@@ -433,7 +432,6 @@ static void print_net_rule(const char *fmt, struct graphene_net *n)
 					ip[0], ip[1], ip[2], ip[3]);
 			}
 			break;
-#ifdef CONFIG_IPV6
 		case AF_INET6: {
 			u16 *ip = (u16 *) &n->addr.addr.sin6_addr.s6_addr;
 			len += snprintf(str + len,
@@ -443,7 +441,6 @@ static void print_net_rule(const char *fmt, struct graphene_net *n)
 					ip[4], ip[5], ip[6], ip[7]);
 			}
 			break;
-#endif /* CONFIG_IPV6 */
 		}
 	}
 
@@ -474,11 +471,7 @@ static int set_net_rule(struct graphene_net_rule *nr, struct graphene_info *gi,
 {
 	struct graphene_net *n;
 
-#ifdef CONFIG_IPV6
 	if (nr->family != AF_INET && nr->family != AF_INET6)
-#else
-	if (nr->family != AF_INET)
-#endif
 		return -EINVAL;
 
 	n = kmalloc(sizeof(struct graphene_net), GFP_KERNEL);
@@ -494,12 +487,10 @@ static int set_net_rule(struct graphene_net_rule *nr, struct graphene_info *gi,
 		if (!n->addr.addr.sin_addr.s_addr)
 			n->flags |= ADDR_ANY;
 		break;
-#ifdef CONFIG_IPV6
 	case AF_INET6:
 		if (!memcmp(&n->addr.addr.sin6_addr.s6_addr, &in6addr_any, 16))
 			n->flags |= ADDR_ANY;
 		break;
-#endif /* CONFIG_IPV6 */
 	}
 
 	if (n->addr.port_begin == 0 && n->addr.port_end == 65535)
@@ -515,14 +506,6 @@ static int set_net_rule(struct graphene_net_rule *nr, struct graphene_info *gi,
 	}
 	return 0;
 }
-
-#if 0
-u64 gipc_get_session(struct task_struct *tsk)
-{
-	struct graphene_info *gi = get_graphene_info(tsk->graphene);
-	return gi ? gi->gi_gipc_session : 0;
-}
-#endif
 
 static int update_sandbox(struct file *file, struct graphene_info *new);
 
@@ -568,6 +551,7 @@ int set_sandbox(struct file *file,
 	       current->pid, gi->gi_gipc_session);
 #endif
 
+
 	for (i = 0 ; i < npolicies ; i++) {
 		int type, flags;
 		rv = copy_from_user(&ptmp, policies + i,
@@ -596,13 +580,16 @@ int set_sandbox(struct file *file,
 			if (!new)
 				goto err;
 
-			new->name = kname;
+			new->name = __getname();
+			if (!new->name) {
+				kfree(new);
+				goto err;
+			}
+
+			norm_path(kname, (char *) new->name, PATH_MAX);
+			init_filename(new);
 			gi->gi_loader_name = new;
 
-			tmp = __getname();
-			if (!tmp)
-				goto err;
-			kname = (char *) tmp;
 #ifdef GRAPHENE_DEBUG
 			printk(KERN_INFO "Graphene: PID %d LIB NAME %s\n",
 			       current->pid, new->name);
@@ -626,8 +613,8 @@ int set_sandbox(struct file *file,
 			}
 
 #ifdef GRAPHENE_DEBUG
-			printk(KERN_INFO "Graphene: PID %d UNIX PREFIX %s\n",
-			       current->pid, gi->gi_unix);
+			printk(KERN_INFO "Graphene: PID %d UNIX PREFIX @%s\n",
+			       current->pid, gi->gi_unix + 1);
 #endif
 			break;
 		}
@@ -714,15 +701,24 @@ int set_sandbox(struct file *file,
 				goto err;
 			}
 
-			new->name = kname;
-			p->path = new;
-
-			tmp = __getname();
-			if (!tmp) {
+			new->name = __getname();
+			if (!new->name) {
+				kfree(new);
 				kfree(p);
 				goto err;
 			}
-			kname = (char *) tmp;
+
+			rv = norm_path(kname, (char *) new->name, PATH_MAX);
+			if (rv < 0) {
+				__putname(new->name);
+				kfree(new);
+				kfree(p);
+				goto err;
+			}
+
+			init_filename(new);
+			p->path = new;
+			p->path_len = rv;
 
 #ifdef GRAPHENE_DEBUG
 			printk(KERN_INFO "Graphene: PID %d PATH %s%s\n",

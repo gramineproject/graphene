@@ -52,7 +52,7 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_listen,        ALLOW),                  \
     SYSCALL(__NR_lseek,         ALLOW),                  \
     SYSCALL(__NR_mkdir,         ALLOW),                  \
-    SYSCALL(__NR_mmap,          JUMP(&labels, mmap)),    \
+    SYSCALL(__NR_mmap,          ALLOW),                  \
     SYSCALL(__NR_mprotect,      ALLOW),                  \
     SYSCALL(__NR_munmap,        ALLOW),                  \
     SYSCALL(__NR_nanosleep,     ALLOW),                  \
@@ -100,7 +100,7 @@ typedef __builtin_va_list __gnuc_va_list;
 #define CLONE_ALLOWED_FLAGS                              \
     (CLONE_FILES|CLONE_FS|CLONE_IO|CLONE_THREAD|         \
      CLONE_SIGHAND|CLONE_PTRACE|CLONE_SYSVSEM|CLONE_VM|  \
-     CLONE_VFORK|CLONE_PARENT_SETTID)
+     CLONE_VFORK|CLONE_PARENT_SETTID|SIGCHLD)
 
 #define SYSCALL_ACTIONS                                  \
     DENY,                                                \
@@ -111,6 +111,7 @@ typedef __builtin_va_list __gnuc_va_list;
     JEQ(GRM_SYS_STAT,   ALLOW),                          \
     JEQ(GRM_SYS_BIND,   ALLOW),                          \
     JEQ(GRM_SYS_CONNECT,ALLOW),                          \
+    JEQ(GRM_SYS_EXECVE, ALLOW),                          \
     JEQ(FIONREAD,       ALLOW),                          \
     JEQ(GIPC_CREATE,    ALLOW),                          \
     JEQ(GIPC_JOIN,      ALLOW),                          \
@@ -125,15 +126,9 @@ typedef __builtin_va_list __gnuc_va_list;
     JEQ(F_SETFL,   ALLOW),                               \
     DENY,                                                \
                                                          \
-    LABEL(&labels, mmap),                                \
-    ARG_FLAG(3, MAP_HUGETLB),                            \
-    JEQ(0, ALLOW),                                       \
-    DENY,                                                \
-                                                         \
     LABEL(&labels, clone),                               \
-    ARG_FLAG(2, CLONE_ALLOWED_FLAGS),                    \
+    ARG_FLAG(0, CLONE_ALLOWED_FLAGS),                    \
     JEQ(0, ALLOW),                                       \
-    JEQ(SIGCHLD, ALLOW),                                 \
     DENY,                                                \
                                                          \
     LABEL(&labels, socket),                              \
@@ -204,6 +199,18 @@ int install_initial_syscall_filter (int has_reference_monitor)
     }
 
     bpf_resolve_jumps(&labels, prog.filter, prog.len);
+
+    char buffer[2] = "\0\0";
+    char proc_jit_enable[] = "/proc/sys/net/core/bpf_jit_enable";
+
+    int fd = sys_open(proc_jit_enable, O_RDONLY, 0);
+    if (!IS_ERR(fd)) {
+        err = INLINE_SYSCALL(read, 3, fd, &buffer, 2);
+        if (IS_ERR(err) || buffer[0] == '0')
+            printf("Set \"%s\" to 1 for better performance.\n",
+                   proc_jit_enable);
+        INLINE_SYSCALL(close, 1, fd);
+    }
 
     err = INLINE_SYSCALL(prctl, 5, PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
     if (IS_ERR(err))

@@ -75,6 +75,10 @@ SECTIONS
   {
     *(.bss .bss.*)
     *(COMMON)
+    __pool_start = .;
+    *(.pool)
+    . = ALIGN(0x10000);
+    __pool_end = .;
   }
   . = DATA_SEGMENT_END(.);
   __data_end = .;

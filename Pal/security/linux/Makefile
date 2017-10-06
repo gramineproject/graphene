@@ -2,7 +2,8 @@
 # kernel build system and can use its language.
 ifneq ($(KERNELRELEASE),)
 	graphene-rm-y := graphene-ioctl.o \
-			 graphene-sandbox.o
+			 graphene-sandbox.o \
+			 util.o
 	obj-m := graphene-rm.o
 # Otherwise we were called directly from the command
 # line; invoke the kernel build system.
