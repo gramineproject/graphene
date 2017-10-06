@@ -7,8 +7,8 @@ typedef __builtin_va_list __gnuc_va_list;
 #include "bpf-helper.h"
 #include "internal.h"
 #include "graphene-ipc.h"
-#include "graphene.h"
 #include "graphene-rm.h"
+#include "graphene-sandbox.h"
 
 #include <linux/types.h>
 #include <linux/filter.h>
@@ -69,7 +69,6 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_shutdown,      ALLOW),                  \
     SYSCALL(__NR_socket,        JUMP(&labels, socket)),  \
     SYSCALL(__NR_socketpair,    JUMP(&labels, socket)),  \
-    SYSCALL(__NR_stat,          ALLOW),                  \
     SYSCALL(__NR_tgkill,        ALLOW),                  \
     SYSCALL(__NR_unlink,        ALLOW),                  \
     SYSCALL(__NR_wait4,         ALLOW),                  \
@@ -110,8 +109,6 @@ typedef __builtin_va_list __gnuc_va_list;
     ARG(1),                                              \
     JEQ(GRM_SYS_OPEN,   ALLOW),                          \
     JEQ(GRM_SYS_STAT,   ALLOW),                          \
-    JEQ(GRM_SYS_UNLINK, ALLOW),                          \
-    JEQ(GRM_SYS_RMDIR,  ALLOW),                          \
     JEQ(GRM_SYS_BIND,   ALLOW),                          \
     JEQ(GRM_SYS_CONNECT,ALLOW),                          \
     JEQ(FIONREAD,       ALLOW),                          \
@@ -119,7 +116,7 @@ typedef __builtin_va_list __gnuc_va_list;
     JEQ(GIPC_JOIN,      ALLOW),                          \
     JEQ(GIPC_RECV,      ALLOW),                          \
     JEQ(GIPC_SEND,      ALLOW),                          \
-    JEQ(GRAPHENE_SET_TASK,  ALLOW),                      \
+    JEQ(GRM_SET_SANDBOX,ALLOW),                          \
     DENY,                                                \
                                                          \
     LABEL(&labels, fcntl),                               \
@@ -206,7 +203,7 @@ int install_initial_syscall_filter (int has_reference_monitor)
         prog.filter = filter_unsafe;
     }
 
-    bpf_resolve_jumps(&labels, filter, prog.len);
+    bpf_resolve_jumps(&labels, prog.filter, prog.len);
 
     err = INLINE_SYSCALL(prctl, 5, PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
     if (IS_ERR(err))

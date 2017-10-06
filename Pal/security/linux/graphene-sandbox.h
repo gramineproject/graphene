@@ -26,7 +26,7 @@
 
 struct graphene_user_policy {
 	int			type;
-	const void __user *	value;
+	const void *		value;
 };
 
 struct graphene_net_addr {
@@ -95,6 +95,21 @@ struct graphene_info {
 	struct file *		gi_mcast_sock;
 	u64			gi_gipc_session;
 };
+
+int check_open_path(struct graphene_info *gi, const char *path, int flags);
+
+int check_stat_path(struct graphene_info *gi, const char *path);
+
+int check_bind_addr(struct graphene_info *gi, struct socket *sock,
+		     struct sockaddr *addr, int addrlen);
+
+int check_connect_addr(struct graphene_info *gi, struct socket *sock,
+		        struct sockaddr *addr, int addrlen);
+
+int check_execve_path(struct graphene_info *gi, const char *path);
+
+int set_sandbox(struct file *file,
+		const struct graphene_policies __user *gpolicies);
 
 #endif /* __KERNEL__ */
 

@@ -53,6 +53,11 @@ long grm_sys_open (struct graphene_info *gi,
 
 	/* Reference monitor: check "filename" */
 	if (gi) {
+		int error = check_open_path(gi, kname, flags);
+		if (error < 0) {
+			__putname(tmp);
+			return error;
+		}
 	}
 
 	f = filp_open(kname, flags, mode);
@@ -91,9 +96,14 @@ long grm_sys_stat (struct graphene_info *gi,
 
 	/* Reference monitor: check "filename" */
 	if (gi) {
+		error = check_stat_path(gi, kname);
+		if (error < 0) {
+			__putname(tmp);
+			return error;
+		}
 	}
 
-	__putname(kname);
+	__putname(tmp);
 
 	error = vfs_stat(filename, &stat);
 	if (error)
@@ -137,13 +147,19 @@ long grm_sys_bind (struct graphene_info *gi,
 	if (copy_from_user(&address, addr, addrlen))
 		return -EFAULT;
 
-	/* Reference monitor: check "address" */
-	if (gi) {
-	}
-
 	sock = sockfd_lookup(sockfd, &error);
 	if (!sock)
 		return error;
+
+	/* Reference monitor: check "address" */
+	if (gi) {
+		error = check_bind_addr(gi, sock, (struct sockaddr *) &address,
+					addrlen);
+		if (error < 0) {
+			sockfd_put(sock);
+			return error;
+		}
+	}
 
 	error = kernel_bind(sock, (struct sockaddr *) &address, addrlen);
 	sockfd_put(sock);
@@ -164,13 +180,20 @@ long grm_sys_connect (struct graphene_info *gi,
 	if (copy_from_user(&address, addr, addrlen))
 		return -EFAULT;
 
-	/* Reference monitor: check "address" */
-	if (gi) {
-	}
-
 	sock = sockfd_lookup(sockfd, &error);
 	if (!sock)
 		return error;
+
+	/* Reference monitor: check "address" */
+	if (gi) {
+		error = check_connect_addr(gi, sock,
+					   (struct sockaddr *) &address,
+					   addrlen);
+		if (error < 0) {
+			sockfd_put(sock);
+			return error;
+		}
+	}
 
 	error = kernel_connect(sock, (struct sockaddr *) &address, addrlen,
 			       sock->file->f_flags);
@@ -186,23 +209,31 @@ long grm_sys_execve (struct graphene_info *gi,
 	struct filename *tmp;
 	int len;
 
-	tmp = __getname();
+	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
 	if (unlikely(!tmp))
 		return -ENOMEM;
 
 	tmp->name = __getname();
-	if (unlikely(!tmp->name))
+	if (unlikely(!tmp->name)) {
+		kfree(tmp);
 		return -ENOMEM;
+	}
 
 	len = strncpy_from_user((char *) tmp->name, filename, PATH_MAX);
 	if (unlikely(len < 0)) {
 		__putname(tmp->name);
-		__putname(tmp);
+		kfree(tmp);
 		return len;
 	}
 
 	/* Reference monitor: check "filename" */
 	if (gi) {
+		int error = check_execve_path(gi, tmp->name);
+		if (error < 0) {
+			__putname(tmp->name);
+			kfree(tmp);
+			return error;
+		}
 	}
 
 	return KSYM(do_execve)(tmp, argv, envp);
@@ -215,7 +246,8 @@ static long grm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	long rv = 0;
 
 	if (cmd != GRM_SYS_UNLINK &&
-	    cmd != GRM_SYS_RMDIR) {
+	    cmd != GRM_SYS_RMDIR &&
+	    cmd != GRM_SET_SANDBOX) {
 		if (copy_from_user(data, (void __user *) arg, _IOC_SIZE(cmd)))
 			return -EFAULT;
 	}
@@ -272,6 +304,8 @@ static long grm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	case GRM_SET_SANDBOX: {
+		rv = set_sandbox(file,
+				 (const struct graphene_policies __user *) arg);
 		break;
 	}
 

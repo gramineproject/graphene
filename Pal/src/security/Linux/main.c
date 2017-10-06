@@ -21,7 +21,7 @@
 
 #include "pal_security.h"
 #include "internal.h"
-#include "graphene.h"
+#include "graphene-sandbox.h"
 
 #define PRESET_PAGESIZE  (4096UL)
 
@@ -90,12 +90,29 @@ static void do_bootstrap (void * args,
     *pauxv = (ElfW(auxv_t) *) auxv;
 }
 
+unsigned int reference_monitor;
+
+int sys_open(const char * path, int flags, int mode)
+{
+    if (reference_monitor) {
+        struct sys_open_param param = {
+            .filename = path,
+            .flags    = flags,
+            .mode     = mode,
+        };
+        return INLINE_SYSCALL(ioctl, 3, reference_monitor,
+                              GRM_SYS_OPEN, &param);
+    } else {
+        return INLINE_SYSCALL(open, 3, path, flags, mode);
+    }
+}
+
 int open_manifest (const char ** argv)
 {
     const char * manifest_name = *argv;
     int ret, fd;
 
-    fd = INLINE_SYSCALL(open, 3, manifest_name, O_RDONLY, 0);
+    fd = sys_open(manifest_name, O_RDONLY, 0);
     if (IS_ERR(fd))
         return -ERRNO(fd);
 
@@ -115,16 +132,16 @@ int open_manifest (const char ** argv)
     /* find a manifest file with the same name as executable */
     int len = strlen(*argv);
     manifest_name = __alloca(len + static_strlen(".manifest") + 1);
-    memcpy((void *) manifest_name, &argv, len);
+    memcpy((void *) manifest_name, *argv, len);
     memcpy((void *) manifest_name + len, ".manifest",
            static_strlen(".manifest"));
 
-    fd = INLINE_SYSCALL(open, 3, manifest_name, O_RDONLY, 0);
+    fd = sys_open(manifest_name, O_RDONLY, 0);
     if (!IS_ERR(fd))
         return fd;
 
     /* find "manifest" file */
-    fd = INLINE_SYSCALL(open, 3, "manifest", O_RDONLY, 0);
+    fd = sys_open("manifest", O_RDONLY, 0);
     if (!IS_ERR(fd))
         return fd;
 
@@ -243,7 +260,7 @@ static int load_static (const char * filename, void ** load_addr,
 {
     int ret = 0;
 
-    int fd = INLINE_SYSCALL(open, 2, filename, O_RDONLY|O_CLOEXEC);
+    int fd = sys_open(filename, O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(fd))
         return -ERRNO(fd);
 
@@ -411,10 +428,10 @@ struct r_debug _r_debug =
     { 1, NULL, (ElfW(Addr)) &_dl_debug_state, RT_CONSISTENT, 0 };
 #endif
 
-int ioctl_set_graphene (struct config_store * sandbox_config, int npolices,
+int ioctl_set_graphene (int device, struct config_store * sandbox_config, int npolices,
                         const struct graphene_user_policy * policies);
 
-int set_sandbox (struct config_store * sandbox_config,
+int set_sandbox (int device, struct config_store * sandbox_config,
                  struct pal_sec * pal_sec_addr, void * pal_addr)
 {
     struct graphene_user_policy policies[] = {
@@ -426,7 +443,7 @@ int set_sandbox (struct config_store * sandbox_config,
           .value = "/proc/meminfo", },
     };
 
-    return ioctl_set_graphene(sandbox_config,
+    return ioctl_set_graphene(device, sandbox_config,
                               sizeof(policies) / sizeof(policies[0]),
                               policies);
 }
@@ -453,7 +470,6 @@ void do_main (void * args)
     int argc;
     const char ** argv, ** envp;
     ElfW(auxv_t) * auxv;
-    unsigned int refmon = 0;
     pid_t pid;
     bool do_sandbox = false;
     int ret = 0;
@@ -484,19 +500,20 @@ void do_main (void * args)
             printf("Unable to open the ioctl device of reference monitor\n");
             goto exit;
         } else {
-            refmon = ret;
+            reference_monitor = ret;
         }
 
         /* get the pid before it closes */
         pid = INLINE_SYSCALL(getpid, 0);
 
-        ret = install_initial_syscall_filter((refmon > 0));
+        ret = install_initial_syscall_filter((reference_monitor > 0));
         if (ret < 0) {
             printf("Unable to install initial system call filter\n");
             goto exit;
         }
     } else {
         pid = parent_pal_sec->process_id;
+        reference_monitor = parent_pal_sec->reference_monitor;
     }
 
 #ifdef DEBUG
@@ -570,7 +587,7 @@ void do_main (void * args)
         goto done_child;
     }
 
-    int rand_gen = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);
+    int rand_gen = sys_open(RANDGEN_DEVICE, O_RDONLY, 0);
     if (IS_ERR(rand_gen)) {
         printf("Unable to open random generator device\n");
         goto exit;
@@ -583,7 +600,7 @@ void do_main (void * args)
         goto exit;
     }
 
-    pal_sec_addr->reference_monitor = refmon;
+    pal_sec_addr->reference_monitor = reference_monitor;
     pal_sec_addr->load_address    = pal_addr;
     pal_sec_addr->process_id      = pid;
     pal_sec_addr->random_device   = rand_gen;
@@ -604,7 +621,8 @@ void do_main (void * args)
             goto exit;
 
 
-        ret = set_sandbox(&sandbox_config, pal_sec_addr, pal_addr);
+        ret = set_sandbox(reference_monitor, &sandbox_config,
+                          pal_sec_addr, pal_addr);
         if (ret < 0) {
             printf("Unable to load sandbox policies\n");
             goto exit;

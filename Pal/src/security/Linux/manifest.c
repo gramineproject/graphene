@@ -18,7 +18,7 @@
 # include "internal.h"
 #endif
 
-#include "graphene.h"
+#include "graphene-sandbox.h"
 #include "pal_security.h"
 #include "api.h"
 
@@ -255,7 +255,7 @@ next:
     return nrules;
 }
 
-int ioctl_set_graphene (struct config_store * config, int ndefault,
+int ioctl_set_graphene (int device, struct config_store * config, int ndefault,
                         const struct graphene_user_policy * default_policies)
 {
     int ro = GRAPHENE_FS_READ, rw = ro | GRAPHENE_FS_WRITE;
@@ -316,13 +316,7 @@ int ioctl_set_graphene (struct config_store * config, int ndefault,
 
     p->npolicies = n;
 
-    fd = INLINE_SYSCALL(open, 3, GRAPHENE_FILE, O_RDONLY, 0);
-    if (IS_ERR(fd)) {
-        ret = -ERRNO(fd);
-        goto out;
-    }
-
-    ret = INLINE_SYSCALL(ioctl, 3, fd, GRAPHENE_SET_TASK, p);
+    ret = INLINE_SYSCALL(ioctl, 3, device, GRM_SET_SANDBOX, p);
     ret = IS_ERR(ret) ? -ERRNO(ret) : 0;
 
 out:

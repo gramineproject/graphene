@@ -33,7 +33,7 @@
 #include "pal_security.h"
 #include "pal_error.h"
 #include "api.h"
-#include "graphene.h"
+#include "graphene-sandbox.h"
 
 #include <linux/types.h>
 #include <linux/poll.h>

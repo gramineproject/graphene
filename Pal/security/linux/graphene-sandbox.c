@@ -25,6 +25,8 @@
 #include <net/tcp_states.h>
 #include "graphene-sandbox.h"
 
+#define GRAPHENE_DEBUG
+
 enum {
 	OP_OPEN,
 	OP_STAT,
@@ -73,14 +75,14 @@ int check_execve_path(struct graphene_info *gi, const char *path)
 	if (!strncmp(gi->gi_loader_name->name, path, strlen(path))) {
 #ifdef GRAPHENE_DEBUG
 		printk(KERN_INFO "Graphene: DENY EXEC PID %d PATH %s\n",
-		       path);
+		       current->pid, path);
 #endif
 		return -EPERM;
 	}
 
 #ifdef GRAPHENE_DEBUG
 	printk(KERN_INFO "Graphene: ALLOW EXEC PID %d PATH %s\n",
-	       path);
+	       current->pid, path);
 #endif
 	return 0;
 }
@@ -106,7 +108,7 @@ static int check_path(struct graphene_path *gp,
 }
 
 static int __common_file_perm(struct graphene_info *gi,
-			      const char *path, int op, u32 mask)
+			      const char *path, u32 mask)
 {
 	struct graphene_path *p;
 	int len = strlen(path);
@@ -130,13 +132,24 @@ out:
 		rv = 0;
 #ifdef GRAPHENE_DEBUG
 		printk(KERN_INFO "Graphene: ALLOW PID %d PATH %s\n",
-		       path);
+		       current->pid, path);
 	} else {
 		printk(KERN_INFO "Graphene: DENY PID %d PATH %s\n",
-		       path);
+		       current->pid, path);
 #endif
 	}
 	return rv;
+}
+
+int check_open_path(struct graphene_info *gi, const char *path,
+		    int flags)
+{
+	return __common_file_perm(gi, path, ACC_MODE(flags));
+}
+
+int check_stat_path(struct graphene_info *gi, const char *path)
+{
+	return __common_file_perm(gi, path, MAY_ACCESS);
 }
 
 int __unix_perm(struct graphene_info *gi,
@@ -614,7 +627,7 @@ int set_sandbox(struct file *file,
 
 #ifdef GRAPHENE_DEBUG
 			printk(KERN_INFO "Graphene: PID %d UNIX PREFIX %s\n",
-			       current->pid, kpath);
+			       current->pid, gi->gi_unix);
 #endif
 			break;
 		}
@@ -730,6 +743,7 @@ int set_sandbox(struct file *file,
 		printk(KERN_INFO "Graphene: PID %d registered\n",
 		       current->pid);
 	} else {
+#if 0
 		if ((rv = update_sandbox(file, gi)) < 0) {
 			printk(KERN_INFO
 			       "Graphene: PID %d cannot be updated (%d)\n",
@@ -739,6 +753,7 @@ int set_sandbox(struct file *file,
 
 		printk(KERN_INFO "Graphene: PID %d updated\n",
 		       current->pid);
+#endif
 	}
 	rv = 0;
 	goto out;
@@ -750,6 +765,7 @@ out:
 	return rv;
 }
 
+#if 0
 static int do_close_sock(struct graphene_info *gi, struct socket *sock,
 			 int close_unix)
 {
@@ -1064,3 +1080,4 @@ static int update_sandbox(struct file *file, struct graphene_info *new)
 	put_graphene_info(gi);
 	return 0;
 }
+#endif

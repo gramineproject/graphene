@@ -36,7 +36,7 @@
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "pal_security.h"
-#include "graphene.h"
+#include "graphene-sandbox.h"
 #include "graphene-ipc.h"
 #include "api.h"
 
@@ -440,13 +440,18 @@ void _DkProcessExit (int exitcode)
     INLINE_SYSCALL(exit_group, 1, exitcode);
 }
 
-int ioctl_set_graphene (struct config_store * config, int ndefault,
+int ioctl_set_graphene (int device, struct config_store * config, int ndefault,
                         const struct graphene_user_policy * default_policies);
 
 static int set_graphene_task (const char * uri, int flags)
 {
     PAL_HANDLE handle = NULL;
     int ret;
+
+    if (!pal_sec.reference_monitor) {
+        printf("Reference monitor is not loaded.\n");
+        return -PAL_ERROR_DENIED;
+    }
 
     if ((ret = _DkStreamOpen(&handle, uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
         return ret;
@@ -494,7 +499,8 @@ static int set_graphene_task (const char * uri, int flags)
     p->value = "/proc/meminfo";
     p++;
 
-    ret = ioctl_set_graphene(&sandbox_config, p - policies, policies);
+    ret = ioctl_set_graphene(pal_sec.reference_monitor,
+                             &sandbox_config, p - policies, policies);
     if (ret < 0)
         goto out_mem;
 
