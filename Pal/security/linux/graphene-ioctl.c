@@ -203,15 +203,48 @@ long grm_sys_connect (struct graphene_info *gi,
 }
 
 long grm_sys_execve (struct graphene_info *gi,
-		     const char __user *const __user *argv,
-		     const char __user *const __user *envp)
+		     const char __user *const __user *argv)
 {
-	struct filename *tmp = __getname();
+	struct file *exe_file = get_task_exe_file(current);
+	struct filename *tmp, *new;
+	int len = 0;
+	const char *path;
 
-	memcpy((char *) &tmp->iname, "/proc/self/exec", 16);
-	init_filename(tmp);
+	tmp = __getname();
+	if (!tmp)
+		return -ENOMEM;
 
-	return KSYM(do_execve)(tmp, argv, envp);
+	path = dentry_path_raw(exe_file->f_path.dentry,
+			       (char *) tmp, PATH_MAX);
+	if (IS_ERR(path)) {
+		__putname(tmp);
+		return PTR_ERR(path);
+	}
+
+	len = strlen(path);
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (!new) {
+		__putname(tmp);
+		return -ENOMEM;
+	}
+
+	new->name = __getname();
+	if (!new->name) {
+		__putname(tmp);
+		kfree(new);
+		return -ENOMEM;
+	}
+
+	strncpy((char *) new->name, path, len + 1);
+	init_filename(new);
+	__putname(tmp);
+
+#ifdef GRAPHENE_DEBUG
+	printk(KERN_INFO "Graphene: PID %d EXEC %s\n",
+	       current->pid, new->name);
+#endif
+
+	return KSYM(do_execve)(new, argv, NULL);
 }
 
 static long grm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -272,7 +305,7 @@ static long grm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case GRM_SYS_EXECVE: {
 		struct sys_execve_param *param = (void *) &data;
-		rv = grm_sys_execve(gi, param->argv, param->envp);
+		rv = grm_sys_execve(gi, param->argv);
 		break;
 	}
 

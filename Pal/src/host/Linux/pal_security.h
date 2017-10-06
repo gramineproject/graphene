@@ -23,6 +23,7 @@
 #include <linux/limits.h>
 #include <sysdeps/generic/ldsodefs.h>
 
+#include "graphene-sandbox.h"
 #include "pal.h"
 
 #ifdef DEBUG
@@ -73,7 +74,7 @@ extern struct pal_sec {
     unsigned int    reference_monitor;
 
     /* pipes and sockets */
-    unsigned long   pipe_prefix_id;
+    char            pipe_prefix[GRAPHENE_UNIX_PREFIX_SIZE];
     unsigned short  mcast_port;
 
     uint64_t        memory_quota;

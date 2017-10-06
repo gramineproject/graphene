@@ -437,7 +437,7 @@ int set_sandbox (int device, struct config_store * sandbox_config,
 {
     struct graphene_user_policy policies[] = {
         { .type  = GRAPHENE_UNIX_PREFIX,
-          .value = &pal_sec_addr->pipe_prefix_id, },
+          .value = &pal_sec_addr->pipe_prefix, },
         { .type  = GRAPHENE_MCAST_PORT,
           .value = &pal_sec_addr->mcast_port, },
         { .type  = GRAPHENE_FS_PATH | GRAPHENE_FS_READ,
@@ -550,7 +550,6 @@ void do_main (void * args)
     _dl_debug_state();
 #endif
 
-
     void *        pal_addr  = NULL;
     void *        pal_entry = NULL;
     ElfW(Dyn) *   pal_dyn   = NULL;
@@ -612,7 +611,6 @@ void do_main (void * args)
     pal_sec_addr->load_address    = pal_addr;
     pal_sec_addr->process_id      = pid;
     pal_sec_addr->random_device   = rand_gen;
-    pal_sec_addr->pipe_prefix_id  = 0;
     pal_sec_addr->mcast_port      = mcast_port % (65536 - 1024) + 1024;
 
     /* if "SANDBOX=1" if given, initiate the reference monitor */

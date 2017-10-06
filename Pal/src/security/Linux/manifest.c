@@ -19,6 +19,7 @@
 #endif
 
 #include "graphene-sandbox.h"
+#include "graphene-ipc.h"
 #include "pal_security.h"
 #include "api.h"
 
@@ -285,10 +286,11 @@ int ioctl_set_graphene (int device, struct config_store * config, int ndefault,
         goto out;
     }
 
+    /* remember add 2 for PAL_LOADER and /dev/gipc */
     struct graphene_policies * p =
                 __alloca(sizeof(struct graphene_policies) +
                          sizeof(struct graphene_user_policy) *
-                         (ndefault + npreload + nfs + net));
+                         (ndefault + npreload + nfs + net + 2));
 
     memcpy(&p->policies[n], default_policies,
            sizeof(struct graphene_user_policy) * ndefault);
@@ -313,6 +315,14 @@ int ioctl_set_graphene (int device, struct config_store * config, int ndefault,
         p->policies[n].value = &net_rules[i];
         n++;
     }
+
+    p->policies[n].type = GRAPHENE_FS_PATH | ro;
+    p->policies[n].value = "/dev/gipc";
+    n++;
+
+    p->policies[n].type = GRAPHENE_FS_PATH | ro;
+    p->policies[n].value = PAL_LOADER;
+    n++;
 
     p->npolicies = n;
 

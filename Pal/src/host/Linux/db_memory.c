@@ -38,7 +38,6 @@
 
 bool _DkCheckMemoryMappable (const void * addr, int size)
 {
-    printf("check if %p is in (%p,%p)\n", addr, TEXT_START, DATA_END);
     return (addr < DATA_END && addr + size > TEXT_START);
 }
 

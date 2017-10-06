@@ -28,8 +28,6 @@
 #include "graphene-sandbox.h"
 #include "util.h"
 
-#define GRAPHENE_DEBUG
-
 enum {
 	OP_OPEN,
 	OP_STAT,
@@ -165,12 +163,17 @@ int __unix_perm(struct graphene_info *gi,
 	if (!gi->gi_unix[1])
 		return -EPERM;
 
-	if (!memcmp(sun_path, gi->gi_unix, sizeof(gi->gi_unix)))
+	if (!memcmp(sun_path, gi->gi_unix, sizeof(gi->gi_unix))) {
+#ifdef GRAPHENE_DEBUG
+		printk(KERN_INFO "Graphene: PID %d UNIX @%s PASSED\n",
+		       current->pid, sun_path + 1);
+#endif
 		return 0;
+	}
 
 #ifdef GRAPHENE_DEBUG
-	printk(KERN_INFO "Graphene: PID %d UNIX %s DENIED\n",
-	       current->pid, sun_path);
+	printk(KERN_INFO "Graphene: PID %d UNIX @%s DENIED\n",
+	       current->pid, sun_path + 1);
 #endif
 	return -EPERM;
 }
@@ -605,8 +608,8 @@ int set_sandbox(struct file *file,
 				 GRAPHENE_UNIX_PREFIX_FMT, token);
 			gi->gi_unix[sizeof(gi->gi_unix) - 1] = '/';
 
-			rv = copy_to_user((void *) ptmp.value, &token,
-					  sizeof(unsigned long));
+			rv = copy_to_user((void *) ptmp.value, gi->gi_unix,
+					  sizeof(gi->gi_unix));
 			if (rv) {
 				rv = -EFAULT;
 				goto err;

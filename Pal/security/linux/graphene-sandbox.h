@@ -5,6 +5,9 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 
+/* comment out this line to turn off debugging */
+#define GRAPHENE_DEBUG
+
 #define GRAPHENE_UNIX_PREFIX_FMT	"/graphene/%08lx"
 #define GRAPHENE_UNIX_PREFIX_SIZE	(sizeof("/graphene/") + 8 + 1) /* remember to plus 1 for the prefix "\0" */
 #define GRAPHENE_MCAST_GROUP	"239.0.0.1"

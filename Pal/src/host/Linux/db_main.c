@@ -451,7 +451,7 @@ int sys_execve (const char * path, const char * const * argv,
             /* mask out the filename, the reference monitor
                always run the same executable */
             .argv     = (void *) argv,
-            .envp     = (void *) envp,
+            /* envp is also ignored */
         };
         return INLINE_SYSCALL(ioctl, 3, pal_sec.reference_monitor,
                               GRM_SYS_EXECVE, &param);

@@ -155,8 +155,7 @@ static int child_process (void * param)
         handle_set_cloexec(proc_param->manifest, false);
 
     sys_execve(linux_state.loader_name ? : PAL_LOADER,
-               proc_param->argv,
-               linux_state.environ);
+               proc_param->argv, NULL);
     ret = -PAL_ERROR_DENIED;
 
 failed:
@@ -488,7 +487,7 @@ static int set_graphene_task (const char * uri, int flags)
 
     if (flags & PAL_SANDBOX_PIPE) {
         p->type  = GRAPHENE_UNIX_PREFIX;
-        p->value = &pal_sec.pipe_prefix_id;
+        p->value = &pal_sec.pipe_prefix;
         p++;
 
         p->type  = GRAPHENE_MCAST_PORT;
