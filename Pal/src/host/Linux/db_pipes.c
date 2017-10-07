@@ -49,25 +49,23 @@ typedef __kernel_pid_t pid_t;
 
 static int pipe_path (int pipeid, char * path, int len)
 {
+    char * tmp = path;
     int ret = 0;
 
     /* use abstract UNIX sockets for pipes */
     memset(path, 0, len);
 
     if (pal_sec.pipe_prefix[1]) {
-        memcpy(path, pal_sec.pipe_prefix, sizeof(pal_sec.pipe_prefix));
-        path += sizeof(pal_sec.pipe_prefix);
-        len  -= sizeof(pal_sec.pipe_prefix);
-
-        ret = snprintf(path, len, "%08x", pipeid);
-
-        if (ret >= 0)
-            ret += sizeof(pal_sec.pipe_prefix);
+        tmp = memcpy(path, pal_sec.pipe_prefix, GRAPHENE_UNIX_PREFIX_SIZE)
+              + GRAPHENE_UNIX_PREFIX_SIZE;
     } else {
-        ret = snprintf(path + 1, len - 1, "/graphene/00000000/%08x", pipeid);
+        tmp = strcpy_static(path, "@/graphene/00000000/", len);
+        path[0] = '\0';
     }
 
-    return ret < 0 ? ret : ret + 1;
+    ret = snprintf(tmp, path + len - tmp, "%08x", pipeid);
+
+    return ret < 0 ? ret : tmp + ret - path;
 }
 
 static int pipe_addr (int pipeid, struct sockaddr_un * addr)

@@ -13,15 +13,16 @@ LDFLAGS	= -static -nostdlib -z combreloc -z defs --gc-sections \
 objs	= bpf_helper filter main manifest printf
 deps	= ../../host/Linux/sysdep-x86_64.h pal-sec.map pal-sec.lds
 graphene_lib = ../../.lib/graphene-lib.a
+pal_sec_lib = pal-sec
 
-all: pal-sec
+all: $(pal_sec_lib)
 
 ifeq ($(DEBUG),1)
 CC += -g
 CFLAGS += -DDEBUG
 endif
 
-pal-sec: $(addsuffix .o,$(objs)) $(graphene_lib) $(deps)
+$(pal_sec_lib): $(addsuffix .o,$(objs)) $(graphene_lib) $(deps)
 	@echo [ security/Linux/$@ ]
 	$(LD) $(LDFLAGS) -o $@ $(filter-out %.h %.map %.lds,$^)
 
@@ -34,4 +35,4 @@ pal-sec: $(addsuffix .o,$(objs)) $(graphene_lib) $(deps)
 	@$(CC) $(CFLAGS) -E $< -o $@
 
 clean:
-	rm -rf *.o libpal_sec.so
+	rm -rf *.o $(pal_sec_lib)

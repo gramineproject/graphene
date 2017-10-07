@@ -37,8 +37,7 @@ enum {
 	OP_RECVMSG,
 };
 
-static atomic64_t unix_prefix_counter	= ATOMIC64_INIT(1);
-static atomic64_t gipc_session		= ATOMIC64_INIT(1);;
+static atomic_t sandbox_ids = ATOMIC_INIT(0);
 
 static void drop_graphene_info(struct graphene_info *info)
 {
@@ -135,10 +134,10 @@ out:
 #ifdef GRAPHENE_DEBUG
 		printk(KERN_INFO "Graphene: PID %d PATH %s PASSED\n",
 		       current->pid, path);
+#endif
 	} else {
 		printk(KERN_INFO "Graphene: PID %d PATH %s DENIED\n",
 		       current->pid, path);
-#endif
 	}
 	return rv;
 }
@@ -160,10 +159,7 @@ int __unix_perm(struct graphene_info *gi,
 	const char * sun_path =
 		((struct sockaddr_un *) address)->sun_path;
 
-	if (!gi->gi_unix[1])
-		return -EPERM;
-
-	if (!memcmp(sun_path, gi->gi_unix, sizeof(gi->gi_unix))) {
+	if (!memcmp(sun_path, gi->gi_unix, GRAPHENE_UNIX_PREFIX_SIZE)) {
 #ifdef GRAPHENE_DEBUG
 		printk(KERN_INFO "Graphene: PID %d UNIX @%s PASSED\n",
 		       current->pid, sun_path + 1);
@@ -171,10 +167,8 @@ int __unix_perm(struct graphene_info *gi,
 		return 0;
 	}
 
-#ifdef GRAPHENE_DEBUG
 	printk(KERN_INFO "Graphene: PID %d UNIX @%s DENIED\n",
 	       current->pid, sun_path + 1);
-#endif
 	return -EPERM;
 }
 
@@ -219,7 +213,6 @@ static int net_cmp(int family, bool addr_any, bool port_any,
 	return 0;
 }
 
-#ifdef GRAPHENE_DEBUG
 static void print_net(int allow, int family, int op, struct sockaddr *addr,
 		      int addrlen)
 {
@@ -266,9 +259,6 @@ static void print_net(int allow, int family, int op, struct sockaddr *addr,
 		break;
 	}
 }
-#else
-# define print_net(...) do {} while (0)
-#endif
 
 /*
  * network rules:
@@ -293,11 +283,7 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 	if (sk->sk_type != SOCK_STREAM && sk->sk_type != SOCK_DGRAM)
 		return -EPERM;
 
-#ifdef CONFIG_IPV6
 	if (sk->sk_family != AF_INET && sk->sk_family != AF_INET6)
-#else
-	if (sk->sk_family != AF_INET)
-#endif
 		return -EPERM;
 
 	switch(op) {
@@ -309,7 +295,9 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 			head = &gi->gi_peers;
 			break;
 		default:
+#ifdef GRAPHENE_DEBUG
 			print_net(1, sk->sk_family, op, address, addrlen);
+#endif
 			return 0;
 	}
 
@@ -327,14 +315,18 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 			    &gn->addr, address, addrlen))
 			continue;
 
+#ifdef GRAPHENE_DEBUG
 		print_net(1, sk->sk_family, op, address, addrlen);
+#endif
 		return 0;
 	}
 
 no_rules:
 	if (gi->gi_mcast_port && sk->sk_family == AF_INET &&
 	    ((struct sockaddr_in *) address)->sin_port == gi->gi_mcast_port) {
+#ifdef GRAPHENE_DEBUG
 		print_net(1, AF_INET, op, address, addrlen);
+#endif
 		return 0;
 	}
 
@@ -411,11 +403,7 @@ int check_recvmsg_addr(struct graphene_info *gi,
 #ifdef GRAPHENE_DEBUG
 static void print_net_rule(const char *fmt, struct graphene_net *n)
 {
-# ifdef CONFIG_IPV6
-#  define ADDR_STR_MAX	128
-# else
-#  define ADDR_STR_MAX	48
-# endif
+#define ADDR_STR_MAX	128
 
 	char str[ADDR_STR_MAX];
 	int len = 0;
@@ -547,13 +535,10 @@ int set_sandbox(struct file *file,
 	INIT_LIST_HEAD(&gi->gi_rpaths);
 	INIT_LIST_HEAD(&gi->gi_binds);
 	INIT_LIST_HEAD(&gi->gi_peers);
-	gi->gi_gipc_session = atomic64_inc_return(&gipc_session);
+	gi->gi_sid = atomic_inc_return(&sandbox_ids);
 
-#ifdef GRAPHENE_DEBUG
-	printk(KERN_INFO "Graphene: PID %d GIPC SESSION %llu\n",
-	       current->pid, gi->gi_gipc_session);
-#endif
-
+	printk(KERN_INFO "Graphene: PID %d SANDBOX %u\n",
+	       current->pid, gi->gi_sid);
 
 	for (i = 0 ; i < npolicies ; i++) {
 		int type, flags;
@@ -573,43 +558,13 @@ int set_sandbox(struct file *file,
 		flags = ptmp.type & ~type;
 
 		switch(type) {
-		case GRAPHENE_LOADER_NAME:
-			rv = strncpy_from_user(kname, ptmp.value, PATH_MAX);
-			if (rv < 0)
-				goto err;
-
-			new = kmalloc(sizeof(*new), GFP_KERNEL);
-			rv = -ENOMEM;
-			if (!new)
-				goto err;
-
-			new->name = __getname();
-			if (!new->name) {
-				kfree(new);
-				goto err;
-			}
-
-			norm_path(kname, (char *) new->name, PATH_MAX);
-			init_filename(new);
-			gi->gi_loader_name = new;
-
-#ifdef GRAPHENE_DEBUG
-			printk(KERN_INFO "Graphene: PID %d LIB NAME %s\n",
-			       current->pid, new->name);
-#endif
-			break;
-
 		case GRAPHENE_UNIX_PREFIX: {
-			unsigned long token =
-				atomic64_inc_return(&unix_prefix_counter);
-
+			snprintf(gi->gi_unix, sizeof(gi->gi_unix),
+				 GRAPHENE_UNIX_PREFIX_FMT, gi->gi_sid);
 			gi->gi_unix[0] = '\0';
-			snprintf(gi->gi_unix + 1, sizeof(gi->gi_unix) - 1,
-				 GRAPHENE_UNIX_PREFIX_FMT, token);
-			gi->gi_unix[sizeof(gi->gi_unix) - 1] = '/';
 
-			rv = copy_to_user((void *) ptmp.value, gi->gi_unix,
-					  sizeof(gi->gi_unix));
+			rv = copy_to_user((void *) ptmp.value, &gi->gi_unix,
+					  GRAPHENE_UNIX_PREFIX_SIZE);
 			if (rv) {
 				rv = -EFAULT;
 				goto err;

@@ -6,19 +6,19 @@
 #include <linux/in6.h>
 
 /* comment out this line to turn off debugging */
-#define GRAPHENE_DEBUG
+//#define GRAPHENE_DEBUG
 
-#define GRAPHENE_UNIX_PREFIX_FMT	"/graphene/%08lx"
-#define GRAPHENE_UNIX_PREFIX_SIZE	(sizeof("/graphene/") + 8 + 1) /* remember to plus 1 for the prefix "\0" */
+#define GRAPHENE_UNIX_PREFIX_DIR	"@/graphene/"
+#define GRAPHENE_UNIX_PREFIX_FMT	GRAPHENE_UNIX_PREFIX_DIR "%08x/"
+#define GRAPHENE_UNIX_PREFIX_SIZE	(sizeof(GRAPHENE_UNIX_PREFIX_DIR) + 8)
 #define GRAPHENE_MCAST_GROUP	"239.0.0.1"
 
 #define GRM_SET_SANDBOX		_IOW('k', 16, void *)
 
-#define GRAPHENE_LOADER_NAME	0001
-#define GRAPHENE_UNIX_PREFIX	0002
-#define GRAPHENE_MCAST_PORT	0003
-#define GRAPHENE_FS_PATH	0004
-#define GRAPHENE_NET_RULE	0005
+#define GRAPHENE_UNIX_PREFIX	0000
+#define GRAPHENE_MCAST_PORT	0001
+#define GRAPHENE_FS_PATH	0002
+#define GRAPHENE_NET_RULE	0003
 
 #define GRAPHENE_POLICY_TYPES	0007
 
@@ -90,15 +90,15 @@ struct graphene_unix {
 
 struct graphene_info {
 	atomic_t		gi_count;
+	u32			gi_sid;
 	struct filename *	gi_loader_name;
-	char			gi_unix[GRAPHENE_UNIX_PREFIX_SIZE];
+	char			gi_unix[GRAPHENE_UNIX_PREFIX_SIZE + 1];
 	struct list_head	gi_paths;
 	struct list_head	gi_rpaths;
 	struct list_head	gi_binds;
 	struct list_head	gi_peers;
 	unsigned short		gi_mcast_port;
 	struct file *		gi_mcast_sock;
-	u64			gi_gipc_session;
 };
 
 int check_open_path(struct graphene_info *gi, const char *path, int flags);
