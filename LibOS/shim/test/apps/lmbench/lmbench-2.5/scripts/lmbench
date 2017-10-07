@@ -123,6 +123,40 @@ function run {
 	cat $TMPOUT 1>&2
 }
 
+function calculate {
+	awk -F ', '  '{ sum += $0; ssum += $0^2 } END { mean = sum/NR; stdev = sqrt(ssum/(NR-1) - 2*mean*(sum/(NR-1)) + ((NR*(mean^2))/(NR-1))); ci = 1.96*stdev/sqrt(NR); printf "    mean=%f +/-%f\n", mean, ci }'
+}
+
+function run_repeat_latency {
+	RUNS=$1
+	shift
+	echo "$@" "($RUNS times)"
+	TMPOUT=/tmp/OUT
+	rm -rf $TMPOUT
+	for i in $(eval echo "{1..$RUNS}")
+	do	$PREPARE
+		($LOADER "$@" 2>>$TMPOUT | tee -a $TMPOUT)
+		sleep 1
+	done
+	grep -Po 'mean=\K.*?(?= )' $TMPOUT | calculate | tee -a $TMPOUT
+	cat $TMPOUT 1>&2
+}
+
+function run_repeat_bandwidth {
+	RUNS=$1
+	shift
+	echo "$@" "($RUNS times)"
+	TMPOUT=/tmp/OUT
+	rm -rf $TMPOUT
+	for i in $(eval echo "{1..$RUNS}")
+	do	$PREPARE
+		($LOADER "$@" 2>>$TMPOUT | tee -a $TMPOUT)
+		sleep 1
+	done
+	grep -Po ': \K.*?(?=MB|KB)' $TMPOUT | calculate | tee -a $TMPOUT
+	cat $TMPOUT 1>&2
+}
+
 date >> ${OUTPUT}
 echo Latency measurements >> ${OUTPUT}
 msleep 250
@@ -144,9 +178,7 @@ run lat_sig prot lat_sig
 
 #AF_UNIX
 echo AF_UNIX socket latency >> ${OUTPUT}
-for i in $(eval echo "{1..$N_RUNS}")
-do	run lat_unix
-done
+run_repeat_latency $N_RUNS lat_unix
 
 #forks
 cp hello /tmp/hello
@@ -155,10 +187,7 @@ do	run lat_proc $i
 done
 rm -f /tmp/hello
 
-for i in $(eval echo "{1..$N_RUNS}")
-do	rm -f $FILE
-	run lmdd label="File $FILE write bandwidth:" of=$FILE move=${MB}m fsync=1 print=3
-done
+PREPARE="rm -f $FILE" run_repeat_bandwidth $N_RUNS lmdd label="File $FILE write bandwidth: " of=$FILE move=${MB}m fsync=1 print=3
 
 #0,4,10KB create/delete
 date >> ${OUTPUT}
@@ -173,51 +202,37 @@ echo Local netruning >> ${OUTPUT}
 echo UDP socket latency >> ${OUTPUT}
 run lat_udp -s &
 sleep 3
-for i in $(eval echo "{1..$N_RUNS}")
-do	run lat_udp 127.0.0.1
-	sleep 1
-done
+run_repeat_latency $N_RUNS lat_udp 127.0.0.1
 run lat_udp -127.0.0.1
 sleep 3
 
 echo TCP socket latency >> ${OUTPUT}
 run lat_tcp -s &
 sleep 3
-for i in $(eval echo "{1..$N_RUNS}")
-do	run lat_tcp 127.0.0.1
-	sleep 1
-done
+run_repeat_latency $N_RUNS lat_tcp 127.0.0.1
 run lat_tcp -127.0.0.1
 sleep 3
 
 echo TCP connect latency >> ${OUTPUT}
 run lat_connect -s &
 sleep 3
-run lat_connect 127.0.0.1
-sleep 1
+run_repeat_latency $N_RUNS lat_connect 127.0.0.1
 run lat_connect -127.0.0.1
 sleep 3
 
 echo TCP socket bandwidth >> ${OUTPUT}
 run bw_tcp -s &
 sleep 3
-for i in $(eval echo "{1..$N_RUNS}")
-do	run bw_tcp 127.0.0.1
-	sleep 1
-done
+run_repeat_bandwidth $N_RUNS bw_tcp 127.0.0.1
 run bw_tcp -127.0.0.1
 sleep 3
 
 date >> ${OUTPUT}
 echo Bandwidth measurements >> ${OUTPUT}
 
-for i in $(eval echo "{1..$N_RUNS}")
-do	run bw_unix
-done
+run_repeat_bandwidth $N_RUNS bw_unix
 
-for i in $(eval echo "{1..$N_RUNS}")
-do	run bw_pipe
-done
+run_repeat_bandwidth $N_RUNS bw_pipe
 
 date >> ${OUTPUT}
 msleep 250
