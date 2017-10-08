@@ -230,6 +230,7 @@ int shim_do_execve (const char * file, const char ** argv,
     };
     DEFINE_LISTP(sharg);
     LISTP_TYPE(sharg) shargs;
+    INIT_LISTP(&shargs);
 
 reopen:
 
