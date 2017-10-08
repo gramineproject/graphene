@@ -120,6 +120,7 @@
 //    maybe drop this requirement?
 
 #ifdef DEBUG
+#include <assert.h>
 #define LIST_ASSERT(cond) assert(cond)
 #else
 #define LIST_ASSERT(cond)

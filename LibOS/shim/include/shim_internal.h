@@ -152,17 +152,7 @@ static inline void do_pause (void);
     } while (0)
 
 #if USE_ASSERT == 1
-# define assert(test)                                                       \
-    ({                                                                      \
-        long _val = (long) (test);                                          \
-        (!(_val))                                                           \
-        ? ({                                                                \
-            __sys_printf("assert failed " __FILE__ ":%d " #test " (value:%x)\n", \
-                    __LINE__, _val);                                        \
-            pause();                                                        \
-            shim_terminate(); })                                            \
-        : (void) 0;                                                         \
-    })
+#include <assert.h>
 #else
 # define assert(test) do {} while (0)
 #endif
