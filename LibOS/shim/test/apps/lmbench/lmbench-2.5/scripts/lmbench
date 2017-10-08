@@ -187,7 +187,7 @@ do	run lat_proc $i
 done
 rm -f /tmp/hello
 
-un lat_pagefault $FILE
+run lat_pagefault $FILE
 
 #mappings
 echo Memory mappings >> ${OUTPUT}

@@ -13,10 +13,6 @@ export PATH
 echo PATH = $PATH
 echo lat_syscall = `readlink -f lat_syscall`
 
-# lat_unix, lat_udp, lat_tcp only do one run!!!
-# we loop to repeat the tests
-N_RUNS=6
-
 if [ -f $1 ]
 then	. $1
 	echo Using config in $1
@@ -152,9 +148,7 @@ run lat_sig prot lat_sig
 
 #AF_UNIX
 echo AF_UNIX socket latency
-for i in $(eval echo "{1..$N_RUNS}")
-do	run lat_unix
-done
+run lat_unix
 
 #forks
 cp hello /tmp/hello
@@ -163,10 +157,8 @@ do	run lat_proc $i
 done
 rm -f /tmp/hello
 
-for i in $(eval echo "{1..$N_RUNS}")
-do	rm -f $FILE
-	run lmdd label="File $FILE write bandwidth:" of=$FILE move=${MB}m fsync=1 print=3
-done
+rm -f $FILE
+run lmdd label="File $FILE write bandwidth:" of=$FILE move=${MB}m fsync=1 print=3
 
 #0,4,10KB create/delete
 date
@@ -181,20 +173,14 @@ echo Local netruning
 echo UDP socket latency
 run lat_udp -s &
 sleep 3
-for i in $(eval echo "{1..$N_RUNS}")
-do	run lat_udp 127.0.0.1
-	sleep 1
-done
+run lat_udp 127.0.0.1
 run lat_udp -127.0.0.1
 sleep 3
 
 echo TCP socket latency
 run lat_tcp -s &
 sleep 3
-for i in $(eval echo "{1..$N_RUNS}")
-do	run lat_tcp 127.0.0.1
-	sleep 1
-done
+run lat_tcp 127.0.0.1
 run lat_tcp -127.0.0.1
 sleep 3
 
@@ -209,22 +195,15 @@ sleep 3
 echo TCP socket bandwidth
 run bw_tcp -s &
 sleep 3
-for i in $(eval echo "{1..$N_RUNS}")
-do	run bw_tcp 127.0.0.1
-	sleep 1
-done
+run bw_tcp 127.0.0.1
 run bw_tcp -127.0.0.1
 sleep 3
 
 date
 echo Bandwidth measurements
 
-for i in $(eval echo "{1..$N_RUNS}")
-do	run bw_unix
-done
+run bw_unix
 
-for i in $(eval echo "{1..$N_RUNS}")
-do	run bw_pipe
-done
+run bw_pipe
 
 exit 0
