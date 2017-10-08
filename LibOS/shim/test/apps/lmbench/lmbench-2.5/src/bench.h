@@ -155,7 +155,7 @@ int getbenchtimeofday(struct timeval *tv);
 #define	LONGER		 7500000	/* for networking data transfers */
 #define	ENOUGH		REAL_SHORT
 
-#define	TRIES		10
+#define	TRIES		111
 
 typedef struct {
 	int	N;

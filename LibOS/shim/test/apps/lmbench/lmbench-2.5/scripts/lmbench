@@ -15,7 +15,7 @@ echo lat_syscall = `readlink -f lat_syscall`
 
 # lat_unix, lat_udp, lat_tcp only do one run!!!
 # we loop to repeat the tests
-N_RUNS=6
+N_RUNS=15
 
 if [ -f $1 ]
 then	. $1
@@ -124,34 +124,30 @@ function run {
 }
 
 function calculate {
-	awk -F ', '  '{ sum += $0; ssum += $0^2 } END { mean = sum/NR; stdev = sqrt(ssum/(NR-1) - 2*mean*(sum/(NR-1)) + ((NR*(mean^2))/(NR-1))); ci = 1.96*stdev/sqrt(NR); printf "    mean=%f +/-%f\n", mean, ci }'
+	awk -F ', '  '{ sum += 1.0*$0; ssum += (1.0*$0)^2; cnt++ } END { mean = sum/cnt; stdev = sqrt((ssum-2*sum*mean+cnt*mean^2)/(cnt-1)); ci = 2.131*stdev/sqrt(cnt); printf "   count=%d stdev=%.4f mean=%.4f +/-%.4f\n", cnt, stdev, mean, ci }'
 }
 
 function run_repeat_latency {
-	RUNS=$1
-	shift
-	echo "$@" "($RUNS times)"
+	echo "$@" "($N_RUNS times)"
 	TMPOUT=/tmp/OUT
 	rm -rf $TMPOUT
-	for i in $(eval echo "{1..$RUNS}")
+	for i in $(eval echo "{1..$N_RUNS}")
 	do	$PREPARE
 		($LOADER "$@" 2>>$TMPOUT | tee -a $TMPOUT)
-		sleep 1
+		sleep 3
 	done
 	grep -Po 'mean=\K.*?(?= )' $TMPOUT | calculate | tee -a $TMPOUT
 	cat $TMPOUT 1>&2
 }
 
 function run_repeat_bandwidth {
-	RUNS=$1
-	shift
-	echo "$@" "($RUNS times)"
+	echo "$@" "($N_RUNS times)"
 	TMPOUT=/tmp/OUT
 	rm -rf $TMPOUT
-	for i in $(eval echo "{1..$RUNS}")
+	for i in $(eval echo "{1..$N_RUNS}")
 	do	$PREPARE
 		($LOADER "$@" 2>>$TMPOUT | tee -a $TMPOUT)
-		sleep 1
+		sleep 3
 	done
 	grep -Po ': \K.*?(?=MB|KB)' $TMPOUT | calculate | tee -a $TMPOUT
 	cat $TMPOUT 1>&2
@@ -168,17 +164,21 @@ run lat_syscall fstat $STAT
 run lat_syscall open $STAT
 
 #select file (500), select tcp (500)
-run lat_select file 500
-run lat_select tcp 500
+for i in 10 100 250 500; do run lat_select file $i; done
+for i in 10 100 250 500; do run lat_select tcp $i; done
 
 #sig install, sig_overhead, prot. Fault
 run lat_sig install
 run lat_sig catch
 run lat_sig prot lat_sig
 
+#pipes
+echo Pipe latency >> ${OUTPUT}
+run_repeat_latency lat_pipe
+
 #AF_UNIX
 echo AF_UNIX socket latency >> ${OUTPUT}
-run_repeat_latency $N_RUNS lat_unix
+run_repeat_latency lat_unix
 
 #forks
 cp hello /tmp/hello
@@ -187,7 +187,11 @@ do	run lat_proc $i
 done
 rm -f /tmp/hello
 
-PREPARE="rm -f $FILE" run_repeat_bandwidth $N_RUNS lmdd label="File $FILE write bandwidth: " of=$FILE move=${MB}m fsync=1 print=3
+un lat_pagefault $FILE
+
+#mappings
+echo Memory mappings >> ${OUTPUT}
+for i in $ALL; do run lat_mmap $i $FILE; done
 
 #0,4,10KB create/delete
 date >> ${OUTPUT}
@@ -202,37 +206,39 @@ echo Local netruning >> ${OUTPUT}
 echo UDP socket latency >> ${OUTPUT}
 run lat_udp -s &
 sleep 3
-run_repeat_latency $N_RUNS lat_udp 127.0.0.1
+run_repeat_latency lat_udp 127.0.0.1
 run lat_udp -127.0.0.1
 sleep 3
 
 echo TCP socket latency >> ${OUTPUT}
 run lat_tcp -s &
 sleep 3
-run_repeat_latency $N_RUNS lat_tcp 127.0.0.1
+run_repeat_latency lat_tcp 127.0.0.1
 run lat_tcp -127.0.0.1
 sleep 3
 
 echo TCP connect latency >> ${OUTPUT}
 run lat_connect -s &
 sleep 3
-run_repeat_latency $N_RUNS lat_connect 127.0.0.1
+run lat_connect 127.0.0.1
 run lat_connect -127.0.0.1
 sleep 3
 
 echo TCP socket bandwidth >> ${OUTPUT}
 run bw_tcp -s &
 sleep 3
-run_repeat_bandwidth $N_RUNS bw_tcp 127.0.0.1
+run_repeat_bandwidth bw_tcp 127.0.0.1
 run bw_tcp -127.0.0.1
 sleep 3
 
 date >> ${OUTPUT}
 echo Bandwidth measurements >> ${OUTPUT}
 
-run_repeat_bandwidth $N_RUNS bw_unix
+run_repeat_bandwidth bw_unix
 
-run_repeat_bandwidth $N_RUNS bw_pipe
+run_repeat_bandwidth bw_pipe
+
+if [ "x$SYSCALL_ONLY" = "x1" ]; then exit; fi
 
 date >> ${OUTPUT}
 msleep 250
