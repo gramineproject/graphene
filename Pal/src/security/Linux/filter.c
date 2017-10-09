@@ -103,7 +103,7 @@ typedef __builtin_va_list __gnuc_va_list;
      CLONE_VFORK|CLONE_PARENT_SETTID|SIGCHLD)
 
 #define SYSCALL_ACTIONS                                  \
-    DENY,                                                \
+    TRAP,                                                \
                                                          \
     LABEL(&labels, ioctl),                               \
     ARG(1),                                              \
@@ -118,25 +118,25 @@ typedef __builtin_va_list __gnuc_va_list;
     JEQ(GIPC_RECV,      ALLOW),                          \
     JEQ(GIPC_SEND,      ALLOW),                          \
     JEQ(GRM_SET_SANDBOX,ALLOW),                          \
-    DENY,                                                \
+    TRAP,                                                \
                                                          \
     LABEL(&labels, fcntl),                               \
     ARG(1),                                              \
     JEQ(F_SETFD,   ALLOW),                               \
     JEQ(F_SETFL,   ALLOW),                               \
-    DENY,                                                \
+    TRAP,                                                \
                                                          \
     LABEL(&labels, clone),                               \
     ARG_FLAG(0, CLONE_ALLOWED_FLAGS),                    \
     JEQ(0, ALLOW),                                       \
-    DENY,                                                \
+    TRAP,                                                \
                                                          \
     LABEL(&labels, socket),                              \
     ARG(0),                                              \
     JEQ(AF_UNIX,    ALLOW),                              \
     JEQ(AF_INET,    ALLOW),                              \
     JEQ(AF_INET6,   ALLOW),                              \
-    DENY,
+    TRAP,
 
 
 /* VERY IMPORTANT: This is the filter that gets applied to the startup code
@@ -166,7 +166,7 @@ int install_initial_syscall_filter (int has_reference_monitor)
         LABEL(&labels, prctl),
         ARG(0),
         JEQ(PR_SET_SECCOMP,     ALLOW),
-        DENY,
+        TRAP,
     };
 
     struct sock_filter filter_unsafe[] = {
@@ -184,7 +184,7 @@ int install_initial_syscall_filter (int has_reference_monitor)
         LABEL(&labels, prctl),
         ARG(0),
         JEQ(PR_SET_SECCOMP,     ALLOW),
-        DENY,
+        TRAP,
     };
 
     struct sock_fprog prog = {
@@ -234,7 +234,7 @@ int install_syscall_filter (void * pal_code_start, void * pal_code_end)
 
     struct sock_filter filter[] = {
         LOAD_SYSCALL_NR,
-        SYSCALL(__NR_prctl,     DENY),
+        SYSCALL(__NR_prctl,     TRAP),
 
         IP,
         JLT((uint64_t) TEXT_START,         TRAP),
