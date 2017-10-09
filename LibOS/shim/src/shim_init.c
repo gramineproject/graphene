@@ -662,6 +662,8 @@ int shim_init (int argc, void * args, void ** return_stack)
     unsigned long begin_time = GET_PROFILE_INTERVAL();
 #endif
 
+    debug("host: %s\n", PAL_CB(host_type));
+
     DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE, 0);
 
     allocsize = PAL_CB(alloc_align);

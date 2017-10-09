@@ -434,6 +434,7 @@ has_manifest:
 
     set_debug_type();
 
+    __pal_control.host_type          = XSTRINGIFY(HOST_TYPE);
     __pal_control.process_id         = _DkGetProcessId();
     __pal_control.host_id            = _DkGetHostId();
     __pal_control.manifest_handle    = manifest_handle;

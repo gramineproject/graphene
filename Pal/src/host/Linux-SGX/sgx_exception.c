@@ -253,10 +253,20 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
         INLINE_SYSCALL(exit, 1, 1);
     }
 
+    int event = 0;
+    switch(signum) {
+        case SIGBUS:
+        case SIGSEGV:
+            event = PAL_EVENT_MEMFAULT;
+            break;
+        case SIGILL:
+            event = PAL_EVENT_ILLEGAL;
+            break;
+    }
 #if SGX_HAS_FSGSBASE != 0
-    sgx_raise((signum == SIGBUS) ? PAL_EVENT_MEMFAULT : 0);
+    sgx_raise(event);
 #else
-    uc->uc_mcontext.gregs[REG_R9] = (signum == SIGBUS) ? PAL_EVENT_MEMFAULT : 0;
+    uc->uc_mcontext.gregs[REG_R9] = event;
 #endif
 }
 
