@@ -1559,10 +1559,17 @@ int register_library (const char * name, unsigned long load_address)
 }
 
 int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
-                        int nauxv, ElfW(auxv_t) * auxp)
+                        ElfW(auxv_t) * auxp, void * stack_top)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
+
+    void * random_bytes = stack_top - AT_RANDOM_SIZE;
+    getrand(random_bytes, AT_RANDOM_SIZE);
+
+    /* check if there is enough space on the stack */
+    if (((void *) &auxp[7]) > stack_top)
+        return -ENOMEM;
 
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
@@ -1574,7 +1581,9 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     auxp[3].a_un.a_val = exec_map->l_entry;
     auxp[4].a_type = AT_BASE;
     auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
-    auxp[5].a_type = AT_NULL;
+    auxp[5].a_type = AT_RANDOM;
+    auxp[5].a_un.a_val = (uint64_t) random_bytes;
+    auxp[6].a_type = AT_NULL;
 
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 
@@ -1582,6 +1591,11 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     asm volatile (
                     "movq %%rbx, %%rsp\r\n"
                     "pushq %%rdi\r\n"
+                    /* glibc ask for rdx to contain a function pointer
+                       to be registered as the rtld exit function;
+                       since this register is only used by ld.so, we zero
+                       it out here to avoid confusing static programs. */
+                    "xorq %%rdx, %%rdx\r\n"
                     "jmp *%%rax\r\n"
 
                     :

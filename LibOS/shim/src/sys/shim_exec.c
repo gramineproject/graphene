@@ -69,8 +69,6 @@ static const char ** new_argp;
 static int           new_argc;
 static elf_auxv_t *  new_auxp;
 
-#define REQUIRED_ELF_AUXV       6
-
 int init_brk_from_executable (struct shim_handle * exec);
 
 int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
@@ -104,12 +102,13 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     cur_thread->stack     = NULL;
     cur_thread->stack_red = NULL;
 
+    void * stack_top = NULL;
     initial_envp = NULL;
     new_argc = 0;
     for (const char ** a = argv ; *a ; a++, new_argc++);
 
     if ((ret = init_stack(argv, envp, &new_argp,
-                          REQUIRED_ELF_AUXV, &new_auxp)) < 0)
+                          DEFAULT_AUXV_NUM, &new_auxp, &stack_top)) < 0)
         return ret;
 
     SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
@@ -150,7 +149,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     debug("execve: start execution\n");
     execute_elf_object(cur_thread->exec, new_argc, new_argp,
-                       REQUIRED_ELF_AUXV, new_auxp);
+                       new_auxp, stack_top);
 
     return 0;
 }

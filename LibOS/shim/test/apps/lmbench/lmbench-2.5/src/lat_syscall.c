@@ -77,6 +77,16 @@ do_openclose(char *s)
 	close(fd);
 }
 
+#include <asm/unistd.h>
+
+void
+static_getppid(void)
+{
+	unsigned ret;
+	asm volatile ("syscall" : "=a"(ret): "0"(__NR_getppid) :
+		      "memory", "cc", "r11", "cx");
+}
+
 int
 main(int ac, char **av)
 {
@@ -89,6 +99,9 @@ main(int ac, char **av)
 	if (!strcmp("null", av[1])) {
 		BENCH(getppid(), 0);
 		micro("Simple syscall", get_n());
+	} else if (!strcmp("static", av[1])) {
+		BENCH(static_getppid(), 0);
+		micro("Static syscall", get_n());
 	} else if (!strcmp("write", av[1])) {
 		file = av[2] ? av[2] : "/dev/null";
 		fd = open(file, 1);
@@ -132,7 +145,7 @@ main(int ac, char **av)
 		BENCH(do_openclose(file), 0);
 		micro("Simple open/close", get_n());
 	} else {
-usage:		printf("Usage: %s null|read|write|stat|open\n", av[0]);
+usage:		printf("Usage: %s null|static|read|read-size|write|stat|open\n", av[0]);
 	}
 	return(0);
 }

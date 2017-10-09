@@ -13,6 +13,11 @@
 #define DEFAULT_BRK_MAX_SIZE        (256 * 1024)        /* 256KB */
 #define DEFAULT_SYS_STACK_SIZE      (256 * 1024)        /* 256KB */
 
+#define DEFAULT_AUXV_NUM        (8)
+#define AT_RANDOM_SIZE      (16)
+#define DEFAULT_STACK_RESERVE_SIZE  \
+    (sizeof(elf_auxv_t) * DEFAULT_AUXV_NUM + AT_RANDOM_SIZE)
+
 #define CP_INIT_VMA_SIZE            (64 * 1024 * 1024)  /* 64MB */
 
 #define EXECVE_RTLD                 1

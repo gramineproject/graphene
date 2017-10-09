@@ -314,8 +314,8 @@ int clean_held_locks (struct shim_thread * self);
 
 void * allocate_stack (size_t size, size_t protect_size, bool user);
 int populate_user_stack (void * stack, size_t stack_size,
-                         int nauxv, elf_auxv_t ** auxpp,
-                         const char *** argvp, const char *** envpp);
+                         const char *** argvp, const char *** envpp,
+                         size_t reserve_size, void ** reserved);
 
 static inline __attribute__((always_inline))
 bool check_stack_size (struct shim_thread * cur_thread, int size)
@@ -342,6 +342,6 @@ bool check_on_stack (struct shim_thread * cur_thread, void * mem)
 }
 
 int init_stack (const char ** argv, const char ** envp, const char *** argpp,
-                int nauxv, elf_auxv_t ** auxpp);
+                int nauxv, elf_auxv_t ** auxpp, void ** stack_top);
 
 #endif /* _SHIM_THREAD_H_ */

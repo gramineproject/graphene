@@ -297,8 +297,8 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 }
 
 int populate_user_stack (void * stack, size_t stack_size,
-                         int nauxv, elf_auxv_t ** auxpp,
-                         const char *** argvp, const char *** envpp)
+                         const char *** argvp, const char *** envpp,
+                         size_t reserve_size, void ** reserved)
 {
     const char ** argv = *argvp, ** envp = *envpp;
     const char ** new_argv = NULL, ** new_envp = NULL;
@@ -343,11 +343,11 @@ copy_envp:
     stack_bottom = (void *) ((unsigned long) stack_bottom & ~7UL);
     *((unsigned long *) ALLOCATE_TOP(sizeof(unsigned long))) = 0;
 
-    if (nauxv) {
-        elf_auxv_t * old_auxp = *auxpp;
-        *auxpp = ALLOCATE_TOP(sizeof(elf_auxv_t) * nauxv);
-        if (old_auxp)
-            memcpy(*auxpp, old_auxp, nauxv * sizeof(elf_auxv_t));
+    if (reserve_size) {
+        debug("reserve %d bytes on top of stack\n", reserve_size);
+        *reserved = (void *) ALLOCATE_TOP(reserve_size);
+    } else {
+        *reserved = stack_top;
     }
 
     memmove(stack_top - (stack_bottom - stack), stack, stack_bottom - stack);
@@ -361,7 +361,7 @@ copy_envp:
 unsigned long sys_stack_size = 0;
 
 int init_stack (const char ** argv, const char ** envp, const char *** argpp,
-                int nauxv, elf_auxv_t ** auxpp)
+                int nauxv, elf_auxv_t ** auxpp, void ** stack_top)
 {
     if (!sys_stack_size) {
         sys_stack_size = DEFAULT_SYS_STACK_SIZE;
@@ -385,11 +385,21 @@ int init_stack (const char ** argv, const char ** envp, const char *** argpp,
     if (initial_envp)
         envp = initial_envp;
 
+    void *reserved_on_stack = NULL;
+    size_t reserve_size = nauxv * sizeof(elf_auxv_t);
+
+    if (reserve_size < DEFAULT_STACK_RESERVE_SIZE)
+        reserve_size = DEFAULT_STACK_RESERVE_SIZE;
+
     int ret = populate_user_stack(stack, sys_stack_size,
-                                  nauxv, auxpp, &argv, &envp);
+                                  &argv, &envp, reserve_size,
+                                  &reserved_on_stack);
     if (ret < 0)
         return ret;
 
+    memcpy(reserved_on_stack, *auxpp, nauxv * sizeof(elf_auxv_t));
+    *auxpp = reserved_on_stack;
+    *stack_top = reserved_on_stack + reserve_size;
     *argpp = argv;
     initial_envp = envp;
 
@@ -755,9 +765,10 @@ restore:
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
-    RUN_INIT(init_stack, argv, envp, &argp, nauxv, &auxp);
+    void * stack_top = NULL;
+    RUN_INIT(init_stack, argv, envp, &argp, nauxv, &auxp, &stack_top);
     RUN_INIT(init_loader);
-    RUN_INIT(init_ipc_helper);
+    //RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
 
     debug("shim process initialized\n");
@@ -794,7 +805,7 @@ restore:
 
     if (cur_thread->exec)
         execute_elf_object(cur_thread->exec,
-                           argc, argp, nauxv, auxp);
+                           argc, argp, auxp, stack_top);
 
     *return_stack = initial_stack;
     return 0;
