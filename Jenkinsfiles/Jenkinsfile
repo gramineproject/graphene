@@ -15,7 +15,7 @@ pipeline {
                             make regression
                            '''
                         sh '''
-                            cd LibOS/shim/test/lmbench
+                            cd LibOS/shim/test/apps/lmbench
                             make regression
                             '''
                         sh '''
