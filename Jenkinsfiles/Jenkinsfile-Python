@@ -1,0 +1,43 @@
+pipeline {
+        agent any
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            make    
+                            cd LibOS/shim/test/apps/python
+                            make regression
+                        '''
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd LibOS/shim/test/apps/python
+                            ls
+                            ./python.manifest scripts/helloworld.py
+                            ./python.manifest scripts/fibonacci.py
+                        '''
+
+                        input 'Tests complete. Do you wish to deploy?'
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+        }
+}
+

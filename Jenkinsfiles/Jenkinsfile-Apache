@@ -1,0 +1,42 @@
+pipeline {
+        agent any
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            make          
+                            cd LibOS/shim/test/apps/apache
+                            make
+                        '''
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+                            make start-graphene-server
+                            ./run-apachebench.sh 127.0.0.1 8000
+                        '''
+
+                        input 'Tests complete. Do you wish to deploy?'
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+        }
+}
+

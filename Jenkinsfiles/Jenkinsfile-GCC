@@ -1,0 +1,36 @@
+pipeline {
+        agent any
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            make
+                            cd LibOS/shim/test/apps/gcc
+                            make regression
+                        '''
+
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd LibOS/shim/test/apps/gcc
+                            ./gcc.manifest -o helloworld test_files/helloworld.c
+                        '''
+
+                        input 'Tests complete. Do you wish to deploy?'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+        }
+}
