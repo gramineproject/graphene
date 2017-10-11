@@ -96,7 +96,7 @@ int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
                                input, input_len, mac);
 }
 
-int lib_RSAInitKey(PAL_RSA_KEY *key)
+int lib_RSAInitKey(LIB_RSA_KEY *key)
 {
     /* For now, we only need PKCS_V15 type padding. If we need to support
      * multiple padding types, I guess we'll need to add the padding type
@@ -110,7 +110,7 @@ int lib_RSAInitKey(PAL_RSA_KEY *key)
     return 0;
 }
 
-int lib_RSAGenerateKey(PAL_RSA_KEY *key, PAL_NUM length_in_bits, PAL_NUM exponent)
+int lib_RSAGenerateKey(LIB_RSA_KEY *key, uint64_t length_in_bits, uint64_t exponent)
 {
     if (length_in_bits > UINT_MAX) {
         return -PAL_ERROR_INVAL;
@@ -122,8 +122,8 @@ int lib_RSAGenerateKey(PAL_RSA_KEY *key, PAL_NUM length_in_bits, PAL_NUM exponen
                                exponent);
 }
 
-int lib_RSAExportPublicKey(PAL_RSA_KEY *key, uint8_t *e, PAL_NUM *e_size,
-                           uint8_t *n, PAL_NUM *n_size)
+int lib_RSAExportPublicKey(LIB_RSA_KEY *key, uint8_t *e, uint64_t *e_size,
+                           uint8_t *n, uint64_t *n_size)
 {
     int ret;
 
@@ -139,8 +139,8 @@ int lib_RSAExportPublicKey(PAL_RSA_KEY *key, uint8_t *e, PAL_NUM *e_size,
     return 0;
 }
 
-int lib_RSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
-                           const uint8_t *n, PAL_NUM n_size)
+int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
+                           const uint8_t *n, uint64_t n_size)
 {
     int ret;
 
@@ -160,9 +160,9 @@ int lib_RSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
     return 0;
 }
 
-int lib_RSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
-                        PAL_NUM signature_len, uint8_t *signed_data_out,
-                        PAL_NUM signed_data_out_len)
+int lib_RSAVerifySHA256(LIB_RSA_KEY *key, const uint8_t *signature,
+                        uint64_t signature_len, uint8_t *signed_data_out,
+                        uint64_t signed_data_out_len)
 {
     size_t real_data_out_len;
 
@@ -187,7 +187,7 @@ int lib_RSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
     return ret;
 }
 
-int lib_RSAFreeKey(PAL_RSA_KEY *key)
+int lib_RSAFreeKey(LIB_RSA_KEY *key)
 {
     mbedtls_rsa_free(key);
     return 0;

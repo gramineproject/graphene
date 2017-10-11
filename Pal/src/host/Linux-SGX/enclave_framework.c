@@ -604,7 +604,7 @@ void test_dh (void)
 int init_enclave (void)
 {
     int ret;
-    PAL_RSA_KEY *rsa = malloc(sizeof(PAL_RSA_KEY));
+    LIB_RSA_KEY *rsa = malloc(sizeof(LIB_RSA_KEY));
     lib_RSAInitKey(rsa);
 
     ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);

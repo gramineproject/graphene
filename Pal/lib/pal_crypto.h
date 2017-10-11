@@ -41,11 +41,6 @@
 #define AES_CMAC_KEY_LEN    16
 #define AES_CMAC_DIGEST_LEN 32
 
-typedef enum {
-    PAL_ENCRYPT,
-    PAL_DECRYPT
-} PAL_CRYPTO_TYPE;
-
 #if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
 #include "crypto/wolfssl/cmac.h"
 #include "crypto/wolfssl/aes.h"
@@ -62,8 +57,8 @@ typedef struct {
     DhKey key;
 } LIB_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
 
-typedef struct AES PAL_AES_CONTEXT;
-typedef RSAKey PAL_RSA_KEY;
+typedef struct AES LIB_AES_CONTEXT;
+typedef RSAKey LIB_RSA_KEY;
 
 #elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
 #include "crypto/mbedtls/mbedtls/cmac.h"
@@ -77,8 +72,7 @@ typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 #define DH_SIZE 256
 #include "crypto/mbedtls/mbedtls/dhm.h"
 typedef mbedtls_dhm_context LIB_DH_CONTEXT;
-
-typedef mbedtls_rsa_context PAL_RSA_KEY;
+typedef mbedtls_rsa_context LIB_RSA_KEY;
 
 #else
 # error "Unknown crypto provider. Set PAL_CRYPTO_PROVIDER in pal_crypto.h"
@@ -104,16 +98,16 @@ int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
 
 /* RSA. Limited functionality. */
 // Initializes the key structure
-int lib_RSAInitKey(PAL_RSA_KEY *key);
+int lib_RSAInitKey(LIB_RSA_KEY *key);
 // Must call lib_RSAInitKey first
-int lib_RSAGenerateKey(PAL_RSA_KEY *key, PAL_NUM length_in_bits,
-                       PAL_NUM exponent);
+int lib_RSAGenerateKey(LIB_RSA_KEY *key, uint64_t length_in_bits,
+                       uint64_t exponent);
 
-int lib_RSAExportPublicKey(PAL_RSA_KEY *key, uint8_t *e, PAL_NUM *e_size,
-                           uint8_t *n, PAL_NUM *n_size);
+int lib_RSAExportPublicKey(LIB_RSA_KEY *key, uint8_t *e, uint64_t *e_size,
+                           uint8_t *n, uint64_t *n_size);
 
-int lib_RSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
-                           const uint8_t *n, PAL_NUM n_size);
+int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
+                           const uint8_t *n, uint64_t n_size);
 
 // Sign and verify signatures.
 
@@ -121,11 +115,11 @@ int lib_RSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
 // padding, with SHA256 as the hash mechanism. These signatures are generated
 // by the Graphene filesystem build (so outside of a running Graphene
 // application), but are verified within the Graphene application.
-int lib_RSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
-                        PAL_NUM signature_len, uint8_t *signed_data_out,
-                        PAL_NUM signed_data_out_len);
+int lib_RSAVerifySHA256(LIB_RSA_KEY *key, const uint8_t *signature,
+                        uint64_t signature_len, uint8_t *signed_data_out,
+                        uint64_t signed_data_out_len);
 
 // Frees memory allocated in lib_RSAInitKey.
-int lib_RSAFreeKey(PAL_RSA_KEY *key);
+int lib_RSAFreeKey(LIB_RSA_KEY *key);
 
 #endif
