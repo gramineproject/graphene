@@ -50,6 +50,6 @@ int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
     if (key_len != 16 || input_len > INT32_MAX || mac_len < 16) {
         return -PAL_ERROR_INVAL;
     }
-    AES_CMAC((unsigned char *) key, (unsigned char *) input, length, mac);
+    AES_CMAC((unsigned char *) key, (unsigned char *) input, input_len, mac);
     return 0;
 }

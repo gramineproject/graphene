@@ -36,7 +36,7 @@ typedef uint8_t byte;
 
 #define BIT_SIZE  8
 
-#include "integer.h"
+#include "crypto/integer.h"
 
 /* Diffie-Hellman Key */
 typedef struct DhKey {

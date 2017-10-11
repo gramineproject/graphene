@@ -16,6 +16,9 @@ LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
 	  --hash-style=gnu -e enclave_entry
 ARFLAGS	=
 
+CRYPTO_PROVIDER = mbedtls
+CFLAGS += -DCRYPTO_USE_MBEDTLS
+
 pal_loader = $(HOST_DIR)/pal-sgx
 pal_sec =
 pal_lib = libpal.so
