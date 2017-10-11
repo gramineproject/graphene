@@ -23,7 +23,7 @@
  */
 
 #include "aes.h"
-#include "error-crypt.h"
+#include "crypto/error-crypt.h"
 #include "api.h"
 
 #define XMEMSET memset
