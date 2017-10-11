@@ -24,22 +24,15 @@
 #ifndef PAL_CRYPTO_H
 #define PAL_CRYPTO_H
 
-/*
- * You can change which crypto library will be used by changing this
- * define to one of the PAL_CRYPTO_* values below.
- */
-#define PAL_CRYPTO_PROVIDER PAL_CRYPTO_MBEDTLS
-
 /* These cryptosystems are still unconditionally provided by WolfSSL. */
 #include "crypto/cmac.h"
 #include "crypto/rsa.h"
 
-#define PAL_CRYPTO_WOLFSSL 1
-#define PAL_CRYPTO_MBEDTLS 2
-
 #define SHA256_DIGEST_LEN 32
 
-#if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
+#ifdef CRYPTO_USE_WOLFSSL
+#define CRYPTO_PROVIDER_SPECIFIED
+
 #include "crypto/wolfssl/sha256.h"
 #include "crypto/wolfssl/dh.h"
 typedef SHA256 LIB_SHA256_CONTEXT;
@@ -51,8 +44,11 @@ typedef struct {
     uint32_t priv_size;
     DhKey key;
 } LIB_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
+#endif /* CRYPTO_USE_WOLFSSL */
 
-#elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
+#ifdef CRYPTO_USE_MBEDTLS
+#define CRYPTO_PROVIDER_SPECIFIED
+
 #include "crypto/mbedtls/mbedtls/sha256.h"
 typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
@@ -60,9 +56,10 @@ typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 #define DH_SIZE 256
 #include "crypto/mbedtls/mbedtls/dhm.h"
 typedef mbedtls_dhm_context LIB_DH_CONTEXT;
+#endif /* CRYPTO_USE_MBEDTLS */
 
-#else
-# error "Unknown crypto provider. Set PAL_CRYPTO_PROVIDER in pal_crypto.h"
+#ifndef CRYPTO_PROVIDER_SPECIFIED
+# error "Unknown crypto provider. Set CRYPTO_PROVIDER in Makefile"
 #endif
 
 /* SHA256 */
