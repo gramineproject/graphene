@@ -205,7 +205,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     sgx_stub_t * s = stubs;
     uint64_t offset = 0;
-    PAL_SHA256_CONTEXT sha;
+    LIB_SHA256_CONTEXT sha;
     void * umem;
 
     ret = lib_SHA256Init(&sha);
@@ -621,7 +621,7 @@ int init_enclave (void)
         goto out_free;
     }
 
-    PAL_SHA256_CONTEXT sha256;
+    LIB_SHA256_CONTEXT sha256;
 
     ret = lib_SHA256Init(&sha256);
     if (ret < 0)
@@ -654,7 +654,7 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     uint8_t pub[DH_SIZE]   __attribute__((aligned(DH_SIZE)));
     uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
     PAL_NUM pubsz, agreesz;
-    PAL_DH_CONTEXT context;
+    LIB_DH_CONTEXT context;
     int ret;
 
     ret = lib_DhInit(&context);
