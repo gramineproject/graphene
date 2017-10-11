@@ -46,6 +46,8 @@ typedef struct {
     uint32_t priv_size;
     DhKey key;
 } LIB_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
+
+typedef struct RSAKey LIB_RSA_KEY;
 #endif /* CRYPTO_USE_WOLFSSL */
 
 #ifdef CRYPTO_USE_MBEDTLS
