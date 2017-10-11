@@ -205,7 +205,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     sgx_stub_t * s = stubs;
     uint64_t offset = 0;
-    PAL_SHA256_CONTEXT sha;
+    LIB_SHA256_CONTEXT sha;
     void * umem;
 
     ret = lib_SHA256Init(&sha);
@@ -221,7 +221,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         if (ret < 0)
             goto unmap;
 
-        lib_AESCMAC((void *) &enclave_key, PAL_AES_CMAC_KEY_LEN, umem,
+        lib_AESCMAC((void *) &enclave_key, AES_CMAC_KEY_LEN, umem,
                     mapping_size, (uint8_t *) s, sizeof *s);
 
         /* update the file checksum */
@@ -293,9 +293,9 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-        uint8_t hash[256/8]; // AES_CMAC hash size is 256 bits
+        uint8_t hash[AES_CMAC_DIGEST_LEN];
         lib_AESCMAC((void *) &enclave_key,
-                    PAL_AES_CMAC_KEY_LEN,
+                    AES_CMAC_KEY_LEN,
                     mem + checking - offset, checking_size,
                     hash, sizeof(hash));
 
@@ -624,7 +624,7 @@ int init_enclave (void)
         goto out_free;
     }
 
-    PAL_SHA256_CONTEXT sha256;
+    LIB_SHA256_CONTEXT sha256;
 
     ret = lib_SHA256Init(&sha256);
     if (ret < 0)
@@ -657,7 +657,7 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     uint8_t pub[DH_SIZE]   __attribute__((aligned(DH_SIZE)));
     uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
     PAL_NUM pubsz, agreesz;
-    PAL_DH_CONTEXT context;
+    LIB_DH_CONTEXT context;
     int ret;
 
     ret = lib_DhInit(&context);
