@@ -21,8 +21,6 @@
 #include "pal_debug.h"
 #include "assert.h"
 
-#define BITS_PER_BYTE 8
-
 /* This is declared in pal_internal.h, but that can't be included here. */
 int _DkRandomBitsRead(void *buffer, int size);
 

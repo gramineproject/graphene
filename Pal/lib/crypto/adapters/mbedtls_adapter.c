@@ -17,7 +17,10 @@
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_error.h"
+#include "crypto/mbedtls/mbedtls/cmac.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
+
+#define BITS_PER_BYTE 8
 
 int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
@@ -63,7 +66,6 @@ int lib_AESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
         cipher = MBEDTLS_CIPHER_AES_256_ECB;
         break;
     default:
-        printf("Invalid key length %d requested for CMAC\n", key_len);
         return -PAL_ERROR_INVAL;
     }
 
