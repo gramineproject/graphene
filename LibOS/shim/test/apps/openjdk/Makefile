@@ -4,21 +4,21 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
-target = $(patsubst %.java,%.class,$(wildcard classes/*.java))
+target = build-java $(patsubst %.java,%.class,$(wildcard classes/*.java))
 exec_target = java.manifest
 
 clean-extra = clean-classes
 
-JAVA_HOST_HOME = $(shell readlink -f /usr/bin/java | xargs dirname | xargs dirname)
+ifeq ($(HUGE),)
+RESOURCE_RULE = sys.stack.size = 256K\nsys.brk.size = 16M\nglibc.heap_size =  4M\nsgx.enclave_size = 256M\nsgx.thread_num = 12
+else
+RESOURCE_RULE = sys.stack.size = 4M\nsys.brk.size = 64M\nglibc.heap_size = 16M\nsgx.enclave_size = 8G\nsgx.thread_num = 32
+endif
 
-compact_rule = sys.stack.size = 1M\nsys.brk.size = 16M\nglibc.heap_size = 4M\nsgx.enclave_size = 4G\nsgx.thread_num = 16
-large_rule = sys.stack.size = 4M\nsys.brk.size = 64M\nglibc.heap_size = 16M\nsgx.enclave_size = 8G\nsgx.thread_num = 32
-
-ABSPATH_IN_MANIFEST = yes
 extra_rules = \
 	-e 's:\$$(DEBUGTYPE):$(if $(DEBUG),inline,none):g' \
-	-e 's:\$$(JAVA_HOME):$(JAVA_HOST_HOME):g' \
-	-e 's:\$$(RESOURCE_RULE):$(if $(COMPACT),$(compact_rule),$(large_rule)):g'
+	-e 's:\$$(JAVA_HOME):$(JAVA_HOME):g' \
+	-e 's:\$$(RESOURCE_RULE):$(RESOURCE_RULE):g'
 
 level = ../../
 include ../../Makefile
@@ -26,53 +26,8 @@ include ../../Makefile
 TEST_CLASS = $(patsubst %.java,%,$(wildcard classes/*.java))
 
 USE_UBUNTU_SRC = no
-VERSION := 7
-
-ifeq ($(USE_UBUNTU_SRC),yes)
-
-ifeq ($(JRE_VERSION),7)
-JAVA_DIR = openjdk-7-7u79-2.5.5
-JAVA_HOME = openjdk-7-jre
-endif
-
-ifeq ($(JRE_VERSION),6)
-JAVA_DIR = openjdk-6-6b32-1.13.4
-JAVA_HOME = openjdk-6-jre
-endif
-
-ifndef JAVA_DIR
-$(error Unknown JRE Version)
-endif
-
-INSTALL_DIR = $(JAVA_DIR)/openjdk.build
-JRE_DIR = $(INSTALL_DIR)/j2sdk-image/jre
-JDK_DIR = $(INSTALL_DIR)/j2sdk-image
-JAVAC = $(JDK_DIR)/bin/javac
-TARGET = $(JAVA_HOME)/bin/java $(JAVAC)
-
-%/Makefile: %.tar.gz
-	tar -xzf $<
-	cd $(dir $@) && ./configure \
-		--prefix=$(shell readlink -f $(INSTALL_DIR)) \
-		--disable-docs \
-		--enable-optimizations
-
-$(JRE_DIR)/bin/java $(JAVAC): $(JAVA_DIR)/Makefile
-	cd $(JAVA_DIR) && make -j$(NPROCS) all $(MAKE_FLAGS)
-
-$(JAVA_HOME)/bin/java: $(JRE_DIR)/bin/java
-	rm -rf $(JAVA_HOME)
-	cp -rf $(JRE_DIR) $(JAVA_HOME)
-	find $(JAVA_HOME) -type f -executable -exec strip --strip-debug {} \;
-
-distclean: clean
-	rm -rf $(INSTALL_DIR) $(JAVA_HOME)
-
-else # USE_UBUNTU_SRC = no
-
-ifeq ($(VERSION),7)
-
-ICEDTEA_URL = http://icedtea.wildebeest.org/download/drops/icedtea7/2.7.0/
+VERSION = 7
+ICEDTEA_URL = http://icedtea.wildebeest.org/download/drops/icedtea7/2.6.4/
 JAVA_DIR = openjdk-7
 JAVA_SRC = $(JAVA_DIR) $(JAVA_DIR)/hotspot $(JAVA_DIR)/jdk $(JAVA_DIR)/jdk/src/share/lib/security/nss.cfg
 JAVA_HOME = openjdk-7-jre
@@ -90,7 +45,7 @@ $(JAVA_DIR)/hotspot: hotspot.tar.bz2 | $(JAVA_DIR)
 $(JAVA_DIR)/jdk: jdk.tar.bz2 | $(JAVA_DIR)
 	tar -xjf $<
 	rm -rf $@
-	cd $(shell tar -tjf $< | sed -e 's@/.*@@' | head -n 1) && patch -p1 < ../smaller-jdk.patch
+	cd $(shell tar -tjf $< | sed -e 's@/.*@@' | head -n 1) && patch -p1 < ../JDK-8015880.patch
 	mv $(shell tar -tjf $< | sed -e 's@/.*@@' | head -n 1) $@
 
 openjdk.tar.bz2 hotspot.tar.bz2 jdk.tar.bz2:
@@ -99,7 +54,6 @@ openjdk.tar.bz2 hotspot.tar.bz2 jdk.tar.bz2:
 $(JAVA_DIR)/jdk/src/share/lib/security/nss.cfg: $(JAVA_DIR)/jdk/src/share/lib/security/nss.cfg.in | $(JAVA_DIR)/jdk
 	sed 's:@NSS_LIBDIR@:/usr/lib/x86_64-linux-gnu:g' $< > $@
 
-endif
 
 HOST_JAVA_HOME=$(subst /jre/bin/java,,$(shell readlink -f $(shell which java)))
 INSTALL_DIR = $(JAVA_DIR)/build/linux-amd64
@@ -135,15 +89,13 @@ $(JAVA_HOME)/bin/java: $(JRE_DIR)/bin/java
 distclean: clean
 	rm -rf $(JAVA_DIR) $(JAVA_HOME)
 
-endif
-
-build-java: $(JAVA_HOME)/bin/java
+build-java: $(JAVA_HOME)/bin/java $(JAVAC)
 
 java_home:
 	@echo $(JAVA_HOME)
 
-%.class: %.java
-	javac $<
+%.class: %.java $(JAVAC)
+	$(JAVAC) $<
 
 clean-classes:
 	rm -f $(addsuffix .class,$(TEST_CLASS))
