@@ -42,8 +42,8 @@ int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
     return SHA256Final(context, output);
 }
 
-int lib_AESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
-                PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len)
+int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
+                uint64_t input_len, uint8_t *mac, uint64_t mac_len)
 {
     /* The old code only supports 128-bit AES CMAC, and length is a 32-bit
      * value. */

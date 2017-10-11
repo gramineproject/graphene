@@ -38,7 +38,8 @@
 
 #define SHA256_DIGEST_LEN 32
 
-#define PAL_AES_CMAC_KEY_LEN 16
+#define AES_CMAC_KEY_LEN    16
+#define AES_CMAC_DIGEST_LEN 32
 
 typedef enum {
     PAL_ENCRYPT,
@@ -59,7 +60,7 @@ typedef struct {
     uint8_t priv[DH_SIZE];
     uint32_t priv_size;
     DhKey key;
-} PAL_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
+} LIB_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
 
 typedef struct AES PAL_AES_CONTEXT;
 typedef RSAKey PAL_RSA_KEY;
@@ -74,7 +75,8 @@ typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
 #define DH_SIZE 256
-typedef mbedtls_dhm_context PAL_DH_CONTEXT;
+#include "crypto/mbedtls/mbedtls/dhm.h"
+typedef mbedtls_dhm_context LIB_DH_CONTEXT;
 
 typedef mbedtls_rsa_context PAL_RSA_KEY;
 
@@ -83,24 +85,22 @@ typedef mbedtls_rsa_context PAL_RSA_KEY;
 #endif
 
 /* SHA256 */
-typedef LIB_SHA256_CONTEXT PAL_SHA256_CONTEXT;
-
 int lib_SHA256Init(LIB_SHA256_CONTEXT *context);
 int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
 		     uint64_t len);
 int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output);
 
 /* Diffie-Hellman Key Exchange */
-int lib_DhInit(PAL_DH_CONTEXT *context);
-int lib_DhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
-                       PAL_NUM *public_size);
-int lib_DhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
-                     uint8_t *secret, PAL_NUM *secret_size);
-void lib_DhFinal(PAL_DH_CONTEXT *context);
+int lib_DhInit(LIB_DH_CONTEXT *context);
+int lib_DhCreatePublic(LIB_DH_CONTEXT *context, uint8_t *public,
+                       uint64_t *public_size);
+int lib_DhCalcSecret(LIB_DH_CONTEXT *context, uint8_t *peer, uint64_t peer_size,
+                     uint8_t *secret, uint64_t *secret_size);
+void lib_DhFinal(LIB_DH_CONTEXT *context);
 
 /* AES-CMAC */
-int lib_AESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
-                PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len);
+int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
+                uint64_t input_len, uint8_t *mac, uint64_t mac_len);
 
 /* RSA. Limited functionality. */
 // Initializes the key structure

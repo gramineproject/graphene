@@ -160,7 +160,7 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     struct proc_attestation_data check_data;
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
-    lib_AESCMAC((void *) &param->mac_key, PAL_AES_CMAC_KEY_LEN,
+    lib_AESCMAC((void *) &param->mac_key, AES_CMAC_KEY_LEN,
                 remote_state->enclave_keyhash,
                 sizeof(remote_state->enclave_keyhash),
                 check_data.keyhash_mac, sizeof check_data.keyhash_mac);
@@ -231,7 +231,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     struct proc_attestation_data data;
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
-    lib_AESCMAC((void *) &param.mac_key, PAL_AES_CMAC_KEY_LEN,
+    lib_AESCMAC((void *) &param.mac_key, AES_CMAC_KEY_LEN,
                 pal_enclave_state.enclave_keyhash,
                 sizeof(pal_enclave_state.enclave_keyhash),
                 data.keyhash_mac, sizeof data.keyhash_mac);
@@ -264,7 +264,7 @@ static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
     struct proc_attestation_data check_data;
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
-    lib_AESCMAC((void *) &param->mac_key, PAL_AES_CMAC_KEY_LEN,
+    lib_AESCMAC((void *) &param->mac_key, AES_CMAC_KEY_LEN,
                 remote_state->enclave_keyhash,
                 sizeof(remote_state->enclave_keyhash),
                 check_data.keyhash_mac, sizeof check_data.keyhash_mac);
@@ -300,7 +300,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
     struct proc_attestation_data data;
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
-    lib_AESCMAC((void *) &param.mac_key, PAL_AES_CMAC_KEY_LEN,
+    lib_AESCMAC((void *) &param.mac_key, AES_CMAC_KEY_LEN,
                 pal_enclave_state.enclave_keyhash,
                 sizeof(pal_enclave_state.enclave_keyhash),
                 data.keyhash_mac, sizeof data.keyhash_mac);
