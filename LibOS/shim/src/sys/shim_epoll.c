@@ -243,9 +243,7 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
                 if (epoll_fd->fd == fd) {
                     listp_del(epoll_fd, &epoll->fds, list);
                     put_handle(epoll_fd->handle);
-                    free(epoll_fd);
                     epoll->nfds--;
-
                     free(epoll_fd);
                     goto update;
                 }

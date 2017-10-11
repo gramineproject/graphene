@@ -160,10 +160,10 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     struct proc_attestation_data check_data;
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
-    DkAESCMAC((void *) &param->mac_key, PAL_AES_CMAC_KEY_LEN,
-              remote_state->enclave_keyhash,
-              sizeof(remote_state->enclave_keyhash),
-              check_data.keyhash_mac, sizeof check_data.keyhash_mac);
+    lib_AESCMAC((void *) &param->mac_key, PAL_AES_CMAC_KEY_LEN,
+                remote_state->enclave_keyhash,
+                sizeof(remote_state->enclave_keyhash),
+                check_data.keyhash_mac, sizeof check_data.keyhash_mac);
 
     if (memcmp(data, &check_data, sizeof(struct proc_attestation_data)))
         return 1;
@@ -231,10 +231,10 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     struct proc_attestation_data data;
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
-    DkAESCMAC((void *) &param.mac_key, PAL_AES_CMAC_KEY_LEN,
-             pal_enclave_state.enclave_keyhash,
-             sizeof(pal_enclave_state.enclave_keyhash),
-              data.keyhash_mac, sizeof data.keyhash_mac);
+    lib_AESCMAC((void *) &param.mac_key, PAL_AES_CMAC_KEY_LEN,
+                pal_enclave_state.enclave_keyhash,
+                sizeof(pal_enclave_state.enclave_keyhash),
+                data.keyhash_mac, sizeof data.keyhash_mac);
 
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", hex2str(data.keyhash_mac));
 
@@ -264,10 +264,10 @@ static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
     struct proc_attestation_data check_data;
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
-    DkAESCMAC((void *) &param->mac_key, PAL_AES_CMAC_KEY_LEN,
-              remote_state->enclave_keyhash,
-              sizeof(remote_state->enclave_keyhash),
-              check_data.keyhash_mac, sizeof check_data.keyhash_mac);
+    lib_AESCMAC((void *) &param->mac_key, PAL_AES_CMAC_KEY_LEN,
+                remote_state->enclave_keyhash,
+                sizeof(remote_state->enclave_keyhash),
+                check_data.keyhash_mac, sizeof check_data.keyhash_mac);
 
     if (memcmp(data, &check_data, sizeof(struct proc_attestation_data)))
         return 1;
@@ -300,10 +300,10 @@ int init_child_process (PAL_HANDLE * parent_handle)
     struct proc_attestation_data data;
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
-    DkAESCMAC((void *) &param.mac_key, PAL_AES_CMAC_KEY_LEN,
-              pal_enclave_state.enclave_keyhash,
-              sizeof(pal_enclave_state.enclave_keyhash),
-              data.keyhash_mac, sizeof data.keyhash_mac);
+    lib_AESCMAC((void *) &param.mac_key, PAL_AES_CMAC_KEY_LEN,
+                pal_enclave_state.enclave_keyhash,
+                sizeof(pal_enclave_state.enclave_keyhash),
+                data.keyhash_mac, sizeof data.keyhash_mac);
 
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", hex2str(data.keyhash_mac));
 

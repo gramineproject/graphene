@@ -20,7 +20,27 @@
 /*
  * shim_malloc.c
  *
- * This file contains codes for SLAB memory allocator of library OS.
+ * This file implements page allocation for the library OS-internal SLAB
+ * memory allocator.  The slab allocator is in Pal/lib/slabmgr.h.  
+ * 
+ * When existing slabs are not sufficient, or a large (4k or greater) 
+ * allocation is requested, it ends up here (__system_alloc and __system_free).
+ * 
+ * There are two modes this file executes in: early initialization (before
+ * VMAs are available), and post-initialization.  
+ * 
+ * Before VMAs are available, allocations are tracked in the shim_heap_areas
+ * array.  
+ *
+ * Once VMAs initialized, the contents of shim_heap_areas are added to the VMA
+ * list.  In order to reduce the risk of virtual address collisions, the VMA 
+ * for the shim_heap_area is never removed, but the pages themselves are
+ * freed.   This approach effectively reserves part of the address space for
+ * initialization-time bookkeeping.
+ * 
+ * After initialization, all allocations and frees just call
+ * DkVirtualMemoryAlloc and DkVirtualMemory Free, and add/remove VMAs for the
+ * results.
  */
 
 #include <shim_internal.h>
@@ -55,6 +75,8 @@ static SLAB_MGR slab_mgr = NULL;
 #define MAX_SHIM_HEAP_AREAS      32
 
 #define INIT_SHIM_HEAP     256 * allocsize
+
+static int vmas_initialized = 0;
 
 static struct shim_heap {
     void * start;
@@ -126,18 +148,27 @@ static struct shim_heap * __alloc_enough_heap (size_t size)
 void * __system_malloc (size_t size)
 {
     size_t alloc_size = ALIGN_UP(size);
-
+    void *addr;
+    
     lock(shim_heap_lock);
 
-    struct shim_heap * heap = __alloc_enough_heap(alloc_size);
+    if (vmas_initialized) {
+        addr = (void *) DkVirtualMemoryAlloc(NULL, alloc_size, 0,
+                                             PAL_PROT_WRITE|PAL_PROT_READ);
+        bkeep_mmap(addr, alloc_size, PROT_READ|PROT_WRITE,
+                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
+    } else {
 
-    if (!heap) {
-        unlock(shim_heap_lock);
-        return NULL;
+        struct shim_heap * heap = __alloc_enough_heap(alloc_size);
+
+        if (!heap) {
+            unlock(shim_heap_lock);
+            return NULL;
+        }
+
+        addr = heap->current;
+        heap->current += alloc_size;
     }
-
-    void * addr = heap->current;
-    heap->current += alloc_size;
 
     unlock(shim_heap_lock);
 
@@ -146,9 +177,22 @@ void * __system_malloc (size_t size)
 
 void __system_free (void * addr, size_t size)
 {
+    int in_reserved_area = 0;
     DkVirtualMemoryFree(addr, ALIGN_UP(size));
     int flags = VMA_INTERNAL;
-    bkeep_munmap(addr, ALIGN_UP(size), &flags);
+    for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
+        if (shim_heap_areas[i].start) {
+            /* Here we assume that any allocation from the 
+             * shim_heap_area is a strict inclusion.  Allocations
+             * cannot partially overlap.
+             */
+            if (addr >= shim_heap_areas[i].start
+                && addr <= shim_heap_areas[i].end)
+                in_reserved_area = 1;
+        }
+    
+    if (! in_reserved_area)
+        bkeep_munmap(addr, ALIGN_UP(size), &flags);
 }
 
 int init_heap (void)
@@ -172,14 +216,23 @@ int init_heap (void)
 int bkeep_shim_heap (void)
 {
     lock(shim_heap_lock);
-
+    
     for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
-        if (shim_heap_areas[i].start)
+        if (shim_heap_areas[i].start) {
+            /* Add a VMA for the active region */
             bkeep_mmap(shim_heap_areas[i].start,
-                       shim_heap_areas[i].end - shim_heap_areas[i].start,
+                       shim_heap_areas[i].current - shim_heap_areas[i].start,
                        PROT_READ|PROT_WRITE,
                        MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
-
+            /* Go ahead and free the reserved region */
+            if (shim_heap_areas[i].current < shim_heap_areas[i].end) {
+                DkVirtualMemoryFree(shim_heap_areas[i].current,
+                                    ALIGN_UP(((long unsigned int) shim_heap_areas[i].end) - ((long unsigned int) shim_heap_areas[i].current)));
+                shim_heap_areas[i].end = shim_heap_areas[i].current;
+            }
+        }
+    vmas_initialized = 1;
+    
     unlock(shim_heap_lock);
     return 0;
 }

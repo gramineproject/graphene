@@ -19,7 +19,11 @@
 #define MBEDTLS_PLATFORM_H
 
 /* For standard library apis. */
-#include "../lib/api.h"
+#include "api.h"
+
+void * malloc(size_t size);
+void * calloc (size_t nmem, size_t size);
+void free(void *);
 
 #define mbedtls_calloc calloc
 #define mbedtls_free free

@@ -30,7 +30,6 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
-#include <bits/dlfcn.h>
 
 #ifndef DT_THISPROCNUM
 # define DT_THISPROCNUM 0

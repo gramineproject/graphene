@@ -1,4 +1,6 @@
-SRCDIR = ltp-master
+SRCURL = https://github.com/linux-test-project/ltp/releases/download/
+SRCVERSION = 20170116
+SRCDIR = ltp-full-$(SRCVERSION)
 BUILDDIR = opt/ltp
 TESTCASEDIR = $(BUILDDIR)/testcases/bin
 
@@ -10,11 +12,11 @@ clean-extra = clean-build
 level = ../../
 include ../../Makefile
 
-master.zip:
-	wget https://github.com/linux-test-project/ltp/archive/master.zip
+$(SRCDIR).tar.xz:
+	wget $(SRCURL)/$(SRCVERSION)/$@
 
-$(SRCDIR)/configure: master.zip
-	unzip master.zip
+$(SRCDIR)/configure: $(SRCDIR).tar.xz
+	tar -xJf $<
 	cd $(SRCDIR) && make autotools
 
 $(BUILDDIR)/runltp: $(SRCDIR)/configure
@@ -37,6 +39,13 @@ $(TESTCASEDIR)/manifest.template: manifest.template
 
 $(TESTCASEDIR)/Makefile: Makefile.testcases
 	ln -sf ../../../../$< $@
+
+regression:
+	@echo "\n\nBuilding LTP..."
+	@$(MAKE) >> /dev/null 2>&1
+
+	@echo "\n\nLTP tests for system calls:"
+	./syscalls.sh
 
 clean-build:
 	rm -rf $(BUILDDIR)

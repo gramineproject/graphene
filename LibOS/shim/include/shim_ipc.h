@@ -169,12 +169,13 @@ enum {
 struct shim_ipc_cld_exit {
     IDTYPE ppid, tid;
     unsigned int exitcode;
+    unsigned int term_signal;
 #ifdef PROFILE
     unsigned long time;
 #endif
 } __attribute__((packed));
 
-int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode);
+int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback (IPC_CALLBACK_ARGS);
 
 /* CLD_JOIN: child join the parent group */
@@ -599,9 +600,9 @@ int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
                    void * private_data);
 
 void ipc_parent_exit  (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode);
+                       unsigned int exitcode, unsigned int term_signal);
 void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode);
+                       unsigned int exitcode, unsigned int term_signal);
 
 int create_ipc_helper (void);
 int exit_with_ipc_helper (bool handover);

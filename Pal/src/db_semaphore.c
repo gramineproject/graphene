@@ -75,7 +75,7 @@ void DkSemaphoreRelease (PAL_HANDLE handle, PAL_NUM count)
     LEAVE_PAL_CALL();
 }
 
-static int sem_wait (PAL_HANDLE handle, int timeout)
+static int sem_wait (PAL_HANDLE handle, uint64_t timeout)
 {
     return _DkSemaphoreAcquireTimeout(handle, 1, timeout);
 }

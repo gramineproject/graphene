@@ -13,32 +13,50 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <errno.h>
 #include <stdint.h>
+#include <limits.h>
 #include "pal.h"
 #include "pal_crypto.h"
+#include "pal_error.h"
+#include "pal_debug.h"
+#include "assert.h"
+#include "crypto/mbedtls/mbedtls/cmac.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
+#include "crypto/mbedtls/mbedtls/rsa.h"
 
-int DkSHA256Init(PAL_SHA256_CONTEXT *context)
+#define BITS_PER_BYTE 8
+
+/* This is declared in pal_internal.h, but that can't be included here. */
+int _DkRandomBitsRead(void *buffer, int size);
+
+/* Wrapper to provide mbedtls the RNG interface it expects. It passes an
+ * extra context parameter, and expects a return value of 0 for success
+ * and nonzero for failure. */
+static int RandomWrapper(void *private, unsigned char *data, size_t size)
+{
+    return _DkRandomBitsRead(data, size) != size;
+}
+
+int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
     mbedtls_sha256_init(context);
     mbedtls_sha256_starts(context, 0 /* 0 = use SSH256 */);
     return 0;
 }
 
-int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
-                   PAL_NUM len)
+int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
+                   uint64_t len)
 {
     /* For compatibility with other SHA256 providers, don't support
      * large lengths. */
     if (len > UINT32_MAX) {
-        return -1;
+        return -PAL_ERROR_INVAL;
     }
     mbedtls_sha256_update(context, data, len);
     return 0;
 }
 
-int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output)
+int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
 {
     mbedtls_sha256_finish(context, output);
     /* This function is called free, but it doesn't actually free the memory.
@@ -48,8 +66,81 @@ int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output)
     return 0;
 }
 
-int DkRSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
-                         const uint8_t *n, PAL_NUM n_size)
+int lib_AESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
+                PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len) {
+    mbedtls_cipher_type_t cipher;
+
+    switch (key_len) {
+    case 16:
+        cipher = MBEDTLS_CIPHER_AES_128_ECB;
+        break;
+    case 24:
+        cipher = MBEDTLS_CIPHER_AES_192_ECB;
+        break;
+    case 32:
+        cipher = MBEDTLS_CIPHER_AES_256_ECB;
+        break;
+    default:
+        return -PAL_ERROR_INVAL;
+    }
+
+    const mbedtls_cipher_info_t *cipher_info =
+        mbedtls_cipher_info_from_type(cipher);
+
+    if (mac_len < cipher_info->block_size) {
+        return -PAL_ERROR_INVAL;
+    }
+
+    return mbedtls_cipher_cmac(cipher_info,
+                               key, key_len * BITS_PER_BYTE,
+                               input, input_len, mac);
+}
+
+int lib_RSAInitKey(PAL_RSA_KEY *key)
+{
+    /* For now, we only need PKCS_V15 type padding. If we need to support
+     * multiple padding types, I guess we'll need to add the padding type
+     * to this API. We might need to add a wrapper type around the crypto
+     * library's key/context type, since not all crypto providers store this
+     * in the conext, and instead require you to pass it on each call. */
+
+    /* Last parameter here is the hash type, which is only used for
+     * PKCS padding type 2.0. */
+    mbedtls_rsa_init(key, MBEDTLS_RSA_PKCS_V15, 0);
+    return 0;
+}
+
+int lib_RSAGenerateKey(PAL_RSA_KEY *key, PAL_NUM length_in_bits, PAL_NUM exponent)
+{
+    if (length_in_bits > UINT_MAX) {
+        return -PAL_ERROR_INVAL;
+    }
+    if (exponent > UINT_MAX || (int) exponent < 0) {
+        return -PAL_ERROR_INVAL;
+    }
+    return mbedtls_rsa_gen_key(key, RandomWrapper, NULL, length_in_bits,
+                               exponent);
+}
+
+int lib_RSAExportPublicKey(PAL_RSA_KEY *key, uint8_t *e, PAL_NUM *e_size,
+                           uint8_t *n, PAL_NUM *n_size)
+{
+    int ret;
+
+    /* Public exponent. */
+    if ((ret = mbedtls_mpi_write_binary(&key->E, e, *e_size)) != 0) {
+        return ret;
+    }
+
+    /* Modulus. */
+    if ((ret = mbedtls_mpi_write_binary(&key->N, n, *n_size)) != 0) {
+        return ret;
+    }
+    return 0;
+}
+
+int lib_RSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
+                           const uint8_t *n, PAL_NUM n_size)
 {
     int ret;
 
@@ -62,16 +153,16 @@ int DkRSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
     if ((ret = mbedtls_mpi_read_binary(&key->N, n, n_size)) != 0) {
         return ret;
     }
-    
+
     /* This length is in bytes. */
     key->len = (mbedtls_mpi_bitlen(&key->N) + 7) >> 3;
-    
+
     return 0;
 }
 
-int DkRSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
-                      PAL_NUM signature_len, uint8_t *signed_data_out,
-                      PAL_NUM signed_data_out_len)
+int lib_RSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
+                        PAL_NUM signature_len, uint8_t *signed_data_out,
+                        PAL_NUM signed_data_out_len)
 {
     size_t real_data_out_len;
 
@@ -80,7 +171,7 @@ int DkRSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
      * check, so that in the event the caller makes a mistake, you'll get
      * an error instead of reading off the end of the buffer. */
     if (signature_len != key->len) {
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
     }
     int ret = mbedtls_rsa_rsaes_pkcs1_v15_decrypt(key, NULL, NULL,
                                                   MBEDTLS_RSA_PUBLIC,
@@ -90,9 +181,14 @@ int DkRSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
                                                   signed_data_out_len);
     if (ret == 0) {
         if (real_data_out_len != SHA256_DIGEST_LEN) {
-            return -EINVAL;
+            return -PAL_ERROR_INVAL;
         }
     }
     return ret;
 }
 
+int lib_RSAFreeKey(PAL_RSA_KEY *key)
+{
+    mbedtls_rsa_free(key);
+    return 0;
+}
