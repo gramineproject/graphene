@@ -152,17 +152,7 @@ static inline void do_pause (void);
     } while (0)
 
 #if USE_ASSERT == 1
-# define assert(test)                                                       \
-    ({                                                                      \
-        long _val = (long) (test);                                          \
-        (!(_val))                                                           \
-        ? ({                                                                \
-            __sys_printf("assert failed " __FILE__ ":%d " #test " (value:%x)\n", \
-                    __LINE__, _val);                                        \
-            pause();                                                        \
-            shim_terminate(); })                                            \
-        : (void) 0;                                                         \
-    })
+#include <assert.h>
 #else
 # define assert(test) do {} while (0)
 #endif
@@ -752,7 +742,8 @@ extern const char ** initial_envp;
 void get_brk_region (void ** start, void ** end, void ** current);
 
 int init_randgen (void);
-int init_brk (void);
+int reset_brk (void);
+int init_brk_region (void * brk_region);
 int init_heap (void);
 int init_internal_map (void);
 int init_loader (void);

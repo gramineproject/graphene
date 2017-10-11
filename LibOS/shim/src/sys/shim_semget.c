@@ -509,7 +509,9 @@ static bool __handle_sysv_sems (struct shim_sem_handle * sem)
         listp_for_each_entry_safe(sops, n, &sobj->ops, progress) {
             struct sembuf * op = &sops->ops[sops->stat.current];
             assert(op->sem_num == sobj->num);
-            assert(sops != n);
+            // first_iter is a variable defined by listp_for_each_entry_safe
+            // The second part of this assertion is only valid after the first attempt
+            assert(first_iter || (sops != n));
             if (sops->stat.completed)
                 goto send_result;
 again:

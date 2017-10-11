@@ -37,8 +37,6 @@
 
 #include "mbedtls/dhm.h"
 
-#include <string.h>
-
 #if defined(MBEDTLS_PEM_PARSE_C)
 #include "mbedtls/pem.h"
 #endif

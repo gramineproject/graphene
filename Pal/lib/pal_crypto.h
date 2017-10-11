@@ -32,7 +32,6 @@
 
 /* These cryptosystems are still unconditionally provided by WolfSSL. */
 #include "crypto/cmac.h"
-#include "crypto/dh.h"
 #include "crypto/rsa.h"
 
 #define PAL_CRYPTO_WOLFSSL 1
@@ -41,9 +40,9 @@
 #define SHA256_DIGEST_LEN 32
 
 #if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
-#include "crypto/sha256.h"
-#include "crypto/dh.h"
-typedef SHA256 PAL_SHA256_CONTEXT;
+#include "crypto/wolfssl/sha256.h"
+#include "crypto/wolfssl/dh.h"
+typedef SHA256 LIB_SHA256_CONTEXT;
 
 #define DH_SIZE 128
 
@@ -55,7 +54,7 @@ typedef struct {
 
 #elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
 #include "crypto/mbedtls/mbedtls/sha256.h"
-typedef mbedtls_sha256_context PAL_SHA256_CONTEXT;
+typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
 #define DH_SIZE 256
@@ -67,18 +66,19 @@ typedef mbedtls_dhm_context PAL_DH_CONTEXT;
 #endif
 
 /* SHA256 */
-int DkSHA256Init(PAL_SHA256_CONTEXT *context);
-int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
-                   PAL_NUM len);
-int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output);
+typedef LIB_SHA256_CONTEXT PAL_SHA256_CONTEXT;
+
+int lib_SHA256Init(LIB_SHA256_CONTEXT *context);
+int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
+		     uint64_t len);
+int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output);
 
 /* Diffie-Hellman Key Exchange */
-int DkDhInit(PAL_DH_CONTEXT *context);
-int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
-                     PAL_NUM *public_size);
-int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
-                   uint8_t *secret, PAL_NUM *secret_size);
-void DkDhFinal(PAL_DH_CONTEXT *context);
-
+int lib_DhInit(PAL_DH_CONTEXT *context);
+int lib_DhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
+                       PAL_NUM *public_size);
+int lib_DhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
+                     uint8_t *secret, PAL_NUM *secret_size);
+void lib_DhFinal(PAL_DH_CONTEXT *context);
 
 #endif

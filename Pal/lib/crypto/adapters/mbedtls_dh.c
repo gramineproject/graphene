@@ -32,7 +32,7 @@ static int RandomWrapper(void *private, unsigned char *data, size_t size)
     return _DkRandomBitsRead(data, size) != size;
 }
 
-int DkDhInit(PAL_DH_CONTEXT *context)
+int lib_DhInit(PAL_DH_CONTEXT *context)
 {
     int ret;
     mbedtls_dhm_init(context);
@@ -60,11 +60,11 @@ int DkDhInit(PAL_DH_CONTEXT *context)
     return 0;
 }
 
-int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
+int lib_DhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
                      PAL_NUM *public_size)
 {
     int ret;
-    
+
     if (*public_size != DH_SIZE)
         return -EINVAL;
 
@@ -79,7 +79,7 @@ int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
     return 0;
 }
 
-int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
+int lib_DhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
                    uint8_t *secret, PAL_NUM *secret_size)
 {
     int ret;
@@ -98,7 +98,7 @@ int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
                                    RandomWrapper, NULL);
 }
 
-void DkDhFinal(PAL_DH_CONTEXT *context)
+void lib_DhFinal(PAL_DH_CONTEXT *context)
 {
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);

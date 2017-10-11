@@ -18,6 +18,12 @@
 #ifndef MBEDTLS_PLATFORM_H
 #define MBEDTLS_PLATFORM_H
 
+#include "api.h"
+
+void * malloc(size_t size);
+void * calloc (size_t nmem, size_t size);
+void free(void *);
+
 #define mbedtls_calloc calloc
 #define mbedtls_free free
 
