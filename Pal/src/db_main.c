@@ -33,7 +33,6 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
-#include <bits/dlfcn.h>
 
 PAL_CONTROL __pal_control;
 
@@ -347,6 +346,40 @@ has_manifest:
                                 0, 0, 0);
             if (ret < 0)
                 init_fail(-ret, "cannot open executable");
+        }
+    }
+
+    /* If we still don't have an exec in the manifest, but we have a manifest
+     * try implicitly from the manifest name */
+    if ((!exec_handle) && manifest_uri) {
+        size_t manifest_strlen = strlen(manifest_uri);
+        size_t exec_strlen = manifest_strlen - 9;
+        int success = 0;
+        // Try .manifest
+        if (strcmp_static(&manifest_uri[exec_strlen], ".manifest")) {
+            success = 1;
+        } else {
+            exec_strlen -= 4;
+            if (strcmp_static(&manifest_uri[exec_strlen], ".manifest.sgx")) {
+                success = 1;
+            }
+        }
+
+        if (success) {
+            exec_uri = malloc(exec_strlen + 1);
+            if (!exec_uri)
+                init_fail(-PAL_ERROR_NOMEM, "Cannot allocate URI buf");
+            memcpy (exec_uri, manifest_uri, exec_strlen);
+            exec_uri[exec_strlen] = '\0';
+            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
+                                0, 0, 0);
+            // DEP 3/20/17: There are cases where we want to let
+            // the PAL start up without a main executable.  Don't
+            // die here, just free the exec_uri buffer.
+            if (ret < 0) {
+                free(exec_uri);
+                exec_uri = NULL;
+            }
         }
     }
 

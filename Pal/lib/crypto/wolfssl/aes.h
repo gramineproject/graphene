@@ -61,6 +61,10 @@ typedef struct AES {
     ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     ALIGN16 word32 tmp[AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
     word32  left;
+
+    ALIGN16 byte H[AES_BLOCK_SIZE];
+    /* key-based fast multiplication table. */
+    ALIGN16 byte M0[256][AES_BLOCK_SIZE];
 } AES;
 
 int  AESSetKey(AES *aes, const byte *key, word32 len, const byte *iv,
@@ -73,5 +77,14 @@ int  AESCBCDecrypt(AES *aes, byte *out, const byte *in, word32 sz);
 int  AESCBCDecryptWithKey(byte *out, const byte *in, word32 inSz,
                           const byte *key, word32 keySz, const byte *iv);
 void AESCTREncrypt(AES *aes, byte *out, const byte *in, word32 sz);
+int  AESGCMSetKey(AES *aes, const byte *key, word32 len);
+int  AESGCMEncrypt(AES *aes, byte *out, const byte *in, word32 sz,
+                   const byte *iv, word32 ivSz,
+                   byte* authTag, word32 authTagSz,
+                   const byte *authIn, word32 authInSz);
+int  AESGCMDecrypt(AES *aes, byte *out, const byte *in, word32 sz,
+                   const byte *iv, word32 ivSz,
+                   const byte *authTag, word32 authTagSz,
+                   const byte *authIn, word32 authInSz);
 
 #endif /* CTAO_CRYPT_AES_H */

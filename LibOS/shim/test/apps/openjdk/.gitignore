@@ -1,0 +1,4 @@
+openjdk-*
+openjdk-*-jre
+*.tar.bz2
+*.class

@@ -194,7 +194,10 @@ struct shim_d_ops {
     int (*rename) (struct shim_dentry * old, struct shim_dentry * new);
 
     /* readdir: given the path relative to the mount point, read the childs
-       into the the buffer */
+       into the the buffer.  This call always returns everything under
+       the directory in one big buffer; you do not need to try again
+       or keep a cursor in the directory.  You do need to free the 
+       returned buffer. */
     int (*readdir) (struct shim_dentry * dent, struct shim_dirent ** dirent);
 };
 

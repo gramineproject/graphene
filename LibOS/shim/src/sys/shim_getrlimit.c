@@ -55,6 +55,11 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
             rlim->rlim_max = sys_stack_size;
             return 0;
 
+        case RLIMIT_DATA:
+            rlim->rlim_cur = brk_max_size;
+            rlim->rlim_max = brk_max_size;
+            return 0;
+
         default:
             return -ENOSYS;
     }

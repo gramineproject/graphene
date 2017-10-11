@@ -74,7 +74,7 @@ build-modules: $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so
 $(INSTALL_DIR)/modules/mod_auth_basic_sandbox.so: mod_auth_basic_sandbox.c $(INSTALL_DIR)/bin/apxs
 	$(INSTALL_DIR)/bin/apxs $(APXS_FLAGS) \
 		-S CFLAGS="-I$(SHIMDIR)/../include" \
-		-S LDFLAGS="-L$(LIBCDIR)/libos -llibos" -c -i -A $<
+		-S LDFLAGS="-L. -l:$(RUNTIME)/liblibos.so.1" -c -i -A $<
 
 build-conf:
 	[ -f $(INSTALL_DIR)/conf/httpd.conf.old ] || \

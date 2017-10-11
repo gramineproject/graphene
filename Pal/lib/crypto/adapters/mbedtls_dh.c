@@ -19,7 +19,7 @@
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
-#include "../lib/assert.h"
+#include "assert.h"
 
 #define BITS_PER_BYTE 8
 
@@ -34,7 +34,7 @@ static int RandomWrapper(void *private, unsigned char *data, size_t size)
     return _DkRandomBitsRead(data, size) != size;
 }
 
-int DkDhInit(PAL_DH_CONTEXT *context)
+int lib_DhInit(PAL_DH_CONTEXT *context)
 {
     int ret;
     mbedtls_dhm_init(context);
@@ -62,11 +62,11 @@ int DkDhInit(PAL_DH_CONTEXT *context)
     return 0;
 }
 
-int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
+int lib_DhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
                      PAL_NUM *public_size)
 {
     int ret;
-    
+
     if (*public_size != DH_SIZE)
         return -EINVAL;
 
@@ -81,7 +81,7 @@ int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
     return 0;
 }
 
-int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
+int lib_DhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
                    uint8_t *secret, PAL_NUM *secret_size)
 {
     int ret;
@@ -100,39 +100,8 @@ int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
                                    RandomWrapper, NULL);
 }
 
-void DkDhFinal(PAL_DH_CONTEXT *context)
+void lib_DhFinal(PAL_DH_CONTEXT *context)
 {
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);
-}
-
-int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
-              PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len) {
-    mbedtls_cipher_type_t cipher;
-
-    switch (key_len) {
-    case 16:
-        cipher = MBEDTLS_CIPHER_AES_128_ECB;
-        break;
-    case 24:
-        cipher = MBEDTLS_CIPHER_AES_192_ECB;
-        break;
-    case 32:
-        cipher = MBEDTLS_CIPHER_AES_256_ECB;
-        break;
-    default:
-        printf("Invalid key length %d requested for CMAC\n", key_len);
-        return -EINVAL;
-    }
-
-    const mbedtls_cipher_info_t *cipher_info =
-        mbedtls_cipher_info_from_type(cipher);
-
-    if (mac_len < cipher_info->block_size) {
-        return -EINVAL;
-    }
-
-    return mbedtls_cipher_cmac(cipher_info,
-                               key, key_len * BITS_PER_BYTE,
-                               input, input_len, mac);
 }

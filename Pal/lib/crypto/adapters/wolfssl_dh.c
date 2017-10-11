@@ -19,7 +19,6 @@
 #include <string.h>
 #include "pal.h"
 #include "pal_crypto.h"
-#include "../cmac.h"
 
 static struct {
     uint8_t p[DH_SIZE], q[20], g[DH_SIZE];
@@ -69,7 +68,7 @@ static struct {
     },
 };
 
-int DkDhInit(PAL_DH_CONTEXT *context)
+int lib_DhInit(PAL_DH_CONTEXT *context)
 {
     memset(context, 0, sizeof *context);
     InitDhKey(&context->key);
@@ -77,12 +76,12 @@ int DkDhInit(PAL_DH_CONTEXT *context)
                     dh_param.g, sizeof dh_param.g);
 }
 
-int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
-                     PAL_NUM *_public_size)
+int lib_DhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
+                       PAL_NUM *_public_size)
 {
     uint32_t public_size;
     int ret;
-    
+
     if (*_public_size != DH_SIZE)
         return -EINVAL;
 
@@ -93,43 +92,31 @@ int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
     return ret;
 }
 
-int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
-                 uint8_t *secret, PAL_NUM *_secret_size)
+int lib_DhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
+                     uint8_t *secret, PAL_NUM *_secret_size)
 {
     int ret;
     uint32_t secret_size;
 
     if (peer_size > DH_SIZE)
         return -EINVAL;
-        
+
     if (*_secret_size != DH_SIZE)
         return -EINVAL;
 
     secret_size = (uint32_t) *_secret_size;
-    
+
     ret = DhAgree(&context->key, secret, secret_size, context->priv,
                   context->priv_size, peer, (uint32_t) peer_size);
     *_secret_size = secret_size;
     return ret;
 }
 
-void DkDhFinal(PAL_DH_CONTEXT *context)
+void lib_DhFinal(PAL_DH_CONTEXT *context)
 {
     /* Frees memory associated with the bignums. */
     FreeDhKey(&context->key);
 
     /* Clear the buffer to avoid any potential information leaks. */
     memset(context, 0, sizeof *context);
-}
-
-int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
-              PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len)
-{
-    /* The old code only supports 128-bit AES CMAC, and length is a 32-bit
-     * value. */
-    if (key_len != 16 || input_len > INT32_MAX || mac_len < 16) {
-        return -EINVAL;
-    }
-    AES_CMAC((unsigned char *) key, (unsigned char *) input, length, mac);
-    return 0;
 }
