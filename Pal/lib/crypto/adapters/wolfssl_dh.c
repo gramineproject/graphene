@@ -15,9 +15,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <errno.h>
-#include <string.h>
 #include "pal.h"
+#include "pal_error.h"
 #include "pal_crypto.h"
 
 static struct {
@@ -83,7 +82,7 @@ int lib_DhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
     int ret;
 
     if (*_public_size != DH_SIZE)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     public_size = (uint32_t) *_public_size;
     ret = DhGenerateKeyPair(&context->key, context->priv, &context->priv_size,
@@ -99,10 +98,10 @@ int lib_DhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
     uint32_t secret_size;
 
     if (peer_size > DH_SIZE)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     if (*_secret_size != DH_SIZE)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     secret_size = (uint32_t) *_secret_size;
 

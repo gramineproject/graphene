@@ -15,9 +15,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <errno.h>
 #include "pal.h"
 #include "pal_crypto.h"
+#include "pal_error.h"
 #include "pal_debug.h"
 #include "assert.h"
 
@@ -68,7 +68,7 @@ int lib_DhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
     int ret;
 
     if (*public_size != DH_SIZE)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     /* The RNG here is used to generate secret exponent X. */
     ret = mbedtls_dhm_make_public(context, context->len, public, *public_size,
@@ -87,7 +87,7 @@ int lib_DhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
     int ret;
 
     if (*secret_size != DH_SIZE)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     ret = mbedtls_dhm_read_public(context, peer, peer_size);
     if (ret != 0)
