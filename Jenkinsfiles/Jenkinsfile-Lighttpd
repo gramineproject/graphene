@@ -6,7 +6,7 @@ pipeline {
                         sh '''
                             make          
                             cd LibOS/shim/test/apps/lighttpd
-                            make regression
+                            make
                         '''
                     }
                 }
@@ -15,7 +15,7 @@ pipeline {
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
                             make start-graphene-server &
-                            ./run-apachebench.sh 127.0.0.1 8000
+                            ./benchmark-http.sh 127.0.0.1 8000
                         '''
 
                         input 'Tests complete. Do you wish to deploy?'
