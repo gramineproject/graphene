@@ -14,7 +14,7 @@ pipeline {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
-                            make start-graphene-server
+                            make start-graphene-server &
                             ./run-apachebench.sh 127.0.0.1 8000
                         '''
 
