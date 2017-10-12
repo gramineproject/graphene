@@ -14,7 +14,7 @@ pipeline {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
-                            cat lighttpd.manifest
+                            cat lighttpd.conf
                             echo $HOST
                             echo $PORT
                             make start-graphene-server &
