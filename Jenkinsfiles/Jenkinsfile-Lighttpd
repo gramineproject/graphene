@@ -17,7 +17,7 @@ pipeline {
                             echo $HOST
                             echo $PORT
                             make start-graphene-server &
-                            ./benchmark-http.sh 127.0.0.1 8000
+                            ./benchmark-http.sh
                         '''
 
                         input 'Tests complete. Do you wish to deploy?'
