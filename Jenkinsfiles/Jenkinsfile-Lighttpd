@@ -14,6 +14,8 @@ pipeline {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
+                            echo $HOST
+                            echo $PORT
                             make start-graphene-server &
                             ./benchmark-http.sh 127.0.0.1 8000
                         '''
