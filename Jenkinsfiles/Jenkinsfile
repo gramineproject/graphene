@@ -22,6 +22,18 @@ pipeline {
                             cd LibOS/shim/test/apps/python
                             make regression
                             '''
+                        sh '''
+                            cd LibOS/shim/test/apps/lighttpd
+                            make
+                            make start-graphene-server &
+                            ./benchmark-http.sh 127.0.0.1:8000
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+                            make
+                            make start-graphene-server &
+                            ./benchmark-http.sh 127.0.0.1:8000
+                            '''
                         input 'Tests complete. Do you wish to deploy?'
                     }
                 }
