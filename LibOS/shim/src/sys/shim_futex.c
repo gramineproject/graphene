@@ -210,7 +210,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
 
                 debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
-                listp_del(waiter, &futex->waiters, list);
+                listp_del_init(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
                 if (nwaken >= val) break;
