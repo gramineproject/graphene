@@ -563,6 +563,8 @@ failed:
             progressed = true;
             sops->stat.failed = true;
 send_result:
+            /* Chia-Che 10/17/17: If the code reaches this point, sops should
+             * still be in sobj->ops. */
             listp_del_init(sops, &sobj->ops, progress);
             sem->nreqs--;
             if (!sops->client.vmid) {
