@@ -261,7 +261,9 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
     r->used = NULL;
     r->subranges = NULL;
 
-    if (owner) {
+    /* Chia-Che 10/17/17: Prevent the case that owner must be given
+       the same as the current process */
+    if (owner && owner != cur_process.vmid) {
         r->owner = lookup_and_alloc_client(owner, uri);
         if (!r->owner)
             return -ENOMEM;
@@ -294,7 +296,9 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
     listp_add(r, head, hlist);
     INIT_LIST_HEAD(r, list);
 
-    LISTP_TYPE(range)* list = (owner == cur_process.vmid) ? &owned_ranges
+    /* Chia-Che 10/17/17: enforce the constaint that if owner is NULL,
+       the range is in the owned list */
+    LISTP_TYPE(range)* list = (r->owner == NULL) ? &owned_ranges
                               : &offered_ranges;
     struct range * prev = listp_first_entry(list, range, list);
     struct range * tmp;
