@@ -1,9 +1,7 @@
 export PAL_DIR = $(CURDIR)
 export RUNTIME_DIR = $(CURDIR)/../../Runtime
-$(info Saved Target is $(SAVED_TARGET))
 include Makefile.Host
 -include Makefile.Status
-$(info Saved Target is $(SAVED_TARGET))
 ifeq ($(DEBUG),1)
 BUILD_TARGET = $(PAL_HOST)-debug
 else
