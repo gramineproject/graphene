@@ -36,7 +36,7 @@
 /* As best I can tell, dentries are added to this list and then never touched
  * again */
 /* Links to shim_dentry->list */
-static LISTP_TYPE(shim_dentry) unused = LISTP_INIT;
+static LISTP_TYPE(shim_dentry) dentry_list = LISTP_INIT;
 
 /* Attaches to shim_dentry->hlist */
 static LISTP_TYPE(shim_dentry) dcache_htable[DCACHE_HASH_SIZE] = { LISTP_INIT };
@@ -93,6 +93,14 @@ static struct shim_dentry * alloc_dentry (void)
     INIT_LIST_HEAD(dent, list);
     INIT_LISTP(&dent->children);
     INIT_LIST_HEAD(dent, siblings);
+
+    if (locked(dcache_lock)) {
+        listp_add(dent, &dentry_list, list);
+    } else {
+        lock(dcache_lock);
+        listp_add(dent, &dentry_list, list);
+        unlock(dcache_lock);
+    }
 
     return dent;
 }
@@ -174,9 +182,10 @@ static inline void __dput_dentry (struct shim_dentry * dent)
              * on a list; just hack this for now; this code will be reworked
              * soon anyway.
              */
-            if (!list_empty(dent, list))
-                listp_del_init(dent, &unused, list);
-            listp_add(dent, &unused, list);
+
+            /* Chia-Che 10/17/17: Originally we place all the freed
+             * dentries on an unused list, now we just maintain a long list
+             * of all dentries. */
         }
 
         /* we don't delete the dentry from dcache because it might
@@ -193,8 +202,10 @@ kill:   {
             if (!parent)
                 break;
 
-            listp_del_init(dent, &parent->children, siblings); /* remove from parent's list of children */
-            dent->parent = NULL;
+            listp_del(dent, &parent->children, siblings); /* remove from parent's list of children */
+            listp_del(dent, &dentry_list, list);
+            /* we can free this dentry */
+            free_mem_obj_to_mgr(dentry_mgr, dent);
             dent = parent;
 
             if (__internal_put_dentry(dent))
