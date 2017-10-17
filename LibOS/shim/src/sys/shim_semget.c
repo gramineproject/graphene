@@ -847,6 +847,9 @@ unowned:
     while (!sem_ops->stat.completed &&
            !sem_ops->stat.failed) {
         if (!sem->owned) {
+            /* Chia-Che 10/17/17: sem_ops may move from semaphore to semaphore
+               base on its current state */
+            next_ops = &sem->sems[sem_ops->ops[sem_ops->stat.current].sem_num].next_ops;
             listp_del_init(sem_ops, next_ops, progress);
             goto unowned;
         }
