@@ -94,9 +94,13 @@ static struct shim_dentry * alloc_dentry (void)
     INIT_LISTP(&dent->children);
     INIT_LIST_HEAD(dent, siblings);
 
-    lock(dcache_lock);
-    listp_add(dent, &dentry_list, list);
-    unlock(dcache_lock);
+    if (locked(dcache_lock)) {
+        listp_add(dent, &dentry_list, list);
+    } else {
+        lock(dcache_lock);
+        listp_add(dent, &dentry_list, list);
+        unlock(dcache_lock);
+    }
 
     return dent;
 }
