@@ -77,6 +77,7 @@ block_pid:
 
             lock(parent->lock);
             /* DEP 5/15/17: These threads are exited */
+            assert(!thread->is_alive);
             listp_del_init(thread, &thread->parent->exited_children, siblings);
             unlock(parent->lock);
 
