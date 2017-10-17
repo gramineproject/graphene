@@ -251,7 +251,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             listp_for_each_entry_safe(waiter, wtmp, &futex->waiters, list) {
                 debug("FUTEX_WAKE_OP wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
-                listp_del(waiter, &futex->waiters, list);
+                listp_del_init(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
             }
