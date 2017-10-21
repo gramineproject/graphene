@@ -105,10 +105,13 @@ int get_base_name (const char * path, char * buf, int size);
 
 /* Loading configs / manifests */
 
-#include <linux_list.h>
+#include <list.h>
 
+struct config;
+DEFINE_LISTP(config);
 struct config_store {
-    struct list_head root, entries;
+    LISTP_TYPE(config) root;
+    LISTP_TYPE(config) entries;
     void *           raw_data;
     int              raw_size;
     void *           (*malloc) (size_t);

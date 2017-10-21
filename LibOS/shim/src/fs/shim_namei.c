@@ -1046,7 +1046,7 @@ done_read:
 
         children = malloc(sizeof(struct shim_dentry *) * (nchildren + 1));
 
-        list_for_each_entry(child, &dent->children, siblings) {
+        listp_for_each_entry(child, &dent->children, siblings) {
             if (count >= nchildren)
                 break;
 

@@ -34,7 +34,7 @@
 
 #include <pal.h>
 #include <pal_error.h>
-#include <linux_list.h>
+#include <list.h>
 
 #define PORT_MGR_ALLOC  32
 #define PAGE_SIZE       allocsize
@@ -43,14 +43,17 @@
 #include "memmgr.h"
 
 static MEM_MGR port_mgr;
-static LIST_HEAD(pobj_list);
+/* This points to a list of shim_ipc_port objects (by the list field) */
+DEFINE_LISTP(shim_ipc_port);
+static LISTP_TYPE(shim_ipc_port) pobj_list;
 
 #define PID_HASH_LEN   6
 #define PID_HASH_NUM   (1 << PID_HASH_LEN)
 #define PID_HASH_MASK  (PID_HASH_NUM - 1)
 #define PID_HASH(pid)  ((pid) & PID_HASH_MASK)
 
-static struct hlist_head ipc_port_pool [PID_HASH_NUM];
+/* This points to a list of shim_ipc_port objects (by the hlist field) */
+static LISTP_TYPE(shim_ipc_port) ipc_port_pool [PID_HASH_NUM];
 
 enum {
     HELPER_UNINITIALIZED, HELPER_DELAYED, HELPER_NOTALIVE,
@@ -217,10 +220,10 @@ static bool __add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid,
         port->update = true;
     }
 
-    if (port->info.vmid && hlist_unhashed(&port->hlist)) {
-        struct hlist_head * head = &ipc_port_pool[PID_HASH(vmid)];
+    if (port->info.vmid && list_empty(port, hlist)) {
+        LISTP_TYPE(shim_ipc_port) * head = &ipc_port_pool[PID_HASH(vmid)];
         __get_ipc_port(port);
-        hlist_add_head(&port->hlist, head);
+        listp_add(port, head, hlist);
     }
 
     if (!(port->info.type & IPC_PORT_IFPOLL) && (type & IPC_PORT_IFPOLL))
@@ -242,22 +245,22 @@ static bool __add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid,
     }
 
     if (need_restart) {
-        if (list_empty(&port->list)) {
+        if (list_empty(port, list)) {
             __get_ipc_port(port);
-            list_add(&port->list, &pobj_list);
+            listp_add(port, &pobj_list, list);
             port->recent = true;
         } else {
             if (!port->recent) {
-                list_del_init(&port->list);
-                list_add(&port->list, &pobj_list);
+                listp_del_init(port, &pobj_list, list);
+                listp_add(port, &pobj_list, list);
                 port->recent = true;
             }
         }
         return true;
     } else {
-        if (list_empty(&port->list)) {
+        if (list_empty(port, list)) {
             __get_ipc_port(port);
-            list_add_tail(&port->list, &pobj_list);
+            listp_add_tail(port, &pobj_list, list);
         }
         return false;
     }
@@ -289,9 +292,9 @@ static struct shim_ipc_port * __get_new_ipc_port (PAL_HANDLE hdl)
     memset(port, 0, sizeof(struct shim_ipc_port));
     port->pal_handle = hdl;
     port->update = true;
-    INIT_HLIST_NODE(&port->hlist);
-    INIT_LIST_HEAD(&port->list);
-    INIT_LIST_HEAD(&port->msgs);
+    INIT_LIST_HEAD(port, hlist);
+    INIT_LIST_HEAD(port, list);
+    INIT_LISTP(&port->msgs);
     REF_SET(port->ref_count, 1);
     create_lock(port->msgs_lock);
     return port;
@@ -306,12 +309,11 @@ void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
     assert(!!hdl && PAL_GET_TYPE(hdl));
     lock(ipc_helper_lock);
 
-    struct hlist_head * head = vmid ? &ipc_port_pool[PID_HASH(vmid)] : NULL;
+    LISTP_TYPE(shim_ipc_port) * head = vmid ? &ipc_port_pool[PID_HASH(vmid)] : NULL;
     struct shim_ipc_port * tmp, * port = NULL;
-    struct hlist_node * pos;
 
     if (vmid)
-        hlist_for_each_entry(tmp, pos, head, hlist)
+        listp_for_each_entry(tmp, head, hlist)
             if (tmp->info.vmid == vmid && tmp->pal_handle == hdl) {
                 port = tmp;
                 __get_ipc_port(port);
@@ -319,7 +321,7 @@ void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
             }
 
     if (!port)
-        list_for_each_entry(tmp, &pobj_list, list)
+        listp_for_each_entry(tmp, &pobj_list, list)
             if (tmp->pal_handle == hdl) {
                 port = tmp;
                 __get_ipc_port(port);
@@ -367,14 +369,16 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     if (port->info.type & IPC_PORT_IFPOLL)
         need_restart = true;
 
-    if (!list_empty(&port->list)) {
-        list_del_init(&port->list);
+    if (!list_empty(port, list)) {
+        listp_del_init(port, &pobj_list, list);
         port->info.type &= IPC_PORT_IFPOLL;
         __put_ipc_port(port);
     }
 
-    if (!hlist_unhashed(&port->hlist)) {
-        hlist_del_init(&port->hlist);
+    if (!list_empty(port, hlist)) {
+        // Re-fetch head pointer
+        LISTP_TYPE(shim_ipc_port) * head = &ipc_port_pool[PID_HASH(port->info.vmid)];
+        listp_del_init(port, head, hlist);
         __put_ipc_port(port);
     }
 
@@ -395,14 +399,13 @@ void del_ipc_port (struct shim_ipc_port * port, int type)
 
 void del_ipc_port_by_id (IDTYPE vmid, int type)
 {
-    struct hlist_head * head = &ipc_port_pool[PID_HASH(vmid)];
-    struct shim_ipc_port * port;
-    struct hlist_node * pos, * n;
+    LISTP_TYPE(shim_ipc_port) * head = &ipc_port_pool[PID_HASH(vmid)];
+    struct shim_ipc_port * port, *n;
     bool need_restart = false;
 
     lock(ipc_helper_lock);
 
-    hlist_for_each_entry_safe(port, pos, n, head, hlist) {
+    listp_for_each_entry_safe(port, n, head, hlist) {
         debug("port %p (handle %p) for process %u in list %p\n",
               port, port->pal_handle, port->info.vmid, head);
 
@@ -443,11 +446,11 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
 
     lock(port->msgs_lock);
 
-    if (!list_empty(&port->list)) {
+    if (!list_empty(port, list)) {
         struct shim_ipc_msg_obj * msg, * n;
 
-        list_for_each_entry_safe(msg, n, &port->msgs, list) {
-            list_del_init(&msg->list);
+        listp_for_each_entry_safe(msg, n, &port->msgs, list) {
+            listp_del_init(msg, &port->msgs, list);
             msg->retval = -ECONNRESET;
             if (msg->thread)
                 thread_wakeup(msg->thread);
@@ -465,11 +468,10 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
 
 static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)
 {
-    struct hlist_head * head = &ipc_port_pool[PID_HASH(vmid)];
+    LISTP_TYPE(shim_ipc_port) * head = &ipc_port_pool[PID_HASH(vmid)];
     struct shim_ipc_port * tmp;
-    struct hlist_node * pos;
-
-    hlist_for_each_entry(tmp, pos, head, hlist)
+    
+    listp_for_each_entry(tmp, head, hlist)
         if (tmp->info.vmid == vmid && (!type || tmp->info.type & type)) {
             debug("found port %p (handle %p) for process %u (type %04x)\n",
                   tmp, tmp->pal_handle, tmp->info.vmid, tmp->info.type);
@@ -505,7 +507,7 @@ void del_all_ipc_ports (int type)
 
     lock(ipc_helper_lock);
 
-    list_for_each_entry_safe(pobj, n, &pobj_list, list)
+    listp_for_each_entry_safe(pobj, n, &pobj_list, list)
         if (pobj->pal_handle && __del_ipc_port(pobj, type))
             need_restart = true;
 
@@ -537,7 +539,7 @@ int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
     lock(ipc_helper_lock);
 
     int ntargets = 0;
-    list_for_each_entry(pobj, &pobj_list, list) {
+    listp_for_each_entry(pobj, &pobj_list, list) {
         debug("found port %p (handle %p) for process %u (type %04x)\n", pobj,
               pobj->pal_handle, pobj->info.vmid, pobj->info.type);
         if (pobj->info.type & target_type)
@@ -547,7 +549,7 @@ int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
     struct shim_ipc_port ** targets = __alloca(sizeof(struct shim_ipc_port *)
                                                * ntargets);
     int i = 0;
-    list_for_each_entry(pobj, &pobj_list, list)
+    listp_for_each_entry(pobj, &pobj_list, list)
         if (pobj->info.type & target_type) {
             get_ipc_port(pobj);
             targets[i++] = pobj;
@@ -877,7 +879,7 @@ update_list:
         for (int i = 0 ; i < port_num ; i++) {
             struct shim_ipc_port * pobj = local_pobjs[i];
 
-            if (list_empty(&pobj->list)) {
+            if (list_empty(pobj, list)) {
                 if (polled == pobj->pal_handle) {
                     polled = NULL;
                     count = -1;
@@ -911,7 +913,7 @@ update_list:
         }
         port_num -= compact;
 
-        list_for_each_entry(pobj, &pobj_list, list) {
+        listp_for_each_entry(pobj, &pobj_list, list) {
             /* we only update among recently updated ports */
             if (!pobj->recent)
                 break;
@@ -1028,7 +1030,7 @@ int exit_with_ipc_helper (bool handover)
     if (handover) {
         handover = false;
         struct shim_ipc_port * pobj;
-        list_for_each_entry(pobj, &pobj_list, list)
+        listp_for_each_entry(pobj, &pobj_list, list)
             if (pobj->info.type & IPC_PORT_KEEPALIVE) {
                 handover = true;
                 break;

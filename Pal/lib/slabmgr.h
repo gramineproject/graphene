@@ -26,7 +26,7 @@
 #ifndef SLABMGR_H
 #define SLABMGR_H
 
-#include "linux_list.h"
+#include "list.h"
 #include <assert.h>
 #include <sys/mman.h>
 
@@ -68,11 +68,13 @@
  */
 #define ROUND_UP(_x, _y) ((((_x) + (_y) - 1) / (_y)) * (_y))
 
+DEFINE_LIST(slab_obj);
+
 typedef struct __attribute__((packed)) slab_obj {
     unsigned char level;
     unsigned char padding[OBJ_PADDING];
     union {
-        struct list_head __list;
+        LIST_TYPE(slab_obj) __list;
         unsigned char *raw;
     };
 } SLAB_OBJ_TYPE, * SLAB_OBJ;
@@ -82,8 +84,9 @@ typedef struct __attribute__((packed)) slab_obj {
  * invariant is respected. */
 #define AREA_PADDING 12
 
+DEFINE_LIST(slab_area);
 typedef struct __attribute__((packed)) slab_area {
-    struct list_head __list;
+    LIST_TYPE(slab_area) __list;
     unsigned int size;
     unsigned char pad[AREA_PADDING];
     unsigned char raw[];
@@ -110,7 +113,7 @@ struct slab_debug {
 #endif
 
 #define SLAB_HDR_SIZE \
-    ROUND_UP((sizeof(SLAB_OBJ_TYPE) - sizeof(struct list_head) +    \
+    ROUND_UP((sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) +     \
               SLAB_DEBUG_SIZE + SLAB_CANARY_SIZE), \
              MIN_MALLOC_ALIGNMENT)
 
@@ -134,9 +137,11 @@ struct slab_debug {
 
 static int slab_levels[SLAB_LEVEL] = { SLAB_LEVEL_SIZES };
 
+DEFINE_LISTP(slab_obj);
+DEFINE_LISTP(slab_area);
 typedef struct slab_mgr {
-    struct list_head area_list[SLAB_LEVEL];
-    struct list_head free_list[SLAB_LEVEL];
+    LISTP_TYPE(slab_area) area_list[SLAB_LEVEL];
+    LISTP_TYPE(slab_obj) free_list[SLAB_LEVEL];
     unsigned int size[SLAB_LEVEL];
     void * addr[SLAB_LEVEL], * addr_top[SLAB_LEVEL];
 } SLAB_MGR_TYPE, * SLAB_MGR;
@@ -154,6 +159,10 @@ typedef struct __attribute__((packed)) large_mem_obj {
 
 #define OBJ_LEVEL(obj) ((obj)->level)
 #define OBJ_RAW(obj) (&(obj)->raw)
+
+#ifndef container_of
+#define container_of(ptr, type, field) ((type *)((char *)(ptr) - offsetof(type, field)))
+#endif
 
 #define RAW_TO_LEVEL(raw_ptr) \
             (*((unsigned char *) (raw_ptr) - OBJ_PADDING - 1))
@@ -243,11 +252,11 @@ static inline SLAB_MGR create_slab_mgr (void)
         area = (SLAB_AREA) addr;
         area->size = STARTUP_SIZE;
 
-        INIT_LIST_HEAD(&area->__list);
-        INIT_LIST_HEAD(&mgr->area_list[i]);
-        list_add_tail(&area->__list, &mgr->area_list[i]);
+        INIT_LIST_HEAD(area, __list);
+        INIT_LISTP(&mgr->area_list[i]);
+        listp_add_tail(area, &mgr->area_list[i], __list);
 
-        INIT_LIST_HEAD(&mgr->free_list[i]);
+        INIT_LISTP(&mgr->free_list[i]);
         mgr->size[i] = 0;
         __set_free_slab_area(area, mgr, i);
 
@@ -265,7 +274,7 @@ static inline void destroy_slab_mgr (SLAB_MGR mgr)
     for (i = 0 ; i < SLAB_LEVEL; i++) {
         area = (SLAB_AREA) addr;
 
-        list_for_each_entry_safe(tmp, n, &mgr->area_list[i], __list) {
+        listp_for_each_entry_safe(tmp, n, &mgr->area_list[i], __list) {
             if (tmp != area)
                 system_free(area,
                             __MAX_MEM_SIZE(slab_levels[i], area->size));
@@ -294,8 +303,8 @@ static inline SLAB_MGR enlarge_slab_mgr (SLAB_MGR mgr, int level)
 
     system_lock();
     area->size = size;
-    INIT_LIST_HEAD(&area->__list);
-    list_add(&area->__list, &mgr->area_list[level]);
+    INIT_LIST_HEAD(area, __list);
+    listp_add(area, &mgr->area_list[level], __list);
     __set_free_slab_area(area, mgr, level);
     system_unlock();
 
@@ -329,15 +338,15 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
 
     system_lock();
     if (mgr->addr[level] == mgr->addr_top[level] &&
-        list_empty(&mgr->free_list[level])) {
+        listp_empty(&mgr->free_list[level])) {
         system_unlock();
         enlarge_slab_mgr(mgr, level);
         system_lock();
     }
 
-    if (!list_empty(&mgr->free_list[level])) {
-        mobj = list_first_entry(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
-        list_del(&mobj->__list);
+    if (!listp_empty(&mgr->free_list[level])) {
+        mobj = listp_first_entry(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
+        listp_del(mobj, &mgr->free_list[level], __list);
     } else {
         mobj = (void *) mgr->addr[level];
         mgr->addr[level] += slab_levels[level] + SLAB_HDR_SIZE;
@@ -416,8 +425,8 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
     SLAB_OBJ mobj = RAW_TO_OBJ(obj, SLAB_OBJ_TYPE);
 
     system_lock();
-    INIT_LIST_HEAD(&mobj->__list);
-    list_add_tail(&mobj->__list, &mgr->free_list[level]);
+    INIT_LIST_HEAD(mobj, __list);
+    listp_add_tail(mobj, &mgr->free_list[level], __list);
     system_unlock();
 }
 
