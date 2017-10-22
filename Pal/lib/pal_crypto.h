@@ -37,6 +37,7 @@
 #include "crypto/wolfssl/sha256.h"
 #include "crypto/wolfssl/dh.h"
 #include "crypto/wolfssl/rsa.h"
+
 typedef SHA256 LIB_SHA256_CONTEXT;
 
 #define DH_SIZE 128

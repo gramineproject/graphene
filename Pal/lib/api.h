@@ -62,6 +62,11 @@ void *malloc(size_t size);
 void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 
+/* Libc memory allocation functions. stdlib.h. */
+void *malloc(size_t size);
+void free(void *ptr);
+void *calloc(size_t nmemb, size_t size);
+
 /* Some useful macro */
 /* force failure if str is not a static string */
 #define force_static(str)   ("" str "")
