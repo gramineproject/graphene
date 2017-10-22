@@ -24,41 +24,56 @@
 #ifndef PAL_CRYPTO_H
 #define PAL_CRYPTO_H
 
-/*
- * You can change which crypto library will be used by changing this
- * define. Currently supported options:
- * - wolfSSL
- */
-#define PAL_CRYPTO_PROVIDER PAL_CRYPTO_MBEDTLS
-
 /* These cryptosystems are still unconditionally provided by WolfSSL. */
 #include "crypto/cmac.h"
-#include "crypto/dh.h"
 #include "crypto/rsa.h"
-
-#define PAL_CRYPTO_WOLFSSL 1
-#define PAL_CRYPTO_MBEDTLS 2
 
 #define SHA256_DIGEST_LEN 32
 
-#if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_WOLFSSL
+#ifdef CRYPTO_USE_WOLFSSL
+#define CRYPTO_PROVIDER_SPECIFIED
+
 #include "crypto/wolfssl/sha256.h"
+#include "crypto/wolfssl/dh.h"
 typedef SHA256 LIB_SHA256_CONTEXT;
 
-#elif PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
+#define DH_SIZE 128
+
+typedef struct {
+    uint8_t priv[DH_SIZE];
+    uint32_t priv_size;
+    DhKey key;
+} LIB_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
+#endif /* CRYPTO_USE_WOLFSSL */
+
+#ifdef CRYPTO_USE_MBEDTLS
+#define CRYPTO_PROVIDER_SPECIFIED
+
 #include "crypto/mbedtls/mbedtls/sha256.h"
 typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
-#else
-# error "Unknown crypto provider. Set PAL_CRYPTO_PROVIDER in pal_crypto.h"
+/* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
+#define DH_SIZE 256
+#include "crypto/mbedtls/mbedtls/dhm.h"
+typedef mbedtls_dhm_context LIB_DH_CONTEXT;
+#endif /* CRYPTO_USE_MBEDTLS */
+
+#ifndef CRYPTO_PROVIDER_SPECIFIED
+# error "Unknown crypto provider. Set CRYPTO_PROVIDER in Makefile"
 #endif
 
-typedef LIB_SHA256_CONTEXT PAL_SHA256_CONTEXT;
-
+/* SHA256 */
 int lib_SHA256Init(LIB_SHA256_CONTEXT *context);
 int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
 		     uint64_t len);
 int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output);
-                  
+
+/* Diffie-Hellman Key Exchange */
+int lib_DhInit(LIB_DH_CONTEXT *context);
+int lib_DhCreatePublic(LIB_DH_CONTEXT *context, uint8_t *public,
+                       uint64_t *public_size);
+int lib_DhCalcSecret(LIB_DH_CONTEXT *context, uint8_t *peer, uint64_t peer_size,
+                     uint8_t *secret, uint64_t *secret_size);
+void lib_DhFinal(LIB_DH_CONTEXT *context);
 
 #endif
