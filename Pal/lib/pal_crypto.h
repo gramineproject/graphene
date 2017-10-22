@@ -25,14 +25,18 @@
 #define PAL_CRYPTO_H
 
 /* These cryptosystems are still unconditionally provided by WolfSSL. */
-#include "crypto/cmac.h"
 #include "crypto/rsa.h"
 
 #define SHA256_DIGEST_LEN 32
 
+#define AES_CMAC_KEY_LEN    16
+#define AES_CMAC_DIGEST_LEN 32
+
 #ifdef CRYPTO_USE_WOLFSSL
 #define CRYPTO_PROVIDER_SPECIFIED
 
+#include "crypto/wolfssl/cmac.h"
+#include "crypto/wolfssl/aes.h"
 #include "crypto/wolfssl/sha256.h"
 #include "crypto/wolfssl/dh.h"
 typedef SHA256 LIB_SHA256_CONTEXT;
@@ -49,6 +53,10 @@ typedef struct {
 #ifdef CRYPTO_USE_MBEDTLS
 #define CRYPTO_PROVIDER_SPECIFIED
 
+#include "crypto/mbedtls/mbedtls/cmac.h"
+typedef struct AES LIB_AES_CONTEXT;
+
+#include "crypto/mbedtls/mbedtls/dhm.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
 typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
@@ -75,5 +83,9 @@ int lib_DhCreatePublic(LIB_DH_CONTEXT *context, uint8_t *public,
 int lib_DhCalcSecret(LIB_DH_CONTEXT *context, uint8_t *peer, uint64_t peer_size,
                      uint8_t *secret, uint64_t *secret_size);
 void lib_DhFinal(LIB_DH_CONTEXT *context);
+
+/* AES-CMAC */
+int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
+                uint64_t input_len, uint8_t *mac, uint64_t mac_len);
 
 #endif

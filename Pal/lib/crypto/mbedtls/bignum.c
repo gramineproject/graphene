@@ -49,6 +49,7 @@
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define mbedtls_printf     printf

@@ -16,7 +16,9 @@
 #include <stdint.h>
 #include "pal.h"
 #include "pal_crypto.h"
+#include "pal_error.h"
 #include "crypto/wolfssl/sha256.h"
+#include "crypto/wolfssl/cmac.h"
 
 int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
@@ -28,7 +30,7 @@ int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
 {
     /* uint64_t is a 64-bit value, but SHA256Update takes a 32-bit len. */
     if (len > UINT32_MAX) {
-        return -1;
+        return -PAL_ERROR_INVAL;
     }
     return SHA256Update(context, data, len);
 }
@@ -36,4 +38,16 @@ int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
 int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
 {
     return SHA256Final(context, output);
+}
+
+int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
+                uint64_t input_len, uint8_t *mac, uint64_t mac_len)
+{
+    /* The old code only supports 128-bit AES CMAC, and length is a 32-bit
+     * value. */
+    if (key_len != 16 || input_len > INT32_MAX || mac_len < 16) {
+        return -PAL_ERROR_INVAL;
+    }
+    AES_CMAC((unsigned char *) key, (unsigned char *) input, input_len, mac);
+    return 0;
 }

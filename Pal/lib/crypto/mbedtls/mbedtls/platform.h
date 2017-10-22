@@ -18,6 +18,7 @@
 #ifndef MBEDTLS_PLATFORM_H
 #define MBEDTLS_PLATFORM_H
 
+/* For standard library apis. */
 #include "api.h"
 
 void * malloc(size_t size);

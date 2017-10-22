@@ -16,7 +16,11 @@
 #include <stdint.h>
 #include "pal.h"
 #include "pal_crypto.h"
+#include "pal_error.h"
+#include "crypto/mbedtls/mbedtls/cmac.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
+
+#define BITS_PER_BYTE 8
 
 int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
@@ -31,7 +35,7 @@ int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
     /* For compatibility with other SHA256 providers, don't support
      * large lengths. */
     if (len > UINT32_MAX) {
-        return -1;
+        return -PAL_ERROR_INVAL;
     }
     mbedtls_sha256_update(context, data, len);
     return 0;
@@ -47,3 +51,32 @@ int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
     return 0;
 }
 
+int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
+                uint64_t input_len, uint8_t *mac, uint64_t mac_len) {
+    mbedtls_cipher_type_t cipher;
+
+    switch (key_len) {
+    case 16:
+        cipher = MBEDTLS_CIPHER_AES_128_ECB;
+        break;
+    case 24:
+        cipher = MBEDTLS_CIPHER_AES_192_ECB;
+        break;
+    case 32:
+        cipher = MBEDTLS_CIPHER_AES_256_ECB;
+        break;
+    default:
+        return -PAL_ERROR_INVAL;
+    }
+
+    const mbedtls_cipher_info_t *cipher_info =
+        mbedtls_cipher_info_from_type(cipher);
+
+    if (mac_len < cipher_info->block_size) {
+        return -PAL_ERROR_INVAL;
+    }
+
+    return mbedtls_cipher_cmac(cipher_info,
+                               key, key_len * BITS_PER_BYTE,
+                               input, input_len, mac);
+}

@@ -221,7 +221,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         if (ret < 0)
             goto unmap;
 
-        AES_CMAC((void *) &enclave_key, umem, mapping_size, (uint8_t *) s);
+        lib_AESCMAC((void *) &enclave_key, AES_CMAC_KEY_LEN, umem,
+                    mapping_size, (uint8_t *) s, sizeof *s);
 
         /* update the file checksum */
         ret = lib_SHA256Update(&sha, umem, mapping_size);
@@ -292,9 +293,11 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-        uint8_t hash[256/8]; // AES_CMAC hash size is 256 bits
-        AES_CMAC((void *) &enclave_key, mem + checking - offset,
-                 checking_size, hash);
+        uint8_t hash[AES_CMAC_DIGEST_LEN];
+        lib_AESCMAC((void *) &enclave_key,
+                    AES_CMAC_KEY_LEN,
+                    mem + checking - offset, checking_size,
+                    hash, sizeof(hash));
 
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "

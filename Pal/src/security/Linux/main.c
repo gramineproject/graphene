@@ -34,7 +34,7 @@ static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];
 
-void * malloc (int size)
+void * malloc (size_t size)
 {
     void * addr = (void *) bump;
 

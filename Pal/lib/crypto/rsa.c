@@ -30,9 +30,6 @@ int _DkRandomBitsRead (void  *buffer, int size);
 int DkRandomBitsRead (void  *buffer, int size);
 #endif
 
-void * malloc (int size);
-void free (void * mem);
-
 #define XMALLOC malloc
 #define XFREE   free
 
