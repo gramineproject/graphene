@@ -21,6 +21,7 @@
 #include "pal_debug.h"
 #include "assert.h"
 
+
 /* This is declared in pal_internal.h, but that can't be included here. */
 int _DkRandomBitsRead(void *buffer, int size);
 
