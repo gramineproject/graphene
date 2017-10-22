@@ -25,7 +25,6 @@
 #define PAL_CRYPTO_H
 
 /* These cryptosystems are still unconditionally provided by WolfSSL. */
-#include "crypto/cmac.h"
 #include "crypto/rsa.h"
 
 #define SHA256_DIGEST_LEN 32
@@ -58,6 +57,7 @@ typedef struct {
 typedef struct AES LIB_AES_CONTEXT;
 
 #include "crypto/mbedtls/mbedtls/dhm.h"
+#include "crypto/mbedtls/mbedtls/sha256.h"
 typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
