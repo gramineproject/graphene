@@ -243,8 +243,6 @@ typedef struct {
 
 typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 
-#include "sgx-driver/graphene-sgx.h"
-
 #else /* !__ASSEMBLER__ */
 
 /* microcode to call ENCLU */

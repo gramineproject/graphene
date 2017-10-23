@@ -20,7 +20,7 @@
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
-#include "../lib/assert.h"
+#include "assert.h"
 
 #define BITS_PER_BYTE 8
 
@@ -35,7 +35,7 @@ static int RandomWrapper(void *private, unsigned char *data, size_t size)
     return _DkRandomBitsRead(data, size) != size;
 }
 
-int DkDhInit(PAL_DH_CONTEXT *context)
+int lib_DhInit(LIB_DH_CONTEXT *context)
 {
     int ret;
     mbedtls_dhm_init(context);
@@ -63,13 +63,13 @@ int DkDhInit(PAL_DH_CONTEXT *context)
     return 0;
 }
 
-int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
-                     PAL_NUM *public_size)
+int lib_DhCreatePublic(LIB_DH_CONTEXT *context, uint8_t *public,
+                     uint64_t *public_size)
 {
     int ret;
 
     if (*public_size != DH_SIZE)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     /* The RNG here is used to generate secret exponent X. */
     ret = mbedtls_dhm_make_public(context, context->len, public, *public_size,
@@ -82,13 +82,13 @@ int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
     return 0;
 }
 
-int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
-                   uint8_t *secret, PAL_NUM *secret_size)
+int lib_DhCalcSecret(LIB_DH_CONTEXT *context, uint8_t *peer, uint64_t peer_size,
+                   uint8_t *secret, uint64_t *secret_size)
 {
     int ret;
 
     if (*secret_size != DH_SIZE)
-        return -EINVAL;
+        return -PAL_ERROR_INVAL;
 
     ret = mbedtls_dhm_read_public(context, peer, peer_size);
     if (ret != 0)
@@ -101,7 +101,7 @@ int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
                                    RandomWrapper, NULL);
 }
 
-void DkDhFinal(PAL_DH_CONTEXT *context)
+void lib_DhFinal(LIB_DH_CONTEXT *context)
 {
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);
@@ -187,3 +187,5 @@ int DkRSAFreeKey(PAL_RSA_KEY *key)
     return 0;
 }
 
+=======
+>>>>>>> master

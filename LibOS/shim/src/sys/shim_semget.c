@@ -509,7 +509,9 @@ static bool __handle_sysv_sems (struct shim_sem_handle * sem)
         listp_for_each_entry_safe(sops, n, &sobj->ops, progress) {
             struct sembuf * op = &sops->ops[sops->stat.current];
             assert(op->sem_num == sobj->num);
-            assert(sops != n);
+            // first_iter is a variable defined by listp_for_each_entry_safe
+            // The second part of this assertion is only valid after the first attempt
+            assert(first_iter || (sops != n));
             if (sops->stat.completed)
                 goto send_result;
 again:
@@ -561,6 +563,8 @@ failed:
             progressed = true;
             sops->stat.failed = true;
 send_result:
+            /* Chia-Che 10/17/17: If the code reaches this point, sops should
+             * still be in sobj->ops. */
             listp_del_init(sops, &sobj->ops, progress);
             sem->nreqs--;
             if (!sops->client.vmid) {
@@ -843,6 +847,9 @@ unowned:
     while (!sem_ops->stat.completed &&
            !sem_ops->stat.failed) {
         if (!sem->owned) {
+            /* Chia-Che 10/17/17: sem_ops may move from semaphore to semaphore
+               base on its current state */
+            next_ops = &sem->sems[sem_ops->ops[sem_ops->stat.current].sem_num].next_ops;
             listp_del_init(sem_ops, next_ops, progress);
             goto unowned;
         }

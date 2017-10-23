@@ -55,8 +55,6 @@ regression: $(target)
 	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
 	@echo "\n\nLarge File Support:"
 	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
-	@echo "\n\nLTP tests for system calls:"
-	../apps/ltp/syscalls.sh
 
 clean-tmp:
 	rm -rf *.tmp ../apps/ltp/*.csv *.cached *.manifest.sgx *~ *.sig *.token

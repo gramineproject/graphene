@@ -77,6 +77,7 @@ block_pid:
 
             lock(parent->lock);
             /* DEP 5/15/17: These threads are exited */
+            assert(!thread->is_alive);
             listp_del_init(thread, &thread->parent->exited_children, siblings);
             unlock(parent->lock);
 
@@ -139,8 +140,12 @@ found_child:
     unlock(cur->lock);
 
 found:
-    if (status)
-        *status = (thread->exit_code & 0xff) << 8;
+    if (status) {
+        /* Bits 0--7 are for the signal, if any.  
+         * Bits 8--15 are for the exit code */
+        *status = thread->term_signal;
+        *status |= ((thread->exit_code & 0xff) << 8);
+    }
 
     ret = thread->tid;
     SAVE_PROFILE_INTERVAL_SINCE(child_exit_notification, thread->exit_time);

@@ -27,6 +27,7 @@
 #define SLABMGR_H
 
 #include "list.h"
+#include <assert.h>
 #include <sys/mman.h>
 
 #ifndef system_malloc
