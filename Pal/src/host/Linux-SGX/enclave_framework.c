@@ -598,29 +598,27 @@ void test_dh (void)
 }
 #endif
 
-#include "crypto/rsa.h"
-
 #define RSA_KEY_SIZE        2048
 #define RSA_E               3
 
 int init_enclave (void)
 {
     int ret;
-    RSAKey *rsa = malloc(sizeof(RSAKey));
-    InitRSAKey(rsa);
+    LIB_RSA_KEY *rsa = malloc(sizeof(LIB_RSA_KEY));
+    lib_RSAInitKey(rsa);
 
-    ret = MakeRSAKey(rsa, RSA_KEY_SIZE, RSA_E);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "MakeRSAKey failed: %d\n", ret);
+    ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
+    if (ret != 0) {
+        SGX_DBG(DBG_S, "lib_RSAGenerateKey failed: %d\n", ret);
         return ret;
     }
 
-    uint32_t nsz = RSA_KEY_SIZE / 8, esz = 1;
+    PAL_NUM nsz = RSA_KEY_SIZE / 8, esz = 1;
     uint8_t n[nsz], e[esz];
 
-    ret = RSAFlattenPublicKey(rsa, e, &esz, n, &nsz);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "RSAFlattenPublicKey failed: %d\n", ret);
+    ret = lib_RSAExportPublicKey(rsa, e, &esz, n, &nsz);
+    if (ret != 0) {
+        SGX_DBG(DBG_S, "lib_RSAExtractPublicKey failed: %d\n", ret);
         goto out_free;
     }
 
@@ -646,7 +644,7 @@ int init_enclave (void)
     return 0;
 
 out_free:
-    FreeRSAKey(rsa);
+    lib_RSAFreeKey(rsa);
     free(rsa);
     return ret;
 }

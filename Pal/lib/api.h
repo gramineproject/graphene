@@ -52,10 +52,15 @@ long int atol (const char *nptr);
 
 char * strchr (const char *s, int c_in);
 
-void * memcpy (void *dstpp, const void *srcpp, int len);
-void * memmove (void *dstpp, void *srcpp, int len);
-void * memset (void *dstpp, int c, int len);
-int memcmp (const void *s1, const void *s2, int len);
+void * memcpy (void *dstpp, const void *srcpp, size_t len);
+void * memmove (void *dstpp, const void *srcpp, size_t len);
+void * memset (void *dstpp, int c, size_t len);
+int memcmp (const void *s1, const void *s2, size_t len);
+
+/* Libc memory allocation functions. stdlib.h. */
+void *malloc(size_t size);
+void free(void *ptr);
+void *calloc(size_t nmemb, size_t size);
 
 /* Libc memory allocation functions. stdlib.h. */
 void *malloc(size_t size);

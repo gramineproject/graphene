@@ -21,7 +21,6 @@
 #include "pal_debug.h"
 #include "assert.h"
 
-
 /* This is declared in pal_internal.h, but that can't be included here. */
 int _DkRandomBitsRead(void *buffer, int size);
 
@@ -38,7 +37,7 @@ int lib_DhInit(LIB_DH_CONTEXT *context)
     int ret;
     mbedtls_dhm_init(context);
 
-    /* Configure parameters. Note that custom Diffie-Hellman parameters 
+    /* Configure parameters. Note that custom Diffie-Hellman parameters
      * are considered more secure, but require more data be exchanged
      * between the two parties to establish the parameters, so we haven't
      * implemented that yet. */

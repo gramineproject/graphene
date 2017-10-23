@@ -14,11 +14,13 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <stdint.h>
+#include <limits.h>
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_error.h"
 #include "crypto/wolfssl/sha256.h"
 #include "crypto/wolfssl/cmac.h"
+#include "crypto/wolfssl/rsa.h"
 
 int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
 {
