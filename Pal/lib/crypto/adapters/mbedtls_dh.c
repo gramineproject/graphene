@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <limits.h>
 #include "pal.h"
+#include "pal_error.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
 #include "assert.h"
@@ -107,85 +108,3 @@ void lib_DhFinal(LIB_DH_CONTEXT *context)
     mbedtls_dhm_free(context);
 }
 
-int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
-              PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len) {
-    mbedtls_cipher_type_t cipher;
-
-    switch (key_len) {
-    case 16:
-        cipher = MBEDTLS_CIPHER_AES_128_ECB;
-        break;
-    case 24:
-        cipher = MBEDTLS_CIPHER_AES_192_ECB;
-        break;
-    case 32:
-        cipher = MBEDTLS_CIPHER_AES_256_ECB;
-        break;
-    default:
-        pal_printf("Invalid key length %d requested for CMAC\n", key_len);
-        return -EINVAL;
-    }
-
-    const mbedtls_cipher_info_t *cipher_info =
-        mbedtls_cipher_info_from_type(cipher);
-
-    if (mac_len < cipher_info->block_size) {
-        return -EINVAL;
-    }
-
-    return mbedtls_cipher_cmac(cipher_info,
-                               key, key_len * BITS_PER_BYTE,
-                               input, input_len, mac);
-}
-
-int DkRSAInitKey(PAL_RSA_KEY *key)
-{
-    /* For now, we only need PKCS_V15 type padding. If we need to support
-     * multiple padding types, I guess we'll need to add the padding type
-     * to this API. We might need to add a wrapper type around the crypto
-     * library's key/context type, since not all crypto providers store this
-     * in the conext, and instead require you to pass it on each call. */
-
-    /* Last parameter here is the hash type, which is only used for
-     * PKCS padding type 2.0. */
-    mbedtls_rsa_init(key, MBEDTLS_RSA_PKCS_V15, 0);
-    return 0;
-}
-
-int DkRSAGenerateKey(PAL_RSA_KEY *key, PAL_NUM length_in_bits, PAL_NUM exponent)
-{
-    if (length_in_bits > UINT_MAX) {
-        return -EINVAL;
-    }
-    if (exponent > UINT_MAX || (int) exponent < 0) {
-        return -EINVAL;
-    }
-    return mbedtls_rsa_gen_key(key, RandomWrapper, NULL, length_in_bits,
-                               exponent);
-}
-
-int DkRSAExportPublicKey(PAL_RSA_KEY *key, uint8_t *e, PAL_NUM *e_size,
-                         uint8_t *n, PAL_NUM *n_size)
-{
-    int ret;
-
-    /* Public exponent. */
-    if ((ret = mbedtls_mpi_write_binary(&key->E, e, *e_size)) != 0) {
-        return ret;
-    }
-
-    /* Modulus. */
-    if ((ret = mbedtls_mpi_write_binary(&key->N, n, *n_size)) != 0) {
-        return ret;
-    }
-    return 0;
-}
-
-int DkRSAFreeKey(PAL_RSA_KEY *key)
-{
-    mbedtls_rsa_free(key);
-    return 0;
-}
-
-=======
->>>>>>> master
