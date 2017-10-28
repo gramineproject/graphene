@@ -293,7 +293,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         cfgbuf[0] == '1')
         enclave->baseaddr = heap_min;
     else
-        enclave->baseaddr = heap_min = 0;
+        enclave->baseaddr = 0;
 
     TRY(read_enclave_token, enclave->token, &enclave_token);
     TRY(read_enclave_sigstruct, enclave->sigfile, &enclave_sigstruct);
