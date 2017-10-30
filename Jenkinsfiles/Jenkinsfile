@@ -34,6 +34,19 @@ pipeline {
                             make start-graphene-server &
                             ./benchmark-http.sh 127.0.0.1:8000
                             '''
+                        sh '''
+                            cd Pal/regression
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/regression
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/ltp
+                            make
+                            ./syscalls.sh
+                            '''
                         input 'Tests complete. Do you wish to deploy?'
                     }
                 }
