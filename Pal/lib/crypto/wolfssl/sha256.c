@@ -22,7 +22,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include "sha256.h"
+#include "crypto/wolfssl/sha256.h"
 #include "api.h"
 
 #define XMEMSET memset
@@ -242,15 +242,12 @@ int SHA256Hash(const byte * data, word32 len, byte * hash)
     int ret = 0;
     SHA256 sha256;
 
-    if ((ret = SHA256Init(&sha256)) != 0) {
-        printf("SHA256Init failed");
-    }
-    else if ((ret = SHA256Update(&sha256, data, len)) != 0) {
-        printf("SHA256Update failed");
-    }
-    else if ((ret = SHA256Final(&sha256, hash)) != 0) {
-        printf("SHA256Final failed");
-    }
+    if ((ret = SHA256Init(&sha256)) != 0)
+        return ret;
+    if ((ret = SHA256Update(&sha256, data, len)) != 0)
+        return ret;
+    else if ((ret = SHA256Final(&sha256, hash)) != 0)
+        return ret;
 
-    return ret;
+    return 0;
 }

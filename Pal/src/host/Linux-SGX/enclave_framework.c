@@ -7,7 +7,7 @@
 #include <pal_security.h>
 #include <pal_crypto.h>
 #include <api.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include "enclave_pages.h"
 
@@ -105,17 +105,19 @@ int init_enclave_key (void)
     return 0;
 }
 
+DEFINE_LIST(trusted_file);
 struct trusted_file {
-    struct list_head list;
-    int64_t         index;
-    uint64_t        size;
-    int             uri_len;
-    char            uri[URI_MAX];
-    sgx_checksum_t  checksum;
-    sgx_stub_t *    stubs;
+    LIST_TYPE(trusted_file) list;
+    int64_t index;
+    uint64_t size;
+    int uri_len;
+    char uri[URI_MAX];
+    sgx_checksum_t checksum;
+    sgx_stub_t * stubs;
 };
 
-static LIST_HEAD(trusted_file_list);
+DEFINE_LISTP(trusted_file);
+static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 
@@ -149,7 +151,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     _DkSpinLock(&trusted_file_lock);
 
-    list_for_each_entry(tmp, &trusted_file_list, list) {
+    listp_for_each_entry(tmp, &trusted_file_list, list) {
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
             if (tmp->uri_len == uri_len && !memcmp(tmp->uri, normpath, uri_len + 1)) {
@@ -203,7 +205,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     sgx_stub_t * s = stubs;
     uint64_t offset = 0;
-    PAL_SHA256_CONTEXT sha;
+    LIB_SHA256_CONTEXT sha;
     void * umem;
 
     ret = lib_SHA256Init(&sha);
@@ -219,7 +221,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         if (ret < 0)
             goto unmap;
 
-        AES_CMAC((void *) &enclave_key, umem, mapping_size, (uint8_t *) s);
+        lib_AESCMAC((void *) &enclave_key, AES_CMAC_KEY_LEN, umem,
+                    mapping_size, (uint8_t *) s, sizeof *s);
 
         /* update the file checksum */
         ret = lib_SHA256Update(&sha, umem, mapping_size);
@@ -290,9 +293,11 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-        uint8_t hash[256/8]; // AES_CMAC hash size is 256 bits
-        AES_CMAC((void *) &enclave_key, mem + checking - offset,
-                 checking_size, hash);
+        uint8_t hash[AES_CMAC_DIGEST_LEN];
+        lib_AESCMAC((void *) &enclave_key,
+                    AES_CMAC_KEY_LEN,
+                    mem + checking - offset, checking_size,
+                    hash, sizeof(hash));
 
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "
@@ -312,7 +317,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
 
     _DkSpinLock(&trusted_file_lock);
 
-    list_for_each_entry(tf, &trusted_file_list, list) {
+    listp_for_each_entry(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
             _DkSpinUnlock(&trusted_file_lock);
             return 0;
@@ -324,7 +329,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
     if (!new)
         return -PAL_ERROR_NOMEM;
 
-    INIT_LIST_HEAD(&new->list);
+    INIT_LIST_HEAD(new, list);
     new->uri_len = uri_len;
     memcpy(new->uri, uri, uri_len + 1);
     new->size = 0;
@@ -385,7 +390,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
 
     _DkSpinLock(&trusted_file_lock);
 
-    list_for_each_entry(tf, &trusted_file_list, list) {
+    listp_for_each_entry(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
             _DkSpinUnlock(&trusted_file_lock);
             free(new);
@@ -393,7 +398,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
         }
     }
 
-    list_add_tail(&new->list, &trusted_file_list);
+    listp_add_tail(new, &trusted_file_list, list);
     _DkSpinUnlock(&trusted_file_lock);
     return 0;
 }
@@ -535,56 +540,7 @@ int init_trusted_children (void)
     return 0;
 }
 
-#include "crypto/dh.h"
-
-static struct {
-    uint8_t p[128], q[20], g[128];
-} dh_param = {
-    {
-        0xfd, 0x7f, 0x53, 0x81, 0x1d, 0x75, 0x12, 0x29,
-        0x52, 0xdf, 0x4a, 0x9c, 0x2e, 0xec, 0xe4, 0xe7,
-        0xf6, 0x11, 0xb7, 0x52, 0x3c, 0xef, 0x44, 0x00,
-        0xc3, 0x1e, 0x3f, 0x80, 0xb6, 0x51, 0x26, 0x69,
-        0x45, 0x5d, 0x40, 0x22, 0x51, 0xfb, 0x59, 0x3d,
-        0x8d, 0x58, 0xfa, 0xbf, 0xc5, 0xf5, 0xba, 0x30,
-        0xf6, 0xcb, 0x9b, 0x55, 0x6c, 0xd7, 0x81, 0x3b,
-        0x80, 0x1d, 0x34, 0x6f, 0xf2, 0x66, 0x60, 0xb7,
-        0x6b, 0x99, 0x50, 0xa5, 0xa4, 0x9f, 0x9f, 0xe8,
-        0x04, 0x7b, 0x10, 0x22, 0xc2, 0x4f, 0xbb, 0xa9,
-        0xd7, 0xfe, 0xb7, 0xc6, 0x1b, 0xf8, 0x3b, 0x57,
-        0xe7, 0xc6, 0xa8, 0xa6, 0x15, 0x0f, 0x04, 0xfb,
-        0x83, 0xf6, 0xd3, 0xc5, 0x1e, 0xc3, 0x02, 0x35,
-        0x54, 0x13, 0x5a, 0x16, 0x91, 0x32, 0xf6, 0x75,
-        0xf3, 0xae, 0x2b, 0x61, 0xd7, 0x2a, 0xef, 0xf2,
-        0x22, 0x03, 0x19, 0x9d, 0xd1, 0x48, 0x01, 0xc7,
-    },
-
-    {
-        0x97, 0x60, 0x50, 0x8f, 0x15, 0x23, 0x0b, 0xcc,
-        0xb2, 0x92, 0xb9, 0x82, 0xa2, 0xeb, 0x84, 0x0b,
-        0xf0, 0x58, 0x1c, 0xf5,
-    },
-
-    {
-        0xf7, 0xe1, 0xa0, 0x85, 0xd6, 0x9b, 0x3d, 0xde,
-        0xcb, 0xbc, 0xab, 0x5c, 0x36, 0xb8, 0x57, 0xb9,
-        0x79, 0x94, 0xaf, 0xbb, 0xfa, 0x3a, 0xea, 0x82,
-        0xf9, 0x57, 0x4c, 0x0b, 0x3d, 0x07, 0x82, 0x67,
-        0x51, 0x59, 0x57, 0x8e, 0xba, 0xd4, 0x59, 0x4f,
-        0xe6, 0x71, 0x07, 0x10, 0x81, 0x80, 0xb4, 0x49,
-        0x16, 0x71, 0x23, 0xe8, 0x4c, 0x28, 0x16, 0x13,
-        0xb7, 0xcf, 0x09, 0x32, 0x8c, 0xc8, 0xa6, 0xe1,
-        0x3c, 0x16, 0x7a, 0x8b, 0x54, 0x7c, 0x8d, 0x28,
-        0xe0, 0xa3, 0xae, 0x1e, 0x2b, 0xb3, 0xa6, 0x75,
-        0x91, 0x6e, 0xa3, 0x7f, 0x0b, 0xfa, 0x21, 0x35,
-        0x62, 0xf1, 0xfb, 0x62, 0x7a, 0x01, 0x24, 0x3b,
-        0xcc, 0xa4, 0xf1, 0xbe, 0xa8, 0x51, 0x90, 0x89,
-        0xa8, 0x83, 0xdf, 0xe1, 0x5a, 0xe5, 0x9f, 0x06,
-        0x92, 0x8b, 0x66, 0x5e, 0x80, 0x7b, 0x55, 0x25,
-        0x64, 0x01, 0x4c, 0x3b, 0xfe, 0xcf, 0x49, 0x2a,
-    },
-};
-
+#if 0
 void test_dh (void)
 {
     int ret;
@@ -640,8 +596,7 @@ void test_dh (void)
     SGX_DBG(DBG_S, "key exchange(side B): %s (%d)\n", __hex2str(agree2, agreesz2),
            agreesz2);
 }
-
-#include "crypto/rsa.h"
+#endif
 
 #define RSA_KEY_SIZE        2048
 #define RSA_E               3
@@ -649,25 +604,25 @@ void test_dh (void)
 int init_enclave (void)
 {
     int ret;
-    RSAKey *rsa = malloc(sizeof(RSAKey));
-    InitRSAKey(rsa);
+    LIB_RSA_KEY *rsa = malloc(sizeof(LIB_RSA_KEY));
+    lib_RSAInitKey(rsa);
 
-    ret = MakeRSAKey(rsa, RSA_KEY_SIZE, RSA_E);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "MakeRSAKey failed: %d\n", ret);
+    ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
+    if (ret != 0) {
+        SGX_DBG(DBG_S, "lib_RSAGenerateKey failed: %d\n", ret);
         return ret;
     }
 
-    uint32_t nsz = RSA_KEY_SIZE / 8, esz = 1;
+    PAL_NUM nsz = RSA_KEY_SIZE / 8, esz = 1;
     uint8_t n[nsz], e[esz];
 
-    ret = RSAFlattenPublicKey(rsa, e, &esz, n, &nsz);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "RSAFlattenPublicKey failed: %d\n", ret);
+    ret = lib_RSAExportPublicKey(rsa, e, &esz, n, &nsz);
+    if (ret != 0) {
+        SGX_DBG(DBG_S, "lib_RSAExtractPublicKey failed: %d\n", ret);
         goto out_free;
     }
 
-    PAL_SHA256_CONTEXT sha256;
+    LIB_SHA256_CONTEXT sha256;
 
     ret = lib_SHA256Init(&sha256);
     if (ret < 0)
@@ -689,7 +644,7 @@ int init_enclave (void)
     return 0;
 
 out_free:
-    FreeRSAKey(rsa);
+    lib_RSAFreeKey(rsa);
     free(rsa);
     return ret;
 }
@@ -697,46 +652,56 @@ out_free:
 int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
 {
     unsigned char session_key[32] __attribute__((aligned(32)));
-    unsigned char priv[128]  __attribute__((aligned(128))),
-                  pub[128]   __attribute__((aligned(128))),
-                  agree[128] __attribute__((aligned(128)));
-    uint32_t privsz, pubsz, agreesz;
-    DhKey dh;
+    uint8_t pub[DH_SIZE]   __attribute__((aligned(DH_SIZE)));
+    uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
+    PAL_NUM pubsz, agreesz;
+    LIB_DH_CONTEXT context;
     int ret;
 
-    InitDhKey(&dh);
-
-    ret = DhSetKey(&dh, dh_param.p, sizeof(dh_param.p), dh_param.g,
-                   sizeof(dh_param.g));
+    ret = lib_DhInit(&context);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Key Exchange: DhSetKey failed: %d\n", ret);
+        SGX_DBG(DBG_S, "Key Exchange: DH Init failed: %d\n", ret);
+        goto out_no_final;
+    }
+
+    pubsz = sizeof pub;
+    ret = lib_DhCreatePublic(&context, pub, &pubsz);
+    if (ret < 0) {
+        SGX_DBG(DBG_S, "Key Exchange: DH CreatePublic failed: %d\n", ret);
         goto out;
     }
 
-    ret = DhGenerateKeyPair(&dh, priv, &privsz, pub, &pubsz);
-    if (ret < 0) {
-        SGX_DBG(DBG_S, "Key Exchange: DhGenerateKeyPair failed: %d\n", ret);
-        goto out;
+    assert(pubsz > 0 && pubsz <= DH_SIZE);
+    if (pubsz < DH_SIZE) {
+        /* Insert leading zero bytes if necessary. These values are big-
+         * endian, so we either need to know the length of the bignum or
+         * zero-pad at the beginning instead of the end. This code chooses
+         * to do the latter. */
+        memmove(pub + (DH_SIZE - pubsz), pub, pubsz);
+        memset(pub, 0, DH_SIZE - pubsz);
     }
 
-    ret = _DkStreamWrite(stream, 0, pubsz, pub, NULL, 0);
-    if (ret < pubsz) {
+    ret = _DkStreamWrite(stream, 0, DH_SIZE, pub, NULL, 0);
+    if (ret != DH_SIZE) {
         SGX_DBG(DBG_S, "Key Exchange: DkStreamWrite failed: %d\n", ret);
         goto out;
     }
 
-    ret = _DkStreamRead(stream, 0, pubsz, pub, NULL, 0);
-    if (ret < pubsz) {
+    ret = _DkStreamRead(stream, 0, DH_SIZE, pub, NULL, 0);
+    if (ret != DH_SIZE) {
         SGX_DBG(DBG_S, "Key Exchange: DkStreamRead failed: %d\n", ret);
         goto out;
     }
 
-    ret = DhAgree(&dh, agree, &agreesz, priv, privsz, pub, pubsz);
+    agreesz = sizeof agree;
+    ret = lib_DhCalcSecret(&context, pub, DH_SIZE, agree, &agreesz);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Key Exchange: DhAgree failed: %d\n", ret);
+        SGX_DBG(DBG_S, "Key Exchange: DH CalcSecret failed: %d\n", ret);
         goto out;
     }
 
+    assert(agreesz > 0 && agreesz <= sizeof agree);
+    // TODO(security): use a real KDF
     memset(session_key, 0, sizeof(session_key));
     for (int i = 0 ; i < agreesz ; i++)
         session_key[i % sizeof(session_key)] ^= agree[i];
@@ -748,7 +713,8 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
 
     ret = 0;
 out:
-    FreeDhKey(&dh);
+    lib_DhFinal(&context);
+out_no_final:
     return ret;
 }
 

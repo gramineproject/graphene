@@ -19,7 +19,6 @@
 
 #include <pal.h>
 #include <pal_error.h>
-#include <linux_list.h>
 #include <atomic.h>
 
 #include <linux/futex.h>

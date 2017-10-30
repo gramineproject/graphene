@@ -25,7 +25,7 @@
 #ifndef CTAO_CRYPT_SHA256_H
 #define CTAO_CRYPT_SHA256_H
 
-#include "crypto/integer.h"
+#include "crypto/wolfssl/integer.h"
 
 /* in bytes */
 enum {

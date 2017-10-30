@@ -33,7 +33,7 @@
 
 #include <pal.h>
 #include <pal_error.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include <errno.h>
 

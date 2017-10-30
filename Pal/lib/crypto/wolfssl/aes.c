@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include "aes.h"
-#include "error-crypt.h"
+#include "crypto/wolfssl/aes.h"
+#include "crypto/wolfssl/error-crypt.h"
 #include "api.h"
 
 #define XMEMSET memset

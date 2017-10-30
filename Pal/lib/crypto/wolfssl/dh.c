@@ -25,9 +25,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "integer.h"
-#include "dh.h"
-#include "error-crypt.h"
+#include "crypto/wolfssl/integer.h"
+#include "crypto/wolfssl/dh.h"
+#include "crypto/wolfssl/error-crypt.h"
 
 /*
  * source

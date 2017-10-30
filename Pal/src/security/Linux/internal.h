@@ -24,7 +24,7 @@
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
 int printf (const char * fmt, ...);
-void * malloc (int size);
+void * malloc (size_t size);
 void free (void * mem);
 
 #endif /* __INTERNAL_H__ */
