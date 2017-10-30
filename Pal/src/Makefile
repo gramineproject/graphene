@@ -1,9 +1,7 @@
 export PAL_DIR = $(CURDIR)
 export RUNTIME_DIR = $(CURDIR)/../../Runtime
-
 include Makefile.Host
 -include Makefile.Status
-
 ifeq ($(DEBUG),1)
 BUILD_TARGET = $(PAL_HOST)-debug
 else
@@ -19,7 +17,6 @@ pal_lib_deps =
 pal_lib_post =
 pal_static =
 pal_gdb =
-
 include host/$(PAL_HOST)/Makefile.am
 
 CFLAGS	+= -I. -I../include -Ihost/$(PAL_HOST) -I../lib
@@ -68,7 +65,7 @@ files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb
 all: | check_target $(files_to_build) $(files_to_install)
 
 ifndef SAVED_TARGET
-SAVED_TARGET = $(BUILD_TARGET)
+	SAVED_TARGET = $(BUILD_TARGET)
 endif
 
 SAVED_OS = $(patsubst %-debug,%,$(SAVED_TARGET))
