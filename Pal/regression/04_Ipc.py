@@ -4,6 +4,14 @@ import os, sys, mmap
 from regression import Regression
 
 loader = os.environ['PAL_LOADER']
+try:
+    sgx = os.environ['SGX_RUN']
+except KeyError:
+    sgx = 0
+    
+if sgx:
+    print "Bulk IPC not supported on SGX"
+    exit(0)
 
 def prepare_files(args):
     with open("ipc_mapping.tmp", "w") as f:
@@ -56,4 +64,5 @@ regression.add_check(name="Map and Commit Huge Physical Memory",
     check=lambda res: "[Test 5] Physical Memory Commit OK" in res[0].log and
                       "[Test 5] Physical Memory Map   : Hello World" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
