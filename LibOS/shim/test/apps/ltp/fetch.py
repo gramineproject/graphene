@@ -90,6 +90,8 @@ def finish(result):
             if (not reported):
                 print >>broken_tests_fh, test
                 print CRED + "[Broken(b) ] " + test + CEND
+                for output in result['output']:
+                    print output
                 current_broken[test] = 1
 
     except Exception as e:
