@@ -46,8 +46,14 @@ def finish(result):
             count = 1
             for output in result['output']:
                 tokens = output.split()
+
                 if len(tokens) < 2:
                     continue
+
+                # Drop this line so that we get consistent offsets
+                if output == "WARNING: no physical memory support, process creation will be slow.\n":
+                    continue
+
                 if tokens[1].isdigit():
                     test_subtest = test + "," + tokens[1]
                     count = int(tokens[1]) + 1
