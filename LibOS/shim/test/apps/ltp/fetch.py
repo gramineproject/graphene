@@ -83,13 +83,13 @@ def finish(result):
                 elif "TCONF" in output or "TBROK" in output or "BROK" in output or "error" in output:
                     print >>broken_tests_fh, test_subtest
                     # Syscall not implemented or test preparation failed
-                    print "[Broken ] " + test_subtest
+                    print "[Broken(a) ] " + test_subtest + CEND
                     current_broken[test_subtest] = 1
                     reported = True
 
             if (not reported):
                 print >>broken_tests_fh, test
-                print CRED + "[Broken ] " + test + CEND
+                print CRED + "[Broken(b) ] " + test + CEND
                 current_broken[test] = 1
 
     except Exception as e:
