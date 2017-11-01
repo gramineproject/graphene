@@ -33,6 +33,7 @@ def run(cmd, timeout, test):
         return None
     finally:
         if p is not None and p.poll() is None:
+            print 'killing %s' % test
             os.killpg(os.getpgid(p.pid), signal.SIGKILL)
 
 def finish(result):
