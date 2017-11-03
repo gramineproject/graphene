@@ -900,6 +900,11 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
         }
 
         /* Assert we are really sorted */
+        if (!(!prev || prev->addr + prev->length <= tmp->addr)) {
+            warn("Prev is %p, tmp->addr = %llx\n", prev, tmp->addr);
+            if (prev)
+                warn("prev addr is %llx, len is %llx\n", prev->addr, prev->length);
+        }
         assert(!prev || prev->addr + prev->length <= tmp->addr);
         /* Insert in order; break once we are past the appropriate point  */
         if (tmp->addr > addr)
