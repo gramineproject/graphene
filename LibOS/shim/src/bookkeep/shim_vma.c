@@ -283,7 +283,6 @@ static int __bkeep_mmap (void * addr, uint64_t length,
                          const char * comment)
 {
     struct shim_vma * prev = NULL;
-    warn("__lookup_supervma: 1\n");
     struct shim_vma * tmp = __lookup_supervma(addr, length, &prev);
     int ret = 0;
 
@@ -514,7 +513,6 @@ static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
      *        ------map-----------
      */
 
-    warn("__lookup_supervma: 2\n");
     tmp = __lookup_supervma(addr, length, NULL);
 
     if (tmp) {
@@ -893,8 +891,11 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
                                             struct shim_vma ** pprev)
 {
     struct shim_vma * tmp, * prev = NULL;
-
+    warn("Starting lookup for %llx ..+ %llx", addr, length);
+    
     listp_for_each_entry(tmp, &vma_list, list) {
+        warn("Looking at %llx ..+ %llx", tmp->addr, tmp->length);
+
         if (test_vma_contain(tmp, addr, length)) {
             if (pprev)
                 *pprev = prev;
@@ -925,7 +926,6 @@ int lookup_supervma (const void * addr, uint64_t length, struct shim_vma ** vma)
 
     lock(vma_list_lock);
 
-    warn("__lookup_supervma: 3\n");
     if ((tmp = __lookup_supervma(addr, length, NULL)) && vma)
         get_vma((tmp));
 
