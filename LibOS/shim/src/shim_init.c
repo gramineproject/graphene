@@ -65,7 +65,7 @@ void warn (const char *format, ...)
 { 
     va_list args;
     va_start (args, format);
-    __sys_printf(format, args);
+    __sys_vprintf(format, &args);
     va_end (args);
 }
 
