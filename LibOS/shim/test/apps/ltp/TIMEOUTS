@@ -1,7 +1,8 @@
 testcase,timeout
-clone05,30
 alarm01,5
 alarm06,16
-waitpid05,160
+clone05,30
 kill09,40
 read01,40
+wait401,40
+waitpid05,160
