@@ -13,6 +13,11 @@ if sgx:
     print "Bulk IPC not supported on SGX"
     exit(0)
 
+## XXX Should really be running these tests as part of CI 
+if not os.path.exists('/dev/gipc'):
+    print "GIPC not loaded; skipping these tests\n"
+    exit(0)
+    
 def prepare_files(args):
     with open("ipc_mapping.tmp", "w") as f:
         f.write("Hello World")
