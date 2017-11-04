@@ -2,6 +2,7 @@ testcase,timeout
 alarm01,5
 alarm06,16
 clone05,30
+faccessat01,40
 kill09,40
 read01,40
 wait401,40
