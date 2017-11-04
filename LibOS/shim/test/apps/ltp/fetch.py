@@ -5,6 +5,7 @@ import time
 import signal
 import tempfile
 import multiprocessing
+import sys
 
 def run(cmd, timeout, test):
     try:
@@ -165,11 +166,16 @@ with open(stablePass, 'rb') as csvfile:
 
 print "\n\nRESULT [Difference] :\n---------------------\n"
 
+rv = 0
+
 for test in sorted(stable_passed):
     if not test in current_passed:
         print CRED + "Test '" + test + "' did not pass in the current run!!" + CEND
+        rv = -1
 
 for test in sorted(current_passed):
     if not test in stable_passed:
         print CGREEN + "Test '" + test + "' passed in the current run!!" + CEND
 print "\n"
+
+sys.exit(rv)
