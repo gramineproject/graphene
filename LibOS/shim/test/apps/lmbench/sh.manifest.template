@@ -25,6 +25,6 @@ sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
 
-sgx.trusted_files.hello = file:/tmp/hello
+sgx.trusted_files.hello = file:hello
 
 sgx.trusted_children.hello = file:hello.sig
