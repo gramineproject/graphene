@@ -37,8 +37,6 @@ sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
 sgx.trusted_files.sh = file:/bin/sh
 
-sgx.trusted_files.sh = file:/bin/sh
-
 sgx.allowed_files.tmp1 = file:/tmp
 sgx.allowed_files.tmp2 = file:/var/tmp
 sgx.allowed_files.inc = file:/usr/include/x86_64-linux-gnu/sys/types.h
