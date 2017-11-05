@@ -956,16 +956,16 @@ void __shrink_vmas (void)
 
     listp_for_each_entry_safe(vma, n, &vma_list, list) {
         if (!last)
-            goto unmap;
+            goto next;
 
         if (last->addr + last->length != vma->addr ||
             last->prot != vma->prot ||
             last->flags != vma->flags ||
             last->file != vma->file)
-            goto unmap;
+            goto next;
 
         if (last->file && last->offset + last->length != vma->offset)
-            goto unmap;
+            goto next;
 
         debug("shrink vma %p-%p and %p-%p\n", last->addr,
               last->addr + last->length, vma->addr, vma->addr + vma->length);
@@ -976,10 +976,6 @@ void __shrink_vmas (void)
 next:
         last = vma;
         continue;
-unmap:
-        if (vma->prot == PROT_NONE && !(vma->flags & VMA_TAINTED))
-            vma->flags |= VMA_UNMAPPED;
-        goto next;
     }
 }
 

@@ -276,7 +276,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
             return NULL;
 
         if (protect_size &&
-            bkeep_mmap(stack - protect_size, protect_size, 0,
+            bkeep_mmap(stack - protect_size, protect_size, PROT_NONE,
                        STACK_FLAGS, NULL, 0, NULL) < 0)
             return NULL;
     }
