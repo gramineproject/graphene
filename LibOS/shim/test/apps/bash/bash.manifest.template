@@ -36,6 +36,9 @@ sgx.trusted_files.libtinfo = file:/lib/x86_64-linux-gnu/libtinfo.so.5
 sgx.trusted_files.ls = file:/bin/ls
 sgx.trusted_files.cp = file:/bin/cp
 sgx.trusted_files.rm = file:/bin/rm
+sgx.trusted_files.date = file:/bin/date
+sgx.trusted_files.cat = file:/bin/cat
+sgx.trusted_files.testdir = file:testdir/x
 
 sgx.trusted_children.ls = file:ls.sig
 sgx.trusted_children.cp = file:cp.sig
