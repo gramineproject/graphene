@@ -61,4 +61,5 @@ regression.add_check(name="Set File Length",
 regression.add_check(name="File Deletion",
     check=lambda res: not os.path.exists("file_delete.tmp"))
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

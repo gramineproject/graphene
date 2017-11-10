@@ -37,4 +37,5 @@ regression.add_check(name="Bound UDP Socket Transmission",
                       "UDP Write 4 OK" in res[0].log and
                       "UDP Read 4: Hello World 2" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

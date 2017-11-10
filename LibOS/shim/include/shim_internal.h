@@ -83,6 +83,7 @@ void debug_vprintf (const char * fmt, va_list * ap);
 #define SYSPRINT_BUFFER_SIZE    256
 
 void handle_printf (PAL_HANDLE hdl, const char * fmt, ...);
+void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap);
 
 #define __sys_printf(fmt, ...)                                              \
     do {                                                                    \
@@ -90,6 +91,14 @@ void handle_printf (PAL_HANDLE hdl, const char * fmt, ...);
         if (_hdl)                                                           \
            handle_printf(_hdl, (fmt), ##__VA_ARGS__);                       \
     } while (0)
+
+#define __sys_vprintf(fmt, va)                                              \
+    do {                                                                    \
+        PAL_HANDLE _hdl = __open_shim_stdio();                              \
+        if (_hdl)                                                           \
+            handle_vprintf(_hdl, (fmt), (va));                              \
+    } while (0)
+
 
 #define __sys_fprintf(hdl, fmt, ...)                                        \
     do {                                                                    \

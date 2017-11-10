@@ -48,7 +48,7 @@ fputch(void * f, int ch, struct printbuf * b)
     return 0;
 }
 
-static int
+int
 vprintf(const char * fmt, va_list *ap)
 {
     struct printbuf b;
