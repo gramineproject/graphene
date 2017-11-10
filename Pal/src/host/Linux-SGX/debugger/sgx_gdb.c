@@ -25,9 +25,9 @@
 static
 long int __host_ptrace (enum __ptrace_request request, va_list * ap)
 {
-    pid_t pid = va_arg(ap, pid_t);
-    void * addr = va_arg(ap, void *);
-    void * data = va_arg(ap, void *);
+    pid_t pid = va_arg(*ap, pid_t);
+    void * addr = va_arg(*ap, void *);
+    void * data = va_arg(*ap, void *);
     long int res, ret;
 
     if (request > 0 && request < 4)
