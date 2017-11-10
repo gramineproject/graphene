@@ -20,4 +20,5 @@ regression.add_check(name="Exception Handler Swap",
 regression.add_check(name="Exception Handling (Set Context)",
     check=lambda res: any([line.startswith("Div-by-Zero Exception Handler 1") for line in res[0].log]))
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

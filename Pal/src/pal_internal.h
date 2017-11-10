@@ -419,6 +419,8 @@ void free (void * mem);
 
 void _DkPrintConsole (const void * buf, int size);
 int printf  (const char  *fmt, ...);
+#include <stdarg.h>
+int vprintf(const char * fmt, va_list *ap);
 void write_log (int nstrs, ...);
 
 static inline void log_stream (const char * uri)

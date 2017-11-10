@@ -142,14 +142,13 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     if (baseaddr) {
         secs->baseaddr = (uint64_t) baseaddr & ~(secs->size - 1);
-        flags |= MAP_FIXED;
     } else {
-        secs->baseaddr = 0ULL;
+        secs->baseaddr = ENCLAVE_HIGH_ADDRESS;
     }
 
     uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, secs->size,
-                                   PROT_READ|PROT_WRITE|PROT_EXEC, flags,
-                                   isgx_device, 0);
+                                   PROT_READ|PROT_WRITE|PROT_EXEC,
+                                   flags|MAP_FIXED, isgx_device, 0);
 
     if (IS_ERR_P(addr)) {
         if (ERRNO_P(addr) == 1 && (flags | MAP_FIXED))

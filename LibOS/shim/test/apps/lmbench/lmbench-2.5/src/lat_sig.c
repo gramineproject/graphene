@@ -28,12 +28,14 @@ void	handler() { }
 #define ITER_UNITS 50
 
 void	prot() {
-
 	if (++caught == to_catch) {
 		double	u;
 		double mean;
 		double var;
-
+		char *buffer;
+		double ci;
+		int n;
+		double level;
 
 		u = stop(0,0);
 		u /= (double) to_catch;
@@ -41,17 +43,34 @@ void	prot() {
 		times[pos++] = u;
 		
 		mean = calc_mean(times, pos);
-		fprintf(stderr, "mean=%.4f adj_mean=%.4f\n", mean, adj_mean);
-		
 		var = calc_variance(mean, times, pos);
-		fprintf(stderr, "var=%.4f adj_var=%.4f\n", var, adj_var);
-
 		mean -= adj_mean;
 		var += adj_var;
+		ci = ci_width(sqrt(var), pos);
 
-		fprintf(stderr, "Protection fault: "
-			"[mean=%.4lf +/-%.4lf] microseconds\n",
-			mean, ci_width(sqrt(var), pos));
+		buffer = malloc(80);
+		n = 0;
+		strcpy(buffer + n, "mean=");
+		n += 5;
+		for (level = 1; level < mean; level *= 10);
+		while (level > 0.0001) {
+			if (level == 1) buffer[n++] = '.';
+			level /= 10;
+			buffer[n++] = '0' + (int) (mean / level);
+			mean -= ((int) (mean / level)) * level;
+		}
+		strcpy(buffer + n, " +/-");
+		n += 4;
+		for (level = 1; level < ci; level *= 10);
+		while (level > 0.0001) {
+			if (level == 1) buffer[n++] = '.';
+			level /= 10;
+			buffer[n++] = '0' + (int) (ci / level);
+			mean -= ((int) (ci / level)) * level;
+		}
+		n += 4;
+		buffer[n++] = '\n';
+		write(2, buffer, n);
 
 		exit(0);
 	}

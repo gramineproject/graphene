@@ -4,6 +4,10 @@ import os, sys, mmap
 from regression import Regression
 
 loader = os.environ['PAL_LOADER']
+try:
+    sgx = os.environ['SGX_RUN']
+except KeyError:
+    sgx = 0
 
 regression = Regression(loader, "Memory")
 
@@ -13,11 +17,11 @@ regression.add_check(name="Memory Allocation",
 regression.add_check(name="Memory Allocation with Address",
     check=lambda res: "Memory Allocation with Address OK" in res[0].log)
 
-regression.add_check(name="Memory Protection",
+regression.add_check(name="Memory Protection", flaky = sgx,
     check=lambda res: "Memory Allocation Protection (RW) OK" in res[0].log and
                       "Memory Protection (R) OK" in res[0].log)
 
-regression.add_check(name="Memory Deallocation",
+regression.add_check(name="Memory Deallocation", flaky = sgx,
     check=lambda res: "Memory Deallocation OK" in res[0].log)
 
 def check_quota(res):
@@ -31,4 +35,5 @@ regression.add_check(name="Get Memory Total Quota", check=check_quota)
 regression.add_check(name="Get Memory Available Quota",
     check=lambda res: "Get Memory Available Quota OK" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

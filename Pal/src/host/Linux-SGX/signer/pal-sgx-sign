@@ -738,6 +738,8 @@ if __name__ == "__main__":
 
     if len([a for a in memory_areas if a.addr is not None]) > 0:
         manifest['sgx.static_address'] = '1'
+    else:
+        ENCLAVE_HEAP_MIN = 0
 
     # Add manifest at the top
     shutil.copy2(args['manifest'], args['output'])
