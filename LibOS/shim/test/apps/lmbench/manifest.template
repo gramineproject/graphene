@@ -26,6 +26,7 @@ net.allow_bind.1 = 0.0.0.0:31233-31237
 net.allow_bind.2 = 0.0.0.0:34297-34298
 net.allow_peer.1 = 127.0.0.1:0-65535
 
+glibc.heap_size = 16M
 sys.brk.size = 32M
 sys.stack.size = 4M
 

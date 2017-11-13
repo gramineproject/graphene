@@ -354,9 +354,14 @@ err:
     SAVE_PROFILE_INTERVAL(open_file_for_exec);
 
 #if EXECVE_RTLD == 1
-    int is_last = check_last_thread(cur_thread) == 0;
-    if (is_last)
-        return shim_do_execve_rtld(exec, argv, envp);
+    if (!strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+        int is_last = check_last_thread(cur_thread) == 0;
+        if (is_last) {
+            debug("execve() in the same process\n");
+            return shim_do_execve_rtld(exec, argv, envp);
+        }
+        debug("execve() in a new process\n");
+    }
 #endif
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);

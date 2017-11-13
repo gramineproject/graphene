@@ -31,7 +31,7 @@ endif
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader) $(pal_sec)
 
-defs	= -DIN_PAL -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
+defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
 	  -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf

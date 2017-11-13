@@ -185,7 +185,8 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     void * umem;
     int ret;
 
-    if (!stubs && !mem) {
+    if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
+map_untrusted:
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
         if (!ret)

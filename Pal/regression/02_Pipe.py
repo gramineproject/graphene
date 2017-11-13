@@ -22,4 +22,5 @@ regression.add_check(name="Pipe Transmission",
                       "Pipe Write 2 OK" in res[0].log and
                       "Pipe Read 2: Hello World 2" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

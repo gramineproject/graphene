@@ -1,5 +1,16 @@
 testcase,timeout
-clone05,30
 alarm01,5
 alarm06,16
+clone05,30
+faccessat01,40
+fchmod07,40
+fcntl13_64,40
+fsync03,40
+mprotect04,40
+kill09,40
+preadv01,40
+read01,40
+setuid02,40
+syscall01,40
+wait401,40
 waitpid05,160
