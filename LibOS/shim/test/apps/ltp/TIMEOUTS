@@ -6,6 +6,7 @@ faccessat01,40
 fchmod07,40
 fcntl13_64,40
 fsync03,40
+gethostname01,40
 mprotect04,40
 kill09,40
 preadv01,40
