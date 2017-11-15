@@ -21,6 +21,6 @@ sendfile03_64,40
 setuid02,40
 sigaltstack02,40
 stat05_64,40
-syscall01,40
+syscall01,80
 wait401,40
 waitpid05,160
