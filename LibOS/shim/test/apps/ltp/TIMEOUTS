@@ -10,6 +10,7 @@ mprotect04,40
 kill09,40
 preadv01,40
 read01,40
+sendfile03_64,40
 setuid02,40
 syscall01,40
 wait401,40
