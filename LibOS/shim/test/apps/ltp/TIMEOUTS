@@ -6,6 +6,7 @@ faccessat01,40
 fchdir02,40
 fchmod07,40
 fcntl13_64,40
+fork02,40
 fsync03,40
 gethostname01,40
 gettid01,40
