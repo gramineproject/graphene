@@ -11,6 +11,7 @@ ARFLAGS	=
 include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src
+
 subdirs = string stdlib network graphene util crypto
 headers = api.h pal_crypto.h
 

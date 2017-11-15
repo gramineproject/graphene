@@ -85,6 +85,7 @@ typedef struct __attribute__((packed)) slab_obj {
 #define AREA_PADDING 12
 
 DEFINE_LIST(slab_area);
+
 typedef struct __attribute__((packed)) slab_area {
     LIST_TYPE(slab_area) __list;
     unsigned int size;

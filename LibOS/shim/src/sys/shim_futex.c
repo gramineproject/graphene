@@ -186,6 +186,8 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             /* DEP 1/28/17: Should return ETIMEDOUT, not EAGAIN, on timeout. */
             if (ret == -EAGAIN)
                 ret = -ETIMEDOUT;
+            if (ret == -ETIMEDOUT)
+                listp_del(&waiter, &futex->waiters, list);
             lock(hdl->lock);
             /* Chia-Che 10/17/17: FUTEX_WAKE should remove the waiter
              * from the list; if not, we should remove it now. */
@@ -200,7 +202,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             int nwaken = 0;
             uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? val3 :
                               0xffffffff;
-
+            
             debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",
                   uaddr, *uaddr, val, bitset);
 
@@ -210,6 +212,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
 
                 debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
+
                 listp_del_init(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
                 nwaken++;

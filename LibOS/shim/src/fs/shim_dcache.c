@@ -182,7 +182,6 @@ static inline void __dput_dentry (struct shim_dentry * dent)
              * on a list; just hack this for now; this code will be reworked
              * soon anyway.
              */
-
             /* Chia-Che 10/17/17: Originally we place all the freed
              * dentries on an unused list, now we just maintain a long list
              * of all dentries. */

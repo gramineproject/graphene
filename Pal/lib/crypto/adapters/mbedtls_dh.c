@@ -15,11 +15,15 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#include <errno.h>
+#include <limits.h>
 #include "pal.h"
-#include "pal_crypto.h"
 #include "pal_error.h"
+#include "pal_crypto.h"
 #include "pal_debug.h"
 #include "assert.h"
+
+#define BITS_PER_BYTE 8
 
 /* This is declared in pal_internal.h, but that can't be included here. */
 int _DkRandomBitsRead(void *buffer, int size);
@@ -103,3 +107,4 @@ void lib_DhFinal(LIB_DH_CONTEXT *context)
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);
 }
+
