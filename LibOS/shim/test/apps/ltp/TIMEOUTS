@@ -8,6 +8,9 @@ fcntl13_64,40
 fsync03,40
 mprotect04,40
 kill09,40
+lseek02,40
+pread01_64,40
+pread02,40
 preadv01,40
 read01,40
 sendfile03_64,40
