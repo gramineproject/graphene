@@ -401,8 +401,8 @@ done:
     ret = bytes;
     /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
      * hold anything */
-    if (bytes == 0 && ((dirhdl->ptr && *dirhdl->ptr)
-                       || dirhdl->dotdot || dirhdl->dot))
+    if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || 
+                       (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
     unlock(hdl->lock);
 out:
@@ -494,8 +494,8 @@ done:
     ret = bytes;
     /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
      * hold anything */
-    if (bytes == 0 && ((dirhdl->ptr && *dirhdl->ptr)
-                       || dirhdl->dotdot || dirhdl->dot))
+    if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || 
+                       (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
     unlock(hdl->lock);
 out:
