@@ -695,7 +695,6 @@ int list_directory_dentry (struct shim_dentry *dent) {
 done_read:
     unlock(dcache_lock);
 
-
 out:
     return ret;
 }

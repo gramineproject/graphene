@@ -6,3 +6,4 @@ master.zip
 opt/
 run_output
 syscalls.graphene
+ltp-full-*

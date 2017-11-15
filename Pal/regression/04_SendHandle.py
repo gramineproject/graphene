@@ -27,4 +27,5 @@ regression.add_check(name="Send Socket Handle",
 regression.add_check(name="Send File Handle",
         check=lambda res: check_times("Receive File Handle: Hello World", res[0].log, 1))
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

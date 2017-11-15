@@ -618,7 +618,7 @@ void DkStreamUnmap (PAL_PTR addr, PAL_NUM size)
 
 /* _DkStreamSetLength for internal use. This function truncate the stream
    to certain length. This call might not be support for certain streams */
-uint64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length)
+int64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length)
 {
     if (UNKNOWN_HANDLE(handle))
         return -PAL_ERROR_BADHANDLE;
@@ -643,7 +643,7 @@ DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length)
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    uint64_t ret = _DkStreamSetLength(handle, length);
+    int64_t ret = _DkStreamSetLength(handle, length);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

@@ -87,7 +87,7 @@ static LISTP_TYPE(range) range_table [RANGE_HASH_NUM];
 /* These lists organizes range structs by list 
  */
 static LISTP_TYPE(range) owned_ranges;
-static LISTP_TYPE(range) offered_ranges;                         
+static LISTP_TYPE(range) offered_ranges;
 static int nowned = 0;
 static int noffered = 0;
 static int nsubed = 0;
@@ -274,15 +274,18 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
         listp_for_each_entry(tmp, head, hlist)
             if (tmp->offset == off) {
                 listp_del(tmp, head, hlist);
-                /* DEP 5/15/17: I am less confident about this, but I 
-                 * believe that, if r->owner is non-NULL, it is owned, and 
-                 * otherwise it is on offered */
-                if (tmp->owner) {
+
+                /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
+                 * and tmp->owner->vmid == cur_process.vmid, tmp is on the
+                 * owned list, otherwise it is an offered. */
+                if (tmp->owner && tmp->owner->vmid == cur_process.vmid)
                     listp_del(tmp, &owned_ranges, list);
-                    put_client(tmp->owner);
-                } else { 
+                else
                     listp_del(tmp, &offered_ranges, list);
-                }
+
+                if (tmp->owner)
+                    put_client(tmp->owner);
+
                 r->used = tmp->used;
                 r->subranges = tmp->subranges;
                 free(tmp);
@@ -541,11 +544,15 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     // Re-acquire the head; kind of ugly
     LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
     listp_del(r, head, hlist);
-    if (r->owner) {
+
+    /* Chia-Che Tsai 10/17/17: only when r->owner is non-NULL,
+     * and r->owner->vmid == cur_process.vmid, r is on the
+     * owned list, otherwise it is an offered. */
+    if (r->owner && r->owner->vmid == cur_process.vmid)
         listp_del(r, &owned_ranges, list);
-    } else { 
+    else
         listp_del(r, &offered_ranges, list);
-    }
+
     put_ipc_info(r->owner);
     free(r);
 

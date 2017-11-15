@@ -6,7 +6,7 @@
 #include "sgx_internal.h"
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
-#include "sgx-driver/graphene-sgx.h"
+#include "graphene-sgx.h"
 
 #include <asm/errno.h>
 
@@ -18,18 +18,12 @@ void * zero_page;
 
 int open_gsgx(void)
 {
-    int fd = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR, 0);
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
-
-    gsgx_device = fd;
-
-    fd = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR, 0);
-    if (IS_ERR(fd))
-        return -ERRNO(fd);
-
-    isgx_device = fd;
-    
+    gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR, 0);
+    if (IS_ERR(gsgx_device))
+        return -ERRNO(gsgx_device);
+    isgx_device = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR, 0);
+    if (IS_ERR(isgx_device))
+        return -ERRNO(isgx_device);
     return 0;
 }
 
@@ -125,8 +119,6 @@ int create_enclave(sgx_arch_secs_t * secs,
                    sgx_arch_token_t * token)
 {
     int flags = MAP_SHARED;
-    if (gsgx_device == -1)
-        return -EACCES;
 
     if (!zero_page) {
         zero_page = (void *)
@@ -148,17 +140,15 @@ int create_enclave(sgx_arch_secs_t * secs,
     memcpy(&secs->mrenclave, &token->mrenclave, sizeof(sgx_arch_hash_t));
     memcpy(&secs->mrsigner,  &token->mrsigner,  sizeof(sgx_arch_hash_t));
 
-    struct gsgx_enclave_create param;
     if (baseaddr) {
         secs->baseaddr = (uint64_t) baseaddr & ~(secs->size - 1);
-        flags |= MAP_FIXED;
     } else {
-        secs->baseaddr = 0ULL;
+        secs->baseaddr = ENCLAVE_HIGH_ADDRESS;
     }
 
-    uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, size,
-                                   PROT_READ|PROT_WRITE|PROT_EXEC, flags,
-                                   isgx_device, 0);
+    uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, secs->size,
+                                   PROT_READ|PROT_WRITE|PROT_EXEC,
+                                   flags|MAP_FIXED, isgx_device, 0);
 
     if (IS_ERR_P(addr)) {
         if (ERRNO_P(addr) == 1 && (flags | MAP_FIXED))
@@ -171,13 +161,22 @@ int create_enclave(sgx_arch_secs_t * secs,
     }
 
     secs->baseaddr = addr;
-    param.src = (uint64_t) secs;
+
+#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
+    struct sgx_enclave_create param = {
+        .src = (uint64_t) secs,
+    };
+    int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_CREATE,
+                         &param);
+#else
+    struct gsgx_enclave_create param = {
+        .src = (uint64_t) secs,
+    };
     int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_CREATE,
                          &param);
-    
+#endif
+
     if (IS_ERR(ret)) {
-        if (ERRNO(ret) == EBADF)
-            gsgx_device = -1;
         SGX_DBG(DBG_I, "enclave ECREATE failed in enclave creation ioctl - %d\n", ERRNO(ret));
         return -ERRNO(ret);
     }
@@ -208,11 +207,8 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                          bool skip_eextend,
                          const char * comment)
 {
-    if (gsgx_device == -1)
-        return -EACCES;
-
-    struct gsgx_enclave_add_pages param;
     sgx_arch_secinfo_t secinfo;
+    int ret;
 
     memset(&secinfo, 0, sizeof(sgx_arch_secinfo_t));
 
@@ -231,17 +227,6 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
             if (prot & PROT_EXEC)
                 secinfo.flags |= SGX_SECINFO_FLAGS_X;
             break;
-    }
-
-    param.addr = secs->baseaddr + (uint64_t) addr;
-    param.user_addr = (uint64_t) user_addr;
-    param.size = size;
-    param.secinfo = (uint64_t) &secinfo;
-    param.flags = skip_eextend ? GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND : 0;
-
-    if (!param.user_addr) {
-        param.user_addr = (unsigned long) zero_page;
-        param.flags |= GSGX_ENCLAVE_ADD_PAGES_REPEAT_SRC;
     }
 
     char p[4] = "---";
@@ -265,15 +250,49 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                 addr, addr + size, t, p, comment, m);
 
 
-    int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device,
-                             GSGX_IOCTL_ENCLAVE_ADD_PAGES,
-                             &param);
+#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
+    struct sgx_enclave_add_page param = {
+        .addr       = secs->baseaddr + (uint64_t) addr,
+        .src        = (uint64_t) (user_addr ? : zero_page),
+        .secinfo    = (uint64_t) &secinfo,
+        .mrmask     = skip_eextend ? 0 : (uint16_t) -1,
+    };
+
+    uint64_t added_size = 0;
+    while (added_size < size) {
+        ret = INLINE_SYSCALL(ioctl, 3, isgx_device,
+                             SGX_IOC_ENCLAVE_ADD_PAGE, &param);
+        if (IS_ERR(ret)) {
+            SGX_DBG(DBG_I, "Enclave add page returned %d\n", ret);
+            return -ERRNO(ret);
+        }
+
+        param.addr += pagesize;
+        if (param.src != (uint64_t) zero_page) param.src += pagesize;
+        added_size += pagesize;
+    }
+#else
+    struct gsgx_enclave_add_pages param = {
+        .addr       = secs->baseaddr + (uint64_t) addr,
+        .user_addr  = (uint64_t) user_addr,
+        .size       = size,
+        .secinfo    = (uint64_t) &secinfo,
+        .flags      = skip_eextend ? GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND : 0,
+    };
+
+    if (!user_addr) {
+        param.user_addr = (unsigned long) zero_page;
+        param.flags |= GSGX_ENCLAVE_ADD_PAGES_REPEAT_SRC;
+    }
+
+    ret = INLINE_SYSCALL(ioctl, 3, gsgx_device,
+                         GSGX_IOCTL_ENCLAVE_ADD_PAGES,
+                         &param);
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_I, "Enclave add page returned %d\n", ret);
-        if (ERRNO(ret) == EBADF)
-            gsgx_device = -1;
         return -ERRNO(ret);
     }
+#endif
 
     return 0;
 }
@@ -282,9 +301,6 @@ int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_sigstruct_t * sigstruct,
                  sgx_arch_token_t * token)
 {
-    if (gsgx_device == -1)
-        return -EACCES;
-
     unsigned long enclave_valid_addr =
                 secs->baseaddr + secs->size - pagesize;
 
@@ -295,23 +311,48 @@ int init_enclave(sgx_arch_secs_t * secs,
         SGX_DBG(DBG_I, " %02x", sigstruct->enclave_hash[i]);
     SGX_DBG(DBG_I, "\n");
 
-    struct gsgx_enclave_init param;
-    param.addr = enclave_valid_addr;
-    // DEP 11/6/16: I think sigstruct and token are supposed to
-    //              be pointers in the new driver
-    param.sigstruct = (uint64_t) sigstruct;
-    param.einittoken = (uint64_t) token;
-
+#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
+    struct sgx_enclave_init param = {
+        .addr           = enclave_valid_addr,
+        .sigstruct      = (uint64_t) sigstruct,
+        .einittoken     = (uint64_t) token,
+    };
+    int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_INIT,
+                             &param);
+#else
+    struct gsgx_enclave_init param = {
+        .addr           = enclave_valid_addr,
+        .sigstruct      = (uint64_t) sigstruct,
+        .einittoken     = (uint64_t) token,
+    };
     int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_INIT,
                              &param);
+#endif
+
     if (IS_ERR(ret)) {
-        if (ERRNO(ret) == EBADF)
-            gsgx_device = -1;
         return -ERRNO(ret);
     }
 
     if (ret) {
-        SGX_DBG(DBG_I, "enclave EINIT failed\n");
+        const char * error;
+        /* DEP 3/22/17: Try to improve error messages */
+        switch(ret) {
+        case SGX_INVALID_SIG_STRUCT:
+            error = "Invalid SIGSTRUCT";          break;
+        case SGX_INVALID_ATTRIBUTE:
+            error = "Invalid enclave attribute";  break;
+        case SGX_INVALID_MEASUREMENT:
+            error = "Invalid measurement";        break;
+        case SGX_INVALID_SIGNATURE:
+            error = "Invalid signature";          break;
+        case SGX_INVALID_LICENSE:
+            error = "Invalid EINIT token";        break;
+        case SGX_INVALID_CPUSVN:
+            error = "Invalid CPU SVN";            break;
+        default:
+            error = "Unknown reason";             break;
+        }
+        SGX_DBG(DBG_I, "enclave EINIT failed - %s\n", error);
         return -EPERM;
     }
 

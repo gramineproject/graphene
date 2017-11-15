@@ -65,7 +65,7 @@ void warn (const char *format, ...)
 { 
     va_list args;
     va_start (args, format);
-    __sys_printf(format, args);
+    __sys_vprintf(format, &args);
     va_end (args);
 }
 
@@ -661,6 +661,8 @@ int shim_init (int argc, void * args, void ** return_stack)
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();
 #endif
+
+    debug("host: %s\n", PAL_CB(host_type));
 
     DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE, 0);
 

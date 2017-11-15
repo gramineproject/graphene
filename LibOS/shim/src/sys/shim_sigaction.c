@@ -39,11 +39,12 @@
 #include <linux/signal.h>
 
 int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
-                       struct __kernel_sigaction * oldact)
+                       struct __kernel_sigaction * oldact, size_t sigsetsize)
 {
     /* SIGKILL and SIGSTOP cannot be caught or ignored */
     if (signum == SIGKILL || signum == SIGSTOP ||
-        signum <= 0 || signum > NUM_SIGS)
+        signum <= 0 || signum > NUM_SIGS ||
+        sigsetsize != sizeof(__sigset_t))
         return -EINVAL;
 
     struct shim_thread * cur = get_cur_thread();
@@ -145,14 +146,19 @@ int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
         return -EINVAL;
 
     struct shim_thread * cur = get_cur_thread();
-    int err = 0;
-
     lock(cur->lock);
 
     if (oss)
         *oss = cur->signal_altstack;
-    if (ss)
+
+    if (ss) {
+        if (ss->ss_size < MINSIGSTKSZ) {
+            unlock(cur->lock);
+            return -ENOMEM;
+        }
+
         cur->signal_altstack = *ss;
+    }
 
     unlock(cur->lock);
     return 0;
@@ -162,7 +168,6 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 {
     __sigset_t * old, tmp;
     struct shim_thread * cur = get_cur_thread();
-    int err = 0;
 
     lock(cur->lock);
 
@@ -174,12 +179,28 @@ int shim_do_sigsuspend (const __sigset_t * mask)
     cur->suspend_on_signal = true;
     thread_setwait(NULL, NULL);
     thread_sleep(NO_TIMEOUT);
-out:
+
     unlock(cur->lock);
     set_sig_mask(cur, old);
+    return -EINTR;
+}
 
-    return err;
+int shim_do_sigpending (__sigset_t * set, size_t sigsetsize)
+{
+    struct shim_thread * cur = get_cur_thread();
 
+    __sigemptyset(set);
+
+    if (!cur->signal_logs)
+        return 0;
+
+    for (int sig = 1 ; sig <= NUM_SIGS ; sig++) {
+        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
+            atomic_read(&cur->signal_logs[sig - 1].tail))
+            __sigaddset(set, sig);
+    }
+
+    return 0;
 }
 
 struct walk_arg {
@@ -471,7 +492,7 @@ int shim_do_kill (pid_t pid, int sig)
        specified by pid. */
     else if (pid > 0) {
         ret = do_kill_proc(cur->tid, pid, sig, true);
-        send_to_self = (pid == cur->pgid);
+        send_to_self = (pid == cur->tgid);
     }
 
     /* If pid is less than -1, then sig is sent to every process in the

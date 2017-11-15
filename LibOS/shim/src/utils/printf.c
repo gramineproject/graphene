@@ -186,3 +186,8 @@ void handle_printf (PAL_HANDLE hdl, const char * fmt, ...)
     sys_vfprintf(hdl, fmt, &ap);
     va_end(ap);
 }
+
+void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap)
+{
+    sys_vfprintf(hdl, fmt, ap);
+}

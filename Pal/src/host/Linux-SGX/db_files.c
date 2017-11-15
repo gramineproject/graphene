@@ -65,7 +65,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     get_norm_path(uri, path, 0, len + 1);
     hdl->file.realpath = (PAL_STR) path;
 
-    sgx_arch_mac_t * stubs;
+    sgx_stub_t * stubs;
     uint64_t total;
     int ret = load_trusted_file(hdl, &stubs, &total);
     if (ret < 0) {
@@ -86,7 +86,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 static int file_read (PAL_HANDLE handle, int offset, int count,
                       void * buffer)
 {
-    sgx_arch_mac_t * stubs = (sgx_arch_mac_t *) handle->file.stubs;
+    sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
     int ret;
 
@@ -179,13 +179,14 @@ static int file_delete (PAL_HANDLE handle, int access)
 static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                      uint64_t offset, uint64_t size)
 {
-    sgx_arch_mac_t * stubs = (sgx_arch_mac_t *) handle->file.stubs;
+    sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
     void * mem = *addr;
     void * umem;
     int ret;
 
-    if (!stubs && !mem) {
+    if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
+map_untrusted:
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
         if (!ret)
@@ -243,13 +244,13 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 }
 
 /* 'setlength' operation for file stream. */
-static uint64_t file_setlength (PAL_HANDLE handle, uint64_t length)
+static int64_t file_setlength (PAL_HANDLE handle, uint64_t length)
 {
     int ret = ocall_ftruncate(handle->file.fd, length);
     if (ret < 0)
         return ret;
     handle->file.total = length;
-    return length;
+    return (int64_t) length;
 }
 
 /* 'flush' operation for file stream. */
@@ -330,7 +331,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
     int fd = HANDLE_HDR(handle)->fds[0];
-    int ret = ocall_fchmod(fd, attr->share_flags);
+    int ret = ocall_fchmod(fd, attr->share_flags | 0600);
     if (ret < 0)
         return ret;
 

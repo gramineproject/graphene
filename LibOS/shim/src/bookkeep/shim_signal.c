@@ -54,6 +54,8 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
     } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
 
+    debug("signal_logs[%d]: head=%d, tail=%d\n", sig -1, head, tail);
+
     atomic_inc(&thread->has_signal);
 
     return &log->logs[old_tail];
@@ -84,6 +86,8 @@ fetch_signal_log (shim_tcb_t * tcb, struct shim_thread * thread, int sig)
 
         log->logs[old_head] = signal;
     }
+
+    debug("signal_logs[%d]: head=%d, tail=%d\n", sig -1, head, tail);
 
     atomic_dec(&thread->has_signal);
 
@@ -262,10 +266,23 @@ internal:
             put_vma(vma);
             goto internal;
         }
-        if (vma->file) {
-            /* XXX: need more sophisticated judgement */
-            signo = SIGBUS;
-            code = BUS_ADRERR;
+        if (vma->file && vma->file->type == TYPE_FILE) {
+            /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
+             * then return a SIGBUS. */
+            uint64_t eof_in_vma = (uint64_t) vma->addr + vma->offset + vma->file->info.file.size;
+            if (arg > eof_in_vma) {
+                signo = SIGBUS;
+                code = BUS_ADRERR;
+            } else if ((context->err & 4) && !(vma->flags & PROT_WRITE)) {
+                /* DEP 3/3/17: If the page fault gives a write error, and
+                 * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
+                signo = SIGSEGV;
+                code = SEGV_ACCERR;
+            } else {
+                /* XXX: need more sophisticated judgement */
+                signo = SIGBUS;
+                code = BUS_ADRERR;
+            }
         } else {
             code = SEGV_ACCERR;
         }
@@ -379,7 +396,8 @@ __sigset_t * get_sig_mask (struct shim_thread * thread)
     return &(thread->signal_mask);
 }
 
-__sigset_t * set_sig_mask (struct shim_thread * thread, __sigset_t * set)
+__sigset_t * set_sig_mask (struct shim_thread * thread,
+                           const __sigset_t * set)
 {
     if (!thread)
         thread = get_cur_thread();
@@ -565,8 +583,15 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
                 break;
         }
 
-    try_process_exit(0);
+    try_process_exit(0, sig);
     DkThreadExit();
+}
+
+/* We don't currently implement core dumps, but put a wrapper
+ * in case we do in the future */
+static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
+{
+    sighandler_kill(sig, info, ucontext);
 }
 
 static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
@@ -575,7 +600,7 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
         /* SIGINT */    &sighandler_kill,
         /* SIGQUIT */   &sighandler_kill,
         /* SIGILL */    &sighandler_kill,
-        /* SIGTRAP */   NULL,
+        /* SIGTRAP */   &sighandler_core,
         /* SIGABRT */   &sighandler_kill,
         /* SIGBUS */    &sighandler_kill,
         /* SIGFPE */    &sighandler_kill,
@@ -584,7 +609,7 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
         /* SIGSEGV */   &sighandler_kill,
         /* SIGUSR2 */   NULL,
         /* SIGPIPE */   &sighandler_kill,
-        /* SIGALRM */   NULL,
+        /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
         /* SIGSTKFLT */ NULL,
         /* SIGCHLD */   NULL,

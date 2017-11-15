@@ -71,6 +71,8 @@ static elf_auxv_t *  new_auxp;
 
 #define REQUIRED_ELF_AUXV       6
 
+int init_brk_from_executable (struct shim_handle * exec);
+
 int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
                          const char ** envp)
 {
@@ -127,13 +129,14 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     clean_link_map_list();
     SAVE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec);
 
-    init_brk();
+    reset_brk();
     unmap_all_vmas();
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
         shim_terminate();
 
+    init_brk_from_executable(cur_thread->exec);
     load_elf_interp(cur_thread->exec);
 
     SAVE_PROFILE_INTERVAL(load_new_executable_for_exec);
@@ -227,6 +230,7 @@ int shim_do_execve (const char * file, const char ** argv,
     };
     DEFINE_LISTP(sharg);
     LISTP_TYPE(sharg) shargs;
+    INIT_LISTP(&shargs);
 
 reopen:
 
@@ -352,9 +356,14 @@ err:
     SAVE_PROFILE_INTERVAL(open_file_for_exec);
 
 #if EXECVE_RTLD == 1
-    int is_last = check_last_thread(cur_thread) == 0;
-    if (is_last)
-        return shim_do_execve_rtld(exec, argv, envp);
+    if (!strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+        int is_last = check_last_thread(cur_thread) == 0;
+        if (is_last) {
+            debug("execve() in the same process\n");
+            return shim_do_execve_rtld(exec, argv, envp);
+        }
+        debug("execve() in a new process\n");
+    }
 #endif
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
@@ -420,6 +429,6 @@ err:
     if (cur_thread->dummy)
         switch_dummy_thread(cur_thread);
 
-    try_process_exit(0);
+    try_process_exit(0, 0);
     return 0;
 }

@@ -321,6 +321,12 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
         goto out;
     }
 
+    /* DEP 3/3/17: Properly handle an unlinked directory */
+    if (hdl->dentry->state & DENTRY_NEGATIVE) {
+        ret = -ENOENT;
+        goto out;
+    }
+    
     /* we are grabbing the lock because the handle content is actually
        updated */
     lock(hdl->lock);
@@ -381,7 +387,9 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
     
     while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
-        ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
+        /* DEP 3/3/17: We need to filter negative dentries */
+        if (!(dent->state & DENTRY_NEGATIVE))
+            ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
         put_dentry(dent);
         *(dirhdl->ptr++) = NULL;
     }
@@ -391,6 +399,11 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
 
 done:
     ret = bytes;
+    /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
+     * hold anything */
+    if (bytes == 0 && ((dirhdl->ptr && *dirhdl->ptr)
+                       || dirhdl->dotdot || dirhdl->dot))
+        ret = -EINVAL;
     unlock(hdl->lock);
 out:
     put_handle(hdl);
@@ -410,6 +423,12 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
         goto out;
     }
 
+    /* DEP 3/3/17: Properly handle an unlinked directory */
+    if (hdl->dentry->state & DENTRY_NEGATIVE) {
+        ret = -ENOENT;
+        goto out;
+    }
+    
     lock(hdl->lock);
 
     struct shim_dir_handle * dirhdl = &hdl->info.dir;
@@ -461,7 +480,9 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
     
     while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
-        ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
+        /* DEP 3/3/17: We need to filter negative dentries */
+        if (!(dent->state & DENTRY_NEGATIVE))
+            ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
         put_dentry(dent);
         *(dirhdl->ptr++) = NULL;
     }
@@ -471,6 +492,11 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
 
 done:
     ret = bytes;
+    /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
+     * hold anything */
+    if (bytes == 0 && ((dirhdl->ptr && *dirhdl->ptr)
+                       || dirhdl->dotdot || dirhdl->dot))
+        ret = -EINVAL;
     unlock(hdl->lock);
 out:
     put_handle(hdl);
@@ -559,18 +585,14 @@ int shim_do_ftruncate (int fd, loff_t length)
         return -EBADF;
 
     struct shim_mount * fs = hdl->fs;
-    int ret = -EACCES;
+    int ret = -EINVAL;
 
     if (!fs || !fs->fs_ops)
         goto out;
 
-    if (hdl->type == TYPE_DIR)
+    if (hdl->type == TYPE_DIR ||
+        !fs->fs_ops->truncate)
         goto out;
-
-    if (!fs->fs_ops->truncate) {
-        ret = -EROFS;
-        goto out;
-    }
 
     ret = fs->fs_ops->truncate(hdl, length);
 out:
