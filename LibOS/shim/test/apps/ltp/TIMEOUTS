@@ -2,7 +2,8 @@ testcase,timeout
 alarm01,5
 alarm06,16
 clone05,30
-faccessat01,40
+faccessat01,80
+fchdir02,40
 fchmod07,40
 fcntl13_64,40
 fork02,40
@@ -19,6 +20,7 @@ read01,40
 sendfile03_64,40
 setuid02,40
 sigaltstack02,40
+socket02,40
 stat05_64,40
 syscall01,80
 wait401,40
