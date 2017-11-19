@@ -1,6 +1,8 @@
 testcase,timeout
 alarm01,5
+alarm05,40
 alarm06,16
+chmod02,40
 clone05,30
 faccessat01,80
 fchdir02,40
@@ -16,9 +18,11 @@ lseek02,40
 pread01_64,40
 pread02,40
 preadv01,40
+pwrite04_64,40
 read01,40
 readv01,40
 sendfile03_64,40
+setuid01,40
 setuid02,40
 sigaltstack02,40
 socket02,40
