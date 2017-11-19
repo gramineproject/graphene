@@ -5,6 +5,7 @@ clone05,30
 faccessat01,80
 fchdir02,40
 fchmod07,40
+fchmodat01,40
 fcntl13_64,40
 fork02,40
 fsync03,40
