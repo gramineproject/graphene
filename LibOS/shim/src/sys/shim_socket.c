@@ -1671,7 +1671,7 @@ int shim_do_getsockopt (int fd, int level, int optname, char * optval,
                 }
                 goto out;
             case SO_TYPE:
-                *intval = sock->protocol;
+                *intval = sock->sock_type;
                 goto out;
             case SO_KEEPALIVE:
             case SO_LINGER:
