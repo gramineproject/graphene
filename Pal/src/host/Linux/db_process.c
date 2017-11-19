@@ -514,7 +514,7 @@ static int proc_read (PAL_HANDLE handle, int offset, int count,
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
@@ -534,7 +534,7 @@ static int proc_write (PAL_HANDLE handle, int offset, int count,
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
                 HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:

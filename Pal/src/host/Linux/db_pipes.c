@@ -363,7 +363,7 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
@@ -423,7 +423,7 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
                 HANDLE_HDR(handle)->flags &= ~writeable;
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
