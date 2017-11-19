@@ -88,4 +88,4 @@ regression: $(call expand_target,$(target))
 	@printf "\n\n"
 
 clean:
-	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached
+	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig
