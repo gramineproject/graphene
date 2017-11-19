@@ -9,6 +9,9 @@ alarm01,1
 alarm02,1
 alarm02,2
 alarm02,3
+alarm03,2
+alarm05,1
+alarm06,1
 asyncio02,1
 asyncio02,2
 asyncio02,3
