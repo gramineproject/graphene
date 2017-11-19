@@ -39,10 +39,11 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-#include <linux_list.h>
+#include <list.h>
 
 static PAL_LOCK thread_list_lock = LOCK_INIT;
-static LIST_HEAD(thread_list);
+DEFINE_LISTP(pal_handle_thread);
+static LISTP_TYPE(pal_handle_thread) thread_list = LISTP_INIT;
 
 struct thread_param {
     int (*callback) (void *);
@@ -53,13 +54,13 @@ extern void * enclave_base;
 
 void pal_start_thread (void)
 {
-    PAL_HANDLE new_thread = NULL, tmp;
+    struct pal_handle_thread *new_thread = NULL, *tmp;
 
     _DkInternalLock(&thread_list_lock);
-    list_for_each_entry(tmp, &thread_list, thread.list)
-        if (!tmp->thread.tcs) {
+    listp_for_each_entry(tmp, &thread_list, list)
+        if (!tmp->tcs) {
             new_thread = tmp;
-            new_thread->thread.tcs =
+            new_thread->tcs =
                 enclave_base + GET_ENCLAVE_TLS(tcs_offset);
             break;
         }
@@ -69,11 +70,11 @@ void pal_start_thread (void)
         return;
 
     struct thread_param * thread_param =
-            (struct thread_param *) new_thread->thread.param;
+            (struct thread_param *) new_thread->param;
     int (*callback) (void *) = thread_param->callback;
     const void * param = thread_param->param;
     free(thread_param);
-    new_thread->thread.param = NULL;
+    new_thread->param = NULL;
     SET_ENCLAVE_TLS(thread, new_thread);
     callback((void *) param);
 }
@@ -87,14 +88,14 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);
     new_thread->thread.tcs = NULL;
-    INIT_LIST_HEAD(&new_thread->thread.list);
+    INIT_LIST_HEAD(&new_thread->thread, list);
     struct thread_param * thread_param = malloc(sizeof(struct thread_param));
     thread_param->callback = callback;
     thread_param->param = param;
     new_thread->thread.param = (void *) thread_param;
 
     _DkInternalLock(&thread_list_lock);
-    list_add_tail(&new_thread->thread.list, &thread_list);
+    listp_add_tail(&new_thread->thread, &thread_list, list);
     _DkInternalUnlock(&thread_list_lock);
 
     int ret = ocall_wake_thread(NULL);

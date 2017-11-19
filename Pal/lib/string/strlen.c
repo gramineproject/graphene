@@ -25,7 +25,7 @@
 
 /* Find the length of S, but scan at most MAXLEN characters.  If no
    '\0' terminator is found in that many characters, return MAXLEN.  */
-int strnlen (const char *str, int maxlen)
+size_t strnlen (const char *str, size_t maxlen)
 {
   const char *char_ptr, *end_ptr = str + maxlen;
   const unsigned long int *longword_ptr;
@@ -155,7 +155,7 @@ int strnlen (const char *str, int maxlen)
   return char_ptr - str;
 }
 
-int strlen (const char *str)
+size_t strlen (const char *str)
 {
   return strnlen(str, -1);
 }

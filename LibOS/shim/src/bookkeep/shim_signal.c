@@ -54,6 +54,8 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
     } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
 
+    debug("signal_logs[%d]: head=%d, tail=%d\n", sig -1, head, tail);
+
     atomic_inc(&thread->has_signal);
 
     return &log->logs[old_tail];
@@ -84,6 +86,8 @@ fetch_signal_log (shim_tcb_t * tcb, struct shim_thread * thread, int sig)
 
         log->logs[old_head] = signal;
     }
+
+    debug("signal_logs[%d]: head=%d, tail=%d\n", sig -1, head, tail);
 
     atomic_dec(&thread->has_signal);
 

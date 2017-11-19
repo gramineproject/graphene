@@ -4,9 +4,6 @@
 #include "pal_linux.h"
 #include "pal_security.h"
 
-#define assert(cond) \
-    do { if (!(cond)) INLINE_SYSCALL(exit_group, 1, 0); } while (0);
-
 int ecall_enclave_start (const char ** arguments, const char ** environments);
 
 int ecall_thread_start (void);

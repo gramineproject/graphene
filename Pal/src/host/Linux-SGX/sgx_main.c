@@ -278,10 +278,6 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto err;
     }
 
-    /* Reading sgx.heap_min from manifest */
-    if (get_config(enclave->config, "sgx.heap_min", cfgbuf, CONFIG_MAX) > 0)
-        heap_min = parse_int(cfgbuf);
-
     /* Reading sgx.thread_num from manifest */
     if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0)
         enclave->thread_num = parse_int(cfgbuf);
@@ -295,9 +291,9 @@ int initialize_enclave (struct pal_enclave * enclave)
     /* Reading sgx.static_address from manifest */
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 &&
         cfgbuf[0] == '1')
-        enclave->baseaddr = DEAFULT_HEAP_MIN;
+        enclave->baseaddr = heap_min;
     else
-        enclave->baseaddr = 0;
+        enclave->baseaddr = heap_min = 0;
 
     TRY(read_enclave_token, enclave->token, &enclave_token);
     TRY(read_enclave_sigstruct, enclave->sigfile, &enclave_sigstruct);
@@ -379,7 +375,10 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (areas[i].addr)
             continue;
         areas[i].addr = populating - areas[i].size;
-        populating = areas[i].addr - MEMORY_GAP;
+        if (&areas[i] == exec_area)
+            populating = areas[i].addr;
+        else
+            populating = areas[i].addr - MEMORY_GAP;
     }
 
     enclave_entry_addr += pal_area->addr;

@@ -55,4 +55,5 @@ regression.add_check(name="Directory Attribute Query by Handle",
 regression.add_check(name="Directory Deletion",
     check=lambda res: not os.path.exists("dir_delete.tmp"))
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

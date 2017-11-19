@@ -145,6 +145,7 @@ typedef struct {
 
 /********** PAL APIs **********/
 typedef struct {
+    PAL_STR host_type;
     /* An identifier of current picoprocess */
     PAL_NUM process_id;
     PAL_NUM host_id;

@@ -31,7 +31,7 @@
 #include <shim_handle.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include <asm/mman.h>
 
@@ -39,6 +39,7 @@ struct shim_handle;
 
 #define VMA_COMMENT_LEN     16
 
+DEFINE_LIST(shim_vma);
 struct shim_vma {
     REFTYPE                 ref_count;
     void *                  addr;
@@ -47,7 +48,7 @@ struct shim_vma {
     int                     flags;
     uint64_t                offset;
     struct shim_handle *    file;
-    struct list_head        list;
+    LIST_TYPE(shim_vma)     list;
     char                    comment[VMA_COMMENT_LEN];
 };
 

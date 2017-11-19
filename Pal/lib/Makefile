@@ -11,16 +11,42 @@ ARFLAGS	=
 include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src
+
 subdirs = string stdlib network graphene util crypto
-headers = api.h
+headers = api.h pal_crypto.h
+
+# Choose Crypto provider among (mbedtls|wolfssl)
+CRYPTO_PROVIDER ?= mbedtls
 
 # Select which crypto adpater you want to use here. This has to match
 # the #define in pal_crypto.h.
+#
+# Unfortunately, we cannot use just one .c file for the adapter. The LibOS
+# shim links against the crypto library, but it doesn't use Diffie-Hellman.
+# If the Diffie-Hellman stubs are in the same .o file as the SHA1 stubs,
+# this pulls Diffie-Hellman code into LibOS shim, resulting in unsatisfied
+# symbols.
+ifeq ($(CRYPTO_PROVIDER),mbedtls)
 subdirs += crypto/mbedtls
-#subdirs += crypto/wolfssl
+headers += $(wildcard crypto/mbedtls/mbedtls/*.h)
+endif
+ifeq ($(CRYPTO_PROVIDER),wolfssl)
+subdirs += crypto/wolfssl
+headers += $(wildcard crypto/wolfssl/*.h)
+endif
+
 objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
+
+ifeq ($(CRYPTO_PROVIDER),mbedtls)
+CFLAGS += -DCRYPTO_USE_MBEDTLS
 objs += crypto/adapters/mbedtls_adapter.o
-#objs += crypto/adapters/wolfssl_adapter.o
+objs += crypto/adapters/mbedtls_dh.o
+endif
+ifeq ($(CRYPTO_PROVIDER),wolfssl)
+CFLAGS += -DCRYPTO_USE_WOLFSSL
+objs += crypto/adapters/wolfssl_adapter.o
+objs += crypto/adapters/wolfssl_dh.o
+endif
 
 all: $(target)graphene-lib.a
 

@@ -38,13 +38,20 @@ sgx.trusted_libs.libjava = file:$(JAVA_HOME)/lib/amd64/libjava.so
 sgx.trusted_libs.libjli = file:$(JAVA_HOME)/lib/amd64/jli/libjli.so
 sgx.trusted_libs.libjvm = file:$(JAVA_HOME)/lib/amd64/server/libjvm.so
 sgx.trusted_libs.libzip = file:$(JAVA_HOME)/lib/amd64/libzip.so
+sgx.trusted_libs.libnet = file:$(JAVA_HOME)/lib/amd64/libnet.so
+sgx.trusted_libs.libnio = file:$(JAVA_HOME)/lib/amd64/libnio.so
 sgx.trusted_libs.libnssc = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
 sgx.trusted_libs.libnssf = file:/lib/x86_64-linux-gnu/libnss_files.so.2
 sgx.trusted_libs.libnssn = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
 
 sgx.trusted_files.jvmcfg = file:$(JAVA_HOME)/lib/amd64/jvm.cfg
-sgx.trusted_files.meta_index = file:$(JAVA_HOME)/lib/meta-index
+sgx.trusted_files.meta = file:$(JAVA_HOME)/lib/meta-index
+sgx.trusted_files.tzdb = file:$(JAVA_HOME)/lib/tzdb.dat
+sgx.trusted_files.currency = file:$(JAVA_HOME)/lib/currency.data
+sgx.trusted_files.rt = file:$(JAVA_HOME)/lib/rt.jar
+sgx.trusted_files.resources = file:$(JAVA_HOME)/lib/resources.jar
 
+sgx.allowed_files.ext = file:$(JAVA_HOME)/lib/ext
 sgx.allowed_files.classes = file:classes
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.xml_out = file:xml_out
