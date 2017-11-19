@@ -1,6 +1,7 @@
 testcase,timeout
 alarm01,5
 alarm02,40
+alarm03,40
 alarm05,40
 alarm06,16
 brk01,40
