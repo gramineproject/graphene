@@ -20,6 +20,7 @@ read01,40
 readdir01,40
 sendfile03_64,40
 setuid02,40
+sockioctl01,40
 sigaltstack02,40
 stat05_64,40
 syscall01,80
