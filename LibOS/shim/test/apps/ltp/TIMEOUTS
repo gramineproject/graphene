@@ -11,7 +11,7 @@ fsync03,40
 gethostname01,40
 gettid01,40
 mprotect04,40
-kill09,40
+kill09,80
 lseek02,40
 pread01_64,40
 pread02,40
