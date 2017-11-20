@@ -138,7 +138,7 @@ static void read_environments (const char *** envpp)
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
     const char ** ptr;
-    cfgbuf = __alloca(sizeof(char) * SIZE_MAX);
+    cfgbuf = __alloca(sizeof(char) * CONFIG_MAX);
 
     for (int i = 0 ; i < nsetenvs ; i++) {
         const char * str = setenvs[i].str;
