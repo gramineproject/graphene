@@ -47,7 +47,6 @@ pipeline {
                             make
                             ./syscalls.sh
                             '''
-                        input 'Tests complete. Do you wish to deploy?'
                     }
                 }
                 stage('Deploy') {
