@@ -97,13 +97,15 @@ static void read_environments (const char *** envpp)
     if (!pal_state.root_config)
         return;
 
-    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
-                                              "loader.env"));
+    cfgbuf = malloc(get_config_entries_size(pal_state.root_config,
+                                            "loader.env"));
     nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
                                   cfgbuf);
 
-    if (nsetenvs <= 0)
+    if (nsetenvs <= 0) {
+        free(cfgbuf);
         return;
+    }
 
     setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
     char * cfg = cfgbuf;
@@ -138,6 +140,7 @@ static void read_environments (const char *** envpp)
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
     const char ** ptr;
+    free(cfgbuf);
     cfgbuf = __alloca(sizeof(char) * CONFIG_MAX);
 
     for (int i = 0 ; i < nsetenvs ; i++) {
