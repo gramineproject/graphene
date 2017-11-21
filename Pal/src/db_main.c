@@ -85,7 +85,7 @@ static void load_libraries (void)
 static void read_environments (const char *** envpp)
 {
     const char ** envp = *envpp;
-    char cfgbuf[CONFIG_MAX];
+    char * cfgbuf;
 
     /* loader.env.*: rewriting host environment variables */
     struct setenv {
@@ -94,12 +94,18 @@ static void read_environments (const char *** envpp)
     } * setenvs = NULL;
     int nsetenvs = 0;
 
-    if (pal_state.root_config)
-        nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
-                                      cfgbuf, CONFIG_MAX);
-
-    if (nsetenvs <= 0)
+    if (!pal_state.root_config)
         return;
+
+    cfgbuf = malloc(get_config_entries_size(pal_state.root_config,
+                                            "loader.env"));
+    nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
+                                  cfgbuf);
+
+    if (nsetenvs <= 0) {
+        free(cfgbuf);
+        return;
+    }
 
     setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
     char * cfg = cfgbuf;
@@ -131,6 +137,8 @@ static void read_environments (const char *** envpp)
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
     const char ** ptr;
+    free(cfgbuf);
+    cfgbuf = __alloca(sizeof(char) * CONFIG_MAX);
 
     for (int i = 0 ; i < nsetenvs ; i++) {
         const char * str = setenvs[i].str;
