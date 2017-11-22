@@ -12,7 +12,7 @@ pipeline {
                     steps {
                         sh '''
                             cd LibOS/shim/test/apps/gcc
-                            make regression
+                            make && make regression
                            '''
                         sh '''
                             cd LibOS/shim/test/apps/lmbench
