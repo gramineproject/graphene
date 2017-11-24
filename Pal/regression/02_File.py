@@ -7,7 +7,7 @@ loader = os.environ['PAL_LOADER']
 
 def prepare_files(args):
     global file_exist
-    file_exist = ''.join([random.choice(string.ascii_letters) for i in range(mmap.PAGESIZE)])
+    file_exist = ''.join([random.choice(string.ascii_letters) for i in range(2 * mmap.PAGESIZE)])
 
     with open("file_exist.tmp", "w") as f:
         f.write(file_exist)
@@ -46,14 +46,16 @@ def check_write(res):
 regression.add_check(name="File Writing", check=check_write)
 
 regression.add_check(name="File Attribute Query",
-    check=lambda res: ("Query: type = 1, size = %d" % (mmap.PAGESIZE)) in res[0].log)
+    check=lambda res: ("Query: type = 1, size = %d" % (mmap.PAGESIZE * 2)) in res[0].log)
 
 regression.add_check(name="File Attribute Query by Handle",
-    check=lambda res: ("Query by Handle: type = 1, size = %d" % (mmap.PAGESIZE)) in res[0].log)
+    check=lambda res: ("Query by Handle: type = 1, size = %d" % (mmap.PAGESIZE * 2)) in res[0].log)
 
 regression.add_check(name="File Mapping",
     check=lambda res: ("Map Test 1 (0th - 40th): " + file_exist[0:40]) in res[0].log and
-                      ("Map Test 2 (200th - 240th): " + file_exist[200:240]) in res[0].log)
+                      ("Map Test 2 (200th - 240th): " + file_exist[200:240]) in res[0].log and
+                      ("Map Test 3 (0th - 40th): " + file_exist[4096:4136]) in res[0].log and
+                      ("Map Test 4 (200th - 240th): " + file_exist[4296:4336]) in res[0].log)
 
 regression.add_check(name="Set File Length",
     check=lambda res: os.stat("file_nonexist.tmp").st_size == mmap.ALLOCATIONGRANULARITY)
