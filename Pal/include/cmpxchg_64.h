@@ -19,7 +19,7 @@ extern void __xchg_wrong_size(void);
 extern void __cmpxchg_wrong_size(void);
 
 /*
- * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
+ * Note: xchg always implies lock prefix.
  * Note 2: xchg has side effect, so that attribute volatile is necessary,
  *	  but generally the primitive is invalid, *ptr is output argument. --ANK
  */
@@ -28,25 +28,25 @@ extern void __cmpxchg_wrong_size(void);
 	__typeof(*(ptr)) __x = (x);					\
 	switch (size) {							\
 	case 1:								\
-	  asm volatile("lock; xchgb %b0,%1"				\
+	  asm volatile("xchgb %b0,%1"					\
 			     : "=q" (__x), "+m" (*__xg(ptr))		\
 			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
 	case 2:								\
-	  asm volatile("lock; xchgw %w0,%1"				\
+	  asm volatile("xchgw %w0,%1"					\
 			     : "=r" (__x), "+m" (*__xg(ptr))		\
 			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
 	case 4:								\
-	  asm volatile("lock; xchgl %k0,%1"				\
+	  asm volatile("xchgl %k0,%1"					\
 			     : "=r" (__x), "+m" (*__xg(ptr))		\
 			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
 	case 8:								\
-	  asm volatile("lock; xchgq %0,%1"				\
+	  asm volatile("xchgq %0,%1"					\
 			     : "=r" (__x), "+m" (*__xg(ptr))		\
 			     : "0" (__x)				\
 			     : "memory");				\
