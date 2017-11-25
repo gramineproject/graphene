@@ -21,6 +21,7 @@ objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 graphene_lib = ../../../lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
+.PHONY: all
 all: $(host_target)
 
 ifeq ($(DEBUG),1)
@@ -61,5 +62,6 @@ libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/FreeBSD/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
+.PHONY: clean
 clean:
 	rm -f $(addsuffix .o,$(objs)) $(host_target)
