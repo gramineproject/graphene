@@ -9,7 +9,9 @@ target = $(exec_target) manifest
 
 clean-extra += clean-tmp
 
+.PHONY: default
 default: all
+
 level = ../
 include ../Makefile
 
@@ -48,6 +50,7 @@ ifeq ($(SGX_RUN),1)
 	PYTHONENV += "TIMEOUT=5000"
 endif
 
+.PHONY: regression
 regression: $(target)
 	@echo "\n\nBasic Bootstrapping:"
 	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
@@ -56,5 +59,6 @@ regression: $(target)
 	@echo "\n\nLarge File Support:"
 	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
 
+.PHONY: clean-tmp
 clean-tmp:
 	rm -rf *.tmp ../apps/ltp/*.csv *.cached *.manifest.sgx *~ *.sig *.token

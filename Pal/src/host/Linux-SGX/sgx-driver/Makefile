@@ -9,6 +9,7 @@ else
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD  := $(shell pwd)
 
+.PHONY: default
 default: isgx_version.h linux-sgx-driver
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) CFLAGS_MODULE="-DDEBUG -g -O0" modules
 
@@ -20,6 +21,7 @@ isgx_version.h linux-sgx-driver: link-sgx-driver
 
 endif
 
+.PHONY: clean
 clean:
 	rm -vrf linux-sgx-driver isgx_version.h
 	rm -vrf *.o *.ko *.order *.symvers *.mod.c .tmp_versions .*o.cmd

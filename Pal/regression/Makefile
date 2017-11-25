@@ -14,6 +14,7 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
+.PHONY: default
 default: all
 include ../src/Makefile.Test
 
@@ -22,6 +23,7 @@ RUNTIME_DIR = $(CURDIR)/../../Runtime
 export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
 export PAL_SEC = $(RUNTIME_DIR)/pal_sec-$(PAL_HOST)
 
+.PHONY: all
 all: $(call expand_target,$(target)) $(preloads)
 
 ifeq ($(DEBUG),1)
@@ -87,5 +89,6 @@ regression: $(call expand_target,$(target))
 	@for f in $(wildcard 05_*.py); do env $(PYTHONENV) python $$f || exit $?; done
 	@printf "\n\n"
 
+.PHONY: clean
 clean:
 	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig
