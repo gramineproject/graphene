@@ -138,7 +138,7 @@ void debug_setprefix (shim_tcb_t * tcb)
         fprintfmt(debug_fputch, NULL, buf, TID_PREFIX, tcb->tid);
     else if (cur_process.vmid)
         fprintfmt(debug_fputch, NULL, buf, VMID_PREFIX,
-                  cur_process.vmid % 10000);
+                  cur_process.vmid & 0xFFFF);
     else
         fprintfmt(debug_fputch, NULL, buf, NOID_PREFIX);
 
