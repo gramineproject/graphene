@@ -235,7 +235,10 @@ map_untrusted:
     mem = get_reserved_pages(mem, size);
 
     if (mem) {
-        memcpy(mem, umem + offset - map_start, end - offset);
+        /* DEP 11/24/17: I can't see how offset and map_start would not be
+         * equal.  Assert this is true */
+        assert(offset == map_start);
+        memcpy(mem, umem, end - offset);
         *addr = mem;
     }
 

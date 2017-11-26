@@ -74,8 +74,12 @@ struct handle_ops {
     int (*delete) (PAL_HANDLE handle, int access);
 
     /* 'map' and 'unmap' will map or unmap the handle into memory space,
-       it's not necessary mapped by mmap, so unmap also needs 'handle'
-       to deal with special cases */
+     * it's not necessary mapped by mmap, so unmap also needs 'handle'
+     * to deal with special cases.
+     * 
+     * Common PAL code will ensure that *address, offset, and size are 
+     * page-aligned.
+     */
     int (*map) (PAL_HANDLE handle, void ** address, int prot, uint64_t offset,
                 uint64_t size);
 

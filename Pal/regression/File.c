@@ -7,7 +7,7 @@
 
 int main (int argc, char ** argv, char ** envp)
 {
-    char buffer1[41], buffer2[41];
+    char buffer1[41], buffer2[41], buffer3[41];
     int ret;
 
     /* test regular file opening */
@@ -60,6 +60,22 @@ int main (int argc, char ** argv, char ** envp)
             DkStreamUnmap(mem1, attr1.pending_size);
         }
 
+        /* DEP 11/24/17: For SGX writecopy exercises a different path in the PAL */
+        void * mem2 = (void *) DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 
+                                           4096, 4096);
+        if (mem2) {
+            memcpy(buffer3, mem2, 40);
+            buffer3[40] = 0;
+            pal_printf("Map Test 3 (0th - 40th): %s\n", buffer3);
+
+            memcpy(buffer3, mem2 + 200, 40);
+            buffer3[40] = 0;
+            pal_printf("Map Test 4 (200th - 240th): %s\n", buffer3);
+
+            DkStreamUnmap(mem2, 4096);
+        }
+
+        
         DkObjectClose(file1);
     }
 

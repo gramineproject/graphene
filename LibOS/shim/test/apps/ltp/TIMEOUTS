@@ -6,6 +6,7 @@ faccessat01,80
 fchdir02,40
 fchmod07,40
 fcntl02_64,40
+fcntl08_64,40
 fcntl13_64,40
 fork02,40
 futex_wait_bitset02,40
@@ -18,6 +19,7 @@ lseek02,40
 pread01_64,40
 pread02,40
 preadv01,40
+pwrite01_64,40
 read01,40
 readv01,40
 sendfile03_64,40
