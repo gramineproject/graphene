@@ -80,8 +80,7 @@ static LOCKTYPE vma_list_lock;
 static inline int test_vma_equal (struct shim_vma * tmp,
                                   const void * addr, uint64_t length)
 {
-    return tmp->addr == addr &&
-           tmp->addr + tmp->length == addr + length;
+    return tmp->addr == addr && tmp->length == length;
 }
 
 static inline int test_vma_contain (struct shim_vma * tmp,
@@ -108,9 +107,9 @@ static inline int test_vma_endin (struct shim_vma * tmp,
 static inline int test_vma_overlap (struct shim_vma * tmp,
                                     const void * addr, uint64_t length)
 {
-    return test_vma_contain (tmp, addr + 1, 0) ||
-           test_vma_contain (tmp, addr + length - 1, 0) ||
-           test_vma_startin (tmp, addr, length - 1);
+    return test_vma_contain(tmp, addr, 1) ||
+           test_vma_contain(tmp, addr + length - 1, 1) ||
+           test_vma_startin(tmp, addr, length);
 }
 
 int bkeep_shim_heap (void);
