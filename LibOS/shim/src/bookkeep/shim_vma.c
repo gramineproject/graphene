@@ -273,7 +273,8 @@ static inline void __set_comment (struct shim_vma * vma, const char * comment)
     if (len > VMA_COMMENT_LEN - 1)
         len = VMA_COMMENT_LEN - 1;
 
-    memcpy(vma->comment, comment, len + 1);
+    memcpy(vma->comment, comment, len);
+    vma->comment[len] = 0;
 }
 
 static int __bkeep_mmap (void * addr, uint64_t length,
