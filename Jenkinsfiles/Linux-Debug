@@ -1,0 +1,70 @@
+pipeline {
+        agent any
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            make DEBUG=1
+                           '''
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd LibOS/shim/test/apps/gcc
+                            make regression
+                           '''
+                        sh '''
+                            cd LibOS/shim/test/apps/lmbench
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/python
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/lighttpd
+                            make
+                            make start-graphene-server &
+                            ./benchmark-http.sh 127.0.0.1:8000
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+                            make
+                            make start-graphene-server &
+                            ./benchmark-http.sh 127.0.0.1:8000
+                            '''
+                        sh '''
+                            cd Pal/regression
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/regression
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/ltp
+                            make
+                            ./syscalls.sh
+                            '''
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+        }
+}
+
