@@ -10,10 +10,7 @@ pipeline {
                 }
                 stage('Test') {
                     steps {
-                        sh '''
-                            cd LibOS/shim/test/apps/gcc
-                            make regression
-                           '''
+                        
                         sh '''
                             cd LibOS/shim/test/apps/lmbench
                             make regression
