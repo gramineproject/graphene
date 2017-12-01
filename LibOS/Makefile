@@ -8,7 +8,7 @@ SHIM_DIR = shim
 BUILD_DIR = glibc-build
 GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthread.so.0 libm.so.6 libdl.so.2 libutil.so.1 crt1.o crti.o crtn.o liblibos.so.1 libnss_dns.so.2 libresolv.so.2)
 
-
+.PHONY: all
 all: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) all
 
@@ -42,6 +42,7 @@ pack: $(GLIBC_TARGET)
 	@../Scripts/pack_binaries.sh glibc $^
 	$(MAKE) -C $(SHIM_DIR) pack
 
+.PHONY: clean
 clean:
 	$(MAKE) -C $(SHIM_DIR) clean
 	rm -rf $(BUILD_DIR)
@@ -50,6 +51,7 @@ else
 $(GLIBC_TARGET): .packed/glibc.tar.gz
 	tar -xmozf $< $@
 
+.PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
 endif

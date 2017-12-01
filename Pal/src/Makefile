@@ -65,6 +65,7 @@ endif
 
 files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb)
 
+.PHONY: all
 all: | check_target $(files_to_build) $(files_to_install)
 
 ifndef SAVED_TARGET
@@ -153,6 +154,7 @@ user_shared_start.o: user_start.S
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
 
+.PHONY: clean
 clean:
 ifneq ($(SAVED_OS),$(PAL_HOST))
 	$(MAKE) clean PAL_HOST=$(SAVED_OS)
