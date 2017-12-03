@@ -4,7 +4,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make DEBUG=1
+                            make clean && make DEBUG=1
                            '''
                     }
                 }
@@ -47,7 +47,6 @@ pipeline {
                             make
                             ./syscalls.sh
                             '''
-                        input 'Tests complete. Do you wish to deploy?'
                     }
                 }
                 stage('Deploy') {

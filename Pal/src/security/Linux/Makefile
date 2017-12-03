@@ -11,6 +11,7 @@ LDFLAGS	= -shared -nostdlib -z combreloc -z defs --version-script pal-sec.map -e
 objs	= bpf_helper filter main manifest printf
 graphene_lib = ../../.lib/graphene-lib.a
 
+.PHONY: all
 all: libpal_sec.so
 
 ifeq ($(DEBUG),1)
@@ -30,5 +31,6 @@ libpal_sec.so: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ security/Linux/$@ ]
 	@$(CC) $(CFLAGS) -E $< -o $@
 
+.PHONY: clean
 clean:
 	rm -rf *.o libpal_sec.so

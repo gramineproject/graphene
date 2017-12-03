@@ -8,12 +8,14 @@ else
 	KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 	PWD := $(shell pwd)
 
+.PHONY: default
 default:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 graphene-ipc.i: graphene-ipc.c
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) $@
 
+.PHONY: clean
 clean:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
 
