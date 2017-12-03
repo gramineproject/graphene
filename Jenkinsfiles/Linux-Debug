@@ -4,7 +4,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make
+                            make clean && make DEBUG=1
                            '''
                     }
                 }

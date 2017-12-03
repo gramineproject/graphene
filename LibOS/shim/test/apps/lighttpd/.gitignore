@@ -1,1 +1,7 @@
 ab.*
+result-*
+OUTPUT
+build
+html
+lighttpd-*
+lighttpd.conf
