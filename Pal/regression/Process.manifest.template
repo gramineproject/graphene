@@ -1,0 +1,15 @@
+# the executable to run
+# loader.exec = file:./HelloWorld
+
+# debug type: inline|file
+loader.debug_type = inline
+
+# debug as file
+# loader.debug_file = <path>
+
+fs.mount.root.uri = file:
+
+# allow to bind on port 8000
+net.allow_bind.1 = 127.0.0.1:8000
+# allow to connect to port 8000
+net.allow_peer.1 = 127.0.0.1:8000
