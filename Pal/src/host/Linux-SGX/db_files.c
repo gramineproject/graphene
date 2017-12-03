@@ -110,6 +110,7 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
     if (ret < 0)
         return -PAL_ERROR_DENIED;
 
+    /* XXX: This also has the same TOCTTOU issue as write */
     if (stubs) {
         ret = verify_trusted_file(handle->file.realpath, umem,
                                   map_start, map_end - map_start,
@@ -175,6 +176,273 @@ static int file_delete (PAL_HANDLE handle, int access)
     return ocall_delete(handle->file.realpath);
 }
 
+#if 1
+/* 'map' operation for file stream. 
+ * 
+ * For SGX, we need to do a little more work.  Part of the complexity comes in
+ * for doing both memory management and verification.
+ * 
+ * At a high level, the code works like this:
+ * 
+ * First, we do a mapping of the file contents in untrusted memory. In some
+ * cases, where we allow the file but don't care about its integrity or
+ * confidentiality, this is good enough and we return.  
+ * 
+ * Second, allocate the desired range (if specified by *addr)
+ * in trusted memory.  
+ * 
+ * Third, we have to copy the file contents into trusted memory in chunks of
+ * size TRUSTED_STUB_SIZE, as this is the granularity of the measurement.  We then
+ * hash and check the contents.  
+ * 
+ * * Note that it must be done this way to avoid the following TOCTTOU race
+ * * condition with the untrusted runtime system (URTS):
+ *       *  URTS: put good contents in buffer
+ *       *  Enclave: buffer check passes
+ *       *  URTS: put bad contents in buffer
+ *       *  Enclave: copies in bad buffer contents
+ * 
+ * * As an optimization, we try to do verification in place, as no enclave code should
+ *   use this buffer before we return.  But there are some subtle interactions
+ *   at the edges of a region with ELF loading.  Namely, the ELF loader will
+ *   want to map several file chunks that are not aligned to TRUSTED_STUB_SIZE
+ *   next to each other, sometimes overlapping.  There is probably room to
+ *   improve load time with more smarts around ELF loading, but for now, just
+ *   make things work.
+ * 
+ * Finally, if verification passes, free the verification scratch buffer, and
+ * unmap the untrusted copy of the file.
+ * 
+ */
+static int file_map (PAL_HANDLE handle, void ** addr, int prot,
+                     uint64_t offset, uint64_t size)
+{
+    sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
+    unsigned int total = handle->file.total;
+    void * mem = *addr; // Enclave map addr
+    void * umem; // urts map addr
+    void * scratch_buffer = NULL; // Enclave memory
+    int ret = 0; 
+    int uprot; // Permission requested on untrusted mapping
+    uint64_t umap_start, umap_end, umap_size; // Boundaries for untrusted
+                                              // mapping
+    uint64_t umap_offset = 0; //offset into umap padding
+    int umap_suffices = 0;
+    int end_of_file = 0;
+    int check_start = 0, check_end = 0; // Do we need to do a special case
+                                         // for verifying the first or last chunk?
+    
+    /* Catch unsupported permissions early */
+    if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {
+        SGX_DBG(DBG_E, "file_map does not currently support writeable pass-through mappings on SGX.  You may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your file mapping to keep the writes inside the enclave but they won't be reflected outside of the enclave.\n");
+        return -PAL_ERROR_DENIED;
+    }
+
+    /* We need to be careful not to go past the end of the file */
+    uint64_t end = offset + size;
+    if (end > total) 
+        end = total;
+
+    SGX_DBG(DBG_M, "*** file_map: requested offset %llx, size %llu, end is %llx, total %llx ***\n", offset, size, end, total);
+    
+    /* Set up the untrusted mapping */
+    if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
+        /* This is the case where an untrusted map suffices.  
+         * 
+         * XXX: Review this policy and/or document flag choice more.
+         */
+        umap_suffices = 1;
+        umem = *addr;
+        uprot = HOST_PROT(prot);
+        umap_start = offset;
+        umap_size = size;
+    } else {
+        umem = NULL;
+        uprot = PROT_READ;
+        /* If we have a merkle tree cached, use it.  This means mapping in
+         * merkle-node-sized chunks.
+         * 
+         * DEP XXX: Document cases where a trusted file wouldn't have stubs, and
+         * why it is ok not to verify them.  For a trusted file I can't see
+         * how this is secure if stub caching is disabled; I think you would
+         * have to rebuild on every map operation, which this code is not
+         * doing.
+         */
+        if (stubs) {
+            /* DEP 11/24/17: If stubs are set, we verify in larger chunks.
+             * Here the umap_start and umap_offset can be different, as we
+             * round to a larger size.
+             */
+            umap_start = offset & ~(TRUSTED_STUB_SIZE - 1);
+            umap_offset = offset - umap_start;
+            umap_end = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
+            /* Don't go past the end of file with the stub map either */
+            if (umap_end > total) {
+                end_of_file = 1;
+                umap_end = ALLOC_ALIGNUP(total);
+            }
+            if (umap_start != offset) check_start = 1;
+            SGX_DBG(DBG_M, "file_map: umap_end %p, end %p, umap_start %p, TRUSTED_STUB_SIZE %d\n", umap_end, end, umap_start,
+                    TRUSTED_STUB_SIZE);
+            if (umap_end != end &&
+                umap_end != umap_start + TRUSTED_STUB_SIZE - 1)
+                check_end = 1;
+        } else {
+            umap_start = ALLOC_ALIGNDOWN(offset);
+            umap_end = ALLOC_ALIGNUP(end);
+        }
+        umap_size = umap_end - umap_start;
+    }
+
+    ret = ocall_map_untrusted(handle->file.fd, umap_start, umap_size,
+                              uprot, &umem);
+    if (ret)
+        return ret;
+
+    SGX_DBG(DBG_M, "*** file_map: umem is at %p, starts %p, ends %p (%p), umap_size 0x%llx ***\n", umem, umap_start,
+            umap_end, umem + umap_size, umap_size);
+
+    /* Stop early if an untrusted map suffices and the mapping was successful*/
+    if (umap_suffices) {
+        SGX_DBG(DBG_M, "*** file_map: umem suffices ***\n");
+        *addr = umem;
+        return 0;
+    }
+
+    /* Try to allocate the desired address range from enclave memory 
+     * 
+     * The memory will always allocated with flag MAP_PRIVATE
+     * and MAP_FILE 
+     */
+    SGX_DBG(DBG_M, "file_map: *addr is %p\n", *addr);    
+  
+
+    SGX_DBG(DBG_M, "*** file_map: requesting %p, %d ***\n", mem, size);
+    mem = get_reserved_pages(mem, size);
+    if (!mem) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out; 
+    }
+    
+    // If we need a scratch buffer, go ahead and allocate that too
+    if (check_start || check_end) {
+        scratch_buffer = get_reserved_pages(NULL, TRUSTED_STUB_SIZE);
+        if (!scratch_buffer) {
+            ret = -PAL_ERROR_NOMEM;
+            goto out_unmap; 
+        }
+    }
+    
+    /* Step three: copy the contents into the enclave buffer.  Initially,
+     * let's just copy into the buffer we want to return; we will popuulate
+     * the scratch buffer later, if needed.
+     * 
+     * Use the smaller of the two buffer sizes as the copy size.
+     */
+    uint64_t copy_size = size;
+    if (copy_size > umap_size)
+        copy_size = umap_size;
+    SGX_DBG(DBG_M, "file_map - memcpy - from (%p + offset %lld = %p), copy size is %llu\n", umem, umap_offset,
+            umem + umap_offset, copy_size);
+    memcpy(mem, umem + umap_offset, copy_size);
+
+    /* Step four: verify the contents.*/
+    if (stubs) {
+    
+        uint64_t verify_start = umap_start;
+        uint64_t verify_size = umap_end - umap_start;
+        uint64_t verify_offset = umap_start;
+        void *buf_ptr = mem;
+        
+        /* 4a: Check the first chunk, if needed  */
+        if (check_start) {
+            // Copy the contents into the scratch buffer
+            SGX_DBG(DBG_M, "file_map - scratch memcpy (start) - %p %p, buffer size %llu\n", scratch_buffer, umem, TRUSTED_STUB_SIZE);
+            memcpy(scratch_buffer, umem, TRUSTED_STUB_SIZE);
+            ret = verify_trusted_file(handle->file.realpath, scratch_buffer,
+                                      umap_start, TRUSTED_STUB_SIZE,
+                                      stubs, total);
+            if (ret) {
+                SGX_DBG(DBG_M, "file_map - verify trusted returned %d\n", ret);
+                goto out_unmap_scratch;
+            }
+            verify_size -= TRUSTED_STUB_SIZE;
+            verify_offset += TRUSTED_STUB_SIZE;
+            // Account for the offset into mem
+            buf_ptr += (TRUSTED_STUB_SIZE - umap_offset);
+        }
+
+        /* 4b: Check the last chunk, if needed  */
+        if (check_end) {
+            // Copy the contents into the scratch buffer
+            uint64_t delta = umap_end & (TRUSTED_STUB_SIZE - 1) ? : TRUSTED_STUB_SIZE;
+            uint64_t end_offset = umap_end - delta;
+            uint64_t end_copy_size = TRUSTED_STUB_SIZE; // Still copy a whole chunk
+            // Add the offset to the umem ptr, adjusting for the overall
+            // offset of the mapping
+            void *end_ptr = umem + (end_offset - umap_start);
+
+            // end_offset should be aligned now, just leaaving the last
+            // sub-chunk
+            assert(end_offset == 0 || (end_offset & ~(TRUSTED_STUB_SIZE-1)));
+            
+            if (end_of_file) {
+                // If EOF, just copy the end
+                end_copy_size = delta;
+            }
+            
+            SGX_DBG(DBG_M, "file_map - scratch memcpy (end) - %p %p (..%p), end_copy_size is %llu, end_offset %x, eof? %d\n", scratch_buffer, end_ptr, end_ptr + end_copy_size, end_copy_size, end_offset, end_of_file);
+            SGX_DBG(DBG_M, "file_map - scratch memcpy (end) - end is %llx, delta is %llx, umem is %p umap_start is %llx\n", end, delta, umem, umap_start);
+            memcpy(scratch_buffer, end_ptr, end_copy_size);
+            SGX_DBG(DBG_M, "file_map - scratch memcpy ok\n");
+            ret = verify_trusted_file(handle->file.realpath, scratch_buffer,
+                                      end_offset, end_copy_size,
+                                      stubs, total);
+            SGX_DBG(DBG_M, "file_map - verify end ok\n");
+            assert(!ret);
+            if (ret) {
+                SGX_DBG(DBG_E, "file_map - verify trusted returned %d\n", ret);
+                goto out_unmap_scratch;
+            }
+            verify_size -= end_copy_size;
+        }
+
+        /* 4c: Check the "middle" of the buffer.  Make sure we have more than one
+         * chunk to verify (i.e., the entire map wasn't checked in 4a).
+         */
+        if (verify_size) {
+            SGX_DBG(DBG_M, "file_map - verify (4c) - verify offset %llx, verify size %llx, total %x\n", verify_offset, verify_size, total);
+            ret = verify_trusted_file(handle->file.realpath, buf_ptr,
+                                      verify_offset, verify_size,
+                                      stubs, total);
+            if (ret) {
+                SGX_DBG(DBG_E, "file_map - verify trusted returned %d\n", ret);
+                goto out_unmap_scratch;
+            }
+        }
+    }
+    
+    /* Allocation and verification was successful.  Set *addr */
+    *addr = mem;
+    SGX_DBG(DBG_M, "*** file_map: done ok - setting addr to %p ***\n", mem);
+
+    
+out_unmap_scratch:
+    if (scratch_buffer) {
+        SGX_DBG(DBG_M, "*** file_map: freeing scratch buffer %p ***\n", scratch_buffer);
+        free_pages(scratch_buffer, TRUSTED_STUB_SIZE);
+    }
+out_unmap:
+    if (ret) 
+        free_pages(mem, size);
+out:
+    /* Unmap untrusted memory */
+    ocall_unmap_untrusted(umem, umap_size);
+    SGX_DBG(DBG_M, "file_map - finally returning %d\n", ret);
+    return ret;
+}
+    
+#else
 /* 'map' operation for file stream. */
 static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                      uint64_t offset, uint64_t size)
@@ -186,7 +454,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     int ret;
 
     if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
-map_untrusted:
+    map_untrusted:
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
         if (!ret)
@@ -202,6 +470,8 @@ map_untrusted:
     unsigned long end = (offset + size > total) ? total : offset + size;
     unsigned long map_start, map_end;
 
+    SGX_DBG(DBG_E, "file_map: end is %llu, total is %llu, offset+size is %llu, stubs %p\n", end, total, offset+size, stubs);
+    
     if (stubs) {
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
         map_end = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
@@ -218,6 +488,8 @@ map_untrusted:
     }
 
     if (stubs) {
+        SGX_DBG(DBG_E, "file_map: verifying %llx to %llx, total %llu\n",
+                map_start, map_end, total);
         ret = verify_trusted_file(handle->file.realpath, umem,
                                   map_start, map_end - map_start,
                                   stubs, total);
@@ -231,20 +503,20 @@ map_untrusted:
 
     /* The memory will always allocated with flag MAP_PRIVATE
        and MAP_FILE */
-
+    SGX_DBG(DBG_E, "*** file_map: requeting %p, %d ***\n", mem, size);
     mem = get_reserved_pages(mem, size);
-
+    SGX_DBG(DBG_E, "*** file_map: got %p ***\n", mem);
+    
     if (mem) {
-        /* DEP 11/24/17: I can't see how offset and map_start would not be
-         * equal.  Assert this is true */
-        assert(offset == map_start);
-        memcpy(mem, umem, end - offset);
+        memcpy(mem, umem + offset - map_start, end - offset);
         *addr = mem;
     }
 
     ocall_unmap_untrusted(umem, map_end - map_start);
     return mem ? 0 : -PAL_ERROR_NOMEM;
 }
+
+#endif
 
 /* 'setlength' operation for file stream. */
 static int64_t file_setlength (PAL_HANDLE handle, uint64_t length)

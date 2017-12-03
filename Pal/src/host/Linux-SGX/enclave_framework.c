@@ -285,7 +285,7 @@ int verify_trusted_file (const char * uri, void * mem,
                          unsigned int total_size)
 {
     unsigned long checking = offset;
-    sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
+    sgx_stub_t * s = stubs + (checking / TRUSTED_STUB_SIZE);
     int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
@@ -301,7 +301,7 @@ int verify_trusted_file (const char * uri, void * mem,
 
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "
-                    "Does not match with its MAC.\n", uri);
+                    "Does not match with its MAC at chunk starting at %llu.\n", uri, checking);
             return -PAL_ERROR_DENIED;
         }
     }

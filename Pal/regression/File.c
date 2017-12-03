@@ -58,6 +58,8 @@ int main (int argc, char ** argv, char ** envp)
             pal_printf("Map Test 2 (200th - 240th): %s\n", buffer2);
 
             DkStreamUnmap(mem1, attr1.pending_size);
+        } else {
+            pal_printf("Map Test 1 & 2: Failed to map buffer\n");
         }
 
         /* DEP 11/24/17: For SGX writecopy exercises a different path in the PAL */
