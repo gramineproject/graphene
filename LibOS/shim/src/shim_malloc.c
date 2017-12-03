@@ -145,18 +145,30 @@ static struct shim_heap * __alloc_enough_heap (size_t size)
     return heap;
 }
 
+/* Returns NULL on failure */
 void * __system_malloc (size_t size)
 {
     size_t alloc_size = ALIGN_UP(size);
-    void *addr;
+    void *addr, *addr_new;
     
     lock(shim_heap_lock);
 
     if (vmas_initialized) {
-        addr = (void *) DkVirtualMemoryAlloc(NULL, alloc_size, 0,
-                                             PAL_PROT_WRITE|PAL_PROT_READ);
+        /* If vmas are initialized, we need to request a free address range
+         * using get_unmapped_vma().  The current mmap code uses this function
+         * to synchronize all address allocation, via a "publication"
+         * pattern.  It is not safe to just call DkVirtualMemoryAlloc directly
+         * without reserving the vma region first.
+         */
+        int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
+        addr = get_unmapped_vma(alloc_size, flags);
+        if (!addr) return NULL;
+        addr_new = (void *) DkVirtualMemoryAlloc(addr, alloc_size, 0,
+                                                 PAL_PROT_WRITE|PAL_PROT_READ);
+        if (!addr_new) return NULL;
+        assert (addr == addr_new);
         bkeep_mmap(addr, alloc_size, PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
+                   flags, NULL, 0, NULL);
     } else {
 
         struct shim_heap * heap = __alloc_enough_heap(alloc_size);
