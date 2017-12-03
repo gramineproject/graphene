@@ -93,12 +93,19 @@ static void read_environments (const char *** envpp)
         int len, idx;
     } * setenvs = NULL;
     int nsetenvs = 0;
+    int size;
 
     if (!pal_state.root_config)
         return;
 
-    cfgbuf = malloc(get_config_entries_size(pal_state.root_config,
-                                            "loader.env"));
+    size = get_config_entries_size(pal_state.root_config, "loader.env");
+
+    /* DEP 11/24/17:  XXX Seems like we should really propagate this error
+     */
+    if (size < 0) 
+        return;
+        
+    cfgbuf = malloc(size);
     nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
                                   cfgbuf);
 
