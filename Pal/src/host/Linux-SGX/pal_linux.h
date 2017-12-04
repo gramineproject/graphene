@@ -158,7 +158,7 @@ static inline __attribute__((always_inline))
 char * __hex2str(void * hex, int size)
 {
     static char * ch = "0123456789abcdef";
-    char * str = __alloca(size * 2);
+    char * str = __alloca(size * 2 + 1);
 
     for (int i = 0 ; i < size ; i++) {
         unsigned char h = ((unsigned char *) hex)[i];
@@ -166,7 +166,7 @@ char * __hex2str(void * hex, int size)
         str[i * 2 + 1] = ch[h % 16];
     }
 
-    str[size * 2 - 1] = 0;
+    str[size * 2] = 0;
     return str;
 }
 
