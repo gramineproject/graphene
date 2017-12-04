@@ -140,8 +140,9 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
     
     // Figure out in one spot if we will need the scratch buffer
     if (umap_start != offset) check_start = 1;
+    // Don't bother checking the end separately if there is only one chunk.
     if (umap_end != end &&
-        umap_end != umap_start + TRUSTED_STUB_SIZE - 1)
+        umap_end > umap_start + TRUSTED_STUB_SIZE)
         check_end = 1;
     if (check_start || check_end) {
         scratch_buffer = get_reserved_pages(NULL, TRUSTED_STUB_SIZE);
@@ -153,14 +154,31 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
     
     // Case 1: See if we need to verify the first chunk separately
     if (check_start) {
-        memcpy(scratch_buffer, umem, TRUSTED_STUB_SIZE);
-        // XXX: Need to assert overlapping bytes are identical to
-        // The contents of mem
+        // The first bytes should come from umem (offset-map_start).  This
+        // should be less than TRUSTED_STUB_SIZE.  We need to make sure that
+        // the bytes that are actually returned are _identical_ to the ones verified.
+        uint64_t first_bytes = offset - umap_start;
+        uint64_t remainder = TRUSTED_STUB_SIZE - first_bytes;
+        // Handle the case where the entire trusted map is smaller than the
+        // whole chunk - i.e., we need to copy some data from the end too
+        uint64_t end_bytes = 0, mid_bytes = 0;
+        if (end < total && end < umap_start + TRUSTED_STUB_SIZE) {
+            remainder = end - umap_start - first_bytes;
+            mid_bytes = remainder + first_bytes;
+            end_bytes = TRUSTED_STUB_SIZE - mid_bytes;
+            if (end_of_file) end_bytes = umap_end - mid_bytes;
+        }
+        SGX_DBG(DBG_M, "__file_copy_and_check: case 1: offset is %llx, end is %llx, umap_start is %llx, umap_end is %llx, first_bytes is %llx, total is %llx (%llx), end_bytes are %llx, mid_bytes %llx, remainder is %llx\n", offset, end, umap_start, umap_end, first_bytes, total, total-umap_start, end_bytes, mid_bytes, remainder);
+        assert(first_bytes < TRUSTED_STUB_SIZE);
+        memcpy(scratch_buffer, umem, first_bytes);
+        memcpy(scratch_buffer + first_bytes, buffer, remainder);
+        if (end_bytes)
+            memcpy(scratch_buffer + mid_bytes, umem + mid_bytes, end_bytes);
         ret = verify_trusted_file(handle->file.realpath, scratch_buffer,
                                   umap_start, TRUSTED_STUB_SIZE,
                                   stubs, total);
         if (ret) {
-            SGX_DBG(DBG_M, "__file_copy_and_check - verify trusted returned %d\n", ret);
+            SGX_DBG(DBG_E, "__file_copy_and_check - verify trusted (case 1) returned %d\n", ret);
             goto out_unmap_scratch;
         }
         verify_size -= TRUSTED_STUB_SIZE;
@@ -190,17 +208,26 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
         
         SGX_DBG(DBG_M, "__file_copy_and_check - scratch memcpy (end) - %p %p (..%p), end_copy_size is %llu, end_offset %x, eof? %d\n", scratch_buffer, end_ptr, end_ptr + end_copy_size, end_copy_size, end_offset, end_of_file);
         SGX_DBG(DBG_M, "__file_copy_and_check - scratch memcpy (end) - end is %llx, delta is %llx, umem is %p umap_start is %llx\n", end, delta, umem, umap_start);
-        memcpy(scratch_buffer, end_ptr, end_copy_size);
-        SGX_DBG(DBG_M, "__file_copy_and_check - scratch memcpy ok\n");
-        // XXX: Need to assert overlapping bytes are identical to
-        // The contents of mem
+        // Get the first n bytes from the main buffer, and the rest from umem,
+        // so that we are cretain we hash and check precisely the same
+        // contents
+        uint64_t buffer_end = end - offset;
+        uint64_t buffer_offset = (end & ~(TRUSTED_STUB_SIZE - 1)) - offset;
+        uint64_t first_bytes = buffer_end - buffer_offset;
+        uint64_t remainder = end_copy_size - first_bytes;
+        SGX_DBG(DBG_M, "__file_copy_and_check - first bytes are %llu, remainder %llu, buffer end is %llx, buffer offset is %llx, offset is %llx\n", first_bytes, remainder, buffer_end, buffer_offset, offset);
+        SGX_DBG(DBG_M, "__file_copy_and_check - first bytes are (buf 1)  %llx, (buf 2) %llx\n", *((uint64_t *) end_ptr), *((uint64_t *) (((char *) buffer) + buffer_offset)));
+        assert(buffer_end != 0 || buffer_offset != 0);
+        assert(first_bytes < TRUSTED_STUB_SIZE);
+        //memcpy(scratch_buffer, end_ptr, end_copy_size);
+        memcpy(scratch_buffer, buffer+buffer_offset, first_bytes);
+        memcpy(scratch_buffer + first_bytes, end_ptr + first_bytes, remainder);
+
         ret = verify_trusted_file(handle->file.realpath, scratch_buffer,
                                   end_offset, end_copy_size,
                                   stubs, total);
-        SGX_DBG(DBG_M, "__file_copy_and_check - verify end ok\n");
-        assert(!ret);
         if (ret) {
-            SGX_DBG(DBG_E, "__file_copy_and_check - verify trusted returned %d\n", ret);
+            SGX_DBG(DBG_E, "__file_copy_and_check - verify trusted (case 2) returned %d\n", ret);
             goto out_unmap_scratch;
         }
         verify_size -= end_copy_size;
@@ -211,8 +238,10 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
                                   umap_start, umap_end - umap_start,
                                   stubs, total);
         
-        if (ret) 
+        if (ret) {
+            SGX_DBG(DBG_E, "__file_copy_and_check - verify trusted returned %d (case 3)\n", ret);
             goto out_unmap_scratch;
+        }
     }
 
 out_unmap_scratch:
