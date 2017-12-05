@@ -7,10 +7,10 @@
 #include "hex.h"
 
 int main() {
-  char buf[17];
-  uint32_t x = 0xefbeadde;
-  pal_printf("Hex test 1 is %s\n", hex2str(&x, buf, 17));
-  uint64_t y = 0xcdcdcdcdcdcdcdcd;
-  pal_printf("Hex test 2 is %s\n", hex2str(&y, buf, 17));
-  return 0;
+    char x[] = {0xde, 0xad, 0xbe, 0xef};
+    uint64_t y = 0xcdcdcdcdcdcdcdcd;
+    char buf[(sizeof(y) * 2) + 1];
+    pal_printf("Hex test 1 is %s\n", hex_str(&x, buf, 17));
+    pal_printf("Hex test 2 is %s\n", hex_str(&y, buf, 17));
+    return 0;
 }

@@ -33,12 +33,12 @@
  */
 #include <assert.h>
 static inline __attribute__((always_inline))
-char * __hex2str(void * hex, int size, char *str, int len)
+char * __hex_str(void * hex, size_t size, char *str, size_t len)
 {
     static char * ch = "0123456789abcdef";
     assert(len >= size * 2 + 1);
 
-    for (int i = 0 ; i < size ; i++) {
+    for (size_t i = 0 ; i < size ; i++) {
         unsigned char h = ((unsigned char *) hex)[i];
         str[i * 2] = ch[h / 16];
         str[i * 2 + 1] = ch[h % 16];
@@ -48,5 +48,5 @@ char * __hex2str(void * hex, int size, char *str, int len)
     return str;
 }
 
-#define hex2str(array, str, len) __hex2str(array, sizeof(*array), str, len)
+#define hex_str(array, str, len) __hex_str((array), sizeof(*(array)), str, len)
 #endif // HEX_H
