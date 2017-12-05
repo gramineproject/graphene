@@ -330,7 +330,8 @@ void * calloc (size_t nmemb, size_t size)
 {
     size_t total = nmemb * size;
     void *ptr = malloc(total);
-    memset(ptr, 0, total);
+    if (ptr)
+        memset(ptr, 0, total);
     return ptr;
 }
 extern_alias(calloc);

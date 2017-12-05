@@ -77,40 +77,39 @@ DEFINE_LISTP(shim_vma);
 static LISTP_TYPE(shim_vma) vma_list = LISTP_INIT;
 static LOCKTYPE vma_list_lock;
 
-static inline int test_vma_equal (struct shim_vma * tmp,
+static inline bool test_vma_equal (struct shim_vma * tmp,
                                   const void * addr, uint64_t length)
 {
-    return tmp->addr == addr &&
-           tmp->addr + tmp->length == addr + length;
+    return tmp->addr == addr && tmp->length == length;
 }
 
-static inline int test_vma_contain (struct shim_vma * tmp,
+static inline bool test_vma_contain (struct shim_vma * tmp,
                                     const void * addr, uint64_t length)
 {
     return tmp->addr <= addr &&
            tmp->addr + tmp->length >= addr + length;
 }
 
-static inline int test_vma_startin (struct shim_vma * tmp,
+static inline bool test_vma_startin (struct shim_vma * tmp,
                                     const void * addr, uint64_t length)
 {
     return tmp->addr >= addr &&
            tmp->addr < addr + length;
 }
 
-static inline int test_vma_endin (struct shim_vma * tmp,
+static inline bool test_vma_endin (struct shim_vma * tmp,
                                   const void * addr, uint64_t length)
 {
     return tmp->addr + tmp->length > addr &&
            tmp->addr + tmp->length <= addr + length;
 }
 
-static inline int test_vma_overlap (struct shim_vma * tmp,
+static inline bool test_vma_overlap (struct shim_vma * tmp,
                                     const void * addr, uint64_t length)
 {
-    return test_vma_contain (tmp, addr + 1, 0) ||
-           test_vma_contain (tmp, addr + length - 1, 0) ||
-           test_vma_startin (tmp, addr, length - 1);
+    return test_vma_contain(tmp, addr, 1) ||
+           test_vma_contain(tmp, addr + length - 1, 1) ||
+           test_vma_startin(tmp, addr, length);
 }
 
 int bkeep_shim_heap (void);
@@ -274,7 +273,8 @@ static inline void __set_comment (struct shim_vma * vma, const char * comment)
     if (len > VMA_COMMENT_LEN - 1)
         len = VMA_COMMENT_LEN - 1;
 
-    memcpy(vma->comment, comment, len + 1);
+    memcpy(vma->comment, comment, len);
+    vma->comment[len] = 0;
 }
 
 static int __bkeep_mmap (void * addr, uint64_t length,
