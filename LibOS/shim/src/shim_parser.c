@@ -448,7 +448,7 @@ static inline void parse_integer_arg (va_list * ap)
 
 static inline void parse_syscall_args (va_list * ap)
 {
-    const char * arg_type = va_arg(ap, const char *);
+    const char * arg_type = va_arg(*ap, const char *);
 
     if (strcmp_static(arg_type, "const char *"))
         parse_string_arg(ap);
@@ -460,14 +460,14 @@ static inline void parse_syscall_args (va_list * ap)
 
 static inline void skip_syscall_args (va_list * ap)
 {
-    const char * arg_type = va_arg (ap, const char *);
+    const char * arg_type = va_arg(*ap, const char *);
 
     if (strcmp_static(arg_type, "const char *"))
-        va_arg(ap, const char *);
+        va_arg(*ap, const char *);
     else if (is_pointer(arg_type))
-        va_arg(ap, void *);
+        va_arg(*ap, void *);
     else
-        va_arg(ap, int);
+        va_arg(*ap, int);
 }
 
 void sysparser_printf (const char * fmt, ...)
