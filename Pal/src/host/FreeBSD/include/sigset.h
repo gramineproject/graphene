@@ -24,11 +24,13 @@
 #define _SIGSET_H_types 1
 #define _SIGSET_H_fns   1
 
+#define ____sigset_t_defined
+
 typedef int __sig_atomic_t;
 
 /* A `sigset_t' has a bit for each signal.  */
 
-# define _SIGSET_NWORDS	(1024 / (8 * sizeof (unsigned long int)))
+# define _SIGSET_NWORDS	(64 / (8 * sizeof (unsigned long int)))
 
 typedef struct
   {
