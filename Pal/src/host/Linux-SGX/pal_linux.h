@@ -139,7 +139,7 @@ extern struct pal_enclave_state {
                                        enclave */
     uint8_t  data[PAL_ATTESTATION_DATA_SIZE];
                                     /* reserved for filling other data */
-    uint8_t  enclave_keyhash[32];   /* SHA256 digest of enclave's public key
+    sgx_arch_hash_t enclave_keyhash;   /* SHA256 digest of enclave's public key
                                        can also be used as an identifier of the
                                        enclave */
 } __attribute__((packed, aligned (128))) pal_enclave_state;
@@ -154,23 +154,7 @@ extern struct pal_enclave_config {
     void *                 enclave_key;
 } pal_enclave_config;
 
-static inline __attribute__((always_inline))
-char * __hex2str(void * hex, int size)
-{
-    static char * ch = "0123456789abcdef";
-    char * str = __alloca(size * 2 + 1);
-
-    for (int i = 0 ; i < size ; i++) {
-        unsigned char h = ((unsigned char *) hex)[i];
-        str[i * 2] = ch[h / 16];
-        str[i * 2 + 1] = ch[h % 16];
-    }
-
-    str[size * 2] = 0;
-    return str;
-}
-
-#define hex2str(array) __hex2str(array, sizeof(array))
+#include <hex.h>
 
 #else
 
