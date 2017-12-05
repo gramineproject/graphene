@@ -12,8 +12,5 @@ int main() {
   pal_printf("Hex test 1 is %s\n", hex2str(&x, buf, 17));
   uint64_t y = 0xcdcdcdcdcdcdcdcd;
   pal_printf("Hex test 2 is %s\n", hex2str(&y, buf, 17));
-  // Should be 3735928559
   return 0;
-
-
 }

@@ -56,8 +56,6 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
         return -PAL_ERROR_DENIED;
 
     char hash_buf[HASHBUF_SIZE];
-    // Yes, we can probably figure this out statically, but this is starting
-    // to push the limits of risky 
     char mac_buf[MACBUF_SIZE];
     
     SGX_DBG(DBG_S, "Generated report:\n");
