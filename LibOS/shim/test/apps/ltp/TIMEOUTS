@@ -21,7 +21,7 @@ lseek02,40
 pread01_64,40
 pread01,40
 pread02,40
-preadv01,40
+preadv01,80
 pwrite01_64,40
 read01,40
 readv01,40
