@@ -33,7 +33,7 @@
  */
 #include <assert.h>
 static inline __attribute__((always_inline))
-char * __hex_str(void * hex, size_t size, char *str, size_t len)
+char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 {
     static char * ch = "0123456789abcdef";
     assert(len >= size * 2 + 1);
@@ -48,5 +48,5 @@ char * __hex_str(void * hex, size_t size, char *str, size_t len)
     return str;
 }
 
-#define hex_str(array, str, len) __hex_str((array), sizeof(*(array)), str, len)
+#define bytes2hexstr(array, str, len) __bytes2hexstr((array), sizeof(*(array)), str, len)
 #endif // HEX_H
