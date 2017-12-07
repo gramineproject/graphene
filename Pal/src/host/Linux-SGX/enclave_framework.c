@@ -208,6 +208,9 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     LIB_SHA256_CONTEXT sha;
     void * umem;
 
+    if (!tf->size)
+        goto done_hash;
+
     ret = lib_SHA256Init(&sha);
     if (ret < 0)
         goto failed;
@@ -235,6 +238,7 @@ unmap:
 
     sgx_checksum_t hash;
 
+done_hash:
     ret = lib_SHA256Final(&sha, (uint8_t *) hash.bytes);
     if (ret < 0)
         goto failed;
