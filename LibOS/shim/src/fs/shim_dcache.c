@@ -95,37 +95,27 @@ static struct shim_dentry * alloc_dentry (void)
 
 int init_dcache (void)
 {
-#ifdef PROFILE
-    unsigned long begin_time = GET_PROFILE_INTERVAL();
-    BEGIN_PROFILE_INTERVAL_SET(begin_time);
-#endif
-
     dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
-    SAVE_PROFILE_INTERVAL(dcache_init_memory);
 
     create_lock(dcache_lock);
-    SAVE_PROFILE_INTERVAL(dcache_init_lock);
 
     dentry_root = alloc_dentry();
 
     /* The root is special; we assume it won't change or be freed, and 
-     * set its refcount to 1
-     */
+     * set its refcount to 1. */
     get_dentry(dentry_root);
 
-    /* Initialize the root to a valid state, as a low-level lookup will fail. */
+    /* Initialize the root to a valid state, as a low-level lookup
+     *  will fail. */
     dentry_root->state |= DENTRY_VALID;
 
     /* The root should be a directory too*/
     dentry_root->state |= DENTRY_ISDIRECTORY;
-    
+
     qstrsetstr(&dentry_root->name,     "", 0);
     qstrsetstr(&dentry_root->rel_path, "", 0);
-    
-    get_dentry(dentry_root);
-    SAVE_PROFILE_INTERVAL(dcache_init_root_entry);
 
-    SAVE_PROFILE_INTERVAL_SINCE(total_init_dcache, begin_time);
+    get_dentry(dentry_root);
     return 0;
 }
 
@@ -401,7 +391,6 @@ END_CP_FUNC(dentry)
 BEGIN_RS_FUNC(dentry)
 {
     struct shim_dentry * dent = (void *) (base + GET_CP_FUNC_ENTRY());
-    BEGIN_PROFILE_INTERVAL();
 
     CP_REBASE(dent->hlist);
     CP_REBASE(dent->list);
