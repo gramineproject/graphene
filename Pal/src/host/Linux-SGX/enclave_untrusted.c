@@ -20,8 +20,8 @@
 #include <pal_internal.h>
 #include <pal_security.h>
 #include <pal_error.h>
-#include <linux_list.h>
 #include <api.h>
+#include <assert.h>
 
 #include "enclave_ocalls.h"
 

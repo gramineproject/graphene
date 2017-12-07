@@ -34,5 +34,6 @@ $(pal_sec_lib): $(addsuffix .o,$(objs)) $(graphene_lib) $(deps)
 	@echo [ security/Linux/$@ ]
 	@$(CC) $(CFLAGS) -E $< -o $@
 
+.PHONY: clean
 clean:
 	rm -rf *.o $(pal_sec_lib)

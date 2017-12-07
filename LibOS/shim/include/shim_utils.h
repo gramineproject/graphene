@@ -27,7 +27,7 @@
 #include <shim_handle.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 #include <api.h>
 
 struct shim_handle;

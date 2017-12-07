@@ -32,7 +32,7 @@
 #include "pal_error.h"
 #include "pal_security.h"
 #include "api.h"
-#include "linux_list.h"
+#include "list.h"
 
 #include <atomic.h>
 #include <sigset.h>

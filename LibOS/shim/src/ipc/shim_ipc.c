@@ -34,7 +34,7 @@
 
 #include <pal.h>
 #include <pal_error.h>
-#include <linux_list.h>
+#include <list.h>
 
 #define ipc_info_mgr_ALLOC  32
 #define PAGE_SIZE           allocsize
@@ -103,7 +103,7 @@ static struct shim_ipc_info * __get_new_ipc_info (IDTYPE vmid, const char * uri,
     if (uri)
         qstrsetstr(&info->uri, uri, len);
     REF_SET(info->ref_count, 1);
-    INIT_HLIST_NODE(&info->hlist);
+    INIT_LIST_HEAD(info, hlist);
     return info;
 }
 
@@ -183,20 +183,21 @@ void put_ipc_info (struct shim_ipc_info * info)
 #define CLIENT_HASH_MASK    (CLIENT_HASH_NUM - 1)
 #define CLIENT_HASH(vmid)   ((vmid) & CLIENT_HASH_MASK)
 
-static struct hlist_head client_table [CLIENT_HASH_NUM];
+/* Links to shim_ipc_info->hlist */
+DEFINE_LISTP(shim_ipc_info);
+static LISTP_TYPE(shim_ipc_info) client_table [CLIENT_HASH_NUM];
 
 struct shim_ipc_info *
 lookup_and_alloc_client (IDTYPE vmid, const char * uri)
 {
     struct shim_ipc_info * p;
-    struct hlist_head * head = client_table + CLIENT_HASH(vmid);
-    struct hlist_node * pos;
+    LISTP_TYPE(shim_ipc_info) *head = client_table + CLIENT_HASH(vmid);
     size_t len = strlen(uri);
 
     assert(vmid);
 
     lock(ipc_info_lock);
-    hlist_for_each_entry(p, pos, head, hlist)
+    listp_for_each_entry(p, head, hlist)
         if (p->vmid == vmid && !qstrcmpstr(&p->uri, uri, len)) {
             get_ipc_info(p);
             unlock(ipc_info_lock);
@@ -207,7 +208,7 @@ lookup_and_alloc_client (IDTYPE vmid, const char * uri)
     lock(ipc_info_lock);
     p = __get_new_ipc_info(vmid, uri, len);
     if (p) {
-        hlist_add_head(&p->hlist, head);
+        listp_add(p, head, hlist);
         get_ipc_info(p);
     }
     unlock(ipc_info_lock);
@@ -217,9 +218,11 @@ lookup_and_alloc_client (IDTYPE vmid, const char * uri)
 void put_client (struct shim_ipc_info * info)
 {
     lock(ipc_info_lock);
+    /* Look up the hash */
+    LISTP_TYPE(shim_ipc_info) *head = client_table + CLIENT_HASH(info->vmid);
     __put_ipc_info(info);
     if (REF_GET(info->ref_count) == 1) {
-        hlist_del_init(&info->hlist);
+        listp_del_init(info, head, hlist);
         __put_ipc_info(info);
     }
     unlock(ipc_info_lock);
@@ -229,13 +232,12 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
                                         IDTYPE vmid)
 {
     struct shim_ipc_info * p;
-    struct hlist_head * head = client_table + CLIENT_HASH(vmid);
-    struct hlist_node * pos;
+    LISTP_TYPE(shim_ipc_info) * head = client_table + CLIENT_HASH(vmid);
 
     assert(vmid);
 
     lock(ipc_info_lock);
-    hlist_for_each_entry(p, pos, head, hlist)
+    listp_for_each_entry(p, head, hlist)
         if (p->vmid == vmid && !qstrempty(&p->uri)) {
             __get_ipc_info(p);
             unlock(ipc_info_lock);
@@ -320,7 +322,7 @@ int __init_ipc_msg_duplex (struct shim_ipc_msg_obj * msg, int code, int size,
 {
     __init_ipc_msg(&msg->msg, code, size, dest);
     msg->thread = NULL;
-    INIT_LIST_HEAD(&msg->list);
+    INIT_LIST_HEAD(msg, list);
     msg->retval = 0;
     msg->private = NULL;
     return 0;
@@ -383,9 +385,9 @@ int send_ipc_message (struct shim_ipc_msg * msg, struct shim_ipc_port * port)
 int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                               struct shim_ipc_port * port)
 {
-    if (port && !list_empty(&msg->list)) {
+    if (port && !list_empty(msg, list)) {
         lock(port->msgs_lock);
-        list_del_init(&msg->list);
+        listp_del_init(msg, &port->msgs, list);
         unlock(port->msgs_lock);
     }
 
@@ -409,7 +411,7 @@ int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
     if (save) {
         lock(port->msgs_lock);
         msg->private = private_data;
-        list_add_tail(&msg->list, &port->msgs);
+        listp_add_tail(msg, &port->msgs, list);
         unlock(port->msgs_lock);
     }
 
@@ -429,10 +431,10 @@ struct shim_ipc_msg_obj * find_ipc_msg_duplex (struct shim_ipc_port * port,
 {
     struct shim_ipc_msg_obj * tmp, * found = NULL;
     lock(port->msgs_lock);
-    list_for_each_entry(tmp, &port->msgs, list)
+    listp_for_each_entry(tmp, &port->msgs, list)
         if (tmp->msg.seq == seq) {
             found = tmp;
-            list_del_init(&tmp->list);
+            listp_del_init(tmp, &port->msgs, list);
             break;
         }
     unlock(port->msgs_lock);

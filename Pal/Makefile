@@ -14,6 +14,7 @@ endif
 
 DIRS = src test regression
 
+.PHONY: all clean
 all clean:
 	for d in $(DIRS); \
 	do \

@@ -41,7 +41,7 @@ syscalldb:
         pushq %rbx
 
         cmp $LIBOS_SYSCALL_BOUND, %rax
-        jge isundef
+        jae isundef
 
         movq shim_table@GOTPCREL(%rip), %rbx
         movq (%rbx,%rax,8), %rbx
