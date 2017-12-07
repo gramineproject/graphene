@@ -83,7 +83,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 /* 'read' operation for file streams. */
-static int file_read (PAL_HANDLE handle, int offset, int count,
+static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                       void * buffer)
 {
     sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
@@ -93,8 +93,8 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
     if (offset >= total)
         return 0;
 
-    unsigned long end = (offset + count > total) ? total : offset + count;
-    unsigned long map_start, map_end;
+    uint64_t end = (offset + count > total) ? total : offset + count;
+    uint64_t map_start, map_end;
 
     if (stubs) {
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
@@ -127,8 +127,8 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
 }
 
 /* 'write' operation for file streams. */
-static int file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count,
-			const void* buffer)	
+static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          const void * buffer)
 {
     uint64_t map_start = ALLOC_ALIGNDOWN(offset);
     uint64_t map_end = ALLOC_ALIGNUP(offset + count);
@@ -138,7 +138,7 @@ static int file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count,
     ret = ocall_map_untrusted(handle->file.fd, map_start,
                               map_end - map_start, PROT_WRITE, &umem);
     if (ret < 0) {
-	return -PAL_ERROR_DENIED;
+        return -PAL_ERROR_DENIED;
     }
 
     if (offset + count > handle->file.total) {
@@ -182,13 +182,11 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 {
     sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
     uint64_t total = handle->file.total;
-   
     void * mem = *addr;
     void * umem;
     int ret;
 
     if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
-map_untrusted:
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
         if (!ret)
@@ -428,7 +426,8 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
+static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                         void * buf)
 {
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;

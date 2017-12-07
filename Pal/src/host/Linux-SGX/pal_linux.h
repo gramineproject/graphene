@@ -98,8 +98,8 @@ int init_trusted_files (void);
 int load_trusted_file
     (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr);
 int verify_trusted_file
-    (const char * uri, void * mem, unsigned int offset, unsigned int size,
-     sgx_stub_t * stubs, unsigned int total_size);
+    (const char * uri, void * mem, uint64_t offset, uint64_t size,
+     sgx_stub_t * stubs, uint64_t total_size);
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mrenclave_str);

@@ -15,7 +15,7 @@ int ocall_exit (void);
 
 int ocall_print_string (const char * str, unsigned int length);
 
-int ocall_alloc_untrusted (unsigned int size, void ** mem);
+int ocall_alloc_untrusted (uint64_t size, void ** mem);
 
 int ocall_map_untrusted (int fd, uint64_t offset,
                          uint64_t size, unsigned short prot,

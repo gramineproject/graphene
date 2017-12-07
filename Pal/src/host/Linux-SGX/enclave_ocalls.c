@@ -91,7 +91,7 @@ int ocall_print_string (const char * str, unsigned int length)
     return retval;
 }
 
-int ocall_alloc_untrusted (unsigned int size, void ** mem)
+int ocall_alloc_untrusted (uint64_t size, void ** mem)
 {
     int retval = 0;
     ms_ocall_alloc_untrusted_t * ms;
