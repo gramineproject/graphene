@@ -9,7 +9,7 @@
 
 /*
  * GCC's structure padding may cause leaking from uninialized
- * regions withing a struct (https://arxiv.org/abs/1710.09061).
+ * regions (https://arxiv.org/abs/1710.09061).
  * A simple contermeasure is to enable packing for all ocall
  * argument structures.
  */
