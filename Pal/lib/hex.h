@@ -48,5 +48,10 @@ char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
     return str;
 }
 
-#define bytes2hexstr(array, str, len) __bytes2hexstr((array), sizeof(*(array)), str, len)
+#define IS_INDEXABLE(arg) (sizeof(arg[0]))
+#define IS_ARRAY(arg) (IS_INDEXABLE(arg) > 0 && (((void *) &arg) == ((void *) arg)))
+
+#define bytes2hexstr(array, str, len) (IS_ARRAY(array) ?                \
+                                       __bytes2hexstr((array), sizeof(array), str, len) \
+                                       : NULL)
 #endif // HEX_H
