@@ -651,10 +651,12 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     }
 
     /* second, reallocate the buffer */
-    int bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
+    uint64_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
+    
     int prot = PAL_PROT_READ;
-    unsigned long mapoff = file->marker & ~(bufsize - 1);
-    unsigned long maplen = bufsize;
+    uint64_t mapoff = file->marker & ~(bufsize - 1); 
+    
+    uint64_t maplen = bufsize;	
 
     if (hdl->acc_mode & MAY_WRITE)
         prot |= PAL_PROT_WRITE;
@@ -684,13 +686,13 @@ static int map_read (struct shim_handle * hdl, void * buf, size_t count)
     lock(hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    unsigned int size = atomic_read(&data->size);
+    uint64_t size = atomic_read(&data->size);
 
     if (check_version(hdl) &&
         file->size < size)
         file->size = size;
 
-    int marker = file->marker;
+    uint64_t marker = file->marker;
 
     if (marker >= file->size) {
         count = 0;
@@ -724,7 +726,8 @@ static int map_write (struct shim_handle * hdl, const void * buf,
     lock(hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    int marker = file->marker;
+    uint64_t marker = file->marker;
+	
 
     if (file->marker + count > file->size) {
         file->size = file->marker + count;
@@ -732,15 +735,16 @@ static int map_write (struct shim_handle * hdl, const void * buf,
         ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL);
 
         if (!ret) {
-            ret = -PAL_ERRNO;
+	    ret = -PAL_ERRNO;
             goto out;
         }
 
-        if (ret < count)
-            file->size -= count - ret;
+        if (ret < count) {
+           file->size -= count - ret;
+	}
 
         if (check_version(hdl)) {
-            int size;
+	    uint64_t size;
             do {
                 if ((size = atomic_read(&data->size)) >= file->size) {
                     file->size = size;
@@ -753,13 +757,14 @@ static int map_write (struct shim_handle * hdl, const void * buf,
         goto out;
     }
 
-    if ((ret = __map_buffer(hdl, count)) < 0)
-        goto out;
-
-    if (count) {
-        memcpy(file->mapbuf + (marker - file->mapoffset), buf, count);
-        file->marker = marker + count;
+    if ((ret = __map_buffer(hdl, count)) < 0) {
+	goto out;
     }
+
+    if (count) { 
+	memcpy(file->mapbuf + (marker - file->mapoffset), buf, count);
+        file->marker = marker + count;
+    } 
 
     ret = count;
 out:
