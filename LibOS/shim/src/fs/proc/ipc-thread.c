@@ -101,7 +101,9 @@ do_ipc:
         qstrsetstr(link, (char *) ipc_data, strlen((char *) ipc_data));
 
     if (dentptr) {
-        ret = path_lookupat(NULL, (char *) ipc_data, 0, &dent);
+        /* XXX: Not sure how to handle this case yet */
+        assert (0);
+        ret = path_lookupat(NULL, (char *) ipc_data, 0, &dent, NULL);
         if (ret < 0)
             goto out;
 

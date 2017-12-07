@@ -634,7 +634,9 @@ int init_from_checkpoint_file (const char * filename,
     struct shim_dentry * dir = NULL;
     int ret;
 
-    ret = path_lookupat(NULL, filename, LOOKUP_ACCESS|LOOKUP_DIRECTORY, &dir);
+    /* XXX: Not sure what to do here yet */
+    assert(0);
+    ret = path_lookupat(NULL, filename, LOOKUP_ACCESS|LOOKUP_DIRECTORY, &dir, NULL);
     if (ret < 0)
         return ret;
 
@@ -654,7 +656,7 @@ int init_from_checkpoint_file (const char * filename,
     for ( ; d ; d = d->next) {
         struct shim_dentry * file;
         if ((ret = lookup_dentry(dir, d->name, strlen(d->name), false,
-                                 &file)) < 0)
+                                 &file, dir->fs)) < 0)
             continue;
         if (file->state & DENTRY_NEGATIVE)
             continue;
