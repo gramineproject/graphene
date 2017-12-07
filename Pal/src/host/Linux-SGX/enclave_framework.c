@@ -204,7 +204,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (ret < 0)
         goto failed;
 
-    for (; offset < tf->size; offset += TRUSTED_STUB_SIZE, s++) {
+    for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE, s++) {
         uint64_t mapping_size = tf->size - offset;
         if (mapping_size > TRUSTED_STUB_SIZE)
             mapping_size = TRUSTED_STUB_SIZE;
