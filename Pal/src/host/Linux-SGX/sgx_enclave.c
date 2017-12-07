@@ -709,3 +709,7 @@ int ecall_thread_start (void)
     EDEBUG(ECALL_THREAD_START, NULL);
     return sgx_ecall(ECALL_THREAD_START, NULL);
 }
+
+void __abort(void) {
+    INLINE_SYSCALL(exit_group, 1, -1); 
+}

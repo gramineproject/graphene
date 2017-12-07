@@ -28,19 +28,21 @@
 #include <shim_thread.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
+DEFINE_LIST(async_event);
 struct async_event {
-    IDTYPE              caller;
-    struct list_head    list;
-    void                (*callback) (IDTYPE caller, void * arg);
-    void *              arg;
-    PAL_HANDLE          object;
-    unsigned long       install_time;
-    unsigned long       expire_time;
+    IDTYPE                 caller;
+    LIST_TYPE(async_event) list;
+    void                   (*callback) (IDTYPE caller, void * arg);
+    void *                 arg;
+    PAL_HANDLE             object;
+    unsigned long          install_time;
+    unsigned long          expire_time;
 };
 
-static LIST_HEAD(async_list);
+DEFINE_LISTP(async_event);
+static LISTP_TYPE(async_event) async_list;
 
 enum {  HELPER_NOTALIVE, HELPER_ALIVE };
 
@@ -71,17 +73,38 @@ int install_async_event (PAL_HANDLE object, unsigned long time,
     lock(async_helper_lock);
 
     struct async_event * tmp;
-    struct list_head * prev = &async_list;
 
-    list_for_each_entry(tmp, &async_list, list) {
+    listp_for_each_entry(tmp, &async_list, list) {
         if (event->expire_time && tmp->expire_time > event->expire_time)
             break;
-        prev = &tmp->list;
     }
 
-    INIT_LIST_HEAD(&event->list);
-    list_add(&event->list, prev);
-
+    /* 
+     * man page of alarm system call :
+     * DESCRIPTION
+     * alarm() arranges for a SIGALRM signal to be delivered to the 
+	 * calling process in seconds seconds.
+     * If seconds is zero, any pending alarm is canceled.
+     * In any event any previously set alarm() is canceled.
+     */
+    if (!listp_empty(&async_list)) {
+        tmp = listp_first_entry(&async_list, struct async_event, list);
+        tmp = tmp->list.prev;
+        /*
+         * any previously set alarm() is canceled.
+         * There should be exactly only one timer pending
+         */
+		listp_del(tmp, &async_list, list);
+        free(tmp);
+    } else
+	   tmp = NULL;
+    
+    INIT_LIST_HEAD(event, list);
+    if (!time)    // If seconds is zero, any pending alarm is canceled.
+        free(event);
+    else
+        listp_add_tail(event, &async_list, list);   
+    
     unlock(async_helper_lock);
 
     if (atomic_read(&async_helper_state) == HELPER_NOTALIVE)
@@ -164,7 +187,8 @@ static void shim_async_helper (void * arg)
                 next_event->callback(next_event->caller, next_event->arg);
 
                 lock(async_helper_lock);
-                list_del(&next_event->list);
+                /* DEP: Events can only be on the async list */
+                listp_del(next_event, &async_list, list);
                 free(next_event);
                 goto update_list;
             }
@@ -187,7 +211,7 @@ update_status:
 
         lock(async_helper_lock);
 
-        list_for_each_entry_safe(tmp, n, &async_list, list) {
+        listp_for_each_entry_safe(tmp, n, &async_list, list) {
             if (tmp->object == polled) {
                 debug("async event trigger at %llu\n",
                       latest_time);
@@ -202,10 +226,10 @@ update_list:
         next_event = NULL;
         object_num = 0;
 
-        if (!list_empty(&async_list)) {
+        if (!listp_empty(&async_list)) {
             struct async_event * tmp, * n;
 
-            list_for_each_entry_safe(tmp, n, &async_list, list) {
+            listp_for_each_entry_safe(tmp, n, &async_list, list) {
                 if (tmp->object) {
                     local_objects[object_num + 1] = tmp->object;
                     object_num++;
@@ -221,7 +245,7 @@ update_list:
 
                 debug("async event trigger at %llu (expire at %llu)\n",
                       latest_time, tmp->expire_time);
-                list_del(&tmp->list);
+                listp_del(tmp, &async_list, list);
                 unlock(async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
                 free(tmp);

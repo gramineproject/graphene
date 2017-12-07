@@ -26,7 +26,7 @@
 typedef unsigned char byte;
 
 void *
-memset (void *dstpp, int c, int len)
+memset (void *dstpp, int c, size_t len)
 {
   long int dstp = (long int) dstpp;
 

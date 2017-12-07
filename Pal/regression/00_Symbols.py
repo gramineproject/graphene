@@ -68,4 +68,5 @@ def check_symbols(res):
     return True
 
 regression.add_check(name="Symbol Resolution", check=check_symbols);
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

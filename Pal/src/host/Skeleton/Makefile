@@ -17,6 +17,7 @@ objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 graphene_lib = ../../../lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
+.PHONY: all
 all: $(host_target)
 
 ifeq ($(DEBUG),1)
@@ -45,5 +46,6 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
 
+.PHONY: clean
 clean:
 	rm -f $(addsuffix .o,$(objs)) $(host_target)

@@ -15,27 +15,17 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <stdint.h>
-#include "pal.h"
-#include "pal_crypto.h"
-#include "crypto/wolfssl/sha256.h"
+#ifndef MBEDTLS_PLATFORM_H
+#define MBEDTLS_PLATFORM_H
 
-int lib_SHA256Init(LIB_SHA256_CONTEXT *context)
-{
-    return SHA256Init(context);
-}
+/* For standard library apis. */
+#include "api.h"
 
-int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
-                   uint64_t len)
-{
-    /* uint64_t is a 64-bit value, but SHA256Update takes a 32-bit len. */
-    if (len > UINT32_MAX) {
-        return -1;
-    }
-    return SHA256Update(context, data, len);
-}
+void * malloc(size_t size);
+void * calloc (size_t nmem, size_t size);
+void free(void *);
 
-int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output)
-{
-    return SHA256Final(context, output);
-}
+#define mbedtls_calloc calloc
+#define mbedtls_free free
+
+#endif

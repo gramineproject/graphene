@@ -5,6 +5,7 @@ import time
 import signal
 import tempfile
 import multiprocessing
+import sys
 
 def run(cmd, timeout, test):
     try:
@@ -33,6 +34,7 @@ def run(cmd, timeout, test):
         return None
     finally:
         if p is not None and p.poll() is None:
+            print 'killing %s' % test
             os.killpg(os.getpgid(p.pid), signal.SIGKILL)
 
 def finish(result):
@@ -46,8 +48,14 @@ def finish(result):
             count = 1
             for output in result['output']:
                 tokens = output.split()
+
                 if len(tokens) < 2:
                     continue
+
+                # Drop this line so that we get consistent offsets
+                if output == "WARNING: no physical memory support, process creation will be slow.\n":
+                    continue
+
                 if tokens[1].isdigit():
                     test_subtest = test + "," + tokens[1]
                     count = int(tokens[1]) + 1
@@ -76,13 +84,15 @@ def finish(result):
                 elif "TCONF" in output or "TBROK" in output or "BROK" in output or "error" in output:
                     print >>broken_tests_fh, test_subtest
                     # Syscall not implemented or test preparation failed
-                    print "[Broken ] " + test_subtest
+                    print "[Broken(a) ] " + test_subtest + CEND
                     current_broken[test_subtest] = 1
                     reported = True
 
             if (not reported):
                 print >>broken_tests_fh, test
-                print CRED + "[Broken ] " + test + CEND
+                print CRED + "[Broken(b) ] " + test + CEND
+                for output in result['output']:
+                    print output
                 current_broken[test] = 1
 
     except Exception as e:
@@ -156,11 +166,16 @@ with open(stablePass, 'rb') as csvfile:
 
 print "\n\nRESULT [Difference] :\n---------------------\n"
 
+rv = 0
+
 for test in sorted(stable_passed):
     if not test in current_passed:
         print CRED + "Test '" + test + "' did not pass in the current run!!" + CEND
+        rv = -1
 
 for test in sorted(current_passed):
     if not test in stable_passed:
         print CGREEN + "Test '" + test + "' passed in the current run!!" + CEND
 print "\n"
+
+sys.exit(rv)

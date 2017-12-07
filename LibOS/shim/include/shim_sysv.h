@@ -69,7 +69,7 @@ int __balance_sysv_score (struct sysv_balance_policy * policy,
 
 #define MSG_NOERROR 010000
 
-#include <linux_list.h>
+#include <list.h>
 
 struct __kernel_msgbuf {
     long mtype;     /* type of message */
@@ -160,20 +160,9 @@ int store_all_msg_persist (void);
 
 #define HOST_SEM_NUM        65535
 
-struct sem_obj {
-    unsigned short      num;
-    unsigned short      val;
-    unsigned short      zcnt;
-    unsigned short      ncnt;
-    IDTYPE              pid;
-    PAL_NUM             host_sem_id;
-    PAL_HANDLE          host_sem;
-    struct list_head    ops;
-    struct list_head    next_ops;
-};
-
+DEFINE_LIST(sem_ops);
 struct sem_ops {
-    struct list_head   progress;
+    LIST_TYPE(sem_ops)      progress;
     struct sem_stat {
         bool                completed;
         bool                failed;
@@ -184,6 +173,20 @@ struct sem_ops {
     struct sysv_client client;
     struct sembuf ops[];
 };
+
+DEFINE_LISTP(sem_ops);
+struct sem_obj {
+    unsigned short      num;
+    unsigned short      val;
+    unsigned short      zcnt;
+    unsigned short      ncnt;
+    IDTYPE              pid;
+    PAL_NUM             host_sem_id;
+    PAL_HANDLE          host_sem;
+    LISTP_TYPE(sem_ops) ops;
+    LISTP_TYPE(sem_ops) next_ops;
+};
+
 
 #define SEM_POSITIVE_SCORE(num)  ((num) < 5 ? 5 - (num) : 1)
 #define SEM_ZERO_SCORE           20

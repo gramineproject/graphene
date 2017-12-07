@@ -47,7 +47,7 @@ int _DkSpinUnlock (struct spinlock * lock);
 void * malloc_untrusted (int size);
 void free_untrusted (void * mem);
 
-#include <linux_list.h>
+#include <list.h>
 
 /* internal Mutex design, the structure has to align at integer boundary
    because it is required by futex call. If DEBUG_MUTEX is defined,
@@ -65,6 +65,15 @@ struct mutex_handle {
 /* Initializer of Mutexes */
 #define MUTEX_HANDLE_INIT    { .u = 0 }
 #define INIT_MUTEX_HANDLE(m)  do { m->u = 0; } while (0)
+
+DEFINE_LIST(pal_handle_thread);
+struct pal_handle_thread {
+    PAL_HDR reserved;
+    PAL_IDX tid;
+    PAL_PTR tcs;
+    LIST_TYPE(pal_handle_thread) list;
+    void * param;
+};
 
 typedef union pal_handle
 {
@@ -158,12 +167,7 @@ typedef union pal_handle
         PAL_BOL nonblocking;
     } mcast;
 
-    struct {
-        PAL_HDR reserved;
-        PAL_PTR tcs;
-        struct list_head list;
-        void * param;
-    } thread;
+    struct pal_handle_thread thread;
 
     struct {
         PAL_HDR reserved;

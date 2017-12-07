@@ -41,21 +41,30 @@
 
 #include <asm/mman.h>
 
-LIST_HEAD(cp_sessions);
+/* cp_session objects are on the cp_sessions list, by the list field */
+/* cp_threads are organized onto a list, handing off of the
+ * cp_session->registered_threads list. */
 
+DEFINE_LIST(cp_thread);
+struct cp_thread {
+    struct shim_thread *    thread;
+    LIST_TYPE(cp_thread)    list;
+};
+
+
+DEFINE_LIST(cp_session);
+DEFINE_LISTP(cp_thread);
 struct cp_session {
     IDTYPE                  sid;
     struct shim_handle *    cpfile;
-    struct list_head        registered_threads;
-    struct list_head        list;
+    LISTP_TYPE(cp_thread)   registered_threads;
+    LIST_TYPE(cp_session)   list;
     PAL_HANDLE              finish_event;
     struct shim_cp_store    cpstore;
 };
 
-struct cp_thread {
-    struct shim_thread *    thread;
-    struct list_head        list;
-};
+DEFINE_LISTP(cp_session);
+LISTP_TYPE(cp_session) cp_sessions;
 
 int create_checkpoint (const char * cpdir, IDTYPE * sid)
 {
@@ -65,8 +74,8 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
 
     int ret = 0;
 
-    INIT_LIST_HEAD(&cpsession->registered_threads);
-    INIT_LIST_HEAD(&cpsession->list);
+    INIT_LISTP(&cpsession->registered_threads);
+    INIT_LIST_HEAD(cpsession, list);
     cpsession->finish_event = DkNotificationEventCreate(PAL_FALSE);
     cpsession->cpfile = NULL;
 
@@ -97,7 +106,7 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
 
     struct cp_session * s;
     if (*sid) {
-        list_for_each_entry(s, &cp_sessions, list)
+        listp_for_each_entry(s, &cp_sessions, list)
             if (s->sid == *sid) {
                 ret = 0;
                 goto err_locked;
@@ -106,14 +115,14 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
 retry:
         getrand(&cpsession->sid, sizeof(IDTYPE));
 
-        list_for_each_entry(s, &cp_sessions, list)
+        listp_for_each_entry(s, &cp_sessions, list)
             if (s->sid == cpsession->sid)
                 goto retry;
 
         *sid = cpsession->sid;
     }
 
-    list_add_tail(&cpsession->list, &cp_sessions);
+    listp_add_tail(cpsession, &cp_sessions, list);
     master_unlock();
     return 0;
 
@@ -133,13 +142,13 @@ static int finish_checkpoint (struct cp_session * session);
 static int check_thread (struct shim_thread * thread, void * arg,
                          bool * unlocked)
 {
-    struct list_head * registered = (struct list_head *) arg;
+    LISTP_TYPE(cp_thread) * registered = (LISTP_TYPE(cp_thread) *) arg;
     struct cp_thread * t;
 
     if (!thread->in_vm || !thread->is_alive)
         return 0;
 
-    list_for_each_entry(t, registered, list)
+    listp_for_each_entry(t, registered, list)
         if (t->thread == thread)
             return 0;
 
@@ -156,7 +165,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
 
     master_lock();
 
-    list_for_each_entry(s, &cp_sessions, list)
+    listp_for_each_entry(s, &cp_sessions, list)
         if (s->sid == sid) {
             cpsession = s;
             break;
@@ -167,9 +176,9 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
         return -EINVAL;
     }
 
-    INIT_LIST_HEAD(&cpthread.list);
+    INIT_LIST_HEAD(&cpthread, list);
     cpthread.thread = thread;
-    list_add_tail(&cpthread.list, &cpsession->registered_threads);
+    listp_add_tail(&cpthread, &cpsession->registered_threads, list);
 
     /* find out if there is any thread that is not registered yet */
     ret = walk_thread_list(&check_thread,

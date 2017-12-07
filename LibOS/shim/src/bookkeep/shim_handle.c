@@ -285,7 +285,7 @@ struct shim_handle * get_new_handle (void)
     REF_SET(new_handle->ref_count, 1);
     create_lock(new_handle->lock);
     new_handle->owner = cur_process.vmid;
-    INIT_LIST_HEAD(&new_handle->epolls);
+    INIT_LISTP(&new_handle->epolls);
     return new_handle;
 }
 
@@ -817,7 +817,7 @@ BEGIN_CP_FUNC(handle)
         if (hdl->type == TYPE_EPOLL)
             DO_CP(epoll_fd, &hdl->info.epoll.fds, &new_hdl->info.epoll.fds);
 
-        INIT_LIST_HEAD(&new_hdl->epolls);
+        INIT_LISTP(&new_hdl->epolls);
 
         unlock(hdl->lock);
         ADD_CP_FUNC_ENTRY(off);

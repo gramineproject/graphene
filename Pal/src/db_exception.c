@@ -29,7 +29,8 @@
 #include "pal_internal.h"
 #include "pal_error.h"
 #include "api.h"
-#include "linux_list.h"
+#include "list.h"
+#include "pal_debug.h"
 
 #define INIT_EVENT_HANDLER      { .lock = LOCK_INIT }
 
@@ -93,7 +94,7 @@ void warn (const char *format, ...)
 { 
     va_list args;
     va_start (args, format);
-    printf(format, args);
+    vprintf(format, &args);
     va_end (args);
 }
 
