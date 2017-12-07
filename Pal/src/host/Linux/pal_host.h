@@ -61,14 +61,12 @@ int _DkMutexLock (struct mutex_handle * mut);
 int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
 int _DkMutexUnlock (struct mutex_handle * mut);
 
-union pal_handle;
-
 typedef struct {
     PAL_HDR hdr;
 #if TRACE_HEAP_LEAK == 1
     struct heap_trace_info {
         /* maintaining a list of handles */
-        union pal_handle ** pprev, * next;
+        struct pal_handle ** pprev, * next;
         /* trace the PC where the handle is created */
         PAL_PTR caller;
     } heap_trace;

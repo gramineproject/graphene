@@ -60,15 +60,8 @@ typedef struct {
 #  define UNTRACE_HEAP(handle) do {} while (0)
 # endif
 
-# define SET_HANDLE_TYPE(handle, t)             \
-    do {                                        \
-        HANDLE_HDR(handle)->type = pal_type_##t;\
-        HANDLE_HDR(handle)->flags = 0;          \
-    } while (0)
-
 static inline void init_handle_hdr(PAL_HDR *hdr, int pal_type) {
     hdr->type = pal_type;
-    hdr->ref.counter = 1;
     hdr->flags = 0;
 }
 
