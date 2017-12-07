@@ -10,6 +10,7 @@ typedef __builtin_va_list __gnuc_va_list;
 #include "graphene-rm.h"
 #include "graphene-sandbox.h"
 
+#include <linux/audit.h>
 #include <linux/types.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
@@ -21,6 +22,21 @@ typedef __builtin_va_list __gnuc_va_list;
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/ioctls.h>
+
+#define arch_nr (offsetof(struct seccomp_data, arch))
+
+#if defined(__i386__)
+# define ARCH_NR AUDIT_ARCH_I386
+#elif defined(__x86_64__)
+# define ARCH_NR AUDIT_ARCH_X86_64
+#else
+# error "Unsupported architecture"
+#endif
+
+#define VALIDATE_ARCHITECTURE \
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, arch_nr), \
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_NR, 1, 0), \
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
 
 #ifndef PR_SET_NO_NEW_PRIVS
 # define PR_SET_NO_NEW_PRIVS 38
@@ -153,6 +169,7 @@ int install_initial_syscall_filter (int has_reference_monitor)
     struct bpf_labels labels = { .count = 0 };
 
     struct sock_filter filter[] = {
+        VALIDATE_ARCHITECTURE
         SYSCALL_FILTERS
 
 #if USE_CLOCK_GETTIME == 1
