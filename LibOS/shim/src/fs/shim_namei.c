@@ -261,6 +261,9 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
 {
     // Basic idea: recursively iterate over path, peeling off one atom at a
     // time.
+    /* Chia-Che 12/5/2014:
+     * XXX I am not a big fan of recursion. I am giving a pass to this code
+     * for now, but eventually someone (probably me) should rewrite it. */
     const char * my_path;
     int my_pathlen = 0;
     int err = 0;
@@ -431,7 +434,8 @@ out:
 /* Just wraps __path_lookupat, but also acquires and releases the dcache_lock.
  */
 int path_lookupat (struct shim_dentry * start, const char * name, int flags,
-                   struct shim_dentry ** dent, struct shim_mount *fs) {
+                   struct shim_dentry ** dent, struct shim_mount * fs)
+{
     int ret = 0;
     lock(dcache_lock);
     ret = __path_lookupat (start, name, flags, dent, 0, fs, 0);
@@ -456,8 +460,8 @@ int path_lookupat (struct shim_dentry * start, const char * name, int flags,
 
 int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
                 const char * path, int flags, int mode,
-                struct shim_dentry ** dent) {
-
+                struct shim_dentry ** dent)
+{
     int lookup_flags = __lookup_flags(flags);
     int acc_mode = ACC_MODE(flags & O_ACCMODE);
     int err = 0, newly_created = 0;
@@ -578,7 +582,7 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
         // Set dot and dot dot for some reason
         get_dentry(dent);
         hdl->info.dir.dot = dent;
-        
+
         if (dent->parent) {
             get_dentry(dent->parent);
             hdl->info.dir.dotdot = dent->parent;
