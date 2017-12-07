@@ -33,7 +33,6 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
-#include <bits/dlfcn.h>
 
 PAL_CONTROL __pal_control;
 
@@ -86,7 +85,7 @@ static void load_libraries (void)
 static void read_environments (const char *** envpp)
 {
     const char ** envp = *envpp;
-    char cfgbuf[CONFIG_MAX];
+    char * cfgbuf;
 
     /* loader.env.*: rewriting host environment variables */
     struct setenv {
@@ -95,12 +94,18 @@ static void read_environments (const char *** envpp)
     } * setenvs = NULL;
     int nsetenvs = 0;
 
-    if (pal_state.root_config)
-        nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
-                                      cfgbuf, CONFIG_MAX);
-
-    if (nsetenvs <= 0)
+    if (!pal_state.root_config)
         return;
+
+    cfgbuf = malloc(get_config_entries_size(pal_state.root_config,
+                                            "loader.env"));
+    nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
+                                  cfgbuf);
+
+    if (nsetenvs <= 0) {
+        free(cfgbuf);
+        return;
+    }
 
     setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
     char * cfg = cfgbuf;
@@ -135,6 +140,8 @@ static void read_environments (const char *** envpp)
     char key[CONFIG_MAX] = "loader.env.";
     int prefix_len = static_strlen("loader.env.");
     const char ** ptr;
+    free(cfgbuf);
+    cfgbuf = __alloca(sizeof(char) * CONFIG_MAX);
 
     for (int i = 0 ; i < nsetenvs ; i++) {
         const char * str = setenvs[i].str;
@@ -350,6 +357,40 @@ has_manifest:
         }
     }
 
+    /* If we still don't have an exec in the manifest, but we have a manifest
+     * try implicitly from the manifest name */
+    if ((!exec_handle) && manifest_uri) {
+        size_t manifest_strlen = strlen(manifest_uri);
+        size_t exec_strlen = manifest_strlen - 9;
+        int success = 0;
+        // Try .manifest
+        if (strcmp_static(&manifest_uri[exec_strlen], ".manifest")) {
+            success = 1;
+        } else {
+            exec_strlen -= 4;
+            if (strcmp_static(&manifest_uri[exec_strlen], ".manifest.sgx")) {
+                success = 1;
+            }
+        }
+
+        if (success) {
+            exec_uri = malloc(exec_strlen + 1);
+            if (!exec_uri)
+                init_fail(-PAL_ERROR_NOMEM, "Cannot allocate URI buf");
+            memcpy (exec_uri, manifest_uri, exec_strlen);
+            exec_uri[exec_strlen] = '\0';
+            ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
+                                0, 0, 0);
+            // DEP 3/20/17: There are cases where we want to let
+            // the PAL start up without a main executable.  Don't
+            // die here, just free the exec_uri buffer.
+            if (ret < 0) {
+                free(exec_uri);
+                exec_uri = NULL;
+            }
+        }
+    }
+
     /* must be a ELF */
     if (exec_handle && check_elf_object(exec_handle) < 0)
         init_fail(PAL_ERROR_INVAL, "executable is not a ELF binary");
@@ -401,6 +442,7 @@ has_manifest:
 
     set_debug_type();
 
+    __pal_control.host_type          = XSTRINGIFY(HOST_TYPE);
     __pal_control.process_id         = _DkGetProcessId();
     __pal_control.host_id            = _DkGetHostId();
     __pal_control.manifest_handle    = manifest_handle;

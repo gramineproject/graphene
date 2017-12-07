@@ -73,14 +73,10 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
 
-    int nkeys, keybuf_size = CONFIG_MAX;
-    char * keybuf = __alloca(keybuf_size);
+    int nkeys;
+    char * keybuf = __alloca(get_config_entries_size(cfg, "fs.mount.other"));
 
-    while ((nkeys = get_config_entries(cfg, "fs.mount.other", keybuf,
-                                       keybuf_size)) == -ENAMETOOLONG) {
-        keybuf_size *= 2;
-        keybuf = __alloca(keybuf_size);
-    }
+    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf);
 
     if (nkeys <= 0)
         goto root;
@@ -187,15 +183,11 @@ root:
 
 static int isolate_net (struct config_store * cfg, struct net_sb * sb)
 {
-    int nkeys, keybuf_size = CONFIG_MAX;
+    int nkeys;
     char k[CONFIG_MAX];
-    char * keybuf = __alloca(keybuf_size);
+    char * keybuf = __alloca(get_config_entries_size(cfg, "net.rules"));
 
-    while ((nkeys = get_config_entries(cfg, "net.rules", keybuf,
-                                       keybuf_size)) == -ENAMETOOLONG) {
-        keybuf_size *= 2;
-        keybuf = __alloca(keybuf_size);
-    }
+    nkeys = get_config_entries(cfg, "net.rules", keybuf);
 
     if (nkeys <= 0)
         goto add;

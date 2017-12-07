@@ -27,5 +27,6 @@ export PAL_HOST
 export PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
 .DEFAULT_GOAL := all
+.PHONY: print_host
 print_host:
 	@echo $(PAL_HOST)

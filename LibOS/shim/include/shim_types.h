@@ -156,10 +156,12 @@ struct __kernel_sigaction {
 /* linux/aio_abi.h (for io_setup which has no glibc wrapper) */
 typedef unsigned long aio_context_t;
 
-/* bits/sigset.h */
-# define _SIGSET_NWORDS	(1024 / (8 * sizeof (unsigned long int)))
+/* asm/signal.h */
+#define NUM_SIGS            64
+#define NUM_KNOWN_SIGS      32
+
 typedef struct {
-    unsigned long int __val[_SIGSET_NWORDS];
+    unsigned long __val[NUM_SIGS / (8 * sizeof(unsigned long))];
 } __sigset_t;
 
 /* linux/rlimit.h */

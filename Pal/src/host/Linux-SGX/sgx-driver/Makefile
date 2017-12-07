@@ -1,18 +1,27 @@
 ifneq ($(KERNELRELEASE),)
-	ccflags-y += -I$(PWD)/linux-sgx-driver
 	graphene-sgx-y := \
+		gsgx_ioctl_1_6.o \
+		gsgx_ioctl_1_7.o \
+		gsgx_fsgsbase.o \
 		gsgx_main.o
 	obj-m += graphene-sgx.o
 else
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD  := $(shell pwd)
 
-default: linux-sgx-driver/isgx.h
+.PHONY: default
+default: isgx_version.h linux-sgx-driver
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) CFLAGS_MODULE="-DDEBUG -g -O0" modules
 
-linux-sgx-driver/isgx.h:
+.INTERMEDIATE: link-sgx-driver
+link-sgx-driver:
 	@./link-intel-driver.py
+
+isgx_version.h linux-sgx-driver: link-sgx-driver
+
 endif
 
+.PHONY: clean
 clean:
+	rm -vrf linux-sgx-driver isgx_version.h
 	rm -vrf *.o *.ko *.order *.symvers *.mod.c .tmp_versions .*o.cmd

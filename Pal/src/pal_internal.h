@@ -81,7 +81,7 @@ struct handle_ops {
 
     /* 'setlength' is used by DkStreamFlush. It truncate the stream
        to certain size. */
-    uint64_t (*setlength) (PAL_HANDLE handle, uint64_t length);
+    int64_t (*setlength) (PAL_HANDLE handle, uint64_t length);
 
     /* 'flush' is used by DkStreamFlush. It syncs the stream to the device */
     int (*flush) (PAL_HANDLE handle);
@@ -104,11 +104,12 @@ struct handle_ops {
     int (*attrsetbyhdl) (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
 
     /* 'wait' is used for synchronous wait.
+     * Time is in microseconds, NO_TIMEOUT means no timeout.
      * Returns 0 on success, a negative value on failure.
      * Timeout: -PAL_ERROR_TRYAGAIN
      * Positive return values are undefined.
      */
-    int (*wait) (PAL_HANDLE handle, int time);
+    int (*wait) (PAL_HANDLE handle, uint64_t time);
 
     /* 'rename' is used to change name of a stream, or reset its share
        option */
@@ -278,7 +279,7 @@ int _DkStreamAttributesQuerybyHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
 int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, uint64_t offset,
                   uint64_t size);
 int _DkStreamUnmap (void * addr, uint64_t size);
-uint64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length);
+int64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length);
 int _DkStreamFlush (PAL_HANDLE handle);
 int _DkStreamGetName (PAL_HANDLE handle, char * buf, int size);
 const char * _DkStreamRealpath (PAL_HANDLE hdl);
@@ -312,7 +313,7 @@ int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
 void _DkEventDestroy (PAL_HANDLE handle);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
-int _DkEventWaitTimeout (PAL_HANDLE event, int timeout);
+int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout);
 int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
@@ -324,7 +325,7 @@ int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot);
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);
 int _DkObjectClose (PAL_HANDLE objectHandle);
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                        PAL_HANDLE * polled);
 
 /* DkException calls & structures */
@@ -395,6 +396,8 @@ void free (void * mem);
 
 void _DkPrintConsole (const void * buf, int size);
 int printf  (const char  *fmt, ...);
+#include <stdarg.h>
+int vprintf(const char * fmt, va_list *ap);
 void write_log (int nstrs, ...);
 
 static inline void log_stream (const char * uri)

@@ -49,8 +49,6 @@ struct shim_thread {
     /* nodes in global handles; protected by thread_list_lock */
     LIST_TYPE(shim_thread) list;
 
-    struct atomic_int threads_in_group;
-
     struct shim_handle_map * handle_map;
 
     /* child tid */
@@ -71,6 +69,8 @@ struct shim_thread {
 
     PAL_HANDLE exit_event;
     int exit_code;
+    int term_signal; // Store the terminating signal, if any; needed for
+                     // wait() and friends
     bool is_alive;
 
     PAL_HANDLE child_exit_event;
@@ -108,6 +108,7 @@ struct shim_simple_thread {
     /* exit event and status */
     PAL_HANDLE exit_event;
     int exit_code;
+    int term_signal;
     bool is_alive;
 
     /* nodes in global handles */
@@ -297,7 +298,9 @@ void set_handle_map (struct shim_thread * thread,
 
 /* shim exit callback */
 int thread_exit (struct shim_thread * self, bool send_ipc);
-int try_process_exit (int error_code);
+/* If the process was killed by a signal, pass it in the second
+ *  argument, else pass zero */
+int try_process_exit (int error_code, int term_signal);
 
 /* thread cloning helpers */
 struct clone_args {

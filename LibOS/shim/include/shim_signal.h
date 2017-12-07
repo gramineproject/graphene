@@ -13,9 +13,6 @@ struct shim_signal_handle {
     struct __kernel_sigaction * action;
 };
 
-#define NUM_SIGS            64
-#define NUM_KNOWN_SIGS      32
-
 # define BITS_PER_WORD sizeof(unsigned long)
 /* The standard def of this macro is dumb */
 #undef _SIGSET_NWORDS
@@ -146,7 +143,8 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
 void deliver_signal (siginfo_t * info, PAL_CONTEXT * context);
 
 __sigset_t * get_sig_mask (struct shim_thread * thread);
-__sigset_t * set_sig_mask (struct shim_thread * thread, __sigset_t * new_set);
+__sigset_t * set_sig_mask (struct shim_thread * thread,
+                           const __sigset_t * new_set);
 
 int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
                     bool use_ipc);

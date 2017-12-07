@@ -77,7 +77,7 @@ void DkMutexRelease (PAL_HANDLE handle)
     LEAVE_PAL_CALL();
 }
 
-static int mutex_wait (PAL_HANDLE handle, int timeout)
+static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
 {
     return _DkMutexAcquireTimeout(handle, timeout);
 }

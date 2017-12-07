@@ -240,7 +240,7 @@ static int sgx_ocall_futex(void * pms)
     int ret;
     ODEBUG(OCALL_FUTEX, ms);
     struct timespec * ts = NULL;
-    if (ms->ms_timeout != (unsigned long) -1) {
+    if (ms->ms_timeout != OCALL_NO_TIMEOUT) {
         ts = __alloca(sizeof(struct timespec));
         ts->tv_sec = ms->ms_timeout / 1000000;
         ts->tv_nsec = (ms->ms_timeout - ts->tv_sec * 1000000) * 1000;
@@ -610,7 +610,7 @@ static int sgx_ocall_poll(void * pms)
     int ret;
     ODEBUG(OCALL_POLL, ms);
     struct timespec * ts = NULL;
-    if (ms->ms_timeout != (unsigned long) -1) {
+    if (ms->ms_timeout != OCALL_NO_TIMEOUT) {
         ts = __alloca(sizeof(struct timespec));
         ts->tv_sec = ms->ms_timeout / 1000000;
         ts->tv_nsec = (ms->ms_timeout - ts->tv_sec * 1000000) * 1000;
@@ -708,4 +708,8 @@ int ecall_thread_start (void)
 {
     EDEBUG(ECALL_THREAD_START, NULL);
     return sgx_ecall(ECALL_THREAD_START, NULL);
+}
+
+void __abort(void) {
+    INLINE_SYSCALL(exit_group, 1, -1); 
 }

@@ -16,4 +16,5 @@ regression.add_check(name="Semaphore: Acquire Unlocked Semaphores",
     check=lambda res: "Locked binary semaphore successfully (-1)." in res[0].log and
                       "Locked binary semaphore successfully (0)." in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

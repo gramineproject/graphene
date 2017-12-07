@@ -191,14 +191,10 @@ static int __mount_others (void)
     if (!root_config)
         return 0;
 
-    int nkeys, keybuf_size = CONFIG_MAX;
-    char * keybuf = __alloca(keybuf_size);
+    int nkeys;
+    char * keybuf = __alloca(get_config_entries_size(root_config, "fs.mount"));
 
-    while ((nkeys = get_config_entries(root_config, "fs.mount", keybuf,
-                                       keybuf_size)) == -ENAMETOOLONG) {
-        keybuf = __alloca(keybuf_size);
-        keybuf_size *= 2;
-    }
+    nkeys = get_config_entries(root_config, "fs.mount", keybuf);
 
     if (nkeys < 0)
         return 0;

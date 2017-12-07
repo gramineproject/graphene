@@ -94,7 +94,7 @@ void _DkMutexDestroy (PAL_HANDLE handle)
 }
 
 
-int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
+int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
 {
     int i, ret = 0;
 #ifdef DEBUG_MUTEX
@@ -102,7 +102,7 @@ int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
 #endif
     /* If this is a trylock-style call, break more quickly. */
     int iterations = (timeout == 0) ? 1 : MUTEX_SPINLOCK_TIMES;
-    
+
     /* Spin and try to take lock.  Ignore any contribution this makes toward
      * the timeout.*/
     for (i = 0; i < iterations; i++) {
@@ -118,7 +118,7 @@ int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
 
     // Bump up the waiters count; we are probably going to block
     atomic_inc(&m->nwaiters);
-    
+
     while (MUTEX_LOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
         struct timespec waittime, *waittimep = NULL;
         if (timeout != NO_TIMEOUT) {
@@ -130,7 +130,7 @@ int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
         }
 
         ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, MUTEX_LOCKED, waittimep, NULL, 0);
-        
+
         if (IS_ERR(ret)) {
             if (ERRNO(ret) == EWOULDBLOCK) {
                 if (timeout != NO_TIMEOUT) {
@@ -150,7 +150,7 @@ int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
     }
 
     atomic_dec(&m->nwaiters);
-    
+
 success:
 #ifdef DEBUG_MUTEX
     m->owner = tid;
@@ -165,7 +165,6 @@ out:
     return ret;
 }
 
-
 int _DkMutexLock (struct mutex_handle * m)
 {
     return _DkMutexLockTimeout(m, -1);
@@ -175,7 +174,6 @@ int _DkMutexAcquireTimeout (PAL_HANDLE handle, int timeout)
 {
     return _DkMutexLockTimeout(&handle->mutex.mut, timeout);
 }
-
 
 int _DkMutexUnlock (struct mutex_handle * m)
 {
@@ -193,7 +191,7 @@ int _DkMutexUnlock (struct mutex_handle * m)
     mb();
 
     need_wake = atomic_read(&m->nwaiters);
-    
+
     /* If we need to wake someone up... */
     if (need_wake)
         INLINE_SYSCALL(futex, 6, m, FUTEX_WAKE, 1, NULL, NULL, 0);

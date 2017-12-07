@@ -101,13 +101,14 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_END   (void *) (&__text_end)
 
 typedef struct { char bytes[32]; } sgx_checksum_t;
+typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
 int load_trusted_file
-    (PAL_HANDLE file, sgx_arch_mac_t ** stubptr, uint64_t * sizeptr);
+    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr);
 int verify_trusted_file
     (const char * uri, void * mem, unsigned int offset, unsigned int size,
-     sgx_arch_mac_t * stubs, unsigned int total_size);
+     sgx_stub_t * stubs, unsigned int total_size);
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mrenclave_str);
@@ -166,7 +167,7 @@ static inline __attribute__((always_inline))
 char * __hex2str(void * hex, int size)
 {
     static char * ch = "0123456789abcdef";
-    char * str = __alloca(size * 2);
+    char * str = __alloca(size * 2 + 1);
 
     for (int i = 0 ; i < size ; i++) {
         unsigned char h = ((unsigned char *) hex)[i];
@@ -174,7 +175,7 @@ char * __hex2str(void * hex, int size)
         str[i * 2 + 1] = ch[h % 16];
     }
 
-    str[size * 2 - 1] = 0;
+    str[size * 2] = 0;
     return str;
 }
 

@@ -24,73 +24,86 @@
 #ifndef PAL_CRYPTO_H
 #define PAL_CRYPTO_H
 
-#include "pal.h"
-
-/*
- * You can change which crypto library will be used by changing this
- * define to one of the PAL_CRYPTO_* values below.
- */
-#define PAL_CRYPTO_PROVIDER PAL_CRYPTO_MBEDTLS
-
-#define PAL_CRYPTO_MBEDTLS 1
-
 #define SHA256_DIGEST_LEN 32
 
-#define PAL_AES_CMAC_KEY_LEN 16
+#define AES_CMAC_KEY_LEN    16
+#define AES_CMAC_DIGEST_LEN 32
 
-typedef enum {
-    PAL_ENCRYPT,
-    PAL_DECRYPT
-} PAL_CRYPTO_TYPE;
+#ifdef CRYPTO_USE_WOLFSSL
+#define CRYPTO_PROVIDER_SPECIFIED
 
-#if PAL_CRYPTO_PROVIDER == PAL_CRYPTO_MBEDTLS
+#include "crypto/wolfssl/cmac.h"
+#include "crypto/wolfssl/aes.h"
+#include "crypto/wolfssl/sha256.h"
+#include "crypto/wolfssl/dh.h"
+#include "crypto/wolfssl/rsa.h"
+
+typedef SHA256 LIB_SHA256_CONTEXT;
+
+#define DH_SIZE 128
+
+typedef struct {
+    uint8_t priv[DH_SIZE];
+    uint32_t priv_size;
+    DhKey key;
+} LIB_DH_CONTEXT __attribute__((aligned(DH_SIZE)));
+
+typedef struct RSAKey LIB_RSA_KEY;
+#endif /* CRYPTO_USE_WOLFSSL */
+
+#ifdef CRYPTO_USE_MBEDTLS
+#define CRYPTO_PROVIDER_SPECIFIED
+
 #include "crypto/mbedtls/mbedtls/cmac.h"
+typedef struct AES LIB_AES_CONTEXT;
+
 #include "crypto/mbedtls/mbedtls/dhm.h"
 #include "crypto/mbedtls/mbedtls/rsa.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
 
-typedef mbedtls_sha256_context PAL_SHA256_CONTEXT;
+typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 
 /* DH_SIZE is tied to the choice of parameters in mbedtls_dh.c. */
 #define DH_SIZE 256
-typedef mbedtls_dhm_context PAL_DH_CONTEXT;
+#include "crypto/mbedtls/mbedtls/dhm.h"
+typedef mbedtls_dhm_context LIB_DH_CONTEXT;
+typedef mbedtls_rsa_context LIB_RSA_KEY;
+#endif /* CRYPTO_USE_MBEDTLS */
 
-typedef mbedtls_rsa_context PAL_RSA_KEY;
-
-#else
-# error "Unknown crypto provider. Set PAL_CRYPTO_PROVIDER in pal_crypto.h"
+#ifndef CRYPTO_PROVIDER_SPECIFIED
+# error "Unknown crypto provider. Set CRYPTO_PROVIDER in Makefile"
 #endif
 
 /* SHA256 */
-int DkSHA256Init(PAL_SHA256_CONTEXT *context);
-int DkSHA256Update(PAL_SHA256_CONTEXT *context, const uint8_t *data,
-                   PAL_NUM len);
-int DkSHA256Final(PAL_SHA256_CONTEXT *context, uint8_t *output);
+int lib_SHA256Init(LIB_SHA256_CONTEXT *context);
+int lib_SHA256Update(LIB_SHA256_CONTEXT *context, const uint8_t *data,
+		     uint64_t len);
+int lib_SHA256Final(LIB_SHA256_CONTEXT *context, uint8_t *output);
 
 /* Diffie-Hellman Key Exchange */
-int DkDhInit(PAL_DH_CONTEXT *context);
-int DkDhCreatePublic(PAL_DH_CONTEXT *context, uint8_t *public,
-                     PAL_NUM *public_size);
-int DkDhCalcSecret(PAL_DH_CONTEXT *context, uint8_t *peer, PAL_NUM peer_size,
-                   uint8_t *secret, PAL_NUM *secret_size);
-void DkDhFinal(PAL_DH_CONTEXT *context);
+int lib_DhInit(LIB_DH_CONTEXT *context);
+int lib_DhCreatePublic(LIB_DH_CONTEXT *context, uint8_t *public,
+                       uint64_t *public_size);
+int lib_DhCalcSecret(LIB_DH_CONTEXT *context, uint8_t *peer, uint64_t peer_size,
+                     uint8_t *secret, uint64_t *secret_size);
+void lib_DhFinal(LIB_DH_CONTEXT *context);
 
 /* AES-CMAC */
-int DkAESCMAC(const uint8_t *key, PAL_NUM key_len, const uint8_t *input,
-              PAL_NUM input_len, uint8_t *mac, PAL_NUM mac_len);
+int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
+                uint64_t input_len, uint8_t *mac, uint64_t mac_len);
 
 /* RSA. Limited functionality. */
 // Initializes the key structure
-int DkRSAInitKey(PAL_RSA_KEY *key);
-// Must call DkRSAInitKey first
-int DkRSAGenerateKey(PAL_RSA_KEY *key, PAL_NUM length_in_bits,
-                     PAL_NUM exponent);
+int lib_RSAInitKey(LIB_RSA_KEY *key);
+// Must call lib_RSAInitKey first
+int lib_RSAGenerateKey(LIB_RSA_KEY *key, uint64_t length_in_bits,
+                       uint64_t exponent);
 
-int DkRSAExportPublicKey(PAL_RSA_KEY *key, uint8_t *e, PAL_NUM *e_size,
-                         uint8_t *n, PAL_NUM *n_size);
+int lib_RSAExportPublicKey(LIB_RSA_KEY *key, uint8_t *e, uint64_t *e_size,
+                           uint8_t *n, uint64_t *n_size);
 
-int DkRSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
-                         const uint8_t *n, PAL_NUM n_size);
+int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
+                           const uint8_t *n, uint64_t n_size);
 
 // Sign and verify signatures.
 
@@ -98,11 +111,11 @@ int DkRSAImportPublicKey(PAL_RSA_KEY *key, const uint8_t *e, PAL_NUM e_size,
 // padding, with SHA256 as the hash mechanism. These signatures are generated
 // by the Graphene filesystem build (so outside of a running Graphene
 // application), but are verified within the Graphene application.
-int DkRSAVerifySHA256(PAL_RSA_KEY *key, const uint8_t *signature,
-                      PAL_NUM signature_len, uint8_t *signed_data_out,
-                      PAL_NUM signed_data_out_len);
+int lib_RSAVerifySHA256(LIB_RSA_KEY *key, const uint8_t *signature,
+                        uint64_t signature_len, uint8_t *signed_data_out,
+                        uint64_t signed_data_out_len);
 
-// Frees memory allocated in DkRSAInitKey.
-int DkRSAFreeKey(PAL_RSA_KEY *key);
+// Frees memory allocated in lib_RSAInitKey.
+int lib_RSAFreeKey(LIB_RSA_KEY *key);
 
 #endif

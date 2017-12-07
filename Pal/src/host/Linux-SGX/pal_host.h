@@ -49,12 +49,14 @@ void free_untrusted (void * mem);
 
 #include <list.h>
 
-/* Simpler mutex design: a single variable that tracks whether the 
- * mutex is locked (just waste a 64 bit word for now).  State is 1 (locked) or
+/* Simpler mutex design: a single variable that tracks whether the mutex
+ * is locked (just waste a 64 bit word for now).  State is 1 (locked) or
  * 0 (unlocked).
+ *
  * Keep a count of how many threads are waiting on the mutex.
- * If DEBUG_MUTEX is defined,
- * mutex_handle will record the owner of mutex locking. */
+ *
+ * If DEBUG_MUTEX is defined, mutex_handle will record the owner of
+ * mutex locking. */
 struct mutex_handle {
     volatile uint64_t locked;
     struct atomic_int nwaiters;
@@ -78,14 +80,12 @@ struct pal_handle_thread {
 
 typedef struct pal_handle
 {
-    /* TSAI: Here we define the internal types of PAL_HANDLE
-     * in PAL design, user has not to access the content inside the
-     * handle, also there is no need to allocate the internal
-     * handles, so we hide the type name of these handles on purpose.
+    /*
+     * Here we define the internal structure of PAL_HANDLE.
+     * user has no access to the content inside these handles.
      */
 
     PAL_HDR hdr;
-    
     union {
         struct {
             PAL_IDX fds[2];
@@ -99,18 +99,18 @@ typedef struct pal_handle
             PAL_NUM total;
             PAL_PTR stubs;
         } file;
-        
+
         struct {
             PAL_IDX fd;
             PAL_NUM pipeid;
             PAL_BOL nonblocking;
         } pipe;
-        
+
         struct {
             PAL_IDX fds[2];
             PAL_BOL nonblocking;
         } pipeprv;
-        
+
         struct {
             PAL_IDX fd_in, fd_out;
             PAL_IDX dev_type;
@@ -163,14 +163,18 @@ typedef struct pal_handle
         struct pal_handle_thread thread;
 
         struct {
-            struct mutex_handle mut;
-        } mutex;
-
-        struct {
-            struct atomic_int signaled;
             struct atomic_int nwaiters;
-            PAL_BOL isnotification;
-        } event;
+            PAL_NUM max_value;
+            union {
+                struct mutex_handle mut;
+            } mutex;
+
+            struct {
+                struct atomic_int signaled;
+                struct atomic_int nwaiters;
+                PAL_BOL isnotification;
+            } event;
+        };
     };
 } * PAL_HANDLE;
 

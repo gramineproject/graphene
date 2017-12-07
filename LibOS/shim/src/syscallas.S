@@ -41,7 +41,7 @@ syscalldb:
         pushq %rbx
 
         cmp $LIBOS_SYSCALL_BOUND, %rax
-        jge isundef
+        jae isundef
 
         leaq shim_table(%rip), %rbx
         movq (%rbx,%rax,8), %rbx

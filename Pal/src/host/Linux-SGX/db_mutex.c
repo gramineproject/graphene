@@ -70,9 +70,6 @@ void _DkMutexDestroy (PAL_HANDLE handle)
 int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
 {
     int ret = 0;
-#ifdef DEBUG_MUTEX
-    int tid = INLINE_SYSCALL(gettid, 0);
-#endif
 
     if (MUTEX_UNLOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
         goto success;
@@ -98,9 +95,6 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
                 atomic_dec(&m->nwaiters);
                 goto out;
             }
-#ifdef DEBUG_MUTEX
-            printf("futex failed (err = %d)\n", ERRNO(ret));
-#endif
             ret = unix_to_pal_error(ERRNO(ret));
             atomic_dec(&m->nwaiters);
             goto out;
@@ -110,24 +104,14 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
     atomic_dec(&m->nwaiters);
 
 success:
-#ifdef DEBUG_MUTEX
-    m->owner = tid;
-#endif
     ret = 0;
 out:
-#ifdef DEBUG_MUTEX
-    if (ret < 0)
-        printf("mutex failed (%s, tid = %d)\n", PAL_STRERROR(ret), tid);
-#endif
     return ret;
 }
 
 int _DkMutexLock (struct mutex_handle * m)
 {
     int ret = 0, i;
-#ifdef DEBUG_MUTEX
-    int tid = INLINE_SYSCALL(gettid, 0);
-#endif
     return _DkMutexLockTimeout(m, -1);
 }
 
@@ -142,10 +126,6 @@ int _DkMutexUnlock (struct mutex_handle * m)
     int ret = 0;
     int need_wake;
 
-#ifdef DEBUG_MUTEX
-    m->owner = 0;
-#endif
-
     /* Unlock */
     m->locked = 0;
     /* We need to make sure the write to locked is visible to lock-ers
@@ -153,18 +133,17 @@ int _DkMutexUnlock (struct mutex_handle * m)
     mb();
 
     need_wake= atomic_read(&m->nwaiters);
-    
+
     /* If we need to wake someone up... */
     if (need_wake)
         ocall_futex((int *) m, FUTEX_WAKE, 1, NULL);
-    
+
     return ret;
 }
 
-void _DkMutexRelease (PAL_HANDLE handle) {
-    struct mutex_handle * mut =
-        &handle->mutex.mut;
-
+void _DkMutexRelease (PAL_HANDLE handle)
+{
+    struct mutex_handle * mut = &handle->mutex.mut;
     int ret = _DkMutexUnlock(mut);
     if (ret < 0)
         _DkRaiseFailure(ret);

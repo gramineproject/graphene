@@ -26,6 +26,7 @@ net.allow_bind.1 = 0.0.0.0:31233-31237
 net.allow_bind.2 = 0.0.0.0:34297-34298
 net.allow_peer.1 = 127.0.0.1:0-65535
 
+glibc.heap_size = 16M
 sys.brk.size = 32M
 sys.stack.size = 4M
 
@@ -39,12 +40,6 @@ sgx.trusted_files.sh = file:/bin/sh
 sgx.allowed_files.tmp1 = file:/tmp
 sgx.allowed_files.tmp2 = file:/var/tmp
 sgx.allowed_files.inc = file:/usr/include/x86_64-linux-gnu/sys/types.h
-
-sgx.trusted_files.test1 = file:random.64K
-sgx.trusted_files.test2 = file:random.256K
-sgx.trusted_files.test3 = file:random.1M
-sgx.trusted_files.test4 = file:random.4M
-sgx.trusted_files.test5 = file:random.16M
 
 sgx.trusted_children.hello = file:hello.sig
 sgx.trusted_children.sh = file:sh.sig

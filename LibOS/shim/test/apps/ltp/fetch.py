@@ -1,80 +1,102 @@
 import subprocess
 import csv
 import os
-import threading
 import time
 import signal
 import tempfile
+import multiprocessing
+import sys
 
-class RunCmd(threading.Thread):
-    def __init__(self, cmd, timeout, test):
-        threading.Thread.__init__(self)
-        self.cmd = cmd
-        self.timeout = int(timeout)*100
-        self.output = ""
-        self.test = test
-        self.test_subtest = test
-
-    def run(self):
-        name = tempfile.NamedTemporaryFile(mode='w+b')
-        self.p = subprocess.Popen(self.cmd, shell=True, stdout=name, stderr=subprocess.STDOUT, preexec_fn=os.setsid, close_fds=True)
-        self.curtime = time.time()
-        self.endtime = self.curtime + self.timeout
-        needed_times = self.timeout
+def run(cmd, timeout, test):
+    try:
+        timeout = timeout * 100
+        result = {}
+        result['test'] = test
+        outfile = tempfile.NamedTemporaryFile(mode='w+b')
+        p = subprocess.Popen(cmd, shell=True, stdout=outfile, stderr=subprocess.STDOUT, preexec_fn=os.setsid, close_fds=True)
+        result['curtime'] = time.time()
+        result['endtime'] = result['curtime'] + timeout
         sleep_time = 0
         finish = False
-        while sleep_time < self.timeout:
-            if self.p.poll() is not None:
+        while sleep_time < timeout:
+            if p.poll() is not None:
                 finish = True
                 break
             sleep_time += 1
             time.sleep(.01)
 
-        if not finish and self.p.poll() is None:
-            timed_out = True
-            print CRED + "[Hanged ] " + self.test_subtest + CEND
-            current_hanged[self.test_subtest] = 1
-            os.killpg(os.getpgid(self.p.pid), signal.SIGKILL)
-            del self.p
+        result['finish'] = finish
+        outfile.seek(0)
+        result['output'] = outfile.readlines()
+        return result
+    except Exception as e:
+        print str(e)
+        return None
+    finally:
+        if p is not None and p.poll() is None:
+            print 'killing %s' % test
+            os.killpg(os.getpgid(p.pid), signal.SIGKILL)
 
-        if (finish):
+def finish(result):
+    try:
+        test = result['test']
+        if not result['finish']:
+            print CRED + "[Hanged ] " + test + CEND
+            current_hanged[test] = 1
+        else:
             reported = False
-            name.seek(0)
-            for output in name.readlines():
-                toks = output.split()
-                if len(toks)<2 or (toks[0] != self.test and self.test != "memcmp01" and self.test != "memcpy01"):
+            count = 1
+            for output in result['output']:
+                tokens = output.split()
+
+                if len(tokens) < 2:
                     continue
-                test_subtest = self.test + "," + toks[1]
-                self.test_subtest = test_subtest
-                if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or self.test in current_hanged or test_subtest in current_broken:
+
+                # Drop this line so that we get consistent offsets
+                if output == "WARNING: no physical memory support, process creation will be slow.\n":
                     continue
+
+                if tokens[1].isdigit():
+                    test_subtest = test + "," + tokens[1]
+                    count = int(tokens[1]) + 1
+                else:
+                    test_subtest = test + "," + str(count)
+                    count = count + 1
+                if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or test in current_hanged or test_subtest in current_broken:
+                    continue
+
                 if output:
                     output = output.strip()
                     print >>f1, output
+
                 if "TFAIL" in output:
                     print >>failed_tests_fh, test_subtest
                     print CRED + "[Fail   ] " + test_subtest + CEND
                     current_failed[test_subtest] = 1
                     reported = True
-                elif "TPASS" in output:
+
+                elif "TPASS" in output or "PASS:" in output:
                     print >>passed_tests_fh, test_subtest
                     print CGREEN + "[Pass   ] " + test_subtest + CEND
                     current_passed[test_subtest] = 1
                     reported = True
-                elif "TCONF" in output or "TBROK" in output or "error" in output:
+
+                elif "TCONF" in output or "TBROK" in output or "BROK" in output or "error" in output:
                     print >>broken_tests_fh, test_subtest
-                    print "[Broken ] " + test_subtest      #Syscall not implemented or test preparation failed
+                    # Syscall not implemented or test preparation failed
+                    print "[Broken(a) ] " + test_subtest + CEND
                     current_broken[test_subtest] = 1
                     reported = True
-            #else:
-            #    print "[Broken ] " + self.test      #Syscall not implemented or test preparation failed
+
             if (not reported):
-                print >>broken_tests_fh, self.test
-                print CRED + "[Broken ] " + self.test + CEND
-                current_broken[self.test] = 1
-    def Run(self):
-        self.start()
-        self.join()
+                print >>broken_tests_fh, test
+                print CRED + "[Broken(b) ] " + test + CEND
+                for output in result['output']:
+                    print output
+                current_broken[test] = 1
+
+    except Exception as e:
+        print str(e)
 
 CRED = '\033[91m'
 CGREEN = '\033[92m'
@@ -109,22 +131,30 @@ with open(timeouts, 'rb') as csvfile:
     for row in test_timeout:
         test = row[0]
         timeout = row[1]
-        timeouts_dict[test] = timeout
+        timeouts_dict[test] = int(timeout)
 
 os.chdir("opt/ltp/testcases/bin")
+pool = multiprocessing.Pool()
 with open('../../../../syscalls.graphene') as testcases:
     for line in testcases:
+        line = line.strip('\r\n\t')
         tokens = line.split( )
-        test = tokens[1]
+        if (tokens[1] == "SGX") :
+            test = tokens[2]
+        else :
+            test = tokens[1]
+
         if test=="seq":
             test = tokens[6]     #splice02
         try: 
             timeout = timeouts_dict[test]
         except KeyError:
             timeout = DEFAULT_TIMEOUT
-        RunCmd([line], timeout, test).Run()
-        time.sleep(.1)
+        pool.apply_async(run, args=([line], timeout, test), callback=finish)
 os.chdir("../../../..")
+
+pool.close()
+pool.join()
     
 stable_passed = dict()
 with open(stablePass, 'rb') as csvfile:
@@ -136,11 +166,16 @@ with open(stablePass, 'rb') as csvfile:
 
 print "\n\nRESULT [Difference] :\n---------------------\n"
 
-for test in stable_passed:
+rv = 0
+
+for test in sorted(stable_passed):
     if not test in current_passed:
         print CRED + "Test '" + test + "' did not pass in the current run!!" + CEND
+        rv = -1
 
-for test in current_passed:
+for test in sorted(current_passed):
     if not test in stable_passed:
         print CGREEN + "Test '" + test + "' passed in the current run!!" + CEND
 print "\n"
+
+sys.exit(rv)
