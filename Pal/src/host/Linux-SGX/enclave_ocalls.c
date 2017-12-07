@@ -343,7 +343,7 @@ int ocall_fsync (int fd)
     return retval;
 }
 
-int ocall_ftruncate (int fd, unsigned int length)
+int ocall_ftruncate (int fd, uint64_t length)
 {
     int retval = 0;
     ms_ocall_ftruncate_t * ms;
