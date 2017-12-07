@@ -103,11 +103,11 @@ next:
 
 int get_fs_paths (struct config_store * config, const char *** paths)
 {
-    char keys[CONFIG_MAX];
+    char *keys;
     int nkeys;
 
-    if ((nkeys = get_config_entries(config, "fs.mount", keys,
-                                    CONFIG_MAX)) < 0)
+    keys = __alloca(get_config_entries_size(config, "fs.mount"));
+    if ((nkeys = get_config_entries(config, "fs.mount", keys)) < 0)
         nkeys = 0;
 
     *paths = malloc(sizeof(const char *) * (1 + nkeys));
@@ -144,16 +144,16 @@ int get_net_rules (struct config_store * config,
                    struct graphene_net_rule ** net_rules,
                    int * nbind_rules)
 {
-    char binds[CONFIG_MAX], peers[CONFIG_MAX];
+    char *binds, *peers;
     int nbinds, npeers;
     int nrules = 0;
 
-    if ((nbinds = get_config_entries(config, "net.allow_bind", binds,
-                                     CONFIG_MAX)) < 0)
+    binds = __alloca(get_config_entries_size(config, "net.allow_bind"));
+    if ((nbinds = get_config_entries(config, "net.allow_bind", binds)) < 0)
         return 0;
 
-    if ((npeers = get_config_entries(config, "net.allow_peer", peers,
-                                     CONFIG_MAX)) < 0)
+    peers = __alloca(get_config_entries_size(config, "net.allow_peer"));
+    if ((npeers = get_config_entries(config, "net.allow_peer", peers)) < 0)
         return 0;
 
     struct graphene_net_rule * rules =

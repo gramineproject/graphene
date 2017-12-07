@@ -31,12 +31,13 @@
 #include <shim_checkpoint.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
 static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 
-static LIST_HEAD(thread_list);
-static LIST_HEAD(simple_thread_list);
+static LISTP_TYPE(shim_thread) thread_list = LISTP_INIT;
+DEFINE_LISTP(shim_simple_thread);
+static LISTP_TYPE(shim_simple_thread) simple_thread_list = LISTP_INIT;
 LOCKTYPE thread_list_lock;
 
 static IDTYPE internal_tid_alloc_idx = INTERNAL_TID_BASE;
@@ -63,15 +64,28 @@ int init_thread (void)
     return 0;
 }
 
+void dump_threads (void)
+{
+    struct shim_thread * tmp;
+
+    lock(thread_list_lock);
+    listp_for_each_entry(tmp, &thread_list, list) {
+        debug("thread %d, vmid = %d, pgid = %d, ppid = %d, tgid = %d, in_vm = %d\n",
+                tmp->tid, tmp->vmid, tmp->pgid, tmp->ppid, tmp->tgid, tmp->in_vm);
+    }
+    unlock(thread_list_lock);
+}
+
 struct shim_thread * __lookup_thread (IDTYPE tid)
 {
     struct shim_thread * tmp;
 
-    list_for_each_entry(tmp, &thread_list, list)
+    listp_for_each_entry(tmp, &thread_list, list) {
         if (tmp->tid == tid) {
             get_thread(tmp);
             return tmp;
         }
+    }
 
     return NULL;
 }
@@ -144,10 +158,10 @@ struct shim_thread * alloc_new_thread (void)
 
     memset(thread, 0, sizeof(struct shim_thread));
     REF_SET(thread->ref_count, 1);
-    INIT_LIST_HEAD(&thread->children);
-    INIT_LIST_HEAD(&thread->siblings);
-    INIT_LIST_HEAD(&thread->exited_children);
-    INIT_LIST_HEAD(&thread->list);
+    INIT_LISTP(&thread->children);
+    INIT_LIST_HEAD(thread, siblings);
+    INIT_LISTP(&thread->exited_children);
+    INIT_LIST_HEAD(thread, list);
     return thread;
 }
 
@@ -248,11 +262,12 @@ struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid)
 {
     struct shim_simple_thread * tmp;
 
-    list_for_each_entry(tmp, &simple_thread_list, list)
+    listp_for_each_entry(tmp, &simple_thread_list, list) {
         if (tmp->tid == tid) {
             get_simple_thread(tmp);
             return tmp;
         }
+    }
 
     return NULL;
 }
@@ -275,7 +290,7 @@ struct shim_simple_thread * get_new_simple_thread (void)
 
     memset(thread, 0, sizeof(struct shim_simple_thread));
 
-    INIT_LIST_HEAD(&thread->list);
+    INIT_LIST_HEAD(thread, list);
 
     create_lock(thread->lock);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
@@ -328,7 +343,8 @@ void put_simple_thread (struct shim_simple_thread * thread)
     int ref_count = REF_DEC(thread->ref_count);
 
     if (!ref_count) {
-        list_del(&thread->list);
+        /* Simple threads always live on the simple thread list */
+        listp_del(thread, &simple_thread_list, list);
         free(thread);
     }
 }
@@ -347,7 +363,7 @@ void set_as_child (struct shim_thread * parent,
     child->parent = parent;
 
     lock(parent->lock);
-    list_add_tail(&child->siblings, &parent->children);
+    listp_add_tail(child, &parent->children, siblings);
     unlock(parent->lock);
 
     unlock(child->lock);
@@ -355,14 +371,14 @@ void set_as_child (struct shim_thread * parent,
 
 void add_thread (struct shim_thread * thread)
 {
-    if (IS_INTERNAL(thread) || !list_empty(&thread->list))
+    if (IS_INTERNAL(thread) || !list_empty(thread, list))
         return;
 
     struct shim_thread * tmp, * prev = NULL;
     lock(thread_list_lock);
 
     /* keep it sorted */
-    list_for_each_entry_reverse(tmp, &thread_list, list) {
+    listp_for_each_entry_reverse(tmp, &thread_list, list) {
         if (tmp->tid == thread->tid) {
             unlock(thread_list_lock);
             return;
@@ -374,31 +390,37 @@ void add_thread (struct shim_thread * thread)
     }
 
     get_thread(thread);
-    list_add(&thread->list, prev ? &prev->list : &thread_list);
+    listp_add_after(thread, prev, &thread_list, list);
     unlock(thread_list_lock);
 }
 
 void del_thread (struct shim_thread * thread)
 {
-    if (IS_INTERNAL(thread) || list_empty(&thread->list))
+    debug("del_thread(%p, %d, %d)\n", thread, thread ? thread->tid : -1,
+            thread->ref_count);
+
+    if (IS_INTERNAL(thread) || list_empty(thread, list)) {
+        debug("del_thread: internal\n");
         return;
+    }
 
     lock(thread_list_lock);
-    list_del_init(&thread->list);
+    /* thread->list goes on the thread_list */
+    listp_del_init(thread, &thread_list, list);
     unlock(thread_list_lock);
     put_thread(thread);
 }
 
 void add_simple_thread (struct shim_simple_thread * thread)
 {
-    if (!list_empty(&thread->list))
+    if (!list_empty(thread, list))
         return;
 
     struct shim_simple_thread * tmp, * prev = NULL;
     lock(thread_list_lock);
 
     /* keep it sorted */
-    list_for_each_entry_reverse(tmp, &simple_thread_list, list) {
+    listp_for_each_entry_reverse(tmp, &simple_thread_list, list) {
         if (tmp->tid == thread->tid) {
             unlock(thread_list_lock);
             return;
@@ -410,17 +432,17 @@ void add_simple_thread (struct shim_simple_thread * thread)
     }
 
     get_simple_thread(thread);
-    list_add(&thread->list, prev ? &prev->list : &simple_thread_list);
+    listp_add_after(thread, prev, &simple_thread_list, list);
     unlock(thread_list_lock);
 }
 
 void del_simple_thread (struct shim_simple_thread * thread)
 {
-    if (list_empty(&thread->list))
+    if (list_empty(thread, list))
         return;
 
     lock(thread_list_lock);
-    list_del_init(&thread->list);
+    listp_del_init(thread, &simple_thread_list, list);
     unlock(thread_list_lock);
     put_simple_thread(thread);
 }
@@ -433,13 +455,14 @@ int check_last_thread (struct shim_thread * self)
     /* find out if there is any thread that is
        1) no current thread 2) in current vm
        3) still alive */
-    list_for_each_entry(tmp, &thread_list, list)
+    listp_for_each_entry(tmp, &thread_list, list) {
         if (tmp->tid &&
             (!self || tmp->tid != self->tid) && tmp->in_vm && tmp->is_alive) {
             debug("check_last_thread: thread %d is alive\n", tmp->tid);
             unlock(thread_list_lock);
             return tmp->tid;
         }
+    }
 
     debug("this is the only thread\n", self->tid);
     unlock(thread_list_lock);
@@ -459,7 +482,7 @@ relock:
 
     debug("walk_thread_list(callback=%p)\n", callback);
 
-    list_for_each_entry_safe(tmp, n, &thread_list, list) {
+    listp_for_each_entry_safe(tmp, n, &thread_list, list) {
         if (tmp->tid <= min_tid)
             continue;
         bool unlocked = false;
@@ -497,7 +520,7 @@ int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
 relock:
     lock(thread_list_lock);
 
-    list_for_each_entry_safe(tmp, n, &simple_thread_list, list) {
+    listp_for_each_entry_safe(tmp, n, &simple_thread_list, list) {
         if (tmp->tid <= min_tid)
             continue;
         bool unlocked = false;
@@ -571,10 +594,10 @@ BEGIN_CP_FUNC(thread)
         new_thread = (struct shim_thread *) (base + off);
         memcpy(new_thread, thread, sizeof(struct shim_thread));
 
-        INIT_LIST_HEAD(&new_thread->children);
-        INIT_LIST_HEAD(&new_thread->siblings);
-        INIT_LIST_HEAD(&new_thread->exited_children);
-        INIT_LIST_HEAD(&new_thread->list);
+        INIT_LISTP(&new_thread->children);
+        INIT_LIST_HEAD(new_thread, siblings);
+        INIT_LISTP(&new_thread->exited_children);
+        INIT_LIST_HEAD(new_thread, list);
 
         new_thread->in_vm  = false;
         new_thread->parent = NULL;
@@ -609,7 +632,7 @@ BEGIN_CP_FUNC(thread)
         *objp = (void *) new_thread;
 }
 END_CP_FUNC(thread)
-
+    
 BEGIN_RS_FUNC(thread)
 {
     struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
@@ -667,7 +690,7 @@ BEGIN_CP_FUNC(running_thread)
     }
 }
 END_CP_FUNC(running_thread)
-
+    
 int resume_wrapper (void * param)
 {
     struct shim_thread * thread = (struct shim_thread *) param;
@@ -694,7 +717,7 @@ BEGIN_RS_FUNC(running_thread)
     struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
     struct shim_thread * cur_thread = get_cur_thread();
     thread->in_vm = true;
-
+    
     if (!thread->user_tcb)
         CP_REBASE(thread->tcb);
 
@@ -709,7 +732,7 @@ BEGIN_RS_FUNC(running_thread)
         thread->pal_handle = handle;
     } else {
         __libc_tcb_t * libc_tcb = (__libc_tcb_t *) thread->tcb;
-
+        
         if (libc_tcb) {
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;
             assert(tcb->context.sp);
@@ -720,11 +743,11 @@ BEGIN_RS_FUNC(running_thread)
         } else {
             set_cur_thread(thread);
         }
-
+        
         thread->in_vm = thread->is_alive = true;
         thread->pal_handle = PAL_CB(first_thread);
     }
-
+    
     DEBUG_RS("tid=%d", thread->tid);
 }
 END_RS_FUNC(running_thread)
@@ -734,7 +757,7 @@ BEGIN_CP_FUNC(all_running_threads)
     struct shim_thread * thread;
     lock(thread_list_lock);
 
-    list_for_each_entry(thread, &thread_list, list) {
+    listp_for_each_entry(thread, &thread_list, list) {
         if (!thread->in_vm || !thread->is_alive)
             continue;
 

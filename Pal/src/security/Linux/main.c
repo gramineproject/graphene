@@ -34,7 +34,7 @@ static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];
 
-void * malloc (int size)
+void * malloc (size_t size)
 {
     void * addr = (void *) bump;
 
@@ -585,3 +585,17 @@ void do_main (void * args)
 exit:
     INLINE_SYSCALL(exit_group, 1, ret);
 }
+
+/* This does not return */
+void __abort(void) {
+    INLINE_SYSCALL(exit_group, 1, -1);
+}
+
+void warn (const char *format, ...)
+{ 
+    va_list args;
+    va_start (args, format);
+    printf(format, args);
+    va_end (args);
+}
+

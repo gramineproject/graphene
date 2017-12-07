@@ -36,6 +36,7 @@
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "pal_security.h"
+#include "pal_crypto.h"
 #include "api.h"
 
 #include <linux/sched.h>
@@ -44,13 +45,15 @@
 typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
 
+DEFINE_LIST(trusted_child);
 struct trusted_child {
-    struct list_head list;
+    LIST_TYPE(trusted_child) list;
     sgx_arch_hash_t mrenclave;
     char uri[];
 };
 
-static LIST_HEAD(trusted_children);
+DEFINE_LISTP(trusted_child);
+static LISTP_TYPE(trusted_child) trusted_children = LISTP_INIT;
 static struct spinlock trusted_children_lock = LOCK_INIT;
 
 int register_trusted_child(const char * uri, const char * mrenclave_str)
@@ -60,7 +63,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
 
     _DkSpinLock(&trusted_children_lock);
 
-    list_for_each_entry(tc, &trusted_children, list) {
+    listp_for_each_entry(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
             _DkSpinUnlock(&trusted_children_lock);
             return 0;
@@ -72,7 +75,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
     if (!new)
         return -PAL_ERROR_NOMEM;
 
-    INIT_LIST_HEAD(&new->list);
+    INIT_LIST_HEAD(new, list);
     memcpy(new->uri, uri, uri_len + 1);
 
     char mrenclave_text[sizeof(sgx_arch_hash_t) * 2 + 1] = "\0";
@@ -117,7 +120,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
 
     _DkSpinLock(&trusted_children_lock);
 
-    list_for_each_entry(tc, &trusted_children, list) {
+    listp_for_each_entry(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
             _DkSpinUnlock(&trusted_children_lock);
             free(new);
@@ -125,7 +128,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
         }
     }
 
-    list_add_tail(&new->list, &trusted_children);
+    listp_add_tail(new, &trusted_children, list);
     _DkSpinUnlock(&trusted_children_lock);
     return 0;
 }
@@ -139,8 +142,6 @@ struct check_child_param {
     PAL_MAC_KEY     mac_key;
     const char *    uri;
 };
-
-#include "crypto/cmac.h"
 
 static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
                                   void * signed_data, void * check_param)
@@ -159,10 +160,10 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     struct proc_attestation_data check_data;
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
-    AES_CMAC((void *) &param->mac_key,
-             remote_state->enclave_keyhash,
-             sizeof(remote_state->enclave_keyhash),
-             check_data.keyhash_mac);
+    lib_AESCMAC((void *) &param->mac_key, AES_CMAC_KEY_LEN,
+                remote_state->enclave_keyhash,
+                sizeof(remote_state->enclave_keyhash),
+                check_data.keyhash_mac, sizeof check_data.keyhash_mac);
 
     if (memcmp(data, &check_data, sizeof(struct proc_attestation_data)))
         return 1;
@@ -176,7 +177,7 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     struct trusted_child * tc;
     _DkSpinLock(&trusted_children_lock);
 
-    list_for_each_entry(tc, &trusted_children, list) {
+    listp_for_each_entry(tc, &trusted_children, list) {
         if (!memcmp(mrenclave, tc->mrenclave, sizeof(sgx_arch_hash_t))) {
             _DkSpinUnlock(&trusted_children_lock);
             SGX_DBG(DBG_S, "trusted child: %s\n", tc->uri);
@@ -230,10 +231,10 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     struct proc_attestation_data data;
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
-    AES_CMAC((void *) &param.mac_key,
-             pal_enclave_state.enclave_keyhash,
-             sizeof(pal_enclave_state.enclave_keyhash),
-             data.keyhash_mac);
+    lib_AESCMAC((void *) &param.mac_key, AES_CMAC_KEY_LEN,
+                pal_enclave_state.enclave_keyhash,
+                sizeof(pal_enclave_state.enclave_keyhash),
+                data.keyhash_mac, sizeof data.keyhash_mac);
 
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", hex2str(data.keyhash_mac));
 
@@ -263,10 +264,10 @@ static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
     struct proc_attestation_data check_data;
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
-    AES_CMAC((void *) &param->mac_key,
-             remote_state->enclave_keyhash,
-             sizeof(remote_state->enclave_keyhash),
-             check_data.keyhash_mac);
+    lib_AESCMAC((void *) &param->mac_key, AES_CMAC_KEY_LEN,
+                remote_state->enclave_keyhash,
+                sizeof(remote_state->enclave_keyhash),
+                check_data.keyhash_mac, sizeof check_data.keyhash_mac);
 
     if (memcmp(data, &check_data, sizeof(struct proc_attestation_data)))
         return 1;
@@ -299,10 +300,10 @@ int init_child_process (PAL_HANDLE * parent_handle)
     struct proc_attestation_data data;
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
-    AES_CMAC((void *) &param.mac_key,
-             pal_enclave_state.enclave_keyhash,
-             sizeof(pal_enclave_state.enclave_keyhash),
-             data.keyhash_mac);
+    lib_AESCMAC((void *) &param.mac_key, AES_CMAC_KEY_LEN,
+                pal_enclave_state.enclave_keyhash,
+                sizeof(pal_enclave_state.enclave_keyhash),
+                data.keyhash_mac, sizeof data.keyhash_mac);
 
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", hex2str(data.keyhash_mac));
 

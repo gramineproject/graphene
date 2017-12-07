@@ -56,13 +56,19 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     SHIM_GET_TLS()->pal_errno = (arg <= PAL_ERROR_BOUND) ? arg : 0;
 }
 
-void __assert_fail (const char * assertion, const char * file,
-                    unsigned int line, const char * function)
-{
-    __sys_printf("assert failed %s:%d %s\n", file, line, assertion);
+void __abort(void) {
     pause();
     shim_terminate();
 }
+
+void warn (const char *format, ...)
+{ 
+    va_list args;
+    va_start (args, format);
+    __sys_vprintf(format, &args);
+    va_end (args);
+}
+
 
 void __stack_chk_fail (void)
 {
@@ -655,6 +661,8 @@ int shim_init (int argc, void * args, void ** return_stack)
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();
 #endif
+
+    debug("host: %s\n", PAL_CB(host_type));
 
     DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE, 0);
 

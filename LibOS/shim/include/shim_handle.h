@@ -31,7 +31,7 @@
 #include <shim_sysv.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include <linux/shm.h>
 #include <linux/in.h>
@@ -78,6 +78,7 @@ struct shim_file_data {
     unsigned long       atime;
     unsigned long       mtime;
     unsigned long       ctime;
+    unsigned long       nlink;
 };
 
 struct shim_file_handle {
@@ -232,6 +233,7 @@ struct msg_client;
 
 #define MAX_SYSV_CLIENTS        32
 
+DEFINE_LIST(shim_msg_handle);
 struct shim_msg_handle {
     unsigned long       msqkey;         /* msg queue key from user */
     IDTYPE              msqid;          /* msg queue identifier */
@@ -251,13 +253,14 @@ struct shim_msg_handle {
     int                 maxtypes;
     struct msg_type *   types;
     struct sysv_score   scores[MAX_SYSV_CLIENTS];
-    struct list_head    list;
-    struct hlist_node   key_hlist;
-    struct hlist_node   qid_hlist;
+    LIST_TYPE(shim_msg_handle) list;
+    LIST_TYPE(shim_msg_handle) key_hlist;
+    LIST_TYPE(shim_msg_handle) qid_hlist;
 };
 
 struct sem_objs;
 
+DEFINE_LIST(shim_sem_handle);
 struct shim_sem_handle {
     unsigned long       semkey;
     IDTYPE              semid;
@@ -271,17 +274,19 @@ struct shim_sem_handle {
     struct sem_obj *    sems;
     int                 nreqs;
     struct sysv_score   scores[MAX_SYSV_CLIENTS];
-    struct list_head    migrated;
-    struct list_head    list;
-    struct hlist_node   key_hlist;
-    struct hlist_node   sid_hlist;
+    LISTP_TYPE(sem_ops) migrated;
+    LIST_TYPE(shim_sem_handle) list;
+    LIST_TYPE(shim_sem_handle) key_hlist;
+    LIST_TYPE(shim_sem_handle) sid_hlist;
 };
-
+DEFINE_LIST(futex_waiter);
+DEFINE_LISTP(futex_waiter);
+DEFINE_LIST(shim_futex_handle);
 struct shim_futex_handle {
     unsigned int *      uaddr;
-    struct list_head    waiters;
+    LISTP_TYPE(futex_waiter) waiters;
     struct shim_vma *   vma;
-    struct list_head    list;
+    LIST_TYPE(shim_futex_handle) list;
 };
 
 struct shim_str_data {
@@ -300,10 +305,12 @@ struct shim_str_handle {
     char * ptr;
 };
 
+DEFINE_LIST(shim_epoll_fd);
+DEFINE_LISTP(shim_epoll_fd);
 struct shim_epoll_handle {
     int                 maxfds;
     int                 nfds;
-    struct list_head    fds;
+    LISTP_TYPE(shim_epoll_fd) fds;
     FDTYPE *            pal_fds;
     PAL_HANDLE *        pal_handles;
     int                 npals;
@@ -316,6 +323,8 @@ struct shim_mount;
 struct shim_qstr;
 struct shim_dentry;
 
+/* The epolls list links to the back field of the shim_epoll_fd structure 
+ */
 struct shim_handle {
     enum shim_handle_type   type;
 
@@ -325,7 +334,7 @@ struct shim_handle {
     struct shim_mount *     fs;
     struct shim_qstr        path;
     struct shim_dentry *    dentry;
-    struct list_head        epolls;
+    LISTP_TYPE(shim_epoll_fd) epolls;
 
     struct shim_qstr        uri;    /* URI representing this handle, it is not
                                      * necessary to be set. */

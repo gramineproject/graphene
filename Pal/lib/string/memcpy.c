@@ -22,7 +22,7 @@
 #include "api.h"
 #include <sysdeps/generic/memcopy.h>
 
-void * memcpy (void *dstpp, const void *srcpp, int len)
+void * memcpy (void *dstpp, const void *srcpp, size_t len)
 {
     unsigned long int dstp = (long int) dstpp;
     unsigned long int srcp = (long int) srcpp;
@@ -49,7 +49,7 @@ void * memcpy (void *dstpp, const void *srcpp, int len)
     return dstpp;
 }
 
-void * memmove (void * destpp, void * srcpp, int len)
+void * memmove (void * destpp, const void * srcpp, size_t len)
 {
     unsigned long int dstp = (long int) destpp;
     unsigned long int srcp = (long int) srcpp;

@@ -31,7 +31,7 @@
 #include <pal.h>
 #include <pal_error.h>
 #include <pal_debug.h>
-#include <linux_list.h>
+#include <list.h>
 
 #include <linux/fcntl.h>
 
@@ -70,7 +70,9 @@ static LOCKTYPE mount_mgr_lock;
 #include <memmgr.h>
 
 static MEM_MGR mount_mgr = NULL;
-static LIST_HEAD(mount_list);
+DEFINE_LISTP(shim_mount);
+/* Links to mount->list */
+static LISTP_TYPE(shim_mount) mount_list;
 static LOCKTYPE mount_list_lock;
 
 int init_fs (void)
@@ -159,7 +161,7 @@ static int __mount_one_other (const char * key, int keylen)
     debug("mounting as %s filesystem: from %s to %s\n", t, uri, p);
 
     if ((ret = mount_fs(t, uri, p)) < 0) {
-        debug("mounting %s on %s (type=%s) failed (%e)\n", t, uri, p,
+        debug("mounting %s on %s (type=%s) failed (%e)\n", uri, p, t,
               -ret);
         return ret;
     }
@@ -172,14 +174,10 @@ static int __mount_others (void)
     if (!root_config)
         return 0;
 
-    int nkeys, keybuf_size = CONFIG_MAX;
-    char * keybuf = __alloca(keybuf_size);
+    int nkeys;
+    char * keybuf = __alloca(get_config_entries_size(root_config, "fs.mount"));
 
-    while ((nkeys = get_config_entries(root_config, "fs.mount", keybuf,
-                                       keybuf_size)) == -ENAMETOOLONG) {
-        keybuf = __alloca(keybuf_size);
-        keybuf_size *= 2;
-    }
+    nkeys = get_config_entries(root_config, "fs.mount", keybuf);
 
     if (nkeys < 0)
         return 0;
@@ -286,7 +284,7 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
 
     lock(mount_list_lock);
     get_mount(mount);
-    list_add_tail(&mount->list, &mount_list);
+    listp_add_tail(mount, &mount_list, list);
     unlock(mount_list_lock);
 
     do {
@@ -364,7 +362,7 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
 
     lock(mount_list_lock);
 
-    list_for_each_entry_safe(mount, n, &mount_list, list) {
+    listp_for_each_entry_safe(mount, n, &mount_list, list) {
         if ((ret = (*walk) (mount, arg)) < 0)
             break;
 
@@ -382,7 +380,7 @@ struct shim_mount * find_mount_from_uri (const char * uri)
     int longest_path = 0;
 
     lock(mount_list_lock);
-    list_for_each_entry(mount, &mount_list, list) {
+    listp_for_each_entry(mount, &mount_list, list) {
         if (qstrempty(&mount->uri))
             continue;
 
@@ -439,7 +437,7 @@ BEGIN_CP_FUNC(mount)
         new_mount->data = NULL;
         new_mount->mount_point = NULL;
         new_mount->root = NULL;
-        INIT_LIST_HEAD(&new_mount->list);
+        INIT_LIST_HEAD(new_mount, list);
 
         DO_CP_IN_MEMBER(qstr, new_mount, path);
         DO_CP_IN_MEMBER(qstr, new_mount, uri);
@@ -481,7 +479,7 @@ BEGIN_RS_FUNC(mount)
     mount->fs_ops = fs->fs_ops;
     mount->d_ops = fs->d_ops;
 
-    list_add_tail(&mount->list, &mount_list);
+    listp_add_tail(mount, &mount_list, list);
 
     if (!qstrempty(&mount->path)) {
         DEBUG_RS("type=%s,uri=%s,path=%s", mount->type, qstrgetstr(&mount->uri),
@@ -496,7 +494,7 @@ BEGIN_CP_FUNC(all_mounts)
 {
     struct shim_mount * mount;
     lock(mount_list_lock);
-    list_for_each_entry(mount, &mount_list, list)
+    listp_for_each_entry(mount, &mount_list, list)
         DO_CP(mount, mount, NULL);
     unlock(mount_list_lock);
 

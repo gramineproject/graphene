@@ -4,6 +4,7 @@
 #ifndef PAL_LINUX_DEFS_H
 #define PAL_LINUX_DEFS_H
 
+#define ENCLAVE_HIGH_ADDRESS    (0x800000000)
 #define SSAFRAMENUM         (2)
 #define MEMORY_GAP          (PRESET_PAGESIZE)
 #define ENCLAVE_STACK_SIZE  (PRESET_PAGESIZE * 16)
@@ -20,7 +21,7 @@
 
 #define CACHE_FILE_STUBS    (1)
 
-#define USE_AES_NI          (1)
+//#define USE_AES_NI          (1)
 
 #define PRINT_ENCLAVE_STAT  (0)
 

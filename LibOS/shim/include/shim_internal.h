@@ -83,6 +83,7 @@ void debug_vprintf (const char * fmt, va_list * ap);
 #define SYSPRINT_BUFFER_SIZE    256
 
 void handle_printf (PAL_HANDLE hdl, const char * fmt, ...);
+void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap);
 
 #define __sys_printf(fmt, ...)                                              \
     do {                                                                    \
@@ -90,6 +91,14 @@ void handle_printf (PAL_HANDLE hdl, const char * fmt, ...);
         if (_hdl)                                                           \
            handle_printf(_hdl, (fmt), ##__VA_ARGS__);                       \
     } while (0)
+
+#define __sys_vprintf(fmt, va)                                              \
+    do {                                                                    \
+        PAL_HANDLE _hdl = __open_shim_stdio();                              \
+        if (_hdl)                                                           \
+            handle_vprintf(_hdl, (fmt), (va));                              \
+    } while (0)
+
 
 #define __sys_fprintf(hdl, fmt, ...)                                        \
     do {                                                                    \
@@ -152,17 +161,7 @@ static inline void do_pause (void);
     } while (0)
 
 #if USE_ASSERT == 1
-# define assert(test)                                                       \
-    ({                                                                      \
-        long _val = (long) (test);                                          \
-        (!(_val))                                                           \
-        ? ({                                                                \
-            __sys_printf("assert failed " __FILE__ ":%d " #test " (value:%x)\n", \
-                    __LINE__, _val);                                        \
-            pause();                                                        \
-            shim_terminate(); })                                            \
-        : (void) 0;                                                         \
-    })
+#include <assert.h>
 #else
 # define assert(test) do {} while (0)
 #endif
@@ -752,7 +751,8 @@ extern const char ** initial_envp;
 void get_brk_region (void ** start, void ** end, void ** current);
 
 int init_randgen (void);
-int init_brk (void);
+int reset_brk (void);
+int init_brk_region (void * brk_region);
 int init_heap (void);
 int init_internal_map (void);
 int init_loader (void);

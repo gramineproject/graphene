@@ -20,8 +20,8 @@
 #include <pal_internal.h>
 #include <pal_security.h>
 #include <pal_error.h>
-#include <linux_list.h>
 #include <api.h>
+#include <assert.h>
 
 #include "enclave_ocalls.h"
 
@@ -66,19 +66,10 @@ void init_untrusted_slab_mgr (int pagesize)
 
 void * malloc_untrusted (int size)
 {
-    void * ptr = slab_alloc(untrusted_slabmgr, size);
-
-    /* the slab manger will always remain at least one byte of padding,
-       so we can feel free to assign an offset at the byte prior to
-       the pointer */
-    if (ptr)
-        *(((unsigned char *) ptr) - 1) = 0;
-
-    return ptr;
+    return slab_alloc(untrusted_slabmgr, size);
 }
 
 void free_untrusted (void * ptr)
 {
-    ptr -= *(((unsigned char *) ptr) - 1);
     slab_free(untrusted_slabmgr, ptr);
 }

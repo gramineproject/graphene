@@ -253,7 +253,7 @@ do0:
     return 0;
 }
 
-int memcmp (const __ptr_t s1, const __ptr_t s2, int len)
+int memcmp (const __ptr_t s1, const __ptr_t s2, size_t len)
 {
     op_t a0, b0, res;
     long int srcp1 = (long int) s1;

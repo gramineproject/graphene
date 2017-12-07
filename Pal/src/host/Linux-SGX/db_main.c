@@ -105,6 +105,9 @@ static PAL_HANDLE setup_file_handle (const char * name, int fd)
     get_norm_path(name, path, 0, len + 1);
     handle->file.realpath = path;
 
+    handle->file.total = 0;
+    handle->file.stubs = NULL;
+
     return handle;
 }
 
@@ -119,6 +122,8 @@ static int loader_filter (const char * key, int len)
 
     return 1;
 }
+
+extern void * enclave_base;
 
 void pal_linux_main(const char ** arguments, const char ** environments,
                     struct pal_sec * sec_info)
@@ -207,7 +212,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tcs =
-        pal_enclave.enclave_base + GET_ENCLAVE_TLS(tcs_offset);
+        enclave_base + GET_ENCLAVE_TLS(tcs_offset);
     SET_ENCLAVE_TLS(thread, (__pal_control.first_thread = first_thread));
 
     /* call main function */

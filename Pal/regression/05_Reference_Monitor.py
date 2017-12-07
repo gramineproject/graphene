@@ -44,7 +44,9 @@ regression.add_check(name="Control Block: Allocation Alignment",
 regression.add_check(name="Control Block: Executable Range",
     check=lambda res: "Executable Range OK" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+## dp: For now, let the ref monitor checks fail; we should fix this
+#if rv: sys.exit(rv)
 
 # Running Bootstrap3
 regression = Regression(loader, "Bootstrap3")
@@ -57,4 +59,5 @@ regression.add_check(name="Preload Libraries Linking",
     check=lambda res: "Preloaded Function 1 Called" in res[0].log and
                       "Preloaded Function 2 Called" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+#if rv: sys.exit(rv)

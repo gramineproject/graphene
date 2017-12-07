@@ -4,6 +4,10 @@ import os, sys, mmap
 from regression import Regression
 
 loader = os.environ['PAL_LOADER']
+try:
+    sgx = os.environ['SGX_RUN']
+except KeyError:
+    sgx = False
 
 def manifest_file(file):
     if 'SGX_RUN' in os.environ and os.environ['SGX_RUN'] == '1':
@@ -42,14 +46,17 @@ regression.add_check(name="Control Block: Allocation Alignment",
 regression.add_check(name="Control Block: Executable Range",
     check=lambda res: "Executable Range OK" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
 # Running ..Bootstrap
 regression = Regression(loader, "..Bootstrap")
 
 regression.add_check(name="Dotdot handled properly",
     check=lambda res: "User Program Started" in res[0].log)
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+    
 
 # Running Bootstrap2
 regression = Regression(loader, "Bootstrap2")
@@ -57,7 +64,8 @@ regression = Regression(loader, "Bootstrap2")
 regression.add_check(name="Control Block: Manifest as Executable Name",
     check=lambda res: "Loaded Manifest: file:" + manifest_file("Bootstrap2") in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
 # Running Bootstrap3
 regression = Regression(loader, "Bootstrap3")
@@ -70,7 +78,8 @@ regression.add_check(name="Preload Libraries Linking",
     check=lambda res: "Preloaded Function 1 Called" in res[0].log and
                       "Preloaded Function 2 Called" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
 # Running Bootstrap4
 regression = Regression(loader, manifest_file("Bootstrap4"))
@@ -81,7 +90,8 @@ regression.add_check(name="Control Block: Manifest as Argument",
 regression.add_check(name="Control Block: Executable as in Manifest",
     check=lambda res: "Loaded Executable: file:Bootstrap" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
 # Running Bootstrap4.manifest
 regression = Regression(executable = "./" + manifest_file("Bootstrap4"))
@@ -95,7 +105,8 @@ regression.add_check(name="Control Block: Executable as in Manifest (Load by She
 regression.add_check(name="Arguments: loader.execname in Manifest",
     check=lambda res: "argv[0] = Bootstrap" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
 # Running Bootstrap5.manifest
 regression = Regression(loader, manifest_file("Bootstrap5"))
@@ -104,13 +115,25 @@ regression.add_check(name="Bootstrap without Executable but Preload Libraries",
     check=lambda res: "Binary 1 Preloaded" in res[0].log and
                       "Binary 2 Preloaded" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
-# Running Bootstrap6.manifest
-regression = Regression(loader, manifest_file("Bootstrap6"), timeout = 100000)
+# Running Bootstrap6.manifest - SGX-specific test
+if sgx:
+    regression = Regression(loader, manifest_file("Bootstrap6"), timeout = 100000)
+    regression.add_check(name="8GB Enclave Creation (SGX Only)",
+                         check=lambda res: "Loaded Manifest: file:Bootstrap6.manifest.sgx" in res[0].log and
+                         "Executable Range OK" in res[0].log)
 
-regression.add_check(name="8GB Enclave Creation (SGX Only)",
-    check=lambda res: "Loaded Manifest: file:Bootstrap6.manifest.sgx" in res[0].log and
-                      "Executable Range OK" in res[0].log)
+    rv = regression.run_checks()
+    if rv: sys.exit(rv)
 
-regression.run_checks()
+# Running Bootstrap7.manifest
+regression = Regression(loader, manifest_file("Bootstrap7"))
+
+regression.add_check(name="Load Large Number of Items in Manifest",
+    check=lambda res: "key1000=na" in res[0].log and
+                      "key1=na" in res[0].log)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)

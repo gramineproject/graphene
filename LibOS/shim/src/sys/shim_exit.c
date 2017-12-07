@@ -50,20 +50,20 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     /* Chia-Che: Broadcast exit message as early as possible,
        so other process can start early on responding. */
     if (self->in_vm && send_ipc)
-        ipc_cld_exit_send(self->ppid, self->tid, self->exit_code);
+        ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
 
     lock(self->lock);
 
     if (!self->is_alive) {
         debug("thread %d is dead\n", self->tid);
-out:
+    out:
         unlock(self->lock);
         return 0;
     }
 
-#ifdef PROFILE
+    #ifdef PROFILE
     self->exit_time = GET_PROFILE_INTERVAL();
-#endif
+    #endif
 
     int exit_code = self->exit_code;
     self->is_alive = false;
@@ -83,8 +83,9 @@ out:
         debug("thread exits, notifying thread %d\n", parent->tid);
 
         lock(parent->lock);
-        list_del_init(&self->siblings);
-        list_add_tail(&self->siblings, &parent->exited_children);
+        listp_del_init(self, &parent->children, siblings);
+        listp_add_tail(self, &parent->exited_children, siblings);
+
         if (!self->in_vm) {
             debug("deliver SIGCHLD (thread = %d, exitval = %d)\n",
                   self->tid, exit_code);
@@ -103,7 +104,7 @@ out:
         DkEventSet(parent->child_exit_event);
     } else {
         debug("parent not here, need to tell another process\n");
-        ipc_cld_exit_send(self->ppid, self->tid, self->exit_code);
+        ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
     }
 
     struct robust_list_head * robust_list = (void *) self->robust_list;
@@ -127,11 +128,12 @@ out:
     return 0;
 }
 
-int try_process_exit (int error_code)
+int try_process_exit (int error_code, int term_signal)
 {
     struct shim_thread * cur_thread = get_cur_thread();
 
     cur_thread->exit_code = -error_code;
+    cur_thread->term_signal = term_signal;
 
     if (cur_thread->in_vm)
         thread_exit(cur_thread, true);
@@ -159,6 +161,7 @@ int shim_do_exit_group (int error_code)
         sysparser_printf("---- shim_exit_group (returning %d)\n", error_code);
 
     if (cur_thread->dummy) {
+        cur_thread->term_signal = 0;
         thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
@@ -167,7 +170,7 @@ int shim_do_exit_group (int error_code)
     do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
 
     debug("now exit the process\n");
-    try_process_exit(error_code);
+    try_process_exit(error_code, 0);
 
 #ifdef PROFILE
     if (ENTER_TIME)
@@ -188,11 +191,12 @@ int shim_do_exit (int error_code)
         sysparser_printf("---- shim_exit (returning %d)\n", error_code);
 
     if (cur_thread->dummy) {
+        cur_thread->term_signal = 0;
         thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
 
-    try_process_exit(error_code);
+    try_process_exit(error_code, 0);
 
 #ifdef PROFILE
     if (ENTER_TIME)

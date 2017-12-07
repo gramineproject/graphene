@@ -31,14 +31,16 @@ regression.add_check(name="Multi-Process Broadcast Channel Transmission",
     check=lambda res: check_times("Broadcast Write OK",            res[0].log, 1) and
                       check_times("Broadcast Read: Hello World 1", res[0].log, 3))
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
 regression = Regression(loader, "Process2")
 
 regression.add_check(name="Process Creation with a Different Binary",
     check=lambda res: check_times("User Program Started", res[0].log, 1))
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
 
 regression = Regression(loader, "Process3")
 
@@ -46,4 +48,5 @@ regression.add_check(name="Process Creation without Executable",
     check=lambda res: check_times("Binary 1 Preloaded", res[0].log, 2) and
                       check_times("Binary 2 Preloaded", res[0].log, 2))
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

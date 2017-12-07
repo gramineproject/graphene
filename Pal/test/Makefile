@@ -4,6 +4,7 @@ CC	= gcc
 CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib
 
+.PHONY: default
 default: all
 include ../src/Makefile.Test
 
@@ -18,6 +19,7 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = ../src/libpal.so
 headers = $(wildcard ../include/pal/*.h)
 
+.PHONY: all
 all:	pal_loader $(call expand_target,$(target))
 
 ifeq ($(DEBUG),1)
@@ -50,5 +52,6 @@ $(executables): .packed/test.tar.gz
 	tar -xmozf $< $@
 endif
 
+.PHONY: clean
 clean:
 	rm -rf pal_loader $(call expand_target,$(target)) .lib *.cached

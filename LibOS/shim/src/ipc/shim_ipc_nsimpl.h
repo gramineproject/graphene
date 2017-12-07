@@ -57,9 +57,10 @@ struct sub_map {
     struct subrange *   map[RANGE_SIZE];
 };
 
+DEFINE_LIST(range);
 struct range {
-    struct hlist_node   hlist;
-    struct list_head    list;
+    LIST_TYPE(range)    hlist;
+    LIST_TYPE(range)    list;
     int                 offset;
     struct shim_ipc_info *  owner;
     LEASETYPE           lease;
@@ -80,21 +81,27 @@ static LOCKTYPE range_map_lock;
 #define RANGE_HASH_MASK     (RANGE_HASH_NUM - 1)
 #define RANGE_HASH(off)     (((off - 1) / RANGE_SIZE) & RANGE_HASH_MASK)
 
-static struct hlist_head range_table [RANGE_HASH_NUM];
-static LIST_HEAD(owned_ranges);
-static LIST_HEAD(offered_ranges);
+/* This hash table organizes range structs by hlist */
+DEFINE_LISTP(range);
+static LISTP_TYPE(range) range_table [RANGE_HASH_NUM];
+/* These lists organizes range structs by list 
+ */
+static LISTP_TYPE(range) owned_ranges;
+static LISTP_TYPE(range) offered_ranges;
 static int nowned = 0;
 static int noffered = 0;
 static int nsubed = 0;
 
+DEFINE_LIST(ns_query);
 struct ns_query {
     IDTYPE                  dest;
     unsigned long           seq;
     struct shim_ipc_port *  port;
-    struct list_head        list;
+    LIST_TYPE(ns_query)     list;
 };
 
-static LIST_HEAD(ns_queries);
+DEFINE_LISTP(ns_query);
+static LISTP_TYPE(ns_query) ns_queries;
 
 static inline LEASETYPE get_lease (void)
 {
@@ -122,11 +129,10 @@ void CONCAT3(debug_print, NS, ranges) (void)
                 continue;
 
             int off = i * BITS + j;
-            struct hlist_head * head = range_table + RANGE_HASH(off);
+            LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
             struct range * tmp, * r = NULL;
-            struct hlist_node * pos;
 
-            hlist_for_each_entry(tmp, pos, head, hlist)
+            listp_for_each_entry(tmp, head, hlist)
                 if (tmp->offset == off) {
                     r = tmp;
                     break;
@@ -220,7 +226,7 @@ static bool __check_range_bitmap (int off)
 
 static struct range * __get_range (int off)
 {
-    struct hlist_head * head = range_table + RANGE_HASH(off);
+    LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
 
     if (!range_map || off >= range_map->map_size)
         return NULL;
@@ -229,9 +235,8 @@ static struct range * __get_range (int off)
         return NULL;
 
     struct range * r;
-    struct hlist_node * pos;
 
-    hlist_for_each_entry(r, pos, head, hlist)
+    listp_for_each_entry(r, head, hlist)
         if (r->offset == off)
             return r;
 
@@ -241,7 +246,7 @@ static struct range * __get_range (int off)
 static int __add_range (struct range * r, int off, IDTYPE owner,
                         const char * uri, LEASETYPE lease)
 {
-    struct hlist_head * head = range_table + RANGE_HASH(off);
+    LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
     int ret = 0;
 
     if (!range_map || range_map->map_size <= off) {
@@ -265,14 +270,22 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
     ret = __set_range_bitmap(off, false);
     if (ret == -EEXIST) {
         struct range * tmp;
-        struct hlist_node * pos;
 
-        hlist_for_each_entry(tmp, pos, head, hlist)
+        listp_for_each_entry(tmp, head, hlist)
             if (tmp->offset == off) {
-                hlist_del(&tmp->hlist);
-                list_del(&tmp->list);
+                listp_del(tmp, head, hlist);
+
+                /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
+                 * and tmp->owner->vmid == cur_process.vmid, tmp is on the
+                 * owned list, otherwise it is an offered. */
+                if (tmp->owner && tmp->owner->vmid == cur_process.vmid)
+                    listp_del(tmp, &owned_ranges, list);
+                else
+                    listp_del(tmp, &offered_ranges, list);
+
                 if (tmp->owner)
                     put_client(tmp->owner);
+
                 r->used = tmp->used;
                 r->subranges = tmp->subranges;
                 free(tmp);
@@ -280,22 +293,23 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
             }
     }
 
-    INIT_HLIST_NODE(&r->hlist);
-    hlist_add_head(&r->hlist, head);
-    INIT_LIST_HEAD(&r->list);
+    INIT_LIST_HEAD(r, hlist);
+    listp_add(r, head, hlist);
+    INIT_LIST_HEAD(r, list);
 
-    struct list_head * list = (owner == cur_process.vmid) ? &owned_ranges
+    LISTP_TYPE(range)* list = (owner == cur_process.vmid) ? &owned_ranges
                               : &offered_ranges;
-    struct list_head * prev = list;
+    struct range * prev = listp_first_entry(list, range, list);
     struct range * tmp;
 
-    list_for_each_entry(tmp, list, list) {
+
+    listp_for_each_entry(tmp, list, list) {
         if (tmp->offset >= off)
             break;
-        prev = &tmp->list;
+        prev = tmp;
     }
 
-    list_add(&r->list, prev);
+    listp_add_after(r, prev, list, list);
 
     if (owner == cur_process.vmid)
         nowned++;
@@ -527,8 +541,16 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
 
     if (r->used)
         free(r->used);
-    hlist_del(&r->hlist);
-    list_del(&r->list);
+    // Re-acquire the head; kind of ugly
+    LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
+    listp_del(r, head, hlist);
+    /* Chia-Che Tsai 10/17/17: only when r->owner is non-NULL,
+     * and r->owner->vmid == cur_process.vmid, r is on the
+     * owned list, otherwise it is an offered. */
+    if (r->owner && r->owner->vmid == cur_process.vmid)
+        listp_del(r, &owned_ranges, list);
+    else
+        listp_del(r, &offered_ranges, list);
     put_ipc_info(r->owner);
     free(r);
 
@@ -611,7 +633,7 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
     struct range * r;
     lock(range_map_lock);
 
-    list_for_each_entry (r, &owned_ranges, list) {
+    listp_for_each_entry (r, &owned_ranges, list) {
         if (max && idx >= max)
             break;
 
@@ -975,8 +997,8 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
             query->seq  = msg->seq;
             get_ipc_port(port);
             query->port = port;
-            INIT_LIST_HEAD(&query->list);
-            list_add_tail(&query->list, &ns_queries);
+            INIT_LIST_HEAD(query, list);
+            listp_add_tail(query, &ns_queries, list);
         } else {
             ret = -ENOMEM;
         }
@@ -1036,8 +1058,8 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
 
     struct ns_query * query, * pos;
 
-    list_for_each_entry_safe(query, pos, &ns_queries, list) {
-        list_del(&query->list);
+    listp_for_each_entry_safe(query, pos, &ns_queries, list) {
+        listp_del(query, &ns_queries, list);
         NS_SEND(tellns)(query->port, query->dest, NS_LEADER, query->seq);
         put_ipc_port(query->port);
         free(query);
@@ -1478,7 +1500,7 @@ int NS_CALLBACK(queryall) (IPC_CALLBACK_ARGS)
 
     debug("ipc callback from %u: " NS_CODE_STR(QUERYALL) "\n", msg->src);
 
-    struct list_head * list = &offered_ranges;
+    LISTP_TYPE(range) * list = &offered_ranges;
     struct range * r;
     int ret;
 
@@ -1494,7 +1516,7 @@ int NS_CALLBACK(queryall) (IPC_CALLBACK_ARGS)
     int owner_offset = 0;
 
 retry:
-    list_for_each_entry (r, list, list) {
+    listp_for_each_entry (r, list, list) {
         struct shim_ipc_info * p = r->owner;
         int datasz = sizeof(struct ipc_ns_client) + p->uri.len;
         struct ipc_ns_client * owner = __alloca(datasz);
@@ -1649,24 +1671,25 @@ int NS_CALLBACK(answer) (IPC_CALLBACK_ARGS)
 #define KEY_HASH_NUM    (1 << KEY_HASH_LEN)
 #define KEY_HASH_MASK   (KEY_HASH_NUM - 1)
 
-static struct hlist_head key_map [KEY_HASH_NUM];
-
+DEFINE_LIST(key);
 struct key {
-    NS_KEY              key;
-    IDTYPE              id;
-    struct hlist_node   hlist;
+    NS_KEY                key;
+    IDTYPE                id;
+    LIST_TYPE(key)        hlist;
 };
+DEFINE_LISTP(key);
+static LISTP_TYPE(key) key_map [KEY_HASH_NUM];
+
 
 int CONCAT2(NS, add_key) (NS_KEY * key, IDTYPE id)
 {
-    struct hlist_head * head = &key_map[KEY_HASH(key) & KEY_HASH_MASK];
-    struct hlist_node * pos;
+    LISTP_TYPE(key) * head = &key_map[KEY_HASH(key) & KEY_HASH_MASK];
     struct key * k;
     int ret = -EEXIST;
 
     lock(range_map_lock);
 
-    hlist_for_each_entry(k, pos, head, hlist)
+    listp_for_each_entry(k, head, hlist)
         if (!KEY_COMP(&k->key, key))
             goto out;
 
@@ -1678,8 +1701,8 @@ int CONCAT2(NS, add_key) (NS_KEY * key, IDTYPE id)
 
     KEY_COPY(&k->key, key);
     k->id  = id;
-    INIT_HLIST_NODE(&k->hlist);
-    hlist_add_head(&k->hlist, head);
+    INIT_LIST_HEAD(k, hlist);
+    listp_add(k, head, hlist);
 
     debug("add key/id pair (%u, %u) to hash list: %p\n",
           KEY_HASH(key), id, head);
@@ -1691,18 +1714,17 @@ out:
 
 int CONCAT2(NS, get_key) (NS_KEY * key, bool delete)
 {
-    struct hlist_head * head = &key_map[KEY_HASH(key) & KEY_HASH_MASK];
-    struct hlist_node * pos;
+    LISTP_TYPE(key) * head = &key_map[KEY_HASH(key) & KEY_HASH_MASK];
     struct key * k;
     int id = -ENOENT;
 
     lock(range_map_lock);
 
-    hlist_for_each_entry(k, pos, head, hlist)
+    listp_for_each_entry(k, head, hlist)
         if (!KEY_COMP(&k->key, key)) {
             id = k->id;
             if (delete) {
-                hlist_del(&k->hlist);
+                listp_del(k, head, hlist);
                 free(k);
             }
             break;

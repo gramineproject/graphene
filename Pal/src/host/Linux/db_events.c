@@ -79,7 +79,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, int timeout)
+int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
 {
     int ret = 0;
 

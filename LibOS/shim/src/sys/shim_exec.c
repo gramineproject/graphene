@@ -71,6 +71,8 @@ static elf_auxv_t *  new_auxp;
 
 #define REQUIRED_ELF_AUXV       6
 
+int init_brk_from_executable (struct shim_handle * exec);
+
 int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
                          const char ** envp)
 {
@@ -127,13 +129,14 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     clean_link_map_list();
     SAVE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec);
 
-    init_brk();
+    reset_brk();
     unmap_all_vmas();
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
         shim_terminate();
 
+    init_brk_from_executable(cur_thread->exec);
     load_elf_interp(cur_thread->exec);
 
     SAVE_PROFILE_INTERVAL(load_new_executable_for_exec);
@@ -203,6 +206,7 @@ static int migrate_execve (struct shim_cp_store * cpstore,
     return START_MIGRATE(cpstore, execve, thread, process, envp);
 }
 
+
 int shim_do_execve (const char * file, const char ** argv,
                     const char ** envp)
 {
@@ -217,12 +221,16 @@ int shim_do_execve (const char * file, const char ** argv,
 
     BEGIN_PROFILE_INTERVAL();
 
-    LIST_HEAD(shargs);
+    
+    DEFINE_LIST(sharg);
     struct sharg {
-        struct list_head list;
+        LIST_TYPE(sharg)  list;
         int len;
         char arg[0];
     };
+    DEFINE_LISTP(sharg);
+    LISTP_TYPE(sharg) shargs;
+    INIT_LISTP(&shargs);
 
 reopen:
 
@@ -274,7 +282,7 @@ err:
     }
 
     if (ret == -EINVAL) { /* it's a shebang */
-        LIST_HEAD(new_shargs);
+        LISTP_TYPE(sharg) new_shargs;
         struct sharg * next = NULL;
         bool ended = false, started = false;
         char buf[80];
@@ -313,8 +321,8 @@ err:
                         next->arg[l] = 0;
                     }
                     if (*c == ' ' || *c == '\n') {
-                        INIT_LIST_HEAD(&next->list);
-                        list_add_tail(&next->list, &new_shargs);
+                        INIT_LIST_HEAD(next, list);
+                        listp_add_tail(next, &new_shargs, list);
                         next = NULL;
                         s = c + 1;
                         if (*c == '\n') {
@@ -328,16 +336,16 @@ err:
 
         if (started) {
             if (next) {
-                INIT_LIST_HEAD(&next->list);
-                list_add_tail(&next->list, &new_shargs);
+                INIT_LIST_HEAD(next, list);
+                listp_add_tail(next, &new_shargs, list);
             }
 
             struct sharg * first =
-                list_first_entry(&new_shargs, struct sharg, list);
+                listp_first_entry(&new_shargs, struct sharg, list);
             assert(first);
             debug("detected as script: run by %s\n", first->arg);
             file = first->arg;
-            list_splice(&new_shargs, &shargs);
+            listp_splice(&new_shargs, &shargs, list, sharg);
             put_handle(exec);
             goto reopen;
         }
@@ -346,23 +354,28 @@ err:
     SAVE_PROFILE_INTERVAL(open_file_for_exec);
 
 #if EXECVE_RTLD == 1
-    int is_last = check_last_thread(cur_thread) == 0;
-    if (is_last)
-        return shim_do_execve_rtld(exec, argv, envp);
+    if (!strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+        int is_last = check_last_thread(cur_thread) == 0;
+        if (is_last) {
+            debug("execve() in the same process\n");
+            return shim_do_execve_rtld(exec, argv, envp);
+        }
+        debug("execve() in a new process\n");
+    }
 #endif
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
-    if (!list_empty(&shargs)) {
+    if (!listp_empty(&shargs)) {
         struct sharg * sh;
         int shargc = 0, cnt = 0;
-        list_for_each_entry(sh, &shargs, list)
+        listp_for_each_entry(sh, &shargs, list)
             shargc++;
 
         const char ** new_argv =
                 __alloca(sizeof(const char *) * (argc + shargc + 1));
 
-        list_for_each_entry(sh, &shargs, list)
+        listp_for_each_entry(sh, &shargs, list)
             new_argv[cnt++] = sh->arg;
 
         for (cnt = 0 ; cnt < argc ; cnt++)
@@ -414,6 +427,6 @@ err:
     if (cur_thread->dummy)
         switch_dummy_thread(cur_thread);
 
-    try_process_exit(0);
+    try_process_exit(0, 0);
     return 0;
 }

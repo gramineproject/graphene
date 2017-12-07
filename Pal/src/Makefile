@@ -31,7 +31,7 @@ endif
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 		 $(pal_loader) $(pal_sec)
 
-defs	= -DIN_PAL -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
+defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
 	  -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,streams memory threading semaphore events process \
 	    object main misc ipc exception rtld) slab printf
@@ -65,6 +65,7 @@ endif
 
 files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb)
 
+.PHONY: all
 all: | check_target $(files_to_build) $(files_to_install)
 
 ifndef SAVED_TARGET
@@ -153,6 +154,7 @@ user_shared_start.o: user_start.S
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
 
+.PHONY: clean
 clean:
 ifneq ($(SAVED_OS),$(PAL_HOST))
 	$(MAKE) clean PAL_HOST=$(SAVED_OS)

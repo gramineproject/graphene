@@ -33,14 +33,15 @@
 #include <shim_sysv.h>
 
 #include <pal.h>
-#include <linux_list.h>
+#include <list.h>
 
+DEFINE_LIST(shim_ipc_info);
 struct shim_ipc_info {
     IDTYPE                  vmid;
     struct shim_ipc_port *  port;
     PAL_HANDLE              pal_handle;
     struct shim_qstr        uri;
-    struct hlist_node       hlist;
+    LIST_TYPE(shim_ipc_info) hlist;
     REFTYPE                 ref_count;
 };
 
@@ -73,9 +74,10 @@ struct shim_ipc_msg {
 struct shim_ipc_port;
 struct shim_thread;
 
+DEFINE_LIST(shim_ipc_msg_obj);
 struct shim_ipc_msg_obj {
     struct shim_thread *    thread;
-    struct list_head        list;
+    LIST_TYPE(shim_ipc_msg_obj) list;
     int                     retval;
     void *                  private;
     struct shim_ipc_msg     msg;
@@ -86,13 +88,15 @@ typedef void (*port_fini) (struct shim_ipc_port *, IDTYPE vmid,
 
 #define MAX_IPC_PORT_FINI_CB        3
 
+DEFINE_LIST(shim_ipc_port);
+DEFINE_LISTP(shim_ipc_msg_obj);
 struct shim_ipc_port {
     PAL_HANDLE          pal_handle;
 
     REFTYPE             ref_count;
-    struct hlist_node   hlist;
-    struct list_head    list;
-    struct list_head    msgs;
+    LIST_TYPE(shim_ipc_port) hlist;
+    LIST_TYPE(shim_ipc_port) list;
+    LISTP_TYPE(shim_ipc_msg_obj) msgs;
     LOCKTYPE            msgs_lock;
 
     port_fini           fini[MAX_IPC_PORT_FINI_CB];
@@ -165,12 +169,13 @@ enum {
 struct shim_ipc_cld_exit {
     IDTYPE ppid, tid;
     unsigned int exitcode;
+    unsigned int term_signal;
 #ifdef PROFILE
     unsigned long time;
 #endif
 } __attribute__((packed));
 
-int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode);
+int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal);
 int ipc_cld_exit_callback (IPC_CALLBACK_ARGS);
 
 /* CLD_JOIN: child join the parent group */
@@ -595,9 +600,9 @@ int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
                    void * private_data);
 
 void ipc_parent_exit  (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode);
+                       unsigned int exitcode, unsigned int term_signal);
 void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode);
+                       unsigned int exitcode, unsigned int term_signal);
 
 int create_ipc_helper (void);
 int exit_with_ipc_helper (bool handover);

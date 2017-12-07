@@ -42,9 +42,9 @@
 
 /* Libc functions */
 
-/* Libc String functions */
-int strnlen (const char *str, int maxlen);
-int strlen (const char *str);
+/* Libc String functions string.h/stdlib.h */
+size_t strnlen (const char *str, size_t maxlen);
+size_t strlen (const char *str);
 
 long strtol (const char *s, char **endptr, int base);
 int atoi (const char *nptr);
@@ -52,10 +52,15 @@ long int atol (const char *nptr);
 
 char * strchr (const char *s, int c_in);
 
-void * memcpy (void *dstpp, const void *srcpp, int len);
-void * memmove (void *dstpp, void *srcpp, int len);
-void * memset (void *dstpp, int c, int len);
-int memcmp (const void *s1, const void *s2, int len);
+void * memcpy (void *dstpp, const void *srcpp, size_t len);
+void * memmove (void *dstpp, const void *srcpp, size_t len);
+void * memset (void *dstpp, int c, size_t len);
+int memcmp (const void *s1, const void *s2, size_t len);
+
+/* Libc memory allocation functions. stdlib.h. */
+void *malloc(size_t size);
+void free(void *ptr);
+void *calloc(size_t nmemb, size_t size);
 
 /* Some useful macro */
 /* force failure if str is not a static string */
@@ -76,7 +81,7 @@ int memcmp (const void *s1, const void *s2, int len);
      memcpy((var), force_static(str), static_strlen(force_static(str)) + 1) + \
      static_strlen(force_static(str)))
 
-/* Libc printf functions */
+/* Libc printf functions. stdio.h/stdarg.h. */
 void fprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
                 const char * fmt, ...);
 
@@ -105,13 +110,16 @@ int get_base_name (const char * path, char * buf, int size);
 
 /* Loading configs / manifests */
 
-#include <linux_list.h>
+#include <list.h>
 
+struct config;
+DEFINE_LISTP(config);
 struct config_store {
-    struct list_head root, entries;
+    LISTP_TYPE(config) root;
+    LISTP_TYPE(config) entries;
     void *           raw_data;
     int              raw_size;
-    void *           (*malloc) (int);
+    void *           (*malloc) (size_t);
     void             (*free) (void *);
 };
 
@@ -124,7 +132,8 @@ int write_config (void * file, int (*write) (void *, void *, int),
 int get_config (struct config_store * cfg, const char * key,
                 char * val_buf, int size);
 int get_config_entries (struct config_store * cfg, const char * key,
-                        char * key_buf, int size);
+                        char * key_buf);
+int get_config_entries_size (struct config_store * cfg, const char * key);
 int set_config (struct config_store * cfg, const char * key, const char * val);
 
 #define CONFIG_MAX      4096
