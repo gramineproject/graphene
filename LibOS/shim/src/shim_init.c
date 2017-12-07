@@ -1077,7 +1077,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
 }
 #endif /* PROFILE */
 
-static struct shim_atomic in_terminate = { .counter = 0, };
+static struct atomic_int in_terminate = { .counter = 0, };
 
 int shim_terminate (void)
 {

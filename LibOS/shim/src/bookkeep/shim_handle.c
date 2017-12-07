@@ -53,8 +53,13 @@ static inline int init_tty_handle (struct shim_handle * hdl, bool write)
 {
     struct shim_dentry * dent = NULL;
     int ret;
-
-    if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent)) < 0)
+    struct shim_thread * cur_thread = get_cur_thread();
+    
+    /* XXX: Try getting the root FS from current thread? */
+    assert(cur_thread);
+    assert(cur_thread->root);
+    if ((ret = path_lookupat(cur_thread->root, "/dev/tty", LOOKUP_OPEN, &dent,
+                             cur_thread->root->fs)) < 0)
         return ret;
 
     int flags = (write ? O_WRONLY : O_RDONLY)|O_APPEND;
@@ -94,7 +99,7 @@ static inline int init_exec_handle (struct shim_thread * thread)
     struct shim_mount * fs = find_mount_from_uri(PAL_CB(executable));
     if (fs) {
         path_lookupat(fs->root, PAL_CB(executable) + fs->uri.len, 0,
-                      &exec->dentry);
+                      &exec->dentry, fs);
         set_handle_fs(exec, fs);
         if (exec->dentry) {
             int len;
@@ -480,10 +485,12 @@ void close_handle (struct shim_handle * hdl)
                 dir->dotdot = NULL;
             }
 
-            while (dir->ptr && *dir->ptr) {
-                struct shim_dentry * dent = *dir->ptr;
-                put_dentry(dent);
-                *(dir->ptr++) = NULL;
+            if (dir->ptr != (void *) -1) {
+                while (dir->ptr && *dir->ptr) {
+                    struct shim_dentry * dent = *dir->ptr;
+                    put_dentry(dent);
+                    *(dir->ptr++) = NULL;
+                }
             }
         } else {
             if (hdl->fs && hdl->fs->fs_ops &&

@@ -177,13 +177,13 @@ static int proc_lookup (struct shim_dentry * dent, bool force)
     }
 
     /* don't care about forced or not */
-    const struct proc_ent * ent;
+    const struct proc_ent * ent = NULL;
     int ret = proc_match_name(qstrgetstr(&dent->rel_path), &ent);
 
     if (!ret && ent->dir)
         dent->state |= DENTRY_ISDIRECTORY;
 
-    if (ent->fs_ops && ent->fs_ops->follow_link)
+    if (ent && ent->fs_ops && ent->fs_ops->follow_link)
         dent->state |= DENTRY_ISLINK;
 
      return ret;

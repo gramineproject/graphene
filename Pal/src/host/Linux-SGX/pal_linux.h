@@ -31,6 +31,15 @@
 #include "sgx_api.h"
 #include "enclave_ocalls.h"
 
+#ifdef __x86_64__
+# include "sysdep-x86_64.h"
+#endif
+
+#define IS_ERR INTERNAL_SYSCALL_ERROR
+#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
+#define ERRNO INTERNAL_SYSCALL_ERRNO
+#define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
+
 extern struct pal_linux_state {
     PAL_NUM         parent_process_id;
     PAL_NUM         process_id;
@@ -75,11 +84,11 @@ bool stataccess (struct stat * stats, int acc);
 #ifdef IN_ENCLAVE
 
 /* Locking and unlocking of Mutexes */
-int _DkMutexCreate (struct mutex_handle * mut);
+int __DkMutexCreate (struct mutex_handle * mut);
 int _DkMutexAtomicCreate (struct mutex_handle * mut);
-int _DkMutexDestroy (struct mutex_handle * mut);
+int __DkMutexDestroy (struct mutex_handle * mut);
 int _DkMutexLock (struct mutex_handle * mut);
-int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout);
+int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
 int _DkMutexUnlock (struct mutex_handle * mut);
 
 int * get_futex (void);
@@ -211,17 +220,6 @@ int pal_printf(const char * fmt, ...);
 
 #define SGX_DBG(class, fmt...) \
     do { if ((class) & DBG_LEVEL) pal_printf(fmt); } while (0)
-#endif
-
-#ifdef __i386__
-# define rmb()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
-# define cpu_relax()     asm volatile("rep; nop" ::: "memory");
-#endif
-
-#ifdef __x86_64__
-# include <unistd.h>
-# define rmb()           asm volatile("lfence" ::: "memory")
-# define cpu_relax()     asm volatile("rep; nop" ::: "memory");
 #endif
 
 #endif /* PAL_LINUX_H */

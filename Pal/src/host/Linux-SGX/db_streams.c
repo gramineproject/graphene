@@ -280,7 +280,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (HANDLE_HDR(cargo)->flags & (RFD(i)|WFD(1))) {
             hdl_hdr.fds |= 1U << i;
-            fds[nfds++] = HANDLE_HDR(cargo)->fds[i];
+            fds[nfds++] = cargo->generic.fds[i];
         }
 
     // ~ Initialize common parameter formessage passing
@@ -353,7 +353,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < nfds) {
-                HANDLE_HDR(handle)->fds[i] = fds[n++];
+                handle->generic.fds[i] = fds[n++];
             } else {
                 HANDLE_HDR(handle)->flags &= ~(RFD(i)|WFD(i));
             }

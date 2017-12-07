@@ -127,7 +127,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
     char normpath[URI_MAX];
-    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len, len;
+    int ret, fd = file->file.fd, uri_len, len;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;

@@ -70,7 +70,7 @@ int shim_do_chdir (const char * filename)
     struct shim_dentry * dent = NULL;
     int ret;
 
-    if ((ret = path_lookupat(NULL, filename, LOOKUP_OPEN, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
     if (!dent)

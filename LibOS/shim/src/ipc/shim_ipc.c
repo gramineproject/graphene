@@ -399,7 +399,7 @@ int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
     return 0;
 }
 
-static struct shim_atomic ipc_seq_counter;
+static struct atomic_int ipc_seq_counter;
 
 int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                              struct shim_ipc_port * port, bool save,

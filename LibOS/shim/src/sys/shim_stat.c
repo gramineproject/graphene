@@ -42,7 +42,7 @@ int shim_do_stat (const char * file, struct stat * stat)
     int ret;
     struct shim_dentry * dent = NULL;
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent, NULL)) < 0)
         goto out;
 
     struct shim_mount * fs = dent->fs;
@@ -67,7 +67,7 @@ int shim_do_lstat (const char * file, struct stat * stat)
     int ret;
     struct shim_dentry * dent = NULL;
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent, NULL)) < 0)
         goto out;
 
     struct shim_mount * fs = dent->fs;
@@ -117,7 +117,7 @@ int shim_do_readlink (const char * file, char * buf, int bufsize)
     struct shim_dentry * dent = NULL;
     struct shim_qstr qstr = QSTR_INIT;
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, file, LOOKUP_ACCESS, &dent, NULL)) < 0)
         return ret;
 
     ret = -EINVAL;
@@ -142,4 +142,49 @@ int shim_do_readlink (const char * file, char * buf, int bufsize)
 out:
     put_dentry(dent);
     return ret;
+}
+
+static int __do_statfs (struct shim_mount * fs, struct statfs * buf)
+{
+    if (!buf)
+        return -EFAULT;
+
+    memset(buf, 0, sizeof(*buf));
+
+    buf->f_bsize = 4096;
+    buf->f_blocks = 20000000;
+    buf->f_bfree = 10000000;
+    buf->f_bavail = 10000000;
+
+    debug("statfs: %ld %ld %ld\n", buf->f_blocks, buf->f_bfree,
+            buf->f_bavail);
+
+    return 0;
+}
+
+int shim_do_statfs (const char * path, struct statfs * buf)
+{
+    if (!path)
+        return -EFAULT;
+
+    int ret;
+    struct shim_dentry * dent = NULL;
+
+    if ((ret = path_lookupat(NULL, path, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent, NULL)) < 0)
+        return ret;
+
+    struct shim_mount * fs = dent->fs;
+    put_dentry(dent);
+    return __do_statfs (fs, buf);
+}
+
+int shim_do_fstatfs (int fd, struct statfs * buf)
+{
+    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+    if (!hdl)
+        return -EBADF;
+
+    struct shim_mount * fs = hdl->fs;
+    put_handle(hdl);
+    return __do_statfs (fs, buf);
 }

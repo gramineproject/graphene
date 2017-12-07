@@ -195,4 +195,3 @@ int lib_RSAFreeKey(LIB_RSA_KEY *key)
     mbedtls_rsa_free(key);
     return 0;
 }
-

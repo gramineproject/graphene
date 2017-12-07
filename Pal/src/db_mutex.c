@@ -18,9 +18,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
- * db_semaphore.c
+ * db_mutex.c
  *
- * This file contains APIs that provides operations of semaphores.
+ * This file contains APIs that provides operations of mutexes.
  */
 
 #include "pal_defs.h"
@@ -30,12 +30,14 @@
 #include "api.h"
 
 PAL_HANDLE
-DkSemaphoreCreate (PAL_NUM initialCount, PAL_NUM maxCount)
+DkMutexCreate (PAL_NUM initialCount)
 {
-    ENTER_PAL_CALL(DkSemaphoreCreate);
+    ENTER_PAL_CALL(DkMutexCreate);
 
-    PAL_HANDLE handle = NULL;
-    int ret = _DkSemaphoreCreate(&handle, initialCount, maxCount);
+    PAL_HANDLE handle = (PAL_HANDLE) malloc(HANDLE_SIZE(mutex));
+    SET_HANDLE_TYPE(handle, mutex);
+    
+    int ret = _DkMutexCreate(handle, initialCount);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -46,27 +48,40 @@ DkSemaphoreCreate (PAL_NUM initialCount, PAL_NUM maxCount)
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-/* DkSemaphoreDestroy deprecated, replaced by DkObjectClose */
-
-void DkSemaphoreRelease (PAL_HANDLE handle, PAL_NUM count)
+void
+DkMutexDestroy (PAL_HANDLE handle)
 {
-    ENTER_PAL_CALL(DkSemaphoreRelease);
+    ENTER_PAL_CALL(DkMutexDestroy);
 
-    if (!handle ||
-        !IS_HANDLE_TYPE(handle, semaphore)) {
+    if (!handle) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL();
     }
 
-    _DkSemaphoreRelease (handle, count);
+    _DkMutexDestroy(handle);
+    free(handle);
     LEAVE_PAL_CALL();
 }
 
-static int sem_wait (PAL_HANDLE handle, uint64_t timeout)
+void DkMutexRelease (PAL_HANDLE handle)
 {
-    return _DkSemaphoreAcquireTimeout(handle, 1, timeout);
+    ENTER_PAL_CALL(DkMutexRelease);
+
+    if (!handle ||
+        !IS_HANDLE_TYPE(handle, mutex)) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL();
+    }
+
+    _DkMutexRelease (handle);
+    LEAVE_PAL_CALL();
 }
 
-struct handle_ops sem_ops = {
-        .wait               = &sem_wait,
+static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return _DkMutexAcquireTimeout(handle, timeout);
+}
+
+struct handle_ops mutex_ops = {
+        .wait               = &mutex_wait,
     };

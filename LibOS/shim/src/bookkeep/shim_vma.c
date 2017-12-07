@@ -893,7 +893,6 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
     struct shim_vma * tmp, * prev = NULL;
     
     listp_for_each_entry(tmp, &vma_list, list) {
-
         if (test_vma_contain(tmp, addr, length)) {
             if (pprev)
                 *pprev = prev;

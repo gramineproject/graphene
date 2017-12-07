@@ -107,4 +107,3 @@ void lib_DhFinal(LIB_DH_CONTEXT *context)
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);
 }
-

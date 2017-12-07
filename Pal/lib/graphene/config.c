@@ -177,8 +177,8 @@ int get_config_entries_size (struct config_store * store, const char * key)
 }
 
 static int __del_config (struct config_store * store,
-                         LISTP_TYPE(config) * root, struct config * p, 
-                         const char * key)
+                         LISTP_TYPE(config) * root,
+                         struct config * p, const char * key)
 {
     struct config * e, * found = NULL;
     int len = 0;

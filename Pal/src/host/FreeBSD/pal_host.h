@@ -61,6 +61,7 @@ typedef union pal_handle
     struct {
         PAL_IDX type;
         PAL_FLG flags;
+        PAL_REF ref;
         PAL_IDX fds[];
     } __in;
 

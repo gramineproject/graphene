@@ -39,7 +39,7 @@
 
 #include <shim_types.h>
 #include <shim_defs.h>
-#include <shim_atomic.h>
+#include <atomic.h>
 #include <shim_tls.h>
 
 /* important macros */
@@ -474,7 +474,7 @@ static inline void enable_preempt (shim_tcb_t * tcb)
 
 #define create_lock(l)                          \
     do {                                        \
-        (l).lock = DkSemaphoreCreate(0, 1);     \
+        (l).lock = DkMutexCreate(0);               \
         /* (l).owner = LOCK_FREE;               */ \
         /* (l).reowned = 0;                     */ \
     } while (0)
@@ -532,7 +532,7 @@ static inline void __unlock (LOCKTYPE * l)
 #endif
 
     l->owner = 0;
-    DkSemaphoreRelease(l->lock, 1);
+    DkMutexRelease(l->lock);
     enable_preempt(tcb);
 }
 
