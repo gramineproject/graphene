@@ -724,9 +724,7 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
         char * spath = saddr->sun_path;
         struct shim_dentry * dent;
 
-        /* XXX: Not sure what to do here yet */
-        assert(0);
-        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0)
+        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, &socket_builtin_fs)) < 0)
             goto out;
 
         struct shim_unix_data * data = dent->data;

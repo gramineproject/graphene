@@ -178,7 +178,7 @@ static int __mount_one_other (const char * key, int keylen)
     debug("mounting as %s filesystem: from %s to %s\n", t, uri, p);
 
     if ((ret = mount_fs(t, uri, p, NULL, NULL, 1)) < 0) {
-        debug("mounting %s on %s (type=%s) failed (%d)\n", t, uri, p,
+        debug("mounting %s on %s (type=%s) failed (%e)\n", uri, p, t,
               -ret);
         return ret;
     }

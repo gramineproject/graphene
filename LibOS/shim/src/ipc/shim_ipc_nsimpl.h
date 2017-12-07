@@ -544,6 +544,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     // Re-acquire the head; kind of ugly
     LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
     listp_del(r, head, hlist);
+
     /* Chia-Che Tsai 10/17/17: only when r->owner is non-NULL,
      * and r->owner->vmid == cur_process.vmid, r is on the
      * owned list, otherwise it is an offered. */
@@ -551,6 +552,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
         listp_del(r, &owned_ranges, list);
     else
         listp_del(r, &offered_ranges, list);
+
     put_ipc_info(r->owner);
     free(r);
 

@@ -113,11 +113,7 @@ struct trusted_file {
     int uri_len;
     char uri[URI_MAX];
     sgx_checksum_t checksum;
-<<<<<<< HEAD
-    sgx_arch_mac_t * stubs;
-=======
     sgx_stub_t * stubs;
->>>>>>> master
 };
 
 DEFINE_LISTP(trusted_file);
@@ -130,12 +126,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
-<<<<<<< HEAD
-    int ret, fd = file->generic.fds[0], uri_len;
-=======
     char normpath[URI_MAX];
-    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len, len;
->>>>>>> master
+    int ret, fd = file->file.fd, uri_len, len;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;
@@ -159,11 +151,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     _DkSpinLock(&trusted_file_lock);
 
-<<<<<<< HEAD
-    listp_for_each_entry(tmp, &trusted_file_list, list)
-=======
     listp_for_each_entry(tmp, &trusted_file_list, list) {
->>>>>>> master
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
             if (tmp->uri_len == uri_len && !memcmp(tmp->uri, normpath, uri_len + 1)) {
@@ -233,13 +221,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         if (ret < 0)
             goto unmap;
 
-<<<<<<< HEAD
-        DkAESCMAC((void *) &enclave_key, PAL_AES_CMAC_KEY_LEN, umem,
-                  mapping_size, (uint8_t *) s, sizeof *s);
-=======
         lib_AESCMAC((void *) &enclave_key, AES_CMAC_KEY_LEN, umem,
                     mapping_size, (uint8_t *) s, sizeof *s);
->>>>>>> master
 
         /* update the file checksum */
         ret = lib_SHA256Update(&sha, umem, mapping_size);
@@ -310,18 +293,11 @@ int verify_trusted_file (const char * uri, void * mem,
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
-<<<<<<< HEAD
-        sgx_arch_mac_t mac;
-        DkAESCMAC((void *) &enclave_key, PAL_AES_CMAC_KEY_LEN,
-                  mem + checking - offset, checking_size, (uint8_t *) &mac,
-                  sizeof mac);
-=======
         uint8_t hash[AES_CMAC_DIGEST_LEN];
         lib_AESCMAC((void *) &enclave_key,
                     AES_CMAC_KEY_LEN,
                     mem + checking - offset, checking_size,
                     hash, sizeof(hash));
->>>>>>> master
 
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. "
