@@ -1,12 +1,14 @@
+Graphene itself is licensed under the LGPL.
+
+Graphene on an SGX host requires a kernel driver (in
+Pal/src/host/Linux-SGX/sgx-driver), which is separately licensed under
+the GPL.  
+
 Graphene also includes the following third party sources (and licenses):
 
 mbedtls crypto libraries - Apache 2.0
 
 RSA's MD5 algorithm (LibOS/shim/src/utils/md5.c) - RSA custom attribution license
-
-Linux kernel - GPL v2
- - dcache implementation
- - atomic_add, cmpxchg and friends implementation
 
 Internet Software Consortium (permissive license): Pal/lib/network/inet_pton.c
 
