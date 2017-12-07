@@ -41,7 +41,7 @@
 
 /* Advances a char pointer (string) past any repeated slashes and returns the result.
  * Must be a null-terminated string. */
-static inline char * eat_slashes (char *string)
+static inline const char * eat_slashes (const char * string)
 {
     while (*string == '/' && *string != '\0') string++;
     return string;
@@ -702,8 +702,6 @@ int list_directory_dentry (struct shim_dentry *dent) {
 
 done_read:
     unlock(dcache_lock);
-
-out:
     return ret;
 }
 
@@ -721,8 +719,8 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
     int nchildren = dent->nchildren, count = 0;
     struct shim_dentry * child;
 
-    assert(hdl->info.dir.buf == -1);
-    assert(hdl->info.dir.ptr == -1);
+    assert(hdl->info.dir.buf == (void *)-1);
+    assert(hdl->info.dir.ptr == (void *)-1);
 
     // Handle the case where the handle is on a rmdir-ed directory
     // Handle is already locked by caller, so these values shouldn't change

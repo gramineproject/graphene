@@ -34,24 +34,6 @@
 
 LOCKTYPE dcache_lock;
 
-struct shim_dcache_stats {
-    long memsize;
-    long nentries;
-};
-
-static struct shim_dcache_stats dcache_stats;
-
-static long get_dcache_stats (const char * name)
-{
-    if (strcmp_static(name, "memsize"))
-        return dcache_stats.memsize;
-
-    if (strcmp_static(name, "nentries"))
-        return dcache_stats.nentries;
-
-    return 0;
-}
-
 #define DCACHE_MGR_ALLOC    64
 #define PAGE_SIZE           allocsize
 
@@ -76,9 +58,6 @@ static struct shim_dentry * alloc_dentry (void)
                                              size_align_up(DCACHE_MGR_ALLOC));
     if (!dent)
         return NULL;
-
-    dcache_stats.memsize += sizeof(struct shim_dentry);
-    dcache_stats.nentries++;
 
     memset(dent, 0, sizeof(struct shim_dentry));
 
