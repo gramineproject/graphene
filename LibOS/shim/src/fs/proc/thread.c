@@ -221,6 +221,7 @@ static const struct proc_fs_ops fs_thread_link = {
             .follow_link    = &proc_thread_link_follow_link,
         };
 
+/* If *phdl is returned on success, the ref count is incremented */
 static int parse_thread_fd (const char * name, const char ** rest,
                             struct shim_handle ** phdl)
 {
@@ -262,8 +263,10 @@ static int parse_thread_fd (const char * name, const char ** rest,
         return -ENOENT;
     }
 
-    if (phdl)
+    if (phdl) {
         *phdl = handle_map->map[fd]->handle;
+        get_handle(*phdl);
+    }
 
     unlock(handle_map->lock);
 
