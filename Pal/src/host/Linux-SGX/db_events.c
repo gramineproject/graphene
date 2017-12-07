@@ -38,10 +38,15 @@
 
 int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
 {
-    PAL_HANDLE ev = malloc_untrusted(HANDLE_SIZE(event));
+    PAL_HANDLE ev = malloc(HANDLE_SIZE(event));
     SET_HANDLE_TYPE(ev, event);
     ev->event.isnotification = isnotification;
-    atomic_set(&ev->event.signaled, initialState ? 1 : 0);
+    ev->event.signaled = malloc_untrusted(sizeof(struct atomic_int));
+    if (!ev->event.signaled) {
+        free(ev);
+        return -PAL_ERROR_NOMEM;
+    }
+    atomic_set(ev->event.signaled, initialState ? 1 : 0);
     atomic_set(&ev->event.nwaiters, 0);
     *event = ev;
     return 0;
@@ -53,22 +58,22 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
 
     if (event->event.isnotification) {
         // Leave it signaled, wake all
-        if (atomic_cmpxchg(&event->event.signaled, 0, 1) == 0) {
+        if (atomic_cmpxchg(event->event.signaled, 0, 1) == 0) {
             int nwaiters = atomic_read(&event->event.nwaiters);
             if (nwaiters) {
                 if (wakeup != -1 && nwaiters > wakeup)
                     nwaiters = wakeup;
 
-                ret = ocall_futex((int *) &event->event.signaled.counter,
+                ret = ocall_futex((int *) &event->event.signaled->counter,
                                   FUTEX_WAKE, nwaiters, NULL);
 
                 if (ret < 0)
-                    atomic_set(&event->event.signaled, 0);
+                    atomic_set(event->event.signaled, 0);
             }
         }
     } else {
         // Only one thread wakes up, leave unsignaled
-        ret = ocall_futex((int *) &event->event.signaled.counter,
+        ret = ocall_futex((int *) &event->event.signaled->counter,
                           FUTEX_WAKE, 1, NULL);
         if (ret < 0)
              return ret;
@@ -81,13 +86,13 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
 {
     int ret = 0;
 
-    if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
+    if (!event->event.isnotification || !atomic_read(event->event.signaled)) {
         unsigned long waittime = timeout;
 
         atomic_inc(&event->event.nwaiters);
 
         do {
-            ret = ocall_futex((int *) &event->event.signaled.counter,
+            ret = ocall_futex((int *) &event->event.signaled->counter,
                               FUTEX_WAIT, 0, timeout ? &waittime : NULL);
             if (ret < 0) {
                 if (ret == -PAL_ERROR_TRYAGAIN)
@@ -96,7 +101,7 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
                     break;
             }
         } while (event->event.isnotification &&
-                 !atomic_read(&event->event.signaled));
+                 !atomic_read(event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -108,11 +113,11 @@ int _DkEventWait (PAL_HANDLE event)
 {
     int ret = 0;
 
-    if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
+    if (!event->event.isnotification || !atomic_read(event->event.signaled)) {
         atomic_inc(&event->event.nwaiters);
 
         do {
-            ret = ocall_futex((int *) &event->event.signaled.counter,
+            ret = ocall_futex((int *) &event->event.signaled->counter,
                               FUTEX_WAIT, 0, NULL);
             if (ret < 0) {
                 if (ret == -PAL_ERROR_TRYAGAIN)
@@ -121,7 +126,7 @@ int _DkEventWait (PAL_HANDLE event)
                     break;
             }
         } while (event->event.isnotification &&
-                 !atomic_read(&event->event.signaled));
+                 !atomic_read(event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -131,15 +136,15 @@ int _DkEventWait (PAL_HANDLE event)
 
 int _DkEventClear (PAL_HANDLE event)
 {
-    atomic_set(&event->event.signaled, 0);
+    atomic_set(event->event.signaled, 0);
     return 0;
 }
 
 static int event_close (PAL_HANDLE handle)
 {
     assert(!atomic_read(&handle->event.nwaiters));
-    free_untrusted(handle);
-    return 1;
+    free_untrusted(handle->event.signaled);
+    return 0;
 }
 
 static int event_wait (PAL_HANDLE handle, uint64_t timeout)

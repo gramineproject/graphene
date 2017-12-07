@@ -50,10 +50,15 @@
 int
 _DkMutexCreate (PAL_HANDLE * handle, int initialCount)
 {
-    PAL_HANDLE mut = malloc_untrusted(HANDLE_SIZE(mutex));
+    PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
     SET_HANDLE_TYPE(mut, mutex);
     atomic_set(&mut->mutex.mut.nwaiters, 0);
-    mut->mutex.mut.locked = initialCount;
+    mut->mutex.mut.locked = malloc_untrusted(sizeof(int64_t));
+    if (!mut->mutex.mut.locked) {
+        free(mut);
+        return -PAL_ERROR_NOMEM;
+    }
+    *(mut->mutex.mut.locked) = initialCount;
     *handle = mut;
     return 0;
 }
@@ -62,7 +67,7 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
 {
     int ret = 0;
 
-    if (MUTEX_UNLOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
+    if (MUTEX_UNLOCKED == cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
         goto success;
 
     if (timeout == 0) {
@@ -73,12 +78,13 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
     // Bump up the waiters count; we are probably going to block
     atomic_inc(&m->nwaiters);
 
-    while (MUTEX_LOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
-
-        // This is broken. The mutex is in enclave memory, the URTS can't
-        // do FUTEX_WAIT on it. This call will always fail and the next level
-        // up needs to retry.
-        ret = ocall_futex((int *) m, FUTEX_WAIT, MUTEX_LOCKED, timeout == -1 ? NULL : &timeout);
+    while (MUTEX_LOCKED == cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
+        /*
+         * Chia-Che 12/7/2017: m->locked points to untrusted memory, so
+         * can be used for futex. Potentially this design may allow
+         * attackers to change the mutex value and cause DoS.
+         */
+        ret = ocall_futex((int *) m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout == -1 ? NULL : &timeout);
 
         if (ret < 0) {
             if (-ret == EWOULDBLOCK) {
@@ -117,7 +123,7 @@ int _DkMutexUnlock (struct mutex_handle * m)
     int need_wake;
 
     /* Unlock */
-    m->locked = 0;
+    *(m->locked) = 0;
     /* We need to make sure the write to locked is visible to lock-ers
      * before we read the waiter count. */
     mb();
@@ -126,7 +132,7 @@ int _DkMutexUnlock (struct mutex_handle * m)
 
     /* If we need to wake someone up... */
     if (need_wake)
-        ocall_futex((int *) m, FUTEX_WAKE, 1, NULL);
+        ocall_futex((int *) m->locked, FUTEX_WAKE, 1, NULL);
 
     return ret;
 }
@@ -147,8 +153,8 @@ static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
 
 static int mutex_close (PAL_HANDLE handle)
 {
-    free_untrusted(handle);
-    return 1;
+    free_untrusted(handle->mutex.mut.locked);
+    return 0;
 }
 
 struct handle_ops mutex_ops = {
