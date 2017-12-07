@@ -42,6 +42,12 @@ int _DkObjectClose (PAL_HANDLE objectHandle)
     if (ops && ops->close)
         ret = ops->close(objectHandle);
 
+    /*
+     * Chia-Che 12/7/2017:
+     *   _DkObjectClose will free the object, unless the handle has
+     *   a 'close' operation, and the operation returns a non-zero value
+     *   (e.g., 1 for skipping free() or -ERRNO).
+     */
     if (!ret)
         free(objectHandle);
 

@@ -300,8 +300,7 @@ void _DkProcessExit (int exitCode);
 int _DkProcessSandboxCreate (const char * manifest, int flags);
 
 /* DkMutex calls */
-int _DkMutexCreate (PAL_HANDLE handle, int initialCount);
-void _DkMutexDestroy (PAL_HANDLE semaphoreHandle);
+int _DkMutexCreate (PAL_HANDLE * handle, int initialCount);
 int _DkMutexAcquire (PAL_HANDLE sem);
 int _DkMutexAcquireTimeout (PAL_HANDLE sem, int timeout);
 void _DkMutexRelease (PAL_HANDLE sem);

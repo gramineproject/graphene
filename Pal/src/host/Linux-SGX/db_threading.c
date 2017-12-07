@@ -135,6 +135,12 @@ int _DkThreadGetCurrent (PAL_HANDLE * threadHandle)
     return 0;
 }
 
+static int thread_close (PAL_HANDLE handle)
+{
+    return handle == __pal_control.first_thread ? 1 : 0;
+}
+
 struct handle_ops thread_ops = {
+    .close = thread_close,
     /* nothing */
 };

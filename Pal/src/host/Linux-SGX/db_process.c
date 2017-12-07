@@ -321,12 +321,6 @@ void print_alloced_pages (void);
 
 void _DkProcessExit (int exitcode)
 {
-    if (__pal_control.parent_process)
-        _DkObjectClose(__pal_control.parent_process);
-
-    if (__pal_control.manifest_handle)
-        _DkObjectClose(__pal_control.manifest_handle);
-
 #if PRINT_ENCLAVE_STAT
     print_alloced_pages();
 #endif

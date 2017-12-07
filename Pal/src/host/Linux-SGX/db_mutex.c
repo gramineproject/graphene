@@ -48,24 +48,15 @@
 
 
 int
-_DkMutexCreate (PAL_HANDLE handle, int initialCount)
+_DkMutexCreate (PAL_HANDLE * handle, int initialCount)
 {
-    /*
-     * Allocation and free of the handle are done outside of host-specific code.
-     * This code initializes the mutex state that is host-specific,
-     * including how initialCount is encoded.
-     */
-    SET_HANDLE_TYPE(handle, mutex);
-    atomic_set(&handle->mutex.mut.nwaiters, 0);
-    handle->mutex.mut.locked = initialCount;
+    PAL_HANDLE mut = malloc_untrusted(HANDLE_SIZE(mutex));
+    SET_HANDLE_TYPE(mut, mutex);
+    atomic_set(&mut->mutex.mut.nwaiters, 0);
+    mut->mutex.mut.locked = initialCount;
+    *handle = mut;
     return 0;
 }
-
-void _DkMutexDestroy (PAL_HANDLE handle)
-{
-    free(handle);
-}
-
 
 int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
 {
@@ -111,7 +102,6 @@ out:
 
 int _DkMutexLock (struct mutex_handle * m)
 {
-    int ret = 0, i;
     return _DkMutexLockTimeout(m, -1);
 }
 
@@ -150,3 +140,18 @@ void _DkMutexRelease (PAL_HANDLE handle)
     return;
 }
 
+static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return _DkMutexAcquireTimeout(handle, timeout);
+}
+
+static int mutex_close (PAL_HANDLE handle)
+{
+    free_untrusted(handle);
+    return 1;
+}
+
+struct handle_ops mutex_ops = {
+        .wait               = &mutex_wait,
+        .close              = &mutex_close,
+    };

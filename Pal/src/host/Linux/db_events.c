@@ -29,6 +29,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_error.h"
+#include "pal_debug.h"
 #include "api.h"
 
 #include <atomic.h>
@@ -141,3 +142,19 @@ int _DkEventClear (PAL_HANDLE event)
     atomic_set(&event->event.signaled, 0);
     return 0;
 }
+
+static int event_close (PAL_HANDLE handle)
+{
+    assert(!atomic_read(&handle->event.nwaiters));
+    return 0;
+}
+
+static int event_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return timeout == NO_TIMEOUT ? _DkEventWait(handle) :
+           _DkEventWaitTimeout(handle, timeout);
+}
+struct handle_ops event_ops = {
+        .close              = &event_close,
+        .wait               = &event_wait,
+    };

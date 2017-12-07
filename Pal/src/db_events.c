@@ -113,19 +113,3 @@ void DkEventClear (PAL_HANDLE handle)
 
     LEAVE_PAL_CALL();
 }
-
-static int event_close (PAL_HANDLE handle)
-{
-    return _DkEventClear(handle);
-}
-
-static int event_wait (PAL_HANDLE handle, uint64_t timeout)
-{
-    return timeout == NO_TIMEOUT ?    _DkEventWait(handle) : 
-        _DkEventWaitTimeout(handle, timeout);
-}
-
-struct handle_ops event_ops = {
-        .close              = &event_close,
-        .wait               = &event_wait,
-    };
