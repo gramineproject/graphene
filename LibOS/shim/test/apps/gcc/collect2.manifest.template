@@ -27,5 +27,6 @@ sgx.search_trusted_libs.libc = file:$(LIBCDIR)
 
 sgx.trusted_children.linker = file:ld.sig
 
+sgx.trusted_files.ld = file:/usr/bin/ld
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files

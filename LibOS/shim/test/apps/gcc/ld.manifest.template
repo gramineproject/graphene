@@ -27,6 +27,12 @@ sgx.enclave_size = 512M
 
 sgx.search_trusted_libs.libc = file:$(LIBCDIR)
 
+sgx.trusted_files.liblto = file:$(GCCDIR)/liblto_plugin.so
+sgx.trusted_files.crtbegin = file:$(GCCDIR)/crtbegin.o
+sgx.trusted_files.crtend = file:$(GCCDIR)/crtend.o
+sgx.trusted_files.libgcc = file:$(GCCDIR)/libgcc.a
+sgx.trusted_files.libgccso = file:$(GCCDIR)/libgcc_s.so
+
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files
 sgx.allowed_files.aout = file:a.out
