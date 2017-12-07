@@ -358,7 +358,6 @@ void put_simple_thread (struct shim_simple_thread * thread)
     if (!ref_count) {
         /* Simple threads always live on the simple thread list */
         listp_del(thread, &simple_thread_list, list);
-        list_del(&thread->list);
         if (thread->exit_event)
             DkObjectClose(thread->exit_event);
         destroy_lock(thread->lock);
