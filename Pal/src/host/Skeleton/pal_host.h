@@ -33,69 +33,73 @@
 typedef int PAL_LOCK;
 #define LOCK_INIT   (0)
 
-typedef union pal_handle
+typedef struct pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE
      * in PAL design, user has not to access the content inside the
      * handle, also there is no need to allocate the internal
      * handles, so we hide the type name of these handles on purpose.
      */
+    PAL_HDR hdr;
+    
+    union {
+        struct {
+            PAL_IDX fds[2];
+        } generic;
 
-    struct {
-        PAL_IDX type;
-        PAL_REF ref;
-        PAL_FLG flags;
-        PAL_IDX fds[];
-    } hdr;
-
-    struct {
-        PAL_HDR reserved;
-    } file;
-
-    struct {
-        PAL_HDR reserved;
-    } pipe;
-
-    struct {
-        PAL_HDR reserved;
-    } pipeprv;
-
-    struct {
-        PAL_HDR reserved;
-        PAL_IDX dev_type;
-    } dev;
-
-    struct {
-        PAL_HDR reserved;
-    } dir;
-
-    struct {
-        PAL_HDR reserved;
-    } gipc;
-
-    struct {
-        PAL_HDR reserved;
-    } sock;
-
-    struct {
-        PAL_HDR reserved;
-    } process;
-
-    struct {
-        PAL_HDR reserved;
-    } mcast;
-
-    struct {
-        PAL_HDR reserved;
-    } thread;
-
-    struct {
-        PAL_HDR reserved;
-    } semaphore;
-
-    struct {
-        PAL_HDR reserved;
-    } event;
+        /* DP: Here we just define a placeholder fd; place your details here.
+         * Not every type requires an fd either - this is up to your
+         * host-specific code.
+         */
+        struct {
+            PAL_IDX fd;
+        } file;
+        
+        struct {
+            PAL_IDX fd;
+        } pipe;
+        
+        struct {
+            PAL_IDX fd;
+        } pipeprv;
+        
+        struct {
+            PAL_IDX fd;
+            PAL_IDX dev_type;
+        } dev;
+        
+        struct {
+            PAL_IDX fd;
+        } dir;
+        
+        struct {
+            PAL_IDX fd;
+        } gipc;
+        
+        struct {
+            PAL_IDX fd;
+        } sock;
+        
+        struct {
+            PAL_IDX fd;
+        } process;
+        
+        struct {
+            PAL_IDX fd;
+        } mcast;
+        
+        struct {
+            PAL_IDX fd;
+        } thread;
+        
+        struct {
+            PAL_IDX fd;
+        } semaphore;
+        
+        struct {
+            PAL_IDX fd;
+        } event;
+    };
 } * PAL_HANDLE;
 
 #endif /* PAL_HOST_H */

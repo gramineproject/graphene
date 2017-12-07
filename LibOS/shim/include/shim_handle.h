@@ -69,11 +69,11 @@ enum shim_file_type {
 
 struct shim_file_data {
     LOCKTYPE            lock;
-    struct shim_atomic  version;
+    struct atomic_int   version;
     bool                queried;
     enum shim_file_type type;
     mode_t     mode;
-    struct shim_atomic  size;
+    struct atomic_int   size;
     struct shim_qstr    host_uri;
     unsigned long       atime;
     unsigned long       mtime;

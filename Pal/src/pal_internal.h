@@ -155,38 +155,14 @@ static inline unsigned int hash64 (unsigned long key)
 /* We allow dynamic size handle allocation. Here is some macro to help
    deciding the actual size of the handle */
 extern PAL_HANDLE _h;
-#define HANDLE_SIZE(type)  (sizeof(_h->type))
+#define HANDLE_SIZE(type)  (sizeof(*_h))
 
 #define UNKNOWN_HANDLE(handle)     \
     (PAL_GET_TYPE(handle) == 0 || PAL_GET_TYPE(handle) >= PAL_HANDLE_TYPE_BOUND)
 
 static inline int handle_size (PAL_HANDLE handle)
 {
-    static int handle_sizes[PAL_HANDLE_TYPE_BOUND]
-            = { 0,
-                [pal_type_file]      = sizeof(handle->file),
-                [pal_type_pipe]      = sizeof(handle->pipe),
-                [pal_type_pipesrv]   = sizeof(handle->pipe),
-                [pal_type_pipecli]   = sizeof(handle->pipe),
-                [pal_type_pipeprv]   = sizeof(handle->pipeprv),
-                [pal_type_dev]       = sizeof(handle->dev),
-                [pal_type_dir]       = sizeof(handle->dir),
-                [pal_type_tcp]       = sizeof(handle->sock),
-                [pal_type_tcpsrv]    = sizeof(handle->sock),
-                [pal_type_udp]       = sizeof(handle->sock),
-                [pal_type_udpsrv]    = sizeof(handle->sock),
-                [pal_type_process]   = sizeof(handle->process),
-                [pal_type_mcast]     = sizeof(handle->mcast),
-                [pal_type_thread]    = sizeof(handle->thread),
-                [pal_type_semaphore] = sizeof(handle->semaphore),
-                [pal_type_event]     = sizeof(handle->event),
-                [pal_type_gipc]      = sizeof(handle->gipc),
-            };
-
-    if (UNKNOWN_HANDLE(handle))
-        return 0;
-    else
-        return handle_sizes[PAL_GET_TYPE(handle)];
+    return sizeof(*handle);
 }
 
 #ifndef ENTER_PAL_CALL
@@ -324,13 +300,13 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
 void _DkProcessExit (int exitCode);
 int _DkProcessSandboxCreate (const char * manifest, int flags);
 
-/* DkSemaphore calls */
-int _DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount);
-void _DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle);
-int _DkSemaphoreAcquire (PAL_HANDLE sem, int count);
-int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, uint64_t timeout);
-void _DkSemaphoreRelease (PAL_HANDLE sem, int count);
-int _DkSemaphoreGetCurrentCount (PAL_HANDLE sem);
+/* DkMutex calls */
+int _DkMutexCreate (PAL_HANDLE handle, int initialCount);
+void _DkMutexDestroy (PAL_HANDLE semaphoreHandle);
+int _DkMutexAcquire (PAL_HANDLE sem);
+int _DkMutexAcquireTimeout (PAL_HANDLE sem, int timeout);
+void _DkMutexRelease (PAL_HANDLE sem);
+int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 
 /* DkEvent calls */
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,

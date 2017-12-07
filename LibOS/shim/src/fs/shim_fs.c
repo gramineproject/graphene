@@ -447,7 +447,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
      * entry (until the unmount).  But we shouldn't also hold the reference on
      * dent from the validation step.  Drop it here */
     put_dentry(dent2);
-    
+
     ret = __mount_fs(mount, dent);
 
     // If we made it this far and the dentry is still negative, clear

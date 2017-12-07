@@ -324,12 +324,12 @@ static int pipe_delete (PAL_HANDLE handle, int access)
 
 static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
+    if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     attr->handle_type  = PAL_GET_TYPE(handle);
 
-    int read_fd = HANDLE_HDR(handle)->fds[0];
+    int read_fd = handle->generic.fds[0];
     int flags = HANDLE_HDR(handle)->flags;
 
     if (!IS_HANDLE_TYPE(handle, pipesrv)) {
@@ -350,6 +350,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     int ret = ocall_poll(&pfd, 1, &waittime);
     if (ret < 0)
         return ret;
+    
     attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     attr->disconnected = flags & ERROR(0);
@@ -361,7 +362,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
 static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
+    if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     PAL_BOL * nonblocking = (HANDLE_HDR(handle)->type == pal_type_pipeprv) ?
@@ -369,7 +370,7 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
                             &handle->pipe.nonblocking;
 
     if (attr->nonblocking != *nonblocking) {
-        int ret = ocall_fsetnonblock(HANDLE_HDR(handle)->fds[0], attr->nonblocking);
+        int ret = ocall_fsetnonblock(handle->generic.fds[0], attr->nonblocking);
         if (ret < 0)
             return ret;
 

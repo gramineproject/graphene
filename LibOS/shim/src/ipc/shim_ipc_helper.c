@@ -55,12 +55,17 @@ static LISTP_TYPE(shim_ipc_port) pobj_list;
 /* This points to a list of shim_ipc_port objects (by the hlist field) */
 static LISTP_TYPE(shim_ipc_port) ipc_port_pool [PID_HASH_NUM];
 
-enum {
+/* This variable can be read without the ipc_helper_lock held, but
+ * should be modified with the ipc_helper_lock held (and in some cases,
+ * the value should be re-checked after acquiring the lock. 
+ * For reads in a loop without the lock, some caution should be taken to 
+ * use compiler barriers to ensure that a stale value isn't cached.
+ */
+static enum {
     HELPER_UNINITIALIZED, HELPER_DELAYED, HELPER_NOTALIVE,
     HELPER_ALIVE, HELPER_HANDEDOVER,
-};
+} ipc_helper_state;
 
-static struct shim_atomic    ipc_helper_state;
 static struct shim_thread *  ipc_helper_thread;
 static bool                  ipc_helper_update;
 static AEVENTTYPE            ipc_helper_event;
@@ -142,14 +147,29 @@ int init_ipc_ports (void)
     return 0;
 }
 
+
+static int create_ipc_helper (void);
+
+/* This function should be called as part of init, before locks or atomics are
+ * required */
 int init_ipc_helper (void)
 {
-    bool need_helper = (atomic_read(&ipc_helper_state) == HELPER_DELAYED);
-    atomic_set(&ipc_helper_state, HELPER_NOTALIVE);
+    bool need_helper = (ipc_helper_state == HELPER_DELAYED);
+    ipc_helper_state = HELPER_NOTALIVE;
     create_lock(ipc_helper_lock);
     create_event(&ipc_helper_event);
-    if (need_helper)
+    if (need_helper) {
+        /*
+         * we are enabling multi-threading, must turn on threading
+         * before grabbing any lock
+         */
+        enable_locking();
+
+        /* Go ahead and lock the ipc helper lock here, for consistency */
+        lock(ipc_helper_lock);
         create_ipc_helper();
+        unlock(ipc_helper_lock);
+    }
     return 0;
 }
 
@@ -184,11 +204,12 @@ static void __put_ipc_port (struct shim_ipc_port * pobj)
     }
 }
 
+/* This should be called with the ipc_helper_lock held */
 static inline void restart_ipc_helper (bool need_create)
 {
-    switch (atomic_read(&ipc_helper_state)) {
+    switch (ipc_helper_state) {
         case HELPER_UNINITIALIZED:
-            atomic_set(&ipc_helper_state, HELPER_DELAYED);
+            ipc_helper_state = HELPER_DELAYED;
         case HELPER_DELAYED:
             return;
         case HELPER_NOTALIVE:
@@ -274,10 +295,10 @@ void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, int type,
 
     lock(ipc_helper_lock);
     bool need_restart = __add_ipc_port(port, vmid, type, fini);
-    unlock(ipc_helper_lock);
-
     if (need_restart)
         restart_ipc_helper(true);
+
+    unlock(ipc_helper_lock);
 }
 
 static struct shim_ipc_port * __get_new_ipc_port (PAL_HANDLE hdl)
@@ -330,7 +351,7 @@ void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
 
     if (!port && !(port = __get_new_ipc_port(hdl))) {
         *portptr = NULL;
-        return;
+        goto out;
     }
 
     bool need_restart = __add_ipc_port(port, vmid, type, fini);
@@ -340,10 +361,11 @@ void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
     else
         __put_ipc_port(port);
 
-    unlock(ipc_helper_lock);
-
     if (need_restart)
         restart_ipc_helper(true);
+
+out:
+    unlock(ipc_helper_lock);
 }
 
 static bool __del_ipc_port (struct shim_ipc_port * port, int type)
@@ -391,10 +413,11 @@ void del_ipc_port (struct shim_ipc_port * port, int type)
 {
     lock(ipc_helper_lock);
     bool need_restart = __del_ipc_port(port, type);
-    unlock(ipc_helper_lock);
 
     if (need_restart)
         restart_ipc_helper(false);
+
+    unlock(ipc_helper_lock);
 }
 
 void del_ipc_port_by_id (IDTYPE vmid, int type)
@@ -415,10 +438,9 @@ void del_ipc_port_by_id (IDTYPE vmid, int type)
         }
     }
 
-    unlock(ipc_helper_lock);
-
     if (need_restart)
         restart_ipc_helper(false);
+    unlock(ipc_helper_lock);
 }
 
 void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
@@ -457,13 +479,12 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
         }
     }
 
-    unlock(port->msgs_lock);
-
     put_ipc_port(port);
     assert(REF_GET(port->ref_count) > 0);
 
     if (need_restart)
         restart_ipc_helper(false);
+    unlock(port->msgs_lock);
 }
 
 static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)
@@ -511,10 +532,10 @@ void del_all_ipc_ports (int type)
         if (pobj->pal_handle && __del_ipc_port(pobj, type))
             need_restart = true;
 
-    unlock(ipc_helper_lock);
-
     if (need_restart)
         restart_ipc_helper(false);
+
+    unlock(ipc_helper_lock);
 }
 
 int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
@@ -799,11 +820,16 @@ static void shim_ipc_helper (void * arg)
 
     goto update_status;
 
-    while (atomic_read(&ipc_helper_state) == HELPER_ALIVE ||
+    /* The compiler should be careful not to cache the ipc_helper_state or
+     * else ths loop could fail to terminate on update.  Use a compiler
+     * barrier to force a re-read after sleeping. */
+    while ((ipc_helper_state == HELPER_ALIVE) ||
            nalive) {
         /* do a global poll on all the ports */
         polled = DkObjectsWaitAny(port_num + 1, local_ports, NO_TIMEOUT);
 
+        barrier();
+        
         if (!polled)
             continue;
 
@@ -812,7 +838,8 @@ static void shim_ipc_helper (void * arg)
         if (polled == ipc_event_handle) {
             clear_event(&ipc_helper_event);
 update_status:
-            if (atomic_read(&ipc_helper_state) == HELPER_NOTALIVE)
+            barrier();
+            if (ipc_helper_state == HELPER_NOTALIVE)
                 goto end;
             else
                 goto update_list;
@@ -962,13 +989,18 @@ end:
     if (self->handle_map)
         put_handle_map(self->handle_map);
 
-    if (atomic_read(&ipc_helper_state) == HELPER_HANDEDOVER) {
+    /* shim_clean ultimately calls del_all_ipc_ports(), which reacquires the
+     * helper lock.  Err on the side of caution by adding a barrier to ensure 
+     * reading the latest ipc helper state.       
+     */
+    barrier();
+    if (ipc_helper_state == HELPER_HANDEDOVER) {
         debug("ipc helper thread is the last thread, process exiting\n");
         shim_clean();
     }
 
-    atomic_xchg(&ipc_helper_state, HELPER_NOTALIVE);
     lock(ipc_helper_lock);
+    ipc_helper_state = HELPER_NOTALIVE;
     ipc_helper_thread = NULL;
     unlock(ipc_helper_lock);
     put_thread(self);
@@ -977,42 +1009,30 @@ end:
     DkThreadExit();
 }
 
-int create_ipc_helper (void)
+/* This function shoudl be called with the ipc_helper_lock held */
+static int create_ipc_helper (void)
 {
     int ret = 0;
 
-    if (atomic_read(&ipc_helper_state) == HELPER_ALIVE)
+    /* If we are holding the lock, no barrier is needed here, as 
+     * the lock (and new function) form an implicit barrier, and
+     * any "recent" changes should have come from this thread */
+    if (ipc_helper_state == HELPER_ALIVE)
         return 0;
-
-    /*
-     * we are enabling multi-threading, must turn on threading
-     * before grabbing any lock
-     */
-    enable_locking();
 
     struct shim_thread * new = get_new_internal_thread();
     if (!new)
         return -ENOMEM;
 
-    lock(ipc_helper_lock);
-    if (atomic_read(&ipc_helper_state) == HELPER_ALIVE) {
-        unlock(ipc_helper_lock);
-        put_thread(new);
-        return 0;
-    }
-
     ipc_helper_thread = new;
-    atomic_xchg(&ipc_helper_state, HELPER_ALIVE);
-    unlock(ipc_helper_lock);
+    ipc_helper_state = HELPER_ALIVE;
 
     PAL_HANDLE handle = thread_create(shim_ipc_helper, new, 0);
 
     if (!handle) {
         ret = -PAL_ERRNO;
-        lock(ipc_helper_lock);
         ipc_helper_thread = NULL;
-        atomic_xchg(&ipc_helper_state, HELPER_NOTALIVE);
-        unlock(ipc_helper_lock);
+        ipc_helper_state = HELPER_NOTALIVE;
         put_thread(new);
         return ret;
     }
@@ -1023,7 +1043,7 @@ int create_ipc_helper (void)
 
 int exit_with_ipc_helper (bool handover)
 {
-    if (IN_HELPER() || atomic_read(&ipc_helper_state) != HELPER_ALIVE)
+    if (IN_HELPER() || ipc_helper_state != HELPER_ALIVE)
         return 0;
 
     lock(ipc_helper_lock);
@@ -1036,7 +1056,6 @@ int exit_with_ipc_helper (bool handover)
                 break;
             }
     }
-    unlock(ipc_helper_lock);
 
     int new_state = HELPER_NOTALIVE;
     if (handover) {
@@ -1046,10 +1065,27 @@ int exit_with_ipc_helper (bool handover)
         debug("exiting ipc helper\n");
     }
 
-    atomic_xchg(&ipc_helper_state, new_state);
+    ipc_helper_state = new_state;
+    unlock(ipc_helper_lock);
+
     set_event(&ipc_helper_event, 1);
 
-    return (new_state == HELPER_NOTALIVE) ? 0 : -EAGAIN;
+    if (new_state != HELPER_NOTALIVE) {
+        return -EAGAIN;
+    } else {
+        /* We could get here via a signal handler invoked during
+         * receive_ipc_message. Let that complete so that whoever
+         * generated the signal doesn't hang waiting for IPC_RESP. */
+        int loops = 0;
+        while (ipc_helper_thread != NULL && loops++ < 2000) {
+            barrier();
+            DkThreadDelayExecution(1000);
+        }
+        if (ipc_helper_thread != NULL) {
+            debug("timed out waiting for ipc helper to exit\n");
+        }
+        return 0;
+    }
 }
 
 int terminate_ipc_helper (void)
@@ -1063,7 +1099,7 @@ int terminate_ipc_helper (void)
     }
 
     debug("terminating ipc helper\n");
-    atomic_xchg(&ipc_helper_state, HELPER_NOTALIVE);
+    ipc_helper_state = HELPER_NOTALIVE;
     set_event(&ipc_helper_event, 1);
     unlock(ipc_helper_lock);
     return 0;

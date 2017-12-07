@@ -241,7 +241,7 @@ static int file_attrquery (const char * type, const char * uri,
 static int file_attrquerybyhdl (PAL_HANDLE handle,
                                 PAL_STREAM_ATTR * attr)
 {
-    int fd = HANDLE_HDR(handle)->fds[0];
+    int fd = handle->generic.fds[0];
     struct stat stat_buf;
 
     int ret = INLINE_SYSCALL(fstat, 2, fd, &stat_buf);
@@ -256,7 +256,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
 static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
-    int fd = HANDLE_HDR(handle)->fds[0], ret;
+    int fd = handle->generic.fds[0], ret;
 
     ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags | 0600);
     if (IS_ERR(ret))

@@ -57,7 +57,7 @@ int _DkObjectClose (PAL_HANDLE objectHandle)
     if (!objectHandle || UNKNOWN_HANDLE(objectHandle))
         return -PAL_ERROR_INVAL;
 
-    if (atomic_dec_and_test_nonnegative(&HANDLE_HDR(objectHandle)->ref))
+    if (!atomic_dec_and_test(&HANDLE_HDR(objectHandle)->ref))
         return 0;
 
     const struct handle_ops * ops = HANDLE_OPS(objectHandle);

@@ -231,6 +231,7 @@ static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
             return -PAL_ERROR_NOTSUPPORT;
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dev));
+    SET_HANDLE_TYPE(hdl, dev);
     hdl->dev.fd_in  = PAL_IDX_POISON;
     hdl->dev.fd_out = PAL_IDX_POISON;
     *handle = hdl;

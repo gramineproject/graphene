@@ -239,8 +239,8 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
     if (!hdl)
         return NULL;
 
-    memset(hdl, 0, sizeof(union pal_handle));
-    HANDLE_TYPE(hdl) = type;
+    memset(hdl, 0, sizeof(struct pal_handle));
+    init_handle_hdr(HANDLE_HDR(hdl), type);
     HANDLE_HDR(hdl)->flags |= RFD(0)|(type != pal_type_tcpsrv ? WFD(0) : 0);
     hdl->sock.fd = fd;
     void * addr = (void *) hdl + HANDLE_SIZE(sock);
