@@ -34,6 +34,6 @@ socket02,40
 stat05_64,40
 syscall01,80
 wait401,40
-waitpid03,40
+waitpid03,80
 waitpid05,160
 write03,40
