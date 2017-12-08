@@ -90,7 +90,8 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
          */
         ret = ocall_futex((int *) m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout == -1 ? NULL : &timeout);
     }
-
+    
+    // DP XXX: This code and the loop above are a bad merge from a cherry pick; will require some cleanup
     while (xchg(&m->u, 257) & 1) {
         ret = ocall_futex((int *) m, FUTEX_WAIT, 257, timeout ? &waittime : NULL);
         if (ret < 0) {
@@ -174,6 +175,17 @@ int _DkMutexUnlock (struct mutex_handle * m)
 
     /* Nobody took it, we need to wake someone up */
     ocall_futex((int *) m, FUTEX_WAKE, 1, NULL);
+
+static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return _DkMutexAcquireTimeout(handle, timeout);
+}
+
+static int mutex_close (PAL_HANDLE handle)
+{
+    free_untrusted(handle->mutex.mut.locked);
+    return 0;
+}
 
 static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
 {
