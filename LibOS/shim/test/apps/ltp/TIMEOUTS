@@ -1,6 +1,7 @@
 testcase,timeout
 alarm01,5
 alarm06,16
+clone03,40
 clone05,30
 exit01,40
 faccessat01,80
