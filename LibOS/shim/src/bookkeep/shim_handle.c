@@ -543,8 +543,13 @@ void put_handle (struct shim_handle * hdl)
         qstrfree(&hdl->path);
         qstrfree(&hdl->uri);
 
-        if (hdl->pal_handle)
+        if (hdl->pal_handle) {
+#ifdef DEBUG_REF
+            debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
+#endif
             DkObjectClose(hdl->pal_handle);
+            hdl->pal_handle = NULL;
+        }
 
         if (hdl->dentry)
             put_dentry(hdl->dentry);

@@ -884,6 +884,8 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
     cli->acc_mode = MAY_READ|MAY_WRITE;
     cli->flags      = O_RDWR|flags;
     cli->pal_handle = accepted;
+    accepted = NULL;
+
     cli_sock->domain     = sock->domain;
     cli_sock->sock_type  = sock->sock_type;
     cli_sock->protocol   = sock->protocol;
@@ -910,17 +912,15 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
         char uri[SOCK_URI_SIZE];
         int uri_len;
 
-        if (!(uri_len = DkStreamGetName(accepted, uri, SOCK_URI_SIZE))) {
+        if (!(uri_len = DkStreamGetName(cli->pal_handle, uri, SOCK_URI_SIZE))) {
             ret = -PAL_ERRNO;
-out_hdl:
-            DkObjectClose(accepted);
             goto out_cli;
         }
 
         if ((ret = inet_parse_addr(cli_sock->domain, cli_sock->sock_type, uri,
                                    &cli_sock->addr.in.bind,
                                    &cli_sock->addr.in.conn)) < 0)
-            goto out_hdl;
+            goto out_cli;
 
         qstrsetstr(&cli->uri, uri, uri_len);
 
@@ -943,7 +943,8 @@ out_cli:
 out:
     if (ret < 0)
         sock->error = -ret;
-
+    if (accepted)
+        DkObjectClose(accepted);
     unlock(hdl->lock);
     return ret;
 }

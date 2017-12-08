@@ -46,7 +46,7 @@ DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args)
      * for now, and make it consistent across hosts. */
     if (!uri)
         uri = pal_control.executable;
-    
+
     log_stream(uri);
 
     PAL_HANDLE handle = NULL;
@@ -57,6 +57,7 @@ DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args)
         handle = NULL;
     }
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 

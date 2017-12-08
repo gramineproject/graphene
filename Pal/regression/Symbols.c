@@ -56,7 +56,6 @@ int main (int argc, char ** argv, char ** envp)
     print_symbol(DkEventClear);
 
     print_symbol(DkObjectsWaitAny);
-    print_symbol(DkObjectReference);
     print_symbol(DkObjectClose);
 
     print_symbol(DkSystemTimeQuery);

@@ -941,8 +941,11 @@ static int open_pal_handle (const char * uri, void * obj)
             return -PAL_ERRNO;
     }
 
-    if (obj)
+    if (obj) {
         *((PAL_HANDLE *) obj) = hdl;
+    } else {
+        DkObjectClose(hdl);
+    }
 
     return 0;
 }
@@ -1122,6 +1125,7 @@ int shim_clean (void)
         }
 
         master_unlock();
+        DkObjectClose(hdl);
     }
 #endif
 
@@ -1178,6 +1182,7 @@ int message_confirm (const char * message, const char * options)
         goto out;
 
 out:
+    DkObjectClose(hdl);
     master_unlock();
     return (ret < 0) ? ret : answer;
 }

@@ -322,11 +322,23 @@ void put_thread (struct shim_thread * thread)
 #endif
 
     if (!ref_count) {
-       if (thread->exec)
+        if (thread->exec)
             put_handle(thread->exec);
 
         if (!IS_INTERNAL(thread))
             release_pid(thread->tid);
+
+        if (thread->pal_handle &&
+            thread->pal_handle != PAL_CB(first_thread))
+            DkObjectClose(thread->pal_handle);
+
+        if (thread->scheduler_event)
+            DkObjectClose(thread->scheduler_event);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
+        if (thread->child_exit_event)
+            DkObjectClose(thread->child_exit_event);
+        destroy_lock(thread->lock);
 
         if (MEMORY_MIGRATED(thread))
             memset(thread, 0, sizeof(struct shim_thread));
@@ -347,6 +359,9 @@ void put_simple_thread (struct shim_simple_thread * thread)
     if (!ref_count) {
         /* Simple threads always live on the simple thread list */
         listp_del(thread, &simple_thread_list, list);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
+        destroy_lock(thread->lock);
         free(thread);
     }
 }
@@ -719,7 +734,7 @@ BEGIN_RS_FUNC(running_thread)
     struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
     struct shim_thread * cur_thread = get_cur_thread();
     thread->in_vm = true;
-    
+
     if (!thread->user_tcb)
         CP_REBASE(thread->tcb);
 
@@ -734,7 +749,7 @@ BEGIN_RS_FUNC(running_thread)
         thread->pal_handle = handle;
     } else {
         __libc_tcb_t * libc_tcb = (__libc_tcb_t *) thread->tcb;
-        
+
         if (libc_tcb) {
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;
             assert(tcb->context.sp);
@@ -745,7 +760,7 @@ BEGIN_RS_FUNC(running_thread)
         } else {
             set_cur_thread(thread);
         }
-        
+
         thread->in_vm = thread->is_alive = true;
         thread->pal_handle = PAL_CB(first_thread);
     }

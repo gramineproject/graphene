@@ -100,12 +100,14 @@ build-conf:
 </IfModule>\n" >> $(INSTALL_DIR)/conf/httpd.conf.new
 	cd $(INSTALL_DIR)/conf && ln -sf httpd.conf.new httpd.conf
 
-start-native-server:
+clean-server:
+	rm -f $(INSTALL_DIR)/logs/httpd-$(HOST)-$(PORT).pid
+
+start-native-server: clean-server
 	@echo "Listen on $(HOST):$(PORT)"
 	$(PREFIX) $(INSTALL_DIR)/bin/httpd -D FOREGROUND -C "ServerName $(HOST)" -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
 
-start-graphene-server:
-	rm -rf httpd-$(HOST)-$(PORT).pid
+start-graphene-server: clean-server
 	@echo "Listen on $(HOST):$(PORT)"
 	$(PREFIX) ./httpd.manifest -D FOREGROUND -C "ServerName $(HOST)" -C "Listen $(HOST):$(PORT)" -C "PidFile logs/httpd-$(HOST)-$(PORT).pid"
 

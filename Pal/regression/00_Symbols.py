@@ -44,7 +44,6 @@ all_symbols = [
     'DkEventSet',
     'DkEventClear',
     'DkObjectsWaitAny',
-    'DkObjectReference',
     'DkObjectClose',
     'DkSystemTimeQuery',
     'DkRandomBitsRead',

@@ -58,7 +58,7 @@ void free_untrusted (void * mem);
  * If DEBUG_MUTEX is defined, mutex_handle will record the owner of
  * mutex locking. */
 struct mutex_handle {
-    volatile int64_t locked;
+    volatile int64_t * locked;
     struct atomic_int nwaiters;
 #ifdef DEBUG_MUTEX
     int owner;
@@ -170,7 +170,7 @@ typedef struct pal_handle
             } mutex;
 
             struct {
-                struct atomic_int signaled;
+                struct atomic_int * signaled;
                 struct atomic_int nwaiters;
                 PAL_BOL isnotification;
             } event;

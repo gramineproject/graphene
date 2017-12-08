@@ -46,6 +46,7 @@ DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags)
         handle = NULL;
     }
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 

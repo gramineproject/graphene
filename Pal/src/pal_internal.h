@@ -283,7 +283,6 @@ int64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length);
 int _DkStreamFlush (PAL_HANDLE handle);
 int _DkStreamGetName (PAL_HANDLE handle, char * buf, int size);
 const char * _DkStreamRealpath (PAL_HANDLE hdl);
-int _DkStreamFile (PAL_HANDLE hdl, PAL_HANDLE * file);
 int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo);
 int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo);
 PAL_HANDLE _DkBroadcastStreamOpen (void);
@@ -301,8 +300,7 @@ void _DkProcessExit (int exitCode);
 int _DkProcessSandboxCreate (const char * manifest, int flags);
 
 /* DkMutex calls */
-int _DkMutexCreate (PAL_HANDLE handle, int initialCount);
-void _DkMutexDestroy (PAL_HANDLE semaphoreHandle);
+int _DkMutexCreate (PAL_HANDLE * handle, int initialCount);
 int _DkMutexAcquire (PAL_HANDLE sem);
 int _DkMutexAcquireTimeout (PAL_HANDLE sem, int timeout);
 void _DkMutexRelease (PAL_HANDLE sem);
@@ -311,7 +309,6 @@ int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 /* DkEvent calls */
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
-void _DkEventDestroy (PAL_HANDLE handle);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
 int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout);
 int _DkEventWait (PAL_HANDLE event);

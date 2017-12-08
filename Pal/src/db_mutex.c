@@ -34,33 +34,16 @@ DkMutexCreate (PAL_NUM initialCount)
 {
     ENTER_PAL_CALL(DkMutexCreate);
 
-    PAL_HANDLE handle = (PAL_HANDLE) malloc(HANDLE_SIZE(mutex));
-    SET_HANDLE_TYPE(handle, mutex);
-    
-    int ret = _DkMutexCreate(handle, initialCount);
+    PAL_HANDLE handle = NULL;
+    int ret = _DkMutexCreate(&handle, initialCount);
 
     if (ret < 0) {
-        free(handle);
         _DkRaiseFailure(-ret);
         handle = NULL;
     }
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
-}
-
-void
-DkMutexDestroy (PAL_HANDLE handle)
-{
-    ENTER_PAL_CALL(DkMutexDestroy);
-
-    if (!handle) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL();
-    }
-
-    _DkMutexDestroy(handle);
-    free(handle);
-    LEAVE_PAL_CALL();
 }
 
 void DkMutexRelease (PAL_HANDLE handle)
@@ -76,12 +59,3 @@ void DkMutexRelease (PAL_HANDLE handle)
     _DkMutexRelease (handle);
     LEAVE_PAL_CALL();
 }
-
-static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
-{
-    return _DkMutexAcquireTimeout(handle, timeout);
-}
-
-struct handle_ops mutex_ops = {
-        .wait               = &mutex_wait,
-    };

@@ -74,18 +74,6 @@ out:
     return (mode & acc);
 }
 
-int _DkStreamFile (PAL_HANDLE hdl, PAL_HANDLE * file)
-{
-    if (IS_HANDLE_TYPE(hdl, file)) {
-        _DkObjectReference(hdl);
-        *file = hdl;
-        return 0;
-    }
-
-    /* for other types of handles, try to save it to a local file */
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
