@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -36,7 +36,6 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <atomic.h>
-#include <cmpxchg.h>
 #include <asm/errno.h>
 
 #define DEFAULT_QUANTUM 500
@@ -77,7 +76,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
                 events |= POLLOUT;
 
             if (events) {
-                fds[nfds].fd = HANDLE_HDR(handle)->fds[i];
+                fds[nfds].fd = handle->generic.fds[i];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 off[nfds] = i;
@@ -191,8 +190,8 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                 !(HANDLE_HDR(hdl)->flags & ERROR(j)))
                 events |= POLLOUT;
 
-            if (events && HANDLE_HDR(hdl)->fds[j] != PAL_IDX_POISON) {
-                fds[nfds].fd = HANDLE_HDR(hdl)->fds[j];
+            if (events && hdl->generic.fds[j] != PAL_IDX_POISON) {
+                fds[nfds].fd = hdl->generic.fds[j];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 hdls[nfds] = hdl;
@@ -246,7 +245,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
 
         for (j = 0 ; j < MAX_FDS ; j++)
             if ((HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j))) &&
-                HANDLE_HDR(hdl)->fds[j] == fds[i].fd)
+                hdl->generic.fds[j] == fds[i].fd)
                 break;
 
         if (j == MAX_FDS)
@@ -261,3 +260,49 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
     *polled = polled_hdl;
     return polled_hdl ? 0 : -PAL_ERROR_TRYAGAIN;
 }
+
+#if TRACE_HEAP_LEAK == 1
+
+PAL_HANDLE heap_alloc_head;
+PAL_LOCK   heap_alloc_trace_lock = LOCK_INIT;
+
+HEAP_ALLOC_RECORD * collect_heap_alloc_records (PAL_NUM max_records)
+{
+    HEAP_ALLOC_RECORD * records =
+            malloc(sizeof(HEAP_ALLOC_RECORD) * max_records);
+
+    if (!records)
+        return NULL;
+
+    memset(records, 0, sizeof(HEAP_ALLOC_RECORD) * max_records);
+
+    _DkInternalLock(&heap_alloc_trace_lock);
+
+    PAL_HANDLE ptr = heap_alloc_head;
+    int nrecords = 0, i;
+
+    for (; ptr ; ptr = ptr->hdr.heap_trace.next) {
+        assert(!ptr->hdr.heap_trace.next ||
+               ptr->hdr.heap_trace.next->hdr.heap_trace.pprev ==
+               &ptr->hdr.heap_trace.next);
+
+        for (i = 0 ; i < nrecords ; i++)
+            if (ptr->hdr.heap_trace.caller == records[i].caller) {
+                records[i].count++;
+                break;
+            }
+
+        if (i == nrecords) {
+            if (nrecords == max_records) break;
+            records[nrecords].caller = ptr->hdr.heap_trace.caller;
+            records[nrecords].count = 1;
+            nrecords++;
+        }
+    }
+
+    _DkInternalUnlock(&heap_alloc_trace_lock);
+
+    return records;
+}
+
+#endif /* TRACE_HEAP_LEAK == 0 */
