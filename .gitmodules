@@ -1,0 +1,3 @@
+[submodule "LibOS/shim/test/apps/gcc/test_files"]
+	path = LibOS/shim/test/apps/gcc/test_files
+	url = git@github.com:oscarlab/gcc_test_files.git
