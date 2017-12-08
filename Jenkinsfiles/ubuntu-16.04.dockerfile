@@ -3,7 +3,9 @@ FROM ubuntu:16.04
 
 # Add steps here to set up dependencies
 RUN apt-get update && apt-get install -y \
+    autoconf \
     build-essential \
+    gawk \
     git \
     python \
     wget
