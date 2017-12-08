@@ -4,7 +4,7 @@
 #ifndef _SHIM_ATOMIC_H_
 #define _SHIM_ATOMIC_H_
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
  * Copyright (C) 2017 Fortanix Inc, and University of North Carolina 
  * at Chapel Hill.
  *
