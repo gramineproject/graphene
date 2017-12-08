@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -33,24 +33,16 @@
 typedef uint64_t PAL_NUM;
 typedef const char *  PAL_STR;
 typedef void *        PAL_PTR;
-typedef unsigned int  PAL_FLG;
-typedef unsigned int  PAL_IDX;
+typedef uint32_t      PAL_FLG;
+typedef uint32_t      PAL_IDX;
 typedef bool          PAL_BOL;
 
 #ifdef IN_PAL
-struct atomic_int {
-    volatile int counter;
-}
-#ifdef __GNUC__
-__attribute__((aligned(sizeof(int))))
-#endif
-;
-
+#include <atomic.h>
 typedef struct atomic_int PAL_REF;
 
 typedef struct {
     PAL_IDX type;
-    PAL_REF ref;
     PAL_FLG flags;
 } PAL_HDR;
 
@@ -60,12 +52,21 @@ typedef struct {
 #  define HANDLE_HDR(handle) (&((handle)->hdr))
 # endif
 
-# define SET_HANDLE_TYPE(handle, t)             \
-    do {                                        \
-        HANDLE_HDR(handle)->type = pal_type_##t;\
-        HANDLE_HDR(handle)->ref.counter = 0;    \
-        HANDLE_HDR(handle)->flags = 0;          \
-    } while (0)
+# ifndef TRACE_HEAP
+#  define TRACE_HEAP(handle) do {} while (0)
+# endif
+
+# ifndef UNTRACE_HEAP
+#  define UNTRACE_HEAP(handle) do {} while (0)
+# endif
+
+static inline void init_handle_hdr(PAL_HDR *hdr, int pal_type) {
+    hdr->type = pal_type;
+    hdr->flags = 0;
+}
+
+# define SET_HANDLE_TYPE(handle, t) \
+    init_handle_hdr(HANDLE_HDR(handle), pal_type_##t)
 
 # define IS_HANDLE_TYPE(handle, t)              \
     (HANDLE_HDR(handle)->type == pal_type_##t)
@@ -75,6 +76,7 @@ typedef union pal_handle
 {
     struct {
         PAL_IDX type;
+        /* the PAL-level reference counting is deprecated */
     } hdr;
 } * PAL_HANDLE;
 
@@ -115,7 +117,7 @@ enum {
     pal_type_process,
     pal_type_mcast,
     pal_type_thread,
-    pal_type_semaphore,
+    pal_type_mutex,
     pal_type_event,
     pal_type_gipc,
     PAL_HANDLE_TYPE_BOUND,
@@ -428,26 +430,16 @@ void DkExceptionReturn (PAL_PTR event);
  * We may want to replace it with a PAL_HANDLE. Ideally, either use PAL_HANDLE
  * or threadHandle.
  */
-/* maxcount sets the number of threads allowed to hold the semaphore
- * at once.  For 1, this becomes a mutex.
- * initialCount of 0 is totally unlocked; an initialCount that
- * equals maxCount means that all resources are taken. */ 
+/* Create a Mutex.
+ * initialCount of 0 is totally unlocked; an initialCount of 1
+ * is initialized to locked. */ 
 PAL_HANDLE
-DkSemaphoreCreate (PAL_NUM initialCount, PAL_NUM maxCount);
+DkMutexCreate (PAL_NUM initialCount);
 
-/* DkSemaphoreDestroy deprecated, replaced by DkObjectClose */
-
-/* TSAI: I preserve this API because DkObjectsWaitAny can't acquire multiple
- * counts of a semaphore. Acquiring multiple counts is required for
- * implementing a read-write-lock. To make this API complementary to
- * DkObjectsWaitAny, I added a 'timeout' to its arguments */
-
-/* DkSemaphoreAcquire deprecated */
+/* Destroy a mutex using DkObjectClose */
 
 void
-DkSemaphoreRelease (PAL_HANDLE semaphoreHandle, PAL_NUM count);
-
-/* DkSemaphoreGetCurrentCount deprecated */
+DkMutexRelease (PAL_HANDLE mutexHandle);
 
 PAL_HANDLE
 DkNotificationEventCreate (PAL_BOL initialState);
@@ -474,7 +466,7 @@ DkEventClear (PAL_HANDLE eventHandle);
 PAL_HANDLE
 DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout);
 
-void DkObjectReference (PAL_HANDLE objectHandle);
+/* Deprecate DkObjectReference */
 
 void DkObjectClose (PAL_HANDLE objectHandle);
 

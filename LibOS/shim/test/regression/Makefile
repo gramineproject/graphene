@@ -3,9 +3,10 @@ CFLAGS-libos = -L../../../build/libos -I../../include
 special_executables = bootstrap_static bootstrap_pie
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
+manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
 
 exec_target = $(special_executables) $(c_executables) $(cxx_executables)
-target = $(exec_target) manifest
+target = $(exec_target) $(manifests)
 
 clean-extra += clean-tmp
 

@@ -462,15 +462,7 @@ typedef uint16_t FDTYPE;
 typedef unsigned long LEASETYPE;
 typedef unsigned long HASHTYPE;
 
-struct shim_atomic {
-#ifndef __i386__
-    long counter;
-#else
-    int counter;
-#endif
-};
-
-typedef struct shim_atomic REFTYPE;
+typedef struct atomic_int REFTYPE;
 
 #include <pal.h>
 

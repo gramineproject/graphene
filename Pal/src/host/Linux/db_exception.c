@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -231,21 +231,25 @@ static void return_frame (struct pal_frame * frame, int err)
                   "retq\r\n");
 }
 
+#if BLOCK_SIGFAULT == 1
+static char exception_msg[24] = "--- SIGSEGV --- [     ]\n";
+static volatile bool cont_exec = false;
+#endif
+
 static void _DkGenericSighandler (int signum, siginfo_t * info,
                                   struct ucontext * uc)
 {
-#if 0
+#if BLOCK_SIGFUALT == 1
     /* reseurrect this code if signal handler if giving segmentation fault */
     if (signum == SIGSEGV) {
         int pid = INLINE_SYSCALL(getpid, 0);
-        char msg[24] = "--- SIGSEGV --- [     ]\n";
-        msg[17] = '0' + pid / 10000;
-        msg[18] = '0' + (pid / 1000) % 10;
-        msg[19] = '0' + (pid / 100) % 10;
-        msg[20] = '0' + (pid / 10) % 10;
-        msg[21] = '0' + pid % 10;
-        INLINE_SYSCALL(write, 3, 1, msg, 24);
-        while(1);
+        exception_msg[17] = '0' + pid / 10000;
+        exception_msg[18] = '0' + (pid / 1000) % 10;
+        exception_msg[19] = '0' + (pid / 100) % 10;
+        exception_msg[20] = '0' + (pid / 10) % 10;
+        exception_msg[21] = '0' + pid % 10;
+        INLINE_SYSCALL(write, 3, 1, exception_msg, 24);
+        while(!cont_exec);
     }
 #endif
 
