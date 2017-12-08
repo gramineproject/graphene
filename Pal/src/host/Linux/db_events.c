@@ -145,7 +145,7 @@ int _DkEventClear (PAL_HANDLE event)
 
 static int event_close (PAL_HANDLE handle)
 {
-    assert(!atomic_read(&handle->event.nwaiters));
+    _DkEventSet(handle, -1);
     return 0;
 }
 

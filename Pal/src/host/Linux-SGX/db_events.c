@@ -142,7 +142,7 @@ int _DkEventClear (PAL_HANDLE event)
 
 static int event_close (PAL_HANDLE handle)
 {
-    assert(!atomic_read(&handle->event.nwaiters));
+    _DkEventSet(handle, -1);
     free_untrusted(handle->event.signaled);
     return 0;
 }
