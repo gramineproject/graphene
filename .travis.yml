@@ -1,8 +1,6 @@
 language: c
 
 before_install:
-  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-  - git submodule update --init --recursive
   - sudo apt-get install python-protobuf python-crypto
   - sudo apt-get install linux-headers-$(uname -r)
 

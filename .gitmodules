@@ -1,6 +1,6 @@
 [submodule "LibOS/shim/test/apps/gcc/test_files"]
 	path = LibOS/shim/test/apps/gcc/test_files
-	url = git@github.com:oscarlab/gcc_test_files.git
+	url = https://github.com/oscarlab/gcc_test_files.git
 [submodule "LibOS/shim/test/apps/lmbench/lmbench-2.5"]
 	path = LibOS/shim/test/apps/lmbench/lmbench-2.5
-	url = git@github.com:oscarlab/lmbench-2.5.git
+	url = https://github.com/oscarlab/lmbench-2.5.git
