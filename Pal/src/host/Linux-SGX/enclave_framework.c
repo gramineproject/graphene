@@ -127,7 +127,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
     char normpath[URI_MAX];
-    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len, len;
+    int ret, fd = file->file.fd, uri_len, len;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;
@@ -433,15 +433,16 @@ static int init_trusted_file (const char * key, const char * uri)
 
 int init_trusted_files (void)
 {
-    char cfgbuf[CONFIG_MAX];
+    char *cfgbuf;
     int ret;
 
     if (pal_sec.exec_fd != PAL_IDX_POISON) {
         ret = init_trusted_file("exec", pal_sec.exec_name);
         if (ret < 0)
-            return ret;
+            goto out;
     }
 
+    cfgbuf = __alloca(CONFIG_MAX);
     int len = get_config(pal_state.root_config, "loader.preload",
                          cfgbuf, CONFIG_MAX);
     if (len) {
@@ -459,14 +460,19 @@ int init_trusted_files (void)
 
                 ret = init_trusted_file(key, uri);
                 if (ret < 0)
-                    return ret;
+                    goto out;
             }
         }
     }
 
+    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
+                                              "sgx.trusted_files"));
     int nuris = get_config_entries(pal_state.root_config, "sgx.trusted_files",
-                                   cfgbuf, CONFIG_MAX);
-    if (nuris) {
+                                   cfgbuf);
+    if (nuris == -PAL_ERROR_INVAL)
+        nuris = 0;
+
+    if (nuris >= 0) {
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
@@ -480,14 +486,22 @@ int init_trusted_files (void)
             if (len > 0) {
                 ret = init_trusted_file(key + 18, uri);
                 if (ret < 0)
-                    return ret;
+                    goto out;
             }
         }
+    } else {
+        ret = nuris;
+        goto out;
     }
 
+    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
+                                              "sgx.allowed_files"));
     nuris = get_config_entries(pal_state.root_config, "sgx.allowed_files",
-                               cfgbuf, CONFIG_MAX);
-    if (nuris > 0) {
+                               cfgbuf);
+    if (nuris == -PAL_ERROR_INVAL)
+        nuris = 0;
+
+    if (nuris >= 0) {
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
@@ -501,23 +515,29 @@ int init_trusted_files (void)
             if (len > 0)
                 register_trusted_file(uri, NULL);
         }
+    } else {
+        ret = nuris;
+        goto out;
     }
+    ret = 0;
 
-    
-    return 0;
+out:
+    return ret;
 }
 
 int init_trusted_children (void)
 {
-    char cfgbuf[CONFIG_MAX];
+    char *cfgbuf;
     char key[CONFIG_MAX], mrkey[CONFIG_MAX];
     char uri[CONFIG_MAX], mrenclave[CONFIG_MAX];
 
     char * tmp1 = strcpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
     char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
 
+    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
+                                              "sgx.trusted_mrenclave"));
     int nuris = get_config_entries(pal_state.root_config,
-                                   "sgx.trusted_mrenclave", cfgbuf, CONFIG_MAX);
+                                   "sgx.trusted_mrenclave", cfgbuf);
     if (nuris > 0) {
         char * k = cfgbuf;
         for (int i = 0 ; i < nuris ; i++) {

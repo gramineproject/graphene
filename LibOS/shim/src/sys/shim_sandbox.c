@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -60,7 +60,7 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
@@ -73,14 +73,10 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
 
-    int nkeys, keybuf_size = CONFIG_MAX;
-    char * keybuf = __alloca(keybuf_size);
+    int nkeys;
+    char * keybuf = __alloca(get_config_entries_size(cfg, "fs.mount.other"));
 
-    while ((nkeys = get_config_entries(cfg, "fs.mount.other", keybuf,
-                                       keybuf_size)) == -ENAMETOOLONG) {
-        keybuf_size *= 2;
-        keybuf = __alloca(keybuf_size);
-    }
+    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf);
 
     if (nkeys <= 0)
         goto root;
@@ -187,15 +183,11 @@ root:
 
 static int isolate_net (struct config_store * cfg, struct net_sb * sb)
 {
-    int nkeys, keybuf_size = CONFIG_MAX;
+    int nkeys;
     char k[CONFIG_MAX];
-    char * keybuf = __alloca(keybuf_size);
+    char * keybuf = __alloca(get_config_entries_size(cfg, "net.rules"));
 
-    while ((nkeys = get_config_entries(cfg, "net.rules", keybuf,
-                                       keybuf_size)) == -ENAMETOOLONG) {
-        keybuf_size *= 2;
-        keybuf = __alloca(keybuf_size);
-    }
+    nkeys = get_config_entries(cfg, "net.rules", keybuf);
 
     if (nkeys <= 0)
         goto add;

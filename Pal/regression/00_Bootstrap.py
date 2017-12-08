@@ -127,3 +127,13 @@ if sgx:
 
     rv = regression.run_checks()
     if rv: sys.exit(rv)
+
+# Running Bootstrap7.manifest
+regression = Regression(loader, manifest_file("Bootstrap7"))
+
+regression.add_check(name="Load Large Number of Items in Manifest",
+    check=lambda res: "key1000=na" in res[0].log and
+                      "key1=na" in res[0].log)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
