@@ -33,6 +33,9 @@ A number of files taken from other C libraries:
  ** Pal/src/host/Linux/include/ - whole directory - for signal API definitions
  ** We also build a patched glibc, but this could be moved into a separate repo
 
-Some app and benchmark sources are redistributed under LibOS/shim/test/apps.  These should probably be moved to subrepositories.
+Some app and benchmark sources are redistributed under
+LibOS/shim/test/apps.  These will be migrated to subrepositories, as
+needed, and should be considered separate projects, subject to their
+original licenses.
 
 
