@@ -7,7 +7,7 @@ host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
-		 threading semaphore mutex events process object main rtld \
+		 threading mutex events process object main rtld \
 		 exception misc ipc spinlock) \
 	       $(addprefix enclave_,ocalls ecalls framework pages untrusted) 
 enclave-asm-objs = enclave_entry 
