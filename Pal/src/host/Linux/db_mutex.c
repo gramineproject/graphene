@@ -55,6 +55,46 @@
 #endif
 
 #define MUTEX_SPINLOCK_TIMES    100
+#define MUTEX_UNLOCKED 0
+#define MUTEX_LOCKED   1
+
+/* Interplay between locked and nwaiters:
+ * 
+ * If lock is unlocked and uncontended, just set the locked state.
+ * 
+ * Important possible interleavings of lock and unlock:
+ * 
+ * Case 1: 
+ * 
+ * Owner:                Locker:
+ *                       Try lock and fail; increment nwaiters; sleep
+ * Set state to unlocked
+ * Read nwaiters; wake
+ *                       Try again and succeed.
+ *
+ * ***************************************************
+ *
+ * Case 2: 
+ * 
+ * Owner:                Locker:
+ *                       Try lock and fail
+ * Set state to unlocked
+ * Read nwaiters (=0)
+ *                      Increment nwaiters.
+ *                      Can't go to sleep here; will cmpxchg locked and succeed
+ * Don't wake anyone
+ */
+
+int
+_DkMutexCreate (PAL_HANDLE * handle, int initialCount)
+{
+    PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
+    SET_HANDLE_TYPE(mut, mutex);
+    atomic_set(&mut->mutex.mut.nwaiters, 0);
+    mut->mutex.mut.locked = initialCount;
+    *handle = mut;
+    return 0;
+}
 
 int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
 {
@@ -180,3 +220,12 @@ success:
 out:
     return ret;
 }
+
+static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return _DkMutexAcquireTimeout(handle, timeout);
+}
+
+struct handle_ops mutex_ops = {
+        .wait               = &mutex_wait,
+    };

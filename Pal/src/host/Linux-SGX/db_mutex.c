@@ -45,16 +45,23 @@
 # define cpu_relax()     asm volatile("rep; nop" ::: "memory");
 #endif
 
-#ifdef __x86_64__
-# include <unistd.h>
-# define barrier()       asm volatile("" ::: "memory");
-# define rmb()           asm volatile("lfence" ::: "memory")
-# define cpu_relax()     asm volatile("rep; nop" ::: "memory");
-#endif
+int
+_DkMutexCreate (PAL_HANDLE * handle, int initialCount)
+{
+    PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
+    SET_HANDLE_TYPE(mut, mutex);
+    atomic_set(&mut->mutex.mut.nwaiters, 0);
+    mut->mutex.mut.locked = malloc_untrusted(sizeof(int64_t));
+    if (!mut->mutex.mut.locked) {
+        free(mut);
+        return -PAL_ERROR_NOMEM;
+    }
+    *(mut->mutex.mut.locked) = initialCount;
+    *handle = mut;
+    return 0;
+}
 
-#define MUTEX_SPINLOCK_TIMES    100
-
-int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
+int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
 {
     int ret = 0;
 #ifdef DEBUG_MUTEX
@@ -64,7 +71,7 @@ int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
     if (timeout == -1)
         return -_DkMutexLock(m);
 
-    if (!xchg(&m->b.locked, 1))
+    if (MUTEX_UNLOCKED == cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
         goto success;
 
     if (timeout == 0) {
@@ -72,7 +79,17 @@ int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
         goto out;
     }
 
-    unsigned long waittime = timeout;
+    // Bump up the waiters count; we are probably going to block
+    atomic_inc(&m->nwaiters);
+
+    while (MUTEX_LOCKED == cmpxchg(m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
+        /*
+         * Chia-Che 12/7/2017: m->locked points to untrusted memory, so
+         * can be used for futex. Potentially this design may allow
+         * attackers to change the mutex value and cause DoS.
+         */
+        ret = ocall_futex((int *) m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout == -1 ? NULL : &timeout);
+    }
 
     while (xchg(&m->u, 257) & 1) {
         ret = ocall_futex((int *) m, FUTEX_WAIT, 257, timeout ? &waittime : NULL);
@@ -103,17 +120,8 @@ out:
 
 int _DkMutexLock (struct mutex_handle * m)
 {
-    int ret = 0, i;
-#ifdef DEBUG_MUTEX
-    int tid = INLINE_SYSCALL(gettid, 0);
-#endif
-
-    /* Spin and try to take lock */
-    for (i = 0; i < MUTEX_SPINLOCK_TIMES; i++) {
-        if (!xchg(&m->b.locked, 1))
-            goto success;
-        cpu_relax();
-    }
+    return _DkMutexLockTimeout(m, -1);
+}
 
     // Mutex is union of u8 array and u32; this assumes a little-endian machine.
     while (xchg(&m->u, 257) & 1) {
@@ -147,29 +155,38 @@ int _DkMutexUnlock (struct mutex_handle * m)
 {
     int ret = 0, i;
 
-#ifdef DEBUG_MUTEX
-    m->owner = 0;
-#endif
+    /* Unlock */
+    *(m->locked) = 0;
+    /* We need to make sure the write to locked is visible to lock-ers
+     * before we read the waiter count. */
+    mb();
 
     /* Unlock, and if not contended then exit. */
     if ((m->u == 1) && (cmpxchg(&m->u, 1, 0) == 1)) return 0;
     m->b.locked = 0;
     barrier();
 
-    /* See if somebody else takes the lock */
-    for (i = 0; i < MUTEX_SPINLOCK_TIMES * 2; i++) {
-        if (m->b.locked)
-            goto success;
-        cpu_relax();
-    }
+    /* If we need to wake someone up... */
+    if (need_wake)
+        ocall_futex((int *) m->locked, FUTEX_WAKE, 1, NULL);
 
     m->b.contended = 0;
 
     /* Nobody took it, we need to wake someone up */
     ocall_futex((int *) m, FUTEX_WAKE, 1, NULL);
 
-success:
-    ret = 0;
-out:
-    return ret;
+static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return _DkMutexAcquireTimeout(handle, timeout);
 }
+
+static int mutex_close (PAL_HANDLE handle)
+{
+    free_untrusted(handle->mutex.mut.locked);
+    return 0;
+}
+
+struct handle_ops mutex_ops = {
+        .wait               = &mutex_wait,
+        .close              = &mutex_close,
+    };

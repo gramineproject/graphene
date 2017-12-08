@@ -56,7 +56,24 @@ typedef struct mutex_handle {
 #define _DkInternalLock _DkMutexLock
 #define _DkInternalUnlock _DkMutexUnlock
 
-typedef union pal_handle
+/* Locking and unlocking of Mutexes */
+int _DkMutexLock (struct mutex_handle * mut);
+int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
+int _DkMutexUnlock (struct mutex_handle * mut);
+
+typedef struct {
+    PAL_HDR hdr;
+#if TRACE_HEAP_LEAK == 1
+    struct heap_trace_info {
+        /* maintaining a list of handles */
+        struct pal_handle ** pprev, * next;
+        /* trace the PC where the handle is created */
+        PAL_PTR caller;
+    } heap_trace;
+#endif
+} PAL_RESERVED_HDR;
+
+typedef struct pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE
      * in PAL design, user has not to access the content inside the
@@ -273,5 +290,64 @@ void __clear_frame (struct pal_frame * frame)
         __clear_frame(&frame);              \
         return (retval);                    \
     } while (0)
+
+#if TRACE_HEAP_LEAK == 1
+
+/* The following code adds a piece of information
+   in each handle to trace heap leakage. */
+
+extern PAL_HANDLE heap_alloc_head;
+extern PAL_LOCK   heap_alloc_trace_lock;
+
+/* call the following function in GDB */
+typedef struct {
+    PAL_PTR caller;
+    PAL_NUM count;
+} HEAP_ALLOC_RECORD;
+
+extern HEAP_ALLOC_RECORD * collect_heap_alloc_records (PAL_NUM max_records);
+
+static inline
+void __trace_heap (PAL_HANDLE handle, struct pal_frame * frame)
+{
+    _DkInternalLock(&heap_alloc_trace_lock);
+
+    handle->hdr.heap_trace.caller = ((PAL_PTR *)frame->arch.rbp)[1];
+
+    /* Add the handle to the list */
+    if (heap_alloc_head)
+        heap_alloc_head->hdr.heap_trace.pprev
+                                    = &handle->hdr.heap_trace.next;
+    handle->hdr.heap_trace.next     = heap_alloc_head;
+    handle->hdr.heap_trace.pprev    = &heap_alloc_head;
+    heap_alloc_head                 = handle;
+
+    _DkInternalUnlock(&heap_alloc_trace_lock);
+}
+
+#define TRACE_HEAP(handle) \
+    do { if (handle) __trace_heap(handle, &frame); } while (0)
+
+static inline
+void __untrace_heap (PAL_HANDLE handle)
+{
+    _DkInternalLock(&heap_alloc_trace_lock);
+
+    /* remove the handle from the list */
+    *handle->hdr.heap_trace.pprev = handle->hdr.heap_trace.next;
+    if (handle->hdr.heap_trace.next)
+        handle->hdr.heap_trace.next->hdr.heap_trace.pprev
+            = handle->hdr.heap_trace.pprev;
+
+    handle->hdr.heap_trace.pprev = NULL;
+    handle->hdr.heap_trace.next  = NULL;
+
+    _DkInternalUnlock(&heap_alloc_trace_lock);
+}
+
+#define UNTRACE_HEAP(handle) \
+    do { if (handle) __untrace_heap(handle); } while (0)
+
+#endif /* TRACE_HEAP_LEAK == 1 */
 
 #endif /* PAL_HOST_H */

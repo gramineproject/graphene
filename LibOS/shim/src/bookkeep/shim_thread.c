@@ -305,11 +305,23 @@ void put_thread (struct shim_thread * thread)
 #endif
 
     if (!ref_count) {
-       if (thread->exec)
+        if (thread->exec)
             put_handle(thread->exec);
 
         if (!IS_INTERNAL(thread))
             release_pid(thread->tid);
+
+        if (thread->pal_handle &&
+            thread->pal_handle != PAL_CB(first_thread))
+            DkObjectClose(thread->pal_handle);
+
+        if (thread->scheduler_event)
+            DkObjectClose(thread->scheduler_event);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
+        if (thread->child_exit_event)
+            DkObjectClose(thread->child_exit_event);
+        destroy_lock(thread->lock);
 
         if (MEMORY_MIGRATED(thread))
             memset(thread, 0, sizeof(struct shim_thread));
@@ -328,7 +340,11 @@ void put_simple_thread (struct shim_simple_thread * thread)
     int ref_count = REF_DEC(thread->ref_count);
 
     if (!ref_count) {
+        /* Simple threads always live on the simple thread list */
         list_del(&thread->list);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
+        destroy_lock(thread->lock);
         free(thread);
     }
 }

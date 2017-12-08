@@ -27,6 +27,7 @@
 
 #include "sgx_internal.h"
 
+#if 0 /* this code is useless for now */
 int _DkEventSet (PAL_HANDLE event, int wakeup)
 {
     int ret = 0;
@@ -81,6 +82,7 @@ int _DkEventWait (PAL_HANDLE event)
 
     return ret;
 }
+#endif
 
 #define PRINTBUF_SIZE        256
 

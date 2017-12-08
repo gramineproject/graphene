@@ -17,7 +17,7 @@ DIRS = src test regression
 all clean:
 	for d in $(DIRS); \
 	do \
-		$(MAKE) -C $$d $@; \
+		$(MAKE) -C $$d $@ || exit $?; \
 	done
 
 .PHONY: linux-kernel

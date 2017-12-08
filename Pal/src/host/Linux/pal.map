@@ -29,7 +29,7 @@ PAL {
 
         DkSystemTimeQuery; DkRandomBitsRead;
         DkInstructionCacheFlush;
-        DkObjectReference; DkObjectClose;
+        DkObjectClose;
         # objects checkpoint?
         # objects reload?
 

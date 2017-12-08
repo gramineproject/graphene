@@ -261,3 +261,49 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
     *polled = polled_hdl;
     return polled_hdl ? 0 : -PAL_ERROR_TRYAGAIN;
 }
+
+#if TRACE_HEAP_LEAK == 1
+
+PAL_HANDLE heap_alloc_head;
+PAL_LOCK   heap_alloc_trace_lock = LOCK_INIT;
+
+HEAP_ALLOC_RECORD * collect_heap_alloc_records (PAL_NUM max_records)
+{
+    HEAP_ALLOC_RECORD * records =
+            malloc(sizeof(HEAP_ALLOC_RECORD) * max_records);
+
+    if (!records)
+        return NULL;
+
+    memset(records, 0, sizeof(HEAP_ALLOC_RECORD) * max_records);
+
+    _DkInternalLock(&heap_alloc_trace_lock);
+
+    PAL_HANDLE ptr = heap_alloc_head;
+    int nrecords = 0, i;
+
+    for (; ptr ; ptr = ptr->hdr.heap_trace.next) {
+        assert(!ptr->hdr.heap_trace.next ||
+               ptr->hdr.heap_trace.next->hdr.heap_trace.pprev ==
+               &ptr->hdr.heap_trace.next);
+
+        for (i = 0 ; i < nrecords ; i++)
+            if (ptr->hdr.heap_trace.caller == records[i].caller) {
+                records[i].count++;
+                break;
+            }
+
+        if (i == nrecords) {
+            if (nrecords == max_records) break;
+            records[nrecords].caller = ptr->hdr.heap_trace.caller;
+            records[nrecords].count = 1;
+            nrecords++;
+        }
+    }
+
+    _DkInternalUnlock(&heap_alloc_trace_lock);
+
+    return records;
+}
+
+#endif /* TRACE_HEAP_LEAK == 0 */

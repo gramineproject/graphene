@@ -231,21 +231,25 @@ static void return_frame (struct pal_frame * frame, int err)
                   "retq\r\n");
 }
 
+#if BLOCK_SIGFAULT == 1
+static char exception_msg[24] = "--- SIGSEGV --- [     ]\n";
+static volatile bool cont_exec = false;
+#endif
+
 static void _DkGenericSighandler (int signum, siginfo_t * info,
                                   struct ucontext * uc)
 {
-#if 0
+#if BLOCK_SIGFUALT == 1
     /* reseurrect this code if signal handler if giving segmentation fault */
     if (signum == SIGSEGV) {
         int pid = INLINE_SYSCALL(getpid, 0);
-        char msg[24] = "--- SIGSEGV --- [     ]\n";
-        msg[17] = '0' + pid / 10000;
-        msg[18] = '0' + (pid / 1000) % 10;
-        msg[19] = '0' + (pid / 100) % 10;
-        msg[20] = '0' + (pid / 10) % 10;
-        msg[21] = '0' + pid % 10;
-        INLINE_SYSCALL(write, 3, 1, msg, 24);
-        while(1);
+        exception_msg[17] = '0' + pid / 10000;
+        exception_msg[18] = '0' + (pid / 1000) % 10;
+        exception_msg[19] = '0' + (pid / 100) % 10;
+        exception_msg[20] = '0' + (pid / 10) % 10;
+        exception_msg[21] = '0' + pid % 10;
+        INLINE_SYSCALL(write, 3, 1, exception_msg, 24);
+        while(!cont_exec);
     }
 #endif
 
