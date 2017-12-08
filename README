@@ -61,7 +61,22 @@ be installed with 'apt-get install'):
 To build the system, simply run the following commands in the root of the
 source tree:
 
+    git submodule update --init
     make
+
+Each part of Graphene can be built separately in the subdirectories.
+
+To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
+"make".
+
+To enable sandboxing, a customized Linux kernel is needed. Note that
+this feature is optional and completely unnecessary for running on SGX.
+To build the Graphene Linux kernel, do the following steps:
+
+    cd Pal/linux-3.19
+    make menuconfig
+    make
+    make install
     (Add Graphene kernel as a boot option by commands like "update-grub")
     (reboot and choose the Graphene kernel)
 
@@ -73,11 +88,6 @@ in the configuration:
   - CONFIG_GRAPHENE=y
   - CONFIG_GRAPHENE_BULK_IPC=y
   - CONFIG_GRAPHENE_ISOLATE=y
-
-Each part of Graphene can be built separately in the subdirectories.
-
-To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
-"make".
 
 For more details about the building and installation, see the Graphene github
 Wiki page: <https://github.com/oscarlab/graphene/wiki>.
