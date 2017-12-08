@@ -2,7 +2,6 @@ pipeline {
 	agent {
               docker { image 'jenkins-graphene-linux-16.04:latest' }
 	}
-        agent any
         stages {
                 stage('Build') {
                     steps {
