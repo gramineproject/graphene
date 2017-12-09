@@ -42,18 +42,17 @@ pipeline {
                             '''
 			}
                         sh '''
-			    IPADDR=`hostname -I`
                             cd LibOS/shim/test/apps/lighttpd
                             make
                             make start-graphene-server &
 			    sleep 1
-                            ./benchmark-http.sh `hostname -I`:8000			    
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000			    
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/apache
                             make
                             make start-graphene-server &
-                            ./benchmark-http.sh `hostname -I`:8001
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
                             '''
                     }
                 }
