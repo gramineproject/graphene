@@ -54,11 +54,11 @@ endif
 .PHONY: regression
 regression: $(target)
 	@echo "\n\nBasic Bootstrapping:"
-	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
+	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
 	@echo "\n\nSyscall Support:"
-	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
+	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
 	@echo "\n\nLarge File Support:"
-	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
+	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
 
 .PHONY: clean-tmp
 clean-tmp:
