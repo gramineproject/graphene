@@ -1,6 +1,7 @@
 testcase,timeout
 alarm01,5
 alarm06,16
+clock_nanosleep01,40
 clone03,40
 clone05,30
 exit01,40
