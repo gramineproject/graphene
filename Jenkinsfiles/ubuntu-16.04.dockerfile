@@ -3,11 +3,15 @@ FROM ubuntu:16.04
 
 # Add steps here to set up dependencies
 RUN apt-get update && apt-get install -y \
+    apache2-utils \
     autoconf \
     build-essential \
     gawk \
+    gettext \
     git \
+    libpcre3-dev \
     python \
+    texinfo \
     wget
 
 
