@@ -16,10 +16,12 @@ pipeline {
                             cd LibOS/shim/test/apps/gcc
                             make regression
                            '''
-                        sh '''
-                            cd LibOS/shim/test/apps/lmbench
-                            make regression
+			timeout(time: 8, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/lmbench
+                                make regression
                             '''
+			}
                         sh '''
                             cd LibOS/shim/test/apps/python
                             make regression
