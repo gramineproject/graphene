@@ -36,5 +36,5 @@ stat05_64,40
 syscall01,80
 wait401,40
 waitpid03,80
-waitpid05,160
+waitpid05,240
 write03,40
