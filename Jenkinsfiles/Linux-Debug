@@ -35,7 +35,7 @@ pipeline {
                                 make regression
                            '''
 			}
-			timeout(time: 15, unit: 'MINUTES') {
+			timeout(time: 20, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
                                 make regression
