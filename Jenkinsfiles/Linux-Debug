@@ -1,23 +1,29 @@
 pipeline {
-        agent any
+	agent {
+              dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile' }
+	}
         stages {
                 stage('Build') {
                     steps {
                         sh '''
-                            make clean && make DEBUG=1
+                            make DEBUG=1
                            '''
                     }
                 }
                 stage('Test') {
                     steps {
-                        sh '''
-                            cd LibOS/shim/test/apps/gcc
-                            make regression
+			timeout(time: 5, unit: 'MINUTES') {		    
+                            sh '''
+                                cd LibOS/shim/test/apps/gcc
+                                make regression
                            '''
-                        sh '''
-                            cd LibOS/shim/test/apps/lmbench
-                            make regression
+			}
+			timeout(time: 15, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/lmbench
+                                make regression
                             '''
+			}
                         sh '''
                             cd LibOS/shim/test/apps/python
                             make regression
@@ -26,13 +32,14 @@ pipeline {
                             cd LibOS/shim/test/apps/lighttpd
                             make
                             make start-graphene-server &
+			    sleep 1
                             ./benchmark-http.sh 127.0.0.1:8000
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/apache
                             make
                             make start-graphene-server &
-                            ./benchmark-http.sh 127.0.0.1:8000
+                            ./benchmark-http.sh 127.0.0.1:8001
                             '''
                         sh '''
                             cd Pal/regression
