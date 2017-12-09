@@ -24,8 +24,7 @@ $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
 $(BUILD_DIR)/Makefile: $(addprefix $(GLIBC_SRC)/,configure elf/Versions nptl/Versions dlfcn/Versions)
 ifeq ($(DEBUG),1)
-#	./buildglibc.py --quiet --debug
-	./buildglibc.py --quiet
+	./buildglibc.py --quiet --debug
 else
 	./buildglibc.py --quiet
 endif
