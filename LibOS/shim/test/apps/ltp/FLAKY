@@ -14,3 +14,5 @@ waitpid02,1
 waitpid02,2
 waitpid02,3
 
+clock_nanosleep01,11 - Pretty prone to hanging, don't think it is a timeout
+

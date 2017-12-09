@@ -47,7 +47,6 @@ clock_getres01,9
 clock_getres01,10
 clock_getres01,11
 clock_getres01,12
-clock_nanosleep01,11
 clone01,1
 clone03,1
 clone04,1
