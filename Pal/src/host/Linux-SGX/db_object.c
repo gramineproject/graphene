@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -36,7 +36,6 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <atomic.h>
-#include <cmpxchg.h>
 
 #define DEFAULT_QUANTUM 500
 
@@ -63,7 +62,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
                 events |= POLLOUT;
 
             if (events) {
-                fds[nfds].fd = HANDLE_HDR(handle)->fds[i];
+                fds[nfds].fd = handle->generic.fds[i];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 off[nfds] = i;
@@ -167,8 +166,8 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                 !(HANDLE_HDR(hdl)->flags & ERROR(j)))
                 events |= POLLOUT;
 
-            if (events && HANDLE_HDR(hdl)->fds[j] != PAL_IDX_POISON) {
-                fds[nfds].fd = HANDLE_HDR(hdl)->fds[j];
+            if (events && hdl->generic.fds[j] != PAL_IDX_POISON) {
+                fds[nfds].fd = hdl->generic.fds[j];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 hdls[nfds] = hdl;
@@ -205,7 +204,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
 
         for (j = 0 ; j < MAX_FDS ; j++)
             if ((HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j))) &&
-                HANDLE_HDR(hdl)->fds[j] == fds[i].fd)
+                hdl->generic.fds[j] == fds[i].fd)
                 break;
 
         if (j == MAX_FDS)

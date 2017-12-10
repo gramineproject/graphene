@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -470,9 +470,13 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
         char * spath = saddr->sun_path;
         struct shim_dentry * dent = NULL;
 
-        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent)) < 0) 
-            goto out;
-
+        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0) {
+            // DEP 7/3/17: We actually want either 0 or -ENOENT, as the
+            // expected case is that the name is free (and we get the dent to
+            // populate the name)
+            if (ret != -ENOENT || !dent)
+                goto out;
+        }
 
         if (dent->state & DENTRY_VALID &&
             !(dent->state & DENTRY_NEGATIVE)) {
@@ -720,7 +724,7 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
         char * spath = saddr->sun_path;
         struct shim_dentry * dent;
 
-        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent)) < 0)
+        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0)
             goto out;
 
         struct shim_unix_data * data = dent->data;
@@ -880,6 +884,8 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
     cli->acc_mode = MAY_READ|MAY_WRITE;
     cli->flags      = O_RDWR|flags;
     cli->pal_handle = accepted;
+    accepted = NULL;
+
     cli_sock->domain     = sock->domain;
     cli_sock->sock_type  = sock->sock_type;
     cli_sock->protocol   = sock->protocol;
@@ -906,17 +912,15 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
         char uri[SOCK_URI_SIZE];
         int uri_len;
 
-        if (!(uri_len = DkStreamGetName(accepted, uri, SOCK_URI_SIZE))) {
+        if (!(uri_len = DkStreamGetName(cli->pal_handle, uri, SOCK_URI_SIZE))) {
             ret = -PAL_ERRNO;
-out_hdl:
-            DkObjectClose(accepted);
             goto out_cli;
         }
 
         if ((ret = inet_parse_addr(cli_sock->domain, cli_sock->sock_type, uri,
                                    &cli_sock->addr.in.bind,
                                    &cli_sock->addr.in.conn)) < 0)
-            goto out_hdl;
+            goto out_cli;
 
         qstrsetstr(&cli->uri, uri, uri_len);
 
@@ -939,7 +943,8 @@ out_cli:
 out:
     if (ret < 0)
         sock->error = -ret;
-
+    if (accepted)
+        DkObjectClose(accepted);
     unlock(hdl->lock);
     return ret;
 }
@@ -1671,7 +1676,7 @@ int shim_do_getsockopt (int fd, int level, int optname, char * optval,
                 }
                 goto out;
             case SO_TYPE:
-                *intval = sock->protocol;
+                *intval = sock->sock_type;
                 goto out;
             case SO_KEEPALIVE:
             case SO_LINGER:

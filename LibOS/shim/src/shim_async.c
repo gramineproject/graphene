@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -44,23 +44,26 @@ struct async_event {
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
 
-enum {  HELPER_NOTALIVE, HELPER_ALIVE };
+/* This variable can be read without the async_helper_lock held, but is always
+ * modified with it held. */
+static enum {  HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
 
-static struct shim_atomic   async_helper_state;
 static struct shim_thread * async_helper_thread;
 static AEVENTTYPE           async_helper_event;
 
 static LOCKTYPE async_helper_lock;
 
-int install_async_event (PAL_HANDLE object, unsigned long time,
-                         void (*callback) (IDTYPE caller, void * arg),
-                         void * arg)
+/* Returns remaining usecs */
+uint64_t install_async_event (PAL_HANDLE object, unsigned long time,
+                              void (*callback) (IDTYPE caller, void * arg),
+                              void * arg)
 {
     struct async_event * event =
                     malloc(sizeof(struct async_event));
 
     unsigned long install_time = DkSystemTimeQuery();
-
+    uint64_t rv = 0;
+    
     debug("install async event at %llu\n", install_time);
 
     event->callback     = callback;
@@ -96,6 +99,7 @@ int install_async_event (PAL_HANDLE object, unsigned long time,
          */
 		listp_del(tmp, &async_list, list);
         free(tmp);
+        rv = tmp->expire_time - install_time;
     } else
 	   tmp = NULL;
     
@@ -110,13 +114,17 @@ int install_async_event (PAL_HANDLE object, unsigned long time,
     if (atomic_read(&async_helper_state) == HELPER_NOTALIVE)
         create_async_helper();
 
+    unlock(async_helper_lock);
+    
     set_event(&async_helper_event, 1);
-    return 0;
+    return rv;
 }
 
 int init_async (void)
 {
-    atomic_set(&async_helper_state, HELPER_NOTALIVE);
+    /* This is early enough in init that we can write this variable without
+     * the lock. */
+    async_helper_state = HELPER_NOTALIVE;
     create_lock(async_helper_lock);
     create_event(&async_helper_event);
     return 0;
@@ -164,7 +172,10 @@ static void shim_async_helper (void * arg)
 
     goto update_status;
 
-    while (atomic_read(&async_helper_state) == HELPER_ALIVE) {
+    /* This loop should be careful to use a barrier after sleeping
+     * to ensure that the while breaks once async_helper_state changes.
+     */
+    while (async_helper_state == HELPER_ALIVE) {
         unsigned long sleep_time;
         if (next_event) {
             sleep_time = next_event->expire_time - latest_time;
@@ -178,7 +189,8 @@ static void shim_async_helper (void * arg)
         }
 
         polled = DkObjectsWaitAny(object_num + 1, local_objects, sleep_time);
-
+        barrier();
+        
         if (!polled) {
             if (next_event) {
                 debug("async event trigger at %llu\n",
@@ -199,7 +211,7 @@ static void shim_async_helper (void * arg)
             clear_event(&async_helper_event);
 update_status:
             latest_time = DkSystemTimeQuery();
-            if (atomic_read(&async_helper_state) == HELPER_NOTALIVE) {
+            if (async_helper_state == HELPER_NOTALIVE) {
                 break;
             } else {
                 lock(async_helper_lock);
@@ -265,8 +277,8 @@ update_list:
         }
     }
 
-    atomic_set(&async_helper_state, HELPER_NOTALIVE);
     lock(async_helper_lock);
+    async_helper_state = HELPER_NOTALIVE;
     async_helper_thread = NULL;
     unlock(async_helper_lock);
     put_thread(self);
@@ -275,11 +287,12 @@ update_list:
     DkThreadExit();
 }
 
+/* This should be called with the async_helper_lock held */
 int create_async_helper (void)
 {
     int ret = 0;
 
-    if (atomic_read(&async_helper_state) == HELPER_ALIVE)
+    if (async_helper_state == HELPER_ALIVE)
         return 0;
 
     enable_locking();
@@ -288,40 +301,32 @@ int create_async_helper (void)
     if (!new)
         return -ENOMEM;
 
-    lock(async_helper_lock);
-    if (atomic_read(&async_helper_state) == HELPER_ALIVE) {
-        unlock(async_helper_lock);
-        put_thread(new);
-        return 0;
-    }
-
-    async_helper_thread = new;
-    atomic_xchg(&async_helper_state, HELPER_ALIVE);
-    unlock(async_helper_lock);
-
     PAL_HANDLE handle = thread_create(shim_async_helper, new, 0);
 
     if (!handle) {
         ret = -PAL_ERRNO;
-        lock(async_helper_lock);
         async_helper_thread = NULL;
-        atomic_xchg(&async_helper_state, HELPER_NOTALIVE);
-        unlock(async_helper_lock);
+        async_helper_state = HELPER_NOTALIVE;
         put_thread(new);
         return ret;
     }
 
     new->pal_handle = handle;
+
+    /* Publish new and update the state once fully initialized */
+    async_helper_thread = new;
+    async_helper_state = HELPER_ALIVE;
+    
     return 0;
 }
 
 int terminate_async_helper (void)
 {
-    if (atomic_read(&async_helper_state) != HELPER_ALIVE)
+    if (async_helper_state != HELPER_ALIVE)
         return 0;
 
     lock(async_helper_lock);
-    atomic_xchg(&async_helper_state, HELPER_NOTALIVE);
+    async_helper_state = HELPER_NOTALIVE;
     unlock(async_helper_lock);
     set_event(&async_helper_event, 1);
     return 0;
