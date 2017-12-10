@@ -903,8 +903,15 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
         if (!(!prev || prev->addr + prev->length <= tmp->addr)) {
             struct shim_vma * tmp2;
             warn("Failure\n");
+            uint64_t last_addr = 0;
             listp_for_each_entry(tmp2, &vma_list, list) {
                 warn ("Entry: %llx..%llx (%llx)\n", tmp2->addr, tmp2->addr + tmp2->length, tmp2->length);
+                // Don't do an infinite dump if the list gets corrupted
+                if (tmp2->addr < last_addr) {
+                    warn("VMA list corruption detected.  Stopping debug print.\n");
+                    break;
+                }
+                last_addr = tmp2->addr;
             }
             warn("Prev is %p, tmp->addr = %llx, len is %llx\n", prev, tmp->addr, tmp->length);
             if (prev)
