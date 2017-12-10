@@ -101,7 +101,7 @@ def finish(result):
 CRED = '\033[91m'
 CGREEN = '\033[92m'
 CEND = '\033[0m'
-DEFAULT_TIMEOUT = 20
+DEFAULT_TIMEOUT = 30
 
 resultfile = "run_output"
 stablePass = "PASSED"
