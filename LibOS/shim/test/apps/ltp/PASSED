@@ -727,7 +727,6 @@ sendfile03,3
 sendfile03_64,1
 sendfile03_64,2
 sendfile03_64,3
-sendfile05,1
 sendfile05_64,1
 setgid01,1
 setitimer01,1
