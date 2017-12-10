@@ -16,3 +16,5 @@ waitpid02,3
 
 clock_nanosleep01,11 - Pretty prone to hanging, don't think it is a timeout
 
+sendfile05,1 - pretty prone to a segfault, perhaps an unrelated issue
+Internal memory fault at 0x8 (IP = +0x34f1a, VMID = 3902099696, TID = 1)
