@@ -22,7 +22,7 @@ do
 	do
 		rm -f OUTPUT
 		echo "ab -n $REQUESTS -c $CONCURRENCY http://$DOWNLOAD_HOST/$DOWNLOAD_FILE"
-		ab -n $REQUESTS -c $CONCURRENCY http://$DOWNLOAD_HOST/$DOWNLOAD_FILE > OUTPUT
+		ab -n $REQUESTS -c $CONCURRENCY http://$DOWNLOAD_HOST/$DOWNLOAD_FILE > OUTPUT || exit $?
 
 		sleep 5
 

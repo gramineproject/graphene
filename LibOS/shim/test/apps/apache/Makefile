@@ -1,5 +1,5 @@
 HOST ?= $(firstword $(shell ifconfig | grep 'inet addr:' | grep -v '127.0.0.1' -m 1 | cut -d: -f2))
-PORT ?= 8000
+PORT ?= 8001
 
 NPROCS := 1
 OS := $(shell uname -s)

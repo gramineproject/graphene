@@ -50,7 +50,6 @@ clock_getres01,9
 clock_getres01,10
 clock_getres01,11
 clock_getres01,12
-clock_nanosleep01,11
 clone01,1
 clone03,1
 clone04,1
@@ -343,9 +342,6 @@ pread01,1
 pread01_64,1
 pread02,1
 pread02_64,1
-preadv01,2
-preadv01,3
-preadv01,4
 preadv01_64,2
 preadv01_64,3
 preadv01_64,4
@@ -945,9 +941,6 @@ wait401,1
 wait401,2
 waitpid01,1
 waitpid01,2
-waitpid02,1
-waitpid02,2
-waitpid02,3
 waitpid05,1
 waitpid05,2
 waitpid05,3

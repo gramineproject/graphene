@@ -6,8 +6,10 @@ alarm05,40
 alarm06,16
 brk01,40
 chmod02,40
+clock_nanosleep01,40
 clone03,40
 clone05,30
+clone06,40
 dup204,40
 exit01,40
 faccessat01,80
@@ -50,6 +52,6 @@ sync01,40
 syscall01,80
 wait401,40
 waitpid03,80
-waitpid05,160
+waitpid05,240
 write03,40
 write05,40
