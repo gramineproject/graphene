@@ -213,7 +213,7 @@ static int net_cmp(int family, bool addr_any, bool port_any,
 	return 0;
 }
 
-static void print_net(int allow, int family, int op, struct sockaddr *addr,
+static void print_net(bool allow, int family, int op, struct sockaddr *addr,
 		      size_t addrlen)
 {
 	const char *allow_str = allow ? "PASSED" : "DENIED";
@@ -296,7 +296,7 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 			break;
 		default:
 #ifdef GRAPHENE_DEBUG
-			print_net(1, sk->sk_family, op, address, addrlen);
+			print_net(true, sk->sk_family, op, address, addrlen);
 #endif
 			return 0;
 	}
@@ -316,7 +316,7 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 			continue;
 
 #ifdef GRAPHENE_DEBUG
-		print_net(1, sk->sk_family, op, address, addrlen);
+		print_net(true, sk->sk_family, op, address, addrlen);
 #endif
 		return 0;
 	}
@@ -325,12 +325,12 @@ no_rules:
 	if (gi->gi_mcast_port && sk->sk_family == AF_INET &&
 	    ((struct sockaddr_in *) address)->sin_port == gi->gi_mcast_port) {
 #ifdef GRAPHENE_DEBUG
-		print_net(1, AF_INET, op, address, addrlen);
+		print_net(true, AF_INET, op, address, addrlen);
 #endif
 		return 0;
 	}
 
-	print_net(0, sk->sk_family, op, address, addrlen);
+	print_net(false, sk->sk_family, op, address, addrlen);
 	return -EPERM;
 }
 
