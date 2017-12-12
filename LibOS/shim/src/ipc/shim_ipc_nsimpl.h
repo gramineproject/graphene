@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -544,6 +544,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     // Re-acquire the head; kind of ugly
     LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
     listp_del(r, head, hlist);
+
     /* Chia-Che Tsai 10/17/17: only when r->owner is non-NULL,
      * and r->owner->vmid == cur_process.vmid, r is on the
      * owned list, otherwise it is an offered. */
@@ -551,6 +552,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
         listp_del(r, &owned_ranges, list);
     else
         listp_del(r, &offered_ranges, list);
+
     put_ipc_info(r->owner);
     free(r);
 

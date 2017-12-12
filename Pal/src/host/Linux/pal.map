@@ -11,9 +11,9 @@ PAL {
         DkThreadCreate; DkThreadDelayExecution;
         DkThreadYieldExecution; DkThreadExit; DkThreadResume;
 
-        DkSemaphoreCreate; DkNotificationEventCreate;
+        DkMutexCreate; DkNotificationEventCreate;
         DkSynchronizationEventCreate;
-        DkSemaphoreRelease;
+        DkMutexRelease;
         DkEventSet;  DkEventClear;
         DkObjectsWaitAny;
 
@@ -31,7 +31,7 @@ PAL {
 
         DkSystemTimeQuery; DkRandomBitsRead;
         DkInstructionCacheFlush;
-        DkObjectReference; DkObjectClose;
+        DkObjectClose;
         # objects checkpoint?
         # objects reload?
 

@@ -397,13 +397,13 @@ fast box, they may be made available on the lmbench web page, which is
 
 EOF
 
-echo $ECHON "Mail results [default no] $ECHOC"
+echo $ECHON "Mail results [default yes] $ECHOC"
 read MAIL
 case $MAIL in 
-    [Yy]*)	MAIL=yes
-		echo OK, results will be mailed.
+    [Nn]*)	MAIL=no
+		echo OK, no results mailed.
 		;;
-    *)		MAIL=no
+    *)		MAIL=yes
 		;;
 esac
 

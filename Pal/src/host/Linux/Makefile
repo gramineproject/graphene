@@ -13,7 +13,7 @@ host_files = libpal-Linux.a
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    semaphore mutex events process object main rtld misc ipc \
+	    mutex events process object main rtld misc ipc \
 	    exception) manifest clone-x86_64 gettimeofday-x86_64
 graphene_lib = ../../.lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
