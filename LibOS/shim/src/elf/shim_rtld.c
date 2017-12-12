@@ -1559,7 +1559,7 @@ int register_library (const char * name, unsigned long load_address)
 }
 
 int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
-                        ElfW(auxv_t) * auxp, void * stack_top)
+                        int nauxv, ElfW(auxv_t) * auxp, void * stack_top)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
@@ -1567,13 +1567,13 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     void * random_bytes = stack_top - AUXV_RANDOM_SIZE;
 
     /* check if there is enough space beteen auxp and stack_top */
-    if (((void *) &auxp[DEFAULT_AUXV_NUM]) > random_bytes)
+    if (((void *) &auxp[nauxv]) > random_bytes)
         return -ENOMEM;
 
     getrand(random_bytes, AUXV_RANDOM_SIZE);
 
-    /* number of auxiliary vectors must be the same as DEFAULT_AUXV_NUM */
-    assert(7 <= DEFAULT_AUXV_NUM);
+    /* check if there are enough axiliary vectors */
+    assert(7 <= nauxv);
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;

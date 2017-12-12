@@ -68,6 +68,7 @@ static void * old_stack_top, * old_stack, * old_stack_red;
 static const char ** new_argp;
 static int           new_argc;
 static elf_auxv_t *  new_auxp;
+static int           new_nauxv;
 static void *        new_stack_top;
 
 int init_brk_from_executable (struct shim_handle * exec);
@@ -107,7 +108,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     new_argc = 0;
     for (const char ** a = argv ; *a ; a++, new_argc++);
 
-    if ((ret = init_stack(argv, envp, &new_argp, &new_auxp,
+    if ((ret = init_stack(argv, envp, &new_argp, &new_nauxv, &new_auxp,
                           &new_stack_top)) < 0)
         return ret;
 
@@ -149,7 +150,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     debug("execve: start execution\n");
     execute_elf_object(cur_thread->exec, new_argc, new_argp,
-                       new_auxp, new_stack_top);
+                       new_nauxv, new_auxp, new_stack_top);
 
     return 0;
 }

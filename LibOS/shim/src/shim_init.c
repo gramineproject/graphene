@@ -361,7 +361,7 @@ copy_envp:
 unsigned long sys_stack_size = 0;
 
 int init_stack (const char ** argv, const char ** envp, const char *** argpp,
-                elf_auxv_t ** auxpp, void ** stack_top)
+                int * nauxvp, elf_auxv_t ** auxpp, void ** stack_top)
 {
     if (!sys_stack_size) {
         sys_stack_size = DEFAULT_SYS_STACK_SIZE;
@@ -394,6 +394,7 @@ int init_stack (const char ** argv, const char ** envp, const char *** argpp,
 
     /* populate new auxiliary vectors on the stack, do not pass
      * through the host auxiliary vectors */
+    *nauxvp = DEFAULT_AUXV_NUM;
     *auxpp = reserved_on_stack;
     *stack_top = reserved_on_stack + DEFAULT_STACK_RESERVE_SIZE;
     *argpp = argv;
@@ -764,7 +765,7 @@ restore:
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
     void * stack_top = NULL;
-    RUN_INIT(init_stack, argv, envp, &argp, &auxp, &stack_top);
+    RUN_INIT(init_stack, argv, envp, &argp, &nauxv, &auxp, &stack_top);
     RUN_INIT(init_loader);
     //RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
@@ -803,7 +804,7 @@ restore:
 
     if (cur_thread->exec)
         execute_elf_object(cur_thread->exec,
-                           argc, argp, auxp, stack_top);
+                           argc, argp, nauxv, auxp, stack_top);
 
     *return_stack = initial_stack;
     return 0;
