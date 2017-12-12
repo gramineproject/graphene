@@ -310,6 +310,14 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     debug("illegal instruction at %p\n", pc);
 
 #ifdef __x86_64__
+    /*
+     * static (hard-coded) system call interception:
+     *   if the illegal instruction is a "syscall" (0f 05), try to process
+     *   the exception as a static system call.
+     *   (1) placing register values
+     *   (2) call syscalldb
+     *   (3) setting RAX back to the exception context
+     */
     if (pc[-2] == 0x0f && pc[-1] == 0x05) {
         debug("caught a static syscall (syscall no = %d)\n", context->rax);
 
