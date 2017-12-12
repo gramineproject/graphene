@@ -773,7 +773,7 @@ static int load_enclave (struct pal_enclave * enclave,
         return -EINVAL;
     }
 
-    if (strequal_static(uri + strlen(uri) - 4, ".sig")) {
+    if (!strequal_static(uri + strlen(uri) - 4, ".sig")) {
         SGX_DBG(DBG_E, "Invalid sigstruct file URI as %s\n", cfgbuf);
         return -EINVAL;
     }
