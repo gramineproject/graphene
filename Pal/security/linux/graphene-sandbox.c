@@ -159,7 +159,7 @@ int __unix_perm(struct graphene_info *gi,
 	const char * sun_path =
 		((struct sockaddr_un *) address)->sun_path;
 
-	if (!memcmp(sun_path, gi->gi_unix, GRAPHENE_UNIX_PREFIX_SIZE)) {
+	if (!memcmp(sun_path, gi->gi_unix, sizeof(gi->gi_unix) - 1)) {
 #ifdef GRAPHENE_DEBUG
 		printk(KERN_INFO "Graphene: PID %d UNIX @%s PASSED\n",
 		       current->pid, sun_path + 1);
@@ -564,7 +564,7 @@ int set_sandbox(struct file *file,
 			gi->gi_unix[0] = '\0';
 
 			rv = copy_to_user((void *) ptmp.value, &gi->gi_unix,
-					  GRAPHENE_UNIX_PREFIX_SIZE);
+					  sizeof(gi->gi_unix));
 			if (rv) {
 				rv = -EFAULT;
 				goto err;
