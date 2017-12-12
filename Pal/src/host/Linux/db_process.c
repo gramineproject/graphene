@@ -339,7 +339,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
     /* if the current process already has a parent_process_id,
        it comes from the security loader */
     if (pal_sec.parent_process_id) {
-        /* skip readng the pal_sec part */
+        /* skip reading the pal_sec part */
         bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD,
                     (void *) &proc_args->parent_data_size,
                     sizeof(struct proc_args) -
