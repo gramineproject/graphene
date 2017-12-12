@@ -361,7 +361,7 @@ copy_envp:
 unsigned long sys_stack_size = 0;
 
 int init_stack (const char ** argv, const char ** envp, const char *** argpp,
-                int nauxv, elf_auxv_t ** auxpp, void ** stack_top)
+                elf_auxv_t ** auxpp, void ** stack_top)
 {
     if (!sys_stack_size) {
         sys_stack_size = DEFAULT_SYS_STACK_SIZE;
@@ -386,20 +386,16 @@ int init_stack (const char ** argv, const char ** envp, const char *** argpp,
         envp = initial_envp;
 
     void *reserved_on_stack = NULL;
-    size_t reserve_size = nauxv * sizeof(elf_auxv_t);
-
-    if (reserve_size < DEFAULT_STACK_RESERVE_SIZE)
-        reserve_size = DEFAULT_STACK_RESERVE_SIZE;
-
     int ret = populate_user_stack(stack, sys_stack_size,
-                                  &argv, &envp, reserve_size,
+                                  &argv, &envp, DEFAULT_STACK_RESERVE_SIZE,
                                   &reserved_on_stack);
     if (ret < 0)
         return ret;
 
-    memcpy(reserved_on_stack, *auxpp, nauxv * sizeof(elf_auxv_t));
+    /* populate new auxiliary vectors on the stack, do not pass
+     * through the host auxiliary vectors */
     *auxpp = reserved_on_stack;
-    *stack_top = reserved_on_stack + reserve_size;
+    *stack_top = reserved_on_stack + DEFAULT_STACK_RESERVE_SIZE;
     *argpp = argv;
     initial_envp = envp;
 
@@ -768,7 +764,7 @@ restore:
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
     void * stack_top = NULL;
-    RUN_INIT(init_stack, argv, envp, &argp, nauxv, &auxp, &stack_top);
+    RUN_INIT(init_stack, argv, envp, &argp, &auxp, &stack_top);
     RUN_INIT(init_loader);
     //RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);

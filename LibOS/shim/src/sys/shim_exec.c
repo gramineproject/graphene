@@ -107,8 +107,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     new_argc = 0;
     for (const char ** a = argv ; *a ; a++, new_argc++);
 
-    if ((ret = init_stack(argv, envp, &new_argp,
-                          DEFAULT_AUXV_NUM, &new_auxp, &stack_top)) < 0)
+    if ((ret = init_stack(argv, envp, &new_argp, &new_auxp, &stack_top)) < 0)
         return ret;
 
     SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
