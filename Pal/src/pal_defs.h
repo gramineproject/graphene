@@ -5,11 +5,12 @@
 #define PAL_DEFS_H
 
 /* enable caching loaded binaries for optimizing process creation */
-#ifdef LINUX
-# define CACHE_LOADED_BINARIES   1
-#else
-# define CACHE_LOADED_BINARIES   0
-#endif
+/*
+ * Chia-Che 12/7/2017:
+ *   Disable this feature for now. The implementation is unstable and
+ *   does not improve performance too much.
+ */
+#define CACHE_LOADED_BINARIES    0
 
 /* statically allocate slab manager */
 #define STATIC_SLAB              1
