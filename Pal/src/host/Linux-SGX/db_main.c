@@ -89,7 +89,8 @@ int init_child_process (PAL_HANDLE * parent_handle);
 
 static PAL_HANDLE setup_file_handle (const char * name, int fd)
 {
-    if (!strpartcmp_static(name, "file:"))
+    /* must be file:xxx */
+    if (!strstartswith_static(name, "file:"))
         return NULL;
 
     name += static_strlen("file:");

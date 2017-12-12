@@ -101,7 +101,7 @@ void _DkDebugAddMap (struct link_map * map)
 
     ElfW(Addr) text_addr = 0;
     for (ElfW(Shdr) * s = shdr ; s < shdrend ; s++)
-        if (strcmp_static(shstrtab + s->sh_name, ".text")) {
+        if (strequal_static(shstrtab + s->sh_name, ".text")) {
             text_addr = map->l_addr + s->sh_addr;
             break;
         }
@@ -120,11 +120,14 @@ void _DkDebugAddMap (struct link_map * map)
     for (ElfW(Shdr) * s = shdr ; s < shdrend ; s++) {
         if (!s->sh_name || !s->sh_addr)
             continue;
-        if (strcmp_static(shstrtab + s->sh_name, ".text"))
+        /* skip .text */
+        if (strequal_static(shstrtab + s->sh_name, ".text"))
             continue;
+        /* skip empty entry */
         if (s->sh_type == SHT_NULL)
             continue;
-        if (strpartcmp_static(shstrtab + s->sh_name, ".debug_"))
+        /* skip .debug_* */
+        if (strstartswith_static(shstrtab + s->sh_name, ".debug_"))
             continue;
 
         snprintf(ptr, BUFFER_LENGTH - (ptr - buffer),

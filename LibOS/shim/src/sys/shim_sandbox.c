@@ -82,7 +82,7 @@ static int isolate_fs (struct config_store * cfg, const char * path)
         goto root;
 
     char k[CONFIG_MAX], p[CONFIG_MAX];
-    char * tmp = strcpy_static(k, "fs.mount.other.", CONFIG_MAX);
+    char * tmp = stpncpy_static(k, "fs.mount.other.", CONFIG_MAX);
     const char * key = keybuf, * next = NULL;
 
     for (int n = 0 ; n < nkeys ; key = next, n++) {
@@ -95,17 +95,17 @@ static int isolate_fs (struct config_store * cfg, const char * path)
         bool is_chroot = false;
 
         /* Skip FS that are not chroot */
-        strcpy_static(kp, ".type", k + CONFIG_MAX - kp);
+        stpncpy_static(kp, ".type", k + CONFIG_MAX - kp);
         if ((ret = get_config(cfg, k, t, CONFIG_MAX)) <= 0)
             continue;
-        if (strpartcmp_static(t, "chroot"))
+        if (strequal_static(t, "chroot"))
             is_chroot = true;
 
-        strcpy_static(kp, ".uri", k + CONFIG_MAX - kp);
+        stpncpy_static(kp, ".uri", k + CONFIG_MAX - kp);
         if ((ulen = get_config(cfg, k, u, CONFIG_MAX)) <= 0)
             continue;
 
-        strcpy_static(kp, ".path", k + CONFIG_MAX - kp);
+        stpncpy_static(kp, ".path", k + CONFIG_MAX - kp);
         if ((plen = get_config(cfg, k, p, CONFIG_MAX)) <= 0)
             continue;
 
@@ -127,9 +127,9 @@ remove:
                     continue;
                 }
                 set_config(cfg, k, NULL);
-                strcpy_static(kp, ".type", k + CONFIG_MAX - kp);
+                stpncpy_static(kp, ".type", k + CONFIG_MAX - kp);
                 set_config(cfg, k, NULL);
-                strcpy_static(kp, ".uri", k + CONFIG_MAX - kp);
+                stpncpy_static(kp, ".uri", k + CONFIG_MAX - kp);
                 set_config(cfg, k, NULL);
                 debug("deleted file rule: %s => %s\n", p, u);
             }
@@ -148,7 +148,7 @@ remove:
 
             append_uri(u, ulen, dpath + plen, dpath_len - plen);
             set_config(cfg, k, dpath);
-            strcpy_static(kp, "uri", k + CONFIG_MAX - kp);
+            stpncpy_static(kp, "uri", k + CONFIG_MAX - kp);
             set_config(cfg, k, u);
             root_created = true;
             debug("added file rule: %s => %s\n", dpath, u);
@@ -160,7 +160,7 @@ root:
         int prefix_len = ret;
 
         if ((ret = get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX)) > 0 &&
-            strcmp_static(t, "chroot")) {
+            strequal_static(t, "chroot")) {
             /* remove the root FS */
             set_config(cfg, "fs.mount.root.uri",  NULL);
             set_config(cfg, "fs.mount.root.type", NULL);

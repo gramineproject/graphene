@@ -1,6 +1,7 @@
 #ifndef _LINUX_GRAPHENE_H
 #define _LINUX_GRAPHENE_H
 
+#include <asm/types.h>
 #include <linux/ioctl.h>
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -15,6 +16,7 @@
 
 #define GRM_SET_SANDBOX		_IOW('k', 16, void *)
 
+/* policy types (up to 32bits) */
 #define GRAPHENE_UNIX_PREFIX	0000
 #define GRAPHENE_MCAST_PORT	0001
 #define GRAPHENE_FS_PATH	0002
@@ -28,8 +30,10 @@
 
 #define GRAPHENE_NET_BIND	0100
 
+typedef __u32 graphene_policy_type_t;
+
 struct graphene_user_policy {
-	int			type;
+	graphene_policy_type_t	type;
 	const void *		value;
 };
 
@@ -48,7 +52,7 @@ struct graphene_net_rule {
 };
 
 struct graphene_policies {
-	int				npolicies;
+	size_t				npolicies;
 	struct graphene_user_policy	policies[];
 };
 
@@ -67,8 +71,8 @@ struct qstr;
 struct graphene_path {
 	struct list_head	list;
 	struct filename *	path;
-	int			path_len;
-	int			type;
+	size_t			path_len;
+	graphene_policy_type_t	type;
 };
 
 #define ADDR_ANY		0x1
@@ -106,10 +110,10 @@ int check_open_path(struct graphene_info *gi, const char *path, int flags);
 int check_stat_path(struct graphene_info *gi, const char *path);
 
 int check_bind_addr(struct graphene_info *gi, struct socket *sock,
-		     struct sockaddr *addr, int addrlen);
+		     struct sockaddr *addr, size_t addrlen);
 
 int check_connect_addr(struct graphene_info *gi, struct socket *sock,
-		        struct sockaddr *addr, int addrlen);
+		        struct sockaddr *addr, size_t addrlen);
 
 int set_sandbox(struct file *file,
 		const struct graphene_policies __user *gpolicies);

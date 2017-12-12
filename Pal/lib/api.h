@@ -66,17 +66,23 @@ void *calloc(size_t nmemb, size_t size);
 /* force failure if str is not a static string */
 #define force_static(str)   ("" str "")
 
-/* check if the var is exactly the same as the static string */
-#define strcmp_static(var, str) \
+/*
+ * Chia-Che Dec 12, 2017:
+ *   renaming the following three macros because the original
+ *   naming is really confusing.
+ */
+
+/* check if equal with the static string */
+#define strequal_static(var, str) \
     (!memcmp((var), force_static(str), static_strlen(force_static(str)) + 1))
 
-/* check if the var starts with the static string */
-#define strpartcmp_static(var, str) \
+/* check if start with the static string (0 = equal) */
+#define strstartswith_static(var, str) \
     (!memcmp((var), force_static(str), static_strlen(force_static(str))))
 
-/* copy static string and return the address of the null end (null if the dest
- * is not large enough).*/
-#define strcpy_static(var, str, max) \
+/* copy static string and return ia pointer to its end
+ * (null if the dest string is not large enough).*/
+#define stpncpy_static(var, str, max) \
     (static_strlen(force_static(str)) + 1 > max ? NULL : \
      memcpy((var), force_static(str), static_strlen(force_static(str)) + 1) + \
      static_strlen(force_static(str)))

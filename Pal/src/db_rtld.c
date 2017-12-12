@@ -610,7 +610,7 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
     if (ret < 0)
         return;
 
-    strcpy_static(uri + ret, ".cached", URI_MAX - ret);
+    stpncpy_static(uri + ret, ".cached", URI_MAX - ret);
     PAL_HANDLE cached_file;
 
     while (1) {
@@ -734,7 +734,7 @@ struct link_map * check_cached_elf_object (PAL_HANDLE handle)
     if (ret < 0)
         return NULL;
 
-    strcpy_static(uri + ret, ".cached", URI_MAX - ret);
+    stpncpy_static(uri + ret, ".cached", URI_MAX - ret);
     PAL_HANDLE cached_file;
     ret = _DkStreamOpen(&cached_file, uri, PAL_ACCESS_RDWR, 0, 0, 0);
     if (ret < 0)
@@ -1213,7 +1213,8 @@ static int relocate_elf_object (struct link_map * l)
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 {
 #ifdef DEBUG
-    if (!strpartcmp_static(uri, "file:"))
+    /* only accept file:xxx */
+    if (!strstartswith_static(uri, "file:"))
         return;
 
     const char * realname = uri + static_strlen("file:");

@@ -184,12 +184,12 @@ static void set_debug_type (void)
 
     PAL_HANDLE handle = NULL;
 
-    if (strcmp_static(cfgbuf, "inline")) {
+    if (strequal_static(cfgbuf, "inline")) {
         ret = _DkStreamOpen(&handle, "dev:tty", PAL_ACCESS_RDWR, 0, 0, 0);
         goto out;
     }
 
-    if (strcmp_static(cfgbuf, "file")) {
+    if (strequal_static(cfgbuf, "file")) {
         ret = get_config(pal_state.root_config, "loader.debug_file",
                          cfgbuf, CONFIG_MAX);
         if (ret <= 0)
@@ -202,7 +202,7 @@ static void set_debug_type (void)
         goto out;
     }
 
-    if (strcmp_static(cfgbuf, "none"))
+    if (strequal_static(cfgbuf, "none"))
         goto out;
 
     init_fail(PAL_ERROR_INVAL, "unknown debug type");
@@ -285,7 +285,7 @@ void pal_main (
     /* try open "<execname>.manifest" */
     ret = get_base_name(exec_uri, uri_buf, URI_MAX);
 
-    strcpy_static(uri_buf + ret, ".manifest", URI_MAX - ret);
+    stpncpy_static(uri_buf + ret, ".manifest", URI_MAX - ret);
     ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!ret)
         goto has_manifest;
@@ -364,11 +364,11 @@ has_manifest:
         size_t exec_strlen = manifest_strlen - 9;
         int success = 0;
         // Try .manifest
-        if (strcmp_static(&manifest_uri[exec_strlen], ".manifest")) {
+        if (strequal_static(&manifest_uri[exec_strlen], ".manifest")) {
             success = 1;
         } else {
             exec_strlen -= 4;
-            if (strcmp_static(&manifest_uri[exec_strlen], ".manifest.sgx")) {
+            if (strequal_static(&manifest_uri[exec_strlen], ".manifest.sgx")) {
                 success = 1;
             }
         }

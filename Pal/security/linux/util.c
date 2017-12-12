@@ -9,17 +9,11 @@
 #include <linux/kallsyms.h>
 #include <linux/version.h>
 
-int norm_path (const char * path, char * buf, int size)
+size_t norm_path (const char * path, char * buf, size_t size)
 {
-    int head = 0, offset = 0;
+    off_t head = 0, offset = 0;
     char c, c1;
     const char * p = path;
-
-    while (head) { /* find the real head, not interrupted by dot-dot */
-        if (head > 1 && buf[head - 1] == '.' && buf[head - 2] == '.')
-            break;
-        head--;
-    }
 
     for (c = '/' ; c ; c = c1, p++) {
         c1 = *p;

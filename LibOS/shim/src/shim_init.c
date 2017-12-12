@@ -153,7 +153,7 @@ long int glibc_option (const char * opt)
 {
     char cfg[CONFIG_MAX];
 
-    if (strcmp_static(opt, "heap_size")) {
+    if (strequal_static(opt, "heap_size")) {
         int ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
         if (ret < 0) {
             debug("no glibc option: %s (err=%d)\n", opt, ret);
@@ -412,7 +412,7 @@ int read_environs (const char ** envp)
     for (const char ** e = envp ; *e ; e++) {
         switch ((*e)[0]) {
             case 'L': {
-                if (strpartcmp_static(*e, "LD_LIBRARY_PATH=")) {
+                if (strstartswith_static(*e, "LD_LIBRARY_PATH=")) {
                     const char * s = *e + static_strlen("LD_LIBRARY_PATH=");
                     int npaths = 0;
                     for (const char * tmp = s ; *tmp ; tmp++)
@@ -544,7 +544,7 @@ static void set_profile_enabled (const char ** envp)
 {
     const char ** p;
     for (p = envp ; (*p) ; p++)
-        if (strpartcmp_static(*p, "PROFILE_ENABLED="))
+        if (strstartswith_static(*p, "PROFILE_ENABLED="))
             break;
     if (!(*p))
         return;
@@ -724,7 +724,7 @@ int shim_init (int argc, void * args, void ** return_stack)
     debug("shim loaded at %p, ready to initialize\n", &__load_address);
 
     if (argc && argv[0][0] == '-') {
-        if (strcmp_static(argv[0], "-resume") && argc >= 2) {
+        if (strequal_static(argv[0], "-resume") && argc >= 2) {
             const char * filename = *(argv + 1);
             argc -= 2;
             argv += 2;
@@ -941,7 +941,7 @@ static int open_pal_handle (const char * uri, void * obj)
 {
     PAL_HANDLE hdl;
 
-    if (strpartcmp_static(uri, "dev:"))
+    if (strstartswith_static(uri, "dev:"))
         hdl = DkStreamOpen(uri, 0,
                            PAL_SHARE_OWNER_X|PAL_SHARE_OWNER_W|
                            PAL_SHARE_OWNER_R,

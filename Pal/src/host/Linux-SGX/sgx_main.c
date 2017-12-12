@@ -83,7 +83,8 @@ static unsigned long parse_int (const char * str)
 
 static const char * resolve_uri (const char * uri, const char ** errstring)
 {
-    if (!strpartcmp_static(uri, "file:")) {
+    /* must be file:xxx */
+    if (!strstartswith_static(uri, "file:")) {
         *errstring = "Invalid URI";
         return NULL;
     }
@@ -414,7 +415,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
         void * data = NULL;
 
-        if (strcmp_static(areas[i].desc, "tls")) {
+        if (strequal_static(areas[i].desc, "tls")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANON|MAP_PRIVATE, -1, 0);
@@ -436,7 +437,7 @@ int initialize_enclave (struct pal_enclave * enclave)
             goto add_pages;
         }
 
-        if (strcmp_static(areas[i].desc, "tcs")) {
+        if (strequal_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANON|MAP_PRIVATE, -1, 0);
@@ -714,12 +715,12 @@ static int load_enclave (struct pal_enclave * enclave,
 
 #ifdef DEBUG
     for (const char ** e = environments ; *e ; e++) {
-        if (strcmp_static(*e, "IN_GDB=1")) {
+        if (strequal_static(*e, "IN_GDB=1")) {
             SGX_DBG(DBG_I, "being GDB'ed!!!\n");
             pal_sec->in_gdb = true;
         }
 
-        if (strcmp_static(*e, "LD_PRELOAD="))
+        if (strstartswith_static(*e, "LD_PRELOAD="))
             *e = "\0";
     }
 #endif
@@ -772,7 +773,7 @@ static int load_enclave (struct pal_enclave * enclave,
         return -EINVAL;
     }
 
-    if (!strcmp_static(uri + strlen(uri) - 4, ".sig")) {
+    if (strequal_static(uri + strlen(uri) - 4, ".sig")) {
         SGX_DBG(DBG_E, "Invalid sigstruct file URI as %s\n", cfgbuf);
         return -EINVAL;
     }
@@ -878,7 +879,7 @@ int main (int argc, const char ** argv, const char ** envp)
         if (!argc)
             goto usage;
 
-        if (strcmp_static(argv[0], "file:")) {
+        if (strequal_static(argv[0], "file:")) {
             exec_uri = alloc_concat(argv[0], -1, NULL, -1);
         } else {
             exec_uri = alloc_concat("file:", -1, argv[0], -1);
@@ -903,11 +904,13 @@ int main (int argc, const char ** argv, const char ** envp)
     if (len < 0)
         return len;
 
-    if (strcmp_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
-        strcpy_static(sgx_manifest + len, ".sgx", URI_MAX - len);
-    } else if (!strcmp_static(sgx_manifest + len - strlen(".manifest.sgx"),
-                              ".manifest.sgx")) {
-        strcpy_static(sgx_manifest + len, ".manifest.sgx", URI_MAX - len);
+    if (strequal_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
+        stpncpy_static(sgx_manifest + len, ".sgx", URI_MAX - len);
+    } else if (strequal_static(sgx_manifest + len - strlen(".manifest.sgx"),
+                               ".manifest.sgx")) {
+        /* do nothing */
+    } else {
+        stpncpy_static(sgx_manifest + len, ".manifest.sgx", URI_MAX - len);
     }
 
     if (memcmp(filebuf, "\177ELF", 4)) {

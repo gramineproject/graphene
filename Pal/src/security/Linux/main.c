@@ -23,6 +23,7 @@
 #include "internal.h"
 #include "graphene-sandbox.h"
 
+#undef PAL_LOADER
 #define PAL_LOADER XSTRINGIFY(RUNTIME_DIR) "/" "libpal-Linux.so"
 
 #define PRESET_PAGESIZE  (4096UL)

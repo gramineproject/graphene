@@ -137,7 +137,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         return uri_len;
 
     /* Normalize the uri */
-    if (!strpartcmp_static(uri, "file:")) {
+    if (!strstartswith_static(uri, "file:")) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
         return -PAL_ERROR_INVAL;
     }
@@ -408,8 +408,8 @@ static int init_trusted_file (const char * key, const char * uri)
     char cskey[URI_MAX], * tmp;
     char checksum[URI_MAX];
     char normpath[URI_MAX];
-    
-    tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
+
+    tmp = stpncpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
     int len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
@@ -417,7 +417,7 @@ static int init_trusted_file (const char * key, const char * uri)
         return 0;
 
     /* Normalize the uri */
-    if (!strpartcmp_static(uri, "file:")) {
+    if (!strstartswith_static(uri, "file:")) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);
         return -PAL_ERROR_INVAL;
     }
@@ -476,7 +476,7 @@ int init_trusted_files (void)
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
-        tmp = strcpy_static(key, "sgx.trusted_files.", CONFIG_MAX);
+        tmp = stpncpy_static(key, "sgx.trusted_files.", CONFIG_MAX);
 
         for (int i = 0 ; i < nuris ; i++) {
             len = strlen(k);
@@ -505,7 +505,7 @@ int init_trusted_files (void)
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
-        tmp = strcpy_static(key, "sgx.allowed_files.", CONFIG_MAX);
+        tmp = stpncpy_static(key, "sgx.allowed_files.", CONFIG_MAX);
 
         for (int i = 0 ; i < nuris ; i++) {
             len = strlen(k);
@@ -531,8 +531,8 @@ int init_trusted_children (void)
     char key[CONFIG_MAX], mrkey[CONFIG_MAX];
     char uri[CONFIG_MAX], mrenclave[CONFIG_MAX];
 
-    char * tmp1 = strcpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
-    char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
+    char * tmp1 = stpncpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
+    char * tmp2 = stpncpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
 
     cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
                                               "sgx.trusted_mrenclave"));

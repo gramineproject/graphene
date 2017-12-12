@@ -39,7 +39,7 @@ long grm_sys_open (struct graphene_info *gi,
 	struct filename *tmp;
 	struct file *f;
 	char *kname;
-	int fd, len;
+	int fd, len; /* len store the result of strncpy_from_user */
 
 	tmp = __getname();
 	if (unlikely(!tmp))
@@ -82,7 +82,7 @@ long grm_sys_stat (struct graphene_info *gi,
 	char *kname;
 	struct kstat stat;
 	struct stat stattmp;
-	int len, error;
+	int len, error; /* len stores the result of strncpy_from_user */
 
 	tmp = __getname();
 	if (unlikely(!tmp))
@@ -135,7 +135,7 @@ long grm_sys_rmdir (struct graphene_info *gi, const char __user *filename)
 }
 
 long grm_sys_bind (struct graphene_info *gi,
-		   int sockfd, struct sockaddr __user *addr, int addrlen)
+		   int sockfd, struct sockaddr __user *addr, size_t addrlen)
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
@@ -168,7 +168,7 @@ long grm_sys_bind (struct graphene_info *gi,
 }
 
 long grm_sys_connect (struct graphene_info *gi,
-		      int sockfd, struct sockaddr __user *addr, int addrlen)
+		      int sockfd, struct sockaddr __user *addr, size_t addrlen)
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
@@ -207,7 +207,7 @@ long grm_sys_execve (struct graphene_info *gi,
 {
 	struct file *exe_file = get_task_exe_file(current);
 	struct filename *tmp, *new;
-	int len = 0;
+	size_t len = 0;
 	const char *path;
 
 	tmp = __getname();

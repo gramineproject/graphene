@@ -31,7 +31,7 @@
 
 static inline int is_file_uri (const char * uri)
 {
-    return strpartcmp_static(uri, "file:");
+    return strstartswith_static(uri, "file:");
 }
 
 static inline const char * file_uri_to_path (const char * uri, int len)
@@ -124,13 +124,13 @@ int get_fs_paths (struct config_store * config, const char *** paths)
     char key[CONFIG_MAX], * k = keys, * n;
     char * tmp;
 
-    tmp = strcpy_static(key, "fs.mount.", CONFIG_MAX);
+    tmp = stpncpy_static(key, "fs.mount.", CONFIG_MAX);
 
     for (int i = 0 ; i < nkeys ; i++) {
         for (n = k ; *n ; n++);
         int len = n - k;
         memcpy(tmp, k, len);
-        strcpy_static(tmp + len, ".uri", (key + CONFIG_MAX) - (tmp + len));
+        stpncpy_static(tmp + len, ".uri", (key + CONFIG_MAX) - (tmp + len));
 
         const char * path = __get_path(config, key);
         if (path)
@@ -173,13 +173,13 @@ int get_net_rules (struct config_store * config,
                 continue;
             k = binds;
             nadded = nbinds;
-            tmp = strcpy_static(key, "net.allow_bind.", CONFIG_MAX);
+            tmp = stpncpy_static(key, "net.allow_bind.", CONFIG_MAX);
         } else {
             if (!npeers)
                 continue;
             k = peers;
             nadded = npeers;
-            tmp = strcpy_static(key, "net.allow_peer.", CONFIG_MAX);
+            tmp = stpncpy_static(key, "net.allow_peer.", CONFIG_MAX);
         }
 
         for (int i = 0 ; i < nadded ; i++) {

@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 
-int norm_path (const char * path, char * buf, int size);
+size_t norm_path (const char * path, char * buf, size_t size);
 
 static inline void
 init_filename(struct filename *name)

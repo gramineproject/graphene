@@ -468,7 +468,7 @@ static int set_graphene_task (const char * uri, int flags)
 
     struct graphene_user_policy policies[5], * p = policies;
 
-    if (strpartcmp_static(uri, "file:")) {
+    if (strstartswith_static(uri, "file:")) {
         p->type  = GRAPHENE_FS_PATH | GRAPHENE_FS_READ;
         p->value = &uri[5];
         p++;

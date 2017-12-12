@@ -67,13 +67,13 @@ static int chroot_mount (const char * uri, const char * root,
 {
     enum shim_file_type type;
 
-    if (strpartcmp_static(uri, "file:")) {
+    if (strstartswith_static(uri, "file:")) {
         type = FILE_UNKNOWN;
-        uri += 5;
-    } else if (strpartcmp_static(uri, "dev:")) {
-        type = strpartcmp_static(uri + static_strlen("dev"), "tty") ?
-               FILE_DEV : FILE_TTY;
-        uri += 4;
+        uri += static_strlen("file:");
+    } else if (strstartswith_static(uri, "dev:")) {
+        type = strstartswith_static(uri + static_strlen("dev"), "tty") ?
+               FILE_TTY : FILE_DEV;
+        uri += static_strlen("dev:");
     } else
         return -EINVAL;
 
@@ -110,16 +110,16 @@ static inline int concat_uri (char * buffer, int size, int type,
     switch (type) {
         case FILE_UNKNOWN:
         case FILE_REGULAR:
-            tmp = strcpy_static(buffer, "file:", size);
+            tmp = stpncpy_static(buffer, "file:", size);
             break;
 
         case FILE_DIR:
-            tmp = strcpy_static(buffer, "dir:", size);
+            tmp = stpncpy_static(buffer, "dir:", size);
             break;
 
         case FILE_DEV:
         case FILE_TTY:
-            tmp = strcpy_static(buffer, "dev:", size);
+            tmp = stpncpy_static(buffer, "dev:", size);
             break;
 
         default:
@@ -967,7 +967,7 @@ static int chroot_readdir (struct shim_dentry * dent,
 
     chroot_update_ino(dent);
 
-    assert(strpartcmp_static(qstrgetstr(&data->host_uri), "dir:"));
+    assert(strstartswith_static(qstrgetstr(&data->host_uri), "dir:"));
 
     PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&data->host_uri),
                                       PAL_ACCESS_RDONLY, 0, 0, 0);

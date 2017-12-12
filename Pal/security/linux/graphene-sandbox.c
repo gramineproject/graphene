@@ -73,8 +73,8 @@ void put_graphene_info(struct graphene_info *info)
 }
 
 static int check_path(struct graphene_path *gp,
-		      const char *path, int len, u32 mask,
-		      int is_recursive)
+		      const char *path, size_t len, u32 mask,
+		      bool is_recursive)
 {
 	if (unlikely(!gp->path_len)) {
 		if (path[0] != '/')
@@ -112,7 +112,7 @@ static int __common_file_perm(struct graphene_info *gi,
 			      const char *path, u32 mask)
 {
 	struct graphene_path *p;
-	int len = strlen(path);
+	size_t len = strlen(path);
 	int rv = 0;
 
 	list_for_each_entry(p, &gi->gi_paths, list) {
@@ -154,7 +154,7 @@ int check_stat_path(struct graphene_info *gi, const char *path)
 }
 
 int __unix_perm(struct graphene_info *gi,
-		struct sockaddr *address, int addrlen)
+		struct sockaddr *address, size_t addrlen)
 {
 	const char * sun_path =
 		((struct sockaddr_un *) address)->sun_path;
@@ -174,7 +174,7 @@ int __unix_perm(struct graphene_info *gi,
 
 static int net_cmp(int family, bool addr_any, bool port_any,
 		   struct graphene_net_addr *ga,
-		   struct sockaddr *addr, int addrlen)
+		   struct sockaddr *addr, size_t addrlen)
 {
 	switch(family) {
 	case AF_INET: {
@@ -214,7 +214,7 @@ static int net_cmp(int family, bool addr_any, bool port_any,
 }
 
 static void print_net(int allow, int family, int op, struct sockaddr *addr,
-		      int addrlen)
+		      size_t addrlen)
 {
 	const char *allow_str = allow ? "PASSED" : "DENIED";
 	const char *op_str = "UNKNOWN OP";
@@ -274,7 +274,7 @@ static void print_net(int allow, int family, int op, struct sockaddr *addr,
  */
 static
 int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
-		      struct sockaddr *address, int addrlen)
+		      struct sockaddr *address, size_t addrlen)
 {
 	struct sock *sk = sock->sk;
 	struct list_head *head;
@@ -336,7 +336,7 @@ no_rules:
 
 int check_bind_addr(struct graphene_info *gi,
 		    struct socket *sock,
-		    struct sockaddr *address, int addrlen)
+		    struct sockaddr *address, size_t addrlen)
 {
 	if (!sock || !sock->sk)
 		return 0;
@@ -353,7 +353,7 @@ int check_bind_addr(struct graphene_info *gi,
 
 int check_connect_addr(struct graphene_info *gi,
 		       struct socket *sock,
-		       struct sockaddr *address, int addrlen)
+		       struct sockaddr *address, size_t addrlen)
 {
 	if (!sock || !sock->sk)
 		return 0;
@@ -371,7 +371,7 @@ int check_connect_addr(struct graphene_info *gi,
 
 int check_sendmsg_addr(struct graphene_info *gi,
 		       struct socket *sock,
-		       struct msghdr *msg, int size)
+		       struct msghdr *msg, size_t size)
 {
 	if (!sock || !sock->sk || sock->sk->sk_family == PF_UNIX)
 		return 0;
@@ -389,7 +389,7 @@ int check_sendmsg_addr(struct graphene_info *gi,
 
 int check_recvmsg_addr(struct graphene_info *gi,
 		       struct socket *sock,
-		       struct msghdr *msg, int size, int flags)
+		       struct msghdr *msg, size_t size, int flags)
 {
 	if (!sock || !sock->sk || sock->sk->sk_family == PF_UNIX)
 		return 0;
@@ -406,7 +406,7 @@ static void print_net_rule(const char *fmt, struct graphene_net *n)
 #define ADDR_STR_MAX	128
 
 	char str[ADDR_STR_MAX];
-	int len = 0;
+	size_t len = 0;
 
 	if (n->flags & ADDR_ANY) {
 		str[len++] = 'A';
@@ -504,7 +504,7 @@ int set_sandbox(struct file *file,
 		const struct graphene_policies __user *gpolicies)
 {
 	const struct graphene_user_policy __user *policies;
-	int npolicies;
+	size_t npolicies;
 	struct graphene_info *gi;
 	struct graphene_user_policy ptmp;
 	struct graphene_path *p;
@@ -513,7 +513,7 @@ int set_sandbox(struct file *file,
 	int rv, i;
 
 	policies = gpolicies->policies;
-	rv = copy_from_user(&npolicies, &gpolicies->npolicies, sizeof(int));
+	rv = copy_from_user(&npolicies, &gpolicies->npolicies, sizeof(size_t));
 	if (rv)
 		return -EFAULT;
 
@@ -721,7 +721,7 @@ out:
 
 #if 0
 static int do_close_sock(struct graphene_info *gi, struct socket *sock,
-			 int close_unix)
+			 bool close_unix)
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_storage address;
@@ -758,7 +758,7 @@ static int do_close_sock(struct graphene_info *gi, struct socket *sock,
 }
 
 static int do_close_fds(struct graphene_info *gi, struct files_struct *files,
-			int close_unix)
+			bool close_unix)
 {
 	struct fdtable *fdt;
 	struct filename *tmp;
@@ -940,7 +940,7 @@ static int update_sandbox(struct file *file, struct graphene_info *new)
 	struct graphene_info *gi = (void *) file->private_data;
 	struct graphene_path *p;
 	struct graphene_net *n1, *n2;
-	int close_unix = 0;
+	bool close_unix = false;
 
 	list_for_each_entry(p, &new->gi_paths, list) {
 		u32 mask = 0;

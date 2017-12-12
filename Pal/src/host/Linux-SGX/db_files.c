@@ -357,7 +357,7 @@ static int file_getname (PAL_HANDLE handle, char * buffer, int count)
         return 0;
 
     int len = strlen(handle->file.realpath);
-    char * tmp = strcpy_static(buffer, "file:", count);
+    char * tmp = stpncpy_static(buffer, "file:", count);
 
     if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;
@@ -547,7 +547,7 @@ static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
         return 0;
 
     int len = strlen(handle->dir.realpath);
-    char * tmp = strcpy_static(buffer, "dir:", count);
+    char * tmp = stpncpy_static(buffer, "dir:", count);
 
     if (!tmp || buffer + count < tmp + len + 1)
         return -PAL_ERROR_TOOLONG;

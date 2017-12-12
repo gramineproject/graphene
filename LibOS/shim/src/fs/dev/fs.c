@@ -152,7 +152,7 @@ static int dev_random_hstat (struct shim_handle * hdl, struct stat * stat)
 
 static int search_dev_driver (const char * name, struct shim_dev_ops * ops)
 {
-    if (strcmp_static(name, "null") || strcmp_static(name, "tty")) {
+    if (strequal_static(name, "null") || strequal_static(name, "tty")) {
         if (ops)
             ops->read   = &dev_null_read;
 null_dev:
@@ -166,13 +166,13 @@ null_dev:
         return 0;
     }
 
-    if (strcmp_static(name, "zero")) {
+    if (strequal_static(name, "zero")) {
         if (ops)
             ops->read   = &dev_zero_read;
         goto null_dev;
     }
 
-    if (strcmp_static(name, "random")) {
+    if (strequal_static(name, "random")) {
         if (ops)
             ops->read   = &dev_random_read;
 random_dev:
@@ -184,14 +184,14 @@ random_dev:
         return 0;
     }
 
-    if (strcmp_static(name, "urandom")) {
+    if (strequal_static(name, "urandom")) {
         if (ops)
             ops->read   = &dev_urandom_read;
         goto random_dev;
     }
 
-    if (strcmp_static(name, "stdin") || strcmp_static(name, "stdout") ||
-        strcmp_static(name, "stderr"))
+    if (strequal_static(name, "stdin") || strequal_static(name, "stdout") ||
+        strequal_static(name, "stderr"))
         return -EISLINK;
 
     return -ENOENT;
@@ -427,18 +427,18 @@ static int dev_follow_link (struct shim_dentry * dent, struct shim_qstr * link)
 {
     const char * name = qstrgetstr(&dent->rel_path);
 
-    if (strcmp_static(name, "stdin")) {
+    if (strequal_static(name, "stdin")) {
         qstrsetstr(link, "/proc/self/0", static_strlen("/proc/self/0"));
         return 0;
-    } else if (strcmp_static(name, "stdout")) {
+    } else if (strequal_static(name, "stdout")) {
         qstrsetstr(link, "/proc/self/1", static_strlen("/proc/self/1"));
         return 0;
-    } else if (strcmp_static(name, "stderr")) {
+    } else if (strequal_static(name, "stderr")) {
         qstrsetstr(link, "/proc/self/2", static_strlen("/proc/self/2"));
         return 0;
     }
 
-    if (strcmp_static(name, "null") || strcmp_static(name, "zero"))
+    if (strequal_static(name, "null") || strequal_static(name, "zero"))
         return -ENOTLINK;
 
     return -ENOENT;

@@ -528,10 +528,10 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
     char uri_buf[PAL_SOCKADDR_SIZE];
     memcpy(uri_buf, uri, uri_len);
 
-    if (strpartcmp_static(type, "tcp.srv:"))
+    if (strstartswith_static(type, "tcp.srv:"))
         return tcp_listen(handle, uri_buf, options);
 
-    if (strpartcmp_static(type, "tcp:"))
+    if (strstartwith_static(type, "tcp:"))
         return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -736,10 +736,10 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     memcpy(buf, uri, len + 1);
     options &= PAL_OPTION_MASK;
 
-    if (!strpartcmp_static(type, "udp.srv:"))
+    if (strstartswith_static(type, "udp.srv:"))
         return udp_bind(hdl, buf, options);
 
-    if (!strpartcmp_static(type, "udp:"))
+    if (strstartswith_static(type, "udp:"))
         return udp_connect(hdl, buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -818,7 +818,7 @@ static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
-    char * tmp = strcpy_static(addr, "udp:", addrlen);
+    char * tmp = stpncpy_static(addr, "udp:", addrlen);
     if (!tmp)
         return -PAL_ERROR_OVERFLOW;
 
@@ -878,7 +878,8 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (strpartcmp_static(addr, "udp:"))
+    /* must be udp:xxx */
+    if (!strstartswith_static(addr, "udp:"))
         return -PAL_ERROR_INVAL;
 
     addr += static_strlen("udp:");

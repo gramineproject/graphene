@@ -47,7 +47,7 @@ typedef __kernel_pid_t pid_t;
 # include <linux/msg.h>
 #endif
 
-static int pipe_path (int pipeid, char * path, int len)
+static ssize_t pipe_path (int pipeid, char * path, size_t len)
 {
     char * tmp = path;
     int ret = 0;
@@ -56,13 +56,20 @@ static int pipe_path (int pipeid, char * path, int len)
     memset(path, 0, len);
 
     if (pal_sec.pipe_prefix[1]) {
-        tmp = memcpy(path, pal_sec.pipe_prefix, GRAPHENE_UNIX_PREFIX_SIZE)
-              + GRAPHENE_UNIX_PREFIX_SIZE;
+        if (GRAPHENE_UNIX_PREFIX_SIZE < len) {
+            memcpy(path, pal_sec.pipe_prefix, GRAPHENE_UNIX_PREFIX_SIZE);
+            tmp = path + GRAPHENE_UNIX_PREFIX_SIZE;
+        } else {
+            tmp = NULL;
+        }
     } else {
-        tmp = strcpy_static(path, "@/graphene/00000000/", len);
-        path[0] = '\0';
+        tmp = stpncpy_static(path, "@/graphene/00000000/", len);
     }
 
+    if (!tmp)
+        return -PAL_ERROR_TOOLONG;
+
+    path[0] = '\0';
     ret = snprintf(tmp, path + len - tmp, "%08x", pipeid);
 
     return ret < 0 ? ret : tmp + ret - path;
@@ -311,7 +318,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 {
     options &= PAL_OPTION_MASK;
 
-    if (strpartcmp_static(type, "pipe:") && !*uri)
+    if (strstartswith_static(type, "pipe:") && !*uri)
         return pipe_private(handle, options);
 
     char * endptr;
@@ -320,10 +327,10 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
     if (*endptr)
         return -PAL_ERROR_INVAL;
 
-    if (strpartcmp_static(type, "pipe.srv:"))
+    if (strstartswith_static(type, "pipe.srv:"))
         return pipe_listen(handle, pipeid, options);
 
-    if (strpartcmp_static(type, "pipe:"))
+    if (strstartswith_static(type, "pipe:"))
         return pipe_connect(handle, pipeid, options);
 
     return -PAL_ERROR_INVAL;
