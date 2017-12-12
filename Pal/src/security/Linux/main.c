@@ -497,9 +497,7 @@ void do_main (void * args)
         for (const char ** env = envp ; *env ; env++) {
             /* check if "SANDBOX=1" is specified in the environment variables */
             const char * e = *env;
-            if (e[0] == 'S' && e[1] == 'A' && e[2] == 'N' && e[3] == 'D' &&
-                e[4] == 'B' && e[5] == 'O' && e[6] == 'X' && e[7] == '=' &&
-                e[8] == '1' && e[9] == 0) {
+            if (strequal_static(e, "SANDBOX=1")) {
                 do_sandbox = true;
                 break;
             }
