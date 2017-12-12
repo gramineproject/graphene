@@ -97,7 +97,8 @@ isdef:
 isundef:
 #ifdef DEBUG
         mov %rax, %rdi
-        call debug_unsupp
+        movq debug_unsupp@GOTPCREL(%rip), %rbx
+        call *%rbx
 #endif
         movq $-38, %rax
 

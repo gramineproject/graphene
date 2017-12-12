@@ -1565,13 +1565,15 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     assert(exec_map);
 
     void * random_bytes = stack_top - AUXV_RANDOM_SIZE;
-    getrand(random_bytes, AUXV_RANDOM_SIZE);
 
-    /* check if there is enough space on the stack */
-    if (((void *) &auxp[7]) > stack_top)
+    /* check if there is enough space beteen auxp and stack_top */
+    if (((void *) &auxp[DEFAULT_AUXV_NUM]) > random_bytes)
         return -ENOMEM;
 
+    getrand(random_bytes, AUXV_RANDOM_SIZE);
+
     /* number of auxiliary vectors must be the same as DEFAULT_AUXV_NUM */
+    assert(7 <= DEFAULT_AUXV_NUM);
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;

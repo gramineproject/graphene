@@ -16,9 +16,9 @@
 /*
  * Default size on stack reserved for auxilary vectors:
  * (1) AT_PHDR (2) AT_PHNUM (3) AT_PAGESZ (4) AT_ENTRY (5) AT_BASE
- * (6) AT_RANDOM (7) AT_NULL
+ * (6) AT_RANDOM (7) AT_NULL (8) reserved
  */
-#define DEFAULT_AUXV_NUM        (7)
+#define DEFAULT_AUXV_NUM        (8)
 
 /* By default, AT_RANDOM_SIZE is 16, unless specified otherwise. */
 #define AUXV_RANDOM_SIZE        (16)
