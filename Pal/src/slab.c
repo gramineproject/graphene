@@ -105,7 +105,6 @@ void init_slab_mgr (int alignment)
 
 void * malloc (size_t size)
 {
-    assert(size > 0 && size < 65536);
 #if PROFILING == 1
     unsigned long before_slab = _DkSystemTimeQuery();
 #endif
