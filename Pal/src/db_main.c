@@ -84,6 +84,7 @@ static void load_libraries (void)
 
 static void read_environments (const char *** envpp)
 {
+    struct config_store * store = pal_state.root_config;
     const char ** envp = *envpp;
     char * cfgbuf;
 
@@ -97,10 +98,13 @@ static void read_environments (const char *** envpp)
     if (!pal_state.root_config)
         return;
 
-    cfgbuf = malloc(get_config_entries_size(pal_state.root_config,
-                                            "loader.env"));
-    nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
-                                  cfgbuf);
+    int cfgsize = get_config_entries_size(store, "loader.env");
+    if (cfgsize < 0)
+        return;
+
+    cfgbuf = malloc(cfgsize);
+    assert(cfgbuf);
+    nsetenvs = get_config_entries(store, "loader.env", cfgbuf, cfgsize);
 
     if (nsetenvs <= 0) {
         free(cfgbuf);
@@ -150,8 +154,7 @@ static void read_environments (const char *** envpp)
         int bytes;
         ptr = &envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
-        if ((bytes = get_config(pal_state.root_config, key, cfgbuf,
-                                CONFIG_MAX)) > 0) {
+        if ((bytes = get_config(store, key, cfgbuf, CONFIG_MAX)) > 0) {
             char * e = malloc(len + bytes + 2);
             memcpy(e, str, len);
             e[len] = '=';

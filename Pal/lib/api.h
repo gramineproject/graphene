@@ -132,7 +132,7 @@ int write_config (void * file, int (*write) (void *, void *, int),
 int get_config (struct config_store * cfg, const char * key,
                 char * val_buf, int size);
 int get_config_entries (struct config_store * cfg, const char * key,
-                        char * key_buf);
+                        char * key_buf, int key_bufsize);
 int get_config_entries_size (struct config_store * cfg, const char * key);
 int set_config (struct config_store * cfg, const char * key, const char * val);
 

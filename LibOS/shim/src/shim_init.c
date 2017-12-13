@@ -433,7 +433,7 @@ int read_environs (const char ** envp)
 
 struct config_store * root_config = NULL;
 
-static void * __malloc (int size)
+static void * __malloc (size_t size)
 {
     return malloc(size);
 }

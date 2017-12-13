@@ -73,10 +73,13 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
 
-    int nkeys;
-    char * keybuf = __alloca(get_config_entries_size(cfg, "fs.mount.other"));
+    int nkeys, keybuf_size;
+    keybuf_size = get_config_entries_size(cfg, "fs.mount.other");
+    if (keybuf_size <= 0)
+        goto root;
 
-    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf);
+    char * keybuf = __alloca(keybuf_size);
+    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto root;
@@ -183,11 +186,15 @@ root:
 
 static int isolate_net (struct config_store * cfg, struct net_sb * sb)
 {
-    int nkeys;
-    char k[CONFIG_MAX];
-    char * keybuf = __alloca(get_config_entries_size(cfg, "net.rules"));
+    int nkeys, keybuf_size;
+    char k[CONFIG_MAX], * keybuf;
 
-    nkeys = get_config_entries(cfg, "net.rules", keybuf);
+    keybuf_size = get_config_entries_size(cfg, "net.rules");
+    if (keybuf_size <= 0)
+        goto add;
+
+    keybuf = __alloca(keybuf_size);
+    nkeys = get_config_entries(cfg, "net.rules", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto add;
@@ -277,7 +284,7 @@ next:
     return 0;
 }
 
-static void * __malloc (int size)
+static void * __malloc (size_t size)
 {
     return malloc(size);
 }
