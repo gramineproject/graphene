@@ -208,6 +208,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         int intval;
     } ei = { .intval = exit_info };
 
+    uint8_t * instr = (uint8_t *) uc->rip;
     int event_num;
     PAL_CONTEXT * ctx;
 
@@ -217,8 +218,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
     }
 
     if (ei.info.vector == SGX_EXCEPTION_VECTOR_UD) {
-        unsigned char * instr = (unsigned char *) uc->rip;
-        if (instr[0] == 0xcc) { /* skip int 3 */
+         if (instr[0] == 0xcc) { /* skip int 3 */
             uc->rip++;
             restore_sgx_context(uc);
             return;
@@ -245,12 +245,26 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         }
     }
 
+    /*
+     * Chia-Che 10/10/2017:
+     * The host ABI requires uc->rip to points to the *next* PC,
+     * whereas SGX returns the *current* RIP. Currently we only fix
+     * the RIP for static syscalls, but other exceptions may require
+     * the same treatment.
+     */
+    if (instr[0] == 0x0f && instr[1] == 0x5) {
+        uc->rip += 2;
+    }
+
     switch (ei.info.vector) {
         case SGX_EXCEPTION_VECTOR_DE:
             event_num = PAL_EVENT_DIVZERO;
             break;
         case SGX_EXCEPTION_VECTOR_AC:
             event_num = PAL_EVENT_MEMFAULT;
+            break;
+        case SGX_EXCEPTION_VECTOR_UD:
+            event_num = PAL_EVENT_ILLEGAL;
             break;
         default:
             restore_sgx_context(uc);
@@ -349,6 +363,9 @@ void _DkHandleExternelEvent (PAL_NUM event, sgx_context_t * uc)
     if (event == PAL_EVENT_RESUME &&
         frame && frame->func == DkObjectsWaitAny)
         return;
+
+    void * ustack_top = GET_ENCLAVE_TLS(ustack_top);
+    SET_ENCLAVE_TLS(ustack, ustack_top);
 
     if (!frame) {
         frame = __alloca(sizeof(struct pal_frame));
