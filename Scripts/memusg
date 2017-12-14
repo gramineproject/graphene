@@ -30,6 +30,8 @@ case `uname` in
     *) echo "`uname`: unsupported operating system" >&2; exit 2 ;;
 esac
 
+rm -f "histogram.mem.usg"
+
 # monitor the memory usage in the background.
 (
 peak=0
@@ -37,6 +39,7 @@ while sizes=`sizes $pgid`
 do
     set -- $sizes
     sample=$((${@/#/+}))
+    echo "$sample" >> "histogram.mem.usg"
     let peak="sample > peak ? sample : peak"
     sleep 0.1
 done

@@ -57,7 +57,7 @@ struct shim_thread {
     /* signal handling */
     __sigset_t signal_mask;
     struct shim_signal_handle signal_handles[NUM_SIGS];
-    struct shim_atomic has_signal;
+    struct atomic_int has_signal;
     struct shim_signal_log * signal_logs;
     bool suspend_on_signal;
     stack_t signal_altstack;
