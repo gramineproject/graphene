@@ -321,7 +321,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (pc[-2] == 0x0f && pc[-1] == 0x05) {
         debug("caught a static syscall (syscall no = %d)\n", context->rax);
 
-        asm volatile("movq %5, %%r10\n\t"
+        asm volatile("movq %5, %%rcx\n\t"
                      "movq %6, %%r8\n\t"
                      "movq %7, %%r9\n\t"
 
@@ -337,7 +337,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
                        "r"(context->r10),
                        "r"(context->r8),
                        "r"(context->r9)
-                     : "memory", "r10", "r8", "r9", "rbx");
+                     : "memory", "rcx", "r8", "r9", "rbx");
 
         goto ret_exception;
     }
