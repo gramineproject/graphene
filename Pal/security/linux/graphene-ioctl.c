@@ -249,31 +249,31 @@ long grm_sys_execve (struct graphene_info *gi,
 
 static long grm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	char data[256];
 	struct graphene_info *gi = (void *) file->private_data;
 	long rv = 0;
-
-	if (cmd != GRM_SYS_UNLINK &&
-	    cmd != GRM_SYS_RMDIR &&
-	    cmd != GRM_SET_SANDBOX) {
-		if (copy_from_user(data, (void __user *) arg, _IOC_SIZE(cmd)))
-			return -EFAULT;
-	}
 
 	switch (cmd) {
 
 	case GRM_SYS_OPEN: {
-		struct sys_open_param *param = (void *) &data;
-		rv = grm_sys_open(gi, param->filename,
-				  param->flags,
-				  param->mode);
+		struct sys_open_param param;
+
+		if (copy_from_user(&param, (void __user *) arg, sizeof(param)))
+			return -EFAULT;
+
+		rv = grm_sys_open(gi, param.filename,
+				  param.flags,
+				  param.mode);
 		break;
 	}
 
 	case GRM_SYS_STAT: {
-		struct sys_stat_param *param = (void *) &data;
-		rv = grm_sys_stat(gi, param->filename,
-				  param->statbuf);
+		struct sys_stat_param param;
+
+		if (copy_from_user(&param, (void __user *) arg, sizeof(param)))
+			return -EFAULT;
+
+		rv = grm_sys_stat(gi, param.filename,
+				  param.statbuf);
 		break;
 	}
 
@@ -288,24 +288,36 @@ static long grm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	case GRM_SYS_BIND: {
-		struct sys_bind_connect_param *param = (void *) &data;
-		rv = grm_sys_bind(gi, param->sockfd,
-				  param->addr,
-				  param->addrlen);
+		struct sys_bind_connect_param param;
+
+		if (copy_from_user(&param, (void __user *) arg, sizeof(param)))
+			return -EFAULT;
+
+		rv = grm_sys_bind(gi, param.sockfd,
+				  param.addr,
+				  param.addrlen);
 		break;
 	}
 
 	case GRM_SYS_CONNECT: {
-		struct sys_bind_connect_param *param = (void *) &data;
-		rv = grm_sys_connect(gi, param->sockfd,
-				     param->addr,
-				     param->addrlen);
+		struct sys_bind_connect_param param;
+
+		if (copy_from_user(&param, (void __user *) arg, sizeof(param)))
+			return -EFAULT;
+
+		rv = grm_sys_connect(gi, param.sockfd,
+				     param.addr,
+				     param.addrlen);
 		break;
 	}
 
 	case GRM_SYS_EXECVE: {
-		struct sys_execve_param *param = (void *) &data;
-		rv = grm_sys_execve(gi, param->argv);
+		struct sys_execve_param param;
+
+		if (copy_from_user(&param, (void __user *) arg, sizeof(param)))
+			return -EFAULT;
+
+		rv = grm_sys_execve(gi, param.argv);
 		break;
 	}
 
