@@ -89,6 +89,7 @@ struct link_map {
     const ElfW(Phdr) *l_phdr;  /* Pointer to program header table in core.  */
     ElfW(Addr) l_entry;     /* Entry point location.  */
     ElfW(Half) l_phnum;     /* Number of program header entries.  */
+    ElfW(Half) l_phentsize; /* Program header entry size */
     ElfW(Half) l_ldnum;     /* Number of dynamic segment entries.  */
 
     /* Start and finish of memory map for this object.  l_map_start
@@ -397,6 +398,7 @@ call_lose:
     l->l_entry = header->e_entry;
     int e_type = header->e_type;
     l->l_phnum = header->e_phnum;
+    l->l_phentsize = header->e_phentsize;
 
     size_t maplength = header->e_phnum * sizeof (ElfW(Phdr));
     const ElfW(Phdr) * phdr = (fbp + header->e_phoff);
@@ -1573,20 +1575,22 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     getrand(random_bytes, AUXV_RANDOM_SIZE);
 
     /* check if there are enough axiliary vectors */
-    assert(7 <= nauxv);
+    assert(8 <= nauxv);
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;
     auxp[1].a_un.a_val = exec_map->l_phnum;
-    auxp[2].a_type = AT_PAGESZ;
-    auxp[2].a_un.a_val = allocsize;
-    auxp[3].a_type = AT_ENTRY;
-    auxp[3].a_un.a_val = exec_map->l_entry;
-    auxp[4].a_type = AT_BASE;
-    auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
-    auxp[5].a_type = AT_RANDOM;
-    auxp[5].a_un.a_val = (uint64_t) random_bytes;
-    auxp[6].a_type = AT_NULL;
+    auxp[2].a_type = AT_PHENT;
+    auxp[2].a_un.a_val = exec_map->l_phentsize;
+    auxp[3].a_type = AT_PAGESZ;
+    auxp[3].a_un.a_val = allocsize;
+    auxp[4].a_type = AT_ENTRY;
+    auxp[4].a_un.a_val = exec_map->l_entry;
+    auxp[5].a_type = AT_BASE;
+    auxp[5].a_un.a_val = interp_map ? interp_map->l_addr : 0;
+    auxp[6].a_type = AT_RANDOM;
+    auxp[6].a_un.a_val = (uint64_t) random_bytes;
+    auxp[7].a_type = AT_NULL;
 
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 
