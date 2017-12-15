@@ -109,3 +109,41 @@ ret:
 
         .cfi_endproc
         .size syscalldb, .-syscalldb
+
+
+        /*
+         * syscall_wrapper served as a redirection point
+         * for static system calls captured through
+         * host-lvel exception handling. Its jobs are:
+         * (1) reserving red zone (128 bytes)
+         * (2) call syscalldb
+         * (3) return to the original code (saved in RBX)
+         *
+         * Chia-Che 12/13/17:
+         * There is a risk that this code may corrupt RBX.
+         * I haven't figure out how to preserve RBX because
+         * the code needs to sacrifice a register to do
+         * the final jump.
+         */
+
+        .global syscall_wrapper
+        .type syscall_wrapper, @function
+
+syscall_wrapper:
+        .cfi_startproc
+
+        /* when calling this, the original RIP is in RBX */
+        subq $128, %rsp
+        pushq %rbx
+
+        /* now call syscalldb */
+        movq syscalldb@GOTPCREL(%rip), %rbx
+        callq *%rbx
+
+        /* resume the stack and return to original RIP */
+        popq %rbx
+        addq $128, %rsp
+        jmpq *%rbx
+
+        .cfi_endproc
+        .size syscall_wrapper, .-syscall_wrapper

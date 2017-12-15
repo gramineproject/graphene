@@ -297,6 +297,8 @@ ret_exception:
     DkExceptionReturn(event);
 }
 
+void syscall_wrapper (void);
+
 static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
@@ -306,8 +308,6 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     }
 
     uint8_t * pc = (void *) context->IP;
-
-    debug("illegal instruction at %p\n", pc);
 
 #ifdef __x86_64__
     /*
@@ -320,28 +320,16 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
      */
     if (pc[-2] == 0x0f && pc[-1] == 0x05) {
         debug("caught a static syscall (syscall no = %d)\n", context->rax);
-
-        asm volatile("movq %4, %%r10\n\t"
-                     "movq %5, %%r8\n\t"
-                     "movq %6, %%r9\n\t"
-
-                     "subq $128, %%rsp\n\t"
-                     "movq syscalldb@GOTPCREL(%%rip), %%rbx\n\t"
-                     "callq *%%rbx\n\t"
-                     "addq $128, %%rsp\n\t"
-
-                     : "+a"(context->rax)
-                     : "D"(context->rdi),
-                       "S"(context->rsi),
-                       "d"(context->rdx),
-                       "r"(context->r10),
-                       "r"(context->r8),
-                       "r"(context->r9)
-                     : "memory", "r10", "r8", "r9", "rbx");
-
+        /* Delay system call redirection until returning from host
+           exception handling. As a principle, we should not stay in an
+           exception upcall too long. */
+        context->rbx = context->IP;
+        context->IP  = (uint64_t) syscall_wrapper;
         goto ret_exception;
     }
 #endif
+
+    debug("illegal instruction at %p\n", pc);
 
     deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, pc), context);
 
