@@ -9,6 +9,8 @@ before_script:
 
 script:
   - make 
+  - cd $TRAVIS_BUILD_DIR/Pal/ipc/linux      && make
+  - cd $TRAVIS_BUILD_DIR/Pal/security/linux && make
   - cd $TRAVIS_BUILD_DIR/Pal/src && make clean && make SGX=1
   - cd $TRAVIS_BUILD_DIR/Pal/src && make clean && make DEBUG=1
   - cd $TRAVIS_BUILD_DIR/Pal/src && make clean && make SGX=1 DEBUG=1
