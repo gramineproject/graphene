@@ -38,19 +38,14 @@ $(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
 	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
 endif
 
-.PHONY: pack
-pack: $(GLIBC_TARGET)
-	@../Scripts/pack_binaries.sh glibc $^
-	$(MAKE) -C $(SHIM_DIR) pack
-
 .PHONY: clean
 clean:
 	$(MAKE) -C $(SHIM_DIR) clean
 	rm -rf $(BUILD_DIR)
 
 else
-$(GLIBC_TARGET): .packed/glibc.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(GLIBC_TARGET)
+$(GLIBC_TARGET):
 
 .PHONY: clean
 clean:
