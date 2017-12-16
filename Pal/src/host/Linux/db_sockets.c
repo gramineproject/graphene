@@ -290,7 +290,7 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
     return hdl;
 }
 
-#if ALLOW_BIND_ANY == 1
+#if ALLOW_BIND_ANY == 0
 static bool check_zero (void * mem, int size)
 {
     void * p = mem, * q = mem + size;
@@ -355,7 +355,7 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
     assert(bind_addr);
     assert(bind_addrlen == addr_size(bind_addr));
 
-#if ALLOW_BIND_ANY == 1
+#if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
     if (addr_check_any(bind_addr))
@@ -663,7 +663,7 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
     assert(bind_addr);
     assert(bind_addrlen == addr_size(bind_addr));
 
-#if ALLOW_BIND_ANY == 1
+#if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
     if (addr_check_any(bind_addr))
@@ -725,7 +725,7 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
                                 &dest_addr, &dest_addrlen)) < 0)
         return ret;
 
-#if ALLOW_BIND_ANY == 1
+#if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
     if (bind_addr && addr_check_any(bind_addr))

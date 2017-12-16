@@ -18,7 +18,7 @@
 #define URI_MAX                  256
 
 /* allow binding sockets to ANY addresses (e.g., 0.0.0.0:0) */
-#define ALLOW_BIND_ANY           0
+#define ALLOW_BIND_ANY           1
 
 /* turn on the following option to trace heap memory leak */
 #define TRACE_HEAP_LEAK          0
