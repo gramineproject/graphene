@@ -72,8 +72,10 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     char * dpath = dentry_get_path(dent, true, &dpath_len);
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
+    ssize_t prefix_len;
 
-    int nkeys, keybuf_size;
+    int nkeys;
+    ssize_t keybuf_size;
     keybuf_size = get_config_entries_size(cfg, "fs.mount.other");
     if (keybuf_size <= 0)
         goto root;
@@ -91,15 +93,15 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     for (int n = 0 ; n < nkeys ; key = next, n++) {
         for (next = key ; *next ; next++);
         next++;
-        int key_len = next - key - 1;
+        size_t key_len = next - key - 1;
         memcpy(tmp, key, key_len);
         char * kp = tmp + key_len;
-        int ulen, plen;
+        ssize_t ulen, plen;
         bool is_chroot = false;
 
         /* Skip FS that are not chroot */
         strcpy_static(kp, ".type", k + CONFIG_MAX - kp);
-        if ((ret = get_config(cfg, k, t, CONFIG_MAX)) <= 0)
+        if (get_config(cfg, k, t, CONFIG_MAX) <= 0)
             continue;
         if (strpartcmp_static(t, "chroot"))
             is_chroot = true;
@@ -159,10 +161,8 @@ remove:
     }
 
 root:
-    if ((ret = get_config(cfg, "fs.mount.root.uri", u, CONFIG_MAX)) > 0) {
-        int prefix_len = ret;
-
-        if ((ret = get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX)) > 0 &&
+    if ((prefix_len = get_config(cfg, "fs.mount.root.uri", u, CONFIG_MAX)) > 0) {
+        if (get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX) > 0 &&
             strcmp_static(t, "chroot")) {
             /* remove the root FS */
             set_config(cfg, "fs.mount.root.uri",  NULL);
@@ -186,7 +186,8 @@ root:
 
 static int isolate_net (struct config_store * cfg, struct net_sb * sb)
 {
-    int nkeys, keybuf_size;
+    int nkeys;
+    ssize_t keybuf_size;
     char k[CONFIG_MAX], * keybuf;
 
     keybuf_size = get_config_entries_size(cfg, "net.rules");

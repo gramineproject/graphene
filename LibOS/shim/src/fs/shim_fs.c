@@ -191,7 +191,8 @@ static int __mount_others (void)
     if (!root_config)
         return 0;
 
-    int nkeys, keybuf_size;
+    int nkeys;
+    ssize_t keybuf_size;
     keybuf_size = get_config_entries_size(root_config, "fs.mount");
     if (keybuf_size < 0)
         return 0;

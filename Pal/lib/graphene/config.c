@@ -31,8 +31,10 @@
 DEFINE_LIST(config);
 struct config {
     const char * key, * val;
-    int klen, vlen;
-    int entries_size;
+    size_t klen, vlen; /* for leaf nodes, vlen stores the size of config
+                          values; for branch nodes, vlen stores the sum
+                          of config value lengths plus one of all the
+                          immediate children. */
     char * buf;
     LIST_TYPE(config) list;
     LISTP_TYPE(config) children;
@@ -53,7 +55,7 @@ static int __add_config (struct config_store * store,
             return -PAL_ERROR_INVAL;
 
         const char * token = key;
-        int len = 0;
+        size_t len = 0;
         for ( ; len < klen ; len++)
             if (token[len] == '.')
                 break;
@@ -71,14 +73,13 @@ static int __add_config (struct config_store * store,
         e->val  = NULL;
         e->vlen = 0;
         e->buf  = NULL;
-        e->entries_size = 0;
         INIT_LIST_HEAD(e, list);
         listp_add_tail(e, &store->entries, list);
         INIT_LISTP(&e->children);
         INIT_LIST_HEAD(e, siblings);
         listp_add_tail(e, list, siblings);
         if (parent)
-            parent->entries_size += (len + 1);
+            parent->vlen += (len + 1);
 
 next:
         if (len < klen)
@@ -130,8 +131,8 @@ next:
     return e;
 }
 
-int get_config (struct config_store * store, const char * key,
-                char * val_buf, int size)
+ssize_t get_config (struct config_store * store, const char * key,
+                    char * val_buf, size_t size)
 {
     struct config * e = __get_config(store, key);
 
@@ -147,7 +148,7 @@ int get_config (struct config_store * store, const char * key,
 }
 
 int get_config_entries (struct config_store * store, const char * key,
-                        char * key_buf, int key_bufsize)
+                        char * key_buf, size_t key_bufsize)
 {
     struct config * e = __get_config(store, key);
 
@@ -170,15 +171,15 @@ int get_config_entries (struct config_store * store, const char * key,
     return nentries;
 }
 
-int get_config_entries_size (struct config_store * store,
-                             const char * key)
+ssize_t get_config_entries_size (struct config_store * store,
+                                 const char * key)
 {
     struct config * e = __get_config(store, key);
 
     if (!e || e->val)
         return -PAL_ERROR_INVAL;
 
-    return e->entries_size;
+    return e->vlen;
 }
 
 static int __del_config (struct config_store * store,
@@ -214,7 +215,7 @@ static int __del_config (struct config_store * store,
     }
 
     if (p)
-        p->entries_size -= (found->klen + 1);
+        p->vlen -= (found->klen + 1);
     listp_del(found, root, siblings);
     listp_del(found, &store->entries, list);
     if (found->buf)
@@ -438,7 +439,6 @@ static int __dup_config (const struct config_store * ss,
         new->val  = val;
         new->vlen = e->vlen;
         new->buf  = buf;
-        new->entries_size = e->entries_size;
         INIT_LIST_HEAD(new, list);
         listp_add_tail(new, &ts->entries, list);
         INIT_LISTP(&new->children);

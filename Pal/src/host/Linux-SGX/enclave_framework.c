@@ -412,7 +412,7 @@ static int init_trusted_file (const char * key, const char * uri)
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
-    int len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
+    ssize_t len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
     if (len < 0)
         return 0;
 
@@ -435,8 +435,8 @@ int init_trusted_files (void)
 {
     struct config_store * store = pal_state.root_config;
     char * cfgbuf;
-    int cfgsize, nuris;
-    int ret;
+    ssize_t cfgsize;
+    int nuris, ret;
 
     if (pal_sec.exec_fd != PAL_IDX_POISON) {
         ret = init_trusted_file("exec", pal_sec.exec_name);
@@ -445,8 +445,8 @@ int init_trusted_files (void)
     }
 
     cfgbuf = __alloca(CONFIG_MAX);
-    int len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
-    if (len) {
+    ssize_t len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
+    if (len <= 0) {
         int npreload = 0;
         char key[10];
         const char * start, * end;
@@ -497,7 +497,7 @@ int init_trusted_files (void)
 no_trusted:
 
     cfgsize = get_config_entries_size(store, "sgx.allowed_files");
-    if (cfgsize < 0)
+    if (cfgsize <= 0)
         goto no_allowed;
 
     cfgbuf = __alloca(cfgsize);
@@ -537,7 +537,7 @@ int init_trusted_children (void)
     char * tmp1 = strcpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
     char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
 
-    int cfgsize = get_config_entries_size(store, "sgx.trusted_mrenclave");
+    ssize_t cfgsize = get_config_entries_size(store, "sgx.trusted_mrenclave");
     if (cfgsize <= 0)
         return 0;
 
@@ -552,7 +552,7 @@ int init_trusted_children (void)
             memcpy(tmp2, k, len + 1);
             k += len + 1;
 
-            int ret = get_config(store, key, uri, CONFIG_MAX);
+            ssize_t ret = get_config(store, key, uri, CONFIG_MAX);
             if (ret < 0)
                 continue;
 

@@ -154,8 +154,8 @@ long int glibc_option (const char * opt)
     char cfg[CONFIG_MAX];
 
     if (strcmp_static(opt, "heap_size")) {
-        int ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
-        if (ret < 0) {
+        ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
+        if (ret <= 0) {
             debug("no glibc option: %s (err=%d)\n", opt, ret);
             return -ENOENT;
         }

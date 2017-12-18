@@ -104,7 +104,8 @@ next:
 int get_fs_paths (struct config_store * config, const char *** paths)
 {
     char * keys;
-    int nkeys, cfgsize;
+    int nkeys;
+    ssize_t cfgsize;
 
     cfgsize = get_config_entries_size(config, "fs.mount");
     if (cfgsize)
@@ -150,7 +151,8 @@ int get_net_rules (struct config_store * config,
 {
     char * binds, * peers;
     int nbinds, npeers;
-    int nrules = 0, cfgsize;
+    int nrules = 0;
+    ssize_t cfgsize;
 
     cfgsize = get_config_entries_size(config, "net.allow_bind");
     if (cfgsize < 0)
@@ -202,7 +204,7 @@ int get_net_rules (struct config_store * config,
             memcpy(tmp, k, len + 1);
             tmp[len] = 0;
 
-            int cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
+            ssize_t cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
             if (cfglen <= 0)
                 goto next;
 

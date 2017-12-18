@@ -280,7 +280,7 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
 }
 
 #if ALLOW_BIND_ANY == 0
-static bool check_zero (void * mem, int size)
+static bool check_zero (void * mem, size_t size)
 {
     void * p = mem, * q = mem + size;
 
