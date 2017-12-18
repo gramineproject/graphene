@@ -446,7 +446,7 @@ int init_trusted_files (void)
 
     cfgbuf = __alloca(CONFIG_MAX);
     ssize_t len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
-    if (len <= 0) {
+    if (len > 0) {
         int npreload = 0;
         char key[10];
         const char * start, * end;
