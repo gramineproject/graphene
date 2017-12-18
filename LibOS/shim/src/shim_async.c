@@ -105,8 +105,6 @@ int install_async_event (PAL_HANDLE object, unsigned long time,
         free(event);
     else
         listp_add_tail(event, &async_list, list);   
-    
-    unlock(async_helper_lock);
 
     if (async_helper_state == HELPER_NOTALIVE)
         create_async_helper();
