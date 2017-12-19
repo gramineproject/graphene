@@ -20,7 +20,7 @@ $(R_SRC)/Makefile: $(R_SRC)/configure
 		./configure --prefix=$(shell readlink -f $(R_INSTALL))
 
 $(R_SRC)/configure: $(R_SRC).tar.gz
-	tar -xzf $<
+	tar -xmzf $<
 
 distclean: clean
 	rm -rf $(R_SRC)

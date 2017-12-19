@@ -33,17 +33,17 @@ JAVA_SRC = $(JAVA_DIR) $(JAVA_DIR)/hotspot $(JAVA_DIR)/jdk $(JAVA_DIR)/jdk/src/s
 JAVA_HOME = openjdk-7-jre
 
 $(JAVA_DIR): openjdk.tar.bz2
-	tar -xjf $<
+	tar -xmjf $<
 	rm -rf $@
 	mv $(shell tar -tjf $< | sed -e 's@/.*@@' | head -n 1) $@
 
 $(JAVA_DIR)/hotspot: hotspot.tar.bz2 | $(JAVA_DIR)
-	tar -xjf $<
+	tar -xmjf $<
 	rm -rf $@
 	mv $(shell tar -tjf $< | sed -e 's@/.*@@' | head -n 1) $@
 
 $(JAVA_DIR)/jdk: jdk.tar.bz2 | $(JAVA_DIR)
-	tar -xjf $<
+	tar -xmjf $<
 	rm -rf $@
 	cd $(shell tar -tjf $< | sed -e 's@/.*@@' | head -n 1) && patch -p1 < ../JDK-8015880.patch
 	mv $(shell tar -tjf $< | sed -e 's@/.*@@' | head -n 1) $@

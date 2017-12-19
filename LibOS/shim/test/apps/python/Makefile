@@ -21,10 +21,10 @@ $(PYTHON_SRC)/Makefile: $(PYTHON_SRC)/configure
 		./configure --prefix=$(shell readlink -f $(PYTHON_INSTALL))
 
 $(PYTHON_SRC)/configure: $(PYTHON_SRC).tgz
-	tar -xzf $<
+	tar -xmzf $<
 
 benchmarks: benchmarks.tar.gz
-	tar -xzf $<
+	tar -xmzf $<
 
 regression: 
 	@echo "\n\nBuilding Python..."
