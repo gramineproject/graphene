@@ -27,6 +27,7 @@
 #define SLABMGR_H
 
 #include "list.h"
+#include <pal_debug.h>
 #include <assert.h>
 #include <sys/mman.h>
 
