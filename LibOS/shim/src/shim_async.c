@@ -108,10 +108,8 @@ uint64_t install_async_event (PAL_HANDLE object, unsigned long time,
         free(event);
     else
         listp_add_tail(event, &async_list, list);   
-    
-    unlock(async_helper_lock);
 
-    if (atomic_read(&async_helper_state) == HELPER_NOTALIVE)
+    if (async_helper_state == HELPER_NOTALIVE)
         create_async_helper();
 
     unlock(async_helper_lock);
