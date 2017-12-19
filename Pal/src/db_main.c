@@ -94,7 +94,6 @@ static void read_environments (const char *** envpp)
         int len, idx;
     } * setenvs = NULL;
     int nsetenvs = 0;
-    int size;
 
     if (!pal_state.root_config)
         return;
