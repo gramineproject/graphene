@@ -650,10 +650,8 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
 
     /* second, reallocate the buffer */
     uint64_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
-    
     int prot = PAL_PROT_READ;
-    uint64_t mapoff = file->marker & ~(bufsize - 1); 
-    
+    uint64_t mapoff = file->marker & ~(bufsize - 1);
     uint64_t maplen = bufsize;	
 
     if (hdl->acc_mode & MAY_WRITE)
