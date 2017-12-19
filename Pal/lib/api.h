@@ -24,6 +24,11 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+/* WARNING: this declaration may conflict with some header files */
+#ifndef ssize_t
+typedef ptrdiff_t ssize_t;
+#endif
+
 /* Macros */
 
 #ifndef likely
@@ -135,11 +140,11 @@ int free_config (struct config_store * store);
 int copy_config (struct config_store * store, struct config_store * new_store);
 int write_config (void * file, int (*write) (void *, void *, int),
                   struct config_store * store);
-int get_config (struct config_store * cfg, const char * key,
-                char * val_buf, int size);
+ssize_t get_config (struct config_store * cfg, const char * key,
+                    char * val_buf, size_t size);
 int get_config_entries (struct config_store * cfg, const char * key,
-                        char * key_buf);
-int get_config_entries_size (struct config_store * cfg, const char * key);
+                        char * key_buf, size_t key_bufsize);
+ssize_t get_config_entries_size (struct config_store * cfg, const char * key);
 int set_config (struct config_store * cfg, const char * key, const char * val);
 
 #define CONFIG_MAX      4096

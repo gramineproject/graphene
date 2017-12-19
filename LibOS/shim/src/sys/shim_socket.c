@@ -838,8 +838,8 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
     PAL_HANDLE accepted = NULL;
 
     if (sock->sock_type != SOCK_STREAM) {
-        debug("shim_listen: not a stream socket\n");
-        return -EINVAL;
+        debug("shim_accept: not a stream socket\n");
+        return -EOPNOTSUPP;
     }
 
     lock(hdl->lock);
@@ -1676,7 +1676,7 @@ int shim_do_getsockopt (int fd, int level, int optname, char * optval,
                 }
                 goto out;
             case SO_TYPE:
-                *intval = sock->protocol;
+                *intval = sock->sock_type;
                 goto out;
             case SO_KEEPALIVE:
             case SO_LINGER:

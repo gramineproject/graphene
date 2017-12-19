@@ -154,8 +154,8 @@ long int glibc_option (const char * opt)
     char cfg[CONFIG_MAX];
 
     if (strequal_static(opt, "heap_size")) {
-        int ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
-        if (ret < 0) {
+        ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
+        if (ret <= 0) {
             debug("no glibc option: %s (err=%d)\n", opt, ret);
             return -ENOENT;
         }
@@ -451,7 +451,7 @@ int read_environs (const char ** envp)
 
 struct config_store * root_config = NULL;
 
-static void * __malloc (int size)
+static void * __malloc (size_t size)
 {
     return malloc(size);
 }
