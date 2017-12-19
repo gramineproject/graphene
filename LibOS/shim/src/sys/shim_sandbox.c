@@ -72,11 +72,16 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     char * dpath = dentry_get_path(dent, true, &dpath_len);
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
+    ssize_t prefix_len;
 
     int nkeys;
-    char * keybuf = __alloca(get_config_entries_size(cfg, "fs.mount.other"));
+    ssize_t keybuf_size;
+    keybuf_size = get_config_entries_size(cfg, "fs.mount.other");
+    if (keybuf_size <= 0)
+        goto root;
 
-    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf);
+    char * keybuf = __alloca(keybuf_size);
+    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto root;
@@ -88,15 +93,15 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     for (int n = 0 ; n < nkeys ; key = next, n++) {
         for (next = key ; *next ; next++);
         next++;
-        int key_len = next - key - 1;
+        size_t key_len = next - key - 1;
         memcpy(tmp, key, key_len);
         char * kp = tmp + key_len;
-        int ulen, plen;
+        ssize_t ulen, plen;
         bool is_chroot = false;
 
         /* Skip FS that are not chroot */
         stpncpy_static(kp, ".type", k + CONFIG_MAX - kp);
-        if ((ret = get_config(cfg, k, t, CONFIG_MAX)) <= 0)
+        if (get_config(cfg, k, t, CONFIG_MAX) <= 0)
             continue;
         if (strequal_static(t, "chroot"))
             is_chroot = true;
@@ -156,10 +161,8 @@ remove:
     }
 
 root:
-    if ((ret = get_config(cfg, "fs.mount.root.uri", u, CONFIG_MAX)) > 0) {
-        int prefix_len = ret;
-
-        if ((ret = get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX)) > 0 &&
+    if ((prefix_len = get_config(cfg, "fs.mount.root.uri", u, CONFIG_MAX)) > 0) {
+        if (get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX) > 0 &&
             strequal_static(t, "chroot")) {
             /* remove the root FS */
             set_config(cfg, "fs.mount.root.uri",  NULL);
@@ -184,10 +187,15 @@ root:
 static int isolate_net (struct config_store * cfg, struct net_sb * sb)
 {
     int nkeys;
-    char k[CONFIG_MAX];
-    char * keybuf = __alloca(get_config_entries_size(cfg, "net.rules"));
+    ssize_t keybuf_size;
+    char k[CONFIG_MAX], * keybuf;
 
-    nkeys = get_config_entries(cfg, "net.rules", keybuf);
+    keybuf_size = get_config_entries_size(cfg, "net.rules");
+    if (keybuf_size <= 0)
+        goto add;
+
+    keybuf = __alloca(keybuf_size);
+    nkeys = get_config_entries(cfg, "net.rules", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto add;
@@ -277,7 +285,7 @@ next:
     return 0;
 }
 
-static void * __malloc (int size)
+static void * __malloc (size_t size)
 {
     return malloc(size);
 }
