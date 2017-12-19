@@ -3,9 +3,10 @@ CFLAGS-libos = -L../../../build/libos -I../../include
 special_executables = bootstrap_static bootstrap_pie
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
+manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
 
 exec_target = $(special_executables) $(c_executables) $(cxx_executables)
-target = $(exec_target) manifest
+target = $(exec_target) $(manifests)
 
 clean-extra += clean-tmp
 
@@ -53,11 +54,13 @@ endif
 .PHONY: regression
 regression: $(target)
 	@echo "\n\nBasic Bootstrapping:"
-	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
+	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
 	@echo "\n\nSyscall Support:"
-	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
+	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
+	@echo "\n\nSocket Support:"
+	@for f in $(wildcard 80_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
 	@echo "\n\nLarge File Support:"
-	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST); done
+	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
 
 .PHONY: clean-tmp
 clean-tmp:

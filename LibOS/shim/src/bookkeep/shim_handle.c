@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -53,8 +53,13 @@ static inline int init_tty_handle (struct shim_handle * hdl, bool write)
 {
     struct shim_dentry * dent = NULL;
     int ret;
-
-    if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent)) < 0)
+    struct shim_thread * cur_thread = get_cur_thread();
+    
+    /* XXX: Try getting the root FS from current thread? */
+    assert(cur_thread);
+    assert(cur_thread->root);
+    if ((ret = path_lookupat(cur_thread->root, "/dev/tty", LOOKUP_OPEN, &dent,
+                             cur_thread->root->fs)) < 0)
         return ret;
 
     int flags = (write ? O_WRONLY : O_RDONLY)|O_APPEND;
@@ -94,7 +99,7 @@ static inline int init_exec_handle (struct shim_thread * thread)
     struct shim_mount * fs = find_mount_from_uri(PAL_CB(executable));
     if (fs) {
         path_lookupat(fs->root, PAL_CB(executable) + fs->uri.len, 0,
-                      &exec->dentry);
+                      &exec->dentry, fs);
         set_handle_fs(exec, fs);
         if (exec->dentry) {
             int len;
@@ -480,10 +485,12 @@ void close_handle (struct shim_handle * hdl)
                 dir->dotdot = NULL;
             }
 
-            while (dir->ptr && *dir->ptr) {
-                struct shim_dentry * dent = *dir->ptr;
-                put_dentry(dent);
-                *(dir->ptr++) = NULL;
+            if (dir->ptr != (void *) -1) {
+                while (dir->ptr && *dir->ptr) {
+                    struct shim_dentry * dent = *dir->ptr;
+                    put_dentry(dent);
+                    *(dir->ptr++) = NULL;
+                }
             }
         } else {
             if (hdl->fs && hdl->fs->fs_ops &&
@@ -536,8 +543,13 @@ void put_handle (struct shim_handle * hdl)
         qstrfree(&hdl->path);
         qstrfree(&hdl->uri);
 
-        if (hdl->pal_handle)
+        if (hdl->pal_handle) {
+#ifdef DEBUG_REF
+            debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
+#endif
             DkObjectClose(hdl->pal_handle);
+            hdl->pal_handle = NULL;
+        }
 
         if (hdl->dentry)
             put_dentry(hdl->dentry);

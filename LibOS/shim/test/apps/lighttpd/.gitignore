@@ -5,4 +5,4 @@ build
 html
 lighttpd-*
 lighttpd.conf
-
+server.pem

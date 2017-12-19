@@ -5,9 +5,9 @@ PAL {
         DkThreadCreate; DkThreadDelayExecution;
         DkThreadYieldExecution; DkThreadExit; DkThreadResume;
 
-        DkSemaphoreCreate; DkNotificationEventCreate;
+        DkMutexCreate; DkNotificationEventCreate;
         DkSynchronizationEventCreate;
-        DkSemaphoreRelease;
+        DkMutexRelease;
         DkEventSet;  DkEventClear;
         DkObjectsWaitAny;
 
