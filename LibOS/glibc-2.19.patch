@@ -664,41 +664,10 @@ index 6dcbabc..c87c773 100644
    LIBC_PROBE (init_start, 2, LM_ID_BASE, r);
  
    /* Auditing checkpoint: we are ready to signal that the initial map
-@@ -1605,140 +1654,11 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
+@@ -1636,89 +1654,6 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
  	}
      }
  
--  /* We have two ways to specify objects to preload: via environment
--     variable and via the file /etc/ld.so.preload.  The latter can also
--     be used when security is enabled.  */
--  assert (*first_preload == NULL);
--  struct link_map **preloads = NULL;
--  unsigned int npreloads = 0;
--
--  if (__builtin_expect (preloadlist != NULL, 0))
--    {
--      /* The LD_PRELOAD environment variable gives list of libraries
--	 separated by white space or colons that are loaded before the
--	 executable's dependencies and prepended to the global scope
--	 list.  If the binary is running setuid all elements
--	 containing a '/' are ignored since it is insecure.  */
--      char *list = strdupa (preloadlist);
--      char *p;
--
--      HP_TIMING_NOW (start);
--
--      /* Prevent optimizing strsep.  Speed is not important here.  */
--      while ((p = (strsep) (&list, " :")) != NULL)
--	if (p[0] != '\0'
--	    && (__builtin_expect (! INTUSE(__libc_enable_secure), 1)
--		|| strchr (p, '/') == NULL))
--	  npreloads += do_preload (p, main_map, "LD_PRELOAD");
--
--      HP_TIMING_NOW (stop);
--      HP_TIMING_DIFF (diff, start, stop);
--      HP_TIMING_ACCUM_NT (load_time, diff);
--    }
--
 -  /* There usually is no ld.so.preload file, it should only be used
 -     for emergencies and testing.  So the open call etc should usually
 -     fail.  Using access() on a non-existing file is faster than using
@@ -782,30 +751,9 @@ index 6dcbabc..c87c773 100644
 -	  __munmap (file, file_size);
 -	}
 -    }
--
--  if (__builtin_expect (*first_preload != NULL, 0))
--    {
--      /* Set up PRELOADS with a vector of the preloaded libraries.  */
--      struct link_map *l = *first_preload;
--      preloads = __alloca (npreloads * sizeof preloads[0]);
--      i = 0;
--      do
--	{
--	  preloads[i++] = l;
--	  l = l->l_next;
--	} while (l);
--      assert (i == npreloads);
--    }
--
-   /* Load all the libraries specified by DT_NEEDED entries.  If LD_PRELOAD
-      specified some libraries to load, these are inserted before the actual
-      dependencies in the executable's searchlist for symbol resolution.  */
-   HP_TIMING_NOW (start);
--  _dl_map_object_deps (main_map, preloads, npreloads, mode == trace, 0);
-+  _dl_map_object_deps (main_map, NULL, 0, mode == trace, 0);
-   HP_TIMING_NOW (stop);
-   HP_TIMING_DIFF (diff, start, stop);
-   HP_TIMING_ACCUM_NT (load_time, diff);
+
+  if (__builtin_expect (*first_preload != NULL, 0))
+    {
 @@ -2301,7 +2221,7 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
       the address since by now the variable might be in another object.  */
    r = _dl_debug_initialize (0, LM_ID_BASE);

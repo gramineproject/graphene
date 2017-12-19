@@ -834,8 +834,8 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
     PAL_HANDLE accepted = NULL;
 
     if (sock->sock_type != SOCK_STREAM) {
-        debug("shim_listen: not a stream socket\n");
-        return -EINVAL;
+        debug("shim_accept: not a stream socket\n");
+        return -EOPNOTSUPP;
     }
 
     lock(hdl->lock);

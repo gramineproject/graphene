@@ -290,54 +290,56 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
     return hdl;
 }
 
-static int check_zero (void * mem, int size)
+#if ALLOW_BIND_ANY == 0
+static bool check_zero (void * mem, size_t size)
 {
     void * p = mem, * q = mem + size;
 
     while (p < q) {
         if (p <= q - sizeof(long)) {
             if (*(long *) p)
-                return 1;
+                return false;
             p += sizeof(long);
         } else if (p <= q - sizeof(int)) {
             if (*(int *) p)
-                return 1;
+                return false;
             p += sizeof(int);
         } else if (p <= q - sizeof(short)) {
             if (*(short *) p)
-                return 1;
+                return false;
             p += sizeof(short);
         } else {
             if (*(char *) p)
-                return 1;
+                return false;
             p++;
         }
     }
 
-    return 0;
+    return true;
 }
 
 /* check if an address is "Any" */
-static int addr_check_any (struct sockaddr * addr)
+static bool check_any_addr (struct sockaddr * addr)
 {
     if (addr->sa_family == AF_INET) {
         struct sockaddr_in * addr_in =
                         (struct sockaddr_in *) addr;
 
-        return addr_in->sin_port ||
+        return addr_in->sin_port == 0 &&
                check_zero(&addr_in->sin_addr,
                           sizeof(addr_in->sin_addr));
     } else if (addr->sa_family == AF_INET6) {
         struct sockaddr_in6 * addr_in6 =
                         (struct sockaddr_in6 *) addr;
 
-        return addr_in6->sin6_port ||
+        return addr_in6->sin6_port == 0 &&
                check_zero(&addr_in6->sin6_addr,
                           sizeof(addr_in6->sin6_addr));
     }
 
-    return -PAL_ERROR_NOTSUPPORT;
+    return false;
 }
+#endif
 
 /* listen on a tcp socket */
 static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
@@ -350,10 +352,15 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
                                 NULL, NULL)) < 0)
         return ret;
 
+    assert(bind_addr);
+    assert(bind_addrlen == addr_size(bind_addr));
+
+#if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (!bind_addr || addr_check_any(bind_addr) == 0)
-        return -PAL_ERROR_INVAL;
+    if (addr_check_any(bind_addr))
+       return -PAL_ERROR_INVAL;
+#endif
 
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family,
                         SOCK_STREAM|SOCK_CLOEXEC|options, 0);
@@ -656,6 +663,13 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
     assert(bind_addr);
     assert(bind_addrlen == addr_size(bind_addr));
 
+#if ALLOW_BIND_ANY == 0
+    /* the socket need to have a binding address, a null address or an
+       any address is not allowed */
+    if (addr_check_any(bind_addr))
+       return -PAL_ERROR_INVAL;
+#endif
+
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family,
                         SOCK_DGRAM|SOCK_CLOEXEC|options, 0);
 
@@ -710,6 +724,13 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen,
                                 &dest_addr, &dest_addrlen)) < 0)
         return ret;
+
+#if ALLOW_BIND_ANY == 0
+    /* the socket need to have a binding address, a null address or an
+       any address is not allowed */
+    if (bind_addr && addr_check_any(bind_addr))
+       return -PAL_ERROR_INVAL;
+#endif
 
     fd = INLINE_SYSCALL(socket, 3, dest_addr ? dest_addr->sa_family : AF_INET,
                         SOCK_DGRAM|SOCK_CLOEXEC|options, 0);

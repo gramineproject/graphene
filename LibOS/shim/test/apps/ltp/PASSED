@@ -1,6 +1,11 @@
 Test,Subtest number
 accept01,1
 accept01,2
+accept01,3
+accept01,4
+accept01,5
+accept01,6
+accept01,7
 accept4_01,1
 accept4_01,2
 accept4_01,3
@@ -16,6 +21,8 @@ asyncio02,4
 asyncio02,5
 asyncio02,6
 brk01,1
+chdir01,1
+chdir02,1
 chmod01,1
 chmod01,2
 chmod01,3
@@ -73,6 +80,7 @@ confstr01,16
 confstr01,17
 confstr01,18
 confstr01,19
+connect01,1
 creat01,2
 creat01,3
 creat01,4
@@ -83,8 +91,12 @@ creat03,3
 dup01,1
 dup02,1
 dup02,2
+dup04,1
+dup04,2
 dup07,1
 dup07,2
+dup201,1
+dup201,2
 dup202,1
 dup202,2
 dup203,1
@@ -224,6 +236,8 @@ getitimer01,5
 getpagesize01,1
 getpeername01,1
 getpeername01,2
+getpeername01,3
+getpeername01,4
 getpgid01,1
 getpgid01,2
 getpgrp01,1
@@ -236,8 +250,14 @@ getrlimit01,6
 getrlimit01,8
 getrlimit01,10
 getsid01,1
+getsockname01,3
+getsockname01,4
 getsockopt01,1
 getsockopt01,2
+getsockopt01,3
+getsockopt01,4
+getsockopt01,8
+getsockopt01,9
 gettid01,1
 getuid01,1
 getuid03,1
@@ -306,6 +326,7 @@ nanosleep01,1
 nanosleep03,1
 newuname01,1
 open03,1
+open08,1
 open09,1
 open09,2
 pathconf01,1
@@ -377,6 +398,12 @@ read04,1
 readdir01,1
 readv01,1
 readv01,2
+recv01,1
+recv01,2
+recvfrom01,1
+recvfrom01,2
+recvmsg01,1
+recvmsg01,2
 rmdir01,1
 rmdir04,1
 rt_sigaction01,1
@@ -706,6 +733,8 @@ semget03,1
 semop01,1
 semop04,1
 semop04,2
+send01,1
+send01,2
 sendfile03,1
 sendfile03,2
 sendfile03,3
@@ -714,6 +743,9 @@ sendfile03_64,2
 sendfile03_64,3
 sendfile05,1
 sendfile05_64,1
+sendto01,1
+sendto01,2
+sendto01,3
 setgid01,1
 setitimer01,1
 setpgid01,1
@@ -723,6 +755,11 @@ setpgrp02,1
 setrlimit01,1
 setsockopt01,1
 setsockopt01,2
+setsockopt01,3
+setsockopt01,5
+setsockopt01,6
+setsockopt01,7
+setsockopt01,8
 set_tid_address01,1
 settimeofday01,3
 setuid01,1
