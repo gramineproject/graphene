@@ -30,7 +30,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef unsigned long PAL_NUM;
+typedef uint64_t PAL_NUM;
 typedef const char *  PAL_STR;
 typedef void *        PAL_PTR;
 typedef unsigned int  PAL_FLG;

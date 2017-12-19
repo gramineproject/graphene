@@ -272,16 +272,15 @@ failed:
 }
 
 int verify_trusted_file (const char * uri, void * mem,
-                         unsigned int offset, unsigned int size,
+                         uint64_t offset, uint64_t size,
                          sgx_stub_t * stubs,
-                         unsigned int total_size)
+                         uint64_t total_size)
 {
-    unsigned long checking = offset;
+    uint64_t checking = offset;
     sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
-    int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
-        unsigned long checking_size = TRUSTED_STUB_SIZE;
+        uint64_t checking_size = TRUSTED_STUB_SIZE;
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 

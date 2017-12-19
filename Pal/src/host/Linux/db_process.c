@@ -494,16 +494,16 @@ int _DkProcessSandboxCreate (const char * manifest, int flags)
     return set_graphene_task(manifest, flags);
 }
 
-static int proc_read (PAL_HANDLE handle, int offset, int count,
-                          void * buffer)
+static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                      void * buffer)
 {
-    int bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer,
-                               count);
+    int64_t bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer,
+                                   count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
@@ -513,17 +513,17 @@ static int proc_read (PAL_HANDLE handle, int offset, int count,
     return bytes;
 }
 
-static int proc_write (PAL_HANDLE handle, int offset, int count,
+static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                        const void * buffer)
 {
-    int bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer,
-                               count);
+    int64_t bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer,
+                                   count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
                 HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:

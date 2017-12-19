@@ -187,13 +187,16 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of pipe stream. offset does not apply here. */
-static int pipe_read (PAL_HANDLE handle, int offset, int len,
-                      void * buffer)
+static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                          void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
+
+    if (len >= (1ULL << (sizeof(unsigned int) * 8)))
+        return -PAL_ERROR_INVAL;
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] :
              handle->pipe.fd;
@@ -209,13 +212,16 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
 }
 
 /* 'write' operation of pipe stream. offset does not apply here. */
-static int pipe_write (PAL_HANDLE handle, int offset, int len,
-                       const void * buffer)
+static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                           const void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
+
+    if (len >= (1ULL << (sizeof(unsigned int) * 8)))
+        return -PAL_ERROR_INVAL;
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] :
              handle->pipe.fd;

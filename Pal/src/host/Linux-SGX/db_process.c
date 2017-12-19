@@ -331,15 +331,21 @@ int _DkProcessSandboxCreate (const char * manifest, int flags)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int proc_read (PAL_HANDLE handle, int offset, int count,
+static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                           void * buffer)
 {
+    if (count >= (1ULL << (sizeof(unsigned int) * 8)))
+        return -PAL_ERROR_INVAL;
+
     return ocall_read(handle->process.stream_in, buffer, count);
 }
 
-static int proc_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           const void * buffer)
 {
+    if (count >= (1ULL << (sizeof(unsigned int) * 8)))
+        return -PAL_ERROR_INVAL;
+
     int bytes = ocall_write(handle->process.stream_out, buffer, count);
 
     if (bytes == -PAL_ERROR_TRYAGAIN)
