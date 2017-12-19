@@ -7,7 +7,7 @@ level = ../../
 include ../../Makefile
 
 $(bash_src): $(BASH_DIR).tar.gz
-	tar -xzf $<
+	tar -xmzf $<
 
 $(bash_src)/bash: $(BASH_DIR)
 	cd $(BASH_DIR) && ./configure --without-gnu-malloc
