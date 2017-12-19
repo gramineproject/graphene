@@ -286,7 +286,6 @@ int verify_trusted_file (const char * uri, void * mem,
 {
     unsigned long checking = offset;
     sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
-    int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
         unsigned long checking_size = TRUSTED_STUB_SIZE;
@@ -494,8 +493,15 @@ int init_trusted_files (void)
         }
     }
 
+no_trusted:
+
+    cfgsize = get_config_entries_size(store, "sgx.trusted_libs");
+    if (cfgsize <= 0)
+        goto no_trusted_libs;
+
+    cfgbuf = __alloca(cfgsize);
     nuris = get_config_entries(pal_state.root_config, "sgx.trusted_libs",
-                               cfgbuf);
+                               cfgbuf, cfgsize);
     if (nuris) {
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
@@ -515,7 +521,7 @@ int init_trusted_files (void)
         }
     }
 
-no_trusted:
+no_trusted_libs:
 
     cfgsize = get_config_entries_size(store, "sgx.allowed_files");
     if (cfgsize <= 0)
