@@ -103,11 +103,16 @@ next:
 
 int get_fs_paths (struct config_store * config, const char *** paths)
 {
-    char *keys;
+    char * keys;
     int nkeys;
+    ssize_t cfgsize;
 
-    keys = __alloca(get_config_entries_size(config, "fs.mount"));
-    if ((nkeys = get_config_entries(config, "fs.mount", keys)) < 0)
+    cfgsize = get_config_entries_size(config, "fs.mount");
+    if (cfgsize)
+        return 0;
+
+    keys = __alloca(cfgsize);
+    if ((nkeys = get_config_entries(config, "fs.mount", keys, cfgsize)) < 0)
         nkeys = 0;
 
     *paths = malloc(sizeof(const char *) * (1 + nkeys));
@@ -144,16 +149,25 @@ int get_net_rules (struct config_store * config,
                    struct graphene_net_rule ** net_rules,
                    int * nbind_rules)
 {
-    char *binds, *peers;
+    char * binds, * peers;
     int nbinds, npeers;
     int nrules = 0;
+    ssize_t cfgsize;
 
-    binds = __alloca(get_config_entries_size(config, "net.allow_bind"));
-    if ((nbinds = get_config_entries(config, "net.allow_bind", binds)) < 0)
+    cfgsize = get_config_entries_size(config, "net.allow_bind");
+    if (cfgsize < 0)
         return 0;
 
-    peers = __alloca(get_config_entries_size(config, "net.allow_peer"));
-    if ((npeers = get_config_entries(config, "net.allow_peer", peers)) < 0)
+    binds = __alloca(cfgsize);
+    if ((nbinds = get_config_entries(config, "net.allow_bind", binds, cfgsize)) < 0)
+        return 0;
+
+    cfgsize = get_config_entries_size(config, "net.allow_peer");
+    if (cfgsize < 0)
+        return 0;
+
+    peers = __alloca(cfgsize);
+    if ((npeers = get_config_entries(config, "net.allow_peer", peers, cfgsize)) < 0)
         return 0;
 
     struct graphene_net_rule * rules =
@@ -190,7 +204,7 @@ int get_net_rules (struct config_store * config,
             memcpy(tmp, k, len + 1);
             tmp[len] = 0;
 
-            int cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
+            ssize_t cfglen = get_config(config, key, cfgbuf, CONFIG_MAX);
             if (cfglen <= 0)
                 goto next;
 

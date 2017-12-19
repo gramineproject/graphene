@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -47,7 +47,7 @@ static void load_libraries (void)
 {
     /* we will not make any assumption for where the libraries are loaded */
     char cfgbuf[CONFIG_MAX];
-    int len, ret = 0;
+    ssize_t len, ret = 0;
 
     /* loader.preload:
        any other libraries to preload. The can be multiple URIs,
@@ -84,6 +84,7 @@ static void load_libraries (void)
 
 static void read_environments (const char *** envpp)
 {
+    struct config_store * store = pal_state.root_config;
     const char ** envp = *envpp;
     char * cfgbuf;
 
@@ -98,16 +99,13 @@ static void read_environments (const char *** envpp)
     if (!pal_state.root_config)
         return;
 
-    size = get_config_entries_size(pal_state.root_config, "loader.env");
-
-    /* DEP 11/24/17:  XXX Seems like we should really propagate this error
-     */
-    if (size < 0) 
+    ssize_t cfgsize = get_config_entries_size(store, "loader.env");
+    if (cfgsize < 0)
         return;
-        
-    cfgbuf = malloc(size);
-    nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
-                                  cfgbuf);
+
+    cfgbuf = malloc(cfgsize);
+    assert(cfgbuf);
+    nsetenvs = get_config_entries(store, "loader.env", cfgbuf, cfgsize);
 
     if (nsetenvs <= 0) {
         free(cfgbuf);
@@ -117,7 +115,7 @@ static void read_environments (const char *** envpp)
     setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
     char * cfg = cfgbuf;
     for (int i = 0 ; i < nsetenvs ; i++) {
-        int len = strlen(cfg);
+        size_t len = strlen(cfg);
         char * str = __alloca(len + 1);
         setenvs[i].str = str;
         setenvs[i].len = len;
@@ -154,11 +152,10 @@ static void read_environments (const char *** envpp)
         const char * str = setenvs[i].str;
         int len = setenvs[i].len;
         int idx = setenvs[i].idx;
-        int bytes;
+        ssize_t bytes;
         ptr = &envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
-        if ((bytes = get_config(pal_state.root_config, key, cfgbuf,
-                                CONFIG_MAX)) > 0) {
+        if ((bytes = get_config(store, key, cfgbuf, CONFIG_MAX)) > 0) {
             char * e = malloc(len + bytes + 2);
             memcpy(e, str, len);
             e[len] = '=';
@@ -179,7 +176,7 @@ static void read_environments (const char *** envpp)
 static void set_debug_type (void)
 {
     char cfgbuf[CONFIG_MAX];
-    int ret = 0;
+    ssize_t ret = 0;
 
     if (!pal_state.root_config)
         return;
@@ -262,7 +259,7 @@ void pal_main (
 
     char uri_buf[URI_MAX];
     char * manifest_uri = NULL, * exec_uri = NULL;
-    int ret;
+    ssize_t ret;
 
     if (exec_handle) {
         ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);

@@ -88,7 +88,7 @@ class Regression:
                             if timed_out : print 'Test timed out!'
                             keep_log = True
                             if flaky:
-                                print '   This test is kown  not to work, but should be fixed'
+                                print '   This test is known not to work, but should be fixed'
                             else:
                                 something_failed = 1
                             
