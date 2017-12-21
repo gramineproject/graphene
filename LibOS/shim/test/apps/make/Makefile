@@ -25,7 +25,7 @@ test_targets = $(test_tarballs) helloworld graphene
 make_src = make-3.82
 
 $(make_src) $(test_tarballs): %: %.tar.gz
-	[ -d $@ ] || tar -zxf $<
+	[ -d $@ ] || tar -zmxf $<
 
 $(make_src)/make:
 	cd $(make_src) && ./configure

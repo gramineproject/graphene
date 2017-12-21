@@ -15,7 +15,7 @@ int ocall_exit (void);
 
 int ocall_print_string (const char * str, unsigned int length);
 
-int ocall_alloc_untrusted (unsigned int size, void ** mem);
+int ocall_alloc_untrusted (uint64_t size, void ** mem);
 
 int ocall_map_untrusted (int fd, uint64_t offset,
                          uint64_t size, unsigned short prot,
@@ -46,7 +46,7 @@ int ocall_fchmod (int fd, unsigned short mode);
 
 int ocall_fsync (int fd);
 
-int ocall_ftruncate (int fd, unsigned int length);
+int ocall_ftruncate (int fd, uint64_t length);
 
 int ocall_mkdir (const char *pathname, unsigned short mode);
 

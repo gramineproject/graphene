@@ -43,13 +43,9 @@ $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 
 $(graphene_lib):
 	$(MAKE) -C ../lib target=$(shell pwd)/.lib/
-
-.PHONY: pack
-pack: $(executables)
-	@../../Scripts/pack_binaries.sh test $^
 else
-$(executables): .packed/test.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(executables)
+$(executables):
 endif
 
 .PHONY: clean

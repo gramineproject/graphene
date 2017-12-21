@@ -31,11 +31,7 @@ pie: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-.PHONY: pack
-pack: $(special_executables) $(c_executables) $(cxx_executables)
-	@../../../../Scripts/pack_binaries.sh test $^
 else
-$(special_executables) $(c_executables) $(cxx_executables): .packed/test.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
+$(special_executables) $(c_executables) $(cxx_executables):
 endif

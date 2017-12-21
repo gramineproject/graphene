@@ -24,7 +24,7 @@ build/sbin/nginx: $(SRCDIR)
 	$(MAKE) -C $(SRCDIR) install
 
 $(SRCDIR): %: %.tar.gz
-	tar -xzf $<
+	tar -xmzf $<
 
 $(conf_files): %.t: %.t.template
 	sed $(extra_rules) $< > $@
@@ -46,7 +46,7 @@ test-data = build/html/oscar-web build/html/oscar-web-static build/html/random \
 	    $(addprefix build/html/random/,$(random-data))
 
 build/html/%: ../web-data/%.tar.gz
-	[ -d "$@" ] || (cd $(dir $@) && tar -xzf ../../$^)
+	[ -d "$@" ] || (cd $(dir $@) && tar -xmzf ../../$^)
 
 build/html/random:
 	mkdir -p $@

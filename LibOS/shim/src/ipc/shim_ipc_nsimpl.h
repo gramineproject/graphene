@@ -376,7 +376,7 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
             goto failed;
         }
 
-        if ((err == __add_range(r, off, 0, NULL, 0)) < 0) {
+        if ((err = __add_range(r, off, 0, NULL, 0)) < 0) {
             free(r);
             goto failed;
         }
