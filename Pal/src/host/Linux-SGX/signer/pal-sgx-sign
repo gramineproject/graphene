@@ -223,7 +223,7 @@ def get_search_trusted_libs(manifest, args):
     return targets
 
 def get_dependencies(target):
-    p = subprocess.Popen(['/usr/bin/ldd', target], stdout=subprocess.PIPE)
+    p = subprocess.Popen(['/usr/bin/objdump', '-p', target], stdout=subprocess.PIPE)
     lines = p.communicate()[0]
     p.wait()
     if p.returncode != 0:
@@ -233,26 +233,11 @@ def get_dependencies(target):
     deps = []
     for line in lines.split('\n'):
         line = line.strip()
-        if line == 'statically linked':
-            break
-        if re.search('version `\S+\' not found', line):
+        if not line.startswith('NEEDED'):
             continue
-        if line.endswith('not found'):
-            line = line[:-9]
-
-        tokens = line.split()
-        if len(tokens) > 1 and re.match('\(0x[0-9a-f]+\)', tokens[-1]):
-            tokens = tokens[:-1]
-
-        dep = None
-        if len(tokens) > 0:
-            dep = tokens[0]
-        if len(tokens) > 2:
-            dep = tokens[2]
-
-        if dep is not None and not dep.startswith('linux-vdso.so'):
-            print "        " + dep
-            deps.append(dep)
+        dep = line[6:].strip()
+        print "        " + dep
+        deps.append(dep)
 
     return deps
 
