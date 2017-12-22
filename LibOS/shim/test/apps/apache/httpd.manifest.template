@@ -54,7 +54,6 @@ sgx.trusted_libs.mod19 = file:obj/modules/mod_autoindex.so
 sgx.trusted_libs.mod20 = file:obj/modules/mod_dir.so
 sgx.trusted_libs.mod21 = file:obj/modules/mod_alias.so
 
->>>>>>> 27d5e01... Automatic library searching when signing SGX enclaves
 sgx.allowed_files.conf = file:obj/conf
 sgx.allowed_files.htdocs = file:obj/htdocs
 sgx.allowed_files.logs = file:obj/logs

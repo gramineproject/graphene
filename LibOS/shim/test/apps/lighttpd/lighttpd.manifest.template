@@ -39,17 +39,7 @@ glibc.heap_size = 16M
 
 sgx.thread_num = 32
 
-<<<<<<< HEAD
 sgx.search_trusted_libs.libc = file:$(LIBCDIR)
-=======
-sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
-sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
-sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
-sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
-sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
-sgx.trusted_files.libssl = file:/lib/x86_64-linux-gnu/libssl.so.1.0.0
-sgx.trusted_files.libcrypto = file:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0
->>>>>>> master
 
 sgx.trusted_libs.mod1 = file:build/lib/mod_indexfile.so
 sgx.trusted_libs.mod2 = file:build/lib/mod_dirlisting.so
