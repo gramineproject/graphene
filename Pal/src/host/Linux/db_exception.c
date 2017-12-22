@@ -193,6 +193,10 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
 #define ADDR_IN_PAL(addr) \
         ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
 
+/* DEP 12/22/17: This function appears to be searching for
+ * the top of the exception stack in the PAL.  The search needs
+ * to stop at the exception frame.  
+ */
 static struct pal_frame * get_frame (ucontext_t * uc)
 {
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
@@ -202,6 +206,10 @@ static struct pal_frame * get_frame (ucontext_t * uc)
     if (!ADDR_IN_PAL(rip))
         return NULL;
 
+    /* DEP 12/22/17: I don't understand the case that this logic is handling.
+     * It is definitely losing PAL context and causing bad behavior in the
+     * case where an exception comes in during a PAL call */
+#if 0
     while (ADDR_IN_PAL(((unsigned long *) rbp)[1])) {
         last_rbp = rbp;
         rbp = *(unsigned long *) rbp;
@@ -214,7 +222,7 @@ static struct pal_frame * get_frame (ucontext_t * uc)
         if (frame->identifier == PAL_FRAME_IDENTIFIER)
             return frame;
     }
-
+#endif
     return NULL;
 }
 
