@@ -185,7 +185,7 @@ typedef struct pal_handle
 
 struct arch_frame {
 #ifdef __x86_64__
-    unsigned long rsp, rbp, rbx, rsi, rdi, r12, r13, r14, r15;
+    uint64_t rsp, rbp, rbx, rsi, rdi, r12, r13, r14, r15;
 #else
 # error "unsupported architecture"
 #endif
