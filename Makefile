@@ -3,10 +3,6 @@ export SYS
 
 targets = all clean
 
-ifeq ($(SYS),x86_64-linux-gnu)
-targets += pack
-endif
-
 .PHONY: $(targets)
 $(targets):
 	$(MAKE) -C Pal $@

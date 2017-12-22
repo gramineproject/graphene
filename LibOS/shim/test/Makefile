@@ -76,14 +76,6 @@ clean: $(clean-extra) $(if $(level),,clean-subdirs)
 build-subdirs:
 	for f in $(subdirs); do (cd $$f; $(MAKE); cd ..); done
 
-ifeq ($(SYS),x86_64-linux-gnu)
-ifeq ($(level),)
-.PHONY: pack
-pack:
-	for f in $(subdirs); do (cd $$f; $(MAKE) pack; cd ..); done
-endif
-endif
-
 .PHONY: clean-subdirs
 clean-subdirs:
 	for f in $(subdirs); do (cd $$f; $(MAKE) clean; cd ..); done

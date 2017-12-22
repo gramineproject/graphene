@@ -153,7 +153,7 @@ static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
 
 static int mutex_close (PAL_HANDLE handle)
 {
-    free_untrusted(handle->mutex.mut.locked);
+    free_untrusted((int64_t *) handle->mutex.mut.locked);
     return 0;
 }
 
