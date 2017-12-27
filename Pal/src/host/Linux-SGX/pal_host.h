@@ -265,7 +265,7 @@ void __store_frame (volatile struct pal_frame * frame,
 
 
 static inline
-void __clear_frame (struct pal_frame * frame)
+void __clear_frame (volatile struct pal_frame * frame)
 {
     if (frame->identifier == PAL_FRAME_IDENTIFIER) {
         asm volatile ("nop" ::: "memory");
