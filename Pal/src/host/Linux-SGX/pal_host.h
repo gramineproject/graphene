@@ -242,8 +242,14 @@ struct pal_frame {
     struct arch_frame           arch;
 };
 
+/* DEP 12/25/17: This frame storage thing is important to mark volatile.
+ * The compiler should not optimize out any of these changes, and 
+ * because some accesses can happen during an exception, these are not
+ * visible to the compiler in an otherwise stack-local variable (so the
+ * compiler will try to optimize out these assignments.
+ */
 static inline
-void __store_frame (struct pal_frame * frame,
+void __store_frame (volatile struct pal_frame * frame,
                     void * func, const char * funcname)
 {
     arch_store_frame(&frame->arch)
@@ -259,7 +265,7 @@ void __store_frame (struct pal_frame * frame,
 
 
 static inline
-void __clear_frame (struct pal_frame * frame)
+void __clear_frame (volatile struct pal_frame * frame)
 {
     if (frame->identifier == PAL_FRAME_IDENTIFIER) {
         asm volatile ("nop" ::: "memory");

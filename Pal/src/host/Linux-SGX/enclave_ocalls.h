@@ -53,7 +53,7 @@ int ocall_mkdir (const char *pathname, unsigned short mode);
 int ocall_getdents (int fd, struct linux_dirent64 *dirp, unsigned int size);
 
 int ocall_sock_listen (int domain, int type, int protocol,
-                       const struct sockaddr * addr, unsigned int addrlen,
+                       struct sockaddr * addr, unsigned int * addrlen,
                        struct sockopt * opt);
 
 int ocall_sock_accept (int sockfd, struct sockaddr * addr,
