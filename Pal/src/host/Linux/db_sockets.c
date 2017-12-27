@@ -290,7 +290,6 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
     return hdl;
 }
 
-#if ALLOW_BIND_ANY == 0
 static bool check_zero (void * mem, size_t size)
 {
     void * p = mem, * q = mem + size;
@@ -339,7 +338,6 @@ static bool check_any_addr (struct sockaddr * addr)
 
     return false;
 }
-#endif
 
 /* listen on a tcp socket */
 static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
@@ -358,7 +356,7 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
 #if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (addr_check_any(bind_addr))
+    if (check_any_addr(bind_addr))
        return -PAL_ERROR_INVAL;
 #endif
 
@@ -393,6 +391,13 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
                 ret = -PAL_ERROR_DENIED;
                 goto failed;
         }
+    }
+
+    if (check_any_addr(bind_addr)) {
+        /* call getsockname to get socket address */
+        if ((ret = INLINE_SYSCALL(getsockname, 3, fd,
+                                  bind_addr, &bind_addrlen)) < 0)
+            goto failed;
     }
 
     ret = INLINE_SYSCALL(listen, 2, fd, DEFAULT_BACKLOG);
@@ -668,7 +673,7 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
 #if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (addr_check_any(bind_addr))
+    if (check_any_addr(bind_addr))
        return -PAL_ERROR_INVAL;
 #endif
 
@@ -730,7 +735,7 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
 #if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (bind_addr && addr_check_any(bind_addr))
+    if (bind_addr && check_any_addr(bind_addr))
        return -PAL_ERROR_INVAL;
 #endif
 

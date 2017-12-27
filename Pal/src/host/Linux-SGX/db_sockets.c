@@ -345,14 +345,14 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
 #if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (addr_check_any(bind_addr))
+    if (check_any_addr(bind_addr))
        return -PAL_ERROR_INVAL;
 #endif
 
     struct sockopt sock_options;
     ret = ocall_sock_listen(bind_addr->sa_family,
                             sock_type(SOCK_STREAM, options), 0,
-                            bind_addr, bind_addrlen,
+                            bind_addr, &bind_addrlen,
                             &sock_options);
     if (ret < 0)
         return ret;
@@ -550,7 +550,7 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
     struct sockopt sock_options;
     ret = ocall_sock_listen(bind_addr->sa_family,
                             sock_type(SOCK_DGRAM, options), 0,
-                            bind_addr, bind_addrlen, &sock_options);
+                            bind_addr, &bind_addrlen, &sock_options);
     if (ret < 0)
         return ret;
 

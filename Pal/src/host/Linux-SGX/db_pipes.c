@@ -69,9 +69,10 @@ static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
     if ((ret = pipe_addr(pipeid, &addr)) < 0)
         return ret;
 
+    unsigned int addrlen = sizeof(struct sockaddr_un);
     struct sockopt sock_options;
     ret = ocall_sock_listen(AF_UNIX, pipe_type(options), 0,
-                            (void *) &addr, sizeof(struct sockaddr_un),
+                            (struct sockaddr *) &addr, &addrlen,
                             &sock_options);
     if (ret < 0)
         return ret;
