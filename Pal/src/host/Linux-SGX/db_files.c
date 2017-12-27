@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -83,7 +83,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 /* 'read' operation for file streams. */
-static int file_read (PAL_HANDLE handle, int offset, int count,
+static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                       void * buffer)
 {
     sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
@@ -93,8 +93,8 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
     if (offset >= total)
         return 0;
 
-    unsigned long end = (offset + count > total) ? total : offset + count;
-    unsigned long map_start, map_end;
+    uint64_t end = (offset + count > total) ? total : offset + count;
+    uint64_t map_start, map_end;
 
     if (stubs) {
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
@@ -127,18 +127,19 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
 }
 
 /* 'write' operation for file streams. */
-static int file_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          const void * buffer)
 {
-    unsigned long map_start = ALLOC_ALIGNDOWN(offset);
-    unsigned long map_end = ALLOC_ALIGNUP(offset + count);
+    uint64_t map_start = ALLOC_ALIGNDOWN(offset);
+    uint64_t map_end = ALLOC_ALIGNUP(offset + count);
     void * umem;
     int ret;
 
     ret = ocall_map_untrusted(handle->file.fd, map_start,
                               map_end - map_start, PROT_WRITE, &umem);
-    if (ret < 0)
+    if (ret < 0) {
         return -PAL_ERROR_DENIED;
+    }
 
     if (offset + count > handle->file.total) {
         ocall_ftruncate(handle->file.fd, offset + count);
@@ -180,13 +181,12 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                      uint64_t offset, uint64_t size)
 {
     sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
-    unsigned int total = handle->file.total;
+    uint64_t total = handle->file.total;
     void * mem = *addr;
     void * umem;
     int ret;
 
     if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
-map_untrusted:
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
         if (!ret)
@@ -199,8 +199,8 @@ map_untrusted:
         return -PAL_ERROR_DENIED;
     }
 
-    unsigned long end = (offset + size > total) ? total : offset + size;
-    unsigned long map_start, map_end;
+    uint64_t end = (offset + size > total) ? total : offset + size;
+    uint64_t map_start, map_end;
 
     if (stubs) {
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
@@ -316,7 +316,7 @@ static int file_attrquery (const char * type, const char * uri,
 static int file_attrquerybyhdl (PAL_HANDLE handle,
                                 PAL_STREAM_ATTR * attr)
 {
-    int fd = HANDLE_HDR(handle)->fds[0];
+    int fd = handle->file.fd;
     struct stat stat_buf;
 
     int ret = ocall_fstat(fd, &stat_buf);
@@ -330,7 +330,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
 static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
-    int fd = HANDLE_HDR(handle)->fds[0];
+    int fd = handle->file.fd;
     int ret = ocall_fchmod(fd, attr->share_flags | 0600);
     if (ret < 0)
         return ret;
@@ -426,7 +426,8 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
+static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                         void * buf)
 {
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;

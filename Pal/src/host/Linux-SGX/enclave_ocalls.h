@@ -15,7 +15,7 @@ int ocall_exit (void);
 
 int ocall_print_string (const char * str, unsigned int length);
 
-int ocall_alloc_untrusted (unsigned int size, void ** mem);
+int ocall_alloc_untrusted (uint64_t size, void ** mem);
 
 int ocall_map_untrusted (int fd, uint64_t offset,
                          uint64_t size, unsigned short prot,
@@ -46,14 +46,14 @@ int ocall_fchmod (int fd, unsigned short mode);
 
 int ocall_fsync (int fd);
 
-int ocall_ftruncate (int fd, unsigned int length);
+int ocall_ftruncate (int fd, uint64_t length);
 
 int ocall_mkdir (const char *pathname, unsigned short mode);
 
 int ocall_getdents (int fd, struct linux_dirent64 *dirp, unsigned int size);
 
 int ocall_sock_listen (int domain, int type, int protocol,
-                       const struct sockaddr * addr, unsigned int addrlen,
+                       struct sockaddr * addr, unsigned int * addrlen,
                        struct sockopt * opt);
 
 int ocall_sock_accept (int sockfd, struct sockaddr * addr,

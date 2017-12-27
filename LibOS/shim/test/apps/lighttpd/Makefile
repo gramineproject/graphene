@@ -5,7 +5,7 @@ PORT = 8000
 CORES = 4
 THREADS = 25
 
-conf_files = lighttpd-server.conf lighttpd.conf lighttpd-multithreaded.conf
+conf_files = lighttpd-server.conf lighttpd.conf lighttpd-multithreaded.conf lighttpd-ssl.conf
 
 target = build-lighttpd $(conf_files) test-data
 exec_target = $(manifests)
@@ -20,12 +20,12 @@ build-lighttpd: build/sbin/lighttpd
 
 build/sbin/lighttpd: $(SRCDIR)
 	cd $(SRCDIR) && ./configure --prefix=$(PWD)/build \
-		--without-openssl --without-pcre --without-zlib --without-bzip2
+		--with-openssl --without-pcre --without-zlib --without-bzip2
 	$(MAKE) -C $(SRCDIR)
 	$(MAKE) -C $(SRCDIR) install
 
 $(SRCDIR): %: %.tar.gz
-	tar -xzf $<
+	tar -xmzf $<
 
 lighttpd-server.conf:
 	rm -rf $@
@@ -44,6 +44,16 @@ lighttpd-multithreaded.conf:
 	echo "server.max-worker          = $(THREADS)"         >> $@
 	echo "include \"lighttpd-generic.conf\""               >> $@
 
+lighttpd-ssl.conf: server.pem
+	rm -rf $@
+	echo "include \"lighttpd-server.conf\""                >> $@
+	echo "ssl.engine = \"enable\""                         >> $@
+	echo "ssl.pemfile = \"server.pem\""                    >> $@
+	echo "include \"lighttpd-generic.conf\""               >> $@
+
+server.pem:
+	openssl req -new -x509 -keyout server.pem -out server.pem -days 365 -nodes -subj "/cn=lighttpd/o=oscar/dc=cs/dc=stonybrook/dc=edu/"
+
 start-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
@@ -52,6 +62,10 @@ start-multithreaded-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
+start-ssl-native-server:
+	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
+                $(if $(CONF),$(CONF),lighttpd-ssl.conf)
+
 start-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
@@ -59,6 +73,10 @@ start-graphene-server:
 start-multithreaded-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
+
+start-ssl-graphene-server:
+	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
+                $(if $(CONF),$(CONF),lighttpd-ssl.conf)
 
 
 random-data = $(foreach n,1 2 3 4 5 6 7 8 9 10,2K.$n.html) \

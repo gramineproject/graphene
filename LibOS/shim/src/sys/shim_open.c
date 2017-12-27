@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -336,6 +336,12 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
     struct linux_dirent * b = buf;
     int bytes = 0;
 
+    /* If we haven't listed the directory, do this first */
+    if (!(dent->state & DENTRY_LISTED)) {
+        ret = list_directory_dentry(dent);
+        if (ret) goto out;
+    }
+
 #define DIRENT_SIZE(len)  (sizeof(struct linux_dirent) +                \
                            sizeof(struct linux_dirent_tail) + (len) + 1)
 
@@ -374,6 +380,11 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
         dirhdl->dotdot = NULL;
     }
 
+    if (dirhdl->ptr == (void *) -1) {
+        ret = list_directory_handle(dent, hdl);
+        if (ret) goto out;
+    }
+    
     while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
         /* DEP 3/3/17: We need to filter negative dentries */
@@ -390,8 +401,8 @@ done:
     ret = bytes;
     /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
      * hold anything */
-    if (bytes == 0 && ((dirhdl->ptr && *dirhdl->ptr)
-                       || dirhdl->dotdot || dirhdl->dot))
+    if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || 
+                       (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
     unlock(hdl->lock);
 out:
@@ -425,6 +436,12 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
     struct linux_dirent64 * b = buf;
     int bytes = 0;
 
+    /* If we haven't listed the directory, do this first */
+    if (!(dent->state & DENTRY_LISTED)) {
+        ret = list_directory_dentry(dent);
+        if (ret) goto out;
+    }
+    
 #define DIRENT_SIZE(len)  (sizeof(struct linux_dirent64) + (len) + 1)
 
 #define ASSIGN_DIRENT(dent, name, type)                                 \
@@ -456,6 +473,11 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
         dirhdl->dotdot = NULL;
     }
 
+    if (dirhdl->ptr == (void *) -1) {
+        ret = list_directory_handle(dent, hdl);
+        if (ret) goto out;
+    }
+    
     while (dirhdl->ptr && *dirhdl->ptr) {
         dent = *dirhdl->ptr;
         /* DEP 3/3/17: We need to filter negative dentries */
@@ -472,8 +494,8 @@ done:
     ret = bytes;
     /* DEP 3/3/17: Properly detect EINVAL case, where buffer is too small to
      * hold anything */
-    if (bytes == 0 && ((dirhdl->ptr && *dirhdl->ptr)
-                       || dirhdl->dotdot || dirhdl->dot))
+    if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || 
+                       (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
     unlock(hdl->lock);
 out:
@@ -521,7 +543,7 @@ int shim_do_truncate (const char * path, loff_t length)
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_lookupat(NULL, path, 0, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, path, 0, &dent, NULL)) < 0)
         return ret;
 
     struct shim_mount * fs = dent->fs;

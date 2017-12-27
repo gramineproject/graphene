@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -893,7 +893,6 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
     struct shim_vma * tmp, * prev = NULL;
     
     listp_for_each_entry(tmp, &vma_list, list) {
-
         if (test_vma_contain(tmp, addr, length)) {
             if (pprev)
                 *pprev = prev;
@@ -904,8 +903,15 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
         if (!(!prev || prev->addr + prev->length <= tmp->addr)) {
             struct shim_vma * tmp2;
             warn("Failure\n");
+            uint64_t last_addr = 0;
             listp_for_each_entry(tmp2, &vma_list, list) {
                 warn ("Entry: %llx..%llx (%llx)\n", tmp2->addr, tmp2->addr + tmp2->length, tmp2->length);
+                // Don't do an infinite dump if the list gets corrupted
+                if (tmp2->addr < last_addr) {
+                    warn("VMA list corruption detected.  Stopping debug print.\n");
+                    break;
+                }
+                last_addr = tmp2->addr;
             }
             warn("Prev is %p, tmp->addr = %llx, len is %llx\n", prev, tmp->addr, tmp->length);
             if (prev)
@@ -1166,6 +1172,21 @@ BEGIN_CP_FUNC(vma)
         bool protected = false;
 
         if (vma->file) {
+            /*
+             * Chia-Che 8/13/2017:
+             * A fix for cloning a private VMA which maps a file to a process.
+             *
+             * (1) Application can access any page backed by the file, wholly
+             *     or partially.
+             *
+             * (2) Access beyond the last file-backed page will cause SIGBUS.
+             *     For reducing fork latency, the following code truncates the
+             *     memory size for migrating a process. The memory size is
+             *     truncated to the file size, round up to pages.
+             *
+             * (3) Data in the last file-backed page is valid before or after
+             *     forking. Has to be included in process migration.
+             */
             uint64_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
                 vma->offset + vma->length > file_len) {

@@ -60,12 +60,9 @@ $(executables): %: %.c ../src/user_start.o \
 $(graphene_lib):
 	$(MAKE) -C ../lib target=$(shell pwd)/.lib/
 
-.PHONY: pack
-pack: $(preloads) $(executables)
-	@../../Scripts/pack_binaries.sh test $^
 else
-$(preloads) $(executables): .packed/test.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(preloads) $(executables)
+$(preloads) $(executables):
 endif
 
 PYTHONENV = "PYTHONPATH=../../Scripts"

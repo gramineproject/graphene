@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifndef API_H
@@ -23,6 +23,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
+
+/* WARNING: this declaration may conflict with some header files */
+#ifndef ssize_t
+typedef ptrdiff_t ssize_t;
+#endif
 
 /* Macros */
 
@@ -129,11 +134,11 @@ int free_config (struct config_store * store);
 int copy_config (struct config_store * store, struct config_store * new_store);
 int write_config (void * file, int (*write) (void *, void *, int),
                   struct config_store * store);
-int get_config (struct config_store * cfg, const char * key,
-                char * val_buf, int size);
+ssize_t get_config (struct config_store * cfg, const char * key,
+                    char * val_buf, size_t size);
 int get_config_entries (struct config_store * cfg, const char * key,
-                        char * key_buf);
-int get_config_entries_size (struct config_store * cfg, const char * key);
+                        char * key_buf, size_t key_bufsize);
+ssize_t get_config_entries_size (struct config_store * cfg, const char * key);
 int set_config (struct config_store * cfg, const char * key, const char * val);
 
 #define CONFIG_MAX      4096

@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -60,7 +60,7 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent)) < 0)
+    if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
@@ -72,11 +72,16 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     char * dpath = dentry_get_path(dent, true, &dpath_len);
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
+    ssize_t prefix_len;
 
     int nkeys;
-    char * keybuf = __alloca(get_config_entries_size(cfg, "fs.mount.other"));
+    ssize_t keybuf_size;
+    keybuf_size = get_config_entries_size(cfg, "fs.mount.other");
+    if (keybuf_size <= 0)
+        goto root;
 
-    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf);
+    char * keybuf = __alloca(keybuf_size);
+    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto root;
@@ -88,15 +93,15 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     for (int n = 0 ; n < nkeys ; key = next, n++) {
         for (next = key ; *next ; next++);
         next++;
-        int key_len = next - key - 1;
+        size_t key_len = next - key - 1;
         memcpy(tmp, key, key_len);
         char * kp = tmp + key_len;
-        int ulen, plen;
+        ssize_t ulen, plen;
         bool is_chroot = false;
 
         /* Skip FS that are not chroot */
         strcpy_static(kp, ".type", k + CONFIG_MAX - kp);
-        if ((ret = get_config(cfg, k, t, CONFIG_MAX)) <= 0)
+        if (get_config(cfg, k, t, CONFIG_MAX) <= 0)
             continue;
         if (strpartcmp_static(t, "chroot"))
             is_chroot = true;
@@ -156,10 +161,8 @@ remove:
     }
 
 root:
-    if ((ret = get_config(cfg, "fs.mount.root.uri", u, CONFIG_MAX)) > 0) {
-        int prefix_len = ret;
-
-        if ((ret = get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX)) > 0 &&
+    if ((prefix_len = get_config(cfg, "fs.mount.root.uri", u, CONFIG_MAX)) > 0) {
+        if (get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX) > 0 &&
             strcmp_static(t, "chroot")) {
             /* remove the root FS */
             set_config(cfg, "fs.mount.root.uri",  NULL);
@@ -184,10 +187,15 @@ root:
 static int isolate_net (struct config_store * cfg, struct net_sb * sb)
 {
     int nkeys;
-    char k[CONFIG_MAX];
-    char * keybuf = __alloca(get_config_entries_size(cfg, "net.rules"));
+    ssize_t keybuf_size;
+    char k[CONFIG_MAX], * keybuf;
 
-    nkeys = get_config_entries(cfg, "net.rules", keybuf);
+    keybuf_size = get_config_entries_size(cfg, "net.rules");
+    if (keybuf_size <= 0)
+        goto add;
+
+    keybuf = __alloca(keybuf_size);
+    nkeys = get_config_entries(cfg, "net.rules", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto add;
@@ -277,7 +285,7 @@ next:
     return 0;
 }
 
-static void * __malloc (int size)
+static void * __malloc (size_t size)
 {
     return malloc(size);
 }

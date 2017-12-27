@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -29,6 +29,7 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_error.h"
+#include "pal_debug.h"
 #include "api.h"
 
 #include <atomic.h>
@@ -45,11 +46,6 @@ int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
     atomic_set(&ev->event.nwaiters, 0);
     *event = ev;
     return 0;
-}
-
-void _DkEventDestroy (PAL_HANDLE handle)
-{
-    free(handle);
 }
 
 int _DkEventSet (PAL_HANDLE event, int wakeup)
@@ -146,3 +142,19 @@ int _DkEventClear (PAL_HANDLE event)
     atomic_set(&event->event.signaled, 0);
     return 0;
 }
+
+static int event_close (PAL_HANDLE handle)
+{
+    _DkEventSet(handle, -1);
+    return 0;
+}
+
+static int event_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return timeout == NO_TIMEOUT ? _DkEventWait(handle) :
+           _DkEventWaitTimeout(handle, timeout);
+}
+struct handle_ops event_ops = {
+        .close              = &event_close,
+        .wait               = &event_wait,
+    };

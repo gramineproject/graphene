@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -321,8 +321,8 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of pipe stream. offset does not apply here. */
-static int pipe_read (PAL_HANDLE handle, int offset, int len,
-                      void * buffer)
+static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                          void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
@@ -331,7 +331,7 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] :
              handle->pipe.fd;
-    int bytes = 0;
+    int64_t bytes = 0;
 
 #if USE_PIPE_SYSCALL == 1
     if (IS_HANDLE_TYPE(handle, pipeprv)) {
@@ -377,8 +377,8 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
 }
 
 /* 'write' operation of pipe stream. offset does not apply here. */
-static int pipe_write (PAL_HANDLE handle, int offset, int len,
-                       const void * buffer)
+static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                           const void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
@@ -387,7 +387,7 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] :
              handle->pipe.fd;
-    int bytes = 0;
+    int64_t bytes = 0;
 
 #if USE_PIPE_SYSCALL == 1
     if (IS_HANDLE_TYPE(handle, pipeprv)) {
@@ -524,28 +524,29 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
     int ret, val;
 
-    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
+    if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     attr->handle_type  = PAL_GET_TYPE(handle);
 
-    int read_fd = HANDLE_HDR(handle)->fds[0];
-    int flags = HANDLE_HDR(handle)->flags;
-
-    if (!IS_HANDLE_TYPE(handle, pipesrv)) {
-        ret = INLINE_SYSCALL(ioctl, 3, read_fd, FIONREAD, &val);
+    if (attr->handle_type != pal_type_pipesrv) {
+        ret = INLINE_SYSCALL(ioctl, 3, handle->generic.fds[0], FIONREAD, &val);
         if (IS_ERR(ret)) {
             return unix_to_pal_error(ERRNO(ret));
         }
         attr->pending_size = val;
-        attr->writeable    = flags & (
+        attr->writeable    = HANDLE_HDR(handle)->flags & (
             IS_HANDLE_TYPE(handle, pipeprv) ? WRITEABLE(1) : WRITEABLE(0));
     } else {
+        struct pollfd pfd = { .fd = handle->generic.fds[0], .events = POLLIN, .revents = 0 };
+        struct timespec tp = { 0, 0 };
+        ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+        attr->readable = (ret == 1 && pfd.revents == POLLIN);
         attr->pending_size = 0;
         attr->writeable    = PAL_FALSE;
     }
 
-    struct pollfd pfd = { .fd = read_fd, .events = POLLIN, .revents = 0 };
+    struct pollfd pfd = { .fd = handle->generic.fds[0], .events = POLLIN, .revents = 0 };
     struct timespec tp = { 0, 0 };
     ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
     attr->readable = (ret == 1 && pfd.revents == POLLIN);
@@ -558,7 +559,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
 static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
+    if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     int ret;
@@ -567,7 +568,7 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
                             &handle->pipe.nonblocking;
 
     if (attr->nonblocking != *nonblocking) {
-        ret = INLINE_SYSCALL(fcntl, 3, HANDLE_HDR(handle)->fds[0], F_SETFL,
+        ret = INLINE_SYSCALL(fcntl, 3, handle->generic.fds[0], F_SETFL,
                              attr->nonblocking ? O_NONBLOCK : 0);
 
         if (IS_ERR(ret))
