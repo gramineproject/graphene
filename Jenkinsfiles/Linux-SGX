@@ -1,7 +1,8 @@
 pipeline {
         agent {
-            label 'sgx_slave'
-            dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile' }	    
+            dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile'
+ 	                 label 'sgx_slave'
+	    	       }	    
         }
         stages {
                 stage('Build') {
