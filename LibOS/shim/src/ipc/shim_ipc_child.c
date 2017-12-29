@@ -82,7 +82,7 @@ static int ipc_thread_exit (IDTYPE vmid, IDTYPE ppid, IDTYPE tid,
 }
 
 void ipc_parent_exit (struct shim_ipc_port * port, IDTYPE vmid,
-                      unsigned int exitcode, unsigned int term_signal)
+                      unsigned int exitcode)
 {
     debug("ipc port %p of process %u closed suggests parent exiting\n",
           port, vmid);
@@ -159,12 +159,19 @@ int remove_child_thread (IDTYPE vmid, unsigned int exitcode, unsigned int term_s
 }
 
 void ipc_child_exit (struct shim_ipc_port * port, IDTYPE vmid,
-                     unsigned int exitcode, unsigned int term_signal)
+                     unsigned int exitcode)
 {
     debug("ipc port %p of process %u closed suggests child exiting\n",
           port, vmid);
 
-    remove_child_thread(vmid, 0, term_signal);
+    /*
+     * Chia-Che 12/12/2017:
+     * Can't assume there is a termination signal. this callback
+     * is only called when the child process is not responding, and
+     * under this circumstance can only assume the child process
+     * has encountered severe failure, hence SIGKILL.
+     */
+    remove_child_thread(vmid, exitcode, SIGKILL);
 }
 
 static struct shim_ipc_port * get_parent_port (IDTYPE * dest)
