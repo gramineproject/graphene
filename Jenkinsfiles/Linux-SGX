@@ -9,7 +9,7 @@ pipeline {
                     steps {
                         sh '''
                             cd Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
-                            cd host/Linux-SGX/sgx-driver && make
+                            cd Pal/src/host/Linux-SGX/sgx-driver && make
 			    make SGX=1
 			    make SGX_RUN=1
                         '''

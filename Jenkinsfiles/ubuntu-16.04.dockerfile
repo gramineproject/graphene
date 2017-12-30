@@ -20,6 +20,12 @@ RUN apt-get update && apt-get install -y \
 RUN groupadd -r leeroy -g 1000 && useradd -u 1000 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \
     chmod 755 /leeroy
 
+# Make sure /leeroy can be written by leeroy
+RUN chown 100 /leeroy
+
+# Blow away any random state
+RUN rm /leeroy/.rnd
+
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
 
