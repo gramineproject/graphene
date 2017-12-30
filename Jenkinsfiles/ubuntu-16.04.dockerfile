@@ -16,12 +16,18 @@ RUN apt-get update && apt-get install -y \
     texinfo \
     wget
 
+# Add the user UID:1000, GID:1000, home at /leeroy
+RUN groupadd -r leeroy -g 1000 && useradd -u 1000 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \
+    chmod 755 /leeroy
+
+# Set the working directory to leeroy home directory
+WORKDIR /leeroy
+
+# Specify the user to execute all commands below
+USER leeroy
 
 # Set environment variables.
-ENV HOME /root
-
-# Define working directory.
-WORKDIR /root
+ENV HOME /leeroy
 
 # Define default command.
 CMD ["bash"]
