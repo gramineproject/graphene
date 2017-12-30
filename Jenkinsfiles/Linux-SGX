@@ -9,8 +9,15 @@ pipeline {
                     steps {
                         sh '''
                             cd Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
-   			    echo $UID
+   			    id
                         '''
+                        sh '''
+			   mkdir -p /opt/intel
+			   cd /opt/intel
+			   git clone https://github.com/01org/linux-sgx-driver.git
+			   cd linux-sgx-driver
+			   make
+                        '''			
                         sh '''			    
                             cd Pal/src/host/Linux-SGX/sgx-driver && make
                         '''
