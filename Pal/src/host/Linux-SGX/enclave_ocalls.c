@@ -467,22 +467,36 @@ int ocall_socketpair (int domain, int type, int protocol,
 }
 
 int ocall_sock_listen (int domain, int type, int protocol,
-                       const struct sockaddr * addr, unsigned int addrlen,
+                       struct sockaddr * addr, unsigned int * addrlen,
                        struct sockopt * sockopt)
 {
     int retval = 0;
+    unsigned int bind_len = *addrlen;
     ms_ocall_sock_listen_t * ms;
     OCALLOC(ms, ms_ocall_sock_listen_t *, sizeof(*ms));
 
     ms->ms_domain = domain;
     ms->ms_type = type;
     ms->ms_protocol = protocol;
-    ms->ms_addr = COPY_TO_USER(addr, addrlen);
-    ms->ms_addrlen = addrlen;
+    ms->ms_addr = COPY_TO_USER(addr, bind_len);
+    ms->ms_addrlen = bind_len;
 
     retval = SGX_OCALL(OCALL_SOCK_LISTEN, ms);
-    if (retval >= 0)
-        *sockopt = ms->ms_sockopt;
+    if (retval >= 0) {
+        if (addrlen && (
+            sgx_is_within_enclave(ms->ms_addr, bind_len) ||
+            ms->ms_addrlen > bind_len)) {
+            OCALL_EXIT();
+            return -PAL_ERROR_DENIED;
+        }
+
+        if (addr) {
+            COPY_FROM_USER(addr, ms->ms_addr, ms->ms_addrlen);
+            *addrlen = ms->ms_addrlen;
+        }
+        if (sockopt)
+            *sockopt = ms->ms_sockopt;
+    }
     OCALL_EXIT();
     return retval;
 }
