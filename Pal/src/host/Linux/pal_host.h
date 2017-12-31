@@ -185,7 +185,7 @@ typedef struct pal_handle
 
 struct arch_frame {
 #ifdef __x86_64__
-    unsigned long rsp, rbp, rbx, rsi, rdi, r12, r13, r14, r15;
+    uint64_t rsp, rbp, rbx, rsi, rdi, r12, r13, r14, r15;
 #else
 # error "unsupported architecture"
 #endif
@@ -238,8 +238,27 @@ struct pal_frame {
     struct arch_frame           arch;
 };
 
+/* When a PAL call is issued, a special PAL_FRAME is placed on the stack.
+ * This stores both a magic identifier, debugging information, 
+ * as well as callee-saved state.  This is used as a way to deal
+ * with PAL-internal failures where the goal is to exit the PAL and return a
+ * failure.
+ * 
+ * Arguably, an alternative is to unwind the stack and handle error cases at
+ * each stage.  In general, this is probably more robust, but would take work
+ * in the short term.  The one exception where the current strategy is
+ * probably better is when the PAL gets in a state where the code is
+ * unrecoverable, but ideally, this shouldn't happen.
+ */
+
+/* DEP 12/25/17: This frame storage thing is important to mark volatile.
+ * The compiler should not optimize out any of these changes, and 
+ * because some accesses can happen during an exception, these are not
+ * visible to the compiler in an otherwise stack-local variable (so the
+ * compiler will try to optimize out these assignments.
+ */
 static inline
-void __store_frame (struct pal_frame * frame,
+void __store_frame (volatile struct pal_frame * frame,
                     void * func, const char * funcname)
 {
     arch_store_frame(&frame->arch)
@@ -255,7 +274,7 @@ void __store_frame (struct pal_frame * frame,
 
 
 static inline
-void __clear_frame (struct pal_frame * frame)
+void __clear_frame (volatile struct pal_frame * frame)
 {
     if (frame->identifier == PAL_FRAME_IDENTIFIER) {
         asm volatile ("nop" ::: "memory");
