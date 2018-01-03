@@ -26,6 +26,10 @@ RUN chown 1000 /leeroy
 # Blow away any random state
 RUN rm -f /leeroy/.rnd
 
+# Make a directory for the intel driver
+RUN mkdir -p /opt/intel && chown 1000 /opt/intel
+
+
 # Set the working directory to leeroy home directory
 WORKDIR /leeroy
 

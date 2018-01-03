@@ -12,7 +12,6 @@ pipeline {
    			    id
                         '''
                         sh '''
-			   mkdir -p /opt/intel
 			   cd /opt/intel
 			   git clone https://github.com/01org/linux-sgx-driver.git
 			   cd linux-sgx-driver
