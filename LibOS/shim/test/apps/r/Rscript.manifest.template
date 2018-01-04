@@ -39,7 +39,8 @@ sys.stack.size = 256K
 sys.brk.size = 4M
 glibc.heap_size = 16M
 
-sgx.search_trsuted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR)
+
 sgx.trusted_files.r = file:/usr/lib/R/bin/exec/R
 
 sgx.allowed_files.r = file:/usr/lib/R

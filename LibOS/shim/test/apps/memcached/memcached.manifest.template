@@ -35,6 +35,6 @@ glibc.heap_size = 16M
 sgx.enclave_size = $(MEMSIZE)
 sgx.thread_num = $(THREADNUM)
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/usr/lib/x86_64-linux-gnu
 
 sgx.allowed_files.etc = file:etc

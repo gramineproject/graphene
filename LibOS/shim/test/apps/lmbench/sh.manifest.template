@@ -19,7 +19,7 @@ sgx.enclave_size = 128M
 sys.brk.size = 32M
 sys.stack.size = 4M
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu
 
 sgx.trusted_files.hello = file:hello
 

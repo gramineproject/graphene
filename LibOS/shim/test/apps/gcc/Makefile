@@ -1,6 +1,6 @@
 test_files = test_files
 
-exec_target = $(addsuffix .manifest,gcc as ld cc1 collect2)
+exec_target = $(addsuffix .manifest,as ld cc1 collect2 gcc)
 
 clean-extra = clean-garbages
 

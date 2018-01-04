@@ -27,7 +27,7 @@ fs.mount.usr.uri = file:/usr
 
 sys.brk.size = 256K
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu
 
 sgx.trusted_children.ls = file:ls.sig
 sgx.trusted_children.cp = file:cp.sig

@@ -23,7 +23,7 @@ fs.mount.tmp.type = chroot
 fs.mount.tmp.path = /tmp
 fs.mount.tmp.uri = file:/tmp
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu,file:/usr/lib/x86_64-linux-gnu
 
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.test_files = file:test_files

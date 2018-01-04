@@ -16,4 +16,4 @@ fs.mount.bin.path = /bin
 fs.mount.bin.uri = file:/bin
 
 # sgx-related
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu

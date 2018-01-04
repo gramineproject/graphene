@@ -30,7 +30,7 @@ glibc.heap_size = 16M
 sys.brk.size = 32M
 sys.stack.size = 4M
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR)
 
 sgx.allowed_files.tmp1 = file:/tmp
 sgx.allowed_files.tmp2 = file:/var/tmp

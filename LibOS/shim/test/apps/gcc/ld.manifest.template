@@ -25,7 +25,7 @@ fs.mount.tmp.uri = file:/tmp
 
 sgx.enclave_size = 512M
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu,file:/usr/lib/x86_64-linux-gnu
 
 sgx.trusted_files.liblto = file:$(GCCDIR)/liblto_plugin.so
 sgx.trusted_files.crtbegin = file:$(GCCDIR)/crtbegin.o

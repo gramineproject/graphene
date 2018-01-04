@@ -38,7 +38,7 @@ sys.stack.size = 256K
 sys.brk.size = 4M
 glibc.heap_size = 16M
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu,file:/usr/lib/x86_64-linux-gnu
 
 sgx.allowed_files.tmp = file:/tmp
 sgx.allowed_files.etc = file:etc

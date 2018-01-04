@@ -29,9 +29,7 @@ fs.mount.tmp.uri = file:/tmp
 
 $(RESOURCE_RULE)
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
-sgx.search_trusted_libs.java = file:$(JAVA_HOME)/lib/amd64
-sgx.search_trusted_libs.java_server = file:$(JAVA_HOME)/lib/amd64/server
+sgx.search_trusted_libs = file:$(LIBCDIR),file:$(JAVA_HOME)/lib/amd64,file:$(JAVA_HOME)/lib/amd64/server
 
 sgx.trusted_libs.librt = file:$(LIBCDIR)/librt.so.1
 sgx.trusted_libs.libjava = file:$(JAVA_HOME)/lib/amd64/libjava.so

@@ -25,8 +25,7 @@ fs.mount.cwd.uri = file:
 # allow to bind on port for listening
 net.allow_bind.1 = $(HOST):$(PORT)
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
-sgx.search_trusted_libs.obj = file:obj/lib
+sgx.search_trusted_libs = file:$(LIBCDIR),file:obj/lib,file:/lib/x86_64-linux-gnu
 
 sgx.trusted_libs.nss1 = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
 sgx.trusted_libs.nss2 = file:/lib/x86_64-linux-gnu/libnss_files.so.2

@@ -41,7 +41,7 @@ glibc.heap_size = 16M
 
 sgx.enclave_size = 1G
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu,file:/usr/lib,file:/usr/lib/x86_64-linux-gnu
 
 sgx.allowed_files.r = file:/usr/lib/R
 sgx.allowed_files.scripts = file:scripts

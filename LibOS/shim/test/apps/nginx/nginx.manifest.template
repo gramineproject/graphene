@@ -31,7 +31,7 @@ net.allow_bind.1 = $(HOST):$(PORT)
 
 sgx.enclave_size = 512M
 
-sgx.search_trusted_libs.libc = file:$(LIBCDIR)
+sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu
 sgx.trusted_files.conf = file:http.t
 sgx.trusted_files.nss1 = file:/lib/x86_64-linux-gnu/libnss_compat.so.2
 sgx.trusted_files.nss2 = file:/lib/x86_64-linux-gnu/libnss_nis.so.2
