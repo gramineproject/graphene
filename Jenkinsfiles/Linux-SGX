@@ -8,6 +8,9 @@ pipeline {
         stages {
                 stage('Build') {
                     steps {
+		    	sh '''
+			   ls -lR /lib/modules/4.4.0-104-generic/
+			'''
                         sh '''
                             cd Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
    			    id
