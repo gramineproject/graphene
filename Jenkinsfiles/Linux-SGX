@@ -10,6 +10,7 @@ pipeline {
                     steps {
 		    	sh '''
 			   ls -lR /lib/modules/
+			   uname -a
 			'''
                         sh '''
                             cd Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
