@@ -2,6 +2,7 @@
 FROM ubuntu:16.04
 
 # Copy in the linux headers/modules
+RUN mkdir -p /lib/modules
 COPY /lib/modules/ /lib/modules/
 
 # Add steps here to set up dependencies
