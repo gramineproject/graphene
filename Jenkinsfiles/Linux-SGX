@@ -20,10 +20,11 @@ pipeline {
 			   cd /opt/intel
 			   git clone https://github.com/01org/linux-sgx-driver.git
 			   cd linux-sgx-driver
-			   ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
+			   make
                         '''			
                         sh '''			    
-                            cd Pal/src/host/Linux-SGX/sgx-driver && make
+                            cd Pal/src/host/Linux-SGX/sgx-driver 
+			    ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
                         '''
                         sh '''			    			    
 			    make SGX=1
