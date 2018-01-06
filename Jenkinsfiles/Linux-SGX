@@ -2,19 +2,14 @@ pipeline {
         agent {
             dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile'
  	                 label 'sgx_slave'
- 		         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket"
+ 		         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket -v /dev/gsgx:/dev/gsgx -v /dev/isgx:/dev/isgx"
 	    	       }	    
         }
         stages {
                 stage('Build') {
                     steps {
-		    	sh '''
-			   ls -lR /lib/modules/
-			   uname -a
-			'''
                         sh '''
                             cd Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
-   			    id
                         '''
                         sh '''
 			   cd /opt/intel
