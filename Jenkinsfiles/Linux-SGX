@@ -41,26 +41,26 @@ pipeline {
                             cd Pal/regression
 			    make SGX=1
 			    make SGX_RUN=1
-                            make regression
+                            make SGX_RUN=1 regression
                             '''
                         sh '''
                             cd LibOS/shim/test/regression
 			    make SGX=1
 			    make SGX_RUN=1			    
-                            make regression
+                            make SGX_RUN=1 regression
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/python
 			    make SGX=1
 			    make SGX_RUN=1			    
-                            make regression
+                            make SGX_RUN=1 regression
                             '''
 			timeout(time: 5, unit: 'MINUTES') {		    
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
 			    	make SGX=1
 			        make SGX_RUN=1
-                                make regression
+                                make SGX_RUN=1 regression
                            '''
 			}
 			timeout(time: 15, unit: 'MINUTES') {
@@ -68,14 +68,14 @@ pipeline {
                                 cd LibOS/shim/test/apps/lmbench
 			    	make SGX=1
 			        make SGX_RUN=1
-                                make regression
+                                make SGX_RUN=1 regression
                             '''
 			}
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
 			    make SGX=1
 			    make SGX_RUN=1
-                            make start-graphene-server &
+                            make SGX_RUN=1 start-graphene-server &
 			    sleep 1
                             ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000			    
                             '''
@@ -83,7 +83,7 @@ pipeline {
                             cd LibOS/shim/test/apps/apache
 			    make SGX=1
 			    make SGX_RUN=1
-                            make start-graphene-server &
+                            make SGX_RUN=1 start-graphene-server &
 			    sleep 1			    
                             ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
                             '''
