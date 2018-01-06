@@ -38,14 +38,55 @@ pipeline {
                 stage('Test') {
                     steps {
                         sh '''
+                            cd Pal/regression
+			    make SGX=1
+			    make SGX_RUN=1
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/regression
+			    make SGX=1
+			    make SGX_RUN=1			    
+                            make regression
+                            '''
+                        sh '''
                             cd LibOS/shim/test/apps/python
-                            ls
-                            make SGX=1
-                            make SGX_RUN=1
-                            ls
-                            ./python.manifest scripts/helloworld.py
-                            ./python.manifest scripts/fibonacci.py
-                        '''
+			    make SGX=1
+			    make SGX_RUN=1			    
+                            make regression
+                            '''
+			timeout(time: 5, unit: 'MINUTES') {		    
+                            sh '''
+                                cd LibOS/shim/test/apps/gcc
+			    	make SGX=1
+			        make SGX_RUN=1
+                                make regression
+                           '''
+			}
+			timeout(time: 15, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/lmbench
+			    	make SGX=1
+			        make SGX_RUN=1
+                                make regression
+                            '''
+			}
+                        sh '''
+                            cd LibOS/shim/test/apps/lighttpd
+			    make SGX=1
+			    make SGX_RUN=1
+                            make start-graphene-server &
+			    sleep 1
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000			    
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+			    make SGX=1
+			    make SGX_RUN=1
+                            make start-graphene-server &
+			    sleep 1			    
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
+                            '''
                     }
                 }
                 stage('Deploy') {
