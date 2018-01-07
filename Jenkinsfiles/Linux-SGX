@@ -32,6 +32,7 @@ pipeline {
                 }
                 stage('Test') {
                     steps {
+		    /*
 			timeout(time: 15, unit: 'MINUTES') {		    		    
                             sh '''
                                 cd Pal/regression
@@ -40,6 +41,7 @@ pipeline {
                                 make SGX_RUN=1 KEEP_LOG=1 regression
                                 '''
 			}
+			*/
                         sh '''
                             cd LibOS/shim/test/regression
 			    make SGX=1
