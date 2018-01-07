@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     gawk \
     gettext \
     git \
+    libexpat1 \
     libpcre3-dev \
     libxml2-dev \
     net-tools \
