@@ -32,13 +32,13 @@ pipeline {
                 }
                 stage('Test') {
                     steps {
-                        sh '''
-                            cd Pal/regression
-			    make SGX=1
-			    make SGX_RUN=1
-			    ../../Runtime/pal-Linux-SGX ./Bootstrap
-                            make SGX_RUN=1 KEEP_LOG=1 regression
-                            '''
+			timeout(time: 15, unit: 'MINUTES') {		    		    
+                            sh '''
+                                cd Pal/regression
+			        make SGX=1
+			        make SGX_RUN=1
+                                make SGX_RUN=1 KEEP_LOG=1 regression
+                                '''
                         sh '''
                             cd LibOS/shim/test/regression
 			    make SGX=1
