@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     gettext \
     git \
     libexpat1 \
+    libexpat1-dev \
     libpcre3-dev \
     libxml2-dev \
     net-tools \
