@@ -62,6 +62,7 @@ pipeline {
                                 make SGX_RUN=1 regression
                            '''
 			}
+			/*
 			timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
@@ -70,6 +71,7 @@ pipeline {
                                 make SGX_RUN=1 regression
                             '''
 			}
+			*/
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
 			    make SGX=1
