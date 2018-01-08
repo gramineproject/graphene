@@ -85,8 +85,7 @@ pipeline {
 			    make SGX=1
 			    make SGX_RUN=1
                             make SGX_RUN=1 start-graphene-server &
-			    sleep 10			    
-                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
+			    sleep 15 && ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
                             '''
                     }
                 }
