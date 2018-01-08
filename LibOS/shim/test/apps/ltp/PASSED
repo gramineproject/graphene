@@ -417,8 +417,6 @@ readv01,1
 readv01,2
 recv01,1
 recv01,2
-recvfrom01,1
-recvfrom01,2
 recvmsg01,1
 recvmsg01,2
 rmdir01,1
