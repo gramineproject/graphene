@@ -747,8 +747,6 @@ semget03,1
 semop01,1
 semop04,1
 semop04,2
-send01,1
-send01,2
 sendfile03,1
 sendfile03,2
 sendfile03,3
