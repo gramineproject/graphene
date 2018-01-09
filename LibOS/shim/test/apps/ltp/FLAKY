@@ -22,3 +22,6 @@ Internal memory fault at 0x8 (IP = +0x34f1a, VMID = 3902099696, TID = 1)
 Prone to hanging - I think a memory corruption issue that may have a pending fix
 recvfrom01,1
 recvfrom01,2
+
+Intermittent seg fault
+kill03,1

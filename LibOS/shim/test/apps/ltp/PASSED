@@ -270,7 +270,6 @@ gettid01,1
 getuid01,1
 getuid03,1
 kill01,1
-kill03,1
 kill09,1
 listen01,1
 listen01,2
