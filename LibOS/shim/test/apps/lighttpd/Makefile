@@ -47,9 +47,14 @@ lighttpd-multithreaded.conf:
 lighttpd-ssl.conf: server.pem
 	rm -rf $@
 	echo "include \"lighttpd-server.conf\""                >> $@
+	echo "include \"lighttpd-generic.conf\""               >> $@
+	echo ""                                                >> $@
+	echo "\$$SERVER[\"socket\"] == \"0.0.0.0:443\" {"      >> $@
 	echo "ssl.engine = \"enable\""                         >> $@
 	echo "ssl.pemfile = \"server.pem\""                    >> $@
-	echo "include \"lighttpd-generic.conf\""               >> $@
+	echo "ssl.cipher-list = \"ECDHE-RSA-AES256-SHA384:AES256-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH:!AESGCM\""                                                           >> $@
+	echo "ssl.honor-cipher-order = \"enable\""             >> $@
+	echo "}" 
 
 server.pem:
 	openssl req -new -x509 -keyout server.pem -out server.pem -days 365 -nodes -subj "/cn=lighttpd/o=oscar/dc=cs/dc=stonybrook/dc=edu/"
