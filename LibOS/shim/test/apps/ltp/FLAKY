@@ -32,3 +32,6 @@ send01,2
 sendto01,1
 sendto01,2
 sendto01,3
+
+Intermittent failure on Linux host
+poll02,1
