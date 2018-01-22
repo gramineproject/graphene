@@ -52,12 +52,17 @@ lighttpd-ssl.conf: server.pem
 	echo "\$$SERVER[\"socket\"] == \"0.0.0.0:443\" {"      >> $@
 	echo "ssl.engine = \"enable\""                         >> $@
 	echo "ssl.pemfile = \"server.pem\""                    >> $@
-	echo "ssl.cipher-list = \"ECDHE-RSA-AES256-SHA384:AES256-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH:!AESGCM\""                                                           >> $@
+	echo "ssl.cipher-list = \"ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA\""	>> $@
 	echo "ssl.honor-cipher-order = \"enable\""             >> $@
+	echo "ssl.dh-file = \"dhparam.pem\""		       >> $@
+	echo "ssl.ec-curve = \"secp384r1\"" 		       >> $@
 	echo "}" 
 
 server.pem:
 	openssl req -new -x509 -keyout server.pem -out server.pem -days 365 -nodes -subj "/cn=lighttpd/o=oscar/dc=cs/dc=stonybrook/dc=edu/"
+
+dhparam.pem:
+	openssl dhparam -out dhparam.pem 4096
 
 start-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
