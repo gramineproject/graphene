@@ -365,7 +365,7 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
                 break;
             default:            break;
         }
-        debug("Stat: Returning link cound %d\n", stat->st_nlink);
+        debug("Stat: Returning link count %d\n", stat->st_nlink);
     }
 
     unlock(data->lock);
