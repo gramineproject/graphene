@@ -1,0 +1,88 @@
+Running lighttpd tests is conceptually straightforward. You start a
+server, then make requests from a remote host. There are some good
+websites/blogs that discuss properly benchmarking a webserver. We want
+to test how efficiently Graphene handles requests, not the speed of
+the network stack in the OS. So we are using very small static files.
+See the wiki page for more details.
+
+7/23/13:
+
+To start a server in graphene, 
+   make start-graphene-server
+
+To start a server on any other platform,
+   make start-native-server
+
+Now that your server is up and running, it is time to test it.  From a
+remote host, you can use the run-apachebench.sh script to programatically submit
+requests at various loads. The usage of that script is as follows:
+   ./run-apachebench.sh <ip-of-server> <port-of-server> <concurrency-level> 
+
+The script will append the output to a file "ab.n<N>.c<C>"
+
+The output will look something like this:
+
+*** BEGIN OUTPUT ***
+
+This is ApacheBench, Version 2.3 <$Revision: 655654 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking 130.245.153.32 (be patient)
+
+
+Server Software:        lighttpd/1.4.30
+Server Hostname:        130.245.153.32
+Server Port:            8000
+
+Document Path:          /random/100.1.html
+Document Length:        100 bytes
+
+Concurrency Level:      100
+Time taken for tests:   4.110 seconds
+Complete requests:      50000
+Failed requests:        0
+Write errors:           0
+Total transferred:      16650000 bytes
+HTML transferred:       5000000 bytes
+Requests per second:    12164.64 [#/sec] (mean)
+Time per request:       8.221 [ms] (mean)
+Time per request:       0.082 [ms] (mean, across all concurrent requests)
+Transfer rate:          3955.88 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.0      0       1
+Processing:     1    8   8.7      7     202
+Waiting:        1    8   8.7      7     202
+Total:          2    8   8.7      8     203
+
+Percentage of the requests served within a certain time (ms)
+  50%      8
+  66%      8
+  75%      8
+  80%      8
+  90%      8
+  95%      8
+  98%      8
+  99%      8
+ 100%    203 (longest request)
+
+*** END OUTPUT ***
+
+The number we were reporting is the transfer rate. So for this
+example, the we would report a bandwidth of 3.95588 Mbytes/second.
+
+
+
+NOTES:
+
+To run kvm and lxc, you need to set up a bridge. But you do not want
+extraneous interfaces when you are not using them, so make
+sure to bring them down before testing native linux or graphene.
+
+If you are within kvm or lxc, your ip will not be that of your
+host. Make sure your ip matches the ip in the conf file.
+
+If you have a lot of time and want to do a good job, throw out the top
+and the low numbers, and report the mean of your large sample.
