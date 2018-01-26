@@ -70,9 +70,9 @@ void debug_puts (const char * str);
 void debug_putch (int ch);
 void debug_vprintf (const char * fmt, va_list * ap);
 
-# define VMID_PREFIX     "[P%04u] "
-# define TID_PREFIX      "[%-5u] "
-# define NOID_PREFIX     "[     ] "
+# define VMID_PREFIX     "[P%05u] "
+# define TID_PREFIX      "[%-6u] "
+# define NOID_PREFIX     "[      ] "
 # define debug(fmt, ...)                                                    \
     do {                                                                    \
         if (debug_handle)                                                   \

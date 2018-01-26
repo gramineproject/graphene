@@ -1135,7 +1135,7 @@ int shim_clean (void)
         DkObjectClose(shim_stdio);
 
     shim_stdio = NULL;
-    debug("process %u successfully terminated\n", cur_process.vmid);
+    debug("process %u successfully terminated\n", cur_process.vmid & 0xFFFF);
     master_lock();
     DkProcessExit(cur_process.exit_code);
     return 0;
