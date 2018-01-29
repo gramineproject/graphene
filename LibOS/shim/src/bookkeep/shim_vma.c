@@ -1302,7 +1302,7 @@ BEGIN_CP_FUNC(all_vmas)
     __shrink_vmas();
 
     listp_for_each_entry(tmp, &vma_list, list)
-        if (!(tmp->flags & VMA_INTERNAL) && (tmp->prot & PROT_READ))
+        if (!(tmp->flags & VMA_INTERNAL))
             nvmas++;
 
     if (!nvmas) {
@@ -1313,7 +1313,7 @@ BEGIN_CP_FUNC(all_vmas)
     vmas = __alloca(sizeof(struct shim_vam *) * nvmas);
 
     listp_for_each_entry(tmp, &vma_list, list)
-        if (!(tmp->flags & VMA_INTERNAL) && (tmp->prot & PROT_READ)) {
+        if (!(tmp->flags & VMA_INTERNAL)) {
             get_vma(tmp);
             vmas[cnt++] = tmp;
         }
