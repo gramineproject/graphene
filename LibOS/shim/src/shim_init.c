@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -65,7 +65,7 @@ void warn (const char *format, ...)
 { 
     va_list args;
     va_start (args, format);
-    __sys_printf(format, args);
+    __sys_vprintf(format, &args);
     va_end (args);
 }
 
@@ -154,8 +154,8 @@ long int glibc_option (const char * opt)
     char cfg[CONFIG_MAX];
 
     if (strcmp_static(opt, "heap_size")) {
-        int ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
-        if (ret < 0) {
+        ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
+        if (ret <= 0) {
             debug("no glibc option: %s (err=%d)\n", opt, ret);
             return -ENOENT;
         }
@@ -433,7 +433,7 @@ int read_environs (const char ** envp)
 
 struct config_store * root_config = NULL;
 
-static void * __malloc (int size)
+static void * __malloc (size_t size)
 {
     return malloc(size);
 }
@@ -661,6 +661,8 @@ int shim_init (int argc, void * args, void ** return_stack)
 #ifdef PROFILE
     unsigned long begin_time = GET_PROFILE_INTERVAL();
 #endif
+
+    debug("host: %s\n", PAL_CB(host_type));
 
     DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE, 0);
 
@@ -939,8 +941,11 @@ static int open_pal_handle (const char * uri, void * obj)
             return -PAL_ERRNO;
     }
 
-    if (obj)
+    if (obj) {
         *((PAL_HANDLE *) obj) = hdl;
+    } else {
+        DkObjectClose(hdl);
+    }
 
     return 0;
 }
@@ -1072,7 +1077,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
 }
 #endif /* PROFILE */
 
-static struct shim_atomic in_terminate = { .counter = 0, };
+static struct atomic_int in_terminate = { .counter = 0, };
 
 int shim_terminate (void)
 {
@@ -1120,6 +1125,7 @@ int shim_clean (void)
         }
 
         master_unlock();
+        DkObjectClose(hdl);
     }
 #endif
 
@@ -1129,7 +1135,7 @@ int shim_clean (void)
         DkObjectClose(shim_stdio);
 
     shim_stdio = NULL;
-    debug("process %u successfully terminated\n", cur_process.vmid);
+    debug("process %u successfully terminated\n", cur_process.vmid & 0xFFFF);
     master_lock();
     DkProcessExit(cur_process.exit_code);
     return 0;
@@ -1176,6 +1182,7 @@ int message_confirm (const char * message, const char * options)
         goto out;
 
 out:
+    DkObjectClose(hdl);
     master_unlock();
     return (ret < 0) ? ret : answer;
 }

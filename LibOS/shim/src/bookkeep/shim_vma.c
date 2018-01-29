@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -77,40 +77,39 @@ DEFINE_LISTP(shim_vma);
 static LISTP_TYPE(shim_vma) vma_list = LISTP_INIT;
 static LOCKTYPE vma_list_lock;
 
-static inline int test_vma_equal (struct shim_vma * tmp,
+static inline bool test_vma_equal (struct shim_vma * tmp,
                                   const void * addr, uint64_t length)
 {
-    return tmp->addr == addr &&
-           tmp->addr + tmp->length == addr + length;
+    return tmp->addr == addr && tmp->length == length;
 }
 
-static inline int test_vma_contain (struct shim_vma * tmp,
+static inline bool test_vma_contain (struct shim_vma * tmp,
                                     const void * addr, uint64_t length)
 {
     return tmp->addr <= addr &&
            tmp->addr + tmp->length >= addr + length;
 }
 
-static inline int test_vma_startin (struct shim_vma * tmp,
+static inline bool test_vma_startin (struct shim_vma * tmp,
                                     const void * addr, uint64_t length)
 {
     return tmp->addr >= addr &&
            tmp->addr < addr + length;
 }
 
-static inline int test_vma_endin (struct shim_vma * tmp,
+static inline bool test_vma_endin (struct shim_vma * tmp,
                                   const void * addr, uint64_t length)
 {
     return tmp->addr + tmp->length > addr &&
            tmp->addr + tmp->length <= addr + length;
 }
 
-static inline int test_vma_overlap (struct shim_vma * tmp,
+static inline bool test_vma_overlap (struct shim_vma * tmp,
                                     const void * addr, uint64_t length)
 {
-    return test_vma_contain (tmp, addr + 1, 0) ||
-           test_vma_contain (tmp, addr + length - 1, 0) ||
-           test_vma_startin (tmp, addr, length - 1);
+    return test_vma_contain(tmp, addr, 1) ||
+           test_vma_contain(tmp, addr + length - 1, 1) ||
+           test_vma_startin(tmp, addr, length);
 }
 
 int bkeep_shim_heap (void);
@@ -123,10 +122,18 @@ int init_vma (void)
         return -ENOMEM;
     }
 
+    debug("User space range given from PAL: %p-%p\n",
+          (void *) PAL_CB(user_address.start),
+          (void *) PAL_CB(user_address.end));
+
     heap_bottom = (void *) PAL_CB(user_address.start);
-    if (heap_bottom + DEFAULT_HEAP_MIN_SIZE > PAL_CB(executable_range.start) &&
-        heap_bottom < PAL_CB(executable_range.end))
+    if (heap_bottom + DEFAULT_HEAP_MIN_SIZE > PAL_CB(executable_range.start)
+        && heap_bottom < PAL_CB(executable_range.end)
+        && heap_top > PAL_CB(executable_range.start))
         heap_bottom = (void *) ALIGN_UP(PAL_CB(executable_range.end));
+
+    debug("setting initial heap to %p-%p\n", heap_bottom,
+          (void *) PAL_CB(user_address.end));
 
     __set_heap_top(heap_bottom, (void *) PAL_CB(user_address.end));
 
@@ -252,7 +259,6 @@ static bool check_vma_flags (const struct shim_vma * vma, const int * flags)
     }
 
     return true;
-
 }
 
 static inline void __set_comment (struct shim_vma * vma, const char * comment)
@@ -267,7 +273,8 @@ static inline void __set_comment (struct shim_vma * vma, const char * comment)
     if (len > VMA_COMMENT_LEN - 1)
         len = VMA_COMMENT_LEN - 1;
 
-    memcpy(vma->comment, comment, len + 1);
+    memcpy(vma->comment, comment, len);
+    vma->comment[len] = 0;
 }
 
 static int __bkeep_mmap (void * addr, uint64_t length,
@@ -405,9 +412,9 @@ static int __bkeep_munmap (void * addr, uint64_t length, const int * flags)
                 return -EACCES;
             __remove_vma(tmp);
         } else if (test_vma_overlap (tmp, addr, length)) {
-            unsigned long before_length;
-            unsigned long after_length;
-            unsigned long after_offset;
+            uint64_t before_length;
+            uint64_t after_length;
+            uint64_t after_offset;
 
             if (addr > tmp->addr)
                 before_length = addr - tmp->addr;
@@ -669,10 +676,10 @@ static void __set_heap_top (void * bottom, void * top)
         return;
     }
 
-    unsigned long rand;
-    while (getrand(&rand, sizeof(unsigned long)) < sizeof(unsigned long));
+    uint64_t rand;
+    while (getrand(&rand, sizeof(uint64_t)) < sizeof(uint64_t));
 
-    rand %= (unsigned long) (top - bottom) / allocsize;
+    rand %= (uint64_t) (top - bottom) / allocsize;
     heap_top = bottom + rand * allocsize;
     debug("heap top adjusted to %p\n", heap_top);
 }
@@ -688,10 +695,14 @@ void * get_unmapped_vma (uint64_t length, int flags)
     __check_delayed_bkeep();
 
     if (heap_top - heap_bottom < length) {
+        debug("current heap %p-%p is not enough for allocating %lld bytes\n",
+              heap_bottom, heap_top, length);
         unlock(vma_list_lock);
         put_vma(new);
         return NULL;
     }
+
+    debug("find unmapped vma between %p-%p\n", heap_bottom, heap_top);
 
     do {
         int found = 0;
@@ -759,12 +770,17 @@ void * get_unmapped_vma_for_cp (uint64_t length)
     if (!new)
         return NULL;
 
+    if (length > PAL_CB(user_address.end) - PAL_CB(user_address.start)) {
+        debug("user space is not enough for allocating %lld bytes\n", length);
+        return NULL;
+    }
+
     lock(vma_list_lock);
 
     __check_delayed_bkeep();
 
-    unsigned long top = (unsigned long) PAL_CB(user_address.end) - length;
-    unsigned long bottom = (unsigned long) heap_top;
+    uint64_t top = (uint64_t) PAL_CB(user_address.end) - length;
+    uint64_t bottom = (uint64_t) heap_top;
     int flags = MAP_ANONYMOUS|VMA_UNMAPPED|VMA_INTERNAL;
     void * addr;
 
@@ -776,9 +792,9 @@ void * get_unmapped_vma_for_cp (uint64_t length)
     debug("find unmapped vma between %p-%p\n", bottom, top);
 
     for (int i = 0 ; i < NTRIES ; i++) {
-        unsigned long rand;
-        while (getrand(&rand, sizeof(unsigned long)) < sizeof(unsigned long));
-        rand %= (unsigned long) (top - bottom) / allocsize;
+        uint64_t rand;
+        while (getrand(&rand, sizeof(uint64_t)) < sizeof(uint64_t));
+        rand %= (uint64_t) (top - bottom) / allocsize;
         addr = (void *) bottom + rand * allocsize;
         if (!__lookup_overlap_vma(addr, length, &prev))
             break;
@@ -875,7 +891,7 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
                                             struct shim_vma ** pprev)
 {
     struct shim_vma * tmp, * prev = NULL;
-
+    
     listp_for_each_entry(tmp, &vma_list, list) {
         if (test_vma_contain(tmp, addr, length)) {
             if (pprev)
@@ -884,6 +900,23 @@ static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
         }
 
         /* Assert we are really sorted */
+        if (!(!prev || prev->addr + prev->length <= tmp->addr)) {
+            struct shim_vma * tmp2;
+            warn("Failure\n");
+            uint64_t last_addr = 0;
+            listp_for_each_entry(tmp2, &vma_list, list) {
+                warn ("Entry: %llx..%llx (%llx)\n", tmp2->addr, tmp2->addr + tmp2->length, tmp2->length);
+                // Don't do an infinite dump if the list gets corrupted
+                if (tmp2->addr < last_addr) {
+                    warn("VMA list corruption detected.  Stopping debug print.\n");
+                    break;
+                }
+                last_addr = tmp2->addr;
+            }
+            warn("Prev is %p, tmp->addr = %llx, len is %llx\n", prev, tmp->addr, tmp->length);
+            if (prev)
+                warn("prev addr is %llx, len is %llx\n", prev->addr, prev->length);
+        }
         assert(!prev || prev->addr + prev->length <= tmp->addr);
         /* Insert in order; break once we are past the appropriate point  */
         if (tmp->addr > addr)
@@ -1135,11 +1168,28 @@ BEGIN_CP_FUNC(vma)
         bool protected = false;
 
         if (vma->file) {
+            /*
+             * Chia-Che 8/13/2017:
+             * A fix for cloning a private VMA which maps a file to a process.
+             *
+             * (1) Application can access any page backed by the file, wholly
+             *     or partially.
+             *
+             * (2) Access beyond the last file-backed page will cause SIGBUS.
+             *     For reducing fork latency, the following code truncates the
+             *     memory size for migrating a process. The memory size is
+             *     truncated to the file size, round up to pages.
+             *
+             * (3) Data in the last file-backed page is valid before or after
+             *     forking. Has to be included in process migration.
+             */
             uint64_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
-                vma->offset + vma->length > file_len)
+                vma->offset + vma->length > file_len) {
                 send_size = file_len > vma->offset ?
-                    file_len - vma->offset : 0;
+                            file_len - vma->offset : 0;
+                send_size = ALIGN_UP(send_size);
+            }
         }
 
         if (!send_size)
@@ -1375,14 +1425,14 @@ void print_vma_hash (struct shim_vma * vma, void * addr, uint64_t len,
         DkVirtualMemoryProtect(vma->addr, vma->length, PAL_PROT_READ);
     }
 
-    for (unsigned long p = (unsigned long) addr ;
-         p < (unsigned long) addr + len ; p += allocsize) {
-            unsigned long hash = 0;
+    for (uint64_t p = (uint64_t) addr ;
+         p < (uint64_t) addr + len ; p += allocsize) {
+            uint64_t hash = 0;
             struct shim_md5_ctx ctx;
             md5_init(&ctx);
             md5_update(&ctx, (void *) p, allocsize);
             md5_final(&ctx);
-            memcpy(&hash, ctx.digest, sizeof(unsigned long));
+            memcpy(&hash, ctx.digest, sizeof(uint64_t));
         }
 
     if (!(vma->prot & PROT_READ))

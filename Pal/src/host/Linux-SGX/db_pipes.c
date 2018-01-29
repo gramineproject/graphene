@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -69,9 +69,10 @@ static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
     if ((ret = pipe_addr(pipeid, &addr)) < 0)
         return ret;
 
+    unsigned int addrlen = sizeof(struct sockaddr_un);
     struct sockopt sock_options;
     ret = ocall_sock_listen(AF_UNIX, pipe_type(options), 0,
-                            (void *) &addr, sizeof(struct sockaddr_un),
+                            (struct sockaddr *) &addr, &addrlen,
                             &sock_options);
     if (ret < 0)
         return ret;
@@ -187,13 +188,16 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of pipe stream. offset does not apply here. */
-static int pipe_read (PAL_HANDLE handle, int offset, int len,
-                      void * buffer)
+static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                          void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
+
+    if (len >= (1ULL << (sizeof(unsigned int) * 8)))
+        return -PAL_ERROR_INVAL;
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] :
              handle->pipe.fd;
@@ -209,13 +213,16 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
 }
 
 /* 'write' operation of pipe stream. offset does not apply here. */
-static int pipe_write (PAL_HANDLE handle, int offset, int len,
-                       const void * buffer)
+static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                           const void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))
         return -PAL_ERROR_NOTCONNECTION;
+
+    if (len >= (1ULL << (sizeof(unsigned int) * 8)))
+        return -PAL_ERROR_INVAL;
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] :
              handle->pipe.fd;
@@ -324,12 +331,12 @@ static int pipe_delete (PAL_HANDLE handle, int access)
 
 static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
+    if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     attr->handle_type  = PAL_GET_TYPE(handle);
 
-    int read_fd = HANDLE_HDR(handle)->fds[0];
+    int read_fd = handle->generic.fds[0];
     int flags = HANDLE_HDR(handle)->flags;
 
     if (!IS_HANDLE_TYPE(handle, pipesrv)) {
@@ -350,6 +357,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     int ret = ocall_poll(&pfd, 1, &waittime);
     if (ret < 0)
         return ret;
+    
     attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     attr->disconnected = flags & ERROR(0);
@@ -361,7 +369,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
 static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (HANDLE_HDR(handle)->fds[0] == PAL_IDX_POISON)
+    if (handle->generic.fds[0] == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
     PAL_BOL * nonblocking = (HANDLE_HDR(handle)->type == pal_type_pipeprv) ?
@@ -369,7 +377,7 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
                             &handle->pipe.nonblocking;
 
     if (attr->nonblocking != *nonblocking) {
-        int ret = ocall_fsetnonblock(HANDLE_HDR(handle)->fds[0], attr->nonblocking);
+        int ret = ocall_fsetnonblock(handle->generic.fds[0], attr->nonblocking);
         if (ret < 0)
             return ret;
 

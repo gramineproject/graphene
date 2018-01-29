@@ -1,0 +1,41 @@
+Flaky tests
+-----------
+
+These should be debugged, or revisited after memory debugging PRs are merged
+
+waitpid03,1 - fails about 20% of the time
+preadv01 - fails intermittently in CI - perhaps an unrelated bug?
+preadv01,2
+preadv01,3
+preadv01,4
+
+waitpid02 - Gets a segfault in debug build fairly often
+waitpid02,1
+waitpid02,2
+waitpid02,3
+
+clock_nanosleep01,11 - Pretty prone to hanging, don't think it is a timeout
+
+sendfile05,1 - pretty prone to a segfault, perhaps an unrelated issue
+Internal memory fault at 0x8 (IP = +0x34f1a, VMID = 3902099696, TID = 1)
+
+Prone to hanging - I think a memory corruption issue that may have a pending fix
+recvfrom01,1
+recvfrom01,2
+
+Intermittent seg fault
+kill03,1
+
+Intermittent hang
+send01,1
+send01,2
+sendto01,1
+sendto01,2
+sendto01,3
+
+Intermittent failure on Linux host
+poll02,1
+
+Intermittent failure on Linux debug host
+recvmsg01,1
+recvmsg01,2

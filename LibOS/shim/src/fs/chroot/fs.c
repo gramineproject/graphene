@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -365,7 +365,7 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
                 break;
             default:            break;
         }
-        debug("Stat: Returning link cound %d\n", stat->st_nlink);
+        debug("Stat: Returning link count %d\n", stat->st_nlink);
     }
 
     unlock(data->lock);
@@ -387,11 +387,6 @@ static int chroot_stat (struct shim_dentry * dent, struct stat * statbuf)
 
 static int chroot_lookup (struct shim_dentry * dent, bool force)
 {
-    if (!force)
-        return -ESKIPPED;
-
-    if (dent->fs && dent == dent->fs->root)
-        return 0;
 
     return query_dentry(dent, NULL, NULL, NULL);
 }
@@ -654,10 +649,10 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     }
 
     /* second, reallocate the buffer */
-    int bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
+    uint64_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
     int prot = PAL_PROT_READ;
-    unsigned long mapoff = file->marker & ~(bufsize - 1);
-    unsigned long maplen = bufsize;
+    uint64_t mapoff = file->marker & ~(bufsize - 1);
+    uint64_t maplen = bufsize;	
 
     if (hdl->acc_mode & MAY_WRITE)
         prot |= PAL_PROT_WRITE;
@@ -687,13 +682,13 @@ static int map_read (struct shim_handle * hdl, void * buf, size_t count)
     lock(hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    unsigned int size = atomic_read(&data->size);
+    uint64_t size = atomic_read(&data->size);
 
     if (check_version(hdl) &&
         file->size < size)
         file->size = size;
 
-    int marker = file->marker;
+    uint64_t marker = file->marker;
 
     if (marker >= file->size) {
         count = 0;
@@ -727,7 +722,7 @@ static int map_write (struct shim_handle * hdl, const void * buf,
     lock(hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    int marker = file->marker;
+    uint64_t marker = file->marker;
 
     if (file->marker + count > file->size) {
         file->size = file->marker + count;
@@ -739,11 +734,12 @@ static int map_write (struct shim_handle * hdl, const void * buf,
             goto out;
         }
 
-        if (ret < count)
-            file->size -= count - ret;
+        if (ret < count) {
+           file->size -= count - ret;
+        }
 
         if (check_version(hdl)) {
-            int size;
+            uint64_t size;
             do {
                 if ((size = atomic_read(&data->size)) >= file->size) {
                     file->size = size;
@@ -758,6 +754,7 @@ static int map_write (struct shim_handle * hdl, const void * buf,
 
     if ((ret = __map_buffer(hdl, count)) < 0)
         goto out;
+
 
     if (count) {
         memcpy(file->mapbuf + (marker - file->mapoffset), buf, count);

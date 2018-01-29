@@ -19,4 +19,5 @@ regression.add_check(name="Delay Execution for 3 Seconds",
 regression.add_check(name="Generate Random Bits",
     check=lambda res: "Generate Random Bits OK" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -186,6 +186,8 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             /* DEP 1/28/17: Should return ETIMEDOUT, not EAGAIN, on timeout. */
             if (ret == -EAGAIN)
                 ret = -ETIMEDOUT;
+            if (ret == -ETIMEDOUT)
+                listp_del(&waiter, &futex->waiters, list);
             lock(hdl->lock);
             /* Chia-Che 10/17/17: FUTEX_WAKE should remove the waiter
              * from the list; if not, we should remove it now. */
@@ -200,7 +202,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
             int nwaken = 0;
             uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? val3 :
                               0xffffffff;
-
+            
             debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",
                   uaddr, *uaddr, val, bitset);
 
@@ -210,6 +212,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
 
                 debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
+
                 listp_del_init(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
                 nwaken++;

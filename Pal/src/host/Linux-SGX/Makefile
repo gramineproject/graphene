@@ -7,7 +7,7 @@ host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
-		 threading semaphore mutex events process object main rtld \
+		 threading mutex events process object main rtld \
 		 exception misc ipc spinlock) \
 	       $(addprefix enclave_,ocalls ecalls framework pages untrusted) 
 enclave-asm-objs = enclave_entry 
@@ -17,6 +17,7 @@ graphene_lib = ../../.lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
 	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h)
 
+.PHONY: all
 all: $(host_files)
 
 ifeq ($(DEBUG),1)
@@ -68,5 +69,6 @@ debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 sgx-driver/isgx_version.h:
 	cd sgx-driver && make isgx_version.h
 
+.PHONY: clean
 clean:
 	rm -f *.o *.e $(host_files)

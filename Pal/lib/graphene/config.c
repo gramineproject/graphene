@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -31,7 +31,10 @@
 DEFINE_LIST(config);
 struct config {
     const char * key, * val;
-    int klen, vlen;
+    size_t klen, vlen; /* for leaf nodes, vlen stores the size of config
+                          values; for branch nodes, vlen stores the sum
+                          of config value lengths plus one of all the
+                          immediate children. */
     char * buf;
     LIST_TYPE(config) list;
     LISTP_TYPE(config) children;
@@ -45,13 +48,14 @@ static int __add_config (struct config_store * store,
 {
     LISTP_TYPE(config) * list = &store->root;
     struct config * e = NULL;
+    struct config * parent = NULL;
 
     while (klen) {
         if (e && e->val)
             return -PAL_ERROR_INVAL;
 
         const char * token = key;
-        int len = 0;
+        size_t len = 0;
         for ( ; len < klen ; len++)
             if (token[len] == '.')
                 break;
@@ -74,6 +78,8 @@ static int __add_config (struct config_store * store,
         INIT_LISTP(&e->children);
         INIT_LIST_HEAD(e, siblings);
         listp_add_tail(e, list, siblings);
+        if (parent)
+            parent->vlen += (len + 1);
 
 next:
         if (len < klen)
@@ -81,6 +87,7 @@ next:
         key += len;
         klen -= len;
         list = &e->children;
+        parent = e;
     }
 
     if (!e || e->val || !listp_empty(&e->children))
@@ -124,8 +131,8 @@ next:
     return e;
 }
 
-int get_config (struct config_store * store, const char * key,
-                char * val_buf, int size)
+ssize_t get_config (struct config_store * store, const char * key,
+                    char * val_buf, size_t size)
 {
     struct config * e = __get_config(store, key);
 
@@ -141,7 +148,7 @@ int get_config (struct config_store * store, const char * key,
 }
 
 int get_config_entries (struct config_store * store, const char * key,
-                        char * key_buf, int size)
+                        char * key_buf, size_t key_bufsize)
 {
     struct config * e = __get_config(store, key);
 
@@ -152,21 +159,32 @@ int get_config_entries (struct config_store * store, const char * key,
     int nentries = 0;
 
     listp_for_each_entry(e, children, siblings) {
-        if (e->klen >= size)
+        if (e->klen + 1 > key_bufsize)
             return -PAL_ERROR_TOOLONG;
-
         memcpy(key_buf, e->key, e->klen);
         key_buf[e->klen] = 0;
         key_buf += e->klen + 1;
-        size -= e->klen + 1;
+        key_bufsize -= e->klen + 1;
         nentries++;
     }
 
     return nentries;
 }
 
+ssize_t get_config_entries_size (struct config_store * store,
+                                 const char * key)
+{
+    struct config * e = __get_config(store, key);
+
+    if (!e || e->val)
+        return -PAL_ERROR_INVAL;
+
+    return e->vlen;
+}
+
 static int __del_config (struct config_store * store,
-                         LISTP_TYPE(config) * root, const char * key)
+                         LISTP_TYPE(config) * root,
+                         struct config * p, const char * key)
 {
     struct config * e, * found = NULL;
     int len = 0;
@@ -186,7 +204,7 @@ static int __del_config (struct config_store * store,
     if (key[len]) {
         if (found->val)
             return -PAL_ERROR_INVAL;
-        int ret = __del_config(store, &found->children, key + len + 1);
+        int ret = __del_config(store, &found->children, found, key + len + 1);
         if (ret < 0)
             return ret;
         if (!listp_empty(&found->children))
@@ -196,6 +214,8 @@ static int __del_config (struct config_store * store,
             return -PAL_ERROR_INVAL;
     }
 
+    if (p)
+        p->vlen -= (found->klen + 1);
     listp_del(found, root, siblings);
     listp_del(found, &store->entries, list);
     if (found->buf)
@@ -211,7 +231,7 @@ int set_config (struct config_store * store, const char * key, const char * val)
         return -PAL_ERROR_INVAL;
 
     if (!val) { /* deletion */
-        return __del_config(store, &store->root, key);
+        return __del_config(store, &store->root, 0, key);
     }
 
     int klen = strlen(key);

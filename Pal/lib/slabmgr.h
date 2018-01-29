@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -27,6 +27,7 @@
 #define SLABMGR_H
 
 #include "list.h"
+#include <pal_debug.h>
 #include <assert.h>
 #include <sys/mman.h>
 
@@ -85,6 +86,7 @@ typedef struct __attribute__((packed)) slab_obj {
 #define AREA_PADDING 12
 
 DEFINE_LIST(slab_area);
+
 typedef struct __attribute__((packed)) slab_area {
     LIST_TYPE(slab_area) __list;
     unsigned int size;
@@ -114,7 +116,7 @@ struct slab_debug {
 
 #define SLAB_HDR_SIZE \
     ROUND_UP((sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) +     \
-              SLAB_DEBUG_SIZE + SLAB_CANARY_SIZE), \
+              SLAB_DEBUG_SIZE + SLAB_CANARY_SIZE),                      \
              MIN_MALLOC_ALIGNMENT)
 
 #ifndef SLAB_LEVEL
@@ -224,7 +226,7 @@ static inline void __set_free_slab_area (SLAB_AREA area, SLAB_MGR mgr,
 {
     int slab_size = slab_levels[level] + SLAB_HDR_SIZE;
     mgr->addr[level] = (void *) area->raw;
-    mgr->addr_top[level] = (void *) area->raw + area->size * slab_size;
+    mgr->addr_top[level] = (void *) area->raw + (area->size * slab_size);
     mgr->size[level] += area->size;
 }
 
@@ -291,11 +293,20 @@ static inline SLAB_MGR enlarge_slab_mgr (SLAB_MGR mgr, int level)
     SLAB_AREA area;
     int size;
 
-    if (level >= SLAB_LEVEL) {
+    /* DEP 11/24/17: I don't see how this case is possible.
+     * Either way, we should be consistent with whether to
+     * return with system_lock held or not.
+     * Commenting for now and replacing with an assert */
+    /*if (level >= SLAB_LEVEL) {
         system_lock();
         goto out;
-    }
+        }*/
+    assert(level < SLAB_LEVEL);
 
+    /* DEP 11/24/17: This strategy basically doubles a level's size 
+     * every time it grows.  The assumption if we get this far is that
+     * mgr->addr == mgr->top_addr */
+    assert (mgr->addr[level] == mgr->addr_top[level]);
     size = mgr->size[level];
     area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
     if (area <= 0)
@@ -308,7 +319,7 @@ static inline SLAB_MGR enlarge_slab_mgr (SLAB_MGR mgr, int level)
     __set_free_slab_area(area, mgr, level);
     system_unlock();
 
-out:
+//out:
     return mgr;
 }
 
@@ -337,6 +348,7 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
     }
 
     system_lock();
+    assert(mgr->addr[level] <= mgr->addr_top[level]);
     if (mgr->addr[level] == mgr->addr_top[level] &&
         listp_empty(&mgr->free_list[level])) {
         system_unlock();
@@ -351,6 +363,7 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
         mobj = (void *) mgr->addr[level];
         mgr->addr[level] += slab_levels[level] + SLAB_HDR_SIZE;
     }
+    assert(mgr->addr[level] <= mgr->addr_top[level]);
     OBJ_LEVEL(mobj) = level;
     system_unlock();
 

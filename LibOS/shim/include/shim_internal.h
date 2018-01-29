@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -39,7 +39,7 @@
 
 #include <shim_types.h>
 #include <shim_defs.h>
-#include <shim_atomic.h>
+#include <atomic.h>
 #include <shim_tls.h>
 
 /* important macros */
@@ -70,9 +70,9 @@ void debug_puts (const char * str);
 void debug_putch (int ch);
 void debug_vprintf (const char * fmt, va_list * ap);
 
-# define VMID_PREFIX     "[P%04u] "
-# define TID_PREFIX      "[%-5u] "
-# define NOID_PREFIX     "[     ] "
+# define VMID_PREFIX     "[P%05u] "
+# define TID_PREFIX      "[%-6u] "
+# define NOID_PREFIX     "[      ] "
 # define debug(fmt, ...)                                                    \
     do {                                                                    \
         if (debug_handle)                                                   \
@@ -83,6 +83,7 @@ void debug_vprintf (const char * fmt, va_list * ap);
 #define SYSPRINT_BUFFER_SIZE    256
 
 void handle_printf (PAL_HANDLE hdl, const char * fmt, ...);
+void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap);
 
 #define __sys_printf(fmt, ...)                                              \
     do {                                                                    \
@@ -90,6 +91,14 @@ void handle_printf (PAL_HANDLE hdl, const char * fmt, ...);
         if (_hdl)                                                           \
            handle_printf(_hdl, (fmt), ##__VA_ARGS__);                       \
     } while (0)
+
+#define __sys_vprintf(fmt, va)                                              \
+    do {                                                                    \
+        PAL_HANDLE _hdl = __open_shim_stdio();                              \
+        if (_hdl)                                                           \
+            handle_vprintf(_hdl, (fmt), (va));                              \
+    } while (0)
+
 
 #define __sys_fprintf(hdl, fmt, ...)                                        \
     do {                                                                    \
@@ -465,7 +474,7 @@ static inline void enable_preempt (shim_tcb_t * tcb)
 
 #define create_lock(l)                          \
     do {                                        \
-        (l).lock = DkSemaphoreCreate(0, 1);     \
+        (l).lock = DkMutexCreate(0);               \
         /* (l).owner = LOCK_FREE;               */ \
         /* (l).reowned = 0;                     */ \
     } while (0)
@@ -523,7 +532,7 @@ static inline void __unlock (LOCKTYPE * l)
 #endif
 
     l->owner = 0;
-    DkSemaphoreRelease(l->lock, 1);
+    DkMutexRelease(l->lock);
     enable_preempt(tcb);
 }
 

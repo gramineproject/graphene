@@ -375,7 +375,10 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (areas[i].addr)
             continue;
         areas[i].addr = populating - areas[i].size;
-        populating = areas[i].addr - MEMORY_GAP;
+        if (&areas[i] == exec_area)
+            populating = areas[i].addr;
+        else
+            populating = areas[i].addr - MEMORY_GAP;
     }
 
     enclave_entry_addr += pal_area->addr;
@@ -840,8 +843,8 @@ static int load_enclave (struct pal_enclave * enclave,
     /* start running trusted PAL */
     ecall_enclave_start(arguments, environments);
 
-    PAL_NUM exit_time = 0;
 #if PRINT_ENCLAVE_STAT == 1
+    PAL_NUM exit_time = 0;
     INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
     exit_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 #endif

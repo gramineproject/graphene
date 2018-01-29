@@ -1,1 +1,11 @@
 httpd-2.4.3/*
+result-*
+obj/*
+OUTPUT
+.libs/*
+apr-1.4.6/*
+apr-util-1.5.1/*
+php-5.6.6/*
+mod_auth_basic_sandbox.la
+mod_auth_basic_sandbox.lo
+mod_auth_basic_sandbox.slo

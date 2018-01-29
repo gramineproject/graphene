@@ -21,4 +21,5 @@ regression.add_check(name="Set Thread Private Segment Register",
 regression.add_check(name="Thread Exit",
     check=lambda res: "Child Thread Exited" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

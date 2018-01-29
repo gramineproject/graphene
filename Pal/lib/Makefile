@@ -11,6 +11,7 @@ ARFLAGS	=
 include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src
+
 subdirs = string stdlib network graphene util crypto
 headers = api.h pal_crypto.h
 
@@ -47,6 +48,7 @@ objs += crypto/adapters/wolfssl_adapter.o
 objs += crypto/adapters/wolfssl_dh.o
 endif
 
+.PHONY: all
 all: $(target)graphene-lib.a
 
 ifeq ($(DEBUG),1)
@@ -67,5 +69,6 @@ $(target)%.o: %.c $(headers) ../src/host_endian.h
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
+.PHONY: clean
 clean:
 	rm -f $(objs) graphene-lib.a

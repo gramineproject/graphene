@@ -37,14 +37,13 @@ all_symbols = [
     'DkThreadResume',
     'DkSetExceptionHandler',
     'DkExceptionReturn',
-    'DkSemaphoreCreate',
-    'DkSemaphoreRelease',
+    'DkMutexCreate',
+    'DkMutexRelease',
     'DkNotificationEventCreate',
     'DkSynchronizationEventCreate',
     'DkEventSet',
     'DkEventClear',
     'DkObjectsWaitAny',
-    'DkObjectReference',
     'DkObjectClose',
     'DkSystemTimeQuery',
     'DkRandomBitsRead',
@@ -69,4 +68,5 @@ def check_symbols(res):
     return True
 
 regression.add_check(name="Symbol Resolution", check=check_symbols);
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

@@ -297,6 +297,16 @@ static int sgx_ocall_sock_listen(void * pms)
         goto err_fd;
     }
 
+    if (ms->ms_addr) {
+        socklen_t addrlen;
+        ret = INLINE_SYSCALL(getsockname, 3, fd, ms->ms_addr, &addrlen);
+        if (IS_ERR(ret)) {
+            ret = -PAL_ERROR_DENIED;
+            goto err_fd;
+        }
+        ms->ms_addrlen = addrlen;
+    }
+
     if (ms->ms_type & SOCK_STREAM) {
         ret = INLINE_SYSCALL(listen, 2, fd, DEFAULT_BACKLOG);
         if (IS_ERR(ret)) {
@@ -708,4 +718,8 @@ int ecall_thread_start (void)
 {
     EDEBUG(ECALL_THREAD_START, NULL);
     return sgx_ecall(ECALL_THREAD_START, NULL);
+}
+
+void __abort(void) {
+    INLINE_SYSCALL(exit_group, 1, -1); 
 }
