@@ -93,6 +93,10 @@ static int init_port_rebase (void)
     return 0;
 }
 
+static int inet_parse_addr (int domain, int type, const char * uri,
+                            struct addr_inet * bind,
+                            struct addr_inet * conn);
+
 static int __process_pending_options (struct shim_handle * hdl);
 
 int shim_do_socket (int family, int type, int protocol)
@@ -521,6 +525,22 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
         dent->fs = &socket_builtin_fs;
         dent->data = sock->addr.un.data;
     }
+
+    if (sock->domain == AF_INET || sock->domain == AF_INET6) {
+        char uri[SOCK_URI_SIZE];
+
+        if (!DkStreamGetName(pal_hdl, uri, SOCK_URI_SIZE)) {
+            ret = -PAL_ERRNO;
+            goto out;
+        }
+
+        if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri,
+                                   &sock->addr.in.bind, NULL)) < 0)
+            goto out;
+
+        inet_rebase_port(true, sock->domain, &sock->addr.in.bind, true);
+    }
+
 
     hdl->pal_handle = pal_hdl;
     __process_pending_options(hdl);

@@ -39,10 +39,10 @@ APXS_FLAGS = -S CC="gcc -g"
 endif
 
 %: %.tar.gz
-	tar -xzf $<
+	tar -xmzf $<
 
 %: %.tar.bz2
-	tar -xjf $<
+	tar -xmjf $<
 
 $(INSTALL_DIR)/lib/libapr-1.so.0: $(APR_DIR)
 	#cd $< && patch -p1 < ../disable-epoll.patch

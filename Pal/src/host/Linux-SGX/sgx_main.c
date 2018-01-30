@@ -844,8 +844,8 @@ static int load_enclave (struct pal_enclave * enclave,
     /* start running trusted PAL */
     ecall_enclave_start(arguments, environments);
 
-    PAL_NUM exit_time = 0;
 #if PRINT_ENCLAVE_STAT == 1
+    PAL_NUM exit_time = 0;
     INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
     exit_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 #endif

@@ -72,11 +72,11 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 #endif
 
 /* 'read' operation for file streams. */
-static int file_read (PAL_HANDLE handle, int offset, int count,
-                      void * buffer)
+static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          void * buffer)
 {
     int fd = handle->file.fd;
-    int ret;
+    int64_t ret;
 
     if (handle->file.offset != offset) {
         ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
@@ -96,11 +96,11 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
 }
 
 /* 'write' operation for file streams. */
-static int file_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t file_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           const void * buffer)
 {
     int fd = handle->file.fd;
-    int ret;
+    int64_t ret;
 
     if (handle->file.offset != offset) {
         ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
@@ -371,7 +371,7 @@ struct linux_dirent64 {
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
+int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count, void * buf)
 {
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;

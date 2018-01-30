@@ -270,7 +270,6 @@ gettid01,1
 getuid01,1
 getuid03,1
 kill01,1
-kill03,1
 kill09,1
 listen01,1
 listen01,2
@@ -357,11 +356,13 @@ pipe10,1
 pipe2_01,1
 poll01,1
 poll01,2
-poll02,1
 pread01,1
 pread01_64,1
 pread02,1
 pread02_64,1
+preadv01,2
+preadv01,3
+preadv01,4
 preadv01_64,2
 preadv01_64,3
 preadv01_64,4
@@ -414,10 +415,6 @@ readv01,1
 readv01,2
 recv01,1
 recv01,2
-recvfrom01,1
-recvfrom01,2
-recvmsg01,1
-recvmsg01,2
 rmdir01,1
 rmdir04,1
 rt_sigaction01,1
@@ -747,8 +744,6 @@ semget03,1
 semop01,1
 semop04,1
 semop04,2
-send01,1
-send01,2
 sendfile03,1
 sendfile03,2
 sendfile03,3
@@ -756,9 +751,6 @@ sendfile03_64,1
 sendfile03_64,2
 sendfile03_64,3
 sendfile05_64,1
-sendto01,1
-sendto01,2
-sendto01,3
 setgid01,1
 setitimer01,1
 setpgid01,1
@@ -976,6 +968,9 @@ wait401,1
 wait401,2
 waitpid01,1
 waitpid01,2
+waitpid02,1
+waitpid02,2
+waitpid02,3
 waitpid05,1
 waitpid05,2
 waitpid05,3

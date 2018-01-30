@@ -7,6 +7,14 @@
 
 #include "linux_types.h"
 
+/*
+ * GCC's structure padding may cause leaking from uninialized
+ * regions (https://arxiv.org/abs/1710.09061).
+ * A simple contermeasure is to enable packing for all ocall
+ * argument structures.
+ */
+#pragma pack(push, 1)
+
 enum {
     OCALL_EXIT = 0,
     OCALL_PRINT_STRING,
@@ -52,11 +60,11 @@ enum {
 
 typedef struct {
     const char * ms_str;
-    int ms_length;
+    unsigned int ms_length;
 } ms_ocall_print_string_t;
 
 typedef struct {
-    unsigned int ms_size;
+    uint64_t ms_size;
     void * ms_mem;
 } ms_ocall_alloc_untrusted_t;
 
@@ -107,11 +115,6 @@ typedef struct {
 } ms_ocall_fstat_t;
 
 typedef struct {
-    const char * ms_path;
-    struct stat * ms_stat;
-} ms_ocall_stat_t;
-
-typedef struct {
     int ms_fd;
 } ms_ocall_fionread_t;
 
@@ -131,7 +134,7 @@ typedef struct {
 
 typedef struct {
     int ms_fd;
-    unsigned int ms_length;
+    uint64_t ms_length;
 } ms_ocall_ftruncate_t;
 
 typedef struct {
@@ -258,3 +261,5 @@ typedef struct {
 typedef struct {
     unsigned int ms_tid;
 } ms_ocall_schedule_t;
+
+#pragma pack(pop)

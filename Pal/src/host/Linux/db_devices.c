@@ -86,9 +86,10 @@ static int parse_device_uri (const char ** uri, const char ** type,
 static inline void
 dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat);
 
-static int char_read (PAL_HANDLE handle, int offset, int count, void * buffer);
-static int char_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer);
+static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          void * buffer);
+static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           const void * buffer);
 static int term_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr);
 static int term_attrquerybyhdl (PAL_HANDLE hdl,
@@ -182,14 +183,15 @@ static struct handle_ops term_ops = {
     };
 
 /* 'read' operation for character streams. */
-static int char_read (PAL_HANDLE handle, int offset, int size, void * buffer)
+static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                          void * buffer)
 {
     int fd = handle->dev.fd_in;
 
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
-    int bytes = INLINE_SYSCALL(read, 3, fd, buffer, size);
+    int64_t bytes = INLINE_SYSCALL(read, 3, fd, buffer, size);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -198,15 +200,15 @@ static int char_read (PAL_HANDLE handle, int offset, int size, void * buffer)
 }
 
 /* 'write' operation for character streams. */
-static int char_write (PAL_HANDLE handle, int offset, int size,
-                      const void * buffer)
+static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                           const void * buffer)
 {
     int fd = handle->dev.fd_out;
 
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
-    int bytes = INLINE_SYSCALL(write, 3, fd, buffer, size);
+    int64_t bytes = INLINE_SYSCALL(write, 3, fd, buffer, size);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -241,7 +243,8 @@ static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 /* 'read' operation for device stream */
-static int dev_read (PAL_HANDLE handle, int offset, int size, void * buffer)
+static int64_t dev_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                         void * buffer)
 {
     const struct handle_ops * ops = DEVICE_OPS(handle);
 
@@ -252,8 +255,8 @@ static int dev_read (PAL_HANDLE handle, int offset, int size, void * buffer)
 }
 
 /* 'write' operation for device stream */
-static int dev_write (PAL_HANDLE handle, int offset, int size,
-                      const void * buffer)
+static int64_t dev_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                          const void * buffer)
 {
     const struct handle_ops * ops = DEVICE_OPS(handle);
 

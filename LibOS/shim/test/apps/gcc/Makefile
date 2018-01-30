@@ -52,7 +52,7 @@ obj/bin/ld: src/binutils-$(BINUTILS_VER)
 	$(MAKE) -C $< install
 
 src/binutils-$(BINUTILS_VER): binutils-$(BINUTILS_VER).tar.bz2 src
-	cd src && tar -xjf ../$<
+	cd src && tar -xmjf ../$<
 
 obj/lib/$(GMP_OBJ) obj/lib/$(GMPXX_OBJ): src/$(GMP_SRC)
 	cd $< && ./configure --prefix=$(PWD)/obj --enable-cxx --enable-shared \
@@ -61,7 +61,7 @@ obj/lib/$(GMP_OBJ) obj/lib/$(GMPXX_OBJ): src/$(GMP_SRC)
 	$(MAKE) -C $< install
 
 src/$(GMP_SRC): $(GMP_SRC).tar.bz2 src
-	cd src && tar -xjf ../$<
+	cd src && tar -xmjf ../$<
 
 obj/lib/$(PPL_OBJ): src/$(PPL_SRC) obj/lib/$(GMP_OBJ)
 	cd $< && ./configure --prefix=$(PWD)/obj --with-libgmp-prefix=$(PWD)/obj --enable-shared \
@@ -70,7 +70,7 @@ obj/lib/$(PPL_OBJ): src/$(PPL_SRC) obj/lib/$(GMP_OBJ)
 	$(MAKE) -C $< install
 
 src/$(PPL_SRC): $(PPL_SRC).tar.gz src
-	cd src && tar -xzf ../$<
+	cd src && tar -xmzf ../$<
 
 obj/lib/$(MPFR_OBJ): src/$(MPFR_SRC) obj/lib/$(GMP_OBJ)
 	cd $< && ./configure --prefix=$(PWD)/obj --enable-shared \
@@ -79,7 +79,7 @@ obj/lib/$(MPFR_OBJ): src/$(MPFR_SRC) obj/lib/$(GMP_OBJ)
 	$(MAKE) -C $< install
 
 src/$(MPFR_SRC): $(MPFR_SRC).tar.bz2 src
-	cd src && tar -xjf ../$<
+	cd src && tar -xmjf ../$<
 
 obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
 	cd $< && ./configure --prefix=$(PWD)/obj --with-gmp=$(PWD)/obj --enable-shared \
@@ -88,7 +88,7 @@ obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
 	$(MAKE) -C $< install
 
 src/$(MPC_SRC): $(MPC_SRC).tar.gz src
-	cd src && tar -xzf ../$<
+	cd src && tar -xmzf ../$<
 
 regression:
 	@echo "\n\nBuilding GCC..."

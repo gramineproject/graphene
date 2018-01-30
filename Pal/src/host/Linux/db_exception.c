@@ -193,6 +193,18 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
 #define ADDR_IN_PAL(addr) \
         ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
 
+/* This function walks the stack to find the PAL_FRAME
+ * that was saved upon entry to the PAL, if an exception/interrupt
+ * comes in during a PAL call.  This is needed to support the behavior that an
+ * exception in the PAL has Unix-style, EAGAIN semantics.
+ * 
+ * The PAL_FRAME is supposed to be in the first PAL frame, and we look for 
+ * it by matching a special magic number, that should only appear on the stack
+ * once.
+ * 
+ * If an exception comes in while we are not in the PAL, this PAL_FRAME won't
+ * exist, and it is ok to return NULL.
+ */
 static struct pal_frame * get_frame (ucontext_t * uc)
 {
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];

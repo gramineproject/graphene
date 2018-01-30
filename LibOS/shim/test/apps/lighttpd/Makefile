@@ -25,7 +25,7 @@ build/sbin/lighttpd: $(SRCDIR)
 	$(MAKE) -C $(SRCDIR) install
 
 $(SRCDIR): %: %.tar.gz
-	tar -xzf $<
+	tar -xmzf $<
 
 lighttpd-server.conf:
 	rm -rf $@
