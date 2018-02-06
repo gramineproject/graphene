@@ -1,10 +1,10 @@
 
-              Graphene Library OS with Intel SGX Support
+# Graphene Library OS with Intel SGX Support
 
-        A Linux-compatible Library OS for Multi-Process Applications
+#### A Linux-compatible Library OS for Multi-Process Applications
+![Travis Logo](https://travis-ci.org/oscarlab/graphene.svg?branch=master)
 
-
-1. WHAT IS GRAPHENE?
+## 1. WHAT IS GRAPHENE?
 
 Graphene Library OS is a project to provided lightweight guest OSes with
 support for Linux multi-process applications. Comparable to virtual
@@ -28,7 +28,7 @@ of Library OSes for Multi-Process Applications", Eurosys 2014.
 
 
 
-2. HOW TO BUILD GRAPHENE?
+## 2. HOW TO BUILD GRAPHENE?
 
 Graphene Library OS is consist of five parts:
   - Instrumented GNU Library C
@@ -68,13 +68,13 @@ Each part of Graphene can be built separately in the subdirectories.
 To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 "make".
 
-    2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
+### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
 
-** Note: this step is optional. **
-** Note: for building with Intel SGX support, skip this step. **
+__** Note: this step is optional. **__
+__** Note: for building with Intel SGX support, skip this step. **__
 
-** Disclaimer: this feature is experimental and may contain bugs. Please do
-   no use in production system before further assessment.
+__** Disclaimer: this feature is experimental and may contain bugs. Please do
+   no use in production system before further assessment.__
 
 To enable sandboxing, a customized Linux kernel is needed. Note that
 this feature is optional and completely unnecessary for running on SGX.
@@ -100,7 +100,7 @@ For more details about the building and installation, see the Graphene github
 Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 
-    2-1. BUILD WITH INTEL SGX SUPPORT
+### 2-1. BUILD WITH INTEL SGX SUPPORT
 
 To build Graphene Library OS with Intel SGX support, run "make SGX=1" instead
 of "make". "DEBUG=1" can be used to build with debug symbols. Using "make SGX=1"
@@ -139,7 +139,7 @@ Finally generating the runtime enclave tokens by running "make SGX_RUN=1".
 
 
 
-3. HOW TO RUN AN APPLICATION IN GRAPHENE?
+## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
 Graphene library OS uses PAL (libpal.so) as a loader to bootstrap an
 application in the library OS. To start Graphene, PAL (libpal.so) will have
@@ -200,7 +200,7 @@ github Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 
 
-4. HOW TO CONTACT THE MAINTAINER?
+## 4. CONTACT
 
 For any questions or bug reports, please contact us:
 
