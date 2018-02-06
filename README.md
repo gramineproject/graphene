@@ -1,5 +1,5 @@
 
-# Graphene Library OS with Intel SGX Support
+# Graphene Library OS with Intel:registered: SGX Support
 
 #### A Linux-compatible Library OS for Multi-Process Applications
 ![Travis Logo](https://travis-ci.org/oscarlab/graphene.svg?branch=master)
@@ -17,7 +17,7 @@ any platform that Graphene Library OS has been ported to. Currently,
 Graphene Library OS is successfully ported to Linux, FreeBSD and Intel SGX
 enclaves upon Linux platforms.
 
-With the Intel SGX support, Graphene Library OS can secure a critical
+With the Intel:registered: SGX support, Graphene Library OS can secure a critical
 application in a hardware encrypted memory region. Graphene Library OS can
 protect applications against malicious system stack, with minimal porting
 effort.
@@ -71,7 +71,7 @@ To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 ### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
 
 __** Note: this step is optional. **__
-__** Note: for building with Intel SGX support, skip this step. **__
+__** Note: for building with Intel:registered: SGX support, skip this step. **__
 
 __** Disclaimer: this feature is experimental and may contain bugs. Please do
    no use in production system before further assessment.__
@@ -100,7 +100,7 @@ For more details about the building and installation, see the Graphene github
 Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 
-### 2-1. BUILD WITH INTEL SGX SUPPORT
+### 2-1. BUILD WITH INTEL:registered: SGX SUPPORT
 
 To build Graphene Library OS with Intel SGX support, run "make SGX=1" instead
 of "make". "DEBUG=1" can be used to build with debug symbols. Using "make SGX=1"
