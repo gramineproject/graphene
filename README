@@ -68,6 +68,14 @@ Each part of Graphene can be built separately in the subdirectories.
 To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 "make".
 
+    2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
+
+** Note: this step is optional. **
+** Note: for building with Intel SGX support, skip this step. **
+
+** Disclaimer: this feature is experimental and may contain bugs. Please do
+   no use in production system before further assessment.
+
 To enable sandboxing, a customized Linux kernel is needed. Note that
 this feature is optional and completely unnecessary for running on SGX.
 To build the Graphene Linux kernel, do the following steps:
@@ -115,10 +123,12 @@ from the official Intel github repositories:
 
     <https://github.com/01org/linux-sgx>
     <https://github.com/01org/linux-sgx-driver>
+    (The SDK and driver version must be 1.9 or LOWER)
 
 A Linux driver must be installed before runing Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
 
+    (Please make sure the GCC version is either 4 or 5)
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
     (The console will be prompted to ask for the path of Intel SGX driver code)
