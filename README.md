@@ -1,8 +1,10 @@
 
 # Graphene Library OS with Intel:registered: SGX Support
 
-#### A Linux-compatible Library OS for Multi-Process Applications
 ![Travis Logo](https://travis-ci.org/oscarlab/graphene.svg?branch=master)
+
+
+*A Linux-compatible Library OS for Multi-Process Applications*
 
 ## 1. WHAT IS GRAPHENE?
 
@@ -51,6 +53,7 @@ with 'apt-get install')
    - build-essential
    - autoconf
    - gawk
+   - gcc 4 or 5
 
 The following packages are also required for building Graphene for SGX (can
 be installed with 'apt-get install'):
@@ -151,13 +154,16 @@ file" given from the command line. Graphene provides three options for
 spcifying the programs and manifest files:
 
    - option 1: (automatic manifest)
+   
     [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
    - option 2: (given manifest)
+   
     [PATH TO Runtime]/pal_loader [MANIFEST] [ARGUMENTS]...
 
    - option 3: (manifest as a script)
+   
     [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
 
@@ -169,13 +175,16 @@ reference monitor loader (libpal_sec.so). Graphene provides three options for
 spcifying the programs and manifest files to the loader:
 
    - option 4: (automatic manifest - with reference monitor)
+   
     SEC=1 [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
    - option 5: (given manifest - with reference monitor)
+   
     SEC=1 [PATH TO Pal/src]/pal_loader [MANIFEST] [ARGUMENTS]...
 
    - option 6: (manifest as a script - with reference monitor)
+   
     SEC=1 [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH TO Pal/src]/pal_sec" as the first line)
 
@@ -207,8 +216,8 @@ github Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 For any questions or bug reports, please contact us:
 
-   - Chia-Che Tsai <chitsai@cs.stonybrook.edu>
-   - Don Porter <porter@cs.unc.edu>
+   - __Chia-Che Tsai__ <chitsai@cs.stonybrook.edu>
+   - __Don Porter__ <porter@cs.unc.edu>
 
 or post an issue on our github repository:
         <https://github.com/oscarlab/graphene/issues>
