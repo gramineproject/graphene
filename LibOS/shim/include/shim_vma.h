@@ -118,9 +118,6 @@ void unmap_all_vmas (void);
 /* Debugging */
 void debug_print_vma_list (void);
 
-void print_vma_hash (struct shim_vma * vma, void * addr, uint64_t len,
-                     bool force_protect);
-
 /* Constants */
 extern unsigned long mem_max_npages;
 extern unsigned long brk_max_size;

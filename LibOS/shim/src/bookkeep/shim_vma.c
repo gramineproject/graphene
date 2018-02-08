@@ -1411,34 +1411,3 @@ void debug_print_vma_list (void)
                    vma->comment[0] ? vma->comment : "");
     }
 }
-
-void print_vma_hash (struct shim_vma * vma, void * addr, uint64_t len,
-                     bool force_protect)
-{
-    if (!addr)
-        addr = vma->addr;
-    if (!len)
-        len = vma->length - (addr - vma->addr);
-
-    if (addr < vma->addr || addr + len > vma->addr + vma->length)
-        return;
-
-    if (!(vma->prot & PROT_READ)) {
-        if (!force_protect)
-            return;
-        DkVirtualMemoryProtect(vma->addr, vma->length, PAL_PROT_READ);
-    }
-
-    for (uint64_t p = (uint64_t) addr ;
-         p < (uint64_t) addr + len ; p += allocsize) {
-            uint64_t hash = 0;
-            struct shim_md5_ctx ctx;
-            md5_init(&ctx);
-            md5_update(&ctx, (void *) p, allocsize);
-            md5_final(&ctx);
-            memcpy(&hash, ctx.digest, sizeof(uint64_t));
-        }
-
-    if (!(vma->prot & PROT_READ))
-        DkVirtualMemoryProtect(vma->addr, vma->length, vma->prot);
-}
