@@ -128,6 +128,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     char uri[URI_MAX];
     char normpath[URI_MAX];
     int ret, fd = file->file.fd, uri_len, len;
+    bool file_in_cwd = 0;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;
@@ -149,6 +150,9 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     len = get_norm_path(uri + 5, normpath + 5, 0, URI_MAX);
     uri_len = len + 5;
 
+    if (uri_len > 5 && normpath[5] != '/')
+	file_in_cwd = 1;
+
     _DkSpinLock(&trusted_file_lock);
 
     listp_for_each_entry(tmp, &trusted_file_list, list) {
@@ -166,6 +170,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                 tf = tmp;
                 break;
             }
+	    if (strcmp_static(tmp->uri, "file:.") && file_in_cwd) {
+		tf = tmp;
+		break;
+	    }
         }
     }
 
