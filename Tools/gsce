@@ -14,16 +14,6 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
   # Choose the base image from the user input
   df.write('FROM '+ image_name + '\n')
   df.write('\n')
-  
-  # SETUP INTEL Proxy
-  df.write('# Setup Intel Proxy\n')
-  df.write('ENV no_proxy=.intel.com\n')
-  df.write('ENV https_proxy=http://proxy-us.intel.com:912\n')
-  df.write('ENV http_proxy=http://proxy-us.intel.com:911\n')
-  df.write('ENV NO_PROXY=.intel.com\n')
-  df.write('ENV HTTP_PROXY=http://proxy-us.intel.com:911\n')
-  df.write('ENV HTTPS_PROXY=http://proxy-us.intel.com:912\n')
-  df.write('\n')
 
   # SWITCH to ROOT
   df.write('# SWITCH to root \n')
