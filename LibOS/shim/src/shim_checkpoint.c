@@ -801,47 +801,34 @@ int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
     return 0;
 }
 
-#define NTRIES      4
-
 static void * cp_alloc (struct shim_cp_store * store, void * addr, int size)
 {
-    void * requested = addr;
-    struct shim_vma * vma;
-    int ret, n = 0;
-
-    if (!requested) {
-again:
-        if (n == NTRIES)
-            return NULL;
-        if (!(addr = get_unmapped_vma_for_cp(size)))
-            return NULL;
-    } else {
-        ret = lookup_overlap_vma(addr, size, &vma);
-
-        if (!ret) {
-            if (vma->addr != addr || vma->length != size ||
-                !(vma->flags & VMA_UNMAPPED)) {
+    if (addr) {
+        // Caller specified an exact region to alloc.
+        struct shim_vma * vma;
+        bool found = !lookup_overlap_vma(addr, size, &vma);
+        if (found) {
+            bool allocable = vma->addr == addr && vma->length == size
+                             && (vma->flags & VMA_UNMAPPED);
+            if (!allocable) {
                 put_vma(vma);
                 return NULL;
             }
         }
+        return DkVirtualMemoryAlloc(addr, size, 0,
+                                    PAL_PROT_READ|PAL_PROT_WRITE);
+    } else {
+        // Alloc on any address, with specified size.
+        while (true) {
+            addr = get_unmapped_vma_for_cp(size);
+            if (!addr)
+                return NULL;
+            addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
+                                                 PAL_PROT_READ|PAL_PROT_WRITE);
+            if (addr)
+                return addr;
+        }
     }
-
-    addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
-                                         PAL_PROT_READ|PAL_PROT_WRITE);
-
-    if (!addr) {
-        if (!requested)
-            goto again;
-        return NULL;
-    }
-
-    if (requested && addr != requested) {
-        DkVirtualMemoryFree(addr, size);
-        return NULL;
-    }
-
-    return addr;
 }
 
 DEFINE_PROFILE_CATAGORY(migrate_proc, migrate);

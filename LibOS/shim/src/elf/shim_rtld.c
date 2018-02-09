@@ -575,7 +575,7 @@ map_error:
 #endif
                 bkeep_mprotect((void *) RELOCATE(l, c->mapend),
                                l->loadcmds[l->nloadcmds - 1].mapstart -
-                               c->mapend, PROT_NONE, &flags);
+                               c->mapend, PROT_NONE, flags);
             }
         }
 

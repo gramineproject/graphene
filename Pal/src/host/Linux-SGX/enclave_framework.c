@@ -924,13 +924,13 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
+        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
                 hex2str(att.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Remote attestation succeed!\n");
+    SGX_DBG(DBG_S, "Remote attestation succeeded!\n");
     return 0;
 
 out:
