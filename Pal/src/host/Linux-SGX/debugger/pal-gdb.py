@@ -27,6 +27,7 @@ def signal_handler(event):
 
 if __name__ == "__main__":
     gdb.execute("set env IN_GDB = 1")
+    gdb.execute("set env LD_PRELOAD = ")
 
     gdb.execute("handle SIGCONT pass noprint nostop")
     gdb.execute("handle SIGKILL pass print stop")

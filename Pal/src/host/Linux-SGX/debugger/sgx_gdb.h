@@ -6,9 +6,10 @@
 struct enclave_dbginfo {
     int                 pid;
     unsigned long       base, size;
-    unsigned long       aep;
+    unsigned long       ssaframesize;
+    void *              aep;
     int                 thread_tids[MAX_DBG_THREADS];
-    unsigned long       thread_gprs[MAX_DBG_THREADS];
+    void *              tcs_addrs[MAX_DBG_THREADS];
 };
 
 #define DBGINFO_ADDR        0x100000000000
