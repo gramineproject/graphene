@@ -433,7 +433,7 @@ static int init_trusted_file (const char * key, const char * uri)
 int init_trusted_files (void)
 {
     struct config_store * store = pal_state.root_config;
-    char * cfgbuf;
+    char * cfgbuf = NULL;
     ssize_t cfgsize;
     int nuris, ret;
 
@@ -443,7 +443,7 @@ int init_trusted_files (void)
             goto out;
     }
 
-    cfgbuf = __alloca(CONFIG_MAX);
+    cfgbuf = malloc(CONFIG_MAX);
     ssize_t len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
     if (len > 0) {
         int npreload = 0;
@@ -469,7 +469,8 @@ int init_trusted_files (void)
     if (cfgsize <= 0)
         goto no_trusted;
 
-    cfgbuf = __alloca(cfgsize);
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
     nuris = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
     if (nuris <= 0)
         goto no_trusted;
@@ -499,7 +500,8 @@ no_trusted:
     if (cfgsize <= 0)
         goto no_allowed;
 
-    cfgbuf = __alloca(cfgsize);
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
     nuris = get_config_entries(store, "sgx.allowed_files", cfgbuf, cfgsize);
     if (nuris <= 0)
         goto no_allowed;
@@ -523,6 +525,7 @@ no_trusted:
 no_allowed:
     ret = 0;
 out:
+    free(cfgbuf);
     return ret;
 }
 
@@ -540,7 +543,7 @@ int init_trusted_children (void)
     if (cfgsize <= 0)
         return 0;
 
-    char * cfgbuf = __alloca(cfgsize);
+    char * cfgbuf = malloc(cfgsize);
     int nuris = get_config_entries(store, "sgx.trusted_mrenclave",
                                    cfgbuf, cfgsize);
     if (nuris > 0) {
@@ -560,7 +563,7 @@ int init_trusted_children (void)
                 register_trusted_child(uri, mrenclave);
         }
     }
-
+    free(cfgbuf);
     return 0;
 }
 
