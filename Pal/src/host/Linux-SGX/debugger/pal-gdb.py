@@ -38,5 +38,8 @@ if __name__ == "__main__":
     gdb.execute("set follow-exec-mode same")
     gdb.execute("set follow-fork-mode child")
 
+    # Need to disable displaced stepping
+    gdb.execute("set displaced-stepping off")
+
     LoadCommandBreakpoint()
     gdb.events.stop.connect(signal_handler)
