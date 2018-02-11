@@ -1,10 +1,12 @@
 
-              Graphene Library OS with Intel SGX Support
+# Graphene Library OS with Intel:registered: SGX Support
 
-        A Linux-compatible Library OS for Multi-Process Applications
+![Travis Logo](https://travis-ci.org/oscarlab/graphene.svg?branch=master)
 
 
-1. WHAT IS GRAPHENE?
+*A Linux-compatible Library OS for Multi-Process Applications*
+
+## 1. WHAT IS GRAPHENE?
 
 Graphene Library OS is a project to provided lightweight guest OSes with
 support for Linux multi-process applications. Comparable to virtual
@@ -17,7 +19,7 @@ any platform that Graphene Library OS has been ported to. Currently,
 Graphene Library OS is successfully ported to Linux, FreeBSD and Intel SGX
 enclaves upon Linux platforms.
 
-With the Intel SGX support, Graphene Library OS can secure a critical
+With the Intel:registered: SGX support, Graphene Library OS can secure a critical
 application in a hardware encrypted memory region. Graphene Library OS can
 protect applications against malicious system stack, with minimal porting
 effort.
@@ -28,7 +30,7 @@ of Library OSes for Multi-Process Applications", Eurosys 2014.
 
 
 
-2. HOW TO BUILD GRAPHENE?
+## 2. HOW TO BUILD GRAPHENE?
 
 Graphene Library OS is consist of five parts:
   - Instrumented GNU Library C
@@ -51,6 +53,7 @@ with 'apt-get install')
    - build-essential
    - autoconf
    - gawk
+   - gcc 4 or 5
 
 The following packages are also required for building Graphene for SGX (can
 be installed with 'apt-get install'):
@@ -68,13 +71,14 @@ Each part of Graphene can be built separately in the subdirectories.
 To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 "make".
 
-    2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
+### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
 
-** Note: this step is optional. **
-** Note: for building with Intel SGX support, skip this step. **
+__** Note: this step is optional. **__
 
-** Disclaimer: this feature is experimental and may contain bugs. Please do
-   no use in production system before further assessment.
+__** Note: for building with Intel:registered: SGX support, skip this step. **__
+
+__** Disclaimer: this feature is experimental and may contain bugs. Please do
+   no use in production system before further assessment.__
 
 To enable sandboxing, a customized Linux kernel is needed. Note that
 this feature is optional and completely unnecessary for running on SGX.
@@ -100,7 +104,7 @@ For more details about the building and installation, see the Graphene github
 Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 
-    2-1. BUILD WITH INTEL SGX SUPPORT
+### 2-1. BUILD WITH INTEL:registered: SGX SUPPORT
 
 To build Graphene Library OS with Intel SGX support, run "make SGX=1" instead
 of "make". "DEBUG=1" can be used to build with debug symbols. Using "make SGX=1"
@@ -121,14 +125,16 @@ files) and the signatures, to the Intel SGX-enabled hosts. The Intel SGX
 Linux SDK is required for running Graphene Library OS. Download and install
 from the official Intel github repositories:
 
-    <https://github.com/01org/linux-sgx>
-    <https://github.com/01org/linux-sgx-driver>
-    (The SDK and driver version must be 1.9 or LOWER)
+   - <https://github.com/01org/linux-sgx>
+   - <https://github.com/01org/linux-sgx-driver>
+
+__(The SDK and driver version must be 1.9 or LOWER)__
 
 A Linux driver must be installed before runing Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
 
-    (Please make sure the GCC version is either 4 or 5)
+__** Please make sure the GCC version is either 4 or 5 **__
+
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
     (The console will be prompted to ask for the path of Intel SGX driver code)
@@ -139,7 +145,7 @@ Finally generating the runtime enclave tokens by running "make SGX_RUN=1".
 
 
 
-3. HOW TO RUN AN APPLICATION IN GRAPHENE?
+## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
 Graphene library OS uses PAL (libpal.so) as a loader to bootstrap an
 application in the library OS. To start Graphene, PAL (libpal.so) will have
@@ -147,14 +153,17 @@ to be run as an executable, with the name of the program, and a "manifest
 file" given from the command line. Graphene provides three options for
 spcifying the programs and manifest files:
 
-    option 1: (automatic manifest)
+   - option 1: (automatic manifest)
+   
     [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
-    option 2: (given manifest)
+   - option 2: (given manifest)
+   
     [PATH TO Runtime]/pal_loader [MANIFEST] [ARGUMENTS]...
 
-    option 3: (manifest as a script)
+   - option 3: (manifest as a script)
+   
     [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
 
@@ -165,14 +174,17 @@ the Graphene reference monitor, Graphene must be started with the PAL
 reference monitor loader (libpal_sec.so). Graphene provides three options for
 spcifying the programs and manifest files to the loader:
 
-    option 4: (automatic manifest - with reference monitor)
+   - option 4: (automatic manifest - with reference monitor)
+   
     SEC=1 [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
-    option 5: (given manifest - with reference monitor)
+   - option 5: (given manifest - with reference monitor)
+   
     SEC=1 [PATH TO Pal/src]/pal_loader [MANIFEST] [ARGUMENTS]...
 
-    option 6: (manifest as a script - with reference monitor)
+   - option 6: (manifest as a script - with reference monitor)
+   
     SEC=1 [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH TO Pal/src]/pal_sec" as the first line)
 
@@ -200,12 +212,12 @@ github Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 
 
-4. HOW TO CONTACT THE MAINTAINER?
+## 4. CONTACT
 
 For any questions or bug reports, please contact us:
 
-Chia-Che Tsai <chitsai@cs.stonybrook.edu>
-Don Porter <porter@cs.unc.edu>
+   - __Chia-Che Tsai__ <chitsai@cs.stonybrook.edu>
+   - __Don Porter__ <porter@cs.unc.edu>
 
 or post an issue on our github repository:
         <https://github.com/oscarlab/graphene/issues>
