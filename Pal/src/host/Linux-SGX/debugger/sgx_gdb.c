@@ -363,7 +363,6 @@ int open_memdevice (pid_t pid, int * memdev, struct enclave_dbginfo ** ei)
     if (fd < 0)
         return fd;
 
-    eib.thread_stepping = 0;
     memdevs[nmemdevs].pid = pid;
     memdevs[nmemdevs].memdev = fd;
     memdevs[nmemdevs].ei = eib;
@@ -540,25 +539,6 @@ long int ptrace (enum __ptrace_request request, ...)
             break;
         }
 
-        case PTRACE_SINGLESTEP: {
-            if (host_peekonetid(pid, memdev, ei) < 0)
-                goto do_host_ptrace;
-
-            ret = host_peekisinenclave(pid, ei);
-            assert(ret >= 0);
-            if (!ret)
-                goto do_host_ptrace;
-
-            for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
-                if (ei->thread_tids[i] == pid) {
-                    ei->thread_stepping |= 1ULL << i;
-                    break;
-                }
-
-            DEBUG("%d: SINGLESTEP(%d)\n", getpid(), pid);
-            goto do_host_ptrace;
-        }
-
         default:
             if (request >= 0x4000)
                 DEBUG("*** bypassed ptrace call: 0x%x ***\n", request);
@@ -588,76 +568,4 @@ long int ptrace (enum __ptrace_request request, ...)
     }
 
     return ret;
-}
-
-pid_t waitpid(pid_t pid, int *status, int options)
-{
-    pid_t res;
-
-    DEBUG("%d: waitpid(%d)\n", getpid(), pid);
-
-    res = syscall((long int) SYS_wait4,
-                  (long int) pid,
-                  (long int) status,
-                  (long int) options,
-                  (long int) NULL);
-
-    if (res == -1 || !status)
-        return res;
-
-    if (WIFSTOPPED(*status) && WSTOPSIG(*status) == SIGTRAP) {
-        int memdev;
-        struct enclave_dbginfo * ei;
-        int ret;
-        pid = res;
-
-        ret = open_memdevice(pid, &memdev, &ei);
-        if (ret < 0)
-            goto out;
-
-        if (host_peekonetid(pid, memdev, ei) < 0)
-            goto out;
-
-
-        for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
-            if (ei->thread_tids[i] == pid) {
-                if (ei->thread_stepping & (1ULL << i)) {
-                    ei->thread_stepping &= ~(1ULL << i);
-                    goto out;
-                }
-                goto cont;
-            }
-
-        DEBUG("no this thread: %d\n", pid);
-        goto out;
-cont:
-
-        /* if the target thread is inside the enclave */
-        ret = host_peekisinenclave(pid, ei);
-        assert(ret >= 0);
-        if (ret) {
-            sgx_arch_gpr_t gpr;
-            uint8_t code;
-
-            ret = host_peekgpr(memdev, pid, ei, &gpr);
-            if (ret < 0)
-                goto out;
-
-            ret = pread(memdev, &code, sizeof(code), (off_t) gpr.rip);
-            if (ret < 0)
-                goto out;
-
-            if (code != 0xcc)
-                goto out;
-
-            DEBUG("rip 0x%lx points to a breakpoint\n", gpr.rip);
-            gpr.rip++;
-            ret = host_pokegpr(memdev, pid, ei, &gpr);
-            if (ret < 0)
-                 goto out;
-        }
-    }
-
-out:
-    return res;
 }
