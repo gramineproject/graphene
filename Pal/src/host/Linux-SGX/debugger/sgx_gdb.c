@@ -17,7 +17,7 @@
 #include "sgx_gdb.h"
 #include "../sgx_arch.h"
 
-#define DEBUG_GDB_PTRACE    1
+//#define DEBUG_GDB_PTRACE    1
 
 #if DEBUG_GDB_PTRACE == 1
 #define DEBUG(fmt, ...)   do { fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
