@@ -10,6 +10,7 @@ struct enclave_dbginfo {
     void *              aep;
     int                 thread_tids[MAX_DBG_THREADS];
     void *              tcs_addrs[MAX_DBG_THREADS];
+    unsigned long long  thread_stepping;
 };
 
 #define DBGINFO_ADDR        0x100000000000
