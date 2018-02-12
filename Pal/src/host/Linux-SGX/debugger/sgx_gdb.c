@@ -17,7 +17,7 @@
 #include "sgx_gdb.h"
 #include "../sgx_arch.h"
 
-//#define DEBUG_GDB_PTRACE    1
+#define DEBUG_GDB_PTRACE    1
 
 #if DEBUG_GDB_PTRACE == 1
 #define DEBUG(fmt, ...)   do { fprintf(stderr, fmt, ##__VA_ARGS__); } while (0)
@@ -214,10 +214,6 @@ void fill_regs (struct user_regs_struct * regs, const sgx_arch_gpr_t * gpr)
     regs->rip = gpr->rip;
     regs->eflags = gpr->rflags;
     regs->rsp = gpr->rsp;
-#if SGX_HAS_FSGSBASE == 1
-    regs->fs = gpr->fsbase;
-    regs->fs = gpr->gsbase;
-#endif
 }
 
 static inline
@@ -242,10 +238,6 @@ void fill_gpr (sgx_arch_gpr_t * gpr, const struct user_regs_struct * regs)
     gpr->rip = regs->rip;
     gpr->rflags = regs->eflags;
     gpr->rsp = regs->rsp;
-#if SGX_HAS_FSGSBASE == 1
-    gpr->fsbase = regs->fs;
-    gpr->gsbase = regs->gs;
-#endif
 }
 
 static
