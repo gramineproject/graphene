@@ -101,12 +101,18 @@ void remove_r_debug (void * addr)
     DkDebugDetachBinary(addr);
 }
 
-void append_r_debug (const char * uri, void * addr, void * dyn_addr)
+int append_r_debug (const char * uri, void * addr, void * dyn_addr)
 {
     struct gdb_link_map * new = malloc(sizeof(struct gdb_link_map));
+    if (!new)
+        return -ENOMEM;
 
     int uri_len = strlen(uri);
     char * new_uri = malloc(uri_len + 1);
+    if (!new_uri) {
+        free(new);
+        return -ENOMEM;
+    }
     memcpy(new_uri, uri, uri_len + 1);
 
     new->l_addr = addr;
@@ -128,6 +134,7 @@ void append_r_debug (const char * uri, void * addr, void * dyn_addr)
     *tail = new;
 
     DkDebugAttachBinary(uri, addr);
+    return 0;
 }
 
 BEGIN_CP_FUNC(gdb_map)

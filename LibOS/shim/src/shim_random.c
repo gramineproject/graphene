@@ -42,41 +42,22 @@ int init_randgen (void)
     return 0;
 }
 
-int getrand (void * buffer, size_t size)
+void getrand (void * buffer, size_t size)
 {
-    unsigned long old_randval = randval;
-    int bytes = 0;
+    size_t bytes = 0;
     lock(randgen_lock);
 
-    while (bytes + sizeof(unsigned long) <= size) {
-        *(unsigned long *) (buffer + bytes) = randval;
-        bytes += sizeof(unsigned long);
+    while (bytes + sizeof(uint64_t) <= size) {
+        *(uint64_t *) (buffer + bytes) = randval;
+        bytes += sizeof(uint64_t);
         randval = hash64(randval);
     }
 
     if (bytes < size) {
-        switch (size - bytes) {
-            case 4:
-                *(uint32_t *) (buffer + bytes) = randval & 0xffffffff;
-                bytes += 4;
-                break;
-
-            case 2:
-                *(uint16_t *) (buffer + bytes) = randval & 0xffff;
-                bytes += 2;
-                break;
-
-            case 1:
-                *(uint8_t *) (buffer + bytes) = randval & 0xff;
-                bytes++;
-                break;
-
-            default: break;
-        }
+        memcpy(buffer + bytes, &randval, size - bytes);
         randval = hash64(randval);
     }
 
     unlock(randgen_lock);
-    return bytes;
 }
 extern_alias(getrand);

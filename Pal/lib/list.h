@@ -119,6 +119,8 @@
 // There are a few places where knowing the listp for deletion is cumbersome;
 //    maybe drop this requirement?
 
+#include <stdbool.h>
+
 #ifdef DEBUG
 #include <assert.h>
 #define LIST_ASSERT(cond) assert(cond)
@@ -245,33 +247,38 @@
 #define list_entry(LISTP, TYPE, FIELD) (LISTP)
 
 #define listp_for_each_entry(CURSOR, HEAD, FIELD)                       \
-    for(int first_iter = ({ (CURSOR) = (HEAD)->first;                   \
-                (HEAD)->first ? 1 : 0; });                              \
-        first_iter || (CURSOR) != (HEAD)->first;                        \
-        (CURSOR) = (CURSOR)->FIELD.next, first_iter = 0)
+    for (bool first_iter = ((CURSOR) = (HEAD)->first,                   \
+                            !!(HEAD)->first);                           \
+         first_iter || (CURSOR) != (HEAD)->first;                       \
+         (CURSOR) = (CURSOR)->FIELD.next, first_iter = false)
 
-#define listp_for_each_entry_reverse(CURSOR, HEAD, FIELD)              \
-    for(int first_iter = ({(CURSOR) = ((HEAD)->first                   \
-                    ? (HEAD)->first->FIELD.prev :                      \
-                    (HEAD)->first); (HEAD)->first ? 1 : 0; });         \
-        first_iter || ((CURSOR) && (CURSOR)->FIELD.next != (HEAD)->first); \
-        (CURSOR) = (CURSOR)->FIELD.prev, first_iter = 0)
+#define listp_for_each_entry_reverse(CURSOR, HEAD, FIELD)                   \
+    for (bool first_iter = ((CURSOR) = ((HEAD)->first                       \
+                                       ? (HEAD)->first->FIELD.prev          \
+                                       : (HEAD)->first),                    \
+                           !!(HEAD)->first);                                \
+         first_iter || ((CURSOR) && (CURSOR)->FIELD.next != (HEAD)->first); \
+         (CURSOR) = (CURSOR)->FIELD.prev, first_iter = false)
 
-#define listp_for_each_entry_safe(CURSOR, TMP, HEAD, FIELD)             \
-    for(int first_iter = ({(CURSOR) = (HEAD)->first;                    \
-                    (TMP) = ((CURSOR) ? (CURSOR)->FIELD.next : (CURSOR)); \
-                (HEAD)->first ? 1 : 0; });                              \
-        (first_iter || (CURSOR) != (HEAD)->first) && (HEAD)->first;     \
-        first_iter = (first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP) ? \
-                      1: 0),                                            \
-            (CURSOR) = (TMP), (TMP) = (TMP)->FIELD.next)
+#define listp_for_each_entry_safe(CURSOR, TMP, HEAD, FIELD)                 \
+    for (bool first_iter = ((CURSOR) = (HEAD)->first,                       \
+                            (TMP) = ((CURSOR)                               \
+                                     ? (CURSOR)->FIELD.next                 \
+                                     : (CURSOR)),                           \
+                            true);                                          \
+         (HEAD)->first && (first_iter || (CURSOR) != (HEAD)->first);        \
+         /* Handle the case where the first element was removed. */         \
+         first_iter = first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP), \
+         (CURSOR) = (TMP),                                                  \
+         (TMP) = (TMP)->FIELD.next)
 
 /* Continue safe iteration with CURSOR->next */
-#define listp_for_each_entry_safe_continue(CURSOR, TMP, HEAD, FIELD)    \
-    for((CURSOR) = (CURSOR)->FIELD.next,                                \
-        (TMP) = (CURSOR)->FIELD.next;                                   \
-        (CURSOR) != (HEAD)->first && (HEAD)->first;                     \
-        (CURSOR) = (TMP), (TMP) = (TMP)->FIELD.next)
+#define listp_for_each_entry_safe_continue(CURSOR, TMP, HEAD, FIELD)     \
+    for ((CURSOR) = (CURSOR)->FIELD.next,                                \
+         (TMP) = (CURSOR)->FIELD.next;                                   \
+         (CURSOR) != (HEAD)->first && (HEAD)->first;                     \
+         (CURSOR) = (TMP),                                               \
+         (TMP) = (TMP)->FIELD.next)
 
 /* Assertion code written in Graphene project */
 #define check_list_head(TYPE, head, FIELD)                              \

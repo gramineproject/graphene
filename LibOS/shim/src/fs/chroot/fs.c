@@ -147,12 +147,10 @@ static inline int concat_uri (char * buffer, int size, int type,
    handle is not linked to a dentry */
 static struct shim_file_data * __create_data (void)
 {
-    struct shim_file_data * data = malloc(sizeof(struct shim_file_data));
-
+    struct shim_file_data * data = calloc(1, sizeof(struct shim_file_data));
     if (!data)
         return NULL;
 
-    memset(data, 0, sizeof(struct shim_file_data));
     create_lock(data->lock);
     return data;
 }
@@ -980,9 +978,12 @@ static int chroot_readdir (struct shim_dentry * dent,
 
     int dbufsize = MAX_PATH;
     struct shim_dirent * dbuf = malloc(dbufsize);
+    if (!dbuf)
+        goto out;
     struct shim_dirent * d = dbuf, ** last = NULL;
 
 retry:
+// ALLOCA IN A LOOP!!!
     new_buf = __alloca(new_size);
     if (buf)
         memcpy(new_buf, buf, buf_size);
@@ -998,7 +999,7 @@ retry:
 
             if (PAL_NATIVE_ERRNO == PAL_ERROR_OVERFLOW) {
                 new_size = buf_size * 2;
-                goto retry;
+                goto retry; // FIX THIS
             }
 
             ret = -PAL_ERRNO;
@@ -1027,6 +1028,11 @@ retry:
                     newsize *= 2;
 
                 struct shim_dirent * new_dbuf = malloc(newsize);
+                if (!new_dbuf) {
+                    ret = -ENOMEM;
+                    // TODO: FREE STUFF
+                    goto out;
+                }
 
                 memcpy(new_dbuf, dbuf, (void *) d - (void *) dbuf);
                 struct shim_dirent * d1 = new_dbuf;
@@ -1113,6 +1119,8 @@ static int chroot_migrate (void * checkpoint, void ** mount_data)
                     sizeof(struct mount_data) + 1;
 
     void * new_data = malloc(alloc_len);
+    if (!new_data)
+        return -ENOMEM;
 
     memcpy(new_data, mdata, alloc_len);
     *mount_data = new_data;

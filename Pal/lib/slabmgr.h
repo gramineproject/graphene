@@ -29,8 +29,11 @@
 #include "list.h"
 #include <pal_debug.h>
 #include <assert.h>
+#include <errno.h>
 #include <sys/mman.h>
 
+// Before calling any of `system_malloc` and `system_free` this library will
+// acquire `system_lock` (the systen_* implementation must not do it).
 #ifndef system_malloc
 #error "macro \"void * system_malloc(int size)\" not declared"
 #endif
@@ -137,7 +140,9 @@ struct slab_debug {
 # endif
 #endif
 
-static int slab_levels[SLAB_LEVEL] = { SLAB_LEVEL_SIZES };
+// User buffer sizes on each level (not counting mandatory header
+// (SLAB_HDR_SIZE)).
+static const int slab_levels[SLAB_LEVEL] = { SLAB_LEVEL_SIZES };
 
 DEFINE_LISTP(slab_obj);
 DEFINE_LISTP(slab_area);
@@ -150,7 +155,7 @@ typedef struct slab_mgr {
 
 typedef struct __attribute__((packed)) large_mem_obj {
     // offset 0
-    unsigned long size;
+    unsigned long size;  // User buffer size (i.e. excluding control structures)
     unsigned char large_padding[LARGE_OBJ_PADDING];
     // offset 16
     unsigned char level;
@@ -167,7 +172,7 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #endif
 
 #define RAW_TO_LEVEL(raw_ptr) \
-            (*((unsigned char *) (raw_ptr) - OBJ_PADDING - 1))
+            (*((const unsigned char *) (raw_ptr) - OBJ_PADDING - 1))
 #define RAW_TO_OBJ(raw_ptr, type) container_of((raw_ptr), type, raw)
 
 #define __SUM_OBJ_SIZE(slab_size, size) \
@@ -288,39 +293,25 @@ static inline void destroy_slab_mgr (SLAB_MGR mgr)
     system_free(mgr, addr - (void *) mgr);
 }
 
-static inline SLAB_MGR enlarge_slab_mgr (SLAB_MGR mgr, int level)
+// system_lock needs to be held by the caller on entry.
+static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
 {
-    SLAB_AREA area;
-    int size;
-
-    /* DEP 11/24/17: I don't see how this case is possible.
-     * Either way, we should be consistent with whether to
-     * return with system_lock held or not.
-     * Commenting for now and replacing with an assert */
-    /*if (level >= SLAB_LEVEL) {
-        system_lock();
-        goto out;
-        }*/
     assert(level < SLAB_LEVEL);
-
     /* DEP 11/24/17: This strategy basically doubles a level's size 
      * every time it grows.  The assumption if we get this far is that
      * mgr->addr == mgr->top_addr */
-    assert (mgr->addr[level] == mgr->addr_top[level]);
-    size = mgr->size[level];
-    area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
-    if (area <= 0)
-        return NULL;
+    assert(mgr->addr[level] == mgr->addr_top[level]);
+    
+    size_t size = mgr->size[level];
+    SLAB_AREA area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
+    if (!area)
+        return -ENOMEM;
 
-    system_lock();
     area->size = size;
     INIT_LIST_HEAD(area, __list);
     listp_add(area, &mgr->area_list[level], __list);
     __set_free_slab_area(area, mgr, level);
-    system_unlock();
-
-//out:
-    return mgr;
+    return 0;
 }
 
 static inline void * slab_alloc (SLAB_MGR mgr, int size)
@@ -350,10 +341,12 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
     system_lock();
     assert(mgr->addr[level] <= mgr->addr_top[level]);
     if (mgr->addr[level] == mgr->addr_top[level] &&
-        listp_empty(&mgr->free_list[level])) {
-        system_unlock();
-        enlarge_slab_mgr(mgr, level);
-        system_lock();
+          listp_empty(&mgr->free_list[level])) {
+        int ret = enlarge_slab_mgr(mgr, level);
+        if (ret < 0) {
+            system_unlock();
+            return NULL;
+        }
     }
 
     if (!listp_empty(&mgr->free_list[level])) {
@@ -402,6 +395,31 @@ static inline void * slab_alloc_debug (SLAB_MGR mgr, int size,
 }
 #endif
 
+// Returns user buffer size (i.e. excluding size of control structures).
+static inline size_t slab_get_buf_size(SLAB_MGR mgr, const void* ptr)
+{
+    assert(ptr);
+
+    unsigned char level = RAW_TO_LEVEL(ptr);
+
+    if (level == (unsigned char)-1) {
+        LARGE_MEM_OBJ mem = RAW_TO_OBJ(ptr, LARGE_MEM_OBJ_TYPE);
+        return mem->size;
+    }
+
+    if (level >= SLAB_LEVEL) {
+        pal_printf("Heap corruption detected: invalid heap level %ud\n", level);
+        __abort();
+    }
+
+#ifdef SLAB_CANARY
+    const unsigned long * m = (const unsigned long *)(ptr + slab_levels[level]);
+    assert((*m) == SLAB_CANARY_STRING);
+#endif
+
+    return slab_levels[level];
+}
+
 static inline void slab_free (SLAB_MGR mgr, void * obj)
 {
     /* In a general purpose allocator, free of NULL is allowed (and is a 
@@ -426,8 +444,8 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
      * more likely to be detected by adding a non-zero offset to the level,
      * so a level of 0 in the header would no longer be a valid level. */
     if (level >= SLAB_LEVEL) {
-        pal_printf("Heap corruption detected: invalid heap level %ud\n", level);
-        assert(0); // panic
+        pal_printf("Heap corruption detected: invalid heap level %d\n", level);
+        __abort();
     }
 
 #ifdef SLAB_CANARY

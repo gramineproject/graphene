@@ -7,5 +7,5 @@ SHIM {
         memcpy; memmove; memset; memcmp;
         __htonl; __ntohl; __htons; __ntohs; inet_pton;
         vfputchar; vfputs; vfprintf; snprintf;
-        malloc; free; remalloc;
+        malloc; free; malloc_copy;
 };

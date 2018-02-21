@@ -26,6 +26,8 @@
 #ifndef _SHIM_FS_H_
 #define _SHIM_FS_H_
 
+#include <stdbool.h>
+
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <shim_handle.h>
@@ -229,7 +231,7 @@ struct shim_d_ops {
 
 DEFINE_LIST(shim_mount);
 struct shim_mount {
-    char type[8];
+    char type[8];  // Null-terminated.
 
     struct shim_dentry * mount_point;
 
@@ -310,7 +312,7 @@ const char * get_file_name (const char * path, size_t len);
 /* file system operations */
 int mount_fs (const char * mount_type, const char * mount_uri,
               const char * mount_point, struct shim_dentry *parent,
-              struct shim_dentry **dentp, int make_ancestor);
+              struct shim_dentry **dentp, bool make_ancestor);
 int unmount_fs (const char * mount_point);
 int search_builtin_fs (const char * type, struct shim_mount ** fs);
 
@@ -374,7 +376,7 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
  */
 int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                      struct shim_dentry ** dent, int link_depth,
-                     struct shim_mount *fs, int make_ancestor);
+                     struct shim_mount *fs, bool make_ancestor);
 
 /* Just wraps __path_lookupat, but also acquires and releases the dcache_lock.
  */
@@ -491,7 +493,7 @@ char * dentry_get_path (struct shim_dentry * dent, bool on_stack,
     return buffer;
 }
 
-static inline __attribute__((always_inline))
+static_inline
 const char * dentry_get_name (struct shim_dentry * dent)
 {
     return qstrgetstr(&dent->name);

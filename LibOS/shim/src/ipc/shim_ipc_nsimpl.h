@@ -174,12 +174,11 @@ static int __extend_range_bitmap (int expected)
     if (range_map)
         size = range_map->map_size;
 
-    while(size <= expected)
+    while (size <= expected)
         size *= 2;
 
     struct range_bitmap * new_map = malloc(sizeof(struct range_bitmap) +
                                            size / BITS);
-
     if (!new_map)
         return -ENOMEM;
 
@@ -353,7 +352,6 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
     int off = (idx - 1) / RANGE_SIZE, err = 0;
     IDTYPE base = off * RANGE_SIZE + 1;
     struct subrange * s = malloc(sizeof(struct subrange));
-
     if (!s)
         return -ENOMEM;
 
@@ -383,12 +381,11 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
     }
 
     if (!r->subranges) {
-        r->subranges = malloc(sizeof(struct sub_map));
+        r->subranges = calloc(1, sizeof(struct sub_map));
         if (!r->subranges) {
             err = -ENOMEM;
             goto failed;
         }
-        memset(r->subranges, 0, sizeof(struct sub_map));
     }
 
     struct subrange ** m = &r->subranges->map[idx - base];
@@ -645,10 +642,9 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
         if (idx < base)
             idx = base;
         if (!r->used) {
-            r->used = malloc(sizeof(struct idx_bitmap));
+            r->used = calloc(1, sizeof(struct idx_bitmap));
             if (!r->used)
                 continue;
-            memset(r->used, 0, sizeof(struct idx_bitmap));
         }
 
         int i = (idx - base) / BITS;

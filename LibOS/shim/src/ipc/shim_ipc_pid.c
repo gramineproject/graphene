@@ -298,8 +298,8 @@ int ipc_pid_retstatus_callback (IPC_CALLBACK_ARGS)
         struct pid_status ** status = (struct pid_status **) obj->private;
 
         if (status) {
-            *status = remalloc(msgin->status, sizeof(struct pid_status) *
-                               msgin->nstatus);
+            *status = malloc_copy(msgin->status, sizeof(struct pid_status) *
+                                  msgin->nstatus);
 
             obj->retval = msgin->nstatus;
         }
@@ -619,7 +619,7 @@ int ipc_pid_retmeta_callback (IPC_CALLBACK_ARGS)
 
         if (data)
             *data = msgin->datasize ?
-                    remalloc(msgin->data, msgin->datasize) : NULL;
+                    malloc_copy(msgin->data, msgin->datasize) : NULL;
 
         obj->retval = msgin->datasize;
 

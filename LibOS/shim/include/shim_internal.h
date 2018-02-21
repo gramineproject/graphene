@@ -555,11 +555,11 @@ extern LOCKTYPE __master_lock;
 # define master_lock()                                              \
     do {                                                            \
         lock(__master_lock);                                        \
-        pal_printf("maste lock " __FILE__ ":%d\n", __LINE__);       \
+        pal_printf("master lock " __FILE__ ":%d\n", __LINE__);       \
     } while (0)
 # define master_unlock()                                            \
     do {                                                            \
-        pal_printf("maste unlock " __FILE__ ":%d\n", __LINE__);     \
+        pal_printf("master unlock " __FILE__ ":%d\n", __LINE__);     \
         unlock(__master_lock);                                      \
     } while (0)
 #else
