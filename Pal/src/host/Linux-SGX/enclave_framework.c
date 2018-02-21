@@ -444,6 +444,11 @@ int init_trusted_files (void)
     }
 
     cfgbuf = malloc(CONFIG_MAX);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
     ssize_t len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
     if (len > 0) {
         int npreload = 0;
@@ -471,6 +476,12 @@ int init_trusted_files (void)
 
     free(cfgbuf);
     cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
+
     nuris = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
     if (nuris <= 0)
         goto no_trusted;
@@ -502,6 +513,11 @@ no_trusted:
 
     free(cfgbuf);
     cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
     nuris = get_config_entries(store, "sgx.allowed_files", cfgbuf, cfgsize);
     if (nuris <= 0)
         goto no_allowed;
@@ -544,6 +560,9 @@ int init_trusted_children (void)
         return 0;
 
     char * cfgbuf = malloc(cfgsize);
+    if (!cfgbuf)
+        return -PAL_ERROR_NOMEM;
+
     int nuris = get_config_entries(store, "sgx.trusted_mrenclave",
                                    cfgbuf, cfgsize);
     if (nuris > 0) {
