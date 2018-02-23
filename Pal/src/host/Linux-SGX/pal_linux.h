@@ -105,7 +105,7 @@ typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
 int load_trusted_file
-    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr);
+    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr, int create);
 int verify_trusted_file
     (const char * uri, void * mem, uint64_t offset, uint64_t size,
      sgx_stub_t * stubs, uint64_t total_size);

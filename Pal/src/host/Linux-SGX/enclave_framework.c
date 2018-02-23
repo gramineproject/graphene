@@ -17,6 +17,8 @@ void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
 
+static int register_trusted_file (const char * uri, const char * checksum_str);
+
 bool sgx_is_within_enclave (const void * addr, uint64_t size)
 {
     return (addr >= enclave_base &&
@@ -120,9 +122,10 @@ DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
+static int allow_file_creation = 0;
 
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
-                       uint64_t * sizeptr)
+                       uint64_t * sizeptr, int create)
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
@@ -136,6 +139,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (uri_len < 0)
         return uri_len;
 
+    if (create && allow_file_creation) {
+       register_trusted_file(uri, NULL);
+       return 0;
+    }
     /* Normalize the uri */
     if (!strpartcmp_static(uri, "file:")) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
@@ -522,6 +529,12 @@ no_trusted:
 
 no_allowed:
     ret = 0;
+
+    if (get_config(store, "sgx.allow_file_creation", cfgbuf, CONFIG_MAX) <= 0) {
+        allow_file_creation = 0;
+    } else
+        allow_file_creation = 1;
+
 out:
     return ret;
 }
