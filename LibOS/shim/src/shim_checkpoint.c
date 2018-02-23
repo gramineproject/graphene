@@ -819,6 +819,8 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, int size)
                                     PAL_PROT_READ|PAL_PROT_WRITE);
     } else {
         // Alloc on any address, with specified size.
+        // We need to retry because `get_unmapped_vma_for_cp` is randomized.
+        // TODO: Fix this to remove the need for retrying.
         while (true) {
             addr = get_unmapped_vma_for_cp(size);
             if (!addr)

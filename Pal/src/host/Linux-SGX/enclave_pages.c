@@ -68,6 +68,8 @@ static void assert_vma_list (void)
 #endif
 }
 
+// TODO: This function should be fixed to always either return exactly `addr` or
+// fail.
 void * get_reserved_pages(void * addr, uint64_t size)
 {
     if (!size)
