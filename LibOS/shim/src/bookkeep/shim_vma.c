@@ -866,7 +866,7 @@ int lookup_overlap_vma (const void * addr, uint64_t length,
     debug("vma overlapped at %p-%p\n", tmp_addr, tmp_addr + tmp_length);
     if (res_vma)
         *res_vma = vma;
-    return vma;
+    return 0;
 }
 
 static struct shim_vma * __lookup_vma (const void * addr, uint64_t length)
