@@ -19,7 +19,7 @@
     void * _tmp = sgx_ocalloc(len);     \
     if (_tmp == NULL) {                 \
         OCALL_EXIT();                   \
-        return -PAL_ERROR_DENIED;       \
+        return -PAL_ERROR_DENIED;  /* TODO: remove this control-flow obfuscation */  \
     }                                   \
     (val) = (type) _tmp;                \
 } while (0)
@@ -33,20 +33,20 @@ int printf(const char * fmt, ...);
         sgx_ocfree();                                   \
     } while (0)
 
-#define ALLOC_IN_USER(var, size)                    \
+#define ALLOC_IN_USER(ptr, size)                    \
     ({                                              \
-        typeof(var) tmp = var;                      \
-        if (sgx_is_within_enclave(var, size)) {     \
+        typeof(ptr) tmp = ptr;                      \
+        if (sgx_is_within_enclave(ptr, size)) {     \
             OCALLOC(tmp, typeof(tmp), size);        \
         }; tmp;                                     \
     })
 
-#define COPY_TO_USER(var, size)                     \
+#define COPY_TO_USER(ptr, size)                     \
     ({                                              \
-        typeof(var) tmp = var;                      \
-        if (sgx_is_within_enclave(var, size)) {     \
+        typeof(ptr) tmp = ptr;                      \
+        if (sgx_is_within_enclave(ptr, size)) {     \
             OCALLOC(tmp, typeof(tmp), size);        \
-            memcpy((void *) tmp, var, size);        \
+            memcpy((void *) tmp, ptr, size);        \
         }; tmp;                                     \
     })
 

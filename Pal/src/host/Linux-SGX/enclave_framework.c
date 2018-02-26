@@ -19,8 +19,7 @@ struct pal_enclave_config pal_enclave_config;
 
 bool sgx_is_within_enclave (const void * addr, uint64_t size)
 {
-    return (addr >= enclave_base &&
-            addr + size <= enclave_top) ? 1 : 0;
+    return enclave_base <= addr && addr + size <= enclave_top;
 }
 
 void * sgx_ocalloc (uint64_t size)
