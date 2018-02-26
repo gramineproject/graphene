@@ -104,8 +104,22 @@ typedef struct { char bytes[32]; } sgx_checksum_t;
 typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
+
+/* Function: load_trusted_file
+ * checks if the file to be opened is trusted or allowed,
+ * according to the setting in manifest
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
+
 int load_trusted_file
     (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr, int create);
+
 int verify_trusted_file
     (const char * uri, void * mem, uint64_t offset, uint64_t size,
      sgx_stub_t * stubs, uint64_t total_size);

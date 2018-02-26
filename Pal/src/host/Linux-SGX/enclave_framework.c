@@ -124,6 +124,19 @@ static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 static int allow_file_creation = 0;
 
+
+/* Function: load_trusted_file
+ * checks if the file to be opened is trusted or allowed,
+ * according to the setting in manifest
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
+
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr, int create)
 {
@@ -139,10 +152,13 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (uri_len < 0)
         return uri_len;
 
+    /* Allow to create the file when allow_file_creation is turned on;
+       The created file is added to allowed_file list for later access */
     if (create && allow_file_creation) {
        register_trusted_file(uri, NULL);
        return 0;
     }
+
     /* Normalize the uri */
     if (!strpartcmp_static(uri, "file:")) {
         SGX_DBG(DBG_E, "Invalid URI [%s]: Trusted files must start with 'file:'\n", uri);;
