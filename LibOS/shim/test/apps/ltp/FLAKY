@@ -23,6 +23,8 @@ Prone to hanging - I think a memory corruption issue that may have a pending fix
 recvfrom01,1
 recvfrom01,2
 
+futex_wait03,1 (see https://github.com/oscarlab/graphene/pull/180#issuecomment-368970338)
+
 Intermittent seg fault
 kill03,1
 

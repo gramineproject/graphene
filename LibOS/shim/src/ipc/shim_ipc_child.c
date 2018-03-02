@@ -192,7 +192,7 @@ DEFINE_PROFILE_INTERVAL(ipc_cld_exit_callback, ipc);
 
 int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal)
 {
-    unsigned long send_time = GET_PROFILE_INTERVAL();
+    __attribute__((unused)) unsigned long send_time = GET_PROFILE_INTERVAL();
     BEGIN_PROFILE_INTERVAL_SET(send_time);
     int ret = 0;
 
