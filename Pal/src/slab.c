@@ -41,8 +41,8 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 #if STATIC_SLAB == 1
 # define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
 static char mem_pool[POOL_SIZE];
-static char *bump = mem_pool;
-static char *mem_pool_end = &mem_pool[POOL_SIZE];
+static void *bump = mem_pool;
+static void *mem_pool_end = &mem_pool[POOL_SIZE];
 #else
 # define PAGE_SIZE (slab_alignment)
 #endif
@@ -71,7 +71,7 @@ static inline void * __malloc (int size)
 static inline void __free (void * addr, int size)
 {
 #if STATIC_SLAB == 1
-    if ((char *) addr >= (char *) mem_pool && (char *) addr + size <= (char *) mem_pool_end)
+    if (addr >= (void *)mem_pool && addr < mem_pool_end)
         return;
 #endif
 

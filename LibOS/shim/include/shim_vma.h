@@ -94,15 +94,18 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
                 struct shim_handle * file, uint64_t offset, const char * comment);
 
 /* Bookkeeping munmap() system call */
-int bkeep_munmap (void * addr, uint64_t length, const int * flags);
+int bkeep_munmap (void * addr, uint64_t length, int flags);
 
 /* Bookkeeping mprotect() system call */
-int bkeep_mprotect (void * addr, uint64_t length, int prot, const int * flags);
+int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags);
 
 /* Get vma bookkeeping handle */
 void get_vma (struct shim_vma * vma);
 void put_vma (struct shim_vma * vma);
 
+/* Returns 0 on success, -E* on failure.
+   Calls `get_vma` on the result before returning it.
+*/
 int lookup_supervma (const void * addr, uint64_t len, struct shim_vma ** vma);
 int lookup_overlap_vma (const void * addr, uint64_t len, struct shim_vma ** vma);
 
@@ -117,9 +120,6 @@ void unmap_all_vmas (void);
 
 /* Debugging */
 void debug_print_vma_list (void);
-
-void print_vma_hash (struct shim_vma * vma, void * addr, uint64_t len,
-                     bool force_protect);
 
 /* Constants */
 extern unsigned long mem_max_npages;

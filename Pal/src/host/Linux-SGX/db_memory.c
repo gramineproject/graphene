@@ -85,6 +85,12 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
     mem = get_reserved_pages(addr, size);
     if (!mem)
         return addr ? -PAL_ERROR_DENIED : -PAL_ERROR_NOMEM;
+    if (addr && mem != addr) {
+        // TODO: This case should be made impossible by fixing
+        // `get_reserved_pages` semantics.
+        free_pages(mem, size);
+        return -PAL_ERROR_INVAL; // `addr` was unaligned.
+    }
 
     memset(mem, 0, size);
 
