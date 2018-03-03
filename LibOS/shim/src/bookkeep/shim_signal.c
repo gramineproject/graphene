@@ -173,7 +173,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 
 delay:
     {
-        if (!(signal = remalloc(signal,sizeof(struct shim_signal))))
+        if (!(signal = malloc_copy(signal,sizeof(struct shim_signal))))
             goto out;
 
         struct shim_signal ** signal_log = allocate_signal_log(cur_thread, sig);

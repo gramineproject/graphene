@@ -21,8 +21,8 @@
  * shim_utils.h
  */
 
-#ifndef _SHIM_UTILITIES_H_
-#define _SHIM_UTILITIES_H_
+#ifndef _SHIM_UTILS_H_
+#define _SHIM_UTILS_H_
 
 #include <shim_handle.h>
 
@@ -72,8 +72,11 @@ static inline char * qstrsetstr (struct shim_qstr * qstr,
     char * buf = qstr->name;
 
     if (size >= QSTR_SIZE) {
-        if (!qstr->oflow)
+        if (!qstr->oflow) {
             qstr->oflow = get_str_obj();
+            if (!qstr->oflow)
+                return NULL;
+        }
         buf = qstr->oflow->str;
     } else {
         if (qstr->oflow) {
@@ -82,13 +85,9 @@ static inline char * qstrsetstr (struct shim_qstr * qstr,
         }
     }
 
-    qstr->len = 0;
-    if (str) {
-        if (size)
-            memcpy(buf, str, size);
-        buf[size] = 0;
-        qstr->len = size;
-    }
+    memcpy(buf, str, size);
+    buf[size] = 0;
+    qstr->len = size;
 
     return buf;
 }
@@ -108,8 +107,12 @@ static inline char * qstrsetstrs (struct shim_qstr * qstr,
     char * buf = qstr->name;
 
     if (total_size >= QSTR_SIZE) {
-        if (!qstr->oflow)
+        if (!qstr->oflow) {
+            // TODO: alloc proper size.
             qstr->oflow = get_str_obj();
+            if (!qstr->oflow)
+                return NULL;
+        }
         buf = qstr->oflow->str;
     }
 
@@ -153,19 +156,21 @@ static inline int qstrcmpstr (const struct shim_qstr * qstr,
 
 /* heap allocation functions */
 int init_slab (void);
+
 #if defined(SLAB_DEBUG_PRINT) || defined(SLAB_DEBUG_TRACE)
-void * __malloc_debug (size_t size, const char * file, int line);
-#define malloc(size) __malloc_debug((size), __FILE__, __LINE__)
-void __free_debug (void * mem, const char * file, int line);
-#define free(mem) __free_debug((mem), __FILE__, __LINE__)
-void * __remalloc_debug (const void * mem, size_t size,
-                         const char * file, int line);
-#define remalloc(mem, size) __remalloc_debug((mem), (size), __FILE__, __LINE__)
+    void * __malloc_debug (size_t size, const char * file, int line);
+    #define malloc(size) __malloc_debug((size), __FILE__, __LINE__)
+    void __free_debug (void * mem, const char * file, int line);
+    #define free(mem) __free_debug((mem), __FILE__, __LINE__)
+    void * __malloc_copy_debug (const void * mem, size_t size,
+                             const char * file, int line);
+    #define malloc_copy(mem, size) __malloc_copy_debug((mem), (size), __FILE__, __LINE__)
 #else
-void * malloc (size_t size);
-void free (void * mem);
-void * remalloc (const void * mem, size_t size);
+    void * malloc (size_t size);
+    void free (void * mem);
+    void * malloc_copy (const void * mem, size_t size);
 #endif
+void* realloc(void* ptr, size_t new_size);
 
 static_inline char * qstrtostr (struct shim_qstr * qstr, bool on_stack)
 {
@@ -175,8 +180,7 @@ static_inline char * qstrtostr (struct shim_qstr * qstr, bool on_stack)
     if (!buf)
         return NULL;
 
-    if (len)
-        memcpy(buf, qstrgetstr(qstr), len);
+    memcpy(buf, qstrgetstr(qstr), len);
 
     buf[len] = 0;
     return buf;
@@ -204,8 +208,8 @@ void md5_final (struct shim_md5_ctx * mdContext);
 /* prompt user for confirmation */
 int message_confirm (const char * message, const char * options);
 
-/* get random number */
-int getrand (void * buffer, size_t size);
+/* get random bytes (not for crypto!) */
+void getrand (void * buffer, size_t size);
 
 /* ELF binary loading */
 int check_elf_object (struct shim_handle * file);
@@ -243,4 +247,4 @@ int terminate_async_helper (void);
 
 extern struct config_store * root_config;
 
-#endif /* _SHIM_UTILITIES_H */
+#endif /* _SHIM_UTILS_H */

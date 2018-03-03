@@ -165,8 +165,8 @@ int shim_do_munmap (void * addr, size_t len)
 
     uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
     uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-    if (bkeep_munmap((void *) mapped, mapped_end - mapped, /*flags=*/0) < 0)
-        return -EACCES;
+
+    bkeep_munmap((void *) mapped, mapped_end - mapped, /*flags=*/0);
 
     DkVirtualMemoryFree((void *) mapped, mapped_end - mapped);
     return 0;

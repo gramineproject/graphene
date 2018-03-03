@@ -520,13 +520,12 @@ retry:
 
     len = ret;
 
-    struct shim_str_data * data = malloc(sizeof(struct shim_str_data));
+    struct shim_str_data * data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
         ret = -ENOMEM;
         goto err;
     }
 
-    memset(data, 0, sizeof(struct shim_str_data));
     data->str = strbuf;
     data->len = len;
     hdl->type = TYPE_STR;

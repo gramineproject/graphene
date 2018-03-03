@@ -693,7 +693,7 @@ postmap:
         }
     } else {
         l->l_real_ld = (ElfW(Dyn) *) RELOCATE(l, l->l_ld);
-        l->l_ld = remalloc(l->l_real_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
+        l->l_ld = malloc_copy(l->l_real_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
     }
 
     elf_get_dynamic_info(l);

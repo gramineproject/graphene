@@ -29,6 +29,7 @@
 #include <shim_vma.h>
 #include <shim_fs.h>
 #include <shim_checkpoint.h>
+#include <shim_utils.h>
 
 #include <pal.h>
 #include <list.h>
@@ -152,11 +153,10 @@ static IDTYPE get_internal_pid (void)
 
 struct shim_thread * alloc_new_thread (void)
 {
-    struct shim_thread * thread = malloc(sizeof(struct shim_thread));
+    struct shim_thread * thread = calloc(1, sizeof(struct shim_thread));
     if (!thread)
         return NULL;
 
-    memset(thread, 0, sizeof(struct shim_thread));
     REF_SET(thread->ref_count, 1);
     INIT_LISTP(&thread->children);
     INIT_LIST_HEAD(thread, siblings);
@@ -204,8 +204,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
                 continue;
 
             thread->signal_handles[i].action =
-                    remalloc(cur_thread->signal_handles[i].action,
-                             sizeof(struct shim_signal_handle));
+                    malloc_copy(cur_thread->signal_handles[i].action,
+                                sizeof(struct shim_signal_handle));
         }
 
         memcpy(&thread->signal_mask, &cur_thread->signal_mask,

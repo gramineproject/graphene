@@ -588,57 +588,29 @@ static int mcast_c (int port)
 
 static unsigned long randval = 0;
 
-int getrand (void * buffer, int size)
+void getrand (void * buffer, size_t size)
 {
-    unsigned long val;
-    int bytes = 0;
+    size_t bytes = 0;
 
-    val = randval;
-    randval++;
-
-    while (bytes + sizeof(unsigned long) <= size) {
-        *(unsigned long *) (buffer + bytes) = val;
-        val = hash64(val);
-        bytes += sizeof(unsigned long);
+    while (bytes + sizeof(uint64_t) <= size) {
+        *(uint64_t*) (buffer + bytes) = randval;
+        randval = hash64(randval);
+        bytes += sizeof(uint64_t);
     }
 
     if (bytes < size) {
-        switch (size - bytes) {
-            case 4:
-                *(unsigned int *) (buffer + bytes) = randval & 0xffffffff;
-                bytes += 4;
-                break;
-
-            case 2:
-                *(unsigned short *) (buffer + bytes) = randval & 0xffff;
-                bytes += 2;
-                break;
-
-            case 1:
-                *(unsigned char *) (buffer + bytes) = randval & 0xff;
-                bytes++;
-                break;
-
-            default: break;
-        }
+        memcpy(buffer + bytes, &randval, size - bytes);
         randval = hash64(randval);
     }
-
-    randval = val;
-    return bytes;
 }
 
-static int create_instance (struct pal_sec * pal_sec)
+static void create_instance (struct pal_sec * pal_sec)
 {
     unsigned int id;
-    if (!getrand(&id, sizeof(unsigned int))) {
-        SGX_DBG(DBG_E, "Unable to generate random numbers\n");
-        return -PAL_ERROR_DENIED;
-    }
+    getrand(&id, sizeof(id));
     snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix),
              "/graphene/%x/", id);
     pal_sec->instance_id = id;
-    return 0;
 }
 
 int load_manifest (int fd, struct config_store ** config_ptr)

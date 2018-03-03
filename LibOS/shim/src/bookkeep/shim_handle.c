@@ -424,7 +424,7 @@ extend:
         ret = fd;
 out:
     unlock(handle_map->lock);
-    return fd;
+    return ret;
 }
 
 void flush_handle (struct shim_handle * hdl)
@@ -602,23 +602,18 @@ void dup_fd_handle (struct shim_handle_map * map,
 
 static struct shim_handle_map * get_new_handle_map (FDTYPE size)
 {
-    struct shim_handle_map * handle_map =
-                    malloc(sizeof(struct shim_handle_map));
+    struct shim_handle_map * handle_map = 
+        calloc(1, sizeof(struct shim_handle_map));
 
-    if (handle_map == NULL)
+    if (!handle_map)
         return NULL;
 
-    memset(handle_map, 0, sizeof(struct shim_handle_map));
+    handle_map->map = calloc(size, sizeof(struct shim_fd_handle));
 
-    handle_map->map = malloc(sizeof(struct shim_fd_handle) * size);
-
-    if (handle_map->map == NULL) {
+    if (!handle_map->map) {
         free(handle_map);
         return NULL;
     }
-
-    memset(handle_map->map, 0,
-           sizeof(struct shim_fd_handle) * size);
 
     handle_map->fd_top  = FD_NULL;
     handle_map->fd_size = size;
@@ -631,25 +626,16 @@ static struct shim_handle_map * __enlarge_handle_map
                      (struct shim_handle_map * map, FDTYPE size)
 {
     if (size <= map->fd_size)
+        return map;
+
+    size_t new_size = size * sizeof(struct shim_fd_handle*);
+    struct shim_fd_handle** new_map = realloc(map->map, new_size);
+    if (!new_map)
         return NULL;
 
-    struct shim_fd_handle ** old_map = map->map;
-
-    map->map = malloc(sizeof(struct shim_fd_handle *) * size);
-
-    if (map->map == NULL) {
-        map->map = old_map;
-        return NULL;
-    }
-
-    size_t copy_size = sizeof(struct shim_fd_handle *) * map->fd_size;
+    size_t copy_size = sizeof(struct shim_fd_handle*) * map->fd_size;
+    memset(map->map + copy_size, 0, new_size - copy_size);
     map->fd_size = size;
-    memset(map->map, 0, sizeof(struct shim_fd_handle *) * size);
-    if (old_map) {
-        if (copy_size)
-            memcpy(map->map, old_map, copy_size);
-        free(old_map);
-    }
     return map;
 }
 
@@ -668,7 +654,7 @@ int dup_handle_map (struct shim_handle_map ** new,
     if (old_map->fd_top == FD_NULL)
         goto done;
 
-    for (int i = 0 ; i <= old_map->fd_top ; i++) {
+    for (int i = 0; i <= old_map->fd_top; i++) {
         struct shim_fd_handle * fd_old = old_map->map[i];
         struct shim_fd_handle * fd_new;
 
@@ -678,8 +664,19 @@ int dup_handle_map (struct shim_handle_map ** new,
             /* first, get the handle to prevent it from being deleted */
             struct shim_handle * hdl = fd_old->handle;
             open_handle(hdl);
-            /* DP: I assume we really need a deep copy of the handle map? */
+
             fd_new = malloc(sizeof(struct shim_fd_handle));
+            if (!fd_new) {
+                for (int j = 0; j < i; j++) {
+                    close_handle(new_map->map[i]->handle);
+                    free(new_map->map[i]);
+                }
+                unlock(old_map->lock);
+                *new = NULL;
+                return -ENOMEM;
+            }
+
+            /* DP: I assume we really need a deep copy of the handle map? */
             new_map->map[i] = fd_new;
             fd_new->vfd    = fd_old->vfd;
             fd_new->handle = hdl;
@@ -690,7 +687,6 @@ int dup_handle_map (struct shim_handle_map ** new,
 done:
     unlock(old_map->lock);
     *new = new_map;
-
     return 0;
 }
 

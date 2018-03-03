@@ -173,7 +173,8 @@ void * __system_malloc (size_t size)
             unlock(shim_heap_lock);
             return NULL;
         }
-        assert (addr == addr_new);
+
+        assert(addr == addr_new);
         bkeep_mmap(addr, alloc_size, PROT_READ|PROT_WRITE,
                    flags, NULL, 0, NULL);
     } else {
@@ -209,8 +210,8 @@ void __system_free (void * addr, size_t size)
                 && addr <= shim_heap_areas[i].end)
                 in_reserved_area = 1;
         }
-    
-    if (! in_reserved_area)
+
+    if (!in_reserved_area)
         bkeep_munmap(addr, ALIGN_UP(size), flags);
 }
 
@@ -358,11 +359,27 @@ void * calloc (size_t nmemb, size_t size)
 }
 extern_alias(calloc);
 
+void* realloc(void* ptr, size_t new_size)
+{
+    // TODO: This function should be optimized to avoid memcpy when buffer
+    // expansion is possible.
+    size_t old_size = slab_get_buf_size(slab_mgr, ptr);
+    void* new_buf = malloc(new_size);
+    if (!new_buf)
+        return NULL;
+    memcpy(new_buf, ptr, new_size < old_size ? new_size : old_size);
+    free(ptr);
+    return new_buf;
+}
+extern_alias(realloc);
+
+
+// Copies data from `mem` to a newly allocated buffer of a specified size.
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
-void * __remalloc_debug (const void * mem, size_t size,
-                   const char * file, int line)
+void * __malloc_copy_debug (const void * mem, size_t size,
+                         const char * file, int line)
 #else
-void * remalloc (const void * mem, size_t size)
+void * malloc_copy (const void * mem, size_t size)
 #endif
 {
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
@@ -375,7 +392,7 @@ void * remalloc (const void * mem, size_t size)
     return buff;
 }
 #if !defined(SLAB_DEBUG_PRINT) && !defined(SLABD_DEBUG_TRACE)
-extern_alias(remalloc);
+extern_alias(malloc_copy);
 #endif
 
 DEFINE_PROFILE_OCCURENCE(free_0, memory);

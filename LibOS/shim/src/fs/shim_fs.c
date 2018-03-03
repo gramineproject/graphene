@@ -105,18 +105,15 @@ static int __mount_root (struct shim_dentry ** root)
         debug("mounting root filesystem: %s from %s\n", type, uri);
         if ((ret = mount_fs(type, uri, "/", NULL, root, 0)) < 0) {
             debug("mounting root filesystem failed (%d)\n", ret);
-            goto out;
+            return ret;
         }
-        goto out;
+        return ret;
     }
 
     debug("mounting default root filesystem\n");
     if ((ret = mount_fs("chroot", "file:", "/", NULL, root, 0)) < 0) {
         debug("mounting root filesystem failed (%d)\n", ret);
-        goto out;
     }
-
-out:
     return ret;
 }
 
@@ -188,31 +185,40 @@ static int __mount_one_other (const char * key, int keylen)
 
 static int __mount_others (void)
 {
+    int ret = 0;
+    char * keybuf = NULL;
+
     if (!root_config)
-        return 0;
+        goto out;
 
     int nkeys;
     ssize_t keybuf_size;
     keybuf_size = get_config_entries_size(root_config, "fs.mount");
     if (keybuf_size < 0)
-        return 0;
+        goto out;
 
-    char * keybuf = __alloca(keybuf_size);
+    keybuf = malloc(keybuf_size);
+    if (!keybuf) {
+        ret = -ENOMEM;
+        goto out;
+    }
     nkeys = get_config_entries(root_config, "fs.mount", keybuf, keybuf_size);
 
-    if (nkeys < 0)
-        return 0;
+    if (nkeys <= 0)
+        goto out;
 
     const char * key = keybuf, * next = NULL;
     for (int n = 0 ; n < nkeys ; key = next, n++) {
         for (next = key ; *next ; next++);
         next++;
-        int ret = __mount_one_other(key, next - key - 1);
+        ret = __mount_one_other(key, next - key - 1);
         if (ret < 0)
-            return ret;
+            goto out;
     }
 
-    return 0;
+out:
+    free(keybuf);
+    return ret;
 }
 
 int init_mount_root (void)
@@ -248,7 +254,7 @@ int init_mount (void)
 static inline struct shim_fs * find_fs (const char * type)
 {
     struct shim_fs * fs = NULL;
-    int len = strlen(type);
+    size_t len = strlen(type);
 
     for (int i = 0 ; i < NUM_MOUNTABLE_FS ; i++)
         if (!memcmp(type, mountable_fs[i].name, len + 1)) {
@@ -261,7 +267,7 @@ static inline struct shim_fs * find_fs (const char * type)
 
 int search_builtin_fs (const char * type, struct shim_mount ** fs)
 {
-    int len = strlen(type);
+    size_t len = strlen(type);
 
     for (int i = 0 ; i < NUM_BUILTIN_FS ; i++)
         if (!memcmp(type, builtin_fs[i]->type, len + 1)) {
@@ -291,6 +297,10 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
         if (ret < 0) {
             /* Try getting rid of ESKIPPED case */
             assert (ret != -ESKIPPED);
+            // TODO: `mount_root` leaks here, but fixing this would require
+            // fixing `get_new_dentry` semantics (its result has sometimes
+            // refcount set to 0).
+            // put_dentry(mount_root);
             return ret;
         }
         mount->root = mount_root;
@@ -340,6 +350,34 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
     return 0;
 }
 
+// Extracts the last component of the `path`. If there's none, `*last_elem_len`
+// is set to 0 and `*last_elem` is set to NULL.
+static void find_last_component(const char* path, const char** last_comp,
+                                size_t* last_comp_len) {
+    *last_comp = NULL;
+    size_t last_len = 0;
+    size_t path_len = strlen(path);
+    if (path_len == 0)
+        goto out;
+
+    // Drop any trailing slashes.
+    const char* last = path + path_len - 1;
+    while (last > path && *last == '/')
+        last--;
+    if (*last == '/')
+        goto out;
+
+    // Skip the last component.
+    last_len = 1;
+    while (last > path && *(last-1) != '/') {
+        last--;
+        last_len++;
+    }
+    *last_comp = last;
+out:
+    *last_comp_len = last_len;
+}
+
 /* Parent is optional, but helpful.
  * dentp (optional) memoizes the dentry of the newly-mounted FS, on success. 
  *
@@ -349,7 +387,7 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
  */
 int mount_fs (const char * type, const char * uri, const char * mount_point,
               struct shim_dentry *parent, struct shim_dentry **dentp,
-              int make_ancestor)
+              bool make_ancestor)
 {
     int ret = 0;
     struct shim_fs * fs = find_fs(type);
@@ -360,37 +398,23 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
     }
 
     /* Split the mount point into the prefix and atom */
-    int mount_point_len = strlen(mount_point);
-    const char * last = &mount_point[mount_point_len - 1];
-    int left = mount_point_len;
-    int last_len = 1;
-    // Drop any trailing slashes
-    while (left && *last == '/') {
-        left--;
-        last--;
-        if (last_len != 0)
-            last_len--;
+    size_t mount_point_len = strlen(mount_point);
+    if (mount_point_len == 0) {
+        ret = -EINVAL;
+        goto out;
     }
-    // Skip the atom
-    while (left && *last != '/') {
-        left--;
-        last--;
-        last_len++;
-    }
-    if (*last == '/') {
-        // Move forward one
-        last++;
-        last_len--;
-    }
+    const char* last;
+    size_t last_len;
+    find_last_component(mount_point, &last, &last_len);
 
     if (!parent) {
         // See if we are not at the root mount
-        if (mount_point_len != 1 || mount_point[0] != '/') {
+        if (last_len > 0) {
             // Look up the parent
-            char * parent_path = __alloca(mount_point_len);
-            memset(parent_path, 0, mount_point_len);
-            assert(last_len >= 1 && (mount_point_len - last_len) >= 0);
-            memcpy(parent_path, mount_point, mount_point_len - last_len);
+            size_t parent_len = last - mount_point;
+            char * parent_path = __alloca(parent_len + 1);
+            memcpy(parent_path, mount_point, parent_len);
+            parent_path[parent_len] = 0;
             if ((ret = __path_lookupat(dentry_root, parent_path, 0, &parent, 0,
                                        dentry_root->fs, make_ancestor)) < 0) {
                 debug("Path lookup failed %d\n", ret);
@@ -406,10 +430,10 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
 
     /* call fs-specific mount to allocate mount_data */
     if ((ret = fs->fs_ops->mount(uri, mount_point, &mount_data)) < 0)
-        goto out;
+        goto out_with_unlock;
 
 
-    int uri_len = uri ? strlen(uri) : 0;
+    size_t uri_len = uri ? strlen(uri) : 0;
     qstrsetstr(&mount->path, mount_point, mount_point_len);
     qstrsetstr(&mount->uri, uri, uri_len);
     memcpy(mount->type, fs->name, sizeof(fs->name));
@@ -420,14 +444,14 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
     /* Get the negative dentry from the cache, if one exists */
     struct shim_dentry * dent, *dent2;
     /* Special case the root */
-    if (mount_point_len == 1 && mount_point[0] == '/')
+    if (last_len == 0)
         dent = dentry_root;
     else {
         dent = __lookup_dcache(parent, last,
                                last_len,
                                NULL, 0, NULL);
 
-        if(!dent) {
+        if (!dent) {
             dent = get_new_dentry(mount, parent, last, last_len, NULL);
             get_dentry(dent);
         }
@@ -443,7 +467,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
     /*Now go ahead and do a lookup so the dentry is valid */
     if ((ret = __path_lookupat(dentry_root, mount_point, 0, &dent2, 0,
                                parent ? parent->fs : mount, make_ancestor)) < 0) 
-        goto out;
+        goto out_with_unlock;
 
     assert(dent == dent2);
 
@@ -456,7 +480,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
 
     // If we made it this far and the dentry is still negative, clear
     // the negative flag from the denry. 
-    if ((!ret) && (dent->state & DENTRY_NEGATIVE)) 
+    if (!ret && (dent->state & DENTRY_NEGATIVE))
         dent->state &= ~DENTRY_NEGATIVE;
     
     /* Set the file system at the mount point properly */
@@ -464,8 +488,10 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
     
     if (dentp && !ret)
         *dentp = dent;
-out:
+
+out_with_unlock:
     unlock(dcache_lock);
+out:
     return ret;
 }
 

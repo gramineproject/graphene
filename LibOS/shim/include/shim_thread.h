@@ -172,12 +172,6 @@ void set_cur_thread (struct shim_thread * thread)
     shim_tcb_t * tcb = SHIM_GET_TLS();
     IDTYPE tid = 0;
 
-#ifndef container_of
-# define container_of(ptr, type, member) ({                 \
-    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-    (type *)( (char *)__mptr - offsetof(type,member) );})
-#endif
-
     if (thread) {
         if (tcb->tp && tcb->tp != thread)
             put_thread(tcb->tp);

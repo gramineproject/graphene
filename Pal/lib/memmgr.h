@@ -20,7 +20,7 @@
 /*
  * memmgr.h
  *
- * This file contains implementation of fix-sized memory allocator.
+ * This file contains implementation of fixed-size memory allocator.
  */
 
 #ifndef MEMMGR_H
@@ -115,11 +115,11 @@ static inline void __set_free_mem_area (MEM_AREA area, MEM_MGR mgr, int size)
 
 static inline MEM_MGR create_mem_mgr (unsigned int size)
 {
-    unsigned long mem = (unsigned long) system_malloc(__MAX_MEM_SIZE(size));
+    void* mem = system_malloc(__MAX_MEM_SIZE(size));
     MEM_AREA area;
     MEM_MGR mgr;
 
-    if (mem <= 0)
+    if (!mem)
         return NULL;
 
     mgr = (MEM_MGR) mem;
@@ -136,13 +136,14 @@ static inline MEM_MGR create_mem_mgr (unsigned int size)
     return mgr;
 }
 
+// UNUSED??
 static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
 {
     MEM_AREA area;
 
     area = (MEM_AREA) system_malloc(sizeof(MEM_AREA_TYPE) +
                                     __SUM_OBJ_SIZE(size));
-    if (area <= 0)
+    if (!area)
         return NULL;
 
     system_lock();
@@ -154,6 +155,7 @@ static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
     return mgr;
 }
 
+// UNUSED and BROKEN (if (!first) mem leak)
 static inline void destroy_mem_mgr (MEM_MGR mgr)
 {
     MEM_AREA tmp, n, first = NULL;
@@ -204,6 +206,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
         if (!size)
             return NULL;
 
+// RAAACEEE HERE :(
         MEM_AREA area;
         area = (MEM_AREA) system_malloc(sizeof(MEM_AREA_TYPE) +
                                         __SUM_OBJ_SIZE(size));

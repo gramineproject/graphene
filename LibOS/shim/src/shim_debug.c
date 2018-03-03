@@ -104,9 +104,15 @@ void remove_r_debug (void * addr)
 void append_r_debug (const char * uri, void * addr, void * dyn_addr)
 {
     struct gdb_link_map * new = malloc(sizeof(struct gdb_link_map));
+    if (!new)
+        return;
 
     int uri_len = strlen(uri);
     char * new_uri = malloc(uri_len + 1);
+    if (!new_uri) {
+        free(new);
+        return;
+    }
     memcpy(new_uri, uri, uri_len + 1);
 
     new->l_addr = addr;

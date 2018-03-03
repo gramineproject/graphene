@@ -51,6 +51,7 @@ static void *mem_pool_end = &mem_pool[POOL_SIZE];
 
 static inline void * __malloc (int size)
 {
+  // NO LOCKS?
     void * addr = NULL;
 
 #if STATIC_SLAB == 1
@@ -123,12 +124,8 @@ void * malloc (size_t size)
     return ptr;
 }
 
-/* This function is not realloc(). remalloc() allocates a new buffer
- * with with a provided size and copies the contents of the old buffer
- * to the new buffer. The old buffer is not freed. The old buffer must
- * be at least size bytes long. This function should probably be renamed
- * to something less likely to be confused with realloc. */
-void * remalloc (const void * mem, size_t size)
+// Copies data from `mem` to a newly allocated buffer of a specified size.
+void * malloc_copy (const void * mem, size_t size)
 {
     void * nmem = malloc(size);
 
@@ -138,13 +135,13 @@ void * remalloc (const void * mem, size_t size)
     return nmem;
 }
 
-char * strdup (const char *s)
+char * strdup (const char *str)
 {
-    size_t len = strlen(s) + 1;
-    char *new = malloc(len);
+    size_t size = strlen(str) + 1;
+    char *new = malloc(size);
 
     if (new)
-        memcpy(new, s, len);
+        memcpy(new, str, size);
     
     return new;
 }
