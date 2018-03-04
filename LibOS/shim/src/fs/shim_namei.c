@@ -327,7 +327,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
             }
             get_dentry(start);
 
-          } else {
+        } else {
             // Once we have an atom, look it up and update start
             // XXX: Assume we don't need the force flag here?
             err = lookup_dentry(start, path, my_pathlen, 0, &my_dent, fs);
