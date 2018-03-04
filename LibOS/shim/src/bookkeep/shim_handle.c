@@ -668,8 +668,8 @@ int dup_handle_map (struct shim_handle_map ** new,
             fd_new = malloc(sizeof(struct shim_fd_handle));
             if (!fd_new) {
                 for (int j = 0; j < i; j++) {
-                    close_handle(new_map->map[i]->handle);
-                    free(new_map->map[i]);
+                    close_handle(new_map->map[j]->handle);
+                    free(new_map->map[j]);
                 }
                 unlock(old_map->lock);
                 *new = NULL;
