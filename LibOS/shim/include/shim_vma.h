@@ -106,8 +106,10 @@ int lookup_overlap_vma (void * addr, uint64_t length,
                         struct shim_vma_val * vma);
 
 /*
- * Looking for an unmapped space and add the bookkeeping (more info in
- * bookkeep/shim_vma.c).
+ * Looking for an unmapped space and then adding the corresponding bookkeeping
+ * (more info in bookkeep/shim_vma.c).
+ *
+ * Note: the first argument is "top_addr" because the search is top-down.
  */
 void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
                        int prot, int flags, struct shim_handle * file,
