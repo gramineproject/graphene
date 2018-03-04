@@ -118,8 +118,8 @@ bkeep_unmapped_any (uint64_t length, int prot, int flags,
                     struct shim_handle * file, uint64_t offset,
                     const char * comment)
 {
-    return bkeep_unmapped(PAL_CB(user_address.start),
-                          PAL_CB(user_address.end),
+    return bkeep_unmapped(PAL_CB(user_address.end),
+                          PAL_CB(user_address.start),
                           length, prot, flags, file, offset, comment);
 }
 
