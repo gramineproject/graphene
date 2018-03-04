@@ -450,7 +450,12 @@ void fast_pathcpy (char * dst, const char * src, int size, char ** ptr)
     *ptr = d;
 }
 
-static_inline
+/*
+ * Buffers allocated by __alloca() are only alive within the current
+ * function. Need to use the GCC attribute "always_inline" to force
+ * inlining this function.
+ */
+static_inline __attribute__((always_inline))
 char * dentry_get_path (struct shim_dentry * dent, bool on_stack,
                         int * sizeptr)
 {
