@@ -88,9 +88,6 @@ struct shim_thread {
     bool user_tcb; /* is tcb assigned by user? */
     void * frameptr;
 
-    /* to save vma bookkeeping */
-    struct { void * addr; uint64_t length; } delayed_vma;
-
     REFTYPE ref_count;
     LOCKTYPE lock;
 

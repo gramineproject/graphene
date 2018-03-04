@@ -54,8 +54,16 @@ struct shim_vma {
     char                    comment[VMA_COMMENT_LEN];
 };
 
-#define VMA_MGR_ALLOC   64
+#define VMA_MGR_ALLOC   DEFAULT_VMA_COUNT
 #define PAGE_SIZE       allocsize
+#define RESERVED_VMAS   4
+
+static struct shim_vma * reserved_vmas[RESERVED_VMAS];
+
+static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
+                                uint64_t length, int prot, int flags,
+                                struct shim_handle * file,
+                                uint64_t offset, const char * comment);
 
 /*
  * Because the default system_malloc() must create VMA(s), we need
@@ -65,16 +73,23 @@ struct shim_vma {
  */
 static inline void * __malloc (size_t size)
 {
-    struct shim_thread * thread = get_cur_thread();
-
+    void * addr;
     size = ALIGN_UP(size);
-    void * addr = (void *) DkVirtualMemoryAlloc(NULL, size, 0,
-                                                PAL_PROT_WRITE|PAL_PROT_READ);
+
+    /*
+     * Chia-Che 3/3/18: We must enforce the policy that all VMAs have to
+     * be created before issuing the PAL calls.
+     */
+    addr = __bkeep_unmapped(PAL_CB(user_address.end),
+                            PAL_CB(user_address.start), size,
+                            PROT_READ|PROT_WRITE,
+                            MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
+                            NULL, 0, "vma");
 
     debug("allocate %p-%p for vmas\n", addr, addr + size);
-    thread->delayed_vma.addr = addr;
-    thread->delayed_vma.length = size;
-    return addr;
+
+    return (void *) DkVirtualMemoryAlloc(addr, size, 0,
+                                         PAL_PROT_WRITE|PAL_PROT_READ);
 }
 
 #undef system_malloc
@@ -199,6 +214,11 @@ int init_vma (void)
         return -ENOMEM;
     }
 
+    create_lock(vma_list_lock);
+
+    for (int i = 0 ; i < RESERVED_VMAS ; i++)
+        reserved_vmas[i] = get_mem_obj_from_mgr(vma_mgr);
+
     uint64_t bottom = (uint64_t) PAL_CB(user_address.start);
     uint64_t top    = (uint64_t) PAL_CB(user_address.end);
 
@@ -214,7 +234,6 @@ int init_vma (void)
     debug("User space range: 0x%llx-0x%llx\n", bottom, top);
     debug("heap top adjusted to %p\n", current_heap_top);
 
-    create_lock(vma_list_lock);
     return 0;
 }
 
@@ -229,34 +248,44 @@ static int __bkeep_munmap (struct shim_vma * prev,
 static int __bkeep_mprotect (struct shim_vma * prev,
                              void * start, void * end, int prot, int flags);
 
-#if 0
-static void __bkeep_delayed_vma (void)
-{
-    struct shim_thread * thread = get_cur_thread();
-
-    if (!thread || !thread->delayed_vma.addr)
-        return;
-
-    __bkeep_mmap(thread->delayed_vma.addr, thread->delayed_vma.length,
-                 PROT_READ|PROT_WRITE,
-                 MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-                 NULL, 0, NULL);
-
-    thread->delayed_vma.addr = NULL;
-    thread->delayed_vma.length = 0;
-}
-#endif
-
 static inline struct shim_vma * __get_new_vma (void)
 {
-    struct shim_vma * tmp =
-            get_mem_obj_from_mgr_enlarge(vma_mgr, size_align_up(VMA_MGR_ALLOC));
-    if (!tmp)
-        return NULL;
+    struct shim_vma * tmp = get_mem_obj_from_mgr(vma_mgr);
+    if (tmp)
+        goto out;
 
+    for (int i = 0 ; i < RESERVED_VMAS ; i++)
+        if (reserved_vmas[i]) {
+            tmp = reserved_vmas[i];
+            reserved_vmas[i] = NULL;
+            goto out;
+        }
+
+    /* Should never reach here; if this happens, increase RESERVED_VMAS */
+    bug();
+
+out:
     memset(tmp, 0, sizeof(struct shim_vma));
     INIT_LIST_HEAD(tmp, list);
     return tmp;
+}
+
+static inline void __restore_reserved_vmas (void)
+{
+    bool nothing_reserved = true;
+    do {
+        for (int i = 0 ; i < RESERVED_VMAS ; i++)
+            if (!reserved_vmas[i]) {
+                struct shim_vma * new =
+                    get_mem_obj_from_mgr_enlarge(vma_mgr,
+                                                 size_align_up(VMA_MGR_ALLOC));
+
+                /* this allocation must succeed */
+                assert(new);
+                reserved_vmas[i] = new;
+                nothing_reserved = false;
+            }
+    } while (!nothing_reserved);
 }
 
 static inline void __drop_vma (struct shim_vma * vma)
@@ -309,8 +338,6 @@ static int __bkeep_mmap (struct shim_vma * prev,
         get_handle(file);
 
     struct shim_vma * new = __get_new_vma();
-    if (!new)
-        return -ENOMEM;
 
     /* First, remove any overlapping VMAs */
     ret = __bkeep_munmap(prev, start, end, flags);
@@ -348,6 +375,7 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mmap(prev, addr, addr + length, prot, flags, file, offset,
                            comment);
+    __restore_reserved_vmas();
     unlock(vma_list_lock);
     return ret;
 }
@@ -395,8 +423,6 @@ static inline int __shrink_vma (struct shim_vma * cur, void * start, void * end,
         /* Remaining space after [start, end), creating a new VMA */
         if (old_end > end) {
             struct shim_vma * tail = __get_new_vma();
-            if (!tail)
-                return -ENOMEM;
 
             tail->start = end;
             tail->end   = old_end;
@@ -482,6 +508,7 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_munmap(prev, addr, addr + length, flags);
+    __restore_reserved_vmas();
     unlock(vma_list_lock);
     return ret;
 }
@@ -512,9 +539,6 @@ static int __bkeep_mprotect (struct shim_vma * prev,
 
         /* Create a new VMA for the protected area */
         new = __get_new_vma();
-        if (!new)
-            return -ENOMEM;
-
         new->start = cur->start > start ? cur->start : start;
         new->end   = cur->end < end ? cur->end : end;
         new->prot  = prot;
@@ -591,6 +615,7 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mprotect(prev, addr, addr + length, prot, flags);
+    __restore_reserved_vmas();
     unlock(vma_list_lock);
     return ret;
 }
@@ -601,10 +626,10 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
  * If this function returns an non-NULL address, the corresponding VMA is
  * added to the VMA list.
  */
-void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
-                         uint64_t length, int prot, int flags,
-                         struct shim_handle * file,
-                         uint64_t offset, const char * comment)
+static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
+                                uint64_t length, int prot, int flags,
+                                struct shim_handle * file,
+                                uint64_t offset, const char * comment)
 {
     assert(top_addr > bottom_addr);
 
@@ -627,9 +652,6 @@ void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
         if (length <= start - end) {
             /* create a new VMA at the top of the range */
             new = __get_new_vma();
-            if (!new)
-                return NULL;
-
             new->start = end - length;
             new->end   = end;
             break;
@@ -665,6 +687,7 @@ void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
     lock(vma_list_lock);
     void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
                                    file, offset, comment);
+    __restore_reserved_vmas();
     unlock(vma_list_lock);
     return addr;
 }
@@ -695,6 +718,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
                             file, offset, comment);
 
 out:
+    __restore_reserved_vmas();
     unlock(vma_list_lock);
     return addr;
 }
