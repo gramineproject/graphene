@@ -726,6 +726,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
 
     void * bottom_addr = PAL_CB(user_address.start);
     void * top_addr = current_heap_top;
+    void * heap_max = PAL_CB(user_address.end);
     void * addr;
     bool update_heap_top = true;
 
@@ -737,13 +738,16 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
 #define ADDR_32BIT ((void *) (1ULL << 32))
 
     if (flags & MAP_32BIT) {
-        if (bottom_addr >= ADDR_32BIT) {
+        if (heap_max > ADDR_32BIT)
+            heap_max = ADDR_32BIT;
+
+        if (bottom_addr >= heap_max) {
             unlock(vma_list_lock);
             return -EINVAL;
         }
 
-        if (top_addr > ADDR_32BIT) {
-            top_addr = ADDR_32BIT;
+        if (top_addr > heap_max) {
+            top_addr = heap_max;
             update_heap_top = false;
         }
     }
@@ -759,16 +763,11 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
         goto out;
     }
 
-    if (top_addr == PAL_CB(user_address.end))
+    if (top_addr == heap_max)
         goto out;
-
-#ifdef MAP_32BIT
-    if (flags & MAP_32BIT && top_addr == ADDR_32BIT)
-        goto out;
-#endif
 
     /* Try to allocate above the current heap top */
-    top_addr = PAL_CB(user_address.end);
+    top_addr = heap_max;
     addr = __bkeep_unmapped(top_addr, bottom_addr,
                             length, prot, flags,
                             file, offset, comment);
