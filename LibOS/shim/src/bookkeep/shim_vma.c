@@ -355,10 +355,6 @@ static int __bkeep_mmap (struct shim_vma * prev,
                          const char * comment)
 {
     int ret = 0;
-
-    if (file)
-        get_handle(file);
-
     struct shim_vma * new = __get_new_vma();
 
     /* First, remove any overlapping VMAs */
