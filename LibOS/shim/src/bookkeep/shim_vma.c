@@ -59,6 +59,7 @@ struct shim_vma {
 #define RESERVED_VMAS   4
 
 static struct shim_vma * reserved_vmas[RESERVED_VMAS];
+static struct shim_vma early_vmas[RESERVED_VMAS];
 
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
                                 uint64_t length, int prot, int flags,
@@ -209,15 +210,32 @@ static void * current_heap_top;
 
 int init_vma (void)
 {
+    for (int i = 0 ; i < RESERVED_VMAS ; i++)
+        reserved_vmas[i] = &early_vmas[i];
+
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
         debug("failed allocating VMAs\n");
         return -ENOMEM;
     }
 
-    create_lock(vma_list_lock);
+    for (int i = 0 ; i < RESERVED_VMAS ; i++) {
+        struct shim_vma * new = get_mem_obj_from_mgr(vma_mgr);
+        assert(new);
 
-    for (int i = 0 ; i < RESERVED_VMAS ; i++)
-        reserved_vmas[i] = get_mem_obj_from_mgr(vma_mgr);
+        if (!reserved_vmas[i]) {
+            struct shim_vma * e = &early_vmas[i];
+            struct shim_vma * prev = listp_prev_entry(e, &vma_list, list);
+            debug("Converting early VMA [%p] %p-%p\n", e, e->start, e->end);
+            memcpy(new, e, sizeof(struct shim_vma));
+            INIT_LIST_HEAD(new, list);
+            __remove_vma(e, prev);
+            __insert_vma(new, prev);
+        }
+
+        reserved_vmas[i] = new;
+    }
+
+    create_lock(vma_list_lock);
 
     uint64_t bottom = (uint64_t) PAL_CB(user_address.start);
     uint64_t top    = (uint64_t) PAL_CB(user_address.end);
@@ -250,9 +268,13 @@ static int __bkeep_mprotect (struct shim_vma * prev,
 
 static inline struct shim_vma * __get_new_vma (void)
 {
-    struct shim_vma * tmp = get_mem_obj_from_mgr(vma_mgr);
-    if (tmp)
-        goto out;
+    struct shim_vma * tmp;
+
+    if (vma_mgr) {
+        tmp = get_mem_obj_from_mgr(vma_mgr);
+        if (tmp)
+            goto out;
+    }
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
         if (reserved_vmas[i]) {
@@ -452,9 +474,11 @@ static int __bkeep_munmap (struct shim_vma * prev,
         cur = listp_first_entry(&vma_list, struct shim_vma, list);
         if (!cur)
             return 0;
+    } else {
+        cur = listp_next_entry(prev, &vma_list, list);
     }
 
-    next = listp_next_entry(cur, &vma_list, list);
+    next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
 
     while (cur) {
         struct shim_vma * tail = NULL;
@@ -522,9 +546,11 @@ static int __bkeep_mprotect (struct shim_vma * prev,
         cur = listp_first_entry(&vma_list, struct shim_vma, list);
         if (!cur)
             return 0;
+    } else {
+        cur = listp_next_entry(prev, &vma_list, list);
     }
 
-    next = listp_next_entry(cur, &vma_list, list);
+    next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
 
     while (cur) {
         struct shim_vma * new, * tail = NULL;
@@ -631,6 +657,22 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
                                 struct shim_handle * file,
                                 uint64_t offset, const char * comment)
 {
+#ifdef MAP_32BIT
+    /*
+     * If MAP_32BIT is given in the flags, force the searching range to
+     * be lower than 1ULL << 32.
+     */
+#define ADDR_32BIT ((void *) (1ULL << 32))
+
+    if (flags & MAP_32BIT) {
+        if (bottom_addr >= ADDR_32BIT)
+            return NULL;
+
+        if (top_addr > ADDR_32BIT)
+            top_addr = ADDR_32BIT;
+    }
+#endif
+
     assert(top_addr > bottom_addr);
 
     if (!length || length > top_addr - bottom_addr)

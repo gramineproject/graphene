@@ -42,17 +42,26 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
                      off_t offset)
 {
     struct shim_handle * hdl = NULL;
-    long ret = -ENOMEM;
+    long ret = 0;
     bool reserved = false;
 
-    if (addr + length < addr) {
+    /*
+     * According to the manpage, both addr and offset have to be page-aligned,
+     * but not the length. mmap() will automatically round up the length.
+     */
+    if (addr && !ALIGNED(addr))
         return (void *) -EINVAL;
-    }
+
+    if (fd >= 0 && !ALIGNED(offset))
+        return (void *) -EINVAL;
+
+    if (!ALIGNED(length))
+        length = ALIGN_UP(length);
+
+    if (addr + length < addr)
+        return (void *) -EINVAL;
 
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
-
-    if (flags & MAP_32BIT)
-        return (void *) -ENOSYS;
 
     int pal_alloc_type = 0;
 
@@ -83,8 +92,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     }
 
     if (!addr) {
-        addr = bkeep_unmapped_heap(ALIGN_UP(length), prot, flags, hdl,
-                                   offset, NULL);
+        addr = bkeep_unmapped_heap(length, prot, flags, hdl, offset, NULL);
 
         if (addr) {
             reserved = true;
@@ -121,37 +129,48 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     return addr;
 }
 
-int shim_do_mprotect (void * addr, size_t len, int prot)
+int shim_do_mprotect (void * addr, size_t length, int prot)
 {
-    uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
-    uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-    if (bkeep_mprotect((void *) mapped, mapped_end - mapped, prot,0) < 0)
-        return -EACCES;
+    /*
+     * According to the manpage, addr has to be page-aligned, but not the
+     * length. mprotect() will automatically round up the length.
+     */
+    if (!addr || !ALIGNED(addr))
+        return -EINVAL;
 
-    if (!DkVirtualMemoryProtect((void *) mapped, mapped_end - mapped, prot))
+    if (!ALIGNED(length))
+        length = ALIGN_UP(length);
+
+    if (!DkVirtualMemoryProtect(addr, length, prot))
         return -PAL_ERRNO;
 
+    bkeep_mprotect(addr, length, prot, 0);
     return 0;
 }
 
-int shim_do_munmap (void * addr, size_t len)
+int shim_do_munmap (void * addr, size_t length)
 {
+    /*
+     * According to the manpage, addr has to be page-aligned, but not the
+     * length. munmap() will automatically round up the length.
+     */
+    if (!addr || !ALIGNED(addr))
+        return -EINVAL;
+
+    if (!ALIGNED(length))
+        length = ALIGN_UP(length);
+
     struct shim_vma_val vma;
 
-    if (lookup_overlap_vma(addr, len, &vma) < 0) {
+    if (lookup_overlap_vma(addr, length, &vma) < 0) {
         debug("can't find addr %p - %p in map, quit unmapping\n",
-              addr, addr + len);
+              addr, addr + length);
 
         /* Really not an error */
         return -EFAULT;
     }
 
-    uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
-    uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-
-    if (bkeep_munmap((void *) mapped, mapped_end - mapped, 0) < 0)
-        return -EACCES;
-
-    DkVirtualMemoryFree((void *) mapped, mapped_end - mapped);
+    DkVirtualMemoryFree(addr, length);
+    bkeep_munmap(addr, length, 0);
     return 0;
 }
