@@ -49,9 +49,9 @@ static void *mem_pool_end = &mem_pool[POOL_SIZE];
 
 #define STARTUP_SIZE    2
 
+/* This function is protected by slab_mgr_lock. */
 static inline void * __malloc (int size)
 {
-  // NO LOCKS?
     void * addr = NULL;
 
 #if STATIC_SLAB == 1
@@ -135,13 +135,13 @@ void * malloc_copy (const void * mem, size_t size)
     return nmem;
 }
 
-char * strdup (const char *str)
+char * strdup (const char * s)
 {
-    size_t size = strlen(str) + 1;
-    char *new = malloc(size);
+    size_t len = strlen(s) + 1;
+    char *new = malloc(len);
 
     if (new)
-        memcpy(new, str, size);
+        memcpy(new, s, len);
     
     return new;
 }
