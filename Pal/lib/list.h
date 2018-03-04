@@ -273,7 +273,7 @@
                             (TMP) = ((CURSOR)                               \
                                      ? (CURSOR)->FIELD.next                 \
                                      : (CURSOR)),                           \
-                            true);                                          \
+                            !!(HEAD)->first);                               \
          (HEAD)->first && (first_iter || (CURSOR) != (HEAD)->first);        \
          /* Handle the case where the first element was removed. */         \
          first_iter = first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP), \
