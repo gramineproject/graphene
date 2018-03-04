@@ -135,7 +135,7 @@ void * malloc_copy (const void * mem, size_t size)
     return nmem;
 }
 
-char * strdup (const char * s)
+char * strdup (const char *s)
 {
     size_t len = strlen(s) + 1;
     char *new = malloc(len);
