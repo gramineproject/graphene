@@ -172,7 +172,8 @@ void * malloc_copy (const void * mem, size_t size);
 #endif
 void* realloc(void* ptr, size_t new_size);
 
-static_inline char * qstrtostr (struct shim_qstr * qstr, bool on_stack)
+static_always_inline
+char * qstrtostr (struct shim_qstr * qstr, bool on_stack)
 {
     int len = qstr->len;
     char * buf = on_stack ? __alloca(len + 1) : malloc(len + 1);

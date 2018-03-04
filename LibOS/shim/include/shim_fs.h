@@ -440,7 +440,7 @@ void get_dentry (struct shim_dentry * dent);
 /* Decrement the reference count on dent */
 void put_dentry (struct shim_dentry * dent);
 
-static_inline
+static_always_inline
 void fast_pathcpy (char * dst, const char * src, int size, char ** ptr)
 {
     char * d = dst;
@@ -450,7 +450,7 @@ void fast_pathcpy (char * dst, const char * src, int size, char ** ptr)
     *ptr = d;
 }
 
-static_inline
+static_always_inline
 char * dentry_get_path (struct shim_dentry * dent, bool on_stack,
                         int * sizeptr)
 {
@@ -493,7 +493,7 @@ char * dentry_get_path (struct shim_dentry * dent, bool on_stack,
     return buffer;
 }
 
-static_inline
+static_always_inline
 const char * dentry_get_name (struct shim_dentry * dent)
 {
     return qstrgetstr(&dent->name);

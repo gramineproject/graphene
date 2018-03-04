@@ -35,7 +35,7 @@
 #define extern_alias(name) \
     extern __typeof(name) shim_##name __attribute ((alias (alias_str(name))))
 
-#define static_inline static inline __attribute__((always_inline))
+#define static_always_inline static inline __attribute__((always_inline))
 
 #include <shim_types.h>
 #include <shim_defs.h>
