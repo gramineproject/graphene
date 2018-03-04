@@ -976,7 +976,7 @@ static int chroot_readdir (struct shim_dentry * dent,
     }
 
     /*
-     * Try to read the directory list from the host. DkStramRead
+     * Try to read the directory list from the host. DkStreamRead
      * does not accept offset for directory listing. Therefore, we retry
      * several times if the buffer is not large enough.
      */
@@ -1028,7 +1028,7 @@ retry_read:
             blen--;
         }
 
-        /* Popolating a dirent */
+        /* Populating a dirent */
         int dsize = sizeof(struct shim_dirent) + blen + 1;
 
         /* dbuf is not large enough, reallocate the dirent buffer */
