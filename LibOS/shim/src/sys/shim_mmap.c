@@ -57,7 +57,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     int pal_alloc_type = 0;
 
     if ((flags & MAP_FIXED) || addr) {
-        struct shim_vma * tmp = NULL;
+        struct shim_vma_val tmp;
 
         if (!lookup_overlap_vma(addr, length, &tmp)) {
             debug("mmap: allowing overlapping MAP_FIXED allocation at %p with length %lu\n",
@@ -68,8 +68,23 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         }
     }
 
+    if ((flags & (MAP_ANONYMOUS|MAP_FILE)) == MAP_FILE) {
+        if (fd < 0)
+            return (void *) -EINVAL;
+
+        hdl = get_fd_handle(fd, NULL, NULL);
+        if (!hdl)
+            return (void *) -EBADF;
+
+        if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
+            put_handle(hdl);
+            return (void *) -ENODEV;
+        }
+    }
+
     if (!addr) {
-        addr = get_unmapped_vma(ALIGN_UP(length), flags);
+        addr = bkeep_unmapped_heap(ALIGN_UP(length), prot, flags, hdl,
+                                   offset, NULL);
 
         if (addr) {
             reserved = true;
@@ -79,70 +94,38 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         }
     }
 
-    void * mapped = ALIGN_DOWN((void *) addr);
-    void * mapped_end = ALIGN_UP((void *) addr + length);
-
-    addr = mapped;
-    length = mapped_end - mapped;
-
-    if (flags & MAP_ANONYMOUS) {
+    if (!hdl) {
         addr = (void *) DkVirtualMemoryAlloc(addr, length, pal_alloc_type,
                                              PAL_PROT(prot, 0));
 
         if (!addr) {
-            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED) ? -EPERM : -PAL_ERRNO;
-            goto free_reserved;
+            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED)
+                ret = -EPERM;
+            else
+                ret = -PAL_ERRNO;
         }
-
-        ADD_PROFILE_OCCURENCE(mmap, length);
     } else {
-        if (fd < 0) {
-            ret = -EINVAL;
-            goto free_reserved;
-        }
-
-        hdl = get_fd_handle(fd, NULL, NULL);
-        if (!hdl) {
-            ret = -EBADF;
-            goto free_reserved;
-        }
-
-        if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
-            put_handle(hdl);
-            ret = -ENODEV;
-            goto free_reserved;
-        }
-
-        if ((ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, PAL_PROT(prot, flags),
-                                         flags, offset)) < 0) {
-            put_handle(hdl);
-            goto free_reserved;
-        }
+        ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, PAL_PROT(prot, flags),
+                                    flags, offset);
     }
 
-    if (addr != mapped) {
-        mapped = ALIGN_DOWN((void *) addr);
-        mapped_end = ALIGN_UP((void *) addr + length);
-    }
-
-    ret = bkeep_mmap((void *) mapped, mapped_end - mapped, prot,
-                     flags, hdl, offset, NULL);
-    assert(!ret);
     if (hdl)
         put_handle(hdl);
-    return addr;
 
-free_reserved:
-    if (reserved)
-        bkeep_munmap((void *) mapped, mapped_end - mapped, flags);
-    return (void *) ret;
+    if (ret < 0) {
+        if (reserved) bkeep_munmap(addr, length, flags);
+        return (void *) ret;
+    }
+
+    ADD_PROFILE_OCCURENCE(mmap, length);
+    return addr;
 }
 
 int shim_do_mprotect (void * addr, size_t len, int prot)
 {
     uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
     uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-    if (bkeep_mprotect((void *) mapped, mapped_end - mapped, prot, /*flags=*/0) < 0)
+    if (bkeep_mprotect((void *) mapped, mapped_end - mapped, prot,0) < 0)
         return -EACCES;
 
     if (!DkVirtualMemoryProtect((void *) mapped, mapped_end - mapped, prot))
@@ -153,9 +136,9 @@ int shim_do_mprotect (void * addr, size_t len, int prot)
 
 int shim_do_munmap (void * addr, size_t len)
 {
-    struct shim_vma * tmp = NULL;
+    struct shim_vma_val vma;
 
-    if (lookup_overlap_vma(addr, len, &tmp) < 0) {
+    if (lookup_overlap_vma(addr, len, &vma) < 0) {
         debug("can't find addr %p - %p in map, quit unmapping\n",
               addr, addr + len);
 
@@ -166,7 +149,8 @@ int shim_do_munmap (void * addr, size_t len)
     uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
     uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
 
-    bkeep_munmap((void *) mapped, mapped_end - mapped, /*flags=*/0);
+    if (bkeep_munmap((void *) mapped, mapped_end - mapped, 0) < 0)
+        return -EACCES;
 
     DkVirtualMemoryFree((void *) mapped, mapped_end - mapped);
     return 0;

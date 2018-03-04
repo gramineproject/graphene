@@ -129,7 +129,50 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     SAVE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec);
 
     reset_brk();
-    unmap_all_vmas();
+
+    size_t count = DEFAULT_VMA_COUNT;
+    struct shim_vma_val * vmas = malloc(sizeof(struct shim_vma_val) * count);
+
+    if (!vmas)
+        return -ENOMEM;
+
+retry_dump_vmas:
+    ret = dump_all_vmas(vmas, count);
+
+    if (ret == -EOVERFLOW) {
+        struct shim_vma_val * new_vmas
+                = malloc(sizeof(struct shim_vma_val) * count * 2);
+        if (!new_vmas) {
+            free(vmas);
+            return -ENOMEM;
+        }
+        free(vmas);
+        vmas = new_vmas;
+        count *= 2;
+        goto retry_dump_vmas;
+    }
+
+    if (ret < 0)
+        return ret;
+
+    count = ret;
+    for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
+        /* Don't free the current stack */
+        if (vma->addr == cur_thread->stack)
+            continue;
+
+        /* Free all the mapped VMAs */
+        if (!(vma->flags & VMA_UNMAPPED))
+            DkVirtualMemoryFree(vma->addr, vma->length);
+
+        /* Remove the VMAs */
+        bkeep_munmap(vma->addr, vma->length, vma->flags);
+
+        if (vma->file)
+            put_handle(vma->file);
+    }
+    free(vmas);
+
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)

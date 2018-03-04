@@ -34,10 +34,10 @@
 #endif
 
 #ifndef system_malloc
-#error "macro \"void * system_malloc(int size)\" not declared"
+#error "macro \"void * system_malloc (size_t size)\" not declared"
 #endif
 #ifndef system_free
-#error "macro \"void * system_free(void * ptr, int size)\" not declared"
+#error "macro \"void * system_free (void * ptr, size_t size)\" not declared"
 #endif
 #ifndef system_lock
 #define system_lock() ({})

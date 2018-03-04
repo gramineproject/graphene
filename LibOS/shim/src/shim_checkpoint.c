@@ -803,34 +803,34 @@ int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
 
 static void * cp_alloc (struct shim_cp_store * store, void * addr, int size)
 {
+    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
+
     if (addr) {
         // Caller specified an exact region to alloc.
-        struct shim_vma * vma;
-        bool found = !lookup_overlap_vma(addr, size, &vma);
-        if (found) {
-            bool allocable = vma->addr == addr && vma->length == size
-                             && (vma->flags & VMA_UNMAPPED);
-            if (!allocable) {
-                put_vma(vma);
+        struct shim_vma_val vma;
+
+        if (!lookup_overlap_vma(addr, size, &vma)) {
+            if (vma.addr != addr || vma.length != size ||
+                !(vma.flags & VMA_UNMAPPED))
                 return NULL;
-            }
         }
-        return DkVirtualMemoryAlloc(addr, size, 0,
-                                    PAL_PROT_READ|PAL_PROT_WRITE);
+
+        if (!bkeep_mmap(addr, size, PROT_READ|PROT_WRITE,
+                        flags, NULL, 0, "cp"))
+            return NULL;
     } else {
-        // Alloc on any address, with specified size.
-        // We need to retry because `get_unmapped_vma_for_cp` is randomized.
-        // TODO: Fix this to remove the need for retrying.
-        while (true) {
-            addr = get_unmapped_vma_for_cp(size);
-            if (!addr)
-                return NULL;
-            addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
-                                                 PAL_PROT_READ|PAL_PROT_WRITE);
-            if (addr)
-                return addr;
-        }
+        addr = bkeep_unmapped_any(size, PROT_READ|PROT_WRITE, flags,
+                                  NULL, 0, "cp");
+        if (!addr)
+            return NULL;
     }
+
+    addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
+                                         PAL_PROT_READ|PAL_PROT_WRITE);
+    if (!addr)
+        bkeep_munmap(addr, size, flags);
+
+    return addr;
 }
 
 DEFINE_PROFILE_CATAGORY(migrate_proc, migrate);

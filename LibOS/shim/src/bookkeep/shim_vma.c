@@ -37,84 +37,160 @@
 #include <errno.h>
 #include <stdbool.h>
 
-unsigned long mem_max_npages __attribute_migratable = DEFAULT_MEM_MAX_NPAGES;
-
-static void * heap_top, * heap_bottom;
+/*
+ * Internal bookkeeping for VMAs (virtual memory areas). This data
+ * structure can only be accessed in this source file, with vma_list_lock
+ * held. No reference counting needed in this data structure.
+ */
+DEFINE_LIST(shim_vma);
+struct shim_vma {
+    LIST_TYPE(shim_vma)     list;
+    void *                  start;
+    void *                  end;
+    int                     prot;
+    int                     flags;
+    uint64_t                offset;
+    struct shim_handle *    file;
+    char                    comment[VMA_COMMENT_LEN];
+};
 
 #define VMA_MGR_ALLOC   64
 #define PAGE_SIZE       allocsize
 
-static LOCKTYPE vma_mgr_lock;
-
-#define system_lock()       lock(vma_mgr_lock)
-#define system_unlock()     unlock(vma_mgr_lock)
-
-static inline void * __vma_malloc (size_t size)
+/*
+ * Because the default system_malloc() must create VMA(s), we need
+ * a new system_malloc() to avoid cicular dependency. This __malloc()
+ * stores the VMA address and size in the current thread to delay the
+ * bookkeeping until the allocator finishes extension.
+ */
+static inline void * __malloc (size_t size)
 {
     struct shim_thread * thread = get_cur_thread();
-
-    if (!thread)
-        return system_malloc(size);
 
     size = ALIGN_UP(size);
     void * addr = (void *) DkVirtualMemoryAlloc(NULL, size, 0,
                                                 PAL_PROT_WRITE|PAL_PROT_READ);
 
     debug("allocate %p-%p for vmas\n", addr, addr + size);
-    thread->delayed_bkeep_mmap.addr = addr;
-    thread->delayed_bkeep_mmap.length = size;
+    thread->delayed_vma.addr = addr;
+    thread->delayed_vma.length = size;
     return addr;
 }
 
 #undef system_malloc
-#define system_malloc(size) __vma_malloc(size)
+#define system_malloc __malloc
 
 #define OBJ_TYPE struct shim_vma
 #include <memmgr.h>
 
+/*
+ * "vma_mgr" has no specific lock. "vma_list_lock" must be held when
+ * allocating or freeing any VMAs.
+ */
 static MEM_MGR vma_mgr = NULL;
 
+/*
+ * "vma_list" contains a sorted list of non-overlapping VMAs.
+ * "vma_list_lock" must be held when accessing either the vma_list or any
+ * field of a VMA.
+ */
 DEFINE_LISTP(shim_vma);
 static LISTP_TYPE(shim_vma) vma_list = LISTP_INIT;
 static LOCKTYPE vma_list_lock;
 
+/*
+ * Return true if [s, e) is exactly the area represented by tmp.
+ */
 static inline bool test_vma_equal (struct shim_vma * tmp,
-                                  const void * addr, uint64_t length)
+                                   void * s, void * e)
 {
-    return tmp->addr == addr && tmp->length == length;
+    return tmp->start == s && tmp->end == e;
 }
 
+/*
+ * Return true if [s, e) is part of the area represented by tmp.
+ */
 static inline bool test_vma_contain (struct shim_vma * tmp,
-                                    const void * addr, uint64_t length)
+                                     void * s, void * e)
 {
-    return tmp->addr <= addr &&
-           tmp->addr + tmp->length >= addr + length;
+    return tmp->start <= s && tmp->end >= e;
 }
 
+/*
+ * Return true if [s, e) contains the starting address of tmp.
+ */
 static inline bool test_vma_startin (struct shim_vma * tmp,
-                                    const void * addr, uint64_t length)
+                                     void * s, void * e)
 {
-    return tmp->addr >= addr &&
-           tmp->addr < addr + length;
+    return tmp->start >= s && tmp->start < e;
 }
 
+/*
+ * Return true if [s, e) contains the ending address of tmp.
+ */
 static inline bool test_vma_endin (struct shim_vma * tmp,
-                                  const void * addr, uint64_t length)
+                                   void * s, void * e)
 {
-    return tmp->addr + tmp->length > addr &&
-           tmp->addr + tmp->length <= addr + length;
+    return tmp->end > s && tmp->end <= e;
 }
 
+/*
+ * Return true if [s, e) overlaps with the area represented by tmp.
+ */
 static inline bool test_vma_overlap (struct shim_vma * tmp,
-                                    const void * addr, uint64_t length)
+                                     void * s, void * e)
 {
-    return test_vma_contain(tmp, addr, 1) ||
-           test_vma_contain(tmp, addr + length - 1, 1) ||
-           test_vma_startin(tmp, addr, length);
+    return test_vma_contain(tmp, s, s + 1) ||
+           test_vma_contain(tmp, e - 1, e) ||
+           test_vma_startin(tmp, s, e);
 }
 
-int bkeep_shim_heap (void);
-static void __set_heap_top (void * bottom, void * top);
+static inline struct shim_vma *
+__lookup_vma (void * addr, struct shim_vma ** pprev)
+{
+    struct shim_vma * vma, * prev = NULL;
+
+    listp_for_each_entry(vma, &vma_list, list) {
+        if (addr < vma->start)
+            goto none;
+        if (test_vma_contain(vma, addr, addr + 1))
+            goto out;
+
+        prev = vma;
+    }
+
+none:
+    vma = NULL;
+out:
+    if (pprev) *pprev = prev;
+    return vma;
+}
+
+static inline void
+__insert_vma (struct shim_vma * vma, struct shim_vma * prev)
+{
+    assert(!prev || prev->end <= vma->start);
+
+    if (prev)
+        listp_add_after(vma, prev, &vma_list, list);
+    else
+        listp_add(vma, &vma_list, list);
+}
+
+static inline void
+__remove_vma (struct shim_vma * vma, struct shim_vma * prev)
+{
+    assert(!prev || prev->list.next == vma);
+
+    listp_del(vma, &vma_list, list);
+}
+
+/*
+ * Storing a cursor pointing to the current heap top. With ASLR, the cursor
+ * is randomized at initialization. The cursor is monotonically decremented
+ * when allocating user VMAs. Updating this cursor needs holding vma_list_lock.
+ */
+static void * current_heap_top;
 
 int init_vma (void)
 {
@@ -123,121 +199,55 @@ int init_vma (void)
         return -ENOMEM;
     }
 
-    debug("User space range given from PAL: %p-%p\n",
-          (void *) PAL_CB(user_address.start),
-          (void *) PAL_CB(user_address.end));
+    uint64_t bottom = (uint64_t) PAL_CB(user_address.start);
+    uint64_t top    = (uint64_t) PAL_CB(user_address.end);
 
-    heap_bottom = (void *) PAL_CB(user_address.start);
-    if (heap_bottom + DEFAULT_HEAP_MIN_SIZE > PAL_CB(executable_range.start)
-        && heap_bottom < PAL_CB(executable_range.end)
-        && heap_top > PAL_CB(executable_range.start))
-        heap_bottom = (void *) ALIGN_UP(PAL_CB(executable_range.end));
+#if ENABLE_ASLR == 1
+    uint64_t rand;
+    getrand(&rand, sizeof(rand));
+    current_heap_top = (void *)
+        bottom + rand % ((top - bottom) / allocsize) * allocsize;
+#else
+    current_heap_top = (void *) top;
+#endif
 
-    debug("setting initial heap to %p-%p\n", heap_bottom,
-          (void *) PAL_CB(user_address.end));
+    debug("User space range: 0x%llx-0x%llx\n", bottom, top);
+    debug("heap top adjusted to %p\n", current_heap_top);
 
-    __set_heap_top(heap_bottom, (void *) PAL_CB(user_address.end));
-
-    bkeep_shim_heap();
     create_lock(vma_list_lock);
-
     return 0;
 }
 
-/* This might not give the same vma but we might need to
-   split after we find something */
-#define __assert_vma() do { debug("##ASSERT at %d\n", __LINE__); __assert_vma_impl(); } while(0)
-static inline void __assert_vma_impl (void)
-{
-    struct shim_vma * vma;
-    struct shim_vma * prev __attribute__((unused)) = NULL;
-
-    listp_for_each_entry(vma, &vma_list, list) {
-        /* Assert we are really sorted */
-        assert(vma->length > 0);
-        if (prev && prev->addr + prev->length > vma->addr) {
-            warn("Fatal error: vma_list is not sorted\n");
-            debug_print_vma_list();
-            __abort();
-        }
-        prev = vma;
-    }
-}
-
-static struct shim_vma * __lookup_vma (const void * addr, uint64_t len);
-static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
-                                            struct shim_vma ** prev);
-static struct shim_vma * __lookup_overlap_vma (const void * addr, uint64_t length,
-                                               struct shim_vma ** prev);
-
-void get_vma (struct shim_vma * vma)
-{
-#ifdef DEBUG_REF
-    int ref_count = REF_INC(vma->ref_count);
-
-    debug("get vma %p(%p-%p) (ref_count = %d)\n", vma, vma->addr,
-          vma->addr + vma->length, ref_count);
-#else
-    REF_INC(vma->ref_count);
-#endif
-}
-
-void put_vma (struct shim_vma * vma)
-{
-    int ref_count = REF_DEC(vma->ref_count);
-
-#ifdef DEBUG_REF
-    debug("put vma %p(%p-%p) (ref_count = %d)\n", vma,
-          vma->addr, vma->addr + vma->length, ref_count - 1);
-#endif
-
-    if (ref_count < 1) {
-        if (vma->file)
-            put_handle(vma->file);
-
-        if (MEMORY_MIGRATED(vma))
-            memset(vma, 0, sizeof(*vma));
-        else
-            free_mem_obj_to_mgr(vma_mgr, vma);
-    }
-}
-
-static void __remove_vma (struct shim_vma * vma)
-{
-    /* We assume all vmas are on the vma_list.  
-     * Perhaps worth asserting?  */
-    listp_del(vma, &vma_list, list);
-    put_vma(vma);
-}
-
-static int __bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
+static int __bkeep_mmap (struct shim_vma * prev,
+                         void * start, void * end, int prot, int flags,
                          struct shim_handle * file, uint64_t offset,
                          const char * comment);
 
-static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
-                             int flags);
+static int __bkeep_munmap (struct shim_vma * prev,
+                           void * start, void * end, int flags);
 
-static void __check_delayed_bkeep (void)
+static int __bkeep_mprotect (struct shim_vma * prev,
+                             void * start, void * end, int prot, int flags);
+
+#if 0
+static void __bkeep_delayed_vma (void)
 {
     struct shim_thread * thread = get_cur_thread();
 
-    if (!thread)
-        return;
-    if (!thread->delayed_bkeep_mmap.addr)
+    if (!thread || !thread->delayed_vma.addr)
         return;
 
-    void * bkeep_addr = thread->delayed_bkeep_mmap.addr;
-    uint64_t bkeep_length = thread->delayed_bkeep_mmap.length;
-    thread->delayed_bkeep_mmap.addr = NULL;
-    thread->delayed_bkeep_mmap.length = 0;
-
-    __bkeep_mmap(bkeep_addr, bkeep_length,
+    __bkeep_mmap(thread->delayed_vma.addr, thread->delayed_vma.length,
                  PROT_READ|PROT_WRITE,
                  MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
                  NULL, 0, NULL);
-}
 
-static struct shim_vma * get_new_vma (void)
+    thread->delayed_vma.addr = NULL;
+    thread->delayed_vma.length = 0;
+}
+#endif
+
+static inline struct shim_vma * __get_new_vma (void)
 {
     struct shim_vma * tmp =
             get_mem_obj_from_mgr_enlarge(vma_mgr, size_align_up(VMA_MGR_ALLOC));
@@ -246,11 +256,22 @@ static struct shim_vma * get_new_vma (void)
 
     memset(tmp, 0, sizeof(struct shim_vma));
     INIT_LIST_HEAD(tmp, list);
-    REF_SET(tmp->ref_count, 1);
     return tmp;
 }
 
-static void assert_vma_flags_compat (const struct shim_vma * vma, int flags)
+static inline void __drop_vma (struct shim_vma * vma)
+{
+    if (vma->file)
+        put_handle(vma->file);
+
+    if (MEMORY_MIGRATED(vma))
+        memset(vma, 0, sizeof(*vma));
+    else
+        free_mem_obj_to_mgr(vma_mgr, vma);
+}
+
+static inline void
+__assert_vma_flags (const struct shim_vma * vma, int flags)
 {
     if (!(vma->flags & VMA_UNMAPPED)
           && (vma->flags & VMA_INTERNAL) != (flags & VMA_INTERNAL)) {
@@ -260,7 +281,8 @@ static void assert_vma_flags_compat (const struct shim_vma * vma, int flags)
     }
 }
 
-static inline void __set_comment (struct shim_vma * vma, const char * comment)
+static inline void
+__set_vma_comment (struct shim_vma * vma, const char * comment)
 {
     if (!comment) {
         vma->comment[0] = 0;
@@ -276,368 +298,283 @@ static inline void __set_comment (struct shim_vma * vma, const char * comment)
     vma->comment[len] = 0;
 }
 
-static int __bkeep_mmap (void * addr, uint64_t length,
-                         int prot, int flags,
+static int __bkeep_mmap (struct shim_vma * prev,
+                         void * start, void * end, int prot, int flags,
                          struct shim_handle * file, uint64_t offset,
                          const char * comment)
 {
-    struct shim_vma * prev = NULL;
-    struct shim_vma * tmp = __lookup_supervma(addr, length, &prev);
     int ret = 0;
-
-    debug("bkeep_mmap: %p-%p\n", addr, addr + length);
 
     if (file)
         get_handle(file);
 
-    if (tmp) { /* the range is included in a vma */
-        if (tmp->addr != addr || tmp->length != length) {
-            /* we are inside some unmapped area, do a split case */
-            ret = __bkeep_mprotect(addr, length, prot, flags);
-            if (ret < 0)
-                goto err;
-            /* now we get the exact vma handle */
-            tmp = __lookup_vma(addr, length);
-            assert(tmp);
-            assert_vma_flags_compat(tmp, flags);
-        }
-    } else {
-        struct shim_vma * cont = NULL, * n; /* cont: continue to scan vmas */
-        struct shim_vma * pos = NULL; /* pos: position to add the vma */
+    struct shim_vma * new = __get_new_vma();
+    if (!new)
+        return -ENOMEM;
 
-        if (prev && prev->addr == addr &&
-            prev->length <= length) { /* find a vma at the same addr */
-            cont = tmp = prev;
-        } else { /* need to add a new vma */
-            if (!(tmp = get_new_vma())) {
-                ret = -ENOMEM;
-                goto err;
-            }
-
-            if (prev) { /* has a precendent vma */
-                if (test_vma_endin(prev, addr, length)) {
-                    assert_vma_flags_compat(prev, flags);
-
-                    /* the previous vma ends in the range; otherwise, there is
-                     * no overlapping. Another case is handled by the supervma
-                     * case. */
-                    prev->length = addr - prev->addr;
-                }
-
-                assert(prev->addr + prev->length <= addr);
-                cont = prev;
-                pos = prev;
-            } else { /* has no precendent vma */
-                cont = tmp;
-                listp_add(tmp, &vma_list, list);
-            }
-        }
-
-        if (cont)
-            listp_for_each_entry_safe_continue(cont, n, &vma_list, list) {
-                if (!test_vma_startin(cont, addr, length))
-                    break;
-
-                assert_vma_flags_compat(cont, flags);
-
-                if (test_vma_endin(cont, addr, length)) {
-                    __remove_vma(cont);
-                    continue;
-                }
-
-                long offset = addr + length - cont->addr;
-                assert(offset > 0);
-                if (cont->file)
-                    cont->offset += offset;
-                cont->addr += offset;
-                cont->length -= offset;
-                break;
-            }
-
-        if (tmp && pos)
-            list_add(tmp, pos, list);
+    /* First, remove any overlapping VMAs */
+    ret = __bkeep_munmap(prev, start, end, flags);
+    if (ret < 0) {
+        __drop_vma(new);
+        return ret;
     }
 
-    tmp->addr = addr;
-    tmp->length = length;
-    tmp->prot = prot;
-    tmp->flags = flags|((file && (prot & PROT_WRITE)) ? VMA_TAINTED : 0);
-    tmp->file = file;
-    tmp->offset = offset;
-    __set_comment(tmp, comment);
-    assert(!prev || prev == tmp || prev->addr + prev->length <= tmp->addr);
-    __assert_vma();
+    /* Inserting the new VMA */
+    new->start  = start;
+    new->end    = end;
+    new->prot   = prot;
+    new->flags  = flags|((file && (prot & PROT_WRITE)) ? VMA_TAINTED : 0);
+    new->file   = file;
+    if (new->file)
+        get_handle(new->file);
+    new->offset = offset;
+    __set_vma_comment(new, comment);
+    __insert_vma(new, prev);
     return 0;
-
-err:
-    if (file)
-        put_handle(file);
-
-    return ret;
 }
 
 int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
-                struct shim_handle * file, uint64_t offset, const char * comment)
+                struct shim_handle * file, uint64_t offset,
+                const char * comment)
 {
     if (!addr || !length)
         return -EINVAL;
 
+    debug("bkeep_mmap: %p-%p (%s)\n", addr, addr + length,
+          comment ? : "unknown");
+
     lock(vma_list_lock);
-    __assert_vma();
-    int ret = __bkeep_mmap(addr, length, prot, flags, file, offset,
+    struct shim_vma * prev = NULL;
+    __lookup_vma(addr, &prev);
+    int ret = __bkeep_mmap(prev, addr, addr + length, prot, flags, file, offset,
                            comment);
-    __assert_vma();
-    __check_delayed_bkeep();
     unlock(vma_list_lock);
     return ret;
 }
 
-/*
- * munmap start at any address and it might be split in between so
- * We need to split the area aur reduce the size
- * Check the address falls between alread allocated area or not
- */
-static void __bkeep_munmap (void * addr, uint64_t length, int flags)
+static inline int __shrink_vma (struct shim_vma * cur, void * start, void * end,
+                                struct shim_vma ** tailptr)
 {
-    struct shim_vma * tmp, * n;
+    /*
+     * Dealing with the head: if the starting address of "cur" is in
+     * [start, end), move the starting address.
+     */
+    if (test_vma_startin(cur, start, end)) {
+        if (end < cur->end) {
+            if (cur->file) /* must adjust offset */
+                cur->offset += end - cur->start;
+            cur->start = end;
+        } else {
+            if (cur->file) /* must adjust offset */
+                cur->offset += cur->end - cur->start;
+            cur->start = cur->end;
+        }
+    }
+
+    /*
+     * Dealing with the tail: if the ending address of "cur" is in
+     * [start, end), move the ending address.
+     */
+    if (test_vma_endin(cur, start, end)) {
+        if (start > cur->start) {
+            cur->end = start;
+        } else {
+            cur->end = cur->start;
+        }
+        /* offset is not affected */
+    }
+
+    /*
+     * If [start, end) is inside the range of "cur", divide up
+     * the VMA. A new VMA is created to represent the remaining tail.
+     */
+    if (test_vma_contain(cur, start, end)) {
+        void * old_end = cur->end;
+        cur->end = start;
+
+        /* Remaining space after [start, end), creating a new VMA */
+        if (old_end > end) {
+            struct shim_vma * tail = __get_new_vma();
+            if (!tail)
+                return -ENOMEM;
+
+            tail->start = end;
+            tail->end   = old_end;
+            tail->prot  = cur->prot;
+            tail->flags = cur->flags;
+            tail->file  = cur->file;
+            if (tail->file) {
+                get_handle(tail->file);
+                tail->offset = cur->offset + (tail->start - cur->start);
+            } else {
+                tail->offset = 0;
+            }
+            memcpy(tail->comment, cur->comment, VMA_COMMENT_LEN);
+            *tailptr = tail;
+        }
+    }
+
+    return 0;
+}
+
+static int __bkeep_munmap (struct shim_vma * prev,
+                           void * start, void * end, int flags)
+{
+    struct shim_vma * cur, * next;
+
+    if (!prev) {
+        cur = listp_first_entry(&vma_list, struct shim_vma, list);
+        if (!cur)
+            return 0;
+    }
+
+    next = listp_next_entry(cur, &vma_list, list);
+
+    while (cur) {
+        struct shim_vma * tail = NULL;
+
+        /* Stop unmapping if "cur" no longer overlaps with [start, end) */
+        if (!test_vma_overlap(cur, start, end))
+            break;
+
+        int ret = __shrink_vma(cur, start, end, &tail);
+        if (ret < 0)
+            return ret;
+
+        if (cur->start < cur->end) {
+            /* Keep the VMA. */
+            if (tail) {
+                __insert_vma(tail, cur); /* insert "tail" after "cur" */
+                prev = cur;
+                cur = tail; /* "tail" is the new "cur" */
+                /* "next" is the same */
+            }
+        } else {
+            __remove_vma(cur, prev);
+            __drop_vma(cur);
+
+            if (tail) {
+                __insert_vma(tail, prev); /* insert "tail" after "prev" */
+                cur = tail; /* "tail" is the new "cur" */
+                /* next is the same */
+            } else {
+                /* nothing to insert, back off to "prev" */
+                cur = prev;
+            }
+        }
+
+        prev = cur;
+        cur = next;
+        next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
+    }
+
+    return 0;
+}
+
+int bkeep_munmap (void * addr, uint64_t length, int flags)
+{
+    if (!length)
+        return -EINVAL;
 
     debug("bkeep_unmmap: %p-%p\n", addr, addr + length);
 
-    listp_for_each_entry_safe(tmp, n, &vma_list, list) {
-        if (test_vma_equal (tmp, addr, length)) {
-            assert_vma_flags_compat(tmp, flags);
-            __remove_vma(tmp);
-        } else if (test_vma_overlap (tmp, addr, length)) {
-            uint64_t before_length;
-            uint64_t after_length;
-            uint64_t after_offset;
-
-            if (addr > tmp->addr)
-                before_length = addr - tmp->addr;
-            else
-                before_length = 0;
-
-            if (tmp->addr + tmp->length > addr + length)
-                after_length  = (tmp->addr + tmp->length) - (addr + length);
-            else
-                after_length = 0;
-
-            after_offset  = tmp->file ? tmp->offset + tmp->length -
-                after_length : 0;
-
-            /* split case
-             * it is Unlikely that a process does an partical unmap
-             * but We take care of it by splitting the book-keep
-             *
-             * case 1 if the vma is entirely between a mapped area
-             * .e.g See case:
-             *            ---unmap--
-             *        ------map-----------
-             */
-
-            if (before_length) {
-                /* Case 1: Space in the vma before */
-                assert_vma_flags_compat(tmp, flags);
-                tmp->length = before_length;
-                if (after_length) {
-                    /* Case 2: Space before and also space after */
-                    int ret = __bkeep_mmap((void *) addr + length, after_length,
-                                           tmp->prot, tmp->flags,
-                                           tmp->file, after_offset,
-                                           tmp->comment);
-                    // TODO: We'd like bkeep_munmap to never fail because it's
-                    // used a lot in error handling. This probably doesn't work
-                    // correctly right now.
-                    assert(ret >= 0);
-                }
-            } else if (after_length) {
-                /* Case 3: Only after length */
-                assert_vma_flags_compat(tmp, flags);
-                tmp->addr = (void *) addr + length;
-                tmp->length = after_length;
-                tmp->offset = after_offset;
-            } else {
-                assert_vma_flags_compat(tmp, flags);
-                __remove_vma(tmp);
-            }
-        } else if (tmp->addr > (addr + length))
-            break;
-    }
-}
-
-void bkeep_munmap (void * addr, uint64_t length, int flags)
-{
-    if (!length)
-        return;
-
     lock(vma_list_lock);
-    __assert_vma();
-    __bkeep_munmap(addr, length, flags);
-    __assert_vma();
-    __check_delayed_bkeep();
+    struct shim_vma * prev = NULL;
+    __lookup_vma(addr, &prev);
+    int ret = __bkeep_munmap(prev, addr, addr + length, flags);
     unlock(vma_list_lock);
+    return ret;
 }
 
-static int __bkeep_mprotect (void * addr, uint64_t length, int prot,
-                             int flags)
+static int __bkeep_mprotect (struct shim_vma * prev,
+                             void * start, void * end, int prot, int flags)
 {
-    struct shim_vma * tmp = __lookup_vma(addr, length);
-    int ret;
+    struct shim_vma * cur, * next;
 
-    debug("bkeep_mprotect: %p-%p\n", addr, addr + length);
-
-    if (tmp) {
-        /* exact match */
-        assert_vma_flags_compat(tmp, flags);
-        tmp->prot = prot;
-        if (tmp->file && (prot & PROT_WRITE))
-            tmp->flags |= VMA_TAINTED;
-        return 0;
+    if (!prev) {
+        cur = listp_first_entry(&vma_list, struct shim_vma, list);
+        if (!cur)
+            return 0;
     }
 
-    /* split case
-     * it is Unlikely that a process does an partical unmap
-     * but We take care of it by splitting the book-keep
-     *
-     * case 1 if the vma is entirely between a mapped area .e.g See case:
-     *            ---unmap--
-     *        ------map-----------
-     */
+    next = listp_next_entry(cur, &vma_list, list);
 
-    tmp = __lookup_supervma(addr, length, NULL);
+    while (cur) {
+        struct shim_vma * new, * tail = NULL;
 
-    if (tmp) {
-        assert_vma_flags_compat(tmp, flags);
+        /* Stop protecting if "cur" no longer overlaps with [start, end) */
+        if (!test_vma_overlap(cur, start, end))
+            break;
 
-        uint64_t before_length = addr - tmp->addr;
-        uint64_t after_length  = tmp->addr + tmp->length - addr - length;
-        uint64_t after_offset  = tmp->file ? tmp->offset + tmp->length -
-                            after_length : 0;
-        uint64_t inside_offset = tmp->file ? tmp->offset + before_length : 0;
+        /* If protection doesn't change anything, move on to the next */
+        if (cur->prot == prot)
+            goto cont;
 
-        /* split the handler first, because we might call bkeep_mmap */
-        tmp->addr = (void *) addr;
-        tmp->length = length;
+        /* Create a new VMA for the protected area */
+        new = __get_new_vma();
+        if (!new)
+            return -ENOMEM;
 
-        if (before_length) {
-            ret = __bkeep_mmap((void *) addr - before_length, before_length,
-                               tmp->prot, tmp->flags,
-                               tmp->file, tmp->offset,
-                               tmp->comment);
-            if (ret < 0)
-                return ret;
+        new->start = cur->start > start ? cur->start : start;
+        new->end   = cur->end < end ? cur->end : end;
+        new->prot  = prot;
+        new->flags = cur->flags;
+        new->file  = cur->file;
+        if (new->file) {
+            get_handle(new->file);
+            new->offset = cur->offset + (new->start - cur->start);
+        } else {
+            new->offset = 0;
+        }
+        memcpy(new->comment, cur->comment, VMA_COMMENT_LEN);
+
+        /* Like unmapping, shrink (and potentially split) the VMA first. */
+        int ret = __shrink_vma(cur, start, end, &tail);
+        if (ret < 0) {
+            __drop_vma(new);
+            return ret;
         }
 
-        if (after_length) {
-            ret = __bkeep_mmap((void *)addr + length, after_length,
-                               tmp->prot, tmp->flags,
-                               tmp->file, after_offset,
-                               tmp->comment);
-            if (ret < 0)
-                return ret;
-        }
-
-        tmp->prot = prot;
-        tmp->offset = inside_offset;
-
-        if (tmp->file && (prot & PROT_WRITE))
-            tmp->flags |= VMA_TAINTED;
-
-        return 0;
-    }
-
-    /* split case
-     * if the unmap are in between to mapped
-     * area then we need to split two VMA here
-     * This is the most unlikely case
-     *
-     * case 2
-     *        ------unmap------
-     *      ----map1-----;-----map2-------
-     *
-     * TODO: this algorithm is very inefficient, and may change
-     * the mapping if it fails
-     */
-
-    uint64_t o_length = length;
-
-    while (length) {
-        struct shim_vma * candidate = NULL;
-
-        listp_for_each_entry(tmp, &vma_list, list) {
-            if (test_vma_contain (tmp, addr, 1)) {
-                assert_vma_flags_compat(tmp, flags);
-
-                uint64_t before_length = addr - tmp->addr;
-                uint64_t after_length  = tmp->addr + tmp->length > addr + length ?
-                                    tmp->addr + tmp->length - addr - length : 0;
-                uint64_t after_offset  = tmp->file ? tmp->offset + tmp->length -
-                                    after_length : 0;
-                uint64_t inside_length = tmp->addr + tmp->length > addr + length ?
-                                    length :
-                                    addr + length - tmp->addr - tmp->length;
-                uint64_t inside_offset = tmp->file ? tmp->offset + before_length : 0;
-
-                /* split the handler first, because we might call bkeep_mmap */
-                tmp->addr = (void *) addr;
-                tmp->length = inside_length;
-
-                if (before_length) {
-                    ret = __bkeep_mmap((void *) addr - before_length, before_length,
-                                       tmp->prot, tmp->flags,
-                                       tmp->file, tmp->offset,
-                                       tmp->comment);
-                    if (ret < 0)
-                        return ret;
-                }
-
-                if (after_length) {
-                    ret = __bkeep_mmap((void *) addr + length, after_length,
-                                       tmp->prot, tmp->flags,
-                                       tmp->file, after_offset,
-                                       tmp->comment);
-                    if (ret < 0)
-                        return ret;
-                }
-
-                tmp->prot = prot;
-                tmp->offset = inside_offset;
-
-                if (tmp->file && (prot & PROT_WRITE))
-                    tmp->flags |= VMA_TAINTED;
-
-                addr += inside_length;
-                length -= inside_length;
-
-                break;
+        if (cur->start < cur->end) {
+            /* Keep the VMA. */
+            if (new) {
+                __insert_vma(tail, cur); /* insert "tail" after "cur" */
+                prev = cur;
+                cur = tail; /* "tail" is the new "cur" */
+                /* "next" is the same */
             }
+        } else {
+            __remove_vma(cur, prev);
+            __drop_vma(cur);
 
-            if (test_vma_startin(tmp, addr, length))
-                if (!candidate || candidate->addr > tmp->addr)
-                    candidate = tmp;
-        }
-
-        if (o_length == length) {
-            if (!candidate) {
-                /* no more vmas, protect the whole area */
-                ret = __bkeep_mmap((void *) addr, length, prot,
-                                   VMA_UNMAPPED | flags,
-                                   NULL, 0, NULL);
-                if (ret < 0)
-                    return ret;
-
-                candidate = __lookup_vma((void *) addr, length);
-                assert(candidate);
-
-                /* DEP 10/19/16: If we make a vma that perfectly matches this
-                 * region, we want to break the loop and stop. */
-                length = 0;
+            if (new) {
+                __insert_vma(tail, prev); /* insert "tail" after "prev" */
+                cur = tail; /* "tail" is the new "cur" */
+                /* next is the same */
+            } else {
+                /* nothing to insert, back off to "prev" */
+                cur = prev;
             }
-
-            length -= candidate->addr - addr;
         }
 
-        o_length = length;
+        /* Now insert the new protected vma */
+        if (!cur || new->end <= cur->start) {
+            __insert_vma(new, prev);
+            prev = new;
+            /* cur and next are the same */
+        } else if (new->start >= cur->end) {
+            __insert_vma(new, cur);
+            prev = cur;
+            cur = new;
+            /* next is the same */
+        } else {
+            bug();
+        }
+
+cont:
+        prev = cur;
+        cur = next;
+        next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
     }
 
     return 0;
@@ -648,525 +585,251 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
     if (!addr || !length)
         return -EINVAL;
 
-    lock(vma_list_lock);
-    __assert_vma();
-    int ret = __bkeep_mprotect(addr, length, prot, flags);
-    __assert_vma();
-    unlock(vma_list_lock);
+    debug("bkeep_mprotect: %p-%p\n", addr, addr + length);
 
+    lock(vma_list_lock);
+    struct shim_vma * prev = NULL;
+    __lookup_vma(addr, &prev);
+    int ret = __bkeep_mprotect(prev, addr, addr + length, prot, flags);
+    unlock(vma_list_lock);
     return ret;
 }
 
-static void __set_heap_top (void * bottom, void * top)
+/*
+ * Search for an unmapped area within [bottom, top) that is bigger enough
+ * to allocate "length" bytes. The search approach is top-down.
+ * If this function returns an non-NULL address, the corresponding VMA is
+ * added to the VMA list.
+ */
+void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
+                         uint64_t length, int prot, int flags,
+                         struct shim_handle * file,
+                         uint64_t offset, const char * comment)
 {
-    bottom += DEFAULT_HEAP_MIN_SIZE;
+    assert(top_addr > bottom_addr);
 
-    if (bottom >= top) {
-        heap_top = top;
-        return;
-    }
-
-    uint64_t rand;
-    getrand(&rand, sizeof(rand));
-
-    rand %= (uint64_t) (top - bottom) / allocsize;
-    heap_top = bottom + rand * allocsize;
-    debug("heap top adjusted to %p\n", heap_top);
-}
-
-void * get_unmapped_vma (uint64_t length, int flags)
-{
-    struct shim_vma* new = get_new_vma();
-    struct shim_vma* prev = NULL;
-    struct shim_vma* prev_prev = NULL;
-    if (!new)
+    if (!length || length > top_addr - bottom_addr)
         return NULL;
 
-    lock(vma_list_lock);
-    __assert_vma();
+    struct shim_vma * prev = NULL;
+    struct shim_vma * cur = __lookup_vma(top_addr, &prev);
+    struct shim_vma * new = NULL;
 
-    __check_delayed_bkeep();
+    /* Check if there is enough space between prev and cur */
+    while (true) {
+        /* setting the range for searching */
+        void * end = cur ? cur->start : top_addr;
+        void * start =
+            (prev && prev->end > bottom_addr) ? prev->end : bottom_addr;
 
-    if (heap_top - heap_bottom < length) {
-        debug("current heap %p-%p is not enough for allocating %lld bytes\n",
-              heap_bottom, heap_top, length);
-        __assert_vma();
-        unlock(vma_list_lock);
-        put_vma(new);
-        return NULL;
-    }
+        assert(start <= end);
 
-    debug("find unmapped vma between %p-%p\n", heap_bottom, heap_top);
-
-    do {
-        bool found = false;
-        new->addr   = heap_top - length;
-        new->length = length;
-        new->flags  = flags|VMA_UNMAPPED;
-        new->prot   = PROT_NONE;
-
-        listp_for_each_entry_reverse(prev, &vma_list, list) {
-            if (prev->list.next)
-                assert(prev->list.next->list.prev == prev);
-            if (new->addr >= prev->addr + prev->length) {
-                found = true;
-                break;
-            }
-
-            if (new->addr < heap_bottom) {
-                found = true;
-                break;
-            }
-
-            if (prev->addr - heap_bottom < length) {
-                __assert_vma();
-                unlock(vma_list_lock);
-                put_vma(new);
+        if (length <= start - end) {
+            /* create a new VMA at the top of the range */
+            new = __get_new_vma();
+            if (!new)
                 return NULL;
-            }
 
-            if (new->addr > prev->addr - length)
-                new->addr = prev->addr - length;
-            prev_prev = prev;
-        }
-
-        /* DEP 6/4/17: This case appears to be detecting whether you wrapped around the
-         * list wtihout finding anything. Let's add an explicit variable for
-         * this case, but keep the check for now to be safe. */
-        if (listp_empty(&vma_list)
-            || (!found && prev == listp_last_entry(&vma_list, shim_vma, list))) {
-            prev = NULL;
+            new->start = end - length;
+            new->end   = end;
             break;
         }
 
-        if (new->addr < heap_bottom) {
-            if (heap_top == PAL_CB(user_address.end)) {
-                __assert_vma();
-                unlock(vma_list_lock);
-                put_vma(new);
-                return NULL;
-            } else {
-                __set_heap_top(heap_top, (void *) PAL_CB(user_address.end));
-                new->addr = NULL;
-            }
-        }
-    } while (!new->addr);
+        if (!prev || prev->start <= bottom_addr)
+            break;
 
-    assert(!prev || prev->addr + prev->length <= new->addr);
-    get_vma(new);
-    listp_add_after(new, prev, &vma_list, list);
-    __assert_vma();
-    unlock(vma_list_lock);
-    return new->addr;
+        cur = prev;
+        prev = listp_prev_entry(cur, &vma_list, list);
+    }
+
+    void * res_addr = NULL;
+    if (new) {
+        new->prot   = prot;
+        new->flags  = flags|((file && (prot & PROT_WRITE)) ? VMA_TAINTED : 0);
+        new->file   = file;
+        if (new->file)
+            get_handle(new->file);
+        new->offset = offset;
+        __set_vma_comment(new, comment);
+        __insert_vma(new, prev);
+        res_addr    = new->start;
+    }
+
+    return res_addr;
 }
 
-#define NTRIES  4
-
-void * get_unmapped_vma_for_cp (uint64_t length)
+void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
+                       int prot, int flags, struct shim_handle * file,
+                       uint64_t offset, const char * comment)
 {
-    struct shim_vma * new = get_new_vma(), * prev = NULL;
-    if (!new)
-        return NULL;
-
-    if (length > PAL_CB(user_address.end) - PAL_CB(user_address.start)) {
-        debug("user space is not enough for allocating %lld bytes\n", length);
-        return NULL;
-    }
-
     lock(vma_list_lock);
-    __assert_vma();
-
-    __check_delayed_bkeep();
-
-    uint64_t top = (uint64_t) PAL_CB(user_address.end) - length;
-    uint64_t bottom = (uint64_t) heap_top;
-    int flags = MAP_ANONYMOUS|VMA_UNMAPPED|VMA_INTERNAL;
-    void * addr;
-
-    if (bottom >= top) {
-        __assert_vma();
-        unlock(vma_list_lock);
-        // Race? `bottom >= top` may not be true now.
-        return get_unmapped_vma(length, flags);
-    }
-
-    debug("find unmapped vma between %p-%p\n", bottom, top);
-
-    for (int i = 0 ; i < NTRIES ; i++) {
-        uint64_t rand;
-        getrand(&rand, sizeof(rand));
-        rand %= (uint64_t) (top - bottom) / allocsize;
-        addr = (void *) bottom + rand * allocsize;
-        if (!__lookup_overlap_vma(addr, length, &prev))
-            break;
-        addr = NULL;
-    }
-
-    if (!addr) {
-        __assert_vma();
-        unlock(vma_list_lock);
-        debug("cannot find unmapped vma for checkpoint\n");
-        return NULL;
-    }
-
-    new->addr   = addr;
-    new->length = length;
-    new->flags  = flags;
-    new->prot   = PROT_NONE;
-
-    listp_add_after(new, prev, &vma_list, list);
-    __assert_vma();
+    void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
+                                   file, offset, comment);
     unlock(vma_list_lock);
     return addr;
 }
 
-/* This might not give the same vma but we might need to
-   split after we find something */
-static struct shim_vma * __lookup_overlap_vma (const void * addr, uint64_t length,
-                                               struct shim_vma ** pprev)
+void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
+                            struct shim_handle * file,
+                            uint64_t offset, const char * comment)
 {
-    struct shim_vma * tmp, * prev = NULL;
+    void * addr;
+    lock(vma_list_lock);
 
-    listp_for_each_entry(tmp, &vma_list, list) {
-        if (test_vma_overlap (tmp, addr, length)) {
-            if (pprev)
-                *pprev = prev;
-            return tmp;
-        }
+    addr = __bkeep_unmapped(current_heap_top,
+                            PAL_CB(user_address.start),
+                            length, prot, flags,
+                            file, offset, comment);
 
-        /* Assert we are really sorted */
-        assert(!prev || prev->addr < tmp->addr);
-        /* Insert in order; break once we are past the appropriate point */
-        if (tmp->addr > addr)
-            break;
-        prev = tmp;
+    if (addr) {
+        current_heap_top = addr;
+        goto out;
     }
 
-    if (pprev)
-        *pprev = prev;
-    return NULL;
+    if (current_heap_top == PAL_CB(user_address.end))
+        goto out;
+
+    addr = __bkeep_unmapped(PAL_CB(user_address.end),
+                            PAL_CB(user_address.start),
+                            length, prot, flags,
+                            file, offset, comment);
+
+out:
+    unlock(vma_list_lock);
+    return addr;
 }
 
-int lookup_overlap_vma (const void * addr, uint64_t length,
-                        struct shim_vma ** res_vma)
+int lookup_vma (void * addr, struct shim_vma_val * res)
 {
     lock(vma_list_lock);
-    __assert_vma();
 
-    struct shim_vma * vma = __lookup_overlap_vma(addr, length, NULL);
+    struct shim_vma * vma = __lookup_vma(addr, NULL);
     if (!vma) {
-        __assert_vma();
         unlock(vma_list_lock);
-        if (res_vma)
-            *res_vma = NULL;
         return -ENOENT;
     }
 
-    if (res_vma)
-        get_vma(vma);
+    if (res) {
+        res->addr   = vma->start;
+        res->length = vma->end - vma->start;
+        res->prot   = vma->prot;
+        res->flags  = vma->flags;
+        res->file   = vma->file;
+        if (res->file)
+            get_handle(res->file);
+        res->offset = vma->offset;
+        memcpy(res->comment, vma->comment, VMA_COMMENT_LEN);
+    }
 
-    void * tmp_addr = vma->addr;
-    uint64_t tmp_length = vma->length;
-
-    __assert_vma();
     unlock(vma_list_lock);
-
-    debug("vma overlapped at %p-%p\n", tmp_addr, tmp_addr + tmp_length);
-    if (res_vma)
-        *res_vma = vma;
     return 0;
 }
 
-static struct shim_vma * __lookup_vma (const void * addr, uint64_t length)
+int lookup_overlap_vma (void * addr, uint64_t length,
+                        struct shim_vma_val * res)
 {
-    struct shim_vma * tmp;
-    struct shim_vma * prev __attribute__((unused)) = NULL;
+    struct shim_vma * tmp, * vma = NULL;
 
-    listp_for_each_entry(tmp, &vma_list, list) {
-        if (test_vma_equal(tmp, addr, length))
-            return tmp;
+    lock(vma_list_lock);
 
-        /* Assert we are really sorted */
-        assert(!prev || prev->addr + prev->length <= tmp->addr);
-        prev = tmp;
-    }
-
-    return NULL;
-}
-
-static struct shim_vma * __lookup_supervma (const void * addr, uint64_t length,
-                                            struct shim_vma ** pprev)
-{
-    struct shim_vma * tmp, * prev = NULL;
-
-    __assert_vma();
-    listp_for_each_entry(tmp, &vma_list, list) {
-        if (test_vma_contain(tmp, addr, length)) {
-            if (pprev)
-                *pprev = prev;
-            return tmp;
+    listp_for_each_entry(tmp, &vma_list, list)
+        if (test_vma_overlap (tmp, addr, addr + length)) {
+            vma = tmp;
+            break;
         }
 
-        /* Insert in order; break once we are past the appropriate point */
-        if (tmp->addr > addr)
-            break;
-        prev = tmp;
-    }
 
-    if (pprev)
-        *pprev = prev;
-    return NULL;
-}
-
-int lookup_supervma (const void * addr, uint64_t length, struct shim_vma ** vma)
-{
-    struct shim_vma * tmp = NULL;
-
-    lock(vma_list_lock);
-    __assert_vma();
-
-    if ((tmp = __lookup_supervma(addr, length, NULL)) && vma)
-        get_vma(tmp);
-
-    __assert_vma();
-    unlock(vma_list_lock);
-
-    if (vma)
-        *vma = tmp;
-
-    return tmp ? 0 : -ENOENT;
-}
-
-struct shim_vma * next_vma (struct shim_vma * vma)
-{
-    struct shim_vma * tmp = vma;
-
-    lock(vma_list_lock);
-    __assert_vma();
-
-    if (!tmp) {
-        if (!listp_empty(&vma_list)
-                && (tmp = listp_first_entry(&vma_list, struct shim_vma, list)))
-            get_vma(tmp);
-
-        __assert_vma();
+    if (!vma) {
         unlock(vma_list_lock);
-        return tmp;
+        return -ENOENT;
     }
 
-    if (tmp->list.next == listp_first_entry(&vma_list, NULL, NULL)) {
-        tmp = NULL;
-    } else if (tmp->list.next == tmp) {
-        struct shim_vma * tmp2;
-        tmp = NULL;
-        listp_for_each_entry(tmp2, &vma_list, list)
-            if (tmp2->addr >= vma->addr) {
-                tmp = tmp2;
-                get_vma(tmp);
-                break;
-            }
-    } else {
-        tmp = list_entry(tmp->list.next, struct shim_vma, list);
-        get_vma(tmp);
+    if (res) {
+        res->addr   = vma->start;
+        res->length = vma->end - vma->start;
+        res->prot   = vma->prot;
+        res->flags  = vma->flags;
+        res->file   = vma->file;
+        if (res->file)
+            get_handle(res->file);
+        res->offset = vma->offset;
+        memcpy(res->comment, vma->comment, VMA_COMMENT_LEN);
     }
 
-    put_vma(vma);
-    __assert_vma();
     unlock(vma_list_lock);
-    return tmp;
+    return 0;
 }
 
-/* to speed up the checkpointing, go organize the VMAs */
-void __shrink_vmas (void)
+int dump_all_vmas (struct shim_vma_val * vmas, size_t size)
 {
-    struct shim_vma * vma, * n, * last;
-
-    listp_for_each_entry_safe(vma, n, &vma_list, list) {
-        if (!last)
-            goto unmap;
-
-        if (last->addr + last->length != vma->addr ||
-            last->prot != vma->prot ||
-            last->flags != vma->flags ||
-            last->file != vma->file)
-            goto unmap;
-
-        if (last->file && last->offset + last->length != vma->offset)
-            goto unmap;
-
-        debug("shrink vma %p-%p and %p-%p\n", last->addr,
-              last->addr + last->length, vma->addr, vma->addr + vma->length);
-
-        last->length += vma->length;
-        __remove_vma(vma);
-        continue;
-next:
-        last = vma;
-        continue;
-unmap:
-        if (vma->prot == PROT_NONE && !(vma->flags & VMA_TAINTED))
-            vma->flags |= VMA_UNMAPPED;
-        goto next;
-    }
-}
-
-int dump_all_vmas (struct shim_thread * thread, char * buf, uint64_t size)
-{
+    struct shim_vma_val * val = vmas;
     struct shim_vma * vma;
     int cnt = 0;
     lock(vma_list_lock);
-    __assert_vma();
 
     listp_for_each_entry(vma, &vma_list, list) {
-        void * start = vma->addr, * end = vma->addr + vma->length;
-
-        if ((vma->flags & (VMA_INTERNAL|VMA_UNMAPPED)) && !vma->comment[0])
+        if (vma->flags & VMA_INTERNAL)
             continue;
 
-        char prot[3] = {'-', '-', '-'};
-        if (vma->prot & PROT_READ)
-            prot[0] = 'r';
-        if (vma->prot & PROT_WRITE)
-            prot[1] = 'w';
-        if (vma->prot & PROT_EXEC)
-            prot[2] = 'x';
-
-        if (vma->file) {
-            int dev_major = 0, dev_minor = 0;
-            unsigned long ino = vma->file->dentry ? vma->file->dentry->ino : 0;
-            const char * name = "[unknown]";
-
-            if (!qstrempty(&vma->file->path))
-                name = qstrgetstr(&vma->file->path);
-
-            cnt += snprintf(buf + cnt, size - cnt,
-                            start > (void *) 0xffffffff ? "%lx" : "%08x",
-                            start);
-            cnt += snprintf(buf + cnt, size - cnt,
-                            end > (void *) 0xffffffff ? "-%lx" : "-%08x", end);
-            cnt += snprintf(buf + cnt, size - cnt,
-                            " %c%c%cp %08x %02d:%02d %u %s\n",
-                            prot[0], prot[1], prot[2],
-                            vma->offset, dev_major, dev_minor, ino, name);
-        } else {
-            cnt += snprintf(buf + cnt, size - cnt,
-                            start > (void *) 0xffffffff ? "%lx" : "%08x",
-                            start);
-            cnt += snprintf(buf + cnt, size - cnt,
-                            end > (void *) 0xffffffff ? "-%lx" : "-%08x", end);
-
-            if (vma->comment[0])
-                cnt += snprintf(buf + cnt, size - cnt,
-                                " %c%c%cp 00000000 00:00 0 [%s]\n",
-                                prot[0], prot[1], prot[2], vma->comment);
-            else
-                cnt += snprintf(buf + cnt, size - cnt,
-                                " %c%c%cp 00000000 00:00 0\n",
-                                prot[0], prot[1], prot[2]);
-        }
-
-        if (cnt >= size) {
+        if (cnt == size) {
             cnt = -EOVERFLOW;
+            for (int i = 0 ; i < size ; i++)
+                if (vmas[i].file)
+                    put_handle(vmas[i].file);
             break;
         }
+
+        val->addr   = vma->start;
+        val->length = vma->end - vma->start;
+        val->prot   = vma->prot;
+        val->flags  = vma->flags;
+        val->file   = vma->file;
+        if (val->file)
+            get_handle(val->file);
+        val->offset = vma->offset;
+        memcpy(val->comment, vma->comment, VMA_COMMENT_LEN);
+
+        cnt++;
+        val++;
     }
 
-    __assert_vma();
     unlock(vma_list_lock);
     return cnt;
 }
 
-void unmap_all_vmas (void)
-{
-    struct shim_thread * cur_thread = get_cur_thread();
-    struct shim_vma * tmp, * n;
-    void * start = NULL, * end = NULL;
-    lock(vma_list_lock);
-    __assert_vma();
-
-    listp_for_each_entry_safe(tmp, n, &vma_list, list) {
-        /* a adhoc vma can never be removed */
-        if (tmp->flags & VMA_INTERNAL)
-            continue;
-
-        if (tmp->flags & VMA_UNMAPPED) {
-            __remove_vma(tmp);
-            continue;
-        }
-
-        if (cur_thread->stack &&
-            test_vma_overlap(tmp, cur_thread->stack,
-                             cur_thread->stack_top - cur_thread->stack))
-            continue;
-
-
-        if (start == NULL)
-            start = end = tmp->addr;
-
-        if (end == tmp->addr) {
-            end += tmp->length;
-            __remove_vma(tmp);
-            continue;
-        }
-
-        debug("removing vma %p - %p\n", start, end);
-        DkVirtualMemoryFree(start, end - start);
-
-        start = end = tmp->addr;
-        end += tmp->length;
-
-        __remove_vma(tmp);
-    }
-
-    if (start != NULL && start < end) {
-        debug("removing vma %p - %p\n", start, end);
-        DkVirtualMemoryFree(start, end - start);
-    }
-
-    __assert_vma();
-    unlock(vma_list_lock);
-}
-
 BEGIN_CP_FUNC(vma)
 {
-    assert(size == sizeof(struct shim_vma));
+    assert(size == sizeof(struct shim_vma_val));
 
-    struct shim_vma * vma = (struct shim_vma *) obj;
-    struct shim_vma * new_vma = NULL;
+    struct shim_vma_val * vma = (struct shim_vma_val *) obj;
+    struct shim_vma_val * new_vma = NULL;
     PAL_FLG pal_prot = PAL_PROT(vma->prot, 0);
 
     ptr_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
-        off = ADD_CP_OFFSET(sizeof(struct shim_vma));
+        off = ADD_CP_OFFSET(sizeof(struct shim_vma_val));
         ADD_TO_CP_MAP(obj, off);
 
-        new_vma = (struct shim_vma *) (base + off);
-        memcpy(new_vma, vma, sizeof(struct shim_vma));
+        new_vma = (struct shim_vma_val *) (base + off);
+        memcpy(new_vma, vma, sizeof(struct shim_vma_val));
 
         if (vma->file)
             DO_CP(handle, vma->file, &new_vma->file);
 
-        REF_SET(new_vma->ref_count, 0);
-        INIT_LIST_HEAD(new_vma, list);
-
         void * need_mapped = vma->addr;
 
 #if MIGRATE_MORE_GIPC == 1
-        if (store->use_gipc) {
-            if (!NEED_MIGRATE_MEMORY_IF_GIPC(vma))
-                goto no_mem;
-        } else {
-            if (!NEED_MIGRATE_MEMORY(vma))
-                goto no_mem;
-        }
+        if (store->use_gipc ?
+            !NEED_MIGRATE_MEMORY_IF_GIPC(vma) :
+            !NEED_MIGRATE_MEMORY(vma))
 #else
         if (!NEED_MIGRATE_MEMORY(vma))
-            goto no_mem;
 #endif
+            goto no_mem;
 
-        void * send_addr = vma->addr;
-        uint64_t    send_size = vma->length;
+        void *   send_addr = vma->addr;
+        uint64_t send_size = vma->length;
         bool protected = false;
 
         if (vma->file) {
@@ -1201,8 +864,7 @@ BEGIN_CP_FUNC(vma)
 #if HASH_GIPC == 1
             if (!(pal_prot & PAL_PROT_READ)) {
                 protected = true;
-                DkVirtualMemoryProtect(send_addr,
-                                       send_size,
+                DkVirtualMemoryProtect(send_addr, send_size,
                                        pal_prot|PAL_PROT_READ);
             }
 #endif /* HASH_GIPC == 1 */
@@ -1212,8 +874,7 @@ BEGIN_CP_FUNC(vma)
         } else {
             if (!(pal_prot & PROT_READ)) {
                 protected = true;
-                DkVirtualMemoryProtect(send_addr,
-                                       send_size,
+                DkVirtualMemoryProtect(send_addr, send_size,
                                        pal_prot|PAL_PROT_READ);
             }
 
@@ -1231,7 +892,7 @@ no_mem:
         ADD_CP_FUNC_ENTRY(off);
         ADD_CP_ENTRY(ADDR, need_mapped);
     } else {
-        new_vma = (struct shim_vma *) (base + off);
+        new_vma = (struct shim_vma_val *) (base + off);
     }
 
     if (objp)
@@ -1240,43 +901,21 @@ no_mem:
 END_CP_FUNC(vma)
 
 DEFINE_PROFILE_CATAGORY(inside_rs_vma, resume_func);
-DEFINE_PROFILE_INTERVAL(vma_lookup_overlap, inside_rs_vma);
 DEFINE_PROFILE_INTERVAL(vma_add_bookkeep,   inside_rs_vma);
 DEFINE_PROFILE_INTERVAL(vma_map_file,       inside_rs_vma);
 DEFINE_PROFILE_INTERVAL(vma_map_anonymous,  inside_rs_vma);
 
 BEGIN_RS_FUNC(vma)
 {
-    struct shim_vma * vma = (void *) (base + GET_CP_FUNC_ENTRY());
-    struct shim_vma * tmp, * prev = NULL;
+    struct shim_vma_val * vma = (void *) (base + GET_CP_FUNC_ENTRY());
     void * need_mapped = (void *) GET_CP_ENTRY(ADDR);
+    BEGIN_PROFILE_INTERVAL();
 
     CP_REBASE(vma->file);
-    CP_REBASE(vma->list);
+    bkeep_mmap(vma->addr, vma->length, vma->prot, vma->flags,
+               vma->file, vma->offset, vma->comment);
 
-    lock(vma_list_lock);
-    __assert_vma();
-
-    BEGIN_PROFILE_INTERVAL();
-    tmp = __lookup_overlap_vma(vma->addr, vma->length, &prev);
-    SAVE_PROFILE_INTERVAL(vma_lookup_overlap);
-
-    if (tmp) {
-        __bkeep_munmap(vma->addr, vma->length, vma->flags);
-        if (prev->list.next == tmp &&
-            tmp->addr < vma->addr)
-            prev = tmp;
-    }
-
-    get_vma(vma);
-    listp_add_after(vma, prev, &vma_list, list);
-    __assert_vma();
     SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
-
-    __check_delayed_bkeep();
-
-    __assert_vma();
-    unlock(vma_list_lock);
 
     debug("vma: %p-%p flags %x prot %p\n", vma->addr, vma->addr + vma->length,
           vma->flags, vma->prot);
@@ -1345,80 +984,39 @@ END_RS_FUNC(vma)
 
 BEGIN_CP_FUNC(all_vmas)
 {
-    struct shim_vma * tmp, ** vmas;
-    int nvmas = 0, cnt = 0;
+    size_t count = DEFAULT_VMA_COUNT;
+    struct shim_vma_val * vmas = malloc(sizeof(struct shim_vma_val) * count);
+    int ret;
 
-    lock(vma_list_lock);
-    __assert_vma();
+    if (!vmas)
+        return -ENOMEM;
 
-    __shrink_vmas();
+retry_dump_vmas:
+    ret = dump_all_vmas(vmas, count);
 
-    listp_for_each_entry(tmp, &vma_list, list)
-        if (!(tmp->flags & VMA_INTERNAL))
-            nvmas++;
-
-    if (!nvmas) {
-    __assert_vma();
-        unlock(vma_list_lock);
-        return 0;
-    }
-
-    vmas = __alloca(sizeof(struct shim_vam *) * nvmas);
-
-    listp_for_each_entry(tmp, &vma_list, list)
-        if (!(tmp->flags & VMA_INTERNAL)) {
-            get_vma(tmp);
-            vmas[cnt++] = tmp;
+    if (ret == -EOVERFLOW) {
+        struct shim_vma_val * new_vmas
+                = malloc(sizeof(struct shim_vma_val) * count * 2);
+        if (!new_vmas) {
+            free(vmas);
+            return -ENOMEM;
         }
-
-    __assert_vma();
-    unlock(vma_list_lock);
-
-    for (cnt = 0 ; cnt < nvmas ; cnt++) {
-        DO_CP(vma, vmas[cnt], NULL);
-        put_vma(vmas[cnt]);
+        free(vmas);
+        vmas = new_vmas;
+        count *= 2;
+        goto retry_dump_vmas;
     }
+
+    if (ret < 0)
+        return ret;
+
+    count = ret;
+    for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
+        DO_CP(vma, vma, NULL);
+        if (vma->file)
+            put_handle(vma->file);
+    }
+
+    free(vmas);
 }
 END_CP_FUNC_NO_RS(all_vmas)
-
-void debug_print_vma_list(void)
-{
-    sys_printf("vma_list dump:\n");
-
-    struct shim_vma* prev = NULL;
-    struct shim_vma* vma;
-
-    listp_for_each_entry(vma, &vma_list, list) {
-        const char * type = "", * name = "";
-
-        if (vma->file) {
-            if (!qstrempty(&vma->file->path)) {
-                type = " path=";
-                name = qstrgetstr(&vma->file->path);
-            } else if (!qstrempty(&vma->file->uri)) {
-                type = " uri=";
-                name = qstrgetstr(&vma->file->uri);
-            }
-        }
-
-        sys_printf("[%p-%p] prot=%08x flags=%08x%s%s offset=%d%s%s%s%s\n",
-                   vma->addr, vma->addr + vma->length,
-                   vma->prot,
-                   vma->flags & ~(VMA_INTERNAL|VMA_UNMAPPED|VMA_TAINTED),
-                   type, name,
-                   vma->offset,
-                   vma->flags & VMA_INTERNAL ? " (internal)" : "",
-                   vma->flags & VMA_UNMAPPED ? " (unmapped)" : "",
-                   vma->comment[0] ? " comment=" : "",
-                   vma->comment[0] ? vma->comment : "");
-
-        // Don't do an infinite dump if the list is corrupted.
-        if (prev && prev->addr >= vma->addr) {
-            warn("VMA list corruption detected. Stopping debug print.\n");
-            assert(false);
-            break;
-        }
-
-        prev = vma;
-    }
-}

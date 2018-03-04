@@ -17,8 +17,12 @@
 
 #define EXECVE_RTLD                 1
 
+#define ENABLE_ASLR                 1
+
 /* debug message printout */
 #define DEBUGBUF_SIZE               256
 #define DEBUGBUF_BREAK              0
+
+#define DEFAULT_VMA_COUNT           64
 
 #endif /* _SHIM_DEFS_H_ */

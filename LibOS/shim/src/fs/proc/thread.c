@@ -21,8 +21,6 @@
 #include <asm/unistd.h>
 #include <asm/prctl.h>
 
-#define DEFAULT_BUFFER_SIZE 256
-
 static int parse_thread_name (const char * name,
                               const char ** next, int * next_len,
                               const char ** nextnext)
@@ -482,6 +480,7 @@ static int proc_thread_maps_open (struct shim_handle * hdl,
     const char * next;
     int next_len;
     int pid = parse_thread_name(name, &next, &next_len, NULL);
+    int ret = 0;
 
     if (pid < 0)
         return pid;
@@ -491,34 +490,98 @@ static int proc_thread_maps_open (struct shim_handle * hdl,
     if (!thread)
         return -ENOENT;
 
-    int size = DEFAULT_BUFFER_SIZE;
-    char * strbuf = malloc(size);
-    int ret = 0, len = 0;
+    size_t count = DEFAULT_VMA_COUNT;
+    struct shim_vma_val * vmas = malloc(sizeof(struct shim_vma_val) * count);
 
-    if (!strbuf) {
+    if (!vmas) {
         ret = -ENOMEM;
         goto out;
     }
 
-retry:
-    ret = dump_all_vmas(thread, strbuf, size);
+retry_dump_vmas:
+    ret = dump_all_vmas(vmas, count);
 
     if (ret == -EOVERFLOW) {
-        char * newbuf = malloc(size * 2);
-        if (!newbuf) {
+        struct shim_vma_val * new_vmas
+                = malloc(sizeof(struct shim_vma_val) * count * 2);
+        if (!new_vmas) {
             ret = -ENOMEM;
             goto err;
         }
-        free(strbuf);
-        strbuf = newbuf;
-        size *= 2;
-        goto retry;
+        free(vmas);
+        vmas = new_vmas;
+        count *= 2;
+        goto retry_dump_vmas;
     }
 
     if (ret < 0)
         goto err;
 
-    len = ret;
+#define DEFAULT_VMA_BUFFER_SIZE     256
+
+    count = ret;
+    size_t buffer_size = DEFAULT_VMA_BUFFER_SIZE, offset = 0;
+    char * buffer = malloc(buffer_size);
+    if (!buffer) {
+        ret = -ENOMEM;
+        goto err;
+    }
+
+    for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
+        size_t old_offset = offset;
+        uint64_t start = (uint64_t) vma->addr;
+        uint64_t end   = (uint64_t) vma->addr + vma->length;
+        char pt[3] = {
+            (vma->prot & PROT_READ)  ? 'r' : '-',
+            (vma->prot & PROT_WRITE) ? 'w' : '-',
+            (vma->prot & PROT_EXEC)  ? 'x' : '-',
+        };
+
+#define ADDR_FMT(addr) ((addr) > 0xffffffff ? "%lx" : "%08x")
+#define EMIT(fmt, ...)                                                  \
+        do {                                                            \
+            offset += snprintf(buffer + offset, buffer_size - offset,   \
+                               fmt, __VA_ARGS__);                       \
+        } while (0)
+
+retry_emit_vma:
+        if (vma->file) {
+            int dev_major = 0, dev_minor = 0;
+            unsigned long ino = vma->file->dentry ? vma->file->dentry->ino : 0;
+            const char * name = "[unknown]";
+
+            if (!qstrempty(&vma->file->path))
+                name = qstrgetstr(&vma->file->path);
+
+            EMIT(ADDR_FMT(start), start);
+            EMIT(ADDR_FMT(end),   end);
+            EMIT(" %c%c%cp %08x %02d:%02d %u %s\n", pt[0], pt[1], pt[2],
+                 vma->offset, dev_major, dev_minor, ino, name);
+        } else {
+            EMIT(ADDR_FMT(start), start);
+            EMIT(ADDR_FMT(end),   end);
+            if (vma->comment[0])
+                EMIT(" %c%c%cp 00000000 00:00 0 %s\n", pt[0], pt[1], pt[2],
+                     vma->comment);
+            else
+                EMIT(" %c%c%cp 00000000 00:00 0\n", pt[0], pt[1], pt[2]);
+        }
+
+        if (offset >= buffer_size) {
+            char * new_buffer = malloc(buffer_size * 2);
+            if (!new_buffer) {
+                ret = -ENOMEM;
+                goto err;
+            }
+
+            offset = old_offset;
+            memcpy(new_buffer, buffer, old_offset);
+            free(buffer);
+            buffer = new_buffer;
+            buffer_size *= 2;
+            goto retry_emit_vma;
+        }
+    }
 
     struct shim_str_data * data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
@@ -526,18 +589,26 @@ retry:
         goto err;
     }
 
-    data->str = strbuf;
-    data->len = len;
-    hdl->type = TYPE_STR;
+    data->str  = buffer;
+    data->len  = offset;
+    hdl->type  = TYPE_STR;
     hdl->flags = flags & ~O_RDONLY;
     hdl->acc_mode = MAY_READ;
     hdl->info.str.data = data;
     ret = 0;
 out:
     put_thread(thread);
+    if (vmas) {
+        for (int i = 0 ; i < count ; i++)
+            if (vmas[i].file)
+                put_handle(vmas[i].file);
+        free(vmas);
+    }
     return ret;
+
 err:
-    free(strbuf);
+    if (buffer)
+        free(buffer);
     goto out;
 }
 

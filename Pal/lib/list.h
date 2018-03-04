@@ -234,13 +234,21 @@
         listp_del(NODE, HEAD, FIELD);           \
         INIT_LIST_HEAD(NODE, FIELD);            \
     } while(0)
-            
+
 /* Keep vestigial TYPE and FIELD parameters to minimize disruption
  * when switching from Linux list implementation */
 #define listp_first_entry(LISTP, TYPE, FIELD) ((LISTP)->first)
 
 /* New API: return last entry in list */
 #define listp_last_entry(LISTP, TYPE, FIELD) ((LISTP)->first->FIELD.prev)
+
+/* New API: return next entry in list */
+#define listp_next_entry(NODE, LISTP, FIELD)                            \
+        ((NODE) == (LISTP)->first->FIELD.prev ? NULL : (NODE)->FIELD.next)
+
+/* New API: return previous entry in list */
+#define listp_prev_entry(NODE, LISTP, FIELD)                            \
+        ((NODE) == (LISTP)->first ? NULL : (NODE)->FIELD.prev)
 
 /* Vestigial - for compat with Linux list code; rename to listp?
  */

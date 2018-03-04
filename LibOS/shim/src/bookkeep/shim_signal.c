@@ -256,24 +256,23 @@ internal:
     if (context)
         debug("memory fault at %p (IP = %p)\n", arg, context->IP);
 
-    struct shim_vma * vma = NULL;
+    struct shim_vma_val vma;
     int signo = SIGSEGV;
     int code;
     if (!arg) {
         code = SEGV_MAPERR;
-    } else if (!lookup_supervma((void *) arg, 0, &vma)) {
-        if (vma->flags & VMA_INTERNAL) {
-            put_vma(vma);
+    } else if (!lookup_vma((void *) arg, &vma)) {
+        if (vma.flags & VMA_INTERNAL) {
             goto internal;
         }
-        if (vma->file && vma->file->type == TYPE_FILE) {
+        if (vma.file && vma.file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
              * then return a SIGBUS. */
-            uint64_t eof_in_vma = (uint64_t) vma->addr + vma->offset + vma->file->info.file.size;
+            uint64_t eof_in_vma = (uint64_t) vma.addr + vma.offset + vma.file->info.file.size;
             if (arg > eof_in_vma) {
                 signo = SIGBUS;
                 code = BUS_ADRERR;
-            } else if ((context->err & 4) && !(vma->flags & PROT_WRITE)) {
+            } else if ((context->err & 4) && !(vma.flags & PROT_WRITE)) {
                 /* DEP 3/3/17: If the page fault gives a write error, and
                  * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
                 signo = SIGSEGV;
@@ -286,7 +285,6 @@ internal:
         } else {
             code = SEGV_ACCERR;
         }
-        put_vma(vma);
     } else {
         code = SEGV_MAPERR;
     }
@@ -306,21 +304,15 @@ internal:
         goto ret_exception;
     }
 
-    struct shim_vma * vma = NULL;
+    struct shim_vma_val vma;
 
-    if (!(lookup_supervma((void *) arg, 0, &vma)) &&
-        !(vma->flags & VMA_INTERNAL)) {
+    if (!(lookup_vma((void *) arg, &vma)) &&
+        !(vma.flags & VMA_INTERNAL)) {
         if (context)
             debug("illegal instruction at %p\n", context->IP);
 
-        if (vma)
-            put_vma(vma);
-
         deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
     } else {
-        if (vma)
-            put_vma(vma);
-
         goto internal;
     }
 

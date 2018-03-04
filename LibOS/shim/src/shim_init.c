@@ -248,15 +248,22 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 
     /* preserve a non-readable, non-writeable page below the user
        stack to stop user program to clobber other vmas */
-    void * stack = user ?
-                   get_unmapped_vma(size + protect_size, STACK_FLAGS) :
-                   NULL;
+    void * stack = NULL;
 
-    if (user)
-        stack = (void *) DkVirtualMemoryAlloc(stack, size + protect_size,
-                                0, PAL_PROT_READ|PAL_PROT_WRITE);
-    else
+    if (user) {
+        stack =  bkeep_unmapped_heap(size + protect_size,
+                                     PROT_READ|PROT_WRITE, STACK_FLAGS,
+                                     NULL, 0, "stack");
+
+        if (!stack)
+            return NULL;
+
+        stack = (void *)
+            DkVirtualMemoryAlloc(stack, size + protect_size,
+                                 0, PAL_PROT_READ|PAL_PROT_WRITE);
+    } else {
         stack = system_malloc(size + protect_size);
+    }
 
     if (!stack)
         return NULL;
@@ -271,13 +278,9 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     stack += protect_size;
 
     if (user) {
-        if (bkeep_mmap(stack, size, PROT_READ|PROT_WRITE,
-                       STACK_FLAGS, NULL, 0, "stack") < 0)
-            return NULL;
-
         if (protect_size &&
             bkeep_mmap(stack - protect_size, protect_size, 0,
-                       STACK_FLAGS, NULL, 0, NULL) < 0)
+                       STACK_FLAGS|VMA_INTERNAL, NULL, 0, "stack-red") < 0)
             return NULL;
     }
 
