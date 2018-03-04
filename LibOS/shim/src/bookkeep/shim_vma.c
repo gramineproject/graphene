@@ -587,7 +587,7 @@ static int __bkeep_mprotect (struct shim_vma * prev,
 
         if (cur->start < cur->end) {
             /* Keep the VMA. */
-            if (new) {
+            if (tail) {
                 __insert_vma(tail, cur); /* insert "tail" after "cur" */
                 prev = cur;
                 cur = tail; /* "tail" is the new "cur" */
@@ -597,7 +597,7 @@ static int __bkeep_mprotect (struct shim_vma * prev,
             __remove_vma(cur, prev);
             __drop_vma(cur);
 
-            if (new) {
+            if (tail) {
                 __insert_vma(tail, prev); /* insert "tail" after "prev" */
                 cur = tail; /* "tail" is the new "cur" */
                 /* next is the same */
@@ -743,7 +743,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
 
         if (bottom_addr >= heap_max) {
             unlock(vma_list_lock);
-            return -EINVAL;
+            return NULL;
         }
 
         if (top_addr > heap_max) {

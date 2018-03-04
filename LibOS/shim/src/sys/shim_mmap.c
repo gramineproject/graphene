@@ -43,7 +43,6 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
 {
     struct shim_handle * hdl = NULL;
     long ret = 0;
-    bool reserved = false;
 
     /*
      * According to the manpage, both addr and offset have to be page-aligned,
@@ -91,16 +90,15 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         }
     }
 
-    if (!addr) {
+    if (addr) {
+        bkeep_mmap(addr, length, prot, flags, hdl, offset, NULL);
+    } else {
         addr = bkeep_unmapped_heap(length, prot, flags, hdl, offset, NULL);
-
-        if (addr) {
-            reserved = true;
-            // Approximate check only, to help root out bugs.
-            void * cur_stack = current_stack();
-            assert(cur_stack < addr || cur_stack > addr + length);
-        }
     }
+
+    // Approximate check only, to help root out bugs.
+    void * cur_stack = current_stack();
+    assert(cur_stack < addr || cur_stack > addr + length);
 
     if (!hdl) {
         addr = (void *) DkVirtualMemoryAlloc(addr, length, pal_alloc_type,
@@ -121,7 +119,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         put_handle(hdl);
 
     if (ret < 0) {
-        if (reserved) bkeep_munmap(addr, length, flags);
+        bkeep_munmap(addr, length, flags);
         return (void *) ret;
     }
 
