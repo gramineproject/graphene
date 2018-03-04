@@ -138,7 +138,7 @@ static struct shim_heap * __alloc_enough_heap (size_t size)
 
         unlock(shim_heap_lock);
         bkeep_mmap(start, heap_size, PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
+                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, "heap");
         lock(shim_heap_lock);
     }
 
@@ -244,7 +244,7 @@ int bkeep_shim_heap (void)
             bkeep_mmap(shim_heap_areas[i].start,
                        shim_heap_areas[i].current - shim_heap_areas[i].start,
                        PROT_READ|PROT_WRITE,
-                       MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
+                       MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, "heap");
             /* Go ahead and free the reserved region */
             if (shim_heap_areas[i].current < shim_heap_areas[i].end) {
                 DkVirtualMemoryFree(shim_heap_areas[i].current,
