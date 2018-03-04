@@ -115,50 +115,50 @@ static LISTP_TYPE(shim_vma) vma_list = LISTP_INIT;
 static LOCKTYPE vma_list_lock;
 
 /*
- * Return true if [s, e) is exactly the area represented by tmp.
+ * Return true if [s, e) is exactly the area represented by vma.
  */
-static inline bool test_vma_equal (struct shim_vma * tmp,
+static inline bool test_vma_equal (struct shim_vma * vma,
                                    void * s, void * e)
 {
-    return tmp->start == s && tmp->end == e;
+    return vma->start == s && vma->end == e;
 }
 
 /*
- * Return true if [s, e) is part of the area represented by tmp.
+ * Return true if [s, e) is part of the area represented by vma.
  */
-static inline bool test_vma_contain (struct shim_vma * tmp,
+static inline bool test_vma_contain (struct shim_vma * vma,
                                      void * s, void * e)
 {
-    return tmp->start <= s && tmp->end >= e;
+    return vma->start <= s && vma->end >= e;
 }
 
 /*
- * Return true if [s, e) contains the starting address of tmp.
+ * Return true if [s, e) contains the starting address of vma.
  */
-static inline bool test_vma_startin (struct shim_vma * tmp,
+static inline bool test_vma_startin (struct shim_vma * vma,
                                      void * s, void * e)
 {
-    return tmp->start >= s && tmp->start < e;
+    return vma->start >= s && vma->start < e;
 }
 
 /*
- * Return true if [s, e) contains the ending address of tmp.
+ * Return true if [s, e) contains the ending address of vma.
  */
-static inline bool test_vma_endin (struct shim_vma * tmp,
+static inline bool test_vma_endin (struct shim_vma * vma,
                                    void * s, void * e)
 {
-    return tmp->end > s && tmp->end <= e;
+    return vma->end > s && vma->end <= e;
 }
 
 /*
- * Return true if [s, e) overlaps with the area represented by tmp.
+ * Return true if [s, e) overlaps with the area represented by vma.
  */
-static inline bool test_vma_overlap (struct shim_vma * tmp,
+static inline bool test_vma_overlap (struct shim_vma * vma,
                                      void * s, void * e)
 {
-    return test_vma_contain(tmp, s, s + 1) ||
-           test_vma_contain(tmp, e - 1, e) ||
-           test_vma_startin(tmp, s, e);
+    return test_vma_contain(vma, s, s + 1) ||
+           test_vma_contain(vma, e - 1, e) ||
+           test_vma_startin(vma, s, e);
 }
 
 static inline struct shim_vma *
@@ -996,8 +996,8 @@ BEGIN_RS_FUNC(vma)
 
     SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
 
-    debug("vma: %p-%p flags %x prot %p\n", vma->addr, vma->addr + vma->length,
-          vma->flags, vma->prot);
+    DEBUG_RS("vma: %p-%p flags %x prot %p\n", vma->addr, vma->addr + vma->length,
+             vma->flags, vma->prot);
 
     if (!(vma->flags & VMA_UNMAPPED)) {
         if (vma->file) {
