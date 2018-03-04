@@ -27,7 +27,7 @@ void __abort(void);
             ? ({                                                        \
                     warn("assert failed " __FILE__ ":%d " #test " (value:%x)\n", \
                          __LINE__, _val);                               \
-                    while(1);__abort(); })                                       \
+                    __abort(); })                                       \
             : (void) 0;                                                 \
     })
 
