@@ -115,7 +115,7 @@ static inline void __set_free_mem_area (MEM_AREA area, MEM_MGR mgr, int size)
 
 static inline MEM_MGR create_mem_mgr (unsigned int size)
 {
-    void* mem = system_malloc(__MAX_MEM_SIZE(size));
+    void * mem = system_malloc(__MAX_MEM_SIZE(size));
     MEM_AREA area;
     MEM_MGR mgr;
 
@@ -136,7 +136,6 @@ static inline MEM_MGR create_mem_mgr (unsigned int size)
     return mgr;
 }
 
-// UNUSED??
 static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
 {
     MEM_AREA area;
@@ -155,7 +154,6 @@ static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
     return mgr;
 }
 
-// UNUSED and BROKEN (if (!first) mem leak)
 static inline void destroy_mem_mgr (MEM_MGR mgr)
 {
     MEM_AREA tmp, n, first = NULL;
@@ -163,13 +161,14 @@ static inline void destroy_mem_mgr (MEM_MGR mgr)
     first = tmp = listp_first_entry(&mgr->area_list, MEM_AREA_TYPE, __list);
 
     if (!first)
-        return;
+        goto free_mgr;
 
     listp_for_each_entry_safe_continue(tmp, n, &mgr->area_list, __list) {
         listp_del(tmp, &mgr->area_list, __list);
         system_free(tmp, sizeof(MEM_AREA_TYPE) + __SUM_OBJ_SIZE(tmp->size));
     }
 
+free_mgr:
     system_free(mgr, __MAX_MEM_SIZE(first->size));
 }
 
@@ -206,7 +205,8 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
         if (!size)
             return NULL;
 
-// RAAACEEE HERE :(
+        /* There can be concurrent attempt to try to enlarge the
+           allocator, but we prevent deadlocks or crashes. */
         MEM_AREA area;
         area = (MEM_AREA) system_malloc(sizeof(MEM_AREA_TYPE) +
                                         __SUM_OBJ_SIZE(size));
