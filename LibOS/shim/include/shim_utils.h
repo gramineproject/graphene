@@ -158,17 +158,17 @@ static inline int qstrcmpstr (const struct shim_qstr * qstr,
 int init_slab (void);
 
 #if defined(SLAB_DEBUG_PRINT) || defined(SLAB_DEBUG_TRACE)
-    void * __malloc_debug (size_t size, const char * file, int line);
-    #define malloc(size) __malloc_debug((size), __FILE__, __LINE__)
-    void __free_debug (void * mem, const char * file, int line);
-    #define free(mem) __free_debug((mem), __FILE__, __LINE__)
-    void * __malloc_copy_debug (const void * mem, size_t size,
+void * __malloc_debug (size_t size, const char * file, int line);
+#define malloc(size) __malloc_debug((size), __FILE__, __LINE__)
+void __free_debug (void * mem, const char * file, int line);
+#define free(mem) __free_debug((mem), __FILE__, __LINE__)
+void * __malloc_copy_debug (const void * mem, size_t size,
                              const char * file, int line);
-    #define malloc_copy(mem, size) __malloc_copy_debug((mem), (size), __FILE__, __LINE__)
+#define malloc_copy(mem, size) __malloc_copy_debug((mem), (size), __FILE__, __LINE__)
 #else
-    void * malloc (size_t size);
-    void free (void * mem);
-    void * malloc_copy (const void * mem, size_t size);
+void * malloc (size_t size);
+void free (void * mem);
+void * malloc_copy (const void * mem, size_t size);
 #endif
 void* realloc(void* ptr, size_t new_size);
 
