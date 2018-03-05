@@ -892,7 +892,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         if (warn_no_gipc) {
             warn_no_gipc = false;
             sys_printf("WARNING: no physical memory support, process creation "
-                       "will be slow.\n");
+                       "may be slow.\n");
         }
     }
 

@@ -602,7 +602,7 @@ void dup_fd_handle (struct shim_handle_map * map,
 
 static struct shim_handle_map * get_new_handle_map (FDTYPE size)
 {
-    struct shim_handle_map * handle_map = 
+    struct shim_handle_map * handle_map =
         calloc(1, sizeof(struct shim_handle_map));
 
     if (!handle_map)
@@ -628,12 +628,12 @@ static struct shim_handle_map * __enlarge_handle_map
     if (size <= map->fd_size)
         return map;
 
-    size_t new_size = size * sizeof(struct shim_fd_handle*);
-    struct shim_fd_handle** new_map = realloc(map->map, new_size);
+    size_t new_size = size * sizeof(*map->map);
+    struct shim_fd_handle ** new_map = realloc(map->map, new_size);
     if (!new_map)
         return NULL;
 
-    size_t copy_size = sizeof(struct shim_fd_handle*) * map->fd_size;
+    size_t copy_size = sizeof(*map->map) * map->fd_size;
     memset(map->map + copy_size, 0, new_size - copy_size);
     map->fd_size = size;
     return map;

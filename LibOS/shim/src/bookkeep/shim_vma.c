@@ -161,6 +161,21 @@ static inline bool test_vma_overlap (struct shim_vma * vma,
            test_vma_startin(vma, s, e);
 }
 
+/* This might not give the same vma but we might need to
+   split after we find something */
+static inline void __assert_vma_list (void)
+{
+    struct shim_vma * tmp;
+    struct shim_vma * prev __attribute__((unused)) = NULL;
+
+    listp_for_each_entry(tmp, &vma_list, list) {
+        /* Assert we are really sorted */
+        assert(tmp->end >= tmp->start);
+        assert(!prev || prev->end <= tmp->start);
+        prev = tmp;
+    }
+}
+
 static inline struct shim_vma *
 __lookup_vma (void * addr, struct shim_vma ** pprev)
 {
@@ -172,6 +187,8 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
         if (test_vma_contain(vma, addr, addr + 1))
             goto out;
 
+        assert(vma->end >= vma->start);
+        assert(!prev || prev->end <= vma->start);
         prev = vma;
     }
 
@@ -186,6 +203,7 @@ static inline void
 __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
     assert(!prev || prev->end <= vma->start);
+    assert(vma != prev);
 
     if (prev)
         listp_add_after(vma, prev, &vma_list, list);
@@ -196,8 +214,7 @@ __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 static inline void
 __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
-    assert(!prev || prev->list.next == vma);
-
+    assert(vma != prev);
     listp_del(vma, &vma_list, list);
 }
 
@@ -214,25 +231,26 @@ int init_vma (void)
         reserved_vmas[i] = &early_vmas[i];
 
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
-        debug("failed allocating VMAs\n");
+        debug("failed creating the VMA allocator\n");
         return -ENOMEM;
     }
 
     for (int i = 0 ; i < RESERVED_VMAS ; i++) {
-        struct shim_vma * new = get_mem_obj_from_mgr(vma_mgr);
-        assert(new);
-
         if (!reserved_vmas[i]) {
+            struct shim_vma * new = get_mem_obj_from_mgr(vma_mgr);
+            assert(new);
             struct shim_vma * e = &early_vmas[i];
             struct shim_vma * prev = listp_prev_entry(e, &vma_list, list);
             debug("Converting early VMA [%p] %p-%p\n", e, e->start, e->end);
-            memcpy(new, e, sizeof(struct shim_vma));
+            memcpy(new, e, sizeof(*e));
             INIT_LIST_HEAD(new, list);
             __remove_vma(e, prev);
             __insert_vma(new, prev);
         }
 
-        reserved_vmas[i] = new;
+        /* replace all reserved VMAs */
+        reserved_vmas[i] = get_mem_obj_from_mgr(vma_mgr);
+        assert(reserved_vmas[i]);
     }
 
     create_lock(vma_list_lock);
@@ -284,18 +302,21 @@ static inline struct shim_vma * __get_new_vma (void)
         }
 
     /* Should never reach here; if this happens, increase RESERVED_VMAS */
+    debug("failed to allocate new vma\n");
     bug();
+    return NULL;
 
 out:
-    memset(tmp, 0, sizeof(struct shim_vma));
+    memset(tmp, 0, sizeof(*tmp));
     INIT_LIST_HEAD(tmp, list);
     return tmp;
 }
 
 static inline void __restore_reserved_vmas (void)
 {
-    bool nothing_reserved = true;
+    bool nothing_reserved;
     do {
+        nothing_reserved = true;
         for (int i = 0 ; i < RESERVED_VMAS ; i++)
             if (!reserved_vmas[i]) {
                 struct shim_vma * new =
@@ -315,10 +336,13 @@ static inline void __drop_vma (struct shim_vma * vma)
     if (vma->file)
         put_handle(vma->file);
 
-    if (MEMORY_MIGRATED(vma))
-        memset(vma, 0, sizeof(*vma));
-    else
-        free_mem_obj_to_mgr(vma_mgr, vma);
+    for (int i = 0 ; i < RESERVED_VMAS ; i++)
+        if (!reserved_vmas[i]) {
+            reserved_vmas[i] = vma;
+            return;
+        }
+
+    free_mem_obj_to_mgr(vma_mgr, vma);
 }
 
 static inline void
@@ -676,7 +700,15 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
             new = __get_new_vma();
             new->start = end - length;
             new->end   = end;
-            break;
+            new->prot  = prot;
+            new->flags = flags|((file && (prot & PROT_WRITE)) ? VMA_TAINTED : 0);
+            new->file  = file;
+            if (new->file)
+                get_handle(new->file);
+            new->offset = offset;
+            __set_vma_comment(new, comment);
+            __insert_vma(new, prev);
+            return new->start;
         }
 
         if (!prev || prev->start <= bottom_addr)
@@ -686,20 +718,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
         prev = listp_prev_entry(cur, &vma_list, list);
     }
 
-    void * res_addr = NULL;
-    if (new) {
-        new->prot   = prot;
-        new->flags  = flags|((file && (prot & PROT_WRITE)) ? VMA_TAINTED : 0);
-        new->file   = file;
-        if (new->file)
-            get_handle(new->file);
-        new->offset = offset;
-        __set_vma_comment(new, comment);
-        __insert_vma(new, prev);
-        res_addr    = new->start;
-    }
-
-    return res_addr;
+    return NULL;
 }
 
 void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
@@ -883,11 +902,11 @@ BEGIN_CP_FUNC(vma)
     ptr_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
-        off = ADD_CP_OFFSET(sizeof(struct shim_vma_val));
+        off = ADD_CP_OFFSET(sizeof(*vma));
         ADD_TO_CP_MAP(obj, off);
 
         new_vma = (struct shim_vma_val *) (base + off);
-        memcpy(new_vma, vma, sizeof(struct shim_vma_val));
+        memcpy(new_vma, vma, sizeof(*vma));
 
         if (vma->file)
             DO_CP(handle, vma->file, &new_vma->file);
@@ -1060,7 +1079,7 @@ END_RS_FUNC(vma)
 BEGIN_CP_FUNC(all_vmas)
 {
     size_t count = DEFAULT_VMA_COUNT;
-    struct shim_vma_val * vmas = malloc(sizeof(struct shim_vma_val) * count);
+    struct shim_vma_val * vmas = malloc(sizeof(*vmas) * count);
     int ret;
 
     if (!vmas)
@@ -1071,7 +1090,7 @@ retry_dump_vmas:
 
     if (ret == -EOVERFLOW) {
         struct shim_vma_val * new_vmas
-                = malloc(sizeof(struct shim_vma_val) * count * 2);
+                = malloc(sizeof(*new_vmas) * count * 2);
         if (!new_vmas) {
             free(vmas);
             return -ENOMEM;
