@@ -695,7 +695,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 
         assert(start <= end);
 
-        if (length <= start - end) {
+        if (length <= end - start) {
             /* create a new VMA at the top of the range */
             new = __get_new_vma();
             new->start = end - length;
