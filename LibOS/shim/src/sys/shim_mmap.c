@@ -139,10 +139,12 @@ int shim_do_mprotect (void * addr, size_t length, int prot)
     if (!ALIGNED(length))
         length = ALIGN_UP(length);
 
+    if (bkeep_mprotect(addr, length, prot, 0) < 0)
+        return -EPERM;
+
     if (!DkVirtualMemoryProtect(addr, length, prot))
         return -PAL_ERRNO;
 
-    bkeep_mprotect(addr, length, prot, 0);
     return 0;
 }
 
@@ -168,7 +170,9 @@ int shim_do_munmap (void * addr, size_t length)
         return -EFAULT;
     }
 
+    if (bkeep_munmap(addr, length, 0) < 0)
+        return -EPERM;
+
     DkVirtualMemoryFree(addr, length);
-    bkeep_munmap(addr, length, 0);
     return 0;
 }
