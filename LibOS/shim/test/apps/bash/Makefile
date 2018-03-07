@@ -1,6 +1,6 @@
 BASH_DIR = bash-4.1
 
-manifests = $(addsuffix .manifest,bash ls cp rm)
+manifests = $(addsuffix .manifest,bash ls cp rm cat date)
 exec_target = $(manifests)
 
 level = ../../
