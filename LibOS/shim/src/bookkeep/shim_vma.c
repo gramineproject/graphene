@@ -1350,6 +1350,10 @@ BEGIN_CP_FUNC(all_vmas)
 
     __shrink_vmas();
 
+    /*
+     * TODO: Copy only readable pages while checkpointing.
+     * This may need to be fixed according to how Linux does.
+     */
     listp_for_each_entry(tmp, &vma_list, list)
         if (!(tmp->flags & VMA_INTERNAL) && (tmp->prot & PROT_READ))
             nvmas++;
