@@ -161,8 +161,6 @@ static inline bool test_vma_overlap (struct shim_vma * vma,
            test_vma_startin(vma, s, e);
 }
 
-/* This might not give the same vma but we might need to
-   split after we find something */
 static inline void __assert_vma_list (void)
 {
     struct shim_vma * tmp;
@@ -170,7 +168,7 @@ static inline void __assert_vma_list (void)
 
     listp_for_each_entry(tmp, &vma_list, list) {
         /* Assert we are really sorted */
-        assert(tmp->end >= tmp->start);
+        assert(tmp->end > tmp->start);
         assert(!prev || prev->end <= tmp->start);
         prev = tmp;
     }
@@ -204,6 +202,13 @@ __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
     assert(!prev || prev->end <= vma->start);
     assert(vma != prev);
+
+    /* check the next entry */
+    struct shim_vma * next = prev ?
+            listp_next_entry(prev, &vma_list, list) :
+            listp_first_entry(&vma_list, struct shim_vma, list);
+
+    assert(!next || vma->end <= next->start);
 
     if (prev)
         listp_add_after(vma, prev, &vma_list, list);
@@ -278,7 +283,7 @@ static int __bkeep_mmap (struct shim_vma * prev,
                          struct shim_handle * file, uint64_t offset,
                          const char * comment);
 
-static int __bkeep_munmap (struct shim_vma * prev,
+static int __bkeep_munmap (struct shim_vma ** prev,
                            void * start, void * end, int flags);
 
 static int __bkeep_mprotect (struct shim_vma * prev,
@@ -382,7 +387,7 @@ static int __bkeep_mmap (struct shim_vma * prev,
     struct shim_vma * new = __get_new_vma();
 
     /* First, remove any overlapping VMAs */
-    ret = __bkeep_munmap(prev, start, end, flags);
+    ret = __bkeep_munmap(&prev, start, end, flags);
     if (ret < 0) {
         __drop_vma(new);
         return ret;
@@ -422,8 +427,16 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
     return ret;
 }
 
-static inline int __shrink_vma (struct shim_vma * cur, void * start, void * end,
-                                struct shim_vma ** tailptr)
+/*
+ * __shrink_vma() removes the area in a VMA that overlaps with [start, end).
+ * The function deals with three cases:
+ * (1) [start, end) overlaps with the beginning of the VMA.
+ * (2) [start, end) overlaps with the ending of the VMA.
+ * (3) [start, end) overlaps with the middle of the VMA. In this case, the VMA
+ *     is splitted into two. The new VMA is stored in 'tailptr'.
+ */
+static inline void __shrink_vma (struct shim_vma * cur, void * start, void * end,
+                                 struct shim_vma ** tailptr)
 {
     /*
      * Dealing with the head: if the starting address of "cur" is in
@@ -439,6 +452,8 @@ static inline int __shrink_vma (struct shim_vma * cur, void * start, void * end,
                 cur->offset += cur->end - cur->start;
             cur->start = cur->end;
         }
+
+        goto finish;
     }
 
     /*
@@ -452,6 +467,8 @@ static inline int __shrink_vma (struct shim_vma * cur, void * start, void * end,
             cur->end = cur->start;
         }
         /* offset is not affected */
+
+        goto finish;
     }
 
     /*
@@ -480,14 +497,22 @@ static inline int __shrink_vma (struct shim_vma * cur, void * start, void * end,
             memcpy(tail->comment, cur->comment, VMA_COMMENT_LEN);
             *tailptr = tail;
         }
+
+        goto finish;
     }
 
-    return 0;
+    /* Never reach here */
+    bug();
+
+finish:
+    assert(!test_vma_overlap(cur, start, end));
+    assert(cur->start < cur->end);
 }
 
-static int __bkeep_munmap (struct shim_vma * prev,
+static int __bkeep_munmap (struct shim_vma ** pprev,
                            void * start, void * end, int flags)
 {
+    struct shim_vma * prev = *pprev;
     struct shim_vma * cur, * next;
 
     if (!prev) {
@@ -507,37 +532,45 @@ static int __bkeep_munmap (struct shim_vma * prev,
         if (!test_vma_overlap(cur, start, end))
             break;
 
-        int ret = __shrink_vma(cur, start, end, &tail);
-        if (ret < 0)
-            return ret;
+        /* If [start, end) contains the VMA, just drop the VMA. */
+        if (start <= cur->start && cur->end <= end) {
+            __remove_vma(cur, prev);
+            __drop_vma(cur);
+            goto cont;
+        }
 
-        if (cur->start < cur->end) {
-            /* Keep the VMA. */
+        __shrink_vma(cur, start, end, &tail);
+
+        if (cur->end <= start) {
+            prev = cur;
             if (tail) {
                 __insert_vma(tail, cur); /* insert "tail" after "cur" */
-                prev = cur;
                 cur = tail; /* "tail" is the new "cur" */
                 /* "next" is the same */
             }
+        } else if (cur->start >= end) {
+            /* __shrink_vma() only creates a new VMA when the beginning of the
+             * original VMA is preserved. */
+            assert(!tail);
+            break;
         } else {
-            __remove_vma(cur, prev);
-            __drop_vma(cur);
-
-            if (tail) {
-                __insert_vma(tail, prev); /* insert "tail" after "prev" */
-                cur = tail; /* "tail" is the new "cur" */
-                /* next is the same */
-            } else {
-                /* nothing to insert, back off to "prev" */
-                cur = prev;
-            }
+            /* __shrink_vma() should never allow this case. */
+            bug();
         }
 
-        prev = cur;
+cont:
         cur = next;
         next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
     }
 
+    if (prev)
+        assert(cur == listp_next_entry(prev, &vma_list, list));
+    else
+        assert(cur == listp_first_entry(&vma_list, struct shim_vma, list));
+
+    assert(!prev || prev->end <= start);
+    assert(!cur || end <= cur->start);
+    *pprev = prev;
     return 0;
 }
 
@@ -551,7 +584,7 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
     lock(vma_list_lock);
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
-    int ret = __bkeep_munmap(prev, addr, addr + length, flags);
+    int ret = __bkeep_munmap(&prev, addr, addr + length, flags);
     __restore_reserved_vmas();
     unlock(vma_list_lock);
     return ret;
@@ -583,6 +616,12 @@ static int __bkeep_mprotect (struct shim_vma * prev,
         if (cur->prot == prot)
             goto cont;
 
+        /* If [start, end) contains the VMA, just update its protection. */
+        if (start <= cur->start && cur->end <= end) {
+            cur->prot = prot;
+            goto cont;
+        }
+
         /* Create a new VMA for the protected area */
         new = __get_new_vma();
         new->start = cur->start > start ? cur->start : start;
@@ -599,47 +638,29 @@ static int __bkeep_mprotect (struct shim_vma * prev,
         memcpy(new->comment, cur->comment, VMA_COMMENT_LEN);
 
         /* Like unmapping, shrink (and potentially split) the VMA first. */
-        int ret = __shrink_vma(cur, start, end, &tail);
-        if (ret < 0) {
-            __drop_vma(new);
-            return ret;
-        }
+        __shrink_vma(cur, start, end, &tail);
 
-        if (cur->start < cur->end) {
-            /* Keep the VMA. */
+        if (cur->end <= start) {
+            prev = cur;
             if (tail) {
                 __insert_vma(tail, cur); /* insert "tail" after "cur" */
-                prev = cur;
                 cur = tail; /* "tail" is the new "cur" */
                 /* "next" is the same */
             }
+        } else if (cur->start >= end) {
+            /* __shrink_vma() only creates a new VMA when the beginning of the
+             * original VMA is preserved. */
+            assert(!tail);
         } else {
-            __remove_vma(cur, prev);
-            __drop_vma(cur);
-
-            if (tail) {
-                __insert_vma(tail, prev); /* insert "tail" after "prev" */
-                cur = tail; /* "tail" is the new "cur" */
-                /* next is the same */
-            } else {
-                /* nothing to insert, back off to "prev" */
-                cur = prev;
-            }
-        }
-
-        /* Now insert the new protected vma */
-        if (!cur || new->end <= cur->start) {
-            __insert_vma(new, prev);
-            prev = new;
-            /* cur and next are the same */
-        } else if (new->start >= cur->end) {
-            __insert_vma(new, cur);
-            prev = cur;
-            cur = new;
-            /* next is the same */
-        } else {
+            /* __shrink_vma() should never allow this case. */
             bug();
         }
+
+        /* Now insert the new protected vma between prev and cur */
+        __insert_vma(new, prev);
+        assert(!prev || prev->end <= new->end);
+        assert(new->start < new->end);
+        assert(new->end <= cur->start);
 
 cont:
         prev = cur;
@@ -686,7 +707,6 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
     struct shim_vma * cur = __lookup_vma(top_addr, &prev);
     struct shim_vma * new = NULL;
 
-    /* Check if there is enough space between prev and cur */
     while (true) {
         /* setting the range for searching */
         void * end = cur ? cur->start : top_addr;
@@ -695,6 +715,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 
         assert(start <= end);
 
+        /* Check if there is enough space between prev and cur */
         if (length <= end - start) {
             /* create a new VMA at the top of the range */
             new = __get_new_vma();
