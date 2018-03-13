@@ -362,15 +362,15 @@ void * calloc (size_t nmemb, size_t size)
 }
 extern_alias(calloc);
 
+#if 0 /* Temporarily disabling this code */
 void * realloc(void * ptr, size_t new_size)
 {
-    size_t old_size = 0;
+    /* TODO: We can't deal with this case right now */
+    assert(!MEMORY_MIGRATED(ptr));
 
-    if (!MEMORY_MIGRATED(ptr)) {
-        old_size = slab_get_buf_size(slab_mgr, ptr);
-        if (old_size >= new_size)
-            return ptr;
-    }
+    size_t old_size = slab_get_buf_size(slab_mgr, ptr);
+    if (old_size >= new_size)
+        return ptr;
 
     void * new_buf = malloc(new_size);
     if (!new_buf)
@@ -382,7 +382,7 @@ void * realloc(void * ptr, size_t new_size)
     return new_buf;
 }
 extern_alias(realloc);
-
+#endif
 
 // Copies data from `mem` to a newly allocated buffer of a specified size.
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
