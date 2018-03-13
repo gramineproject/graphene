@@ -382,7 +382,7 @@ void * realloc(void * ptr, size_t new_size)
         return NULL;
 
     memcpy(new_buf, ptr, old_size);
-    /* ralloc() does not zero the rest of the object */
+    /* realloc() does not zero the rest of the object */
     free(ptr);
     return new_buf;
 }
