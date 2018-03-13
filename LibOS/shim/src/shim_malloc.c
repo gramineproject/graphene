@@ -364,9 +364,13 @@ extern_alias(calloc);
 
 void * realloc(void * ptr, size_t new_size)
 {
-    size_t old_size = slab_get_buf_size(slab_mgr, ptr);
-    if (old_size >= new_size)
-        return ptr;
+    size_t old_size = 0;
+
+    if (!MEMORY_MIGRATED(ptr)) {
+        old_size = slab_get_buf_size(slab_mgr, ptr);
+        if (old_size >= new_size)
+            return ptr;
+    }
 
     void * new_buf = malloc(new_size);
     if (!new_buf)

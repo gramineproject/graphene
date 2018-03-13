@@ -421,13 +421,13 @@ static inline void * slab_alloc_debug (SLAB_MGR mgr, int size,
 #endif
 
 // Returns user buffer size (i.e. excluding size of control structures).
-static inline size_t slab_get_buf_size(SLAB_MGR mgr, const void* ptr)
+static inline size_t slab_get_buf_size(SLAB_MGR mgr, const void * ptr)
 {
     assert(ptr);
 
     unsigned char level = RAW_TO_LEVEL(ptr);
 
-    if (level == (unsigned char)-1) {
+    if (level == (unsigned char) -1) {
         LARGE_MEM_OBJ mem = RAW_TO_OBJ(ptr, LARGE_MEM_OBJ_TYPE);
         return mem->size;
     }
@@ -450,9 +450,9 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
     /* In a general purpose allocator, free of NULL is allowed (and is a 
      * nop). We might want to enforce stricter rules for our allocator if
      * we're sure that no clients rely on being able to free NULL. */
-    if (obj == NULL)
+    if (!obj)
         return;
-    
+
     unsigned char level = RAW_TO_LEVEL(obj);
 
     if (level == (unsigned char) -1) {
@@ -487,16 +487,15 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
 }
 
 #ifdef SLAB_DEBUG
-
 static inline void slab_free_debug (SLAB_MGR mgr, void * obj,
                                     const char * file, int line)
 {
-    if (obj == NULL)
+    if (!obj)
         return;
-    
+
     unsigned char level = RAW_TO_LEVEL(obj);
 
-    if (level < SLAB_LEVEL) {
+    if (level < SLAB_LEVEL && level != (unsigned char) -1) {
         struct slab_debug * debug =
                 (struct slab_debug *) (obj + slab_levels[level] +
                                        SLAB_CANARY_SIZE);
