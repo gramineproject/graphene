@@ -430,8 +430,10 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
     if (!addr || !length)
         return -EINVAL;
 
-    debug("bkeep_mmap: %p-%p (%s)\n", addr, addr + length,
-          comment ? : "unknown");
+    if (comment && !comment[0])
+        comment = NULL;
+
+    debug("bkeep_mmap: %p-%p\n", addr, addr + length);
 
     lock(vma_list_lock);
     struct shim_vma * prev = NULL;
@@ -774,6 +776,7 @@ void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
                                    file, offset, comment);
     __restore_reserved_vmas();
     unlock(vma_list_lock);
+    debug("bkeep_unmapped: %p-%p\n", addr, addr + length);
     return addr;
 }
 
@@ -834,6 +837,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
 out:
     __restore_reserved_vmas();
     unlock(vma_list_lock);
+    debug("bkeep_unmapped: %p-%p\n", addr, addr + length);
     return addr;
 }
 
@@ -907,6 +911,8 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t size)
 
     listp_for_each_entry(vma, &vma_list, list) {
         if (VMA_TYPE(vma->flags))
+            continue;
+        if (vma->flags & VMA_UNMAPPED)
             continue;
 
         if (cnt == size) {
@@ -1047,8 +1053,11 @@ BEGIN_RS_FUNC(vma)
     BEGIN_PROFILE_INTERVAL();
 
     CP_REBASE(vma->file);
-    bkeep_mmap(vma->addr, vma->length, vma->prot, vma->flags,
-               vma->file, vma->offset, vma->comment);
+
+    int ret = bkeep_mmap(vma->addr, vma->length, vma->prot, vma->flags,
+                         vma->file, vma->offset, vma->comment);
+    if (ret < 0)
+        return ret;
 
     SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
 
@@ -1146,7 +1155,7 @@ retry_dump_vmas:
         return ret;
 
     count = ret;
-    for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
+    for (struct shim_vma_val * vma = &vmas[count - 1] ; vma >= vmas ; vma--) {
         DO_CP(vma, vma, NULL);
         if (vma->file)
             put_handle(vma->file);
