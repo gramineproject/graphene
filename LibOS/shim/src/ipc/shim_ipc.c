@@ -254,7 +254,7 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
 
 struct shim_process * create_new_process (bool inherit_parent)
 {
-    struct shim_process * new_process = malloc(sizeof(struct shim_process));
+    struct shim_process * new_process = calloc(1, sizeof(struct shim_process));
     if (!new_process)
         return NULL;
 

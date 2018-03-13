@@ -132,7 +132,7 @@ retry:
         str[len] = 0;
     }
 
-    struct shim_str_data * data = malloc(sizeof(struct shim_str_data));
+    struct shim_str_data * data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
         free(str);
         return -ENOMEM;
