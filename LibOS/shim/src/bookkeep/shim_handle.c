@@ -636,6 +636,7 @@ static struct shim_handle_map * __enlarge_handle_map
     memcpy(new_map, map->map, map->fd_size * sizeof(new_map[0]));
     memset(new_map + map->fd_size, 0,
            (size - map->fd_size) * sizeof(new_map[0]));
+    free(map->map);
     map->map = new_map;
     map->fd_size = size;
     return map;
