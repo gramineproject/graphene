@@ -369,8 +369,8 @@ static inline void __drop_vma (struct shim_vma * vma)
 static inline void
 __assert_vma_flags (const struct shim_vma * vma, int flags)
 {
-    if (!(vma->flags & VMA_UNMAPPED) &&
-        VMA_TYPE(vma->flags) != VMA_TYPE(flags)) {
+    if (!(vma->flags & VMA_UNMAPPED)
+            && VMA_TYPE(vma->flags) != VMA_TYPE(flags)) {
         debug("Check vma flag failure: vma flags %x, checked flags %x\n",
               vma->flags, flags);
         bug();
