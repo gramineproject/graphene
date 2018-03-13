@@ -338,8 +338,6 @@ void * malloc (size_t size)
     void * mem = slab_alloc(slab_mgr, size);
 #endif
 
-    assert(mem != (void *) 0xdeadbeef);
-
 #ifdef SLAB_DEBUG_PRINT
     debug("malloc(%d) = %p (%s:%d)\n", size, mem, file, line);
 #endif
