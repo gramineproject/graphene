@@ -960,9 +960,7 @@ static int chroot_readdir (struct shim_dentry * dent,
 
     chroot_update_ino(dent);
     const char * uri = qstrgetstr(&data->host_uri);
-
-    if (!strpartcmp_static(uri, "dir:"))
-        bug();
+    assert(strpartcmp_static(uri, "dir:"));
 
     PAL_HANDLE pal_hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!pal_hdl)
@@ -972,7 +970,7 @@ static int chroot_readdir (struct shim_dentry * dent,
     char * buf = malloc(buf_size);
     if (!buf) {
         ret = -ENOMEM;
-        goto out;
+        goto out_hdl;
     }
 
     /*
@@ -1076,8 +1074,8 @@ retry_read:
     *dirent = dbuf;
 
 out:
-    if (buf)
-        free(buf);
+    free(buf);
+out_hdl:
     DkObjectClose(pal_hdl);
     return ret;
 }

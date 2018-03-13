@@ -43,6 +43,7 @@
  * held. No reference counting needed in this data structure.
  */
 DEFINE_LIST(shim_vma);
+/* struct shim_vma tracks the area of [start, end) */
 struct shim_vma {
     LIST_TYPE(shim_vma)     list;
     void *                  start;
@@ -174,6 +175,11 @@ static inline void __assert_vma_list (void)
     }
 }
 
+/*
+ * __lookup_vma() returns the VMA that contains the address; otherwise,
+ * returns NULL. "pprev" returns the highest VMA below the address.
+ * vma_list_lock must be held when calling this function.
+ */
 static inline struct shim_vma *
 __lookup_vma (void * addr, struct shim_vma ** pprev)
 {
@@ -197,6 +203,11 @@ out:
     return vma;
 }
 
+/*
+ * __insert_vma() places "vma" after "prev", or at the beginning of
+ * vma_list if "prev" is NULL. vma_list_lock must be held when calling
+ * this function.
+ */
 static inline void
 __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
@@ -216,6 +227,11 @@ __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
         listp_add(vma, &vma_list, list);
 }
 
+/*
+ * __remove_vma() removes "vma" after "prev", or at the beginnning of
+ * vma_list if "prev" is NULL. vma_list_lock must be held when calling
+ * this function.
+ */
 static inline void
 __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
 {

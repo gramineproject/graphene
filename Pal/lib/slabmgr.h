@@ -408,7 +408,7 @@ static inline size_t slab_get_buf_size(SLAB_MGR mgr, const void* ptr)
     }
 
     if (level >= SLAB_LEVEL) {
-        pal_printf("Heap corruption detected: invalid heap level %ud\n", level);
+        pal_printf("Heap corruption detected: invalid heap level %u\n", level);
         __abort();
     }
 

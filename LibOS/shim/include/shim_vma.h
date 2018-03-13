@@ -39,6 +39,10 @@ struct shim_handle;
 
 #define VMA_COMMENT_LEN     16
 
+/*
+ * struct shim_vma_val is the published version of struct shim_vma
+ * (struct shim_vma is defined in bookkeep/shim_vma.c).
+ */
 struct shim_vma_val {
     void *                  addr;
     uint64_t                length;
