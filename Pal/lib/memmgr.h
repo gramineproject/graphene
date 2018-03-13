@@ -232,7 +232,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
         INIT_LIST_HEAD(area, __list);
 
         /* There can be concurrent operations to extend the manager. In case
-         * someone has already enlarge the space, we just add the new area to
+         * someone has already enlarged the space, we just add the new area to
          * the list for later use. */
         listp_add(area, &mgr->area_list, __list);
         if (mgr_size == mgr->size) /* check if the size has changed */

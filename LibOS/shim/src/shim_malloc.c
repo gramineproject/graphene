@@ -367,6 +367,13 @@ void * realloc(void * ptr, size_t new_size)
     assert(!MEMORY_MIGRATED(ptr));
 
     size_t old_size = slab_get_buf_size(slab_mgr, ptr);
+
+    /*
+     * TODO: this realloc() implementation follows the GLIBC design, which
+     * will avoid reallocation when the buffer is large enough. Potentially
+     * this design can cause memory draining if user resizes an extremely
+     * large object to much smaller.
+     */
     if (old_size >= new_size)
         return ptr;
 
@@ -375,7 +382,7 @@ void * realloc(void * ptr, size_t new_size)
         return NULL;
 
     memcpy(new_buf, ptr, old_size);
-    memset(new_buf + old_size, 0, new_size - old_size);
+    /* ralloc() does not zero the rest of the object */
     free(ptr);
     return new_buf;
 }
