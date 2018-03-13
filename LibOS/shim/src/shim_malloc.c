@@ -338,6 +338,8 @@ void * malloc (size_t size)
     void * mem = slab_alloc(slab_mgr, size);
 #endif
 
+    assert(mem != (void *) 0xdeadbeef);
+
 #ifdef SLAB_DEBUG_PRINT
     debug("malloc(%d) = %p (%s:%d)\n", size, mem, file, line);
 #endif
@@ -360,15 +362,18 @@ void * calloc (size_t nmemb, size_t size)
 }
 extern_alias(calloc);
 
-void* realloc(void* ptr, size_t new_size)
+void * realloc(void * ptr, size_t new_size)
 {
-    // TODO: This function should be optimized to avoid memcpy when buffer
-    // expansion is possible.
     size_t old_size = slab_get_buf_size(slab_mgr, ptr);
-    void* new_buf = malloc(new_size);
+    if (old_size >= new_size)
+        return ptr;
+
+    void * new_buf = malloc(new_size);
     if (!new_buf)
         return NULL;
-    memcpy(new_buf, ptr, new_size < old_size ? new_size : old_size);
+
+    memcpy(new_buf, ptr, old_size);
+    memset(new_buf + old_size, 0, new_size - old_size);
     free(ptr);
     return new_buf;
 }

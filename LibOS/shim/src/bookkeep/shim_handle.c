@@ -628,13 +628,13 @@ static struct shim_handle_map * __enlarge_handle_map
     if (size <= map->fd_size)
         return map;
 
-    size_t new_size = size * sizeof(*map->map);
-    struct shim_fd_handle ** new_map = realloc(map->map, new_size);
+    struct shim_fd_handle ** new_map =
+            realloc(map->map, sizeof(map->map[0]) * size);
+
     if (!new_map)
         return NULL;
 
-    size_t copy_size = sizeof(*map->map) * map->fd_size;
-    memset(map->map + copy_size, 0, new_size - copy_size);
+    map->map = new_map;
     map->fd_size = size;
     return map;
 }
