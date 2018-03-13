@@ -603,7 +603,7 @@ void dup_fd_handle (struct shim_handle_map * map,
 static struct shim_handle_map * get_new_handle_map (FDTYPE size)
 {
     struct shim_handle_map * handle_map =
-        calloc(1, sizeof(struct shim_handle_map));
+                    malloc(sizeof(struct shim_handle_map));
 
     if (!handle_map)
         return NULL;

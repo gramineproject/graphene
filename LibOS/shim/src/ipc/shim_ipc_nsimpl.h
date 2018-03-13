@@ -381,7 +381,7 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
     }
 
     if (!r->subranges) {
-        r->subranges = calloc(1, sizeof(struct sub_map));
+        r->subranges = malloc(sizeof(struct sub_map));
         if (!r->subranges) {
             err = -ENOMEM;
             goto failed;
@@ -642,7 +642,7 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
         if (idx < base)
             idx = base;
         if (!r->used) {
-            r->used = calloc(1, sizeof(struct idx_bitmap));
+            r->used = malloc(sizeof(struct idx_bitmap));
             if (!r->used)
                 continue;
         }

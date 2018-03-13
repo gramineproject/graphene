@@ -254,7 +254,7 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
 
 struct shim_process * create_new_process (bool inherit_parent)
 {
-    struct shim_process * new_process = calloc(1, sizeof(struct shim_process));
+    struct shim_process * new_process = malloc(sizeof(struct shim_process));
     if (!new_process)
         return NULL;
 
@@ -307,12 +307,10 @@ int __init_ipc_msg (struct shim_ipc_msg * msg, int code, int size, IDTYPE dest)
 struct shim_ipc_msg * create_ipc_msg (int code, int size, IDTYPE dest)
 {
     struct shim_ipc_msg * msg = malloc(IPC_MSG_SIZE(size));
-    if (!msg)
-        return NULL;
 
-    if (__init_ipc_msg(msg, code, size, dest)) {
+    if (msg && __init_ipc_msg(msg, code, size, dest)) {
         free(msg);
-        return NULL;
+        msg = NULL;
     }
 
     return msg;
@@ -333,12 +331,10 @@ struct shim_ipc_msg_obj *
 create_ipc_msg_duplex (int code, int size, IDTYPE dest)
 {
     struct shim_ipc_msg_obj * msg = malloc(IPC_MSGOBJ_SIZE(size));
-    if (!msg)
-        return NULL;
 
-    if (__init_ipc_msg_duplex(msg, code, size, dest)) {
+    if (msg && __init_ipc_msg_duplex(msg, code, size, dest)) {
         free(msg);
-        return NULL;
+        msg = NULL;
     }
 
     return msg;

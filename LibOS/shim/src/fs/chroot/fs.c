@@ -147,7 +147,7 @@ static inline int concat_uri (char * buffer, int size, int type,
    handle is not linked to a dentry */
 static struct shim_file_data * __create_data (void)
 {
-    struct shim_file_data * data = calloc(1, sizeof(struct shim_file_data));
+    struct shim_file_data * data = malloc(sizeof(struct shim_file_data));
     if (!data)
         return NULL;
 

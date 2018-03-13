@@ -153,7 +153,7 @@ static IDTYPE get_internal_pid (void)
 
 struct shim_thread * alloc_new_thread (void)
 {
-    struct shim_thread * thread = calloc(1, sizeof(struct shim_thread));
+    struct shim_thread * thread = malloc(sizeof(struct shim_thread));
     if (!thread)
         return NULL;
 

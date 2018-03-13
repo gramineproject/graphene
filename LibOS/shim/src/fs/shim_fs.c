@@ -185,40 +185,31 @@ static int __mount_one_other (const char * key, int keylen)
 
 static int __mount_others (void)
 {
-    int ret = 0;
-    char * keybuf = NULL;
-
     if (!root_config)
-        goto out;
+        return 0;
 
     int nkeys;
     ssize_t keybuf_size;
     keybuf_size = get_config_entries_size(root_config, "fs.mount");
     if (keybuf_size < 0)
-        goto out;
+        return 0;
 
-    keybuf = malloc(keybuf_size);
-    if (!keybuf) {
-        ret = -ENOMEM;
-        goto out;
-    }
+    char * keybuf = __alloca(keybuf_size);
     nkeys = get_config_entries(root_config, "fs.mount", keybuf, keybuf_size);
 
     if (nkeys <= 0)
-        goto out;
+        return 0;
 
     const char * key = keybuf, * next = NULL;
     for (int n = 0 ; n < nkeys ; key = next, n++) {
         for (next = key ; *next ; next++);
         next++;
-        ret = __mount_one_other(key, next - key - 1);
+        int ret = __mount_one_other(key, next - key - 1);
         if (ret < 0)
-            goto out;
+            return ret;
     }
 
-out:
-    free(keybuf);
-    return ret;
+    return 0;
 }
 
 int init_mount_root (void)
