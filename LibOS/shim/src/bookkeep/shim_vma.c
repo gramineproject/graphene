@@ -566,7 +566,7 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
             if (tail) {
                 __insert_vma(tail, cur); /* insert "tail" after "cur" */
                 cur = tail; /* "tail" is the new "cur" */
-                /* "next" is the same */
+                break;
             }
         } else if (cur->start >= end) {
             /* __shrink_vma() only creates a new VMA when the beginning of the
