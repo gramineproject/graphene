@@ -806,7 +806,7 @@ int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
 
 static void * cp_alloc (struct shim_cp_store * store, void * addr, int size)
 {
-    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
+    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL|VMA_CP;
 
     if (addr) {
         // Caller specified an exact region to alloc.
@@ -1051,13 +1051,14 @@ err:
     return ret;
 }
 
+#define CP_FLAGS  (MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL|VMA_CP)
+
 int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 {
     ptr_t base = (ptr_t) hdr->hdr.addr;
     int   size = hdr->hdr.size;
     PAL_PTR mapaddr;
     PAL_NUM mapsize;
-    unsigned long mapoff;
     long rebase;
     bool use_gipc = !!hdr->gipc.uri[0];
     PAL_HANDLE gipc_store;
@@ -1069,22 +1070,37 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
     if (base && lookup_overlap_vma((void *) base, size, NULL) == -ENOENT) {
         mapaddr = (PAL_PTR) ALIGN_DOWN(base);
         mapsize = (PAL_PTR) ALIGN_UP(base + size) - mapaddr;
-        mapoff  = base - (ptr_t) mapaddr;
-    } else {
-        mapaddr = (PAL_PTR) 0;
-        mapsize = ALIGN_UP(size);
-        mapoff  = 0;
+
+        /* Need to create VMA before allocation */
+        ret = bkeep_mmap((void *) mapaddr, mapsize,
+                         PROT_READ|PROT_WRITE, CP_FLAGS,
+                         NULL, 0, "cp");
+
+        if (ret < 0)
+            base = (ptr_t) NULL;
+    }
+
+    if (!base) {
+        base = (ptr_t) bkeep_unmapped_any(ALIGN_UP(size),
+                                          PROT_READ|PROT_WRITE,
+                                          CP_FLAGS,
+                                          NULL, 0, "cp");
+        if (!base)
+            return -ENOMEM;
+
+        mapaddr = (PAL_PTR) base;
+        mapsize = (PAL_NUM) ALIGN_UP(size);
     }
 
     BEGIN_PROFILE_INTERVAL();
 
+    PAL_FLG pal_prot = PAL_PROT_READ|PAL_PROT_WRITE;
     if (use_gipc) {
         debug("open gipc store: %s\n", hdr->gipc.uri);
 
-        PAL_FLG mapprot = PAL_PROT_READ|PAL_PROT_WRITE;
         gipc_store = DkStreamOpen(hdr->gipc.uri, 0, 0, 0, 0);
         if (!gipc_store ||
-            !DkPhysicalMemoryMap(gipc_store, 1, &mapaddr, &mapsize, &mapprot))
+            !DkPhysicalMemoryMap(gipc_store, 1, &mapaddr, &mapsize, &pal_prot))
             return -PAL_ERRNO;
 
         SAVE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc);
@@ -1092,12 +1108,12 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         void * mapped = NULL;
 
         for (int tries = 3 ; tries ; tries--) {
-            if ((mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0,
-                                               PAL_PROT_READ|PAL_PROT_WRITE)))
+            mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, pal_prot);
+            if (mapped)
                 break;
 
             debug("cannot map address %p-%p\n", mapaddr, mapaddr + mapsize);
-            ret =-PAL_ERRNO;
+            ret = -PAL_ERRNO;
             mapaddr = NULL;
         }
 
@@ -1107,14 +1123,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         mapaddr = mapped;
     }
 
-    bkeep_mmap((void *) mapaddr, mapsize,
-               PROT_READ|PROT_WRITE,
-               MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-               NULL, 0, NULL);
-
-    base = (ptr_t) mapaddr + mapoff;
     rebase = (long) base - (long) hdr->hdr.addr;
-    debug("checkpoint loaded at %p\n", base);
 
     if (use_gipc) {
         if ((ret = restore_gipc(gipc_store, &hdr->gipc, base, rebase)) < 0)

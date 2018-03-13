@@ -369,8 +369,8 @@ static inline void __drop_vma (struct shim_vma * vma)
 static inline void
 __assert_vma_flags (const struct shim_vma * vma, int flags)
 {
-    if (!(vma->flags & VMA_UNMAPPED)
-          && (vma->flags & VMA_INTERNAL) != (flags & VMA_INTERNAL)) {
+    if (!(vma->flags & VMA_UNMAPPED) &&
+        VMA_TYPE(vma->flags) != VMA_TYPE(flags)) {
         debug("Check vma flag failure: vma flags %x, checked flags %x\n",
               vma->flags, flags);
         bug();
@@ -549,12 +549,8 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
         if (!test_vma_overlap(cur, start, end))
             break;
 
-        if ((cur->flags & VMA_INTERNAL) != (flags & VMA_INTERNAL)) {
-            /* For now, just shout loudly. */
-            sys_printf("**** Forbidden memory deallocation at %p-%p ****\n",
-                       cur->start, cur->end);
+        if (VMA_TYPE(cur->flags) != VMA_TYPE(flags))
             return -EACCES;
-        }
 
         /* If [start, end) contains the VMA, just drop the VMA. */
         if (start <= cur->start && cur->end <= end) {
@@ -603,7 +599,7 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
     if (!length)
         return -EINVAL;
 
-    debug("bkeep_unmmap: %p-%p\n", addr, addr + length);
+    debug("bkeep_munmap: %p-%p\n", addr, addr + length);
 
     lock(vma_list_lock);
     struct shim_vma * prev = NULL;
@@ -636,12 +632,9 @@ static int __bkeep_mprotect (struct shim_vma * prev,
         if (!test_vma_overlap(cur, start, end))
             break;
 
-        if ((cur->flags & VMA_INTERNAL) != (flags & VMA_INTERNAL)) {
+        if (VMA_TYPE(cur->flags) != VMA_TYPE(flags))
             /* For now, just shout loudly. */
-            sys_printf("**** Forbidden memory protection at %p-%p ****\n",
-                       cur->start, cur->end);
             return -EACCES;
-        }
 
         /* If protection doesn't change anything, move on to the next */
         if (cur->prot == prot)
@@ -913,7 +906,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t size)
     lock(vma_list_lock);
 
     listp_for_each_entry(vma, &vma_list, list) {
-        if (vma->flags & VMA_INTERNAL)
+        if (VMA_TYPE(vma->flags))
             continue;
 
         if (cnt == size) {
@@ -1184,7 +1177,7 @@ void debug_print_vma_list (void)
         sys_printf("[%p-%p] prot=%08x flags=%08x%s%s offset=%d%s%s%s%s\n",
                    vma->start, vma->end,
                    vma->prot,
-                   vma->flags & ~(VMA_INTERNAL|VMA_UNMAPPED|VMA_TAINTED),
+                   vma->flags & ~(VMA_INTERNAL|VMA_UNMAPPED|VMA_TAINTED|VMA_CP),
                    type, name,
                    vma->offset,
                    vma->flags & VMA_INTERNAL ? " (internal)" : "",

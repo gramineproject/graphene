@@ -56,11 +56,16 @@ struct shim_vma_val {
 /* an additional flag */
 #define VMA_UNMAPPED 0x10000000   /* vma is kept for bookkeeping, but the
                                      memory is not actually allocated */
-#define VMA_INTERNAL 0x20000000
+#define VMA_INTERNAL 0x20000000   /* vma is used internally */
 
 #define VMA_TAINTED  0x40000000   /* vma has been protected as writeable,
                                      so it has to be checkpointed during
                                      migration */
+
+#define VMA_CP       0x80000000   /* vma is used for dumping checkpoint
+                                     data */
+
+#define VMA_TYPE(flags)     ((flags) & (VMA_INTERNAL | VMA_CP))
 
 #define NEED_MIGRATE_MEMORY(vma)                                \
         (((vma)->flags & VMA_TAINTED || !(vma)->file) &&        \
