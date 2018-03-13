@@ -434,37 +434,38 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
  * (2) [start, end) overlaps with the ending of the VMA.
  * (3) [start, end) overlaps with the middle of the VMA. In this case, the VMA
  *     is splitted into two. The new VMA is stored in 'tailptr'.
+ * In either of these cases, "vma" is the only one changed among vma_list.
  */
-static inline void __shrink_vma (struct shim_vma * cur, void * start, void * end,
+static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end,
                                  struct shim_vma ** tailptr)
 {
     /*
-     * Dealing with the head: if the starting address of "cur" is in
+     * Dealing with the head: if the starting address of "vma" is in
      * [start, end), move the starting address.
      */
-    if (test_vma_startin(cur, start, end)) {
-        if (end < cur->end) {
-            if (cur->file) /* must adjust offset */
-                cur->offset += end - cur->start;
-            cur->start = end;
+    if (test_vma_startin(vma, start, end)) {
+        if (end < vma->end) {
+            if (vma->file) /* must adjust offset */
+                vma->offset += end - vma->start;
+            vma->start = end;
         } else {
-            if (cur->file) /* must adjust offset */
-                cur->offset += cur->end - cur->start;
-            cur->start = cur->end;
+            if (vma->file) /* must adjust offset */
+                vma->offset += vma->end - vma->start;
+            vma->start = vma->end;
         }
 
         goto finish;
     }
 
     /*
-     * Dealing with the tail: if the ending address of "cur" is in
+     * Dealing with the tail: if the ending address of "vma" is in
      * [start, end), move the ending address.
      */
-    if (test_vma_endin(cur, start, end)) {
-        if (start > cur->start) {
-            cur->end = start;
+    if (test_vma_endin(vma, start, end)) {
+        if (start > vma->start) {
+            vma->end = start;
         } else {
-            cur->end = cur->start;
+            vma->end = vma->start;
         }
         /* offset is not affected */
 
@@ -472,12 +473,12 @@ static inline void __shrink_vma (struct shim_vma * cur, void * start, void * end
     }
 
     /*
-     * If [start, end) is inside the range of "cur", divide up
+     * If [start, end) is inside the range of "vma", divide up
      * the VMA. A new VMA is created to represent the remaining tail.
      */
-    if (test_vma_contain(cur, start, end)) {
-        void * old_end = cur->end;
-        cur->end = start;
+    if (test_vma_contain(vma, start, end)) {
+        void * old_end = vma->end;
+        vma->end = start;
 
         /* Remaining space after [start, end), creating a new VMA */
         if (old_end > end) {
@@ -485,16 +486,16 @@ static inline void __shrink_vma (struct shim_vma * cur, void * start, void * end
 
             tail->start = end;
             tail->end   = old_end;
-            tail->prot  = cur->prot;
-            tail->flags = cur->flags;
-            tail->file  = cur->file;
+            tail->prot  = vma->prot;
+            tail->flags = vma->flags;
+            tail->file  = vma->file;
             if (tail->file) {
                 get_handle(tail->file);
-                tail->offset = cur->offset + (tail->start - cur->start);
+                tail->offset = vma->offset + (tail->start - vma->start);
             } else {
                 tail->offset = 0;
             }
-            memcpy(tail->comment, cur->comment, VMA_COMMENT_LEN);
+            memcpy(tail->comment, vma->comment, VMA_COMMENT_LEN);
             *tailptr = tail;
         }
 
@@ -505,8 +506,8 @@ static inline void __shrink_vma (struct shim_vma * cur, void * start, void * end
     bug();
 
 finish:
-    assert(!test_vma_overlap(cur, start, end));
-    assert(cur->start < cur->end);
+    assert(!test_vma_overlap(vma, start, end));
+    assert(vma->start < vma->end);
 }
 
 static int __bkeep_munmap (struct shim_vma ** pprev,
