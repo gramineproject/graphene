@@ -92,7 +92,7 @@ struct shim_cp_entry
 struct shim_mem_entry {
     struct shim_mem_entry * prev;
     void * addr;
-    int size;
+    size_t size;
     void ** paddr;
     int prot;
     void * data;

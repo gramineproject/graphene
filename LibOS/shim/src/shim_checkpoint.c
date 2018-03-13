@@ -468,12 +468,12 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         }
     }
 
-    int total_bytes = store->offset;
-    int bytes = 0;
+    size_t total_bytes = store->offset;
+    size_t bytes = 0;
 
     do {
-        int ret = DkStreamWrite(stream, 0, total_bytes - bytes,
-                                (void *) store->base + bytes, NULL);
+        size_t ret = DkStreamWrite(stream, 0, total_bytes - bytes,
+                                   (void *) store->base + bytes, NULL);
 
         if (!ret)
             return -PAL_ERRNO;
@@ -484,17 +484,20 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
     ADD_PROFILE_OCCURENCE(migrate_send_on_stream, total_bytes);
 
     for (int i = 0 ; i < mem_nentries ; i++) {
-        int mem_size = mem_entries[i]->size;
+        size_t mem_size = mem_entries[i]->size;
         void * mem_addr = mem_entries[i]->addr;
         bytes = 0;
         do {
-            int ret = DkStreamWrite(stream, 0, mem_size - bytes,
-                                    mem_addr + bytes, NULL);
+            size_t ret = DkStreamWrite(stream, 0, mem_size - bytes,
+                                       mem_addr + bytes, NULL);
             if (!ret)
                 return -PAL_ERRNO;
 
             bytes += ret;
         } while (bytes < mem_entries[i]->size);
+
+        if (!(mem_entries[i]->prot & PAL_PROT_READ))
+            DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot);
 
         mem_entries[i]->size = mem_size;
         ADD_PROFILE_OCCURENCE(migrate_send_on_stream, mem_size);

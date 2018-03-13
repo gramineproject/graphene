@@ -249,18 +249,18 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     /* preserve a non-readable, non-writeable page below the user
        stack to stop user program to clobber other vmas */
     void * stack = NULL;
+    int flags = STACK_FLAGS|(user ? 0 : VMA_INTERNAL);
 
     if (user) {
-        stack =  bkeep_unmapped_heap(size + protect_size,
-                                     PROT_READ|PROT_WRITE, STACK_FLAGS,
-                                     NULL, 0, "stack");
+        stack = bkeep_unmapped_heap(size + protect_size, PROT_NONE,
+                                    flags, NULL, 0, "stack");
 
         if (!stack)
             return NULL;
 
         stack = (void *)
             DkVirtualMemoryAlloc(stack, size + protect_size,
-                                 0, PAL_PROT_READ|PAL_PROT_WRITE);
+                                 0, PAL_PROT_NONE);
     } else {
         stack = system_malloc(size + protect_size);
     }
@@ -271,18 +271,11 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     ADD_PROFILE_OCCURENCE(alloc_stack, size + protect_size);
     INC_PROFILE_OCCURENCE(alloc_stack_count);
 
-    if (protect_size &&
-        !DkVirtualMemoryProtect(stack, protect_size, PAL_PROT_NONE))
-        return NULL;
-
     stack += protect_size;
+    DkVirtualMemoryProtect(stack, size, PAL_PROT_READ|PAL_PROT_WRITE);
 
-    if (user) {
-        if (protect_size &&
-            bkeep_mmap(stack - protect_size, protect_size, 0,
-                       STACK_FLAGS|VMA_INTERNAL, NULL, 0, "stack-red") < 0)
-            return NULL;
-    }
+    if (bkeep_mprotect(stack, size, PROT_READ|PROT_WRITE, flags) < 0)
+        return NULL;
 
     debug("allocated stack at %p (size = %d)\n", stack, size);
     return stack;

@@ -549,6 +549,13 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
         if (!test_vma_overlap(cur, start, end))
             break;
 
+        if ((cur->flags & VMA_INTERNAL) != (flags & VMA_INTERNAL)) {
+            /* For now, just shout loudly. */
+            sys_printf("**** Forbidden memory deallocation at %p-%p ****\n",
+                       cur->start, cur->end);
+            return -EACCES;
+        }
+
         /* If [start, end) contains the VMA, just drop the VMA. */
         if (start <= cur->start && cur->end <= end) {
             __remove_vma(cur, prev);
@@ -629,6 +636,13 @@ static int __bkeep_mprotect (struct shim_vma * prev,
         if (!test_vma_overlap(cur, start, end))
             break;
 
+        if ((cur->flags & VMA_INTERNAL) != (flags & VMA_INTERNAL)) {
+            /* For now, just shout loudly. */
+            sys_printf("**** Forbidden memory protection at %p-%p ****\n",
+                       cur->start, cur->end);
+            return -EACCES;
+        }
+
         /* If protection doesn't change anything, move on to the next */
         if (cur->prot == prot)
             goto cont;
@@ -677,7 +691,6 @@ static int __bkeep_mprotect (struct shim_vma * prev,
         __insert_vma(new, prev);
         assert(!prev || prev->end <= new->end);
         assert(new->start < new->end);
-        assert(new->end <= cur->start);
 
 cont:
         prev = cur;
@@ -962,8 +975,6 @@ BEGIN_CP_FUNC(vma)
 
         void *   send_addr = vma->addr;
         uint64_t send_size = vma->length;
-        bool protected = false;
-
         if (vma->file) {
             /*
              * Chia-Che 8/13/2017:
@@ -992,24 +1003,21 @@ BEGIN_CP_FUNC(vma)
         if (!send_size)
             goto no_mem;
 
-        if (store->use_gipc) {
 #if HASH_GIPC == 1
-            if (!(pal_prot & PAL_PROT_READ)) {
-                protected = true;
-                DkVirtualMemoryProtect(send_addr, send_size,
-                                       pal_prot|PAL_PROT_READ);
-            }
-#endif /* HASH_GIPC == 1 */
+        if (!(pal_prot & PAL_PROT_READ)) {
+#else
+        if (!store->use_gipc && !(pal_prot & PAL_PROT_READ)) {
+#endif
+            /* Make the area readable */
+            DkVirtualMemoryProtect(send_addr, send_size,
+                                   pal_prot|PAL_PROT_READ);
+        }
+
+        if (store->use_gipc) {
             struct shim_gipc_entry * gipc;
             DO_CP_SIZE(gipc, send_addr, send_size, &gipc);
             gipc->mem.prot = pal_prot;
         } else {
-            if (!(pal_prot & PROT_READ)) {
-                protected = true;
-                DkVirtualMemoryProtect(send_addr, send_size,
-                                       pal_prot|PAL_PROT_READ);
-            }
-
             struct shim_mem_entry * mem;
             DO_CP_SIZE(memory, send_addr, send_size, &mem);
             mem->prot = pal_prot;
@@ -1017,8 +1025,10 @@ BEGIN_CP_FUNC(vma)
 
         need_mapped = vma->addr + vma->length;
 
-        if (protected)
+#if HASH_GIPC == 1
+        if (store->use_gipc && !(pal_prot & PAL_PROT_READ))
             DkVirtualMemoryProtect(send_addr, send_size, pal_prot);
+#endif
 
 no_mem:
         ADD_CP_FUNC_ENTRY(off);
