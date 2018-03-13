@@ -66,7 +66,9 @@ DEFINE_LISTP(mem_obj);
 typedef struct mem_mgr {
     LISTP_TYPE(mem_area) area_list;
     LISTP_TYPE(mem_obj) free_list;
+    size_t size;
     MEM_OBJ_TYPE * obj, * obj_top;
+    MEM_AREA active_area;
 } MEM_MGR_TYPE, * MEM_MGR;
 
 #define __SUM_OBJ_SIZE(size) (sizeof(MEM_OBJ_TYPE) * (size))
@@ -107,10 +109,12 @@ static inline int init_align_up (int size)
 }
 #endif
 
-static inline void __set_free_mem_area (MEM_AREA area, MEM_MGR mgr, int size)
+static inline void __set_free_mem_area (MEM_AREA area, MEM_MGR mgr)
 {
+    mgr->size += area->size;
     mgr->obj = area->objs;
     mgr->obj_top = area->objs + area->size;
+    mgr->active_area = area;
 }
 
 static inline MEM_MGR create_mem_mgr (unsigned int size)
@@ -131,7 +135,7 @@ static inline MEM_MGR create_mem_mgr (unsigned int size)
     listp_add(area, &mgr->area_list, __list);
 
     INIT_LISTP(&mgr->free_list);
-    __set_free_mem_area(area, mgr, size);
+    __set_free_mem_area(area, mgr);
 
     return mgr;
 }
@@ -149,7 +153,7 @@ static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
     area->size = size;
     INIT_LIST_HEAD(area, __list);
     listp_add(area, &mgr->area_list, __list);
-    __set_free_mem_area(area, mgr, size);
+    __set_free_mem_area(area, mgr);
     system_unlock();
     return mgr;
 }
@@ -200,6 +204,16 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
 
     system_lock();
     if (mgr->obj == mgr->obj_top && listp_empty(&mgr->free_list)) {
+        size_t mgr_size = mgr->size;
+        MEM_AREA area;
+
+        /* If there is a previously allocated area, just activate it. */
+        area = listp_prev_entry(mgr->active_area, &mgr->area_list, __list);
+        if (area) {
+            __set_free_mem_area(area, mgr);
+            goto alloc;
+        }
+
         system_unlock();
 
         if (!size)
@@ -207,7 +221,6 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
 
         /* There can be concurrent attempt to try to enlarge the
            allocator, but we prevent deadlocks or crashes. */
-        MEM_AREA area;
         area = (MEM_AREA) system_malloc(sizeof(MEM_AREA_TYPE) +
                                         __SUM_OBJ_SIZE(size));
         if (!area)
@@ -216,10 +229,16 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
         system_lock();
         area->size = size;
         INIT_LIST_HEAD(area, __list);
+
+        /* There can be concurrent operations to extend the manager. In case
+         * someone has already enlarge the space, we just add the new area to
+         * the list for later use. */
         listp_add(area, &mgr->area_list, __list);
-        __set_free_mem_area(area, mgr, size);
+        if (mgr_size == mgr->size) /* check if the size has changed */
+            __set_free_mem_area(area, mgr);
     }
 
+alloc:
     if (!listp_empty(&mgr->free_list)) {
         mobj = listp_first_entry(&mgr->free_list, MEM_OBJ_TYPE, __list);
         listp_del_init(mobj, &mgr->free_list, __list);

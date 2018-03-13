@@ -149,8 +149,9 @@ DEFINE_LISTP(slab_area);
 typedef struct slab_mgr {
     LISTP_TYPE(slab_area) area_list[SLAB_LEVEL];
     LISTP_TYPE(slab_obj) free_list[SLAB_LEVEL];
-    unsigned int size[SLAB_LEVEL];
+    size_t size[SLAB_LEVEL];
     void * addr[SLAB_LEVEL], * addr_top[SLAB_LEVEL];
+    SLAB_AREA active_area[SLAB_LEVEL];
 } SLAB_MGR_TYPE, * SLAB_MGR;
 
 typedef struct __attribute__((packed)) large_mem_obj {
@@ -233,6 +234,7 @@ static inline void __set_free_slab_area (SLAB_AREA area, SLAB_MGR mgr,
     mgr->addr[level] = (void *) area->raw;
     mgr->addr_top[level] = (void *) area->raw + (area->size * slab_size);
     mgr->size[level] += area->size;
+    mgr->active_area[level] = area;
 }
 
 static inline SLAB_MGR create_slab_mgr (void)
@@ -301,16 +303,39 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
      * every time it grows.  The assumption if we get this far is that
      * mgr->addr == mgr->top_addr */
     assert(mgr->addr[level] == mgr->addr_top[level]);
-    
+
     size_t size = mgr->size[level];
-    SLAB_AREA area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
-    if (!area)
+    SLAB_AREA area;
+
+    /* If there is a previously allocated area, just activate it. */
+    area = listp_prev_entry(mgr->active_area[level], &mgr->area_list[level], __list);
+    if (area) {
+        __set_free_slab_area(area, mgr, level);
+        return 0;
+    }
+
+    /* system_malloc() may be blocking, so we release the lock before
+     * allocating more memory */
+    system_unlock();
+
+    area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
+    if (!area) {
+        system_lock();
         return -ENOMEM;
+    }
+
+    system_lock();
 
     area->size = size;
     INIT_LIST_HEAD(area, __list);
+
+    /* There can be concurrent operations to extend the SLAB manager. In case
+     * someone has already enlarge the space, we just add the new area to the
+     * list for later use. */
     listp_add(area, &mgr->area_list[level], __list);
-    __set_free_slab_area(area, mgr, level);
+    if (mgr->size[level] == size) /* check if the size has changed */
+        __set_free_slab_area(area, mgr, level);
+
     return 0;
 }
 
