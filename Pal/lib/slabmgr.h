@@ -330,7 +330,7 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
     INIT_LIST_HEAD(area, __list);
 
     /* There can be concurrent operations to extend the SLAB manager. In case
-     * someone has already enlarge the space, we just add the new area to the
+     * someone has already enlarged the space, we just add the new area to the
      * list for later use. */
     listp_add(area, &mgr->area_list[level], __list);
     if (mgr->size[level] == size) /* check if the size has changed */
