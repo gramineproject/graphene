@@ -217,7 +217,7 @@ static int __mount_others (void)
 
 out:
     free(keybuf);
-    return 0;
+    return ret;
 }
 
 int init_mount_root (void)
