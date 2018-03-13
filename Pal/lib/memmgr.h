@@ -127,6 +127,7 @@ static inline MEM_MGR create_mem_mgr (unsigned int size)
         return NULL;
 
     mgr = (MEM_MGR) mem;
+    mgr->size = 0;
     area = (MEM_AREA) (mem + sizeof(MEM_MGR_TYPE));
     area->size = size;
 
