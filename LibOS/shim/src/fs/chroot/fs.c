@@ -648,8 +648,10 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     int flags = MAP_FILE | MAP_SHARED | VMA_INTERNAL;
     int prot = PROT_READ;
 
-    if (hdl->acc_mode & MAY_WRITE)
+    if (hdl->acc_mode & MAY_WRITE) {
+        flags = MAP_FILE | MAP_PRIVATE | VMA_INTERNAL;
         prot |= PROT_WRITE;
+    }
 
     while (mapoff + maplen < file->marker + size)
         maplen *= 2;
