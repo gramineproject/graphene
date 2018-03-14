@@ -645,11 +645,11 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     uint64_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
     uint64_t mapoff = file->marker & ~(bufsize - 1);
     uint64_t maplen = bufsize;
-    int flags = MAP_FILE | MAP_SHARED | VMA_INTERNAL;
+    int flags = MAP_FILE | MAP_PRIVATE | VMA_INTERNAL;
     int prot = PROT_READ;
 
     if (hdl->acc_mode & MAY_WRITE) {
-        flags = MAP_FILE | MAP_PRIVATE | VMA_INTERNAL;
+        flags = MAP_FILE | MAP_SHARED | VMA_INTERNAL;
         prot |= PROT_WRITE;
     }
 
