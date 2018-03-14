@@ -822,8 +822,8 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
          * Here we use a strategy to reduce internal fragmentation of virtual
          * memory space. Because we need a relatively large, continuous space
          * for dumping the checkpoint data, internal fragmentation can cause
-         * the process to drain the virtual address space after forking a fair
-         * of times. The previous space used for checkpoint may be fragmented
+         * the process to drain the virtual address space after forking a few
+         * times. The previous space used for checkpoint may be fragmented
          * at the next fork.
          *
          * A simple trick we use here is to reserve some space right after the
