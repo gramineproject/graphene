@@ -186,7 +186,12 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     void * umem;
     int ret;
 
-    if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
+    /*
+     * If the file is listed in the manifest as an "allowed" file,
+     * we allow mapping the file outside the enclave, if the library OS
+     * does not request a specific address.
+     */
+    if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
         if (!ret)
