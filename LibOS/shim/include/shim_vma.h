@@ -80,6 +80,12 @@ void free_vma_vals (struct shim_vma_val * vmas, size_t count)
 
 #define VMA_TYPE(flags)     ((flags) & (VMA_INTERNAL | VMA_CP))
 
+/*
+ * We distinguish checkpoint VMAs from user VMAs and other internal VMAs,
+ * to prevent corrupting internal data when creating processes.
+ */
+#define CP_VMA_FLAGS  (MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL|VMA_CP)
+
 #define NEED_MIGRATE_MEMORY(vma)                                \
         (((vma)->flags & VMA_TAINTED || !(vma)->file) &&        \
         !((vma)->flags & VMA_UNMAPPED))

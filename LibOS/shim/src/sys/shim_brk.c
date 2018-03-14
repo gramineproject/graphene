@@ -98,16 +98,25 @@ int init_brk_region (void * brk_region)
 
             brk_region = vma.addr + vma.length;
         }
+
+        /*
+         * Create the bookkeeping before allocating the brk region.
+         * The bookkeeping should never fail because we already confirm
+         * the availability.
+         */
+        if (bkeep_mmap(brk_region, brk_max_size, PROT_READ|PROT_WRITE,
+                       flags|VMA_UNMAPPED, NULL, 0, "brk") < 0)
+            bug();
     } else {
         brk_region = bkeep_unmapped_heap(brk_max_size, PROT_READ|PROT_WRITE,
-                                         flags|VMA_UNMAPPED, NULL, 0, "heap");
+                                         flags|VMA_UNMAPPED, NULL, 0, "brk");
         if (!brk_region)
             return -ENOMEM;
     }
 
     void * end_brk_region = NULL;
 
-    // brk region assigned
+    /* Allocate the whole brk region */
     brk_region = (void *) DkVirtualMemoryAlloc(brk_region, brk_max_size, 0,
                                     PAL_PROT_READ|PAL_PROT_WRITE);
 
@@ -129,7 +138,14 @@ int init_brk_region (void * brk_region)
     debug("brk reserved area: %p - %p\n", end_brk_region,
           brk_region + brk_max_size);
 
-    bkeep_mprotect(brk_region, BRK_SIZE, PROT_READ|PROT_WRITE, flags);
+    /*
+     * Create another bookkeeping for the current brk region. The remaing
+     * space will be marked as unmapped so that the library OS can reuse the
+     * space for other purpose.
+     */
+    if (bkeep_mmap(brk_region, BRK_SIZE, PROT_READ|PROT_WRITE, flags,
+                   NULL, 0, "brk") < 0)
+        bug();
 
     return 0;
 }
@@ -185,7 +201,7 @@ unchanged:
 
         bkeep_mmap(region.brk_start, brk_end - region.brk_start,
                    PROT_READ|PROT_WRITE,
-                   MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "heap");
+                   MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "brk");
 
         region.brk_current = brk;
         region.brk_end = brk_end;
