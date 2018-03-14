@@ -633,8 +633,9 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
             file->marker + size <= file->mapoffset + file->mapsize)
             return 0;
 
-        DkStreamUnmap(file->mapbuf, file->mapsize);
-        bkeep_munmap(file->mapbuf, file->mapsize, VMA_INTERNAL);
+        /* Remove the bookkeeping before unmapping the memory */
+        if (!bkeep_munmap(file->mapbuf, file->mapsize, VMA_INTERNAL))
+            DkStreamUnmap(file->mapbuf, file->mapsize);
 
         file->mapbuf    = NULL;
         file->mapoffset = 0;
@@ -642,24 +643,31 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
 
     /* second, reallocate the buffer */
     uint64_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
-    int prot = PAL_PROT_READ;
     uint64_t mapoff = file->marker & ~(bufsize - 1);
-    uint64_t maplen = bufsize;	
+    uint64_t maplen = bufsize;
+    int flags = MAP_FILE | MAP_SHARED | VMA_INTERNAL;
+    int prot = PROT_READ;
 
     if (hdl->acc_mode & MAY_WRITE)
-        prot |= PAL_PROT_WRITE;
+        prot |= PROT_WRITE;
 
     while (mapoff + maplen < file->marker + size)
         maplen *= 2;
 
-    void * mapbuf =
-        (void *) DkStreamMap(hdl->pal_handle, NULL, prot, mapoff, maplen);
+    /* create the bookkeeping before allocating the memory */
+    void * mapbuf = bkeep_unmapped_any(maplen, prot, flags, hdl, mapoff, NULL);
     if (!mapbuf)
+        return -ENOMEM;
+
+    PAL_PTR mapped = DkStreamMap(hdl->pal_handle, mapbuf, PAL_PROT(prot, flags),
+                                 mapoff, maplen);
+
+    if (!mapbuf) {
+        bkeep_munmap(mapbuf, maplen, flags);
         return -PAL_ERRNO;
+    }
 
-    bkeep_mmap(mapbuf, maplen, prot, MAP_FILE|MAP_SHARED|VMA_INTERNAL,
-               hdl, mapoff, NULL);
-
+    assert((void *) mapped == mapbuf);
     file->mapbuf    = mapbuf;
     file->mapoffset = mapoff;
     file->mapsize   = maplen;
