@@ -623,11 +623,10 @@ DEFINE_PROFILE_INTERVAL(pal_child_creation_time,        pal);
 
 DEFINE_PROFILE_CATAGORY(init, );
 DEFINE_PROFILE_INTERVAL(init_randgen,               init);
-DEFINE_PROFILE_INTERVAL(init_heap,                  init);
+DEFINE_PROFILE_INTERVAL(init_vma,                   init);
 DEFINE_PROFILE_INTERVAL(init_slab,                  init);
 DEFINE_PROFILE_INTERVAL(init_str_mgr,               init);
 DEFINE_PROFILE_INTERVAL(init_internal_map,          init);
-DEFINE_PROFILE_INTERVAL(init_vma,                   init);
 DEFINE_PROFILE_INTERVAL(init_fs,                    init);
 DEFINE_PROFILE_INTERVAL(init_dcache,                init);
 DEFINE_PROFILE_INTERVAL(init_handle,                init);
@@ -710,12 +709,11 @@ int shim_init (int argc, void * args, void ** return_stack)
 
     BEGIN_PROFILE_INTERVAL();
     RUN_INIT(init_randgen);
-    RUN_INIT(init_heap);
+    RUN_INIT(init_vma);
     RUN_INIT(init_slab);
     RUN_INIT(read_environs, envp);
     RUN_INIT(init_str_mgr);
     RUN_INIT(init_internal_map);
-    RUN_INIT(init_vma);
     RUN_INIT(init_fs);
     RUN_INIT(init_dcache);
     RUN_INIT(init_handle);

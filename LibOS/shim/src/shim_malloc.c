@@ -25,22 +25,6 @@
  * 
  * When existing slabs are not sufficient, or a large (4k or greater) 
  * allocation is requested, it ends up here (__system_alloc and __system_free).
- * 
- * There are two modes this file executes in: early initialization (before
- * VMAs are available), and post-initialization.  
- * 
- * Before VMAs are available, allocations are tracked in the shim_heap_areas
- * array.  
- *
- * Once VMAs initialized, the contents of shim_heap_areas are added to the VMA
- * list.  In order to reduce the risk of virtual address collisions, the VMA 
- * for the shim_heap_area is never removed, but the pages themselves are
- * freed.   This approach effectively reserves part of the address space for
- * initialization-time bookkeeping.
- * 
- * After initialization, all allocations and frees just call
- * DkVirtualMemoryAlloc and DkVirtualMemory Free, and add/remove VMAs for the
- * results.
  */
 
 #include <shim_internal.h>
@@ -65,197 +49,51 @@ static LOCKTYPE slab_mgr_lock;
 #endif
 
 #define SLAB_CANARY
-#define STARTUP_SIZE    4
+#define STARTUP_SIZE    (16)
 
 #include <slabmgr.h>
 
 static SLAB_MGR slab_mgr = NULL;
 
-#define MIN_SHIM_HEAP_PAGES      64
-#define MAX_SHIM_HEAP_AREAS      32
-
-#define INIT_SHIM_HEAP     256 * allocsize
-
-static int vmas_initialized = 0;
-
-static struct shim_heap {
-    void * start;
-    void * current;
-    void * end;
-} shim_heap_areas[MAX_SHIM_HEAP_AREAS];
-
-static LOCKTYPE shim_heap_lock;
-
 DEFINE_PROFILE_CATAGORY(memory, );
-
-static struct shim_heap * __alloc_enough_heap (size_t size)
-{
-    struct shim_heap * heap = NULL, * first_empty = NULL, * smallest = NULL;
-    size_t smallest_size = 0;
-
-    for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
-        if (shim_heap_areas[i].start) {
-            if (shim_heap_areas[i].end >= shim_heap_areas[i].current + size)
-                return &shim_heap_areas[i];
-
-            if (!smallest ||
-                shim_heap_areas[i].end <=
-                shim_heap_areas[i].current + smallest_size) {
-                smallest = &shim_heap_areas[i];
-                smallest_size = shim_heap_areas[i].end -
-                                shim_heap_areas[i].current;
-            }
-        } else {
-            if (!first_empty)
-                first_empty = &shim_heap_areas[i];
-        }
-
-    if (!heap) {
-        size_t heap_size = MIN_SHIM_HEAP_PAGES * allocsize;
-        void * start = NULL;
-        heap = first_empty ? : smallest;
-        assert(heap);
-
-        while (size > heap_size)
-            heap_size *= 2;
-
-        if (!(start = (void *) DkVirtualMemoryAlloc(NULL, heap_size, 0,
-                                    PAL_PROT_WRITE|PAL_PROT_READ)))
-            return NULL;
-
-        debug("allocate internal heap at %p - %p\n", start, start + heap_size);
-
-        if (heap == smallest && heap->current != heap->end) {
-            DkVirtualMemoryFree(heap->current, heap->end - heap->current);
-            int flags = VMA_INTERNAL;
-            unlock(shim_heap_lock);
-            bkeep_munmap(heap->current, heap->end - heap->current, flags);
-            lock(shim_heap_lock);
-        }
-
-        heap->start = heap->current = start;
-        heap->end = start + heap_size;
-
-        unlock(shim_heap_lock);
-        bkeep_mmap(start, heap_size, PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, "heap");
-        lock(shim_heap_lock);
-    }
-
-    return heap;
-}
 
 /* Returns NULL on failure */
 void * __system_malloc (size_t size)
 {
     size_t alloc_size = ALIGN_UP(size);
     void * addr;
+    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
 
-    lock(shim_heap_lock);
+    /*
+     * If vmas are initialized, we need to request a free address range
+     * using bkeep_unmapped_any().  The current mmap code uses this function
+     * to synchronize all address allocation, via a "publication"
+     * pattern.  It is not safe to just call DkVirtualMemoryAlloc directly
+     * without reserving the vma region first.
+     */
+    addr = bkeep_unmapped_any(alloc_size, PROT_READ|PROT_WRITE, flags,
+                              NULL, 0, "slab");
 
-    if (vmas_initialized) {
-        int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
+    if (!addr)
+        return NULL;
 
-        /*
-         * If vmas are initialized, we need to request a free address range
-         * using bkeep_unmapped_any().  The current mmap code uses this function
-         * to synchronize all address allocation, via a "publication"
-         * pattern.  It is not safe to just call DkVirtualMemoryAlloc directly
-         * without reserving the vma region first.
-         */
-        addr = bkeep_unmapped_any(alloc_size, PROT_READ|PROT_WRITE, flags,
-                                  NULL, 0, "heap");
+    addr = (void *) DkVirtualMemoryAlloc(addr, alloc_size, 0,
+                                         PAL_PROT_WRITE|PAL_PROT_READ);
 
-        if (!addr) {
-            unlock(shim_heap_lock);
-            return NULL;
-        }
-
-        addr = (void *) DkVirtualMemoryAlloc(addr, alloc_size, 0,
-                                             PAL_PROT_WRITE|PAL_PROT_READ);
-        if (!addr) {
-            bkeep_munmap(addr, alloc_size, flags);
-            unlock(shim_heap_lock);
-            return NULL;
-        }
-    } else {
-
-        struct shim_heap * heap = __alloc_enough_heap(alloc_size);
-
-        if (!heap) {
-            unlock(shim_heap_lock);
-            return NULL;
-        }
-
-        addr = heap->current;
-        heap->current += alloc_size;
+    if (!addr) {
+        bkeep_munmap(addr, alloc_size, flags);
+        return NULL;
     }
-
-    unlock(shim_heap_lock);
 
     return addr;
 }
 
 void __system_free (void * addr, size_t size)
 {
-    int in_reserved_area = 0;
+    if (bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL) < 0)
+        return;
+
     DkVirtualMemoryFree(addr, ALIGN_UP(size));
-    int flags = VMA_INTERNAL;
-    for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
-        if (shim_heap_areas[i].start) {
-            /* Here we assume that any allocation from the 
-             * shim_heap_area is a strict inclusion.  Allocations
-             * cannot partially overlap.
-             */
-            if (addr >= shim_heap_areas[i].start
-                && addr <= shim_heap_areas[i].end)
-                in_reserved_area = 1;
-        }
-
-    if (!in_reserved_area)
-        bkeep_munmap(addr, ALIGN_UP(size), flags);
-}
-
-int init_heap (void)
-{
-    create_lock(shim_heap_lock);
-
-    void * start = (void *) DkVirtualMemoryAlloc(NULL, INIT_SHIM_HEAP, 0,
-                                    PAL_PROT_WRITE|PAL_PROT_READ);
-    if (!start)
-        return -ENOMEM;
-
-    debug("allocate internal heap at %p - %p\n", start,
-          start + INIT_SHIM_HEAP);
-
-    shim_heap_areas[0].start = shim_heap_areas[0].current = start;
-    shim_heap_areas[0].end = start + INIT_SHIM_HEAP;
-
-    return 0;
-}
-
-int bkeep_shim_heap (void)
-{
-    lock(shim_heap_lock);
-    
-    for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
-        if (shim_heap_areas[i].start) {
-            /* Add a VMA for the active region */
-            bkeep_mmap(shim_heap_areas[i].start,
-                       shim_heap_areas[i].current - shim_heap_areas[i].start,
-                       PROT_READ|PROT_WRITE,
-                       MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, "heap");
-            /* Go ahead and free the reserved region */
-            if (shim_heap_areas[i].current < shim_heap_areas[i].end) {
-                DkVirtualMemoryFree(shim_heap_areas[i].current,
-                                    ALIGN_UP(((long unsigned int) shim_heap_areas[i].end) - ((long unsigned int) shim_heap_areas[i].current)));
-                shim_heap_areas[i].end = shim_heap_areas[i].current;
-            }
-        }
-    vmas_initialized = 1;
-    
-    unlock(shim_heap_lock);
-    return 0;
 }
 
 int init_slab (void)
