@@ -696,7 +696,7 @@ postmap:
         /* DEP 3/12/18: This string is not stable; copy it. */
         char * tmp = (char *) (D_PTR (l->l_info[DT_STRTAB])
                               + D_PTR (l->l_info[DT_SONAME]));
-        l->l_soname = remalloc(tmp, strlen(tmp) + 1);
+        l->l_soname = malloc_copy(tmp, strlen(tmp) + 1);
     }
 
     if (l->l_phdr == NULL) {
