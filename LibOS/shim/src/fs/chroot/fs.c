@@ -665,7 +665,7 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     PAL_PTR mapped = DkStreamMap(hdl->pal_handle, mapbuf, PAL_PROT(prot, flags),
                                  mapoff, maplen);
 
-    if (!mapbuf) {
+    if (!mapped) {
         bkeep_munmap(mapbuf, maplen, flags);
         return -PAL_ERRNO;
     }
