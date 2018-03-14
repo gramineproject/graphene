@@ -31,6 +31,7 @@
 #include <shim_handle.h>
 
 #include <pal.h>
+#include <api.h>
 #include <list.h>
 
 #include <asm/mman.h>
@@ -52,6 +53,18 @@ struct shim_vma_val {
     struct shim_handle *    file;
     char                    comment[VMA_COMMENT_LEN];
 };
+
+static inline
+void free_vma_vals (struct shim_vma_val * vmas, size_t count)
+{
+    for (int i = 0 ; i < count ; i++) {
+        /* need to release the file handle */
+        if (vmas[i].file)
+            put_handle(vmas[i].file);
+    }
+
+    free(vmas);
+}
 
 /* an additional flag */
 #define VMA_UNMAPPED 0x10000000   /* vma is kept for bookkeeping, but the

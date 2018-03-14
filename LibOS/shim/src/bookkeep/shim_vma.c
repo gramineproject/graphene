@@ -730,7 +730,6 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 
     struct shim_vma * prev = NULL;
     struct shim_vma * cur = __lookup_vma(top_addr, &prev);
-    struct shim_vma * new = NULL;
 
     while (true) {
         /* setting the range for searching */
@@ -743,18 +742,13 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
         /* Check if there is enough space between prev and cur */
         if (length <= end - start) {
             /* create a new VMA at the top of the range */
-            new = __get_new_vma();
-            new->start = end - length;
-            new->end   = end;
-            new->prot  = prot;
-            new->flags = flags|((file && (prot & PROT_WRITE)) ? VMA_TAINTED : 0);
-            new->file  = file;
-            if (new->file)
-                get_handle(new->file);
-            new->offset = offset;
-            __set_vma_comment(new, comment);
-            __insert_vma(new, prev);
-            return new->start;
+            __bkeep_mmap(prev, end - length, end, prot, flags,
+                         file, offset, comment);
+
+            debug("bkeep_unmapped: %p-%p%s%s\n", end - length, end,
+                  comment ? " => " : "", comment ? : "");
+
+            return end - length;
         }
 
         if (!prev || prev->start <= bottom_addr)
@@ -776,7 +770,6 @@ void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
                                    file, offset, comment);
     __restore_reserved_vmas();
     unlock(vma_list_lock);
-    debug("bkeep_unmapped: %p-%p\n", addr, addr + length);
     return addr;
 }
 
@@ -837,8 +830,21 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
 out:
     __restore_reserved_vmas();
     unlock(vma_list_lock);
-    debug("bkeep_unmapped: %p-%p\n", addr, addr + length);
     return addr;
+}
+
+static inline void
+__dump_vma (struct shim_vma_val * val, const struct shim_vma * vma)
+{
+    val->addr   = vma->start;
+    val->length = vma->end - vma->start;
+    val->prot   = vma->prot;
+    val->flags  = vma->flags;
+    val->file   = vma->file;
+    if (val->file)
+        get_handle(val->file);
+    val->offset = vma->offset;
+    memcpy(val->comment, vma->comment, VMA_COMMENT_LEN);
 }
 
 int lookup_vma (void * addr, struct shim_vma_val * res)
@@ -851,17 +857,8 @@ int lookup_vma (void * addr, struct shim_vma_val * res)
         return -ENOENT;
     }
 
-    if (res) {
-        res->addr   = vma->start;
-        res->length = vma->end - vma->start;
-        res->prot   = vma->prot;
-        res->flags  = vma->flags;
-        res->file   = vma->file;
-        if (res->file)
-            get_handle(res->file);
-        res->offset = vma->offset;
-        memcpy(res->comment, vma->comment, VMA_COMMENT_LEN);
-    }
+    if (res)
+        __dump_vma(res, vma);
 
     unlock(vma_list_lock);
     return 0;
@@ -886,17 +883,8 @@ int lookup_overlap_vma (void * addr, uint64_t length,
         return -ENOENT;
     }
 
-    if (res) {
-        res->addr   = vma->start;
-        res->length = vma->end - vma->start;
-        res->prot   = vma->prot;
-        res->flags  = vma->flags;
-        res->file   = vma->file;
-        if (res->file)
-            get_handle(res->file);
-        res->offset = vma->offset;
-        memcpy(res->comment, vma->comment, VMA_COMMENT_LEN);
-    }
+    if (res)
+        __dump_vma(res, vma);
 
     unlock(vma_list_lock);
     return 0;
@@ -923,16 +911,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t size)
             break;
         }
 
-        val->addr   = vma->start;
-        val->length = vma->end - vma->start;
-        val->prot   = vma->prot;
-        val->flags  = vma->flags;
-        val->file   = vma->file;
-        if (val->file)
-            get_handle(val->file);
-        val->offset = vma->offset;
-        memcpy(val->comment, vma->comment, VMA_COMMENT_LEN);
-
+        __dump_vma(val, vma);
         cnt++;
         val++;
     }
@@ -1155,13 +1134,10 @@ retry_dump_vmas:
         return ret;
 
     count = ret;
-    for (struct shim_vma_val * vma = &vmas[count - 1] ; vma >= vmas ; vma--) {
+    for (struct shim_vma_val * vma = &vmas[count - 1] ; vma >= vmas ; vma--)
         DO_CP(vma, vma, NULL);
-        if (vma->file)
-            put_handle(vma->file);
-    }
 
-    free(vmas);
+    free_vma_vals(vmas, count);
 }
 END_CP_FUNC_NO_RS(all_vmas)
 

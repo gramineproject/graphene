@@ -167,11 +167,9 @@ retry_dump_vmas:
 
         /* Remove the VMAs */
         bkeep_munmap(vma->addr, vma->length, vma->flags);
-
-        if (vma->file)
-            put_handle(vma->file);
     }
-    free(vmas);
+
+    free_vma_vals(vmas, count);
 
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 

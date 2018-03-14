@@ -340,10 +340,9 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->child_exit_event);
         destroy_lock(thread->lock);
 
-        if (MEMORY_MIGRATED(thread))
-            memset(thread, 0, sizeof(struct shim_thread));
-        else
-            free(thread);
+        if (thread->signal_logs)
+            free(thread->signal_logs);
+        free(thread);
     }
 }
 

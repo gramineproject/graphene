@@ -599,12 +599,8 @@ retry_emit_vma:
     ret = 0;
 out:
     put_thread(thread);
-    if (vmas) {
-        for (int i = 0 ; i < count ; i++)
-            if (vmas[i].file)
-                put_handle(vmas[i].file);
-        free(vmas);
-    }
+    if (vmas)
+        free_vma_vals(vmas, count);
     return ret;
 
 err:
