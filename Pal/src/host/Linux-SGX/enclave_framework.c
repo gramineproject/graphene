@@ -17,6 +17,8 @@ void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
 
+static int register_trusted_file (const char * uri, const char * checksum_str);
+
 bool sgx_is_within_enclave (const void * addr, uint64_t size)
 {
     return (addr >= enclave_base &&
@@ -120,9 +122,23 @@ DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
+static int allow_file_creation = 0;
+
+
+/* Function: load_trusted_file
+ * checks if the file to be opened is trusted or allowed,
+ * according to the setting in manifest
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
 
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
-                       uint64_t * sizeptr)
+                       uint64_t * sizeptr, int create)
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
@@ -135,6 +151,14 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     uri_len = _DkStreamGetName(file, uri, URI_MAX);
     if (uri_len < 0)
         return uri_len;
+
+    /* Allow to create the file when allow_file_creation is turned on;
+       The created file is added to allowed_file list for later access */
+    if (create && allow_file_creation) {
+       register_trusted_file(uri, NULL);
+       *sizeptr = 0;
+       return 0;
+    }
 
     /* Normalize the uri */
     if (!strpartcmp_static(uri, "file:")) {
@@ -540,6 +564,12 @@ no_trusted:
 
 no_allowed:
     ret = 0;
+
+    if (get_config(store, "sgx.allow_file_creation", cfgbuf, CONFIG_MAX) <= 0) {
+        allow_file_creation = 0;
+    } else
+        allow_file_creation = 1;
+
 out:
     free(cfgbuf);
     return ret;
