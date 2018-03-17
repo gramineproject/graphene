@@ -56,7 +56,7 @@ lighttpd-ssl.conf: server.pem
 	echo "ssl.honor-cipher-order = \"enable\""             >> $@
 	echo "ssl.dh-file = \"dhparam.pem\""		       >> $@
 	echo "ssl.ec-curve = \"secp384r1\"" 		       >> $@
-	echo "}" 
+	echo "}" 					       >> $@
 
 server.pem:
 	openssl req -new -x509 -keyout server.pem -out server.pem -days 365 -nodes -subj "/cn=lighttpd/o=oscar/dc=cs/dc=stonybrook/dc=edu/"
