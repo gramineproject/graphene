@@ -44,7 +44,7 @@ lighttpd-multithreaded.conf:
 	echo "server.max-worker          = $(THREADS)"         >> $@
 	echo "include \"lighttpd-generic.conf\""               >> $@
 
-lighttpd-ssl.conf: server.pem
+lighttpd-ssl.conf: server.pem dhparam.pem
 	rm -rf $@
 	echo "include \"lighttpd-server.conf\""                >> $@
 	echo "include \"lighttpd-generic.conf\""               >> $@
@@ -62,7 +62,7 @@ server.pem:
 	openssl req -new -x509 -keyout server.pem -out server.pem -days 365 -nodes -subj "/cn=lighttpd/o=oscar/dc=cs/dc=stonybrook/dc=edu/"
 
 dhparam.pem:
-	openssl dhparam -out dhparam.pem 4096
+	openssl dhparam -out dhparam.pem 2048
 
 start-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
