@@ -16,6 +16,7 @@ extra_rules = -e 's:\$$(HOST):$(HOST):g' -e 's:\$$(PORT):$(PORT):g'
 level = ../../
 include ../../Makefile
 
+.PHONY: build-lighttpd
 build-lighttpd: build/sbin/lighttpd
 
 build/sbin/lighttpd: $(SRCDIR)
@@ -64,26 +65,32 @@ server.pem:
 dhparam.pem:
 	openssl dhparam -out dhparam.pem 2048
 
+.PHONY: start-native-server
 start-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
 
+.PHONY: start-multithreaded-native-server
 start-multithreaded-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
+.PHONY: start-ssl-native-server
 start-ssl-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
                 $(if $(CONF),$(CONF),lighttpd-ssl.conf)
 
+.PHONY: start-graphene-server
 start-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
 
+.PHONY: start-multithreaded-graphene-server
 start-multithreaded-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
+.PHONY: start-ssl-graphene-server
 start-ssl-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
                 $(if $(CONF),$(CONF),lighttpd-ssl.conf)
@@ -110,8 +117,10 @@ html/random/%.html: html/random
 
 test-data: $(test-data)
 
+.PHONY: distclean
 distclean: clean
 	rm -rf build $(SRCDIR)
 
+.PHONY: clean-others
 clean-others:
 	rm -rf $(conf_files) $(test-data)
