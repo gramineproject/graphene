@@ -67,7 +67,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
     sgx_stub_t * stubs;
     uint64_t total;
-    int ret = load_trusted_file(hdl, &stubs, &total);
+    int ret = load_trusted_file(hdl, &stubs, &total, create);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Accessing file:%s is denied. (%s) "
                 "This file is not trusted or allowed.\n", hdl->file.realpath,

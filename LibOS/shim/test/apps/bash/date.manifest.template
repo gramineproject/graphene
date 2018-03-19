@@ -1,5 +1,5 @@
 loader.preload = file:$(SHIMPATH)
-loader.exec = file:/bin/rm
+loader.exec = file:/bin/date
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
 loader.debug_type = none
 
@@ -11,4 +11,4 @@ fs.mount.lib.uri = file:$(LIBCDIR)
 sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 
-sgx.allowed_files.testdir = file:testdir
+sgx.allowed_files.test2 = file:OUTPUT
