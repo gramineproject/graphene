@@ -176,6 +176,16 @@ void * malloc (size_t size)
     void * mem = slab_alloc(slab_mgr, size);
 #endif
 
+    if (!mem) {
+        /*
+         * Normally, the library OS should not run out of memory.
+         * If malloc() failed internally, we cannot handle the
+         * condition and must terminate the current process.
+         */
+        sys_printf("******** Out-of-memory in library OS ********\n");
+        __abort();
+    }
+
 #ifdef SLAB_DEBUG_PRINT
     debug("malloc(%d) = %p (%s:%d)\n", size, mem, file, line);
 #endif

@@ -240,17 +240,22 @@ static inline void __set_free_slab_area (SLAB_AREA area, SLAB_MGR mgr,
 static inline SLAB_MGR create_slab_mgr (void)
 {
 #ifdef PAGE_SIZE
-    int size = init_size_align_up(STARTUP_SIZE);
+    size_t size = init_size_align_up(STARTUP_SIZE);
 #else
-    int size = STARTUP_SIZE;
+    size_t size = STARTUP_SIZE;
 #endif
-    unsigned long mem;
+    void * mem = NULL;
     SLAB_AREA area;
     SLAB_MGR mgr;
 
-    mem = (unsigned long) system_malloc(__INIT_MAX_MEM_SIZE(size));
+    /* If the allocation failed, always try smaller sizes */
+    for (; size > 0; size >>= 1) {
+        mem = system_malloc(__INIT_MAX_MEM_SIZE(size));
+        if (mem)
+            break;
+    }
 
-    if (mem <= 0)
+    if (!mem)
         return NULL;
 
     mgr = (SLAB_MGR) mem;
@@ -259,7 +264,7 @@ static inline SLAB_MGR create_slab_mgr (void)
     int i;
     for (i = 0 ; i < SLAB_LEVEL ; i++) {
         area = (SLAB_AREA) addr;
-        area->size = STARTUP_SIZE;
+        area->size = size;
 
         INIT_LIST_HEAD(area, __list);
         INIT_LISTP(&mgr->area_list[i]);
@@ -318,7 +323,13 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
      * allocating more memory */
     system_unlock();
 
-    area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
+    /* If the allocation failed, always try smaller sizes */
+    for (; size > 0; size >>= 1) {
+        area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
+        if (area)
+            break;
+    }
+
     if (!area) {
         system_lock();
         return -ENOMEM;

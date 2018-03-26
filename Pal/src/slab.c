@@ -118,6 +118,16 @@ void * malloc (size_t size)
         memset(ptr, 0xa5, size);
 #endif
 
+    if (!ptr) {
+        /*
+         * Normally, the PAL should not run out of memory.
+         * If malloc() failed internally, we cannot handle the
+         * condition and must terminate the current process.
+         */
+        printf("******** Out-of-memory in PAL ********\n");
+        _DkProcessExit(-1);
+    }
+
 #if PROFILING == 1
     pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
 #endif
