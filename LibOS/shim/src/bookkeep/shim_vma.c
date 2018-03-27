@@ -808,18 +808,20 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
     }
 #endif
 
-    addr = __bkeep_unmapped(top_addr, bottom_addr,
-                            length, prot, flags,
-                            file, offset, comment);
+    if (top_addr <= bottom_addr) {
+        addr = __bkeep_unmapped(top_addr, bottom_addr,
+                                length, prot, flags,
+                                file, offset, comment);
 
-    if (addr) {
-        if (update_heap_top)
-            current_heap_top = addr;
-        goto out;
+        if (addr) {
+            if (update_heap_top)
+                current_heap_top = addr;
+            goto out;
+        }
+
+        if (top_addr == heap_max)
+            goto out;
     }
-
-    if (top_addr == heap_max)
-        goto out;
 
     /* Try to allocate above the current heap top */
     top_addr = heap_max;
