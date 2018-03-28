@@ -13,6 +13,9 @@
 #include <linux/sched.h>
 #include <linux/pagemap.h>
 #include <linux/bitmap.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+# include <linux/sched/signal.h>
+#endif
 #include <asm/mman.h>
 #include <asm/tlb.h>
 
@@ -50,7 +53,18 @@ struct kmem_cache *gipc_send_buffer_cachep;
 	do_mmap_pgoff((file), (addr), (len), (prot), (flags), (pgoff))
 # endif /* kernel_version < 3.9.0 */
 #else
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+#  define MY_DO_MMAP
+#  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
+	({								\
+		unsigned long populate;					\
+		unsigned long rv;					\
+	 	rv = KSYM(do_mmap)((file), (addr), (len),		\
+				   (prot), (flags), 0, (pgoff),		\
+				   &populate, NULL);			\
+	rv; })
+
+# elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 #  define MY_DO_MMAP
 #  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
 	({								\
@@ -234,6 +248,9 @@ inline int make_page_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 			 unsigned long addr)
 {
 	pgd_t *pgd;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+	p4d_t *p4d;
+#endif
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -243,7 +260,15 @@ inline int make_page_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
 		goto no_page;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d)))
+		goto no_page;
+
+	pud = pud_offset(p4d, addr);
+#else
 	pud = pud_offset(pgd, addr);
+#endif
 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
 		goto no_page;
 
@@ -279,6 +304,9 @@ static void fill_page_bit_map(struct mm_struct *mm,
 	do {
 		struct vm_area_struct *vma;
 		pgd_t *pgd;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+		p4d_t *p4d;
+#endif
 		pud_t *pud;
 		pmd_t *pmd;
 		pte_t *pte;
@@ -295,7 +323,15 @@ static void fill_page_bit_map(struct mm_struct *mm,
 		if (pgd_none(*pgd) || pgd_bad(*pgd))
 			goto next;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+		p4d = p4d_offset(pgd, addr);
+		if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d)))
+			goto next;
+
+		pud = pud_offset(p4d, addr);
+#else
 		pud = pud_offset(pgd, addr);
+#endif
 		if (pud_none(*pud) || pud_bad(*pud))
 			goto next;
 
@@ -950,7 +986,11 @@ static int __init gipc_init(void)
 					      sizeof(struct gipc_queue),
 					      0,
 					      SLAB_HWCACHE_ALIGN|
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+					      SLAB_TYPESAFE_BY_RCU,
+#else
 					      SLAB_DESTROY_BY_RCU,
+#endif
 					      NULL);
 	if (!gipc_queue_cachep) {
 		printk(KERN_ERR "Graphene error: "
@@ -962,7 +1002,11 @@ static int __init gipc_init(void)
 					    sizeof(struct gipc_send_buffer),
 					    0,
 					    SLAB_HWCACHE_ALIGN|
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+					    SLAB_TYPESAFE_BY_RCU,
+#else
 					    SLAB_DESTROY_BY_RCU,
+#endif
 					    NULL);
 	if (!gipc_send_buffer_cachep) {
 		printk(KERN_ERR "Graphene error: "
