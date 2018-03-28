@@ -27,6 +27,7 @@ def signal_handler(event):
 
 if __name__ == "__main__":
     gdb.execute("set env IN_GDB = 1")
+    gdb.execute("set env LD_PRELOAD = ")
 
     gdb.execute("handle SIGCONT pass noprint nostop")
     gdb.execute("handle SIGKILL pass print stop")
@@ -36,6 +37,9 @@ if __name__ == "__main__":
     gdb.execute("set schedule-multiple on")
     gdb.execute("set follow-exec-mode same")
     gdb.execute("set follow-fork-mode child")
+
+    # Need to disable displaced stepping
+    gdb.execute("set displaced-stepping off")
 
     LoadCommandBreakpoint()
     gdb.events.stop.connect(signal_handler)

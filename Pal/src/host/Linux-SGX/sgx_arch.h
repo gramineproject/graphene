@@ -74,6 +74,8 @@ typedef struct {
     uint8_t  reserved3[4024];
 } sgx_arch_tcs_t;
 
+#define TCS_FLAGS_DBGOPTIN   (01ULL)
+
 typedef struct {
     uint64_t rax;
     uint64_t rcx;
