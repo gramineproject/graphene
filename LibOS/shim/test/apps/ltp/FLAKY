@@ -23,6 +23,8 @@ Prone to hanging - I think a memory corruption issue that may have a pending fix
 recvfrom01,1
 recvfrom01,2
 
+futex_wait03,1 (see https://github.com/oscarlab/graphene/pull/180#issuecomment-368970338)
+
 Intermittent seg fault
 kill03,1
 
@@ -32,7 +34,9 @@ send01,2
 sendto01,1
 sendto01,2
 sendto01,3
-futex_wait03,1
+recv01,1
+recv01,2
+
 
 Intermittent failure on Linux host
 poll02,1
@@ -40,3 +44,4 @@ poll02,1
 Intermittent failure on Linux debug host
 recvmsg01,1
 recvmsg01,2
+

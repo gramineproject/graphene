@@ -134,7 +134,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
 
 free_reserved:
     if (reserved)
-        bkeep_munmap((void *) mapped, mapped_end - mapped, &flags);
+        bkeep_munmap((void *) mapped, mapped_end - mapped, flags);
     return (void *) ret;
 }
 
@@ -142,9 +142,7 @@ int shim_do_mprotect (void * addr, size_t len, int prot)
 {
     uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
     uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-    int flags = 0;
-
-    if (bkeep_mprotect((void *) mapped, mapped_end - mapped, prot, &flags) < 0)
+    if (bkeep_mprotect((void *) mapped, mapped_end - mapped, prot, /*flags=*/0) < 0)
         return -EACCES;
 
     if (!DkVirtualMemoryProtect((void *) mapped, mapped_end - mapped, prot))
@@ -167,9 +165,7 @@ int shim_do_munmap (void * addr, size_t len)
 
     uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
     uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-    int flags = 0;
-
-    if (bkeep_munmap((void *) mapped, mapped_end - mapped, &flags) < 0)
+    if (bkeep_munmap((void *) mapped, mapped_end - mapped, /*flags=*/0) < 0)
         return -EACCES;
 
     DkVirtualMemoryFree((void *) mapped, mapped_end - mapped);

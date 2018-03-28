@@ -129,7 +129,7 @@ static struct shim_heap * __alloc_enough_heap (size_t size)
             DkVirtualMemoryFree(heap->current, heap->end - heap->current);
             int flags = VMA_INTERNAL;
             unlock(shim_heap_lock);
-            bkeep_munmap(heap->current, heap->end - heap->current, &flags);
+            bkeep_munmap(heap->current, heap->end - heap->current, flags);
             lock(shim_heap_lock);
         }
 
@@ -162,10 +162,17 @@ void * __system_malloc (size_t size)
          */
         int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
         addr = get_unmapped_vma(alloc_size, flags);
-        if (!addr) return NULL;
+        if (!addr) {
+            unlock(shim_heap_lock);
+            return NULL;
+        }
         addr_new = (void *) DkVirtualMemoryAlloc(addr, alloc_size, 0,
                                                  PAL_PROT_WRITE|PAL_PROT_READ);
-        if (!addr_new) return NULL;
+        if (!addr_new) {
+            bkeep_munmap(addr, alloc_size, flags);
+            unlock(shim_heap_lock);
+            return NULL;
+        }
         assert (addr == addr_new);
         bkeep_mmap(addr, alloc_size, PROT_READ|PROT_WRITE,
                    flags, NULL, 0, NULL);
@@ -204,7 +211,7 @@ void __system_free (void * addr, size_t size)
         }
     
     if (! in_reserved_area)
-        bkeep_munmap(addr, ALIGN_UP(size), &flags);
+        bkeep_munmap(addr, ALIGN_UP(size), flags);
 }
 
 int init_heap (void)
@@ -340,7 +347,10 @@ extern_alias(malloc);
 
 void * calloc (size_t nmemb, size_t size)
 {
+    // This overflow checking is not a UB, because the operands are unsigned.
     size_t total = nmemb * size;
+    if (total / size != nmemb)
+        return NULL;
     void *ptr = malloc(total);
     if (ptr)
         memset(ptr, 0, total);

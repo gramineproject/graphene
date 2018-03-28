@@ -657,9 +657,11 @@ static inline int __ref_dec (REFTYPE * ref)
     register int _c;
     do {
         _c = atomic_read(ref);
-        assert(_c > 0);
-        if (!_c)
+        if (!_c) {
+            debug("Fail: Trying to drop reference count below 0\n");
+            bug();
             return 0;
+        }
     } while (atomic_cmpxchg(ref, _c, _c - 1) != _c);
     return _c - 1;
 }
@@ -708,8 +710,8 @@ extern void * migrated_memory_start;
 extern void * migrated_memory_end;
 
 #define MEMORY_MIGRATED(mem)                                    \
-        ((void *) mem >= migrated_memory_start &&               \
-         (void *) mem < migrated_memory_end)
+        ((void *) (mem) >= migrated_memory_start &&             \
+         (void *) (mem) < migrated_memory_end)
 
 extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;

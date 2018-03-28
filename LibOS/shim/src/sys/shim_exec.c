@@ -121,9 +121,8 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
     DkVirtualMemoryFree(old_stack_red, old_stack - old_stack_red);
-    int flags = 0;
-    bkeep_munmap(old_stack, old_stack_top - old_stack, &flags);
-    bkeep_munmap(old_stack_red, old_stack - old_stack_red, &flags);
+    bkeep_munmap(old_stack, old_stack_top - old_stack, /*flags=*/0);
+    bkeep_munmap(old_stack_red, old_stack - old_stack_red, /*flags=*/0);
 
     remove_loaded_libraries();
     clean_link_map_list();
