@@ -239,7 +239,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     sgx_arch_sigstruct_t enclave_sigstruct;
     sgx_arch_secs_t      enclave_secs;
     unsigned long        enclave_entry_addr;
-    unsigned long        enclave_thread_gprs[MAX_DBG_THREADS];
+    void *               tcs_addrs[MAX_DBG_THREADS];
     unsigned long        heap_min = DEAFULT_HEAP_MIN;
 
 #define TRY(func, ...)                                              \
@@ -430,7 +430,6 @@ int initialize_enclave (struct pal_enclave * enclave)
                     enclave_secs.baseaddr;
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
-                enclave_thread_gprs[t] = (unsigned long) gs->gpr;
             }
 
             goto add_pages;
@@ -446,12 +445,14 @@ int initialize_enclave (struct pal_enclave * enclave)
                 memset(tcs, 0, pagesize);
                 tcs->ossa = ssa_area->addr +
                     enclave->ssaframesize * SSAFRAMENUM * t;
-                tcs->nssa = 2;
+                tcs->nssa = SSAFRAMENUM;
                 tcs->oentry = enclave_entry_addr;
                 tcs->ofsbasgx = 0;
                 tcs->ogsbasgx = tls_area->addr + t * pagesize;
                 tcs->fslimit = 0xfff;
                 tcs->gslimit = 0xfff;
+                tcs_addrs[t] = (void *) enclave_secs.baseaddr + tcs_area->addr
+                    + pagesize * t;
             }
 
             goto add_pages;
@@ -514,10 +515,11 @@ add_pages:
     dbg->pid = INLINE_SYSCALL(getpid, 0);
     dbg->base = enclave->baseaddr;
     dbg->size = enclave->size;
-    dbg->aep = (unsigned long) async_exit_pointer;
+    dbg->ssaframesize = enclave->ssaframesize;
+    dbg->aep  = async_exit_pointer;
     dbg->thread_tids[0] = dbg->pid;
     for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
-        dbg->thread_gprs[i] = enclave_thread_gprs[i];
+        dbg->tcs_addrs[i] = tcs_addrs[i];
 
     return 0;
 err:
