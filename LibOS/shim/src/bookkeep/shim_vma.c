@@ -988,16 +988,16 @@ void __shrink_vmas (void)
 
     listp_for_each_entry_safe(vma, n, &vma_list, list) {
         if (!last)
-            goto unmap;
+            goto next;
 
         if (last->addr + last->length != vma->addr ||
             last->prot != vma->prot ||
             last->flags != vma->flags ||
             last->file != vma->file)
-            goto unmap;
+            goto next;
 
         if (last->file && last->offset + last->length != vma->offset)
-            goto unmap;
+            goto next;
 
         debug("shrink vma %p-%p and %p-%p\n", last->addr,
               last->addr + last->length, vma->addr, vma->addr + vma->length);
@@ -1008,10 +1008,6 @@ void __shrink_vmas (void)
 next:
         last = vma;
         continue;
-unmap:
-        if (vma->prot == PROT_NONE && !(vma->flags & VMA_TAINTED))
-            vma->flags |= VMA_UNMAPPED;
-        goto next;
     }
 }
 
@@ -1354,8 +1350,12 @@ BEGIN_CP_FUNC(all_vmas)
 
     __shrink_vmas();
 
+    /*
+     * TODO: Copy only readable pages while checkpointing.
+     * This may need to be fixed according to how Linux does.
+     */
     listp_for_each_entry(tmp, &vma_list, list)
-        if (!(tmp->flags & VMA_INTERNAL))
+        if (!(tmp->flags & VMA_INTERNAL) && (tmp->prot & PROT_READ))
             nvmas++;
 
     if (!nvmas) {
@@ -1366,7 +1366,7 @@ BEGIN_CP_FUNC(all_vmas)
     vmas = __alloca(sizeof(struct shim_vam *) * nvmas);
 
     listp_for_each_entry(tmp, &vma_list, list)
-        if (!(tmp->flags & VMA_INTERNAL)) {
+        if (!(tmp->flags & VMA_INTERNAL) && (tmp->prot & PROT_READ)) {
             get_vma(tmp);
             vmas[cnt++] = tmp;
         }
