@@ -8,20 +8,19 @@
 
 ## 1. WHAT IS GRAPHENE?
 
-Graphene Library OS is a project to provided lightweight guest OSes with
-support for Linux multi-process applications. Comparable to virtual
-machines, Graphene can run applications in an isolated environment, with
-virtualization benefits such as guest customization, platform independence
-and migration.
+Graphene Library OS is a project which provides lightweight guest OSes with
+support for Linux multi-process applications. Graphene can run applications
+in an isolated environment with virtualization benefits such as guest 
+customization, platform independence, and migration, which is comparable
+to other virtual machines.
 
-Graphene Library OS supports native, unmodified Linux appliations upon
-any platform that Graphene Library OS has been ported to. Currently,
-Graphene Library OS is successfully ported to Linux, FreeBSD and Intel SGX
-enclaves upon Linux platforms.
+Graphene Library OS supports native, unmodified Linux applications on
+any platform. Currently, Graphene Library OS is successfully ported to 
+Linux, FreeBSD and Intel SGX enclaves upon Linux platforms.
 
 With the Intel:registered: SGX support, Graphene Library OS can secure a critical
 application in a hardware encrypted memory region. Graphene Library OS can
-protect applications against malicious system stack, with minimal porting
+protect applications against a malicious system stack with minimal porting
 effort.
 
 Graphene Library OS is a work published in Eurosys 2014. For more
