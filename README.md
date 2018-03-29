@@ -20,7 +20,7 @@ Linux, FreeBSD and Intel SGX enclaves upon Linux platforms.
 
 With the Intel:registered: SGX support, Graphene Library OS can secure a critical
 application in a hardware encrypted memory region. Graphene Library OS can
-protect applications against malicious system stack with minimal porting
+protect applications against a malicious system stack with minimal porting
 effort.
 
 Graphene Library OS is a work published in Eurosys 2014. For more
