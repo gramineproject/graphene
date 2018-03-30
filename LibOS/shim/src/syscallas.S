@@ -27,7 +27,6 @@
         .type syscalldb, @function
         .extern shim_table, debug_unsupp
 
-
 syscalldb:
         .cfi_startproc
 

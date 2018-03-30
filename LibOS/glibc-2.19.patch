@@ -1450,6 +1450,19 @@ index 18a15a1..f050241 100644
  #define __exit_thread_inline(val) \
 -  asm volatile ("syscall" :: "a" (__NR_exit), "D" (val))
 +  asm volatile (SYSCALLDB :: "a" (__NR_exit), "D" (val))
+diff --git a/nptl/sysdeps/x86_64/tcb-offsets.sym
+index cbb5e9e..9b87e25 100644
+--- b/nptl/sysdeps/x86_64/tcb-offsets.sym
++++ ../glibc-2.19/nptl/sysdeps/x86_64/tcb-offsets.sym
+@@ -17,6 +17,8 @@ PRIVATE_FUTEX		offsetof (tcbhead_t, priv
+ #endif
+ RTLD_SAVESPACE_SSE	offsetof (tcbhead_t, rtld_savespace_sse)
+ 
++SYSCALLDB_OFFSET	offsetof (tcbhead_t, shim_tcb.syscalldb)
++
+ -- Not strictly offsets, but these values are also used in the TCB.
+ TCB_CANCELSTATE_BITMASK	 CANCELSTATE_BITMASK
+ TCB_CANCELTYPE_BITMASK	 CANCELTYPE_BITMASK
 diff --git a/nptl/sysdeps/x86_64/tls.h b/nptl/sysdeps/x86_64/tls.h
 index cbb5e9e..9b87e25 100644
 --- a/nptl/sysdeps/x86_64/tls.h

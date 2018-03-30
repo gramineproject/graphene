@@ -180,10 +180,13 @@ const char ** library_paths;
 LOCKTYPE __master_lock;
 bool lock_enabled;
 
+long syscalldb (void);
+
 void init_tcb (shim_tcb_t * tcb)
 {
     tcb->canary = SHIM_TLS_CANARY;
     tcb->self = tcb;
+    tcb->syscalldb = &syscalldb;
 }
 
 void copy_tcb (shim_tcb_t * new_tcb, const shim_tcb_t * old_tcb)
@@ -191,6 +194,7 @@ void copy_tcb (shim_tcb_t * new_tcb, const shim_tcb_t * old_tcb)
     memset(new_tcb, 0, sizeof(shim_tcb_t));
     new_tcb->canary = SHIM_TLS_CANARY;
     new_tcb->self = new_tcb;
+    new_tcb->syscalldb = &syscalldb;
     new_tcb->tp   = old_tcb->tp;
     memcpy(&new_tcb->context, &old_tcb->context, sizeof(struct shim_context));
     new_tcb->tid  = old_tcb->tid;

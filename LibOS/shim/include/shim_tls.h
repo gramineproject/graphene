@@ -70,6 +70,7 @@ typedef struct {
     struct shim_context     context;
     unsigned int            tid;
     int                     pal_errno;
+    void *                  syscalldb;
     void *                  debug_buf;
     int                     last_lock;
     struct lock_record      held_locks[NUM_LOCK_RECORD];
