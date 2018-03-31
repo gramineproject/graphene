@@ -1540,27 +1540,6 @@ int init_brk_from_executable (struct shim_handle * exec)
     return 0;
 }
 
-int register_library (const char * name, unsigned long load_address)
-{
-    debug("glibc register library %s loaded at %p\n",
-          name, load_address);
-
-    struct shim_handle * hdl = get_new_handle();
-
-    if (!hdl)
-        return -ENOMEM;
-
-    int err = open_namei(hdl, NULL, name, O_RDONLY, 0, NULL);
-    if (err < 0) {
-        put_handle(hdl);
-        return err;
-    }
-
-    __load_elf_object(hdl, (void *) load_address, OBJECT_USER, NULL);
-    put_handle(hdl);
-    return 0;
-}
-
 int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
                         int nauxv, ElfW(auxv_t) * auxp)
 {

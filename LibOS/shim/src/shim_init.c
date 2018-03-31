@@ -45,12 +45,6 @@ unsigned long allocsize;
 unsigned long allocshift;
 unsigned long allocmask;
 
-/* The following constants will help matching glibc version with compatible
-   SHIM libraries */
-#include "glibc-version.h"
-
-const unsigned int glibc_version = GLIBC_VERSION;
-
 static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     SHIM_GET_TLS()->pal_errno = (arg <= PAL_ERROR_BOUND) ? arg : 0;
@@ -147,25 +141,6 @@ unsigned long parse_int (const char * str)
         num *= 1024;
 
     return num;
-}
-
-long int glibc_option (const char * opt)
-{
-    char cfg[CONFIG_MAX];
-
-    if (strcmp_static(opt, "heap_size")) {
-        ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
-        if (ret <= 0) {
-            debug("no glibc option: %s (err=%d)\n", opt, ret);
-            return -ENOENT;
-        }
-
-        long int heap_size = parse_int(cfg);
-        debug("glibc option: heap_size = %ld\n", heap_size);
-        return (long int) heap_size;
-    }
-
-    return -EINVAL;
 }
 
 void * migrated_memory_start;

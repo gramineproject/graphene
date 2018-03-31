@@ -280,18 +280,6 @@ index fc023d0..b71c1f9 100755
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fno-toplevel-reorder -fno-section-anchors" >&5
  $as_echo_n "checking for -fno-toplevel-reorder -fno-section-anchors... " >&6; }
  if ${libc_cv_fno_toplevel_reorder+:} false; then :
-diff --git a/dlfcn/Versions b/dlfcn/Versions
-index 97902f0..c1874c1 100644
---- a/dlfcn/Versions
-+++ b/dlfcn/Versions
-@@ -14,4 +14,7 @@ libdl {
-   GLIBC_PRIVATE {
-     _dlfcn_hook;
-   }
-+  SHIM {
-+    syscalldb;
-+  }
- }
 diff --git a/elf/Makefile b/elf/Makefile
 index 4c58fc9..0ae2fa8 100644
 --- a/elf/Makefile
@@ -315,291 +303,10 @@ index 4c58fc9..0ae2fa8 100644
  ifeq (yes,$(use-ldconfig))
  dl-routines += dl-cache
  endif
-diff --git a/elf/Versions b/elf/Versions
-index 2383992..98687f6 100644
---- a/elf/Versions
-+++ b/elf/Versions
-@@ -24,14 +24,15 @@ libc {
-     _dl_sym; _dl_vsym;
-     __libc_dlclose; __libc_dlopen_mode; __libc_dlsym;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- ld {
-   GLIBC_2.0 {
-     # Function from libc.so which must be shared with libc.
-     __libc_memalign; calloc; free; malloc; realloc;
--
--    _r_debug;
-   }
-   GLIBC_2.1 {
-     # functions used in other libraries
-@@ -57,9 +58,12 @@ ld {
-     _rtld_global; _rtld_global_ro;
- 
-     # Only here for gdb while a better method is developed.
--    _dl_debug_state;
-+    __libc_r_debug; __libc_dl_debug_state;
- 
-     # Pointer protection.
-     __pointer_chk_guard;
-   }
-+  SHIM {
-+    syscalldb; glibc_version; glibc_option; register_library;
-+  }
- }
-diff --git a/elf/circleload1.c b/elf/circleload1.c
-index 990ff84..ccf92d3 100644
---- a/elf/circleload1.c
-+++ b/elf/circleload1.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
-diff --git a/elf/dl-close.c b/elf/dl-close.c
-index 5bf1de7..a887133 100644
---- a/elf/dl-close.c
-+++ b/elf/dl-close.c
-@@ -473,7 +473,7 @@ _dl_close_worker (struct link_map *map)
-   /* Notify the debugger we are about to remove some loaded objects.  */
-   struct r_debug *r = _dl_debug_initialize (0, nsid);
-   r->r_state = RT_DELETE;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (unmap_start, 2, nsid, r);
- 
-   if (unload_global)
-@@ -739,7 +739,7 @@ _dl_close_worker (struct link_map *map)
- 
-   /* Notify the debugger those objects are finalized and gone.  */
-   r->r_state = RT_CONSISTENT;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (unmap_complete, 2, nsid, r);
- 
-   /* Recheck if we need to retry, release the lock.  */
-diff --git a/elf/dl-debug.c b/elf/dl-debug.c
-index 4e7c593..3e0bff4 100644
---- a/elf/dl-debug.c
-+++ b/elf/dl-debug.c
-@@ -34,7 +34,7 @@ extern const int verify_link_map_members[(VERIFY_MEMBER (l_addr)
-    normally finds it via the DT_DEBUG entry in the dynamic section, but in
-    a statically-linked program there is no dynamic section for the debugger
-    to examine and it looks for this particular symbol name.  */
--struct r_debug _r_debug;
-+struct r_debug __libc_r_debug __attribute__((weak));
- 
- 
- /* Initialize _r_debug if it has not already been done.  The argument is
-@@ -48,7 +48,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase, Lmid_t ns)
-   struct r_debug *r;
- 
-   if (ns == LM_ID_BASE)
--    r = &_r_debug;
-+    r = &__libc_r_debug;
-   else
-     r = &GL(dl_ns)[ns]._ns_debug;
- 
-@@ -56,9 +56,9 @@ _dl_debug_initialize (ElfW(Addr) ldbase, Lmid_t ns)
-     {
-       /* Tell the debugger where to find the map of loaded objects.  */
-       r->r_version = 1	/* R_DEBUG_VERSION XXX */;
--      r->r_ldbase = ldbase ?: _r_debug.r_ldbase;
-+      r->r_ldbase = ldbase ?: __libc_r_debug.r_ldbase;
-       r->r_map = (void *) GL(dl_ns)[ns]._ns_loaded;
--      r->r_brk = (ElfW(Addr)) &_dl_debug_state;
-+      r->r_brk = (ElfW(Addr)) &__libc_dl_debug_state;
-     }
- 
-   return r;
-@@ -70,7 +70,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase, Lmid_t ns)
-    examining the r_brk member of struct r_debug, but GDB 4.15 in fact looks
-    for this particular symbol name in the PT_INTERP file.  */
- void
--_dl_debug_state (void)
-+__libc_dl_debug_state (void)
- {
- }
--rtld_hidden_def (_dl_debug_state)
-+__attribute__((weak));
-diff --git a/elf/dl-load.c b/elf/dl-load.c
-index 1be7a3c..c560ec1 100644
---- a/elf/dl-load.c
-+++ b/elf/dl-load.c
-@@ -39,6 +39,8 @@
- 
- #include <dl-dst.h>
- 
-+#include <glibc-version.h>
-+
- /* On some systems, no flag bits are given to specify file mapping.  */
- #ifndef MAP_FILE
- # define MAP_FILE	0
-@@ -902,7 +904,7 @@ lose (int code, int fd, const char *name, char *realname, struct link_map *l,
-   if (r != NULL)
-     {
-       r->r_state = RT_CONSISTENT;
--      _dl_debug_state ();
-+      __libc_dl_debug_state ();
-       LIBC_PROBE (map_failed, 2, nsid, r);
-     }
- 
-@@ -1048,7 +1050,7 @@ _dl_map_object_from_fd (const char *name, int fd, struct filebuf *fbp,
- 	 call _dl_debug_initialize in a static program in case dynamic
- 	 linking has not been used before.  */
-       r->r_state = RT_ADD;
--      _dl_debug_state ();
-+      __libc_dl_debug_state ();
-       LIBC_PROBE (map_start, 2, nsid, r);
-       make_consistent = true;
-     }
-@@ -1595,6 +1597,9 @@ cannot enable executable stack as shared object requires");
-   DL_AFTER_LOAD (l);
- #endif
- 
-+  /* register the library to SHIM */
-+  register_library(l->l_name, l->l_addr);
-+
-   /* Now that the object is fully initialized add it to the object list.  */
-   _dl_add_to_namespace_list (l, nsid);
- 
-diff --git a/elf/dl-open.c b/elf/dl-open.c
-index a9ca6b3..829d212 100644
---- a/elf/dl-open.c
-+++ b/elf/dl-open.c
-@@ -290,7 +290,7 @@ dl_open_worker (void *a)
-   /* Notify the debugger all new objects are now ready to go.  */
-   struct r_debug *r = _dl_debug_initialize (0, args->nsid);
-   r->r_state = RT_CONSISTENT;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (map_complete, 3, args->nsid, r, new);
- 
-   /* Print scope information.  */
-diff --git a/elf/link.h b/elf/link.h
-index d5905d1..f4e108a 100644
---- a/elf/link.h
-+++ b/elf/link.h
-@@ -64,7 +64,7 @@ struct r_debug
-   };
- 
- /* This is the instance of that structure used by the dynamic linker.  */
--extern struct r_debug _r_debug;
-+extern struct r_debug __libc_r_debug;
- 
- /* This symbol refers to the "dynamic structure" in the `.dynamic' section
-    of whatever module refers to `_DYNAMIC'.  So, to find its own
-diff --git a/elf/loadtest.c b/elf/loadtest.c
-index 727469b..568ddef 100644
---- a/elf/loadtest.c
-+++ b/elf/loadtest.c
-@@ -70,7 +70,7 @@ static const struct
- 
- #include <include/link.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- #define OUT \
-   for (map = MAPS; map != NULL; map = map->l_next)		      \
-diff --git a/elf/neededtest.c b/elf/neededtest.c
-index 3cea499..e098d48 100644
---- a/elf/neededtest.c
-+++ b/elf/neededtest.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
-diff --git a/elf/neededtest2.c b/elf/neededtest2.c
-index 17c75f2..5a73a95 100644
---- a/elf/neededtest2.c
-+++ b/elf/neededtest2.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
-diff --git a/elf/neededtest3.c b/elf/neededtest3.c
-index 41970cf..5126615 100644
---- a/elf/neededtest3.c
-+++ b/elf/neededtest3.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
-diff --git a/elf/neededtest4.c b/elf/neededtest4.c
-index 0ae0b7f..f883910 100644
---- a/elf/neededtest4.c
-+++ b/elf/neededtest4.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
 diff --git a/elf/rtld.c b/elf/rtld.c
 index 6dcbabc..c87c773 100644
 --- a/elf/rtld.c
 +++ b/elf/rtld.c
-@@ -356,6 +356,23 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
-   return start_addr;
- }
- 
-+/* For graphene, check if glibc version match to the compatible SHIM
-+   library. If not, tell the user to update glibc. */
-+#include "glibc-version.h"
-+
-+volatile const int glibc_version __attribute__((weak)) = GLIBC_VERSION;
-+
-+static void __attribute__((noinline,optimize("-O0")))
-+check_glibc_version (void)
-+{
-+  if (glibc_version != GLIBC_VERSION)
-+    {
-+      _dl_fatal_printf ("Warning from Graphene: "
-+                        "Glibc version is incorrect. Please rebuild Glibc.\n");
-+      _exit (1);
-+    }
-+}
-+
- static ElfW(Addr) __attribute_used__ internal_function
- _dl_start (void *arg)
- {
-@@ -546,6 +563,9 @@ _dl_start (void *arg)
-      therefore need not test whether we have to allocate the array
-      for the relocation results (as done in dl-reloc.c).  */
- 
-+  /* For Graphene, check if the glibc version is correct. */
-+  check_glibc_version();
-+
-   /* Now life is sane; we can call functions and access global data.
-      Set up to use the operating system facilities, and find out from
-      the operating system's program loader where to find the program
 @@ -1233,9 +1253,20 @@ of this helper program; chances are you did not intend to run this program.\n\
  	    main_map->l_map_end = allocend;
  	  if ((ph->p_flags & PF_X) && allocend > main_map->l_text_end)
@@ -655,15 +362,6 @@ index 6dcbabc..c87c773 100644
    /* Add the dynamic linker to the TLS list if it also uses TLS.  */
    if (GL(dl_rtld_map).l_tls_blocksize != 0)
      /* Assign a module ID.  Do this before loading any audit modules.  */
-@@ -1588,7 +1637,7 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
- 
-   /* We start adding objects.  */
-   r->r_state = RT_ADD;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (init_start, 2, LM_ID_BASE, r);
- 
-   /* Auditing checkpoint: we are ready to signal that the initial map
 @@ -1636,89 +1654,6 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
  	}
      }
@@ -754,68 +452,20 @@ index 6dcbabc..c87c773 100644
 
   if (__builtin_expect (*first_preload != NULL, 0))
     {
-@@ -2301,7 +2221,7 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
-      the address since by now the variable might be in another object.  */
-   r = _dl_debug_initialize (0, LM_ID_BASE);
-   r->r_state = RT_CONSISTENT;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (init_complete, 2, LM_ID_BASE, r);
- 
- #if defined USE_LDCONFIG && !defined MAP_COPY
-diff --git a/elf/unload.c b/elf/unload.c
-index 4566f22..73046de 100644
---- a/elf/unload.c
-+++ b/elf/unload.c
-@@ -9,7 +9,7 @@
- #include <stdio.h>
- #include <stdlib.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- #define OUT \
-   for (map = MAPS; map != NULL; map = map->l_next)			      \
-diff --git a/elf/unload2.c b/elf/unload2.c
-index eef2bfd..a21d2ac 100644
---- a/elf/unload2.c
-+++ b/elf/unload2.c
-@@ -6,7 +6,7 @@
- #include <stdio.h>
- #include <stdlib.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- #define OUT \
-   for (map = MAPS; map != NULL; map = map->l_next)			      \
 diff --git a/malloc/arena.c b/malloc/arena.c
 index 5088a25..33a3879 100644
 --- a/malloc/arena.c
 +++ b/malloc/arena.c
-@@ -21,6 +21,27 @@
+@@ -21,6 +21,14 @@
  
  /* Compile-time constants.  */
  
 +#ifndef HEAP_MAX_SIZE
 +# ifdef DEFAULT_MMAP_THRESHOLD_MAX
-+#  define DEFAULT_HEAP_MAX_SIZE (2 * DEFAULT_MMAP_THRESHOLD_MAX)
++#  define HEAP_MAX_SIZE (2 * DEFAULT_MMAP_THRESHOLD_MAX)
 +# else
-+#  define DEFAULT_HEAP_MAX_SIZE (1024 * 1024) /* must be a power of two */
++#  define HEAP_MAX_SIZE (1024 * 1024) /* must be a power of two */
 +# endif
-+# include <sysdep.h>
-+static long int heap_max_size = 0;
-+# define HEAP_MAX_SIZE								\
-+	({									\
-+		if (!heap_max_size) {						\
-+			long int size = glibc_option("heap_size");		\
-+			if (size > 0)						\
-+				heap_max_size = size;				\
-+			else							\
-+				heap_max_size = DEFAULT_HEAP_MAX_SIZE;		\
-+		}								\
-+		heap_max_size;							\
-+	})
 +#endif
 +
  #define HEAP_MIN_SIZE (32 * 1024)
@@ -861,29 +511,6 @@ index 57cc8c6..81f1bf4 100644
  
  extra-libs := libpthread
  extra-libs-others := $(extra-libs)
-diff --git a/nptl/Versions b/nptl/Versions
-index bb11277..354149a 100644
---- a/nptl/Versions
-+++ b/nptl/Versions
-@@ -31,6 +31,9 @@ libc {
-     # Internal libc interface to libpthread
-     __libc_dl_error_tsd;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- libpthread {
-@@ -262,4 +265,8 @@ libpthread {
-     __pthread_clock_gettime; __pthread_clock_settime;
-     __pthread_unwind; __pthread_get_minstack;
-   }
-+
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
 diff --git a/nptl/pthread_create.c b/nptl/pthread_create.c
 index 9d7f52f..72d50ae 100644
 --- a/nptl/pthread_create.c
@@ -1530,20 +1157,6 @@ index 78b0ad7..5c3dcf2 100644
  .*-.*-.*		libgcc_s=1
 +
 +.*-.*-.*		liblibos=1
-diff --git a/sysdeps/generic/ldsodefs.h b/sysdeps/generic/ldsodefs.h
-index ffeb093..7a9fbcb 100644
---- a/sysdeps/generic/ldsodefs.h
-+++ b/sysdeps/generic/ldsodefs.h
-@@ -881,8 +881,7 @@ extern void _dl_sort_fini (struct link_map **maps, size_t nmaps, char *used,
-    any shared object mappings.  The `r_state' member of `struct r_debug'
-    says what change is taking place.  This function's address is
-    the value of the `r_brk' member.  */
--extern void _dl_debug_state (void);
--rtld_hidden_proto (_dl_debug_state)
-+extern void __libc_dl_debug_state (void) __attribute__((weak));
- 
- /* Initialize `struct r_debug' if it has not already been done.  The
-    argument is the run-time load address of the dynamic linker, to be put
 diff --git a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
 index 2468228..a9f1cd6 100644
 --- a/sysdeps/unix/sysv/linux/_exit.c
