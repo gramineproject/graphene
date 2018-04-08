@@ -19,6 +19,15 @@ regression.add_check(name="TCP Socket Transmission",
                       "TCP Write 2 OK" in res[0].log and
                       "TCP Read 2: Hello World 2" in res[0].log)
 
+regression.add_check(name="TCP Socket Wait",
+    check=lambda res: "DkObjectsWaitAny tcp was able to wait on tcp handle, iteration 0." in res[0].log and
+                     "DkObjectsWaitAny tcp was able to wait on tcp handle, iteration 1." in res[0].log and
+                     "DkObjectsWaitAny tcp was able to wait on tcp handle, iteration 2." in res[0].log and
+                     "DkObjectsWaitAny(2) tcp was able to wait on tcp handle, iteration 0." in res[0].log and
+                     "DkObjectsWaitAny(2) tcp was able to wait on tcp handle, iteration 1." in res[0].log and
+                     "DkObjectsWaitAny(2) tcp was able to wait on tcp handle, iteration 2." in res[0].log)
+
+
 regression.add_check(name="UDP Socket Creation",
     check=lambda res: "UDP Creation 1 OK" in res[0].log)
 
@@ -36,6 +45,15 @@ regression.add_check(name="Bound UDP Socket Transmission",
                       "UDP Read 3: Hello World 1" in res[0].log and
                       "UDP Write 4 OK" in res[0].log and
                       "UDP Read 4: Hello World 2" in res[0].log)
+
+regression.add_check(name="UDP Socket Wait",
+    check=lambda res: "DkObjectsWaitAny udp was able to wait on udp handle, iteration 0." in res[0].log and
+                     "DkObjectsWaitAny udp was able to wait on udp handle, iteration 1." in res[0].log and
+                     "DkObjectsWaitAny udp was able to wait on udp handle, iteration 2." in res[0].log and
+                     "DkObjectsWaitAny(2) udp was able to wait on udp handle, iteration 0." in res[0].log and
+                     "DkObjectsWaitAny(2) udp was able to wait on udp handle, iteration 1." in res[0].log and
+                     "DkObjectsWaitAny(2) udp was able to wait on udp handle, iteration 2." in res[0].log)
+
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
