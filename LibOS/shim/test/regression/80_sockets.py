@@ -14,15 +14,7 @@ regression.add_check(name="getsockopt",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
-# Run epoll_scoket
-regression = Regression(loader, "epoll_socket", None)
-
-regression.add_check(name="Epoll on a writeable socket", 
-                     check=lambda res: "Accepted" in res[0].out)
-#                     check=lambda res: "Accepted connection on descriptor" in res[0].out)
-
-#"socket 0, 5 is writable" in res[0].out)
-
+# Run epoll_socket
 try:
     pid = os.fork()
 except OSError, e:
@@ -34,6 +26,13 @@ if pid == 0:
     os.system("sleep 2 && telnet localhost 8001 2>&1 >/dev/null")
     sys.exit(0)
 
+
+regression = Regression(loader, "epoll_socket", None)
+
+regression.add_check(name="Epoll on a writeable socket", 
+                     check=lambda res: "Accepted connection" in res[0].out and 
+                     "socket is writable" in res[0].out)                    
+
 rv = regression.run_checks()
 
-#if rv: sys.exit(rv)
+if rv: sys.exit(rv)

@@ -109,7 +109,7 @@ int main (int argc, char *argv[])
 
       // MODIFICATION 1
       if (events[i].events & EPOLLOUT) {
-	printf("socket %d, %d is writable - %x\n", i, events[i].data.fd, events[i].events);
+	printf("socket is writable\n");
 	continue;
       }
 
@@ -154,8 +154,7 @@ int main (int argc, char *argv[])
 			  sbuf, sizeof sbuf,
 			  NI_NUMERICHOST | NI_NUMERICSERV);
 	  if (s == 0)
-	    printf("Accepted connection on descriptor %d "
-		   "(host=%s, port=%s)\n", infd, hbuf, sbuf);
+	    printf("Accepted connection\n");
 
 	  /* Make the incoming socket non-blocking and add it to the
 	     list of fds to monitor. */
