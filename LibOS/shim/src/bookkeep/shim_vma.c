@@ -801,7 +801,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
     }
 #endif
 
-    if (top_addr >= bottom_addr)
+    if (top_addr <= bottom_addr)
         goto again;
 
     /* Try first time */
