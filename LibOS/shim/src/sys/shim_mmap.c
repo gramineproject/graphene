@@ -60,6 +60,10 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     if (addr + length < addr)
         return (void *) -EINVAL;
 
+    /* ignore MAP_32BIT when MAP_FIXED is set */
+    if ((flags & (MAP_32BIT|MAP_FIXED)) == (MAP_32BIT|MAP_FIXED))
+        flags &= ~MAP_32BIT;
+
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
 
     int pal_alloc_type = 0;

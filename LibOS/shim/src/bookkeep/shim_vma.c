@@ -783,7 +783,6 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
     void * top_addr = current_heap_top;
     void * heap_max = PAL_CB(user_address.end);
     void * addr;
-    bool update_heap_top = true;
 
 #ifdef MAP_32BIT
     /*
@@ -793,45 +792,49 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
 #define ADDR_32BIT ((void *) (1ULL << 32))
 
     if (flags & MAP_32BIT) {
+        /* Try the lower 4GB memory space */
         if (heap_max > ADDR_32BIT)
             heap_max = ADDR_32BIT;
 
-        if (bottom_addr >= heap_max) {
-            unlock(vma_list_lock);
-            return NULL;
-        }
-
-        if (top_addr > heap_max) {
+        if (top_addr > heap_max)
             top_addr = heap_max;
-            update_heap_top = false;
-        }
     }
 #endif
 
-    if (top_addr <= bottom_addr) {
-        addr = __bkeep_unmapped(top_addr, bottom_addr,
-                                length, prot, flags,
-                                file, offset, comment);
+    assert(bottom_addr <= top_addr);
+    assert(top_addr <= heap_max);
 
-        if (addr) {
-            if (update_heap_top)
-                current_heap_top = addr;
-            goto out;
+    /* Try first time */
+    addr = __bkeep_unmapped(top_addr, bottom_addr,
+                            length, prot, flags,
+                            file, offset, comment);
+
+    if (addr) {
+        /*
+         * we only update the current heap top when we get the
+         * address from [bottom_addr, current_heap_top).
+         */
+        if (top_addr == current_heap_top) {
+            debug("heap top adjusted to %p\n", addr);
+            current_heap_top = addr;
         }
-
-        if (top_addr == heap_max)
-            goto out;
+        goto out;
     }
 
+    if (top_addr >= heap_max)
+        goto out;
+
     /* Try to allocate above the current heap top */
-    top_addr = heap_max;
-    addr = __bkeep_unmapped(top_addr, bottom_addr,
+    addr = __bkeep_unmapped(heap_max, bottom_addr,
                             length, prot, flags,
                             file, offset, comment);
 
 out:
     __restore_reserved_vmas();
     unlock(vma_list_lock);
+#ifdef MAP_32BIT
+    assert(!(flags & MAP_32BIT) || !addr || addr + length <= ADDR_32BIT);
+#endif
     return addr;
 }
 
