@@ -19,6 +19,7 @@ RUN apt-get update \
        python-crypto \
        python-protobuf \
        python3-minimal \
+       telnet \
        texinfo \
        wget \
 
