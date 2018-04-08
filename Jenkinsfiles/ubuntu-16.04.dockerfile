@@ -19,6 +19,7 @@ RUN apt-get update \
        python-protobuf \
        python3-minimal \
        python3-pytest \
+       telnet \
        texinfo \
        wget \
        libomp-dev \

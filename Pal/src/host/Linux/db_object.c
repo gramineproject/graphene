@@ -20,20 +20,20 @@
  * This file contains APIs for closing or polling PAL handles.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
+#include "pal_linux_defs.h"
 
-#include <linux/time.h>
-#include <linux/poll.h>
-#include <linux/wait.h>
-#include <atomic.h>
 #include <asm/errno.h>
+#include <atomic.h>
+#include <linux/poll.h>
+#include <linux/time.h>
+#include <linux/wait.h>
 
 #define DEFAULT_QUANTUM 500
 
@@ -42,8 +42,8 @@
  *
  *  Returns 0 on success, negative value on failure (e.g., -PAL_ERROR_TRYAGAIN)
  */
-static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
-{
+static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
+    int writable_fd = -1;
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
     if (HANDLE_HDR(handle)->flags & HAS_FDS) {
@@ -60,23 +60,38 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
         struct pollfd fds[MAX_FDS];
         int off[MAX_FDS];
         int nfds = 0;
-        for (int i = 0 ; i < MAX_FDS ; i++) {
+        for (int i = 0; i < MAX_FDS; i++) {
             int events = 0;
 
-            if ((HANDLE_HDR(handle)->flags & RFD(i)) &&
-                !(HANDLE_HDR(handle)->flags & ERROR(i)))
+            if ((HANDLE_HDR(handle)->flags & RFD(i)) && !(HANDLE_HDR(handle)->flags & ERROR(i)))
                 events |= POLLIN;
 
-            if ((HANDLE_HDR(handle)->flags & WFD(i)) &&
-                !(HANDLE_HDR(handle)->flags & WRITABLE(i)) &&
-                !(HANDLE_HDR(handle)->flags & ERROR(i)))
-                events |= POLLOUT;
+            /* DEP 4/2/18: Go ahead and check for POLLOUT even if
+             * we have already cached the WRITABLE property.
+             * It should go quickly.  Or, we could quit early.
+             */
+            if ((HANDLE_HDR(handle)->flags & WFD(i))) {
+                if (!(HANDLE_HDR(handle)->flags & (WRITABLE(i) | ERROR(i))))
+                    events |= POLLOUT;
+                else if (events && !(HANDLE_HDR(handle)->flags & ERROR(i))) {
+                    // We should be able to at least return that this handle
+                    // is writable, if anyone cares.  We only need to return
+                    // one, so it is ok to set the last one.  If there isn't a timeout
+                    // set, drop it to zero
+                    if (timeout == NO_TIMEOUT)
+                        timeout = 0;
+                    // DEP 2/5/19: This works out because the next `if` statement
+                    // will populate this field.  This function really needs a
+                    // major overhaul for clarity
+                    writable_fd = nfds;
+                }
+            }
 
             if (events) {
-                fds[nfds].fd = handle->generic.fds[i];
-                fds[nfds].events = events|POLLHUP|POLLERR;
+                fds[nfds].fd      = handle->generic.fds[i];
+                fds[nfds].events  = events | POLLHUP | POLLERR;
                 fds[nfds].revents = 0;
-                off[nfds] = i;
+                off[nfds]         = i;
                 nfds++;
             }
         }
@@ -97,10 +112,17 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
                     return unix_to_pal_error(ERRNO(ret));
             }
 
-        if (!ret)
-            return -PAL_ERROR_TRYAGAIN;
+        if (!ret) {
+            // DEP 4/2/18: Patch up the case where a WRITABLE socket can
+            // return immediately
+            if (writable_fd != -1) {
+                fds[writable_fd].revents |= POLLOUT;
+            } else {
+                return -PAL_ERROR_TRYAGAIN;
+            }
+        }
 
-        for (int i = 0 ; i < nfds ; i++) {
+        for (int i = 0; i < nfds; i++) {
             if (!fds[i].revents)
                 continue;
             if (fds[i].revents & POLLOUT)
@@ -112,7 +134,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
         return 0;
     }
 
-    const struct handle_ops * ops = HANDLE_OPS(handle);
+    const struct handle_ops* ops = HANDLE_OPS(handle);
 
     if (!ops || !ops->wait)
         return -PAL_ERROR_NOTSUPPORT;
@@ -122,9 +144,8 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
-                       PAL_HANDLE * polled)
-{
+int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, PAL_NUM timeout, PAL_HANDLE* polled) {
+    int writable_fd = -1;
     if (count <= 0)
         return 0;
 
@@ -145,7 +166,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
     /* we are not gonna to allow any polling on muliple synchronous
        objects, doing this is simply violating the division of
        labor between PAL and library OS */
-    for (i = 0 ; i < count ; i++) {
+    for (i = 0; i < count; i++) {
         PAL_HANDLE hdl = handleArray[i];
 
         if (!hdl)
@@ -155,48 +176,65 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
             return -PAL_ERROR_NOTSUPPORT;
 
         /* eliminate repeated entries */
-        for (j = 0 ; j < i ; j++)
+        for (j = 0; j < i; j++)
             if (hdl == handleArray[j])
                 break;
         if (j == i) {
-            for (j = 0 ; j < MAX_FDS ; j++)
-                if (HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j)))
+            for (j = 0; j < MAX_FDS; j++)
+                if (HANDLE_HDR(hdl)->flags & (RFD(j) | WFD(j)))
                     maxfds++;
         }
     }
 
-    struct pollfd * fds = __alloca(sizeof(struct pollfd) * maxfds);
-    PAL_HANDLE * hdls = __alloca(sizeof(PAL_HANDLE) * maxfds);
+    struct pollfd* fds = __alloca(sizeof(struct pollfd) * maxfds);
+    PAL_HANDLE* hdls   = __alloca(sizeof(PAL_HANDLE) * maxfds);
 
-    for (i = 0 ; i < count ; i++) {
+    for (i = 0; i < count; i++) {
         PAL_HANDLE hdl = handleArray[i];
 
         if (!hdl)
             continue;
 
-        for (j = 0 ; j < i ; j++)
+        for (j = 0; j < i; j++)
             if (hdl == handleArray[j])
                 break;
         if (j < i)
             continue;
 
-        for (j = 0 ; j < MAX_FDS ; j++) {
+        for (j = 0; j < MAX_FDS; j++) {
             int events = 0;
 
-            if ((HANDLE_HDR(hdl)->flags & RFD(j)) &&
-                !(HANDLE_HDR(hdl)->flags & ERROR(j)))
+            if ((HANDLE_HDR(hdl)->flags & RFD(j)) && !(HANDLE_HDR(hdl)->flags & ERROR(j)))
                 events |= POLLIN;
 
-            if ((HANDLE_HDR(hdl)->flags & WFD(j)) &&
-                !(HANDLE_HDR(hdl)->flags & WRITABLE(j)) &&
-                !(HANDLE_HDR(hdl)->flags & ERROR(j)))
-                events |= POLLOUT;
+            /* DEP 4/2/18: Go ahead and check for POLLOUT even if
+             * we have already cached the WRITABLE property.
+             * It should go quickly.  Or, we could quit early.
+             */
+            if ((HANDLE_HDR(hdl)->flags & WFD(j))) {
+                if (!(HANDLE_HDR(hdl)->flags & WRITABLE(j)) &&
+                    !(HANDLE_HDR(hdl)->flags & ERROR(j)))
+                    events |= POLLOUT;
+                else if ((!(HANDLE_HDR(hdl)->flags & ERROR(j))) && events &&
+                         hdl->generic.fds[j] != PAL_IDX_POISON) {
+                    // We should be able to at least return that this handle
+                    // is writable, if anyone cares.  We only need to return
+                    // one, so it is ok to set the last one. If there isn't a
+                    // timeout set, drop it to zero
+                    if (timeout == NO_TIMEOUT)
+                        timeout = 0;
+                    // DEP 2/5/19: This works out because the next if statement
+                    // will populate this field.  This function really needs a
+                    // major overhaul for clarity
+                    writable_fd = nfds;
+                }
+            }
 
             if (events && hdl->generic.fds[j] != PAL_IDX_POISON) {
-                fds[nfds].fd = hdl->generic.fds[j];
-                fds[nfds].events = events|POLLHUP|POLLERR;
+                fds[nfds].fd      = hdl->generic.fds[j];
+                fds[nfds].events  = events | POLLHUP | POLLERR;
                 fds[nfds].revents = 0;
-                hdls[nfds] = hdl;
+                hdls[nfds]        = hdl;
                 nfds++;
             }
         }
@@ -227,12 +265,18 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
                 return unix_to_pal_error(ERRNO(ret));
         }
 
-    if (!ret)
-        return -PAL_ERROR_TRYAGAIN;
+    if (!ret) {
+        // DEP 4/2/18: Patch up the case where a WRITABLE socket can
+        // return immediately
+        if (writable_fd != -1) {
+            fds[writable_fd].revents |= POLLOUT;
+        } else
+            return -PAL_ERROR_TRYAGAIN;
+    }
 
     PAL_HANDLE polled_hdl = NULL;
 
-    for (i = 0 ; i < nfds ; i++) {
+    for (i = 0; i < nfds; i++) {
         if (!fds[i].revents)
             continue;
 
@@ -266,12 +310,10 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
 #if TRACE_HEAP_LEAK == 1
 
 PAL_HANDLE heap_alloc_head;
-PAL_LOCK   heap_alloc_trace_lock = LOCK_INIT;
+PAL_LOCK heap_alloc_trace_lock = LOCK_INIT;
 
-HEAP_ALLOC_RECORD * collect_heap_alloc_records (PAL_NUM max_records)
-{
-    HEAP_ALLOC_RECORD * records =
-            malloc(sizeof(HEAP_ALLOC_RECORD) * max_records);
+HEAP_ALLOC_RECORD* collect_heap_alloc_records(PAL_NUM max_records) {
+    HEAP_ALLOC_RECORD* records = malloc(sizeof(HEAP_ALLOC_RECORD) * max_records);
 
     if (!records)
         return NULL;
@@ -281,23 +323,23 @@ HEAP_ALLOC_RECORD * collect_heap_alloc_records (PAL_NUM max_records)
     _DkInternalLock(&heap_alloc_trace_lock);
 
     PAL_HANDLE ptr = heap_alloc_head;
-    int nrecords = 0, i;
+    int nrecords   = 0, i;
 
-    for (; ptr ; ptr = ptr->hdr.heap_trace.next) {
+    for (; ptr; ptr = ptr->hdr.heap_trace.next) {
         assert(!ptr->hdr.heap_trace.next ||
-               ptr->hdr.heap_trace.next->hdr.heap_trace.pprev ==
-               &ptr->hdr.heap_trace.next);
+               ptr->hdr.heap_trace.next->hdr.heap_trace.pprev == &ptr->hdr.heap_trace.next);
 
-        for (i = 0 ; i < nrecords ; i++)
+        for (i = 0; i < nrecords; i++)
             if (ptr->hdr.heap_trace.caller == records[i].caller) {
                 records[i].count++;
                 break;
             }
 
         if (i == nrecords) {
-            if (nrecords == max_records) break;
+            if (nrecords == max_records)
+                break;
             records[nrecords].caller = ptr->hdr.heap_trace.caller;
-            records[nrecords].count = 1;
+            records[nrecords].count  = 1;
             nrecords++;
         }
     }
