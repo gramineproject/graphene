@@ -1088,6 +1088,13 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
     attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
+    // Test for writable
+    /*
+    pfd.events = POLLOUT;
+    pfd.revents = 0;
+    ret = INLINE_SYSCALL(ppoll, 5, &pfd, 1, &tp, NULL, 0);
+    attr->writeable = (ret == 1 && pfd.revents == POLLOUT);
+    */
     return 0;
 }
 
