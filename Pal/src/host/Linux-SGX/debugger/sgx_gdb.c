@@ -10,6 +10,9 @@
 #include <sys/syscall.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
+#include <assert.h>
+#include <wait.h>
+#include <signal.h>
 
 #include "sgx_gdb.h"
 #include "../sgx_arch.h"
@@ -23,111 +26,67 @@
 #endif
 
 static
-long int __host_ptrace (enum __ptrace_request request, va_list * ap)
+long int host_ptrace (enum __ptrace_request request, pid_t pid,
+                      void * addr, void * data)
 {
-    pid_t pid = va_arg(*ap, pid_t);
-    void * addr = va_arg(*ap, void *);
-    void * data = va_arg(*ap, void *);
     long int res, ret;
 
     if (request > 0 && request < 4)
-       data = &ret;
+        data = &res;
 
-    res = syscall((long int) SYS_ptrace,
+    ret = syscall((long int) SYS_ptrace,
                   (long int) request,
                   (long int) pid,
                   (long int) addr,
                   (long int) data);
 
-    if (res >= 0 && request > 0 && request < 4) {
-        errno = 0;
-        res = ret;
-    }
-
-    if (request > 0 && request < 4)
-       data = NULL;
-
-    if (res < 0) {
+    if (ret < 0) {
         if (request >= 0x4000)
-            DEBUG("ptrace(0x%x, %d, %p, %p) = -1 (err=%d)\n", request, pid, addr,
+            DEBUG("ptrace(0x%x, %d, %p, %p) = err %d\n", request, pid, addr,
                   data, errno);
         else
-            DEBUG("ptrace(%d, %d, %p, %p) = -1 (err=%d)\n", request, pid, addr,
+            DEBUG("ptrace(%d, %d, %p, %p) = err %d\n", request, pid, addr,
                   data, errno);
     } else {
         if (request >= 0x4000)
-            DEBUG("ptrace(0x%x, %d, %p, %p) = 0x%lx\n", request, pid, addr, data, res);
+            DEBUG("ptrace(0x%x, %d, %p, %p) = 0x%lx\n", request, pid, addr,
+                  data, ret);
         else
-            DEBUG("ptrace(%d, %d, %p, %p) = 0x%lx\n", request, pid, addr, data, res);
+            DEBUG("ptrace(%d, %d, %p, %p) = 0x%lx\n", request, pid, addr,
+                  data, ret);
     }
 
-    return res;
-}
+    if (ret >= 0 && request > 0 && request < 4)
+        ret = res;
 
-static
-long int host_ptrace (enum __ptrace_request request, ...)
-{
-    va_list ap;
-    va_start(ap, request);
-    long int ret = __host_ptrace(request, &ap);
-    va_end(ap);
     return ret;
 }
-
-static
-int host_peekdata (pid_t pid, void * addr, void * data, int size)
-{
-    for (int off = 0 ; off < size ; off += sizeof(long int)) {
-        long int ret = host_ptrace(PTRACE_PEEKDATA, pid, addr + off);
-
-        if (ret < 0)
-            return ret;
-
-        *(long int *) (data + off) = ret;
-    }
-
-    return 0;
-}
-
-// DEP 11/6/16: Can't figure out where this is used, but reluctant to delete
-// just yet
-#if 0
-static
-int host_pokedata (pid_t pid, void * addr, void * data, int size)
-{
-    for (int off = 0 ; off < size ; off += sizeof(long int)) {
-        long int ret = host_ptrace(PTRACE_POKEDATA, pid, addr + off,
-                                   *(long int *) (data + off));
-
-        if (ret < 0)
-            return ret;
-    }
-
-    return 0;
-}
-#endif
 
 static inline
 int host_peektids (int memdev, struct enclave_dbginfo * ei)
 {
-    long int ret;
-    ret = host_peekdata(ei->pid,
-                        (void *) DBGINFO_ADDR +
-                        offsetof(struct enclave_dbginfo, thread_tids),
-                        ei->thread_tids,
-                        sizeof(ei->thread_tids));
-    if (ret < 0) {
-        DEBUG("Failed getting thread information\n");
-        return ret;
-    }
+    long int res;
+    void * addr = (void *) DBGINFO_ADDR +
+            offsetof(struct enclave_dbginfo, thread_tids);
+    void * data = (void *) ei +
+            offsetof(struct enclave_dbginfo, thread_tids);
 
-    for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
-        if (ei->thread_tids[i]) {
-            DEBUG("thread %d: GPR at %p\n", ei->thread_tids[i],
-                  (void *) ei->thread_gprs[i]);
+    errno = 0;
+
+    for (int off = 0 ; off < sizeof(ei->thread_tids) ;
+         off += sizeof(long int)) {
+
+        res = host_ptrace(PTRACE_PEEKDATA, ei->pid, addr + off, NULL);
+
+        if (errno) {
+            DEBUG("Failed getting thread information\n");
+            return -1;
         }
 
-    return ret;
+        *(long int *) (data + off) = res;
+    }
+
+    return 0;
 }
 
 static inline
@@ -137,9 +96,7 @@ int host_peekonetid (pid_t pid, int memdev, struct enclave_dbginfo * ei)
     if (ret < 0)
         return ret;
 
-    for (int i = 0 ;
-         i < sizeof(ei->thread_tids) / sizeof(ei->thread_tids[0]) ;
-         i++)
+    for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
         if (ei->thread_tids[i] == pid)
             return 0;
 
@@ -147,31 +104,55 @@ int host_peekonetid (pid_t pid, int memdev, struct enclave_dbginfo * ei)
     return -ESRCH;
 }
 
+static
+void * get_gpr_addr (int memdev, pid_t pid, struct enclave_dbginfo * ei)
+{
+    void * tcs_addr = NULL;
+    struct { uint64_t ossa; uint32_t cssa, nssa; } tcs_part;
+    int ret;
+
+    for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
+        if (ei->thread_tids[i] == pid) {
+            tcs_addr = ei->tcs_addrs[i];
+            break;
+        }
+
+    if (!tcs_addr) {
+        DEBUG("No such thread: %d\n", pid);
+        errno = -ESRCH;
+        return NULL;
+    }
+
+    ret = pread(memdev, &tcs_part, sizeof(tcs_part),
+                (off_t) tcs_addr + offsetof(sgx_arch_tcs_t, ossa));
+    if (ret < sizeof(tcs_part)) {
+        DEBUG("Can't read TCS data (%p)\n", tcs_addr);
+        if (ret >= 0)
+            errno = -EFAULT;
+        return NULL;
+    }
+
+    DEBUG("%d: TCS at 0x%lx\n", pid, (uint64_t) tcs_addr);
+    DEBUG("%d: TCS.ossa = 0x%lx TCS.cssa = %d\n", pid, tcs_part.ossa, tcs_part.cssa);
+    assert(tcs_part.cssa > 0);
+
+    return (void *) ei->base + tcs_part.ossa + ei->ssaframesize * tcs_part.cssa
+                    - sizeof(sgx_arch_gpr_t);
+}
 
 static
 int host_peekgpr (int memdev, pid_t pid, struct enclave_dbginfo * ei,
                   sgx_arch_gpr_t * gpr)
 {
+    void * gpr_addr = get_gpr_addr(memdev, pid, ei);
     int ret;
-    unsigned long gpr_addr = 0;
 
-    for (int i = 0 ;
-         i < sizeof(ei->thread_tids) / sizeof(ei->thread_tids[0]) ;
-         i++)
-        if (ei->thread_tids[i] == pid) {
-            gpr_addr = ei->thread_gprs[i];
-            break;
-        }
-
-    if (!gpr_addr) {
-        DEBUG("No such thread: %d\n", pid);
-        errno = -ESRCH;
+    if (!gpr_addr)
         return -1;
-    }
 
-    ret = pread(memdev, gpr, sizeof(sgx_arch_gpr_t), gpr_addr);
+    ret = pread(memdev, gpr, sizeof(sgx_arch_gpr_t), (off_t) gpr_addr);
     if (ret < sizeof(sgx_arch_gpr_t)) {
-        DEBUG("Can't read GPR data (%p)\n", (void *) gpr_addr);
+        DEBUG("Can't read GPR data (%p)\n", gpr_addr);
         if (ret >= 0) {
             errno = -EFAULT;
             ret = -1;
@@ -179,12 +160,40 @@ int host_peekgpr (int memdev, pid_t pid, struct enclave_dbginfo * ei,
         return ret;
     }
 
-    DEBUG("[%d] RIP 0x%08lx RBP 0x%08lx\n", pid, gpr->rip, gpr->rbp);
+    DEBUG("%d: peek GPR RIP 0x%08lx RBP 0x%08lx\n", pid, gpr->rip, gpr->rbp);
+    return 0;
+}
+
+static
+int host_pokegpr (int memdev, pid_t pid, struct enclave_dbginfo * ei,
+                  const sgx_arch_gpr_t * gpr)
+{
+    void * gpr_addr = get_gpr_addr(memdev, pid, ei);
+    int ret;
+
+    if (!gpr_addr)
+        return -1;
+
+    DEBUG("%d: poke GPR RIP 0x%08lx RBP 0x%08lx\n", pid, gpr->rip, gpr->rbp);
+
+    assert(gpr->rip > ei->base && gpr->rip < ei->base + ei->size);
+    assert(gpr->rsp > ei->base && gpr->rsp < ei->base + ei->size);
+
+    ret = pwrite(memdev, gpr, sizeof(sgx_arch_gpr_t), (off_t) gpr_addr);
+    if (ret < sizeof(sgx_arch_gpr_t)) {
+        DEBUG("Can't write GPR data (%p)\n", (void *) gpr_addr);
+        if (ret >= 0) {
+            errno = -EFAULT;
+            ret = -1;
+        }
+        return ret;
+    }
+
     return 0;
 }
 
 static inline
-void fill_regs (struct user_regs_struct * regs, sgx_arch_gpr_t * gpr)
+void fill_regs (struct user_regs_struct * regs, const sgx_arch_gpr_t * gpr)
 {
     regs->r15 = gpr->r15;
     regs->r14 = gpr->r14;
@@ -207,6 +216,30 @@ void fill_regs (struct user_regs_struct * regs, sgx_arch_gpr_t * gpr)
     regs->rsp = gpr->rsp;
 }
 
+static inline
+void fill_gpr (sgx_arch_gpr_t * gpr, const struct user_regs_struct * regs)
+{
+    gpr->r15 = regs->r15;
+    gpr->r14 = regs->r14;
+    gpr->r13 = regs->r13;
+    gpr->r12 = regs->r12;
+    gpr->rbp = regs->rbp;
+    gpr->rbx = regs->rbx;
+    gpr->r11 = regs->r11;
+    gpr->r10 = regs->r10;
+    gpr->r9  = regs->r9;
+    gpr->r8  = regs->r8;
+    gpr->rax = regs->rax;
+    gpr->rcx = regs->rcx;
+    gpr->rdx = regs->rdx;
+    gpr->rsi = regs->rsi;
+    gpr->rdi = regs->rdi;
+    //gpr->rax = regs->orig_rax;
+    gpr->rip = regs->rip;
+    gpr->rflags = regs->eflags;
+    gpr->rsp = regs->rsp;
+}
+
 static
 int host_peekuser (int memdev, pid_t pid, struct enclave_dbginfo * ei,
                    struct user * ud)
@@ -224,6 +257,22 @@ int host_peekuser (int memdev, pid_t pid, struct enclave_dbginfo * ei,
 }
 
 static
+int host_pokeuser (int memdev, pid_t pid, struct enclave_dbginfo * ei,
+                   const struct user * ud)
+{
+    sgx_arch_gpr_t gpr;
+    int ret;
+
+    ret = host_peekgpr(memdev, pid, ei, &gpr);
+    if (ret < 0)
+        return ret;
+
+    fill_gpr(&gpr, &ud->regs);
+
+    return host_pokegpr(memdev, pid, ei, &gpr);
+}
+
+static
 int host_peekregs (int memdev, pid_t pid, struct enclave_dbginfo * ei,
                    struct user_regs_struct * regdata)
 {
@@ -235,15 +284,13 @@ int host_peekregs (int memdev, pid_t pid, struct enclave_dbginfo * ei,
         return ret;
 
     fill_regs(regdata, &gpr);
+
     return 0;
 }
 
-// DEP 11/6/16: Can't figure out where this is used, but reluctant to delete
-// just yet
-#if 0
 static
-int host_peekfpregs (int memdev,pid_t pid, struct enclave_dbginfo * ei,
-                     struct user_fpregs_struct * fpregdata)
+int host_pokeregs (int memdev, pid_t pid, struct enclave_dbginfo * ei,
+                   const struct user_regs_struct * regdata)
 {
     sgx_arch_gpr_t gpr;
     int ret;
@@ -252,18 +299,21 @@ int host_peekfpregs (int memdev,pid_t pid, struct enclave_dbginfo * ei,
     if (ret < 0)
         return ret;
 
-    return 0;
+    fill_gpr(&gpr, regdata);
+
+    return host_pokegpr(memdev, pid, ei, &gpr);
 }
-#endif
 
+static struct {
+    struct enclave_dbginfo ei;
+    pid_t   pid;
+    int     memdev;
+} memdevs[32];
 
-static struct { pid_t pid; int memdev; struct enclave_dbginfo ei; } memdevs[32];
 static int nmemdevs = 0;
 
 int open_memdevice (pid_t pid, int * memdev, struct enclave_dbginfo ** ei)
 {
-    int ret;
-
     for (int i = 0 ; i < nmemdevs ; i++)
         if (memdevs[i].pid == pid) {
             *memdev = memdevs[i].memdev;
@@ -275,10 +325,18 @@ int open_memdevice (pid_t pid, int * memdev, struct enclave_dbginfo ** ei)
         return -ENOMEM;
 
     struct enclave_dbginfo eib;
-    ret = host_peekdata(pid, (void *) DBGINFO_ADDR, &eib,
-                        sizeof(struct enclave_dbginfo));
-    if (ret < 0) {
-        return ret;
+    long int res;
+    for (int off = 0 ; off < sizeof(eib) ; off += sizeof(long int)) {
+
+        res = host_ptrace(PTRACE_PEEKDATA, pid,
+                          (void *) DBGINFO_ADDR + off, NULL);
+
+        if (errno) {
+            DEBUG("Failed getting debug information\n");
+            return -1;
+        }
+
+        *(long int *) ((void *) &eib + off) = res;
     }
 
     for (int i = 0 ; i < nmemdevs ; i++)
@@ -297,6 +355,32 @@ int open_memdevice (pid_t pid, int * memdev, struct enclave_dbginfo ** ei)
     if (fd < 0)
         return fd;
 
+    /* setting debug bit in TCS flags */
+    for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
+        if (eib.tcs_addrs[i]) {
+            void * addr = eib.tcs_addrs[i] + offsetof(sgx_arch_tcs_t, flags);
+            uint64_t flags;
+            int ret;
+
+            ret = pread(fd, &flags, sizeof(flags), (off_t) addr);
+            if (ret < sizeof(flags)) {
+                errno = -EFAULT;
+                return -1;
+            }
+
+            if (flags & TCS_FLAGS_DBGOPTIN) continue;
+            flags |= TCS_FLAGS_DBGOPTIN;
+
+            DEBUG("set TCS debug flag at %p (%lx)\n", addr, flags);
+
+            ret = pwrite(fd, &flags, sizeof(flags), (off_t) addr);
+            if (ret < sizeof(flags)) {
+                errno = -EFAULT;
+                return -1;
+            }
+        }
+
+    eib.thread_stepping = 0;
     memdevs[nmemdevs].pid = pid;
     memdevs[nmemdevs].memdev = fd;
     memdevs[nmemdevs].ei = eib;
@@ -309,15 +393,18 @@ int open_memdevice (pid_t pid, int * memdev, struct enclave_dbginfo ** ei)
 static inline
 int host_peekisinenclave (pid_t pid, struct enclave_dbginfo * ei)
 {
-    long int ret = host_ptrace(PTRACE_PEEKUSER, pid,
-                               offsetof(struct user, regs.rip));
+    struct user_regs_struct regs;
+    int ret = host_ptrace(PTRACE_GETREGS, pid, NULL, &regs);
+
     if (ret < 0) {
-        DEBUG("Failed peeking user: PID %d\n", pid);
+        DEBUG("Failed getting registers: PID %d\n", pid);
         return ret;
     }
 
-    DEBUG("[%d] User RIP 0x%08lx\n", pid, ret);
-    return (ret == ei->aep) ? 1 : 0;
+    DEBUG("%d: User RIP 0x%08llx%s\n", pid, regs.rip,
+          ((void *) regs.rip == ei->aep) ? " (in enclave)" : "");
+
+    return ((void *) regs.rip == ei->aep) ? 1 : 0;
 }
 
 long int ptrace (enum __ptrace_request request, ...)
@@ -328,33 +415,28 @@ long int ptrace (enum __ptrace_request request, ...)
     void * addr, * data;
     int memdev;
     struct enclave_dbginfo * ei;
-
-#if 0
-    if (request >= 0x4000)
-        fprintf(stderr, "ptrace(0x%x)\n", request);
-    else
-        fprintf(stderr, "ptrace(%d)\n", request);
-#endif
+    int prev_errno = errno;
 
     va_start(ap, request);
+    pid = va_arg(ap, pid_t);
+    addr = va_arg(ap, void *);
+    data = va_arg(ap, void *);
+    va_end(ap);
+
+    ret = open_memdevice(pid, &memdev, &ei);
+    if (ret < 0)
+        goto do_host_ptrace;
+
     switch (request) {
         case PTRACE_PEEKTEXT:
         case PTRACE_PEEKDATA: {
-            pid = va_arg(ap, pid_t);
-            addr = va_arg(ap, void *);
-
             DEBUG("%d: PEEKTEXT/PEEKDATA(%d, %p)\n", getpid(), pid, addr);
 
-            ret = open_memdevice(pid, &memdev, &ei);
-            if (ret < 0) {
-do_host_peekdata:
-                ret = host_ptrace(PTRACE_PEEKDATA, pid, addr);
+            if (addr < (void *) ei->base ||
+                addr >= (void *) (ei->base + ei->size)) {
+                ret = host_ptrace(PTRACE_PEEKDATA, pid, addr, NULL);
                 break;
             }
-
-            if (addr < (void *) ei->base ||
-                addr >= (void *) (ei->base + ei->size))
-                goto do_host_peekdata;
 
             ret = pread(memdev, &res, sizeof(long int), (unsigned long) addr);
             if (ret >= 0)
@@ -364,118 +446,235 @@ do_host_peekdata:
 
         case PTRACE_POKETEXT:
         case PTRACE_POKEDATA: {
-            pid = va_arg(ap, pid_t);
-            addr = va_arg(ap, void *);
-            data = va_arg(ap, void *);
-
             DEBUG("%d: POKETEXT/POKEDATA(%d, %p, 0x%016lx)\n", getpid(), pid,
-                  addr, (unsigned long) data);
+                  addr, (long int) data);
 
-            ret = open_memdevice(pid, &memdev, &ei);
-            if (ret < 0) {
-do_host_pokedata:
+            if (addr < (void *) ei->base ||
+                addr >= (void *) (ei->base + ei->size)) {
                 errno = 0;
                 ret = host_ptrace(PTRACE_POKEDATA, pid, addr, data);
                 break;
             }
 
-            if (addr < (void *) ei->base ||
-                addr >= (void *) (ei->base + ei->size))
-                goto do_host_pokedata;
-
-            ret = pwrite(memdev, &data, sizeof(long int), (unsigned long) addr);
+            ret = pwrite(memdev, &data, sizeof(long int), (off_t) addr);
             break;
         }
 
         case PTRACE_PEEKUSER: {
             struct user userdata;
-            pid = va_arg(ap, pid_t);
-            addr = va_arg(ap, void *);
 
-            DEBUG("%d: PEEKUSER(%d, %p)\n", getpid(), pid, addr);
-
-            if ((unsigned long) addr >= sizeof(struct user)) {
+            if ((off_t) addr >= sizeof(struct user)) {
                 ret = -EINVAL;
                 break;
             }
 
-            ret = open_memdevice(pid, &memdev, &ei);
-            if (ret < 0) {
-do_host_peekuser:
-                errno = 0;
-                ret = host_ptrace(PTRACE_PEEKUSER, pid, addr);
-                break;
-            }
-
             if (host_peekonetid(pid, memdev, ei) < 0)
-                goto do_host_peekuser;
-
-            if ((unsigned long) addr == offsetof(struct user, regs.fs_base) ||
-                (unsigned long) addr == offsetof(struct user, regs.gs_base))
-                goto do_host_peekuser;
-
-            if ((unsigned long) addr >= sizeof(struct user_regs_struct))
-                goto do_host_peekuser;
+                goto do_host_ptrace;
 
             ret = host_peekisinenclave(pid, ei);
-            if (ret < 0)
-                break;
+            assert(ret >= 0);
             if (!ret)
-                goto do_host_peekuser;
+                goto do_host_ptrace;
+
+            DEBUG("%d: PEEKUSER(%d, %ld)\n", getpid(), pid, (off_t) addr);
+
+            if ((off_t) addr >= sizeof(struct user_regs_struct)) {
+                errno = 0;
+                ret = host_ptrace(PTRACE_PEEKUSER, pid, addr, NULL);
+                break;
+            }
 
             ret = host_peekuser(memdev, pid, ei, &userdata);
             if (ret < 0)
                 break;
 
-            data = (void *) &userdata + (unsigned long) addr;
-            ret = *(long int *) data;
+            ret = *(long int *)((void *) &userdata + (off_t) addr);
             break;
         }
 
-        case PTRACE_GETREGS: {
-            pid = va_arg(ap, pid_t);
-            addr = va_arg(ap, void *);
-            data = va_arg(ap, void *);
+        case PTRACE_POKEUSER: {
+            struct user userdata;
 
-            DEBUG("%d: GETREGS(%d, %p)\n", getpid(), pid, data);
-
-            ret = open_memdevice(pid, &memdev, &ei);
-            if (ret < 0) {
-do_host_getregs:
-                errno = 0;
-                ret = host_ptrace(PTRACE_GETREGS, pid, addr, data);
+            if ((off_t) addr >= sizeof(struct user)) {
+                ret = -EINVAL;
                 break;
             }
 
             if (host_peekonetid(pid, memdev, ei) < 0)
-                goto do_host_getregs;
+                goto do_host_ptrace;
 
             ret = host_peekisinenclave(pid, ei);
+            assert(ret >= 0);
+            if (!ret)
+                goto do_host_ptrace;
+
+            DEBUG("%d: POKEUSER(%d, %lx)\n", getpid(), pid, (off_t) addr);
+
+            if ((off_t) addr >= sizeof(struct user_regs_struct)) {
+                ret = host_ptrace(PTRACE_POKEUSER, pid, addr, data);
+                break;
+            }
+
+            ret = host_peekuser(memdev, pid, ei, &userdata);
             if (ret < 0)
                 break;
+
+            *(long int *)((void *) &userdata + (off_t) addr) = (long int) data;
+
+            ret = host_pokeuser(memdev, pid, ei, &userdata);
+            break;
+        }
+
+        case PTRACE_GETREGS: {
+            if (host_peekonetid(pid, memdev, ei) < 0)
+                goto do_host_ptrace;
+
+            ret = host_peekisinenclave(pid, ei);
+            assert(ret >= 0);
             if (!ret)
-                goto do_host_getregs;
+                goto do_host_ptrace;
+
+            DEBUG("%d: GETREGS(%d, %p)\n", getpid(), pid, data);
 
             ret = host_peekregs(memdev, pid, ei,
                                 (struct user_regs_struct *) data);
             break;
         }
 
+        case PTRACE_SETREGS: {
+            if (host_peekonetid(pid, memdev, ei) < 0)
+                goto do_host_ptrace;
+
+            ret = host_peekisinenclave(pid, ei);
+            assert(ret >= 0);
+            if (!ret)
+                goto do_host_ptrace;
+
+            DEBUG("%d: SETREGS(%d, %p)\n", getpid(), pid, data);
+
+            ret = host_pokeregs(memdev, pid, ei,
+                                (struct user_regs_struct *) data);
+            break;
+        }
+
+        case PTRACE_SINGLESTEP: {
+            if (host_peekonetid(pid, memdev, ei) < 0)
+                goto do_host_ptrace;
+
+            ret = host_peekisinenclave(pid, ei);
+            assert(ret >= 0);
+            if (!ret)
+                goto do_host_ptrace;
+
+            for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
+                if (ei->thread_tids[i] == pid) {
+                    ei->thread_stepping |= 1ULL << i;
+                    break;
+                }
+
+            DEBUG("%d: SINGLESTEP(%d)\n", getpid(), pid);
+            goto do_host_ptrace;
+        }
 
         default:
-            ret = __host_ptrace(request, &ap);
+            if (request >= 0x4000)
+                DEBUG("*** bypassed ptrace call: 0x%x ***\n", request);
+            else
+                DEBUG("*** bypassed ptrace call: %d ***\n", request);
+
+        do_host_ptrace:
+            errno = prev_errno;
+            ret = host_ptrace(request, pid, addr, data);
             break;
     }
 
-#if 0
-    if (ret < 0 && errno) {
+    if ((request > 0 && request < 4) ? errno : (ret < 0)) {
         if (request >= 0x4000)
-            fprintf(stderr, "ptrace(0x%x) = -1 (err=%d)\n", request, errno);
+            DEBUG(">>> ptrace(0x%x, %d, %p, %p) = err %d\n", request, pid, addr,
+                  data, errno);
         else
-            fprintf(stderr, "ptrace(%d) = -1 (err=%d)\n", request, errno);
+            DEBUG(">>> ptrace(%d, %d, %p, %p) = err %d\n", request, pid, addr,
+                  data, errno);
+    } else {
+        if (request >= 0x4000)
+            DEBUG(">>> ptrace(0x%x, %d, %p, %p) = 0x%lx\n", request, pid, addr,
+                  data, ret);
+        else
+            DEBUG(">>> ptrace(%d, %d, %p, %p) = 0x%lx\n", request, pid, addr,
+                  data, ret);
     }
-#endif
 
-    va_end(ap);
     return ret;
+}
+
+pid_t waitpid(pid_t pid, int *status, int options)
+{
+    pid_t res;
+
+    DEBUG("%d: waitpid(%d)\n", getpid(), pid);
+
+    res = syscall((long int) SYS_wait4,
+                  (long int) pid,
+                  (long int) status,
+                  (long int) options,
+                  (long int) NULL);
+
+    if (res == -1 || !status)
+        return res;
+
+    if (WIFSTOPPED(*status) && WSTOPSIG(*status) == SIGTRAP) {
+        int memdev;
+        struct enclave_dbginfo * ei;
+        int ret;
+        pid = res;
+
+        ret = open_memdevice(pid, &memdev, &ei);
+        if (ret < 0)
+            goto out;
+
+        if (host_peekonetid(pid, memdev, ei) < 0)
+            goto out;
+
+
+        for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
+            if (ei->thread_tids[i] == pid) {
+                if (ei->thread_stepping & (1ULL << i)) {
+                    ei->thread_stepping &= ~(1ULL << i);
+                    goto out;
+                }
+                goto cont;
+            }
+
+        DEBUG("no this thread: %d\n", pid);
+        goto out;
+cont:
+
+        /* if the target thread is inside the enclave */
+        ret = host_peekisinenclave(pid, ei);
+        assert(ret >= 0);
+        if (ret) {
+            sgx_arch_gpr_t gpr;
+            uint8_t code;
+
+            ret = host_peekgpr(memdev, pid, ei, &gpr);
+            if (ret < 0)
+                goto out;
+
+            ret = pread(memdev, &code, sizeof(code), (off_t) gpr.rip);
+            if (ret < 0)
+                goto out;
+
+            if (code != 0xcc)
+                goto out;
+
+            DEBUG("rip 0x%lx points to a breakpoint\n", gpr.rip);
+            gpr.rip++;
+            ret = host_pokegpr(memdev, pid, ei, &gpr);
+            if (ret < 0)
+                 goto out;
+        }
+    }
+
+out:
+    return res;
 }
