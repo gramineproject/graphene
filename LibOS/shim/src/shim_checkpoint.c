@@ -1226,16 +1226,6 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         debug("%d bytes read on stream\n", total_bytes);
     }
 
-    /* Notify the parent process that the checkpoint is loaded. */
-    struct newproc_response res;
-    res.child_vmid = cur_process.vmid;
-    res.failure = 0;
-    int bytes = DkStreamWrite(PAL_CB(parent_process), 0,
-                              sizeof(struct newproc_response),
-                              &res, NULL);
-    if (!bytes)
-        return -PAL_ERRNO;
-
     /* Receive socket or RPC handles from the parent process. */
     ret = receive_handles_on_stream(&hdr->palhdl, (ptr_t) base, rebase);
     if (ret < 0) {

@@ -782,7 +782,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
     void * bottom_addr = PAL_CB(user_address.start);
     void * top_addr = current_heap_top;
     void * heap_max = PAL_CB(user_address.end);
-    void * addr;
+    void * addr = NULL;
 
 #ifdef MAP_32BIT
     /*
@@ -801,8 +801,8 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
     }
 #endif
 
-    assert(bottom_addr <= top_addr);
-    assert(top_addr <= heap_max);
+    if (top_addr >= bottom_addr)
+        goto again;
 
     /* Try first time */
     addr = __bkeep_unmapped(top_addr, bottom_addr,
@@ -821,6 +821,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
         goto out;
     }
 
+again:
     if (top_addr >= heap_max)
         goto out;
 

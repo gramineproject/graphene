@@ -766,6 +766,17 @@ restore:
     RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
 
+    if (PAL_CB(parent_process)) {
+        /* Notify the parent process */
+        struct newproc_response res;
+        res.child_vmid = cur_process.vmid;
+        res.failure = 0;
+        if (!DkStreamWrite(PAL_CB(parent_process), 0,
+                           sizeof(struct newproc_response),
+                           &res, NULL))
+            return -PAL_ERRNO;
+    }
+
     debug("shim process initialized\n");
 
 #ifdef PROFILE
