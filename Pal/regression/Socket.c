@@ -35,6 +35,7 @@ int main (int argc, char ** argv, char ** envp)
                 if (ret > 0)
                     pal_printf("TCP Read 1: %s\n", buffer3);
 
+                
                 ret = DkStreamWrite(tcp2, 0, 20, buffer2, NULL);
                 if (ret > 0)
                     pal_printf("TCP Write 2 OK\n");
@@ -42,6 +43,35 @@ int main (int argc, char ** argv, char ** envp)
                 ret = DkStreamRead(tcp3, 0, 20, buffer4, NULL, 0);
                 if (ret > 0)
                     pal_printf("TCP Read 2: %s\n", buffer4);
+
+                for (int i = 0; i < 3; i++) {
+                    // Test waiting on the handle
+                    PAL_HANDLE rv = DkObjectsWaitAny(1, &tcp2, 0);
+                    if (rv == NULL)
+                        pal_printf("DkObjectsWaitAny tcp timed out (%d), iteration %d.\n", 0, i);
+                    else if (rv == tcp2)
+                        pal_printf("DkObjectsWaitAny tcp was able to wait on tcp handle, iteration %d.\n", i);
+                    else
+                        pal_printf("DkObjectsWaitAny tcp got bad return value after waiting on tcp handle, iteration %d.\n", i);
+
+                }
+
+                for (int i = 0; i < 3; i++) {
+                    PAL_HANDLE handles[2];
+                    handles[0] = tcp2;
+                    handles[1] = tcp3;
+                    // Test waiting on the handle
+                    PAL_HANDLE rv = DkObjectsWaitAny(2, handles, 0);
+                    if (rv == NULL)
+                        pal_printf("DkObjectsWaitAny(2) tcp timed out (%d), iteration %d.\n", 0, i);
+                    else if (rv == tcp2 || rv == tcp3) // right answer is not
+                                                       // defined, as long as
+                                                       // one is writeable
+                        pal_printf("DkObjectsWaitAny(2) tcp was able to wait on tcp handle, iteration %d.\n", i);
+                    else
+                        pal_printf("DkObjectsWaitAny(2) tcp got bad return value after waiting on tcp handle, iteration %d.\n", i);
+
+                }
 
                 DkObjectClose(tcp3);
             }
@@ -108,6 +138,7 @@ int main (int argc, char ** argv, char ** envp)
             if (ret > 0)
                 pal_printf("UDP Read 3: %s\n", buffer3);
 
+                        
             ret = DkStreamWrite(udp1, 0, 20, buffer2, "udp:127.0.0.1:3001");
             if (ret > 0)
                 pal_printf("UDP Write 4 OK\n");
@@ -115,6 +146,35 @@ int main (int argc, char ** argv, char ** envp)
             ret = DkStreamRead(udp3, 0, 20, buffer4, NULL, 0);
             if (ret > 0)
                 pal_printf("UDP Read 4: %s\n", buffer4);
+
+            for (int i = 0; i < 3; i++) {
+                // Test waiting on the handle
+                PAL_HANDLE rv = DkObjectsWaitAny(1, &udp3, 0);
+                if (rv == NULL)
+                    pal_printf("DkObjectsWaitAny udp timed out (%d), iteration %d.\n", 0, i);
+                else if (rv == udp3)
+                    pal_printf("DkObjectsWaitAny udp was able to wait on udp handle, iteration %d.\n", i);
+                else
+                    pal_printf("DkObjectsWaitAny udp got bad return value after waiting on udp handle, iteration %d.\n", i);
+                
+            }
+            
+            for (int i = 0; i < 3; i++) {
+                PAL_HANDLE handles[2];
+                handles[0] = udp1;
+                handles[1] = udp3;
+                // Test waiting on the handle
+                PAL_HANDLE rv = DkObjectsWaitAny(2, handles, 0);
+                if (rv == NULL)
+                    pal_printf("DkObjectsWaitAny(2) udp timed out (%d), iteration %d.\n", 0, i);
+                else if (rv == udp1 || rv == udp3) // right answer is not
+                    // defined, as long as
+                    // one is writeable
+                    pal_printf("DkObjectsWaitAny(2) udp was able to wait on udp handle, iteration %d.\n", i);
+                else
+                    pal_printf("DkObjectsWaitAny(2) udp got bad return value after waiting on udp handle, iteration %d.\n", i);
+                
+            }
 
             DkObjectClose(udp3);
         }
