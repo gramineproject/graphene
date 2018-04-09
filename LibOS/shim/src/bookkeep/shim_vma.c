@@ -246,10 +246,28 @@ __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
  */
 static void * current_heap_top;
 
+static int __bkeep_mmap (struct shim_vma * prev,
+                         void * start, void * end, int prot, int flags,
+                         struct shim_handle * file, uint64_t offset,
+                         const char * comment);
+
+static int __bkeep_munmap (struct shim_vma ** prev,
+                           void * start, void * end, int flags);
+
+static int __bkeep_mprotect (struct shim_vma * prev,
+                             void * start, void * end, int prot, int flags);
+
 int init_vma (void)
 {
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
         reserved_vmas[i] = &early_vmas[i];
+
+    /* if the PAL loads the executable, create a VMA for the range */
+    if (PAL_CB(executable_range.start) != PAL_CB(executable_range.end))
+        __bkeep_mmap(NULL, PAL_CB(executable_range.start),
+                     PAL_CB(executable_range.end),
+                     PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
+                     NULL, 0, "exec");
 
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
         debug("failed creating the VMA allocator\n");
@@ -293,17 +311,6 @@ int init_vma (void)
 
     return 0;
 }
-
-static int __bkeep_mmap (struct shim_vma * prev,
-                         void * start, void * end, int prot, int flags,
-                         struct shim_handle * file, uint64_t offset,
-                         const char * comment);
-
-static int __bkeep_munmap (struct shim_vma ** prev,
-                           void * start, void * end, int flags);
-
-static int __bkeep_mprotect (struct shim_vma * prev,
-                             void * start, void * end, int prot, int flags);
 
 static inline struct shim_vma * __get_new_vma (void)
 {
@@ -829,6 +836,11 @@ again:
     addr = __bkeep_unmapped(heap_max, bottom_addr,
                             length, prot, flags,
                             file, offset, comment);
+
+    if (addr && top_addr == current_heap_top) {
+        debug("heap top adjusted to %p\n", addr);
+        current_heap_top = addr;
+    }
 
 out:
     __restore_reserved_vmas();
