@@ -49,7 +49,7 @@ static LOCKTYPE slab_mgr_lock;
 #endif
 
 #define SLAB_CANARY
-#define STARTUP_SIZE    (16)
+#define STARTUP_SIZE    16
 
 #include <slabmgr.h>
 
