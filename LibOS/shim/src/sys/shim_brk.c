@@ -241,25 +241,35 @@ BEGIN_RS_FUNC(brk)
 
     debug("brk area: %p - %p\n", region.brk_start, region.brk_end);
 
-    unsigned long brk_size = region.brk_end - region.brk_start;
+    size_t brk_size = region.brk_end - region.brk_start;
 
     if (brk_size < brk_max_size) {
-        void * brk_region = (void *) DkVirtualMemoryAlloc(region.brk_end,
-                                            brk_max_size - brk_size, 0,
-                                            PAL_PROT_READ|PAL_PROT_WRITE);
-        if (brk_region != region.brk_end)
-            return -EACCES;
+        void * alloc_addr = region.brk_end;
+        size_t alloc_size = brk_max_size - brk_size;
+        struct shim_vma_val vma;
 
-        ADD_PROFILE_OCCURENCE(brk, brk_max_size - brk_size);
+        if (!lookup_overlap_vma(alloc_addr, alloc_size, &vma)) {
+            /* if memory are already allocated here, adjust brk_max_size */
+            alloc_size = vma.addr - alloc_addr;
+            brk_max_size = brk_size + alloc_size;
+        }
+
+        int ret = bkeep_mmap(alloc_addr, alloc_size,
+                             PROT_READ|PROT_WRITE,
+                             MAP_ANONYMOUS|MAP_PRIVATE|VMA_UNMAPPED,
+                             NULL, 0, "brk");
+        if (ret < 0)
+            return ret;
+
+        void * ptr = DkVirtualMemoryAlloc(alloc_addr, alloc_size, 0,
+                                          PAL_PROT_READ|PAL_PROT_WRITE);
+
+        assert(ptr == alloc_addr);
+        ADD_PROFILE_OCCURENCE(brk, alloc_size);
         INC_PROFILE_OCCURENCE(brk_migrate_count);
 
-        debug("brk reserved area: %p - %p\n", region.brk_end,
-              region.brk_start + brk_max_size);
-
-        bkeep_mmap(region.brk_end, brk_max_size - brk_size,
-                   PROT_READ|PROT_WRITE,
-                   MAP_ANONYMOUS|MAP_PRIVATE|VMA_UNMAPPED, NULL, 0,
-                   NULL);
+        debug("brk reserved area: %p - %p\n", alloc_addr,
+              alloc_addr + alloc_size);
     }
 
     DEBUG_RS("current=%p,region=%p-%p", region.brk_current, region.brk_start,
