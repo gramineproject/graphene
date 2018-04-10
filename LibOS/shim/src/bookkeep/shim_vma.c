@@ -837,11 +837,6 @@ again:
                             length, prot, flags,
                             file, offset, comment);
 
-    if (addr && top_addr == current_heap_top) {
-        debug("heap top adjusted to %p\n", addr);
-        current_heap_top = addr;
-    }
-
 out:
     __restore_reserved_vmas();
     unlock(vma_list_lock);
