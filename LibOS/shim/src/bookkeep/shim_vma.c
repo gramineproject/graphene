@@ -1152,7 +1152,7 @@ retry_dump_vmas:
     for (struct shim_vma_val * vma = &vmas[count - 1] ; vma >= vmas ; vma--)
         DO_CP(vma, vma, NULL);
 
-    free_vma_vals(vmas, count);
+    free_vma_val_array(vmas, count);
 }
 END_CP_FUNC_NO_RS(all_vmas)
 

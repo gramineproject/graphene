@@ -169,7 +169,7 @@ retry_dump_vmas:
         bkeep_munmap(vma->addr, vma->length, vma->flags);
     }
 
-    free_vma_vals(vmas, count);
+    free_vma_val_array(vmas, count);
 
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 

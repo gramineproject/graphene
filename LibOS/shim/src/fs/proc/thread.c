@@ -600,7 +600,7 @@ retry_emit_vma:
 out:
     put_thread(thread);
     if (vmas)
-        free_vma_vals(vmas, count);
+        free_vma_val_array(vmas, count);
     return ret;
 
 err:
