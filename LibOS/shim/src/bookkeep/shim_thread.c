@@ -340,8 +340,7 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->child_exit_event);
         destroy_lock(thread->lock);
 
-        if (thread->signal_logs)
-            free(thread->signal_logs);
+        free(thread->signal_logs);
         free(thread);
     }
 }
