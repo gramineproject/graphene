@@ -101,7 +101,7 @@ int init_brk_region (void * brk_region)
 
         /*
          * Create the bookkeeping before allocating the brk region.
-         * The bookkeeping should never fail because we already confirm
+         * The bookkeeping should never fail because we've already confirmed
          * the availability.
          */
         if (bkeep_mmap(brk_region, brk_max_size, PROT_READ|PROT_WRITE,
