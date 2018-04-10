@@ -294,19 +294,21 @@ int init_vma (void)
 
     create_lock(vma_list_lock);
 
-    uint64_t bottom = (uint64_t) PAL_CB(user_address.start);
-    uint64_t top    = (uint64_t) PAL_CB(user_address.end);
+    current_heap_top = PAL_CB(user_address.end);
 
 #if ENABLE_ASLR == 1
+    /*
+     * Randomize the heap top in top 5/6 of the user address space.
+     * This is a simplified version of the mmap_base() logic in the Linux
+     * kernel: https://elixir.bootlin.com/linux/v4.8/ident/mmap_base
+     */
+    uint64_t addr_rand_size =
+        (PAL_CB(user_address.end) - PAL_CB(user_address.start)) * 5 / 6;
     uint64_t rand;
     getrand(&rand, sizeof(rand));
-    current_heap_top = (void *)
-        bottom + rand % ((top - bottom) / allocsize) * allocsize;
-#else
-    current_heap_top = (void *) top;
+    current_heap_top -= ALIGN_DOWN(rand % addr_rand_size);
 #endif
 
-    debug("User space range: 0x%llx-0x%llx\n", bottom, top);
     debug("heap top adjusted to %p\n", current_heap_top);
 
     return 0;
