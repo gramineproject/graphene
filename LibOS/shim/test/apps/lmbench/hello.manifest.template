@@ -1,7 +1,7 @@
 loader.preload = file:$(SHIMPATH)
 loader.exec = file:hello
 loader.env.LD_LIBRARY_PATH = /lib:/lib64
-loader.debug_type = inline
+loader.debug_type = none
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib

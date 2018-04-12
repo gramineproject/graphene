@@ -616,8 +616,8 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
         rs_func rs = (&__rs_func) [cpent->cp_type - CP_FUNC_BASE];
         ret = (*rs) (cpent, base, offset, rebase);
         if (ret < 0) {
-            debug("restoring %s failed at %p (err=%d)\n", CP_FUNC_NAME(cpent->cp_type),
-                  base + offset, -ret);
+            sys_printf("restore_checkpoint() at %s (%d)\n",
+                       CP_FUNC_NAME(cpent->cp_type), ret);
             return ret;
         }
 next:
