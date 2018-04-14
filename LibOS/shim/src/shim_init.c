@@ -455,10 +455,8 @@ int init_manifest (PAL_HANDLE manifest_handle)
             bug();
     } else {
         PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQuerybyHandle(manifest_handle, &attr)) {
-            ret = -PAL_ERRNO;
-            goto fail;
-        }
+        if (!DkStreamAttributesQuerybyHandle(manifest_handle, &attr))
+            return -PAL_ERRNO;
 
         size = attr.pending_size;
         map_size = ALIGN_UP(size);
