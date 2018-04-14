@@ -100,7 +100,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         addr = bkeep_unmapped_heap(length, prot, flags, hdl, offset, NULL);
         /*
          * Let the library OS manages the address space. If we can't find
-         * propor space to allocate the memory, simply return failure.
+         * proper space to allocate the memory, simply return failure.
          */
         if (!addr)
             return (void *) -ENOMEM;
