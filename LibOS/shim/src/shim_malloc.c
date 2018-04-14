@@ -90,10 +90,10 @@ void * __system_malloc (size_t size)
 
 void __system_free (void * addr, size_t size)
 {
-    if (bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL) < 0)
-        return;
-
     DkVirtualMemoryFree(addr, ALIGN_UP(size));
+
+    if (bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL) < 0)
+        bug();
 }
 
 int init_slab (void)

@@ -180,9 +180,15 @@ int shim_do_munmap (void * addr, size_t length)
         return -EFAULT;
     }
 
-    if (bkeep_munmap(addr, length, 0) < 0)
+    /* Protect first to make sure no overlapping with internal
+     * mappings */
+    if (bkeep_mprotect(addr, length, PROT_NONE, 0) < 0)
         return -EPERM;
 
     DkVirtualMemoryFree(addr, length);
+
+    if (bkeep_munmap(addr, length, 0) < 0)
+        bug();
+
     return 0;
 }
