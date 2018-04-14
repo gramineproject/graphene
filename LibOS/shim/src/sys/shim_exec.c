@@ -154,8 +154,10 @@ retry_dump_vmas:
         goto retry_dump_vmas;
     }
 
-    if (ret < 0)
+    if (ret < 0) {
+        free(vmas);
         return ret;
+    }
 
     count = ret;
     for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
