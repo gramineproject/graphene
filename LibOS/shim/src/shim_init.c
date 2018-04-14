@@ -442,14 +442,17 @@ int init_manifest (PAL_HANDLE manifest_handle)
 {
     int ret = 0;
     void * addr;
-    size_t size;
-    bool stream_unmap_on_fail = false;
-    bool bkeep_unmap_on_fail = false;
-    struct config_store* new_root_config = NULL;
+    size_t size, map_size;
+
+#define MAP_FLAGS (MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL)
 
     if (PAL_CB(manifest_preload.start)) {
         addr = PAL_CB(manifest_preload.start);
         size = PAL_CB(manifest_preload.end) - PAL_CB(manifest_preload.start);
+        map_size = ALIGN_UP(size);
+        if (bkeep_mmap(addr, map_size, PROT_READ, MAP_FLAGS,
+                       NULL, 0, "manifest") < 0)
+            bug();
     } else {
         PAL_STREAM_ATTR attr;
         if (!DkStreamAttributesQuerybyHandle(manifest_handle, &attr)) {
@@ -458,29 +461,30 @@ int init_manifest (PAL_HANDLE manifest_handle)
         }
 
         size = attr.pending_size;
-        addr = (void *) DkStreamMap(manifest_handle, NULL,
-                                    PAL_PROT_READ, 0,
-                                    ALIGN_UP(size));
-        if (!addr) {
-            ret = -PAL_ERRNO;
-            goto fail;
+        map_size = ALIGN_UP(size);
+        addr = bkeep_unmapped_any(map_size, PROT_READ, MAP_FLAGS,
+                                  NULL, 0, "manifest");
+        if (!addr)
+            return -ENOMEM;
+
+        void * ret_addr = DkStreamMap(manifest_handle, addr,
+                                      PAL_PROT_READ, 0,
+                                      ALIGN_UP(size));
+
+        if (!ret_addr) {
+            bkeep_munmap(addr, map_size, MAP_FLAGS);
+            return -ENOMEM;
+        } else {
+            assert(addr == ret_addr);
         }
-        stream_unmap_on_fail = true;
     }
 
-    if (bkeep_mmap(addr, ALIGN_UP(size), PROT_READ,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0,
-                   "manifest") < 0) {
-        ret = -EINVAL;
-        goto fail;
-    }
-    bkeep_unmap_on_fail = true;
-
-    new_root_config = malloc(sizeof(struct config_store));
+    struct config_store * new_root_config = malloc(sizeof(struct config_store));
     if (!new_root_config) {
         ret = -ENOMEM;
         goto fail;
     }
+
     new_root_config->raw_data = addr;
     new_root_config->raw_size = size;
     new_root_config->malloc = __malloc;
@@ -492,14 +496,15 @@ int init_manifest (PAL_HANDLE manifest_handle)
         sys_printf("Unable to read manifest file: %s\n", errstring);
         goto fail;
     }
-    root_config = new_root_config;
 
+    root_config = new_root_config;
     return 0;
+
 fail:
-    if (bkeep_unmap_on_fail)
-        bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL);
-    if (stream_unmap_on_fail)
-        DkStreamUnmap(addr, size);
+    if (addr == PAL_CB(manifest_preload.start))
+        DkStreamUnmap(addr, map_size);
+    if (bkeep_munmap(addr, map_size, MAP_FLAGS) < 0)
+        bug();
     free(new_root_config);
     return ret;
 }
