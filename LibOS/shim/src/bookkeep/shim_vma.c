@@ -194,7 +194,7 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
         if (test_vma_contain(vma, addr, addr + 1))
             goto out;
 
-        assert(vma->end >= vma->start);
+        assert(vma->end > vma->start);
         assert(!prev || prev->end <= vma->start);
         prev = vma;
     }
