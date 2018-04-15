@@ -77,14 +77,15 @@ void * __system_malloc (size_t size)
     if (!addr)
         return NULL;
 
-    addr = (void *) DkVirtualMemoryAlloc(addr, alloc_size, 0,
-                                         PAL_PROT_WRITE|PAL_PROT_READ);
+    void * ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0,
+                                           PAL_PROT_WRITE|PAL_PROT_READ);
 
-    if (!addr) {
+    if (!ret_addr) {
         bkeep_munmap(addr, alloc_size, flags);
         return NULL;
     }
 
+    assert(addr == ret_addr);
     return addr;
 }
 
