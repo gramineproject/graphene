@@ -728,9 +728,9 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
 }
 
 /*
- * Search for an unmapped area within [bottom, top) that is bigger enough
+ * Search for an unmapped area within [bottom, top) that is big enough
  * to allocate "length" bytes. The search approach is top-down.
- * If this function returns an non-NULL address, the corresponding VMA is
+ * If this function returns a non-NULL address, the corresponding VMA is
  * added to the VMA list.
  */
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
