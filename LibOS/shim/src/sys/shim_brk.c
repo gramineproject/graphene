@@ -140,7 +140,7 @@ int init_brk_region (void * brk_region)
           brk_region + brk_max_size);
 
     /*
-     * Create another bookkeeping for the current brk region. The remaing
+     * Create another bookkeeping for the current brk region. The remaining
      * space will be marked as unmapped so that the library OS can reuse the
      * space for other purpose.
      */
