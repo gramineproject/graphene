@@ -914,7 +914,7 @@ int lookup_overlap_vma (void * addr, uint64_t length,
     return 0;
 }
 
-int dump_all_vmas (struct shim_vma_val * vmas, size_t size)
+int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
 {
     struct shim_vma_val * val = vmas;
     struct shim_vma * vma;
@@ -927,9 +927,9 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t size)
         if (vma->flags & VMA_UNMAPPED)
             continue;
 
-        if (cnt == size) {
+        if (cnt == max_count) {
             cnt = -EOVERFLOW;
-            for (int i = 0 ; i < size ; i++)
+            for (int i = 0 ; i < max_count ; i++)
                 if (vmas[i].file)
                     put_handle(vmas[i].file);
             break;

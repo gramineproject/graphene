@@ -158,11 +158,11 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
                             const char * comment);
 
 /*
- * Dumping all *non-internal* VMAs into a user-allocated buffer ("size" must be
- * number of entries in the buffer). Return number of filled entries if
- * succeeded, or -EOVERFLOW if the buffer is too small.
+ * Dumping all *non-internal* VMAs into a user-allocated buffer ("max_count" is
+ * the maximal number of entries in the buffer). Return number of filled entries
+ * if succeeded, or -EOVERFLOW if the buffer is too small.
  */
-int dump_all_vmas (struct shim_vma_val * vmas, size_t size);
+int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count);
 
 /* Debugging */
 void debug_print_vma_list (void);
