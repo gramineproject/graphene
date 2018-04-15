@@ -260,23 +260,42 @@ static int __bkeep_munmap (struct shim_vma ** prev,
 static int __bkeep_mprotect (struct shim_vma * prev,
                              void * start, void * end, int prot, int flags);
 
+static int
+__bkeep_preloaded (void * start, void * end, int prot, int flags,
+                   const char * comment)
+{
+    if (!start || !end || start == end)
+        return 0;
+
+    struct shim_vma * prev = NULL;
+    __lookup_vma(start, &prev);
+    return __bkeep_mmap(prev, start, end, prot, flags, NULL, 0, comment);
+}
+
 int init_vma (void)
 {
+    int ret;
+
     for (int i = 0 ; i < RESERVED_VMAS ; i++)
         reserved_vmas[i] = &early_vmas[i];
 
-    /* if the PAL loads the executable, create a VMA for the range */
-    if (PAL_CB(executable_range.start) != PAL_CB(executable_range.end))
-        __bkeep_mmap(NULL, PAL_CB(executable_range.start),
-                     PAL_CB(executable_range.end),
-                     PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
-                     NULL, 0, "exec");
+    /* Bookkeeping for preloaded areas */
 
-    if (PAL_CB(manifest_preload.start) != PAL_CB(manifest_preload.end))
-        __bkeep_mmap(NULL, PAL_CB(manifest_preload.start),
-                     PAL_CB(manifest_preload.end),
-                     PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-                     NULL, 0, "manifest");
+    ret = __bkeep_preloaded(PAL_CB(executable_range.start),
+                            PAL_CB(executable_range.end),
+                            PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
+                            "exec");
+    if (ret < 0)
+        return ret;
+
+    ret = __bkeep_preloaded(PAL_CB(manifest_preload.start),
+                            PAL_CB(manifest_preload.end),
+                            PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
+                            "manifest");
+    if (ret < 0)
+        return ret;
+
+    /* Initialize the allocator */
 
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
         debug("failed creating the VMA allocator\n");
@@ -558,7 +577,7 @@ finish:
 }
 
 /*
- * Update bookkeeping for munmap(). "prev" must be passed into the function as
+ * Update bookkeeping for munmap(). "pprev" must be passed into the function as
  * this immediate precedent vma of the deallocating address, or NULL if no
  * vma is lower than the address. If the bookkeeping area overlaps with
  * some existing vmas, we must check whether the caller (from user, internal
