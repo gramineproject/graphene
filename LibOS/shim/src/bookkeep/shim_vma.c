@@ -433,7 +433,7 @@ __set_vma_comment (struct shim_vma * vma, const char * comment)
 
 /*
  * Add bookkeeping for mmap(). "prev" must point to the the immediately
- * precedent vma of the address to map, or is NULL if no vma is lower than
+ * precedent vma of the address to map, or be NULL if no vma is lower than
  * the address. If the bookkeeping area overlaps with some existing vmas,
  * we must check whether the caller (from user, internal code, or checkpointing
  * procedure) is allowed to overwrite the existing vmas.
@@ -578,7 +578,7 @@ finish:
 
 /*
  * Update bookkeeping for munmap(). "*pprev" must point to the immediately
- * precedent vma of the address to unmap, or is NULL if no vma is lower than
+ * precedent vma of the address to unmap, or be NULL if no vma is lower than
  * the address. If the bookkeeping area overlaps with some existing vmas,
  * we must check whether the caller (from user, internal code, or checkpointing
  * procedure) is allowed to overwrite the existing vmas. "pprev" can be
@@ -674,7 +674,7 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
 
 /*
  * Update bookkeeping for mprotect(). "prev" must point to the immediately
- * precedent vma of the address to protect, or is NULL if no vma is lower than
+ * precedent vma of the address to protect, or be NULL if no vma is lower than
  * the address. If the bookkeeping area overlaps with some existing vmas,
  * we must check whether the caller (from user, internal code, or checkpointing
  * procedure) is allowed to overwrite the existing vmas.
