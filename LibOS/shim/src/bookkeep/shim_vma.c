@@ -412,6 +412,17 @@ __set_vma_comment (struct shim_vma * vma, const char * comment)
     vma->comment[len] = 0;
 }
 
+/*
+ * Add bookkeeping for mmap(). "prev" must be passed into the function as
+ * the immediate precedent vma of the allocating address, or NULL if no
+ * vma is lower than the address. If the bookkeeping area overlaps with
+ * some existing vmas, we must check whether the caller (from user, internal
+ * code, or checkpointing procedure) is allowed to overwrite the existing vmas.
+ *
+ * Bookkeeping convention (must follow):
+ * Create the bookkeeping BEFORE any allocation PAL calls
+ * (DkVirtualMemoryAlloc() or DkStreamMap()).
+ */
 static int __bkeep_mmap (struct shim_vma * prev,
                          void * start, void * end, int prot, int flags,
                          struct shim_handle * file, uint64_t offset,
@@ -546,6 +557,17 @@ finish:
     assert(vma->start < vma->end);
 }
 
+/*
+ * Update bookkeeping for munmap(). "prev" must be passed into the function as
+ * this immediate precedent vma of the deallocating address, or NULL if no
+ * vma is lower than the address. If the bookkeeping area overlaps with
+ * some existing vmas, we must check whether the caller (from user, internal
+ * code, or checkpointing procedure) is allowed to overwrite the existing vmas.
+ *
+ * Bookkeeping convention (must follow):
+ * Make deallocation PAL calls (DkVirtualMemoryFree() or DkStreamUnmap())
+ * BEFORE updating the bookkeeping.
+ */
 static int __bkeep_munmap (struct shim_vma ** pprev,
                            void * start, void * end, int flags)
 {
@@ -630,6 +652,16 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
     return ret;
 }
 
+/*
+ * Update bookkeeping for mprotect(). "prev" must be passed into the function
+ * as the immediate precedent vma of the protecting address, or NULL if no
+ * vma is lower than the address. If the bookkeeping area overlaps with
+ * some existing vmas, we must check whether the caller (from user, internal
+ * code, or checkpointing procedure) is allowed to overwrite the existing vmas.
+ *
+ * Bookkeeping convention (must follow):
+ * Update the bookkeeping BEFORE calling DkVirtualMemoryProtect().
+ */
 static int __bkeep_mprotect (struct shim_vma * prev,
                              void * start, void * end, int prot, int flags)
 {
