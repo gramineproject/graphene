@@ -269,6 +269,12 @@ int init_vma (void)
                      PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
                      NULL, 0, "exec");
 
+    if (PAL_CB(manifest_preload.start) != PAL_CB(manifest_preload.end))
+        __bkeep_mmap(NULL, PAL_CB(manifest_preload.start),
+                     PAL_CB(manifest_preload.end),
+                     PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
+                     NULL, 0, "manifest");
+
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
         debug("failed creating the VMA allocator\n");
         return -ENOMEM;

@@ -441,18 +441,14 @@ static void __free (void * mem)
 int init_manifest (PAL_HANDLE manifest_handle)
 {
     int ret = 0;
-    void * addr;
-    size_t size, map_size;
+    void * addr = NULL;
+    size_t size = 0, map_size = 0;
 
 #define MAP_FLAGS (MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL)
 
     if (PAL_CB(manifest_preload.start)) {
         addr = PAL_CB(manifest_preload.start);
         size = PAL_CB(manifest_preload.end) - PAL_CB(manifest_preload.start);
-        map_size = ALIGN_UP(size);
-        if (bkeep_mmap(addr, map_size, PROT_READ, MAP_FLAGS,
-                       NULL, 0, "manifest") < 0)
-            bug();
     } else {
         PAL_STREAM_ATTR attr;
         if (!DkStreamAttributesQuerybyHandle(manifest_handle, &attr))
@@ -499,10 +495,11 @@ int init_manifest (PAL_HANDLE manifest_handle)
     return 0;
 
 fail:
-    if (addr == PAL_CB(manifest_preload.start))
+    if (map_size) {
         DkStreamUnmap(addr, map_size);
-    if (bkeep_munmap(addr, map_size, MAP_FLAGS) < 0)
-        bug();
+        if (bkeep_munmap(addr, map_size, MAP_FLAGS) < 0)
+            bug();
+    }
     free(new_root_config);
     return ret;
 }
