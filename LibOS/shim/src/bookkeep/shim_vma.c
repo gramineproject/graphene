@@ -432,11 +432,11 @@ __set_vma_comment (struct shim_vma * vma, const char * comment)
 }
 
 /*
- * Add bookkeeping for mmap(). "prev" must be passed into the function as
- * the immediate precedent vma of the allocating address, or NULL if no
- * vma is lower than the address. If the bookkeeping area overlaps with
- * some existing vmas, we must check whether the caller (from user, internal
- * code, or checkpointing procedure) is allowed to overwrite the existing vmas.
+ * Add bookkeeping for mmap(). "prev" must point to the the immediately
+ * precedent vma of the address to map, or is NULL if no vma is lower than
+ * the address. If the bookkeeping area overlaps with some existing vmas,
+ * we must check whether the caller (from user, internal code, or checkpointing
+ * procedure) is allowed to overwrite the existing vmas.
  *
  * Bookkeeping convention (must follow):
  * Create the bookkeeping BEFORE any allocation PAL calls
@@ -577,11 +577,12 @@ finish:
 }
 
 /*
- * Update bookkeeping for munmap(). "pprev" must be passed into the function as
- * this immediate precedent vma of the deallocating address, or NULL if no
- * vma is lower than the address. If the bookkeeping area overlaps with
- * some existing vmas, we must check whether the caller (from user, internal
- * code, or checkpointing procedure) is allowed to overwrite the existing vmas.
+ * Update bookkeeping for munmap(). "*pprev" must point to the immediately
+ * precedent vma of the address to unmap, or is NULL if no vma is lower than
+ * the address. If the bookkeeping area overlaps with some existing vmas,
+ * we must check whether the caller (from user, internal code, or checkpointing
+ * procedure) is allowed to overwrite the existing vmas. "pprev" can be
+ * updated if a new vma lower than the unmapping address is added.
  *
  * Bookkeeping convention (must follow):
  * Make deallocation PAL calls (DkVirtualMemoryFree() or DkStreamUnmap())
@@ -672,11 +673,11 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
 }
 
 /*
- * Update bookkeeping for mprotect(). "prev" must be passed into the function
- * as the immediate precedent vma of the protecting address, or NULL if no
- * vma is lower than the address. If the bookkeeping area overlaps with
- * some existing vmas, we must check whether the caller (from user, internal
- * code, or checkpointing procedure) is allowed to overwrite the existing vmas.
+ * Update bookkeeping for mprotect(). "prev" must point to the immediately
+ * precedent vma of the protecting address, or is NULL if no vma is lower than
+ * the address. If the bookkeeping area overlaps with some existing vmas,
+ * we must check whether the caller (from user, internal code, or checkpointing
+ * procedure) is allowed to overwrite the existing vmas.
  *
  * Bookkeeping convention (must follow):
  * Update the bookkeeping BEFORE calling DkVirtualMemoryProtect().
