@@ -674,7 +674,7 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
 
 /*
  * Update bookkeeping for mprotect(). "prev" must point to the immediately
- * precedent vma of the protecting address, or is NULL if no vma is lower than
+ * precedent vma of the address to protect, or is NULL if no vma is lower than
  * the address. If the bookkeeping area overlaps with some existing vmas,
  * we must check whether the caller (from user, internal code, or checkpointing
  * procedure) is allowed to overwrite the existing vmas.
