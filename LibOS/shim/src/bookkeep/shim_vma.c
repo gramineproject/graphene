@@ -178,6 +178,9 @@ static inline void __assert_vma_list (void)
 /*
  * __lookup_vma() returns the VMA that contains the address; otherwise,
  * returns NULL. "pprev" returns the highest VMA below the address.
+ * __lookup_vma() fills "pprev" even when the function cannot find a
+ * matching vma for "addr".
+ *
  * vma_list_lock must be held when calling this function.
  */
 static inline struct shim_vma *
