@@ -747,7 +747,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
     struct shim_vma * cur = __lookup_vma(top_addr, &prev);
 
     while (true) {
-        /* setting the range for searching */
+        /* Set the range for searching */
         void * end = cur ? cur->start : top_addr;
         void * start =
             (prev && prev->end > bottom_addr) ? prev->end : bottom_addr;
