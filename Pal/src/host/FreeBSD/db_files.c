@@ -275,7 +275,7 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    handle->file.realpath = remalloc(uri, strlen(uri));
+    handle->file.realpath = malloc_copy(uri, strlen(uri));
     return 0;
 }
 
@@ -494,7 +494,7 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    handle->dir.realpath = remalloc(uri, strlen(uri));
+    handle->dir.realpath = malloc_copy(uri, strlen(uri));
     return 0;
 }
 

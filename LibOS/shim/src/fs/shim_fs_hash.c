@@ -176,7 +176,7 @@ HASHTYPE rehash_name (HASHTYPE parent_hbuf,
     return ret;
 }
 
-HASHTYPE rehash_path (HASHTYPE ancester_hbuf,
+HASHTYPE rehash_path (HASHTYPE ancestor_hbuf,
                       const char * path, int size, const char * sep)
 {
     HASHTYPE ctx = 0;
@@ -203,6 +203,6 @@ HASHTYPE rehash_path (HASHTYPE ancester_hbuf,
         digest ^= ctx;
     }
 
-    hbuf = ancester_hbuf ^ digest;
+    hbuf = ancestor_hbuf ^ digest;
     return hbuf;
 }

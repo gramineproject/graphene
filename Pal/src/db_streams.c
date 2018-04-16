@@ -724,7 +724,7 @@ PAL_BOL DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo)
       the new process environment? Should we initialize/modify some 
       attibutes of the handle?
     Ans - Yes, Initialize and make it compatibile in the target process
-   3. Should remalloc be done or the process shares the same references?
+   3. Should malloc_copy be done or the process shares the same references?
     Ans - Variables members have to allocated data again.
 */
 PAL_HANDLE DkReceiveHandle (PAL_HANDLE handle)
