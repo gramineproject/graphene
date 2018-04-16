@@ -10,15 +10,15 @@ Launching a GSC container instance includes following steps:
 
 (2) Go to graphene/Tools
 
-(3) Launching a GSC container via the following command: 
+(3) Run a GSC container via the following command: 
 
    ./gsce run [Docker Image Name:Tag] [All the arguments used for launching a normal Docker container].
 
-Let's take redis, an key-value, in-memory database as an example. Assume the user runs a normal redis from its docker image as follows.
+Let's take redis, a key-value, in-memory database as an example. Assume the user runs a normal redis from its docker image as follows.
 
 docker run -i -t -p 6379:6379 redis:latest
 
 To launch a GSC container running redis, the user runs the command as follows.
 
-./gsce run redis:latest -i -t -p 6379:6379
+./gsce run -i -t -p 6379:6379 redis:latest
 
