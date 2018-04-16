@@ -49,6 +49,7 @@ static void *mem_pool_end = &mem_pool[POOL_SIZE];
 
 #define STARTUP_SIZE    2
 
+/* This function is protected by slab_mgr_lock. */
 static inline void * __malloc (int size)
 {
     void * addr = NULL;
@@ -117,18 +118,24 @@ void * malloc (size_t size)
         memset(ptr, 0xa5, size);
 #endif
 
+    if (!ptr) {
+        /*
+         * Normally, the PAL should not run out of memory.
+         * If malloc() failed internally, we cannot handle the
+         * condition and must terminate the current process.
+         */
+        printf("******** Out-of-memory in PAL ********\n");
+        _DkProcessExit(-1);
+    }
+
 #if PROFILING == 1
     pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
 #endif
     return ptr;
 }
 
-/* This function is not realloc(). remalloc() allocates a new buffer
- * with with a provided size and copies the contents of the old buffer
- * to the new buffer. The old buffer is not freed. The old buffer must
- * be at least size bytes long. This function should probably be renamed
- * to something less likely to be confused with realloc. */
-void * remalloc (const void * mem, size_t size)
+// Copies data from `mem` to a newly allocated buffer of a specified size.
+void * malloc_copy (const void * mem, size_t size)
 {
     void * nmem = malloc(size);
 

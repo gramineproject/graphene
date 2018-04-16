@@ -209,7 +209,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
     return ret;
 }
 
-static void * file_alloc (struct shim_cp_store * store, void * addr, int size)
+static void * file_alloc (struct shim_cp_store * store, void * addr, size_t size)
 {
     assert(store->cp_file);
     struct shim_mount * fs = store->cp_file->fs;

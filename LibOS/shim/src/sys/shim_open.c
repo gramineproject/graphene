@@ -318,13 +318,13 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
 
     if (hdl->type != TYPE_DIR) {
         ret = -ENOTDIR;
-        goto out;
+        goto out_no_unlock;
     }
 
     /* DEP 3/3/17: Properly handle an unlinked directory */
     if (hdl->dentry->state & DENTRY_NEGATIVE) {
         ret = -ENOENT;
-        goto out;
+        goto out_no_unlock;
     }
     
     /* we are grabbing the lock because the handle content is actually
@@ -339,7 +339,8 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
     /* If we haven't listed the directory, do this first */
     if (!(dent->state & DENTRY_LISTED)) {
         ret = list_directory_dentry(dent);
-        if (ret) goto out;
+        if (ret < 0)
+            goto out;
     }
 
 #define DIRENT_SIZE(len)  (sizeof(struct linux_dirent) +                \
@@ -382,7 +383,8 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
 
     if (dirhdl->ptr == (void *) -1) {
         ret = list_directory_handle(dent, hdl);
-        if (ret) goto out;
+        if (ret < 0)
+            goto out;
     }
     
     while (dirhdl->ptr && *dirhdl->ptr) {
@@ -404,8 +406,9 @@ done:
     if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot || 
                        (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
-    unlock(hdl->lock);
 out:
+    unlock(hdl->lock);
+out_no_unlock:
     put_handle(hdl);
     return ret;
 }

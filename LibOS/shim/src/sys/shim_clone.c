@@ -122,13 +122,10 @@ int clone_implementation_wrapper(struct clone_args * arg)
     void * stack = pcargs->stack;
     void * return_pc = pcargs->return_pc;
 
-    struct shim_vma * vma = NULL;
-    lookup_supervma(ALIGN_DOWN(stack), allocsize, &vma);
-    assert(vma);
-    my_thread->stack_top = vma->addr + vma->length;
-    my_thread->stack_red = my_thread->stack = vma->addr;
-    snprintf(vma->comment, VMA_COMMENT_LEN, "stack:%d", my_thread->tid);
-    put_vma(vma);
+    struct shim_vma_val vma;
+    lookup_vma(ALIGN_DOWN(stack), &vma);
+    my_thread->stack_top = vma.addr + vma.length;
+    my_thread->stack_red = my_thread->stack = vma.addr;
 
     /* Don't signal the initialize event until we are actually init-ed */ 
     DkEventSet(pcargs->initialize_event);
@@ -255,11 +252,10 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         }
 
         if (user_stack_addr) {
-            struct shim_vma * vma = NULL;
-            lookup_supervma(ALIGN_DOWN(user_stack_addr), allocsize, &vma);
-            assert(vma);
-            thread->stack_top = vma->addr + vma->length;
-            thread->stack_red = thread->stack = vma->addr;
+            struct shim_vma_val vma;
+            lookup_vma(ALIGN_DOWN(user_stack_addr), &vma);
+            thread->stack_top = vma.addr + vma.length;
+            thread->stack_red = thread->stack = vma.addr;
             tcb->shim_tcb.context.sp = user_stack_addr;
             tcb->shim_tcb.context.ret_ip = *(void **) user_stack_addr;
         }

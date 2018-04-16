@@ -187,13 +187,13 @@ static int protect_page (struct link_map * l, void * addr, size_t size)
     }
 
     if ((prot & (PROT_READ|PROT_WRITE)) == (PROT_READ|PROT_WRITE)) {
-        struct shim_vma * vma = NULL;
+        struct shim_vma_val vma;
+
         /* the actual protection of the vma might be changed */
-        if (lookup_supervma(addr, size, &vma) < 0)
+        if (lookup_vma(addr, &vma) < 0)
             return 0;
 
-        prot = vma->prot;
-        put_vma(vma);
+        prot = vma.prot;
 
         if ((prot & (PROT_READ|PROT_WRITE)) == (PROT_READ|PROT_WRITE))
             return 0;
@@ -522,8 +522,11 @@ call_lose:
             if (addr)
                 mappref = (ElfW(Addr)) c->mapstart + (ElfW(Addr)) addr;
             else
-                mappref = (ElfW(Addr)) get_unmapped_vma(ALIGN_UP(maplength),
-                                            MAP_PRIVATE|MAP_ANONYMOUS);
+                mappref = (ElfW(Addr))
+                    bkeep_unmapped_heap(ALIGN_UP(maplength), c->prot,
+                                        c->flags|MAP_PRIVATE|
+                                        (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
+                                        file, c->mapoff, NULL);
 
             /* Remember which part of the address space this object uses.  */
             errval = (*mmap) (file, (void **) &mappref, ALIGN_UP(maplength),
@@ -540,17 +543,6 @@ map_error:
 
         l->l_map_start = mappref;
         l->l_map_end = l->l_map_start + maplength;
-
-#if BOOKKEEP_INTERNAL_OBJ == 0
-        if (type != OBJECT_INTERNAL && type != OBJECT_USER)
-#else
-        if (type != OBJECT_USER)
-#endif
-            bkeep_mmap((void *) mappref, ALIGN_UP(maplength), c->prot,
-                       c->flags|MAP_PRIVATE|
-                       (type == OBJECT_INTERNAL ? VMA_INTERNAL : 0),
-                       file, c->mapoff, NULL);
-
         l->l_addr = l->l_map_start - c->mapstart;
 
         if (has_holes) {
@@ -693,7 +685,7 @@ postmap:
         }
     } else {
         l->l_real_ld = (ElfW(Dyn) *) RELOCATE(l, l->l_ld);
-        l->l_ld = remalloc(l->l_real_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
+        l->l_ld = malloc_copy(l->l_real_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
     }
 
     elf_get_dynamic_info(l);
@@ -704,7 +696,7 @@ postmap:
         /* DEP 3/12/18: This string is not stable; copy it. */
         char * tmp = (char *) (D_PTR (l->l_info[DT_STRTAB])
                               + D_PTR (l->l_info[DT_SONAME]));
-        l->l_soname = remalloc(tmp, strlen(tmp) + 1);
+        l->l_soname = malloc_copy(tmp, strlen(tmp) + 1);
     }
 
     if (l->l_phdr == NULL) {

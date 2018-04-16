@@ -468,12 +468,12 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         }
     }
 
-    int total_bytes = store->offset;
-    int bytes = 0;
+    size_t total_bytes = store->offset;
+    size_t bytes = 0;
 
     do {
-        int ret = DkStreamWrite(stream, 0, total_bytes - bytes,
-                                (void *) store->base + bytes, NULL);
+        size_t ret = DkStreamWrite(stream, 0, total_bytes - bytes,
+                                   (void *) store->base + bytes, NULL);
 
         if (!ret)
             return -PAL_ERRNO;
@@ -484,17 +484,20 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
     ADD_PROFILE_OCCURENCE(migrate_send_on_stream, total_bytes);
 
     for (int i = 0 ; i < mem_nentries ; i++) {
-        int mem_size = mem_entries[i]->size;
+        size_t mem_size = mem_entries[i]->size;
         void * mem_addr = mem_entries[i]->addr;
         bytes = 0;
         do {
-            int ret = DkStreamWrite(stream, 0, mem_size - bytes,
-                                    mem_addr + bytes, NULL);
+            size_t ret = DkStreamWrite(stream, 0, mem_size - bytes,
+                                       mem_addr + bytes, NULL);
             if (!ret)
                 return -PAL_ERRNO;
 
             bytes += ret;
         } while (bytes < mem_entries[i]->size);
+
+        if (!(mem_entries[i]->prot & PAL_PROT_READ))
+            DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot);
 
         mem_entries[i]->size = mem_size;
         ADD_PROFILE_OCCURENCE(migrate_send_on_stream, mem_size);
@@ -613,8 +616,8 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
         rs_func rs = (&__rs_func) [cpent->cp_type - CP_FUNC_BASE];
         ret = (*rs) (cpent, base, offset, rebase);
         if (ret < 0) {
-            debug("restoring %s failed at %p (err=%d)\n", CP_FUNC_NAME(cpent->cp_type),
-                  base + offset, -ret);
+            sys_printf("restore_checkpoint() at %s (%d)\n",
+                       CP_FUNC_NAME(cpent->cp_type), ret);
             return ret;
         }
 next:
@@ -801,36 +804,55 @@ int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
     return 0;
 }
 
-static void * cp_alloc (struct shim_cp_store * store, void * addr, int size)
+static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
 {
     if (addr) {
-        // Caller specified an exact region to alloc.
-        struct shim_vma * vma;
-        bool found = !lookup_overlap_vma(addr, size, &vma);
-        if (found) {
-            bool allocable = vma->addr == addr && vma->length == size
-                             && (vma->flags & VMA_UNMAPPED);
-            if (!allocable) {
-                put_vma(vma);
-                return NULL;
-            }
-        }
-        return DkVirtualMemoryAlloc(addr, size, 0,
-                                    PAL_PROT_READ|PAL_PROT_WRITE);
+        /*
+         * If the checkpoint needs more space, try to extend the checkpoint
+         * store at the current address.
+         */
+        debug("try extend checkpoint store: %p-%p (size = %ld)\n",
+              addr, addr + size, size);
+
+        if (bkeep_mmap(addr, size, PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
+                       NULL, 0, "cpstore") < 0)
+            return NULL;
     } else {
-        // Alloc on any address, with specified size.
-        // We need to retry because `get_unmapped_vma_for_cp` is randomized.
-        // TODO: Fix this to remove the need for retrying.
-        while (true) {
-            addr = get_unmapped_vma_for_cp(size);
-            if (!addr)
-                return NULL;
-            addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
-                                                 PAL_PROT_READ|PAL_PROT_WRITE);
-            if (addr)
-                return addr;
-        }
+        /*
+         * Here we use a strategy to reduce internal fragmentation of virtual
+         * memory space. Because we need a relatively large, continuous space
+         * for dumping the checkpoint data, internal fragmentation can cause
+         * the process to drain the virtual address space after forking a few
+         * times. The previous space used for checkpoint may be fragmented
+         * at the next fork.
+         *
+         * A simple trick we use here is to reserve some space right after the
+         * checkpoint space. The reserved space is half of the size of the
+         * checkpoint space, but can be further fine-tuned.
+         */
+        size_t reserve_size = ALIGN_UP(size >> 1);
+
+        debug("try allocate checkpoint store (size = %ld, reserve = %ld)\n",
+              size, reserve_size);
+
+        /*
+         * Allocating the checkpoint space at the first space found from the
+         * top of the virtual address space.
+         */
+        addr = bkeep_unmapped_any(size + reserve_size, PROT_READ|PROT_WRITE,
+                                  CP_VMA_FLAGS, NULL, 0, "cpstore");
+        if (!addr)
+            return NULL;
+
+        bkeep_munmap(addr + size, reserve_size, CP_VMA_FLAGS);
     }
+
+    addr = (void *) DkVirtualMemoryAlloc(addr, size, 0,
+                                         PAL_PROT_READ|PAL_PROT_WRITE);
+    if (!addr)
+        bkeep_munmap(addr, size, CP_VMA_FLAGS);
+
+    return addr;
 }
 
 DEFINE_PROFILE_CATAGORY(migrate_proc, migrate);
@@ -847,6 +869,18 @@ DEFINE_PROFILE_INTERVAL(migrate_send_pal_handles, migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_free_checkpoint,  migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_wait_response,    migrate_proc);
 
+static bool warn_no_gipc __attribute_migratable = true;
+
+/*
+ * Create a new process and migrate the process states to the new process.
+ *
+ * @migrate: migration function defined by the caller
+ * @exec: the executable to load in the new process
+ * @argv: arguments passed to the new process
+ * @thread: thread handle to be migrated to the new process
+ *
+ * The remaining arguments are passed into the migration function.
+ */
 int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                                         struct shim_thread *,
                                         struct shim_process *, va_list),
@@ -867,6 +901,12 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 #endif
     BEGIN_PROFILE_INTERVAL();
 
+    /*
+     * Create the process first. The new process requires some time
+     * to initialize before starting to receive checkpoint data.
+     * Parallizing the process creation and checkpointing can improve
+     * the latency of forking.
+     */
     PAL_HANDLE proc = DkProcessCreate(exec ? qstrgetstr(&exec->uri) :
                                       pal_control.executable,
                                       0, argv);
@@ -878,6 +918,11 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     SAVE_PROFILE_INTERVAL(migrate_create_process);
 
+    /*
+     * Detect if GIPC is supported by the host. If GIPC is not supported
+     * forking may be slow because we have to use RPC streams for migrating
+     * user memory.
+     */
     bool use_gipc = false;
     PAL_NUM gipc_key;
     PAL_HANDLE gipc_hdl = DkCreatePhysicalMemoryChannel(&gipc_key);
@@ -887,10 +932,14 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         use_gipc = true;
         SAVE_PROFILE_INTERVAL(migrate_create_gipc);
     } else {
-        sys_printf("WARNING: no physical memory support, process creation "
-                   "will be slow.\n");
+        if (warn_no_gipc) {
+            warn_no_gipc = false;
+            sys_printf("WARNING: no physical memory support, process creation "
+                       "may be slow.\n");
+        }
     }
 
+    /* Create process and IPC bookkeepings */
     if (!(new_process = create_new_process(true))) {
         ret = -ENOMEM;
         goto err;
@@ -903,6 +952,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     SAVE_PROFILE_INTERVAL(migrate_connect_ipc);
 
+    /* Allocate a space for dumping the checkpoint data. */
     cpstore = __alloca(sizeof(struct shim_cp_store));
     memset(cpstore, 0, sizeof(struct shim_cp_store));
     cpstore->alloc    = cp_alloc;
@@ -910,10 +960,14 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     cpstore->bound    = CP_INIT_VMA_SIZE;
 
     while (1) {
-        debug("try allocate checkpoint store (size = %d)\n", cpstore->bound);
+        /*
+         * Try allocating a space of a certain size. If the allocation fails,
+         * continue to try with smaller sizes.
+         */
         cpstore->base = (ptr_t) cp_alloc(cpstore, 0, cpstore->bound);
         if (cpstore->base)
             break;
+
         cpstore->bound >>= 1;
         if (cpstore->bound < allocsize)
             break;
@@ -927,6 +981,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     SAVE_PROFILE_INTERVAL(migrate_init_checkpoint);
 
+    /* Calling the migration function defined by the caller. */
     va_list ap;
     va_start(ap, thread);
     ret = (*migrate) (cpstore, thread, new_process, ap);
@@ -941,6 +996,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     unsigned long checkpoint_time = GET_PROFILE_INTERVAL();
     unsigned long checkpoint_size = cpstore->offset + cpstore->mem_size;
 
+    /* Checkpoint data created. */
     debug("checkpoint of %u bytes created, %lu microsecond is spent.\n",
           checkpoint_size, checkpoint_time);
 
@@ -976,6 +1032,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     hdr.write_proc_time = GET_PROFILE_INTERVAL();
 #endif
 
+    /*
+     * Sending a header to the new process through the RPC stream to
+     * notify the process to start receiving the checkpoint.
+     */
     bytes = DkStreamWrite(proc, 0, sizeof(struct newproc_header), &hdr, NULL);
     if (!bytes) {
         ret = -PAL_ERRNO;
@@ -989,6 +1049,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     ADD_PROFILE_OCCURENCE(migrate_send_on_stream, bytes);
     SAVE_PROFILE_INTERVAL(migrate_send_header);
 
+    /* Sending the checkpoint either through GIPC or the RPC stream */
     ret = cpstore->use_gipc ? send_checkpoint_by_gipc(gipc_hdl, cpstore) :
           send_checkpoint_on_stream(proc, cpstore);
 
@@ -999,14 +1060,27 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     SAVE_PROFILE_INTERVAL(migrate_send_checkpoint);
 
+    /*
+     * For socket and RPC streams, we need to migrate the PAL handles
+     * to the new process using PAL calls.
+     */
     if ((ret = send_handles_on_stream(proc, cpstore)) < 0)
         goto err;
 
     SAVE_PROFILE_INTERVAL(migrate_send_pal_handles);
 
-    system_free((void *) cpstore->base, cpstore->bound);
+    /* Free the checkpoint space */
+    if ((ret = bkeep_munmap((void *) cpstore->base, cpstore->bound,
+                            CP_VMA_FLAGS)) < 0) {
+        debug("failed unmaping checkpoint (ret = %d)\n", ret);
+        goto err;
+    }
+
+    DkVirtualMemoryFree((PAL_PTR) cpstore->base, cpstore->bound);
+
     SAVE_PROFILE_INTERVAL(migrate_free_checkpoint);
 
+    /* Wait for the response from the new process */
     struct newproc_response res;
     bytes = DkStreamRead(proc, 0, sizeof(struct newproc_response), &res,
                          NULL, 0);
@@ -1020,10 +1094,12 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     if (gipc_hdl)
         DkObjectClose(gipc_hdl);
 
+    /* Notify the namespace manager regarding the subleasing of TID */
     ipc_pid_sublease_send(res.child_vmid, thread->tid,
                           qstrgetstr(&new_process->self->uri),
                           NULL);
 
+    /* Listen on the RPC stream to the new process */
     add_ipc_port_by_id(res.child_vmid, proc,
                        IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
                        &ipc_child_exit,
@@ -1043,73 +1119,92 @@ err:
     return ret;
 }
 
+/*
+ * Loading the checkpoint from the parent process or a checkpoint file
+ *
+ * @hdr: checkpoint header
+ * @cpptr: returning the pointer of the loaded checkpoint
+ */
 int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 {
-    ptr_t base = (ptr_t) hdr->hdr.addr;
-    int   size = hdr->hdr.size;
+    void * base = NULL;
+    size_t size = hdr->hdr.size;
     PAL_PTR mapaddr;
     PAL_NUM mapsize;
-    unsigned long mapoff;
     long rebase;
     bool use_gipc = !!hdr->gipc.uri[0];
     PAL_HANDLE gipc_store;
     int ret = 0;
+    BEGIN_PROFILE_INTERVAL();
 
-    debug("checkpoint detected (%d bytes, expected at %p)\n",
-          size, base);
+    /*
+     * Allocate a large enough space to load the checkpoint data.
+     *
+     * If CPSTORE_DERANDOMIZATION is enabled, try to allocate the space
+     * at the exact address where the checkpoint is created. Otherwise,
+     * just allocate at the first space we found from the top of the virtual
+     * memory space.
+     */
 
-    if (base && lookup_overlap_vma((void *) base, size, NULL) == -ENOENT) {
+#if CPSTORE_DERANDOMIZATION == 1
+    if (hdr->hdr.addr
+        && lookup_overlap_vma(hdr->hdr.addr, size, NULL) == -ENOENT) {
+
+        /* Try to load the checkpoint at the same address */
+        base = hdr->hdr.addr;
         mapaddr = (PAL_PTR) ALIGN_DOWN(base);
         mapsize = (PAL_PTR) ALIGN_UP(base + size) - mapaddr;
-        mapoff  = base - (ptr_t) mapaddr;
-    } else {
-        mapaddr = (PAL_PTR) 0;
-        mapsize = ALIGN_UP(size);
-        mapoff  = 0;
+
+        /* Need to create VMA before allocation */
+        ret = bkeep_mmap((void *) mapaddr, mapsize,
+                         PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
+                         NULL, 0, "cpstore");
+        if (ret < 0)
+            base = NULL;
+    }
+#endif
+
+    if (!base) {
+        base = bkeep_unmapped_any(ALIGN_UP(size),
+                                  PROT_READ|PROT_WRITE, CP_VMA_FLAGS,
+                                  NULL, 0, "cpstore");
+        if (!base)
+            return -ENOMEM;
+
+        mapaddr = (PAL_PTR) base;
+        mapsize = (PAL_NUM) ALIGN_UP(size);
     }
 
-    BEGIN_PROFILE_INTERVAL();
+    debug("checkpoint mapped at %p-%p\n", base, base + size);
+
+    PAL_FLG pal_prot = PAL_PROT_READ|PAL_PROT_WRITE;
+    PAL_PTR mapped = mapaddr;
 
     if (use_gipc) {
         debug("open gipc store: %s\n", hdr->gipc.uri);
 
-        PAL_FLG mapprot = PAL_PROT_READ|PAL_PROT_WRITE;
         gipc_store = DkStreamOpen(hdr->gipc.uri, 0, 0, 0, 0);
         if (!gipc_store ||
-            !DkPhysicalMemoryMap(gipc_store, 1, &mapaddr, &mapsize, &mapprot))
+            !DkPhysicalMemoryMap(gipc_store, 1, &mapped, &mapsize, &pal_prot))
             return -PAL_ERRNO;
 
         SAVE_PROFILE_INTERVAL(child_load_checkpoint_by_gipc);
     } else {
-        void * mapped = NULL;
-
-        for (int tries = 3 ; tries ; tries--) {
-            if ((mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0,
-                                               PAL_PROT_READ|PAL_PROT_WRITE)))
-                break;
-
-            debug("cannot map address %p-%p\n", mapaddr, mapaddr + mapsize);
-            ret =-PAL_ERRNO;
-            mapaddr = NULL;
-        }
-
+        void * mapped = DkVirtualMemoryAlloc(mapaddr, mapsize, 0, pal_prot);
         if (!mapped)
-            return ret;
-
-        mapaddr = mapped;
+            return -PAL_ERRNO;
     }
 
-    bkeep_mmap((void *) mapaddr, mapsize,
-               PROT_READ|PROT_WRITE,
-               MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
-               NULL, 0, NULL);
+    assert(mapaddr == mapped);
+    /*
+     * If the checkpoint is loaded at a different address from where it is
+     * created, we need to rebase the pointers in the checkpoint.
+     */
+    rebase = (long) ((uintptr_t) base - (uintptr_t) hdr->hdr.addr);
 
-    base = (ptr_t) mapaddr + mapoff;
-    rebase = (long) base - (long) hdr->hdr.addr;
-    debug("checkpoint loaded at %p\n", base);
-
+    /* Load the memory data sent separately over GIPC or the RPC stream. */
     if (use_gipc) {
-        if ((ret = restore_gipc(gipc_store, &hdr->gipc, base, rebase)) < 0)
+        if ((ret = restore_gipc(gipc_store, &hdr->gipc, (ptr_t) base, rebase)) < 0)
             return ret;
 
         SAVE_PROFILE_INTERVAL(child_load_memory_by_gipc);
@@ -1131,17 +1226,12 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         debug("%d bytes read on stream\n", total_bytes);
     }
 
-    struct newproc_response res;
-    res.child_vmid = cur_process.vmid;
-    res.failure = 0;
-    int bytes = DkStreamWrite(PAL_CB(parent_process), 0,
-                              sizeof(struct newproc_response),
-                              &res, NULL);
-    if (!bytes)
-        return -PAL_ERRNO;
-
-    if ((ret = receive_handles_on_stream(&hdr->palhdl, base, rebase)) < 0)
+    /* Receive socket or RPC handles from the parent process. */
+    ret = receive_handles_on_stream(&hdr->palhdl, (ptr_t) base, rebase);
+    if (ret < 0) {
+        /* TODO: unload the checkpoint space */
         return ret;
+    }
 
     SAVE_PROFILE_INTERVAL(child_receive_handles);
 

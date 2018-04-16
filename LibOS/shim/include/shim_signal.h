@@ -111,7 +111,8 @@ struct shim_signal_log {
 
 extern const char * const siglist[NUM_KNOWN_SIGS + 1];
 
-static_inline const char * signal_name (int sig)
+static_always_inline
+const char * signal_name (int sig)
 {
     if (sig <= NUM_KNOWN_SIGS)
         return siglist[sig];

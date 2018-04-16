@@ -25,6 +25,8 @@
  * directory cache.
  */
 
+#include <stdbool.h>
+
 #include <shim_internal.h>
 #include <shim_utils.h>
 #include <shim_thread.h>
@@ -175,6 +177,8 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
 
     if (!dent) {
         dent = get_new_dentry(fs, parent, name, namelen, NULL);
+        if (!dent)
+            return -ENOMEM;
         do_fs_lookup = 1;
         // In the case we make a new dentry, go ahead and increment the
         // ref count; in other cases, __lookup_dcache does this
@@ -257,7 +261,7 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
  */
 int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                      struct shim_dentry ** dent, int link_depth,
-                     struct shim_mount * fs, int make_ancestor)
+                     struct shim_mount * fs, bool make_ancestor)
 {
     // Basic idea: recursively iterate over path, peeling off one atom at a
     // time.
@@ -390,6 +394,8 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
             get_mount(my_dent->fs);
             err = __path_lookupat (my_dent, my_path, flags, dent, link_depth,
                                    my_dent->fs, make_ancestor);
+            if (err < 0)
+                goto out;
             /* If we aren't returning a live reference to the target dentry, go
              * ahead and release the ref count when we unwind the recursion.
              */
@@ -401,7 +407,8 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                 my_dent->state |= DENTRY_ANCESTOR;
                 my_dent->state |= DENTRY_ISDIRECTORY;
                 my_dent->state &= ~DENTRY_NEGATIVE;
-                if (err == -ENOENT) err = 0;
+                if (err == -ENOENT)
+                    err = 0;
             }
             base_case = 1;
         }
@@ -595,6 +602,10 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
         hdl->info.dir.ptr = (void *)-1;
     }
     path = dentry_get_path(dent, true, &size);
+    if (!path) {
+        ret = -ENOMEM;
+        goto out;
+    }
     qstrsetstr(&hdl->path, path, size);
 
     /* truncate the file if O_TRUNC is given */
@@ -676,8 +687,10 @@ int list_directory_dentry (struct shim_dentry *dent) {
 
     struct shim_dirent * dirent = NULL;
 
-    if ((ret = fs->d_ops->readdir(dent, &dirent)) < 0 || !dirent)
+    if ((ret = fs->d_ops->readdir(dent, &dirent)) < 0 || !dirent) {
+        dirent = NULL;
         goto done_read;
+    }
     
     struct shim_dirent * d = dirent;
     for ( ; d ; d = d->next) {
@@ -697,11 +710,11 @@ int list_directory_dentry (struct shim_dentry *dent) {
         child->ino = d->ino;
     }
 
-    free(dirent);
     dent->state |= DENTRY_LISTED;
 
 done_read:
     unlock(dcache_lock);
+    free(dirent);
     return ret;
 }
 

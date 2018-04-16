@@ -86,7 +86,7 @@ new_elf_object (const char * realname, enum object_type type)
     memset(new, 0, sizeof(struct link_map));
 
     new->l_name = realname ?
-                  remalloc(realname, strlen(realname) + 1) :
+                  malloc_copy(realname, strlen(realname) + 1) :
                   NULL;
     new->l_type = type;
     return new;
@@ -422,7 +422,7 @@ postmap:
             (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
 
         if (do_copy_dyn)
-            l->l_ld = remalloc(l->l_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
+            l->l_ld = malloc_copy(l->l_ld, sizeof(ElfW(Dyn)) * l->l_ldnum);
     }
 
     elf_get_dynamic_info(l->l_ld, l->l_info, l->l_addr);
@@ -557,7 +557,7 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
 
     map->l_real_ld = (ElfW(Dyn) *)
             ((char *) map->l_addr + (unsigned long) map->l_ld);
-    map->l_ld = remalloc(map->l_real_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
+    map->l_ld = malloc_copy(map->l_real_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
 
     elf_get_dynamic_info(map->l_ld, map->l_info, map->l_addr);
     setup_elf_hash(map);
