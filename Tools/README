@@ -12,13 +12,13 @@ Launching a GSC container instance includes following steps:
 
 (3) Run a GSC container via the following command: 
 
-   ./gsce run [Docker Image Name:Tag] [All the arguments used for launching a normal Docker container].
+   ./gsce run [All the arguments used for launching a normal Docker container] [docker Image Name:Tag].
 
 Let's take redis, a key-value, in-memory database as an example. Assume the user runs a normal redis from its docker image as follows.
 
 docker run -i -t -p 6379:6379 redis:latest
 
-To launch a GSC container running redis, the user runs the command as follows.
+To launch a GSC container running redis, simply change docker to "./gsce", i.e., the user runs the command as follows.
 
 ./gsce run -i -t -p 6379:6379 redis:latest
 
