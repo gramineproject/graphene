@@ -50,9 +50,9 @@ static int proc_meminfo_open (struct shim_handle * hdl, const char * name,
         };
 
 retry:
-    if (str) free(str);
     max *= 2;
     len = 0;
+    free(str);
     str = malloc(max);
     if (!str)
         return -ENOMEM;
@@ -105,9 +105,9 @@ static int proc_cpuinfo_open (struct shim_handle * hdl, const char * name,
         };
 
 retry:
-    if (str) free(str);
     max *= 2;
     len = 0;
+    free(str);
     str = malloc(max);
     if (!str)
         return -ENOMEM;
@@ -132,13 +132,12 @@ retry:
         str[len] = 0;
     }
 
-    struct shim_str_data * data = malloc(sizeof(struct shim_str_data));
+    struct shim_str_data * data = calloc(1, sizeof(struct shim_str_data));
     if (!data) {
         free(str);
         return -ENOMEM;
     }
 
-    memset(data, 0, sizeof(struct shim_str_data));
     data->str = str;
     data->len = len;
     hdl->type = TYPE_STR;

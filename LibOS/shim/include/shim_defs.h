@@ -8,6 +8,14 @@
 
 #define HASH_GIPC                   0
 
+/*
+ * If enable CPSTORE_DERANDOMIZATION, the library OS will try to
+ * load the checkpoint (either from the parent or a file) at the
+ * exact address it was created. Currently this option is disabled
+ * to prevent internal fragmentation of virtual memory space.
+ */
+#define CPSTORE_DERANDOMIZATION     0
+
 #define DEFAULT_HEAP_MIN_SIZE       (256 * 1024 * 1024) /* 256MB */
 #define DEFAULT_MEM_MAX_NPAGES      (1024 * 1024)       /* 4GB */
 #define DEFAULT_BRK_MAX_SIZE        (256 * 1024)        /* 256KB */
@@ -17,8 +25,12 @@
 
 #define EXECVE_RTLD                 1
 
+#define ENABLE_ASLR                 1
+
 /* debug message printout */
 #define DEBUGBUF_SIZE               256
 #define DEBUGBUF_BREAK              0
+
+#define DEFAULT_VMA_COUNT           64
 
 #endif /* _SHIM_DEFS_H_ */

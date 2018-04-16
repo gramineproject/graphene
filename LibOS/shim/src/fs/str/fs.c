@@ -163,7 +163,6 @@ int str_write (struct shim_handle * hdl, const void * buf,
         }
 
         char * newbuf = malloc(newlen);
-
         if (!newbuf)
             return -ENOMEM;
 
