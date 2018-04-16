@@ -1,28 +1,19 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import os
 import sys
 import subprocess
 import re
 from shutil import copyfile
-runtime_libs = []
-def init_runtime_libs () :
-  runtime_libs.append('libc')
-  runtime_libs.append('libdl')
-  runtime_libs.append('libm')
-  runtime_libs.append('libpthread')
-  runtime_libs.append('libutil')
-  runtime_libs.append('libnss_dns')
-  runtime_libs.append('libresolv')
-  runtime_libs.append('librt')
+runtime_libs = ['libc', 
+                'libdl',
+                'libm',
+                'libpthread', 
+                'libutil',
+                'libnss_dns', 
+                'libresolv', 
+                'librt']
   
-def filter_default_libs (lib_name) :
-  res = True
-  for lib in runtime_libs :
-    if lib_name == lib :
-      res = False
-  return res
-
 def parse_libs (bin_path) :
   print (bin_path)
   ldd_out = subprocess.check_output(['ldd', bin_path])
@@ -35,7 +26,7 @@ def parse_libs (bin_path) :
       if name_match:
         lib_name = name_match.group(1)
         lib_path = match.group(2)
-        if filter_default_libs (lib_name) : 
+        if lib_name not in runtime_libs : 
           lib_list.append((name_match.group(1), match.group(2)))
   return lib_list
 
@@ -45,11 +36,11 @@ def make_exec(path) :
   os.chmod(path, mode)
 
 def gen_manifest(app_name, bin_name, g_path) :
-  m_path = g_path + '/graphene/LibOS/shim/test/apps/' + app_name + "/" + app_name +"." + "manifest"
+  m_path = g_path + '/LibOS/shim/test/apps/' + app_name + "/" + app_name +"." + "manifest"
   print (m_path)
   mf = open(m_path, "w")
   make_exec(m_path)
-  mf.write("#!" + g_path + "/graphene/Runtime/pal_loader \n")
+  mf.write("#!" + g_path + "/Runtime/pal_loader \n")
   mf.write("loader.preload = file:../../../../../Runtime/libsysdb.so \n")
   
   # Get Path of Binary
@@ -115,12 +106,8 @@ if __name__ == "__main__":
   if len(sys.argv) != 4: 
    print ("Usage: gen_manifest [App Name] [bin_name] [Graphene Path]")
    exit()
-  init_runtime_libs()
   app_name = sys.argv[1]
   bin_name = sys.argv[2]
   g_path = sys.argv[3]
 
   gen_manifest(app_name, bin_name, g_path)
-  # Copy All the files
-  #w_path = g_path + '/graphene/LibOS/shim/test/apps/' + app_name + "/" + app_name
-  #copyfile(os.getcwd() + '/*', w_path)

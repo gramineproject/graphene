@@ -1,14 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import sys,os
 import subprocess
 import re
 
 
 def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
-  if not os.path.exists(proj_dir + "/graphene/Tools/build") :
-    os.makedirs(proj_dir + "/graphene/Tools/build")
-  df =open(proj_dir + "/graphene/Tools/build/Dockerfile" + '.' + app_name, 'w')
-  df.write('# This file is auot-generated, any edits will be overwritten\n')
+  if not os.path.exists(proj_dir + "/Tools/build") :
+    os.makedirs(proj_dir + "/Tools/build")
+  df =open(proj_dir + "/Tools/build/Dockerfile" + '.' + app_name, 'w')
+  df.write('# This file is auto-generated, any edits will be overwritten\n')
 
   df.write('\n')
   # Choose the base image from the user input
@@ -27,26 +27,24 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
   df.write('RUN pip install protobuf && \ \n')
   df.write('    pip install pycrypto\n')
 
-  df.write('# Temproal fixes for Dependencies Issue #1: libcrypto.so.1.0.0 and libssl.so.1.0.0 have different locations \n')
+  df.write('# Temporal fixes for Dependencies Issue #1: libcrypto.so.1.0.0 and libssl.so.1.0.0 have different locations \n')
   df.write('RUN ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.1.0.0 /lib/x86_64-linux-gnu/libcrypto.so.1.0.0 && \ \n')
   df.write('    ln -s /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 /lib/x86_64-linux-gnu/libssl.so.1.0.0 \n')
   
   # SETUP Directory Structure
   print "cwd: "+ proj_dir
   df.write('# Setup Directory Structure \n')
-  df.write('RUN mkdir -p ' + proj_dir + '\n')
-  df.write('RUN cd ' + proj_dir + ' && \ \n')
-  df.write('    mkdir -p graphene/LibOS/shim/test/apps/' + app_name + ' && \ \n')
-  df.write('    mkdir -p graphene/Pal/src/host/Linux-SGX/signer  && \ \n')
-  df.write('    mkdir -p graphene/Runtime \n')
+ # df.write('RUN mkdir -p ' + proj_dir + '\n')
+  df.write('RUN mkdir -p ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + '\n')
+  df.write('RUN mkdir -p ' + proj_dir + '/Pal/src/host/Linux-SGX/signer \n')
+  df.write('RUN mkdir -p ' + proj_dir + '/Runtime \n')
   df.write('RUN mkdir /gbin \n')
-  df.write('\n')
 
   # COPY system files
   df.write('# Copy system files \n')
-  df.write('COPY Runtime/* ' + proj_dir + '/graphene/Runtime/ \n')
-  df.write('COPY Pal/src/Makefile.Host ' + proj_dir + '/graphene/Pal/src/Makefile.Host \n')
-  df.write('COPY Pal/src/host/Linux-SGX/signer/* ' + proj_dir + '/graphene/Pal/src/host/Linux-SGX/signer/ \n')
+  df.write('COPY Runtime/* ' + proj_dir + '/Runtime/ \n')
+  df.write('COPY Pal/src/Makefile.Host ' + proj_dir + '/Pal/src/Makefile.Host \n')
+  df.write('COPY Pal/src/host/Linux-SGX/signer/* ' + proj_dir + '/Pal/src/host/Linux-SGX/signer/ \n')
 
   # COPY tools for building app instance
   df.write('# Copy tools for building app instance\n')
@@ -59,10 +57,10 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
 
   # Sign Enclave
   df.write('# Signing Enclave \n')
-  df.write('RUN cd ' + proj_dir + '/graphene/LibOS/shim/test/apps/' + app_name + ' && \ \n'
-           '    '+ proj_dir + '/graphene/Pal/src/host/Linux-SGX/signer/pal-sgx-sign -libpal ' + proj_dir + 
-           '/graphene/Pal/src/host/Linux-SGX/../../../../Runtime/libpal-Linux-SGX.so -key ' + proj_dir + 
-           '/graphene/Pal/src/host/Linux-SGX/signer/enclave-key.pem -output ' + app_name + '.manifest.sgx ' + 
+  df.write('RUN cd ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + ' && \ \n'
+           '    '+ proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-sign -libpal ' + proj_dir + 
+           '/Pal/src/host/Linux-SGX/../../../../Runtime/libpal-Linux-SGX.so -key ' + proj_dir + 
+           '/Pal/src/host/Linux-SGX/signer/enclave-key.pem -output ' + app_name + '.manifest.sgx ' + 
            '-manifest ' + app_name + '.manifest \n')
   # Remove signing key
   df.write('# Removing key after signing \n')
@@ -78,17 +76,17 @@ def make_exec(path) :
   os.chmod(path, mode)
 
 def gen_app_executor(app_name, bin_cmd, proj_dir) :
-  if not os.path.exists(proj_dir + "/graphene/Tools/build/tools") :
-    os.makedirs(proj_dir + "/graphene/Tools/build/tools")
+  if not os.path.exists(proj_dir + "/Tools/build/tools") :
+    os.makedirs(proj_dir + "/Tools/build/tools")
 
-  e_path = proj_dir + "/graphene/Tools/build/tools/app_exec"
+  e_path = proj_dir + "/Tools/build/tools/app_exec"
   print "e_path: " + e_path
   ef = open(e_path, "w")
   make_exec(e_path)
   ef.write('#!/bin/bash \n \n')
-  ef.write('cd ' + proj_dir + '/graphene/LibOS/shim/test/apps/' + app_name +'\n')
+  ef.write('cd ' + proj_dir + '/LibOS/shim/test/apps/' + app_name +'\n')
   ef.write('# Generate EINITOKEN \n')
-  ef.write(proj_dir + '/graphene/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output ' 
+  ef.write(proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output ' 
            + app_name + '.token -sig ' + app_name + '.sig \n')
   ef.write('# Run the application \n')
   ef.write('SGX=1 ./' + app_name + '.manifest.sgx ' + bin_cmd + '\n')
@@ -116,12 +114,10 @@ if __name__ == "__main__":
     bin_cmd = ""
   print "bin_name: " + bin_name + " bin_cmd: " + bin_cmd
   # Store the rest arguments as docker run arguments
-  docker_str = ""
-  for i in range (2, len(sys.argv)-1) :
-    docker_str += " " + sys.argv[i]
+  docker_str = " " + " ".join(sys.argv[2:-1])
   
   # print image_cmd
-  proj_dir = os.path.abspath(os.getcwd() + "/../../")
+  proj_dir = os.path.abspath(os.getcwd() + "/../")
 
   # STEP 1: Generating Dockerfile
   gen_dockerfile(image_name, app_name, bin_name, proj_dir)
@@ -135,4 +131,3 @@ if __name__ == "__main__":
 
   # STEP 4: Run GSC with the target app
   os.system("sudo docker run -i -t" + docker_str +" --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc_"+app_name+"\n")
-  # os.system("sudo docker run -i -t --device=/dev/gsgx --device=/dev/isgx -p 6379:6379 -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc_"+app_name+"\n")
