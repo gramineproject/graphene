@@ -366,7 +366,7 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type);
 #ifndef NO_INTERNAL_ALLOC
 void init_slab_mgr (int alignment);
 void * malloc (size_t size);
-void * remalloc (const void * mem, size_t size);
+void * malloc_copy(const void * mem, size_t size);
 void * calloc (size_t nmem, size_t size);
 char * strdup(const char *source);
 void free (void * mem);

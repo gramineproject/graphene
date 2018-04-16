@@ -35,7 +35,7 @@
 #define extern_alias(name) \
     extern __typeof(name) shim_##name __attribute ((alias (alias_str(name))))
 
-#define static_inline static inline __attribute__((always_inline))
+#define static_always_inline static inline __attribute__((always_inline))
 
 #include <shim_types.h>
 #include <shim_defs.h>
@@ -555,11 +555,11 @@ extern LOCKTYPE __master_lock;
 # define master_lock()                                              \
     do {                                                            \
         lock(__master_lock);                                        \
-        pal_printf("maste lock " __FILE__ ":%d\n", __LINE__);       \
+        pal_printf("master lock " __FILE__ ":%d\n", __LINE__);       \
     } while (0)
 # define master_unlock()                                            \
     do {                                                            \
-        pal_printf("maste unlock " __FILE__ ":%d\n", __LINE__);     \
+        pal_printf("master unlock " __FILE__ ":%d\n", __LINE__);     \
         unlock(__master_lock);                                      \
     } while (0)
 #else

@@ -962,7 +962,8 @@ int ipc_sysv_semreply_callback (IPC_CALLBACK_ARGS)
 
     PAL_NUM ** semids = obj->private;
     if (semids)
-        *semids = remalloc(msgin->host_sem_ids, sizeof(PAL_NUM) * msgin->nsems);
+        *semids = malloc_copy(msgin->host_sem_ids,
+                              sizeof(PAL_NUM) * msgin->nsems);
     obj->retval = msgin->nsems;
 
     if (obj->thread)

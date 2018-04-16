@@ -92,7 +92,7 @@ struct shim_cp_entry
 struct shim_mem_entry {
     struct shim_mem_entry * prev;
     void * addr;
-    int size;
+    size_t size;
     void ** paddr;
     int prot;
     void * data;
@@ -118,7 +118,7 @@ struct shim_cp_store {
     struct shim_handle * cp_file;
 
     /* allocation method for check point area */
-    void * (*alloc) (struct shim_cp_store * store, void * mem, int size);
+    void * (*alloc) (struct shim_cp_store *, void *, size_t);
 
     /* check point area */
     ptr_t base, offset, bound;
@@ -179,8 +179,8 @@ enum {
                 new_bound *= 2;                                     \
                                                                     \
             void * buf = store->alloc(store,                        \
-                                      (void *) store->base + store->bound, \
-                                      new_bound - store->bound);    \
+                            (void *) store->base + store->bound,    \
+                            new_bound - store->bound);              \
             if (!buf)                                               \
                 return -ENOMEM;                                     \
                                                                     \
