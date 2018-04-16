@@ -3,24 +3,22 @@ loader.exec = file:/bin/sh
 loader.env.LD_LIBRARY_PATH = /lib:/lib64
 loader.debug_type = none
 
-fs.mount.tmp1.type = chroot
-fs.mount.tmp1.path = /tmp
-fs.mount.tmp1.uri = file:/tmp
-
-fs.mount.tmp2.type = chroot
-fs.mount.tmp2.path = /var/tmp
-fs.mount.tmp2.uri = file:/var/tmp
+fs.mount.tmp.type = chroot
+fs.mount.tmp.path = /tmp
+fs.mount.tmp.uri = file:/tmp
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib
 fs.mount.lib.uri = file:$(LIBCDIR)
 
-sgx.enclave_size = 128M
+glibc.heap_size = 16M
 sys.brk.size = 32M
 sys.stack.size = 4M
 
+sgx.enclave_size = 512M
+
 sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu
 
-sgx.trusted_files.hello = file:hello
+sgx.trusted_files.hello = file:/tmp/hello
 
 sgx.trusted_children.hello = file:hello.sig

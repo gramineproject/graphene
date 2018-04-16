@@ -29,9 +29,19 @@ sys.brk.size = 256K
 
 sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu
 
+sgx.trusted_files.ls = file:/bin/ls
+sgx.trusted_files.cp = file:/bin/cp
+sgx.trusted_files.rm = file:/bin/rm
+sgx.trusted_files.date = file:/bin/date
+sgx.trusted_files.cat = file:/bin/cat
+
 sgx.trusted_children.ls = file:ls.sig
 sgx.trusted_children.cp = file:cp.sig
 sgx.trusted_children.rm = file:rm.sig
+sgx.trusted_children.cat = file:cat.sig
+sgx.trusted_children.date = file:date.sig
 
 sgx.allowed_files.test1 = file:bash_test.sh
 sgx.allowed_files.test2 = file:OUTPUT
+sgx.allowed_files.test3 = file:somefile
+sgx.allowed_files.testdir = file:testdir

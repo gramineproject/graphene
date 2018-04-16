@@ -11,14 +11,6 @@ fs.mount.hostlib.type = chroot
 fs.mount.hostlib.path = /lib/x86_64-linux-gnu
 fs.mount.hostlib.uri = file:/lib/x86_64-linux-gnu
 
-fs.mount.bin.type = chroot
-fs.mount.bin.path = /bin
-fs.mount.bin.uri = file:/bin
-
-# allow to bind on port 8000
-net.rules.1 = 127.0.0.1:8000:0.0.0.0:0-65535
-# allow to connect to port 8000
-net.rules.2 = 0.0.0.0:0-65535:127.0.0.1:8000
-
 # sgx-related
 sgx.search_trusted_libs = file:$(LIBCDIR),file:/lib/x86_64-linux-gnu
+sgx.allowed_files.test2 = file:OUTPUT

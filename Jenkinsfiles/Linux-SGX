@@ -42,19 +42,31 @@ pipeline {
                                 '''
 			}
 			*/
-                        sh '''
-                            cd LibOS/shim/test/regression
-			    make SGX=1
-			    make SGX_RUN=1			    
-                            make SGX_RUN=1 regression
+			timeout(time: 5, unit: 'MINUTES') {		    			
+                            sh '''
+                                cd LibOS/shim/test/regression
+			        make SGX=1
+			        make SGX_RUN=1			    
+                                make SGX_RUN=1 regression
                             '''
-                        sh '''
-                            cd LibOS/shim/test/apps/python
-			    make SGX=1
-			    make SGX_RUN=1			    
-                            make SGX_RUN=1 regression
+			}
+			timeout(time: 5, unit: 'MINUTES') {		    						
+                            sh '''
+                                cd LibOS/shim/test/apps/python
+			                          make SGX=1
+			                          make SGX_RUN=1			    
+                                make SGX_RUN=1 regression
                             '''
-			timeout(time: 5, unit: 'MINUTES') {		    
+      }
+      timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/bash
+                                make SGX=1
+                                make SGX_RUN=1
+                                make SGX_RUN=1 regression
+                           '''
+      }
+			timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
 			    	make SGX=1

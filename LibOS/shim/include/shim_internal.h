@@ -35,7 +35,7 @@
 #define extern_alias(name) \
     extern __typeof(name) shim_##name __attribute ((alias (alias_str(name))))
 
-#define static_inline static inline __attribute__((always_inline))
+#define static_always_inline static inline __attribute__((always_inline))
 
 #include <shim_types.h>
 #include <shim_defs.h>
@@ -555,11 +555,11 @@ extern LOCKTYPE __master_lock;
 # define master_lock()                                              \
     do {                                                            \
         lock(__master_lock);                                        \
-        pal_printf("maste lock " __FILE__ ":%d\n", __LINE__);       \
+        pal_printf("master lock " __FILE__ ":%d\n", __LINE__);       \
     } while (0)
 # define master_unlock()                                            \
     do {                                                            \
-        pal_printf("maste unlock " __FILE__ ":%d\n", __LINE__);     \
+        pal_printf("master unlock " __FILE__ ":%d\n", __LINE__);     \
         unlock(__master_lock);                                      \
     } while (0)
 #else
@@ -657,9 +657,11 @@ static inline int __ref_dec (REFTYPE * ref)
     register int _c;
     do {
         _c = atomic_read(ref);
-        assert(_c > 0);
-        if (!_c)
+        if (!_c) {
+            debug("Fail: Trying to drop reference count below 0\n");
+            bug();
             return 0;
+        }
     } while (atomic_cmpxchg(ref, _c, _c - 1) != _c);
     return _c - 1;
 }
@@ -708,8 +710,8 @@ extern void * migrated_memory_start;
 extern void * migrated_memory_end;
 
 #define MEMORY_MIGRATED(mem)                                    \
-        ((void *) mem >= migrated_memory_start &&               \
-         (void *) mem < migrated_memory_end)
+        ((void *) (mem) >= migrated_memory_start &&             \
+         (void *) (mem) < migrated_memory_end)
 
 extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;

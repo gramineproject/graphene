@@ -55,7 +55,7 @@ struct shim_str * get_str_obj (void)
 int free_str_obj (struct shim_str * str)
 {
     if (str == NULL)
-        return -ENOMEM;
+        return 0;
 
     if (MEMORY_MIGRATED(str)) {
         memset(str, 0, sizeof(struct shim_str));

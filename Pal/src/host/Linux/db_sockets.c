@@ -1370,7 +1370,7 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
     hdl->mcast.cli = cli;
     hdl->mcast.port = (PAL_NUM) pal_sec.mcast_port;
     hdl->mcast.nonblocking = PAL_FALSE;
-    hdl->mcast.addr = (PAL_PTR) remalloc(&addr, sizeof(addr));
+    hdl->mcast.addr = (PAL_PTR) malloc_copy(&addr, sizeof(addr));
     return hdl;
 
 err_cli:

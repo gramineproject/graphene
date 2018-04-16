@@ -132,14 +132,14 @@ next:
 }
 
 ssize_t get_config (struct config_store * store, const char * key,
-                    char * val_buf, size_t size)
+                    char * val_buf, size_t buf_size)
 {
     struct config * e = __get_config(store, key);
 
     if (!e || !e->val)
         return -PAL_ERROR_INVAL;
 
-    if (e->vlen >= size)
+    if (e->vlen >= buf_size)
         return -PAL_ERROR_TOOLONG;
 
     memcpy(val_buf, e->val, e->vlen);
