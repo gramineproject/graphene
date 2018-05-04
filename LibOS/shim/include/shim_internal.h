@@ -723,11 +723,11 @@ unsigned long parse_int (const char * str);
 extern void * initial_stack;
 extern const char ** initial_envp;
 
-#define ALIGNED(addr)   (!(((unsigned long) addr) & allocshift))
+#define ALIGNED(addr)   (!(((uintptr_t) addr) & allocshift))
 #define ALIGN_UP(addr)      \
-    ((typeof(addr)) ((((unsigned long) addr) + allocshift) & allocmask))
+    ((typeof(addr)) ((((uintptr_t) addr) + allocshift) & allocmask))
 #define ALIGN_DOWN(addr)    \
-    ((typeof(addr)) (((unsigned long) addr) & allocmask))
+    ((typeof(addr)) (((uintptr_t) addr) & allocmask))
 
 #define switch_stack(stack_top)                                     \
     ({                                                              \
@@ -756,7 +756,7 @@ int init_randgen (void);
 int reset_brk (void);
 int init_brk_region (void * brk_region);
 int init_heap (void);
-int init_internal_map (void);
+int init_shim_map (void);
 int init_loader (void);
 int init_manifest (PAL_HANDLE manifest_handle);
 

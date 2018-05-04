@@ -243,10 +243,6 @@ static int finish_checkpoint (struct cp_session * cpsession)
         DEFINE_MIGRATE(all_vmas, NULL, 0);
         DEFINE_MIGRATE(all_running_threads, NULL, 0);
         DEFINE_MIGRATE(brk, NULL, 0);
-        DEFINE_MIGRATE(loaded_libraries, NULL, 0);
-#ifdef DEBUG
-        DEFINE_MIGRATE(gdb_map, NULL, 0);
-#endif
         DEFINE_MIGRATE(migratable, NULL, 0);
     }
     END_MIGRATION_DEF(checkpoint)

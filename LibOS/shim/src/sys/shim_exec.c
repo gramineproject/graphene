@@ -60,7 +60,6 @@ DEFINE_PROFILE_CATAGORY(exec_rtld, exec);
 DEFINE_PROFILE_INTERVAL(alloc_new_stack_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(arrange_arguments_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(unmap_executable_for_exec, exec_rtld);
-DEFINE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(unmap_all_vmas_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(load_new_executable_for_exec, exec_rtld);
 
@@ -126,10 +125,6 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
         bkeep_munmap(old_stack_red, old_stack - old_stack_red, 0) < 0)
         bug();
 
-    remove_loaded_libraries();
-    clean_link_map_list();
-    SAVE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec);
-
     reset_brk();
 
     size_t count = DEFAULT_VMA_COUNT;
@@ -177,11 +172,13 @@ retry_dump_vmas:
 
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 
+#if 0
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
         shim_terminate();
 
     init_brk_from_executable(cur_thread->exec);
     load_elf_interp(cur_thread->exec);
+#endif
 
     SAVE_PROFILE_INTERVAL(load_new_executable_for_exec);
 
@@ -322,10 +319,12 @@ err:
     char *path = dentry_get_path(dent, true, &pathlen);
     qstrsetstr(&exec->path, path, pathlen);
 
+#if 0
     if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
         put_handle(exec);
         return ret;
     }
+#endif
 
     if (ret == -EINVAL) { /* it's a shebang */
         LISTP_TYPE(sharg) new_shargs;
