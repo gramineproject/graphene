@@ -217,7 +217,7 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
 
     if (map->interp_name) {
         const char * interp_name = map_base + (uintptr_t) map->interp_name;
-        map->interp_name = malloc_copy(interp_name, strlen(interp_name));
+        map->interp_name = malloc_copy(interp_name, strlen(interp_name) + 1);
     }
 
     append_r_debug(qstrgetstr(&file->uri), map->map_start, map->dynamic);
