@@ -758,6 +758,7 @@ int init_brk_region (void * brk_region);
 int init_heap (void);
 int init_shim_map (void);
 int init_loader (void);
+int free_loader (void);
 int init_manifest (PAL_HANDLE manifest_handle);
 
 #endif /* _PAL_INTERNAL_H_ */

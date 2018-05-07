@@ -64,6 +64,7 @@ struct link_map {
 
 static struct link_map * exec_map, * interp_map;
 static struct link_map shim_map;
+static bool exec_reloaded = false;
 
 int init_shim_map (void)
 {
@@ -224,9 +225,9 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
     return 0;
 }
 
-static int load_interp_map (void)
+static int load_interp_map (struct link_map * exec)
 {
-    const char * interp_name = exec_map->interp_name;
+    const char * interp_name = exec->interp_name;
     int len = strlen(interp_name);
     const char * filename = interp_name + len - 1;
     while (filename > interp_name && *filename != '/')
@@ -293,10 +294,14 @@ err:
         }
 
         ret = load_link_map(map, interp, NULL);
-        if (!ret)
-            interp_map = map;
-        else
+        if (!ret) {
+            master_lock();
+            if (exec_map == exec)
+                interp_map = map;
+            master_unlock();
+        } else {
             free(map);
+        }
 out:
         put_handle(interp);
         return ret;
@@ -326,7 +331,7 @@ int init_loader (void)
         if (!map)
             return -ENOMEM;
 
-        if (PAL_CB(executable_range.start)) {
+        if (PAL_CB(executable_range.start) && !exec_reloaded) {
             ret = load_link_map(map, exec, PAL_CB(executable_range.start));
             if (ret < 0)
                 goto out;
@@ -336,9 +341,12 @@ int init_loader (void)
                 goto out;
         }
 
+        master_lock();
         exec_map = map;
-        if (exec_map->interp_name)
-            load_interp_map();
+        master_unlock();
+
+        if (map->interp_name)
+            load_interp_map(map);
 
         /*
          * Chia-Che 8/24/2017:
@@ -351,6 +359,28 @@ int init_loader (void)
 out:
     put_handle(exec);
     return ret;
+}
+
+int free_loader (void)
+{
+    struct link_map * old_exec_map = NULL, * old_interp_map = NULL;
+    master_lock();
+
+    if (exec_map) {
+        old_exec_map = exec_map;
+        exec_map = NULL;
+    }
+
+    if (interp_map) {
+        old_interp_map = interp_map;
+        interp_map = NULL;
+    }
+
+    exec_reloaded = true;
+    master_unlock();
+    free(old_exec_map);
+    free(old_interp_map);
+    return 0;
 }
 
 int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
@@ -428,6 +458,7 @@ END_RS_FUNC(link_map)
 BEGIN_CP_FUNC(rtld)
 {
     struct link_map * new_exec_map = NULL, * new_interp_map = NULL;
+    master_lock();
 
     if (exec_map)
         DO_CP(link_map, exec_map, &new_exec_map);
@@ -435,6 +466,7 @@ BEGIN_CP_FUNC(rtld)
     if (interp_map)
         DO_CP(link_map, interp_map, &new_interp_map);
 
+    master_unlock();
     ADD_CP_FUNC_ENTRY(0);
     ADD_CP_ENTRY(ADDR, new_exec_map);
     ADD_CP_ENTRY(ADDR, new_interp_map);
@@ -447,6 +479,8 @@ END_CP_FUNC(rtld)
 
 BEGIN_RS_FUNC(rtld)
 {
+    master_lock();
+
     exec_map = (void *) GET_CP_ENTRY(ADDR);
     if (exec_map)
         CP_REBASE(exec_map);
@@ -454,5 +488,8 @@ BEGIN_RS_FUNC(rtld)
     interp_map = (void *) GET_CP_ENTRY(ADDR);
     if (interp_map)
         CP_REBASE(interp_map);
+
+    exec_reloaded = true;
+    master_unlock();
 }
 END_RS_FUNC(rtld)

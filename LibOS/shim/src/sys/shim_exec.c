@@ -169,16 +169,12 @@ retry_dump_vmas:
     }
 
     free_vma_val_array(vmas, count);
+    free_loader();
 
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 
-#if 0
-    if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
+    if ((ret = init_loader()) < 0)
         shim_terminate();
-
-    init_brk_from_executable(cur_thread->exec);
-    load_elf_interp(cur_thread->exec);
-#endif
 
     SAVE_PROFILE_INTERVAL(load_new_executable_for_exec);
 
@@ -262,7 +258,6 @@ int shim_do_execve (const char * file, const char ** argv,
 
     BEGIN_PROFILE_INTERVAL();
 
-    
     DEFINE_LIST(sharg);
     struct sharg {
         LIST_TYPE(sharg)  list;
@@ -318,13 +313,6 @@ err:
     int pathlen;
     char *path = dentry_get_path(dent, true, &pathlen);
     qstrsetstr(&exec->path, path, pathlen);
-
-#if 0
-    if ((ret = check_elf_object(exec)) < 0 && ret != -EINVAL) {
-        put_handle(exec);
-        return ret;
-    }
-#endif
 
     if (ret == -EINVAL) { /* it's a shebang */
         LISTP_TYPE(sharg) new_shargs;

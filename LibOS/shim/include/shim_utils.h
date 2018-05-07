@@ -212,10 +212,6 @@ int message_confirm (const char * message, const char * options);
 void getrand (void * buffer, size_t size);
 
 /* ELF binary loading */
-int check_elf_object (struct shim_handle * file);
-int load_elf_object (struct shim_handle * file, void * addr, size_t mapped);
-int load_elf_interp (struct shim_handle * exec);
-int free_elf_interp (void);
 int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
                         int nauxv, elf_auxv_t * auxp);
 int remove_loaded_libraries (void);
