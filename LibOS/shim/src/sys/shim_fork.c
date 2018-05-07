@@ -53,6 +53,7 @@ int migrate_fork (struct shim_cp_store * store,
         DEFINE_MIGRATE(handle_map, thread->handle_map,
                        sizeof (struct shim_handle_map));
         DEFINE_MIGRATE(brk, NULL, 0);
+        DEFINE_MIGRATE(rtld, NULL, 0);
         DEFINE_MIGRATE(migratable, NULL, 0);
     }
     END_MIGRATION_DEF(fork)

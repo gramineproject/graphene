@@ -137,10 +137,17 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
 
     if (mapped_address) {
         map_base = (void *) (mapped_address - map_start);
+        ret = bkeep_mmap(map_base + (uintptr_t) map_start, map_end - map_start,
+                         PROT_NONE,
+                         MAP_FIXED|MAP_PRIVATE|MAP_FILE|VMA_UNMAPPED,
+                         file, 0, NULL);
+        if (ret < 0)
+            return ret;
     } else {
         if (ehdr->e_type == ET_DYN) {
             void * addr = bkeep_unmapped_heap(map_end - map_start,
-                                           PROT_NONE, MAP_PRIVATE|MAP_FILE,
+                                           PROT_NONE,
+                                           MAP_PRIVATE|MAP_FILE|VMA_UNMAPPED,
                                            file, 0, NULL);
             if (!addr)
                 return -ENOMEM;
@@ -148,45 +155,53 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
             map_base = (void *) (addr - map_start);
         } else {
             ret = bkeep_mmap(map_start, map_end - map_start,
-                             PROT_NONE, MAP_FIXED|MAP_PRIVATE|MAP_FILE,
+                             PROT_NONE,
+                             MAP_FIXED|MAP_PRIVATE|MAP_FILE|VMA_UNMAPPED,
                              file, 0, NULL);
             if (ret < 0)
                 return ret;
         }
+    }
 
-        for (ph = phdr ; ph < &phdr[ehdr->e_phnum] ; ph++) {
-            if (ph->p_type != PT_LOAD)
-                continue;
+    for (ph = phdr ; ph < &phdr[ehdr->e_phnum] ; ph++) {
+        if (ph->p_type != PT_LOAD)
+            continue;
 
-            void * start = (void *) ALIGN_DOWN(ph->p_vaddr);
-            void * end = (void *) ALIGN_UP(ph->p_vaddr + ph->p_memsz);
-            void * file_end = (void *) ALIGN_UP(ph->p_vaddr + ph->p_filesz);
-            off_t  file_off = ALIGN_DOWN(ph->p_offset);
-            void * map_addr = map_base + (uintptr_t) start;
+        void * start = (void *) ALIGN_DOWN(ph->p_vaddr);
+        void * end = (void *) ALIGN_UP(ph->p_vaddr + ph->p_memsz);
+        void * file_end = (void *) ALIGN_UP(ph->p_vaddr + ph->p_filesz);
+        off_t  file_off = ALIGN_DOWN(ph->p_offset);
+        void * map_addr = map_base + (uintptr_t) start;
 
-            int prot = 0;
-            if (ph->p_flags & PF_R)
-                prot |= PROT_READ;
-            if (ph->p_flags & PF_W)
-                prot |= PROT_WRITE;
-            if (ph->p_flags & PF_X)
-                prot |= PROT_EXEC;
+        int prot = 0;
+        if (ph->p_flags & PF_R)
+            prot |= PROT_READ;
+        if (ph->p_flags & PF_W)
+            prot |= PROT_WRITE;
+        if (ph->p_flags & PF_X)
+            prot |= PROT_EXEC;
 
-            bkeep_mmap(map_addr, file_end - start,
-                       prot, MAP_PRIVATE|MAP_FILE|MAP_FIXED,
-                       file, file_off, NULL);
+        bkeep_mmap(map_addr, file_end - start,
+                   prot, MAP_PRIVATE|MAP_FILE|MAP_FIXED,
+                   file, file_off, NULL);
 
+        if (!mapped_address) {
             ret = fs->fs_ops->mmap(file, &map_addr, file_end - start, prot,
                                    MAP_PRIVATE|MAP_FILE|MAP_FIXED, file_off);
             if (ret < 0)
                 return ret;
+        }
 
-            if (end > file_end) {
-                map_addr = map_base + (uintptr_t) file_end;
-                bkeep_mmap(map_addr, end - file_end, prot,
-                           MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,
-                           NULL, 0, NULL);
-                DkVirtualMemoryAlloc(map_addr, end - file_end, 0, prot);
+        if (end > file_end) {
+            map_addr = map_base + (uintptr_t) file_end;
+            bkeep_mmap(map_addr, end - file_end, prot,
+                       MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,
+                       NULL, 0, NULL);
+
+            if (!mapped_address) {
+                void * mapped = DkVirtualMemoryAlloc(map_addr, end - file_end,
+                                                     0, prot);
+                assert(mapped == map_addr);
             }
         }
     }
@@ -246,7 +261,7 @@ static int load_interp_map (void)
             ret = -EACCES;
 err:
             put_dentry(dent);
-             return ret;
+            return ret;
         }
 
         if (fs->d_ops->mode) {
@@ -306,29 +321,32 @@ int init_loader (void)
     if (!exec)
         return 0;
 
-    struct link_map * map = malloc(sizeof(struct link_map));
-    if (!map)
-        return -ENOMEM;
+    if (!exec_map) {
+        struct link_map * map = malloc(sizeof(struct link_map));
+        if (!map)
+            return -ENOMEM;
 
-    if (PAL_CB(executable_range.start)) {
-        ret = load_link_map(map, exec, PAL_CB(executable_range.start));
-        if (ret < 0)
-            goto out;
-    } else {
-        ret = load_link_map(map, exec, NULL);
-        if (ret < 0)
-            goto out;
+        if (PAL_CB(executable_range.start)) {
+            ret = load_link_map(map, exec, PAL_CB(executable_range.start));
+            if (ret < 0)
+                goto out;
+        } else {
+            ret = load_link_map(map, exec, NULL);
+            if (ret < 0)
+                goto out;
+        }
+
+        exec_map = map;
+        if (exec_map->interp_name)
+            load_interp_map();
+
+        /*
+         * Chia-Che 8/24/2017:
+         * initialize brk region at the end of the executable data segment.
+         */
+        init_brk_region(exec_map->map_end);
     }
 
-    exec_map = map;
-    if (exec_map->interp_name)
-        load_interp_map();
-
-    /*
-     * Chia-Che 8/24/2017:
-     * initialize brk region at the end of the executable data segment.
-     */
-    init_brk_region(exec_map->map_end);
     ret = 0;
 out:
     put_handle(exec);
@@ -371,3 +389,70 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     shim_do_exit(0);
     return 0;
 }
+
+BEGIN_CP_FUNC(link_map)
+{
+    assert(size == sizeof(struct link_map));
+
+    struct link_map * map = (struct link_map *) obj;
+    struct link_map * new_map;
+
+    ptr_t off = ADD_CP_OFFSET(sizeof(struct link_map));
+    ADD_TO_CP_MAP(obj, off);
+
+    new_map = (struct link_map *) (base + off);
+    memcpy(new_map, map, sizeof(*map));
+
+    if (map->binary_name) {
+        int namelen = strlen(map->binary_name);
+        new_map->binary_name  = (char *) (base + ADD_CP_OFFSET(namelen + 1));
+        memcpy((char *) new_map->binary_name, map->binary_name, namelen + 1);
+    }
+
+    ADD_CP_FUNC_ENTRY(off);
+    *objp = new_map;
+}
+END_CP_FUNC(link_map)
+
+BEGIN_RS_FUNC(link_map)
+{
+    struct link_map * map = (void *) (base + GET_CP_FUNC_ENTRY());
+
+    CP_REBASE(map->binary_name);
+
+    DEBUG_RS("addr=%p-%p,name=%s", map->map_start, map->map_end,
+             map->binary_name);
+}
+END_RS_FUNC(link_map)
+
+BEGIN_CP_FUNC(rtld)
+{
+    struct link_map * new_exec_map = NULL, * new_interp_map = NULL;
+
+    if (exec_map)
+        DO_CP(link_map, exec_map, &new_exec_map);
+
+    if (interp_map)
+        DO_CP(link_map, interp_map, &new_interp_map);
+
+    ADD_CP_FUNC_ENTRY(0);
+    ADD_CP_ENTRY(ADDR, new_exec_map);
+    ADD_CP_ENTRY(ADDR, new_interp_map);
+
+#ifdef DEBUG
+    DO_CP(gdb_map, NULL, NULL);
+#endif
+}
+END_CP_FUNC(rtld)
+
+BEGIN_RS_FUNC(rtld)
+{
+    exec_map = (void *) GET_CP_ENTRY(ADDR);
+    if (exec_map)
+        CP_REBASE(exec_map);
+
+    interp_map = (void *) GET_CP_ENTRY(ADDR);
+    if (interp_map)
+        CP_REBASE(interp_map);
+}
+END_RS_FUNC(rtld)
