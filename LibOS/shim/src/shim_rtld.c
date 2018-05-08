@@ -420,11 +420,10 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     return 0;
 }
 
-BEGIN_CP_FUNC(link_map)
+BEGIN_CP_FUNC(rtld)
 {
-    assert(size == sizeof(struct link_map));
-
-    struct link_map * map = (struct link_map *) obj;
+    master_lock();
+    struct link_map * map = exec_map;
     struct link_map * new_map;
 
     ptr_t off = ADD_CP_OFFSET(sizeof(struct link_map));
@@ -432,44 +431,10 @@ BEGIN_CP_FUNC(link_map)
 
     new_map = (struct link_map *) (base + off);
     memcpy(new_map, map, sizeof(*map));
-
-    if (map->binary_name) {
-        int namelen = strlen(map->binary_name);
-        new_map->binary_name  = (char *) (base + ADD_CP_OFFSET(namelen + 1));
-        memcpy((char *) new_map->binary_name, map->binary_name, namelen + 1);
-    }
-
-    ADD_CP_FUNC_ENTRY(off);
-    *objp = new_map;
-}
-END_CP_FUNC(link_map)
-
-BEGIN_RS_FUNC(link_map)
-{
-    struct link_map * map = (void *) (base + GET_CP_FUNC_ENTRY());
-
-    CP_REBASE(map->binary_name);
-
-    DEBUG_RS("addr=%p-%p,name=%s", map->map_start, map->map_end,
-             map->binary_name);
-}
-END_RS_FUNC(link_map)
-
-BEGIN_CP_FUNC(rtld)
-{
-    struct link_map * new_exec_map = NULL, * new_interp_map = NULL;
-    master_lock();
-
-    if (exec_map)
-        DO_CP(link_map, exec_map, &new_exec_map);
-
-    if (interp_map)
-        DO_CP(link_map, interp_map, &new_interp_map);
+    new_map->binary_name = NULL;
 
     master_unlock();
-    ADD_CP_FUNC_ENTRY(0);
-    ADD_CP_ENTRY(ADDR, new_exec_map);
-    ADD_CP_ENTRY(ADDR, new_interp_map);
+    ADD_CP_FUNC_ENTRY(off);
 
 #ifdef DEBUG
     DO_CP(gdb_map, NULL, NULL);
@@ -480,16 +445,7 @@ END_CP_FUNC(rtld)
 BEGIN_RS_FUNC(rtld)
 {
     master_lock();
-
-    exec_map = (void *) GET_CP_ENTRY(ADDR);
-    if (exec_map)
-        CP_REBASE(exec_map);
-
-    interp_map = (void *) GET_CP_ENTRY(ADDR);
-    if (interp_map)
-        CP_REBASE(interp_map);
-
-    exec_reloaded = true;
+    exec_map = (void *) (base + GET_CP_FUNC_ENTRY());
     master_unlock();
 }
 END_RS_FUNC(rtld)
