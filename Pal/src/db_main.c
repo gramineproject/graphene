@@ -27,12 +27,10 @@
 #include "pal_defs.h"
 #include "pal.h"
 #include "pal_internal.h"
+#include "pal_rtld.h"
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "api.h"
-
-#include <sysdeps/generic/ldsodefs.h>
-#include <elf/elf.h>
 
 PAL_CONTROL __pal_control;
 
@@ -64,11 +62,16 @@ static void load_libraries (void)
 #if PROFILING == 1
                 unsigned long before_load_library = _DkSystemTimeQuery();
 #endif
-
                 *c = 0;
-                if ((ret = load_elf_object(library_name, OBJECT_PRELOAD)) < 0)
-                    init_fail(-ret, "Unable to load preload library");
+                PAL_HANDLE file = NULL;
+                ret = _DkStreamOpen(&file, library_name, PAL_ACCESS_RDONLY,
+                                    0, 0, 0);
+                if (ret < 0)
+                    goto err;
 
+                ret = load_elf_object(file, NULL, MAP_PRELOAD);
+                if (ret < 0)
+                    goto err;
 #if PROFILING == 1
                 pal_state.linking_time +=
                         _DkSystemTimeQuery() - before_load_library;
@@ -80,6 +83,10 @@ static void load_libraries (void)
 
             library_name = c + 1;
         }
+
+    return;
+err:
+    init_fail(-ret, "Unable to load preload library");
 }
 
 static void read_environments (const char *** envpp)
@@ -425,12 +432,7 @@ has_manifest:
         unsigned long before_load_exec = _DkSystemTimeQuery();
 #endif
 
-        if (exec_loaded_addr) {
-            ret = add_elf_object(exec_loaded_addr, exec_handle, OBJECT_EXEC);
-        } else {
-            ret = load_elf_object_by_handle(exec_handle, OBJECT_EXEC);
-        }
-
+        ret = load_elf_object(exec_handle, exec_loaded_addr, MAP_EXEC);
         if (ret < 0)
             init_fail(ret, PAL_STRERROR(ret));
 

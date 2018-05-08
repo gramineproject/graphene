@@ -37,11 +37,6 @@
 #include "pal_rtld.h"
 #include "api.h"
 
-#include <sysdeps/generic/ldsodefs.h>
-#include <elf/elf.h>
-
-#include "elf-x86_64.h"
-
 /* This structure communicates dl state to the debugger.  The debugger
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
    a statically-linked program there is no dynamic section for the debugger
@@ -69,35 +64,35 @@ extern __typeof(pal_dl_debug_state) _dl_debug_state
 
 void _DkDebugAddMap (struct link_map * map)
 {
-#ifdef DEBUG
+#if 0
     struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
-    int len = map->l_name ? strlen(map->l_name) + 1 : 0;
+    int namelen = strlen(map->binary_name);
 
     struct link_map ** prev = &dbg->r_map, * last = NULL,
                     * tmp = *prev;
     while (tmp) {
-        if (tmp->l_addr == map->l_addr &&
-            tmp->l_ld == map->l_ld &&
-            !memcmp(tmp->l_name, map->l_name, len))
+        if (tmp->base_addr == map->base_addr &&
+            tmp->dyn_addr == map->dyn_addr &&
+            !memcmp(tmp->binary_name, map->binary_name, namelen))
             return;
 
         last = tmp;
         tmp = *(prev = &last->l_next);
     }
 
-    struct link_gdb_map * m = malloc(sizeof(struct link_gdb_map) + len);
+    struct link_gdb_map * m = malloc(sizeof(struct link_gdb_map));
     if (!m)
         return;
 
-    if (len) {
-        m->l_name = (char *) m + sizeof(struct link_gdb_map);
-        memcpy((void *) m->l_name, map->l_name, len);
+    if (map->binary_name) {
+        m->name = malloc(namelen + 1);
+        memcpy((void *) m->name, map->binary_name, namelen + 1);
     } else {
         m->l_name = NULL;
     }
 
-    m->l_addr = map->l_addr;
-    m->l_ld   = map->l_real_ld;
+    m->l_addr = (void *) map->base_addr;
+    m->l_ld   = (void *) map->dyn_addr;
 
     dbg->r_state = RT_ADD;
     pal_dl_debug_state();
@@ -113,16 +108,16 @@ void _DkDebugAddMap (struct link_map * map)
 
 void _DkDebugDelMap (struct link_map * map)
 {
-#ifdef DEBUG
+#if 0
     struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
-    int len = map->l_name ? strlen(map->l_name) + 1 : 0;
+    int namelen = strlen(map->binary_name);
 
     struct link_map ** prev = &dbg->r_map, * last = NULL,
                     * tmp = *prev, * found = NULL;
     while (tmp) {
-        if (tmp->l_addr == map->l_addr &&
-            tmp->l_ld == map->l_ld &&
-            !memcmp(tmp->l_name, map->l_name, len)) {
+        if (tmp->base_addr == map->base_addr &&
+            tmp->dyn_addr == map->dyn_addr &&
+            !memcmp(tmp->binary_name, map->binary_name, namelen + 1)) {
             found = tmp;
             break;
         }
@@ -145,6 +140,7 @@ void _DkDebugDelMap (struct link_map * map)
     if (tmp->l_next)
         tmp->l_next->l_prev = last;
 
+    free(tmp->binary_name);
     free(tmp);
 
     dbg->r_state = RT_CONSISTENT;
@@ -152,56 +148,40 @@ void _DkDebugDelMap (struct link_map * map)
 #endif
 }
 
-extern void setup_elf_hash (struct link_map *map);
-
-void setup_pal_map (struct link_map * pal_map)
-{
-    const ElfW(Ehdr) * header = (void *) pal_map->l_addr;
-
-    pal_map->l_real_ld = pal_map->l_ld = (void *) elf_machine_dynamic();
-    pal_map->l_type = OBJECT_RTLD;
-    pal_map->l_entry = header->e_entry;
-    pal_map->l_phdr  = (void *) (pal_map->l_addr + header->e_phoff);
-    pal_map->l_phnum = header->e_phnum;
-    setup_elf_hash(pal_map);
-
-    _DkDebugAddMap(pal_map);
-    pal_map->l_prev = pal_map->l_next = NULL;
-    loaded_maps = pal_map;
-}
-
 #if USE_VDSO_GETTIME == 1
-void setup_vdso_map (ElfW(Addr) addr)
+void setup_vdso_map (void * addr)
 {
-    const ElfW(Ehdr) * header = (void *) addr;
+    const ElfW(Ehdr) * header = (ElfW(Ehdr) *) addr;
     struct link_map vdso_map;
 
     memset(&vdso_map, 0, sizeof(struct link_map));
-    vdso_map.l_name = "vdso";
-    vdso_map.l_type = OBJECT_RTLD;
-    vdso_map.l_addr  = addr;
-    vdso_map.l_entry = header->e_entry;
-    vdso_map.l_phdr  = (void *) (addr + header->e_phoff);
-    vdso_map.l_phnum = header->e_phnum;
+    vdso_map.binary_name = "vdso";
+    vdso_map.base_addr   = addr;
+    vdso_map.entry       = (void *) header->e_entry;
+    vdso_map.phdr_addr   = (void *) addr + header->e_phoff;
+    vdso_map.phdr_num    = header->e_phnum;
 
     ElfW(Addr) load_offset = 0;
-    const ElfW(Phdr) * ph;
-    for (ph = vdso_map.l_phdr; ph < &vdso_map.l_phdr[vdso_map.l_phnum]; ++ph)
+    const ElfW(Phdr) * ph = vdso_map.phdr_addr;
+    const ElfW(Phdr) * ph_end = ph + vdso_map.phdr_num;
+    for (; ph < ph_end ; ++ph)
         switch (ph->p_type) {
             case PT_LOAD:
                 load_offset = addr + (ElfW(Addr)) ph->p_offset
                               - (ElfW(Addr)) ph->p_vaddr;
                 break;
             case PT_DYNAMIC:
-                vdso_map.l_real_ld = vdso_map.l_ld = (void *) addr + ph->p_offset;
-                vdso_map.l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
+                vdso_map.dyn_addr = (void *) addr + ph->p_offset;
+                vdso_map.dyn_num  = ph->p_memsz / sizeof (ElfW(Dyn));
                 break;
         }
 
+#if 0
     ElfW(Dyn) local_dyn[4];
     int ndyn = 0;
-    ElfW(Dyn) * dyn;
-    for (dyn = vdso_map.l_ld ; dyn < &vdso_map.l_ld[vdso_map.l_ldnum]; ++dyn)
+    ElfW(Dyn) * dyn = vdso_map.dyn_addr;
+    ElfW(Dyn) * dyn_end = dyn + vdso_map.dyn_num;
+    for (; dyn < dyn_end ; ++dyn)
         switch(dyn->d_tag) {
             case DT_STRTAB:
             case DT_SYMTAB:
@@ -239,6 +219,7 @@ void setup_vdso_map (ElfW(Addr) addr)
         linux_state.vdso_clock_gettime = (void *) (load_offset + sym->st_value);
 #else
         linux_state.vdso_gettimeofday  = (void *) (load_offset + sym->st_value);
+#endif
 #endif
 }
 #endif

@@ -12,7 +12,7 @@ CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
-LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
+LDFLAGS	= -shared -nostdlib -z combreloc -z defs --hash-style=sysv \
 	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds
 ARFLAGS	=
 

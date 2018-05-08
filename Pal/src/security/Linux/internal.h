@@ -4,6 +4,13 @@
 #ifndef __INTERNAL_H__
 #define __INTERNAL_H__
 
+#define IN_PAL
+
+#include "pal.h"
+#include "pal_internal.h"
+#include "pal_security.h"
+#include "pal_rtld.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>

@@ -37,8 +37,6 @@
 #include <asm/mman.h>
 #include <asm/ioctls.h>
 #include <asm/errno.h>
-#include <elf/elf.h>
-#include <sysdeps/generic/ldsodefs.h>
 
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
@@ -49,10 +47,7 @@ asm (".global pal_start \n"
      "  movq %rsp, %rdi \n"
      "  call pal_linux_main \n");
 
-#define RTLD_BOOTSTRAP
-
-/* pal_start is the entry point of libpal.so, which calls pal_main */
-#define _ENTRY pal_start
+void pal_start (void);
 
 /* use objfile-gdb convention instead of .debug_gdb_scripts */
 #ifdef DEBUG
@@ -74,7 +69,8 @@ static ElfW(Addr) sysinfo_ehdr;
 static void pal_init_bootstrap (void * args, const char ** pal_name,
                                 int * pargc,
                                 const char *** pargv,
-                                const char *** penvp)
+                                const char *** penvp,
+                                void ** pentry)
 {
     /*
      * fetch arguments and environment variables, the previous stack
@@ -98,6 +94,7 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
     int argc = (uintptr_t) all_args[0];
     const char ** argv = &all_args[1];
     const char ** envp = argv + argc + 1;
+    void * entry = NULL;
 
     /* fetch environment information from aux vectors */
     const char ** e = envp;
@@ -125,6 +122,9 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
             case AT_EGID:
                 gid ^= av->a_un.a_val;
                 break;
+            case AT_ENTRY:
+                entry = (void *) av->a_un.a_val;
+                break;
 #if USE_VDSO_GETTIME == 1
             case AT_SYSINFO_EHDR:
                 sysinfo_ehdr = av->a_un.a_val;
@@ -138,6 +138,7 @@ static void pal_init_bootstrap (void * args, const char ** pal_name,
     *pargc = argc;
     *pargv = argv;
     *penvp = envp;
+    *pentry = entry;
 }
 
 unsigned long _DkGetPagesize (void)
@@ -189,8 +190,6 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
-#include "dynamic_link.h"
-
 void setup_pal_map (struct link_map * map);
 
 #if USE_VDSO_GETTIME == 1
@@ -199,11 +198,8 @@ void setup_vdso_map (ElfW(Addr) addr);
 
 static struct link_map pal_map;
 
-#ifdef __x86_64__
-# include "elf-x86_64.h"
-#else
-# error "unsupported architecture"
-#endif
+DEFINE_LISTP(link_map);
+extern LISTP_TYPE(link_map) link_map_list;
 
 void pal_linux_main (void * args)
 {
@@ -211,25 +207,23 @@ void pal_linux_main (void * args)
     PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
     const char ** argv, ** envp;
     int argc;
+    void * pal_entry;
     PAL_HANDLE first_thread;
 
     unsigned long start_time = _DkSystemTimeQueryEarly();
 
     /* parse argc, argv, envp and auxv */
-    pal_init_bootstrap(args, &pal_name, &argc, &argv, &envp);
+    pal_init_bootstrap(args, &pal_name, &argc, &argv, &envp, &pal_entry);
 
-    pal_map.l_addr = elf_machine_load_address();
-    pal_map.l_name = pal_name;
-    elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
-                         pal_map.l_info, pal_map.l_addr);
+    pal_state.pagesize    = _DkGetPagesize();
+    pal_state.alloc_align = _DkGetAllocationAlignment();
+    pal_state.alloc_shift = pal_state.alloc_align - 1;
+    pal_state.alloc_mask  = ~pal_state.alloc_shift;
 
-    ELF_DYNAMIC_RELOCATE(&pal_map);
-
-    linux_state.environ = envp;
+    load_link_map(&pal_map, NULL, pal_entry - (uintptr_t) pal_start, MAP_RTLD);
+    listp_add_tail(&pal_map, &link_map_list, list);
 
     init_slab_mgr(pagesz);
-
-    setup_pal_map(&pal_map);
 
 #if USE_VDSO_GETTIME == 1
     if (sysinfo_ehdr)
@@ -238,6 +232,8 @@ void pal_linux_main (void * args)
 
     pal_state.start_time = start_time;
     init_child_process(&parent, &exec, &manifest);
+
+    linux_state.environ = envp;
 
     if (!pal_sec.process_id)
         pal_sec.process_id = INLINE_SYSCALL(getpid, 0);

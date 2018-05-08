@@ -20,10 +20,8 @@
 #ifndef PAL_SECURITY_H
 #define PAL_SECURITY_H
 
-#include <linux/limits.h>
-#include <sysdeps/generic/ldsodefs.h>
-
 #include "pal.h"
+#include "pal_rtld.h"
 
 /* Rendezvous structure used by the run-time dynamic linker to communicate
    details of shared object loading to the debugger.  If the executable's

@@ -16,10 +16,8 @@
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 #include <asm/errno.h>
-#include <elf/elf.h>
-#include <sysdeps/generic/ldsodefs.h>
+#include <elf.h>
 
-#include "pal_security.h"
 #include "internal.h"
 #include "graphene.h"
 
@@ -341,7 +339,7 @@ postmap:
             continue;
 
         addr = INLINE_SYSCALL(mmap, 6, zeropage, zeroend - zeropage, c->prot,
-                              MAP_PRIVATE|MAP_ANON|MAP_FIXED, -1, 0);
+                              MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
         if (IS_ERR_P(addr)) {
             ret = -ERRNO_P(addr);
             goto out;
@@ -377,14 +375,7 @@ void __attribute__((noinline)) ___dl_debug_state (void) {}
 extern __typeof(___dl_debug_state) _dl_debug_state
     __attribute ((alias ("___dl_debug_state")));
 
-struct link_map {
-    ElfW(Addr)        l_addr;
-    const char *      l_name;
-    const ElfW(Dyn) * l_ld;
-    struct link_map * l_next, * l_prev;
-};
-
-static struct link_map init_link_map;
+static struct gdb_link_map init_link_map;
 
 struct r_debug ___r_debug =
     { 1, NULL, (ElfW(Addr)) &___dl_debug_state, RT_CONSISTENT, 0 };
@@ -455,6 +446,7 @@ void do_main (void * args)
     /* occupy PAL_INIT_FD */
     INLINE_SYSCALL(dup2, 2, 0, PROC_INIT_FD);
 
+#if 0
     ElfW(Dyn) * dyn = (ElfW(Dyn) *) (baseaddr + (ElfW(Addr)) &_DYNAMIC);
     do_relocate(dyn, (ElfW(Addr)) baseaddr);
 
@@ -463,6 +455,7 @@ void do_main (void * args)
     init_link_map.l_name = program_name;
     ___r_debug.r_map     = &init_link_map;
     ___r_debug.r_ldbase  = (ElfW(Addr)) baseaddr;
+#endif
 
     int manifest;
     if (!argc || (manifest = open_manifest(argv)) < 0) {

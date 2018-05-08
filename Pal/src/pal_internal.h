@@ -355,14 +355,6 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int valu
         _DkProcessExit(exitcode);                                       \
     } while (0)
 
-/* function and definition for loading binaries */
-enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
-
-int check_elf_object (PAL_HANDLE handle);
-int load_elf_object (const char * uri, enum object_type type);
-int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type);
-int add_elf_object(void * addr, PAL_HANDLE handle, int type);
-
 #ifndef NO_INTERNAL_ALLOC
 void init_slab_mgr (int alignment);
 void * malloc (size_t size);
