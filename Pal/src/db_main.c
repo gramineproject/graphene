@@ -344,7 +344,7 @@ has_manifest:
 
         const char * errstring = NULL;
         if ((ret = read_config(root_config, loader_filter, &errstring)) < 0)
-            init_fail(-ret, errstring);
+            init_fail(-ret, "%s", errstring);
 
         pal_state.root_config = root_config;
 
@@ -434,7 +434,7 @@ has_manifest:
 
         ret = load_elf_object(exec_handle, exec_loaded_addr, MAP_EXEC);
         if (ret < 0)
-            init_fail(ret, PAL_STRERROR(ret));
+            init_fail(ret, "cannot load executable");
 
 #if PROFILING == 1
         pal_state.linking_time += _DkSystemTimeQuery() - before_load_exec;

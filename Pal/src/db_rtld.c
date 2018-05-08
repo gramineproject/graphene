@@ -251,13 +251,17 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
             ElfW(Sym) * sym = &map->symbol_table[ELFW(R_SYM) (rel->r_info)];
             switch(r_type) {
                 case R_X86_64_GLOB_DAT:
-                case R_X86_64_JUMP_SLOT: {
-                    void * resolved_addr = resolve_symbol(map, sym);
-                    if (resolved_addr) {
-                        *reloc_addr = resolved_addr + rel->r_addend;
+                case R_X86_64_JUMP_SLOT:
+                    if (!sym->st_value) {
+                        /* Only resolve undefined symbols */
+                        void * resolved_addr = resolve_symbol(map, sym);
+                        if (resolved_addr)
+                            *reloc_addr = resolved_addr + rel->r_addend;
+                        else
+                            init_fail(-PAL_ERROR_INVAL, "Unknown symbol: %s",
+                                      map->string_table + sym->st_name);
                         break;
                     }
-                }
                 case R_X86_64_64:
                 case R_X86_64_32:
                     *reloc_addr = map_base + sym->st_value + rel->r_addend;

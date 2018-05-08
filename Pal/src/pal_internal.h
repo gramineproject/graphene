@@ -347,11 +347,11 @@ int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
                           PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
-#define init_fail(exitcode, reason)                                     \
+#define init_fail(exitcode, reason, ...)                                \
     do {                                                                \
-        printf("PAL failed at " __FILE__  ":%s:%u (exitcode = %u, reason=%s)\n", \
-               __FUNCTION__, (unsigned int)__LINE__,                    \
-               (unsigned int) (exitcode), (const char *) (reason));     \
+        printf("PAL failed at " __FILE__  ":%s:%u (exitcode = %u,       \
+               reason=" reason ")\n", __FUNCTION__, __LINE__,           \
+               (unsigned int) (exitcode), ##__VA_ARGS__);               \
         _DkProcessExit(exitcode);                                       \
     } while (0)
 
