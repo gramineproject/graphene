@@ -56,6 +56,26 @@ static uint32_t sysv_hash (const char *str)
     return h & 0xfffffff;
 }
 
+static void * resolve_symbol (struct link_map * map, ElfW(Sym) * undef_sym)
+{
+    const char * name = map->string_table + undef_sym->st_name;
+    int namelen = strlen(name);
+    uint32_t hash = sysv_hash(name);
+
+    struct link_map * m;
+    listp_for_each_entry(m, &link_map_list, list)
+        for (ElfW(Word) idx = m->hash_buckets[hash % m->nbuckets] ;
+             idx != STN_UNDEF ;
+             idx = m->hash_chain[idx]) {
+            ElfW(Sym) * sym = &m->symbol_table[idx];
+            if (!memcmp(m->string_table + sym->st_name,
+                        name, namelen + 1))
+                return m->base_addr + sym->st_value;
+        }
+
+    return NULL;
+}
+
 int load_link_map (struct link_map * map, PAL_HANDLE file,
                    void * loaded_addr, enum link_map_type type)
 {
@@ -218,33 +238,12 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
         switch(r_type) {
             case R_X86_64_GLOB_DAT:
             case R_X86_64_JUMP_SLOT: {
-                ElfW(Sym) * undef_sym
-                        = &map->symbol_table[ELFW(R_SYM) (rel->r_info)];
-                const char * name = map->string_table + undef_sym->st_name;
-                int namelen = strlen(name);
-                uint32_t hash = sysv_hash(name);
-
-                void * old_reloc_addr = *reloc_addr;
-                struct link_map * m;
-                listp_for_each_entry(m, &link_map_list, list) {
-                    ElfW(Word) idx = m->hash_buckets[hash % m->nbuckets];
-                    ElfW(Sym) * sym = NULL;
-                    for (; idx != STN_UNDEF ; idx = m->hash_chain[idx]) {
-                        ElfW(Sym) * s = &m->symbol_table[idx];
-                        if (!memcmp(m->string_table + s->st_name,
-                                    name, namelen + 1)) {
-                            sym = s;
-                            break;
-                        }
-                    }
-                    if (sym) {
-                        *reloc_addr = m->base_addr + sym->st_value;
-                        break;
-                    }
-                }
-
-                if (*reloc_addr != old_reloc_addr)
+                void * resolved_addr = resolve_symbol(map,
+                        &map->symbol_table[ELFW(R_SYM) (rel->r_info)]);
+                if (resolved_addr) {
+                    *reloc_addr = resolved_addr;
                     break;
+                }
             }
 
             case R_X86_64_RELATIVE:
