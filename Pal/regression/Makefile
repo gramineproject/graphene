@@ -50,7 +50,7 @@ ifeq ($(SYS),x86_64-linux-gnu)
 $(preloads): %.so: %.so.c ../src/user_shared_start.o \
 	$(graphene_lib) $(pal_lib) ../include/pal/pal.h
 	@echo [ $@ ]
-	@$(CC) -shared -fPIC $(CFLAGS) $^ -o $@
+	@$(CC) -shared -fPIC -Wl,--hash-style=sysv $(CFLAGS) $^ -o $@
 
 $(executables): %: %.c ../src/user_start.o \
 	$(graphene_lib) $(pal_lib) $(preloads) ../include/pal/pal.h

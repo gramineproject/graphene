@@ -63,7 +63,11 @@ static void * resolve_symbol (struct link_map * map, ElfW(Sym) * undef_sym)
     uint32_t hash = sysv_hash(name);
 
     struct link_map * m;
-    listp_for_each_entry(m, &link_map_list, list)
+    listp_for_each_entry(m, &link_map_list, list) {
+        /* Only support SYSV hashing */
+        if (!m->hash_buckets)
+            continue;
+
         for (ElfW(Word) idx = m->hash_buckets[hash % m->nbuckets] ;
              idx != STN_UNDEF ;
              idx = m->hash_chain[idx]) {
@@ -72,6 +76,7 @@ static void * resolve_symbol (struct link_map * map, ElfW(Sym) * undef_sym)
                         name, namelen + 1))
                 return m->base_addr + sym->st_value;
         }
+    }
 
     return NULL;
 }
@@ -224,34 +229,46 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                 break;
         }
 
-    ElfW(Rela) * rel = map->rela_addr;
-    ElfW(Rela) * rel_end = ((void *) rel + map->rela_size);
-
-    if (!rel) {
-        rel = map->jmprel_addr;
-        rel_end = ((void *) rel + map->jmprel_size);
+    if (!map->hash_buckets) {
+        if (type == MAP_RTLD || type == MAP_PRELOAD)
+            init_fail(-PAL_ERROR_INVAL, "Either PAL or preloaded libraries "
+                      "must use System V hash functions");
     }
 
-    for (; rel < rel_end ; rel++) {
-        unsigned long int r_type = ELFW(R_TYPE) (rel->r_info);
-        void ** reloc_addr = map_base + rel->r_offset;
-        switch(r_type) {
-            case R_X86_64_GLOB_DAT:
-            case R_X86_64_JUMP_SLOT: {
-                void * resolved_addr = resolve_symbol(map,
-                        &map->symbol_table[ELFW(R_SYM) (rel->r_info)]);
-                if (resolved_addr) {
-                    *reloc_addr = resolved_addr;
-                    break;
-                }
-            }
+    ElfW(Rela) * reloc_ranges[2][2] = {
+            { map->rela_addr,   ((void *) map->rela_addr   + map->rela_size) },
+            { map->jmprel_addr, ((void *) map->jmprel_addr + map->jmprel_size) },
+        };
 
-            case R_X86_64_RELATIVE:
-                *reloc_addr = map_base + rel->r_addend;
-                break;
-            default:
-                init_fail(-PAL_ERROR_INVAL, "Unknown relocation type");
-                break;
+    for (int i = 0 ; i < 2 ; i++) {
+        ElfW(Rela) * rel = reloc_ranges[i][0];
+        if (!rel)
+            continue;
+
+        for (; rel < reloc_ranges[i][1] ; rel++) {
+            unsigned long int r_type = ELFW(R_TYPE) (rel->r_info);
+            void ** reloc_addr = map_base + rel->r_offset;
+            ElfW(Sym) * sym = &map->symbol_table[ELFW(R_SYM) (rel->r_info)];
+            switch(r_type) {
+                case R_X86_64_GLOB_DAT:
+                case R_X86_64_JUMP_SLOT: {
+                    void * resolved_addr = resolve_symbol(map, sym);
+                    if (resolved_addr) {
+                        *reloc_addr = resolved_addr + rel->r_addend;
+                        break;
+                    }
+                }
+                case R_X86_64_64:
+                case R_X86_64_32:
+                    *reloc_addr = map_base + sym->st_value + rel->r_addend;
+                    break;
+                case R_X86_64_RELATIVE:
+                    *reloc_addr = map_base + rel->r_addend;
+                    break;
+                default:
+                    init_fail(-PAL_ERROR_INVAL, "Unknown relocation type");
+                    break;
+            }
         }
     }
 
