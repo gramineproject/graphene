@@ -202,7 +202,8 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
             void * aligned = (void *) ALIGN_UP(file_end);
             if (file_end < aligned) {
                 if (!mapped_address)
-                    memset(file_end, 0, aligned - file_end);
+                    memset(map_base + (uintptr_t) file_end, 0,
+                           aligned - file_end);
                 file_end = aligned;
             }
 
