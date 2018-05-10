@@ -101,65 +101,14 @@ void setup_vdso_map (void * addr)
     vdso_map.phdr_addr   = (void *) addr + header->e_phoff;
     vdso_map.phdr_num    = header->e_phnum;
 
-    ElfW(Addr) load_offset = 0;
-    const ElfW(Phdr) * ph = vdso_map.phdr_addr;
-    const ElfW(Phdr) * ph_end = ph + vdso_map.phdr_num;
-    for (; ph < ph_end ; ++ph)
-        switch (ph->p_type) {
-            case PT_LOAD:
-                load_offset = addr + (ElfW(Addr)) ph->p_offset
-                              - (ElfW(Addr)) ph->p_vaddr;
-                break;
-            case PT_DYNAMIC:
-                vdso_map.dyn_addr = (void *) addr + ph->p_offset;
-                vdso_map.dyn_num  = ph->p_memsz / sizeof (ElfW(Dyn));
-                break;
-        }
-
-#if 0
-    ElfW(Dyn) local_dyn[4];
-    int ndyn = 0;
-    ElfW(Dyn) * dyn = vdso_map.dyn_addr;
-    ElfW(Dyn) * dyn_end = dyn + vdso_map.dyn_num;
-    for (; dyn < dyn_end ; ++dyn)
-        switch(dyn->d_tag) {
-            case DT_STRTAB:
-            case DT_SYMTAB:
-                local_dyn[ndyn] = *dyn;
-                local_dyn[ndyn].d_un.d_ptr += load_offset;
-                vdso_map.l_info[dyn->d_tag] = &local_dyn[ndyn++];
-                break;
-            case DT_HASH: {
-                ElfW(Word) * h = (ElfW(Word) *) (D_PTR(dyn) + load_offset);
-                vdso_map.l_nbuckets = h[0];
-                vdso_map.l_buckets  = &h[2];
-                vdso_map.l_chain    = &h[vdso_map.l_nbuckets + 2];
-                break;
-            }
-            case DT_VERSYM:
-            case DT_VERDEF:
-                local_dyn[ndyn] = *dyn;
-                local_dyn[ndyn].d_un.d_ptr += load_offset;
-                vdso_map.l_info[VERSYMIDX(dyn->d_tag)] = &local_dyn[ndyn++];
-                break;
-        }
+    load_link_map(&vdso_map, NULL, addr, MAP_RTLD);
 
 #if USE_CLOCK_GETTIME == 1
-    const char * gettime = "__vdso_clock_gettime";
+     linux_state.vdso_clock_gettime
+            = find_symbol(&vdso_map, "__vdso_clock_gettime");
 #else
-    const char * gettime = "__vdso_gettimeofday";
-#endif
-    uint_fast32_t fast_hash = elf_fast_hash(gettime);
-    long int hash = elf_hash(gettime);
-    ElfW(Sym) * sym = NULL;
-
-    sym = do_lookup_map(NULL, gettime, fast_hash, hash, &vdso_map);
-    if (sym)
-#if USE_CLOCK_GETTIME == 1
-        linux_state.vdso_clock_gettime = (void *) (load_offset + sym->st_value);
-#else
-        linux_state.vdso_gettimeofday  = (void *) (load_offset + sym->st_value);
-#endif
+     linux_state.vdso_gettimeofday
+            = find_symbol(&vdso_map, "__vdso_gettimeofday");
 #endif
 }
 #endif

@@ -68,9 +68,9 @@ static void * resolve_symbol (struct link_map * map, ElfW(Sym) * undef_sym)
         if (!m->hash_buckets)
             continue;
 
-        for (ElfW(Word) idx = m->hash_buckets[hash % m->nbuckets] ;
-             idx != STN_UNDEF ;
-             idx = m->hash_chain[idx]) {
+        ElfW(Word) idx = m->hash_buckets[hash % m->nbuckets];
+
+        for (; idx != STN_UNDEF ; idx = m->hash_chain[idx]) {
             ElfW(Sym) * sym = &m->symbol_table[idx];
             if (!memcmp(m->string_table + sym->st_name,
                         name, namelen + 1))
@@ -81,8 +81,27 @@ static void * resolve_symbol (struct link_map * map, ElfW(Sym) * undef_sym)
     return NULL;
 }
 
-int load_link_map (struct link_map * map, PAL_HANDLE file,
-                   void * loaded_addr, enum link_map_type type)
+void * find_symbol (struct link_map * map, const char * name)
+{
+    int namelen = strlen(name);
+    uint32_t hash = sysv_hash(name);
+
+    if (!map->hash_buckets)
+        return NULL;
+
+    ElfW(Word) idx = map->hash_buckets[hash % map->nbuckets];
+
+    for (; idx != STN_UNDEF ; idx = map->hash_chain[idx]) {
+        ElfW(Sym) * sym = &map->symbol_table[idx];
+        if (!memcmp(map->string_table + sym->st_name, name, namelen + 1))
+            return map->base_addr + sym->st_value;
+    }
+
+    return NULL;
+}
+
+int load_link_map (struct link_map * map, PAL_HANDLE file, void * loaded_addr,
+                   enum link_map_type type)
 {
     int64_t ret;
 
@@ -155,8 +174,8 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                 continue;
 
             void * start = (void *) ALLOC_ALIGNDOWN(ph->p_vaddr);
-            void * end = (void *) ALLOC_ALIGNUP(ph->p_vaddr + ph->p_memsz);
-            void * file_end = (void *) ALLOC_ALIGNUP(ph->p_vaddr + ph->p_filesz);
+            void * end = (void *) ph->p_vaddr + ph->p_memsz;
+            void * file_end = (void *) ph->p_vaddr + ph->p_filesz;
             uint64_t file_off = ALLOC_ALIGNDOWN(ph->p_offset);
             map_addr = map_base + (uintptr_t) start;
 
@@ -173,11 +192,25 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                 return ret;
 
             if (end > file_end) {
-                map_addr = map_base + (uintptr_t) file_end;
-                ret = _DkVirtualMemoryAlloc(&map_addr, end - file_end,
-                                            0, prot);
-                if (ret < 0)
-                    return ret;
+                /*
+                 * If there are remaining bytes at the last page, simply
+                 * zero the bytes.
+                 */
+                void * aligned = (void *) ALLOC_ALIGNUP(file_end);
+                if (file_end < aligned) {
+                    memset(file_end, 0, aligned - file_end);
+                    file_end = aligned;
+                }
+
+                /* Allocate free pages for the rest of the section */
+                if (file_end < end) {
+                    end = (void *) ALLOC_ALIGNUP(end);
+                    map_addr = map_base + (uintptr_t) file_end;
+                    ret = _DkVirtualMemoryAlloc(&map_addr, end - file_end,
+                                                0, prot);
+                    if (ret < 0)
+                        return ret;
+                }
             }
         }
     }
@@ -266,17 +299,24 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                 case R_X86_64_JUMP_SLOT:
                     if (!sym->st_value) {
                         /* Only resolve undefined symbols */
-                        void * resolved_addr = resolve_symbol(map, sym);
-                        if (resolved_addr)
-                            *reloc_addr = resolved_addr + rel->r_addend;
+                        void * resolved = resolve_symbol(map, sym);
+                        if (resolved) {
+                            /*
+                             * Resolve symbols from PAL and preloaded
+                             * libraries
+                             */
+                            *reloc_addr = resolved + rel->r_addend;
+                        }
                         break; /* Ignore unresolvable symbols */
                     }
                 case R_X86_64_64:
                 case R_X86_64_32:
-                    *reloc_addr = map_base + sym->st_value + rel->r_addend;
+                    if (type != MAP_EXEC)
+                        *reloc_addr = map_base + sym->st_value + rel->r_addend;
                     break;
                 case R_X86_64_RELATIVE:
-                    *reloc_addr = map_base + rel->r_addend;
+                    if (type != MAP_EXEC)
+                        *reloc_addr = map_base + rel->r_addend;
                     break;
                 default:
                     /* ignore other relocation type */

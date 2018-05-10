@@ -125,8 +125,10 @@ static inline int check_elf_object (PAL_HANDLE handle)
     return memcmp(ehdr->e_ident, expected, EI_CLASS) ? -PAL_ERROR_INVAL : 0;
 }
 
-int load_link_map (struct link_map * map, PAL_HANDLE file,
-                   void * loaded_addr, enum link_map_type type);
+void * find_symbol (struct link_map * map, const char * name);
+
+int load_link_map (struct link_map * map, PAL_HANDLE file, void * loaded_addr,
+                   enum link_map_type type);
 int load_elf_object (PAL_HANDLE file, void * loaded_addr,
                      enum link_map_type type);
 
