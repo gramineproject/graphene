@@ -105,10 +105,10 @@ void setup_vdso_map (void * addr)
 
 #if USE_CLOCK_GETTIME == 1
      linux_state.vdso_clock_gettime
-            = find_symbol(&vdso_map, "__vdso_clock_gettime");
+            = find_link_map_symbol(&vdso_map, "__vdso_clock_gettime");
 #else
      linux_state.vdso_gettimeofday
-            = find_symbol(&vdso_map, "__vdso_gettimeofday");
+            = find_link_map_symbol(&vdso_map, "__vdso_gettimeofday");
 #endif
 }
 #endif

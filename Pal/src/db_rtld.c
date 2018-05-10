@@ -81,7 +81,7 @@ static void * resolve_symbol (struct link_map * map, ElfW(Sym) * undef_sym)
     return NULL;
 }
 
-void * find_symbol (struct link_map * map, const char * name)
+void * find_link_map_symbol (struct link_map * map, const char * name)
 {
     int namelen = strlen(name);
     uint32_t hash = sysv_hash(name);
@@ -187,7 +187,7 @@ int load_link_map (struct link_map * map, PAL_HANDLE file, void * loaded_addr,
                 prot |= PAL_PROT_EXEC;
 
             ret = _DkStreamMap(file, &map_addr, prot, file_off,
-                               file_end - start);
+                               (void *) ALLOC_ALIGNUP(file_end) - start);
             if (ret < 0)
                 return ret;
 
@@ -205,6 +205,7 @@ int load_link_map (struct link_map * map, PAL_HANDLE file, void * loaded_addr,
                 /* Allocate free pages for the rest of the section */
                 if (file_end < end) {
                     end = (void *) ALLOC_ALIGNUP(end);
+                    assert(ALLOC_ALIGNED(file_end));
                     map_addr = map_base + (uintptr_t) file_end;
                     ret = _DkVirtualMemoryAlloc(&map_addr, end - file_end,
                                                 0, prot);
