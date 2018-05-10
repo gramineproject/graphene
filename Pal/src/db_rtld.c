@@ -160,11 +160,10 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
             uint64_t file_off = ALLOC_ALIGNDOWN(ph->p_offset);
             map_addr = map_base + (uintptr_t) start;
 
-            int prot = 0;
+            /* Need to relocate later, so made the mapping writable */
+            int prot = PAL_PROT_WRITE|PAL_PROT_WRITECOPY;
             if (ph->p_flags & PF_R)
                 prot |= PAL_PROT_READ;
-            if (ph->p_flags & PF_W)
-                prot |= PAL_PROT_WRITE|PAL_PROT_WRITECOPY;
             if (ph->p_flags & PF_X)
                 prot |= PAL_PROT_EXEC;
 
@@ -270,9 +269,8 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                         void * resolved_addr = resolve_symbol(map, sym);
                         if (resolved_addr)
                             *reloc_addr = resolved_addr + rel->r_addend;
-                        else
-                            init_fail(-PAL_ERROR_INVAL, "Unknown symbol: %s",
-                                      map->string_table + sym->st_name);
+
+                        /* Pass if we cannot resolve the symbol right now */
                         break;
                     }
                 case R_X86_64_64:
@@ -287,6 +285,25 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                     break;
             }
         }
+    }
+
+    /* Reprotecting read-only mappings */
+    for (ph = phdr ; ph < &phdr[ehdr->e_phnum] ; ph++) {
+        if (ph->p_type != PT_LOAD)
+            continue;
+        if (ph->p_flags & PF_W)
+            continue;
+
+        void * start = (void *) ALLOC_ALIGNDOWN(ph->p_vaddr);
+        void * end = (void *) ALLOC_ALIGNUP(ph->p_vaddr + ph->p_memsz);
+
+        int prot = 0;
+        if (ph->p_flags & PF_R)
+            prot |= PAL_PROT_READ;
+        if (ph->p_flags & PF_X)
+            prot |= PAL_PROT_EXEC;
+
+        _DkVirtualMemoryProtect(start, end - start, prot);
     }
 
     return 0;
