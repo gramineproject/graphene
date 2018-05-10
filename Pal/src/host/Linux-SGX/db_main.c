@@ -28,6 +28,7 @@
 #include "pal_linux_defs.h"
 #include "pal.h"
 #include "pal_internal.h"
+#include "pal_rtld.h"
 #include "pal_linux.h"
 #include "pal_debug.h"
 #include "pal_error.h"
@@ -36,14 +37,9 @@
 
 #include <asm/mman.h>
 #include <asm/ioctls.h>
-#include <elf/elf.h>
-#include <sysdeps/generic/ldsodefs.h>
 
 #include "ecall_types.h"
 #include "enclave_pages.h"
-
-#define RTLD_BOOTSTRAP
-#define _ENTRY enclave_entry
 
 struct pal_linux_state linux_state;
 struct pal_sec pal_sec;
@@ -75,12 +71,6 @@ PAL_NUM _DkGetHostId (void)
 {
     return 0;
 }
-
-#include "elf-x86_64.h"
-#include "dynamic_link.h"
-
-void setup_pal_map (struct link_map * map);
-static struct link_map pal_map;
 
 int init_untrusted_slab_mgr (int pagesize);
 int init_enclave (void);
@@ -125,19 +115,25 @@ static int loader_filter (const char * key, int len)
 
 extern void * enclave_base;
 
+static struct link_map pal_map;
+
+DEFINE_LISTP(link_map);
+extern LISTP_TYPE(link_map) link_map_list;
+
 void pal_linux_main(const char ** arguments, const char ** environments,
                     struct pal_sec * sec_info)
 {
     PAL_HANDLE parent = NULL;
     unsigned long start_time = _DkSystemTimeQuery();
 
-    /* relocate PAL itself */
-    pal_map.l_addr = (ElfW(Addr)) sec_info->enclave_addr;
-    pal_map.l_name = sec_info->enclave_image;
-    elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
-                         pal_map.l_info, pal_map.l_addr);
+    pal_state.pagesize    = _DkGetPagesize();
+    pal_state.alloc_align = _DkGetAllocationAlignment();
+    pal_state.alloc_shift = pal_state.alloc_align - 1;
+    pal_state.alloc_mask  = ~pal_state.alloc_shift;
 
-    ELF_DYNAMIC_RELOCATE(&pal_map);
+    /* relocate PAL itself */
+    load_link_map(&pal_map, NULL, sec_info->enclave_addr, MAP_RTLD);
+    listp_add_tail(&pal_map, &link_map_list, list);
 
     memcpy(&pal_sec, sec_info, sizeof(struct pal_sec));
 
@@ -146,9 +142,6 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     init_untrusted_slab_mgr(pagesz);
     init_pages();
     init_enclave_key();
-
-    /* now we can add a link map for PAL itself */
-    setup_pal_map(&pal_map);
 
     /* initialize enclave properties */
     init_enclave();

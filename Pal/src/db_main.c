@@ -254,10 +254,6 @@ void pal_main (
 #endif
 
     pal_state.instance_id = instance_id;
-    pal_state.pagesize    = _DkGetPagesize();
-    pal_state.alloc_align = _DkGetAllocationAlignment();
-    pal_state.alloc_shift = pal_state.alloc_align - 1;
-    pal_state.alloc_mask  = ~pal_state.alloc_shift;
 
     init_slab_mgr(pal_state.alloc_align);
 

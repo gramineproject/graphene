@@ -15,9 +15,6 @@
 #include <linux/in6.h>
 #include <asm/errno.h>
 
-#include <sysdep.h>
-#include <sysdeps/generic/ldsodefs.h>
-
 #define ENCLAVE_FILENAME RUNTIME_FILE("libpal-Linux-SGX.so")
 
 unsigned long pagesize  = PRESET_PAGESIZE;
@@ -417,7 +414,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (strcmp_static(areas[i].desc, "tls")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
-                                           MAP_ANON|MAP_PRIVATE, -1, 0);
+                                           MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
             for (int t = 0 ; t < enclave->thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
@@ -438,7 +435,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
-                                           MAP_ANON|MAP_PRIVATE, -1, 0);
+                                           MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
             for (int t = 0 ; t < enclave->thread_num ; t++) {
                 sgx_arch_tcs_t * tcs = data + pagesize * t;
