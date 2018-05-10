@@ -171,6 +171,7 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
         void * start = (void *) ALIGN_DOWN(ph->p_vaddr);
         void * end = (void *) ph->p_vaddr + ph->p_memsz;
         void * file_end = (void *) ph->p_vaddr + ph->p_filesz;
+        void * file_end_aligned = (void *) ALIGN_UP(file_end);
         off_t  file_off = ALIGN_DOWN(ph->p_offset);
         void * map_addr = map_base + (uintptr_t) start;
 
@@ -182,12 +183,12 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
         if (ph->p_flags & PF_X)
             prot |= PROT_EXEC;
 
-        bkeep_mmap(map_addr, file_end - start,
+        bkeep_mmap(map_addr, file_end_aligned - start,
                    prot, MAP_PRIVATE|MAP_FILE|MAP_FIXED,
                    file, file_off, NULL);
 
         if (!mapped_address) {
-            ret = fs->fs_ops->mmap(file, &map_addr, ALIGN_UP(file_end) - start,
+            ret = fs->fs_ops->mmap(file, &map_addr, file_end_aligned - start,
                                    prot, MAP_PRIVATE|MAP_FILE|MAP_FIXED,
                                    file_off);
             if (ret < 0)
@@ -199,12 +200,11 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
              * If there are remaining bytes at the last page, simply zero
              * the bytes.
              */
-            void * aligned = (void *) ALIGN_UP(file_end);
-            if (file_end < aligned) {
+            if (file_end < file_end_aligned) {
                 if (!mapped_address)
                     memset(map_base + (uintptr_t) file_end, 0,
-                           aligned - file_end);
-                file_end = aligned;
+                           file_end_aligned - file_end);
+                file_end = file_end_aligned;
             }
 
             /* Allocate free pages for the rest of the section */
