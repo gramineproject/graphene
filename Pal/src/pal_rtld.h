@@ -80,6 +80,33 @@ struct gdb_link_map {
     struct gdb_link_map * l_next, * l_prev;   /* Chain of loaded objects.     */
 };
 
+/* Rendezvous structure used by the run-time dynamic linker to communicate
+   details of shared object loading to the debugger.  If the executable's
+   dynamic section has a DT_DEBUG element, the run-time linker sets that
+   element's value to the address where this structure can be found.  */
+struct r_debug {
+    int r_version;           /* Version number for this protocol.  */
+
+    struct gdb_link_map * r_map; /* Head of the chain of loaded objects.  */
+
+    /* This is the address of a function internal to the run-time linker,
+       that will always be called when the linker begins to map in a
+       library or unmap it, and again when the mapping change is complete.
+       The debugger can set a breakpoint at this address if it wants to
+       notice shared object mapping changes.  */
+    ElfW(Addr) r_brk;
+    enum {
+        /* This state value describes the mapping change taking place when
+           the `r_brk' address is called.  */
+        RT_CONSISTENT,  /* Mapping change is complete.  */
+        RT_ADD,         /* Beginning to add a new object.  */
+        RT_DELETE       /* Beginning to remove an object mapping.  */
+    } r_state;
+
+    ElfW(Addr) r_ldbase;    /* Base address the linker is loaded at.  */
+};
+
+
 extern struct link_map * rtld_map;
 extern struct link_map * exec_map;
 
@@ -112,7 +139,10 @@ static inline uint_fast32_t elf_fast_hash (const char *s)
 unsigned long int elf_hash (const char *name_arg);
 
 /* for GDB debugging */
-void _DkDebugAddMap (struct link_map * map);
-void _DkDebugDelMap (struct link_map * map);
+void _DkDebugAttachBinary (const char * name, void * base_addr,
+                           void * dynamic);
+
+void _DkDebugAddMap (struct gdb_link_map * map);
+void _DkDebugDelMap (struct gdb_link_map * map);
 
 #endif /* PAL_RTLD_H */

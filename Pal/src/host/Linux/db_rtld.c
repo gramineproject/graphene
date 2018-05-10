@@ -37,6 +37,8 @@
 #include "pal_rtld.h"
 #include "api.h"
 
+extern struct gdb_link_map * attached_gdb_maps;
+
 /* This structure communicates dl state to the debugger.  The debugger
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
    a statically-linked program there is no dynamic section for the debugger
@@ -62,87 +64,25 @@ void __attribute__((noinline)) pal_dl_debug_state (void)
 extern __typeof(pal_dl_debug_state) _dl_debug_state
     __attribute ((alias ("pal_dl_debug_state")));
 
-void _DkDebugAddMap (struct link_map * map)
+void _DkDebugAddMap (struct gdb_link_map * map)
 {
-#if 0
+#ifdef DEBUG
     struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
-    int namelen = strlen(map->binary_name);
-
-    struct link_map ** prev = &dbg->r_map, * last = NULL,
-                    * tmp = *prev;
-    while (tmp) {
-        if (tmp->base_addr == map->base_addr &&
-            tmp->dyn_addr == map->dyn_addr &&
-            !memcmp(tmp->binary_name, map->binary_name, namelen))
-            return;
-
-        last = tmp;
-        tmp = *(prev = &last->l_next);
-    }
-
-    struct link_gdb_map * m = malloc(sizeof(struct link_gdb_map));
-    if (!m)
-        return;
-
-    if (map->binary_name) {
-        m->name = malloc(namelen + 1);
-        memcpy((void *) m->name, map->binary_name, namelen + 1);
-    } else {
-        m->l_name = NULL;
-    }
-
-    m->l_addr = (void *) map->base_addr;
-    m->l_ld   = (void *) map->dyn_addr;
-
     dbg->r_state = RT_ADD;
     pal_dl_debug_state();
-
-    *prev = (struct link_map *) m;
-    m->l_prev = last;
-    m->l_next = NULL;
-
+    dbg->r_map = attached_gdb_maps;
     dbg->r_state = RT_CONSISTENT;
     pal_dl_debug_state();
 #endif
 }
 
-void _DkDebugDelMap (struct link_map * map)
+void _DkDebugDelMap (struct gdb_link_map * map)
 {
-#if 0
+#ifdef DEBUG
     struct r_debug * dbg = pal_sec._r_debug ? : &pal_r_debug;
-    int namelen = strlen(map->binary_name);
-
-    struct link_map ** prev = &dbg->r_map, * last = NULL,
-                    * tmp = *prev, * found = NULL;
-    while (tmp) {
-        if (tmp->base_addr == map->base_addr &&
-            tmp->dyn_addr == map->dyn_addr &&
-            !memcmp(tmp->binary_name, map->binary_name, namelen + 1)) {
-            found = tmp;
-            break;
-        }
-
-        last = tmp;
-        tmp = *(prev = &last->l_next);
-    }
-
-    if (!found)
-        return;
-
     dbg->r_state = RT_DELETE;
     pal_dl_debug_state();
-
-    if (last)
-        last->l_next = tmp->l_next;
-    else
-        dbg->r_map = tmp->l_next;
-
-    if (tmp->l_next)
-        tmp->l_next->l_prev = last;
-
-    free(tmp->binary_name);
-    free(tmp);
-
+    dbg->r_map = attached_gdb_maps;
     dbg->r_state = RT_CONSISTENT;
     pal_dl_debug_state();
 #endif

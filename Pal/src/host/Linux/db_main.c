@@ -190,8 +190,6 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
-void setup_pal_map (struct link_map * map);
-
 #if USE_VDSO_GETTIME == 1
 void setup_vdso_map (ElfW(Addr) addr);
 #endif
@@ -221,9 +219,15 @@ void pal_linux_main (void * args)
     pal_state.alloc_mask  = ~pal_state.alloc_shift;
 
     load_link_map(&pal_map, NULL, pal_entry - (uintptr_t) pal_start, MAP_RTLD);
+    pal_map.binary_name = PAL_LOADER;
     listp_add_tail(&pal_map, &link_map_list, list);
 
     init_slab_mgr(pagesz);
+
+    /* This function needs malloc(), so has to be called after
+     * init_slab_mgr() */
+    _DkDebugAttachBinary(pal_map.binary_name, pal_map.base_addr,
+                         pal_map.dyn_addr);
 
 #if USE_VDSO_GETTIME == 1
     if (sysinfo_ehdr)

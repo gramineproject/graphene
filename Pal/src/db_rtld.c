@@ -104,6 +104,19 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
     INIT_LIST_HEAD(map, list);
     map->type = type;
 
+    if (file) {
+        char uri_buf[URI_MAX];
+        ret = _DkStreamGetName(file, uri_buf, URI_MAX);
+        if (ret < 0)
+            return ret;
+
+        if (!strpartcmp_static(uri_buf, "file:"))
+            return -PAL_ERROR_INVAL;
+
+        char * name = uri_buf + static_strlen("file:");
+        map->binary_name = malloc_copy(name, strlen(name) + 1);
+    }
+
     for (ph = phdr ; ph < &phdr[ehdr->e_phnum] ; ph++)
         switch (ph->p_type) {
             case PT_DYNAMIC:
@@ -293,7 +306,38 @@ int load_elf_object (PAL_HANDLE file, void * load_addr,
     }
 
     listp_add_tail(map, &link_map_list, list);
+    _DkDebugAttachBinary(map->binary_name, map->base_addr, map->dyn_addr);
     return 0;
+}
+
+struct gdb_link_map * attached_gdb_maps;
+
+void _DkDebugAttachBinary (const char * name, void * base_addr,
+                           void * dynamic)
+{
+    struct gdb_link_map * map = attached_gdb_maps;
+    struct gdb_link_map * prev = NULL, ** pprev = &attached_gdb_maps;
+    for (; map ; map = map->l_next) {
+        if (map->l_addr == base_addr)
+            return;
+        prev = map;
+        pprev = &map->l_next;
+    }
+
+    map = malloc(sizeof(*map));
+    if (!map)
+        return;
+
+    map->l_name = name ? malloc_copy(name, strlen(name) + 1) : NULL;
+    map->l_addr = base_addr;
+    map->l_ld   = dynamic;
+    map->l_prev = prev;
+    map->l_next = *pprev;
+    *pprev = map;
+    if (map->l_next)
+        map->l_next->l_prev = map;
+
+    _DkDebugAddMap(map);
 }
 
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
@@ -302,56 +346,50 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
     if (!strpartcmp_static(uri, "file:"))
         return;
 
-    struct link_map * map = malloc(sizeof(struct link_map));
-    if (!map)
-        return;
-
-    const char * name = uri + static_strlen("file:");
-    map->binary_name = malloc_copy(name, strlen(name) + 1);
-
     /* This is the ELF header.  We read it in `open_verify'.  */
     const ElfW(Ehdr) * header = (ElfW(Ehdr) *) start_addr;
 
-    map->entry = (void *) header->e_entry;
-    map->phdr_num = header->e_phnum;
-    map->map_start = (void *) start_addr;
+    ElfW(Phdr) * ph = (void *) ((char *) start_addr + header->e_phoff);
+    ElfW(Phdr) * phdr_end = ph + header->e_phnum;
+    void * map_start = (void *) -1;
+    void * dynamic_addr = NULL;
 
-    ElfW(Phdr) * phdr = (void *) ((char *) start_addr + header->e_phoff);
-    const ElfW(Phdr) * ph;
-    ElfW(Addr) map_start = 0, map_end = 0;
-
-    for (ph = phdr; ph < &phdr[map->phdr_num]; ++ph)
-        if (ph->p_type == PT_PHDR) {
-            if (!map_start || ph->p_vaddr < map_start)
-                map_start = ph->p_vaddr;
-            if (!map_end || ph->p_vaddr + ph->p_memsz > map_end)
-                map_end = ph->p_vaddr + ph->p_memsz;
-        }
-
-    map->base_addr = map->map_start - map_start;
-    map->map_end = map->base_addr + map_end;
-
-    for (ph = phdr; ph < &phdr[map->phdr_num]; ++ph)
+    for (; ph < phdr_end ; ph++)
         switch (ph->p_type) {
-            case PT_PHDR:
-                map->phdr_addr = (ElfW(Phdr) *) ((char *) map->base_addr + ph->p_vaddr);
+            case PT_DYNAMIC:
+                dynamic_addr = (void *) ph->p_vaddr;
+            case PT_LOAD: {
+                void * start = (void *) ALLOC_ALIGNDOWN(ph->p_vaddr);
+                if (start < map_start)
+                    map_start = start;
                 break;
+            }
         }
 
-    _DkDebugAddMap(map);
+    void * base_addr = start_addr - (uintptr_t) map_start;
+    uri += static_strlen("file:");
+    _DkDebugAttachBinary(uri, base_addr, base_addr + (uintptr_t) dynamic_addr);
 #endif
 }
 
 void DkDebugDetachBinary (PAL_PTR start_addr)
 {
-#if 0
-    for (struct link_map * l = loaded_maps; l; l = map->l_next)
-        if (map->l_map_start == (ElfW(Addr)) start_addr) {
-            _DkDebugDelMap(l);
+#ifdef DEBUG
+    struct gdb_link_map * map = attached_gdb_maps;
+    for (; map ; map = map->l_next)
+        if (map == start_addr) {
+            _DkDebugDelMap(map);
+            if (map->l_prev)
+                map->l_prev->l_next = map->l_next;
+            if (map->l_next)
+                map->l_next->l_prev = map->l_prev;
+            if (attached_gdb_maps == map)
+                attached_gdb_maps = map->l_next;
 
-            if (map->l_type == OBJECT_EXTERNAL)
-                free_elf_object(l);
-            break;
+            if (map->l_name)
+                free((void *) map->l_name);
+            free(map);
+            return;
         }
 #endif
 }
