@@ -269,9 +269,7 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                         void * resolved_addr = resolve_symbol(map, sym);
                         if (resolved_addr)
                             *reloc_addr = resolved_addr + rel->r_addend;
-
-                        /* Pass if we cannot resolve the symbol right now */
-                        break;
+                        break; /* Ignore unresolvable symbols */
                     }
                 case R_X86_64_64:
                 case R_X86_64_32:
@@ -281,7 +279,7 @@ int load_link_map (struct link_map * map, PAL_HANDLE file,
                     *reloc_addr = map_base + rel->r_addend;
                     break;
                 default:
-                    init_fail(-PAL_ERROR_INVAL, "Unknown relocation type");
+                    /* ignore other relocation type */
                     break;
             }
         }
