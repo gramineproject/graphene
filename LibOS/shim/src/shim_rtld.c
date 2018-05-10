@@ -187,8 +187,9 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
                    file, file_off, NULL);
 
         if (!mapped_address) {
-            ret = fs->fs_ops->mmap(file, &map_addr, file_end - start, prot,
-                                   MAP_PRIVATE|MAP_FILE|MAP_FIXED, file_off);
+            ret = fs->fs_ops->mmap(file, &map_addr, ALIGN_UP(file_end) - start,
+                                   prot, MAP_PRIVATE|MAP_FILE|MAP_FIXED,
+                                   file_off);
             if (ret < 0)
                 return ret;
         }
@@ -208,6 +209,7 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
             /* Allocate free pages for the rest of the section */
             if (file_end < end) {
                 end = (void *) ALIGN_UP(end);
+                assert(ALIGNED(file_end));
                 map_addr = map_base + (uintptr_t) file_end;
                 bkeep_mmap(map_addr, end - file_end, prot,
                            MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,
