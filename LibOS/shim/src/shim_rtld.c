@@ -169,8 +169,8 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
             continue;
 
         void * start = (void *) ALIGN_DOWN(ph->p_vaddr);
-        void * end = (void *) ALIGN_UP(ph->p_vaddr + ph->p_memsz);
-        void * file_end = (void *) ALIGN_UP(ph->p_vaddr + ph->p_filesz);
+        void * end = (void *) ph->p_vaddr + ph->p_memsz;
+        void * file_end = (void *) ph->p_vaddr + ph->p_filesz;
         off_t  file_off = ALIGN_DOWN(ph->p_offset);
         void * map_addr = map_base + (uintptr_t) start;
 
@@ -194,15 +194,30 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
         }
 
         if (end > file_end) {
-            map_addr = map_base + (uintptr_t) file_end;
-            bkeep_mmap(map_addr, end - file_end, prot,
-                       MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,
-                       NULL, 0, NULL);
+            /*
+             * If there are remaining bytes at the last page, simply zero
+             * the bytes.
+             */
+            void * aligned = (void *) ALIGN_UP(file_end);
+            if (file_end < aligned) {
+                if (!mapped_address)
+                    memset(file_end, 0, aligned - file_end);
+                file_end = aligned;
+            }
 
-            if (!mapped_address) {
-                void * mapped = DkVirtualMemoryAlloc(map_addr, end - file_end,
-                                                     0, prot);
-                assert(mapped == map_addr);
+            /* Allocate free pages for the rest of the section */
+            if (file_end < end) {
+                end = (void *) ALIGN_UP(end);
+                map_addr = map_base + (uintptr_t) file_end;
+                bkeep_mmap(map_addr, end - file_end, prot,
+                           MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,
+                           NULL, 0, NULL);
+
+                if (!mapped_address) {
+                    void * mapped =
+                        DkVirtualMemoryAlloc(map_addr, end - file_end, 0, prot);
+                    assert(mapped == map_addr);
+                }
             }
         }
     }
