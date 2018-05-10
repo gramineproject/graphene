@@ -71,7 +71,6 @@ int init_shim_map (void)
     shim_map.base_addr = (void *) &__load_address;
     shim_map.map_start = (void *) &__load_address;
     shim_map.map_end   = (void *) &__load_address_end;
-    shim_map.binary_name = "libsysdb.so";
     return 0;
 }
 
@@ -112,6 +111,11 @@ static int load_link_map (struct link_map * map, struct shim_handle * file,
     void * map_start = (void *) -1, * map_end = NULL;
 
     memset(map, 0, sizeof(*map));
+
+    if (file) {
+        const char * uri = qstrgetstr(&file->uri);
+        map->binary_name = uri ? malloc_copy(uri, strlen(uri) + 1) : NULL;
+    }
 
     for (ph = phdr ; ph < &phdr[ehdr->e_phnum] ; ph++)
         switch (ph->p_type) {
@@ -396,8 +400,21 @@ int free_loader (void)
 
     exec_reloaded = true;
     master_unlock();
-    free(old_exec_map);
-    free(old_interp_map);
+
+    if (old_exec_map) {
+        remove_r_debug(old_exec_map->base_addr);
+        if (old_exec_map->binary_name)
+            free((void *) old_exec_map->binary_name);
+        free(old_exec_map);
+    }
+
+    if (old_interp_map) {
+        remove_r_debug(old_interp_map->base_addr);
+        if (old_interp_map->binary_name)
+            free((void *) old_interp_map->binary_name);
+        free(old_interp_map);
+    }
+
     return 0;
 }
 
@@ -438,10 +455,11 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     return 0;
 }
 
-BEGIN_CP_FUNC(rtld)
+BEGIN_CP_FUNC(link_map)
 {
-    master_lock();
-    struct link_map * map = exec_map;
+    assert(size == sizeof(struct link_map));
+
+    struct link_map * map = (struct link_map *) obj;
     struct link_map * new_map;
 
     ptr_t off = ADD_CP_OFFSET(sizeof(struct link_map));
@@ -449,10 +467,44 @@ BEGIN_CP_FUNC(rtld)
 
     new_map = (struct link_map *) (base + off);
     memcpy(new_map, map, sizeof(*map));
-    new_map->binary_name = NULL;
+
+    if (map->binary_name) {
+        int namelen = strlen(map->binary_name);
+        new_map->binary_name  = (char *) (base + ADD_CP_OFFSET(namelen + 1));
+        memcpy((char *) new_map->binary_name, map->binary_name, namelen + 1);
+    }
+
+    ADD_CP_FUNC_ENTRY(off);
+    *objp = new_map;
+}
+END_CP_FUNC(link_map)
+
+BEGIN_RS_FUNC(link_map)
+{
+    struct link_map * map = (void *) (base + GET_CP_FUNC_ENTRY());
+
+    CP_REBASE(map->binary_name);
+
+    DEBUG_RS("addr=%p-%p,name=%s", map->map_start, map->map_end,
+             map->binary_name);
+}
+END_RS_FUNC(link_map)
+
+BEGIN_CP_FUNC(rtld)
+{
+    struct link_map * new_exec_map = NULL, * new_interp_map = NULL;
+    master_lock();
+
+    if (exec_map)
+        DO_CP(link_map, exec_map, &new_exec_map);
+
+    if (interp_map)
+        DO_CP(link_map, interp_map, &new_interp_map);
 
     master_unlock();
-    ADD_CP_FUNC_ENTRY(off);
+    ADD_CP_FUNC_ENTRY(0);
+    ADD_CP_ENTRY(ADDR, new_exec_map);
+    ADD_CP_ENTRY(ADDR, new_interp_map);
 
 #ifdef DEBUG
     DO_CP(gdb_map, NULL, NULL);
@@ -463,7 +515,16 @@ END_CP_FUNC(rtld)
 BEGIN_RS_FUNC(rtld)
 {
     master_lock();
-    exec_map = (void *) (base + GET_CP_FUNC_ENTRY());
+
+    exec_map = (void *) GET_CP_ENTRY(ADDR);
+    if (exec_map)
+        CP_REBASE(exec_map);
+
+    interp_map = (void *) GET_CP_ENTRY(ADDR);
+    if (interp_map)
+        CP_REBASE(interp_map);
+
+    exec_reloaded = true;
     master_unlock();
 }
 END_RS_FUNC(rtld)
