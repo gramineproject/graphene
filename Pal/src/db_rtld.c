@@ -198,7 +198,8 @@ int load_link_map (struct link_map * map, PAL_HANDLE file, void * loaded_addr,
                  */
                 void * aligned = (void *) ALLOC_ALIGNUP(file_end);
                 if (file_end < aligned) {
-                    memset(file_end, 0, aligned - file_end);
+                    memset(map_base + (uintptr_t) file_end, 0,
+                           aligned - file_end);
                     file_end = aligned;
                 }
 
