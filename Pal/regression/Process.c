@@ -8,7 +8,7 @@
 int main (int argc, char ** argv, char ** envp)
 {
     char buffer1[20] = "Hello World 1", buffer2[20] = "Hello World 2";
-    char buffer3[20], buffer4[20], buffer5[20];
+    char buffer3[20], buffer4[20];
     int ret;
 
     if (argc > 1 && !memcmp(argv[1], "Child", 6)) {
@@ -26,9 +26,14 @@ int main (int argc, char ** argv, char ** envp)
 
         DkStreamWrite(pal_control.parent_process, 0, 20, buffer1, NULL);
 
-        ret = DkStreamRead(pal_control.broadcast_stream, 0, 20, buffer5, NULL, 0);
-        if (ret > 0)
-            pal_printf("Broadcast Read: %s\n", buffer5);
+        /*
+         * Broadcast test disabled:
+         *
+         * char buffer5[20];
+         * ret = DkStreamRead(pal_control.broadcast_stream, 0, 20, buffer5, NULL, 0);
+         * if (ret > 0)
+         *     pal_printf("Broadcast Read: %s\n", buffer5);
+         */
 
         ret = DkStreamWrite(pal_control.parent_process, 0, 20, buffer1, NULL);
         if (ret > 0)
@@ -53,11 +58,14 @@ int main (int argc, char ** argv, char ** envp)
             }
         }
 
-        pal_printf("Broadcasting message\n");
-
-        ret = DkStreamWrite(pal_control.broadcast_stream, 0, 20, buffer1, NULL);
-        if (ret > 0)
-            pal_printf("Broadcast Write OK\n");
+        /*
+         * Broadcast test disabled:
+         *
+         * char buffer5[20];
+         * ret = DkStreamWrite(pal_control.broadcast_stream, 0, 20, buffer1, NULL);
+         * if (ret > 0)
+         *     pal_printf("Broadcast Write OK\n");
+         */
 
         for (int i = 0 ; i < 3 ; i++)
             if (children[i]) {

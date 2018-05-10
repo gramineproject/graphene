@@ -27,9 +27,9 @@ regression.add_check(name="Process Channel Transmission",
                       check_times("Process Write 2 OK",            res[0].log, 3) and
                       check_times("Process Read 2: Hello World 2", res[0].log, 3))
 
-regression.add_check(name="Multi-Process Broadcast Channel Transmission",
-    check=lambda res: check_times("Broadcast Write OK",            res[0].log, 1) and
-                      check_times("Broadcast Read: Hello World 1", res[0].log, 3))
+#regression.add_check(name="Multi-Process Broadcast Channel Transmission",
+#    check=lambda res: check_times("Broadcast Write OK",            res[0].log, 1) and
+#                      check_times("Broadcast Read: Hello World 1", res[0].log, 3))
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
