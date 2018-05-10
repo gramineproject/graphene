@@ -8,7 +8,6 @@ SECTIONS
   . = SEGMENT_START("text-segment", 0) + SIZEOF_HEADERS;
   .note.gnu.build-id : { *(.note.gnu.build-id) }
   .hash          : { *(.hash) }
-  .gnu.hash      : { *(.gnu.hash) }
   .dynsym        : { *(.dynsym) }
   .dynstr        : { *(.dynstr) }
   .gnu.version   : { *(.gnu.version) }
