@@ -194,11 +194,6 @@ PAL_NUM _DkGetHostId (void)
 void setup_vdso_map (ElfW(Addr) addr);
 #endif
 
-static struct link_map pal_map;
-
-DEFINE_LISTP(link_map);
-extern LISTP_TYPE(link_map) link_map_list;
-
 void pal_linux_main (void * args)
 {
     const char * pal_name = NULL;
@@ -212,22 +207,8 @@ void pal_linux_main (void * args)
 
     /* parse argc, argv, envp and auxv */
     pal_init_bootstrap(args, &pal_name, &argc, &argv, &envp, &pal_entry);
-
-    pal_state.pagesize    = _DkGetPagesize();
-    pal_state.alloc_align = _DkGetAllocationAlignment();
-    pal_state.alloc_shift = pal_state.alloc_align - 1;
-    pal_state.alloc_mask  = ~pal_state.alloc_shift;
-
-    load_link_map(&pal_map, NULL, pal_entry - (uintptr_t) pal_start, MAP_RTLD);
-    pal_map.binary_name = PAL_LOADER;
-    listp_add_tail(&pal_map, &link_map_list, list);
-
-    init_slab_mgr(pagesz);
-
-    /* This function needs malloc(), so has to be called after
-     * init_slab_mgr() */
-    _DkDebugAttachBinary(pal_map.binary_name, pal_map.base_addr,
-                         pal_map.dyn_addr);
+    pal_init_rtld(pal_name, pal_entry - (uintptr_t) pal_start);
+    init_slab_mgr();
 
 #if USE_VDSO_GETTIME == 1
     if (sysinfo_ehdr)

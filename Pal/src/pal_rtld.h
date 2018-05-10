@@ -110,6 +110,8 @@ struct r_debug {
 extern struct link_map * rtld_map;
 extern struct link_map * exec_map;
 
+void pal_init_rtld (const char * name, void * base_addr);
+
 static inline int check_elf_object (PAL_HANDLE handle)
 {
     unsigned char expected[] = { ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3 };

@@ -85,7 +85,7 @@ static inline void __free (void * addr, int size)
 
 static SLAB_MGR slab_mgr = NULL;
 
-void init_slab_mgr (int alignment)
+void init_slab_mgr (void)
 {
     if (slab_mgr)
         return;
@@ -94,7 +94,10 @@ void init_slab_mgr (int alignment)
     unsigned long before_slab = _DkSystemTimeQuery();
 #endif
 
-    slab_alignment = alignment;
+    slab_alignment = pal_state.alloc_align;
+    if (!slab_alignment)
+        init_fail(PAL_ERROR_INVAL, "alignment not assigned");
+
     slab_mgr = create_slab_mgr();
     if (!slab_mgr)
         init_fail(PAL_ERROR_NOMEM, "cannot initialize slab manager");

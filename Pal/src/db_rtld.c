@@ -312,6 +312,34 @@ int load_elf_object (PAL_HANDLE file, void * load_addr,
 
 struct gdb_link_map * attached_gdb_maps;
 
+static struct link_map pal_map;
+static struct gdb_link_map pal_gdb_map;
+
+void pal_init_rtld (const char * name, void * base_addr)
+{
+    /* Ensure these variables are initialized */
+    pal_state.pagesize    = _DkGetPagesize();
+    pal_state.alloc_align = _DkGetAllocationAlignment();
+    pal_state.alloc_shift = pal_state.alloc_align - 1;
+    pal_state.alloc_mask  = ~pal_state.alloc_shift;
+
+    /* Initialize pal_map */
+    load_link_map(&pal_map, NULL, base_addr, MAP_RTLD);
+    pal_map.binary_name = name;
+    listp_add_tail(&pal_map, &link_map_list, list);
+
+    /* Add pal_gdb_map */
+    pal_gdb_map.l_name = name;
+    pal_gdb_map.l_addr = base_addr;
+    pal_gdb_map.l_ld   = pal_map.dyn_addr;
+    pal_gdb_map.l_next = NULL;
+    pal_gdb_map.l_prev = NULL;
+    assert(!attached_gdb_maps);
+    attached_gdb_maps = &pal_gdb_map;
+
+    _DkDebugAddMap(&pal_gdb_map);
+}
+
 void _DkDebugAttachBinary (const char * name, void * base_addr,
                            void * dynamic)
 {
@@ -378,6 +406,9 @@ void DkDebugDetachBinary (PAL_PTR start_addr)
     struct gdb_link_map * map = attached_gdb_maps;
     for (; map ; map = map->l_next)
         if (map == start_addr) {
+            if (map == &pal_gdb_map)
+                return;
+
             _DkDebugDelMap(map);
             if (map->l_prev)
                 map->l_prev->l_next = map->l_next;

@@ -254,9 +254,6 @@ void pal_main (
 #endif
 
     pal_state.instance_id = instance_id;
-
-    init_slab_mgr(pal_state.alloc_align);
-
     pal_state.parent_process = parent_process;
 
     char uri_buf[URI_MAX];

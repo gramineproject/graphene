@@ -72,7 +72,7 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
-int init_untrusted_slab_mgr (int pagesize);
+int init_untrusted_slab_mgr (void);
 int init_enclave (void);
 int init_enclave_key (void);
 int init_child_process (PAL_HANDLE * parent_handle);
@@ -115,31 +115,19 @@ static int loader_filter (const char * key, int len)
 
 extern void * enclave_base;
 
-static struct link_map pal_map;
-
-DEFINE_LISTP(link_map);
-extern LISTP_TYPE(link_map) link_map_list;
-
 void pal_linux_main(const char ** arguments, const char ** environments,
                     struct pal_sec * sec_info)
 {
     PAL_HANDLE parent = NULL;
     unsigned long start_time = _DkSystemTimeQuery();
 
-    pal_state.pagesize    = _DkGetPagesize();
-    pal_state.alloc_align = _DkGetAllocationAlignment();
-    pal_state.alloc_shift = pal_state.alloc_align - 1;
-    pal_state.alloc_mask  = ~pal_state.alloc_shift;
-
     /* relocate PAL itself */
-    load_link_map(&pal_map, NULL, sec_info->enclave_addr, MAP_RTLD);
-    listp_add_tail(&pal_map, &link_map_list, list);
-
+    pal_init_rtld(sec_info->enclave_image, sec_info->enclave_addr);
     memcpy(&pal_sec, sec_info, sizeof(struct pal_sec));
 
     /* set up page allocator and slab manager */
-    init_slab_mgr(pagesz);
-    init_untrusted_slab_mgr(pagesz);
+    init_slab_mgr();
+    init_untrusted_slab_mgr();
     init_pages();
     init_enclave_key();
 

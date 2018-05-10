@@ -356,7 +356,7 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int valu
     } while (0)
 
 #ifndef NO_INTERNAL_ALLOC
-void init_slab_mgr (int alignment);
+void init_slab_mgr (void);
 void * malloc (size_t size);
 void * malloc_copy(const void * mem, size_t size);
 void * calloc (size_t nmem, size_t size);
