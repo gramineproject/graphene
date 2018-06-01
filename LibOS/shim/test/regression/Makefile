@@ -36,13 +36,9 @@ bootstrap_pie: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-.PHONY: pack
-pack: $(special_executables) $(c_executables) $(cxx_executables)
-	@../../../../Scripts/pack_binaries.sh test $^
 else
-$(special_executables) $(c_executables) $(cxx_executables): .packed/test.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
+$(special_executables) $(c_executables) $(cxx_executables):
 endif
 
 PYTHONENV="PYTHONPATH=../../../../Scripts"
@@ -54,13 +50,13 @@ endif
 .PHONY: regression
 regression: $(target)
 	@echo "\n\nBasic Bootstrapping:"
-	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
+	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nSyscall Support:"
-	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
+	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nSocket Support:"
-	@for f in $(wildcard 80_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
+	@for f in $(wildcard 80_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nLarge File Support:"
-	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $?; done
+	@for f in $(wildcard 90_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 
 .PHONY: clean-tmp
 clean-tmp:

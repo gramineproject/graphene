@@ -61,6 +61,7 @@ static struct shim_dentry * alloc_dentry (void)
 
     memset(dent, 0, sizeof(struct shim_dentry));
 
+    REF_SET(dent->ref_count, 0);
     dent->mode = NO_MODE;
 
     INIT_LIST_HEAD(dent, hlist);

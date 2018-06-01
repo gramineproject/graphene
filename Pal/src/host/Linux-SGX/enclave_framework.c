@@ -17,10 +17,11 @@ void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
 
+static int register_trusted_file (const char * uri, const char * checksum_str);
+
 bool sgx_is_within_enclave (const void * addr, uint64_t size)
 {
-    return (addr >= enclave_base &&
-            addr + size <= enclave_top) ? 1 : 0;
+    return enclave_base <= addr && addr + size <= enclave_top;
 }
 
 void * sgx_ocalloc (uint64_t size)
@@ -120,9 +121,23 @@ DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
+static int allow_file_creation = 0;
+
+
+/* Function: load_trusted_file
+ * checks if the file to be opened is trusted or allowed,
+ * according to the setting in manifest
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
 
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
-                       uint64_t * sizeptr)
+                       uint64_t * sizeptr, int create)
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
@@ -135,6 +150,14 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     uri_len = _DkStreamGetName(file, uri, URI_MAX);
     if (uri_len < 0)
         return uri_len;
+
+    /* Allow to create the file when allow_file_creation is turned on;
+       The created file is added to allowed_file list for later access */
+    if (create && allow_file_creation) {
+       register_trusted_file(uri, NULL);
+       *sizeptr = 0;
+       return 0;
+    }
 
     /* Normalize the uri */
     if (!strpartcmp_static(uri, "file:")) {
@@ -280,16 +303,15 @@ failed:
 }
 
 int verify_trusted_file (const char * uri, void * mem,
-                         unsigned int offset, unsigned int size,
+                         uint64_t offset, uint64_t size,
                          sgx_stub_t * stubs,
-                         unsigned int total_size)
+                         uint64_t total_size)
 {
-    unsigned long checking = offset;
-    sgx_stub_t * s = stubs + (checking / TRUSTED_STUB_SIZE);
-    int ret;
+    uint64_t checking = offset;
+    sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
-        unsigned long checking_size = TRUSTED_STUB_SIZE;
+        uint64_t checking_size = TRUSTED_STUB_SIZE;
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
@@ -412,7 +434,7 @@ static int init_trusted_file (const char * key, const char * uri)
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
-    int len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
+    ssize_t len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
     if (len < 0)
         return 0;
 
@@ -433,8 +455,10 @@ static int init_trusted_file (const char * key, const char * uri)
 
 int init_trusted_files (void)
 {
-    char *cfgbuf;
-    int ret;
+    struct config_store * store = pal_state.root_config;
+    char * cfgbuf = NULL;
+    ssize_t cfgsize;
+    int nuris, ret;
 
     if (pal_sec.exec_fd != PAL_IDX_POISON) {
         ret = init_trusted_file("exec", pal_sec.exec_name);
@@ -442,10 +466,14 @@ int init_trusted_files (void)
             goto out;
     }
 
-    cfgbuf = __alloca(CONFIG_MAX);
-    int len = get_config(pal_state.root_config, "loader.preload",
-                         cfgbuf, CONFIG_MAX);
-    if (len) {
+    cfgbuf = malloc(CONFIG_MAX);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
+    ssize_t len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
+    if (len > 0) {
         int npreload = 0;
         char key[10];
         const char * start, * end;
@@ -465,14 +493,23 @@ int init_trusted_files (void)
         }
     }
 
-    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
-                                              "sgx.trusted_files"));
-    int nuris = get_config_entries(pal_state.root_config, "sgx.trusted_files",
-                                   cfgbuf);
-    if (nuris == -PAL_ERROR_INVAL)
-        nuris = 0;
+    cfgsize = get_config_entries_size(store, "sgx.trusted_files");
+    if (cfgsize <= 0)
+        goto no_trusted;
 
-    if (nuris >= 0) {
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
+
+    nuris = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
+    if (nuris <= 0)
+        goto no_trusted;
+
+    {
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
@@ -482,26 +519,33 @@ int init_trusted_files (void)
             len = strlen(k);
             memcpy(tmp, k, len + 1);
             k += len + 1;
-            len = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
+            len = get_config(store, key, uri, CONFIG_MAX);
             if (len > 0) {
                 ret = init_trusted_file(key + 18, uri);
                 if (ret < 0)
                     goto out;
             }
         }
-    } else {
-        ret = nuris;
+    }
+
+no_trusted:
+
+    cfgsize = get_config_entries_size(store, "sgx.allowed_files");
+    if (cfgsize <= 0)
+        goto no_allowed;
+
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
         goto out;
     }
 
-    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
-                                              "sgx.allowed_files"));
-    nuris = get_config_entries(pal_state.root_config, "sgx.allowed_files",
-                               cfgbuf);
-    if (nuris == -PAL_ERROR_INVAL)
-        nuris = 0;
+    nuris = get_config_entries(store, "sgx.allowed_files", cfgbuf, cfgsize);
+    if (nuris <= 0)
+        goto no_allowed;
 
-    if (nuris >= 0) {
+    {
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
@@ -511,33 +555,45 @@ int init_trusted_files (void)
             len = strlen(k);
             memcpy(tmp, k, len + 1);
             k += len + 1;
-            len = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
+            len = get_config(store, key, uri, CONFIG_MAX);
             if (len > 0)
                 register_trusted_file(uri, NULL);
         }
-    } else {
-        ret = nuris;
-        goto out;
     }
+
+no_allowed:
     ret = 0;
 
+    if (get_config(store, "sgx.allow_file_creation", cfgbuf, CONFIG_MAX) <= 0) {
+        allow_file_creation = 0;
+    } else
+        allow_file_creation = 1;
+
 out:
+    free(cfgbuf);
     return ret;
 }
 
 int init_trusted_children (void)
 {
-    char *cfgbuf;
+    struct config_store * store = pal_state.root_config;
+
     char key[CONFIG_MAX], mrkey[CONFIG_MAX];
     char uri[CONFIG_MAX], mrenclave[CONFIG_MAX];
 
     char * tmp1 = strcpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
     char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
 
-    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
-                                              "sgx.trusted_mrenclave"));
-    int nuris = get_config_entries(pal_state.root_config,
-                                   "sgx.trusted_mrenclave", cfgbuf);
+    ssize_t cfgsize = get_config_entries_size(store, "sgx.trusted_mrenclave");
+    if (cfgsize <= 0)
+        return 0;
+
+    char * cfgbuf = malloc(cfgsize);
+    if (!cfgbuf)
+        return -PAL_ERROR_NOMEM;
+
+    int nuris = get_config_entries(store, "sgx.trusted_mrenclave",
+                                   cfgbuf, cfgsize);
     if (nuris > 0) {
         char * k = cfgbuf;
         for (int i = 0 ; i < nuris ; i++) {
@@ -546,17 +602,16 @@ int init_trusted_children (void)
             memcpy(tmp2, k, len + 1);
             k += len + 1;
 
-            int ret = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
+            ssize_t ret = get_config(store, key, uri, CONFIG_MAX);
             if (ret < 0)
                 continue;
 
-            ret = get_config(pal_state.root_config, mrkey, mrenclave,
-                             CONFIG_MAX);
+            ret = get_config(store, mrkey, mrenclave, CONFIG_MAX);
             if (ret > 0)
                 register_trusted_child(uri, mrenclave);
         }
     }
-
+    free(cfgbuf);
     return 0;
 }
 
@@ -917,13 +972,13 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
+        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
                 hex2str(att.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Remote attestation succeed!\n");
+    SGX_DBG(DBG_S, "Remote attestation succeeded!\n");
     return 0;
 
 out:

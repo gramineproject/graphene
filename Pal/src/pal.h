@@ -30,7 +30,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef unsigned long PAL_NUM;
+typedef uint64_t      PAL_NUM;
 typedef const char *  PAL_STR;
 typedef void *        PAL_PTR;
 typedef uint32_t      PAL_FLG;
@@ -217,6 +217,7 @@ PAL_CONTROL * pal_control_addr (void);
 #define PAL_PROT_WRITECOPY  0x8     /* 0x8 Copy on write */
 
 
+// If addr != NULL, then the returned region is always exactly at addr.
 PAL_PTR
 DkVirtualMemoryAlloc (PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type,
                       PAL_FLG prot);

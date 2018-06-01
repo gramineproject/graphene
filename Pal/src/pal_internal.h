@@ -56,16 +56,17 @@ struct handle_ops {
 
     /* 'read' and 'write' is used by DkStreamRead and DkStreamWrite, so
        they have exactly same prototype as them.  */
-    int (*read) (PAL_HANDLE handle, int offset, int count, void * buffer);
-    int (*write) (PAL_HANDLE handle, int offset, int count,
-                  const void * buffer);
+    int64_t (*read) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                     void * buffer);
+    int64_t (*write) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                      const void * buffer);
 
     /* 'readbyaddr' and 'writebyaddr' are the same as read and write,
        but with extra field to specify address */
-    int (*readbyaddr) (PAL_HANDLE handle, int offset, int count, void * buffer,
-                       char * addr, int addrlen);
-    int (*writebyaddr) (PAL_HANDLE handle, int offset, int count,
-                        const void * buffer, const char * addr, int addrlen);
+    int64_t (*readbyaddr) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           void * buffer, char * addr, int addrlen);
+    int64_t (*writebyaddr) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                            const void * buffer, const char * addr, int addrlen);
 
     /* 'close' and 'delete' is used by DkObjectClose and DkStreamDelete,
        'close' will close the stream, while 'delete' actually destroy
@@ -133,7 +134,7 @@ static inline const struct handle_ops * HANDLE_OPS (PAL_HANDLE handle)
 /* interger hash functions defined inline. The algorithm we used here
   is based on Robert Jenkins developed in 96', the algorithm has two
   version, 32-bit one and 64-bit one. */
-static inline unsigned int hash32 (unsigned int key)
+static inline uint32_t hash32 (uint32_t key)
 {
     key = ~key + (key << 15);
     key = key ^ (key >> 12);
@@ -144,7 +145,7 @@ static inline unsigned int hash32 (unsigned int key)
     return key;
 }
 
-static inline unsigned int hash64 (unsigned long key)
+static inline uint64_t hash64 (uint64_t key)
 {
     key = (~key) + (key << 21);
     key = key ^ (key >> 24);
@@ -274,10 +275,10 @@ void _DkGetCPUInfo (PAL_CPU_INFO * info);
 int _DkStreamOpen (PAL_HANDLE * handle, const char * uri,
                    int access, int share, int create, int options);
 int _DkStreamDelete (PAL_HANDLE handle, int access);
-int _DkStreamRead (PAL_HANDLE handle, int offset, int count, void * buf,
-                   char * addr, int addrlen);
-int _DkStreamWrite (PAL_HANDLE handle, int offset, int count,
-                    const void * buf, const char * addr, int addrlen);
+int64_t _DkStreamRead (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                       void * buf, char * addr, int addrlen);
+int64_t _DkStreamWrite (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                        const void * buf, const char * addr, int addrlen);
 int _DkStreamAttributesQuery (const char * uri, PAL_STREAM_ATTR * attr);
 int _DkStreamAttributesQuerybyHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
 int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, uint64_t offset,
@@ -369,7 +370,7 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type);
 #ifndef NO_INTERNAL_ALLOC
 void init_slab_mgr (int alignment);
 void * malloc (size_t size);
-void * remalloc (const void * mem, size_t size);
+void * malloc_copy(const void * mem, size_t size);
 void * calloc (size_t nmem, size_t size);
 char * strdup(const char *source);
 void free (void * mem);

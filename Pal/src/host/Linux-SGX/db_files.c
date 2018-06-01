@@ -67,7 +67,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
     sgx_stub_t * stubs;
     uint64_t total;
-    int ret = load_trusted_file(hdl, &stubs, &total);
+    int ret = load_trusted_file(hdl, &stubs, &total, create);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Accessing file:%s is denied. (%s) "
                 "This file is not trusted or allowed.\n", hdl->file.realpath,
@@ -82,20 +82,21 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     return 0;
 }
 
-/* A common helper function for map/read that both copies the file contents
+/*
+ * A common helper function for map/read that both copies the file contents
  * into an in-enclave buffer, and hashes/checks the contents.  If needed,
  * regions at both ends are copied into a scratch buffer to avoid a TOCTTOU
  * race.
- * 
+ *
  * * Note that it must be done this way to avoid the following TOCTTOU race
  * * condition with the untrusted runtime system (URTS):
  *       *  URTS: put good contents in buffer
  *       *  Enclave: buffer check passes
  *       *  URTS: put bad contents in buffer
  *       *  Enclave: copies in bad buffer contents
- * 
- * * As an optimization, we try to do verification in place, as no enclave code should
- *   use this buffer before we return.  But there are some subtle interactions
+ *
+ * * For optimization, we verify the memory in place, as the application code
+ *   should not use the memory before return.  There can be subtle interactions
  *   at the edges of a region with ELF loading.  Namely, the ELF loader will
  *   want to map several file chunks that are not aligned to TRUSTED_STUB_SIZE
  *   next to each other, sometimes overlapping.  There is probably room to
@@ -112,9 +113,11 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
  * end is the last byte within the buffer, as an offset of the file
  */
 
-static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_start,
-                                 uint64_t umap_end, uint64_t offset, void *buffer,
-                                 uint64_t end) {
+static int
+__file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_start,
+                      uint64_t umap_end, uint64_t offset, void *buffer,
+                      uint64_t end)
+{
 
     uint64_t verify_size = umap_end - umap_start;
     uint64_t verify_offset = umap_start;
@@ -127,17 +130,17 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
     sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
     uint64_t total = handle->file.total;
     int end_of_file = 0;
-    
+
     /* This function should only be called if stubs exist */
     assert(stubs);
 
     if (umap_end == ALLOC_ALIGNUP(total)) end_of_file = 1;
-    
+
     /* Here, we need to copy the data into a trusted buffer to hash it
      * first, lest we have a similar TOCTTOU issue to file_map.  As an
      * optimization, try to use the buffer for STUB-sized chunks.
      */
-    
+
     // Figure out in one spot if we will need the scratch buffer
     if (umap_start != offset) check_start = 1;
     // Don't bother checking the end separately if there is only one chunk.
@@ -151,7 +154,7 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
             goto out; 
         }
     }
-    
+
     // Case 1: See if we need to verify the first chunk separately
     if (check_start) {
         // The first bytes should come from umem (offset-map_start).  This
@@ -186,7 +189,7 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
         // Account for the offset into mem
         buf_ptr += (TRUSTED_STUB_SIZE - umap_offset);
     }
-    
+
     // Case 2: Check last chunk, if needed
     if (check_end) {
         // Copy the contents into the scratch buffer
@@ -196,16 +199,16 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
         // Add the offset to the umem ptr, adjusting for the overall
         // offset of the mapping
         void *end_ptr = umem + (end_offset - umap_start);
-        
+
         // end_offset should be aligned now, just leaaving the last
         // sub-chunk
         assert(end_offset == 0 || (end_offset & ~(TRUSTED_STUB_SIZE-1)));
-        
+
         if (end_of_file) {
             // If EOF, just copy the end
             end_copy_size = delta;
         }
-        
+
         SGX_DBG(DBG_M, "__file_copy_and_check - scratch memcpy (end) - %p %p (..%p), end_copy_size is %llu, end_offset %x, eof? %d\n", scratch_buffer, end_ptr, end_ptr + end_copy_size, end_copy_size, end_offset, end_of_file);
         SGX_DBG(DBG_M, "__file_copy_and_check - scratch memcpy (end) - end is %llx, delta is %llx, umem is %p umap_start is %llx\n", end, delta, umem, umap_start);
         // Get the first n bytes from the main buffer, and the rest from umem,
@@ -232,12 +235,12 @@ static int __file_copy_and_check(PAL_HANDLE handle, void *umem, uint64_t umap_st
         }
         verify_size -= end_copy_size;
     }
-    
+
     if (verify_size) {
         ret = verify_trusted_file(handle->file.realpath, umem,
                                   umap_start, umap_end - umap_start,
                                   stubs, total);
-        
+
         if (ret) {
             SGX_DBG(DBG_E, "__file_copy_and_check - verify trusted returned %d (case 3)\n", ret);
             goto out_unmap_scratch;
@@ -254,24 +257,24 @@ out:
 }
 
 /* 'read' operation for file streams. */
-static int file_read (PAL_HANDLE handle, int offset, int count,
+static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                       void * buffer)
 {
     sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
     unsigned int total = handle->file.total;
     int ret;
-    
+
     if (offset >= total)
         return 0;
 
-    unsigned long end = (offset + count > total) ? total : offset + count;
-    unsigned long map_start, map_end;
+    uint64_t end = (offset + count > total) ? total : offset + count;
+    uint64_t map_start, map_end;
 
     if (stubs) {
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
         map_end = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
         /* Don't go past the end of file with the stub map either */
-        if (map_end > total) 
+        if (map_end > total)
             map_end = ALLOC_ALIGNUP(total);
     } else {
         map_start = ALLOC_ALIGNDOWN(offset);
@@ -286,9 +289,9 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
 
     /* Go ahead and do the copy */
     memcpy(buffer, umem + offset - map_start, end - offset);
-    
+
     if (stubs) {
-        /* XXX: It would be good to assert that the buffer is actually in 
+        /* XXX: It would be good to assert that the buffer is actually in
          * enclave memory, or else we either have an error or a pointless
          * check */
         ret = __file_copy_and_check(handle, umem, map_start,
@@ -304,18 +307,19 @@ out:
 }
 
 /* 'write' operation for file streams. */
-static int file_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          const void * buffer)
 {
-    unsigned long map_start = ALLOC_ALIGNDOWN(offset);
-    unsigned long map_end = ALLOC_ALIGNUP(offset + count);
+    uint64_t map_start = ALLOC_ALIGNDOWN(offset);
+    uint64_t map_end = ALLOC_ALIGNUP(offset + count);
     void * umem;
     int ret;
 
     ret = ocall_map_untrusted(handle->file.fd, map_start,
                               map_end - map_start, PROT_WRITE, &umem);
-    if (ret < 0)
+    if (ret < 0) {
         return -PAL_ERROR_DENIED;
+    }
 
     if (offset + count > handle->file.total) {
         ocall_ftruncate(handle->file.fd, offset + count);
@@ -378,29 +382,26 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                      uint64_t offset, uint64_t size)
 {
     sgx_stub_t * stubs = (sgx_stub_t *) handle->file.stubs;
-    unsigned int total = handle->file.total;
+    uint64_t total = handle->file.total;
     void * mem = *addr; // Enclave map addr
     void * umem; // urts map addr
-    int ret = 0; 
+    int ret = 0;
     int uprot; // Permission requested on untrusted mapping
     uint64_t umap_start, umap_end, umap_size; // Boundaries for untrusted
                                               // mapping
     uint64_t umap_offset = 0; //offset into umap padding
     int umap_suffices = 0;
-    
-    /* Catch unsupported permissions early */
+
     if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {
         SGX_DBG(DBG_E, "file_map does not currently support writeable pass-through mappings on SGX.  You may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your file mapping to keep the writes inside the enclave but they won't be reflected outside of the enclave.\n");
         return -PAL_ERROR_DENIED;
     }
 
-    /* We need to be careful not to go past the end of the file */
-    uint64_t end = offset + size;
-    if (end > total) 
-        end = total;
+    uint64_t end = (offset + size > total) ? total : offset + size;
+    uint64_t map_start, map_end;
 
     SGX_DBG(DBG_M, "*** file_map: requested offset %llx, size %llu, end is %llx, total %llx ***\n", offset, size, end, total);
-    
+
     /* Set up the untrusted mapping */
     if (!stubs && !(prot & PAL_PROT_WRITECOPY)) {
         /* This is the case where an untrusted map suffices.  
@@ -692,7 +693,8 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
+static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                         void * buf)
 {
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;

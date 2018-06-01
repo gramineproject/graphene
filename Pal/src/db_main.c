@@ -47,7 +47,7 @@ static void load_libraries (void)
 {
     /* we will not make any assumption for where the libraries are loaded */
     char cfgbuf[CONFIG_MAX];
-    int len, ret = 0;
+    ssize_t len, ret = 0;
 
     /* loader.preload:
        any other libraries to preload. The can be multiple URIs,
@@ -84,6 +84,7 @@ static void load_libraries (void)
 
 static void read_environments (const char *** envpp)
 {
+    struct config_store * store = pal_state.root_config;
     const char ** envp = *envpp;
     char * cfgbuf;
 
@@ -98,16 +99,14 @@ static void read_environments (const char *** envpp)
     if (!pal_state.root_config)
         return;
 
-    size = get_config_entries_size(pal_state.root_config, "loader.env");
-
-    /* DEP 11/24/17:  XXX Seems like we should really propagate this error
-     */
-    if (size < 0) 
+    ssize_t cfgsize = get_config_entries_size(store, "loader.env");
+    /* XXX Propagate this error? */
+    if (cfgsize < 0)
         return;
-        
-    cfgbuf = malloc(size);
-    nsetenvs = get_config_entries(pal_state.root_config, "loader.env",
-                                  cfgbuf);
+
+    cfgbuf = malloc(cfgsize);
+    assert(cfgbuf);
+    nsetenvs = get_config_entries(store, "loader.env", cfgbuf, cfgsize);
 
     if (nsetenvs <= 0) {
         free(cfgbuf);
@@ -117,7 +116,7 @@ static void read_environments (const char *** envpp)
     setenvs = __alloca(sizeof(struct setenv) * nsetenvs);
     char * cfg = cfgbuf;
     for (int i = 0 ; i < nsetenvs ; i++) {
-        int len = strlen(cfg);
+        size_t len = strlen(cfg);
         char * str = __alloca(len + 1);
         setenvs[i].str = str;
         setenvs[i].len = len;
@@ -154,11 +153,10 @@ static void read_environments (const char *** envpp)
         const char * str = setenvs[i].str;
         int len = setenvs[i].len;
         int idx = setenvs[i].idx;
-        int bytes;
+        ssize_t bytes;
         ptr = &envp[(idx == -1) ? nenvs++ : idx];
         memcpy(key + prefix_len, str, len + 1);
-        if ((bytes = get_config(pal_state.root_config, key, cfgbuf,
-                                CONFIG_MAX)) > 0) {
+        if ((bytes = get_config(store, key, cfgbuf, CONFIG_MAX)) > 0) {
             char * e = malloc(len + bytes + 2);
             memcpy(e, str, len);
             e[len] = '=';
@@ -179,7 +177,7 @@ static void read_environments (const char *** envpp)
 static void set_debug_type (void)
 {
     char cfgbuf[CONFIG_MAX];
-    int ret = 0;
+    ssize_t ret = 0;
 
     if (!pal_state.root_config)
         return;
@@ -262,14 +260,14 @@ void pal_main (
 
     char uri_buf[URI_MAX];
     char * manifest_uri = NULL, * exec_uri = NULL;
-    int ret;
+    ssize_t ret;
 
     if (exec_handle) {
         ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
         if (ret < 0)
             init_fail(-ret, "cannot get executable name");
 
-        exec_uri = remalloc(uri_buf, ret + 1);
+        exec_uri = malloc_copy(uri_buf, ret + 1);
     }
 
     if (manifest_handle) {
@@ -277,7 +275,7 @@ void pal_main (
         if (ret < 0)
             init_fail(-ret, "cannot get manifest name");
 
-        manifest_uri = remalloc(uri_buf, ret + 1);
+        manifest_uri = malloc_copy(uri_buf, ret + 1);
         goto has_manifest;
     }
 
@@ -310,7 +308,7 @@ void pal_main (
 #endif
 
     /* well, there is no manifest file, leave it alone */
-    printf("Can't fine any manifest, will run without one.\n");
+    printf("Can't find any manifest, will run without one.\n");
 
 has_manifest:
     /* load manifest if there is one */
@@ -356,7 +354,7 @@ has_manifest:
         ret = get_config(pal_state.root_config, "loader.exec",
                          uri_buf, URI_MAX);
         if (ret > 0) {
-            exec_uri = remalloc(uri_buf, ret + 1);
+            exec_uri = malloc_copy(uri_buf, ret + 1);
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
                                 0, 0, 0);
             if (ret < 0)
@@ -416,7 +414,7 @@ has_manifest:
         ret = get_config(pal_state.root_config, "loader.execname", cfgbuf,
                          CONFIG_MAX);
         if (ret > 0)
-            first_argument = remalloc(cfgbuf, ret + 1);
+            first_argument = malloc_copy(cfgbuf, ret + 1);
     }
 
     read_environments(&environments);

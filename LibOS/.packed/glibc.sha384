@@ -1,1 +1,0 @@
-glibc-build/crt1.o glibc-build/crti.o glibc-build/crtn.o glibc-build/ld-linux-x86-64.so.2 glibc-build/libc.so.6 glibc-build/libdl.so.2 glibc-build/liblibos.so.1 glibc-build/libm.so.6 glibc-build/libnss_dns.so.2 glibc-build/libpthread.so.0 glibc-build/libresolv.so.2 glibc-build/libutil.so.1

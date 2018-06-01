@@ -23,11 +23,7 @@ $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-.PHONY: pack
-pack: $(c_executables) $(cxx_executables)
-	@../../../../Scripts/pack_binaries.sh test $^
 else
-$(c_executables) $(cxx_executables): .packed/test.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(c_executables) $(cxx_executables)
+$(c_executables) $(cxx_executables):
 endif

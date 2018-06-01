@@ -9,6 +9,8 @@
 
 #include <list.h>
 
+#include <stdint.h>
+
 static unsigned long pgsz = PRESET_PAGESIZE;
 void * heap_base;
 static uint64_t heap_size;
@@ -68,6 +70,8 @@ static void assert_vma_list (void)
 #endif
 }
 
+// TODO: This function should be fixed to always either return exactly `addr` or
+// fail.
 void * get_reserved_pages(void * addr, uint64_t size)
 {
     if (!size)
@@ -82,8 +86,8 @@ void * get_reserved_pages(void * addr, uint64_t size)
     if (size & (pgsz - 1))
         size = ((size + pgsz - 1) & ~(pgsz - 1));
 
-    if ((unsigned long) addr & (pgsz - 1))
-        addr = (void *) ((unsigned long) addr & ~(pgsz - 1));
+    if ((uintptr_t) addr & (pgsz - 1))
+        addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
 
     SGX_DBG(DBG_M, "allocate %d bytes at %p\n", size, addr);
 
@@ -222,6 +226,10 @@ allocated:
 
     if (!vma) {
         vma = malloc(sizeof(struct heap_vma));
+        if (!vma) {
+            _DkInternalUnlock(&heap_vma_lock);
+            return NULL;
+        }
         vma->top = addr + size;
         vma->bottom = addr;
         INIT_LIST_HEAD(vma, list);
@@ -253,11 +261,11 @@ void free_pages(void * addr, uint64_t size)
     if (!addr || !size)
         return;
 
-    if ((unsigned long) addr_top & (pgsz - 1))
-        addr = (void *) (((unsigned long) addr_top + pgsz + 1) & ~(pgsz - 1));
+    if ((uintptr_t) addr_top & (pgsz - 1))
+        addr = (void *) (((uintptr_t) addr_top + pgsz + 1) & ~(pgsz - 1));
 
-    if ((unsigned long) addr & (pgsz - 1))
-        addr = (void *) ((unsigned long) addr & ~(pgsz - 1));
+    if ((uintptr_t) addr & (pgsz - 1))
+        addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
 
     if (addr >= heap_base + heap_size)
         return;

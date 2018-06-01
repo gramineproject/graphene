@@ -250,8 +250,8 @@ void DkStreamDelete (PAL_HANDLE handle, PAL_FLG access)
 
 /* _DkStreamRead for internal use. Read from stream as absolute offset.
    The actual behavior of stream read is defined by handler */
-int _DkStreamRead (PAL_HANDLE handle, int offset, int count, void * buf,
-                   char * addr, int addrlen)
+int64_t _DkStreamRead (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                       void * buf, char * addr, int addrlen)
 {
     if (UNKNOWN_HANDLE(handle))
         return -PAL_ERROR_BADHANDLE;
@@ -266,7 +266,7 @@ int _DkStreamRead (PAL_HANDLE handle, int offset, int count, void * buf,
     if (!count)
         return -PAL_ERROR_ZEROSIZE;
 
-    int ret;
+    int64_t ret;
 
     if (addr) {
         if (!ops->readbyaddr)
@@ -296,9 +296,9 @@ DkStreamRead (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    int ret = _DkStreamRead(handle, offset, count, (void *) buffer,
-                            size ? (char *) source : NULL,
-                            source ? size : 0);
+    int64_t ret = _DkStreamRead(handle, offset, count, (void *) buffer,
+                                size ? (char *) source : NULL,
+                                source ? size : 0);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -310,8 +310,8 @@ DkStreamRead (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
 
 /* _DkStreamWrite for internal use, write to stream at absolute offset.
    The actual behavior of stream write is defined by handler */
-int _DkStreamWrite (PAL_HANDLE handle, int offset, int count, const void * buf,
-                    const char * addr, int addrlen)
+int64_t _DkStreamWrite (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                        const void * buf, const char * addr, int addrlen)
 {
     if (UNKNOWN_HANDLE(handle))
         return -PAL_ERROR_BADHANDLE;
@@ -324,7 +324,7 @@ int _DkStreamWrite (PAL_HANDLE handle, int offset, int count, const void * buf,
     if (!count)
         return -PAL_ERROR_ZEROSIZE;
 
-    int ret;
+    int64_t ret;
 
     if (addr) {
         if (!ops->writebyaddr)
@@ -354,8 +354,8 @@ DkStreamWrite (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    int ret = _DkStreamWrite(handle, offset, count, (void *) buffer, dest,
-                             dest ? strlen(dest) : 0);
+    int64_t ret = _DkStreamWrite(handle, offset, count, (void *) buffer, dest,
+                                 dest ? strlen(dest) : 0);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -725,7 +725,7 @@ PAL_BOL DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo)
       the new process environment? Should we initialize/modify some 
       attibutes of the handle?
     Ans - Yes, Initialize and make it compatibile in the target process
-   3. Should remalloc be done or the process shares the same references?
+   3. Should malloc_copy be done or the process shares the same references?
     Ans - Variables members have to allocated data again.
 */
 PAL_HANDLE DkReceiveHandle (PAL_HANDLE handle)

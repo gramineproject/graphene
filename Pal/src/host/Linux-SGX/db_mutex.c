@@ -123,7 +123,7 @@ int _DkMutexUnlock (struct mutex_handle * m)
     int need_wake;
 
     /* Unlock */
-    *(m->locked) = 0;
+    *(m->locked) = MUTEX_UNLOCKED; // TODO: this is not atomic!
     /* We need to make sure the write to locked is visible to lock-ers
      * before we read the waiter count. */
     mb();
@@ -153,7 +153,7 @@ static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
 
 static int mutex_close (PAL_HANDLE handle)
 {
-    free_untrusted(handle->mutex.mut.locked);
+    free_untrusted((int64_t *) handle->mutex.mut.locked);
     return 0;
 }
 
