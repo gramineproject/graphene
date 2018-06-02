@@ -54,8 +54,8 @@ regression.add_check(name="File Attribute Query by Handle",
 regression.add_check(name="File Mapping",
     check=lambda res: ("Map Test 1 (0th - 40th): " + file_exist[0:40]) in res[0].log and
                       ("Map Test 2 (200th - 240th): " + file_exist[200:240]) in res[0].log and
-                      ("Map Test 3 (0th - 40th): " + file_exist[4096:4136]) in res[0].log and
-                      ("Map Test 4 (200th - 240th): " + file_exist[4296:4336]) in res[0].log)
+                      ("Map Test 3 (4096th - 4136th): " + file_exist[4096:4136]) in res[0].log and
+                      ("Map Test 4 (4296th - 4336th): " + file_exist[4296:4336]) in res[0].log)
 
 regression.add_check(name="Set File Length",
     check=lambda res: os.stat("file_nonexist.tmp").st_size == mmap.ALLOCATIONGRANULARITY)

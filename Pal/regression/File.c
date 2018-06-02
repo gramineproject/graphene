@@ -68,16 +68,15 @@ int main (int argc, char ** argv, char ** envp)
         if (mem2) {
             memcpy(buffer3, mem2, 40);
             buffer3[40] = 0;
-            pal_printf("Map Test 3 (0th - 40th): %s\n", buffer3);
+            pal_printf("Map Test 3 (4096th - 4136th): %s\n", buffer3);
 
             memcpy(buffer3, mem2 + 200, 40);
             buffer3[40] = 0;
-            pal_printf("Map Test 4 (200th - 240th): %s\n", buffer3);
+            pal_printf("Map Test 4 (4296th - 4336th): %s\n", buffer3);
 
             DkStreamUnmap(mem2, 4096);
         }
 
-        
         DkObjectClose(file1);
     }
 
