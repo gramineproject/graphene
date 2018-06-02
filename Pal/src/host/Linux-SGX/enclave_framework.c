@@ -340,7 +340,6 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
     /* Check that the untrusted mapping is aligned to TRUSTED_STUB_SIZE
      * and includes the range for copying into the buffer */
     assert(umem_start % TRUSTED_STUB_SIZE == 0);
-    assert(umem_end % TRUSTED_STUB_SIZE == 0);
     assert(offset >= umem_start && offset + size <= umem_end);
 
     uint64_t checking = umem_start;
@@ -391,9 +390,10 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
                 if (copy_end > offset + size)
                     copy_end = offset + size;
 
-                memcpy(buffer + copy_start,
-                       chunk + (copy_start - checking - chunk_offset),
-                       copy_end - copy_start);
+                if (copy_end > copy_start)
+                    memcpy(buffer + copy_start,
+                           chunk + (copy_start - checking - chunk_offset),
+                           copy_end - copy_start);
             }
 
             ret = lib_AESCMACFinish(&aes_cmac, hash, sizeof(hash));

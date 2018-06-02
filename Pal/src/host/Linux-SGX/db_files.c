@@ -405,9 +405,9 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     }
 
     if (stubs) {
-        ret = copy_and_verify_trusted_file(handle->file.realpath,
-                                           umem, map_start, map_end,
-                                           mem, offset, size,
+        ret = copy_and_verify_trusted_file(handle->file.realpath, umem,
+                                           map_start, map_end,
+                                           mem, offset, end - offset,
                                            stubs, total);
 
         if (ret < 0) {
