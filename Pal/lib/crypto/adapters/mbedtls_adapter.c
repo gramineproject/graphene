@@ -101,6 +101,58 @@ int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
                                input, input_len, mac);
 }
 
+int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
+                    const uint8_t *key, uint64_t key_len)
+{
+    int ret;
+
+    switch (key_len) {
+    case 16:
+        context->cipher = MBEDTLS_CIPHER_AES_128_ECB;
+        break;
+    case 24:
+        context->cipher = MBEDTLS_CIPHER_AES_192_ECB;
+        break;
+    case 32:
+        context->cipher = MBEDTLS_CIPHER_AES_256_ECB;
+        break;
+    default:
+        return -PAL_ERROR_INVAL;
+    }
+
+    const mbedtls_cipher_info_t *cipher_info =
+        mbedtls_cipher_info_from_type(context->cipher);
+
+    if ( ( ret = mbedtls_cipher_setup( &context->ctx, cipher_info ) ) != 0 )
+        return ret;
+
+    return mbedtls_cipher_cmac_starts( &context->ctx, key,
+                                       key_len * BITS_PER_BYTE );
+}
+
+int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT * context, const uint8_t * input,
+                      uint64_t input_len)
+{
+    return mbedtls_cipher_cmac_update( &context->ctx, input, input_len );
+}
+
+int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, const uint8_t * mac,
+                      uint64_t mac_len)
+{
+    const mbedtls_cipher_info_t *cipher_info =
+        mbedtls_cipher_info_from_type(context->cipher);
+
+    int ret = -PAL_ERROR_INVAL;
+    if (mac_len < cipher_info->block_size)
+        goto exit;
+
+    ret = mbedtls_cipher_cmac_finish( &context->ctx, mac );
+
+exit:
+    mbedtls_cipher_free( &context->ctx );
+    return( ret );
+}
+
 int lib_RSAInitKey(LIB_RSA_KEY *key)
 {
     /* For now, we only need PKCS_V15 type padding. If we need to support

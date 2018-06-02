@@ -240,16 +240,46 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         if (mapping_size > TRUSTED_STUB_SIZE)
             mapping_size = TRUSTED_STUB_SIZE;
 
+        LIB_AESCMAC_CONTEXT aes_cmac;
+        ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
+                              AES_CMAC_KEY_LEN);
+        if (ret < 0)
+            goto failed;
+
         ret = ocall_map_untrusted(fd, offset, mapping_size, PROT_READ, &umem);
         if (ret < 0)
             goto unmap;
 
-        lib_AESCMAC((void *) &enclave_key, AES_CMAC_KEY_LEN, umem,
-                    mapping_size, (uint8_t *) s, sizeof *s);
+        /*
+         * To prevent TOCTOU attack when generating the file checksum, we
+         * need to copy the file content into the enclave before hashing.
+         * For optimization, we use a relatively small buffer (1024 byte) to
+         * store the data for checksum generation.
+         */
 
-        /* update the file checksum */
-        ret = lib_SHA256Update(&sha, umem, mapping_size);
+#define FILE_CHUNK_SIZE 1024
 
+        uint8_t chunk[FILE_CHUNK_SIZE];
+        int chunk_offset = 0;
+
+        for (; chunk_offset < mapping_size; chunk_offset += FILE_CHUNK_SIZE) {
+            uint64_t chunk_size = mapping_size - chunk_offset;
+            if (chunk_size > FILE_CHUNK_SIZE)
+                chunk_size = FILE_CHUNK_SIZE;
+
+            memcpy(chunk, umem + offset + chunk_offset, chunk_size);
+
+            /* update the file checksum */
+            ret = lib_SHA256Update(&sha, chunk, chunk_size);
+            if (ret < 0)
+                goto unmap;
+
+            ret = lib_AESCMACUpdate(&aes_cmac, chunk, chunk_size);
+            if (ret < 0)
+                goto unmap;
+        }
+
+        ret = lib_AESCMACFinish(&aes_cmac, (uint8_t *) s, sizeof *s);
 unmap:
         ocall_unmap_untrusted(umem, mapping_size);
         if (ret < 0)
@@ -302,33 +332,87 @@ failed:
     return ret;
 }
 
-int verify_trusted_file (const char * uri, void * mem,
-                         uint64_t offset, uint64_t size,
-                         sgx_stub_t * stubs,
-                         uint64_t total_size)
+int copy_and_verify_trusted_file (const char * path, const void * umem,
+                    uint64_t umem_start, uint64_t umem_end,
+                    void * buffer, uint64_t offset, uint64_t size,
+                    sgx_stub_t * stubs, uint64_t total_size)
 {
-    uint64_t checking = offset;
-    sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
+    /* Check that the untrusted mapping is aligned to TRUSTED_STUB_SIZE
+     * and includes the range for copying into the buffer */
+    assert(umem_start % TRUSTED_STUB_SIZE == 0);
+    assert(umem_end % TRUSTED_STUB_SIZE == 0);
+    assert(offset >= umem_start && offset + size <= umem_end);
 
-    for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
+    uint64_t checking = umem_start;
+    sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
+    int ret = 0;
+
+    for (; checking < umem_end ; checking += TRUSTED_STUB_SIZE, s++) {
         uint64_t checking_size = TRUSTED_STUB_SIZE;
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
         uint8_t hash[AES_CMAC_DIGEST_LEN];
-        lib_AESCMAC((void *) &enclave_key,
-                    AES_CMAC_KEY_LEN,
-                    mem + checking - offset, checking_size,
-                    hash, sizeof(hash));
+
+        if (checking >= offset && checking + checking_size <= offset + size) {
+            memcpy(buffer + checking - offset, umem + checking - umem_start,
+                   checking_size);
+
+            ret = lib_AESCMAC((uint8_t *) &enclave_key,
+                              AES_CMAC_KEY_LEN,
+                              buffer + checking - offset, checking_size,
+                              hash, sizeof(hash));
+        } else {
+            LIB_AESCMAC_CONTEXT aes_cmac;
+            ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
+                                  AES_CMAC_KEY_LEN);
+            if (ret < 0)
+                goto failed;
+
+            uint8_t chunk[FILE_CHUNK_SIZE];
+            int chunk_offset = 0;
+
+            for (; chunk_offset < checking_size; chunk_offset += FILE_CHUNK_SIZE) {
+                uint64_t chunk_size = checking_size - chunk_offset;
+                if (chunk_size > FILE_CHUNK_SIZE)
+                    chunk_size = FILE_CHUNK_SIZE;
+
+                memcpy(chunk, umem + checking + chunk_offset, chunk_size);
+
+                ret = lib_AESCMACUpdate(&aes_cmac, chunk, chunk_size);
+                if (ret < 0)
+                    goto failed;
+
+                uint64_t copy_start = checking + chunk_offset;
+                uint64_t copy_end = copy_start + chunk_size;
+
+                if (copy_start < offset)
+                    copy_start = offset;
+                if (copy_end > offset + size)
+                    copy_end = offset + size;
+
+                memcpy(buffer + copy_start,
+                       chunk + (copy_start - checking - chunk_offset),
+                       copy_end - copy_start);
+            }
+
+            ret = lib_AESCMACFinish(&aes_cmac, hash, sizeof(hash));
+        }
+
+        if (ret < 0)
+            goto failed;
 
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
-            SGX_DBG(DBG_E, "Accesing file:%s is denied. "
-                    "Does not match with its MAC at chunk starting at %llu.\n", uri, checking);
+            SGX_DBG(DBG_E, "Accesing file:%s is denied. Does not match with MAC"
+                    " at chunk starting at %llu.\n", path, checking);
             return -PAL_ERROR_DENIED;
         }
     }
 
     return 0;
+
+failed:
+    return -PAL_ERROR_DENIED;
 }
 
 static int register_trusted_file (const char * uri, const char * checksum_str)
