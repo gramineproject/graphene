@@ -5,13 +5,18 @@
 #include "pal_debug.h"
 #include "api.h"
 
-static void print_hex (char * fmt, const void * data, int len)
+#define NUM_TO_HEX(num) \
+    ((num) >= 10 ? 'a' + ((num) - 10) : '0' + (num))
+
+static __attribute__((noinline))
+void print_hex (char * fmt, const void * data, int len)
 {
     char * buf = __alloca(len * 2 + 1);
+    buf[len * 2] = '\0';
     for (int i = 0; i < len; i++) {
         unsigned char b = ((unsigned char *)data)[i];
-        buf[i * 2] = (b >> 4) >= 10 ? 'a' + ((b >> 4) - 10) : '0' + (b >> 4);
-        buf[i * 2 + 1] = (b & 0xf) >= 10 ? 'a' + ((b & 0xf) - 10) : '0' + (b & 0xf);
+        buf[i * 2] = NUM_TO_HEX(b >> 4);
+        buf[i * 2 + 1] = NUM_TO_HEX(b & 0xf);
     }
     pal_printf(fmt, buf);
 }
@@ -57,8 +62,8 @@ int main (int argc, char ** argv, char ** envp)
 
         /* test file map */
 
-        void * mem1 = (void *) DkStreamMap(file1, NULL, PAL_PROT_READ, 0,
-                                           attr1.pending_size);
+        void * mem1 = (void *) DkStreamMap(file1, NULL,
+                                PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, 4096);
         if (mem1) {
             memcpy(buffer1, mem1, 40);
             print_hex("Map Test 1 (0th - 40th): %s\n", buffer1, 40);
@@ -66,14 +71,14 @@ int main (int argc, char ** argv, char ** envp)
             memcpy(buffer2, mem1 + 200, 40);
             print_hex("Map Test 2 (200th - 240th): %s\n", buffer2, 40);
 
-            DkStreamUnmap(mem1, attr1.pending_size);
+            DkStreamUnmap(mem1, 4096);
         } else {
             pal_printf("Map Test 1 & 2: Failed to map buffer\n");
         }
 
         /* DEP 11/24/17: For SGX writecopy exercises a different path in the PAL */
-        void * mem2 = (void *) DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITECOPY, 
-                                           4096, 4096);
+        void * mem2 = (void *) DkStreamMap(file1, NULL,
+                                PAL_PROT_READ | PAL_PROT_WRITECOPY, 4096, 4096);
         if (mem2) {
             memcpy(buffer3, mem2, 40);
             print_hex("Map Test 3 (4096th - 4136th): %s\n", buffer3, 40);
@@ -87,14 +92,14 @@ int main (int argc, char ** argv, char ** envp)
         DkObjectClose(file1);
     }
 
-    PAL_HANDLE file2 = DkStreamOpen("file:./file_exist.tmp",
+    PAL_HANDLE file2 = DkStreamOpen("file:File",
                                     PAL_ACCESS_RDWR, 0, 0, 0);
     if (file2) {
         pal_printf("File Open Test 2 OK\n");
         DkObjectClose(file2);
     }
 
-    PAL_HANDLE file3 = DkStreamOpen("file:../regression/file_exist.tmp",
+    PAL_HANDLE file3 = DkStreamOpen("file:../regression/File",
                                     PAL_ACCESS_RDWR, 0, 0, 0);
     if (file3) {
         pal_printf("File Open Test 3 OK\n");
@@ -102,7 +107,7 @@ int main (int argc, char ** argv, char ** envp)
     }
 
     PAL_STREAM_ATTR attr2;
-    if (DkStreamAttributesQuery("file:file_exist.tmp", &attr2))
+    if (DkStreamAttributesQuery("file:File", &attr2))
         pal_printf("Query: type = %d, size = %d\n",
                    attr2.handle_type, attr2.pending_size);
 

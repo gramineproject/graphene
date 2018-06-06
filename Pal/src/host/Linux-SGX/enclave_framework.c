@@ -267,7 +267,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
             if (chunk_size > FILE_CHUNK_SIZE)
                 chunk_size = FILE_CHUNK_SIZE;
 
-            memcpy(chunk, umem + offset + chunk_offset, chunk_size);
+            memcpy(chunk, umem + chunk_offset, chunk_size);
 
             /* update the file checksum */
             ret = lib_SHA256Update(&sha, chunk, chunk_size);
