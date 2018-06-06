@@ -5,14 +5,25 @@
 #include "pal_debug.h"
 #include "api.h"
 
+static void print_hex (char * fmt, const void * data, int len)
+{
+    char * buf = __alloca(len * 2 + 1);
+    for (int i = 0; i < len; i++) {
+        unsigned char b = ((unsigned char *)data)[i];
+        buf[i * 2] = (b >> 4) >= 10 ? 'a' + ((b >> 4) - 10) : '0' + (b >> 4);
+        buf[i * 2 + 1] = (b & 0xf) >= 10 ? 'a' + ((b & 0xf) - 10) : '0' + (b & 0xf);
+    }
+    pal_printf(fmt, buf);
+}
+
 int main (int argc, char ** argv, char ** envp)
 {
-    char buffer1[41], buffer2[41], buffer3[41];
+    char buffer1[40], buffer2[40], buffer3[40];
     int ret;
 
     /* test regular file opening */
 
-    PAL_HANDLE file1 = DkStreamOpen("file:file_exist.tmp",
+    PAL_HANDLE file1 = DkStreamOpen("file:File",
                                     PAL_ACCESS_RDWR, 0, 0, 0);
     if (file1) {
         pal_printf("File Open Test 1 OK\n");
@@ -22,19 +33,19 @@ int main (int argc, char ** argv, char ** envp)
         ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
         if (ret > 0) {
             buffer1[ret] = 0;
-            pal_printf("Read Test 1 (0th - 40th): %s\n", buffer1);
+            print_hex("Read Test 1 (0th - 40th): %s\n", buffer1, 40);
         }
 
         ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
         if (ret > 0) {
             buffer1[ret] = 0;
-            pal_printf("Read Test 2 (0th - 40th): %s\n", buffer1);
+            print_hex("Read Test 2 (0th - 40th): %s\n", buffer1, 40);
         }
 
         ret = DkStreamRead(file1, 200, 40, buffer2, NULL, 0);
         if (ret > 0) {
             buffer2[ret] = 0;
-            pal_printf("Read Test 3 (200th - 240th): %s\n", buffer2);
+            print_hex("Read Test 3 (200th - 240th): %s\n", buffer2, 40);
         }
 
         /* test file attribute query */
@@ -50,12 +61,10 @@ int main (int argc, char ** argv, char ** envp)
                                            attr1.pending_size);
         if (mem1) {
             memcpy(buffer1, mem1, 40);
-            buffer1[40] = 0;
-            pal_printf("Map Test 1 (0th - 40th): %s\n", buffer1);
+            print_hex("Map Test 1 (0th - 40th): %s\n", buffer1, 40);
 
             memcpy(buffer2, mem1 + 200, 40);
-            buffer2[40] = 0;
-            pal_printf("Map Test 2 (200th - 240th): %s\n", buffer2);
+            print_hex("Map Test 2 (200th - 240th): %s\n", buffer2, 40);
 
             DkStreamUnmap(mem1, attr1.pending_size);
         } else {
@@ -67,12 +76,10 @@ int main (int argc, char ** argv, char ** envp)
                                            4096, 4096);
         if (mem2) {
             memcpy(buffer3, mem2, 40);
-            buffer3[40] = 0;
-            pal_printf("Map Test 3 (4096th - 4136th): %s\n", buffer3);
+            print_hex("Map Test 3 (4096th - 4136th): %s\n", buffer3, 40);
 
             memcpy(buffer3, mem2 + 200, 40);
-            buffer3[40] = 0;
-            pal_printf("Map Test 4 (4296th - 4336th): %s\n", buffer3);
+            print_hex("Map Test 4 (4296th - 4336th): %s\n", buffer3, 40);
 
             DkStreamUnmap(mem2, 4096);
         }

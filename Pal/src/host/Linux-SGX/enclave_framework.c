@@ -391,7 +391,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
                     copy_end = offset + size;
 
                 if (copy_end > copy_start)
-                    memcpy(buffer + copy_start,
+                    memcpy(buffer + (copy_start - offset),
                            chunk + (copy_start - checking - chunk_offset),
                            copy_end - copy_start);
             }
