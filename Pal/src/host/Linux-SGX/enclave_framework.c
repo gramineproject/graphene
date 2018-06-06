@@ -236,10 +236,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         goto failed;
 
     for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE, s++) {
-        uint64_t mapping_size = tf->size - offset;
-        if (mapping_size > TRUSTED_STUB_SIZE)
-            mapping_size = TRUSTED_STUB_SIZE;
-
+        uint64_t mapping_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
         LIB_AESCMAC_CONTEXT aes_cmac;
         ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
                               AES_CMAC_KEY_LEN);
@@ -263,9 +260,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         int chunk_offset = 0;
 
         for (; chunk_offset < mapping_size; chunk_offset += FILE_CHUNK_SIZE) {
-            uint64_t chunk_size = mapping_size - chunk_offset;
-            if (chunk_size > FILE_CHUNK_SIZE)
-                chunk_size = FILE_CHUNK_SIZE;
+            uint64_t chunk_size = MIN(mapping_size - chunk_offset, FILE_CHUNK_SIZE);
 
             memcpy(chunk, umem + chunk_offset, chunk_size);
 
@@ -347,10 +342,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
     int ret = 0;
 
     for (; checking < umem_end ; checking += TRUSTED_STUB_SIZE, s++) {
-        uint64_t checking_size = TRUSTED_STUB_SIZE;
-        if (checking_size > total_size - checking)
-            checking_size = total_size - checking;
-
+        uint64_t checking_size = MIN(total_size - checking, TRUSTED_STUB_SIZE);
         uint8_t hash[AES_CMAC_DIGEST_LEN];
 
         if (checking >= offset && checking + checking_size <= offset + size) {
@@ -369,20 +361,18 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
                 goto failed;
 
             uint8_t chunk[FILE_CHUNK_SIZE];
-            int chunk_offset = 0;
+            int chunk_offset = checking;
 
-            for (; chunk_offset < checking_size; chunk_offset += FILE_CHUNK_SIZE) {
-                uint64_t chunk_size = checking_size - chunk_offset;
-                if (chunk_size > FILE_CHUNK_SIZE)
-                    chunk_size = FILE_CHUNK_SIZE;
+            for (; chunk_offset < checking + checking_size ; chunk_offset += FILE_CHUNK_SIZE) {
+                uint64_t chunk_size = MIN(checking_size - chunk_offset, FILE_CHUNK_SIZE);
 
-                memcpy(chunk, umem + checking + chunk_offset, chunk_size);
+                memcpy(chunk, umem + (chunk_offset - umem_start), chunk_size);
 
                 ret = lib_AESCMACUpdate(&aes_cmac, chunk, chunk_size);
                 if (ret < 0)
                     goto failed;
 
-                uint64_t copy_start = checking + chunk_offset;
+                uint64_t copy_start = chunk_offset;
                 uint64_t copy_end = copy_start + chunk_size;
 
                 if (copy_start < offset)
@@ -392,7 +382,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 
                 if (copy_end > copy_start)
                     memcpy(buffer + (copy_start - offset),
-                           chunk + (copy_start - checking - chunk_offset),
+                           chunk + (copy_start - chunk_offset),
                            copy_end - copy_start);
             }
 
