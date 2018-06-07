@@ -298,6 +298,8 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
             ocall_unmap_untrusted(umem, map_end - map_start);
             return ret;
         }
+    } else {
+        memcpy(buffer, umem + (offset - map_start), end - offset);
     }
 
     ocall_unmap_untrusted(umem, map_end - map_start);
@@ -415,6 +417,8 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
             ocall_unmap_untrusted(umem, map_end - map_start);
             return ret;
         }
+    } else {
+        memcpy(mem, umem + (offset - map_start), end - offset);
     }
 
     ocall_unmap_untrusted(umem, map_end - map_start);
