@@ -343,9 +343,10 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 
     for (; checking < umem_end ; checking += TRUSTED_STUB_SIZE, s++) {
         uint64_t checking_size = MIN(total_size - checking, TRUSTED_STUB_SIZE);
+        uint64_t checking_end = checking + checking_size;
         uint8_t hash[AES_CMAC_DIGEST_LEN];
 
-        if (checking >= offset && checking + checking_size <= offset + size) {
+        if (checking >= offset && checking_end <= offset + size) {
             memcpy(buffer + checking - offset, umem + checking - umem_start,
                    checking_size);
 
@@ -361,10 +362,10 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
                 goto failed;
 
             uint8_t chunk[FILE_CHUNK_SIZE];
-            int chunk_offset = checking;
+            uint64_t chunk_offset = checking;
 
-            for (; chunk_offset < checking + checking_size ; chunk_offset += FILE_CHUNK_SIZE) {
-                uint64_t chunk_size = MIN(checking_size - chunk_offset, FILE_CHUNK_SIZE);
+            for (; chunk_offset < checking_end ; chunk_offset += FILE_CHUNK_SIZE) {
+                uint64_t chunk_size = MIN(checking_end - chunk_offset, FILE_CHUNK_SIZE);
 
                 memcpy(chunk, umem + (chunk_offset - umem_start), chunk_size);
 
@@ -394,7 +395,8 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. Does not match with MAC"
-                    " at chunk starting at %llu.\n", path, checking);
+                    " at chunk starting at %llu-%llu.\n",
+                    path, checking, checking_end);
             return -PAL_ERROR_DENIED;
         }
     }
