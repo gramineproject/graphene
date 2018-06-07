@@ -7,7 +7,6 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            apt-get install dnsutils
                             nslookup ftp.gnu.org
                             make
                            '''
