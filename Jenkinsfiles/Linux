@@ -1,7 +1,7 @@
 pipeline {
 	agent {
               dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile'
-	                   args '--dns=8.8.8.8' }
+	                   args '--dns=8.8.8.8 --dns 8.8.4.4 --no-cache=true' }
 	}
         stages {
                 stage('Build') {
