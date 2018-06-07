@@ -6,7 +6,6 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            nslookup ftp.gnu.org
                             make
                            '''
                     }
