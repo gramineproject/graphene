@@ -97,7 +97,7 @@ if __name__ == "__main__":
   if len(sys.argv) < 3:
     print "Usage: gsce run [Image name] "
     exit()
-  #image_name = sys.argv[2]
+
   image_name = sys.argv[-1]
   image_match = re.match(r'([^:]*)(:*)(.*)', image_name)
   if image_match :
