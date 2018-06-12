@@ -307,10 +307,12 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_brand = brand;
 
     cpuid(1, 0, words);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX], 16, 24);
     ci->cpu_family   = BIT_EXTRACT_LE(words[WORD_EAX],  8, 12);
     ci->cpu_model    = BIT_EXTRACT_LE(words[WORD_EAX],  4,  8);
     ci->cpu_stepping = BIT_EXTRACT_LE(words[WORD_EAX],  0,  4);
+
+    cpuid(4, 0, words);
+    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EAX], 26, 32) + 1;
 
     int flen = 0, fmax = 80;
     char * flags = malloc(fmax);
