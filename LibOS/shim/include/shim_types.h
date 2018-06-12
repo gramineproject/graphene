@@ -462,15 +462,7 @@ typedef uint16_t FDTYPE;
 typedef unsigned long LEASETYPE;
 typedef unsigned long HASHTYPE;
 
-struct shim_atomic {
-#ifndef __i386__
-    long counter;
-#else
-    int counter;
-#endif
-};
-
-typedef struct shim_atomic REFTYPE;
+typedef struct atomic_int REFTYPE;
 
 #include <pal.h>
 
@@ -491,7 +483,7 @@ struct shim_str {
 
 #define QSTR_SIZE   32
 
-/* Use qstr for names. This has fix size string + string object
+/* Use qstr for names. This has fixed size string + string object
  * if len > SHIM_QSTR_SIZE then use overflow string */
 struct shim_qstr {
     HASHTYPE    hash;

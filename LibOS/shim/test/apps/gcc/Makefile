@@ -52,7 +52,7 @@ obj/bin/ld: src/binutils-$(BINUTILS_VER)
 	$(MAKE) -C $< install
 
 src/binutils-$(BINUTILS_VER): binutils-$(BINUTILS_VER).tar.bz2 src
-	cd src && tar -xjf ../$<
+	cd src && tar -xmjf ../$<
 
 obj/lib/$(GMP_OBJ) obj/lib/$(GMPXX_OBJ): src/$(GMP_SRC)
 	cd $< && ./configure --prefix=$(PWD)/obj --enable-cxx --enable-shared \
@@ -61,7 +61,7 @@ obj/lib/$(GMP_OBJ) obj/lib/$(GMPXX_OBJ): src/$(GMP_SRC)
 	$(MAKE) -C $< install
 
 src/$(GMP_SRC): $(GMP_SRC).tar.bz2 src
-	cd src && tar -xjf ../$<
+	cd src && tar -xmjf ../$<
 
 obj/lib/$(PPL_OBJ): src/$(PPL_SRC) obj/lib/$(GMP_OBJ)
 	cd $< && ./configure --prefix=$(PWD)/obj --with-libgmp-prefix=$(PWD)/obj --enable-shared \
@@ -70,7 +70,7 @@ obj/lib/$(PPL_OBJ): src/$(PPL_SRC) obj/lib/$(GMP_OBJ)
 	$(MAKE) -C $< install
 
 src/$(PPL_SRC): $(PPL_SRC).tar.gz src
-	cd src && tar -xzf ../$<
+	cd src && tar -xmzf ../$<
 
 obj/lib/$(MPFR_OBJ): src/$(MPFR_SRC) obj/lib/$(GMP_OBJ)
 	cd $< && ./configure --prefix=$(PWD)/obj --enable-shared \
@@ -79,7 +79,7 @@ obj/lib/$(MPFR_OBJ): src/$(MPFR_SRC) obj/lib/$(GMP_OBJ)
 	$(MAKE) -C $< install
 
 src/$(MPFR_SRC): $(MPFR_SRC).tar.bz2 src
-	cd src && tar -xjf ../$<
+	cd src && tar -xmjf ../$<
 
 obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
 	cd $< && ./configure --prefix=$(PWD)/obj --with-gmp=$(PWD)/obj --enable-shared \
@@ -88,33 +88,36 @@ obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
 	$(MAKE) -C $< install
 
 src/$(MPC_SRC): $(MPC_SRC).tar.gz src
-	cd src && tar -xzf ../$<
+	cd src && tar -xmzf ../$<
 
 regression:
 	@echo "\n\nBuilding GCC..."
 	@$(MAKE) >> /dev/null 2>&1
 
 	@echo "\n\nCompile hello.c:"
-	-./gcc.manifest test_files/helloworld.c -o hello
-	@chmod 755 hello
-	-./hello
+	-./gcc.manifest test_files/helloworld.c -o test_files/hello
+	@chmod 755 test_files/hello
+	-./test_files/hello
+	@rm -f test_files/hello
 
 	@echo "\n\nCompile bzip2.c:"
-	-./gcc.manifest test_files/bzip2.c -o bzip2
-	@chmod 755 bzip2
+	-./gcc.manifest test_files/bzip2.c -o test_files/bzip2
+	@chmod 755 test_files/bzip2
 	@[ ! -f bzip2.tmp ] || rm -f bzip2.tmp
-	@cp -f bzip2 bzip2.copy
-	-./bzip2 -z bzip2.copy && ./bzip2 -d bzip2.copy.bz2
-	diff -q bzip2 bzip2.copy
-	@rm -f bzip2.copy
+	@cp -f test_files/bzip2 test_files/bzip2.copy
+	-./test_files/bzip2 -z test_files/bzip2.copy
+	-./test_files/bzip2 -d test_files/bzip2.copy.bz2
+	diff -q test_files/bzip2 test_files/bzip2.copy
+	@rm -f test_files/bzip2 test_file/bzip2.copy
 
 	@echo "\n\nCompile gzip.c:"
-	-./gcc.manifest test_files/gzip.c -o gzip
-	@chmod 755 gzip
-	@cp -f gzip gzip.copy
-	-./gzip gzip.copy && ./gzip -d gzip.copy.gz
-	diff -q gzip gzip.copy
-	@rm -f gzip.copy
+	-./gcc.manifest test_files/gzip.c -o test_files/gzip
+	@chmod 755 test_files/gzip
+	@cp -f test_files/gzip test_files/gzip.copy
+	-./test_files/gzip test_files/gzip.copy
+	-./test_files/gzip -d test_files/gzip.copy.gz
+	diff -q test_files/gzip test_files/gzip.copy
+	@rm -f test_files/gzip test_files/gzip.copy
 
 
 src:

@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -115,19 +115,18 @@ static int dev_random_mode (const char * name, mode_t * mode)
 }
 
 static int dev_random_read (struct shim_handle * hdl, void * buf,
-                             size_t count)
+                            size_t count)
 {
-    int rv;
-    rv = DkRandomBitsRead(buf, count);
+    int rv = DkRandomBitsRead(buf, count);
     return rv;
 }
 
 static int dev_urandom_read (struct shim_handle * hdl, void * buf,
                              size_t count)
 {
-    int rv;
-    rv = getrand(buf, count);
-    return rv;
+    // THIS IS NOT CRYPTO-SECURE, FIX!!!
+    getrand(buf, count);
+    return count;
 }
 
 static int dev_random_stat (const char * name, struct stat * stat)
@@ -240,6 +239,7 @@ static int dev_open (struct shim_handle * hdl, struct shim_dentry * dent,
 static int dev_lookup (struct shim_dentry * dent, bool force)
 {
     if (qstrempty(&dent->rel_path)) {
+        dent->state |= DENTRY_ISDIRECTORY;
         dent->ino = DEV_INO_BASE;
         return 0;
     }

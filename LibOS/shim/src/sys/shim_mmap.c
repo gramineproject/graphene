@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -42,22 +42,34 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
                      off_t offset)
 {
     struct shim_handle * hdl = NULL;
-    long ret = -ENOMEM;
-    bool reserved = false;
+    long ret = 0;
 
-    if (addr + length < addr) {
+    /*
+     * According to the manpage, both addr and offset have to be page-aligned,
+     * but not the length. mmap() will automatically round up the length.
+     */
+    if (addr && !ALIGNED(addr))
         return (void *) -EINVAL;
-    }
+
+    if (fd >= 0 && !ALIGNED(offset))
+        return (void *) -EINVAL;
+
+    if (!ALIGNED(length))
+        length = ALIGN_UP(length);
+
+    if (addr + length < addr)
+        return (void *) -EINVAL;
+
+    /* ignore MAP_32BIT when MAP_FIXED is set */
+    if ((flags & (MAP_32BIT|MAP_FIXED)) == (MAP_32BIT|MAP_FIXED))
+        flags &= ~MAP_32BIT;
 
     assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
-
-    if (flags & MAP_32BIT)
-        return (void *) -ENOSYS;
 
     int pal_alloc_type = 0;
 
     if ((flags & MAP_FIXED) || addr) {
-        struct shim_vma * tmp = NULL;
+        struct shim_vma_val tmp;
 
         if (!lookup_overlap_vma(addr, length, &tmp)) {
             debug("mmap: allowing overlapping MAP_FIXED allocation at %p with length %lu\n",
@@ -68,110 +80,115 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         }
     }
 
-    if (!addr) {
-        addr = get_unmapped_vma(ALIGN_UP(length), flags);
+    if ((flags & (MAP_ANONYMOUS|MAP_FILE)) == MAP_FILE) {
+        if (fd < 0)
+            return (void *) -EINVAL;
 
-        if (addr) {
-            reserved = true;
-            // Approximate check only, to help root out bugs.
-            void * cur_stack = current_stack();
-            assert(cur_stack < addr || cur_stack > addr + length);
+        hdl = get_fd_handle(fd, NULL, NULL);
+        if (!hdl)
+            return (void *) -EBADF;
+
+        if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
+            put_handle(hdl);
+            return (void *) -ENODEV;
         }
     }
 
-    void * mapped = ALIGN_DOWN((void *) addr);
-    void * mapped_end = ALIGN_UP((void *) addr + length);
+    if (addr) {
+        bkeep_mmap(addr, length, prot, flags, hdl, offset, NULL);
+    } else {
+        addr = bkeep_unmapped_heap(length, prot, flags, hdl, offset, NULL);
+        /*
+         * Let the library OS manages the address space. If we can't find
+         * proper space to allocate the memory, simply return failure.
+         */
+        if (!addr)
+            return (void *) -ENOMEM;
+    }
 
-    addr = mapped;
-    length = mapped_end - mapped;
+    // Approximate check only, to help root out bugs.
+    void * cur_stack = current_stack();
+    assert(cur_stack < addr || cur_stack > addr + length);
 
-    if (flags & MAP_ANONYMOUS) {
+    if (!hdl) {
         addr = (void *) DkVirtualMemoryAlloc(addr, length, pal_alloc_type,
                                              PAL_PROT(prot, 0));
 
         if (!addr) {
-            ret = (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED) ? -EPERM : -PAL_ERRNO;
-            goto free_reserved;
+            if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED)
+                ret = -EPERM;
+            else
+                ret = -PAL_ERRNO;
         }
-
-        ADD_PROFILE_OCCURENCE(mmap, length);
     } else {
-        if (fd < 0) {
-            ret = -EINVAL;
-            goto free_reserved;
-        }
-
-        hdl = get_fd_handle(fd, NULL, NULL);
-        if (!hdl) {
-            ret = -EBADF;
-            goto free_reserved;
-        }
-
-        if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
-            put_handle(hdl);
-            ret = -ENODEV;
-            goto free_reserved;
-        }
-
-        if ((ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, PAL_PROT(prot, flags),
-                                         flags, offset)) < 0) {
-            put_handle(hdl);
-            goto free_reserved;
-        }
+        ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, PAL_PROT(prot, flags),
+                                    flags, offset);
     }
 
-    if (addr != mapped) {
-        mapped = ALIGN_DOWN((void *) addr);
-        mapped_end = ALIGN_UP((void *) addr + length);
-    }
-
-    ret = bkeep_mmap((void *) mapped, mapped_end - mapped, prot,
-                     flags, hdl, offset, NULL);
-    assert(!ret);
     if (hdl)
         put_handle(hdl);
-    return addr;
 
-free_reserved:
-    if (reserved)
-        bkeep_munmap((void *) mapped, mapped_end - mapped, &flags);
-    return (void *) ret;
+    if (ret < 0) {
+        bkeep_munmap(addr, length, flags);
+        return (void *) ret;
+    }
+
+    ADD_PROFILE_OCCURENCE(mmap, length);
+    return addr;
 }
 
-int shim_do_mprotect (void * addr, size_t len, int prot)
+int shim_do_mprotect (void * addr, size_t length, int prot)
 {
-    uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
-    uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-    int flags = 0;
+    /*
+     * According to the manpage, addr has to be page-aligned, but not the
+     * length. mprotect() will automatically round up the length.
+     */
+    if (!addr || !ALIGNED(addr))
+        return -EINVAL;
 
-    if (bkeep_mprotect((void *) mapped, mapped_end - mapped, prot, &flags) < 0)
-        return -EACCES;
+    if (!ALIGNED(length))
+        length = ALIGN_UP(length);
 
-    if (!DkVirtualMemoryProtect((void *) mapped, mapped_end - mapped, prot))
+    if (bkeep_mprotect(addr, length, prot, 0) < 0)
+        return -EPERM;
+
+    if (!DkVirtualMemoryProtect(addr, length, prot))
         return -PAL_ERRNO;
 
     return 0;
 }
 
-int shim_do_munmap (void * addr, size_t len)
+int shim_do_munmap (void * addr, size_t length)
 {
-    struct shim_vma * tmp = NULL;
+    /*
+     * According to the manpage, addr has to be page-aligned, but not the
+     * length. munmap() will automatically round up the length.
+     */
+    if (!addr || !ALIGNED(addr))
+        return -EINVAL;
 
-    if (lookup_overlap_vma(addr, len, &tmp) < 0) {
+    if (!ALIGNED(length))
+        length = ALIGN_UP(length);
+
+    struct shim_vma_val vma;
+
+    if (lookup_overlap_vma(addr, length, &vma) < 0) {
         debug("can't find addr %p - %p in map, quit unmapping\n",
-              addr, addr + len);
+              addr, addr + length);
 
         /* Really not an error */
         return -EFAULT;
     }
 
-    uintptr_t mapped = ALIGN_DOWN((uintptr_t) addr);
-    uintptr_t mapped_end = ALIGN_UP((uintptr_t) addr + len);
-    int flags = 0;
+    /* Protect first to make sure no overlapping with internal
+     * mappings */
+    if (bkeep_mprotect(addr, length, PROT_NONE, 0) < 0)
+        return -EPERM;
 
-    if (bkeep_munmap((void *) mapped, mapped_end - mapped, &flags) < 0)
-        return -EACCES;
+    DkVirtualMemoryFree(addr, length);
 
-    DkVirtualMemoryFree((void *) mapped, mapped_end - mapped);
+    if (bkeep_munmap(addr, length, 0) < 0)
+        bug();
+
     return 0;
 }

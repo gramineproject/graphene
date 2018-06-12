@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -122,13 +122,10 @@ int clone_implementation_wrapper(struct clone_args * arg)
     void * stack = pcargs->stack;
     void * return_pc = pcargs->return_pc;
 
-    struct shim_vma * vma = NULL;
-    lookup_supervma(ALIGN_DOWN(stack), allocsize, &vma);
-    assert(vma);
-    my_thread->stack_top = vma->addr + vma->length;
-    my_thread->stack_red = my_thread->stack = vma->addr;
-    snprintf(vma->comment, VMA_COMMENT_LEN, "stack:%d", my_thread->tid);
-    put_vma(vma);
+    struct shim_vma_val vma;
+    lookup_vma(ALIGN_DOWN(stack), &vma);
+    my_thread->stack_top = vma.addr + vma.length;
+    my_thread->stack_red = my_thread->stack = vma.addr;
 
     /* Don't signal the initialize event until we are actually init-ed */ 
     DkEventSet(pcargs->initialize_event);
@@ -255,11 +252,10 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         }
 
         if (user_stack_addr) {
-            struct shim_vma * vma = NULL;
-            lookup_supervma(ALIGN_DOWN(user_stack_addr), allocsize, &vma);
-            assert(vma);
-            thread->stack_top = vma->addr + vma->length;
-            thread->stack_red = thread->stack = vma->addr;
+            struct shim_vma_val vma;
+            lookup_vma(ALIGN_DOWN(user_stack_addr), &vma);
+            thread->stack_top = vma.addr + vma.length;
+            thread->stack_red = thread->stack = vma.addr;
             tcb->shim_tcb.context.sp = user_stack_addr;
             tcb->shim_tcb.context.ret_ip = *(void **) user_stack_addr;
         }

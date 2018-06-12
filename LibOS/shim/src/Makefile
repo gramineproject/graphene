@@ -86,13 +86,9 @@ $(graphene_lib):
 libsysdb.a: $(addsuffix .o,$(objs))
 	@echo [ $@ ]
 	$(AR) $(ARFLAGS) $@ $^
-
-.PHONY: pack
-pack: $(shim_target) $(addsuffix .o,$(objs))
-	@../../../Scripts/pack_binaries.sh shim $^
 else
-$(shim_target): .packed/shim.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(shim_target)
+$(shim_target):
 endif
 
 %.asm: %.c $(headers)

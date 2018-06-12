@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -41,14 +41,15 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 #if STATIC_SLAB == 1
 # define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
 static char mem_pool[POOL_SIZE];
-static char *bump = mem_pool;
-static char *mem_pool_end = &mem_pool[POOL_SIZE];
+static void *bump = mem_pool;
+static void *mem_pool_end = &mem_pool[POOL_SIZE];
 #else
 # define PAGE_SIZE (slab_alignment)
 #endif
 
 #define STARTUP_SIZE    2
 
+/* This function is protected by slab_mgr_lock. */
 static inline void * __malloc (int size)
 {
     void * addr = NULL;
@@ -71,7 +72,7 @@ static inline void * __malloc (int size)
 static inline void __free (void * addr, int size)
 {
 #if STATIC_SLAB == 1
-    if ((char *) addr >= (char *) mem_pool && (char *) addr + size <= (char *) mem_pool_end)
+    if (addr >= (void *)mem_pool && addr < mem_pool_end)
         return;
 #endif
 
@@ -117,18 +118,24 @@ void * malloc (size_t size)
         memset(ptr, 0xa5, size);
 #endif
 
+    if (!ptr) {
+        /*
+         * Normally, the PAL should not run out of memory.
+         * If malloc() failed internally, we cannot handle the
+         * condition and must terminate the current process.
+         */
+        printf("******** Out-of-memory in PAL ********\n");
+        _DkProcessExit(-1);
+    }
+
 #if PROFILING == 1
     pal_state.slab_time += _DkSystemTimeQuery() - before_slab;
 #endif
     return ptr;
 }
 
-/* This function is not realloc(). remalloc() allocates a new buffer
- * with with a provided size and copies the contents of the old buffer
- * to the new buffer. The old buffer is not freed. The old buffer must
- * be at least size bytes long. This function should probably be renamed
- * to something less likely to be confused with realloc. */
-void * remalloc (const void * mem, size_t size)
+// Copies data from `mem` to a newly allocated buffer of a specified size.
+void * malloc_copy (const void * mem, size_t size)
 {
     void * nmem = malloc(size);
 

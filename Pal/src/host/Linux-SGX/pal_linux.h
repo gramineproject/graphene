@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifndef PAL_LINUX_H
@@ -30,6 +30,15 @@
 #include "sgx_tls.h"
 #include "sgx_api.h"
 #include "enclave_ocalls.h"
+
+#ifdef __x86_64__
+# include "sysdep-x86_64.h"
+#endif
+
+#define IS_ERR INTERNAL_SYSCALL_ERROR
+#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
+#define ERRNO INTERNAL_SYSCALL_ERRNO
+#define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
 extern struct pal_linux_state {
     PAL_NUM         parent_process_id;
@@ -75,11 +84,11 @@ bool stataccess (struct stat * stats, int acc);
 #ifdef IN_ENCLAVE
 
 /* Locking and unlocking of Mutexes */
-int _DkMutexCreate (struct mutex_handle * mut);
+int __DkMutexCreate (struct mutex_handle * mut);
 int _DkMutexAtomicCreate (struct mutex_handle * mut);
-int _DkMutexDestroy (struct mutex_handle * mut);
+int __DkMutexDestroy (struct mutex_handle * mut);
 int _DkMutexLock (struct mutex_handle * mut);
-int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout);
+int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
 int _DkMutexUnlock (struct mutex_handle * mut);
 
 int * get_futex (void);
@@ -95,11 +104,25 @@ typedef struct { char bytes[32]; } sgx_checksum_t;
 typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
+
+/* Function: load_trusted_file
+ * checks if the file to be opened is trusted or allowed,
+ * according to the setting in manifest
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
+
 int load_trusted_file
-    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr);
+    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr, int create);
+
 int verify_trusted_file
-    (const char * uri, void * mem, unsigned int offset, unsigned int size,
-     sgx_stub_t * stubs, unsigned int total_size);
+    (const char * uri, void * mem, uint64_t offset, uint64_t size,
+     sgx_stub_t * stubs, uint64_t total_size);
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mrenclave_str);
@@ -195,17 +218,6 @@ int pal_printf(const char * fmt, ...);
 
 #define SGX_DBG(class, fmt...) \
     do { if ((class) & DBG_LEVEL) pal_printf(fmt); } while (0)
-#endif
-
-#ifdef __i386__
-# define rmb()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
-# define cpu_relax()     asm volatile("rep; nop" ::: "memory");
-#endif
-
-#ifdef __x86_64__
-# include <unistd.h>
-# define rmb()           asm volatile("lfence" ::: "memory")
-# define cpu_relax()     asm volatile("rep; nop" ::: "memory");
 #endif
 
 #endif /* PAL_LINUX_H */

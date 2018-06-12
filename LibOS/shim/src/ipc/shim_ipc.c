@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -254,11 +254,10 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
 
 struct shim_process * create_new_process (bool inherit_parent)
 {
-    struct shim_process * new_process = malloc(sizeof(struct shim_process));
+    struct shim_process * new_process = calloc(1, sizeof(struct shim_process));
     if (!new_process)
         return NULL;
 
-    memset(new_process, 0, sizeof(struct shim_process));
     new_process->parent = get_new_ipc_info(cur_process.vmid, NULL, 0);
 
     if (!inherit_parent)
@@ -399,7 +398,7 @@ int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
     return 0;
 }
 
-static struct shim_atomic ipc_seq_counter;
+static struct atomic_int ipc_seq_counter;
 
 int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                              struct shim_ipc_port * port, bool save,

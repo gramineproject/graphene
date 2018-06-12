@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -53,8 +53,13 @@ static inline int init_tty_handle (struct shim_handle * hdl, bool write)
 {
     struct shim_dentry * dent = NULL;
     int ret;
-
-    if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent)) < 0)
+    struct shim_thread * cur_thread = get_cur_thread();
+    
+    /* XXX: Try getting the root FS from current thread? */
+    assert(cur_thread);
+    assert(cur_thread->root);
+    if ((ret = path_lookupat(cur_thread->root, "/dev/tty", LOOKUP_OPEN, &dent,
+                             cur_thread->root->fs)) < 0)
         return ret;
 
     int flags = (write ? O_WRONLY : O_RDONLY)|O_APPEND;
@@ -94,7 +99,7 @@ static inline int init_exec_handle (struct shim_thread * thread)
     struct shim_mount * fs = find_mount_from_uri(PAL_CB(executable));
     if (fs) {
         path_lookupat(fs->root, PAL_CB(executable) + fs->uri.len, 0,
-                      &exec->dentry);
+                      &exec->dentry, fs);
         set_handle_fs(exec, fs);
         if (exec->dentry) {
             int len;
@@ -419,7 +424,7 @@ extend:
         ret = fd;
 out:
     unlock(handle_map->lock);
-    return fd;
+    return ret;
 }
 
 void flush_handle (struct shim_handle * hdl)
@@ -480,10 +485,12 @@ void close_handle (struct shim_handle * hdl)
                 dir->dotdot = NULL;
             }
 
-            while (dir->ptr && *dir->ptr) {
-                struct shim_dentry * dent = *dir->ptr;
-                put_dentry(dent);
-                *(dir->ptr++) = NULL;
+            if (dir->ptr != (void *) -1) {
+                while (dir->ptr && *dir->ptr) {
+                    struct shim_dentry * dent = *dir->ptr;
+                    put_dentry(dent);
+                    *(dir->ptr++) = NULL;
+                }
             }
         } else {
             if (hdl->fs && hdl->fs->fs_ops &&
@@ -536,8 +543,13 @@ void put_handle (struct shim_handle * hdl)
         qstrfree(&hdl->path);
         qstrfree(&hdl->uri);
 
-        if (hdl->pal_handle)
+        if (hdl->pal_handle) {
+#ifdef DEBUG_REF
+            debug("handle %p closes PAL handle %p\n", hdl, hdl->pal_handle);
+#endif
             DkObjectClose(hdl->pal_handle);
+            hdl->pal_handle = NULL;
+        }
 
         if (hdl->dentry)
             put_dentry(hdl->dentry);
@@ -591,22 +603,17 @@ void dup_fd_handle (struct shim_handle_map * map,
 static struct shim_handle_map * get_new_handle_map (FDTYPE size)
 {
     struct shim_handle_map * handle_map =
-                    malloc(sizeof(struct shim_handle_map));
+        calloc(1, sizeof(struct shim_handle_map));
 
-    if (handle_map == NULL)
+    if (!handle_map)
         return NULL;
 
-    memset(handle_map, 0, sizeof(struct shim_handle_map));
+    handle_map->map = calloc(size, sizeof(struct shim_fd_handle));
 
-    handle_map->map = malloc(sizeof(struct shim_fd_handle) * size);
-
-    if (handle_map->map == NULL) {
+    if (!handle_map->map) {
         free(handle_map);
         return NULL;
     }
-
-    memset(handle_map->map, 0,
-           sizeof(struct shim_fd_handle) * size);
 
     handle_map->fd_top  = FD_NULL;
     handle_map->fd_size = size;
@@ -619,25 +626,19 @@ static struct shim_handle_map * __enlarge_handle_map
                      (struct shim_handle_map * map, FDTYPE size)
 {
     if (size <= map->fd_size)
+        return map;
+
+    struct shim_fd_handle ** new_map = calloc(size, sizeof(new_map[0]));
+
+    if (!new_map)
         return NULL;
 
-    struct shim_fd_handle ** old_map = map->map;
-
-    map->map = malloc(sizeof(struct shim_fd_handle *) * size);
-
-    if (map->map == NULL) {
-        map->map = old_map;
-        return NULL;
-    }
-
-    size_t copy_size = sizeof(struct shim_fd_handle *) * map->fd_size;
+    memcpy(new_map, map->map, map->fd_size * sizeof(new_map[0]));
+    memset(new_map + map->fd_size, 0,
+           (size - map->fd_size) * sizeof(new_map[0]));
+    free(map->map);
+    map->map = new_map;
     map->fd_size = size;
-    memset(map->map, 0, sizeof(struct shim_fd_handle *) * size);
-    if (old_map) {
-        if (copy_size)
-            memcpy(map->map, old_map, copy_size);
-        free(old_map);
-    }
     return map;
 }
 
@@ -656,7 +657,7 @@ int dup_handle_map (struct shim_handle_map ** new,
     if (old_map->fd_top == FD_NULL)
         goto done;
 
-    for (int i = 0 ; i <= old_map->fd_top ; i++) {
+    for (int i = 0; i <= old_map->fd_top; i++) {
         struct shim_fd_handle * fd_old = old_map->map[i];
         struct shim_fd_handle * fd_new;
 
@@ -666,8 +667,19 @@ int dup_handle_map (struct shim_handle_map ** new,
             /* first, get the handle to prevent it from being deleted */
             struct shim_handle * hdl = fd_old->handle;
             open_handle(hdl);
-            /* DP: I assume we really need a deep copy of the handle map? */
+
             fd_new = malloc(sizeof(struct shim_fd_handle));
+            if (!fd_new) {
+                for (int j = 0; j < i; j++) {
+                    close_handle(new_map->map[j]->handle);
+                    free(new_map->map[j]);
+                }
+                unlock(old_map->lock);
+                *new = NULL;
+                return -ENOMEM;
+            }
+
+            /* DP: I assume we really need a deep copy of the handle map? */
             new_map->map[i] = fd_new;
             fd_new->vfd    = fd_old->vfd;
             fd_new->handle = hdl;
@@ -678,7 +690,6 @@ int dup_handle_map (struct shim_handle_map ** new,
 done:
     unlock(old_map->lock);
     *new = new_map;
-
     return 0;
 }
 

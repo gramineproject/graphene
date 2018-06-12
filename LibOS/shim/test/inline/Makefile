@@ -17,11 +17,7 @@ $(c_executables): %: %.c $(libs) $(level)../../../Pal/src/user_start.o
 $(cxx_executables): %: %.cpp $(libs) $(level)../../../Pal/src/user_start.o
 	@echo [ $@ ]
 	$(CXX) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^ -lpal -lsysdb_debug
-
-.PHONY: pack
-pack: $(c_executables) $(cxx_executables)
-	@../../../../Scripts/pack_binaries.sh test $^
 else
-$(c_executables) $(cxx_executables): .packed/test.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(c_executables) $(cxx_executables)
+$(c_executables) $(cxx_executables):
 endif

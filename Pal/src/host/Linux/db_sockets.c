@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -243,8 +243,8 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
     if (!hdl)
         return NULL;
 
-    memset(hdl, 0, sizeof(union pal_handle));
-    PAL_GET_TYPE(hdl) = type;
+    memset(hdl, 0, sizeof(struct pal_handle));
+    init_handle_hdr(HANDLE_HDR(hdl), type);
     HANDLE_HDR(hdl)->flags |= RFD(0)|(type != pal_type_tcpsrv ? WFD(0) : 0);
     hdl->sock.fd = fd;
     void * addr = (void *) hdl + HANDLE_SIZE(sock);
@@ -290,53 +290,53 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
     return hdl;
 }
 
-static int check_zero (void * mem, int size)
+static bool check_zero (void * mem, size_t size)
 {
     void * p = mem, * q = mem + size;
 
     while (p < q) {
         if (p <= q - sizeof(long)) {
             if (*(long *) p)
-                return 1;
+                return false;
             p += sizeof(long);
         } else if (p <= q - sizeof(int)) {
             if (*(int *) p)
-                return 1;
+                return false;
             p += sizeof(int);
         } else if (p <= q - sizeof(short)) {
             if (*(short *) p)
-                return 1;
+                return false;
             p += sizeof(short);
         } else {
             if (*(char *) p)
-                return 1;
+                return false;
             p++;
         }
     }
 
-    return 0;
+    return true;
 }
 
 /* check if an address is "Any" */
-static int addr_check_any (struct sockaddr * addr)
+static bool check_any_addr (struct sockaddr * addr)
 {
     if (addr->sa_family == AF_INET) {
         struct sockaddr_in * addr_in =
                         (struct sockaddr_in *) addr;
 
-        return addr_in->sin_port ||
+        return addr_in->sin_port == 0 &&
                check_zero(&addr_in->sin_addr,
                           sizeof(addr_in->sin_addr));
     } else if (addr->sa_family == AF_INET6) {
         struct sockaddr_in6 * addr_in6 =
                         (struct sockaddr_in6 *) addr;
 
-        return addr_in6->sin6_port ||
+        return addr_in6->sin6_port == 0 &&
                check_zero(&addr_in6->sin6_addr,
                           sizeof(addr_in6->sin6_addr));
     }
 
-    return -PAL_ERROR_NOTSUPPORT;
+    return false;
 }
 
 /* listen on a tcp socket */
@@ -350,10 +350,15 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
                                 NULL, NULL)) < 0)
         return ret;
 
+    assert(bind_addr);
+    assert(bind_addrlen == addr_size(bind_addr));
+
+#if ALLOW_BIND_ANY == 0
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (!bind_addr || addr_check_any(bind_addr) == 0)
-        return -PAL_ERROR_INVAL;
+    if (check_any_addr(bind_addr))
+       return -PAL_ERROR_INVAL;
+#endif
 
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family,
                         SOCK_STREAM|SOCK_CLOEXEC|options, 0);
@@ -386,6 +391,13 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
                 ret = -PAL_ERROR_DENIED;
                 goto failed;
         }
+    }
+
+    if (check_any_addr(bind_addr)) {
+        /* call getsockname to get socket address */
+        if ((ret = INLINE_SYSCALL(getsockname, 3, fd,
+                                  bind_addr, &bind_addrlen)) < 0)
+            goto failed;
     }
 
     ret = INLINE_SYSCALL(listen, 2, fd, DEFAULT_BACKLOG);
@@ -563,7 +575,8 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of tcp stream */
-static int tcp_read (PAL_HANDLE handle, int offset, int len, void * buf)
+static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                         void * buf)
 {
     if (!IS_HANDLE_TYPE(handle, tcp) || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
@@ -583,7 +596,7 @@ static int tcp_read (PAL_HANDLE handle, int offset, int len, void * buf)
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
+    int64_t bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
 
     if (IS_ERR(bytes))
         switch (ERRNO(bytes)) {
@@ -600,7 +613,8 @@ static int tcp_read (PAL_HANDLE handle, int offset, int len, void * buf)
 }
 
 /* write' operation of tcp stream */
-static int tcp_write (PAL_HANDLE handle, int offset, int len, const void * buf)
+static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                          const void * buf)
 {
     if (!IS_HANDLE_TYPE(handle, tcp) || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
@@ -620,7 +634,7 @@ static int tcp_write (PAL_HANDLE handle, int offset, int len, const void * buf)
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
+    int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -655,6 +669,13 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
 
     assert(bind_addr);
     assert(bind_addrlen == addr_size(bind_addr));
+
+#if ALLOW_BIND_ANY == 0
+    /* the socket need to have a binding address, a null address or an
+       any address is not allowed */
+    if (check_any_addr(bind_addr))
+       return -PAL_ERROR_INVAL;
+#endif
 
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family,
                         SOCK_DGRAM|SOCK_CLOEXEC|options, 0);
@@ -710,6 +731,13 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen,
                                 &dest_addr, &dest_addrlen)) < 0)
         return ret;
+
+#if ALLOW_BIND_ANY == 0
+    /* the socket need to have a binding address, a null address or an
+       any address is not allowed */
+    if (bind_addr && check_any_addr(bind_addr))
+       return -PAL_ERROR_INVAL;
+#endif
 
     fd = INLINE_SYSCALL(socket, 3, dest_addr ? dest_addr->sa_family : AF_INET,
                         SOCK_DGRAM|SOCK_CLOEXEC|options, 0);
@@ -779,7 +807,8 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     return -PAL_ERROR_NOTSUPPORT;
 }
 
-static int udp_receive (PAL_HANDLE handle, int offset, int len, void * buf)
+static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                            void * buf)
 {
     if (!IS_HANDLE_TYPE(handle, udp))
         return -PAL_ERROR_NOTCONNECTION;
@@ -799,7 +828,7 @@ static int udp_receive (PAL_HANDLE handle, int offset, int len, void * buf)
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
+    int64_t bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -814,8 +843,8 @@ static int udp_receive (PAL_HANDLE handle, int offset, int len, void * buf)
     return bytes;
 }
 
-static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
-                              void * buf, char * addr, int addrlen)
+static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                                  void * buf, char * addr, int addrlen)
 {
     if (!IS_HANDLE_TYPE(handle, udpsrv))
         return -PAL_ERROR_NOTCONNECTION;
@@ -838,7 +867,7 @@ static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
+    int64_t bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -864,7 +893,8 @@ static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
     return bytes;
 }
 
-static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
+static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                         const void * buf)
 {
     if (!IS_HANDLE_TYPE(handle, udp))
         return -PAL_ERROR_NOTCONNECTION;
@@ -884,7 +914,7 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
+    int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -906,8 +936,8 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
     return bytes;
 }
 
-static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
-                           const void * buf, const char * addr, int addrlen)
+static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                               const void * buf, const char * addr, int addrlen)
 {
     if (!IS_HANDLE_TYPE(handle, udpsrv))
         return -PAL_ERROR_NOTCONNECTION;
@@ -943,7 +973,7 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
+    int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -1340,7 +1370,7 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
     hdl->mcast.cli = cli;
     hdl->mcast.port = (PAL_NUM) pal_sec.mcast_port;
     hdl->mcast.nonblocking = PAL_FALSE;
-    hdl->mcast.addr = (PAL_PTR) remalloc(&addr, sizeof(addr));
+    hdl->mcast.addr = (PAL_PTR) malloc_copy(&addr, sizeof(addr));
     return hdl;
 
 err_cli:
@@ -1351,8 +1381,8 @@ err:
     return NULL;
 }
 
-static int mcast_send (PAL_HANDLE handle, int offset, int size,
-                       const void * buf)
+static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                           const void * buf)
 {
     if (handle->mcast.srv == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
@@ -1369,8 +1399,8 @@ static int mcast_send (PAL_HANDLE handle, int offset, int size,
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(sendmsg, 3, handle->mcast.srv, &hdr,
-                               MSG_NOSIGNAL);
+    int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->mcast.srv, &hdr,
+                                   MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -1391,7 +1421,8 @@ static int mcast_send (PAL_HANDLE handle, int offset, int size,
     return bytes;
 }
 
-static int mcast_receive (PAL_HANDLE handle, int offset, int size, void * buf)
+static int64_t mcast_receive (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                              void * buf)
 {
     if (handle->mcast.cli == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
@@ -1408,7 +1439,7 @@ static int mcast_receive (PAL_HANDLE handle, int offset, int size, void * buf)
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
 
-    int bytes = INLINE_SYSCALL(recvmsg, 3, handle->mcast.cli, &hdr, 0);
+    int64_t bytes = INLINE_SYSCALL(recvmsg, 3, handle->mcast.cli, &hdr, 0);
 
     if (IS_ERR(bytes))
         return -PAL_ERROR_DENIED;

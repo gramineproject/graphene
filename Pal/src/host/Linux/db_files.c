@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -74,11 +74,11 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 #endif
 
 /* 'read' operation for file streams. */
-static int file_read (PAL_HANDLE handle, int offset, int count,
-                      void * buffer)
+static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          void * buffer)
 {
     int fd = handle->file.fd;
-    int ret;
+    int64_t ret;
 
     if (handle->file.offset != offset) {
         ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
@@ -98,11 +98,11 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
 }
 
 /* 'write' operation for file streams. */
-static int file_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t file_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           const void * buffer)
 {
     int fd = handle->file.fd;
-    int ret;
+    int64_t ret;
 
     if (handle->file.offset != offset) {
         ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
@@ -241,7 +241,7 @@ static int file_attrquery (const char * type, const char * uri,
 static int file_attrquerybyhdl (PAL_HANDLE handle,
                                 PAL_STREAM_ATTR * attr)
 {
-    int fd = HANDLE_HDR(handle)->fds[0];
+    int fd = handle->generic.fds[0];
     struct stat stat_buf;
 
     int ret = INLINE_SYSCALL(fstat, 2, fd, &stat_buf);
@@ -256,7 +256,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
 static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
-    int fd = HANDLE_HDR(handle)->fds[0], ret;
+    int fd = handle->generic.fds[0], ret;
 
     ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags | 0600);
     if (IS_ERR(ret))
@@ -273,7 +273,7 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    handle->file.realpath = remalloc(uri, strlen(uri));
+    handle->file.realpath = malloc_copy(uri, strlen(uri));
     return 0;
 }
 
@@ -373,7 +373,7 @@ struct linux_dirent64 {
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
+int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count, void * buf)
 {
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;
@@ -491,7 +491,7 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    handle->dir.realpath = remalloc(uri, strlen(uri));
+    handle->dir.realpath = malloc_copy(uri, strlen(uri));
     return 0;
 }
 

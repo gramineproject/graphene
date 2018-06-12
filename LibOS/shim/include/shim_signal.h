@@ -105,13 +105,14 @@ struct shim_signal {
 #define MAX_SIGNAL_LOG      32
 
 struct shim_signal_log {
-    struct shim_atomic head, tail;
+    struct atomic_int head, tail;
     struct shim_signal * logs[MAX_SIGNAL_LOG];
 };
 
 extern const char * const siglist[NUM_KNOWN_SIGS + 1];
 
-static_inline const char * signal_name (int sig)
+static_always_inline
+const char * signal_name (int sig)
 {
     if (sig <= NUM_KNOWN_SIGS)
         return siglist[sig];

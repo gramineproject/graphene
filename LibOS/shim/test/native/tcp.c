@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#define SRV_BIND_IP "0.0.0.0"
 #define SRV_IP "127.0.0.1"
 #define PORT 9930
 #define BUFLEN 512
@@ -38,7 +39,7 @@ int server(void)
         printf("The socket was created\n");
 
     address.sin_family = AF_INET;
-    inet_pton(AF_INET, SRV_IP, &(address.sin_addr));
+    inet_pton(AF_INET, SRV_BIND_IP, &(address.sin_addr));
     address.sin_port = htons(PORT);
 
     if (bind(create_socket, (struct sockaddr *) &address,

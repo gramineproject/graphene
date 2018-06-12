@@ -1,5 +1,6 @@
 #!/bin/bash
 
+PROTOCOL=${PROTOCOL:=http}
 declare -A THROUGHPUTS
 declare -A LATENCIES
 LOOP=5
@@ -8,6 +9,7 @@ DOWNLOAD_FILE=random/10K.1.html
 REQUESTS=10000
 CONCURRENCY_LIST="1 2 4 8 16 32 64 128 256"
 RESULT=result-$(date +%y%m%d-%H%M%S)
+URL="$PROTOCOL://$DOWNLOAD_HOST/$DOWNLOAD_FILE"
 
 touch $RESULT
 
@@ -17,9 +19,8 @@ do
 	for CONCURRENCY in $CONCURRENCY_LIST
 	do
 		rm -f OUTPUT
-		echo "ab -n $REQUESTS -c $CONCURRENCY http://$DOWNLOAD_HOST/$DOWNLOAD_FILE"
-		ab -n $REQUESTS -c $CONCURRENCY http://$DOWNLOAD_HOST/$DOWNLOAD_FILE > OUTPUT
-
+		echo "ab -n $REQUESTS -c $CONCURRENCY $URL"
+		ab -n $REQUESTS -c $CONCURRENCY $URL >> OUTPUT
 		sleep 5
 
 		THROUGHPUT=$(grep -m1 "Requests per second:" OUTPUT | awk '{ print $4 }')

@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -174,12 +174,11 @@ static int __extend_range_bitmap (int expected)
     if (range_map)
         size = range_map->map_size;
 
-    while(size <= expected)
+    while (size <= expected)
         size *= 2;
 
     struct range_bitmap * new_map = malloc(sizeof(struct range_bitmap) +
                                            size / BITS);
-
     if (!new_map)
         return -ENOMEM;
 
@@ -353,7 +352,6 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
     int off = (idx - 1) / RANGE_SIZE, err = 0;
     IDTYPE base = off * RANGE_SIZE + 1;
     struct subrange * s = malloc(sizeof(struct subrange));
-
     if (!s)
         return -ENOMEM;
 
@@ -376,19 +374,18 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
             goto failed;
         }
 
-        if ((err == __add_range(r, off, 0, NULL, 0)) < 0) {
+        if ((err = __add_range(r, off, 0, NULL, 0)) < 0) {
             free(r);
             goto failed;
         }
     }
 
     if (!r->subranges) {
-        r->subranges = malloc(sizeof(struct sub_map));
+        r->subranges = calloc(1, sizeof(struct sub_map));
         if (!r->subranges) {
             err = -ENOMEM;
             goto failed;
         }
-        memset(r->subranges, 0, sizeof(struct sub_map));
     }
 
     struct subrange ** m = &r->subranges->map[idx - base];
@@ -544,6 +541,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     // Re-acquire the head; kind of ugly
     LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
     listp_del(r, head, hlist);
+
     /* Chia-Che Tsai 10/17/17: only when r->owner is non-NULL,
      * and r->owner->vmid == cur_process.vmid, r is on the
      * owned list, otherwise it is an offered. */
@@ -551,6 +549,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
         listp_del(r, &owned_ranges, list);
     else
         listp_del(r, &offered_ranges, list);
+
     put_ipc_info(r->owner);
     free(r);
 
@@ -643,10 +642,9 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
         if (idx < base)
             idx = base;
         if (!r->used) {
-            r->used = malloc(sizeof(struct idx_bitmap));
+            r->used = calloc(1, sizeof(struct idx_bitmap));
             if (!r->used)
                 continue;
-            memset(r->used, 0, sizeof(struct idx_bitmap));
         }
 
         int i = (idx - base) / BITS;

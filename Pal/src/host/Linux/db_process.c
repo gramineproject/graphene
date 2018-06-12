@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -167,7 +167,7 @@ failed:
 int _DkProcessCreate (PAL_HANDLE * handle,
                       const char * uri, int flags, const char ** args)
 {
-    PAL_HANDLE exec = NULL, exec_file = NULL;
+    PAL_HANDLE exec = NULL;
     PAL_HANDLE parent_handle = NULL, child_handle = NULL;
     int ret;
 #if PROFILING == 1
@@ -180,19 +180,10 @@ int _DkProcessCreate (PAL_HANDLE * handle,
         if ((ret = _DkStreamOpen(&exec, uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
             return ret;
 
-        ret = _DkStreamFile(exec, &exec_file);
-        if (ret < 0)
-            goto out;
-
-        _DkObjectClose(exec);
-        exec = NULL;
-
-        if (check_elf_object(exec_file) < 0) {
+        if (check_elf_object(exec) < 0) {
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
-
-        handle_set_cloexec(exec_file, true);
     }
 
     /* step 2: create parant and child process handle */
@@ -203,7 +194,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
         goto out;
 
     param.parent = parent_handle;
-    param.exec = exec_file;
+    param.exec = exec;
     param.manifest = pal_state.manifest_handle;
 
     /* step 3: compose process parameter */
@@ -218,8 +209,8 @@ int _DkProcessCreate (PAL_HANDLE * handle,
         goto out;
     parent_datasz = ret;
 
-    if (exec_file) {
-        ret = handle_serialize(exec_file, &exec_data);
+    if (exec) {
+        ret = handle_serialize(exec, &exec_data);
         if (ret < 0) {
             free(parent_data);
             goto out;
@@ -326,8 +317,6 @@ out:
         _DkObjectClose(parent_handle);
     if (exec)
         _DkObjectClose(exec);
-    if (exec_file)
-        _DkObjectClose(exec_file);
     if (ret < 0) {
         if (child_handle)
             _DkObjectClose(child_handle);
@@ -505,16 +494,16 @@ int _DkProcessSandboxCreate (const char * manifest, int flags)
     return set_graphene_task(manifest, flags);
 }
 
-static int proc_read (PAL_HANDLE handle, int offset, int count,
-                          void * buffer)
+static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                      void * buffer)
 {
-    int bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer,
-                               count);
+    int64_t bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer,
+                                   count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
@@ -524,17 +513,17 @@ static int proc_read (PAL_HANDLE handle, int offset, int count,
     return bytes;
 }
 
-static int proc_write (PAL_HANDLE handle, int offset, int count,
+static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                        const void * buffer)
 {
-    int bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer,
-                               count);
+    int64_t bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer,
+                                   count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
                 HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:

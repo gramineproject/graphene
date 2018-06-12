@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -45,7 +45,7 @@ extern struct handle_ops udpsrv_ops;
 extern struct hadnle_ops udppacket_ops;
 extern struct handle_ops thread_ops;
 extern struct handle_ops proc_ops;
-extern struct handle_ops sem_ops;
+extern struct handle_ops mutex_ops;
 extern struct handle_ops event_ops;
 extern struct handle_ops gipc_ops;
 extern struct handle_ops mcast_ops;
@@ -65,7 +65,7 @@ const struct handle_ops * pal_handle_ops [PAL_HANDLE_TYPE_BOUND] = {
             [pal_type_process]   = &proc_ops,
             [pal_type_mcast]     = &mcast_ops,
             [pal_type_thread]    = &thread_ops,
-            [pal_type_semaphore] = &sem_ops,
+            [pal_type_mutex]     = &mutex_ops,
             [pal_type_event]     = &event_ops,
             [pal_type_gipc]      = &gipc_ops,
         };
@@ -175,6 +175,7 @@ DkStreamOpen (PAL_STR uri, PAL_FLG access, PAL_FLG share, PAL_FLG create,
     assert(handle);
     assert(PAL_GET_TYPE(handle));
 
+    TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
@@ -206,6 +207,7 @@ DkStreamWaitForClient (PAL_HANDLE handle)
         client = NULL;
     }
 
+    TRACE_HEAP(client);
     LEAVE_PAL_CALL_RETURN(client);
 }
 
@@ -248,8 +250,8 @@ void DkStreamDelete (PAL_HANDLE handle, PAL_FLG access)
 
 /* _DkStreamRead for internal use. Read from stream as absolute offset.
    The actual behavior of stream read is defined by handler */
-int _DkStreamRead (PAL_HANDLE handle, int offset, int count, void * buf,
-                   char * addr, int addrlen)
+int64_t _DkStreamRead (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                       void * buf, char * addr, int addrlen)
 {
     if (UNKNOWN_HANDLE(handle))
         return -PAL_ERROR_BADHANDLE;
@@ -264,7 +266,7 @@ int _DkStreamRead (PAL_HANDLE handle, int offset, int count, void * buf,
     if (!count)
         return -PAL_ERROR_ZEROSIZE;
 
-    int ret;
+    int64_t ret;
 
     if (addr) {
         if (!ops->readbyaddr)
@@ -294,9 +296,9 @@ DkStreamRead (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    int ret = _DkStreamRead(handle, offset, count, (void *) buffer,
-                            size ? (char *) source : NULL,
-                            source ? size : 0);
+    int64_t ret = _DkStreamRead(handle, offset, count, (void *) buffer,
+                                size ? (char *) source : NULL,
+                                source ? size : 0);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -308,8 +310,8 @@ DkStreamRead (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
 
 /* _DkStreamWrite for internal use, write to stream at absolute offset.
    The actual behavior of stream write is defined by handler */
-int _DkStreamWrite (PAL_HANDLE handle, int offset, int count, const void * buf,
-                    const char * addr, int addrlen)
+int64_t _DkStreamWrite (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                        const void * buf, const char * addr, int addrlen)
 {
     if (UNKNOWN_HANDLE(handle))
         return -PAL_ERROR_BADHANDLE;
@@ -322,7 +324,7 @@ int _DkStreamWrite (PAL_HANDLE handle, int offset, int count, const void * buf,
     if (!count)
         return -PAL_ERROR_ZEROSIZE;
 
-    int ret;
+    int64_t ret;
 
     if (addr) {
         if (!ops->writebyaddr)
@@ -352,8 +354,8 @@ DkStreamWrite (PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    int ret = _DkStreamWrite(handle, offset, count, (void *) buffer, dest,
-                             dest ? strlen(dest) : 0);
+    int64_t ret = _DkStreamWrite(handle, offset, count, (void *) buffer, dest,
+                                 dest ? strlen(dest) : 0);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -722,7 +724,7 @@ PAL_BOL DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo)
       the new process environment? Should we initialize/modify some 
       attibutes of the handle?
     Ans - Yes, Initialize and make it compatibile in the target process
-   3. Should remalloc be done or the process shares the same references?
+   3. Should malloc_copy be done or the process shares the same references?
     Ans - Variables members have to allocated data again.
 */
 PAL_HANDLE DkReceiveHandle (PAL_HANDLE handle)

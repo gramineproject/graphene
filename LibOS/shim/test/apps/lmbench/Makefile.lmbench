@@ -13,5 +13,10 @@ target = $(manifests)
 level = ../../../../../
 include ../../../../../Makefile
 
+sh.manifest.sgx: /tmp/hello
+
+/tmp/hello: hello
+	cp -f $< $@
+
 $(addsuffix .template,$(manifests)): %: ../../../%
 	ln -sf $< $@

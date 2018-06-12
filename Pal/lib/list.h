@@ -6,16 +6,16 @@
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -118,6 +118,8 @@
 // Add assertion to delete (in debugging mode) that item is on list
 // There are a few places where knowing the listp for deletion is cumbersome;
 //    maybe drop this requirement?
+
+#include <stdbool.h>
 
 #ifdef DEBUG
 #include <assert.h>
@@ -232,7 +234,7 @@
         listp_del(NODE, HEAD, FIELD);           \
         INIT_LIST_HEAD(NODE, FIELD);            \
     } while(0)
-            
+
 /* Keep vestigial TYPE and FIELD parameters to minimize disruption
  * when switching from Linux list implementation */
 #define listp_first_entry(LISTP, TYPE, FIELD) ((LISTP)->first)
@@ -240,38 +242,51 @@
 /* New API: return last entry in list */
 #define listp_last_entry(LISTP, TYPE, FIELD) ((LISTP)->first->FIELD.prev)
 
+/* New API: return next entry in list */
+#define listp_next_entry(NODE, LISTP, FIELD)                            \
+        ((NODE) == (LISTP)->first->FIELD.prev ? NULL : (NODE)->FIELD.next)
+
+/* New API: return previous entry in list */
+#define listp_prev_entry(NODE, LISTP, FIELD)                            \
+        ((NODE) == (LISTP)->first ? NULL : (NODE)->FIELD.prev)
+
 /* Vestigial - for compat with Linux list code; rename to listp?
  */
 #define list_entry(LISTP, TYPE, FIELD) (LISTP)
 
 #define listp_for_each_entry(CURSOR, HEAD, FIELD)                       \
-    for(int first_iter = ({ (CURSOR) = (HEAD)->first;                   \
-                (HEAD)->first ? 1 : 0; });                              \
-        first_iter || (CURSOR) != (HEAD)->first;                        \
-        (CURSOR) = (CURSOR)->FIELD.next, first_iter = 0)
+    for (bool first_iter = ((CURSOR) = (HEAD)->first,                   \
+                            !!(HEAD)->first);                           \
+         first_iter || (CURSOR) != (HEAD)->first;                       \
+         (CURSOR) = (CURSOR)->FIELD.next, first_iter = false)
 
-#define listp_for_each_entry_reverse(CURSOR, HEAD, FIELD)              \
-    for(int first_iter = ({(CURSOR) = ((HEAD)->first                   \
-                    ? (HEAD)->first->FIELD.prev :                      \
-                    (HEAD)->first); (HEAD)->first ? 1 : 0; });         \
-        first_iter || ((CURSOR) && (CURSOR)->FIELD.next != (HEAD)->first); \
-        (CURSOR) = (CURSOR)->FIELD.prev, first_iter = 0)
+#define listp_for_each_entry_reverse(CURSOR, HEAD, FIELD)                   \
+    for (bool first_iter = ((CURSOR) = ((HEAD)->first                       \
+                                       ? (HEAD)->first->FIELD.prev          \
+                                       : (HEAD)->first),                    \
+                           !!(HEAD)->first);                                \
+         first_iter || ((CURSOR) && (CURSOR)->FIELD.next != (HEAD)->first); \
+         (CURSOR) = (CURSOR)->FIELD.prev, first_iter = false)
 
-#define listp_for_each_entry_safe(CURSOR, TMP, HEAD, FIELD)             \
-    for(int first_iter = ({(CURSOR) = (HEAD)->first;                    \
-                    (TMP) = ((CURSOR) ? (CURSOR)->FIELD.next : (CURSOR)); \
-                (HEAD)->first ? 1 : 0; });                              \
-        (first_iter || (CURSOR) != (HEAD)->first) && (HEAD)->first;     \
-        first_iter = (first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP) ? \
-                      1: 0),                                            \
-            (CURSOR) = (TMP), (TMP) = (TMP)->FIELD.next)
+#define listp_for_each_entry_safe(CURSOR, TMP, HEAD, FIELD)                 \
+    for (bool first_iter = ((CURSOR) = (HEAD)->first,                       \
+                            (TMP) = ((CURSOR)                               \
+                                     ? (CURSOR)->FIELD.next                 \
+                                     : (CURSOR)),                           \
+                            !!(HEAD)->first);                               \
+         (HEAD)->first && (first_iter || (CURSOR) != (HEAD)->first);        \
+         /* Handle the case where the first element was removed. */         \
+         first_iter = first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP), \
+         (CURSOR) = (TMP),                                                  \
+         (TMP) = (TMP)->FIELD.next)
 
 /* Continue safe iteration with CURSOR->next */
-#define listp_for_each_entry_safe_continue(CURSOR, TMP, HEAD, FIELD)    \
-    for((CURSOR) = (CURSOR)->FIELD.next,                                \
-        (TMP) = (CURSOR)->FIELD.next;                                   \
-        (CURSOR) != (HEAD)->first && (HEAD)->first;                     \
-        (CURSOR) = (TMP), (TMP) = (TMP)->FIELD.next)
+#define listp_for_each_entry_safe_continue(CURSOR, TMP, HEAD, FIELD)     \
+    for ((CURSOR) = (CURSOR)->FIELD.next,                                \
+         (TMP) = (CURSOR)->FIELD.next;                                   \
+         (CURSOR) != (HEAD)->first && (HEAD)->first;                     \
+         (CURSOR) = (TMP),                                               \
+         (TMP) = (TMP)->FIELD.next)
 
 /* Assertion code written in Graphene project */
 #define check_list_head(TYPE, head, FIELD)                              \
