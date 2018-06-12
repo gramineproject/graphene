@@ -58,7 +58,7 @@ pipeline {
                                 make SGX_RUN=1 regression
                             '''
       }
-      timeout(time: 5, unit: 'MINUTES') {
+      timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/bash
                                 make SGX=1
@@ -74,7 +74,7 @@ pipeline {
                                 make SGX_RUN=1 regression
                            '''
 			}
-			timeout(time: 15, unit: 'MINUTES') {
+			timeout(time: 25, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
 			    	make SGX=1
