@@ -47,7 +47,7 @@ int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
         sigsetsize != sizeof(__sigset_t))
         return -EINVAL;
 
-    if (!act || test_user_memory((void *) act, sizeof(*act), false))
+    if (act && test_user_memory((void *) act, sizeof(*act), false))
         return -EFAULT;
 
     if (oldact && test_user_memory(oldact, sizeof(*oldact), false))
@@ -103,7 +103,7 @@ int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset)
         how != SIG_SETMASK)
         return -EINVAL;
 
-    if (!set || test_user_memory((void *) set, sizeof(*set), false))
+    if (set && test_user_memory((void *) set, sizeof(*set), false))
         return -EFAULT;
 
     if (oldset && test_user_memory(oldset, sizeof(*oldset), false))
