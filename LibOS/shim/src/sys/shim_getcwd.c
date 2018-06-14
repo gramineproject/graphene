@@ -35,6 +35,10 @@
 
 #include <errno.h>
 
+#ifndef ERANGE
+# define ERANGE 34
+#endif
+
 int shim_do_getcwd (char * buf, size_t len)
 {
     if (!buf || !len)
@@ -52,8 +56,8 @@ int shim_do_getcwd (char * buf, size_t len)
     const char * path = dentry_get_path(cwd, true, &plen);
 
     int ret;
-    if (plen > len) {
-        ret = -ENAMETOOLONG;
+    if (plen + 1 > len) {
+        ret = -ERANGE;
     } else {
         ret = plen;
         memcpy(buf, path, plen + 1);
