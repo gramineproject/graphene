@@ -875,9 +875,9 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
         if (*addrlen <= 0)
             return -EINVAL;
 
-        if (*addrlen != (sock->domain == AF_INET) ?
-            sizeof(struct sockaddr_in) :
-            sizeof(struct sockaddr_in6))
+        if (*addrlen != ((sock->domain == AF_INET) ?
+                          sizeof(struct sockaddr_in) :
+                          sizeof(struct sockaddr_in6)))
             return -EINVAL;
 
         if (test_user_memory(addr, *addrlen, true))
@@ -1203,9 +1203,9 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
         if (*addrlen <= 0)
             goto out;
 
-        if (*addrlen != (sock->domain == AF_INET) ?
-            sizeof(struct sockaddr_in) :
-            sizeof(struct sockaddr_in6))
+        if (*addrlen != ((sock->domain == AF_INET) ?
+                         sizeof(struct sockaddr_in) :
+                         sizeof(struct sockaddr_in6)))
             goto out;
 
         ret = -EFAULT;
