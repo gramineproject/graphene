@@ -1040,7 +1040,7 @@ static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
     struct shim_sock_handle * sock = &hdl->info.sock;
 
     ret = -EFAULT;
-    if (!addr && test_user_memory((void *) addr, addrlen, false))
+    if (addr && test_user_memory((void *) addr, addrlen, false))
         goto out;
 
     if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
