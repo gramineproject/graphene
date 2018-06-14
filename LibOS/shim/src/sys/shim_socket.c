@@ -881,7 +881,7 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
             return -EINVAL;
 
         if (test_user_memory(addr, *addrlen, true))
-            return -EFAULT;
+            return -EINVAL;
     }
 
     lock(hdl->lock);
@@ -1208,7 +1208,6 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
                          sizeof(struct sockaddr_in6)))
             goto out;
 
-        ret = -EFAULT;
         if (test_user_memory(addr, *addrlen, true))
             goto out;
     }
