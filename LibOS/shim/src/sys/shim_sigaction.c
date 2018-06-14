@@ -56,7 +56,7 @@ int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
     struct shim_thread * cur = get_cur_thread();
     int err = 0;
 
-    assert((void *) act->k_sa_handler != (void *) 0x11);
+    assert(!act || (void *) act->k_sa_handler != (void *) 0x11);
 
     struct shim_signal_handle * sighdl = &cur->signal_handles[signum - 1];
 
