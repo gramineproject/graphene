@@ -306,6 +306,9 @@ ret_exception:
 
 bool test_user_memory (void * addr, size_t size, bool write)
 {
+    if (!size)
+        return false;
+
     shim_tcb_t * tcb = SHIM_GET_TLS();
 
     if (addr + size - 1 < addr)
