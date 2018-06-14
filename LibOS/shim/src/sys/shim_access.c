@@ -40,6 +40,9 @@ int shim_do_access (const char * file, mode_t mode)
     if (!file)
         return -EINVAL;
 
+    if (test_user_string(file))
+        return -EFAULT;
+
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
@@ -54,6 +57,9 @@ int shim_do_faccessat (int dfd, const char * filename, mode_t mode)
 {
     if (!filename)
         return -EINVAL;
+
+    if (test_user_string(filename))
+        return -EFAULT;
 
     if (*filename == '/')
         return shim_do_access(filename, mode);

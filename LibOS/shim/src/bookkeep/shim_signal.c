@@ -246,6 +246,15 @@ ret_exception:
 
 static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+    if (tcb->test_range.cont_addr && arg
+        && (void *) arg >= tcb->test_range.start
+        && (void *) arg <= tcb->test_range.end) {
+        assert(context);
+        context->rip = (PAL_NUM) tcb->test_range.cont_addr;
+        goto ret_exception;
+    }
+
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
 internal:
         internal_fault("Internal memory fault", arg, context);
@@ -293,6 +302,68 @@ internal:
 
 ret_exception:
     DkExceptionReturn(event);
+}
+
+bool test_user_memory (void * addr, size_t size, bool write)
+{
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+
+    if (addr + size - 1 < addr)
+        size = (void *) 0x0 - addr;
+
+    bool has_fault = true;
+
+    assert(!tcb->test_range.cont_addr);
+    tcb->test_range.cont_addr = &&ret_fault;
+    tcb->test_range.start = addr;
+    tcb->test_range.end = addr + size - 1;
+
+    void * tmp = addr;
+    while (tmp <= addr + size - 1) {
+        if (write) {
+            *(volatile char *) tmp = *(volatile char *) tmp;
+        } else {
+            *(volatile char *) tmp;
+        }
+        tmp = ALIGN_UP(tmp + 1);
+    }
+
+    has_fault = false;
+
+ret_fault:
+    tcb->test_range.cont_addr = NULL;
+    tcb->test_range.start = tcb->test_range.end = NULL;
+    return has_fault;
+}
+
+bool test_user_string (void * addr)
+{
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+
+    bool has_fault = true;
+
+    assert(!tcb->test_range.cont_addr);
+    tcb->test_range.cont_addr = &&ret_fault;
+
+    void * next = ALIGN_UP(addr + 1);
+    do {
+        tcb->test_range.start = addr;
+        tcb->test_range.end = next - 1;
+        *(volatile char *) addr;
+
+        if (strnlen((const char *) addr, next - addr) < next - addr)
+            break;
+
+        addr = next;
+        next = ALIGN_UP(addr + 1);
+    } while (addr < next);
+
+    has_fault = false;
+
+ret_fault:
+    tcb->test_range.cont_addr = NULL;
+    tcb->test_range.start = tcb->test_range.end = NULL;
+    return has_fault;
 }
 
 static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)

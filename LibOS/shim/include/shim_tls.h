@@ -73,6 +73,10 @@ typedef struct {
     void *                  debug_buf;
     int                     last_lock;
     struct lock_record      held_locks[NUM_LOCK_RECORD];
+    struct {
+        void * start, * end;
+        void * cont_addr;
+    } test_range;
 } shim_tcb_t;
 
 #ifdef IN_SHIM

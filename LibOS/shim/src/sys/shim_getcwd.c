@@ -37,12 +37,11 @@
 
 int shim_do_getcwd (char * buf, size_t len)
 {
-    int ret = 0;
+    if (!buf || !len)
+        return -EINVAL;
 
-    if (buf == NULL || len == 0) {
-        ret = -EINVAL;
-        goto out;
-    }
+    if (test_user_memory(buf, len, true))
+        return -EFAULT;
 
     struct shim_thread * thread = get_cur_thread();
     assert(thread);
@@ -52,14 +51,13 @@ int shim_do_getcwd (char * buf, size_t len)
     int plen;
     const char * path = dentry_get_path(cwd, true, &plen);
 
+    int ret;
     if (plen > len) {
         ret = -ENAMETOOLONG;
-        goto out;
-    } else
+    } else {
         ret = plen;
-
-    memcpy(buf, path, plen + 1);
-out:
+        memcpy(buf, path, plen + 1);
+    }
     return ret;
 }
 
@@ -69,6 +67,12 @@ int shim_do_chdir (const char * filename)
     assert(thread);
     struct shim_dentry * dent = NULL;
     int ret;
+
+    if (!filename)
+        return -EINVAL;
+
+    if (test_user_string(filename))
+        return -EFAULT;
 
     if ((ret = path_lookupat(NULL, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;

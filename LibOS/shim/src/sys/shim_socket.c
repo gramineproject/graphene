@@ -447,6 +447,9 @@ static int create_socket_uri (struct shim_handle * hdl)
 
 int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
 {
+    if (!addr || test_user_memory(addr, addrlen, false))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
     int ret = -EINVAL;
     if (!hdl)
@@ -698,6 +701,9 @@ out:
  */
 int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
 {
+    if (!addr || test_user_memory(addr, addrlen, false))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
 
     if (!hdl)
@@ -862,6 +868,22 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
         return -EOPNOTSUPP;
     }
 
+    if (addr) {
+        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), false))
+            return -EINVAL;
+
+        if (*addrlen <= 0)
+            return -EINVAL;
+
+        if (*addrlen != (sock->domain == AF_INET) ?
+            sizeof(struct sockaddr_in) :
+            sizeof(struct sockaddr_in6))
+            return -EINVAL;
+
+        if (test_user_memory(addr, *addrlen, true))
+            return -EFAULT;
+    }
+
     lock(hdl->lock);
 
     if (sock->sock_state != SOCK_LISTENED) {
@@ -1004,14 +1026,25 @@ static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
     if (!hdl)
         return -EBADF;
 
-    int ret = -EINVAL;
-
-    if (hdl->type != TYPE_SOCK) {
-        ret = -ENOTSOCK;
+    int ret = -ENOTSOCK;
+    if (hdl->type != TYPE_SOCK)
         goto out;
-    }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
+
+    ret = -EFAULT;
+    if (!addr && test_user_memory((void *) addr, addrlen, false))
+        goto out;
+
+    if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
+        goto out;
+
+    for (int i = 0 ; i < nbufs ; i++) {
+        if (!bufs[i].iov_base ||
+            test_user_memory(bufs[i].iov_base, bufs[i].iov_len, false))
+            goto out;
+    }
+
     lock(hdl->lock);
 
     PAL_HANDLE pal_hdl = hdl->pal_handle;
@@ -1156,14 +1189,40 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
     if (!hdl)
         return -EBADF;
 
-    int ret = 0;
-
-    if (hdl->type != TYPE_SOCK) {
-        ret = -ENOTSOCK;
+    int ret = -ENOTSOCK;
+    if (hdl->type != TYPE_SOCK)
         goto out;
-    }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
+
+    if (addr) {
+        ret = -EINVAL;
+        if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), false))
+            goto out;
+
+        if (*addrlen <= 0)
+            goto out;
+
+        if (*addrlen != (sock->domain == AF_INET) ?
+            sizeof(struct sockaddr_in) :
+            sizeof(struct sockaddr_in6))
+            goto out;
+
+        ret = -EFAULT;
+        if (test_user_memory(addr, *addrlen, true))
+            goto out;
+    }
+
+    ret = -EFAULT;
+    if (!bufs || test_user_memory(bufs, sizeof(*bufs) * nbufs, false))
+        goto out;
+
+    for (int i = 0 ; i < nbufs ; i++) {
+        if (!bufs[i].iov_base ||
+            test_user_memory(bufs[i].iov_base, bufs[i].iov_len, true))
+            goto out;
+    }
+
     lock(hdl->lock);
 
     PAL_HANDLE pal_hdl = hdl->pal_handle;
@@ -1361,6 +1420,9 @@ int shim_do_getsockname (int sockfd, struct sockaddr * addr, int * addrlen)
     if (*addrlen <= 0)
         return -EINVAL;
 
+    if (test_user_memory(addr, *addrlen, true))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1397,6 +1459,9 @@ int shim_do_getpeername (int sockfd, struct sockaddr * addr, int * addrlen)
 
     if (*addrlen <= 0)
         return -EINVAL;
+
+    if (test_user_memory(addr, *addrlen, true))
+        return -EFAULT;
 
     struct shim_handle * hdl = get_fd_handle(sockfd, NULL, NULL);
     if (!hdl)
