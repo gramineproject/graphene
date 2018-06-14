@@ -336,7 +336,7 @@ ret_fault:
     return has_fault;
 }
 
-bool test_user_string (void * addr)
+bool test_user_string (const char * addr)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
 
@@ -345,13 +345,13 @@ bool test_user_string (void * addr)
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
 
-    void * next = ALIGN_UP(addr + 1);
+    const char * next = ALIGN_UP(addr + 1);
     do {
-        tcb->test_range.start = addr;
-        tcb->test_range.end = next - 1;
+        tcb->test_range.start = (void *) addr;
+        tcb->test_range.end = (void *) (next - 1);
         *(volatile char *) addr;
 
-        if (strnlen((const char *) addr, next - addr) < next - addr)
+        if (strnlen(addr, next - addr) < next - addr)
             break;
 
         addr = next;

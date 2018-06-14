@@ -61,9 +61,13 @@ int do_handle_read (struct shim_handle * hdl, void * buf, int count)
 
 size_t shim_do_read (int fd, void * buf, size_t count)
 {
+    if (!buf || test_user_memory(buf, count, true))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
+
     int ret = do_handle_read(hdl, buf, count);
     put_handle(hdl);
     return ret;
@@ -88,6 +92,9 @@ int do_handle_write (struct shim_handle * hdl, const void * buf, int count)
 
 size_t shim_do_write (int fd, const void * buf, size_t count)
 {
+    if (!buf || test_user_memory((void *) buf, count, false))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -99,7 +106,10 @@ size_t shim_do_write (int fd, const void * buf, size_t count)
 
 int shim_do_open (const char * file, int flags, mode_t mode)
 {
-    if (!file || !(*file))
+    if (!file || test_user_string(file))
+        return -EFAULT;
+
+    if (file[0] == '\0')
         return -EINVAL;
 
     struct shim_handle * hdl = get_new_handle();
@@ -124,8 +134,8 @@ int shim_do_creat (const char * path, mode_t mode)
 
 int shim_do_openat (int dfd, const char * filename, int flags, int mode)
 {
-    if (!filename)
-        return -EINVAL;
+    if (!filename || test_user_string(filename))
+        return -EFAULT;
 
     if (*filename == '/')
         return shim_do_open(filename, flags, mode);
@@ -198,6 +208,9 @@ out:
 
 size_t shim_do_pread64 (int fd, char * buf, size_t count, loff_t pos)
 {
+    if (!buf || test_user_memory(buf, count, true))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -243,6 +256,9 @@ out:
 
 size_t shim_do_pwrite64 (int fd, char * buf, size_t count, loff_t pos)
 {
+    if (!buf || test_user_memory(buf, count, false))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -310,6 +326,9 @@ static inline int get_dirent_type (mode_t type)
 
 size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
 {
+    if (!buf || test_user_memory(buf, count, true))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -415,6 +434,9 @@ out_no_unlock:
 
 size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
 {
+    if (!buf || test_user_memory(buf, count, true))
+        return -EFAULT;
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -545,6 +567,9 @@ int shim_do_truncate (const char * path, loff_t length)
 {
     struct shim_dentry * dent = NULL;
     int ret = 0;
+
+    if (!path || test_user_string(path))
+        return -EFAULT;
 
     if ((ret = path_lookupat(NULL, path, 0, &dent, NULL)) < 0)
         return ret;
