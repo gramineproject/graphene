@@ -67,6 +67,18 @@
 
 static int rebase_on_lo __attribute_migratable = -1;
 
+static int minimal_addrlen (int domain)
+{
+    switch(domain) {
+        case AF_INET:
+            return sizeof(struct sockaddr_in);
+        case AF_INET6:
+            return sizeof(struct sockaddr_in6);
+        default:
+            return sizeof(struct sockaddr);
+    }
+}
+
 static int init_port_rebase (void)
 {
     if (rebase_on_lo != -1)
@@ -326,26 +338,25 @@ static inline void unix_copy_addr (struct sockaddr * saddr,
     memcpy(un->sun_path, path, size + 1);
 }
 
-static bool inet_check_addr (int domain, struct sockaddr * addr, int addrlen)
+static int inet_check_addr (int domain, struct sockaddr * addr, int addrlen)
 {
     if (domain == AF_INET) {
-        if (addr->sa_family != AF_INET ||
-            addrlen != sizeof(struct sockaddr_in))
-            return false;
-        return true;
+        if (addr->sa_family != AF_INET)
+            return -EAFNOSUPPORT;
+        if (addrlen != sizeof(struct sockaddr_in))
+            return -EINVAL;
+        return 0;
     }
 
     if (domain == AF_INET6) {
         if (addr->sa_family != AF_INET && addr->sa_family != AF_INET6)
-            return false;
-        if (addrlen != ((addr->sa_family == AF_INET) ?
-                        sizeof(struct sockaddr_in) :
-                        sizeof(struct sockaddr_in6)))
-            return false;
-        return true;
+            return -EAFNOSUPPORT;
+        if (addrlen != minimal_addrlen(addr->sa_family))
+            return -EINVAL;
+        return 0;
     }
 
-    return false;
+    return -EINVAL;
 }
 
 static int inet_copy_addr (int domain, struct sockaddr * saddr,
@@ -499,7 +510,7 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
         sock->addr.un.dentry = dent;
 
     } else if (sock->domain == AF_INET || sock->domain == AF_INET6) {
-        if (!inet_check_addr(sock->domain, addr, addrlen))
+        if ((ret = inet_check_addr(sock->domain, addr, addrlen)) < 0)
             goto out;
         inet_save_addr(sock->domain, &sock->addr.in.bind, addr);
         inet_rebase_port(false, sock->domain, &sock->addr.in.bind, true);
@@ -733,6 +744,7 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
         }
 
         debug("shim_connect: reconnect on a stream socket\n");
+        ret = -EISCONN;
         goto out;
     }
 
@@ -778,7 +790,7 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
     }
 
     if (sock->domain != AF_UNIX) {
-        if (!inet_check_addr(sock->domain, addr, addrlen))
+        if ((ret = inet_check_addr(sock->domain, addr, addrlen)) < 0)
             goto out;
         inet_save_addr(sock->domain, &sock->addr.in.conn, addr);
         inet_rebase_port(false, sock->domain, &sock->addr.in.conn, false);
@@ -795,7 +807,7 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
                                       hdl->flags & O_NONBLOCK);
 
     if (!pal_hdl) {
-        ret = -PAL_ERRNO;
+        ret = (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED) ? -ECONNREFUSED : -PAL_ERRNO;
         goto out;
     }
 
@@ -851,18 +863,6 @@ out:
     unlock(hdl->lock);
     put_handle(hdl);
     return ret;
-}
-
-static inline int minimal_addrlen (int domain)
-{
-    switch(domain) {
-        case AF_INET:
-            return sizeof(struct sockaddr_in);
-        case AF_INET6:
-            return sizeof(struct sockaddr_in6);
-        default:
-            return sizeof(struct sockaddr);
-    }
 }
 
 int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
