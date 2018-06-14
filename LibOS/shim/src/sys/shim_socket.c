@@ -853,6 +853,18 @@ out:
     return ret;
 }
 
+static inline int minimal_addrlen (int domain)
+{
+    switch(domain) {
+        case AF_INET:
+            return sizeof(struct sockaddr_in);
+        case AF_INET6:
+            return sizeof(struct sockaddr_in6);
+        default:
+            return sizeof(struct sockaddr);
+    }
+}
+
 int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
                  socklen_t * addrlen)
 {
@@ -872,9 +884,7 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
         if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), false))
             return -EINVAL;
 
-        if (*addrlen <= ((sock->domain == AF_INET) ?
-                          sizeof(struct sockaddr_in) :
-                          sizeof(struct sockaddr_in6)))
+        if (*addrlen < minimal_addrlen(sock->domain))
             return -EINVAL;
 
         if (test_user_memory(addr, *addrlen, true))
@@ -969,10 +979,10 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
         if (addr) {
             inet_copy_addr(sock->domain, addr, &sock->addr.in.conn);
 
-            if (addrlen)
-                *addrlen = (sock->domain == AF_INET) ?
-                    sizeof(struct sockaddr_in) :
-                    sizeof(struct sockaddr_in6);
+            if (addrlen) {
+                assert(sock->domain == AF_INET || sock->domain == AF_INET6);
+                *addrlen = minimal_addrlen(sock->domain);
+            }
         }
     }
 
@@ -1197,9 +1207,7 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
         if (!addrlen || test_user_memory(addrlen, sizeof(*addrlen), false))
             goto out;
 
-        if (*addrlen <= ((sock->domain == AF_INET) ?
-                         sizeof(struct sockaddr_in) :
-                         sizeof(struct sockaddr_in6)))
+        if (*addrlen < minimal_addrlen(sock->domain))
             goto out;
 
         if (test_user_memory(addr, *addrlen, true))
