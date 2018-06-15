@@ -378,6 +378,8 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     bool need_restart = false;
     type = type ? (type & port->info.type) : port->info.type;
 
+    port->deleted = true; /* prevent further usage of the port */
+
     if ((type & IPC_PORT_KEEPALIVE) ^
         (port->info.type & IPC_PORT_KEEPALIVE))
         need_restart = true;
@@ -476,8 +478,10 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
         listp_for_each_entry_safe(msg, n, &port->msgs, list) {
             listp_del_init(msg, &port->msgs, list);
             msg->retval = -ECONNRESET;
-            if (msg->thread)
+            if (msg->thread) {
+                debug("wake up thread %d\n", msg->thread->tid);
                 thread_wakeup(msg->thread);
+            }
         }
     }
 
@@ -829,9 +833,8 @@ static void shim_ipc_helper (void * arg)
            nalive) {
         /* do a global poll on all the ports */
         polled = DkObjectsWaitAny(port_num + 1, local_ports, NO_TIMEOUT);
-
         barrier();
-        
+
         if (!polled)
             continue;
 
