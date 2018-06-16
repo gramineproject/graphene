@@ -21,3 +21,13 @@ regression.add_check(name="Generate Random Bits",
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
+
+regression = Regression(loader, "Hex")
+
+regression.add_check(name="Hex 2 String Helper Function",
+                     check=lambda res: "Hex test 1 is deadbeef" in res[0].log and \
+                     "Hex test 2 is cdcdcdcdcdcdcdcd" in res[0].log)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+
