@@ -1,4 +1,4 @@
-special_executables = static pie shared_object
+special_executables = static pie 
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
@@ -27,12 +27,7 @@ static: %: %.c
 	@$(CC) $(CFLAGS) -o $@ -static $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
-shared_object: %: %.c
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) -o $@ -fPIC -pie $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-pie: %: %.c
+xopie: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
