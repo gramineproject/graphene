@@ -54,7 +54,8 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
     } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
 
-    debug("signal_logs[%d]: head=%d, tail=%d\n", sig -1, head, tail);
+    debug("signal_logs[%d]: head=%d, tail=%d (counter = %d)\n", sig - 1,
+          head, tail, thread->has_signal.counter + 1);
 
     atomic_inc(&thread->has_signal);
 
@@ -320,7 +321,8 @@ bool test_user_memory (void * addr, size_t size, bool write)
         return false;
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
-    disable_preempt(tcb);
+    assert(tcb && tcb->tp);
+    __disable_preempt(tcb);
 
     if (addr + size - 1 < addr)
         size = (void *) 0x0 - addr;
@@ -352,7 +354,7 @@ ret_fault:
      * the control flow will immediately jump to here. */
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
-    enable_preempt(tcb);
+    __enable_preempt(tcb);
     return has_fault;
 }
 
@@ -363,7 +365,8 @@ ret_fault:
 bool test_user_string (const char * addr)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
-    disable_preempt(tcb);
+    assert(tcb && tcb->tp);
+    __disable_preempt(tcb);
 
     bool has_fault = true;
 
@@ -394,7 +397,7 @@ ret_fault:
      * the control flow will immediately jump to here. */
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
-    enable_preempt(tcb);
+    __enable_preempt(tcb);
     return has_fault;
 }
 
@@ -617,6 +620,8 @@ void handle_signal (bool delayed_only)
 
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
 
+    debug("handle signal (counter = %d)\n", thread->has_signal.counter);
+
     /* Fast path */
     if (!thread->has_signal.counter)
         return;
@@ -624,6 +629,7 @@ void handle_signal (bool delayed_only)
     __disable_preempt(tcb);
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
+        debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
         tcb->context.preempt |= SIGNAL_DELAYED;
         goto out;
     }
@@ -634,6 +640,7 @@ void handle_signal (bool delayed_only)
     __handle_signal(tcb, 0, NULL);
 out:
     __enable_preempt(tcb);
+    debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
 void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
