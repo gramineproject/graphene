@@ -84,6 +84,9 @@ int shim_do_unlinkat (int dfd, const char * pathname, int flag)
     if (test_user_string(pathname))
         return -EFAULT;
 
+    if (flag & ~AT_REMOVEDIR)
+        return -EINVAL;
+
     if (*pathname == '/')
         return (flag & AT_REMOVEDIR) ? shim_do_rmdir(pathname) :
                shim_do_unlink(pathname);

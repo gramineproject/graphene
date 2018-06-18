@@ -1,4 +1,3 @@
-chdir04
 epoll_wait01
 fcntl15
 fcntl15_64
@@ -21,7 +20,6 @@ msgrcv04
 msgrcv06
 open12
 open14
-openat01
 openat03
 pselect02
 pselect02_64
@@ -76,8 +74,6 @@ kill10
 kill12
 nosleep04
 nanosleep04
-pipe04
-pipe05
 pipe07
 process_vm_readv02
 process_vm_readv03
@@ -87,5 +83,4 @@ setitimer02
 set_robust_list01
 signal01
 trace05
-uname02
 waitpid04
