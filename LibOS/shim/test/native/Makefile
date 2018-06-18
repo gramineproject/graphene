@@ -1,4 +1,4 @@
-special_executables = static pie
+special_executables = static pie shared_object
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
@@ -27,15 +27,16 @@ static: %: %.c
 	@$(CC) $(CFLAGS) -o $@ -static $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
+shared_object: %: %.c
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) -o $@ -fPIC -pie $< \
+	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
 pie: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-.PHONY: pack
-pack: $(special_executables) $(c_executables) $(cxx_executables)
-	@../../../../Scripts/pack_binaries.sh test $^
 else
-$(special_executables) $(c_executables) $(cxx_executables): .packed/test.tar.gz
-	tar -xmozf $< $@
+.IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
+$(special_executables) $(c_executables) $(cxx_executables):
 endif

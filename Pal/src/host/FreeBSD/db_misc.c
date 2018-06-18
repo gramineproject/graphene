@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -199,54 +199,33 @@ static int init_randgen (void)
     _DkInternalUnlock(&lock);
     return 0;
 }
-int getrand (void * buffer, int size)
+
+void getrand (void * buffer, size_t size)
 {
     unsigned long val;
-    int bytes = 0;
+    size_t bytes = 0;
+
+    int ret = init_randgen();
+    if (ret < 0)
+        return ret;
 
     _DkInternalLock(&lock);
-    while (!randval) {
-        _DkInternalUnlock(&lock);
-        if (init_randgen() < 0)
-            return -PAL_ERROR_DENIED;
-        _DkInternalLock(&lock);
-    }
-
     val = randval;
-    randval++;
+    randval = hash64(~randval);
     _DkInternalUnlock(&lock);
 
-    while (bytes + sizeof(unsigned long) <= size) {
-        *(unsigned long *) (buffer + bytes) = val;
+    while (bytes + sizeof(uint64_t) <= size) {
+        *(uint64_t *) (buffer + bytes) = val;
         val = hash64(val);
-        bytes += sizeof(unsigned long);
+        bytes += sizeof(uint64_t);
     }
 
     if (bytes < size) {
-        switch (size - bytes) {
-            case 4:
-                *(unsigned int *) (buffer + bytes) = randval & 0xffffffff;
-                bytes += 4;
-                break;
-
-            case 2:
-                *(unsigned short *) (buffer + bytes) = randval & 0xffff;
-                bytes += 2;
-                break;
-
-            case 1:
-                *(unsigned char *) (buffer + bytes) = randval & 0xff;
-                bytes++;
-                break;
-
-            default: break;
-        }
-        randval = hash64(randval);
+        memcpy(buffer + bytes, &val, size - bytes);
+        val = hash64(val);
     }
 
     _DkInternalLock(&lock);
     randval = val;
     _DkInternalUnlock(&lock);
-
-    return bytes;
 }

@@ -17,10 +17,11 @@ void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
 
+static int register_trusted_file (const char * uri, const char * checksum_str);
+
 bool sgx_is_within_enclave (const void * addr, uint64_t size)
 {
-    return (addr >= enclave_base &&
-            addr + size <= enclave_top) ? 1 : 0;
+    return enclave_base <= addr && addr + size <= enclave_top;
 }
 
 void * sgx_ocalloc (uint64_t size)
@@ -35,6 +36,7 @@ void sgx_ocfree (void)
     SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
 }
 
+#define HASHBUF_SIZE ((sizeof(sgx_arch_hash_t)*2)+1)
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
                     void * enclave_data,
@@ -54,24 +56,28 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     if (ret)
         return -PAL_ERROR_DENIED;
 
+    char hash_buf[HASHBUF_SIZE];
+    char mac_buf[MACBUF_SIZE];
+
     SGX_DBG(DBG_S, "Generated report:\n");
     SGX_DBG(DBG_S, "    cpusvn:           %08x %08x\n", report->cpusvn[0],
                                                 report->cpusvn[1]);
-    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        hex2str(report->mrenclave));
-    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        hex2str(report->mrsigner));
+    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        bytes2hexstr(report->mrenclave, hash_buf, HASHBUF_SIZE));
+    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        bytes2hexstr(report->mrsigner, hash_buf, HASHBUF_SIZE));
     SGX_DBG(DBG_S, "    attributes.flags: %016lx\n",    report->attributes.flags);
     SGX_DBG(DBG_S, "    sttributes.xfrm:  %016lx\n",    report->attributes.xfrm);
 
     SGX_DBG(DBG_S, "    isvprodid:        %02x\n",      report->isvprodid);
     SGX_DBG(DBG_S, "    isvsvn:           %02x\n",      report->isvsvn);
-    SGX_DBG(DBG_S, "    keyid:            %s\n",        hex2str(report->keyid));
-    SGX_DBG(DBG_S, "    mac:              %s\n",        hex2str(report->mac));
+    SGX_DBG(DBG_S, "    keyid:            %s\n",        bytes2hexstr(report->keyid, hash_buf, HASHBUF_SIZE));
+    SGX_DBG(DBG_S, "    mac:              %s\n",        bytes2hexstr(report->mac, mac_buf, MACBUF_SIZE));
 
     return 0;
 }
 
 static sgx_arch_key128_t enclave_key;
 
+#define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
 int sgx_verify_report (sgx_arch_report_t * report)
 {
     sgx_arch_keyrequest_t keyrequest;
@@ -85,7 +91,9 @@ int sgx_verify_report (sgx_arch_report_t * report)
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n", hex2str(enclave_key));
+    char key_buf[KEYBUF_SIZE];
+
+    SGX_DBG(DBG_S, "Get report key for verification: %s\n", bytes2hexstr(enclave_key, key_buf, KEYBUF_SIZE));
     return 0;
 }
 
@@ -101,7 +109,8 @@ int init_enclave_key (void)
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get sealing key: %s\n", hex2str(enclave_key));
+    char key_buf[KEYBUF_SIZE];
+    SGX_DBG(DBG_S, "Get sealing key: %s\n", bytes2hexstr(enclave_key, key_buf, KEYBUF_SIZE));
     return 0;
 }
 
@@ -120,14 +129,28 @@ DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
+static int allow_file_creation = 0;
+
+
+/* Function: load_trusted_file
+ * checks if the file to be opened is trusted or allowed,
+ * according to the setting in manifest
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
 
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
-                       uint64_t * sizeptr)
+                       uint64_t * sizeptr, int create)
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
     char normpath[URI_MAX];
-    int ret, fd = HANDLE_HDR(file)->fds[0], uri_len, len;
+    int ret, fd = file->file.fd, uri_len, len;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0))) 
         return -PAL_ERROR_DENIED;
@@ -135,6 +158,14 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     uri_len = _DkStreamGetName(file, uri, URI_MAX);
     if (uri_len < 0)
         return uri_len;
+
+    /* Allow to create the file when allow_file_creation is turned on;
+       The created file is added to allowed_file list for later access */
+    if (create && allow_file_creation) {
+       register_trusted_file(uri, NULL);
+       *sizeptr = 0;
+       return 0;
+    }
 
     /* Normalize the uri */
     if (!strpartcmp_static(uri, "file:")) {
@@ -280,16 +311,15 @@ failed:
 }
 
 int verify_trusted_file (const char * uri, void * mem,
-                         unsigned int offset, unsigned int size,
+                         uint64_t offset, uint64_t size,
                          sgx_stub_t * stubs,
-                         unsigned int total_size)
+                         uint64_t total_size)
 {
-    unsigned long checking = offset;
+    uint64_t checking = offset;
     sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
-    int ret;
 
     for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
-        unsigned long checking_size = TRUSTED_STUB_SIZE;
+        uint64_t checking_size = TRUSTED_STUB_SIZE;
         if (checking_size > total_size - checking)
             checking_size = total_size - checking;
 
@@ -412,7 +442,7 @@ static int init_trusted_file (const char * key, const char * uri)
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
-    int len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
+    ssize_t len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
     if (len < 0)
         return 0;
 
@@ -433,8 +463,10 @@ static int init_trusted_file (const char * key, const char * uri)
 
 int init_trusted_files (void)
 {
-    char *cfgbuf;
-    int ret;
+    struct config_store * store = pal_state.root_config;
+    char * cfgbuf = NULL;
+    ssize_t cfgsize;
+    int nuris, ret;
 
     if (pal_sec.exec_fd != PAL_IDX_POISON) {
         ret = init_trusted_file("exec", pal_sec.exec_name);
@@ -442,10 +474,14 @@ int init_trusted_files (void)
             goto out;
     }
 
-    cfgbuf = __alloca(CONFIG_MAX);
-    int len = get_config(pal_state.root_config, "loader.preload",
-                         cfgbuf, CONFIG_MAX);
-    if (len) {
+    cfgbuf = malloc(CONFIG_MAX);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
+    ssize_t len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
+    if (len > 0) {
         int npreload = 0;
         char key[10];
         const char * start, * end;
@@ -465,14 +501,23 @@ int init_trusted_files (void)
         }
     }
 
-    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
-                                              "sgx.trusted_files"));
-    int nuris = get_config_entries(pal_state.root_config, "sgx.trusted_files",
-                                   cfgbuf);
-    if (nuris == -PAL_ERROR_INVAL)
-        nuris = 0;
+    cfgsize = get_config_entries_size(store, "sgx.trusted_files");
+    if (cfgsize <= 0)
+        goto no_trusted;
 
-    if (nuris >= 0) {
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
+
+    nuris = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
+    if (nuris <= 0)
+        goto no_trusted;
+
+    {
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
@@ -482,26 +527,33 @@ int init_trusted_files (void)
             len = strlen(k);
             memcpy(tmp, k, len + 1);
             k += len + 1;
-            len = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
+            len = get_config(store, key, uri, CONFIG_MAX);
             if (len > 0) {
                 ret = init_trusted_file(key + 18, uri);
                 if (ret < 0)
                     goto out;
             }
         }
-    } else {
-        ret = nuris;
+    }
+
+no_trusted:
+
+    cfgsize = get_config_entries_size(store, "sgx.allowed_files");
+    if (cfgsize <= 0)
+        goto no_allowed;
+
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
         goto out;
     }
 
-    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
-                                              "sgx.allowed_files"));
-    nuris = get_config_entries(pal_state.root_config, "sgx.allowed_files",
-                               cfgbuf);
-    if (nuris == -PAL_ERROR_INVAL)
-        nuris = 0;
+    nuris = get_config_entries(store, "sgx.allowed_files", cfgbuf, cfgsize);
+    if (nuris <= 0)
+        goto no_allowed;
 
-    if (nuris >= 0) {
+    {
         char key[CONFIG_MAX], uri[CONFIG_MAX];
         char * k = cfgbuf, * tmp;
 
@@ -511,33 +563,45 @@ int init_trusted_files (void)
             len = strlen(k);
             memcpy(tmp, k, len + 1);
             k += len + 1;
-            len = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
+            len = get_config(store, key, uri, CONFIG_MAX);
             if (len > 0)
                 register_trusted_file(uri, NULL);
         }
-    } else {
-        ret = nuris;
-        goto out;
     }
+
+no_allowed:
     ret = 0;
 
+    if (get_config(store, "sgx.allow_file_creation", cfgbuf, CONFIG_MAX) <= 0) {
+        allow_file_creation = 0;
+    } else
+        allow_file_creation = 1;
+
 out:
+    free(cfgbuf);
     return ret;
 }
 
 int init_trusted_children (void)
 {
-    char *cfgbuf;
+    struct config_store * store = pal_state.root_config;
+
     char key[CONFIG_MAX], mrkey[CONFIG_MAX];
     char uri[CONFIG_MAX], mrenclave[CONFIG_MAX];
 
     char * tmp1 = strcpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
     char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
 
-    cfgbuf = __alloca(get_config_entries_size(pal_state.root_config,
-                                              "sgx.trusted_mrenclave"));
-    int nuris = get_config_entries(pal_state.root_config,
-                                   "sgx.trusted_mrenclave", cfgbuf);
+    ssize_t cfgsize = get_config_entries_size(store, "sgx.trusted_mrenclave");
+    if (cfgsize <= 0)
+        return 0;
+
+    char * cfgbuf = malloc(cfgsize);
+    if (!cfgbuf)
+        return -PAL_ERROR_NOMEM;
+
+    int nuris = get_config_entries(store, "sgx.trusted_mrenclave",
+                                   cfgbuf, cfgsize);
     if (nuris > 0) {
         char * k = cfgbuf;
         for (int i = 0 ; i < nuris ; i++) {
@@ -546,17 +610,16 @@ int init_trusted_children (void)
             memcpy(tmp2, k, len + 1);
             k += len + 1;
 
-            int ret = get_config(pal_state.root_config, key, uri, CONFIG_MAX);
+            ssize_t ret = get_config(store, key, uri, CONFIG_MAX);
             if (ret < 0)
                 continue;
 
-            ret = get_config(pal_state.root_config, mrkey, mrenclave,
-                             CONFIG_MAX);
+            ret = get_config(store, mrkey, mrenclave, CONFIG_MAX);
             if (ret > 0)
                 register_trusted_child(uri, mrenclave);
         }
     }
-
+    free(cfgbuf);
     return 0;
 }
 
@@ -567,7 +630,7 @@ void test_dh (void)
     DhKey key1, key2;
     uint32_t privsz1, privsz2, pubsz1, pubsz2, agreesz1, agreesz2;
     unsigned char priv1[128], pub1[128], priv2[128], pub2[128], agree1[128],
-                  agree2[128];
+        agree2[128], scratch[257];
 
     InitDhKey(&key1);
     InitDhKey(&key2);
@@ -611,9 +674,9 @@ void test_dh (void)
     FreeDhKey(&key1);
     FreeDhKey(&key2);
 
-    SGX_DBG(DBG_S, "key exchange(side A): %s (%d)\n", __hex2str(agree1, agreesz1),
+    SGX_DBG(DBG_S, "key exchange(side A): %s (%d)\n", __bytes2hexstr(agree1, agreesz1, scratch, (agreesz1 * 2) + 1),
            agreesz1);
-    SGX_DBG(DBG_S, "key exchange(side B): %s (%d)\n", __hex2str(agree2, agreesz2),
+    SGX_DBG(DBG_S, "key exchange(side B): %s (%d)\n", __bytes2hexstr(agree2, agreesz2, scratch, (agreesz2 * 2) + 1),
            agreesz2);
 }
 #endif
@@ -658,8 +721,9 @@ int init_enclave (void)
 
     pal_enclave_config.enclave_key = rsa;
 
+    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "enclave (software) key hash: %s\n",
-           hex2str(pal_enclave_state.enclave_keyhash));
+            bytes2hexstr(pal_enclave_state.enclave_keyhash, hash_buf, HASHBUF_SIZE));
 
     return 0;
 
@@ -726,7 +790,9 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     for (int i = 0 ; i < agreesz ; i++)
         session_key[i % sizeof(session_key)] ^= agree[i];
 
-    SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key, hex2str(session_key));
+    char key_buf[KEYBUF_SIZE];
+    SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key,
+            bytes2hexstr(session_key, key_buf, KEYBUF_SIZE));
 
     if (keyptr)
         memcpy(keyptr, session_key, sizeof(PAL_SESSION_KEY));
@@ -762,8 +828,9 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
     memcpy(&req.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
 
+    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "Sending attestation request ... (mrenclave = %s)\n",\
-            hex2str(req.mrenclave));
+            bytes2hexstr(req.mrenclave, hash_buf, HASHBUF_SIZE));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(req) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(req) - bytes,
@@ -784,7 +851,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
     }
 
     SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     ret = sgx_verify_report(&att.report);
     if (ret < 0) {
@@ -807,7 +874,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
 
     if (ret == 1) {
         SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
-               hex2str(att.mrenclave));
+                bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -825,7 +892,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
            sizeof(sgx_arch_attributes_t));
 
     SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
@@ -861,8 +928,9 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
         }
     }
 
+    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "Received attestation request ... (mrenclave = %s)\n",
-            hex2str(req.mrenclave));
+            bytes2hexstr(req.mrenclave, hash_buf, HASHBUF_SIZE));
 
     ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &att.report);
     if (ret < 0) {
@@ -875,7 +943,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
            sizeof(sgx_arch_attributes_t));
 
     SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
@@ -896,7 +964,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     ret = sgx_verify_report(&att.report);
     if (ret < 0) {
@@ -917,13 +985,13 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
-                hex2str(att.mrenclave));
+        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
+                bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Remote attestation succeed!\n");
+    SGX_DBG(DBG_S, "Remote attestation succeeded!\n");
     return 0;
 
 out:

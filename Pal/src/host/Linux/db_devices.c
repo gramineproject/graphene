@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -86,9 +86,10 @@ static int parse_device_uri (const char ** uri, const char ** type,
 static inline void
 dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat);
 
-static int char_read (PAL_HANDLE handle, int offset, int count, void * buffer);
-static int char_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer);
+static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          void * buffer);
+static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           const void * buffer);
 static int term_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr);
 static int term_attrquerybyhdl (PAL_HANDLE hdl,
@@ -182,14 +183,15 @@ static struct handle_ops term_ops = {
     };
 
 /* 'read' operation for character streams. */
-static int char_read (PAL_HANDLE handle, int offset, int size, void * buffer)
+static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                          void * buffer)
 {
     int fd = handle->dev.fd_in;
 
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
-    int bytes = INLINE_SYSCALL(read, 3, fd, buffer, size);
+    int64_t bytes = INLINE_SYSCALL(read, 3, fd, buffer, size);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -198,15 +200,15 @@ static int char_read (PAL_HANDLE handle, int offset, int size, void * buffer)
 }
 
 /* 'write' operation for character streams. */
-static int char_write (PAL_HANDLE handle, int offset, int size,
-                      const void * buffer)
+static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                           const void * buffer)
 {
     int fd = handle->dev.fd_out;
 
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
-    int bytes = INLINE_SYSCALL(write, 3, fd, buffer, size);
+    int64_t bytes = INLINE_SYSCALL(write, 3, fd, buffer, size);
 
     if (IS_ERR(bytes))
         return unix_to_pal_error(ERRNO(bytes));
@@ -231,6 +233,7 @@ static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
             return -PAL_ERROR_NOTSUPPORT;
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dev));
+    SET_HANDLE_TYPE(hdl, dev);
     hdl->dev.fd_in  = PAL_IDX_POISON;
     hdl->dev.fd_out = PAL_IDX_POISON;
     *handle = hdl;
@@ -240,7 +243,8 @@ static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 /* 'read' operation for device stream */
-static int dev_read (PAL_HANDLE handle, int offset, int size, void * buffer)
+static int64_t dev_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                         void * buffer)
 {
     const struct handle_ops * ops = DEVICE_OPS(handle);
 
@@ -251,8 +255,8 @@ static int dev_read (PAL_HANDLE handle, int offset, int size, void * buffer)
 }
 
 /* 'write' operation for device stream */
-static int dev_write (PAL_HANDLE handle, int offset, int size,
-                      const void * buffer)
+static int64_t dev_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                          const void * buffer)
 {
     const struct handle_ops * ops = DEVICE_OPS(handle);
 

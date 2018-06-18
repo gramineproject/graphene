@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -29,6 +29,7 @@
 #include <shim_vma.h>
 #include <shim_fs.h>
 #include <shim_checkpoint.h>
+#include <shim_utils.h>
 
 #include <pal.h>
 #include <list.h>
@@ -152,11 +153,10 @@ static IDTYPE get_internal_pid (void)
 
 struct shim_thread * alloc_new_thread (void)
 {
-    struct shim_thread * thread = malloc(sizeof(struct shim_thread));
+    struct shim_thread * thread = calloc(1, sizeof(struct shim_thread));
     if (!thread)
         return NULL;
 
-    memset(thread, 0, sizeof(struct shim_thread));
     REF_SET(thread->ref_count, 1);
     INIT_LISTP(&thread->children);
     INIT_LIST_HEAD(thread, siblings);
@@ -204,8 +204,8 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
                 continue;
 
             thread->signal_handles[i].action =
-                    remalloc(cur_thread->signal_handles[i].action,
-                             sizeof(struct shim_signal_handle));
+                    malloc_copy(cur_thread->signal_handles[i].action,
+                                sizeof(struct shim_signal_handle));
         }
 
         memcpy(&thread->signal_mask, &cur_thread->signal_mask,
@@ -220,11 +220,13 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     } else {
         /* default pid and pgid equals to tid */
         thread->ppid = thread->pgid = thread->tgid = new_tid;
-        path_lookupat(NULL, "/", 0, &thread->root);
+        /* This case should fall back to the global root of the file system.
+         */
+        path_lookupat(NULL, "/", 0, &thread->root, NULL);
         char dir_cfg[CONFIG_MAX];
         if (root_config &&
             get_config(root_config, "fs.start_dir", dir_cfg, CONFIG_MAX) > 0) {
-            path_lookupat(NULL, dir_cfg, 0, &thread->cwd);
+            path_lookupat(NULL, dir_cfg, 0, &thread->cwd, NULL);
         } else if (thread->root) {
             get_dentry(thread->root);
             thread->cwd = thread->root;
@@ -320,16 +322,26 @@ void put_thread (struct shim_thread * thread)
 #endif
 
     if (!ref_count) {
-       if (thread->exec)
+        if (thread->exec)
             put_handle(thread->exec);
 
         if (!IS_INTERNAL(thread))
             release_pid(thread->tid);
 
-        if (MEMORY_MIGRATED(thread))
-            memset(thread, 0, sizeof(struct shim_thread));
-        else
-            free(thread);
+        if (thread->pal_handle &&
+            thread->pal_handle != PAL_CB(first_thread))
+            DkObjectClose(thread->pal_handle);
+
+        if (thread->scheduler_event)
+            DkObjectClose(thread->scheduler_event);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
+        if (thread->child_exit_event)
+            DkObjectClose(thread->child_exit_event);
+        destroy_lock(thread->lock);
+
+        free(thread->signal_logs);
+        free(thread);
     }
 }
 
@@ -345,6 +357,9 @@ void put_simple_thread (struct shim_simple_thread * thread)
     if (!ref_count) {
         /* Simple threads always live on the simple thread list */
         listp_del(thread, &simple_thread_list, list);
+        if (thread->exit_event)
+            DkObjectClose(thread->exit_event);
+        destroy_lock(thread->lock);
         free(thread);
     }
 }
@@ -717,7 +732,7 @@ BEGIN_RS_FUNC(running_thread)
     struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
     struct shim_thread * cur_thread = get_cur_thread();
     thread->in_vm = true;
-    
+
     if (!thread->user_tcb)
         CP_REBASE(thread->tcb);
 
@@ -732,7 +747,7 @@ BEGIN_RS_FUNC(running_thread)
         thread->pal_handle = handle;
     } else {
         __libc_tcb_t * libc_tcb = (__libc_tcb_t *) thread->tcb;
-        
+
         if (libc_tcb) {
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;
             assert(tcb->context.sp);
@@ -743,7 +758,7 @@ BEGIN_RS_FUNC(running_thread)
         } else {
             set_cur_thread(thread);
         }
-        
+
         thread->in_vm = thread->is_alive = true;
         thread->pal_handle = PAL_CB(first_thread);
     }

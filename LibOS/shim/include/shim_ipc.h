@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -540,7 +540,7 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
 int __init_ipc_msg (struct shim_ipc_msg * msg, int code, int size, IDTYPE dest);
 struct shim_ipc_msg * create_ipc_msg (int code, int size, IDTYPE dest);
 
-static_inline
+static_always_inline
 struct shim_ipc_msg * create_ipc_msg_on_stack (int code, int size, IDTYPE dest)
 {
     struct shim_ipc_msg * msg = __alloca(IPC_MSG_SIZE(size));
@@ -553,7 +553,7 @@ int __init_ipc_msg_duplex (struct shim_ipc_msg_obj * msg, int code, int size,
 struct shim_ipc_msg_obj *
 create_ipc_msg_duplex (int code, int size, IDTYPE dest);
 
-static_inline
+static_always_inline
 struct shim_ipc_msg_obj *
 create_ipc_msg_duplex_on_stack (int code, int size, IDTYPE dest)
 {
@@ -568,7 +568,7 @@ int __init_ipc_resp_msg (struct shim_ipc_msg * resp, int ret,
 struct shim_ipc_msg *
 create_ipc_resp_msg (int ret, IDTYPE dest, unsigned long seq);
 
-static_inline
+static_always_inline
 struct shim_ipc_msg *
 create_ipc_resp_msg_on_stack (int ret, IDTYPE dest, unsigned long seq)
 {
@@ -600,11 +600,10 @@ int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
                    void * private_data);
 
 void ipc_parent_exit  (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode, unsigned int term_signal);
+                       unsigned int exitcode);
 void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode, unsigned int term_signal);
+                       unsigned int exitcode);
 
-int create_ipc_helper (void);
 int exit_with_ipc_helper (bool handover);
 
 #define IPC_FORCE_RECONNECT     ((void *) -1)

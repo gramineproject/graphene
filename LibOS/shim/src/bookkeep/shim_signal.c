@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -173,7 +173,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 
 delay:
     {
-        if (!(signal = remalloc(signal,sizeof(struct shim_signal))))
+        if (!(signal = malloc_copy(signal,sizeof(struct shim_signal))))
             goto out;
 
         struct shim_signal ** signal_log = allocate_signal_log(cur_thread, sig);
@@ -256,24 +256,23 @@ internal:
     if (context)
         debug("memory fault at %p (IP = %p)\n", arg, context->IP);
 
-    struct shim_vma * vma = NULL;
+    struct shim_vma_val vma;
     int signo = SIGSEGV;
     int code;
     if (!arg) {
         code = SEGV_MAPERR;
-    } else if (!lookup_supervma((void *) arg, 0, &vma)) {
-        if (vma->flags & VMA_INTERNAL) {
-            put_vma(vma);
+    } else if (!lookup_vma((void *) arg, &vma)) {
+        if (vma.flags & VMA_INTERNAL) {
             goto internal;
         }
-        if (vma->file && vma->file->type == TYPE_FILE) {
+        if (vma.file && vma.file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
              * then return a SIGBUS. */
-            uint64_t eof_in_vma = (uint64_t) vma->addr + vma->offset + vma->file->info.file.size;
+            uint64_t eof_in_vma = (uint64_t) vma.addr + vma.offset + vma.file->info.file.size;
             if (arg > eof_in_vma) {
                 signo = SIGBUS;
                 code = BUS_ADRERR;
-            } else if ((context->err & 4) && !(vma->flags & PROT_WRITE)) {
+            } else if ((context->err & 4) && !(vma.flags & PROT_WRITE)) {
                 /* DEP 3/3/17: If the page fault gives a write error, and
                  * the VMA is read-only, return SIGSEGV+SEGV_ACCERR */
                 signo = SIGSEGV;
@@ -286,7 +285,6 @@ internal:
         } else {
             code = SEGV_ACCERR;
         }
-        put_vma(vma);
     } else {
         code = SEGV_MAPERR;
     }
@@ -306,21 +304,15 @@ internal:
         goto ret_exception;
     }
 
-    struct shim_vma * vma = NULL;
+    struct shim_vma_val vma;
 
-    if (!(lookup_supervma((void *) arg, 0, &vma)) &&
-        !(vma->flags & VMA_INTERNAL)) {
+    if (!(lookup_vma((void *) arg, &vma)) &&
+        !(vma.flags & VMA_INTERNAL)) {
         if (context)
             debug("illegal instruction at %p\n", context->IP);
 
-        if (vma)
-            put_vma(vma);
-
         deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
     } else {
-        if (vma)
-            put_vma(vma);
-
         goto internal;
     }
 

@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -74,25 +74,13 @@ out:
     return (mode & acc);
 }
 
-int _DkStreamFile (PAL_HANDLE hdl, PAL_HANDLE * file)
-{
-    if (IS_HANDLE_TYPE(hdl, file)) {
-        _DkObjectReference(hdl);
-        *file = hdl;
-        return 0;
-    }
-
-    /* for other types of handles, try to save it to a local file */
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 {
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (HANDLE_HDR(handle)->flags & (RFD(i)|WFD(i))) {
             long flags = enable ? FD_CLOEXEC : 0;
             int ret = INLINE_SYSCALL(fcntl, 3,
-                                     HANDLE_HDR(handle)->fds[i], F_SETFD,
+                                     handle->generic.fds[i], F_SETFD,
                                      flags);
             if (IS_ERR(ret) && ERRNO(ret) != EBADF)
                 return -PAL_ERROR_DENIED;
@@ -219,7 +207,7 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
         case pal_type_pipesrv:
         case pal_type_pipecli:
         case pal_type_pipeprv:
-            hdl = remalloc(hdl_data, hdlsz);
+            hdl = malloc_copy(hdl_data, hdlsz);
             break;
         case pal_type_dev: {
             int l = hdl_data->dev.realpath ? strlen((const char *) data) + 1 : 0;
@@ -270,7 +258,7 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
         }
         case pal_type_gipc:
         case pal_type_process:
-            hdl = remalloc(hdl_data, hdlsz);
+            hdl = malloc_copy(hdl_data, hdlsz);
             break;
         default :
             return -PAL_ERROR_BADHANDLE;
@@ -305,7 +293,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (HANDLE_HDR(cargo)->flags & (RFD(i)|WFD(1))) {
             hdl_hdr.fds |= 1U << i;
-            fds[nfds++] = HANDLE_HDR(cargo)->fds[i];
+            fds[nfds++] = cargo->generic.fds[i];
         }
 
     // ~ Initialize common parameter formessage passing
@@ -457,7 +445,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < total_fds) {
-                HANDLE_HDR(handle)->fds[i] = ((int *) CMSG_DATA(chdr))[n++];
+                handle->generic.fds[i] = ((int *) CMSG_DATA(chdr))[n++];
             } else {
                 HANDLE_HDR(handle)->flags &= ~(RFD(i)|WFD(i));
             }

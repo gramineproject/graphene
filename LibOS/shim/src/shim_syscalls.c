@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -178,23 +178,6 @@ DEFINE_SHIM_SYSCALL (mprotect, 3, shim_do_mprotect, int, void *, addr, size_t,
 DEFINE_SHIM_SYSCALL (munmap, 2, shim_do_munmap, int, void *, addr, size_t, len)
 
 DEFINE_SHIM_SYSCALL (brk, 1, shim_do_brk, void *, void *, brk)
-
-#if 0 /* implemented */
-void * shim_do_brk (void * brk)
-{
-    brk = NULL; /* fix the warning */
-
-    /* lets return 0 ;
-     * libc falls back to mmap options if brk fails
-
-     * Following are comments from libc / malloc.c
-     *
-     *    If you'd like mmap to ALWAYS be, used, you can define MORECORE to be
-     *       a function that always returns MORECORE_FAILURE.
-     */
-    return (void *) -ENOMEM;
-}
-#endif
 
 /* rt_sigaction: sys/shim_sigaction.c */
 DEFINE_SHIM_SYSCALL (rt_sigaction, 4, shim_do_sigaction, int, int, signum,

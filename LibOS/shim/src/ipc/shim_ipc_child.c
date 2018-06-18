@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -82,7 +82,7 @@ static int ipc_thread_exit (IDTYPE vmid, IDTYPE ppid, IDTYPE tid,
 }
 
 void ipc_parent_exit (struct shim_ipc_port * port, IDTYPE vmid,
-                      unsigned int exitcode, unsigned int term_signal)
+                      unsigned int exitcode)
 {
     debug("ipc port %p of process %u closed suggests parent exiting\n",
           port, vmid);
@@ -159,12 +159,19 @@ int remove_child_thread (IDTYPE vmid, unsigned int exitcode, unsigned int term_s
 }
 
 void ipc_child_exit (struct shim_ipc_port * port, IDTYPE vmid,
-                     unsigned int exitcode, unsigned int term_signal)
+                     unsigned int exitcode)
 {
     debug("ipc port %p of process %u closed suggests child exiting\n",
           port, vmid);
 
-    remove_child_thread(vmid, 0, term_signal);
+    /*
+     * Chia-Che 12/12/2017:
+     * Can't assume there is a termination signal. this callback
+     * is only called when the child process is not responding, and
+     * under this circumstance can only assume the child process
+     * has encountered severe failure, hence SIGKILL.
+     */
+    remove_child_thread(vmid, exitcode, SIGKILL);
 }
 
 static struct shim_ipc_port * get_parent_port (IDTYPE * dest)
@@ -185,7 +192,7 @@ DEFINE_PROFILE_INTERVAL(ipc_cld_exit_callback, ipc);
 
 int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal)
 {
-    unsigned long send_time = GET_PROFILE_INTERVAL();
+    __attribute__((unused)) unsigned long send_time = GET_PROFILE_INTERVAL();
     BEGIN_PROFILE_INTERVAL_SET(send_time);
     int ret = 0;
 

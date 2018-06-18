@@ -25,33 +25,10 @@ $(LINUXDIR)Makefile: Makefile.lmbench
 build-manifest: $(LINUXDIR) $(LINUXDIR)Makefile
 	$(MAKE) -C $(LINUXDIR)
 
-ifeq ($(SYS),x86_64-linux-gnu)
-
 $(lmbench_tests): $(LINUXDIR) build-manifest
 
 $(LINUXDIR): $(wildcard $(LMBENCHDIR)/src/*.c) $(wildcard $(LMBENCHDIR)/src/*.h)
 	$(MAKE) -C $(LMBENCHDIR)/src OS=linux
-
-.PHONY: pack
-$(addprefix host,$(host_files)):
-	@echo "$(patsubst host%,%,$@) -> $@"
-	@mkdir -p $(dir $@)
-	@cp -LTrf $(patsubst host%,%,$@) $@
-
-pack: $(host_files) $(lmbench_tests) $(manifests)
-	@../../../../../Scripts/pack_binaries.sh lmbench $^
-
-else
-
-all: $(addprefix /tmp/host,$(HOST_BINARIES))
-
-$(filter-out $(HOST_BINARIES),$(BINARIES)): .packed/lmbench.tar.gz
-	tar -xmozf $< $@
-
-$(addprefix /tmp/host,$(HOST_BINARIES)): .packed/lmbench.tar.gz
-	cd /tmp && tar -xmozf $(abspath $<) $(subst /tmp/,,$@)
-
-endif
 
 lmbench_config = $(LINUXDIR)$(shell $(LMBENCHDIR)/scripts/config)
 
@@ -67,10 +44,10 @@ test-graphene: all $(lmbench_config)
 		./results
 
 regression: all
-	cp -f lmbench-regression $(LMBENCHDIR)/bin/linux
+	cp -f $(LMBENCHDIR)/lmbench-regression $(LMBENCHDIR)/bin/linux
 	cd $(LMBENCHDIR)/bin/linux && \
 		env LOADER=./pal_loader OS=linux \
-		./lmbench-regression
+		./lmbench-regression 
 
 clean-lmbench:
 	$(MAKE) -C $(LMBENCHDIR) clean

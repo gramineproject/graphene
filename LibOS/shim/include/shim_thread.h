@@ -57,7 +57,7 @@ struct shim_thread {
     /* signal handling */
     __sigset_t signal_mask;
     struct shim_signal_handle signal_handles[NUM_SIGS];
-    struct shim_atomic has_signal;
+    struct atomic_int has_signal;
     struct shim_signal_log * signal_logs;
     bool suspend_on_signal;
     stack_t signal_altstack;
@@ -87,9 +87,6 @@ struct shim_thread {
     void * tcb;
     bool user_tcb; /* is tcb assigned by user? */
     void * frameptr;
-
-    /* to save vma bookkeeping */
-    struct { void * addr; uint64_t length; } delayed_bkeep_mmap;
 
     REFTYPE ref_count;
     LOCKTYPE lock;
@@ -171,12 +168,6 @@ void set_cur_thread (struct shim_thread * thread)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
     IDTYPE tid = 0;
-
-#ifndef container_of
-# define container_of(ptr, type, member) ({                 \
-    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-    (type *)( (char *)__mptr - offsetof(type,member) );})
-#endif
 
     if (thread) {
         if (tcb->tp && tcb->tp != thread)

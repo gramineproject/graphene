@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -25,22 +25,6 @@
  * 
  * When existing slabs are not sufficient, or a large (4k or greater) 
  * allocation is requested, it ends up here (__system_alloc and __system_free).
- * 
- * There are two modes this file executes in: early initialization (before
- * VMAs are available), and post-initialization.  
- * 
- * Before VMAs are available, allocations are tracked in the shim_heap_areas
- * array.  
- *
- * Once VMAs initialized, the contents of shim_heap_areas are added to the VMA
- * list.  In order to reduce the risk of virtual address collisions, the VMA 
- * for the shim_heap_area is never removed, but the pages themselves are
- * freed.   This approach effectively reserves part of the address space for
- * initialization-time bookkeeping.
- * 
- * After initialization, all allocations and frees just call
- * DkVirtualMemoryAlloc and DkVirtualMemory Free, and add/remove VMAs for the
- * results.
  */
 
 #include <shim_internal.h>
@@ -65,176 +49,52 @@ static LOCKTYPE slab_mgr_lock;
 #endif
 
 #define SLAB_CANARY
-#define STARTUP_SIZE    4
+#define STARTUP_SIZE    16
 
 #include <slabmgr.h>
 
 static SLAB_MGR slab_mgr = NULL;
 
-#define MIN_SHIM_HEAP_PAGES      64
-#define MAX_SHIM_HEAP_AREAS      32
-
-#define INIT_SHIM_HEAP     256 * allocsize
-
-static int vmas_initialized = 0;
-
-static struct shim_heap {
-    void * start;
-    void * current;
-    void * end;
-} shim_heap_areas[MAX_SHIM_HEAP_AREAS];
-
-static LOCKTYPE shim_heap_lock;
-
 DEFINE_PROFILE_CATAGORY(memory, );
 
-static struct shim_heap * __alloc_enough_heap (size_t size)
-{
-    struct shim_heap * heap = NULL, * first_empty = NULL, * smallest = NULL;
-    size_t smallest_size = 0;
-
-    for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
-        if (shim_heap_areas[i].start) {
-            if (shim_heap_areas[i].end >= shim_heap_areas[i].current + size)
-                return &shim_heap_areas[i];
-
-            if (!smallest ||
-                shim_heap_areas[i].end <=
-                shim_heap_areas[i].current + smallest_size) {
-                smallest = &shim_heap_areas[i];
-                smallest_size = shim_heap_areas[i].end -
-                                shim_heap_areas[i].current;
-            }
-        } else {
-            if (!first_empty)
-                first_empty = &shim_heap_areas[i];
-        }
-
-    if (!heap) {
-        size_t heap_size = MIN_SHIM_HEAP_PAGES * allocsize;
-        void * start = NULL;
-        heap = first_empty ? : smallest;
-        assert(heap);
-
-        while (size > heap_size)
-            heap_size *= 2;
-
-        if (!(start = (void *) DkVirtualMemoryAlloc(NULL, heap_size, 0,
-                                    PAL_PROT_WRITE|PAL_PROT_READ)))
-            return NULL;
-
-        debug("allocate internal heap at %p - %p\n", start, start + heap_size);
-
-        if (heap == smallest && heap->current != heap->end) {
-            DkVirtualMemoryFree(heap->current, heap->end - heap->current);
-            int flags = VMA_INTERNAL;
-            unlock(shim_heap_lock);
-            bkeep_munmap(heap->current, heap->end - heap->current, &flags);
-            lock(shim_heap_lock);
-        }
-
-        heap->start = heap->current = start;
-        heap->end = start + heap_size;
-
-        unlock(shim_heap_lock);
-        bkeep_mmap(start, heap_size, PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
-        lock(shim_heap_lock);
-    }
-
-    return heap;
-}
-
+/* Returns NULL on failure */
 void * __system_malloc (size_t size)
 {
     size_t alloc_size = ALIGN_UP(size);
-    void *addr;
-    
-    lock(shim_heap_lock);
+    void * addr;
+    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
 
-    if (vmas_initialized) {
-        addr = (void *) DkVirtualMemoryAlloc(NULL, alloc_size, 0,
-                                             PAL_PROT_WRITE|PAL_PROT_READ);
-        bkeep_mmap(addr, alloc_size, PROT_READ|PROT_WRITE,
-                   MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
-    } else {
+    /*
+     * If vmas are initialized, we need to request a free address range
+     * using bkeep_unmapped_any().  The current mmap code uses this function
+     * to synchronize all address allocation, via a "publication"
+     * pattern.  It is not safe to just call DkVirtualMemoryAlloc directly
+     * without reserving the vma region first.
+     */
+    addr = bkeep_unmapped_any(alloc_size, PROT_READ|PROT_WRITE, flags,
+                              NULL, 0, "slab");
 
-        struct shim_heap * heap = __alloc_enough_heap(alloc_size);
+    if (!addr)
+        return NULL;
 
-        if (!heap) {
-            unlock(shim_heap_lock);
-            return NULL;
-        }
+    void * ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0,
+                                           PAL_PROT_WRITE|PAL_PROT_READ);
 
-        addr = heap->current;
-        heap->current += alloc_size;
+    if (!ret_addr) {
+        bkeep_munmap(addr, alloc_size, flags);
+        return NULL;
     }
 
-    unlock(shim_heap_lock);
-
+    assert(addr == ret_addr);
     return addr;
 }
 
 void __system_free (void * addr, size_t size)
 {
-    int in_reserved_area = 0;
     DkVirtualMemoryFree(addr, ALIGN_UP(size));
-    int flags = VMA_INTERNAL;
-    for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
-        if (shim_heap_areas[i].start) {
-            /* Here we assume that any allocation from the 
-             * shim_heap_area is a strict inclusion.  Allocations
-             * cannot partially overlap.
-             */
-            if (addr >= shim_heap_areas[i].start
-                && addr <= shim_heap_areas[i].end)
-                in_reserved_area = 1;
-        }
-    
-    if (! in_reserved_area)
-        bkeep_munmap(addr, ALIGN_UP(size), &flags);
-}
 
-int init_heap (void)
-{
-    create_lock(shim_heap_lock);
-
-    void * start = (void *) DkVirtualMemoryAlloc(NULL, INIT_SHIM_HEAP, 0,
-                                    PAL_PROT_WRITE|PAL_PROT_READ);
-    if (!start)
-        return -ENOMEM;
-
-    debug("allocate internal heap at %p - %p\n", start,
-          start + INIT_SHIM_HEAP);
-
-    shim_heap_areas[0].start = shim_heap_areas[0].current = start;
-    shim_heap_areas[0].end = start + INIT_SHIM_HEAP;
-
-    return 0;
-}
-
-int bkeep_shim_heap (void)
-{
-    lock(shim_heap_lock);
-    
-    for (int i = 0 ; i < MAX_SHIM_HEAP_AREAS ; i++)
-        if (shim_heap_areas[i].start) {
-            /* Add a VMA for the active region */
-            bkeep_mmap(shim_heap_areas[i].start,
-                       shim_heap_areas[i].current - shim_heap_areas[i].start,
-                       PROT_READ|PROT_WRITE,
-                       MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL, NULL, 0, NULL);
-            /* Go ahead and free the reserved region */
-            if (shim_heap_areas[i].current < shim_heap_areas[i].end) {
-                DkVirtualMemoryFree(shim_heap_areas[i].current,
-                                    ALIGN_UP(((long unsigned int) shim_heap_areas[i].end) - ((long unsigned int) shim_heap_areas[i].current)));
-                shim_heap_areas[i].end = shim_heap_areas[i].current;
-            }
-        }
-    vmas_initialized = 1;
-    
-    unlock(shim_heap_lock);
-    return 0;
+    if (bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL) < 0)
+        bug();
 }
 
 int init_slab (void)
@@ -317,6 +177,16 @@ void * malloc (size_t size)
     void * mem = slab_alloc(slab_mgr, size);
 #endif
 
+    if (!mem) {
+        /*
+         * Normally, the library OS should not run out of memory.
+         * If malloc() failed internally, we cannot handle the
+         * condition and must terminate the current process.
+         */
+        sys_printf("******** Out-of-memory in library OS ********\n");
+        __abort();
+    }
+
 #ifdef SLAB_DEBUG_PRINT
     debug("malloc(%d) = %p (%s:%d)\n", size, mem, file, line);
 #endif
@@ -328,7 +198,10 @@ extern_alias(malloc);
 
 void * calloc (size_t nmemb, size_t size)
 {
+    // This overflow checking is not a UB, because the operands are unsigned.
     size_t total = nmemb * size;
+    if (total / size != nmemb)
+        return NULL;
     void *ptr = malloc(total);
     if (ptr)
         memset(ptr, 0, total);
@@ -336,11 +209,41 @@ void * calloc (size_t nmemb, size_t size)
 }
 extern_alias(calloc);
 
+#if 0 /* Temporarily disabling this code */
+void * realloc(void * ptr, size_t new_size)
+{
+    /* TODO: We can't deal with this case right now */
+    assert(!MEMORY_MIGRATED(ptr));
+
+    size_t old_size = slab_get_buf_size(slab_mgr, ptr);
+
+    /*
+     * TODO: this realloc() implementation follows the GLIBC design, which
+     * will avoid reallocation when the buffer is large enough. Potentially
+     * this design can cause memory draining if user resizes an extremely
+     * large object to much smaller.
+     */
+    if (old_size >= new_size)
+        return ptr;
+
+    void * new_buf = malloc(new_size);
+    if (!new_buf)
+        return NULL;
+
+    memcpy(new_buf, ptr, old_size);
+    /* realloc() does not zero the rest of the object */
+    free(ptr);
+    return new_buf;
+}
+extern_alias(realloc);
+#endif
+
+// Copies data from `mem` to a newly allocated buffer of a specified size.
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
-void * __remalloc_debug (const void * mem, size_t size,
-                   const char * file, int line)
+void * __malloc_copy_debug (const void * mem, size_t size,
+                         const char * file, int line)
 #else
-void * remalloc (const void * mem, size_t size)
+void * malloc_copy (const void * mem, size_t size)
 #endif
 {
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
@@ -353,7 +256,7 @@ void * remalloc (const void * mem, size_t size)
     return buff;
 }
 #if !defined(SLAB_DEBUG_PRINT) && !defined(SLABD_DEBUG_TRACE)
-extern_alias(remalloc);
+extern_alias(malloc_copy);
 #endif
 
 DEFINE_PROFILE_OCCURENCE(free_0, memory);

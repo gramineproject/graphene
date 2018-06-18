@@ -16,7 +16,7 @@ $(SRCDIR).tar.xz:
 	wget $(SRCURL)/$(SRCVERSION)/$@
 
 $(SRCDIR)/configure: $(SRCDIR).tar.xz
-	tar -xJf $<
+	tar -xmJf $<
 	cd $(SRCDIR) && make autotools
 
 $(BUILDDIR)/runltp: $(SRCDIR)/configure

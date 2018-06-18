@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -35,11 +35,11 @@
 #define extern_alias(name) \
     extern __typeof(name) shim_##name __attribute ((alias (alias_str(name))))
 
-#define static_inline static inline __attribute__((always_inline))
+#define static_always_inline static inline __attribute__((always_inline))
 
 #include <shim_types.h>
 #include <shim_defs.h>
-#include <shim_atomic.h>
+#include <atomic.h>
 #include <shim_tls.h>
 
 /* important macros */
@@ -70,9 +70,9 @@ void debug_puts (const char * str);
 void debug_putch (int ch);
 void debug_vprintf (const char * fmt, va_list * ap);
 
-# define VMID_PREFIX     "[P%04u] "
-# define TID_PREFIX      "[%-5u] "
-# define NOID_PREFIX     "[     ] "
+# define VMID_PREFIX     "[P%05u] "
+# define TID_PREFIX      "[%-6u] "
+# define NOID_PREFIX     "[      ] "
 # define debug(fmt, ...)                                                    \
     do {                                                                    \
         if (debug_handle)                                                   \
@@ -474,7 +474,7 @@ static inline void enable_preempt (shim_tcb_t * tcb)
 
 #define create_lock(l)                          \
     do {                                        \
-        (l).lock = DkSemaphoreCreate(0, 1);     \
+        (l).lock = DkMutexCreate(0);               \
         /* (l).owner = LOCK_FREE;               */ \
         /* (l).reowned = 0;                     */ \
     } while (0)
@@ -532,7 +532,7 @@ static inline void __unlock (LOCKTYPE * l)
 #endif
 
     l->owner = 0;
-    DkSemaphoreRelease(l->lock, 1);
+    DkMutexRelease(l->lock);
     enable_preempt(tcb);
 }
 
@@ -555,11 +555,11 @@ extern LOCKTYPE __master_lock;
 # define master_lock()                                              \
     do {                                                            \
         lock(__master_lock);                                        \
-        pal_printf("maste lock " __FILE__ ":%d\n", __LINE__);       \
+        pal_printf("master lock " __FILE__ ":%d\n", __LINE__);       \
     } while (0)
 # define master_unlock()                                            \
     do {                                                            \
-        pal_printf("maste unlock " __FILE__ ":%d\n", __LINE__);     \
+        pal_printf("master unlock " __FILE__ ":%d\n", __LINE__);     \
         unlock(__master_lock);                                      \
     } while (0)
 #else
@@ -657,9 +657,11 @@ static inline int __ref_dec (REFTYPE * ref)
     register int _c;
     do {
         _c = atomic_read(ref);
-        assert(_c > 0);
-        if (!_c)
+        if (!_c) {
+            debug("Fail: Trying to drop reference count below 0\n");
+            bug();
             return 0;
+        }
     } while (atomic_cmpxchg(ref, _c, _c - 1) != _c);
     return _c - 1;
 }
@@ -708,8 +710,8 @@ extern void * migrated_memory_start;
 extern void * migrated_memory_end;
 
 #define MEMORY_MIGRATED(mem)                                    \
-        ((void *) mem >= migrated_memory_start &&               \
-         (void *) mem < migrated_memory_end)
+        ((void *) (mem) >= migrated_memory_start &&             \
+         (void *) (mem) < migrated_memory_end)
 
 extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;

@@ -1,6 +1,11 @@
 Test,Subtest number
 accept01,1
 accept01,2
+accept01,3
+accept01,4
+accept01,5
+accept01,6
+accept01,7
 accept4_01,1
 accept4_01,2
 accept4_01,3
@@ -9,6 +14,9 @@ alarm01,1
 alarm02,1
 alarm02,2
 alarm02,3
+alarm03,2
+alarm05,1
+alarm06,1
 asyncio02,1
 asyncio02,2
 asyncio02,3
@@ -16,6 +24,8 @@ asyncio02,4
 asyncio02,5
 asyncio02,6
 brk01,1
+chdir01,1
+chdir02,1
 chmod01,1
 chmod01,2
 chmod01,3
@@ -33,6 +43,7 @@ chmod02,6
 chmod02,7
 chmod02,8
 chmod03,1
+chmod04,1
 chown01,1
 chroot02,1
 clock_getres01,2
@@ -45,7 +56,6 @@ clock_getres01,9
 clock_getres01,10
 clock_getres01,11
 clock_getres01,12
-clock_nanosleep01,11
 clone01,1
 clone03,1
 clone04,1
@@ -74,6 +84,7 @@ confstr01,16
 confstr01,17
 confstr01,18
 confstr01,19
+connect01,1
 creat01,2
 creat01,3
 creat01,4
@@ -84,8 +95,12 @@ creat03,3
 dup01,1
 dup02,1
 dup02,2
+dup04,1
+dup04,2
 dup07,1
 dup07,2
+dup201,1
+dup201,2
 dup202,1
 dup202,2
 dup203,1
@@ -177,6 +192,10 @@ fstat01,1
 fstat01_64,1
 fstat03,1
 fstat03_64,1
+fstatat01,2
+fstatat01,4
+fstatat01,5
+fstatat01,6
 fsync01,1
 fsync03,1
 ftruncate01,1
@@ -193,7 +212,6 @@ futex_wait01,1
 futex_wait01,2
 futex_wait01,3
 futex_wait01,4
-futex_wait03,1
 futex_wait04,1
 futex_wait05,1
 futex_wait_bitset01,1
@@ -225,6 +243,8 @@ getitimer01,5
 getpagesize01,1
 getpeername01,1
 getpeername01,2
+getpeername01,3
+getpeername01,4
 getpgid01,1
 getpgid01,2
 getpgrp01,1
@@ -237,13 +257,18 @@ getrlimit01,6
 getrlimit01,8
 getrlimit01,10
 getsid01,1
+getsockname01,3
+getsockname01,4
 getsockopt01,1
 getsockopt01,2
+getsockopt01,3
+getsockopt01,4
+getsockopt01,8
+getsockopt01,9
 gettid01,1
 getuid01,1
 getuid03,1
 kill01,1
-kill03,1
 kill09,1
 listen01,1
 listen01,2
@@ -277,6 +302,11 @@ memcpy01,3
 memset01,1
 memset01,2
 mkdir08,1
+mkdirat01,1
+mkdirat01,2
+mkdirat01,3
+mkdirat01,4
+mkdirat01,5
 mlock03,1
 mmap001,1
 mmap001,2
@@ -306,7 +336,9 @@ munmap02,1
 nanosleep01,1
 nanosleep03,1
 newuname01,1
+open01,2
 open03,1
+open08,1
 open09,1
 open09,2
 pathconf01,1
@@ -323,7 +355,6 @@ pipe10,1
 pipe2_01,1
 poll01,1
 poll01,2
-poll02,1
 pread01,1
 pread01_64,1
 pread02,1
@@ -716,7 +747,6 @@ sendfile03,3
 sendfile03_64,1
 sendfile03_64,2
 sendfile03_64,3
-sendfile05,1
 sendfile05_64,1
 setgid01,1
 setitimer01,1
@@ -727,6 +757,11 @@ setpgrp02,1
 setrlimit01,1
 setsockopt01,1
 setsockopt01,2
+setsockopt01,3
+setsockopt01,5
+setsockopt01,6
+setsockopt01,7
+setsockopt01,8
 set_tid_address01,1
 settimeofday01,3
 setuid01,1
@@ -933,8 +968,6 @@ waitpid01,2
 waitpid02,1
 waitpid02,2
 waitpid02,3
-waitpid03,1
-waitpid03,2
 waitpid05,1
 waitpid05,2
 waitpid05,3

@@ -239,7 +239,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     sgx_arch_sigstruct_t enclave_sigstruct;
     sgx_arch_secs_t      enclave_secs;
     unsigned long        enclave_entry_addr;
-    unsigned long        enclave_thread_gprs[MAX_DBG_THREADS];
+    void *               tcs_addrs[MAX_DBG_THREADS];
     unsigned long        heap_min = DEAFULT_HEAP_MIN;
 
 #define TRY(func, ...)                                              \
@@ -430,7 +430,6 @@ int initialize_enclave (struct pal_enclave * enclave)
                     enclave_secs.baseaddr;
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
-                enclave_thread_gprs[t] = (unsigned long) gs->gpr;
             }
 
             goto add_pages;
@@ -446,12 +445,14 @@ int initialize_enclave (struct pal_enclave * enclave)
                 memset(tcs, 0, pagesize);
                 tcs->ossa = ssa_area->addr +
                     enclave->ssaframesize * SSAFRAMENUM * t;
-                tcs->nssa = 2;
+                tcs->nssa = SSAFRAMENUM;
                 tcs->oentry = enclave_entry_addr;
                 tcs->ofsbasgx = 0;
                 tcs->ogsbasgx = tls_area->addr + t * pagesize;
                 tcs->fslimit = 0xfff;
                 tcs->gslimit = 0xfff;
+                tcs_addrs[t] = (void *) enclave_secs.baseaddr + tcs_area->addr
+                    + pagesize * t;
             }
 
             goto add_pages;
@@ -514,10 +515,11 @@ add_pages:
     dbg->pid = INLINE_SYSCALL(getpid, 0);
     dbg->base = enclave->baseaddr;
     dbg->size = enclave->size;
-    dbg->aep = (unsigned long) async_exit_pointer;
+    dbg->ssaframesize = enclave->ssaframesize;
+    dbg->aep  = async_exit_pointer;
     dbg->thread_tids[0] = dbg->pid;
     for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
-        dbg->thread_gprs[i] = enclave_thread_gprs[i];
+        dbg->tcs_addrs[i] = tcs_addrs[i];
 
     return 0;
 err:
@@ -588,57 +590,29 @@ static int mcast_c (int port)
 
 static unsigned long randval = 0;
 
-int getrand (void * buffer, int size)
+void getrand (void * buffer, size_t size)
 {
-    unsigned long val;
-    int bytes = 0;
+    size_t bytes = 0;
 
-    val = randval;
-    randval++;
-
-    while (bytes + sizeof(unsigned long) <= size) {
-        *(unsigned long *) (buffer + bytes) = val;
-        val = hash64(val);
-        bytes += sizeof(unsigned long);
+    while (bytes + sizeof(uint64_t) <= size) {
+        *(uint64_t*) (buffer + bytes) = randval;
+        randval = hash64(randval);
+        bytes += sizeof(uint64_t);
     }
 
     if (bytes < size) {
-        switch (size - bytes) {
-            case 4:
-                *(unsigned int *) (buffer + bytes) = randval & 0xffffffff;
-                bytes += 4;
-                break;
-
-            case 2:
-                *(unsigned short *) (buffer + bytes) = randval & 0xffff;
-                bytes += 2;
-                break;
-
-            case 1:
-                *(unsigned char *) (buffer + bytes) = randval & 0xff;
-                bytes++;
-                break;
-
-            default: break;
-        }
+        memcpy(buffer + bytes, &randval, size - bytes);
         randval = hash64(randval);
     }
-
-    randval = val;
-    return bytes;
 }
 
-static int create_instance (struct pal_sec * pal_sec)
+static void create_instance (struct pal_sec * pal_sec)
 {
     unsigned int id;
-    if (!getrand(&id, sizeof(unsigned int))) {
-        SGX_DBG(DBG_E, "Unable to generate random numbers\n");
-        return -PAL_ERROR_DENIED;
-    }
+    getrand(&id, sizeof(id));
     snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix),
              "/graphene/%x/", id);
     pal_sec->instance_id = id;
-    return 0;
 }
 
 int load_manifest (int fd, struct config_store ** config_ptr)
@@ -843,8 +817,8 @@ static int load_enclave (struct pal_enclave * enclave,
     /* start running trusted PAL */
     ecall_enclave_start(arguments, environments);
 
-    PAL_NUM exit_time = 0;
 #if PRINT_ENCLAVE_STAT == 1
+    PAL_NUM exit_time = 0;
     INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
     exit_time = tv.tv_sec * 1000000UL + tv.tv_usec;
 #endif

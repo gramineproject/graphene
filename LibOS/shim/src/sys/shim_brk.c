@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -73,6 +73,8 @@ int init_brk_region (void * brk_region)
             brk_max_size = DEFAULT_BRK_MAX_SIZE;
     }
 
+    int flags = MAP_PRIVATE|MAP_ANONYMOUS;
+
     /*
      * Chia-Che 8/24/2017
      * Adding an argument to specify the initial starting
@@ -87,30 +89,42 @@ int init_brk_region (void * brk_region)
             rand %= 0x2000000;
             rand = ALIGN_UP(rand);
 
-            struct shim_vma * vma;
+            struct shim_vma_val vma;
             if (lookup_overlap_vma(brk_region + rand, brk_max_size, &vma)
                 == -ENOENT) {
                 brk_region += rand;
                 break;
             }
 
-            brk_region = vma->addr + vma->length;
-            put_vma(vma);
+            brk_region = vma.addr + vma.length;
         }
+
+        /*
+         * Create the bookkeeping before allocating the brk region.
+         * The bookkeeping should never fail because we've already confirmed
+         * the availability.
+         */
+        if (bkeep_mmap(brk_region, brk_max_size, PROT_READ|PROT_WRITE,
+                       flags|VMA_UNMAPPED, NULL, 0, "brk") < 0)
+            bug();
     } else {
-        brk_region = get_unmapped_vma(brk_max_size,
-                                      MAP_PRIVATE|MAP_ANONYMOUS);
+        brk_region = bkeep_unmapped_heap(brk_max_size, PROT_READ|PROT_WRITE,
+                                         flags|VMA_UNMAPPED, NULL, 0, "brk");
         if (!brk_region)
             return -ENOMEM;
     }
 
     void * end_brk_region = NULL;
 
-    // brk region assigned
-    brk_region = (void *) DkVirtualMemoryAlloc(brk_region, brk_max_size, 0,
-                                    PAL_PROT_READ|PAL_PROT_WRITE);
-    if (!brk_region)
+    /* Allocate the whole brk region */
+    void * ret = (void *) DkVirtualMemoryAlloc(brk_region, brk_max_size, 0,
+                                               PAL_PROT_READ|PAL_PROT_WRITE);
+
+    /* Checking if the PAL call succeeds. */
+    if (!ret) {
+        bkeep_munmap(brk_region, brk_max_size, flags);
         return -ENOMEM;
+    }
 
     ADD_PROFILE_OCCURENCE(brk, brk_max_size);
     INC_PROFILE_OCCURENCE(brk_count);
@@ -125,12 +139,14 @@ int init_brk_region (void * brk_region)
     debug("brk reserved area: %p - %p\n", end_brk_region,
           brk_region + brk_max_size);
 
-    bkeep_mmap(brk_region, BRK_SIZE, PROT_READ|PROT_WRITE,
-               MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "[heap]");
-    bkeep_mmap(end_brk_region, brk_max_size - BRK_SIZE,
-               PROT_READ|PROT_WRITE,
-               MAP_ANONYMOUS|MAP_PRIVATE|VMA_UNMAPPED,
-               NULL, 0, NULL);
+    /*
+     * Create another bookkeeping for the current brk region. The remaining
+     * space will be marked as unmapped so that the library OS can reuse the
+     * space for other purpose.
+     */
+    if (bkeep_mmap(brk_region, BRK_SIZE, PROT_READ|PROT_WRITE, flags,
+                   NULL, 0, "brk") < 0)
+        bug();
 
     return 0;
 }
@@ -161,7 +177,12 @@ int reset_brk (void)
 void * shim_do_brk (void * brk)
 {
     master_lock();
-    init_brk_region(NULL);
+
+    if (init_brk_region(NULL) < 0) {
+        debug("Failed to initialize brk!\n");
+        brk = NULL;
+        goto out;
+    }
 
     if (!brk) {
 unchanged:
@@ -186,7 +207,7 @@ unchanged:
 
         bkeep_mmap(region.brk_start, brk_end - region.brk_start,
                    PROT_READ|PROT_WRITE,
-                   MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "heap");
+                   MAP_ANONYMOUS|MAP_PRIVATE, NULL, 0, "brk");
 
         region.brk_current = brk;
         region.brk_end = brk_end;
@@ -220,25 +241,35 @@ BEGIN_RS_FUNC(brk)
 
     debug("brk area: %p - %p\n", region.brk_start, region.brk_end);
 
-    unsigned long brk_size = region.brk_end - region.brk_start;
+    size_t brk_size = region.brk_end - region.brk_start;
 
     if (brk_size < brk_max_size) {
-        void * brk_region = (void *) DkVirtualMemoryAlloc(region.brk_end,
-                                            brk_max_size - brk_size, 0,
-                                            PAL_PROT_READ|PAL_PROT_WRITE);
-        if (brk_region != region.brk_end)
-            return -EACCES;
+        void * alloc_addr = region.brk_end;
+        size_t alloc_size = brk_max_size - brk_size;
+        struct shim_vma_val vma;
 
-        ADD_PROFILE_OCCURENCE(brk, brk_max_size - brk_size);
+        if (!lookup_overlap_vma(alloc_addr, alloc_size, &vma)) {
+            /* if memory are already allocated here, adjust brk_max_size */
+            alloc_size = vma.addr - alloc_addr;
+            brk_max_size = brk_size + alloc_size;
+        }
+
+        int ret = bkeep_mmap(alloc_addr, alloc_size,
+                             PROT_READ|PROT_WRITE,
+                             MAP_ANONYMOUS|MAP_PRIVATE|VMA_UNMAPPED,
+                             NULL, 0, "brk");
+        if (ret < 0)
+            return ret;
+
+        void * ptr = DkVirtualMemoryAlloc(alloc_addr, alloc_size, 0,
+                                          PAL_PROT_READ|PAL_PROT_WRITE);
+
+        assert(ptr == alloc_addr);
+        ADD_PROFILE_OCCURENCE(brk, alloc_size);
         INC_PROFILE_OCCURENCE(brk_migrate_count);
 
-        debug("brk reserved area: %p - %p\n", region.brk_end,
-              region.brk_start + brk_max_size);
-
-        bkeep_mmap(region.brk_end, brk_max_size - brk_size,
-                   PROT_READ|PROT_WRITE,
-                   MAP_ANONYMOUS|MAP_PRIVATE|VMA_UNMAPPED, NULL, 0,
-                   NULL);
+        debug("brk reserved area: %p - %p\n", alloc_addr,
+              alloc_addr + alloc_size);
     }
 
     DEBUG_RS("current=%p,region=%p-%p", region.brk_current, region.brk_start,

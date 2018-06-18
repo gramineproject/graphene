@@ -1,20 +1,20 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 OSCAR lab, Stony Brook University
+/* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
+   modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    Graphene Library OS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -121,16 +121,60 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
     DkVirtualMemoryFree(old_stack_red, old_stack - old_stack_red);
-    int flags = 0;
-    bkeep_munmap(old_stack, old_stack_top - old_stack, &flags);
-    bkeep_munmap(old_stack_red, old_stack - old_stack_red, &flags);
+
+    if (bkeep_munmap(old_stack, old_stack_top - old_stack, 0) < 0 ||
+        bkeep_munmap(old_stack_red, old_stack - old_stack_red, 0) < 0)
+        bug();
 
     remove_loaded_libraries();
     clean_link_map_list();
     SAVE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec);
 
     reset_brk();
-    unmap_all_vmas();
+
+    size_t count = DEFAULT_VMA_COUNT;
+    struct shim_vma_val * vmas = malloc(sizeof(struct shim_vma_val) * count);
+
+    if (!vmas)
+        return -ENOMEM;
+
+retry_dump_vmas:
+    ret = dump_all_vmas(vmas, count);
+
+    if (ret == -EOVERFLOW) {
+        struct shim_vma_val * new_vmas
+                = malloc(sizeof(struct shim_vma_val) * count * 2);
+        if (!new_vmas) {
+            free(vmas);
+            return -ENOMEM;
+        }
+        free(vmas);
+        vmas = new_vmas;
+        count *= 2;
+        goto retry_dump_vmas;
+    }
+
+    if (ret < 0) {
+        free(vmas);
+        return ret;
+    }
+
+    count = ret;
+    for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
+        /* Don't free the current stack */
+        if (vma->addr == cur_thread->stack)
+            continue;
+
+        /* Free all the mapped VMAs */
+        if (!(vma->flags & VMA_UNMAPPED))
+            DkVirtualMemoryFree(vma->addr, vma->length);
+
+        /* Remove the VMAs */
+        bkeep_munmap(vma->addr, vma->length, vma->flags);
+    }
+
+    free_vma_val_array(vmas, count);
+
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
@@ -234,7 +278,9 @@ int shim_do_execve (const char * file, const char ** argv,
 
 reopen:
 
-    if ((ret = path_lookupat(NULL, file, LOOKUP_OPEN, &dent)) < 0)
+    /* XXX: Not sure what to do here yet */
+    assert(cur_thread);
+    if ((ret = path_lookupat(NULL, file, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
     struct shim_mount * fs = dent->fs;
