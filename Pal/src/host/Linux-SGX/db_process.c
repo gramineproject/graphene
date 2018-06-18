@@ -236,7 +236,8 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
                 sizeof(pal_enclave_state.enclave_keyhash),
                 data.keyhash_mac, sizeof data.keyhash_mac);
 
-    SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", hex2str(data.keyhash_mac));
+    char mac_buf[MACBUF_SIZE];
+    SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", bytes2hexstr(data.keyhash_mac, mac_buf, MACBUF_SIZE));
 
     ret = _DkStreamAttestationRequest(proc, &data,
                                       &check_child_mrenclave, &param);
@@ -305,7 +306,8 @@ int init_child_process (PAL_HANDLE * parent_handle)
                 sizeof(pal_enclave_state.enclave_keyhash),
                 data.keyhash_mac, sizeof data.keyhash_mac);
 
-    SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", hex2str(data.keyhash_mac));
+    char mac_buf[MACBUF_SIZE];
+    SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n", bytes2hexstr(data.keyhash_mac, mac_buf, MACBUF_SIZE));
 
     ret = _DkStreamAttestationRespond(parent, &data,
                                       &check_parent_mrenclave,

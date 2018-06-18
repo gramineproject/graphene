@@ -1,0 +1,109 @@
+#!/usr/bin/env python2
+
+import os
+import sys
+import subprocess
+import re
+from shutil import copyfile
+runtime_libs = ['libc', 
+                'libdl',
+                'libm',
+                'libpthread', 
+                'libutil',
+                'libnss_dns', 
+                'libresolv', 
+                'librt']
+  
+def parse_libs (bin_path) :
+  print (bin_path)
+  ldd_out = subprocess.check_output(['ldd', bin_path])
+  lib_list = []
+  for line in ldd_out.splitlines():
+    match = re.match(r'\t(.*) => (.*) \(0x', line)
+    if match and match.group(1) and match.group(2):
+      full_lib_name = match.group(1)
+      name_match = re.match(r'([\w\d]*)(\.*)(.*)', full_lib_name)
+      if name_match:
+        lib_name = name_match.group(1)
+        lib_path = match.group(2)
+        if lib_name not in runtime_libs : 
+          lib_list.append((name_match.group(1), match.group(2)))
+  return lib_list
+
+def make_exec(path) :
+  mode = os.stat(path).st_mode
+  mode |= (mode & 0o444) >> 2    # copy R bits to X
+  os.chmod(path, mode)
+
+def gen_manifest(app_name, bin_name, g_path) :
+  m_path = g_path + '/LibOS/shim/test/apps/' + app_name + "/" + app_name +"." + "manifest"
+  print (m_path)
+  mf = open(m_path, "w")
+  make_exec(m_path)
+  mf.write("#!" + g_path + "/Runtime/pal_loader \n")
+  mf.write("loader.preload = file:../../../../../Runtime/libsysdb.so \n")
+  
+  # Get Path of Binary
+  bin_path = subprocess.check_output(['which', bin_name]).strip()
+  mf.write('loader.exec = file:' + bin_path + '\n')
+  mf.write('loader.execname = ' + bin_name + '\n')
+  mf.write('loader.env.LD_LIBRARY_PATH = /graphene:/graphene/resolv:/host:/usr/local/lib:/usr/lib:/usr/lib/x86_64-linux-gnu \n')
+  mf.write('loader.env.PATH = /usr/local/bin:/usr/bin:/bin \n' + 
+ 	   'loader.env.USERNAME = \n' + 
+           'loader.env.PWD = \n' +
+           'loader.debug_type = none \n')
+  mf.write('\n')
+
+  # File system setting
+  mf.write('fs.mount.lib1.type = chroot \n' +
+           'fs.mount.lib1.path = /graphene \n' +
+           'fs.mount.lib1.uri = file:../../../../../Runtime \n \n')
+
+  mf.write('fs.mount.lib2.type = chroot \n' +
+           'fs.mount.lib2.path = /host \n' +
+	   'fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu \n \n')
+  
+  mf.write('fs.mount.bin.type = chroot \n' +
+	   'fs.mount.bin.path = /bin \n' +
+	   'fs.mount.bin.uri = file:/bin \n \n')
+
+  mf.write('fs.mount.usr.type = chroot \n' +
+	   'fs.mount.usr.path = /usr \n' +
+	   'fs.mount.usr.uri = file:/usr \n \n')
+
+  mf.write('fs.mount.etc.type = chroot \n' +
+	   'fs.mount.etc.path = /etc \n' +
+	   'fs.mount.etc.uri = file: \n \n')
+  
+  # Set Dependent Libraries
+  
+  mf.write('sgx.trusted_files.ld = file:../../../../../Runtime/ld-linux-x86-64.so.2 \n' +
+           'sgx.trusted_files.libc = file:../../../../../Runtime/libc.so.6 \n' +
+           'sgx.trusted_files.libdl = file:../../../../../Runtime/libdl.so.2 \n' +
+           'sgx.trusted_files.libm = file:../../../../../Runtime/libm.so.6 \n' +
+           'sgx.trusted_files.libpthread = file:../../../../../Runtime/libpthread.so.0 \n' + 
+           'sgx.trusted_files.libutil = file:../../../../../Runtime/libutil.so.1 \n' + 
+           'sgx.trusted_files.libnss3 = file:../../../../../Runtime/libnss_dns.so.2 \n' +
+           'sgx.trusted_files.libresolv = file:../../../../../Runtime/libresolv.so.2 \n')
+  
+  lib_list = parse_libs(bin_path)
+  for lib_name, lib_path in lib_list :
+    print ("lib name: " + lib_name)
+    print ("lib path: " + lib_path)
+    mf.write('sgx.trusted_files.' + lib_name + ' = file:' + lib_path + '\n')
+
+  mf.write('\n')
+
+  #	   'sgx.allowed_files.usr = file:/usr \n')
+
+  mf.close()
+   
+if __name__ == "__main__":
+  if len(sys.argv) != 4: 
+   print ("Usage: gen_manifest [App Name] [bin_name] [Graphene Path]")
+   exit()
+  app_name = sys.argv[1]
+  bin_name = sys.argv[2]
+  g_path = sys.argv[3]
+
+  gen_manifest(app_name, bin_name, g_path)
