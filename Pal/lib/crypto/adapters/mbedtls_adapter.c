@@ -136,7 +136,7 @@ int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT * context, const uint8_t * input,
     return mbedtls_cipher_cmac_update( &context->ctx, input, input_len );
 }
 
-int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, const uint8_t * mac,
+int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, uint8_t * mac,
                       uint64_t mac_len)
 {
     const mbedtls_cipher_info_t *cipher_info =

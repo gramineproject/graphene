@@ -264,24 +264,28 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
 #define FILE_CHUNK_SIZE 1024
 
-        uint8_t chunk[FILE_CHUNK_SIZE];
+        uint8_t small_chunk[FILE_CHUNK_SIZE]; /* Buffer for hashing */
         int chunk_offset = 0;
 
         for (; chunk_offset < mapping_size; chunk_offset += FILE_CHUNK_SIZE) {
             uint64_t chunk_size = MIN(mapping_size - chunk_offset, FILE_CHUNK_SIZE);
 
-            memcpy(chunk, umem + chunk_offset, chunk_size);
+            /* Any file content needs to be copied into the enclave before
+             * checking and re-hashing */
+            memcpy(small_chunk, umem + chunk_offset, chunk_size);
 
-            /* update the file checksum */
-            ret = lib_SHA256Update(&sha, chunk, chunk_size);
+            /* Update the file checksum */
+            ret = lib_SHA256Update(&sha, small_chunk, chunk_size);
             if (ret < 0)
                 goto unmap;
 
-            ret = lib_AESCMACUpdate(&aes_cmac, chunk, chunk_size);
+            /* Update the checksum for the file chunk */
+            ret = lib_AESCMACUpdate(&aes_cmac, small_chunk, chunk_size);
             if (ret < 0)
                 goto unmap;
         }
 
+        /* Store the checksum for one file chunk for checking */
         ret = lib_AESCMACFinish(&aes_cmac, (uint8_t *) s, sizeof *s);
 unmap:
         ocall_unmap_untrusted(umem, mapping_size);
@@ -290,6 +294,9 @@ unmap:
     }
 
     sgx_checksum_t hash;
+
+    /* Finalize and checking if the checksum of the whole file matches
+     * with record given in the manifest. */
 
     ret = lib_SHA256Final(&sha, (uint8_t *) hash.bytes);
     if (ret < 0)
@@ -335,6 +342,36 @@ failed:
     return ret;
 }
 
+/*
+ * A common helper function for copying and checking the file contents
+ * from a buffer mapped outside the enclaves into an in-enclave buffer.
+ * If needed, regions at either the beginning or the end of the copied regions
+ * are copied into a scratch buffer to avoid a TOCTTOU race.
+ *
+ * * Note that it must be done this way to avoid the following TOCTTOU race
+ * * condition with the untrusted host as an adversary:
+ *       *  Adversary: put good contents in buffer
+ *       *  Enclave: buffer check passes
+ *       *  Adversary: put bad contents in buffer
+ *       *  Enclave: copies in bad buffer contents
+ *
+ * * For optimization, we verify the memory in place, as the application code
+ *   should not use the memory before return.  There can be subtle interactions
+ *   at the edges of a region with ELF loading.  Namely, the ELF loader will
+ *   want to map several file chunks that are not aligned to TRUSTED_STUB_SIZE
+ *   next to each other, sometimes overlapping.  There is probably room to
+ *   improve load time with more smarts around ELF loading, but for now, just
+ *   make things work.
+ *
+ * 'umem' is the untrusted file memory mapped outside the enclave (should
+ * already be mapped up by the caller). 'umem_start' and 'umem_end' are
+ * the offset _within the file_ of 'umem'.  'umem_start' should be aligned
+ * to the file checking chunk size (TRUSTED_STUB_SIZE). 'umem_end' can be
+ * either aligned, or equal to 'total_size'. 'buffer' is the in-enclave
+ * buffer for copying the file content. 'offset' is the offset within the file
+ * for copying into the buffer. 'size' is the size of the in-enclave buffer.
+ * 'stubs' contain the checksums of all the chunks in a file.
+ */
 int copy_and_verify_trusted_file (const char * path, const void * umem,
                     uint64_t umem_start, uint64_t umem_end,
                     void * buffer, uint64_t offset, uint64_t size,
@@ -345,42 +382,60 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
     assert(umem_start % TRUSTED_STUB_SIZE == 0);
     assert(offset >= umem_start && offset + size <= umem_end);
 
+    /* Start copying and checking at umem_start. The checked content may or
+     * may not be copied into the file content, depending on the offset of
+     * the content within the file. */
     uint64_t checking = umem_start;
     sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
     int ret = 0;
 
     for (; checking < umem_end ; checking += TRUSTED_STUB_SIZE, s++) {
+        /* Check one chunk at a time. */
         uint64_t checking_size = MIN(total_size - checking, TRUSTED_STUB_SIZE);
         uint64_t checking_end = checking + checking_size;
         uint8_t hash[AES_CMAC_DIGEST_LEN];
 
         if (checking >= offset && checking_end <= offset + size) {
+            /* If the checking chunk completely overlaps with the region
+             * needed for copying into the buffer, simplying use the buffer
+             * for checking */
             memcpy(buffer + checking - offset, umem + checking - umem_start,
                    checking_size);
 
+            /* Storing the checksum (using AES-CMAC) inside hash. */
             ret = lib_AESCMAC((uint8_t *) &enclave_key,
                               AES_CMAC_KEY_LEN,
                               buffer + checking - offset, checking_size,
                               hash, sizeof(hash));
         } else {
+            /* If the checking chunk only partially overlaps with the region,
+             * read the file content in smaller chunks and only copy the part
+             * needed by the caller. */
             LIB_AESCMAC_CONTEXT aes_cmac;
             ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
                                   AES_CMAC_KEY_LEN);
             if (ret < 0)
                 goto failed;
 
-            uint8_t chunk[FILE_CHUNK_SIZE];
+            uint8_t small_chunk[FILE_CHUNK_SIZE]; /* A small buffer */
             uint64_t chunk_offset = checking;
 
-            for (; chunk_offset < checking_end ; chunk_offset += FILE_CHUNK_SIZE) {
-                uint64_t chunk_size = MIN(checking_end - chunk_offset, FILE_CHUNK_SIZE);
+            for (; chunk_offset < checking_end
+                 ; chunk_offset += FILE_CHUNK_SIZE) {
+                uint64_t chunk_size = MIN(checking_end - chunk_offset,
+                                          FILE_CHUNK_SIZE);
 
-                memcpy(chunk, umem + (chunk_offset - umem_start), chunk_size);
+                /* Copy into the small buffer before hashing the content */
+                memcpy(small_chunk, umem + (chunk_offset - umem_start),
+                       chunk_size);
 
-                ret = lib_AESCMACUpdate(&aes_cmac, chunk, chunk_size);
+                /* Update the hash for the current chunk */
+                ret = lib_AESCMACUpdate(&aes_cmac, small_chunk, chunk_size);
                 if (ret < 0)
                     goto failed;
 
+                /* Determine if the part just copied and checked is needed
+                 * by the caller. If so, copy it into the user buffer. */
                 uint64_t copy_start = chunk_offset;
                 uint64_t copy_end = copy_start + chunk_size;
 
@@ -391,16 +446,26 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 
                 if (copy_end > copy_start)
                     memcpy(buffer + (copy_start - offset),
-                           chunk + (copy_start - chunk_offset),
+                           small_chunk + (copy_start - chunk_offset),
                            copy_end - copy_start);
             }
 
+            /* Storing the checksum (using AES-CMAC) inside hash. */
             ret = lib_AESCMACFinish(&aes_cmac, hash, sizeof(hash));
         }
 
         if (ret < 0)
             goto failed;
 
+        /*
+         * Check if the hash matches with the checksum of current chunk.
+         * If not, return with access denied. Note: some file content may
+         * still be in the buffer (including the corrupted part).
+         * We assume the user won't use the content if this function
+         * returns with failures.
+         *
+         * XXX: Maybe we should zero the buffer after denying the access?
+         */
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. Does not match with MAC"
                     " at chunk starting at %llu-%llu.\n",

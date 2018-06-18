@@ -99,7 +99,7 @@ int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
                     const uint8_t *key, uint64_t key_len);
 int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT * context, const uint8_t * input,
                       uint64_t input_len);
-int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, const uint8_t * mac,
+int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, uint8_t * mac,
                       uint64_t mac_len);
 
 /* RSA. Limited functionality. */
