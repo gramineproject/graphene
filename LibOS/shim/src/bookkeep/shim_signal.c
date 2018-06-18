@@ -304,23 +304,37 @@ ret_exception:
     DkExceptionReturn(event);
 }
 
+/*
+ * 'test_user_memory' and 'test_user_string' are helper functions for testing
+ * if a user-given buffer or data structure is readable / writable (according
+ * to the system call semantics). If the memory test fails, the system call
+ * should return -EFAULT or -EINVAL accordingly. These helper functions cannot
+ * guarantee further corruption of the buffer, or if the buffer is unmapped
+ * with a concurrent system call. The purpose of these functions is simply for
+ * the compatibility with programs that rely on the error numbers, such as the
+ * LTP test suite.
+ */
 bool test_user_memory (void * addr, size_t size, bool write)
 {
     if (!size)
         return false;
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
+    disable_preempt(tcb);
 
     if (addr + size - 1 < addr)
         size = (void *) 0x0 - addr;
 
     bool has_fault = true;
 
+    /* Add the memory region to the watch list. This is not racy because
+     * each thread has its own record. */
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
     tcb->test_range.start = addr;
     tcb->test_range.end = addr + size - 1;
 
+    /* Try to read or write into one byte inside each page */
     void * tmp = addr;
     while (tmp <= addr + size - 1) {
         if (write) {
@@ -331,29 +345,41 @@ bool test_user_memory (void * addr, size_t size, bool write)
         tmp = ALIGN_UP(tmp + 1);
     }
 
-    has_fault = false;
+    has_fault = false; /* All accesses have passed. Nothing wrong. */
 
 ret_fault:
+    /* If any read or write into the target region causes an exception,
+     * the control flow will immediately jump to here. */
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
+    enable_preempt(tcb);
     return has_fault;
 }
 
+/*
+ * This function tests a user string with unknown length. It only tests
+ * whether the memory is readable.
+ */
 bool test_user_string (const char * addr)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
+    disable_preempt(tcb);
 
     bool has_fault = true;
 
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
 
+    /* Test one page at a time. */
     const char * next = ALIGN_UP(addr + 1);
     do {
+        /* Add the memory region to the watch list. This is not racy because
+         * each thread has its own record. */
         tcb->test_range.start = (void *) addr;
         tcb->test_range.end = (void *) (next - 1);
-        *(volatile char *) addr;
+        *(volatile char *) addr; /* try to read one byte from the page */
 
+        /* If the string ends in this page, exit the loop. */
         if (strnlen(addr, next - addr) < next - addr)
             break;
 
@@ -361,11 +387,14 @@ bool test_user_string (const char * addr)
         next = ALIGN_UP(addr + 1);
     } while (addr < next);
 
-    has_fault = false;
+    has_fault = false; /* All accesses have passed. Nothing wrong. */
 
 ret_fault:
+    /* If any read or write into the target region causes an exception,
+     * the control flow will immediately jump to here. */
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
+    enable_preempt(tcb);
     return has_fault;
 }
 
