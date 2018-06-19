@@ -56,7 +56,9 @@ int shim_do_getcwd (char * buf, size_t len)
     const char * path = dentry_get_path(cwd, true, &plen);
 
     int ret;
-    if (plen + 1 > len) {
+    if (plen >= MAX_PATH) {
+        ret = -ENAMETOOLONG;
+    } else if (plen + 1 > len) {
         ret = -ERANGE;
     } else {
         ret = plen;
@@ -77,6 +79,9 @@ int shim_do_chdir (const char * filename)
 
     if (test_user_string(filename))
         return -EFAULT;
+
+    if (strnlen(filename, MAX_PATH + 1) == MAX_PATH + 1)
+        return -ENAMETOOLONG;
 
     if ((ret = path_lookupat(NULL, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
