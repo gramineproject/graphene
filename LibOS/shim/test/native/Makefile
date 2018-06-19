@@ -27,7 +27,7 @@ static: %: %.c
 	@$(CC) $(CFLAGS) -o $@ -static $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
-xopie: %: %.c
+pie: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
