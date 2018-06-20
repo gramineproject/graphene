@@ -55,6 +55,6 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
             break;
     }
 
-    ocall_exit();
+    ocall_exit(0);
     return 0;
 }
