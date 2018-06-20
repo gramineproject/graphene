@@ -133,6 +133,7 @@ int try_process_exit (int error_code, int term_signal)
     struct shim_thread * cur_thread = get_cur_thread();
 
     cur_thread->exit_code = -error_code;
+    cur_process.exit_code = error_code;
     cur_thread->term_signal = term_signal;
 
     if (cur_thread->in_vm)

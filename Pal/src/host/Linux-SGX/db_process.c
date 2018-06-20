@@ -326,7 +326,9 @@ void _DkProcessExit (int exitcode)
 #if PRINT_ENCLAVE_STAT
     print_alloced_pages();
 #endif
-    ocall_exit();
+    if (exitcode)
+        SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
+    ocall_exit(exitcode);
 }
 
 int _DkProcessSandboxCreate (const char * manifest, int flags)

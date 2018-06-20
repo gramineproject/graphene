@@ -130,6 +130,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
 {
     PAL_HANDLE parent = NULL;
     unsigned long start_time = _DkSystemTimeQuery();
+    int rv;
 
     /* relocate PAL itself */
     pal_map.l_addr = (ElfW(Addr)) sec_info->enclave_addr;
@@ -156,8 +157,10 @@ void pal_linux_main(const char ** arguments, const char ** environments,
 
     /* if there is a parent, create parent handle */
     if (pal_sec.ppid) {
-        if (init_child_process(&parent) < 0)
-            ocall_exit();
+        if ((rv = init_child_process(&parent)) < 0) {
+            SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", rv);
+            ocall_exit(rv);
+        }
     }
 
     linux_state.uid = pal_sec.uid;
@@ -189,9 +192,9 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     root_config->free = free;
 
     const char * errstring = NULL;
-    if (read_config(root_config, loader_filter, &errstring) < 0) {
-        SGX_DBG(DBG_E, "Can't read manifest: %s\n", errstring);
-        ocall_exit();
+    if ((rv = read_config(root_config, loader_filter, &errstring)) < 0) {
+        SGX_DBG(DBG_E, "Can't read manifest: %s, error code %d\n", errstring, rv);
+        ocall_exit(rv);
     }
 
     pal_state.root_config = root_config;
