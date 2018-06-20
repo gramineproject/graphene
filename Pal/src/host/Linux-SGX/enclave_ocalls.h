@@ -11,7 +11,7 @@
 #include <linux/socket.h>
 #include <linux/poll.h>
 
-int ocall_exit (void);
+int ocall_exit (int exitcode);
 
 int ocall_print_string (const char * str, unsigned int length);
 

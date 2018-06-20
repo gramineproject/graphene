@@ -25,7 +25,7 @@
 static int sgx_ocall_exit(void * pms)
 {
     ODEBUG(OCALL_EXIT, NULL);
-    INLINE_SYSCALL(exit, 1, 0);
+    INLINE_SYSCALL(exit, 1, (int) (int64_t) pms);
     return 0;
 }
 

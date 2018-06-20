@@ -31,3 +31,10 @@ regression.add_check(name="Hex 2 String Helper Function",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
+regression = Regression(loader, "Exit")
+
+regression.add_check(name="Exit Code Propagation",
+    check=lambda res: 1 == res[0].code)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)

@@ -64,10 +64,11 @@ int printf(const char * fmt, ...);
         } _ret;                                             \
     })
 
-int ocall_exit(void)
+int ocall_exit(int exitcode)
 {
     int retval = 0;
-    SGX_OCALL(OCALL_EXIT, NULL);
+    int64_t code = exitcode;
+    SGX_OCALL(OCALL_EXIT, (void *) code);
     /* never reach here */
     return retval;
 }
