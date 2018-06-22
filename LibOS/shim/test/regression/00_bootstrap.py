@@ -23,3 +23,11 @@ regression.add_check(name="Five Arguments Given",
            "argv[3] = c" in res[0].out and "argv[4] = d" in res[0].out)
 
 regression.run_checks()
+
+regression = Regression(loader, "exit")
+
+regression.add_check(name="Exit Code Propagation",
+    check=lambda res: 1 == res[0].code)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
