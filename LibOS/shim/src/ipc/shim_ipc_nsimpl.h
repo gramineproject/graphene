@@ -987,6 +987,8 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
     lock(cur_process.lock);
     __discover_ns(false, true, true);
     if (NS_LEADER) {
+        /* After __discover_ns, the leader should has its own port */
+        assert(!qstrempty(&NS_LEADER->uri));
         ret = NS_SEND(tellns)(port, msg->src, NS_LEADER, msg->seq);
     } else {
         struct ns_query * query = malloc(sizeof(struct ns_query));
@@ -1019,7 +1021,6 @@ int NS_SEND(tellns) (struct shim_ipc_port * port, IDTYPE dest,
                                 dest);
     NS_MSG_TYPE(tellns) * msgin = (void *) &msg->msg;
     msgin->vmid = leader->vmid;
-    assert(!qstrempty(&leader->uri));
     memcpy(msgin->uri, qstrgetstr(&leader->uri), leader->uri.len + 1);
     msg->seq = seq;
 
