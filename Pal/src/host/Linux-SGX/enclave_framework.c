@@ -114,6 +114,27 @@ int init_enclave_key (void)
     return 0;
 }
 
+/*
+ * The file integrity check is designed as follow:
+ *
+ * For each file that requires authentication (specified in the manifest
+ * as "sgx.trusted_files.xxx"), a SHA256 checksum is generated and stored
+ * in the manifest, signed and verified as part of the enclave's crypto
+ * measurement. When user requests for opening the file, Graphene loads
+ * the whole file, generate the SHA256 checksum, and check with the known
+ * checksums listed in the manifest. If the checksum does not match, and
+ * neither does the file is allowed for unauthenticated access, the file
+ * access will be rejected.
+ *
+ * During the generation of the SHA256 checksum, a 128-bit hash is also
+ * generated for each chunk in the file. The per-chunk hashes are used
+ * for partial verification in future reads, to avoid re-verifying the
+ * whole file again or the need of caching file contents. The per-chunk
+ * hashes are stored as "stubs" for each file. For a performance reason,
+ * each per-chunk hash is a 128-bit AES-CMAC hash value, using a secret
+ * key generated at the beginning of the enclave.
+ */
+
 DEFINE_LIST(trusted_file);
 struct trusted_file {
     LIST_TYPE(trusted_file) list;
@@ -132,9 +153,9 @@ static int trusted_file_indexes = 0;
 static int allow_file_creation = 0;
 
 
-/* Function: load_trusted_file
- * checks if the file to be opened is trusted or allowed,
- * according to the setting in manifest
+/*
+ * 'load_trusted_file' checks if the file to be opened is trusted
+ * or allowed for unauthenticated access, according to the manifest.
  *
  * file:     file handle to be opened
  * stubptr:  buffer for catching matched file stub.
@@ -143,7 +164,6 @@ static int allow_file_creation = 0;
  *
  * return:  0 succeed
  */
-
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr, int create)
 {
