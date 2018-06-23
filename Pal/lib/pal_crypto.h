@@ -95,6 +95,9 @@ void lib_DhFinal(LIB_DH_CONTEXT *context);
 /* AES-CMAC */
 int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
                 uint64_t input_len, uint8_t *mac, uint64_t mac_len);
+
+/* note: 'lib_AESCMAC' is the combination of 'lib_AESCMACInit',
+ * 'lib_AESCMACUpdate', and 'lib_AESCMACFinish'. */
 int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
                     const uint8_t *key, uint64_t key_len);
 int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT * context, const uint8_t * input,

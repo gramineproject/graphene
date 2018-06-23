@@ -234,7 +234,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (!stubs)
         return -PAL_ERROR_NOMEM;
 
-    sgx_stub_t * s = stubs;
+    sgx_stub_t * s = stubs; /* stubs is an array of 128bit values */
     uint64_t offset = 0;
     LIB_SHA256_CONTEXT sha;
     void * umem;
@@ -244,6 +244,8 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         goto failed;
 
     for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE, s++) {
+        /* For each stub, generate a 128bit hash of a file chunk with
+         * AES-CMAC, and then update the SHA256 digest. */
         uint64_t mapping_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
         LIB_AESCMAC_CONTEXT aes_cmac;
         ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
@@ -386,6 +388,9 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
      * may not be copied into the file content, depending on the offset of
      * the content within the file. */
     uint64_t checking = umem_start;
+    /* The stubs is an array of 128-bit hash values of the file chunks.
+     * from the beginning of the file. 's' points to the stub that needs to
+     * be checked for the current offset. */
     sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
     int ret = 0;
 

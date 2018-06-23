@@ -79,7 +79,7 @@ struct handle_ops {
      * to deal with special cases.
      * 
      * Common PAL code will ensure that *address, offset, and size are 
-     * page-aligned.
+     * page-aligned. 'address' should not be NULL.
      */
     int (*map) (PAL_HANDLE handle, void ** address, int prot, uint64_t offset,
                 uint64_t size);
