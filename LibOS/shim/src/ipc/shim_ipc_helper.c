@@ -309,8 +309,10 @@ static struct shim_ipc_port * __get_new_ipc_port (PAL_HANDLE hdl)
                 get_mem_obj_from_mgr_enlarge(port_mgr,
                                              size_align_up(PORT_MGR_ALLOC));
 
-    if (!port)
+    if (!port) {
+        debug("failed to allocate shim_ipc_port\n");
         return NULL;
+    }
 
     memset(port, 0, sizeof(struct shim_ipc_port));
     port->pal_handle = hdl;
