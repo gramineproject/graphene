@@ -94,11 +94,13 @@ static void read_environments (const char *** envpp)
         int len, idx;
     } * setenvs = NULL;
     int nsetenvs = 0;
+    int size;
 
     if (!pal_state.root_config)
         return;
 
     ssize_t cfgsize = get_config_entries_size(store, "loader.env");
+    /* XXX Propagate this error? */
     if (cfgsize < 0)
         return;
 
