@@ -96,10 +96,12 @@ typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
 int load_trusted_file
-    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr);
-int verify_trusted_file
-    (const char * uri, void * mem, uint64_t offset, uint64_t size,
-     sgx_stub_t * stubs, uint64_t total_size);
+    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr, int create);
+
+int copy_and_verify_trusted_file (const char * path, const void * umem,
+                    uint64_t umem_start, uint64_t umem_end,
+                    void * buffer, uint64_t offset, uint64_t size,
+                    sgx_stub_t * stubs, uint64_t total_size);
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mrenclave_str);
