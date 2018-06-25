@@ -38,6 +38,13 @@ typedef ptrdiff_t ssize_t;
 # define unlikely(x)	__builtin_expect((!!(x)),0)
 #endif
 
+#ifndef MIN
+# define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+# define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #define __alloca __builtin_alloca
 
 #define XSTRINGIFY(x) STRINGIFY(x)
