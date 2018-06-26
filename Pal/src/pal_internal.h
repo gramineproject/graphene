@@ -75,8 +75,12 @@ struct handle_ops {
     int (*delete) (PAL_HANDLE handle, int access);
 
     /* 'map' and 'unmap' will map or unmap the handle into memory space,
-       it's not necessary mapped by mmap, so unmap also needs 'handle'
-       to deal with special cases */
+     * it's not necessary mapped by mmap, so unmap also needs 'handle'
+     * to deal with special cases.
+     * 
+     * Common PAL code will ensure that *address, offset, and size are 
+     * page-aligned. 'address' should not be NULL.
+     */
     int (*map) (PAL_HANDLE handle, void ** address, int prot, uint64_t offset,
                 uint64_t size);
 
@@ -366,7 +370,7 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type);
 #ifndef NO_INTERNAL_ALLOC
 void init_slab_mgr (int alignment);
 void * malloc (size_t size);
-void * remalloc (const void * mem, size_t size);
+void * malloc_copy(const void * mem, size_t size);
 void * calloc (size_t nmem, size_t size);
 char * strdup(const char *source);
 void free (void * mem);

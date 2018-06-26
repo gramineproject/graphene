@@ -179,23 +179,6 @@ DEFINE_SHIM_SYSCALL (munmap, 2, shim_do_munmap, int, void *, addr, size_t, len)
 
 DEFINE_SHIM_SYSCALL (brk, 1, shim_do_brk, void *, void *, brk)
 
-#if 0 /* implemented */
-void * shim_do_brk (void * brk)
-{
-    brk = NULL; /* fix the warning */
-
-    /* lets return 0 ;
-     * libc falls back to mmap options if brk fails
-
-     * Following are comments from libc / malloc.c
-     *
-     *    If you'd like mmap to ALWAYS be, used, you can define MORECORE to be
-     *       a function that always returns MORECORE_FAILURE.
-     */
-    return (void *) -ENOMEM;
-}
-#endif
-
 /* rt_sigaction: sys/shim_sigaction.c */
 DEFINE_SHIM_SYSCALL (rt_sigaction, 4, shim_do_sigaction, int, int, signum,
                      const struct __kernel_sigaction *, act,
@@ -821,8 +804,9 @@ DEFINE_SHIM_SYSCALL (futex, 6, shim_do_futex, int, unsigned int *, uaddr,
 SHIM_SYSCALL_PASSTHROUGH (sched_setaffinity, 3, int, pid_t, pid, size_t, len,
                           __kernel_cpu_set_t *, user_mask_ptr)
 
-SHIM_SYSCALL_PASSTHROUGH (sched_getaffinity, 3, int, pid_t, pid, size_t, len,
-                          __kernel_cpu_set_t *, user_mask_ptr)
+DEFINE_SHIM_SYSCALL (sched_getaffinity, 3, shim_do_sched_getaffinity, int,
+                     pid_t, pid, size_t, len,
+                     __kernel_cpu_set_t *, user_mask_ptr)
 
 SHIM_SYSCALL_PASSTHROUGH (set_thread_area, 1, int, struct user_desc *, u_info)
 

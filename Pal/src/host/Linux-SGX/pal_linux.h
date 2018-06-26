@@ -104,11 +104,26 @@ typedef struct { char bytes[32]; } sgx_checksum_t;
 typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
+
+/* Function: load_trusted_file
+ * checks if the file to be opened is trusted or allowed,
+ * according to the setting in manifest
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
+
 int load_trusted_file
-    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr);
-int verify_trusted_file
-    (const char * uri, void * mem, uint64_t offset, uint64_t size,
-     sgx_stub_t * stubs, uint64_t total_size);
+    (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr, int create);
+
+int copy_and_verify_trusted_file (const char * path, const void * umem,
+                    uint64_t umem_start, uint64_t umem_end,
+                    void * buffer, uint64_t offset, uint64_t size,
+                    sgx_stub_t * stubs, uint64_t total_size);
 
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mrenclave_str);
@@ -148,7 +163,7 @@ extern struct pal_enclave_state {
                                        enclave */
     uint8_t  data[PAL_ATTESTATION_DATA_SIZE];
                                     /* reserved for filling other data */
-    uint8_t  enclave_keyhash[32];   /* SHA256 digest of enclave's public key
+    sgx_arch_hash_t enclave_keyhash;   /* SHA256 digest of enclave's public key
                                        can also be used as an identifier of the
                                        enclave */
 } __attribute__((packed, aligned (128))) pal_enclave_state;
@@ -163,23 +178,7 @@ extern struct pal_enclave_config {
     void *                 enclave_key;
 } pal_enclave_config;
 
-static inline __attribute__((always_inline))
-char * __hex2str(void * hex, int size)
-{
-    static char * ch = "0123456789abcdef";
-    char * str = __alloca(size * 2 + 1);
-
-    for (int i = 0 ; i < size ; i++) {
-        unsigned char h = ((unsigned char *) hex)[i];
-        str[i * 2] = ch[h / 16];
-        str[i * 2 + 1] = ch[h % 16];
-    }
-
-    str[size * 2] = 0;
-    return str;
-}
-
-#define hex2str(array) __hex2str(array, sizeof(array))
+#include <hex.h>
 
 #else
 

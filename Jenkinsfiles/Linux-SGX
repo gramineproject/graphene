@@ -1,0 +1,121 @@
+pipeline {
+        agent {
+            dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile'
+ 	                 label 'sgx_slave'
+ 		         args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx"
+	    	       }	    
+        }
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            cd Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
+                        '''
+                        sh '''
+			   cd /opt/intel
+			   git clone https://github.com/01org/linux-sgx-driver.git
+			   cd linux-sgx-driver
+			   git checkout sgx_driver_1.9
+			   make
+                        '''			
+                        sh '''			    
+                            cd Pal/src/host/Linux-SGX/sgx-driver 
+			    ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
+                        '''
+                        sh '''			    			    
+			    make SGX=1
+                        '''
+                        sh '''			    			    
+			    make SGX_RUN=1
+                        '''			    
+                    }
+                }
+                stage('Test') {
+                    steps {
+		    /*
+			timeout(time: 15, unit: 'MINUTES') {		    		    
+                            sh '''
+                                cd Pal/regression
+			        make SGX=1
+			        make SGX_RUN=1
+                                make SGX_RUN=1 KEEP_LOG=1 regression
+                                '''
+			}
+			*/
+			timeout(time: 5, unit: 'MINUTES') {		    			
+                            sh '''
+                                cd LibOS/shim/test/regression
+			        make SGX=1
+			        make SGX_RUN=1			    
+                                make SGX_RUN=1 regression
+                            '''
+			}
+			timeout(time: 5, unit: 'MINUTES') {		    						
+                            sh '''
+                                cd LibOS/shim/test/apps/python
+			                          make SGX=1
+			                          make SGX_RUN=1			    
+                                make SGX_RUN=1 regression
+                            '''
+      }
+      timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/bash
+                                make SGX=1
+                                make SGX_RUN=1
+                                make SGX_RUN=1 regression
+                           '''
+      }
+			timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/gcc
+			    	make SGX=1
+			        make SGX_RUN=1
+                                make SGX_RUN=1 regression
+                           '''
+			}
+			timeout(time: 15, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/lmbench
+			    	make SGX=1
+			        make SGX_RUN=1
+                                make SGX_RUN=1 regression
+                            '''
+			}
+                        sh '''
+                            cd LibOS/shim/test/apps/lighttpd
+			    make SGX=1
+			    make SGX_RUN=1
+                            make SGX_RUN=1 start-graphene-server &
+			    sleep 10
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000			    
+                            '''
+			    /*
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+			    make SGX=1
+			    make SGX_RUN=1
+                            make SGX_RUN=1 start-graphene-server &
+			    sleep 15 && ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
+                            '''
+			    */
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+        }
+}

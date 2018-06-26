@@ -17,10 +17,11 @@ void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
 
+static int register_trusted_file (const char * uri, const char * checksum_str);
+
 bool sgx_is_within_enclave (const void * addr, uint64_t size)
 {
-    return (addr >= enclave_base &&
-            addr + size <= enclave_top) ? 1 : 0;
+    return enclave_base <= addr && addr + size <= enclave_top;
 }
 
 void * sgx_ocalloc (uint64_t size)
@@ -35,6 +36,7 @@ void sgx_ocfree (void)
     SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
 }
 
+#define HASHBUF_SIZE ((sizeof(sgx_arch_hash_t)*2)+1)
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
                     void * enclave_data,
@@ -54,24 +56,28 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     if (ret)
         return -PAL_ERROR_DENIED;
 
+    char hash_buf[HASHBUF_SIZE];
+    char mac_buf[MACBUF_SIZE];
+
     SGX_DBG(DBG_S, "Generated report:\n");
     SGX_DBG(DBG_S, "    cpusvn:           %08x %08x\n", report->cpusvn[0],
                                                 report->cpusvn[1]);
-    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        hex2str(report->mrenclave));
-    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        hex2str(report->mrsigner));
+    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        bytes2hexstr(report->mrenclave, hash_buf, HASHBUF_SIZE));
+    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        bytes2hexstr(report->mrsigner, hash_buf, HASHBUF_SIZE));
     SGX_DBG(DBG_S, "    attributes.flags: %016lx\n",    report->attributes.flags);
     SGX_DBG(DBG_S, "    sttributes.xfrm:  %016lx\n",    report->attributes.xfrm);
 
     SGX_DBG(DBG_S, "    isvprodid:        %02x\n",      report->isvprodid);
     SGX_DBG(DBG_S, "    isvsvn:           %02x\n",      report->isvsvn);
-    SGX_DBG(DBG_S, "    keyid:            %s\n",        hex2str(report->keyid));
-    SGX_DBG(DBG_S, "    mac:              %s\n",        hex2str(report->mac));
+    SGX_DBG(DBG_S, "    keyid:            %s\n",        bytes2hexstr(report->keyid, hash_buf, HASHBUF_SIZE));
+    SGX_DBG(DBG_S, "    mac:              %s\n",        bytes2hexstr(report->mac, mac_buf, MACBUF_SIZE));
 
     return 0;
 }
 
 static sgx_arch_key128_t enclave_key;
 
+#define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
 int sgx_verify_report (sgx_arch_report_t * report)
 {
     sgx_arch_keyrequest_t keyrequest;
@@ -85,7 +91,9 @@ int sgx_verify_report (sgx_arch_report_t * report)
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n", hex2str(enclave_key));
+    char key_buf[KEYBUF_SIZE];
+
+    SGX_DBG(DBG_S, "Get report key for verification: %s\n", bytes2hexstr(enclave_key, key_buf, KEYBUF_SIZE));
     return 0;
 }
 
@@ -101,9 +109,31 @@ int init_enclave_key (void)
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get sealing key: %s\n", hex2str(enclave_key));
+    char key_buf[KEYBUF_SIZE];
+    SGX_DBG(DBG_S, "Get sealing key: %s\n", bytes2hexstr(enclave_key, key_buf, KEYBUF_SIZE));
     return 0;
 }
+
+/*
+ * The file integrity check is designed as follow:
+ *
+ * For each file that requires authentication (specified in the manifest
+ * as "sgx.trusted_files.xxx"), a SHA256 checksum is generated and stored
+ * in the manifest, signed and verified as part of the enclave's crypto
+ * measurement. When user requests for opening the file, Graphene loads
+ * the whole file, generate the SHA256 checksum, and check with the known
+ * checksums listed in the manifest. If the checksum does not match, and
+ * neither does the file is allowed for unauthenticated access, the file
+ * access will be rejected.
+ *
+ * During the generation of the SHA256 checksum, a 128-bit hash is also
+ * generated for each chunk in the file. The per-chunk hashes are used
+ * for partial verification in future reads, to avoid re-verifying the
+ * whole file again or the need of caching file contents. The per-chunk
+ * hashes are stored as "stubs" for each file. For a performance reason,
+ * each per-chunk hash is a 128-bit AES-CMAC hash value, using a secret
+ * key generated at the beginning of the enclave.
+ */
 
 DEFINE_LIST(trusted_file);
 struct trusted_file {
@@ -120,9 +150,22 @@ DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
+static int allow_file_creation = 0;
 
+
+/*
+ * 'load_trusted_file' checks if the file to be opened is trusted
+ * or allowed for unauthenticated access, according to the manifest.
+ *
+ * file:     file handle to be opened
+ * stubptr:  buffer for catching matched file stub.
+ * sizeptr:  size pointer
+ * create:   this file is newly created or not
+ *
+ * return:  0 succeed
+ */
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
-                       uint64_t * sizeptr)
+                       uint64_t * sizeptr, int create)
 {
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
@@ -135,6 +178,14 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     uri_len = _DkStreamGetName(file, uri, URI_MAX);
     if (uri_len < 0)
         return uri_len;
+
+    /* Allow to create the file when allow_file_creation is turned on;
+       The created file is added to allowed_file list for later access */
+    if (create && allow_file_creation) {
+       register_trusted_file(uri, NULL);
+       *sizeptr = 0;
+       return 0;
+    }
 
     /* Normalize the uri */
     if (!strpartcmp_static(uri, "file:")) {
@@ -203,7 +254,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     if (!stubs)
         return -PAL_ERROR_NOMEM;
 
-    sgx_stub_t * s = stubs;
+    sgx_stub_t * s = stubs; /* stubs is an array of 128bit values */
     uint64_t offset = 0;
     LIB_SHA256_CONTEXT sha;
     void * umem;
@@ -213,20 +264,51 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
         goto failed;
 
     for (; offset < tf->size ; offset += TRUSTED_STUB_SIZE, s++) {
-        uint64_t mapping_size = tf->size - offset;
-        if (mapping_size > TRUSTED_STUB_SIZE)
-            mapping_size = TRUSTED_STUB_SIZE;
+        /* For each stub, generate a 128bit hash of a file chunk with
+         * AES-CMAC, and then update the SHA256 digest. */
+        uint64_t mapping_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
+        LIB_AESCMAC_CONTEXT aes_cmac;
+        ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
+                              AES_CMAC_KEY_LEN);
+        if (ret < 0)
+            goto failed;
 
         ret = ocall_map_untrusted(fd, offset, mapping_size, PROT_READ, &umem);
         if (ret < 0)
             goto unmap;
 
-        lib_AESCMAC((void *) &enclave_key, AES_CMAC_KEY_LEN, umem,
-                    mapping_size, (uint8_t *) s, sizeof *s);
+        /*
+         * To prevent TOCTOU attack when generating the file checksum, we
+         * need to copy the file content into the enclave before hashing.
+         * For optimization, we use a relatively small buffer (1024 byte) to
+         * store the data for checksum generation.
+         */
 
-        /* update the file checksum */
-        ret = lib_SHA256Update(&sha, umem, mapping_size);
+#define FILE_CHUNK_SIZE 1024
 
+        uint8_t small_chunk[FILE_CHUNK_SIZE]; /* Buffer for hashing */
+        int chunk_offset = 0;
+
+        for (; chunk_offset < mapping_size; chunk_offset += FILE_CHUNK_SIZE) {
+            uint64_t chunk_size = MIN(mapping_size - chunk_offset, FILE_CHUNK_SIZE);
+
+            /* Any file content needs to be copied into the enclave before
+             * checking and re-hashing */
+            memcpy(small_chunk, umem + chunk_offset, chunk_size);
+
+            /* Update the file checksum */
+            ret = lib_SHA256Update(&sha, small_chunk, chunk_size);
+            if (ret < 0)
+                goto unmap;
+
+            /* Update the checksum for the file chunk */
+            ret = lib_AESCMACUpdate(&aes_cmac, small_chunk, chunk_size);
+            if (ret < 0)
+                goto unmap;
+        }
+
+        /* Store the checksum for one file chunk for checking */
+        ret = lib_AESCMACFinish(&aes_cmac, (uint8_t *) s, sizeof *s);
 unmap:
         ocall_unmap_untrusted(umem, mapping_size);
         if (ret < 0)
@@ -234,6 +316,9 @@ unmap:
     }
 
     sgx_checksum_t hash;
+
+    /* Finalize and checking if the checksum of the whole file matches
+     * with record given in the manifest. */
 
     ret = lib_SHA256Final(&sha, (uint8_t *) hash.bytes);
     if (ret < 0)
@@ -279,33 +364,145 @@ failed:
     return ret;
 }
 
-int verify_trusted_file (const char * uri, void * mem,
-                         uint64_t offset, uint64_t size,
-                         sgx_stub_t * stubs,
-                         uint64_t total_size)
+/*
+ * A common helper function for copying and checking the file contents
+ * from a buffer mapped outside the enclaves into an in-enclave buffer.
+ * If needed, regions at either the beginning or the end of the copied regions
+ * are copied into a scratch buffer to avoid a TOCTTOU race.
+ *
+ * * Note that it must be done this way to avoid the following TOCTTOU race
+ * * condition with the untrusted host as an adversary:
+ *       *  Adversary: put good contents in buffer
+ *       *  Enclave: buffer check passes
+ *       *  Adversary: put bad contents in buffer
+ *       *  Enclave: copies in bad buffer contents
+ *
+ * * For optimization, we verify the memory in place, as the application code
+ *   should not use the memory before return.  There can be subtle interactions
+ *   at the edges of a region with ELF loading.  Namely, the ELF loader will
+ *   want to map several file chunks that are not aligned to TRUSTED_STUB_SIZE
+ *   next to each other, sometimes overlapping.  There is probably room to
+ *   improve load time with more smarts around ELF loading, but for now, just
+ *   make things work.
+ *
+ * 'umem' is the untrusted file memory mapped outside the enclave (should
+ * already be mapped up by the caller). 'umem_start' and 'umem_end' are
+ * the offset _within the file_ of 'umem'.  'umem_start' should be aligned
+ * to the file checking chunk size (TRUSTED_STUB_SIZE). 'umem_end' can be
+ * either aligned, or equal to 'total_size'. 'buffer' is the in-enclave
+ * buffer for copying the file content. 'offset' is the offset within the file
+ * for copying into the buffer. 'size' is the size of the in-enclave buffer.
+ * 'stubs' contain the checksums of all the chunks in a file.
+ */
+int copy_and_verify_trusted_file (const char * path, const void * umem,
+                    uint64_t umem_start, uint64_t umem_end,
+                    void * buffer, uint64_t offset, uint64_t size,
+                    sgx_stub_t * stubs, uint64_t total_size)
 {
-    uint64_t checking = offset;
+    /* Check that the untrusted mapping is aligned to TRUSTED_STUB_SIZE
+     * and includes the range for copying into the buffer */
+    assert(umem_start % TRUSTED_STUB_SIZE == 0);
+    assert(offset >= umem_start && offset + size <= umem_end);
+
+    /* Start copying and checking at umem_start. The checked content may or
+     * may not be copied into the file content, depending on the offset of
+     * the content within the file. */
+    uint64_t checking = umem_start;
+    /* The stubs is an array of 128-bit hash values of the file chunks.
+     * from the beginning of the file. 's' points to the stub that needs to
+     * be checked for the current offset. */
     sgx_stub_t * s = stubs + checking / TRUSTED_STUB_SIZE;
+    int ret = 0;
 
-    for (; checking < offset + size ; checking += TRUSTED_STUB_SIZE, s++) {
-        uint64_t checking_size = TRUSTED_STUB_SIZE;
-        if (checking_size > total_size - checking)
-            checking_size = total_size - checking;
-
+    for (; checking < umem_end ; checking += TRUSTED_STUB_SIZE, s++) {
+        /* Check one chunk at a time. */
+        uint64_t checking_size = MIN(total_size - checking, TRUSTED_STUB_SIZE);
+        uint64_t checking_end = checking + checking_size;
         uint8_t hash[AES_CMAC_DIGEST_LEN];
-        lib_AESCMAC((void *) &enclave_key,
-                    AES_CMAC_KEY_LEN,
-                    mem + checking - offset, checking_size,
-                    hash, sizeof(hash));
 
+        if (checking >= offset && checking_end <= offset + size) {
+            /* If the checking chunk completely overlaps with the region
+             * needed for copying into the buffer, simplying use the buffer
+             * for checking */
+            memcpy(buffer + checking - offset, umem + checking - umem_start,
+                   checking_size);
+
+            /* Storing the checksum (using AES-CMAC) inside hash. */
+            ret = lib_AESCMAC((uint8_t *) &enclave_key,
+                              AES_CMAC_KEY_LEN,
+                              buffer + checking - offset, checking_size,
+                              hash, sizeof(hash));
+        } else {
+            /* If the checking chunk only partially overlaps with the region,
+             * read the file content in smaller chunks and only copy the part
+             * needed by the caller. */
+            LIB_AESCMAC_CONTEXT aes_cmac;
+            ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
+                                  AES_CMAC_KEY_LEN);
+            if (ret < 0)
+                goto failed;
+
+            uint8_t small_chunk[FILE_CHUNK_SIZE]; /* A small buffer */
+            uint64_t chunk_offset = checking;
+
+            for (; chunk_offset < checking_end
+                 ; chunk_offset += FILE_CHUNK_SIZE) {
+                uint64_t chunk_size = MIN(checking_end - chunk_offset,
+                                          FILE_CHUNK_SIZE);
+
+                /* Copy into the small buffer before hashing the content */
+                memcpy(small_chunk, umem + (chunk_offset - umem_start),
+                       chunk_size);
+
+                /* Update the hash for the current chunk */
+                ret = lib_AESCMACUpdate(&aes_cmac, small_chunk, chunk_size);
+                if (ret < 0)
+                    goto failed;
+
+                /* Determine if the part just copied and checked is needed
+                 * by the caller. If so, copy it into the user buffer. */
+                uint64_t copy_start = chunk_offset;
+                uint64_t copy_end = copy_start + chunk_size;
+
+                if (copy_start < offset)
+                    copy_start = offset;
+                if (copy_end > offset + size)
+                    copy_end = offset + size;
+
+                if (copy_end > copy_start)
+                    memcpy(buffer + (copy_start - offset),
+                           small_chunk + (copy_start - chunk_offset),
+                           copy_end - copy_start);
+            }
+
+            /* Storing the checksum (using AES-CMAC) inside hash. */
+            ret = lib_AESCMACFinish(&aes_cmac, hash, sizeof(hash));
+        }
+
+        if (ret < 0)
+            goto failed;
+
+        /*
+         * Check if the hash matches with the checksum of current chunk.
+         * If not, return with access denied. Note: some file content may
+         * still be in the buffer (including the corrupted part).
+         * We assume the user won't use the content if this function
+         * returns with failures.
+         *
+         * XXX: Maybe we should zero the buffer after denying the access?
+         */
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
-            SGX_DBG(DBG_E, "Accesing file:%s is denied. "
-                    "Does not match with its MAC.\n", uri);
+            SGX_DBG(DBG_E, "Accesing file:%s is denied. Does not match with MAC"
+                    " at chunk starting at %llu-%llu.\n",
+                    path, checking, checking_end);
             return -PAL_ERROR_DENIED;
         }
     }
 
     return 0;
+
+failed:
+    return -PAL_ERROR_DENIED;
 }
 
 static int register_trusted_file (const char * uri, const char * checksum_str)
@@ -433,7 +630,7 @@ static int init_trusted_file (const char * key, const char * uri)
 int init_trusted_files (void)
 {
     struct config_store * store = pal_state.root_config;
-    char * cfgbuf;
+    char * cfgbuf = NULL;
     ssize_t cfgsize;
     int nuris, ret;
 
@@ -443,7 +640,12 @@ int init_trusted_files (void)
             goto out;
     }
 
-    cfgbuf = __alloca(CONFIG_MAX);
+    cfgbuf = malloc(CONFIG_MAX);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
     ssize_t len = get_config(store, "loader.preload", cfgbuf, CONFIG_MAX);
     if (len > 0) {
         int npreload = 0;
@@ -469,7 +671,14 @@ int init_trusted_files (void)
     if (cfgsize <= 0)
         goto no_trusted;
 
-    cfgbuf = __alloca(cfgsize);
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
+
     nuris = get_config_entries(store, "sgx.trusted_files", cfgbuf, cfgsize);
     if (nuris <= 0)
         goto no_trusted;
@@ -499,7 +708,13 @@ no_trusted:
     if (cfgsize <= 0)
         goto no_allowed;
 
-    cfgbuf = __alloca(cfgsize);
+    free(cfgbuf);
+    cfgbuf = malloc(cfgsize);
+    if (!cfgbuf) {
+        ret = -PAL_ERROR_NOMEM;
+        goto out;
+    }
+
     nuris = get_config_entries(store, "sgx.allowed_files", cfgbuf, cfgsize);
     if (nuris <= 0)
         goto no_allowed;
@@ -522,7 +737,14 @@ no_trusted:
 
 no_allowed:
     ret = 0;
+
+    if (get_config(store, "sgx.allow_file_creation", cfgbuf, CONFIG_MAX) <= 0) {
+        allow_file_creation = 0;
+    } else
+        allow_file_creation = 1;
+
 out:
+    free(cfgbuf);
     return ret;
 }
 
@@ -540,7 +762,10 @@ int init_trusted_children (void)
     if (cfgsize <= 0)
         return 0;
 
-    char * cfgbuf = __alloca(cfgsize);
+    char * cfgbuf = malloc(cfgsize);
+    if (!cfgbuf)
+        return -PAL_ERROR_NOMEM;
+
     int nuris = get_config_entries(store, "sgx.trusted_mrenclave",
                                    cfgbuf, cfgsize);
     if (nuris > 0) {
@@ -560,7 +785,7 @@ int init_trusted_children (void)
                 register_trusted_child(uri, mrenclave);
         }
     }
-
+    free(cfgbuf);
     return 0;
 }
 
@@ -571,7 +796,7 @@ void test_dh (void)
     DhKey key1, key2;
     uint32_t privsz1, privsz2, pubsz1, pubsz2, agreesz1, agreesz2;
     unsigned char priv1[128], pub1[128], priv2[128], pub2[128], agree1[128],
-                  agree2[128];
+        agree2[128], scratch[257];
 
     InitDhKey(&key1);
     InitDhKey(&key2);
@@ -615,9 +840,9 @@ void test_dh (void)
     FreeDhKey(&key1);
     FreeDhKey(&key2);
 
-    SGX_DBG(DBG_S, "key exchange(side A): %s (%d)\n", __hex2str(agree1, agreesz1),
+    SGX_DBG(DBG_S, "key exchange(side A): %s (%d)\n", __bytes2hexstr(agree1, agreesz1, scratch, (agreesz1 * 2) + 1),
            agreesz1);
-    SGX_DBG(DBG_S, "key exchange(side B): %s (%d)\n", __hex2str(agree2, agreesz2),
+    SGX_DBG(DBG_S, "key exchange(side B): %s (%d)\n", __bytes2hexstr(agree2, agreesz2, scratch, (agreesz2 * 2) + 1),
            agreesz2);
 }
 #endif
@@ -662,8 +887,9 @@ int init_enclave (void)
 
     pal_enclave_config.enclave_key = rsa;
 
+    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "enclave (software) key hash: %s\n",
-           hex2str(pal_enclave_state.enclave_keyhash));
+            bytes2hexstr(pal_enclave_state.enclave_keyhash, hash_buf, HASHBUF_SIZE));
 
     return 0;
 
@@ -730,7 +956,9 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     for (int i = 0 ; i < agreesz ; i++)
         session_key[i % sizeof(session_key)] ^= agree[i];
 
-    SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key, hex2str(session_key));
+    char key_buf[KEYBUF_SIZE];
+    SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key,
+            bytes2hexstr(session_key, key_buf, KEYBUF_SIZE));
 
     if (keyptr)
         memcpy(keyptr, session_key, sizeof(PAL_SESSION_KEY));
@@ -766,8 +994,9 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
     memcpy(&req.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
 
+    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "Sending attestation request ... (mrenclave = %s)\n",\
-            hex2str(req.mrenclave));
+            bytes2hexstr(req.mrenclave, hash_buf, HASHBUF_SIZE));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(req) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(req) - bytes,
@@ -788,7 +1017,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
     }
 
     SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     ret = sgx_verify_report(&att.report);
     if (ret < 0) {
@@ -811,7 +1040,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
 
     if (ret == 1) {
         SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
-               hex2str(att.mrenclave));
+                bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -829,7 +1058,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
            sizeof(sgx_arch_attributes_t));
 
     SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
@@ -865,8 +1094,9 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
         }
     }
 
+    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "Received attestation request ... (mrenclave = %s)\n",
-            hex2str(req.mrenclave));
+            bytes2hexstr(req.mrenclave, hash_buf, HASHBUF_SIZE));
 
     ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &att.report);
     if (ret < 0) {
@@ -879,7 +1109,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
            sizeof(sgx_arch_attributes_t));
 
     SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
@@ -900,7 +1130,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            hex2str(att.mrenclave));
+            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
 
     ret = sgx_verify_report(&att.report);
     if (ret < 0) {
@@ -921,13 +1151,13 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
-                hex2str(att.mrenclave));
+        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
+                bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Remote attestation succeed!\n");
+    SGX_DBG(DBG_S, "Remote attestation succeeded!\n");
     return 0;
 
 out:

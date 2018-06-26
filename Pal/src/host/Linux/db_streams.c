@@ -207,7 +207,7 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
         case pal_type_pipesrv:
         case pal_type_pipecli:
         case pal_type_pipeprv:
-            hdl = remalloc(hdl_data, hdlsz);
+            hdl = malloc_copy(hdl_data, hdlsz);
             break;
         case pal_type_dev: {
             int l = hdl_data->dev.realpath ? strlen((const char *) data) + 1 : 0;
@@ -258,7 +258,7 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
         }
         case pal_type_gipc:
         case pal_type_process:
-            hdl = remalloc(hdl_data, hdlsz);
+            hdl = malloc_copy(hdl_data, hdlsz);
             break;
         default :
             return -PAL_ERROR_BADHANDLE;

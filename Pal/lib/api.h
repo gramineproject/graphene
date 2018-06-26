@@ -38,6 +38,13 @@ typedef ptrdiff_t ssize_t;
 # define unlikely(x)	__builtin_expect((!!(x)),0)
 #endif
 
+#ifndef MIN
+# define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+# define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 #define __alloca __builtin_alloca
 
 #define XSTRINGIFY(x) STRINGIFY(x)
@@ -135,7 +142,7 @@ int copy_config (struct config_store * store, struct config_store * new_store);
 int write_config (void * file, int (*write) (void *, void *, int),
                   struct config_store * store);
 ssize_t get_config (struct config_store * cfg, const char * key,
-                    char * val_buf, size_t size);
+                    char * val_buf, size_t buf_size);
 int get_config_entries (struct config_store * cfg, const char * key,
                         char * key_buf, size_t key_bufsize);
 ssize_t get_config_entries_size (struct config_store * cfg, const char * key);

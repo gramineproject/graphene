@@ -50,7 +50,7 @@ extern char __migratable_end;
 /* TSAI 7/11/2012:
    The checkpoint scheme we are expecting is to support an easy syntax to
    implement migration procedure. A migration procedure can be written
-   in teh following syntax:
+   in the following syntax:
 
    BEGIN_CP_DEFINITION(exec)
    {
@@ -85,14 +85,14 @@ struct shim_cp_entry
     union
     {
         ptr_t cp_val;   /* interger value */
-        /* orignally there is a pointer, now we don't need them */
+        /* originally there is a pointer, now we don't need them */
     } cp_un;
 };
 
 struct shim_mem_entry {
     struct shim_mem_entry * prev;
     void * addr;
-    int size;
+    size_t size;
     void ** paddr;
     int prot;
     void * data;
@@ -118,7 +118,7 @@ struct shim_cp_store {
     struct shim_handle * cp_file;
 
     /* allocation method for check point area */
-    void * (*alloc) (struct shim_cp_store * store, void * mem, int size);
+    void * (*alloc) (struct shim_cp_store *, void *, size_t);
 
     /* check point area */
     ptr_t base, offset, bound;
@@ -179,8 +179,8 @@ enum {
                 new_bound *= 2;                                     \
                                                                     \
             void * buf = store->alloc(store,                        \
-                                      (void *) store->base + store->bound, \
-                                      new_bound - store->bound);    \
+                            (void *) store->base + store->bound,    \
+                            new_bound - store->bound);              \
             if (!buf)                                               \
                 return -ENOMEM;                                     \
                                                                     \

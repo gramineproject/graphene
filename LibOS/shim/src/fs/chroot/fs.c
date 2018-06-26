@@ -147,12 +147,10 @@ static inline int concat_uri (char * buffer, int size, int type,
    handle is not linked to a dentry */
 static struct shim_file_data * __create_data (void)
 {
-    struct shim_file_data * data = malloc(sizeof(struct shim_file_data));
-
+    struct shim_file_data * data = calloc(1, sizeof(struct shim_file_data));
     if (!data)
         return NULL;
 
-    memset(data, 0, sizeof(struct shim_file_data));
     create_lock(data->lock);
     return data;
 }
@@ -251,7 +249,7 @@ static int __query_attr (struct shim_dentry * dent,
                 return ret;
             }
         }
-        
+
         /* DEP 3/18/17: If we have a directory, we need to find out how many
          * children it has by hand. */
         /* XXX: Keep coherent with rmdir/mkdir/creat, etc */
@@ -264,7 +262,6 @@ static int __query_attr (struct shim_dentry * dent,
             for (d = dbuf; d; d = d->next)
                 nlink++;
             free(dbuf);
-            debug("Querying a directory; I count %d links.\n", nlink);
         } else
             nlink = 2; // Educated guess...
         data->nlink = nlink;
@@ -274,7 +271,7 @@ static int __query_attr (struct shim_dentry * dent,
          */ 
         data->nlink = 1;
     }
-    
+
     data->queried = true;
 
     return 0;
@@ -351,7 +348,6 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
         stat->st_ctime  = (time_t) data->ctime;
         stat->st_nlink  = data->nlink;
 
-        
         switch (data->type) {
             case FILE_REGULAR:
                 stat->st_mode |= S_IFREG;
@@ -365,7 +361,6 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
                 break;
             default:            break;
         }
-        debug("Stat: Returning link cound %d\n", stat->st_nlink);
     }
 
     unlock(data->lock);
@@ -567,7 +562,6 @@ static int chroot_recreate (struct shim_handle * hdl)
     }
 
     /*
-     * Chia-Che Tsai 8/24/2017:
      * when recreating a file handle after migration, the file should
      * not be created again.
      */
@@ -623,8 +617,9 @@ static int chroot_flush (struct shim_handle * hdl)
 
         if (mapbuf) {
             DkStreamUnmap(mapbuf, mapsize);
-            int flags = VMA_INTERNAL;
-            bkeep_munmap(mapbuf, mapsize, &flags);
+
+            if (bkeep_munmap(mapbuf, mapsize, VMA_INTERNAL) < 0)
+                bug();
         }
     }
 
@@ -641,8 +636,9 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
             return 0;
 
         DkStreamUnmap(file->mapbuf, file->mapsize);
-        int flags = VMA_INTERNAL;
-        bkeep_munmap(file->mapbuf, file->mapsize, &flags);
+
+        if (bkeep_munmap(file->mapbuf, file->mapsize, VMA_INTERNAL) < 0)
+            bug();
 
         file->mapbuf    = NULL;
         file->mapoffset = 0;
@@ -650,23 +646,34 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
 
     /* second, reallocate the buffer */
     uint64_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
-    int prot = PAL_PROT_READ;
     uint64_t mapoff = file->marker & ~(bufsize - 1);
-    uint64_t maplen = bufsize;	
+    uint64_t maplen = bufsize;
+    int flags = MAP_FILE | MAP_PRIVATE | VMA_INTERNAL;
+    int prot = PROT_READ;
 
-    if (hdl->acc_mode & MAY_WRITE)
-        prot |= PAL_PROT_WRITE;
+    if (hdl->acc_mode & MAY_WRITE) {
+        flags = MAP_FILE | MAP_SHARED | VMA_INTERNAL;
+        prot |= PROT_WRITE;
+    }
 
     while (mapoff + maplen < file->marker + size)
         maplen *= 2;
 
-    void * mapbuf =
-        (void *) DkStreamMap(hdl->pal_handle, NULL, prot, mapoff, maplen);
+    /* create the bookkeeping before allocating the memory */
+    void * mapbuf = bkeep_unmapped_any(maplen, prot, flags, hdl, mapoff,
+                                       "filebuf");
     if (!mapbuf)
-        return -PAL_ERRNO;
+        return -ENOMEM;
 
-    bkeep_mmap(mapbuf, maplen, prot, MAP_FILE|MAP_SHARED|VMA_INTERNAL,
-               hdl, mapoff, NULL);
+    PAL_PTR mapped = DkStreamMap(hdl->pal_handle, mapbuf, PAL_PROT(prot, flags),
+                                 mapoff, maplen);
+
+    if (!mapped) {
+        bkeep_munmap(mapbuf, maplen, flags);
+        return -PAL_ERRNO;
+    }
+
+    assert((void *) mapped == mapbuf);
 
     file->mapbuf    = mapbuf;
     file->mapoffset = mapoff;
@@ -957,116 +964,133 @@ static int chroot_dput (struct shim_dentry * dent)
     return 0;
 }
 
-#define DEFAULT_DBUF_SIZE   1024
-
 static int chroot_readdir (struct shim_dentry * dent,
                            struct shim_dirent ** dirent)
 {
-    int ret;
     struct shim_file_data * data;
+    int ret;
+
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
     chroot_update_ino(dent);
+    const char * uri = qstrgetstr(&data->host_uri);
+    assert(strpartcmp_static(uri, "dir:"));
 
-    assert(strpartcmp_static(qstrgetstr(&data->host_uri), "dir:"));
-
-    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&data->host_uri),
-                                      PAL_ACCESS_RDONLY, 0, 0, 0);
+    PAL_HANDLE pal_hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!pal_hdl)
         return -PAL_ERRNO;
 
-    int buf_size = 0, new_size = MAX_PATH;
-    int bytes;
-    char * buf = NULL, * new_buf;
-
-    int dbufsize = MAX_PATH;
-    struct shim_dirent * dbuf = malloc(dbufsize);
-    struct shim_dirent * d = dbuf, ** last = NULL;
-
-retry:
-    new_buf = __alloca(new_size);
-    if (buf)
-        memcpy(new_buf, buf, buf_size);
-    buf_size = new_size;
-    buf = new_buf;
-
-    while (1) {
-        bytes = DkStreamRead(pal_hdl, 0, buf_size, buf, NULL, 0);
-
-        if (bytes == 0) {
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM)
-                break;
-
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_OVERFLOW) {
-                new_size = buf_size * 2;
-                goto retry;
-            }
-
-            ret = -PAL_ERRNO;
-            goto out;
-        }
-
-        char * b = buf, * next_b;
-        int blen;
-
-        while (b < buf + bytes) {
-            blen = strlen(b);
-            next_b = b + blen + 1;
-            bool isdir = false;
-
-            if (b[blen - 1] == '/') {
-                isdir = true;
-                b[blen - 1] = 0;
-                blen--;
-            }
-
-            int dsize = sizeof(struct shim_dirent) + blen + 1;
-
-            if ((void *) d + dsize > (void *) dbuf + dbufsize) {
-                int newsize = dbufsize * 2;
-                while ((void *) d + dsize > (void *) dbuf + newsize)
-                    newsize *= 2;
-
-                struct shim_dirent * new_dbuf = malloc(newsize);
-
-                memcpy(new_dbuf, dbuf, (void *) d - (void *) dbuf);
-                struct shim_dirent * d1 = new_dbuf;
-                struct shim_dirent * d2 = dbuf;
-                while (d2 != d) {
-                    d1->next = (void *) d1 + ((void *) d2->next - (void *) d2);
-                    d1 = d1->next;
-                    d2 = d2->next;
-                }
-
-                free(dbuf);
-                dbuf = new_dbuf;
-                d = d1;
-                dbufsize = newsize;
-            }
-
-            HASHTYPE hash = rehash_name(dent->ino, b, blen);
-
-            d->next = (void *) (d + 1) + blen + 1;
-            d->ino = hash;
-            d->type = isdir ? LINUX_DT_DIR : LINUX_DT_REG;
-            memcpy(d->name, b, blen + 1);
-
-            b = next_b;
-            last = &d->next;
-            d = d->next;
-        }
+    size_t buf_size = MAX_PATH, bytes = 0;
+    char * buf = malloc(buf_size);
+    if (!buf) {
+        ret = -ENOMEM;
+        goto out_hdl;
     }
 
-    if (!last) {
-        free(dbuf);
+    /*
+     * Try to read the directory list from the host. DkStreamRead
+     * does not accept offset for directory listing. Therefore, we retry
+     * several times if the buffer is not large enough.
+     */
+retry_read:
+    bytes = DkStreamRead(pal_hdl, 0, buf_size, buf, NULL, 0);
+    if (!bytes) {
+        ret = 0;
+        if (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM)
+            goto out;
+
+        if (PAL_NATIVE_ERRNO == PAL_ERROR_OVERFLOW) {
+            char * new_buf = malloc(buf_size * 2);
+            if (!new_buf) {
+                ret = -ENOMEM;
+                goto out;
+            }
+
+            free(buf);
+            buf_size *= 2;
+            buf = new_buf;
+            goto retry_read;
+        }
+
+        ret = -PAL_ERRNO;
         goto out;
+    }
+
+    /* Now emitting the dirent data */
+    size_t dbuf_size = MAX_PATH;
+    struct shim_dirent * dbuf = malloc(dbuf_size);
+    if (!dbuf)
+        goto out;
+
+    struct shim_dirent * d = dbuf, ** last = NULL;
+    char * b = buf, * next_b;
+    int blen;
+
+    /* Scanning the directory names in the buffer */
+    while (b < buf + bytes) {
+        blen = strlen(b);
+        next_b = b + blen + 1;
+        bool isdir = false;
+
+        /* The PAL convention: if the name is ended with "/",
+           it is a directory. */
+        if (b[blen - 1] == '/') {
+            isdir = true;
+            b[blen - 1] = 0;
+            blen--;
+        }
+
+        /* Populating a dirent */
+        int dsize = sizeof(struct shim_dirent) + blen + 1;
+
+        /* dbuf is not large enough, reallocate the dirent buffer */
+        if ((void *) d + dsize > (void *) dbuf + dbuf_size) {
+            int newsize = dbuf_size * 2;
+            while ((void *) d + dsize > (void *) dbuf + newsize)
+                newsize *= 2;
+
+            struct shim_dirent * new_dbuf = malloc(newsize);
+            if (!new_dbuf) {
+                ret = -ENOMEM;
+                free(dbuf);
+                goto out;
+            }
+
+            memcpy(new_dbuf, dbuf, (void *) d - (void *) dbuf);
+            struct shim_dirent * d1 = new_dbuf;
+            struct shim_dirent * d2 = dbuf;
+            while (d2 != d) {
+                d1->next = (void *) d1 + ((void *) d2->next - (void *) d2);
+                d1 = d1->next;
+                d2 = d2->next;
+            }
+
+            free(dbuf);
+            dbuf = new_dbuf;
+            d = d1;
+            dbuf_size = newsize;
+        }
+
+        /* Fill up the dirent buffer */
+        HASHTYPE hash = rehash_name(dent->ino, b, blen);
+
+        d->next = (void *) (d + 1) + blen + 1;
+        d->ino = hash;
+        d->type = isdir ? LINUX_DT_DIR : LINUX_DT_REG;
+        memcpy(d->name, b, blen + 1);
+
+        b = next_b;
+        last = &d->next;
+        d = d->next;
     }
 
     *last = NULL;
     *dirent = dbuf;
 
 out:
+    free(buf);
+out_hdl:
     DkObjectClose(pal_hdl);
     return ret;
 }
@@ -1084,7 +1108,6 @@ static int chroot_checkout (struct shim_handle * hdl)
 
     if (hdl->pal_handle) {
         /*
-         * Chia-Che 8/24/2017:
          * if the file still exists in the host, no need to send
          * the handle over RPC; otherwise, send it.
          */
@@ -1115,6 +1138,8 @@ static int chroot_migrate (void * checkpoint, void ** mount_data)
                     sizeof(struct mount_data) + 1;
 
     void * new_data = malloc(alloc_len);
+    if (!new_data)
+        return -ENOMEM;
 
     memcpy(new_data, mdata, alloc_len);
     *mount_data = new_data;

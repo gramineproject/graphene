@@ -31,6 +31,7 @@
 #include <shim_handle.h>
 
 #include <pal.h>
+#include <api.h>
 #include <list.h>
 
 #include <asm/mman.h>
@@ -39,27 +40,51 @@ struct shim_handle;
 
 #define VMA_COMMENT_LEN     16
 
-DEFINE_LIST(shim_vma);
-struct shim_vma {
-    REFTYPE                 ref_count;
+/*
+ * struct shim_vma_val is the published version of struct shim_vma
+ * (struct shim_vma is defined in bookkeep/shim_vma.c).
+ */
+struct shim_vma_val {
     void *                  addr;
     uint64_t                length;
     int                     prot;
     int                     flags;
     uint64_t                offset;
     struct shim_handle *    file;
-    LIST_TYPE(shim_vma)     list;
     char                    comment[VMA_COMMENT_LEN];
 };
+
+static inline
+void free_vma_val_array (struct shim_vma_val * vmas, size_t count)
+{
+    for (int i = 0 ; i < count ; i++) {
+        /* need to release the file handle */
+        if (vmas[i].file)
+            put_handle(vmas[i].file);
+    }
+
+    free(vmas);
+}
 
 /* an additional flag */
 #define VMA_UNMAPPED 0x10000000   /* vma is kept for bookkeeping, but the
                                      memory is not actually allocated */
-#define VMA_INTERNAL 0x20000000
+#define VMA_INTERNAL 0x20000000   /* vma is used internally */
 
 #define VMA_TAINTED  0x40000000   /* vma has been protected as writeable,
                                      so it has to be checkpointed during
                                      migration */
+
+#define VMA_CP       0x80000000   /* vma is used for dumping checkpoint
+                                     data */
+
+#define VMA_TYPE(flags)     ((flags) & (VMA_INTERNAL | VMA_CP))
+
+/*
+ * We distinguish checkpoint VMAs from user VMAs and other internal VMAs,
+ * to prevent corrupting internal data when creating processes.
+ */
+#define CP_VMA_FLAGS  (MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL|VMA_CP)
 
 #define NEED_MIGRATE_MEMORY(vma)                                \
         (((vma)->flags & VMA_TAINTED || !(vma)->file) &&        \
@@ -90,39 +115,59 @@ static inline PAL_FLG PAL_PROT (int prot, int flags)
 int init_vma (void);
 
 /* Bookkeeping mmap() system call */
-int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
-                struct shim_handle * file, uint64_t offset, const char * comment);
+int bkeep_mmap (void * addr, uint64_t length,
+                int prot, int flags,
+                struct shim_handle * file, uint64_t offset,
+                const char * comment);
 
 /* Bookkeeping munmap() system call */
-int bkeep_munmap (void * addr, uint64_t length, const int * flags);
+int bkeep_munmap (void * addr, uint64_t length, int flags);
 
 /* Bookkeeping mprotect() system call */
-int bkeep_mprotect (void * addr, uint64_t length, int prot, const int * flags);
+int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags);
 
-/* Get vma bookkeeping handle */
-void get_vma (struct shim_vma * vma);
-void put_vma (struct shim_vma * vma);
+/* Looking up VMA that contains [addr, length) */
+int lookup_vma (void * addr, struct shim_vma_val * vma);
 
-int lookup_supervma (const void * addr, uint64_t len, struct shim_vma ** vma);
-int lookup_overlap_vma (const void * addr, uint64_t len, struct shim_vma ** vma);
+/* Looking up VMA that overlaps with [addr, length) */
+int lookup_overlap_vma (void * addr, uint64_t length,
+                        struct shim_vma_val * vma);
 
-struct shim_vma * next_vma (struct shim_vma * vma);
+/*
+ * Looking for an unmapped space and then adding the corresponding bookkeeping
+ * (more info in bookkeep/shim_vma.c).
+ *
+ * Note: the first argument is "top_addr" because the search is top-down.
+ */
+void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
+                       int prot, int flags, struct shim_handle * file,
+                       uint64_t offset, const char * comment);
 
-void * get_unmapped_vma (uint64_t len, int flags);
-void * get_unmapped_vma_for_cp (uint64_t len);
+static inline void *
+bkeep_unmapped_any (uint64_t length, int prot, int flags,
+                    struct shim_handle * file, uint64_t offset,
+                    const char * comment)
+{
+    return bkeep_unmapped(PAL_CB(user_address.end),
+                          PAL_CB(user_address.start),
+                          length, prot, flags, file, offset, comment);
+}
 
-int dump_all_vmas (struct shim_thread * thread, char * buf, uint64_t size);
+void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
+                            struct shim_handle * file, uint64_t offset,
+                            const char * comment);
 
-void unmap_all_vmas (void);
+/*
+ * Dumping all *non-internal* VMAs into a user-allocated buffer ("max_count" is
+ * the maximal number of entries in the buffer). Return number of filled entries
+ * if succeeded, or -EOVERFLOW if the buffer is too small.
+ */
+int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count);
 
 /* Debugging */
 void debug_print_vma_list (void);
 
-void print_vma_hash (struct shim_vma * vma, void * addr, uint64_t len,
-                     bool force_protect);
-
 /* Constants */
-extern unsigned long mem_max_npages;
 extern unsigned long brk_max_size;
 extern unsigned long sys_stack_size;
 

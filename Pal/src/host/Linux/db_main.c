@@ -305,16 +305,16 @@ done_init:
 #define WORD_EDX  3
 #define WORD_NUM  4
 
-static void cpuid (int cpuid_fd, unsigned int reg,
-                   unsigned int words[], unsigned int ecx)
+static void cpuid (unsigned int leaf, unsigned int subleaf,
+                   unsigned int words[])
 {
   asm("cpuid"
       : "=a" (words[WORD_EAX]),
         "=b" (words[WORD_EBX]),
         "=c" (words[WORD_ECX]),
         "=d" (words[WORD_EDX])
-      : "a" (reg),
-        "c" (ecx));
+      : "a" (leaf),
+        "c" (subleaf));
 }
 
 #define FOUR_CHARS_VALUE(s, w)      \
@@ -354,8 +354,8 @@ static char * cpu_flags[]
           "pn",     // "processor serial number"
           "clflush",    // "CLFLUSH instruction"
           NULL,
-          "dts"     // "debug store"
-          "tm",     // "thermal monitor and clock ctrl"
+          "dts",    // "debug store"
+          "acpi",   // "Onboard thermal control"
           "mmx",    // "MMX Technology"
           "fxsr",   // "FXSAVE/FXRSTOR"
           "sse",    // "SSE extensions"
@@ -372,7 +372,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     unsigned int words[WORD_NUM];
 
     char * vendor_id = malloc(12);
-    cpuid(2, 0, words, 0);
+    cpuid(0, 0, words);
 
     FOUR_CHARS_VALUE(&vendor_id[0], words[WORD_EBX]);
     FOUR_CHARS_VALUE(&vendor_id[4], words[WORD_EDX]);
@@ -380,26 +380,41 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_vendor = vendor_id;
 
     char * brand = malloc(48);
-    cpuid(-2, 0x80000002, words, 0);
+    cpuid(0x80000002, 0, words);
     memcpy(&brand[ 0], words, sizeof(unsigned int) * WORD_NUM);
-    cpuid(-2, 0x80000003, words, 0);
+    cpuid(0x80000003, 0, words);
     memcpy(&brand[16], words, sizeof(unsigned int) * WORD_NUM);
-    cpuid(-2, 0x80000004, words, 0);
+    cpuid(0x80000004, 0, words);
     memcpy(&brand[32], words, sizeof(unsigned int) * WORD_NUM);
     ci->cpu_brand = brand;
 
-    cpuid(2, 1, words, 0);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX], 16, 24);
+    if (!memcmp(vendor_id, "GenuineIntel", 12)) {
+        cpuid(4, 0, words);
+        ci->cpu_num  = BIT_EXTRACT_LE(words[WORD_EAX], 26, 32) + 1;
+    } else if (!memcmp(vendor_id, "AuthenticAMD", 12)) {
+        cpuid(0x8000008, 0, words);
+        ci->cpu_num  = BIT_EXTRACT_LE(words[WORD_EAX], 0, 8) + 1;
+    } else {
+        ci->cpu_num  = 1;
+    }
+
+    cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[WORD_EAX],  8, 12);
     ci->cpu_model    = BIT_EXTRACT_LE(words[WORD_EAX],  4,  8);
     ci->cpu_stepping = BIT_EXTRACT_LE(words[WORD_EAX],  0,  4);
+
+    if (!memcmp(vendor_id, "GenuineIntel", 12) ||
+        !memcmp(vendor_id, "AuthenticAMD", 12)) {
+        ci->cpu_family += BIT_EXTRACT_LE(words[WORD_EAX], 20, 28);
+        ci->cpu_model  += BIT_EXTRACT_LE(words[WORD_EAX], 16, 20) << 4;
+    }
 
     int flen = 0, fmax = 80;
     char * flags = malloc(fmax);
 
     for (int i = 0 ; i < 32 ; i++) {
         if (!cpu_flags[i])
-            break;
+            continue;
 
         if (BIT_EXTRACT_LE(words[WORD_EDX], i, i + 1)) {
             int len = strlen(cpu_flags[i]);

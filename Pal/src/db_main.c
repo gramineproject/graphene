@@ -94,11 +94,13 @@ static void read_environments (const char *** envpp)
         int len, idx;
     } * setenvs = NULL;
     int nsetenvs = 0;
+    int size;
 
     if (!pal_state.root_config)
         return;
 
     ssize_t cfgsize = get_config_entries_size(store, "loader.env");
+    /* XXX Propagate this error? */
     if (cfgsize < 0)
         return;
 
@@ -265,7 +267,7 @@ void pal_main (
         if (ret < 0)
             init_fail(-ret, "cannot get executable name");
 
-        exec_uri = remalloc(uri_buf, ret + 1);
+        exec_uri = malloc_copy(uri_buf, ret + 1);
     }
 
     if (manifest_handle) {
@@ -273,7 +275,7 @@ void pal_main (
         if (ret < 0)
             init_fail(-ret, "cannot get manifest name");
 
-        manifest_uri = remalloc(uri_buf, ret + 1);
+        manifest_uri = malloc_copy(uri_buf, ret + 1);
         goto has_manifest;
     }
 
@@ -306,7 +308,7 @@ void pal_main (
 #endif
 
     /* well, there is no manifest file, leave it alone */
-    printf("Can't fine any manifest, will run without one.\n");
+    printf("Can't find any manifest, will run without one.\n");
 
 has_manifest:
     /* load manifest if there is one */
@@ -352,7 +354,7 @@ has_manifest:
         ret = get_config(pal_state.root_config, "loader.exec",
                          uri_buf, URI_MAX);
         if (ret > 0) {
-            exec_uri = remalloc(uri_buf, ret + 1);
+            exec_uri = malloc_copy(uri_buf, ret + 1);
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
                                 0, 0, 0);
             if (ret < 0)
@@ -412,7 +414,7 @@ has_manifest:
         ret = get_config(pal_state.root_config, "loader.execname", cfgbuf,
                          CONFIG_MAX);
         if (ret > 0)
-            first_argument = remalloc(cfgbuf, ret + 1);
+            first_argument = malloc_copy(cfgbuf, ret + 1);
     }
 
     read_environments(&environments);
