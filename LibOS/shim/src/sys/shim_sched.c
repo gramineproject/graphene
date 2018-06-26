@@ -25,7 +25,7 @@
 
 #include <shim_internal.h>
 #include <shim_table.h>
-
+#include <api.h>
 #include <pal.h>
 
 #include <errno.h>
@@ -34,4 +34,14 @@ int shim_do_sched_yield (void)
 {
     DkThreadYieldExecution();
     return 0;
+}
+
+int shim_do_sched_getaffinity (pid_t pid, size_t len,
+                               __kernel_cpu_set_t * user_mask_ptr)
+{
+    int ncpus = PAL_CB(cpu_info.cpu_num);
+    memset(user_mask_ptr, 0, len);
+    for (int i = 0 ; i < ncpus ; i++)
+        ((uint8_t *) user_mask_ptr)[i / 8] |= 1 << (i % 8);
+    return ncpus;
 }
