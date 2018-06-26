@@ -67,5 +67,13 @@ int main (int argc, char ** argv, char ** envp)
         (void *) &test_func < pal_control.executable_range.end)
         pal_printf("Executable Range OK\n");
 
+    pal_printf("CPU num: %d\n",      pal_control.cpu_info.cpu_num);
+    pal_printf("CPU vendor: %s\n",   pal_control.cpu_info.cpu_vendor);
+    pal_printf("CPU brand: %s\n",    pal_control.cpu_info.cpu_brand);
+    pal_printf("CPU family: %d\n",   pal_control.cpu_info.cpu_family);
+    pal_printf("CPU model: %d\n",    pal_control.cpu_info.cpu_model);
+    pal_printf("CPU stepping: %d\n", pal_control.cpu_info.cpu_stepping);
+    pal_printf("CPU flags: %s\n",    pal_control.cpu_info.cpu_flags);
+
     return 0;
 }

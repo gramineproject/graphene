@@ -46,6 +46,47 @@ regression.add_check(name="Control Block: Allocation Alignment",
 regression.add_check(name="Control Block: Executable Range",
     check=lambda res: "Executable Range OK" in res[0].log)
 
+def check_cpu_info(res):
+    cpu_num = cpu_model = cpu_family = cpu_stepping = 0
+    cpu_vendor = cpu_brand = cpu_flags = None
+
+    f = open("/proc/cpuinfo", "r")
+    for line in f:
+        line = line.strip()
+        pos = line.find(":")
+        if pos == -1:
+            continue
+
+        key = line[:pos].strip()
+        val = line[pos+1:].strip()
+        if key == "processor":  cpu_num += 1
+        if key == "vendor_id":  cpu_vendor = val
+        if key == "cpu family": cpu_family = int(val)
+        if key == "model":      cpu_model = int(val)
+        if key == "model name": cpu_brand = val
+        if key == "stepping":   cpu_stepping = int(val)
+        if key == "flags":
+            cpu_flags = []
+            for flag in val.split(" "):
+                if flag in ["fpu", "vme", "de", "pse", "tsc", "msr", "pae",
+                        "mce", "cx8", "apic", "sep", "mtrr", "pge", "mca",
+                        "cmov", "pat", "pse36", "pn", "clflush", "dts", "acpi",
+                        "mmx", "fxsr", "sse", "sse2", "ss", "ht", "tm",
+                        "ia64", "pbe"]:
+                    cpu_flags.append(flag)
+            cpu_flags = " ".join(cpu_flags)
+
+    return ("CPU num: %d"      % cpu_num)      in res[0].log and \
+           ("CPU vendor: %s"   % cpu_vendor)   in res[0].log and \
+           ("CPU brand: %s"    % cpu_brand)    in res[0].log and \
+           ("CPU family: %d"   % cpu_family)   in res[0].log and \
+           ("CPU model: %d"    % cpu_model)    in res[0].log and \
+           ("CPU stepping: %d" % cpu_stepping) in res[0].log and \
+           ("CPU flags: %s"    % cpu_flags)    in res[0].log
+
+regression.add_check(name="Control Block: CPU Info",
+    check=check_cpu_info)
+
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 

@@ -571,6 +571,7 @@ DkStreamMap (PAL_HANDLE handle, PAL_PTR addr, PAL_FLG prot, PAL_NUM offset,
         LEAVE_PAL_CALL_RETURN((PAL_PTR) NULL);
     }
 
+    /* Check that all addresses and sizes are aligned */
     if ((addr && !ALLOC_ALIGNED(addr)) || !size || !ALLOC_ALIGNED(size) ||
         !ALLOC_ALIGNED(offset)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
