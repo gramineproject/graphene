@@ -150,7 +150,7 @@ Graphene library OS uses PAL (libpal.so) as a loader to bootstrap an
 application in the library OS. To start Graphene, PAL (libpal.so) will have
 to be run as an executable, with the name of the program, and a "manifest
 file" given from the command line. Graphene provides three options for
-spcifying the programs and manifest files:
+specifying the programs and manifest files:
 
    - option 1: (automatic manifest)
    
@@ -171,7 +171,7 @@ to the Graphene reference monitor. Tha applications will have better
 performance, but no strong security isolation. To attach the applications to
 the Graphene reference monitor, Graphene must be started with the PAL
 reference monitor loader (libpal_sec.so). Graphene provides three options for
-spcifying the programs and manifest files to the loader:
+specifying the programs and manifest files to the loader:
 
    - option 4: (automatic manifest - with reference monitor)
    
