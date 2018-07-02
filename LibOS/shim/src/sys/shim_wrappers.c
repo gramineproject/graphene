@@ -37,8 +37,17 @@
 
 ssize_t shim_do_readv (int fd, const struct iovec * vec, int vlen)
 {
-    if (!vec)
+    if (!vec || test_user_memory((void *) vec, sizeof(*vec) * vlen, false))
         return -EINVAL;
+
+    for (int i = 0 ; i < vlen ; i++) {
+        if (vec[i].iov_base) {
+            if (vec[i].iov_base + vec[i].iov_len <= vec[i].iov_base)
+                return -EINVAL;
+            if (test_user_memory(vec[i].iov_base, vec[i].iov_len, true))
+                return -EFAULT;
+        }
+    }
 
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
@@ -56,6 +65,9 @@ ssize_t shim_do_readv (int fd, const struct iovec * vec, int vlen)
 
     for (int i = 0 ; i < vlen ; i++) {
         int b_vec;
+
+        if (!vec[i].iov_base)
+            continue;
 
         b_vec = hdl->fs->fs_ops->read(hdl, vec[i].iov_base, vec[i].iov_len);
         if (b_vec < 0) {
@@ -89,8 +101,17 @@ out:
  */
 ssize_t shim_do_writev (int fd, const struct iovec * vec, int vlen)
 {
-    if(!vec)
+    if (!vec || test_user_memory((void *) vec, sizeof(*vec) * vlen, false))
         return -EINVAL;
+
+    for (int i = 0 ; i < vlen ; i++) {
+        if (vec[i].iov_base) {
+            if (vec[i].iov_base + vec[i].iov_len < vec[i].iov_base)
+                return -EINVAL;
+            if (test_user_memory(vec[i].iov_base, vec[i].iov_len, false))
+                return -EFAULT;
+        }
+    }
 
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
@@ -109,6 +130,9 @@ ssize_t shim_do_writev (int fd, const struct iovec * vec, int vlen)
     for (int i = 0 ; i < vlen ; i++)
     {
         int b_vec;
+
+        if (!vec[i].iov_base)
+            continue;
 
         b_vec = hdl->fs->fs_ops->write(hdl, vec[i].iov_base, vec[i].iov_len);
         if (b_vec < 0) {

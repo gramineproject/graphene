@@ -17,6 +17,7 @@ fchdir02,40
 fchmod07,40
 fchmodat01,40
 fcntl02_64,40
+fcntl08_64,40
 fcntl13_64,40
 fork02,40
 futex_wait_bitset02,40
@@ -34,7 +35,8 @@ poll01,40
 pread01_64,40
 pread01,40
 pread02,40
-preadv01,40
+preadv01,80
+pwrite01_64,40
 pwrite04_64,40
 pwritev01,40
 read01,40

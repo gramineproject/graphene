@@ -5,14 +5,30 @@
 #include "pal_debug.h"
 #include "api.h"
 
+#define NUM_TO_HEX(num) \
+    ((num) >= 10 ? 'a' + ((num) - 10) : '0' + (num))
+
+static __attribute__((noinline))
+void print_hex (char * fmt, const void * data, int len)
+{
+    char * buf = __alloca(len * 2 + 1);
+    buf[len * 2] = '\0';
+    for (int i = 0; i < len; i++) {
+        unsigned char b = ((unsigned char *)data)[i];
+        buf[i * 2] = NUM_TO_HEX(b >> 4);
+        buf[i * 2 + 1] = NUM_TO_HEX(b & 0xf);
+    }
+    pal_printf(fmt, buf);
+}
+
 int main (int argc, char ** argv, char ** envp)
 {
-    char buffer1[41], buffer2[41];
+    char buffer1[40], buffer2[40], buffer3[40];
     int ret;
 
     /* test regular file opening */
 
-    PAL_HANDLE file1 = DkStreamOpen("file:file_exist.tmp",
+    PAL_HANDLE file1 = DkStreamOpen("file:File",
                                     PAL_ACCESS_RDWR, 0, 0, 0);
     if (file1) {
         pal_printf("File Open Test 1 OK\n");
@@ -22,19 +38,19 @@ int main (int argc, char ** argv, char ** envp)
         ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
         if (ret > 0) {
             buffer1[ret] = 0;
-            pal_printf("Read Test 1 (0th - 40th): %s\n", buffer1);
+            print_hex("Read Test 1 (0th - 40th): %s\n", buffer1, 40);
         }
 
         ret = DkStreamRead(file1, 0, 40, buffer1, NULL, 0);
         if (ret > 0) {
             buffer1[ret] = 0;
-            pal_printf("Read Test 2 (0th - 40th): %s\n", buffer1);
+            print_hex("Read Test 2 (0th - 40th): %s\n", buffer1, 40);
         }
 
         ret = DkStreamRead(file1, 200, 40, buffer2, NULL, 0);
         if (ret > 0) {
             buffer2[ret] = 0;
-            pal_printf("Read Test 3 (200th - 240th): %s\n", buffer2);
+            print_hex("Read Test 3 (200th - 240th): %s\n", buffer2, 40);
         }
 
         /* test file attribute query */
@@ -46,31 +62,44 @@ int main (int argc, char ** argv, char ** envp)
 
         /* test file map */
 
-        void * mem1 = (void *) DkStreamMap(file1, NULL, PAL_PROT_READ, 0,
-                                           attr1.pending_size);
+        void * mem1 = (void *) DkStreamMap(file1, NULL,
+                                PAL_PROT_READ | PAL_PROT_WRITECOPY, 0, 4096);
         if (mem1) {
             memcpy(buffer1, mem1, 40);
-            buffer1[40] = 0;
-            pal_printf("Map Test 1 (0th - 40th): %s\n", buffer1);
+            print_hex("Map Test 1 (0th - 40th): %s\n", buffer1, 40);
 
             memcpy(buffer2, mem1 + 200, 40);
-            buffer2[40] = 0;
-            pal_printf("Map Test 2 (200th - 240th): %s\n", buffer2);
+            print_hex("Map Test 2 (200th - 240th): %s\n", buffer2, 40);
 
-            DkStreamUnmap(mem1, attr1.pending_size);
+            DkStreamUnmap(mem1, 4096);
+        } else {
+            pal_printf("Map Test 1 & 2: Failed to map buffer\n");
+        }
+
+        /* DEP 11/24/17: For SGX writecopy exercises a different path in the PAL */
+        void * mem2 = (void *) DkStreamMap(file1, NULL,
+                                PAL_PROT_READ | PAL_PROT_WRITECOPY, 4096, 4096);
+        if (mem2) {
+            memcpy(buffer3, mem2, 40);
+            print_hex("Map Test 3 (4096th - 4136th): %s\n", buffer3, 40);
+
+            memcpy(buffer3, mem2 + 200, 40);
+            print_hex("Map Test 4 (4296th - 4336th): %s\n", buffer3, 40);
+
+            DkStreamUnmap(mem2, 4096);
         }
 
         DkObjectClose(file1);
     }
 
-    PAL_HANDLE file2 = DkStreamOpen("file:./file_exist.tmp",
+    PAL_HANDLE file2 = DkStreamOpen("file:File",
                                     PAL_ACCESS_RDWR, 0, 0, 0);
     if (file2) {
         pal_printf("File Open Test 2 OK\n");
         DkObjectClose(file2);
     }
 
-    PAL_HANDLE file3 = DkStreamOpen("file:../regression/file_exist.tmp",
+    PAL_HANDLE file3 = DkStreamOpen("file:../regression/File",
                                     PAL_ACCESS_RDWR, 0, 0, 0);
     if (file3) {
         pal_printf("File Open Test 3 OK\n");
@@ -78,7 +107,7 @@ int main (int argc, char ** argv, char ** envp)
     }
 
     PAL_STREAM_ATTR attr2;
-    if (DkStreamAttributesQuery("file:file_exist.tmp", &attr2))
+    if (DkStreamAttributesQuery("file:File", &attr2))
         pal_printf("Query: type = %d, size = %d\n",
                    attr2.handle_type, attr2.pending_size);
 

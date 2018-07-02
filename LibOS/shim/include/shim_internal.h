@@ -760,4 +760,7 @@ int init_internal_map (void);
 int init_loader (void);
 int init_manifest (PAL_HANDLE manifest_handle);
 
+bool test_user_memory (void * addr, size_t size, bool write);
+bool test_user_string (const char * addr);
+
 #endif /* _PAL_INTERNAL_H_ */

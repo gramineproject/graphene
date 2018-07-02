@@ -135,7 +135,7 @@ int ipc_pid_kill_callback (IPC_CALLBACK_ARGS)
     struct shim_ipc_pid_kill * msgin =
             (struct shim_ipc_pid_kill *) msg->msg;
 
-    debug("ipc callback form %u: IPC_PID_KILL(%u, %u, %d)\n",
+    debug("ipc callback from %u: IPC_PID_KILL(%u, %u, %d)\n",
           msg->src, msgin->sender, msgin->id, msgin->signum);
 
     int ret = 0;
@@ -201,7 +201,7 @@ int ipc_pid_getstatus_callback (IPC_CALLBACK_ARGS)
                             (struct shim_ipc_pid_getstatus *) msg->msg;
     int ret = 0;
 
-    debug("ipc callback form %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n",
+    debug("ipc callback from %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n",
           msg->src, msgin->npids, msgin->pids[0]);
 
     struct thread_status {
@@ -287,10 +287,10 @@ int ipc_pid_retstatus_callback (IPC_CALLBACK_ARGS)
                             (struct shim_ipc_pid_retstatus *) msg->msg;
 
     if (msgin->nstatus)
-        debug("ipc callback form %u: IPC_PID_RETSTATUS(%d, [%u, ...])\n",
+        debug("ipc callback from %u: IPC_PID_RETSTATUS(%d, [%u, ...])\n",
               msg->src, msgin->nstatus, msgin->status[0].pid);
     else
-        debug("ipc callback form %u: IPC_PID_RETSTATUS(0, [])\n", msg->src);
+        debug("ipc callback from %u: IPC_PID_RETSTATUS(0, [])\n", msg->src);
 
 
     struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
@@ -511,7 +511,7 @@ int ipc_pid_getmeta_callback (IPC_CALLBACK_ARGS)
                             (struct shim_ipc_pid_getmeta *) msg->msg;
     int ret = 0;
 
-    debug("ipc callback form %u: IPC_PID_GETMETA(%u, %s)\n", msg->src,
+    debug("ipc callback from %u: IPC_PID_GETMETA(%u, %s)\n", msg->src,
           msgin->pid, pid_meta_code_str[msgin->code]);
 
     struct shim_thread * thread = lookup_thread(msgin->pid);
@@ -610,7 +610,7 @@ int ipc_pid_retmeta_callback (IPC_CALLBACK_ARGS)
     struct shim_ipc_pid_retmeta * msgin =
                             (struct shim_ipc_pid_retmeta *) msg->msg;
 
-    debug("ipc callback form %u: IPC_PID_RETMETA(%u, %s, %d)\n", msg->src,
+    debug("ipc callback from %u: IPC_PID_RETMETA(%u, %s, %d)\n", msg->src,
           msgin->pid, pid_meta_code_str[msgin->code], msgin->datasize);
 
     struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
@@ -675,7 +675,7 @@ int ipc_pid_nop_callback (IPC_CALLBACK_ARGS)
     struct shim_ipc_pid_nop * msgin =
                         (struct shim_ipc_pid_nop *) &msg->msg;
 
-    debug("ipc callback form %u: IPC_PID_NOP(%d)\n", msg->src,
+    debug("ipc callback from %u: IPC_PID_NOP(%d)\n", msg->src,
           msgin->count);
 
     if (!(--msgin->count)) {
