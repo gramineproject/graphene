@@ -220,6 +220,13 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
             epoll_fd->epoll = epoll_hdl;
             epoll_fd->pal_handle = hdl->pal_handle;
 
+            /* Register the epoll handle */
+            get_handle(epoll_hdl);
+            lock(hdl->lock);
+            INIT_LIST_HEAD(epoll_fd, back);
+            listp_add_tail(epoll_fd, &hdl->epolls, back);
+            unlock(hdl->lock);
+
             INIT_LIST_HEAD(epoll_fd, list);
             listp_add_tail(epoll_fd, &epoll->fds, list);
             epoll->nfds++;
@@ -241,8 +248,18 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
         case EPOLL_CTL_DEL: {
             listp_for_each_entry(epoll_fd, &epoll->fds, list)
                 if (epoll_fd->fd == fd) {
+                    struct shim_handle * hdl = epoll_fd->handle;
+
+                    /* Unregister the epoll handle */
+                    lock(hdl->lock);
+                    listp_del(epoll_fd, &hdl->epolls, back);
+                    unlock(hdl->lock);
+                    put_handle(epoll_hdl);
+
+                    debug("delete handle %p from epoll handle %p\n",
+                          hdl, epoll);
+
                     listp_del(epoll_fd, &epoll->fds, list);
-                    put_handle(epoll_fd->handle);
                     epoll->nfds--;
                     free(epoll_fd);
                     goto update;
@@ -404,8 +421,7 @@ BEGIN_CP_FUNC(epoll_fd)
         new_epoll_fd->data    = epoll_fd->data;
         new_epoll_fd->revents = epoll_fd->revents;
         new_epoll_fd->pal_handle = NULL;
-        /* DEP XXX: Is the new_epoll_fd being added to new_list? */
-        //list_add(new_list, &new_epoll_fd->list);
+
         listp_add(new_epoll_fd, new_list, list);
 
         DO_CP(handle, epoll_fd->handle, &new_epoll_fd->handle);

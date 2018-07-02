@@ -99,6 +99,9 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (stubs) {
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
         map_end = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
+        /* Don't go past the end of file with the stub map either */
+        if (map_end > total)
+            map_end = ALLOC_ALIGNUP(total);
     } else {
         map_start = ALLOC_ALIGNDOWN(offset);
         map_end = ALLOC_ALIGNUP(end);
@@ -111,17 +114,18 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
         return -PAL_ERROR_DENIED;
 
     if (stubs) {
-        ret = verify_trusted_file(handle->file.realpath, umem,
-                                  map_start, map_end - map_start,
-                                  stubs, total);
-
+        ret = copy_and_verify_trusted_file(handle->file.realpath, umem,
+                                           map_start, map_end,
+                                           buffer, offset, end - offset,
+                                           stubs, total);
         if (ret < 0) {
-            ocall_unmap_untrusted(umem, map_start - map_end);
+            ocall_unmap_untrusted(umem, map_end - map_start);
             return ret;
         }
+    } else {
+        memcpy(buffer, umem + (offset - map_start), end - offset);
     }
 
-    memcpy(buffer, umem + offset - map_start, end - offset);
     ocall_unmap_untrusted(umem, map_end - map_start);
     return end - offset;
 }
@@ -204,6 +208,10 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
         return -PAL_ERROR_DENIED;
     }
 
+    mem = get_reserved_pages(mem, size);
+    if (!mem)
+        return -PAL_ERROR_NOMEM;
+
     uint64_t end = (offset + size > total) ? total : offset + size;
     uint64_t map_start, map_end;
 
@@ -223,29 +231,23 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     }
 
     if (stubs) {
-        ret = verify_trusted_file(handle->file.realpath, umem,
-                                  map_start, map_end - map_start,
-                                  stubs, total);
+        ret = copy_and_verify_trusted_file(handle->file.realpath, umem,
+                                           map_start, map_end,
+                                           mem, offset, end - offset,
+                                           stubs, total);
 
         if (ret < 0) {
             SGX_DBG(DBG_E, "file_map - verify trusted returned %d\n", ret);
             ocall_unmap_untrusted(umem, map_end - map_start);
             return ret;
         }
-    }
-
-    /* The memory will always allocated with flag MAP_PRIVATE
-       and MAP_FILE */
-
-    mem = get_reserved_pages(mem, size);
-
-    if (mem) {
-        memcpy(mem, umem + offset - map_start, end - offset);
-        *addr = mem;
+    } else {
+        memcpy(mem, umem + (offset - map_start), end - offset);
     }
 
     ocall_unmap_untrusted(umem, map_end - map_start);
-    return mem ? 0 : -PAL_ERROR_NOMEM;
+    *addr = mem;
+    return 0;
 }
 
 /* 'setlength' operation for file stream. */

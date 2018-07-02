@@ -756,8 +756,14 @@ rt_sigsuspend01,1
 sbrk01,1
 sbrk01,2
 sbrk02,1
+sched_getaffinity01,1
 sched_getaffinity01,2
 sched_getaffinity01,3
+sched_getaffinity01,4
+sched_getaffinity01,5
+sched_getaffinity01,6
+sched_getaffinity01,7
+sched_getaffinity01,8
 sched_yield01,1
 select01,1
 select02,1
