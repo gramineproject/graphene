@@ -599,12 +599,7 @@ static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int64_t bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
 
     if (IS_ERR(bytes))
-        switch (ERRNO(bytes)) {
-            case EWOULDBLOCK:
-                return -PAL_ERROR_TRYAGAIN;
-            default:
-                return unix_to_pal_error(ERRNO(bytes));
-        }
+        return unix_to_pal_error(ERRNO(bytes));
 
     if (!bytes)
         return -PAL_ERROR_ENDOFSTREAM;
@@ -637,16 +632,7 @@ static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
-            case ECONNRESET:
-            case EPIPE:
-                return -PAL_ERROR_CONNFAILED;
-            case EWOULDBLOCK:
-                HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
-                return -PAL_ERROR_TRYAGAIN;
-            default:
-                return unix_to_pal_error(ERRNO(bytes));
-        }
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     if (bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
@@ -831,14 +817,7 @@ static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int64_t bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
-            case EWOULDBLOCK:
-                return -PAL_ERROR_TRYAGAIN;
-            case EINTR:
-                return -PAL_ERROR_INTERRUPTED;
-            default:
-                return unix_to_pal_error(ERRNO(bytes));
-        }
+        return unix_to_pal_error(ERRNO(bytes));
 
     return bytes;
 }
@@ -870,16 +849,7 @@ static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t l
     int64_t bytes = INLINE_SYSCALL(recvmsg, 3, handle->sock.fd, &hdr, 0);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
-            case EWOULDBLOCK:
-                return -PAL_ERROR_TRYAGAIN;
-            case EINTR:
-                return -PAL_ERROR_INTERRUPTED;
-            case ECONNREFUSED:
-                return -PAL_ERROR_STREAMNOTEXIST;
-            default:
-                return unix_to_pal_error(ERRNO(bytes));
-        }
+        return unix_to_pal_error(ERRNO(bytes));
 
     char * addr_uri = strcpy_static(addr, "udp:", addrlen);
     if (!addr_uri)
@@ -917,16 +887,7 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
-            case EAGAIN:
-                HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
-                return -PAL_ERROR_TRYAGAIN;
-            case ECONNRESET:
-            case EPIPE:
-                return -PAL_ERROR_CONNFAILED;
-            default:
-                return unix_to_pal_error(ERRNO(bytes));
-        }
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     if (bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
@@ -976,15 +937,7 @@ static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
-            case ECONNRESET:
-            case EPIPE:
-                return -PAL_ERROR_CONNFAILED;
-            case EAGAIN:
-                HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
-            default:
-                return unix_to_pal_error(ERRNO(bytes));
-        }
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     if (bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);

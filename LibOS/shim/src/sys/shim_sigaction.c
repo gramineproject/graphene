@@ -47,6 +47,12 @@ int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
         sigsetsize != sizeof(__sigset_t))
         return -EINVAL;
 
+    if (act && test_user_memory((void *) act, sizeof(*act), false))
+        return -EFAULT;
+
+    if (oldact && test_user_memory(oldact, sizeof(*oldact), false))
+        return -EFAULT;
+
     struct shim_thread * cur = get_cur_thread();
     int err = 0;
 
@@ -96,6 +102,12 @@ int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset)
     if (how != SIG_BLOCK && how != SIG_UNBLOCK &&
         how != SIG_SETMASK)
         return -EINVAL;
+
+    if (set && test_user_memory((void *) set, sizeof(*set), false))
+        return -EFAULT;
+
+    if (oldset && test_user_memory(oldset, sizeof(*oldset), false))
+        return -EFAULT;
 
     struct shim_thread * cur = get_cur_thread();
     int err = 0;
@@ -166,6 +178,9 @@ int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
 
 int shim_do_sigsuspend (const __sigset_t * mask)
 {
+    if (!mask || test_user_memory((void *) mask, sizeof(*mask), false))
+        return -EFAULT;
+
     __sigset_t * old, tmp;
     struct shim_thread * cur = get_cur_thread();
 
@@ -187,6 +202,9 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
 int shim_do_sigpending (__sigset_t * set, size_t sigsetsize)
 {
+    if (!set || test_user_memory(set, sizeof(*set), false))
+        return -EFAULT;
+
     struct shim_thread * cur = get_cur_thread();
 
     __sigemptyset(set);

@@ -500,6 +500,7 @@ relock:
     listp_for_each_entry_safe(tmp, n, &thread_list, list) {
         if (tmp->tid <= min_tid)
             continue;
+
         bool unlocked = false;
         ret = (*callback) (tmp, arg, &unlocked);
         if (ret < 0 && ret != -ESRCH) {

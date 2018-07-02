@@ -54,7 +54,8 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
     } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
 
-    debug("signal_logs[%d]: head=%d, tail=%d\n", sig -1, head, tail);
+    debug("signal_logs[%d]: head=%d, tail=%d (counter = %d)\n", sig - 1,
+          head, tail, thread->has_signal.counter + 1);
 
     atomic_inc(&thread->has_signal);
 
@@ -246,6 +247,15 @@ ret_exception:
 
 static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+    if (tcb->test_range.cont_addr && arg
+        && (void *) arg >= tcb->test_range.start
+        && (void *) arg <= tcb->test_range.end) {
+        assert(context);
+        context->rip = (PAL_NUM) tcb->test_range.cont_addr;
+        goto ret_exception;
+    }
+
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
 internal:
         internal_fault("Internal memory fault", arg, context);
@@ -293,6 +303,102 @@ internal:
 
 ret_exception:
     DkExceptionReturn(event);
+}
+
+/*
+ * 'test_user_memory' and 'test_user_string' are helper functions for testing
+ * if a user-given buffer or data structure is readable / writable (according
+ * to the system call semantics). If the memory test fails, the system call
+ * should return -EFAULT or -EINVAL accordingly. These helper functions cannot
+ * guarantee further corruption of the buffer, or if the buffer is unmapped
+ * with a concurrent system call. The purpose of these functions is simply for
+ * the compatibility with programs that rely on the error numbers, such as the
+ * LTP test suite.
+ */
+bool test_user_memory (void * addr, size_t size, bool write)
+{
+    if (!size)
+        return false;
+
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+    assert(tcb && tcb->tp);
+    __disable_preempt(tcb);
+
+    if (addr + size - 1 < addr)
+        size = (void *) 0x0 - addr;
+
+    bool has_fault = true;
+
+    /* Add the memory region to the watch list. This is not racy because
+     * each thread has its own record. */
+    assert(!tcb->test_range.cont_addr);
+    tcb->test_range.cont_addr = &&ret_fault;
+    tcb->test_range.start = addr;
+    tcb->test_range.end = addr + size - 1;
+
+    /* Try to read or write into one byte inside each page */
+    void * tmp = addr;
+    while (tmp <= addr + size - 1) {
+        if (write) {
+            *(volatile char *) tmp = *(volatile char *) tmp;
+        } else {
+            *(volatile char *) tmp;
+        }
+        tmp = ALIGN_UP(tmp + 1);
+    }
+
+    has_fault = false; /* All accesses have passed. Nothing wrong. */
+
+ret_fault:
+    /* If any read or write into the target region causes an exception,
+     * the control flow will immediately jump to here. */
+    tcb->test_range.cont_addr = NULL;
+    tcb->test_range.start = tcb->test_range.end = NULL;
+    __enable_preempt(tcb);
+    return has_fault;
+}
+
+/*
+ * This function tests a user string with unknown length. It only tests
+ * whether the memory is readable.
+ */
+bool test_user_string (const char * addr)
+{
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+    assert(tcb && tcb->tp);
+    __disable_preempt(tcb);
+
+    bool has_fault = true;
+
+    assert(!tcb->test_range.cont_addr);
+    tcb->test_range.cont_addr = &&ret_fault;
+
+    /* Test one page at a time. */
+    const char * next = ALIGN_UP(addr + 1);
+    do {
+        /* Add the memory region to the watch list. This is not racy because
+         * each thread has its own record. */
+        tcb->test_range.start = (void *) addr;
+        tcb->test_range.end = (void *) (next - 1);
+        *(volatile char *) addr; /* try to read one byte from the page */
+
+        /* If the string ends in this page, exit the loop. */
+        if (strnlen(addr, next - addr) < next - addr)
+            break;
+
+        addr = next;
+        next = ALIGN_UP(addr + 1);
+    } while (addr < next);
+
+    has_fault = false; /* All accesses have passed. Nothing wrong. */
+
+ret_fault:
+    /* If any read or write into the target region causes an exception,
+     * the control flow will immediately jump to here. */
+    tcb->test_range.cont_addr = NULL;
+    tcb->test_range.start = tcb->test_range.end = NULL;
+    __enable_preempt(tcb);
+    return has_fault;
 }
 
 static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
@@ -514,6 +620,8 @@ void handle_signal (bool delayed_only)
 
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
 
+    debug("handle signal (counter = %d)\n", thread->has_signal.counter);
+
     /* Fast path */
     if (!thread->has_signal.counter)
         return;
@@ -521,6 +629,7 @@ void handle_signal (bool delayed_only)
     __disable_preempt(tcb);
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
+        debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
         tcb->context.preempt |= SIGNAL_DELAYED;
         goto out;
     }
@@ -531,6 +640,7 @@ void handle_signal (bool delayed_only)
     __handle_signal(tcb, 0, NULL);
 out:
     __enable_preempt(tcb);
+    debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
 void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
