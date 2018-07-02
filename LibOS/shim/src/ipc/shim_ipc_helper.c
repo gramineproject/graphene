@@ -381,6 +381,7 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     type = type ? (type & port->info.type) : port->info.type;
 
     port->deleted = true; /* prevent further usage of the port */
+    wmb(); /* commit the state to the memory */
 
     if ((type & IPC_PORT_KEEPALIVE) ^
         (port->info.type & IPC_PORT_KEEPALIVE))

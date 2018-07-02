@@ -372,6 +372,9 @@ int send_ipc_message (struct shim_ipc_msg * msg, struct shim_ipc_port * port)
           port->pal_handle);
 
     PAL_HANDLE pal_handle = port->pal_handle;
+
+    /* Read memory barrier needed here to ensure pal_handle is alive
+     * if port->deleted is not true. */
     rmb();
 
     if (port->deleted)
