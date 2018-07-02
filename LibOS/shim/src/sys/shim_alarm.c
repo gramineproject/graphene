@@ -81,6 +81,10 @@ int shim_do_setitimer (int which, struct __kernel_itimerval * value,
 
     if (!value)
         return -EFAULT;
+    if (test_user_memory(value, sizeof(*value), false))
+        return -EFAULT;
+    if (ovalue && test_user_memory(ovalue, sizeof(*ovalue), true))
+        return -EFAULT;
 
     unsigned long setup_time = DkSystemTimeQuery();
 
@@ -124,6 +128,8 @@ int shim_do_getitimer (int which, struct __kernel_itimerval * value)
         return -ENOSYS;
 
     if (!value)
+        return -EFAULT;
+    if (test_user_memory(value, sizeof(*value), true))
         return -EFAULT;
 
     unsigned long setup_time = DkSystemTimeQuery();

@@ -39,6 +39,12 @@ int shim_do_gettimeofday (struct __kernel_timeval * tv,
     if (!tv)
         return -EINVAL;
 
+    if (test_user_memory(tv, sizeof(*tv), true))
+        return -EFAULT;
+
+    if (tz && test_user_memory(tz, sizeof(*tz), true))
+        return -EFAULT;
+
     long time = DkSystemTimeQuery();
 
     if (time == -1)
@@ -56,6 +62,9 @@ time_t shim_do_time (time_t * tloc)
     if (time == -1)
         return -PAL_ERRNO;
 
+    if (tloc && test_user_memory(tloc, sizeof(*tloc), true))
+        return -EFAULT;
+
     time_t t = time / 1000000;
 
     if (tloc)
@@ -71,6 +80,9 @@ int shim_do_clock_gettime (clockid_t which_clock,
 
     if (!tp)
         return -EINVAL;
+
+    if (test_user_memory(tp, sizeof(*tp), true))
+        return -EFAULT;
 
     long time = DkSystemTimeQuery();
 
@@ -89,6 +101,9 @@ int shim_do_clock_getres (clockid_t which_clock,
 
     if (!tp)
         return -EINVAL;
+
+    if (test_user_memory(tp, sizeof(*tp), true))
+        return -EFAULT;
 
     tp->tv_sec  = 0;
     tp->tv_nsec = 1000;
