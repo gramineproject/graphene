@@ -211,6 +211,9 @@ size_t shim_do_pread64 (int fd, char * buf, size_t count, loff_t pos)
     if (!buf || test_user_memory(buf, count, true))
         return -EFAULT;
 
+    if (pos < 0)
+        return -EINVAL;
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -258,6 +261,9 @@ size_t shim_do_pwrite64 (int fd, char * buf, size_t count, loff_t pos)
 {
     if (!buf || test_user_memory(buf, count, false))
         return -EFAULT;
+
+    if (pos < 0)
+        return -EINVAL;
 
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
