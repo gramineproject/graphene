@@ -1,0 +1,2 @@
+sgx.disable_avx = 1
+sgx.allowed_files.res = file:avxRes

@@ -241,6 +241,8 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
             restore_sgx_context(uc);
             return;
         }
+        SGX_DBG(DBG_E, "Illegal instruction executed in enclave\n");    
+        ocall_exit(1);
     }
 
     switch (ei.info.vector) {

@@ -176,6 +176,9 @@ def get_enclave_attributes(manifest):
                 if manifest_options[opt] in attributes:
                     attributes.pop(manifest_options[opt])
 
+    if manifest.get('sgx.disable_avx') == '1':
+      attributes.remove('XFRM_AVX')
+
     flags_raw = struct.pack("<Q", 0)
     xfrms_raw = struct.pack("<Q", 0)
     miscs_raw = struct.pack("<L", 0)
