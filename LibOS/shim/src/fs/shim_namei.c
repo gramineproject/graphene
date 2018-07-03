@@ -311,6 +311,11 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
             my_pathlen++;
         }
 
+        if (my_pathlen > MAX_FILENAME) {
+            err = -ENAMETOOLONG;
+            goto out;
+        }
+
         /* Handle . */
         if (my_pathlen == 1 && *path == '.') {
             /* For the recursion to work, we need to do the following:

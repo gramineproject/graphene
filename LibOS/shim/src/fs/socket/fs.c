@@ -218,7 +218,6 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
 
     PAL_STREAM_ATTR attr;
     if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr)) {
-        debug("socket_poll: Setting -PAL_ERRNO %d\n", PAL_ERRNO);
         ret = -PAL_ERRNO;
         goto out;
     }
@@ -238,7 +237,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
 
 out:
     if (ret < 0) {
-        debug("Setting sock error %d\n", ret);
+        debug("socket_poll failed (%d)\n", ret);
         sock->error = -ret;
     }
 

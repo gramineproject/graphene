@@ -61,7 +61,7 @@ DEFINE_PROFILE_CATAGORY(memory, );
 void * __system_malloc (size_t size)
 {
     size_t alloc_size = ALIGN_UP(size);
-    void * addr;
+    void * addr, * ret_addr;
     int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
 
     /*
@@ -77,14 +77,23 @@ void * __system_malloc (size_t size)
     if (!addr)
         return NULL;
 
-    void * ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0,
-                                           PAL_PROT_WRITE|PAL_PROT_READ);
+    do {
+        ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0,
+                                        PAL_PROT_WRITE|PAL_PROT_READ);
 
-    if (!ret_addr) {
-        bkeep_munmap(addr, alloc_size, flags);
-        return NULL;
-    }
+        if (!ret_addr) {
+            /* If the allocation is interrupted by signal, try to handle the
+             * signal and then retry the allocation. */
+            if (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED) {
+                handle_signal(true);
+                continue;
+            }
 
+            debug("failed to allocate memory (%d)\n", -PAL_ERRNO);
+            bkeep_munmap(addr, alloc_size, flags);
+            return NULL;
+        }
+    } while (!ret_addr);
     assert(addr == ret_addr);
     return addr;
 }

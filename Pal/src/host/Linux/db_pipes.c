@@ -361,14 +361,7 @@ static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 #endif
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
-            case EWOULDBLOCK:
-                return-PAL_ERROR_TRYAGAIN;
-            case EINTR:
-                return -PAL_ERROR_INTERRUPTED;
-            default:
-                return -PAL_ERROR_DENIED;
-        }
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     if (!bytes)
         return -PAL_ERROR_ENDOFSTREAM;
@@ -420,15 +413,7 @@ static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                         WRITEABLE(0);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
-            case EWOULDBLOCK:
-                HANDLE_HDR(handle)->flags &= ~writeable;
-                return-PAL_ERROR_TRYAGAIN;
-            case EINTR:
-                return -PAL_ERROR_INTERRUPTED;
-            default:
-                return -PAL_ERROR_DENIED;
-        }
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     if (bytes == len)
         HANDLE_HDR(handle)->flags |= writeable;
