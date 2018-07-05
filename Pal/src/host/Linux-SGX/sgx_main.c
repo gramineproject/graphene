@@ -654,7 +654,8 @@ int load_manifest (int fd, struct config_store ** config_ptr)
 static int load_enclave (struct pal_enclave * enclave,
                          const char * manifest_uri,
                          const char * exec_uri,
-                         const char ** arguments, const char ** environments)
+                         const char ** arguments, const char ** environments,
+                         int exec_uri_inferred)
 {
     struct pal_sec * pal_sec = &enclave->pal_sec;
     int ret;
@@ -713,13 +714,15 @@ static int load_enclave (struct pal_enclave * enclave,
         return -EINVAL;
     }
 
-    if (exec_uri == NULL) {
-        if (get_config(enclave->config, "loader.exec", cfgbuf, CONFIG_MAX) > 0) {
-            exec_uri = resolve_uri(cfgbuf, &errstring);
-            if (!exec_uri) {
-                SGX_DBG(DBG_E, "%s: %s\n", errstring, cfgbuf);
-                return -EINVAL;
-            }
+    // A manifest can specify an executable with a different base name
+    // than the manifest itself.  Always give the exec field of the manifest
+    // precedence if specified.
+    if (get_config(enclave->config, "loader.exec", cfgbuf, CONFIG_MAX) > 0) {
+        exec_uri = resolve_uri(cfgbuf, &errstring);
+        exec_uri_inferred = 0;
+        if (!exec_uri) {
+            SGX_DBG(DBG_E, "%s: %s\n", errstring, cfgbuf);
+            return -EINVAL;
         }
     }
 
@@ -728,8 +731,18 @@ static int load_enclave (struct pal_enclave * enclave,
                                        exec_uri + static_strlen("file:"),
                                        O_RDONLY|O_CLOEXEC, 0);
         if (IS_ERR(enclave->exec)) {
-            SGX_DBG(DBG_E, "cannot open executable %s\n", exec_uri);
-            return -EINVAL;
+            if (exec_uri_inferred) {
+                // It is valid for an enclave not to have an executable.
+                // We need to catch the case where we inferred the executable
+                // from the manifest file name, but it doesn't exist, and let
+                // the enclave go a bit further.  Go ahead and warn the user,
+                // though.
+                SGX_DBG(DBG_I, "Inferred executable cannot be opened: %s.  This may be ok, or may represent a manifest misconfiguration. This typically represents advanced usage, and if it is not what you intended, try setting the loader.exec field in the manifest.\n", exec_uri);
+                enclave->exec = -1;
+            } else {
+                SGX_DBG(DBG_E, "cannot open executable %s\n", exec_uri);
+                return -EINVAL;
+            }
         }
     } else {
         enclave->exec = -1;
@@ -830,8 +843,12 @@ static int load_enclave (struct pal_enclave * enclave,
 
 int main (int argc, const char ** argv, const char ** envp)
 {
-    const char * manifest_uri = NULL, * exec_uri = NULL;
+    const char * manifest_uri = NULL;
+    char * exec_uri = NULL;
     const char * pal_loader = argv[0];
+    int exec_uri_inferred = 0; // Handle the case where the exec uri is
+                               // inferred from the manifest name somewhat
+                               // differently
     argc--;
     argv++;
 
@@ -888,8 +905,20 @@ int main (int argc, const char ** argv, const char ** envp)
     }
 
     if (memcmp(filebuf, "\177ELF", 4)) {
-        manifest_uri = exec_uri;
-        exec_uri = NULL;
+        // In this case the manifest is given as the executable.  Set
+        // manifest_uri to sgx_manifest (should be the same), and
+        // and drop the .manifest* from exec_uri, so that the program
+        // loads properly.
+        manifest_uri = sgx_manifest;
+        size_t exec_len = strlen(exec_uri);
+        if (strcmp_static(exec_uri + exec_len - strlen(".manifest"), ".manifest")) {
+            exec_uri[exec_len - strlen(".manifest")] = '\0';
+            exec_uri_inferred = 1;
+        } else if (strcmp_static(exec_uri + exec_len - strlen(".manifest.sgx"), ".manifest.sgx")) {
+            exec_uri[exec_len - strlen(".manifest.sgx")] = '\0';
+            exec_uri_inferred = 1;
+        } 
+        
     }
 
     fd = INLINE_SYSCALL(open, 3, sgx_manifest, O_RDONLY|O_CLOEXEC, 0);
@@ -903,8 +932,12 @@ int main (int argc, const char ** argv, const char ** envp)
     }
 
     SGX_DBG(DBG_I, "manifest file: %s\n", manifest_uri);
-
-    return load_enclave(enclave, manifest_uri, exec_uri, argv, envp);
+    if (exec_uri)
+        SGX_DBG(DBG_I, "executable file: %s\n", exec_uri);
+    else
+        SGX_DBG(DBG_I, "executable file not found\n");
+    
+    return load_enclave(enclave, manifest_uri, exec_uri, argv, envp, exec_uri_inferred);
 
 usage:
     SGX_DBG(DBG_E, "USAGE: %s [executable|manifest] args ...\n", pal_loader);
@@ -925,5 +958,5 @@ int pal_init_enclave (const char * manifest_uri,
     memset(enclave, 0, sizeof(struct pal_enclave));
 
     return load_enclave(enclave, manifest_uri, exec_uri,
-                        arguments, environments);
+                        arguments, environments, 0);
 }
