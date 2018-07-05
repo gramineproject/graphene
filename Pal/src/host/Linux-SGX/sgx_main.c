@@ -862,8 +862,11 @@ int main (int argc, const char ** argv, const char ** envp)
     }
 
     int fd = INLINE_SYSCALL(open, 3, exec_uri + 5, O_RDONLY|O_CLOEXEC, 0);
-    if (IS_ERR(fd))
+    if (IS_ERR(fd)) {
+        SGX_DBG(DBG_E, "Executable not found\n");
+        SGX_DBG(DBG_E, "USAGE: <pal> [executable|manifest] args ...\n");
         return -ERRNO(fd);
+    }
 
     char filebuf[4];
     /* check if the first argument is a executable. If it is, try finding

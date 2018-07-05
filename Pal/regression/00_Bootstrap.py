@@ -178,3 +178,13 @@ regression.add_check(name="Load Large Number of Items in Manifest",
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
+
+# Running an executable that doesn't exist, should at least warn you
+regression = Regression(loader, "fakenews")
+
+regression.add_check(name="Error on missing executable and manifest",
+    check=lambda res: "Executable not found" in res[0].log and 
+                     any([line.startswith("USAGE: ") for line  in res[0].log]))
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
