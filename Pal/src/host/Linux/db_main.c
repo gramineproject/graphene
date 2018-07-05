@@ -281,6 +281,7 @@ void pal_linux_main (void * args)
 
 done_init:
     if (!parent && !exec && !manifest) {
+        printf("Executable not found\n");
         printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
         _DkProcessExit(0);
         return;
