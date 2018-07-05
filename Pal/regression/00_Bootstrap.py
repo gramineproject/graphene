@@ -100,10 +100,11 @@ if rv: sys.exit(rv)
     
 
 # Running Bootstrap2
-regression = Regression(loader, "Bootstrap2")
+regression = Regression(loader, manifest_file("Bootstrap2"))
 
 regression.add_check(name="Control Block: Manifest as Executable Name",
-    check=lambda res: "Loaded Manifest: file:" + manifest_file("Bootstrap2") in res[0].log)
+    check=lambda res: "Loaded Manifest: file:" + manifest_file("Bootstrap2") in res[0].log
+                     and "User Program Started" in res[0].log)
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
