@@ -23,3 +23,11 @@ regression.add_check(name="Five Arguments Given",
            "argv[3] = c" in res[0].out and "argv[4] = d" in res[0].out)
 
 regression.run_checks()
+
+# Shared Object Test
+regression = Regression(loader, "shared_object")
+
+regression.add_check(name="Shared Object",
+    check=lambda res: "Hello world" in res[0].out)
+
+regression.run_checks()
