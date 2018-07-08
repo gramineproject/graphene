@@ -1,4 +1,4 @@
-SYS ?= $(shell gcc -dumpmachine)
+include ../src/Makefile.Host
 
 CC	= gcc
 CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
@@ -11,7 +11,7 @@ manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.ma
 target = $(executables) $(manifests)
 
 graphene_lib = .lib/graphene-lib.a
-pal_lib = ../src/libpal.so
+pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 headers = $(wildcard ../include/pal/*.h)
 
 .PHONY: default
@@ -57,8 +57,12 @@ $(executables): %: %.c ../src/user_start.o \
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $^ -o $@
 
-$(graphene_lib):
-	$(MAKE) -C ../lib target=$(shell pwd)/.lib/
+.lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
+	@mkdir -p .lib
+	cp -f $< $@
+
+$(graphene_lib): .lib/host_endian.h
+	$(MAKE) -C ../lib target=$(abspath .lib)/
 
 else
 .IGNORE: $(preloads) $(executables)
