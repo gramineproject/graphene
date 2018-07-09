@@ -169,6 +169,7 @@ static int pipe_waitforclient (PAL_HANDLE handle, PAL_HANDLE * client)
     HANDLE_HDR(clnt)->flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     clnt->pipe.fd = newfd;
     clnt->pipe.pipeid = handle->pipe.pipeid;
+    clnt->pipe.nonblocking = PAL_FALSE;
     *client = clnt;
 #endif
 
