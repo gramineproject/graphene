@@ -175,6 +175,15 @@ static inline void __assert_vma_list (void)
     }
 }
 
+// In a debug build only, assert that the VMA list is
+// sorted.  This should be called with the vma_list_lock held.
+static inline void assert_vma_list (void)
+{
+#ifdef DEBUG
+    __assert_vma_list();
+#endif
+}
+
 /*
  * __lookup_vma() returns the VMA that contains the address; otherwise,
  * returns NULL. "pprev" returns the highest VMA below the address.
@@ -488,6 +497,7 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mmap(prev, addr, addr + length, prot, flags, file, offset,
                            comment);
+    assert_vma_list();
     __restore_reserved_vmas();
     unlock(vma_list_lock);
     return ret;
@@ -667,6 +677,7 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_munmap(&prev, addr, addr + length, flags);
+    assert_vma_list();
     __restore_reserved_vmas();
     unlock(vma_list_lock);
     return ret;
@@ -777,6 +788,7 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mprotect(prev, addr, addr + length, prot, flags);
+    assert_vma_list();
     __restore_reserved_vmas();
     unlock(vma_list_lock);
     return ret;
@@ -814,6 +826,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
             /* create a new VMA at the top of the range */
             __bkeep_mmap(prev, end - length, end, prot, flags,
                          file, offset, comment);
+            assert_vma_list();
 
             debug("bkeep_unmapped: %p-%p%s%s\n", end - length, end,
                   comment ? " => " : "", comment ? : "");
@@ -838,6 +851,7 @@ void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
     lock(vma_list_lock);
     void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
                                    file, offset, comment);
+    assert_vma_list();
     __restore_reserved_vmas();
     unlock(vma_list_lock);
     return addr;
@@ -878,6 +892,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
     addr = __bkeep_unmapped(top_addr, bottom_addr,
                             length, prot, flags,
                             file, offset, comment);
+    assert_vma_list();
 
     if (addr) {
         /*
@@ -899,6 +914,7 @@ again:
     addr = __bkeep_unmapped(heap_max, bottom_addr,
                             length, prot, flags,
                             file, offset, comment);
+    assert_vma_list();
 
 out:
     __restore_reserved_vmas();
