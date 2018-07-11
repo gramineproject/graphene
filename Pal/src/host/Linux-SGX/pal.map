@@ -10,6 +10,7 @@ PAL {
         DkMutexRelease;
         DkEventSet;  DkEventClear;
         DkObjectsWaitAny;
+        DkObjectsWaitEvents;
 
         DkStreamOpen; DkStreamRead; DkStreamWrite;
         DkStreamMap; DkStreamUnmap; DkStreamSetLength;

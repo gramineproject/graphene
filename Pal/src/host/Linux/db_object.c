@@ -35,8 +35,6 @@
 #include <atomic.h>
 #include <asm/errno.h>
 
-#define DEFAULT_QUANTUM 500
-
 /* internally to wait for one object. Also used as a shortcut to wait
  *  on events and semaphores.
  *
@@ -261,6 +259,134 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
 
     *polled = polled_hdl;
     return polled_hdl ? 0 : -PAL_ERROR_TRYAGAIN;
+}
+
+/* _DkObjectsWaitAny for internal use. The function wait for any of the handle
+   in the handle array. timeout can be set for the wait. */
+int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
+                          PAL_FLG * ret_events, uint64_t timeout)
+{
+    if (count <= 0)
+        return 0;
+
+
+    int i, j, ret, maxfds = 0, nfds = 0;
+
+    if (count == 1) {
+        const struct handle_ops * ops = HANDLE_OPS(handleArray[0]);
+
+        if (ops->wait) {
+            ret = ops->wait(handleArray[0], timeout);
+            if (!ret)
+                ret_events[0] = PAL_WAIT_SIGNAL;
+            return ret;
+        }
+    }
+
+    /* we are not gonna to allow any polling on muliple synchronous
+       objects, doing this is simply violating the division of
+       labor between PAL and library OS */
+    for (i = 0 ; i < count ; i++) {
+        PAL_HANDLE hdl = handleArray[i];
+
+        if (!hdl)
+            continue;
+
+        if (!(HANDLE_HDR(hdl)->flags & HAS_FDS))
+            return -PAL_ERROR_NOTSUPPORT;
+
+        /* eliminate repeated entries */
+        for (j = 0 ; j < i ; j++)
+            if (hdl == handleArray[j])
+                break;
+        if (j == i) {
+            for (j = 0 ; j < MAX_FDS ; j++)
+                if (HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j)))
+                    maxfds++;
+        }
+    }
+
+    struct pollfd * fds = __alloca(sizeof(struct pollfd) * maxfds);
+    int * offsets = __alloca(sizeof(int) * maxfds);
+
+    for (i = 0 ; i < count ; i++) {
+        PAL_HANDLE hdl = handleArray[i];
+        ret_events[i] = 0;
+
+        if (!hdl)
+            continue;
+
+        for (j = 0 ; j < i ; j++)
+            if (hdl == handleArray[j])
+                break;
+        if (j < i)
+            continue;
+
+        for (j = 0 ; j < MAX_FDS ; j++) {
+            fds[nfds].events = 0;
+
+            if ((HANDLE_HDR(hdl)->flags & RFD(i)) &&
+                (events[i] & PAL_WAIT_READ))
+                fds[nfds].events |= POLLIN;
+
+            if ((HANDLE_HDR(hdl)->flags & WFD(i)) &&
+                (events[i] & PAL_WAIT_WRITE))
+                fds[nfds].events |= POLLOUT;
+
+            if (events[i] & PAL_WAIT_ERROR)
+                fds[nfds].events |= POLLHUP|POLLERR;
+
+            if (fds[nfds].events) {
+                fds[nfds].fd = hdl->generic.fds[i];
+                fds[nfds].revents = 0;
+                offsets[nfds] = i;
+                nfds++;
+            }
+        }
+    }
+
+    if (!nfds)
+        return -PAL_ERROR_TRYAGAIN;
+
+    struct timespec timeout_ts;
+
+    if (timeout >= 0) {
+        long sec = (unsigned long) timeout / 1000000;
+        long microsec = (unsigned long) timeout - (sec * 1000000);
+        timeout_ts.tv_sec = sec;
+        timeout_ts.tv_nsec = microsec * 1000;
+    }
+
+    ret = INLINE_SYSCALL(ppoll, 5, fds, nfds,
+                         timeout >= 0 ? &timeout_ts : NULL,
+                         NULL, 0);
+
+    if (IS_ERR(ret))
+        switch (ERRNO(ret)) {
+            case EINTR:
+            case ERESTART:
+                return -PAL_ERROR_INTERRUPTED;
+            default:
+                return unix_to_pal_error(ERRNO(ret));
+        }
+
+    if (!ret)
+        return -PAL_ERROR_TRYAGAIN;
+
+    for (i = 0 ; i < nfds ; i++) {
+        if (!fds[i].revents)
+            continue;
+
+        j = offsets[i];
+        if (fds[i].revents & POLLIN)
+            ret_events[j] |= PAL_WAIT_READ;
+        if (fds[i].revents & POLLOUT)
+            ret_events[j] |= PAL_WAIT_WRITE;
+        if (fds[i].revents & (POLLHUP|POLLERR))
+            ret_events[j] |= PAL_WAIT_ERROR;
+    }
+
+    return 0;
 }
 
 #if TRACE_HEAP_LEAK == 1
