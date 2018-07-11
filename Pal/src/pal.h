@@ -471,10 +471,10 @@ DkEventClear (PAL_HANDLE eventHandle);
 PAL_HANDLE
 DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout);
 
-#define PAL_WAIT_SIGNAL     1
+#define PAL_WAIT_SIGNAL     1   /* ignored in events */
 #define PAL_WAIT_READ       2
 #define PAL_WAIT_WRITE      4
-#define PAL_WAIT_ERROR      8
+#define PAL_WAIT_ERROR      8   /* ignored in evnets */
 
 PAL_BOL
 DkObjectsWaitEvents (PAL_NUM count, PAL_HANDLE * handleArray, PAL_FLG * events,

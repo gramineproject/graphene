@@ -333,8 +333,7 @@ int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
                 (events[i] & PAL_WAIT_WRITE))
                 fds[nfds].events |= POLLOUT;
 
-            if (events[i] & PAL_WAIT_ERROR)
-                fds[nfds].events |= POLLHUP|POLLERR;
+            /* POLLERR, POLLHUP, POLLNVAL are ignored in fds[nfds].events */
 
             if (fds[nfds].events) {
                 fds[nfds].fd = hdl->generic.fds[i];
@@ -382,7 +381,7 @@ int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
             ret_events[j] |= PAL_WAIT_READ;
         if (fds[i].revents & POLLOUT)
             ret_events[j] |= PAL_WAIT_WRITE;
-        if (fds[i].revents & (POLLHUP|POLLERR))
+        if (fds[i].revents & (POLLHUP|POLLERR|POLLNVAL))
             ret_events[j] |= PAL_WAIT_ERROR;
     }
 
