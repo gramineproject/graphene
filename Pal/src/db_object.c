@@ -105,3 +105,34 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
 
     LEAVE_PAL_CALL_RETURN(polled);
 }
+
+/* PAL call DkObjectsWaitEvents: wait for user-specified events of handles
+   in the handle array. The wait can be timed out, unless NO_TIMEOUT is given
+   for the timeout argument. */
+PAL_BOL
+DkObjectsWaitEvents (PAL_NUM count, PAL_HANDLE * handleArray, PAL_FLG * events,
+                     PAL_FLG * ret_events, PAL_NUM timeout)
+{
+    ENTER_PAL_CALL(DkObjectsWaitAny);
+
+    if (!count || !handleArray || !events) {
+        _DkRaiseFailure(PAL_ERROR_INVAL);
+        LEAVE_PAL_CALL_RETURN(NULL);
+    }
+
+    for (int i = 0 ; i < count ; i++)
+        // We modify the caller's handleArray?
+        if (UNKNOWN_HANDLE(handleArray[i]))
+            handleArray[i] = NULL;
+
+    int ret = _DkObjectsWaitEvents(count, handleArray, events, ret_events,
+                                   timeout == NO_TIMEOUT ?
+                                   (uint64_t) -1 : timeout);
+
+    if (ret < 0) {
+        _DkRaiseFailure(-ret);
+        return PAL_FALSE;
+    }
+
+    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
+}

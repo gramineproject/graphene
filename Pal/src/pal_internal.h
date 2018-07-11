@@ -329,6 +329,9 @@ int _DkObjectReference (PAL_HANDLE objectHandle);
 int _DkObjectClose (PAL_HANDLE objectHandle);
 int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                        PAL_HANDLE * polled);
+int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
+                          PAL_FLG * ret_evetns, uint64_t timeout);
+
 
 /* DkException calls & structures */
 PAL_EVENT_HANDLER _DkGetExceptionHandler (PAL_NUM event_num);

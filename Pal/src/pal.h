@@ -467,6 +467,16 @@ DkEventClear (PAL_HANDLE eventHandle);
 PAL_HANDLE
 DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout);
 
+#define PAL_WAIT_SIGNAL     1
+#define PAL_WAIT_READ       2
+#define PAL_WAIT_WRITE      4
+#define PAL_WAIT_ERROR      8
+
+PAL_BOL
+DkObjectsWaitEvents (PAL_NUM count, PAL_HANDLE * handleArray, PAL_FLG * events,
+                     PAL_FLG * ret_events, PAL_NUM timeout);
+
+
 /* Deprecate DkObjectReference */
 
 void DkObjectClose (PAL_HANDLE objectHandle);
