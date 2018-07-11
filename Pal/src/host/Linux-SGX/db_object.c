@@ -180,7 +180,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
         return -PAL_ERROR_TRYAGAIN;
 
     uint64_t waittime = timeout;
-    ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
+    ret = ocall_poll(fds, nfds, timeout != (uint64_t) -1 ? &waittime : NULL);
     if (ret < 0)
         return ret;
 
@@ -220,6 +220,10 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
     return polled_hdl ? 0 : -PAL_ERROR_TRYAGAIN;
 }
 
+/* _DkObjectsWaitEvents is a new version of _DkObjectsWaitAny. This function
+ * can select specific IO events to poll (read / write) and return multiple
+ * events (including errors) that occurs simutaneously. The rest of semantics
+ * is the same as _DkObjectWaitAny. */
 int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
                           PAL_FLG * ret_events, uint64_t timeout)
 {
@@ -304,7 +308,7 @@ int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
         return -PAL_ERROR_TRYAGAIN;
 
     uint64_t waittime = timeout;
-    ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
+    ret = ocall_poll(fds, nfds, timeout != (uint64_t) -1 ? &waittime : NULL);
     if (ret < 0)
         return ret;
 
