@@ -331,7 +331,7 @@ int _DkObjectClose (PAL_HANDLE objectHandle);
 int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
                        PAL_HANDLE * polled);
 int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
-                          PAL_FLG * ret_evetns, uint64_t timeout);
+                          PAL_FLG * ret_events, uint64_t timeout);
 
 
 /* DkException calls & structures */
