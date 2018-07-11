@@ -322,7 +322,7 @@ done_finding:
         SAVE_PROFILE_INTERVAL(do_poll_wait_any_peek);
 
     if (!polled) {
-        ret = -PAL_ERRNO;
+        ret = (PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN) ? 0 : -PAL_ERRNO;
         goto done_polling;
     }
 
