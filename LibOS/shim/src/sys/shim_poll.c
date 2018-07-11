@@ -117,6 +117,7 @@ static int __do_poll (int npolls, struct poll_handle * polls,
     struct poll_handle * polling = NULL;
     struct poll_handle * p, ** n, * q;
     PAL_HANDLE * pals = NULL;
+    PAL_FLG * pal_events = NULL, * ret_events;
     int ret = 0;
 
 #ifdef PROFILE
@@ -289,8 +290,8 @@ done_finding:
     }
 
     pals = __try_alloca(cur, sizeof(PAL_HANDLE) * npals);
-    PAL_FLG * pal_events = __try_alloca(cur, sizeof(PAL_FLG) * npals);
-    PAL_FLG * ret_events = __try_alloca(cur, sizeof(PAL_FLG) * npals);
+    pal_events = __try_alloca(cur, sizeof(PAL_FLG) * npals * 2);
+    ret_events = pal_events + npals;
     npals = 0;
 
     n = &polling;
@@ -368,6 +369,8 @@ done_polling:
 
     if (pals)
         __try_free(cur, pals);
+    if (pal_events)
+        __try_free(cur, pal_events);
 
     return ret;
 }
