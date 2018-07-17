@@ -1,7 +1,7 @@
 SYS ?= $(shell gcc -dumpmachine)
 
 CC	= gcc
-CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
+CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib -mavx\
 	  -I../include/pal -I../lib
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))

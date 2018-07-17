@@ -243,6 +243,8 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
             restore_sgx_context(uc);
             return;
         }
+        SGX_DBG(DBG_E, "Illegal Instruction Unsupported inside Enclave\n");    
+        ocall_exit();
     }
 
     switch (ei.info.vector) {
