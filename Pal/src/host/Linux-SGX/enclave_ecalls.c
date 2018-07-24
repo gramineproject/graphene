@@ -7,8 +7,11 @@
 #include <api.h>
 
 #include "ecall_types.h"
+#include "rpcqueue.h"
 
 #define SGX_CAST(type, item) ((type) (item))
+
+extern rpc_queue_t * rpc_queue;  /* pointer to untrusted queue */
 
 void pal_linux_main (const char ** arguments, const char ** environments,
                      struct pal_sec * sec_info);
@@ -44,6 +47,8 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
                     (ms_ecall_enclave_start_t *) ecall_args;
 
             if (!ms) return -PAL_ERROR_INVAL;
+
+            rpc_queue = (rpc_queue_t*) ms->rpc_queue;
 
             pal_linux_main(ms->ms_arguments, ms->ms_environments,
                            ms->ms_sec_info);

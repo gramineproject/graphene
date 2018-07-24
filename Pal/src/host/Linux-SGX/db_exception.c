@@ -33,6 +33,7 @@
 #include "pal_security.h"
 #include "api.h"
 #include "ecall_types.h"
+#include "rpcqueue.h"
 
 #include <atomic.h>
 #include <sigset.h>
@@ -52,6 +53,8 @@ typedef struct exception_event {
                   "movq %%rax, %0\r\n"              \
                   : "=b"(ptr) :: "memory", "rax")
 
+extern rpc_queue_t* rpc_queue;
+
 void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
                              PAL_NUM arg, struct pal_frame * frame,
                              PAL_CONTEXT * context)
@@ -62,6 +65,8 @@ void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
     event.context = context;
     event.frame = frame;
 
+    if (rpc_queue)
+        rpc_queue->in_signal_handler++;
     (*upcall) ((PAL_PTR) &event, arg, context);
 }
 
@@ -303,6 +308,12 @@ void _DkRaiseFailure (int error)
 
 void _DkExceptionReturn (void * event)
 {
+    if (rpc_queue) {
+        rpc_queue->in_signal_handler--;
+        if (rpc_queue->in_signal_handler < 0)
+            rpc_queue->in_signal_handler = 0;
+    }
+
     PAL_EVENT * e = event;
     sgx_context_t uc;
     PAL_CONTEXT * ctx = e->context;

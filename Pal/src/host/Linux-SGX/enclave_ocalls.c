@@ -14,6 +14,28 @@
 #include <api.h>
 
 #include <asm/errno.h>
+#include "rpcqueue.h"
+
+rpc_queue_t * rpc_queue;  /* pointer to untrusted queue */
+
+int rpc_ocall(int code, void* ms)
+{
+    /* perform synchronous OCALL if specified in manifest.sgx or if we are
+     * currently handling a signal (signals may want to perform syscalls,
+     * but RPC threads may be all blocked on previous syscalls -> deadlock) */
+    if (!rpc_queue || rpc_queue->in_signal_handler)
+        return sgx_ocall(code, ms);
+
+    /* enqueue OCALL into rpc_queue */
+    rpc_request_t* req = rpc_enqueue(rpc_queue, code, ms);
+    if (!req) {
+        SGX_DBG(DBG_E, "No free space in rpc_queue to invoke OCALL (try increasing RPC_QUEUE_SIZE)\n");
+        return -1;
+    }
+    /* wait till request processing is finished */
+    rpc_spin_lock(&req->in_progress);
+    return req->result;
+}
 
 #define OCALLOC(val, type, len) do {    \
     void * _tmp = sgx_ocalloc(len);     \
@@ -26,7 +48,7 @@
 
 int printf(const char * fmt, ...);
 
-#define SGX_OCALL(code, ms) sgx_ocall(code, ms)
+#define SGX_OCALL(code, ms) rpc_ocall(code, ms)
 
 #define OCALL_EXIT()                                    \
     do {                                                \
@@ -67,7 +89,7 @@ int printf(const char * fmt, ...);
 int ocall_exit(void)
 {
     int retval = 0;
-    SGX_OCALL(OCALL_EXIT, NULL);
+    sgx_ocall(OCALL_EXIT, NULL); /* exit is sync ocall */
     /* never reach here */
     return retval;
 }
@@ -441,7 +463,7 @@ int ocall_futex (int * futex, int op, int val,
     ms->ms_val = val;
     ms->ms_timeout = timeout ? *timeout : OCALL_NO_TIMEOUT;
 
-    retval = SGX_OCALL(OCALL_FUTEX, ms);
+    retval = sgx_ocall(OCALL_FUTEX, ms); /* futex is sync ocall */
     OCALL_EXIT();
     return retval;
 }
@@ -504,6 +526,9 @@ int ocall_sock_listen (int domain, int type, int protocol,
 int ocall_sock_accept (int sockfd, struct sockaddr * addr,
                        unsigned int * addrlen, struct sockopt * sockopt)
 {
+    if (rpc_queue)
+        rpc_queue->do_async_poll = 1;
+
     int retval = 0;
     unsigned int len = addrlen ? *addrlen : 0;
     ms_ocall_sock_accept_t * ms;
@@ -702,6 +727,13 @@ int ocall_sock_shutdown (int sockfd, int how)
 
 int ocall_gettime (unsigned long * microsec)
 {
+    /* fast path: if have RPC thread for async syscalls, it also updates
+     *            time_ptr with fresh timestamp (though untrusted) */
+    if (rpc_queue && rpc_queue->time_ptr) {
+        *microsec = *rpc_queue->time_ptr;
+        return 0;
+    }
+
     int retval = 0;
     ms_ocall_gettime_t * ms;
     OCALLOC(ms, ms_ocall_gettime_t *, sizeof(*ms));
@@ -710,6 +742,7 @@ int ocall_gettime (unsigned long * microsec)
     if (!retval)
         *microsec = ms->ms_microsec;
     OCALL_EXIT();
+
     return retval;
 }
 
@@ -721,7 +754,7 @@ int ocall_sleep (unsigned long * microsec)
 
     ms->ms_microsec = microsec ? *microsec : 0;
 
-    retval = SGX_OCALL(OCALL_SLEEP, ms);
+    retval = sgx_ocall(OCALL_SLEEP, ms); /* sleep is sync ocall */
     if (microsec) {
         if (!retval)
             *microsec = 0;
@@ -742,7 +775,11 @@ int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
     ms->ms_nfds = nfds;
     ms->ms_timeout = timeout ? *timeout : OCALL_NO_TIMEOUT;
 
-    retval = SGX_OCALL(OCALL_POLL, ms);
+    if (!rpc_queue || !rpc_queue->do_async_poll)
+        retval = sgx_ocall(OCALL_POLL, ms);
+    else
+        retval = SGX_OCALL(OCALL_POLL, ms);
+
     if (retval == -EINTR && timeout)
         *timeout = ms->ms_timeout;
     if (retval >= 0)

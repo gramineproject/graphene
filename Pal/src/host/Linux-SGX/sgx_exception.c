@@ -29,6 +29,7 @@
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "sgx_internal.h"
+#include "rpcqueue.h"
 
 #include <atomic.h>
 #include <sigset.h>
@@ -199,9 +200,18 @@ static int get_event_num (int signum)
 
 void sgx_entry_return (void);
 
+extern rpc_queue_t* rpc_queue;
+
 static void _DkTerminateSighandler (int signum, siginfo_t * info,
                                     struct ucontext * uc)
 {
+    /* send dummy signal to RPC threads so they interrupt blocked syscalls */
+    if (rpc_queue && (signum == SIGTERM || signum == SIGINT)) {
+        int i;
+        for (i = 0; i < rpc_queue->rpc_threads_num; i++)
+            INLINE_SYSCALL(tkill, 2, rpc_queue->rpc_threads[i], SIGUSR1);
+    }
+
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
 #if SGX_HAS_FSGSBASE == 0

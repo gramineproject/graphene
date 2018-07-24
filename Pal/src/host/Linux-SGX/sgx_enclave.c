@@ -15,6 +15,12 @@
 #include <linux/in6.h>
 #include <math.h>
 #include <asm/errno.h>
+#include <signal.h>
+#include "rpcqueue.h"
+
+#define itimerspec dummy_itimerspec /* workaround for conflicting defs */
+#include <pthread.h>
+#undef itimerspec
 
 #ifndef SOL_IPV6
 # define SOL_IPV6 41
@@ -25,6 +31,14 @@
 static int sgx_ocall_exit(void * pms)
 {
     ODEBUG(OCALL_EXIT, NULL);
+
+    /* kill all app threads if no more enclave threads */
+    int num_enclave_threads = unmap_tcs();
+    if (num_enclave_threads <= 0) {
+        INLINE_SYSCALL(exit_group, 1, 0);
+        return 0;
+    }
+
     INLINE_SYSCALL(exit, 1, 0);
     return 0;
 }
@@ -704,12 +718,94 @@ void * ocall_table[OCALL_NR] = {
 
 #define EDEBUG(code, ms) do {} while (0)
 
+rpc_queue_t*  rpc_queue = NULL;          /* pointer to untrusted queue */
+static unsigned long untrusted_time = 0; /* untrusted gettime result */
+
+int gettimeofday(struct timeval *tv, struct timezone *tz);
+
+static void dummyhandler(int signum) {
+    /* do nothing; we only need this handler to interrupt blocking syscall */
+}
+
+static void* rpc_thread_loop (void* encl)
+{
+    /* this RPC thread needs current_enclave for some sgx_ocall's */
+    current_enclave = (struct pal_enclave *)encl;
+
+    struct sigaction sig;
+    sig.sa_handler = dummyhandler;
+    sigaction(SIGUSR1, &sig, 0);
+
+    rpc_spin_lock(&rpc_queue->_lock);
+    rpc_queue->rpc_threads[rpc_queue->rpc_threads_num] =
+                INLINE_SYSCALL(gettid, 0);
+    rpc_queue->rpc_threads_num++;
+    rpc_spin_unlock(&rpc_queue->_lock);
+
+    typedef int (*bridge_fn_t)(const void*);
+    struct timeval tv;
+
+    while (1) {
+        /* update untrusted_time so that enclave's gettime() can read it
+         * NOTE: RPC threads can race on this variable but it is benign */
+        gettimeofday(&tv, NULL);
+        untrusted_time = tv.tv_sec * 1000000UL + tv.tv_usec;
+
+        rpc_request_t* req = rpc_dequeue(rpc_queue);
+        if (req == NULL) {
+            __asm__("pause");
+            continue;
+        }
+
+        /* call actual function and notify awaiting enclave thread when done */
+        bridge_fn_t bridge = (bridge_fn_t)(ocall_table[req->ocall_index]);
+        req->result = bridge(req->buffer);
+        rpc_spin_unlock(&req->in_progress);
+    }
+
+    /* unreachable */
+    return 0;
+}
+
+static void* start_rpc (int num_of_threads)
+{
+    rpc_queue = (rpc_queue_t*) INLINE_SYSCALL(mmap, 6, NULL, sizeof(rpc_queue_t),
+            PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    rpc_queue->rpc_threads_num   = 0;
+    rpc_queue->do_async_poll     = 0;
+    rpc_queue->in_signal_handler = 0;
+    rpc_queue->time_ptr          = &untrusted_time;
+    rpc_queue->_lock = 0;
+    rpc_queue->front = 0;
+    rpc_queue->rear  = 0;
+    for (int i=0; i<RPC_QUEUE_SIZE; i++) {
+        rpc_queue->q[i] = (rpc_request_t*) INLINE_SYSCALL(mmap, 6, NULL, sizeof(rpc_request_t),
+                PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    }
+
+    for (int i=0; i<num_of_threads; i++) {
+        pthread_t thr;
+        pthread_create(&thr, NULL, &rpc_thread_loop, (void*) current_enclave);
+    }
+
+    while (rpc_queue->rpc_threads_num != current_enclave->rpc_thread_num)
+        __asm__("pause");
+
+    return rpc_queue;
+}
+
 int ecall_enclave_start (const char ** arguments, const char ** environments)
 {
+    rpc_queue = NULL;
+
+    if (current_enclave->rpc_thread_num > 0)
+        start_rpc(current_enclave->rpc_thread_num);
+
     ms_ecall_enclave_start_t ms;
     ms.ms_arguments = arguments;
     ms.ms_environments = environments;
     ms.ms_sec_info = PAL_SEC();
+    ms.rpc_queue = rpc_queue;
     EDEBUG(ECALL_ENCLAVE_START, &ms);
     return sgx_ecall(ECALL_ENCLAVE_START, &ms);
 }
