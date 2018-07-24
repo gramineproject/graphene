@@ -7,6 +7,7 @@
 #include <api.h>
 
 #include "ecall_types.h"
+#include "rpcqueue.h"
 
 #define SGX_CAST(type, item) ((type) (item))
 
@@ -16,6 +17,28 @@ void pal_linux_main (const char ** arguments, const char ** environments,
 void pal_start_thread (void);
 
 extern void * enclave_base, * enclave_top;
+
+/* returns 0 if rpc_queue is valid, otherwise 1 */
+static int set_rpc_queue(void* untrusted_rpc_queue) {
+    rpc_queue = (rpc_queue_t*) untrusted_rpc_queue;
+    if (!rpc_queue)
+        return 0;
+
+    if (sgx_is_within_enclave(rpc_queue, sizeof(*rpc_queue)))
+        return 1;
+
+    if (rpc_queue->rpc_threads_num > MAX_RPC_THREADS)
+        return 1;
+
+    /* re-initialize rest fields for safety */
+    atomic_set(&rpc_queue->lock, 0);
+    rpc_queue->front = 0;
+    rpc_queue->rear  = 0;
+    for (size_t i = 0; i < RPC_QUEUE_SIZE; i++)
+        rpc_queue->q[i] = NULL;
+
+    return 0;
+}
 
 int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
                   void * untrusted_stack, void * enclave_base_addr)
@@ -44,6 +67,9 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
                     (ms_ecall_enclave_start_t *) ecall_args;
 
             if (!ms) return -PAL_ERROR_INVAL;
+
+            if (set_rpc_queue(ms->rpc_queue))
+                return -PAL_ERROR_DENIED;
 
             pal_linux_main(ms->ms_arguments, ms->ms_environments,
                            ms->ms_sec_info);

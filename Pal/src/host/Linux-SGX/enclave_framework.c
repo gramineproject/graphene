@@ -24,11 +24,21 @@ bool sgx_is_within_enclave (const void * addr, uint64_t size)
     return enclave_base <= addr && addr + size <= enclave_top;
 }
 
+void * sgx_ocget_frame (void)
+{
+    return GET_ENCLAVE_TLS(ustack);
+}
+
 void * sgx_ocalloc (uint64_t size)
 {
     void * ustack = GET_ENCLAVE_TLS(ustack) - size;
     SET_ENCLAVE_TLS(ustack, ustack);
     return ustack;
+}
+
+void sgx_ocfree_frame (void * frame)
+{
+    SET_ENCLAVE_TLS(ustack, frame);
 }
 
 void sgx_ocfree (void)

@@ -132,7 +132,7 @@ extern void arch_exception_return (void) asm ("arch_exception_return_asm");
 void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
                               PAL_CONTEXT * context)
 {
-    if (frame) {
+    if (!frame) {
         frame = __alloca(sizeof(struct pal_frame));
         frame->identifier = PAL_FRAME_IDENTIFIER;
         frame->func     = &_DkExceptionRealHandler;
