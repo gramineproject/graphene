@@ -6,6 +6,7 @@
 #include "sgx_internal.h"
 #include "pal_security.h"
 #include "pal_linux_error.h"
+#include "rpcqueue.h"
 
 #include <asm/mman.h>
 #include <asm/ioctls.h>
@@ -13,8 +14,10 @@
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/futex.h>
 #include <math.h>
 #include <asm/errno.h>
+#include <linux/signal.h>
 
 #ifndef SOL_IPV6
 # define SOL_IPV6 41
@@ -30,6 +33,14 @@ static int sgx_ocall_exit(void* prv)
         SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
         rv = 255;
     }
+
+    /* kill all app threads if no more enclave threads */
+    int num_enclave_threads = unmap_tcs();
+    if (num_enclave_threads <= 0) {
+        INLINE_SYSCALL(exit_group, 1, rv);
+        return 0;
+    }
+
     INLINE_SYSCALL(exit, 1, (int)rv);
     return 0;
 }
@@ -220,7 +231,7 @@ static int sgx_ocall_getdents(void * pms)
 static int sgx_ocall_wake_thread(void * pms)
 {
     ODEBUG(OCALL_WAKE_THREAD, pms);
-    return pms ? interrupt_thread(pms) : clone_thread();
+    return pms ? interrupt_thread(pms) : clone_thread(NULL);
 }
 
 int sgx_create_process (const char * uri,
@@ -709,12 +720,82 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
 
 #define EDEBUG(code, ms) do {} while (0)
 
+rpc_queue_t* g_rpc_queue = NULL; /* pointer to untrusted queue */
+
+int sigfillset(sigset_t *set);
+int sigdelset(sigset_t *set, int signo);
+int pthread_sigmask(int how, const sigset_t *restrict set, sigset_t *restrict oset);
+
+static void* rpc_thread_loop(void* encl) {
+    long mytid = INLINE_SYSCALL(gettid, 0);
+
+    /* this RPC thread needs current_enclave for some sgx_ocall's */
+    current_enclave = (struct pal_enclave *)encl;
+
+    /* block all signals except SIGUSR2 for RPC thread */
+    sigset_t mask;
+    sigfillset(&mask);
+    sigdelset(&mask, SIGUSR2);
+    pthread_sigmask(SIG_SETMASK, &mask, NULL);
+
+    rpc_spin_lock(&g_rpc_queue->lock);
+    g_rpc_queue->rpc_threads[g_rpc_queue->rpc_threads_num] = mytid;
+    g_rpc_queue->rpc_threads_num++;
+    rpc_spin_unlock(&g_rpc_queue->lock);
+
+    while (1) {
+        rpc_request_t* req = rpc_dequeue(g_rpc_queue);
+        if (!req) {
+            cpu_relax();
+            continue;
+        }
+
+        /* call actual function and notify awaiting enclave thread when done */
+        typedef int (*bridge_fn_t)(const void*);
+        bridge_fn_t bridge = (bridge_fn_t)(ocall_table[req->ocall_index]);
+        req->result = bridge(req->buffer);
+
+        /* this code is based on Mutex 2 from Futexes are Tricky */
+        if (!atomic_dec_and_test(&req->lock)) {
+            /* new value of lock is not REQ_UNLOCKED (0), that means
+             * old value was REQ_LOCKED_WITH_WAITERS (2) -> must wake waiters */
+            atomic_set(&req->lock, REQ_UNLOCKED);
+            int ret = INLINE_SYSCALL(futex, 6, (int*)&req->lock.counter,
+                         FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
+            if (ret == -1)
+                SGX_DBG(DBG_E, "RPC thread failed to wake up enclave thread\n");
+        }
+    }
+
+    /* NOTREACHED */
+    return 0;
+}
+
+static void start_rpc(size_t num_of_threads) {
+    g_rpc_queue = (rpc_queue_t*) INLINE_SYSCALL(mmap, 6, NULL, sizeof(rpc_queue_t),
+            PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+
+    for (size_t i = 0; i < num_of_threads; i++)
+        clone_thread(rpc_thread_loop);
+
+    while (g_rpc_queue->rpc_threads_num != current_enclave->rpc_thread_num) {
+        /* wait until all RPC threads are initialized in rpc_thread_loop */
+        INLINE_SYSCALL(sched_yield, 0);
+    }
+}
+
 int ecall_enclave_start (const char ** arguments, const char ** environments)
 {
+    g_rpc_queue = NULL;
+
+    if (current_enclave->rpc_thread_num > 0)
+        start_rpc(current_enclave->rpc_thread_num);
+
     ms_ecall_enclave_start_t ms;
     ms.ms_arguments = arguments;
     ms.ms_environments = environments;
     ms.ms_sec_info = PAL_SEC();
+    ms.rpc_queue = g_rpc_queue;
     EDEBUG(ECALL_ENCLAVE_START, &ms);
     return sgx_ecall(ECALL_ENCLAVE_START, &ms);
 }

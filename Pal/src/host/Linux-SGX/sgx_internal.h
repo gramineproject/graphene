@@ -67,6 +67,7 @@ struct pal_enclave {
     unsigned long baseaddr;
     unsigned long size;
     unsigned long thread_num;
+    unsigned long rpc_thread_num;
     unsigned long ssaframesize;
 
     /* files */
@@ -117,11 +118,11 @@ void double_async_exit (void);
 #endif
 
 int interrupt_thread (void * tcs);
-int clone_thread (void);
+int clone_thread (void *(*start_routine)(void*));
 
 void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
 void map_tcs (unsigned int tid);
-void unmap_tcs (void);
+int unmap_tcs (void);
 
 extern __thread struct pal_enclave * current_enclave;
 

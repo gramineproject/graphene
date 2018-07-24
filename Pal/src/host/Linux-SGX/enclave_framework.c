@@ -24,6 +24,27 @@ bool sgx_is_within_enclave (const void * addr, uint64_t size)
     return enclave_base <= addr && addr + size <= enclave_top;
 }
 
+/* The following three functions are used to push and pop frames from
+ * enclave thread's untrusted stack in the following manner:
+ *
+ *    // get new stack frame on enclave thread's untrusted stack
+ *    void* frame = sgx_ocget_frame();
+ *
+ *    // allocate some objects on the new stack frame
+ *    object1_t* obj1 = sgx_ocalloc(sizeof(*obj1));
+ *    object2_t* obj2 = sgx_ocalloc(sizeof(*obj2));
+ *
+ *    // free (pop) this stack frame; this automatically frees objects
+ *    sgx_ocfree_frame(frame);
+ *
+ * These functions do not fail; in case of stack overflow, program behavior
+ * is undefined (interface similar to alloca).
+ */
+void * sgx_ocget_frame (void)
+{
+    return GET_ENCLAVE_TLS(ustack);
+}
+
 void * sgx_ocalloc (uint64_t size)
 {
     void * ustack = GET_ENCLAVE_TLS(ustack) - size;
@@ -31,9 +52,9 @@ void * sgx_ocalloc (uint64_t size)
     return ustack;
 }
 
-void sgx_ocfree (void)
+void sgx_ocfree_frame (void * frame)
 {
-    SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
+    SET_ENCLAVE_TLS(ustack, frame);
 }
 
 int sgx_get_report (sgx_arch_hash_t * mrenclave,

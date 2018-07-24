@@ -7,6 +7,7 @@
 #include "sgx_tls.h"
 #include "sgx_enclave.h"
 #include "debugger/sgx_gdb.h"
+#include "rpcqueue.h"
 
 #include <asm/fcntl.h>
 #include <asm/socket.h>
@@ -280,6 +281,20 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     if (enclave_thread_num > MAX_DBG_THREADS) {
         SGX_DBG(DBG_E, "Too many threads to debug\n");
+        return -EINVAL;
+    }
+
+    /* Reading sgx.rpc_thread_num from manifest */
+    if (get_config(enclave->config, "sgx.rpc_thread_num", cfgbuf, CONFIG_MAX) > 0)
+        enclave->rpc_thread_num = parse_int(cfgbuf);
+
+    if (enclave->rpc_thread_num > MAX_RPC_THREADS) {
+        SGX_DBG(DBG_E, "Too many RPC threads specified\n");
+        return -EINVAL;
+    }
+
+    if (enclave->rpc_thread_num && enclave->thread_num > RPC_QUEUE_SIZE) {
+        SGX_DBG(DBG_E, "Too many threads for exitless feature (more than capacity of RPC queue)\n");
         return -EINVAL;
     }
 

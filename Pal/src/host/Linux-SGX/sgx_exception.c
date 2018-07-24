@@ -29,6 +29,7 @@
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "sgx_internal.h"
+#include "rpcqueue.h"
 
 #include <atomic.h>
 #include <sigset.h>
@@ -202,6 +203,11 @@ void sgx_entry_return (void);
 static void _DkTerminateSighandler (int signum, siginfo_t * info,
                                     struct ucontext * uc)
 {
+    /* send dummy signal to RPC threads so they interrupt blocked syscalls */
+    if (g_rpc_queue)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
+
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
 #if SGX_HAS_FSGSBASE == 0
@@ -225,6 +231,12 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 static void _DkResumeSighandler (int signum, siginfo_t * info,
                                  struct ucontext * uc)
 {
+    /* send dummy signal to RPC threads so they interrupt blocked syscalls;
+     * only do it on a benign SIGFPE signal (FP/div-by-zero exception) */
+    if (g_rpc_queue && signum == SIGFPE)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
+
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
 #if SGX_HAS_FSGSBASE == 0
@@ -261,6 +273,16 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
 #endif
 }
 
+static void _DkEmptySighandler (int signum, siginfo_t * info,
+                                 struct ucontext * uc)
+{
+    (void) signum;
+    (void) info;
+    (void) uc;
+
+    /* we need this handler to interrupt blocking syscalls in RPC threads */
+}
+
 int sgx_signal_setup (void)
 {
     int ret, sig[4];
@@ -276,6 +298,15 @@ int sgx_signal_setup (void)
     sig[2] = SIGFPE;
     sig[3] = SIGBUS;
     if ((ret = set_sighandler(sig, 4, &_DkResumeSighandler)) < 0)
+        goto err;
+
+    /* SIGUSR2 is reserved for Graphene usage -- interrupting blocking syscalls
+     * in RPC threads. Note that we block SIGUSR2 in normal enclave threads;
+     * This signal is unblocked by each RPC thread explicitly. */
+    sig[0] = SIGUSR2;
+    if ((ret = set_sighandler(sig, 1, &_DkEmptySighandler)) < 0)
+        goto err;
+    if (block_signals(sig, 1) < 0)
         goto err;
 
     return 0;

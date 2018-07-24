@@ -24,8 +24,9 @@
 
 int sgx_ocall (unsigned long code, void * ms);
 
+void * sgx_ocget_frame (void);
 void * sgx_ocalloc (uint64_t size);
-void sgx_ocfree (void);
+void sgx_ocfree_frame (void * frame);
 
 bool sgx_is_within_enclave (const void * addr, uint64_t size);
 
