@@ -6,6 +6,7 @@
  */
 
 #include "pal_linux.h"
+#include "pal_linux_error.h"
 #include "pal_internal.h"
 #include "pal_debug.h"
 #include "enclave_ocalls.h"
@@ -14,23 +15,25 @@
 #include <api.h>
 
 #include <asm/errno.h>
+#include <linux/futex.h>
+#include "rpcqueue.h"
+
+#define OCALL_ALLOC_FRAME()             \
+    ({                                  \
+        sgx_ocget_frame();              \
+    })
 
 #define OCALLOC(val, type, len) do {    \
     void * _tmp = sgx_ocalloc(len);     \
     if (_tmp == NULL) {                 \
-        OCALL_EXIT();                   \
         return -PAL_ERROR_DENIED;  /* TODO: remove this control-flow obfuscation */  \
     }                                   \
     (val) = (type) _tmp;                \
 } while (0)
 
-int printf(const char * fmt, ...);
-
-#define SGX_OCALL(code, ms) sgx_ocall(code, ms)
-
-#define OCALL_EXIT()                                    \
-    do {                                                \
-        sgx_ocfree();                                   \
+#define OCALL_FREE_FRAME(frame)         \
+    do {                                \
+        sgx_ocfree_frame(frame);        \
     } while (0)
 
 #define ALLOC_IN_USER(ptr, size)                    \
@@ -64,11 +67,73 @@ int printf(const char * fmt, ...);
         } _ret;                                             \
     })
 
+#define SGX_OCALL(code, ms) rpc_ocall(code, ms)
+#define SGX_OCALL_WITH_EXIT(code, ms) sgx_ocall(code, ms)
+
+rpc_queue_t* rpc_queue;             /* pointer to untrusted queue */
+
+int rpc_ocall(int code, void* ms) {
+    /* perform OCALL with enclave exit if no RPC queue */
+    if (!rpc_queue)
+        return sgx_ocall(code, ms);
+
+    /* allocate request on OCALL stack; it will be freed on OCALL end;
+     * note that request's lock is used in futex() and must be aligned to 4B
+     * so we pad OCALL stack to 4B alignment with dummy chars */
+    char* dummy;
+    do {
+        OCALLOC(dummy, char*, sizeof(*dummy));
+    } while ((uint64_t)dummy % 4 != 0);
+
+    rpc_request_t* req;
+    OCALLOC(req, rpc_request_t*, sizeof(*req));
+    req->ocall_index = code;
+    req->buffer      = ms;
+    req->rpc_thread  = 0;
+    atomic_set(&req->lock, 1);
+
+    /* enqueue OCALL into rpc_queue */
+    req = rpc_enqueue(rpc_queue, req);
+    if (!req) {
+        /* no space in rpc_queue: all RPC threads are busy with outstanding ocalls */
+        return -ENOMEM;
+    }
+
+    /* wait till request processing is finished; try spinlock first */
+    int timedout = rpc_spin_lock_timeout(&req->lock, RPC_SPIN_LOCK_TIMEOUT);
+    if (timedout) {
+        /* OCALL takes a lot of time, so fallback to waiting on a futex;
+         * note that at this point we exit the enclave to perform syscall;
+         * this code is based on Mutex 2 from Futexes are Tricky */
+        int c;
+        if ((c = atomic_cmpxchg(&req->lock, 0, 1))) {
+            do {
+                if (c == 2 || atomic_cmpxchg(&req->lock, 1, 2) != 0) {
+                    ms_ocall_futex_t * ms;
+                    OCALLOC(ms, ms_ocall_futex_t *, sizeof(*ms));
+
+                    ms->ms_futex = (int*)&req->lock.counter;
+                    ms->ms_op = FUTEX_WAIT_PRIVATE;
+                    ms->ms_val = 2;
+                    ms->ms_timeout = OCALL_NO_TIMEOUT;
+
+                    int ret = SGX_OCALL_WITH_EXIT(OCALL_FUTEX, ms);
+                    if (ret < 0 && ret != -PAL_ERROR_TRYAGAIN)
+                        return -ENOMEM;
+                }
+            } while ((c = atomic_cmpxchg(&req->lock, 0, 2)));
+        }
+    }
+
+    return req->result;
+}
+
+
 int ocall_exit(int exitcode)
 {
     int retval = 0;
     int64_t code = exitcode;
-    SGX_OCALL(OCALL_EXIT, (void *) code);
+    SGX_OCALL_WITH_EXIT(OCALL_EXIT, (void *) code);
     /* never reach here */
     return retval;
 }
@@ -76,11 +141,13 @@ int ocall_exit(int exitcode)
 int ocall_print_string (const char * str, unsigned int length)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_print_string_t * ms;
     OCALLOC(ms, ms_ocall_print_string_t *, sizeof(*ms));
 
     if (!str || length <= 0) {
-        OCALL_EXIT();
+        OCALL_FREE_FRAME(frame);
         return -PAL_ERROR_DENIED;
     }
 
@@ -88,15 +155,17 @@ int ocall_print_string (const char * str, unsigned int length)
     ms->ms_length = length;
 
     retval = SGX_OCALL(OCALL_PRINT_STRING, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_alloc_untrusted (uint64_t size, void ** mem)
 {
     int retval = 0;
-    ms_ocall_alloc_untrusted_t * ms;
+    void* frame = OCALL_ALLOC_FRAME();
 
+    ms_ocall_alloc_untrusted_t * ms;
     OCALLOC(ms, ms_ocall_alloc_untrusted_t *, sizeof(*ms));
 
     ms->ms_size = size;
@@ -104,12 +173,13 @@ int ocall_alloc_untrusted (uint64_t size, void ** mem)
     retval = SGX_OCALL(OCALL_ALLOC_UNTRUSTED, ms);
     if (!retval) {
         if (sgx_is_within_enclave(ms->ms_mem, size)) {
-            OCALL_EXIT();
+            OCALL_FREE_FRAME(frame);
             return -PAL_ERROR_DENIED;
         }
         *mem = ms->ms_mem;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -118,8 +188,9 @@ int ocall_map_untrusted (int fd, uint64_t offset,
                          void ** mem)
 {
     int retval = 0;
-    ms_ocall_map_untrusted_t * ms;
+    void* frame = OCALL_ALLOC_FRAME();
 
+    ms_ocall_map_untrusted_t * ms;
     OCALLOC(ms, ms_ocall_map_untrusted_t *, sizeof(*ms));
 
     ms->ms_fd = fd;
@@ -130,21 +201,23 @@ int ocall_map_untrusted (int fd, uint64_t offset,
     retval = SGX_OCALL(OCALL_MAP_UNTRUSTED, ms);
     if (!retval) {
         if (sgx_is_within_enclave(ms->ms_mem, size)) {
-            OCALL_EXIT();
+            OCALL_FREE_FRAME(frame);
             return -PAL_ERROR_DENIED;
         }
         *mem = ms->ms_mem;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_unmap_untrusted (const void * mem, uint64_t size)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
 
     if (sgx_is_within_enclave(mem, size)) {
-        OCALL_EXIT();
+        OCALL_FREE_FRAME(frame);
         return -PAL_ERROR_INVAL;
     }
 
@@ -155,7 +228,8 @@ int ocall_unmap_untrusted (const void * mem, uint64_t size)
     ms->ms_size = size;
 
     retval = SGX_OCALL(OCALL_UNMAP_UNTRUSTED, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -163,6 +237,8 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
                  unsigned int values[4])
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_cpuid_t * ms;
     OCALLOC(ms, ms_ocall_cpuid_t *, sizeof(*ms));
 
@@ -177,13 +253,15 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
         values[3] = ms->ms_values[3];
     }
 
-    OCALL_EXIT();
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_open (const char * pathname, int flags, unsigned short mode)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_open_t * ms;
     OCALLOC(ms, ms_ocall_open_t *, sizeof(*ms));
@@ -193,26 +271,32 @@ int ocall_open (const char * pathname, int flags, unsigned short mode)
     ms->ms_mode = mode;
 
     retval = SGX_OCALL(OCALL_OPEN, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_close (int fd)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_close_t *ms;
     OCALLOC(ms, ms_ocall_close_t *, sizeof(*ms));
 
     ms->ms_fd = fd;
 
     retval = SGX_OCALL(OCALL_CLOSE, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_read (int fd, void * buf, unsigned int count)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     void * obuf = NULL;
 
     if (count > 4096) {
@@ -235,7 +319,8 @@ int ocall_read (int fd, void * buf, unsigned int count)
 
     if (retval > 0)
         memcpy(buf, ms->ms_buf, retval);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
 
     if (obuf)
         ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
@@ -246,6 +331,8 @@ int ocall_read (int fd, void * buf, unsigned int count)
 int ocall_write (int fd, const void * buf, unsigned int count)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     void * obuf = NULL;
 
     if (count > 4096) {
@@ -267,7 +354,8 @@ int ocall_write (int fd, const void * buf, unsigned int count)
     ms->ms_count = count;
 
     retval = SGX_OCALL(OCALL_WRITE, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
 
     if (obuf)
         ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
@@ -278,6 +366,8 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 int ocall_fstat (int fd, struct stat * buf)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_fstat_t * ms;
     OCALLOC(ms, ms_ocall_fstat_t *, sizeof(*ms));
 
@@ -286,26 +376,32 @@ int ocall_fstat (int fd, struct stat * buf)
     retval = SGX_OCALL(OCALL_FSTAT, ms);
     if (!retval)
         memcpy(buf, &ms->ms_stat, sizeof(struct stat));
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_fionread (int fd)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_fionread_t * ms;
     OCALLOC(ms, ms_ocall_fionread_t *, sizeof(*ms));
 
     ms->ms_fd = fd;
 
     retval = SGX_OCALL(OCALL_FIONREAD, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_fsetnonblock (int fd, int nonblocking)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_fsetnonblock_t * ms;
     OCALLOC(ms, ms_ocall_fsetnonblock_t *, sizeof(*ms));
 
@@ -313,13 +409,16 @@ int ocall_fsetnonblock (int fd, int nonblocking)
     ms->ms_nonblocking = nonblocking;
 
     retval = SGX_OCALL(OCALL_FSETNONBLOCK, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_fchmod (int fd, unsigned short mode)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_fchmod_t * ms;
     OCALLOC(ms, ms_ocall_fchmod_t *, sizeof(*ms));
 
@@ -327,26 +426,32 @@ int ocall_fchmod (int fd, unsigned short mode)
     ms->ms_mode = mode;
 
     retval = SGX_OCALL(OCALL_FCHMOD, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_fsync (int fd)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_fsync_t * ms;
     OCALLOC(ms, ms_ocall_fsync_t *, sizeof(*ms));
 
     ms->ms_fd = fd;
 
     retval = SGX_OCALL(OCALL_FSYNC, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_ftruncate (int fd, uint64_t length)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_ftruncate_t * ms;
     OCALLOC(ms, ms_ocall_ftruncate_t *, sizeof(*ms));
 
@@ -354,13 +459,16 @@ int ocall_ftruncate (int fd, uint64_t length)
     ms->ms_length = length;
 
     retval = SGX_OCALL(OCALL_FTRUNCATE, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_mkdir (const char * pathname, unsigned short mode)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_mkdir_t * ms;
     OCALLOC(ms, ms_ocall_mkdir_t *, sizeof(*ms));
@@ -369,13 +477,16 @@ int ocall_mkdir (const char * pathname, unsigned short mode)
     ms->ms_mode = mode;
 
     retval = SGX_OCALL(OCALL_MKDIR, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_getdents_t * ms;
     OCALLOC(ms, ms_ocall_getdents_t *, sizeof(*ms));
 
@@ -386,13 +497,16 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
     retval = SGX_OCALL(OCALL_GETDENTS, ms);
     if (retval > 0)
         COPY_FROM_USER(dirp, ms->ms_dirp, retval);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_wake_thread (void * tcs)
 {
-    return SGX_OCALL(OCALL_WAKE_THREAD, tcs);
+    /* NOTE: since this can be executed from within signal handler and sends
+     *       SIGCONT to other enclave threads, cannot use exitless here */
+    return SGX_OCALL_WITH_EXIT(OCALL_WAKE_THREAD, tcs);
 }
 
 int ocall_create_process (const char * uri,
@@ -401,6 +515,8 @@ int ocall_create_process (const char * uri,
                           unsigned int * pid)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     int ulen = uri ? strlen(uri) + 1 : 0;
     ms_ocall_create_process_t * ms;
     OCALLOC(ms, ms_ocall_create_process_t *,
@@ -421,7 +537,8 @@ int ocall_create_process (const char * uri,
         procfds[1] = ms->ms_proc_fds[1];
         procfds[2] = ms->ms_proc_fds[2];
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -429,11 +546,13 @@ int ocall_futex (int * futex, int op, int val,
                  const uint64_t * timeout)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_futex_t * ms;
     OCALLOC(ms, ms_ocall_futex_t *, sizeof(*ms));
 
     if (sgx_is_within_enclave(futex, sizeof(int))) {
-        OCALL_EXIT();
+        OCALL_FREE_FRAME(frame);
         return -PAL_ERROR_INVAL;
     }
 
@@ -443,7 +562,8 @@ int ocall_futex (int * futex, int op, int val,
     ms->ms_timeout = timeout ? *timeout : OCALL_NO_TIMEOUT;
 
     retval = SGX_OCALL(OCALL_FUTEX, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -451,6 +571,8 @@ int ocall_socketpair (int domain, int type, int protocol,
                       int sockfds[2])
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_socketpair_t * ms;
     OCALLOC(ms, ms_ocall_socketpair_t *, sizeof(*ms));
 
@@ -463,7 +585,8 @@ int ocall_socketpair (int domain, int type, int protocol,
         sockfds[0] = ms->ms_sockfds[0];
         sockfds[1] = ms->ms_sockfds[1];
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -472,6 +595,8 @@ int ocall_sock_listen (int domain, int type, int protocol,
                        struct sockopt * sockopt)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     unsigned int bind_len = *addrlen;
     ms_ocall_sock_listen_t * ms;
     OCALLOC(ms, ms_ocall_sock_listen_t *, sizeof(*ms));
@@ -487,7 +612,7 @@ int ocall_sock_listen (int domain, int type, int protocol,
         if (addrlen && (
             sgx_is_within_enclave(ms->ms_addr, bind_len) ||
             ms->ms_addrlen > bind_len)) {
-            OCALL_EXIT();
+            OCALL_FREE_FRAME(frame);
             return -PAL_ERROR_DENIED;
         }
 
@@ -498,7 +623,8 @@ int ocall_sock_listen (int domain, int type, int protocol,
         if (sockopt)
             *sockopt = ms->ms_sockopt;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -506,6 +632,8 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
                        unsigned int * addrlen, struct sockopt * sockopt)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     unsigned int len = addrlen ? *addrlen : 0;
     ms_ocall_sock_accept_t * ms;
     OCALLOC(ms, ms_ocall_sock_accept_t *, sizeof(*ms));
@@ -518,7 +646,7 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
     if (retval >= 0) {
         if (len && (sgx_is_within_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
-            OCALL_EXIT();
+            OCALL_FREE_FRAME(frame);
             return -PAL_ERROR_DENIED;
         }
 
@@ -529,7 +657,8 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
         if (sockopt)
             *sockopt = ms->ms_sockopt;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -540,6 +669,8 @@ int ocall_sock_connect (int domain, int type, int protocol,
                         unsigned int * bind_addrlen, struct sockopt * sockopt)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     unsigned int bind_len = bind_addrlen ? *bind_addrlen : 0;
     ms_ocall_sock_connect_t * ms;
     OCALLOC(ms, ms_ocall_sock_connect_t *, sizeof(*ms));
@@ -557,7 +688,7 @@ int ocall_sock_connect (int domain, int type, int protocol,
         if (bind_len && (
             sgx_is_within_enclave(ms->ms_bind_addr, bind_len) ||
             ms->ms_bind_addrlen > bind_len)) {
-            OCALL_EXIT();
+            OCALL_FREE_FRAME(frame);
             return -PAL_ERROR_DENIED;
         }
 
@@ -569,7 +700,8 @@ int ocall_sock_connect (int domain, int type, int protocol,
         if (sockopt)
             *sockopt = ms->ms_sockopt;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -577,6 +709,8 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
                      struct sockaddr * addr, unsigned int * addrlen)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     unsigned int len = addrlen ? *addrlen : 0;
     ms_ocall_sock_recv_t * ms;
     OCALLOC(ms, ms_ocall_sock_recv_t *, sizeof(*ms));
@@ -591,7 +725,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
     if (retval >= 0) {
         if (len && (sgx_is_within_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
-            OCALL_EXIT();
+            OCALL_FREE_FRAME(frame);
             return -PAL_ERROR_DENIED;
         }
 
@@ -600,7 +734,8 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
         if (addrlen)
             *addrlen = ms->ms_addrlen;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -608,6 +743,8 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
                      const struct sockaddr * addr, unsigned int addrlen)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_sock_send_t * ms;
     OCALLOC(ms, ms_ocall_sock_send_t *, sizeof(*ms));
 
@@ -618,7 +755,8 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
     ms->ms_addrlen = addrlen;
 
     retval = SGX_OCALL(OCALL_SOCK_SEND, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -626,6 +764,8 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
                         unsigned int * fds, unsigned int * nfds)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_sock_recv_fd_t * ms;
     OCALLOC(ms, ms_ocall_sock_recv_fd_t *, sizeof(*ms));
 
@@ -639,7 +779,7 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
     if (retval >= 0) {
         if (sgx_is_within_enclave(ms->ms_fds, sizeof(int) * (*nfds)) ||
             ms->ms_nfds > (*nfds)) {
-            OCALL_EXIT();
+            OCALL_FREE_FRAME(frame);
             return -PAL_ERROR_DENIED;
         }
 
@@ -647,7 +787,8 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
         COPY_FROM_USER(fds, ms->ms_fds, sizeof(int) * ms->ms_nfds);
         *nfds = ms->ms_nfds;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -655,6 +796,8 @@ int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
                         const unsigned int * fds, unsigned int nfds)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_sock_send_fd_t * ms;
     OCALLOC(ms, ms_ocall_sock_send_fd_t *, sizeof(*ms));
 
@@ -665,7 +808,8 @@ int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
     ms->ms_nfds = nfds;
 
     retval = SGX_OCALL(OCALL_SOCK_SEND_FD, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
@@ -673,6 +817,8 @@ int ocall_sock_setopt (int sockfd, int level, int optname,
                        const void * optval, unsigned int optlen)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_sock_setopt_t * ms;
     OCALLOC(ms, ms_ocall_sock_setopt_t *, sizeof(*ms));
 
@@ -683,13 +829,16 @@ int ocall_sock_setopt (int sockfd, int level, int optname,
     ms->ms_optlen = optlen;
 
     retval = SGX_OCALL(OCALL_SOCK_SETOPT, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_sock_shutdown (int sockfd, int how)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_sock_shutdown_t * ms;
     OCALLOC(ms, ms_ocall_sock_shutdown_t *, sizeof(*ms));
 
@@ -697,26 +846,32 @@ int ocall_sock_shutdown (int sockfd, int how)
     ms->ms_how = how;
 
     retval = SGX_OCALL(OCALL_SOCK_SHUTDOWN, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_gettime (unsigned long * microsec)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_gettime_t * ms;
     OCALLOC(ms, ms_ocall_gettime_t *, sizeof(*ms));
 
     retval = SGX_OCALL(OCALL_GETTIME, ms);
     if (!retval)
         *microsec = ms->ms_microsec;
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_sleep (unsigned long * microsec)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_sleep_t * ms;
     OCALLOC(ms, ms_ocall_sleep_t *, sizeof(*ms));
 
@@ -729,13 +884,16 @@ int ocall_sleep (unsigned long * microsec)
         else if (retval == -EINTR)
             *microsec = ms->ms_microsec;
     }
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     ms_ocall_poll_t * ms;
     OCALLOC(ms, ms_ocall_poll_t *, sizeof(*ms));
 
@@ -748,13 +906,16 @@ int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
         *timeout = ms->ms_timeout;
     if (retval >= 0)
         COPY_FROM_USER(fds, ms->ms_fds, sizeof(struct pollfd) * nfds);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_rename (const char * oldpath, const char * newpath)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     int oldlen = oldpath ? strlen(oldpath) + 1 : 0;
     int newlen = newpath ? strlen(newpath) + 1 : 0;
     ms_ocall_rename_t * ms;
@@ -764,13 +925,16 @@ int ocall_rename (const char * oldpath, const char * newpath)
     ms->ms_newpath = COPY_TO_USER(newpath, newlen);
 
     retval = SGX_OCALL(OCALL_RENAME, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_delete (const char * pathname)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_delete_t * ms;
     OCALLOC(ms, ms_ocall_delete_t *, sizeof(*ms));
@@ -778,16 +942,20 @@ int ocall_delete (const char * pathname)
     ms->ms_pathname = COPY_TO_USER(pathname, len);
 
     retval = SGX_OCALL(OCALL_DELETE, ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }
 
 int ocall_load_debug(const char * command)
 {
     int retval = 0;
+    void* frame = OCALL_ALLOC_FRAME();
+
     int len = strlen(command);
     const char * ms = COPY_TO_USER(command, len + 1);
     retval = SGX_OCALL(OCALL_LOAD_DEBUG, (void *) ms);
-    OCALL_EXIT();
+
+    OCALL_FREE_FRAME(frame);
     return retval;
 }

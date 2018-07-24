@@ -12,6 +12,7 @@
 
 #include "sgx_enclave.h"
 #include "debugger/sgx_gdb.h"
+#include "rpcqueue.h"
 
 __thread struct pal_enclave * current_enclave;
 __thread sgx_arch_tcs_t * current_tcs;
@@ -48,17 +49,27 @@ void map_tcs (unsigned int tid)
         }
 }
 
-void unmap_tcs (void)
+int unmap_tcs (void)
 {
     int index = current_tcs - enclave_tcs;
     struct thread_map * map = &enclave_thread_map[index];
     if (index >= enclave_thread_num)
-        return;
+        return 0;
     SGX_DBG(DBG_I, "unmap TCS at 0x%08lx\n", map->tcs);
     current_tcs = NULL;
     ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[index] = 0;
     map->tid = 0;
     map->tcs = NULL;
+
+    /* return number of live enclave threads */
+    static struct atomic_int exclusion = { .counter = 0 };
+    rpc_spin_lock(&exclusion);
+    int res = 0;
+    for (int i = 0; i < enclave_thread_num; i++)
+        if (enclave_thread_map[i].tid)
+            res++;
+    rpc_spin_unlock(&exclusion);
+    return res;
 }
 
 static void * thread_start (void * arg)
@@ -81,6 +92,12 @@ int clone_thread (void)
 {
     pthread_t thread;
     return pthread_create(&thread, NULL, thread_start, current_enclave);
+}
+
+int clone_thread_fn (void *(*start_routine)(void*))
+{
+    pthread_t thread;
+    return pthread_create(&thread, NULL, start_routine, current_enclave);
 }
 
 int interrupt_thread (void * tcs)
