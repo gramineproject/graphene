@@ -177,7 +177,7 @@ int create_enclave(sgx_arch_secs_t * secs,
 #endif
 
     if (IS_ERR(ret)) {
-        SGX_DBG(DBG_I, "enclave ECREATE failed in enclave creation ioctl - %d\n", ERRNO(ret));
+        SGX_DBG(DBG_E, "enclave ECREATE failed in enclave creation ioctl - %d\n", ERRNO(ret));
         return -ERRNO(ret);
     }
 

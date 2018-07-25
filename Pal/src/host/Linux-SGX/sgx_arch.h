@@ -166,6 +166,11 @@ typedef struct {
 #define SGX_SECINFO_FLAGS_TCS           0x100
 #define SGX_SECINFO_FLAGS_REG           0x200
 
+/* EDMM PAGE STATUS */
+#define SGX_SECINFO_FLAGS_PENDING             0x08
+#define SGX_SECINFO_FLAGS_MODIFIED            0x010
+#define SGX_SECINFO_FLAGS_PR                  0x020
+
 typedef struct {
     /* header part (signed) */
     uint32_t header[4], vendor;
@@ -264,6 +269,9 @@ typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 #define EREPORT     0
 #define EGETKEY     1
 #define EEXIT       4
+#define EACCEPT     5
+#define EMODPE      6
+
 
 #define LAUNCH_KEY          0
 #define PROVISION_KEY       1

@@ -354,6 +354,52 @@ sgx_getkey:
 	.size sgx_getkey, .-sgx_getkey
 
 /*
+ * sgx_accept:
+ * EACCEPT pages for dynamic memory management
+ */
+        .global sgx_do_eaccept
+        .type sgx_do_eaccept, @function
+sgx_do_eaccept:
+        .cfi_startproc
+
+        push %rbx
+        push %rcx
+        mov %rdi, %rbx
+        mov %rsi, %rcx
+        mov $EACCEPT, %rax
+        ENCLU
+        pop %rcx
+        pop %rbx
+        ret
+
+        .cfi_endproc
+        .size sgx_do_eaccept, .-sgx_do_eaccept
+
+/*
+ * sgx_emodpe:
+ * EMODPE pages for dynamic memory management
+ */
+
+        .global sgx_do_emodpe
+        .type sgx_do_emodpe, @function
+sgx_do_emodpe:
+        .cfi_startproc
+
+        push %rbx
+        push %rcx
+        mov %rdi, %rbx
+        mov %rsi, %rcx
+        mov $EMODPE, %rax
+        ENCLU
+        pop %rcx
+        pop %rbx
+        ret
+
+        .cfi_endproc
+        .size sgx_do_emodpe, .-sgx_do_emodpe
+
+
+/*
  * rdrand:
  * Get hardware generated random value.
  */

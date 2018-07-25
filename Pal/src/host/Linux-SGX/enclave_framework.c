@@ -97,6 +97,36 @@ int sgx_verify_report (sgx_arch_report_t * report)
     return 0;
 }
 
+
+#define SE_DECLSPEC_ALIGN(x) __attribute__((aligned(x)))
+
+int sgx_accept_pages(uint64_t sfl, size_t lo, size_t hi)
+{
+    size_t addr = hi;
+    SE_DECLSPEC_ALIGN(sizeof(sgx_arch_secinfo_t)) sgx_arch_secinfo_t si;
+    si.flags = sfl;
+    for (uint16_t i = 0; i < (sizeof(si.reserved)/sizeof(si.reserved[0])); i++)
+        si.reserved[i] = 0;
+    SGX_DBG(DBG_E, "sgx_accept_pages: %p - %p\n", lo, hi);
+    SE_DECLSPEC_ALIGN(sizeof(sgx_arch_secinfo_t)) sgx_arch_secinfo_t smi = si;
+    smi.flags |= SGX_SECINFO_FLAGS_X;
+
+    while (lo < addr)
+    {
+        addr -= PRESET_PAGESIZE;
+        int rc = sgx_do_eaccept(&si, addr);
+
+        /* FIXME: Need a better handle here, adding the flow for checking multiple EACCEPT on the same page */
+        if (rc != 0) {
+//            SGX_DBG(DBG_E, "eaccept fails: %d\n", rc);
+//            return rc;
+                continue;
+        }
+        rc = sgx_do_emodpe(&smi, addr);
+    }
+    return 0;
+}
+
 int init_enclave_key (void)
 {
     sgx_arch_keyrequest_t keyrequest;

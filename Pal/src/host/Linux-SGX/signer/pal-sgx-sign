@@ -176,6 +176,10 @@ def get_enclave_attributes(manifest):
                 if manifest_options[opt] in attributes:
                     attributes.pop(manifest_options[opt])
 
+    if 'sgx.disable_avx' in manifest:
+      if manifest['sgx.disable_avx'] == '1':
+        attributes.remove('XFRM_AVX')
+
     flags_raw = struct.pack("<Q", 0)
     xfrms_raw = struct.pack("<Q", 0)
     miscs_raw = struct.pack("<L", 0)
@@ -331,6 +335,7 @@ class MemoryArea:
             self.size = roundup(self.size)
 
 def get_memory_areas(manifest, attr, args):
+    edmm_mode = attr['edmm_mode']
     areas = []
     areas.append(MemoryArea('ssa', size=attr['thread_num'] * SSAFRAMESIZE * SSAFRAMENUM,
                             flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
@@ -474,6 +479,9 @@ def generate_measurement(attr, areas):
                     raise Exception("wrong calculation")
                 digest.update(start_zero + data + end_zero)
 
+    # Getting EDMM MODE
+    edmm_mode = attr['edmm_mode']
+
     for area in areas:
         if area.file:
             with open(area.file, 'rb') as f:
@@ -505,8 +513,13 @@ def generate_measurement(attr, areas):
                               os.stat(area.file).st_size, area.size,
                               area.desc, area.flags)
         else:
-            for a in range(area.addr, area.addr + area.size, PAGESIZE):
+	    if edmm_mode != 1:
+              for a in range(area.addr, area.addr + area.size, PAGESIZE):
                 do_eadd(mrenclave, a, area.flags)
+            else:
+              for a in range(area.addr, area.addr + area.size, PAGESIZE):
+                if area.desc != "free": # and area.desc != "stack":
+                  do_eadd(mrenclave, a, area.flags)
             print_area(area.addr, area.size, area.flags, area.desc, False)
 
     return mrenclave.finalize()
@@ -699,12 +712,17 @@ if __name__ == "__main__":
         ('thread_num',   str(DEFAULT_THREAD_NUM), parse_int),
         ('isvprodid',    '0',                     parse_int),
         ('isvsvn',       '0',                     parse_int),
+        ('edmm_mode',    '0',                     parse_int),
     ]:
         if 'sgx.' + key not in manifest:
             manifest['sgx.' + key] = default
         attr[key] = parse(manifest['sgx.' + key])
 
     (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(manifest)
+
+    # Set Enclave size to 4G when EDMM enabled
+    if (attr['edmm_mode'] == 1) :
+      attr['enclave_size'] = parse_size('4G')
 
     print >>sys.stderr, "Attributes:"
     print >>sys.stderr, "    size:      %d" % (attr['enclave_size'])
@@ -714,8 +732,9 @@ if __name__ == "__main__":
     print >>sys.stderr, "    flags:     %016x" % (bytes_to_int(attr['flags']))
     print >>sys.stderr, "    xfrms:     %016x" % (bytes_to_int(attr['xfrms']))
     print >>sys.stderr, "    miscs:     %08x"  % (bytes_to_int(attr['miscs']))
+    print >>sys.stderr, "    edmm_mode: %d" % (attr['edmm_mode'])
 
-    # Get trusted checksums and measurements
+   # Get trusted checksums and measurements
     print >>sys.stderr, "Trusted files:"
     for key, val in get_trusted_files(manifest, args).items():
         (uri, target, checksum) = val

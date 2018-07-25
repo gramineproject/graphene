@@ -70,6 +70,17 @@ static void assert_vma_list (void)
 #endif
 }
 
+void allocate_page_range(void * addr, uint64_t size)
+{
+    uint64_t start_addr = addr;
+    uint64_t end_addr = addr + size;
+    struct heap_vma * vma;
+    uint64_t accept_flags = SGX_SECINFO_FLAGS_R | SGX_SECINFO_FLAGS_W |
+                        SGX_SECINFO_FLAGS_REG | SGX_SECINFO_FLAGS_PENDING;
+
+    sgx_accept_pages(accept_flags, start_addr, end_addr);
+}
+
 // TODO: This function should be fixed to always either return exactly `addr` or
 // fail.
 void * get_reserved_pages(void * addr, uint64_t size)
@@ -157,6 +168,10 @@ allocated:
         next = listp_empty(&heap_vma_list) ? NULL :
             listp_first_entry(&heap_vma_list, struct heap_vma, list);
     }
+
+    /* Dynamically Request EPC pages in EDMM Mode */
+    if (pal_sec.edmm_mode)
+      allocate_page_range (addr, size);
 
     if (prev && next)
         SGX_DBG(DBG_M, "insert vma between %p-%p and %p-%p\n",

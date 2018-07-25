@@ -288,6 +288,17 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto err;
     }
 
+    /* Reading sgx.edmm_mode from manifest */
+    if (get_config(enclave->config, "sgx.edmm_mode", cfgbuf, CONFIG_MAX) <= 0) {
+        SGX_DBG(DBG_E, "edmm_mode is not specified, edmm mode is disabled by default\n");
+        enclave->pal_sec.edmm_mode = 0;
+    }
+
+    enclave->pal_sec.edmm_mode = parse_int(cfgbuf);
+
+    if (enclave->pal_sec.edmm_mode)
+        enclave->size = parse_int("4G");
+
     /* Reading sgx.static_address from manifest */
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 &&
         cfgbuf[0] == '1')
@@ -465,10 +476,12 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            areas[i].fd, 0);
 
 add_pages:
-        TRY(add_pages_to_enclave,
-            &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
-            areas[i].type, areas[i].prot, areas[i].skip_eextend,
-            areas[i].desc);
+ 	if (!enclave->pal_sec.edmm_mode || (!strcmp_static(areas[i].desc, "free"))) {
+            TRY(add_pages_to_enclave,
+                &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
+                areas[i].type, areas[i].prot, areas[i].skip_eextend,
+                areas[i].desc);
+	}
 
         if (data)
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
