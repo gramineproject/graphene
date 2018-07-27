@@ -19,6 +19,11 @@ struct enclave_tls {
     void *   ustack_top;
     void *   ustack;
     void *   thread;
+    uint64_t exception_stack_offset;
+    uint64_t stack_commit_top;
+    uint64_t ecall_ret_target;
+    uint64_t thread_manage_stack_offset;
+    uint64_t ocall_pending;
 };
 
 #ifndef DEBUG
@@ -56,7 +61,10 @@ extern uint64_t dummy_debug_variable;
 #define SGX_USTACK_TOP              0x48
 #define SGX_USTACK                  0x50
 #define SGX_THREAD                  0x58
-
+#define SGX_EXCEPTION_STACK_OFFSET  0x60
+#define SGX_ECALL_RET_TARGET       0x70
+#define SGX_THREAD_MANAGE_STACK_OFFSET 0x78
+#define SGX_OCALL_PENDING           0x80
 #endif
 
 #endif /* __SGX_TLS_H__ */

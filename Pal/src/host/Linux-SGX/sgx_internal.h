@@ -62,6 +62,11 @@ uint16_t htons (uint16_t shortval);
 uint32_t ntohl (uint32_t longval);
 uint16_t ntohs (uint16_t shortval);
 
+struct pal_enclave_stack_info {
+    unsigned long start_addr;
+    unsigned long end_addr;
+};
+
 struct pal_enclave {
     /* attributes */
     unsigned long baseaddr;
@@ -69,6 +74,8 @@ struct pal_enclave {
     unsigned long thread_num;
     unsigned long ssaframesize;
 
+    /* stack information */
+    struct pal_enclave_stack_info stackinfo;
     /* files */
     int manifest;
     int exec;

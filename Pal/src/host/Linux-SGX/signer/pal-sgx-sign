@@ -348,6 +348,10 @@ def get_memory_areas(manifest, attr, args):
         areas.append(MemoryArea('stack', size=ENCLAVE_STACK_SIZE,
                                 flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
 
+    if edmm_mode:
+        areas.append(MemoryArea('exception_stack', size=PAGESIZE*1,
+                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+
     areas.append(MemoryArea('pal', file=args['libpal'], flags=PAGEINFO_REG))
 
     if 'exec' in args:
@@ -518,7 +522,7 @@ def generate_measurement(attr, areas):
                 do_eadd(mrenclave, a, area.flags)
             else:
               for a in range(area.addr, area.addr + area.size, PAGESIZE):
-                if area.desc != "free": # and area.desc != "stack":
+                if area.desc != "free" and area.desc != "stack":
                   do_eadd(mrenclave, a, area.flags)
             print_area(area.addr, area.size, area.flags, area.desc, False)
 

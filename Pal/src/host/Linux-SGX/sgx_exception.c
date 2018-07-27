@@ -226,7 +226,8 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
                                  struct ucontext * uc)
 {
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
-
+    unsigned long rax = uc->uc_mcontext.gregs[REG_RAX];
+   
 #if SGX_HAS_FSGSBASE == 0
     if (rip != (unsigned long) async_exit_pointer &&
         rip != (unsigned long) double_async_exit) {
@@ -264,7 +265,19 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
             break;
     }
 #if SGX_HAS_FSGSBASE != 0
-    sgx_raise(event);
+    unsigned long fault_addr = info->si_addr;
+    unsigned long stack_start_addr = current_enclave->stackinfo.start_addr;
+    unsigned long stack_end_addr = current_enclave->stackinfo.end_addr;
+    // fault happened at stack area
+    if (current_enclave->pal_sec.edmm_mode 
+		&& signum == SIGBUS && rax == ERESUME
+                && (fault_addr <= stack_start_addr
+		    && fault_addr >= stack_end_addr)){
+        ecall_stack_expand(fault_addr);
+	printf("return from stack expand!\n");
+    }
+    else
+        sgx_raise(event);
 #else
     uc->uc_mcontext.gregs[REG_R9] = event;
 #endif

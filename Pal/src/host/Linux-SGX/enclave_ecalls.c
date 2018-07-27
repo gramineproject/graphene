@@ -17,6 +17,32 @@ void pal_start_thread (void);
 
 extern void * enclave_base, * enclave_top;
 
+void pal_expand_stack(unsigned long fault_addr)
+{
+    unsigned long stack_commit_top = GET_ENCLAVE_TLS(stack_commit_top);
+    unsigned long accept_flags = SGX_SECINFO_FLAGS_R | SGX_SECINFO_FLAGS_W |
+                        SGX_SECINFO_FLAGS_REG | SGX_SECINFO_FLAGS_PENDING;   
+    unsigned long stack_init_addr = GET_ENCLAVE_TLS(initial_stack_offset);
+    unsigned long end_addr = fault_addr - PRESET_PAGESIZE;
+
+    SGX_DBG(DBG_E, "fault_addr, stack_commit_top, stack_init_addr: %p, %p, %p\n", 
+		fault_addr, stack_commit_top, stack_init_addr);
+    if (fault_addr < (stack_init_addr - ENCLAVE_STACK_SIZE * PRESET_PAGESIZE)) {
+        SGX_DBG(DBG_E, "stack overrun, stop!\n");
+        return ;
+    }
+    /* Bridge the gap between fault addr and top if any */
+    sgx_accept_pages(accept_flags, fault_addr, stack_commit_top, 0);
+    
+    stack_commit_top = fault_addr;
+    /* Overgrow one more page */
+    if (end_addr >= stack_init_addr - ENCLAVE_STACK_SIZE * PRESET_PAGESIZE) {
+        sgx_accept_pages(accept_flags, end_addr, fault_addr, 0);
+        stack_commit_top = fault_addr;
+    }
+
+}
+
 int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
                   void * untrusted_stack, void * enclave_base_addr)
 {
@@ -37,7 +63,9 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
     SET_ENCLAVE_TLS(exit_target, exit_target);
     SET_ENCLAVE_TLS(ustack_top,  untrusted_stack);
     SET_ENCLAVE_TLS(ustack,      untrusted_stack);
-
+    SET_ENCLAVE_TLS(ocall_pending, 0);
+    void * utr_stack = GET_ENCLAVE_TLS(ustack);
+    SGX_DBG(DBG_E, "utrusted stack: %p\n", utr_stack);
     switch(ecall_index) {
         case ECALL_ENCLAVE_START: {
             ms_ecall_enclave_start_t * ms =
@@ -47,14 +75,20 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
 
             pal_linux_main(ms->ms_arguments, ms->ms_environments,
                            ms->ms_sec_info);
+	    ocall_exit();
             break;
         }
 
         case ECALL_THREAD_START:
             pal_start_thread();
+	    ocall_exit();
             break;
+        case ECALL_STACK_EXPAND:
+            pal_expand_stack(ecall_args);
+	    break;
     }
-
-    ocall_exit();
+    utr_stack = GET_ENCLAVE_TLS(ustack);
+    SGX_DBG(DBG_E, "untrusted stack after: %p\n", utr_stack);
+    SGX_DBG(DBG_E, "exit_target: %p\n", GET_ENCLAVE_TLS(exit_target));
     return 0;
 }

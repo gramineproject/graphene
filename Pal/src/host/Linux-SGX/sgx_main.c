@@ -367,6 +367,12 @@ int initialize_enclave (struct pal_enclave * enclave)
     for (int t = 0 ; t < enclave->thread_num ; t++)
         set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
+   /* XXX: EDMM one page for exception handler stack */
+   struct mem_area * exception_stack_area = NULL;
+   if (enclave->pal_sec.edmm_mode)
+        exception_stack_area =
+        set_area("exception_stack", true, false, -1, 0, pagesize,
+                                 PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     struct mem_area * pal_area =
         set_area("pal", false, true, enclave_image, 0, 0, 0, SGX_PAGE_REG);
@@ -416,6 +422,10 @@ int initialize_enclave (struct pal_enclave * enclave)
                  PROT_READ|PROT_WRITE|PROT_EXEC, SGX_PAGE_REG);
     }
 
+    /* store stack range info for dynamic stack grow */
+    enclave->stackinfo.start_addr = stack_areas[0].addr + ENCLAVE_STACK_SIZE * PRESET_PAGESIZE;
+    enclave->stackinfo.end_addr = stack_areas[enclave->thread_num - 1].addr;
+
     for (int i = 0 ; i < area_num ; i++) {
         if (areas[i].fd != -1 && areas[i].is_binary) {
             TRY(load_enclave_binary,
@@ -441,6 +451,17 @@ int initialize_enclave (struct pal_enclave * enclave)
                     enclave_secs.baseaddr;
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
+
+                gs->ocall_pending = 0;
+
+                if (enclave->pal_sec.edmm_mode){
+                    /* TODO: each thread should have their own exception stack */
+                    gs->exception_stack_offset = exception_stack_area->addr + pagesize;
+                    gs->stack_commit_top = gs->initial_stack_offset;
+                    //gs->thread_manage_stack_offset = thread_management_stack_area->addr + pagesize;
+                    //printf("gs->exception_stack_offset: 0x%x\n", gs->exception_stack_offset);
+                }
+
             }
 
             goto add_pages;
@@ -476,7 +497,8 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            areas[i].fd, 0);
 
 add_pages:
- 	if (!enclave->pal_sec.edmm_mode || (!strcmp_static(areas[i].desc, "free"))) {
+ 	if (!enclave->pal_sec.edmm_mode || (!strcmp_static(areas[i].desc, "free") && 
+					    !strcmp_static(areas[i].desc, "stack"))) {
             TRY(add_pages_to_enclave,
                 &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
                 areas[i].type, areas[i].prot, areas[i].skip_eextend,

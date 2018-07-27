@@ -12,11 +12,24 @@ enclave_entry:
 	# RCX is the address of AEP. Other registers are not trusted.
 
 	# current SSA is in RAX (Trusted)
-	cmp $0, %rax
-	jne .Lhandle_resume
+	# cmp $0, %rax
+	# jne .Lhandle_resume
+
+        # current SSA is in RAX (Trusted)
+        cmp $0, %rax
+        je .Lnormal_enter
+
+	# Exception for growing stacks
+        cmp $2, %rdi
+        je .Lnormal_enter
+
+        # OCALL made in Exception context
+        cmp $1, %gs:SGX_OCALL_PENDING
+        jne .Lhandle_resume
 
 	# TCS is in RBX (Trusted)
 
+.Lnormal_enter:
 	# AEP address in RCX (Trusted)
 	mov %rcx, %gs:SGX_AEP
 
@@ -36,9 +49,12 @@ enclave_entry:
 	# to deceive the trusted PAL.
 
 	# A safe design: check if %gs:SGX_EXIT_TARGET is ever assigned
-	mov %gs:SGX_EXIT_TARGET, %rcx
-	cmp $0, %rcx
-	jne .Lreturn_from_ocall
+#	mov %gs:SGX_EXIT_TARGET, %rcx
+#	cmp $0, %rcx
+#	jne .Lreturn_from_ocall
+	
+	cmp $0, %gs:SGX_OCALL_PENDING
+        jne .Lreturn_from_ocall
 
 	# PAL convention:
 	# RDI - index in ecall_table
@@ -46,6 +62,7 @@ enclave_entry:
 	# RDX - exit target
 	# RCX (former RSP) - The unstrusted stack
 	# R8  - enclave base
+        # R9  - address of normal return
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
 	sub %gs:SGX_TCS_OFFSET, %rbx
@@ -54,10 +71,15 @@ enclave_entry:
 	# push untructed stack address to RCX
 	mov %rsp, %rcx
 
+        # handling stack grow, using exception stack 
+        cmp $2, %rdi
+        je .Lhandle_exception_stack
+
 	# switch to enclve stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
 	add %gs:SGX_INITIAL_STACK_OFFSET, %rbx
 	mov %rbx, %rsp
 
+.Ldo_handle_ecall:
 	# clear the rest of register states
 	xor %rax, %rax
 	xor %rbx, %rbx
@@ -72,11 +94,22 @@ enclave_entry:
 	# register states need to be carefully checked, so we move the handling
 	# to handle_ecall() in enclave_ecalls.c
 	call handle_ecall
-
+	
 	# never return to this point (should die)
 	xor %rdi, %rdi
 	xor %rsi, %rsi
 	jmp .Leexit
+
+.Lhandle_exception_stack:
+	add %gs:SGX_EXCEPTION_STACK_OFFSET, %rbx
+        mov %rbx, %rsp
+	
+        # In exception handler, ecall returns to the next
+        # RCX contains the return address, however occupied
+        # Using SGX_AEP instead
+        mov %gs:SGX_AEP, %r9
+        mov %r9, %gs:SGX_ECALL_RET_TARGET
+	jmp .Ldo_handle_ecall
 
 .Lhandle_resume:
 	# PAL convention:
@@ -233,7 +266,8 @@ sgx_ocall:
 
 	push %rbp
 	mov %rsp, %gs:SGX_STACK
-
+ 
+        movq $1, %gs:SGX_OCALL_PENDING
 	jmp .Leexit
 
 .Lexception_handler:
@@ -251,12 +285,21 @@ sgx_ocall:
 	xor %rbp, %rbp
 
 	mov %gs:SGX_USTACK, %rsp
-	and $STACK_ALIGN, %rsp
+#	and $STACK_ALIGN, %rsp
 
+	cmp $1, %gs:SGX_OCALL_PENDING
+	jne .Lecall_return_setup
+        
 	mov %gs:SGX_EXIT_TARGET, %rbx
 	mov %gs:SGX_AEP, %rcx
+.Lexecute_exit:
 	mov $EEXIT, %rax
 	ENCLU
+
+.Lecall_return_setup:
+	mov %gs:SGX_ECALL_RET_TARGET, %rbx
+        mov %gs:SGX_AEP, %rcx
+        jmp .Lexecute_exit
 
 .Lreturn_from_ocall:
 	# PAL convention:
@@ -264,6 +307,9 @@ sgx_ocall:
 	# RSI - external event (if there is any)
 
 	mov %rdi, %rax
+
+        # Clear ocall_pending
+        movq $0, %gs:SGX_OCALL_PENDING
 
 	# restore FSBASE if necessary
 	mov %gs:SGX_FSBASE, %rbx
@@ -357,9 +403,9 @@ sgx_getkey:
  * sgx_accept:
  * EACCEPT pages for dynamic memory management
  */
-        .global sgx_do_eaccept
-        .type sgx_do_eaccept, @function
-sgx_do_eaccept:
+        .global sgx_accept
+        .type sgx_accept, @function
+sgx_accept:
         .cfi_startproc
 
         push %rbx
@@ -373,16 +419,16 @@ sgx_do_eaccept:
         ret
 
         .cfi_endproc
-        .size sgx_do_eaccept, .-sgx_do_eaccept
+        .size sgx_accept, .-sgx_accept
 
 /*
- * sgx_emodpe:
+ * sgx_modpe:
  * EMODPE pages for dynamic memory management
  */
 
-        .global sgx_do_emodpe
-        .type sgx_do_emodpe, @function
-sgx_do_emodpe:
+        .global sgx_modpe
+        .type sgx_modpe, @function
+sgx_modpe:
         .cfi_startproc
 
         push %rbx
@@ -396,7 +442,7 @@ sgx_do_emodpe:
         ret
 
         .cfi_endproc
-        .size sgx_do_emodpe, .-sgx_do_emodpe
+        .size sgx_modpe, .-sgx_modpe
 
 
 /*

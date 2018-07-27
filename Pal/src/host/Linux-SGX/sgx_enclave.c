@@ -720,6 +720,12 @@ int ecall_thread_start (void)
     return sgx_ecall(ECALL_THREAD_START, NULL);
 }
 
+int ecall_stack_expand(void * addr)
+{
+    EDEBUG(ECALL_STACK_EXPAND, addr);
+    return sgx_ecall(ECALL_STACK_EXPAND, addr);
+}
+
 void __abort(void) {
     INLINE_SYSCALL(exit_group, 1, -1); 
 }

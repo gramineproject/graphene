@@ -23,6 +23,8 @@ sgx_ecall:
 	mov $EENTER, %rax
 	ENCLU
 
+        retq
+
 	.global async_exit_pointer
 	.type async_exit_pointer, @function
 

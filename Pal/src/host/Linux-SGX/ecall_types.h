@@ -4,6 +4,7 @@
 enum {
     ECALL_ENCLAVE_START = 0,
     ECALL_THREAD_START,
+    ECALL_STACK_EXPAND,
     ECALL_NR,
 };
 

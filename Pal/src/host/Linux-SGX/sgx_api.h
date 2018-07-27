@@ -41,8 +41,13 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
 
 int sgx_verify_report (sgx_arch_report_t * report);
 
+int sgx_accept(sgx_arch_secinfo_t* si, const void * addr);
+
+int sgx_modpe(sgx_arch_secinfo_t* si, const void * addr);
+
 uint32_t rdrand (void);
 uint64_t rdfsbase (void);
 void wrfsbase (uint64_t addr);
 
+int sgx_accept_pages(uint64_t sfl, size_t lo, size_t hi, bool executable);
 #endif /* SGX_API_H */
