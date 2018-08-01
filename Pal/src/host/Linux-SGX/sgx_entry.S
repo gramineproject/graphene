@@ -7,6 +7,14 @@
 	.type sgx_ecall, @function
 
 sgx_ecall:
+	push %rbp
+        mov %rsp,%rbp
+
+        # Save registers
+        push %rbx
+	push %rcx
+	push %rdx
+
 	# put entry address in RDX
 	lea sgx_entry(%rip), %rdx
 
@@ -23,6 +31,12 @@ sgx_ecall:
 	mov $EENTER, %rax
 	ENCLU
 
+        # Restore Registers
+	pop %rdx
+	pop %rcx
+        pop %rbx
+
+        pop %rbp
         retq
 
 	.global async_exit_pointer

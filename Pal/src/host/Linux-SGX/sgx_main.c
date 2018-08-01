@@ -333,7 +333,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     };
 
     struct mem_area * areas =
-        __alloca(sizeof(areas[0]) * (10 + enclave->thread_num));
+        __alloca(sizeof(areas[0]) * (16 + MAX_THREAD_NUM));
     int area_num = 0;
 
 #define set_area(_desc, _skip_eextend, _is_binary, _fd, _addr, _size, _prot, _type)\
@@ -349,29 +349,34 @@ int initialize_enclave (struct pal_enclave * enclave)
         set_area("manifest", false, false, enclave->manifest,
                  0, ALLOC_ALIGNUP(manifest_size),
                  PROT_READ, SGX_PAGE_REG);
+
+    /* leave the virtual address space for maximum supported thread number under EDMM */
+    int allocated_thread_num = enclave->pal_sec.edmm_mode ? MAX_THREAD_NUM : enclave->thread_num;
+
     struct mem_area * ssa_area =
         set_area("ssa", true, false, -1, 0,
-                 enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
+                 allocated_thread_num * enclave->ssaframesize * SSAFRAMENUM,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
     /* XXX: TCS should be part of measurement */
     struct mem_area * tcs_area =
-        set_area("tcs", true, false, -1, 0, enclave->thread_num * pagesize,
+        set_area("tcs", true, false, -1, 0, allocated_thread_num * pagesize,
                  0, SGX_PAGE_TCS);
     /* XXX: TLS should be part of measurement */
     struct mem_area * tls_area =
-        set_area("tls", true, false, -1, 0, enclave->thread_num * pagesize,
+        set_area("tls", true, false, -1, 0, allocated_thread_num  * pagesize,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     /* XXX: the enclave stack should be part of measurement */
     struct mem_area * stack_areas = &areas[area_num];
-    for (int t = 0 ; t < enclave->thread_num ; t++)
+    for (int t = 0 ; t < allocated_thread_num ; t++)
         set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
-   /* XXX: EDMM one page for exception handler stack */
-   struct mem_area * exception_stack_area = NULL;
-   if (enclave->pal_sec.edmm_mode)
-        exception_stack_area =
-        set_area("exception_stack", true, false, -1, 0, pagesize,
+
+    /* XXX: EDMM: allocated one page of auxiliary stack for dynamic stack grow
+     * and thread creation */
+    struct mem_area * aux_stack_area = NULL;
+    if (enclave->pal_sec.edmm_mode)
+        aux_stack_area = set_area("aux_stack", true, false, -1, 0, pagesize,
                                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     struct mem_area * pal_area =
@@ -440,7 +445,8 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANON|MAP_PRIVATE, -1, 0);
 
-            for (int t = 0 ; t < enclave->thread_num ; t++) {
+	    int tls_thread_num = enclave->pal_sec.edmm_mode ? enclave->thread_num + 1: enclave->thread_num;
+            for (int t = 0 ; t < tls_thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
                 gs->enclave_size = enclave->size;
                 gs->tcs_offset = tcs_area->addr + pagesize * t;
@@ -456,10 +462,8 @@ int initialize_enclave (struct pal_enclave * enclave)
 
                 if (enclave->pal_sec.edmm_mode){
                     /* TODO: each thread should have their own exception stack */
-                    gs->exception_stack_offset = exception_stack_area->addr + pagesize;
+                    gs->aux_stack_offset = aux_stack_area->addr + pagesize;
                     gs->stack_commit_top = gs->initial_stack_offset;
-                    //gs->thread_manage_stack_offset = thread_management_stack_area->addr + pagesize;
-                    //printf("gs->exception_stack_offset: 0x%x\n", gs->exception_stack_offset);
                 }
 
             }
@@ -471,8 +475,8 @@ int initialize_enclave (struct pal_enclave * enclave)
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANON|MAP_PRIVATE, -1, 0);
-
-            for (int t = 0 ; t < enclave->thread_num ; t++) {
+	    int tcs_thread_num = enclave->pal_sec.edmm_mode ? enclave->thread_num + 1 : enclave->thread_num;
+            for (int t = 0 ; t < tcs_thread_num ; t++) {
                 sgx_arch_tcs_t * tcs = data + pagesize * t;
                 memset(tcs, 0, pagesize);
                 tcs->ossa = ssa_area->addr +
@@ -497,22 +501,42 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            areas[i].fd, 0);
 
 add_pages:
- 	if (!enclave->pal_sec.edmm_mode || (!strcmp_static(areas[i].desc, "free") && 
-					    !strcmp_static(areas[i].desc, "stack"))) {
-            TRY(add_pages_to_enclave,
-                &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
-                areas[i].type, areas[i].prot, areas[i].skip_eextend,
-                areas[i].desc);
-	}
+ 	if (enclave->pal_sec.edmm_mode) {
+	
+	    if(!strcmp_static(areas[i].desc, "free") && 
+	       !strcmp_static(areas[i].desc, "stack")) {
+               
+               /* EDMM: SSA/TLS/TCS only commit EPC pages for static threads 
+		  commit one more thread for dynamically create new thread context */
+	       unsigned long area_size = 0;
+               if (strcmp_static(areas[i].desc, "ssa"))
+                   area_size = (enclave->thread_num + 1) * enclave->ssaframesize * SSAFRAMENUM;
+               else if (strcmp_static(areas[i].desc, "tcs") || strcmp_static(areas[i].desc, "tls"))
+                   area_size = (enclave->thread_num + 1) * pagesize;
+               else
+                   area_size = areas[i].size;
 
+               TRY(add_pages_to_enclave,
+                       &enclave_secs, (void *) areas[i].addr, data, area_size,
+                               areas[i].type, areas[i].prot, areas[i].skip_eextend,
+                               areas[i].desc);
+            }
+        }
+        else
+            TRY(add_pages_to_enclave,
+                    &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
+                            areas[i].type, areas[i].prot, areas[i].skip_eextend,
+                            areas[i].desc);
         if (data)
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
     }
 
     TRY(init_enclave, &enclave_secs, &enclave_sigstruct, &enclave_token);
 
-    create_tcs_mapper((void *) enclave_secs.baseaddr + tcs_area->addr,
-                      enclave->thread_num);
+    create_tcs_mapper(ssa_area->addr, enclave_secs.baseaddr + tcs_area->addr,
+                         enclave_secs.baseaddr + tls_area->addr, enclave_entry_addr,
+                         enclave->thread_num, enclave->pal_sec.edmm_mode? MAX_THREAD_NUM : enclave->thread_num);
+
 
     struct pal_sec * pal_sec = &enclave->pal_sec;
 

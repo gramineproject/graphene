@@ -9,3 +9,7 @@ int ecall_enclave_start (const char ** arguments, const char ** environments);
 int ecall_thread_start (void);
 
 int ecall_stack_expand (void * fault_addr);
+
+int ecall_thread_setup (void * thread_info);
+
+int ecall_thread_create(void * thread_info);

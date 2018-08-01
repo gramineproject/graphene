@@ -265,16 +265,14 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
             break;
     }
 #if SGX_HAS_FSGSBASE != 0
-    unsigned long fault_addr = info->si_addr;
+    unsigned long fault_addr = (unsigned long)(info->si_addr);
     unsigned long stack_start_addr = current_enclave->stackinfo.start_addr;
     unsigned long stack_end_addr = current_enclave->stackinfo.end_addr;
-    // fault happened at stack area
-    if (current_enclave->pal_sec.edmm_mode 
-		&& signum == SIGBUS && rax == ERESUME
-                && (fault_addr <= stack_start_addr
-		    && fault_addr >= stack_end_addr)){
-        ecall_stack_expand(fault_addr);
-	printf("return from stack expand!\n");
+    
+    /* There is a need to grow stack if it's in stack area with SIGBUS under EDMM */
+    if (current_enclave->pal_sec.edmm_mode && (signum == SIGBUS && rax == ERESUME)
+                && (fault_addr <= stack_start_addr && fault_addr >= stack_end_addr)){
+        ecall_stack_expand((void *)fault_addr);
     }
     else
         sgx_raise(event);

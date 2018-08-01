@@ -107,6 +107,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                          enum sgx_page_type type, int prot,
                          bool skip_eextend,
                          const char * comment);
+void mktcs(unsigned long tcs_addr);
 
 int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_sigstruct_t * sigstruct,
@@ -126,7 +127,9 @@ void double_async_exit (void);
 int interrupt_thread (void * tcs);
 int clone_thread (void);
 
-void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
+void create_tcs_mapper (unsigned long ssa_base, unsigned long tcs_base, unsigned long tls_base, unsigned long enclave_entry,
+                                                unsigned int thread_num, unsigned int max_thread_num);
+
 void map_tcs (unsigned int tid);
 void unmap_tcs (void);
 

@@ -100,13 +100,16 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
 #define SE_DECLSPEC_ALIGN(x) __attribute__((aligned(x)))
 
+/* sgx_accept_pages do EACCEPT on the pages from address lo to address hi */
 int sgx_accept_pages(uint64_t sfl, size_t lo, size_t hi, bool executable)
 {
     size_t addr = hi;
     SE_DECLSPEC_ALIGN(sizeof(sgx_arch_secinfo_t)) sgx_arch_secinfo_t si;
     si.flags = sfl;
+  
     for (uint16_t i = 0; i < (sizeof(si.reserved)/sizeof(si.reserved[0])); i++)
         si.reserved[i] = 0;
+  
     SGX_DBG(DBG_M, "sgx_accept_pages: %p - %p, executable: %d \n", lo, hi, executable);
     SE_DECLSPEC_ALIGN(sizeof(sgx_arch_secinfo_t)) sgx_arch_secinfo_t smi = si;
     smi.flags |= SGX_SECINFO_FLAGS_X;
@@ -118,13 +121,12 @@ int sgx_accept_pages(uint64_t sfl, size_t lo, size_t hi, bool executable)
 
         /* FIXME: Need a better handle here, adding the flow for checking multiple EACCEPT on the same page */
         if (rc != 0) {
-//            SGX_DBG(DBG_E, "eaccept fails: %d\n", rc);
-//            return rc;
-                continue;
+//         SGX_DBG(DBG_E, "eaccept fails: %d\n", rc);
+//         return rc;
+           continue;
         }
-        if (executable){
-            rc = sgx_modpe(&smi, (const void *)addr);
-        }
+        if (executable) 
+	   rc = sgx_modpe(&smi, (const void *)addr);
     }
     return 0;
 }

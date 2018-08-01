@@ -26,6 +26,7 @@ DEFAULT_ENCLAVE_SIZE = '256M'
 DEFAULT_THREAD_NUM = 4
 ENCLAVE_HEAP_MIN = 0x10000
 
+MAX_THREAD_NUM = 16
 """ Utilities """
 
 def roundup(addr):
@@ -303,11 +304,12 @@ def get_loadcmds(filename):
     return loadcmds
 
 class MemoryArea:
-    def __init__(self, desc, file=None, addr=None, size=None, flags=None):
+    def __init__(self, desc, file=None, addr=None, size=None, eadd_size=None, flags=None):
         self.desc = desc
         self.file = file
         self.addr = addr
         self.size = size
+        self.eadd_size = eadd_size
         self.flags = flags
         self.is_binary = False
 
@@ -328,6 +330,7 @@ class MemoryArea:
                     self.addr = mapaddr
             else:
                 self.size = os.stat(file).st_size
+	    self.eadd_size = self.size
 
         if self.addr is not None:
             self.addr = rounddown(self.addr)
@@ -336,21 +339,31 @@ class MemoryArea:
 
 def get_memory_areas(manifest, attr, args):
     edmm_mode = attr['edmm_mode']
+    allocated_thread_num = MAX_THREAD_NUM if edmm_mode else attr['thread_num']
+
+    eadd_thread_num = attr['thread_num']  + 1 if edmm_mode else attr['thread_num']
+
     areas = []
-    areas.append(MemoryArea('ssa', size=attr['thread_num'] * SSAFRAMESIZE * SSAFRAMENUM,
-                            flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
-    areas.append(MemoryArea('tcs', size=attr['thread_num'] * TCSSIZE,
-                            flags=PAGEINFO_TCS))
-    areas.append(MemoryArea('tls', size=attr['thread_num'] * PAGESIZE,
+
+    areas.append(MemoryArea('ssa', size=allocated_thread_num * SSAFRAMESIZE * SSAFRAMENUM,
+                            eadd_size= eadd_thread_num * SSAFRAMESIZE * SSAFRAMENUM,
                             flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
 
-    for t in range(attr['thread_num']):
+    areas.append(MemoryArea('tcs', size=allocated_thread_num * TCSSIZE,
+                            eadd_size = eadd_thread_num * TCSSIZE,
+                            flags=PAGEINFO_TCS))
+
+    areas.append(MemoryArea('tls', size=allocated_thread_num * PAGESIZE,
+                            eadd_size = eadd_thread_num * TCSSIZE,
+                            flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+
+    for t in range(0, allocated_thread_num):
         areas.append(MemoryArea('stack', size=ENCLAVE_STACK_SIZE,
-                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+                               eadd_size = 0, flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
 
     if edmm_mode:
-        areas.append(MemoryArea('exception_stack', size=PAGESIZE*1,
-                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+        areas.append(MemoryArea('aux_stack', size=PAGESIZE*1,
+                                eadd_size = PAGESIZE * 1, flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
 
     areas.append(MemoryArea('pal', file=args['libpal'], flags=PAGEINFO_REG))
 
@@ -379,13 +392,13 @@ def populate_memory_areas(manifest, attr, areas):
         if area.addr + area.size < populating:
             addr = area.addr + area.size
             free_areas.append(MemoryArea('free', addr=addr, size=populating - addr,
-                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
+                                eadd_size = populating - addr, flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
             populating = area.addr
 
     if populating > ENCLAVE_HEAP_MIN:
         free_areas.append(MemoryArea('free', addr=ENCLAVE_HEAP_MIN,
                                      size=populating - ENCLAVE_HEAP_MIN,
-                                     flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
+                                     eadd_size=populating - ENCLAVE_HEAP_MIN, flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
 
     return areas + free_areas
 
@@ -521,7 +534,7 @@ def generate_measurement(attr, areas):
               for a in range(area.addr, area.addr + area.size, PAGESIZE):
                 do_eadd(mrenclave, a, area.flags)
             else:
-              for a in range(area.addr, area.addr + area.size, PAGESIZE):
+              for a in range(area.addr, area.addr + area.eadd_size, PAGESIZE):
                 if area.desc != "free" and area.desc != "stack":
                   do_eadd(mrenclave, a, area.flags)
             print_area(area.addr, area.size, area.flags, area.desc, False)

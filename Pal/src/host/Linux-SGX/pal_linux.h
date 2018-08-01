@@ -61,6 +61,8 @@ extern struct pal_linux_state {
 
 #define PRESET_PAGESIZE (1 << 12)
 
+#define MAX_THREAD_NUM      16
+
 #define DEFAULT_BACKLOG     2048
 
 static inline int HOST_FLAGS (int alloc_type, int prot)

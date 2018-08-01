@@ -11,10 +11,6 @@ enclave_entry:
 	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
 	# RCX is the address of AEP. Other registers are not trusted.
 
-	# current SSA is in RAX (Trusted)
-	# cmp $0, %rax
-	# jne .Lhandle_resume
-
         # current SSA is in RAX (Trusted)
         cmp $0, %rax
         je .Lnormal_enter
@@ -23,7 +19,7 @@ enclave_entry:
         cmp $2, %rdi
         je .Lnormal_enter
 
-        # OCALL made in Exception context
+        # Not OCALL made in Exception context
         cmp $1, %gs:SGX_OCALL_PENDING
         jne .Lhandle_resume
 
@@ -48,11 +44,6 @@ enclave_entry:
 	# from a OCALL in the untrusted PAL. Attackers can manipulate RDI
 	# to deceive the trusted PAL.
 
-	# A safe design: check if %gs:SGX_EXIT_TARGET is ever assigned
-#	mov %gs:SGX_EXIT_TARGET, %rcx
-#	cmp $0, %rcx
-#	jne .Lreturn_from_ocall
-	
 	cmp $0, %gs:SGX_OCALL_PENDING
         jne .Lreturn_from_ocall
 
@@ -71,10 +62,17 @@ enclave_entry:
 	# push untructed stack address to RCX
 	mov %rsp, %rcx
 
-        # handling stack grow, using exception stack 
+        # handle stack grow, using auxiliary stack 
         cmp $2, %rdi
-        je .Lhandle_exception_stack
+        je .Lhandle_aux_stack
 
+        # setup thread context, using auxiliary stack 
+        cmp $3, %rdi
+        je .Lhandle_aux_stack
+        
+        cmp $4, %rdi
+        je .Lhandle_aux_stack
+	
 	# switch to enclve stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
 	add %gs:SGX_INITIAL_STACK_OFFSET, %rbx
 	mov %rbx, %rsp
@@ -95,13 +93,14 @@ enclave_entry:
 	# to handle_ecall() in enclave_ecalls.c
 	call handle_ecall
 	
-	# never return to this point (should die)
+	# ecall_enclave_start/ecall_thread_start  never return to this point
+	# other ecalls return here
 	xor %rdi, %rdi
 	xor %rsi, %rsi
 	jmp .Leexit
 
-.Lhandle_exception_stack:
-	add %gs:SGX_EXCEPTION_STACK_OFFSET, %rbx
+.Lhandle_aux_stack:
+	add %gs:SGX_AUX_STACK_OFFSET, %rbx
         mov %rbx, %rsp
 	
         # In exception handler, ecall returns to the next
@@ -266,7 +265,8 @@ sgx_ocall:
 
 	push %rbp
 	mov %rsp, %gs:SGX_STACK
- 
+	
+	# ocall sets ocall_pending before exit 
         movq $1, %gs:SGX_OCALL_PENDING
 	jmp .Leexit
 
@@ -285,13 +285,15 @@ sgx_ocall:
 	xor %rbp, %rbp
 
 	mov %gs:SGX_USTACK, %rsp
-#	and $STACK_ALIGN, %rsp
 
+	# If it's an ecall return using 
+        # ecall_ret_target as exit target
 	cmp $1, %gs:SGX_OCALL_PENDING
 	jne .Lecall_return_setup
         
 	mov %gs:SGX_EXIT_TARGET, %rbx
 	mov %gs:SGX_AEP, %rcx
+
 .Lexecute_exit:
 	mov $EEXIT, %rax
 	ENCLU
@@ -308,7 +310,7 @@ sgx_ocall:
 
 	mov %rdi, %rax
 
-        # Clear ocall_pending
+        # clear ocall_pending
         movq $0, %gs:SGX_OCALL_PENDING
 
 	# restore FSBASE if necessary
