@@ -486,11 +486,8 @@ int ocall_wake_thread (void * tcs)
     return sgx_ocall(OCALL_WAKE_THREAD, tcs);
 }
 
-int ocall_create_process (const char * uri,
-                          int nargs, const char ** args,
-                          int procfds[3],
-                          unsigned int * pid)
-{
+int ocall_create_process(const char* uri, int nargs, const char** args, int procfds[3],
+                         unsigned int* pid) {
     int retval = 0;
     int ulen = uri ? strlen(uri) + 1 : 0;
     ms_ocall_create_process_t * ms;

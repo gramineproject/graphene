@@ -32,14 +32,6 @@ void sgx_reset_ustack(void);
 bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, uint64_t size);
 uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr, uint64_t usize);
 
-
-int sgx_get_report (sgx_arch_hash_t * mrenclave,
-                    sgx_arch_attributes_t * attributes,
-                    void * enclave_data,
-                    sgx_arch_report_t * report);
-
-int sgx_verify_report (sgx_arch_report_t * report);
-
 /*
  * sgx_report:
  * Generate SGX hardware signed report.
