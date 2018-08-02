@@ -163,9 +163,7 @@ extern struct pal_enclave_state {
                                        enclave */
     uint8_t  data[PAL_ATTESTATION_DATA_SIZE];
                                     /* reserved for filling other data */
-    sgx_arch_hash_t enclave_keyhash;   /* SHA256 digest of enclave's public key
-                                       can also be used as an identifier of the
-                                       enclave */
+    sgx_arch_hash_t enclave_identifier;  /* unique identifier of the enclave */
 } __attribute__((packed, aligned (128))) pal_enclave_state;
 
 #include "sgx_arch.h"
@@ -175,7 +173,6 @@ extern struct pal_enclave_state {
 extern struct pal_enclave_config {
     sgx_arch_hash_t        mrenclave;
     sgx_arch_attributes_t  enclave_attributes;
-    void *                 enclave_key;
 } pal_enclave_config;
 
 #include <hex.h>
