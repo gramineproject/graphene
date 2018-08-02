@@ -847,56 +847,22 @@ void test_dh (void)
 }
 #endif
 
-#define RSA_KEY_SIZE        2048
-#define RSA_E               3
-
 int init_enclave (void)
 {
-    int ret;
-    LIB_RSA_KEY *rsa = malloc(sizeof(LIB_RSA_KEY));
-    lib_RSAInitKey(rsa);
-
-    ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
-    if (ret != 0) {
-        SGX_DBG(DBG_S, "lib_RSAGenerateKey failed: %d\n", ret);
-        return ret;
-    }
-
-    PAL_NUM nsz = RSA_KEY_SIZE / 8, esz = 1;
-    uint8_t n[nsz], e[esz];
-
-    ret = lib_RSAExportPublicKey(rsa, e, &esz, n, &nsz);
-    if (ret != 0) {
-        SGX_DBG(DBG_S, "lib_RSAExtractPublicKey failed: %d\n", ret);
-        goto out_free;
-    }
-
-    LIB_SHA256_CONTEXT sha256;
-
-    ret = lib_SHA256Init(&sha256);
-    if (ret < 0)
-        goto out_free;
-
-    ret = lib_SHA256Update(&sha256, n, nsz);
-    if (ret < 0)
-        goto out_free;
-
-    ret = lib_SHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
-    if (ret < 0)
-        goto out_free;
-
-    pal_enclave_config.enclave_key = rsa;
+    /*
+     * The enclave identifier is uniquely created for each enclave to
+     * prevent man-in-the-middle attack during local attestion.
+     * The identifier is injected into the local attestation report
+     * to be authenticated by another trustd process.
+     */
+    _DkRandomBitsRead(&pal_enclave_state.enclave_identifier,
+                      sizeof(pal_enclave_state.enclave_identifier));
 
     char hash_buf[HASHBUF_SIZE];
-    SGX_DBG(DBG_S, "enclave (software) key hash: %s\n",
-            bytes2hexstr(pal_enclave_state.enclave_keyhash, hash_buf, HASHBUF_SIZE));
-
+    SGX_DBG(DBG_S, "enclave identifier: %s\n",
+            bytes2hexstr(pal_enclave_state.enclave_identifier,
+                         hash_buf, HASHBUF_SIZE));
     return 0;
-
-out_free:
-    lib_RSAFreeKey(rsa);
-    free(rsa);
-    return ret;
 }
 
 int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
