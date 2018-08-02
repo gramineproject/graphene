@@ -173,6 +173,7 @@ extern struct pal_enclave_state {
 extern struct pal_enclave_config {
     sgx_arch_hash_t        mrenclave;
     sgx_arch_attributes_t  enclave_attributes;
+    void *                 enclave_key;
 } pal_enclave_config;
 
 #include <hex.h>

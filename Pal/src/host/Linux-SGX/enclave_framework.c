@@ -847,13 +847,36 @@ void test_dh (void)
 }
 #endif
 
+#define RSA_KEY_SIZE        2048
+#define RSA_E               3
+
 int init_enclave (void)
 {
+#if 0
+    /*
+     * This enclave-specific key is a building block for authenticating
+     * new pipe connections with other enclaves that are already
+     * authenticated. Since pipe protection is a future feature, this key
+     * is currently unused and hence deprecated.
+     */
+    int ret;
+    LIB_RSA_KEY *rsa = malloc(sizeof(LIB_RSA_KEY));
+    lib_RSAInitKey(rsa);
+
+    ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
+    if (ret < 0) {
+        SGX_DBG(DBG_S, "lib_RSAGenerateKey failed: %d\n", ret);
+        return ret;
+    }
+
+    pal_enclave_config.enclave_key = rsa;
+#endif
+
     /*
      * The enclave identifier is uniquely created for each enclave to
      * prevent man-in-the-middle attack during local attestion.
      * The identifier is injected into the local attestation report
-     * to be authenticated by another trustd process.
+     * to be authenticated by another process.
      */
     _DkRandomBitsRead(&pal_enclave_state.enclave_identifier,
                       sizeof(pal_enclave_state.enclave_identifier));
