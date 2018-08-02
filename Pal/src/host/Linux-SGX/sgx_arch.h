@@ -237,6 +237,9 @@ typedef struct {
     uint8_t  reserved[464];
 } __attribute__((packed, aligned(512))) sgx_arch_targetinfo_t;
 
+#define SGX_TARGETINFO_FILLED_SIZE  (sizeof(sgx_arch_hash_t) + \
+                                     sizeof(sgx_arch_attributes_t))
+
 typedef struct {
     uint16_t keyname;
     uint16_t keypolicy;
