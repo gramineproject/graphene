@@ -873,10 +873,10 @@ int init_enclave (void)
 #endif
 
     /*
-     * The enclave identifier is uniquely created for each enclave to
-     * prevent man-in-the-middle attack during local attestion.
-     * The identifier is injected into the local attestation report
-     * to be authenticated by another process.
+     * The enclave identifier is uniquely created for each enclave as a token
+     * for identifification in the future, when the secure channels need to
+     * re-established. The identifier is injected into the local attestation
+     * report that us sent to another process.
      */
     _DkRandomBitsRead(&pal_enclave_state.enclave_identifier,
                       sizeof(pal_enclave_state.enclave_identifier));
