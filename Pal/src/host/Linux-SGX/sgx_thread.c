@@ -68,7 +68,7 @@ void create_tcs_mapper (unsigned long ssa_base, unsigned long tcs_base, unsigned
 
 void create_thread_context(struct thread_map * thread_info)
 {
-    //using management thread for setup newly-created thread context
+    /* using management thread for setup newly-created thread context */
     current_tcs = enclave_thread_map[enclave_thread_num].tcs;
     
     ecall_thread_setup((void*)thread_info);
@@ -89,7 +89,7 @@ void map_tcs (unsigned int tid)
         }
     }
 
-    /* EDMM Create thread dynamically after static threads run out 
+    /* EDMM create thread dynamically after static threads run out 
      * There is one thread at enclave_thead_map[enclave_thread_num]
      * which is dedicated as management thread for creating new threads
      * start to create threads with enclave_thread_map[enclave_thread_num + 1]
@@ -101,7 +101,7 @@ void map_tcs (unsigned int tid)
                 /* Allocate the thread context (SSA/TLS/TCS) for new
                  * thread if not allocated previously */
                 if (enclave_thread_map[i].status == TCS_UNALLOC) {
-                        // TODO: Add Mutext here
+                        // TODO: Potential race in map_tcs? need a mutex here? 
                         create_thread_context(enclave_thread_map + i);
                         enclave_thread_map[i].status = TCS_ALLOC;
                 }
