@@ -127,7 +127,7 @@ void double_async_exit (void);
 int interrupt_thread (void * tcs);
 int clone_thread (void);
 
-void create_tcs_mapper (unsigned long ssa_base, unsigned long tcs_base, unsigned long tls_base, unsigned long enclave_entry,
+void create_tcs_mapper (unsigned long ssa_base, unsigned long tcs_base, unsigned long tls_base, unsigned long aux_stack_base, unsigned long enclave_entry,
                                                 unsigned int thread_num, unsigned int max_thread_num);
 
 void map_tcs (unsigned int tid);

@@ -29,6 +29,7 @@ struct thread_map {
     unsigned long        tcs_addr;
     unsigned long        ssa_addr;
     unsigned long        tls_addr;
+    unsigned long	 aux_stack_addr; /* only applicable to EDMM */
     unsigned long        enclave_entry;
 };
 
@@ -41,7 +42,7 @@ static struct thread_map * enclave_thread_map;
  * thread_num: the number of threads statically allocated
  * max_thread_num: the maximum number of threads could be allocated under EDMM
  */
-void create_tcs_mapper (unsigned long ssa_base, unsigned long tcs_base, unsigned long tls_base, unsigned long enclave_entry,
+void create_tcs_mapper (unsigned long ssa_base, unsigned long tcs_base, unsigned long tls_base, unsigned long aux_stack_base, unsigned long enclave_entry,
                                                 unsigned int thread_num, unsigned int max_thread_num)
 {
     enclave_tcs = (sgx_arch_tcs_t*)tcs_base;
@@ -57,6 +58,7 @@ void create_tcs_mapper (unsigned long ssa_base, unsigned long tcs_base, unsigned
         enclave_thread_map[i].ssa_addr = ssa_base + i * pagesize * 2;
         enclave_thread_map[i].tcs_addr = tcs_base + i * pagesize;
         enclave_thread_map[i].tls_addr = tls_base + i * pagesize;
+	enclave_thread_map[i].aux_stack_addr = aux_stack_base ? aux_stack_base - i * AUX_STACK_SIZE_PER_THREAD: 0;
         enclave_thread_map[i].enclave_entry = enclave_entry;
         enclave_thread_map[i].tcs = &enclave_tcs[i];
 

@@ -27,6 +27,7 @@ DEFAULT_THREAD_NUM = 4
 ENCLAVE_HEAP_MIN = 0x10000
 
 MAX_THREAD_NUM = 16
+AUX_STACK_SIZE = PAGESIZE * 2
 """ Utilities """
 
 def roundup(addr):
@@ -362,8 +363,8 @@ def get_memory_areas(manifest, attr, args):
                                eadd_size = 0, flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
 
     if edmm_mode:
-        areas.append(MemoryArea('aux_stack', size=PAGESIZE*1,
-                                eadd_size = PAGESIZE * 1, flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+        areas.append(MemoryArea('aux_stack', size=AUX_STACK_SIZE,
+                                eadd_size = AUX_STACK_SIZE, flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
 
     areas.append(MemoryArea('pal', file=args['libpal'], flags=PAGEINFO_REG))
 

@@ -372,13 +372,13 @@ int initialize_enclave (struct pal_enclave * enclave)
         set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
-    /* XXX: EDMM: allocated one page of auxiliary stack for dynamic stack grow
+    /* XXX: EDMM: allocated two pages of auxiliary stack for dynamic stack grow
      * and thread creation */
     struct mem_area * aux_stack_area = NULL;
     if (enclave->pal_sec.edmm_mode)
-        aux_stack_area = set_area("aux_stack", true, false, -1, 0, pagesize,
+       aux_stack_area = set_area("aux_stack", true, false, -1, 0, AUX_STACK_SIZE,
                                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
-
+    
     struct mem_area * pal_area =
         set_area("pal", false, true, enclave_image, 0, 0, 0, SGX_PAGE_REG);
     TRY(scan_enclave_binary,
@@ -461,8 +461,9 @@ int initialize_enclave (struct pal_enclave * enclave)
                 gs->ocall_pending = 0;
 
                 if (enclave->pal_sec.edmm_mode){
-                    /* TODO: each thread should have their own exception stack */
-                    gs->aux_stack_offset = aux_stack_area->addr + pagesize;
+		    /* Each thread has its own region of aux stack from the whole aux_stack_area */
+		    unsigned long aux_stack_init_addr = aux_stack_area->addr + AUX_STACK_SIZE;
+                    gs->aux_stack_offset = aux_stack_init_addr - t * AUX_STACK_SIZE_PER_THREAD;
                     gs->stack_commit_top = gs->initial_stack_offset;
                 }
 
@@ -532,9 +533,11 @@ add_pages:
     }
 
     TRY(init_enclave, &enclave_secs, &enclave_sigstruct, &enclave_token);
-
+    
     create_tcs_mapper(ssa_area->addr, enclave_secs.baseaddr + tcs_area->addr,
-                         enclave_secs.baseaddr + tls_area->addr, enclave_entry_addr,
+                         enclave_secs.baseaddr + tls_area->addr, 
+			 enclave->pal_sec.edmm_mode ? aux_stack_area->addr + AUX_STACK_SIZE:0, 
+			 enclave_entry_addr,
                          enclave->thread_num, enclave->pal_sec.edmm_mode? MAX_THREAD_NUM : enclave->thread_num);
 
 

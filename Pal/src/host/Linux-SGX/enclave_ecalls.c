@@ -25,6 +25,7 @@ struct thread_map {
     unsigned long        tcs_addr;
     unsigned long        ssa_addr;
     unsigned long        tls_addr;
+    unsigned long 	 aux_stack_addr; /* only applicable to EDMM */
     unsigned long        enclave_entry;
 };
 
@@ -43,7 +44,7 @@ void pal_expand_stack(unsigned long fault_addr)
     unsigned long stack_init_addr = GET_ENCLAVE_TLS(initial_stack_offset);
     unsigned long end_addr = fault_addr - PRESET_PAGESIZE;
 
-    SGX_DBG(DBG_I, "fault_addr, stack_commit_top, stack_init_addr: %p, %p, %p\n", 
+    SGX_DBG(DBG_M, "fault_addr, stack_commit_top, stack_init_addr: %p, %p, %p\n", 
 		fault_addr, stack_commit_top, stack_init_addr);
     if (fault_addr < (stack_init_addr - ENCLAVE_STACK_SIZE * PRESET_PAGESIZE)) {
         SGX_DBG(DBG_E, "stack overrun, stop!\n");
@@ -70,7 +71,7 @@ void pal_thread_setup(void * ecall_args){
     struct thread_map * thread_info = (struct thread_map *)ecall_args;
     unsigned long regular_flags = SGX_SECINFO_FLAGS_R | SGX_SECINFO_FLAGS_W |
                         SGX_SECINFO_FLAGS_REG | SGX_SECINFO_FLAGS_PENDING;
-    SGX_DBG(DBG_I, "the created thread using tcs at  %p, tls at %p, ssa at %p\n", 
+    SGX_DBG(DBG_M, "the created thread using tcs at  %p, tls at %p, ssa at %p\n", 
 			thread_info->tcs_addr, thread_info->tls_addr, thread_info->ssa_addr);
     sgx_accept_pages(regular_flags, thread_info->tcs_addr, thread_info->tcs_addr + PRESET_PAGESIZE, 0);
     sgx_accept_pages(regular_flags, thread_info->tls_addr, thread_info->tls_addr + PRESET_PAGESIZE, 0);
@@ -86,7 +87,8 @@ void pal_thread_setup(void * ecall_args){
 
     tls->ssa = (void *)thread_info->ssa_addr;
     tls->gpr = tls->ssa + PRESET_PAGESIZE - sizeof(sgx_arch_gpr_t);
-    tls->aux_stack_offset = GET_ENCLAVE_TLS(aux_stack_offset);
+    tls->aux_stack_offset = thread_info->aux_stack_addr;
+//GET_ENCLAVE_TLS(aux_stack_offset);
     tls->stack_commit_top = tls->initial_stack_offset;
     tls->ocall_pending = 0;
 

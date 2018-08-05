@@ -63,6 +63,11 @@ extern struct pal_linux_state {
 
 #define MAX_THREAD_NUM      16
 
+#define AUX_STACK_SIZE      PRESET_PAGESIZE * 2
+
+/* 512B per thread for using auxiliary stack */
+#define AUX_STACK_SIZE_PER_THREAD AUX_STACK_SIZE / MAX_THREAD_NUM 
+
 #define DEFAULT_BACKLOG     2048
 
 static inline int HOST_FLAGS (int alloc_type, int prot)
