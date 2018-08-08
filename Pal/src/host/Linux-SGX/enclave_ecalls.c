@@ -88,7 +88,6 @@ void pal_thread_setup(void * ecall_args){
     tls->ssa = (void *)thread_info->ssa_addr;
     tls->gpr = tls->ssa + PRESET_PAGESIZE - sizeof(sgx_arch_gpr_t);
     tls->aux_stack_offset = thread_info->aux_stack_addr;
-//GET_ENCLAVE_TLS(aux_stack_offset);
     tls->stack_commit_top = tls->initial_stack_offset;
     tls->ocall_pending = 0;
 
@@ -122,8 +121,7 @@ void pal_thread_create(void * ecall_args){
     if (rs != 0) SGX_DBG(DBG_E, "EACCEPT TCS Change failed: %d\n", rs);
 }
 
-
-
+/* handle_ecall is the main entry of all ecall functions */
 int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
                   void * untrusted_stack, void * enclave_base_addr)
 {
@@ -164,14 +162,17 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
 	    ocall_exit();
             break;
         case ECALL_STACK_EXPAND:
-            pal_expand_stack((unsigned long)ecall_args);
+	    pal_expand_stack((unsigned long)ecall_args);
 	    break;
        case ECALL_THREAD_SETUP:
-            pal_thread_setup(ecall_args);
+	    pal_thread_setup(ecall_args);
 	    break;
        case ECALL_THREAD_CREATE:
-            pal_thread_create(ecall_args);
+	    pal_thread_create(ecall_args);
 	    break;
+       default:
+	    SGX_DBG(DEBUG_E, "Ecall error, invalid ecall index!\n");
+	    ocall_exit(); 
     }
     
     return 0;

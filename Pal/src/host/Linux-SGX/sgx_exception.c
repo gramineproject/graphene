@@ -269,7 +269,7 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
     unsigned long stack_start_addr = current_enclave->stackinfo.start_addr;
     unsigned long stack_end_addr = current_enclave->stackinfo.end_addr;
     
-    /* There is a need to grow stack if it's in stack area with SIGBUS under EDMM */
+    /* need to grow stack if it's in stack area with SIGBUS under EDMM */
     if (current_enclave->pal_sec.edmm_mode && (signum == SIGBUS && rax == ERESUME)
                 && (fault_addr <= stack_start_addr && fault_addr >= stack_end_addr)){
         ecall_stack_expand((void *)fault_addr);

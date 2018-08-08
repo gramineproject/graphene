@@ -8,10 +8,10 @@
 
 sgx_ecall:
 	push %rbp
-        mov %rsp,%rbp
+	mov %rsp,%rbp
 
         # Save registers
-        push %rbx
+	push %rbx
 	push %rcx
 	push %rdx
 
@@ -34,10 +34,10 @@ sgx_ecall:
         # Restore Registers
 	pop %rdx
 	pop %rcx
-        pop %rbx
+	pop %rbx
 
-        pop %rbp
-        retq
+	pop %rbp
+	retq
 
 	.global async_exit_pointer
 	.type async_exit_pointer, @function

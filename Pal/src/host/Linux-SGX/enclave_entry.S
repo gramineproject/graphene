@@ -11,18 +11,18 @@ enclave_entry:
 	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
 	# RCX is the address of AEP. Other registers are not trusted.
 
-        # current SSA is in RAX (Trusted)
-        cmp $0, %rax
-        je .Lnormal_enter
-
+	# current SSA is in RAX (Trusted)
+	cmp $0, %rax
+	je .Lnormal_enter
+	
 	# Exception for growing stacks
-        cmp $2, %rdi
-        je .Lnormal_enter
+	cmp $2, %rdi
+	je .Lnormal_enter
 
-        # Not OCALL made in Exception context
-        cmp $1, %gs:SGX_OCALL_PENDING
-        jne .Lhandle_resume
-
+	# Not OCALL made in Exception context
+	cmp $1, %gs:SGX_OCALL_PENDING
+	jne .Lhandle_resume
+	
 	# TCS is in RBX (Trusted)
 
 .Lnormal_enter:
@@ -45,7 +45,7 @@ enclave_entry:
 	# to deceive the trusted PAL.
 
 	cmp $0, %gs:SGX_OCALL_PENDING
-        jne .Lreturn_from_ocall
+	jne .Lreturn_from_ocall
 
 	# PAL convention:
 	# RDI - index in ecall_table
@@ -53,7 +53,6 @@ enclave_entry:
 	# RDX - exit target
 	# RCX (former RSP) - The unstrusted stack
 	# R8  - enclave base
-        # R9  - address of normal return
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
 	sub %gs:SGX_TCS_OFFSET, %rbx
@@ -101,13 +100,14 @@ enclave_entry:
 
 .Lhandle_aux_stack:
 	add %gs:SGX_AUX_STACK_OFFSET, %rbx
-        mov %rbx, %rsp
-	
-        # In exception handler, ecall returns to the next
-        # RCX contains the return address, however occupied
-        # Using SGX_AEP instead
-        mov %gs:SGX_AEP, %r9
-        mov %r9, %gs:SGX_ECALL_RET_TARGET
+	mov %rbx, %rsp
+
+	# In exception handler, ecall returns to the next
+	# RCX contains the return address, however occupied
+	# Using SGX_AEP instead
+
+	mov %gs:SGX_AEP, %r9
+	mov %r9, %gs:SGX_ECALL_RET_TARGET
 	jmp .Ldo_handle_ecall
 
 .Lhandle_resume:
@@ -267,7 +267,7 @@ sgx_ocall:
 	mov %rsp, %gs:SGX_STACK
 	
 	# ocall sets ocall_pending before exit 
-        movq $1, %gs:SGX_OCALL_PENDING
+	movq $1, %gs:SGX_OCALL_PENDING
 	jmp .Leexit
 
 .Lexception_handler:
@@ -287,7 +287,7 @@ sgx_ocall:
 	mov %gs:SGX_USTACK, %rsp
 
 	# If it's an ecall return using 
-        # ecall_ret_target as exit target
+	# ecall_ret_target as exit target
 	cmp $1, %gs:SGX_OCALL_PENDING
 	jne .Lecall_return_setup
         
@@ -300,8 +300,8 @@ sgx_ocall:
 
 .Lecall_return_setup:
 	mov %gs:SGX_ECALL_RET_TARGET, %rbx
-        mov %gs:SGX_AEP, %rcx
-        jmp .Lexecute_exit
+	mov %gs:SGX_AEP, %rcx
+	jmp .Lexecute_exit
 
 .Lreturn_from_ocall:
 	# PAL convention:
@@ -311,7 +311,7 @@ sgx_ocall:
 	mov %rdi, %rax
 
         # clear ocall_pending
-        movq $0, %gs:SGX_OCALL_PENDING
+	movq $0, %gs:SGX_OCALL_PENDING
 
 	# restore FSBASE if necessary
 	mov %gs:SGX_FSBASE, %rbx
@@ -405,47 +405,47 @@ sgx_getkey:
  * sgx_accept:
  * EACCEPT pages for dynamic memory management
  */
-        .global sgx_accept
-        .type sgx_accept, @function
+	.global sgx_accept
+	.type sgx_accept, @function
+
 sgx_accept:
-        .cfi_startproc
+	.cfi_startproc
+	
+	push %rbx
+	push %rcx
+	mov %rdi, %rbx
+	mov %rsi, %rcx
+	mov $EACCEPT, %rax
+	ENCLU
+	pop %rcx
+	pop %rbx
+	ret
 
-        push %rbx
-        push %rcx
-        mov %rdi, %rbx
-        mov %rsi, %rcx
-        mov $EACCEPT, %rax
-        ENCLU
-        pop %rcx
-        pop %rbx
-        ret
-
-        .cfi_endproc
-        .size sgx_accept, .-sgx_accept
+	.cfi_endproc
+	.size sgx_accept, .-sgx_accept
 
 /*
  * sgx_modpe:
  * EMODPE pages for dynamic memory management
  */
+	.global sgx_modpe
+	.type sgx_modpe, @function
 
-        .global sgx_modpe
-        .type sgx_modpe, @function
 sgx_modpe:
-        .cfi_startproc
+	.cfi_startproc
 
-        push %rbx
-        push %rcx
-        mov %rdi, %rbx
-        mov %rsi, %rcx
-        mov $EMODPE, %rax
-        ENCLU
-        pop %rcx
-        pop %rbx
-        ret
+	push %rbx
+	push %rcx
+	mov %rdi, %rbx
+	mov %rsi, %rcx
+	mov $EMODPE, %rax
+	ENCLU
+	pop %rcx
+	pop %rbx
+	ret
 
-        .cfi_endproc
-        .size sgx_modpe, .-sgx_modpe
-
+	.cfi_endproc
+	.size sgx_modpe, .-sgx_modpe
 
 /*
  * rdrand:

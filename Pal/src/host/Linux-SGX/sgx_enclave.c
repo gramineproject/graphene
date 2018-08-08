@@ -728,13 +728,14 @@ int ecall_stack_expand(void * addr)
 
 int ecall_thread_setup (void * thread_info)
 {
-        EDEBUG(ECALL_THREAD_SETUP, thread_info);
-        return sgx_ecall(ECALL_THREAD_SETUP, thread_info);
+    EDEBUG(ECALL_THREAD_SETUP, thread_info);
+    return sgx_ecall(ECALL_THREAD_SETUP, thread_info);
 }
 
 int ecall_thread_create(void * thread_info)
 {
-        return sgx_ecall(ECALL_THREAD_CREATE, thread_info);
+    EDEBUG(ECALL_THREAD_CREATE, thread_info);
+    return sgx_ecall(ECALL_THREAD_CREATE, thread_info);
 }
 
 
