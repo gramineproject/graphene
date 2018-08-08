@@ -171,7 +171,7 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
 	    pal_thread_create(ecall_args);
 	    break;
        default:
-	    SGX_DBG(DEBUG_E, "Ecall error, invalid ecall index!\n");
+	    SGX_DBG(DBG_E, "Ecall error, invalid ecall index!\n");
 	    ocall_exit(); 
     }
     
