@@ -105,7 +105,7 @@ Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 ### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
-2.1.1 Prerequisites 
+__2.1.1 Prerequisites 
 
 (1) Generating signing keys
 A 3072-bit RSA private key (PEM format) is required for signing the enclaves.
@@ -128,8 +128,6 @@ from the official Intel github repositories:
    - <https://github.com/01org/linux-sgx>
    - <https://github.com/01org/linux-sgx-driver>
 
-__(The SDK and driver version must be 1.9 or LOWER)__
-
 A Linux driver must be installed before runing Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
 
@@ -140,7 +138,7 @@ __** Please make sure the GCC version is either 4 or 5 **__
     (The console will be prompted to ask for the path of Intel SGX driver code)
     sudo ./load.sh
 
-2.1.2 Building Graphene-SGX
+__2.1.2 Building Graphene-SGX
 
 To build Graphene Library OS with Intel SGX support, in the root directory of Graphene repo, run following command:
 
@@ -152,7 +150,7 @@ To build with debug symbols, run the command:
 
 Using "make SGX=1" in the test or regression directory will automatically generate the enclave signatures (in .sig files). It takes you around 10 minutes to get Graphene-SGX ready to use
 
-2.1.3 Run Built-in Examples in Graphene-SGX
+__2.1.3 Run Built-in Examples in Graphene-SGX
 
 There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few real software applications, such as python, memcached, and so on.
 
@@ -168,15 +166,20 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
 - Run Hello World program with Graphene-SGX:
   
-      SGX=1 ./pal_loader HelloWorld
+      SGX=1 ./pal_loader helloworld
   
 (2) Build and run python helloworld script in Graphene-SGX
 - go to LibOS/shim/test/apps/python, build the enclave:
-  make SGX=1
+  
+      make SGX=1
+      
 - Generate token:
-  make SGX_RUN=1
+
+      make SGX_RUN=1
+      
 - Run python helloworld with Graphene-SGX via:
-  SGX=1 ./python.manifest.sgx scripts/helloworld.py
+
+      SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
