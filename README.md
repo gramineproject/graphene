@@ -119,7 +119,7 @@ variable 'SGX_ENCLAVE_KEY' when building Graphene with SGX support.
 
 After signing the enclaves, users may ship the application files with the
 built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
-files) and the signatures, to the Intel SGX-enabled hosts.
+files) and the signatures, to the SGX-enabled hosts.
 
 (2) Installing Intel SGX SDK and driver
 The Intel SGX Linux SDK is required for running Graphene Library OS. Download and install
@@ -148,13 +148,13 @@ To build with debug symbols, run the command:
 
     make SGX=1 DEBUG=1
 
-Using "make SGX=1" in the test or regression directory will automatically generate the enclave signatures (in .sig files). It takes you around 10 minutes to get Graphene-SGX ready to use
+Using "make SGX=1" in the test or regression directory will automatically generate the enclave signatures (.sig files).
 
 __2.1.3 Run Built-in Examples in Graphene-SGX
 
-There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few real software applications, such as python, memcached, and so on.
+There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
 
-(1) Build and run C-based Hello World programs in Graphene-SGX
+(1) Build and run a Hello World program with Graphene on SGX
 - go to LibOS/shim/test/native, build the enclaves via command:
     
       make SGX=1
@@ -164,11 +164,11 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       make SGX_RUN=1
 
-- Run Hello World program with Graphene-SGX:
+- Run Hello World program with Graphene on SGX:
   
-      SGX=1 ./pal_loader helloworld
+      SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
   
-(2) Build and run python helloworld script in Graphene-SGX
+(2) Build and run python helloworld script in Graphene on SGX
 - go to LibOS/shim/test/apps/python, build the enclave:
   
       make SGX=1
@@ -180,6 +180,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 - Run python helloworld with Graphene-SGX via:
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
+       
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
