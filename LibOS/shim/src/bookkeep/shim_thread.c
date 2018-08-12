@@ -148,6 +148,7 @@ static IDTYPE get_internal_pid (void)
     internal_tid_alloc_idx++;
     IDTYPE idx = internal_tid_alloc_idx;
     unlock(thread_list_lock);
+    assert(IS_INTERNAL_TID(idx));
     return idx;
 }
 
