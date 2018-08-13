@@ -34,5 +34,4 @@ A number of files taken from other C libraries:
 
 Some app and benchmark sources are redistributed under LibOS/shim/test/apps. These should probably be moved to subrepositories.
 
-
-
+Some contributions from Intel (documentation pending, more information available upon request).
