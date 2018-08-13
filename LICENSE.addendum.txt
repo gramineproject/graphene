@@ -15,9 +15,24 @@ MIT JOS (mix of MIT and BSD licenses:
 * Pal/lib/stdlib/printfmt.c
 
 A number of files taken from other C libraries:
-* glibc - LGPL
 * musl - MIT
+* glibc - LGPL
+ ** clone, sysdeps.h (and variants) used in code
+ ** Pal/src/host/Linux/clone-x86_64.S
+ ** LibOS/shim/include/elf.h
+ ** LibOS/shim/src/elf/ - basically the whole directory, and most code related to linking and loading (e.g., Pal/src/db_rtld.c)
+ ** Pal/include/elf/elf.h
+ ** Pal/include/sysdeps/generic/ldsodefs.h
+ ** Pal/include/sysdeps/generic/memcopy.h
+ ** Pal/include/sysdeps/generic/sysdep.h
+ ** Pal/lib/network/hton.c
+ ** Pal/lib/string/ - the whole directory
+ ** Pal/src/dynamic_link.h, do-rel.h , dl-machine-x86_64.h
+ ** Pal/src/host/Linux/gettimeofday-x86_64.S
+ ** Pal/src/host/Linux/include/ - whole directory - for signal API definitions
+ ** We also build a patched glibc, but this could be moved into a separate repo
 
-[incomplete: more to come]
+Some app and benchmark sources are redistributed under LibOS/shim/test/apps. These should probably be moved to subrepositories.
+
 
 
