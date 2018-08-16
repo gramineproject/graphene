@@ -380,9 +380,6 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     bool need_restart = false;
     type = type ? (type & port->info.type) : port->info.type;
 
-    port->deleted = true; /* prevent further usage of the port */
-    wmb(); /* commit the state to the memory */
-
     if ((type & IPC_PORT_KEEPALIVE) ^
         (port->info.type & IPC_PORT_KEEPALIVE))
         need_restart = true;
@@ -411,15 +408,8 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
         __put_ipc_port(port);
     }
 
-    /* Need to clean up threads that are currently waiting on this port. */
-    struct shim_ipc_msg_obj * tmp;
-    lock(port->msgs_lock);
-    listp_for_each_entry(tmp, &port->msgs, list) {
-        tmp->retval = -ECONNRESET;
-        if (tmp->thread)
-            thread_wakeup(tmp->thread);
-    }
-    unlock(port->msgs_lock);
+    port->deleted = true; /* prevent further usage of the port */
+    wmb(); /* commit the state to the memory */
 
 out:
     port->update = true;
