@@ -268,7 +268,9 @@ int shim_do_execve (const char * file, const char ** argv,
 
     BEGIN_PROFILE_INTERVAL();
 
-    
+    if (file && test_user_string(file))
+        return -EFAULT;
+
     DEFINE_LIST(sharg);
     struct sharg {
         LIST_TYPE(sharg)  list;
