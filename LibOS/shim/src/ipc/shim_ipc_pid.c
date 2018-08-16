@@ -158,7 +158,7 @@ int ipc_pid_kill_callback (IPC_CALLBACK_ARGS)
             break;
     }
 
-    assert(ret != -ESRCH);
+    //assert(ret != -ESRCH);
 
     SAVE_PROFILE_INTERVAL(ipc_pid_kill_callback);
     return ret < 0 ? ret : RESPONSE_CALLBACK;

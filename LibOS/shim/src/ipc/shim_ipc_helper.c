@@ -411,6 +411,16 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
         __put_ipc_port(port);
     }
 
+    /* Need to clean up threads that are currently waiting on this port. */
+    struct shim_ipc_msg_obj * tmp;
+    lock(port->msgs_lock);
+    listp_for_each_entry(tmp, &port->msgs, list) {
+        tmp->retval = -ECONNRESET;
+        if (tmp->thread)
+            thread_wakeup(tmp->thread);
+    }
+    unlock(port->msgs_lock);
+
 out:
     port->update = true;
     return need_restart;
