@@ -394,6 +394,13 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                 }
             }
 
+            /* If one of the components is not a directory, return -ENOTDIR
+             * and abort lookup. */
+            if (!(my_dent->state & DENTRY_ISDIRECTORY)) {
+                err = -ENOTDIR;
+                goto out;
+            }
+
             /* Although this is slight over-kill, let's just always increment the
              * mount ref count on a recursion, for easier bookkeeping */
             get_mount(my_dent->fs);
