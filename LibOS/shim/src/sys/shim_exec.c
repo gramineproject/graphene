@@ -91,6 +91,9 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
         return -ENOMEM;
 
     populate_tls(tcb, false);
+    /* Temporarily disable preemption for delaying any signal that arrives
+     * during execve(). */
+    __disable_preempt(&((__libc_tcb_t *) tcb)->shim_tcb);
     debug("set tcb to %p\n", tcb);
 
     put_handle(cur_thread->exec);
