@@ -272,8 +272,10 @@ internal:
     if (context)
         debug("memory fault at %p (IP = %p)\n", arg, context->IP);
 
-    if (!tcb || !tcb->tp || !cur_thread_is_alive())
+    if (!tcb || !tcb->tp || !cur_thread_is_alive()) {
+        debug("ignore memfault exception\n");
         goto ret_exception;
+    }
 
     struct shim_vma_val vma;
     int signo = SIGSEGV;
@@ -421,8 +423,10 @@ internal:
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
 
-    if (!tcb || !tcb->tp || !cur_thread_is_alive())
+    if (!tcb || !tcb->tp || !cur_thread_is_alive()) {
+        debug("ignore illegal exception\n");
         goto ret_exception;
+    }
 
     struct shim_vma_val vma;
 
@@ -463,8 +467,10 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
 
-    if (!tcb || !tcb->tp || !cur_thread_is_alive())
+    if (!tcb || !tcb->tp || !cur_thread_is_alive()) {
+        debug("ignore suspend exception\n");
         goto ret_exception;
+    }
 
     deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
 
@@ -478,10 +484,6 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         goto ret_exception;
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
-
-    if (!tcb || !tcb->tp || !cur_thread_is_alive())
-        goto ret_exception;
-
     __disable_preempt(tcb);
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
@@ -643,8 +645,6 @@ void handle_signal (bool delayed_only)
         return;
 
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
-
-    debug("handle signal (counter = %d)\n", thread->has_signal.counter);
 
     /* Fast path */
     if (!thread->has_signal.counter)
