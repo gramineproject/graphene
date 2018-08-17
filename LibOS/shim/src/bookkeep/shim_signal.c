@@ -484,6 +484,10 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         goto ret_exception;
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
+
+    if (!tcb || !tcb->tp)
+        return;
+
     __disable_preempt(tcb);
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
