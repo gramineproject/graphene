@@ -359,6 +359,12 @@ static int __do_semop (int semid, struct sembuf * sops, unsigned int nsops,
     struct shim_sem_handle * sem;
     int nsems = 0;
 
+    if (!sops || !nsops)
+        return -EINVAL;
+
+    if (test_user_memory(sops, sizeof(sops[0]) * nsops, false))
+        return -EFAULT;
+
     for (int i = 0 ; i < nsops ; i++)
         if (sops[i].sem_num >= nsems)
             nsems = sops[i].sem_num + 1;

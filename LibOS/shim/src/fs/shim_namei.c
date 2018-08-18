@@ -280,7 +280,8 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
         if (cur_thread) {
             start = *path == '/' ? cur_thread->root : cur_thread->cwd;
         } else {
-            /* Start at the global root if we have no fs and no start dentry.
+            /*
+             * Start at the global root if we have no fs and no start dentry.
              * This shoud only happen as part of initialization.
              */
             start = dentry_root;
@@ -294,7 +295,12 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
         fs = start->fs;
     assert(fs);
     get_mount(fs);
-    assert(start->state & DENTRY_ISDIRECTORY);
+
+    /* The starting path must be not a directory. */
+    if (!(start->state & DENTRY_ISDIRECTORY)) {
+        err = -ENOTDIR;
+        goto out;
+    }
 
     // Peel off any preceeding slashes
     path = eat_slashes(path);
@@ -392,13 +398,6 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                     err = -ENOENT;
                     goto out;
                 }
-            }
-
-            /* If one of the components is not a directory, return -ENOTDIR
-             * and abort lookup. */
-            if (!(my_dent->state & DENTRY_ISDIRECTORY)) {
-                err = -ENOTDIR;
-                goto out;
             }
 
             /* Although this is slight over-kill, let's just always increment the

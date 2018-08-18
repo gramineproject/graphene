@@ -139,7 +139,7 @@ no_op:
         }
 
         struct shim_handle * hdl = __get_fd_handle(p->fd, NULL, map);
-        if (!hdl->fs || !hdl->fs->fs_ops)
+        if (!hdl || !hdl->fs || !hdl->fs->fs_ops)
             goto no_op;
 
         SAVE_PROFILE_INTERVAL(do_poll_get_handle);
