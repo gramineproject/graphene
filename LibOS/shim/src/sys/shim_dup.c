@@ -38,6 +38,7 @@
 int shim_do_dup (int fd)
 {
     struct shim_handle_map * handle_map = get_cur_handle_map(NULL);
+    assert(handle_map);
     int flags = 0;
 
     struct shim_handle * hdl = get_fd_handle(fd, &flags, handle_map);
@@ -52,6 +53,7 @@ int shim_do_dup (int fd)
 int shim_do_dup2 (int oldfd, int newfd)
 {
     struct shim_handle_map * handle_map = get_cur_handle_map(NULL);
+    assert(handle_map);
 
     struct shim_handle * hdl = get_fd_handle(oldfd, NULL, handle_map);
     if (!hdl)
@@ -70,6 +72,8 @@ int shim_do_dup2 (int oldfd, int newfd)
 int shim_do_dup3 (int oldfd, int newfd, int flags)
 {
     struct shim_handle_map * handle_map = get_cur_handle_map(NULL);
+    assert(handle_map);
+
     struct shim_handle * hdl = get_fd_handle(oldfd, NULL, handle_map);
     if (!hdl)
         return -EBADF;

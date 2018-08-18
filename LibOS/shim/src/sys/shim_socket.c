@@ -1415,7 +1415,7 @@ out:
 
 int shim_do_getsockname (int sockfd, struct sockaddr * addr, int * addrlen)
 {
-    if (!addr || !addrlen)
+    if (!addr || !addrlen || test_user_memory(addrlen, sizeof(int), true))
         return -EFAULT;
 
     if (*addrlen <= 0)
@@ -1455,7 +1455,7 @@ out:
 
 int shim_do_getpeername (int sockfd, struct sockaddr * addr, int * addrlen)
 {
-    if (!addr || !addrlen)
+    if (!addr || !addrlen || test_user_memory(addrlen, sizeof(int), true))
         return -EFAULT;
 
     if (*addrlen <= 0)

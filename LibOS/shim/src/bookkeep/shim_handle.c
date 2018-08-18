@@ -402,8 +402,21 @@ extend:
     }
 
     if (handle_map->fd_top == FD_NULL ||
-        fd > handle_map->fd_top)
+        fd > handle_map->fd_top) {
+        /* (FDTYPE) -1 is an invalid file descriptor. */
+        if (fd == FD_NULL) {
+            ret = -EBADF;
+            goto out;
+        }
+
+        /* File descriptor must not exceed the system limit. */
+        if (fd >= max_fds) {
+            ret = -EMFILE;
+            goto out;
+        }
+
         handle_map->fd_top = fd;
+    }
 
     struct shim_fd_handle * new_handle = handle_map->map[fd];
 

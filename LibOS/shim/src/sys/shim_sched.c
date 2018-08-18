@@ -39,6 +39,8 @@ int shim_do_sched_yield (void)
 int shim_do_sched_getaffinity (pid_t pid, size_t len,
                                __kernel_cpu_set_t * user_mask_ptr)
 {
+    if (test_user_memory(user_mask_ptr, len, true))
+        return -EFAULT;
     int ncpus = PAL_CB(cpu_info.cpu_num);
     memset(user_mask_ptr, 0, len);
     for (int i = 0 ; i < ncpus ; i++)

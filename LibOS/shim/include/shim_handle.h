@@ -383,8 +383,10 @@ struct shim_fd_handle {
     struct shim_handle * handle;
 };
 
-#define MAX_MAX_FDS         (65536)
-#define DEFAULT_MAX_FDS     (1024)
+#define MAX_MAX_FDS         (65535)     /* Hard limit on the maximum
+                                           number of file descriptors */
+#define DEFAULT_MAX_FDS     (1024)      /* Soft limit on the maximum
+                                           number of file descriptors */
 extern unsigned int max_fds;
 
 struct shim_handle_map {
