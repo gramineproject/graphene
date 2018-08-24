@@ -39,12 +39,37 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-/* default size of a new thread stack */
-/* DEP 2/4/17: There is enough stuff allocated on the PAL stack now
- *   that we need two pages in Linux host mode.  In SGX mode,
- *   the enclave/non-clave split makes 1 page in/1 out sufficient.
- */
-#define THREAD_STACK_SIZE   (pal_state.alloc_align * 2) 
+#if defined(__i386__)
+#include <asm/ldt.h>
+#else
+#include <asm/prctl.h>
+#endif
+
+int pal_thread_init (void * tcbptr)
+{
+    PAL_TCB * tcb = tcbptr;
+    int ret;
+
+    ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
+
+    if (tcb->alt_stack) {
+        stack_t ss;
+        ss.ss_sp    = tcb;
+        ss.ss_flags = 0;
+        ss.ss_size  = (void *) tcb - tcb->alt_stack;
+
+        ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
+        if (IS_ERR(ret))
+            return -ERRNO(ret);
+    }
+
+    if (tcb->callback)
+        return (*tcb->callback) (tcb->param);
+
+    return 0;
+}
 
 /* _DkThreadCreate for internal use. Create an internal thread
    inside the current process. The arguments callback and param
@@ -52,33 +77,38 @@
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param, int flags)
 {
-    void * child_stack = NULL;
+    unsigned long pagesz = pal_state.pagesize;
+    void * stack = NULL;
 
-    if (_DkVirtualMemoryAlloc(&child_stack, THREAD_STACK_SIZE, 0,
-                              PAL_PROT_READ|PAL_PROT_WRITE) < 0)
+    if (_DkVirtualMemoryAlloc(&stack, pagesz * 3,
+                              0, PAL_PROT_READ|PAL_PROT_WRITE) < 0)
         return -PAL_ERROR_NOMEM;
 
-    /* move child_stack to the top of stack. */
-    child_stack += THREAD_STACK_SIZE;
-
-    /* align child_stack to 16 */
-    child_stack = (void *) ((uintptr_t) child_stack & ~16);
-
-    int tid = 0;
-    int ret = clone(callback, child_stack,
-                    CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
-                    CLONE_THREAD|CLONE_SIGHAND|CLONE_PTRACE|
-                    CLONE_PARENT_SETTID,
-                    param, &tid, NULL);
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+    void * child_stack = stack + pagesz * 2;
+    void * alt_stack   = child_stack + pagesz;
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(hdl, thread);
-    hdl->thread.tid = tid;
-    *handle = hdl;
 
-    /* _DkThreadAdd(tid); */
+    /* align child_stack to 16 */
+    child_stack = (void *) ((uintptr_t) child_stack & ~16);
+    PAL_TCB * tcb  = alt_stack - sizeof(PAL_TCB);
+    tcb->self      = tcb;
+    tcb->handle    = hdl;
+    tcb->alt_stack = alt_stack;
+    tcb->callback  = callback;
+    tcb->param     = (void *) param;
+
+    int ret = clone(pal_thread_init, child_stack,
+                    CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
+                    CLONE_THREAD|CLONE_SIGHAND|CLONE_PTRACE|
+                    CLONE_PARENT_SETTID,
+                    (void *) tcb, &hdl->thread.tid, NULL);
+
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    *handle = hdl;
 
     return 0;
 }
