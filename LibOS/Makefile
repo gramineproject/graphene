@@ -37,6 +37,7 @@ $(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
 	tar -xzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
 	cd $(GLIBC_SRC) && patch -p1 < ../glibc-fix-warning.patch
+	cd $(GLIBC_SRC) && patch -p1 < ../glibc-no-pie.patch
 endif
 
 .PHONY: clean
