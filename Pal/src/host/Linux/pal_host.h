@@ -53,9 +53,6 @@ typedef struct mutex_handle {
 #define LOCK_INIT MUTEX_HANDLE_INIT
 #define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock);
 
-#define _DkInternalLock _DkMutexLock
-#define _DkInternalUnlock _DkMutexUnlock
-
 /* Locking and unlocking of Mutexes */
 int _DkMutexLock (struct mutex_handle * mut);
 int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
@@ -230,12 +227,14 @@ struct arch_frame {
 #endif
 
 #define PAL_FRAME_IDENTIFIER    (0xdeaddeadbeefbeef)
+#define PAL_LOCK_RECORDS        4
 
 struct pal_frame {
     volatile uint64_t           identifier;
     void *                      func;
     const char *                funcname;
     struct arch_frame           arch;
+    PAL_LOCK *                  lock_records[PAL_LOCK_RECORDS];
 };
 
 /* When a PAL call is issued, a special PAL_FRAME is placed on the stack.
@@ -251,6 +250,18 @@ struct pal_frame {
  * unrecoverable, but ideally, this shouldn't happen.
  */
 
+static inline
+void set_frame_identifier (volatile struct pal_frame * frame)
+{
+    frame->identifier = ((uint64_t) frame) ^ PAL_FRAME_IDENTIFIER;
+}
+
+static inline
+bool is_valid_frame (volatile struct pal_frame * frame)
+{
+    return frame->identifier == (((uint64_t) frame) ^ PAL_FRAME_IDENTIFIER);
+}
+
 /* DEP 12/25/17: This frame storage thing is important to mark volatile.
  * The compiler should not optimize out any of these changes, and 
  * because some accesses can happen during an exception, these are not
@@ -264,8 +275,9 @@ void __store_frame (volatile struct pal_frame * frame,
     arch_store_frame(&frame->arch)
     frame->func = func;
     frame->funcname = funcname;
-    asm volatile ("nop" ::: "memory");
-    frame->identifier = PAL_FRAME_IDENTIFIER;
+    barrier();
+    set_frame_identifier(frame);
+    for (int i = 0 ; i < PAL_LOCK_RECORDS ; frame->lock_records[i++] = NULL);
 }
 
 #define ENTER_PAL_CALL(name)                \
@@ -276,8 +288,8 @@ void __store_frame (volatile struct pal_frame * frame,
 static inline
 void __clear_frame (volatile struct pal_frame * frame)
 {
-    if (frame->identifier == PAL_FRAME_IDENTIFIER) {
-        asm volatile ("nop" ::: "memory");
+    if (is_valid_frame(frame)) {
+        barrier();
         frame->identifier = 0;
     }
 }
@@ -292,6 +304,44 @@ void __clear_frame (volatile struct pal_frame * frame)
         __clear_frame(&frame);              \
         return (retval);                    \
     } while (0)
+
+extern struct pal_frame * __get_frame (uintptr_t rbp);
+
+static __attribute__((unused))
+int _DkInternalLock (struct mutex_handle * lock)
+{
+    struct pal_frame * frame = __get_frame(0);
+
+    for (volatile int tries = 0 ; _DkMutexLock(lock) < 0 ; tries++);
+
+    if (frame) {
+        int i = 0;
+        for (; i < PAL_LOCK_RECORDS ; i++)
+            if (!frame->lock_records[i]) {
+                frame->lock_records[i] = lock;
+                break;
+            }
+    }
+
+    return 0;
+}
+
+static __attribute__((unused))
+int _DkInternalUnlock (struct mutex_handle * lock)
+{
+    struct pal_frame * frame = __get_frame(0);
+    if (frame) {
+        int i = 0;
+        for (; i < PAL_LOCK_RECORDS ; i++)
+            if (frame->lock_records[i] == lock) {
+                frame->lock_records[i] = NULL;
+                break;
+            }
+    }
+
+    _DkMutexUnlock(lock);
+    return 0;
+}
 
 #if TRACE_HEAP_LEAK == 1
 

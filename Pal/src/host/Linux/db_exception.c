@@ -207,23 +207,33 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
  */
 static struct pal_frame * get_frame (ucontext_t * uc)
 {
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
-    unsigned long rbp = uc->uc_mcontext.gregs[REG_RBP];
-    unsigned long last_rbp = rbp - 64;
+    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    uintptr_t rbp = uc->uc_mcontext.gregs[REG_RBP];
 
     if (!ADDR_IN_PAL(rip))
         return NULL;
 
-    while (ADDR_IN_PAL(((unsigned long *) rbp)[1])) {
+    return __get_frame(rbp);
+}
+
+struct pal_frame * __get_frame (uintptr_t rbp)
+{
+    if (!rbp)
+        asm volatile ("movq %%rbp, %0" : "=r"(rbp) :: "memory");
+
+    uintptr_t last_rbp = rbp - 64;
+    while (ADDR_IN_PAL(((uintptr_t *) rbp)[1])) {
         last_rbp = rbp;
-        rbp = *(unsigned long *) rbp;
+        rbp = *(uintptr_t *) rbp;
+        if (!rbp)
+            return NULL;
     }
 
     /* search frame record in the top frame of PAL */
-    for (unsigned long ptr = rbp - sizeof(unsigned long) ;
-         ptr > last_rbp ; ptr -= 8) {
+    for (uintptr_t ptr = rbp - sizeof(uintptr_t) ;
+         ptr > last_rbp ; ptr -= sizeof(uintptr_t)) {
         struct pal_frame * frame = (struct pal_frame *) ptr;
-        if (frame->identifier == PAL_FRAME_IDENTIFIER)
+        if (is_valid_frame(frame))
             return frame;
     }
 
@@ -234,6 +244,11 @@ static void return_frame (struct pal_frame * frame, int err)
 {
     if (err)
         _DkRaiseFailure(err);
+
+    for (int i = 0 ; i < PAL_LOCK_RECORDS ; i++)
+        if (frame->lock_records[i]) {
+            _DkMutexUnlock(frame->lock_records[i]);
+        }
 
     __clear_frame(frame);
     arch_restore_frame(&frame->arch);
@@ -268,16 +283,22 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
     struct pal_frame * frame = get_frame(uc);
     void * eframe;
 
-    if (signum == SIGCONT && frame && frame->func == DkObjectsWaitAny)
-        return;
-
     asm volatile ("movq %%rbp, %0" : "=r"(eframe));
 
-    if (frame && frame->func != &_DkGenericSighandler &&
-        signum != SIGCONT &&
-        signum != SIGINT  &&
-        signum != SIGTERM) {
-        return_frame(frame, PAL_ERROR_BADADDR);
+    if (frame && frame->func != &_DkGenericSighandler) {
+        int ret = 0;
+        switch(signum) {
+            case SIGCONT:
+            case SIGINT:
+            case SIGTERM:
+                ret = PAL_ERROR_INTERRUPTED;
+                break;
+            case SIGSEGV:
+            case SIGBUS:
+                ret = PAL_ERROR_BADADDR;
+                break;
+        }
+        return_frame(frame, ret);
         return;
     }
 
