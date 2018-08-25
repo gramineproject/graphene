@@ -901,7 +901,8 @@ out_free:
 
 int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
 {
-    unsigned char session_key[32] __attribute__((aligned(32)));
+    uint8_t session_key[sizeof(PAL_SESSION_KEY)]
+        __attribute__((aligned(sizeof(PAL_SESSION_KEY))));
     uint8_t pub[DH_SIZE]   __attribute__((aligned(DH_SIZE)));
     uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
     PAL_NUM pubsz, agreesz;
@@ -956,7 +957,7 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     for (int i = 0 ; i < agreesz ; i++)
         session_key[i % sizeof(session_key)] ^= agree[i];
 
-    char key_buf[KEYBUF_SIZE];
+    char key_buf[sizeof(PAL_SESSION_KEY) * 2 + 1];
     SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key,
             bytes2hexstr(session_key, key_buf));
 
