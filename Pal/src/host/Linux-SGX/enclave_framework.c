@@ -36,7 +36,6 @@ void sgx_ocfree (void)
     SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
 }
 
-#define HASHBUF_SIZE ((sizeof(sgx_arch_hash_t)*2)+1)
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
                     void * enclave_data,
