@@ -51,13 +51,27 @@ char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 #define IS_INDEXABLE(arg) (sizeof((arg)[0]))
 #define IS_ARRAY(arg) (IS_INDEXABLE(arg) > 0 && (((void *) &(arg)) == ((void *) (arg))))
 
+/*
+ * bytes2hexstr converts an array into a hexidecimal string and fills into a
+ * given buffer. The buffer size is given as an extra argument.
+ */
 #define bytes2hexstr(array, str, len) (IS_ARRAY(array) ?                \
                                        __bytes2hexstr((array), sizeof(array), str, len) \
                                        : NULL)
 
+/*
+ * alloca_bytes2hexstr uses __alloca to allocate a buffer on the current frame
+ * and then fills the hexidecimal string into the buffer.
+ * This buffer can only be used within the caller frame (function).
+ */
 #define alloca_bytes2hexstr(array) \
     (bytes2hexstr((array), __alloca(sizeof(array) * 2 + 1), sizeof(array) * 2 + 1))
 
+/*
+ * malloc_bytes2hexstr is similar to alloca_bytes2hexstr, but uses malloc for
+ * allocation. The returned str can be used outside the caller frame, but needs
+ * to be explicitly freed by the caller.
+ */
 #define malloc_bytes2hexstr(array) \
     ({ char * __buf = malloc(sizeof(array) * 2 + 1); \
        __buf ? bytes2hexstr((array), __buf, sizeof(array) * 2 + 1) : NULL; })
