@@ -1,0 +1,84 @@
+diff -ruNp glibc-2.19.old/config.make.in glibc-2.19/config.make.in
+--- glibc-2.19.old/config.make.in	2018-08-24 13:30:14.939687483 -0700
++++ glibc-2.19/config.make.in	2018-08-24 13:57:37.098712466 -0700
+@@ -83,6 +83,7 @@ nss-crypt = @libc_cv_nss_crypt@
+ # Configuration options.
+ build-shared = @shared@
+ build-pic-default= @libc_cv_pic_default@
++build-pie-default= @libc_cv_pie_default@
+ build-profile = @profile@
+ build-static-nss = @static_nss@
+ add-ons = @add_ons@
+diff -ruNp glibc-2.19.old/configure glibc-2.19/configure
+--- glibc-2.19.old/configure	2018-08-24 13:30:15.335684965 -0700
++++ glibc-2.19/configure	2018-08-24 14:09:29.444245054 -0700
+@@ -577,6 +577,7 @@ DEFINES
+ static_nss
+ profile
+ libc_cv_pic_default
++libc_cv_pie_default
+ shared
+ static
+ ldd_rewrite_script
+@@ -7475,7 +7476,24 @@ $as_echo "$libc_cv_pic_default" >&6; }
+ 
+ 
+ 
+-
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether -fPIE is default" >&5
++$as_echo_n "checking whether -fPIE is default... " >&6; }
++if ${libc_cv_pie_default+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  libc_cv_pie_default=yes
++cat > conftest.c <<EOF
++#if defined __PIE__ || defined __pie__ || defined PIE || defined pie
++# error PIE is default.
++#endif
++EOF
++if eval "${CC-cc} -S conftest.c 2>&5 1>&5"; then
++  libc_cv_pie_default=no
++fi
++rm -f conftest.*
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_pie_default" >&5
++$as_echo "$libc_cv_pie_default" >&6; }
+ 
+ 
+ 
+diff -ruNp glibc-2.19.old/configure.ac glibc-2.19/configure.ac
+--- glibc-2.19.old/configure.ac	2018-08-24 13:30:14.939687483 -0700
++++ glibc-2.19/configure.ac	2018-08-24 14:01:45.041985550 -0700
+@@ -2160,6 +2160,19 @@ fi
+ rm -f conftest.*])
+ AC_SUBST(libc_cv_pic_default)
+ 
++AC_CACHE_CHECK([whether -fPIE is default], libc_cv_pie_default,
++[libc_cv_pie_default=yes
++cat > conftest.c <<EOF
++#if defined __PIE__ || defined __pie__ || defined PIE || defined pie
++# error PIE is default.
++#endif
++EOF
++if eval "${CC-cc} -S conftest.c 2>&AS_MESSAGE_LOG_FD 1>&AS_MESSAGE_LOG_FD"; then
++  libc_cv_pie_default=no
++fi
++rm -f conftest.*])
++AC_SUBST(libc_cv_pie_default)
++
+ AC_SUBST(profile)
+ AC_SUBST(static_nss)
+ 
+diff -ruNp glibc-2.19.old/Makeconfig glibc-2.19/Makeconfig
+--- glibc-2.19.old/Makeconfig	2018-08-24 13:30:15.331684992 -0700
++++ glibc-2.19/Makeconfig	2018-08-24 14:09:01.436358826 -0700
+@@ -424,6 +424,9 @@ ifndef +link-static
+ endif
+ # Commands for linking programs with the C library.
+ ifndef +link
++ifeq (yes,$(build-pie-default))
++LDFLAGS += -no-pie
++endif
+ ifeq (yes,$(build-shared))
+ +link-before-libc = $(CC) -nostdlib -nostartfiles -o $@ \
+ 	      $(sysdep-LDFLAGS) $(LDFLAGS) $(LDFLAGS-$(@F)) \
