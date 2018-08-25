@@ -118,7 +118,7 @@ struct parser_table {
     { .slow = 0, .parser = { NULL } }, /* shmctl */
     { .slow = 0, .parser = { NULL } }, /* dup */
     { .slow = 0, .parser = { NULL } }, /* dup2 */
-    { .slow = 0, .parser = { NULL } }, /* pause */
+    { .slow = 1, .parser = { NULL } }, /* pause */
     { .slow = 1,
       .parser = { &parse_timespec } }, /* nanosleep */
     { .slow = 0, .parser = { NULL } }, /* getitimer */

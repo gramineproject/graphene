@@ -1,6 +1,6 @@
 loader.preload = file:$(SHIMPATH)
 loader.env.LD_LIBRARY_PATH = /lib
-loader.debug_type = inline
+loader.debug_type = none
 
 fs.mount.lib.type = chroot
 fs.mount.lib.path = /lib

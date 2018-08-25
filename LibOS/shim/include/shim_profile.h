@@ -29,7 +29,7 @@
 
 #ifdef PROFILE
 
-#include <shim_atomic.h>
+#include <atomic.h>
 
 struct shim_profile {
     const char * name;
@@ -38,11 +38,11 @@ struct shim_profile {
     struct shim_profile * root;
     union {
         struct {
-            struct shim_atomic count;
+            struct atomic_int count;
         } occurence;
         struct {
-            struct shim_atomic count;
-            struct shim_atomic time;
+            struct atomic_int count;
+            struct atomic_int time;
         } interval;
     } val;
 } __attribute__((aligned(64)));

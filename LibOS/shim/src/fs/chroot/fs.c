@@ -786,6 +786,11 @@ static int chroot_read (struct shim_handle * hdl, void * buf,
         goto out;
     }
 
+    if (!(hdl->acc_mode & MAY_READ)) {
+        ret = -EBADF;
+        goto out;
+    }
+
     struct shim_file_handle * file = &hdl->info.file;
 
     if (file->buf_type == FILEBUF_MAP) {
@@ -819,6 +824,11 @@ static int chroot_write (struct shim_handle * hdl, const void * buf,
         return 0;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0) {
+        goto out;
+    }
+
+    if (!(hdl->acc_mode & MAY_WRITE)) {
+        ret = -EBADF;
         goto out;
     }
 

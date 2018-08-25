@@ -68,6 +68,10 @@ typedef mbedtls_sha256_context LIB_SHA256_CONTEXT;
 #include "crypto/mbedtls/mbedtls/dhm.h"
 typedef mbedtls_dhm_context LIB_DH_CONTEXT;
 typedef mbedtls_rsa_context LIB_RSA_KEY;
+typedef struct {
+    mbedtls_cipher_type_t cipher;
+    mbedtls_cipher_context_t ctx;
+} LIB_AESCMAC_CONTEXT;
 #endif /* CRYPTO_USE_MBEDTLS */
 
 #ifndef CRYPTO_PROVIDER_SPECIFIED
@@ -91,6 +95,15 @@ void lib_DhFinal(LIB_DH_CONTEXT *context);
 /* AES-CMAC */
 int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
                 uint64_t input_len, uint8_t *mac, uint64_t mac_len);
+
+/* note: 'lib_AESCMAC' is the combination of 'lib_AESCMACInit',
+ * 'lib_AESCMACUpdate', and 'lib_AESCMACFinish'. */
+int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
+                    const uint8_t *key, uint64_t key_len);
+int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT * context, const uint8_t * input,
+                      uint64_t input_len);
+int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, uint8_t * mac,
+                      uint64_t mac_len);
 
 /* RSA. Limited functionality. */
 // Initializes the key structure

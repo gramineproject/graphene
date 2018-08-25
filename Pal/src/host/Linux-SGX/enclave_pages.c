@@ -77,8 +77,9 @@ void * get_reserved_pages(void * addr, uint64_t size)
     if (!size)
         return NULL;
 
+    SGX_DBG(DBG_M, "*** get_reserved_pages: heap_base %p, heap_size %llu, limit %p ***\n", heap_base, heap_size, heap_base + heap_size);
     if (addr >= heap_base + heap_size) {
-        SGX_DBG(DBG_M, "*** allocating out of heap: %p ***\n", addr);
+        SGX_DBG(DBG_E, "*** allocating out of heap: %p ***\n", addr);
         return NULL;
     }
 
@@ -255,6 +256,8 @@ void free_pages(void * addr, uint64_t size)
 {
     void * addr_top = addr + size;
 
+    SGX_DBG(DBG_M, "free_pages: trying to free %p %llu\n", addr, size);
+    
     if (!addr || !size)
         return;
 

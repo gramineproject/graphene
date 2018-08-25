@@ -218,6 +218,7 @@ no_op:
 
                 if (polled < 0) {
                     if (polled != -EAGAIN) {
+                        unlock(map->lock);
                         ret = polled;
                         goto done_polling;
                     }
@@ -278,7 +279,7 @@ done_finding:
         SAVE_PROFILE_INTERVAL(do_poll_update_bookkeeping);
     }
 
-    unlock(cur->handle_map->lock);
+    unlock(map->lock);
 
     SAVE_PROFILE_INTERVAL_SINCE(do_poll_first_loop, begin_time);
 

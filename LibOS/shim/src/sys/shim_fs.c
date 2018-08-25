@@ -49,6 +49,9 @@ int shim_do_unlink (const char * file)
     if (!file)
         return -EINVAL;
 
+    if (test_user_string(file))
+        return -EFAULT;
+
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
@@ -76,6 +79,12 @@ int shim_do_unlink (const char * file)
 int shim_do_unlinkat (int dfd, const char * pathname, int flag)
 {
     if (!pathname)
+        return -EINVAL;
+
+    if (test_user_string(pathname))
+        return -EFAULT;
+
+    if (flag & ~AT_REMOVEDIR)
         return -EINVAL;
 
     if (*pathname == '/')
@@ -133,6 +142,9 @@ int shim_do_mkdirat (int dfd, const char * pathname, int mode)
     if (!pathname)
         return -EINVAL;
 
+    if (test_user_string(pathname))
+        return -EFAULT;
+
     if (*pathname == '/')
         return shim_do_mkdir(pathname, mode);
 
@@ -153,6 +165,12 @@ int shim_do_rmdir (const char * pathname)
 {
     int ret = 0;
     struct shim_dentry * dent = NULL;
+
+    if (!pathname)
+        return -EINVAL;
+
+    if (test_user_string(pathname))
+        return -EFAULT;
 
     if ((ret = path_lookupat(NULL, pathname, LOOKUP_OPEN|LOOKUP_DIRECTORY,
                              &dent, NULL)) < 0)
@@ -197,6 +215,9 @@ int shim_do_chmod (const char * path, mode_t mode)
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
+    if (test_user_string(path))
+        return -EFAULT;
+
     if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
@@ -217,6 +238,9 @@ int shim_do_fchmodat (int dfd, const char * filename, mode_t mode)
 {
     if (!filename)
         return -EINVAL;
+
+    if (test_user_string(filename))
+        return -EFAULT;
 
     if (*filename == '/')
         return shim_do_chmod(filename, mode);
@@ -272,6 +296,12 @@ int shim_do_chown (const char * path, uid_t uid, gid_t gid)
     struct shim_dentry * dent = NULL;
     int ret = 0;
 
+    if (!path)
+        return -EINVAL;
+
+    if (test_user_string(path))
+        return -EFAULT;
+
     if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
@@ -285,6 +315,9 @@ int shim_do_fchownat (int dfd, const char * filename, uid_t uid, gid_t gid,
 {
     if (!filename)
         return -EINVAL;
+
+    if (test_user_string(filename))
+        return -EFAULT;
 
     if (*filename == '/')
         return shim_do_chown(filename, uid, gid);
