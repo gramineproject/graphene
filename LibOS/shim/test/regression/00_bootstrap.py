@@ -31,3 +31,11 @@ regression.add_check(name="Exit Code Propagation",
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
+
+# Shared Object Test
+regression = Regression(loader, "shared_object")
+
+regression.add_check(name="Shared Object",
+    check=lambda res: "Hello world" in res[0].out)
+
+regression.run_checks()
