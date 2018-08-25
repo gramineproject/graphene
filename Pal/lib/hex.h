@@ -33,9 +33,10 @@
  */
 #include <assert.h>
 static inline __attribute__((always_inline))
-char * __bytes2hexstr(void * hex, size_t size, char *str)
+char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 {
     static char * ch = "0123456789abcdef";
+    assert(len >= size * 2 + 1);
 
     for (size_t i = 0 ; i < size ; i++) {
         unsigned char h = ((unsigned char *) hex)[i];
@@ -50,7 +51,15 @@ char * __bytes2hexstr(void * hex, size_t size, char *str)
 #define IS_INDEXABLE(arg) (sizeof((arg)[0]))
 #define IS_ARRAY(arg) (IS_INDEXABLE(arg) > 0 && (((void *) &(arg)) == ((void *) (arg))))
 
-#define bytes2hexstr(array, str) (IS_ARRAY(array) ?                     \
-                                  __bytes2hexstr((array), sizeof(array), str) \
-                                  : NULL)
+#define bytes2hexstr(array, str, len) (IS_ARRAY(array) ?                \
+                                       __bytes2hexstr((array), sizeof(array), str, len) \
+                                       : NULL)
+
+#define alloca_bytes2hexstr(array) \
+    (bytes2hexstr((array), __alloca(sizeof(array) * 2 + 1), sizeof(array) * 2 + 1))
+
+#define malloc_bytes2hexstr(array) \
+    ({ char * __buf = malloc(sizeof(array) * 2 + 1); \
+       __buf ? bytes2hexstr((array), __buf, sizeof(array) * 2 + 1) : NULL; })
+
 #endif // HEX_H

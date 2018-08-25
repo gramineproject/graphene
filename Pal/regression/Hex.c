@@ -6,11 +6,12 @@
 #include "api.h"
 #include "hex.h"
 
+#define malloc __alloca
+
 int main() {
     char x[] = {0xde, 0xad, 0xbe, 0xef};
     char y[] = {0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd, 0xcd};
-    char buf[(sizeof(y) * 2) + 1];
-    pal_printf("Hex test 1 is %s\n", bytes2hexstr(x, buf));
-    pal_printf("Hex test 2 is %s\n", bytes2hexstr(y, buf));
+    pal_printf("Hex test 1 is %s\n", alloca_bytes2hexstr(x));
+    pal_printf("Hex test 2 is %s\n", malloc_bytes2hexstr(y));
     return 0;
 }
