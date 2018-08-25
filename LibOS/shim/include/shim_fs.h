@@ -228,6 +228,7 @@ struct shim_d_ops {
 };
 
 #define MAX_PATH        4096
+#define MAX_FILENAME    255
 
 DEFINE_LIST(shim_mount);
 struct shim_mount {
