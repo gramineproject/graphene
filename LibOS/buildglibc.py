@@ -100,7 +100,7 @@ if True:
 
     os.chdir(buildDir)
 
-    cflags = '{0} -O2 -U_FORTIFY_SOURCE -fno-stack-protector'.format(debug_flags)
+    cflags = '{0} -O2 -U_FORTIFY_SOURCE -fno-stack-protector -Wno-unused-value'.format(debug_flags)
     extra_defs = ''
     disabled_features = { 'nscd' }
     extra_flags = '--with-tls --enable-add-ons=nptl --without-selinux --disable-test {0}'.format(' '.join(['--disable-' + f for f in disabled_features]))

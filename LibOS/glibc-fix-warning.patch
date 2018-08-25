@@ -1,0 +1,50 @@
+2015-08-09  Mike Frysinger  <vapier@gentoo.org>
+
+	* nptl/tst-cancel-wrappers.sh: Change 3rd arg to gensub to 1.
+	* scripts/sysd-rules.awk: Likewise.
+---
+ nptl/tst-cancel-wrappers.sh | 2 +-
+ scripts/sysd-rules.awk      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/nptl/tst-cancel-wrappers.sh b/nptl/tst-cancel-wrappers.sh
+index b2d8302..d492a54 100644
+--- a/nptl/tst-cancel-wrappers.sh
++++ b/nptl/tst-cancel-wrappers.sh
+@@ -74,7 +74,7 @@ C["__xpg_sigpause"]=1
+   seen=""
+   seen_enable=""
+   seen_disable=""
+-  object=gensub(/^.*\[(.*)\]:$/,"\\1","",$0)
++  object=gensub(/^.*\[(.*)\]:$/, "\\1", 1, $0)
+   next
+ }
+ {
+diff --git a/scripts/sysd-rules.awk b/scripts/sysd-rules.awk
+index cc14334..cebc9d3 100644
+--- a/scripts/sysd-rules.awk
++++ b/scripts/sysd-rules.awk
+@@ -53,7 +53,7 @@ BEGIN {
+         if (target_pattern == "%") {
+           command_suffix = "";
+         } else {
+-          prefix = gensub(/%/, "", "", target_pattern);
++          prefix = gensub(/%/, "", 1, target_pattern);
+           command_suffix = " $(" prefix  "CPPFLAGS)";
+         }
+         target = "$(objpfx)" target_pattern o ":";
+diff --git a/Makerules b/Makerules
+--- a/Makerules
++++ b/Makerules
+@@ -718,7 +718,7 @@ verbose	:=
+ endif						# not -s
+ 
+ ARFLAGS := r$(verbose)
+-CREATE_ARFLAGS := cru$(verbose)
++CREATE_ARFLAGS := cruU$(verbose)
+ 
+ # This makes all the object files in the parent library archive.
+ 
+-- 
+2.4.4
+
