@@ -43,6 +43,9 @@ static struct old_utsname graphene_uname = {
 
 int shim_do_uname (struct old_utsname * buf)
 {
+    if (!buf || test_user_memory(buf, sizeof(*buf), true))
+        return -EFAULT;
+
     memcpy(buf, &graphene_uname, sizeof(graphene_uname));
     return 0;
 }

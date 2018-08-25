@@ -74,7 +74,7 @@ To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 
 __** Note: this step is optional. **__
 
-__** Note: for building with Intel:registered: SGX support, skip this step. **__
+__** Note: for building with Intel:registered: SGX support, skip this step, go to section 2.2 **__
 
 __** Disclaimer: this feature is experimental and may contain bugs. Please do
    no use in production system before further assessment.__
@@ -103,31 +103,30 @@ For more details about the building and installation, see the Graphene github
 Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 
-### 2-1. BUILD WITH INTEL:registered: SGX SUPPORT
+### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
-To build Graphene Library OS with Intel SGX support, run "make SGX=1" instead
-of "make". "DEBUG=1" can be used to build with debug symbols. Using "make SGX=1"
-in the test or regression directory will automatically generate the enclave
-signatures (in .sig files).
+__2.1.1 Prerequisites 
 
+(1) Generating signing keys
 A 3072-bit RSA private key (PEM format) is required for signing the enclaves.
-The default enclave key is placed in 'host/Linux-SGX/signer/enclave-key.pem',
-or the key can be specified through environment variable 'SGX_ENCLAVE_KEY'
-when building Graphene with Intel SGX support. If you don't have a private key,
-create it with the following command:
+If you don't have a private key, create it with the following command:
 
     openssl genrsa -3 -out enclave-key.pem 3072
 
+You could either put the generated enclave key to the default path,
+'host/Linux-SGX/signer/enclave-key.pem', or specify the key through environment
+variable 'SGX_ENCLAVE_KEY' when building Graphene with SGX support. 
+
 After signing the enclaves, users may ship the application files with the
 built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
-files) and the signatures, to the Intel SGX-enabled hosts. The Intel SGX
-Linux SDK is required for running Graphene Library OS. Download and install
+files) and the signatures, to the SGX-enabled hosts.
+
+(2) Installing Intel SGX SDK and driver
+The Intel SGX Linux SDK is required for running Graphene Library OS. Download and install
 from the official Intel github repositories:
 
    - <https://github.com/01org/linux-sgx>
    - <https://github.com/01org/linux-sgx-driver>
-
-__(The SDK and driver version must be 1.9 or LOWER)__
 
 A Linux driver must be installed before runing Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
@@ -139,10 +138,49 @@ __** Please make sure the GCC version is either 4 or 5 **__
     (The console will be prompted to ask for the path of Intel SGX driver code)
     sudo ./load.sh
 
-Finally generating the runtime enclave tokens by running "make SGX_RUN=1".
+__2.1.2 Building Graphene-SGX
 
+To build Graphene Library OS with Intel SGX support, in the root directory of Graphene repo, run following command:
 
+    make SGX=1
 
+To build with debug symbols, run the command:
+
+    make SGX=1 DEBUG=1
+
+Using "make SGX=1" in the test or regression directory will automatically generate the enclave signatures (.sig files).
+
+__2.1.3 Run Built-in Examples in Graphene-SGX
+
+There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
+
+(1) Build and run a Hello World program with Graphene on SGX
+- go to LibOS/shim/test/native, build the enclaves via command:
+    
+      make SGX=1
+  
+  The command will build enclaves for all the programs in the folder
+- Generate the token from aesmd service, via command:
+
+      make SGX_RUN=1
+
+- Run Hello World program with Graphene on SGX:
+  
+      SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
+  
+(2) Build and run python helloworld script in Graphene on SGX
+- go to LibOS/shim/test/apps/python, build the enclave:
+  
+      make SGX=1
+      
+- Generate token:
+
+      make SGX_RUN=1
+      
+- Run python helloworld with Graphene-SGX via:
+
+      SGX=1 ./python.manifest.sgx scripts/helloworld.py
+       
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
@@ -150,7 +188,7 @@ Graphene library OS uses PAL (libpal.so) as a loader to bootstrap an
 application in the library OS. To start Graphene, PAL (libpal.so) will have
 to be run as an executable, with the name of the program, and a "manifest
 file" given from the command line. Graphene provides three options for
-spcifying the programs and manifest files:
+specifying the programs and manifest files:
 
    - option 1: (automatic manifest)
    
@@ -171,7 +209,7 @@ to the Graphene reference monitor. Tha applications will have better
 performance, but no strong security isolation. To attach the applications to
 the Graphene reference monitor, Graphene must be started with the PAL
 reference monitor loader (libpal_sec.so). Graphene provides three options for
-spcifying the programs and manifest files to the loader:
+specifying the programs and manifest files to the loader:
 
    - option 4: (automatic manifest - with reference monitor)
    

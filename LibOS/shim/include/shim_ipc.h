@@ -101,7 +101,7 @@ struct shim_ipc_port {
 
     port_fini           fini[MAX_IPC_PORT_FINI_CB];
 
-    bool                update, recent;
+    bool                update, recent, deleted;
     struct {
         unsigned int    type;
         IDTYPE          vmid;

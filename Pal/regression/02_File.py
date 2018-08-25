@@ -1,16 +1,13 @@
 #!/usr/bin/python
 
-import os, sys, mmap, random, string
+import os, sys, mmap, random, string, binascii
 from regression import Regression
 
 loader = os.environ['PAL_LOADER']
 
 def prepare_files(args):
     global file_exist
-    file_exist = ''.join([random.choice(string.ascii_letters) for i in range(mmap.PAGESIZE)])
-
-    with open("file_exist.tmp", "w") as f:
-        f.write(file_exist)
+    file_exist = open('File', 'rb').read()
 
     if os.path.exists("file_nonexist.tmp"):
         os.remove("file_nonexist.tmp")
@@ -32,9 +29,9 @@ regression.add_check(name="Basic File Creation",
                       "File Creation Test 3 OK" in res[0].log)
 
 regression.add_check(name="File Reading",
-    check=lambda res: ("Read Test 1 (0th - 40th): " + file_exist[0:40]) in res[0].log and
-                      ("Read Test 2 (0th - 40th): " + file_exist[0:40]) in res[0].log and
-                      ("Read Test 3 (200th - 240th): " + file_exist[200:240]) in res[0].log)
+    check=lambda res: ("Read Test 1 (0th - 40th): " + binascii.hexlify(file_exist[0:40])) in res[0].log and
+                      ("Read Test 2 (0th - 40th): " + binascii.hexlify(file_exist[0:40])) in res[0].log and
+                      ("Read Test 3 (200th - 240th): " + binascii.hexlify(file_exist[200:240])) in res[0].log)
 
 def check_write(res):
     global file_exist
@@ -46,14 +43,17 @@ def check_write(res):
 regression.add_check(name="File Writing", check=check_write)
 
 regression.add_check(name="File Attribute Query",
-    check=lambda res: ("Query: type = 1, size = %d" % (mmap.PAGESIZE)) in res[0].log)
+    check=lambda res: ("Query: type = 1, size = %d" % (len(file_exist))) in res[0].log)
 
 regression.add_check(name="File Attribute Query by Handle",
-    check=lambda res: ("Query by Handle: type = 1, size = %d" % (mmap.PAGESIZE)) in res[0].log)
+    check=lambda res: ("Query by Handle: type = 1, size = %d" % (len(file_exist))) in res[0].log)
 
 regression.add_check(name="File Mapping",
-    check=lambda res: ("Map Test 1 (0th - 40th): " + file_exist[0:40]) in res[0].log and
-                      ("Map Test 2 (200th - 240th): " + file_exist[200:240]) in res[0].log)
+    check=lambda res: ("Map Test 1 (0th - 40th): " + binascii.hexlify(file_exist[0:40])) in res[0].log and
+                      ("Map Test 2 (200th - 240th): " + binascii.hexlify(file_exist[200:240])) in res[0].log and
+                      ("Map Test 3 (4096th - 4136th): " + binascii.hexlify(file_exist[4096:4136])) in res[0].log and
+                      ("Map Test 4 (4296th - 4336th): " +
+ binascii.hexlify(file_exist[4296:4336])) in res[0].log)
 
 regression.add_check(name="Set File Length",
     check=lambda res: os.stat("file_nonexist.tmp").st_size == mmap.ALLOCATIONGRANULARITY)

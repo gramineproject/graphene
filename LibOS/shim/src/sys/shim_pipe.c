@@ -79,8 +79,8 @@ err:
 
 int shim_do_pipe2 (int * filedes, int flags)
 {
-    if (!filedes)
-        return -EINVAL;
+    if (!filedes || test_user_memory(filedes, 2 * sizeof(int), true))
+        return -EFAULT;
 
     int ret = 0;
 
@@ -150,8 +150,8 @@ int shim_do_socketpair (int domain, int type, int protocol, int * sv)
     if (type != SOCK_STREAM)
         return -EPROTONOSUPPORT;
 
-    if (!sv)
-        return -EINVAL;
+    if (!sv || test_user_memory(sv, 2 * sizeof(int), true))
+        return -EFAULT;
 
     int ret = 0;
     struct shim_handle * hdl1 = get_new_handle();
