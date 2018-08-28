@@ -3,6 +3,7 @@
 
 #include "pal.h"
 #include "pal_debug.h"
+#include <string.h>
 
 static int test_data = 0;
 static int test_func (void) { return 0; }
@@ -17,7 +18,7 @@ int main (int argc, char ** argv, char ** envp)
     pal_printf("Loaded Executable: %s\n", pal_control.executable);
 
     /* check manifest name */
-    char manifest[30] = "";
+    char manifest[30];
     DkStreamGetName(pal_control.manifest_handle, manifest, 30);
     pal_printf("Loaded Manifest: %s\n", manifest);
 
@@ -36,8 +37,8 @@ int main (int argc, char ** argv, char ** envp)
     pal_printf("Parent Process: %016lx\n", pal_control.parent_process);
 
     /* test debug stream */
-    char msg[] = "Written to Debug Stream\n";
-    DkStreamWrite(pal_control.debug_stream, 0, sizeof(msg), msg, NULL);
+    char *msg = "Written to Debug Stream\n";
+    DkStreamWrite(pal_control.debug_stream, 0, strlen(msg), msg, NULL);
 
     /* page size */
     pal_printf("Page Size: %d\n", pal_control.pagesize);
