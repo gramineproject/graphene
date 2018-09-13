@@ -8,7 +8,7 @@ include ../Makefile
 
 CFLAGS-debug += -fno-builtin -nostdlib
 
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring linux,$(SYS)),linux)
 $(c_executables): %: %.c $(libs) $(level)../../../Pal/src/user_start.o
 	@echo [ $@ ]
 	$(CC) $(CFLAGS-debug) $(LDFLAGS-debug) -o $@ $^ -lpal -lsysdb_debug

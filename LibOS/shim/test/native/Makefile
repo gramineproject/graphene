@@ -1,4 +1,4 @@
-special_executables = static pie 
+special_executables = static pie
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
@@ -11,7 +11,7 @@ include ../Makefile
 
 CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
 
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring linux,$(SYS)),linux)
 $(c_executables): %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \

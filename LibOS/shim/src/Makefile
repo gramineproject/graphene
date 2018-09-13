@@ -65,7 +65,7 @@ endif
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	cp -f $< $@
 
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring linux,$(SYS)),linux)
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
 	     $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
