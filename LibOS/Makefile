@@ -12,7 +12,7 @@ GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthre
 all: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) all
 
-ifeq ($(findstring linux,$(SYS)),linux)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
 .INTERMEDIATE: $(BUILD_DIR)/Build.success
 

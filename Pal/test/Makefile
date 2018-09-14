@@ -36,7 +36,7 @@ manifest: manifest.template
 %.manifest: %.manifest.template
 	cp -f $< $@
 
-ifeq ($(findstring linux,$(SYS)),linux)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(filter Pie,$@),-fPIC -pie,) $^ -o $@

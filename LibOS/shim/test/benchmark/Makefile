@@ -13,7 +13,7 @@ include ../Makefile
 	rm -rf $@
 	cp $@.template $@
 
-ifeq ($(findstring linux,$(SYS)),linux)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(c_executables): %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \

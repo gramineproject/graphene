@@ -39,7 +39,7 @@ graphene_lib = .lib/graphene-lib.a
 host_lib = host/$(PAL_HOST)/libpal-$(PAL_HOST).a
 headers	= $(wildcard *.h) $(wildcard ../lib/*.h) host/$(PAL_HOST)/pal_host.h
 
-ifeq ($(findstring linux,$(SYS)),linux)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 files_to_build += user_start.o user_shared_start.o
 endif
 
