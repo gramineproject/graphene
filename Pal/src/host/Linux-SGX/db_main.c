@@ -147,6 +147,10 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     init_pages();
     init_enclave_key();
 
+    /* Init memory for storing reg states in exception */
+    void * sgx_gpr_mem = malloc(SGX_GPR_SIZE);
+    SET_ENCLAVE_TLS(sgx_gpr_state, sgx_gpr_mem);
+
     /* now we can add a link map for PAL itself */
     setup_pal_map(&pal_map);
 

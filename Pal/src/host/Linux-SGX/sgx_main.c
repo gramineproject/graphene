@@ -430,6 +430,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                     enclave_secs.baseaddr;
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
+				gs->sgx_gpr_state = NULL;
             }
 
             goto add_pages;

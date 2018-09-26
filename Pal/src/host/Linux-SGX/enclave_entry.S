@@ -136,8 +136,8 @@ enclave_entry:
 #endif
 
 .Lhandle_exception:
-	mov SGX_GPR_RSP(%rbx), %rsi
-	sub $0x90, %rsi
+	# Save SGX States
+	mov %gs:SGX_GPR_STATE, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
 	# and dump into the context
