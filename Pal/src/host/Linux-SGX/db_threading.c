@@ -56,6 +56,10 @@ void pal_start_thread (void)
 {
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
+    /* Init memory for storing reg states in exception */
+    void * sgx_gpr_mem = malloc(SGX_GPR_SIZE);
+    SET_ENCLAVE_TLS(sgx_gpr_state, sgx_gpr_mem);
+
     _DkInternalLock(&thread_list_lock);
     listp_for_each_entry(tmp, &thread_list, list)
         if (!tmp->tcs) {
