@@ -38,16 +38,36 @@
 
 #include <linux/eventpoll.h>
 
-#define EPOLLIN         0x001
-#define EPOLLPRI        0x002
-#define EPOLLOUT        0x004
-#define EPOLLRDNORM     0x040
-#define EPOLLRDBAND     0x080
-#define EPOLLWRNORM     0x100
-#define EPOLLERBAND     0x200
-#define EPOLLERR        0x008
-#define EPOLLHUP        0x010
-#define EPOLLRDHUP      0x2000
+#ifndef EPOLLIN
+# define EPOLLIN         0x001
+#endif
+#ifndef EPOLLPRI
+# define EPOLLPRI       0x002
+#endif
+#ifndef EPOLLOUT
+# define EPOLLOUT       0x004
+#endif
+#ifndef EPOLLRDNORM
+# define EPOLLRDNORM    0x040
+#endif
+#ifndef EPOLLRDBAND
+# define EPOLLRDBAND    0x080
+#endif
+#ifndef EPOLLWRNORM
+# define EPOLLWRNORM    0x100
+#endif
+#ifndef EPOLLERBAND
+# define EPOLLERBAND    0x200
+#endif
+#ifndef EPOLLERR
+# define EPOLLERR       0x008
+#endif
+#ifndef EPOLLHUP
+# define EPOLLHUP       0x010
+#endif
+#ifndef EPOLLRDHUP
+# define EPOLLRDHUP     0x2000
+#endif
 
 #define MAX_EPOLL_FDS       1024
 
