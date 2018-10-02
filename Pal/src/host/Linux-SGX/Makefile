@@ -67,7 +67,7 @@ debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	$(LD) -shared debugger/sgx_gdb.o -o debugger/sgx_gdb.so -lc
 
 sgx-driver/isgx_version.h:
-	cd sgx-driver && make isgx_version.h
+	$(MAKE) -C sgx-driver $(notdir $<)
 
 .PHONY: clean
 clean:
