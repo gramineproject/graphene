@@ -10,6 +10,15 @@
 
 #include <asm/errno.h>
 
+/* SGX_INVALID_LICENSE is renamed to SGX_INVALID_EINITTOKEN */
+#ifndef SGX_INVALID_EINITTOKEN
+# ifndef SGX_INVALID_LICENSE
+#  error "sgx.h version mismatch? Please verify linux sgx driver version."
+# else
+#  define SGX_INVALID_EINITTOKEN SGX_INVALID_LICENSE
+# endif
+#endif
+
 int gsgx_device = -1;
 int isgx_device = -1;
 #define ISGX_FILE "/dev/isgx"
@@ -345,7 +354,7 @@ int init_enclave(sgx_arch_secs_t * secs,
             error = "Invalid measurement";        break;
         case SGX_INVALID_SIGNATURE:
             error = "Invalid signature";          break;
-        case SGX_INVALID_LICENSE:
+        case SGX_INVALID_EINITTOKEN:
             error = "Invalid EINIT token";        break;
         case SGX_INVALID_CPUSVN:
             error = "Invalid CPU SVN";            break;
