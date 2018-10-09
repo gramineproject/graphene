@@ -12,6 +12,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+/* On success, a file descriptor for the new socket is returned.
+ * On error, -1 is returned. */
 static int create_and_bind (char *port) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -48,10 +50,10 @@ static int create_and_bind (char *port) {
     }
 
     freeaddrinfo (result);
-
     return sfd;
 }
 
+/* On success, 0 is returned. On error, -1 is returned. */
 static int make_socket_non_blocking (int sfd) {
     int flags, s;
 
@@ -79,24 +81,29 @@ int main (int argc, char *argv[]) {
     struct epoll_event event;
     struct epoll_event *events;
 
-    sfd = create_and_bind("8000");
+    if (argc != 2) {
+        perror("please specify port");
+        return 1;
+    }
+
+    sfd = create_and_bind(argv[1]);
     if (sfd == -1)
-        abort();
+        return 1;
 
     s = make_socket_non_blocking(sfd);
     if (s == -1)
-        abort();
+        return 1;
 
     s = listen(sfd, SOMAXCONN);
     if (s == -1) {
         perror ("listen");
-        abort();
+        return 1;
     }
 
     efd = epoll_create1(0);
     if (efd == -1) {
         perror ("epoll_create");
-        abort ();
+        return 1;
     }
 
     event.data.fd = sfd;
@@ -104,7 +111,7 @@ int main (int argc, char *argv[]) {
     s = epoll_ctl (efd, EPOLL_CTL_ADD, sfd, &event);
     if (s == -1) {
         perror ("epoll_ctl");
-        abort ();
+        return 1;
     }
 
     events = calloc (MAXEVENTS, sizeof event);
@@ -115,5 +122,5 @@ int main (int argc, char *argv[]) {
     printf("epoll_wait test passed\n");
     free (events);
     close (sfd);
-    return EXIT_SUCCESS;
+    return 0;
 }
