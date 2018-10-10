@@ -746,6 +746,10 @@ static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
     put_ipc_info(info);
 }
 
+/* This function must be called with cur_process.lock held and returns
+ * with the lock held.
+ * This function may internally unlock and long the lock.
+ */
 static void __discover_ns (bool block, bool need_connect, bool need_locate)
 {
     if (NS_LEADER) {
@@ -770,8 +774,10 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
     unlock(cur_process.lock);
 
     /* now we have to discover the leader */
-    if (!NS_SEND(findns)(block))
+    if (!NS_SEND(findns)(block)) {
+        lock(cur_process.lock);
         return;
+    }
 
     lock(cur_process.lock);
 
