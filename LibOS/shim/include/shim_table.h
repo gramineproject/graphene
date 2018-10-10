@@ -434,6 +434,8 @@ uid_t shim_do_getuid (void);
 gid_t shim_do_getgid (void);
 int shim_do_setuid (uid_t uid);
 int shim_do_setgid (gid_t gid);
+int shim_do_setgroups (int gidsetsize, gid_t * grouplist);
+int shim_do_getgroups (int gidsetsize, gid_t * grouplist);
 uid_t shim_do_geteuid (void);
 gid_t shim_do_getegid (void);
 pid_t shim_do_getppid (void);
