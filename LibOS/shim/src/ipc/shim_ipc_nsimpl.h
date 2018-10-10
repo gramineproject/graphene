@@ -194,6 +194,7 @@ static int __extend_range_bitmap (int expected)
     return 0;
 }
 
+/* This function must be called with lock held */
 static int __set_range_bitmap (int off, bool unset)
 {
     int i = off / BITS;
@@ -275,10 +276,13 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
                 /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
                  * and tmp->owner->vmid == cur_process.vmid, tmp is on the
                  * owned list, otherwise it is an offered. */
-                if (tmp->owner && tmp->owner->vmid == cur_process.vmid)
+                if (tmp->owner && tmp->owner->vmid == cur_process.vmid) {
                     listp_del(tmp, &owned_ranges, list);
-                else
+                    nowned--;
+                } else {
                     listp_del(tmp, &offered_ranges, list);
+                    noffered--;
+                }
 
                 if (tmp->owner)
                     put_client(tmp->owner);
@@ -522,6 +526,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     if (r->subranges) {
         for (int i = 0 ; i < RANGE_SIZE ; i++)
             if (r->subranges->map[i]) {
+                __set_range_bitmap(off, false);
                 ret = -EBUSY;
                 goto failed;
             }
