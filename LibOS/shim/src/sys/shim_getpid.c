@@ -22,7 +22,8 @@
  *
  * Implementation of system call "getpid", "gettid", "getppid",
  * "set_tid_address", "getuid", "getgid", "setuid", "setgid", "geteuid",
- * "getegid", "setpgid", "getpgid", "getpgrp", "setsid" and "getsid".
+ * "getegid", "setpgid", "getpgid", "getpgrp", "setgroups", "getgroups",
+ * "setsid" and "getsid".
  */
 
 #include <shim_internal.h>
@@ -86,6 +87,64 @@ int shim_do_setgid (gid_t gid)
     struct shim_thread * cur = get_cur_thread();
     cur->egid = (uint16_t) gid;
     return 0;
+}
+
+int shim_do_setgroups (int gidsetsize, gid_t * grouplist)
+{
+    struct shim_thread * cur = get_cur_thread();
+    struct groups_info * groups;
+    int i;
+
+    if (gidsetsize > NGROUPS_MAX)
+        return -EINVAL;
+
+    groups = calloc(1, sizeof(struct groups_info));
+    if (!groups)
+        return -ENOMEM;
+
+    groups->size = gidsetsize;
+
+    for (i = 0; i < gidsetsize; i++) {
+        if (!grouplist[i]) {
+            free(groups);
+            return -EINVAL;
+        }
+        groups->spl_gid[i] = grouplist[i];
+    }
+
+    lock(cur->lock);
+    memcpy(cur->groups, groups, sizeof(struct groups_info));
+    unlock(cur->lock);
+
+    free(groups);
+
+    return 0;
+}
+
+int shim_do_getgroups (int gidsetsize, gid_t * grouplist)
+{
+    struct shim_thread * cur = get_cur_thread();
+    int cur_groups_size, i;
+
+    if (gidsetsize < 0)
+        return -EINVAL;
+
+    lock(cur->lock);
+    if (cur->groups) {
+        cur_groups_size = cur->groups->size;
+        if (gidsetsize) {
+            if (cur_groups_size > gidsetsize) {
+                unlock(cur->lock);
+                return -EINVAL;
+            }
+
+            for (i = 0; i < cur_groups_size; i++)
+                grouplist[i] = cur->groups->spl_gid[i];
+        }
+    }
+    unlock(cur->lock);
+
+    return cur_groups_size;
 }
 
 uid_t shim_do_geteuid (void)

@@ -270,6 +270,8 @@ geteuid01,1
 geteuid02,1
 getgid01,1
 getgid03,1
+getgroups01,1
+getgroups01,2
 gethostbyname_r01,1
 gethostname01,1
 getitimer01,1
@@ -826,6 +828,9 @@ setpgid01,1
 setpgid01,2
 setpgrp01,1
 setpgrp02,1
+setgroups01,1
+setgroups02,1
+setgroups03,1
 setrlimit01,1
 setsockopt01,1
 setsockopt01,2
