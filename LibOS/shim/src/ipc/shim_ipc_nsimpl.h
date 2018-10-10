@@ -80,6 +80,7 @@ struct range_bitmap {
     unsigned char       map[];
 };
 
+/* Helper functions __*_range_*() must be called with range_map_lock held */
 static struct range_bitmap * range_map;
 static LOCKTYPE range_map_lock;
 
@@ -284,10 +285,13 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
                 /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
                  * and tmp->owner->vmid == cur_process.vmid, tmp is on the
                  * owned list, otherwise it is an offered. */
-                if (tmp->owner && tmp->owner->vmid == cur_process.vmid)
+                if (tmp->owner && tmp->owner->vmid == cur_process.vmid) {
                     listp_del(tmp, &owned_ranges, list);
-                else
+                    nowned--;
+                } else {
                     listp_del(tmp, &offered_ranges, list);
+                    noffered--;
+                }
 
                 if (tmp->owner)
                     put_client(tmp->owner);
@@ -524,25 +528,24 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     if (!r)
         goto failed;
 
-    ret = __set_range_bitmap(off, true);
-    if (ret < 0)
-        goto failed;
-
     if (r->subranges) {
         for (int i = 0 ; i < RANGE_SIZE ; i++)
             if (r->subranges->map[i]) {
                 ret = -EBUSY;
                 goto failed;
             }
-
-        free(r->subranges);
     }
+    ret = __set_range_bitmap(off, true);
+    if (ret < 0)
+        goto failed;
 
     if (r->owner->vmid == cur_process.vmid)
         nowned--;
     else
         noffered--;
 
+    if (r->subranges)
+        free(r->subranges);
     if (r->used)
         free(r->used);
     // Re-acquire the head; kind of ugly
