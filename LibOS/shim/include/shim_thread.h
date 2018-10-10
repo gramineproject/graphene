@@ -15,11 +15,18 @@
 #include <pal.h>
 #include <list.h>
 
+#define NGROUPS_MAX    65536 /* supplemental group IDs are available */
+
 struct shim_handle;
 struct shim_fd_map;
 struct shim_dentry;
 struct shim_signal_handle;
 struct shim_signal_log;
+
+struct groups_info {
+    int size;
+    IDTYPE * spl_gid;
+};
 
 DEFINE_LIST(shim_thread);
 DEFINE_LISTP(shim_thread);
@@ -32,6 +39,8 @@ struct shim_thread {
 
     /* credentials */
     IDTYPE uid, gid, euid, egid;
+    /* Supplementary groups list; protected by thread->lock */
+    struct groups_info * groups;
 
     /* thread pal handle */
     PAL_HANDLE pal_handle;
