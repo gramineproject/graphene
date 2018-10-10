@@ -777,8 +777,10 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
     unlock(cur_process.lock);
 
     /* now we have to discover the leader */
-    if (!NS_SEND(findns)(block))
+    if (!NS_SEND(findns)(block)) {
+        lock(cur_process.lock);
         return;
+    }
 
     lock(cur_process.lock);
 
