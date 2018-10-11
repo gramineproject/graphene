@@ -90,7 +90,7 @@ static size_t get_ssaframesize (uint64_t xfrm)
     xfrm_ex = ((uint64_t) cpuinfo[3] << 32) + cpuinfo[2];
 
     for (int i = 2; i < 64; i++)
-        if ((xfrm & (1 << i)) || (xfrm_ex & (1 << i))) {
+        if ((xfrm & (1ULL << i)) || (xfrm_ex & (1ULL << i))) {
             cpuid(0xd, i, cpuinfo);
             if (cpuinfo[0] + cpuinfo[1] > xsave_size)
                 xsave_size = cpuinfo[0] + cpuinfo[1];
