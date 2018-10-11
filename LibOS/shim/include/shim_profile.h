@@ -120,22 +120,16 @@ extern struct shim_profile __profile_end;
 #define _INC_PROFILE_OCCURENCE(prof)                        \
     ({                                                      \
         extern struct shim_profile profile_##prof;          \
-        profile_##prof.disabled ? 0 : ({                    \
-        unsigned long _c;                                   \
-        _c = atomic_read(&profile_##prof.val.occurence.count); \
-        atomic_inc(&profile_##prof.val.occurence.count);    \
-        _c + 1; });                                         \
+        profile_##prof.disabled ? 0 :                       \
+        atomic_inc_return(&profile_##prof.val.occurence.count); \
     })
 
 #define ADD_PROFILE_OCCURENCE(prof, num) _ADD_PROFILE_OCCURENCE(prof, num)
 #define _ADD_PROFILE_OCCURENCE(prof, num)                   \
     ({                                                      \
         extern struct shim_profile profile_##prof;          \
-        profile_##prof.disabled ? 0 : ({                    \
-        unsigned long _c, _num = (num);                     \
-        _c = atomic_read(&profile_##prof.val.occurence.count); \
-        atomic_add(_num, &profile_##prof.val.occurence.count); \
-        _c + _num; });                                      \
+        profile_##prof.disabled ? 0 :                       \
+        atomic_add_return(num, &profile_##prof.val.occurence.count); \
     })
 
 #define BEGIN_PROFILE_INTERVAL()                            \
