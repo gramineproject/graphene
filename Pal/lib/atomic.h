@@ -165,6 +165,9 @@ static inline int64_t cmpxchg(volatile int64_t *p, int64_t t, int64_t s)
     return t;
 }
 
+#define atomic_add_return(i, v)  _atomic_add(i, v)
+#define atomic_inc_return(v)     _atomic_add(1, v)
+
 /* Helper function to atomically compare-and-swap the value in v.
  * If v == old, it sets v = new.
  * Returns the value originally in v. */

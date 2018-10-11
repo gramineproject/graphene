@@ -405,8 +405,7 @@ int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                              struct shim_ipc_port * port, bool save,
                              void * private_data)
 {
-    atomic_inc(&ipc_seq_counter);
-    msg->msg.seq = atomic_read(&ipc_seq_counter);
+    msg->msg.seq = atomic_inc_return(&ipc_seq_counter);
 
     if (save) {
         lock(&port->msgs_lock);
