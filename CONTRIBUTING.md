@@ -12,7 +12,7 @@ https://github.com/oscarlab/graphene/issues
 
 ## Architectural Changes
 
-Major reorganizations, architectural changes, or code reorganization are best discussed with the leadership team
+Major reorganizations, architectural changes, or code reorganization are best discussed with the maintainers
 in advance of writing code.  We welcome contributions, and would hate for anyone to waste time implementing
 a change that will not be accepted for a design flaw.  It is much better to reach out for advice first
 by emailing:
@@ -51,10 +51,10 @@ Before a pull request is merged, it must:
   3. Introduce no new compilation errors or warnings
   4. Have resolved all discussions/requests from the reviewers
   5. Have a clear, concise and grammatically correct comments and commit messages.
-  6. Have a quorum of approving reviews and/or waited an appropriate amount of time for review from the leadership team.  This can be:
+  6. Have a quorum of approving reviews and/or waited an appropriate amount of time for review from the maintainers.  This can be:
      a. 3 reviews 
      b. 2 reviews and 5 days of inactivity after the other conditions above are met
-     c. 1 review and (10 days of inactivity after the other conditions above are met) or 5 days if the author is a member of the leadership team
+     c. 1 review and (10 days of inactivity after the other conditions above are met) or 5 days if the author is a maintainer
 
 Additional reviews from anyone are welcome.
 
@@ -76,3 +76,46 @@ Additional reviews from anyone are welcome.
 ### Style Guidelines
 
 XXX TBD
+
+## Running Regression Tests by Hand
+
+All of our regression tests are automated in Jenkins jobs (see the
+Jenkinsfiles directory), and this is the ultimate documentation for
+application-level regression tests, although most tests can be run with
+make regression` or, in the worst case, should have a simple script called by Jenkins.
+
+We also have (and are actively growing) PAL and Shim unit tests.
+
+To run the PAL tests:
+
+```cd Pal/regression
+make regression
+```
+
+For SGX, one needs to do the following:
+
+```cd Pal/regression
+make SGX=1
+make SGX_RUN=1 regression
+```
+
+If a test fails unexpectedly, one can use the KEEP_LOG=1 option to get the complete output.
+
+One can also run individual tests, such as Bootstrap, as:
+
+```path/to/pal-Linux ./Bootstrap```
+
+The Shim unit tests work similarly, and are under LibOS/shim/test/regression
+
+### LTP
+
+Graphene passes a subset of the LTP tests.  New changes should not break currently passing
+LTP tests (and, ideally, might add new passing tests).  LTP is currently only supported on
+the Linux host.
+
+To run these tests:
+
+```cd LibOS/shim/test/apps/ltp
+make
+./syscalls.sh
+```
