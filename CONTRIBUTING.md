@@ -88,13 +88,15 @@ We also have (and are actively growing) PAL and Shim unit tests.
 
 To run the PAL tests:
 
-```cd Pal/regression
+```
+cd Pal/regression
 make regression
 ```
 
 For SGX, one needs to do the following:
 
-```cd Pal/regression
+```
+cd Pal/regression
 make SGX=1
 make SGX_RUN=1 regression
 ```
@@ -115,7 +117,8 @@ the Linux host.
 
 To run these tests:
 
-```cd LibOS/shim/test/apps/ltp
+```
+cd LibOS/shim/test/apps/ltp
 make
 ./syscalls.sh
 ```
