@@ -1,4 +1,4 @@
-# Contributing to Graphene
+"# Contributing to Graphene
 
 First off, thank you for your interest in contributing to Graphene!
 
@@ -17,7 +17,7 @@ in advance of writing code.  We welcome contributions, and would hate for anyone
 a change that will not be accepted for a design flaw.  It is much better to reach out for advice first
 by emailing:
 
-XXX put the list address here.
+TODO: put the list address here.
 
 Simple bugfixes need not have advance discussion, but we welcome queries from newcomers.
 
@@ -30,7 +30,7 @@ In general, a PR should:
 1. Address a single problem; i.e., it should add one feature of fix one issue.  Fixes for distinct issues should be separated into multiple PRs.
 2. Clearly explain the problem and solution in the PR and commit messages, using grammatically correct English.
 3. Include unit tests for the new behavior or bugfix, except in special circumstances.
-4. Add appropriate comments to the code.
+4. Follow project style guidelines.
 
 ### PR Life Cycle
 
@@ -38,7 +38,7 @@ In general, a PR should:
 2. From this point on the branch is public, which means that no push-forces are allowed without reviewers’ permission.
 3. Reviewers shouldn’t push commits to the PR, only the authors are allowed to do so.
 4. Reviewers add comments to the changes.
-5. The author discusses the remarks and implements fixes in a separate commits. Loop to point 4. until all comments are resolved and all reviewers mark the PR as approved.
+5. The author discusses the remarks and implements fixes in separate commits. Loop to point 4. until all comments are resolved and all reviewers mark the PR as approved.
 6. The author squashes fix-up commits with original ones, rebases them to current master (in case of conflicts) and push-forces the final version of the changes.
 7. The reviewer is responsible for ensuring that the squash is a real squash without any additional changes (except resolving conflicts). Only after that they can execute rebase+merge to master. 
 
@@ -46,25 +46,25 @@ In general, a PR should:
 
 Before a pull request is merged, it must:
 
-  1. Pass all CI unit tests
+  1. Pass all CI tests
   2. Follow project style guidelines (see below)
   3. Introduce no new compilation errors or warnings
-  4. Have resolved all discussions/requests from the reviewers
+  4. Have all discussions from reviewers resolved 
   5. Have a clear, concise and grammatically correct comments and commit messages.
   6. Have a quorum of approving reviews and/or waited an appropriate amount of time for review from the maintainers.  This can be:
-     a. 3 reviews 
-     b. 2 reviews and 5 days of inactivity after the other conditions above are met
-     c. 1 review and (10 days of inactivity after the other conditions above are met) or 5 days if the author is a maintainer
+     1. 3 reviews 
+     2. 2 reviews and 5 days since the PR was opened
+     3. 1 review and (10 days since the PR was opened) or 5 days if the author is a maintainer
 
 Additional reviews from anyone are welcome.
 
 ### Reviewing Guidelines
 
 1. All commits must be atomic (i.e., no unrelated changes in the same commit, no formatting fixes mixed with features, no moving files and changing them at the same time).
-2. Meaningful commit messages (it’s much easier to get them right if commits are really atomic). Should include which component was changed ({Linux,SGX} PAL/ shim/glibc) in the format “[component] change description”.
+2. Meaningful commit messages (it’s much easier to get them right if commits are really atomic). Should include which component was changed ({Linux,SGX} PAL/ shim /glibc) in the format “[component] change description”.
 3. Every PR description should include: what’s the purpose of the changes, what is changed (and how, in case of redesigning a component), how to test the changes.
 4. Is it possible to implement this change in a significantly better way?
-5. It’s C, so check for common problems: correct buffer sizes, integer overflows, mem leaks, violations of pointer ownership etc.
+5. It’s C, so check for common problems: correct buffer sizes, integer overflows, memory leaks, violations of pointer ownership etc.
 6. Verify if all macro parameters are used with additional parentheses.
 7. Check for race conditions.
 8. Check if all errors are checked and properly handled.
@@ -75,27 +75,27 @@ Additional reviews from anyone are welcome.
 
 ### Style Guidelines
 
-XXX TBD
+TODO
 
 ## Running Regression Tests by Hand
 
 All of our regression tests are automated in Jenkins jobs (see the
 Jenkinsfiles directory), and this is the ultimate documentation for
 application-level regression tests, although most tests can be run with
-make regression` or, in the worst case, should have a simple script called by Jenkins.
+`make regression` or, in the worst case, should have a simple script called by Jenkins.
 
-We also have (and are actively growing) PAL and Shim unit tests.
+We also have (and are actively growing) PAL and shim unit tests.
 
 To run the PAL tests:
 
-```
+```Bash
 cd Pal/regression
 make regression
 ```
 
 For SGX, one needs to do the following:
 
-```
+```Bash
 cd Pal/regression
 make SGX=1
 make SGX_RUN=1 regression
@@ -107,7 +107,7 @@ One can also run individual tests, such as Bootstrap, as:
 
 ```path/to/pal-Linux ./Bootstrap```
 
-The Shim unit tests work similarly, and are under LibOS/shim/test/regression
+The shim unit tests work similarly, and are under LibOS/shim/test/regression
 
 ### LTP
 
@@ -117,7 +117,7 @@ the Linux host.
 
 To run these tests:
 
-```
+```Bash
 cd LibOS/shim/test/apps/ltp
 make
 ./syscalls.sh
