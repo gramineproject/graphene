@@ -1,4 +1,4 @@
-"# Contributing to Graphene
+# Contributing to Graphene
 
 First off, thank you for your interest in contributing to Graphene!
 
@@ -17,7 +17,7 @@ in advance of writing code.  We welcome contributions, and would hate for anyone
 a change that will not be accepted for a design flaw.  It is much better to reach out for advice first
 by emailing:
 
-TODO: put the list address here.
+  support@graphene-library.org
 
 Simple bugfixes need not have advance discussion, but we welcome queries from newcomers.
 
@@ -54,7 +54,7 @@ Before a pull request is merged, it must:
   6. Have a quorum of approving reviews and/or waited an appropriate amount of time for review from the maintainers.  This can be:
      1. 3 reviews 
      2. 2 reviews and 5 days since the PR was opened
-     3. 1 review and (10 days since the PR was opened) or 5 days if the author is a maintainer
+     3. 1 review and 10 days since the PR was opened, or 5 days if the author is a maintainer
 
 Additional reviews from anyone are welcome.
 
