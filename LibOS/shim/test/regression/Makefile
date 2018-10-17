@@ -16,7 +16,7 @@ default: all
 level = ../
 include ../Makefile
 
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(c_executables): %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
