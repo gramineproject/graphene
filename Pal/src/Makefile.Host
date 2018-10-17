@@ -2,7 +2,7 @@ all_hosts = Skeleton Linux Linux-SGX FreeBSD
 
 ifeq ($(PAL_HOST),)
 SYS := $(shell gcc -dumpmachine)
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 PAL_HOST := Linux
 else ifeq ($(findstring freebsd,$(SYS)),freebsd)
 PAL_HOST := FreeBSD
