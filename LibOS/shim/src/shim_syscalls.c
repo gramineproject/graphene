@@ -508,6 +508,14 @@ DEFINE_SHIM_SYSCALL (setuid, 1, shim_do_setuid, int, uid_t, uid)
 /* setgid: sys/shim_getpid.c */
 DEFINE_SHIM_SYSCALL (setgid, 1, shim_do_setgid, int, gid_t, gid)
 
+/* setgroups: sys/shim_getpid.c */
+DEFINE_SHIM_SYSCALL (setgroups, 2, shim_do_setgroups, int, int,
+                     gidsetsize, gid_t *, grouplist)
+
+/* getgroups: sys/shim_getpid.c */
+DEFINE_SHIM_SYSCALL (getgroups, 2, shim_do_getgroups, int, int,
+                     gidsetsize, gid_t *, grouplist)
+
 /* geteuid: sys/shim_getpid.c */
 DEFINE_SHIM_SYSCALL (geteuid, 0, shim_do_geteuid, uid_t)
 
@@ -529,12 +537,6 @@ DEFINE_SHIM_SYSCALL (setsid, 0, shim_do_setsid, int)
 SHIM_SYSCALL_PASSTHROUGH (setreuid, 2, int, uid_t, ruid, uid_t, euid)
 
 SHIM_SYSCALL_PASSTHROUGH (setregid, 2, int, gid_t, rgid, gid_t, egid)
-
-SHIM_SYSCALL_PASSTHROUGH (getgroups, 2, int, int, gidsetsize, gid_t *,
-                          grouplist)
-
-SHIM_SYSCALL_PASSTHROUGH (setgroups, 2, int, int, gidsetsize, gid_t *,
-                          grouplist)
 
 SHIM_SYSCALL_PASSTHROUGH (setresuid, 3, int, uid_t, ruid, uid_t, euid, uid_t,
                           suid)

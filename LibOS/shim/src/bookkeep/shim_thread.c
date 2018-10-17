@@ -338,6 +338,10 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->exit_event);
         if (thread->child_exit_event)
             DkObjectClose(thread->child_exit_event);
+        if (thread->groups) {
+            free(thread->groups->spl_gid);
+            free(thread->groups);
+        }
         destroy_lock(thread->lock);
 
         free(thread->signal_logs);
@@ -635,6 +639,14 @@ BEGIN_CP_FUNC(thread)
                        sizeof(struct __kernel_sigaction));
             }
 
+        if (thread->groups->spl_gid) {
+            ptr_t soff = ADD_CP_OFFSET(thread->groups->size * sizeof(IDTYPE));
+
+            new_thread->groups->spl_gid = (void *) (base + soff);
+            memcpy(new_thread->groups->spl_gid, thread->groups->spl_gid,
+                   thread->groups->size * sizeof(IDTYPE));
+        }
+
         DO_CP_MEMBER(handle, thread, new_thread, exec);
         DO_CP_MEMBER(handle_map, thread, new_thread, handle_map);
         DO_CP_MEMBER(dentry, thread, new_thread, root);
@@ -662,6 +674,7 @@ BEGIN_RS_FUNC(thread)
     CP_REBASE(thread->root);
     CP_REBASE(thread->cwd);
     CP_REBASE(thread->signal_handles);
+    CP_REBASE(thread->groups->spl_gid);
 
     create_lock(thread->lock);
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
