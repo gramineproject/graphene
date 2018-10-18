@@ -39,7 +39,7 @@ int shim_do_stat (const char * file, struct stat * stat)
     if (!file || test_user_string(file))
         return -EFAULT;
 
-    if (!stat && test_user_memory(stat, sizeof(*stat), true))
+    if (!stat || test_user_memory(stat, sizeof(*stat), true))
         return -EFAULT;
 
     int ret;
@@ -67,7 +67,7 @@ int shim_do_lstat (const char * file, struct stat * stat)
     if (!file || test_user_string(file))
         return -EFAULT;
 
-    if (!stat && test_user_memory(stat, sizeof(*stat), true))
+    if (!stat || test_user_memory(stat, sizeof(*stat), true))
         return -EFAULT;
 
     int ret;
