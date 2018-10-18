@@ -58,7 +58,7 @@ typedef __kernel_pid_t pid_t;
    address */
 #define PAL_SOCKADDR_SIZE   96
 
-static inline int addr_size (struct sockaddr * addr)
+static inline unsigned int addr_size (struct sockaddr * addr)
 {
     switch (addr->sa_family) {
         case AF_INET:
@@ -530,7 +530,7 @@ static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if (bytes == len)
+    if ((size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
@@ -665,7 +665,7 @@ static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
-                                  void * buf, char * addr, int addrlen)
+                                  void * buf, char * addr, size_t addrlen)
 {
     if (offset)
         return -PAL_ERROR_INVAL;
@@ -723,7 +723,7 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if (bytes == len)
+    if ((size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
@@ -732,7 +732,7 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
-                               const void * buf, const char * addr, int addrlen)
+                               const void * buf, const char * addr, size_t addrlen)
 {
     if (offset)
         return -PAL_ERROR_INVAL;
@@ -771,7 +771,7 @@ static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if (bytes == len)
+    if ((size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
@@ -855,7 +855,7 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     }
 
     struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
-    unsigned long waittime = 0;
+    int waittime = 0;
     ret = ocall_poll(&pfd, 1, &waittime);
     if (ret < 0)
         return ret;
@@ -976,13 +976,13 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     return 0;
 }
 
-static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
+static int socket_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     int old_count = count;
     int ret;
 
     const char * prefix = NULL;
-    int prefix_len = 0;
+    size_t prefix_len = 0;
     struct sockaddr * bind_addr = NULL, * dest_addr = NULL;
 
     switch (HANDLE_TYPE(handle)) {
@@ -1108,7 +1108,7 @@ static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     if (bytes < 0)
         return bytes;
 
-    if (bytes == size)
+    if ((size_t)bytes == size)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);

@@ -316,7 +316,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     int ret = ocall_sock_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL,
                               NULL);
 
-    if (ret < 0 || ret < sizeof(struct hdl_header)) {
+    if (ret < 0 || (size_t)ret < sizeof(struct hdl_header)) {
         if (!ret)
             return -PAL_ERROR_TRYAGAIN;
 
@@ -345,7 +345,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     if (ret < 0)
         return ret;
 
-    int n = 0;
+    unsigned int n = 0;
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < nfds) {

@@ -25,11 +25,11 @@ unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
 unsigned long pageshift = PRESET_PAGESIZE - 1;
 
 static inline
-char * alloc_concat(const char * p, int plen,
-                    const char * s, int slen)
+const char * alloc_concat(const char * p, size_t plen,
+                          const char * s, size_t slen)
 {
-    plen = (plen != -1) ? plen : (p ? strlen(p) : 0);
-    slen = (slen != -1) ? slen : (s ? strlen(s) : 0);
+    plen = (plen != (size_t)-1) ? plen : (p ? strlen(p) : 0);
+    slen = (slen != (size_t)-1) ? slen : (s ? strlen(s) : 0);
 
     char * buf = malloc(plen + slen + 1);
     if (plen)
@@ -348,7 +348,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     /* XXX: the enclave stack should be part of measurement */
     struct mem_area * stack_areas = &areas[area_num];
-    for (int t = 0 ; t < enclave->thread_num ; t++)
+    for (unsigned int t = 0 ; t < enclave->thread_num ; t++)
         set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
@@ -414,7 +414,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
-            for (int t = 0 ; t < enclave->thread_num ; t++) {
+            for (unsigned int t = 0 ; t < enclave->thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
                 gs->enclave_size = enclave->size;
                 gs->tcs_offset = tcs_area->addr + pagesize * t;
@@ -431,7 +431,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
-            for (int t = 0 ; t < enclave->thread_num ; t++) {
+            for (unsigned int t = 0 ; t < enclave->thread_num ; t++) {
                 sgx_arch_tcs_t * tcs = data + pagesize * t;
                 memset(tcs, 0, pagesize);
                 tcs->ossa = ssa_area->addr +
@@ -889,10 +889,10 @@ int main (int argc, const char ** argv, const char ** envp)
     }
 
     if (strcmp_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
-        strcpy_static(sgx_manifest + len, ".sgx", URI_MAX - len);
+        strcpy_static(sgx_manifest + len, ".sgx", URI_MAX - (size_t)len);
     } else if (!strcmp_static(sgx_manifest + len - strlen(".manifest.sgx"),
                               ".manifest.sgx")) {
-        strcpy_static(sgx_manifest + len, ".manifest.sgx", URI_MAX - len);
+        strcpy_static(sgx_manifest + len, ".manifest.sgx", URI_MAX - (size_t)len);
     }
 
     if (memcmp(filebuf, "\177ELF", 4)) {

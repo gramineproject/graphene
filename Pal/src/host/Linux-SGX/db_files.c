@@ -364,7 +364,7 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     return 0;
 }
 
-static int file_getname (PAL_HANDLE handle, char * buffer, int count)
+static int file_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     if (!handle->file.realpath)
         return 0;
@@ -444,7 +444,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count,
                          void * buf)
 {
     if (offset)
@@ -484,7 +484,7 @@ output:
                 goto next;
 
             bool isdir = (d->d_type == DT_DIR);
-            int len = strlen(d->d_name);
+            size_t len = strlen(d->d_name);
             if (len + (isdir ? 2 : 1) > count)
                 break;
 
@@ -565,12 +565,12 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     return 0;
 }
 
-static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
+static int dir_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     if (!handle->dir.realpath)
         return 0;
 
-    int len = strlen(handle->dir.realpath);
+    size_t len = strlen(handle->dir.realpath);
     char * tmp = strcpy_static(buffer, "dir:", count);
 
     if (!tmp || buffer + count < tmp + len + 1)

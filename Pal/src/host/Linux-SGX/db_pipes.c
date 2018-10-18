@@ -248,7 +248,7 @@ static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if (bytes == len)
+    if ((size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= writeable;
     else
         HANDLE_HDR(handle)->flags &= ~writeable;
@@ -364,7 +364,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     }
 
     struct pollfd pfd = { .fd = read_fd, .events = POLLIN, .revents = 0 };
-    unsigned long waittime = 0;
+    int waittime = 0;
     int ret = ocall_poll(&pfd, 1, &waittime);
     if (ret < 0)
         return ret;
@@ -398,13 +398,13 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     return 0;
 }
 
-static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
+static int pipe_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     int old_count = count;
     int ret;
 
     const char * prefix = NULL;
-    int prefix_len = 0;
+    size_t prefix_len = 0;
 
     switch (HANDLE_TYPE(handle)) {
         case pal_type_pipesrv:

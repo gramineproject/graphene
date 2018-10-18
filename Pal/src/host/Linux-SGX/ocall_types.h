@@ -58,7 +58,7 @@ enum {
     OCALL_NR,
 };
 
-#define OCALL_NO_TIMEOUT   ((uint64_t) -1)
+#define OCALL_NO_TIMEOUT   ((int) -1)
 
 typedef struct {
     const char * ms_str;
@@ -161,7 +161,7 @@ typedef struct {
 typedef struct {
     int * ms_futex;
     int ms_op, ms_val;
-    uint64_t ms_timeout;
+    int ms_timeout;
 } ms_ocall_futex_t;
 
 typedef struct {
@@ -248,7 +248,7 @@ typedef struct {
 typedef struct {
     struct pollfd * ms_fds;
     int ms_nfds;
-    uint64_t ms_timeout;
+    int ms_timeout;
 } ms_ocall_poll_t;
 
 typedef struct {
