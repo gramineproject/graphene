@@ -86,7 +86,7 @@ _DkMutexCreate (PAL_HANDLE * handle, int initialCount)
     return 0;
 }
 
-int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
+int _DkMutexLockTimeout (struct mutex_handle * m, PAL_NUM timeout)
 {
     int i, ret = 0;
 #ifdef DEBUG_MUTEX
@@ -162,7 +162,7 @@ int _DkMutexLock (struct mutex_handle * m)
     return _DkMutexLockTimeout(m, -1);
 }
 
-int _DkMutexAcquireTimeout (PAL_HANDLE handle, int timeout)
+int _DkMutexAcquireTimeout (PAL_HANDLE handle, PAL_NUM timeout)
 {
     return _DkMutexLockTimeout(&handle->mutex.mut, timeout);
 }
@@ -207,7 +207,7 @@ int _DkInternalUnlock (PAL_LOCK* lock) {
     return 0;
 }
 
-static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+static int mutex_wait (PAL_HANDLE handle, PAL_NUM timeout)
 {
     return _DkMutexAcquireTimeout(handle, timeout);
 }

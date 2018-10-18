@@ -6,6 +6,7 @@
  */
 
 #include "linux_types.h"
+#include "pal.h"
 
 /*
  * GCC's structure padding may cause leaking from uninialized
@@ -58,7 +59,7 @@ enum {
     OCALL_NR,
 };
 
-#define OCALL_NO_TIMEOUT   ((uint64_t)-1)
+#define OCALL_NO_TIMEOUT   ((int64_t)-1)
 
 typedef struct {
     const char * ms_str;
@@ -161,7 +162,7 @@ typedef struct {
 typedef struct {
     int * ms_futex;
     int ms_op, ms_val;
-    uint64_t ms_timeout;
+    int64_t ms_timeout;
 } ms_ocall_futex_t;
 
 typedef struct {
@@ -193,7 +194,7 @@ typedef struct {
 } ms_ocall_sock_connect_t;
 
 typedef struct {
-    int ms_sockfd;
+    PAL_IDX ms_sockfd;
     void * ms_buf;
     unsigned int ms_count;
     struct sockaddr * ms_addr;
@@ -201,7 +202,7 @@ typedef struct {
 } ms_ocall_sock_recv_t;
 
 typedef struct {
-    int ms_sockfd;
+    PAL_IDX ms_sockfd;
     const void * ms_buf;
     unsigned int ms_count;
     const struct sockaddr * ms_addr;
@@ -248,7 +249,7 @@ typedef struct {
 typedef struct {
     struct pollfd * ms_fds;
     int ms_nfds;
-    uint64_t ms_timeout;
+    int64_t ms_timeout;
 } ms_ocall_poll_t;
 
 typedef struct {

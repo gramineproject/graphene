@@ -846,7 +846,7 @@ static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
-                                  void * buf, char * addr, int addrlen)
+                                  void * buf, char * addr, size_t addrlen)
 {
     if (offset)
         return -PAL_ERROR_INVAL;
@@ -927,7 +927,7 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
-                               const void * buf, const char * addr, int addrlen)
+                               const void * buf, const char * addr, size_t addrlen)
 {
     if (offset)
         return -PAL_ERROR_INVAL;
@@ -1191,7 +1191,7 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     return 0;
 }
 
-static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
+static int socket_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     int old_count = count;
     int ret;

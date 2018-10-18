@@ -596,7 +596,7 @@ static int sgx_ocall_sleep(void * pms)
     }
     struct timespec req, rem;
     unsigned long microsec = ms->ms_microsec;
-    const long VERY_LONG_TIME_IN_US = 1000000L * 60 * 60 * 24 * 365 * 128;
+    const unsigned long VERY_LONG_TIME_IN_US = 1000000L * 60 * 60 * 24 * 365 * 128;
     if (ms->ms_microsec > VERY_LONG_TIME_IN_US) {
         /* avoid overflow with time_t */
         req.tv_sec  = VERY_LONG_TIME_IN_US / 1000000;

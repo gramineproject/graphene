@@ -80,7 +80,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
     memcpy(new->uri, uri, uri_len + 1);
 
     char mrenclave_text[sizeof(sgx_arch_hash_t) * 2 + 1] = "\0";
-    int nbytes = 0;
+    size_t nbytes = 0;
     for (; nbytes < sizeof(sgx_arch_hash_t) ; nbytes++) {
         char byte1 = mrenclave_str[nbytes * 2];
         char byte2 = mrenclave_str[nbytes * 2 + 1];
@@ -372,7 +372,7 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
         return bytes;
     }
 
-    if (bytes == count)
+    if ((uint64_t)bytes == count)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);

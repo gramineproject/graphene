@@ -116,14 +116,14 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
     ret = INLINE_SYSCALL(write, 3, pipe_out, &proc_args,
                          sizeof(struct proc_args));
 
-    if (IS_ERR(ret) || ret < sizeof(struct proc_args)) {
+    if (IS_ERR(ret) || (size_t) ret < sizeof(struct proc_args)) {
         ret = -EPERM;
         goto out;
     }
 
     ret = INLINE_SYSCALL(read, 3, pipe_in, &rete, sizeof(int));
 
-    if (IS_ERR(ret) || ret < sizeof(int)) {
+    if (IS_ERR(ret) || (size_t) ret < sizeof(int)) {
         ret = -EPERM;
         goto out;
     }

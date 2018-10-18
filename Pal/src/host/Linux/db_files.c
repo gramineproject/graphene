@@ -310,7 +310,7 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     return 0;
 }
 
-static int file_getname (PAL_HANDLE handle, char * buffer, int count)
+static int file_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     if (!handle->file.realpath)
         return 0;
@@ -552,7 +552,7 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     return 0;
 }
 
-static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
+static int dir_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     if (!handle->dir.realpath)
         return 0;
