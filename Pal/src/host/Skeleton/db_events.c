@@ -44,7 +44,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, int timeout)
+int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

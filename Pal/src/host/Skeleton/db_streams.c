@@ -38,7 +38,7 @@ void _DkPrintConsole (const void * buf, int size)
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
-int _DkStreamUnmap (void * addr, int size)
+int _DkStreamUnmap (void * addr, uint64_t size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

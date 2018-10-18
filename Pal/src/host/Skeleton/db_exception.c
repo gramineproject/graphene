@@ -49,7 +49,7 @@ void _DkRaiseFailure (int error)
     /* need to be implemented */
 }
 
-void _DkExceptionReturn (const void * event)
+void _DkExceptionReturn (void * event)
 {
     /* need to be implemented */
 }
