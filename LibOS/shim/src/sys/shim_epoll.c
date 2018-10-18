@@ -38,17 +38,6 @@
 
 #include <linux/eventpoll.h>
 
-#define EPOLLIN         0x001
-#define EPOLLPRI        0x002
-#define EPOLLOUT        0x004
-#define EPOLLRDNORM     0x040
-#define EPOLLRDBAND     0x080
-#define EPOLLWRNORM     0x100
-#define EPOLLERBAND     0x200
-#define EPOLLERR        0x008
-#define EPOLLHUP        0x010
-#define EPOLLRDHUP      0x2000
-
 #define MAX_EPOLL_FDS       1024
 
 struct shim_mount epoll_builtin_fs;
