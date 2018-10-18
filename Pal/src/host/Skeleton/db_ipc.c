@@ -51,7 +51,7 @@ struct handle_ops gipc_ops = {
         .close              = &gipc_close,
     };
 
-int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key)
+int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
