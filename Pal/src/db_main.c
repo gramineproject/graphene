@@ -289,7 +289,7 @@ void pal_main (
     /* try open "<execname>.manifest" */
     ret = get_base_name(exec_uri, uri_buf, URI_MAX);
 
-    strcpy_static(uri_buf + ret, ".manifest", URI_MAX - ret);
+    strcpy_static(uri_buf + ret, ".manifest", URI_MAX - (size_t)ret);
     ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
     if (!ret)
         goto has_manifest;

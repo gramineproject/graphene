@@ -136,7 +136,7 @@ int _DkRandomBitsRead (void * buffer, int size)
     return 0;
 }
 #else
-int _DkRandomBitsRead (void * buffer, int size)
+size_t _DkRandomBitsRead (void * buffer, size_t size)
 {
     if (!pal_sec.random_device) {
         int fd = INLINE_SYSCALL(open, 3, RANDGEN_DEVICE, O_RDONLY, 0);

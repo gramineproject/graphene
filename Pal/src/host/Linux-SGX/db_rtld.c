@@ -74,7 +74,7 @@ void _DkDebugAddMap (struct link_map * map)
     }
 
     ElfW(Shdr) * shdrend = (void *) shdr + shdrsz;
-    int shstroff = shdr[ehdr->e_shstrndx].sh_offset;
+    size_t shstroff = shdr[ehdr->e_shstrndx].sh_offset;
     size_t shstrsz = shdr[ehdr->e_shstrndx].sh_size;
     const char * shstrtab = NULL;
 

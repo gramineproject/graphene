@@ -71,7 +71,7 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_sigstruct_t * sig)
     if (IS_ERR(ret))
         return -ERRNO(ret);
 
-    if (stat.st_size < sizeof(sgx_arch_sigstruct_t)) {
+    if ((size_t)stat.st_size < sizeof(sgx_arch_sigstruct_t)) {
         SGX_DBG(DBG_I, "size of sigstruct size does not match\n");
         return -EINVAL;
     }
@@ -100,7 +100,7 @@ static size_t get_ssaframesize (uint64_t xfrm)
 {
     uint32_t cpuinfo[4];
     uint64_t xfrm_ex;
-    int xsave_size = 0;
+    size_t xsave_size = 0;
 
     cpuid(SE_LEAF, 1, cpuinfo);
     xfrm_ex = ((uint64_t) cpuinfo[3] << 32) + cpuinfo[2];
@@ -328,7 +328,7 @@ int init_enclave(sgx_arch_secs_t * secs,
     SGX_DBG(DBG_I, "enclave initializing:\n");
     SGX_DBG(DBG_I, "    enclave id:   0x%016lx\n", enclave_valid_addr);
     SGX_DBG(DBG_I, "    enclave hash:");
-    for (int i = 0 ; i < sizeof(sgx_arch_hash_t) ; i++)
+    for (size_t i = 0 ; i < sizeof(sgx_arch_hash_t) ; i++)
         SGX_DBG(DBG_I, " %02x", sigstruct->enclave_hash[i]);
     SGX_DBG(DBG_I, "\n");
 

@@ -206,7 +206,7 @@ static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    int fd = handle->dev.fd_in;
+    PAL_IDX fd = handle->dev.fd_in;
 
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
@@ -225,7 +225,7 @@ static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     if (offset)
         return -PAL_ERROR_INVAL;
 
-    int fd = handle->dev.fd_out;
+    PAL_IDX fd = handle->dev.fd_out;
 
     if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;

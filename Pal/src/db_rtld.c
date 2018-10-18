@@ -153,7 +153,7 @@ void setup_elf_hash (struct link_map *map)
    opened on FD */
 struct link_map *
 map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
-                          void * fbp, int fbp_len,
+                          void * fbp, size_t fbp_len,
                           bool do_copy_dyn)
 {
     struct link_map * l = new_elf_object(_DkStreamRealpath(handle), type);
@@ -173,10 +173,10 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
     l->l_entry = header->e_entry;
     l->l_phnum = header->e_phnum;
 
-    int maplength = header->e_phnum * sizeof (ElfW(Phdr));
+    size_t maplength = header->e_phnum * sizeof (ElfW(Phdr));
     ElfW(Phdr) * phdr;
 
-    if (header->e_phoff + maplength <= (int) fbp_len) {
+    if (header->e_phoff + maplength <= fbp_len) {
         phdr = (void *) ((char *) fbp + header->e_phoff);
     } else {
         phdr = (ElfW(Phdr) *) malloc (maplength);
@@ -351,7 +351,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
 postmap:
         if (l->l_phdr == 0
             && (ElfW(Off)) c->mapoff <= header->e_phoff
-            && ((int) (c->mapend - c->mapstart + c->mapoff)
+            && ((c->mapend - c->mapstart + c->mapoff)
                 >= header->e_phoff + header->e_phnum * sizeof (ElfW(Phdr))))
             /* Found the program header in this segment.  */
             l->l_phdr = (void *) (c->mapstart + header->e_phoff - c->mapoff);
@@ -827,7 +827,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 
     int len = _DkStreamRead(handle, 0, FILEBUF_SIZE, &fb, NULL, 0);
 
-    if (__builtin_expect (len < sizeof(ElfW(Ehdr)), 0)) {
+    if (__builtin_expect ((size_t)len < sizeof(ElfW(Ehdr)), 0)) {
         errstring = "ELF file with a strange size";
         goto verify_failed;
     }
@@ -861,10 +861,10 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     /* Chia-Che 11/23/13: Removing other checks, comparing the header
        should be enough */
 
-    int maplength = ehdr->e_phnum * sizeof (ElfW(Phdr));
+    size_t maplength = ehdr->e_phnum * sizeof (ElfW(Phdr));
 
     /* if e_phoff + maplength is smaller than the data read */
-    if (ehdr->e_phoff + maplength <= (int) len) {
+    if (ehdr->e_phoff + maplength <= (size_t) len) {
         phdr = (void *) (&fb + ehdr->e_phoff);
     } else {
         /* ...otherwise, we have to read again */
@@ -873,7 +873,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 
         ret = _DkStreamRead(handle, ehdr->e_phoff, maplength, phdr, NULL, 0);
 
-        if (ret < 0 || ret != maplength) {
+        if (ret < 0 || (size_t)ret != maplength) {
             errstring = "cannot read file data";
             goto verify_failed;
         }

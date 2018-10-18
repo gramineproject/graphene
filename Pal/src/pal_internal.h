@@ -47,7 +47,7 @@ struct handle_ops {
 
     /* 'getname' is used by DkStreamGetName. It's different from
        'getrealpath' */
-    int (*getname) (PAL_HANDLE handle, char * buffer, int count);
+    int (*getname) (PAL_HANDLE handle, char * buffer, size_t count);
 
     /* 'open' is used by DkStreamOpen. 'handle' is a preallocated handle,
        'type' will be a normalized prefix, 'uri' is the remaining string
@@ -68,9 +68,9 @@ struct handle_ops {
     /* 'readbyaddr' and 'writebyaddr' are the same as read and write,
        but with extra field to specify address */
     int64_t (*readbyaddr) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                           void * buffer, char * addr, int addrlen);
+                           void * buffer, char * addr, size_t addrlen);
     int64_t (*writebyaddr) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                            const void * buffer, const char * addr, int addrlen);
+                            const void * buffer, const char * addr, size_t addrlen);
 
     /* 'close' and 'delete' is used by DkObjectClose and DkStreamDelete,
        'close' will close the stream, while 'delete' actually destroy
@@ -118,7 +118,7 @@ struct handle_ops {
      * Timeout: -PAL_ERROR_TRYAGAIN
      * Positive return values are undefined.
      */
-    int (*wait) (PAL_HANDLE handle, uint64_t time);
+    int (*wait) (PAL_HANDLE handle, PAL_NUM time);
 
     /* 'rename' is used to change name of a stream, or reset its share
        option */
@@ -311,7 +311,7 @@ int _DkProcessSandboxCreate (const char * manifest, int flags);
 /* DkMutex calls */
 int _DkMutexCreate (PAL_HANDLE * handle, int initialCount);
 int _DkMutexAcquire (PAL_HANDLE sem);
-int _DkMutexAcquireTimeout (PAL_HANDLE sem, int timeout);
+int _DkMutexAcquireTimeout (PAL_HANDLE sem, PAL_NUM timeout);
 void _DkMutexRelease (PAL_HANDLE sem);
 int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 
@@ -319,7 +319,7 @@ int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
-int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout);
+int _DkEventWaitTimeout (PAL_HANDLE event, PAL_NUM timeout);
 int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
@@ -331,7 +331,7 @@ int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot);
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);
 int _DkObjectClose (PAL_HANDLE objectHandle);
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
                        PAL_HANDLE * polled);
 
 /* DkException calls & structures */
@@ -343,14 +343,13 @@ void _DkExceptionReturn (void * event);
 int _DkInternalLock (PAL_LOCK * mut);
 int _DkInternalUnlock (PAL_LOCK * mut);
 unsigned long _DkSystemTimeQuery (void);
-int _DkFastRandomBitsRead (void * buffer, int size);
+size_t _DkFastRandomBitsRead (void * buffer, size_t size);
 
 /*
  * Cryptographically secure random.
  * 0 on success, negative on failure.
  */
-int _DkRandomBitsRead (void * buffer, int size);
-
+size_t _DkRandomBitsRead (void * buffer, size_t size);
 int _DkSegmentRegisterSet (int reg, const void * addr);
 int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);

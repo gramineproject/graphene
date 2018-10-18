@@ -43,7 +43,7 @@ static struct pal_vma {
     void * top, * bottom;
 } pal_vmas[PAL_VMA_MAX];
 
-static unsigned int pal_nvmas = 0;
+static uint32_t pal_nvmas = 0;
 static struct spinlock pal_vma_lock;
 
 bool _DkCheckMemoryMappable (const void * addr, size_t size)
@@ -55,7 +55,7 @@ bool _DkCheckMemoryMappable (const void * addr, size_t size)
 
     _DkSpinLock(&pal_vma_lock);
 
-    for (int i = 0 ; i < pal_nvmas ; i++)
+    for (uint32_t i = 0 ; i < pal_nvmas ; i++)
         if (addr < pal_vmas[i].top && addr + size > pal_vmas[i].bottom) {
             printf("address %p-%p is not mappable\n", addr, addr + size);
             _DkSpinUnlock(&pal_vma_lock);

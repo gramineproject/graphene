@@ -42,8 +42,8 @@ struct config {
 };
 
 static int __add_config (struct config_store * store,
-                         const char * key, int klen,
-                         const char * val, int vlen,
+                         const char * key, size_t klen,
+                         const char * val, size_t vlen,
                          struct config ** entry)
 {
     LISTP_TYPE(config) * list = &store->root;
@@ -110,7 +110,7 @@ static struct config * __get_config (struct config_store * store,
 
     while (*key) {
         const char * token = key;
-        int len = 0;
+        size_t len = 0;
         for ( ; token[len] ; len++)
             if (token[len] == '.')
                 break;
@@ -187,7 +187,7 @@ static int __del_config (struct config_store * store,
                          struct config * p, const char * key)
 {
     struct config * e, * found = NULL;
-    int len = 0;
+    size_t len = 0;
     for ( ; key[len] ; len++)
         if (key[len] == '.')
             break;
@@ -394,7 +394,7 @@ static int __dup_config (const struct config_store * ss,
                          const LISTP_TYPE(config) * sr,
                          struct config_store * ts,
                          LISTP_TYPE(config) * tr,
-                         void ** data, int * size)
+                         void ** data, size_t * size)
 {
     struct config * e, * new;
 
@@ -470,7 +470,7 @@ int copy_config (struct config_store * store, struct config_store * new_store)
     INIT_LISTP(&new_store->entries);
 
     struct config * e;
-    int size = 0;
+    size_t size = 0;
 
     LISTP_FOR_EACH_ENTRY(e, &store->entries, list) {
         if (e->key)
@@ -485,7 +485,7 @@ int copy_config (struct config_store * store, struct config_store * new_store)
         return -PAL_ERROR_NOMEM;
 
     void * dataptr = data;
-    int datasz = size;
+    size_t datasz = size;
 
     new_store->raw_data = data;
     new_store->raw_size = size;
