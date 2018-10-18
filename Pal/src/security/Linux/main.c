@@ -300,7 +300,7 @@ static int load_static (const char * filename, void ** load_addr,
     base = INLINE_SYSCALL(mmap, 6, NULL, maplength, c->prot,
                           MAP_PRIVATE | MAP_FILE, fd, c->mapoff);
 
-    if (IS_ERR(base)) {
+    if (IS_ERR_P(base)) {
         ret = -ERRNO_P(base);
         goto out;
     }
