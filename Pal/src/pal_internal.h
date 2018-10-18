@@ -46,7 +46,7 @@ struct handle_ops {
 
     /* 'getname' is used by DkStreamGetName. It's different from
        'getrealpath' */
-    int (*getname) (PAL_HANDLE handle, char * buffer, int count);
+    int (*getname) (PAL_HANDLE handle, char * buffer, size_t count);
 
     /* 'open' is used by DkStreamOpen. 'handle' is a preallocated handle,
        'type' will be a normalized prefix, 'uri' is the remaining string
@@ -64,9 +64,9 @@ struct handle_ops {
     /* 'readbyaddr' and 'writebyaddr' are the same as read and write,
        but with extra field to specify address */
     int64_t (*readbyaddr) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                           void * buffer, char * addr, int addrlen);
+                           void * buffer, char * addr, size_t addrlen);
     int64_t (*writebyaddr) (PAL_HANDLE handle, uint64_t offset, uint64_t count,
-                            const void * buffer, const char * addr, int addrlen);
+                            const void * buffer, const char * addr, size_t addrlen);
 
     /* 'close' and 'delete' is used by DkObjectClose and DkStreamDelete,
        'close' will close the stream, while 'delete' actually destroy
@@ -315,7 +315,7 @@ int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
-int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout);
+int _DkEventWaitTimeout (PAL_HANDLE event, int timeout);
 int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
@@ -327,7 +327,7 @@ int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot);
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);
 int _DkObjectClose (PAL_HANDLE objectHandle);
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
                        PAL_HANDLE * polled);
 
 /* DkException calls & structures */

@@ -31,7 +31,7 @@ void create_tcs_mapper (void * tcs_base, unsigned int thread_num)
     enclave_thread_map = malloc(sizeof(struct thread_map) * thread_num);
     enclave_thread_num = thread_num;
 
-    for (int i = 0 ; i < thread_num ; i++) {
+    for (unsigned int i = 0 ; i < thread_num ; i++) {
         enclave_thread_map[i].tid = 0;
         enclave_thread_map[i].tcs = &enclave_tcs[i];
     }

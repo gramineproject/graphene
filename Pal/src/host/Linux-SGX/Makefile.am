@@ -6,7 +6,7 @@ AS	= gcc
 AR	= ar rcs
 LD	= ld
 
-CFLAGS	= -Wall -fPIC -O2 -maes -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
+CFLAGS	= -Wall -Wsign-compare  -fPIC -O2 -maes -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin -DIN_ENCLAVE
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \

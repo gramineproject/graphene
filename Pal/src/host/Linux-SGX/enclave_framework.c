@@ -287,7 +287,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 #define FILE_CHUNK_SIZE 1024
 
         uint8_t small_chunk[FILE_CHUNK_SIZE]; /* Buffer for hashing */
-        int chunk_offset = 0;
+        size_t chunk_offset = 0;
 
         for (; chunk_offset < mapping_size; chunk_offset += FILE_CHUNK_SIZE) {
             uint64_t chunk_size = MIN(mapping_size - chunk_offset, FILE_CHUNK_SIZE);
@@ -538,7 +538,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
             new->size = attr.pending_size;
 
         char checksum_text[sizeof(sgx_checksum_t) * 2 + 1] = "\0";
-        int nbytes = 0;
+        size_t nbytes = 0;
         for (; nbytes < sizeof(sgx_checksum_t) ; nbytes++) {
             char byte1 = checksum_str[nbytes * 2];
             char byte2 = checksum_str[nbytes * 2 + 1];
@@ -953,7 +953,7 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     assert(agreesz > 0 && agreesz <= sizeof agree);
     // TODO(security): use a real KDF
     memset(session_key, 0, sizeof(session_key));
-    for (int i = 0 ; i < agreesz ; i++)
+    for (unsigned int i = 0 ; i < agreesz ; i++)
         session_key[i % sizeof(session_key)] ^= agree[i];
 
     char key_buf[KEYBUF_SIZE];
@@ -988,7 +988,8 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
 {
     struct attestation_request req;
     struct attestation att;
-    int bytes, ret;
+    size_t bytes;
+    int ret;
 
     memcpy(req.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
     memcpy(&req.attributes, &pal_sec.enclave_attributes,
@@ -1083,7 +1084,8 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
 {
     struct attestation_request req;
     struct attestation att;
-    int bytes, ret;
+    size_t bytes;
+    int ret;
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(req) ; bytes += ret) {
         ret = _DkStreamRead(stream, 0, sizeof(req) - bytes,

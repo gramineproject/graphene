@@ -55,7 +55,7 @@ bool _DkCheckMemoryMappable (const void * addr, int size)
 
     _DkSpinLock(&pal_vma_lock);
 
-    for (int i = 0 ; i < pal_nvmas ; i++)
+    for (unsigned int i = 0 ; i < pal_nvmas ; i++)
         if (addr < pal_vmas[i].top && addr + size > pal_vmas[i].bottom) {
             printf("address %p-%p is not mappable\n", addr, addr + size);
             _DkSpinUnlock(&pal_vma_lock);

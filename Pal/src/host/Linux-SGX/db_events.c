@@ -82,12 +82,12 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
+int _DkEventWaitTimeout (PAL_HANDLE event, int timeout)
 {
     int ret = 0;
 
     if (!event->event.isnotification || !atomic_read(event->event.signaled)) {
-        unsigned long waittime = timeout;
+        int waittime = timeout;
 
         atomic_inc(&event->event.nwaiters);
 

@@ -41,7 +41,7 @@
 
 /* internally to wait for one object. Also used as a shortcut to wait
    on events and semaphores */
-static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
+static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
 {
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
@@ -73,7 +73,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
         if (!nfds)
             return -PAL_ERROR_TRYAGAIN;
 
-        uint64_t waittime = timeout;
+        int waittime = timeout;
         int ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
         if (ret < 0)
             return ret;
@@ -103,7 +103,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
                        PAL_HANDLE * polled)
 {
     if (count <= 0)
@@ -179,7 +179,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
     if (!nfds)
         return -PAL_ERROR_TRYAGAIN;
 
-    uint64_t waittime = timeout;
+    int waittime = timeout;
     ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
     if (ret < 0)
         return ret;
@@ -204,7 +204,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
 
         for (j = 0 ; j < MAX_FDS ; j++)
             if ((HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j))) &&
-                hdl->generic.fds[j] == fds[i].fd)
+                hdl->generic.fds[j] == (uint32_t)fds[i].fd)
                 break;
 
         if (j == MAX_FDS)

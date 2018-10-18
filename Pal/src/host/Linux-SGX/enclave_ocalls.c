@@ -425,7 +425,7 @@ int ocall_create_process (const char * uri,
 }
 
 int ocall_futex (int * futex, int op, int val,
-                 const uint64_t * timeout)
+                 const int * timeout)
 {
     int retval = 0;
     ms_ocall_futex_t * ms;
@@ -732,7 +732,7 @@ int ocall_sleep (unsigned long * microsec)
     return retval;
 }
 
-int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
+int ocall_poll (struct pollfd * fds, int nfds, int * timeout)
 {
     int retval = 0;
     ms_ocall_poll_t * ms;

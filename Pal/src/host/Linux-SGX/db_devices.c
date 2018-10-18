@@ -187,7 +187,7 @@ static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
 {
     int fd = handle->dev.fd_in;
 
-    if (fd == PAL_IDX_POISON)
+    if ((uint32_t)fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))
@@ -202,7 +202,7 @@ static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
 {
     int fd = handle->dev.fd_out;
 
-    if (fd == PAL_IDX_POISON)
+    if ((uint32_t)fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))

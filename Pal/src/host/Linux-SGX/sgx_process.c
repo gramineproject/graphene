@@ -127,14 +127,14 @@ out_child:
     ret = INLINE_SYSCALL(write, 3, pipe_out, &proc_args,
                          sizeof(struct proc_args));
 
-    if (IS_ERR(ret) || ret < sizeof(struct proc_args)) {
+    if (IS_ERR(ret) || (size_t) ret < sizeof(struct proc_args)) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
     ret = INLINE_SYSCALL(read, 3, pipe_in, &rete, sizeof(int));
 
-    if (IS_ERR(ret) || ret < sizeof(int)) {
+    if (IS_ERR(ret) || (size_t) ret < sizeof(int)) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
