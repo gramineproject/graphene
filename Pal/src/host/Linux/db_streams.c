@@ -287,6 +287,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     if (ret < 0)
         return ret;
 
+    hdl_hdr.fds = 0;
     hdl_hdr.data_size = ret;
     int fds[MAX_FDS];
     int nfds = 0;
