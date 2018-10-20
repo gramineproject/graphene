@@ -22,10 +22,10 @@
 
 #define ODEBUG(code, ms) do {} while (0)
 
-static int sgx_ocall_exit(void * pms)
+static int sgx_ocall_exit(int rv)
 {
     ODEBUG(OCALL_EXIT, NULL);
-    INLINE_SYSCALL(exit, 1, (int) (int64_t) pms);
+    INLINE_SYSCALL(exit, 1, rv);
     return 0;
 }
 
