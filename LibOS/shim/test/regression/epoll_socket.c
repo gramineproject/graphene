@@ -66,8 +66,12 @@ int main (int argc, char *argv[])
   struct epoll_event event;
   struct epoll_event *events;
 
+  // Default to 8001
   int port = 8001;
-  
+  // The only argument we take is an optional port
+  if (argc > 1)
+    port = atoi(argv[1]);
+    
   sfd = create_and_bind (port);
   if (sfd == -1)
     abort();
@@ -177,10 +181,10 @@ int main (int argc, char *argv[])
 	continue;
       } else {
 	/* We have data on the fd waiting to be read. Read and
-                   display it. We must read whatever data is available
-                   completely, as we are running in edge-triggered mode
-                   and won't get a notification again for the same
-                   data. */
+	   display it. We must read whatever data is available
+	   completely, as we are running in edge-triggered mode
+	   and won't get a notification again for the same
+	   data. */
 	int done = 0;
 
 	while (1) {
