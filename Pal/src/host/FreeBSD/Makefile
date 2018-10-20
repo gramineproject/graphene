@@ -17,7 +17,7 @@ host_target = libpal-FreeBSD.a ../../pal-gdb
 defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
-	    exception) rfork_thread
+	    exception2) rfork_thread
 graphene_lib = ../../../lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
