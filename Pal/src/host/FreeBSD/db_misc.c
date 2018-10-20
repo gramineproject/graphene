@@ -200,7 +200,7 @@ static int init_randgen (void)
     return 0;
 }
 
-void getrand (void * buffer, size_t size)
+int getrand (void * buffer, size_t size)
 {
     unsigned long val;
     size_t bytes = 0;

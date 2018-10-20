@@ -288,7 +288,7 @@ void pal_bsd_main (void * args)
     int len = strlen(argv[0]);
     PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(file, file);
-    file->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    file->hdr.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     file->file.fd = fd;
     char * path = (void *) file + HANDLE_SIZE(file);
     get_norm_path(argv[0], path, 0, len + 1);
@@ -311,8 +311,7 @@ done_init:
     signal_setup();
 
     /* jump to main function */
-    pal_main(pal_sec.domain_id, (void *) pal_map.l_addr,
-             pal_name, argc, argv, envp, parent, first_thread, exec, manifest);
+    pal_main(pal_sec.domain_id, manifest, exec, (void *)pal_map.l_addr, parent, first_thread, argv, envp);
 }
 
 /* the following code is borrowed from CPUID */

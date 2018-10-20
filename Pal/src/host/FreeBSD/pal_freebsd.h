@@ -47,7 +47,7 @@ typedef int __kernel_pid_t;
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
-int getrand (void * buffer, int size);
+int getrand (void * buffer, size_t size);
 
 struct timespec;
 struct timeval;
@@ -99,7 +99,7 @@ extern struct pal_bsd_state {
 
 static inline int HOST_FLAGS (int alloc_type, int prot)
 {
-    return ((alloc_type & PAL_ALLOC_RESERVE) ? MAP_NORESERVE : 0) |
+    return 
            ((prot & PAL_PROT_WRITECOPY) ? MAP_PRIVATE : MAP_SHARED);
 }
 

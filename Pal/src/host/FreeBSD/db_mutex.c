@@ -35,7 +35,6 @@
 
 #include <limits.h>
 #include <atomic.h>
-#include <cmpxchg.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <unistd.h>
