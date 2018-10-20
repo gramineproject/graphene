@@ -58,7 +58,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(hdl, file);
-    hdl->__in.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    hdl->hdr.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     hdl->file.fd = ret;
     hdl->file.offset = 0;
     hdl->file.append = 0;
@@ -243,7 +243,7 @@ static int file_attrquery (const char * type, const char * uri,
 static int file_attrquerybyhdl (PAL_HANDLE handle,
                                 PAL_STREAM_ATTR * attr)
 {
-    int fd = handle->__in.fds[0];
+    int fd = handle->hdr.fds[0];
     struct stat stat_buf;
 
     int ret = INLINE_SYSCALL(fstat, 2, fd, &stat_buf);
@@ -258,7 +258,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
 static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
-    int fd = handle->__in.fds[0], ret;
+    int fd = handle->hdr.fds[0], ret;
 
     ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags);
     if (IS_ERR(ret))
@@ -341,7 +341,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
     SET_HANDLE_TYPE(hdl, dir);
-    hdl->__in.flags |= RFD(0);
+    hdl->hdr.flags |= RFD(0);
     hdl->dir.fd = ret;
     char * path = (void *) hdl + HANDLE_SIZE(dir);
     memcpy(path, uri, len + 1);
