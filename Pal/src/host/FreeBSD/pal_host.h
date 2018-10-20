@@ -58,7 +58,7 @@ typedef union pal_handle
      * handles, so we hide the type name of these handles on purpose.
      */
     struct {
-	PAL_HDR hdr;
+        PAL_HDR hdr;
         struct mutex_handle mut;
     } mutex;
 
