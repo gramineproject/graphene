@@ -218,7 +218,8 @@ int create_domain_dir (void)
     do {
         if (!getrand(&id, sizeof(unsigned int))) {
             printf("Unable to generate random numbers\n");
-            return -PAL_ERROR_DENIED;
+            id = 0;
+            //return -PAL_ERROR_DENIED;
         }
 
         snprintf(pipedir, sizeof(GRAPHENE_PIPEDIR) + 10,
@@ -271,6 +272,9 @@ void pal_bsd_main (void * args)
     bsd_state.pid = INLINE_SYSCALL(getpid, 0);
     bsd_state.uid = uid;
     bsd_state.gid = gid;
+    
+    if (!bsd_state.parent_pid)
+        bsd_state.parent_pid = bsd_state.pid;
 
     PAL_HANDLE first_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(first_thread, thread);
@@ -303,15 +307,14 @@ void pal_bsd_main (void * args)
 
 done_init:
     /* Create domain directory for pipes */
-    if(!pal_sec.domain_id){
+    /*if(!pal_sec.domain_id){
         if ((ret = create_domain_dir()) < 0)
             init_fail(-ret, "cannot create pipe directory");
-    }
-
+    }*/
     signal_setup();
 
     /* jump to main function */
-    pal_main(pal_sec.domain_id, manifest, exec, (void *)pal_map.l_addr, parent, first_thread, argv, envp);
+    pal_main(bsd_state.parent_pid, manifest, exec, NULL, parent, first_thread, argv, envp);
 }
 
 /* the following code is borrowed from CPUID */

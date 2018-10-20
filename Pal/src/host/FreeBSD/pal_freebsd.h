@@ -58,10 +58,10 @@ extern struct pal_bsd_state {
     /* credentails */
     unsigned int    pid;
     unsigned int    uid, gid;
-
+    unsigned int    parent_pid;
     /* currently enabled signals */
     _sigset_t       sigset;
-
+  
     unsigned long   memory_quota;
 } bsd_state;
 
