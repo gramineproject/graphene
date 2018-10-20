@@ -397,8 +397,7 @@ int _DkProcessSandboxCreate (const char * manifest, int flags)
     _DkStreamOpen(&handle, manifest, PAL_ACCESS_RDONLY, 0, 0, 0);
     pal_state.manifest_handle = handle;
     pal_state.manifest = manifest;
-    //return -PAL_ERROR_NOTIMPLEMENTED;
-    return 0;
+    return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 static int proc_read (PAL_HANDLE handle, int offset, int count,
