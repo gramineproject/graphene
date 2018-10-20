@@ -45,6 +45,10 @@ typedef __kernel_pid_t pid_t;
 #include <errno.h>
 #include <sys/filio.h>
 
+/* FreeBSD doesn't have addr_check_any. */
+#undef ALLOW_BIND_ANY
+#define ALLOW_BIND_ANY 1
+
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
 #define PAL_SOCKADDR_SIZE   96
@@ -351,7 +355,7 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
     options = HOST_SOCKET_OPTIONS(options);
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (!bind_addr || addr_check_any(bind_addr) == 0)
+    if (!bind_addr == 0)
         return -PAL_ERROR_INVAL;
 
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family,
