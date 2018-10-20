@@ -430,7 +430,6 @@ struct signal_ops {
 };
 
 struct signal_ops on_signals[PAL_EVENT_NUM_BOUND] = {
-        /* reserved    */ { .signum = { 0 }, .handler = NULL },
         /* DivZero     */ { .signum = { SIGFPE, 0 },
                             .handler = _DkGenericSighandler },
         /* MemFault    */ { .signum = { SIGSEGV, SIGBUS, 0 },
@@ -443,7 +442,6 @@ struct signal_ops on_signals[PAL_EVENT_NUM_BOUND] = {
                             .handler = _DkTerminateSighandler },
         /* Resume      */ { .signum = { SIGCONT, 0 },
                             .handler = _DkGenericSighandler },
-        /* Failure     */ { .signum = { 0 }, .handler = NULL },
     };
 
 static int _DkPersistentSighandlerSetup (int event_num)
