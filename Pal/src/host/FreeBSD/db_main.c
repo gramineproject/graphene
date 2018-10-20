@@ -186,58 +186,6 @@ PAL_NUM _DkGetHostId (void)
     return 0;
 }
 
-int create_domain_dir (void)
-{
-    int ret = 0;
-    const char * path;
-
-    ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_PIPEDIR), 0777);
-
-    if (IS_ERR(ret) && ERRNO(ret) != EEXIST) {
-        if (ERRNO(ret) == ENOENT) {
-            ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_TEMPDIR), 0777);
-            if (!IS_ERR(ret)) {
-                INLINE_SYSCALL(chmod, 2, GRAPHENE_TEMPDIR, 0777);
-                ret = INLINE_SYSCALL(mkdir, 2, (path = GRAPHENE_PIPEDIR), 0777);
-            }
-        }
-
-        if (IS_ERR(ret)) {
-            printf("Cannot create directory %s, please check permission\n",
-                   path);
-            return -PAL_ERROR_DENIED;
-        }
-    }
-
-    if (!IS_ERR(ret))
-        INLINE_SYSCALL(chmod, 2, GRAPHENE_PIPEDIR, 0777);
-
-    char * pipedir = __alloca(sizeof(GRAPHENE_PIPEDIR) + 10);
-    unsigned int id;
-
-    do {
-        if (!getrand(&id, sizeof(unsigned int))) {
-            printf("Unable to generate random numbers\n");
-            id = 0;
-            //return -PAL_ERROR_DENIED;
-        }
-
-        snprintf(pipedir, sizeof(GRAPHENE_PIPEDIR) + 10,
-                 GRAPHENE_PIPEDIR "/%08x", id);
-
-        ret = INLINE_SYSCALL(mkdir, 2, pipedir, 0700);
-
-        if (IS_ERR(ret) && ERRNO(ret) != -EEXIST) {
-            printf("Cannot create directory %s, please fix permission\n",
-                   pipedir);
-            return -PAL_ERROR_DENIED;
-        }
-    } while (IS_ERR(ret));
-
-    pal_sec.domain_id = id;
-    return 0;
-}
-
 #include "dynamic_link.h"
 
 void setup_pal_map (struct link_map * map);
@@ -306,11 +254,11 @@ void pal_bsd_main (void * args)
     manifest = file;
 
 done_init:
-    /* Create domain directory for pipes */
-    /*if(!pal_sec.domain_id){
-        if ((ret = create_domain_dir()) < 0)
-            init_fail(-ret, "cannot create pipe directory");
-    }*/
+    if (!parent && !exec && !manifest) {
+        printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
+        _DkProcessExit(0);
+        return;
+    }
     signal_setup();
 
     /* jump to main function */
