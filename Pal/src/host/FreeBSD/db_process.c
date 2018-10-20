@@ -124,6 +124,7 @@ struct proc_param {
 };
 
 struct proc_args {
+    PAL_NUM parent_process_id;
     struct pal_sec  pal_sec;
     unsigned long   memory_quota;
     unsigned int    parent_data_size;
@@ -220,6 +221,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
     struct proc_args * proc_args =
             __alloca(sizeof(struct proc_args) + datasz);
 
+    proc_args->parent_process_id = bsd_state.parent_pid;
     memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
     proc_args->pal_sec.r_debug_state = NULL;
     proc_args->pal_sec.r_debug = NULL;
@@ -391,7 +393,12 @@ void _DkProcessExit (int exitcode)
 
 int _DkProcessSandboxCreate (const char * manifest, int flags)
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    PAL_HANDLE handle = NULL;
+    _DkStreamOpen(&handle, manifest, PAL_ACCESS_RDONLY, 0, 0, 0);
+    pal_state.manifest_handle = handle;
+    pal_state.manifest = manifest;
+    //return -PAL_ERROR_NOTIMPLEMENTED;
+    return 0;
 }
 
 static int proc_read (PAL_HANDLE handle, int offset, int count,
