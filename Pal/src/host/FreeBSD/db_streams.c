@@ -73,10 +73,10 @@ out:
 int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 {
     for (int i = 0 ; i < MAX_FDS ; i++)
-        if (handle->__in.flags & (RFD(i)|WFD(i))) {
+        if (handle->hdr.flags & (RFD(i)|WFD(i))) {
             long flags = enable ? FD_CLOEXEC : 0;
             int ret = INLINE_SYSCALL(fcntl, 3,
-                                     handle->__in.fds[i], F_SETFD,
+                                     handle->hdr.fds[i], F_SETFD,
                                      flags);
             if (IS_ERR(ret) && ERRNO(ret) != EBADF)
                 return -PAL_ERROR_DENIED;
@@ -87,7 +87,7 @@ int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
-int _DkStreamUnmap (void * addr, int size)
+int _DkStreamUnmap (void * addr, uint64_t size)
 {
     /* Just let the kernel tell us if the mapping isn't good. */
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
@@ -289,9 +289,9 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     int fds[MAX_FDS];
     int nfds = 0;
     for (int i = 0 ; i < MAX_FDS ; i++)
-        if (cargo->__in.flags & (RFD(i)|WFD(1))) {
+        if (cargo->hdr.flags & (RFD(i)|WFD(1))) {
             hdl_hdr.fds |= 1U << i;
-            fds[nfds++] = cargo->__in.fds[i];
+            fds[nfds++] = cargo->hdr.fds[i];
         }
     // ~ Initialize common parameter formessage passing
     // Channel between parent and child
@@ -434,9 +434,9 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < total_fds) {
-                handle->__in.fds[i] = ((int *) CMSG_DATA(chdr))[n++];
+                handle->hdr.fds[i] = ((int *) CMSG_DATA(chdr))[n++];
             } else {
-                handle->__in.flags &= ~(RFD(i)|WFD(i));
+                handle->hdr.flags &= ~(RFD(i)|WFD(i));
             }
         }
 

@@ -78,7 +78,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, int timeout)
+int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
 {
     int ret = 0;
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
@@ -142,3 +142,21 @@ int _DkEventClear (PAL_HANDLE event)
     atomic_set(&event->event.signaled, 0);
     return 0;
 }
+
+
+static int event_close (PAL_HANDLE handle)
+{
+    _DkEventSet(handle, -1);
+    return 0;
+}
+
+static int event_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return timeout == NO_TIMEOUT ? _DkEventWait(handle) :
+           _DkEventWaitTimeout(handle, timeout);
+}
+
+struct handle_ops event_ops = {
+        .close              = &event_close,
+        .wait               = &event_wait,
+};
