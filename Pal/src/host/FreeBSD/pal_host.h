@@ -34,6 +34,7 @@
    because it is required by futex call. If DEBUG_MUTEX is defined,
    mutex_handle will record the owner of mutex locking. */
 typedef struct mutex_handle {
+    volatile int64_t locked;
     struct atomic_int value;
 #ifdef DEBUG_MUTEX
     int owner;

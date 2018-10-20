@@ -208,6 +208,13 @@ int _DkMutexAcquireTimeout (PAL_HANDLE handle, int timeout)
     return _DkMutexLockTimeout(&handle->mutex.mut, timeout);
 }
 
+
+void _DkMutexRelease (PAL_HANDLE handle)
+{
+    _DkMutexUnlock(&handle->mutex.mut);
+    return;
+}
+
 static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
 {
     return _DkMutexAcquireTimeout(handle, timeout);
@@ -217,3 +224,11 @@ struct handle_ops mutex_ops = {
         .wait               = &mutex_wait,
 };
 
+int _DkMutexCreate (PAL_HANDLE *handle, int count) {
+     PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
+     SET_HANDLE_TYPE(mut, mutex);
+     atomic_set(&mut->mutex.mut.value, 0);
+     mut->mutex.mut.locked = count;
+     *handle = mut;
+     return 0;
+}
