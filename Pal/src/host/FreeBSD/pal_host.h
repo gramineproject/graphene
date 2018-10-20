@@ -70,7 +70,7 @@ typedef union pal_handle
     } hdr;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX fd;
         PAL_NUM offset;
         PAL_BOL append;
@@ -79,20 +79,20 @@ typedef union pal_handle
     } file;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX fd;
         PAL_NUM pipeid;
         PAL_BOL nonblocking;
     } pipe;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX fds[2];
         PAL_BOL nonblocking;
     } pipeprv;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX fd_in, fd_out;
         PAL_IDX dev_type;
         PAL_BOL destroy;
@@ -100,7 +100,7 @@ typedef union pal_handle
     } dev;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX fd;
         PAL_STR realpath;
         PAL_PTR buf;
@@ -110,13 +110,13 @@ typedef union pal_handle
     } dir;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX fd;
         PAL_NUM token;
     } gipc;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX fd;
         PAL_PTR bind;
         PAL_PTR conn;
@@ -133,7 +133,7 @@ typedef union pal_handle
     } sock;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX stream_in, stream_out;
         PAL_IDX cargo;
         PAL_IDX pid;
@@ -141,7 +141,7 @@ typedef union pal_handle
     } process;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX cli;
         PAL_IDX srv;
         PAL_IDX port;
@@ -149,12 +149,12 @@ typedef union pal_handle
     } mcast;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         PAL_IDX tid;
     } thread;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         struct atomic_int nwaiters;
         PAL_NUM max_value;
         union {
@@ -164,7 +164,7 @@ typedef union pal_handle
     } semaphore;
 
     struct {
-        PAL_HDR __in;
+        PAL_HDR hdr;
         struct atomic_int signaled;
         struct atomic_int nwaiters;
         PAL_BOL isnotification;
