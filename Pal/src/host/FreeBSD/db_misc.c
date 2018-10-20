@@ -206,7 +206,7 @@ int getrand (void * buffer, size_t size)
     size_t bytes = 0;
 
     int ret = init_randgen();
-    if (ret < 0)
+    if (ret < 0) 
         return ret;
 
     _DkInternalLock(&lock);
@@ -228,6 +228,7 @@ int getrand (void * buffer, size_t size)
     _DkInternalLock(&lock);
     randval = val;
     _DkInternalUnlock(&lock);
+    return 0;
 }
 
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
