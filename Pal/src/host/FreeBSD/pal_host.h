@@ -57,6 +57,10 @@ typedef union pal_handle
      * handle, also there is no need to allocate the internal
      * handles, so we hide the type name of these handles on purpose.
      */
+    struct {
+	PAL_HDR hdr;
+        struct mutex_handle mut;
+    } mutex;
 
     struct {
         PAL_IDX type;

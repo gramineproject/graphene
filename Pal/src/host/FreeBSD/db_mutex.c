@@ -202,3 +202,18 @@ int _DkMutexUnlock (struct mutex_handle * mut)
 out:
     return ret;
 }
+
+int _DkMutexAcquireTimeout (PAL_HANDLE handle, int timeout)
+{
+    return _DkMutexLockTimeout(&handle->mutex.mut, timeout);
+}
+
+static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+{
+    return _DkMutexAcquireTimeout(handle, timeout);
+}
+
+struct handle_ops mutex_ops = {
+        .wait               = &mutex_wait,
+};
+
