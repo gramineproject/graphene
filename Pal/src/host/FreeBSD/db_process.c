@@ -79,7 +79,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    phdl->__in.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    phdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
     phdl->process.stream_in   = proc_fds[0][0];
     phdl->process.stream_out  = proc_fds[0][1];
     phdl->process.cargo       = proc_fds[0][2];
@@ -93,7 +93,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    chdl->__in.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    chdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
     chdl->process.stream_in   = proc_fds[1][0];
     chdl->process.stream_out  = proc_fds[1][1];
     chdl->process.cargo       = proc_fds[1][2];
@@ -124,6 +124,7 @@ struct proc_param {
 };
 
 struct proc_args {
+    PAL_NUM parent_process_id;
     struct pal_sec  pal_sec;
     unsigned long   memory_quota;
     unsigned int    parent_data_size;
@@ -220,6 +221,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
     struct proc_args * proc_args =
             __alloca(sizeof(struct proc_args) + datasz);
 
+    proc_args->parent_process_id = bsd_state.parent_pid;
     memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
     proc_args->pal_sec.r_debug_state = NULL;
     proc_args->pal_sec.r_debug = NULL;
@@ -391,6 +393,10 @@ void _DkProcessExit (int exitcode)
 
 int _DkProcessSandboxCreate (const char * manifest, int flags)
 {
+    PAL_HANDLE handle = NULL;
+    _DkStreamOpen(&handle, manifest, PAL_ACCESS_RDONLY, 0, 0, 0);
+    pal_state.manifest_handle = handle;
+    pal_state.manifest = manifest;
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
@@ -422,7 +428,7 @@ static int proc_write (PAL_HANDLE handle, int offset, int count,
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                handle->__in.flags &= ~WRITEABLE(1);
+                handle->hdr.flags &= ~WRITEABLE(1);
                 return-PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
@@ -431,9 +437,9 @@ static int proc_write (PAL_HANDLE handle, int offset, int count,
         }
 
     if (bytes == count)
-        handle->__in.flags |= WRITEABLE(1);
+        handle->hdr.flags |= WRITEABLE(1);
     else
-        handle->__in.flags &= ~WRITEABLE(1);
+        handle->hdr.flags &= ~WRITEABLE(1);
 
     return bytes;
 }
@@ -506,9 +512,9 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
     attr->handle_type  = pal_type_process;
     attr->nonblocking  = handle->process.nonblocking;
-    attr->disconnected = handle->__in.flags & (ERROR(0)|ERROR(1));
+    attr->disconnected = handle->hdr.flags & (ERROR(0)|ERROR(1));
     attr->readable     = !!val;
-    attr->writeable    = handle->__in.flags & WRITEABLE(1);
+    attr->writeable    = handle->hdr.flags & WRITEABLE(1);
     attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
 
