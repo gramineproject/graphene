@@ -29,9 +29,11 @@ if pid == 0:
 
 regression = Regression(loader, "epoll_socket", None)
 
-regression.add_check(name="Epoll on a writeable socket", 
+
+regression.add_check(name="Epoll on a writeable socket",
+                     args = ['8001'],
                      check=lambda res: "Accepted connection" in res[0].out and 
-                     "socket is writable" in res[0].out)                    
+                     "socket is writable" in res[0].out)
 
 rv = regression.run_checks()
 

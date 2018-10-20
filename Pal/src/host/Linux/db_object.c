@@ -69,8 +69,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
              */
             
             if ((HANDLE_HDR(handle)->flags & WFD(i))) {
-                if (!(HANDLE_HDR(handle)->flags & WRITEABLE(i)) &&
-                    !(HANDLE_HDR(handle)->flags & ERROR(i)))
+                if (!(HANDLE_HDR(handle)->flags & (WRITEABLE(i)|ERROR(i))))
                     events |= POLLOUT;
                 else if (events && !(HANDLE_HDR(handle)->flags & ERROR(i))) {
                     // We should be able to at least return that this handle
@@ -119,8 +118,9 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
             // return immediately
             if (writeable_fd != -1) {
                 fds[writeable_fd].revents |= POLLOUT;
-            } else 
+            } else {
                 return -PAL_ERROR_TRYAGAIN;
+            }
         }
 
         for (int i = 0 ; i < nfds ; i++) {
@@ -273,9 +273,8 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
     PAL_HANDLE polled_hdl = NULL;
 
     for (i = 0 ; i < nfds ; i++) {
-        if (!fds[i].revents) {
+        if (!fds[i].revents) 
             continue;
-        }
 
         PAL_HANDLE hdl = hdls[i];
 
