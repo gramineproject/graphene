@@ -229,3 +229,9 @@ int getrand (void * buffer, size_t size)
     randval = val;
     _DkInternalUnlock(&lock);
 }
+
+int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
+                      unsigned int values[4])
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
