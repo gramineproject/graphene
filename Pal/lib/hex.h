@@ -67,13 +67,4 @@ char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 #define alloca_bytes2hexstr(array) \
     (bytes2hexstr((array), __alloca(sizeof(array) * 2 + 1), sizeof(array) * 2 + 1))
 
-/*
- * malloc_bytes2hexstr is similar to alloca_bytes2hexstr, but uses malloc for
- * allocation. The returned str can be used outside the caller frame, but needs
- * to be explicitly freed by the caller.
- */
-#define malloc_bytes2hexstr(array) \
-    ({ char * __buf = malloc(sizeof(array) * 2 + 1); \
-       __buf ? bytes2hexstr((array), __buf, sizeof(array) * 2 + 1) : NULL; })
-
 #endif // HEX_H
