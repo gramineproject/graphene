@@ -39,15 +39,19 @@ libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/FreeBSD/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
 
-%.e: %.c $(headers)
+%.e %.i: %.c $(headers)
 	@echo [ host/FreeBSD/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+
+%.s: %.c $(headers)
+	@echo [ host/FreeBSD/$@ ]
+	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
 
 %.o: %.S $(headers)
 	@echo [ host/FreeBSD/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
 
-%.e: %.S $(headers)
+%.e %.s: %.S $(headers)
 	@echo [ host/FreeBSD/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 

@@ -4,3 +4,6 @@
 /Jenkinsfiles/JenkinsfileSGX-*
 
 .lib
+*.i
+*.s
+*.e

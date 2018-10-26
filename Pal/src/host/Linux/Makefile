@@ -40,15 +40,19 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/Linux/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
 
-%.e: %.c $(headers)
+%.e %.i: %.c $(headers)
 	@echo [ host/Linux/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+
+%.s: %.c $(headers)
+	@echo [ host/Linux/$@ ]
+	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
 
 %.o: %.S $(headers)
 	@echo [ host/Linux/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
 
-%.e: %.S $(headers)
+%.e %.s: %.S $(headers)
 	@echo [ host/Linux/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
