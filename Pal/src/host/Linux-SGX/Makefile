@@ -41,6 +41,14 @@ $(addsuffix .e,$(enclave-objs)): %.e: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -E $< -o $@
 
+$(addsuffix .i,$(enclave-objs)): %.i: %.c $(headers)
+	@echo [ host/Linux-SGX/$@ ]
+	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -E $< -o $@
+
+$(addsuffix .s,$(enclave-objs)): %.s: %.c $(headers)
+	@echo [ host/Linux-SGX/$@ ]
+	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -S $< -o $@
+
 $(addsuffix .o,$(enclave-asm-objs)): %.o: %.S $(headers)
 	@echo [ host/Linux-SGX/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -DIN_ENCLAVE -c $< -o $@
@@ -52,6 +60,18 @@ $(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
 $(addsuffix .e,$(urts-objs)): %.e: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
 	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -E $< -o $@
+
+$(addsuffix .i,$(urts-objs)): %.i: %.c $(headers)
+	@echo [ host/Linux-SGX/$@ ]
+	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -E $< -o $@
+
+$(addsuffix .s,$(urts-objs)): %.s: %.c $(headers)
+	@echo [ host/Linux-SGX/$@ ]
+	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -S $< -o $@
+
+$(addsuffix .s,$(urts-asm-objs)): %.s: %.S $(headers)
+	@echo [ host/Linux-SGX/$@ ]
+	@$(AS) $(filter-out -DIN_ENCLAVE,$(ASFLAGS)) $(defs) -E $< -o $@
 
 $(addsuffix .o,$(urts-asm-objs)): %.o: %.S $(headers)
 	@echo [ host/Linux-SGX/$@ ]
@@ -71,4 +91,4 @@ sgx-driver/isgx_version.h:
 
 .PHONY: clean
 clean:
-	rm -f *.o *.e $(host_files)
+	rm -f *.o *.e *.i *.s $(host_files)
