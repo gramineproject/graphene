@@ -27,9 +27,13 @@ libpal_sec.so: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ security/Linux/$@ ]
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-%.e: %.c
+%.e %.i: %.c
 	@echo [ security/Linux/$@ ]
 	@$(CC) $(CFLAGS) -E $< -o $@
+
+%.s: %.c
+	@echo [ security/Linux/$@ ]
+	@$(CC) $(CFLAGS) -S $< -o $@
 
 .PHONY: clean
 clean:

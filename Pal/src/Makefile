@@ -157,10 +157,15 @@ $(OBJ_DIR)/%.o: %.c $(headers)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@ $(CFLAGS-suffix)
 
-$(OBJ_DIR)/%.e: %.c $(headers)
+$(OBJ_DIR)/%.e $(OBJ_DIR)/%.i: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
+
+$(OBJ_DIR)/%.s: %.c $(headers)
+	@mkdir -p $(OBJ_DIR)
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) $(defs) -S $< -o $@ $(CFLAGS-suffix)
 
 .PHONY: clean
 clean:

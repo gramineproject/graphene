@@ -117,15 +117,19 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
 
-%.e: %.c $(headers)
+%.e %.i: %.c $(headers)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+
+%.s: %.c $(headers)
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
 
 %.o: %.S $(headers)
 	@echo [ $@ ]
 	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
 
-%.e: %.S $(headers)
+%.e %.s: %.S $(headers)
 	@echo [ $@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
