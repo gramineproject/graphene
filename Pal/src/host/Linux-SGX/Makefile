@@ -13,7 +13,7 @@ enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 enclave-asm-objs = enclave_entry 
 urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene)
 urts-asm-objs = sgx_entry
-graphene_lib = ../../.lib/graphene-lib.a
+graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
 	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h)
 
