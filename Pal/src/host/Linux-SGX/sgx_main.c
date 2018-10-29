@@ -617,6 +617,7 @@ static void create_instance (struct pal_sec * pal_sec)
 
 int load_manifest (int fd, struct config_store ** config_ptr)
 {
+    int retval = -EINVAL;
     int nbytes = INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_END);
 
     if (IS_ERR(nbytes))
@@ -631,8 +632,10 @@ int load_manifest (int fd, struct config_store ** config_ptr)
                            PROT_READ|PROT_WRITE, MAP_PRIVATE,
                            fd, 0);
 
-    if (IS_ERR_P(config_raw))
-        return -ERRNO_P(config_raw);
+    if (IS_ERR_P(config_raw)) {
+        retval = -ERRNO_P(config_raw);
+        goto finalize;
+    }
 
     config->raw_data = config_raw;
     config->raw_size = nbytes;
@@ -644,11 +647,21 @@ int load_manifest (int fd, struct config_store ** config_ptr)
 
     if (ret < 0) {
         SGX_DBG(DBG_E, "can't read manifest: %s\n", errstring);
-        return ret;
+        retval = ret;
+        goto finalize;
     }
 
     *config_ptr = config;
     return 0;
+
+finalize:
+    if (config) {
+        free(config);
+    }
+    if (!IS_ERR_P(config_raw)) {
+        INLINE_SYSCALL(munmap, 2, config_raw, nbytes);
+    }
+    return retval;
 }
 
 static int load_enclave (struct pal_enclave * enclave,
@@ -849,6 +862,7 @@ int main (int argc, const char ** argv, const char ** envp)
     int exec_uri_inferred = 0; // Handle the case where the exec uri is
                                // inferred from the manifest name somewhat
                                // differently
+    int retval = -EINVAL;
     argc--;
     argv++;
 
@@ -859,8 +873,10 @@ int main (int argc, const char ** argv, const char ** envp)
     memset(enclave, 0, sizeof(struct pal_enclave));
 
     int is_child = sgx_init_child_process(&enclave->pal_sec);
-    if (is_child < 0)
-        return is_child;
+    if (is_child < 0) {
+        retval = is_child;
+        goto finalize;
+    }
 
     if (!is_child) {
         /* occupy PROC_INIT_FD so no one will use it */
@@ -882,7 +898,8 @@ int main (int argc, const char ** argv, const char ** envp)
     if (IS_ERR(fd)) {
         SGX_DBG(DBG_E, "Executable not found\n");
         SGX_DBG(DBG_E, "USAGE: <pal> [executable|manifest] args ...\n");
-        return -ERRNO(fd);
+        retval = -ERRNO(fd);
+        goto finalize;
     }
 
     char filebuf[4];
@@ -894,8 +911,10 @@ int main (int argc, const char ** argv, const char ** envp)
     char sgx_manifest[URI_MAX];
     int len = get_base_name(exec_uri + static_strlen("file:"), sgx_manifest,
                             URI_MAX);
-    if (len < 0)
-        return len;
+    if (len < 0) {
+        retval = len;
+        goto finalize;
+    }
 
     if (strcmp_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
         strcpy_static(sgx_manifest + len, ".sgx", URI_MAX - len);
@@ -941,7 +960,14 @@ int main (int argc, const char ** argv, const char ** envp)
 
 usage:
     SGX_DBG(DBG_E, "USAGE: %s [executable|manifest] args ...\n", pal_loader);
-    return -EINVAL;
+    retval = -EINVAL;
+    goto finalize;
+
+finalize:
+    if (enclave) {
+        free(enclave);
+    }
+    return retval;
 }
 
 int pal_init_enclave (const char * manifest_uri,
