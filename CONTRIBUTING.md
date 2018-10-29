@@ -27,14 +27,14 @@ The primary mechanism for submitting code changes is with a pull request (PR).
 
 In general, a PR should:
 
-1. Address a single problem; i.e., it should add one feature of fix one issue.  Fixes for distinct issues should be separated into multiple PRs.
+1. Address a single problem; i.e., it should add one feature or fix one issue.  Fixes for distinct issues should be separated into multiple PRs.
 2. Clearly explain the problem and solution in the PR and commit messages, using grammatically correct English.
-3. Include unit tests for the new behavior or bugfix, except in special circumstances.
+3. Include unit tests for the new behavior or bugfix, except in special circumstances, namely: when designing a unit test is difficult (e.g., the code is deep enough in Graphene that it would require extra hooks for testing) or cannot be easily tested (e.g., a performance fix).
 4. Follow project style guidelines.
 
 ### PR Life Cycle
 
-1. A PR is created. If the author knows a good candidate for the review (e.g. the author of the specific component) they should assign a suggested reviewer on GitHub.
+1. A PR is created. If the authors know a good candidate for the review (e.g., the author of the specific component) they should assign a suggested reviewer on GitHub.
 2. From this point on the branch is public, which means that no push-forces are allowed without reviewers’ permission.
 3. Reviewers shouldn’t push commits to the PR, only the authors are allowed to do so.
 4. Reviewers add comments to the changes.
@@ -52,16 +52,16 @@ Before a pull request is merged, it must:
   4. Have all discussions from reviewers resolved 
   5. Have a clear, concise and grammatically correct comments and commit messages.
   6. Have a quorum of approving reviews and/or waited an appropriate amount of time for review from the maintainers.  This can be:
-     1. 3 reviews 
-     2. 2 reviews and 5 days since the PR was opened
-     3. 1 review and 10 days since the PR was opened, or 5 days if the author is a maintainer
+     1. 3 approving reviews
+     2. 2 approving reviews and 5 days since the PR was created
+     3. 1 approving review and 10 days since the PR was created, if the author is a maintainer
 
 Additional reviews from anyone are welcome.
 
 ### Reviewing Guidelines
 
 1. All commits must be atomic (i.e., no unrelated changes in the same commit, no formatting fixes mixed with features, no moving files and changing them at the same time).
-2. Meaningful commit messages (it’s much easier to get them right if commits are really atomic). Should include which component was changed ({Linux,SGX} PAL/ shim /glibc) in the format “[component] change description”.
+2. Meaningful commit messages (it’s much easier to get them right if commits are really atomic). Should include which component was changed ({Linux,SGX} PAL / shim / glibc) in the format “[component] change description”.
 3. Every PR description should include: what’s the purpose of the changes, what is changed (and how, in case of redesigning a component), how to test the changes.
 4. Is it possible to implement this change in a significantly better way?
 5. It’s C, so check for common problems: correct buffer sizes, integer overflows, memory leaks, violations of pointer ownership etc.
