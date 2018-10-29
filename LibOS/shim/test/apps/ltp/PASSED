@@ -239,7 +239,6 @@ futex_wait01,1
 futex_wait01,2
 futex_wait01,3
 futex_wait01,4
-futex_wait03,1
 futex_wait04,1
 futex_wait05,1
 futex_wait_bitset01,1
