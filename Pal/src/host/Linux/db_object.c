@@ -67,7 +67,6 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int64_t timeout)
              * we have already cached the WRITEABLE property.
              * It should go quickly.  Or, we could quit early.
              */
-            
             if ((HANDLE_HDR(handle)->flags & WFD(i))) {
                 if (!(HANDLE_HDR(handle)->flags & (WRITEABLE(i)|ERROR(i))))
                     events |= POLLOUT;
@@ -215,7 +214,6 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
              * we have already cached the WRITEABLE property.
              * It should go quickly.  Or, we could quit early.
              */
-            
             if ((HANDLE_HDR(hdl)->flags & WFD(j))) {
 
                 if (!(HANDLE_HDR(hdl)->flags & WRITEABLE(j)) &&

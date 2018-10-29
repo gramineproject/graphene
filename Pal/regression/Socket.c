@@ -156,7 +156,7 @@ int main (int argc, char ** argv, char ** envp)
                 else
                     pal_printf("DkObjectsWaitAny udp got bad return value after waiting on udp handle, iteration %d.\n", i);
             }
-            
+
             for (int i = 0; i < 3; i++) {
                 PAL_HANDLE handles[2];
                 handles[0] = udp1;
