@@ -71,32 +71,13 @@ int main (int argc, char ** argv, char ** envp)
     if (mem3 && mem4)
         pal_printf("Memory Allocation with Address OK\n");
 
-    /* total memory */
+    /* Testing total memory */
     pal_printf("Total Memory: %llu\n", pal_control.mem_info.mem_total);
 
-    unsigned long before = DkMemoryAvailableQuota();
-    void * mem5 = (void *) DkVirtualMemoryAlloc(NULL, UNIT * 1000, 0,
-                                                PAL_PROT_READ|PAL_PROT_WRITE);
-
-    if (mem5) {
-        unsigned long after = before;
-
-        for (int i = 0 ; i < 10000 ; i++) {
-            for (void * ptr = mem5 ; ptr < mem5 + UNIT * 1000 ; ptr += UNIT)
-                *(volatile int *) ptr = 0;
-
-            unsigned long quota = DkMemoryAvailableQuota();
-            if (quota < after)
-                after = quota;
-        }
-
-        pal_printf("Memory Qouta Before Allocation: %ld\n", before);
-        pal_printf("Memory Qouta After  Allocation: %ld\n", after);
-
-        /* chance are some pages are evicted, so at least 80% accuracy */
-        if (before >= after + UNIT * 800)
-            pal_printf("Get Memory Available Quota OK\n");
-    }
+    /* Testing available memory (must be within valid range) */
+    PAL_NUM avail = DkMemoryAvailableQuota();
+    if (avail > 0 && avail < pal_control.mem_info.mem_total)
+        pal_printf("Get Memory Available Quota OK\n");
 
     return 0;
 }
