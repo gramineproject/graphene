@@ -475,8 +475,11 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         size_t ret = DkStreamWrite(stream, 0, total_bytes - bytes,
                                    (void *) store->base + bytes, NULL);
 
-        if (!ret)
+        if (!ret) {
+            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN)
+                continue;
             return -PAL_ERRNO;
+        }
 
         bytes += ret;
     } while (bytes < total_bytes);
@@ -490,8 +493,11 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
         do {
             size_t ret = DkStreamWrite(stream, 0, mem_size - bytes,
                                        mem_addr + bytes, NULL);
-            if (!ret)
+            if (!ret) {
+                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN)
+                    continue;
                 return -PAL_ERRNO;
+            }
 
             bytes += ret;
         } while (bytes < mem_entries[i]->size);
@@ -1216,8 +1222,11 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
                                      size - total_bytes,
                                      (void *) base + total_bytes, NULL, 0);
 
-            if (!bytes)
+            if (!bytes) {
+                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN)
+                    continue;
                 return -PAL_ERRNO;
+            }
 
             total_bytes += bytes;
         }
