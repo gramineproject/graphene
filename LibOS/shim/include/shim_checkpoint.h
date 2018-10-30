@@ -105,6 +105,10 @@ struct shim_gipc_entry {
 #endif
 };
 
+struct shim_cma_entry {
+    struct shim_mem_entry mem;
+};
+
 struct shim_palhdl_entry {
     struct shim_palhdl_entry * prev;
     PAL_HANDLE handle;
@@ -127,6 +131,11 @@ struct shim_cp_store {
     bool use_gipc;
     struct shim_gipc_entry * last_gipc_entry;
     int gipc_nentries;
+
+    /* entries of cma records */
+    bool use_cma;
+    struct shim_cma_entry * last_cma_entry;
+    int cma_nentries;
 
     /* entries of out-of-band data */
     struct shim_mem_entry * last_mem_entry;
@@ -424,6 +433,10 @@ struct newproc_cp_header {
         unsigned long entoffset;
         int nentries;
     } gipc;
+    struct cma_header {
+        unsigned long entoffset;
+        int nentries;
+    } cma;
 };
 
 struct newproc_header {
@@ -443,8 +456,7 @@ struct newproc_response {
 
 int do_migration (struct newproc_cp_header * hdr, void ** cpptr);
 
-int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
-                        ptr_t base, int type);
+int restore_checkpoint (struct newproc_header *hdr, ptr_t base, int type);
 
 int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                                         struct shim_thread *,

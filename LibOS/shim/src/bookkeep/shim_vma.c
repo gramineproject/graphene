@@ -1087,6 +1087,10 @@ BEGIN_CP_FUNC(vma)
             struct shim_gipc_entry * gipc;
             DO_CP_SIZE(gipc, send_addr, send_size, &gipc);
             gipc->mem.prot = pal_prot;
+        } else if (store->use_cma) {
+            struct shim_cma_entry * cma;
+            DO_CP_SIZE(cma, send_addr, send_size, &cma);
+            cma->mem.prot = pal_prot;
         } else {
             struct shim_mem_entry * mem;
             DO_CP_SIZE(memory, send_addr, send_size, &mem);

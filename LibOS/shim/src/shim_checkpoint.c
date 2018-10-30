@@ -366,6 +366,29 @@ BEGIN_RS_FUNC(gipc)
 }
 END_RS_FUNC(gipc)
 
+BEGIN_CP_FUNC(cma)
+{
+    ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_cma_entry));
+
+    void * send_addr = (void *) ALIGN_DOWN(obj);
+    size_t send_size = (void *) ALIGN_UP(obj + size) - send_addr;
+
+    struct shim_cma_entry * entry = (void *) (base + off);
+
+    entry->mem.addr = send_addr;
+    entry->mem.size = send_size;
+    /* entry->mem.prot is stored by BEGIN_CP_FUNC(vma) */
+    /* entry->mem.prot = PAL_PROT_READ|PAL_PROT_WRITE; */
+    entry->mem.data  = NULL;
+    entry->mem.prev = (void *) store->last_cma_entry;
+    store->last_cma_entry = entry;
+    store->cma_nentries++;
+
+    if (objp)
+        *objp = entry;
+}
+END_CP_FUNC_NO_RS(cma)
+
 static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
                                     struct shim_cp_store * store)
 {
@@ -506,6 +529,34 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
     return 0;
  }
 
+static int send_checkpoint_by_cma (PAL_HANDLE stream,
+                                   struct shim_cp_store * store)
+{
+#if 0
+    int cma_nentries = store->cma_nentries;
+    struct shim_cma_entry ** cma_entries;
+
+    if (cma_nentries) {
+        cma_entries = __alloca(sizeof(struct shim_cma_entry *) * cma_nentries);
+        int cma_cnt = cma_nentries;
+        struct shim_cma_entry * cma_ent = store->last_cma_entry;
+
+        for (; cma_ent ; cma_ent = (struct shim_cma_entry*)cma_ent->mem.prev) {
+            if (!cma_cnt)
+                return -EINVAL;
+            cma_entries[--cma_cnt] = cma_ent;
+        }
+
+        /* TODO should copy memory to avoid race between fork and copy? */
+    }
+#endif
+
+    return send_checkpoint_on_stream(stream, store);
+    /* TODO: fix up protection * if (!(mem_entries[i]->prot & PAL_PROT_READ))
+     * it was changed by GBGIN_CP_FUNC(vma).
+     * this fix up needs to be after receiving newproc_response from child
+     */
+}
 
 static int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, ptr_t base,
                          long rebase)
@@ -555,9 +606,77 @@ static int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, ptr_t base,
     return 0;
 }
 
-int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
-                        ptr_t base, int type)
+static int restore_checkpoint_memory(
+    struct mem_header * memhdr, ptr_t base, long rebase)
 {
+    struct shim_mem_entry * entry =
+        (void *) (base + memhdr->entoffset);
+
+    for (; entry ; entry = entry->prev) {
+        CP_REBASE(entry->prev);
+        CP_REBASE(entry->paddr);
+
+        if (entry->paddr) {
+            *entry->paddr = entry->data;
+        } else {
+            debug("memory entry [%p]: %p-%p\n", entry, entry->addr,
+                  entry->addr + entry->size);
+
+            PAL_PTR addr = ALIGN_DOWN(entry->addr);
+            PAL_NUM size = ALIGN_UP(entry->addr + entry->size) -
+                (void *) addr;
+            PAL_FLG prot = entry->prot;
+
+            if (!DkVirtualMemoryAlloc(addr, size, 0, prot|PAL_PROT_WRITE)) {
+                debug("failed allocating %p-%p\n", addr, addr + size);
+                return -PAL_ERRNO;
+            }
+
+            CP_REBASE(entry->data);
+            memcpy(entry->addr, entry->data, entry->size);
+
+            if (!(entry->prot & PAL_PROT_WRITE) &&
+                !DkVirtualMemoryProtect(addr, size, prot)) {
+                debug("failed protecting %p-%p (ignored)\n", addr, addr + size);
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int restore_checkpoint_cma(
+    struct cma_header * cmahdr, ptr_t base, long rebase)
+{
+    int nentries = cmahdr->nentries;
+    struct shim_cma_entry * entry =
+        (void *) (base + cmahdr->entoffset);
+    PAL_PTR * addrs = __alloca(sizeof(PAL_PTR) * nentries);
+    PAL_NUM * sizes = __alloca(sizeof(PAL_NUM) * nentries);
+    PAL_FLG * prots = __alloca(sizeof(PAL_FLG) * nentries);
+    int i;
+
+    for (i = 0 ; i < nentries ;
+         i++, entry = (struct shim_cma_entry *)entry->mem.prev) {
+        CP_REBASE(entry->mem.prev);
+
+        addrs[i] = entry->mem.addr;
+        sizes[i] = entry->mem.size;
+        prots[i] = entry->mem.prot;
+    }
+
+    if (!DkPhysicalMemoryMap(pal_control.parent_process,
+                             nentries, addrs, sizes, prots))
+        return -PAL_ERRNO;
+
+    return 0;
+}
+
+int restore_checkpoint (struct newproc_header * hdr, ptr_t base, int type)
+{
+    struct cp_header * cphdr = &hdr->checkpoint.hdr;
+    struct mem_header * memhdr = &hdr->checkpoint.mem;
+    struct cma_header * cmahdr = &hdr->checkpoint.cma;
     ptr_t cpoffset = cphdr->offset;
     ptr_t * offset = &cpoffset;
     long rebase = base - (ptr_t) cphdr->addr;
@@ -571,38 +690,14 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
               base, cphdr->addr);
 
     if (memhdr && memhdr->nentries) {
-        struct shim_mem_entry * entry =
-                    (void *) (base + memhdr->entoffset);
-
-        for (; entry ; entry = entry->prev) {
-            CP_REBASE(entry->prev);
-            CP_REBASE(entry->paddr);
-
-            if (entry->paddr) {
-                *entry->paddr = entry->data;
-            } else {
-                debug("memory entry [%p]: %p-%p\n", entry, entry->addr,
-                      entry->addr + entry->size);
-
-                PAL_PTR addr = ALIGN_DOWN(entry->addr);
-                PAL_NUM size = ALIGN_UP(entry->addr + entry->size) -
-                               (void *) addr;
-                PAL_FLG prot = entry->prot;
-
-                if (!DkVirtualMemoryAlloc(addr, size, 0, prot|PAL_PROT_WRITE)) {
-                    debug("failed allocating %p-%p\n", addr, addr + size);
-                    return -PAL_ERRNO;
-                }
-
-                CP_REBASE(entry->data);
-                memcpy(entry->addr, entry->data, entry->size);
-
-                if (!(entry->prot & PAL_PROT_WRITE) &&
-                    !DkVirtualMemoryProtect(addr, size, prot)) {
-                    debug("failed protecting %p-%p (ignored)\n", addr, addr + size);
-                }
-            }
-        }
+        int ret = restore_checkpoint_memory(memhdr, base, rebase);
+        if (ret)
+            return ret;
+    }
+    if (cmahdr && cmahdr->nentries) {
+        int ret = restore_checkpoint_cma(cmahdr, base, rebase);
+        if (ret)
+            return ret;
     }
 
     struct shim_cp_entry * cpent = NEXT_CP_ENTRY();
@@ -870,6 +965,7 @@ DEFINE_PROFILE_INTERVAL(migrate_free_checkpoint,  migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_wait_response,    migrate_proc);
 
 static bool warn_no_gipc __attribute_migratable = true;
+static bool warn_no_cma __attribute_migratable = true;
 
 /*
  * Create a new process and migrate the process states to the new process.
@@ -926,6 +1022,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     bool use_gipc = false;
     PAL_NUM gipc_key;
     PAL_HANDLE gipc_hdl = DkCreatePhysicalMemoryChannel(&gipc_key);
+    bool use_cma = false;
 
     if (gipc_hdl) {
         debug("created gipc store: gipc:%lu\n", gipc_key);
@@ -936,6 +1033,17 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
             warn_no_gipc = false;
             sys_printf("WARNING: no physical memory support, process creation "
                        "may be slow.\n");
+        }
+        if (!DkPhysicalMemoryMap(
+                pal_control.parent_process, 0, NULL, NULL, NULL)) {
+            use_cma = true;
+        } else {
+            if (warn_no_cma) {
+                warn_no_cma = false;
+                sys_printf("WARNING: no cross memory attach"
+                           "(process_vm_readv) support, "
+                           "process creation may be slow.\n");
+            }
         }
     }
 
@@ -957,6 +1065,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     memset(cpstore, 0, sizeof(struct shim_cp_store));
     cpstore->alloc    = cp_alloc;
     cpstore->use_gipc = use_gipc;
+    cpstore->use_cma = use_cma;
     cpstore->bound    = CP_INIT_VMA_SIZE;
 
     while (1) {
@@ -1009,6 +1118,12 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         hdr.checkpoint.mem.nentries  = cpstore->mem_nentries;
     }
 
+    if (cpstore->mem_nentries) {
+        hdr.checkpoint.cma.entoffset =
+            (ptr_t) cpstore->last_cma_entry - cpstore->base;
+        hdr.checkpoint.cma.nentries = cpstore->cma_nentries;
+    }
+
     if (cpstore->use_gipc) {
         snprintf(hdr.checkpoint.gipc.uri, sizeof(hdr.checkpoint.gipc.uri),
                  "gipc:%lld", gipc_key);
@@ -1050,8 +1165,13 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     SAVE_PROFILE_INTERVAL(migrate_send_header);
 
     /* Sending the checkpoint either through GIPC or the RPC stream */
-    ret = cpstore->use_gipc ? send_checkpoint_by_gipc(gipc_hdl, cpstore) :
-          send_checkpoint_on_stream(proc, cpstore);
+    if (cpstore->use_gipc) {
+        ret = send_checkpoint_by_gipc(gipc_hdl, cpstore);
+    } else if (cpstore->use_cma) {
+        ret = send_checkpoint_by_cma(proc, cpstore);
+    } else {
+        ret = send_checkpoint_on_stream(proc, cpstore);
+    }
 
     if (ret < 0) {
         debug("failed sending checkpoint (ret = %d)\n", ret);
