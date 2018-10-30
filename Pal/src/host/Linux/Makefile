@@ -15,7 +15,7 @@ defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
 	    exception) manifest clone-x86_64 gettimeofday-x86_64
-graphene_lib = ../../.lib/graphene-lib.a
+graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
@@ -26,9 +26,6 @@ CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 export DEBUG
 endif
-
-../../host_endian.h: host_endian.h
-	$(MAKE) -C ../.. $<
 
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/Linux/$@ ]
