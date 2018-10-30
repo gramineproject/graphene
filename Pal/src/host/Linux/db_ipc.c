@@ -23,6 +23,8 @@
  * This file contains APIs for physical memory bulk copy across processes.
  */
 
+#include <bits/types/struct_iovec.h>
+
 #include "pal_defs.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
@@ -174,6 +176,7 @@ static int _DkPhysicalMemoryMapCma (
 {
     PAL_IDX pid = channel->process.pid;
     struct iovec * iov = __alloca(sizeof(*iov) * entries);
+    ssize_t size = 0;
     int i;
     int ret;
 
@@ -182,24 +185,36 @@ static int _DkPhysicalMemoryMapCma (
             return -PAL_ERROR_INVAL;
 
         iov[i].iov_base = addrs[i];
-        // TODO: check sizes[i] is in size_t as_NUM=uintptr_t.
+        // TODO: check sizes[i] is in size_t as PAL_NUM=uintptr_t.
         iov[i].iov_len = sizes[i];
+        size += sizes[i];
 
-        if (!_DkVirtualMemoryAlloc(addr, size, 0, prots[i] | PAL_PROT_WRITE)) {
-            debug("failed allocating %p-%p\n", addr, addr + size);
-            return -PAL_ERRNO;
+        void *addr = addrs[i];
+        ret = _DkVirtualMemoryAlloc(
+            &addr, sizes[i], 0, prots[i] | PAL_PROT_WRITE);
+        if (ret < 0) {
+            printf("failed allocating %p-%p\n", addrs[i], addrs[i] + sizes[i]);
+            return ret;
         }
+        if (addr != addrs[i])
+            return -PAL_ERROR_BADADDR;
     }
 
-    ret = INLINE_SYSCALL(process_vm_readv, pid, iov, entries, iov, entries, 0);
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+    ret = INLINE_SYSCALL(process_vm_readv, 6, pid, iov, entries, iov, entries, 0);
+    if (IS_ERR(ret)) {
+        printf("process_vm_readv failure: %d\n", ret);
+        return unix_to_pal_error(ERRNO(ret));
+    }
+    if (ret != size) {
+        printf("process_vm_readv failure: ret: %d size: %d\n", ret, size);
+        return PAL_ERROR_INVAL;
+    }
 
     for (i = 0; i < entries; i++) {
         if ((prots[i] & PAL_PROT_WRITE) == 0) {
-            if (!_DkVirtualMemoryProtect(addrs[i], sizes[i], prots[i])) {
-                debug("ignoring failure: failed protect %p-%p\n",
-                      addr, addr + size);
+            if (_DkVirtualMemoryProtect(addrs[i], sizes[i], prots[i]) < 0) {
+                printf("ignoring failure: failed protect %p-%p\n",
+                       addrs[i], addrs[i] + sizes[i]);
             }
         }
     }
