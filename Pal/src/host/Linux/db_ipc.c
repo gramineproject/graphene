@@ -136,8 +136,9 @@ int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
     return ret;
 }
 
-int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
-                          PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots)
+static int _DkPhysicalMemoryMapGipc (
+    PAL_HANDLE channel, int entries,
+    PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots)
 {
     int fd = channel->gipc.fd;
     struct gipc_recv gr;
@@ -165,4 +166,56 @@ int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
         addrs[i] = (PAL_PTR) gr.addr[i];
 
     return ret;
+}
+
+static int _DkPhysicalMemoryMapCma (
+    PAL_HANDLE channel, int entries,
+    PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots)
+{
+    PAL_IDX pid = channel->process.pid;
+    struct iovec * iov = __alloca(sizeof(*iov) * entries);
+    int i;
+    int ret;
+
+    for (i = 0; i < entries; i++) {
+        if (!sizes[i] || !ALLOC_ALIGNED(addrs[i]) || !ALLOC_ALIGNED(sizes[i]))
+            return -PAL_ERROR_INVAL;
+
+        iov[i].iov_base = addrs[i];
+        // TODO: check sizes[i] is in size_t as_NUM=uintptr_t.
+        iov[i].iov_len = sizes[i];
+
+        if (!_DkVirtualMemoryAlloc(addr, size, 0, prots[i] | PAL_PROT_WRITE)) {
+            debug("failed allocating %p-%p\n", addr, addr + size);
+            return -PAL_ERRNO;
+        }
+    }
+
+    ret = INLINE_SYSCALL(process_vm_readv, pid, iov, entries, iov, entries, 0);
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+
+    for (i = 0; i < entries; i++) {
+        if ((prots[i] & PAL_PROT_WRITE) == 0) {
+            if (!_DkVirtualMemoryProtect(addrs[i], sizes[i], prots[i])) {
+                debug("ignoring failure: failed protect %p-%p\n",
+                      addr, addr + size);
+            }
+        }
+    }
+    return ret;
+}
+
+int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
+                          PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots)
+{
+    switch (HANDLE_HDR(channel)->type) {
+    case pal_type_gipc:
+        return _DkPhysicalMemoryMapGipc(channel, entries, addrs, sizes, prots);
+    case pal_type_process:
+        return _DkPhysicalMemoryMapCma(channel, entries, addrs, sizes, prots);
+    default:
+        return -PAL_ERROR_NOTIMPLEMENTED;
+    }
+    return -PAL_ERROR_NOTIMPLEMENTED;
 }
