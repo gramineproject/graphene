@@ -9,7 +9,7 @@ CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -Wall -U_FORTIFY_SOURCE \
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs --version-script pal-sec.map -e start
 
 objs	= bpf_helper filter main manifest printf
-graphene_lib = ../../.lib/graphene-lib.a
+graphene_lib = ../../host/Linux/.lib/graphene-lib.a
 
 .PHONY: all
 all: libpal_sec.so
