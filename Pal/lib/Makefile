@@ -12,6 +12,14 @@ include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src
 
+# Include host_endian.h from either the host-specific directory,
+# or directly under the target directory.
+ifeq ($(target),)
+CFLAGS += -I../src/host/$(PAL_HOST)
+else
+CFLAGS += -I$(target)
+endif
+
 subdirs = string stdlib network graphene util crypto
 headers = api.h pal_crypto.h
 
@@ -61,10 +69,7 @@ $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@mkdir -p $(dir $@)
 	@$(AR) $(ARFLAGS) $@ $^
 
-../src/host_endian.h:
-	@$(MAKE) -C ../src host_endian.h
-
-$(target)%.o: %.c $(headers) ../src/host_endian.h
+$(target)%.o: %.c $(headers)
 	@echo [ $(notdir $@) ]
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
