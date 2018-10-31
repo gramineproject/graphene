@@ -532,7 +532,6 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
 static int send_checkpoint_by_cma (PAL_HANDLE stream,
                                    struct shim_cp_store * store)
 {
-#if 0
     int cma_nentries = store->cma_nentries;
     struct shim_cma_entry ** cma_entries;
 
@@ -540,16 +539,24 @@ static int send_checkpoint_by_cma (PAL_HANDLE stream,
         cma_entries = __alloca(sizeof(struct shim_cma_entry *) * cma_nentries);
         int cma_cnt = cma_nentries;
         struct shim_cma_entry * cma_ent = store->last_cma_entry;
+        PAL_PTR * addrs = __alloca(sizeof(PAL_PTR) * cma_nentries);
+        PAL_NUM * sizes = __alloca(sizeof(PAL_NUM) * cma_nentries);
 
         for (; cma_ent ; cma_ent = (struct shim_cma_entry*)cma_ent->mem.prev) {
             if (!cma_cnt)
                 return -EINVAL;
             cma_entries[--cma_cnt] = cma_ent;
+            addrs[cma_cnt] = cma_ent->mem.addr;
+            sizes[cma_cnt] = cma_ent->mem.size;
         }
 
         /* TODO should copy memory to avoid race between fork and copy? */
+        int ret = DkPhysicalMemoryCommit(stream, cma_nentries, addrs, sizes, 0);
+        if (ret < 0) {
+            debug("cma: DkPhysicalMemoryCommit failed. ret %d\n", ret);
+            return ret;
+        }
     }
-#endif
 
     return send_checkpoint_on_stream(stream, store);
     /* TODO: fix up protection * if (!(mem_entries[i]->prot & PAL_PROT_READ))
