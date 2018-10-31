@@ -200,7 +200,7 @@ static int init_randgen (void)
     return 0;
 }
 
-void getrand (void * buffer, size_t size)
+int getrand (void * buffer, size_t size)
 {
     unsigned long val;
     size_t bytes = 0;
@@ -228,4 +228,11 @@ void getrand (void * buffer, size_t size)
     _DkInternalLock(&lock);
     randval = val;
     _DkInternalUnlock(&lock);
+    return 0;
+}
+
+int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
+                      unsigned int values[4])
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
 }
