@@ -79,6 +79,7 @@ typedef __builtin_va_list __gnuc_va_list;
     SYSCALL(__NR_wait4,         ALLOW),                  \
     SYSCALL(__NR_write,         ALLOW),                  \
     SYSCALL(__NR_process_vm_readv, ALLOW),               \
+    SYSCALL(__NR_prctl, ALLOW),                          \
                                                          \
     SYSCALL_ARCH_FILTERS
 

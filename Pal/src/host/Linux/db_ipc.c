@@ -111,8 +111,9 @@ int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key)
     return -PAL_ERROR_DENIED;
 }
 
-int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
-                             PAL_PTR * addrs, PAL_NUM * sizes, int flags)
+static int _DkPhysicalMemoryCommitGipc (
+    PAL_HANDLE channel, int entries,
+    PAL_PTR * addrs, PAL_NUM * sizes, int flags)
 {
     int fd = channel->gipc.fd;
     struct gipc_send gs;
@@ -136,6 +137,41 @@ int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
         return -PAL_ERROR_DENIED;
 
     return ret;
+}
+
+static int _DkPhysicalMemoryCommitCma (
+    PAL_HANDLE channel, int entries,
+    PAL_PTR * addrs, PAL_NUM * sizes, int flags)
+{
+    /* Ewww, yama security module with restricted ptrace
+     * /proc/sys/kernel/yama/ptrace_scope = 1
+     * child can't attach parent.
+     * parent process_vm_writev() instead of child
+     * process_vm_readv()?
+     */
+    PAL_IDX pid = channel->process.pid;
+#define PR_SET_PTRACER 0x59616d61   /* from linux/prctl.h */
+    int ret = INLINE_SYSCALL(prctl, 5, PR_SET_PTRACER, pid, 0, 0, 0);
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
+    return ret;
+}
+
+int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
+                             PAL_PTR * addrs, PAL_NUM * sizes, int flags)
+{
+    switch (HANDLE_HDR(channel)->type) {
+    case pal_type_gipc:
+        return _DkPhysicalMemoryCommitGipc(
+            channel, entries, addrs, sizes, flags);
+    case pal_type_process:
+        return _DkPhysicalMemoryCommitCma(
+            channel, entries, addrs, sizes, flags);
+    default:
+        return -PAL_ERROR_NOTIMPLEMENTED;
+    }
+    return -PAL_ERROR_NOTIMPLEMENTED;
+
 }
 
 static int _DkPhysicalMemoryMapGipc (

@@ -52,7 +52,8 @@ DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
 {
     ENTER_PAL_CALL(DkPhysicalMemoryCommit);
 
-    if (!addrs || !sizes || !channel || !IS_HANDLE_TYPE(channel, gipc)) {
+    if (!addrs || !sizes || !channel ||
+        (!IS_HANDLE_TYPE(channel, gipc) && !IS_HANDLE_TYPE(channel, process))) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(0);
     }
