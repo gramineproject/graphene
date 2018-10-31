@@ -17,7 +17,7 @@ in advance of writing code.  We welcome contributions, and would hate for anyone
 a change that will not be accepted for a design flaw.  It is much better to reach out for advice first
 by emailing:
 
-  support@graphene-library.org
+  support@graphene-project.io
 
 Simple bugfixes need not have advance discussion, but we welcome queries from newcomers.
 
