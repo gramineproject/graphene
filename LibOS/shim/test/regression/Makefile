@@ -1,5 +1,3 @@
-CFLAGS-libos = -L../../../build/libos -I../../include
-
 special_executables = bootstrap_static bootstrap_pie shared_object
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
