@@ -39,7 +39,7 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
-#include <bits/dlfcn.h>
+#include <dlfcn.h>
 
 #include "elf-x86_64.h"
 
