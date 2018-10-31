@@ -668,7 +668,7 @@ static int load_enclave (struct pal_enclave * enclave,
                          const char * manifest_uri,
                          const char * exec_uri,
                          const char ** arguments, const char ** environments,
-                         int exec_uri_inferred)
+                         bool exec_uri_inferred)
 {
     struct pal_sec * pal_sec = &enclave->pal_sec;
     int ret;
@@ -860,9 +860,9 @@ int main (int argc, const char ** argv, const char ** envp)
     char * exec_uri = NULL;
     const char * pal_loader = argv[0];
     int retval = -EINVAL;
-    int exec_uri_inferred = 0; // Handle the case where the exec uri is
-                               // inferred from the manifest name somewhat
-                               // differently
+    bool exec_uri_inferred = 0; // Handle the case where the exec uri is
+                                // inferred from the manifest name somewhat
+                                // differently
     argc--;
     argv++;
 
