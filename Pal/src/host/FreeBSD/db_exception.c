@@ -40,6 +40,8 @@
 #include <ucontext.h>
 #include <errno.h>
 
+typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
+
 int set_sighandler (int * sigs, int nsig, void * handler)
 {
     struct sigaction action;
@@ -327,8 +329,7 @@ static struct pal_frame * get_frame (ucontext_t * uc)
     for (unsigned long ptr = rbp - sizeof(unsigned long) ;
          ptr > last_rbp ; ptr -= 8) {
         struct pal_frame * frame = (struct pal_frame *) ptr;
-
-        if (frame->self == frame)
+        if (frame->identifier == PAL_FRAME_IDENTIFIER)
             return frame;
     }
 
@@ -429,7 +430,6 @@ struct signal_ops {
 };
 
 struct signal_ops on_signals[PAL_EVENT_NUM_BOUND] = {
-        /* reserved    */ { .signum = { 0 }, .handler = NULL },
         /* DivZero     */ { .signum = { SIGFPE, 0 },
                             .handler = _DkGenericSighandler },
         /* MemFault    */ { .signum = { SIGSEGV, SIGBUS, 0 },
@@ -442,7 +442,6 @@ struct signal_ops on_signals[PAL_EVENT_NUM_BOUND] = {
                             .handler = _DkTerminateSighandler },
         /* Resume      */ { .signum = { SIGCONT, 0 },
                             .handler = _DkGenericSighandler },
-        /* Failure     */ { .signum = { 0 }, .handler = NULL },
     };
 
 static int _DkPersistentSighandlerSetup (int event_num)
@@ -571,7 +570,7 @@ err:
     init_fail(-ret, "cannot setup signal handlers");
 }
 
-void _DkExceptionReturn (const void * event)
+void _DkExceptionReturn (void * event)
 {
     const struct exception_event * e = (const struct exception_event *) event;
     if (e->uc) {

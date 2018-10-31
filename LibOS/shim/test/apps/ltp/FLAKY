@@ -3,7 +3,7 @@ Flaky tests
 
 These should be debugged, or revisited after memory debugging PRs are merged
 
-waitpid03,1 - fails about 20% of the time
+waitpid03,1 and 2 - fails about 20% of the time
 preadv01 - fails intermittently in CI - perhaps an unrelated bug?
 preadv01,2
 preadv01,3

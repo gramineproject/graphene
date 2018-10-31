@@ -1,6 +1,6 @@
 CFLAGS-libos = -L../../../build/libos -I../../include
 
-special_executables = bootstrap_static bootstrap_pie
+special_executables = bootstrap_static bootstrap_pie shared_object
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
@@ -16,7 +16,7 @@ default: all
 level = ../
 include ../Makefile
 
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(c_executables): %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
@@ -35,6 +35,11 @@ bootstrap_static: %: %.c
 bootstrap_pie: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
+	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
+shared_object: %: %.c
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) -o $@ -fPIC -pie $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 else
 .IGNORE: $(special_executables) $(c_executables) $(cxx_executables)

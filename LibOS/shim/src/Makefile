@@ -1,7 +1,6 @@
 RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
-SYS ?= $(shell gcc -dumpmachine)
-export SYS
+include ../../../Pal/src/Makefile.Host
 
 CC	= gcc
 AS	= gcc
@@ -25,7 +24,7 @@ ASFLAGS	= -Wa,--noexecstack -x assembler-with-cpp -I../include
 LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
 	  -z combreloc -z relro -z defs \
 	  -dynamic-link=libpal.so \
-	  -rpath-link=$(abspath ../../../Pal/src)
+	  -rpath-link=$(abspath $(RUNTIME_DIR))
 LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
 
@@ -46,7 +45,7 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  async parser debug) syscallas start \
 	  $(patsubst %.c,%,$(wildcard sys/*.c))
 graphene_lib = .lib/graphene-lib.a
-pal_lib = $(abspath ../../../Pal/src/libpal.so)
+pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
 
 all: $(files_to_build) $(files_to_install)
@@ -65,7 +64,7 @@ endif
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	cp -f $< $@
 
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
 	     $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
@@ -79,9 +78,13 @@ libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 	$(LD) $(LDFLAGS-debug) -o $@ $(filter-out %.map %.lds,$^) -soname $@ \
 		-e shim_start
 
+.lib/host_endian.h: ../../../Pal/src/host/$(PAL_HOST)/host_endian.h
+	@mkdir -p .lib
+	cp -f $< $@
+
 .PHONY: $(graphene_lib)
-$(graphene_lib):
-	$(MAKE) -C ../../../Pal/lib $(debug) target=$(shell pwd)/.lib/
+$(graphene_lib): .lib/host_endian.h
+	$(MAKE) -C ../../../Pal/lib target=$(abspath .lib)/
 
 libsysdb.a: $(addsuffix .o,$(objs))
 	@echo [ $@ ]
