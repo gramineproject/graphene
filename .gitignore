@@ -2,3 +2,5 @@
 *~
 /Jenkinsfiles/Jenkinsfile-*
 /Jenkinsfiles/JenkinsfileSGX-*
+
+.lib
