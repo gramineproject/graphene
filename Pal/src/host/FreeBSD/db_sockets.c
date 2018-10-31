@@ -45,6 +45,10 @@ typedef __kernel_pid_t pid_t;
 #include <errno.h>
 #include <sys/filio.h>
 
+/* FreeBSD doesn't have addr_check_any. */
+#undef ALLOW_BIND_ANY
+#define ALLOW_BIND_ANY 1
+
 /* 96 bytes is the minimal size of buffer to store a IPv4/IPv6
    address */
 #define PAL_SOCKADDR_SIZE   96
@@ -233,7 +237,7 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
 
     memset(hdl, 0, sizeof(union pal_handle));
     PAL_GET_TYPE(hdl) = type;
-    hdl->__in.flags |= RFD(0)|(type != pal_type_tcpsrv ? WFD(0) : 0);
+    hdl->hdr.flags |= RFD(0)|(type != pal_type_tcpsrv ? WFD(0) : 0);
     hdl->sock.fd = fd;
     void * addr = (void *) hdl + HANDLE_SIZE(sock);
     if (bind_addr) {
@@ -351,7 +355,7 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
     options = HOST_SOCKET_OPTIONS(options);
     /* the socket need to have a binding address, a null address or an
        any address is not allowed */
-    if (!bind_addr || addr_check_any(bind_addr) == 0)
+    if (!bind_addr == 0)
         return -PAL_ERROR_INVAL;
 
     fd = INLINE_SYSCALL(socket, 3, bind_addr->sa_family,
@@ -619,16 +623,16 @@ static int tcp_write (PAL_HANDLE handle, int offset, int len, const void * buf)
             case EPIPE:
                 return -PAL_ERROR_CONNFAILED;
             case EWOULDBLOCK:
-                handle->__in.flags &= ~WRITEABLE(0);
+                handle->hdr.flags &= ~WRITEABLE(0);
                 return -PAL_ERROR_TRYAGAIN;
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
     if (bytes == len)
-        handle->__in.flags |= WRITEABLE(0);
+        handle->hdr.flags |= WRITEABLE(0);
     else
-        handle->__in.flags &= ~WRITEABLE(0);
+        handle->hdr.flags &= ~WRITEABLE(0);
 
     return bytes;
 }
@@ -882,7 +886,7 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EAGAIN:
-                handle->__in.flags &= ~WRITEABLE(0);
+                handle->hdr.flags &= ~WRITEABLE(0);
                 return -PAL_ERROR_TRYAGAIN;
             case ECONNRESET:
             case EPIPE:
@@ -892,9 +896,9 @@ static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
         }
 
     if (bytes == len)
-        handle->__in.flags |= WRITEABLE(0);
+        handle->hdr.flags |= WRITEABLE(0);
     else
-        handle->__in.flags &= ~WRITEABLE(0);
+        handle->hdr.flags &= ~WRITEABLE(0);
 
     return bytes;
 }
@@ -943,15 +947,15 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
             case EPIPE:
                 return -PAL_ERROR_CONNFAILED;
             case EAGAIN:
-                handle->__in.flags &= ~WRITEABLE(0);
+                handle->hdr.flags &= ~WRITEABLE(0);
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
     if (bytes == len)
-        handle->__in.flags |= WRITEABLE(0);
+        handle->hdr.flags |= WRITEABLE(0);
     else
-        handle->__in.flags &= ~WRITEABLE(0);
+        handle->hdr.flags &= ~WRITEABLE(0);
 
     return bytes;
 }
@@ -1022,10 +1026,10 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
         attr->readable = !attr->disconnected;
     }
 
-    attr->handle_type           = handle->__in.type;
-    attr->disconnected          = handle->__in.flags & ERROR(0);
+    attr->handle_type           = handle->hdr.type;
+    attr->disconnected          = handle->hdr.flags & ERROR(0);
     attr->nonblocking           = handle->sock.nonblocking;
-    attr->writeable             = handle->__in.flags & WRITEABLE(0);
+    attr->writeable             = handle->hdr.flags & WRITEABLE(0);
     attr->socket.linger         = handle->sock.linger;
     attr->socket.receivebuf     = handle->sock.receivebuf;
     attr->socket.sendbuf        = handle->sock.sendbuf;
@@ -1275,7 +1279,7 @@ static int mcast_s (PAL_HANDLE handle, int port)
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
-    handle->__in.flags |= WFD(1)|WRITEABLE(1);
+    handle->hdr.flags |= WFD(1)|WRITEABLE(1);
     handle->mcast.srv = fd;
     return 0;
 }
@@ -1375,15 +1379,15 @@ static int mcast_send (PAL_HANDLE handle, int offset, int size,
             case EPIPE:
                 return -PAL_ERROR_CONNFAILED;
             case EAGAIN:
-                handle->__in.flags &= ~WRITEABLE(1);
+                handle->hdr.flags &= ~WRITEABLE(1);
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
     if (bytes == size)
-        handle->__in.flags |= WRITEABLE(1);
+        handle->hdr.flags |= WRITEABLE(1);
     else
-        handle->__in.flags &= ~WRITEABLE(1);
+        handle->hdr.flags &= ~WRITEABLE(1);
 
     return bytes;
 }
@@ -1437,10 +1441,10 @@ static int mcast_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
         return unix_to_pal_error(ERRNO(ret));
 
     attr->handle_type  = pal_type_mcast;
-    attr->disconnected = handle->__in.flags & (ERROR(0)|ERROR(1));
+    attr->disconnected = handle->hdr.flags & (ERROR(0)|ERROR(1));
     attr->nonblocking  = handle->mcast.nonblocking;
     attr->readable     = !!val;
-    attr->writeable    = handle->__in.flags & WRITEABLE(1);
+    attr->writeable    = handle->hdr.flags & WRITEABLE(1);
     attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
     return 0;
