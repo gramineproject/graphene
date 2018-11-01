@@ -16,9 +16,9 @@ host_target = libpal-FreeBSD.a ../../pal-gdb
 
 defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    semaphore mutex events process object main rtld misc ipc \
-	    exception) rfork_thread
-graphene_lib = ../../../lib/graphene-lib.a
+	    mutex events process object main rtld misc ipc \
+	    exception2) rfork_thread
+graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
@@ -30,10 +30,7 @@ CFLAGS += -DDEBUG
 export DEBUG
 endif
 
-../../host_endian.h: host_endian.h
-	$(MAKE) -C ../.. $<
-
-../../pal-gdb: pal-gdb
+pal-gdb: pal-gdb.template
 	sed -e 's:\$$(PAL_DIR):$(PWD):g' $< > $@
 	chmod 755 $@
 
