@@ -107,7 +107,7 @@ static size_t get_ssaframesize (uint64_t xfrm)
     return ALLOC_ALIGNUP(xsave_size + sizeof(sgx_arch_gpr_t) + 1);
 }
 
-int check_wrfsbase_support (void)
+bool check_wrfsbase_support (void)
 {
     uint32_t cpuinfo[4];
     cpuid(7, 0, cpuinfo);
@@ -116,10 +116,10 @@ int check_wrfsbase_support (void)
         SGX_DBG(DBG_E, "The WRFSBASE instruction is not permitted on this"
                 " platform. Please make sure the \'graphene_sgx\' kernel module"
                 " is loaded properly.\n");
-        return 0;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 int create_enclave(sgx_arch_secs_t * secs,

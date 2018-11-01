@@ -683,10 +683,7 @@ static int load_enclave (struct pal_enclave * enclave,
     if (ret < 0)
         return ret;
 
-    ret = check_wrfsbase_support();
-    if (ret < 0)
-        return ret;
-    if (!ret)
+    if (!check_wrfsbase_support())
         return -EPERM;
 
     INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
