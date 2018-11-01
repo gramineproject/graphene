@@ -19,11 +19,19 @@ void * zero_page;
 int open_gsgx(void)
 {
     gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR, 0);
-    if (IS_ERR(gsgx_device))
+    if (IS_ERR(gsgx_device)) {
+        SGX_DBG(DBG_E, "Cannot open device " GSGX_FILE ". Please make sure the"
+                " \'graphene_sgx\' kernel module is loaded.\n");
         return -ERRNO(gsgx_device);
+    }
+
     isgx_device = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR, 0);
-    if (IS_ERR(isgx_device))
+    if (IS_ERR(isgx_device)) {
+        SGX_DBG(DBG_E, "Cannot open device " ISGX_FILE ". Please make sure the"
+                " Intel SGX kernel module is loaded.\n");
         return -ERRNO(isgx_device);
+    }
+
     return 0;
 }
 
@@ -101,14 +109,15 @@ static size_t get_ssaframesize (uint64_t xfrm)
 
 int check_wrfsbase_support (void)
 {
-    if (gsgx_device == -1)
-        return -EACCES;
-
     uint32_t cpuinfo[4];
     cpuid(7, 0, cpuinfo);
 
-    if (!(cpuinfo[1] & 0x1))
+    if (!(cpuinfo[1] & 0x1)) {
+        SGX_DBG(DBG_E, "The WRFSBASE instruction is not permitted on this"
+                " platform. Please make sure the \'graphene_sgx\' kernel module"
+                " is loaded properly.\n");
         return 0;
+    }
 
     return 1;
 }
