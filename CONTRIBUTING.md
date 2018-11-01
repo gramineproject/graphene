@@ -19,6 +19,10 @@ by emailing:
 
   support@graphene-project.io
 
+Or you can see the archives at this google group:
+
+  https://groups.google.com/forum/#!forum/graphene-support 
+
 Simple bugfixes need not have advance discussion, but we welcome queries from newcomers.
 
 ## Pull Requests
@@ -49,9 +53,9 @@ Before a pull request is merged, it must:
   1. Pass all CI tests
   2. Follow project style guidelines (see below)
   3. Introduce no new compilation errors or warnings
-  4. Have all discussions from reviewers resolved 
+  4. Have all discussions from reviewers resolved
   5. Have a clear, concise and grammatically correct comments and commit messages.
-  6. Have a quorum of approving reviews and/or waited an appropriate amount of time for review from the maintainers.  This can be:
+  6. Have a quorum of approving reviews from maintainers and/or waited an appropriate amount of time.  This can be:
      1. 3 approving reviews
      2. 2 approving reviews and 5 days since the PR was created
      3. 1 approving review and 10 days since the PR was created, if the author is a maintainer
