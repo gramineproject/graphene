@@ -680,11 +680,8 @@ static int load_enclave (struct pal_enclave * enclave,
 #endif
 
     ret = open_gsgx();
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "cannot open device /dev/gsgx, possibly the kernel "
-                "module is not loaded.\n");
+    if (ret < 0)
         return ret;
-    }
 
     ret = check_wrfsbase_support();
     if (ret < 0)
