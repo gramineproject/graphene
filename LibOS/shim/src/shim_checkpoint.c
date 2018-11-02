@@ -558,7 +558,61 @@ static int send_checkpoint_by_cma (PAL_HANDLE stream,
         }
     }
 
+#if 1
+    /* with cma, memory entries have small size like 22 bytes
+     * so copy them into store buffer and avoid system call.
+     */
+    int mem_nentries = store->mem_nentries;
+    struct shim_mem_entry ** mem_entries;
+    if (mem_nentries) {
+        mem_entries = __alloca(sizeof(struct shim_mem_entry *) * mem_nentries);
+        int mem_cnt = mem_nentries;
+        struct shim_mem_entry * mem_ent = store->last_mem_entry;
+
+        for (; mem_ent ; mem_ent = mem_ent->prev) {
+            if (!mem_cnt)
+                return -EINVAL;
+            mem_entries[--mem_cnt] = mem_ent;
+        }
+
+        ptr_t base = store->base;
+        mem_entries  += mem_cnt;
+        mem_nentries -= mem_cnt;
+
+        for (int i = 0 ; i < mem_nentries ; i++) {
+            int mem_size = mem_entries[i]->size;
+            void * mem_addr = mem_entries[i]->addr;
+
+            mem_entries[i]->data = (void*)base + __ADD_CP_OFFSET(mem_size);
+            memcpy(mem_entries[i]->data, mem_addr, mem_size);
+            if (!(mem_entries[i]->prot & PAL_PROT_READ))
+                DkVirtualMemoryProtect(mem_addr, mem_size, mem_entries[i]->prot);
+        }
+    }
+
+    size_t total_bytes = store->offset;
+    size_t bytes = 0;
+
+    do {
+        size_t ret = DkStreamWrite(stream, PAL_OPTION_SPLICE_GIFT,
+                                   total_bytes - bytes,
+                                   (void *) store->base + bytes, NULL);
+
+        if (!ret) {
+            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN)
+                continue;
+            return -PAL_ERRNO;
+        }
+
+        bytes += ret;
+    } while (bytes < total_bytes);
+
+    ADD_PROFILE_OCCURENCE(migrate_send_on_stream, total_bytes);
+    return 0;
+#else
     return send_checkpoint_on_stream(stream, store);
+#endif
+
     /* TODO: fix up protection * if (!(mem_entries[i]->prot & PAL_PROT_READ))
      * it was changed by GBGIN_CP_FUNC(vma).
      * this fix up needs to be after receiving newproc_response from child
