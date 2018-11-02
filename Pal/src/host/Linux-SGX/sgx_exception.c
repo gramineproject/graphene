@@ -57,8 +57,6 @@
  *     }
  */
 
-//void restore_rt (void) asm ("__restore_rt");
-
 #ifndef SA_RESTORER
 #define SA_RESTORER  0x04000000
 #endif
@@ -81,7 +79,7 @@ extern void __restore_rt();
 
 void restore_rt (void) 
 {
-  __restore_rt();
+    __restore_rt();
 }
 
 #endif
@@ -94,7 +92,7 @@ int set_sighandler (int * sigs, int nsig, void * handler)
 
 #if !defined(__i386__)
     action.sa_flags |= SA_RESTORER;
-    action.sa_restorer = restore_rt; 
+    action.sa_restorer = restore_rt;
 #endif
 
     __sigemptyset((__sigset_t *) &action.sa_mask);
