@@ -40,7 +40,12 @@ GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 		https://mirrors.ocf.berkeley.edu/gnu/
 
 ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
-$(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
+GLIBC_PATCHES = \
+	$(GLIBC_SRC).patch \
+	glibc-fix-warning.patch \
+	glibc-no-pie.patch
+
+$(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 	[ -f $(GLIBC_SRC).tar.gz ] || \
 	for MIRROR in $(GLIBC_MIRRORS); do \
 		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
@@ -49,9 +54,11 @@ $(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
 	[ "`sha256sum $(GLIBC_SRC).tar.gz`" = "$(GLIBC_CHECKSUM)  $(GLIBC_SRC).tar.gz" ] || \
 		(echo "*** $(GLIBC_SRC).tar.gz has a wrong checksum ***"; exit 255)
 	tar -xzf $(GLIBC_SRC).tar.gz
-	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
-	cd $(GLIBC_SRC) && patch -p1 < ../glibc-fix-warning.patch
-	cd $(GLIBC_SRC) && patch -p1 < ../glibc-no-pie.patch
+	cd $(GLIBC_SRC) && \
+	for p in $(GLIBC_PATCHES); do \
+		echo applying $$p; \
+		patch -p1 < ../$$p; \
+	done
 endif
 
 .PHONY: clean
