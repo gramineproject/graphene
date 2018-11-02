@@ -30,10 +30,17 @@ else
 	./buildglibc.py --quiet
 endif
 
+GLIBC_MIRRORS = http://ftp.gnu.org/gnu/ \
+		https://mirrors.kernel.org/gnu/ \
+		http://mirrors.ocf.berkeley.edu/gnu/
+
 ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
 $(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
 	[ -f $(GLIBC_SRC).tar.gz ] || \
-	wget http://ftp.gnu.org/gnu/glibc/$(GLIBC_SRC).tar.gz
+	for MIRROR in $(GLIBC_MIRRORS); do \
+		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
+		&& break; \
+	done
 	tar -xzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
 	cd $(GLIBC_SRC) && patch -p1 < ../glibc-fix-warning.patch
