@@ -309,7 +309,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_brand = brand;
 
     cpuid(0xb, 1, words);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX], 0, 15);
+    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX], 0, 16);
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[WORD_EAX],  8, 12) +
