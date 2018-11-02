@@ -31,14 +31,20 @@ else
 endif
 
 ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
-$(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
+GLIBC_PATCHES = \
+	$(GLIBC_SRC).patch \
+	glibc-fix-warning.patch \
+	glibc-no-pie.patch
+
+$(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 	[ -f $(GLIBC_SRC).tar.gz ] || \
 	wget http://ftp.gnu.org/gnu/glibc/$(GLIBC_SRC).tar.gz
 	tar -xzf $(GLIBC_SRC).tar.gz
-	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
-	cd $(GLIBC_SRC) && patch -p1 < ../glibc-fix-warning.patch
-	cd $(GLIBC_SRC) && patch -p1 < ../glibc-no-pie.patch
-endif
+	cd $(GLIBC_SRC) && \
+	for p in $(GLIBC_PATCHES); do \
+		echo applying $$p; \
+		patch -p1 < ../$$p; \
+	done
 
 .PHONY: clean
 clean:
