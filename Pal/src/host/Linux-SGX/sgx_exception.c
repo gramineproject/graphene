@@ -57,8 +57,6 @@
  *     }
  */
 
-void restore_rt (void) __asm__ ("__restore_rt");
-
 #ifndef SA_RESTORER
 #define SA_RESTORER  0x04000000
 #endif
@@ -75,6 +73,11 @@ void restore_rt (void) __asm__ ("__restore_rt");
          "    syscall\n");
 
 DEFINE_RESTORE_RT(__NR_rt_sigreturn)
+
+/* Workaround for fixing an old GAS (2.27) bug that incorrectly
+ * omits relocations when referencing this symbol */
+__attribute__((visibility("hidden"))) void __restore_rt(void);
+
 #endif
 
 int set_sighandler (int * sigs, int nsig, void * handler)
@@ -85,7 +88,7 @@ int set_sighandler (int * sigs, int nsig, void * handler)
 
 #if !defined(__i386__)
     action.sa_flags |= SA_RESTORER;
-    action.sa_restorer = restore_rt;
+    action.sa_restorer = __restore_rt;
 #endif
 
     __sigemptyset((__sigset_t *) &action.sa_mask);
