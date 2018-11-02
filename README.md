@@ -68,7 +68,8 @@ source tree:
 Each part of Graphene can be built separately in the subdirectories.
 
 To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
-"make".
+"make". To specify custom mirrors for downloading the GLIBC source, use
+"GLIBC_MIRRORS=..." when running "make".
 
 ### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
 
