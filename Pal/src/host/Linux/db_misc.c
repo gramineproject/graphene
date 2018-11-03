@@ -186,7 +186,7 @@ int _DkSegmentRegisterSet (int reg, const void * addr)
     if (reg == PAL_SEGMENT_FS) {
         ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_FS, addr);
     } else if (reg == PAL_SEGMENT_GS) {
-        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, addr);
+        return -PAL_ERROR_DENIED;
     } else {
         return -PAL_ERROR_INVAL;
     }
@@ -216,7 +216,8 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
     if (reg == PAL_SEGMENT_FS) {
         ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_FS, &ret_addr);
     } else if (reg == PAL_SEGMENT_GS) {
-        ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_GET_GS, &ret_addr);
+        // The GS segment is used for the internal TCB of PAL
+        return -PAL_ERROR_DENIED;
     } else {
         return -PAL_ERROR_INVAL;
     }
