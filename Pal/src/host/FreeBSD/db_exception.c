@@ -206,8 +206,6 @@ struct exception_handler * pal_handlers [PAL_EVENT_NUM_BOUND] = {
         &handler_Failure,
     };
 
-#define SIGNAL_MASK_TIME 1000
-
 #define save_return_point(ptr)                      \
     asm volatile ("leaq 0(%%rip), %%rax\r\n"        \
                   "movq %%rax, %0\r\n"              \
