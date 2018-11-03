@@ -172,4 +172,27 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define DATA_START (void *) (&__text_start)
 #define DATA_END   (void *) (&__text_end)
 
+#define ADDR_IN_PAL(addr) \
+        ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
+
+typedef struct pal_tcb {
+    struct pal_tcb *  self;
+    int               pending_event;
+    PAL_HANDLE        handle;
+    void *            alt_stack;
+    int               (*callback) (void *);
+    void *            param;
+} PAL_TCB;
+
+int pal_thread_init (void * tcbptr);
+
+static inline PAL_TCB * get_tcb (void)
+{
+    PAL_TCB * tcb;
+    asm ("movq %%gs:%c1,%q0"
+         : "=r" (tcb)
+         : "i" (offsetof(PAL_TCB, self)));
+    return tcb;
+}
+
 #endif /* PAL_LINUX_H */

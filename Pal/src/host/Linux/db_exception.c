@@ -29,6 +29,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_debug.h"
 #include "pal_error.h"
 #include "pal_security.h"
 #include "api.h"
@@ -114,13 +115,7 @@ typedef struct {
     PAL_IDX         event_num;
     PAL_CONTEXT     context;
     ucontext_t *    uc;
-    PAL_PTR         eframe;
 } PAL_EVENT;
-
-#define save_return_point(ptr)                      \
-    asm volatile ("leaq 0(%%rip), %%rax\r\n"        \
-                  "movq %%rax, %0\r\n"              \
-                  : "=b"(ptr) :: "memory", "rax")
 
 static int get_event_num (int signum)
 {
@@ -136,8 +131,7 @@ static int get_event_num (int signum)
 }
 
 void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
-                             PAL_NUM arg, struct pal_frame * frame,
-                             ucontext_t * uc, void * eframe)
+                             PAL_NUM arg, ucontext_t * uc)
 {
     PAL_EVENT event;
     event.event_num = event_num;
@@ -145,31 +139,13 @@ void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
     if (uc)
         memcpy(&event.context, uc->uc_mcontext.gregs, sizeof(PAL_CONTEXT));
 
-    if (frame) {
-        event.context.r15 = frame->arch.r15;
-        event.context.r14 = frame->arch.r14;
-        event.context.r13 = frame->arch.r13;
-        event.context.r12 = frame->arch.r12;
-        event.context.rdi = frame->arch.rdi;
-        event.context.rsi = frame->arch.rsi;
-        event.context.rbx = frame->arch.rbx;
-        /* find last frame */
-        event.context.rsp = frame->arch.rbp + sizeof(unsigned long) * 2;
-        event.context.rbp = ((unsigned long *) frame->arch.rbp)[0];
-        event.context.rip = ((unsigned long *) frame->arch.rbp)[1];
-        /* making rax = 0 to tell the caller that this PAL call failed */
-        event.context.rax = 0;
-    }
-
     event.uc = uc;
-    event.eframe = eframe;
 
     (*upcall) ((PAL_PTR) &event, arg, &event.context);
 }
 
 static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
-                                    struct pal_frame * frame,
-                                    ucontext_t * uc, void * eframe)
+                                    ucontext_t * uc)
 {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
 
@@ -181,64 +157,11 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
             event_num == PAL_EVENT_ILLEGAL)
             arg = (PAL_NUM) (info ? info->si_addr : 0);
 
-        _DkGenericEventTrigger(event_num, upcall, arg, frame, uc, eframe);
+        _DkGenericEventTrigger(event_num, upcall, arg, uc);
         return true;
     }
 
     return false;
-}
-
-#define ADDR_IN_PAL(addr) \
-        ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
-
-/* This function walks the stack to find the PAL_FRAME
- * that was saved upon entry to the PAL, if an exception/interrupt
- * comes in during a PAL call.  This is needed to support the behavior that an
- * exception in the PAL has Unix-style, EAGAIN semantics.
- * 
- * The PAL_FRAME is supposed to be in the first PAL frame, and we look for 
- * it by matching a special magic number, that should only appear on the stack
- * once.
- * 
- * If an exception comes in while we are not in the PAL, this PAL_FRAME won't
- * exist, and it is ok to return NULL.
- */
-static struct pal_frame * get_frame (ucontext_t * uc)
-{
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
-    unsigned long rbp = uc->uc_mcontext.gregs[REG_RBP];
-    unsigned long last_rbp = rbp - 64;
-
-    if (!ADDR_IN_PAL(rip))
-        return NULL;
-
-    while (ADDR_IN_PAL(((unsigned long *) rbp)[1])) {
-        last_rbp = rbp;
-        rbp = *(unsigned long *) rbp;
-    }
-
-    /* search frame record in the top frame of PAL */
-    for (unsigned long ptr = rbp - sizeof(unsigned long) ;
-         ptr > last_rbp ; ptr -= 8) {
-        struct pal_frame * frame = (struct pal_frame *) ptr;
-        if (frame->identifier == PAL_FRAME_IDENTIFIER)
-            return frame;
-    }
-
-    return NULL;
-}
-
-static void return_frame (struct pal_frame * frame, int err)
-{
-    if (err)
-        _DkRaiseFailure(err);
-
-    __clear_frame(frame);
-    arch_restore_frame(&frame->arch);
-
-    asm volatile ("xor %rax, %rax\r\n"
-                  "leaveq\r\n"
-                  "retq\r\n");
 }
 
 #if BLOCK_SIGFAULT == 1
@@ -263,49 +186,62 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
     }
 #endif
 
-    struct pal_frame * frame = get_frame(uc);
-    void * eframe;
-
-    if (signum == SIGCONT && frame && frame->func == DkObjectsWaitAny)
-        return;
-
-    asm volatile ("movq %%rbp, %0" : "=r"(eframe));
-
-    if (frame && frame->func != &_DkGenericSighandler &&
-        signum != SIGCONT &&
-        signum != SIGINT  &&
-        signum != SIGTERM) {
-        return_frame(frame, PAL_ERROR_BADADDR);
-        return;
-    }
-
     int event_num = get_event_num(signum);
     if (event_num == -1)
         return;
 
-    _DkGenericSignalHandle(event_num, info, frame, uc, eframe);
+    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    if (ADDR_IN_PAL(rip)) {
+        _DkThreadExit();
+        return;
+    }
+
+    _DkGenericSignalHandle(event_num, info, uc);
 }
 
 static void _DkTerminateSighandler (int signum, siginfo_t * info,
                                     struct ucontext * uc)
 {
-    struct pal_frame * frame = get_frame(uc);
-    void * eframe;
-
-    asm volatile ("movq %%rbp, %0" : "=r"(eframe));
-
     int event_num = get_event_num(signum);
     if (event_num == -1)
         return;
 
-    if (!_DkGenericSignalHandle(event_num, NULL, frame, uc, eframe))
+    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+
+    // If the signal arrives in the middle of a PAL call, add the event
+    // to pending in the current TCB.
+    if (ADDR_IN_PAL(rip)) {
+        PAL_TCB * tcb = get_tcb();
+        assert(tcb);
+        tcb->pending_event = event_num;
+        return;
+    }
+
+    if (!_DkGenericSignalHandle(event_num, NULL, uc))
         _DkThreadExit();
 }
 
 static void _DkPipeSighandler (int signum, siginfo_t * info,
                                struct ucontext * uc)
 {
+    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    assert(ADDR_IN_PAL(rip)); // This signal can only happens inside PAL
     return;
+}
+
+/*
+ * __check_pending_event(): checks the existence of a pending event in the TCB
+ * and handles the event consequently.
+ */
+void __check_pending_event (void)
+{
+    PAL_TCB * tcb = get_tcb();
+    assert(tcb);
+    if (tcb->pending_event) {
+        int event = tcb->pending_event;
+        tcb->pending_event = 0;
+        _DkGenericSignalHandle(event, NULL, NULL);
+    }
 }
 
 void _DkRaiseFailure (int error)
@@ -318,7 +254,6 @@ void _DkRaiseFailure (int error)
     PAL_EVENT event;
     event.event_num = PAL_EVENT_FAILURE;
     event.uc = NULL;
-    event.eframe = NULL;
 
     (*upcall) ((PAL_PTR) &event, error, NULL);
 }
@@ -340,7 +275,7 @@ struct signal_ops on_signals[] = {
         [PAL_EVENT_SUSPEND]     = { .signum = { SIGINT, 0 },
                                     .handler = _DkTerminateSighandler },
         [PAL_EVENT_RESUME]      = { .signum = { SIGCONT, 0 },
-                                    .handler = _DkGenericSighandler },
+                                    .handler = _DkTerminateSighandler },
     };
 
 static int _DkPersistentSighandlerSetup (int event_num)
@@ -389,28 +324,6 @@ err:
 void _DkExceptionReturn (void * event)
 {
     PAL_EVENT * e = event;
-
-    if (e->eframe) {
-        struct pal_frame * frame = (struct pal_frame *) e->eframe;
-        int err = 0;
-
-        switch (e->event_num) {
-            case PAL_EVENT_MEMFAULT:
-                err = PAL_ERROR_BADADDR;
-                break;
-            case PAL_EVENT_QUIT:
-            case PAL_EVENT_SUSPEND:
-            case PAL_EVENT_RESUME:
-                err = PAL_ERROR_INTERRUPTED;
-                break;
-        }
-
-        if (err)
-            _DkRaiseFailure(err);
-
-        __clear_frame(frame);
-    }
-
     if (e->uc) {
         /* copy the context back to ucontext */
         memcpy(e->uc->uc_mcontext.gregs, &e->context, sizeof(PAL_CONTEXT));

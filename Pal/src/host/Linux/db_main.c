@@ -229,6 +229,21 @@ void pal_linux_main (void * args)
 
     init_slab_mgr(pagesz);
 
+    first_thread = malloc(HANDLE_SIZE(thread));
+    SET_HANDLE_TYPE(first_thread, thread);
+    first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
+
+    void * alt_stack = NULL;
+    _DkVirtualMemoryAlloc(&alt_stack, pagesz, 0, PAL_PROT_READ|PAL_PROT_WRITE);
+    alt_stack += pagesz;
+    PAL_TCB * tcb  = alt_stack - sizeof(PAL_TCB);
+    tcb->self      = tcb;
+    tcb->handle    = first_thread;
+    tcb->alt_stack = alt_stack;
+    tcb->callback  = NULL;
+    tcb->param     = NULL;
+    pal_thread_init(tcb);
+
     setup_pal_map(&pal_map);
 
 #if USE_VDSO_GETTIME == 1
@@ -285,10 +300,6 @@ done_init:
         _DkProcessExit(0);
         return;
     }
-
-    first_thread = malloc(HANDLE_SIZE(thread));
-    SET_HANDLE_TYPE(first_thread, thread);
-    first_thread->thread.tid = linux_state.pid;
 
     signal_setup();
 
