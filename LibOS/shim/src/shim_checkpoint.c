@@ -1256,6 +1256,10 @@ void restore_context (struct shim_context * context)
     regs[nregs] = (void *) context->sp - 8;
     *(void **) (context->sp - 8) = context->ret_ip;
 
+    /* Ready to resume execution, re-enable preemption. */
+    shim_tcb_t * tcb = SHIM_GET_TLS();
+    __enable_preempt(tcb);
+
     memset(context, 0, sizeof(struct shim_context));
 
     asm volatile("movq %0, %%rsp\r\n"

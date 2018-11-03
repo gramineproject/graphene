@@ -380,9 +380,6 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     bool need_restart = false;
     type = type ? (type & port->info.type) : port->info.type;
 
-    port->deleted = true; /* prevent further usage of the port */
-    wmb(); /* commit the state to the memory */
-
     if ((type & IPC_PORT_KEEPALIVE) ^
         (port->info.type & IPC_PORT_KEEPALIVE))
         need_restart = true;
@@ -410,6 +407,26 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
         listp_del_init(port, head, hlist);
         __put_ipc_port(port);
     }
+
+    port->deleted = true; /* prevent further usage of the port */
+    wmb(); /* commit the state to the memory */
+
+    // Need to check if there is any pending messages on the port, which means
+    // some threads might be blocking for responses.
+    lock(port->msgs_lock);
+    if (!list_empty(port, list)) {
+        struct shim_ipc_msg_obj * msg, * n;
+
+        listp_for_each_entry_safe(msg, n, &port->msgs, list) {
+            listp_del_init(msg, &port->msgs, list);
+            msg->retval = -ECONNRESET;
+            if (msg->thread) {
+                debug("wake up thread %d\n", msg->thread->tid);
+                thread_wakeup(msg->thread);
+            }
+        }
+    }
+    unlock(port->msgs_lock);
 
 out:
     port->update = true;
@@ -473,27 +490,11 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
             (fini[i])(port, vmid, exitcode);
     }
 
-    lock(port->msgs_lock);
-
-    if (!list_empty(port, list)) {
-        struct shim_ipc_msg_obj * msg, * n;
-
-        listp_for_each_entry_safe(msg, n, &port->msgs, list) {
-            listp_del_init(msg, &port->msgs, list);
-            msg->retval = -ECONNRESET;
-            if (msg->thread) {
-                debug("wake up thread %d\n", msg->thread->tid);
-                thread_wakeup(msg->thread);
-            }
-        }
-    }
-
     put_ipc_port(port);
     assert(REF_GET(port->ref_count) > 0);
 
     if (need_restart)
         restart_ipc_helper(false);
-    unlock(port->msgs_lock);
 }
 
 static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)

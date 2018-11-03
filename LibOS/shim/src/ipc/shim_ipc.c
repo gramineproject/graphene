@@ -396,9 +396,12 @@ int send_ipc_message (struct shim_ipc_msg * msg, struct shim_ipc_port * port)
 int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                               struct shim_ipc_port * port)
 {
-    if (port && !list_empty(msg, list)) {
+    if (port) {
+        // Check if the message is pending on the port for response. If so,
+        // remove the message from the list.
         lock(port->msgs_lock);
-        listp_del_init(msg, &port->msgs, list);
+        if (!list_empty(msg, list))
+            listp_del_init(msg, &port->msgs, list);
         unlock(port->msgs_lock);
     }
 
