@@ -435,8 +435,14 @@ out:
 
 void del_ipc_port (struct shim_ipc_port * port, int type)
 {
+    // If the port is already deleted, don't delete it again.
+    if (port->deleted)
+        return;
+
     lock(ipc_helper_lock);
+    __get_ipc_port(port); // Bump the refcount to prevent freeing
     bool need_restart = __del_ipc_port(port, type);
+    __put_ipc_port(port);
 
     if (need_restart)
         restart_ipc_helper(false);
@@ -457,13 +463,16 @@ void del_ipc_port_by_id (IDTYPE vmid, int type)
               port, port->pal_handle, port->info.vmid, head);
 
         if (port->info.vmid == vmid) {
-            if (__del_ipc_port(port, type))
+            __get_ipc_port(port); // Bump the refcount to prevent freeing
+            if (!port->deleted && __del_ipc_port(port, type))
                 need_restart = true;
+            __put_ipc_port(port);
         }
     }
 
     if (need_restart)
         restart_ipc_helper(false);
+
     unlock(ipc_helper_lock);
 }
 
@@ -490,6 +499,8 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
             (fini[i])(port, vmid, exitcode);
     }
 
+    // We are not holding ipc_helper_lock here, so need to call put_ipc_port()
+    // instead of __put_ipc_port();
     put_ipc_port(port);
     assert(REF_GET(port->ref_count) > 0);
 
@@ -538,9 +549,12 @@ void del_all_ipc_ports (int type)
 
     lock(ipc_helper_lock);
 
-    listp_for_each_entry_safe(pobj, n, &pobj_list, list)
+    listp_for_each_entry_safe(pobj, n, &pobj_list, list) {
+        __get_ipc_port(pobj);
         if (pobj->pal_handle && __del_ipc_port(pobj, type))
             need_restart = true;
+        __put_ipc_port(pobj);
+    }
 
     if (need_restart)
         restart_ipc_helper(false);
@@ -915,7 +929,9 @@ update_list:
         for (int i = 0 ; i < port_num ; i++) {
             struct shim_ipc_port * pobj = local_pobjs[i];
 
-            if (list_empty(pobj, list)) {
+            // If the port is removed from the list or intended to be deleted,
+            // remove the port from the polling array
+            if (list_empty(pobj, list) || pobj->deleted) {
                 if (polled == pobj->pal_handle) {
                     polled = NULL;
                     count = -1;
@@ -1005,7 +1021,7 @@ end:
     barrier();
     if (ipc_helper_state == HELPER_HANDEDOVER) {
         debug("ipc helper thread is the last thread, process exiting\n");
-        shim_clean();
+        shim_terminate(); // Same as shim_clean(), but this is the official termination function
     }
 
     lock(ipc_helper_lock);
