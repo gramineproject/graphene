@@ -748,6 +748,12 @@ static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
     put_ipc_info(info);
 }
 
+/*
+ * __discover_ns(): Discover the leader of this namespace.
+ * @block: Whether to block for discovery.
+ * @need_connect: Need a port to connect to the leader.
+ * @need_locate: Need the location information of the leader.
+ */
 static void __discover_ns (bool block, bool need_connect, bool need_locate)
 {
     if (NS_LEADER) {
@@ -762,38 +768,56 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
                                  &ipc_leader_exit);
                 }
             }
-            return;
+            goto out;
         }
 
         if ((need_connect || need_locate) && !qstrempty(&NS_LEADER->uri))
-            return;
+            goto out;
     }
+
+    /*
+     * Now we need to discover the leader through IPC. Because IPC calls can be blocking,
+     * we need to temporarily release cur_process.lock to prevent deadlocks. If the discovery
+     * succeeds, NS_LEADER will contain the IPC information of the namespace leader.
+     */
 
     unlock(cur_process.lock);
 
-    /* now we have to discover the leader */
-    if (!NS_SEND(findns)(block))
-        return;
+    if (!NS_SEND(findns)(block)) {
+        assert(NS_LEADER);
+        lock(cur_process.lock);
+        goto out;
+    }
 
     lock(cur_process.lock);
 
     if (NS_LEADER && (!need_locate || !qstrempty(&NS_LEADER->uri)))
-        return;
+        goto out;
 
     /* if all other ways failed, the process become a manager */
     if (!need_locate) {
         NS_LEADER = get_new_ipc_info(cur_process.vmid, NULL, 0);
-        return;
+        goto out;
     }
 
     if (NS_LEADER)
         put_ipc_info(NS_LEADER);
 
     if (!(NS_LEADER = create_ipc_port(cur_process.vmid, true)))
-        return;
+        goto out;
 
-    add_ipc_port(NS_LEADER->port, NS_LEADER->vmid, IPC_PORT_CLT,
-                 &ipc_leader_exit);
+    add_ipc_port(NS_LEADER->port, 0, IPC_PORT_CLT, &ipc_leader_exit);
+
+out:
+    if (NS_LEADER) {
+        // Assertions for checking the correctness of __recover_ns()
+        if (need_connect)
+            assert(NS_LEADER->vmid == cur_process.vmid  // The current process is the leader;
+                   || NS_LEADER->port                   // Or there is a connected port
+                   || !qstrempty(&NS_LEADER->uri));     // Or there is a known URI
+        if (need_locate)
+            assert(!qstrempty(&NS_LEADER->uri));        // A known URI is needed
+    }
 }
 
 static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
