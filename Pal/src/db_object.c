@@ -89,7 +89,7 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
 
     for (int i = 0 ; i < count ; i++)
         // We modify the caller's handleArray?
-        if (UNKNOWN_HANDLE(handleArray[i]))
+        if (handleArray[i] && UNKNOWN_HANDLE(handleArray[i]))
             handleArray[i] = NULL;
 
     PAL_HANDLE polled = NULL;
