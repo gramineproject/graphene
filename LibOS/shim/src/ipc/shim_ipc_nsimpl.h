@@ -792,7 +792,7 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
     if (NS_LEADER && (!need_locate || !qstrempty(&NS_LEADER->uri)))
         goto out;
 
-    /* if all other ways failed, the process become a manager */
+    // If all other ways failed, the current process become the leader
     if (!need_locate) {
         NS_LEADER = get_new_ipc_info(cur_process.vmid, NULL, 0);
         goto out;
@@ -804,11 +804,12 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
     if (!(NS_LEADER = create_ipc_port(cur_process.vmid, true)))
         goto out;
 
+    // Finally, set the IPC port as a leadership port
     add_ipc_port(NS_LEADER->port, 0, IPC_PORT_CLT, &ipc_leader_exit);
 
 out:
     if (NS_LEADER) {
-        // Assertions for checking the correctness of __recover_ns()
+        // Assertions for checking the correctness of __discover_ns()
         if (need_connect)
             assert(NS_LEADER->vmid == cur_process.vmid  // The current process is the leader;
                    || NS_LEADER->port                   // Or there is a connected port
@@ -1011,12 +1012,13 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
 
     int ret = 0;
     lock(cur_process.lock);
-    __discover_ns(false, true, true);
-    if (NS_LEADER) {
-        /* After __discover_ns, the leader should has its own port */
-        assert(!qstrempty(&NS_LEADER->uri));
+    __discover_ns(false, true, true); // Do a non-blocking discovery
+
+    if (NS_LEADER && !qstrempty(&NS_LEADER->uri)) {
+        // Got the answer! Send back the discovery now.
         ret = NS_SEND(tellns)(port, msg->src, NS_LEADER, msg->seq);
     } else {
+        // Don't know the answer yet, set up a callback for sending the discovery later.
         struct ns_query * query = malloc(sizeof(struct ns_query));
         if (query) {
             query->dest = msg->src;
@@ -1080,6 +1082,9 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
             goto out;
         }
     }
+
+    assert(NS_LEADER->vmid != 0);
+    assert(!qstrempty(&NS_LEADER->uri));
 
     struct ns_query * query, * pos;
 
