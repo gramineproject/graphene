@@ -95,7 +95,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, uint64_t timeout)
 
     const struct handle_ops * ops = HANDLE_OPS(handle);
 
-    if (!ops->wait)
+    if (!ops || !ops->wait)
         return -PAL_ERROR_NOTSUPPORT;
 
     return ops->wait(handle, timeout);
@@ -110,8 +110,13 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
         return 0;
 
     if (count == 1) {
-        *polled = handleArray[0];
-        return _DkObjectWaitOne(handleArray[0], timeout);
+        if (!handleArray[0])
+            return -PAL_ERROR_TRYAGAIN;
+
+        int rv = _DkObjectWaitOne(handleArray[0], timeout);
+        if (rv == 0)
+            *polled = handleArray[0];
+        return rv;
     }
 
     int i, j, ret, maxfds = 0, nfds = 0;
