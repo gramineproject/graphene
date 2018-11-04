@@ -746,8 +746,16 @@ static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
     put_ipc_info(info);
 }
 
-static void __discover_ns (bool block, bool need_connect, bool need_locate)
+/*
+ * __discover_ns(): Discover the leader of this namespace.
+ * @block: Whether to block for discovery.
+ * @need_locate: Need the location information of the leader.
+ */
+static void __discover_ns (bool block, bool need_locate)
 {
+    bool ipc_pending = false;
+    lock(cur_process.lock);
+
     if (NS_LEADER) {
         if (NS_LEADER->vmid == cur_process.vmid) {
             if (need_locate && qstrempty(&NS_LEADER->uri)) {
@@ -760,44 +768,67 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
                                  &ipc_leader_exit);
                 }
             }
-            return;
+            goto out;
         }
 
-        if ((need_connect || need_locate) && !qstrempty(&NS_LEADER->uri))
-            return;
+        if (!qstrempty(&NS_LEADER->uri))
+            goto out;
     }
+
+    /*
+     * Now we need to discover the leader through IPC. Because IPC calls can be blocking,
+     * we need to temporarily release cur_process.lock to prevent deadlocks. If the discovery
+     * succeeds, NS_LEADER will contain the IPC information of the namespace leader.
+     */
 
     unlock(cur_process.lock);
 
-    /* now we have to discover the leader */
-    if (!NS_SEND(findns)(block))
-        return;
+    // Send out an IPC message to find out the namespace information.
+    // If the call is non-blocking, can't expect the answer when the function finishes.
+    if (!NS_SEND(findns)(block)) {
+        ipc_pending = !block; // There is still some unfinished business with IPC
+        lock(cur_process.lock);
+        assert(NS_LEADER);
+        goto out;
+    }
 
     lock(cur_process.lock);
 
     if (NS_LEADER && (!need_locate || !qstrempty(&NS_LEADER->uri)))
-        return;
+        goto out;
 
-    /* if all other ways failed, the process become a manager */
+    // If all other ways failed, the current process becomes the leader
     if (!need_locate) {
         NS_LEADER = get_new_ipc_info(cur_process.vmid, NULL, 0);
-        return;
+        goto out;
     }
 
     if (NS_LEADER)
         put_ipc_info(NS_LEADER);
 
     if (!(NS_LEADER = create_ipc_port(cur_process.vmid, true)))
-        return;
+        goto out;
 
-    add_ipc_port(NS_LEADER->port, NS_LEADER->vmid, IPC_PORT_CLT,
-                 &ipc_leader_exit);
+    // Finally, set the IPC port as a leadership port
+    add_ipc_port(NS_LEADER->port, 0, IPC_PORT_CLT, &ipc_leader_exit);
+
+out:
+    if (NS_LEADER && !ipc_pending) {
+        // Assertions for checking the correctness of __discover_ns()
+        assert(NS_LEADER->vmid == cur_process.vmid  // The current process is the leader;
+               || NS_LEADER->port                   // Or there is a connected port
+               || !qstrempty(&NS_LEADER->uri));     // Or there is a known URI
+        if (need_locate)
+            assert(!qstrempty(&NS_LEADER->uri));        // A known URI is needed
+    }
+
+    unlock(cur_process.lock);
 }
 
 static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
 {
+    __discover_ns(true, false); // Should not hold cur_process.lock
     lock(cur_process.lock);
-    __discover_ns(true, true, false);
 
     if (!NS_LEADER) {
         unlock(cur_process.lock);
@@ -861,14 +892,11 @@ static int disconnect_ns(struct shim_ipc_port * port)
 int CONCAT3(prepare, NS, leader) (void)
 {
     lock(cur_process.lock);
-
-    if (!NS_LEADER) {
-        unlock(cur_process.lock);
-        return 0;
-    }
-
-    __discover_ns(true, true, true);
+    bool need_discover = (!NS_LEADER || qstrempty(&NS_LEADER->uri));
     unlock(cur_process.lock);
+
+    if (need_discover)
+        __discover_ns(true, true); // Should not hold cur_process.lock
     return 0;
 }
 
@@ -986,13 +1014,14 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
           msg->src);
 
     int ret = 0;
+    __discover_ns(false, true); // Non-blocking discovery; should not hold cur_process.lock
     lock(cur_process.lock);
-    __discover_ns(false, true, true);
-    if (NS_LEADER) {
-        /* After __discover_ns, the leader should has its own port */
-        assert(!qstrempty(&NS_LEADER->uri));
+
+    if (NS_LEADER && !qstrempty(&NS_LEADER->uri)) {
+        // Got the answer! Send back the discovery now.
         ret = NS_SEND(tellns)(port, msg->src, NS_LEADER, msg->seq);
     } else {
+        // Don't know the answer yet, set up a callback for sending the discovery later.
         struct ns_query * query = malloc(sizeof(struct ns_query));
         if (query) {
             query->dest = msg->src;
@@ -1056,6 +1085,9 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
             goto out;
         }
     }
+
+    assert(NS_LEADER->vmid != 0);
+    assert(!qstrempty(&NS_LEADER->uri));
 
     struct ns_query * query, * pos;
 
