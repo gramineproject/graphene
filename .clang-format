@@ -1,0 +1,8 @@
+BasedOnStyle: Google
+AlignConsecutiveAssignments: true
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+ColumnLimit:     100
+IndentWidth:     4
+ObjCBlockIndentWidth: 4
+TabWidth:        4
