@@ -192,6 +192,20 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
 
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
     if (ADDR_IN_PAL(rip)) {
+        // We expect none of the memory faults, illegal instructions, or arithmetic exceptions
+        // will happen in PAL. If these exceptions happen in PAL, exit the thread with loud warning.
+        int pid = INLINE_SYSCALL(getpid, 0);
+        int tid = INLINE_SYSCALL(gettid, 0);
+        char * name = "exception";
+        switch(event_num) {
+            case PAL_EVENT_DIVZERO:  name = "div-by-zero exception"; break;
+            case PAL_EVENT_MEMFAULT: name = "memory fault"; break;
+            case PAL_EVENT_ILLEGAL:  name = "illegal instruction"; break;
+        }
+
+        printf("*** An unexpected %s occured inside PAL. Exiting the thread. "
+               "(PID = %d, TID = %d, RIP = +%p) ***\n",
+               name, pid, tid, rip - (uintptr_t) TEXT_START);
         _DkThreadExit();
         return;
     }
