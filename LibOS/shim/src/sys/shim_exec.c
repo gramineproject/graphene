@@ -110,7 +110,8 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     new_argc = 0;
     for (const char ** a = argv ; *a ; a++, new_argc++);
 
-    if ((ret = init_stack(argv, envp, &new_argp,
+    int * new_argcp = &new_argc;
+    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp,
                           REQUIRED_ELF_AUXV, &new_auxp)) < 0)
         return ret;
 
@@ -195,7 +196,7 @@ retry_dump_vmas:
 #endif
 
     debug("execve: start execution\n");
-    execute_elf_object(cur_thread->exec, new_argc, new_argp,
+    execute_elf_object(cur_thread->exec, new_argcp, new_argp,
                        REQUIRED_ELF_AUXV, new_auxp);
 
     return 0;

@@ -1553,11 +1553,13 @@ int register_library (const char * name, unsigned long load_address)
     return 0;
 }
 
-int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
+int execute_elf_object (struct shim_handle * exec,
+                        int * argcp, const char ** argp,
                         int nauxv, ElfW(auxv_t) * auxp)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
+    assert((void*)argcp + sizeof(long) == argp);
 
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
@@ -1580,14 +1582,10 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
 #if defined(__x86_64__)
     asm volatile (
                     "movq %%rbx, %%rsp\r\n"
-                    "pushq %%rdi\r\n"
                     "jmp *%%rax\r\n"
-
                     :
                     : "a"(entry),
-                    "b"(argp),
-                    "D"(argc)
-
+                      "b"(argcp)
                     : "memory");
 #else
 # error "architecture not supported"

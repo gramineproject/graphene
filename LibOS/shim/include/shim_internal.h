@@ -740,6 +740,9 @@ extern const char ** initial_envp;
 #define ALIGN_DOWN(addr)    \
     ((typeof(addr)) (((unsigned long) addr) & allocmask))
 
+#define ALIGN_DOWN_PTR(ptr, size)   \
+    ((typeof(ptr))(((uintptr_t)(ptr)) & -(size)))
+
 #define switch_stack(stack_top)                                     \
     ({                                                              \
         void * _rsp, * _rbp;                                        \
