@@ -147,7 +147,9 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
 
-    if (!tcb || !tcb->tp)
+    // Signals should not be delivered before the user process starts
+    // or after the user process dies.
+    if (!tcb || !tcb->tp || !cur_thread_is_alive())
         return;
 
     struct shim_thread * cur_thread = (struct shim_thread *) tcb->tp;
@@ -239,13 +241,6 @@ static void divzero_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (context)
         debug("arithmetic fault at %p\n", context->IP);
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
-
-    // Signals should not be delivered before the user process starts
-    // or after the user process dies.
-    if (!tcb || !tcb->tp || !cur_thread_is_alive())
-        goto ret_exception;
-
     deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV, si_addr, (void *) arg), context);
 
 ret_exception:
@@ -273,11 +268,6 @@ internal:
 
     if (context)
         debug("memory fault at %p (IP = %p)\n", arg, context->IP);
-
-    // Signals should not be delivered before the user process starts
-    // or after the user process dies.
-    if (!tcb || !tcb->tp || !cur_thread_is_alive())
-        goto ret_exception;
 
     struct shim_vma_val vma;
     int signo = SIGSEGV;
@@ -423,15 +413,6 @@ internal:
         goto ret_exception;
     }
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
-
-    // Signals should not be delivered before the user process starts
-    // or after the user process dies.
-    if (!tcb || !tcb->tp || !cur_thread_is_alive()) {
-        debug("ignore illegal exception\n");
-        goto ret_exception;
-    }
-
     struct shim_vma_val vma;
 
     if (!(lookup_vma((void *) arg, &vma)) &&
@@ -453,13 +434,6 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (IS_INTERNAL_TID(get_cur_tid()))
         goto ret_exception;
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
-
-    // Signals should not be delivered before the user process starts
-    // or after the user process dies.
-    if (!tcb || !tcb->tp || !cur_thread_is_alive())
-        goto ret_exception;
-
     deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
 
 ret_exception:
@@ -470,13 +444,6 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     if (IS_INTERNAL_TID(get_cur_tid()))
         goto ret_exception;
-
-    shim_tcb_t * tcb = SHIM_GET_TLS();
-
-    if (!tcb || !tcb->tp || !cur_thread_is_alive()) {
-        debug("ignore suspend exception\n");
-        goto ret_exception;
-    }
 
     deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
 
