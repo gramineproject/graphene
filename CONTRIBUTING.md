@@ -21,7 +21,7 @@ by emailing:
 
 Or you can see the archives at this google group:
 
-  https://groups.google.com/forum/#!forum/graphene-support 
+  https://groups.google.com/forum/#!forum/graphene-support
 
 Simple bugfixes need not have advance discussion, but we welcome queries from newcomers.
 
@@ -44,7 +44,7 @@ In general, a PR should:
 4. Reviewers add comments to the changes.
 5. The author discusses the remarks and implements fixes in separate commits. Loop to point 4. until all comments are resolved and all reviewers mark the PR as approved.
 6. The author squashes fix-up commits with original ones, rebases them to current master (in case of conflicts) and push-forces the final version of the changes.
-7. The reviewer is responsible for ensuring that the squash is a real squash without any additional changes (except resolving conflicts). Only after that they can execute rebase+merge to master. 
+7. The reviewer is responsible for ensuring that the squash is a real squash without any additional changes (except resolving conflicts). Only after that they can execute rebase+merge to master.
 
 ### PR Merging Policy
 
