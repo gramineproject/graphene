@@ -754,7 +754,7 @@ static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
  */
 static void __discover_ns (bool block, bool need_connect, bool need_locate)
 {
-    bool wait_for_ipc = false;
+    bool ipc_pending = false;
 
     if (NS_LEADER) {
         if (NS_LEADER->vmid == cur_process.vmid) {
@@ -783,8 +783,10 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
 
     unlock(cur_process.lock);
 
+    // Send out an IPC message to find out the namespace information.
+    // If the call is non-blocking, can't expect the answer when the function finishes.
     if (!NS_SEND(findns)(block)) {
-        wait_for_ipc = !block;
+        ipc_pending = !block; // There is still some unfinished business with IPC
         assert(NS_LEADER);
         lock(cur_process.lock);
         goto out;
@@ -811,7 +813,7 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
     add_ipc_port(NS_LEADER->port, 0, IPC_PORT_CLT, &ipc_leader_exit);
 
 out:
-    if (NS_LEADER && !wait_for_ipc) {
+    if (NS_LEADER && !ipc_pending) {
         // Assertions for checking the correctness of __discover_ns()
         if (need_connect)
             assert(NS_LEADER->vmid == cur_process.vmid  // The current process is the leader;
