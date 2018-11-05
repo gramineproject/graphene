@@ -115,7 +115,7 @@ static int open_standard_term(PAL_HANDLE *handle, const char *param, int access)
 /* 'open' operation for terminal stream */
 static int term_open(PAL_HANDLE *handle, const char *type, const char *uri, int access, int share,
                      int create, int options) {
-    const char *term = NULL;
+    const char *term  = NULL;
     const char *param = NULL;
 
     const char *tmp = uri;
@@ -135,39 +135,38 @@ static int term_open(PAL_HANDLE *handle, const char *type, const char *uri, int 
     return open_standard_term(handle, param, access);
 }
 
-static int term_close(PAL_HANDLE handle) { return 0; }
+static int term_close(PAL_HANDLE handle) {
+    return 0;
+}
 
 /* 'attrquery' operation for terminal stream */
 static int term_attrquery(const char *type, const char *uri, PAL_STREAM_ATTR *attr) {
-    attr->handle_type = pal_type_dev;
-    attr->readable = PAL_TRUE;
-    attr->writeable = PAL_TRUE;
-    attr->runnable = PAL_FALSE;
+    attr->handle_type  = pal_type_dev;
+    attr->readable     = PAL_TRUE;
+    attr->writeable    = PAL_TRUE;
+    attr->runnable     = PAL_FALSE;
     attr->pending_size = 0;
     return 0;
 }
 
 /* 'attrquery' operation for terminal stream */
 static int term_attrquerybyhdl(PAL_HANDLE hdl, PAL_STREAM_ATTR *attr) {
-    attr->handle_type = pal_type_dev;
-    attr->readable = (hdl->dev.fd_in != PAL_IDX_POISON);
-    attr->writeable = (hdl->dev.fd_out != PAL_IDX_POISON);
-    attr->runnable = PAL_FALSE;
+    attr->handle_type  = pal_type_dev;
+    attr->readable     = (hdl->dev.fd_in != PAL_IDX_POISON);
+    attr->writeable    = (hdl->dev.fd_out != PAL_IDX_POISON);
+    attr->runnable     = PAL_FALSE;
     attr->pending_size = 0;
     return 0;
 }
 
-// clang can't handle right-aligned structure declarations
-// clang-format off
 static struct handle_ops term_ops = {
-        .open           = &term_open,
-        .close          = &term_close,
-        .read           = &char_read,
-        .write          = &char_write,
-        .attrquery      = &term_attrquery,
-        .attrquerybyhdl = &term_attrquerybyhdl,
-    };
-// clang-format on
+    .open           = &term_open,
+    .close          = &term_close,
+    .read           = &char_read,
+    .write          = &char_write,
+    .attrquery      = &term_attrquery,
+    .attrquerybyhdl = &term_attrquerybyhdl,
+};
 
 /* 'read' operation for character streams. */
 static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void *buffer) {
@@ -203,8 +202,8 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
 static int dev_open(PAL_HANDLE *handle, const char *type, const char *uri, int access, int share,
                     int create, int options) {
     struct handle_ops *ops = NULL;
-    const char *dev_type = NULL;
-    int ret = 0;
+    const char *dev_type   = NULL;
+    int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
 
@@ -216,9 +215,9 @@ static int dev_open(PAL_HANDLE *handle, const char *type, const char *uri, int a
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dev));
     SET_HANDLE_TYPE(hdl, dev);
-    hdl->dev.fd_in = PAL_IDX_POISON;
+    hdl->dev.fd_in  = PAL_IDX_POISON;
     hdl->dev.fd_out = PAL_IDX_POISON;
-    *handle = hdl;
+    *handle         = hdl;
 
     return ops->open(handle, dev_type, uri, access, share, create, options);
 }
@@ -335,17 +334,17 @@ static int dev_flush(PAL_HANDLE handle) {
 static inline void dev_attrcopy(PAL_STREAM_ATTR *attr, struct stat *stat) {
     attr->handle_type = pal_type_dev;
     /* readable, writable and runnable are decied by euidstataccess */
-    attr->readable = stataccess(stat, ACCESS_R);
-    attr->writeable = stataccess(stat, ACCESS_W);
-    attr->runnable = stataccess(stat, ACCESS_X);
+    attr->readable     = stataccess(stat, ACCESS_R);
+    attr->writeable    = stataccess(stat, ACCESS_W);
+    attr->runnable     = stataccess(stat, ACCESS_X);
     attr->pending_size = stat->st_size;
 }
 
 /* 'attrquery' operation for device streams */
 static int dev_attrquery(const char *type, const char *uri, PAL_STREAM_ATTR *attr) {
     struct handle_ops *ops = NULL;
-    const char *dev_type = NULL;
-    int ret = 0;
+    const char *dev_type   = NULL;
+    int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
 
@@ -384,26 +383,25 @@ static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR *attr) {
             stat_out = &stat_buf;
     }
 
-    attr->readable = (stat_in && stataccess(stat_in, ACCESS_R));
-    attr->runnable = (stat_in && stataccess(stat_in, ACCESS_X));
-    attr->writeable = (stat_out && stataccess(stat_out, ACCESS_W));
+    attr->readable     = (stat_in && stataccess(stat_in, ACCESS_R));
+    attr->runnable     = (stat_in && stataccess(stat_in, ACCESS_X));
+    attr->writeable    = (stat_out && stataccess(stat_out, ACCESS_W));
     attr->pending_size = stat_in ? stat_in->st_size : (stat_out ? stat_out->st_size : 0);
     return 0;
 }
 
-static const char *dev_getrealpath(PAL_HANDLE handle) { return handle->dev.realpath; }
+static const char *dev_getrealpath(PAL_HANDLE handle) {
+    return handle->dev.realpath;
+}
 
-// clang can't handle right-aligned structure declarations
-// clang-format off
 struct handle_ops dev_ops = {
-        .getrealpath        = &dev_getrealpath,
-        .open               = &dev_open,
-        .read               = &dev_read,
-        .write              = &dev_write,
-        .close              = &dev_close,
-        .delete             = &dev_delete,
-        .flush              = &dev_flush,
-        .attrquery          = &dev_attrquery,
-        .attrquerybyhdl     = &dev_attrquerybyhdl,
-    };
-// clang-format on
+    .getrealpath    = &dev_getrealpath,
+    .open           = &dev_open,
+    .read           = &dev_read,
+    .write          = &dev_write,
+    .close          = &dev_close,
+    .delete         = &dev_delete,
+    .flush          = &dev_flush,
+    .attrquery      = &dev_attrquery,
+    .attrquerybyhdl = &dev_attrquerybyhdl,
+};
