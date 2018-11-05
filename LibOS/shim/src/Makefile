@@ -53,7 +53,9 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  elf/shim_rtld \
 	  $(addprefix shim_,init table syscalls checkpoint malloc \
 	  async parser debug object) syscallas start \
-	  $(patsubst %.c,%,$(wildcard sys/*.c))
+	  $(patsubst %.c,%,$(wildcard sys/*.c)) \
+	  vdso/vdso-data
+
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
@@ -135,6 +137,29 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 syscallas.S: asm-offsets.h
 
 include ../../../Makefile.rules
+
+LDFLAGS_vdso = -nostdlib -shared  \
+               --hash-style=both --build-id -Bsymbolic \
+               -m elf_x86_64 -soname linux-vdso.so.1 \
+               --no-undefined \
+               -z max-page-size=4096 -z common-page-size=4096
+vdso/vdso.so.dbg: vdso/vdso.lds vdso/vdso.o vdso/vdso-note.o
+	@echo [ $@ ]
+	@$(LD) -o $@ -T $(filter %.lds, $^) $(LDFLAGS_vdso) $(filter %.o, $^)
+
+vdso/vdso.so: vdso/vdso.so.dbg
+	@echo [ $@ ]
+	@objcopy -S $^ $@
+
+vdso/vdso-data.c: vdso/vdso.so
+	@echo [ $@ ]
+	@(set -e; \
+	  echo "/* DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED. */"; \
+	  echo "#include <stdint.h>"; \
+	  echo "uint8_t vdso_so[4096] __attribute__((aligned(4096))) = {"; \
+	  hexdump -v -e '"\t" 8/1 "0x%02x, " "\n"' $<; \
+	  echo "};") > $@
+CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/vdso-data.c
 
 clean:
 	rm -rf $(addsuffix .o,$(objs)) $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
