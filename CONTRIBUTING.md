@@ -39,11 +39,11 @@ In general, a PR should:
 ### PR Life Cycle
 
 1. A PR is created. If the authors know a good candidate for the review (e.g., the author of the specific component) they should assign a suggested reviewer on GitHub.
-2. From this point on the branch is public, which means that no push-forces are allowed without reviewers’ permission.
+2. From this point on the branch is public, which means that one should ask reviewers' permission before doing a `git push --force`.
 3. Reviewers shouldn’t push commits to the PR, only the authors are allowed to do so.
 4. Reviewers add comments to the changes.
 5. The author discusses the remarks and implements fixes in separate commits. Loop to point 4. until all comments are resolved and all reviewers mark the PR as approved.
-6. The author squashes fix-up commits with original ones, rebases them to current master (in case of conflicts) and push-forces the final version of the changes.
+6. The author squashes fix-up commits with original ones, rebases them to current master (in case of conflicts) and, if needed, does a `git push --force-with-lease` to share the final version of the changes.
 7. The reviewer is responsible for ensuring that the squash is a real squash without any additional changes (except resolving conflicts). Only after that they can execute rebase+merge to master.
 
 ### PR Merging Policy
