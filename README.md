@@ -251,10 +251,7 @@ github Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 ## 4. CONTACT
 
-For any questions or bug reports, please contact us:
-
-   - __Chia-Che Tsai__ <chitsai@cs.stonybrook.edu>
-   - __Don Porter__ <porter@cs.unc.edu>
-
+For any questions or bug reports, please send an email to
+        <support@graphene-project.io>
 or post an issue on our github repository:
         <https://github.com/oscarlab/graphene/issues>
