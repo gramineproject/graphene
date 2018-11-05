@@ -281,12 +281,14 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     return stack;
 }
 
-int populate_user_stack (void * stack, size_t stack_size,
-                         int nauxv, elf_auxv_t ** auxpp,
-                         const char *** argvp, const char *** envpp)
+static int populate_user_stack (void * stack, size_t stack_size,
+                                int nauxv, elf_auxv_t ** auxpp,
+                                int ** argcpp,
+                                const char *** argvp, const char *** envpp)
 {
     const char ** argv = *argvp, ** envp = *envpp;
     const char ** new_argv = NULL, ** new_envp = NULL;
+    elf_auxv_t *new_auxp = NULL;
     void * stack_bottom = stack;
     void * stack_top = stack + stack_size;
 
@@ -297,6 +299,10 @@ int populate_user_stack (void * stack, size_t stack_size,
 #define ALLOCATE_BOTTOM(size)   \
     ({ if ((stack_bottom += (size)) > stack_top) return -ENOMEM;    \
        stack_bottom - (size); })
+
+    /* ld.so expects argc as long on stack, not int. */
+    long * argcp = ALLOCATE_BOTTOM(sizeof(long));
+    *argcp = **argcpp;
 
     if (!argv) {
         *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
@@ -325,27 +331,33 @@ copy_envp:
     if (!new_envp)
         *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
 
-    stack_bottom = (void *) ((unsigned long) stack_bottom & ~7UL);
-    *((unsigned long *) ALLOCATE_TOP(sizeof(unsigned long))) = 0;
-
     if (nauxv) {
-        elf_auxv_t * old_auxp = *auxpp;
-        *auxpp = ALLOCATE_TOP(sizeof(elf_auxv_t) * nauxv);
-        if (old_auxp)
-            memcpy(*auxpp, old_auxp, nauxv * sizeof(elf_auxv_t));
+        new_auxp = ALLOCATE_BOTTOM(sizeof(elf_auxv_t) * nauxv);
+        if (*auxpp)
+            memcpy(new_auxp, *auxpp, nauxv * sizeof(elf_auxv_t));
     }
 
-    memmove(stack_top - (stack_bottom - stack), stack, stack_bottom - stack);
-    if (new_argv)
-        *argvp = (void *) new_argv + (stack_top - stack_bottom);
-    if (new_envp)
-        *envpp = (void *) new_envp + (stack_top - stack_bottom);
+    /* x86_64 ABI requires 16 bytes alignment on stack on every function
+       call. */
+    size_t move_size = stack_bottom - stack;
+    *argcpp = stack_top - move_size;
+    *argcpp = ALIGN_DOWN_PTR(*argcpp, 16UL);
+    size_t shift = (void*)(*argcpp) - stack;
+
+    memmove(*argcpp, stack, move_size);
+    *argvp = new_argv ? (void *) new_argv + shift : NULL;
+    *envpp = new_envp ? (void *) new_envp + shift : NULL;
+    *auxpp = new_auxp ? (void *) new_auxp + shift : NULL;
+
+    /* clear working area at the bottom */
+    memset(stack, 0, shift);
     return 0;
 }
 
 unsigned long sys_stack_size = 0;
 
-int init_stack (const char ** argv, const char ** envp, const char *** argpp,
+int init_stack (const char ** argv, const char ** envp,
+                int ** argcpp, const char *** argpp,
                 int nauxv, elf_auxv_t ** auxpp)
 {
     if (!sys_stack_size) {
@@ -371,7 +383,7 @@ int init_stack (const char ** argv, const char ** envp, const char *** argpp,
         envp = initial_envp;
 
     int ret = populate_user_stack(stack, sys_stack_size,
-                                  nauxv, auxpp, &argv, &envp);
+                                  nauxv, auxpp, argcpp, &argv, &envp);
     if (ret < 0)
         return ret;
 
@@ -690,6 +702,7 @@ int shim_init (int argc, void * args, void ** return_stack)
 
     create_lock(__master_lock);
 
+    int * argcp = &argc;
     const char ** argv, ** envp, ** argp = NULL;
     elf_auxv_t * auxp;
 
@@ -763,7 +776,7 @@ restore:
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
-    RUN_INIT(init_stack, argv, envp, &argp, nauxv, &auxp);
+    RUN_INIT(init_stack, argv, envp, &argcp, &argp, nauxv, &auxp);
     RUN_INIT(init_loader);
     RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
@@ -813,7 +826,7 @@ restore:
 
     if (cur_thread->exec)
         execute_elf_object(cur_thread->exec,
-                           argc, argp, nauxv, auxp);
+                           argcp, argp, nauxv, auxp);
 
     *return_stack = initial_stack;
     return 0;
