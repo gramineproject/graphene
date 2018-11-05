@@ -10,3 +10,4 @@ endif
 ifeq ($(origin LD),default)
 LD	= ld
 endif
+OBJCOPY ?= objcopy
