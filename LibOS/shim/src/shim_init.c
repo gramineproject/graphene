@@ -287,6 +287,7 @@ int populate_user_stack (void * stack, size_t stack_size,
 {
     const char ** argv = *argvp, ** envp = *envpp;
     const char ** new_argv = NULL, ** new_envp = NULL;
+    elf_auxv_t *new_auxp = NULL;
     void * stack_bottom = stack;
     void * stack_top = stack + stack_size;
 
@@ -325,21 +326,30 @@ copy_envp:
     if (!new_envp)
         *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
 
-    stack_bottom = (void *) ((unsigned long) stack_bottom & ~7UL);
-    *((unsigned long *) ALLOCATE_TOP(sizeof(unsigned long))) = 0;
-
     if (nauxv) {
-        elf_auxv_t * old_auxp = *auxpp;
-        *auxpp = ALLOCATE_TOP(sizeof(elf_auxv_t) * nauxv);
-        if (old_auxp)
-            memcpy(*auxpp, old_auxp, nauxv * sizeof(elf_auxv_t));
+        /* 1 for vDSO */
+        new_auxp = ALLOCATE_BOTTOM(sizeof(elf_auxv_t) * (nauxv + 1));
+        if (*auxpp)
+            memcpy(new_auxp, *auxpp, nauxv * sizeof(elf_auxv_t));
     }
 
-    memmove(stack_top - (stack_bottom - stack), stack, stack_bottom - stack);
+    *((unsigned long *) ALLOCATE_TOP(sizeof(unsigned long))) = 0;
+
+    /* x86_64 ABI requires 16 bytes alignment on stack
+     * on entering _start.
+     * 8 bytes for pushq %%rdi by execute_elf_object before jmp.
+     */
+#define ALIGN_DOWN_PTR(ptr, size)   (((uintptr_t)ptr) & -(size))
+#define ALIGN_UP_PTR(ptr, size)     ALIGN_DOWN_PTR(((uintptr_t)ptr) + (size - 1), (size))
+    stack_top = (void*)(ALIGN_DOWN_PTR(stack_top, 16UL));
+    stack_bottom = (void*)(ALIGN_UP_PTR(stack_bottom, 16UL));
+    memmove(stack_top - (stack_bottom - stack) - 8, stack, stack_bottom - stack);
     if (new_argv)
-        *argvp = (void *) new_argv + (stack_top - stack_bottom);
+        *argvp = (void *) new_argv + (stack_top - stack_bottom) - 8;
     if (new_envp)
-        *envpp = (void *) new_envp + (stack_top - stack_bottom);
+        *envpp = (void *) new_envp + (stack_top - stack_bottom) - 8;
+    if (new_auxp)
+        *auxpp = (void *) new_auxp + (stack_top - stack_bottom) - 8;
     return 0;
 }
 
