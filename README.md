@@ -105,7 +105,7 @@ Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 ### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
-__2.1.1 Prerequisites 
+#### 2.1.1 Prerequisites 
 
 (1) Generating signing keys
 A 3072-bit RSA private key (PEM format) is required for signing the enclaves.
@@ -138,7 +138,7 @@ __** Please make sure the GCC version is either 4 or 5 **__
     (The console will be prompted to ask for the path of Intel SGX driver code)
     sudo ./load.sh
 
-__2.1.2 Building Graphene-SGX
+#### 2.1.2 Building Graphene-SGX
 
 To build Graphene Library OS with Intel SGX support, in the root directory of Graphene repo, run following command:
 
@@ -150,7 +150,7 @@ To build with debug symbols, run the command:
 
 Using "make SGX=1" in the test or regression directory will automatically generate the enclave signatures (.sig files).
 
-__2.1.3 Run Built-in Examples in Graphene-SGX
+#### 2.1.3 Run Built-in Examples in Graphene-SGX
 
 There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
 
