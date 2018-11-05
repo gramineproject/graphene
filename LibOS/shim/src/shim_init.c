@@ -337,7 +337,8 @@ copy_envp:
         *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
 
     if (nauxv) {
-        new_auxp = ALLOCATE_BOTTOM(sizeof(elf_auxv_t) * nauxv);
+        /* 1 for vDSO */
+        new_auxp = ALLOCATE_BOTTOM(sizeof(elf_auxv_t) * (nauxv + 1));
         if (*auxpp)
             memcpy(new_auxp, *auxpp, nauxv * sizeof(elf_auxv_t));
     }
