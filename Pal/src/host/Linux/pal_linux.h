@@ -25,6 +25,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux_error.h"
+#include "list.h"
 
 #define PAL_LOADER RUNTIME_FILE("pal-Linux")
 
@@ -175,9 +176,17 @@ extern char __text_start, __text_end, __data_start, __data_end;
 #define ADDR_IN_PAL(addr) \
         ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
 
+DEFINE_LIST(event_queue);
+struct event_queue {
+    LIST_TYPE(event_queue) list;
+    int event_num;
+};
+
+DEFINE_LISTP(event_queue);
 typedef struct pal_tcb {
     struct pal_tcb *  self;
     int               pending_event;
+    LISTP_TYPE(event_queue) pending_queue;
     PAL_HANDLE        handle;
     void *            alt_stack;
     int               (*callback) (void *);
