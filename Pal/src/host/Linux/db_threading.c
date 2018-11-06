@@ -83,15 +83,14 @@ int pal_thread_init (void * tcbptr)
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param, int flags)
 {
-    unsigned long pagesz = pal_state.pagesize;
     void * stack = NULL;
 
-    if (_DkVirtualMemoryAlloc(&stack, pagesz * 3,
+    if (_DkVirtualMemoryAlloc(&stack, THREAD_STACK_SIZE + ALT_STACK_SIZE,
                               0, PAL_PROT_READ|PAL_PROT_WRITE) < 0)
         return -PAL_ERROR_NOMEM;
 
-    void * child_stack = stack + pagesz * 2;
-    void * alt_stack   = child_stack + pagesz;
+    void * child_stack = stack + THREAD_STACK_SIZE;
+    void * alt_stack   = child_stack + ALT_STACK_SIZE;
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(hdl, thread);
@@ -101,7 +100,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     PAL_TCB * tcb  = alt_stack - sizeof(PAL_TCB);
     tcb->self      = tcb;
     tcb->handle    = hdl;
-    tcb->alt_stack = alt_stack;
+    tcb->alt_stack = alt_stack; // Stack bottom; the top will be the same as the tcb pointer
     tcb->callback  = callback;
     tcb->param     = (void *) param;
 
