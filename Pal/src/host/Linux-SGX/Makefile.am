@@ -24,6 +24,10 @@ ARFLAGS	=
 CRYPTO_PROVIDER = mbedtls
 CFLAGS += -DCRYPTO_USE_MBEDTLS
 
+ifeq ($(WERROR),1)
+CFLAGS += -Werror
+endif
+
 pal_loader = $(HOST_DIR)/pal-sgx
 pal_sec =
 pal_lib = $(HOST_DIR)/libpal.so
