@@ -1,0 +1,13 @@
+--- a/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S	2014-02-07 01:04:38.000000000 -0800
++++ b/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S	2018-11-06 01:30:35.894970038 -0800
+@@ -21,9 +21,7 @@
+ #include <bits/errno.h>
+ #include <kernel-features.h>
+ 
+-/* For the calculation see asm/vsyscall.h.  */
+-#define VSYSCALL_ADDR_vgetcpu	0xffffffffff600800
+-
++#define __ASSUME_GETCPU_SYSCALL
+ 
+ ENTRY (sched_getcpu)
+ 	/* Align stack and create local variable for result.  */
