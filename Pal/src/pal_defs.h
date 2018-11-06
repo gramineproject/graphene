@@ -4,12 +4,8 @@
 #ifndef PAL_DEFS_H
 #define PAL_DEFS_H
 
-/* enable caching loaded binaries for optimizing process creation */
-#ifdef LINUX
-# define CACHE_LOADED_BINARIES   1
-#else
-# define CACHE_LOADED_BINARIES   0
-#endif
+/* (Linux-only) enable caching loaded binaries for optimizing process creation */
+#define CACHE_LOADED_BINARIES    (defined(LINUX) && 0)  /* default: disabled */
 
 /* statically allocate slab manager */
 #define STATIC_SLAB              1
