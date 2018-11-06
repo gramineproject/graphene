@@ -59,7 +59,6 @@ int main(int argc, char ** argv)
                     waitpid(child, NULL, 0);
             }
 
-            struct timeval finish_time;
             gettimeofday(&timevals[1], NULL);
 
             close(pipes[0]);

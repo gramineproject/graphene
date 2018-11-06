@@ -47,6 +47,7 @@
 #define NS_CAP SYSV
 #define NS_KEY struct sysv_key
 
+#define INCLUDE_IPC_NSIMPL
 #include "shim_ipc_nsimpl.h"
 
 int init_ns_sysv (void)
