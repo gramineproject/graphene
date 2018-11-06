@@ -9,6 +9,7 @@ target = $(exec_target) $(manifests)
 level = ../
 include ../Makefile
 
+CFLAGS = -Wall -Werror
 CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)

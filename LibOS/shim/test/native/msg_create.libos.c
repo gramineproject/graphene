@@ -67,7 +67,7 @@ int keys[TEST_TIMES];
 int ids[TEST_TIMES];
 
 /* server always creates queues */
-int server (void)
+void server (void)
 {
     struct timeval tv1, tv2;
     int i;
@@ -89,7 +89,7 @@ int server (void)
 }
 
 /* client always connects queues */
-int client (void)
+void client (void)
 {
     struct timeval tv1, tv2;
     int i;

@@ -68,7 +68,6 @@ int main(int argc, char ** argv)
 
             benchmark_rpc(pids[i][0], NTRIES, &byte, 1);
 
-            struct timeval finish_time;
             gettimeofday(&timevals[1], NULL);
 
             close(pipes[0]);

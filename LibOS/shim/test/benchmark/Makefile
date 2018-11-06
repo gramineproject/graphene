@@ -1,13 +1,14 @@
-CFLAGS-libos = -L../../../build/libos -I../../include
-
 c_executables = $(patsubst %.c,%,$(wildcard *.c))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
 target = $(c_executables) $(cxx_executables) \
-	  manifest pal pal_sec
+	  manifest
 
 level = ../
 include ../Makefile
+
+CFLAGS = -Wall -Werror
+CFLAGS-libos = -L../../../glibc-build/libos -I../../include
 
 %.manifest: %.manifest.template
 	rm -rf $@
