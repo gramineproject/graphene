@@ -140,7 +140,6 @@ int main(int argc, char ** argv)
             while (count < NTRIES - 1)
                 sched_yield();
 
-            struct timeval finish_time;
             gettimeofday(&timevals[1], NULL);
 
             close(pipes[0]);

@@ -24,7 +24,8 @@ int pipefds[2];
 int server(void)
 {
     struct sockaddr_in si_me, si_other;
-    int s, i, slen=sizeof(si_other);
+    int s, i;
+    socklen_t slen = sizeof(si_other);
     char buf[BUFLEN];
 
     if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1) {
@@ -76,7 +77,8 @@ int server(void)
 int client(void)
 {
     struct sockaddr_in si_other;
-    int s, i, slen=sizeof(si_other);
+    int s, i;
+    socklen_t slen = sizeof(si_other);
     char buf[BUFLEN]= "hi";
     int res;
 

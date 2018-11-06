@@ -27,6 +27,7 @@ void * func(void * arg )
 {
     int * ptr = (int *) arg;
     printf("Parent gave %d\n",*ptr);
+    return NULL;
 }
 
 int main(int argc, char ** argv)
