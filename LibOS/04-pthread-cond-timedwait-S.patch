@@ -1,0 +1,65 @@
+--- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S	2014-02-07 01:04:38.000000000 -0800
++++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S	2018-11-06 02:00:42.586978836 -0800
+@@ -188,7 +188,7 @@ __pthread_cond_timedwait:
+ 	movq	%r12, %rdx
+ 	addq	$cond_futex, %rdi
+ 	movl	$SYS_futex, %eax
+-	syscall
++	SYSCALLDB
+ 
+ 	cmpl	$0, %eax
+ 	sete	%r15b
+@@ -234,7 +234,7 @@ __pthread_cond_timedwait:
+ 	movq	%r12, %rdx
+ 	addq	$cond_futex, %rdi
+ 	movl	$SYS_futex, %eax
+-	syscall
++	SYSCALLDB
+ 62:	movq	%rax, %r14
+ 
+ 	movl	(%rsp), %edi
+@@ -321,7 +321,7 @@ __pthread_cond_timedwait:
+ 	orl	$FUTEX_WAKE, %esi
+ #endif
+ 	movl	$SYS_futex, %eax
+-	syscall
++	SYSCALLDB
+ 	subq	$cond_nwaiters, %rdi
+ 
+ 55:	LOCK
+@@ -492,7 +492,7 @@ __pthread_cond_timedwait:
+ 	call	*%rax
+ #  else
+ 	movl	$__NR_clock_gettime, %eax
+-	syscall
++	SYSCALLDB
+ #  endif
+ 
+ 	/* Compute relative timeout.  */
+@@ -560,7 +560,7 @@ __pthread_cond_timedwait:
+ # endif
+ 	addq	$cond_futex, %rdi
+ 	movl	$SYS_futex, %eax
+-	syscall
++	SYSCALLDB
+ 	movq	%rax, %r14
+ 
+ 	movl	(%rsp), %edi
+@@ -732,7 +732,7 @@ __condvar_cleanup2:
+ 	orl	$FUTEX_WAKE, %esi
+ #endif
+ 	movl	$SYS_futex, %eax
+-	syscall
++	SYSCALLDB
+ 	subq	$cond_nwaiters, %rdi
+ 	movl	$1, %r12d
+ 
+@@ -769,7 +769,7 @@ __condvar_cleanup2:
+ 	orl	$FUTEX_WAKE, %esi
+ #endif
+ 	movl	$SYS_futex, %eax
+-	syscall
++	SYSCALLDB
+ 
+ 	/* Lock the mutex only if we don't own it already.  This only happens
+ 	   in case of PI mutexes, if we got cancelled after a successful
