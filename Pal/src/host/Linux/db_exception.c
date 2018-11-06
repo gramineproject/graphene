@@ -184,7 +184,7 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
             case PAL_EVENT_ILLEGAL:  name = "illegal instruction"; break;
         }
 
-        printf("*** An unexpected %s occured inside PAL. Exiting the thread. "
+        printf("*** An unexpected %s occurred inside PAL. Exiting the thread. "
                "(PID = %d, TID = %d, RIP = +%p) ***\n",
                name, pid, tid, rip - (uintptr_t) TEXT_START);
         _DkThreadExit();
