@@ -3,6 +3,7 @@ export SYS
 
 export DEBUG
 
+# GLIBC_DISABLE_VDSO = true
 GLIBC_SRC = glibc-2.19
 GLIBC_CHECKSUM = 18ad6db70724699d264add80b1f813630d0141cf3a3558b4e1a7c15f6beac796
 SHIM_DIR = shim
@@ -73,6 +74,12 @@ GLIBC_PATCHES = \
 	glibc-fix-warning.patch \
 	glibc-no-pie.patch \
 	glibc-liblibos.patch
+ifeq ($(GLIBC_DISABLE_VDSO),true)
+GLIBC_PATCHES += \
+	01-glibc-gettimeofday.patch \
+	02-glibc-sched-getscpu-S.patch \
+	03-glibc-time-c.patch
+endif
 
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
 GLIBC_PATCHES += glibc-ld.gold.patch
