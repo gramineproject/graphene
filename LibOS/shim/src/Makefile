@@ -28,6 +28,10 @@ LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
 LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
 
+ifeq ($(WERROR),1)
+CFLAGS += -Werror
+endif
+
 files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 

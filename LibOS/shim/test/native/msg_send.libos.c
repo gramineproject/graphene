@@ -25,7 +25,7 @@ struct msgbuf {
 int msqid;
 
 /* server always sends messages */
-int server (void)
+void server (void)
 {
     struct timeval tv1, tv2;
     struct msgbuf buf;
@@ -57,11 +57,11 @@ int server (void)
 }
 
 /* client always sends messages */
-int client (void)
+void client (void)
 {
     struct timeval tv1, tv2;
     struct msgbuf buf;
-    int i, ret;
+    int ret;
 
     gettimeofday(&tv1, NULL);
 

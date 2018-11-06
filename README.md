@@ -71,6 +71,8 @@ To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 "make". To specify custom mirrors for downloading the GLIBC source, use
 "GLIBC_MIRRORS=..." when running "make".
 
+To build with "-Werror", run "make WERROR=1".
+
 ### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
 
 __** Note: this step is optional. **__

@@ -1,16 +1,8 @@
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
+include Makefile.am
 
-CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -Wall -U_FORTIFY_SOURCE \
-	  -fno-omit-frame-pointer\
-	  -fno-stack-protector -fno-builtin \
-	  -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc/linux \
-	  -I../../../linux-3.5/graphene 
-ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
-	  -x assembler-with-cpp \
-	  -I. -Iinclude -I../.. -I../../../include
-ARFLAGS	=
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc/linux \
+	   -I../../../linux-kernel/graphene
+ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
 host_target = libpal-FreeBSD.a ../../pal-gdb
 

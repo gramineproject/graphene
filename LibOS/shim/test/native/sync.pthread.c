@@ -55,7 +55,7 @@ int main(int argc, char **argv)
         pthread_mutex_unlock(&mutex);
     }
 
-    if(rv = pthread_join(other, NULL))
+    if((rv = pthread_join(other, NULL)) < 0)
     {
         printf("Could not join thread - %d\n", rv);
         return -1;

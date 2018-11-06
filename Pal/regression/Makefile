@@ -31,6 +31,10 @@ CC += -g
 endif
 export DEBUG
 
+ifeq ($(WERROR),1)
+CFLAGS += -Werror
+endif
+
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath ../../Runtime/pal_loader):g' \
 	-e 's:\$$(PWD):$(shell pwd)/:g' \

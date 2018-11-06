@@ -27,6 +27,10 @@ CC += -g
 endif
 export DEBUG
 
+ifeq ($(WERROR),1)
+CFLAGS += -Werror
+endif
+
 pal_loader:
 	ln -sf ../../Runtime/pal_loader
 
