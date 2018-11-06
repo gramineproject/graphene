@@ -61,10 +61,13 @@ int pal_thread_init (void * tcbptr)
         return -ERRNO(ret);
 
     if (tcb->alt_stack) {
+        // Align stack to 16 bytes
+        void * alt_stack_top = (void *) ((uint64_t) tcb & ~16);
+        assert(alt_stack_top > tcb->alt_stack);
         stack_t ss;
-        ss.ss_sp    = tcb;
+        ss.ss_sp    = alt_stack_top;
         ss.ss_flags = 0;
-        ss.ss_size  = (void *) tcb - tcb->alt_stack;
+        ss.ss_size  = alt_stack_top - tcb->alt_stack;
 
         ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
         if (IS_ERR(ret))
@@ -90,19 +93,20 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
         return -PAL_ERROR_NOMEM;
 
     void * child_stack = stack + THREAD_STACK_SIZE;
-    void * alt_stack   = child_stack + ALT_STACK_SIZE;
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(hdl, thread);
 
-    /* align child_stack to 16 */
-    child_stack = (void *) ((uintptr_t) child_stack & ~16);
-    PAL_TCB * tcb  = alt_stack - sizeof(PAL_TCB);
+    // Initialize TCB at the top of the alternative stack.
+    PAL_TCB * tcb  = child_stack + ALT_STACK_SIZE - sizeof(PAL_TCB);
     tcb->self      = tcb;
     tcb->handle    = hdl;
-    tcb->alt_stack = alt_stack; // Stack bottom; the top will be the same as the tcb pointer
+    tcb->alt_stack = child_stack; // Stack bottom
     tcb->callback  = callback;
     tcb->param     = (void *) param;
+
+    /* align child_stack to 16 */
+    child_stack = (void *) ((uintptr_t) child_stack & ~16);
 
     int ret = clone(pal_thread_init, child_stack,
                     CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|

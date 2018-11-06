@@ -237,11 +237,12 @@ void pal_linux_main (void * args)
     _DkVirtualMemoryAlloc(&alt_stack, ALT_STACK_SIZE, 0, PAL_PROT_READ|PAL_PROT_WRITE);
     if (!alt_stack)
         init_fail(PAL_ERROR_NOMEM, "no alternative thread allocated");
-    alt_stack += pagesz;
-    PAL_TCB * tcb  = alt_stack - sizeof(PAL_TCB);
+
+    // Initialize TCB at the top of the alternative stack.
+    PAL_TCB * tcb  = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB);
     tcb->self      = tcb;
     tcb->handle    = first_thread;
-    tcb->alt_stack = alt_stack; // Stack bottom; the top will be the same as the tcb pointer
+    tcb->alt_stack = alt_stack; // Stack bottom
     tcb->callback  = NULL;
     tcb->param     = NULL;
     pal_thread_init(tcb);
