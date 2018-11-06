@@ -6,6 +6,7 @@ target = $(c_executables) $(cxx_executables) manifest
 level = ../
 include ../Makefile
 
+CFLAGS = -Wall -Werror
 CFLAGS-debug += -fno-builtin -nostdlib
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)

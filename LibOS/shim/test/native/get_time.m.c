@@ -82,15 +82,6 @@ int main (int argc, char ** argv, char ** envp)
         gettimeofday(&tv, NULL);
         unsigned long long msec = tv.tv_sec * 1000000ULL + tv.tv_usec;
 
-        struct timeval tv1, tv2;
-        gettimeofday(&tv1, NULL);
-        for (int j = 0 ; j < OVERHEAD_TIMES ; j++)
-            gettimeofday(&tv, NULL);
-        gettimeofday(&tv2, NULL);
-        unsigned long long msec3 = tv1.tv_sec * 1000000ULL + tv1.tv_usec;
-        unsigned long long msec4 = tv2.tv_sec * 1000000ULL + tv2.tv_usec;
-        unsigned long long overhead = (msec4 - msec3) / OVERHEAD_TIMES;
-
         if (read(pipes[0], time_arg, 30) < 0)
             break;
 

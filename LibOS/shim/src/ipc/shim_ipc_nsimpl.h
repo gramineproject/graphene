@@ -31,6 +31,15 @@
 
 #include <errno.h>
 
+#ifndef INCLUDE_IPC_NSIMPL
+# warning "Be sure before including \"shim_ipc_nsimpl.h\"."
+#endif
+
+#ifdef __SHIM_IPC_NSIMPL__
+# error "Include \"shim_ipc_nsimpl.h\" only once."
+#endif
+#define __SHIM_IPC_NSIMPL__
+
 #if !defined(NS) || !defined(NS_CAP)
 # error "NS or NS_CAP is not defined"
 #endif

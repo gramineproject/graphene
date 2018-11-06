@@ -28,7 +28,8 @@ int pipefds[2];
 
 int server(void)
 {
-    int conn,create_socket,new_socket,addrlen,fd;
+    int conn,create_socket,new_socket,fd;
+    socklen_t addrlen;
     int bufsize = 1024;
     char *buffer = malloc(bufsize);
     struct sockaddr_un address;
