@@ -749,10 +749,9 @@ static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
 /*
  * __discover_ns(): Discover the leader of this namespace.
  * @block: Whether to block for discovery.
- * @need_connect: Need a port to connect to the leader.
  * @need_locate: Need the location information of the leader.
  */
-static void __discover_ns (bool block, bool need_connect, bool need_locate)
+static void __discover_ns (bool block, bool need_locate)
 {
     bool ipc_pending = false;
 
@@ -771,7 +770,7 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
             goto out;
         }
 
-        if ((need_connect || need_locate) && !qstrempty(&NS_LEADER->uri))
+        if (!qstrempty(&NS_LEADER->uri))
             goto out;
     }
 
@@ -815,10 +814,9 @@ static void __discover_ns (bool block, bool need_connect, bool need_locate)
 out:
     if (NS_LEADER && !ipc_pending) {
         // Assertions for checking the correctness of __discover_ns()
-        if (need_connect)
-            assert(NS_LEADER->vmid == cur_process.vmid  // The current process is the leader;
-                   || NS_LEADER->port                   // Or there is a connected port
-                   || !qstrempty(&NS_LEADER->uri));     // Or there is a known URI
+        assert(NS_LEADER->vmid == cur_process.vmid  // The current process is the leader;
+               || NS_LEADER->port                   // Or there is a connected port
+               || !qstrempty(&NS_LEADER->uri));     // Or there is a known URI
         if (need_locate)
             assert(!qstrempty(&NS_LEADER->uri));        // A known URI is needed
     }
@@ -827,7 +825,7 @@ out:
 static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
 {
     lock(cur_process.lock);
-    __discover_ns(true, true, false);
+    __discover_ns(true, false);
 
     if (!NS_LEADER) {
         unlock(cur_process.lock);
@@ -897,7 +895,7 @@ int CONCAT3(prepare, NS, leader) (void)
         return 0;
     }
 
-    __discover_ns(true, true, true);
+    __discover_ns(true, true);
     unlock(cur_process.lock);
     return 0;
 }
@@ -1017,7 +1015,7 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
 
     int ret = 0;
     lock(cur_process.lock);
-    __discover_ns(false, true, true); // Do a non-blocking discovery
+    __discover_ns(false, true); // Do a non-blocking discovery
 
     if (NS_LEADER && !qstrempty(&NS_LEADER->uri)) {
         // Got the answer! Send back the discovery now.
