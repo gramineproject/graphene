@@ -15,6 +15,10 @@ LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
 	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds
 ARFLAGS	=
 
+ifeq ($(WERROR),1)
+CFLAGS += -Werror
+endif
+
 pal_loader = $(HOST_DIR)/libpal.so
 pal_sec =
 pal_lib = $(HOST_DIR)/libpal.so

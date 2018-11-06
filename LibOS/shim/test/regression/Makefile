@@ -14,6 +14,8 @@ default: all
 level = ../
 include ../Makefile
 
+CFLAGS-libos = -L../../../build/libos -I../../include
+
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(c_executables): %: %.c
 	@echo [ $@ ]

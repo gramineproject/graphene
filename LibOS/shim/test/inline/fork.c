@@ -4,7 +4,7 @@
 #include <shim_table.h>
 #include <errno.h>
 
-void main (int argc, char ** argv)
+int main (int argc, char ** argv)
 {
     pid_t pid = shim_fork();
 
@@ -21,4 +21,5 @@ void main (int argc, char ** argv)
     }
 
     shim_exit_group(0);
+    return 0; // should not reach here.
 }

@@ -11,13 +11,13 @@
 
 #define TEST_TIMES    4
 
-int main (int argc, const char * argv)
+int main (int argc, char ** argv)
 {
     int ret = 0;
     int fds[TEST_TIMES][2];
 
     int efd = epoll_create(TEST_TIMES);
-    if (!efd < 0) {
+    if (efd < 0) {
         perror("epoll_create");
         exit(1);
     }

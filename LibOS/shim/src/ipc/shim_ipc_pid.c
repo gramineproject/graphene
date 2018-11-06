@@ -40,6 +40,7 @@
 #define NS      pid
 #define NS_CAP  PID
 
+#define INCLUDE_IPC_NSIMPL
 #include "shim_ipc_nsimpl.h"
 
 static int thread_add_subrange (struct shim_thread * thread, void * arg,

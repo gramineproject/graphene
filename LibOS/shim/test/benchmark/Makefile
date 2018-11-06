@@ -7,6 +7,8 @@ target = $(c_executables) $(cxx_executables) \
 level = ../
 include ../Makefile
 
+CFLAGS-libos = -L../../../glibc-build/libos -I../../include
+
 %.manifest: %.manifest.template
 	rm -rf $@
 	cp $@.template $@

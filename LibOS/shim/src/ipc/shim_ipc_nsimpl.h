@@ -31,6 +31,15 @@
 
 #include <errno.h>
 
+#ifndef INCLUDE_IPC_NSIMPL
+# warning "Be sure before including \"shim_ipc_nsimpl.h\"."
+#endif
+
+#ifdef __SHIM_IPC_NSIMPL__
+# error "Include \"shim_ipc_nsimpl.h\" only once."
+#endif
+#define __SHIM_IPC_NSIMPL__
+
 #if !defined(NS) || !defined(NS_CAP)
 # error "NS or NS_CAP is not defined"
 #endif
@@ -827,7 +836,7 @@ out:
 
 static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
 {
-    __discover_ns(true, false); // Should not hold cur_process.lock
+    __discover_ns(true, false); // This function cannot be called with cur_process.lock held
     lock(cur_process.lock);
 
     if (!NS_LEADER) {
@@ -896,7 +905,7 @@ int CONCAT3(prepare, NS, leader) (void)
     unlock(cur_process.lock);
 
     if (need_discover)
-        __discover_ns(true, true); // Should not hold cur_process.lock
+        __discover_ns(true, true); // This function cannot be called with cur_process.lock held
     return 0;
 }
 
@@ -1014,7 +1023,7 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
           msg->src);
 
     int ret = 0;
-    __discover_ns(false, true); // Non-blocking discovery; should not hold cur_process.lock
+    __discover_ns(false, true); // This function cannot be called with cur_process.lock held
     lock(cur_process.lock);
 
     if (NS_LEADER && !qstrempty(&NS_LEADER->uri)) {
