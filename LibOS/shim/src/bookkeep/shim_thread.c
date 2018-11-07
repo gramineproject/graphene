@@ -587,7 +587,7 @@ void switch_dummy_thread (struct shim_thread * thread)
 
     /* jump onto old stack
        we actually pop rbp as rsp, and later we will call 'ret' */
-    asm volatile("movq %0, %%rbp\r\n"
+    __asm__ volatile("movq %0, %%rbp\r\n"
                  "leaveq\r\n"
                  "retq\r\n" :
                  : "g"(real_thread->frameptr),

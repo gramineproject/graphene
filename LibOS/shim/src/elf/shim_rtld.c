@@ -875,7 +875,7 @@ static int __check_elf_header (void * fbp, int len)
 
     /* Check whether the ELF header use the right endian */
     if (ehdr->e_ident[EI_DATA] != byteorder) {
-        if (BYTE_ORDER == BIG_ENDIAN) {
+        if (__BYTE_ORDER == __BIG_ENDIAN) {
             errstring = "ELF file data encoding not big-endian";
             goto verify_failed;
         } else {
@@ -1574,7 +1574,7 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 
 #if defined(__x86_64__)
-    asm volatile (
+    __asm__ volatile (
                     "movq %%rbx, %%rsp\r\n"
                     "pushq %%rdi\r\n"
                     "jmp *%%rax\r\n"

@@ -36,6 +36,22 @@ typedef unsigned int        __u32;
 typedef unsigned long int   nfds_t;
 typedef unsigned long int   nlink_t;
 
+#ifndef pid_t
+typedef __kernel_pid_t      pid_t;
+#endif
+
+#ifndef uid_t
+typedef __kernel_uid_t      uid_t;
+#endif
+
+#ifndef gid_t
+typedef __kernel_gid_t      gid_t;
+#endif
+
+#ifndef off_t
+typedef __kernel_off_t      off_t;
+#endif
+
 typedef __kernel_caddr_t    caddr_t;
 typedef __kernel_mode_t     mode_t;
 typedef __kernel_loff_t     loff_t;
@@ -46,6 +62,10 @@ typedef __kernel_clockid_t  clockid_t;
 typedef __kernel_key_t      key_t;
 typedef __kernel_timer_t    timer_t;
 typedef __kernel_fd_set     fd_set;
+
+#ifndef socklen_t
+typedef int                 socklen_t;
+#endif
 
 /* linux/time.h */
 struct __kernel_timespec {
