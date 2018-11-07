@@ -71,7 +71,7 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_sigstruct_t * sig)
 
 static inline void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t info[4])
 {
-    asm volatile("cpuid"
+    __asm__ volatile("cpuid"
                  : "=a"(info[0]),
                    "=b"(info[1]),
                    "=c"(info[2]),

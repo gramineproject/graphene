@@ -93,7 +93,7 @@ static struct pal_frame * get_frame (sgx_context_t * uc)
         if (!ADDR_IN_PAL(rip))
             return NULL;
     } else {
-        asm volatile ("movq %%rbp, %0" : "=r"(rbp) :: "memory");
+        __asm__ volatile ("movq %%rbp, %0" : "=r"(rbp) :: "memory");
     }
 
     while (ADDR_IN_PAL(((unsigned long *) rbp)[1]))
@@ -111,7 +111,7 @@ static struct pal_frame * get_frame (sgx_context_t * uc)
     return NULL;
 }
 
-asm (".type arch_exception_return_asm, @function;"
+__asm__ (".type arch_exception_return_asm, @function;"
      "arch_exception_return_asm:"
      "  pop %rax;"
      "  pop %rbx;"
@@ -129,7 +129,7 @@ asm (".type arch_exception_return_asm, @function;"
      "  pop %r15;"
      "  retq;");
 
-extern void arch_exception_return (void) asm ("arch_exception_return_asm");
+extern void arch_exception_return (void) __asm__ ("arch_exception_return_asm");
 
 void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
                               PAL_CONTEXT * context)
@@ -171,7 +171,8 @@ void restore_sgx_context (sgx_context_t * uc)
     *(uint64_t *) uc->rsp = uc->rip;
 
     /* now pop the stack */
-    asm volatile ("mov %0, %%rsp\n"
+    __asm__ volatile (
+                  "mov %0, %%rsp\n"
                   "pop %%rax\n"
                   "pop %%rcx\n"
                   "pop %%rdx\n"
@@ -315,7 +316,8 @@ void _DkExceptionReturn (void * event)
         __clear_frame(frame);
         arch_restore_frame(&frame->arch);
 
-        asm volatile ("xor %%rax, %%rax\r\n"
+        __asm__ volatile (
+                      "xor %%rax, %%rax\r\n"
                       "leaveq\r\n"
                       "retq\r\n" ::: "memory");
     }

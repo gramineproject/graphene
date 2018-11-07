@@ -150,7 +150,7 @@ int main (int argc, char ** argv, char ** envp)
                 if (ret > 0) {
                     message = "[Test 4] Physical Memory Map   : Memory Fault\n";
                     *(volatile int *) mem_addr;
-                    asm volatile("nop");
+                    __asm__ volatile("nop");
                     message = NULL;
                 }
 

@@ -6,7 +6,7 @@
 
 #define symbol_addr(sym)                                        \
     ({  void * _sym;                                            \
-        asm volatile ("movq " #sym "@GOTPCREL(%%rip), %0"       \
+        __asm__ volatile ("movq " #sym "@GOTPCREL(%%rip), %0"   \
                       : "=r"(_sym));                            \
         _sym; })
 
