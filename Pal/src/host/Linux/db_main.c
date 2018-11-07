@@ -43,7 +43,7 @@
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
    messed up by function calls */
-asm (".global pal_start \n"
+__asm__ (".global pal_start \n"
      "  .type pal_start,@function \n"
      "pal_start: \n"
      "  movq %rsp, %rdi \n"
@@ -56,7 +56,7 @@ asm (".global pal_start \n"
 
 /* use objfile-gdb convention instead of .debug_gdb_scripts */
 #ifdef DEBUG
-asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
+__asm__ (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".byte 1\r\n"
      ".asciz \"" PAL_FILE("host/Linux/pal-gdb.py") "\"\r\n"
      ".popsection\r\n");
@@ -308,7 +308,7 @@ done_init:
 static void cpuid (unsigned int leaf, unsigned int subleaf,
                    unsigned int words[])
 {
-  asm("cpuid"
+  __asm__ ("cpuid"
       : "=a" (words[WORD_EAX]),
         "=b" (words[WORD_EBX]),
         "=c" (words[WORD_ECX]),

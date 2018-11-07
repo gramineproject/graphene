@@ -193,7 +193,7 @@ struct arch_frame {
 
 #ifdef __x86_64__
 # define store_register(reg, var)     \
-    asm volatile ("movq %%" #reg ", %0" : "=a" (var) :: "memory");
+    __asm__ volatile ("movq %%" #reg ", %0" : "=a" (var) :: "memory");
 
 # define store_register_in_frame(reg, f)     store_register(reg, (f)->reg)
 
@@ -209,7 +209,7 @@ struct arch_frame {
     store_register_in_frame(r15, f)
 
 # define restore_register(reg, var, clobber...)  \
-    asm volatile ("movq %0, %%" #reg :: "g" (var) : "memory", ##clobber);
+    __asm__ volatile ("movq %0, %%" #reg :: "g" (var) : "memory", ##clobber);
 
 # define restore_register_in_frame(reg, f)       \
     restore_register(reg, (f)->reg,              \
@@ -264,7 +264,7 @@ void __store_frame (volatile struct pal_frame * frame,
     arch_store_frame(&frame->arch)
     frame->func = func;
     frame->funcname = funcname;
-    asm volatile ("nop" ::: "memory");
+    __asm__ volatile ("nop" ::: "memory");
     frame->identifier = PAL_FRAME_IDENTIFIER;
 }
 
@@ -277,7 +277,7 @@ static inline
 void __clear_frame (volatile struct pal_frame * frame)
 {
     if (frame->identifier == PAL_FRAME_IDENTIFIER) {
-        asm volatile ("nop" ::: "memory");
+        __asm__ volatile ("nop" ::: "memory");
         frame->identifier = 0;
     }
 }

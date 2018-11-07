@@ -18,7 +18,16 @@
 #include "api.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <arpa/nameser.h>
+
+#ifndef NS_INADDRSZ
+# define NS_INADDRSZ 4
+#endif
+#ifndef NS_IN6ADDRSZ
+# define NS_IN6ADDRSZ 16
+#endif
+#ifndef NS_INT16SZ
+# define NS_INT16SZ 2
+#endif
 
 /* int inet_pton4(src, dst)
  *    like inet_aton() but without all the hexadecimal, octal (with the
@@ -43,7 +52,7 @@ int inet_pton4 (const char *src, int len, void *dstp)
     while (src < end && (ch = *src++) != '\0') {
 
         if (ch >= '0' && ch <= '9') {
-            u_int new = *tp * 10 + (ch - '0');
+            unsigned new = *tp * 10 + (ch - '0');
 
             if (saw_digit && *tp == 0)
                 return (0);
