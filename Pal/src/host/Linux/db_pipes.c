@@ -40,6 +40,7 @@ typedef __kernel_pid_t pid_t;
 #include <asm/fcntl.h>
 #include <asm/poll.h>
 #include <sys/socket.h>
+#include <linux/time.h>
 #include <linux/un.h>
 #include <asm/errno.h>
 

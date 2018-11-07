@@ -9,7 +9,7 @@
 int main (int argc, char ** argv, char ** envp)
 {
     PAL_NUM values[4];
-    asm volatile("mov $0, %%rax\n"
+    __asm__ volatile("mov $0, %%rax\n"
                  "cpuid\n"
                  : "=a"(values[0]),
                    "=b"(values[1]),

@@ -86,7 +86,7 @@ static void do_bootstrap (void * args, int * pargc, const char *** pargv,
         }
 
     if (!base) {
-        asm ("leaq start(%%rip), %0\r\n"
+        __asm__ ("leaq start(%%rip), %0\r\n"
              "subq 1f(%%rip), %0\r\n"
              ".section\t.data.rel.ro\r\n"
              "1:\t.quad start\r\n"
@@ -417,7 +417,7 @@ int install_syscall_filter (void * code_start, void * code_end);
 
 void start(void);
 
-asm (".global start\r\n"
+__asm__ (".global start\r\n"
      "  .type start,@function\r\n"
      ".global main\r\n"
      "  .type do_main,@function\r\n");
@@ -425,7 +425,7 @@ asm (".global start\r\n"
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
    messed up by function calls */
-asm ("start:\r\n"
+__asm__ ("start:\r\n"
      "  movq %rsp, %rdi\r\n"
      "  call do_main\r\n");
 
@@ -577,7 +577,7 @@ void do_main (void * args)
                 break;
         }
 
-    asm volatile ("xorq %%rsp, %%rsp\r\n"
+    __asm__ volatile ("xorq %%rsp, %%rsp\r\n"
                   "movq %0, %%rsp\r\n"
                   "jmpq *%1\r\n"
                   :: "r"(stack), "r"(pal_entry) : "memory");

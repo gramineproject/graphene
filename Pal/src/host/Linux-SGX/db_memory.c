@@ -80,7 +80,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
         return -PAL_ERROR_INVAL;
 
     if (size == 0)
-        asm volatile ("int $3");
+        __asm__ volatile ("int $3");
 
     mem = get_reserved_pages(addr, size);
     if (!mem)

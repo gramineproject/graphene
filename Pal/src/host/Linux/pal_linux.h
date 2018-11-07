@@ -198,7 +198,8 @@ int pal_thread_init (void * tcbptr);
 static inline PAL_TCB * get_tcb (void)
 {
     PAL_TCB * tcb;
-    asm ("movq %%gs:%c1,%q0"
+    __asm__ (
+         "movq %%gs:%c1,%q0"
          : "=r" (tcb)
          : "i" (offsetof(PAL_TCB, self)));
     return tcb;

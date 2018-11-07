@@ -13,7 +13,7 @@ struct stack_frame {
 
 PAL_HANDLE _fork (void * args)
 {
-    register struct stack_frame * fp asm("ebp");
+    register struct stack_frame * fp __asm__ ("ebp");
     struct stack_frame * frame = fp;
 
     if (args == NULL) {

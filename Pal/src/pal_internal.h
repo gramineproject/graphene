@@ -231,7 +231,7 @@ extern struct pal_internal_state {
 #ifdef __GNUC__
 #define BREAK()                         \
     do {                                \
-        asm volatile ("int $3");        \
+        __asm__ volatile ("int $3");    \
     } while (0)
 #else
 #define BREAK()

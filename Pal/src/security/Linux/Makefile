@@ -1,7 +1,7 @@
 CC	= gcc
 LD	= ld
 
-CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -Wall -U_FORTIFY_SOURCE \
+CFLAGS	= -Wall -fPIC -O2 -std=c11 -Wall -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin \
 	  -DPAL_LOADER_PATH="$(abspath ../../libpal.so)" \
 	  -I. -I../../host/Linux/include -I../.. -I../../../include -I../../host/Linux \
