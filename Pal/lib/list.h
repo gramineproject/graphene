@@ -172,8 +172,8 @@
 /* This helper takes 3 arguments - all should be containing structures,
  * and the field to use for the offset to the list node */
 #define __list_add(NEW, NEXT, PREV, FIELD) do {       \
-        typeof(NEW) __tmp_next = (NEXT);              \
-        typeof(NEW) __tmp_prev = (PREV);              \
+        __typeof__(NEW) __tmp_next = (NEXT);          \
+        __typeof__(NEW) __tmp_prev = (PREV);          \
         __tmp_prev->FIELD.next = (NEW);               \
         __tmp_next->FIELD.prev = (NEW);               \
         (NEW)->FIELD.next = __tmp_next;               \

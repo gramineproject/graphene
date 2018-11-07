@@ -46,16 +46,16 @@ int main (void)
     DkSetExceptionHandler(handler1, PAL_EVENT_DIVZERO, 0);
     i = 0;
     i = 1 / i;
-    asm volatile("nop");
+    __asm__ volatile("nop");
 
     DkSetExceptionHandler(handler2, PAL_EVENT_DIVZERO, 0);
     i = 0;
     i = 1 / i;
-    asm volatile("nop");
+    __asm__ volatile("nop");
 
     DkSetExceptionHandler(handler3, PAL_EVENT_MEMFAULT, 0);
     *(volatile long *) 0x1000 = 0;
-    asm volatile("nop");
+    __asm__ volatile("nop");
 
     return 0;
 }

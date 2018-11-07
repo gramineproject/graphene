@@ -1286,7 +1286,7 @@ void * stack_before_call __attribute_unused = NULL;
 
 #define CALL_ENTRY(l, cookies)                                          \
     ({  long ret;                                                       \
-        asm volatile("movq %%rsp, stack_before_call(%%rip)\r\n"         \
+        __asm__ volatile("movq %%rsp, stack_before_call(%%rip)\r\n"     \
                      "leaq 1f(%%rip), %%rdx\r\n"                        \
                      "movq %2, %%rsp\r\n"                               \
                      "jmp *%1\r\n"                                      \
