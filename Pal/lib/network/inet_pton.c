@@ -43,7 +43,7 @@ int inet_pton4 (const char *src, int len, void *dstp)
     while (src < end && (ch = *src++) != '\0') {
 
         if (ch >= '0' && ch <= '9') {
-            u_int new = *tp * 10 + (ch - '0');
+            unsigned new = *tp * 10 + (ch - '0');
 
             if (saw_digit && *tp == 0)
                 return (0);

@@ -53,7 +53,7 @@
  *     }
  */
 
-void restore_rt (void) asm ("__restore_rt");
+void restore_rt (void) __asm__ ("__restore_rt");
 
 #ifndef SA_RESTORER
 #define SA_RESTORER  0x04000000
@@ -61,7 +61,7 @@ void restore_rt (void) asm ("__restore_rt");
 
 #define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
 # define DEFINE_RESTORE_RT2(syscall)                \
-    asm (                                           \
+    __asm__ (                                       \
          "    nop\n"                                \
          ".align 16\n"                              \
          ".LSTART_restore_rt:\n"                    \
@@ -120,7 +120,7 @@ typedef struct {
 #define SIGNAL_MASK_TIME 1000
 
 #define save_return_point(ptr)                      \
-    asm volatile ("leaq 0(%%rip), %%rax\r\n"        \
+    __asm__ volatile ("leaq 0(%%rip), %%rax\r\n"        \
                   "movq %%rax, %0\r\n"              \
                   : "=b"(ptr) :: "memory", "rax")
 
@@ -238,7 +238,7 @@ static void return_frame (struct pal_frame * frame, int err)
     __clear_frame(frame);
     arch_restore_frame(&frame->arch);
 
-    asm volatile ("xor %rax, %rax\r\n"
+    __asm__ volatile ("xor %rax, %rax\r\n"
                   "leaveq\r\n"
                   "retq\r\n");
 }
@@ -271,7 +271,7 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
     if (signum == SIGCONT && frame && frame->func == DkObjectsWaitAny)
         return;
 
-    asm volatile ("movq %%rbp, %0" : "=r"(eframe));
+    __asm__ volatile ("movq %%rbp, %0" : "=r"(eframe));
 
     if (frame && frame->func != &_DkGenericSighandler &&
         signum != SIGCONT &&
@@ -294,7 +294,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
     struct pal_frame * frame = get_frame(uc);
     void * eframe;
 
-    asm volatile ("movq %%rbp, %0" : "=r"(eframe));
+    __asm__ volatile ("movq %%rbp, %0" : "=r" (eframe));
 
     int event_num = get_event_num(signum);
     if (event_num == -1)
