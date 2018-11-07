@@ -416,7 +416,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (strcmp_static(areas[i].desc, "tls")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
-                                           MAP_ANON|MAP_PRIVATE, -1, 0);
+                                           MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
             for (int t = 0 ; t < enclave->thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
@@ -437,7 +437,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
-                                           MAP_ANON|MAP_PRIVATE, -1, 0);
+                                           MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
             for (int t = 0 ; t < enclave->thread_num ; t++) {
                 sgx_arch_tcs_t * tcs = data + pagesize * t;
@@ -879,12 +879,12 @@ int main (int argc, const char ** argv, const char ** envp)
             goto usage;
 
         if (strcmp_static(argv[0], "file:")) {
-            exec_uri = alloc_concat(argv[0], -1, NULL, -1);
+            exec_uri = (char*) alloc_concat(argv[0], -1, NULL, -1);
         } else {
-            exec_uri = alloc_concat("file:", -1, argv[0], -1);
+            exec_uri = (char*) alloc_concat("file:", -1, argv[0], -1);
         }
     } else {
-        exec_uri = alloc_concat(enclave->pal_sec.exec_name, -1, NULL, -1);
+        exec_uri = (char*) alloc_concat(enclave->pal_sec.exec_name, -1, NULL, -1);
     }
 
     int fd = INLINE_SYSCALL(open, 3, exec_uri + 5, O_RDONLY|O_CLOEXEC, 0);

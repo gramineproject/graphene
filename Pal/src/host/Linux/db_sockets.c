@@ -42,6 +42,7 @@ typedef __kernel_pid_t pid_t;
 #include <sys/socket.h>
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/time.h>
 #include <netinet/tcp.h>
 #include <asm/errno.h>
 

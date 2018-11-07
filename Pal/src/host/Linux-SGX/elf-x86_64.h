@@ -63,7 +63,7 @@ elf_machine_load_address (void)
        load offset which is zero if the binary was loaded at the address
        it is prelinked for.  */
 
-    asm ("leaq " XSTRINGIFY(_ENTRY) "(%%rip), %0\n\t"
+    __asm__ ("leaq " XSTRINGIFY(_ENTRY) "(%%rip), %0\n\t"
          "subq 1f(%%rip), %0\n\t"
          ".section\t.data.rel.ro\n"
          "1:\t.quad " XSTRINGIFY(_ENTRY) "\n\t"
