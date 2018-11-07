@@ -81,7 +81,7 @@ static int sgx_ocall_cpuid(void * pms)
 {
     ms_ocall_cpuid_t * ms = (ms_ocall_cpuid_t *) pms;
     ODEBUG(OCALL_CPUID, ms);
-    asm volatile ("cpuid"
+    __asm__ volatile ("cpuid"
                   : "=a"(ms->ms_values[0]),
                     "=b"(ms->ms_values[1]),
                     "=c"(ms->ms_values[2]),

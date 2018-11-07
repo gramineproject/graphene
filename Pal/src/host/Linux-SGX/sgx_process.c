@@ -97,7 +97,7 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
         /* shouldn't get to here */
         SGX_DBG(DBG_E, "unexpected failure of new process\n");
 out_child:
-        asm("hlt");
+        __asm__ volatile ("hlt");
         return 0;
     }
 

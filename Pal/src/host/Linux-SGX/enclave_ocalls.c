@@ -35,17 +35,17 @@ int printf(const char * fmt, ...);
 
 #define ALLOC_IN_USER(ptr, size)                    \
     ({                                              \
-        typeof(ptr) tmp = ptr;                      \
+        __typeof(ptr) tmp = ptr;                    \
         if (sgx_is_within_enclave(ptr, size)) {     \
-            OCALLOC(tmp, typeof(tmp), size);        \
+            OCALLOC(tmp, __typeof(tmp), size);      \
         }; tmp;                                     \
     })
 
 #define COPY_TO_USER(ptr, size)                     \
     ({                                              \
-        typeof(ptr) tmp = ptr;                      \
+        __typeof(ptr) tmp = ptr;                    \
         if (sgx_is_within_enclave(ptr, size)) {     \
-            OCALLOC(tmp, typeof(tmp), size);        \
+            OCALLOC(tmp, __typeof(tmp), size);      \
             memcpy((void *) tmp, ptr, size);        \
         }; tmp;                                     \
     })

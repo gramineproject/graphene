@@ -61,7 +61,7 @@ static void assert_vma_list (void)
             SGX_DBG(DBG_E, "*** [%d] corrupted heap vma: %p - %p (last = %p) ***\n", pal_sec.pid, vma->bottom, vma->top, last_addr);
 #ifdef DEBUG
             if (pal_sec.in_gdb)
-                asm volatile ("int $3" ::: "memory");
+                __asm__ volatile ("int $3" ::: "memory");
 #endif
             ocall_exit();
         }
@@ -136,7 +136,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
     _DkInternalUnlock(&heap_vma_lock);
 
     SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %llu) ***\n", size);
-    asm volatile("int $3");
+    __asm__ volatile("int $3");
     return NULL;
 
 allocated:
@@ -241,7 +241,7 @@ allocated:
                 vma->bottom, vma->top);
 #ifdef DEBUG
         if (pal_sec.in_gdb)
-            asm volatile ("int $3" ::: "memory");
+            __asm__ volatile ("int $3" ::: "memory");
 #endif
     }
     assert_vma_list();
