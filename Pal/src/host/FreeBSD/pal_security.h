@@ -58,6 +58,7 @@ void pal_r_debug_state (struct r_debug *, struct link_gdb_map *);
    a statically-linked program there is no dynamic section for the debugger
    to examine and it looks for this particular symbol name.  */
 extern struct r_debug pal_r_debug;
+symbol_version(pal_r_debug, r_debug, PAL);
 
 extern struct pal_sec {
     unsigned int        domain_id;

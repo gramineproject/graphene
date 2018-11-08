@@ -1,6 +1,6 @@
 GLIBC {
     global:
-        r_debug; r_debug_state;
+        r_debug_state;
 };
 PAL {
     global:
@@ -48,6 +48,9 @@ PAL {
 
         # Control block
         pal_control_addr; pal_sec;
+
+        # debugger interface
+        r_debug;
 
     local: *;
 };

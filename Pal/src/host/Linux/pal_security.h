@@ -58,6 +58,7 @@ void pal_dl_debug_state (void);
    a statically-linked program there is no dynamic section for the debugger
    to examine and it looks for this particular symbol name.  */
 extern struct r_debug pal_r_debug;
+symbol_version(pal_r_debug, _r_debug, PAL);
 
 extern struct pal_sec {
     /* system variables */
