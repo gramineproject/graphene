@@ -9,7 +9,7 @@ LD	= ld
 
 OMIT_FRAME_POINTER = no
 
-CFLAGS	= -Werror -Wall -fPIC -std=gnu99 -fgnu89-inline -Winline -Wwrite-strings \
+CFLAGS	= -Wall -fPIC -std=gnu99 -fgnu89-inline -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes \
 	  -Werror=implicit-function-declaration \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
@@ -27,6 +27,10 @@ LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
 LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
+
+ifeq ($(WERROR),1)
+CC += -Werror
+endif
 
 files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
