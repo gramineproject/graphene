@@ -414,16 +414,13 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     // Need to check if there are any pending messages on the port, which means
     // some threads might be blocking for responses.
     lock(port->msgs_lock);
-    if (!list_empty(port, list)) {
-        struct shim_ipc_msg_obj * msg, * n;
-
-        listp_for_each_entry_safe(msg, n, &port->msgs, list) {
-            listp_del_init(msg, &port->msgs, list);
-            msg->retval = -ECONNRESET;
-            if (msg->thread) {
-                debug("wake up thread %d\n", msg->thread->tid);
-                thread_wakeup(msg->thread);
-            }
+    struct shim_ipc_msg_obj * msg, * n;
+    listp_for_each_entry_safe(msg, n, &port->msgs, list) {
+        listp_del_init(msg, &port->msgs, list);
+        msg->retval = -ECONNRESET;
+        if (msg->thread) {
+            debug("wake up thread %d\n", msg->thread->tid);
+            thread_wakeup(msg->thread);
         }
     }
     unlock(port->msgs_lock);
