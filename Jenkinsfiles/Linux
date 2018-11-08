@@ -9,6 +9,11 @@ pipeline {
                             make
                            '''
                     }
+                    post {
+                        always {
+                            warnings canComputeNew: false, canResolveRelativePaths: true, categoriesPattern: '', consoleParsers: [[parserName: 'GNU C Compiler 4 (gcc)']], defaultEncoding: '', excludePattern: '', healthy: '', includePattern: '', messagesPattern: '', unHealthy: ''
+                        }
+                    }
                 }
                 stage('Test') {
                     steps {
@@ -63,6 +68,11 @@ pipeline {
                 }
                 stage('Deploy') {
                     steps {
+                        sh '''
+                            make -C Pal clean
+                            make -C LibOS/shim clean
+                            make WERROR=1
+                            '''
                         sh 'echo Deploying code'
                     }
                 }

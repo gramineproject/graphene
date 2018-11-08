@@ -9,6 +9,11 @@ pipeline {
                             make DEBUG=1
                            '''
                     }
+                    post {
+                        always {
+                            warnings canComputeNew: false, canResolveRelativePaths: true, categoriesPattern: '', consoleParsers: [[parserName: 'GNU C Compiler 4 (gcc)']], defaultEncoding: '', excludePattern: '', healthy: '', includePattern: '', messagesPattern: '', unHealthy: ''
+                        }
+                    }
                 }
                 stage('Test') {
                     steps {
@@ -56,6 +61,11 @@ pipeline {
                 }
                 stage('Deploy') {
                     steps {
+                        sh '''
+                            make -C Pal clean DEBUG=1
+                            make -C LibOS/shim clean DEBUG=1
+                            make WERROR=1 DEBUG=1
+                            '''
                         sh 'echo Deploying code'
                     }
                 }
