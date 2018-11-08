@@ -1,7 +1,7 @@
 include ../src/Makefile.Host
 
 CC	= gcc
-CFLAGS	= -Wall -Werror -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
+CFLAGS	= -Wall -O2 -std=gnu99 -fgnu89-inline -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib
 
 .PHONY: default
@@ -26,6 +26,10 @@ ifeq ($(DEBUG),1)
 CC += -g
 endif
 export DEBUG
+
+ifeq ($(WERROR),1)
+CC += -Werror
+endif
 
 pal_loader:
 	ln -sf ../../Runtime/pal_loader
