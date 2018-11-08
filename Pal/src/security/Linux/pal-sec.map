@@ -1,7 +1,9 @@
 GLIBC {
     global:
-        _r_debug; _dl_debug_state;
+        _dl_debug_state;
 };
 PAL {
+    global:
+        _r_debug;
     local: *;
 };
