@@ -14,7 +14,6 @@ default: all
 level = ../
 include ../Makefile
 
-CFLAGS = -Wall -Werror
 CFLAGS-libos = -L../../../build/libos -I../../include
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
