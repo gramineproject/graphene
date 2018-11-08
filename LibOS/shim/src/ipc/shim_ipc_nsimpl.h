@@ -754,6 +754,7 @@ static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
 static void __discover_ns (bool block, bool need_locate)
 {
     bool ipc_pending = false;
+    lock(cur_process.lock);
 
     if (NS_LEADER) {
         if (NS_LEADER->vmid == cur_process.vmid) {
@@ -786,8 +787,8 @@ static void __discover_ns (bool block, bool need_locate)
     // If the call is non-blocking, can't expect the answer when the function finishes.
     if (!NS_SEND(findns)(block)) {
         ipc_pending = !block; // There is still some unfinished business with IPC
-        assert(NS_LEADER);
         lock(cur_process.lock);
+        assert(NS_LEADER);
         goto out;
     }
 
@@ -796,7 +797,7 @@ static void __discover_ns (bool block, bool need_locate)
     if (NS_LEADER && (!need_locate || !qstrempty(&NS_LEADER->uri)))
         goto out;
 
-    // If all other ways failed, the current process become the leader
+    // If all other ways failed, the current process becomes the leader
     if (!need_locate) {
         NS_LEADER = get_new_ipc_info(cur_process.vmid, NULL, 0);
         goto out;
@@ -820,12 +821,14 @@ out:
         if (need_locate)
             assert(!qstrempty(&NS_LEADER->uri));        // A known URI is needed
     }
+
+    unlock(cur_process.lock);
 }
 
 static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
 {
+    __discover_ns(true, false); // Should not hold cur_process.lock
     lock(cur_process.lock);
-    __discover_ns(true, false);
 
     if (!NS_LEADER) {
         unlock(cur_process.lock);
@@ -889,14 +892,11 @@ static int disconnect_ns(struct shim_ipc_port * port)
 int CONCAT3(prepare, NS, leader) (void)
 {
     lock(cur_process.lock);
-
-    if (!NS_LEADER) {
-        unlock(cur_process.lock);
-        return 0;
-    }
-
-    __discover_ns(true, true);
+    bool need_discover = (!NS_LEADER || qstrempty(&NS_LEADER->uri));
     unlock(cur_process.lock);
+
+    if (need_discover)
+        __discover_ns(true, true); // Should not hold cur_process.lock
     return 0;
 }
 
@@ -1014,8 +1014,8 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
           msg->src);
 
     int ret = 0;
+    __discover_ns(false, true); // Non-blocking discovery; should not hold cur_process.lock
     lock(cur_process.lock);
-    __discover_ns(false, true); // Do a non-blocking discovery
 
     if (NS_LEADER && !qstrempty(&NS_LEADER->uri)) {
         // Got the answer! Send back the discovery now.

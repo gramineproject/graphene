@@ -411,7 +411,7 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     port->deleted = true; /* prevent further usage of the port */
     wmb(); /* commit the state to the memory */
 
-    // Need to check if there is any pending messages on the port, which means
+    // Need to check if there are any pending messages on the port, which means
     // some threads might be blocking for responses.
     lock(port->msgs_lock);
     if (!list_empty(port, list)) {
@@ -462,9 +462,9 @@ void del_ipc_port_by_id (IDTYPE vmid, int type)
         debug("port %p (handle %p) for process %u in list %p\n",
               port, port->pal_handle, port->info.vmid, head);
 
-        if (port->info.vmid == vmid) {
+        if (port->info.vmid == vmid && !port->deleted) {
             __get_ipc_port(port); // Bump the refcount to prevent freeing
-            if (!port->deleted && __del_ipc_port(port, type))
+            if (__del_ipc_port(port, type))
                 need_restart = true;
             __put_ipc_port(port);
         }
@@ -492,20 +492,23 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
     __get_ipc_port(port);
 
     bool need_restart = __del_ipc_port(port, 0);
-    unlock(ipc_helper_lock);
 
     if (nfini) {
+        // In case the finish function may grab ipc_helper_lock again,
+        // We need to temporarily unlock here.
+        unlock(ipc_helper_lock);
         for (int i = 0 ; i < nfini ; i++)
             (fini[i])(port, vmid, exitcode);
+        lock(ipc_helper_lock);
     }
 
-    // We are not holding ipc_helper_lock here, so need to call put_ipc_port()
-    // instead of __put_ipc_port();
-    put_ipc_port(port);
+    __put_ipc_port(port);
     assert(REF_GET(port->ref_count) > 0);
 
     if (need_restart)
         restart_ipc_helper(false);
+
+    unlock(ipc_helper_lock);
 }
 
 static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)
@@ -550,8 +553,11 @@ void del_all_ipc_ports (int type)
     lock(ipc_helper_lock);
 
     listp_for_each_entry_safe(pobj, n, &pobj_list, list) {
+        if (pobj->deleted)
+            continue;
+
         __get_ipc_port(pobj);
-        if (pobj->pal_handle && __del_ipc_port(pobj, type))
+        if (__del_ipc_port(pobj, type))
             need_restart = true;
         __put_ipc_port(pobj);
     }
