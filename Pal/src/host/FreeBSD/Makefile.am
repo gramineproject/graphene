@@ -6,7 +6,7 @@ AS	= gcc
 AR	= ar rcs
 LD	= ld
 
-CFLAGS	= -Wall -Werror -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
+CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
@@ -14,6 +14,10 @@ ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
 	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds
 ARFLAGS	=
+
+ifeq ($(WERROR),1)
+CC += -Werror
+endif
 
 pal_loader = $(HOST_DIR)/libpal.so
 pal_sec =
