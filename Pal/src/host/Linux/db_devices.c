@@ -55,14 +55,14 @@ enum {
 
 static struct handle_ops term_ops;
 
-static const struct handle_ops *pal_device_ops[PAL_DEVICE_TYPE_BOUND] = {
+static const struct handle_ops* pal_device_ops[PAL_DEVICE_TYPE_BOUND] = {
     NULL, &term_ops,
 };
 
 /* parse-device_uri scan the uri, parse the prefix of the uri and search
    for stream handler wich will open or access the device */
-static int parse_device_uri(const char **uri, const char **type, struct handle_ops **ops) {
-    struct handle_ops *dops = NULL;
+static int parse_device_uri(const char** uri, const char** type, struct handle_ops** ops) {
+    struct handle_ops* dops = NULL;
     const char *p, *u = (*uri);
 
     for (p = u; (*p) && (*p) != ',' && (*p) != '/'; p++)
@@ -82,15 +82,15 @@ static int parse_device_uri(const char **uri, const char **type, struct handle_o
     return 0;
 }
 
-static inline void dev_attrcopy(PAL_STREAM_ATTR *attr, struct stat *stat);
+static inline void dev_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat);
 
-static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void *buffer);
-static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void *buffer);
-static int term_attrquery(const char *type, const char *uri, PAL_STREAM_ATTR *attr);
-static int term_attrquerybyhdl(PAL_HANDLE hdl, PAL_STREAM_ATTR *attr);
+static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer);
+static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer);
+static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr);
+static int term_attrquerybyhdl(PAL_HANDLE hdl, PAL_STREAM_ATTR* attr);
 
 /* Method to open standard terminal */
-static int open_standard_term(PAL_HANDLE *handle, const char *param, int access) {
+static int open_standard_term(PAL_HANDLE* handle, const char* param, int access) {
     if (param)
         return -PAL_ERROR_NOTIMPLEMENTED;
 
@@ -113,12 +113,12 @@ static int open_standard_term(PAL_HANDLE *handle, const char *param, int access)
 }
 
 /* 'open' operation for terminal stream */
-static int term_open(PAL_HANDLE *handle, const char *type, const char *uri, int access, int share,
+static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
-    const char *term  = NULL;
-    const char *param = NULL;
+    const char* term  = NULL;
+    const char* param = NULL;
 
-    const char *tmp = uri;
+    const char* tmp = uri;
     while (*tmp) {
         if (!term && *tmp == '/')
             term = tmp + 1;
@@ -140,7 +140,7 @@ static int term_close(PAL_HANDLE handle) {
 }
 
 /* 'attrquery' operation for terminal stream */
-static int term_attrquery(const char *type, const char *uri, PAL_STREAM_ATTR *attr) {
+static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
     attr->handle_type  = pal_type_dev;
     attr->readable     = PAL_TRUE;
     attr->writeable    = PAL_TRUE;
@@ -150,7 +150,7 @@ static int term_attrquery(const char *type, const char *uri, PAL_STREAM_ATTR *at
 }
 
 /* 'attrquery' operation for terminal stream */
-static int term_attrquerybyhdl(PAL_HANDLE hdl, PAL_STREAM_ATTR *attr) {
+static int term_attrquerybyhdl(PAL_HANDLE hdl, PAL_STREAM_ATTR* attr) {
     attr->handle_type  = pal_type_dev;
     attr->readable     = (hdl->dev.fd_in != PAL_IDX_POISON);
     attr->writeable    = (hdl->dev.fd_out != PAL_IDX_POISON);
@@ -169,7 +169,7 @@ static struct handle_ops term_ops = {
 };
 
 /* 'read' operation for character streams. */
-static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void *buffer) {
+static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buffer) {
     int fd = handle->dev.fd_in;
 
     if (fd == PAL_IDX_POISON)
@@ -184,7 +184,7 @@ static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void
 }
 
 /* 'write' operation for character streams. */
-static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void *buffer) {
+static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
     int fd = handle->dev.fd_out;
 
     if (fd == PAL_IDX_POISON)
@@ -199,10 +199,10 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
 }
 
 /* 'open' operation for device streams */
-static int dev_open(PAL_HANDLE *handle, const char *type, const char *uri, int access, int share,
+static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    struct handle_ops *ops = NULL;
-    const char *dev_type   = NULL;
+    struct handle_ops* ops = NULL;
+    const char* dev_type   = NULL;
     int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
@@ -223,8 +223,8 @@ static int dev_open(PAL_HANDLE *handle, const char *type, const char *uri, int a
 }
 
 /* 'read' operation for device stream */
-static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void *buffer) {
-    const struct handle_ops *ops = DEVICE_OPS(handle);
+static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buffer) {
+    const struct handle_ops* ops = DEVICE_OPS(handle);
 
     if (!ops || !ops->read)
         return -PAL_ERROR_NOTSUPPORT;
@@ -233,8 +233,8 @@ static int64_t dev_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void 
 }
 
 /* 'write' operation for device stream */
-static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void *buffer) {
-    const struct handle_ops *ops = DEVICE_OPS(handle);
+static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
+    const struct handle_ops* ops = DEVICE_OPS(handle);
 
     if (!ops || !ops->write)
         return -PAL_ERROR_NOTSUPPORT;
@@ -244,7 +244,7 @@ static int64_t dev_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, cons
 
 /* 'close' operation for device streams */
 static int dev_close(PAL_HANDLE handle) {
-    const struct handle_ops *ops = DEVICE_OPS(handle);
+    const struct handle_ops* ops = DEVICE_OPS(handle);
 
     if (ops && ops->close)
         return ops->close(handle);
@@ -272,14 +272,14 @@ static int dev_close(PAL_HANDLE handle) {
     }
 
     if (handle->file.realpath)
-        free((void *)handle->file.realpath);
+        free((void*)handle->file.realpath);
 
     return 0;
 }
 
 /* 'delete' operation for device streams */
 static int dev_delete(PAL_HANDLE handle, int access) {
-    const struct handle_ops *ops = DEVICE_OPS(handle);
+    const struct handle_ops* ops = DEVICE_OPS(handle);
 
     if (!ops || !ops->delete)
         return -PAL_ERROR_DENIED;
@@ -294,7 +294,7 @@ static int dev_delete(PAL_HANDLE handle, int access) {
 
 /* 'flush' operation for device streams */
 static int dev_flush(PAL_HANDLE handle) {
-    const struct handle_ops *ops = DEVICE_OPS(handle);
+    const struct handle_ops* ops = DEVICE_OPS(handle);
 
     if (ops && ops->flush)
         return ops->flush(handle);
@@ -331,7 +331,7 @@ static int dev_flush(PAL_HANDLE handle) {
     return 0;
 }
 
-static inline void dev_attrcopy(PAL_STREAM_ATTR *attr, struct stat *stat) {
+static inline void dev_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
     attr->handle_type = pal_type_dev;
     /* readable, writable and runnable are decied by euidstataccess */
     attr->readable     = stataccess(stat, ACCESS_R);
@@ -341,9 +341,9 @@ static inline void dev_attrcopy(PAL_STREAM_ATTR *attr, struct stat *stat) {
 }
 
 /* 'attrquery' operation for device streams */
-static int dev_attrquery(const char *type, const char *uri, PAL_STREAM_ATTR *attr) {
-    struct handle_ops *ops = NULL;
-    const char *dev_type   = NULL;
+static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
+    struct handle_ops* ops = NULL;
+    const char* dev_type   = NULL;
     int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
@@ -358,8 +358,8 @@ static int dev_attrquery(const char *type, const char *uri, PAL_STREAM_ATTR *att
 }
 
 /* 'attrquerybyhdl' operation for device stream */
-static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR *attr) {
-    const struct handle_ops *ops = DEVICE_OPS(handle);
+static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
+    const struct handle_ops* ops = DEVICE_OPS(handle);
 
     if (ops && ops->attrquerybyhdl)
         return ops->attrquerybyhdl(handle, attr);
@@ -390,7 +390,7 @@ static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR *attr) {
     return 0;
 }
 
-static const char *dev_getrealpath(PAL_HANDLE handle) {
+static const char* dev_getrealpath(PAL_HANDLE handle) {
     return handle->dev.realpath;
 }
 
