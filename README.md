@@ -70,6 +70,8 @@ Each part of Graphene can be built separately in the subdirectories.
 To build Graphene library OS with debug symbols, run "make DEBUG=1" instead of
 "make".
 
+To build with "-Werror", run "make WERROR=1".
+
 ### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
 
 __** Note: this step is optional. **__
