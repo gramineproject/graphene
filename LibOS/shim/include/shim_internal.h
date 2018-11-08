@@ -195,9 +195,16 @@ long convert_pal_errno (long err);
 
 void check_stack_hook (void);
 
+static inline uint64_t get_cur_preempt (void) {
+    shim_tcb_t* tcb = SHIM_GET_TLS();
+    assert(tcb);
+    return tcb->context.preempt;
+}
+
 #define BEGIN_SHIM(name, args ...)                          \
     SHIM_ARG_TYPE __shim_##name (args) {                    \
         SHIM_ARG_TYPE ret = 0;                              \
+        uint64_t preempt = get_cur_preempt();               \
         /* handle_signal(true); */                          \
         /* check_stack_hook(); */                           \
         BEGIN_SYSCALL_PROFILE();
@@ -205,6 +212,7 @@ void check_stack_hook (void);
 #define END_SHIM(name)                                      \
         END_SYSCALL_PROFILE(name);                          \
         handle_signal(false);                               \
+        assert(preempt == get_cur_preempt());               \
         return ret;                                         \
     }
 
@@ -390,13 +398,12 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
  * container_of - cast a member of a structure out to the containing structure
  * @ptr:	the pointer to the member.
  * @type:	the type of the container struct this is embedded in.
- * @member:	the name of the member within the struct.
+ * @field:	the name of the field within the struct.
  *
  */
-#define container_of(ptr, type, member) ({			\
-	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-	(type *)( (char *)__mptr - offsetof(type,member) );})
+#define container_of(ptr, type, field) ((type *)((char *)(ptr) - offsetof(type, field)))
 #endif
+
 
 #define CONCAT2(t1, t2) __CONCAT2(t1, t2)
 #define __CONCAT2(t1, t2) t1##_##t2

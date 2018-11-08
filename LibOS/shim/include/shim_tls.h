@@ -51,8 +51,8 @@ struct shim_context {
     void *                  ret_ip;
     struct shim_regs *      regs;
     struct shim_context *   next;
-    unsigned long           enter_time;
-    unsigned long           preempt;
+    uint64_t                enter_time;
+    uint64_t                preempt;
 };
 
 #ifdef IN_SHIM
@@ -71,8 +71,6 @@ typedef struct {
     unsigned int            tid;
     int                     pal_errno;
     void *                  debug_buf;
-    int                     last_lock;
-    struct lock_record      held_locks[NUM_LOCK_RECORD];
 
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],
