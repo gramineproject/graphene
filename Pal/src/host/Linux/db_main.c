@@ -230,13 +230,15 @@ void pal_linux_main (void * args)
     init_slab_mgr(pagesz);
 
     first_thread = malloc(HANDLE_SIZE(thread));
+    if (!first_thread)
+        init_fail(PAL_ERROR_NOMEM, "Out of memory");
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
 
     void * alt_stack = NULL;
     _DkVirtualMemoryAlloc(&alt_stack, ALT_STACK_SIZE, 0, PAL_PROT_READ|PAL_PROT_WRITE);
     if (!alt_stack)
-        init_fail(PAL_ERROR_NOMEM, "no alternative thread allocated");
+        init_fail(PAL_ERROR_NOMEM, "Out of memory");
 
     // Initialize TCB at the top of the alternative stack.
     PAL_TCB * tcb  = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB);

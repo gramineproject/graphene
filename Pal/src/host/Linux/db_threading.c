@@ -87,14 +87,18 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param, int flags)
 {
     void * stack = NULL;
-
-    if (_DkVirtualMemoryAlloc(&stack, THREAD_STACK_SIZE + ALT_STACK_SIZE,
-                              0, PAL_PROT_READ|PAL_PROT_WRITE) < 0)
-        return -PAL_ERROR_NOMEM;
+    int ret = _DkVirtualMemoryAlloc(&stack, THREAD_STACK_SIZE + ALT_STACK_SIZE,
+                                    0, PAL_PROT_READ|PAL_PROT_WRITE);
+    if (ret < 0)
+        return ret;
 
     void * child_stack = stack + THREAD_STACK_SIZE;
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(thread));
+    if (!hdl) {
+        ret = -ENOMEM;
+        goto err;
+    }
     SET_HANDLE_TYPE(hdl, thread);
 
     // Initialize TCB at the top of the alternative stack.
@@ -108,18 +112,25 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     /* align child_stack to 16 */
     child_stack = (void *) ((uintptr_t) child_stack & ~16);
 
-    int ret = clone(pal_thread_init, child_stack,
+    ret = clone(pal_thread_init, child_stack,
                     CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
                     CLONE_THREAD|CLONE_SIGHAND|CLONE_PTRACE|
                     CLONE_PARENT_SETTID,
                     (void *) tcb, &hdl->thread.tid, NULL);
 
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+    if (IS_ERR(ret)) {
+        ret = -PAL_ERROR_DENIED;
+        goto err;
+    }
 
     *handle = hdl;
-
     return 0;
+err:
+    if (stack)
+        _DkVirtualMemoryFree(stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
+    if (hdl)
+        free(hdl);
+    return ret;
 }
 
 int _DkThreadDelayExecution (unsigned long * duration)
