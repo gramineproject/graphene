@@ -177,7 +177,7 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
         // will happen in PAL. If these exceptions happen in PAL, exit the thread with loud warning.
         int pid = INLINE_SYSCALL(getpid, 0);
         int tid = INLINE_SYSCALL(gettid, 0);
-        char * name = "exception";
+        const char * name = "exception";
         switch(event_num) {
             case PAL_EVENT_DIVZERO:  name = "div-by-zero exception"; break;
             case PAL_EVENT_MEMFAULT: name = "memory fault"; break;
@@ -225,7 +225,9 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
         return;
     }
 
-    if (!_DkGenericSignalHandle(event_num, NULL, uc))
+    // Call the event handler. If there is no handler, terminate the thread
+    // unless it is a resuming event (then ignore the event).
+    if (!_DkGenericSignalHandle(event_num, NULL, uc) && event_num != PAL_EVENT_RESUME)
         _DkThreadExit();
 }
 

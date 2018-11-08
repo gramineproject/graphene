@@ -187,20 +187,6 @@ extern void __check_pending_event (void);
 #define LEAVE_PAL_CALL_RETURN(retval) \
     do { __check_pending_event(); return (retval); } while (0)
 
-static __attribute__((unused))
-int _DkInternalLock (struct mutex_handle * lock)
-{
-    for (volatile int tries = 0 ; _DkMutexLock(lock) < 0 ; tries++);
-    return 0;
-}
-
-static __attribute__((unused))
-int _DkInternalUnlock (struct mutex_handle * lock)
-{
-    _DkMutexUnlock(lock);
-    return 0;
-}
-
 #if TRACE_HEAP_LEAK == 1
 
 /* The following code adds a piece of information
