@@ -319,7 +319,7 @@ diff --git a/elf/Versions b/elf/Versions
 index 2383992..98687f6 100644
 --- a/elf/Versions
 +++ b/elf/Versions
-@@ -24,14 +24,15 @@ libc {
+@@ -24,6 +24,9 @@ libc {
      _dl_sym; _dl_vsym;
      __libc_dlclose; __libc_dlopen_mode; __libc_dlsym;
    }
@@ -329,15 +329,7 @@ index 2383992..98687f6 100644
  }
  
  ld {
-   GLIBC_2.0 {
-     # Function from libc.so which must be shared with libc.
-     __libc_memalign; calloc; free; malloc; realloc;
--
--    _r_debug;
-   }
-   GLIBC_2.1 {
-     # functions used in other libraries
-@@ -57,9 +58,12 @@ ld {
+@@ -57,9 +60,12 @@ ld {
      _rtld_global; _rtld_global_ro;
  
      # Only here for gdb while a better method is developed.
@@ -351,19 +343,6 @@ index 2383992..98687f6 100644
 +    syscalldb; glibc_version; glibc_option; register_library;
 +  }
  }
-diff --git a/elf/circleload1.c b/elf/circleload1.c
-index 990ff84..ccf92d3 100644
---- a/elf/circleload1.c
-+++ b/elf/circleload1.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
 diff --git a/elf/dl-close.c b/elf/dl-close.c
 index 5bf1de7..a887133 100644
 --- a/elf/dl-close.c
@@ -390,16 +369,16 @@ diff --git a/elf/dl-debug.c b/elf/dl-debug.c
 index 4e7c593..3e0bff4 100644
 --- a/elf/dl-debug.c
 +++ b/elf/dl-debug.c
-@@ -34,7 +34,7 @@ extern const int verify_link_map_members[(VERIFY_MEMBER (l_addr)
+@@ -34,7 +34,7 @@ extern const int verify_link_map_members
     normally finds it via the DT_DEBUG entry in the dynamic section, but in
     a statically-linked program there is no dynamic section for the debugger
     to examine and it looks for this particular symbol name.  */
 -struct r_debug _r_debug;
-+struct r_debug __libc_r_debug __attribute__((weak));
++struct r_debug __libc_r_debug;
  
  
  /* Initialize _r_debug if it has not already been done.  The argument is
-@@ -48,7 +48,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase, Lmid_t ns)
+@@ -48,7 +48,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
    struct r_debug *r;
  
    if (ns == LM_ID_BASE)
@@ -408,7 +387,7 @@ index 4e7c593..3e0bff4 100644
    else
      r = &GL(dl_ns)[ns]._ns_debug;
  
-@@ -56,9 +56,9 @@ _dl_debug_initialize (ElfW(Addr) ldbase, Lmid_t ns)
+@@ -56,9 +56,9 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
      {
        /* Tell the debugger where to find the map of loaded objects.  */
        r->r_version = 1	/* R_DEBUG_VERSION XXX */;
@@ -420,7 +399,7 @@ index 4e7c593..3e0bff4 100644
      }
  
    return r;
-@@ -70,7 +70,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase, Lmid_t ns)
+@@ -70,7 +70,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
     examining the r_brk member of struct r_debug, but GDB 4.15 in fact looks
     for this particular symbol name in the PT_INTERP file.  */
  void
@@ -488,80 +467,14 @@ diff --git a/elf/link.h b/elf/link.h
 index d5905d1..f4e108a 100644
 --- a/elf/link.h
 +++ b/elf/link.h
-@@ -64,7 +64,7 @@ struct r_debug
-   };
+@@ -65,6 +65,7 @@ struct r_debug
  
  /* This is the instance of that structure used by the dynamic linker.  */
--extern struct r_debug _r_debug;
-+extern struct r_debug __libc_r_debug;
+ extern struct r_debug _r_debug;
++asm (".symver _r_debug, __libc_r_debug@GLIBC_PRIVATE");
  
  /* This symbol refers to the "dynamic structure" in the `.dynamic' section
     of whatever module refers to `_DYNAMIC'.  So, to find its own
-diff --git a/elf/loadtest.c b/elf/loadtest.c
-index 727469b..568ddef 100644
---- a/elf/loadtest.c
-+++ b/elf/loadtest.c
-@@ -70,7 +70,7 @@ static const struct
- 
- #include <include/link.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- #define OUT \
-   for (map = MAPS; map != NULL; map = map->l_next)		      \
-diff --git a/elf/neededtest.c b/elf/neededtest.c
-index 3cea499..e098d48 100644
---- a/elf/neededtest.c
-+++ b/elf/neededtest.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
-diff --git a/elf/neededtest2.c b/elf/neededtest2.c
-index 17c75f2..5a73a95 100644
---- a/elf/neededtest2.c
-+++ b/elf/neededtest2.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
-diff --git a/elf/neededtest3.c b/elf/neededtest3.c
-index 41970cf..5126615 100644
---- a/elf/neededtest3.c
-+++ b/elf/neededtest3.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
-diff --git a/elf/neededtest4.c b/elf/neededtest4.c
-index 0ae0b7f..f883910 100644
---- a/elf/neededtest4.c
-+++ b/elf/neededtest4.c
-@@ -5,7 +5,7 @@
- #include <stdlib.h>
- #include <string.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- static int
- check_loaded_objects (const char **loaded)
 diff --git a/elf/rtld.c b/elf/rtld.c
 index 6dcbabc..c87c773 100644
 --- a/elf/rtld.c
@@ -763,32 +676,6 @@ index 6dcbabc..c87c773 100644
    LIBC_PROBE (init_complete, 2, LM_ID_BASE, r);
  
  #if defined USE_LDCONFIG && !defined MAP_COPY
-diff --git a/elf/unload.c b/elf/unload.c
-index 4566f22..73046de 100644
---- a/elf/unload.c
-+++ b/elf/unload.c
-@@ -9,7 +9,7 @@
- #include <stdio.h>
- #include <stdlib.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- #define OUT \
-   for (map = MAPS; map != NULL; map = map->l_next)			      \
-diff --git a/elf/unload2.c b/elf/unload2.c
-index eef2bfd..a21d2ac 100644
---- a/elf/unload2.c
-+++ b/elf/unload2.c
-@@ -6,7 +6,7 @@
- #include <stdio.h>
- #include <stdlib.h>
- 
--#define MAPS ((struct link_map *) _r_debug.r_map)
-+#define MAPS ((struct link_map *) __libc_r_debug.r_map)
- 
- #define OUT \
-   for (map = MAPS; map != NULL; map = map->l_next)			      \
 diff --git a/malloc/arena.c b/malloc/arena.c
 index 5088a25..33a3879 100644
 --- a/malloc/arena.c
