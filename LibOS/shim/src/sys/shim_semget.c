@@ -705,7 +705,7 @@ int submit_sysv_sem (struct shim_sem_handle * sem, struct sembuf * sops,
 
         if (op->sem_num > 0) {
             score += SEM_POSITIVE_SCORE(op->sem_num);
-        } else if (op->sem_num < 0) {
+        } else if ((short)op->sem_num < 0) {
             score += SEM_NEGATIVE_SCORE(-op->sem_num);
             sendreply = true;
         } else {

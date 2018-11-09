@@ -376,7 +376,7 @@ int shim_do_msgsnd (int msqid, const void * msgp, size_t msgsz, int msgflg)
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     int ret;
 
-    if ((msgsz < 0) || (msgsz > MSGMAX))
+    if (((int64_t)msgsz < 0) || (msgsz > MSGMAX))
         return -EINVAL;
 
     if (!msgp)
@@ -404,7 +404,7 @@ int shim_do_msgrcv (int msqid, void * msgp, size_t msgsz, long msgtype,
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     int ret;
 
-    if (msgsz < 0)
+    if ((int64_t)msgsz < 0)
         return -EINVAL;
     if (!msgp)
         return -EFAULT;

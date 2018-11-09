@@ -654,7 +654,7 @@ postmap:
                         DkVirtualMemoryAlloc((caddr_t) zeropage,
                                              zeroend - zeropage,
                                              0, c->prot);
-                    if (__builtin_expect (mapat < 0, 0)) {
+                    if (__builtin_expect ((int64_t)mapat < 0, 0)) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
                     }

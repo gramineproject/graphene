@@ -99,7 +99,7 @@ int shim_do_setitimer (int which, struct __kernel_itimerval * value,
                                     real_itimer.timeout - setup_time : 0;
     unsigned long current_reset = real_itimer.reset;
 
-    uint64_t ret = install_async_event(NULL, next_value, &signal_itimer,
+    int64_t ret = install_async_event(NULL, next_value, &signal_itimer,
                                        (void *) (setup_time + next_value));
 
     if (ret < 0) {
