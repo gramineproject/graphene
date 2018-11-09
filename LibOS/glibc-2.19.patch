@@ -329,13 +329,7 @@ index 2383992..98687f6 100644
  }
  
  ld {
-@@ -57,9 +60,12 @@ ld {
-     _rtld_global; _rtld_global_ro;
- 
-     # Only here for gdb while a better method is developed.
--    _dl_debug_state;
-+    __libc_r_debug; __libc_dl_debug_state;
- 
+@@ -62,4 +65,7 @@ ld {
      # Pointer protection.
      __pointer_chk_guard;
    }
@@ -343,28 +337,6 @@ index 2383992..98687f6 100644
 +    syscalldb; glibc_version; glibc_option; register_library;
 +  }
  }
-diff --git a/elf/dl-close.c b/elf/dl-close.c
-index 5bf1de7..a887133 100644
---- a/elf/dl-close.c
-+++ b/elf/dl-close.c
-@@ -473,7 +473,7 @@ _dl_close_worker (struct link_map *map)
-   /* Notify the debugger we are about to remove some loaded objects.  */
-   struct r_debug *r = _dl_debug_initialize (0, nsid);
-   r->r_state = RT_DELETE;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (unmap_start, 2, nsid, r);
- 
-   if (unload_global)
-@@ -739,7 +739,7 @@ _dl_close_worker (struct link_map *map)
- 
-   /* Notify the debugger those objects are finalized and gone.  */
-   r->r_state = RT_CONSISTENT;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (unmap_complete, 2, nsid, r);
- 
-   /* Recheck if we need to retry, release the lock.  */
 diff --git a/elf/dl-debug.c b/elf/dl-debug.c
 index 4e7c593..3e0bff4 100644
 --- a/elf/dl-debug.c
@@ -394,21 +366,10 @@ index 4e7c593..3e0bff4 100644
 -      r->r_ldbase = ldbase ?: _r_debug.r_ldbase;
 +      r->r_ldbase = ldbase ?: __libc_r_debug.r_ldbase;
        r->r_map = (void *) GL(dl_ns)[ns]._ns_loaded;
--      r->r_brk = (ElfW(Addr)) &_dl_debug_state;
-+      r->r_brk = (ElfW(Addr)) &__libc_dl_debug_state;
+       r->r_brk = (ElfW(Addr)) &_dl_debug_state;
      }
  
    return r;
-@@ -70,7 +70,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
-    examining the r_brk member of struct r_debug, but GDB 4.15 in fact looks
-    for this particular symbol name in the PT_INTERP file.  */
- void
--_dl_debug_state (void)
-+__libc_dl_debug_state (void)
- {
- }
--rtld_hidden_def (_dl_debug_state)
-+__attribute__((weak));
 diff --git a/elf/dl-load.c b/elf/dl-load.c
 index 1be7a3c..c560ec1 100644
 --- a/elf/dl-load.c
@@ -422,24 +383,6 @@ index 1be7a3c..c560ec1 100644
  /* On some systems, no flag bits are given to specify file mapping.  */
  #ifndef MAP_FILE
  # define MAP_FILE	0
-@@ -902,7 +904,7 @@ lose (int code, int fd, const char *name, char *realname, struct link_map *l,
-   if (r != NULL)
-     {
-       r->r_state = RT_CONSISTENT;
--      _dl_debug_state ();
-+      __libc_dl_debug_state ();
-       LIBC_PROBE (map_failed, 2, nsid, r);
-     }
- 
-@@ -1048,7 +1050,7 @@ _dl_map_object_from_fd (const char *name, int fd, struct filebuf *fbp,
- 	 call _dl_debug_initialize in a static program in case dynamic
- 	 linking has not been used before.  */
-       r->r_state = RT_ADD;
--      _dl_debug_state ();
-+      __libc_dl_debug_state ();
-       LIBC_PROBE (map_start, 2, nsid, r);
-       make_consistent = true;
-     }
 @@ -1595,6 +1597,9 @@ cannot enable executable stack as shared object requires");
    DL_AFTER_LOAD (l);
  #endif
@@ -450,19 +393,6 @@ index 1be7a3c..c560ec1 100644
    /* Now that the object is fully initialized add it to the object list.  */
    _dl_add_to_namespace_list (l, nsid);
  
-diff --git a/elf/dl-open.c b/elf/dl-open.c
-index a9ca6b3..829d212 100644
---- a/elf/dl-open.c
-+++ b/elf/dl-open.c
-@@ -290,7 +290,7 @@ dl_open_worker (void *a)
-   /* Notify the debugger all new objects are now ready to go.  */
-   struct r_debug *r = _dl_debug_initialize (0, args->nsid);
-   r->r_state = RT_CONSISTENT;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (map_complete, 3, args->nsid, r, new);
- 
-   /* Print scope information.  */
 diff --git a/elf/link.h b/elf/link.h
 index d5905d1..f4e108a 100644
 --- a/elf/link.h
@@ -568,15 +498,6 @@ index 6dcbabc..c87c773 100644
    /* Add the dynamic linker to the TLS list if it also uses TLS.  */
    if (GL(dl_rtld_map).l_tls_blocksize != 0)
      /* Assign a module ID.  Do this before loading any audit modules.  */
-@@ -1588,7 +1637,7 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
- 
-   /* We start adding objects.  */
-   r->r_state = RT_ADD;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (init_start, 2, LM_ID_BASE, r);
- 
-   /* Auditing checkpoint: we are ready to signal that the initial map
 @@ -1636,89 +1654,6 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
  	}
      }
@@ -667,15 +588,6 @@ index 6dcbabc..c87c773 100644
 
   if (__builtin_expect (*first_preload != NULL, 0))
     {
-@@ -2301,7 +2221,7 @@ ERROR: ld.so: object '%s' cannot be loaded as audit interface: %s; ignored.\n",
-      the address since by now the variable might be in another object.  */
-   r = _dl_debug_initialize (0, LM_ID_BASE);
-   r->r_state = RT_CONSISTENT;
--  _dl_debug_state ();
-+  __libc_dl_debug_state ();
-   LIBC_PROBE (init_complete, 2, LM_ID_BASE, r);
- 
- #if defined USE_LDCONFIG && !defined MAP_COPY
 diff --git a/malloc/arena.c b/malloc/arena.c
 index 5088a25..33a3879 100644
 --- a/malloc/arena.c
@@ -1404,20 +1316,6 @@ index 78b0ad7..5c3dcf2 100644
  .*-.*-.*		libgcc_s=1
 +
 +.*-.*-.*		liblibos=1
-diff --git a/sysdeps/generic/ldsodefs.h b/sysdeps/generic/ldsodefs.h
-index ffeb093..7a9fbcb 100644
---- a/sysdeps/generic/ldsodefs.h
-+++ b/sysdeps/generic/ldsodefs.h
-@@ -881,8 +881,7 @@ extern void _dl_sort_fini (struct link_map **maps, size_t nmaps, char *used,
-    any shared object mappings.  The `r_state' member of `struct r_debug'
-    says what change is taking place.  This function's address is
-    the value of the `r_brk' member.  */
--extern void _dl_debug_state (void);
--rtld_hidden_proto (_dl_debug_state)
-+extern void __libc_dl_debug_state (void) __attribute__((weak));
- 
- /* Initialize `struct r_debug' if it has not already been done.  The
-    argument is the run-time load address of the dynamic linker, to be put
 diff --git a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
 index 2468228..a9f1cd6 100644
 --- a/sysdeps/unix/sysv/linux/_exit.c
