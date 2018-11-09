@@ -14,6 +14,11 @@ CFLAGS	= -Wall -fPIC -std=gnu99 -fgnu89-inline -Winline -Wwrite-strings \
 	  -Werror=implicit-function-declaration \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal
+
+EXTRAFLAGS = -Wextra -Wno-unused-parameter -Wno-sign-compare
+
+CFLAGS += $(EXTRAFLAGS)
+
 ifeq ($(OMIT_FRAME_POINTER),yes)
 CFLAGS += -DOMIT_FRAME_POINTER=1
 else
