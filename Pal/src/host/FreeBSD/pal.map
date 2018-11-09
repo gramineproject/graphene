@@ -1,7 +1,3 @@
-GLIBC {
-    global:
-        r_debug_state;
-};
 PAL {
     global:
         # Drawbridge ABIs
@@ -53,4 +49,8 @@ PAL {
         r_debug;
 
     local: *;
+};
+PAL_PRIVATE {
+    global:
+        r_debug_state;
 };
