@@ -71,6 +71,15 @@ void restore_rt (void) asm ("__restore_rt");
          "    syscall\n");
 
 DEFINE_RESTORE_RT(__NR_rt_sigreturn)
+
+/* extern it to avoid implicite function definition warning */
+extern void __restore_rt();
+
+void restore_rt (void)
+{
+     __restore_rt();
+}
+
 #endif
 
 int set_sighandler (int * sigs, int nsig, void * handler)
