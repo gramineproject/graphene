@@ -327,8 +327,7 @@ copy_envp:
         *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
 
     if (nauxv) {
-        /* 32 for other usage */
-        new_auxp = ALLOCATE_BOTTOM(sizeof(elf_auxv_t) * (nauxv + 32));
+        new_auxp = ALLOCATE_BOTTOM(sizeof(elf_auxv_t) * nauxv);
         if (*auxpp)
             memcpy(new_auxp, *auxpp, nauxv * sizeof(elf_auxv_t));
     }
@@ -336,7 +335,7 @@ copy_envp:
     *((unsigned long *) ALLOCATE_TOP(sizeof(unsigned long))) = 0;
 
     /* x86_64 ABI requires 16 bytes alignment on stack
-     * on entering _start.
+     * on every function call.
      * 8 bytes for pushq %%rdi by execute_elf_object before jmp.
      */
 #define ALIGN_DOWN_PTR(ptr, size)   (((uintptr_t)ptr) & -(size))
