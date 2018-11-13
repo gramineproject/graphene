@@ -3,7 +3,7 @@ LD	= ld
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -Wall -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin \
-	  -DPAL_LOADER_PATH="$(abspath ../../libpal.so)" \
+	  -DRUNTIME_DIR=$(abspath $(RUNTIME_DIR)) \
 	  -I. -I../../host/Linux/include -I../.. -I../../../include -I../../host/Linux \
 	  -I../../../lib -I../../../linux-kernel/graphene
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs --version-script pal-sec.map -e start

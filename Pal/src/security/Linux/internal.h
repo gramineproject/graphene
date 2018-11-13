@@ -10,7 +10,8 @@
 
 #include "api.h"
 
-#define PAL_LOADER  XSTRINGIFY(PAL_LOADER_PATH)
+/* RUNTIME_FILE("pal-Linux") which defined in pal_internal.h */
+#define PAL_LOADER  XSTRINGIFY(RUNTIME_DIR)"/pal-Linux"
 
 #ifdef __x86_64__
 # include "sysdep-x86_64.h"
