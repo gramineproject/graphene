@@ -19,10 +19,8 @@ asm (
 
 #define SYSCALLDB							      \
 	"subq $128, %%rsp\n\t"						      \
-	"pushq %%rbx\n\t"						      \
-	"movq syscalldb@GOTPCREL(%%rip), %%rbx\n\t"			      \
-	"callq *%%rbx\n\t"						      \
-	"popq %%rbx\n\t"						      \
+	"movq syscalldb@GOTPCREL(%%rip), %%rcx\n\t"			      \
+	"callq *%%rcx\n\t"						      \
 	"addq $128, %%rsp\n\t"
 
 #define SYSCALLDB_ASM							      \
