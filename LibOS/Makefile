@@ -45,6 +45,7 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 		echo applying $$p; \
 		patch -p1 < ../$$p; \
 	done
+endif
 
 .PHONY: clean
 clean:
