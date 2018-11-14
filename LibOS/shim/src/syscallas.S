@@ -92,7 +92,10 @@ isdef:
         popq %rsi
         popq %rdi
 
-        jmp ret
+ret:
+        popq %rbx
+        popq %rbp
+        retq
 
 isundef:
 #ifdef DEBUG
@@ -100,11 +103,7 @@ isundef:
         call debug_unsupp
 #endif
         movq $-38, %rax
-
-ret:
-        popq %rbx
-        popq %rbp
-        retq
+        jmp ret
 
         .cfi_endproc
         .size syscalldb, .-syscalldb
