@@ -332,23 +332,25 @@ copy_envp:
             memcpy(new_auxp, *auxpp, nauxv * sizeof(elf_auxv_t));
     }
 
-    *((unsigned long *) ALLOCATE_TOP(sizeof(unsigned long))) = 0;
-
     /* x86_64 ABI requires 16 bytes alignment on stack
      * on every function call.
-     * 8 bytes for pushq %%rdi by execute_elf_object before jmp.
+     * 8 bytes for pushq %%rdi in execute_elf_object() before jmp.
      */
 #define ALIGN_DOWN_PTR(ptr, size)   (((uintptr_t)ptr) & -(size))
-#define ALIGN_UP_PTR(ptr, size)     ALIGN_DOWN_PTR(((uintptr_t)ptr) + (size - 1), (size))
+#define ALIGN_UP_PTR(ptr, size)     \
+    ALIGN_DOWN_PTR(((uintptr_t)ptr) + (size - 1), (size))
     stack_top = (void*)(ALIGN_DOWN_PTR(stack_top, 16UL));
     stack_bottom = (void*)(ALIGN_UP_PTR(stack_bottom, 16UL));
-    memmove(stack_top - (stack_bottom - stack) - 8, stack, stack_bottom - stack);
+    memmove(stack_top - (stack_bottom - stack) - 8, stack,
+            stack_bottom - stack);
     if (new_argv)
         *argvp = (void *) new_argv + (stack_top - stack_bottom) - 8;
     if (new_envp)
         *envpp = (void *) new_envp + (stack_top - stack_bottom) - 8;
     if (new_auxp)
         *auxpp = (void *) new_auxp + (stack_top - stack_bottom) - 8;
+    /* clear working area at the bottom */
+    memset(stack, 0, MIN(stack_bottom - stack, stack_top - stack_bottom - 8));
     return 0;
 }
 
