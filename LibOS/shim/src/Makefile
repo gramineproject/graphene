@@ -13,6 +13,7 @@ CFLAGS	= -Wall -fPIC -std=gnu99 -fgnu89-inline -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes \
 	  -Werror=implicit-function-declaration \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
+	  -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal
 ifeq ($(OMIT_FRAME_POINTER),yes)
 CFLAGS += -DOMIT_FRAME_POINTER=1

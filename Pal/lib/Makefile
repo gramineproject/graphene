@@ -37,6 +37,8 @@ CRYPTO_PROVIDER ?= mbedtls
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 subdirs += crypto/mbedtls
 headers += $(wildcard crypto/mbedtls/mbedtls/*.h)
+# XXX: For now, allow aesni.c to compile.
+$(target)crypto/mbedtls/aesni.o : CFLAGS ::= $(filter-out -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx, $(CFLAGS))
 endif
 ifeq ($(CRYPTO_PROVIDER),wolfssl)
 subdirs += crypto/wolfssl

@@ -8,7 +8,8 @@ LD	= ld
 
 CFLAGS	= -Wall -fPIC -O2 -maes -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
-	  -fno-stack-protector -fno-builtin -DIN_ENCLAVE
+	  -fno-stack-protector -fno-builtin -DIN_ENCLAVE \
+	  -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp -DIN_ENCLAVE
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
