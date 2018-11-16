@@ -13,7 +13,6 @@
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include <math.h>
 #include <asm/errno.h>
 
 #ifndef SOL_IPV6
