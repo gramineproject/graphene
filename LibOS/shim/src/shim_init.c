@@ -332,9 +332,11 @@ copy_envp:
             memcpy(new_auxp, *auxpp, nauxv * sizeof(elf_auxv_t));
     }
 
-    /* x86_64 ABI requires 16 bytes alignment on stack
-     * on every function call.
-     * 8 bytes for pushq %%rdi in execute_elf_object() before jmp.
+    /* x86_64 ABI requires 16 bytes alignment on stack on every function call.
+     * After 16B alignment, we expand stack by additional 8B (and adjust
+     * argvp, envpp, auxpp) because there will be 8B pushq %%rdi in
+     * execute_elf_object() to push argc on stack before jumping into main
+     * function.
      */
 #define ALIGN_DOWN_PTR(ptr, size)   (((uintptr_t)ptr) & -(size))
 #define ALIGN_UP_PTR(ptr, size)     \
