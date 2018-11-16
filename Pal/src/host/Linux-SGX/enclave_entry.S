@@ -180,8 +180,13 @@ enclave_entry:
 	mov SGX_GPR_RIP(%rbx), %rdi
 	mov %rdi, 0x88(%rsi)
 
-	mov %rsi, SGX_GPR_RSP(%rbx)
 	mov %rsi, SGX_GPR_RSI(%rbx)
+	
+        # leave a gap for exception stack
+	mov SGX_GPR_RSP(%rbx), %rsi
+        sub $0x60, %rsi
+
+	mov %rsi, SGX_GPR_RSP(%rbx)
 
 	# new RIP is the exception handler
 	lea _DkExceptionHandler(%rip), %rdi
