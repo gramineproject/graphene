@@ -162,34 +162,23 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __store_context(tcb, context, signal);
     signal->pal_context = context;
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1)
-        goto delay;
-
-    if (__sigismember(&cur_thread->signal_mask, sig))
-        goto delay;
-
-    __handle_signal(tcb, sig, &signal->context);
-    __handle_one_signal(tcb, sig, signal);
-    goto out;
-
-delay:
-    {
-        if (!(signal = malloc_copy(signal,sizeof(struct shim_signal))))
-            goto out;
-
-        struct shim_signal ** signal_log = allocate_signal_log(cur_thread, sig);
-
-        if (!signal_log) {
+    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1 ||
+        __sigismember(&cur_thread->signal_mask, sig)) {
+        struct shim_signal ** signal_log = NULL;
+        if ((signal = malloc_copy(signal,sizeof(struct shim_signal))) &&
+            (signal_log = allocate_signal_log(cur_thread, sig))) {
+            *signal_log = signal;
+        }
+        if (signal && !signal_log) {
             sys_printf("signal queue is full (TID = %u, SIG = %d)\n",
                        tcb->tid, sig);
             free(signal);
-            goto out;
         }
-
-        *signal_log = signal;
+    } else {
+        __handle_signal(tcb, sig, &signal->context);
+        __handle_one_signal(tcb, sig, signal);
     }
 
-out:
     __enable_preempt(tcb);
 }
 
@@ -209,39 +198,40 @@ out:
 #define IP eip
 #endif
 
-#define is_internal(context)                                                \
-    ((context) &&                                                           \
-     (void *) (context)->IP >= (void *) &__code_address &&                  \
-     (void *) (context)->IP < (void *) &__code_address_end)
+static inline bool is_internal(PAL_CONTEXT * context)
+{
+    return context &&
+        (void *) context->IP >= (void *) &__code_address &&
+        (void *) context->IP < (void *) &__code_address_end;
+}
 
-#define internal_fault(errstr, addr, context)                               \
-    do {                                                                    \
-        IDTYPE tid = get_cur_tid();                                         \
-        if (is_internal((context)))                                         \
-            sys_printf(errstr " at %p (IP = +0x%lx, VMID = %u, TID = %u)\n",\
-                       arg,                                                 \
-                       (void *) context->IP - (void *) &__load_address,     \
-                       cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);   \
-        else                                                                \
-            sys_printf(errstr " at %p (IP = %p, VMID = %u, TID = %u)\n",    \
-                       arg, context ? context->IP : 0,                      \
-                       cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);   \
-    } while (0)
+static inline void internal_fault(const char* errstr,
+                                  PAL_NUM addr, PAL_CONTEXT * context)
+{
+    IDTYPE tid = get_cur_tid();
+    if (is_internal(context))
+        sys_printf("%s at %p (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
+                   addr, (void *) context->IP - (void *) &__load_address,
+                   cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);
+    else
+        sys_printf("%s at %p (IP = %p, VMID = %u, TID = %u)\n", errstr,
+                   addr, context ? context->IP : 0,
+                   cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);
+
+    pause();
+}
 
 static void divzero_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
         internal_fault("Internal arithmetic fault", arg, context);
-        pause();
-        goto ret_exception;
+    } else {
+        if (context)
+            debug("arithmetic fault at %p\n", context->IP);
+
+        deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV,
+                                     si_addr, (void *) arg), context);
     }
-
-    if (context)
-        debug("arithmetic fault at %p\n", context->IP);
-
-    deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV, si_addr, (void *) arg), context);
-
-ret_exception:
     DkExceptionReturn(event);
 }
 
@@ -257,10 +247,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     }
 
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
-internal:
-        internal_fault("Internal memory fault", arg, context);
-        pause();
-        goto ret_exception;
+        goto internal;
     }
 
     if (context)
@@ -303,6 +290,11 @@ internal:
 
 ret_exception:
     DkExceptionReturn(event);
+    return;
+
+internal:
+    internal_fault("Internal memory fault", arg, context);
+    goto ret_exception;
 }
 
 /*
@@ -403,73 +395,55 @@ ret_fault:
 
 static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
-internal:
-        internal_fault("Internal illegal fault", arg, context);
-        pause();
-        goto ret_exception;
-    }
-
     struct shim_vma_val vma;
 
-    if (!(lookup_vma((void *) arg, &vma)) &&
+    if (!IS_INTERNAL_TID(get_cur_tid()) &&
+        !is_internal(context) &&
+        !(lookup_vma((void *) arg, &vma)) &&
         !(vma.flags & VMA_INTERNAL)) {
         if (context)
             debug("illegal instruction at %p\n", context->IP);
 
-        deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
+        deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
+                                     si_addr, (void *) arg), context);
     } else {
-        goto internal;
+        internal_fault("Internal illegal fault", arg, context);
     }
-
-ret_exception:
     DkExceptionReturn(event);
 }
 
 static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    if (IS_INTERNAL_TID(get_cur_tid()))
-        goto ret_exception;
-
-    deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
-
-ret_exception:
+    if (!IS_INTERNAL_TID(get_cur_tid())) {
+        deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
+    }
     DkExceptionReturn(event);
 }
 
 static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    if (IS_INTERNAL_TID(get_cur_tid()))
-        goto ret_exception;
-
-    deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
-
-ret_exception:
+    if (!IS_INTERNAL_TID(get_cur_tid())) {
+        deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
+    }
     DkExceptionReturn(event);
 }
 
 static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    if (IS_INTERNAL_TID(get_cur_tid()))
-        goto ret_exception;
-
     shim_tcb_t * tcb = SHIM_GET_TLS();
 
     if (!tcb || !tcb->tp)
         return;
 
-    __disable_preempt(tcb);
-
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        tcb->context.preempt |= SIGNAL_DELAYED;
+    if (!IS_INTERNAL_TID(get_cur_tid())) {
+        __disable_preempt(tcb);
+        if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
+            tcb->context.preempt |= SIGNAL_DELAYED;
+        } else {
+            __handle_signal(tcb, 0, NULL);
+        }
         __enable_preempt(tcb);
-        goto ret_exception;
     }
-
-    __handle_signal(tcb, 0, NULL);
-    __enable_preempt(tcb);
-
-ret_exception:
     DkExceptionReturn(event);
 }
 
@@ -631,14 +605,12 @@ void handle_signal (bool delayed_only)
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
         debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
         tcb->context.preempt |= SIGNAL_DELAYED;
-        goto out;
+    } else {
+        if (!(delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))) {
+            __handle_signal(tcb, 0, NULL);
+        }
     }
 
-    if (delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))
-        goto out;
-
-    __handle_signal(tcb, 0, NULL);
-out:
     __enable_preempt(tcb);
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
