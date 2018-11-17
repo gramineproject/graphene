@@ -68,15 +68,13 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
 	     $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
-	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) -soname $@ \
-		-e shim_start
+	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) -soname $@
 
 libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 		   $(filter %.map %.lds,$($LDFLAGS-debug)) \
 		   $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
-	$(LD) $(LDFLAGS-debug) -o $@ $(filter-out %.map %.lds,$^) -soname $@ \
-		-e shim_start
+	$(LD) $(LDFLAGS-debug) -o $@ $(filter-out %.map %.lds,$^) -soname $@
 
 .lib/host_endian.h: ../../../Pal/src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
