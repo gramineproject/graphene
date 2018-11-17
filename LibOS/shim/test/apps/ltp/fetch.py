@@ -62,8 +62,11 @@ def finish(result):
                 else:
                     test_subtest = test + "," + str(count)
                     count = count + 1
-                if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or test in current_hanged or test_subtest in current_broken:
-                    continue
+#                if "TINFO" in output or test_subtest in current_passed or test_subtest in current_failed or test in current_hanged or test_subtest in current_broken:
+#                    continue
+                if "TINFO" in output:
+                     continue
+
 
                 if output:
                     output = output.strip()
@@ -102,10 +105,12 @@ CRED = '\033[91m'
 CGREEN = '\033[92m'
 CEND = '\033[0m'
 DEFAULT_TIMEOUT = 30
+DEFAULT_LOOPRUN = 1
 
 resultfile = "run_output"
 stablePass = "PASSED"
 timeouts = "TIMEOUTS"
+loopruns = "LOOPRUNS"
 failed_tests_file = "Failed.csv"
 passed_tests_file = "Passed.csv"
 broken_tests_file = "Broken.csv"
@@ -124,6 +129,7 @@ current_failed = dict()
 current_broken = dict()
 current_hanged = dict()
 timeouts_dict = dict()
+loopruns_dict = dict()
 
 with open(timeouts, 'rb') as csvfile:
     test_timeout = csv.reader(csvfile)
@@ -132,6 +138,15 @@ with open(timeouts, 'rb') as csvfile:
         test = row[0]
         timeout = row[1]
         timeouts_dict[test] = int(timeout)
+
+with open(loopruns, 'rb') as csvfile:
+    test_looprun = csv.reader(csvfile)
+    test_looprun.next()
+    for row in test_looprun:
+        test = row[0]
+        looprun = row[1]
+        loopruns_dict[test] = int(looprun)
+
 
 os.chdir("opt/ltp/testcases/bin")
 pool = multiprocessing.Pool()
@@ -150,7 +165,13 @@ with open('../../../../syscalls.graphene') as testcases:
             timeout = timeouts_dict[test]
         except KeyError:
             timeout = DEFAULT_TIMEOUT
-        pool.apply_async(run, args=([line], timeout, test), callback=finish)
+        try: 
+            looprun = loopruns_dict[test]
+        except KeyError:
+            looprun = DEFAULT_LOOPRUN
+
+        for i in range(looprun):
+            pool.apply_async(run, args=([line], timeout, test), callback=finish)
 os.chdir("../../../..")
 
 pool.close()
