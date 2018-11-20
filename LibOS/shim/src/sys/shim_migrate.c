@@ -193,7 +193,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
 
     if (!do_checkpoint) {
         debug("waiting for checkpointing\n");
-        DkObjectsWaitAny(1, &finish_event, NO_TIMEOUT);
+        object_wait_with_retry(finish_event);
         return 0;
     }
 

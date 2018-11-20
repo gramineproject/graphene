@@ -859,7 +859,7 @@ unowned:
         }
 
         unlock(hdl->lock);
-        DkObjectsWaitAny(1, &sem->event, NO_TIMEOUT);
+        object_wait_with_retry(sem->event);
         lock(hdl->lock);
         SAVE_PROFILE_INTERVAL(sem_wait_for_complete);
     }

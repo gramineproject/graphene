@@ -56,8 +56,7 @@ pid_t shim_do_wait4 (pid_t pid, int * status, int option,
 
         if (!(option & WNOHANG)) {
 block_pid:
-            DkObjectsWaitAny(1, &thread->exit_event,
-                             NO_TIMEOUT);
+            object_wait_with_retry(thread->exit_event);
         }
 
         lock(thread->lock);
@@ -103,7 +102,7 @@ block:
         if (cur->child_exit_event)
             while (listp_empty(&cur->exited_children)) {
                 unlock(cur->lock);
-                DkObjectsWaitAny(1, &cur->child_exit_event, NO_TIMEOUT);
+                object_wait_with_retry(cur->child_exit_event);
                 lock(cur->lock);
             }
     }
