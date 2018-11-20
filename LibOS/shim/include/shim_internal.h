@@ -776,6 +776,8 @@ int init_manifest (PAL_HANDLE manifest_handle);
 bool test_user_memory (void * addr, size_t size, bool write);
 bool test_user_string (const char * addr);
 
+int object_wait_with_retry(PAL_HANDLE handle);
+
 #ifdef __x86_64__
 #define switch_stack(stack_top)                                         \
     ({                                                                  \
