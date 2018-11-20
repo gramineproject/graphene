@@ -722,7 +722,7 @@ int resume_wrapper (void * param)
     debug_setbuf(tcb, true);
     debug("set tcb to %p\n", libc_tcb);
 
-    DkObjectsWaitAny(1, &thread_start_event, NO_TIMEOUT);
+    object_wait_one_safe(thread_start_event);
 
     restore_context(&tcb->context);
     return 0;
