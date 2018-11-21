@@ -53,6 +53,7 @@ enum {
     OCALL_RENAME,
     OCALL_DELETE,
     OCALL_LOAD_DEBUG,
+    OCALL_RDTSC,
     OCALL_NR,
 };
 
@@ -261,5 +262,11 @@ typedef struct {
 typedef struct {
     unsigned int ms_tid;
 } ms_ocall_schedule_t;
+
+typedef struct
+{
+    unsigned long low;
+    unsigned long high;
+} ms_ocall_rdtsc_t;
 
 #pragma pack(pop)

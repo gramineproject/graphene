@@ -791,3 +791,16 @@ int ocall_load_debug(const char * command)
     OCALL_EXIT();
     return retval;
 }
+
+int ocall_rdtsc(unsigned long *low, unsigned long *high)
+{
+    int retval = 0;
+    ms_ocall_rdtsc_t * ms;
+    OCALLOC(ms, ms_ocall_rdtsc_t *, sizeof(*ms));
+
+    retval = SGX_OCALL(OCALL_RDTSC, ms);
+    *low = ms->low;
+    *high = ms->high;
+    OCALL_EXIT();
+    return retval;
+}
