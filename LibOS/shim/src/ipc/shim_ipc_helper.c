@@ -1049,8 +1049,9 @@ static int create_ipc_helper (void)
     return 0;
 }
 
-int exit_with_ipc_helper (bool handover)
+int exit_with_ipc_helper (bool handover, struct shim_thread ** ret)
 {
+    *ret = NULL;
     if (IN_HELPER() || ipc_helper_state != HELPER_ALIVE)
         return 0;
 
@@ -1074,6 +1075,10 @@ int exit_with_ipc_helper (bool handover)
     }
 
     ipc_helper_state = new_state;
+    if (ipc_helper_thread != NULL) {
+        get_thread(ipc_helper_thread);
+        *ret = ipc_helper_thread;
+    }
     unlock(ipc_helper_lock);
 
     set_event(&ipc_helper_event, 1);

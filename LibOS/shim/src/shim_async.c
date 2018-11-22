@@ -318,14 +318,17 @@ int create_async_helper (void)
     return 0;
 }
 
-int terminate_async_helper (void)
+struct shim_thread * terminate_async_helper (void)
 {
     if (async_helper_state != HELPER_ALIVE)
-        return 0;
+        return NULL;
 
     lock(async_helper_lock);
+    struct shim_thread * ret = async_helper_thread;
+    if (ret)
+        get_thread(ret);
     async_helper_state = HELPER_NOTALIVE;
     unlock(async_helper_lock);
     set_event(&async_helper_event, 1);
-    return 0;
+    return ret;
 }
