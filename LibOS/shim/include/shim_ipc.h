@@ -604,7 +604,7 @@ void ipc_parent_exit  (struct shim_ipc_port * port, IDTYPE vmid,
 void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
                        unsigned int exitcode);
 
-int exit_with_ipc_helper (bool handover);
+int exit_with_ipc_helper (bool handover, struct shim_thread ** ret);
 
 #define IPC_FORCE_RECONNECT     ((void *) -1)
 

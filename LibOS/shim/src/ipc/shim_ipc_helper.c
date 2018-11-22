@@ -1079,8 +1079,19 @@ static int create_ipc_helper (void)
     return 0;
 }
 
-int exit_with_ipc_helper (bool handover)
+/*
+ * on success, the reference to the helper thread is returned with
+ * reference count incremented.
+ * It's caller the responsibility to wait for its exit and release the
+ * final reference to free related resources.
+ * It's problematic for the thread itself to release its resources which it's
+ * using. For example stack.
+ * So defer releasing it after its exit and make the releasing the caller
+ * responsibility.
+ */
+int exit_with_ipc_helper (bool handover, struct shim_thread ** ret)
 {
+    *ret = NULL;
     if (IN_HELPER() || ipc_helper_state != HELPER_ALIVE)
         return 0;
 
@@ -1104,6 +1115,10 @@ int exit_with_ipc_helper (bool handover)
     }
 
     ipc_helper_state = new_state;
+    if (ipc_helper_thread != NULL) {
+        get_thread(ipc_helper_thread);
+        *ret = ipc_helper_thread;
+    }
     unlock(ipc_helper_lock);
 
     set_event(&ipc_helper_event, 1);

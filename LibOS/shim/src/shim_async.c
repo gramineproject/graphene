@@ -318,14 +318,27 @@ int create_async_helper (void)
     return 0;
 }
 
-int terminate_async_helper (void)
+/*
+ * On succes, the reference to the thread of async helper is returned with
+ * reference count incremented.
+ * It's caller the responsibility to wait for its exit and release the
+ * final reference to free related resources.
+ * It's problematic for the thread itself to release its resources which it's
+ * using. For example stack.
+ * So defer releasing it after its exit and make the releasing the caller
+ * responsibility.
+ */
+struct shim_thread * terminate_async_helper (void)
 {
     if (async_helper_state != HELPER_ALIVE)
-        return 0;
+        return NULL;
 
     lock(async_helper_lock);
+    struct shim_thread * ret = async_helper_thread;
+    if (ret)
+        get_thread(ret);
     async_helper_state = HELPER_NOTALIVE;
     unlock(async_helper_lock);
     set_event(&async_helper_event, 1);
-    return 0;
+    return ret;
 }
