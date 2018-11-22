@@ -164,6 +164,49 @@ int try_process_exit (int error_code, int term_signal)
     return 0;
 }
 
+/*
+ * Once exiting thread notifies at shim LibOS level, other threads can release
+ * stack memory and tls. But the existing thread can be still
+ * executing. Switch stack and tls to private area to avoid race condition.
+ */
+noreturn static void exit_trampoline (int error_code, void (*func)(int))
+{
+    struct shim_thread * cur_thread = get_cur_thread();
+
+    uintptr_t stack_top = (uintptr_t)&cur_thread->exit_stack;
+    stack_top += sizeof(cur_thread->exit_stack) - 16;
+    stack_top &= ~15;
+
+    populate_tls(&cur_thread->exit_tcb, false);
+    debug_setbuf(&cur_thread->exit_tcb.shim_tcb, true);
+
+    int ret;
+    __asm__ volatile(
+        "movq %%rsp, %%rax\n"
+        "movq %%rbx, %%rsp\n"
+        "pushq %%rbp\n"
+        "pushq %%rax\n"
+        "movq %%rsp, %%rbp\n"
+        "callq *%%rdx\n"
+        /* the above callq should never return */
+        : "=a"(ret) : "b"(stack_top), "D"(error_code), "d"(func));
+    while (true) {
+        /* nothing */
+    }
+}
+
+noreturn static void __shim_do_exit_late (int error_code)
+{
+    try_process_exit(error_code, 0);
+
+#ifdef PROFILE
+    if (ENTER_TIME)
+        SAVE_PROFILE_INTERVAL_SINCE(syscall_exit, ENTER_TIME);
+#endif
+
+    DkThreadExit();
+}
+
 noreturn int shim_do_exit_group (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
@@ -185,14 +228,7 @@ noreturn int shim_do_exit_group (int error_code)
     do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
 
     debug("now exit the process\n");
-    try_process_exit(error_code, 0);
-
-#ifdef PROFILE
-    if (ENTER_TIME)
-        SAVE_PROFILE_INTERVAL_SINCE(syscall_exit_group, ENTER_TIME);
-#endif
-
-    DkThreadExit();
+    exit_trampoline(error_code, &__shim_do_exit_late);
 }
 
 noreturn int shim_do_exit (int error_code)
@@ -212,12 +248,5 @@ noreturn int shim_do_exit (int error_code)
     }
 #endif
 
-    try_process_exit(error_code, 0);
-
-#ifdef PROFILE
-    if (ENTER_TIME)
-        SAVE_PROFILE_INTERVAL_SINCE(syscall_exit, ENTER_TIME);
-#endif
-
-    DkThreadExit();
+    exit_trampoline(error_code, &__shim_do_exit_late);
 }
