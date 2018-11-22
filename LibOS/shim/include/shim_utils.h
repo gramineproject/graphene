@@ -247,7 +247,4 @@ int terminate_async_helper (void);
 
 extern struct config_store * root_config;
 
-/* waiting for an object safely regarding to PAL_EVENTS */
-void object_wait_one_safe(PAL_HANDLE handle);
-
 #endif /* _SHIM_UTILS_H */

@@ -763,4 +763,7 @@ int init_manifest (PAL_HANDLE manifest_handle);
 bool test_user_memory (void * addr, size_t size, bool write);
 bool test_user_string (const char * addr);
 
+/* waiting for an object safely regarding to PAL_EVENTS */
+int object_wait_one_safe(PAL_HANDLE handle);
+
 #endif /* _PAL_INTERNAL_H_ */

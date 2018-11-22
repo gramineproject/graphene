@@ -26,13 +26,22 @@
 
 #include <shim_internal.h>
 
-void object_wait_one_safe(PAL_HANDLE handle)
+int object_wait_one_safe(PAL_HANDLE handle)
 {
-    PAL_HANDLE ret;
-    do {
+    for (;;) {
+        PAL_HANDLE ret;
         ret = DkObjectsWaitAny(1, &handle, NO_TIMEOUT);
-        if (ret == NULL && PAL_NATIVE_ERRNO != 0)
-            return;
-    } while (!ret);
-    assert (ret == handle);
+        if (ret == NULL) {
+            if (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED ||
+                PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN)
+                continue;
+
+            debug("waiting on %p results in error %s",
+                  handle, PAL_STRERROR(PAL_NATIVE_ERRNO));
+            return -PAL_NATIVE_ERRNO;
+        }
+
+        assert (ret == handle);
+        return 0;
+    }
 }
