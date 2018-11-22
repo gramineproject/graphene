@@ -42,7 +42,7 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  $(addprefix ipc/shim_ipc_,$(ipcns)) \
 	  elf/shim_rtld \
 	  $(addprefix shim_,init table syscalls checkpoint random malloc \
-	  async parser debug) syscallas start \
+	  async parser debug object) syscallas start \
 	  $(patsubst %.c,%,$(wildcard sys/*.c))
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so

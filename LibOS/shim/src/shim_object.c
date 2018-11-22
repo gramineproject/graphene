@@ -31,6 +31,8 @@ void object_wait_one_safe(PAL_HANDLE handle)
     PAL_HANDLE ret;
     do {
         ret = DkObjectsWaitAny(1, &handle, NO_TIMEOUT);
+        if (ret == NULL && PAL_NATIVE_ERRNO != 0)
+            return;
     } while (!ret);
     assert (ret == handle);
 }
