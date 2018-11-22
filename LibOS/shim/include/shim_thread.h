@@ -94,6 +94,11 @@ struct shim_thread {
 #ifdef PROFILE
     unsigned long exit_time;
 #endif
+
+    __libc_tcb_t exit_tcb;
+#define SHIM_THREAD_EXIT_STACK_SIZE (4096)
+    unsigned long stack_canary;
+    uint8_t exit_stack[SHIM_THREAD_EXIT_STACK_SIZE];
 };
 
 DEFINE_LIST(shim_simple_thread);
