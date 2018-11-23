@@ -732,7 +732,7 @@ static int load_enclave (struct pal_enclave * enclave,
     // precedence if specified.
     if (get_config(enclave->config, "loader.exec", cfgbuf, CONFIG_MAX) > 0) {
         exec_uri = resolve_uri(cfgbuf, &errstring);
-        exec_uri_inferred = 0;
+        exec_uri_inferred = false;
         if (!exec_uri) {
             SGX_DBG(DBG_E, "%s: %s\n", errstring, cfgbuf);
             return -EINVAL;
@@ -860,9 +860,9 @@ int main (int argc, const char ** argv, const char ** envp)
     char * exec_uri = NULL;
     const char * pal_loader = argv[0];
     int retval = -EINVAL;
-    bool exec_uri_inferred = 0; // Handle the case where the exec uri is
-                                // inferred from the manifest name somewhat
-                                // differently
+    bool exec_uri_inferred = false; // Handle the case where the exec uri is
+                                    // inferred from the manifest name somewhat
+                                    // differently
     argc--;
     argv++;
 
@@ -932,12 +932,11 @@ int main (int argc, const char ** argv, const char ** envp)
         size_t exec_len = strlen(exec_uri);
         if (strcmp_static(exec_uri + exec_len - strlen(".manifest"), ".manifest")) {
             exec_uri[exec_len - strlen(".manifest")] = '\0';
-            exec_uri_inferred = 1;
+            exec_uri_inferred = true;
         } else if (strcmp_static(exec_uri + exec_len - strlen(".manifest.sgx"), ".manifest.sgx")) {
             exec_uri[exec_len - strlen(".manifest.sgx")] = '\0';
-            exec_uri_inferred = 1;
-        } 
-        
+            exec_uri_inferred = true;
+        }
     }
 
     fd = INLINE_SYSCALL(open, 3, sgx_manifest, O_RDONLY|O_CLOEXEC, 0);
@@ -955,7 +954,7 @@ int main (int argc, const char ** argv, const char ** envp)
         SGX_DBG(DBG_I, "executable file: %s\n", exec_uri);
     else
         SGX_DBG(DBG_I, "executable file not found\n");
-    
+
     return load_enclave(enclave, manifest_uri, exec_uri, argv, envp, exec_uri_inferred);
 
 usage:
