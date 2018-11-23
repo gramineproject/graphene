@@ -45,6 +45,11 @@ typedef ptrdiff_t ssize_t;
 # define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+#define ALIGN_DOWN_PTR(ptr, size) \
+    ((typeof(ptr))(((uintptr_t)(ptr)) & -(size)))
+#define ALIGN_UP_PTR(ptr, size) \
+    ((typeof(ptr))ALIGN_DOWN_PTR((uintptr_t)(ptr) + ((size) - 1), (size)))
+
 #define __alloca __builtin_alloca
 
 #define XSTRINGIFY(x) STRINGIFY(x)

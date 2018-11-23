@@ -110,7 +110,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     tcb->param     = (void *) param;
 
     /* align child_stack to 16 */
-    child_stack = (void *) ((uintptr_t) child_stack & ~15);
+    child_stack = ALIGN_DOWN_PTR(child_stack, 16);
 
     ret = clone(pal_thread_init, child_stack,
                     CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
