@@ -27,7 +27,7 @@ regression.run_checks()
 regression = Regression(loader, "exit")
 
 regression.add_check(name="Exit Code Propagation",
-    check=lambda res: 1 == res[0].code)
+    check=lambda res: 113 == res[0].code)
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)

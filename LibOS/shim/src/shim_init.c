@@ -62,7 +62,7 @@ void __abort(void) {
 }
 
 void warn (const char *format, ...)
-{ 
+{
     va_list args;
     va_start (args, format);
     __sys_vprintf(format, &args);
@@ -1095,7 +1095,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
     }
     if (total_interval_count) {
         __sys_fprintf(hdl, "                - (%11.11u) total: %u times, %lu msec\n",
-                      total_interval_time, total_interval_count, 
+                      total_interval_time, total_interval_count,
                       total_interval_time / total_interval_count);
     }
 }
@@ -1159,7 +1159,7 @@ int shim_clean (void)
         DkObjectClose(shim_stdio);
 
     shim_stdio = NULL;
-    debug("process %u successfully terminated, %d\n", cur_process.vmid & 0xFFFF, cur_process.exit_code);
+    debug("process %u exited with status %d\n", cur_process.vmid & 0xFFFF, cur_process.exit_code);
     master_lock();
     DkProcessExit(cur_process.exit_code);
     return 0;

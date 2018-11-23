@@ -7,5 +7,5 @@
 
 int main (int argc, char ** argv, char ** envp)
 {
-  DkProcessExit(1);
+    DkProcessExit(112);
 }
