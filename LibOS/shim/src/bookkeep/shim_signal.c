@@ -247,7 +247,8 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     }
 
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
-        goto internal;
+        internal_fault("Internal memory fault", arg, context);
+        goto ret_exception;
     }
 
     if (context)
@@ -260,7 +261,8 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         code = SEGV_MAPERR;
     } else if (!lookup_vma((void *) arg, &vma)) {
         if (vma.flags & VMA_INTERNAL) {
-            goto internal;
+            internal_fault("Internal memory fault with VMA", arg, context);
+            goto ret_exception;
         }
         if (vma.file && vma.file->type == TYPE_FILE) {
             /* DEP 3/3/17: If the mapping exceeds end of a file (but is in the VMA)
@@ -291,10 +293,6 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 ret_exception:
     DkExceptionReturn(event);
     return;
-
-internal:
-    internal_fault("Internal memory fault", arg, context);
-    goto ret_exception;
 }
 
 /*
