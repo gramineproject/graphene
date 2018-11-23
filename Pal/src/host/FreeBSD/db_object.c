@@ -36,7 +36,6 @@
 #include <sys/poll.h>
 #include <sys/wait.h>
 #include <atomic.h>
-#include <cmpxchg.h>
 #include <errno.h>
 
 #define DEFAULT_QUANTUM 500
@@ -47,24 +46,24 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
 {
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
-    if (handle->__in.flags & HAS_FDS) {
+    if (handle->hdr.flags & HAS_FDS) {
         struct pollfd fds[MAX_FDS];
         int off[MAX_FDS];
         int nfds = 0;
         for (int i = 0 ; i < MAX_FDS ; i++) {
             int events = 0;
 
-            if ((handle->__in.flags & RFD(i)) &&
-                !(handle->__in.flags & ERROR(i)))
+            if ((handle->hdr.flags & RFD(i)) &&
+                !(handle->hdr.flags & ERROR(i)))
                 events |= POLLIN;
 
-            if ((handle->__in.flags & WFD(i)) &&
-                !(handle->__in.flags & WRITEABLE(i)) &&
-                !(handle->__in.flags & ERROR(i)))
+            if ((handle->hdr.flags & WFD(i)) &&
+                !(handle->hdr.flags & WRITEABLE(i)) &&
+                !(handle->hdr.flags & ERROR(i)))
                 events |= POLLOUT;
 
             if (events) {
-                fds[nfds].fd = handle->__in.fds[i];
+                fds[nfds].fd = handle->hdr.fds[i];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 off[nfds] = i;
@@ -93,9 +92,9 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
             if (!fds[i].revents)
                 continue;
             if (fds[i].revents & POLLOUT)
-                handle->__in.flags |= WRITEABLE(off[i]);
+                handle->hdr.flags |= WRITEABLE(off[i]);
             if (fds[i].revents & (POLLHUP|POLLERR))
-                handle->__in.flags |= ERROR(off[i]);
+                handle->hdr.flags |= ERROR(off[i]);
         }
 
         return 0;
@@ -111,7 +110,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                        PAL_HANDLE * polled)
 {
     if (count <= 0)
@@ -133,7 +132,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
         if (!hdl)
             continue;
 
-        if (!(hdl->__in.flags & HAS_FDS))
+        if (!(hdl->hdr.flags & HAS_FDS))
             return -PAL_ERROR_NOTSUPPORT;
 
         /* eliminate repeated entries */
@@ -142,7 +141,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
                 break;
         if (j == i) {
             for (j = 0 ; j < MAX_FDS ; j++)
-                if (hdl->__in.flags & (RFD(j)|WFD(j)))
+                if (hdl->hdr.flags & (RFD(j)|WFD(j)))
                     maxfds++;
         }
     }
@@ -165,17 +164,17 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
         for (j = 0 ; j < MAX_FDS ; j++) {
             int events = 0;
 
-            if ((hdl->__in.flags & RFD(j)) &&
-                !(hdl->__in.flags & ERROR(j)))
+            if ((hdl->hdr.flags & RFD(j)) &&
+                !(hdl->hdr.flags & ERROR(j)))
                 events |= POLLIN;
 
-            if ((hdl->__in.flags & WFD(j)) &&
-                !(hdl->__in.flags & WRITEABLE(j)) &&
-                !(hdl->__in.flags & ERROR(j)))
+            if ((hdl->hdr.flags & WFD(j)) &&
+                !(hdl->hdr.flags & WRITEABLE(j)) &&
+                !(hdl->hdr.flags & ERROR(j)))
                 events |= POLLOUT;
 
-            if (events && hdl->__in.fds[j] != PAL_IDX_POISON) {
-                fds[nfds].fd = hdl->__in.fds[j];
+            if (events && hdl->hdr.fds[j] != PAL_IDX_POISON) {
+                fds[nfds].fd = hdl->hdr.fds[j];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 hdls[nfds] = hdl;
@@ -216,17 +215,17 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
         }
 
         for (j = 0 ; j < MAX_FDS ; j++)
-            if ((hdl->__in.flags & (RFD(j)|WFD(j))) &&
-                hdl->__in.fds[j] == fds[i].fd)
+            if ((hdl->hdr.flags & (RFD(j)|WFD(j))) &&
+                hdl->hdr.fds[j] == fds[i].fd)
                 break;
 
         if (j == MAX_FDS)
             continue;
 
         if (fds[i].revents & POLLOUT)
-            hdl->__in.flags |= WRITEABLE(j);
+            hdl->hdr.flags |= WRITEABLE(j);
         if (fds[i].revents & (POLLHUP|POLLERR))
-            hdl->__in.flags |= ERROR(j);
+            hdl->hdr.flags |= ERROR(j);
     }
 
     *polled = polled_hdl;
