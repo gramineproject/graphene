@@ -307,9 +307,6 @@ int clone_implementation_wrapper(struct clone_args * arg);
 int clean_held_locks (struct shim_thread * self);
 
 void * allocate_stack (size_t size, size_t protect_size, bool user);
-int populate_user_stack (void * stack, size_t stack_size,
-                         int nauxv, elf_auxv_t ** auxpp,
-                         const char *** argvp, const char *** envpp);
 
 static inline __attribute__((always_inline))
 bool check_stack_size (struct shim_thread * cur_thread, int size)
@@ -335,7 +332,8 @@ bool check_on_stack (struct shim_thread * cur_thread, void * mem)
     return (mem <= cur_thread->stack_top && mem > cur_thread->stack);
 }
 
-int init_stack (const char ** argv, const char ** envp, const char *** argpp,
+int init_stack (const char ** argv, const char ** envp,
+                int ** argcpp, const char *** argpp,
                 int nauxv, elf_auxv_t ** auxpp);
 
 #endif /* _SHIM_THREAD_H_ */
