@@ -503,22 +503,13 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
 
     bool need_restart = __del_ipc_port(port, 0);
 
-    if (nfini) {
-        // In case the finish function may grab ipc_helper_lock again,
-        // We need to temporarily unlock here.
-        unlock(ipc_helper_lock);
-        for (int i = 0 ; i < nfini ; i++) {
-            debug("run fini callback: %p\n", fini[i]);
-            (fini[i])(port, vmid, exitcode);
-        }
-        lock(ipc_helper_lock);
-    }
-
     if (need_restart)
         restart_ipc_helper(false);
 
     unlock(ipc_helper_lock);
 
+    for (int i = 0 ; i < nfini ; i++)
+        (fini[i])(port, vmid, exitcode);
 }
 
 static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)
