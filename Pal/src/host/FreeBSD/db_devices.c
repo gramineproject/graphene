@@ -104,12 +104,12 @@ static int open_standard_term (PAL_HANDLE * handle, const char * param,
     hdl->dev.dev_type = device_type_term;
 
     if (!(access & PAL_ACCESS_WRONLY)) {
-        hdl->__in.flags |= RFD(0);
+        hdl->hdr.flags |= RFD(0);
         hdl->dev.fd_in = 0;
     }
 
     if (access & (PAL_ACCESS_WRONLY|PAL_ACCESS_RDWR)) {
-        hdl->__in.flags |= WFD(1);
+        hdl->hdr.flags |= WFD(1);
         hdl->dev.fd_out = 1;
     }
 

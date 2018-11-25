@@ -4,7 +4,7 @@ SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
 targets = all debug clean
-ifeq ($(SYS),x86_64-linux-gnu)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 targets += pack
 endif
 

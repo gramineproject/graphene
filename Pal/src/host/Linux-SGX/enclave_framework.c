@@ -36,7 +36,6 @@ void sgx_ocfree (void)
     SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
 }
 
-#define HASHBUF_SIZE ((sizeof(sgx_arch_hash_t)*2)+1)
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
                     void * enclave_data,
@@ -56,21 +55,18 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     if (ret)
         return -PAL_ERROR_DENIED;
 
-    char hash_buf[HASHBUF_SIZE];
-    char mac_buf[MACBUF_SIZE];
-
     SGX_DBG(DBG_S, "Generated report:\n");
     SGX_DBG(DBG_S, "    cpusvn:           %08x %08x\n", report->cpusvn[0],
                                                 report->cpusvn[1]);
-    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        bytes2hexstr(report->mrenclave, hash_buf, HASHBUF_SIZE));
-    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        bytes2hexstr(report->mrsigner, hash_buf, HASHBUF_SIZE));
+    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        alloca_bytes2hexstr(report->mrenclave));
+    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        alloca_bytes2hexstr(report->mrsigner));
     SGX_DBG(DBG_S, "    attributes.flags: %016lx\n",    report->attributes.flags);
     SGX_DBG(DBG_S, "    sttributes.xfrm:  %016lx\n",    report->attributes.xfrm);
 
     SGX_DBG(DBG_S, "    isvprodid:        %02x\n",      report->isvprodid);
     SGX_DBG(DBG_S, "    isvsvn:           %02x\n",      report->isvsvn);
-    SGX_DBG(DBG_S, "    keyid:            %s\n",        bytes2hexstr(report->keyid, hash_buf, HASHBUF_SIZE));
-    SGX_DBG(DBG_S, "    mac:              %s\n",        bytes2hexstr(report->mac, mac_buf, MACBUF_SIZE));
+    SGX_DBG(DBG_S, "    keyid:            %s\n",        alloca_bytes2hexstr(report->keyid));
+    SGX_DBG(DBG_S, "    mac:              %s\n",        alloca_bytes2hexstr(report->mac));
 
     return 0;
 }
@@ -91,9 +87,9 @@ int sgx_verify_report (sgx_arch_report_t * report)
         return -PAL_ERROR_DENIED;
     }
 
-    char key_buf[KEYBUF_SIZE];
+    SGX_DBG(DBG_S, "Get report key for verification: %s\n",
+            alloca_bytes2hexstr(enclave_key));
 
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n", bytes2hexstr(enclave_key, key_buf, KEYBUF_SIZE));
     return 0;
 }
 
@@ -109,8 +105,7 @@ int init_enclave_key (void)
         return -PAL_ERROR_DENIED;
     }
 
-    char key_buf[KEYBUF_SIZE];
-    SGX_DBG(DBG_S, "Get sealing key: %s\n", bytes2hexstr(enclave_key, key_buf, KEYBUF_SIZE));
+    SGX_DBG(DBG_S, "Get sealing key: %s\n", alloca_bytes2hexstr(enclave_key));
     return 0;
 }
 
@@ -840,10 +835,10 @@ void test_dh (void)
     FreeDhKey(&key1);
     FreeDhKey(&key2);
 
-    SGX_DBG(DBG_S, "key exchange(side A): %s (%d)\n", __bytes2hexstr(agree1, agreesz1, scratch, (agreesz1 * 2) + 1),
-           agreesz1);
-    SGX_DBG(DBG_S, "key exchange(side B): %s (%d)\n", __bytes2hexstr(agree2, agreesz2, scratch, (agreesz2 * 2) + 1),
-           agreesz2);
+    SGX_DBG(DBG_S, "key exchange(side A): %s\n",
+            __bytes2hexstr(agree1, agreesz1, scratch, agreesz1 * 2 + 1));
+    SGX_DBG(DBG_S, "key exchange(side B): %s\n",
+            __bytes2hexstr(agree2, agreesz2, scratch, agreesz2 * 2 + 1));
 }
 #endif
 
@@ -887,9 +882,8 @@ int init_enclave (void)
 
     pal_enclave_config.enclave_key = rsa;
 
-    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "enclave (software) key hash: %s\n",
-            bytes2hexstr(pal_enclave_state.enclave_keyhash, hash_buf, HASHBUF_SIZE));
+            alloca_bytes2hexstr(pal_enclave_state.enclave_keyhash));
 
     return 0;
 
@@ -901,7 +895,8 @@ out_free:
 
 int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
 {
-    unsigned char session_key[32] __attribute__((aligned(32)));
+    uint8_t session_key[sizeof(PAL_SESSION_KEY)]
+        __attribute__((aligned(sizeof(PAL_SESSION_KEY))));
     uint8_t pub[DH_SIZE]   __attribute__((aligned(DH_SIZE)));
     uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
     PAL_NUM pubsz, agreesz;
@@ -956,9 +951,8 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     for (int i = 0 ; i < agreesz ; i++)
         session_key[i % sizeof(session_key)] ^= agree[i];
 
-    char key_buf[KEYBUF_SIZE];
     SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key,
-            bytes2hexstr(session_key, key_buf, KEYBUF_SIZE));
+            alloca_bytes2hexstr(session_key));
 
     if (keyptr)
         memcpy(keyptr, session_key, sizeof(PAL_SESSION_KEY));
@@ -994,9 +988,8 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
     memcpy(&req.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
 
-    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "Sending attestation request ... (mrenclave = %s)\n",\
-            bytes2hexstr(req.mrenclave, hash_buf, HASHBUF_SIZE));
+            alloca_bytes2hexstr(req.mrenclave));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(req) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(req) - bytes,
@@ -1017,7 +1010,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
     }
 
     SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
+            alloca_bytes2hexstr(att.mrenclave));
 
     ret = sgx_verify_report(&att.report);
     if (ret < 0) {
@@ -1040,7 +1033,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
 
     if (ret == 1) {
         SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
-                bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
+                alloca_bytes2hexstr(att.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -1058,7 +1051,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
            sizeof(sgx_arch_attributes_t));
 
     SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
+            alloca_bytes2hexstr(att.mrenclave));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
@@ -1094,9 +1087,8 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
         }
     }
 
-    char hash_buf[HASHBUF_SIZE];
     SGX_DBG(DBG_S, "Received attestation request ... (mrenclave = %s)\n",
-            bytes2hexstr(req.mrenclave, hash_buf, HASHBUF_SIZE));
+            alloca_bytes2hexstr(req.mrenclave));
 
     ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &att.report);
     if (ret < 0) {
@@ -1109,7 +1101,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
            sizeof(sgx_arch_attributes_t));
 
     SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
+            alloca_bytes2hexstr(att.mrenclave));
 
     for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
@@ -1130,7 +1122,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
+            alloca_bytes2hexstr(att.mrenclave));
 
     ret = sgx_verify_report(&att.report);
     if (ret < 0) {
@@ -1152,7 +1144,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
 
     if (ret == 1) {
         SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
-                bytes2hexstr(att.mrenclave, hash_buf, HASHBUF_SIZE));
+                alloca_bytes2hexstr(att.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
