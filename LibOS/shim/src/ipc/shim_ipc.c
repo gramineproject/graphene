@@ -371,20 +371,11 @@ int send_ipc_message (struct shim_ipc_msg * msg, struct shim_ipc_port * port)
     debug("send ipc message to port %p (handle %p)\n", port,
           port->pal_handle);
 
-    PAL_HANDLE pal_handle = port->pal_handle;
-
-    /* Read memory barrier needed here to ensure pal_handle is alive
-     * if port->deleted is not true. */
-    rmb();
-
-    if (port->deleted)
-        return -ECONNRESET;
-
-    int ret = DkStreamWrite(pal_handle, 0, msg->size, msg, NULL);
+    int ret = DkStreamWrite(port->pal_handle, 0, msg->size, msg, NULL);
 
     if (ret == 0 && PAL_NATIVE_ERRNO) {
         debug("port %p (handle %p) is removed at sending\n", port,
-              pal_handle);
+              port->pal_handle);
 
         del_ipc_port_fini(port, -ECHILD);
         return -PAL_ERRNO;
