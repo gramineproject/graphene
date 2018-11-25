@@ -382,6 +382,7 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
     debug("deleting port %p (handle %p) for process %u\n",
           port, port->pal_handle, port->info.vmid);
 
+    __get_ipc_port(port); // Prevent the object from being freed during deletion
     assert(!list_empty(port, list)); // Never delete a port twice
 
     bool need_restart = false;
@@ -433,6 +434,7 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
 
 out:
     port->update = true;
+    __put_ipc_port(port); // Free the object if ref_count is 0
     return need_restart;
 }
 
@@ -463,13 +465,14 @@ void del_ipc_port_by_id (IDTYPE vmid, int type)
     lock(ipc_helper_lock);
 
     listp_for_each_entry_safe(port, n, head, hlist) {
+        if (list_empty(port, list))
+            continue;
+
         debug("port %p (handle %p) for process %u in list %p\n",
               port, port->pal_handle, port->info.vmid, head);
 
-        if (port->info.vmid == vmid && !list_empty(port, list)) {
-            if (__del_ipc_port(port, type))
-                need_restart = true;
-        }
+        if (port->info.vmid == vmid && __del_ipc_port(port, type))
+            need_restart = true;
     }
 
     if (need_restart)
