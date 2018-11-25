@@ -31,8 +31,6 @@
 
 #include <errno.h>
 
-#warning "be sure before including this file"
-
 #if !defined(NS) || !defined(NS_CAP)
 # error "NS or NS_CAP is not defined"
 #endif
@@ -844,6 +842,9 @@ static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
     return 0;
 }
 
+// Turn off this function as it is not used
+// Keep the code for future use
+#if 0
 static int disconnect_ns(struct shim_ipc_port * port)
 {
     lock(cur_process.lock);
@@ -855,6 +856,7 @@ static int disconnect_ns(struct shim_ipc_port * port)
     del_ipc_port(port, IPC_PORT_LDR);
     return 0;
 }
+#endif
 
 int CONCAT3(prepare, NS, leader) (void)
 {

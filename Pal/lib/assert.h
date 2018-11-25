@@ -3,17 +3,19 @@
 
 /*
  * assert.h
- * 
- * Define a common interface for assertions that builds for both the PAL 
+ *
+ * Define a common interface for assertions that builds for both the PAL
  * and libOS.
- * 
+ *
  */
 
 #ifndef ASSERT_H
 #define ASSERT_H
 
+#define COMPILE_TIME_ASSERT(pred) switch(0){case 0:case pred:;}
+
 /* All environments should implement warn, which prints a non-optional debug
- * message. All environments should also implement __abort, which 
+ * message. All environments should also implement __abort, which
  * terminates the process.
  */
 
