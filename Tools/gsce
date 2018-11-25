@@ -22,22 +22,22 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
  
   # DOWNLOAD dependencies
   df.write('# Download dependencies\n')
-  df.write('RUN apt-get update && \ \n')
-  df.write('    apt-get install -y openssl libjemalloc-dev python python-pip python-dev \n')
-  df.write('RUN pip install protobuf && \ \n')
-  df.write('    pip install pycrypto\n')
+  df.write('RUN apt-get update \ \n')
+  df.write('    && apt-get install -y openssl libjemalloc-dev python python-pip python-dev \ \n')
+  df.write('    && pip install protobuf \ \n')
+  df.write('    && pip install pycrypto \ \n')
 
-  df.write('# Temporal fixes for Dependencies Issue #1: libcrypto.so.1.0.0 and libssl.so.1.0.0 have different locations \n')
-  df.write('RUN ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.1.0.0 /lib/x86_64-linux-gnu/libcrypto.so.1.0.0 && \ \n')
-  df.write('    ln -s /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 /lib/x86_64-linux-gnu/libssl.so.1.0.0 \n')
-  
+  # Temporal fixes for Dependencies Issue #1: libcrypto.so.1.0.0 and libssl.so.1.0.0 have different locations
+  df.write('    && ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.1.0.0 /lib/x86_64-linux-gnu/libcrypto.so.1.0.0 \ \n')
+  df.write('    && ln -s /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 /lib/x86_64-linux-gnu/libssl.so.1.0.0 \n')
+
   # SETUP Directory Structure
   print "cwd: "+ proj_dir
   df.write('# Setup Directory Structure \n')
-  df.write('RUN mkdir -p ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + '\n')
-  df.write('RUN mkdir -p ' + proj_dir + '/Pal/src/host/Linux-SGX/signer \n')
-  df.write('RUN mkdir -p ' + proj_dir + '/Runtime \n')
-  df.write('RUN mkdir /gbin \n')
+  df.write('RUN mkdir -p ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + ' \ \n')
+  df.write('    && mkdir -p ' + proj_dir + '/Pal/src/host/Linux-SGX/signer \ \n')
+  df.write('    && mkdir -p ' + proj_dir + '/Runtime \ \n')
+  df.write('    && mkdir /gbin \n')
 
   # COPY system files
   df.write('# Copy system files \n')
