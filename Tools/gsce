@@ -34,7 +34,6 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
   # SETUP Directory Structure
   print "cwd: "+ proj_dir
   df.write('# Setup Directory Structure \n')
- # df.write('RUN mkdir -p ' + proj_dir + '\n')
   df.write('RUN mkdir -p ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + '\n')
   df.write('RUN mkdir -p ' + proj_dir + '/Pal/src/host/Linux-SGX/signer \n')
   df.write('RUN mkdir -p ' + proj_dir + '/Runtime \n')
