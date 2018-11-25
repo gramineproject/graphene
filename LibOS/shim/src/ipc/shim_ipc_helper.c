@@ -570,10 +570,6 @@ void del_all_ipc_ports (int type)
     lock(ipc_helper_lock);
 
     listp_for_each_entry_safe(pobj, n, &pobj_list, list) {
-        // Skip deleted ports
-        if (list_empty(pobj, list))
-            continue;
-
         if (__del_ipc_port(pobj, type))
             need_restart = true;
     }
