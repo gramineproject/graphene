@@ -226,9 +226,10 @@ static int get_event_num (int signum)
     }
 }
 
-void _DkGenericEventTrigger (int event_num, PAL_UPCALL upcall,
-                             int flags, PAL_NUM arg, struct pal_frame * frame,
-                             ucontext_t * uc, void * eframe)
+static void _DkGenericEventTrigger (int event_num, PAL_UPCALL upcall,
+                                    int flags, PAL_NUM arg,
+                                    struct pal_frame * frame,
+                                    ucontext_t * uc, void * eframe)
 {
     struct exception_event event;
 

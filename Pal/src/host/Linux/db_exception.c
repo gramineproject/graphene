@@ -137,9 +137,9 @@ static int get_event_num (int signum)
     }
 }
 
-void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
-                             PAL_NUM arg, struct pal_frame * frame,
-                             ucontext_t * uc, void * eframe)
+static void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
+                                    PAL_NUM arg, struct pal_frame * frame,
+                                    ucontext_t * uc, void * eframe)
 {
     PAL_EVENT event;
     event.event_num = event_num;
