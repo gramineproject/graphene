@@ -344,7 +344,7 @@ int _DkRandomBitsRead (void * buffer, int size);
 int _DkSegmentRegisterSet (int reg, const void * addr);
 int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);
-int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key);
+int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key);
 int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
                              PAL_PTR * addrs, PAL_NUM * sizes, int flags);
 int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
