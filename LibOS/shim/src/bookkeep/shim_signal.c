@@ -146,8 +146,11 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
 void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
+    assert(tcb);
 
-    if (!tcb || !tcb->tp)
+    // Signals should not be delivered before the user process starts
+    // or after the user process dies.
+    if (!tcb->tp || !cur_thread_is_alive())
         return;
 
     struct shim_thread * cur_thread = (struct shim_thread *) tcb->tp;
@@ -248,6 +251,8 @@ ret_exception:
 static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
+    assert(tcb);
+
     if (tcb->test_range.cont_addr && arg
         && (void *) arg >= tcb->test_range.start
         && (void *) arg <= tcb->test_range.end) {
@@ -454,10 +459,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         goto ret_exception;
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
-
-    if (!tcb || !tcb->tp)
-        return;
-
+    assert(tcb);
     __disable_preempt(tcb);
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
@@ -614,16 +616,12 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
 void handle_signal (bool delayed_only)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
-
-    if (!tcb || !tcb->tp)
-        return;
+    assert(tcb);
 
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
 
-    debug("handle signal (counter = %d)\n", thread->has_signal.counter);
-
     /* Fast path */
-    if (!thread->has_signal.counter)
+    if (!thread || !thread->has_signal.counter)
         return;
 
     __disable_preempt(tcb);
