@@ -91,7 +91,31 @@ out:
 
 int shim_do_sigreturn (int __unused)
 {
-    /* do nothing */
+    shim_tcb_t *tcb = SHIM_GET_TLS();
+    ucontext_t * user_uc = (ucontext_t*)tcb->context.sp;
+
+    debug("sigreturn thread %d regs: %p sp: %p "
+          "user_uc: %p gregs.rsp: %p gregs.rip: %p\n",
+          get_cur_thread()->tid, tcb->context.regs, tcb->context.sp,
+          user_uc,
+          user_uc->uc_mcontext.gregs[REG_RSP],
+          user_uc->uc_mcontext.gregs[REG_RIP]);
+
+    clear_bit(SHIM_FLAG_SIGPENDING, &tcb->flags);
+    while (!handle_next_signal(user_uc)) {
+        struct _libc_fpstate * user_fpstate = user_uc->uc_mcontext.fpregs;
+        long lmask = -1;
+        long hmask = -1;
+        asm volatile("xrstor64 (%0)"
+                     :: "r"(user_fpstate), "m"(*user_fpstate),
+                      "a"(lmask), "d"(hmask)
+                     : "memory");
+        /* no more signals pending. return back */
+        __sigreturn(&user_uc->uc_mcontext);
+
+        /* if signal is delivered after clearing bit above, try again */
+        clear_bit(SHIM_FLAG_SIGPENDING, &tcb->flags);
+    }
     return 0;
 }
 
@@ -528,7 +552,7 @@ int shim_do_kill (pid_t pid, int sig)
             memset(&info, 0, sizeof(siginfo_t));
             info.si_signo = sig;
             info.si_pid   = cur->tid;
-            deliver_signal(&info, NULL);
+            deliver_signal(NULL, &info, NULL);
         }
     }
 
@@ -582,7 +606,7 @@ int shim_do_tkill (pid_t tid, int sig)
             memset(&info, 0, sizeof(siginfo_t));
             info.si_signo = sig;
             info.si_pid   = cur->tid;
-            deliver_signal(&info, NULL);
+            deliver_signal(NULL, &info, NULL);
         }
         return 0;
     }
@@ -608,7 +632,7 @@ int shim_do_tgkill (pid_t tgid, pid_t tid, int sig)
             memset(&info, 0, sizeof(siginfo_t));
             info.si_signo = sig;
             info.si_pid   = cur->tid;
-            deliver_signal(&info, NULL);
+            deliver_signal(NULL, &info, NULL);
         }
         return 0;
     }

@@ -269,6 +269,17 @@ enum
 # define REG_CR2    REG_CR2
 };
 
+union csgsfs {
+    struct {
+        uint16_t cs;
+        uint16_t gs;
+        uint16_t fs;
+        uint16_t ss;
+
+    };
+    uint64_t csgsfs;
+};
+
 struct _libc_fpxreg {
     unsigned short int significand[4];
     unsigned short int exponent;
@@ -277,6 +288,37 @@ struct _libc_fpxreg {
 
 struct _libc_xmmreg {
     __uint32_t    element[4];
+};
+
+#define FP_XSTATE_MAGIC1        0x46505853U
+#define FP_XSTATE_MAGIC2        0x46505845U
+#define FP_XSTATE_MAGIC2_SIZE   sizeof(FP_XSTATE_MAGIC2)
+
+struct _fpx_sw_bytes {
+    __uint32_t  magic1;
+    __uint32_t  extended_size;
+    __uint64_t  xfeatures;
+    __uint32_t  xstate_size;
+    __uint32_t  padding[7];
+};
+
+struct swregs_state {
+    __uint32_t	cwd;
+    __uint32_t	swd;
+    __uint32_t	twd;
+    __uint32_t	fip;
+    __uint32_t	fcs;
+    __uint32_t	foo;
+    __uint32_t	fos;
+    __uint32_t	st_space[20];
+    __uint8_t	ftop;
+    __uint8_t	changed;
+    __uint8_t	lookahead;
+    __uint8_t	no_update;
+    __uint8_t	rm;
+    __uint8_t	alimit;
+    void *		info; /* struct math_emu_info */
+    __uint32_t	entry_eip;
 };
 
 struct _libc_fpstate {
@@ -291,8 +333,26 @@ struct _libc_fpstate {
     __uint32_t          mxcr_mask;
     struct _libc_fpxreg st[8];
     struct _libc_xmmreg _xmm[16];
-    __uint32_t          padding[24];
+    union {
+        __uint32_t      padding[24];
+        struct {
+            __uint32_t  padding2[12];
+            struct _fpx_sw_bytes    sw_reserved;
+        };
+    };
 };
+
+struct _libc_xstate_header
+{
+    __uint64_t  xfeatures;
+    __uint64_t  xcomp_bv;
+    __uint64_t  reserved[6];
+} __attribute__((packed));
+
+struct _libc_xregs_state {
+    struct _libc_fpstate fpstate;
+    struct _libc_xstate_header header;
+} __attribute__((packed, aligned(64)));
 
 /* Structure to describe FPU registers.  */
 typedef struct _libc_fpstate *fpregset_t;
@@ -307,13 +367,27 @@ typedef struct {
 
 /* Userlevel context.  */
 typedef struct ucontext {
+#define UC_FP_XSTATE            0x1
+#define UC_SIGCONTEXT_SS        0x2
+#define UC_STRICT_RESTORE_SS    0x4
     unsigned long int uc_flags;
     struct ucontext *uc_link;
+// stack_t::ss_flags
+#define SS_ONSTACK  1
+#define SS_DISABLE  2
+#define SS_AUTODISARM   (1U << 31)      /* disable sas during sighandling */
     stack_t uc_stack;
     mcontext_t uc_mcontext;
     __sigset_t uc_sigmask;
     struct _libc_fpstate __fpregs_mem;
 } ucontext_t;
+
+struct sigframe {
+    void * restorer;
+    ucontext_t uc;
+    siginfo_t info;
+    /* fpstate follows */
+};
 
 /* bits/ustat.h */
 struct __kernel_ustat

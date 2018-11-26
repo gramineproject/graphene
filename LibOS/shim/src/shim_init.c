@@ -44,6 +44,7 @@
 unsigned long allocsize;
 unsigned long allocshift;
 unsigned long allocmask;
+unsigned long fpu_xstate_size;
 
 /* The following constants will help matching glibc version with compatible
    SHIM libraries */
@@ -194,6 +195,7 @@ void copy_tcb (shim_tcb_t * new_tcb, const shim_tcb_t * old_tcb)
     new_tcb->tp   = old_tcb->tp;
     memcpy(&new_tcb->context, &old_tcb->context, sizeof(struct shim_context));
     new_tcb->tid  = old_tcb->tid;
+    new_tcb->flags = new_tcb->flags;
     new_tcb->debug_buf = old_tcb->debug_buf;
 }
 
@@ -687,6 +689,15 @@ int shim_init (int argc, void * args, void ** return_stack)
     allocsize = PAL_CB(alloc_align);
     allocshift = allocsize - 1;
     allocmask = ~allocshift;
+    unsigned int value[4];
+#define XSTATE_CPUID         0x0000000d
+    if (DkCpuIdRetrieve(XSTATE_CPUID, 0, value)) {
+        fpu_xstate_size = value[2]; // ecx
+        debug("xstate_size = 0x%x(%d)\n", fpu_xstate_size, fpu_xstate_size);
+    } else {
+        debug("error xstate_size\n");
+        fpu_xstate_size = sizeof(struct _libc_fpstate);
+    }
 
     create_lock(__master_lock);
 
