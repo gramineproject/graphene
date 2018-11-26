@@ -159,6 +159,8 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     if (pal_sec.ppid) {
         if ((rv = init_child_process(&parent)) < 0) {
             SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", rv);
+            if (rv != (int) ((uint8_t) rv))
+                SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
             ocall_exit(rv);
         }
     }
@@ -194,6 +196,8 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     const char * errstring = NULL;
     if ((rv = read_config(root_config, loader_filter, &errstring)) < 0) {
         SGX_DBG(DBG_E, "Can't read manifest: %s, error code %d\n", errstring, rv);
+        if (rv != (int) ((uint8_t) rv))
+            SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
         ocall_exit(rv);
     }
 
