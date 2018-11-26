@@ -671,6 +671,8 @@ int shim_init (int argc, void * args, void ** return_stack)
     __libc_tcb_t tcb;
     memset(&tcb, 0, sizeof(__libc_tcb_t));
     allocate_tls(&tcb, false, NULL);
+    __disable_preempt(&tcb.shim_tcb); // Temporarily disable preemption for delaying any signal
+                                      // that arrives during initialization
     debug_setbuf(&tcb.shim_tcb, true);
     debug("set tcb to %p\n", &tcb);
 

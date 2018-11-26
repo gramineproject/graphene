@@ -164,6 +164,14 @@ struct shim_thread * get_cur_thread (void)
 
 static inline
 __attribute__((always_inline))
+bool cur_thread_is_alive (void)
+{
+    struct shim_thread * thread = get_cur_thread();
+    return thread ? thread->is_alive : false;
+}
+
+static inline
+__attribute__((always_inline))
 void set_cur_thread (struct shim_thread * thread)
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
@@ -303,8 +311,6 @@ struct clone_args {
 };
 
 int clone_implementation_wrapper(struct clone_args * arg);
-
-int clean_held_locks (struct shim_thread * self);
 
 void * allocate_stack (size_t size, size_t protect_size, bool user);
 int populate_user_stack (void * stack, size_t stack_size,
