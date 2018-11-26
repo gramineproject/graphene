@@ -148,6 +148,7 @@ static IDTYPE get_internal_pid (void)
     internal_tid_alloc_idx++;
     IDTYPE idx = internal_tid_alloc_idx;
     unlock(thread_list_lock);
+    assert(IS_INTERNAL_TID(idx));
     return idx;
 }
 
@@ -754,6 +755,8 @@ BEGIN_RS_FUNC(running_thread)
             assert(tcb->context.sp);
             tcb->debug_buf = SHIM_GET_TLS()->debug_buf;
             allocate_tls(libc_tcb, thread->user_tcb, thread);
+            /* Temporarily disable preemption until the thread resumes. */
+            __disable_preempt(tcb);
             debug_setprefix(tcb);
             debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
@@ -763,7 +766,7 @@ BEGIN_RS_FUNC(running_thread)
         thread->in_vm = thread->is_alive = true;
         thread->pal_handle = PAL_CB(first_thread);
     }
-    
+
     DEBUG_RS("tid=%d", thread->tid);
 }
 END_RS_FUNC(running_thread)
