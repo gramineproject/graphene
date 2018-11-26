@@ -45,9 +45,9 @@ typedef struct exception_event {
     struct pal_frame *  frame;
 } PAL_EVENT;
 
-void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
-                             PAL_NUM arg, struct pal_frame * frame,
-                             PAL_CONTEXT * context)
+static void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
+                                    PAL_NUM arg, struct pal_frame * frame,
+                                    PAL_CONTEXT * context)
 {
     struct exception_event event;
 
