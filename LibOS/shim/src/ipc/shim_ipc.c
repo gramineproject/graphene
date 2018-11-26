@@ -371,20 +371,11 @@ int send_ipc_message (struct shim_ipc_msg * msg, struct shim_ipc_port * port)
     debug("send ipc message to port %p (handle %p)\n", port,
           port->pal_handle);
 
-    PAL_HANDLE pal_handle = port->pal_handle;
-
-    /* Read memory barrier needed here to ensure pal_handle is alive
-     * if port->deleted is not true. */
-    rmb();
-
-    if (port->deleted)
-        return -ECONNRESET;
-
-    int ret = DkStreamWrite(pal_handle, 0, msg->size, msg, NULL);
+    int ret = DkStreamWrite(port->pal_handle, 0, msg->size, msg, NULL);
 
     if (ret == 0 && PAL_NATIVE_ERRNO) {
         debug("port %p (handle %p) is removed at sending\n", port,
-              pal_handle);
+              port->pal_handle);
 
         del_ipc_port_fini(port, -ECHILD);
         return -PAL_ERRNO;
@@ -396,9 +387,12 @@ int send_ipc_message (struct shim_ipc_msg * msg, struct shim_ipc_port * port)
 int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                               struct shim_ipc_port * port)
 {
-    if (port && !list_empty(msg, list)) {
+    if (port) {
+        // Check if the message is pending on the port for response. If so,
+        // remove the message from the list.
         lock(port->msgs_lock);
-        listp_del_init(msg, &port->msgs, list);
+        if (!list_empty(msg, list))
+            listp_del_init(msg, &port->msgs, list);
         unlock(port->msgs_lock);
     }
 
