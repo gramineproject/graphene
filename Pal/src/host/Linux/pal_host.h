@@ -157,6 +157,7 @@ typedef struct pal_handle
 
         struct {
             PAL_IDX tid;
+            PAL_PTR stack;
         } thread;
 
         struct {

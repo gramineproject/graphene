@@ -234,6 +234,7 @@ void pal_linux_main (void * args)
         init_fail(PAL_ERROR_NOMEM, "Out of memory");
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
+    first_thread->thread.stack = NULL;
 
     void * alt_stack = NULL;
     _DkVirtualMemoryAlloc(&alt_stack, ALT_STACK_SIZE, 0, PAL_PROT_READ|PAL_PROT_WRITE);
