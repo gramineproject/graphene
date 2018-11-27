@@ -10,10 +10,12 @@
 
 #include <asm/errno.h>
 
-/* SGX_INVALID_LICENSE is renamed to SGX_INVALID_EINITTOKEN */
+/* SGX_INVALID_LICENSE is renamed to SGX_INVALID_EINITTOKEN from SGX driver
+ * version 2.1
+ */
 #ifndef SGX_INVALID_EINITTOKEN
 # ifndef SGX_INVALID_LICENSE
-#  error "sgx.h version mismatch? Please verify linux sgx driver version."
+#  error "sgx_user.h version mismatch? Please verify linux sgx driver version."
 # else
 #  define SGX_INVALID_EINITTOKEN SGX_INVALID_LICENSE
 # endif
