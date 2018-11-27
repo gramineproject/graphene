@@ -1116,8 +1116,7 @@ int shim_clean (int err)
 {
     /* preventing multiple cleanup, this is mostly caused by
        assertion in shim_clean */
-    atomic_inc(&in_terminate);
-    if (atomic_read(&in_terminate) > 1)
+    if (atomic_inc_return(&in_terminate) > 1)
         return 0;
 
     if (err != 0)
