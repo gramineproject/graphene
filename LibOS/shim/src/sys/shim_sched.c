@@ -40,13 +40,15 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
                                __kernel_cpu_set_t * user_mask_ptr)
 {
     int ncpus = PAL_CB(cpu_info.cpu_num);
+    /* Linux kernel bitmap is based on long. So follow it to round up to
+       sizeof long) */
+    int ret = (ncpus + sizeof(long) * 8 - 1) /
+        (sizeof(long) * 8) * sizeof(long);
+    if (len < ret)
+        return -EINVAL;
+
     memset(user_mask_ptr, 0, len);
-    for (int i = 0 ; i < MIN(ncpus, len * 8) ; i++)
+    for (int i = 0 ; i < ncpus ; i++)
         ((uint8_t *) user_mask_ptr)[i / 8] |= 1 << (i % 8);
-    return MIN(
-        /* Linux kernel bitmap is based on long. So follow it to round up to
-         * sizeof long)
-         */
-        (ncpus + sizeof(long) * 8 - 1) / (sizeof(long) * 8) * sizeof(long),
-        len);
+    return ret;
 }
