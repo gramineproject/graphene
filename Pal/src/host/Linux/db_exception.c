@@ -187,6 +187,16 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
         printf("*** An unexpected %s occurred inside PAL. Exiting the thread. "
                "(PID = %d, TID = %d, RIP = +%p) ***\n",
                name, pid, tid, rip - (uintptr_t) TEXT_START);
+
+#ifdef DEBUG
+        // Hang for debugging
+        while (true) {
+            struct timespec sleeptime;
+            sleeptime.tv_sec = 36000;
+            sleeptime.tv_nsec = 0;
+            INLINE_SYSCALL(nanosleep, 2, &sleeptime, NULL);
+        }
+#endif
         _DkThreadExit();
         return;
     }
