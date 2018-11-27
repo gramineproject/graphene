@@ -62,7 +62,7 @@ int pal_thread_init (void * tcbptr)
 
     if (tcb->alt_stack) {
         // Align stack to 16 bytes
-        void * alt_stack_top = (void *) ((uint64_t) tcb & ~16);
+        void * alt_stack_top = (void *) ((uint64_t) tcb & ~15);
         assert(alt_stack_top > tcb->alt_stack);
         stack_t ss;
         ss.ss_sp    = alt_stack_top;
@@ -110,7 +110,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     tcb->param     = (void *) param;
 
     /* align child_stack to 16 */
-    child_stack = (void *) ((uintptr_t) child_stack & ~16);
+    child_stack = (void *) ((uintptr_t) child_stack & ~15);
 
     ret = clone(pal_thread_init, child_stack,
                     CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SYSVSEM|
@@ -123,6 +123,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
         goto err;
     }
 
+    hdl->thread.stack = stack;
     *handle = hdl;
     return 0;
 err:
@@ -167,6 +168,27 @@ void _DkThreadYieldExecution (void)
 /* _DkThreadExit for internal use: Thread exiting */
 void _DkThreadExit (void)
 {
+    PAL_TCB* tcb = get_tcb();
+    PAL_HANDLE handle = tcb->handle;
+
+    if (tcb->alt_stack) {
+        stack_t ss;
+        ss.ss_sp    = NULL;
+        ss.ss_flags = SS_DISABLE;
+        ss.ss_size  = 0;
+
+        // Take precautions to unset the TCB and alternative stack first.
+        INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, 0);
+        INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
+        INLINE_SYSCALL(munmap, 2, tcb->alt_stack, ALT_STACK_SIZE);
+    }
+
+    if (handle && handle->thread.stack) {
+        // Free the thread stack
+        INLINE_SYSCALL(munmap, 2, handle->thread.stack, THREAD_STACK_SIZE);
+        // After this line, needs to exit the thread immediately
+    }
+
     INLINE_SYSCALL(exit, 1, 0);
 }
 
