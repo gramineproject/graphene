@@ -1118,8 +1118,7 @@ int shim_clean (void)
 {
     /* preventing multiple cleanup, this is mostly caused by
        assertion in shim_clean */
-    atomic_inc(&in_terminate);
-    if (atomic_read(&in_terminate) > 1)
+    if (atomic_inc_return(&in_terminate) > 1)
         return 0;
 
     store_all_msg_persist();
