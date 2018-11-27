@@ -1,7 +1,3 @@
-/* -*- mode:c; c-basic-offset:4; tab-width:4; indent-tabs-mode:t; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
-
 /* This is the canonical entry point, usually the first thing in the text
    segment.  The SVR4/i386 ABI (pages 3-31, 3-32) says that when the entry
    point runs, most registers' values are unspecified, except for:
