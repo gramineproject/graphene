@@ -80,7 +80,7 @@ struct handle_ops gipc_ops = {
         .close              = &gipc_close,
     };
 
-int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key)
+int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key)
 {
     unsigned long token = 0;
     int fd = INLINE_SYSCALL(open, 3, GIPC_FILE, O_RDONLY|O_CLOEXEC, 0);
