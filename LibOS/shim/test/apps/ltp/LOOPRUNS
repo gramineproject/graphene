@@ -1,2 +1,14 @@
 testcase,noOfRuns
-alarm02,5
+waitpid02,1000
+waitpid03,50
+clock_nanosleep01,500
+preadv01,10000
+sendfile05,1000
+recvfrom01,500
+futex_wait03,100
+kill03,500
+send01,500
+sendto01,500
+recv01,1000
+recvmsg01,10000
+poll02,10000
