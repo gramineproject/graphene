@@ -703,9 +703,9 @@ int submit_sysv_sem (struct shim_sem_handle * sem, struct sembuf * sops,
     for (int i = 0 ; i < nsops ; i++) {
         struct sembuf * op = &sops[i];
 
-        if (op->sem_num > 0) {
+        if (op->sem_op > 0) {
             score += SEM_POSITIVE_SCORE(op->sem_num);
-        } else if ((short)op->sem_num < 0) {
+        } else if (op->sem_op < 0) {
             score += SEM_NEGATIVE_SCORE(-op->sem_num);
             sendreply = true;
         } else {
