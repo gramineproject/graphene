@@ -59,6 +59,13 @@ endif
 test:
 	$(MAKE) -C test test
 
+.PHONY: format
+format:
+	clang-format -i $(shell find . -path ./linux-kernel -prune -o \
+	                               -path ./lib/crypto/mbedtls -prune -o \
+	                               -path ./lib/crypto/udivmodti4.c -prune -o \
+	                               \( -name '*.h' -o -name '*.c' \) -print)
+
 .PHONY: pack
 pack:
 	$(MAKE) -C test pack
