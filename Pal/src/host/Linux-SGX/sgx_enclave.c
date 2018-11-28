@@ -25,6 +25,10 @@
 static int sgx_ocall_exit(int rv)
 {
     ODEBUG(OCALL_EXIT, NULL);
+    if (rv != (int) ((uint8_t) rv)) {
+        SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
+        rv = 255;
+    }
     INLINE_SYSCALL(exit, 1, rv);
     return 0;
 }
@@ -721,5 +725,5 @@ int ecall_thread_start (void)
 }
 
 void __abort(void) {
-    INLINE_SYSCALL(exit_group, 1, -1); 
+    INLINE_SYSCALL(exit_group, 1, -1);
 }
