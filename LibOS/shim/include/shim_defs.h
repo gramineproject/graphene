@@ -33,4 +33,8 @@
 
 #define DEFAULT_VMA_COUNT           64
 
+/* System V IPC semaphore / message queue migration */
+#define MIGRATE_SYSV_SEM            0
+#define MIGRATE_SYSV_MSG            1
+
 #endif /* _SHIM_DEFS_H_ */
