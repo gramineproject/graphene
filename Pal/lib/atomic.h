@@ -184,4 +184,33 @@ static inline int64_t atomic_cmpxchg (struct atomic_int * v, int64_t old, int64_
     return cmpxchg(&v->counter, old, new);
 }
 
+static inline bool test_and_set_bit(long nr, volatile unsigned long *addr)
+{
+    bool cc_carry;
+    __asm__ __volatile__("lock btsq %2, %0\n"
+                         : "+m"(*addr), "=@ccc"(cc_carry)
+                         : "Ir"(nr)
+                         : "memory");
+    return cc_carry;
+}
+
+static inline bool test_and_clear_bit(long nr, volatile unsigned long *addr)
+{
+    bool cc_carry;
+    __asm__ __volatile__("lock btrq %2, %0\n"
+                         : "+m"(*addr), "=@ccc"(cc_carry)
+                         : "Ir"(nr)
+                         : "memory");
+    return cc_carry;
+}
+
+static inline void set_bit(long nr, volatile unsigned long *addr)
+{
+    test_and_set_bit(nr, addr);
+}
+
+static inline void clear_bit(long nr, volatile unsigned long *addr)
+{
+    test_and_clear_bit(nr, addr);
+}
 #endif /* _ATOMIC_INT_H_ */
