@@ -1,7 +1,7 @@
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-targets = all clean
+targets = all clean format
 
 .PHONY: $(targets)
 $(targets):
