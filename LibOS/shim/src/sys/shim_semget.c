@@ -647,6 +647,7 @@ failed:
     }
 }
 
+#if MIGRATE_SYSV_SEM
 static int sem_balance_migrate (struct shim_handle * hdl,
                                 struct sysv_client * client);
 
@@ -656,6 +657,7 @@ static struct sysv_balance_policy sem_policy  = {
         .balance_threshold  = SEM_BALANCE_THRESHOLD,
         .migrate            = &sem_balance_migrate,
     };
+#endif
 
 DEFINE_PROFILE_CATAGORY(submit_sysv_sem, sysv_sem);
 DEFINE_PROFILE_INTERVAL(sem_prepare_stat, submit_sysv_sem);
@@ -726,6 +728,7 @@ int submit_sysv_sem (struct shim_sem_handle * sem, struct sembuf * sops,
         goto out_locked;
     }
 
+#if MIGRATE_SYSV_SEM == 1
     if (sem->owned) {
         __balance_sysv_score(&sem_policy, hdl, sem->scores, MAX_SYSV_CLIENTS,
                              client, score);
@@ -739,6 +742,7 @@ int submit_sysv_sem (struct shim_sem_handle * sem, struct sembuf * sops,
             goto out_locked;
         }
     }
+#endif
 
     if (!sem->owned) {
         if (client) {
@@ -870,6 +874,7 @@ out:
     return ret;
 }
 
+#if MIGRATE_SYSV_SEM == 1
 static int sem_balance_migrate (struct shim_handle * hdl,
                                 struct sysv_client * src)
 {
@@ -953,3 +958,4 @@ failed_info:
 out:
     return ret;
 }
+#endif

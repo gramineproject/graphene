@@ -570,6 +570,7 @@ eagain:
     return -EAGAIN;
 }
 
+#if MIGRATE_SYSV_MSG == 1
 static int msg_balance_migrate (struct shim_handle * hdl,
                                 struct sysv_client * client);
 
@@ -579,7 +580,7 @@ static struct sysv_balance_policy msg_policy  = {
         .balance_threshold  = MSG_BALANCE_THRESHOLD,
         .migrate            = &msg_balance_migrate,
     };
-
+#endif
 
 DEFINE_PROFILE_INTERVAL(add_sysv_msg, sysv_msg);
 
@@ -612,10 +613,11 @@ int add_sysv_msg (struct shim_msg_handle * msgq,
     if ((ret = __store_msg_qobjs(msgq, mtype, size, data)) < 0)
         goto out_locked;
 
+#if MIGRATE_SYSV_MSG == 1
     if (msgq->owned)
         __balance_sysv_score(&msg_policy, hdl, msgq->scores, MAX_SYSV_CLIENTS,
                              src, MSG_SND_SCORE);
-
+#endif
     DkEventSet(msgq->event);
     ret  = 0;
 out_locked:
@@ -682,6 +684,7 @@ int get_sysv_msg (struct shim_msg_handle * msgq,
         goto out_locked;
     }
 
+#if MIGRATE_SYSV_MSG == 1
     if (msgq->owned) {
         __balance_sysv_score(&msg_policy, hdl, msgq->scores, MAX_SYSV_CLIENTS,
                              src, MSG_RCV_SCORE);
@@ -695,6 +698,7 @@ int get_sysv_msg (struct shim_msg_handle * msgq,
             goto out_locked;
         }
     }
+#endif
 
     if (!msgq->owned) {
         IDTYPE msqid = msgq->msqid;
@@ -974,6 +978,7 @@ int shim_do_msgpersist (int msqid, int cmd)
     return ret;
 }
 
+#if MIGRATE_SYSV_MSG == 1
 static int msg_balance_migrate (struct shim_handle * hdl,
                                 struct sysv_client * src)
 {
@@ -1027,3 +1032,4 @@ failed:
 out:
     return ret;
 }
+#endif
