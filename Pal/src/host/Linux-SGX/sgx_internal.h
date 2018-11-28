@@ -83,7 +83,7 @@ struct pal_enclave {
 };
 
 int open_gsgx (void);
-bool check_wrfsbase_support (void);
+bool is_wrfsbase_supported (void);
 
 int read_enclave_token (int token_file, sgx_arch_token_t * token);
 int read_enclave_sigstruct (int sigfile, sgx_arch_sigstruct_t * sig);

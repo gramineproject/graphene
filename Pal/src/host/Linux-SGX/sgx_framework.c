@@ -107,7 +107,7 @@ static size_t get_ssaframesize (uint64_t xfrm)
     return ALLOC_ALIGNUP(xsave_size + sizeof(sgx_arch_gpr_t) + 1);
 }
 
-bool check_wrfsbase_support (void)
+bool is_wrfsbase_supported (void)
 {
     uint32_t cpuinfo[4];
     cpuid(7, 0, cpuinfo);
