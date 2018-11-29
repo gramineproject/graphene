@@ -1,0 +1,18 @@
+q-cmd = $(if $(V),$1,$(if $(2),@printf "%s %s\n" $2 $3 && $1, @$1))
+
+%.s: %.c $(headers)
+	$(call q-cmd,$(CC) $(CFLAGS) $(defs) -S $< -o $@, "CC -S", $@)
+
+asm-offsets.h: asm-offsets.s
+	$(call q-cmd, \
+	  (set -e; \
+	   echo "/* DO NOT MODIFY. this file is auto generated file. */"; \
+	   echo "#ifndef _ASM_OFFSETS_H_"; \
+	   echo "#define _ASM_OFFSETS_H_"; \
+	   echo ""; \
+	   awk '/\.ascii \" #define/{val=$$5; gsub("\\$$", "", val); print $$3" "$$4" "val}' $^; \
+	   echo ""; \
+	   echo "#endif") > $@, \
+	  "OFFSET", $@)
+
+CLEAN_FILES += asm-offests.h asm-offsets.s

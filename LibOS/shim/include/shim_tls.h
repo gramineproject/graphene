@@ -8,12 +8,6 @@
 
 #define SHIM_TLS_CANARY $xdeadbeef
 
-#if defined(__x86_64__)
-# define SHIM_TCB_OFFSET    80
-#else
-# define SHIM_TCB_OFFSET    44
-#endif
-
 #else /* !__ASSEMBLER__ */
 
 #define SHIM_TLS_CANARY 0xdeadbeef
