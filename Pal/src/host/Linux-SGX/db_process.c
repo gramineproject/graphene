@@ -134,9 +134,13 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
 }
 
 struct proc_attestation_data {
-    sgx_arch_mac_t  keyhash_mac;
-    uint8_t         reserved[PAL_ATTESTATION_DATA_SIZE - sizeof(sgx_arch_mac_t)];
-} __attribute__((packed));
+    union {
+        sgx_sign_data_t data;
+        struct {
+            sgx_arch_mac_t  keyhash_mac;
+        } __attribute__((packed));
+    };
+};
 
 struct check_child_param {
     PAL_MAC_KEY     mac_key;
@@ -144,11 +148,9 @@ struct check_child_param {
 };
 
 static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
-                                  void * signed_data, void * check_param)
+                                  struct pal_enclave_state * remote_state,
+                                  void * check_param)
 {
-    struct pal_enclave_state * remote_state = signed_data;
-    struct proc_attestation_data * data = (void *) &remote_state->data;
-
     /* the process must be a clean process */
     if (remote_state->enclave_flags & PAL_ENCLAVE_INITIALIZED)
         return 1;
@@ -165,7 +167,8 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
                 sizeof(remote_state->enclave_identifier),
                 check_data.keyhash_mac, sizeof(check_data.keyhash_mac));
 
-    if (memcmp(data, &check_data, sizeof(struct proc_attestation_data)))
+    if (memcmp(&remote_state->enclave_data, &check_data.data,
+               sizeof(check_data.data)))
         return 1;
 
     /* always accept our own as child */
@@ -239,7 +242,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n",
             alloca_bytes2hexstr(data.keyhash_mac));
 
-    ret = _DkStreamAttestationRequest(proc, &data,
+    ret = _DkStreamAttestationRequest(proc, &data.data,
                                       &check_child_mrenclave, &param);
     if (ret < 0)
         return ret;
@@ -253,11 +256,9 @@ struct check_parent_param {
 };
 
 static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
-                                   void * signed_data, void * check_param)
+                                   struct pal_enclave_state * remote_state,
+                                   void * check_param)
 {
-    struct pal_enclave_state * remote_state = signed_data;
-    struct proc_attestation_param * data = (void *) &remote_state->data;
-
     struct check_parent_param * param = check_param;
 
     /* must make sure the signer of the report is also the owner of the key,
@@ -270,7 +271,8 @@ static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
                 sizeof(remote_state->enclave_identifier),
                 check_data.keyhash_mac, sizeof(check_data.keyhash_mac));
 
-    if (memcmp(data, &check_data, sizeof(struct proc_attestation_data)))
+    if (memcmp(&remote_state->enclave_data, &check_data.data,
+               sizeof(check_data.data)))
         return 1;
 
     /* for now, we will accept any enclave as a parent, but eventually
@@ -309,7 +311,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n",
             alloca_bytes2hexstr(data.keyhash_mac));
 
-    ret = _DkStreamAttestationRespond(parent, &data,
+    ret = _DkStreamAttestationRespond(parent, &data.data,
                                       &check_parent_mrenclave,
                                       &param);
     if (ret < 0)

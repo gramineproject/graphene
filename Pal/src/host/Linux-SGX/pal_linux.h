@@ -145,26 +145,33 @@ void session_key_to_mac_key (PAL_SESSION_KEY * session_key,
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * key);
 
-/* request and respond for remote attestation */
-int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
-                                 int (*check_mrenclave) (sgx_arch_hash_t *,
-                                                         void *, void *),
-                                 void * check_param);
-int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
-                                 int (*check_mrenclave) (sgx_arch_hash_t *,
-                                                         void *, void *),
-                                 void * check_param);
+typedef uint8_t sgx_sign_data_t[24];
 
 /* enclave state used for generating report */
-#define PAL_ATTESTATION_DATA_SIZE   24
-
 extern struct pal_enclave_state {
-    uint64_t enclave_flags;         /* flags to specify the state of the
-                                       enclave */
-    uint8_t  data[PAL_ATTESTATION_DATA_SIZE];
-                                    /* reserved for filling other data */
-    sgx_arch_hash_t enclave_identifier;  /* unique identifier of the enclave */
+    uint64_t        enclave_flags;      // Reserved for flags
+    sgx_arch_mac_t  enclave_identifier; // Unique identifier for authentication
+    sgx_sign_data_t enclave_data;       // Reserved for signing other data
 } __attribute__((packed, aligned (128))) pal_enclave_state;
+
+int sgx_get_report (sgx_arch_hash_t * mrenclave,
+                    sgx_arch_attributes_t * attributes,
+                    sgx_sign_data_t * enclave_data,
+                    sgx_arch_report_t * report);
+
+int sgx_verify_report (sgx_arch_report_t * report);
+
+/* request and respond for remote attestation */
+int _DkStreamAttestationRequest (PAL_HANDLE stream, sgx_sign_data_t * data,
+                                 int (*check_mrenclave) (sgx_arch_hash_t *,
+                                                         struct pal_enclave_state *,
+                                                         void *),
+                                 void * check_param);
+int _DkStreamAttestationRespond (PAL_HANDLE stream, sgx_sign_data_t * data,
+                                 int (*check_mrenclave) (sgx_arch_hash_t *,
+                                                         struct pal_enclave_state *,
+                                                         void *),
+                                 void * check_param);
 
 #include "sgx_arch.h"
 

@@ -34,13 +34,6 @@ int sgx_report (sgx_arch_targetinfo_t * targetinfo,
 
 int sgx_getkey (sgx_arch_keyrequest_t * keyrequest, sgx_arch_key128_t * key);
 
-int sgx_get_report (sgx_arch_hash_t * mrenclave,
-                    sgx_arch_attributes_t * attributes,
-                    void * enclave_data,
-                    sgx_arch_report_t * report);
-
-int sgx_verify_report (sgx_arch_report_t * report);
-
 uint32_t rdrand (void);
 uint64_t rdfsbase (void);
 void wrfsbase (uint64_t addr);

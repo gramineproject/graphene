@@ -38,7 +38,7 @@ void sgx_ocfree (void)
 
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
-                    void * enclave_data,
+                    sgx_sign_data_t * enclave_data,
                     sgx_arch_report_t * report)
 {
     sgx_arch_targetinfo_t targetinfo;
@@ -48,12 +48,18 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     memcpy(&targetinfo.attributes, attributes, sizeof(sgx_arch_attributes_t));
 
     struct pal_enclave_state state;
-    memcpy(&state, &pal_enclave_state, sizeof(struct pal_enclave_state));
-    memcpy(&state.data, enclave_data, PAL_ATTESTATION_DATA_SIZE);
+    memcpy(&state, &pal_enclave_state, sizeof(state));
+    memcpy(&state.enclave_data, enclave_data, sizeof(state.enclave_data));
+
+    SGX_DBG(DBG_S, "sgx_report(targetinfo = %p, data = %p, report = %p)\n",
+            &targetinfo, &state, report);
 
     int ret = sgx_report(&targetinfo, &state, report);
-    if (ret)
+    if (ret) {
+        SGX_DBG(DBG_S, "sgx_report failed (mrenclave = %s, ret = %d)\n",
+                alloca_bytes2hexstr(*mrenclave), ret);
         return -PAL_ERROR_DENIED;
+    }
 
     SGX_DBG(DBG_S, "Generated report:\n");
     SGX_DBG(DBG_S, "    cpusvn:           %08x %08x\n", report->cpusvn[0],
@@ -74,6 +80,7 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
 static sgx_arch_key128_t enclave_key;
 
 #define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
+
 int sgx_verify_report (sgx_arch_report_t * report)
 {
     sgx_arch_keyrequest_t keyrequest;
@@ -81,7 +88,10 @@ int sgx_verify_report (sgx_arch_report_t * report)
     keyrequest.keyname = REPORT_KEY;
     memcpy(keyrequest.keyid, report->keyid, sizeof(keyrequest.keyid));
 
-    int ret = sgx_getkey(&keyrequest, &enclave_key);
+    sgx_arch_key128_t report_key;
+    memset(&report_key, 0, sizeof(sgx_arch_key128_t));
+
+    int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
         SGX_DBG(DBG_S, "Can't get report key\n");
         return -PAL_ERROR_DENIED;
@@ -89,6 +99,24 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
     SGX_DBG(DBG_S, "Get report key for verification: %s\n",
             alloca_bytes2hexstr(enclave_key));
+
+    sgx_arch_mac_t check_mac;
+    memset(&check_mac, 0, sizeof(sgx_arch_mac_t));
+
+    lib_AESCMAC((void *) &report_key, sizeof(report_key),
+                (uint8_t *) report, offsetof(sgx_arch_report_t, keyid),
+                (uint8_t *) &check_mac, sizeof(sgx_arch_mac_t));
+
+    memset(&report_key, 0, sizeof(sgx_arch_key128_t));
+
+    SGX_DBG(DBG_S, "Verify report:\n");
+    SGX_DBG(DBG_S, "    expected:         %s\n", alloca_bytes2hexstr(report->mac));
+    SGX_DBG(DBG_S, "    mac:              %s\n", alloca_bytes2hexstr(check_mac));
+
+    if (memcmp(&check_mac, &report->mac, sizeof(check_mac))) {
+        SGX_DBG(DBG_S, "Report verification failed\n");
+        return -PAL_ERROR_DENIED;
+    }
 
     return 0;
 }
@@ -870,7 +898,7 @@ int init_enclave (void)
     /*
      * The enclave identifier is uniquely created for each enclave as a token
      * for authenticating the enclave as the sender of attestation.
-     * TODO: documenting the inter-enclave attestation protocol.
+     * See 'host/Linux-SGX/db_process.c' for further explanation.
      */
     _DkRandomBitsRead(&pal_enclave_state.enclave_identifier,
                       sizeof(pal_enclave_state.enclave_identifier));
@@ -963,9 +991,10 @@ struct attestation {
     sgx_arch_report_t     report;
 };
 
-int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
+int _DkStreamAttestationRequest (PAL_HANDLE stream, sgx_sign_data_t * data,
                                  int (*check_mrenclave) (sgx_arch_hash_t *,
-                                                         void *, void *),
+                                                         struct pal_enclave_state *,
+                                                         void *),
                                  void * check_param)
 {
     struct attestation_request req;
@@ -1012,7 +1041,8 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave, &att.report.report_data,
+    ret = check_mrenclave(&att.report.mrenclave,
+                          (struct pal_enclave_state *) &att.report.report_data,
                           check_param);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);
@@ -1057,9 +1087,9 @@ out:
     return ret;
 }
 
-int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
+int _DkStreamAttestationRespond (PAL_HANDLE stream, sgx_sign_data_t * data,
                                  int (*check_mrenclave) (sgx_arch_hash_t *,
-                                                         void *, void *),
+                                                         struct pal_enclave_state *, void *),
                                  void * check_param)
 {
     struct attestation_request req;
@@ -1123,7 +1153,8 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave, &att.report.report_data,
+    ret = check_mrenclave(&att.report.mrenclave,
+                          (struct pal_enclave_state *) &att.report.report_data,
                           check_param);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);
