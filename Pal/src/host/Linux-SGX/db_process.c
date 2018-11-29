@@ -137,7 +137,7 @@ struct proc_attestation_data {
     union {
         sgx_sign_data_t data;
         struct {
-            sgx_arch_mac_t  keyhash_mac;
+            sgx_arch_mac_t  eid_mac;
         } __attribute__((packed));
     };
 };
@@ -165,7 +165,7 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     lib_AESCMAC((uint8_t *) &param->mac_key, AES_CMAC_KEY_LEN,
                 (uint8_t *) &remote_state->enclave_identifier,
                 sizeof(remote_state->enclave_identifier),
-                (uint8_t *) check_data.keyhash_mac, sizeof(check_data.keyhash_mac));
+                (uint8_t *) check_data.eid_mac, sizeof(check_data.eid_mac));
 
     if (memcmp(&remote_state->enclave_data, &check_data.data,
                sizeof(check_data.data)))
@@ -238,10 +238,9 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     lib_AESCMAC((uint8_t *) &param.mac_key, AES_CMAC_KEY_LEN,
                 (uint8_t *) &pal_enclave_state.enclave_identifier,
                 sizeof(pal_enclave_state.enclave_identifier),
-                (uint8_t *) data.keyhash_mac, sizeof(data.keyhash_mac));
+                (uint8_t *) data.eid_mac, sizeof(data.eid_mac));
 
-    SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n",
-            alloca_bytes2hexstr(data.keyhash_mac));
+    SGX_DBG(DBG_P|DBG_S, "Enclave identifier MAC: %s\n", alloca_bytes2hexstr(data.eid_mac));
 
     ret = _DkStreamAttestationRequest(proc, &data.data,
                                       &check_child_mrenclave, &param);
@@ -270,7 +269,7 @@ static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
     lib_AESCMAC((uint8_t *) &param->mac_key, AES_CMAC_KEY_LEN,
                 (uint8_t *) &remote_state->enclave_identifier,
                 sizeof(remote_state->enclave_identifier),
-                (uint8_t *) check_data.keyhash_mac, sizeof(check_data.keyhash_mac));
+                (uint8_t *) check_data.eid_mac, sizeof(check_data.eid_mac));
 
     if (memcmp(&remote_state->enclave_data, &check_data.data,
                sizeof(check_data.data)))
@@ -307,10 +306,9 @@ int init_child_process (PAL_HANDLE * parent_handle)
     lib_AESCMAC((uint8_t *) &param.mac_key, AES_CMAC_KEY_LEN,
                 (uint8_t *) &pal_enclave_state.enclave_identifier,
                 sizeof(pal_enclave_state.enclave_identifier),
-                (uint8_t *) data.keyhash_mac, sizeof(data.keyhash_mac));
+                (uint8_t *) data.eid_mac, sizeof(data.eid_mac));
 
-    SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n",
-            alloca_bytes2hexstr(data.keyhash_mac));
+    SGX_DBG(DBG_P|DBG_S, "Enclave identifier MAC: %s\n", alloca_bytes2hexstr(data.eid_mac));
 
     ret = _DkStreamAttestationRespond(parent, &data.data,
                                       &check_parent_mrenclave,
