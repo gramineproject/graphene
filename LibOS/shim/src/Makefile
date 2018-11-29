@@ -104,7 +104,7 @@ $(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)
 elf/shim_rtld.o: $(wildcard elf/*.h)
 
 
-%.o: %.c $(headers)
+%.o %.s: %.c $(headers)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
 
@@ -119,6 +119,18 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 %.e: %.S $(headers)
 	@echo [ $@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
+
+
+syscallas.S: asm-offsets.h
+asm-offsets.h: asm-offsets.s
+	@echo [ $@ ]
+	@(echo "/* DO NOT MODIFY. this file is auto generated file. */"; \
+	echo "#ifndef _ASM_OFFSETS_H_"; \
+	echo "#define _ASM_OFFSETS_H_"; \
+	echo ""; \
+	awk '/\.ascii \" #define/{val=$$5;gsub("\\$$", "", val);print $$3" "$$4" "val}' $^; \
+	echo ""; \
+	echo "#endif") > $@
 
 clean:
 	rm -rf $(addsuffix .o,$(objs)) $(shim_target) .lib
