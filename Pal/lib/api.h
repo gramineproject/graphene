@@ -45,6 +45,17 @@ typedef ptrdiff_t ssize_t;
 # define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+#ifndef container_of
+/**
+ * container_of - cast a member of a structure out to the containing structure
+ * @ptr:    the pointer to the member.
+ * @type:   the type of the container struct this is embedded in.
+ * @member: the name of the member within the struct.
+ *
+ */
+# define container_of(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
+#endif
+
 #define __alloca __builtin_alloca
 
 #define XSTRINGIFY(x) STRINGIFY(x)

@@ -27,6 +27,7 @@
 #define SLABMGR_H
 
 #include "list.h"
+#include "api.h"
 #include <pal_debug.h>
 #include <assert.h>
 #include <errno.h>
@@ -167,10 +168,6 @@ typedef struct __attribute__((packed)) large_mem_obj {
 
 #define OBJ_LEVEL(obj) ((obj)->level)
 #define OBJ_RAW(obj) (&(obj)->raw)
-
-#ifndef container_of
-#define container_of(ptr, type, field) ((type *)((char *)(ptr) - offsetof(type, field)))
-#endif
 
 #define RAW_TO_LEVEL(raw_ptr) \
             (*((const unsigned char *) (raw_ptr) - OBJ_PADDING - 1))
