@@ -33,7 +33,7 @@ endif
 
 GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 		https://mirrors.kernel.org/gnu/ \
-		http://mirrors.ocf.berkeley.edu/gnu/
+		https://mirrors.ocf.berkeley.edu/gnu/
 
 ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
 $(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
