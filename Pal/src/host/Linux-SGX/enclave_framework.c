@@ -896,12 +896,12 @@ int init_enclave (void)
 #endif
 
     /*
-     * The enclave identifier is uniquely created for each enclave as a token
+     * The enclave id is uniquely created for each enclave as a token
      * for authenticating the enclave as the sender of attestation.
      * See 'host/Linux-SGX/db_process.c' for further explanation.
      */
-    _DkRandomBitsRead(&pal_enclave_state.enclave_identifier,
-                      sizeof(pal_enclave_state.enclave_identifier));
+    _DkRandomBitsRead(&pal_enclave_state.enclave_id,
+                      sizeof(pal_enclave_state.enclave_id));
 
     return 0;
 }

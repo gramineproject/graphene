@@ -163,8 +163,8 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
     lib_AESCMAC((uint8_t *) &param->mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &remote_state->enclave_identifier,
-                sizeof(remote_state->enclave_identifier),
+                (uint8_t *) &remote_state->enclave_id,
+                sizeof(remote_state->enclave_id),
                 (uint8_t *) check_data.eid_mac, sizeof(check_data.eid_mac));
 
     if (memcmp(&remote_state->enclave_data, &check_data.data,
@@ -236,8 +236,8 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
     lib_AESCMAC((uint8_t *) &param.mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &pal_enclave_state.enclave_identifier,
-                sizeof(pal_enclave_state.enclave_identifier),
+                (uint8_t *) &pal_enclave_state.enclave_id,
+                sizeof(pal_enclave_state.enclave_id),
                 (uint8_t *) data.eid_mac, sizeof(data.eid_mac));
 
     SGX_DBG(DBG_P|DBG_S, "Enclave identifier MAC: %s\n", alloca_bytes2hexstr(data.eid_mac));
@@ -267,8 +267,8 @@ static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
     memset(&check_data, 0, sizeof(struct proc_attestation_data));
 
     lib_AESCMAC((uint8_t *) &param->mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &remote_state->enclave_identifier,
-                sizeof(remote_state->enclave_identifier),
+                (uint8_t *) &remote_state->enclave_id,
+                sizeof(remote_state->enclave_id),
                 (uint8_t *) check_data.eid_mac, sizeof(check_data.eid_mac));
 
     if (memcmp(&remote_state->enclave_data, &check_data.data,
@@ -304,8 +304,8 @@ int init_child_process (PAL_HANDLE * parent_handle)
     memset(&data, 0, sizeof(struct proc_attestation_data));
 
     lib_AESCMAC((uint8_t *) &param.mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &pal_enclave_state.enclave_identifier,
-                sizeof(pal_enclave_state.enclave_identifier),
+                (uint8_t *) &pal_enclave_state.enclave_id,
+                sizeof(pal_enclave_state.enclave_id),
                 (uint8_t *) data.eid_mac, sizeof(data.eid_mac));
 
     SGX_DBG(DBG_P|DBG_S, "Enclave identifier MAC: %s\n", alloca_bytes2hexstr(data.eid_mac));

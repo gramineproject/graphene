@@ -150,7 +150,7 @@ typedef uint8_t sgx_sign_data_t[48];
 /* enclave state used for generating report */
 extern struct pal_enclave_state {
     uint64_t        enclave_flags;      // Reserved for flags
-    uint64_t        enclave_identifier; // Unique identifier for authentication
+    uint64_t        enclave_id;         // Unique identifier for authentication
     sgx_sign_data_t enclave_data;       // Reserved for signing other data
 } __attribute__((packed, aligned (128))) pal_enclave_state;
 
