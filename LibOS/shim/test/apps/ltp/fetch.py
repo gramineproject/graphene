@@ -131,7 +131,7 @@ current_hanged = dict()
 timeouts_dict = dict()
 loopruns_dict = dict()
 
-with open(timeouts, 'rb') as csvfile:
+with open(timeouts, 'r') as csvfile:
     test_timeout = csv.reader(csvfile)
     test_timeout.next()
     for row in test_timeout:
@@ -139,7 +139,7 @@ with open(timeouts, 'rb') as csvfile:
         timeout = row[1]
         timeouts_dict[test] = int(timeout)
 
-with open(loopruns, 'rb') as csvfile:
+with open(loopruns, 'r') as csvfile:
     test_looprun = csv.reader(csvfile)
     test_looprun.next()
     for row in test_looprun:
