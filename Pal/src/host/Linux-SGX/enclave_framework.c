@@ -103,7 +103,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
     sgx_arch_mac_t check_mac;
     memset(&check_mac, 0, sizeof(sgx_arch_mac_t));
 
-    lib_AESCMAC((void *) &report_key, sizeof(report_key),
+    lib_AESCMAC((uint8_t *) &report_key, sizeof(report_key),
                 (uint8_t *) report, offsetof(sgx_arch_report_t, keyid),
                 (uint8_t *) &check_mac, sizeof(sgx_arch_mac_t));
 
@@ -902,9 +902,6 @@ int init_enclave (void)
      */
     _DkRandomBitsRead(&pal_enclave_state.enclave_identifier,
                       sizeof(pal_enclave_state.enclave_identifier));
-
-    SGX_DBG(DBG_S, "enclave (software) key hash: %s\n",
-            alloca_bytes2hexstr(pal_enclave_state.enclave_identifier));
 
     return 0;
 }

@@ -145,12 +145,12 @@ void session_key_to_mac_key (PAL_SESSION_KEY * session_key,
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * key);
 
-typedef uint8_t sgx_sign_data_t[24];
+typedef uint8_t sgx_sign_data_t[48];
 
 /* enclave state used for generating report */
 extern struct pal_enclave_state {
     uint64_t        enclave_flags;      // Reserved for flags
-    sgx_arch_mac_t  enclave_identifier; // Unique identifier for authentication
+    uint64_t        enclave_identifier; // Unique identifier for authentication
     sgx_sign_data_t enclave_data;       // Reserved for signing other data
 } __attribute__((packed, aligned (128))) pal_enclave_state;
 
