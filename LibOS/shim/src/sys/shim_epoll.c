@@ -321,8 +321,11 @@ retry:
 
     unlock(epoll_hdl->lock);
 
+    if (timeout < 0)
+        timeout = NO_TIMEOUT;
+
     PAL_HANDLE polled = DkObjectsWaitAny(nread ? npals + 1 : npals, pal_handles,
-                                         nread ? NO_TIMEOUT : 0);
+                                         nread ? timeout : 0);
 
     lock(epoll_hdl->lock);
 

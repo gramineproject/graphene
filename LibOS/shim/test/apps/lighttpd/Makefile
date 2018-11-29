@@ -16,6 +16,7 @@ extra_rules = -e 's:\$$(HOST):$(HOST):g' -e 's:\$$(PORT):$(PORT):g'
 level = ../../
 include ../../Makefile
 
+.PHONY: build-lighttpd
 build-lighttpd: build/sbin/lighttpd
 
 build/sbin/lighttpd: $(SRCDIR)
@@ -44,36 +45,52 @@ lighttpd-multithreaded.conf:
 	echo "server.max-worker          = $(THREADS)"         >> $@
 	echo "include \"lighttpd-generic.conf\""               >> $@
 
-lighttpd-ssl.conf: server.pem
+lighttpd-ssl.conf: server.pem dhparam.pem
 	rm -rf $@
 	echo "include \"lighttpd-server.conf\""                >> $@
+	echo "include \"lighttpd-generic.conf\""               >> $@
+	echo ""                                                >> $@
+	echo "\$$SERVER[\"socket\"] == \"0.0.0.0:443\" {"      >> $@
 	echo "ssl.engine = \"enable\""                         >> $@
 	echo "ssl.pemfile = \"server.pem\""                    >> $@
-	echo "include \"lighttpd-generic.conf\""               >> $@
+	echo "ssl.cipher-list = \"ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA\""	>> $@
+	echo "ssl.honor-cipher-order = \"enable\""             >> $@
+	echo "ssl.dh-file = \"dhparam.pem\""                   >> $@
+	echo "ssl.ec-curve = \"secp384r1\""                    >> $@
+	echo "}"                                               >> $@
 
 server.pem:
 	openssl req -new -x509 -keyout server.pem -out server.pem -days 365 -nodes -subj "/cn=lighttpd/o=oscar/dc=cs/dc=stonybrook/dc=edu/"
 
+dhparam.pem:
+	openssl dhparam -out dhparam.pem 2048
+
+.PHONY: start-native-server
 start-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
 
+.PHONY: start-multithreaded-native-server
 start-multithreaded-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
+.PHONY: start-ssl-native-server
 start-ssl-native-server:
 	$(PREFIX) build/sbin/lighttpd -D -m build/lib -f \
                 $(if $(CONF),$(CONF),lighttpd-ssl.conf)
 
+.PHONY: start-graphene-server
 start-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
 		$(if $(CONF),$(CONF),lighttpd.conf)
 
+.PHONY: start-multithreaded-graphene-server
 start-multithreaded-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
                 $(if $(CONF),$(CONF),lighttpd-multithreaded.conf)
 
+.PHONY: start-ssl-graphene-server
 start-ssl-graphene-server:
 	$(PREFIX) ./lighttpd.manifest -D -m /lighttpd -f \
                 $(if $(CONF),$(CONF),lighttpd-ssl.conf)
@@ -100,8 +117,10 @@ html/random/%.html: html/random
 
 test-data: $(test-data)
 
+.PHONY: distclean
 distclean: clean
 	rm -rf build $(SRCDIR)
 
+.PHONY: clean-others
 clean-others:
 	rm -rf $(conf_files) $(test-data)

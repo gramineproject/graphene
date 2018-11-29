@@ -58,5 +58,6 @@ sgx.trusted_files.conf4 = file:lighttpd-multithreaded.conf
 sgx.trusted_files.conf5 = file:lighttpd-ssl.conf
 
 sgx.trusted_files.server_key = file:server.pem
+sgx.trusted_files.server_dh_key = file:dhparam.pem
 
 sgx.allowed_files.html = file:html
