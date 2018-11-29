@@ -1,0 +1,46 @@
+ifeq ("$(origin V)", "command line")
+  BUILD_VERBOSE = $(V)
+endif
+ifndef BUILD_VERBOSE
+  BUILD_VERBOSE = 0
+endif
+
+ifeq ($(BUILD_VERBOSE),1)
+  quiet =
+  Q =
+else
+  quiet = quiet_
+  Q = @
+endif
+
+export Q quiet BUILD_VERBOSE
+
+squote  := '
+escsq = $(subst $(squote),'\$(squote)',$1)
+
+echo-cmd = $(if $($(quiet)cmd_$(1)), echo '  $(call escsq,$($(quiet)cmd_$(1)))';)
+cmd = @$(echo-cmd) $(cmd_$(1))
+
+
+quiet_cmd_asm_offsets_s = [ $@ ]
+      cmd_asm_offsets_s = $(CC) $(CFLAGS) $(defs) -S $< -o $@
+
+asm-offsets.s: asm-offsets.c $(headers)
+	$(call cmd,asm_offsets_s)
+CLEAN_FILES += asm-offsets.s
+
+
+quiet_cmd_asm_offsets_h = [ $@ ]
+      cmd_asm_offsets_h = \
+	(set -e; \
+	 echo "/* DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED. */"; \
+	 echo "\#ifndef _ASM_OFFSETS_H_"; \
+	 echo "\#define _ASM_OFFSETS_H_"; \
+	 echo ""; \
+	 awk '/\.ascii \" \#define/{val=$$5; gsub("\\$$", "", val); print $$3" "$$4" "val}' $^; \
+	 echo ""; \
+	 echo "\#endif") > $@
+
+asm-offsets.h: asm-offsets.s
+	$(call cmd,asm_offsets_h)
+CLEAN_FILES += asm-offests.h
