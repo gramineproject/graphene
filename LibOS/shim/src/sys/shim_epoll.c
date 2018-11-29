@@ -38,6 +38,9 @@
 
 #include <linux/eventpoll.h>
 
+/* Avoid duplicated definitions */
+#ifndef EPOLLIN
+
 #define EPOLLIN         0x001
 #define EPOLLPRI        0x002
 #define EPOLLOUT        0x004
@@ -48,6 +51,8 @@
 #define EPOLLERR        0x008
 #define EPOLLHUP        0x010
 #define EPOLLRDHUP      0x2000
+
+#endif
 
 #define MAX_EPOLL_FDS       1024
 
@@ -316,8 +321,11 @@ retry:
 
     unlock(epoll_hdl->lock);
 
+    if (timeout < 0)
+        timeout = NO_TIMEOUT;
+
     PAL_HANDLE polled = DkObjectsWaitAny(nread ? npals + 1 : npals, pal_handles,
-                                         nread ? NO_TIMEOUT : 0);
+                                         nread ? timeout : 0);
 
     lock(epoll_hdl->lock);
 
