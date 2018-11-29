@@ -29,7 +29,7 @@ LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
 
 ifeq ($(WERROR),1)
-CC += -Werror
+CFLAGS += -Werror
 endif
 
 files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
