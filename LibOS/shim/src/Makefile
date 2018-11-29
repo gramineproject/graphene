@@ -129,5 +129,9 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 	@echo [ $@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
+syscallas.S: asm-offsets.h
+
+include ../../../Makefile.rules
+
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(shim_target) $(files_to_build) .lib
+	rm -rf $(addsuffix .o,$(objs)) $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)

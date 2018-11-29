@@ -23,6 +23,8 @@
 #include <shim_tls.h>
 #include <shim_unistd_defs.h>
 
+#include "asm-offsets.h"
+
         .global syscalldb
         .type syscalldb, @function
         .extern shim_table, debug_unsupp
@@ -62,22 +64,22 @@ isdef:
         pushq %r14
         pushq %r15
 
-        movq %rax, %fs:(SHIM_TCB_OFFSET + 24)
+        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
         leaq 16(%rbp), %rax
-        movq %rax, %fs:(SHIM_TCB_OFFSET + 32)
+        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SP)
         movq 8(%rbp), %rax
-        movq %rax, %fs:(SHIM_TCB_OFFSET + 40)
-        movq %rsp, %fs:(SHIM_TCB_OFFSET + 48)
+        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
+        movq %rsp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
         /* Translating x86_64 kernel calling convention to user-space
          * calling convention */
         movq %r10, %rcx
         call *%rbx
 
-        movq $0, %fs:(SHIM_TCB_OFFSET + 24)
-        movq $0, %fs:(SHIM_TCB_OFFSET + 32)
-        movq $0, %fs:(SHIM_TCB_OFFSET + 40)
-        movq $0, %fs:(SHIM_TCB_OFFSET + 48)
+        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
+        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SP)
+        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
+        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
         popq %r15
         popq %r14
