@@ -133,6 +133,21 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
     return 0;
 }
 
+/*
+ * For SGX, the creation of a child process requires a clean enclave and a secure channel
+ * between the parent and child processes (enclaves). The establishement of the secure
+ * channel must be resilient to a host-level, root-privilege adversary. Such an adversary
+ * can either create arbitrary enclaves, or intercept the handshake protocol between the
+ * parent and child enclaves to launch a man-in-the-middle attack.
+ *
+ * Prerequisite of a secure channel:
+ * (1) A session key needs to be shared only between the parent and child enclaves.
+ * (2) Both the parent and child enclaves need to be proven by the Intel CPU.
+ * (3) Both the parent and child enclaves need to have a white-listed measurement.
+ * (4) The two parties who create the session key need to be the ones proven by the CPU
+ *     (for preventing man-in-the-middle attacks).
+ */
+
 struct proc_attestation_data {
     union {
         sgx_sign_data_t data;

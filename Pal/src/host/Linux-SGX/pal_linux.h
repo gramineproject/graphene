@@ -154,14 +154,34 @@ extern struct pal_enclave_state {
     sgx_sign_data_t enclave_data;       // Reserved for signing other data
 } __attribute__((packed, aligned (128))) pal_enclave_state;
 
+/*
+ * sgx_get_report: obtain a CPU-signed report for local attestation
+ * @mrenclave:    the measurement of target enclave
+ * @attributes:   the attributes of target enclave
+ * @enclave_data: the data to be included and signed in the report
+ * @report:       a buffer for storing the report
+ */
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
                     sgx_sign_data_t * enclave_data,
                     sgx_arch_report_t * report);
 
+/*
+ * sgx_verify_report: verify a CPU-signed report from another local enclave
+ * @report: the buffer storing the report to verify
+ */
 int sgx_verify_report (sgx_arch_report_t * report);
 
-/* request and respond for remote attestation */
+
+/*
+ * _DkStreamAttestationRequest, _DkStreamAttestationResponse:
+ * Request and response for local attestation
+ *
+ * @stream:          stream handle for sending and receiving messages
+ * @data:            data to sign in the outbound message
+ * @check_mrenclave: callback function for checking the measurement of the other end
+ * @check_param:     parameter for the callback function
+ */
 int _DkStreamAttestationRequest (PAL_HANDLE stream, sgx_sign_data_t * data,
                                  int (*check_mrenclave) (sgx_arch_hash_t *,
                                                          struct pal_enclave_state *,
