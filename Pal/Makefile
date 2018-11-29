@@ -64,6 +64,7 @@ format:
 	clang-format -i $(shell find . -path ./linux-kernel -prune -o \
 	                               -path ./lib/crypto/mbedtls -prune -o \
 	                               -path ./lib/crypto/udivmodti4.c -prune -o \
+	                               -path ./src/host/Linux-SGX/sgx-driver -prune -o \
 	                               -path ./src/security/Linux/bpf-helper.h -prune -o \
 	                               -path ./src/security/Linux/bpf_helper.c -prune -o \
 	                               \( -name '*.h' -o -name '*.c' \) -print)
