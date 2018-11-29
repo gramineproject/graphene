@@ -31,7 +31,7 @@ else
 	./buildglibc.py --quiet
 endif
 
-GLIBC_MIRRORS = http://ftp.gnu.org/gnu/ \
+GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 		https://mirrors.kernel.org/gnu/ \
 		http://mirrors.ocf.berkeley.edu/gnu/
 
