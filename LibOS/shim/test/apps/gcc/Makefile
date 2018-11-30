@@ -23,9 +23,7 @@ get_test_files:
 	@for file in test_files/*.bz2; do bzip2 -d -k $$file || true; done
 	@$(MAKE) patch_test_files
 
-test_patches = $(patsubst %.patch,%,$(wildcard test_files/*.patch))
-
-patch_test_files: $(patsubst %.c,%-patched.c,$(test_patches))
+patch_test_files: $(patsubst %.c.patch,%-patched.c,$(wildcard test_files/*.patch))
 %-patched.c: %.c.patch
 	@cp -f $(patsubst %.patch,%,$<) $@
 	@patch -p1 $@ < $<
