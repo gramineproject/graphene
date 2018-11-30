@@ -1,0 +1,11 @@
+--- test_files/gzip.c	2018-11-29 21:57:07.907113463 -0800
++++ test_files/gzip.c.new	2018-11-29 21:56:49.618905740 -0800
+@@ -2017,7 +2017,7 @@ static char *posixly_correct;
+ extern char *getenv ();
+ #endif
+ 
+-static char *
++char *
+ my_index (str, chr)
+      const char *str;
+      int chr;

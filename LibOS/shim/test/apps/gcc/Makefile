@@ -1,5 +1,5 @@
 test_sources = $(addprefix https://people.csail.mit.edu/smcc/projects/single-file-programs/, \
-		bzip2.c gzip.c oggenc.c gcc.c)
+		bzip2.c gzip.c oggenc.c gcc.c.bz2)
 test_files = $(addprefix test_files/,$(notdir $(test_sources)))
 
 exec_target = $(addsuffix .manifest,gcc as ld cc1 collect2)
@@ -20,6 +20,15 @@ $(test_files): get_test_files
 get_test_files:
 	cd test_files && for url in $(test_sources); do wget -nc $$url; done
 	sha256sum --check test_files_checksums
+	@for file in test_files/*.bz2; do bzip2 -d -k $$file || true; done
+	@$(MAKE) patch_test_files
+
+test_patches = $(patsubst %.patch,%,$(wildcard test_files/*.patch))
+
+patch_test_files: $(patsubst %.c,%-patched.c,$(test_patches))
+%-patched.c: %.c.patch
+	@cp -f $(patsubst %.patch,%,$<) $@
+	@patch -p1 $@ < $<
 
 regression: $(test_files)
 	@echo "\n\nBuilding manifest..."
