@@ -3,7 +3,6 @@ test_sources = $(addprefix https://people.csail.mit.edu/smcc/projects/single-fil
 test_files = $(addprefix test_files/,$(notdir $(test_sources)))
 
 exec_target = $(addsuffix .manifest,gcc as ld cc1 collect2)
-target = $(test_files)
 
 clean-extra = clean-garbages
 
@@ -23,12 +22,17 @@ get_test_files:
 	sha256sum --check test_files_checksums
 
 regression: $(test_files)
-	@echo "\n\nBuilding GCC..."
-	@$(MAKE) >> /dev/null 2>&1
+	@echo "\n\nBuilding manifest..."
+	@($(MAKE) clean && $(MAKE)) >> /dev/null 2>&1
 
 	@echo "\n\nTesting..."
 	@env PYTHONPATH=../../../../../Scripts python test.py || exit $$?
 
+	@echo "\n\nBuilding manifest with HUGE=1..."
+	@($(MAKE) clean && $(MAKE) HUGE=1) >> /dev/null 2>&1
+
+	@echo "\n\nTesting..."
+	@env PYTHONPATH=../../../../../Scripts python test-huge.py || exit $$?
 
 src:
 	mkdir -p src
