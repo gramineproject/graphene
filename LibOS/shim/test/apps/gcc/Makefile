@@ -26,30 +26,8 @@ regression: $(test_files)
 	@echo "\n\nBuilding GCC..."
 	@$(MAKE) >> /dev/null 2>&1
 
-	@echo "\n\nCompile hello.c:"
-	-./gcc.manifest test_files/helloworld.c -o test_files/hello
-	@chmod 755 test_files/hello
-	-./test_files/hello
-	@rm -f test_files/hello
-
-	@echo "\n\nCompile bzip2.c:"
-	-./gcc.manifest test_files/bzip2.c -o test_files/bzip2
-	@chmod 755 test_files/bzip2
-	@[ ! -f bzip2.tmp ] || rm -f bzip2.tmp
-	@cp -f test_files/bzip2 test_files/bzip2.copy
-	-./test_files/bzip2 -z test_files/bzip2.copy
-	-./test_files/bzip2 -d test_files/bzip2.copy.bz2
-	diff -q test_files/bzip2 test_files/bzip2.copy
-	@rm -f test_files/bzip2 test_file/bzip2.copy
-
-	@echo "\n\nCompile gzip.c:"
-	-./gcc.manifest test_files/gzip.c -o test_files/gzip
-	@chmod 755 test_files/gzip
-	@cp -f test_files/gzip test_files/gzip.copy
-	-./test_files/gzip test_files/gzip.copy
-	-./test_files/gzip -d test_files/gzip.copy.gz
-	diff -q test_files/gzip test_files/gzip.copy
-	@rm -f test_files/gzip test_files/gzip.copy
+	@echo "\n\nTesting..."
+	@env PYTHONPATH=../../../../../Scripts python test.py || exit $$?
 
 
 src:
