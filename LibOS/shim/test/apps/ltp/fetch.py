@@ -67,6 +67,9 @@ def finish(result):
                 if "TINFO" in output:
                      continue
 
+                if test_subtest in current_failed or test in current_hanged or test_subtest in current_broken:
+                    reported = True
+                    continue
 
                 if output:
                     output = output.strip()
@@ -190,12 +193,12 @@ print "\n\nRESULT [Difference] :\n---------------------\n"
 rv = 0
 
 for test in sorted(stable_passed):
-    if not test in current_passed:
+    if not test in current_passed or test in current_broken or test in current_failed:
         print CRED + "Test '" + test + "' did not pass in the current run!!" + CEND
         rv = -1
 
 for test in sorted(current_passed):
-    if not test in stable_passed:
+    if not test in stable_passed and not test in current_broken and not test in current_failed:
         print CGREEN + "Test '" + test + "' passed in the current run!!" + CEND
 print "\n"
 
