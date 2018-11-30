@@ -1,6 +1,9 @@
-test_files = test_files
+test_sources = $(addprefix https://people.csail.mit.edu/smcc/projects/single-file-programs/, \
+		bzip2.c gzip.c oggenc.c gcc.c)
+test_files = $(addprefix test_files/,$(notdir $(test_sources)))
 
 exec_target = $(addsuffix .manifest,gcc as ld cc1 collect2)
+target = $(test_files)
 
 clean-extra = clean-garbages
 
@@ -90,7 +93,12 @@ obj/lib/$(MPC_OBJ): src/$(MPC_SRC)
 src/$(MPC_SRC): $(MPC_SRC).tar.gz src
 	cd src && tar -xmzf ../$<
 
-regression:
+$(test_files): get_test_files
+get_test_files:
+	cd test_files && for url in $(test_sources); do wget -nc $$url; done
+	sha256sum --check test_files_checksums
+
+regression: $(test_files)
 	@echo "\n\nBuilding GCC..."
 	@$(MAKE) >> /dev/null 2>&1
 

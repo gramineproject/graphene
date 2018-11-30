@@ -1,3 +1,9 @@
 bzip2
 gzip
+oggenc
 hello
+*.c
+*.s
+*.ld
+*.le
+*.o
