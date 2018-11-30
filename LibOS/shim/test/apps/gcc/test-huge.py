@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, sys, mmap, subprocess
+import subprocess
 from regression import Regression
 
 def gcc_check(res):
