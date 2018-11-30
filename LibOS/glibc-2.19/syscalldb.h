@@ -5,12 +5,17 @@
 .weak syscalldb
 .type syscalldb, @function
 
-# define SYSCALLDB				\
-    pushq %rbx;					\
-    movq syscalldb@GOTPCREL(%rip), %rbx;	\
-    call *%rbx;					\
-    popq %rbx;
-
+# if defined(PSEUDO) && defined(SYSCALL_NAME) && defined(SYSCALL_SYMBOL)
+#  define SYSCALLDB				\
+    subq $128, %rsp;            \
+    movq syscalldb@GOTPCREL(%rip), %rcx;	\
+    call *%rcx;					\
+    addq $128, %rsp
+# else
+#  define SYSCALLDB				\
+    movq syscalldb@GOTPCREL(%rip), %rcx;	\
+    call *%rcx
+# endif
 
 #else /* !__ASSEMBLER__ */
 asm (
