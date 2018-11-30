@@ -19,7 +19,7 @@ def manifest_file(file):
 regression = Regression(loader, "AvxDisable")
 
 regression.add_check(name="Disable AVX bit in XFRM",
-    check=lambda res: "Illegal Instruction Unsupported inside Enclave" in res[0].log)
+    check=lambda res: "Illegal instruction executed in enclave" in res[0].log)
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
