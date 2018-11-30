@@ -6,4 +6,4 @@
 	url = https://github.com/oscarlab/graphene-sgx-driver.git
 [submodule "LibOS/shim/test/apps/lmbench/lmbench-2.5"]
 	path = LibOS/shim/test/apps/lmbench/lmbench-2.5
-	url = https://github.com/oscarlab/lmbench-2.5
+	url = https://github.com/oscarlab/lmbench-2.5.git
