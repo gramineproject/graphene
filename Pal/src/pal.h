@@ -506,6 +506,12 @@ DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
 
 PAL_NUM DkMemoryAvailableQuota (void);
 
+#define PAL_CPUID_WORD_EAX  0
+#define PAL_CPUID_WORD_EBX  1
+#define PAL_CPUID_WORD_ECX  2
+#define PAL_CPUID_WORD_EDX  3
+#define PAL_CPUID_WORD_NUM  4
+
 PAL_BOL
 DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
 
