@@ -316,15 +316,8 @@ done_init:
 }
 
 /* the following code is borrowed from CPUID */
-
-#define WORD_EAX  0
-#define WORD_EBX  1
-#define WORD_ECX  2
-#define WORD_EDX  3
-#define WORD_NUM  4
-
-static void cpuid (unsigned int leaf, unsigned int subleaf,
-                   unsigned int words[])
+void cpuid (unsigned int leaf, unsigned int subleaf,
+            unsigned int words[])
 {
   asm("cpuid"
       : "=a" (words[WORD_EAX]),

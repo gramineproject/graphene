@@ -238,5 +238,6 @@ int _DkInstructionCacheFlush (const void * addr, int size)
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
                       unsigned int values[4])
 {
-    return -PAL_ERROR_NOTIMPLEMENTED;
+    cpuid(leaf, subleaf, values);
+    return 0;
 }
