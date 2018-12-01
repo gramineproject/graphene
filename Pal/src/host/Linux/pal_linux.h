@@ -163,6 +163,8 @@ int _DkMutexUnlock (struct mutex_handle * mut);
 void init_child_process (PAL_HANDLE * parent, PAL_HANDLE * exec,
                          PAL_HANDLE * manifest);
 
+void cpuid (unsigned int leaf, unsigned int subleaf,
+            unsigned int words[]);
 void signal_setup (void);
 
 unsigned long _DkSystemTimeQueryEarly (void);
