@@ -58,7 +58,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     child_stack += THREAD_STACK_SIZE;
 
     // align child_stack to 16 
-    child_stack = ALIGN_DOWN_PTR(child_stac, 16);
+    child_stack = ALIGN_DOWN_PTR(child_stack, 16);
 
     flags &= PAL_THREAD_MASK;
 
