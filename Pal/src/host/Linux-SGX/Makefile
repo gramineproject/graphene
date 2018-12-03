@@ -53,6 +53,10 @@ $(addsuffix .o,$(enclave-asm-objs)): %.o: %.S $(headers)
 	@echo [ host/Linux-SGX/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -DIN_ENCLAVE -c $< -o $@
 
+$(addsuffix .s,$(enclave-asm-objs)): %.s: %.S $(headers)
+	@echo [ host/Linux-SGX/$@ ]
+	@$(AS) $(ASFLAGS) $(defs) -DIN_ENCLAVE -E $< -o $@
+
 $(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
 	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -c $< -o $@
