@@ -4,6 +4,7 @@ export SYS
 export DEBUG
 
 GLIBC_SRC = glibc-2.19
+GLIBC_CHECKSUM = 18ad6db70724699d264add80b1f813630d0141cf3a3558b4e1a7c15f6beac796
 SHIM_DIR = shim
 BUILD_DIR = glibc-build
 GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthread.so.0 libm.so.6 libdl.so.2 libutil.so.1 crt1.o crti.o crtn.o liblibos.so.1 libnss_dns.so.2 libresolv.so.2)
@@ -11,6 +12,10 @@ GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthre
 .PHONY: all
 all: $(GLIBC_TARGET)
 	$(MAKE) -C $(SHIM_DIR) all
+
+.PHONY: format
+format:
+	$(MAKE) -C $(SHIM_DIR) format
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
@@ -30,10 +35,19 @@ else
 	./buildglibc.py --quiet
 endif
 
+GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
+		https://mirrors.kernel.org/gnu/ \
+		https://mirrors.ocf.berkeley.edu/gnu/
+
 ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
 $(GLIBC_SRC)/configure: $(GLIBC_SRC).patch
 	[ -f $(GLIBC_SRC).tar.gz ] || \
-	wget http://ftp.gnu.org/gnu/glibc/$(GLIBC_SRC).tar.gz
+	for MIRROR in $(GLIBC_MIRRORS); do \
+		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
+		&& break; \
+	done
+	[ "`sha256sum $(GLIBC_SRC).tar.gz`" = "$(GLIBC_CHECKSUM)  $(GLIBC_SRC).tar.gz" ] || \
+		(echo "*** $(GLIBC_SRC).tar.gz has a wrong checksum ***"; exit 255)
 	tar -xzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && patch -p1 < ../$(GLIBC_SRC).patch
 	cd $(GLIBC_SRC) && patch -p1 < ../glibc-fix-warning.patch

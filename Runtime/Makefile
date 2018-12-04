@@ -5,5 +5,8 @@ clean:
 .PHONY: all
 all:
 
+.PHONY: format
+format:
+
 .PHONY: pack
 pack:

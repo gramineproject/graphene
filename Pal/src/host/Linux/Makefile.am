@@ -8,7 +8,6 @@ AR	= ar rcs
 LD	= ld
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
-	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin
 
 EXTRAFLAGS = -Wextra -Wno-unused-parameter -Wno-sign-compare

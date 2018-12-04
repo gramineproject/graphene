@@ -45,8 +45,6 @@ typedef struct exception_event {
     struct pal_frame *  frame;
 } PAL_EVENT;
 
-#define SIGNAL_MASK_TIME 1000
-
 #define save_return_point(ptr)                      \
     asm volatile ("leaq 0(%%rip), %%rax\r\n"        \
                   "movq %%rax, %0\r\n"              \

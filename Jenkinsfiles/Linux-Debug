@@ -1,7 +1,7 @@
 pipeline {
-	agent {
+        agent {
               dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile' }
-	}
+        }
         stages {
                 stage('Build') {
                     steps {
@@ -33,23 +33,23 @@ pipeline {
                             cd LibOS/shim/test/apps/bash
                             make regression
                             '''
-			timeout(time: 5, unit: 'MINUTES') {		    
+                        timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
                                 make regression
                            '''
-			}
-			timeout(time: 20, unit: 'MINUTES') {
+                        }
+                        timeout(time: 20, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
                                 make regression
                             '''
-			}
+                        }
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
                             make
                             make start-graphene-server &
-			    sleep 1
+                            sleep 1
                             ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000
                             '''
                     }

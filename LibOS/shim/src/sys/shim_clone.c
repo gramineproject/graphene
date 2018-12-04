@@ -110,6 +110,8 @@ int clone_implementation_wrapper(struct clone_args * arg)
     }
     allocate_tls(my_thread->tcb, my_thread->user_tcb, my_thread);
     shim_tcb_t * tcb = &((__libc_tcb_t *) my_thread->tcb)->shim_tcb;
+    __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
+                            // will be re-enabled when the thread starts.
     debug_setbuf(tcb, true);
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 

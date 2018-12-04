@@ -9,6 +9,10 @@ targets += pack
 endif
 
 .PHONY: $(targets)
-$(targets): src test
+$(targets):
 	make $@ -C src
 	make $@ -C test
+
+.PHONY: format
+format:
+	clang-format -i $(shell find . -path ./test/apps -prune -o \( -name '*.h' -o -name '*.c' \) -print)
