@@ -100,7 +100,7 @@ ret:
 isundef:
 #ifdef DEBUG
         mov %rax, %rdi
-        call debug_unsupp
+        call *debug_unsupp@GOTPCREL(%rip)
 #endif
         movq $-38, %rax
         jmp ret
