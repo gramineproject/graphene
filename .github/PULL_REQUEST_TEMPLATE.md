@@ -17,12 +17,20 @@ Please fill in the following form before submitting this PR:
 
 
 
+
+Please follow the [coding style guidelines](CODESTYLE.md). Do not submit PRs which violate these rules.
+- [ ] Comments and commit messages: no spelling or grammatical errors
+- [ ] 4 spaces per indention level, at most 100 chars per line
+- [ ] Asterisks (`*`) next to types: `int* pointer;` (one pointer each line)
+- [ ] Braces (`{`) begin in the same line as function names, if-else, while, switch, union, and struct keywords.
+- [ ] Naming: Macros - `NAMED_THIS_WAY`; global variables - `g_named_this_way`; others - `named_this_way`.
+- Other styling issues may be pointed out by reviewers.
+
+
 Please preserve the following checklist for reviewing:
 
 - [ ] Pass all CI unit tests
-- [ ] Follow the [coding style guidelines](CODESTYLE.md)
 - [ ] Resolve all discussions/requests from reviewers
-- [ ] No typos or grammatical errors in comments and commit messages
 - Reviewer approval (select one):
     - [ ] 3 approving reviews
     - [ ] 2 approving reviews and 5 days since the PR was created
