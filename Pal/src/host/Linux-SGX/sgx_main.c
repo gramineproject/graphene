@@ -25,8 +25,8 @@ unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
 unsigned long pageshift = PRESET_PAGESIZE - 1;
 
 static inline
-const char * alloc_concat(const char * p, int plen,
-                          const char * s, int slen)
+char * alloc_concat(const char * p, int plen,
+                    const char * s, int slen)
 {
     plen = (plen != -1) ? plen : (p ? strlen(p) : 0);
     slen = (slen != -1) ? slen : (s ? strlen(s) : 0);
@@ -886,12 +886,12 @@ int main (int argc, const char ** argv, const char ** envp)
             goto usage;
 
         if (strcmp_static(argv[0], "file:")) {
-            exec_uri = (char *) alloc_concat(argv[0], -1, NULL, -1);
+            exec_uri = alloc_concat(argv[0], -1, NULL, -1);
         } else {
-            exec_uri = (char *) alloc_concat("file:", -1, argv[0], -1);
+            exec_uri = alloc_concat("file:", -1, argv[0], -1);
         }
     } else {
-        exec_uri = (char *) alloc_concat(enclave->pal_sec.exec_name, -1, NULL, -1);
+        exec_uri = alloc_concat(enclave->pal_sec.exec_name, -1, NULL, -1);
     }
 
     int fd = INLINE_SYSCALL(open, 3, exec_uri + 5, O_RDONLY|O_CLOEXEC, 0);
