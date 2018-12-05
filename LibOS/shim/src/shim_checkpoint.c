@@ -1253,8 +1253,10 @@ void restore_context (struct shim_context * context)
 
     debug("restore context: SP = %p, IP = %p\n", context->sp, context->ret_ip);
 
-    regs[nregs] = (void *) context->sp - 8;
-    *(void **) (context->sp - 8) = context->ret_ip;
+    regs[nregs] = (void *) context->sp;
+    /* don't clobber redzone. If sigaltstack is used,
+     * this area won't be clobbered by signal context */
+    *(void **) (context->sp - 128 - 8) = context->ret_ip;
 
     /* Ready to resume execution, re-enable preemption. */
     shim_tcb_t * tcb = SHIM_GET_TLS();
@@ -1279,6 +1281,6 @@ void restore_context (struct shim_context * context)
                  "popq %%rbp\r\n"
                  "popq %%rsp\r\n"
                  "movq $0, %%rax\r\n"
-                 "retq\r\n"
+                 "jmp *-128-8(%%rsp)\r\n"
                  :: "g"(&regs) : "memory");
 }
