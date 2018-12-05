@@ -281,6 +281,7 @@ update_list:
     unlock(async_helper_lock);
     put_thread(self);
     debug("async helper thread terminated\n");
+    free(local_objects);
 
     DkThreadExit();
 }
