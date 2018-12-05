@@ -1161,7 +1161,7 @@ static void parse_ioctlop (const char * type, va_list * ap)
             "TIOCGSID",     /* 0x5429 */    "TCGETS2",      /* 0x542A */
             "TCSETS2",      /* 0x542B */    "TCSETSW2",     /* 0x542C */
             "TCSETSF2",     /* 0x542D */    "TIOCGRS485",   /* 0x542E */
-            "TIOCSRS485",   /* 0x542F */    "TIOCGPTN"      /* 0x5430 */
+            "TIOCSRS485",   /* 0x542F */    "TIOCGPTN",     /* 0x5430 */
             "TIOCSPTLCK",   /* 0x5431 */    "TCGETX",       /* 0x5432 */
             "TCSETX",       /* 0x5433 */    "TCSETXF",      /* 0x5434 */
             "TCSETXW",      /* 0x5435 */    "TIOCSIG",      /* 0x5436 */
