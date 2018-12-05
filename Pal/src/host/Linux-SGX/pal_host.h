@@ -43,6 +43,7 @@ int _DkSpinUnlock (struct spinlock * lock);
 #define LOCK_INIT   { .value =  { 0 } }
 #define _DkInternalLock _DkSpinLock
 #define _DkInternalUnlock _DkSpinUnlock
+#define MAX_FDS           (3)
 
 void * malloc_untrusted (int size);
 void free_untrusted (void * mem);
@@ -88,7 +89,7 @@ typedef struct pal_handle
     PAL_HDR hdr;
     union {
         struct {
-            PAL_IDX fds[2];
+            PAL_IDX fds[MAX_FDS];
         } generic;
 
         struct {
@@ -107,7 +108,7 @@ typedef struct pal_handle
         } pipe;
 
         struct {
-            PAL_IDX fds[2];
+            PAL_IDX fds[MAX_FDS];
             PAL_BOL nonblocking;
         } pipeprv;
 
@@ -182,7 +183,6 @@ typedef struct pal_handle
 #define WFD(n)          (00010 << (n))
 #define WRITEABLE(n)    (00100 << (n))
 #define ERROR(n)        (01000 << (n))
-#define MAX_FDS         (3)
 #define HAS_FDS         (00077)
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)

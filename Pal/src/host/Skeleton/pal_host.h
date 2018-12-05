@@ -32,6 +32,7 @@
 
 typedef int PAL_LOCK;
 #define LOCK_INIT   (0)
+#define MAX_FDS     (3)
 
 typedef struct pal_handle
 {
@@ -44,7 +45,7 @@ typedef struct pal_handle
     
     union {
         struct {
-            PAL_IDX fds[2];
+            PAL_IDX fds[MAX_FDS];
         } generic;
 
         /* DP: Here we just define a placeholder fd; place your details here.
