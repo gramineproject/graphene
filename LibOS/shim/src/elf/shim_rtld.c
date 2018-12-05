@@ -404,10 +404,13 @@ call_lose:
     if (type == OBJECT_LOAD &&
         header->e_phoff + maplength <= (size_t) fbp_len) {
         ElfW(Phdr) * new_phdr = (ElfW(Phdr) *) malloc (maplength);
+        if (!new_phdr)
+            goto call_lose;
         if ((ret = (*seek) (file, header->e_phoff, SEEK_SET)) < 0 ||
             (ret = (*read) (file, new_phdr, maplength)) < 0) {
             errstring = "cannot read file data";
             errval = ret;
+            free(new_phdr);
             goto call_lose;
         }
         phdr = new_phdr;
