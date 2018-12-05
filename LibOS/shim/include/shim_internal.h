@@ -619,7 +619,7 @@ static inline void wait_event (AEVENTTYPE * e)
 {
     if (e->event) {
         char byte;
-        int n;
+        int n = 0;
         do {
             if (!DkObjectsWaitAny(1, &e->event, NO_TIMEOUT))
                 continue;
