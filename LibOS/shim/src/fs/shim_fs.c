@@ -508,7 +508,7 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
                  void * arg)
 {
     struct shim_mount * mount, * n;
-    int ret;
+    int ret = 0;
     int nsrched = 0;
 
     lock(mount_list_lock);
