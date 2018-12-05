@@ -366,10 +366,13 @@ __map_elf_object (struct shim_handle * file,
     if (file && (!read || !mmap || !seek))
         return NULL;
 
-    struct link_map * l = remap ? :
+    struct link_map * l = remap ? NULL :
                           new_elf_object(file ? (!qstrempty(&file->path) ?
                                          qstrgetstr(&file->path) :
                                          qstrgetstr(&file->uri)) : "", type);
+
+    if (!remap && !l)
+        return NULL;
 
     const char * errstring __attribute__((unused)) = NULL;
     int errval = 0;
@@ -380,6 +383,8 @@ __map_elf_object (struct shim_handle * file,
         errval = -EINVAL;
 call_lose:
         debug("loading %s: %s\n", l->l_name, errstring);
+        if (l)
+            free(l);
         return NULL;
     }
 
