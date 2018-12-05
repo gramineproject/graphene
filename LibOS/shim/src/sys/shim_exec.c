@@ -330,7 +330,7 @@ err:
     }
 
     if (ret == -EINVAL) { /* it's a shebang */
-        LISTP_TYPE(sharg) new_shargs;
+        LISTP_TYPE(sharg) new_shargs = LISTP_INIT;
         struct sharg * next = NULL;
         bool ended = false, started = false;
         char buf[80];
