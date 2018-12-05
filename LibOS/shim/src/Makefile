@@ -137,6 +137,7 @@ vdso/vdso.so: vdso/vdso.so.dbg
 vdso/vdso-data.c: vdso/vdso.so
 	@echo [ $@ ]
 	xxd -i $^ | sed -e 's/vdso_vdso_/vdso_/' -e 's/\[\]/[4096]/' -e 's/= {/__attribute__((aligned(4096))) = {/' > $@
+CLAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/vdso-data.c
 
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(shim_target) .lib
+	rm -rf $(addsuffix .o,$(objs)) $(shim_target) .lib $(CLEAN_FILES)

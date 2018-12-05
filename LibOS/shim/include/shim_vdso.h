@@ -25,7 +25,7 @@
 #ifndef _SHIM_VDSO_H_
 #define _SHIM_VDSO_H_
 
-/* 4094 for mage size */
+/* 4094 bytes for vDSO image size */
 extern unsigned char vdso_so[4096] __attribute((aligned(4096)));
 
 #endif /* _SHIM_VDSO_H_ */
