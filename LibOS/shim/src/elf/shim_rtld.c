@@ -371,6 +371,9 @@ __map_elf_object (struct shim_handle * file,
                                          qstrgetstr(&file->path) :
                                          qstrgetstr(&file->uri)) : "", type);
 
+    if (!l)
+        return NULL;
+
     const char * errstring __attribute__((unused)) = NULL;
     int errval = 0;
     int ret;
@@ -380,6 +383,7 @@ __map_elf_object (struct shim_handle * file,
         errval = -EINVAL;
 call_lose:
         debug("loading %s: %s\n", l->l_name, errstring);
+        free(l);
         return NULL;
     }
 
