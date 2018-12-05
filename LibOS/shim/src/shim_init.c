@@ -422,7 +422,8 @@ int read_environs (const char ** envp)
                 char * str = malloc(len + 1);
                 if (!str) {
                     for (size_t i = 0; i < cnt; i++)
-                        free(paths[cnt]);
+                        free(paths[i]);
+                    free(paths);
                     return -ENOMEM;
                 }
                 memcpy(str, s, len);
