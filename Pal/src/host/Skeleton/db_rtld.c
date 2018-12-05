@@ -36,11 +36,7 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
-#ifdef __APPLE__
 #include <dlfcn.h>
-#else
-#include <bits/dlfcn.h>
-#endif 
 
 void _DkDebugAddMap (struct link_map * map)
 {

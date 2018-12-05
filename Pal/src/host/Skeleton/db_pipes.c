@@ -87,15 +87,15 @@ static int pipe_open (PAL_HANDLE *handle, const char * type,
 }
 
 /* 'read' operation of pipe stream. offset does not apply here. */
-static int pipe_read (PAL_HANDLE handle, int offset, int len,
-                      void * buffer)
+static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                          void * buffer)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 /* 'write' operation of pipe stream. offset does not apply here. */
-static int pipe_write (PAL_HANDLE handle, int offset, int len,
-                       const void * buffer)
+static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                           const void * buffer)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
