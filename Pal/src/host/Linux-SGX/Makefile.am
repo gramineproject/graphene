@@ -13,7 +13,7 @@ ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp -DIN_ENCLAVE
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
 	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/enclave.lds \
-	  --hash-style=gnu -e enclave_entry
+	  --hash-style=gnu
 ARFLAGS	=
 
 CRYPTO_PROVIDER = mbedtls
