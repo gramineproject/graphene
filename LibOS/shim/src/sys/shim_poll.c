@@ -126,7 +126,7 @@ static int __do_poll (int npolls, struct poll_handle * polls,
 
     lock(map->lock);
 
-    for (p = polls ; p < &polls[npolls] ; p++) {
+    for (p = polls ; p < polls + npolls ; p++) {
         bool do_r = p->flags & DO_R;
         bool do_w = p->flags & DO_W;
 
