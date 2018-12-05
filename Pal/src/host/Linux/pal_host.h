@@ -81,7 +81,7 @@ typedef struct pal_handle
     
     union {
         struct {
-            PAL_IDX fds[2];
+            PAL_IDX fds[MAX_FDS];
         } generic;
 
         struct {
@@ -99,7 +99,7 @@ typedef struct pal_handle
         } pipe;
 
         struct {
-            PAL_IDX fds[2];
+            PAL_IDX fds[MAX_FDS];
             PAL_BOL nonblocking;
         } pipeprv;
 
