@@ -175,7 +175,11 @@ void * migrated_shim_addr;
 
 const char ** initial_envp __attribute_migratable;
 
-char ** library_paths;
+/* library_paths is populated with LD_PRELOAD entries once during LibOS
+ * initialization and is used in __load_interp_object() to search for ELF
+ * program interpreter in specific paths. Once allocated, its memory is
+ * never freed or updated. */
+char ** library_paths = NULL;
 
 LOCKTYPE __master_lock;
 bool lock_enabled;
@@ -405,6 +409,7 @@ int read_environs (const char ** envp)
 {
     for (const char ** e = envp ; *e ; e++) {
         if (strpartcmp_static(*e, "LD_LIBRARY_PATH=")) {
+            /* populate library_paths with entries from LD_LIBRARY_PATH envvar */
             const char * s = *e + static_strlen("LD_LIBRARY_PATH=");
             size_t npaths = 2; // One for the first entry, one for the last
                                // NULL.
@@ -424,7 +429,8 @@ int read_environs (const char ** envp)
                 char * str = malloc(len + 1);
                 if (!str) {
                     for (size_t i = 0; i < cnt; i++)
-                        free(paths[cnt]);
+                        free(paths[i]);
+                    free(paths);
                     return -ENOMEM;
                 }
                 memcpy(str, s, len);
@@ -434,6 +440,8 @@ int read_environs (const char ** envp)
             }
 
             paths[cnt] = NULL;
+
+            assert(!library_paths);
             library_paths = paths;
             return 0;
         }
