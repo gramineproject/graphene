@@ -652,6 +652,9 @@ int dup_handle_map (struct shim_handle_map ** new,
     struct shim_handle_map * new_map =
                 get_new_handle_map(old_map->fd_size);
 
+    if (!new_map)
+        return -ENOMEM;
+
     new_map->fd_top = old_map->fd_top;
 
     if (old_map->fd_top == FD_NULL)
@@ -676,6 +679,7 @@ int dup_handle_map (struct shim_handle_map ** new,
                 }
                 unlock(old_map->lock);
                 *new = NULL;
+                free(new_map);
                 return -ENOMEM;
             }
 
