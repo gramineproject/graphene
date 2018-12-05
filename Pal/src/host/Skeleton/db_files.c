@@ -39,15 +39,15 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 /* 'read' operation for file streams. */
-static int file_read (PAL_HANDLE handle, int offset, int count,
-                      void * buffer)
+static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                          void * buffer)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 /* 'write' operation for file streams. */
-static int file_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t file_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           const void * buffer)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -68,13 +68,13 @@ static int file_delete (PAL_HANDLE handle, int access)
 
 /* 'map' operation for file stream. */
 static int file_map (PAL_HANDLE handle, void ** addr, int prot,
-                     int offset, int size)
+                     uint64_t offset, uint64_t size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 /* 'setlength' operation for file stream. */
-static int file_setlength (PAL_HANDLE handle, int length)
+static int64_t file_setlength (PAL_HANDLE handle, uint64_t length)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -142,7 +142,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
+int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count, void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

@@ -75,13 +75,13 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of tcp stream */
-static int tcp_read (PAL_HANDLE handle, int offset, int len, void * buf)
+static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len, void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 /* write' operation of tcp stream */
-static int tcp_write (PAL_HANDLE handle, int offset, int len, const void * buf)
+static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len, const void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -118,24 +118,24 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     return -PAL_ERROR_NOTSUPPORT;
 }
 
-static int udp_receive (PAL_HANDLE handle, int offset, int len, void * buf)
+static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len, void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int udp_receivebyaddr (PAL_HANDLE handle, int offset, int len,
+static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                               void * buf, char * addr, int addrlen)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int udp_send (PAL_HANDLE handle, int offset, int len, const void * buf)
+static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len, const void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
-                           const void * buf, const char * addr, int addrlen)
+static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+                               const void * buf, const char * addr, int addrlen)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -196,13 +196,13 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
     return NULL;
 }
 
-static int mcast_send (PAL_HANDLE handle, int offset, int size,
-                       const void * buf)
+static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+                           const void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int mcast_receive (PAL_HANDLE handle, int offset, int size, void * buf)
+static int64_t mcast_receive (PAL_HANDLE handle, uint64_t offset, uint64_t size, void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
