@@ -117,29 +117,3 @@ if True:
     if numCPUs == 0:
         numCPUs = 1
     replaceAll('Makefile', r'# PARALLELMFLAGS = -j4', r'PARALLELMFLAGS = -j{0}'.format(numCPUs))
-
-
-link_binaries     = [ ( 'elf',    'ld-linux-x86-64.so.2' ),
-                      ( 'nptl',   'libpthread.so.0' ),
-                      ( '',       'libc.so' ),
-                      ( '',       'libc.so.6' ),
-                      ( 'nptl_db','libthread_db.so.1' ),
-                      ( 'math',   'libm.so.6' ),
-                      ( 'dlfcn',  'libdl.so.2' ),
-                      ( 'login',  'libutil.so.1' ),
-                      ( 'csu',    'crt1.o' ),
-                      ( 'csu',    'crti.o' ),
-                      ( 'csu',    'crtn.o' ),
-                      ( 'rt',     'librt.so.1' ),
-                      ( 'resolv', 'libnss_dns.so.2' ),
-                      ( 'resolv', 'libresolv.so.2' ),
-                      ( 'libos',  'liblibos.so.1' ) ]
-
-if True:
-
-    for (dir, bin) in link_binaries:
-        if os.path.lexists(installDir + '/' + bin):
-            continue
-
-        print installDir + '/' + bin + ' -> ' + buildDir + '/' + dir + '/' + bin
-        os.symlink(os.path.relpath(buildDir + '/' + dir + '/' + bin, installDir), installDir + '/' + bin)

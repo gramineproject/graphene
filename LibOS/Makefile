@@ -7,10 +7,28 @@ GLIBC_SRC = glibc-2.19
 GLIBC_CHECKSUM = 18ad6db70724699d264add80b1f813630d0141cf3a3558b4e1a7c15f6beac796
 SHIM_DIR = shim
 BUILD_DIR = glibc-build
-GLIBC_TARGET = $(addprefix $(BUILD_DIR)/,libc.so.6 ld-linux-x86-64.so.2 libpthread.so.0 libm.so.6 libdl.so.2 libutil.so.1 crt1.o crti.o crtn.o liblibos.so.1 libnss_dns.so.2 libresolv.so.2)
+RUNTIME_DIR = $(CURDIR)/../Runtime
+GLIBC_LIBS = \
+	elf/ld-linux-x86-64.so.2 \
+	nptl/libpthread.so.0 \
+	libc.so \
+	libc.so.6 \
+	nptl_db/libthread_db.so.1 \
+	math/libm.so.6 \
+	dlfcn/libdl.so.2 \
+	login/libutil.so.1 \
+	csu/crt1.o \
+	csu/crti.o \
+	csu/crtn.o \
+	rt/librt.so.1 \
+	resolv/libnss_dns.so.2 \
+	resolv/libresolv.so.2 \
+	libos/liblibos.so.1
+GLIBC_TARGET = $(addprefix $(BUILD_DIR)/, $(GLIBC_LIBS))
+GLIBC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GLIBC_TARGET)))
 
 .PHONY: all
-all: $(GLIBC_TARGET)
+all: $(GLIBC_TARGET) $(GLIBC_RUNTIME)
 	$(MAKE) -C $(SHIM_DIR) all
 
 .PHONY: format
@@ -34,6 +52,13 @@ ifeq ($(DEBUG),1)
 else
 	./buildglibc.py --quiet
 endif
+
+.SECONDARY: $(BUILD_DIR)/Build.runtimedir
+$(GLIBC_RUNTIME): $(BUILD_DIR)/Build.runtimedir
+$(BUILD_DIR)/Build.runtimedir: $(GLIBC_TARGET)
+	for f in $(abspath $(GLIBC_TARGET)); do \
+		ln -sf $$f $(RUNTIME_DIR)/$$(basename $$f); \
+	done && touch $@
 
 GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 		https://mirrors.kernel.org/gnu/ \
