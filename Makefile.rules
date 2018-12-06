@@ -13,7 +13,7 @@ else
   Q = @
 endif
 
-export Q quiet KBUILD_VERBOSE
+export Q quiet BUILD_VERBOSE
 
 squote  := '
 escsq = $(subst $(squote),'\$(squote)',$1)
