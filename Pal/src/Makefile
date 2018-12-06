@@ -1,6 +1,7 @@
 export PAL_DIR = $(CURDIR)
 export RUNTIME_DIR = $(CURDIR)/../../Runtime
 
+include ../../Makefile.rules
 include Makefile.Host
 
 # Customizable PAL Targets
@@ -85,7 +86,7 @@ all: $(files_to_build) $(files_to_install)
 
 $(LIB_DIR)/host_endian.h: $(HOST_DIR)/host_endian.h
 	@mkdir -p $(LIB_DIR)
-	cp -f $< $@
+	$(call cmd,ln_sf)
 
 .PHONY: $(host_lib) $(graphene_lib) $(pal_lib) $(pal_sec)
 
@@ -98,7 +99,7 @@ $(host_lib): $(graphene_lib)
 $(pal_loader) $(pal_sec): $(host_lib)
 
 $(runtime_loader): $(pal_loader)
-	cp -f $< $@
+	$(call cmd,ln_sf)
 
 ifneq ($(pal_lib),)
 $(pal_lib): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
@@ -107,7 +108,7 @@ $(pal_lib): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) $(LDFLAGS-suffix)
 
 $(runtime_lib): $(pal_lib)
-	cp -f $< $@
+	$(call cmd,ln_sf)
 endif
 
 ifneq ($(pal_sec),)
@@ -115,16 +116,12 @@ $(pal_sec): $(graphene_lib)
 	@[ ! -d security/$(PAL_HOST) ] || $(MAKE) -C security/$(PAL_HOST)
 
 $(runtime_sec): $(pal_sec)
-	cp -f $< $@
+	$(call cmd,ln_sf)
 endif
 
 ifneq ($(pal_gdb),)
 $(runtime_gdb): $(pal_gdb)
-ifeq ($(abspath $(pal_gdb)),$(pal_gdb))
-	ln -sf $< $@
-else
-	ln -sf ../Pal/src/$< $@
-endif
+	$(call cmd,ln_sf)
 endif
 
 ifneq ($(pal_lib_post),)

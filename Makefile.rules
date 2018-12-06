@@ -44,3 +44,7 @@ quiet_cmd_asm_offsets_h = [ $@ ]
 asm-offsets.h: asm-offsets.s
 	$(call cmd,asm_offsets_h)
 CLEAN_FILES += asm-offests.h
+
+
+quiet_cmd_ln_sf = [ $@ ]
+      cmd_ln_sf = ln -sf $(abspath $<) $@
