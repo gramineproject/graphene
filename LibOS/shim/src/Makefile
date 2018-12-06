@@ -1,5 +1,6 @@
 RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
+include ../../../Makefile.rules
 include ../../../Pal/src/Makefile.Host
 
 CC	= gcc
@@ -71,7 +72,7 @@ CFLAGS += -DPROFILE
 endif
 
 $(files_to_install): $(RUNTIME_DIR)/%: %
-	cp -f $< $@
+	$(call cmd,ln_sf)
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
@@ -89,7 +90,7 @@ libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 
 .lib/host_endian.h: ../../../Pal/src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
-	cp -f $< $@
+	$(call cmd,ln_sf)
 
 .PHONY: $(graphene_lib)
 $(graphene_lib): .lib/host_endian.h
