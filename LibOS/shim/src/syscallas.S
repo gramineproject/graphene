@@ -45,7 +45,7 @@ syscalldb:
         cmp $LIBOS_SYSCALL_BOUND, %rax
         jae isundef
 
-        leaq shim_table(%rip), %rbx
+        movq shim_table@GOTPCREL(%rip), %rbx
         movq (%rbx,%rax,8), %rbx
         cmp $0, %rbx
         je isundef
