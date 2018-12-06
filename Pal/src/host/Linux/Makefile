@@ -52,6 +52,8 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/Linux/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
+CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
+
 .PHONY: clean
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_files)
+	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES)
