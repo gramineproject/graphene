@@ -121,4 +121,4 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(shim_target) .lib
+	rm -rf $(addsuffix .o,$(objs)) $(shim_target) $(files_to_build) .lib
