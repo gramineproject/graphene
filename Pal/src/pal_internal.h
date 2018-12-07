@@ -28,6 +28,7 @@
 #define PAL_INTERNAL_H
 
 #include "pal_defs.h"
+#include "pal_error.h"
 #include "pal.h"
 
 #ifndef IN_PAL
@@ -430,6 +431,12 @@ static inline void log_stream (const char * uri)
 
     if (logging)
         write_log(2, uri, "\n");
+}
+
+/* errval is negative value. see PAL_STRERROR */
+static inline void print_error(const char * errstring, int errval)
+{
+    printf("%s (%s)\n", errstring, PAL_STRERROR(errval));
 }
 
 #endif

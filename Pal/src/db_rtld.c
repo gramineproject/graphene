@@ -157,15 +157,10 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
                           bool do_copy_dyn)
 {
     struct link_map * l = new_elf_object(_DkStreamRealpath(handle), type);
-    const char * errstring = NULL;
-    int errval = 0;
     int ret;
 
     if (handle == NULL) {
-        errstring = "cannot stat shared object";
-        errval = PAL_ERROR_INVAL;
-call_lose:
-        printf("%s (%s)\n", errstring, PAL_STRERROR(errval));
+        print_error("cannot stat shared object", -PAL_ERROR_INVAL);
         return NULL;
     }
 
@@ -188,9 +183,8 @@ call_lose:
 
         if ((ret = _DkStreamRead(handle, header->e_phoff, maplength, phdr,
                                  NULL, 0)) < 0) {
-            errstring = "cannot read file data";
-            errval = ret;
-            goto call_lose;
+            print_error("cannot read file data", ret);
+            return NULL;
         }
     }
 
@@ -233,17 +227,16 @@ call_lose:
                 /* A load command tells us to map in part of the file.
                    We record the load commands and process them all later.  */
                 if (__builtin_expect (!ALLOC_ALIGNED(ph->p_align), 0)) {
-                    errstring = "ELF load command alignment not aligned";
-                    errval = PAL_ERROR_NOMEM;
-                    goto call_lose;
+                    print_error("ELF load command alignment not aligned",
+                                -PAL_ERROR_NOMEM);
+                    return NULL;
                 }
 
                 if (__builtin_expect (((ph->p_vaddr - ph->p_offset)
                                        & (ph->p_align - 1)) != 0, 0)) {
-                    errstring = "\
-                        ELF load command address/offset not properly aligned";
-                    errval = PAL_ERROR_NOMEM;
-                    goto call_lose;
+                    print_error("ELF load command address/offset not properly aligned",
+                                -PAL_ERROR_NOMEM);
+                    return NULL;
                 }
 
                 c = &loadcmds[nloadcmds++];
@@ -287,8 +280,8 @@ call_lose:
         /* This only happens for a bogus object that will be caught with
            another error below.  But we don't want to go through the
            calculations below using NLOADCMDS - 1.  */
-        errstring = "object file has no loadable segments";
-        goto call_lose;
+        print_error("object file has no loadable segments", -PAL_ERROR_INVAL);
+        return NULL;
     }
 
     /* Now process the load commands and map segments into memory.  */
@@ -313,15 +306,13 @@ call_lose:
            the OS can do whatever it likes. */
         void * mapaddr = NULL;
         /* Remember which part of the address space this object uses.  */
-        errval = _DkStreamMap(handle, (void **) &mapaddr,
-                              APPEND_WRITECOPY(c->prot), c->mapoff,
-                              maplength);
+        ret = _DkStreamMap(handle, (void **) &mapaddr,
+                           APPEND_WRITECOPY(c->prot), c->mapoff, maplength);
 
-        if (__builtin_expect (errval < 0, 0)) {
-            errval = -errval;
-map_error:
-            errstring = "failed to map segment from shared object";
-            goto call_lose;
+        if (__builtin_expect (ret < 0, 0)) {
+            print_error("failed to map dynamic segment from shared object",
+                        ret);
+            return NULL;
         }
 
         l->l_map_start = (ElfW(Addr)) mapaddr;
@@ -349,11 +340,11 @@ map_error:
         if (c->mapend > c->mapstart) {
             /* Map the segment contents from the file.  */
             void * mapaddr = (void *) (l->l_addr + c->mapstart);
-            int rv;
 
-            if ((rv = _DkStreamMap(handle, &mapaddr, APPEND_WRITECOPY(c->prot),
-                                   c->mapoff, c->mapend - c->mapstart)) < 0) {
-                goto map_error;
+            if ((ret = _DkStreamMap(handle, &mapaddr, APPEND_WRITECOPY(c->prot),
+                                    c->mapoff, c->mapend - c->mapstart)) < 0) {
+                print_error("failed to map segment from shared object", ret);
+                return NULL;
             }
         }
 
@@ -384,11 +375,12 @@ postmap:
                 if (__builtin_expect ((c->prot & PAL_PROT_WRITE) == 0, 0))
                 {
                     /* Dag nab it.  */
-                    if (_DkVirtualMemoryProtect((void *) ALLOC_ALIGNDOWN(zero),
-                                                pal_state.alloc_align,
-                                                c->prot | PAL_PROT_WRITE) < 0) {
-                        errstring = "cannot change memory protections";
-                        goto call_lose;
+                    ret = _DkVirtualMemoryProtect(
+                        (void *) ALLOC_ALIGNDOWN(zero), pal_state.alloc_align,
+                        c->prot | PAL_PROT_WRITE);
+                    if (ret < 0) {
+                        print_error("cannot change memory protections", ret);
+                        return NULL;
                     }
                 }
                 memset ((void *) zero, '\0', zerosec - zero);
@@ -400,11 +392,11 @@ postmap:
             if (zeroend > zerosec) {
                 /* Map the remaining zero pages in from the zero fill FD. */
                 void * mapat = (void *) zerosec;
-                errval = _DkVirtualMemoryAlloc(&mapat, zeroend - zerosec,
-                                               0, c->prot);
-                if (__builtin_expect (errval < 0, 0)) {
-                    errstring = "cannot map zero-fill allocation";
-                    goto call_lose;
+                ret = _DkVirtualMemoryAlloc(&mapat, zeroend - zerosec,
+                                            0, c->prot);
+                if (__builtin_expect (ret < 0, 0)) {
+                    print_error("cannot map zero-fill allocation", ret);
+                    return NULL;
                 }
             }
         }
@@ -414,8 +406,9 @@ postmap:
 
     if (l->l_ld == 0) {
         if (__builtin_expect (e_type == ET_DYN, 0)) {
-            errstring = "object file has no dynamic section";
-            goto call_lose;
+            print_error("object file has no dynamic section",
+                        -PAL_ERROR_INVAL);
+            return NULL;
         }
     } else {
         l->l_real_ld = l->l_ld =
@@ -434,8 +427,9 @@ postmap:
         ElfW(Phdr) * newp = (ElfW(Phdr) *) malloc (header->e_phnum
                                                    * sizeof (ElfW(Phdr)));
         if (!newp) {
-            errstring = "cannot allocate memory for program header";
-            goto call_lose;
+            print_error("cannot allocate memory for program header",
+                        -PAL_ERROR_NOMEM);
+            return NULL;
         }
 
         l->l_phdr = memcpy(newp, phdr,
@@ -782,11 +776,9 @@ struct link_map * check_cached_elf_object (PAL_HANDLE handle)
             goto out_more_mapped;
 
         l++;
-        goto map_next;
     }
 
     for ( ; l <= last ; l++) {
-map_next:
         ret = _DkStreamMap(cached_file, &l->mapstart,
                            l->mapprot|PAL_PROT_WRITECOPY,
                            l->mapoff,
