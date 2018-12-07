@@ -439,7 +439,7 @@ err:
 
     void * stack     = cur_thread->stack;
     void * stack_top = cur_thread->stack_top;
-    void * tcb       = cur_thread->tcb;
+    __libc_tcb_t * tcb = cur_thread->tcb;
     bool   user_tcb  = cur_thread->user_tcb;
     void * frameptr  = cur_thread->frameptr;
 

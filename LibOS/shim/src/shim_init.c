@@ -198,9 +198,8 @@ void copy_tcb (shim_tcb_t * new_tcb, const shim_tcb_t * old_tcb)
 }
 
 /* This function is used to allocate tls before interpreter start running */
-void allocate_tls (void * tcb_location, bool user, struct shim_thread * thread)
+void allocate_tls (__libc_tcb_t * tcb, bool user, struct shim_thread * thread)
 {
-    __libc_tcb_t * tcb = tcb_location;
     assert(tcb);
     tcb->tcb = tcb;
     init_tcb(&tcb->shim_tcb);
@@ -219,9 +218,8 @@ void allocate_tls (void * tcb_location, bool user, struct shim_thread * thread)
     assert(SHIM_TLS_CHECK_CANARY());
 }
 
-void populate_tls (void * tcb_location, bool user)
+void populate_tls (__libc_tcb_t * tcb, bool user)
 {
-    __libc_tcb_t * tcb = (__libc_tcb_t *) tcb_location;
     assert(tcb);
     tcb->tcb = tcb;
     copy_tcb(&tcb->shim_tcb, SHIM_GET_TLS());

@@ -748,7 +748,7 @@ BEGIN_RS_FUNC(running_thread)
 
         thread->pal_handle = handle;
     } else {
-        __libc_tcb_t * libc_tcb = (__libc_tcb_t *) thread->tcb;
+        __libc_tcb_t * libc_tcb = thread->tcb;
 
         if (libc_tcb) {
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;

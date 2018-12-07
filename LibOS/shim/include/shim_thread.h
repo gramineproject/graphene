@@ -84,7 +84,7 @@ struct shim_thread {
     struct shim_handle * exec;
 
     void * stack, * stack_top, * stack_red;
-    void * tcb;
+    __libc_tcb_t * tcb;
     bool user_tcb; /* is tcb assigned by user? */
     void * frameptr;
 
@@ -137,8 +137,8 @@ void put_thread (struct shim_thread * thread);
 void get_simple_thread (struct shim_simple_thread * thread);
 void put_simple_thread (struct shim_simple_thread * thread);
 
-void allocate_tls (void * tcb_location, bool user, struct shim_thread * thread);
-void populate_tls (void * tcb_location, bool user);
+void allocate_tls (__libc_tcb_t * tcb_location, bool user, struct shim_thread * thread);
+void populate_tls (__libc_tcb_t * tcb_location, bool user);
 
 void debug_setprefix (shim_tcb_t * tcb);
 
