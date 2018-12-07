@@ -1040,7 +1040,7 @@ static int __load_elf_object (struct shim_handle * file, void * addr,
                               int type, struct link_map * remap)
 {
     char * hdr = addr;
-    int len, ret = 0;
+    int len = 0, ret = 0;
 
     if (type == OBJECT_LOAD || type == OBJECT_REMAP) {
         hdr = __alloca(FILEBUF_SIZE);
