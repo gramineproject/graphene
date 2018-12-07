@@ -36,6 +36,7 @@
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "pal_security.h"
+#include "pal_rtld.h"
 #include "graphene.h"
 #include "graphene-ipc.h"
 #include "api.h"
@@ -184,6 +185,19 @@ int _DkProcessCreate (PAL_HANDLE * handle,
             ret = -PAL_ERROR_INVAL;
             goto out;
         }
+
+        /* If this process creation is for fork emulation,
+         * map address of executable is already determined.
+         * tell its address to forked process.
+         */
+        size_t len;
+        if (exec_map && exec_map->l_name &&
+            /* skip "file:"*/
+            (len = strlen(uri)) >= 5 &&
+            strlen(exec_map->l_name) == len - 5 &&
+            /* + 1 for lasting * NUL */
+            !memcmp(exec_map->l_name, uri + 5, len - 5 + 1))
+            exec->file.map_start = (PAL_PTR)exec_map->l_map_start;
     }
 
     /* step 2: create parant and child process handle */
