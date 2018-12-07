@@ -60,10 +60,11 @@ struct shim_context {
 
 struct debug_buf;
 
-typedef struct {
+typedef struct shim_tcb shim_tcb_t;
+struct shim_tcb {
     uint64_t                canary;
-    void *                  self;
-    void *                  tp;
+    shim_tcb_t *            self;
+    struct shim_thread *    tp;
     struct shim_context     context;
     unsigned int            tid;
     int                     pal_errno;
@@ -76,7 +77,7 @@ typedef struct {
         void * start, * end;
         void * cont_addr;
     } test_range;
-} shim_tcb_t;
+};
 
 #ifdef IN_SHIM
 

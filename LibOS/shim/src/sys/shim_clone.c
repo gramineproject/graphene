@@ -109,14 +109,14 @@ int clone_implementation_wrapper(struct clone_args * arg)
         my_thread->tcb = __alloca(sizeof(__libc_tcb_t) + PTHREAD_PADDING);
     }
     allocate_tls(my_thread->tcb, my_thread->user_tcb, my_thread);
-    shim_tcb_t * tcb = &((__libc_tcb_t *) my_thread->tcb)->shim_tcb;
+    shim_tcb_t * tcb = &my_thread->tcb->shim_tcb;
     __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
                             // will be re-enabled when the thread starts.
     debug_setbuf(tcb, true);
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 
     struct shim_regs regs;
-    regs = *((__libc_tcb_t *) arg->parent->tcb)->shim_tcb.context.regs;
+    regs = *arg->parent->tcb->shim_tcb.context.regs;
 
     if (my_thread->set_child_tid)
         *(my_thread->set_child_tid) = my_thread->tid;
@@ -257,9 +257,9 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         shim_tcb_t * old_shim_tcb = NULL;
 
         if (thread->tcb) {
-            tcb = (__libc_tcb_t *) thread->tcb;
+            tcb = thread->tcb;
         } else {
-            thread->tcb = tcb = (__libc_tcb_t *) self->tcb;
+            thread->tcb = tcb = self->tcb;
             old_shim_tcb = __alloca(sizeof(shim_tcb_t));
             memcpy(old_shim_tcb, &tcb->shim_tcb, sizeof(shim_tcb_t));
         }
