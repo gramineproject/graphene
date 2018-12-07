@@ -25,7 +25,10 @@ GLIBC_ADDED_FILES = \
         $(GLIBC_SRC)/libos/benchmark.c \
         $(GLIBC_SRC)/libos/checkpoint.c \
         $(GLIBC_SRC)/libos/msgpersist.c \
-        $(GLIBC_SRC)/libos/sandbox.c
+        $(GLIBC_SRC)/libos/sandbox.c \
+        $(GLIBC_SRC)/elf/syscalldb.c \
+        $(GLIBC_SRC)/elf/syscallas.S \
+        $(GLIBC_SRC)/sysdeps/unix/sysv/linux/x86_64/syscalldb.h
 
 $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile $(GLIBC_ADDED_FILES)
 	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
