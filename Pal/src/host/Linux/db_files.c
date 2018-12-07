@@ -65,6 +65,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     hdl->file.offset = 0;
     hdl->file.append = 0;
     hdl->file.pass = 0;
+    hdl->file.map_start = NULL;
     char * path = (void *) hdl + HANDLE_SIZE(file);
     memcpy(path, uri, len + 1);
     hdl->file.realpath = (PAL_STR) path;
@@ -156,6 +157,16 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 {
     int fd = handle->file.fd;
     void * mem = *addr;
+    /*
+     * work around for fork emulation
+     * the first exec image to be loaded has to be at same address
+     * as parent.
+     */
+    if (mem == NULL && handle->file.map_start != NULL) {
+        mem = (PAL_PTR)handle->file.map_start;
+        /* this address is used. don't over-map it later */
+        handle->file.map_start = NULL;
+    }
     int flags = MAP_FILE|HOST_FLAGS(0, prot)|(mem ? MAP_FIXED : 0);
     prot = HOST_PROT(prot);
 

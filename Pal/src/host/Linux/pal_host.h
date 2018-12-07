@@ -90,6 +90,12 @@ typedef struct pal_handle
             PAL_BOL append;
             PAL_BOL pass;
             PAL_STR realpath;
+            /*
+             * map_start is to request this file should be mapped to this
+             * address. When fork is emulated, the address is already
+             * determined by parent process.
+             */
+            PAL_PTR map_start;
         } file;
         
         struct {
