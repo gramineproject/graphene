@@ -210,7 +210,7 @@ static int __mount_others (void)
     for (int n = 0 ; n < nkeys ; key = next, n++) {
         for (next = key ; *next ; next++);
         next++;
-        int ret = __mount_one_other(key, next - key - 1);
+        ret = __mount_one_other(key, next - key - 1);
         if (ret < 0)
             goto out;
     }
