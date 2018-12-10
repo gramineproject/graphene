@@ -613,7 +613,7 @@ int load_manifest (int fd, struct config_store ** config_ptr)
 
     void * config_raw = (void *)
             INLINE_SYSCALL(mmap, 6, NULL, nbytes,
-                           PROT_READ|PROT_WRITE, MAP_PRIVATE,
+                           PROT_READ, MAP_PRIVATE,
                            fd, 0);
 
     if (IS_ERR_P(config_raw)) {
