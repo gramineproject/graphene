@@ -13,7 +13,7 @@ else
   Q = @
 endif
 
-export Q quiet KBUILD_VERBOSE
+export Q quiet BUILD_VERBOSE
 
 squote  := '
 escsq = $(subst $(squote),'\$(squote)',$1)
@@ -22,7 +22,7 @@ echo-cmd = $(if $($(quiet)cmd_$(1)), echo '  $(call escsq,$($(quiet)cmd_$(1)))';
 cmd = @$(echo-cmd) $(cmd_$(1))
 
 
-quiet_cmd_asm_offsets_s = CC -S $@
+quiet_cmd_asm_offsets_s = [ $@ ]
       cmd_asm_offsets_s = $(CC) $(CFLAGS) $(defs) -S $< -o $@
 
 asm-offsets.s: asm-offsets.c $(headers)
@@ -30,10 +30,10 @@ asm-offsets.s: asm-offsets.c $(headers)
 CLEAN_FILES += asm-offsets.s
 
 
-quiet_cmd_asm_offsets_h = ASM-OFFSETS $@
+quiet_cmd_asm_offsets_h = [ $@ ]
       cmd_asm_offsets_h = \
 	(set -e; \
-	 echo "/* DO NOT MODIFY. this file was auto-generated. */"; \
+	 echo "/* DO NOT MODIFY. THIS FILE WAS AUTO-GENERATED. */"; \
 	 echo "\#ifndef _ASM_OFFSETS_H_"; \
 	 echo "\#define _ASM_OFFSETS_H_"; \
 	 echo ""; \
