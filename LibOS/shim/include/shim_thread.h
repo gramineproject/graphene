@@ -121,16 +121,20 @@ struct shim_simple_thread {
 
 int init_thread (void);
 
-#define SHIM_THREAD_SELF()                                     \
-    ({ struct shim_thread * __self;                            \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__self)               \
-           : "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));       \
-      __self; })
+static inline struct shim_thread * shim_thread_self(void)
+{
+    struct shim_thread * __self;
+    asm ("movq %%fs:%c1,%q0" : "=r" (__self)
+         : "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));
+    return __self;
+}
 
-#define SAVE_SHIM_THREAD_SELF(__self)                         \
-  ({ asm ("movq %q0,%%fs:%c1" : : "r" (__self),               \
-          "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));         \
-     __self; })
+static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __self)
+{
+     asm ("movq %q0,%%fs:%c1" : : "r" (__self),
+          "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));
+     return __self;
+}
 
 void get_thread (struct shim_thread * thread);
 void put_thread (struct shim_thread * thread);
@@ -159,7 +163,7 @@ static inline
 __attribute__((always_inline))
 struct shim_thread * get_cur_thread (void)
 {
-    return SHIM_THREAD_SELF();
+    return shim_thread_self();
 }
 
 static inline
@@ -174,7 +178,7 @@ static inline
 __attribute__((always_inline))
 void set_cur_thread (struct shim_thread * thread)
 {
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     IDTYPE tid = 0;
 
     if (thread) {

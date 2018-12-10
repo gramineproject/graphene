@@ -101,12 +101,12 @@ struct shim_thread * lookup_thread (IDTYPE tid)
 
 struct shim_thread * __get_cur_thread (void)
 {
-    return SHIM_THREAD_SELF();
+    return shim_thread_self();
 }
 
 shim_tcb_t * __get_cur_tcb (void)
 {
-    return SHIM_GET_TLS();
+    return shim_get_tls();
 }
 
 IDTYPE get_pid (void)
@@ -753,7 +753,7 @@ BEGIN_RS_FUNC(running_thread)
         if (libc_tcb) {
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;
             assert(tcb->context.sp);
-            tcb->debug_buf = SHIM_GET_TLS()->debug_buf;
+            tcb->debug_buf = shim_get_tls()->debug_buf;
             allocate_tls(libc_tcb, thread->user_tcb, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);

@@ -43,8 +43,8 @@
 #include <shim_tls.h>
 
 /* important macros */
-#define get_cur_tid()           (SHIM_GET_TLS()->tid)
-#define PAL_NATIVE_ERRNO        (SHIM_GET_TLS()->pal_errno)
+#define get_cur_tid()           (shim_get_tls()->tid)
+#define PAL_NATIVE_ERRNO        (shim_get_tls()->pal_errno)
 
 #define INTERNAL_TID_BASE       ((IDTYPE) 1 << (sizeof(IDTYPE) * 8 - 1))
 #define IS_INTERNAL_TID(tid)    ((tid) >= INTERNAL_TID_BASE)
@@ -178,7 +178,7 @@ long convert_pal_errno (long err);
 #define SHIM_ARG_TYPE long
 
 #ifdef PROFILE
-# define ENTER_TIME     SHIM_GET_TLS()->context.enter_time
+# define ENTER_TIME     shim_get_tls()->context.enter_time
 # define BEGIN_SYSCALL_PROFILE()        \
     do { ENTER_TIME = GET_PROFILE_INTERVAL(); } while (0)
 # define END_SYSCALL_PROFILE(name)      \
@@ -196,7 +196,7 @@ long convert_pal_errno (long err);
 void check_stack_hook (void);
 
 static inline uint64_t get_cur_preempt (void) {
-    shim_tcb_t* tcb = SHIM_GET_TLS();
+    shim_tcb_t* tcb = shim_get_tls();
     assert(tcb);
     return tcb->context.preempt;
 }
@@ -434,7 +434,7 @@ static inline void __disable_preempt (shim_tcb_t * tcb)
 
 static inline void disable_preempt (shim_tcb_t * tcb)
 {
-    if (!tcb && !(tcb = SHIM_GET_TLS()))
+    if (!tcb && !(tcb = shim_get_tls()))
         return;
 
     __disable_preempt(tcb);
@@ -453,7 +453,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc);
 
 static inline void enable_preempt (shim_tcb_t * tcb)
 {
-    if (!tcb && !(tcb = SHIM_GET_TLS()))
+    if (!tcb && !(tcb = shim_get_tls()))
         return;
 
     if (!(tcb->context.preempt & ~SIGNAL_DELAYED))
@@ -498,7 +498,7 @@ static inline void __lock (LOCKTYPE * l)
     if (!lock_enabled || !l->lock)
         return;
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     disable_preempt(tcb);
 
 #if DEBUG_LOCK == 1
@@ -524,7 +524,7 @@ static inline void __unlock (LOCKTYPE * l)
     if (!lock_enabled || !l->lock)
         return;
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
 
 #if DEBUG_LOCK == 1
     debug("unlock(%s=%p) %s:%d\n", name, l, file, line);
@@ -540,7 +540,7 @@ static inline bool __locked (LOCKTYPE * l)
     if (!lock_enabled || !l->lock)
         return false;
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     return tcb->tid == l->owner;
 }
 

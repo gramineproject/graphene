@@ -53,7 +53,7 @@ const unsigned int glibc_version = GLIBC_VERSION;
 
 static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    SHIM_GET_TLS()->pal_errno = (arg <= PAL_ERROR_BOUND) ? arg : 0;
+    shim_get_tls()->pal_errno = (arg <= PAL_ERROR_BOUND) ? arg : 0;
 }
 
 void __abort(void) {
@@ -216,7 +216,7 @@ void allocate_tls (void * tcb_location, bool user, struct shim_thread * thread)
     }
 
     DkSegmentRegister(PAL_SEGMENT_FS, tcb);
-    assert(SHIM_TLS_CHECK_CANARY());
+    assert(shim_tls_check_canary());
 }
 
 void populate_tls (void * tcb_location, bool user)
@@ -224,7 +224,7 @@ void populate_tls (void * tcb_location, bool user)
     __libc_tcb_t * tcb = (__libc_tcb_t *) tcb_location;
     assert(tcb);
     tcb->tcb = tcb;
-    copy_tcb(&tcb->shim_tcb, SHIM_GET_TLS());
+    copy_tcb(&tcb->shim_tcb, shim_get_tls());
 
     struct shim_thread * thread = (struct shim_thread *) tcb->shim_tcb.tp;
     if (thread) {
@@ -233,7 +233,7 @@ void populate_tls (void * tcb_location, bool user)
     }
 
     DkSegmentRegister(PAL_SEGMENT_FS, tcb);
-    assert(SHIM_TLS_CHECK_CANARY());
+    assert(shim_tls_check_canary());
 }
 
 DEFINE_PROFILE_OCCURENCE(alloc_stack, memory);
@@ -805,7 +805,7 @@ restore:
     if (thread_start_event)
         DkEventSet(thread_start_event);
 
-    shim_tcb_t * cur_tcb = SHIM_GET_TLS();
+    shim_tcb_t * cur_tcb = shim_get_tls();
     struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
 
     if (cur_tcb->context.sp)
@@ -1128,7 +1128,7 @@ int shim_clean (void)
 
 #ifdef PROFILE
     if (ENTER_TIME) {
-        switch (SHIM_GET_TLS()->context.syscall_nr) {
+        switch (shim_get_tls()->context.syscall_nr) {
             case __NR_exit_group:
                 SAVE_PROFILE_INTERVAL_SINCE(syscall_exit_group, ENTER_TIME);
                 break;

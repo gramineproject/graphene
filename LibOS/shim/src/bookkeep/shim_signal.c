@@ -145,7 +145,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
 
 void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 {
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     assert(tcb);
 
     // Signals should not be delivered before the user process starts
@@ -240,7 +240,7 @@ static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * c
 
 static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     assert(tcb);
 
     if (tcb->test_range.cont_addr && arg
@@ -314,7 +314,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
     if (!size)
         return false;
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
@@ -358,7 +358,7 @@ ret_fault:
  */
 bool test_user_string (const char * addr)
 {
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
@@ -432,7 +432,7 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     if (!tcb || !tcb->tp)
         return;
 
@@ -588,7 +588,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
 
 void handle_signal (bool delayed_only)
 {
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     assert(tcb);
 
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
