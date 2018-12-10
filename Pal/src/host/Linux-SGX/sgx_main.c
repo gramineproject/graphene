@@ -247,15 +247,14 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (ret < 0) {                                              \
             SGX_DBG(DBG_E, "initializing enclave failed: " #func ": %d\n",  \
                    -ret);                                           \
-            goto err;                                               \
+            return ret;                                             \
         } ret;                                                      \
     })
 
     enclave_image = INLINE_SYSCALL(open, 3, ENCLAVE_FILENAME, O_RDONLY, 0);
     if (IS_ERR(enclave_image)) {
         SGX_DBG(DBG_E, "cannot find %s\n", ENCLAVE_FILENAME);
-        ret = -ERRNO(ret);
-        goto err;
+        return -ERRNO(ret);
     }
 
     char cfgbuf[CONFIG_MAX];
@@ -263,8 +262,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     /* Reading sgx.enclave_size from manifest */
     if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, CONFIG_MAX) <= 0) {
         SGX_DBG(DBG_E, "enclave_size is not specified\n");
-        ret = -EINVAL;
-        goto err;
+        return -EINVAL;
     }
 
     enclave->size = parse_int(cfgbuf);
@@ -273,8 +271,7 @@ int initialize_enclave (struct pal_enclave * enclave)
      * Give users a better warning about this. */
     if (enclave->size & (enclave->size - 1)) {
         SGX_DBG(DBG_E, "Enclave size not a power of two.  SGX requires power-of-two enclaves.\n");
-        ret = -EINVAL;
-        goto err;
+        return -EINVAL;
     }
 
     /* Reading sgx.thread_num from manifest */
@@ -283,8 +280,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     if (enclave_thread_num > MAX_DBG_THREADS) {
         SGX_DBG(DBG_E, "Too many threads to debug\n");
-        ret = -EINVAL;
-        goto err;
+        return -EINVAL;
     }
 
     /* Reading sgx.static_address from manifest */
@@ -430,11 +426,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
             }
-
-            goto add_pages;
-        }
-
-        if (strcmp_static(areas[i].desc, "tcs")) {
+        } else if (strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
@@ -453,17 +445,12 @@ int initialize_enclave (struct pal_enclave * enclave)
                 tcs_addrs[t] = (void *) enclave_secs.baseaddr + tcs_area->addr
                     + pagesize * t;
             }
-
-            goto add_pages;
-        }
-
-        if (areas[i].fd != -1)
+        } else if (areas[i].fd != -1)
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ,
                                            MAP_FILE|MAP_PRIVATE,
                                            areas[i].fd, 0);
 
-add_pages:
         TRY(add_pages_to_enclave,
             &enclave_secs, (void *) areas[i].addr, data, areas[i].size,
             areas[i].type, areas[i].prot, areas[i].skip_eextend,
@@ -521,8 +508,6 @@ add_pages:
         dbg->tcs_addrs[i] = tcs_addrs[i];
 
     return 0;
-err:
-    return ret;
 }
 
 static int mcast_s (int port)
