@@ -87,7 +87,6 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
         for (int i = 0 ; i < 3 ; i++)
             INLINE_SYSCALL(close, 1, proc_fds[1][i]);
 
-        INLINE_SYSCALL(close, 1, PROC_INIT_FD);
         rete = INLINE_SYSCALL(dup2, 2, proc_fds[0][0], PROC_INIT_FD);
         if (IS_ERR(rete))
             goto out_child;

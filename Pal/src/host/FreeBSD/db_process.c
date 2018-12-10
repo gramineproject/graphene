@@ -137,7 +137,6 @@ static int child_process (void * param)
     struct proc_param * proc_param = param;
     int ret;
 
-    INLINE_SYSCALL(close, 1, PROC_INIT_FD);
     ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream_in,
                          PROC_INIT_FD);
     if (IS_ERR(ret))
