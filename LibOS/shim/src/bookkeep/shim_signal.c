@@ -54,7 +54,7 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
     } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
 
-    debug("signal_logs[%d]: head=%d, tail=%d (counter = %d)\n", sig - 1,
+    debug("signal_logs[%d]: head=%d, tail=%d (counter = %ld)\n", sig - 1,
           head, tail, thread->has_signal.counter + 1);
 
     atomic_inc(&thread->has_signal);
@@ -213,11 +213,11 @@ static inline void internal_fault(const char* errstr,
 {
     IDTYPE tid = get_cur_tid();
     if (is_internal(context))
-        sys_printf("%s at %p (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
+        sys_printf("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
                    addr, (void *) context->IP - (void *) &__load_address,
                    cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);
     else
-        sys_printf("%s at %p (IP = %p, VMID = %u, TID = %u)\n", errstr,
+        sys_printf("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr,
                    addr, context ? context->IP : 0,
                    cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);
 
@@ -230,7 +230,7 @@ static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * c
         internal_fault("Internal arithmetic fault", arg, context);
     } else {
         if (context)
-            debug("arithmetic fault at %p\n", context->IP);
+            debug("arithmetic fault at 0x%08lx\n", context->IP);
 
         deliver_signal(ALLOC_SIGINFO(SIGFPE, FPE_INTDIV,
                                      si_addr, (void *) arg), context);
@@ -257,7 +257,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     }
 
     if (context)
-        debug("memory fault at %p (IP = %p)\n", arg, context->IP);
+        debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", arg, context->IP);
 
     struct shim_vma_val vma;
     int signo = SIGSEGV;
@@ -404,7 +404,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         !(lookup_vma((void *) arg, &vma)) &&
         !(vma.flags & VMA_INTERNAL)) {
         if (context)
-            debug("illegal instruction at %p\n", context->IP);
+            debug("illegal instruction at 0x%08lx\n", context->IP);
 
         deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
                                      si_addr, (void *) arg), context);
@@ -600,7 +600,7 @@ void handle_signal (bool delayed_only)
     __disable_preempt(tcb);
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
+        debug("signal delayed (%ld)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
         tcb->context.preempt |= SIGNAL_DELAYED;
     } else if (!(delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))) {
         __handle_signal(tcb, 0, NULL);

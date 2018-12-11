@@ -149,7 +149,7 @@ void CONCAT3(debug_print, NS, ranges) (void)
             IDTYPE base = RANGE_SIZE * off + 1;
             struct shim_ipc_info * p = r->owner;
 
-            sys_printf("%04u - %04u: owner %010u, port \"%s\" lease %u\n",
+            sys_printf("%04u - %04u: owner %010u, port \"%s\" lease %lu\n",
                        base, base + RANGE_SIZE - 1,
                        p->vmid, qstrgetstr(&p->uri), r->lease);
 
@@ -162,7 +162,7 @@ void CONCAT3(debug_print, NS, ranges) (void)
                     continue;
 
                 p = s->owner;
-                sys_printf("   %04u: owner %010u, port \"%s\" lease %u\n",
+                sys_printf("   %04u: owner %010u, port \"%s\" lease %lu\n",
                            base + k, p->vmid,
                            qstrgetstr(&p->uri), s->lease);
             }
@@ -1270,7 +1270,7 @@ int NS_SEND(renew) (IDTYPE base, IDTYPE size)
     msgin->base = base;
     msgin->size = size;
 
-    debug("ipc send to %u: " NS_CODE_STR(RENEW) "(%u, %u)\n", base, size);
+    debug("ipc send to : " NS_CODE_STR(RENEW) "(%u, %u)\n", base, size);
     ret = send_ipc_message(msg, port);
     put_ipc_port(port);
 out:
@@ -1746,7 +1746,7 @@ int CONCAT2(NS, add_key) (NS_KEY * key, IDTYPE id)
     INIT_LIST_HEAD(k, hlist);
     listp_add(k, head, hlist);
 
-    debug("add key/id pair (%u, %u) to hash list: %p\n",
+    debug("add key/id pair (%lu, %u) to hash list: %p\n",
           KEY_HASH(key), id, head);
     ret = 0;
 out:
@@ -1806,7 +1806,7 @@ int NS_SEND(findkey) (NS_KEY * key)
     NS_MSG_TYPE(findkey) * msgin = (void *) &msg->msg.msg;
     KEY_COPY(&msgin->key, key);
 
-    debug("ipc send to %u: " NS_CODE_STR(FINDKEY) "(%u)\n",
+    debug("ipc send to %u: " NS_CODE_STR(FINDKEY) "(%lu)\n",
           dest, KEY_HASH(key));
 
     ret = do_ipc_duplex(msg, port, NULL, NULL);
@@ -1825,7 +1825,7 @@ int NS_CALLBACK(findkey) (IPC_CALLBACK_ARGS)
     int ret = 0;
     NS_MSG_TYPE(findkey) * msgin  = (void *) &msg->msg;
 
-    debug("ipc callback from %u: " NS_CODE_STR(FINDKEY) "(%u)\n",
+    debug("ipc callback from %u: " NS_CODE_STR(FINDKEY) "(%lu)\n",
           msg->src, KEY_HASH(&msgin->key));
 
     ret = CONCAT2(NS, get_key)(&msgin->key, false);
@@ -1871,7 +1871,7 @@ int NS_SEND(tellkey) (struct shim_ipc_port * port, IDTYPE dest, NS_KEY * key,
         msgin->id = id;
         msg->seq  = seq;
 
-        debug("ipc send to %u: IPC_SYSV_TELLKEY(%u, %u)\n", dest,
+        debug("ipc send to %u: IPC_SYSV_TELLKEY(%lu, %u)\n", dest,
               KEY_HASH(key), id);
 
         ret = send_ipc_message(msg, port);
@@ -1886,7 +1886,7 @@ int NS_SEND(tellkey) (struct shim_ipc_port * port, IDTYPE dest, NS_KEY * key,
     KEY_COPY(&msgin->key, key);
     msgin->id = id;
 
-    debug("ipc send to %u: IPC_SYSV_TELLKEY(%u, %u)\n", dest,
+    debug("ipc send to %u: IPC_SYSV_TELLKEY(%lu, %u)\n", dest,
           KEY_HASH(key), id);
 
     ret = do_ipc_duplex(msg, port, NULL, NULL);
@@ -1902,7 +1902,7 @@ int NS_CALLBACK(tellkey) (IPC_CALLBACK_ARGS)
     int ret = 0;
     NS_MSG_TYPE(tellkey) * msgin = (void *) &msg->msg;
 
-    debug("ipc callback from %u: " NS_CODE_STR(TELLKEY) "(%u, %u)\n",
+    debug("ipc callback from %u: " NS_CODE_STR(TELLKEY) "(%lu, %u)\n",
           msg->src, KEY_HASH(&msgin->key), msgin->id);
 
     ret = CONCAT2(NS, add_key)(&msgin->key, msgin->id);

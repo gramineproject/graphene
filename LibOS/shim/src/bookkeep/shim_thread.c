@@ -412,8 +412,8 @@ void add_thread (struct shim_thread * thread)
 
 void del_thread (struct shim_thread * thread)
 {
-    debug("del_thread(%p, %d, %d)\n", thread, thread ? thread->tid : -1,
-            thread->ref_count);
+    debug("del_thread(%p, %d, %ld)\n", thread, thread ? thread->tid : -1,
+          atomic_read(&thread->ref_count));
 
     if (IS_INTERNAL(thread) || list_empty(thread, list)) {
         debug("del_thread: internal\n");
@@ -480,7 +480,7 @@ int check_last_thread (struct shim_thread * self)
         }
     }
 
-    debug("this is the only thread\n", self->tid);
+    debug("this is the only thread %d\n", self->tid);
     unlock(thread_list_lock);
     return 0;
 }

@@ -156,7 +156,7 @@ long int glibc_option (const char * opt)
     if (strcmp_static(opt, "heap_size")) {
         ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
         if (ret <= 0) {
-            debug("no glibc option: %s (err=%d)\n", opt, ret);
+            debug("no glibc option: %s (err=%ld)\n", opt, ret);
             return -ENOENT;
         }
 
@@ -277,7 +277,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     if (bkeep_mprotect(stack, size, PROT_READ|PROT_WRITE, flags) < 0)
         return NULL;
 
-    debug("allocated stack at %p (size = %d)\n", stack, size);
+    debug("allocated stack at %p (size = %ld)\n", stack, size);
     return stack;
 }
 

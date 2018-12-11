@@ -795,7 +795,7 @@ static int __remove_elf_object (struct link_map * l)
 
 static int __free_elf_object (struct link_map * l)
 {
-    debug("removing %s as runtime object loaded at %p\n", l->l_name,
+    debug("removing %s as runtime object loaded at 0x%08lx\n", l->l_name,
           l->l_map_start);
 
     struct loadcmd *c = l->loadcmds;
@@ -1101,7 +1101,7 @@ int reload_elf_object (struct shim_handle * file)
     if (!map)
         return -ENOENT;
 
-    debug("reloading %s as runtime object loaded at %p-%p\n",
+    debug("reloading %s as runtime object loaded at 0x%08lx-0x%08lx\n",
           qstrgetstr(&file->uri), map->l_map_start, map->l_map_end);
 
     return __load_elf_object(file, NULL, OBJECT_REMAP, map);
@@ -1539,7 +1539,7 @@ int init_brk_from_executable (struct shim_handle * exec)
 
 int register_library (const char * name, unsigned long load_address)
 {
-    debug("glibc register library %s loaded at %p\n",
+    debug("glibc register library %s loaded at 0x%08lx\n",
           name, load_address);
 
     struct shim_handle * hdl = get_new_handle();
@@ -1625,7 +1625,7 @@ BEGIN_CP_FUNC(library)
             DO_CP_MEMBER(handle, map, new_map, l_file);
 
         if (map->l_ld) {
-            int size = sizeof(ElfW(Dyn)) * map->l_ldnum;
+            size_t size = sizeof(ElfW(Dyn)) * map->l_ldnum;
             ElfW(Dyn) * ld = (void *) (base + ADD_CP_OFFSET(size));
             memcpy(ld, map->l_ld, size);
             new_map->l_ld = ld;
@@ -1639,14 +1639,14 @@ BEGIN_CP_FUNC(library)
         }
 
         if (map->l_name) {
-            int namelen = strlen(map->l_name);
+            size_t namelen = strlen(map->l_name);
             char * name = (char *) (base + ADD_CP_OFFSET(namelen + 1));
             memcpy(name, map->l_name, namelen + 1);
             new_map->l_name = name;
         }
 
         if (map->l_soname) {
-            int sonamelen = strlen(map->l_soname);
+            size_t sonamelen = strlen(map->l_soname);
             char * soname = (char *) (base + ADD_CP_OFFSET(sonamelen + 1));
             memcpy(soname, map->l_soname, sonamelen + 1);
             new_map->l_soname = soname;
@@ -1703,7 +1703,7 @@ BEGIN_RS_FUNC(library)
 
     SAVE_PROFILE_INTERVAL(add_or_replace_library);
 
-    DEBUG_RS("base=%p,name=%s", map->l_addr, map->l_name);
+    DEBUG_RS("base=0x%08lx,name=%s", map->l_addr, map->l_name);
 }
 END_RS_FUNC(library)
 
@@ -1722,7 +1722,7 @@ BEGIN_CP_FUNC(loaded_libraries)
         map = map->l_next;
     }
 
-    ADD_CP_FUNC_ENTRY(new_interp_map);
+    ADD_CP_FUNC_ENTRY((ptr_t)new_interp_map);
 }
 END_CP_FUNC(loaded_libraries)
 
