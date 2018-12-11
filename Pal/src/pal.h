@@ -216,6 +216,8 @@ PAL_CONTROL * pal_control_addr (void);
 #define PAL_PROT_EXEC       0x4     /* 0x4 Page can be executed. */
 #define PAL_PROT_WRITECOPY  0x8     /* 0x8 Copy on write */
 
+#define PAL_PROT_MASK       0xF
+
 
 // If addr != NULL, then the returned region is always exactly at addr.
 PAL_PTR
@@ -241,7 +243,7 @@ DkVirtualMemoryProtect (PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 #define PAL_PROCESS_MASK         0x0
 
 PAL_HANDLE
-DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args);
+DkProcessCreate (PAL_STR uri, PAL_STR * args);
 
 void
 DkProcessExit (PAL_NUM exitCode);
@@ -287,15 +289,17 @@ DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags);
 #define PAL_SHARE_MASK      0777
 
 /* Stream Create Flags */
-#define PAL_CREAT_TRY        0100       /* 0100 Create file if file not
+#define PAL_CREATE_TRY        0100       /* 0100 Create file if file not
                                            exist (O_CREAT) */
-#define PAL_CREAT_ALWAYS     0200       /* 0300 Create file and fail if file
+#define PAL_CREATE_ALWAYS     0200       /* 0300 Create file and fail if file
                                            already exist (O_CREAT|O_EXCL) */
-#define PAL_CREAT_MASK       0300
+#define PAL_CREATE_MASK       0300
 
 /* Stream Option Flags */
 #define PAL_OPTION_NONBLOCK     04000
 #define PAL_OPTION_MASK         04000
+
+#define WITHIN_MASK(val, mask)  (((val)|(mask)) == (mask))
 
 PAL_HANDLE
 DkStreamOpen (PAL_STR uri, PAL_FLG access, PAL_FLG share_flags,
@@ -382,7 +386,7 @@ DkStreamChangeName (PAL_HANDLE handle, PAL_STR uri);
 #define PAL_THREAD_MASK         0
 
 PAL_HANDLE
-DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags);
+DkThreadCreate (PAL_PTR addr, PAL_PTR param);
 
 // assuming duration to be in microseconds
 PAL_NUM
@@ -421,8 +425,7 @@ DkThreadResume (PAL_HANDLE thread);
 typedef void (*PAL_EVENT_HANDLER) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT *);
 
 PAL_BOL
-DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event,
-                       PAL_FLG flags);
+DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event);
 
 void DkExceptionReturn (PAL_PTR event);
 
@@ -497,8 +500,7 @@ PAL_HANDLE
 DkCreatePhysicalMemoryChannel (PAL_NUM * key);
 
 PAL_NUM
-DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
-                        PAL_NUM * sizes, PAL_FLG flags);
+DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs, PAL_NUM * sizes);
 
 PAL_NUM
 DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,

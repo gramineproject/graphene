@@ -57,7 +57,7 @@ int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, unsigned long * key)
 }
 
 int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries, PAL_PTR * addrs,
-                             PAL_NUM * sizes, int flags)
+                             PAL_NUM * sizes)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

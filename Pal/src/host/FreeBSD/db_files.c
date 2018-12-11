@@ -325,11 +325,11 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int ret;
     int mode = HOST_PERM(share);
 
-    if (create & PAL_CREAT_TRY) {
+    if (create & PAL_CREATE_TRY) {
         ret = INLINE_SYSCALL(mkdir, 2, uri, mode);
 
         if (IS_ERR(ret) && ERRNO(ret) == EEXIST &&
-            create & PAL_CREAT_ALWAYS)
+            create & PAL_CREATE_ALWAYS)
             return -PAL_ERROR_STREAMEXIST;
     }
 

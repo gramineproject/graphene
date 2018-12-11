@@ -8,6 +8,6 @@
 int main (int argc, char ** argv, char ** envp)
 {
     PAL_STR args[1] = { 0 };
-    DkProcessCreate("file:Bootstrap", 0, args);
+    DkProcessCreate("file:Bootstrap", args);
     return 0;
 }

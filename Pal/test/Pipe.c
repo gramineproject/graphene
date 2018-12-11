@@ -18,7 +18,7 @@ int main (int argc, char ** argv)
     snprintf(uri, 40, "pipe.srv:%d", pipeid);
 
     PAL_HANDLE srv = DkStreamOpen(uri, 0, 0,
-                                  PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
+                                  PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
 
     if (!srv) {
         pal_printf("not able to create server (%s)\n", uri);
@@ -28,7 +28,7 @@ int main (int argc, char ** argv)
     snprintf(uri, 40, "pipe:%d", pipeid);
 
     PAL_HANDLE cli = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0,
-                                  PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
+                                  PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
 
     if (!cli) {
         pal_printf("not able to create client\n");

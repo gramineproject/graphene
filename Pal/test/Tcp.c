@@ -34,7 +34,7 @@ int main (int argc, char ** argv)
         DkStreamGetName(srv, addr, 40);
         pal_printf("server bound on %s\n", addr);
 
-        PAL_HANDLE proc = DkProcessCreate("file:Tcp", 0, newargs);
+        PAL_HANDLE proc = DkProcessCreate("file:Tcp", newargs);
 
         for (i = 0 ; i < NTRIES ; i++) {
             PAL_HANDLE cli = DkStreamWaitForClient(srv);

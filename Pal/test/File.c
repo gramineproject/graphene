@@ -16,7 +16,7 @@ int main (int argc, char ** argv, char ** envp)
 
     PAL_HANDLE out = DkStreamOpen(file_uri, PAL_ACCESS_RDWR,
                                   PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
-                                  PAL_CREAT_TRY, 0);
+                                  PAL_CREATE_TRY, 0);
 
     if (out == NULL) {
         pal_printf("DkStreamOpen failed\n");

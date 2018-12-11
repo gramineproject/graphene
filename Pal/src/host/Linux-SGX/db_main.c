@@ -82,7 +82,7 @@ PAL_NUM _DkGetHostId (void)
 void setup_pal_map (struct link_map * map);
 static struct link_map pal_map;
 
-int init_untrusted_slab_mgr (int pagesize);
+void init_untrusted_slab_mgr ();
 int init_enclave (void);
 int init_enclave_key (void);
 int init_child_process (PAL_HANDLE * parent_handle);
@@ -113,11 +113,11 @@ static PAL_HANDLE setup_file_handle (const char * name, int fd)
 
 static int loader_filter (const char * key, int len)
 {
-    if (key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
+    if (len > 7 && key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
         key[4] == 'e' && key[5] == 'r' && key[6] == '.')
         return 0;
 
-    if (key[0] == 's' && key[1] == 'g' && key[2] == 'x' && key[3] == '.')
+    if (len > 4 && key[0] == 's' && key[1] == 'g' && key[2] == 'x' && key[3] == '.')
         return 0;
 
     return 1;
@@ -144,7 +144,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
 
     /* set up page allocator and slab manager */
     init_slab_mgr(pagesz);
-    init_untrusted_slab_mgr(pagesz);
+    init_untrusted_slab_mgr();
     init_pages();
     init_enclave_key();
 

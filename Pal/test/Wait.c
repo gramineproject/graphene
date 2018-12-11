@@ -38,14 +38,14 @@ int main() {
     event1 = DkNotificationEventCreate (0);
     event2 = DkNotificationEventCreate (0);
 
-    thd1 = DkThreadCreate(&thread_1, 0, 0);
+    thd1 = DkThreadCreate(&thread_1, 0);
 
     if (thd1 == NULL) {
         pal_printf("DkThreadCreate failed\n");
         return -1;
     }
 
-    thd2 = DkThreadCreate(&thread_2, 0, 0);
+    thd2 = DkThreadCreate(&thread_2, 0);
 
     if (thd2 == NULL) {
         pal_printf("DkThreadCreate failed\n");

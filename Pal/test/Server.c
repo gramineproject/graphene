@@ -32,7 +32,7 @@ int main (int argc, char ** argv)
     snprintf(uri, 60, "tcp.srv:127.0.0.1:%s", argv[1]);
 
     PAL_HANDLE srv = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0,
-                                  PAL_CREAT_TRY, 0);
+                                  PAL_CREATE_TRY, 0);
 
     if (srv == NULL) {
         pal_printf("DkStreamOpen failed\n");

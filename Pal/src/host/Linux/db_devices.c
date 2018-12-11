@@ -119,6 +119,14 @@ static int open_standard_term(PAL_HANDLE* handle, const char* param, int access)
 /* 'open' operation for terminal stream */
 static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
+    if (!strcmp_static(type, "tty"))
+        return -PAL_ERROR_INVAL;
+
+    if (!WITHIN_MASK(share, PAL_SHARE_MASK) ||
+        !WITHIN_MASK(create, PAL_CREATE_MASK) ||
+        !WITHIN_MASK(options, PAL_OPTION_MASK))
+        return -PAL_ERROR_INVAL;
+
     const char* term  = NULL;
     const char* param = NULL;
 
@@ -140,11 +148,19 @@ static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
 }
 
 static int term_close(PAL_HANDLE handle) {
+    __UNUSED(handle);
+
     return 0;
 }
 
 /* 'attrquery' operation for terminal stream */
-static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
+static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr)
+{
+    __UNUSED(uri);
+
+    if (!strcmp_static(type, "tty"))
+        return -PAL_ERROR_INVAL;
+
     attr->handle_type  = pal_type_dev;
     attr->readable     = PAL_TRUE;
     attr->writeable    = PAL_TRUE;
@@ -174,6 +190,9 @@ static struct handle_ops term_ops = {
 
 /* 'read' operation for character streams. */
 static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buffer) {
+    if (offset)
+        return -PAL_ERROR_INVAL;
+
     int fd = handle->dev.fd_in;
 
     if (fd == PAL_IDX_POISON)
@@ -189,6 +208,9 @@ static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void
 
 /* 'write' operation for character streams. */
 static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
+    if (offset)
+        return -PAL_ERROR_INVAL;
+
     int fd = handle->dev.fd_out;
 
     if (fd == PAL_IDX_POISON)
@@ -205,6 +227,9 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
 /* 'open' operation for device streams */
 static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
+    if (!strcmp_static(type, "dev"))
+        return -PAL_ERROR_INVAL;
+
     struct handle_ops* ops = NULL;
     char* dev_type   = NULL;
     int ret                = 0;
@@ -348,6 +373,9 @@ static inline void dev_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 
 /* 'attrquery' operation for device streams */
 static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
+    if (!strcmp_static(type, "dev"))
+        return -PAL_ERROR_INVAL;
+
     struct handle_ops* ops = NULL;
     char* dev_type   = NULL;
     int ret                = 0;

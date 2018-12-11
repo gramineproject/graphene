@@ -68,7 +68,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type,
     PAL_IDX connid = 0;
 
     if (*endptr == ':') {
-        if (create & PAL_CREAT_TRY)
+        if (create & PAL_CREATE_TRY)
             return -PAL_ERROR_INVAL;
 
         connid = strtol(endptr + 1, &endptr, 10);

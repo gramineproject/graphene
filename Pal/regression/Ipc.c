@@ -26,7 +26,7 @@ int main (int argc, char ** argv, char ** envp)
     char gipc_uri[20];
     int ret;
 
-    DkSetExceptionHandler(handler, PAL_EVENT_MEMFAULT, 0);
+    DkSetExceptionHandler(handler, PAL_EVENT_MEMFAULT);
 
     if (argc > 1 && !memcmp(argv[1], "Child", 6)) {
         /* private memory */
@@ -192,7 +192,7 @@ int main (int argc, char ** argv, char ** envp)
         }
     } else {
         PAL_STR args[3] = { "Ipc", "Child", 0 };
-        PAL_HANDLE proc = DkProcessCreate("file:Ipc", 0, args);
+        PAL_HANDLE proc = DkProcessCreate("file:Ipc", args);
 
         if (!proc)
             return 0;
@@ -216,7 +216,7 @@ int main (int argc, char ** argv, char ** envp)
                 PAL_PTR mem_addr = mem1;
                 PAL_NUM mem_size = UNIT;
 
-                if (DkPhysicalMemoryCommit(ipc1, 1, &mem_addr, &mem_size, 0)) {
+                if (DkPhysicalMemoryCommit(ipc1, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 1] Physical Memory Commit OK\n");
                     memcpy(mem1, "Hello World, Alice", 20);
                     pal_printf("[Test 1] Sender   After  Commit: %s\n",
@@ -251,7 +251,7 @@ int main (int argc, char ** argv, char ** envp)
                 PAL_PTR mem_addr = mem2;
                 PAL_NUM mem_size = UNIT;
 
-                if (DkPhysicalMemoryCommit(ipc2, 1, &mem_addr, &mem_size, 0)) {
+                if (DkPhysicalMemoryCommit(ipc2, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 2] Physical Memory Commit OK\n");
                     memcpy(mem2, "Hello World, Alice", 20);
                     pal_printf("[Test 2] Sender   After  Commit: %s\n",
@@ -293,7 +293,7 @@ int main (int argc, char ** argv, char ** envp)
                 PAL_PTR mem_addr = mem3;
                 PAL_NUM mem_size = UNIT;
 
-                if (DkPhysicalMemoryCommit(ipc3, 1, &mem_addr, &mem_size, 0)) {
+                if (DkPhysicalMemoryCommit(ipc3, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 3] Physical Memory Commit OK\n");
                     DkStreamWrite(proc, 0, 20, gipc_uri, NULL);
                     pal_printf("[Test 3] Sender   After  Commit: %s\n",
@@ -331,7 +331,7 @@ int main (int argc, char ** argv, char ** envp)
                 PAL_PTR mem_addr = mem4;
                 PAL_NUM mem_size = UNIT;
 
-                if (DkPhysicalMemoryCommit(ipc4, 1, &mem_addr, &mem_size, 0)) {
+                if (DkPhysicalMemoryCommit(ipc4, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 4] Physical Memory Commit OK\n");
                     DkStreamWrite(proc, 0, 20, gipc_uri, NULL);
                     DkStreamRead(proc, 0, sizeof(int), &ret, NULL, 0);
@@ -364,7 +364,7 @@ int main (int argc, char ** argv, char ** envp)
 
                 DkStreamWrite(proc, 0, 20, gipc_uri, NULL);
 
-                if (DkPhysicalMemoryCommit(ipc5, 1, &mem_addr, &mem_size, 0)) {
+                if (DkPhysicalMemoryCommit(ipc5, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 5] Physical Memory Commit OK\n");
                     DkStreamRead(proc, 0, sizeof(int), &ret, NULL, 0);
                 }

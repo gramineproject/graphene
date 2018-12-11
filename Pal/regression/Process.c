@@ -50,7 +50,7 @@ int main (int argc, char ** argv, char ** envp)
         for (int i = 0 ; i < 3 ; i++) {
             pal_printf("Creating process\n");
 
-            children[i] = DkProcessCreate("file:Process", 0, args);
+            children[i] = DkProcessCreate("file:Process", args);
 
             if (children[i]) {
                 pal_printf("Process created %d\n", i + 1);

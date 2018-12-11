@@ -401,7 +401,7 @@ static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
     }
 
     hdr_size = ALIGN_UP(hdr_size);
-    int npages = DkPhysicalMemoryCommit(gipc_store, 1, &hdr_addr, &hdr_size, 0);
+    int npages = DkPhysicalMemoryCommit(gipc_store, 1, &hdr_addr, &hdr_size);
     if (!npages)
         return -EPERM;
 
@@ -428,7 +428,7 @@ static int send_checkpoint_by_gipc (PAL_HANDLE gipc_store,
     /* Chia-Che: sending an empty page can't ever be a smart idea.
        we might rather fail here */
     npages = DkPhysicalMemoryCommit(gipc_store, nentries, gipc_addrs,
-                                    gipc_sizes, 0);
+                                    gipc_sizes);
 
     if (npages < total_pages) {
         debug("gipc supposed to send %d pages, but only %d pages sent\n",
@@ -682,7 +682,7 @@ int init_from_checkpoint_file (const char * filename,
         argv[1] = dentry_get_path(file, true, NULL);
         argv[2] = 0;
 
-        PAL_HANDLE proc = DkProcessCreate(NULL, 0, argv);
+        PAL_HANDLE proc = DkProcessCreate(NULL, argv);
         if (!proc) {
             ret = -PAL_ERRNO;
             goto out;
@@ -915,8 +915,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
      * the latency of forking.
      */
     PAL_HANDLE proc = DkProcessCreate(exec ? qstrgetstr(&exec->uri) :
-                                      pal_control.executable,
-                                      0, argv);
+                                      pal_control.executable, argv);
 
     if (!proc) {
         ret = -PAL_ERRNO;

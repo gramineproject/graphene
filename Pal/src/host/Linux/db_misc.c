@@ -232,6 +232,9 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
 
 int _DkInstructionCacheFlush (const void * addr, int size)
 {
+    __UNUSED(addr);
+    __UNUSED(size);
+
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

@@ -64,12 +64,12 @@ int main (int argc, char ** argv)
     } else {
         const char *args[3] = { "SendHandle", "Child", NULL };
 
-        PAL_HANDLE child = DkProcessCreate("file:SendHandle", 0, args);
+        PAL_HANDLE child = DkProcessCreate("file:SendHandle", args);
 
         if (child) {
             // Sending pipe handle
             handles[0] = DkStreamOpen("pipe.srv:1", PAL_ACCESS_RDWR,
-                                      0, PAL_CREAT_TRY, 0);
+                                      0, PAL_CREATE_TRY, 0);
 
             if (handles[0]) {
                 pal_printf("Send Handle OK\n");
@@ -89,7 +89,7 @@ int main (int argc, char ** argv)
 
             // Sending udp handle
             handles[1] = DkStreamOpen("udp.srv:127.0.0.1:8000", PAL_ACCESS_RDWR,
-                                      0, PAL_CREAT_TRY, 0);
+                                      0, PAL_CREATE_TRY, 0);
 
             if (handles[1]) {
                 pal_printf("Send Handle OK\n");
@@ -108,7 +108,7 @@ int main (int argc, char ** argv)
             }
 
             handles[2] = DkStreamOpen("file:to_send.tmp", PAL_ACCESS_RDWR,
-                                      0600, PAL_CREAT_TRY, 0);
+                                      0600, PAL_CREATE_TRY, 0);
 
             if (handles[2]) {
                 pal_printf("Send Handle OK\n");
