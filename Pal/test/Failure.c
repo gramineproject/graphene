@@ -22,7 +22,7 @@ int main (int argc, char ** argv, char ** envp)
 {
     pal_printf("Enter Main Thread\n");
 
-    DkSetExceptionHandler(FailureHandler, PAL_EVENT_FAILURE, 0);
+    DkSetExceptionHandler(FailureHandler, PAL_EVENT_FAILURE);
 
     PAL_HANDLE out = DkStreamOpen("foo:unknown", PAL_ACCESS_WRONLY, 0, 0, 0);
 

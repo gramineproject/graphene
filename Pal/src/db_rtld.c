@@ -63,9 +63,9 @@ static struct link_map * resolve_map (const char **strtab, ElfW(Sym) ** ref)
     return 0;
 }
 
-extern ElfW(Addr) resolve_rtld (const char * sym_name);
-
-#define RESOLVE_RTLD(sym_name)      resolve_rtld(sym_name)
+/* Define RESOLVE_RTLD as 0 since we rely on resolve_map on
+ * all current PAL platforms */
+#define RESOLVE_RTLD(sym_name)      0
 #define RESOLVE_MAP(strtab, ref)    resolve_map(strtab, ref)
 
 #include "dynamic_link.h"
@@ -617,7 +617,7 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
         ret = _DkStreamOpen(&cached_file, uri,
                             PAL_ACCESS_RDWR,
                             PAL_SHARE_OWNER_W|PAL_SHARE_OWNER_R,
-                            PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
+                            PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
 
         if (ret != -PAL_ERROR_STREAMEXIST)
             break;
@@ -1213,7 +1213,10 @@ static int relocate_elf_object (struct link_map * l)
 
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 {
-#ifdef DEBUG
+#ifndef DEBUG
+    __UNUSED(uri);
+    __UNUSED(start_addr);
+#else
     if (!strpartcmp_static(uri, "file:"))
         return;
 
@@ -1269,7 +1272,9 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 
 void DkDebugDetachBinary (PAL_PTR start_addr)
 {
-#ifdef DEBUG
+#ifndef DEBUG
+    __UNUSED(start_addr);
+#else
     for (struct link_map * l = loaded_maps; l; l = l->l_next)
         if (l->l_map_start == (ElfW(Addr)) start_addr) {
             _DkDebugDelMap(l);

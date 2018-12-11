@@ -74,11 +74,6 @@ out:
     return (mode & acc);
 }
 
-int handle_set_cloexec (PAL_HANDLE handle, bool enable)
-{
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
 int _DkStreamUnmap (void * addr, uint64_t size)

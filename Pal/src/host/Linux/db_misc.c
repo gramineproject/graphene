@@ -232,11 +232,17 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
 
 int _DkInstructionCacheFlush (const void * addr, int size)
 {
+    __UNUSED(addr);
+    __UNUSED(size);
+
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
                       unsigned int values[4])
 {
+    __UNUSED(leaf);
+    __UNUSED(subleaf);
+    __UNUSED(values);
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

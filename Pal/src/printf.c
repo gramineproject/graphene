@@ -39,6 +39,8 @@ struct printbuf {
 static int
 fputch(void * f, int ch, struct printbuf * b)
 {
+    __UNUSED(f);
+
     b->buf[b->idx++] = ch;
     if (b->idx == PRINTBUF_SIZE - 1) {
         _DkPrintConsole(b->buf, b->idx);

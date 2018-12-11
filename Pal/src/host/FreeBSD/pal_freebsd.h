@@ -130,8 +130,8 @@ static inline int HOST_FILE_OPEN (int access_type, int create_type,
         int options)
 {
     return ((access_type)|
-            (create_type & PAL_CREAT_TRY ? O_CREAT : 0) |
-            (create_type & PAL_CREAT_ALWAYS ? O_EXCL : 0) |
+            (create_type & PAL_CREATE_TRY ? O_CREAT : 0) |
+            (create_type & PAL_CREATE_ALWAYS ? O_EXCL : 0) |
             (options));
 }
 

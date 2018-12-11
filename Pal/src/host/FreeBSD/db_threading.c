@@ -46,7 +46,7 @@
    inside the current process. The arguments callback and param
    specify the starting function and parameters */
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * param, int flags)
+                     const void * param)
 {
    void * child_stack = NULL;
 

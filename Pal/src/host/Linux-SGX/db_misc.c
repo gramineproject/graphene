@@ -76,6 +76,9 @@ int _DkRandomBitsRead (void * buffer, int size)
 
 int _DkInstructionCacheFlush (const void * addr, int size)
 {
+    __UNUSED(addr);
+    __UNUSED(size);
+
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

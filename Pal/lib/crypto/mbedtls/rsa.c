@@ -645,6 +645,8 @@ int mbedtls_rsa_rsaes_pkcs1_v15_encrypt( mbedtls_rsa_context *ctx,
 }
 #endif /* MBEDTLS_PKCS1_V15 */
 
+
+#ifdef MBEDTLS_PKCS1
 /*
  * Add the message padding, then do an RSA operation
  */
@@ -673,6 +675,7 @@ int mbedtls_rsa_pkcs1_encrypt( mbedtls_rsa_context *ctx,
             return( MBEDTLS_ERR_RSA_INVALID_PADDING );
     }
 }
+#endif /* MBEDTLS_PKCS1 */
 
 #if defined(MBEDTLS_PKCS1_V21)
 /*
@@ -885,6 +888,7 @@ int mbedtls_rsa_rsaes_pkcs1_v15_decrypt( mbedtls_rsa_context *ctx,
 }
 #endif /* MBEDTLS_PKCS1_V15 */
 
+#ifdef MBEDTLS_PKCS1
 /*
  * Do an RSA operation, then remove the message padding
  */
@@ -915,6 +919,7 @@ int mbedtls_rsa_pkcs1_decrypt( mbedtls_rsa_context *ctx,
             return( MBEDTLS_ERR_RSA_INVALID_PADDING );
     }
 }
+#endif /* MBEDTLS_PKCS1 */
 
 #if defined(MBEDTLS_PKCS1_V21)
 /*

@@ -11,7 +11,7 @@ int main (int argc, char ** argv, char ** envp)
 
     // Hack to differentiate parent from child
     if (argc == 1) {
-        PAL_HANDLE child = DkProcessCreate(NULL, 0, args);
+        PAL_HANDLE child = DkProcessCreate(NULL, args);
 
         if (child)
             pal_printf("Create Process without Executable OK\n");

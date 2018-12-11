@@ -68,6 +68,9 @@ bool _DkCheckMemoryMappable (const void * addr, int size)
 
 int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int prot)
 {
+    if (!WITHIN_MASK(prot, PAL_PROT_MASK))
+        return -PAL_ERROR_INVAL;
+
     void * addr = *paddr, * mem;
 
     //int flags = HOST_FLAGS(alloc_type, prot|PAL_PROT_WRITECOPY);
@@ -123,6 +126,11 @@ int _DkVirtualMemoryFree (void * addr, uint64_t size)
 
 int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 {
+    static struct atomic_int at_cnt = {.counter = 0};
+
+    if (atomic_cmpxchg(&at_cnt, 0, 1) == 0)
+        SGX_DBG(DBG_M, "[Warning] DkVirtualMemoryProtect (0x%p, %ul, %d) is unimplemented",
+                addr, size, prot);
     return 0;
 }
 

@@ -477,12 +477,12 @@ ret_exception:
 
 int init_signal (void)
 {
-    DkSetExceptionHandler(&divzero_upcall,     PAL_EVENT_DIVZERO,      0);
-    DkSetExceptionHandler(&memfault_upcall,    PAL_EVENT_MEMFAULT,     0);
-    DkSetExceptionHandler(&illegal_upcall,     PAL_EVENT_ILLEGAL,      0);
-    DkSetExceptionHandler(&quit_upcall,        PAL_EVENT_QUIT,         0);
-    DkSetExceptionHandler(&suspend_upcall,     PAL_EVENT_SUSPEND,      0);
-    DkSetExceptionHandler(&resume_upcall,      PAL_EVENT_RESUME,       0);
+    DkSetExceptionHandler(&divzero_upcall,     PAL_EVENT_DIVZERO);
+    DkSetExceptionHandler(&memfault_upcall,    PAL_EVENT_MEMFAULT);
+    DkSetExceptionHandler(&illegal_upcall,     PAL_EVENT_ILLEGAL);
+    DkSetExceptionHandler(&quit_upcall,        PAL_EVENT_QUIT);
+    DkSetExceptionHandler(&suspend_upcall,     PAL_EVENT_SUSPEND);
+    DkSetExceptionHandler(&resume_upcall,      PAL_EVENT_RESUME);
     return 0;
 }
 

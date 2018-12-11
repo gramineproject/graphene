@@ -202,6 +202,8 @@ void sgx_entry_return (void);
 static void _DkTerminateSighandler (int signum, siginfo_t * info,
                                     struct ucontext * uc)
 {
+    __UNUSED(info);
+
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
 #if SGX_HAS_FSGSBASE == 0
@@ -225,6 +227,8 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 static void _DkResumeSighandler (int signum, siginfo_t * info,
                                  struct ucontext * uc)
 {
+    __UNUSED(info);
+
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
 #if SGX_HAS_FSGSBASE == 0

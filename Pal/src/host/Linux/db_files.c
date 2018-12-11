@@ -45,6 +45,9 @@ typedef __kernel_pid_t pid_t;
 static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
+    if (!strcmp_static(type, "file"))
+        return -PAL_ERROR_INVAL;
+
     /* try to do the real open */
     int ret = INLINE_SYSCALL(open, 3, uri,
                              HOST_ACCESS(access)|create|options|O_CLOEXEC,
@@ -225,6 +228,9 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 static int file_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
+    if (!strcmp_static(type, "file"))
+        return -PAL_ERROR_INVAL;
+
     struct stat stat_buf;
     /* try to do the real open */
     int ret = INLINE_SYSCALL(stat, 2, uri, &stat_buf);
@@ -268,6 +274,9 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
 static int file_rename (PAL_HANDLE handle, const char * type,
                         const char * uri)
 {
+    if (!strcmp_static(type, "file"))
+        return -PAL_ERROR_INVAL;
+
     int ret = INLINE_SYSCALL(rename, 2, handle->file.realpath, uri);
 
     if (IS_ERR(ret))
@@ -320,13 +329,18 @@ struct handle_ops file_ops = {
 static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
-    int ret;
+    if (!strcmp_static(type, "dir"))
+        return -PAL_ERROR_INVAL;
+    if (!WITHIN_MASK(access, PAL_ACCESS_MASK))
+        return -PAL_ERROR_INVAL;
 
-    if (create & PAL_CREAT_TRY) {
+    int ret = 0;
+
+    if (create & PAL_CREATE_TRY) {
         ret = INLINE_SYSCALL(mkdir, 2, uri, share);
 
         if (IS_ERR(ret) && ERRNO(ret) == EEXIST &&
-            create & PAL_CREAT_ALWAYS)
+            create & PAL_CREATE_ALWAYS)
             return -PAL_ERROR_STREAMEXIST;
     }
 
@@ -375,6 +389,9 @@ struct linux_dirent64 {
    need a 'write' operat4on. */
 int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count, void * buf)
 {
+    if (offset)
+        return -PAL_ERROR_INVAL;
+
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;
     void * end = (void *) handle->dir.end;
@@ -486,6 +503,9 @@ static int dir_delete (PAL_HANDLE handle, int access)
 static int dir_rename (PAL_HANDLE handle, const char * type,
                        const char * uri)
 {
+    if (!strcmp_static(type, "dir"))
+        return -PAL_ERROR_INVAL;
+
     int ret = INLINE_SYSCALL(rename, 2, handle->dir.realpath, uri);
 
     if (IS_ERR(ret))
