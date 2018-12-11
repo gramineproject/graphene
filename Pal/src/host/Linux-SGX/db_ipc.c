@@ -29,19 +29,19 @@
 #include "pal_internal.h"
 #include "pal_error.h"
 
-int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
-               int access, int share, int create, int options)
+int gipc_open (__UNUSED PAL_HANDLE * handle, __UNUSED const char * type, __UNUSED const char * uri,
+			__UNUSED int access, __UNUSED int share, __UNUSED int create, __UNUSED int options)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int gipc_close (PAL_HANDLE handle)
+int gipc_close (__UNUSED PAL_HANDLE handle)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 
 }
 
-const char * gipc_getrealpath (PAL_HANDLE handle)
+const char * gipc_getrealpath (__UNUSED PAL_HANDLE handle)
 {
     return NULL;
 }
@@ -52,19 +52,19 @@ struct handle_ops gipc_ops = {
         .close              = &gipc_close,
     };
 
-int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key)
+int _DkCreatePhysicalMemoryChannel (__UNUSED PAL_HANDLE * handle, __UNUSED uint64_t * key)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
-                             PAL_PTR * addrs, PAL_NUM * sizes, int flags)
+int _DkPhysicalMemoryCommit (__UNUSED PAL_HANDLE channel, __UNUSED int entries,
+						__UNUSED PAL_PTR * addrs, __UNUSED PAL_NUM * sizes, __UNUSED int flags)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
-                          PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots)
+int _DkPhysicalMemoryMap (__UNUSED PAL_HANDLE channel, __UNUSED int entries,
+						__UNUSED PAL_PTR * addrs, __UNUSED PAL_NUM * sizes, __UNUSED PAL_FLG * prots)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

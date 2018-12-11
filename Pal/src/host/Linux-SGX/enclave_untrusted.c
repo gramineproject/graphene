@@ -54,7 +54,7 @@ static inline void __free (void * addr, int size)
 
 static SLAB_MGR untrusted_slabmgr = NULL;
 
-void init_untrusted_slab_mgr (int pagesize)
+void init_untrusted_slab_mgr ()
 {
     if (untrusted_slabmgr)
         return;

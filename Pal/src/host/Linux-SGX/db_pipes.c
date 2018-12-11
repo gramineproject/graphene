@@ -166,7 +166,7 @@ static int pipe_private (PAL_HANDLE * handle, int options)
    types: pipe and pipe.srv. They behave pretty much the same,
    except they are two ends of the pipe. */
 static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
-                      int access, int share, int create, int options)
+					__UNUSED int access, __UNUSED int share, __UNUSED int create, int options)
 {
     options &= PAL_OPTION_MASK;
 
@@ -189,7 +189,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of pipe stream. offset does not apply here. */
-static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t pipe_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
                           void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
@@ -214,7 +214,7 @@ static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 /* 'write' operation of pipe stream. offset does not apply here. */
-static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t pipe_write (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
                            const void * buffer)
 {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&

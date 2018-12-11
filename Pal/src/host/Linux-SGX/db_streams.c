@@ -74,7 +74,7 @@ out:
     return (mode & acc);
 }
 
-int handle_set_cloexec (PAL_HANDLE handle, bool enable)
+int handle_set_cloexec (__UNUSED PAL_HANDLE handle, __UNUSED bool enable)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

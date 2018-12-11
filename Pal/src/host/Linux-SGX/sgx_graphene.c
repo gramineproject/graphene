@@ -92,7 +92,7 @@ struct printbuf {
 };
 
 static int
-fputch(void * f, int ch, struct printbuf * b)
+fputch(__UNUSED void * f, int ch, struct printbuf * b)
 {
     b->buf[b->idx++] = ch;
     if (b->idx == PRINTBUF_SIZE - 1) {

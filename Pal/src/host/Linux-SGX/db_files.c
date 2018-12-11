@@ -44,7 +44,7 @@ typedef __kernel_pid_t pid_t;
 #include "enclave_pages.h"
 
 /* 'open' operation for file streams */
-static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
+static int file_open (PAL_HANDLE * handle, __UNUSED const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
     /* try to do the real open */
@@ -299,7 +299,7 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 }
 
 /* 'attrquery' operation for file streams */
-static int file_attrquery (const char * type, const char * uri,
+static int file_attrquery (__UNUSED const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
     /* try to do the real open */
@@ -345,7 +345,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
     return 0;
 }
 
-static int file_rename (PAL_HANDLE handle, const char * type,
+static int file_rename (PAL_HANDLE handle, __UNUSED const char * type,
                         const char * uri)
 {
     int ret = ocall_rename(handle->file.realpath, uri);
@@ -398,8 +398,8 @@ struct handle_ops file_ops = {
 /* 'open' operation for directory stream. Directory stream does not have a
    specific type prefix, its URI looks the same file streams, plus it
    ended with slashes. dir_open will be called by file_open. */
-static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
-                     int access, int share, int create, int options)
+static int dir_open (PAL_HANDLE * handle, __UNUSED const char * type, const char * uri,
+				__UNUSED int access, int share, int create, int options)
 {
     int ret;
 
@@ -433,7 +433,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+static int64_t dir_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t count,
                          void * buf)
 {
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
@@ -536,7 +536,7 @@ static int dir_delete (PAL_HANDLE handle, int access)
     return ocall_delete(handle->dir.realpath);
 }
 
-static int dir_rename (PAL_HANDLE handle, const char * type,
+static int dir_rename (PAL_HANDLE handle, __UNUSED const char * type,
                        const char * uri)
 {
     int ret = ocall_rename(handle->dir.realpath, uri);

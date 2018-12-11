@@ -74,7 +74,7 @@ int _DkRandomBitsRead (void * buffer, int size)
     return i;
 }
 
-int _DkInstructionCacheFlush (const void * addr, int size)
+int _DkInstructionCacheFlush (__UNUSED const void * addr, __UNUSED int size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

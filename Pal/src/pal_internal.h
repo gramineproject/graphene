@@ -37,6 +37,9 @@
 #define PAL_FILE(name) XSTRINGIFY(PAL_DIR) "/" name
 #define RUNTIME_FILE(name) XSTRINGIFY(RUNTIME_DIR) "/" name
 
+/* Turning off unused-parameter warning for keeping function signatures */
+#define __UNUSED __attribute__((unused))
+
 /* handle_ops is the operators provided for each handler type. They are
    mostly used by Stream-related PAL calls, but can also be used by
    some others in special ways. */

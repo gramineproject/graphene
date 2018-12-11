@@ -39,6 +39,9 @@
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
+/* Turning off unused-parameter warning for keeping function signatures */
+#define __UNUSED __attribute__((unused))
+
 int printf(const char * fmt, ...);
 int snprintf(char * str, int size, const char * fmt, ...);
 

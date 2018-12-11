@@ -432,7 +432,7 @@ static inline void * slab_alloc_debug (SLAB_MGR mgr, int size,
 #endif
 
 // Returns user buffer size (i.e. excluding size of control structures).
-static inline size_t slab_get_buf_size(SLAB_MGR mgr, const void * ptr)
+static inline size_t slab_get_buf_size(__attribute__((unused)) SLAB_MGR mgr, const void * ptr)
 {
     assert(ptr);
 
