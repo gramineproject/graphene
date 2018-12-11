@@ -392,7 +392,7 @@ BEGIN_RS_FUNC(dentry)
         listp_add_tail(dent, &dent->parent->children, siblings);
     }
 
-    DEBUG_RS("hash=%08x,path=%s,fs=%s", dent->rel_path.hash,
+    DEBUG_RS("hash=%08lx,path=%s,fs=%s", dent->rel_path.hash,
              dentry_get_path(dent, true, NULL),
              dent->fs ? qstrgetstr(&dent->fs->path) : NULL);
 }
