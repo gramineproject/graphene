@@ -509,7 +509,7 @@ void parse_syscall_before (int sysno, const char * name, int nr, ...)
 
     PUTCH(')');
 dotdotdot:
-    PRINTF(" ...\n", name);
+    PRINTF(" ... %s\n", name);
     va_end(ap);
 }
 
@@ -557,7 +557,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...)
 
     if (is_pointer(ret_type)) {
         if (ret_ptr < -4095L)
-            PRINTF(") = %p\n", ret_ptr);
+            PRINTF(") = %08lx\n", ret_ptr);
         else
             PRINTF(") = %ld\n", (long) ret_ptr);
     } else {
@@ -870,7 +870,7 @@ static void parse_timespec (const char * type, va_list * ap)
         return;
     }
 
-    PRINTF("[%ld,%lld]", tv->tv_sec, tv->tv_nsec);
+    PRINTF("[%ld,%ld]", tv->tv_sec, tv->tv_nsec);
 }
 
 static void parse_sockaddr (const char * type, va_list *ap)

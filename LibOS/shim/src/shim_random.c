@@ -37,7 +37,7 @@ int init_randgen (void)
     if (DkRandomBitsRead (&randval, sizeof(randval)) < sizeof(randval))
         return -EACCES;
 
-    debug("initial random value: %08llx\n", randval);
+    debug("initial random value: %08lx\n", randval);
     create_lock(randgen_lock);
     return 0;
 }

@@ -89,7 +89,7 @@ void * __system_malloc (size_t size)
                 continue;
             }
 
-            debug("failed to allocate memory (%d)\n", -PAL_ERRNO);
+            debug("failed to allocate memory (%ld)\n", -PAL_ERRNO);
             bkeep_munmap(addr, alloc_size, flags);
             return NULL;
         }

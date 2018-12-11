@@ -905,7 +905,7 @@ static int __load_msg_persist (struct shim_msg_handle * msgq, bool readmsg)
         struct msg_backup * m = mem;
         mem += sizeof(struct msg_backup) + m->size;
 
-        debug("load msg: type=%d, size=%d\n", m->type, m->size);
+        debug("load msg: type=%ld, size=%d\n", m->type, m->size);
 
         if (!mtype || mtype->type != m->type)
             mtype = __add_msg_type(m->type, &msgq->types, &msgq->ntypes,
