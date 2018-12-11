@@ -35,7 +35,7 @@ void init_pages (void)
     heap_base = pal_sec.heap_min;
     heap_size = pal_sec.heap_max - pal_sec.heap_min;
 
-    SGX_DBG(DBG_M, "available heap size: %llu M\n",
+    SGX_DBG(DBG_M, "available heap size: %lu M\n",
            (heap_size - pal_sec.exec_size) / 1024 / 1024);
 
     if (pal_sec.exec_size) {
@@ -77,7 +77,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
     if (!size)
         return NULL;
 
-    SGX_DBG(DBG_M, "*** get_reserved_pages: heap_base %p, heap_size %llu, limit %p ***\n", heap_base, heap_size, heap_base + heap_size);
+    SGX_DBG(DBG_M, "*** get_reserved_pages: heap_base %p, heap_size %lu, limit %p ***\n", heap_base, heap_size, heap_base + heap_size);
     if (addr >= heap_base + heap_size) {
         SGX_DBG(DBG_E, "*** allocating out of heap: %p ***\n", addr);
         return NULL;
@@ -89,7 +89,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
     if ((uintptr_t) addr & (pgsz - 1))
         addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
 
-    SGX_DBG(DBG_M, "allocate %d bytes at %p\n", size, addr);
+    SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
 
     _DkInternalLock(&heap_vma_lock);
 
@@ -135,7 +135,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
 
     _DkInternalUnlock(&heap_vma_lock);
 
-    SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %llu) ***\n", size);
+    SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %lu) ***\n", size);
     asm volatile("int $3");
     return NULL;
 
@@ -256,7 +256,7 @@ void free_pages(void * addr, uint64_t size)
 {
     void * addr_top = addr + size;
 
-    SGX_DBG(DBG_M, "free_pages: trying to free %p %llu\n", addr, size);
+    SGX_DBG(DBG_M, "free_pages: trying to free %p %lu\n", addr, size);
     
     if (!addr || !size)
         return;
@@ -276,7 +276,7 @@ void free_pages(void * addr, uint64_t size)
     if (addr < heap_base)
         addr = heap_base;
 
-    SGX_DBG(DBG_M, "free %d bytes at %p\n", size, addr);
+    SGX_DBG(DBG_M, "free %ld bytes at %p\n", size, addr);
 
     _DkInternalLock(&heap_vma_lock);
 
@@ -317,6 +317,6 @@ void print_alloced_pages (void)
     unsigned int max = atomic_read(&max_alloced_pages);
 
     printf("                >>>>>>>> "
-           "Enclave heap size =         %10ld pages / %10ld pages\n",
+           "Enclave heap size =         %10d pages / %10ld pages\n",
            val > max ? val : max, heap_size / pgsz);
 }

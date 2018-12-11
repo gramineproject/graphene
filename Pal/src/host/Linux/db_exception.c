@@ -185,7 +185,7 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
         }
 
         printf("*** An unexpected %s occurred inside PAL. Exiting the thread. "
-               "(PID = %d, TID = %d, RIP = +%p) ***\n",
+               "(PID = %d, TID = %d, RIP = +%08lx) ***\n",
                name, pid, tid, rip - (uintptr_t) TEXT_START);
 
 #ifdef DEBUG

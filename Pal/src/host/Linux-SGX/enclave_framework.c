@@ -56,7 +56,7 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
         return -PAL_ERROR_DENIED;
 
     SGX_DBG(DBG_S, "Generated report:\n");
-    SGX_DBG(DBG_S, "    cpusvn:           %08x %08x\n", report->cpusvn[0],
+    SGX_DBG(DBG_S, "    cpusvn:           %08lx %08lx\n", report->cpusvn[0],
                                                 report->cpusvn[1]);
     SGX_DBG(DBG_S, "    mrenclave:        %s\n",        alloca_bytes2hexstr(report->mrenclave));
     SGX_DBG(DBG_S, "    mrsigner:         %s\n",        alloca_bytes2hexstr(report->mrsigner));
@@ -488,7 +488,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
          */
         if (memcmp(s, hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. Does not match with MAC"
-                    " at chunk starting at %llu-%llu.\n",
+                    " at chunk starting at %lu-%lu.\n",
                     path, checking, checking_end);
             return -PAL_ERROR_DENIED;
         }
@@ -571,7 +571,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
         }
 
         new->index = (++trusted_file_indexes);
-        SGX_DBG(DBG_S, "trusted: [%d] %s %s\n", new->index,
+        SGX_DBG(DBG_S, "trusted: [%ld] %s %s\n", new->index,
                 checksum_text, new->uri);
     } else {
         memset(&new->checksum, 0, sizeof(sgx_checksum_t));
