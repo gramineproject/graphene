@@ -37,7 +37,7 @@ int main (int argc, char ** argv)
         return -1;
     }
 
-    thd1 = DkThreadCreate(&thread_1, 0, 0);
+    thd1 = DkThreadCreate(&thread_1, 0);
 
     if (thd1 == NULL) {
         pal_printf("DkThreadCreate failed\n");

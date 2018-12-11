@@ -68,6 +68,9 @@ typedef ptrdiff_t ssize_t;
 
 #define static_strlen(str) (sizeof(str) - 1)
 
+/* Turning off unused-parameter warning for keeping function signatures */
+#define __UNUSED(x) do { (void)(x); } while (0)
+
 /* Libc functions */
 
 /* Libc String functions string.h/stdlib.h */

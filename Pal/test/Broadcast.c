@@ -18,7 +18,7 @@ int main (int argc, char ** argv)
 
         for (i = 0 ; i < 4 ; i++) {
             id[0] = '0' + i + 1;
-            proc[i] = DkProcessCreate ("file:Broadcast", 0, newargs);
+            proc[i] = DkProcessCreate ("file:Broadcast", newargs);
         }
 
         DkThreadDelayExecution(1000000);

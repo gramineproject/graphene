@@ -116,7 +116,7 @@ int main (int argc, char ** argv, char ** envp)
     PAL_HANDLE file4 = DkStreamOpen("file:file_nonexist.tmp",
                                     PAL_ACCESS_RDWR,
                                     PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
-                                    PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
+                                    PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
     if (file4)
         pal_printf("File Creation Test 1 OK\n");
 
@@ -124,7 +124,7 @@ int main (int argc, char ** argv, char ** envp)
     PAL_HANDLE file5 = DkStreamOpen("file:file_nonexist.tmp",
                                     PAL_ACCESS_RDWR,
                                     PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
-                                    PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
+                                    PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
     if (file5) {
         DkObjectClose(file5);
     } else {
@@ -134,7 +134,7 @@ int main (int argc, char ** argv, char ** envp)
     PAL_HANDLE file6 = DkStreamOpen("file:file_nonexist.tmp",
                                     PAL_ACCESS_RDWR,
                                     PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
-                                    PAL_CREAT_TRY, 0);
+                                    PAL_CREATE_TRY, 0);
     if (file6) {
         pal_printf("File Creation Test 3 OK\n");
         DkObjectClose(file6);

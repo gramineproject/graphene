@@ -291,6 +291,8 @@ struct sprintbuf {
 static int
 sprintputch(void * f, int ch, struct sprintbuf * b)
 {
+    __UNUSED(f);
+
 	if (b->cnt >= b->max)
 		return -1;
 

@@ -197,6 +197,7 @@ static int create_data (struct shim_dentry * dent, const char * uri, int len)
     assert(mdata);
     data->type = (dent->state & DENTRY_ISDIRECTORY) ?
                  FILE_DIR : mdata->base_type;
+    data->mode = NO_MODE;
 
     if (uri) {
         qstrsetstr(&data->host_uri, uri, len);
@@ -400,7 +401,7 @@ static int __chroot_open (struct shim_dentry * dent,
     int version = atomic_read(&data->version);
     int oldmode = flags & O_ACCMODE;
     int accmode = oldmode;
-    int creat   = flags & PAL_CREAT_MASK;
+    int creat   = flags & PAL_CREATE_MASK;
     int option  = flags & PAL_OPTION_MASK;
 
     if ((data->type == FILE_REGULAR || data->type == FILE_UNKNOWN)
@@ -451,6 +452,13 @@ static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
     struct shim_file_data * data;
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
+
+    if (dent->mode == NO_MODE) {
+        lock(data->lock);
+        ret = __query_attr(dent, data, NULL);
+        dent->mode = data->mode;
+        unlock(data->lock);
+    }
 
     if ((ret = __chroot_open(dent, NULL, 0, flags, dent->mode, hdl, data)) < 0)
         return ret;
@@ -806,7 +814,7 @@ static int chroot_read (struct shim_handle * hdl, void * buf,
     ret = DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0) ? :
            (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ? 0 : -PAL_ERRNO);
 
-    if (ret > 0)
+    if (ret > 0 && file->type != FILE_TTY)
         file->marker += ret;
 
     unlock(hdl->lock);
@@ -847,7 +855,7 @@ static int chroot_write (struct shim_handle * hdl, const void * buf,
     ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL) ? :
           -PAL_ERRNO;
 
-    if (ret > 0)
+    if (ret > 0 && file->type != FILE_TTY)
         file->marker += ret;
 
     unlock(hdl->lock);

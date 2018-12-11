@@ -48,7 +48,7 @@ DkCreatePhysicalMemoryChannel (PAL_NUM * key)
 
 PAL_NUM
 DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
-                        PAL_NUM * sizes, PAL_FLG flags)
+                        PAL_NUM * sizes)
 {
     ENTER_PAL_CALL(DkPhysicalMemoryCommit);
 
@@ -57,7 +57,7 @@ DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    int ret = _DkPhysicalMemoryCommit(channel, entries, addrs, sizes, flags);
+    int ret = _DkPhysicalMemoryCommit(channel, entries, addrs, sizes);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

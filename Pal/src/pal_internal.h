@@ -298,13 +298,13 @@ PAL_HANDLE _DkBroadcastStreamOpen (void);
 
 /* DkProcess and DkThread calls */
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * parem, int flags);
+                     const void * param);
 void _DkThreadExit (void);
 int _DkThreadDelayExecution (unsigned long * duration);
 void _DkThreadYieldExecution (void);
 int _DkThreadResume (PAL_HANDLE threadHandle);
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
-                      int flags, const char ** args);
+                      const char ** args);
 void _DkProcessExit (int exitCode);
 int _DkProcessSandboxCreate (const char * manifest, int flags);
 
@@ -350,7 +350,7 @@ int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);
 int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key);
 int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
-                             PAL_PTR * addrs, PAL_NUM * sizes, int flags);
+                             PAL_PTR * addrs, PAL_NUM * sizes);
 int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
                           PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);

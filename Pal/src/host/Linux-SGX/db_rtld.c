@@ -171,10 +171,3 @@ void setup_pal_map (struct link_map * pal_map)
     pal_map->l_prev = pal_map->l_next = NULL;
     loaded_maps = pal_map;
 }
-
-ElfW(Addr) resolve_rtld (const char * sym_name)
-{
-    /* We are not using this, because in Linux we can rely on
-       rtld_map to directly lookup symbols */
-    return 0;
-}

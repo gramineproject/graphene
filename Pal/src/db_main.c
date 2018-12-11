@@ -202,7 +202,7 @@ static void set_debug_type (void)
         ret = _DkStreamOpen(&handle, cfgbuf,
                             PAL_ACCESS_RDWR,
                             PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
-                            PAL_CREAT_TRY, 0);
+                            PAL_CREATE_TRY, 0);
         goto out;
     }
 
@@ -221,7 +221,7 @@ out:
 static int loader_filter (const char * key, int len)
 {
     /* try to do this as fast as possible */
-    return (key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
+    return (len > 7 && key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
             key[4] == 'e' && key[5] == 'r' && key[6] == '.') ? 0 : 1;
 }
 

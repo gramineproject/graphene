@@ -29,6 +29,12 @@
 #include "pal_internal.h"
 #include "pal_error.h"
 
+/* Mute warning for the file with all unimplemented functions
+ * Remove the following pragma when implementing the functions
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
                int access, int share, int create, int options)
 {
@@ -58,7 +64,7 @@ int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key)
 }
 
 int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
-                             PAL_PTR * addrs, PAL_NUM * sizes, int flags)
+                             PAL_PTR * addrs, PAL_NUM * sizes)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -68,3 +74,5 @@ int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+#pragma GCC diagnostic pop

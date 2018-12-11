@@ -27,7 +27,7 @@ int main (void)
     pal_printf("Enter Parent Thread\n");
 
     parent_thread = pal_control.first_thread;
-    child_thread = DkThreadCreate(&child, NULL, 0);
+    child_thread = DkThreadCreate(&child, NULL);
 
     if (child_thread == NULL) {
         pal_printf("DkThreadCreate failed\n");
