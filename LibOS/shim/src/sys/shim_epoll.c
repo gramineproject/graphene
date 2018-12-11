@@ -411,7 +411,7 @@ BEGIN_CP_FUNC(epoll_fd)
     LISTP_TYPE(shim_epoll_fd) * new_list = (LISTP_TYPE(shim_epoll_fd) *) objp;
     struct shim_epoll_fd * epoll_fd;
 
-    debug("checkpoint epoll: %p -> %p (base = %p)\n", old_list, new_list, base);
+    debug("checkpoint epoll: %p -> %p (base = 0x%08lx)\n", old_list, new_list, base);
 
     INIT_LISTP(new_list);
 

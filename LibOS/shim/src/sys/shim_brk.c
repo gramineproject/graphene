@@ -223,7 +223,7 @@ out:
 BEGIN_CP_FUNC(brk)
 {
     if (region.brk_start) {
-        ADD_CP_FUNC_ENTRY(region.brk_start);
+        ADD_CP_FUNC_ENTRY((ptr_t)region.brk_start);
         ADD_CP_ENTRY(ADDR, region.brk_current);
         ADD_CP_ENTRY(SIZE, region.brk_end - region.brk_start);
         assert(brk_max_size);

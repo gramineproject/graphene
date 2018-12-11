@@ -411,7 +411,7 @@ int ipc_sysv_msgmov_send (struct shim_ipc_port * port, IDTYPE dest,
     if (nscores)
         memcpy(msgin->scores, scores, sizeof(struct sysv_score) * nscores);
 
-    debug("ipc send to %u: IPC_SYSV_MSGMOV(%ld)\n", dest, msgid);
+    debug("ipc send to %u: IPC_SYSV_MSGMOV(%d)\n", dest, msgid);
     int ret = send_ipc_message(msg, port);
     SAVE_PROFILE_INTERVAL(ipc_sysv_msgmov_send);
     return ret;
@@ -424,7 +424,7 @@ int ipc_sysv_msgmov_callback (IPC_CALLBACK_ARGS)
     struct shim_ipc_sysv_msgmov * msgin =
                 (struct shim_ipc_sysv_msgmov *) &msg->msg;
 
-    debug("ipc callback from %u: IPC_SYSV_MSGMOV(%ld)\n", msg->src,
+    debug("ipc callback from %u: IPC_SYSV_MSGMOV(%d)\n", msg->src,
           msgin->msgid);
 
     struct shim_msg_handle * msgq = get_msg_handle_by_id(msgin->msgid);
@@ -794,7 +794,7 @@ int ipc_sysv_semmov_send (struct shim_ipc_port * port, IDTYPE dest,
            sizeof(struct sem_client_backup) * nsrcs,
            scores, sizeof(struct sysv_score) * nscores);
 
-    debug("ipc send to %u: IPC_SYSV_SEMMOV(%ld)\n", semid);
+    debug("ipc send to : IPC_SYSV_SEMMOV(%d)\n", semid);
 
     int ret = send_ipc_message(msg, port);
     SAVE_PROFILE_INTERVAL(ipc_sysv_semmov_send);
@@ -808,7 +808,7 @@ int ipc_sysv_semmov_callback (IPC_CALLBACK_ARGS)
     struct shim_ipc_sysv_semmov * msgin =
                 (struct shim_ipc_sysv_semmov *) &msg->msg;
 
-    debug("ipc callback from %u: IPC_SYSV_SEMMOV(%ld)\n", msg->src,
+    debug("ipc callback from %u: IPC_SYSV_SEMMOV(%d)\n", msg->src,
           msgin->semid);
 
     struct sem_backup * sems = msgin->sems;
@@ -1020,7 +1020,7 @@ int __balance_sysv_score (struct sysv_balance_policy * policy,
 
         s->score = (s->score >= policy->score_decay) ?
                     s->score - policy->score_decay : 0;
-        debug("balance: %u => %d\n", s->vmid, s->score);
+        debug("balance: %u => %ld\n", s->vmid, s->score);
     }
 
     if (!chosen) {
@@ -1033,7 +1033,7 @@ int __balance_sysv_score (struct sysv_balance_policy * policy,
     if (chosen->score > policy->score_max)
         chosen->score = policy->score_max;
 
-    debug("balance: %u => %d\n", chosen->vmid, chosen->score);
+    debug("balance: %u => %ld\n", chosen->vmid, chosen->score);
 
     if (!src || chosen != highest ||
         chosen->score < (owner ? owner->score : 0) + policy->balance_threshold)

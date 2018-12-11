@@ -232,7 +232,7 @@ BEGIN_CP_FUNC(migratable)
     DO_CP_SIZE(memory, &__migratable, &__migratable_end - &__migratable,
                &mem_entry);
 
-    struct shim_cp_entry * entry = ADD_CP_FUNC_ENTRY(0);
+    struct shim_cp_entry * entry = ADD_CP_FUNC_ENTRY(0UL);
     mem_entry->paddr = (void **) &entry->cp_un.cp_val;
 }
 END_CP_FUNC(migratable)
@@ -564,10 +564,10 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
     int ret = 0;
 
     if (type)
-        debug("restore checkpoint at %p rebased from %p (%s only)\n",
+        debug("restore checkpoint at 0x%08lx rebased from %p (%s only)\n",
               base, cphdr->addr, CP_FUNC_NAME(type));
     else
-        debug("restore checkpoint at %p rebased from %p\n",
+        debug("restore checkpoint at 0x%08lx rebased from %p\n",
               base, cphdr->addr);
 
     if (memhdr && memhdr->nentries) {
@@ -624,7 +624,7 @@ next:
         cpent = NEXT_CP_ENTRY();
     }
 
-    debug("successfully restore checkpoint loaded at %p - %p\n",
+    debug("successfully restore checkpoint loaded at 0x%08lx - 0x%08lx\n",
           base, base + cphdr->size);
 
     return 0;
@@ -996,7 +996,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     unsigned long checkpoint_size = cpstore.offset + cpstore.mem_size;
 
     /* Checkpoint data created. */
-    debug("checkpoint of %u bytes created, %lu microsecond is spent.\n",
+    debug("checkpoint of %lu bytes created, %lu microsecond is spent.\n",
           checkpoint_size, checkpoint_time);
 
     hdr.checkpoint.hdr.addr = (void *) cpstore.base;

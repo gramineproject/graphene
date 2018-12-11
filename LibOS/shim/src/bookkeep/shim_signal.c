@@ -54,7 +54,7 @@ allocate_signal_log (struct shim_thread * thread, int sig)
         tail = (tail == MAX_SIGNAL_LOG - 1) ? 0 : tail + 1;
     } while (atomic_cmpxchg(&log->tail, old_tail, tail) == tail);
 
-    debug("signal_logs[%d]: head=%d, tail=%d (counter = %d)\n", sig - 1,
+    debug("signal_logs[%d]: head=%d, tail=%d (counter = %ld)\n", sig - 1,
           head, tail, thread->has_signal.counter + 1);
 
     atomic_inc(&thread->has_signal);
@@ -269,7 +269,7 @@ internal:
     }
 
     if (context)
-        debug("memory fault at %p (IP = %p)\n", arg, context->IP);
+        debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", arg, context->IP);
 
     struct shim_vma_val vma;
     int signo = SIGSEGV;
@@ -420,7 +420,7 @@ internal:
     if (!(lookup_vma((void *) arg, &vma)) &&
         !(vma.flags & VMA_INTERNAL)) {
         if (context)
-            debug("illegal instruction at %p\n", context->IP);
+            debug("illegal instruction at 0x%08lx\n", context->IP);
 
         deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
     } else {
@@ -627,7 +627,7 @@ void handle_signal (bool delayed_only)
     __disable_preempt(tcb);
 
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
+        debug("signal delayed (%ld)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
         tcb->context.preempt |= SIGNAL_DELAYED;
         goto out;
     }
