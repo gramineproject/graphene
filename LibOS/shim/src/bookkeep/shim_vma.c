@@ -1132,8 +1132,8 @@ BEGIN_RS_FUNC(vma)
 
     SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
 
-    DEBUG_RS("vma: %p-%p flags %x prot %p\n", vma->addr, vma->addr + vma->length,
-             vma->flags, vma->prot);
+    DEBUG_RS("vma: %p-%p flags %x prot 0x%08x\n",
+             vma->addr, vma->addr + vma->length, vma->flags, vma->prot);
 
     if (!(vma->flags & VMA_UNMAPPED)) {
         if (vma->file) {
@@ -1186,12 +1186,12 @@ BEGIN_RS_FUNC(vma)
         get_handle(vma->file);
 
     if (vma->file)
-        DEBUG_RS("%p-%p,size=%d,prot=%08x,flags=%08x,off=%d,path=%s,uri=%s",
+        DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld,path=%s,uri=%s",
                  vma->addr, vma->addr + vma->length, vma->length,
                  vma->prot, vma->flags, vma->offset,
                  qstrgetstr(&vma->file->path), qstrgetstr(&vma->file->uri));
     else
-        DEBUG_RS("%p-%p,size=%d,prot=%08x,flags=%08x,off=%d",
+        DEBUG_RS("%p-%p,size=%ld,prot=%08x,flags=%08x,off=%ld",
                  vma->addr, vma->addr + vma->length, vma->length,
                  vma->prot, vma->flags, vma->offset);
 }
@@ -1251,7 +1251,7 @@ void debug_print_vma_list (void)
             }
         }
 
-        sys_printf("[%p-%p] prot=%08x flags=%08x%s%s offset=%d%s%s%s%s\n",
+        sys_printf("[%p-%p] prot=%08x flags=%08x%s%s offset=%ld%s%s%s%s\n",
                    vma->start, vma->end,
                    vma->prot,
                    vma->flags & ~(VMA_INTERNAL|VMA_UNMAPPED|VMA_TAINTED|VMA_CP),

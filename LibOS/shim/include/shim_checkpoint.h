@@ -139,7 +139,7 @@ struct shim_cp_store {
 };
 
 #define CP_FUNC_ARGS                                    \
-    struct shim_cp_store * store, void * obj, int size, void ** objp
+    struct shim_cp_store * store, void * obj, size_t size, void ** objp
 
 #define RS_FUNC_ARGS                                    \
     struct shim_cp_entry * entry, ptr_t base, ptr_t * offset, long rebase
@@ -197,13 +197,13 @@ enum {
         tmp->cp_type = CP_##type;                                   \
         tmp->cp_un.cp_val = (ptr_t) (value);                        \
         if (DEBUG_CHECKPOINT)                                       \
-            debug("ADD CP_" #type "(%p) >%d\n", tmp->cp_un.cp_val,  \
+            debug("ADD CP_" #type "(0x%08lx) >%ld\n", tmp->cp_un.cp_val, \
                   store->offset);                                   \
     tmp; })
 
 #define ADD_CP_OFFSET(size)                                         \
     ({                                                              \
-        int _size = ((size) + sizeof(void *) - 1) &                 \
+        size_t _size = ((size) + sizeof(void *) - 1) &              \
                     ~(sizeof(void *) - 1);                          \
         struct shim_cp_entry * oob =                                \
                 (void *) base +                                     \
@@ -212,7 +212,7 @@ enum {
         oob->cp_un.cp_val = (ptr_t) _size;                          \
         ptr_t _off = (ptr_t) __ADD_CP_OFFSET(_size);                \
         if (DEBUG_CHECKPOINT)                                       \
-            debug("ADD OFFSET(%d) >%d\n", (size), store->offset);   \
+            debug("ADD OFFSET(%lu) >%ld\n", (size), store->offset); \
     _off; })
 
 #define ADD_CP_FUNC_ENTRY(value)                                    \
@@ -223,7 +223,7 @@ enum {
         tmp->cp_type = CP_FUNC_TYPE;                                \
         tmp->cp_un.cp_val = (ptr_t) (value);                        \
         if (DEBUG_CHECKPOINT)                                       \
-            debug("ADD %s(%p) >%d\n", CP_FUNC_NAME, (value),        \
+            debug("ADD %s(0x%08lx) >%ld\n", CP_FUNC_NAME, (value),  \
                   store->offset);                                   \
     tmp; })
 
@@ -371,7 +371,7 @@ get_cp_map_entry (void * map, void * addr, bool create);
 
 #if DEBUG_RESUME == 1
 # define DEBUG_RS(fmt, ...)                                              \
-    debug("GET %s(%p): " fmt "\n", CP_FUNC_NAME, entry->cp_un.cp_val,    \
+    debug("GET %s(0x%08lx): " fmt "\n", CP_FUNC_NAME, entry->cp_un.cp_val, \
           ##__VA_ARGS__)
 #else
 # define DEBUG_RS(...) do {} while (0)

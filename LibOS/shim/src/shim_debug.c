@@ -148,7 +148,7 @@ BEGIN_CP_FUNC(gdb_map)
         memcpy(newm, m, sizeof(struct gdb_link_map));
         newm->l_prev = newm->l_next = NULL;
 
-        int len = strlen(newm->l_name);
+        size_t len = strlen(newm->l_name);
         newm->l_name = (char *) (base + ADD_CP_OFFSET(len + 1));
         memcpy(newm->l_name, m->l_name, len + 1);
 

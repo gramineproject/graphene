@@ -64,7 +64,7 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
     unsigned long install_time = DkSystemTimeQuery();
     int64_t rv = 0;
     
-    debug("install async event at %llu\n", install_time);
+    debug("install async event at %lu\n", install_time);
 
     event->callback     = callback;
     event->arg          = arg;
@@ -194,7 +194,7 @@ static void shim_async_helper (void * arg)
         
         if (!polled) {
             if (next_event) {
-                debug("async event trigger at %llu\n",
+                debug("async event trigger at %lu\n",
                       next_event->expire_time);
 
                 next_event->callback(next_event->caller, next_event->arg);
@@ -226,7 +226,7 @@ update_status:
 
         listp_for_each_entry_safe(tmp, n, &async_list, list) {
             if (tmp->object == polled) {
-                debug("async event trigger at %llu\n",
+                debug("async event trigger at %lu\n",
                       latest_time);
                 unlock(async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
@@ -256,7 +256,7 @@ update_list:
                     break;
                 }
 
-                debug("async event trigger at %llu (expire at %llu)\n",
+                debug("async event trigger at %lu (expire at %lu)\n",
                       latest_time, tmp->expire_time);
                 listp_del(tmp, &async_list, list);
                 unlock(async_helper_lock);
