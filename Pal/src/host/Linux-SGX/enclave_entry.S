@@ -284,7 +284,7 @@ sgx_ocall:
 	push %rax
 	mov %rsi, %rdi
 	mov %rsp, %rsi
-	call _DkHandleExternelEvent
+	call _DkHandleExternalEvent
 	pop %rax
 .Lno_external_event:
 

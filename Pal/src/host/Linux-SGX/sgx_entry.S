@@ -90,7 +90,7 @@ sgx_entry:
 sgx_entry_return:
 	# return to enclave, arguments:
 	# RDI - return value
-	# RSI - externel event
+	# RSI - external event
 	jmp .Ldo_ecall
 
 /*

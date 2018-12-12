@@ -340,7 +340,7 @@ void _DkExceptionReturn (void * event)
     restore_sgx_context(&uc);
 }
 
-void _DkHandleExternelEvent (PAL_NUM event, sgx_context_t * uc)
+void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc)
 {
     struct pal_frame * frame = get_frame(uc);
 
@@ -351,8 +351,8 @@ void _DkHandleExternelEvent (PAL_NUM event, sgx_context_t * uc)
     if (!frame) {
         frame = __alloca(sizeof(struct pal_frame));
         frame->identifier = PAL_FRAME_IDENTIFIER;
-        frame->func = &_DkHandleExternelEvent;
-        frame->funcname = "_DkHandleExternelEvent";
+        frame->func = &_DkHandleExternalEvent;
+        frame->funcname = "_DkHandleExternalEvent";
         arch_store_frame(&frame->arch);
     }
 
