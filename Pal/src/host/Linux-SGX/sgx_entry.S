@@ -92,35 +92,3 @@ sgx_entry_return:
 	# RDI - return value
 	# RSI - externel event
 	jmp .Ldo_ecall
-
-/*
- * rdfsbase:
- * read FS register (allowed in enclaves).
- */
-	.global rdfsbase
-	.type rdfsbase, @function
-
-rdfsbase:
-	.cfi_startproc
-
-	.byte 0xf3, 0x48, 0x0f, 0xae, 0xc0 /* RDFSBASE %RAX */
-	ret
-
-	.cfi_endproc
-	.size rdfsbase, .-rdfsbase
-
-/*
- * wrfsbase:
- * modify FS register (allowed in enclaves).
- */
-	.global wrfsbase
-	.type wrfsbase, @function
-
-wrfsbase:
-	.cfi_startproc
-
-	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd7 /* WRFSBASE %RDI */
-	ret
-
-	.cfi_endproc
-	.size wrfsbase, .-wrfsbase
