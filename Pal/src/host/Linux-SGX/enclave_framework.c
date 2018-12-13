@@ -102,10 +102,7 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     memcpy(&state, &pal_enclave_state, sizeof(struct pal_enclave_state));
     memcpy(&state.data, enclave_data, PAL_ATTESTATION_DATA_SIZE);
 
-    int ret = sgx_report(&targetinfo, &state, report);
-    if (ret)
-        return -PAL_ERROR_DENIED;
-
+    sgx_report(&targetinfo, &state, report);
     SGX_DBG(DBG_S, "Generated report:\n");
     SGX_DBG(DBG_S, "    cpusvn:           %08lx %08lx\n", report->cpusvn[0],
                                                 report->cpusvn[1]);
@@ -909,11 +906,7 @@ int init_enclave (void)
     struct pal_enclave_state reportdata = {0};
     sgx_arch_report_t report;
 
-    int ret = sgx_report(&targetinfo, &reportdata, &report);
-    if (ret) {
-        SGX_DBG(DBG_E, "failed to get self report: %d\n", ret);
-        return -PAL_ERROR_INVAL;
-    }
+    sgx_report(&targetinfo, &reportdata, &report);
     memcpy(pal_sec.mrenclave, report.mrenclave, sizeof(pal_sec.mrenclave));
     memcpy(pal_sec.mrsigner, report.mrsigner, sizeof(pal_sec.mrsigner));
     pal_sec.enclave_attributes = report.attributes;
