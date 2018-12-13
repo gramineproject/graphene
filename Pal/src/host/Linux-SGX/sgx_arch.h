@@ -247,6 +247,8 @@ typedef struct {
 
 typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 
+#define ENCLU ".byte 0x0f, 0x01, 0xd7"
+
 #else /* !__ASSEMBLER__ */
 
 /* microcode to call ENCLU */
