@@ -813,7 +813,7 @@ const char *const siglist[NUM_KNOWN_SIGS + 1] =
 
 static void parse_signum (const char * type, va_list * ap)
 {
-    unsigned int signum = va_arg(*ap, unsigned int);
+    int signum = va_arg(*ap, int);
 
     if (signum >= 0 && signum <= NUM_KNOWN_SIGS)
         PUTS(signal_name(signum));
