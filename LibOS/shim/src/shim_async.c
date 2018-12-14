@@ -54,7 +54,7 @@ static AEVENTTYPE           async_helper_event;
 static LOCKTYPE async_helper_lock;
 
 /* Returns remaining usecs */
-uint64_t install_async_event (PAL_HANDLE object, unsigned long time,
+int64_t install_async_event (PAL_HANDLE object, unsigned long time,
                               void (*callback) (IDTYPE caller, void * arg),
                               void * arg)
 {
@@ -62,7 +62,7 @@ uint64_t install_async_event (PAL_HANDLE object, unsigned long time,
                     malloc(sizeof(struct async_event));
 
     unsigned long install_time = DkSystemTimeQuery();
-    uint64_t rv = 0;
+    int64_t rv = 0;
     
     debug("install async event at %llu\n", install_time);
 
