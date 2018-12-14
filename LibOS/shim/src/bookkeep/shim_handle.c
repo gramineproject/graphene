@@ -561,7 +561,7 @@ void put_handle (struct shim_handle * hdl)
     }
 }
 
-size_t get_file_size (struct shim_handle * hdl)
+ssize_t get_file_size (struct shim_handle * hdl)
 {
     if (!hdl->fs || !hdl->fs->fs_ops)
         return -EINVAL;
