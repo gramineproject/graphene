@@ -206,7 +206,7 @@ out:
     return ret;
 }
 
-size_t shim_do_pread64 (int fd, char * buf, size_t count, loff_t pos)
+ssize_t shim_do_pread64 (int fd, char * buf, size_t count, loff_t pos)
 {
     if (!buf || test_user_memory(buf, count, true))
         return -EFAULT;
@@ -219,7 +219,7 @@ size_t shim_do_pread64 (int fd, char * buf, size_t count, loff_t pos)
         return -EBADF;
 
     struct shim_mount * fs = hdl->fs;
-    size_t ret = -EACCES;
+    ssize_t ret = -EACCES;
 
     if (!fs || !fs->fs_ops)
         goto out;
@@ -257,7 +257,7 @@ out:
     return ret;
 }
 
-size_t shim_do_pwrite64 (int fd, char * buf, size_t count, loff_t pos)
+ssize_t shim_do_pwrite64 (int fd, char * buf, size_t count, loff_t pos)
 {
     if (!buf || test_user_memory(buf, count, false))
         return -EFAULT;
@@ -270,7 +270,7 @@ size_t shim_do_pwrite64 (int fd, char * buf, size_t count, loff_t pos)
         return -EBADF;
 
     struct shim_mount * fs = hdl->fs;
-    size_t ret = -EACCES;
+    ssize_t ret = -EACCES;
 
     if (!fs || !fs->fs_ops)
         goto out;

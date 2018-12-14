@@ -9,6 +9,11 @@ LD	= ld
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin
+
+EXTRAFLAGS = -Wextra -Wno-unused-parameter -Wno-sign-compare
+
+CFLAGS += $(EXTRAFLAGS)
+
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
