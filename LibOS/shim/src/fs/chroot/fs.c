@@ -395,7 +395,6 @@ static int __chroot_open (struct shim_dentry * dent,
 
     if (!uri) {
         uri = qstrgetstr(&data->host_uri);
-        len = data->host_uri.len;
     }
 
     int version = atomic_read(&data->version);
@@ -929,7 +928,7 @@ out:
 
 static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
 {
-    uint64_t ret = 0;
+    int ret = 0;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;

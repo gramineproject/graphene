@@ -1061,7 +1061,7 @@ BEGIN_CP_FUNC(vma)
              * (3) Data in the last file-backed page is valid before or after
              *     forking. Has to be included in process migration.
              */
-            uint64_t file_len = get_file_size(vma->file);
+            int64_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
                 vma->offset + vma->length > file_len) {
                 send_size = file_len > vma->offset ?

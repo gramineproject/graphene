@@ -42,7 +42,7 @@ In general, a PR should:
 1. Address a single problem; i.e., it should add one feature or fix one issue.  Fixes for distinct issues should be separated into multiple PRs.
 2. Clearly explain the problem and solution in the PR and commit messages, using grammatically correct English.
 3. Include unit tests for the new behavior or bugfix, except in special circumstances, namely: when designing a unit test is difficult (e.g., the code is deep enough in Graphene that it would require extra hooks for testing) or cannot be easily tested (e.g., a performance fix).
-4. Follow project style guidelines.
+4. Follow [project style guidelines](CODESTYLE.md).
 
 ### PR Life Cycle
 
@@ -59,7 +59,7 @@ In general, a PR should:
 Before a pull request is merged, it must:
 
   1. Pass all CI tests
-  2. Follow project style guidelines (see below)
+  2. Follow [project style guidelines](CODESTYLE.md).
   3. Introduce no new compilation errors or warnings
   4. Have all discussions from reviewers resolved
   5. Have a clear, concise and grammatically correct comments and commit messages.
@@ -87,7 +87,7 @@ Additional reviews from anyone are welcome.
 
 ### Style Guidelines
 
-TODO
+See [style guidelines](CODESTYLE.md).
 
 ## Running Regression Tests by Hand
 
