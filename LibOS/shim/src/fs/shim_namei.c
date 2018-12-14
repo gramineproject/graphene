@@ -300,7 +300,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
     path = eat_slashes(path);
 
     // Check that we didn't hit the base case 
-    if (path == '\0') {
+    if (*path == '\0') {
         my_dent = start;
         base_case = 1;
     } else {
