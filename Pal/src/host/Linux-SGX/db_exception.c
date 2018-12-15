@@ -157,11 +157,18 @@ void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
     _DkGenericSignalHandle(event, arg, frame, context);
 }
 
-void restore_sgx_context (sgx_context_t * uc)
+static void restore_sgx_context (sgx_context_t * uc)
 {
     /* prepare the return address */
-    uc->rsp -= 8;
-    *(uint64_t *) uc->rsp = uc->rip;
+    // uc->rsp -= 8;
+    // *(uint64_t *) uc->rsp = uc->rip;
+
+    SGX_DBG(DBG_E, "uc %p rsp 0x%08lx &rsp: %p rip 0x%08lx &rip: %p\n",
+            uc, uc->rsp, &uc->rsp, uc->rip, &uc->rip);
+    if (uc->rsp - REDZONE_SIZE - 8 != (unsigned long)&uc->rip) {
+        assert((uintptr_t)(uc + 1) + REDZONE_SIZE <= uc->rsp);
+        *(unsigned long *)(uc->rsp - REDZONE_SIZE - 8) = uc->rip;
+    }
 
     /* now pop the stack */
     __asm__ volatile (
@@ -183,8 +190,8 @@ void restore_sgx_context (sgx_context_t * uc)
                   "pop %%r14\n"
                   "pop %%r15\n"
                   "popfq\n"
-                  "mov -104(%%rsp), %%rsp\n"
-                  "ret\n"
+                  "mov -13 * 8(%%rsp), %%rsp\n"
+                  "jmp * -" XSTRINGIFY(REDZONE_SIZE) " - 8(%%rsp)\n"
                   :: "r"(uc) : "memory");
 }
 

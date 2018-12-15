@@ -279,4 +279,6 @@ typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 
 #define RETURN_FROM_OCALL 0xffffffffffffffff
 
+#define REDZONE_SIZE    128
+
 #endif /* SGX_ARCH_H */

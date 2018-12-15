@@ -165,7 +165,7 @@ enclave_entry:
 	je 1f
 	movq %rax, %rsi
 1:
-	subq $SGX_CONTEXT_SIZE, %rsi
+	subq $(SGX_CONTEXT_SIZE + REDZONE_SIZE), %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
 	# and dump into the context
