@@ -112,6 +112,7 @@ typedef struct { char bytes[32]; } sgx_checksum_t;
 typedef struct { char bytes[16]; } sgx_stub_t;
 
 int init_trusted_files (void);
+noreturn void _restore_sgx_context(sgx_cpu_context_t* ctx);
 
 /* Function: load_trusted_file
  * checks if the file to be opened is trusted or allowed,
