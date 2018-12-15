@@ -113,6 +113,8 @@ extern char __text_start, __text_end, __data_start, __data_end;
 typedef struct { char bytes[32]; } sgx_checksum_t;
 typedef struct { char bytes[16]; } sgx_stub_t;
 
+noreturn void _restore_sgx_context(sgx_cpu_context_t* uc);
+
 int init_trusted_files (void);
 
 /* Function: load_trusted_file
