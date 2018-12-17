@@ -267,20 +267,14 @@ done_init:
 
 /* the following code is borrowed from CPUID */
 
-#define WORD_EAX  0
-#define WORD_EBX  1
-#define WORD_ECX  2
-#define WORD_EDX  3
-#define WORD_NUM  4
-
 static void cpuid (int cpuid_fd, unsigned int reg,
                    unsigned int words[], unsigned int ecx)
 {
    asm("cpuid"
-       : "=a" (words[WORD_EAX]),
-         "=b" (words[WORD_EBX]),
-         "=c" (words[WORD_ECX]),
-         "=d" (words[WORD_EDX])
+       : "=a" (words[PAL_CPUID_WORD_EAX]),
+         "=b" (words[PAL_CPUID_WORD_EBX]),
+         "=c" (words[PAL_CPUID_WORD_ECX]),
+         "=d" (words[PAL_CPUID_WORD_EDX])
        : "a" (reg),
          "c" (ecx));
 }
@@ -338,30 +332,30 @@ static char * cpu_flags[]
 
 void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
-    unsigned int words[WORD_NUM];
+    unsigned int words[PAL_CPUID_WORD_NUM];
 
     char * vendor_id = malloc(12);
     cpuid(2, 0, words, 0);
 
-    FOUR_CHARS_VALUE(&vendor_id[0], words[WORD_EBX]);
-    FOUR_CHARS_VALUE(&vendor_id[4], words[WORD_EDX]);
-    FOUR_CHARS_VALUE(&vendor_id[8], words[WORD_ECX]);
+    FOUR_CHARS_VALUE(&vendor_id[0], words[PAL_CPUID_WORD_EBX]);
+    FOUR_CHARS_VALUE(&vendor_id[4], words[PAL_CPUID_WORD_EDX]);
+    FOUR_CHARS_VALUE(&vendor_id[8], words[PAL_CPUID_WORD_ECX]);
     ci->cpu_vendor = vendor_id;
 
     char * brand = malloc(48);
     cpuid(-2, 0x80000002, words, 0);
-    memcpy(&brand[ 0], words, sizeof(unsigned int) * WORD_NUM);
+    memcpy(&brand[ 0], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
     cpuid(-2, 0x80000003, words, 0);
-    memcpy(&brand[16], words, sizeof(unsigned int) * WORD_NUM);
+    memcpy(&brand[16], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
     cpuid(-2, 0x80000004, words, 0);
-    memcpy(&brand[32], words, sizeof(unsigned int) * WORD_NUM);
+    memcpy(&brand[32], words, sizeof(unsigned int) * PAL_CPUID_WORD_NUM);
     ci->cpu_brand = brand;
 
     cpuid(2, 1, words, 0);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX], 16, 24);
-    ci->cpu_family   = BIT_EXTRACT_LE(words[WORD_EAX],  8, 12) + 1;
-    ci->cpu_model    = BIT_EXTRACT_LE(words[WORD_EAX],  4,  8);
-    ci->cpu_stepping = BIT_EXTRACT_LE(words[WORD_EAX],  0,  4);
+    ci->cpu_num      = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 16, 24);
+    ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) + 1;
+    ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  4,  8);
+    ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  0,  4);
 
     int flen = 0, fmax = 80;
     char * flags = malloc(fmax);
@@ -370,7 +364,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
         if (!cpu_flags[i])
             break;
 
-        if (BIT_EXTRACT_LE(words[WORD_EDX], i, i + 1)) {
+        if (BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EDX], i, i + 1)) {
             int len = strlen(cpu_flags[i]);
             if (flen + len + 1 > fmax) {
                 char * new_flags = malloc(fmax * 2);

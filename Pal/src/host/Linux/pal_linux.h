@@ -163,12 +163,6 @@ int _DkMutexUnlock (struct mutex_handle * mut);
 void init_child_process (PAL_HANDLE * parent, PAL_HANDLE * exec,
                          PAL_HANDLE * manifest);
 
-#define WORD_EAX  0
-#define WORD_EBX  1
-#define WORD_ECX  2
-#define WORD_EDX  3
-#define WORD_NUM  4
-
 void cpuid (unsigned int leaf, unsigned int subleaf,
             unsigned int words[]);
 void signal_setup (void);
