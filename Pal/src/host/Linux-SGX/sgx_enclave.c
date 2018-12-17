@@ -265,8 +265,11 @@ static int sgx_ocall_socketpair(void * pms)
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
-static int sock_getopt(__UNUSED int fd, __UNUSED struct sockopt * opt)
+static int sock_getopt(int fd, struct sockopt * opt)
 {
+	__UNUSED(fd);
+	__UNUSED(opt);
+
     return 0;
 }
 

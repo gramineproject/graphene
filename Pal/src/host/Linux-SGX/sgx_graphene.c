@@ -92,8 +92,10 @@ struct printbuf {
 };
 
 static int
-fputch(__UNUSED void * f, int ch, struct printbuf * b)
+fputch(void * f, int ch, struct printbuf * b)
 {
+	__UNUSED(f);
+
     b->buf[b->idx++] = ch;
     if (b->idx == PRINTBUF_SIZE - 1) {
         INLINE_SYSCALL(write, 3, 2, b->buf, b->idx);

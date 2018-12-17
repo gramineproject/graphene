@@ -190,8 +190,10 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
 }
 
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
-					__UNUSED int flags, const char ** args)
+                      int flags, const char ** args)
 {
+	__UNUSED(flags);
+
     /* only access creating process with regular file */
     if (!strpartcmp_static(uri, "file:"))
         return -PAL_ERROR_INVAL;
@@ -252,9 +254,11 @@ struct check_parent_param {
     PAL_MAC_KEY     mac_key;
 };
 
-static int check_parent_mrenclave (__UNUSED sgx_arch_hash_t * mrenclave,
+static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
                                    void * signed_data, void * check_param)
 {
+	__UNUSED(mrenclave);
+
     struct pal_enclave_state * remote_state = signed_data;
     struct proc_attestation_param * data = (void *) &remote_state->data;
 
@@ -331,23 +335,30 @@ void _DkProcessExit (int exitcode)
     ocall_exit(exitcode);
 }
 
-int _DkProcessSandboxCreate (__UNUSED const char * manifest, __UNUSED int flags)
+int _DkProcessSandboxCreate (const char * manifest, int flags)
 {
+	__UNUSED(manifest);
+	__UNUSED(flags);
+
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int64_t proc_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t count,
+static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                           void * buffer)
 {
+	__UNUSED(offset);
+
     if (count >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
     return ocall_read(handle->process.stream_in, buffer, count);
 }
 
-static int64_t proc_write (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t count,
+static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                            const void * buffer)
 {
+	__UNUSED(offset);
+
     if (count >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 

@@ -199,10 +199,12 @@ static int get_event_num (int signum)
 
 void sgx_entry_return (void);
 
-static void _DkTerminateSighandler (int signum, __UNUSED siginfo_t * info,
+static void _DkTerminateSighandler (int signum, siginfo_t * info,
                                     struct ucontext * uc)
 {
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+	__UNUSED(info);
+
+	unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
 #if SGX_HAS_FSGSBASE == 0
     if (rip != (unsigned long) async_exit_pointer &&
@@ -222,10 +224,12 @@ static void _DkTerminateSighandler (int signum, __UNUSED siginfo_t * info,
     }
 }
 
-static void _DkResumeSighandler (int signum, __UNUSED siginfo_t * info,
+static void _DkResumeSighandler (int signum, siginfo_t * info,
                                  struct ucontext * uc)
 {
-    unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
+	__UNUSED(info);
+
+	unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
 #if SGX_HAS_FSGSBASE == 0
     if (rip != (unsigned long) async_exit_pointer &&

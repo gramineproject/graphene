@@ -454,8 +454,13 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
 
 /* 'open' operation of tcp stream */
 static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
-				__UNUSED int access, __UNUSED int share, __UNUSED int create, __UNUSED int options)
+                     int access, int share, int create, int options)
 {
+	__UNUSED(access);
+	__UNUSED(share);
+	__UNUSED(create);
+	__UNUSED(options);
+
     int uri_len = strlen(uri) + 1;
 
     if (uri_len > PAL_SOCKADDR_SIZE)
@@ -474,9 +479,11 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of tcp stream */
-static int64_t tcp_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
+static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                          void * buf)
 {
+	__UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, tcp) || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
@@ -498,9 +505,11 @@ static int64_t tcp_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t l
 }
 
 /* write' operation of tcp stream */
-static int64_t tcp_write (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
+static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                           const void * buf)
 {
+	__UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, tcp) || !handle->sock.conn)
         return -PAL_ERROR_NOTCONNECTION;
 
@@ -609,8 +618,12 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
 }
 
 static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
-					__UNUSED int access, __UNUSED int share, __UNUSED int create, int options)
+                     int access, int share, int create, int options)
 {
+	__UNUSED(access);
+	__UNUSED(share);
+	__UNUSED(create);
+
     char buf[PAL_SOCKADDR_SIZE];
     int len = strlen(uri);
 
@@ -629,9 +642,11 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     return -PAL_ERROR_NOTSUPPORT;
 }
 
-static int64_t udp_receive (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
+static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                             void * buf)
 {
+	__UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, udp))
         return -PAL_ERROR_NOTCONNECTION;
 
@@ -644,9 +659,11 @@ static int64_t udp_receive (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_
     return ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL);
 }
 
-static int64_t udp_receivebyaddr (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
+static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                                   void * buf, char * addr, int addrlen)
 {
+	__UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, udpsrv))
         return -PAL_ERROR_NOTCONNECTION;
 
@@ -677,9 +694,11 @@ static int64_t udp_receivebyaddr (PAL_HANDLE handle, __UNUSED uint64_t offset, u
     return bytes;
 }
 
-static int64_t udp_send (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
+static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                          const void * buf)
 {
+	__UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, udp))
         return -PAL_ERROR_NOTCONNECTION;
 
@@ -705,9 +724,11 @@ static int64_t udp_send (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t l
     return bytes;
 }
 
-static int64_t udp_sendbyaddr (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t len,
+static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                                const void * buf, const char * addr, int addrlen)
 {
+	__UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, udpsrv))
         return -PAL_ERROR_NOTCONNECTION;
 
@@ -1058,9 +1079,11 @@ PAL_HANDLE _DkBroadcastStreamOpen (void)
     return hdl;
 }
 
-static int64_t mcast_send (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t size,
+static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                            const void * buf)
 {
+	__UNUSED(offset);
+
     if (handle->mcast.srv == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
@@ -1084,9 +1107,11 @@ static int64_t mcast_send (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t
     return bytes;
 }
 
-static int64_t mcast_receive (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t size,
+static int64_t mcast_receive (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                               void * buf)
 {
+	__UNUSED(offset);
+
     if (handle->mcast.cli == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 

@@ -111,13 +111,13 @@ static PAL_HANDLE setup_file_handle (const char * name, int fd)
     return handle;
 }
 
-static int loader_filter (const char * key, __UNUSED int len)
+static int loader_filter (const char * key, int len)
 {
-    if (key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
+    if (len > 7 && key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
         key[4] == 'e' && key[5] == 'r' && key[6] == '.')
         return 0;
 
-    if (key[0] == 's' && key[1] == 'g' && key[2] == 'x' && key[3] == '.')
+    if (len > 4 && key[0] == 's' && key[1] == 'g' && key[2] == 'x' && key[3] == '.')
         return 0;
 
     return 1;

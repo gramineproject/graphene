@@ -44,9 +44,10 @@ typedef __kernel_pid_t pid_t;
 #include "enclave_pages.h"
 
 /* 'open' operation for file streams */
-static int file_open (PAL_HANDLE * handle, __UNUSED const char * type, const char * uri,
+static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
+	__UNUSED(type);
     /* try to do the real open */
     int fd = ocall_open(uri, access|create|options, share);
 
@@ -299,9 +300,10 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 }
 
 /* 'attrquery' operation for file streams */
-static int file_attrquery (__UNUSED const char * type, const char * uri,
+static int file_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
+	__UNUSED(type);
     /* try to do the real open */
     int fd = ocall_open(uri, 0, 0);
     if (fd < 0)
@@ -345,9 +347,10 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
     return 0;
 }
 
-static int file_rename (PAL_HANDLE handle, __UNUSED const char * type,
+static int file_rename (PAL_HANDLE handle, const char * type,
                         const char * uri)
 {
+	__UNUSED(type);
     int ret = ocall_rename(handle->file.realpath, uri);
     if (ret < 0)
         return ret;
@@ -398,9 +401,12 @@ struct handle_ops file_ops = {
 /* 'open' operation for directory stream. Directory stream does not have a
    specific type prefix, its URI looks the same file streams, plus it
    ended with slashes. dir_open will be called by file_open. */
-static int dir_open (PAL_HANDLE * handle, __UNUSED const char * type, const char * uri,
-				__UNUSED int access, int share, int create, int options)
+static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
+                     int access, int share, int create, int options)
 {
+	__UNUSED(type);
+	__UNUSED(access);
+
     int ret;
 
     if (create & PAL_CREAT_TRY) {
@@ -433,9 +439,11 @@ static int dir_open (PAL_HANDLE * handle, __UNUSED const char * type, const char
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-static int64_t dir_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t count,
+static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                          void * buf)
 {
+	__UNUSED(offset);
+
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;
     void * end = (void *) handle->dir.end;
@@ -536,9 +544,10 @@ static int dir_delete (PAL_HANDLE handle, int access)
     return ocall_delete(handle->dir.realpath);
 }
 
-static int dir_rename (PAL_HANDLE handle, __UNUSED const char * type,
+static int dir_rename (PAL_HANDLE handle, const char * type,
                        const char * uri)
 {
+	__UNUSED(type);
     int ret = ocall_rename(handle->dir.realpath, uri);
     if (ret < 0)
         return ret;

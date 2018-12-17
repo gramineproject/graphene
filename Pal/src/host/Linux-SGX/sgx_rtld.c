@@ -34,6 +34,7 @@ asm (".pushsection \".debug_gdb_scripts\", \"MS\",@progbits,1\r\n"
      ".asciz \"" PAL_FILE("host/Linux-SGX/debugger/pal-gdb.py") "\"\r\n"
      ".popsection\r\n");
 
-void load_gdb_command (__UNUSED const char * command)
+void load_gdb_command (const char * command)
 {
+    __UNUSED(command);
 }

@@ -120,9 +120,14 @@ static int open_standard_term (PAL_HANDLE * handle, const char * param,
 }
 
 /* 'open' operation for terminal stream */
-static int term_open (PAL_HANDLE *handle, __UNUSED const char * type, const char * uri,
-                      int access, __UNUSED int share, __UNUSED int create, __UNUSED int options)
+static int term_open (PAL_HANDLE *handle, const char * type, const char * uri,
+                      int access, int share, int create, int options)
 {
+	__UNUSED(type);
+	__UNUSED(share);
+	__UNUSED(create);
+	__UNUSED(options);
+
     const char * term = NULL;
     const char * param = NULL;
 
@@ -143,15 +148,19 @@ static int term_open (PAL_HANDLE *handle, __UNUSED const char * type, const char
     return open_standard_term(handle, param, access);
 }
 
-static int term_close (__UNUSED PAL_HANDLE handle)
+static int term_close (PAL_HANDLE handle)
 {
+	__UNUSED(handle);
     return 0;
 }
 
 /* 'attrquery' operation for terminal stream */
-static int term_attrquery (__UNUSED const char * type, __UNUSED const char * uri,
+static int term_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
+	__UNUSED(type);
+	__UNUSED(uri);
+
     attr->handle_type = pal_type_dev;
     attr->readable  = PAL_TRUE;
     attr->writeable = PAL_TRUE;
@@ -182,9 +191,11 @@ static struct handle_ops term_ops = {
     };
 
 /* 'read' operation for character streams. */
-static int64_t char_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t size,
+static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                           void * buffer)
 {
+	__UNUSED(offset);
+
     int fd = handle->dev.fd_in;
 
     if (fd == PAL_IDX_POISON)
@@ -197,9 +208,11 @@ static int64_t char_read (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t 
 }
 
 /* 'write' operation for character streams. */
-static int64_t char_write (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t size,
+static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                            const void * buffer)
 {
+	__UNUSED(offset);
+
     int fd = handle->dev.fd_out;
 
     if (fd == PAL_IDX_POISON)
@@ -212,9 +225,11 @@ static int64_t char_write (PAL_HANDLE handle, __UNUSED uint64_t offset, uint64_t
 }
 
 /* 'open' operation for device streams */
-static int dev_open (PAL_HANDLE * handle, __UNUSED const char * type, const char * uri,
+static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
+	__UNUSED(type);
+
     struct handle_ops * ops = NULL;
     const char * dev_type = NULL;
     int ret = 0;
@@ -338,9 +353,11 @@ dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 }
 
 /* 'attrquery' operation for device streams */
-static int dev_attrquery (__UNUSED const char * type, const char * uri,
+static int dev_attrquery (const char * type, const char * uri,
                           PAL_STREAM_ATTR * attr)
 {
+	__UNUSED(type);
+
     struct handle_ops * ops = NULL;
     const char * dev_type = NULL;
     int ret = 0;

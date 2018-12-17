@@ -83,8 +83,10 @@ void pal_start_thread (void)
    inside the current process. The arguments callback and param
    specify the starting function and parameters */
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * param, __UNUSED int flags)
+                     const void * param, int flags)
 {
+	__UNUSED(flags);
+
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);
     new_thread->thread.tcs = NULL;
