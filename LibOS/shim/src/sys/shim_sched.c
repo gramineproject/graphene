@@ -40,15 +40,21 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
                                __kernel_cpu_set_t * user_mask_ptr)
 {
     int ncpus = PAL_CB(cpu_info.cpu_num);
-    /* Linux kernel bitmap is based on long. So follow it to round up to
-       sizeof long) */
-    int ret = (ncpus + sizeof(long) * 8 - 1) /
-        (sizeof(long) * 8) * sizeof(long);
-    if (len < ret)
+    /* Linux kernel bitmap is based on long. So according to its
+     * implementation, round up the result to sizeof(long) */
+    int bitmask_long_count = (ncpus + sizeof(long) * 8 - 1) /
+        (sizeof(long) * 8);
+    int bitmask_size_in_byte = bitmask_long_count * sizeof(long);
+    if (len < bitmask_size_in_byte)
+        return -EINVAL;
+    /* Linux kernel also rejects non-natural size */
+    if (len & (sizeof(long) - 1))
         return -EINVAL;
 
     memset(user_mask_ptr, 0, len);
     for (int i = 0 ; i < ncpus ; i++)
         ((uint8_t *) user_mask_ptr)[i / 8] |= 1 << (i % 8);
-    return ret;
+    /* imitate the Linux kernel implementation
+     * See SYSCALL_DEFINEe(sched_getaffinity) */
+    return MIN(len, bitmask_size_in_byte);
 }
