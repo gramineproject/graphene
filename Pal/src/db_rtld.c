@@ -286,7 +286,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
         /* This only happens for a bogus object that will be caught with
            another error below.  But we don't want to go through the
            calculations below using NLOADCMDS - 1.  */
-        print_error("object file has no loadable segments", 0);
+        print_error("object file has no loadable segments", -PAL_ERROR_INVAL);
         return NULL;
     }
 
@@ -412,7 +412,8 @@ postmap:
 
     if (l->l_ld == 0) {
         if (__builtin_expect (e_type == ET_DYN, 0)) {
-            print_error("object file has no dynamic section", 0);
+            print_error("object file has no dynamic section",
+                        -PAL_ERROR_INVAL);
             return NULL;
         }
     } else {
