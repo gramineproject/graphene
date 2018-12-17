@@ -123,10 +123,10 @@ static int open_standard_term (PAL_HANDLE * handle, const char * param,
 static int term_open (PAL_HANDLE *handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
-	__UNUSED(type);
-	__UNUSED(share);
-	__UNUSED(create);
-	__UNUSED(options);
+    __UNUSED(type);
+    __UNUSED(share);
+    __UNUSED(create);
+    __UNUSED(options);
 
     const char * term = NULL;
     const char * param = NULL;
@@ -150,7 +150,7 @@ static int term_open (PAL_HANDLE *handle, const char * type, const char * uri,
 
 static int term_close (PAL_HANDLE handle)
 {
-	__UNUSED(handle);
+    __UNUSED(handle);
     return 0;
 }
 
@@ -158,8 +158,8 @@ static int term_close (PAL_HANDLE handle)
 static int term_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
-	__UNUSED(type);
-	__UNUSED(uri);
+    __UNUSED(type);
+    __UNUSED(uri);
 
     attr->handle_type = pal_type_dev;
     attr->readable  = PAL_TRUE;
@@ -194,7 +194,7 @@ static struct handle_ops term_ops = {
 static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                           void * buffer)
 {
-	__UNUSED(offset);
+    __UNUSED(offset);
 
     int fd = handle->dev.fd_in;
 
@@ -211,7 +211,7 @@ static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
 static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                            const void * buffer)
 {
-	__UNUSED(offset);
+    __UNUSED(offset);
 
     int fd = handle->dev.fd_out;
 
@@ -228,7 +228,7 @@ static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
 static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
-	__UNUSED(type);
+    __UNUSED(type);
 
     struct handle_ops * ops = NULL;
     const char * dev_type = NULL;

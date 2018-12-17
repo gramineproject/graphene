@@ -303,7 +303,7 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 static int file_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
-	__UNUSED(type);
+    __UNUSED(type);
     /* try to do the real open */
     int fd = ocall_open(uri, 0, 0);
     if (fd < 0)
@@ -350,7 +350,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
 static int file_rename (PAL_HANDLE handle, const char * type,
                         const char * uri)
 {
-	__UNUSED(type);
+    __UNUSED(type);
     int ret = ocall_rename(handle->file.realpath, uri);
     if (ret < 0)
         return ret;
@@ -404,8 +404,8 @@ struct handle_ops file_ops = {
 static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
-	__UNUSED(type);
-	__UNUSED(access);
+    __UNUSED(type);
+    __UNUSED(access);
 
     int ret;
 
@@ -442,7 +442,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                          void * buf)
 {
-	__UNUSED(offset);
+    __UNUSED(offset);
 
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;
@@ -547,7 +547,7 @@ static int dir_delete (PAL_HANDLE handle, int access)
 static int dir_rename (PAL_HANDLE handle, const char * type,
                        const char * uri)
 {
-	__UNUSED(type);
+    __UNUSED(type);
     int ret = ocall_rename(handle->dir.realpath, uri);
     if (ret < 0)
         return ret;

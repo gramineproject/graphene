@@ -267,8 +267,8 @@ static int sgx_ocall_socketpair(void * pms)
 
 static int sock_getopt(int fd, struct sockopt * opt)
 {
-	__UNUSED(fd);
-	__UNUSED(opt);
+    __UNUSED(fd);
+    __UNUSED(opt);
 
     return 0;
 }

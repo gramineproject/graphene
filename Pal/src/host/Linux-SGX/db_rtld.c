@@ -174,7 +174,7 @@ void setup_pal_map (struct link_map * pal_map)
 
 ElfW(Addr) resolve_rtld (const char * sym_name)
 {
-	__UNUSED(sym_name);
+    __UNUSED(sym_name);
 
     /* We are not using this, because in Linux we can rely on
        rtld_map to directly lookup symbols */
