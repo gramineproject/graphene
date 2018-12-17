@@ -269,7 +269,7 @@ internal:
     }
 
     if (context)
-        debug("memory fault at %08lx (IP = %08lx)\n", arg, context->IP);
+        debug("memory fault at 0x%08lx (IP = 0x%08lx)\n", arg, context->IP);
 
     struct shim_vma_val vma;
     int signo = SIGSEGV;
@@ -420,7 +420,7 @@ internal:
     if (!(lookup_vma((void *) arg, &vma)) &&
         !(vma.flags & VMA_INTERNAL)) {
         if (context)
-            debug("illegal instruction at %08lx\n", context->IP);
+            debug("illegal instruction at 0x%08lx\n", context->IP);
 
         deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
     } else {

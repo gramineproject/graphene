@@ -564,10 +564,10 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
     int ret = 0;
 
     if (type)
-        debug("restore checkpoint at %08lx rebased from %p (%s only)\n",
+        debug("restore checkpoint at 0x%08lx rebased from %p (%s only)\n",
               base, cphdr->addr, CP_FUNC_NAME(type));
     else
-        debug("restore checkpoint at %08lx rebased from %p\n",
+        debug("restore checkpoint at 0x%08lx rebased from %p\n",
               base, cphdr->addr);
 
     if (memhdr && memhdr->nentries) {
@@ -624,7 +624,7 @@ next:
         cpent = NEXT_CP_ENTRY();
     }
 
-    debug("successfully restore checkpoint loaded at %08lx - %08lx\n",
+    debug("successfully restore checkpoint loaded at 0x%08lx - 0x%08lx\n",
           base, base + cphdr->size);
 
     return 0;

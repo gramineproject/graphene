@@ -197,7 +197,7 @@ enum {
         tmp->cp_type = CP_##type;                                   \
         tmp->cp_un.cp_val = (ptr_t) (value);                        \
         if (DEBUG_CHECKPOINT)                                       \
-            debug("ADD CP_" #type "(%08lx) >%ld\n", tmp->cp_un.cp_val,  \
+            debug("ADD CP_" #type "(0x%08lx) >%ld\n", tmp->cp_un.cp_val, \
                   store->offset);                                   \
     tmp; })
 
@@ -223,7 +223,7 @@ enum {
         tmp->cp_type = CP_FUNC_TYPE;                                \
         tmp->cp_un.cp_val = (ptr_t) (value);                        \
         if (DEBUG_CHECKPOINT)                                       \
-            debug("ADD %s(%08lx) >%ld\n", CP_FUNC_NAME, (value),    \
+            debug("ADD %s(0x%08lx) >%ld\n", CP_FUNC_NAME, (value),  \
                   store->offset);                                   \
     tmp; })
 
@@ -371,7 +371,7 @@ get_cp_map_entry (void * map, void * addr, bool create);
 
 #if DEBUG_RESUME == 1
 # define DEBUG_RS(fmt, ...)                                              \
-    debug("GET %s(%08lx): " fmt "\n", CP_FUNC_NAME, entry->cp_un.cp_val, \
+    debug("GET %s(0x%08lx): " fmt "\n", CP_FUNC_NAME, entry->cp_un.cp_val, \
           ##__VA_ARGS__)
 #else
 # define DEBUG_RS(...) do {} while (0)

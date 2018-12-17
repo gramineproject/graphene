@@ -557,7 +557,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...)
 
     if (is_pointer(ret_type)) {
         if (ret_ptr < -4095L)
-            PRINTF(") = %08lx\n", ret_ptr);
+            PRINTF(") = 0x%08lx\n", ret_ptr);
         else
             PRINTF(") = %ld\n", (long) ret_ptr);
     } else {

@@ -1132,8 +1132,8 @@ BEGIN_RS_FUNC(vma)
 
     SAVE_PROFILE_INTERVAL(vma_add_bookkeep);
 
-    DEBUG_RS("vma: %p-%p flags %x prot %08x\n", vma->addr, vma->addr + vma->length,
-             vma->flags, vma->prot);
+    DEBUG_RS("vma: %p-%p flags %x prot 0x%08x\n",
+             vma->addr, vma->addr + vma->length, vma->flags, vma->prot);
 
     if (!(vma->flags & VMA_UNMAPPED)) {
         if (vma->file) {
