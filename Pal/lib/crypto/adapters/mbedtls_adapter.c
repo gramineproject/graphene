@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <limits.h>
+#include "api.h"
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_error.h"
@@ -37,6 +38,7 @@ int _DkRandomBitsRead(void *buffer, int size);
  * and nonzero for failure. */
 static int RandomWrapper(void *private, unsigned char *data, size_t size)
 {
+    __UNUSED(private);
     return _DkRandomBitsRead(data, size) != size;
 }
 
