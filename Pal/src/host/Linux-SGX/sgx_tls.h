@@ -8,6 +8,8 @@ struct enclave_tls {
     uint64_t enclave_size;
     uint64_t tcs_offset;
     uint64_t initial_stack_offset;
+    uint64_t sig_stack_low;
+    uint64_t sig_stack_high;
     void *   aep;
     void *   ssa;
     sgx_arch_gpr_t * gpr;

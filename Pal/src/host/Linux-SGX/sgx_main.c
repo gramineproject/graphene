@@ -314,13 +314,14 @@ int initialize_enclave (struct pal_enclave * enclave)
         enum sgx_page_type type;
     };
 
-    struct mem_area * areas =
-        __alloca(sizeof(areas[0]) * (10 + enclave->thread_num));
+    int area_num_max = 10 + enclave->thread_num * 2;
+    struct mem_area * areas = __alloca(sizeof(areas[0]) * area_num_max);
     int area_num = 0;
 
 #define set_area(_desc, _skip_eextend, _is_binary, _fd, _addr, _size, _prot, _type)\
     ({                                                                  \
         struct mem_area * _a = &areas[area_num++];                      \
+        assert(area_num < area_num_max);                                \
         _a->desc = _desc; _a->skip_eextend = _skip_eextend;             \
         _a->is_binary = _is_binary;                                     \
         _a->fd = _fd; _a->addr = _addr; _a->size = _size;               \
@@ -348,6 +349,12 @@ int initialize_enclave (struct pal_enclave * enclave)
     struct mem_area * stack_areas = &areas[area_num];
     for (int t = 0 ; t < enclave->thread_num ; t++)
         set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
+                 PROT_READ|PROT_WRITE, SGX_PAGE_REG);
+
+    /* XXX: the enclave sig stack should be part of measurement */
+    struct mem_area * sig_stack_areas = &areas[area_num];
+    for (int t = 0 ; t < enclave->thread_num ; t++)
+        set_area("sig_stack", true, false, -1, 0, ENCLAVE_SIG_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     struct mem_area * pal_area =
@@ -418,6 +425,11 @@ int initialize_enclave (struct pal_enclave * enclave)
                 gs->tcs_offset = tcs_area->addr + pagesize * t;
                 gs->initial_stack_offset =
                     stack_areas[t].addr + ENCLAVE_STACK_SIZE;
+                gs->sig_stack_low =
+                    sig_stack_areas[t].addr + enclave_secs.baseaddr;
+                gs->sig_stack_high =
+                    sig_stack_areas[t].addr + ENCLAVE_SIG_STACK_SIZE +
+                    enclave_secs.baseaddr;
                 gs->ssa = (void *) ssa_area->addr +
                     enclave->ssaframesize * SSAFRAMENUM * t +
                     enclave_secs.baseaddr;

@@ -22,6 +22,7 @@ SSAFRAMESIZE = PAGESIZE
 SSAFRAMENUM = 2
 
 ENCLAVE_STACK_SIZE = PAGESIZE * 16
+ENCLAVE_SIG_STACK_SIZE = PAGESIZE * 16
 DEFAULT_ENCLAVE_SIZE = '256M'
 DEFAULT_THREAD_NUM = 4
 ENCLAVE_HEAP_MIN = 0x10000
@@ -344,6 +345,9 @@ def get_memory_areas(manifest, attr, args):
 
     for t in range(attr['thread_num']):
         areas.append(MemoryArea('stack', size=ENCLAVE_STACK_SIZE,
+                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+    for t in range(attr['thread_num']):
+        areas.append(MemoryArea('sig_stack', size=ENCLAVE_SIG_STACK_SIZE,
                                 flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
 
     areas.append(MemoryArea('pal', file=args['libpal'], flags=PAGEINFO_REG))
