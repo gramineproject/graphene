@@ -407,6 +407,13 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_brand = brand;
 
     if (!memcmp(vendor_id, "GenuineIntel", 12)) {
+
+        /* Using leaf 0xb and subleaf 1 to get the number of cores
+         * [Warning] According to Intel SDM, the value in EBX[15:0] is for display
+         * and diagnostic purposes. The actual number of cores could be
+         * different from this value.
+         * Use this as it is now the most accurate option we have */
+
         cpuid(0xb, 1, words);
         ci->cpu_num  = BIT_EXTRACT_LE(words[WORD_EBX], 0, 16);
     } else if (!memcmp(vendor_id, "AuthenticAMD", 12)) {
