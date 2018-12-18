@@ -385,6 +385,9 @@ def get_memory_areas(attr, args):
     for _ in range(attr['thread_num']):
         areas.append(MemoryArea('stack', size=offs.ENCLAVE_STACK_SIZE,
                                 flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
+    for _ in range(attr['thread_num']):
+        areas.append(MemoryArea('sig_stack', size=offs.ENCLAVE_SIG_STACK_SIZE,
+                                flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
 
     areas.append(MemoryArea('pal', file=args['libpal'], flags=PAGEINFO_REG))
 
@@ -438,6 +441,7 @@ def gen_area_content(attr, areas):
     tcs_area = find_area(areas, 'tcs')
     tls_area = find_area(areas, 'tls')
     stacks = find_areas(areas, 'stack')
+    sig_stacks = find_areas(areas, 'sig_stack')
 
     tcs_data = bytearray(tcs_area.size)
 
@@ -479,6 +483,9 @@ def gen_area_content(attr, areas):
         set_tls_field(t, offs.SGX_TCS_OFFSET, tcs_area.addr + offs.TCS_SIZE * t)
         set_tls_field(t, offs.SGX_INITIAL_STACK_OFFSET,
                       stacks[t].addr + stacks[t].size)
+        set_tls_field(t, offs.SGX_SIG_STACK_LOW, baseaddr() + sig_stacks[t].addr)
+        set_tls_field(t, offs.SGX_SIG_STACK_HIGH,
+                      baseaddr() + sig_stacks[t].addr + sig_stacks[t].size)
         set_tls_field(t, offs.SGX_SSA, ssa)
         set_tls_field(t, offs.SGX_GPR, ssa + SSAFRAMESIZE - offs.SGX_GPR_SIZE)
         set_tls_field(t, offs.SGX_MANIFEST_SIZE,

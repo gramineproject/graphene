@@ -10,6 +10,14 @@
 	jmp .Lfail_loop\@
 .endm
 
+.macro CHECK_IF_SIGNAL_STACK_IS_USED stack_reg, label_on_stack, label_out_of_stack
+	cmpq %gs:SGX_SIG_STACK_LOW, \stack_reg
+	jb \label_out_of_stack
+	cmpq %gs:SGX_SIG_STACK_HIGH, \stack_reg
+	ja \label_out_of_stack
+	jmp \label_on_stack
+.endm
+
 	.global enclave_entry
 	.type enclave_entry, @function
 
@@ -102,7 +110,7 @@ enclave_entry:
 	#       (e.g., no clearing of YMM/ZMM regs). This is because we didn't read
 	#       the value of XFRM yet, so we don't know whether XRSTOR is safe at
 	#       this point.
-	leaq .Lxrstor_init_arg(%rip), %rax
+	leaq xsave_reset_state(%rip), %rax
 	fxrstor (%rax)
 	xorq %rax, %rax
 
@@ -398,11 +406,40 @@ enclave_entry:
 .Lemulate_tmp_rip_end:
 
 	movq SGX_GPR_RSP(%rbx), %rsi
-	subq $(SGX_CPU_CONTEXT_SIZE + RED_ZONE_SIZE), %rsi
+
+	CHECK_IF_SIGNAL_STACK_IS_USED %rsi, .Lon_signal_stack, .Lout_of_signal_stack
+
+.Lout_of_signal_stack:
+	movq %gs:SGX_SIG_STACK_HIGH, %rsi
+	# When switching to the not yet used signal stack we don't need to reserve
+	# a redzone. So move the stack pointer up here to undo the move down below.
+	addq $RED_ZONE_SIZE, %rsi
+
+	# Setup stack for the signal handler, _DkExceptionHandler().
+	# _restore_sgx_context() must be used to return back to the
+	# original context.
+	# Stack layout:
+	#     8-bytes padding: (8 mod 16) bytes aligned for x86 ABI
+	#                      NOTE: there is no saved rip to return.
+	#     sgx_cpu_context_t: 144 bytes
+	#     xsave area: PAL_XSTATE_ALIGN=64 bytes aligned
+	#     padding if necessary
+	#     RED_ZONE unless newly switching to signal stack
+#define STACK_PADDING_SIZE (PAL_FP_XSTATE_MAGIC2_SIZE + 8)
+#define STACK_FRAME_SUB \
+	(SGX_CPU_CONTEXT_SIZE + RED_ZONE_SIZE + STACK_PADDING_SIZE)
+.Lon_signal_stack:
+	movl xsave_size(%rip), %eax
+	addq $STACK_FRAME_SUB, %rax
+	subq %rax, %rsi
+
+	# Align xsave area to 64 bytes after sgx_cpu_context_t
+	andq $~(PAL_XSTATE_ALIGN - 1), %rsi
+	subq $SGX_CPU_CONTEXT_XSTATE_ALIGN_SUB, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
 	# and dump into the context
-	xchgq %rdi, SGX_GPR_RDI(%rbx)
+	xchgq %rdi, SGX_GPR_RDI(%rbx) # 1st argument for _DkExceptionHandler()
 	movq %rdi, SGX_CPU_CONTEXT_RDI(%rsi)
 
 	# dump the rest of context
@@ -442,14 +479,16 @@ enclave_entry:
 	movq SGX_GPR_RIP(%rbx), %rdi
 	movq %rdi, SGX_CPU_CONTEXT_RIP(%rsi)
 
-	# Pass pointer to sgx_cpu_context_t to _DkExceptionHandler
-	movq %rsi, SGX_GPR_RSI(%rbx)
+	# Pass pointer to sgx_cpu_context_t and PAL_XREGS_STATE to _DkExceptionHandler
+	movq %rsi, SGX_GPR_RSI(%rbx) # 2nd argument for _DkExceptionHandler()
+	movq %rsi, SGX_GPR_RDX(%rbx)
+	addq $SGX_CPU_CONTEXT_SIZE, SGX_GPR_RDX(%rbx) # 3rd argument for _DkExceptionHandler()
+	# TODO: save EXINFO in MISC region
 
 	# x86-64 sysv abi requires 16B alignment of stack before call instruction
 	# which implies a (8 mod 16)B alignment on function entry (due to implicit
-	# push %rip).
-	# Align the stack for _DkExceptionHandler according to this requirement.
-	andq $STACK_ALIGN, %rsi
+	# push %rip). Since we already aligned xsave area above, this requirement
+	# is satisfied.
 	subq $8, %rsi
 	movq %rsi, SGX_GPR_RSP(%rbx)
 
@@ -460,6 +499,13 @@ enclave_entry:
 	# new RIP is the exception handler
 	leaq _DkExceptionHandler(%rip), %rdi
 	movq %rdi, SGX_GPR_RIP(%rbx)
+
+	movq %rdx, %rbx
+	leaq SGX_CPU_CONTEXT_SIZE + 8(%rsi), %rdi
+	leaq 1f(%rip), %r11
+	jmp __save_xregs
+1:
+	movq %rbx, %rdx
 
 .Leexit_exception:
 	# clear the registers
@@ -474,6 +520,23 @@ enclave_entry:
 	.type sgx_ocall, @function
 
 sgx_ocall:
+	# arguments:
+	#   RDI: OCALL number (code)
+	#   RSI: OCALL args on untrusted stack (ms)
+	#
+	# sgx_cpu_context_t:
+	#   RAX = 0: place holder
+	#   RCX
+	#   ...
+	#   RFLAGS
+	#   RIP
+	# xsave area
+	#   xregs
+	# (padding)
+	# --- stack may be non-contiguous as we may switch the stack to signal stack
+	# previous RBP
+	# previous RIP: pushed by callq
+
 	.cfi_startproc
 	pushq %rbp
 	.cfi_adjust_cfa_offset 8
@@ -481,8 +544,27 @@ sgx_ocall:
 	.cfi_offset %rbp, -16
 	.cfi_def_cfa_register %rbp
 
+	CHECK_IF_SIGNAL_STACK_IS_USED %rsp, .Lon_signal_stack_ocall, .Lout_of_signal_stack_ocall
+
+.Lout_of_signal_stack_ocall:
+	movq %gs:SGX_SIG_STACK_HIGH, %rsp
+
+.Lon_signal_stack_ocall:
+	movl xsave_size(%rip), %eax
+	addq $STACK_PADDING_SIZE, %rax
+	subq %rax, %rsp
+	andq $~(PAL_XSTATE_ALIGN - 1), %rsp
+
+	pushq %rdx
+	pushq %rdi
+	movq %rsp, %rdi
+	addq $2 * 8, %rdi # adjust pushq %rdx; pushq %rdi above
+	callq save_xregs
+	popq %rdi
+	popq %rdx
+
 	movq 8(%rbp), %rax
-	pushq %rax	# previous RIP
+	pushq %rax # previous RIP
 	pushfq
 
 	# Under GDB, single-stepping sets Trap Flag (TP) of EFLAGS,
@@ -501,24 +583,13 @@ sgx_ocall:
 	pushq %rdi
 	pushq %rsi
 	movq (%rbp), %rax
-	pushq %rax	# previous RBP
+	pushq %rax # previous RBP
 	leaq 16(%rbp), %rax
-	pushq %rax	# previous RSP
+	pushq %rax # previous RSP
 	pushq %rbx
 	pushq %rdx
 	pushq %rcx
-	# no RAX
-
-	movq %rsp, %rbp
-
-	# CFA shifted away from RBP=RSP by the size of GPR context except RAX
-	.cfi_adjust_cfa_offset SGX_CPU_CONTEXT_SIZE - 8
-
-	subq $XSAVE_SIZE,  %rsp
-	andq $XSAVE_ALIGN, %rsp
-	fxsave (%rsp)
-
-	pushq %rbp
+	pushq $0 # placeholder for RAX
 
 	# OCALL_EXIT should never return (see sgx_ocall_exit(): it always exits
 	# the thread). Skip setting SGX_OCALL_PREPARED to land in special-case
@@ -576,25 +647,19 @@ __morestack:
 #endif
 
 	.cfi_startproc
-	# CFA is away from RBP by ret_addr + saved_rbp + GPR context except RAX
-	.cfi_def_cfa %rbp, SGX_CPU_CONTEXT_SIZE - 8 + 16
-	.cfi_offset %rbp, -16
 
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 
-	leaq .Lxrstor_init_arg(%rip), %rcx
 	# pal_sec.enclave_attributes.xfrm will always be zero before
 	# init_enclave has been called by pal_linux_main. So during early init
 	# nothing should use features not covered by fxrstor, like AVX.
-	movq (pal_sec + PAL_SEC_ENCLAVE_ATTRIBUTES + SGX_ATTRIBUTES_XFRM)(%rip), %rax
-	testq $XSAVE_NON_FX_MASK, %rax
-	je 1f
-	mov $0xffffffff, %edx
-	mov $0xffffffff, %eax
-	xrstor (%rcx)
-	jmp 2f
+
+	movq %rdi, %r10
+	leaq xsave_reset_state(%rip), %rdi
+	leaq 1f(%rip), %r11
+	jmp __restore_xregs
 1:
-	fxrstor (%rcx)
+	movq %r10, %rdi
 2:
 
 	# %rax is argument to EEXIT
@@ -628,31 +693,6 @@ __morestack:
 	ud2 # We should never get here.
 	.cfi_endproc
 
-	# fxsave/xsave area to reset extended state.
-	#
-	# The first 512 B are used by fxrstor. We set FCW = 0x037f and MXCSR =
-	# 0x1f80 and the rest to 0 (same values as xrstor uses in
-	# initialization mode).
-	#
-	# The fxsave area is followed by the 64 B xsave header. We use the
-	# "compact" format (XCOMP_BV[63] = 1). Since the rest of XSTATE_BV and
-	# XCOMP_BV are 0s, xrstor initializes all components (assuming it's
-	# called with RFBM set to all 1s). The fxsave area is ignored (because
-	# we request initialization not restore). And thanks to the compact
-	# format we don't need to provide anything after the header.
-.section .rodata
-	.balign 64
-.Lxrstor_init_arg:
-	.byte 0x7f, 0x03        # FCW
-	.skip 22, 0             # FSW, FTW, FOP, etc: all zero-initialized
-	.byte 0x80, 0x1f, 0, 0  # MXCSR
-	.skip 484, 0            # rest of fxstore area
-
-	.skip 15, 0	 	# XSTATE_BV and XCOMP_BV[55:0]
-	.byte 0x80	 	# XCOMP_BV[63:56] i.e. "compact" format
-	.skip 48, 0	 	# rest of xsave header
-.previous
-
 .Lreturn_from_ocall:
 	# PAL convention:
 	# RDI - return value
@@ -665,7 +705,8 @@ __morestack:
 	movq $0, %gs:SGX_OCALL_PREPARED
 .Lreturn_from_ocall_after_clear_ocall_prepared:
 
-	movq %rdi, %rax
+	# sgx_cpu_context_t::rax = %rdi
+	movq %rdi, SGX_CPU_CONTEXT_RAX(%rsp) # return value
 
 	# restore FSBASE if necessary
 	movq %gs:SGX_FSBASE, %rbx
@@ -674,46 +715,33 @@ __morestack:
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
 .Lno_fsbase:
 
-	popq %rbp
-	fxrstor (%rsp)
-	movq %rbp, %rsp
-
+	# Check if there was a signal
 	cmpq $0, %rsi
-	je .Lno_external_event
+	jne .Lexternal_event
+	movq %rsp, %rdi # %rdi = sgx_cpu_context_t* uc
+	movq %rsp, %rsi
+	addq $SGX_CPU_CONTEXT_SIZE, %rsi # %rsi = PAL_XREGS_STATE* xregs_state
+	# _restore_sgx_context restores rflags and fp registers. So we don't have to
+	# sanitize them like below.
+	jmp _restore_sgx_context
+	# NOTREACHED
 
+.Lexternal_event:
 	# clear the Alignment Check flag (%rFLAGS.AC) to prevent #AC-fault side channel;
-	# this overrides 8B on enclave stack but these 8B will be overwritten with RAX anyway
 	pushfq
 	andq $(~RFLAGS_AC), (%rsp)
 	popfq
 
-	pushq %rax
-	movq %rsi, %rdi
-	movq %rsp, %rsi
+	leaq xsave_reset_state(%rip), %rdi
+	callq restore_xregs
+
+	movq %rsi, %rdi # 1st argument = PAL_NUM event
+	movq %rsp, %rsi # 2nd argument = sgx_cpu_context_t* uc
+	leaq SGX_CPU_CONTEXT_SIZE(%rsp), %rdx # 3rd argument = PAL_XREGS_STATE* xregs_state
 	callq _DkHandleExternalEvent
-	popq %rax
-.Lno_external_event:
+	# NOTREACHED
 
-	popq %rcx
-	popq %rdx
-	popq %rbx
-	addq $16, %rsp	# skip RSP and RBP
-	popq %rsi
-	popq %rdi
-	popq %r8
-	popq %r9
-	popq %r10
-	popq %r11
-	popq %r12
-	popq %r13
-	popq %r14
-	popq %r15
-	popfq
-	addq $8, %rsp	# skip RIP
-	popq %rbp
-	retq
-
-	# noreturn void _restore_sgx_context(sgx_cpu_context_t* uc);
+	# noreturn void _restore_sgx_context(sgx_cpu_context_t* uc, PAL_XREGS_STATE* xsave_area);
 	# Restore an sgx_cpu_context_t as generated by .Lhandle_exception. Execution will
 	# continue as specified by the rip in the context.
 	# If RDI (uc) points into the signal stack we need to ensure that
@@ -726,7 +754,10 @@ __morestack:
 	.type _restore_sgx_context, @function
 _restore_sgx_context:
 	.cfi_startproc
-	movq %rdi, %r15
+	xchgq %rdi, %rsi
+	callq restore_xregs
+
+	movq %rsi, %r15
 
 	movq SGX_CPU_CONTEXT_RAX(%r15), %rax
 	movq SGX_CPU_CONTEXT_RCX(%r15), %rcx
