@@ -12,13 +12,13 @@ enclave_entry:
 	# RCX is the address of AEP. Other registers are not trusted.
 
 	# current SSA is in RAX (Trusted)
-	cmp $0, %rax
+	cmpq $0, %rax
 	jne .Lhandle_resume
 
 	# TCS is in RBX (Trusted)
 
 	# AEP address in RCX (Trusted)
-	mov %rcx, %gs:SGX_AEP
+	movq %rcx, %gs:SGX_AEP
 
 	# The following code is hardened to defend attacks from untrusted host.
 	# Any states given by the host instead of the ISA must be assumed
@@ -36,8 +36,8 @@ enclave_entry:
 	# to deceive the trusted PAL.
 
 	# A safe design: check if %gs:SGX_EXIT_TARGET is ever assigned
-	mov %gs:SGX_EXIT_TARGET, %rcx
-	cmp $0, %rcx
+	movq %gs:SGX_EXIT_TARGET, %rcx
+	cmpq $0, %rcx
 	jne .Lreturn_from_ocall
 
 	# PAL convention:
@@ -48,34 +48,34 @@ enclave_entry:
 	# R8  - enclave base
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
-	sub %gs:SGX_TCS_OFFSET, %rbx
-	mov %rbx, %r8
+	subq %gs:SGX_TCS_OFFSET, %rbx
+	movq %rbx, %r8
 
 	# push untructed stack address to RCX
-	mov %rsp, %rcx
+	movq %rsp, %rcx
 
 	# switch to enclve stack: enclave base + %gs:SGX_INITIAL_STACK_OFFSET
-	add %gs:SGX_INITIAL_STACK_OFFSET, %rbx
-	mov %rbx, %rsp
+	addq %gs:SGX_INITIAL_STACK_OFFSET, %rbx
+	movq %rbx, %rsp
 
 	# clear the rest of register states
-	xor %rax, %rax
-	xor %rbx, %rbx
-	xor %r9,  %r9
-	xor %r10, %r10
-	xor %r11, %r11
-	xor %r12, %r12
-	xor %r13, %r13
-	xor %r14, %r14
-	xor %r15, %r15
+	xorq %rax, %rax
+	xorq %rbx, %rbx
+	xorq %r9,  %r9
+	xorq %r10, %r10
+	xorq %r11, %r11
+	xorq %r12, %r12
+	xorq %r13, %r13
+	xorq %r14, %r14
+	xorq %r15, %r15
 
 	# register states need to be carefully checked, so we move the handling
 	# to handle_ecall() in enclave_ecalls.c
-	call handle_ecall
+	callq handle_ecall
 
 	# never return to this point (should die)
-	xor %rdi, %rdi
-	xor %rsi, %rsi
+	xorq %rdi, %rdi
+	xorq %rsi, %rsi
 	jmp .Leexit
 
 .Lhandle_resume:
@@ -83,117 +83,117 @@ enclave_entry:
 	# RDI - external event
 
 	# get some information from GPR
-	mov %gs:SGX_GPR, %rbx
+	movq %gs:SGX_GPR, %rbx
 
-	mov %rdi, %rsi
-	xor %rdi, %rdi
-	mov SGX_GPR_EXITINFO(%rbx), %edi
-	test $0x80000000, %edi
+	movq %rdi, %rsi
+	xorq %rdi, %rdi
+	movl SGX_GPR_EXITINFO(%rbx), %edi
+	testl $0x80000000, %edi
 	jnz .Lhandle_exception
 
-	mov %esi, %edi
+	movl %esi, %edi
 	# use external event - only the first 8 bits count
-	and $0xff, %edi
-	cmp $0, %edi
+	andl $0xff, %edi
+	cmpl $0, %edi
 	jne .Lhandle_exception
 
 #if SGX_HAS_FSGSBASE == 0
-	mov %gs:SGX_FSBASE, %rdi
-	cmp $0, %rdi
+	movq %gs:SGX_FSBASE, %rdi
+	cmpq $0, %rdi
 	je .Ljust_resume
 
-	mov SGX_GPR_RSP(%rbx), %rsi
-	sub $16, %rsi
-	mov %rsi, SGX_GPR_RSP(%rbx)
+	movq SGX_GPR_RSP(%rbx), %rsi
+	subq $16, %rsi
+	movq %rsi, SGX_GPR_RSP(%rbx)
 
 	# try to push rip and fsbase onto the stack
-	mov %rdi, (%rsi)
-	mov SGX_GPR_RIP(%rbx), %rdi
-	mov %rdi, 8(%rsi)
+	movq %rdi, (%rsi)
+	movq SGX_GPR_RIP(%rbx), %rdi
+	movq %rdi, 8(%rsi)
 
 	# new RIP is the resume point
-	lea .Lafter_resume(%rip), %rdi
-	mov %rdi, SGX_GPR_RIP(%rbx)
+	leaq .Lafter_resume(%rip), %rdi
+	movq %rdi, SGX_GPR_RIP(%rbx)
 
 .Ljust_resume:
 #endif
 	# clear the registers
-	xor %rdi, %rdi
-	xor %rsi, %rsi
+	xorq %rdi, %rdi
+	xorq %rsi, %rsi
 
 	# exit address in RDX, mov it to RBX
-	mov %rdx, %rbx
-	mov $EEXIT, %rax
+	movq %rdx, %rbx
+	movq $EEXIT, %rax
 	ENCLU
 
 #if SGX_HAS_FSGSBASE == 0
 .Lafter_resume:
-	mov %rbx, -8(%rsp)
-	pop %rbx
+	movq %rbx, -8(%rsp)
+	popq %rbx
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
-	mov -16(%rsp), %rbx
-	ret
+	movq -16(%rsp), %rbx
+	retq
 #endif
 
 .Lhandle_exception:
-	mov SGX_GPR_RSP(%rbx), %rsi
-	sub $0x90, %rsi
+	movq SGX_GPR_RSP(%rbx), %rsi
+	subq $0x90, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
 	# and dump into the context
-	xchg %rdi, SGX_GPR_RDI(%rbx)
-	mov %rdi, 0x38(%rsi)
+	xchgq %rdi, SGX_GPR_RDI(%rbx)
+	movq %rdi, 0x38(%rsi)
 
 	# dump the rest of context
-	mov SGX_GPR_RAX(%rbx), %rdi
-	mov %rdi, 0x00(%rsi)
-	mov SGX_GPR_RCX(%rbx), %rdi
-	mov %rdi, 0x08(%rsi)
-	mov SGX_GPR_RDX(%rbx), %rdi
-	mov %rdi, 0x10(%rsi)
-	mov SGX_GPR_RBX(%rbx), %rdi
-	mov %rdi, 0x18(%rsi)
-	mov SGX_GPR_RSP(%rbx), %rdi
-	mov %rdi, 0x20(%rsi)
-	mov SGX_GPR_RBP(%rbx), %rdi
-	mov %rdi, 0x28(%rsi)
-	mov SGX_GPR_RSI(%rbx), %rdi
-	mov %rdi, 0x30(%rsi)
-	mov SGX_GPR_R8(%rbx), %rdi
-	mov %rdi, 0x40(%rsi)
-	mov SGX_GPR_R9(%rbx), %rdi
-	mov %rdi, 0x48(%rsi)
-	mov SGX_GPR_R10(%rbx), %rdi
-	mov %rdi, 0x50(%rsi)
-	mov SGX_GPR_R11(%rbx), %rdi
-	mov %rdi, 0x58(%rsi)
-	mov SGX_GPR_R12(%rbx), %rdi
-	mov %rdi, 0x60(%rsi)
-	mov SGX_GPR_R13(%rbx), %rdi
-	mov %rdi, 0x68(%rsi)
-	mov SGX_GPR_R14(%rbx), %rdi
-	mov %rdi, 0x70(%rsi)
-	mov SGX_GPR_R15(%rbx), %rdi
-	mov %rdi, 0x78(%rsi)
-	mov SGX_GPR_RFLAGS(%rbx), %rdi
-	mov %rdi, 0x80(%rsi)
-	mov SGX_GPR_RIP(%rbx), %rdi
-	mov %rdi, 0x88(%rsi)
+	movq SGX_GPR_RAX(%rbx), %rdi
+	movq %rdi, 0x00(%rsi)
+	movq SGX_GPR_RCX(%rbx), %rdi
+	movq %rdi, 0x08(%rsi)
+	movq SGX_GPR_RDX(%rbx), %rdi
+	movq %rdi, 0x10(%rsi)
+	movq SGX_GPR_RBX(%rbx), %rdi
+	movq %rdi, 0x18(%rsi)
+	movq SGX_GPR_RSP(%rbx), %rdi
+	movq %rdi, 0x20(%rsi)
+	movq SGX_GPR_RBP(%rbx), %rdi
+	movq %rdi, 0x28(%rsi)
+	movq SGX_GPR_RSI(%rbx), %rdi
+	movq %rdi, 0x30(%rsi)
+	movq SGX_GPR_R8(%rbx), %rdi
+	movq %rdi, 0x40(%rsi)
+	movq SGX_GPR_R9(%rbx), %rdi
+	movq %rdi, 0x48(%rsi)
+	movq SGX_GPR_R10(%rbx), %rdi
+	movq %rdi, 0x50(%rsi)
+	movq SGX_GPR_R11(%rbx), %rdi
+	movq %rdi, 0x58(%rsi)
+	movq SGX_GPR_R12(%rbx), %rdi
+	movq %rdi, 0x60(%rsi)
+	movq SGX_GPR_R13(%rbx), %rdi
+	movq %rdi, 0x68(%rsi)
+	movq SGX_GPR_R14(%rbx), %rdi
+	movq %rdi, 0x70(%rsi)
+	movq SGX_GPR_R15(%rbx), %rdi
+	movq %rdi, 0x78(%rsi)
+	movq SGX_GPR_RFLAGS(%rbx), %rdi
+	movq %rdi, 0x80(%rsi)
+	movq SGX_GPR_RIP(%rbx), %rdi
+	movq %rdi, 0x88(%rsi)
 
-	mov %rsi, SGX_GPR_RSP(%rbx)
-	mov %rsi, SGX_GPR_RSI(%rbx)
+	movq %rsi, SGX_GPR_RSP(%rbx)
+	movq %rsi, SGX_GPR_RSI(%rbx)
 
 	# new RIP is the exception handler
-	lea _DkExceptionHandler(%rip), %rdi
-	mov %rdi, SGX_GPR_RIP(%rbx)
+	leaq _DkExceptionHandler(%rip), %rdi
+	movq %rdi, SGX_GPR_RIP(%rbx)
 
 	# clear the registers
-	xor %rdi, %rdi
-	xor %rsi, %rsi
+	xorq %rdi, %rdi
+	xorq %rsi, %rsi
 
 	# exit address in RDX, mov it to RBX
-	mov %rdx, %rbx
-	mov $EEXIT, %rax
+	movq %rdx, %rbx
+	movq $EEXIT, %rax
 	ENCLU
 
 
@@ -201,61 +201,61 @@ enclave_entry:
 	.type sgx_ocall, @function
 
 sgx_ocall:
-	push %rbp
-	mov %rsp, %rbp
+	pushq %rbp
+	movq %rsp, %rbp
 
-	mov 8(%rbp), %rax
-	push %rax	# previous RIP
+	movq 8(%rbp), %rax
+	pushq %rax	# previous RIP
 	pushfq
-	push %r15
-	push %r14
-	push %r13
-	push %r12
-	push %r11
-	push %r10
-	push %r9
-	push %r8
-	push %rdi
-	push %rsi
-	mov (%rbp), %rax
-	push %rax	# previous RBP
-	lea 16(%rbp), %rax
-	push %rax	# previous RSP
-	push %rbx
-	push %rdx
-	push %rcx
+	pushq %r15
+	pushq %r14
+	pushq %r13
+	pushq %r12
+	pushq %r11
+	pushq %r10
+	pushq %r9
+	pushq %r8
+	pushq %rdi
+	pushq %rsi
+	movq (%rbp), %rax
+	pushq %rax	# previous RBP
+	leaq 16(%rbp), %rax
+	pushq %rax	# previous RSP
+	pushq %rbx
+	pushq %rdx
+	pushq %rcx
 	# no RAX
 
-	mov %rsp, %rbp
-	sub $XSAVE_SIZE,  %rsp
-	and $XSAVE_ALIGN, %rsp
+	movq %rsp, %rbp
+	subq $XSAVE_SIZE,  %rsp
+	andq $XSAVE_ALIGN, %rsp
 	fxsave (%rsp)
 
-	push %rbp
-	mov %rsp, %gs:SGX_STACK
+	pushq %rbp
+	movq %rsp, %gs:SGX_STACK
 
 	jmp .Leexit
 
 .Lexception_handler:
 	
 .Leexit:
-	xor %rdx, %rdx
-	xor %r8, %r8
-	xor %r9, %r9
-	xor %r10, %r10
-	xor %r11, %r11
-	xor %r12, %r12
-	xor %r13, %r13
-	xor %r14, %r14
-	xor %r15, %r15
-	xor %rbp, %rbp
+	xorq %rdx, %rdx
+	xorq %r8, %r8
+	xorq %r9, %r9
+	xorq %r10, %r10
+	xorq %r11, %r11
+	xorq %r12, %r12
+	xorq %r13, %r13
+	xorq %r14, %r14
+	xorq %r15, %r15
+	xorq %rbp, %rbp
 
-	mov %gs:SGX_USTACK, %rsp
-	and $STACK_ALIGN, %rsp
+	movq %gs:SGX_USTACK, %rsp
+	andq $STACK_ALIGN, %rsp
 
-	mov %gs:SGX_EXIT_TARGET, %rbx
-	mov %gs:SGX_AEP, %rcx
-	mov $EEXIT, %rax
+	movq %gs:SGX_EXIT_TARGET, %rbx
+	movq %gs:SGX_AEP, %rcx
+	movq $EEXIT, %rax
 	ENCLU
 
 .Lreturn_from_ocall:
@@ -263,49 +263,49 @@ sgx_ocall:
 	# RDI - return value
 	# RSI - external event (if there is any)
 
-	mov %rdi, %rax
+	movq %rdi, %rax
 
 	# restore FSBASE if necessary
-	mov %gs:SGX_FSBASE, %rbx
-	cmp $0, %rbx
+	movq %gs:SGX_FSBASE, %rbx
+	cmpq $0, %rbx
 	je .Lno_fsbase
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
 .Lno_fsbase:
 
 	# restore the stack
-	mov %gs:SGX_STACK, %rsp
+	movq %gs:SGX_STACK, %rsp
 
-	pop %rbp
+	popq %rbp
 	fxrstor (%rsp)
-	mov %rbp, %rsp
+	movq %rbp, %rsp
 
-	cmp $0, %rsi
+	cmpq $0, %rsi
 	je .Lno_external_event
-	push %rax
-	mov %rsi, %rdi
-	mov %rsp, %rsi
-	call _DkHandleExternelEvent
-	pop %rax
+	pushq %rax
+	movq %rsi, %rdi
+	movq %rsp, %rsi
+	callq _DkHandleExternelEvent
+	popq %rax
 .Lno_external_event:
 
-	pop %rcx
-	pop %rdx
-	pop %rbx
-	add $16, %rsp	# skip RSP and RBP
-	pop %rsi
-	pop %rdi
-	pop %r8
-	pop %r9
-	pop %r10
-	pop %r11
-	pop %r12
-	pop %r13
-	pop %r14
-	pop %r15
+	popq %rcx
+	popq %rdx
+	popq %rbx
+	addq $16, %rsp	# skip RSP and RBP
+	popq %rsi
+	popq %rdi
+	popq %r8
+	popq %r9
+	popq %r10
+	popq %r11
+	popq %r12
+	popq %r13
+	popq %r14
+	popq %r15
 	popfq
-	add $8, %rsp	# skip RIP
-	pop %rbp
-	ret
+	addq $8, %rsp	# skip RIP
+	popq %rbp
+	retq
 
 /*
  * sgx_report:
@@ -317,15 +317,15 @@ sgx_ocall:
 sgx_report:
 	.cfi_startproc
 
-	push %rbx
-	push %rcx
-	mov %rdi, %rbx
-	mov %rsi, %rcx
-	mov $EREPORT, %rax
+	pushq %rbx
+	pushq %rcx
+	movq %rdi, %rbx
+	movq %rsi, %rcx
+	movq $EREPORT, %rax
 	ENCLU
-	pop %rcx
-	pop %rbx
-	ret
+	popq %rcx
+	popq %rbx
+	retq
 
 	.cfi_endproc
 	.size sgx_report, .-sgx_report
@@ -340,15 +340,15 @@ sgx_report:
 sgx_getkey:
 	.cfi_startproc
 
-	push %rbx
-	push %rcx
-	mov %rdi, %rbx
-	mov %rsi, %rcx
-	mov $EGETKEY, %rax
+	pushq %rbx
+	pushq %rcx
+	movq %rdi, %rbx
+	movq %rsi, %rcx
+	movq $EGETKEY, %rax
 	ENCLU
-	pop %rcx
-	pop %rbx
-	ret
+	popq %rcx
+	popq %rbx
+	retq
 
 	.cfi_endproc
 	.size sgx_getkey, .-sgx_getkey
@@ -365,7 +365,7 @@ rdrand:
 .Lretry_rdrand:
 	.byte 0x0f, 0xc7, 0xf0 /* RDRAND %EAX */
 	jnc .Lretry_rdrand
-	ret
+	retq
 
 	.cfi_endproc
 	.size rdrand, .-rdrand
@@ -381,7 +381,7 @@ rdfsbase:
 	.cfi_startproc
 
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xc0 /* RDFSBASE %RAX */
-	ret
+	retq
 
 	.cfi_endproc
 	.size rdfsbase, .-rdfsbase
@@ -397,7 +397,7 @@ wrfsbase:
 	.cfi_startproc
 
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd7 /* WRFSBASE %RDI */
-	ret
+	retq
 
 	.cfi_endproc
 	.size wrfsbase, .-wrfsbase
