@@ -347,8 +347,13 @@ int initialize_enclave (struct pal_enclave * enclave)
         enum sgx_page_type type;
     };
 
-    struct mem_area * areas =
-        __alloca(sizeof(areas[0]) * (10 + enclave->thread_num));
+    /*
+     * 10 for manifest, SSA, TCS, etc
+     * + enclave->thread_num for normal stack
+     * + enclave->thread_num for signal stack
+     */
+    int area_num_max = 10 + enclave->thread_num * 2;
+    struct mem_area * areas = __alloca(sizeof(areas[0]) * area_num_max);
     int area_num = 0;
 
     /* The manifest needs to be allocated at the upper end of the enclave
@@ -388,6 +393,16 @@ int initialize_enclave (struct pal_enclave * enclave)
         areas[area_num] = (struct mem_area) {
             .desc = "stack", .skip_eextend = false, .fd = -1,
             .is_binary = false, .addr = 0, .size = ENCLAVE_STACK_SIZE,
+            .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
+        };
+        area_num++;
+    }
+
+    struct mem_area* sig_stack_areas = &areas[area_num]; /* memorize for later use */
+    for (uint32_t t = 0; t < enclave->thread_num; t++) {
+        areas[area_num] = (struct mem_area) {
+            .desc = "sig_stack", .skip_eextend = false, .fd = -1,
+            .is_binary = false, .addr = 0, .size = ENCLAVE_SIG_STACK_SIZE,
             .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
         };
         area_num++;
@@ -498,6 +513,11 @@ int initialize_enclave (struct pal_enclave * enclave)
                 gs->tcs_offset = tcs_area->addr + g_page_size * t;
                 gs->initial_stack_offset =
                     stack_areas[t].addr + ENCLAVE_STACK_SIZE;
+                gs->sig_stack_low =
+                    sig_stack_areas[t].addr + enclave_secs.base;
+                gs->sig_stack_high =
+                    sig_stack_areas[t].addr + ENCLAVE_SIG_STACK_SIZE +
+                    enclave_secs.base;
                 gs->ssa = (void *) ssa_area->addr +
                     enclave->ssaframesize * SSAFRAMENUM * t +
                     enclave_secs.base;
