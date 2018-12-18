@@ -207,6 +207,8 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
 static void _DkTerminateSighandler (int signum, siginfo_t * info,
                                     struct ucontext * uc)
 {
+    __UNUSED(info);
+
     int event_num = get_event_num(signum);
     if (event_num == -1)
         return;
@@ -244,6 +246,9 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 static void _DkPipeSighandler (int signum, siginfo_t * info,
                                struct ucontext * uc)
 {
+    __UNUSED(signum);
+    __UNUSED(info);
+
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
     assert(ADDR_IN_PAL(rip)); // This signal can only happens inside PAL
     return;

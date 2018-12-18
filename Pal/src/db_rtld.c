@@ -1212,7 +1212,10 @@ static int relocate_elf_object (struct link_map * l)
 
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 {
-#ifdef DEBUG
+#ifndef DEBUG
+    __UNUSED(uri);
+    __UNUSED(start_addr);
+#else
     if (!strpartcmp_static(uri, "file:"))
         return;
 
@@ -1268,7 +1271,9 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 
 void DkDebugDetachBinary (PAL_PTR start_addr)
 {
-#ifdef DEBUG
+#ifndef DEBUG
+    __UNUSED(start_addr);
+#else
     for (struct link_map * l = loaded_maps; l; l = l->l_next)
         if (l->l_map_start == (ElfW(Addr)) start_addr) {
             _DkDebugDelMap(l);

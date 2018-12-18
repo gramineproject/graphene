@@ -65,6 +65,8 @@ DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event, PAL_FLG flags)
 {
     ENTER_PAL_CALL(DkSetExceptionHandler);
 
+    __UNUSED(flags);
+
     if (!handler || event == 0 ||
         event > sizeof(handlers) / sizeof(handlers[0])) {
         _DkRaiseFailure(PAL_ERROR_INVAL);

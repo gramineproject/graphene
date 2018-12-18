@@ -221,7 +221,7 @@ out:
 static int loader_filter (const char * key, int len)
 {
     /* try to do this as fast as possible */
-    return (key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
+    return (len > 7 && key[0] == 'l' && key[1] == 'o' && key[2] == 'a' && key[3] == 'd' &&
             key[4] == 'e' && key[5] == 'r' && key[6] == '.') ? 0 : 1;
 }
 

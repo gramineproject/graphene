@@ -241,5 +241,8 @@ int _DkInstructionCacheFlush (const void * addr, int size)
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
                       unsigned int values[4])
 {
+    __UNUSED(leaf);
+    __UNUSED(subleaf);
+    __UNUSED(values);
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

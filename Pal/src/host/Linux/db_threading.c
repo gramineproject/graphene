@@ -86,6 +86,8 @@ int pal_thread_init (void * tcbptr)
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param, int flags)
 {
+    __UNUSED(flags);
+
     void * stack = NULL;
     int ret = _DkVirtualMemoryAlloc(&stack, THREAD_STACK_SIZE + ALT_STACK_SIZE,
                                     0, PAL_PROT_READ|PAL_PROT_WRITE);

@@ -301,6 +301,10 @@ static int pipe_private (PAL_HANDLE * handle, int options)
 static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
+    __UNUSED(access);
+    __UNUSED(share);
+    __UNUSED(create);
+
     options &= PAL_OPTION_MASK;
 
     if (strpartcmp_static(type, "pipe:") && !*uri)
@@ -325,6 +329,8 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                           void * buffer)
 {
+    __UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))
@@ -374,6 +380,8 @@ static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                            const void * buffer)
 {
+    __UNUSED(offset);
+
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))

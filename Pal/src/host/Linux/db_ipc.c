@@ -37,6 +37,12 @@
 int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
                int access, int share, int create, int options)
 {
+    __UNUSED(type);
+    __UNUSED(access);
+    __UNUSED(share);
+    __UNUSED(create);
+    __UNUSED(options);
+
     int64_t token;
     int rv;
 
@@ -71,6 +77,8 @@ int gipc_close (PAL_HANDLE handle)
 
 const char * gipc_getrealpath (PAL_HANDLE handle)
 {
+    __UNUSED(handle);
+
     return GIPC_FILE;
 }
 
@@ -112,6 +120,8 @@ int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key)
 int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
                              PAL_PTR * addrs, PAL_NUM * sizes, int flags)
 {
+    __UNUSED(flags);
+
     int fd = channel->gipc.fd;
     struct gipc_send gs;
 

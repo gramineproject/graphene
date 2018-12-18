@@ -108,6 +108,8 @@ void _DkDebugAddMap (struct link_map * map)
 
     dbg->r_state = RT_CONSISTENT;
     pal_dl_debug_state();
+#else
+    __UNUSED(map);
 #endif
 }
 
@@ -149,6 +151,8 @@ void _DkDebugDelMap (struct link_map * map)
 
     dbg->r_state = RT_CONSISTENT;
     pal_dl_debug_state();
+#else
+    __UNUSED(map);
 #endif
 }
 
@@ -245,6 +249,8 @@ void setup_vdso_map (ElfW(Addr) addr)
 
 ElfW(Addr) resolve_rtld (const char * sym_name)
 {
+    __UNUSED(sym_name);
+
     /* We are not using this, because in Linux we can rely on
        rtld_map to directly lookup symbols */
     return 0;
