@@ -17,6 +17,8 @@ struct enclave_tls {
         uint64_t tcs_offset;
         uint64_t initial_stack_offset;
         uint64_t tmp_rip;
+        uint64_t sig_stack_low;
+        uint64_t sig_stack_high;
         void*    ecall_return_addr;
         void*    ssa;
         sgx_pal_gpr_t* gpr;
