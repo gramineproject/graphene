@@ -117,11 +117,6 @@ typedef struct {
 
 #define SIGNAL_MASK_TIME 1000
 
-#define save_return_point(ptr)                      \
-    asm volatile ("leaq 0(%%rip), %%rax\r\n"        \
-                  "movq %%rax, %0\r\n"              \
-                  : "=b"(ptr) :: "memory", "rax")
-
 static int get_event_num (int signum)
 {
     switch(signum) {
