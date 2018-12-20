@@ -45,11 +45,6 @@ typedef struct exception_event {
     struct pal_frame *  frame;
 } PAL_EVENT;
 
-#define save_return_point(ptr)                      \
-    asm volatile ("leaq 0(%%rip), %%rax\r\n"        \
-                  "movq %%rax, %0\r\n"              \
-                  : "=b"(ptr) :: "memory", "rax")
-
 void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
                              PAL_NUM arg, struct pal_frame * frame,
                              PAL_CONTEXT * context)
