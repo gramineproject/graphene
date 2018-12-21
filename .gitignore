@@ -1,5 +1,5 @@
 /Runtime/
 *~
-**/.lib/*
+.lib
 /Jenkinsfiles/Jenkinsfile-*
 /Jenkinsfiles/JenkinsfileSGX-*
