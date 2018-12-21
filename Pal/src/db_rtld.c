@@ -149,12 +149,6 @@ void setup_elf_hash (struct link_map *map)
     map->l_chain = hash;
 }
 
-/* errval is negative value. see PAL_STRERROR */
-static void print_error(const char * errstring, int errval)
-{
-    printf("%s (%s)\n", errstring, PAL_STRERROR(errval));
-}
-
 /* Map in the shared object NAME, actually located in REALNAME, and already
    opened on FD */
 struct link_map *
