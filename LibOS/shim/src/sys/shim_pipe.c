@@ -41,7 +41,7 @@ int create_pipes (IDTYPE * pipeid, PAL_HANDLE * srv, PAL_HANDLE * cli,
 {
     PAL_HANDLE hdl0 = NULL, hdl1 = NULL, hdl2 = NULL;
     int ret = 0;
-    char * uri = __alloca(PIPE_URI_SIZE);
+    char uri[PIPE_URI_SIZE];
 
     if ((ret = create_pipe(pipeid, uri, PIPE_URI_SIZE, &hdl0,
                            qstr)) < 0) {
