@@ -440,13 +440,13 @@ static int sgx_ocall_sock_send(void * pms)
     ODEBUG(OCALL_SOCK_SEND, ms);
     const struct sockaddr * addr = ms->ms_addr;
     socklen_t addrlen = ms->ms_addr ? ms->ms_addrlen : 0;
+    struct sockaddr_in mcast_addr;
 
     if (ms->ms_sockfd == PAL_SEC()->mcast_srv) {
-        struct sockaddr_in * mcast_addr = __alloca(sizeof(struct sockaddr_in));
-        mcast_addr->sin_family = AF_INET;
-        inet_pton4(MCAST_GROUP, sizeof(MCAST_GROUP),  &mcast_addr->sin_addr.s_addr);
-        mcast_addr->sin_port = htons(PAL_SEC()->mcast_port);
-        addr = (struct sockaddr *) mcast_addr;
+        mcast_addr.sin_family = AF_INET;
+        inet_pton4(MCAST_GROUP, sizeof(MCAST_GROUP),  &mcast_addr.sin_addr.s_addr);
+        mcast_addr.sin_port = htons(PAL_SEC()->mcast_port);
+        addr = (struct sockaddr *) &mcast_addr;
         addrlen = sizeof(struct sockaddr_in);
     }
 

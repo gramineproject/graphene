@@ -204,7 +204,6 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
     } ei = { .intval = exit_info };
 
     int event_num;
-    PAL_CONTEXT * ctx;
 
     if (!ei.info.valid) {
         event_num = exit_info;
@@ -264,26 +263,26 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         _DkThreadExit();
     }
 
-    ctx = __alloca(sizeof(PAL_CONTEXT));
-    memset(ctx, 0, sizeof(PAL_CONTEXT));
-    ctx->rax = uc->rax;
-    ctx->rbx = uc->rbx;
-    ctx->rcx = uc->rcx;
-    ctx->rdx = uc->rdx;
-    ctx->rsp = uc->rsp;
-    ctx->rbp = uc->rbp;
-    ctx->rsi = uc->rsi;
-    ctx->rdi = uc->rdi;
-    ctx->r8  = uc->r8;
-    ctx->r9  = uc->r9;
-    ctx->r10 = uc->r10;
-    ctx->r11 = uc->r11;
-    ctx->r12 = uc->r12;
-    ctx->r13 = uc->r13;
-    ctx->r14 = uc->r14;
-    ctx->r15 = uc->r15;
-    ctx->efl = uc->rflags;
-    ctx->rip = uc->rip;
+    PAL_CONTEXT ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.rax = uc->rax;
+    ctx.rbx = uc->rbx;
+    ctx.rcx = uc->rcx;
+    ctx.rdx = uc->rdx;
+    ctx.rsp = uc->rsp;
+    ctx.rbp = uc->rbp;
+    ctx.rsi = uc->rsi;
+    ctx.rdi = uc->rdi;
+    ctx.r8  = uc->r8;
+    ctx.r9  = uc->r9;
+    ctx.r10 = uc->r10;
+    ctx.r11 = uc->r11;
+    ctx.r12 = uc->r12;
+    ctx.r13 = uc->r13;
+    ctx.r14 = uc->r14;
+    ctx.r15 = uc->r15;
+    ctx.efl = uc->rflags;
+    ctx.rip = uc->rip;
 
     struct pal_frame * frame = get_frame(uc);
 
@@ -302,7 +301,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         /* nothing */
         break;
     }
-    _DkExceptionRealHandler(event_num, arg, frame, ctx);
+    _DkExceptionRealHandler(event_num, arg, frame, &ctx);
     restore_sgx_context(uc);
 }
 
