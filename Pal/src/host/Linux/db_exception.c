@@ -136,8 +136,10 @@ void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
     PAL_EVENT event;
     event.event_num = event_num;
 
-    if (uc)
+    if (uc) {
         memcpy(&event.context, uc->uc_mcontext.gregs, sizeof(PAL_CONTEXT));
+        event.context.fpregs = uc->uc_mcontext.fpregs;
+    }
 
     event.uc = uc;
 
