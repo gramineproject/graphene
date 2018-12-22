@@ -168,7 +168,7 @@ static int make_uri (struct shim_dentry * dent)
     assert(mdata);
 
     struct shim_file_data * data = FILE_DENTRY_DATA(dent);
-    char * uri = __alloca(URI_MAX_SIZE);
+    char uri[URI_MAX_SIZE];
     int len = concat_uri(uri, URI_MAX_SIZE, data->type,
                          mdata->root_uri,
                          mdata->root_uri_len,
