@@ -86,6 +86,7 @@ int set_sighandler (int * sigs, int nsig, void * handler)
         action.sa_restorer = restore_rt;
 #endif
     } else {
+        action.sa_flags = 0x0u;
         action.sa_handler = SIG_IGN;
     }
 
