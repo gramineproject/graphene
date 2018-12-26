@@ -152,8 +152,7 @@ static int child_process (void * param)
 
 failed:
     /* fail is it gets here */
-    _DkThreadExit();
-    return 0;
+    return -PAL_ERROR_DENIED;
 }
 
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
@@ -267,8 +266,8 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     }
 
     if (!ret) {
-        child_process(&param);
-        return 0;
+        ret = child_process(&param);
+        goto out; /* if child_process returned, there was a failure */
     }
 
     child_handle->process.pid = ret;

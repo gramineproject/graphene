@@ -157,11 +157,10 @@ static int child_process (void * param)
 
     INLINE_SYSCALL(execve, 3, PAL_LOADER, proc_param->argv,
                    linux_state.environ);
-    ret = -PAL_ERROR_DENIED;
 
 failed:
     /* fail is it gets here */
-    return ret;
+    return -PAL_ERROR_DENIED;
 }
 
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
@@ -291,7 +290,6 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 #endif
 
     ret = ARCH_VFORK();
-    int child_ret = 0;
 
     if (IS_ERR(ret)) {
         ret = -PAL_ERROR_DENIED;
@@ -299,13 +297,8 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     }
 
     if (!ret) {
-        child_ret = child_process(&param);
-        return 0;
-    }
-
-    if (child_ret < 0) {
-        ret = child_ret;
-        goto out;
+        ret = child_process(&param);
+        goto out; /* if child_process returned, there was a failure */
     }
 
     proc_args->pal_sec.process_id = ret;
