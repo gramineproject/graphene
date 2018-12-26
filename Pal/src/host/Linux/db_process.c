@@ -286,12 +286,11 @@ int _DkProcessCreate (PAL_HANDLE * handle,
 
     if (!ret) {
         child_ret = child_process(&param);
+        if (child_ret < 0) {
+            ret = child_ret;
+            goto out;
+        }
         return 0;
-    }
-
-    if (child_ret < 0) {
-        ret = child_ret;
-        goto out;
     }
 
     proc_args->pal_sec.process_id = ret;
