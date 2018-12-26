@@ -801,6 +801,7 @@ map_next:
     }
 
     obj->map.l_name = obj->map_name;
+    _DkObjectClose(cached_file);
     return &obj->map;
 
 out_more_mapped:
