@@ -286,6 +286,7 @@ int _DkProcessCreate (PAL_HANDLE * handle,
 
     if (!ret) {
         child_ret = child_process(&param);
+        _DkObjectClose(child_handle);
         return 0;
     }
 
