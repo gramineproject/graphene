@@ -165,6 +165,7 @@ static int file_close (PAL_HANDLE handle)
     int fd = handle->file.fd;
     ocall_close(fd);
 
+    /* initial realpath is part of handle object and will be freed with it */
     if (handle->file.realpath &&
         handle->file.realpath != (void *) handle + HANDLE_SIZE(file))
         free((void *) handle->file.realpath);
@@ -356,13 +357,24 @@ static int file_rename (PAL_HANDLE handle, const char * type,
 {
     if (!strcmp_static(type, "file"))
         return -PAL_ERROR_INVAL;
-    int ret = ocall_rename(handle->file.realpath, uri);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
 
-    /* TODO: old realpath memory is potentially leaked here, and need
-     * to check for strdup memory allocation failure. */
-    handle->file.realpath = strdup(uri);
+    char* tmp = strdup(uri);
+    if (!tmp)
+        return -PAL_ERROR_NOMEM;
+
+    int ret = ocall_rename(handle->file.realpath, uri);
+    if (IS_ERR(ret)) {
+        free(tmp);
+        return unix_to_pal_error(ERRNO(ret));
+    }
+
+    /* initial realpath is part of handle object and will be freed with it */
+    if (handle->file.realpath &&
+        handle->file.realpath != (void *) handle + HANDLE_SIZE(file)) {
+        free((void *) handle->file.realpath);
+    }
+
+    handle->file.realpath = tmp;
     return 0;
 }
 
@@ -533,6 +545,7 @@ static int dir_close (PAL_HANDLE handle)
         handle->dir.buf = handle->dir.ptr = handle->dir.end = (PAL_PTR) NULL;
     }
 
+    /* initial realpath is part of handle object and will be freed with it */
     if (handle->dir.realpath &&
         handle->dir.realpath != (void *) handle + HANDLE_SIZE(dir))
         free((void *) handle->dir.realpath);
@@ -559,13 +572,24 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
 {
     if (!strcmp_static(type, "dir"))
         return -PAL_ERROR_INVAL;
-    int ret = ocall_rename(handle->dir.realpath, uri);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
 
-    /* TODO: old realpath memory is potentially leaked here, and need
-     * to check for strdup memory allocation failure. */
-    handle->dir.realpath = strdup(uri);
+    char* tmp = strdup(uri);
+    if (!tmp)
+        return -PAL_ERROR_NOMEM;
+
+    int ret = ocall_rename(handle->dir.realpath, uri);
+    if (IS_ERR(ret)) {
+        free(tmp);
+        return unix_to_pal_error(ERRNO(ret));
+    }
+
+    /* initial realpath is part of handle object and will be freed with it */
+    if (handle->dir.realpath &&
+        handle->dir.realpath != (void *) handle + HANDLE_SIZE(dir)) {
+        free((void *) handle->dir.realpath);
+    }
+
+    handle->dir.realpath = tmp;
     return 0;
 }
 

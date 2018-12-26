@@ -133,9 +133,11 @@ static int file_close (PAL_HANDLE handle)
 
     int ret = INLINE_SYSCALL(close, 1, fd);
 
+    /* initial realpath is part of handle object and will be freed with it */
     if (handle->file.realpath &&
-        handle->file.realpath != (void *) handle + HANDLE_SIZE(file))
+        handle->file.realpath != (void *) handle + HANDLE_SIZE(file)) {
         free((void *) handle->file.realpath);
+    }
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
@@ -288,12 +290,23 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     if (!strcmp_static(type, "file"))
         return -PAL_ERROR_INVAL;
 
+    char* tmp = strdup(uri);
+    if (!tmp)
+        return -PAL_ERROR_NOMEM;
+
     int ret = INLINE_SYSCALL(rename, 2, handle->file.realpath, uri);
-
-    if (IS_ERR(ret))
+    if (IS_ERR(ret)) {
+        free(tmp);
         return unix_to_pal_error(ERRNO(ret));
+    }
 
-    handle->file.realpath = malloc_copy(uri, strlen(uri));
+    /* initial realpath is part of handle object and will be freed with it */
+    if (handle->file.realpath &&
+            handle->file.realpath != (void *) handle + HANDLE_SIZE(file)) {
+        free((void *) handle->file.realpath);
+    }
+
+    handle->file.realpath = tmp;
     return 0;
 }
 
@@ -484,9 +497,11 @@ static int dir_close (PAL_HANDLE handle)
         handle->dir.buf = handle->dir.ptr = handle->dir.end = (PAL_PTR) NULL;
     }
 
+    /* initial realpath is part of handle object and will be freed with it */
     if (handle->dir.realpath &&
-        handle->dir.realpath != (void *) handle + HANDLE_SIZE(dir))
+        handle->dir.realpath != (void *) handle + HANDLE_SIZE(dir)) {
         free((void *) handle->dir.realpath);
+    }
 
     if (IS_ERR(ret))
         return -PAL_ERROR_BADHANDLE;
@@ -517,12 +532,23 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     if (!strcmp_static(type, "dir"))
         return -PAL_ERROR_INVAL;
 
+    char* tmp = strdup(uri);
+    if (!tmp)
+        return -PAL_ERROR_NOMEM;
+
     int ret = INLINE_SYSCALL(rename, 2, handle->dir.realpath, uri);
-
-    if (IS_ERR(ret))
+    if (IS_ERR(ret)) {
+        free(tmp);
         return unix_to_pal_error(ERRNO(ret));
+    }
 
-    handle->dir.realpath = malloc_copy(uri, strlen(uri));
+    /* initial realpath is part of handle object and will be freed with it */
+    if (handle->dir.realpath &&
+            handle->dir.realpath != (void *) handle + HANDLE_SIZE(dir)) {
+        free((void *) handle->dir.realpath);
+    }
+
+    handle->dir.realpath = tmp;
     return 0;
 }
 
