@@ -95,6 +95,10 @@ int set_sighandler (int * sigs, int nsig, void * handler)
         action.sa_flags |= SA_NOCLDWAIT;
 
     __sigemptyset((__sigset_t *) &action.sa_mask);
+    /* mask all the asynchronous signals whose signal hanlder is
+       _DkTerminateSighandler */
+    __sigaddset((__sigset_t *) &action.sa_mask, SIGTERM);
+    __sigaddset((__sigset_t *) &action.sa_mask, SIGINT);
     __sigaddset((__sigset_t *) &action.sa_mask, SIGCONT);
 
     for (int i = 0 ; i < nsig ; i++) {
@@ -136,8 +140,8 @@ void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
     PAL_EVENT event;
     event.event_num = event_num;
 
-    if (uc)
-        memcpy(&event.context, uc->uc_mcontext.gregs, sizeof(PAL_CONTEXT));
+    assert(uc != NULL);
+    memcpy(&event.context, uc->uc_mcontext.gregs, sizeof(PAL_CONTEXT));
 
     event.uc = uc;
 
@@ -211,30 +215,6 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
     if (event_num == -1)
         return;
 
-    uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
-
-    // If the signal arrives in the middle of a PAL call, add the event
-    // to pending in the current TCB.
-    if (ADDR_IN_PAL(rip)) {
-        PAL_TCB * tcb = get_tcb();
-        assert(tcb);
-        if (!tcb->pending_event) {
-            // Use the preserved pending event slot
-            tcb->pending_event = event_num;
-        } else {
-            // If there is already a pending event, add the new event to the queue.
-            // (a relatively rare case.)
-            struct event_queue * ev = malloc(sizeof(*ev));
-            if (!ev)
-                return;
-
-            INIT_LIST_HEAD(ev, list);
-            ev->event_num = event_num;
-            listp_add_tail(ev, &tcb->pending_queue, list);
-        }
-        return;
-    }
-
     // Call the event handler. If there is no handler, terminate the thread
     // unless it is a resuming event (then ignore the event).
     if (!_DkGenericSignalHandle(event_num, NULL, uc) && event_num != PAL_EVENT_RESUME)
@@ -247,31 +227,6 @@ static void _DkPipeSighandler (int signum, siginfo_t * info,
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
     assert(ADDR_IN_PAL(rip)); // This signal can only happens inside PAL
     return;
-}
-
-/*
- * __check_pending_event(): checks the existence of a pending event in the TCB
- * and handles the event consequently.
- */
-void __check_pending_event (void)
-{
-    PAL_TCB * tcb = get_tcb();
-    assert(tcb);
-    if (tcb->pending_event) {
-        int event = tcb->pending_event;
-        tcb->pending_event = 0;
-        _DkGenericSignalHandle(event, NULL, NULL);
-
-        if (!listp_empty(&tcb->pending_queue)) {
-            // If there are more than one pending events, process them from the queue
-            struct event_queue * ev, * n;
-            listp_for_each_entry_safe(ev, n, &tcb->pending_queue, list) {
-                listp_del(ev, &tcb->pending_queue, list);
-                _DkGenericSignalHandle(ev->event_num, NULL, NULL);
-                free(ev);
-            }
-        }
-    }
 }
 
 void _DkRaiseFailure (int error)

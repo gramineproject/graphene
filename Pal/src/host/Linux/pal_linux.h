@@ -185,8 +185,6 @@ struct event_queue {
 DEFINE_LISTP(event_queue);
 typedef struct pal_tcb {
     struct pal_tcb *  self;
-    int               pending_event;
-    LISTP_TYPE(event_queue) pending_queue;
     PAL_HANDLE        handle;
     void *            alt_stack;
     int               (*callback) (void *);

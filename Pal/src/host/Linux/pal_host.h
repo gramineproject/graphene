@@ -181,12 +181,10 @@ typedef struct pal_handle
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 
-extern void __check_pending_event (void);
-
-#define LEAVE_PAL_CALL() do { __check_pending_event(); } while (0)
+#define LEAVE_PAL_CALL() do { /* nothing */ } while (0)
 
 #define LEAVE_PAL_CALL_RETURN(retval) \
-    do { __check_pending_event(); return (retval); } while (0)
+    do { return (retval); } while (0)
 
 #if TRACE_HEAP_LEAK == 1
 
