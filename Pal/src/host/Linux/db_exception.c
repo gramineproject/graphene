@@ -95,7 +95,7 @@ int set_sighandler (int * sigs, int nsig, void * handler)
         action.sa_flags |= SA_NOCLDWAIT;
 
     __sigemptyset((__sigset_t *) &action.sa_mask);
-    /* mask all the asynchronous signals whose signal hanlder is
+    /* mask all the asynchronous signals whose hanlder is
        _DkTerminateSighandler */
     __sigaddset((__sigset_t *) &action.sa_mask, SIGTERM);
     __sigaddset((__sigset_t *) &action.sa_mask, SIGINT);
