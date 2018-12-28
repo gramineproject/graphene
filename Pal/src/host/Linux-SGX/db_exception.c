@@ -188,6 +188,38 @@ void restore_sgx_context (sgx_context_t * uc)
                   :: "r"(uc) : "memory");
 }
 
+static bool handle_ud(sgx_context_t * uc)
+{
+    uint8_t * instr = (uint8_t *) uc->rip;
+    if (instr[0] == 0xcc) { /* skip int 3 */
+        uc->rip++;
+        return true;
+    } else if (instr[0] == 0x0f && instr[1] == 0xa2) {
+        /* cpuid */
+        unsigned int values[4];
+        if (!_DkCpuIdRetrieve(uc->rax & 0xffffffff,
+                              uc->rcx & 0xffffffff, values)) {
+            uc->rip += 2;
+            uc->rax = values[0];
+            uc->rbx = values[1];
+            uc->rcx = values[2];
+            uc->rdx = values[3];
+            return true;
+        }
+    } else if (instr[0] == 0x0f && instr[1] == 0x31) {
+        /* rdtsc */
+        uc->rip += 2;
+        uc->rdx = 0;
+        uc->rax = 0;
+        return true;
+    } else if (instr[0] == 0x0f && instr[1] == 0x05) {
+        /* syscall: LibOS may know how to handle this */
+        return false;
+    }
+    SGX_DBG(DBG_E, "unknown instruction rip 0x%016lx\n", uc->rip);
+    return false;
+}
+
 void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
 {
 #if SGX_HAS_FSGSBASE == 0
@@ -199,7 +231,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
 
     union {
         sgx_arch_exitinfo_t info;
-        int intval;
+        unsigned int intval;
     } ei = { .intval = exit_info };
 
     int event_num;
@@ -207,53 +239,62 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
 
     if (!ei.info.valid) {
         event_num = exit_info;
-        goto handle_event;
-    }
-
-    if (ei.info.vector == SGX_EXCEPTION_VECTOR_UD) {
-        unsigned char * instr = (unsigned char *) uc->rip;
-        if (instr[0] == 0xcc) { /* skip int 3 */
-            uc->rip++;
-            restore_sgx_context(uc);
-            return;
-        }
-        if (instr[0] == 0x0f && instr[1] == 0xa2) {
-            unsigned int values[4];
-            if (!_DkCpuIdRetrieve(uc->rax & 0xffffffff,
-                                  uc->rcx & 0xffffffff, values)) {
-                uc->rip += 2;
-                uc->rax = values[0];
-                uc->rbx = values[1];
-                uc->rcx = values[2];
-                uc->rdx = values[3];
+    } else {
+        switch (ei.info.vector) {
+        case SGX_EXCEPTION_VECTOR_BR:
+            event_num = PAL_EVENT_NUM_BOUND;
+            break;
+        case SGX_EXCEPTION_VECTOR_UD:
+            if (handle_ud(uc)) {
                 restore_sgx_context(uc);
                 return;
             }
-        }
-        if (instr[0] == 0x0f && instr[1] == 0x31) {
-            uc->rip += 2;
-            uc->rdx = 0;
-            uc->rax = 0;
-            restore_sgx_context(uc);
-            return;
-        }
-        SGX_DBG(DBG_E, "Illegal instruction executed in enclave\n");    
-        ocall_exit(1);
-    }
-
-    switch (ei.info.vector) {
+            event_num = PAL_EVENT_ILLEGAL;
+            break;
         case SGX_EXCEPTION_VECTOR_DE:
+        case SGX_EXCEPTION_VECTOR_MF:
+        case SGX_EXCEPTION_VECTOR_XM:
             event_num = PAL_EVENT_ARITHMETIC_ERROR;
             break;
         case SGX_EXCEPTION_VECTOR_AC:
             event_num = PAL_EVENT_MEMFAULT;
             break;
+        case SGX_EXCEPTION_VECTOR_DB:
+        case SGX_EXCEPTION_VECTOR_BP:
         default:
             restore_sgx_context(uc);
             return;
+        }
     }
 
-handle_event:
+    if (ADDR_IN_PAL(uc->rip) &&
+        /* event isn't asynchronous */
+        (event_num != PAL_EVENT_QUIT &&
+         event_num != PAL_EVENT_SUSPEND &&
+         event_num != PAL_EVENT_RESUME)) {
+        printf("*** An unexpected AEX vector occurred inside PAL. "
+               "Exiting the thread. *** \n"
+               "(vector = 0x%x, type = 0x%x valid = %d, RIP = +0x%08lx)\n"
+               "rax: 0x%08lx rcx: 0x%08lx rdx: 0x%08lx rbx: 0x%08lx\n"
+               "rsp: 0x%08lx rbp: 0x%08lx rsi: 0x%08lx rdi: 0x%08lx\n"
+               "r8 : 0x%08lx r9 : 0x%08lx r10: 0x%08lx r11: 0x%08lx\n"
+               "r12: 0x%08lx r13: 0x%08lx r14: 0x%08lx r15: 0x%08lx\n"
+               "rflags: 0x%08lx rip: 0x%08lx\n",
+               ei.info.vector, ei.info.type, ei.info.valid,
+               uc->rip - (uintptr_t) TEXT_START,
+               uc->rax, uc->rcx, uc->rdx, uc->rbx,
+               uc->rsp, uc->rbp, uc->rsi, uc->rdi,
+               uc->r8, uc->r9, uc->r10, uc->r11,
+               uc->r12, uc->r13, uc->r14, uc->r15,
+               uc->rflags, uc->rip);
+#ifdef DEBUG
+        printf("pausing for debug\n");
+        while (true)
+            __asm__ volatile("pause");
+#endif
+        _DkThreadExit();
+    }
+
     ctx = __alloca(sizeof(PAL_CONTEXT));
     memset(ctx, 0, sizeof(PAL_CONTEXT));
     ctx->rax = uc->rax;
@@ -278,6 +319,17 @@ handle_event:
     struct pal_frame * frame = get_frame(uc);
 
     PAL_NUM arg = 0;
+    switch (event_num) {
+    case PAL_EVENT_ILLEGAL:
+        arg = uc->rip;
+        break;
+    case PAL_EVENT_MEMFAULT:
+        /* TODO */
+        break;
+    default:
+        /* nothing */
+        break;
+    }
     _DkExceptionRealHandler(event_num, arg, frame, ctx);
     restore_sgx_context(uc);
 }
