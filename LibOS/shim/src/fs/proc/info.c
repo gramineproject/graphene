@@ -27,7 +27,7 @@ static int proc_info_stat (const char * name, struct stat * buf)
 {
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = buf->st_ino = 1;
-    buf->st_mode = 0444|S_IFDIR;
+    buf->st_mode = 0444|S_IFREG;
     buf->st_uid = 0;
     buf->st_gid = 0;
     buf->st_size = 0;
