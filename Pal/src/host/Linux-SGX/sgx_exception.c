@@ -74,12 +74,7 @@
 
 DEFINE_RESTORE_RT(__NR_rt_sigreturn)
 
-void __restore_rt();
-
-void restore_rt (void) 
-{
-    __restore_rt();
-}
+__attribute__((visibility("hidden"))) void __restore_rt();
 
 #endif
 
@@ -91,7 +86,7 @@ int set_sighandler (int * sigs, int nsig, void * handler)
 
 #if !defined(__i386__)
     action.sa_flags |= SA_RESTORER;
-    action.sa_restorer = restore_rt;
+    action.sa_restorer = __restore_rt;
 #endif
 
     __sigemptyset((__sigset_t *) &action.sa_mask);
