@@ -1,7 +1,7 @@
-#include"pal.h"
-#include"pal_debug.h"
-#include<immintrin.h>
-#include<stdio.h>
+#include "pal.h"
+#include "pal_debug.h"
+#include <immintrin.h>
+#include <stdio.h>
 
 int main(){
     /* Initialize the two argument vectors */
@@ -16,7 +16,7 @@ int main(){
   
   PAL_HANDLE file1 = DkStreamOpen("file:avxRes", PAL_ACCESS_RDWR, 0, 0, 0); 
   if (file1) {
-    DkStreamWrite(file1, 0, sizeof(double), &result, NULL);
+    DkStreamWrite(file1, 0, sizeof(result), &result, NULL);
     DkObjectClose(file1);
   }
   return 1;
