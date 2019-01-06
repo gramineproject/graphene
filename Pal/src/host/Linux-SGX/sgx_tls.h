@@ -12,13 +12,13 @@ struct enclave_tls {
     uint64_t initial_stack_offset;
     void *   aep;
     void *   ssa;
-    void *   gpr;
+    sgx_arch_gpr_t * gpr;
     void *   exit_target;
     void *   fsbase;
     void *   stack;
     void *   ustack_top;
     void *   ustack;
-    void *   thread;
+    struct pal_handle_thread * thread;
 };
 
 #ifndef DEBUG
