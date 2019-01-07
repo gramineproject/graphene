@@ -41,6 +41,9 @@ shared_object: %: %.c
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -o $@ -fPIC -pie $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
+syscall: CFLAGS += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST)
+
 else
 .IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
 $(special_executables) $(c_executables) $(cxx_executables):
