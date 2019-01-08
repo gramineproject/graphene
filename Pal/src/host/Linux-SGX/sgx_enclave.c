@@ -22,14 +22,15 @@
 
 #define ODEBUG(code, ms) do {} while (0)
 
-static int sgx_ocall_exit(int rv)
+static int sgx_ocall_exit(void* prv)
 {
+    int64_t rv = (int64_t) prv;
     ODEBUG(OCALL_EXIT, NULL);
-    if (rv != (int) ((uint8_t) rv)) {
+    if (rv != (int64_t) ((uint8_t) rv)) {
         SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
         rv = 255;
     }
-    INLINE_SYSCALL(exit, 1, rv);
+    INLINE_SYSCALL(exit, 1, (int)rv);
     return 0;
 }
 
@@ -666,44 +667,44 @@ static int sgx_ocall_load_debug(void * pms)
     return 0;
 }
 
-void * ocall_table[OCALL_NR] = {
-        [OCALL_EXIT]            = (void *) sgx_ocall_exit,
-        [OCALL_PRINT_STRING]    = (void *) sgx_ocall_print_string,
-        [OCALL_ALLOC_UNTRUSTED] = (void *) sgx_ocall_alloc_untrusted,
-        [OCALL_MAP_UNTRUSTED]   = (void *) sgx_ocall_map_untrusted,
-        [OCALL_UNMAP_UNTRUSTED] = (void *) sgx_ocall_unmap_untrusted,
-        [OCALL_CPUID]           = (void *) sgx_ocall_cpuid,
-        [OCALL_OPEN]            = (void *) sgx_ocall_open,
-        [OCALL_CLOSE]           = (void *) sgx_ocall_close,
-        [OCALL_READ]            = (void *) sgx_ocall_read,
-        [OCALL_WRITE]           = (void *) sgx_ocall_write,
-        [OCALL_FSTAT]           = (void *) sgx_ocall_fstat,
-        [OCALL_FIONREAD]        = (void *) sgx_ocall_fionread,
-        [OCALL_FSETNONBLOCK]    = (void *) sgx_ocall_fsetnonblock,
-        [OCALL_FCHMOD]          = (void *) sgx_ocall_fchmod,
-        [OCALL_FSYNC]           = (void *) sgx_ocall_fsync,
-        [OCALL_FTRUNCATE]       = (void *) sgx_ocall_ftruncate,
-        [OCALL_MKDIR]           = (void *) sgx_ocall_mkdir,
-        [OCALL_GETDENTS]        = (void *) sgx_ocall_getdents,
-        [OCALL_WAKE_THREAD]     = (void *) sgx_ocall_wake_thread,
-        [OCALL_CREATE_PROCESS]  = (void *) sgx_ocall_create_process,
-        [OCALL_FUTEX]           = (void *) sgx_ocall_futex,
-        [OCALL_SOCKETPAIR]      = (void *) sgx_ocall_socketpair,
-        [OCALL_SOCK_LISTEN]     = (void *) sgx_ocall_sock_listen,
-        [OCALL_SOCK_ACCEPT]     = (void *) sgx_ocall_sock_accept,
-        [OCALL_SOCK_CONNECT]    = (void *) sgx_ocall_sock_connect,
-        [OCALL_SOCK_RECV]       = (void *) sgx_ocall_sock_recv,
-        [OCALL_SOCK_SEND]       = (void *) sgx_ocall_sock_send,
-        [OCALL_SOCK_RECV_FD]    = (void *) sgx_ocall_sock_recv_fd,
-        [OCALL_SOCK_SEND_FD]    = (void *) sgx_ocall_sock_send_fd,
-        [OCALL_SOCK_SETOPT]     = (void *) sgx_ocall_sock_setopt,
-        [OCALL_SOCK_SHUTDOWN]   = (void *) sgx_ocall_sock_shutdown,
-        [OCALL_GETTIME]         = (void *) sgx_ocall_gettime,
-        [OCALL_SLEEP]           = (void *) sgx_ocall_sleep,
-        [OCALL_POLL]            = (void *) sgx_ocall_poll,
-        [OCALL_RENAME]          = (void *) sgx_ocall_rename,
-        [OCALL_DELETE]          = (void *) sgx_ocall_delete,
-        [OCALL_LOAD_DEBUG]      = (void *) sgx_ocall_load_debug,
+sgx_ocall_fn_t ocall_table[OCALL_NR] = {
+        [OCALL_EXIT]            = sgx_ocall_exit,
+        [OCALL_PRINT_STRING]    = sgx_ocall_print_string,
+        [OCALL_ALLOC_UNTRUSTED] = sgx_ocall_alloc_untrusted,
+        [OCALL_MAP_UNTRUSTED]   = sgx_ocall_map_untrusted,
+        [OCALL_UNMAP_UNTRUSTED] = sgx_ocall_unmap_untrusted,
+        [OCALL_CPUID]           = sgx_ocall_cpuid,
+        [OCALL_OPEN]            = sgx_ocall_open,
+        [OCALL_CLOSE]           = sgx_ocall_close,
+        [OCALL_READ]            = sgx_ocall_read,
+        [OCALL_WRITE]           = sgx_ocall_write,
+        [OCALL_FSTAT]           = sgx_ocall_fstat,
+        [OCALL_FIONREAD]        = sgx_ocall_fionread,
+        [OCALL_FSETNONBLOCK]    = sgx_ocall_fsetnonblock,
+        [OCALL_FCHMOD]          = sgx_ocall_fchmod,
+        [OCALL_FSYNC]           = sgx_ocall_fsync,
+        [OCALL_FTRUNCATE]       = sgx_ocall_ftruncate,
+        [OCALL_MKDIR]           = sgx_ocall_mkdir,
+        [OCALL_GETDENTS]        = sgx_ocall_getdents,
+        [OCALL_WAKE_THREAD]     = sgx_ocall_wake_thread,
+        [OCALL_CREATE_PROCESS]  = sgx_ocall_create_process,
+        [OCALL_FUTEX]           = sgx_ocall_futex,
+        [OCALL_SOCKETPAIR]      = sgx_ocall_socketpair,
+        [OCALL_SOCK_LISTEN]     = sgx_ocall_sock_listen,
+        [OCALL_SOCK_ACCEPT]     = sgx_ocall_sock_accept,
+        [OCALL_SOCK_CONNECT]    = sgx_ocall_sock_connect,
+        [OCALL_SOCK_RECV]       = sgx_ocall_sock_recv,
+        [OCALL_SOCK_SEND]       = sgx_ocall_sock_send,
+        [OCALL_SOCK_RECV_FD]    = sgx_ocall_sock_recv_fd,
+        [OCALL_SOCK_SEND_FD]    = sgx_ocall_sock_send_fd,
+        [OCALL_SOCK_SETOPT]     = sgx_ocall_sock_setopt,
+        [OCALL_SOCK_SHUTDOWN]   = sgx_ocall_sock_shutdown,
+        [OCALL_GETTIME]         = sgx_ocall_gettime,
+        [OCALL_SLEEP]           = sgx_ocall_sleep,
+        [OCALL_POLL]            = sgx_ocall_poll,
+        [OCALL_RENAME]          = sgx_ocall_rename,
+        [OCALL_DELETE]          = sgx_ocall_delete,
+        [OCALL_LOAD_DEBUG]      = sgx_ocall_load_debug,
     };
 
 #define EDEBUG(code, ms) do {} while (0)
