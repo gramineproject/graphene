@@ -78,7 +78,7 @@ debug_fputch (void * f, int ch, void * b)
 void debug_puts (const char * str)
 {
     int len = strlen(str);
-    struct debug_buf * buf = (struct debug_buf *) SHIM_GET_TLS()->debug_buf;
+    struct debug_buf * buf = SHIM_GET_TLS()->debug_buf;
 
     while (len) {
         int rem = DEBUGBUF_SIZE - 4 - buf->end;
@@ -131,7 +131,7 @@ void debug_setprefix (shim_tcb_t * tcb)
     if (!debug_handle)
         return;
 
-    struct debug_buf * buf = (struct debug_buf *) tcb->debug_buf;
+    struct debug_buf * buf = tcb->debug_buf;
     buf->start = buf->end = 0;
 
     if (tcb->tid && !IS_INTERNAL_TID(tcb->tid))
