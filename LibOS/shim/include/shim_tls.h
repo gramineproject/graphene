@@ -57,6 +57,8 @@ struct shim_context {
 
 #endif /* IN_SHIM */
 
+struct debug_buf;
+
 typedef struct {
     uint64_t                canary;
     void *                  self;
@@ -64,7 +66,7 @@ typedef struct {
     struct shim_context     context;
     unsigned int            tid;
     int                     pal_errno;
-    void *                  debug_buf;
+    struct debug_buf *      debug_buf;
 
     /* This record is for testing the memory of user inputs.
      * If a segfault occurs with the range [start, end],
