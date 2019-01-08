@@ -14,7 +14,7 @@
  * (as in previous versions of Graphene-SGX).
  *
  * All enclave and RPC threads work on a single shared RPC queue (global
- * variable `rpc_queue`). To issue syscall, enclave thread enqueues syscall
+ * variable `g_rpc_queue`). To issue syscall, enclave thread enqueues syscall
  * request in the queue and spins waiting for result. RPC threads spin
  * waiting for syscall requests; when request comes, first lucky RPC thread
  * grabs request, issues syscall to OS, and notifies enclave thread by
@@ -47,15 +47,23 @@
 #define MAX_RPC_THREADS 64          /* max number of RPC threads */
 #define RPC_SPIN_LOCK_TIMEOUT 4096  /* # of iterations to spin before sleeping */
 
+#define SPIN_UNLOCKED           0
+#define SPIN_LOCKED             1
+
+/* RPC requests use spinlocks + futexes, based on Futexes are Tricky;
+ * Note that ordering is important due to atomic-dec in unlock logic */
+#define REQ_UNLOCKED            SPIN_UNLOCKED
+#define REQ_LOCKED_NO_WAITERS   SPIN_LOCKED
+#define REQ_LOCKED_WITH_WAITERS (SPIN_LOCKED+1)
+
 typedef struct {
     int result;
     int ocall_index;
     void* buffer;
-    int rpc_thread;          /* RPC thread handling this request (thread ID) */
-    struct atomic_int lock;  /* 0 unlocked, 1 locked no waiters, 2 locked and waiters */
+    struct atomic_int lock;  /* can be REQ_UNLOCKED/LOCKED/WAITERS */
 } rpc_request_t;
 
-typedef struct {
+typedef struct rpc_queue {
     uint64_t front, rear;
     rpc_request_t* q[RPC_QUEUE_SIZE]; /* queue of syscall requests */
     int rpc_threads[MAX_RPC_THREADS]; /* RPC threads (thread IDs) */
@@ -63,7 +71,7 @@ typedef struct {
     struct atomic_int lock;           /* global lock for enclave and RPC threads */
 } rpc_queue_t;
 
-extern rpc_queue_t* rpc_queue;  /* global RPC queue */
+extern rpc_queue_t* g_rpc_queue;  /* global RPC queue */
 
 void rpc_spin_lock(struct atomic_int* p);
 int  rpc_spin_lock_timeout(struct atomic_int* p, uint64_t iterations);

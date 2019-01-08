@@ -19,23 +19,23 @@ void pal_start_thread (void);
 extern void * enclave_base, * enclave_top;
 
 /* returns 0 if rpc_queue is valid, otherwise 1 */
-static int set_rpc_queue(void* untrusted_rpc_queue) {
-    rpc_queue = (rpc_queue_t*) untrusted_rpc_queue;
-    if (!rpc_queue)
+static int set_rpc_queue(rpc_queue_t* untrusted_rpc_queue) {
+    g_rpc_queue = untrusted_rpc_queue;
+    if (!g_rpc_queue)
         return 0;
 
-    if (sgx_is_within_enclave(rpc_queue, sizeof(*rpc_queue)))
+    if (sgx_is_within_enclave(g_rpc_queue, sizeof(*g_rpc_queue)))
         return 1;
 
-    if (rpc_queue->rpc_threads_num > MAX_RPC_THREADS)
+    if (g_rpc_queue->rpc_threads_num > MAX_RPC_THREADS)
         return 1;
 
     /* re-initialize rest fields for safety */
-    atomic_set(&rpc_queue->lock, 0);
-    rpc_queue->front = 0;
-    rpc_queue->rear  = 0;
+    atomic_set(&g_rpc_queue->lock, SPIN_UNLOCKED);
+    g_rpc_queue->front = 0;
+    g_rpc_queue->rear  = 0;
     for (size_t i = 0; i < RPC_QUEUE_SIZE; i++)
-        rpc_queue->q[i] = NULL;
+        g_rpc_queue->q[i] = NULL;
 
     return 0;
 }
