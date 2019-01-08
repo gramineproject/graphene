@@ -204,9 +204,9 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
                                     struct ucontext * uc)
 {
     /* send dummy signal to RPC threads so they interrupt blocked syscalls */
-    if (rpc_queue)
-        for (size_t i = 0; i < rpc_queue->rpc_threads_num; i++)
-            INLINE_SYSCALL(tkill, 2, rpc_queue->rpc_threads[i], SIGUSR2);
+    if (g_rpc_queue)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
@@ -233,9 +233,9 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
 {
     /* send dummy signal to RPC threads so they interrupt blocked syscalls;
      * only do it on a benign SIGFPE signal (FP/div-by-zero exception) */
-    if (rpc_queue && signum == SIGFPE)
-        for (size_t i = 0; i < rpc_queue->rpc_threads_num; i++)
-            INLINE_SYSCALL(tkill, 2, rpc_queue->rpc_threads[i], SIGUSR2);
+    if (g_rpc_queue && signum == SIGFPE)
+        for (size_t i = 0; i < g_rpc_queue->rpc_threads_num; i++)
+            INLINE_SYSCALL(tkill, 2, g_rpc_queue->rpc_threads[i], SIGUSR2);
 
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 

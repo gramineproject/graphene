@@ -8,10 +8,11 @@ enum {
 };
 
 struct pal_sec;
+struct rpc_queue;
 
 typedef struct {
     const char ** ms_arguments;
     const char ** ms_environments;
     struct pal_sec * ms_sec_info;
-    void * rpc_queue;
+    struct rpc_queue * rpc_queue; /* pointer to RPC queue in untrusted mem */
 } ms_ecall_enclave_start_t;

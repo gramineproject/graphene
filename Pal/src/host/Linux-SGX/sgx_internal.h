@@ -118,8 +118,7 @@ void double_async_exit (void);
 #endif
 
 int interrupt_thread (void * tcs);
-int clone_thread (void);
-int clone_thread_fn (void *(*start_routine)(void*));
+int clone_thread (void *(*start_routine)(void*));
 
 void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
 void map_tcs (unsigned int tid);

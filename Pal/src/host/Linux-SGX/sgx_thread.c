@@ -88,15 +88,13 @@ static void * thread_start (void * arg)
     return NULL;
 }
 
-int clone_thread (void)
+int clone_thread (void *(*start_routine)(void*))
 {
     pthread_t thread;
-    return pthread_create(&thread, NULL, thread_start, current_enclave);
-}
 
-int clone_thread_fn (void *(*start_routine)(void*))
-{
-    pthread_t thread;
+    if (!start_routine)
+        start_routine = thread_start;
+
     return pthread_create(&thread, NULL, start_routine, current_enclave);
 }
 
