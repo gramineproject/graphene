@@ -15,6 +15,8 @@
  */
 #pragma pack(push, 1)
 
+typedef int (*sgx_ocall_fn_t)(void*);
+
 enum {
     OCALL_EXIT = 0,
     OCALL_PRINT_STRING,
