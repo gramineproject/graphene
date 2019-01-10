@@ -1570,6 +1570,14 @@ void execute_elf_object (struct shim_handle * exec,
     assert((uintptr_t)argcp % 16 == 0);  // Stack should be aligned to 16 on entry point.
     assert((void*)argcp + sizeof(long) == argp || argp == NULL);
 
+    /* random 16 bytes follows auxp */
+    ElfW(Addr) random = (ElfW(Addr))&auxp[7];
+    int ret = DkRandomBitsRead((PAL_PTR)random, 16);
+    if (ret < 0) {
+        debug("execute_elf_object: DkRandomBitsRead failed.\n");
+        DkThreadExit();
+    }
+
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;
@@ -1580,7 +1588,9 @@ void execute_elf_object (struct shim_handle * exec,
     auxp[3].a_un.a_val = exec_map->l_entry;
     auxp[4].a_type = AT_BASE;
     auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
-    auxp[5].a_type = AT_NULL;
+    auxp[5].a_type = AT_RANDOM;
+    auxp[5].a_un.a_val = random;
+    auxp[6].a_type = AT_NULL;
 
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 
