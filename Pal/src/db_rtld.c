@@ -1331,7 +1331,7 @@ void start_execution (const char * first_argument, const char ** arguments,
     ncookies++; /* for NULL-end */
 
     int cookiesz = sizeof(unsigned long int) * ncookies
-                      + sizeof(ElfW(auxv_t)) * 6
+                      + sizeof(ElfW(auxv_t)) * 7 + 16
                       + sizeof(void *) * 4 + 16;
 
     unsigned long int * cookies = __alloca(cookiesz);
@@ -1350,6 +1350,10 @@ void start_execution (const char * first_argument, const char ** arguments,
     cookies[cnt++] = 0;
 
     ElfW(auxv_t) * auxv = (ElfW(auxv_t) *) &cookies[cnt];
+    /* random 16 bytes follows auxp */
+    ElfW(Addr) random = (ElfW(Addr))&auxv[8];
+    DkRandomBitsRead((PAL_PTR)random, 16);
+
     auxv[0].a_type = AT_PHDR;
     auxv[0].a_un.a_val = exec_map ? (unsigned long) exec_map->l_phdr  : 0;
     auxv[1].a_type = AT_PHNUM;
@@ -1360,9 +1364,11 @@ void start_execution (const char * first_argument, const char ** arguments,
     auxv[3].a_un.a_val = exec_map ? exec_map->l_entry : 0;
     auxv[4].a_type = AT_BASE;
     auxv[4].a_un.a_val = exec_map ? exec_map->l_addr  : 0;
-    auxv[5].a_type = AT_NULL;
+    auxv[5].a_type = AT_RANDOM;
+    auxv[5].a_un.a_val = random;
+    auxv[6].a_type = AT_NULL;
 
-    *(void **) &auxv[6] = NULL;
+    *(void **) &auxv[7] = NULL;
 
 #if PROFILING == 1
     __pal_control.startup_time = _DkSystemTimeQuery() - pal_state.start_time;
