@@ -178,7 +178,6 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
             c->prot = (ph->p_flags & PF_R ? PROT_READ  : 0)|
                       (ph->p_flags & PF_W ? PROT_WRITE : 0)|
                       (ph->p_flags & PF_X ? PROT_EXEC  : 0)|prot;
-#define SGX_SECINFO_FLAGS_R             0x001
         }
 
     base -= loadcmds[0].mapstart;
