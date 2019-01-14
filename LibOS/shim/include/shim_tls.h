@@ -63,6 +63,8 @@ struct shim_context {
 
 #endif /* IN_SHIM */
 
+struct debug_buf;
+
 typedef struct {
     uint64_t                canary;
     void *                  self;
