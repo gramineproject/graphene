@@ -1586,8 +1586,8 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
                     :
                     : "a"(entry),
                     "b"(argp),
-                    "D"(argc)
-
+                    "D"(argc),
+                    "d"(0)
                     : "memory");
 #else
 # error "architecture not supported"
