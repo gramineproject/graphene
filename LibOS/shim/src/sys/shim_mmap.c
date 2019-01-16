@@ -110,19 +110,21 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     void * cur_stack = current_stack();
     assert(cur_stack < addr || cur_stack > addr + length);
 
+    /* addr needs to be kept for bkeep_munmap() below */
+    void * ret_addr = addr;
     if (!hdl) {
-        addr = (void *) DkVirtualMemoryAlloc(addr, length, pal_alloc_type,
-                                             PAL_PROT(prot, 0));
+        ret_addr = (void *) DkVirtualMemoryAlloc(
+            ret_addr, length, pal_alloc_type, PAL_PROT(prot, 0));
 
-        if (!addr) {
+        if (!ret_addr) {
             if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED)
                 ret = -EPERM;
             else
                 ret = -PAL_ERRNO;
         }
     } else {
-        ret = hdl->fs->fs_ops->mmap(hdl, &addr, length, PAL_PROT(prot, flags),
-                                    flags, offset);
+        ret = hdl->fs->fs_ops->mmap(
+            hdl, &ret_addr, length, PAL_PROT(prot, flags), flags, offset);
     }
 
     if (hdl)
@@ -134,7 +136,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     }
 
     ADD_PROFILE_OCCURENCE(mmap, length);
-    return addr;
+    return ret_addr;
 }
 
 int shim_do_mprotect (void * addr, size_t length, int prot)
