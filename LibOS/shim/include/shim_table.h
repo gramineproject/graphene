@@ -359,6 +359,7 @@ int shim_do_sched_yield (void);
 void * shim_do_mremap (void * addr, size_t old_len, size_t new_len,
                        int flags, void * new_addr);
 int shim_do_msync (void * start, size_t len, int flags);
+int shim_do_mincore (void * start, size_t len, unsigned char * vec);
 int shim_do_dup (int fd);
 int shim_do_dup2 (int oldfd, int newfd);
 int shim_do_pause (void);

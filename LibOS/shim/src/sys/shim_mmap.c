@@ -23,6 +23,8 @@
  * Implementation of system call "mmap", "munmap" and "mprotect".
  */
 
+#include <stdatomic.h>
+
 #include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_handle.h>
@@ -198,6 +200,52 @@ int shim_do_munmap (void * addr, size_t length)
 
     if (bkeep_munmap(addr, length, 0) < 0)
         bug();
+
+    return 0;
+}
+
+/* This emulation of mincore() always tells that pages are _NOT_ in RAM
+ * pessimistically due to lack of a good way to know it.
+ * Possibly it may cause performance(or other) issue due to this lying.
+ */
+int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
+{
+    if (!ALIGNED(addr))
+        return -EINVAL;
+
+    if (test_user_memory(addr, len, false))
+        return -ENOMEM;
+
+    unsigned long pages = ALIGN_UP(len) / allocsize;
+    if (test_user_memory(vec, pages, true))
+        return -EFAULT;
+
+    for (unsigned long i = 0; i < pages; i++) {
+        struct shim_vma_val vma;
+        if (lookup_overlap_vma(addr + i * allocsize, 1, &vma) < 0)
+            return -ENOMEM;
+        /*
+         * lookup_overlap_vma() calls __dump_vma() which adds a reference to
+         * file, remove the reference to file immediately since we don't use
+         * it anyway
+         */
+        if (vma.file)
+            put_handle(vma.file);
+        if (vma.flags & VMA_UNMAPPED)
+            return -ENOMEM;
+    }
+
+    static atomic_bool warned = false;
+    if (!warned) {
+        warned = true;
+        warn("mincore emulation always tells pages are _NOT_ in RAM. "
+             "This may cause issues.\n");
+    }
+
+    /* There is no good way to know if the page is in RAM.
+     * Conservatively tell that it's not in RAM. */
+    for (unsigned long i = 0; i < pages; i++)
+        vec[i] = 0;
 
     return 0;
 }
