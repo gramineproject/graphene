@@ -192,3 +192,29 @@ int shim_do_munmap (void * addr, size_t length)
 
     return 0;
 }
+
+int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
+{
+    if (!ALIGNED(addr))
+        return -EINVAL;
+
+    unsigned long pages = ALIGN_UP(len) / allocsize;
+    if (test_user_memory(vec, (pages + 7) / 8, true))
+        return -EFAULT;
+
+    unsigned long i;
+    for (i = 0; i < pages; i++) {
+        struct shim_vma_val vma;
+        if (lookup_overlap_vma(addr + i * allocsize, 1, &vma) < 0)
+            return -ENOMEM;
+        if (vma.flags & VMA_UNMAPPED)
+            return -ENOMEM;
+    }
+
+    /* There is no good way to know the page is in RAM.
+     * Conservatively tell that it's not in RAM. */
+    for (i = 0; i < pages; i++)
+        vec[i / 8] &= ~(1 << (i % 8));
+
+    return 0;
+}

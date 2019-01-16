@@ -231,8 +231,9 @@ SHIM_SYSCALL_PASSTHROUGH (mremap, 5, void *, void *, addr, size_t, old_len,
 
 SHIM_SYSCALL_PASSTHROUGH (msync, 3, int, void *, start, size_t, len, int, flags)
 
-SHIM_SYSCALL_PASSTHROUGH (mincore, 3, int, void *, start, size_t, len,
-                          unsigned char *, vec)
+/* mincore: sys/shim_mmap.c */
+DEFINE_SHIM_SYSCALL (mincore, 3, shim_do_mincore, int, void *, start,
+                     size_t, len, unsigned char *, vec)
 
 SHIM_SYSCALL_PASSTHROUGH (madvise, 3, int, void *, start, size_t, len,
                           int, behavior)
