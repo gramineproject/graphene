@@ -270,7 +270,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
             tcb->shim_tcb.context.sp = user_stack_addr;
-            tcb->shim_tcb.context.ret_ip = *(void **) user_stack_addr;
+            tcb->shim_tcb.context.ret_ip = shim_get_tls()->context.ret_ip;
         }
 
         thread->is_alive = true;
@@ -318,7 +318,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     new_args.thread    = thread;
     new_args.parent    = self;
     new_args.stack     = user_stack_addr;
-    new_args.return_pc = *(void **) user_stack_addr;
+    new_args.return_pc = shim_get_tls()->context.ret_ip;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child
