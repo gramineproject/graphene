@@ -1368,36 +1368,14 @@ diff --git a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x8
 index 0508730..e1b35ec 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/clone.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/clone.S
-@@ -59,11 +59,15 @@ ENTRY (__clone)
- 	jz	SYSCALL_ERROR_LABEL
- 
- 	/* Insert the argument onto the new stack.  */
--	subq	$16,%rsi
--	movq	%rcx,8(%rsi)
-+	subq	$24,%rsi
-+	movq	%rcx,16(%rsi)
- 
- 	/* Save the function pointer.  It will be popped off in the
- 	   child in the ebx frobbing below.  */
-+	movq	%rdi,8(%rsi)
-+
-+	/* Push an additional pointer as return address into the stack */
-+	leaq	L(clone_return)(%rip),%rdi
- 	movq	%rdi,0(%rsi)
- 
- 	/* Do the system call.  */
-@@ -76,8 +80,9 @@ ENTRY (__clone)
+@@ -76,5 +80,5 @@ ENTRY (__clone)
  	/* End FDE now, because in the child the unwind info will be
  	   wrong.  */
  	cfi_endproc;
 -	syscall
 +	SYSCALLDB
  
-+L(clone_return):
- 	testq	%rax,%rax
- 	jl	SYSCALL_ERROR_LABEL
- 	jz	L(thread_start)
-@@ -99,13 +104,14 @@ L(thread_start):
+@@ -99,10 +104,10 @@ L(thread_start):
  	movl	$-1, %eax
  	jne	2f
  	movl	$SYS_ify(getpid), %eax
@@ -1409,10 +1387,6 @@ index 0508730..e1b35ec 100644
  #endif
  
  	/* Set up arguments for the function call.  */
-+	addq	$8,%rsp		/* Skip the return address */
- 	popq	%rax		/* Function to call.  */
- 	popq	%rdi		/* Argument.  */
- 	call	*%rax
 diff --git a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/linux/x86_64/getcontext.S
 index 140db03..6967f10 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/getcontext.S
