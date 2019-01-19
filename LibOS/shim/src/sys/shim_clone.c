@@ -307,7 +307,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     new_args->thread    = thread;
     new_args->parent    = self;
     new_args->stack     = user_stack_addr;
-    new_args->return_pc = *(void **) user_stack_addr;
+    new_args->return_pc = SHIM_GET_TLS()->context.ret_ip;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual 
     // "clone" system call. DkThreadCreate allocates a stack for the child 
