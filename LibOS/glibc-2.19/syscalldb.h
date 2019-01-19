@@ -6,15 +6,13 @@
 .type syscalldb, @function
 
 # if defined(PSEUDO) && defined(SYSCALL_NAME) && defined(SYSCALL_SYMBOL)
-#  define SYSCALLDB				\
-    subq $128, %rsp;            \
-    movq syscalldb@GOTPCREL(%rip), %rcx;	\
-    call *%rcx;					\
+#  define SYSCALLDB                 \
+    subq $128, %rsp;                \
+    call syscalldb@GOTPCREL(%rip);  \
     addq $128, %rsp
 # else
-#  define SYSCALLDB				\
-    movq syscalldb@GOTPCREL(%rip), %rcx;	\
-    call *%rcx
+# define SYSCALLDB                  \
+    callq *syscalldb@GOTPCREL(%rip)
 # endif
 
 #else /* !__ASSEMBLER__ */
@@ -22,15 +20,13 @@ asm (
 ".weak syscalldb\r\n"
 ".type syscalldb, @function\r\n");
 
-#define SYSCALLDB							      \
-	"subq $128, %%rsp\n\t"						      \
-	"movq syscalldb@GOTPCREL(%%rip), %%rcx\n\t"			      \
-	"callq *%%rcx\n\t"						      \
-	"addq $128, %%rsp\n\t"
+#define SYSCALLDB                               \
+    "subq $128, %%rsp\n\t"                      \
+    "callq *syscalldb@GOTPCREL(%%rip)\n\t"      \
+    "addq $128, %%rsp\n\t"
 
-#define SYSCALLDB_ASM							      \
-	"movq syscalldb@GOTPCREL(%rip), %rbx\n\t"			      \
-	"callq *%rbx\n\t"
+#define SYSCALLDB_ASM                           \
+    "callq *syscalldb@GOTPCREL(%rip)\n\t"
 
 long int glibc_option (const char * opt);
 
