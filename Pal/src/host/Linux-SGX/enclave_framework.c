@@ -847,50 +847,38 @@ void test_dh (void)
 
 int init_enclave (void)
 {
+#if 0
+    /*
+     * This enclave-specific key is a building block for authenticating
+     * new pipe connections with other enclaves that are already
+     * authenticated. Since pipe protection is a future feature, this key
+     * is currently unused and hence deprecated.
+     */
     int ret;
     LIB_RSA_KEY *rsa = malloc(sizeof(LIB_RSA_KEY));
     lib_RSAInitKey(rsa);
 
     ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
-    if (ret != 0) {
+    if (ret < 0) {
         SGX_DBG(DBG_S, "lib_RSAGenerateKey failed: %d\n", ret);
         return ret;
     }
 
-    PAL_NUM nsz = RSA_KEY_SIZE / 8, esz = 1;
-    uint8_t n[nsz], e[esz];
-
-    ret = lib_RSAExportPublicKey(rsa, e, &esz, n, &nsz);
-    if (ret != 0) {
-        SGX_DBG(DBG_S, "lib_RSAExtractPublicKey failed: %d\n", ret);
-        goto out_free;
-    }
-
-    LIB_SHA256_CONTEXT sha256;
-
-    ret = lib_SHA256Init(&sha256);
-    if (ret < 0)
-        goto out_free;
-
-    ret = lib_SHA256Update(&sha256, n, nsz);
-    if (ret < 0)
-        goto out_free;
-
-    ret = lib_SHA256Final(&sha256, (uint8_t *) pal_enclave_state.enclave_keyhash);
-    if (ret < 0)
-        goto out_free;
-
     pal_enclave_config.enclave_key = rsa;
+#endif
+
+    /*
+     * The enclave identifier is uniquely created for each enclave as a token
+     * for authenticating the enclave as the sender of attestation.
+     * TODO: documenting the inter-enclave attestation protocol.
+     */
+    _DkRandomBitsRead(&pal_enclave_state.enclave_identifier,
+                      sizeof(pal_enclave_state.enclave_identifier));
 
     SGX_DBG(DBG_S, "enclave (software) key hash: %s\n",
-            alloca_bytes2hexstr(pal_enclave_state.enclave_keyhash));
+            alloca_bytes2hexstr(pal_enclave_state.enclave_identifier));
 
     return 0;
-
-out_free:
-    lib_RSAFreeKey(rsa);
-    free(rsa);
-    return ret;
 }
 
 int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)

@@ -982,7 +982,7 @@ static int __init gipc_init(void)
 #endif
 
 	/* Register the kmem cache */
-	gipc_queue_cachep = kmem_cache_create("gipc queue",
+	gipc_queue_cachep = kmem_cache_create("gipc_queue",
 					      sizeof(struct gipc_queue),
 					      0,
 					      SLAB_HWCACHE_ALIGN|
@@ -998,7 +998,7 @@ static int __init gipc_init(void)
 		return -ENOMEM;
 	}
 
-	gipc_send_buffer_cachep = kmem_cache_create("gipc send buffer",
+	gipc_send_buffer_cachep = kmem_cache_create("gipc_send_buffer",
 					    sizeof(struct gipc_send_buffer),
 					    0,
 					    SLAB_HWCACHE_ALIGN|
