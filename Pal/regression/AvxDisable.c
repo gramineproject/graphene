@@ -12,11 +12,11 @@ int main(){
   __m256 result = _mm256_sub_ps(evens, odds);
 
   /* Display the elements of the result vector */
-  float* f = (float*)&result;
+  float f = result[0];
   
   PAL_HANDLE file1 = DkStreamOpen("file:avxRes", PAL_ACCESS_RDWR, 0, 0, 0); 
   if (file1) {
-    DkStreamWrite(file1, 0, sizeof(result), &result, NULL);
+    DkStreamWrite(file1, 0, sizeof(f), &f, NULL);
     DkObjectClose(file1);
   }
   return 1;

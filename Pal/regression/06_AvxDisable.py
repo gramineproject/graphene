@@ -14,7 +14,7 @@ def manifest_file(file):
         return file + '.manifest'
 
 if not sgx:
-  sys.exit(1)
+  sys.exit(0)
 # Running AvxDisable 
 regression = Regression(loader, "AvxDisable")
 
