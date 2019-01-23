@@ -227,7 +227,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
 
 /* _DkObjectsWaitEvents is a new version of _DkObjectsWaitAny. This function
  * can select specific IO events to poll (read / write) and return multiple
- * events (including errors) that occurs simutaneously. The rest of semantics
+ * events (including errors) that occur simutaneously. The rest of semantics
  * is the same as _DkObjectWaitAny. */
 int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
                           PAL_FLG * ret_events, uint64_t timeout)
@@ -290,18 +290,18 @@ int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
         for (j = 0 ; j < MAX_FDS ; j++) {
             fds[nfds].events = 0;
 
-            if ((HANDLE_HDR(hdl)->flags & RFD(i)) &&
+            if ((HANDLE_HDR(hdl)->flags & RFD(j)) &&
                 (events[i] & PAL_WAIT_READ))
                 fds[nfds].events |= POLLIN;
 
-            if ((HANDLE_HDR(hdl)->flags & WFD(i)) &&
+            if ((HANDLE_HDR(hdl)->flags & WFD(j)) &&
                 (events[i] & PAL_WAIT_WRITE))
                 fds[nfds].events |= POLLOUT;
 
             /* POLLERR, POLLHUP, POLLNVAL are ignored in fds[nfds].events */
 
             if (fds[nfds].events) {
-                fds[nfds].fd = hdl->generic.fds[i];
+                fds[nfds].fd = hdl->generic.fds[j];
                 fds[nfds].revents = 0;
                 offsets[nfds] = i;
                 nfds++;
@@ -313,6 +313,7 @@ int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
         return -PAL_ERROR_TRYAGAIN;
 
     uint64_t waittime = timeout;
+
     ret = ocall_poll(fds, nfds, timeout != (uint64_t) -1 ? &waittime : NULL);
     if (ret < 0)
         return ret;
