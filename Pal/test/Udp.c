@@ -43,7 +43,7 @@ int main (int argc, char ** argv)
         }
 
         unsigned long end = DkSystemTimeQuery();
-        pal_printf("wall time = %d\n", end - start);
+        pal_printf("wall time = %ld\n", end - start);
 
         int retval;
         DkStreamRead(proc, 0, sizeof(int), &retval, NULL, 0);

@@ -93,7 +93,7 @@ int main (int argc, char ** argv)
         pal_printf("end time = %lu\n", end);
 
         unsigned long start = atol(argv[1]);
-        pal_printf("wall time = %d\n", end - start);
+        pal_printf("wall time = %ld\n", end - start);
 
         int retval = 0;
         DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &retval, NULL);

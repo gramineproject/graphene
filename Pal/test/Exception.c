@@ -11,7 +11,7 @@ int i = 0;
 
 void handler (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    pal_printf("failure in the handler: %p\n", arg);
+    pal_printf("failure in the handler: 0x%08lx\n", arg);
     count++;
 
     if (count == 30)
