@@ -29,7 +29,7 @@
 #include "pal.h"
 #include <assert.h>
 
-int pal_printf (const char *fmt, ...);
+int pal_printf (const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr);
 void DkDebugDetachBinary (PAL_PTR start_addr);

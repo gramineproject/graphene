@@ -176,7 +176,7 @@ int create_enclave(sgx_arch_secs_t * secs,
                        "You may need to set sysctl vm.mmap_min_addr to zero\n");
 
         SGX_DBG(DBG_I, "enclave ECREATE failed in allocating EPC memory "
-                "(errno = %d)\n", ERRNO_P(addr));
+                "(errno = %ld)\n", ERRNO_P(addr));
         return -ENOMEM;
     }
 
@@ -214,7 +214,7 @@ int create_enclave(sgx_arch_secs_t * secs,
     SGX_DBG(DBG_I, "    miscselect:   0x%08x\n",   secs->miscselect);
     SGX_DBG(DBG_I, "    attr:         0x%016lx\n", secs->attributes.flags);
     SGX_DBG(DBG_I, "    xfrm:         0x%016lx\n", secs->attributes.xfrm);
-    SGX_DBG(DBG_I, "    ssaframesize: %ld\n",      secs->ssaframesize);
+    SGX_DBG(DBG_I, "    ssaframesize: %d\n",       secs->ssaframesize);
     SGX_DBG(DBG_I, "    isvprodid:    0x%08x\n",   secs->isvprodid);
     SGX_DBG(DBG_I, "    isvsvn:       0x%08x\n",   secs->isvsvn);
 
@@ -264,10 +264,10 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
     }
 
     if (size == pagesize)
-        SGX_DBG(DBG_I, "adding page  to enclave: %016lx [%s:%s] (%s)%s\n",
+        SGX_DBG(DBG_I, "adding page  to enclave: %p [%s:%s] (%s)%s\n",
                 addr, t, p, comment, m);
     else
-        SGX_DBG(DBG_I, "adding pages to enclave: %016lx-%016lx [%s:%s] (%s)%s\n",
+        SGX_DBG(DBG_I, "adding pages to enclave: %p-%p [%s:%s] (%s)%s\n",
                 addr, addr + size, t, p, comment, m);
 
 

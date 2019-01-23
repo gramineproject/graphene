@@ -53,7 +53,7 @@ int main (int argc, char ** argv)
         } else {
             unsigned long end = DkSystemTimeQuery ();
             unsigned long start = atol (argv[2]);
-            pal_printf ("wall time = %d\n", end - start);
+            pal_printf ("wall time = %ld\n", end - start);
         }
     }
 
