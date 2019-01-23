@@ -94,13 +94,12 @@ int clone_implementation_wrapper(struct clone_args * arg)
     //PAL allocated stack. We need to switch the stack to use
     //the user provided stack.
 
-    struct clone_args *pcargs = arg;
     int stack_allocated = 0;
 
-    object_wait_with_retry(pcargs->create_event);
-    DkObjectClose(pcargs->create_event);
+    object_wait_with_retry(arg->create_event);
+    DkObjectClose(arg->create_event);
 
-    struct shim_thread * my_thread = pcargs->thread;
+    struct shim_thread * my_thread = arg->thread;
     assert(my_thread);
     get_thread(my_thread);
 
@@ -121,8 +120,8 @@ int clone_implementation_wrapper(struct clone_args * arg)
     if (my_thread->set_child_tid)
         *(my_thread->set_child_tid) = my_thread->tid;
 
-    void * stack = pcargs->stack;
-    void * return_pc = pcargs->return_pc;
+    void * stack = arg->stack;
+    void * return_pc = arg->return_pc;
 
     struct shim_vma_val vma;
     lookup_vma(ALIGN_DOWN(stack), &vma);
@@ -134,7 +133,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     set_as_child(arg->parent, my_thread);
 
     /* Don't signal the initialize event until we are actually init-ed */
-    DkEventSet(pcargs->initialize_event);
+    DkEventSet(arg->initialize_event);
 
     /***** From here down, we are switching to the user-provided stack ****/
 
