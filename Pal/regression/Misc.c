@@ -10,8 +10,8 @@ int main (int argc, const char ** argv, const char ** envp)
     unsigned long time1 = DkSystemTimeQuery();
     unsigned long time2 = DkSystemTimeQuery();
 
-    pal_printf("Time Query 1: %lld\n", time1);
-    pal_printf("Time Query 2: %lld\n", time2);
+    pal_printf("Time Query 1: %ld\n", time1);
+    pal_printf("Time Query 2: %ld\n", time2);
 
     if (time1 <= time2)
         pal_printf("Query System Time OK\n");
@@ -20,7 +20,7 @@ int main (int argc, const char ** argv, const char ** envp)
     DkThreadDelayExecution(10000);
     unsigned long time4 = DkSystemTimeQuery();
 
-    pal_printf("Sleeped %lld Microseconds\n", time4 - time3);
+    pal_printf("Sleeped %ld Microseconds\n", time4 - time3);
 
     if (time3 < time4 && time4 - time3 > 10000)
         pal_printf("Delay Execution for 10000 Microseconds OK\n");
@@ -29,7 +29,7 @@ int main (int argc, const char ** argv, const char ** envp)
     DkThreadDelayExecution(3000000);
     unsigned long time6 = DkSystemTimeQuery();
 
-    pal_printf("Sleeped %lld Microseconds\n", time6 - time5);
+    pal_printf("Sleeped %ld Microseconds\n", time6 - time5);
 
     if (time5 < time6 && time6 - time5 > 3000000)
         pal_printf("Delay Execution for 3 Seconds OK\n");

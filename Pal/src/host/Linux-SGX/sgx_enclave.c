@@ -27,7 +27,7 @@ static int sgx_ocall_exit(void* prv)
     int64_t rv = (int64_t) prv;
     ODEBUG(OCALL_EXIT, NULL);
     if (rv != (int64_t) ((uint8_t) rv)) {
-        SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
+        SGX_DBG(DBG_E, "Saturation error in exit code %ld, getting rounded down to %u\n", rv, (uint8_t) rv);
         rv = 255;
     }
     INLINE_SYSCALL(exit, 1, (int)rv);

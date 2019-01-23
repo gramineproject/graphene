@@ -12,7 +12,7 @@ static const char * volatile message = NULL;
 void handler (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     if (message)
-        pal_printf(message);
+        pal_printf("%s", message);
 
     while (*(unsigned char *) context->rip != 0x90)
         context->rip++;

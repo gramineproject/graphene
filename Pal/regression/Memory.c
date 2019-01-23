@@ -72,7 +72,7 @@ int main (int argc, char ** argv, char ** envp)
         pal_printf("Memory Allocation with Address OK\n");
 
     /* Testing total memory */
-    pal_printf("Total Memory: %llu\n", pal_control.mem_info.mem_total);
+    pal_printf("Total Memory: %lu\n", pal_control.mem_info.mem_total);
 
     /* Testing available memory (must be within valid range) */
     PAL_NUM avail = DkMemoryAvailableQuota();

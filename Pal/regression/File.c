@@ -57,7 +57,7 @@ int main (int argc, char ** argv, char ** envp)
 
         PAL_STREAM_ATTR attr1;
         if (DkStreamAttributesQuerybyHandle(file1, &attr1))
-            pal_printf("Query by Handle: type = %d, size = %d\n",
+            pal_printf("Query by Handle: type = %d, size = %ld\n",
                        attr1.handle_type, attr1.pending_size);
 
         /* test file map */
@@ -108,7 +108,7 @@ int main (int argc, char ** argv, char ** envp)
 
     PAL_STREAM_ATTR attr2;
     if (DkStreamAttributesQuery("file:File", &attr2))
-        pal_printf("Query: type = %d, size = %d\n",
+        pal_printf("Query: type = %d, size = %ld\n",
                    attr2.handle_type, attr2.pending_size);
 
     /* test regular file creation */

@@ -12,7 +12,7 @@ static volatile int count1 = 0;
 
 int callback1 (void * args)
 {
-    pal_printf("Run in Child Thread: %s\n", args);
+    pal_printf("Run in Child Thread: %s\n", (char *) args);
 
     while (count1 < 10) {
         while (!(count1 % 2))
