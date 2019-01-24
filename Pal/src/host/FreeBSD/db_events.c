@@ -81,14 +81,14 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
 int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
 {
     int ret = 0;
+
+    atomic_inc(&event->event.nwaiters);
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         struct timespec waittime;
         unsigned long sec = timeout / 1000000UL;
         unsigned long microsec = timeout - (sec * 1000000UL);
         waittime.tv_sec = sec;
         waittime.tv_nsec = microsec * 1000;
-
-        atomic_inc(&event->event.nwaiters);
 
         do {
             ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled,
@@ -104,8 +104,8 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
         } while (event->event.isnotification &&
                  !atomic_read(&event->event.signaled));
 
-        atomic_dec(&event->event.nwaiters);
     }
+    atomic_dec(&event->event.nwaiters);
 
     return ret;
 }
@@ -114,8 +114,8 @@ int _DkEventWait (PAL_HANDLE event)
 {
     int ret = 0;
 
+    atomic_inc(&event->event.nwaiters);
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
-        atomic_inc(&event->event.nwaiters);
 
         do {
             ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled,
@@ -131,8 +131,8 @@ int _DkEventWait (PAL_HANDLE event)
         } while (event->event.isnotification &&
                  !atomic_read(&event->event.signaled));
 
-        atomic_dec(&event->event.nwaiters);
     }
+    atomic_dec(&event->event.nwaiters);
 
     return ret;
 }
