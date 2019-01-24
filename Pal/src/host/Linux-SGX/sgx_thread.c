@@ -68,7 +68,10 @@ static void * thread_start (void * arg)
     current_enclave = arg;
 
     if (!current_tcs) {
-        SGX_DBG(DBG_E, "Cannot attach to any TCS!\n");
+        SGX_DBG(DBG_E,
+                "There are no available TCS pages left for a new thread!\n"
+                "Please try to increase sgx.thread_num in the manifest.\n"
+                "The current value is %d\n", enclave_thread_num);
         return NULL;
     }
 
