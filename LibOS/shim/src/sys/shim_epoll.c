@@ -309,15 +309,10 @@ retry:
     if (!(npals = epoll->npals))
         goto reply;
 
-    PAL_HANDLE * pal_handles = __alloca(sizeof(PAL_HANDLE) * (npals + 1));
-    FDTYPE * fds = __alloca(sizeof(FDTYPE) * npals);
-    memcpy(fds, epoll->pal_fds, sizeof(FDTYPE) * npals);
-    memcpy(pal_handles, epoll->pal_handles, sizeof(PAL_HANDLE) * npals);
-    pal_handles[npals] = epoll->event.event;
-
     if ((nread = epoll->nread))
         epoll->nwaiters++;
 
+<<<<<<< 1c5f307fec01316a95342aef5006f25b666ceca3
     unlock(&epoll_hdl->lock);
 
     PAL_NUM pal_timeout = timeout_ms == -1 ? NO_TIMEOUT : (PAL_NUM) timeout_ms * 1000;
@@ -325,40 +320,77 @@ retry:
                                          nread ? pal_timeout : 0);
 
     lock(&epoll_hdl->lock);
+=======
+    // Allocate space for one additional PAL_HANDLE to accommodate the special
+    // events handle. Graphene monitors the special events handle to detect if the
+    // epoll handle was modified while waiting for associated events. If the
+    // epoll handle was modified concurrently, we re-issue the PAL call. This
+    // reflects the expected semantic of being able to modify the epoll handle
+    // while it is actively used.
+    PAL_HANDLE * pal_handles = __alloca(sizeof(PAL_HANDLE) * (npals + 1));
+    PAL_FLG * pal_events = __alloca(sizeof(PAL_FLG) * (npals + 1) * 2);
+    PAL_FLG * ret_events = pal_events + (npals + 1);
+
+    npals = 0;
+    listp_for_each_entry(epoll_fd, &epoll->fds, list) {
+        if (!epoll_fd->pal_handle)
+            continue;
+        pal_handles[npals] = epoll_fd->pal_handle;
+        assert(epoll_fd->pal_handle == epoll->pal_handles[npals]);
+        pal_events[npals]  = (epoll_fd->events & EPOLLIN ) ? PAL_WAIT_READ  : 0;
+        pal_events[npals] |= (epoll_fd->events & EPOLLOUT) ? PAL_WAIT_WRITE : 0;
+        ret_events[npals] = 0;
+        debug("%s:%d fd=%d %s|%s\n", __FUNCTION__, __LINE__, epoll_fd->fd,
+              (epoll_fd->events & EPOLLIN) ? "EPOLLIN" : "0",
+              (epoll_fd->events & EPOLLOUT) ? "EPOLLOUT" : "0");
+        npals++;
+    }
+    pal_handles[npals] = epoll->event.event;
+    pal_events[npals] = PAL_WAIT_READ;
+    ret_events[npals] = 0;
+
+    unlock(epoll_hdl->lock);
+    
+    // TODO: Timeout must be updated in case of retries. Otherwise, we may
+    // wait too long.
+    uint64_t pal_timeout = timeout;
+    PAL_BOL polled = DkObjectsWaitEvents(npals, pal_handles, pal_events, ret_events, pal_timeout);
+    
+    lock(epoll_hdl->lock);
 
     if (nread)
         epoll->nwaiters--;
 
     if (!polled)
         goto reply;
+    
+    for (int i = 0; i < npals; i++) {
+        listp_for_each_entry(epoll_fd, &epoll->fds, list) {
+            if (!epoll_fd->pal_handle)
+                continue;
+            if(epoll_fd->pal_handle != pal_handles[i])
+                continue;
 
-    if (polled == epoll->event.event) {
-        wait_event(&epoll->event);
-        goto retry;
-    }
-
-    PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQueryByHandle(polled, &attr))
-        goto reply;
-
-    LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list)
-        if (polled == epoll_fd->pal_handle) {
-
-            debug("epoll: fd %d (handle %p) polled\n", epoll_fd->fd,
-                  epoll_fd->handle);
-
-            if (attr.disconnected) {
+            if (ret_events[i] & PAL_WAIT_ERROR) {
                 epoll_fd->revents |= EPOLLERR|EPOLLHUP|EPOLLRDHUP;
                 epoll_fd->pal_handle = NULL;
                 need_update = true;
             }
-            if (attr.readable)
+            if (ret_events[i] & PAL_WAIT_READ) {
                 epoll_fd->revents |= EPOLLIN;
-            if (attr.writable)
+            }
+            if (ret_events[i] & PAL_WAIT_WRITE) {
                 epoll_fd->revents |= EPOLLOUT;
+            }
             break;
         }
+    }
 
+    if (ret_events[npals]) {
+        wait_event(&epoll->event);
+        goto retry;
+    }
+    
 reply:
     LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
         if (nevents == maxevents)
@@ -368,10 +400,14 @@ reply:
             events[nevents].events =
                     (epoll_fd->events|EPOLLERR|EPOLLHUP) & epoll_fd->revents;
             events[nevents].data = epoll_fd->data;
-            nevents++;
             epoll_fd->revents &= ~epoll_fd->events;
+            debug("fd=%d %s|%s|%s\n", epoll_fd->fd,
+                  (events[nevents].events & EPOLLIN) ? "EPOLLIN" : "0",
+                  (events[nevents].events & EPOLLOUT) ? "EPOLLOUT" : "0",
+                  (events[nevents].events & EPOLLERR) ? "EPOLLERR" : "0");
+                  
+            nevents++;
         }
-
     }
 
     if (need_update)
