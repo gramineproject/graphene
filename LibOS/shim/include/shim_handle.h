@@ -283,7 +283,7 @@ DEFINE_LIST(futex_waiter);
 DEFINE_LISTP(futex_waiter);
 DEFINE_LIST(shim_futex_handle);
 struct shim_futex_handle {
-    unsigned int *      uaddr;
+    int *   uaddr;
     LISTP_TYPE(futex_waiter) waiters;
     struct shim_vma *   vma;
     LIST_TYPE(shim_futex_handle) list;

@@ -797,8 +797,8 @@ DEFINE_SHIM_SYSCALL (tkill, 2, shim_do_tkill, int, pid_t, pid, int, sig)
 DEFINE_SHIM_SYSCALL (time, 1, shim_do_time, time_t, time_t *, tloc)
 
 /* futex: sys/shim_futex.c */
-DEFINE_SHIM_SYSCALL (futex, 6, shim_do_futex, int, unsigned int *, uaddr,
-                     int, op, int, val, void *, utime, unsigned int *, uaddr2,
+DEFINE_SHIM_SYSCALL (futex, 6, shim_do_futex, int, int *, uaddr,
+                     int, op, int, val, void *, utime, int *, uaddr2,
                      int, val3)
 
 SHIM_SYSCALL_PASSTHROUGH (sched_setaffinity, 3, int, pid_t, pid, size_t, len,

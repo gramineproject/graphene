@@ -56,8 +56,8 @@ DEFINE_LISTP(shim_futex_handle);
 static LISTP_TYPE(shim_futex_handle) futex_list = LISTP_INIT;
 static LOCKTYPE futex_list_lock;
 
-int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
-                   unsigned int * uaddr2, int val3)
+int shim_do_futex (int * uaddr, int op, int val, void * utime,
+                   int * uaddr2, int val3)
 {
     struct shim_futex_handle * tmp = NULL, * futex = NULL, * futex2 = NULL;
     struct shim_handle * hdl = NULL, * hdl2 = NULL;
@@ -156,6 +156,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
          * FUTEX_WAIT_BITSET with val3 specified as
          * FUTEX_BITSET_MATCH_ANY. */
 
+            /* FALLTHROUGH */
         case FUTEX_WAIT:
             if (utime && timeout_us == NO_TIMEOUT) {
                 struct timespec *ts = (struct timespec*) utime;
@@ -283,7 +284,7 @@ int shim_do_futex (unsigned int * uaddr, int op, int val, void * utime,
                 ret = -EAGAIN;
                 break;
             }
-
+            /* FALLTHROUGH */
         case FUTEX_REQUEUE: {
             assert(futex2);
             struct futex_waiter * waiter, * wtmp;
