@@ -69,6 +69,8 @@ static void * thread_start (void * arg)
 
     if (!current_tcs) {
         SGX_DBG(DBG_E, "Cannot attach to any TCS!\n");
+        SGX_DBG(DBG_E, "Please try to increase sgx.thread_num in the manifest. "
+                "the current value is %d\n", enclave_thread_num);
         return NULL;
     }
 
