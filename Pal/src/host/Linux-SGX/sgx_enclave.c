@@ -238,6 +238,10 @@ static int sgx_ocall_create_process(void * pms)
     return 0;
 }
 
+/* sgx_ocall_futex return unix errno instead of PAL_ERROR
+ * because PAL_ERROR doesn't distinguish ETIMEDOUT and EAGAIN.
+ * In futex case, they needs to be distinguished.
+ */
 static int sgx_ocall_futex(void * pms)
 {
     ms_ocall_futex_t * ms = (ms_ocall_futex_t *) pms;
@@ -251,7 +255,7 @@ static int sgx_ocall_futex(void * pms)
     }
     ret = INLINE_SYSCALL(futex, 6, ms->ms_futex, ms->ms_op, ms->ms_val,
                          ts, NULL, 0);
-    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
+    return ret;
 }
 
 static int sgx_ocall_socketpair(void * pms)

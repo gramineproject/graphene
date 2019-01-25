@@ -24,6 +24,7 @@
  */
 
 #include "pal_defs.h"
+#include "pal_linux_error.h"
 #include "pal_linux_defs.h"
 #include "pal.h"
 #include "pal_internal.h"
@@ -67,7 +68,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
                 ret = ocall_futex((int *) &event->event.signaled->counter,
                                   FUTEX_WAKE, nwaiters, NULL);
 
-                if (ret < 0)
+                if (IS_ERR(ret))
                     atomic_set(event->event.signaled, 0);
             }
         }
@@ -75,11 +76,9 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
         // Only one thread wakes up, leave unsignaled
         ret = ocall_futex((int *) &event->event.signaled->counter,
                           FUTEX_WAKE, 1, NULL);
-        if (ret < 0)
-             return ret;
     }
 
-    return ret;
+    return IS_ERR(ret) ? -PAL_ERROR_TRYAGAIN : ret;
 }
 
 int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
@@ -94,11 +93,13 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
         do {
             ret = ocall_futex((int *) &event->event.signaled->counter,
                               FUTEX_WAIT, 0, timeout ? &waittime : NULL);
-            if (ret < 0) {
-                if (ret == -PAL_ERROR_TRYAGAIN)
+            if (IS_ERR(ret)) {
+                if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
-                else
+                } else {
+                    ret = unix_to_pal_error(ERRNO(ret));
                     break;
+                }
             }
         } while (event->event.isnotification &&
                  !atomic_read(event->event.signaled));
@@ -119,11 +120,13 @@ int _DkEventWait (PAL_HANDLE event)
         do {
             ret = ocall_futex((int *) &event->event.signaled->counter,
                               FUTEX_WAIT, 0, NULL);
-            if (ret < 0) {
-                if (ret == -PAL_ERROR_TRYAGAIN)
+            if (IS_ERR(ret)) {
+                if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
-                else
+                } else {
+                    ret = unix_to_pal_error(ERRNO(ret));
                     break;
+                }
             }
         } while (event->event.isnotification &&
                  !atomic_read(event->event.signaled));

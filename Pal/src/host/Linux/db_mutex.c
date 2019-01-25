@@ -130,14 +130,13 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
                     atomic_dec(&m->nwaiters);
                     goto out;
                 }
-            } else {
-#ifdef DEBUG_MUTEX
-                printf("futex failed (err = %d)\n", ERRNO(ret));
-#endif
-                ret = unix_to_pal_error(ERRNO(ret));
-                atomic_dec(&m->nwaiters);
-                goto out;
             }
+#ifdef DEBUG_MUTEX
+            printf("futex failed (err = %d)\n", ERRNO(ret));
+#endif
+            ret = unix_to_pal_error(ERRNO(ret));
+            atomic_dec(&m->nwaiters);
+            goto out;
         }
     }
 

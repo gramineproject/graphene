@@ -75,7 +75,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
                              UMTX_OP_WAKE, 1, NULL, NULL);
     }
 
-    return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : ret;
+    return IS_ERR(ret) ? -PAL_ERROR_TRYAGAIN : ret;
 }
 
 int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
