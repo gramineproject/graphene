@@ -156,7 +156,7 @@ static int inet_create_uri (char * uri, int count, struct sockaddr * addr,
 
     if (addr->sa_family == AF_INET) {
         if (addrlen != sizeof(struct sockaddr_in))
-            return PAL_ERROR_INVAL;
+            return -PAL_ERROR_INVAL;
 
         struct sockaddr_in * addr_in = (struct sockaddr_in *) addr;
         char * addr = (char *) &addr_in->sin_addr.s_addr;
@@ -170,7 +170,7 @@ static int inet_create_uri (char * uri, int count, struct sockaddr * addr,
                        __ntohs(addr_in->sin_port));
     } else if (addr->sa_family == AF_INET6) {
         if (addrlen != sizeof(struct sockaddr_in6))
-            return PAL_ERROR_INVAL;
+            return -PAL_ERROR_INVAL;
 
         struct sockaddr_in6 * addr_in6 = (struct sockaddr_in6 *) addr;
         unsigned short * addr = (unsigned short *) &addr_in6->sin6_addr.s6_addr;
