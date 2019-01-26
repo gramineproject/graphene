@@ -504,7 +504,7 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
 
         struct shim_unix_data * data = malloc(sizeof(struct shim_unix_data));
 
-        data->pipeid = dent->rel_path.hash >> 32;
+        data->pipeid = dent->rel_path.hash;
         sock->addr.un.pipeid = data->pipeid;
         sock->addr.un.data = data;
         sock->addr.un.dentry = dent;
@@ -769,7 +769,7 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
 
         if (!(dent->state & DENTRY_VALID) || dent->state & DENTRY_NEGATIVE) {
             data = malloc(sizeof(struct shim_unix_data));
-            data->pipeid = dent->rel_path.hash >> 32;
+            data->pipeid = dent->rel_path.hash;
         } else if (dent->fs != &socket_builtin_fs) {
             ret = -ECONNREFUSED;
             goto out;
