@@ -259,7 +259,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
             tcb->shim_tcb.context.sp = user_stack_addr;
-            tcb->shim_tcb.context.ret_ip = *(void **) user_stack_addr;
+            tcb->shim_tcb.context.ret_ip = SHIM_GET_TLS()->context.ret_ip;
         }
 
         thread->is_alive = true;
