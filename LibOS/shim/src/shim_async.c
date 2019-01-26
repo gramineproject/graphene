@@ -319,7 +319,7 @@ int create_async_helper (void)
 }
 
 /*
- * On succes, the reference to the thread of async helper is returned with
+ * On success, the reference to the thread of async helper is returned with
  * reference count incremented.
  * It's caller the responsibility to wait for its exit and release the
  * final reference to free related resources.

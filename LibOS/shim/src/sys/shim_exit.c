@@ -144,13 +144,19 @@ int try_process_exit (int error_code, int term_signal)
 
     struct shim_thread * async_thread = terminate_async_helper();
     if (async_thread)
-        /* TODO: wait for the thread to exit in host */
+        /* TODO: wait for the thread to exit in host.
+         * This is tracked by the following issue.
+         * https://github.com/oscarlab/graphene/issues/440
+         */
         put_thread(async_thread); /* free resources of the thread */
 
     struct shim_thread * ipc_thread;
     int ret = exit_with_ipc_helper(true, &ipc_thread);
     if (ipc_thread)
-        /* TODO: wait for the thread to exit in host */
+        /* TODO: wait for the thread to exit in host.
+         * This is tracked by the following issue.
+         * https://github.com/oscarlab/graphene/issues/440
+         */
         put_thread(ipc_thread); /* free resources of the thread */
     if (!ret)
         shim_clean();

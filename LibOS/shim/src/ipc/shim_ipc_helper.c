@@ -1082,8 +1082,8 @@ static int create_ipc_helper (void)
 /*
  * on success, the reference to the helper thread is returned with
  * reference count incremented.
- * It's caller the responsibility to wait for its exit and release the
- * final reference to free related resources.
+ * The caller is responsible to wait for the IPC helper thread to exit
+ * and release the final reference to free related resources.
  * It's problematic for the thread itself to release its resources which it's
  * using. For example stack.
  * So defer releasing it after its exit and make the releasing the caller
