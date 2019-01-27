@@ -577,16 +577,37 @@ int ocall_sock_connect (int domain, int type, int protocol,
     return retval;
 }
 
+/* 
+ * FIXME: 
+ *   - the control-flow, particulary wrt COPY_FROM_USER
+ *     is playing fast and loose.
+ *
+ *   - also playing fast and loose with stack size, since
+ *     the addr will take up some part of the stack which
+ *     we proably aren't taking into account with the 4096
+ *     count check.
+ */
 int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
                      struct sockaddr * addr, unsigned int * addrlen)
 {
     int retval = 0;
+    void *obuf = NULL;
     unsigned int len = addrlen ? *addrlen : 0;
+
+    if (count > 4096) {
+        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+        if (retval < 0)
+            return retval;
+    }
+
     ms_ocall_sock_recv_t * ms;
     OCALLOC(ms, ms_ocall_sock_recv_t *, sizeof(*ms));
 
     ms->ms_sockfd = sockfd;
-    ms->ms_buf = ALLOC_IN_USER(buf, count);
+    if (obuf)
+        ms->ms_buf = obuf;
+    else
+        ms->ms_buf = ALLOC_IN_USER(buf, count);
     ms->ms_count = count;
     ms->ms_addr = addr ? ALLOC_IN_USER(addr, len) : NULL;
     ms->ms_addrlen = len;
@@ -596,7 +617,8 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
         if (len && (sgx_is_within_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            retval = -PAL_ERROR_DENIED;
+            goto done;
         }
 
         COPY_FROM_USER(buf, ms->ms_buf, retval);
@@ -604,7 +626,11 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
         if (addrlen)
             *addrlen = ms->ms_addrlen;
     }
+
+done:
     OCALL_EXIT();
+    if (obuf)
+        ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
     return retval;
 }
 
@@ -612,17 +638,34 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
                      const struct sockaddr * addr, unsigned int addrlen)
 {
     int retval = 0;
+    void *obuf = NULL;
+
+    if (count > 4096) {
+        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+        if (retval < 0)
+            return retval;
+    }
+
     ms_ocall_sock_send_t * ms;
     OCALLOC(ms, ms_ocall_sock_send_t *, sizeof(*ms));
 
     ms->ms_sockfd = sockfd;
-    ms->ms_buf = COPY_TO_USER(buf, count);
+    if (obuf) {
+        ms->ms_buf = obuf;
+        memcpy(obuf, buf, count);
+    } else {
+        ms->ms_buf = COPY_TO_USER(buf, count);
+    }
     ms->ms_count = count;
     ms->ms_addr = addr ? COPY_TO_USER(addr, addrlen) : NULL;
     ms->ms_addrlen = addrlen;
 
     retval = SGX_OCALL(OCALL_SOCK_SEND, ms);
     OCALL_EXIT();
+
+    if (obuf)
+        ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
+
     return retval;
 }
 
