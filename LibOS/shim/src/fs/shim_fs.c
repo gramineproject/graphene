@@ -564,9 +564,8 @@ BEGIN_CP_FUNC(mount)
         off = ADD_CP_OFFSET(sizeof(struct shim_mount));
         ADD_TO_CP_MAP(obj, off);
 
-        if (!mount->cpdata &&
-            mount->fs_ops &&
-            mount->fs_ops->checkpoint) {
+        mount->cpdata = NULL;
+        if (mount->fs_ops && mount->fs_ops->checkpoint) {
             void * cpdata = NULL;
             int bytes = mount->fs_ops->checkpoint(&cpdata, mount->data);
             if (bytes > 0) {
