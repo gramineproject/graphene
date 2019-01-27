@@ -583,6 +583,7 @@ BEGIN_CP_FUNC(mount)
             DO_CP_SIZE(memory, mount->cpdata, mount->cpsize, &entry);
             new_mount->cpdata = NULL;
             entry->paddr = &new_mount->cpdata;
+            mount->cpdata = NULL;
         }
 
         new_mount->data = NULL;
