@@ -40,6 +40,9 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
                                __kernel_cpu_set_t * user_mask_ptr)
 {
     int ncpus = PAL_CB(cpu_info.cpu_num);
+    // Check that user_mask_ptr is valid; if not, should return -EFAULT
+    if (test_user_memory(user_mask_ptr, len, 1))
+        return -EFAULT;
     memset(user_mask_ptr, 0, len);
     for (int i = 0 ; i < ncpus ; i++)
         ((uint8_t *) user_mask_ptr)[i / 8] |= 1 << (i % 8);
