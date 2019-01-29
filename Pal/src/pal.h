@@ -421,8 +421,7 @@ DkThreadResume (PAL_HANDLE thread);
 typedef void (*PAL_EVENT_HANDLER) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT *);
 
 PAL_BOL
-DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event,
-                       PAL_FLG flags);
+DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event);
 
 void DkExceptionReturn (PAL_PTR event);
 

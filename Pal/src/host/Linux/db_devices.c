@@ -115,7 +115,7 @@ static int open_standard_term(PAL_HANDLE* handle, const char* param, int access)
 /* 'open' operation for terminal stream */
 static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                      int create, int options) {
-    __UNUSED(type);
+    assert(strcmp_static(type, "tty"));
     __UNUSED(share);
     __UNUSED(create);
     __UNUSED(options);
@@ -148,8 +148,8 @@ static int term_close(PAL_HANDLE handle) {
 
 /* 'attrquery' operation for terminal stream */
 static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
-    __UNUSED(type);
-    __UNUSED(uri);
+    assert(strcmp_static(type, "tty"));
+    assert(strpartcmp_static(uri, "dev"));
 
     attr->handle_type  = pal_type_dev;
     attr->readable     = PAL_TRUE;
@@ -180,7 +180,7 @@ static struct handle_ops term_ops = {
 
 /* 'read' operation for character streams. */
 static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buffer) {
-    __UNUSED(offset);
+    assert(offset == 0);
 
     int fd = handle->dev.fd_in;
 
@@ -197,7 +197,7 @@ static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void
 
 /* 'write' operation for character streams. */
 static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
-    __UNUSED(offset);
+    assert(offset == 0);
 
     int fd = handle->dev.fd_out;
 
@@ -215,7 +215,7 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
 /* 'open' operation for device streams */
 static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
-    __UNUSED(type);
+    assert(strpartcmp_static(type, "dev"));
 
     struct handle_ops* ops = NULL;
     const char* dev_type   = NULL;
@@ -358,7 +358,7 @@ static inline void dev_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 
 /* 'attrquery' operation for device streams */
 static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
-    __UNUSED(type);
+    assert(strpartcmp_static(type, "dev"));
 
     struct handle_ops* ops = NULL;
     const char* dev_type   = NULL;

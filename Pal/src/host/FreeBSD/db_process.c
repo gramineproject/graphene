@@ -157,8 +157,7 @@ failed:
     return 0;
 }
 
-int _DkProcessCreate (PAL_HANDLE * handle,
-                      const char * uri, int flags, const char ** args)
+int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 {
     PAL_HANDLE exec = NULL;
     PAL_HANDLE parent_handle = NULL, child_handle = NULL;

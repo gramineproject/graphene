@@ -45,7 +45,7 @@ typedef __kernel_pid_t pid_t;
 static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
-    __UNUSED(type);
+    assert(strpartcmp_static(type, "file"));
 
     /* try to do the real open */
     int ret = INLINE_SYSCALL(open, 3, uri,
@@ -227,7 +227,7 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 static int file_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
-    __UNUSED(type);
+    assert(strpartcmp_static(type, "file"));
 
     struct stat stat_buf;
     /* try to do the real open */
@@ -272,7 +272,7 @@ static int file_attrsetbyhdl (PAL_HANDLE handle,
 static int file_rename (PAL_HANDLE handle, const char * type,
                         const char * uri)
 {
-    __UNUSED(type);
+    assert(strpartcmp_static(type, "file"));
 
     int ret = INLINE_SYSCALL(rename, 2, handle->file.realpath, uri);
 
@@ -497,7 +497,7 @@ static int dir_delete (PAL_HANDLE handle, int access)
 static int dir_rename (PAL_HANDLE handle, const char * type,
                        const char * uri)
 {
-    __UNUSED(type);
+    assert(strpartcmp_static(type, "dir"));
 
     int ret = INLINE_SYSCALL(rename, 2, handle->dir.realpath, uri);
 

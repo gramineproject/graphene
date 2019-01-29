@@ -85,7 +85,7 @@ void pal_start_thread (void)
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param, int flags)
 {
-    __UNUSED(flags);
+    assert(flags == 0);
 
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);

@@ -246,12 +246,3 @@ void setup_vdso_map (ElfW(Addr) addr)
 #endif
 }
 #endif
-
-ElfW(Addr) resolve_rtld (const char * sym_name)
-{
-    __UNUSED(sym_name);
-
-    /* We are not using this, because in Linux we can rely on
-       rtld_map to directly lookup symbols */
-    return 0;
-}

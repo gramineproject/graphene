@@ -300,7 +300,7 @@ int _DkThreadDelayExecution (unsigned long * duration);
 void _DkThreadYieldExecution (void);
 int _DkThreadResume (PAL_HANDLE threadHandle);
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
-                      int flags, const char ** args);
+                      const char ** args);
 void _DkProcessExit (int exitCode);
 int _DkProcessSandboxCreate (const char * manifest, int flags);
 

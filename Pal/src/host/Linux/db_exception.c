@@ -246,7 +246,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 static void _DkPipeSighandler (int signum, siginfo_t * info,
                                struct ucontext * uc)
 {
-    __UNUSED(signum);
+    assert(signum == SIGPIPE);
     __UNUSED(info);
 
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];

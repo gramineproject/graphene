@@ -49,9 +49,3 @@ void _DkDebugAddMap (struct link_map * map)
 void _DkDebugDelMap (struct link_map * map)
 {
 }
-
-ElfW(Addr) resolve_rtld (const char * sym_name)
-{
-    /* Not yet implemented */
-    return 0;
-}

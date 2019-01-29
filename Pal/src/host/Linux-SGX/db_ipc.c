@@ -29,7 +29,7 @@
 #include "pal_internal.h"
 #include "pal_error.h"
 
-/* Mute warning for the file with all unimplemetned functions
+/* Mute warning for the file with all unimplemented functions
  * Remove the following pragma when implementing the functions
  */
 #pragma GCC diagnostic push

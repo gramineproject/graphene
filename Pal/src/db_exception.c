@@ -61,11 +61,9 @@ PAL_EVENT_HANDLER _DkGetExceptionHandler (PAL_NUM event)
 }
 
 PAL_BOL
-DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event, PAL_FLG flags)
+DkSetExceptionHandler (PAL_EVENT_HANDLER handler, PAL_NUM event)
 {
     ENTER_PAL_CALL(DkSetExceptionHandler);
-
-    __UNUSED(flags);
 
     if (!handler || event == 0 ||
         event > sizeof(handlers) / sizeof(handlers[0])) {

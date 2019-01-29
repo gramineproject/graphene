@@ -63,9 +63,7 @@ static struct link_map * resolve_map (const char **strtab, ElfW(Sym) ** ref)
     return 0;
 }
 
-extern ElfW(Addr) resolve_rtld (const char * sym_name);
-
-#define RESOLVE_RTLD(sym_name)      resolve_rtld(sym_name)
+#define RESOLVE_RTLD(sym_name)      0
 #define RESOLVE_MAP(strtab, ref)    resolve_map(strtab, ref)
 
 #include "dynamic_link.h"

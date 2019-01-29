@@ -37,7 +37,7 @@
 int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
                int access, int share, int create, int options)
 {
-    __UNUSED(type);
+    assert(strpartcmp_static(type, "gipc"));
     __UNUSED(access);
     __UNUSED(share);
     __UNUSED(create);
