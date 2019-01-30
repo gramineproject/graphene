@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 DIR=`readlink -f "${BASH_SOURCE[0]}"`
 MOD=graphene-ipc

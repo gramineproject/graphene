@@ -1,4 +1,5 @@
-#! /bin/bash
+#!/usr/bin/env bash
+
 ###############################################################################
 #  The BYTE UNIX Benchmarks - Release 3
 #          Module: multi.sh   SID: 3.4 5/15/91 19:30:24

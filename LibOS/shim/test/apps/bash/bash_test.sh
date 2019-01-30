@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 times=$1
 [ $times -gt 0 2> /dev/null ] || times=300
