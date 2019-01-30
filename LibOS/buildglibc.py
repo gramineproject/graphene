@@ -1,5 +1,4 @@
-#!/usr/bin/python
-
+#!/usr/bin/env python2
 
 import sys, os, string, subprocess, shutil, fileinput, multiprocessing, re, resource
 
