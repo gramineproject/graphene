@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ## On Ubuntu, this script requires apache2-utils for the ab binary.
 # Run like: ./benchmark-http.sh server

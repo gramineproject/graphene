@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 ## We really need to pick a unique ephemeral port; start by just picking pid+1024
 PORT=$(($$ + 1024))
