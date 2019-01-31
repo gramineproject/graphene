@@ -592,9 +592,11 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
 
     sig = begin_sig;
 
+    __preempt_clear_delayed(tcb);
     while (atomic_read(&thread->has_signal)) {
         struct shim_signal * signal = NULL;
 
+        __preempt_clear_delayed(tcb);
         for ( ; sig < end_sig ; sig++)
             if (!__sigismember(&thread->signal_mask, sig) &&
                 (signal = fetch_signal_log(tcb, thread, sig)))
@@ -609,7 +611,6 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
         __handle_one_signal(tcb, sig, signal);
         free(signal);
         DkThreadYieldExecution();
-        __preempt_clear_delayed(tcb);
     }
 }
 

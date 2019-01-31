@@ -205,6 +205,7 @@ static inline int64_t get_cur_preempt (void) {
     SHIM_ARG_TYPE __shim_##name (args) {                    \
         SHIM_ARG_TYPE ret = 0;                              \
         int64_t preempt = get_cur_preempt();                \
+        assert((preempt & SIGNAL_DELAYED) == 0);            \
         /* handle_signal(true); */                          \
         /* check_stack_hook(); */                           \
         BEGIN_SYSCALL_PROFILE();
@@ -473,8 +474,13 @@ static inline void enable_preempt (shim_tcb_t * tcb)
     if (!(preempt & ~SIGNAL_DELAYED))
         return;
 
-    if ((preempt & ~SIGNAL_DELAYED) == 1)
-        __handle_signal(tcb, 0, NULL);
+    if ((preempt & ~SIGNAL_DELAYED) == 1) {
+        do {
+            __handle_signal(tcb, 0, NULL);
+            /* if SIGNAL_DELAYED is set at the same time, retry. */
+        } while (atomic_cmpxchg(&tcb->context.preempt, 1, 0) != 1);
+        return;
+    }
 
     __enable_preempt(tcb);
 }
