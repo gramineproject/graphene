@@ -156,7 +156,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     struct shim_thread * cur_thread = (struct shim_thread *) tcb->tp;
     int sig = info->si_signo;
 
-    __disable_preempt(tcb);
+    int64_t preempt = __disable_preempt(tcb);
 
     struct shim_signal * signal = __alloca(sizeof(struct shim_signal));
     /* save in signal */
@@ -165,7 +165,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __store_context(tcb, context, signal);
     signal->pal_context = context;
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1)
+    if ((preempt & ~SIGNAL_DELAYED) > 1)
         goto delay;
 
     if (__sigismember(&cur_thread->signal_mask, sig))
@@ -460,10 +460,10 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
     shim_tcb_t * tcb = SHIM_GET_TLS();
     assert(tcb);
-    __disable_preempt(tcb);
+    int64_t preempt = __disable_preempt(tcb);
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        tcb->context.preempt |= SIGNAL_DELAYED;
+    if ((preempt & ~SIGNAL_DELAYED) > 1) {
+        __preempt_set_delayed(tcb);
         __enable_preempt(tcb);
         goto ret_exception;
     }
@@ -609,7 +609,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
         __handle_one_signal(tcb, sig, signal);
         free(signal);
         DkThreadYieldExecution();
-        tcb->context.preempt &= ~SIGNAL_DELAYED;
+        __preempt_clear_delayed(tcb);
     }
 }
 
@@ -624,15 +624,15 @@ void handle_signal (bool delayed_only)
     if (!thread || !thread->has_signal.counter)
         return;
 
-    __disable_preempt(tcb);
+    int64_t preempt = __disable_preempt(tcb);
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
-        tcb->context.preempt |= SIGNAL_DELAYED;
+    if ((preempt & ~SIGNAL_DELAYED) > 1) {
+        debug("signal delayed (%d)\n", preempt & ~SIGNAL_DELAYED);
+        __preempt_set_delayed(tcb);
         goto out;
     }
 
-    if (delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))
+    if (delayed_only && !(preempt & SIGNAL_DELAYED))
         goto out;
 
     __handle_signal(tcb, 0, NULL);
