@@ -3,6 +3,8 @@
 
 #ifndef __ASSEMBLER__
 
+#include <atomic.h>
+
 #define SHIM_TLS_CANARY 0xdeadbeef
 
 struct lock_record {
@@ -40,7 +42,7 @@ struct shim_context {
     struct shim_regs *      regs;
     struct shim_context *   next;
     uint64_t                enter_time;
-    uint64_t                preempt;
+    struct atomic_int       preempt;
 };
 
 #ifdef IN_SHIM

@@ -153,7 +153,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     struct shim_thread * cur_thread = (struct shim_thread *) tcb->tp;
     int sig = info->si_signo;
 
-    __disable_preempt(tcb);
+    int64_t preempt = __disable_preempt(tcb);
 
     struct shim_signal * signal = __alloca(sizeof(struct shim_signal));
     /* save in signal */
@@ -162,7 +162,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __store_context(tcb, context, signal);
     signal->pal_context = context;
 
-    if (tcb->context.preempt > 1 ||
+    if (preempt > 1 ||
         __sigismember(&cur_thread->signal_mask, sig)) {
         struct shim_signal ** signal_log = NULL;
         if ((signal = malloc_copy(signal,sizeof(struct shim_signal))) &&
@@ -550,8 +550,8 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         return;
 
     if (!is_internal_tid(get_cur_tid())) {
-        __disable_preempt(tcb);
-        if (tcb->context.preempt <= 1)
+        int64_t preempt = __disable_preempt(tcb);
+        if (preempt <= 1)
             __handle_signal(tcb, 0);
         __enable_preempt(tcb);
     }
@@ -705,10 +705,10 @@ void handle_signal (void)
     if (!thread || !thread->has_signal.counter)
         return;
 
-    __disable_preempt(tcb);
+    int64_t preempt = __disable_preempt(tcb);
 
-    if (tcb->context.preempt > 1)
-        debug("signal delayed (%ld)\n", tcb->context.preempt);
+    if (preempt > 1)
+        debug("signal delayed (%ld)\n", preempt);
     else
         __handle_signal(tcb, 0);
 
