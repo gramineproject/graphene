@@ -662,6 +662,7 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
         *signal_log = signal;
         if (wakeup) {
             debug("resuming thread %u\n", thread->tid);
+            thread_wakeup(thread);
             DkThreadResume(thread->pal_handle);
         }
     } else {
