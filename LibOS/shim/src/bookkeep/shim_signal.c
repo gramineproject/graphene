@@ -630,15 +630,15 @@ void handle_signal (bool delayed_only)
     if ((preempt & ~SIGNAL_DELAYED) > 1) {
         debug("signal delayed (%d)\n", preempt & ~SIGNAL_DELAYED);
         __preempt_set_delayed(tcb);
-        goto out;
+        __enable_preempt(tcb);
+    } else {
+        do {
+            if (!delayed_only || (preempt & SIGNAL_DELAYED))
+                __handle_signal(tcb, 0, NULL);
+            preempt = atomic_cmpxchg(&tcb->context.preempt, 1, 0);
+        } while (preempt != 1);
     }
 
-    if (delayed_only && !(preempt & SIGNAL_DELAYED))
-        goto out;
-
-    __handle_signal(tcb, 0, NULL);
-out:
-    __enable_preempt(tcb);
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
