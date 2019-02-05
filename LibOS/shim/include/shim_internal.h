@@ -740,25 +740,25 @@ extern const char ** initial_envp;
 #define ALIGN_DOWN(addr)    \
     ((__typeof__(addr)) (((unsigned long) addr) & allocmask))
 
-#define switch_stack(stack_top)                                     \
-    ({                                                              \
-        void * _rsp, * _rbp;                                        \
-        void * _stack = (stack_top);                                \
-        __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory"); \
-        __asm__ volatile ("movq %%rbp, %0" : "=r"(_rbp) :: "memory"); \
-        _rsp = _stack - (_rbp - _rsp);                              \
-        _rbp = _stack;                                              \
-        __asm__ volatile ("movq %0, %%rsp" :: "r"(_rsp) : "memory"); \
-        __asm__ volatile ("movq %0, %%rbp" :: "r"(_rbp) : "memory"); \
+#define switch_stack(stack_top)                                         \
+    ({                                                                  \
+        void * _rsp, * _rbp;                                            \
+        void * _stack = (stack_top);                                    \
+        __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
+        __asm__ volatile ("movq %%rbp, %0" : "=r"(_rbp) :: "memory");   \
+        _rsp = _stack - (_rbp - _rsp);                                  \
+        _rbp = _stack;                                                  \
+        __asm__ volatile ("movq %0, %%rsp" :: "r"(_rsp) : "memory");    \
+        __asm__ volatile ("movq %0, %%rbp" :: "r"(_rbp) : "memory");    \
         __asm__ volatile ("movq %%rbp, %0" : "=r"(_stack) :: "memory"); \
-        _stack;                                                     \
+        _stack;                                                         \
     })
 
-#define current_stack()                                             \
-    ({                                                              \
-        void * _rsp;                                                \
-        __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory"); \
-        _rsp;                                                       \
+#define current_stack()                                                 \
+    ({                                                                  \
+        void * _rsp;                                                    \
+        __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
+        _rsp;                                                           \
     })
 
 void get_brk_region (void ** start, void ** end, void ** current);

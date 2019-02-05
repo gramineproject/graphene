@@ -114,7 +114,7 @@ struct __kernel_timex {
 };
 
 
-/* /arch/x86/include/__asm__/posix_types_64.h */
+/* /arch/x86/include/asm/posix_types_64.h */
 typedef unsigned int   __kernel_uid_t;
 typedef __kernel_uid_t __kernel_uid32_t;
 
