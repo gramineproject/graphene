@@ -12,5 +12,5 @@ Please fill in the following form before submitting this PR and ensure that your
 ## Description of the changes (reasons and measures)
 
 
-## How to test this PR?
+## How to test this PR? (if applicable)
 
