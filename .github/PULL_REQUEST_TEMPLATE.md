@@ -6,6 +6,7 @@ Please fill in the following form before submitting this PR and ensure that your
 - [ ] Linux PAL
 - [ ] SGX PAL
 - [ ] FreeBSD PAL
+- [ ] Common PAL code
 - [ ] Library OS (i.e., SHIM), including GLIBC
 
 ## Description of the changes (reasons and measures)
