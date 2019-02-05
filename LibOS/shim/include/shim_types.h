@@ -37,8 +37,13 @@ typedef unsigned int        __u32;
 typedef unsigned long int   nfds_t;
 typedef unsigned long int   nlink_t;
 
+typedef uint32_t            socklen_t;
+typedef __kernel_uid_t      uid_t;
+typedef __kernel_gid_t      gid_t;
+typedef __kernel_pid_t      pid_t;
 typedef __kernel_caddr_t    caddr_t;
 typedef __kernel_mode_t     mode_t;
+typedef __kernel_off_t      off_t;
 typedef __kernel_loff_t     loff_t;
 typedef __kernel_time_t     time_t;
 typedef __kernel_old_dev_t  dev_t;
