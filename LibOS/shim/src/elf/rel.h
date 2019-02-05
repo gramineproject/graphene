@@ -15,7 +15,7 @@
         ((ElfW(Addr)) (addr) >= (l)->l_map_start && (ElfW(Addr)) (addr) < (l)->l_map_end)
 
 #define RELOCATE(l, addr)   \
-        ((typeof(addr)) (IN_RANGE((l), (addr)) ? (ElfW(Addr)) (addr) :    \
+        ((__typeof__(addr)) (IN_RANGE((l), (addr)) ? (ElfW(Addr)) (addr) :    \
             (ElfW(Addr)) (addr) + (ElfW(Addr)) ((l)->l_addr)))
 
 #ifdef __x86_64__

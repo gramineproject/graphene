@@ -33,7 +33,7 @@
 #define alias_str(name) #name
 
 #define extern_alias(name) \
-    extern __typeof(name) shim_##name __attribute ((alias (alias_str(name))))
+    extern __typeof__(name) shim_##name __attribute ((alias (alias_str(name))))
 
 #define static_always_inline static inline __attribute__((always_inline))
 
@@ -156,7 +156,7 @@ static inline void do_pause (void);
 #if USE_PAUSE == 1
 # define pause() do { do_pause(); } while (0)
 #else
-# define pause() do { asm volatile ("int $3"); } while (0)
+# define pause() do { __asm__ volatile ("int $3"); } while (0)
 #endif
 
 #define bug()                                                               \
@@ -758,28 +758,28 @@ extern const char ** initial_envp;
 
 #define ALIGNED(addr)   (!(((unsigned long) addr) & allocshift))
 #define ALIGN_UP(addr)      \
-    ((typeof(addr)) ((((unsigned long) addr) + allocshift) & allocmask))
+    ((__typeof__(addr)) ((((unsigned long) addr) + allocshift) & allocmask))
 #define ALIGN_DOWN(addr)    \
-    ((typeof(addr)) (((unsigned long) addr) & allocmask))
+    ((__typeof__(addr)) (((unsigned long) addr) & allocmask))
 
-#define switch_stack(stack_top)                                     \
-    ({                                                              \
-        void * _rsp, * _rbp;                                        \
-        void * _stack = (stack_top);                                \
-        asm volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
-        asm volatile ("movq %%rbp, %0" : "=r"(_rbp) :: "memory");   \
-        _rsp = _stack - (_rbp - _rsp);                              \
-        _rbp = _stack;                                              \
-        asm volatile ("movq %0, %%rsp" :: "r"(_rsp) : "memory");    \
-        asm volatile ("movq %0, %%rbp" :: "r"(_rbp) : "memory");    \
-        asm volatile ("movq %%rbp, %0" : "=r"(_stack) :: "memory"); \
-        _stack;                                                     \
+#define switch_stack(stack_top)                                         \
+    ({                                                                  \
+        void * _rsp, * _rbp;                                            \
+        void * _stack = (stack_top);                                    \
+        __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
+        __asm__ volatile ("movq %%rbp, %0" : "=r"(_rbp) :: "memory");   \
+        _rsp = _stack - (_rbp - _rsp);                                  \
+        _rbp = _stack;                                                  \
+        __asm__ volatile ("movq %0, %%rsp" :: "r"(_rsp) : "memory");    \
+        __asm__ volatile ("movq %0, %%rbp" :: "r"(_rbp) : "memory");    \
+        __asm__ volatile ("movq %%rbp, %0" : "=r"(_stack) :: "memory"); \
+        _stack;                                                         \
     })
 
 static_always_inline void * current_stack(void)
 {
     void * _rsp;
-    asm volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");
+    __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");
     return _rsp;
 }
 
