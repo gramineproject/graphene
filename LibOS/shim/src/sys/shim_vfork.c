@@ -58,8 +58,8 @@ int shim_do_vfork (void)
     struct shim_thread * new_thread = get_new_thread(0);
     /* put the new thread in a new process (thread group) */
 
-    asm volatile ("movq %%rbp, %0\r\n"
-                  : "=r"(new_thread->frameptr));
+    __asm__ volatile ("movq %%rbp, %0\r\n"
+                      : "=r"(new_thread->frameptr));
 
     size_t stack_size = 4096;
 

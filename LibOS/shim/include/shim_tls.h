@@ -94,24 +94,24 @@ typedef struct
 static inline bool shim_tls_check_canary(void)
 {
     uint64_t __canary;
-    asm ("movq %%fs:%c1,%q0" : "=r" (__canary)
-         : "i" (offsetof(__libc_tcb_t, shim_tcb.canary)));
+    __asm__ ("movq %%fs:%c1,%q0" : "=r" (__canary)
+             : "i" (offsetof(__libc_tcb_t, shim_tcb.canary)));
     return __canary == SHIM_TLS_CANARY;
 }
 
 static inline shim_tcb_t * shim_get_tls(void)
 {
     shim_tcb_t *__self;
-    asm ("movq %%fs:%c1,%q0" : "=r" (__self)
-         : "i" (offsetof(__libc_tcb_t, shim_tcb.self)));
+    __asm__ ("movq %%fs:%c1,%q0" : "=r" (__self)
+             : "i" (offsetof(__libc_tcb_t, shim_tcb.self)));
     return __self;
 }
 
 static inline __libc_tcb_t * shim_libc_tcb(void)
 {
     __libc_tcb_t *__self;
-    asm ("movq %%fs:%c1,%q0" : "=r" (__self)
-         : "i" (offsetof(__libc_tcb_t, tcb)));
+    __asm__ ("movq %%fs:%c1,%q0" : "=r" (__self)
+             : "i" (offsetof(__libc_tcb_t, tcb)));
     return __self;
 }
 
