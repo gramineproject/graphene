@@ -20,8 +20,9 @@ Results are of 4 types :
 [Hanged] -> Testcase hanged and thereafter killed
 [Broken] -> Either system call is not implemented in Graphene or test preparation failed
 
-To run one particular testcase, execute following :
- ~/Runtime/pal <ltp-repo>/opt/ltp/testcases/bin/<test>
+To run a single testcase, execute the following commands:
+    cd <LTP_REPO>/opt/ltp/testcases/bin/
+    <GRAPHENE_DIR>/Runtime/pal-<PAL_HOST> <TEST_BINARY>
 
 In this way, one can debug one particular syscall testcase.
 
