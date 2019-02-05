@@ -47,7 +47,7 @@ int main(int argc, char** argv, char** envp) {
                     // Test waiting on the handle
                     PAL_HANDLE rv = DkObjectsWaitAny(1, &tcp2, 0);
                     if (rv == NULL)
-                        pal_printf("DkObjectsWaitAny tcp timed out (%d), iteration %d.\n", 0, i);
+                        pal_printf("DkObjectsWaitAny tcp timed out, iteration %d.\n", i);
                     else if (rv == tcp2)
                         pal_printf(
                             "DkObjectsWaitAny tcp was able to wait on tcp handle, iteration %d.\n",
@@ -66,7 +66,7 @@ int main(int argc, char** argv, char** envp) {
                     // Test waiting on the handle
                     PAL_HANDLE rv = DkObjectsWaitAny(2, handles, 0);
                     if (rv == NULL)
-                        pal_printf("DkObjectsWaitAny(2) tcp timed out (%d), iteration %d.\n", 0, i);
+                        pal_printf("DkObjectsWaitAny(2) tcp timed out, iteration %d.\n", i);
                     else if (rv == tcp2 || rv == tcp3)  // right answer is not
                                                         // defined, as long as
                                                         // one is writeable
@@ -156,7 +156,7 @@ int main(int argc, char** argv, char** envp) {
                 // Test waiting on the handle
                 PAL_HANDLE rv = DkObjectsWaitAny(1, &udp3, 0);
                 if (rv == NULL)
-                    pal_printf("DkObjectsWaitAny udp timed out (%d), iteration %d.\n", 0, i);
+                    pal_printf("DkObjectsWaitAny udp timed out, iteration %d.\n", i);
                 else if (rv == udp3)
                     pal_printf(
                         "DkObjectsWaitAny udp was able to wait on udp handle, iteration %d.\n", i);
@@ -174,7 +174,7 @@ int main(int argc, char** argv, char** envp) {
                 // Test waiting on the handle
                 PAL_HANDLE rv = DkObjectsWaitAny(2, handles, 0);
                 if (rv == NULL)
-                    pal_printf("DkObjectsWaitAny(2) udp timed out (%d), iteration %d.\n", 0, i);
+                    pal_printf("DkObjectsWaitAny(2) udp timed out, iteration %d.\n", i);
                 else if (rv == udp1 || rv == udp3)  // right answer is not
                     // defined, as long as
                     // one is writeable
