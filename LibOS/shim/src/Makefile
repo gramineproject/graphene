@@ -9,7 +9,7 @@ LD	= ld
 
 OMIT_FRAME_POINTER = no
 
-CFLAGS	= -Wall -fPIC -std=c11 -fgnu89-inline -Winline -Wwrite-strings \
+CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes \
 	  -Werror=implicit-function-declaration \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
