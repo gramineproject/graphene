@@ -287,8 +287,12 @@ out:
     return ret;
 }
 
+/*
+ * According to `man 2 epoll_wait` (http://man7.org/linux/man-pages/man2/epoll_wait.2.html),
+ * 'timeout' specifies the number of milliseconds that epoll_wait() should block.
+ */
 int shim_do_epoll_wait (int epfd, struct __kernel_epoll_event * events,
-                        int maxevents, int timeout)
+                        int maxevents, int timeout_millis)
 {
     int ret = 0;
     struct shim_handle * epoll_hdl = get_fd_handle(epfd, NULL, NULL);
@@ -321,8 +325,7 @@ retry:
 
     unlock(epoll_hdl->lock);
 
-    if (timeout < 0)
-        timeout = NO_TIMEOUT;
+    PAL_NUM timeout = (timeout_millis < 0) ? NO_TIMEOUT : timeout_millis * 1000;
 
     PAL_HANDLE polled = DkObjectsWaitAny(nread ? npals + 1 : npals, pal_handles,
                                          nread ? timeout : 0);
@@ -386,11 +389,15 @@ reply:
     return ret;
 }
 
+/*
+ * According to `man 2 epoll_wait` (http://man7.org/linux/man-pages/man2/epoll_wait.2.html),
+ * 'timeout' specifies the number of milliseconds that epoll_pwait() should block.
+ */
 int shim_do_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
-                         int maxevents, int timeout, const __sigset_t * sigmask,
+                         int maxevents, int timeout_millis, const __sigset_t * sigmask,
                          size_t sigsetsize)
 {
-    int ret = shim_do_epoll_wait (epfd, events, maxevents, timeout);
+    int ret = shim_do_epoll_wait (epfd, events, maxevents, timeout_millis);
     return ret;
 }
 

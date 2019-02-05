@@ -1038,7 +1038,7 @@ void check_stack_hook (void)
     struct shim_thread * cur_thread = get_cur_thread();
 
     void * rsp;
-    asm volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
+    __asm__ volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
 
     if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
         if (rsp - cur_thread->stack < PAL_CB(pagesize))

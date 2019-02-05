@@ -36,8 +36,13 @@ typedef unsigned int        __u32;
 typedef unsigned long int   nfds_t;
 typedef unsigned long int   nlink_t;
 
+typedef uint32_t            socklen_t;
+typedef __kernel_uid_t      uid_t;
+typedef __kernel_gid_t      gid_t;
+typedef __kernel_pid_t      pid_t;
 typedef __kernel_caddr_t    caddr_t;
 typedef __kernel_mode_t     mode_t;
+typedef __kernel_off_t      off_t;
 typedef __kernel_loff_t     loff_t;
 typedef __kernel_time_t     time_t;
 typedef __kernel_old_dev_t  dev_t;
@@ -109,7 +114,7 @@ struct __kernel_timex {
 };
 
 
-/* /arch/x86/include/asm/posix_types_64.h */
+/* /arch/x86/include/__asm__/posix_types_64.h */
 typedef unsigned int   __kernel_uid_t;
 typedef __kernel_uid_t __kernel_uid32_t;
 

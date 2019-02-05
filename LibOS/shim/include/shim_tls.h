@@ -97,21 +97,24 @@ typedef struct
 
 #define SHIM_TLS_CHECK_CANARY()                                \
     ({ uint64_t __canary;                                      \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__canary)             \
-           : "i" (offsetof(__libc_tcb_t, shim_tcb.canary)));   \
-      __canary == SHIM_TLS_CANARY; })
+       __asm__ volatile ("movq %%fs:%c1,%q0"                   \
+                         : "=r" (__canary)                     \
+                         : "i" (offsetof(__libc_tcb_t, shim_tcb.canary))); \
+       __canary == SHIM_TLS_CANARY; })
 
 #define SHIM_GET_TLS()                                         \
     ({ shim_tcb_t *__self;                                     \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__self)               \
-           : "i" (offsetof(__libc_tcb_t, shim_tcb.self)));     \
-      __self; })
+       __asm__ volatile ("movq %%fs:%c1,%q0"                   \
+                         : "=r" (__self)                       \
+                         : "i" (offsetof(__libc_tcb_t, shim_tcb.self))); \
+       __self; })
 
 #define GET_LIBC_TCB()                                         \
     ({ void *__self;                                           \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__self)               \
-           : "i" (offsetof(__libc_tcb_t, tcb)));               \
-      __self; })
+       __asm__ volatile ("movq %%fs:%c1,%q0"                   \
+                         : "=r" (__self)                       \
+                         : "i" (offsetof(__libc_tcb_t, tcb))); \
+       __self; })
 
 #endif /* IN_SHIM */
 

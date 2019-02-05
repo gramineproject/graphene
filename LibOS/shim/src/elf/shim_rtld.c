@@ -274,12 +274,12 @@ struct link_map * new_elf_object (const char * realname, int type)
 }
 
 #include <endian.h>
-#if BYTE_ORDER == BIG_ENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
 # define byteorder ELFDATA2MSB
-#elif BYTE_ORDER == LITTLE_ENDIAN
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
 # define byteorder ELFDATA2LSB
 #else
-# error "Unknown BYTE_ORDER " BYTE_ORDER
+# error "Unknown BYTE_ORDER " __BYTE_ORDER
 # define byteorder ELFDATANONE
 #endif
 
@@ -875,7 +875,7 @@ static int __check_elf_header (void * fbp, int len)
 
     /* Check whether the ELF header use the right endian */
     if (ehdr->e_ident[EI_DATA] != byteorder) {
-        if (BYTE_ORDER == BIG_ENDIAN) {
+        if (__BYTE_ORDER == __BIG_ENDIAN) {
             errstring = "ELF file data encoding not big-endian";
             goto verify_failed;
         } else {
@@ -1578,17 +1578,16 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     __enable_preempt(tcb);
 
 #if defined(__x86_64__)
-    asm volatile (
-                    "movq %%rbx, %%rsp\r\n"
-                    "pushq %%rdi\r\n"
-                    "jmp *%%rax\r\n"
+    __asm__ volatile ("movq %%rbx, %%rsp\r\n"
+                      "pushq %%rdi\r\n"
+                      "jmp *%%rax\r\n"
 
-                    :
-                    : "a"(entry),
-                    "b"(argp),
-                    "D"(argc)
+                      :
+                      : "a"(entry),
+                        "b"(argp),
+                        "D"(argc)
 
-                    : "memory");
+                      : "memory");
 #else
 # error "architecture not supported"
 #endif

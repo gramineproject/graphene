@@ -1262,7 +1262,7 @@ void restore_context (struct shim_context * context)
 
     memset(context, 0, sizeof(struct shim_context));
 
-    asm volatile("movq %0, %%rsp\r\n"
+    __asm__ volatile("movq %0, %%rsp\r\n"
                  "popq %%r15\r\n"
                  "popq %%r14\r\n"
                  "popq %%r13\r\n"
