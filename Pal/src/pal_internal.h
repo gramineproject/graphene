@@ -50,7 +50,10 @@ struct handle_ops {
 
     /* 'open' is used by DkStreamOpen. 'handle' is a preallocated handle,
        'type' will be a normalized prefix, 'uri' is the remaining string
-       of uri */
+       of uri.
+       access, share, create, and options follow the same flags defined
+       for DkStreamOpen in pal.h.
+    */
     int (*open) (PAL_HANDLE * handle, const char * type, const char * uri,
                  int access, int share, int create, int options);
 
@@ -77,8 +80,8 @@ struct handle_ops {
     /* 'map' and 'unmap' will map or unmap the handle into memory space,
      * it's not necessary mapped by mmap, so unmap also needs 'handle'
      * to deal with special cases.
-     * 
-     * Common PAL code will ensure that *address, offset, and size are 
+     *
+     * Common PAL code will ensure that *address, offset, and size are
      * page-aligned. 'address' should not be NULL.
      */
     int (*map) (PAL_HANDLE handle, void ** address, int prot, uint64_t offset,
