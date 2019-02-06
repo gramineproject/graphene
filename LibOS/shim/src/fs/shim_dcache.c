@@ -250,6 +250,7 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
 
     /* If we are looking up an empty string, return start */
     if (namelen == 0) {
+        get_dentry(start);
         found = start;
         goto out;
     }

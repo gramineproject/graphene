@@ -273,7 +273,9 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
     int err = 0;
     struct shim_dentry *my_dent = NULL;
     struct shim_qstr this = QSTR_INIT;
-    int base_case = 0, no_start = 0;
+    bool leaf_case = false; // Leaf call in case of recursion
+    bool no_start = false; // start not passed
+    bool no_fs = false; // fs not passed
     struct shim_thread * cur_thread = get_cur_thread();
 
     if (!start) {
@@ -286,23 +288,32 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
             start = dentry_root;
             assert(start);
         }
-        no_start = 1;
+        no_start = true;
+        // refcount should only be incremented if the caller didn't do it
+        get_dentry(start);
     }
+
     assert(start);
-    get_dentry(start);
-    if (!fs)
+    if (!fs) {
+        no_fs = true;
         fs = start->fs;
+        // refcount should only be incremented if the caller didn't do it
+        get_mount(fs);
+    }
+
     assert(fs);
-    get_mount(fs);
     assert(start->state & DENTRY_ISDIRECTORY);
 
     // Peel off any preceeding slashes
     path = eat_slashes(path);
 
-    // Check that we didn't hit the base case 
-    if (path == '\0') {
+    // Check that we didn't hit the leaf case
+    if (*path == '\0') {
+        // We'll return start since this is the last path element
         my_dent = start;
-        base_case = 1;
+        // Increment refcount of the found entry
+        get_dentry(my_dent);
+        leaf_case = true;
     } else {
         my_path = path;
         // Find the length of the path
@@ -321,8 +332,8 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
             /* For the recursion to work, we need to do the following:
              * Bump the ref count, set my_dent to start
              */
-            get_dentry(start);
             my_dent = start;
+            get_dentry(my_dent);
         } else if (my_pathlen == 2 && path[0] == '.' && path[1] == '.') {
             if (start->parent) {
                 my_dent = start->parent;
@@ -330,12 +341,13 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                 // Root
                 my_dent = start;
             }
-            get_dentry(start);
+            get_dentry(my_dent);
 
         } else {
             // Once we have an atom, look it up and update start
             // XXX: Assume we don't need the force flag here?
             err = lookup_dentry(start, path, my_pathlen, 0, &my_dent, fs);
+            // my_dent's refcount is incremented after this, consistent with cases above
 
             // Allow a negative dentry to move forward
             if (err < 0 && err != -ENOENT)
@@ -368,9 +380,15 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                         assert(cur_thread);
                         root = cur_thread->root;
                         /*XXX: Check out path_reacquire here? */
+                        // my_dent's refcount was incremented by lookup_dentry above,
+                        // we need to not leak it here
+                        put_dentry(my_dent);
                         my_dent = root;
+                        get_dentry(my_dent);
                     } else // Relative path, stay in this dir
+                        put_dentry(my_dent);
                         my_dent = start;
+                        get_dentry(my_dent);
                 }
             }
         }
@@ -415,12 +433,12 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                 if (err == -ENOENT)
                     err = 0;
             }
-            base_case = 1;
+            leaf_case = true;
         }
     }
 
     /* Base case.  Set dent and return. */
-    if (base_case) {
+    if (leaf_case) {
         if (dent)
             *dent = my_dent;
 
@@ -435,10 +453,12 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
 
 out:
     /* If we didn't have a start dentry, decrement the ref count here */
-    if (no_start) {
-        put_mount(fs);
+    if (no_start)
         put_dentry(start);
-    }
+
+    if (no_fs)
+        put_mount(fs);
+
     qstrfree(&this);
     return err;
 }
