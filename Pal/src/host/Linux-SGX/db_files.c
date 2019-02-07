@@ -442,7 +442,8 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                          void * buf)
 {
-    __UNUSED(offset);
+    if (!offset)
+    	return -PAL_ERROR_INVAL;
 
     void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
     void * ptr = (void *) handle->dir.ptr;
