@@ -118,10 +118,8 @@ int _DkCreatePhysicalMemoryChannel (PAL_HANDLE * handle, uint64_t * key)
 }
 
 int _DkPhysicalMemoryCommit (PAL_HANDLE channel, int entries,
-                             PAL_PTR * addrs, PAL_NUM * sizes, int flags)
+                             PAL_PTR * addrs, PAL_NUM * sizes)
 {
-    __UNUSED(flags);
-
     int fd = channel->gipc.fd;
     struct gipc_send gs;
 

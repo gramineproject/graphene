@@ -64,7 +64,7 @@ int main (int argc, char ** argv)
     } else {
         const char *args[3] = { "SendHandle", "Child", NULL };
 
-        PAL_HANDLE child = DkProcessCreate("file:SendHandle", 0, args);
+        PAL_HANDLE child = DkProcessCreate("file:SendHandle", args);
 
         if (child) {
             // Sending pipe handle

@@ -123,10 +123,13 @@ static int open_standard_term (PAL_HANDLE * handle, const char * param,
 static int term_open (PAL_HANDLE *handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
-    assert(strcmp_static(type, "tty"));
-    __UNUSED(share);
-    __UNUSED(create);
-    __UNUSED(options);
+    if (!strcmp_static(type, "tty"))
+    	return -PAL_ERROR_INVAL;
+
+    if (!within_mask(share, PAL_SHARE_MASK) ||
+        !within_mask(create, PAL_SHARE_MASK) ||
+        !within_mask(options, PAL_OPTION_MASK))
+    	return -PAL_ERROR_INVAL;
 
     const char * term = NULL;
     const char * param = NULL;
@@ -194,7 +197,8 @@ static struct handle_ops term_ops = {
 static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                           void * buffer)
 {
-    assert(offset == 0);
+    if (!offset)
+    	return -PAL_ERROR_INVAL;
 
     int fd = handle->dev.fd_in;
 
@@ -211,7 +215,8 @@ static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
 static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                            const void * buffer)
 {
-    assert(offset == 0);
+    if (!offset)
+    	return -PAL_ERROR_INVAL;
 
     int fd = handle->dev.fd_out;
 

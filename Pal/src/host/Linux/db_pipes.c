@@ -329,7 +329,8 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                           void * buffer)
 {
-    assert(offset == 0);
+    if (!offset)
+    	return -PAL_ERROR_INVAL;
 
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
@@ -380,7 +381,8 @@ static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
                            const void * buffer)
 {
-    assert(offset == 0);
+    if (!offset)
+    	return -PAL_ERROR_INVAL;
 
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&

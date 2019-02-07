@@ -23,7 +23,7 @@ void handler (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 int main (int argc, char ** argv, char ** envp)
 {
     volatile int c;
-    DkSetExceptionHandler(handler, PAL_EVENT_MEMFAULT, 0);
+    DkSetExceptionHandler(handler, PAL_EVENT_MEMFAULT);
 
     void * mem1 = (void *) DkVirtualMemoryAlloc(NULL, UNIT * 4, 0,
                                                 PAL_PROT_READ|PAL_PROT_WRITE);

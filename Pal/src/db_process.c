@@ -36,11 +36,9 @@
 #include "api.h"
 
 PAL_HANDLE
-DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args)
+DkProcessCreate (PAL_STR uri, PAL_STR * args)
 {
     ENTER_PAL_CALL(DkProcessCreate);
-
-    assert(flags == 0);
 
     /* DEP 3/22/17: There seems to be a default semantics that 
      * a NULL URI should replicate the parent. I think we may want

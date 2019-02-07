@@ -682,7 +682,7 @@ int shim_init (int argc, void * args, void ** return_stack)
 
     debug("host: %s\n", PAL_CB(host_type));
 
-    DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE, 0);
+    DkSetExceptionHandler(&handle_failure, PAL_EVENT_FAILURE);
 
     allocsize = PAL_CB(alloc_align);
     allocshift = allocsize - 1;

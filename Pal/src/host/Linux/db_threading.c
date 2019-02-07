@@ -84,10 +84,8 @@ int pal_thread_init (void * tcbptr)
    inside the current process. The arguments callback and param
    specify the starting function and parameters */
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * param, int flags)
+                     const void * param)
 {
-    assert(flags == 0);
-
     void * stack = NULL;
     int ret = _DkVirtualMemoryAlloc(&stack, THREAD_STACK_SIZE + ALT_STACK_SIZE,
                                     0, PAL_PROT_READ|PAL_PROT_WRITE);

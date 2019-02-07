@@ -180,7 +180,8 @@ static struct handle_ops term_ops = {
 
 /* 'read' operation for character streams. */
 static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void* buffer) {
-    assert(offset == 0);
+    if(!offset)
+        return -PAL_ERROR_INVAL;
 
     int fd = handle->dev.fd_in;
 
@@ -197,7 +198,8 @@ static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void
 
 /* 'write' operation for character streams. */
 static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, const void* buffer) {
-    assert(offset == 0);
+    if(!offset)
+        return -PAL_ERROR_INVAL;
 
     int fd = handle->dev.fd_out;
 

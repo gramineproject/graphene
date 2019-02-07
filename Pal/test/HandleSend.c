@@ -69,7 +69,7 @@ int main (int argc, char ** argv)
         }
 
         pal_printf("Parent: Forking child\n");
-        child = DkProcessCreate ("file:HandleSend", 0, args);
+        child = DkProcessCreate ("file:HandleSend", args);
 
         if (!child) {
             pal_printf("Parent: Failed creating process\n");

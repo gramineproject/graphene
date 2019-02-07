@@ -35,14 +35,14 @@ int main(int argc, char ** argv)
 
         snprintf(uri, 20, "gipc:%lld", key);
 
-        PAL_HANDLE phdl = DkProcessCreate("file:Ipc", 0, args);
+        PAL_HANDLE phdl = DkProcessCreate("file:Ipc", args);
 
         if (phdl == NULL)
             pal_printf ("ProcessCreate Failed\n");
 
         PAL_PTR addr = (PAL_PTR) mem;
         PAL_NUM size = pal_control.alloc_align;
-        DkPhysicalMemoryCommit(chdl, 1, &addr, &size, 0);
+        DkPhysicalMemoryCommit(chdl, 1, &addr, &size);
         DkObjectClose(chdl);
 
         char x;

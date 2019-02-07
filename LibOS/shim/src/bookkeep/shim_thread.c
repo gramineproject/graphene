@@ -742,7 +742,7 @@ BEGIN_RS_FUNC(running_thread)
                                  NUM_SIGS);
 
     if (cur_thread) {
-        PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread, 0);
+        PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread);
         if (!thread)
             return -PAL_ERRNO;
 
