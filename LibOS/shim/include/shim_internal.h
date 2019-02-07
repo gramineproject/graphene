@@ -432,7 +432,7 @@ static inline void enable_locking (void)
 static inline PAL_HANDLE thread_create (void * func, void * arg, int option)
 {
     assert(lock_enabled);
-    return DkThreadCreate(func, arg, option);
+    return DkThreadCreate(func, arg);
 }
 
 static inline void __disable_preempt (shim_tcb_t * tcb)

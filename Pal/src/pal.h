@@ -241,7 +241,7 @@ DkVirtualMemoryProtect (PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 #define PAL_PROCESS_MASK         0x0
 
 PAL_HANDLE
-DkProcessCreate (PAL_STR uri, PAL_FLG flags, PAL_STR * args);
+DkProcessCreate (PAL_STR uri, PAL_STR * args);
 
 void
 DkProcessExit (PAL_NUM exitCode);
@@ -296,6 +296,8 @@ DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags);
 /* Stream Option Flags */
 #define PAL_OPTION_NONBLOCK     04000
 #define PAL_OPTION_MASK         04000
+
+#define within_mask(val, mask)  ((val|mask) == mask)
 
 PAL_HANDLE
 DkStreamOpen (PAL_STR uri, PAL_FLG access, PAL_FLG share_flags,
@@ -382,7 +384,7 @@ DkStreamChangeName (PAL_HANDLE handle, PAL_STR uri);
 #define PAL_THREAD_MASK         0
 
 PAL_HANDLE
-DkThreadCreate (PAL_PTR addr, PAL_PTR param, PAL_FLG flags);
+DkThreadCreate (PAL_PTR addr, PAL_PTR param);
 
 // assuming duration to be in microseconds
 PAL_NUM
@@ -496,8 +498,7 @@ PAL_HANDLE
 DkCreatePhysicalMemoryChannel (PAL_NUM * key);
 
 PAL_NUM
-DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
-                        PAL_NUM * sizes, PAL_FLG flags);
+DkPhysicalMemoryCommit (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs, PAL_NUM * sizes);
 
 PAL_NUM
 DkPhysicalMemoryMap (PAL_HANDLE channel, PAL_NUM entries, PAL_PTR * addrs,
