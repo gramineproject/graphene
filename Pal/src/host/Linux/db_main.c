@@ -389,21 +389,23 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[WORD_NUM];
 
-    char * vendor_id = malloc(12);
+    char* vendor_id = malloc(13);
     cpuid(0, 0, words);
 
     FOUR_CHARS_VALUE(&vendor_id[0], words[WORD_EBX]);
     FOUR_CHARS_VALUE(&vendor_id[4], words[WORD_EDX]);
     FOUR_CHARS_VALUE(&vendor_id[8], words[WORD_ECX]);
+    vendor_id[12] = '\0';
     ci->cpu_vendor = vendor_id;
 
-    char * brand = malloc(48);
+    char* brand = malloc(49);
     cpuid(0x80000002, 0, words);
     memcpy(&brand[ 0], words, sizeof(unsigned int) * WORD_NUM);
     cpuid(0x80000003, 0, words);
     memcpy(&brand[16], words, sizeof(unsigned int) * WORD_NUM);
     cpuid(0x80000004, 0, words);
     memcpy(&brand[32], words, sizeof(unsigned int) * WORD_NUM);
+    brand[48] = '\0';
     ci->cpu_brand = brand;
 
     if (!memcmp(vendor_id, "GenuineIntel", 12)) {
