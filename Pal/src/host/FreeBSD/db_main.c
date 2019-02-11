@@ -340,21 +340,25 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[WORD_NUM];
 
-    char * vendor_id = malloc(12);
+    const size_t VENDOR_ID_SIZE = 13;
+    char* vendor_id = malloc(VENDOR_ID_SIZE);
     cpuid(2, 0, words, 0);
 
     FOUR_CHARS_VALUE(&vendor_id[0], words[WORD_EBX]);
     FOUR_CHARS_VALUE(&vendor_id[4], words[WORD_EDX]);
     FOUR_CHARS_VALUE(&vendor_id[8], words[WORD_ECX]);
+    vendor_id[VENDOR_ID_SIZE - 1] = '\0';
     ci->cpu_vendor = vendor_id;
 
-    char * brand = malloc(48);
+    const size_t BRAND_SIZE = 49;
+    char* brand = malloc(BRAND_SIZE);
     cpuid(-2, 0x80000002, words, 0);
     memcpy(&brand[ 0], words, sizeof(unsigned int) * WORD_NUM);
     cpuid(-2, 0x80000003, words, 0);
     memcpy(&brand[16], words, sizeof(unsigned int) * WORD_NUM);
     cpuid(-2, 0x80000004, words, 0);
     memcpy(&brand[32], words, sizeof(unsigned int) * WORD_NUM);
+    brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
     cpuid(2, 1, words, 0);
