@@ -220,7 +220,7 @@ static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
     struct handle_ops * ops = NULL;
-    const char * dev_type = NULL;
+    char * dev_type = NULL;
     int ret = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);

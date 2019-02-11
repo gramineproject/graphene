@@ -206,7 +206,7 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
 static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int access, int share,
                     int create, int options) {
     struct handle_ops* ops = NULL;
-    const char* dev_type   = NULL;
+    char* dev_type   = NULL;
     int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
@@ -349,7 +349,7 @@ static inline void dev_attrcopy(PAL_STREAM_ATTR* attr, struct stat* stat) {
 /* 'attrquery' operation for device streams */
 static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
     struct handle_ops* ops = NULL;
-    const char* dev_type   = NULL;
+    char* dev_type   = NULL;
     int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
