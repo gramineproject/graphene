@@ -57,10 +57,9 @@ static const struct handle_ops * pal_device_ops [PAL_DEVICE_TYPE_BOUND] = {
             &term_ops,
         };
 
-/* parse-device_uri scan the uri, parse the prefix of the uri and search
-   for stream handler wich will open or access the device */
-static int parse_device_uri (const char ** uri, const char ** type,
-                             struct handle_ops ** ops)
+/* parse_device_uri scans the uri, parses the prefix of the uri and searches
+   for stream handler wich will open or access the device. */
+static int parse_device_uri(const char ** uri, char ** type, struct handle_ops ** ops)
 {
     struct handle_ops * dops = NULL;
     const char * p, * u = (*uri);
@@ -74,8 +73,12 @@ static int parse_device_uri (const char ** uri, const char ** type,
         return -PAL_ERROR_NOTSUPPORT;
 
     *uri = (*p) ? p + 1 : p;
-    if (type)
-        *type = u;
+    if (type) {
+        *type = malloc_copy(u, p - u + 1);
+        if (!*type)
+            return -PAL_ERROR_NOMEM;
+        (*type)[p - u] = '\0';
+    }
     if (ops)
         *ops = dops;
     return 0;
@@ -217,7 +220,7 @@ static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
     struct handle_ops * ops = NULL;
-    const char * dev_type = NULL;
+    char * dev_type = NULL;
     int ret = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
@@ -233,8 +236,10 @@ static int dev_open (PAL_HANDLE * handle, const char * type, const char * uri,
     hdl->dev.fd_out = PAL_IDX_POISON;
     *handle = hdl;
 
-    return ops->open(handle, dev_type, uri,
-                     access, share, create, options);
+    ret = ops->open(handle, dev_type, uri,
+                    access, share, create, options);
+    free(dev_type);
+    return ret;
 }
 
 /* 'read' operation for device stream */
