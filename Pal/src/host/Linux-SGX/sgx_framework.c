@@ -146,8 +146,6 @@ int create_enclave(sgx_arch_secs_t * secs,
     secs->miscselect = token->miscselect_mask;
     memcpy(&secs->attributes, &token->attributes,
            sizeof(sgx_arch_attributes_t));
-    memcpy(&secs->mrenclave, &token->mrenclave, sizeof(sgx_arch_hash_t));
-    memcpy(&secs->mrsigner,  &token->mrsigner,  sizeof(sgx_arch_hash_t));
 
     if (baseaddr) {
         secs->baseaddr = (uint64_t) baseaddr & ~(secs->size - 1);
