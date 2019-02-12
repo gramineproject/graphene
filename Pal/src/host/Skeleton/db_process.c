@@ -51,14 +51,14 @@ int _DkProcessSandboxCreate (const char * manifest, int flags)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int proc_read (PAL_HANDLE handle, int offset, int count,
+static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                           void * buffer)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int proc_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
+                           const void * buffer)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

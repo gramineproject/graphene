@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 MOD=graphene-ipc
 MODNAME=graphene_ipc

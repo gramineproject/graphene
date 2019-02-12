@@ -18,21 +18,21 @@ int callback1 (void * args)
         while (!(count1 % 2))
             DkThreadYieldExecution();
         count1++;
-        asm volatile("nop" ::: "memory");
+        __asm__ volatile("nop" ::: "memory");
     }
 
     pal_printf("Threads Run in Parallel OK\n");
 
     DkSegmentRegister(PAL_SEGMENT_FS, &private2);
     const char * ptr2;
-    asm volatile("mov %%fs:0, %0" : "=r"(ptr2) :: "memory");
+    __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr2) :: "memory");
     pal_printf("Private Message (FS Segment) 2: %s\n", ptr2);
 
     count1 = 100;
-    asm volatile("nop" ::: "memory");
+    __asm__ volatile("nop" ::: "memory");
     DkThreadExit();
     count1 = 101;
-    asm volatile("nop" ::: "memory");
+    __asm__ volatile("nop" ::: "memory");
 
     return 0;
 }
@@ -41,7 +41,7 @@ int main (int argc, const char ** argv, const char ** envp)
 {
     DkSegmentRegister(PAL_SEGMENT_FS, &private1);
     const char * ptr1;
-    asm volatile("mov %%fs:0, %0" : "=r"(ptr1) :: "memory");
+    __asm__ volatile("mov %%fs:0, %0" : "=r"(ptr1) :: "memory");
     pal_printf("Private Message (FS Segment) 1: %s\n", ptr1);
 
     PAL_HANDLE thread1 = DkThreadCreate(callback1, "Hello World", 0);
@@ -53,7 +53,7 @@ int main (int argc, const char ** argv, const char ** envp)
             while (!!(count1 % 2))
                 DkThreadYieldExecution();
             count1++;
-            asm volatile("nop" ::: "memory");
+            __asm__ volatile("nop" ::: "memory");
         }
 
         while (count1 < 100)

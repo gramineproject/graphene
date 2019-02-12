@@ -92,19 +92,18 @@ isdef:
         popq %rsi
         popq %rdi
 
-        jmp ret
-
-isundef:
-#ifdef DEBUG
-        mov %rax, %rdi
-        call debug_unsupp
-#endif
-        movq $-38, %rax
-
 ret:
         popq %rbx
         popq %rbp
         retq
+
+isundef:
+#ifdef DEBUG
+        mov %rax, %rdi
+        call *debug_unsupp@GOTPCREL(%rip)
+#endif
+        movq $-38, %rax
+        jmp ret
 
         .cfi_endproc
         .size syscalldb, .-syscalldb

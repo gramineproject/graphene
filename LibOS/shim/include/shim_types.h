@@ -22,6 +22,7 @@
 #include <linux/aio_abi.h>
 #include <linux/perf_event.h>
 #include <linux/timex.h>
+#include <linux/version.h>
 
 #include <asm/posix_types.h>
 #include <asm/statfs.h>
@@ -48,19 +49,21 @@ typedef __kernel_timer_t    timer_t;
 typedef __kernel_fd_set     fd_set;
 
 /* linux/time.h */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
 struct __kernel_timespec {
     __kernel_time_t tv_sec;         /* seconds */
     long            tv_nsec;        /* nanoseconds */
 };
 
-struct __kernel_timeval {
-    __kernel_time_t         tv_sec;         /* seconds */
-    __kernel_suseconds_t    tv_usec;        /* microsecond */
-};
-
 struct __kernel_itimerspec {
     struct __kernel_timespec it_interval;    /* timer period */
     struct __kernel_timespec it_value;       /* timer expiration */
+};
+#endif
+
+struct __kernel_timeval {
+    __kernel_time_t         tv_sec;         /* seconds */
+    __kernel_suseconds_t    tv_usec;        /* microsecond */
 };
 
 struct __kernel_itimerval {

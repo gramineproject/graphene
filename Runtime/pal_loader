@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ "$1" == "SGX" ]; then
 	if [ "$SGX" != "0" ]; then

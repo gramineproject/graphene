@@ -83,7 +83,7 @@ def gen_app_executor(app_name, bin_cmd, proj_dir) :
   print "e_path: " + e_path
   ef = open(e_path, "w")
   make_exec(e_path)
-  ef.write('#!/bin/bash \n \n')
+  ef.write('#!/usr/bin/env bash\n\n')
   ef.write('cd ' + proj_dir + '/LibOS/shim/test/apps/' + app_name +'\n')
   ef.write('# Generate EINITOKEN \n')
   ef.write(proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output ' 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ID=`id -u`
 PGIDS=`ps -a -o pgid,command | tail -n +2 | \

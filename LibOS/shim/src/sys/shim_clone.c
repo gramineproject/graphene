@@ -129,6 +129,10 @@ int clone_implementation_wrapper(struct clone_args * arg)
     my_thread->stack_top = vma.addr + vma.length;
     my_thread->stack_red = my_thread->stack = vma.addr;
 
+    /* until now we're not ready to be exposed to other thread */
+    add_thread(my_thread);
+    set_as_child(arg->parent, my_thread);
+
     /* Don't signal the initialize event until we are actually init-ed */ 
     DkEventSet(pcargs->initialize_event);
 
@@ -324,8 +328,6 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
     thread->pal_handle = pal_handle;
     thread->in_vm = thread->is_alive = true;
-    add_thread(thread);
-    set_as_child(self, thread);
 
     if (set_parent_tid)
         *set_parent_tid = tid;

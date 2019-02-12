@@ -25,8 +25,8 @@ unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
 unsigned long pageshift = PRESET_PAGESIZE - 1;
 
 static inline
-const char * alloc_concat(const char * p, int plen,
-                          const char * s, int slen)
+char * alloc_concat(const char * p, int plen,
+                    const char * s, int slen)
 {
     plen = (plen != -1) ? plen : (p ? strlen(p) : 0);
     slen = (slen != -1) ? slen : (s ? strlen(s) : 0);
@@ -178,7 +178,6 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
             c->prot = (ph->p_flags & PF_R ? PROT_READ  : 0)|
                       (ph->p_flags & PF_W ? PROT_WRITE : 0)|
                       (ph->p_flags & PF_X ? PROT_EXEC  : 0)|prot;
-#define SGX_SECINFO_FLAGS_R             0x001
         }
 
     base -= loadcmds[0].mapstart;
@@ -417,7 +416,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (strcmp_static(areas[i].desc, "tls")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
-                                           MAP_ANON|MAP_PRIVATE, -1, 0);
+                                           MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
             for (int t = 0 ; t < enclave->thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
@@ -438,7 +437,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
-                                           MAP_ANON|MAP_PRIVATE, -1, 0);
+                                           MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
             for (int t = 0 ; t < enclave->thread_num ; t++) {
                 sgx_arch_tcs_t * tcs = data + pagesize * t;

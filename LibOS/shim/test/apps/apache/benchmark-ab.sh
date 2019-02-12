@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PROTOCOL=${PROTOCOL:=http}
 declare -A THROUGHPUTS

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SCRIPT=`readlink -f "${BASH_SOURCE[0]}"`
 DIR=`dirname $SCRIPT`

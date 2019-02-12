@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 import os, sys, mmap, random, string, binascii
 from regression import Regression

@@ -54,7 +54,7 @@
  *     }
  */
 
-void restore_rt (void) asm ("__restore_rt");
+void restore_rt (void) __asm__ ("__restore_rt");
 
 #ifndef SA_RESTORER
 #define SA_RESTORER  0x04000000
@@ -62,7 +62,7 @@ void restore_rt (void) asm ("__restore_rt");
 
 #define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
 # define DEFINE_RESTORE_RT2(syscall)                \
-    asm (                                           \
+    __asm__ (                                       \
          "    nop\n"                                \
          ".align 16\n"                              \
          ".LSTART_restore_rt:\n"                    \
