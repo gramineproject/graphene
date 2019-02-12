@@ -29,11 +29,6 @@ pipeline {
                             make SGX_RUN=1
                         '''
                     }
-                    post {
-                        always {
-                            warnings canComputeNew: false, canResolveRelativePaths: true, categoriesPattern: '', consoleParsers: [[parserName: 'GNU C Compiler 4 (gcc)']], defaultEncoding: '', excludePattern: '', healthy: '', includePattern: '', messagesPattern: '', unHealthy: ''
-                        }
-                    }
                 }
                 stage('Test') {
                     steps {
