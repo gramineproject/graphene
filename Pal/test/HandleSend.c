@@ -27,7 +27,7 @@ int main (int argc, char ** argv)
 
         // Sending pipe handle
         handles[0] = DkStreamOpen("pipe.srv:012", PAL_ACCESS_RDWR,
-                                  0, PAL_CREAT_TRY, 0);
+                                  0, PAL_CREATE_TRY, 0);
         if (!handles[0]) {
             pal_printf("Parent: DkStreamOpen for pipe failed\n");
             goto out;
@@ -35,7 +35,7 @@ int main (int argc, char ** argv)
 
         // Sending pipe handle
         handles[1] = DkStreamOpen("udp:127.0.0.1:8000", PAL_ACCESS_RDWR,
-                                  0, PAL_CREAT_TRY, 0);
+                                  0, PAL_CREATE_TRY, 0);
         if (!handles[1]) {
             pal_printf("Parent: DkStreamOpen for socket failed\n");
             goto out;
@@ -45,7 +45,7 @@ int main (int argc, char ** argv)
             snprintf(uri, 80, "file:test_file_%d", i - 2);
 
             handles[i] = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0600,
-                                      PAL_CREAT_TRY, 0);
+                                      PAL_CREATE_TRY, 0);
             if (!handles[i]) {
                 pal_printf("Parent: DkStreamOpen failed\n");
                 goto out;

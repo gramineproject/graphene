@@ -68,7 +68,8 @@ bool _DkCheckMemoryMappable (const void * addr, int size)
 
 int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int prot)
 {
-    __UNUSED(prot);
+    if (!WITHIN_MASK(prot, PAL_PROT_MASK))
+        return -PAL_ERROR_INVAL;
 
     void * addr = *paddr, * mem;
 

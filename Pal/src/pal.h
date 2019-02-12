@@ -216,6 +216,8 @@ PAL_CONTROL * pal_control_addr (void);
 #define PAL_PROT_EXEC       0x4     /* 0x4 Page can be executed. */
 #define PAL_PROT_WRITECOPY  0x8     /* 0x8 Copy on write */
 
+#define PAL_PROT_MASK       0xF
+
 
 // If addr != NULL, then the returned region is always exactly at addr.
 PAL_PTR
@@ -287,17 +289,17 @@ DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags);
 #define PAL_SHARE_MASK      0777
 
 /* Stream Create Flags */
-#define PAL_CREAT_TRY        0100       /* 0100 Create file if file not
+#define PAL_CREATE_TRY        0100       /* 0100 Create file if file not
                                            exist (O_CREAT) */
-#define PAL_CREAT_ALWAYS     0200       /* 0300 Create file and fail if file
+#define PAL_CREATE_ALWAYS     0200       /* 0300 Create file and fail if file
                                            already exist (O_CREAT|O_EXCL) */
-#define PAL_CREAT_MASK       0300
+#define PAL_CREATE_MASK       0300
 
 /* Stream Option Flags */
 #define PAL_OPTION_NONBLOCK     04000
 #define PAL_OPTION_MASK         04000
 
-#define within_mask(val, mask)  ((val|mask) == mask)
+#define WITHIN_MASK(val, mask)  (((val)|(mask)) == (mask))
 
 PAL_HANDLE
 DkStreamOpen (PAL_STR uri, PAL_FLG access, PAL_FLG share_flags,

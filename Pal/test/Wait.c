@@ -45,7 +45,7 @@ int main() {
         return -1;
     }
 
-    thd2 = DkThreadCreate(&thread_2, 0, 0);
+    thd2 = DkThreadCreate(&thread_2, 0);
 
     if (thd2 == NULL) {
         pal_printf("DkThreadCreate failed\n");
