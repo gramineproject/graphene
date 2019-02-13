@@ -303,7 +303,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 {
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK) ||
         !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK))
+        !WITHIN_MASK(create, PAL_CREAT_MASK))
         return -PAL_ERROR_INVAL;
 
     options &= PAL_OPTION_MASK;

@@ -124,10 +124,10 @@ static int term_open (PAL_HANDLE *handle, const char * type, const char * uri,
                       int access, int share, int create, int options)
 {
     if (!strcmp_static(type, "tty"))
-    	return -PAL_ERROR_INVAL;
+        return -PAL_ERROR_INVAL;
 
     if (!WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK) ||
+        !WITHIN_MASK(create, PAL_CREAT_MASK) ||
         !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 

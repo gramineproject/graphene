@@ -202,7 +202,7 @@ static void set_debug_type (void)
         ret = _DkStreamOpen(&handle, cfgbuf,
                             PAL_ACCESS_RDWR,
                             PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
-                            PAL_CREATE_TRY, 0);
+                            PAL_CREAT_TRY, 0);
         goto out;
     }
 

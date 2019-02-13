@@ -400,7 +400,7 @@ static int __chroot_open (struct shim_dentry * dent,
     int version = atomic_read(&data->version);
     int oldmode = flags & O_ACCMODE;
     int accmode = oldmode;
-    int creat   = flags & PAL_CREATE_MASK;
+    int creat   = flags & PAL_CREAT_MASK;
     int option  = flags & PAL_OPTION_MASK;
 
     if ((data->type == FILE_REGULAR || data->type == FILE_UNKNOWN)
