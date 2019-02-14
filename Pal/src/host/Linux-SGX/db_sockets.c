@@ -458,7 +458,7 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
 {
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK) ||
         !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREAT_MASK) ||
+        !WITHIN_MASK(create, PAL_CREATE_MASK) ||
         !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 
@@ -625,7 +625,8 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
 {
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK) ||
         !WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREAT_MASK))
+        !WITHIN_MASK(create, PAL_CREATE_MASK) ||
+        !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 
     char buf[PAL_SOCKADDR_SIZE];
@@ -635,7 +636,6 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
         return -PAL_ERROR_TOOLONG;
 
     memcpy(buf, uri, len + 1);
-    options &= PAL_OPTION_MASK;
 
     if (strpartcmp_static(type, "udp.srv:"))
         return udp_bind(hdl, buf, options);

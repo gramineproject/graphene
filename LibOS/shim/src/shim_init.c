@@ -952,12 +952,12 @@ static int open_pal_handle (const char * uri, void * obj)
         hdl = DkStreamOpen(uri, 0,
                            PAL_SHARE_OWNER_X|PAL_SHARE_OWNER_W|
                            PAL_SHARE_OWNER_R,
-                           PAL_CREAT_TRY|PAL_CREAT_ALWAYS,
+                           PAL_CREATE_TRY|PAL_CREATE_ALWAYS,
                            0);
     else
         hdl = DkStreamOpen(uri, PAL_ACCESS_RDWR,
                            PAL_SHARE_OWNER_W|PAL_SHARE_OWNER_R,
-                           PAL_CREAT_TRY|PAL_CREAT_ALWAYS,
+                           PAL_CREATE_TRY|PAL_CREATE_ALWAYS,
                            0);
 
     if (!hdl) {

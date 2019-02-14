@@ -126,9 +126,12 @@ int _DkVirtualMemoryFree (void * addr, uint64_t size)
 
 int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 {
-    __UNUSED(addr);
-    __UNUSED(size);
-    __UNUSED(prot);
+    static int counter = 0;
+    if (!counter) {
+        SGX_DBG(DBG_M, "[Warning] DkVirtualMemoryProtect (0x%p, %ul, %d) is unimplemented",
+                addr, size, prot);
+        counter++;
+    }
 
     return 0;
 }

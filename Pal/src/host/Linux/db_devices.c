@@ -119,7 +119,7 @@ static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         return -PAL_ERROR_INVAL;
 
     if (!WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREAT_MASK) ||
+        !WITHIN_MASK(create, PAL_CREATE_MASK) ||
         !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 
@@ -150,8 +150,11 @@ static int term_close(PAL_HANDLE handle) {
 }
 
 /* 'attrquery' operation for terminal stream */
-static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
-    if (!strcmp_static(type, "tty") || !strcmp_static(uri, "dev"))
+static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr)
+{
+    __UNUSED(uri);
+
+    if (!strcmp_static(type, "tty"))
         return -PAL_ERROR_INVAL;
 
     attr->handle_type  = pal_type_dev;

@@ -336,11 +336,11 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
     int ret = 0;
 
-    if (create & PAL_CREAT_TRY) {
+    if (create & PAL_CREATE_TRY) {
         ret = INLINE_SYSCALL(mkdir, 2, uri, share);
 
         if (IS_ERR(ret) && ERRNO(ret) == EEXIST &&
-            create & PAL_CREAT_ALWAYS)
+            create & PAL_CREATE_ALWAYS)
             return -PAL_ERROR_STREAMEXIST;
     }
 

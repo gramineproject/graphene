@@ -63,8 +63,8 @@ static struct link_map * resolve_map (const char **strtab, ElfW(Sym) ** ref)
     return 0;
 }
 
-/* Define Resolve_rtld as 0 since we rely on resolve_map on
- * current PAL platforms */
+/* Define RESOLVE_RTLD as 0 since we rely on resolve_map on
+ * all current PAL platforms */
 #define RESOLVE_RTLD(sym_name)      0
 #define RESOLVE_MAP(strtab, ref)    resolve_map(strtab, ref)
 
@@ -617,7 +617,7 @@ void cache_elf_object (PAL_HANDLE handle, struct link_map * map)
         ret = _DkStreamOpen(&cached_file, uri,
                             PAL_ACCESS_RDWR,
                             PAL_SHARE_OWNER_W|PAL_SHARE_OWNER_R,
-                            PAL_CREAT_TRY|PAL_CREAT_ALWAYS, 0);
+                            PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
 
         if (ret != -PAL_ERROR_STREAMEXIST)
             break;

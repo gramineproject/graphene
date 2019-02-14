@@ -414,9 +414,9 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 
     int ret;
 
-    if (create & PAL_CREAT_TRY) {
+    if (create & PAL_CREATE_TRY) {
         ret = ocall_mkdir(uri, share);
-        if (ret == -PAL_ERROR_STREAMEXIST && (create & PAL_CREAT_ALWAYS))
+        if (ret == -PAL_ERROR_STREAMEXIST && (create & PAL_CREATE_ALWAYS))
             return ret;
     }
 
