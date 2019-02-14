@@ -126,13 +126,11 @@ int _DkVirtualMemoryFree (void * addr, uint64_t size)
 
 int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 {
-    static int counter = 0;
-    if (!counter) {
+    static struct atomic_int at_cnt = {.counter = 0};
+
+    if (atomic_cmpxchg(&at_cnt, 0, 1) == 0)
         SGX_DBG(DBG_M, "[Warning] DkVirtualMemoryProtect (0x%p, %ul, %d) is unimplemented",
                 addr, size, prot);
-        counter++;
-    }
-
     return 0;
 }
 
