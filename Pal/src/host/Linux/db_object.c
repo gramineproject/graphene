@@ -73,10 +73,10 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, int64_t timeout) {
                     // We should be able to at least return that this handle
                     // is writeable, if anyone cares.  We only need to return
                     // one, so it is ok to set the last one.
-                    timeout      = 0;
-		    // DEP 2/5/19: This works out because the next if statement
-		    // will popuate this field.  This function really needs a
-		    // major overhaul for clarity
+                    timeout = 0;
+                    // DEP 2/5/19: This works out because the next `if` statement
+                    // will populate this field.  This function really needs a
+                    // major overhaul for clarity
                     writeable_fd = nfds;
                 }
             }
@@ -220,10 +220,10 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout, PAL_H
                     // We should be able to at least return that this handle
                     // is writeable, if anyone cares.  We only need to return
                     // one, so it is ok to set the last one.
-                    timeout      = 0;
-		    // DEP 2/5/19: This works out because the next if statement
-		    // will popuate this field.  This function really needs a
-		    // major overhaul for clarity
+                    timeout = 0;
+                    // DEP 2/5/19: This works out because the next if statement
+                    // will popuate this field.  This function really needs a
+                    // major overhaul for clarity
                     writeable_fd = nfds;
                 }
             }
