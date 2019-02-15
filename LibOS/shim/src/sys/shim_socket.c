@@ -1192,6 +1192,12 @@ int shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags)
 static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
                            struct sockaddr * addr, socklen_t * addrlen)
 {
+    /* TODO handle flags properly. For now, explicitly return an error. */
+    if (flags) {
+        debug("recvmsg()/recvmmsg()/recvfrom(): flags parameter unsupported.\n");
+        return -EOPNOTSUPP;
+    }
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
