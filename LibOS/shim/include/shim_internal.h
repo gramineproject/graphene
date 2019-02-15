@@ -393,18 +393,6 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
     END_SHIM(name)                                                  \
     EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
 
-#ifndef container_of
-/**
- * container_of - cast a member of a structure out to the containing structure
- * @ptr:	the pointer to the member.
- * @type:	the type of the container struct this is embedded in.
- * @field:	the name of the field within the struct.
- *
- */
-#define container_of(ptr, type, field) ((type *)((char *)(ptr) - offsetof(type, field)))
-#endif
-
-
 #define CONCAT2(t1, t2) __CONCAT2(t1, t2)
 #define __CONCAT2(t1, t2) t1##_##t2
 
@@ -619,7 +607,7 @@ static inline void wait_event (AEVENTTYPE * e)
 {
     if (e->event) {
         char byte;
-        int n;
+        int n = 0;
         do {
             if (!DkObjectsWaitAny(1, &e->event, NO_TIMEOUT))
                 continue;

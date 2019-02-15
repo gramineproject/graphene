@@ -6,7 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make
+                            make WERROR=1
                            '''
                     }
                 }

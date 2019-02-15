@@ -18,13 +18,11 @@ enum { PARALLEL, SERIAL, IN_PROCESS } mode = PARALLEL;
 int pipefds[2], key;
 
 /* server always sends messages */
-int server (void)
+void server (void)
 {
     struct timeval tv1, tv2;
     int semid;
     struct sembuf buf;
-    size_t len;
-    int i;
 
     if ((semid = semget(key, 2, mode == SERIAL ? 0600|IPC_CREAT : 0)) < 0) {
         perror("semget");
@@ -33,7 +31,7 @@ int server (void)
 
     gettimeofday(&tv1, NULL);
 
-    for (i = 0 ; i < TEST_TIMES ; i++) {
+    for (int i = 0 ; i < TEST_TIMES ; i++) {
         buf.sem_num = 0;
         buf.sem_op  = 1;
         buf.sem_flg = 0;
@@ -75,12 +73,11 @@ int server (void)
 }
 
 /* client always sends messages */
-int client (void)
+void client (void)
 {
     struct timeval tv1, tv2;
     int semid;
     struct sembuf buf;
-    int i, ret;
 
     if (mode == PARALLEL) {
         close(pipefds[1]);

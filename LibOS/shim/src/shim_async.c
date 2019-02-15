@@ -98,8 +98,8 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
          * There should be exactly only one timer pending
          */
 		listp_del(tmp, &async_list, list);
-        free(tmp);
         rv = tmp->expire_time - install_time;
+        free(tmp);
     } else
 	   tmp = NULL;
     

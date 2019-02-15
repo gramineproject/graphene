@@ -26,13 +26,11 @@ enum { PARALLEL, SERIAL, IN_PROCESS } mode = PARALLEL;
 int pipefds[4], key;
 
 /* server always sends messages */
-int server (void)
+void server (void)
 {
     struct timeval tv1, tv2;
     int msqid;
     struct msgbuf buf;
-    size_t len;
-    int i;
 
     if ((msqid = msgget(key, mode == SERIAL ? 0600|IPC_CREAT : 0)) < 0) {
         perror("msgget");
@@ -41,7 +39,7 @@ int server (void)
 
     gettimeofday(&tv1, NULL);
 
-    for (i = 0 ; i < TEST_TIMES ; i++) {
+    for (int i = 0 ; i < TEST_TIMES ; i++) {
         buf.mtype = (i % TEST_TYPES) + 1;
         if (msgsnd(msqid, &buf, PAYLOAD_SIZE, 0) < 0) {
             perror("msgsnd");
@@ -75,12 +73,12 @@ int server (void)
 }
 
 /* client always sends messages */
-int client (void)
+void client (void)
 {
     struct timeval tv1, tv2;
     int msqid;
     struct msgbuf buf;
-    int i, ret;
+    int ret;
 
     if (mode == PARALLEL) {
         char byte = 0;
@@ -144,7 +142,6 @@ int main (int argc, char ** argv)
         if (fork() == 0)
             client();
         wait(NULL);
-        msgctl(msqid, IPC_RMID, NULL);
         return 0;
     }
 
