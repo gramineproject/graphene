@@ -1,7 +1,3 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4;
- * indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
 // Copied from
 // https://banu.com/blog/2/how-to-use-epoll-a-complete-example-in-c/epoll-example.c
 
@@ -44,13 +40,16 @@ static int create_and_bind(int port) {
 
     int sfd = socket(AF_INET, SOCK_STREAM, 0);
 
+    if (sfd == -1)
+        return sfd;
+
     serv_addr.sin_family      = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port        = htons(port);
 
     int s = bind(sfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
     if (s != 0)
-        fprintf(stderr, "bind failed\n");
+        perror("bind failed\n");
 
     return sfd;
 }
@@ -60,6 +59,7 @@ int main(int argc, char* argv[]) {
     int efd;
     struct epoll_event event;
     struct epoll_event* events;
+    int loops = 5;
 
     // Default to 8001
     int port = 8001;
@@ -96,10 +96,10 @@ int main(int argc, char* argv[]) {
     }
 
     /* Buffer where events are returned */
-    events = calloc(MAXEVENTS, sizeof event);
+    events = calloc(MAXEVENTS, sizeof(*events));
 
     /* The event loop */
-    for (int j = 0; j < 5; j++) {
+    for (int j = 0; j < loops; j++) {
         int n, i;
 
         n = epoll_wait(efd, events, MAXEVENTS, -1);
@@ -149,6 +149,10 @@ int main(int argc, char* argv[]) {
                                     NI_NUMERICHOST | NI_NUMERICSERV);
                     if (s == 0)
                         printf("Accepted connection\n");
+                    else {
+                        perror("getnameinfo failed");
+                        abort();
+                    }
 
                     /* Make the incoming socket non-blocking and add it to the
                        list of fds to monitor. */
