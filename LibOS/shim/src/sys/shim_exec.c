@@ -262,6 +262,9 @@ int shim_do_execve (const char * file, const char ** argv,
     struct shim_dentry * dent = NULL;
     int ret = 0, argc = 0;
 
+    if (!file)
+        return -EFAULT;
+
     for (const char ** a = argv ; *a ; a++, argc++);
 
     if (!envp)

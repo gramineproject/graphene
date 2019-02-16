@@ -32,6 +32,15 @@ regression.add_check(name="2 page child binary",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
+# Running Exec with NULL path
+regression = Regression(loader, "exec_null")
+
+regression.add_check(name="Execv with NULL path",
+    check=lambda res: "execv correctly returned error" in res[0].out)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+
 # Shared Object Test
 regression = Regression(loader, "shared_object")
 
