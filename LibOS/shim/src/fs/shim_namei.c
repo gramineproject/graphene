@@ -385,10 +385,12 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
                         put_dentry(my_dent);
                         my_dent = root;
                         get_dentry(my_dent);
-                    } else // Relative path, stay in this dir
+                    } else {
+                        // Relative path, stay in this dir
                         put_dentry(my_dent);
                         my_dent = start;
                         get_dentry(my_dent);
+                    }
                 }
             }
         }
