@@ -41,7 +41,7 @@ static int create_and_bind(int port) {
     int sfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sfd == -1)
-        return sfd;
+      return -1;
 
     serv_addr.sin_family      = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -103,6 +103,11 @@ int main(int argc, char* argv[]) {
         int n, i;
 
         n = epoll_wait(efd, events, MAXEVENTS, -1);
+
+	if (n == -1) {
+	  perror("epoll_wait failed");
+	  abort();
+	}
 
         for (i = 0; i < n; i++) {
             // MODIFICATION 1
