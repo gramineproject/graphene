@@ -215,15 +215,18 @@ static int proc_open (struct shim_handle * hdl, struct shim_dentry * dent,
     if ((ret = proc_match_name(rel_path, &ent)) < 0)
         return ret;
 
-    if (ent->dir)
+    // Only reject a directory open if O_DIRECTORY is not passed
+    if (ent->dir && !(flags | O_DIRECTORY))
         return -EISDIR;
+
 
     if (!ent->fs_ops || !ent->fs_ops->open)
         return -EACCES;
 
     hdl->flags = flags;
 
-    return ent->fs_ops->open(hdl, rel_path, flags);
+    int rv = ent->fs_ops->open(hdl, rel_path, flags);
+    return rv;
 }
 
 static int proc_readdir (struct shim_dentry * dent,
