@@ -636,6 +636,19 @@ static const struct proc_fs_ops fs_thread_maps = {
             .stat           = &proc_thread_maps_stat,
         };
 
+static int proc_thread_dir_open (struct shim_handle * hdl,
+                                 const char * name, int flags)
+{
+
+    if (flags & (O_WRONLY|O_RDWR))
+        return -EACCES;
+
+    // XXX: Not sure what needs to happen here.
+
+    return 0;
+
+}
+
 static int proc_thread_dir_mode (const char * name, mode_t * mode)
 {
     const char * next;
@@ -738,6 +751,7 @@ const struct proc_nm_ops nm_thread = {
         };
 
 const struct proc_fs_ops fs_thread = {
+            .open   = &proc_thread_dir_open,
             .mode   = &proc_thread_dir_mode,
             .stat   = &proc_thread_dir_stat,
         };
