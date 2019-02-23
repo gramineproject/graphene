@@ -304,7 +304,7 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 static int file_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
-    if (!strcmp_static(type, "file"))
+    if (!strcmp_static(type, "file") && !strcmp_static(type, "dir") )
         return -PAL_ERROR_INVAL;
     /* try to do the real open */
     int fd = ocall_open(uri, 0, 0);
