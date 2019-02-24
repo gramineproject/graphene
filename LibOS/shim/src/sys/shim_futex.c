@@ -135,18 +135,18 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
                 struct timespec *ts = (struct timespec*) utime;
                 // Round to microsecs
                 timeout_us = (ts->tv_sec * 1000000) + (ts->tv_nsec / 1000);
-                // Check for the CLOCK_REALTIME flag
-                if (futex_op == FUTEX_WAIT_BITSET)  {
-                    // DEP 1/28/17: Should really differentiate clocks, but
-                    // Graphene only has one for now.
-                    //&& 0 != (op & FUTEX_CLOCK_REALTIME)) {
-                    uint64_t current_time = DkSystemTimeQuery();
-                    if (current_time == 0) {
-                        ret = -EINVAL;
-                        break;
-                    }
-                    timeout_us -= current_time;
+
+                /* Check for the CLOCK_REALTIME flag
+                 * DEP 1/28/17: Should really differentiate clocks, but
+                 * Graphene only has one for now.
+                 * if (futex_op & FUTEX_CLOCK_REALTIME) { */
+
+                uint64_t current_time = DkSystemTimeQuery();
+                if (current_time == 0) {
+                    ret = -EINVAL;
+                    break;
                 }
+                timeout_us -= current_time;
             }
 
         /* Note: for FUTEX_WAIT, timeout is interpreted as a relative
