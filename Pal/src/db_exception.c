@@ -40,13 +40,13 @@ struct pal_event_handler {
 };
 
 struct pal_event_handler handlers[] = {
-        [PAL_EVENT_DIVZERO]     = INIT_EVENT_HANDLER,
-        [PAL_EVENT_MEMFAULT]    = INIT_EVENT_HANDLER,
-        [PAL_EVENT_ILLEGAL]     = INIT_EVENT_HANDLER,
-        [PAL_EVENT_QUIT]        = INIT_EVENT_HANDLER,
-        [PAL_EVENT_SUSPEND]     = INIT_EVENT_HANDLER,
-        [PAL_EVENT_RESUME]      = INIT_EVENT_HANDLER,
-        [PAL_EVENT_FAILURE]     = INIT_EVENT_HANDLER,
+        [PAL_EVENT_ARITHMETIC_ERROR] = INIT_EVENT_HANDLER,
+        [PAL_EVENT_MEMFAULT]         = INIT_EVENT_HANDLER,
+        [PAL_EVENT_ILLEGAL]          = INIT_EVENT_HANDLER,
+        [PAL_EVENT_QUIT]             = INIT_EVENT_HANDLER,
+        [PAL_EVENT_SUSPEND]          = INIT_EVENT_HANDLER,
+        [PAL_EVENT_RESUME]           = INIT_EVENT_HANDLER,
+        [PAL_EVENT_FAILURE]          = INIT_EVENT_HANDLER,
     };
 
 PAL_EVENT_HANDLER _DkGetExceptionHandler (PAL_NUM event)

@@ -120,7 +120,7 @@ typedef struct {
 static int get_event_num (int signum)
 {
     switch(signum) {
-        case SIGFPE:                return PAL_EVENT_DIVZERO;
+        case SIGFPE:                return PAL_EVENT_ARITHMETIC_ERROR;
         case SIGSEGV: case SIGBUS:  return PAL_EVENT_MEMFAULT;
         case SIGILL:  case SIGSYS:  return PAL_EVENT_ILLEGAL;
         case SIGTERM:               return PAL_EVENT_QUIT;
@@ -194,7 +194,7 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
     if (upcall) {
         PAL_NUM arg = 0;
 
-        if (event_num == PAL_EVENT_DIVZERO ||
+        if (event_num == PAL_EVENT_ARITHMETIC_ERROR ||
             event_num == PAL_EVENT_MEMFAULT ||
             event_num == PAL_EVENT_ILLEGAL)
             arg = (PAL_NUM) (info ? info->si_addr : 0);
@@ -347,18 +347,18 @@ struct signal_ops {
 };
 
 struct signal_ops on_signals[] = {
-        [PAL_EVENT_DIVZERO]     = { .signum = { SIGFPE, 0 },
-                                    .handler = _DkGenericSighandler },
-        [PAL_EVENT_MEMFAULT]    = { .signum = { SIGSEGV, SIGBUS, 0 },
-                                    .handler = _DkGenericSighandler },
-        [PAL_EVENT_ILLEGAL]     = { .signum = { SIGILL,  SIGSYS, 0 },
-                                    .handler = _DkGenericSighandler },
-        [PAL_EVENT_QUIT]        = { .signum = { SIGTERM, 0, 0 },
-                                    .handler = _DkTerminateSighandler },
-        [PAL_EVENT_SUSPEND]     = { .signum = { SIGINT, 0 },
-                                    .handler = _DkTerminateSighandler },
-        [PAL_EVENT_RESUME]      = { .signum = { SIGCONT, 0 },
-                                    .handler = _DkGenericSighandler },
+        [PAL_EVENT_ARITHMETIC_ERROR] = { .signum = { SIGFPE, 0 },
+                                         .handler = _DkGenericSighandler },
+        [PAL_EVENT_MEMFAULT]         = { .signum = { SIGSEGV, SIGBUS, 0 },
+                                         .handler = _DkGenericSighandler },
+        [PAL_EVENT_ILLEGAL]          = { .signum = { SIGILL,  SIGSYS, 0 },
+                                         .handler = _DkGenericSighandler },
+        [PAL_EVENT_QUIT]             = { .signum = { SIGTERM, 0, 0 },
+                                         .handler = _DkTerminateSighandler },
+        [PAL_EVENT_SUSPEND]          = { .signum = { SIGINT, 0 },
+                                         .handler = _DkTerminateSighandler },
+        [PAL_EVENT_RESUME]           = { .signum = { SIGCONT, 0 },
+                                         .handler = _DkGenericSighandler },
     };
 
 static int _DkPersistentSighandlerSetup (int event_num)
@@ -387,7 +387,7 @@ void signal_setup (void)
         goto err;
 
     int events[] = {
-        PAL_EVENT_DIVZERO,
+        PAL_EVENT_ARITHMETIC_ERROR,
         PAL_EVENT_MEMFAULT,
         PAL_EVENT_ILLEGAL,
         PAL_EVENT_QUIT,

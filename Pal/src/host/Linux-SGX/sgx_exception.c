@@ -187,7 +187,7 @@ int unset_sighandler (int * sigs, int nsig)
 static int get_event_num (int signum)
 {
     switch(signum) {
-        case SIGFPE:                return PAL_EVENT_DIVZERO;
+        case SIGFPE:                return PAL_EVENT_ARITHMETIC_ERROR;
         case SIGSEGV: case SIGBUS:  return PAL_EVENT_MEMFAULT;
         case SIGILL:                return PAL_EVENT_ILLEGAL;
         case SIGTERM:               return PAL_EVENT_QUIT;

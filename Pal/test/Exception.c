@@ -24,7 +24,7 @@ int main (void)
 {
     pal_printf("Enter Main Thread\n");
 
-    DkSetExceptionHandler(handler, PAL_EVENT_DIVZERO, 0);
+    DkSetExceptionHandler(handler, PAL_EVENT_ARITHMETIC_ERROR, 0);
 
     i =  1 / i;
 
