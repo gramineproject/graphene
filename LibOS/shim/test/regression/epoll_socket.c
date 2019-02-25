@@ -41,7 +41,7 @@ static int create_and_bind(int port) {
     int sfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sfd == -1)
-      return -1;
+        return -1;
 
     serv_addr.sin_family      = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -104,10 +104,10 @@ int main(int argc, char* argv[]) {
 
         n = epoll_wait(efd, events, MAXEVENTS, -1);
 
-	if (n == -1) {
-	  perror("epoll_wait failed");
-	  abort();
-	}
+        if (n == -1) {
+            perror("epoll_wait failed");
+            abort();
+        }
 
         for (i = 0; i < n; i++) {
             // MODIFICATION 1
@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
                     if (infd == -1) {
                         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
                             /* We have processed all incoming
-                           connections. */
+                               connections. */
                             break;
                         } else {
                             perror("accept");
@@ -225,7 +225,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-done:
+ done:
     free(events);
     close(sfd);
 
