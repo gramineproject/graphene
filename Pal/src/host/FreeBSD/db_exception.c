@@ -209,7 +209,7 @@ struct exception_handler * pal_handlers [PAL_EVENT_NUM_BOUND] = {
 static int get_event_num (int signum)
 {
     switch(signum) {
-        case SIGFPE:                return PAL_EVENT_DIVZERO;
+        case SIGFPE:                return PAL_EVENT_ARITHMETIC_ERROR;
         case SIGSEGV: case SIGBUS:  return PAL_EVENT_MEMFAULT;
         case SIGILL:                return PAL_EVENT_ILLEGAL;
         case SIGTERM:               return PAL_EVENT_QUIT;
@@ -289,7 +289,7 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
         PAL_NUM arg = 0;
 
 
-        if (event_num == PAL_EVENT_DIVZERO ||
+        if (event_num == PAL_EVENT_ARITHMETIC_ERROR ||
             event_num == PAL_EVENT_MEMFAULT ||
             event_num == PAL_EVENT_ILLEGAL)
             arg = (PAL_NUM) (info ? info->si_addr : 0);
@@ -541,7 +541,7 @@ void signal_setup (void)
         goto err;
     }
 
-    if ((ret = _DkPersistentEventUpcall(PAL_EVENT_DIVZERO,  NULL, 0)) < 0)
+    if ((ret = _DkPersistentEventUpcall(PAL_EVENT_ARITHMETIC_ERROR,  NULL, 0)) < 0)
         goto err;
 
     if ((ret = _DkPersistentEventUpcall(PAL_EVENT_MEMFAULT,  NULL, 0)) < 0)

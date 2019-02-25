@@ -398,22 +398,22 @@ PAL_BOL
 DkThreadResume (PAL_HANDLE thread);
 
 /* Exception Handling */
-/* Div-by-zero */
-#define PAL_EVENT_DIVZERO       1
+/* arithmetic error (div-by-zero, floating point exception, etc.) */
+#define PAL_EVENT_ARITHMETIC_ERROR 1
 /* segmentation fault, protection fault, bus fault */
-#define PAL_EVENT_MEMFAULT      2
+#define PAL_EVENT_MEMFAULT         2
 /* illegal instructions */
-#define PAL_EVENT_ILLEGAL       3
+#define PAL_EVENT_ILLEGAL          3
 /* terminated by external program */
-#define PAL_EVENT_QUIT          4
+#define PAL_EVENT_QUIT             4
 /* suspended by external program */
-#define PAL_EVENT_SUSPEND       5
+#define PAL_EVENT_SUSPEND          5
 /* continued by external program */
-#define PAL_EVENT_RESUME        6
+#define PAL_EVENT_RESUME           6
 /* failure within PAL calls */
-#define PAL_EVENT_FAILURE       7
+#define PAL_EVENT_FAILURE          7
 
-#define PAL_EVENT_NUM_BOUND     8
+#define PAL_EVENT_NUM_BOUND        8
 
 #define PAL_EVENT_PRIVATE      0x0001       /* upcall specific to thread */
 #define PAL_EVENT_RESET        0x0002       /* reset the event upcall */

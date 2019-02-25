@@ -231,7 +231,7 @@ out:
                        cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);   \
     } while (0)
 
-static void divzero_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
+static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
         internal_fault("Internal arithmetic fault", arg, context);
@@ -477,12 +477,12 @@ ret_exception:
 
 int init_signal (void)
 {
-    DkSetExceptionHandler(&divzero_upcall,     PAL_EVENT_DIVZERO,      0);
-    DkSetExceptionHandler(&memfault_upcall,    PAL_EVENT_MEMFAULT,     0);
-    DkSetExceptionHandler(&illegal_upcall,     PAL_EVENT_ILLEGAL,      0);
-    DkSetExceptionHandler(&quit_upcall,        PAL_EVENT_QUIT,         0);
-    DkSetExceptionHandler(&suspend_upcall,     PAL_EVENT_SUSPEND,      0);
-    DkSetExceptionHandler(&resume_upcall,      PAL_EVENT_RESUME,       0);
+    DkSetExceptionHandler(&arithmetic_error_upcall, PAL_EVENT_ARITHMETIC_ERROR, 0);
+    DkSetExceptionHandler(&memfault_upcall,         PAL_EVENT_MEMFAULT,         0);
+    DkSetExceptionHandler(&illegal_upcall,          PAL_EVENT_ILLEGAL,          0);
+    DkSetExceptionHandler(&quit_upcall,             PAL_EVENT_QUIT,             0);
+    DkSetExceptionHandler(&suspend_upcall,          PAL_EVENT_SUSPEND,          0);
+    DkSetExceptionHandler(&resume_upcall,           PAL_EVENT_RESUME,           0);
     return 0;
 }
 

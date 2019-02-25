@@ -8,7 +8,7 @@
 
 void handler1 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    pal_printf("Div-by-Zero Exception Handler 1: %p, rip = %p\n",
+    pal_printf("Arithmetic Exception Handler 1: %p, rip = %p\n",
                arg, context->rip);
 
     while (*(unsigned char *) context->rip != 0x90)
@@ -19,7 +19,7 @@ void handler1 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 void handler2 (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    pal_printf("Div-by-Zero Exception Handler 2: %p, rip = %p\n",
+    pal_printf("Arithmetic Exception Handler 2: %p, rip = %p\n",
                arg, context->rip);
 
     while (*(unsigned char *) context->rip != 0x90)
@@ -43,12 +43,12 @@ int main (void)
 {
     volatile long i;
 
-    DkSetExceptionHandler(handler1, PAL_EVENT_DIVZERO, 0);
+    DkSetExceptionHandler(handler1, PAL_EVENT_ARITHMETIC_ERROR, 0);
     i = 0;
     i = 1 / i;
     __asm__ volatile("nop");
 
-    DkSetExceptionHandler(handler2, PAL_EVENT_DIVZERO, 0);
+    DkSetExceptionHandler(handler2, PAL_EVENT_ARITHMETIC_ERROR, 0);
     i = 0;
     i = 1 / i;
     __asm__ volatile("nop");

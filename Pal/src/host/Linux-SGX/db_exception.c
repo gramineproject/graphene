@@ -243,7 +243,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
 
     switch (ei.info.vector) {
         case SGX_EXCEPTION_VECTOR_DE:
-            event_num = PAL_EVENT_DIVZERO;
+            event_num = PAL_EVENT_ARITHMETIC_ERROR;
             break;
         case SGX_EXCEPTION_VECTOR_AC:
             event_num = PAL_EVENT_MEMFAULT;
