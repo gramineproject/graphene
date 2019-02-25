@@ -1,0 +1,7 @@
+((nil . ((indent-tabs-mode . nil)
+	 (tab-width . 4)
+	 (fill-column . 78)))
+ (c-mode . ((c-file-style . "k&r")
+	    (c-basic-offset . 4)))
+ ((nil . ((truncate-lines . t)))
+  (text-mode . ((eval . ((turn-on-auto-fill)))))))
