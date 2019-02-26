@@ -93,16 +93,19 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
     if (!listp_empty(&async_list)) {
         tmp = listp_first_entry(&async_list, struct async_event, list);
         tmp = tmp->list.prev;
-        /*
+
+	rv = tmp->expire_time - install_time;
+
+	/*
          * any previously set alarm() is canceled.
          * There should be exactly only one timer pending
          */
-		listp_del(tmp, &async_list, list);
-        rv = tmp->expire_time - install_time;
+        listp_del(tmp, &async_list, list);
         free(tmp);
-    } else
-	   tmp = NULL;
-    
+    } else {
+        tmp = NULL;
+    }
+
     INIT_LIST_HEAD(event, list);
     if (!time)    // If seconds is zero, any pending alarm is canceled.
         free(event);
