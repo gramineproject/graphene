@@ -262,13 +262,21 @@ int shim_do_execve (const char * file, const char ** argv,
     struct shim_dentry * dent = NULL;
     int ret = 0, argc = 0;
 
-    if (!file)
+    if (test_user_string(file))
         return -EFAULT;
 
-    for (const char ** a = argv ; *a ; a++, argc++);
+    for (const char** a = argv; *a; a++, argc++) {
+        if (test_user_string(*a))
+            return -EFAULT;
+    }
 
     if (!envp)
         envp = initial_envp;
+
+    for (const char** e = envp; *e; e++) {
+        if (test_user_string(*e))
+            return -EFAULT;
+    }
 
     BEGIN_PROFILE_INTERVAL();
 

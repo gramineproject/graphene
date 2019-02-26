@@ -32,11 +32,13 @@ regression.add_check(name="2 page child binary",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
-# Running Exec with NULL path
-regression = Regression(loader, "exec_null")
+# Running execv with invalid pointers in arguments
+regression = Regression(loader, "exec_invalid_args")
 
-regression.add_check(name="Execv with NULL path",
-    check=lambda res: "execv correctly returned error" in res[0].out)
+regression.add_check(name="Execv with invalid pointers in arguments",
+    check=lambda res: "execv(invalid-path) correctly returned error" in res[0].out and \
+                      "execv(invalid-argv) correctly returned error" in res[0].out and \
+                      "execv(invalid-envp) correctly returned error" in res[0].out)
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
