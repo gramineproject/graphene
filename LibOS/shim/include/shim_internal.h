@@ -764,6 +764,19 @@ extern const char ** initial_envp;
 #define ALIGN_DOWN(addr)    \
     ((__typeof__(addr)) (((unsigned long) addr) & allocmask))
 
+void get_brk_region (void ** start, void ** end, void ** current);
+
+int reset_brk (void);
+int init_brk_region (void * brk_region);
+int init_heap (void);
+int init_internal_map (void);
+int init_loader (void);
+int init_manifest (PAL_HANDLE manifest_handle);
+
+bool test_user_memory (void * addr, size_t size, bool write);
+bool test_user_string (const char * addr);
+
+#ifdef __x86_64__
 #define switch_stack(stack_top)                                         \
     ({                                                                  \
         void * _rsp, * _rbp;                                            \
@@ -785,16 +798,24 @@ static_always_inline void * current_stack(void)
     return _rsp;
 }
 
-void get_brk_region (void ** start, void ** end, void ** current);
+static_always_inline bool __range_not_ok(unsigned long addr, unsigned long size) {
+    addr += size;
+    if (addr < size) {
+        /* pointer arithmetic overflow, this check is x86-64 specific */
+        return true;
+    }
+    return false;
+}
 
-int reset_brk (void);
-int init_brk_region (void * brk_region);
-int init_heap (void);
-int init_internal_map (void);
-int init_loader (void);
-int init_manifest (PAL_HANDLE manifest_handle);
+/* Check if pointer to memory region is valid. Return true if the memory
+ * region may be valid, false if it is definitely invalid. */
+#define access_ok(addr, size)                                       \
+    ({                                                              \
+        !__range_not_ok((unsigned long)addr, (unsigned long)size);  \
+    })
 
-bool test_user_memory (void * addr, size_t size, bool write);
-bool test_user_string (const char * addr);
+#else
+# error "Unsupported architecture"
+#endif /* __x86_64__ */
 
 #endif /* _PAL_INTERNAL_H_ */

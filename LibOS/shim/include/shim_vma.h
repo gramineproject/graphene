@@ -133,6 +133,9 @@ int lookup_vma (void * addr, struct shim_vma_val * vma);
 int lookup_overlap_vma (void * addr, uint64_t length,
                         struct shim_vma_val * vma);
 
+/* True if [addr, addr+length) is found in one VMA (valid memory region) */
+bool is_in_one_vma (void * addr, size_t length);
+
 /*
  * Looking for an unmapped space and then adding the corresponding bookkeeping
  * (more info in bookkeep/shim_vma.c).

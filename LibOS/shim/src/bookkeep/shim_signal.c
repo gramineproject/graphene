@@ -301,6 +301,38 @@ ret_exception:
 }
 
 /*
+ * Helper function for test_user_memory / test_user_string; they behave
+ * differently for different PALs:
+ *
+ * - For Linux-SGX, the faulting address is not propagated in memfault
+ *   exception (SGX v1 does not write address in SSA frame, SGX v2 writes
+ *   it only at a granularity of 4K pages). Thus, we cannot rely on
+ *   exception handling to compare against tcb.test_range.start/end.
+ *   Instead, traverse VMAs to see if [addr, addr+size) is addressable;
+ *   before traversing VMAs, grab a VMA lock.
+ *
+ * - For other PALs, we touch one byte of each page in [addr, addr+size).
+ *   If some byte is not addressable, exception is raised. memfault_upcall
+ *   handles this exception and resumes execution from ret_fault.
+ *
+ * The second option is faster in fault-free case but cannot be used under
+ * SGX PAL. We use the best option for each PAL for now. */
+static bool is_sgx_pal(void) {
+    static struct atomic_int sgx_pal = { .counter = 0 };
+    static struct atomic_int inited  = { .counter = 0 };
+
+    if (!atomic_read(&inited)) {
+        /* Ensure that is_sgx_pal is updated before initialized */
+        atomic_set(&sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
+        mb();
+        atomic_set(&inited, 1);
+    }
+    mb();
+
+    return atomic_read(&sgx_pal) != 0;
+}
+
+/*
  * 'test_user_memory' and 'test_user_string' are helper functions for testing
  * if a user-given buffer or data structure is readable / writable (according
  * to the system call semantics). If the memory test fails, the system call
@@ -308,28 +340,33 @@ ret_exception:
  * guarantee further corruption of the buffer, or if the buffer is unmapped
  * with a concurrent system call. The purpose of these functions is simply for
  * the compatibility with programs that rely on the error numbers, such as the
- * LTP test suite.
- */
+ * LTP test suite. */
 bool test_user_memory (void * addr, size_t size, bool write)
 {
     if (!size)
         return false;
 
+    if (!access_ok(addr, size))
+        return true;
+
+    /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
+    if (is_sgx_pal())
+        return !is_in_one_vma(addr, size);
+
+    /* Non-SGX path: check if [addr, addr+size) is addressable by touching
+     * a byte of each page; invalid access will be caught in memfault_upcall */
     shim_tcb_t * tcb = shim_get_tls();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
-    if (addr + size - 1 < addr)
-        size = (void *) 0x0 - addr;
-
-    bool has_fault = true;
+    bool  has_fault = true;
 
     /* Add the memory region to the watch list. This is not racy because
      * each thread has its own record. */
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
     tcb->test_range.start = addr;
-    tcb->test_range.end = addr + size - 1;
+    tcb->test_range.end   = addr + size - 1;
 
     /* Try to read or write into one byte inside each page */
     void * tmp = addr;
@@ -359,6 +396,32 @@ ret_fault:
  */
 bool test_user_string (const char * addr)
 {
+    if (!access_ok(addr, 1))
+        return true;
+
+    size_t size, maxlen;
+    const char * next = ALIGN_UP(addr + 1);
+
+    /* SGX path: check if [addr, addr+size) is addressable (in some VMA). */
+    if (is_sgx_pal()) {
+        /* We don't know length but using unprotected strlen() is dangerous
+         * so we check string in chunks of 4K pages. */
+        do {
+            maxlen = next - addr;
+
+            if (!access_ok(addr, maxlen) || !is_in_one_vma((void*) addr, maxlen))
+                return true;
+
+            size = strnlen(addr, maxlen);
+            addr = next;
+            next = ALIGN_UP(addr + 1);
+        } while (size == maxlen);
+
+        return false;
+    }
+
+    /* Non-SGX path: check if [addr, addr+size) is addressable by touching
+     * a byte of each page; invalid access will be caught in memfault_upcall. */
     shim_tcb_t * tcb = shim_get_tls();
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
@@ -368,22 +431,22 @@ bool test_user_string (const char * addr)
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
 
-    /* Test one page at a time. */
-    const char * next = ALIGN_UP(addr + 1);
     do {
         /* Add the memory region to the watch list. This is not racy because
          * each thread has its own record. */
         tcb->test_range.start = (void *) addr;
         tcb->test_range.end = (void *) (next - 1);
+
+        maxlen = next - addr;
+
+        if (!access_ok(addr, maxlen))
+            return true;
         *(volatile char *) addr; /* try to read one byte from the page */
 
-        /* If the string ends in this page, exit the loop. */
-        if (strnlen(addr, next - addr) < next - addr)
-            break;
-
+        size = strnlen(addr, maxlen);
         addr = next;
         next = ALIGN_UP(addr + 1);
-    } while (addr < next);
+    } while (size == maxlen);
 
     has_fault = false; /* All accesses have passed. Nothing wrong. */
 
