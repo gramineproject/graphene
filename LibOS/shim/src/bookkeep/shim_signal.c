@@ -346,7 +346,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
     if (!initialized) {
         is_sgx_pal = strcmp_static(PAL_CB(host_type), "Linux-SGX");
         initialized = true; /* benign data races */
-        barrier(); /* make sure is_sgx_pal is set before initialized is true */
+        barrier(); /* make sure both is_sgx_pal and initialized are updated */
     }
 
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */

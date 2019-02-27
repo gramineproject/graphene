@@ -133,7 +133,7 @@ int lookup_vma (void * addr, struct shim_vma_val * vma);
 int lookup_overlap_vma (void * addr, uint64_t length,
                         struct shim_vma_val * vma);
 
-/* Testing if [addr, addr+length) is in some VMA */
+/* Returns 1 if [addr, addr+length) is in some VMA; otherwise returns 0 */
 int is_in_vma (void * addr, uint64_t length);
 
 /*
