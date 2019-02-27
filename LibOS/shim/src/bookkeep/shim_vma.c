@@ -984,6 +984,22 @@ int lookup_overlap_vma (void * addr, uint64_t length,
     return 0;
 }
 
+int is_in_vma (void * addr, uint64_t length)
+{
+    struct shim_vma* tmp;
+
+    lock(vma_list_lock);
+
+    listp_for_each_entry(tmp, &vma_list, list)
+        if (test_vma_contain(tmp, addr, addr + length)) {
+            unlock(vma_list_lock);
+            return 1;
+        }
+
+    unlock(vma_list_lock);
+    return 0;
+}
+
 int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
 {
     struct shim_vma_val * val = vmas;
