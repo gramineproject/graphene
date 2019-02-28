@@ -264,7 +264,7 @@ int shim_do_execve (const char * file, const char ** argv,
         return -EFAULT;
 
     for (const char** a = argv; *a; a++, argc++) {
-        if (test_user_memory(a, 1, false) || test_user_string(*a))
+        if (test_user_memory(a, sizeof(*a), false) || test_user_string(*a))
             return -EFAULT;
     }
 
@@ -272,7 +272,7 @@ int shim_do_execve (const char * file, const char ** argv,
         envp = initial_envp;
 
     for (const char** e = envp; *e; e++) {
-        if (test_user_memory(e, 1, false) || test_user_string(*e))
+        if (test_user_memory(e, sizeof(*e), false) || test_user_string(*e))
             return -EFAULT;
     }
 
