@@ -47,8 +47,6 @@ typedef int __kernel_pid_t;
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
-int getrand (void * buffer, size_t size);
-
 struct timespec;
 struct timeval;
 extern struct pal_bsd_state {

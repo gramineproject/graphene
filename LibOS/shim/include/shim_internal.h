@@ -785,7 +785,6 @@ static_always_inline void * current_stack(void)
 
 void get_brk_region (void ** start, void ** end, void ** current);
 
-int init_randgen (void);
 int reset_brk (void);
 int init_brk_region (void * brk_region);
 int init_heap (void);

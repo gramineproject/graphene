@@ -184,52 +184,6 @@ int _DkInstructionCacheFlush (const void * addr, int size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
-static PAL_LOCK lock = LOCK_INIT;
-static unsigned long randval = 0;
-
-static int init_randgen (void)
-{
-    unsigned long val;
-
-    if (_DkRandomBitsRead(&val, sizeof(val)) < sizeof(val))
-        return -PAL_ERROR_DENIED;
-
-    _DkInternalLock(&lock);
-    randval = val;
-    _DkInternalUnlock(&lock);
-    return 0;
-}
-
-int getrand (void * buffer, size_t size)
-{
-    unsigned long val;
-    size_t bytes = 0;
-
-    int ret = init_randgen();
-    if (ret < 0)
-        return ret;
-
-    _DkInternalLock(&lock);
-    val = randval;
-    randval = hash64(~randval);
-    _DkInternalUnlock(&lock);
-
-    while (bytes + sizeof(uint64_t) <= size) {
-        *(uint64_t *) (buffer + bytes) = val;
-        val = hash64(val);
-        bytes += sizeof(uint64_t);
-    }
-
-    if (bytes < size) {
-        memcpy(buffer + bytes, &val, size - bytes);
-        val = hash64(val);
-    }
-
-    _DkInternalLock(&lock);
-    randval = val;
-    _DkInternalUnlock(&lock);
-    return 0;
-}
 
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
                       unsigned int values[4])

@@ -208,9 +208,6 @@ void md5_final (struct shim_md5_ctx * mdContext);
 /* prompt user for confirmation */
 int message_confirm (const char * message, const char * options);
 
-/* get random bytes (not for crypto!) */
-void getrand (void * buffer, size_t size);
-
 /* ELF binary loading */
 int check_elf_object (struct shim_handle * file);
 int load_elf_object (struct shim_handle * file, void * addr, size_t mapped);
