@@ -572,28 +572,10 @@ static int mcast_c (int port)
     return fd;
 }
 
-static unsigned long randval = 0;
-
-void getrand (void * buffer, size_t size)
-{
-    size_t bytes = 0;
-
-    while (bytes + sizeof(uint64_t) <= size) {
-        *(uint64_t*) (buffer + bytes) = randval;
-        randval = hash64(randval);
-        bytes += sizeof(uint64_t);
-    }
-
-    if (bytes < size) {
-        memcpy(buffer + bytes, &randval, size - bytes);
-        randval = hash64(randval);
-    }
-}
-
 static void create_instance (struct pal_sec * pal_sec)
 {
     unsigned int id;
-    getrand(&id, sizeof(id));
+    DkRandomBitsRead(&id, sizeof(id));
     snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix),
              "/graphene/%x/", id);
     pal_sec->instance_id = id;
@@ -670,9 +652,6 @@ static int load_enclave (struct pal_enclave * enclave,
 
     if (!is_wrfsbase_supported())
         return -EPERM;
-
-    INLINE_SYSCALL(gettimeofday, 2, &tv, NULL);
-    randval = tv.tv_sec * 1000000UL + tv.tv_usec;
 
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
     pal_sec->uid = INLINE_SYSCALL(getuid, 0);
@@ -796,7 +775,7 @@ static int load_enclave (struct pal_enclave * enclave,
 
     if (!pal_sec->mcast_port) {
         unsigned short mcast_port;
-        getrand(&mcast_port, sizeof(unsigned short));
+        DkRandomBitsRead(&mcast_port, sizeof(mcast_port));
         pal_sec->mcast_port = mcast_port > 1024 ? mcast_port : mcast_port + 1024;
     }
 

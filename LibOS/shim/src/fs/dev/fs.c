@@ -117,16 +117,13 @@ static int dev_random_mode (const char * name, mode_t * mode)
 static int dev_random_read (struct shim_handle * hdl, void * buf,
                             size_t count)
 {
-    int rv = DkRandomBitsRead(buf, count);
-    return rv;
+    return DkRandomBitsRead(buf, count);
 }
 
 static int dev_urandom_read (struct shim_handle * hdl, void * buf,
                              size_t count)
 {
-    // THIS IS NOT CRYPTO-SECURE, FIX!!!
-    getrand(buf, count);
-    return count;
+    return DkRandomBitsRead(buf, count);
 }
 
 static int dev_random_stat (const char * name, struct stat * stat)

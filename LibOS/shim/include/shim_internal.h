@@ -751,7 +751,6 @@ extern const char ** initial_envp;
 
 void get_brk_region (void ** start, void ** end, void ** current);
 
-int init_randgen (void);
 int reset_brk (void);
 int init_brk_region (void * brk_region);
 int init_heap (void);

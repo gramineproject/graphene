@@ -113,7 +113,7 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
             }
     } else {
 retry:
-        getrand(&cpsession->sid, sizeof(IDTYPE));
+        DkRandomBitsRead(&cpsession->sid, sizeof(cpsession->sid));
 
         listp_for_each_entry(s, &cp_sessions, list)
             if (s->sid == cpsession->sid)

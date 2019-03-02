@@ -85,7 +85,7 @@ int init_brk_region (void * brk_region)
     if (brk_region) {
         while (true) {
             uint32_t rand;
-            getrand(&rand, sizeof(rand));
+            DkRandomBitsRead(&rand, sizeof(rand));
             rand %= 0x2000000;
             rand = ALIGN_UP(rand);
 
