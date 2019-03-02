@@ -37,8 +37,13 @@ int main (int argc, const char ** argv, const char ** envp)
     unsigned long data[100];
     memset(data, 0, sizeof(data));
 
-    for (int i = 0 ; i < 100 ; i++)
-        DkRandomBitsRead(&data[i], sizeof(unsigned long));
+    for (int i = 0 ; i < 100 ; i++) {
+        int ret = DkRandomBitsRead(&data[i], sizeof(unsigned long));
+        if (ret < 0) {
+            pal_printf("DkRandomBitsRead() failed!\n");
+            return 1;
+        }
+    }
 
     bool same = false;
     for (int i = 1 ; i < 100 ; i++)

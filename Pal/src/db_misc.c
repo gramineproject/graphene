@@ -48,8 +48,9 @@ int _DkFastRandomBitsRead (void * buffer, int size)
     rand = seed;
     while (!seed) {
         _DkInternalUnlock(&lock);
-        if (_DkRandomBitsRead(&rand, sizeof(rand)) < sizeof(rand))
-            return -PAL_ERROR_DENIED;
+        int ret = _DkRandomBitsRead(&rand, sizeof(rand));
+        if (ret < 0)
+            return ret;
 
         _DkInternalLock(&lock);
         seed = rand;
@@ -79,17 +80,7 @@ PAL_NUM DkRandomBitsRead (PAL_PTR buffer, PAL_NUM size)
 {
     ENTER_PAL_CALL(DkRandomBitsRead);
 
-    if (!buffer || !size) {
-        _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL_RETURN(0);
-    }
-
     int ret = _DkRandomBitsRead((void *) buffer, size);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        ret = 0;
-    }
 
     LEAVE_PAL_CALL_RETURN(ret);
 }

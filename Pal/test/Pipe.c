@@ -12,7 +12,11 @@ int main (int argc, char ** argv)
     unsigned long pipeid;
     char uri[40];
 
-    DkRandomBitsRead(&pipeid, sizeof(unsigned long));
+    int ret = DkRandomBitsRead(&pipeid, sizeof(unsigned long));
+    if (ret < 0) {
+        pal_printf("DkRandomBitsRead() failed\n");
+        return -1;
+    }
     pipeid = pipeid % 1024;
 
     snprintf(uri, 40, "pipe.srv:%d", pipeid);

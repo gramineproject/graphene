@@ -133,7 +133,7 @@ int _DkRandomBitsRead (void * buffer, int size)
             total_bytes = size;
         }
     } while (total_bytes < size);
-    return total_bytes;
+    return 0;
 }
 #else
 int _DkRandomBitsRead (void * buffer, int size)
@@ -156,7 +156,7 @@ int _DkRandomBitsRead (void * buffer, int size)
         total_bytes += bytes;
     } while (total_bytes < size);
 
-    return total_bytes;
+    return 0;
 }
 #endif
 

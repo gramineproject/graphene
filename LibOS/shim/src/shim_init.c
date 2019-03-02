@@ -860,7 +860,9 @@ static int name_pipe (char * uri, size_t size, void * id)
 {
     IDTYPE pipeid;
     int len;
-    DkRandomBitsRead(&pipeid, sizeof(pipeid));
+    int ret = DkRandomBitsRead(&pipeid, sizeof(pipeid));
+    if (ret < 0)
+        return -convert_pal_errno(-ret);
     debug("creating pipe: pipe.srv:%u\n", pipeid);
     if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) == size)
         return -ERANGE;
@@ -909,7 +911,9 @@ static int name_path (char * path, size_t size, void * id)
     unsigned int suffix;
     int prefix_len = strlen(path);
     int len;
-    DkRandomBitsRead(&suffix, sizeof(suffix));
+    int ret = DkRandomBitsRead(&suffix, sizeof(suffix));
+    if (ret < 0)
+        return -convert_pal_errno(-ret);
     len = snprintf(path + prefix_len, size - prefix_len, "%08x", suffix);
     if (len == size)
         return -ERANGE;

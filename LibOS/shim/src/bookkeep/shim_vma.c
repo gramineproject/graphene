@@ -342,7 +342,9 @@ int init_vma (void)
     uint64_t addr_rand_size =
         (PAL_CB(user_address.end) - PAL_CB(user_address.start)) * 5 / 6;
     uint64_t rand;
-    DkRandomBitsRead(&rand, sizeof(rand));
+    ret = DkRandomBitsRead(&rand, sizeof(rand));
+    if (ret < 0)
+        return -convert_pal_errno(-ret);
     current_heap_top -= ALIGN_DOWN(rand % addr_rand_size);
 #endif
 
