@@ -1,5 +1,11 @@
-/Runtime/
+# No editor backup files.
+*.sw*
+*.backup
 *~
+
+/Runtime/*
+!/Runtime/Makefile
+!/Runtime/pal_loader
 /Jenkinsfiles/Jenkinsfile-*
 /Jenkinsfiles/JenkinsfileSGX-*
 
