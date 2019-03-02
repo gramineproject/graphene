@@ -775,7 +775,9 @@ static int load_enclave (struct pal_enclave * enclave,
 
     if (!pal_sec->mcast_port) {
         unsigned short mcast_port;
-        DkRandomBitsRead(&mcast_port, sizeof(mcast_port));
+        ret = DkRandomBitsRead(&mcast_port, sizeof(mcast_port));
+        if (ret < 0)
+            return -convert_pal_errno(-ret);
         pal_sec->mcast_port = mcast_port > 1024 ? mcast_port : mcast_port + 1024;
     }
 

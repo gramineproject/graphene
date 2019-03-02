@@ -33,7 +33,7 @@ int _DkRandomBitsRead(void *buffer, int size);
  * and nonzero for failure. */
 static int RandomWrapper(void *private, unsigned char *data, size_t size)
 {
-    return _DkRandomBitsRead(data, size) != size;
+    return _DkRandomBitsRead(data, size);
 }
 
 int lib_DhInit(LIB_DH_CONTEXT *context)
