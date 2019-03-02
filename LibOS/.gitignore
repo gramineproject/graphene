@@ -1,8 +1,3 @@
-# no backup files
-*~
-*.sw*
-*.backup
-
 # source only please
 *.o
 *.so
@@ -10,4 +5,6 @@
 
 *cscope*
 
-glibc-*
+/glibc-*.tar.gz
+/glibc-*/
+/build.log

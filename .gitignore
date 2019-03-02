@@ -1,5 +1,9 @@
-/Runtime/
+# No editor backup files.
+*.sw*
+*.backup
 *~
+
+/Runtime/
 /Jenkinsfiles/Jenkinsfile-*
 /Jenkinsfiles/JenkinsfileSGX-*
 

@@ -2,6 +2,6 @@
 *.o
 *.so
 *.a
-pal
-pal_sec
-Makefile.Status
+/pal
+/pal_sec
+/Makefile.Status
