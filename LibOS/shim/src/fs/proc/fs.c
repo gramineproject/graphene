@@ -83,7 +83,23 @@ static int proc_root_stat (const char * name, struct stat * buf)
     return 0;
 }
 
+
+static int proc_root_open (struct shim_handle * hdl,
+                           const char * name, int flags)
+{
+
+    if (flags & (O_WRONLY|O_RDWR))
+        return -EACCES;
+
+    // Don't really need to do any work here, but keeping as a placeholder,
+    // just in case.
+
+    return 0;
+
+}
+
 struct proc_fs_ops fs_proc_root = {
+        .open     = &proc_root_open,
         .mode     = &proc_root_mode,
         .stat     = &proc_root_stat,
     };
@@ -218,7 +234,6 @@ static int proc_open (struct shim_handle * hdl, struct shim_dentry * dent,
     // Only reject a directory open if O_DIRECTORY is not passed
     if (ent->dir && !(flags | O_DIRECTORY))
         return -EISDIR;
-
 
     if (!ent->fs_ops || !ent->fs_ops->open)
         return -EACCES;
