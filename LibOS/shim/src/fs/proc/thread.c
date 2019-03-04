@@ -643,7 +643,8 @@ static int proc_thread_dir_open (struct shim_handle * hdl,
     if (flags & (O_WRONLY|O_RDWR))
         return -EACCES;
 
-    // XXX: Not sure what needs to happen here.
+    // Don't really need to do any work here, but keeping as a placeholder,
+    // just in case.
 
     return 0;
 
