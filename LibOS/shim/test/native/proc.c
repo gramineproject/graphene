@@ -22,6 +22,8 @@ int main(int argc, char ** argv)
         printf("/proc/1/%s\n", dirent->d_name);
     closedir(dir);
 
+    // Children end up inheriting junk if we don't flush here.
+    fflush(stdout);
 
     for (int i = 0 ; i < 3 ; i++) {
         pid_t pid = fork();
