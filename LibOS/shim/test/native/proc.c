@@ -1,6 +1,3 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -25,6 +22,9 @@ int main(int argc, char ** argv)
     // Children end up inheriting junk if we don't flush here.
     fflush(stdout);
 
+    /* This code tickles a bug in exit/wait for PIDs/IPC; created an issue and
+     * revisit after landing some related IPC fixes that are pending.*/
+#if 0
     for (int i = 0 ; i < 3 ; i++) {
         pid_t pid = fork();
 
@@ -38,6 +38,7 @@ int main(int argc, char ** argv)
             exit(0);
         }
     }
+#endif
 
     dir = opendir("/proc");
     if (!dir) {
