@@ -854,7 +854,7 @@ static int chroot_write (struct shim_handle * hdl, const void * buf,
     ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL) ? :
           -PAL_ERRNO;
 
-    if (ret > 0)
+    if (ret > 0 && file->type != FILE_TTY)
         file->marker += ret;
 
     unlock(hdl->lock);
