@@ -452,7 +452,7 @@ static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
-    if (dent->mode == NO_MODE){
+    if (dent->mode == NO_MODE) {
         lock(data->lock);
         ret = __query_attr(dent, data, NULL);
         dent->mode = data->mode;
