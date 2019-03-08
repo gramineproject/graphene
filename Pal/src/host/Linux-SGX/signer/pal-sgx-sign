@@ -532,7 +532,7 @@ def generate_sigstruct(attr, args, mrenclave):
     fields['miscmask']  = ( 904, "4s",   attr['miscs'])
     fields['attrs']     = ( 928, "8s8s", attr['flags'], attr['xfrms'])
     fields['attrmask']  = ( 944, "8s8s", attr['flags'], attr['xfrms'])
-    fields['mrencalve'] = ( 960, "32s",  mrenclave)
+    fields['mrenclave'] = ( 960, "32s",  mrenclave)
     fields['isvprodid'] = (1024, "<H",   attr['isvprodid'])
     fields['isvsvn']    = (1026, "<H",   attr['isvsvn'])
 
