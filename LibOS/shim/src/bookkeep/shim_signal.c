@@ -315,9 +315,6 @@ bool test_user_memory (void * addr, size_t size, bool write)
     if (!size)
         return false;
 
-    if (addr + size - 1 < addr)
-        size = (void *) 0x0 - addr;
-
     /* Function behaves differently for different PALs:
      * - For Linux-SGX, the faulting address is not propagated in memfault
      *   exception (SGX v1 does not write address in SSA frame, SGX v2 writes
@@ -331,22 +328,20 @@ bool test_user_memory (void * addr, size_t size, bool write)
      *
      * The second option is faster in fault-free case but cannot be used under
      * SGX PAL. We use the best option for each PAL for now. */
-    static bool is_sgx_pal  = false;
-    static bool initialized = false;
-    if (!initialized) {
-        /* Data races on is_sgx_pal and initialized are benign
-         * but ensure that is_sgx_pal is updated before initialized */
-        is_sgx_pal = strcmp_static(PAL_CB(host_type), "Linux-SGX");
+    static struct atomic_int is_sgx_pal  = { .counter = 0 };
+    static struct atomic_int initialized = { .counter = 0 };
+
+    if (!atomic_read(&initialized)) {
+        /* Ensure that is_sgx_pal is updated before initialized */
+        atomic_set(&is_sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
         barrier();
-        initialized = true;
+        atomic_set(&initialized, 1);
     }
+    barrier();
 
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
-    if (is_sgx_pal) {
-        if (addr + size < addr)  /* address overflow check */
-            return true;
-        return !is_in_vma(addr, size);
-    }
+    if (atomic_read(&is_sgx_pal))
+        return !is_in_one_vma(addr, size);
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
      * a byte of each page; invalid access will be caught in memfault_upcall */
@@ -391,17 +386,20 @@ ret_fault:
  */
 bool test_user_string (const char * addr)
 {
-    /* See explanation in previous function. */
-    static bool is_sgx_pal  = false;
-    static bool initialized = false;
-    if (!initialized) {
-        is_sgx_pal = strcmp_static(PAL_CB(host_type), "Linux-SGX");
+    /* See explanation in test_user_memory(). */
+    static struct atomic_int is_sgx_pal  = { .counter = 0 };
+    static struct atomic_int initialized = { .counter = 0 };
+
+    if (!atomic_read(&initialized)) {
+        /* Ensure that is_sgx_pal is updated before initialized */
+        atomic_set(&is_sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
         barrier();
-        initialized = true;
+        atomic_set(&initialized, 1);
     }
+    barrier();
 
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA). */
-    if (is_sgx_pal) {
+    if (atomic_read(&is_sgx_pal)) {
         const char * next = ALIGN_UP(addr + 1);
         size_t size, maxlen;
 
@@ -409,8 +407,7 @@ bool test_user_string (const char * addr)
          * so we check string in chunks of 4K pages. */
         do {
             maxlen = next - addr;
-            if (next < addr ||             /* address overflow check */
-                !is_in_vma(addr, maxlen))
+            if (!is_in_one_vma(addr, maxlen))
                 return true;
             size = strnlen(addr, maxlen);
             addr = next;
