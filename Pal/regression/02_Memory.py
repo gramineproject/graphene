@@ -17,12 +17,15 @@ regression.add_check(name="Memory Allocation",
 regression.add_check(name="Memory Allocation with Address",
     check=lambda res: "Memory Allocation with Address OK" in res[0].log)
 
-regression.add_check(name="Memory Protection", flaky = sgx,
-    check=lambda res: "Memory Allocation Protection (RW) OK" in res[0].log and
-                      "Memory Protection (R) OK" in res[0].log)
+# Memory protection and deallocation can't be tested on SGX since we can't
+# unmap a page or change it's protection (SGX2 makes this possible).
+if not sgx:
+    regression.add_check(name="Memory Protection", flaky = sgx,
+        check=lambda res: "Memory Allocation Protection (RW) OK" in res[0].log and
+                          "Memory Protection (R) OK" in res[0].log)
 
-regression.add_check(name="Memory Deallocation", flaky = sgx,
-    check=lambda res: "Memory Deallocation OK" in res[0].log)
+    regression.add_check(name="Memory Deallocation", flaky = sgx,
+        check=lambda res: "Memory Deallocation OK" in res[0].log)
 
 def check_quota(res):
     for line in res[0].log:
