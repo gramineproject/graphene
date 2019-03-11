@@ -118,7 +118,7 @@ If you don't have a private key, create it with the following command:
 
 You could either put the generated enclave key to the default path,
 'host/Linux-SGX/signer/enclave-key.pem', or specify the key through environment
-variable 'SGX_ENCLAVE_KEY' when building Graphene with SGX support. 
+variable 'SGX_SIGNER_KEY' when building Graphene with SGX support. 
 
 After signing the enclaves, users may ship the application files with the
 built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
