@@ -28,7 +28,7 @@ regression.add_check(name="Process Channel Transmission",
                       check_times("Process Read 2: Hello World 2", res[0].log, 3))
 
 def check_broadcast_result(res):
-    if not check_times("Warning: broadcast stream is not oppened. "
+    if not check_times("Warning: broadcast stream is not open. "
                        "Do you have a multicast route configured?",
                        res[0].log, 0):
         print("Could not open broadcast stream. Dou you have a multicast route configured?")
