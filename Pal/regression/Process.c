@@ -26,9 +26,14 @@ int main (int argc, char ** argv, char ** envp)
 
         DkStreamWrite(pal_control.parent_process, 0, 20, buffer1, NULL);
 
-        ret = DkStreamRead(pal_control.broadcast_stream, 0, 20, buffer5, NULL, 0);
-        if (ret > 0)
-            pal_printf("Broadcast Read: %s\n", buffer5);
+        if (pal_control.broadcast_stream == NULL) {
+            pal_printf("Warning: broadcast stream is not open. "
+                       "Do you have a multicast route configured?\n");
+        } else {
+            ret = DkStreamRead(pal_control.broadcast_stream, 0, 20, buffer5, NULL, 0);
+            if (ret > 0)
+                pal_printf("Broadcast Read: %s\n", buffer5);
+        }
 
         ret = DkStreamWrite(pal_control.parent_process, 0, 20, buffer1, NULL);
         if (ret > 0)
@@ -54,10 +59,14 @@ int main (int argc, char ** argv, char ** envp)
         }
 
         pal_printf("Broadcasting message\n");
-
-        ret = DkStreamWrite(pal_control.broadcast_stream, 0, 20, buffer1, NULL);
-        if (ret > 0)
-            pal_printf("Broadcast Write OK\n");
+        if (pal_control.broadcast_stream == NULL) {
+            pal_printf("Warning: broadcast stream is not open. "
+                       "Do you have a multicast route configured?\n");
+        } else {
+            ret = DkStreamWrite(pal_control.broadcast_stream, 0, 20, buffer1, NULL);
+            if (ret > 0)
+                pal_printf("Broadcast Write OK\n");
+        }
 
         for (int i = 0 ; i < 3 ; i++)
             if (children[i]) {
