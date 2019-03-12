@@ -311,6 +311,37 @@ ret_exception:
 }
 
 /*
+ * Helper function for test_user_memory / test_user_string; they behave
+ * differently for different PALs:
+ *
+ * - For Linux-SGX, the faulting address is not propagated in memfault
+ *   exception (SGX v1 does not write address in SSA frame, SGX v2 writes
+ *   it only at a granularity of 4K pages). Thus, we cannot rely on
+ *   exception handling to compare against tcb.test_range.start/end.
+ *   Instead, traverse VMAs to see if [addr, addr+size) is addressable.
+ *
+ * - For other PALs, we touch one byte of each page in [addr, addr+size).
+ *   If some byte is not addressable, exception is raised. memfault_upcall
+ *   handles this exception and resumes execution from ret_fault.
+ *
+ * The second option is faster in fault-free case but cannot be used under
+ * SGX PAL. We use the best option for each PAL for now. */
+static bool is_sgx_pal() {
+    static struct atomic_int sgx_pal = { .counter = 0 };
+    static struct atomic_int inited  = { .counter = 0 };
+
+    if (!atomic_read(&inited)) {
+        /* Ensure that is_sgx_pal is updated before initialized */
+        atomic_set(&sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
+        barrier();
+        atomic_set(&inited, 1);
+    }
+    barrier();
+
+    return (atomic_read(&sgx_pal) != 0);
+}
+
+/*
  * 'test_user_memory' and 'test_user_string' are helper functions for testing
  * if a user-given buffer or data structure is readable / writable (according
  * to the system call semantics). If the memory test fails, the system call
@@ -325,32 +356,8 @@ bool test_user_memory (void * addr, size_t size, bool write)
     if (!size)
         return false;
 
-    /* Function behaves differently for different PALs:
-     * - For Linux-SGX, the faulting address is not propagated in memfault
-     *   exception (SGX v1 does not write address in SSA frame, SGX v2 writes
-     *   it only at a granularity of 4K pages). Thus, we cannot rely on
-     *   exception handling to compare against tcb.test_range.start/end.
-     *   Instead, traverse VMAs to see if [addr, addr+size) is addressable.
-     *
-     * - For other PALs, we touch one byte of each page in [addr, addr+size).
-     *   If some byte is not addressable, exception is raised. memfault_upcall
-     *   handles this exception and resumes execution from ret_fault.
-     *
-     * The second option is faster in fault-free case but cannot be used under
-     * SGX PAL. We use the best option for each PAL for now. */
-    static struct atomic_int is_sgx_pal  = { .counter = 0 };
-    static struct atomic_int initialized = { .counter = 0 };
-
-    if (!atomic_read(&initialized)) {
-        /* Ensure that is_sgx_pal is updated before initialized */
-        atomic_set(&is_sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
-        barrier();
-        atomic_set(&initialized, 1);
-    }
-    barrier();
-
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
-    if (atomic_read(&is_sgx_pal))
+    if (is_sgx_pal())
         return !is_in_one_vma(addr, size);
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
@@ -396,20 +403,8 @@ ret_fault:
  */
 bool test_user_string (const char * addr)
 {
-    /* See explanation in test_user_memory(). */
-    static struct atomic_int is_sgx_pal  = { .counter = 0 };
-    static struct atomic_int initialized = { .counter = 0 };
-
-    if (!atomic_read(&initialized)) {
-        /* Ensure that is_sgx_pal is updated before initialized */
-        atomic_set(&is_sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
-        barrier();
-        atomic_set(&initialized, 1);
-    }
-    barrier();
-
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA). */
-    if (atomic_read(&is_sgx_pal)) {
+    if (is_sgx_pal()) {
         const char * next = ALIGN_UP(addr + 1);
         size_t size, maxlen;
 
