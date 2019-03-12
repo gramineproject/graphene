@@ -292,7 +292,6 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 ret_exception:
     DkExceptionReturn(event);
-    return;
 }
 
 /*
@@ -603,10 +602,8 @@ void handle_signal (bool delayed_only)
     if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
         debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
         tcb->context.preempt |= SIGNAL_DELAYED;
-    } else {
-        if (!(delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))) {
-            __handle_signal(tcb, 0, NULL);
-        }
+    } else if (!(delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))) {
+        __handle_signal(tcb, 0, NULL);
     }
 
     __enable_preempt(tcb);
