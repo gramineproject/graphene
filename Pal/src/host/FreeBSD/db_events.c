@@ -52,6 +52,24 @@ void _DkEventDestroy (PAL_HANDLE handle)
     free(handle);
 }
 
+/*
+ * Set:
+ * set event.signaled = 1
+ * if event.nwaiters > 0
+ *     wakeup
+ *
+ * Wait:
+ * inc event.nwaiters
+ * if not signaled:
+ *    // this check must be after incrementing event.nwaiters
+ *    // not to lose wakeup because waker only wakes up sleepers only
+ *    // when there are sleepers.
+ *    // It may cause spurious wakeup, but doesn't lose wakeup.
+ *    sleep
+ * dec event.nwaiters
+ *
+ */
+
 int _DkEventSet (PAL_HANDLE event, int wakeup)
 {
     int ret = 0;
