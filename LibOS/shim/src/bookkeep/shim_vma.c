@@ -130,7 +130,7 @@ static inline bool test_vma_equal (struct shim_vma * vma,
 static inline bool test_vma_contain (struct shim_vma * vma,
                                      void * s, void * e)
 {
-    return vma->start <= s && vma->end >= e;
+    return s < e && vma->start <= s && vma->end >= e;
 }
 
 /*
@@ -987,14 +987,9 @@ int lookup_overlap_vma (void * addr, uint64_t length,
 bool is_in_one_vma (void * addr, size_t length)
 {
     struct shim_vma* tmp;
-
     lock(vma_list_lock);
-
-    /* Very first and very last bytes of region should be present in same VMA;
-     * check them separately to catch pointer overflows, e.g. ((void*) -1). */
     listp_for_each_entry(tmp, &vma_list, list)
-        if (test_vma_contain(tmp, addr, addr) &&
-            test_vma_contain(tmp, addr + length, addr + length)) {
+        if (test_vma_contain(tmp, addr, addr + length)) {
             unlock(vma_list_lock);
             return 1;
         }
