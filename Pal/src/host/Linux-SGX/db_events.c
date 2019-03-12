@@ -95,7 +95,7 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
             ret = ocall_futex((int *) &event->event.signaled->counter,
                               FUTEX_WAIT, 0, timeout ? &waittime : NULL);
             if (ret < 0) {
-                if (ret == -PAL_ERROR_TRYAGAIN)
+                if (ret == -PAL_ERROR_TRYAGAIN && atomic_read(event->event.signaled) != 0)
                     ret = 0;
                 else
                     break;
