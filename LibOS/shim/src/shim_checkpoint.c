@@ -476,7 +476,8 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
                                    (void *) store->base + bytes, NULL);
 
         if (!ret) {
-            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN)
+            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
+                PAL_ERRNO == EWOULDBLOCK)
                 continue;
             return -PAL_ERRNO;
         }
@@ -494,7 +495,8 @@ static int send_checkpoint_on_stream (PAL_HANDLE stream,
             size_t ret = DkStreamWrite(stream, 0, mem_size - bytes,
                                        mem_addr + bytes, NULL);
             if (!ret) {
-                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN)
+                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
+                    PAL_ERRNO == EWOULDBLOCK)
                     continue;
                 return -PAL_ERRNO;
             }
@@ -1223,7 +1225,8 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
                                      (void *) base + total_bytes, NULL, 0);
 
             if (!bytes) {
-                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN)
+                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN ||
+                    PAL_ERRNO == EWOULDBLOCK)
                     continue;
                 return -PAL_ERRNO;
             }
