@@ -847,10 +847,13 @@ void test_dh (void)
 
 int init_enclave (void)
 {
-    // Get self report to initialize info (MRENCLAVE, etc.) about this enclave
-    // from a trusted source.
-    sgx_arch_targetinfo_t targetinfo = {};
-    struct pal_enclave_state reportdata = {};
+    // Get report to initialize info (MRENCLAVE, etc.) about this enclave from
+    // a trusted source.
+
+    // Since this report is only read by ourselves we can
+    // leave targetinfo zeroed.
+    sgx_arch_targetinfo_t targetinfo = {0};
+    struct pal_enclave_state reportdata = {0};
     sgx_arch_report_t report;
 
     int ret = sgx_report(&targetinfo, &reportdata, &report);
