@@ -285,6 +285,8 @@ done_finding:
 
     if (!npals) {
         ret = 0;
+        if (timeout)
+            ret = DkThreadDelayExecution(timeout);
         goto done_polling;
     }
 
