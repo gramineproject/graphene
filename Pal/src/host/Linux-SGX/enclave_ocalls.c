@@ -66,11 +66,10 @@ int printf(const char * fmt, ...);
 
 int ocall_exit(int exitcode)
 {
-    int retval = 0;
     int64_t code = exitcode;
     SGX_OCALL(OCALL_EXIT, (void *) code);
     /* never reach here */
-    return retval;
+    return 0;
 }
 
 int ocall_print_string (const char * str, unsigned int length)
