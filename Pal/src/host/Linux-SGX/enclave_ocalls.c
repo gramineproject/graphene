@@ -68,7 +68,10 @@ int ocall_exit(int exitcode)
 {
     int64_t code = exitcode;
     SGX_OCALL(OCALL_EXIT, (void *) code);
-    /* never reach here */
+    // OCALL_EXIT should never return. Since we can't trust the outside to
+    // actually do this, loop here forever. Inline assembler to avoid that the
+    // compiler might think that it can drop it.
+    __asm__ volatile ("1: jmp 1b" ::: "memory");
     return 0;
 }
 
