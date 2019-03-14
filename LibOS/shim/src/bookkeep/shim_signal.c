@@ -338,7 +338,7 @@ static bool is_sgx_pal() {
     }
     barrier();
 
-    return (atomic_read(&sgx_pal) != 0);
+    return atomic_read(&sgx_pal) != 0;
 }
 
 /*
