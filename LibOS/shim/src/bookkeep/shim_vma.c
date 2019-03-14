@@ -121,6 +121,7 @@ static LOCKTYPE vma_list_lock;
 static inline bool test_vma_equal (struct shim_vma * vma,
                                    void * s, void * e)
 {
+    assert(s < e);
     return vma->start == s && vma->end == e;
 }
 
@@ -130,7 +131,8 @@ static inline bool test_vma_equal (struct shim_vma * vma,
 static inline bool test_vma_contain (struct shim_vma * vma,
                                      void * s, void * e)
 {
-    return s < e && vma->start <= s && vma->end >= e;
+    assert(s < e);
+    return vma->start <= s && vma->end >= e;
 }
 
 /*
@@ -139,6 +141,7 @@ static inline bool test_vma_contain (struct shim_vma * vma,
 static inline bool test_vma_startin (struct shim_vma * vma,
                                      void * s, void * e)
 {
+    assert(s < e);
     return vma->start >= s && vma->start < e;
 }
 
@@ -148,6 +151,7 @@ static inline bool test_vma_startin (struct shim_vma * vma,
 static inline bool test_vma_endin (struct shim_vma * vma,
                                    void * s, void * e)
 {
+    assert(s < e);
     return vma->end > s && vma->end <= e;
 }
 
@@ -157,6 +161,7 @@ static inline bool test_vma_endin (struct shim_vma * vma,
 static inline bool test_vma_overlap (struct shim_vma * vma,
                                      void * s, void * e)
 {
+    assert(s < e);
     return test_vma_contain(vma, s, s + 1) ||
            test_vma_contain(vma, e - 1, e) ||
            test_vma_startin(vma, s, e);
@@ -986,10 +991,11 @@ int lookup_overlap_vma (void * addr, uint64_t length,
 
 bool is_in_one_vma (void * addr, size_t length)
 {
-    struct shim_vma* tmp;
+    struct shim_vma* vma;
     lock(vma_list_lock);
-    listp_for_each_entry(tmp, &vma_list, list)
-        if (test_vma_contain(tmp, addr, addr + length)) {
+    listp_for_each_entry(vma, &vma_list, list)
+        if (vma->start <= addr && addr < vma->end &&
+            test_vma_contain(vma, addr, addr + length)) {
             unlock(vma_list_lock);
             return 1;
         }
