@@ -165,7 +165,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __store_context(tcb, context, signal);
     signal->pal_context = context;
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1)
+    if (tcb->context.preempt > 1)
         goto delay;
 
     if (__sigismember(&cur_thread->signal_mask, sig))
@@ -462,8 +462,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     assert(tcb);
     __disable_preempt(tcb);
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        tcb->context.preempt |= SIGNAL_DELAYED;
+    if (tcb->context.preempt > 1) {
         __enable_preempt(tcb);
         goto ret_exception;
     }
@@ -609,11 +608,10 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
         __handle_one_signal(tcb, sig, signal);
         free(signal);
         DkThreadYieldExecution();
-        tcb->context.preempt &= ~SIGNAL_DELAYED;
     }
 }
 
-void handle_signal (bool delayed_only)
+void handle_signal ()
 {
     shim_tcb_t * tcb = SHIM_GET_TLS();
     assert(tcb);
@@ -626,14 +624,10 @@ void handle_signal (bool delayed_only)
 
     __disable_preempt(tcb);
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        debug("signal delayed (%d)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
-        tcb->context.preempt |= SIGNAL_DELAYED;
+    if (tcb->context.preempt > 1) {
+        debug("signal delayed (%d)\n", tcb->context.preempt);
         goto out;
     }
-
-    if (delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))
-        goto out;
 
     __handle_signal(tcb, 0, NULL);
 out:
