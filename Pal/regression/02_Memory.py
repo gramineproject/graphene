@@ -17,6 +17,10 @@ regression.add_check(name="Memory Allocation",
 regression.add_check(name="Memory Allocation with Address",
     check=lambda res: "Memory Allocation with Address OK" in res[0].log)
 
+# SGX1 does not support unmapping a page or chaning its permission after
+# enclave init. Therefore the memory protection and deallocation tests will
+# fail. By utilizing SGX2 it's possibile to fix this.
+
 regression.add_check(name="Memory Protection", flaky = sgx,
     check=lambda res: "Memory Allocation Protection (RW) OK" in res[0].log and
                       "Memory Protection (R) OK" in res[0].log)
