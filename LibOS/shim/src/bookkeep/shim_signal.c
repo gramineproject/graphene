@@ -162,7 +162,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __store_context(tcb, context, signal);
     signal->pal_context = context;
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1 ||
+    if (tcb->context.preempt > 1 ||
         __sigismember(&cur_thread->signal_mask, sig)) {
         struct shim_signal ** signal_log = NULL;
         if ((signal = malloc_copy(signal,sizeof(struct shim_signal))) &&
@@ -551,11 +551,8 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
     if (!is_internal_tid(get_cur_tid())) {
         __disable_preempt(tcb);
-        if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-            tcb->context.preempt |= SIGNAL_DELAYED;
-        } else {
+        if (tcb->context.preempt <= 1)
             __handle_signal(tcb, 0);
-        }
         __enable_preempt(tcb);
     }
     DkExceptionReturn(event);
@@ -695,11 +692,10 @@ void __handle_signal (shim_tcb_t * tcb, int sig)
         __handle_one_signal(tcb, sig, signal);
         free(signal);
         DkThreadYieldExecution();
-        tcb->context.preempt &= ~SIGNAL_DELAYED;
     }
 }
 
-void handle_signal (bool delayed_only)
+void handle_signal ()
 {
     shim_tcb_t * tcb = shim_get_tls();
     assert(tcb);
@@ -712,12 +708,10 @@ void handle_signal (bool delayed_only)
 
     __disable_preempt(tcb);
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        debug("signal delayed (%ld)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
-        tcb->context.preempt |= SIGNAL_DELAYED;
-    } else if (!(delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))) {
+    if (tcb->context.preempt > 1)
+        debug("signal delayed (%ld)\n", tcb->context.preempt);
+    else
         __handle_signal(tcb, 0);
-    }
 
     __enable_preempt(tcb);
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);

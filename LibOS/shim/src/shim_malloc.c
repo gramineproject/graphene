@@ -82,7 +82,7 @@ void * __system_malloc (size_t size)
             /* If the allocation is interrupted by signal, try to handle the
              * signal and then retry the allocation. */
             if (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED) {
-                handle_signal(true);
+                handle_signal();
                 continue;
             }
 
