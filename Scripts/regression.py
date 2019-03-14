@@ -82,15 +82,15 @@ class Regression:
                     if run_times == times:
                         result = check(outputs)
                         if result:
-                            print '\033[92m[Success]\033[0m', name
+                            print '\033[92m[Success       ]\033[0m', name
                         else:
-                            print '\033[93m[Fail   ]\033[0m', name
+                            if ignore_failure:
+                                print '[Fail (Ignored)]', name
+                            else:
+                                print '\033[93m[Fail          ]\033[0m', name
+                                something_failed = 1
                             if timed_out : print 'Test timed out!'
                             keep_log = True
-                            if ignore_failure:
-                                print '   Ignoring failure.'
-                            else:
-                                something_failed = 1
                             
                 if self.keep_log and keep_log:
                     sargs = [re.sub(r"\W", '_', a).strip('_') for a in args]
