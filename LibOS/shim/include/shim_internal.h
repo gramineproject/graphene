@@ -173,7 +173,7 @@ static inline void do_pause (void);
     do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
 
 /* definition for syscall table */
-void handle_signal (bool delayed_only);
+void handle_signal (void);
 long convert_pal_errno (long err);
 void syscall_wrapper(void);
 void syscall_wrapper_after_syscalldb(void);
@@ -210,13 +210,13 @@ static inline uint64_t get_cur_preempt (void) {
     SHIM_ARG_TYPE __shim_##name(args) {                     \
         SHIM_ARG_TYPE ret = 0;                              \
         uint64_t preempt = get_cur_preempt();               \
-        /* handle_signal(true); */                          \
+        /* handle_signal(); */                              \
         /* check_stack_hook(); */                           \
         BEGIN_SYSCALL_PROFILE();
 
 #define END_SHIM(name)                                      \
         END_SYSCALL_PROFILE(name);                          \
-        handle_signal(false);                               \
+        handle_signal();                                    \
         assert(preempt == get_cur_preempt());               \
         return ret;                                         \
     }
@@ -470,10 +470,10 @@ static inline PAL_HANDLE thread_create (void * func, void * arg)
 static inline void __disable_preempt (shim_tcb_t * tcb)
 {
     //tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
-    /* Assert if this counter overflows */
-    assert((tcb->context.preempt & ~SIGNAL_DELAYED) != ~SIGNAL_DELAYED);
     tcb->context.preempt++;
-    //debug("disable preempt: %d\n", tcb->context.preempt & ~SIGNAL_DELAYED);
+    /* Assert if this counter overflows */
+    assert(tcb->context.preempt != 0);
+    //debug("disable preempt: %d\n", tcb->context.preempt);
 }
 
 static inline void disable_preempt (shim_tcb_t * tcb)
@@ -490,7 +490,7 @@ static inline void __enable_preempt (shim_tcb_t * tcb)
     /* Assert if this counter underflows */
     assert(tcb->context.preempt > 0);
     tcb->context.preempt--;
-    //debug("enable preempt: %d\n", tcb->context.preempt & ~SIGNAL_DELAYED);
+    //debug("enable preempt: %d\n", tcb->context.preempt);
 }
 
 void __handle_signal (shim_tcb_t * tcb, int sig);
@@ -500,10 +500,10 @@ static inline void enable_preempt (shim_tcb_t * tcb)
     if (!tcb && !(tcb = shim_get_tls()))
         return;
 
-    if (!(tcb->context.preempt & ~SIGNAL_DELAYED))
+    if (!tcb->context.preempt)
         return;
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) == 1)
+    if (tcb->context.preempt == 1)
         __handle_signal(tcb, 0);
 
     __enable_preempt(tcb);

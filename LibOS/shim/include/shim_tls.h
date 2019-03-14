@@ -47,8 +47,6 @@ struct shim_context {
 
 #include <shim_defs.h>
 
-#define SIGNAL_DELAYED       (0x80000000UL)
-
 #endif /* IN_SHIM */
 
 struct debug_buf;
