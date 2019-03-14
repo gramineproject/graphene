@@ -21,11 +21,11 @@ regression.add_check(name="Memory Allocation with Address",
 # enclave init. Therefore the memory protection and deallocation tests will
 # fail. By utilizing SGX2 it's possibile to fix this.
 
-regression.add_check(name="Memory Protection", flaky = sgx,
+regression.add_check(name="Memory Protection", ignore_failure = sgx,
     check=lambda res: "Memory Allocation Protection (RW) OK" in res[0].log and
                       "Memory Protection (R) OK" in res[0].log)
 
-regression.add_check(name="Memory Deallocation", flaky = sgx,
+regression.add_check(name="Memory Deallocation", ignore_failure = sgx,
     check=lambda res: "Memory Deallocation OK" in res[0].log)
 
 def check_quota(res):
