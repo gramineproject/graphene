@@ -510,10 +510,10 @@ PAL_BOL
 DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
 
 #ifdef __GNUC__
-# define symbol_version(real, name, version) \
+# define symbol_version_default(real, name, version) \
     __asm__ (".symver " #real "," #name "@@" #version "\n")
 #else
-# define symbol_version(real, name, version)
+# define symbol_version_default(real, name, version)
 #endif
 
 #endif /* PAL_H */
