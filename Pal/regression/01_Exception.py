@@ -20,5 +20,24 @@ regression.add_check(name="Exception Handler Swap",
 regression.add_check(name="Exception Handling (Set Context)",
     check=lambda res: any([line.startswith("Div-by-Zero Exception Handler 1") for line in res[0].log]))
 
+if os.environ['PAL_HOST'] == 'Linux':
+    def check_altstack(res):
+        stacks = []
+        for line in res[0].log:
+            if line.startswith('stack in '):
+                try:
+                    stack = int(line.split(' ')[3][2:], 16)
+                except:
+                    return False
+                stacks.append(stack)
+        # The first stack will be the main stack
+        for stack in stacks[1:]:
+            # Handler stack cannot be on the same page with the main stack
+            if int(stack / 4096) == int(stacks[0] / 4096):
+                return False
+        return True
+
+    regression.add_check(name="Use host alternate stack (Linux only)", check=check_altstack)
+
 rv = regression.run_checks()
 if rv: sys.exit(rv)
