@@ -764,6 +764,7 @@ static int load_enclave (struct pal_enclave * enclave,
                 uri);
         return -EINVAL;
     }
+    SGX_DBG(DBG_I, "token file: %s\n", uri);
 
     /* Initialize the enclave */
     ret = initialize_enclave(enclave);

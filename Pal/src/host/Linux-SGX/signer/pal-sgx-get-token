@@ -180,6 +180,7 @@ if __name__ == "__main__":
     print >>sys.stderr, "    flags:     %016x" % (bytes_to_int(attr['flags']))
     print >>sys.stderr, "    xfrms:     %016x" % (bytes_to_int(attr['xfrms']))
     print >>sys.stderr, "    miscs:     %08x"  % (bytes_to_int(attr['miscs']))
+    print >>sys.stderr, "    miscmask:  %08x"  % (bytes_to_int(attr['miscmask']))
     print >>sys.stderr, "    modulus:   %s..." % (attr['modulus'].encode('hex')[:32])
     print >>sys.stderr, "    exponent:  %d" % (attr['exponent'])
     print >>sys.stderr, "    signature: %s..." % (attr['signature'].encode('hex')[:32])
