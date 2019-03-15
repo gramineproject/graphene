@@ -67,8 +67,13 @@ int printf(const char * fmt, ...);
 int ocall_exit(int exitcode)
 {
     int64_t code = exitcode;
-    SGX_OCALL(OCALL_EXIT, (void *) code);
-    /* never reach here */
+    // There are two reasons for this loop:
+    //  1. Ocalls can be interuppted.
+    //  2. We can't trust the outside to actually exit, so we need to ensure
+    //     that we never return even when the outside tries to trick us.
+    while (true) {
+        SGX_OCALL(OCALL_EXIT, (void *) code);
+    }
     return 0;
 }
 
