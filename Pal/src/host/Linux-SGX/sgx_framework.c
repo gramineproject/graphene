@@ -52,6 +52,14 @@ int read_enclave_token(int token_file, sgx_arch_token_t * token)
     if (IS_ERR(bytes))
         return -ERRNO(bytes);
 
+    SGX_DBG(DBG_I, "read token:\n");
+    SGX_DBG(DBG_I, "    valid:        0x%08x\n", token->valid);
+    SGX_DBG(DBG_I, "    attr:         0x%016lx\n", token->attributes.flags);
+    SGX_DBG(DBG_I, "    xfrm:         0x%016lx\n", token->attributes.xfrm);
+    SGX_DBG(DBG_I, "    miscmask:     0x%08x\n",   token->miscselect_mask);
+    SGX_DBG(DBG_I, "    attr_mask:    0x%016lx\n", token->attribute_mask.flags);
+    SGX_DBG(DBG_I, "    xfrm_mask:    0x%016lx\n", token->attribute_mask.xfrm);
+
     return 0;
 }
 
@@ -203,6 +211,7 @@ int create_enclave(sgx_arch_secs_t * secs,
     SGX_DBG(DBG_I, "enclave created:\n");
     SGX_DBG(DBG_I, "    base:         0x%016lx\n", secs->baseaddr);
     SGX_DBG(DBG_I, "    size:         0x%016lx\n", secs->size);
+    SGX_DBG(DBG_I, "    miscselect:   0x%08x\n",   secs->miscselect);
     SGX_DBG(DBG_I, "    attr:         0x%016lx\n", secs->attributes.flags);
     SGX_DBG(DBG_I, "    xfrm:         0x%016lx\n", secs->attributes.xfrm);
     SGX_DBG(DBG_I, "    ssaframesize: %ld\n",      secs->ssaframesize);
