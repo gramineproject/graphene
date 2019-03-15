@@ -135,8 +135,40 @@ enclave_entry:
 	retq
 #endif
 
+	## There is a race between host signal delivery and restoring %rsp
+	## in this entry code. We must be careful to setup %rsp.
+	##
+	## Race scenario
+	## 1. We are inside the enclave but %rsp isn't restored yet to something
+	##    inside the enclave. That's for example the case when returning from
+	##    an ocall.
+	## 2. The enclave gets interrupted. The not restored %rsp is pushed into
+	##    SGX_GPR_RSP by the processor.
+	## 3. The host enters the enclave again and indicated that there's a new
+	##    signal.
+	## 4. The code after .Lhandle_exception pushes stuff on the untrusted
+	##    stack (because SGX_GPR_RSP points there) and then diverts %rip to
+	##    execute the event handler after ERESUME (which will use the untrusted
+	##    stack).
+	##
+	## The solution is to have a "fallback" value stored in SGX_STACK.
+	## If SGX_STACK == 0, then %rsp was correctly restored during
+	## Lreturn_from_ocall and the interrupt happened after that, so the CPU
+	## pushed the restored %rsp into SGX_GPR_RSP, thus we can safely use
+	## SGX_GPR_RSP.
+	## However, if SGX_STACK != 0, this indicates that the interrupt came
+	## before xchgq %rsp, %gs:SGX_STACK and %rsp was not yet restored,
+	## so the CPU pushed some untrusted %rsp into SGX_GPR_RSP. Thus, we
+	## cannot trust value in SGX_GPR_RSP and should fall-back to using
+	## SGX_STACK (which was updated with the last known good in-enclave
+	## %rsp during Leexit).
 .Lhandle_exception:
 	movq SGX_GPR_RSP(%rbx), %rsi
+	movq %gs:SGX_STACK, %rax
+	cmpq $0, %rax
+	je 1f
+	movq %rax, %rsi
+1:
 	subq $0x90, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
@@ -232,12 +264,9 @@ sgx_ocall:
 	fxsave (%rsp)
 
 	pushq %rbp
-	movq %rsp, %gs:SGX_STACK
 
 	jmp .Leexit
 
-.Lexception_handler:
-	
 .Leexit:
 	xorq %rdx, %rdx
 	xorq %r8, %r8
@@ -250,6 +279,7 @@ sgx_ocall:
 	xorq %r15, %r15
 	xorq %rbp, %rbp
 
+	movq %rsp, %gs:SGX_STACK
 	movq %gs:SGX_USTACK, %rsp
 	andq $STACK_ALIGN, %rsp
 
@@ -273,7 +303,8 @@ sgx_ocall:
 .Lno_fsbase:
 
 	# restore the stack
-	movq %gs:SGX_STACK, %rsp
+	movq $0, %rsp
+	xchgq %rsp, %gs:SGX_STACK
 
 	popq %rbp
 	fxrstor (%rsp)
