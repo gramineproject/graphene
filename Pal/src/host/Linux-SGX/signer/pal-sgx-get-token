@@ -42,7 +42,7 @@ def read_sigstruct(sig):
     fields['miscmask']  = ( 904, "4s",   'miscmask')
     fields['attrs']     = ( 928, "8s8s", 'flags', 'xfrms')
     fields['attrmask']  = ( 944, "8s8s", 'flagmask', 'xfrmmask')
-    fields['mrencalve'] = ( 960, "32s",  'mrenclave')
+    fields['mrenclave'] = ( 960, "32s",  'mrenclave')
     fields['isvprodid'] = (1024, "<H",   'isvprodid')
     fields['isvsvn']    = (1026, "<H",   'isvsvn')
 
