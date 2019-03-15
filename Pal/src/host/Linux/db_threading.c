@@ -65,7 +65,7 @@ int pal_thread_init (void * tcbptr)
         void * alt_stack_top = (void *) ((uint64_t) tcb & ~15);
         assert(alt_stack_top > tcb->alt_stack);
         stack_t ss;
-        ss.ss_sp    = alt_stack_top;
+        ss.ss_sp    = tcb->alt_stack;
         ss.ss_flags = 0;
         ss.ss_size  = alt_stack_top - tcb->alt_stack;
 
