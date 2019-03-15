@@ -137,6 +137,11 @@ enclave_entry:
 
 .Lhandle_exception:
 	movq SGX_GPR_RSP(%rbx), %rsi
+	movq %gs:SGX_STACK, %rax
+	cmpq $0, %rax
+	je 1f
+	movq %rax, %rsi
+1:
 	subq $0x90, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
@@ -232,7 +237,6 @@ sgx_ocall:
 	fxsave (%rsp)
 
 	pushq %rbp
-	movq %rsp, %gs:SGX_STACK
 
 	jmp .Leexit
 
@@ -250,6 +254,7 @@ sgx_ocall:
 	xorq %r15, %r15
 	xorq %rbp, %rbp
 
+	movq %rsp, %gs:SGX_STACK
 	movq %gs:SGX_USTACK, %rsp
 	andq $STACK_ALIGN, %rsp
 
@@ -273,7 +278,8 @@ sgx_ocall:
 .Lno_fsbase:
 
 	# restore the stack
-	movq %gs:SGX_STACK, %rsp
+	movq $0, %rsp
+	xchgq %rsp, %gs:SGX_STACK
 
 	popq %rbp
 	fxrstor (%rsp)
