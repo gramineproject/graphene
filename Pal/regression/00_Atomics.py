@@ -22,4 +22,5 @@ regression.add_check(name="Atomic Math",
                      "Subtract LLONG_MIN: Both values match -9223372036854775808" in res[0].log and \
                      "Subtract LLONG_MAX: Both values match -9223372036854775807" in res[0].log)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

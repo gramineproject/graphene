@@ -11,4 +11,5 @@ regression = Regression(loader, "futex")
 regression.add_check(name="Futex Wake Test",
     check=lambda res: "Woke all kiddos" in res[0].out)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)

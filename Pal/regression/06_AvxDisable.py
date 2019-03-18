@@ -15,7 +15,7 @@ def manifest_file(file):
 
 if not sgx:
   sys.exit(0)
-# Running AvxDisable 
+# Running AvxDisable
 regression = Regression(loader, "AvxDisable")
 
 regression.add_check(name="Disable AVX bit in XFRM",
