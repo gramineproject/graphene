@@ -10,7 +10,8 @@ LD	= ld
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin
 
-EXTRAFLAGS = -Wextra -Wno-unused-parameter -Wno-sign-compare
+EXTRAFLAGS = -Wextra -Wno-unused-parameter -Wno-sign-compare \
+      -Wignored-qualifiers
 
 CFLAGS += $(EXTRAFLAGS)
 
