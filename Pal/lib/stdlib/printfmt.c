@@ -196,6 +196,7 @@ vfprintfmt(int (*_fputch)(void *, int, void *), void * f, void * putdat,
 
 		// (signed) decimal
 		case 'd':
+		case 'i':
 			num = getint(ap, lflag);
 #if !defined(__i386__)
 			if ((long long) num < 0) {
