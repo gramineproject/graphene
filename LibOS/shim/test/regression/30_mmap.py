@@ -29,5 +29,6 @@ if not sgx:
                          check=lambda res: "mmap test 5 passed" in res[0].out and \
                          "mmap test 8 passed" in res[0].out)
 
-                         
-regression.run_checks()
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)

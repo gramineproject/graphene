@@ -36,8 +36,7 @@ regression.add_check(name="Multi-Process Broadcast Channel Transmission",
                       check_times("Broadcast Read: Hello World 1", res[0].log, 3))
 
 rv = regression.run_checks()
-## dp : For now, let these tests fail.  We should fix this.
-#if rv: sys.exit(rv)
+if rv: sys.exit(rv)
 
 regression = Regression(loader, "Process2")
 
@@ -46,5 +45,4 @@ regression.add_check(name="Process Creation without Executable",
                       check_times("Binary 2 Preloaded", res[0].log, 2))
 
 rv = regression.run_checks()
-#if rv: sys.exit(rv)
-
+if rv: sys.exit(rv)
