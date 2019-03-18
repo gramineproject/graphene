@@ -152,7 +152,12 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     setup_pal_map(&pal_map);
 
     /* initialize enclave properties */
-    init_enclave();
+    rv = init_enclave();
+    if (rv) {
+        SGX_DBG(DBG_E, "Failed to initalize enclave properties: %d\n", rv);
+        ocall_exit(rv);
+    }
+
     pal_state.start_time = start_time;
 
     /* if there is a parent, create parent handle */

@@ -480,13 +480,6 @@ int initialize_enclave (struct pal_enclave * enclave)
     pal_sec->manifest_addr = (void *) enclave_secs.baseaddr + manifest_area->addr;
     pal_sec->manifest_size = manifest_size;
 
-    memcpy(pal_sec->mrenclave, enclave_secs.mrenclave,
-           sizeof(sgx_arch_hash_t));
-    memcpy(pal_sec->mrsigner, enclave_secs.mrsigner,
-           sizeof(sgx_arch_hash_t));
-    memcpy(&pal_sec->enclave_attributes, &enclave_secs.attributes,
-           sizeof(sgx_arch_attributes_t));
-
     struct enclave_dbginfo * dbg = (void *)
             INLINE_SYSCALL(mmap, 6, DBGINFO_ADDR,
                            sizeof(struct enclave_dbginfo),
