@@ -71,6 +71,7 @@ struct shim_fs_ops {
     int (*move) (const char * trim_old_name, const char * trim_new_name);
     int (*copy) (const char * trim_old_name, const char * trim_new_name);
 
+    /* Returns 0 on success, -errno on error */
     int (*truncate) (struct shim_handle * hdl, uint64_t len);
 
     /* hstat: get status of the file */

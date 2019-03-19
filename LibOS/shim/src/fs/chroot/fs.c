@@ -929,6 +929,7 @@ out:
 static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
 {
     int ret = 0;
+    uint64_t rlen;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
@@ -946,7 +947,10 @@ static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
         atomic_set(&data->size, len);
     }
 
-    if ((ret = DkStreamSetLength(hdl->pal_handle, len)) != len) {
+    if ((rlen = DkStreamSetLength(hdl->pal_handle, len)) != len) {
+        // For an error, cast it back down to an int return code
+        ret = (int) rlen;
+        assert (ret < 0);
         goto out;
     }
 
