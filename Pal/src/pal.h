@@ -325,9 +325,8 @@ DkStreamMap (PAL_HANDLE handle, PAL_PTR address, PAL_FLG prot,
 void
 DkStreamUnmap (PAL_PTR addr, PAL_NUM size);
 
-/* Sets the length of the file referenced by handle to
- * length.  Returns the new length of the stream on success,
- * a negative value (cast to a PAL_NUM) on failure.
+/* Sets the length of the file referenced by handle to length.  Returns the 0
+ * on success, a _positive_ errno on failure.
  */
 PAL_NUM
 DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length);

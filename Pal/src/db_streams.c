@@ -647,6 +647,7 @@ int64_t _DkStreamSetLength (PAL_HANDLE handle, uint64_t length)
 PAL_NUM
 DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length)
 {
+    PAL_NUM rv = 0;
     ENTER_PAL_CALL(DkStreamSetLength);
 
     if (!handle) {
@@ -656,12 +657,16 @@ DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length)
 
     int64_t ret = _DkStreamSetLength(handle, length);
 
+    // Convert failure to a positive value
     if (ret < 0) {
         _DkRaiseFailure(-ret);
-        ret = 0;
+        rv = -ret;
     }
 
-    LEAVE_PAL_CALL_RETURN(ret);
+    // At this point, ret should equal length
+    assert (ret == length);
+
+    LEAVE_PAL_CALL_RETURN(rv);
 }
 
 /* _DkStreamFlush for internal use. This function sync up the handle with

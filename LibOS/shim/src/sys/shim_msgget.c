@@ -792,7 +792,7 @@ static int __store_msg_persist (struct shim_msg_handle * msgq)
                         sizeof(struct msg_backup) * msgq->nmsgs +
                         msgq->currentsize;
 
-    if (DkStreamSetLength(file, expected_size) != expected_size)
+    if (DkStreamSetLength(file, expected_size))
         goto err_file;
 
     void * mem = (void *) DkStreamMap(file, NULL,
