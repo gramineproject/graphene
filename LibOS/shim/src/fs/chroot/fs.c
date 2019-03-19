@@ -268,7 +268,7 @@ static int __query_attr (struct shim_dentry * dent,
     } else {
         /* DEP 3/18/17: Right now, we don't support hard links,
          * so just return 1;
-         */ 
+         */
         data->nlink = 1;
     }
 
@@ -929,6 +929,7 @@ out:
 static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
 {
     int ret = 0;
+    uint64_t rv;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
@@ -945,8 +946,10 @@ static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
         struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
         atomic_set(&data->size, len);
     }
-
-    if ((ret = DkStreamSetLength(hdl->pal_handle, len)) != len) {
+    rv = DkStreamSetLength(hdl->pal_handle, len);
+    if (rv) {
+        // For an error, cast it back down to an int return code
+        ret = -((int)rv);
         goto out;
     }
 
