@@ -1257,7 +1257,7 @@ void restore_context (struct shim_context * context)
     *(void **) (context->sp - 8) = context->ret_ip;
 
     /* Ready to resume execution, re-enable preemption. */
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     __enable_preempt(tcb);
 
     memset(context, 0, sizeof(struct shim_context));

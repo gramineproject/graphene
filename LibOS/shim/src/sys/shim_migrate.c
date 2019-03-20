@@ -273,7 +273,7 @@ int shim_do_checkpoint (const char * filename)
     if (ret < 0)
         return ret;
 
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     assert(tcb && tcb->tp);
     struct shim_signal signal;
     __store_context(tcb, NULL, &signal);

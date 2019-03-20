@@ -1574,7 +1574,7 @@ int execute_elf_object (struct shim_handle * exec, int argc, const char ** argp,
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 
     /* Ready to start execution, re-enable preemption. */
-    shim_tcb_t * tcb = SHIM_GET_TLS();
+    shim_tcb_t * tcb = shim_get_tls();
     __enable_preempt(tcb);
 
 #if defined(__x86_64__)

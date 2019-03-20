@@ -95,7 +95,7 @@ typedef struct
 
 #include <stddef.h>
 
-static inline bool SHIM_TLS_CHECK_CANARY(void)
+static inline bool shim_tls_check_canary(void)
 {
     uint64_t __canary;
     asm ("movq %%fs:%c1,%q0" : "=r" (__canary)
@@ -103,7 +103,7 @@ static inline bool SHIM_TLS_CHECK_CANARY(void)
     return __canary == SHIM_TLS_CANARY;
 }
 
-static inline shim_tcb_t * SHIM_GET_TLS(void)
+static inline shim_tcb_t * shim_get_tls(void)
 {
     shim_tcb_t *__self;
     asm ("movq %%fs:%c1,%q0" : "=r" (__self)
@@ -111,7 +111,7 @@ static inline shim_tcb_t * SHIM_GET_TLS(void)
     return __self;
 }
 
-static inline __libc_tcb_t * SHIM_LIBC_TCB(void)
+static inline __libc_tcb_t * shim_libc_tcb(void)
 {
     __libc_tcb_t *__self;
     asm ("movq %%fs:%c1,%q0" : "=r" (__self)
