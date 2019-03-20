@@ -76,7 +76,7 @@ static int make_socket_non_blocking (int sfd) {
 #define MAXEVENTS 64
 
 int main (int argc, char *argv[]) {
-    int sfd, s, n;
+    int sfd, s;
     int efd;
     struct epoll_event event;
     struct epoll_event *events;
@@ -117,7 +117,11 @@ int main (int argc, char *argv[]) {
     events = calloc (MAXEVENTS, sizeof event);
 
     /* epoll_wait with 1 second timeout */
-    n = epoll_wait (efd, events, MAXEVENTS, 1000);
+    s = epoll_wait (efd, events, MAXEVENTS, 1000);
+    if (s == -1) {
+        perror ("epoll_wait");
+        return 1;
+    }
 
     printf("epoll_wait test passed\n");
     free (events);
