@@ -26,3 +26,9 @@ To run one particular testcase, execute following :
 In this way, one can debug one particular syscall testcase.
 
 As you fix bugs, keep updating PASSED BLOCKED lists.
+
+If enabling a test from LOOPRUNS, first run make debug-loops and make sure the test passes.
+You can also use the script looprun.sh as: ./looprun.sh <test name> <count>
+Use the testname and count from DBG-LOOPRUNS.
+
+

@@ -110,10 +110,16 @@ CEND = '\033[0m'
 DEFAULT_TIMEOUT = 30
 DEFAULT_LOOPRUN = 1
 
+try:
+    debug = sys.argv[1]
+except Exception as e:
+	debug = False
+
 resultfile = "run_output"
 stablePass = "PASSED"
 timeouts = "TIMEOUTS"
-loopruns = "LOOPRUNS"
+loopruns = "DBG-LOOPRUNS" if debug else "CI-LOOPRUNS"
+print loopruns + "arg:" + str(debug)
 failed_tests_file = "Failed.csv"
 passed_tests_file = "Passed.csv"
 broken_tests_file = "Broken.csv"

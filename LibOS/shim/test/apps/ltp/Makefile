@@ -47,5 +47,13 @@ regression:
 	@echo "\n\nLTP tests for system calls:"
 	./syscalls.sh
 
+debug-loops:
+	@echo "\n\nBuilding LTP..."
+	@$(MAKE) >> /dev/null 2>&1
+
+	@echo "\n\nLTP tests for debugging loop system calls:"
+	./syscalls.sh debug
+
+
 clean-build:
 	rm -rf $(BUILDDIR)
