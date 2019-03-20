@@ -17,7 +17,7 @@ $(SRCDIR).tar.xz:
 
 $(SRCDIR)/configure: $(SRCDIR).tar.xz
 	tar -xmJf $<
-	cd $(SRCDIR) && make autotools
+	cd $(SRCDIR) && aclocal && automake && make autotools
 
 $(BUILDDIR)/runltp: $(SRCDIR)/configure
 	cd $(SRCDIR) && ./configure
