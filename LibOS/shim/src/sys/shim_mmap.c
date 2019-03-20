@@ -202,6 +202,9 @@ int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
     if (!ALIGNED(addr))
         return -EINVAL;
 
+    if (test_user_memory(addr, len, false))
+        return -ENOMEM;
+
     unsigned long pages = ALIGN_UP(len) / allocsize;
     if (test_user_memory(vec, (pages + 7) / 8, true))
         return -EFAULT;

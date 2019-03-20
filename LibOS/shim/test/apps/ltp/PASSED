@@ -345,6 +345,10 @@ mkdirat01,2
 mkdirat01,3
 mkdirat01,4
 mkdirat01,5
+mincore01,1
+mincore01,2
+mincore01,3
+mincore01,4
 mlock03,1
 mmap001,1
 mmap001,2
