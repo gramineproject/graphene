@@ -157,7 +157,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     /*
      * work around for fork emulation
      * the first exec image to be loaded has to be at same address
-     * of parent.
+     * as parent.
      */
     if (mem == NULL && handle->file.map_start != NULL) {
         mem = (PAL_PTR)handle->file.map_start;

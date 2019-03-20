@@ -191,9 +191,10 @@ int _DkProcessCreate (PAL_HANDLE * handle,
          * tell its address to forked process.
          */
         size_t len;
+        const char * file_uri = "file:";
         if (exec_map && exec_map->l_name &&
+            (len = strlen(uri)) >= 5 && !memcmp(uri, file_uri, 5) &&
             /* skip "file:"*/
-            (len = strlen(uri)) >= 5 &&
             strlen(exec_map->l_name) == len - 5 &&
             /* + 1 for lasting * NUL */
             !memcmp(exec_map->l_name, uri + 5, len - 5 + 1))
