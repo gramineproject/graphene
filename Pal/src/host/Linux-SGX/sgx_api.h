@@ -42,32 +42,31 @@ int sgx_verify_report (sgx_arch_report_t * report);
  * sgx_report:
  * Generate SGX hardware signed report.
  */
-static inline int sgx_report (sgx_arch_targetinfo_t * targetinfo,
-                              void * reportdata, sgx_arch_report_t * report)
+static inline void sgx_report (sgx_arch_targetinfo_t * targetinfo,
+                               void * reportdata, sgx_arch_report_t * report)
 {
-    int eax = EREPORT;
+    int64_t rax = EREPORT;
     asm volatile(
         ENCLU "\n"
-        : "+a"(eax)
+        : "+a"(rax)
         : "b"(targetinfo), "c"(reportdata), "d"(report)
         : "memory");
-    return eax;
 }
 
 /*
  * sgx_getkey:
- * Retreive SGX hardware enclave cryptography key.
+ * Retrieve SGX hardware enclave cryptography key.
  */
 static inline int sgx_getkey (sgx_arch_keyrequest_t * keyrequest,
                               sgx_arch_key128_t * key)
 {
-    int eax = EGETKEY;
+    int64_t rax = EGETKEY;
     asm volatile(
         ENCLU "\n"
-        : "+a"(eax)
+        : "+a"(rax)
         : "b"(keyrequest), "c"(key)
         : "memory");
-    return eax;
+    return rax;
 }
 
 /*

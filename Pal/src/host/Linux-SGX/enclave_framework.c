@@ -51,10 +51,7 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     memcpy(&state, &pal_enclave_state, sizeof(struct pal_enclave_state));
     memcpy(&state.data, enclave_data, PAL_ATTESTATION_DATA_SIZE);
 
-    int ret = sgx_report(&targetinfo, &state, report);
-    if (ret)
-        return -PAL_ERROR_DENIED;
-
+    sgx_report(&targetinfo, &state, report);
     SGX_DBG(DBG_S, "Generated report:\n");
     SGX_DBG(DBG_S, "    cpusvn:           %08x %08x\n", report->cpusvn[0],
                                                 report->cpusvn[1]);
