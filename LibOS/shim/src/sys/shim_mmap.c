@@ -193,6 +193,10 @@ int shim_do_munmap (void * addr, size_t length)
     return 0;
 }
 
+/* This emulation of mincore() always tells that pages are _NOT_ in RAM
+ * pessimistically due to lack of a good way to know it.
+ * Possibly it may cause performance(or other) issue due to this lying.
+ */
 int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
 {
     if (!ALIGNED(addr))
@@ -211,7 +215,14 @@ int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
             return -ENOMEM;
     }
 
-    /* There is no good way to know the page is in RAM.
+    static bool warned = false;
+    if (!warned) {
+        warned = true;
+        warn("mincore emulation always tells pages are _NOT_ in RAM. "
+             "this may cause issue.\n");
+    }
+
+    /* There is no good way to know if the page is in RAM.
      * Conservatively tell that it's not in RAM. */
     for (i = 0; i < pages; i++)
         vec[i / 8] &= ~(1 << (i % 8));
