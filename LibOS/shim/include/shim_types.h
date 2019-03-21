@@ -323,6 +323,8 @@ typedef struct ucontext {
     struct _libc_fpstate __fpregs_mem;
 } ucontext_t;
 
+#define RED_ZONE_SIZE   128
+
 /* bits/ustat.h */
 struct __kernel_ustat
   {

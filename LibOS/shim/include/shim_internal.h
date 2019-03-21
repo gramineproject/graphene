@@ -178,6 +178,7 @@ static inline void do_pause (void);
 /* definition for syscall table */
 void handle_signal (bool delayed_only);
 long convert_pal_errno (long err);
+void syscall_wrapper(void);
 
 #define PAL_ERRNO  convert_pal_errno(PAL_NATIVE_ERRNO)
 
