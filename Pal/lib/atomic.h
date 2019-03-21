@@ -168,6 +168,14 @@ static inline int64_t cmpxchg(volatile int64_t *p, int64_t t, int64_t s)
     return t;
 }
 
+static inline int atomic_add_return(int64_t i, struct atomic_int *v)
+{
+    return _atomic_add(i, v);
+}
+
+#define atomic_inc_return(v)    atomic_add_return(1, v)
+
+
 /* Helper function to atomically compare-and-swap the value in v.
  * If v == old, it sets v = new.
  * Returns the value originally in v. */
