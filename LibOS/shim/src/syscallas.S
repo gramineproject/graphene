@@ -28,6 +28,8 @@
         .global syscalldb
         .type syscalldb, @function
         .extern shim_table, debug_unsupp
+        .global syscall_wrapper
+        .type syscall_wrapper, @function
 
 
 syscalldb:
@@ -102,10 +104,30 @@ ret:
 isundef:
 #ifdef DEBUG
         mov %rax, %rdi
+        ## syscall_wrapper requires %rcx preserved
+        pushq %rcx
         call *debug_unsupp@GOTPCREL(%rip)
+        popq %rcx
 #endif
-        movq $-38, %rax
+        movq $-38, %rax	    # ENOSYS = 38
         jmp ret
 
         .cfi_endproc
         .size syscalldb, .-syscalldb
+
+        /*
+         * syscall_wrapper
+         * input:
+         * %rcx: return address. instruction rigth after syscall instruction
+         */
+syscall_wrapper:
+        .cfi_startproc
+
+        ## %rcx is preserved by syscalldb
+        subq $REDZONE_SIZE, %rsp
+        callq *syscalldb@GOTPCREL(%rip)
+        addq $REDZONE_SIZE, %rsp
+        jmpq *%rcx  /* syscalldb preserves %rcx */
+
+        .cfi_endproc
+        .size syscall_wrapper, .-syscall_wrapper

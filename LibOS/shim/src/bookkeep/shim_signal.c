@@ -422,7 +422,28 @@ internal:
         if (context)
             debug("illegal instruction at %p\n", context->IP);
 
-        deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
+        uint8_t * rip = (uint8_t*)context->IP;
+        /* syscall 0x0f 0x05 */
+        if (rip[-2] == 0x0f && rip[-1] == 0x05) {
+            /*
+             * SIGSYS case
+             * rip points to the address after syscall instruction
+             * %rcx: see the syscall_wrapper in syscallas.S
+             * TODO: check SIGSYS
+             */
+            context->rcx = (long)rip;
+            context->rip = (long)&syscall_wrapper;
+        } else if (rip[0] == 0x0f && rip[1] == 0x05) {
+            /*
+             * SIGILL case: this can happen in enclave
+             * %rcx: see the syscall_wrapper in syscallas.S
+             * TODO: check SIGILL and ILL_ILLOPN
+             */
+            context->rcx = (long)rip + 2;
+            context->rip = (long)&syscall_wrapper;
+        } else {
+            deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);
+        }
     } else {
         goto internal;
     }
