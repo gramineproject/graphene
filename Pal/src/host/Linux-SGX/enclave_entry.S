@@ -1,9 +1,6 @@
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 
-	.extern ecall_table
-	.extern enclave_ecall_pal_main
-
 # In some cases, like bogus parameters passed to enclave_entry, it's tricky to
 # return cleanly (passing the correct return address to EEXIT, OCALL_EXIT can
 # be interrupted, etc.). Since those cases should only ever happen with a
@@ -65,7 +62,7 @@ enclave_entry:
 	movq $1, %gs:SGX_ECALL_CALLED
 
 	# PAL convention:
-	# RDI - index in ecall_table
+	# RDI - ECALL number
 	# RSI - prointer to ecall arguments
 	# RDX - exit target
 	# RCX (former RSP) - The unstrusted stack
@@ -266,10 +263,6 @@ sgx_ocall:
 
 	movq $1, %gs:SGX_OCALL_PREPARED
 
-	jmp .Leexit
-
-.Lexception_handler:
-	
 .Leexit:
 	xorq %rdx, %rdx
 	xorq %r8, %r8
