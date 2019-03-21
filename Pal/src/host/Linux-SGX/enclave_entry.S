@@ -44,10 +44,25 @@ enclave_entry:
 	# from a OCALL in the untrusted PAL. Attackers can manipulate RDI
 	# to deceive the trusted PAL.
 
-	# A safe design: check if %gs:SGX_EXIT_TARGET is ever assigned
-	movq %gs:SGX_EXIT_TARGET, %rcx
+	# This thread can be interrupted but then the above check branches to
+	# .Lhandle_resume. So the outside can't re-enter the checks below in
+	# the middle.
+
+	# Only jump to .Lreturn_from_ocall if we have prepared the stack for
+	# it.
+	movq %gs:SGX_OCALL_PREPARED, %rcx
 	cmpq $0, %rcx
 	jne .Lreturn_from_ocall
+
+	# Ecalls are only used to start a thread (either the main or an
+	# additional thread). So per thread we should only get exactly one
+	# ecall. Enforce this here.
+	movq %gs:SGX_ECALL_CALLED, %rcx
+	cmpq $0, %rcx
+	je 1f
+	FAIL_LOOP
+1:
+	movq $1, %gs:SGX_ECALL_CALLED
 
 	# PAL convention:
 	# RDI - index in ecall_table
@@ -241,6 +256,8 @@ sgx_ocall:
 	pushq %rbp
 	movq %rsp, %gs:SGX_STACK
 
+	movq $1, %gs:SGX_OCALL_PREPARED
+
 	jmp .Leexit
 
 .Lexception_handler:
@@ -269,6 +286,8 @@ sgx_ocall:
 	# PAL convention:
 	# RDI - return value
 	# RSI - external event (if there is any)
+
+	movq $0, %gs:SGX_OCALL_PREPARED
 
 	movq %rdi, %rax
 
