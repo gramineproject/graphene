@@ -1,6 +1,8 @@
 #include "pal_linux_defs.h"
 #include "sgx_arch.h"
 
+#include "asm-offsets.h"
+
 	.extern tcs_base
 
 	.global sgx_ecall
