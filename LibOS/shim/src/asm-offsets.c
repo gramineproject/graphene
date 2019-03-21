@@ -1,11 +1,9 @@
+#include <asm-offsets-build.h>
+
 #include <stddef.h>
 
 #include <shim_internal.h>
 #include <shim_tls.h>
-
-#define OFFSET_T(name, str_t, member)                       \
-    asm volatile(".ascii \" #define " #name " %0 \"\n"::    \
-                 "i"(offsetof(str_t, member)))
 
 void dummy(void)
 {
