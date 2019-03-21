@@ -813,7 +813,7 @@ static int chroot_read (struct shim_handle * hdl, void * buf,
     ret = DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0) ? :
            (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ? 0 : -PAL_ERRNO);
 
-    if (ret > 0)
+    if (ret > 0 && file->type != FILE_TTY)
         file->marker += ret;
 
     unlock(hdl->lock);
