@@ -158,6 +158,14 @@ enclave_entry:
 #endif
 
 .Lhandle_exception:
+	# If the enclave has not been initialized yet, we should not try to
+	# call an event handler yet.
+	movq pal_enclave_state(%rip), %rax
+	andq $1, %rax
+	jne 1f
+	FAIL_LOOP
+1:
+
 	movq SGX_GPR_RSP(%rbx), %rsi
 	subq $0x90, %rsi
 
