@@ -855,7 +855,7 @@ unowned:
         }
 
         unlock(hdl->lock);
-        object_wait_one_safe(sem->event);
+        object_wait_one_retry(sem->event);
         lock(hdl->lock);
         SAVE_PROFILE_INTERVAL(sem_wait_for_complete);
     }

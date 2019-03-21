@@ -193,7 +193,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
 
     if (!do_checkpoint) {
         debug("waiting for checkpointing\n");
-        object_wait_one_safe(finish_event);
+        object_wait_one_retry(finish_event);
         return 0;
     }
 

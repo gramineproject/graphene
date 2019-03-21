@@ -1,6 +1,3 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
 /* Copyright (C) 2018 Intel Corporation
                       Isaku Yamahata <isaku.yamahata at gmail.com>
                                      <isaku.yamahata at intel.com>
@@ -26,22 +23,18 @@
 
 #include <shim_internal.h>
 
-int object_wait_one_safe(PAL_HANDLE handle)
+int object_wait_one_retry(PAL_HANDLE handle)
 {
-    for (;;) {
-        PAL_HANDLE ret;
+    PAL_HANDLE ret;
+    do {
         ret = DkObjectsWaitAny(1, &handle, NO_TIMEOUT);
-        if (ret == NULL) {
-            if (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED ||
-                PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN)
-                continue;
-
-            debug("waiting on %p results in error %s",
-                  handle, PAL_STRERROR(PAL_NATIVE_ERRNO));
-            return -PAL_NATIVE_ERRNO;
-        }
-
-        assert (ret == handle);
-        return 0;
+    } while (ret == NULL && (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED ||
+                             PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN));
+    if (ret == NULL) {
+        debug("waiting on %p resulted in error %s",
+              handle, PAL_STRERROR(PAL_NATIVE_ERRNO));
+        return -PAL_NATIVE_ERRNO;
     }
+    assert(ret == handle);
+    return 0;
 }
