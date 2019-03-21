@@ -1,5 +1,5 @@
 #include "sgx_arch.h"
-#include "sgx_tls.h"
+#include "asm-offsets.h"
 
 	.extern ecall_table
 	.extern enclave_ecall_pal_main
@@ -137,48 +137,49 @@ enclave_entry:
 
 .Lhandle_exception:
 	movq SGX_GPR_RSP(%rbx), %rsi
-	subq $0x90, %rsi
+	subq $SGX_CONTEXT_SIZE, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
 	# and dump into the context
 	xchgq %rdi, SGX_GPR_RDI(%rbx)
-	movq %rdi, 0x38(%rsi)
+	movq %rdi, SGX_CONTEXT_RDI(%rsi)
 
 	# dump the rest of context
 	movq SGX_GPR_RAX(%rbx), %rdi
-	movq %rdi, 0x00(%rsi)
+	movq %rdi, SGX_CONTEXT_RAX(%rsi)
 	movq SGX_GPR_RCX(%rbx), %rdi
-	movq %rdi, 0x08(%rsi)
+	movq %rdi, SGX_CONTEXT_RCX(%rsi)
 	movq SGX_GPR_RDX(%rbx), %rdi
-	movq %rdi, 0x10(%rsi)
+	movq %rdi, SGX_CONTEXT_RDX(%rsi)
 	movq SGX_GPR_RBX(%rbx), %rdi
-	movq %rdi, 0x18(%rsi)
+	movq %rdi, SGX_CONTEXT_RBX(%rsi)
 	movq SGX_GPR_RSP(%rbx), %rdi
-	movq %rdi, 0x20(%rsi)
+	movq %rdi, SGX_CONTEXT_RSP(%rsi)
 	movq SGX_GPR_RBP(%rbx), %rdi
-	movq %rdi, 0x28(%rsi)
+	movq %rdi, SGX_CONTEXT_RBP(%rsi)
 	movq SGX_GPR_RSI(%rbx), %rdi
-	movq %rdi, 0x30(%rsi)
+	movq %rdi, SGX_CONTEXT_RSI(%rsi)
+	/* rdi is saved above */
 	movq SGX_GPR_R8(%rbx), %rdi
-	movq %rdi, 0x40(%rsi)
+	movq %rdi, SGX_CONTEXT_R8(%rsi)
 	movq SGX_GPR_R9(%rbx), %rdi
-	movq %rdi, 0x48(%rsi)
+	movq %rdi, SGX_CONTEXT_R9(%rsi)
 	movq SGX_GPR_R10(%rbx), %rdi
-	movq %rdi, 0x50(%rsi)
+	movq %rdi, SGX_CONTEXT_R10(%rsi)
 	movq SGX_GPR_R11(%rbx), %rdi
-	movq %rdi, 0x58(%rsi)
+	movq %rdi, SGX_CONTEXT_R11(%rsi)
 	movq SGX_GPR_R12(%rbx), %rdi
-	movq %rdi, 0x60(%rsi)
+	movq %rdi, SGX_CONTEXT_R12(%rsi)
 	movq SGX_GPR_R13(%rbx), %rdi
-	movq %rdi, 0x68(%rsi)
+	movq %rdi, SGX_CONTEXT_R13(%rsi)
 	movq SGX_GPR_R14(%rbx), %rdi
-	movq %rdi, 0x70(%rsi)
+	movq %rdi, SGX_CONTEXT_R14(%rsi)
 	movq SGX_GPR_R15(%rbx), %rdi
-	movq %rdi, 0x78(%rsi)
+	movq %rdi, SGX_CONTEXT_R15(%rsi)
 	movq SGX_GPR_RFLAGS(%rbx), %rdi
-	movq %rdi, 0x80(%rsi)
+	movq %rdi, SGX_CONTEXT_RFLAGS(%rsi)
 	movq SGX_GPR_RIP(%rbx), %rdi
-	movq %rdi, 0x88(%rsi)
+	movq %rdi, SGX_CONTEXT_RIP(%rsi)
 
 	movq %rsi, SGX_GPR_RSP(%rbx)
 	movq %rsi, SGX_GPR_RSI(%rbx)
