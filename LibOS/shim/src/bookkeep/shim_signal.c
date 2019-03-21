@@ -395,6 +395,15 @@ ret_fault:
     return has_fault;
 }
 
+void __attribute__((weak)) syscall_wrapper(void)
+{
+    /*
+     * work around for link.
+     * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
+     * due to missing syscall_wrapper.
+     */
+}
+
 static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     struct shim_vma_val vma;
@@ -406,8 +415,46 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         if (context)
             debug("illegal instruction at 0x%08lx\n", context->IP);
 
-        deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
-                                     si_addr, (void *) arg), context);
+        uint8_t * rip = (uint8_t*)context->IP;
+        /*
+         * Emulate syscall instruction (opcode 0x0f 0x05);
+         * syscall instruction is prohibited in
+         *   Linux-SGX PAL and raises a SIGILL exception and
+         *   Linux PAL with seccomp and raise SIGSYS exception.
+         */
+#if 0
+        if (rip[-2] == 0x0f && rip[-1] == 0x05) {
+            /* TODO: once finished, remove "#if 0" above. */
+            /*
+             * SIGSYS case (can happen with Linux PAL with seccomp)
+             * rip points to the address after syscall instruction
+             * %rcx: syscall instruction must put an
+             *       instruction-after-syscall in rcx
+             */
+            context->rax = siginfo->si_syscall; /* PAL_CONTEXT doesn't
+                                                 * include a member
+                                                 * corresponding to
+                                                 * siginfo_t::si_syscall yet.
+                                                 */
+            context->rcx = (long)rip;
+            context->r11 = context->efl;
+            context->rip = (long)&syscall_wrapper;
+        } else
+#endif
+        if (rip[0] == 0x0f && rip[1] == 0x05) {
+            /*
+             * SIGILL case (can happen in Linux-SGX PAL)
+             * %rcx: syscall instruction must put an instruction-after-syscall
+             *       in rcx. See the syscall_wrapper in syscallas.S
+             * TODO: check SIGILL and ILL_ILLOPN
+             */
+            context->rcx = (long)rip + 2;
+            context->r11 = context->efl;
+            context->rip = (long)&syscall_wrapper;
+        } else {
+            deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC,
+                                         si_addr, (void *) arg), context);
+        }
     } else {
         internal_fault("Internal illegal fault", arg, context);
     }

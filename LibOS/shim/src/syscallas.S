@@ -28,6 +28,8 @@
         .global syscalldb
         .type syscalldb, @function
         .extern shim_table, debug_unsupp
+        .global syscall_wrapper
+        .type syscall_wrapper, @function
 
 
 syscalldb:
@@ -110,3 +112,32 @@ isundef:
 
         .cfi_endproc
         .size syscalldb, .-syscalldb
+
+        /*
+         * syscall_wrapper: emulate syscall instruction
+         *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
+         *
+         * input:
+         * %rcx: Instruction address to continue app execution after trapped
+         *       syscall instruction
+         * %r11: rflags on entering syscall
+         *
+         * FIXME: preserve rflags.
+         *        remember that clone-child can't use parent stack.
+         */
+syscall_wrapper:
+        .cfi_startproc
+
+        subq $RED_ZONE_SIZE, %rsp
+        callq *syscalldb@GOTPCREL(%rip)
+        addq $RED_ZONE_SIZE, %rsp
+#if 0
+        # TODO: once clone emulation is fixed, remove this #if 0
+        xchg %r11, (%rsp)
+        popfq
+        pushq %r11
+#endif
+        jmp *%rcx
+
+        .cfi_endproc
+        .size syscall_wrapper, .-syscall_wrapper
