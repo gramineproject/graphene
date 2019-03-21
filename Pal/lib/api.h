@@ -121,6 +121,9 @@ void vfprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
 
 int snprintf (char * buf, int n, const char * fmt, ...);
 
+int ffs (int x);
+int ffsl (long int x);
+
 /* Miscelleneous */
 
 int inet_pton4 (const char *src, int len, void *dst);
