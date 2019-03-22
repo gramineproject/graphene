@@ -35,7 +35,7 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
     SET_ENCLAVE_TLS(ustack,      untrusted_stack);
 
     if (atomic_cmpxchg(&enclave_start_called, 0, 1) == 0) {
-        // ENCALVE_START not yet called, so only valid ecall is ENCLAVE_START.
+        // ENCLAVE_START not yet called, so only valid ecall is ENCLAVE_START.
         if (ecall_index != ECALL_ENCLAVE_START) {
             // To keep things simple, we treat an invalid ecall_index like an
             // unsuccessful call to ENCLAVE_START.
@@ -50,13 +50,13 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
         pal_linux_main(ms->ms_arguments, ms->ms_environments,
                        ms->ms_sec_info);
     } else {
-        // ENCALVE_START already called (maybe successfully, maybe not), so
+        // ENCLAVE_START already called (maybe successfully, maybe not), so
         // only valid ecall is THREAD_START.
         if (ecall_index != ECALL_THREAD_START) {
             return;
         }
 
-        // Only allow THREAD_START after successfully enclave initialization.
+        // Only allow THREAD_START after successful enclave initialization.
         if (!(pal_enclave_state.enclave_flags & PAL_ENCLAVE_INITIALIZED)) {
             return;
         }
