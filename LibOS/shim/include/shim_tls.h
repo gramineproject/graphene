@@ -70,52 +70,27 @@ struct shim_tcb {
 
 #ifdef IN_SHIM
 
-/*
- * This struct must match the one defined in glibc/nptl/sysdeps/x86_64/tls.h
- * The first 10 members(from tcb to __unused1) are used by Glibc-internal,
- * they are NOT used by Graphene.
- * But Graphene needs to preserve the correct offset of shim_tcb so we have to
- * duplicate these 10 fields from the original Glibc struct.
- */
-struct __libc_tcb_t;
-typedef struct __libc_tcb_t __libc_tcb_t;
-struct __libc_tcb_t
-{
-    __libc_tcb_t *          tcb;
-    void *                  dtv, * self;
-    int                     mthreads, gscope;
-    uintptr_t               sysinfo, sg, pg;
-    unsigned long int       vgetcpu_cache[2];
-    int                     __unused1;
-    shim_tcb_t              shim_tcb;
-};
-
 #include <stddef.h>
 
 void init_tcb (shim_tcb_t * tcb);
+struct __libc_tcb_t;
+typedef struct __libc_tcb_t __libc_tcb_t;
 
-static inline bool shim_tls_check_canary(void)
-{
-    uint64_t __canary;
-    __asm__ ("movq %%fs:%c1,%q0" : "=r" (__canary)
-             : "i" (offsetof(__libc_tcb_t, shim_tcb.canary)));
-    return __canary == SHIM_TLS_CANARY;
-}
+/* don't define struct __libc_tcb_t. just type to point to libc tls
+ * LibOS doesn't access this structure as it's private to libc.
+ */
 
 static inline shim_tcb_t * shim_get_tls(void)
 {
-    shim_tcb_t *__self;
-    __asm__ ("movq %%fs:%c1,%q0" : "=r" (__self)
-             : "i" (offsetof(__libc_tcb_t, shim_tcb.self)));
-    return __self;
+    PAL_TCB * tcb = pal_get_tcb();
+    return (shim_tcb_t*)tcb->libos_tcb;
 }
 
-static inline __libc_tcb_t * shim_libc_tcb(void)
+static inline bool shim_tls_check_canary(void)
 {
-    __libc_tcb_t *__self;
-    __asm__ ("movq %%fs:%c1,%q0" : "=r" (__self)
-             : "i" (offsetof(__libc_tcb_t, tcb)));
-    return __self;
+    /* TODO: optimize to use single movq %gs:<offset> */
+    shim_tcb_t * shim_tcb = shim_get_tcb();
+    return shim_tcb->canary == SHIM_TLS_CANARY;
 }
 
 #endif /* IN_SHIM */
