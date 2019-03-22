@@ -18,6 +18,24 @@ void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
 
+int xsave_enabled = 0;
+uint64_t xsave_features = 0;
+uint32_t xsave_size = 0;
+//FXRSTOR only cares about the first 512 bytes, while
+//XRSTOR in compacted mode will ignore the first 512 bytes.
+const uint32_t SYNTHETIC_STATE[SYNTHETIC_STATE_SIZE/sizeof(uint32_t)]
+__attribute__((aligned(PAL_XSTATE_ALIGN))) = {
+    0x037F, 0, 0, 0, 0, 0, 0x1F80, 0xFFFF, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0x80000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // XCOMP_BV[63] = 1, compaction mode
+};
+
 static int register_trusted_file (const char * uri, const char * checksum_str);
 
 bool sgx_is_completely_within_enclave (const void * addr, uint64_t size)
@@ -87,6 +105,37 @@ uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr
     }
     memcpy((void*) ptr, uptr, usize);
     return usize;
+}
+
+/* this function is shamelessly stolen from linux-sgx */
+void init_xsave_size(uint64_t xfrm) {
+    const struct {
+        uint64_t bits;
+        uint32_t size;
+    } xsave_size_table[] = {// Note that the xsave_size should be in ascending order
+        {SGX_XFRM_LEGACY, 512 + 64},                    // 512 for legacy features, 64 for xsave header
+        {SGX_XFRM_AVX,    512 + 64 + 256},              // 256 for YMM0_H - YMM15_H registers
+        {SGX_XFRM_MPX,    512 + 64 + 256 + 256},        // 256 for MPX
+        {SGX_XFRM_AVX512, 512 + 64 + 256 + 256 + 1600}, // 1600 for k0 - k7, ZMM0_H - ZMM15_H, ZMM16 - ZMM31
+    };
+
+    /* fxsave/fxrstore as fallback */
+    xsave_enabled = 0;
+    xsave_features = PAL_XFEATURE_MASK_FPSSE;
+    xsave_size = 512 + 64;
+    if (!xfrm || (xfrm & SGX_XFRM_RESERVED)) {
+        SGX_DBG(DBG_I, "xsave is disabled\n");
+        return;
+    }
+
+    xsave_enabled = (xfrm == SGX_XFRM_LEGACY) ? 0 : 1;
+    for (size_t i = 0; i < sizeof(xsave_size_table)/sizeof(xsave_size_table[0]); i++) {
+        if ((xfrm & xsave_size_table[i].bits) == xsave_size_table[i].bits) {
+            xsave_features = xfrm;
+            xsave_size = xsave_size_table[i].size;
+        }
+    }
+    SGX_DBG(DBG_I, "xsave is enabled xsave_size: %u\n", xsave_size);
 }
 
 static void print_report(sgx_report_t* r) {
