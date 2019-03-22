@@ -84,6 +84,7 @@ struct shim_thread {
     void * stack, * stack_top, * stack_red;
     __libc_tcb_t * tcb;
     bool user_tcb; /* is tcb assigned by user? */
+    shim_tcb_t * shim_tcb;
     void * frameptr;
 
     REFTYPE ref_count;
@@ -121,16 +122,16 @@ int init_thread (void);
 
 static inline struct shim_thread * shim_thread_self(void)
 {
-    struct shim_thread * __self;
-    __asm__ ("movq %%fs:%c1,%q0" : "=r" (__self)
-             : "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));
-    return __self;
+    /* TODO: optimize to use single movq %gs:<offset> */
+    shim_tcb_t * shim_tcb = shim_get_tls();
+    return shim_tcb->tp;
 }
 
 static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __self)
 {
-    __asm__ ("movq %q0,%%fs:%c1" : : "r" (__self),
-             "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));
+    /* TODO: optimize to use single movq %gs:<offset> */
+    shim_tcb_t * shim_tcb = shim_get_tls();
+    shim_tcb->tp = __self;
     return __self;
 }
 
@@ -185,6 +186,7 @@ void set_cur_thread (struct shim_thread * thread)
     IDTYPE tid = 0;
 
     if (thread) {
+        __libc_tcb_t * libc_tcb = tcb->tp ? tcb->tp->tcb : NULL;
         if (tcb->tp && tcb->tp != thread)
             put_thread(tcb->tp);
 
@@ -192,7 +194,9 @@ void set_cur_thread (struct shim_thread * thread)
             get_thread(thread);
 
         tcb->tp = thread;
-        thread->tcb = container_of(tcb, __libc_tcb_t, shim_tcb);
+        if (libc_tcb)
+            thread->tcb = libc_tcb;
+        thread->shim_tcb = tcb;
         tid = thread->tid;
 
         if (!is_internal(thread) && !thread->signal_logs)
@@ -327,8 +331,6 @@ struct clone_args {
     struct shim_thread * parent, * thread;
     void * stack;
 };
-
-int clone_implementation_wrapper(struct clone_args * arg);
 
 void * allocate_stack (size_t size, size_t protect_size, bool user);
 
