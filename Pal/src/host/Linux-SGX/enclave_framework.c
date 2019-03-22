@@ -40,7 +40,7 @@ bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
         return false;
     }
 
-    return enclave_base > addr + size || enclave_top <= addr;
+    return enclave_base >= addr + size || enclave_top <= addr;
 }
 
 void * sgx_ocalloc (uint64_t size)
