@@ -111,6 +111,12 @@ extern char __text_start, __text_end, __data_start, __data_end;
 typedef struct { char bytes[32]; } sgx_checksum_t;
 typedef struct { char bytes[16]; } sgx_stub_t;
 
+extern uint64_t xsave_features;
+extern uint32_t xsave_size;
+#define SYNTHETIC_STATE_SIZE   (512 + 64)  // 512 for legacy regs, 64 for xsave header
+extern const uint32_t SYNTHETIC_STATE[];
+
+void init_xsave_size(uint64_t xfrm);
 noreturn void _restore_sgx_context(sgx_cpu_context_t* uc);
 
 int init_trusted_files (void);

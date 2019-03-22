@@ -70,6 +70,9 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
             return;
         }
 
+        /* xsave size must be initialized early */
+        init_xsave_size(ms->ms_sec_info->enclave_attributes.xfrm);
+
         /* pal_linux_main is responsible to check the passed arguments */
         pal_linux_main(ms->ms_args, ms->ms_args_size,
                        ms->ms_env, ms->ms_env_size,
