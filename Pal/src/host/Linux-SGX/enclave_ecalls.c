@@ -75,6 +75,8 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
 
         if (!ms) return;
 
+        /* xsave size must be initizlied early */
+        init_xsave_size(ms->ms_sec_info->enclave_attributes.xfrm);
         pal_linux_main(ms->ms_arguments, ms->ms_environments,
                        ms->ms_sec_info);
     } else {

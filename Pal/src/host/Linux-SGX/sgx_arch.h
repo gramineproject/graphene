@@ -44,6 +44,9 @@ typedef struct {
 
 #define SGX_XFRM_LEGACY          0x03ULL
 #define SGX_XFRM_AVX             0x06ULL
+#define SGX_XFRM_MPX             0x18ULL
+#define SGX_XFRM_AVX512          0xE6ULL
+#define SGX_XFRM_RESERVED        (~(SGX_XFRM_LEGACY | SGX_XFRM_AVX))
 
 #define SGX_MISCSELECT_EXINFO    0x01UL
 
