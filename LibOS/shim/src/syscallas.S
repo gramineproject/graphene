@@ -20,6 +20,7 @@
  * This file contains the entry point of system call table in library OS.
  */
 
+#include <shim_defs.h>
 #include <shim_unistd_defs.h>
 
 #include "asm-offsets.h"
@@ -31,6 +32,12 @@
         .type syscall_wrapper, @function
         .global syscall_wrapper_after_syscalldb
         .type syscall_wrapper_after_syscalldb, @function
+
+#ifdef SHIM_TCB_USE_GS
+# define TCB_SEGMENT_REG	%gs
+#else
+# define TCB_SEGMENT_REG	%fs
+#endif
 
 syscalldb:
         .cfi_startproc
@@ -76,7 +83,7 @@ syscalldb:
         cmp $0, %rbx
         je isundef
 
-        movq %rbp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
+        movq %rbp, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_REGS)
 
         /* Translating x86_64 kernel calling convention to user-space
          * calling convention */
@@ -84,7 +91,7 @@ syscalldb:
         andq $~0xF, %rsp  # Required by System V AMD64 ABI.
         call *%rbx
 
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
+        movq $0, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_REGS)
 
 ret:
         movq %rbp, %rsp

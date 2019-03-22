@@ -791,10 +791,15 @@ static void shim_ipc_helper_prepare(void* arg) {
     if (!arg)
         return;
 
-    __libc_tcb_t tcb;
-    allocate_tls(&tcb, false, self);
-    debug_setbuf(&tcb.shim_tcb, true);
-    debug("Set tcb to %p\n", &tcb);
+#ifdef SHIM_TCB_USE_GS
+    __libc_tcb_t* tcb = NULL;
+#else
+    __libc_tcb_t tcb_on_stack;
+    __libc_tcb_t* tcb = &tcb_on_stack;
+#endif
+    allocate_tls(tcb, false, self);
+    debug_setbuf(shim_get_tls(), true);
+    debug("Set tcb to %p\n", tcb);
 
     lock(&ipc_helper_lock);
     bool notme = (self != ipc_helper_thread);

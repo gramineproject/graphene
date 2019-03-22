@@ -67,4 +67,9 @@
 
 #define WARN_NO_GIPC                0   /* warn if GIPC is not supported for process creation */
 
+/* TODO: introduce configuration for compile time option */
+/* use %gs for LibOS TCB */
+//#define SHIM_TCB_USE_GS             1
+#undef SHIM_TCB_USE_GS
+
 #endif /* _SHIM_DEFS_H_ */

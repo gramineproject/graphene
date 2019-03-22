@@ -114,7 +114,7 @@ static void fixup_child_context(struct shim_regs * regs)
  */
 #define PTHREAD_PADDING 2048
 
-int clone_implementation_wrapper(struct clone_args * arg)
+static int clone_implementation_wrapper(struct clone_args * arg)
 {
     //The child thread created by PAL is now running on the
     //PAL allocated stack. We need to switch the stack to use
@@ -129,18 +129,20 @@ int clone_implementation_wrapper(struct clone_args * arg)
     assert(my_thread);
     get_thread(my_thread);
 
+#ifndef SHIM_TCB_USE_GS
     if (!my_thread->tcb) {
         stack_allocated = 1;
         my_thread->tcb = __alloca(sizeof(__libc_tcb_t) + PTHREAD_PADDING);
     }
+#endif
     allocate_tls(my_thread->tcb, my_thread->user_tcb, my_thread);
-    shim_tcb_t * tcb = &my_thread->tcb->shim_tcb;
+    shim_tcb_t * tcb = my_thread->shim_tcb;
     __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
                             // will be re-enabled when the thread starts.
     debug_setbuf(tcb, true);
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 
-    struct shim_regs regs = *arg->parent->tcb->shim_tcb.context.regs;
+    struct shim_regs regs = *arg->parent->shim_tcb->context.regs;
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
         my_thread->set_child_tid = NULL;
@@ -329,7 +331,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         } else {
             thread->tcb = tcb = self->tcb;
             old_shim_tcb = __alloca(sizeof(shim_tcb_t));
-            memcpy(old_shim_tcb, &tcb->shim_tcb, sizeof(shim_tcb_t));
+            memcpy(old_shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
             thread->user_tcb = self->user_tcb;
         }
 
@@ -338,8 +340,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             lookup_vma(ALIGN_DOWN(user_stack_addr), &vma);
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
-            parent_stack = (void *)tcb->shim_tcb.context.regs->rsp;
-            tcb->shim_tcb.context.regs->rsp = (unsigned long)user_stack_addr;
+            parent_stack = (void *)self->shim_tcb->context.regs->rsp;
+            thread->shim_tcb->context.regs->rsp = (unsigned long)user_stack_addr;
         }
 
         thread->is_alive = true;
@@ -349,9 +351,9 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 
         ret = do_migrate_process(&migrate_fork, NULL, NULL, thread);
         if (old_shim_tcb)
-            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(tcb->shim_tcb));
+            memcpy(self->shim_tcb, old_shim_tcb, sizeof(*self->shim_tcb));
         if (parent_stack)
-            tcb->shim_tcb.context.regs->rsp = (unsigned long)parent_stack;
+            self->shim_tcb->context.regs->rsp = (unsigned long)parent_stack;
         if (ret < 0)
             goto failed;
 

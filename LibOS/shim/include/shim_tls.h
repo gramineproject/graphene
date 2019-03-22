@@ -69,6 +69,31 @@ struct shim_tcb {
 
 #ifdef IN_SHIM
 
+#include <stddef.h>
+
+void init_tcb (shim_tcb_t * tcb);
+struct __libc_tcb_t;
+typedef struct __libc_tcb_t __libc_tcb_t;
+
+#ifdef SHIM_TCB_USE_GS
+/* don't define struct __libc_tcb_t. just type to point to libc tls
+ * LibOS doesn't access this structure as it's private to libc.
+ */
+
+static inline shim_tcb_t * shim_get_tls(void)
+{
+    PAL_TCB * tcb = pal_get_tcb();
+    return (shim_tcb_t*)tcb->libos_tcb;
+}
+
+static inline bool shim_tls_check_canary(void)
+{
+    /* optimize to use single movq %gs:<offset> */
+    shim_tcb_t * shim_tcb = shim_get_tls();
+    uint64_t __canary = shim_tcb->canary;
+    return __canary == SHIM_TLS_CANARY;
+}
+#else
 /*
  * This struct must match the one defined in glibc/nptl/sysdeps/x86_64/tls.h
  * The first 10 members(from tcb to __unused1) are used by Glibc-internal,
@@ -76,8 +101,6 @@ struct shim_tcb {
  * But Graphene needs to preserve the correct offset of shim_tcb so we have to
  * duplicate these 10 fields from the original Glibc struct.
  */
-struct __libc_tcb_t;
-typedef struct __libc_tcb_t __libc_tcb_t;
 struct __libc_tcb_t
 {
     __libc_tcb_t *          tcb;
@@ -88,10 +111,6 @@ struct __libc_tcb_t
     int                     __unused1;
     shim_tcb_t              shim_tcb;
 };
-
-#include <stddef.h>
-
-void init_tcb (shim_tcb_t * tcb);
 
 static inline bool shim_tls_check_canary(void)
 {
@@ -116,6 +135,7 @@ static inline __libc_tcb_t * shim_libc_tcb(void)
              : "i" (offsetof(__libc_tcb_t, tcb)));
     return __self;
 }
+#endif
 
 #endif /* IN_SHIM */
 

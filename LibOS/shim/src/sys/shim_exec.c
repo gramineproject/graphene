@@ -506,6 +506,7 @@ err:
     void * stack     = cur_thread->stack;
     void * stack_top = cur_thread->stack_top;
     __libc_tcb_t * tcb = cur_thread->tcb;
+    shim_tcb_t * shim_tcb = cur_thread->shim_tcb;
     bool   user_tcb  = cur_thread->user_tcb;
     void * frameptr  = cur_thread->frameptr;
 
@@ -514,6 +515,7 @@ err:
     cur_thread->frameptr  = NULL;
     cur_thread->tcb       = NULL;
     cur_thread->user_tcb  = false;
+    cur_thread->shim_tcb  = NULL;
     cur_thread->in_vm     = false;
     unlock(&cur_thread->lock);
 
@@ -525,6 +527,7 @@ err:
     cur_thread->frameptr    = frameptr;
     cur_thread->tcb         = tcb;
     cur_thread->user_tcb    = user_tcb;
+    cur_thread->shim_tcb    = shim_tcb;
 
     if (ret < 0) {
         /* execve failed, so reanimate this thread as if nothing happened */
