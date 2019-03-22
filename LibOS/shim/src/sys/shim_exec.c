@@ -87,16 +87,8 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     struct shim_thread * cur_thread = get_cur_thread();
     int ret = 0;
 
-#ifdef SHIM_TCB_USE_GS
     /* libc tcb is not needed because PAL provides storage for shim_tcb */
     __libc_tcb_t* tcb = NULL;
-#else
-# define LIBC_TCB_ALLOC_SIZE    (sizeof(__libc_tcb_t) + __alignof__(__libc_tcb_t))
-    __libc_tcb_t* tcb = ALIGN_UP_PTR(
-        cur_thread->stack_top - LIBC_TCB_ALLOC_SIZE,
-        __alignof__(*tcb));
-    memset(tcb, 0, sizeof(*tcb));
-#endif
     populate_tls(tcb, false);
     debug("set tcb to %p\n", tcb);
 
@@ -220,12 +212,7 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     int * new_argcp = &new_argc;
     const char ** new_argp;
     elf_auxv_t * new_auxp;
-#ifdef SHIM_TCB_USE_GS
     size_t reserve = 0;
-#else
-    /* reserve __libc_tcb_t for startup use. see __shim_do_execve_rtld() */
-    size_t reserve = LIBC_TCB_ALLOC_SIZE;
-#endif
     if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp,
                           reserve)) < 0)
         return ret;
@@ -506,6 +493,7 @@ err:
     void * stack     = cur_thread->stack;
     void * stack_top = cur_thread->stack_top;
     __libc_tcb_t * tcb = cur_thread->tcb;
+    shim_tcb_t * shim_tcb = cur_thread->shim_tcb;
     bool   user_tcb  = cur_thread->user_tcb;
     void * frameptr  = cur_thread->frameptr;
 
@@ -514,6 +502,7 @@ err:
     cur_thread->frameptr  = NULL;
     cur_thread->tcb       = NULL;
     cur_thread->user_tcb  = false;
+    cur_thread->shim_tcb  = NULL;
     cur_thread->in_vm     = false;
     unlock(&cur_thread->lock);
 
@@ -525,6 +514,7 @@ err:
     cur_thread->frameptr    = frameptr;
     cur_thread->tcb         = tcb;
     cur_thread->user_tcb    = user_tcb;
+    cur_thread->shim_tcb    = shim_tcb;
 
     if (ret < 0) {
         /* execve failed, so reanimate this thread as if nothing happened */
