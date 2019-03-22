@@ -53,7 +53,7 @@
  */
 int pal_thread_init (void * tcbptr)
 {
-    PAL_TCB * tcb = tcbptr;
+    PAL_TCB_LINUX * tcb = tcbptr;
     int ret;
 
     ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
@@ -102,8 +102,8 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     SET_HANDLE_TYPE(hdl, thread);
 
     // Initialize TCB at the top of the alternative stack.
-    PAL_TCB * tcb  = child_stack + ALT_STACK_SIZE - sizeof(PAL_TCB);
-    tcb->self      = tcb;
+    PAL_TCB_LINUX * tcb  = child_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
+    tcb->common.self = &tcb->common;
     tcb->handle    = hdl;
     tcb->alt_stack = child_stack; // Stack bottom
     tcb->callback  = callback;
@@ -168,7 +168,7 @@ void _DkThreadYieldExecution (void)
 /* _DkThreadExit for internal use: Thread exiting */
 void _DkThreadExit (void)
 {
-    PAL_TCB* tcb = get_tcb();
+    PAL_TCB_LINUX* tcb = get_tcb_linux();
     PAL_HANDLE handle = tcb->handle;
 
     if (tcb->alt_stack) {

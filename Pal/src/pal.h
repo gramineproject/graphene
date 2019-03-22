@@ -86,6 +86,31 @@ typedef union pal_handle
 
 #endif /* !IN_PAL */
 
+//#define SHIM_TCB_USE_GS 1   /* TODO: configuration variable */
+#undef SHIM_TCB_USE_GS
+
+#if defined(IN_PAL) || defined(SHIM_TCB_USE_GS)
+#define PAL_LIBOS_TCB_SIZE  256
+
+typedef struct pal_tcb {
+    struct pal_tcb * self;
+    /* uint64_t for alignment */
+#ifdef SHIM_TCB_USE_GS
+    uint64_t libos_tcb[PAL_LIBOS_TCB_SIZE / sizeof(uint64_t)];
+#endif
+    uint64_t private[];
+} PAL_TCB;
+
+static inline PAL_TCB * pal_get_tcb (void)
+{
+    PAL_TCB * tcb;
+    __asm__ ("movq %%gs:%c1,%q0"
+             : "=r" (tcb)
+             : "i" (offsetof(struct pal_tcb, self)));
+    return tcb;
+}
+#endif
+
 typedef struct {
 #ifdef __x86_64__
     PAL_NUM r8, r9, r10, r11, r12, r13, r14, r15;

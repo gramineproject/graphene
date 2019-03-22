@@ -217,7 +217,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
     // If the signal arrives in the middle of a PAL call, add the event
     // to pending in the current TCB.
     if (ADDR_IN_PAL(rip)) {
-        PAL_TCB * tcb = get_tcb();
+        PAL_TCB_LINUX * tcb = get_tcb_linux();
         assert(tcb);
         if (!tcb->pending_event) {
             // Use the preserved pending event slot
@@ -256,7 +256,7 @@ static void _DkPipeSighandler (int signum, siginfo_t * info,
  */
 void __check_pending_event (void)
 {
-    PAL_TCB * tcb = get_tcb();
+    PAL_TCB_LINUX * tcb = get_tcb_linux();
     assert(tcb);
     if (tcb->pending_event) {
         int event = tcb->pending_event;

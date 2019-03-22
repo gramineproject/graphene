@@ -7,18 +7,22 @@
 #ifndef __ASSEMBLER__
 
 struct enclave_tls {
-    uint64_t enclave_size;
-    uint64_t tcs_offset;
-    uint64_t initial_stack_offset;
-    void *   aep;
-    void *   ssa;
-    sgx_arch_gpr_t * gpr;
-    void *   exit_target;
-    void *   fsbase;
-    void *   stack;
-    void *   ustack_top;
-    void *   ustack;
-    struct pal_handle_thread * thread;
+    PAL_TCB common;
+    struct {
+        /* privateto Pal/Linux-SGX */
+        uint64_t enclave_size;
+        uint64_t tcs_offset;
+        uint64_t initial_stack_offset;
+        void *   aep;
+        void *   ssa;
+        sgx_arch_gpr_t * gpr;
+        void *   exit_target;
+        void *   fsbase;
+        void *   stack;
+        void *   ustack_top;
+        void *   ustack;
+        struct pal_handle_thread * thread;
+    };
 };
 
 #ifndef DEBUG
@@ -30,15 +34,23 @@ extern uint64_t dummy_debug_variable;
     ({                                                              \
         struct enclave_tls * tmp;                                   \
         uint64_t val;                                               \
+        _Static_assert(sizeof(tmp->member) == 8,                    \
+                       "sgx_tls member should have 8bytes type");   \
         __asm__ ("movq %%gs:%c1, %q0": "=r" (val)                   \
              : "i" (offsetof(struct enclave_tls, member)));         \
         (__typeof(tmp->member)) val;                                \
     })
 #  define SET_ENCLAVE_TLS(member, value)                            \
     do {                                                            \
+        struct enclave_tls * tmp;                                   \
+        _Static_assert(sizeof(tmp->member) == 8,                    \
+                       "sgx_tls member should have 8bytes type");   \
+        _Static_assert(sizeof(value) == 8,                          \
+                       "only 8 bytes type can be set to sgx_tls");  \
         __asm__ ("movq %q0, %%gs:%c1":: "r" (value),                \
              "i" (offsetof(struct enclave_tls, member)));           \
     } while (0)
+
 # endif
 
 #else /* !__ASSEMBLER__ */
