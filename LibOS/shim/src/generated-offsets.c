@@ -7,7 +7,12 @@
 
 void dummy(void)
 {
+    /* shim_tcb_t */
+#ifdef SHIM_TCB_USE_GS
+    OFFSET_T(SHIM_TCB_OFFSET, PAL_TCB, libos_tcb);
+#else
     OFFSET_T(SHIM_TCB_OFFSET, __libc_tcb_t, shim_tcb);
+#endif
     OFFSET_T(TCB_REGS, shim_tcb_t, context.regs);
     OFFSET(SHIM_REGS_RSP, shim_regs, rsp);
     OFFSET(SHIM_REGS_R15, shim_regs, r15);

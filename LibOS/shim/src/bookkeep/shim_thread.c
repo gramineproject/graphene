@@ -20,6 +20,7 @@
  * This file contains codes to maintain bookkeeping of threads in library OS.
  */
 
+#include <shim_defs.h>
 #include <shim_internal.h>
 #include <shim_thread.h>
 #include <shim_handle.h>
@@ -689,10 +690,10 @@ BEGIN_RS_FUNC(thread)
     if (thread->cwd)
         get_dentry(thread->cwd);
 
-    DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p",
+    DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p,shim_tcb=%p",
              thread->tid, thread->tgid,
              thread->parent ? thread->parent->tid : thread->tid,
-             thread->stack, thread->frameptr, thread->tcb);
+             thread->stack, thread->frameptr, thread->tcb, thread->shim_tcb);
 }
 END_RS_FUNC(thread)
 
@@ -707,22 +708,29 @@ BEGIN_CP_FUNC(running_thread)
     DO_CP(thread, thread, &new_thread);
     ADD_CP_FUNC_ENTRY((ptr_t) new_thread - base);
 
+#ifdef SHIM_TCB_USE_GS
+    if (thread->shim_tcb) {
+        ptr_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
+        new_thread->shim_tcb = (void *)(base + toff);
+        memcpy(new_thread->shim_tcb, thread->shim_tcb, sizeof(shim_tcb_t));
+    }
+#else
     if (!thread->user_tcb && thread->tcb) {
         ptr_t toff = ADD_CP_OFFSET(sizeof(__libc_tcb_t));
         new_thread->tcb = (void *) (base + toff);
         memcpy(new_thread->tcb, thread->tcb, sizeof(__libc_tcb_t));
     }
+#endif
 }
 END_CP_FUNC(running_thread)
 
-int resume_wrapper (void * param)
+static int resume_wrapper (void * param)
 {
     struct shim_thread * thread = (struct shim_thread *) param;
     assert(thread);
 
     __libc_tcb_t * libc_tcb = thread->tcb;
-    assert(libc_tcb);
-    shim_tcb_t * tcb = &libc_tcb->shim_tcb;
+    shim_tcb_t * tcb = thread->shim_tcb;
     assert(tcb->context.regs && tcb->context.regs->rsp);
 
     thread->in_vm = thread->is_alive = true;
@@ -747,6 +755,10 @@ BEGIN_RS_FUNC(running_thread)
 
     if (!thread->user_tcb)
         CP_REBASE(thread->tcb);
+#ifdef SHIM_TCB_USE_GS
+    if (thread->shim_tcb)
+        CP_REBASE(thread->shim_tcb);
+#endif
 
     if (thread->set_child_tid) {
         /* CLONE_CHILD_SETTID */
@@ -764,17 +776,20 @@ BEGIN_RS_FUNC(running_thread)
 
         thread->pal_handle = handle;
     } else {
+#ifdef SHIM_TCB_USE_GS
+        if (thread->shim_tcb) {
+            memcpy(shim_get_tls(), thread->shim_tcb, sizeof(shim_tcb_t));
+            thread->shim_tcb = shim_get_tls();
+        }
+#endif
         __libc_tcb_t * libc_tcb = thread->tcb;
 
         if (libc_tcb) {
-            shim_tcb_t * tcb = &libc_tcb->shim_tcb;
+            shim_tcb_t * tcb = thread->shim_tcb;
             assert(tcb->context.regs && tcb->context.regs->rsp);
-            tcb->debug_buf = shim_get_tls()->debug_buf;
             allocate_tls(libc_tcb, thread->user_tcb, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
-            debug_setprefix(tcb);
-            debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
             /*
              * In execve case, the following holds:
@@ -783,11 +798,15 @@ BEGIN_RS_FUNC(running_thread)
              * frameptr = NULL
              * tcb = NULL
              * user_tcb = false
+             * shim_tcb = NULL
              * in_vm = false
              */
-            init_tcb(&shim_libc_tcb()->shim_tcb);
             set_cur_thread(thread);
+            init_tcb(thread->shim_tcb);
         }
+        debug_setbuf(thread->shim_tcb, false);
+        debug_setprefix(thread->shim_tcb);
+        debug("after resume, set tcb to %p\n", libc_tcb);
 
         thread->in_vm = thread->is_alive = true;
         thread->pal_handle = PAL_CB(first_thread);
