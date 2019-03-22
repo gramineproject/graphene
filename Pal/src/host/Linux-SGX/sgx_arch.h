@@ -77,6 +77,7 @@ typedef uint8_t sgx_isvfamily_id_t[SGX_ISV_FAMILY_ID_SIZE];
 #define SGX_XFRM_AVX            0x06ULL
 #define SGX_XFRM_MPX            0x18ULL
 #define SGX_XFRM_AVX512         0xe6ULL
+#define SGX_XFRM_RESERVED       (~(SGX_XFRM_LEGACY | SGX_XFRM_AVX))
 
 #define SGX_MISCSELECT_EXINFO   0x01UL
 
