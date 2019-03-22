@@ -341,6 +341,52 @@ sgx_ocall:
 	popq %rbp
 	retq
 
+	# void save_xregs(uint64_t xsave_area)
+	.global save_xregs
+	.type save_xregs, @function
+save_xregs:
+	fwait
+	movq xsave_enabled@GOTPCREL(%rip), %rax
+	movl (%rax), %eax
+	cmpl $0, %eax
+	jz 1f
+
+	## clear xsave header
+	movq $0, XSAVE_HEADER_OFFSET + 0 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 1 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 2 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 3 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 4 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 5 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 6 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 7 * 8(%rdi)
+
+	movl $0xffffffff, %eax
+	movl $0xffffffff, %edx
+	xsave64 (%rdi)
+	retq
+1:
+	fxsave64 (%rdi)
+	retq
+
+
+	# void restore_xregs(uint64_t xsave_area)
+	.global restore_xregs
+	.type restore_xregs, @function
+restore_xregs:
+	movq xsave_enabled@GOTPCREL(%rip), %rax
+	movl (%rax), %eax
+	cmpl $0, %eax
+	jz 1f
+
+	movl $0xffffffff, %eax
+	movl $0xffffffff, %edx
+	xrstor64 (%rdi)
+	retq
+1:
+	fxrstor64 (%rdi)
+	retq
+
 /*
  * sgx_report:
  * Generate SGX hardware signed report.

@@ -1,5 +1,6 @@
 #include <stddef.h>
 
+#include <pal.h>
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 
@@ -68,5 +69,9 @@ void dummy(void)
 
     /* sgx_arch_tcs_t */
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
-}
 
+    /* fp regs */
+    OFFSET_T(XSAVE_HEADER_OFFSET, PAL_XREGS_STATE, header);
+    DEFINE(PAL_XSTATE_ALIGN, PAL_XSTATE_ALIGN);
+    DEFINE(PAL_FP_XSTATE_MAGIC2_SIZE, PAL_FP_XSTATE_MAGIC2_SIZE);
+}
