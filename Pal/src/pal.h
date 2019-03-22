@@ -86,12 +86,135 @@ typedef union pal_handle
 
 #endif /* !IN_PAL */
 
+#ifdef __x86_64__
+union pal_csgsfs {
+    struct {
+        uint16_t cs;
+        uint16_t gs;
+        uint16_t fs;
+        uint16_t ss;
+    };
+    uint64_t csgsfs;
+};
+
+/* adopt Linux style fp layout */
+#define PAL_FP_XSTATE_MAGIC1        0x46505853U
+#define PAL_FP_XSTATE_MAGIC2        0x46505845U
+#define PAL_FP_XSTATE_MAGIC2_SIZE   sizeof(PAL_FP_XSTATE_MAGIC2)
+
+enum PAL_XFEATURE {
+    PAL_XFEATURE_FP,
+    PAL_XFEATURE_SSE,
+    PAL_XFEATURE_YMM,
+    PAL_XFEATURE_BNDREGS,
+    PAL_XFEATURE_BNDCSR,
+    PAL_XFEATURE_OPMASK,
+    PAL_XFEATURE_ZMM_Hi256,
+    PAL_XFEATURE_Hi16_ZMM,
+    PAL_XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
+    PAL_XFEATURE_PKRU,
+
+    PAL_XFEATURE_MAX,
+};
+
+#define PAL_XFEATURE_MASK_FP                (1UL << PAL_XFEATURE_FP)
+#define PAL_XFEATURE_MASK_SSE               (1UL << PAL_XFEATURE_SSE)
+#define PAL_XFEATURE_MASK_YMM               (1UL << PAL_XFEATURE_YMM)
+#define PAL_XFEATURE_MASK_BNDREGS           (1UL << PAL_XFEATURE_BNDREGS)
+#define PAL_XFEATURE_MASK_BNDCSR            (1UL << PAL_XFEATURE_BNDCSR)
+#define PAL_XFEATURE_MASK_OPMASK            (1UL << PAL_XFEATURE_OPMASK)
+#define PAL_XFEATURE_MASK_ZMM_Hi256         (1UL << PAL_XFEATURE_ZMM_Hi256)
+#define PAL_XFEATURE_MASK_Hi16_ZMM          (1UL << PAL_XFEATURE_Hi16_ZMM)
+#define PAL_XFEATURE_MASK_PT                (1UL << PAL_XFEATURE_PT_UNIMPLEMENTED_SO_FAR)
+#define PAL_XFEATURE_MASK_PKRU              (1UL << PAL_XFEATURE_PKRU)
+
+#define PAL_XFEATURE_MASK_FPSSE             (PAL_XFEATURE_MASK_FP \
+                                             | PAL_XFEATURE_MASK_SSE)
+#define PAL_XFEATURE_MASK_AVX512            (PAL_XFEATURE_MASK_OPMASK \
+                                             | PAL_XFEATURE_MASK_ZMM_Hi256 \
+                                             | PAL_XFEATURE_MASK_Hi16_ZMM)
+
+typedef struct {
+    uint32_t magic1;        /* PAL_FP_XSTATE_MAGIC1 */
+    uint32_t extended_size; /* xsave_size */
+    uint64_t xfeatures;     /* XSAVE feature */
+    uint32_t xstate_size;   /* xsave_size + PAL_FP_STATE_MAGIC2_SIZE */
+    uint32_t padding[7];
+} PAL_FPX_SW_BYTES;
+
+typedef struct {
+    uint32_t cwd;
+    uint32_t swd;
+    uint32_t twd;
+    uint32_t fip;
+    uint32_t fcs;
+    uint32_t foo;
+    uint32_t fos;
+    uint32_t st_space[20];
+    uint8_t ftop;
+    uint8_t changed;
+    uint8_t lookahead;
+    uint8_t no_update;
+    uint8_t rm;
+    uint8_t alimit;
+    void * info; /* struct math_emu_info */
+    uint32_t entry_eip;
+} PAL_SWREGS_STATE;
+
+typedef struct {
+    uint16_t significand[4];
+    uint16_t exponent;
+    uint16_t padding[3];
+} PAL_FPXREG;
+
+typedef struct {
+    uint32_t element[4];
+} PAL_XMMREG;
+
+typedef struct {
+    /* 64-bit FXSAVE format.  */
+    uint16_t cwd;
+    uint16_t swd;
+    uint16_t ftw;
+    uint16_t fop;
+    uint64_t rip;
+    uint64_t rdp;
+    uint32_t mxcsr;
+    uint32_t mxcr_mask;
+    PAL_FPXREG st[8];
+    PAL_XMMREG xmm[16];
+    union {
+        uint32_t padding[24];
+        struct {
+            uint32_t padding2[12];
+            PAL_FPX_SW_BYTES sw_reserved;
+        };
+    };
+} PAL_FPSTATE;
+
+typedef struct {
+    uint64_t xfeatures;
+    uint64_t xcomp_bv;
+    uint64_t reserved[6];
+} __attribute__((packed)) PAL_XSTATE_HEADER;
+
+#define PAL_XSTATE_ALIGN    64
+
+typedef struct {
+    PAL_FPSTATE fpstate;
+    PAL_XSTATE_HEADER header;
+} __attribute__((packed, aligned(64))) PAL_XREGS_STATE;
+#else
+# error "Unsupported architecture"
+#endif
+
 typedef struct {
 #ifdef __x86_64__
     PAL_NUM r8, r9, r10, r11, r12, r13, r14, r15;
     PAL_NUM rdi, rsi, rbp, rbx, rdx, rax, rcx;
     PAL_NUM rsp, rip;
     PAL_NUM efl, csgsfs, err, trapno, oldmask, cr2;
+    PAL_XREGS_STATE * fpregs;
 #else
 # error "Unsupported architecture"
 #endif
