@@ -756,3 +756,69 @@ _restore_sgx_context:
 	movq SGX_CPU_CONTEXT_RSP - SGX_CPU_CONTEXT_RIP(%rsp), %rsp
 .Ltmp_rip_saved2:
 	jmp *%gs:SGX_TMP_RIP
+
+	# void __save_xregs(uint64_t xsave_area)
+	#   %rdi: input: pointer to xsave_area
+	#	%r11: return address: not to use stack
+	#   %rax, %rdx: clobered
+	.global __save_xregs
+	.type __save_xregs, @function
+__save_xregs:
+	fwait
+	movq xsave_enabled@GOTPCREL(%rip), %rax
+	movl (%rax), %eax
+	cmpl $0, %eax
+	jz 1f
+
+	## clear xsave header
+	movq $0, XSAVE_HEADER_OFFSET + 0 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 1 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 2 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 3 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 4 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 5 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 6 * 8(%rdi)
+	movq $0, XSAVE_HEADER_OFFSET + 7 * 8(%rdi)
+
+	movl $0xffffffff, %eax
+	movl $0xffffffff, %edx
+	xsave64 (%rdi)
+	jmp *%r11
+1:
+	fxsave64 (%rdi)
+	jmp *%r11
+
+	# void save_xregs(uint64_t xsave_area)
+	.global save_xregs
+	.type save_xregs, @function
+save_xregs:
+	popq %r11
+	jmp __save_xregs
+
+	# void __restore_xregs(uint64_t xsave_area)
+	#   %rdi: input: pointer to xsave_area
+	#	%r11: return address: not to use stack
+	#   %rax, %rdx: clobered
+	.global __restore_xregs
+	.type __restore_xregs, @function
+__restore_xregs:
+	movq xsave_enabled@GOTPCREL(%rip), %rax
+	movl (%rax), %eax
+	cmpl $0, %eax
+	jz 1f
+
+	movl $0xffffffff, %eax
+	movl $0xffffffff, %edx
+	xrstor64 (%rdi)
+	jmp *%r11
+1:
+	fxrstor64 (%rdi)
+	jmp *%r11
+
+
+	# void restore_xregs(uint64_t xsave_area)
+	.global restore_xregs
+	.type restore_xregs, @function
+restore_xregs:
+	popq %r11
+	jmp __restore_xregs
