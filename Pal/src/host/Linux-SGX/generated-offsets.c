@@ -64,6 +64,7 @@ void dummy(void)
     DEFINE(SGX_CONTEXT_SIZE, sizeof(sgx_context_t));
 
     /* struct enclave_tls */
+    OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);
     OFFSET(SGX_ENCLAVE_SIZE, enclave_tls, enclave_size);
     OFFSET(SGX_TCS_OFFSET, enclave_tls, tcs_offset);
     OFFSET(SGX_INITIAL_STACK_OFFSET, enclave_tls, initial_stack_offset);
