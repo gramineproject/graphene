@@ -1,13 +1,14 @@
 #include <stddef.h>
 #include <asm/errno.h>
 
-#include "sgx_arch.h"
-#include "sgx_tls.h"
+#include "ecall_types.h"
+#include "ocall_types.h"
+#include "pal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "ecall_types.h"
-#include "ocall_types.h"
+#include "sgx_arch.h"
+#include "sgx_tls.h"
 
 #include <generated-offsets-build.h>
 
@@ -158,5 +159,9 @@ void dummy(void)
 
     /* Ocall Index */
     DEFINE(OCALL_EXIT, OCALL_EXIT);
-}
 
+    /* fp regs */
+    OFFSET_T(XSAVE_HEADER_OFFSET, PAL_XREGS_STATE, header);
+    DEFINE(PAL_XSTATE_ALIGN, PAL_XSTATE_ALIGN);
+    DEFINE(PAL_FP_XSTATE_MAGIC2_SIZE, PAL_FP_XSTATE_MAGIC2_SIZE);
+}
