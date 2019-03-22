@@ -23,6 +23,7 @@
  * This file contains codes to maintain bookkeeping of threads in library OS.
  */
 
+#include <shim_defs.h>
 #include <shim_internal.h>
 #include <shim_thread.h>
 #include <shim_handle.h>
@@ -683,10 +684,10 @@ BEGIN_RS_FUNC(thread)
     if (thread->cwd)
         get_dentry(thread->cwd);
 
-    DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p",
+    DEBUG_RS("tid=%d,tgid=%d,parent=%d,stack=%p,frameptr=%p,tcb=%p,shim_tcb=%p",
              thread->tid, thread->tgid,
              thread->parent ? thread->parent->tid : thread->tid,
-             thread->stack, thread->frameptr, thread->tcb);
+             thread->stack, thread->frameptr, thread->tcb, thread->shim_tcb);
 }
 END_RS_FUNC(thread)
 
@@ -705,22 +706,34 @@ BEGIN_CP_FUNC(running_thread)
         new_thread->tcb = (void *) (base + toff);
         memcpy(new_thread->tcb, thread->tcb, sizeof(__libc_tcb_t));
     }
+#ifdef SHIM_TCB_USE_GS
+    if (thread->shim_tcb) {
+        ptr_t toff = ADD_CP_OFFSET(sizeof(shim_tcb_t));
+        new_thread->shim_tcb = (void *)(base + toff);
+        memcpy(new_thread->shim_tcb, thread->shim_tcb, sizeof(shim_tcb_t));
+    }
+#endif
 }
 END_CP_FUNC(running_thread)
     
-int resume_wrapper (void * param)
+static int resume_wrapper (void * param)
 {
     struct shim_thread * thread = (struct shim_thread *) param;
     assert(thread);
 
     __libc_tcb_t * libc_tcb = (__libc_tcb_t *) thread->tcb;
     assert(libc_tcb);
-    shim_tcb_t * tcb = &libc_tcb->shim_tcb;
+    shim_tcb_t * tcb = thread->shim_tcb;
+#ifdef SHIM_TCB_USE_GS
+    memcpy(SHIM_GET_TLS(), tcb, sizeof(*tcb));
+    thread->shim_tcb = SHIM_GET_TLS();
+    tcb = thread->shim_tcb;
+#endif
     assert(tcb->context.sp);
 
     thread->in_vm = thread->is_alive = true;
     allocate_tls(libc_tcb, thread->user_tcb, thread);
-    debug_setbuf(tcb, true);
+    debug_setbuf(tcb, false);
     debug("set tcb to %p\n", libc_tcb);
 
     DkObjectsWaitAny(1, &thread_start_event, NO_TIMEOUT);
@@ -737,6 +750,10 @@ BEGIN_RS_FUNC(running_thread)
 
     if (!thread->user_tcb)
         CP_REBASE(thread->tcb);
+#ifdef SHIM_TCB_USE_GS
+    if (thread->shim_tcb)
+        CP_REBASE(thread->shim_tcb);
+#endif
 
     thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
                                  NUM_SIGS);
@@ -748,18 +765,25 @@ BEGIN_RS_FUNC(running_thread)
 
         thread->pal_handle = handle;
     } else {
+#ifdef SHIM_TCB_USE_GS
+        if (thread->shim_tcb) {
+            memcpy(SHIM_GET_TLS(), thread->shim_tcb, sizeof(shim_tcb_t));
+            thread->shim_tcb = SHIM_GET_TLS();
+        }
+        debug_setbuf(thread->shim_tcb, false);
+#endif
         __libc_tcb_t * libc_tcb = (__libc_tcb_t *) thread->tcb;
 
         if (libc_tcb) {
-            shim_tcb_t * tcb = &libc_tcb->shim_tcb;
+            shim_tcb_t * tcb = thread->shim_tcb;
             assert(tcb->context.sp);
-            tcb->debug_buf = SHIM_GET_TLS()->debug_buf;
             allocate_tls(libc_tcb, thread->user_tcb, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
             debug_setprefix(tcb);
             debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
+            init_tcb(thread->shim_tcb);
             set_cur_thread(thread);
         }
 

@@ -86,6 +86,7 @@ struct shim_thread {
     void * stack, * stack_top, * stack_red;
     void * tcb;
     bool user_tcb; /* is tcb assigned by user? */
+    shim_tcb_t * shim_tcb;
     void * frameptr;
 
     REFTYPE ref_count;
@@ -121,16 +122,37 @@ struct shim_simple_thread {
 
 int init_thread (void);
 
-#define SHIM_THREAD_SELF()                                     \
-    ({ struct shim_thread * __self;                            \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__self)               \
-           : "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));       \
-      __self; })
+#ifdef SHIM_TCB_USE_GS
+static inline struct shim_thread * SHIM_THREAD_SELF(void)
+{
+    /* optimize to use single movq %gs:<offset> */
+    shim_tcb_t * shim_tcb = SHIM_GET_TLS();
+    return shim_tcb->tp;
+}
 
-#define SAVE_SHIM_THREAD_SELF(__self)                         \
-  ({ asm ("movq %q0,%%fs:%c1" : : "r" (__self),               \
-          "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));         \
-     __self; })
+static inline struct shim_thread * SAVE_SHIM_THREAD_SELF(struct shim_thread * __self)
+{
+    /* optimize to use single movq %gs:<offset> */
+    shim_tcb_t * shim_tcb = SHIM_GET_TLS();
+    shim_tcb->tp = __self;
+    return __self;
+}
+#else
+static inline struct shim_thread * SHIM_THREAD_SELF(void)
+{
+    struct shim_thread * __self;
+    asm ("movq %%fs:%c1,%q0" : "=r" (__self)
+         : "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));
+    return __self;
+}
+
+static inline struct shim_thread * SAVE_SHIM_THREAD_SELF(struct shim_thread * __self)
+{
+     asm ("movq %q0,%%fs:%c1" : : "r" (__self),
+          "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));
+     return __self;
+}
+#endif
 
 void get_thread (struct shim_thread * thread);
 void put_thread (struct shim_thread * thread);
@@ -186,6 +208,7 @@ void set_cur_thread (struct shim_thread * thread)
 
         tcb->tp = thread;
         thread->tcb = container_of(tcb, __libc_tcb_t, shim_tcb);
+        thread->shim_tcb = tcb;
         tid = thread->tid;
 
         if (!IS_INTERNAL(thread) && !thread->signal_logs)
@@ -309,8 +332,6 @@ struct clone_args {
     void * stack;
     void * return_pc;
 };
-
-int clone_implementation_wrapper(struct clone_args * arg);
 
 void * allocate_stack (size_t size, size_t protect_size, bool user);
 int populate_user_stack (void * stack, size_t stack_size,

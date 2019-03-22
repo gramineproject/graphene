@@ -89,6 +89,7 @@ int shim_do_fork (void)
 
     new_thread->tcb      = cur_thread->tcb;
     new_thread->user_tcb = cur_thread->user_tcb;
+    new_thread->shim_tcb = cur_thread->shim_tcb;
     new_thread->tgid     = new_thread->tid;
     new_thread->in_vm    = false;
     new_thread->is_alive = true;
@@ -103,6 +104,7 @@ int shim_do_fork (void)
     lock(new_thread->lock);
     struct shim_handle_map * handle_map = new_thread->handle_map;
     new_thread->handle_map = NULL;
+    new_thread->shim_tcb = NULL;
     unlock(new_thread->lock);
     if (handle_map)
         put_handle_map(handle_map);

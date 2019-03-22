@@ -37,4 +37,7 @@
 #define MIGRATE_SYSV_SEM            0
 #define MIGRATE_SYSV_MSG            1
 
+//#define SHIM_TCB_USE_GS             1
+#undef SHIM_TCB_USE_GS
+
 #endif /* _SHIM_DEFS_H_ */

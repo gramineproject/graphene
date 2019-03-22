@@ -77,6 +77,31 @@ typedef struct {
 
 #ifdef IN_SHIM
 
+#include <stddef.h>
+
+void init_tcb (shim_tcb_t * tcb);
+
+#ifdef SHIM_TCB_USE_GS
+typedef struct __libc_tcb
+{
+    struct __libc_tcb * tcb;
+    shim_tcb_t shim_tcb;
+} __libc_tcb_t;
+
+static inline shim_tcb_t * SHIM_GET_TLS(void)
+{
+    PAL_TCB * tcb = pal_get_tcb();
+    return (shim_tcb_t*)tcb->libos_tcb;
+}
+
+static inline bool SHIM_TLS_CHECK_CANARY(void)
+{
+    /* optimize to use single movq %gs:<offset> */
+    shim_tcb_t * shim_tcb = SHIM_GET_TLS();
+    uint64_t __canary = shim_tcb->canary;
+    return __canary == SHIM_TLS_CANARY;
+}
+#else
 typedef struct
 {
     void *                  tcb, * dtv, * self;
@@ -87,25 +112,22 @@ typedef struct
     shim_tcb_t              shim_tcb;
 } __libc_tcb_t;
 
-#include <stddef.h>
+static inline bool SHIM_TLS_CHECK_CANARY(void)
+{
+    uint64_t __canary;
+    asm ("movq %%fs:%c1,%q0" : "=r" (__canary)
+         : "i" (offsetof(__libc_tcb_t, shim_tcb.canary)));
+    return __canary == SHIM_TLS_CANARY;
+}
 
-#define SHIM_TLS_CHECK_CANARY()                                \
-    ({ uint64_t __canary;                                      \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__canary)             \
-           : "i" (offsetof(__libc_tcb_t, shim_tcb.canary)));   \
-      __canary == SHIM_TLS_CANARY; })
-
-#define SHIM_GET_TLS()                                         \
-    ({ shim_tcb_t *__self;                                     \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__self)               \
-           : "i" (offsetof(__libc_tcb_t, shim_tcb.self)));     \
-      __self; })
-
-#define GET_LIBC_TCB()                                         \
-    ({ void *__self;                                           \
-        asm ("movq %%fs:%c1,%q0" : "=r" (__self)               \
-           : "i" (offsetof(__libc_tcb_t, tcb)));               \
-      __self; })
+static inline shim_tcb_t * SHIM_GET_TLS(void)
+{
+    shim_tcb_t *__self;
+    asm ("movq %%fs:%c1,%q0" : "=r" (__self)
+         : "i" (offsetof(__libc_tcb_t, shim_tcb.self)));
+    return __self;
+}
+#endif
 
 #endif /* IN_SHIM */
 

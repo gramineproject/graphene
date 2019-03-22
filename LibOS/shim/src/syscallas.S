@@ -20,6 +20,7 @@
  * This file contains the entry point of system call table in library OS.
  */
 
+#include <shim_defs.h>
 #include <shim_tls.h>
 #include <shim_unistd_defs.h>
 
@@ -29,6 +30,11 @@
         .type syscalldb, @function
         .extern shim_table, debug_unsupp
 
+#ifdef SHIM_TCB_USE_GS
+# define TCB_SEGMENT_REG	%gs
+#else
+# define TCB_SEGMENT_REG	%fs
+#endif
 
 syscalldb:
         .cfi_startproc
@@ -64,22 +70,22 @@ isdef:
         pushq %r14
         pushq %r15
 
-        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
+        movq %rax, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
         leaq 16(%rbp), %rax
-        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SP)
+        movq %rax, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_SP)
         movq 8(%rbp), %rax
-        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
-        movq %rsp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
+        movq %rax, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_RET_IP)
+        movq %rsp, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_REGS)
 
         /* Translating x86_64 kernel calling convention to user-space
          * calling convention */
         movq %r10, %rcx
         call *%rbx
 
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SP)
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
+        movq $0, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
+        movq $0, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_SP)
+        movq $0, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_RET_IP)
+        movq $0, TCB_SEGMENT_REG:(SHIM_TCB_OFFSET + TCB_REGS)
 
         popq %r15
         popq %r14
