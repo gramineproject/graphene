@@ -101,10 +101,8 @@ typedef struct {
     uint64_t urbp;
     uint32_t exitinfo;
     uint32_t reserved;
-#if SGX_HAS_FSGSBASE == 1
     uint64_t fsbase;
     uint64_t gsbase;
-#endif
 } sgx_arch_gpr_t;
 
 typedef struct {

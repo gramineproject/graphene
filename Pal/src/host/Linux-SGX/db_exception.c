@@ -190,13 +190,6 @@ void restore_sgx_context (sgx_context_t * uc)
 
 void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
 {
-#if SGX_HAS_FSGSBASE == 0
-    /* set the FS first if necessary */
-    uint64_t fsbase = (uint64_t) GET_ENCLAVE_TLS(fsbase);
-    if (fsbase)
-        wrfsbase(fsbase);
-#endif
-
     union {
         sgx_arch_exitinfo_t info;
         int intval;

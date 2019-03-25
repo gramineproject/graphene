@@ -204,21 +204,12 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 {
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
-#if SGX_HAS_FSGSBASE == 0
-    if (rip != (unsigned long) async_exit_pointer &&
-        rip != (unsigned long) double_async_exit) {
-#else
     if (rip != (unsigned long) async_exit_pointer) {
-#endif
         uc->uc_mcontext.gregs[REG_RIP] = (uint64_t) sgx_entry_return;
         uc->uc_mcontext.gregs[REG_RDI] = -PAL_ERROR_INTERRUPTED;
         uc->uc_mcontext.gregs[REG_RSI] = get_event_num(signum);
     } else {
-#if SGX_HAS_FSGSBASE != 0
         sgx_raise(get_event_num(signum));
-#else
-        uc->uc_mcontext.gregs[REG_R9]  = get_event_num(signum);
-#endif
     }
 }
 
@@ -227,12 +218,7 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
 {
     unsigned long rip = uc->uc_mcontext.gregs[REG_RIP];
 
-#if SGX_HAS_FSGSBASE == 0
-    if (rip != (unsigned long) async_exit_pointer &&
-        rip != (unsigned long) double_async_exit) {
-#else
     if (rip != (unsigned long) async_exit_pointer) {
-#endif
         switch (signum) {
             case SIGSEGV:
                 SGX_DBG(DBG_E, "Segmentation Fault in Untrusted Code (RIP = %08lx)\n", rip);
@@ -254,11 +240,7 @@ static void _DkResumeSighandler (int signum, siginfo_t * info,
     }
 
     int event = get_event_num(signum);
-#if SGX_HAS_FSGSBASE != 0
     sgx_raise(event);
-#else
-    uc->uc_mcontext.gregs[REG_R9] = event;
-#endif
 }
 
 int sgx_signal_setup (void)

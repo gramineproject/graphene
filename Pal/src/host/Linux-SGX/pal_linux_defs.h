@@ -15,8 +15,6 @@
 #define DEBUG_ECALL         (0)
 #define DEBUG_OCALL         (0)
 
-#define SGX_HAS_FSGSBASE    (1)
-
 #define TRUSTED_STUB_SIZE   (PRESET_PAGESIZE * 4)
 
 #define CACHE_FILE_STUBS    (1)
