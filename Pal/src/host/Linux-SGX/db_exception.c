@@ -213,6 +213,25 @@ static void save_pal_context (PAL_CONTEXT * ctx, sgx_context_t * uc,
         PAL_FP_XSTATE_MAGIC2;
 }
 
+static bool ocall_marker_check(sgx_context_t * uc,
+                               struct ocall_marker_buf * marker)
+{
+    if (marker == NULL)
+        return false;
+
+    uc->rax = -PAL_ERROR_INTERRUPTED;   // ocall_marker_ret::ret
+    uc->rdx = 0;                        // ocall_marker_ret::prev
+    uc->rbx = marker->rbx;
+    uc->rbp = marker->rbp;
+    uc->r12 = marker->r12;
+    uc->r13 = marker->r13;
+    uc->r14 = marker->r14;
+    uc->r15 = marker->r15;
+    uc->rsp = marker->rsp;
+    uc->rip = marker->rip;
+    return true;
+}
+
 static void _DkExceptionHandlerLoop (PAL_CONTEXT * ctx, sgx_context_t * uc,
                                      PAL_XREGS_STATE * xregs_state)
 {
@@ -225,6 +244,19 @@ static void _DkExceptionHandlerLoop (PAL_CONTEXT * ctx, sgx_context_t * uc,
         int event_num = ffsl(GET_ENCLAVE_TLS(pending_async_event));
         if (event_num-- > 0 &&
             test_and_clear_bit(event_num, &tls->pending_async_event)) {
+            struct ocall_marker_buf * marker = ocall_marker_clear();
+            if (ocall_marker_check(uc, marker)) {
+                ctx->rax = uc->rax;
+                ctx->rdx = uc->rdx;
+                ctx->rbx = uc->rbx;
+                ctx->rbp = uc->rbp;
+                ctx->r12 = uc->r12;
+                ctx->r13 = uc->r13;
+                ctx->r14 = uc->r14;
+                ctx->r15 = uc->r15;
+                ctx->rip = uc->rip;
+                ctx->rsp = uc->rsp;
+            }
             SGX_DBG(DBG_E, "event_num %d flags 0x%lx sigbit 0x%lx\n",
                     event_num,
                     GET_ENCLAVE_TLS(flags), GET_ENCLAVE_TLS(pending_async_event));
@@ -316,6 +348,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
     bool retry_event = (nest == 1);
 
     PAL_XREGS_STATE * xregs_state = (PAL_XREGS_STATE *)(uc + 1);
+    struct ocall_marker_buf * marker = ocall_marker_clear();
     SGX_DBG(DBG_E, "uc %p xregs_state %p\n", uc, xregs_state);
     assert((((uintptr_t)xregs_state) % PAL_XSTATE_ALIGN) == 0);
     save_xregs(xregs_state);
@@ -397,6 +430,8 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         (event_num == PAL_EVENT_QUIT ||
          event_num == PAL_EVENT_SUSPEND ||
          event_num == PAL_EVENT_RESUME)) {
+        /* ocall from exception handler might be interrupted */
+        ocall_marker_check(uc, marker);
         /* TODO: optimize out save/restore xregs */
         restore_sgx_context(uc, xregs_state, false);
         /* NOTREACHED */
@@ -415,15 +450,18 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
     PAL_NUM arg = 0;
     switch (event_num) {
     case PAL_EVENT_ILLEGAL:
+        assert(marker == NULL);
         arg = uc->rip;
         break;
     case PAL_EVENT_MEMFAULT:
+        assert(marker == NULL);
         /* TODO
          * SGX1 doesn't provide fault address.
          * SGX2 gives providing page. (lower address bits are masked)
          */
         break;
     default:
+        ocall_marker_check(uc, marker);
         /* nothing */
         break;
     }
@@ -481,7 +519,6 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc,
     assert((PAL_XREGS_STATE*) (uc + 1) == xregs_state);
 
     PAL_CONTEXT ctx;
-    save_pal_context(&ctx, uc, xregs_state);
     ctx.err = 0;
     ctx.trapno = event; /* XXX TODO: what kind of value should be returned in
                          * trapno. This is very implementation specific
@@ -492,17 +529,23 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc,
     if (event != 0) {
         assert(uc->rax == -PAL_ERROR_INTERRUPTED);
         set_bit(SGX_TLS_FLAGS_EVENT_EXECUTING_BIT, &get_enclave_tls()->flags);
+        struct ocall_marker_buf * marker = ocall_marker_clear();
+        ocall_marker_check(uc, marker);
         SGX_DBG(DBG_E,
                 "event %ld uc %p rsp 0x%08lx &rsp: %p rip 0x%08lx &rip: %p "
                 "xregs_state %p event_nest %ld\n",
                 event, uc, uc->rsp, &uc->rsp, uc->rip, &uc->rip, xregs_state,
                 nest);
+        save_pal_context(&ctx, uc, xregs_state);
         if (test_and_clear_bit(event,
                                &get_enclave_tls()->pending_async_event) &&
             !_DkGenericSignalHandle(event, 0, &ctx, uc, xregs_state,
                                     retry_event)
             && event != PAL_EVENT_RESUME)
             _DkThreadExit();
+    } else {
+        ocall_marker_clear(); /* Now the ocall completed safely. */
+        save_pal_context(&ctx, uc, xregs_state);
     }
 
     restore_pal_context(uc, xregs_state, &ctx, retry_event);

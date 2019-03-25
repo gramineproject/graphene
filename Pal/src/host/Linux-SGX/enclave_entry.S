@@ -586,6 +586,27 @@ restore_xregs:
 	fxrstor64 (%rdi)
 	retq
 
+	# struct ocall_merker_ret ocall_marker_save(struct ocall_marker_buf * marker);
+	.global ocall_marker_save
+	.type ocall_marker_save, @function
+ocall_marker_save:
+	movq %rbx, OCALL_MARKER_RBX(%rdi)
+	movq %rbp, OCALL_MARKER_RBP(%rdi)
+	movq %r12, OCALL_MARKER_R12(%rdi)
+	movq %r13, OCALL_MARKER_R13(%rdi)
+	movq %r14, OCALL_MARKER_R14(%rdi)
+	movq %r15, OCALL_MARKER_R15(%rdi)
+	leaq 8(%rsp), %rdx	# stack pointer of the caller
+	movq %rdx, OCALL_MARKER_RSP(%rdi)
+	movq (%rsp), %rax	# caller's rip
+	movq %rax, OCALL_MARKER_RIP(%rdi)
+
+	xchgq %rdi, %gs:SGX_OCALL_MARKER
+	movq %rdi, %rdx
+
+	xorq %rax, %rax
+	retq
+
 /*
  * sgx_report:
  * Generate SGX hardware signed report.

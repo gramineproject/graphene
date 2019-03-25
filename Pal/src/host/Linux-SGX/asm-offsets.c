@@ -3,6 +3,7 @@
 #include "pal.h"
 #include "sgx_arch.h"
 #include "sgx_tls.h"
+#include "enclave_ocalls.h"
 
 #include <asm-offsets-build.h>
 
@@ -62,6 +63,7 @@ void dummy(void)
     OFFSET(SGX_FLAGS, enclave_tls, flags);
     OFFSET(SGX_PENDING_ASYNC_EVENT, enclave_tls, pending_async_event);
     OFFSET(SGX_EVENT_NEST, enclave_tls, event_nest.counter);
+    OFFSET(SGX_OCALL_MARKER, enclave_tls, ocall_marker);
     OFFSET(SGX_AEP, enclave_tls, aep);
     OFFSET(SGX_SSA, enclave_tls, ssa);
     OFFSET(SGX_GPR, enclave_tls, gpr);
@@ -93,4 +95,14 @@ void dummy(void)
     DEFINE(PAL_EVENT_QUIT, PAL_EVENT_QUIT);
     DEFINE(PAL_EVENT_SUSPEND, PAL_EVENT_SUSPEND);
     DEFINE(PAL_EVENT_RESUME, PAL_EVENT_RESUME);
+
+    /* ocall_marker_buf */
+    OFFSET(OCALL_MARKER_RBX, ocall_marker_buf, rbx);
+    OFFSET(OCALL_MARKER_RBP, ocall_marker_buf, rbp);
+    OFFSET(OCALL_MARKER_R12, ocall_marker_buf, r12);
+    OFFSET(OCALL_MARKER_R13, ocall_marker_buf, r13);
+    OFFSET(OCALL_MARKER_R14, ocall_marker_buf, r14);
+    OFFSET(OCALL_MARKER_R15, ocall_marker_buf, r15);
+    OFFSET(OCALL_MARKER_RSP, ocall_marker_buf, rsp);
+    OFFSET(OCALL_MARKER_RIP, ocall_marker_buf, rip);
 }

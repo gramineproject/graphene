@@ -23,6 +23,7 @@ struct enclave_tls {
      PAL_EVENT_MASK(PAL_EVENT_RESUME))
     uint64_t pending_async_event;
     struct atomic_int event_nest;
+    struct ocall_marker_buf * ocall_marker;
     void *   aep;
     void *   ssa;
     sgx_arch_gpr_t * gpr;

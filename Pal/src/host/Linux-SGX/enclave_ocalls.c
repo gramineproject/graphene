@@ -19,6 +19,16 @@
     void * _tmp = sgx_ocalloc(len);     \
     if (_tmp == NULL) {                 \
         OCALL_EXIT();                   \
+        OCALL_MARKER_CLEAR();           \
+        return -PAL_ERROR_DENIED;  /* TODO: remove this control-flow obfuscation */  \
+    }                                   \
+    (val) = (type) _tmp;                \
+} while (0)
+
+#define __OCALLOC(val, type, len) do {  \
+    void * _tmp = sgx_ocalloc(len);     \
+    if (_tmp == NULL) {                 \
+        OCALL_EXIT();                   \
         return -PAL_ERROR_DENIED;  /* TODO: remove this control-flow obfuscation */  \
     }                                   \
     (val) = (type) _tmp;                \
@@ -64,44 +74,100 @@ int printf(const char * fmt, ...);
         } _ret;                                                         \
     })
 
+/* assert doesn't apply to ocall_print_string() to avoid assert loop */
+#define __OCALL_MARKER_SETUP()                  \
+    struct ocall_marker_buf __marker;           \
+    struct ocall_marker_ret __ret;              \
+    __ret = ocall_marker_save(&__marker);       \
+    if (__ret.ret < 0)                          \
+        goto __interrupted;
+
+#define __OCALL_MARKER_CLEAR()                  \
+    do {                                        \
+        ocall_marker_clear();                   \
+    } while (0)
+
+#define __OCALL_MARKER_RETURN()                 \
+    do {                                        \
+    __interrupted:                              \
+        OCALL_EXIT();                           \
+        ocall_marker_clear();                   \
+        return __ret.ret;                       \
+    } while (0)
+
+#define OCALL_MARKER_SETUP()                    \
+    struct ocall_marker_buf __marker;           \
+    struct ocall_marker_ret __ret;              \
+    __ret = ocall_marker_save(&__marker);       \
+    assert(__ret.prev == NULL);                 \
+    if (__ret.ret < 0)                          \
+        goto __interrupted;                     \
+    sgx_ocfree();
+
+#define OCALL_MARKER_CLEAR()                    \
+    do {                                        \
+        struct ocall_marker_buf * __prev =      \
+            ocall_marker_clear();               \
+        assert(__prev == &__marker ||           \
+               __prev == NULL);                 \
+    } while (0)
+
+#define OCALL_MARKER_RETURN()                   \
+    do {                                        \
+    __interrupted:                              \
+        OCALL_EXIT();                           \
+        struct ocall_marker_buf * __prev =      \
+            ocall_marker_clear();               \
+        assert(__prev == &__marker ||           \
+               __prev == NULL);                 \
+        return __ret.ret;                       \
+    } while (0)
+
 int ocall_exit(int exitcode)
 {
-    int64_t code = exitcode;
+    /* This ocall shouldn't return. If interrupted, try again */
     // There are two reasons for this loop:
     //  1. Ocalls can be interuppted.
     //  2. We can't trust the outside to actually exit, so we need to ensure
     //     that we never return even when the outside tries to trick us.
     while (true) {
+        __OCALL_MARKER_SETUP();
+        int64_t code = exitcode;
         SGX_OCALL(OCALL_EXIT, (void *) code);
+    __interrupted:
+        __OCALL_MARKER_CLEAR();
     }
+    /* NOTREACHED */
     return 0;
 }
 
 int ocall_print_string (const char * str, unsigned int length)
 {
+    if (!str || length <= 0) {
+        return -PAL_ERROR_DENIED;
+    }
+
+    __OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_print_string_t * ms;
     OCALLOC(ms, ms_ocall_print_string_t *, sizeof(*ms));
-
-    if (!str || length <= 0) {
-        OCALL_EXIT();
-        return -PAL_ERROR_DENIED;
-    }
 
     ms->ms_str = COPY_TO_USER(str, length);
     ms->ms_length = length;
 
     retval = SGX_OCALL(OCALL_PRINT_STRING, ms);
     OCALL_EXIT();
+    __OCALL_MARKER_CLEAR();
     return retval;
+    __OCALL_MARKER_RETURN();
 }
 
-int ocall_alloc_untrusted (uint64_t size, void ** mem)
+static int __ocall_alloc_untrusted (uint64_t size, void ** mem)
 {
     int retval = 0;
     ms_ocall_alloc_untrusted_t * ms;
 
-    OCALLOC(ms, ms_ocall_alloc_untrusted_t *, sizeof(*ms));
+    __OCALLOC(ms, ms_ocall_alloc_untrusted_t *, sizeof(*ms));
 
     ms->ms_size = size;
 
@@ -117,14 +183,24 @@ int ocall_alloc_untrusted (uint64_t size, void ** mem)
     return retval;
 }
 
-int ocall_map_untrusted (int fd, uint64_t offset,
-                         uint64_t size, unsigned short prot,
-                         void ** mem)
+int ocall_alloc_untrusted (uint64_t size, void ** mem)
+{
+    OCALL_MARKER_SETUP();
+    int retval = __ocall_alloc_untrusted(size, mem);
+    OCALL_MARKER_CLEAR();
+    return retval;
+    OCALL_MARKER_RETURN();
+}
+
+
+static int __ocall_map_untrusted (int fd, uint64_t offset,
+                                  uint64_t size, unsigned short prot,
+                                  void ** mem)
 {
     int retval = 0;
     ms_ocall_map_untrusted_t * ms;
 
-    OCALLOC(ms, ms_ocall_map_untrusted_t *, sizeof(*ms));
+    __OCALLOC(ms, ms_ocall_map_untrusted_t *, sizeof(*ms));
 
     ms->ms_fd = fd;
     ms->ms_offset = offset;
@@ -143,7 +219,19 @@ int ocall_map_untrusted (int fd, uint64_t offset,
     return retval;
 }
 
-int ocall_unmap_untrusted (const void * mem, uint64_t size)
+
+int ocall_map_untrusted (int fd, uint64_t offset,
+                         uint64_t size, unsigned short prot,
+                         void ** mem)
+{
+    OCALL_MARKER_SETUP();
+    int retval = __ocall_map_untrusted(fd, offset, size, prot, mem);
+    OCALL_MARKER_CLEAR();
+    return retval;
+    OCALL_MARKER_RETURN();
+}
+
+static int __ocall_unmap_untrusted (const void * mem, uint64_t size)
 {
     int retval = 0;
 
@@ -153,7 +241,7 @@ int ocall_unmap_untrusted (const void * mem, uint64_t size)
     }
 
     ms_ocall_unmap_untrusted_t * ms;
-    OCALLOC(ms, ms_ocall_unmap_untrusted_t *, sizeof(*ms));
+    __OCALLOC(ms, ms_ocall_unmap_untrusted_t *, sizeof(*ms));
 
     ms->ms_mem  = mem;
     ms->ms_size = size;
@@ -163,9 +251,19 @@ int ocall_unmap_untrusted (const void * mem, uint64_t size)
     return retval;
 }
 
+int ocall_unmap_untrusted (const void * mem, uint64_t size)
+{
+    OCALL_MARKER_SETUP();
+    int retval = __ocall_unmap_untrusted(mem, size);
+    OCALL_MARKER_CLEAR();
+    return retval;
+    OCALL_MARKER_RETURN();
+}
+
 int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
                  unsigned int values[4])
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_cpuid_t * ms;
     OCALLOC(ms, ms_ocall_cpuid_t *, sizeof(*ms));
@@ -182,11 +280,14 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
     }
 
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_open (const char * pathname, int flags, unsigned short mode)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_open_t * ms;
@@ -198,11 +299,14 @@ int ocall_open (const char * pathname, int flags, unsigned short mode)
 
     retval = SGX_OCALL(OCALL_OPEN, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_close (int fd)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_close_t *ms;
     OCALLOC(ms, ms_ocall_close_t *, sizeof(*ms));
@@ -211,18 +315,23 @@ int ocall_close (int fd)
 
     retval = SGX_OCALL(OCALL_CLOSE, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_read (int fd, void * buf, unsigned int count)
 {
     int retval = 0;
     void * obuf = NULL;
+    OCALL_MARKER_SETUP();
 
     if (count > 4096) {
-        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (retval < 0)
+        retval = __ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+        if (retval < 0) {
+            OCALL_MARKER_CLEAR();
             return retval;
+        }
     }
 
     ms_ocall_read_t * ms;
@@ -239,10 +348,17 @@ int ocall_read (int fd, void * buf, unsigned int count)
 
     if (retval > 0)
         memcpy(buf, ms->ms_buf, retval);
+__interrupted:
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
 
-    if (obuf)
-        ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
+    if (__ret.ret < 0)
+        retval = __ret.ret;
+    if (obuf) {
+        while (ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count))
+               == -PAL_ERROR_INTERRUPTED)
+            /* nothing */;
+    }
 
     return retval;
 }
@@ -251,11 +367,14 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 {
     int retval = 0;
     void * obuf = NULL;
+    OCALL_MARKER_SETUP();
 
     if (count > 4096) {
-        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (retval < 0)
+        retval = __ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+        if (retval < 0) {
+            OCALL_MARKER_CLEAR();
             return retval;
+        }
     }
 
     ms_ocall_write_t * ms;
@@ -271,16 +390,24 @@ int ocall_write (int fd, const void * buf, unsigned int count)
     ms->ms_count = count;
 
     retval = SGX_OCALL(OCALL_WRITE, ms);
+__interrupted:
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
 
-    if (obuf)
-        ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
+    if (__ret.ret < 0)
+        retval = __ret.ret;
+    if (obuf) {
+        while (ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count))
+               == -PAL_ERROR_INTERRUPTED)
+            /* nothing */;
+    }
 
     return retval;
 }
 
 int ocall_fstat (int fd, struct stat * buf)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_fstat_t * ms;
     OCALLOC(ms, ms_ocall_fstat_t *, sizeof(*ms));
@@ -291,11 +418,14 @@ int ocall_fstat (int fd, struct stat * buf)
     if (!retval)
         memcpy(buf, &ms->ms_stat, sizeof(struct stat));
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_fionread (int fd)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_fionread_t * ms;
     OCALLOC(ms, ms_ocall_fionread_t *, sizeof(*ms));
@@ -304,11 +434,14 @@ int ocall_fionread (int fd)
 
     retval = SGX_OCALL(OCALL_FIONREAD, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_fsetnonblock (int fd, int nonblocking)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_fsetnonblock_t * ms;
     OCALLOC(ms, ms_ocall_fsetnonblock_t *, sizeof(*ms));
@@ -318,11 +451,14 @@ int ocall_fsetnonblock (int fd, int nonblocking)
 
     retval = SGX_OCALL(OCALL_FSETNONBLOCK, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_fchmod (int fd, unsigned short mode)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_fchmod_t * ms;
     OCALLOC(ms, ms_ocall_fchmod_t *, sizeof(*ms));
@@ -332,11 +468,14 @@ int ocall_fchmod (int fd, unsigned short mode)
 
     retval = SGX_OCALL(OCALL_FCHMOD, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_fsync (int fd)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_fsync_t * ms;
     OCALLOC(ms, ms_ocall_fsync_t *, sizeof(*ms));
@@ -345,11 +484,14 @@ int ocall_fsync (int fd)
 
     retval = SGX_OCALL(OCALL_FSYNC, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_ftruncate (int fd, uint64_t length)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_ftruncate_t * ms;
     OCALLOC(ms, ms_ocall_ftruncate_t *, sizeof(*ms));
@@ -359,11 +501,14 @@ int ocall_ftruncate (int fd, uint64_t length)
 
     retval = SGX_OCALL(OCALL_FTRUNCATE, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_mkdir (const char * pathname, unsigned short mode)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_mkdir_t * ms;
@@ -374,11 +519,14 @@ int ocall_mkdir (const char * pathname, unsigned short mode)
 
     retval = SGX_OCALL(OCALL_MKDIR, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_getdents_t * ms;
     OCALLOC(ms, ms_ocall_getdents_t *, sizeof(*ms));
@@ -391,12 +539,18 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
     if (retval > 0)
         COPY_FROM_USER(dirp, ms->ms_dirp, retval);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_wake_thread (void * tcs)
 {
-    return SGX_OCALL(OCALL_WAKE_THREAD, tcs);
+    OCALL_MARKER_SETUP();
+    int retval = SGX_OCALL(OCALL_WAKE_THREAD, tcs);
+    OCALL_MARKER_CLEAR();
+    return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_create_process (const char * uri,
@@ -404,6 +558,7 @@ int ocall_create_process (const char * uri,
                           int procfds[3],
                           unsigned int * pid)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     int ulen = uri ? strlen(uri) + 1 : 0;
     ms_ocall_create_process_t * ms;
@@ -426,18 +581,22 @@ int ocall_create_process (const char * uri,
         procfds[2] = ms->ms_proc_fds[2];
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_futex (int * futex, int op, int val,
                  const uint64_t * timeout)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_futex_t * ms;
     OCALLOC(ms, ms_ocall_futex_t *, sizeof(*ms));
 
     if (!sgx_is_completely_outside_enclave(futex, sizeof(int))) {
         OCALL_EXIT();
+        OCALL_MARKER_CLEAR();
         return -PAL_ERROR_INVAL;
     }
 
@@ -448,12 +607,15 @@ int ocall_futex (int * futex, int op, int val,
 
     retval = SGX_OCALL(OCALL_FUTEX, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_socketpair (int domain, int type, int protocol,
                       int sockfds[2])
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_socketpair_t * ms;
     OCALLOC(ms, ms_ocall_socketpair_t *, sizeof(*ms));
@@ -468,13 +630,16 @@ int ocall_socketpair (int domain, int type, int protocol,
         sockfds[1] = ms->ms_sockfds[1];
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_listen (int domain, int type, int protocol,
                        struct sockaddr * addr, unsigned int * addrlen,
                        struct sockopt * sockopt)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     unsigned int bind_len = *addrlen;
     ms_ocall_sock_listen_t * ms;
@@ -492,6 +657,7 @@ int ocall_sock_listen (int domain, int type, int protocol,
             !sgx_is_completely_outside_enclave(ms->ms_addr, bind_len) ||
             ms->ms_addrlen > bind_len)) {
             OCALL_EXIT();
+            OCALL_MARKER_CLEAR();
             return -PAL_ERROR_DENIED;
         }
 
@@ -503,12 +669,15 @@ int ocall_sock_listen (int domain, int type, int protocol,
             *sockopt = ms->ms_sockopt;
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_accept (int sockfd, struct sockaddr * addr,
                        unsigned int * addrlen, struct sockopt * sockopt)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     unsigned int len = addrlen ? *addrlen : 0;
     ms_ocall_sock_accept_t * ms;
@@ -523,6 +692,7 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
         if (len && (!sgx_is_completely_outside_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
             OCALL_EXIT();
+            OCALL_MARKER_CLEAR();
             return -PAL_ERROR_DENIED;
         }
 
@@ -534,7 +704,9 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
             *sockopt = ms->ms_sockopt;
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_connect (int domain, int type, int protocol,
@@ -543,6 +715,7 @@ int ocall_sock_connect (int domain, int type, int protocol,
                         struct sockaddr * bind_addr,
                         unsigned int * bind_addrlen, struct sockopt * sockopt)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     unsigned int bind_len = bind_addrlen ? *bind_addrlen : 0;
     ms_ocall_sock_connect_t * ms;
@@ -562,6 +735,7 @@ int ocall_sock_connect (int domain, int type, int protocol,
             !sgx_is_completely_outside_enclave(ms->ms_bind_addr, bind_len) ||
             ms->ms_bind_addrlen > bind_len)) {
             OCALL_EXIT();
+            OCALL_MARKER_CLEAR();
             return -PAL_ERROR_DENIED;
         }
 
@@ -574,12 +748,15 @@ int ocall_sock_connect (int domain, int type, int protocol,
             *sockopt = ms->ms_sockopt;
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
                      struct sockaddr * addr, unsigned int * addrlen)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     unsigned int len = addrlen ? *addrlen : 0;
     ms_ocall_sock_recv_t * ms;
@@ -596,6 +773,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
         if (len && (!sgx_is_completely_outside_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
             OCALL_EXIT();
+            OCALL_MARKER_CLEAR();
             return -PAL_ERROR_DENIED;
         }
 
@@ -605,12 +783,15 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
             *addrlen = ms->ms_addrlen;
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
                      const struct sockaddr * addr, unsigned int addrlen)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_sock_send_t * ms;
     OCALLOC(ms, ms_ocall_sock_send_t *, sizeof(*ms));
@@ -623,12 +804,15 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
 
     retval = SGX_OCALL(OCALL_SOCK_SEND, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
                         unsigned int * fds, unsigned int * nfds)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_sock_recv_fd_t * ms;
     OCALLOC(ms, ms_ocall_sock_recv_fd_t *, sizeof(*ms));
@@ -644,6 +828,7 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
         if (!sgx_is_completely_outside_enclave(ms->ms_fds, sizeof(int) * (*nfds)) ||
             ms->ms_nfds > (*nfds)) {
             OCALL_EXIT();
+            OCALL_MARKER_CLEAR();
             return -PAL_ERROR_DENIED;
         }
 
@@ -652,12 +837,15 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
         *nfds = ms->ms_nfds;
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
                         const unsigned int * fds, unsigned int nfds)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_sock_send_fd_t * ms;
     OCALLOC(ms, ms_ocall_sock_send_fd_t *, sizeof(*ms));
@@ -670,12 +858,15 @@ int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
 
     retval = SGX_OCALL(OCALL_SOCK_SEND_FD, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_setopt (int sockfd, int level, int optname,
                        const void * optval, unsigned int optlen)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_sock_setopt_t * ms;
     OCALLOC(ms, ms_ocall_sock_setopt_t *, sizeof(*ms));
@@ -688,11 +879,14 @@ int ocall_sock_setopt (int sockfd, int level, int optname,
 
     retval = SGX_OCALL(OCALL_SOCK_SETOPT, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sock_shutdown (int sockfd, int how)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_sock_shutdown_t * ms;
     OCALLOC(ms, ms_ocall_sock_shutdown_t *, sizeof(*ms));
@@ -702,11 +896,14 @@ int ocall_sock_shutdown (int sockfd, int how)
 
     retval = SGX_OCALL(OCALL_SOCK_SHUTDOWN, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_gettime (unsigned long * microsec)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_gettime_t * ms;
     OCALLOC(ms, ms_ocall_gettime_t *, sizeof(*ms));
@@ -715,11 +912,14 @@ int ocall_gettime (unsigned long * microsec)
     if (!retval)
         *microsec = ms->ms_microsec;
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_sleep (unsigned long * microsec)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_sleep_t * ms;
     OCALLOC(ms, ms_ocall_sleep_t *, sizeof(*ms));
@@ -734,11 +934,14 @@ int ocall_sleep (unsigned long * microsec)
             *microsec = ms->ms_microsec;
     }
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     ms_ocall_poll_t * ms;
     OCALLOC(ms, ms_ocall_poll_t *, sizeof(*ms));
@@ -753,11 +956,14 @@ int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
     if (retval >= 0)
         COPY_FROM_USER(fds, ms->ms_fds, sizeof(struct pollfd) * nfds);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_rename (const char * oldpath, const char * newpath)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     int oldlen = oldpath ? strlen(oldpath) + 1 : 0;
     int newlen = newpath ? strlen(newpath) + 1 : 0;
@@ -769,11 +975,14 @@ int ocall_rename (const char * oldpath, const char * newpath)
 
     retval = SGX_OCALL(OCALL_RENAME, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_delete (const char * pathname)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     int len = pathname ? strlen(pathname) + 1 : 0;
     ms_ocall_delete_t * ms;
@@ -783,15 +992,20 @@ int ocall_delete (const char * pathname)
 
     retval = SGX_OCALL(OCALL_DELETE, ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
 
 int ocall_load_debug(const char * command)
 {
+    OCALL_MARKER_SETUP();
     int retval = 0;
     int len = strlen(command);
     const char * ms = COPY_TO_USER(command, len + 1);
     retval = SGX_OCALL(OCALL_LOAD_DEBUG, (void *) ms);
     OCALL_EXIT();
+    OCALL_MARKER_CLEAR();
     return retval;
+    OCALL_MARKER_RETURN();
 }
