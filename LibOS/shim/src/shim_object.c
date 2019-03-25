@@ -23,7 +23,7 @@
 
 #include <shim_internal.h>
 
-int object_wait_one_retry(PAL_HANDLE handle)
+int object_wait_with_retry(PAL_HANDLE handle)
 {
     PAL_HANDLE ret;
     do {

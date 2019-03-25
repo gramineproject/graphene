@@ -97,7 +97,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     struct clone_args *pcargs = arg;
     int stack_allocated = 0;
     
-    object_wait_one_retry(pcargs->create_event);
+    object_wait_with_retry(pcargs->create_event);
     DkObjectClose(pcargs->create_event);
 
     struct shim_thread * my_thread = pcargs->thread;
@@ -329,7 +329,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         *set_parent_tid = tid;
 
     DkEventSet(new_args->create_event);
-    object_wait_one_retry(new_args->initialize_event);
+    object_wait_with_retry(new_args->initialize_event);
     DkObjectClose(new_args->initialize_event);
     put_thread(thread);
     return tid;

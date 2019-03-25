@@ -722,7 +722,7 @@ int resume_wrapper (void * param)
     debug_setbuf(tcb, true);
     debug("set tcb to %p\n", libc_tcb);
 
-    object_wait_one_retry(thread_start_event);
+    object_wait_with_retry(thread_start_event);
 
     restore_context(&tcb->context);
     return 0;
