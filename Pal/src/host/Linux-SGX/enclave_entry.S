@@ -275,6 +275,10 @@ sgx_ocall:
 	xorq %r15, %r15
 	xorq %rbp, %rbp
 
+	# It's ok to use the untrusted stack and exit target below without
+	# checks since the processor will ensure that after exiting enclave
+	# mode in-enclave memory can't be accessed.
+
 	movq %gs:SGX_USTACK, %rsp
 	andq $STACK_ALIGN, %rsp
 
