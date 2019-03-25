@@ -112,9 +112,6 @@ int sgx_ecall (long ecall_no, void * ms);
 int sgx_raise (int event);
 
 void async_exit_pointer (void);
-#if SGX_HAS_FSGSBASE == 0
-void double_async_exit (void);
-#endif
 
 int interrupt_thread (void * tcs);
 int clone_thread (void);

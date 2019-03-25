@@ -26,38 +26,6 @@ sgx_ecall:
 	.global async_exit_pointer
 	.type async_exit_pointer, @function
 
-#if SGX_HAS_FSGSBASE == 0
-async_exit_pointer:
-	# because ERESUME doesn't restore FS/GS, we must do EENTER
-
-	movq current_tcs@gottpoff(%rip), %rbx
-	movq %fs:(%rbx), %rbx
-
-	leaq double_async_exit(%rip), %rcx
-
-	# put the exit address in RDX
-	leaq .Lreal_resume(%rip), %rdx
-
-	movq $EENTER, %rax
-	ENCLU
-
-.Lreal_resume:
-	# RBX has to be the TCS of the thread
-	movq current_tcs@gottpoff(%rip), %rbx
-	movq %fs:(%rbx), %rbx
-
-	# RCX has to be the AEP (Asynchronous Exit Pointer)
-	leaq async_exit_pointer(%rip), %rcx
-
-	movq $ERESUME, %rax
-	ENCLU
-
-	.global double_async_exit
-	.type double_async_exit, @function
-
-double_async_exit:
-	ENCLU
-#else
 async_exit_pointer:
 	ENCLU
 
@@ -70,7 +38,6 @@ sgx_raise:
 
 .Lafter_resume:
 	retq
-#endif
 
 sgx_entry:
 	# arguments: RDI - code, RSI - ms

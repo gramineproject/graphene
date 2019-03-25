@@ -97,26 +97,6 @@ enclave_entry:
 	cmpl $0, %edi
 	jne .Lhandle_exception
 
-#if SGX_HAS_FSGSBASE == 0
-	movq %gs:SGX_FSBASE, %rdi
-	cmpq $0, %rdi
-	je .Ljust_resume
-
-	movq SGX_GPR_RSP(%rbx), %rsi
-	subq $16, %rsi
-	movq %rsi, SGX_GPR_RSP(%rbx)
-
-	# try to push rip and fsbase onto the stack
-	movq %rdi, (%rsi)
-	movq SGX_GPR_RIP(%rbx), %rdi
-	movq %rdi, 8(%rsi)
-
-	# new RIP is the resume point
-	leaq .Lafter_resume(%rip), %rdi
-	movq %rdi, SGX_GPR_RIP(%rbx)
-
-.Ljust_resume:
-#endif
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
@@ -125,15 +105,6 @@ enclave_entry:
 	movq %rdx, %rbx
 	movq $EEXIT, %rax
 	ENCLU
-
-#if SGX_HAS_FSGSBASE == 0
-.Lafter_resume:
-	movq %rbx, -8(%rsp)
-	popq %rbx
-	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
-	movq -16(%rsp), %rbx
-	retq
-#endif
 
 .Lhandle_exception:
 	movq SGX_GPR_RSP(%rbx), %rsi
