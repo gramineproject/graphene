@@ -24,7 +24,7 @@ static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
 //
 // During normal operation handle_ecall will not return. The exception is that
 // it will return if invalid parameters are passed. In this case
-// encalve_entry.S will go into an endless loop since a clean return to urts is
+// enclave_entry.S will go into an endless loop since a clean return to urts is
 // not easy in all cases.
 //
 // Parameters:
@@ -43,7 +43,7 @@ static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
 //      arguments. Untrusted.
 //
 //  enclave_base_addr:
-//      Base address of encalve. Calculated dynamically in encalve_entry.S.
+//      Base address of enclave. Calculated dynamically in enclave_entry.S.
 //      Trusted.
 void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
                    void * untrusted_stack, void * enclave_base_addr)
