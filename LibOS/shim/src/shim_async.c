@@ -161,81 +161,37 @@ static void shim_async_helper (void * arg)
        stack that PAL provides, so for efficiency, we don't
        swap any stack */
     unsigned long idle_cycles = 0;
-    unsigned long latest_time;
+    unsigned long latest_time = DkSystemTimeQuery();
     struct async_event * next_event = NULL;
     PAL_HANDLE async_event_handle = event_handle(&async_helper_event);
 
-    int object_list_size = 32, object_num;
+    int object_list_size = 32, object_num = 0;
     PAL_HANDLE polled;
     PAL_HANDLE * local_objects =
             malloc(sizeof(PAL_HANDLE) * (1 + object_list_size));
     local_objects[0] = async_event_handle;
 
-    goto update_status;
-
     /* This loop should be careful to use a barrier after sleeping
      * to ensure that the while breaks once async_helper_state changes.
      */
     while (async_helper_state == HELPER_ALIVE) {
-        unsigned long sleep_time;
-        if (next_event) {
-            sleep_time = next_event->expire_time - latest_time;
-            idle_cycles = 0;
-        } else if (object_num) {
-            sleep_time = NO_TIMEOUT;
-            idle_cycles = 0;
-        } else {
-            sleep_time = IDLE_SLEEP_TIME;
-            idle_cycles++;
-        }
-
-        polled = DkObjectsWaitAny(object_num + 1, local_objects, sleep_time);
-        barrier();
-        
-        if (!polled) {
-            if (next_event) {
-                debug("async event trigger at %llu\n",
-                      next_event->expire_time);
-
-                next_event->callback(next_event->caller, next_event->arg);
-
-                lock(async_helper_lock);
-                /* DEP: Events can only be on the async list */
-                listp_del(next_event, &async_list, list);
-                free(next_event);
-                goto update_list;
-            }
-            continue;
-        }
-
-        if (polled == async_event_handle) {
-            clear_event(&async_helper_event);
-update_status:
-            latest_time = DkSystemTimeQuery();
-            if (async_helper_state == HELPER_NOTALIVE) {
-                break;
-            } else {
-                lock(async_helper_lock);
-                goto update_list;
-            }
-        }
-
         struct async_event * tmp, * n;
 
         lock(async_helper_lock);
 
-        listp_for_each_entry_safe(tmp, n, &async_list, list) {
-            if (tmp->object == polled) {
-                debug("async event trigger at %llu\n",
-                      latest_time);
-                unlock(async_helper_lock);
-                tmp->callback(tmp->caller, tmp->arg);
-                lock(async_helper_lock);
-                break;
+        if (polled != NULL) {
+            listp_for_each_entry_safe(tmp, n, &async_list, list) {
+                if (tmp->object == polled) {
+                    debug("async event trigger at %llu\n",
+                          latest_time);
+                    unlock(async_helper_lock);
+                    tmp->callback(tmp->caller, tmp->arg);
+                    lock(async_helper_lock);
+                    break;
+                }
             }
         }
 
-update_list:
         next_event = NULL;
         object_num = 0;
 
@@ -244,6 +200,14 @@ update_list:
 
             listp_for_each_entry_safe(tmp, n, &async_list, list) {
                 if (tmp->object) {
+                    if (object_num == object_list_size) {
+                        PAL_HANDLE * tmp_array = malloc(
+                            sizeof(PAL_HANDLE) * (1 + object_list_size * 2));
+                        memcpy(tmp_array, local_objects,
+                               sizeof(PAL_HANDLE) * (1 + object_list_size));
+                        object_list_size *= 2;
+                        local_objects = tmp_array;
+                    }
                     local_objects[object_num + 1] = tmp->object;
                     object_num++;
                 }
@@ -270,11 +234,34 @@ update_list:
 
         unlock(async_helper_lock);
 
-        if (idle_cycles++ == MAX_IDLE_CYCLES) {
+        if (idle_cycles == MAX_IDLE_CYCLES) {
             debug("async helper thread reach helper cycle\n");
             /* walking away, if someone is issueing an event,
                they have to create another thread */
             break;
+        }
+
+        unsigned long sleep_time;
+        if (next_event) {
+            sleep_time = next_event->expire_time - latest_time;
+            idle_cycles = 0;
+        } else if (object_num) {
+            sleep_time = NO_TIMEOUT;
+            idle_cycles = 0;
+        } else {
+            sleep_time = IDLE_SLEEP_TIME;
+            idle_cycles++;
+        }
+
+        polled = DkObjectsWaitAny(object_num + 1, local_objects, sleep_time);
+        barrier();
+        latest_time = DkSystemTimeQuery();
+
+        if (polled == async_event_handle) {
+            clear_event(&async_helper_event);
+            if (async_helper_state == HELPER_NOTALIVE) {
+                break;
+            }
         }
     }
 
