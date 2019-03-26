@@ -33,35 +33,35 @@ int printf(const char * fmt, ...);
         sgx_ocfree();                                   \
     } while (0)
 
-#define ALLOC_IN_USER(ptr, size)                    \
-    ({                                              \
-        __typeof__(ptr) tmp = ptr;                  \
-        if (sgx_is_within_enclave(ptr, size)) {     \
-            OCALLOC(tmp, __typeof__(tmp), size);    \
-        }; tmp;                                     \
+#define ALLOC_IN_USER(ptr, size)                                 \
+    ({                                                           \
+        __typeof__(ptr) tmp = ptr;                               \
+        if (!sgx_is_completely_outside_enclave(ptr, size)) {     \
+            OCALLOC(tmp, __typeof__(tmp), size);                 \
+        }; tmp;                                                  \
     })
 
-#define COPY_TO_USER(ptr, size)                     \
-    ({                                              \
-        __typeof__(ptr) tmp = ptr;                  \
-        if (sgx_is_within_enclave(ptr, size)) {     \
-            OCALLOC(tmp, __typeof__(tmp), size);    \
-            memcpy((void *) tmp, ptr, size);        \
-        }; tmp;                                     \
+#define COPY_TO_USER(ptr, size)                                  \
+    ({                                                           \
+        __typeof__(ptr) tmp = ptr;                               \
+        if (!sgx_is_completely_outside_enclave(ptr, size)) {     \
+            OCALLOC(tmp, __typeof__(tmp), size);                 \
+            memcpy((void *) tmp, ptr, size);                     \
+        }; tmp;                                                  \
     })
 
-#define COPY_FROM_USER(var, user_var, size)                 \
-    ({                                                      \
-        int _ret = 0;                                       \
-        if (var != user_var) {                              \
-            if (sgx_is_within_enclave(user_var, size) ||    \
-                !sgx_is_within_enclave(var, size)) {        \
-                _ret = -PAL_ERROR_DENIED;                   \
-            } else {                                        \
-                _ret = 0;                                   \
-                memcpy(var, user_var, size);                \
-            }                                               \
-        } _ret;                                             \
+#define COPY_FROM_USER(var, user_var, size)                             \
+    ({                                                                  \
+        int _ret = 0;                                                   \
+        if (var != user_var) {                                          \
+            if (sgx_is_completely_outside_enclave(user_var, size) &&    \
+                sgx_is_completely_within_enclave(var, size)) {          \
+                _ret = 0;                                               \
+                memcpy(var, user_var, size);                            \
+            } else {                                                    \
+                _ret = -PAL_ERROR_DENIED;                               \
+            }                                                           \
+        } _ret;                                                         \
     })
 
 int ocall_exit(int exitcode)
@@ -107,7 +107,7 @@ int ocall_alloc_untrusted (uint64_t size, void ** mem)
 
     retval = SGX_OCALL(OCALL_ALLOC_UNTRUSTED, ms);
     if (!retval) {
-        if (sgx_is_within_enclave(ms->ms_mem, size)) {
+        if (!sgx_is_completely_outside_enclave(ms->ms_mem, size)) {
             OCALL_EXIT();
             return -PAL_ERROR_DENIED;
         }
@@ -133,7 +133,7 @@ int ocall_map_untrusted (int fd, uint64_t offset,
 
     retval = SGX_OCALL(OCALL_MAP_UNTRUSTED, ms);
     if (!retval) {
-        if (sgx_is_within_enclave(ms->ms_mem, size)) {
+        if (!sgx_is_completely_outside_enclave(ms->ms_mem, size)) {
             OCALL_EXIT();
             return -PAL_ERROR_DENIED;
         }
@@ -147,7 +147,7 @@ int ocall_unmap_untrusted (const void * mem, uint64_t size)
 {
     int retval = 0;
 
-    if (sgx_is_within_enclave(mem, size)) {
+    if (!sgx_is_completely_outside_enclave(mem, size)) {
         OCALL_EXIT();
         return -PAL_ERROR_INVAL;
     }
@@ -436,7 +436,7 @@ int ocall_futex (int * futex, int op, int val,
     ms_ocall_futex_t * ms;
     OCALLOC(ms, ms_ocall_futex_t *, sizeof(*ms));
 
-    if (sgx_is_within_enclave(futex, sizeof(int))) {
+    if (!sgx_is_completely_outside_enclave(futex, sizeof(int))) {
         OCALL_EXIT();
         return -PAL_ERROR_INVAL;
     }
@@ -489,7 +489,7 @@ int ocall_sock_listen (int domain, int type, int protocol,
     retval = SGX_OCALL(OCALL_SOCK_LISTEN, ms);
     if (retval >= 0) {
         if (addrlen && (
-            sgx_is_within_enclave(ms->ms_addr, bind_len) ||
+            !sgx_is_completely_outside_enclave(ms->ms_addr, bind_len) ||
             ms->ms_addrlen > bind_len)) {
             OCALL_EXIT();
             return -PAL_ERROR_DENIED;
@@ -520,7 +520,7 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
 
     retval = SGX_OCALL(OCALL_SOCK_ACCEPT, ms);
     if (retval >= 0) {
-        if (len && (sgx_is_within_enclave(ms->ms_addr, len) ||
+        if (len && (!sgx_is_completely_outside_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
             OCALL_EXIT();
             return -PAL_ERROR_DENIED;
@@ -559,7 +559,7 @@ int ocall_sock_connect (int domain, int type, int protocol,
     retval = SGX_OCALL(OCALL_SOCK_CONNECT, ms);
     if (retval >= 0) {
         if (bind_len && (
-            sgx_is_within_enclave(ms->ms_bind_addr, bind_len) ||
+            !sgx_is_completely_outside_enclave(ms->ms_bind_addr, bind_len) ||
             ms->ms_bind_addrlen > bind_len)) {
             OCALL_EXIT();
             return -PAL_ERROR_DENIED;
@@ -593,7 +593,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
 
     retval = SGX_OCALL(OCALL_SOCK_RECV, ms);
     if (retval >= 0) {
-        if (len && (sgx_is_within_enclave(ms->ms_addr, len) ||
+        if (len && (!sgx_is_completely_outside_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
             OCALL_EXIT();
             return -PAL_ERROR_DENIED;
@@ -641,7 +641,7 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
 
     retval = SGX_OCALL(OCALL_SOCK_RECV_FD, ms);
     if (retval >= 0) {
-        if (sgx_is_within_enclave(ms->ms_fds, sizeof(int) * (*nfds)) ||
+        if (!sgx_is_completely_outside_enclave(ms->ms_fds, sizeof(int) * (*nfds)) ||
             ms->ms_nfds > (*nfds)) {
             OCALL_EXIT();
             return -PAL_ERROR_DENIED;
