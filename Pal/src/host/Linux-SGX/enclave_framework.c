@@ -2,6 +2,7 @@
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
 #include <pal_linux.h>
+#include <pal_linux_error.h>
 #include <pal_internal.h>
 #include <pal_debug.h>
 #include <pal_security.h>
@@ -297,8 +298,10 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
             goto failed;
 
         ret = ocall_map_untrusted(fd, offset, mapping_size, PROT_READ, &umem);
-        if (ret < 0)
+        if (IS_ERR(ret)) {
+            ret = unix_to_pal_error(ERRNO(ret));
             goto unmap;
+        }
 
         /*
          * To prevent TOCTOU attack when generating the file checksum, we

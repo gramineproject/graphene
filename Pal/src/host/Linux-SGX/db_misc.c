@@ -198,7 +198,7 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
     if (!get_cpuid_from_cache(leaf, subleaf, values))
         return 0;
 
-    if (ocall_cpuid(leaf, subleaf, values) < 0)
+    if (IS_ERR(ocall_cpuid(leaf, subleaf, values)))
         return -PAL_ERROR_DENIED;
 
     add_cpuid_to_cache(leaf, subleaf, values);
