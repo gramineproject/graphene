@@ -28,6 +28,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_error.h"
 #include "pal_error.h"
 #include "pal_debug.h"
 #include "api.h"
@@ -75,8 +76,8 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int64_t timeout)
 
         uint64_t waittime = timeout;
         int ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
-        if (ret < 0)
-            return ret;
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
 
         if (!ret)
             return -PAL_ERROR_TRYAGAIN;
@@ -188,8 +189,8 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
 
     uint64_t waittime = timeout;
     ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     if (!ret)
         return -PAL_ERROR_TRYAGAIN;

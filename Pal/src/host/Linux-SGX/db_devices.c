@@ -29,6 +29,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_error.h"
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "api.h"
@@ -196,7 +197,8 @@ static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    return ocall_read(fd, buffer, size);
+    int bytes = ocall_read(fd, buffer, size);
+    return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
 }
 
 /* 'write' operation for character streams. */
@@ -211,7 +213,8 @@ static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     if (size >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    return ocall_write(fd, buffer, size);
+    int bytes = ocall_write(fd, buffer, size);
+    return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
 }
 
 /* 'open' operation for device streams */

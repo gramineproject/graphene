@@ -51,7 +51,7 @@ void _DkDebugAddMap (struct link_map * map)
     const ElfW(Phdr) * ph;
 
     int fd = ocall_open(map->l_name, O_RDONLY, 0);
-    if (fd < 0)
+    if (IS_ERR(fd))
         return;
 
     for (ph = phdr; ph < &phdr[ehdr->e_phnum]; ++ph)

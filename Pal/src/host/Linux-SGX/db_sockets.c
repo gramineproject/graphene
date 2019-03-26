@@ -29,6 +29,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_error.h"
 #include "pal_debug.h"
 #include "pal_security.h"
 #include "pal_error.h"
@@ -354,8 +355,8 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
                             sock_type(SOCK_STREAM, options), 0,
                             bind_addr, &bind_addrlen,
                             &sock_options);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return -PAL_ERROR_DENIED;
 
     *handle = socket_create_handle(pal_type_tcpsrv, ret, options,
                                    bind_addr, bind_addrlen, NULL, 0,
@@ -387,8 +388,8 @@ static int tcp_accept (PAL_HANDLE handle, PAL_HANDLE * client)
     struct sockopt sock_options;
     ret = ocall_sock_accept(handle->sock.fd, &dest_addr, &dest_addrlen,
                             &sock_options);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     *client = socket_create_handle(pal_type_tcp, ret, 0, bind_addr,
                                    bind_addrlen,
@@ -436,8 +437,8 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
                              sock_type(SOCK_STREAM, options), 0,
                              dest_addr, dest_addrlen,
                              bind_addr, &bind_addrlen, &sock_options);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     *handle = socket_create_handle(pal_type_tcp, ret, options,
                                    bind_addr, bind_addrlen,
@@ -488,8 +489,8 @@ static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 
     int bytes = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL);
 
-    if (bytes < 0)
-        return bytes;
+    if (IS_ERR(bytes))
+        return unix_to_pal_error(ERRNO(bytes));
 
     if (!bytes)
         return -PAL_ERROR_ENDOFSTREAM;
@@ -512,11 +513,12 @@ static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 
     int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0);
 
-    if (bytes == -PAL_ERROR_TRYAGAIN)
+    if (IS_ERR(bytes)) {
+        bytes = unix_to_pal_error(ERRNO(bytes));
+        if (bytes == -PAL_ERROR_TRYAGAIN)
             HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
-
-    if (bytes < 0)
         return bytes;
+    }
 
     if (bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
@@ -551,8 +553,8 @@ static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
     ret = ocall_sock_listen(bind_addr->sa_family,
                             sock_type(SOCK_DGRAM, options), 0,
                             bind_addr, &bind_addrlen, &sock_options);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     *handle = socket_create_handle(pal_type_udpsrv, ret, options,
                                    bind_addr, bind_addrlen, NULL, 0,
@@ -591,8 +593,8 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
                              dest_addr, dest_addrlen,
                              bind_addr, &bind_addrlen, &sock_options);
 
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     *handle = socket_create_handle(dest_addr ? pal_type_udp :
                                    pal_type_udpsrv, ret, options,
@@ -641,7 +643,8 @@ static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (len >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    return ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL);
+    int ret = ocall_sock_recv(handle->sock.fd, buf, len, NULL, NULL);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
 static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
@@ -662,8 +665,8 @@ static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t l
     int bytes = ocall_sock_recv(handle->sock.fd, buf, len, &conn_addr,
                                 &conn_addrlen);
 
-    if (bytes < 0)
-        return bytes;
+    if (IS_ERR(bytes))
+        return unix_to_pal_error(ERRNO(bytes));
 
     char * addr_uri = strcpy_static(addr, "udp:", addrlen);
     if (!addr_uri)
@@ -691,11 +694,12 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 
     int bytes = ocall_sock_send(handle->sock.fd, buf, len, NULL, 0);
 
-    if (bytes == -PAL_ERROR_TRYAGAIN)
-        HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
-
-    if (bytes < 0)
+    if (IS_ERR(bytes)) {
+        bytes = unix_to_pal_error(ERRNO(bytes));
+        if (bytes == -PAL_ERROR_TRYAGAIN)
+            HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
         return bytes;
+    }
 
     if (bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
@@ -736,11 +740,12 @@ static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int bytes = ocall_sock_send(handle->sock.fd, buf, len, &conn_addr,
                                 conn_addrlen);
 
-    if (bytes == -PAL_ERROR_TRYAGAIN)
+    if (IS_ERR(ret)) {
+        bytes = unix_to_pal_error(ERRNO(ret));
+        if (bytes == -PAL_ERROR_TRYAGAIN)
             HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
-
-    if (bytes < 0)
         return bytes;
+    }
 
     if (bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
@@ -820,16 +825,16 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     if (!IS_HANDLE_TYPE(handle, tcpsrv)) {
         /* try use ioctl FIONEAD to get the size of socket */
         ret = ocall_fionread(fd);
-        if (ret < 0)
-            return ret;
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
         attr->pending_size = ret;
     }
 
     struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
     unsigned long waittime = 0;
     ret = ocall_poll(&pfd, 1, &waittime);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
     attr->readable = (ret == 1 && pfd.revents == POLLIN);
 
     return 0;
@@ -845,8 +850,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     if (attr->nonblocking != handle->sock.nonblocking) {
         ret = ocall_fsetnonblock(fd, attr->nonblocking);
 
-        if (ret < 0)
-            return ret;
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
 
         handle->sock.nonblocking = attr->nonblocking;
     }
@@ -863,8 +868,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             l.l_linger = attr->socket.linger;
             ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_LINGER, &l,
                                     sizeof(struct __kernel_linger));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.linger = attr->socket.linger;
         }
@@ -873,8 +878,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             val = attr->socket.receivebuf;
             ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_RCVBUF, &val,
                                     sizeof(int));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.receivebuf = attr->socket.receivebuf;
         }
@@ -883,8 +888,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             val = attr->socket.sendbuf;
             ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_SNDBUF,
                                     &val, sizeof(int));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.sendbuf = attr->socket.sendbuf;
         }
@@ -893,8 +898,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             val = attr->socket.receivetimeout;
             ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_RCVTIMEO,
                                     &val, sizeof(int));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.receivetimeout = attr->socket.receivetimeout;
         }
@@ -903,8 +908,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             val = attr->socket.sendtimeout;
             ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_SNDTIMEO,
                                     &val, sizeof(int));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.sendtimeout = attr->socket.sendtimeout;
         }
@@ -917,8 +922,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             val = attr->socket.tcp_cork ? 1 : 0;
             ret = ocall_sock_setopt(fd, SOL_TCP, TCP_CORK,
                                     &val, sizeof(int));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.tcp_cork = attr->socket.tcp_cork;
         }
@@ -927,8 +932,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             val = attr->socket.tcp_keepalive ? 1 : 0;
             ret = ocall_sock_setopt(fd, SOL_SOCKET, SO_KEEPALIVE,
                                      &val, sizeof(int));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.tcp_keepalive = attr->socket.tcp_keepalive;
         }
@@ -937,8 +942,8 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
             val = attr->socket.tcp_nodelay ? 1 : 0;
             ret = ocall_sock_setopt(fd, SOL_TCP, TCP_NODELAY,
                                     &val, sizeof(int));
-            if (ret < 0)
-                return ret;
+            if (IS_ERR(ret))
+                return unix_to_pal_error(ERRNO(ret));
 
             handle->sock.tcp_nodelay = attr->socket.tcp_nodelay;
         }
@@ -1070,11 +1075,12 @@ static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     int bytes = ocall_sock_send(handle->mcast.srv, buf, size,
                                 NULL, 0);
 
-    if (bytes == -PAL_ERROR_TRYAGAIN)
-        HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
-
-    if (bytes < 0)
+    if (IS_ERR(bytes)) {
+        bytes = unix_to_pal_error(ERRNO(bytes));
+        if (bytes == -PAL_ERROR_TRYAGAIN)
+            HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
         return bytes;
+    }
 
     if (bytes == size)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
@@ -1095,6 +1101,9 @@ static int64_t mcast_receive (PAL_HANDLE handle, uint64_t offset, uint64_t size,
 
     int bytes = ocall_sock_recv(handle->mcast.cli, buf, size, NULL,
                                 NULL);
+
+    if (IS_ERR(bytes))
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     if (bytes == -PAL_ERROR_TRYAGAIN)
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
@@ -1121,8 +1130,8 @@ static int mcast_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
         return -PAL_ERROR_BADHANDLE;
 
     int ret = ocall_fionread(handle->mcast.cli);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     memset(attr, 0, sizeof(PAL_STREAM_ATTR));
     attr->pending_size = ret;

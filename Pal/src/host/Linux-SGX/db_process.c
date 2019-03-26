@@ -33,6 +33,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_error.h"
 #include "pal_debug.h"
 #include "pal_error.h"
 #include "pal_security.h"
@@ -207,8 +208,8 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     ret = ocall_create_process(uri, nargs, args,
                                proc_fds,
                                &child_pid);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(-ret);
 
     PAL_HANDLE proc = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(proc, process);
@@ -342,7 +343,8 @@ static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (count >= (1ULL << (sizeof(unsigned int) * 8)))
         return -PAL_ERROR_INVAL;
 
-    return ocall_read(handle->process.stream_in, buffer, count);
+    int bytes = ocall_read(handle->process.stream_in, buffer, count);
+    return IS_ERR(bytes) ? unix_to_pal_error(ERRNO(bytes)) : bytes;
 }
 
 static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
@@ -353,11 +355,12 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 
     int bytes = ocall_write(handle->process.stream_out, buffer, count);
 
-    if (bytes == -PAL_ERROR_TRYAGAIN)
-        HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
-
-    if (bytes < 0)
+    if (IS_ERR(bytes)) {
+        bytes = unix_to_pal_error(ERRNO(bytes));
+        if (bytes == -PAL_ERROR_TRYAGAIN)
+            HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
         return bytes;
+    }
 
     if (bytes == count)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
@@ -428,9 +431,8 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
         return -PAL_ERROR_BADHANDLE;
 
     int ret = ocall_fionread(handle->process.stream_in);
-
-    if (ret < 0)
-        return -ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     memset(attr, 0, sizeof(PAL_STREAM_ATTR));
     attr->pending_size = ret;
@@ -449,9 +451,8 @@ static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     if (attr->nonblocking != handle->process.nonblocking) {
         int ret = ocall_fsetnonblock(handle->process.stream_in,
                                      handle->process.nonblocking);
-
-        if (ret < 0)
-            return ret;
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
 
         handle->process.nonblocking = attr->nonblocking;
     }
