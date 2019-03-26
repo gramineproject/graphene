@@ -28,6 +28,7 @@
 #include "pal.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_error.h"
 #include "pal_error.h"
 #include "pal_debug.h"
 #include "api.h"
@@ -101,8 +102,8 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     _DkInternalUnlock(&thread_list_lock);
 
     int ret = ocall_wake_thread(NULL);
-    if (ret < 0)
-        return ret;
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
 
     *handle = new_thread;
     return 0;
@@ -110,7 +111,8 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 
 int _DkThreadDelayExecution (unsigned long * duration)
 {
-    return ocall_sleep(duration);
+    int ret = ocall_sleep(duration);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
 /* PAL call DkThreadYieldExecution. Yield the execution
@@ -128,7 +130,8 @@ void _DkThreadExit (void)
 
 int _DkThreadResume (PAL_HANDLE threadHandle)
 {
-    return ocall_wake_thread(threadHandle->thread.tcs);
+    int ret = ocall_wake_thread(threadHandle->thread.tcs);
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 
 int _DkThreadGetCurrent (PAL_HANDLE * threadHandle)
