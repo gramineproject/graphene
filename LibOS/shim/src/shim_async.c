@@ -27,112 +27,113 @@
 #include <pal.h>
 #include <list.h>
 
+#define IDLE_SLEEP_TIME     1000
+#define MAX_IDLE_CYCLES     100
+
 DEFINE_LIST(async_event);
 struct async_event {
-    IDTYPE                 caller;
+    IDTYPE                 caller;        /* thread installing this event */
     LIST_TYPE(async_event) list;
     void                   (*callback) (IDTYPE caller, void * arg);
     void *                 arg;
-    PAL_HANDLE             object;
-    unsigned long          install_time;
-    unsigned long          expire_time;
+    PAL_HANDLE             object;        /* handle (async IO) to wait on */
+    uint64_t               expire_time;   /* alarm/timer to wait on */
 };
-
 DEFINE_LISTP(async_event);
 static LISTP_TYPE(async_event) async_list;
 
-/* This variable can be read without the async_helper_lock held, but is always
- * modified with it held. */
+/* can be read without async_helper_lock but always written with lock held */
 static enum {  HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
 
-static struct shim_thread * async_helper_thread;
-static AEVENTTYPE           async_helper_event;
-
+static struct shim_thread* async_helper_thread;
 static struct shim_lock async_helper_lock;
 
-/* Returns remaining usecs */
-int64_t install_async_event (PAL_HANDLE object, unsigned long time,
-                              void (*callback) (IDTYPE caller, void * arg),
-                              void * arg)
-{
-    struct async_event * event =
-                    malloc(sizeof(struct async_event));
+static AEVENTTYPE install_new_event;
 
-    unsigned long install_time = DkSystemTimeQuery();
-    int64_t rv = 0;
+static int create_async_helper(void);
 
-    debug("install async event at %lu\n", install_time);
+/* Threads register async events like alarm(), setitimer(), ioctl(FIOASYNC)
+ * using this function. These events are enqueued in async_list and delivered
+ * to Async Helper thread by triggering install_new_event. When event is
+ * triggered in Async Helper thread, the corresponding event's callback with
+ * arguments `arg` is called. This callback typically sends a signal to the
+ * thread who registered the event (saved in `event->caller`).
+ *
+ * We distinguish between alarm/timer events and async IO events:
+ *   - alarm/timer events set object = NULL and time = seconds
+ *     (time = 0 cancels all pending alarms/timers).
+ *   - async IO events set object = handle and time = 0.
+ *
+ * Function returns remaining usecs for alarm/timer events (same as alarm())
+ * or 0 for async IO events. On error, it returns -1.
+ */
+int64_t install_async_event(PAL_HANDLE object, uint64_t time,
+                            void (*callback) (IDTYPE caller, void * arg),
+                            void * arg) {
+    /* if event happens on object, time must be zero */
+    assert(!object || (object && !time));
 
+    uint64_t now = DkSystemTimeQuery();
+    uint64_t max_prev_expire_time = now;
+
+    struct async_event* event = malloc(sizeof(struct async_event));
     event->callback     = callback;
     event->arg          = arg;
     event->caller       = get_cur_tid();
     event->object       = object;
-    event->install_time = time ? install_time : 0;
-    event->expire_time  = time ? install_time + time : 0;
+    event->expire_time  = time ? now + time : 0;
 
     lock(&async_helper_lock);
 
-    struct async_event * tmp;
+    if (!object) {
+        /* This is alarm() or setitimer() emulation, treat both according to
+         * alarm() syscall semantics: cancel any pending alarm/timer. */
+        struct async_event * tmp, * n;
+        LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
+            if (tmp->expire_time) {
+                /* this is a pending alarm/timer, cancel it and save its expiration time */
+                if (max_prev_expire_time < tmp->expire_time)
+                    max_prev_expire_time = tmp->expire_time;
 
-    LISTP_FOR_EACH_ENTRY(tmp, &async_list, list) {
-        if (event->expire_time && tmp->expire_time > event->expire_time)
-            break;
-    }
+                LISTP_DEL(tmp, &async_list, list);
+                free(tmp);
+            }
+        }
 
-    /*
-     * man page of alarm system call :
-     * DESCRIPTION
-     * alarm() arranges for a SIGALRM signal to be delivered to the
-	 * calling process in seconds seconds.
-     * If seconds is zero, any pending alarm is canceled.
-     * In any event any previously set alarm() is canceled.
-     */
-    if (!LISTP_EMPTY(&async_list)) {
-        tmp = LISTP_FIRST_ENTRY(&async_list, struct async_event, list);
-        tmp = tmp->list.prev;
-
-        rv = tmp->expire_time - install_time;
-
-        /*
-         * any previously set alarm() is canceled.
-         * There should be exactly only one timer pending
-         */
-        LISTP_DEL(tmp, &async_list, list);
-        free(tmp);
-    } else {
-        tmp = NULL;
+        if (!time) {
+            /* This is alarm(0), we cancelled all pending alarms/timers
+             * and user doesn't want to set a new alarm: we are done. */
+            free(event);
+            unlock(&async_helper_lock);
+            return max_prev_expire_time - now;
+        }
     }
 
     INIT_LIST_HEAD(event, list);
-    if (!time)    // If seconds is zero, any pending alarm is canceled.
-        free(event);
-    else
-        LISTP_ADD_TAIL(event, &async_list, list);
+    LISTP_ADD_TAIL(event, &async_list, list);
 
-    if (async_helper_state == HELPER_NOTALIVE)
-        create_async_helper();
+    if (async_helper_state == HELPER_NOTALIVE) {
+        int ret = create_async_helper();
+        if (ret < 0)
+            return ret;
+    }
 
     unlock(&async_helper_lock);
 
-    set_event(&async_helper_event, 1);
-    return rv;
+    debug("Installed async event at %lu\n", now);
+    set_event(&install_new_event, 1);
+    return max_prev_expire_time - now;
 }
 
-int init_async (void)
-{
-    /* This is early enough in init that we can write this variable without
-     * the lock. */
+int init_async(void) {
+    /* early enough in init, can write global vars without the lock */
     async_helper_state = HELPER_NOTALIVE;
     create_lock(&async_helper_lock);
-    create_event(&async_helper_event);
+    create_event(&install_new_event);
     return 0;
 }
 
-#define IDLE_SLEEP_TIME     1000
-#define MAX_IDLE_CYCLES     100
-
-static void shim_async_helper (void * arg)
-{
+static void shim_async_helper(void * arg) {
     struct shim_thread * self = (struct shim_thread *) arg;
     if (!arg)
         return;
@@ -140,7 +141,7 @@ static void shim_async_helper (void * arg)
     __libc_tcb_t tcb;
     allocate_tls(&tcb, false, self);
     debug_setbuf(&tcb.shim_tcb, true);
-    debug("set tcb to %p\n", &tcb);
+    debug("Set tcb to %p\n", &tcb);
 
     lock(&async_helper_lock);
     bool notme = (self != async_helper_thread);
@@ -152,127 +153,110 @@ static void shim_async_helper (void * arg)
         return;
     }
 
-    debug("async helper thread started\n");
+    /* Assume async helper thread will not drain the stack that PAL provides,
+     * so for efficiency we don't swap the stack. */
+    debug("Async helper thread started\n");
 
-    /* TSAI: we assume async helper thread will not drain the
-       stack that PAL provides, so for efficiency, we don't
-       swap any stack */
-    unsigned long idle_cycles = 0;
-    unsigned long latest_time;
-    struct async_event * next_event = NULL;
-    PAL_HANDLE async_event_handle = event_handle(&async_helper_event);
+    /* Simple heuristic to not burn cycles when no async events are installed:
+     * async helper thread sleeps IDLE_SLEEP_TIME for MAX_IDLE_CYCLES and
+     * if nothing happens, dies. It will be re-spawned if some thread wants
+     * to install a new event. */
+    uint64_t idle_cycles = 0;
 
-    int object_list_size = 32, object_num;
-    PAL_HANDLE polled;
-    PAL_HANDLE * local_objects =
+    PAL_HANDLE polled = NULL;
+
+    /* init object_list so that it always contains at least install_new_event */
+    size_t object_list_size = 32;
+    PAL_HANDLE * object_list =
             malloc(sizeof(PAL_HANDLE) * (1 + object_list_size));
-    local_objects[0] = async_event_handle;
 
-    goto update_status;
+    PAL_HANDLE install_new_event_hdl = event_handle(&install_new_event);
+    object_list[0] = install_new_event_hdl;
 
-    /* This loop should be careful to use a barrier after sleeping
-     * to ensure that the while breaks once async_helper_state changes.
-     */
     while (async_helper_state == HELPER_ALIVE) {
-        unsigned long sleep_time;
-        if (next_event) {
-            sleep_time = next_event->expire_time - latest_time;
-            idle_cycles = 0;
-        } else if (object_num) {
-            sleep_time = NO_TIMEOUT;
-            idle_cycles = 0;
-        } else {
-            sleep_time = IDLE_SLEEP_TIME;
-            idle_cycles++;
+        uint64_t now = DkSystemTimeQuery();
+
+        if (polled == install_new_event_hdl) {
+            /* Some thread wants to install new event; this event is found
+             * in async_list below, so just re-init install_new_event. */
+            clear_event(&install_new_event);
         }
-
-        polled = DkObjectsWaitAny(object_num + 1, local_objects, sleep_time);
-        COMPILER_BARRIER();
-
-        if (!polled) {
-            if (next_event) {
-                debug("async event trigger at %lu\n",
-                      next_event->expire_time);
-
-                next_event->callback(next_event->caller, next_event->arg);
-
-                lock(&async_helper_lock);
-                /* DEP: Events can only be on the async list */
-                LISTP_DEL(next_event, &async_list, list);
-                free(next_event);
-                goto update_list;
-            }
-            continue;
-        }
-
-        if (polled == async_event_handle) {
-            clear_event(&async_helper_event);
-update_status:
-            latest_time = DkSystemTimeQuery();
-            if (async_helper_state == HELPER_NOTALIVE) {
-                break;
-            } else {
-                lock(&async_helper_lock);
-                goto update_list;
-            }
-        }
-
-        struct async_event * tmp, * n;
 
         lock(&async_helper_lock);
 
+        /* Iterate through all async IO events and alarm/timer events to:
+         *   - call callbacks for all triggered events, and
+         *   - repopulate object_list with async IO events (if any), and
+         *   - find the next expiring alarm/timer (if any) */
+        uint64_t next_expire_time = 0;
+        size_t object_num = 0;
+
+        struct async_event * tmp, * n;
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
-            if (tmp->object == polled) {
-                debug("async event trigger at %lu\n",
-                      latest_time);
+            /* First check if this event was triggered; note that IO events
+             * stay in the list whereas alarms/timers are fired only once. */
+            if (polled && tmp->object == polled) {
+                debug("Async IO event triggered at %lu\n", now);
                 unlock(&async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
                 lock(&async_helper_lock);
-                break;
-            }
-        }
-
-update_list:
-        next_event = NULL;
-        object_num = 0;
-
-        if (!LISTP_EMPTY(&async_list)) {
-            struct async_event * tmp, * n;
-
-            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
-                if (tmp->object) {
-                    local_objects[object_num + 1] = tmp->object;
-                    object_num++;
-                }
-
-                if (!tmp->install_time)
-                    continue;
-
-                if (tmp->expire_time > latest_time) {
-                    next_event = tmp;
-                    break;
-                }
-
-                debug("async event trigger at %lu (expire at %lu)\n",
-                      latest_time, tmp->expire_time);
+            } else if (tmp->expire_time && tmp->expire_time <= now) {
+                debug("Async alarm/timer triggered at %lu (expired at %lu)\n",
+                        now, tmp->expire_time);
                 LISTP_DEL(tmp, &async_list, list);
                 unlock(&async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
                 free(tmp);
                 lock(&async_helper_lock);
+                continue;
             }
 
-            idle_cycles = 0;
+            /* Now re-add this IO event to the list or re-add this timer */
+            if (tmp->object) {
+                if (object_num == object_list_size) {
+                    /* grow object_list to accomodate more objects */
+                    PAL_HANDLE * tmp_array = malloc(
+                            sizeof(PAL_HANDLE) * (1 + object_list_size * 2));
+                    memcpy(tmp_array, object_list,
+                            sizeof(PAL_HANDLE) * (1 + object_list_size));
+                    object_list_size *= 2;
+                    free(object_list);
+                    object_list = tmp_array;
+                }
+                object_list[object_num + 1] = tmp->object;
+                object_num++;
+            } else if (tmp->expire_time && tmp->expire_time > now) {
+                if (!next_expire_time || next_expire_time > tmp->expire_time) {
+                    /* use time of the next expiring alarm/timer */
+                    next_expire_time = tmp->expire_time;
+                }
+            }
         }
 
         unlock(&async_helper_lock);
 
-        if (idle_cycles++ == MAX_IDLE_CYCLES) {
-            debug("async helper thread reach helper cycle\n");
-            /* walking away, if someone is issueing an event,
-               they have to create another thread */
+        uint64_t sleep_time;
+        if (next_expire_time) {
+            sleep_time = next_expire_time - now;
+            idle_cycles = 0;
+        } else if (object_num) {
+            sleep_time = NO_TIMEOUT;
+            idle_cycles = 0;
+        } else {
+            /* no async IO events and no timers/alarms: thread is idling */
+            sleep_time = IDLE_SLEEP_TIME;
+            idle_cycles++;
+        }
+
+        if (idle_cycles == MAX_IDLE_CYCLES) {
+            debug("Async helper thread has been idle for some time; stopping it\n");
             break;
         }
+
+        /* wait on async IO events + install_new_event + next expiring alarm/timer */
+        polled = DkObjectsWaitAny(object_num + 1, object_list, sleep_time);
+        /* ensure that while loop breaks on async_helper_state change */
+        COMPILER_BARRIER();
     }
 
     lock(&async_helper_lock);
@@ -280,66 +264,55 @@ update_list:
     async_helper_thread = NULL;
     unlock(&async_helper_lock);
     put_thread(self);
-    debug("async helper thread terminated\n");
-    free(local_objects);
+    debug("Async helper thread terminated\n");
+    free(object_list);
 
     DkThreadExit();
 }
 
-/* This should be called with the async_helper_lock held */
-int create_async_helper (void)
-{
-    int ret = 0;
-
+/* this should be called with the async_helper_lock held */
+static int create_async_helper(void) {
     if (async_helper_state == HELPER_ALIVE)
         return 0;
 
     enable_locking();
 
-    struct shim_thread * new = get_new_internal_thread();
+    struct shim_thread* new = get_new_internal_thread();
     if (!new)
         return -ENOMEM;
 
     PAL_HANDLE handle = thread_create(shim_async_helper, new, 0);
 
     if (!handle) {
-        ret = -PAL_ERRNO;
         async_helper_thread = NULL;
         async_helper_state = HELPER_NOTALIVE;
         put_thread(new);
-        return ret;
+        return -PAL_ERRNO;
     }
 
     new->pal_handle = handle;
-
-    /* Publish new and update the state once fully initialized */
     async_helper_thread = new;
     async_helper_state = HELPER_ALIVE;
-
     return 0;
 }
 
-/*
- * On success, the reference to the thread of async helper is returned with
- * reference count incremented.
- * It's caller the responsibility to wait for its exit and release the
- * final reference to free related resources.
- * It's problematic for the thread itself to release its resources which it's
- * using. For example stack.
- * So defer releasing it after its exit and make the releasing the caller
- * responsibility.
+/* On success, the reference to async helper thread is returned with refcount
+ * incremented. It is the responsibility of caller to wait for async helper's
+ * exit and then release the final reference to free related resources (it is
+ * problematic for the thread itself to release its own resources e.g. stack).
  */
-struct shim_thread * terminate_async_helper (void)
-{
+struct shim_thread* terminate_async_helper(void) {
     if (async_helper_state != HELPER_ALIVE)
         return NULL;
 
     lock(&async_helper_lock);
-    struct shim_thread * ret = async_helper_thread;
+    struct shim_thread* ret = async_helper_thread;
     if (ret)
         get_thread(ret);
     async_helper_state = HELPER_NOTALIVE;
     unlock(&async_helper_lock);
-    set_event(&async_helper_event, 1);
+
+    /* force wake up of async helper thread so that it exits */
+    set_event(&install_new_event, 1);
     return ret;
 }
