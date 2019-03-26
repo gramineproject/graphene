@@ -59,6 +59,7 @@ int _DkRandomBitsRead (void * buffer, int size)
                     *(uint16_t *)(buffer + i) = rand & 0xffff;
                     i += 2;
                     rand >>= 16;
+                    /* FALLTHROUGH */
                 case 1:
                     *(uint8_t *)(buffer + i) = rand & 0xff;
                     i++;
