@@ -77,6 +77,7 @@ void pal_start_thread (void)
     new_thread->param = NULL;
     SET_ENCLAVE_TLS(thread, new_thread);
     callback((void *) param);
+    _DkThreadExit();
 }
 
 /* _DkThreadCreate for internal use. Create an internal thread
