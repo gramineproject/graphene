@@ -19,7 +19,7 @@
     void * _tmp = sgx_ocalloc(len);     \
     if (_tmp == NULL) {                 \
         OCALL_EXIT();                   \
-        return -PAL_ERROR_DENIED;  /* TODO: remove this control-flow obfuscation */  \
+        return -EPERM;  /* TODO: remove this control-flow obfuscation */  \
     }                                   \
     (val) = (type) _tmp;                \
 } while (0)
@@ -59,7 +59,7 @@ int printf(const char * fmt, ...);
                 _ret = 0;                                               \
                 memcpy(var, user_var, size);                            \
             } else {                                                    \
-                _ret = -PAL_ERROR_DENIED;                               \
+                _ret = -EPERM;                                          \
             }                                                           \
         } _ret;                                                         \
     })
@@ -85,7 +85,7 @@ int ocall_print_string (const char * str, unsigned int length)
 
     if (!str || length <= 0) {
         OCALL_EXIT();
-        return -PAL_ERROR_DENIED;
+        return -EPERM;
     }
 
     ms->ms_str = COPY_TO_USER(str, length);
@@ -109,7 +109,7 @@ int ocall_alloc_untrusted (uint64_t size, void ** mem)
     if (!retval) {
         if (!sgx_is_completely_outside_enclave(ms->ms_mem, size)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            return -EPERM;
         }
         *mem = ms->ms_mem;
     }
@@ -135,7 +135,7 @@ int ocall_map_untrusted (int fd, uint64_t offset,
     if (!retval) {
         if (!sgx_is_completely_outside_enclave(ms->ms_mem, size)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            return -EPERM;
         }
         *mem = ms->ms_mem;
     }
@@ -149,7 +149,7 @@ int ocall_unmap_untrusted (const void * mem, uint64_t size)
 
     if (!sgx_is_completely_outside_enclave(mem, size)) {
         OCALL_EXIT();
-        return -PAL_ERROR_INVAL;
+        return -EINVAL;
     }
 
     ms_ocall_unmap_untrusted_t * ms;
@@ -221,7 +221,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
 
     if (count > 4096) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (retval < 0)
+        if (IS_ERR(retval))
             return retval;
     }
 
@@ -254,7 +254,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 
     if (count > 4096) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (retval < 0)
+        if (IS_ERR(retval))
             return retval;
     }
 
@@ -438,7 +438,7 @@ int ocall_futex (int * futex, int op, int val,
 
     if (!sgx_is_completely_outside_enclave(futex, sizeof(int))) {
         OCALL_EXIT();
-        return -PAL_ERROR_INVAL;
+        return -EINVAL;
     }
 
     ms->ms_futex = futex;
@@ -492,7 +492,7 @@ int ocall_sock_listen (int domain, int type, int protocol,
             !sgx_is_completely_outside_enclave(ms->ms_addr, bind_len) ||
             ms->ms_addrlen > bind_len)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            return -EPERM;
         }
 
         if (addr) {
@@ -523,7 +523,7 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
         if (len && (!sgx_is_completely_outside_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            return -EPERM;
         }
 
         if (addr) {
@@ -562,7 +562,7 @@ int ocall_sock_connect (int domain, int type, int protocol,
             !sgx_is_completely_outside_enclave(ms->ms_bind_addr, bind_len) ||
             ms->ms_bind_addrlen > bind_len)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            return -EPERM;
         }
 
         if (bind_addr) {
@@ -596,7 +596,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
         if (len && (!sgx_is_completely_outside_enclave(ms->ms_addr, len) ||
                     ms->ms_addrlen > len)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            return -EPERM;
         }
 
         COPY_FROM_USER(buf, ms->ms_buf, retval);
@@ -644,7 +644,7 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
         if (!sgx_is_completely_outside_enclave(ms->ms_fds, sizeof(int) * (*nfds)) ||
             ms->ms_nfds > (*nfds)) {
             OCALL_EXIT();
-            return -PAL_ERROR_DENIED;
+            return -EPERM;
         }
 
         COPY_FROM_USER(buf, ms->ms_buf, retval);

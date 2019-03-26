@@ -86,14 +86,14 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
          */
         ret = ocall_futex((int *) m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout == -1 ? NULL : &timeout);
 
-        if (ret < 0) {
-            if (-ret == EWOULDBLOCK) {
-                ret = -PAL_ERROR_TRYAGAIN;
+        if (IS_ERR(ret)) {
+            if (ERRNO(ret) == EWOULDBLOCK) {
+                    ret = -PAL_ERROR_TRYAGAIN;
+                    atomic_dec(&m->nwaiters);
+            } else {
+                ret = unix_to_pal_error(ERRNO(ret));
                 atomic_dec(&m->nwaiters);
-                goto out;
             }
-            ret = unix_to_pal_error(ERRNO(ret));
-            atomic_dec(&m->nwaiters);
             goto out;
         }
     }
