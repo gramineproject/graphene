@@ -1,10 +1,4 @@
 # source only please
-*.o
-*.so
-*.a
-
-*cscope*
-
 /glibc-*.tar.gz
 /glibc-*/
 /build.log

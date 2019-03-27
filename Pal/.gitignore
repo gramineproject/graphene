@@ -1,6 +1,2 @@
-*.o
-cscope*
-*.a
-*.so
 *.run
 .nfs*

@@ -1,6 +1,8 @@
 # No editor backup files.
 *.sw*
 *.backup
+*.orig
+\#*#
 *~
 
 /Runtime/*
@@ -13,3 +15,33 @@
 *.i
 *.s
 *.e
+
+# object file/libraries
+*.a
+*.o
+*.so
+
+# python
+*.pyc
+
+# sgx
+*.manifest
+*.manifest.sgx
+*.sig
+*.token
+*.cached
+
+# gnu global
+GPATH
+GTAGS
+GSYMS
+GRTAGS
+
+# tags/etags
+tags
+TAGS
+
+# cscope
+cscope.*
+ncscope.*
+*cscope*
