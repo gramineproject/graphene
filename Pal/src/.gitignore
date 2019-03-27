@@ -1,7 +1,4 @@
 /host_endian.h
-*.o
-*.so
-*.a
 /pal
 /pal_sec
 /Makefile.Status
