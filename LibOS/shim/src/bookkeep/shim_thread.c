@@ -34,6 +34,8 @@
 #include <pal.h>
 #include <list.h>
 
+#include <linux/signal.h>
+
 static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 
 static LISTP_TYPE(shim_thread) thread_list = LISTP_INIT;
@@ -163,6 +165,7 @@ struct shim_thread * alloc_new_thread (void)
     INIT_LIST_HEAD(thread, siblings);
     INIT_LISTP(&thread->exited_children);
     INIT_LIST_HEAD(thread, list);
+    thread->signal_altstack.ss_flags = SS_DISABLE;
     return thread;
 }
 
