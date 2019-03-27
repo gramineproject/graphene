@@ -1,13 +1,2 @@
-# no backup files
-*~
-*.sw*
-*.backup
-
 # source only please
-*.o
-*.so
-*.a
-
-*cscope*
-
 glibc-*

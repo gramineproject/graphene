@@ -1,10 +1,2 @@
-*.o
-libpal.a.backup
-libpal.so.backup
-cscope*
-*.a
-*.so
 *.run
-*.sw*
-*~
 .nfs*
