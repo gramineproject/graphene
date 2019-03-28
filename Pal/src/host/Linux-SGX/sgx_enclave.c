@@ -593,11 +593,20 @@ static int sgx_ocall_sleep(void * pms)
         return 0;
     }
     struct timespec req, rem;
-    req.tv_sec  = ms->ms_microsec / 1000000;
-    req.tv_nsec = (ms->ms_microsec - req.tv_sec * 1000000) * 1000;
+    unsigned long microsec = ms->ms_microsec;
+#define VERY_LONG_TIME_IN_US    (1000000L * 60 * 60 * 24 * 365 * 128)
+    if (ms->ms_microsec > VERY_LONG_TIME_IN_US) {
+        /* avoid overflow with time_t */
+        req.tv_sec  = VERY_LONG_TIME_IN_US / 1000000;
+        req.tv_nsec = 0;
+    } else {
+        req.tv_sec = ms->ms_microsec / 1000000;
+        req.tv_nsec = (microsec - req.tv_sec * 1000000) * 1000;
+    }
+
     ret = INLINE_SYSCALL(nanosleep, 2, &req, &rem);
     if (IS_ERR(ret) && ERRNO(ret) == EINTR)
-        ms->ms_microsec = rem.tv_sec * 1000000 + rem.tv_nsec / 1000;
+        ms->ms_microsec = rem.tv_sec * 1000000UL + rem.tv_nsec / 1000UL;
     return ret;
 }
 

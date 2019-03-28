@@ -34,18 +34,11 @@
 
 #include <errno.h>
 
-#define SHIM_DEFAULT_SLEEP 1000
-
 int shim_do_pause (void)
 {
-    while (1) {
-        unsigned long ret = DkThreadDelayExecution(SHIM_DEFAULT_SLEEP);
-
-        if (!ret)
-            break;
-    }
-
-    return 0;
+    /* ~0ULL micro sec ~= 805675 years */
+    DkThreadDelayExecution(~((PAL_NUM)0));
+    return -EINTR;
 }
 
 int shim_do_nanosleep (const struct __kernel_timespec * rqtp,
