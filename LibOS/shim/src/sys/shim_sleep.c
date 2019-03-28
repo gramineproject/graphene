@@ -39,13 +39,14 @@
 int shim_do_pause (void)
 {
     while (1) {
-        unsigned long ret = DkThreadDelayExecution(SHIM_DEFAULT_SLEEP);
+        PAL_NATIVE_ERRNO = 0;
+        DkThreadDelayExecution(SHIM_DEFAULT_SLEEP);
 
-        if (!ret)
+        if (PAL_NATIVE_ERRNO)
             break;
     }
 
-    return 0;
+    return -EINTR;
 }
 
 int shim_do_nanosleep (const struct __kernel_timespec * rqtp,
