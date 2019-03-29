@@ -94,14 +94,14 @@ static int proc_cpuinfo_open (struct shim_handle * hdl, const char * name,
 
     struct { const char * fmt; unsigned long val; }
         cpuinfo[] = {
-            { "processor      : %lu\n", 0, },
-            { "vendor_id      : %s\n",  (unsigned long) pal_control.cpu_info.cpu_vendor, },
-            { "cpu_family     : %lu\n", pal_control.cpu_info.cpu_family, },
-            { "model          : %lu\n", pal_control.cpu_info.cpu_model, },
-            { "model name     : %s\n",  (unsigned long) pal_control.cpu_info.cpu_brand, },
-            { "stepping       : %lu\n", pal_control.cpu_info.cpu_stepping, },
-            { "core id        : %lu\n", 0, },
-            { "cpu_core       : %lu\n", pal_control.cpu_info.cpu_num, },
+            { "processor\t: %lu\n",  0, },
+            { "vendor_id\t: %s\n",   (unsigned long) pal_control.cpu_info.cpu_vendor, },
+            { "cpu family\t: %lu\n", pal_control.cpu_info.cpu_family, },
+            { "model\t\t: %lu\n",    pal_control.cpu_info.cpu_model, },
+            { "model name\t: %s\n",  (unsigned long) pal_control.cpu_info.cpu_brand, },
+            { "stepping\t: %lu\n",   pal_control.cpu_info.cpu_stepping, },
+            { "core id\t\t: %lu\n",  0, },
+            { "cpu cores\t: %lu\n",  pal_control.cpu_info.cpu_num, },
         };
 
 retry:
