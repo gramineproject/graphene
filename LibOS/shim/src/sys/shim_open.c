@@ -387,7 +387,7 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
             memcpy(b->d_name, name, len + 1);                           \
                                                                         \
             bt->pad = 0;                                                \
-            bt->d_type = type ? : get_dirent_type(dent->mode);          \
+            bt->d_type = type;                                          \
                                                                         \
             b = (void *) bt + sizeof(struct linux_dirent_tail);         \
             bytes += DIRENT_SIZE(len);                                  \
@@ -416,7 +416,7 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
         dent = *dirhdl->ptr;
         /* DEP 3/3/17: We need to filter negative dentries */
         if (!(dent->state & DENTRY_NEGATIVE))
-            ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
+            ASSIGN_DIRENT(dent, dentry_get_name(dent), get_dirent_type(dent->type));
         put_dentry(dent);
         *(dirhdl->ptr++) = NULL;
     }
@@ -484,7 +484,7 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
             b->d_ino = dent->ino;                                       \
             b->d_off = ++dirhdl->offset;                                \
             b->d_reclen = DIRENT_SIZE(len);                             \
-            b->d_type = type ? : get_dirent_type(dent->mode);           \
+            b->d_type = type;                                           \
                                                                         \
             memcpy(b->d_name, name, len + 1);                           \
                                                                         \
@@ -513,7 +513,7 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
         dent = *dirhdl->ptr;
         /* DEP 3/3/17: We need to filter negative dentries */
         if (!(dent->state & DENTRY_NEGATIVE))
-            ASSIGN_DIRENT(dent, dentry_get_name(dent), 0);
+            ASSIGN_DIRENT(dent, dentry_get_name(dent), get_dirent_type(dent->type));
         put_dentry(dent);
         *(dirhdl->ptr++) = NULL;
     }
