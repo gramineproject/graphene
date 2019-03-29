@@ -227,9 +227,9 @@ static int __query_attr (struct shim_dentry * dent,
     /* need to correct the data type */
     if (data->type == FILE_UNKNOWN)
         switch (pal_attr.handle_type) {
-            case pal_type_file: data->type = FILE_REGULAR;  break;
-            case pal_type_dir:  data->type = FILE_DIR;      break;
-            case pal_type_dev:  data->type = FILE_DEV;      break;
+            case pal_type_file: data->type = FILE_REGULAR; dent->type = S_IFREG; break;
+            case pal_type_dir:  data->type = FILE_DIR;     dent->type = S_IFDIR; break;
+            case pal_type_dev:  data->type = FILE_DEV;     dent->type = S_IFCHR; break;
         }
 
     data->mode = (pal_attr.readable  ? S_IRUSR : 0) |

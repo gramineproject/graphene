@@ -539,8 +539,10 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
         newly_created = 1;
 
         // If we didn't get an error and made a directory, set the dcache dir flag
-        if (flags & O_DIRECTORY)
+        if (flags & O_DIRECTORY) {
             mydent->state |= DENTRY_ISDIRECTORY;
+            mydent->type = S_IFDIR;
+        }
 
         // Once the dentry is creat-ed, drop the negative flag
         mydent->state &= ~DENTRY_NEGATIVE;
@@ -649,6 +651,9 @@ out:
 static inline void set_dirent_type (mode_t * type, int d_type)
 {
     switch (d_type) {
+        case LINUX_DT_DIR:
+            *type = S_IFDIR;
+            return;
         case LINUX_DT_FIFO:
             *type = S_IFIFO;
             return;
