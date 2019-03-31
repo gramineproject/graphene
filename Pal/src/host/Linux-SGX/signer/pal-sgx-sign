@@ -21,12 +21,17 @@ TCSSIZE = PAGESIZE
 SSAFRAMESIZE = PAGESIZE
 SSAFRAMENUM = 2
 
+GPRSIZE = 184
+
 ENCLAVE_STACK_SIZE = PAGESIZE * 16
 DEFAULT_ENCLAVE_SIZE = '256M'
 DEFAULT_THREAD_NUM = 4
 ENCLAVE_HEAP_MIN = 0x10000
+ENCLAVE_HIGH_ADDRESS = 0x800000000
 
 """ Utilities """
+
+ZERO_PAGE = "\0" * PAGESIZE
 
 def roundup(addr):
     remaining = addr % PAGESIZE
@@ -302,9 +307,13 @@ def get_loadcmds(filename):
     return loadcmds
 
 class MemoryArea:
-    def __init__(self, desc, file=None, addr=None, size=None, flags=None):
+    def __init__(self, desc, file=None, content=None, addr=None, size=None, flags=None):
+        if file is not None and content is not None:
+            raise ValueError("Memory area content can't be passed as file path and directly")
+
         self.desc = desc
         self.file = file
+        self.content = content
         self.addr = addr
         self.size = size
         self.flags = flags
@@ -353,6 +362,69 @@ def get_memory_areas(manifest, attr, args):
                                 flags=PAGEINFO_W|PAGEINFO_REG))
     return areas
 
+def find_area(areas, desc):
+    for i in areas:
+        if i.desc == desc:
+            return i
+
+    raise KeyError("Could not find MemoryArea '{}'".format(desc))
+
+def find_areas(areas, desc):
+    matching = []
+    for i in areas:
+        if i.desc == desc:
+            matching.append(i)
+    return matching
+
+def entry_point(elf_path):
+    env = os.environ
+    env['LC_ALL'] = 'C'
+    out = subprocess.check_output(['readelf', '-l', '--', elf_path], env = env)
+    for line in out.splitlines():
+        if line.startswith("Entry point "):
+            return parse_int(line[12:])
+    raise ValueError("Could not find entry point of elf file")
+
+def baseaddr():
+    if ENCLAVE_HEAP_MIN == 0:
+        return ENCLAVE_HIGH_ADDRESS
+    else:
+        return 0
+
+def gen_area_content(attr, areas):
+    pal_area = find_area(areas, 'pal')
+    ssa_area = find_area(areas, 'ssa')
+    tcs_area = find_area(areas, 'tcs')
+    tls_area = find_area(areas, 'tls')
+    stacks = find_areas(areas, 'stack')
+
+    tcs_data = bytearray(tcs_area.size)
+    def set_tcs_field(t, offset, pack_fmt, value):
+        struct.pack_into(pack_fmt, tcs_data, t * TCSSIZE + offset, value)
+
+    tls_data = bytearray(tls_area.size)
+    def set_tls_field(t, offset, value):
+        struct.pack_into('<Q', tls_data, t * PAGESIZE + offset, value)
+
+    for t in range(0, attr['thread_num']):
+        ssa_offset = ssa_area.addr + SSAFRAMESIZE * SSAFRAMENUM * t;
+        ssa = baseaddr() + ssa_offset
+        set_tcs_field(t, 16, '<Q', ssa_offset) # OSSA
+        set_tcs_field(t, 28, '<L', SSAFRAMENUM) # NSSA
+        set_tcs_field(t, 32, '<Q', pal_area.addr + entry_point(pal_area.file)) # OENTRY
+        set_tcs_field(t, 56, '<Q', tls_area.addr + PAGESIZE * t) # OGSBASEX
+        set_tcs_field(t, 64, '<L', 0xfff) # FSLIMIT
+        set_tcs_field(t, 68, '<L', 0xfff) # GSLIMIT
+
+        set_tls_field(t,  0, attr['enclave_size']) # enclave_size
+        set_tls_field(t,  8, tcs_area.addr + TCSSIZE * t) # tcs_offset
+        set_tls_field(t, 16, stacks[t].addr + stacks[t].size) # initial_stack_offset
+        set_tls_field(t, 32, ssa) # ssa
+        set_tls_field(t, 40, ssa + SSAFRAMESIZE - GPRSIZE) # gpr
+
+    tcs_area.content = tcs_data
+    tls_area.content = tls_data
+
 def populate_memory_areas(manifest, attr, areas):
     populating = attr['enclave_size']
 
@@ -381,6 +453,9 @@ def populate_memory_areas(manifest, attr, areas):
                                      size=populating - ENCLAVE_HEAP_MIN,
                                      flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
 
+
+    gen_area_content(attr, areas)
+
     return areas + free_areas
 
 def generate_measurement(attr, areas):
@@ -393,9 +468,21 @@ def generate_measurement(attr, areas):
         data = struct.pack("<8sQQ40s", "EADD", offset, flags, "")
         digest.update(data)
 
-    def do_eextend(digest, offset):
+    def do_eextend(digest, offset, content):
+        if len(content) != 256:
+            raise ValueError("Exactly 256 bytes expected")
+
         data = struct.pack("<8sQ48s", "EEXTEND", offset, "")
         digest.update(data)
+        digest.update(content)
+
+    def include_page(digest, offset, flags, content):
+        if len(content) != PAGESIZE:
+            raise ValueError("Exactly one page expected")
+
+        do_eadd(digest, offset, flags)
+        for i in range(0, PAGESIZE, 256):
+            do_eextend(digest, offset + i, content[i:i + 256])
 
     class mrenclave_digest:
         def __init__(self):
@@ -411,7 +498,7 @@ def generate_measurement(attr, areas):
     mrenclave = mrenclave_digest()
     do_ecreate(mrenclave, attr['enclave_size'])
 
-    def print_area(addr, size, flags, desc, measured):
+    def print_area(addr, size, flags, desc):
         if flags & PAGEINFO_REG:
             type = 'REG'
         if flags & PAGEINFO_TCS:
@@ -426,8 +513,6 @@ def generate_measurement(attr, areas):
         prot = ''.join(prot)
 
         desc = '(' + desc + ')'
-        if measured:
-            desc += ' measured'
 
         if size == PAGESIZE:
             print >>sys.stderr, "    %016x [%s:%s] %s" % (addr, type, prot, desc)
@@ -440,42 +525,34 @@ def generate_measurement(attr, areas):
         f_size = roundup(offset + filesize) - f_addr
         m_size = roundup(addr + memsize) - m_addr
 
-        print_area(m_addr, f_size, flags, desc, True)
-        if f_size < m_size:
-            print_area(m_addr + f_size, m_size - f_size, flags, "bss", False)
+        print_area(m_addr, m_size, flags, desc)
 
         for pg in range(m_addr, m_addr + m_size, PAGESIZE):
-            do_eadd(digest, pg, flags)
-
-            if (pg >= m_addr + f_size):
-                continue
-
-            for er in range(pg, pg + PAGESIZE, 256):
-                do_eextend(digest, er)
-                start = er - m_addr + f_addr
-                end = start + 256
-                start_zero = ""
-                if start < offset:
-                    if offset - start >= 256:
-                        start_zero = chr(0) * 256
-                    else:
-                        start_zero = chr(0) * (offset - start)
-                end_zero = ""
-                if end > offset + filesize:
-                    if end - offset - filesize >= 256:
-                        end_zero = chr(0) * 256
-                    else:
-                        end_zero = chr(0) * (end - offset - filesize)
-                start += len(start_zero)
-                end -= len(end_zero)
-                if start < end:
-                    f.seek(start)
-                    data = f.read(end - start)
+            start = pg - m_addr + f_addr
+            end = start + PAGESIZE
+            start_zero = ""
+            if start < offset:
+                if offset - start >= PAGESIZE:
+                    start_zero = ZERO_PAGE
                 else:
-                    data = ""
-                if len(start_zero + data + end_zero) != 256:
+                    start_zero = chr(0) * (offset - start)
+            end_zero = ""
+            if end > offset + filesize:
+                if end - offset - filesize >= PAGESIZE:
+                    end_zero = ZERO_PAGE
+                else:
+                    end_zero = chr(0) * (end - offset - filesize)
+            start += len(start_zero)
+            end -= len(end_zero)
+            if start < end:
+                f.seek(start)
+                data = f.read(end - start)
+            else:
+                data = ""
+            if len(start_zero + data + end_zero) != PAGESIZE:
                     raise Exception("wrong calculation")
-                digest.update(start_zero + data + end_zero)
+
+            include_page(digest, pg, flags, start_zero + data + end_zero)
 
     for area in areas:
         if area.file:
@@ -509,8 +586,15 @@ def generate_measurement(attr, areas):
                               area.desc, area.flags)
         else:
             for a in range(area.addr, area.addr + area.size, PAGESIZE):
-                do_eadd(mrenclave, a, area.flags)
-            print_area(area.addr, area.size, area.flags, area.desc, False)
+                data = ZERO_PAGE
+                if area.content is not None:
+                    start = a - area.addr
+                    end = start + PAGESIZE
+                    data = area.content[start:end]
+
+                include_page(mrenclave, a, area.flags, data)
+
+            print_area(area.addr, area.size, area.flags, area.desc)
 
     return mrenclave.finalize()
 
