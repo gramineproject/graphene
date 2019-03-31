@@ -397,18 +397,7 @@ def generate_measurement(attr, areas):
         data = struct.pack("<8sQ48s", "EEXTEND", offset, "")
         digest.update(data)
 
-    class mrenclave_digest:
-        def __init__(self):
-            self.digest = hashlib.sha256()
-
-        def update(self, payload):
-            for er in range(0, len(payload), 64):
-                self.digest.update(payload[er:er+64])
-
-        def finalize(self):
-            return self.digest.digest()
-
-    mrenclave = mrenclave_digest()
+    mrenclave = hashlib.sha256()
     do_ecreate(mrenclave, attr['enclave_size'])
 
     def print_area(addr, size, flags, desc, measured):
@@ -512,7 +501,7 @@ def generate_measurement(attr, areas):
                 do_eadd(mrenclave, a, area.flags)
             print_area(area.addr, area.size, area.flags, area.desc, False)
 
-    return mrenclave.finalize()
+    return mrenclave.digest()
 
 """ Generate Sigstruct """
 
