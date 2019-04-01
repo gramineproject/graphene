@@ -197,6 +197,7 @@ static int create_data (struct shim_dentry * dent, const char * uri, int len)
     assert(mdata);
     data->type = (dent->state & DENTRY_ISDIRECTORY) ?
                  FILE_DIR : mdata->base_type;
+    data->mode = NO_MODE;
 
     if (uri) {
         qstrsetstr(&data->host_uri, uri, len);
