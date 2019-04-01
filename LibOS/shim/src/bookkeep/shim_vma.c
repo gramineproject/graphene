@@ -991,22 +991,25 @@ bool is_in_one_vma (void * addr, size_t length)
 {
     struct shim_vma* vma;
 
+    assert(length);
+
+    /* NOTE: addr and length may be arbitrary values and lead to
+     * ptr arithmetic overflow in test_vma_contain. Add overflow
+     * check. Note that ptr arithmetic overflow is undef behavior,
+     * so cast to uintptr to at least have implementation-defined
+     * behavior. */
+    if ((uintptr_t)addr + (uintptr_t)length < (uintptr_t)addr)
+        return false;
+
     lock(vma_list_lock);
-    listp_for_each_entry(vma, &vma_list, list) {
-        /* NOTE: addr may be an arbitrary value and lead to pointer
-         * arithmetic overflow in test_vma_contain(). Guard against
-         * this by ensuring addr is inside the VMA; cast to uintptr
-         * to at least have implementation-defined behavior. */
-        if ((uintptr_t)vma->start <= (uintptr_t)addr &&
-            (uintptr_t)addr < (uintptr_t)vma->end &&
-            test_vma_contain(vma, addr, addr + length)) {
+    listp_for_each_entry(vma, &vma_list, list)
+        if (test_vma_contain(vma, addr, addr + length)) {
             unlock(vma_list_lock);
-            return 1;
+            return true;
         }
-    }
 
     unlock(vma_list_lock);
-    return 0;
+    return false;
 }
 
 int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
