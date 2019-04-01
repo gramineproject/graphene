@@ -21,6 +21,7 @@ struct enclave_tls {
     struct pal_handle_thread * thread;
     uint64_t ocall_prepared;
     uint64_t ecall_called;
+    uint64_t ready_for_exceptions;
 };
 
 #ifndef DEBUG
@@ -60,6 +61,7 @@ extern uint64_t dummy_debug_variable;
 #define SGX_THREAD                  0x58
 #define SGX_OCALL_PREPARED          0x60
 #define SGX_ECALL_CALLED            0x68
+#define SGX_READY_FOR_EXCEPTIONS    0x70
 
 #endif
 

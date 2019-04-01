@@ -155,9 +155,9 @@ enclave_entry:
 #endif
 
 .Lhandle_exception:
-	# If the enclave has not been initialized yet, we should not try to
-	# call an event handler yet.
-	testb $1, pal_enclave_state(%rip)
+	# If this enclave thread has not been initialized yet, we should not
+	# try to call an event handler yet.
+	cmpq $0, %gs:SGX_READY_FOR_EXCEPTIONS
 	jne 1f
 	FAIL_LOOP
 1:
