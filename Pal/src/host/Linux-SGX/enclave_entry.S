@@ -47,15 +47,13 @@ enclave_entry:
 
 	# Only jump to .Lreturn_from_ocall if we have prepared the stack for
 	# it.
-	movq %gs:SGX_OCALL_PREPARED, %rcx
-	cmpq $0, %rcx
+	cmpq $0, %gs:SGX_OCALL_PREPARED
 	jne .Lreturn_from_ocall
 
 	# Ecalls are only used to start a thread (either the main or an
 	# additional thread). So per thread we should only get exactly one
 	# ecall. Enforce this here.
-	movq %gs:SGX_ECALL_CALLED, %rcx
-	cmpq $0, %rcx
+	cmpq $0, %gs:SGX_ECALL_CALLED
 	je 1f
 	FAIL_LOOP
 1:
