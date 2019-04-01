@@ -33,11 +33,11 @@ int main() {
     rv = mkdir("root/testdir", perm);
     if (rv) { perror ("mkdir 2"); return 1; }
     rv = creat("root/testdir/file1", perm);
-    if (!rv) { perror ("creat 1"); return 1; }
+    if (rv < 0) { perror ("creat 1"); return 1; }
     rv = close(rv);
     if (rv) { perror ("close 1"); return 1; }
     rv = creat("root/testdir/file2", perm);
-    if (!rv) { perror ("creat 2"); return 1; }
+    if (rv < 0) { perror ("creat 2"); return 1; }
     rv = close(rv);
     if (rv) { perror ("close 2"); return 1; }
     rv = mkdir("root/testdir/dir3", perm);

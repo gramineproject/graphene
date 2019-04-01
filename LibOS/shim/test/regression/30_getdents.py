@@ -4,10 +4,6 @@ import os, sys, mmap
 from regression import Regression
 
 loader = sys.argv[1]
-try:
-    sgx = os.environ['SGX_RUN']
-except KeyError:
-    sgx = False
 
 # Running Bootstrap
 regression = Regression(loader, "getdents", None, 10000)
@@ -30,4 +26,5 @@ regression.add_check(name="Directory listing (64-bit)",
                       "getdents64: file2 [0x8]" in res[0].out and \
                       "getdents64: dir3 [0x4]" in res[0].out)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
