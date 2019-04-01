@@ -13,13 +13,6 @@
 
 struct pal_enclave_state pal_enclave_state;
 
-// See .Lhandle_exception in enclave_entry.S
-_Static_assert(offsetof(__typeof__(pal_enclave_state), enclave_flags) == 0,
-               "Offset of enclave_flags has unexpected value");
-_Static_assert(PAL_ENCLAVE_INITIALIZED == 1,
-               "PAL_ENCLAVE_INITIALIZED has unexpected value");
-
-
 void * enclave_base, * enclave_top;
 
 struct pal_enclave_config pal_enclave_config;
