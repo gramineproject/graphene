@@ -365,7 +365,7 @@ static int sgx_ocall_sock_connect(void * pms)
         goto err;
 
     fd = ret;
-    if (ms->ms_addr->sa_family == AF_INET6) {
+    if (ms->ms_addr && ms->ms_addr->sa_family == AF_INET6) {
         int ipv6only = 1;
         INLINE_SYSCALL(setsockopt, 5, fd, SOL_IPV6, IPV6_V6ONLY, &ipv6only,
                        sizeof(int));
