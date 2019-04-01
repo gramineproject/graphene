@@ -1,7 +1,4 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
-/* Copyright (C) 2014 Stony Brook University
+/* Copyright (C) 2019 The University of North Carolina at Chapel Hill
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -18,7 +15,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
- * db_object.c
+ * db_mutex.c
  *
  * This file contains APIs for closing or polling PAL handles.
  */
@@ -30,10 +27,24 @@
 #include "pal_debug.h"
 #include "api.h"
 
-/* _DkObjectsWaitAny for internal use. The function wait for any of the handle
-   in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
-                       PAL_HANDLE * polled)
+int _DkMutexCreate (PAL_HANDLE * handle, int initialCount)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkMutexAcquire (PAL_HANDLE sem) {
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+int _DkMutexAcquireTimeout (PAL_HANDLE sem, int timeout)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+void _DkMutexRelease (PAL_HANDLE sem)
+{
+    1;
+}
+
+int _DkMutexGetCurrentCount (PAL_HANDLE sem)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

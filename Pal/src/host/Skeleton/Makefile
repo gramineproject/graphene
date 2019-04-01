@@ -7,8 +7,8 @@ host_target = libpal-Skeleton.a
 
 defs	= -DIN_PAL
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    semaphore events process object main rtld misc ipc exception)
-graphene_lib = ../../../lib/graphene-lib.a
+	    semaphore events process object main rtld misc ipc exception mutex)
+graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
