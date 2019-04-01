@@ -133,8 +133,8 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     int rv;
 
     /* relocate PAL itself */
-    pal_map.l_addr = (ElfW(Addr)) sec_info->enclave_addr;
-    pal_map.l_name = sec_info->enclave_image;
+    pal_map.l_addr = elf_machine_load_address();
+    pal_map.l_name = ENCLAVE_FILENAME;
     elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
                          pal_map.l_info, pal_map.l_addr);
 
