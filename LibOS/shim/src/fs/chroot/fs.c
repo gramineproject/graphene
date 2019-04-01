@@ -949,7 +949,7 @@ static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
     rv = DkStreamSetLength(hdl->pal_handle, len);
     if (rv) {
         // For an error, cast it back down to an int return code
-        ret = -((int) rv);
+        ret = -((int)rv);
         goto out;
     }
 

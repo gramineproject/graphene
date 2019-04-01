@@ -664,7 +664,7 @@ DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length)
     }
 
     // At this point, ret should equal length
-    assert (ret == length);
+    assert(ret == length);
 
     LEAVE_PAL_CALL_RETURN(rv);
 }
