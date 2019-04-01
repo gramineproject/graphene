@@ -175,7 +175,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     /* now let's mark our enclave as initialized */
     pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
 
-    SET_ENCLAVE_TLS(ready_for_exceptions, true);
+    SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
 
     /* create executable handle */
     PAL_HANDLE manifest, exec = NULL;

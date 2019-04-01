@@ -76,7 +76,7 @@ void pal_start_thread (void)
     free(thread_param);
     new_thread->param = NULL;
     SET_ENCLAVE_TLS(thread, new_thread);
-    SET_ENCLAVE_TLS(ready_for_exceptions, true);
+    SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
     callback((void *) param);
     _DkThreadExit();
 }
