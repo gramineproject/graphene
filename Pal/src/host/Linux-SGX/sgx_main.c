@@ -465,8 +465,6 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     struct pal_sec * pal_sec = &enclave->pal_sec;
 
-    pal_sec->enclave_addr = (PAL_PTR) (enclave_secs.baseaddr + pal_area->addr);
-
     pal_sec->heap_min = (void *) enclave_secs.baseaddr + heap_min;
     pal_sec->heap_max = (void *) enclave_secs.baseaddr + pal_area->addr - MEMORY_GAP;
 
@@ -767,9 +765,6 @@ static int load_enclave (struct pal_enclave * enclave,
     ret = initialize_enclave(enclave);
     if (ret < 0)
         return ret;
-
-    snprintf(pal_sec->enclave_image,  sizeof(PAL_SEC_STR), "%s",
-             ENCLAVE_FILENAME);
 
     if (!pal_sec->instance_id)
         create_instance(&enclave->pal_sec);
