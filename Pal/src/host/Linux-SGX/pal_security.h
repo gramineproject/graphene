@@ -51,8 +51,6 @@ struct pal_sec {
     /* manifest name, addr and size */
     PAL_SEC_STR     manifest_name;
     PAL_IDX         manifest_fd;
-    PAL_PTR         manifest_addr;
-    PAL_NUM         manifest_size;
 
     /* need three proc fds if it has a parent */
     PAL_IDX         proc_fds[3];

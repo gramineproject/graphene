@@ -124,6 +124,7 @@ static int loader_filter (const char * key, int len)
 }
 
 extern void * enclave_base;
+extern void * enclave_top;
 
 void pal_linux_main(const char ** arguments, const char ** environments,
                     struct pal_sec * sec_info)
@@ -178,6 +179,9 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     /* create executable handle */
     PAL_HANDLE manifest, exec = NULL;
 
+    uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
+    void* manifest_addr = enclave_top - ALIGN_UP_PTR(manifest_size, pagesz);
+
     /* create manifest handle */
     manifest =
         setup_file_handle(pal_sec.manifest_name, pal_sec.manifest_fd);
@@ -191,8 +195,8 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     /* parse manifest data into config storage */
     struct config_store * root_config =
             malloc(sizeof(struct config_store));
-    root_config->raw_data = pal_sec.manifest_addr;
-    root_config->raw_size = pal_sec.manifest_size;
+    root_config->raw_data = manifest_addr;
+    root_config->raw_size = manifest_size;
     root_config->malloc = malloc;
     root_config->free = free;
 
@@ -203,9 +207,8 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     }
 
     pal_state.root_config = root_config;
-    __pal_control.manifest_preload.start = (PAL_PTR) pal_sec.manifest_addr;
-    __pal_control.manifest_preload.end = (PAL_PTR) pal_sec.manifest_addr +
-                                         pal_sec.manifest_size;
+    __pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
+    __pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
 
     init_trusted_files();
     init_trusted_children();
