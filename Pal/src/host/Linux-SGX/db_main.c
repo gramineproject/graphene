@@ -87,7 +87,13 @@ int init_enclave (void);
 int init_enclave_key (void);
 int init_child_process (PAL_HANDLE * parent_handle);
 
-static PAL_HANDLE setup_file_handle (const char * name, int fd)
+/*
+ * Creates a dummy file handle with the given name.
+ *
+ * The handle is not backed by any file. Reads will return EOF and writes will
+ * fail.
+ */
+static PAL_HANDLE setup_dummy_file_handle (const char * name)
 {
     if (!strpartcmp_static(name, "file:"))
         return NULL;
@@ -97,7 +103,7 @@ static PAL_HANDLE setup_file_handle (const char * name, int fd)
     PAL_HANDLE handle = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(handle, file);
     HANDLE_HDR(handle)->flags |= RFD(0);
-    handle->file.fd = fd;
+    handle->file.fd = PAL_IDX_POISON;
     handle->file.append = 0;
     handle->file.pass = 0;
 
@@ -179,11 +185,10 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     PAL_HANDLE manifest, exec = NULL;
 
     /* create manifest handle */
-    manifest =
-        setup_file_handle(pal_sec.manifest_name, pal_sec.manifest_fd);
+    manifest = setup_dummy_file_handle(pal_sec.manifest_name);
 
-    if (pal_sec.exec_fd != PAL_IDX_POISON) {
-        exec = setup_file_handle(pal_sec.exec_name, pal_sec.exec_fd);
+    if (pal_sec.exec_name[0] != '\0') {
+        exec = setup_dummy_file_handle(pal_sec.exec_name);
     } else {
         SGX_DBG(DBG_I, "Run without executable\n");
     }

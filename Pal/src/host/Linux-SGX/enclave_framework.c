@@ -629,7 +629,7 @@ int init_trusted_files (void)
     ssize_t cfgsize;
     int nuris, ret;
 
-    if (pal_sec.exec_fd != PAL_IDX_POISON) {
+    if (pal_sec.exec_name[0] != '\0') {
         ret = init_trusted_file("exec", pal_sec.exec_name);
         if (ret < 0)
             goto out;

@@ -776,14 +776,11 @@ static int load_enclave (struct pal_enclave * enclave,
     if (!pal_sec->instance_id)
         create_instance(&enclave->pal_sec);
 
-    pal_sec->manifest_fd = enclave->manifest;
     memcpy(pal_sec->manifest_name, manifest_uri, strlen(manifest_uri) + 1);
 
     if (enclave->exec == -1) {
-        pal_sec->exec_fd = PAL_IDX_POISON;
         memset(pal_sec->exec_name, 0, sizeof(PAL_SEC_STR));
     } else {
-        pal_sec->exec_fd = enclave->exec;
         memcpy(pal_sec->exec_name, exec_uri, strlen(exec_uri) + 1);
     }
 
