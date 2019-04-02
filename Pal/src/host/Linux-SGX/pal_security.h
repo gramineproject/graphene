@@ -40,13 +40,11 @@ struct pal_sec {
 
     /* executable name, addr and size */
     PAL_SEC_STR     exec_name;
-    PAL_IDX         exec_fd;
     PAL_PTR         exec_addr;
     PAL_NUM         exec_size;
 
     /* manifest name, addr and size */
     PAL_SEC_STR     manifest_name;
-    PAL_IDX         manifest_fd;
     PAL_PTR         manifest_addr;
     PAL_NUM         manifest_size;
 
