@@ -53,6 +53,18 @@ struct thread_param {
 
 extern void * enclave_base;
 
+/*
+ * We do not currently handle tid counter wrap-around, and could, in
+ * principle, end up with two threads with the same ID. This is ok, as strict
+ * uniqueness is not required; the tid is only used for debugging. We could
+ * ensure uniqueness if needed in the future
+ */
+static PAL_IDX pal_assign_tid(void)
+{
+    static struct atomic_int tid = ATOMIC_INIT(0);
+    return _atomic_add(1, &tid);
+}
+
 void pal_start_thread (void)
 {
     struct pal_handle_thread *new_thread = NULL, *tmp;
@@ -61,6 +73,7 @@ void pal_start_thread (void)
     listp_for_each_entry(tmp, &thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
+            new_thread->tid = pal_assign_tid();
             new_thread->tcs =
                 enclave_base + GET_ENCLAVE_TLS(tcs_offset);
             break;
@@ -90,6 +103,11 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);
+    /*
+     * tid will be filled later by pal_start_thread()
+     * tid is cleared to avoid random value here.
+     */
+    new_thread->thread.tid = 0;
     new_thread->thread.tcs = NULL;
     INIT_LIST_HEAD(&new_thread->thread, list);
     struct thread_param * thread_param = malloc(sizeof(struct thread_param));
