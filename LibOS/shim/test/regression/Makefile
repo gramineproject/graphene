@@ -58,6 +58,8 @@ regression: $(target)
 	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nSyscall Support:"
 	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
+	@echo "\n\nSpecial File Support:"
+	@for f in $(wildcard 40_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nSocket Support:"
 	@for f in $(wildcard 80_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nLarge File Support:"
