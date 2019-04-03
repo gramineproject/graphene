@@ -33,7 +33,7 @@ static int parse_line(char *line, struct cpuinfo *ci) {
     char *k, *v, *p;
 
     if ((p = strchr(line, ':')) == NULL) {
-        printf("format error line: %s\n", line);
+        fprintf(stderr, "format error line: %s\n", line);
         return -1;
     }
     /* some line may not have value string */
@@ -80,9 +80,6 @@ static int check_cpuinfo(struct cpuinfo *ci) {
         fprintf(stderr, "Could not get cpu cores\n");
         return -1;
     }
-
-    printf("passed cpu index:%d, core id:%d, cpu cores:%d\n",
-           ci->processor, ci->core_id, ci->cpu_cores);
 
     return 0;
 }
