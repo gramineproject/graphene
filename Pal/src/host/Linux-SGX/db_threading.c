@@ -52,6 +52,18 @@ struct thread_param {
 
 extern void * enclave_base;
 
+/*
+ * It isn't strictly required to be unique because
+ * tid is only used for debug as id for thread at the moment.
+ * So for now, tid allocation isn't tracked for simplicity.
+ */
+static struct atomic_int tid = ATOMIC_INIT(0);
+
+static PAL_IDX pal_assign_tid(void)
+{
+    return _atomic_add(1, &tid);
+}
+
 void pal_start_thread (void)
 {
     struct pal_handle_thread *new_thread = NULL, *tmp;
@@ -60,6 +72,7 @@ void pal_start_thread (void)
     listp_for_each_entry(tmp, &thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
+            new_thread->tid = pal_assign_tid();
             new_thread->tcs =
                 enclave_base + GET_ENCLAVE_TLS(tcs_offset);
             break;
@@ -87,6 +100,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);
+    new_thread->thread.tid = pal_assign_tid();
     new_thread->thread.tcs = NULL;
     INIT_LIST_HEAD(&new_thread->thread, list);
     struct thread_param * thread_param = malloc(sizeof(struct thread_param));
