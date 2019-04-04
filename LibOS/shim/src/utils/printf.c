@@ -69,6 +69,7 @@ debug_fputch (void * f, int ch, void * b)
 #else
     if (buf->end == DEBUGBUF_SIZE) {
         debug_fputs(NULL, buf->buf, buf->end);
+        buf->end = buf->start;
     }
 #endif
 
