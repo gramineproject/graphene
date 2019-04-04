@@ -713,7 +713,7 @@ int resume_wrapper (void * param)
     struct shim_thread * thread = (struct shim_thread *) param;
     assert(thread);
 
-    __libc_tcb_t * libc_tcb = (__libc_tcb_t *) thread->tcb;
+    __libc_tcb_t * libc_tcb = thread->tcb;
     assert(libc_tcb);
     shim_tcb_t * tcb = &libc_tcb->shim_tcb;
     assert(tcb->context.sp);
@@ -738,6 +738,12 @@ BEGIN_RS_FUNC(running_thread)
     if (!thread->user_tcb)
         CP_REBASE(thread->tcb);
 
+    if (thread->set_child_tid) {
+        /* CLONE_CHILD_SETTID */
+        *thread->set_child_tid = thread->tid;
+        thread->set_child_tid = NULL;
+    }
+
     thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
                                  NUM_SIGS);
 
@@ -760,6 +766,16 @@ BEGIN_RS_FUNC(running_thread)
             debug_setprefix(tcb);
             debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
+            /*
+             * In execve case, the following holds:
+             * stack = NULL
+             * stack_top = NULL
+             * frameptr = NULL
+             * tcb = NULL
+             * user_tcb = false
+             * in_vm = false
+             */
+            init_tcb(shim_libc_tcb()->tcb);
             set_cur_thread(thread);
         }
 

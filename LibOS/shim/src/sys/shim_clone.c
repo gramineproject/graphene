@@ -138,11 +138,11 @@ int clone_implementation_wrapper(struct clone_args * arg)
     debug_setbuf(tcb, true);
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 
-    struct shim_regs regs;
-    regs = *arg->parent->tcb->shim_tcb.context.regs;
-
-    if (my_thread->set_child_tid)
+    struct shim_regs regs = *arg->parent->tcb->shim_tcb.context.regs;
+    if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
+        my_thread->set_child_tid = NULL;
+    }
 
     void * stack = arg->stack;
     void * return_pc = arg->return_pc;
@@ -221,6 +221,49 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     if (!(flags & CLONE_SYSVSEM))
         debug("clone without CLONE_SYSVSEM is not yet implemented\n");
 
+    /* currently unsupported flags.
+     * Please update this once you added new flags support.
+     */
+    const int unsupported_flags =
+#ifdef CLONE_PIDFD
+        CLONE_PIDFD |
+#endif
+        CLONE_VFORK | /* vfork is handled above */
+        CLONE_PARENT |
+        CLONE_NEWNS |
+        CLONE_UNTRACED |
+        CLONE_NEWCGROUP |
+        CLONE_NEWUTS |
+        CLONE_NEWIPC |
+        CLONE_NEWUSER |
+        CLONE_NEWPID |
+        CLONE_NEWNET |
+        CLONE_IO;
+    if (flags & unsupported_flags)
+        debug("clone with flags 0x%x is not yet implemented\n",
+            flags & unsupported_flags);
+
+    if ((flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
+        return -EINVAL;
+    if ((flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
+        return -EINVAL;
+    if ((flags & CLONE_THREAD) && !(flags & CLONE_SIGHAND))
+        return -EINVAL;
+    if ((flags & CLONE_SIGHAND) && !(flags & CLONE_VM))
+        return -EINVAL;
+    if (flags & CLONE_THREAD && (flags & (CLONE_NEWUSER | CLONE_NEWPID)))
+        return -EINVAL;
+#ifdef CLONE_PIDFD
+    if (flags & CLONE_PIDFD) {
+        if (flags & (CLONE_DETACHED | CLONE_PARENT_SETTID | CLONE_THREAD))
+            return -EINVAL;
+        if (test_user_memory(parent_tidptr, sizeof(*parent_tidptr), false))
+            return -EFAULT;
+        if (*parent_tidptr != 0)
+            return -EINVAL;
+    }
+#endif
+
     if (flags & CLONE_PARENT_SETTID) {
         if (!parent_tidptr)
             return -EINVAL;
@@ -286,6 +329,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             thread->tcb = tcb = self->tcb;
             old_shim_tcb = __alloca(sizeof(shim_tcb_t));
             memcpy(old_shim_tcb, &tcb->shim_tcb, sizeof(shim_tcb_t));
+            thread->user_tcb = self->user_tcb;
         }
 
         if (user_stack_addr) {
@@ -302,16 +346,17 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         add_thread(thread);
         set_as_child(self, thread);
 
-        if ((ret = do_migrate_process(&migrate_fork, NULL, NULL, thread)) < 0)
-            goto failed;
-
+        ret = do_migrate_process(&migrate_fork, NULL, NULL, thread);
         if (old_shim_tcb)
-            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(shim_tcb_t));
+            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(tcb->shim_tcb));
+        if (ret < 0)
+            goto failed;
 
         lock(thread->lock);
         handle_map = thread->handle_map;
         thread->handle_map = NULL;
         unlock(thread->lock);
+
         if (handle_map)
             put_handle_map(handle_map);
 
