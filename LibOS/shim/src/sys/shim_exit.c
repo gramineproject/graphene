@@ -180,8 +180,10 @@ noreturn int shim_do_exit_group (int error_code)
      * out of this loop.*/
     static struct atomic_int first = ATOMIC_INIT(0);
     if (atomic_cmpxchg(&first, 0, 1) == 1) {
-        while (1)
+        while (true) {
+            handle_exit_signal();
             DkThreadYieldExecution();
+        }
     }
 
     if (debug_handle)

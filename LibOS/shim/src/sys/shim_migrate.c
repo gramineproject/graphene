@@ -263,8 +263,6 @@ int shim_do_checkpoint(const char* filename) {
 
     shim_tcb_t* tcb = shim_get_tcb();
     assert(tcb && tcb->tp);
-    struct shim_signal signal;
-    __store_context(tcb, NULL, &signal);
 
     ret = create_checkpoint(filename, &session);
     if (ret < 0) {

@@ -173,9 +173,12 @@ attribute_nofp void fpstate_reset(void);
 
 /* definition for syscall table */
 void handle_signal (void);
+void handle_sysret_signal(void);
+void handle_exit_signal(void);
+int handle_next_signal(ucontext_t* user_uc);
 long convert_pal_errno (long err);
 void syscall_wrapper(void);
-void syscall_wrapper_after_syscalldb(void);
+void syscalldb_check_sigpending(void);
 
 #define PAL_ERRNO  convert_pal_errno(PAL_NATIVE_ERRNO)
 
@@ -210,13 +213,12 @@ static inline int64_t get_cur_preempt (void) {
         SHIM_ARG_TYPE ret = 0;                              \
         int64_t preempt = get_cur_preempt();                \
         __UNUSED(preempt);                                  \
-        /* handle_signal(); */                              \
         /* check_stack_hook(); */                           \
         BEGIN_SYSCALL_PROFILE();
 
 #define END_SHIM(name)                                      \
         END_SYSCALL_PROFILE(name);                          \
-        handle_signal();                                    \
+        handle_sysret_signal();                             \
         assert(preempt == get_cur_preempt());               \
         return ret;                                         \
     }
@@ -494,8 +496,6 @@ static inline void __enable_preempt (shim_tcb_t * tcb)
     //debug("enable preempt: %d\n", preempt);
 }
 
-void __handle_signal (shim_tcb_t * tcb, int sig);
-
 static inline void enable_preempt (shim_tcb_t * tcb)
 {
     if (!tcb && !(tcb = shim_get_tcb()))
@@ -504,9 +504,6 @@ static inline void enable_preempt (shim_tcb_t * tcb)
     int64_t preempt = atomic_read(&tcb->context.preempt);
     if (!preempt)
         return;
-
-    if (preempt == 1)
-        __handle_signal(tcb, 0);
 
     __enable_preempt(tcb);
 }
@@ -771,9 +768,13 @@ static inline bool memory_migrated(void * mem)
     return mem >= migrated_memory_start && mem < migrated_memory_end;
 }
 
-
 extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;
+extern void* __syscallas_return_begin;
+extern void* __syscallas_return_before_jmp;
+extern void* __syscallas_return_end;
+extern void* __syscalldb_check_sigpending_begin;
+extern void* __syscalldb_check_sigpending_end;
 
 unsigned long parse_int (const char * str);
 

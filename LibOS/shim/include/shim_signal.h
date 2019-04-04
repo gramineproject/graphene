@@ -93,9 +93,6 @@ __SIGSETFN (shim_sigdelset, ((__set->__val[__word] &= ~__mask), 0), )
 /* NB: Check shim_signal.c if this changes.  Some memset(0) elision*/
 struct shim_signal {
     siginfo_t   info;
-    bool        context_stored;
-    ucontext_t  context;
-    PAL_CONTEXT * pal_context;
 };
 
 #define MAX_SIGNAL_LOG      32

@@ -9,7 +9,6 @@
 
 struct shim_regs {
     uint64_t    orig_rax;
-    uint64_t    rsp;
     uint64_t    r15;
     uint64_t    r14;
     uint64_t    r13;
@@ -26,12 +25,12 @@ struct shim_regs {
     uint64_t    rbp;
     uint64_t    rflags;
     uint64_t    rip;
+    uint64_t    rsp;
 };
 
 struct shim_context {
     struct shim_regs *      regs;
     uint64_t                fs_base;
-    struct shim_context *   next;
     uint64_t                enter_time;
     struct atomic_int       preempt;
 };
@@ -47,6 +46,9 @@ struct shim_tcb {
     unsigned int            tid;
     int                     pal_errno;
     struct debug_buf *      debug_buf;
+#define SHIM_FLAG_SIGPENDING 0
+    unsigned long           flags;
+    uint64_t                tmp_rip;
 
     /* syscall stack range */
     void*                   syscall_stack_low;
