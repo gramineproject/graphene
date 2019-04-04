@@ -132,6 +132,22 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     unsigned long start_time = _DkSystemTimeQuery();
     int rv;
 
+    /* Zero the heap. We need to take care to not zero the exec area. */
+
+    void* zero1_start = sec_info->heap_min;
+    void* zero1_end = sec_info->heap_max;
+
+    void* zero2_start = sec_info->heap_max;
+    void* zero2_end = sec_info->heap_max;
+
+    if (sec_info->exec_addr != NULL) {
+        zero1_end = MIN(zero1_end, sec_info->exec_addr);
+        zero2_start = MIN(zero2_start, sec_info->exec_addr + sec_info->exec_size);
+    }
+
+    memset(zero1_start, 0, zero1_end - zero1_start);
+    memset(zero2_start, 0, zero2_end - zero2_start);
+
     /* relocate PAL itself */
     pal_map.l_addr = (ElfW(Addr)) sec_info->enclave_addr;
     pal_map.l_name = sec_info->enclave_image;
