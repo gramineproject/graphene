@@ -53,8 +53,7 @@ shim_start:
     pushq %rbp
     movq %rsp, %rdx
 
-    movq shim_init@GOTPCREL(%rip), %r11
-    call *%r11
+    callq *shim_init@GOTPCREL(%rip)
 
     popq %rbp
     leaveq
