@@ -1392,6 +1392,7 @@ static ElfW(Addr)* __vdso_shim_clock_gettime __attribute_migratable = NULL;
 static ElfW(Addr)* __vdso_shim_gettimeofday __attribute_migratable  = NULL;
 static ElfW(Addr)* __vdso_shim_time __attribute_migratable          = NULL;
 static ElfW(Addr)* __vdso_shim_getcpu __attribute_migratable        = NULL;
+static ElfW(Addr)* __vdso_shim_check_sigpending __attribute_migratable = NULL;
 
 static const struct {
     const char* name;
@@ -1416,7 +1417,13 @@ static const struct {
                  .name  = "__vdso_shim_getcpu",
                  .value = (ElfW(Addr))&__shim_getcpu,
                  .func  = &__vdso_shim_getcpu,
-             }};
+             },
+             {
+                 .name  = "__vdso_shim_check_sigpending",
+                 .value = (ElfW(Addr))&syscalldb_check_sigpending,
+                 .func  = &__vdso_shim_check_sigpending,
+             }
+};
 
 static int vdso_map_init(void) {
     /*

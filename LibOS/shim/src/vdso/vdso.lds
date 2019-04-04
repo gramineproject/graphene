@@ -77,6 +77,7 @@ VERSION {
                 __vdso_shim_gettimeofday;
                 __vdso_shim_getcpu;
                 __vdso_shim_time;
+                __vdso_shim_check_sigpending;
         local: *;
         };
 }

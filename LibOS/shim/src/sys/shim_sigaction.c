@@ -87,8 +87,48 @@ out:
 
 attribute_nofp int shim_do_sigreturn(int __unused) {
     __UNUSED(__unused);
-    /* do nothing */
-    return 0;
+    shim_tcb_t* tcb = shim_get_tcb();
+    struct shim_regs* regs = tcb->context.regs;
+    ucontext_t* user_uc = (ucontext_t*)regs->rsp;
+
+    debug("sigreturn thread %d regs: %p sp: %08lx "
+          "user_uc: %p gregs.rsp: %08lx gregs.rip: %08lx fpstate %p\n",
+          tcb->tp->tid, regs, regs->rsp, user_uc,
+          user_uc->uc_mcontext.gregs[REG_RSP],
+          user_uc->uc_mcontext.gregs[REG_RIP],
+          user_uc->uc_mcontext.fpregs);
+
+    if (handle_next_signal(user_uc)) {
+        fpstate_reset();
+        return 0;
+    }
+
+    /* no more signals pending. return back */
+    gregset_t* gregs = &user_uc->uc_mcontext.gregs;
+    /* RAX: will be restored as return value of sigreturn. see below */
+    regs->r15 = (*gregs)[REG_R15];
+    regs->r14 = (*gregs)[REG_R14];
+    regs->r13 = (*gregs)[REG_R13];
+    regs->r12 = (*gregs)[REG_R12];
+    regs->r11 = (*gregs)[REG_R11];
+    regs->r10 = (*gregs)[REG_R10];
+    regs->r9 = (*gregs)[REG_R9];
+    regs->r8 = (*gregs)[REG_R8];
+    regs->rcx = (*gregs)[REG_RCX];
+    regs->rdx = (*gregs)[REG_RDX];
+    regs->rsi = (*gregs)[REG_RSI];
+    regs->rdi = (*gregs)[REG_RDI];
+    regs->rbx = (*gregs)[REG_RBX];
+    regs->rbp = (*gregs)[REG_RBP];
+    regs->rflags = (*gregs)[REG_EFL];
+    regs->rip = (*gregs)[REG_RIP];
+    regs->rsp = (*gregs)[REG_RSP];
+
+    struct _libc_fpstate * user_fpstate = user_uc->uc_mcontext.fpregs;
+    fpstate_restore(user_fpstate);
+
+    /* syscalldb_return doesn't restore %rax. but %rax is return value */
+    return (*gregs)[REG_RAX];
 }
 
 int shim_do_sigprocmask(int how, const __sigset_t* set, __sigset_t* oldset) {

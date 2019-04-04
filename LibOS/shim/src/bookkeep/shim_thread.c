@@ -813,6 +813,12 @@ BEGIN_CP_FUNC(running_thread)
         new_thread->shim_tcb = (void *)(base + toff);
         struct shim_tcb* new_tcb = new_thread->shim_tcb;
         memcpy(new_tcb, thread->shim_tcb, sizeof(*new_tcb));
+        struct shim_regs* regs = thread->shim_tcb->context.regs;
+        if (regs) {
+            ptr_t roff = ADD_CP_OFFSET(sizeof(*regs));
+            new_tcb->context.regs = (struct shim_regs*)(base + roff);
+            memcpy(new_tcb->context.regs, regs, sizeof(*regs));
+        }
         /* don't export stale pointers */
         new_tcb->self = NULL;
         new_tcb->tp = NULL;
@@ -861,8 +867,12 @@ BEGIN_RS_FUNC(running_thread)
 
     thread->vmid = cur_process.vmid;
 
-    if (thread->shim_tcb)
+    if (thread->shim_tcb) {
         CP_REBASE(thread->shim_tcb);
+        if (thread->shim_tcb->context.regs) {
+            CP_REBASE(thread->shim_tcb->context.regs);
+        }
+    }
 
     if (thread->set_child_tid) {
         /* CLONE_CHILD_SETTID */

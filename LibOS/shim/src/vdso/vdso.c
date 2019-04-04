@@ -37,33 +37,48 @@ EXPORT_SYMBOL(shim_gettimeofday);
 EXPORT_SYMBOL(shim_time);
 EXPORT_SYMBOL(shim_getcpu);
 
+static void (*shim_check_sigpending)(void) = NULL;
+EXPORT_SYMBOL(shim_check_sigpending);
+
 #define EXPORT_WEAK_SYMBOL(name) \
     __typeof__(__vdso_##name) name __attribute__((weak, alias("__vdso_" #name)))
 
 int __vdso_clock_gettime(clockid_t clock, struct timespec* t) {
-    if (shim_clock_gettime)
-        return (*shim_clock_gettime)(clock, t);
+    if (shim_clock_gettime && shim_check_sigpending) {
+        int ret = (*shim_clock_gettime)(clock, t);
+        (*shim_check_sigpending)();
+        return ret;
+    }
     return -ENOSYS;
 }
 EXPORT_WEAK_SYMBOL(clock_gettime);
 
 int __vdso_gettimeofday(struct timeval* tv, struct timezone* tz) {
-    if (shim_gettimeofday)
-        return (*shim_gettimeofday)(tv, tz);
+    if (shim_gettimeofday && shim_check_sigpending) {
+        int ret = (*shim_gettimeofday)(tv, tz);
+        (*shim_check_sigpending)();
+        return ret;
+    }
     return -ENOSYS;
 }
 EXPORT_WEAK_SYMBOL(gettimeofday);
 
 time_t __vdso_time(time_t* t) {
-    if (shim_time)
-        return (*shim_time)(t);
+    if (shim_time && shim_check_sigpending) {
+        time_t ret = (*shim_time)(t);
+        (*shim_check_sigpending)();
+        return ret;
+    }
     return -ENOSYS;
 }
 EXPORT_WEAK_SYMBOL(time);
 
 long __vdso_getcpu(unsigned* cpu, struct getcpu_cache* unused) {
-    if (shim_getcpu)
-        return (*shim_getcpu)(cpu, unused);
+    if (shim_getcpu && shim_check_sigpending) {
+        long ret = (*shim_getcpu)(cpu, unused);
+        (*shim_check_sigpending)();
+        return ret;
+    }
     return -ENOSYS;
 }
 EXPORT_WEAK_SYMBOL(getcpu);

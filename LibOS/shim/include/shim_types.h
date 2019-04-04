@@ -274,6 +274,17 @@ enum
 # define REG_CR2    REG_CR2
 };
 
+union csgsfs {
+    struct {
+        uint16_t cs;
+        uint16_t gs;
+        uint16_t fs;
+        uint16_t ss;
+
+    };
+    uint64_t csgsfs;
+};
+
 struct _libc_fpxreg {
     unsigned short int significand[4];
     unsigned short int exponent;
@@ -360,13 +371,27 @@ typedef struct {
 
 /* Userlevel context.  */
 typedef struct ucontext {
+#define UC_FP_XSTATE            0x1
+#define UC_SIGCONTEXT_SS        0x2
+#define UC_STRICT_RESTORE_SS    0x4
     unsigned long int uc_flags;
     struct ucontext *uc_link;
+// stack_t::ss_flags
+#define SS_ONSTACK  1
+#define SS_DISABLE  2
+#define SS_AUTODISARM   (1U << 31)      /* disable sas during sighandling */
     stack_t uc_stack;
     mcontext_t uc_mcontext;
     __sigset_t uc_sigmask;
     struct _libc_fpstate __fpregs_mem;
 } ucontext_t;
+
+struct sigframe {
+    void * restorer;
+    ucontext_t uc;
+    siginfo_t info;
+    /* fpstate follows */
+};
 
 #define RED_ZONE_SIZE   128
 
