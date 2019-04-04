@@ -93,6 +93,8 @@ typedef struct
 
 #include <stddef.h>
 
+void init_tcb (shim_tcb_t * tcb);
+
 static inline bool shim_tls_check_canary(void)
 {
     uint64_t __canary;

@@ -115,11 +115,11 @@ int clone_implementation_wrapper(struct clone_args * arg)
     debug_setbuf(tcb, true);
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 
-    struct shim_regs regs;
-    regs = *arg->parent->tcb->shim_tcb.context.regs;
-
-    if (my_thread->set_child_tid)
+    struct shim_regs regs = *arg->parent->tcb->shim_tcb.context.regs;
+    if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
+        my_thread->set_child_tid = NULL;
+    }
 
     void * stack = pcargs->stack;
     void * return_pc = pcargs->return_pc;
@@ -262,6 +262,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             thread->tcb = tcb = self->tcb;
             old_shim_tcb = __alloca(sizeof(shim_tcb_t));
             memcpy(old_shim_tcb, &tcb->shim_tcb, sizeof(shim_tcb_t));
+            thread->user_tcb = self->user_tcb;
         }
 
         if (user_stack_addr) {
@@ -273,6 +274,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             tcb->shim_tcb.context.ret_ip = shim_get_tls()->context.ret_ip;
         }
 
+        thread->tgid = thread->tid;
         thread->is_alive = true;
         thread->in_vm = false;
         add_thread(thread);
@@ -281,13 +283,13 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         if ((ret = do_migrate_process(&migrate_fork, NULL, NULL, thread)) < 0)
             goto failed;
 
-        if (old_shim_tcb)
-            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(shim_tcb_t));
-
         lock(thread->lock);
         handle_map = thread->handle_map;
         thread->handle_map = NULL;
         unlock(thread->lock);
+
+        if (old_shim_tcb)
+            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(tcb->shim_tcb));
         if (handle_map)
             put_handle_map(handle_map);
 
