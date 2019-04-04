@@ -65,4 +65,8 @@
 
 #define WARN_NO_GIPC                0   /* warn if GIPC is not supported for process creation */
 
+/* TODO user configuration */
+#define SHIM_SYSCALL_STACK          1
+//#undef SHIM_SYSCALL_STACK
+
 #endif /* _SHIM_DEFS_H_ */

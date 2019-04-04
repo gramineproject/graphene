@@ -121,6 +121,7 @@ isundef:
         .cfi_endproc
         .size syscalldb, .-syscalldb
 
+#ifndef SHIM_SYSCALL_STACK
         /*
          * syscall_wrapper: emulate syscall instruction
          *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
@@ -159,3 +160,39 @@ syscall_wrapper_after_syscalldb:
 
         .cfi_endproc
         .size syscall_wrapper, .-syscall_wrapper
+
+#else
+        /*
+         * syscall_wrapper: emulate syscall instruction
+         *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
+         *   This switches stack to dedicated one allocated by LibOS to avoid
+         *   small application stack. e.g. go program.
+         * See illegal_upcall() @ shim_signal.c and
+         *     fixup_child_context() @ shim_clone.c
+         *
+         * input:
+         * %rcx: Instruction address to continue app execution after trapped
+         *       syscall instruction
+         * %r11: rflags on entering syscall: unused as %rflags is preserved
+         *       %r11 == %rflags on entry
+         */
+syscall_wrapper:
+        .cfi_startproc
+        .cfi_def_cfa %rsp, 0
+        # %rcx is used as input for returning %rip
+        .cfi_register %rip, %rcx
+        # %r11(saved %rflags) isn't needed.
+        movq %rsp, %r11
+        .cfi_def_cfa_register %r11
+        .cfi_register %rsp, %r11
+        # switch stack to the one allocated by LibOS
+        movq %gs:(SHIM_TCB_OFFSET + SHIM_TCB_SYSCALL_STACK), %rsp
+        callq *syscalldb@GOTPCREL(%rip)
+syscall_wrapper_after_syscalldb:
+        # %rflags is perserved. no need to restore
+        movq %r11, %rsp
+        jmp *%rcx
+
+        .cfi_endproc
+        .size syscall_wrapper, .-syscall_wrapper
+#endif

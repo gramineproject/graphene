@@ -211,6 +211,7 @@ void init_fs_base (unsigned long fs_base, struct shim_thread * thread)
     shim_tcb_t * shim_tcb = shim_get_tcb();
     init_tcb(shim_tcb);
 
+    shim_tcb_init_syscall_stack(shim_tcb, thread);
     if (thread) {
         thread->shim_tcb = shim_tcb;
         shim_tcb->tp = thread;
@@ -230,6 +231,7 @@ void update_fs_base (unsigned long fs_base)
     shim_tcb_t * shim_tcb = shim_get_tcb();
 
     struct shim_thread * thread = shim_tcb->tp;
+    shim_tcb_init_syscall_stack(shim_tcb, thread);
     if (thread) {
         thread->shim_tcb = shim_tcb;
     }

@@ -93,7 +93,24 @@ struct shim_thread {
 #ifdef PROFILE
     unsigned long exit_time;
 #endif
+
+#ifdef SHIM_SYSCALL_STACK
+#define SHIM_THREAD_SYSCALL_STACK_SIZE  (16 * 1024)
+    uint8_t syscall_stack[SHIM_THREAD_SYSCALL_STACK_SIZE];
+#endif
 };
+
+static inline void shim_tcb_init_syscall_stack(
+    shim_tcb_t* shim_tcb, struct shim_thread* thread) {
+#ifdef SHIM_SYSCALL_STACK
+    if (thread) {
+        shim_tcb->syscall_stack = ALIGN_DOWN_PTR(
+            (void*)thread->syscall_stack + SHIM_THREAD_SYSCALL_STACK_SIZE, 16UL);
+    } else {
+        shim_tcb->syscall_stack = NULL;
+    }
+#endif
+}
 
 DEFINE_LIST(shim_simple_thread);
 struct shim_simple_thread {
@@ -193,6 +210,7 @@ void set_cur_thread (struct shim_thread * thread)
             get_thread(thread);
 
         tcb->tp = thread;
+        shim_tcb_init_syscall_stack(tcb, thread);
         thread->shim_tcb = tcb;
         tid = thread->tid;
 
