@@ -42,8 +42,10 @@
 #include <asm/unistd.h>
 #include <asm/fcntl.h>
 
+#ifdef SHIM_TCB_USE_GS
 _Static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
                "shim_tcb_t is too big. increase PAL_LIBOS_TCB_SIZE");
+#endif
 #if 0
 /* tcbhead_t is defined in glibc-2.19/nptl/sysdeps/x86_64/tls.h
  * with glibc 2.19, sizeof(tcbhead_t) = 704

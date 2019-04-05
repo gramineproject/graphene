@@ -37,6 +37,7 @@
 #define MIGRATE_SYSV_SEM            0
 #define MIGRATE_SYSV_MSG            1
 
+/* TODO: introduce configuration for compile time option */
 //#define SHIM_TCB_USE_GS             1
 #undef SHIM_TCB_USE_GS
 

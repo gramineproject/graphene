@@ -112,7 +112,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     shim_tcb_t * tcb = my_thread->shim_tcb;
     __disable_preempt(tcb); // Temporarily disable preemption, because the preemption
                             // will be re-enabled when the thread starts.
-    debug_setbuf(tcb, false);
+    debug_setbuf(tcb, true);
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 
     struct shim_regs regs;
