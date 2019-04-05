@@ -166,6 +166,7 @@ int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
         *oss = *cur_ss;
 
     void * sp = SHIM_GET_TLS()->context.sp;
+    /* check if thread is currently executing on an active altstack */
     if (!(cur_ss->ss_flags & SS_DISABLE) &&
         sp &&
         cur_ss->ss_sp <= sp &&

@@ -34,6 +34,8 @@
 #include <pal.h>
 #include <list.h>
 
+#include <linux/signal.h>
+
 static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 
 static LISTP_TYPE(shim_thread) thread_list = LISTP_INIT;
