@@ -132,6 +132,9 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     unsigned long start_time = _DkSystemTimeQuery();
     int rv;
 
+    sec_info->heap_min = GET_ENCLAVE_TLS(heap_min);
+    sec_info->heap_max = GET_ENCLAVE_TLS(heap_max);
+
     /* relocate PAL itself */
     pal_map.l_addr = (ElfW(Addr)) sec_info->enclave_addr;
     pal_map.l_name = sec_info->enclave_image;
