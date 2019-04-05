@@ -32,16 +32,20 @@ static void init_cpuinfo(struct cpuinfo *ci) {
 static int parse_line(char *line, struct cpuinfo *ci) {
     char *k, *v, *p;
 
-    if ((p = strchr(line, ':')) == NULL) {
-        fprintf(stderr, "format error line: %s\n", line);
-        return -1;
-    }
-    /* some line may not have value string */
-    if (strlen(p) < 2)
+    if ((p = strchr(line, ':')) == NULL)
+        goto fmt_err;
+
+    /* if the line does not have value string, p[1] should be '\n', otherwise
+     * p[1] should be ' ' */
+    if (p[1] != '\n' && p[1] != ' ')
+        goto fmt_err;
+    if (p[2] == '\0')
         return 0;
-    /* skip ": " */
+
+    /* skip ": " to get value string) */
     v = p + 2;
 
+    /* get key string */
     *p = '\0';
     if ((p = strchr(line, '\t')) != NULL)
         *p = '\0';
@@ -65,6 +69,10 @@ static int parse_line(char *line, struct cpuinfo *ci) {
         snprintf(ci->model_name, sizeof(ci->model_name), "%s", v);
     }
     return 0;
+
+fmt_err:
+    fprintf(stderr, "format error line: %s\n", line);
+    return -1;
 };
 
 static int check_cpuinfo(struct cpuinfo *ci) {
