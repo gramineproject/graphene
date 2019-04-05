@@ -427,6 +427,8 @@ def gen_area_content(attr, areas):
         set_tls_field(t, SGX_INITIAL_STACK_OFFSET, stacks[t].addr + stacks[t].size)
         set_tls_field(t, SGX_SSA, ssa)
         set_tls_field(t, SGX_GPR, ssa + SSAFRAMESIZE - SGX_GPR_SIZE)
+        set_tls_field(t, SGX_HEAP_MIN, baseaddr() + enclave_heap_min)
+        set_tls_field(t, SGX_HEAP_MAX, baseaddr() + enclave_heap_max)
 
     tcs_area.content = tcs_data
     tls_area.content = tls_data

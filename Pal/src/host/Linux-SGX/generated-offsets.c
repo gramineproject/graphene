@@ -69,6 +69,8 @@ void dummy(void)
     OFFSET(SGX_OCALL_PREPARED, enclave_tls, ocall_prepared);
     OFFSET(SGX_ECALL_CALLED, enclave_tls, ecall_called);
     OFFSET(SGX_READY_FOR_EXCEPTIONS, enclave_tls, ready_for_exceptions);
+    OFFSET(SGX_HEAP_MIN, enclave_tls, heap_min);
+    OFFSET(SGX_HEAP_MAX, enclave_tls, heap_max);
 
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_OSSA, sgx_arch_tcs_t, ossa);

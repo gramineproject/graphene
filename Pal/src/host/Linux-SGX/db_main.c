@@ -214,13 +214,16 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         return;
     }
 
+    pal_sec.heap_min = GET_ENCLAVE_TLS(heap_min);
+    pal_sec.heap_max = GET_ENCLAVE_TLS(heap_max);
+
     /* Zero the heap. We need to take care to not zero the exec area. */
 
-    void* zero1_start = sec_info.heap_min;
-    void* zero1_end = sec_info.heap_max;
+    void* zero1_start = pal_sec.heap_min;
+    void* zero1_end = pal_sec.heap_max;
 
-    void* zero2_start = sec_info.heap_max;
-    void* zero2_end = sec_info.heap_max;
+    void* zero2_start = pal_sec.heap_max;
+    void* zero2_end = pal_sec.heap_max;
 
     if (sec_info.exec_addr != NULL) {
         zero1_end = MIN(zero1_end, sec_info.exec_addr);
@@ -285,10 +288,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     pal_sec.uid = sec_info.uid;
     pal_sec.gid = sec_info.gid;
 
-
-    /* TODO: remove with PR #589 */
-    pal_sec.heap_min = sec_info.heap_min;
-    pal_sec.heap_max = sec_info.heap_max;
 
     /* TODO: remove with PR #588 */
     pal_sec.exec_addr = sec_info.exec_addr;
