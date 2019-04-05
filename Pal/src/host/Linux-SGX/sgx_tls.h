@@ -9,7 +9,7 @@
 struct enclave_tls {
     PAL_TCB common;
     struct {
-        /* privateto Pal/Linux-SGX */
+        /* private to Linux-SGX PAL */
         uint64_t enclave_size;
         uint64_t tcs_offset;
         uint64_t initial_stack_offset;

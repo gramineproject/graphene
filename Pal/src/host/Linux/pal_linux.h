@@ -186,7 +186,7 @@ DEFINE_LISTP(event_queue);
 typedef struct pal_tcb_linux {
     PAL_TCB common;
     struct {
-        /* private to Pal/Linux */
+        /* private to Linux PAL */
         int         pending_event;
         LISTP_TYPE(event_queue) pending_queue;
         PAL_HANDLE  handle;
