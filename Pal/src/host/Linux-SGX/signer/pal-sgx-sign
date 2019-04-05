@@ -361,11 +361,7 @@ def get_memory_areas(manifest, attr, args):
     return areas
 
 def find_areas(areas, desc):
-    matching = []
-    for i in areas:
-        if i.desc == desc:
-            matching.append(i)
-    return matching
+    return filter(lambda area: area.desc == desc, areas)
 
 def find_area(areas, desc, allow_none=False):
     matching = find_areas(areas, desc)
