@@ -324,7 +324,10 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         arg = uc->rip;
         break;
     case PAL_EVENT_MEMFAULT:
-        /* TODO */
+        /* TODO
+         * SGX1 doesn't provide fault address.
+         * SGX2 gives providing page. (lower address bits are masked)
+         */
         break;
     default:
         /* nothing */
