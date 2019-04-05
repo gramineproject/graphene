@@ -429,6 +429,8 @@ def gen_area_content(attr, areas):
         set_tls_field(t, SGX_SSA, ssa)
         set_tls_field(t, SGX_GPR, ssa + SSAFRAMESIZE - SGX_GPR_SIZE)
         set_tls_field(t, SGX_MANIFEST_SIZE, os.stat(manifest_area.file).st_size)
+        set_tls_field(t, SGX_HEAP_MIN, baseaddr() + enclave_heap_min)
+        set_tls_field(t, SGX_HEAP_MAX, baseaddr() + enclave_heap_max)
         if exec_area is not None:
             set_tls_field(t, SGX_EXEC_ADDR, baseaddr() + exec_area.addr)
             set_tls_field(t, SGX_EXEC_SIZE, exec_area.size)
