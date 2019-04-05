@@ -34,18 +34,10 @@
 
 #include <errno.h>
 
-#define SHIM_DEFAULT_SLEEP 1000
-
 int shim_do_pause (void)
 {
-    while (1) {
-        PAL_NATIVE_ERRNO = 0;
-        DkThreadDelayExecution(SHIM_DEFAULT_SLEEP);
-
-        if (PAL_NATIVE_ERRNO)
-            break;
-    }
-
+    /* ~0ULL micro sec ~= 805675 years */
+    DkThreadDelayExecution(~((PAL_NUM)0));
     return -EINTR;
 }
 
