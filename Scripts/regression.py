@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-import sys, os, subprocess, re, time
+import sys, os, subprocess, re, time, fcntl, errno, cStringIO
 
 class Result:
     def __init__(self, out, log, code):
@@ -28,6 +28,19 @@ class Regression:
         self.runs[combined_args].append((name, check, ignore_failure, times))
 
     def run_checks(self):
+        def set_non_blocking(f):
+            flags = fcntl.fcntl(f, fcntl.F_GETFL)
+            fcntl.fcntl(f, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        def read_to_buf(f, b):
+            try:
+                s = f.read()
+            except IOError as err:
+                if err.errno != errno.EWOULDBLOCK:
+                    raise err
+            else:
+                b.write(s)
+
         something_failed = 0
         for combined_args in self.runs:
             needed_times = 1
@@ -56,10 +69,16 @@ class Regression:
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
 
+                set_non_blocking(p.stdout)
+                set_non_blocking(p.stderr)
+                out_buf = cStringIO.StringIO()
+                err_buf = cStringIO.StringIO()
                 sleep_time = 0
                 finish = False
                 while sleep_time < self.timeout:
                     time.sleep(0.001)
+                    read_to_buf(p.stdout, out_buf)
+                    read_to_buf(p.stderr, err_buf)
                     if p.poll() is not None:
                         finish = True
                         break
@@ -69,10 +88,15 @@ class Regression:
                     timed_out = True
                     p.kill()
 
+
                 time.sleep(0.1)
 
-                out = p.stdout.read()
-                log = p.stderr.read()
+                read_to_buf(p.stdout, out_buf)
+                read_to_buf(p.stderr, err_buf)
+                out = str(out_buf.getvalue())
+                log = str(err_buf.getvalue())
+                out_buf.close()
+                err_buf.close()
 
                 outputs.append(Result(out, log, p.returncode))
 
