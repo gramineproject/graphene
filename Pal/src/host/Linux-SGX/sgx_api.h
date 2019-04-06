@@ -55,8 +55,8 @@ static inline void sgx_report (sgx_arch_targetinfo_t * targetinfo,
  * sgx_getkey:
  * Retrieve SGX hardware enclave cryptography key.
  */
-static inline int sgx_getkey (sgx_arch_keyrequest_t * keyrequest,
-                              sgx_arch_key128_t * key)
+static inline int64_t sgx_getkey (sgx_arch_keyrequest_t * keyrequest,
+                                  sgx_arch_key128_t * key)
 {
     int64_t rax = EGETKEY;
     __asm__ volatile(
@@ -64,8 +64,7 @@ static inline int sgx_getkey (sgx_arch_keyrequest_t * keyrequest,
         : "+a"(rax)
         : "b"(keyrequest), "c"(key)
         : "memory");
-    /* return value is 32bits */
-    return (int)rax;
+    return rax;
 }
 
 /*
