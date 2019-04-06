@@ -27,7 +27,8 @@ int sgx_ocall (unsigned long code, void * ms);
 void * sgx_ocalloc (uint64_t size);
 void sgx_ocfree (void);
 
-bool sgx_is_within_enclave (const void * addr, uint64_t size);
+bool sgx_is_completely_within_enclave (const void * addr, uint64_t size);
+bool sgx_is_completely_outside_enclave(const void * addr, uint64_t size);
 
 int sgx_report (sgx_arch_targetinfo_t * targetinfo,
                 void * reportdata, sgx_arch_report_t * report);
