@@ -57,6 +57,7 @@ pid_t shim_do_getppid (void)
 
 int shim_do_set_tid_address (int * tidptr)
 {
+    /* http://man7.org/linux/man-pages/man2/set_tid_address.2.html */
     struct shim_thread * cur = get_cur_thread();
     cur->clear_child_tid = tidptr;
     return cur->tid;
