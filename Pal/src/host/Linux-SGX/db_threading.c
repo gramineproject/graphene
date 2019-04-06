@@ -57,10 +57,9 @@ extern void * enclave_base;
  * tid is only used for debug as id for thread at the moment.
  * So for now, tid allocation isn't tracked for simplicity.
  */
-static struct atomic_int tid = ATOMIC_INIT(0);
-
 static PAL_IDX pal_assign_tid(void)
 {
+    static struct atomic_int tid = ATOMIC_INIT(0);
     return _atomic_add(1, &tid);
 }
 
@@ -100,7 +99,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);
-    new_thread->thread.tid = pal_assign_tid();
+    new_thread->thread.tid = 0;
     new_thread->thread.tcs = NULL;
     INIT_LIST_HEAD(&new_thread->thread, list);
     struct thread_param * thread_param = malloc(sizeof(struct thread_param));
