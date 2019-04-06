@@ -112,6 +112,34 @@ void *calloc(size_t nmemb, size_t size);
      memcpy((var), force_static(str), static_strlen(force_static(str)) + 1) + \
      static_strlen(force_static(str)))
 
+/* Copy a fixed size array. */
+#define COPY_ARRAY(dst, src)                                                    \
+    do {                                                                        \
+        /* Using pointers because otherwise the compiler would try to allocate  \
+         * memory for the fixed size arrays and complain about invalid          \
+         * initializers.                                                        \
+         */                                                                     \
+        __typeof__(src)* _s = &(src);                                           \
+        __typeof__(dst)* _d = &(dst);                                           \
+                                                                                \
+        __typeof__((*_s)[0]) _s2[sizeof(*_s)/sizeof((*_s)[0])];                 \
+        __typeof__((*_d)[0]) _d2[sizeof(*_d)/sizeof((*_d)[0])];                 \
+                                                                                \
+        /* Causes a compiler warning if the array types mismatch. */            \
+        (void) (_s == _d);                                                      \
+                                                                                \
+        /* Causes a compiler warning if passed arrays are not fixed size        \
+         * arrays.                                                              \
+         */                                                                     \
+        (void) (_s == &_s2);                                                    \
+        (void) (_d == &_d2);                                                    \
+                                                                                \
+        /* Double check sizes. */                                               \
+        _Static_assert(sizeof(*_s) == sizeof(*_d), "sizes don't match");        \
+                                                                                \
+        memcpy(*_d, *_s, sizeof(*_d));                                          \
+    } while (0)
+
 /* Libc printf functions. stdio.h/stdarg.h. */
 void fprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
                 const char * fmt, ...);
