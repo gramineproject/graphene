@@ -37,6 +37,10 @@ void handler(int signal, siginfo_t * info, void * ucontext)
         printf("FAIL on sigaltstack in handler\n");
     }
 
+    /*
+     * raise SIGALRM during signal handling to test nested signals
+     * (three-levels deep nesting just to be sure)
+     */
     if (count <= 2) {
         sigset_t set;
         sigemptyset(&set);
