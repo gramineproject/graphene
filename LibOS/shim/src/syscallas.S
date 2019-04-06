@@ -116,14 +116,16 @@ isundef:
         .size syscalldb, .-syscalldb
 
         /*
-         * syscall_wrapper
+         * syscall_wrapper: emulate syscall instruction
+         *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
+         *
          * input:
-         * %rcx: return address. instruction rigth after syscall instruction
+         * %rcx: Instruction address to continue app execution after trapped
+         *       syscall instruction
          */
 syscall_wrapper:
         .cfi_startproc
 
-        ## %rcx is preserved by syscalldb
         subq $REDZONE_SIZE, %rsp
         callq *syscalldb@GOTPCREL(%rip)
         addq $REDZONE_SIZE, %rsp

@@ -423,20 +423,36 @@ internal:
             debug("illegal instruction at %p\n", context->IP);
 
         uint8_t * rip = (uint8_t*)context->IP;
-        /* syscall 0x0f 0x05 */
+        /*
+         * Emulate syscall instruction (opcode 0x0f 0x05);
+         * syscall instruction is prohibited in
+         *   Linux-SGX PAL and raises a SIGILL exception and
+         *   Linux PAL with seccomp and raise SIGSYS exception.
+         */
+#if 0
         if (rip[-2] == 0x0f && rip[-1] == 0x05) {
             /*
-             * SIGSYS case
-             * rip points to the address after syscall instruction
-             * %rcx: see the syscall_wrapper in syscallas.S
-             * TODO: check SIGSYS
+             * TODO: syscall number is passed in siginfo::si_syscall
+             * Currently PAL_CONTEXT doesn't pass it.
+             * Fix PAL_CONTEXT and support Linux PAL with SYSSIG/seccomp.
              */
+
+            /*
+             * SIGSYS case (can happend with Linux PAL with seccomp)
+             * rip points to the address after syscall instruction
+             * %rcx: syscall instruction must put an
+             *       instruction-after-syscall in rcx
+             */
+            context->rax = siginfo->si_syscall; /* PAL_CONTEXT doesn't pass */
             context->rcx = (long)rip;
             context->rip = (long)&syscall_wrapper;
-        } else if (rip[0] == 0x0f && rip[1] == 0x05) {
+        } else
+#endif
+        if (rip[0] == 0x0f && rip[1] == 0x05) {
             /*
-             * SIGILL case: this can happen in enclave
-             * %rcx: see the syscall_wrapper in syscallas.S
+             * SIGILL case (can happen in Linux-SGX PAL)
+             * %rcx: syscall instruction must put an instruction-after-syscall
+             *       in rcx. See the syscall_wrapper in syscallas.S
              * TODO: check SIGILL and ILL_ILLOPN
              */
             context->rcx = (long)rip + 2;
