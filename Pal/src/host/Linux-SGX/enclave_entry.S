@@ -4,6 +4,15 @@
 	.extern ecall_table
 	.extern enclave_ecall_pal_main
 
+# In some cases, like bogus parameters passed to enclave_entry, it's tricky to
+# return cleanly (passing the correct return address to EEXIT, OCALL_EXIT can
+# be interrupted, etc.). Since those cases should only ever happen with a
+# malicious urts, just go into an endless loop.
+.macro FAIL_LOOP
+.Lfail_loop\@:
+	jmp .Lfail_loop\@
+.endm
+
 	.global enclave_entry
 	.type enclave_entry, @function
 
@@ -73,10 +82,8 @@ enclave_entry:
 	# to handle_ecall() in enclave_ecalls.c
 	callq handle_ecall
 
-	# never return to this point (should die)
-	xorq %rdi, %rdi
-	xorq %rsi, %rsi
-	jmp .Leexit
+	# handle_ecall will only return when invalid parameters has been passed.
+	FAIL_LOOP
 
 .Lhandle_resume:
 	# PAL convention:
