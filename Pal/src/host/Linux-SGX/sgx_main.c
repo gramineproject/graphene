@@ -939,20 +939,3 @@ finalize:
     }
     return retval;
 }
-
-int pal_init_enclave (const char * manifest_uri,
-                      const char * exec_uri,
-                      const char ** arguments, const char ** environments)
-{
-    if (!manifest_uri)
-        return -PAL_ERROR_INVAL;
-
-    struct pal_enclave * enclave = malloc(sizeof(struct pal_enclave));
-    if (!enclave)
-        return -PAL_ERROR_NOMEM;
-
-    memset(enclave, 0, sizeof(struct pal_enclave));
-
-    return load_enclave(enclave, manifest_uri, exec_uri,
-                        arguments, environments, 0);
-}
