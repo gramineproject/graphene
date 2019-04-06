@@ -644,7 +644,8 @@ finalize:
 static int load_enclave (struct pal_enclave * enclave,
                          const char * manifest_uri,
                          const char * exec_uri,
-                         const char ** arguments, const char ** environments,
+                         char * args, uint64_t args_size,
+                         char * env, uint64_t env_size,
                          bool exec_uri_inferred)
 {
     struct pal_sec * pal_sec = &enclave->pal_sec;
@@ -672,14 +673,20 @@ static int load_enclave (struct pal_enclave * enclave,
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
 
 #ifdef DEBUG
-    for (const char ** e = environments ; *e ; e++) {
-        if (strcmp_static(*e, "IN_GDB=1")) {
+    int env_i = 0;
+    while (env_i < env_size) {
+        if (strcmp_static(&env[env_i], "IN_GDB=1")) {
             SGX_DBG(DBG_I, "being GDB'ed!!!\n");
             pal_sec->in_gdb = true;
         }
 
-        if (strcmp_static(*e, "LD_PRELOAD="))
-            *e = "\0";
+        if (strcmp_static(&env[env_i], "LD_PRELOAD=")) {
+            uint64_t len = strnlen(&env[env_i], env_size - env_i) + 1;
+            memmove(&env[env_i], &env[env_i + len], env_size - env_i - len);
+            env_size -= len;
+        }
+
+        env_i += strnlen(&env[env_i], env_size - env_i) + 1;
     }
 #endif
 
@@ -812,7 +819,7 @@ static int load_enclave (struct pal_enclave * enclave,
     map_tcs(INLINE_SYSCALL(gettid, 0));
 
     /* start running trusted PAL */
-    ecall_enclave_start(arguments, environments);
+    ecall_enclave_start(args, args_size, env, env_size);
 
 #if PRINT_ENCLAVE_STAT == 1
     PAL_NUM exit_time = 0;
@@ -825,7 +832,7 @@ static int load_enclave (struct pal_enclave * enclave,
     return 0;
 }
 
-int main (int argc, const char ** argv, const char ** envp)
+int main (int argc, char ** argv, char ** envp)
 {
     const char * manifest_uri = NULL;
     char * exec_uri = NULL;
@@ -926,7 +933,25 @@ int main (int argc, const char ** argv, const char ** envp)
     else
         SGX_DBG(DBG_I, "executable file not found\n");
 
-    return load_enclave(enclave, manifest_uri, exec_uri, argv, envp, exec_uri_inferred);
+    /*
+     * While C does not guarantee that the argv[i] and envp[i] strings are
+     * continuous we know that we running on Linux, which does this. This saves
+     * us creating a copy of all argv and envp strings.
+     */
+    char * args = argv[0];
+    uint64_t args_size = argc > 0 ? (argv[argc - 1] - argv[0]) + strlen(argv[argc - 1]) + 1: 0;
+
+    int envc = 0;
+    while (envp[envc] != NULL) {
+        envc += 1;
+    }
+    char * env = envp[0];
+    uint64_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
+
+
+    return load_enclave(enclave, manifest_uri, exec_uri,
+                        args, args_size, env, env_size,
+                        exec_uri_inferred);
 
 usage:
     SGX_DBG(DBG_E, "USAGE: %s [executable|manifest] args ...\n", pal_loader);

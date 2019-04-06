@@ -123,24 +123,116 @@ static int loader_filter (const char * key, int len)
     return 1;
 }
 
+static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
+    const char **argv;
+
+    if (src_size == 0) {
+        argv = malloc(sizeof(char *));
+        argv[0] = NULL;
+        return argv;
+    }
+
+    char * data = malloc(src_size);
+    if (data == NULL) {
+        return NULL;
+    }
+
+    if (sgx_copy_to_enclave(uptr_src, data, src_size) != 0) {
+        return NULL;
+    }
+    data[src_size - 1] = '\0';
+
+    uint64_t argc = 0;
+    for (uint64_t i = 0; i < src_size; i += 1) {
+        if (data[i] == '\0') {
+            argc += 1;
+        }
+    }
+
+    argv = malloc(sizeof(char *) * (argc + 1));
+    if (argv == NULL) {
+        return NULL;
+    }
+    argv[argc] = NULL;
+
+    uint64_t data_i = 0;
+    for (uint64_t arg_i = 0; arg_i < argc; arg_i += 1) {
+        argv[arg_i] = &data[data_i];
+        while (data[data_i] != '\0') {
+            data_i += 1;
+        }
+        data_i += 1;
+    }
+
+    return argv;
+}
+
 extern void * enclave_base;
 
-void pal_linux_main(const char ** arguments, const char ** environments,
-                    struct pal_sec * sec_info)
+void pal_linux_main(char * uptr_args, uint64_t args_size,
+                    char * uptr_env, uint64_t env_size,
+                    struct pal_sec * uptr_sec_info)
 {
+    /*
+     * Our arguments are comming directly from the urts. We are responsible to
+     * check them.
+     */
+
     PAL_HANDLE parent = NULL;
     unsigned long start_time = _DkSystemTimeQuery();
     int rv;
 
+    struct pal_sec sec_info;
+    if (sgx_copy_to_enclave(uptr_sec_info, &sec_info, sizeof(sec_info)) != 0) {
+        return;
+    }
+
     /* relocate PAL itself */
-    pal_map.l_addr = (ElfW(Addr)) sec_info->enclave_addr;
-    pal_map.l_name = sec_info->enclave_image;
+    pal_map.l_addr = (ElfW(Addr)) sec_info.enclave_addr;
+    pal_map.l_name = sec_info.enclave_image;
     elf_get_dynamic_info((void *) pal_map.l_addr + elf_machine_dynamic(),
                          pal_map.l_info, pal_map.l_addr);
 
     ELF_DYNAMIC_RELOCATE(&pal_map);
 
-    memcpy(&pal_sec, sec_info, sizeof(struct pal_sec));
+    /*
+     * We can't verify the following arguments from the urts. So we copy
+     * them directly but need to be careful when we use them.
+     */
+    pal_sec.instance_id = sec_info.instance_id;
+    pal_sec.ppid = sec_info.ppid;
+    pal_sec.pid = sec_info.pid;
+    pal_sec.uid = sec_info.uid;
+    pal_sec.gid = sec_info.gid;
+    COPY_ARRAY(sec_info.exec_name, pal_sec.exec_name);
+    COPY_ARRAY(sec_info.manifest_name, pal_sec.manifest_name);
+    COPY_ARRAY(sec_info.proc_fds, pal_sec.proc_fds);
+    COPY_ARRAY(sec_info.pipe_prefix, pal_sec.pipe_prefix);
+    pal_sec.mcast_port = sec_info.mcast_port;
+    pal_sec.mcast_srv = sec_info.mcast_srv;
+    pal_sec.mcast_cli = sec_info.mcast_cli;
+#ifdef DEBUG
+    pal_sec.in_gdb = sec_info.in_gdb;
+#endif
+#if PRINT_ENCLAVE_STAT == 1
+    pal_sec.start_time = sec_info.start_time;
+#endif
+
+    /* TODO: remove with PR #589 */
+    pal_sec.heap_min = sec_info.heap_min;
+    pal_sec.heap_max = sec_info.heap_max;
+
+    /* TODO: remove with PR #588 */
+    pal_sec.exec_addr = sec_info.exec_addr;
+    pal_sec.exec_size = sec_info.exec_size;
+
+    /* TODO: remove with PR #580 */
+    pal_sec.manifest_addr = sec_info.manifest_addr;
+    pal_sec.manifest_size = sec_info.manifest_size;
+
+    /* TODO: remove with PR #582 */
+    pal_sec.exec_fd = sec_info.exec_fd;
+    pal_sec.manifest_fd = sec_info.manifest_fd;
 
     /* set up page allocator and slab manager */
     init_slab_mgr(pagesz);
@@ -156,6 +248,18 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     if (rv) {
         SGX_DBG(DBG_E, "Failed to initalize enclave properties: %d\n", rv);
         ocall_exit(rv);
+    }
+
+    if (args_size > MAX_ARGS_SIZE || env_size > MAX_ENV_SIZE) {
+        return;
+    }
+    const char ** arguments = make_argv_list(uptr_args, args_size);
+    if (arguments == NULL) {
+        return;
+    }
+    const char ** environments = make_argv_list(uptr_env, env_size);
+    if (environments == NULL) {
+        return;
     }
 
     pal_state.start_time = start_time;
@@ -213,7 +317,7 @@ void pal_linux_main(const char ** arguments, const char ** environments,
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "
            "Enclave loading time =      %10ld milliseconds\n",
-           _DkSystemTimeQuery() - sec_info->start_time);
+           _DkSystemTimeQuery() - pal_sec.start_time);
 #endif
 
     /* set up thread handle */
