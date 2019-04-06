@@ -30,9 +30,6 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
         enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
 
-    if (sgx_is_within_enclave(exit_target, 0))
-        return;
-
     if (sgx_is_within_enclave(untrusted_stack, 0))
         return;
 
