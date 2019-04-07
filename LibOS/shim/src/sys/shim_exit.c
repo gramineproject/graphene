@@ -131,6 +131,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
 int try_process_exit (int error_code, int term_signal)
 {
     struct shim_thread * cur_thread = get_cur_thread();
+    int ret = 0;
 
     cur_thread->exit_code = -error_code;
     cur_process.exit_code = error_code;
@@ -139,8 +140,10 @@ int try_process_exit (int error_code, int term_signal)
     if (cur_thread->in_vm)
         thread_exit(cur_thread, true);
 
-    if (check_last_thread(cur_thread))
-        return 0;
+    ret = check_last_thread(cur_thread);
+    assert(ret >= 0);
+    if (ret)
+        return ret;
 
     struct shim_thread * async_thread = terminate_async_helper();
     if (async_thread)
@@ -151,7 +154,7 @@ int try_process_exit (int error_code, int term_signal)
         put_thread(async_thread); /* free resources of the thread */
 
     struct shim_thread * ipc_thread;
-    int ret = exit_with_ipc_helper(true, &ipc_thread);
+    ret = exit_with_ipc_helper(true, &ipc_thread);
     if (ipc_thread)
         /* TODO: wait for the thread to exit in host.
          * This is tracked by the following issue.
@@ -170,6 +173,7 @@ int shim_do_exit_group (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();
+    int ret = 0;
     assert(!IS_INTERNAL(cur_thread));
 
     if (debug_handle)
@@ -185,7 +189,13 @@ int shim_do_exit_group (int error_code)
     do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
 
     debug("now exit the process\n");
-    try_process_exit(error_code, 0);
+
+    while ((ret = try_process_exit(error_code, 0))) {
+        struct shim_thread * thread = lookup_thread(ret);
+
+        thread_exit(thread, true);
+        debug("try to exit last thread\n");
+    }
 
 #ifdef PROFILE
     if (ENTER_TIME)
