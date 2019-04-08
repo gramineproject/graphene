@@ -408,14 +408,14 @@ def gen_area_content(attr, areas):
     heap_min = ENCLAVE_HEAP_MIN
     heap_max = pal_area.addr - MEMORY_GAP
 
-    # Sanity check that we measure everthing except the heap which is zereod on
-    # enclave startup.
+    # Sanity check that we measure everything except the heap which is zeroed
+    # on enclave startup.
     for area in areas:
         if area.addr + area.size <= heap_min or area.addr >= heap_max or area is exec_area:
             if not area.measure:
                 raise ValueError("Memory area, which is not the heap, is not measured")
         elif area.desc != 'free':
-            raise ValueError("Unexpected memory are in heap range")
+            raise ValueError("Unexpected memory area is in heap range")
 
     for t in range(0, attr['thread_num']):
         ssa_offset = ssa_area.addr + SSAFRAMESIZE * SSAFRAMENUM * t;
@@ -491,7 +491,7 @@ def generate_measurement(attr, areas):
 
     def include_page(digest, offset, flags, content, measure):
         if len(content) != PAGESIZE:
-            raise ValueError("Exactly one page or no data to measure expected")
+            raise ValueError("Exactly one page expected")
 
         do_eadd(digest, offset, flags)
         if measure:
