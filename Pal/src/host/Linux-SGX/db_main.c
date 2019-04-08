@@ -181,10 +181,15 @@ void pal_linux_main(const char ** arguments, const char ** environments,
     /* now let's mark our enclave as initialized */
     pal_enclave_state.enclave_flags |= PAL_ENCLAVE_INITIALIZED;
 
-    /* create executable handle */
+
+    /*
+     * We create dummy handles for exec and manifest here to make the logic in
+     * pal_main happy and pass the path of them. The handles can't be used to
+     * read anything.
+     */
+
     PAL_HANDLE manifest, exec = NULL;
 
-    /* create manifest handle */
     manifest = setup_dummy_file_handle(pal_sec.manifest_name);
 
     if (pal_sec.exec_name[0] != '\0') {
