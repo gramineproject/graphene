@@ -44,8 +44,8 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
      * implementation, round up the result to sizeof(long) */
     int bitmask_long_count = (ncpus + sizeof(long) * 8 - 1) /
         (sizeof(long) * 8);
-    int bitmask_size_in_byte = bitmask_long_count * sizeof(long);
-    if (len < bitmask_size_in_byte)
+    int bitmask_size_in_bytes = bitmask_long_count * sizeof(long);
+    if (len < bitmask_size_in_bytes)
         return -EINVAL;
     /* Linux kernel also rejects non-natural size */
     if (len & (sizeof(long) - 1))
@@ -55,6 +55,6 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
     for (int i = 0 ; i < ncpus ; i++)
         ((uint8_t *) user_mask_ptr)[i / 8] |= 1 << (i % 8);
     /* imitate the Linux kernel implementation
-     * See SYSCALL_DEFINEe(sched_getaffinity) */
-    return MIN(len, bitmask_size_in_byte);
+     * See SYSCALL_DEFINEE3(sched_getaffinity) */
+    return bitmask_size_in_bytes;
 }
