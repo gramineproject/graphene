@@ -247,6 +247,7 @@ alloc:
     } else {
         mobj = mgr->obj++;
     }
+    assert(mgr->obj <= mgr->obj_top);
     system_unlock();
     return &mobj->obj;
 }
