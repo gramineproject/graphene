@@ -218,7 +218,7 @@
 /* Or deletion needs to know the list root */
 #define listp_del(NODE, HEAD, FIELD) do {                               \
         if ((HEAD)->first == (NODE)) {                                  \
-            if ((NODE)->FIELD.next == NODE) {                           \
+            if ((NODE)->FIELD.next == (NODE)) {                           \
                 (HEAD)->first = NULL;                                   \
             } else {                                                    \
                 (HEAD)->first = (NODE)->FIELD.next;                     \
