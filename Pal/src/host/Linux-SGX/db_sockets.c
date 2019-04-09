@@ -1152,8 +1152,8 @@ static int mcast_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     if (attr->nonblocking != *nonblocking) {
         int ret = ocall_fsetnonblock(handle->mcast.cli, *nonblocking);
 
-        if (ret < 0)
-            return ret;
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
 
         *nonblocking = attr->nonblocking;
     }

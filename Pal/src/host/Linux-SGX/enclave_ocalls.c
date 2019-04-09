@@ -221,7 +221,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
 
     if (count > 4096) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (retval < 0)
+        if (IS_ERR(retval))
             return retval;
     }
 
@@ -254,7 +254,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 
     if (count > 4096) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (retval < 0)
+        if (IS_ERR(retval))
             return retval;
     }
 

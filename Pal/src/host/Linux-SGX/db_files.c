@@ -119,9 +119,9 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                                            map_start, map_end,
                                            buffer, offset, end - offset,
                                            stubs, total);
-        if (IS_ERR(ret)) {
+        if (ret < 0) {
             ocall_unmap_untrusted(umem, map_end - map_start);
-            return unix_to_pal_error(ERRNO(ret));
+            return ret;
         }
     } else {
         memcpy(buffer, umem + (offset - map_start), end - offset);
@@ -199,9 +199,9 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     if (!mem && !stubs && !(prot & PAL_PROT_WRITECOPY)) {
         ret = ocall_map_untrusted(handle->file.fd, offset, size,
                                   HOST_PROT(prot), &mem);
-        if (!ret)
+        if (!IS_ERR(ret))
             *addr = mem;
-        return ret;
+        return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
     }
 
     if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {

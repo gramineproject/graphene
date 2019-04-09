@@ -56,13 +56,13 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
     int fds[6] = { -1, -1, -1, -1, -1, -1 };
 
     if (!uri || !strpartcmp_static(uri, "file:"))
-        return -PAL_ERROR_INVAL;
+        return -EINVAL;
 
     if (IS_ERR((ret = INLINE_SYSCALL(pipe, 1, &fds[0]))) ||
         IS_ERR((ret = INLINE_SYSCALL(pipe, 1, &fds[2]))) ||
         IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM,
                                      0, &fds[4])))) {
-        ret = -PAL_ERROR_DENIED;
+        ret = -EPERM;
         goto out;
     }
 
@@ -79,7 +79,7 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
     ret = ARCH_VFORK();
 
     if (IS_ERR(ret)) {
-        ret = -PAL_ERROR_DENIED;
+        ret = -EPERM;
         goto out;
     }
 
@@ -101,7 +101,7 @@ out_child:
     }
 
     if (IS_ERR(rete)) {
-        ret = -PAL_ERROR_DENIED;
+        ret = -EPERM;
         goto out;
     }
 
@@ -127,18 +127,18 @@ out_child:
                          sizeof(struct proc_args));
 
     if (IS_ERR(ret) || ret < sizeof(struct proc_args)) {
-        ret = -PAL_ERROR_DENIED;
+        ret = -EPERM;
         goto out;
     }
 
     ret = INLINE_SYSCALL(read, 3, pipe_in, &rete, sizeof(int));
 
     if (IS_ERR(ret) || ret < sizeof(int)) {
-        ret = -PAL_ERROR_DENIED;
+        ret = -EPERM;
         goto out;
     }
 
-    if (rete < 0) {
+    if (IS_ERR(rete)) {
         ret = rete;
         goto out;
     }
@@ -150,7 +150,7 @@ out_child:
 
     ret = child;
 out:
-    if (ret < 0) {
+    if (IS_ERR(ret)) {
         for (int i = 0 ; i < 6 ; i++)
             if (fds[i] >= 0)
                 INLINE_SYSCALL(close, 1, fds[i]);

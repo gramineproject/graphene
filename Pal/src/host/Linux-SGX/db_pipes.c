@@ -206,7 +206,7 @@ static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int bytes = ocall_sock_recv(fd, buffer, len, NULL, NULL);
 
     if (IS_ERR(bytes))
-        bytes = unix_to_pal_error(ERRNO(bytes));
+        return unix_to_pal_error(ERRNO(bytes));
 
     if (!bytes)
         return -PAL_ERROR_ENDOFSTREAM;

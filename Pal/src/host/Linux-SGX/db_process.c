@@ -209,7 +209,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
                                proc_fds,
                                &child_pid);
     if (IS_ERR(ret))
-        return unix_to_pal_error(-ret);
+        return unix_to_pal_error(ERRNO(ret));
 
     PAL_HANDLE proc = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(proc, process);

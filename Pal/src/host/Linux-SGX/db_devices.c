@@ -382,13 +382,13 @@ static int dev_attrquerybyhdl (PAL_HANDLE handle,
 
     if (handle->dev.fd_in != PAL_IDX_POISON) {
         ret = ocall_fstat(handle->dev.fd_in, &stat_buf);
-        if (!ret)
+        if (!IS_ERR(ret))
             stat_in = &stat_buf;
     }
 
     if (handle->dev.fd_in != PAL_IDX_POISON) {
         ret = ocall_fstat(handle->dev.fd_in, &stat_buf);
-        if (!ret)
+        if (!IS_ERR(ret))
             stat_out = &stat_buf;
     }
 

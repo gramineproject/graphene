@@ -233,7 +233,7 @@ static int sgx_ocall_create_process(void * pms)
     ODEBUG(OCALL_CREATE_PROCESS, ms);
     int ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args,
                                  ms->ms_proc_fds);
-    if (ret < 0)
+    if (IS_ERR(ret))
         return ret;
     ms->ms_pid = ret;
     return 0;
@@ -319,7 +319,7 @@ static int sgx_ocall_sock_listen(void * pms)
     }
 
     ret = sock_getopt(fd, &ms->ms_sockopt);
-    if (ret < 0)
+    if (IS_ERR(ret))
         goto err_fd;
 
     return fd;
@@ -344,7 +344,7 @@ static int sgx_ocall_sock_accept(void * pms)
 
     fd = ret;
     ret = sock_getopt(fd, &ms->ms_sockopt);
-    if (ret < 0)
+    if (IS_ERR(ret))
         goto err_fd;
 
     ms->ms_addrlen = addrlen;
@@ -409,7 +409,7 @@ static int sgx_ocall_sock_connect(void * pms)
     }
 
     ret = sock_getopt(fd, &ms->ms_sockopt);
-    if (ret < 0)
+    if (IS_ERR(ret))
         goto err_fd;
 
     return fd;
