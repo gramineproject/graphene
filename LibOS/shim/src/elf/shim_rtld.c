@@ -1269,7 +1269,7 @@ static int do_lookup (const char * undef_name, ElfW(Sym) * ref,
     sym = do_lookup_map(ref, undef_name, fast_hash, hash, internal_map);
 
     if (!sym)
-        return 0;;
+        return 0;
 
     switch (__builtin_expect (ELFW(ST_BIND) (sym->st_info), STB_GLOBAL)) {
         case STB_WEAK:
