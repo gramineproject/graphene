@@ -61,10 +61,8 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
     if (IS_ERR((ret = INLINE_SYSCALL(pipe, 1, &fds[0]))) ||
         IS_ERR((ret = INLINE_SYSCALL(pipe, 1, &fds[2]))) ||
         IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM,
-                                     0, &fds[4])))) {
-        ret = -EPERM;
+                                     0, &fds[4]))))
         goto out;
-    }
 
     int proc_fds[2][3] = {
         { fds[0], fds[3], fds[4] },
@@ -78,10 +76,8 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
 
     ret = ARCH_VFORK();
 
-    if (IS_ERR(ret)) {
-        ret = -EPERM;
+    if (IS_ERR(ret))
         goto out;
-    }
 
     if (!ret) {
         for (int i = 0 ; i < 3 ; i++)
