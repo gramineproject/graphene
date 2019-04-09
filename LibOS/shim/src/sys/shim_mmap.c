@@ -182,6 +182,10 @@ int shim_do_munmap (void * addr, size_t length)
         return -EFAULT;
     }
 
+    /* lookup_overlap_vma() calls __dump_vma() which adds a reference to file */
+    if (vma.file)
+        put_handle(vma.file);
+
     /* Protect first to make sure no overlapping with internal
      * mappings */
     if (bkeep_mprotect(addr, length, PROT_NONE, 0) < 0)
