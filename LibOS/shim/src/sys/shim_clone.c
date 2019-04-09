@@ -116,7 +116,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 
     struct shim_regs regs;
-    regs = *((__libc_tcb_t *) arg->parent->tcb)->shim_tcb.context.regs;
+    regs = *arg->parent->shim_tcb->context.regs;
 
     if (my_thread->set_child_tid)
         *(my_thread->set_child_tid) = my_thread->tid;
@@ -254,7 +254,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         } else {
             thread->tcb = tcb = (__libc_tcb_t *) self->tcb;
             old_shim_tcb = __alloca(sizeof(shim_tcb_t));
-            memcpy(old_shim_tcb, &tcb->shim_tcb, sizeof(shim_tcb_t));
+            memcpy(old_shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
         }
 
         if (user_stack_addr) {
@@ -262,8 +262,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             lookup_vma(ALIGN_DOWN(user_stack_addr), &vma);
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
-            tcb->shim_tcb.context.sp = user_stack_addr;
-            tcb->shim_tcb.context.ret_ip = *(void **) user_stack_addr;
+            thread->shim_tcb->context.sp = user_stack_addr;
+            thread->shim_tcb->context.ret_ip = *(void **) user_stack_addr;
         }
 
         thread->is_alive = true;
@@ -275,7 +275,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             goto failed;
 
         if (old_shim_tcb)
-            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(shim_tcb_t));
+            memcpy(&self->shim_tcb, old_shim_tcb, sizeof(shim_tcb_t));
 
         lock(thread->lock);
         handle_map = thread->handle_map;

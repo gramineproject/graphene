@@ -221,11 +221,12 @@ void allocate_tls (void * tcb_location, bool user, struct shim_thread * thread)
 {
     __libc_tcb_t * tcb = tcb_location;
     assert(tcb);
-    tcb->tcb = tcb;
     shim_tcb_t * shim_tcb;
+
 #ifdef SHIM_TCB_USE_GS
     shim_tcb = SHIM_GET_TLS();
 #else
+    tcb->tcb = tcb;
     shim_tcb = &tcb->shim_tcb;
 #endif
     init_tcb(shim_tcb);
@@ -249,11 +250,12 @@ void populate_tls (void * tcb_location, bool user)
 {
     __libc_tcb_t * tcb = (__libc_tcb_t *) tcb_location;
     assert(tcb);
-    tcb->tcb = tcb;
     shim_tcb_t * shim_tcb;
+
 #ifdef SHIM_TCB_USE_GS
     shim_tcb = SHIM_GET_TLS();
 #else
+    tcb->tcb = tcb;
     shim_tcb = &tcb->shim_tcb;
     copy_tcb(shim_tcb, SHIM_GET_TLS());
 #endif
@@ -792,7 +794,7 @@ restore:
 
     RUN_INIT(init_mount_root);
     RUN_INIT(init_ipc);
-    RUN_INIT(init_thread);
+    RUN_INIT(init_thread, &tcb);
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);

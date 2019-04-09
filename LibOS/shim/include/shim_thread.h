@@ -120,7 +120,7 @@ struct shim_simple_thread {
 #endif
 };
 
-int init_thread (void);
+int init_thread (__libc_tcb_t * tcb);
 
 #ifdef SHIM_TCB_USE_GS
 static inline struct shim_thread * SHIM_THREAD_SELF(void)
@@ -200,6 +200,8 @@ void set_cur_thread (struct shim_thread * thread)
     IDTYPE tid = 0;
 
     if (thread) {
+        __libc_tcb_t * libc_tcb =
+            tcb->tp ? ((struct shim_thread*)tcb->tp)->tcb : NULL;
         if (tcb->tp && tcb->tp != thread)
             put_thread(tcb->tp);
 
@@ -207,7 +209,8 @@ void set_cur_thread (struct shim_thread * thread)
             get_thread(thread);
 
         tcb->tp = thread;
-        thread->tcb = container_of(tcb, __libc_tcb_t, shim_tcb);
+        if (libc_tcb)
+            thread->tcb = libc_tcb;
         thread->shim_tcb = tcb;
         tid = thread->tid;
 
