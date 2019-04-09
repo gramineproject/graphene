@@ -651,12 +651,6 @@ static int inet_parse_addr (int domain, int type, const char * uri,
     return 0;
 }
 
-struct un_conn {
-    unsigned int pipeid;
-    unsigned char path_size;
-    char path[];
-} __attribute__((packed));
-
 int shim_do_listen (int sockfd, int backlog)
 {
     if (backlog < 0)
