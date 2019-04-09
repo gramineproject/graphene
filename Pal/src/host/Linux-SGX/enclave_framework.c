@@ -8,6 +8,7 @@
 #include <pal_crypto.h>
 #include <api.h>
 #include <list.h>
+#include <stdbool.h>
 
 #include "enclave_pages.h"
 
@@ -145,7 +146,7 @@ DEFINE_LISTP(trusted_file);
 static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
-static int allow_file_creation = 0;
+static bool allow_file_creation = 0;
 
 
 /*
@@ -734,9 +735,9 @@ no_allowed:
     ret = 0;
 
     if (get_config(store, "sgx.allow_file_creation", cfgbuf, CONFIG_MAX) <= 0) {
-        allow_file_creation = 0;
+        allow_file_creation = false;
     } else
-        allow_file_creation = 1;
+        allow_file_creation = true;
 
 out:
     free(cfgbuf);
