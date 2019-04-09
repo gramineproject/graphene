@@ -373,8 +373,7 @@ int free_config (struct config_store * store)
 {
     struct config * e, * n;
     listp_for_each_entry_safe(e, n, &store->entries, list) {
-        if (e->buf)
-            store->free(e->buf);
+        store->free(e->buf);
         store->free(e);
     }
 
