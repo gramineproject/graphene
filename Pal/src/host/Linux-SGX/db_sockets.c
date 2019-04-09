@@ -356,7 +356,7 @@ static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
                             bind_addr, &bind_addrlen,
                             &sock_options);
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return unix_to_pal_error(ERRNO(ret));
 
     *handle = socket_create_handle(pal_type_tcpsrv, ret, options,
                                    bind_addr, bind_addrlen, NULL, 0,

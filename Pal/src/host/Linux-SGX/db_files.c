@@ -74,7 +74,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
                 "This file is not trusted or allowed.\n", hdl->file.realpath,
                 PAL_STRERROR(-ret));
         free(hdl);
-        return -PAL_ERROR_DENIED;
+        return ret;
     }
 
     hdl->file.stubs = (PAL_PTR) stubs;
@@ -112,7 +112,7 @@ static int64_t file_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     ret = ocall_map_untrusted(handle->file.fd, map_start,
                               map_end - map_start, PROT_READ, &umem);
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return unix_to_pal_error(ERRNO(ret));
 
     if (stubs) {
         ret = copy_and_verify_trusted_file(handle->file.realpath, umem,
@@ -143,7 +143,7 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count,
     ret = ocall_map_untrusted(handle->file.fd, map_start,
                               map_end - map_start, PROT_WRITE, &umem);
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return unix_to_pal_error(ERRNO(ret));
 
     if (offset + count > handle->file.total) {
         ocall_ftruncate(handle->file.fd, offset + count);

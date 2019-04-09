@@ -76,7 +76,7 @@ static int pipe_listen (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
                             (struct sockaddr *) &addr, &addrlen,
                             &sock_options);
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return unix_to_pal_error(ERRNO(ret));
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(hdl, pipesrv);
@@ -149,7 +149,7 @@ static int pipe_private (PAL_HANDLE * handle, int options)
 
     ret = ocall_socketpair(AF_UNIX, type, 0, fds);
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return unix_to_pal_error(ERRNO(ret));
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
     SET_HANDLE_TYPE(hdl, pipeprv);

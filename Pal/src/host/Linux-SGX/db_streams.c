@@ -301,7 +301,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
                              fds, nfds);
 
     free(hdl_data);
-    return IS_ERR(ret) ? -PAL_ERROR_DENIED : 0;
+    return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
 /* _DkRecvHandle for internal use. Receive and return a PAL_HANDLE over the
