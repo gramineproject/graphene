@@ -50,7 +50,7 @@ static int sgx_ocall_alloc_untrusted(void * pms)
                                    PROT_READ|PROT_WRITE,
                                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
     if (IS_ERR_P(addr))
-        return -ENOMEM;
+        return -ERRNO_P(addr);
 
     ms->ms_mem = addr;
     return 0;
@@ -66,7 +66,7 @@ static int sgx_ocall_map_untrusted(void * pms)
                                    MAP_FILE|MAP_SHARED,
                                    ms->ms_fd, ms->ms_offset);
     if (IS_ERR_P(addr))
-        return -ENOMEM;
+        return -ERRNO_P(addr);
 
     ms->ms_mem = addr;
     return 0;
@@ -282,10 +282,8 @@ static int sgx_ocall_sock_listen(void * pms)
     ret = INLINE_SYSCALL(socket, 3, ms->ms_domain,
                          ms->ms_type|SOCK_CLOEXEC,
                          ms->ms_protocol);
-    if (IS_ERR(ret)) {
-        ret = -EPERM;
+    if (IS_ERR(ret))
         goto err;
-    }
 
     fd = ret;
     if (ms->ms_addr->sa_family == AF_INET6) {
@@ -305,19 +303,15 @@ static int sgx_ocall_sock_listen(void * pms)
     if (ms->ms_addr) {
         socklen_t addrlen;
         ret = INLINE_SYSCALL(getsockname, 3, fd, ms->ms_addr, &addrlen);
-        if (IS_ERR(ret)) {
-            ret = -EPERM;
+        if (IS_ERR(ret))
             goto err_fd;
-        }
         ms->ms_addrlen = addrlen;
     }
 
     if (ms->ms_type & SOCK_STREAM) {
         ret = INLINE_SYSCALL(listen, 2, fd, DEFAULT_BACKLOG);
-        if (IS_ERR(ret)) {
-            ret = -EPERM;
+        if (IS_ERR(ret))
             goto err_fd;
-        }
     }
 
     ret = sock_getopt(fd, &ms->ms_sockopt);
@@ -367,10 +361,8 @@ static int sgx_ocall_sock_connect(void * pms)
     ret = INLINE_SYSCALL(socket, 3, ms->ms_domain,
                          ms->ms_type|SOCK_CLOEXEC,
                          ms->ms_protocol);
-    if (IS_ERR(ret)) {
-        ret = -EPERM;
+    if (IS_ERR(ret))
         goto err;
-    }
 
     fd = ret;
     if (ms->ms_addr->sa_family == AF_INET6) {
@@ -403,10 +395,8 @@ static int sgx_ocall_sock_connect(void * pms)
         socklen_t addrlen;
         ret = INLINE_SYSCALL(getsockname, 3, fd, ms->ms_bind_addr,
                              &addrlen);
-        if (IS_ERR(ret)) {
-            ret = -EPERM;
+        if (IS_ERR(ret))
             goto err_fd;
-        }
         ms->ms_bind_addrlen = addrlen;
     }
 
