@@ -285,6 +285,8 @@ void __free_debug (void * mem, const char * file, int line)
 void free (void * mem)
 #endif
 {
+    if (!mem)
+        return;
     if (MEMORY_MIGRATED(mem)) {
         INC_PROFILE_OCCURENCE(free_migrated);
         return;
