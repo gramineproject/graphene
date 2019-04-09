@@ -59,6 +59,14 @@ GLIBC_PATCHES = \
 	glibc-fix-warning.patch \
 	glibc-no-pie.patch
 
+# TODO: configuration
+# SHIM_TCB_USE_GS=yes
+SHIM_TCB_USE_GS=
+ifneq (SHIM_THREAD_USE_GS, "yes")
+GLIBC_PATCHES += \
+    glibc-add-shim-tcb.patch
+endif
+
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 	[ -f $(GLIBC_SRC).tar.gz ] || \
 	for MIRROR in $(GLIBC_MIRRORS); do \

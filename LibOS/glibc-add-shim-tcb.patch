@@ -1,0 +1,15 @@
+diff --git a/nptl/sysdeps/x86_64/tls.h b/nptl/sysdeps/x86_64/tls.h
+index cbb5e9e..9b87e25 100644
+--- a/nptl/sysdeps/x86_64/tls.h
++++ b/nptl/sysdeps/x86_64/tls.h
+@@ -67,6 +67,10 @@ typedef struct
+ # else
+   int __glibc_reserved1;
+ # endif
++
++  shim_tcb_t shim_tcb;	/* For graphene, we allocate a shim_tcb
++			   in the real tcb. */
++
+   int rtld_must_xmm_save;
+   /* Reservation of some values for the TM ABI.  */
+   void *__private_tm[4];
