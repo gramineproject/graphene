@@ -2,7 +2,6 @@ SHIM {
     global: *;
     local:
         shim_do_*; __shim_*; init_*;
-        syscall_wrapper;
         strlen; atoi; strcat; strncat; strncpy; strcpy;
         strchr; strcmp; strncmp; strrchr; __tolower; __toupper;
         memcpy; memmove; memset; memcmp;
