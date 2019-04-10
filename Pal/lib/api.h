@@ -113,7 +113,7 @@ void *calloc(size_t nmemb, size_t size);
      static_strlen(force_static(str)))
 
 /* Copy a fixed size array. */
-#define COPY_ARRAY(src, dst)                                                    \
+#define COPY_ARRAY(dst, src)                                                    \
     do {                                                                        \
         /* Using pointers because otherwise the compiler would try to allocate  \
          * memory for the fixed size arrays and complain about invalid          \
@@ -135,7 +135,7 @@ void *calloc(size_t nmemb, size_t size);
         (void) (_d == &_d2);                                                    \
                                                                                 \
         /* Double check sizes. */                                               \
-        _Static_assert(sizeof(*_s) == sizeof(*_s), "sizes don't match");        \
+        _Static_assert(sizeof(*_s) == sizeof(*_d), "sizes don't match");        \
                                                                                 \
         memcpy(*_d, *_s, sizeof(*_d));                                          \
     } while (0)
