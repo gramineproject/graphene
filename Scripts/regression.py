@@ -69,8 +69,8 @@ class Regression:
 
                 time.sleep(0.1)
 
-                out = p.stdout.read()
-                log = p.stderr.read()
+                out = p.stdout.read().decode('utf-8')
+                log = p.stderr.read().decode('utf-8')
 
                 outputs.append(Result(out, log, p.returncode))
 
@@ -80,14 +80,14 @@ class Regression:
                     if run_times == times:
                         result = check(outputs)
                         if result:
-                            print '\033[92m[Success       ]\033[0m', name
+                            print('\033[92m[Success       ]\033[0m', name)
                         else:
                             if ignore_failure:
-                                print '[Fail (Ignored)]', name
+                                print('[Fail (Ignored)]', name)
                             else:
-                                print '\033[93m[Fail          ]\033[0m', name
+                                print('\033[93m[Fail          ]\033[0m', name)
                                 something_failed = 1
-                            if timed_out : print 'Test timed out!'
+                            if timed_out : print('Test timed out!')
                             keep_log = True
                             
                 if self.keep_log and keep_log:
@@ -95,7 +95,7 @@ class Regression:
                     filename = 'log-' + '_'.join(sargs) + '_' + time.strftime("%Y%m%d_%H%M%S")
                     with open(filename, 'w') as f:
                         f.write(log + out)
-                    print 'keep log to %s' % (filename)
+                    print('keep log to %s' % (filename))
         if something_failed:
             return -1
         else:

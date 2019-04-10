@@ -4,7 +4,7 @@ from regression import Regression
 loader = os.environ['PAL_SEC']
 
 if not os.path.exists(loader):
-    print "Reference monitor mode is not available on this platform"
+    print("Reference monitor mode is not available on this platform")
     exit(0)
 
 # Running Bootstrap
