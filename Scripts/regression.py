@@ -1,4 +1,4 @@
-import sys, os, subprocess, re, time
+import sys, os, subprocess, re, time, fcntl, signal
 
 class Result:
     def __init__(self, out, log, code):
@@ -48,29 +48,19 @@ class Regression:
                 if self.prepare:
                     self.prepare(args)
 
-                time.sleep(0.1)
-
                 p = subprocess.Popen(args,
                                      stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-
-                sleep_time = 0
-                finish = False
-                while sleep_time < self.timeout:
-                    time.sleep(0.001)
-                    if p.poll() is not None:
-                        finish = True
-                        break
-                    sleep_time += 1
-
-                if not finish and p.poll() is None:
+                                     stderr=subprocess.PIPE,
+                                     preexec_fn=os.setpgrp)
+                try:
+                    out, log = p.communicate(timeout=self.timeout * 0.001)
+                except subprocess.TimeoutExpired:
                     timed_out = True
-                    p.kill()
+                    os.killpg(p.pid, signal.SIGKILL)
+                    out, log = p.communicate()
 
-                time.sleep(0.1)
-
-                out = p.stdout.read().decode('utf-8')
-                log = p.stderr.read().decode('utf-8')
+                out = out.decode('utf-8')
+                log = log.decode('utf-8')
 
                 outputs.append(Result(out, log, p.returncode))
 
