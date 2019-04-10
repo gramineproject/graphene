@@ -133,12 +133,12 @@ static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
     }
 
     char * data = malloc(src_size);
-    if (data == NULL) {
+    if (!data) {
         return NULL;
     }
 
-    if (sgx_copy_to_enclave(uptr_src, data, src_size) != 0) {
-        return NULL;
+    if (sgx_copy_to_enclave(data, uptr_src, src_size) != 0) {
+        goto free_and_err;
     }
     data[src_size - 1] = '\0';
 
@@ -150,8 +150,8 @@ static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
     }
 
     argv = malloc(sizeof(char *) * (argc + 1));
-    if (argv == NULL) {
-        return NULL;
+    if (!argv) {
+        goto free_and_err;
     }
     argv[argc] = NULL;
 
@@ -165,6 +165,10 @@ static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
     }
 
     return argv;
+
+free_and_err:
+    free(data);
+    return NULL;
 }
 
 extern void * enclave_base;
@@ -183,7 +187,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     int rv;
 
     struct pal_sec sec_info;
-    if (sgx_copy_to_enclave(uptr_sec_info, &sec_info, sizeof(sec_info)) != 0) {
+    if (sgx_copy_to_enclave(&sec_info, uptr_sec_info, sizeof(sec_info)) != 0) {
         return;
     }
 
@@ -204,10 +208,15 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     pal_sec.pid = sec_info.pid;
     pal_sec.uid = sec_info.uid;
     pal_sec.gid = sec_info.gid;
-    COPY_ARRAY(sec_info.exec_name, pal_sec.exec_name);
-    COPY_ARRAY(sec_info.manifest_name, pal_sec.manifest_name);
-    COPY_ARRAY(sec_info.proc_fds, pal_sec.proc_fds);
-    COPY_ARRAY(sec_info.pipe_prefix, pal_sec.pipe_prefix);
+
+    COPY_ARRAY(pal_sec.exec_name, sec_info.exec_name);
+    pal_sec.exec_name[sizeof(pal_sec.exec_name) - 1] = '\0';
+
+    COPY_ARRAY(pal_sec.manifest_name, sec_info.manifest_name);
+    pal_sec.manifest_name[sizeof(pal_sec.manifest_name) - 1] = '\0';
+
+    COPY_ARRAY(pal_sec.proc_fds, sec_info.proc_fds);
+    COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
     pal_sec.mcast_port = sec_info.mcast_port;
     pal_sec.mcast_srv = sec_info.mcast_srv;
     pal_sec.mcast_cli = sec_info.mcast_cli;
@@ -254,11 +263,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         return;
     }
     const char ** arguments = make_argv_list(uptr_args, args_size);
-    if (arguments == NULL) {
+    if (!arguments) {
         return;
     }
     const char ** environments = make_argv_list(uptr_env, env_size);
-    if (environments == NULL) {
+    if (!environments) {
         return;
     }
 

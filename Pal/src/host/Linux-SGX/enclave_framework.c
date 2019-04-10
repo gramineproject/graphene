@@ -24,12 +24,9 @@ bool sgx_is_within_enclave (const void * addr, uint64_t size)
     return enclave_base <= addr && addr + size <= enclave_top;
 }
 
-int sgx_copy_to_enclave(void * uptr_src, void * dst, uint64_t size) {
-    if (!sgx_is_completely_outside_enclave(uptr_src, size)) {
-        return -PAL_ERROR_DENIED;
-    }
-
-    if (!sgx_is_completely_within_enclave(dst, size)) {
+int sgx_copy_to_enclave(void * dst, void * uptr_src, uint64_t size) {
+    if (!sgx_is_completely_outside_enclave(uptr_src, size) ||
+        !sgx_is_completely_within_enclave(dst, size)) {
         return -PAL_ERROR_DENIED;
     }
 
