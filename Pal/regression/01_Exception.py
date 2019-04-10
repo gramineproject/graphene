@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 import os, sys, mmap
 from regression import Regression
 

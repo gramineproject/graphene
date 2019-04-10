@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 import os, sys, mmap, random, string
 from regression import Regression
 
