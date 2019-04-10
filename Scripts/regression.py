@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 import sys, os, subprocess, re, time
 
 class Result:
