@@ -134,7 +134,7 @@ void debug_setprefix (shim_tcb_t * tcb)
     struct debug_buf * buf = tcb->debug_buf;
     buf->start = buf->end = 0;
 
-    if (tcb->tid && !IS_INTERNAL_TID(tcb->tid))
+    if (tcb->tid && !is_internal_tid(tcb->tid))
         fprintfmt(debug_fputch, NULL, buf, TID_PREFIX, tcb->tid);
     else if (cur_process.vmid)
         fprintfmt(debug_fputch, NULL, buf, VMID_PREFIX,

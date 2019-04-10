@@ -136,6 +136,11 @@ static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __
      return __self;
 }
 
+static inline bool is_internal(struct shim_thread *thread)
+{
+    return thread->tid >= INTERNAL_TID_BASE;
+}
+
 void get_thread (struct shim_thread * thread);
 void put_thread (struct shim_thread * thread);
 void get_simple_thread (struct shim_simple_thread * thread);
@@ -192,7 +197,7 @@ void set_cur_thread (struct shim_thread * thread)
         thread->tcb = container_of(tcb, __libc_tcb_t, shim_tcb);
         tid = thread->tid;
 
-        if (!IS_INTERNAL(thread) && !thread->signal_logs)
+        if (!is_internal(thread) && !thread->signal_logs)
             thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
                                          NUM_SIGS);
     } else if (tcb->tp) {

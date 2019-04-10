@@ -68,7 +68,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     int exit_code = self->exit_code;
     self->is_alive = false;
 
-    if (IS_INTERNAL(self))
+    if (is_internal(self))
         goto out;
 
     struct shim_handle_map * handle_map = self->handle_map;
@@ -170,7 +170,7 @@ int shim_do_exit_group (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();
-    assert(!IS_INTERNAL(cur_thread));
+    assert(!is_internal(cur_thread));
 
     if (debug_handle)
         sysparser_printf("---- shim_exit_group (returning %d)\n", error_code);
@@ -200,7 +200,7 @@ int shim_do_exit (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();
-    assert(!IS_INTERNAL(cur_thread));
+    assert(!is_internal(cur_thread));
 
     if (debug_handle)
         sysparser_printf("---- shim_exit (returning %d)\n", error_code);

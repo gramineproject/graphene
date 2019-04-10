@@ -148,7 +148,7 @@ static IDTYPE get_internal_pid (void)
     internal_tid_alloc_idx++;
     IDTYPE idx = internal_tid_alloc_idx;
     unlock(thread_list_lock);
-    assert(IS_INTERNAL_TID(idx));
+    assert(is_internal_tid(idx));
     return idx;
 }
 
@@ -326,7 +326,7 @@ void put_thread (struct shim_thread * thread)
         if (thread->exec)
             put_handle(thread->exec);
 
-        if (!IS_INTERNAL(thread))
+        if (!is_internal(thread))
             release_pid(thread->tid);
 
         if (thread->pal_handle &&
@@ -387,7 +387,7 @@ void set_as_child (struct shim_thread * parent,
 
 void add_thread (struct shim_thread * thread)
 {
-    if (IS_INTERNAL(thread) || !list_empty(thread, list))
+    if (is_internal(thread) || !list_empty(thread, list))
         return;
 
     struct shim_thread * tmp, * prev = NULL;
@@ -415,7 +415,7 @@ void del_thread (struct shim_thread * thread)
     debug("del_thread(%p, %d, %ld)\n", thread, thread ? thread->tid : -1,
           atomic_read(&thread->ref_count));
 
-    if (IS_INTERNAL(thread) || list_empty(thread, list)) {
+    if (is_internal(thread) || list_empty(thread, list)) {
         debug("del_thread: internal\n");
         return;
     }

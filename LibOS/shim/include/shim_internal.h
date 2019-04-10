@@ -43,12 +43,20 @@
 #include <shim_tls.h>
 
 /* important macros */
-#define get_cur_tid()           (shim_get_tls()->tid)
+static inline unsigned int get_cur_tid(void)
+{
+    return shim_get_tls()->tid;
+}
+
 #define PAL_NATIVE_ERRNO        (shim_get_tls()->pal_errno)
 
 #define INTERNAL_TID_BASE       ((IDTYPE) 1 << (sizeof(IDTYPE) * 8 - 1))
-#define IS_INTERNAL_TID(tid)    ((tid) >= INTERNAL_TID_BASE)
-#define IS_INTERNAL(thread)     ((thread)->tid >= INTERNAL_TID_BASE)
+
+static inline bool is_internal_tid(unsigned int tid)
+{
+    return tid >= INTERNAL_TID_BASE;
+}
+
 #define TID_PRINTFMT
 
 struct debug_buf {
@@ -467,24 +475,44 @@ static inline void enable_preempt (shim_tcb_t * tcb)
 
 #define DEBUG_LOCK      0
 
-#define lock_created(l)  ((l).lock != NULL)
+static inline bool __lock_created(LOCKTYPE * l)
+{
+    return l->lock != NULL;
+}
 
-#define clear_lock(l)  do { (l).lock = NULL; (l).owner = 0; } while (0)
+#define lock_created(l)  __lock_created(&(l))
 
-#define create_lock(l)                          \
-    do {                                        \
-        (l).lock = DkMutexCreate(0);               \
-        /* (l).owner = LOCK_FREE;               */ \
-        /* (l).reowned = 0;                     */ \
-    } while (0)
+static inline void __clear_lock(LOCKTYPE * l)
+{
+    l->lock = NULL;
+    l->owner = 0;
+}
 
-#define destroy_lock(l)                         \
-    do {                                        \
-        DkObjectClose((l).lock);                \
-    } while (0)
+#define clear_lock(l)  __clear_lock(&(l))
 
-#define try_create_lock(l)              \
-    do { if (!lock_created(l)) create_lock(l); } while (0)
+static inline void __create_lock(LOCKTYPE * l)
+{
+    l->lock = DkMutexCreate(0);
+    /* l->owner = LOCK_FREE; */
+    /* l->reowned = 0; */
+}
+
+#define create_lock(l)  __create_lock(&(l))
+
+static inline void __destroy_lock(LOCKTYPE * l)
+{
+    DkObjectClose(l->lock);
+}
+
+#define destroy_lock(l) __destroy_lock(&(l))
+
+static inline void ____try_create_lock(LOCKTYPE * l)
+{
+    if (!__lock_created(l))
+        __create_lock(l);
+}
+
+#define try_create_lock(l)  ____try_create_lock(&(l))
 
 #if DEBUG_LOCK == 1
 # define lock(l) __lock(&(l), #l, __FILE__, __LINE__)
@@ -583,9 +611,15 @@ static inline void create_event (AEVENTTYPE * e)
                                 PAL_OPTION_NONBLOCK);
 }
 
-#define event_created(e)    ((e)->event != NULL)
+static inline bool event_created (AEVENTTYPE * e)
+{
+    return e->event != NULL;
+}
 
-#define event_handle(e)     ((e)->event)
+static inline PAL_HANDLE event_handle (AEVENTTYPE * e)
+{
+    return e->event;
+}
 
 static inline void destroy_event (AEVENTTYPE * e)
 {

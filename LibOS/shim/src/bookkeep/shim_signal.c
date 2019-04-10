@@ -201,7 +201,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
 #define IP eip
 #endif
 
-static inline bool is_internal(PAL_CONTEXT * context)
+static inline bool context_is_internal(PAL_CONTEXT * context)
 {
     return context &&
         (void *) context->IP >= (void *) &__code_address &&
@@ -212,21 +212,21 @@ static inline void internal_fault(const char* errstr,
                                   PAL_NUM addr, PAL_CONTEXT * context)
 {
     IDTYPE tid = get_cur_tid();
-    if (is_internal(context))
+    if (context_is_internal(context))
         sys_printf("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
                    addr, (void *) context->IP - (void *) &__load_address,
-                   cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);
+                   cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
     else
         sys_printf("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr,
                    addr, context ? context->IP : 0,
-                   cur_process.vmid, IS_INTERNAL_TID(tid) ? 0 : tid);
+                   cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
 
     pause();
 }
 
 static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
+    if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
         internal_fault("Internal arithmetic fault", arg, context);
     } else {
         if (context)
@@ -251,7 +251,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         goto ret_exception;
     }
 
-    if (IS_INTERNAL_TID(get_cur_tid()) || is_internal(context)) {
+    if (is_internal_tid(get_cur_tid()) || context_is_internal(context)) {
         internal_fault("Internal memory fault", arg, context);
         goto ret_exception;
     }
@@ -399,8 +399,8 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     struct shim_vma_val vma;
 
-    if (!IS_INTERNAL_TID(get_cur_tid()) &&
-        !is_internal(context) &&
+    if (!is_internal_tid(get_cur_tid()) &&
+        !context_is_internal(context) &&
         !(lookup_vma((void *) arg, &vma)) &&
         !(vma.flags & VMA_INTERNAL)) {
         if (context)
@@ -416,7 +416,7 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    if (!IS_INTERNAL_TID(get_cur_tid())) {
+    if (!is_internal_tid(get_cur_tid())) {
         deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
     }
     DkExceptionReturn(event);
@@ -424,7 +424,7 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
-    if (!IS_INTERNAL_TID(get_cur_tid())) {
+    if (!is_internal_tid(get_cur_tid())) {
         deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
     }
     DkExceptionReturn(event);
@@ -436,7 +436,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     if (!tcb || !tcb->tp)
         return;
 
-    if (!IS_INTERNAL_TID(get_cur_tid())) {
+    if (!is_internal_tid(get_cur_tid())) {
         __disable_preempt(tcb);
         if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
             tcb->context.preempt |= SIGNAL_DELAYED;
