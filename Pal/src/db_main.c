@@ -337,8 +337,11 @@ has_manifest:
         root_config->free = free;
 
         const char * errstring = NULL;
-        if ((ret = read_config(root_config, loader_filter, &errstring)) < 0)
+        if ((ret = read_config(root_config, loader_filter, &errstring)) < 0) {
+            if (_DkStreamGetName(manifest_handle, uri_buf, URI_MAX) > 0)
+                printf("reading manifest \"%s\" failed\n", uri_buf);
             init_fail(-ret, errstring);
+        }
 
         pal_state.root_config = root_config;
 
