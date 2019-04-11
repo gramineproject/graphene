@@ -35,7 +35,7 @@
 #include <asm/mman.h>
 #include <asm/fcntl.h>
 
-bool _DkCheckMemoryMappable (const void * addr, uint64_t size)
+bool _DkCheckMemoryMappable (const void * addr, size_t size)
 {
     return (addr < DATA_END && addr + size > TEXT_START);
 }
