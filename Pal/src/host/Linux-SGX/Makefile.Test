@@ -23,7 +23,7 @@ $(SGX_SIGNER_KEY):
 	$(error "Cannot find any enclave key. Generate $(abspath $(SGX_SIGNER_KEY)) or specify 'SGX_SIGNER_KEY=' with make")
 
 prerequisite = \
-	for f in `grep -Po 'sgx.trusted_children.[^\\s=]+\\s*=\\s*file:\\K\\S+' $(1)`; do \
+	for f in `sed -e 's/\#.*//g' $(1) | grep -Po 'sgx.trusted_children.[^\\s=]+\\s*=\\s*file:\\K\\S+'`; do \
 		$(MAKE) $${f%.sig}.manifest.sgx; \
 	done
 
