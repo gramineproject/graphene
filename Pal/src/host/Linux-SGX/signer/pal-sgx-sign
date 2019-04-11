@@ -252,6 +252,8 @@ def get_trusted_children(manifest, args):
             raise Exception('repeated key in manifest: sgx.trusted_children.' + key)
 
         target = resolve_uri(val)
+        if not target.endswith('.sig'):
+            target += '.sig'
         sig = open(target, 'rb').read()[960:992].encode('hex')
         targets[key] = (val, target, sig)
 
