@@ -36,7 +36,7 @@
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
-bool _DkCheckMemoryMappable (const void * addr, int size)
+bool _DkCheckMemoryMappable (const void * addr, uint64_t size)
 {
     return (addr <= DATA_END && addr + size >= TEXT_START);
 }

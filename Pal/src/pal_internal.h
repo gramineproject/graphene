@@ -267,7 +267,7 @@ void pal_main (
 unsigned long _DkGetPagesize (void);
 unsigned long _DkGetAllocationAlignment (void);
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end);
-bool _DkCheckMemoryMappable (const void * addr, int size);
+bool _DkCheckMemoryMappable (const void * addr, uint64_t size);
 PAL_NUM _DkGetProcessId (void);
 PAL_NUM _DkGetHostId (void);
 unsigned long _DkMemoryQuota (void);

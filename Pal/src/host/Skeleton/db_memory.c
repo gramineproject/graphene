@@ -30,7 +30,7 @@
 #include "pal_debug.h"
 #include "api.h"
 
-bool _DkCheckMemoryMappable (const void * addr, int size)
+bool _DkCheckMemoryMappable (const void * addr, uint64_t size)
 {
     return true;
 }
