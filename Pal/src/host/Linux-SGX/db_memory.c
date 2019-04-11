@@ -46,7 +46,7 @@ static struct pal_vma {
 static unsigned int pal_nvmas = 0;
 static struct spinlock pal_vma_lock;
 
-bool _DkCheckMemoryMappable (const void * addr, int size)
+bool _DkCheckMemoryMappable (const void * addr, size_t size)
 {
     if (addr < DATA_END && addr + size > TEXT_START) {
         printf("address %p-%p is not mappable\n", addr, addr + size);
