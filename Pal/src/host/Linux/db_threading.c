@@ -74,8 +74,13 @@ int pal_thread_init (void * tcbptr)
             return -ERRNO(ret);
     }
 
-    if (tcb->callback)
-        return (*tcb->callback) (tcb->param);
+    if (tcb->callback) {
+        (*tcb->callback) (tcb->param);
+        // If we are not used to initialize the first (aka main) thread, we
+        // need to ensure to call _DkThreadExit for cleanup. The main thread
+        // does this itself.
+        _DkThreadExit();
+    }
 
     return 0;
 }
