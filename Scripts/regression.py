@@ -1,4 +1,4 @@
-import sys, os, subprocess, re, time, fcntl, signal
+import sys, os, subprocess, re, time, signal
 
 class Result:
     def __init__(self, out, log, code):
