@@ -89,7 +89,7 @@ class Regression:
                                 something_failed = 1
                             if timed_out : print('Test timed out!')
                             keep_log = True
-                            
+
                 if self.keep_log and keep_log:
                     sargs = [re.sub(r"\W", '_', a).strip('_') for a in args]
                     filename = 'log-' + '_'.join(sargs) + '_' + time.strftime("%Y%m%d_%H%M%S")

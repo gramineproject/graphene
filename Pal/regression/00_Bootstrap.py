@@ -95,7 +95,7 @@ regression.add_check(name="Dotdot handled properly",
     check=lambda res: "User Program Started" in res[0].log)
 rv = regression.run_checks()
 if rv: sys.exit(rv)
-    
+
 
 # Running Bootstrap2
 regression = Regression(loader, manifest_file("Bootstrap2"))
@@ -182,7 +182,7 @@ if rv: sys.exit(rv)
 regression = Regression(loader, "fakenews")
 
 regression.add_check(name="Error on missing executable and manifest",
-    check=lambda res: "Executable not found" in res[0].log and 
+    check=lambda res: "Executable not found" in res[0].log and
                      any([line.startswith("USAGE: ") for line  in res[0].log]))
 
 rv = regression.run_checks()
