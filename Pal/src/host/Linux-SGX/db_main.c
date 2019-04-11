@@ -143,9 +143,9 @@ static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
     data[src_size - 1] = '\0';
 
     uint64_t argc = 0;
-    for (uint64_t i = 0; i < src_size; i += 1) {
+    for (uint64_t i = 0; i < src_size; i++) {
         if (data[i] == '\0') {
-            argc += 1;
+            argc++;
         }
     }
 
@@ -156,12 +156,12 @@ static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
     argv[argc] = NULL;
 
     uint64_t data_i = 0;
-    for (uint64_t arg_i = 0; arg_i < argc; arg_i += 1) {
+    for (uint64_t arg_i = 0; arg_i < argc; arg_i++) {
         argv[arg_i] = &data[data_i];
         while (data[data_i] != '\0') {
-            data_i += 1;
+            data_i++;
         }
-        data_i += 1;
+        data_i++;
     }
 
     return argv;

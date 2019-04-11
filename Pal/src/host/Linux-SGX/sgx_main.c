@@ -943,7 +943,7 @@ int main (int argc, char ** argv, char ** envp)
 
     int envc = 0;
     while (envp[envc] != NULL) {
-        envc += 1;
+        envc++;
     }
     char * env = envp[0];
     uint64_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
