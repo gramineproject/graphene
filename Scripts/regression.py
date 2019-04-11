@@ -81,7 +81,7 @@ class Regression:
                 for (name, check, ignore_failure, times) in self.runs[combined_args]:
                     if run_times == times:
                         result = check(outputs)
-                        if result:
+                        if not timed_out and result:
                             print '\033[92m[Success       ]\033[0m', name
                         else:
                             if ignore_failure:
