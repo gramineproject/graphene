@@ -82,12 +82,12 @@ typedef struct {
 void init_tcb (shim_tcb_t * tcb);
 
 #ifdef SHIM_TCB_USE_GS
-typedef struct __libc_tcb
-{
-    /* nothing here. just type to point to libc tls
-     * LibOS doesn't access this structure as it's private to libc.
-     */
-} __libc_tcb_t;
+/*
+ * there is no definition of struct __libc_tcb.
+ * __libc_tcb_t is a opaque type only to point to libc tcb,
+ * LibOS shouldn't access the structure as it's private to libc.
+ */
+typedef struct __libc_tcb __libc_tcb_t;
 
 static inline shim_tcb_t * SHIM_GET_TLS(void)
 {
