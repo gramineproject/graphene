@@ -108,7 +108,7 @@ thread_start:
 	/* movl $SYS_ify(exit), %eax */
 	/* syscall */
 	/* Instead of syscall exit, let's call _DkThreadExit */
-	call *_DkThreadExit(%rip)
+	call _DkThreadExit
 	cfi_endproc
 
 	cfi_startproc
