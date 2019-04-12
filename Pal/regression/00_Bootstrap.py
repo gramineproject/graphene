@@ -4,13 +4,10 @@ import os, sys, mmap
 from regression import Regression
 
 loader = os.environ['PAL_LOADER']
-try:
-    sgx = os.environ['SGX_RUN']
-except KeyError:
-    sgx = False
+sgx = os.environ.get('SGX_RUN') == '1'
 
 def manifest_file(file):
-    if 'SGX_RUN' in os.environ and os.environ['SGX_RUN'] == '1':
+    if sgx:
         return file + '.manifest.sgx'
     else:
         return file + '.manifest'
