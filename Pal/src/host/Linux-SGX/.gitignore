@@ -1,6 +1,6 @@
-asm-offsets.h
-asm-offsets.s
-pal-sgx
+/asm-offsets.h
+/asm-offsets.s
+/pal-sgx
 
 *.pem
 *.pub
