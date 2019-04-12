@@ -2,10 +2,7 @@ import os, sys, mmap
 from regression import Regression
 
 loader = os.environ['PAL_LOADER']
-try:
-    sgx = os.environ['SGX_RUN']
-except KeyError:
-    sgx = 0
+sgx = os.environ.get('SGX_RUN') == '1'
 
 regression = Regression(loader, "Memory")
 
