@@ -339,7 +339,7 @@ has_manifest:
         const char * errstring = NULL;
         if ((ret = read_config(root_config, loader_filter, &errstring)) < 0) {
             if (_DkStreamGetName(manifest_handle, uri_buf, URI_MAX) > 0)
-                printf("reading manifest failed with \"%s\"\n", uri_buf);
+                printf("reading manifest \"%s\" failed\n", uri_buf);
             init_fail(-ret, errstring);
         }
 
