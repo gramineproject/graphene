@@ -5,7 +5,7 @@ from regression import Regression
 
 loader = os.environ['PAL_LOADER']
 
-sgx = ('SGX_RUN' in os.environ and os.environ['SGX_RUN'] == '1')
+sgx = os.environ.get('SGX_RUN') == '1'
 
 regression = Regression(loader, "Thread")
 
