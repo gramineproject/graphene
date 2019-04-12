@@ -24,4 +24,4 @@ sgx.trusted_files.script1_sh = file:script1.sh
 sgx.trusted_files.script2_sh = file:script2.sh
 sgx.trusted_files.script3_sh = file:script3.sh
 sgx.trusted_files.helloworld = file:helloworld
-sgx.trusted_children.helloworld = file:helloworld
+sgx.trusted_children.helloworld = file:helloworld.sig
