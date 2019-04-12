@@ -188,6 +188,13 @@ void restore_sgx_context (sgx_context_t * uc)
                   :: "r"(uc) : "memory");
 }
 
+/*
+ * return value:
+ *  true:  #UD is handled.
+ *         the execution can be continued without propagating #UD.
+ *  false: #UD is not handled.
+ *         the exception needs to be raised up to LibOS or user application.
+ */
 static bool handle_ud(sgx_context_t * uc)
 {
     uint8_t * instr = (uint8_t *) uc->rip;
@@ -216,7 +223,7 @@ static bool handle_ud(sgx_context_t * uc)
         /* syscall: LibOS may know how to handle this */
         return false;
     }
-    SGX_DBG(DBG_E, "unknown instruction rip 0x%016lx\n", uc->rip);
+    SGX_DBG(DBG_E, "Unknown or illegal instruction at RIP 0x%016lx\n", uc->rip);
     return false;
 }
 
