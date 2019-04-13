@@ -348,6 +348,11 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc)
         arch_store_frame(&frame->arch);
     }
 
+    /* We only end up in _DkHandleExternalEvent() if interrupted during
+     * host syscall; Dk* function will be unwound, so we must inform LibOS
+     * layer that PAL was interrupted (by setting PAL_ERRNO). */
+    _DkRaiseFailure(PAL_ERROR_INTERRUPTED);
+
     if (!_DkGenericSignalHandle(event, 0, frame, NULL)
         && event != PAL_EVENT_RESUME)
         _DkThreadExit();
