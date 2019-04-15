@@ -42,7 +42,7 @@
 #include <atomic.h>
 #include <shim_tls.h>
 
-/* important macros */
+/* important macros and static inline functions */
 static inline unsigned int get_cur_tid(void)
 {
     return shim_get_tls()->tid;
@@ -56,8 +56,6 @@ static inline bool is_internal_tid(unsigned int tid)
 {
     return tid >= INTERNAL_TID_BASE;
 }
-
-#define TID_PRINTFMT
 
 struct debug_buf {
     int start;
@@ -742,9 +740,11 @@ void __system_free (void * addr, size_t size);
 extern void * migrated_memory_start;
 extern void * migrated_memory_end;
 
-#define MEMORY_MIGRATED(mem)                                    \
-        ((void *) (mem) >= migrated_memory_start &&             \
-         (void *) (mem) < migrated_memory_end)
+static inline bool memory_migrated(void * mem)
+{
+    return mem >= migrated_memory_start && mem < migrated_memory_end;
+}
+
 
 extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;
@@ -776,12 +776,12 @@ extern const char ** initial_envp;
         _stack;                                                     \
     })
 
-#define current_stack()                                             \
-    ({                                                              \
-        void * _rsp;                                                \
-        asm volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
-        _rsp;                                                       \
-    })
+static_always_inline void * current_stack(void)
+{
+    void * _rsp;
+    asm volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");
+    return _rsp;
+}
 
 void get_brk_region (void ** start, void ** end, void ** current);
 

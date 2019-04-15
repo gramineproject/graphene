@@ -520,7 +520,7 @@ static void destroy_handle (struct shim_handle * hdl)
 {
     destroy_lock(hdl->lock);
 
-    if (MEMORY_MIGRATED(hdl))
+    if (memory_migrated(hdl))
         memset(hdl, 0, sizeof(struct shim_handle));
     else
         free_mem_obj_to_mgr(handle_mgr, hdl);
