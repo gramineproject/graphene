@@ -19,6 +19,34 @@ extern void * enclave_base, * enclave_top;
 
 static struct atomic_int enclave_start_called = ATOMIC_INIT(0);
 
+
+/*
+ * Called from enclave_entry.S to execute ecalls.
+ *
+ * During normal operation handle_ecall will not return. The exception is that
+ * it will return if invalid parameters are passed. In this case
+ * enclave_entry.S will go into an endless loop since a clean return to urts is
+ * not easy in all cases.
+ *
+ * Parameters:
+ *
+ *  ecall_index:
+ *      Number of requested ecall. Untrusted.
+ *
+ *  ecall_args:
+ *      Pointer to arguments for requested ecall. Untrusted.
+ *
+ *  exit_target:
+ *      Address to return to after EEXIT. Untrusted.
+ *
+ *  untrusted_stack:
+ *      Address to urts stack. Restored before EEXIT and used for ocall
+ *      arguments. Untrusted.
+ *
+ *  enclave_base_addr:
+ *      Base address of enclave. Calculated dynamically in enclave_entry.S.
+ *      Trusted.
+ */
 void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
                    void * untrusted_stack, void * enclave_base_addr)
 {
