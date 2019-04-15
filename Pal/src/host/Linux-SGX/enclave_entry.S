@@ -126,6 +126,14 @@ enclave_entry:
 	movq $EEXIT, %rax
 	ENCLU
 
+.Lhandle_exception:
+	# If this enclave thread has not been initialized yet, we should not
+	# try to call an event handler yet.
+	cmpq $0, %gs:SGX_READY_FOR_EXCEPTIONS
+	jne 1f
+	FAIL_LOOP
+1:
+
 	## There is a race between host signal delivery and restoring %rsp
 	## in this entry code. We must be careful to setup %rsp.
 	##
@@ -153,7 +161,7 @@ enclave_entry:
 	## cannot trust value in SGX_GPR_RSP and should fall-back to using
 	## SGX_STACK (which was updated with the last known good in-enclave
 	## %rsp during Leexit).
-.Lhandle_exception:
+
 	movq SGX_GPR_RSP(%rbx), %rsi
 	movq %gs:SGX_STACK, %rax
 	cmpq $0, %rax

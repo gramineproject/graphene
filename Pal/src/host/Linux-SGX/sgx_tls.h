@@ -19,6 +19,7 @@ struct enclave_tls {
     struct pal_handle_thread * thread;
     uint64_t ocall_prepared;
     uint64_t ecall_called;
+    uint64_t ready_for_exceptions;
 };
 
 #ifndef DEBUG

@@ -64,6 +64,7 @@ void dummy(void)
     OFFSET(SGX_THREAD, enclave_tls, thread);
     OFFSET(SGX_OCALL_PREPARED, enclave_tls, ocall_prepared);
     OFFSET(SGX_ECALL_CALLED, enclave_tls, ecall_called);
+    OFFSET(SGX_READY_FOR_EXCEPTIONS, enclave_tls, ready_for_exceptions);
 
     /* sgx_arch_tcs_t */
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
