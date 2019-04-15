@@ -23,7 +23,7 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
     if (ecall_index < 0 || ecall_index >= ECALL_NR)
         return -PAL_ERROR_INVAL;
 
-    if (!enclave_base) {
+    if (!enclave_top) {
         enclave_base = enclave_base_addr;
         enclave_top = enclave_base_addr + GET_ENCLAVE_TLS(enclave_size);
     }
