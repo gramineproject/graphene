@@ -123,6 +123,19 @@ static int loader_filter (const char * key, int len)
     return 1;
 }
 
+/*
+ * Takes a pointer+size to an untrusted memory region containing a
+ * NUL-separated list of strings. It builds a argv-style list in trusted memory
+ * with those strings.
+ *
+ * It is responsible for handling the access to untrusted memory safely
+ * (returns NULL on error) and ensures that all strings are properly
+ * terminated. The content of the strings is NOT further sanitized.
+ *
+ * The argv-style list is allocated on the heap and the caller is responsible
+ * to free it (For argv and envp we rely on auto free on termination in
+ * practice).
+ */
 static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
     const char **argv;
 
