@@ -281,7 +281,6 @@ sgx_ocall:
 	andq $STACK_ALIGN, %rsp
 
 	movq %gs:SGX_EXIT_TARGET, %rbx
-	movq %gs:SGX_AEP, %rcx
 	movq $EEXIT, %rax
 	ENCLU
 
