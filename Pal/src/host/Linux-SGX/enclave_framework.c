@@ -20,9 +20,21 @@ struct pal_enclave_config pal_enclave_config;
 
 static int register_trusted_file (const char * uri, const char * checksum_str);
 
-bool sgx_is_within_enclave (const void * addr, uint64_t size)
+bool sgx_is_completely_within_enclave (const void * addr, uint64_t size)
 {
+    if (((uint64_t) addr) > (UINT64_MAX - size)) {
+        return false;
+    }
+
     return enclave_base <= addr && addr + size <= enclave_top;
+}
+
+bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
+    if (((uint64_t) addr) > (UINT64_MAX - size)) {
+        return false;
+    }
+
+    return enclave_base >= addr + size || enclave_top <= addr;
 }
 
 void * sgx_ocalloc (uint64_t size)
