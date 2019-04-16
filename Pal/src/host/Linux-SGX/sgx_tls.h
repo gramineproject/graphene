@@ -17,6 +17,8 @@ struct enclave_tls {
     void *   ustack_top;
     void *   ustack;
     struct pal_handle_thread * thread;
+    uint64_t ocall_prepared;
+    uint64_t ecall_called;
 };
 
 #ifndef DEBUG
