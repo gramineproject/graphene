@@ -1,6 +1,11 @@
 #include "sgx_arch.h"
 #include "asm-offsets.h"
 
+.macro CLEAR_FLAGS
+	movb $0, %ah
+	sahf
+.endm
+
 # In some cases, like bogus parameters passed to enclave_entry, it's tricky to
 # return cleanly (passing the correct return address to EEXIT, OCALL_EXIT can
 # be interrupted, etc.). Since those cases should only ever happen with a
@@ -117,6 +122,7 @@ enclave_entry:
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
+	CLEAR_FLAGS
 
 	# exit address in RDX, mov it to RBX
 	movq %rdx, %rbx
@@ -219,6 +225,7 @@ enclave_entry:
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
+	CLEAR_FLAGS
 
 	# exit address in RDX, mov it to RBX
 	movq %rdx, %rbx
@@ -275,6 +282,7 @@ sgx_ocall:
 	xorq %r14, %r14
 	xorq %r15, %r15
 	xorq %rbp, %rbp
+	CLEAR_FLAGS
 
 	movq %rsp, %gs:SGX_STACK
 
