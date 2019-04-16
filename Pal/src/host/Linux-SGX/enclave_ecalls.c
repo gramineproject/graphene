@@ -17,11 +17,11 @@ void pal_start_thread (void);
 
 extern void * enclave_base, * enclave_top;
 
-int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
-                  void * untrusted_stack, void * enclave_base_addr)
+void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
+                   void * untrusted_stack, void * enclave_base_addr)
 {
     if (ecall_index < 0 || ecall_index >= ECALL_NR)
-        return -PAL_ERROR_INVAL;
+        return;
 
     if (!enclave_top) {
         enclave_base = enclave_base_addr;
@@ -29,10 +29,10 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
     }
 
     if (sgx_is_within_enclave(exit_target, 0))
-        return -PAL_ERROR_DENIED;
+        return;
 
     if (sgx_is_within_enclave(untrusted_stack, 0))
-        return -PAL_ERROR_DENIED;
+        return;
 
     SET_ENCLAVE_TLS(exit_target, exit_target);
     SET_ENCLAVE_TLS(ustack_top,  untrusted_stack);
@@ -43,7 +43,7 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
             ms_ecall_enclave_start_t * ms =
                     (ms_ecall_enclave_start_t *) ecall_args;
 
-            if (!ms) return -PAL_ERROR_INVAL;
+            if (!ms) return;
 
             pal_linux_main(ms->ms_arguments, ms->ms_environments,
                            ms->ms_sec_info);
@@ -56,5 +56,4 @@ int handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
     }
 
     ocall_exit(0);
-    return 0;
 }
