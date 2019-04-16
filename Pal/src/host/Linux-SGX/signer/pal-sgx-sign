@@ -363,18 +363,15 @@ def populate_memory_areas(manifest, attr, areas):
         area.addr = populating - area.size
         if area.addr < ENCLAVE_HEAP_MIN:
             raise Exception("Enclave size is not large enough")
-        if area.desc == 'exec':
-            populating = area.addr;
-        else:
-            populating = area.addr - MEMORY_GAP
+        populating = area.addr - MEMORY_GAP
 
     free_areas = []
     for area in areas:
-        if area.addr + area.size < populating:
-            addr = area.addr + area.size
+        if area.addr + area.size + MEMORY_GAP < populating:
+            addr = area.addr + area.size + MEMORY_GAP
             free_areas.append(MemoryArea('free', addr=addr, size=populating - addr,
                                 flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
-            populating = area.addr
+            populating = area.addr - MEMORY_GAP
 
     if populating > ENCLAVE_HEAP_MIN:
         free_areas.append(MemoryArea('free', addr=ENCLAVE_HEAP_MIN,
