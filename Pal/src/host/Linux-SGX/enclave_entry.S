@@ -23,6 +23,11 @@
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
 .endm
 
+.macro CLEAR_FLAGS
+	movb $0, %ah
+	sahf
+.endm
+
 .macro SGX_TLS_FLAGS_SET_EXECUTING_BIT reg
 	movq %gs:SGX_SELF, \reg
 	lock btsq $SGX_TLS_FLAGS_EVENT_EXECUTING_BIT, SGX_FLAGS(\reg)
@@ -144,6 +149,7 @@ enclave_entry:
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
+	CLEAR_FLAGS
 
 	# exit address in RDX, mov it to RBX
 	movq %rdx, %rbx
@@ -299,6 +305,7 @@ enclave_entry:
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
+	CLEAR_FLAGS
 
 	# exit address in RDX, mov it to RBX
 	movq %rdx, %rbx
@@ -400,6 +407,7 @@ sgx_ocall:
 	xorq %r14, %r14
 	xorq %r15, %r15
 	xorq %rbp, %rbp
+	CLEAR_FLAGS
 
 	movq %rsp, %gs:SGX_STACK
 
