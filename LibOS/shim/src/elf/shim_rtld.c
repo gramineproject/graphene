@@ -1509,7 +1509,11 @@ int init_loader (void)
         exec_map = __search_map_by_handle(exec);
     }
 
-    init_brk_from_executable(exec);
+    ret = init_brk_from_executable(exec);
+    if (ret < 0) {
+        debug("init_brk_from_executable failed: %d\n", ret);
+        goto out;
+    }
 
     if (!interp_map
         && __need_interp(exec_map)
@@ -1531,7 +1535,12 @@ int init_brk_from_executable (struct shim_handle * exec)
          * Chia-Che 8/24/2017:
          * initialize brk region at the end of the executable data segment.
          */
-        init_brk_region((void *) ALIGN_UP(exec_map->l_map_end));
+        void *ptr = (void *) ALIGN_UP(exec_map->l_map_end);
+        int ret = init_brk_region(ptr);
+        if (ret < 0) {
+            debug("init_brk_region(%p) failed: %d\n", ptr, ret);
+            return ret;
+        }
     }
 
     return 0;
