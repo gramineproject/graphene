@@ -24,13 +24,15 @@
 
 int sgx_ocall (unsigned long code, void * ms);
 
-void * sgx_ocalloc (uint64_t size);
-void sgx_ocfree (void);
-
 bool sgx_is_completely_within_enclave (const void * addr, uint64_t size);
 bool sgx_is_completely_outside_enclave(const void * addr, uint64_t size);
 
-int sgx_copy_to_enclave(void * dst, void * uptr_src, uint64_t size);
+void* sgx_alloc_on_ustack(uint64_t size);
+void* sgx_copy_to_ustack(const void* ptr, uint64_t size);
+void sgx_reset_ustack(void);
+
+bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, uint64_t size);
+uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr, uint64_t usize);
 
 int sgx_report (sgx_arch_targetinfo_t * targetinfo,
                 void * reportdata, sgx_arch_report_t * report);

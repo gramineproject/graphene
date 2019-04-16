@@ -38,21 +38,8 @@ bool sgx_is_completely_outside_enclave(const void* addr, uint64_t size) {
     return enclave_base >= addr + size || enclave_top <= addr;
 }
 
-__attribute__((warn_unused_result))
-int sgx_copy_to_enclave(void * dst, void * uptr_src, uint64_t size) {
-    if (!sgx_is_completely_outside_enclave(uptr_src, size) ||
-        !sgx_is_completely_within_enclave(dst, size)) {
-        return -PAL_ERROR_DENIED;
-    }
-
-    memcpy(dst, uptr_src, size);
-
-    return 0;
-}
-
-void * sgx_ocalloc (uint64_t size)
-{
-    void * ustack = GET_ENCLAVE_TLS(ustack) - size;
+void* sgx_alloc_on_ustack(uint64_t size) {
+    void* ustack = GET_ENCLAVE_TLS(ustack) - size;
     if (!sgx_is_completely_outside_enclave(ustack, size)) {
         return NULL;
     }
@@ -60,9 +47,47 @@ void * sgx_ocalloc (uint64_t size)
     return ustack;
 }
 
-void sgx_ocfree (void)
-{
+void* sgx_copy_to_ustack(const void* ptr, uint64_t size) {
+    if (!sgx_is_completely_within_enclave(ptr, size)) {
+        return NULL;
+    }
+    void* uptr = sgx_alloc_on_ustack(size);
+    if (uptr) {
+        memcpy(uptr, ptr, size);
+    }
+    return uptr;
+}
+
+void sgx_reset_ustack(void) {
     SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
+}
+
+/* NOTE: Value from possibly untrusted uptr must be copied inside
+ * CPU register or enclave stack (to prevent TOCTOU). Function call
+ * achieves this. Attribute ensures no inline optimization. */
+__attribute__((noinline))
+bool sgx_copy_ptr_to_enclave(void** ptr, void* uptr, uint64_t size) {
+    assert(ptr);
+    if (!sgx_is_completely_outside_enclave(uptr, size)) {
+        *ptr = NULL;
+        return false;
+    }
+    *ptr = uptr;
+    return true;
+}
+
+/* NOTE: Value from possibly untrusted uptr and usize must be copied
+ * inside CPU registers or enclave stack (to prevent TOCTOU). Function
+ * call achieves this. Attribute ensures no inline optimization. */
+__attribute__((noinline))
+uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr, uint64_t usize) {
+    if (usize > maxsize ||
+        !sgx_is_completely_outside_enclave(uptr, usize) ||
+        !sgx_is_completely_within_enclave(ptr, usize)) {
+        return 0;
+    }
+    memcpy((void*) ptr, uptr, usize);
+    return usize;
 }
 
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
