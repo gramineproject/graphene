@@ -18,5 +18,8 @@ regression.add_check(name="Exception Handler Swap",
 regression.add_check(name="Exception Handling (Set Context)",
     check=lambda res: any([line.startswith("Arithmetic Exception Handler 1") for line in res[0].log]))
 
+regression.add_check(name="Exception Handling (Red zone)",
+    check=lambda res: "Red zone test ok." in res[0].log)
+
 rv = regression.run_checks()
 if rv: sys.exit(rv)
