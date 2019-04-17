@@ -157,7 +157,7 @@ enclave_entry:
 	## so the CPU pushed some untrusted %rsp into SGX_GPR_RSP. Thus, we
 	## cannot trust value in SGX_GPR_RSP and should fall-back to using
 	## SGX_STACK (which was updated with the last known good in-enclave
-	## %rsp during Leexit).
+	## %rsp before EEXIT in sgx_ocall).
 
 	movq SGX_GPR_RSP(%rbx), %rsi
 	movq %gs:SGX_STACK, %rax
@@ -264,7 +264,6 @@ sgx_ocall:
 
 	movq $1, %gs:SGX_OCALL_PREPARED
 
-.Leexit:
 	xorq %rdx, %rdx
 	xorq %r8, %r8
 	xorq %r9, %r9
