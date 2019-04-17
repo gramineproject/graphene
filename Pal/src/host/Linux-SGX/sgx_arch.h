@@ -126,6 +126,13 @@ typedef struct {
     uint64_t rip;
 } sgx_context_t;
 
+// Required by _restore_sgx_context, see enclave_entry.S.
+_Static_assert(offsetof(sgx_context_t, rip) - offsetof(sgx_context_t, rflags) ==
+               sizeof(((sgx_context_t) {0}).rflags),
+               "rip must be directly after rflags in sgx_context_t");
+_Static_assert(offsetof(sgx_context_t, rflags) - offsetof(sgx_context_t, rdi) <= RED_ZONE_SIZE,
+               "rdi needs to be within red zone distance from rflags");
+
 typedef struct {
     uint32_t vector:8;
     uint32_t type:3;
