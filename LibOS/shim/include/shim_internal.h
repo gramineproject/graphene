@@ -753,6 +753,8 @@ void get_brk_region (void ** start, void ** end, void ** current);
 
 int init_randgen (void);
 int reset_brk (void);
+struct shim_handle;
+int init_brk_from_executable (struct shim_handle * exec);
 int init_brk_region (void * brk_region);
 int init_heap (void);
 int init_internal_map (void);

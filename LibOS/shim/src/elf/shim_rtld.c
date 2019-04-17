@@ -1481,8 +1481,6 @@ int init_internal_map (void)
     return 0;
 }
 
-int init_brk_from_executable (struct shim_handle * exec);
-
 int init_loader (void)
 {
     struct shim_thread * cur_thread = get_cur_thread();
