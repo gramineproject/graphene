@@ -46,4 +46,7 @@ uint32_t rdrand (void);
 uint64_t rdfsbase (void);
 void wrfsbase (uint64_t addr);
 
+void restore_sgx_context(sgx_context_t *ctx);
+void _restore_sgx_context(sgx_context_t *ctx);
+
 #endif /* SGX_API_H */

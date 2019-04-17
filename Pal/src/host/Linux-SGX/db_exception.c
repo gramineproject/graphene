@@ -157,37 +157,6 @@ void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
     _DkGenericSignalHandle(event, arg, frame, context);
 }
 
-void restore_sgx_context (sgx_context_t * uc)
-{
-    /* prepare the return address */
-    uc->rsp -= 8;
-    *(uint64_t *) uc->rsp = uc->rip;
-
-    /* now pop the stack */
-    __asm__ volatile (
-                  "mov %0, %%rsp\n"
-                  "pop %%rax\n"
-                  "pop %%rcx\n"
-                  "pop %%rdx\n"
-                  "pop %%rbx\n"
-                  "add $8, %%rsp\n" /* don't pop RSP yet */
-                  "pop %%rbp\n"
-                  "pop %%rsi\n"
-                  "pop %%rdi\n"
-                  "pop %%r8\n"
-                  "pop %%r9\n"
-                  "pop %%r10\n"
-                  "pop %%r11\n"
-                  "pop %%r12\n"
-                  "pop %%r13\n"
-                  "pop %%r14\n"
-                  "pop %%r15\n"
-                  "popfq\n"
-                  "mov -104(%%rsp), %%rsp\n"
-                  "ret\n"
-                  :: "r"(uc) : "memory");
-}
-
 /*
  * return value:
  *  true:  #UD is handled.
@@ -355,7 +324,6 @@ void _DkRaiseFailure (int error)
 void _DkExceptionReturn (void * event)
 {
     PAL_EVENT * e = event;
-    sgx_context_t uc;
     PAL_CONTEXT * ctx = e->context;
 
     if (!ctx) {
@@ -372,26 +340,27 @@ void _DkExceptionReturn (void * event)
                       "retq\r\n" ::: "memory");
     }
 
-    uc.rax = ctx->rax;
-    uc.rbx = ctx->rbx;
-    uc.rcx = ctx->rcx;
-    uc.rdx = ctx->rdx;
-    uc.rsp = ctx->rsp;
-    uc.rbp = ctx->rbp;
-    uc.rsi = ctx->rsi;
-    uc.rdi = ctx->rdi;
-    uc.r8  = ctx->r8;
-    uc.r9  = ctx->r9;
-    uc.r10 = ctx->r10;
-    uc.r11 = ctx->r11;
-    uc.r12 = ctx->r12;
-    uc.r13 = ctx->r13;
-    uc.r14 = ctx->r14;
-    uc.r15 = ctx->r15;
-    uc.rflags = ctx->efl;
-    uc.rip = ctx->rip;
+    sgx_context_t * uc = ((void *) ctx->rsp) - (sizeof(sgx_context_t) + RED_ZONE);
+    uc->rax = ctx->rax;
+    uc->rbx = ctx->rbx;
+    uc->rcx = ctx->rcx;
+    uc->rdx = ctx->rdx;
+    uc->rsp = ctx->rsp;
+    uc->rbp = ctx->rbp;
+    uc->rsi = ctx->rsi;
+    uc->rdi = ctx->rdi;
+    uc->r8  = ctx->r8;
+    uc->r9  = ctx->r9;
+    uc->r10 = ctx->r10;
+    uc->r11 = ctx->r11;
+    uc->r12 = ctx->r12;
+    uc->r13 = ctx->r13;
+    uc->r14 = ctx->r14;
+    uc->r15 = ctx->r15;
+    uc->rflags = ctx->efl;
+    uc->rip = ctx->rip;
 
-    restore_sgx_context(&uc);
+    restore_sgx_context(uc);
 }
 
 void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc)
