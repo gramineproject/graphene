@@ -190,101 +190,10 @@ typedef struct pal_handle
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 
-struct arch_frame {
-#ifdef __x86_64__
-    unsigned long rsp, rbp, rbx, rsi, rdi, r12, r13, r14, r15;
-#else
-# error "unsupported architecture"
-#endif
-};
+#define ENTER_PAL_CALL(name)
 
-#ifdef __x86_64__
-# define store_register(reg, var)     \
-    __asm__ volatile ("movq %%" #reg ", %0" : "=g" (var) :: "memory");
+#define LEAVE_PAL_CALL()
 
-# define store_register_in_frame(reg, f)     store_register(reg, (f)->reg)
-
-# define arch_store_frame(f)                     \
-    store_register_in_frame(rsp, f)              \
-    store_register_in_frame(rbp, f)              \
-    store_register_in_frame(rbx, f)              \
-    store_register_in_frame(rsi, f)              \
-    store_register_in_frame(rdi, f)              \
-    store_register_in_frame(r12, f)              \
-    store_register_in_frame(r13, f)              \
-    store_register_in_frame(r14, f)              \
-    store_register_in_frame(r15, f)
-
-# define restore_register(reg, var, clobber...)  \
-    __asm__ volatile ("movq %0, %%" #reg :: "g" (var) : "memory", ##clobber);
-
-# define restore_register_in_frame(reg, f)       \
-    restore_register(reg, (f)->reg,              \
-                     "r15", "r14", "r13", "r12", "rdi", "rsi", "rbx")
-
-# define arch_restore_frame(f)                   \
-    restore_register_in_frame(r15, f)            \
-    restore_register_in_frame(r14, f)            \
-    restore_register_in_frame(r13, f)            \
-    restore_register_in_frame(r12, f)            \
-    restore_register_in_frame(rdi, f)            \
-    restore_register_in_frame(rsi, f)            \
-    restore_register_in_frame(rbx, f)            \
-    restore_register_in_frame(rbp, f)            \
-    restore_register_in_frame(rsp, f)
-#else /* __x86_64__ */
-# error "unsupported architecture"
-#endif
-
-#define PAL_FRAME_IDENTIFIER 0xdeaddeadbeefbeef
-
-struct pal_frame {
-    volatile uint64_t           identifier;
-    void *                      func;
-    const char *                funcname;
-    struct arch_frame           arch;
-};
-
-/* DEP 12/25/17: This frame storage thing is important to mark volatile.
- * The compiler should not optimize out any of these changes, and
- * because some accesses can happen during an exception, these are not
- * visible to the compiler in an otherwise stack-local variable (so the
- * compiler will try to optimize out these assignments.
- */
-static inline
-void __store_frame (volatile struct pal_frame * frame,
-                    void * func, const char * funcname)
-{
-    arch_store_frame(&frame->arch)
-    frame->func = func;
-    frame->funcname = funcname;
-    __asm__ volatile ("nop" ::: "memory");
-    frame->identifier = PAL_FRAME_IDENTIFIER;
-}
-
-#define ENTER_PAL_CALL(name)                \
-    struct pal_frame frame;                 \
-    __store_frame(&frame, &(name), #name)
-
-
-static inline
-void __clear_frame (volatile struct pal_frame * frame)
-{
-    if (frame->identifier == PAL_FRAME_IDENTIFIER) {
-        __asm__ volatile ("nop" ::: "memory");
-        frame->identifier = 0;
-    }
-}
-
-#define LEAVE_PAL_CALL()                    \
-    do {                                    \
-        __clear_frame(&frame);              \
-    } while (0)
-
-#define LEAVE_PAL_CALL_RETURN(retval)       \
-    do {                                    \
-        __clear_frame(&frame);              \
-        return (retval);                    \
-    } while (0)
+#define LEAVE_PAL_CALL_RETURN(retval)   return (retval)
 
 #endif /* PAL_HOST_H */

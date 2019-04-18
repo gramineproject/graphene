@@ -375,8 +375,6 @@ typedef uint8_t sgx_key_128bit_t[16];
 #define KEYPOLICY_MRENCLAVE     1
 #define KEYPOLICY_MRSIGNER      2
 
-#define XSAVE_SIZE  512
-
 #define STACK_ALIGN 0xfffffffffffffff0
 #define XSAVE_ALIGN 0xffffffffffffffc0
 #define XSAVE_NON_FX_MASK 0xfffffffffffffffc
