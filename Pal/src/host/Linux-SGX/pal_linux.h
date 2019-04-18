@@ -119,7 +119,7 @@ extern const uint32_t SYNTHETIC_STATE[];
 void init_xsave_size(uint64_t xfrm);
 void save_xregs(PAL_XREGS_STATE* xsave_area);
 void restore_xregs(const PAL_XREGS_STATE* xsave_area);
-noreturn void _restore_sgx_context(sgx_cpu_context_t* uc);
+noreturn void _restore_sgx_context(sgx_cpu_context_t* uc, PAL_XREGS_STATE* xsave_area);
 
 int init_trusted_files (void);
 
