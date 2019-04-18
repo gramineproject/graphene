@@ -276,6 +276,7 @@ typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 
 #define STACK_ALIGN 0xfffffffffffffff0
 #define XSAVE_ALIGN 0xffffffffffffffc0
+#define XSAVE_NON_FX_MASK 0xfffffffffffffffc
 
 #define RETURN_FROM_OCALL 0xffffffffffffffff
 

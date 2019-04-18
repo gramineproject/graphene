@@ -235,6 +235,24 @@ enclave_entry:
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
 	#
 .Lclear_and_eexit:
+
+	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
+
+	leaq .Lxrstor_init_arg(%rip), %rcx
+	# pal_sec.enclave_attributes.xfrm will always be zero before
+	# init_enclave has been called by pal_linux_main. So during early init
+	# nothing should use features not covered by fxrstor, like AVX.
+	movq (pal_sec + PAL_SEC_ENCLAVE_ATTRIBUTES + SGX_ARCH_ATTRIBUTES_XFRM)(%rip), %rax
+	testq $XSAVE_NON_FX_MASK, %rax
+	je 1f
+	mov $0xffffffff, %edx
+	mov $0xffffffff, %eax
+	xrstor (%rcx)
+	jmp 2f
+1:
+	fxrstor (%rcx)
+2:
+
 	# %rax is argument to EEXIT
 	# %rbx is argument to EEXIT
 	subq %rcx, %rcx # use sub to set flags to an fixed value
@@ -255,6 +273,19 @@ enclave_entry:
 	ENCLU
 
 	ud2 # We should never get here.
+
+.section .rodata
+	.balign 64
+.Lxrstor_init_arg:
+	.byte 0x7f, 0x03 	# fcw
+	.skip 6, 0
+	.byte 0x80, 0x1f, 0, 0 	# MXCSR (same as init value from xrstor)
+	.skip 500, 0	 	# rest of fxstore area
+
+	.skip 15, 0	 	# XSTATE_BV and XCOMP_BV[55:0]
+	.byte 0x80	 	# XCOMP_BV[63:56] i.e. "compact" format
+	.skip 48, 0	 	# rest of xsave header
+.previous
 
 	.global sgx_ocall
 	.type sgx_ocall, @function

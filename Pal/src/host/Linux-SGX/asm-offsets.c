@@ -2,6 +2,7 @@
 
 #include "sgx_arch.h"
 #include "sgx_tls.h"
+#include "pal_security.h"
 
 #include <asm-offsets-build.h>
 
@@ -68,5 +69,11 @@ void dummy(void)
 
     /* sgx_arch_tcs_t */
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
+
+    /* sgx_arch_attributes_t */
+    OFFSET_T(SGX_ARCH_ATTRIBUTES_XFRM, sgx_arch_attributes_t, xfrm);
+
+    /* struct pal_sec */
+    OFFSET(PAL_SEC_ENCLAVE_ATTRIBUTES, pal_sec, enclave_attributes);
 }
 
