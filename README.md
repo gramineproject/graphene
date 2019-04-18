@@ -254,7 +254,7 @@ github Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 ## 4. CONTACT
 
-For any questions or bug reports, please send an email to
-        <support@graphene-project.io>
-or post an issue on our github repository:
-        <https://github.com/oscarlab/graphene/issues>
+For any questions or bug reports, please send an email to <support@graphene-project.io> or post an
+issue on our GitHub repository: <https://github.com/oscarlab/graphene/issues>.
+
+Our mailing list is publicly archived [here](https://groups.google.com/forum/#!forum/graphene-support).
