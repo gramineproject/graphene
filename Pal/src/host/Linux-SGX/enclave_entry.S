@@ -120,8 +120,8 @@ enclave_entry:
 
 	# exit address in RDX, mov it to RBX
 	movq %rdx, %rbx
-	movq $EEXIT, %rax
-	ENCLU
+
+	jmp .Lclear_and_eexit
 
 .Lhandle_exception:
 	# If this enclave thread has not been initialized yet, we should not
@@ -226,9 +226,36 @@ enclave_entry:
 
 	# exit address in RDX, mov it to RBX
 	movq %rdx, %rbx
+	# fallthrough
+
+	# Clear other registers and similar state and then call EEXIT
+	#
+	# Arguments for EEXIT/untrusted code (not cleared):
+	#
+	#     %rbx: exit target
+	#     %rsp: untrusted stack
+	#     %rdi, %rsi: (optional) arguments to untrusted code.
+.Lclear_and_eexit:
+	# %rax is argument to EEXIT
+	# %rbx is argument to EEXIT
+	# %rcx is set to AEP by EEXIT
+	xorq %rdx, %rdx
+	# %rsi, %rdi are arguments to the untrusted code
+	xorq %rbp, %rbp
+	# %rsp points to untrusted stack
+	xorq %r8, %r8
+	xorq %r9, %r9
+	xorq %r10, %r10
+	xorq %r11, %r11
+	xorq %r12, %r12
+	xorq %r13, %r13
+	xorq %r14, %r14
+	subq %r15, %r15 # use sub to set flags to a fixed value
+
 	movq $EEXIT, %rax
 	ENCLU
 
+	ud2 # We should never get here.
 
 	.global sgx_ocall
 	.type sgx_ocall, @function
@@ -268,17 +295,6 @@ sgx_ocall:
 
 	movq $1, %gs:SGX_OCALL_PREPARED
 
-	xorq %rdx, %rdx
-	xorq %r8, %r8
-	xorq %r9, %r9
-	xorq %r10, %r10
-	xorq %r11, %r11
-	xorq %r12, %r12
-	xorq %r13, %r13
-	xorq %r14, %r14
-	xorq %r15, %r15
-	xorq %rbp, %rbp
-
 	movq %rsp, %gs:SGX_STACK
 
 	# It's ok to use the untrusted stack and exit target below without
@@ -289,8 +305,7 @@ sgx_ocall:
 	andq $STACK_ALIGN, %rsp
 
 	movq %gs:SGX_EXIT_TARGET, %rbx
-	movq $EEXIT, %rax
-	ENCLU
+	jmp .Lclear_and_eexit
 
 .Lreturn_from_ocall:
 	# PAL convention:
