@@ -322,12 +322,12 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     int ret = ocall_sock_recv(ch, &hdl_hdr, sizeof(struct hdl_header), NULL,
                               NULL);
 
-    if (IS_ERR(ret)) {
-        if (ERRNO(ret) != EINTR && ERRNO(ret) != ERESTART)
-            return unix_to_pal_error(ERRNO(ret));
-    } else if (ret < sizeof(struct hdl_header)) {
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+    if (ret < sizeof(struct hdl_header)) {
         if (!ret)
             return -PAL_ERROR_TRYAGAIN;
+        /* FIXME: partial read case. */
         return ret;
     }
 
