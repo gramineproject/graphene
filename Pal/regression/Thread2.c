@@ -1,12 +1,14 @@
+#include <stdatomic.h>
+
 #include "pal.h"
 #include "pal_debug.h"
 
 volatile bool dummy_true = true;
 
-static volatile bool thread2_started = false;
-static volatile bool thread3_started = false;
-static volatile bool thread3_exit_ok = true;
-static volatile bool thread4_started = false;
+static atomic_bool thread2_started = false;
+static atomic_bool thread3_started = false;
+static atomic_bool thread3_exit_ok = true;
+static atomic_bool thread4_started = false;
 
 int thread2_run(void* args) {
     pal_printf("Thread 2 started.\n");
