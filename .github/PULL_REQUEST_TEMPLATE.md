@@ -1,4 +1,4 @@
-Please fill in the following form before submitting this PR and ensure that your code follows our [coding style guideline](../blob/master/CODESTYLE.md).
+<!-- Please fill in the following form before submitting this PR and ensure that your code follows our [coding style guideline](../blob/master/CODESTYLE.md). -->
 
 ## Affected components
 
