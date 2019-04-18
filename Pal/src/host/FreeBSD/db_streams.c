@@ -387,12 +387,13 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     hdr.msg_flags = 0;
 
     int ret = INLINE_SYSCALL(recvmsg, 3, ch, &hdr, 0);
-    if (IS_ERR(ret) || ret < sizeof(struct hdl_header)) {
-        if (!IS_ERR(ret))
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+    if (ret < sizeof(struct hdl_header)) {
+        if (!ret)
             return -PAL_ERROR_TRYAGAIN;
-
-        if (ERRNO(ret) != EINTR && ERRNO(ret) != ERESTART)
-            return -ERRNO(ret);
+        /* FIXME: partial read case */
+        return ret;
     }
 
     // initialize variables to get body
