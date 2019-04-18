@@ -11,6 +11,18 @@ struct enclave_tls {
     uint64_t initial_stack_offset;
     uint64_t sig_stack_low;
     uint64_t sig_stack_high;
+#define SGX_TLS_FLAGS_ASYNC_EVENT_PENDING_BIT   (0)
+#define SGX_TLS_FLAGS_EVENT_EXECUTING_BIT       (1)
+#define SGX_TLS_FLAGS_ASYNC_ENVET_PENDING       (1UL << SGX_TLS_FLAGS_ASYNC_ENVET_PENDING_BIT)
+#define SGX_TLS_FLAGS_EVENT_EXECUTING           (1UL << SGX_TLS_FLAGS_ENVET_EXECUTING_BIT)
+    uint64_t flags;
+#define PAL_EVENT_MASK(event)   (1UL << (event))
+#define PAL_ASYNC_EVENT_MASK                    \
+    (PAL_EVENT_MASK(PAL_EVENT_QUIT) |           \
+     PAL_EVENT_MASK(PAL_EVENT_SUSPEND) |        \
+     PAL_EVENT_MASK(PAL_EVENT_RESUME))
+    uint64_t pending_async_event;
+    struct atomic_int event_nest;
     void *   aep;
     void *   ssa;
     sgx_arch_gpr_t * gpr;
