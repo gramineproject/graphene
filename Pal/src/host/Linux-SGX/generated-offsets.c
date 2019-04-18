@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <asm/errno.h>
 
+#include "pal.h"
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 #include "pal.h"
@@ -69,6 +70,8 @@ void dummy(void)
     OFFSET_T(SGX_CPU_CONTEXT_RFLAGS, sgx_cpu_context_t, rflags);
     OFFSET_T(SGX_CPU_CONTEXT_RIP, sgx_cpu_context_t, rip);
     DEFINE(SGX_CPU_CONTEXT_SIZE, sizeof(sgx_cpu_context_t));
+    DEFINE(SGX_CPU_CONTEXT_XSTATE_ALIGN_SUB,
+           sizeof(sgx_cpu_context_t) % PAL_XSTATE_ALIGN);
 
     /* struct enclave_tls */
     OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);
