@@ -390,9 +390,23 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
     if (ret < sizeof(struct hdl_header)) {
+        /*
+         * This code block is just in case to cover all the possibility.
+         *
+         * read size == 0: return error to try again:
+         *                 This case won't happen because the file
+         *                 descriptor is Unix domain socket in blocking mode.
+         *                 It is actually EINTR.
+         *
+         * read size > 0: return partial read size and expect the caller
+         *                to handle it.
+         *                Actually this case won't happen because
+         *                This PAL API is used only for UNIX domain socket
+         *                and, the sender, _DkSendHandle, sends
+         *                struct hdl_header with single sendmsg() system call.
+         */
         if (!ret)
             return -PAL_ERROR_TRYAGAIN;
-        /* FIXME: partial read case */
         return ret;
     }
 
