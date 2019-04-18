@@ -159,17 +159,49 @@ enclave_entry:
 	## SGX_STACK (which was updated with the last known good in-enclave
 	## %rsp during Leexit).
 
+	# %rbx SGX_GPR base address from TLS
 	movq SGX_GPR_RSP(%rbx), %rsi
 	movq %gs:SGX_STACK, %rax
 	cmpq $0, %rax
 	je 1f
 	movq %rax, %rsi
 1:
-	subq $(SGX_CONTEXT_SIZE + REDZONE_SIZE), %rsi
+
+	movq %gs:SGX_SIG_STACK_LOW, %rax
+	cmpq %rax, %rsi
+	jbe .Lout_of_signal_stack
+	movq %gs:SGX_SIG_STACK_HIGH, %rax
+	cmpq %rax, %rsi
+	ja .Lout_of_signal_stack
+	jmp .Lon_signal_stack
+
+.Lout_of_signal_stack:
+	movq %gs:SGX_SIG_STACK_HIGH, %rsi
+        /* staring from new stack. there is no red zone used.
+         * offset it below calculation */
+	addq $REDZONE_SIZE, %rsi
+
+	/* 8 is to avoid redzone clobber */
+#define STACK_PADDING_SIZE	(PAL_FP_XSTATE_MAGIC2_SIZE + 8)
+#define STACK_FRAME_SUB \
+	(SGX_CONTEXT_SIZE + REDZONE_SIZE + STACK_PADDING_SIZE)
+.Lon_signal_stack:
+	movq xsave_size@GOTPCREL(%rip), %rax
+	movl (%rax), %eax
+	addq $STACK_FRAME_SUB, %rax
+	subq %rax, %rsi
+	# Align xsave area to 64 bytes after sgx_context_t
+	# SGX_CONTEXT_SIZE = sizeof(sgx_context_t) = 144
+	# PAL_XSTATE_ALIGN = 64
+	# SGX_CONTEXT_XSTATE_ALIGN_SUB=SGX_CONTEXT_SIZE % PAL_XSTATE_ALIGN = 16
+	# unfortunatley gas doesn't understand
+	# $(SGX_CONTEXT_SIZE % PAL_XSTATE_ALIGN)
+	andq $~(PAL_XSTATE_ALIGN - 1), %rsi
+	subq $SGX_CONTEXT_XSTATE_ALIGN_SUB, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
 	# and dump into the context
-	xchgq %rdi, SGX_GPR_RDI(%rbx)
+	xchgq %rdi, SGX_GPR_RDI(%rbx) # 1st argument for _DkExceptionHandler()
 	movq %rdi, SGX_CONTEXT_RDI(%rsi)
 
 	# dump the rest of context
@@ -210,11 +242,15 @@ enclave_entry:
 	movq %rdi, SGX_CONTEXT_RIP(%rsi)
 
 	movq %rsi, SGX_GPR_RSP(%rbx)
-	movq %rsi, SGX_GPR_RSI(%rbx)
+	movq %rsi, SGX_GPR_RSI(%rbx) ## 2nd argument for _DkExceptionHandler()
+
+	/* TODO: save EXINFO in MISC region */
 
 	# new RIP is the exception handler
 	leaq _DkExceptionHandler(%rip), %rdi
 	movq %rdi, SGX_GPR_RIP(%rbx)
+
+	# FP registers are saved on entry of _DkExceptionHandler()
 
 	# clear the registers
 	xorq %rdi, %rdi
@@ -230,8 +266,55 @@ enclave_entry:
 	.type sgx_ocall, @function
 
 sgx_ocall:
+	##
+	## input:
+	## %rdi: code
+	## %rsi: void * ms
+	##
+	## sgx_context_t:
+	##   rax = 0: place holder
+	##   rcx
+	##   ...
+	##   rflags
+	##   rip
+	## xsave area
+	##   xregs
+	## (padding)
+	## ---
+	## previous rbp
+	## previous rip: pushed by callq
+	##
+
 	pushq %rbp
 	movq %rsp, %rbp
+
+	## switch to signal stack if not yet.
+	movq %gs:SGX_SIG_STACK_LOW, %rax
+	cmpq %rax, %rsp
+	jbe .Lout_of_signal_stack_ocall
+	movq %gs:SGX_SIG_STACK_HIGH, %rax
+	cmpq %rax, %rsp
+	ja .Lout_of_signal_stack_ocall
+	jmp .Lon_signal_stack_ocall
+
+.Lout_of_signal_stack_ocall:
+	movq %gs:SGX_SIG_STACK_HIGH, %rsp
+
+.Lon_signal_stack_ocall:
+
+	movq xsave_size@GOTPCREL(%rip), %rax
+	movl (%rax), %eax
+	addq $STACK_PADDING_SIZE, %rax
+	subq %rax, %rsp
+	andq $~(PAL_XSTATE_ALIGN - 1), %rsp
+
+	pushq %rdx
+	pushq %rdi
+	movq %rsp, %rdi
+	addq $2 * 8, %rdi	/* adjust pushq %rdx; pushq %rdi above */
+	callq save_xregs
+	popq %rdi
+	popq %rdx
 
 	movq 8(%rbp), %rax
 	pushq %rax	# previous RIP
@@ -253,18 +336,16 @@ sgx_ocall:
 	pushq %rbx
 	pushq %rdx
 	pushq %rcx
-	# no RAX
-
-	movq %rsp, %rbp
-	subq $XSAVE_SIZE,  %rsp
-	andq $XSAVE_ALIGN, %rsp
-	fxsave (%rsp)
-
-	pushq %rbp
+	pushq $0        # place holder for RAX
 
 	movq $1, %gs:SGX_OCALL_PREPARED
 
 .Leexit:
+	movq %rdi, %rbx
+	movq SYNTHETIC_STATE@GOTPCREL(%rip), %rdi
+	callq restore_xregs
+	movq %rbx, %rdi
+
 	xorq %rdx, %rdx
 	xorq %r8, %r8
 	xorq %r9, %r9
@@ -296,7 +377,12 @@ sgx_ocall:
 
 	movq $0, %gs:SGX_OCALL_PREPARED
 
-	movq %rdi, %rax
+	# restore the stack
+	movq $0, %rsp
+	xchgq %rsp, %gs:SGX_STACK
+
+	## sgx_context_t::rax = %rdi
+	movq %rdi, (%rsp) # return value
 
 	# restore FSBASE if necessary
 	movq %gs:SGX_FSBASE, %rbx
@@ -304,28 +390,26 @@ sgx_ocall:
 	je .Lno_fsbase
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
 .Lno_fsbase:
-
-	# restore the stack
-	movq $0, %rsp
-	xchgq %rsp, %gs:SGX_STACK
-
-	popq %rbp
-	fxrstor (%rsp)
-	movq %rbp, %rsp
-
-	cmpq $0, %rsi
-	je .Lno_external_event
-	pushq %rax
-	movq %rsi, %rdi
-	movq %rsp, %rsi
+	movq %rsi, %rdi	## %rdi = PAL_NUM event <- RSI
+	movq %rsp, %rsi	## %rsi = sgx_context_t * uc
+	movq %rsp, %rdx
+	addq $SGX_CONTEXT_SIZE, %rdx ## %rdx = PAL_XREGS_STATE * xregs_state
 	callq _DkHandleExternalEvent
-	popq %rax
-.Lno_external_event:
+	## NOTREACHED
 
+	# void __restore_sgx_context (sgx_context_t *uc)
+	# __attribute__((noreturn))
+	.global __restore_sgx_context
+	.type __restore_sgx_context, @function
+__restore_sgx_context:
+	movq %rdi, %rsp
+
+	popq %rax
 	popq %rcx
 	popq %rdx
 	popq %rbx
-	addq $16, %rsp	# skip RSP and RBP
+	addq $8, %rsp /* don't popq RSP yet */
+	popq %rbp
 	popq %rsi
 	popq %rdi
 	popq %r8
@@ -334,12 +418,24 @@ sgx_ocall:
 	popq %r11
 	popq %r12
 	popq %r13
+
+	/* store saved %rip at -REDZONE-8(%saved rsp).
+	 * notice sizeof(sgx_context_t) = 144 > 128 = REDZONE_SIZE.
+	 */
+	## see the definition of sgx_context_t
+	## currently %rsp is pointing to %r14
+	movq -10 * 8(%rsp), %r14 # %r14 = saved %rsp
+	movq 3 * 8(%rsp), %r15	 # %r15 = saved %rip
+	movq %r15, - REDZONE_SIZE - 8(%r14)
+
 	popq %r14
 	popq %r15
 	popfq
-	addq $8, %rsp	# skip RIP
-	popq %rbp
-	retq
+
+	/* avoid to clobber red zone */
+	subq $(REDZONE_SIZE + 8), -13 * 8(%rsp)
+	movq -13 * 8(%rsp), %rsp
+	retq $REDZONE_SIZE
 
 	# void save_xregs(uint64_t xsave_area)
 	.global save_xregs

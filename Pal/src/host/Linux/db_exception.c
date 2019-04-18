@@ -137,8 +137,10 @@ static void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
     PAL_EVENT event;
     event.event_num = event_num;
 
-    if (uc)
+    if (uc) {
         memcpy(&event.context, uc->uc_mcontext.gregs, sizeof(PAL_CONTEXT));
+        event.context.fpregs = (PAL_XREGS_STATE*)uc->uc_mcontext.fpregs;
+    }
 
     event.uc = uc;
 
@@ -363,5 +365,8 @@ void _DkExceptionReturn (void * event)
     if (e->uc) {
         /* copy the context back to ucontext */
         memcpy(e->uc->uc_mcontext.gregs, &e->context, sizeof(PAL_CONTEXT));
+        if (e->context.fpregs == NULL) {
+            e->uc->uc_mcontext.fpregs = NULL;
+        }
     }
 }

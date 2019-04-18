@@ -124,8 +124,8 @@ __asm__ (".type arch_exception_return_asm, @function;"
 
 extern void arch_exception_return (void) __asm__ ("arch_exception_return_asm");
 
-void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
-                              PAL_CONTEXT * context)
+static void _DkExceptionRealHandler (
+    int event, PAL_NUM arg, struct pal_frame * frame, PAL_CONTEXT * context)
 {
     if (frame) {
         frame = __alloca(sizeof(struct pal_frame));
@@ -157,42 +157,81 @@ void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
     _DkGenericSignalHandle(event, arg, frame, context);
 }
 
-static void restore_sgx_context (sgx_context_t * uc)
+static void restore_sgx_context (sgx_context_t * uc,
+                                 PAL_XREGS_STATE * xregs_state)
 {
-    /* prepare the return address */
-    // uc->rsp -= 8;
-    // *(uint64_t *) uc->rsp = uc->rip;
-
     SGX_DBG(DBG_E, "uc %p rsp 0x%08lx &rsp: %p rip 0x%08lx &rip: %p\n",
             uc, uc->rsp, &uc->rsp, uc->rip, &uc->rip);
-    if (uc->rsp - REDZONE_SIZE - 8 != (unsigned long)&uc->rip) {
-        assert((uintptr_t)(uc + 1) + REDZONE_SIZE <= uc->rsp);
-        *(unsigned long *)(uc->rsp - REDZONE_SIZE - 8) = uc->rip;
-    }
+    if (xregs_state == NULL)
+        xregs_state = (PAL_XREGS_STATE*)SYNTHETIC_STATE;
+    restore_xregs(xregs_state);
+    __restore_sgx_context(uc);
+}
 
-    /* now pop the stack */
-    __asm__ volatile (
-                  "mov %0, %%rsp\n"
-                  "pop %%rax\n"
-                  "pop %%rcx\n"
-                  "pop %%rdx\n"
-                  "pop %%rbx\n"
-                  "add $8, %%rsp\n" /* don't pop RSP yet */
-                  "pop %%rbp\n"
-                  "pop %%rsi\n"
-                  "pop %%rdi\n"
-                  "pop %%r8\n"
-                  "pop %%r9\n"
-                  "pop %%r10\n"
-                  "pop %%r11\n"
-                  "pop %%r12\n"
-                  "pop %%r13\n"
-                  "pop %%r14\n"
-                  "pop %%r15\n"
-                  "popfq\n"
-                  "mov -13 * 8(%%rsp), %%rsp\n"
-                  "jmp * -" XSTRINGIFY(REDZONE_SIZE) " - 8(%%rsp)\n"
-                  :: "r"(uc) : "memory");
+static void restore_pal_context (sgx_context_t * uc, PAL_CONTEXT * ctx)
+{
+    uc->rax = ctx->rax;
+    uc->rbx = ctx->rbx;
+    uc->rcx = ctx->rcx;
+    uc->rdx = ctx->rdx;
+    uc->rsp = ctx->rsp;
+    uc->rbp = ctx->rbp;
+    uc->rsi = ctx->rsi;
+    uc->rdi = ctx->rdi;
+    uc->r8  = ctx->r8;
+    uc->r9  = ctx->r9;
+    uc->r10 = ctx->r10;
+    uc->r11 = ctx->r11;
+    uc->r12 = ctx->r12;
+    uc->r13 = ctx->r13;
+    uc->r14 = ctx->r14;
+    uc->r15 = ctx->r15;
+    uc->rflags = ctx->efl;
+    uc->rip = ctx->rip;
+
+    restore_sgx_context(uc, ctx->fpregs);
+}
+
+static void save_pal_context (PAL_CONTEXT * ctx, sgx_context_t * uc,
+                              PAL_XREGS_STATE * xregs_state)
+{
+    memset(ctx, 0, sizeof(*ctx));
+
+    ctx->rax = uc->rax;
+    ctx->rbx = uc->rbx;
+    ctx->rcx = uc->rcx;
+    ctx->rdx = uc->rdx;
+    ctx->rsp = uc->rsp;
+    ctx->rbp = uc->rbp;
+    ctx->rsi = uc->rsi;
+    ctx->rdi = uc->rdi;
+    ctx->r8  = uc->r8;
+    ctx->r9  = uc->r9;
+    ctx->r10 = uc->r10;
+    ctx->r11 = uc->r11;
+    ctx->r12 = uc->r12;
+    ctx->r13 = uc->r13;
+    ctx->r14 = uc->r14;
+    ctx->r15 = uc->r15;
+    ctx->efl = uc->rflags;
+    ctx->rip = uc->rip;
+    union pal_csgsfs csgsfs = {
+        .cs = 0x33, // __USER_CS(5) | 0(GDT) | 3(RPL)
+        .fs = 0,
+        .gs = 0,
+        .ss = 0x2b, // __USER_DS(6) | 0(GDT) | 3(RPL)
+    };
+    ctx->csgsfs = csgsfs.csgsfs;
+
+    ctx->fpregs = xregs_state;
+    PAL_FPX_SW_BYTES * fpx_sw = &xregs_state->fpstate.sw_reserved;
+    fpx_sw->magic1 = PAL_FP_XSTATE_MAGIC1;
+    fpx_sw->extended_size = xsave_size;
+    fpx_sw->xfeatures = xsave_features;
+    fpx_sw->xstate_size = xsave_size + PAL_FP_XSTATE_MAGIC2_SIZE;
+    memset(fpx_sw->padding, 0, sizeof(fpx_sw->padding));
+    *(__typeof__(PAL_FP_XSTATE_MAGIC2)*)((void*)xregs_state + xsave_size) =
+        PAL_FP_XSTATE_MAGIC2;
 }
 
 /*
@@ -236,14 +275,17 @@ static bool handle_ud(sgx_context_t * uc)
 
 void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
 {
+    PAL_XREGS_STATE * xregs_state = (PAL_XREGS_STATE *)(uc + 1);
+    assert((((uintptr_t)xregs_state) % PAL_XSTATE_ALIGN) == 0);
+    save_xregs(xregs_state);
+
+    SGX_DBG(DBG_E, "exit_info 0x%08x\n", exit_info);
     union {
         sgx_arch_exitinfo_t info;
         unsigned int intval;
     } ei = { .intval = exit_info };
 
     int event_num;
-    PAL_CONTEXT * ctx;
-
     if (!ei.info.valid) {
         event_num = exit_info;
     } else {
@@ -253,8 +295,8 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
             break;
         case SGX_EXCEPTION_VECTOR_UD:
             if (handle_ud(uc)) {
-                restore_sgx_context(uc);
-                return;
+                restore_sgx_context(uc, xregs_state);
+                /* NOTREACHED */
             }
             event_num = PAL_EVENT_ILLEGAL;
             break;
@@ -269,7 +311,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         case SGX_EXCEPTION_VECTOR_DB:
         case SGX_EXCEPTION_VECTOR_BP:
         default:
-            restore_sgx_context(uc);
+            restore_sgx_context(uc, xregs_state);
             return;
         }
     }
@@ -302,26 +344,14 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         _DkThreadExit();
     }
 
-    ctx = __alloca(sizeof(PAL_CONTEXT));
-    memset(ctx, 0, sizeof(PAL_CONTEXT));
-    ctx->rax = uc->rax;
-    ctx->rbx = uc->rbx;
-    ctx->rcx = uc->rcx;
-    ctx->rdx = uc->rdx;
-    ctx->rsp = uc->rsp;
-    ctx->rbp = uc->rbp;
-    ctx->rsi = uc->rsi;
-    ctx->rdi = uc->rdi;
-    ctx->r8  = uc->r8;
-    ctx->r9  = uc->r9;
-    ctx->r10 = uc->r10;
-    ctx->r11 = uc->r11;
-    ctx->r12 = uc->r12;
-    ctx->r13 = uc->r13;
-    ctx->r14 = uc->r14;
-    ctx->r15 = uc->r15;
-    ctx->efl = uc->rflags;
-    ctx->rip = uc->rip;
+    PAL_CONTEXT ctx;
+    save_pal_context(&ctx, uc, xregs_state);
+
+    /* TODO: save EXINFO in MISC regsion and populate those */
+    ctx.err = 0;
+    ctx.trapno = ei.info.valid? ei.info.vector: event_num;
+    ctx.oldmask = 0;
+    ctx.cr2 = 0;
 
     struct pal_frame * frame = get_frame(uc);
 
@@ -340,8 +370,8 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         /* nothing */
         break;
     }
-    _DkExceptionRealHandler(event_num, arg, frame, ctx);
-    restore_sgx_context(uc);
+    _DkExceptionRealHandler(event_num, arg, frame, &ctx);
+    restore_pal_context(uc, &ctx);
 }
 
 void _DkRaiseFailure (int error)
@@ -379,30 +409,15 @@ void _DkExceptionReturn (void * event)
                       "retq\r\n" ::: "memory");
     }
 
-    uc.rax = ctx->rax;
-    uc.rbx = ctx->rbx;
-    uc.rcx = ctx->rcx;
-    uc.rdx = ctx->rdx;
-    uc.rsp = ctx->rsp;
-    uc.rbp = ctx->rbp;
-    uc.rsi = ctx->rsi;
-    uc.rdi = ctx->rdi;
-    uc.r8  = ctx->r8;
-    uc.r9  = ctx->r9;
-    uc.r10 = ctx->r10;
-    uc.r11 = ctx->r11;
-    uc.r12 = ctx->r12;
-    uc.r13 = ctx->r13;
-    uc.r14 = ctx->r14;
-    uc.r15 = ctx->r15;
-    uc.rflags = ctx->efl;
-    uc.rip = ctx->rip;
-
-    restore_sgx_context(&uc);
+    restore_pal_context(&uc, ctx);
 }
 
-void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc)
+void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc,
+                             PAL_XREGS_STATE * xregs_state)
 {
+    assert((((uintptr_t)xregs_state) % PAL_XSTATE_ALIGN) == 0);
+    assert((PAL_XREGS_STATE*) (uc + 1) == xregs_state);
+
     struct pal_frame * frame = get_frame(uc);
 
     if (event == PAL_EVENT_RESUME &&
@@ -417,7 +432,21 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc)
         arch_store_frame(&frame->arch);
     }
 
-    if (!_DkGenericSignalHandle(event, 0, frame, NULL)
-        && event != PAL_EVENT_RESUME)
-        _DkThreadExit();
+    PAL_CONTEXT ctx;
+    save_pal_context(&ctx, uc, xregs_state);
+    ctx.err = 0;
+    ctx.trapno = event; /* XXX TODO: what kind of value should be returned in
+                         * trapno. This is very implementation specific
+                         */
+    ctx.oldmask = 0;
+    ctx.cr2 = 0;
+
+    if (event != 0) {
+        assert(uc->rax == -PAL_ERROR_INTERRUPTED);
+        if (!_DkGenericSignalHandle(event, 0, frame, &ctx)
+            && event != PAL_EVENT_RESUME)
+            _DkThreadExit();
+    }
+
+    restore_sgx_context(uc, ctx.fpregs);
 }

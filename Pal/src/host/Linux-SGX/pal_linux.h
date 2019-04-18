@@ -113,6 +113,7 @@ void init_xsave_size(uint64_t xfrm);
 void save_xregs(PAL_XREGS_STATE * xsave_area);
 void restore_xregs(const PAL_XREGS_STATE * xsave_area);
 int init_trusted_files (void);
+void __restore_sgx_context (sgx_context_t *uc) __attribute__((noreturn));
 
 /* Function: load_trusted_file
  * checks if the file to be opened is trusted or allowed,

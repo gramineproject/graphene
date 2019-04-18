@@ -275,8 +275,6 @@ typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 #define KEYPOLICY_MRENCLAVE     1
 #define KEYPOLICY_MRSIGNER      2
 
-#define XSAVE_SIZE  512
-
 #define STACK_ALIGN 0xfffffffffffffff0
 #define XSAVE_ALIGN 0xffffffffffffffc0
 
