@@ -91,7 +91,8 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
         if (IS_ERR(rete))
             goto out_child;
 
-        rete = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, NULL);
+        extern char** environ;
+        rete = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
 
         /* shouldn't get to here */
         SGX_DBG(DBG_E, "unexpected failure of new process\n");
