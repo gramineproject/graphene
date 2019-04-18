@@ -384,12 +384,26 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     hdr.msg_flags = 0;
 
     int ret = INLINE_SYSCALL(recvmsg, 3, ch, &hdr, 0);
-    if (IS_ERR(ret) || ret < sizeof(struct hdl_header)) {
-        if (!IS_ERR(ret))
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+    if (ret < sizeof(struct hdl_header)) {
+        /*
+         * This code block is just in case to cover all the possibilities.
+         * We know that the file descriptor is an unix domain socket with
+         * blocking mode and that the sender, _DkSendHandle() above, sends the
+         * header with single sendmsg syscall which transfers message atomically.
+         *
+         * read size == 0: return error for the caller to try again.
+         *                 It should result in EINTR.
+         *
+         * read size > 0: return error for the caller to give up this file
+         *                descriptor.
+         *                If the header can't be send atomically for some
+         *                reason, the sender should get EMSGSIZE.
+         */
+        if (!ret)
             return -PAL_ERROR_TRYAGAIN;
-
-        if (ERRNO(ret) != EINTR && ERRNO(ret) != ERESTART)
-            return -ERRNO(ret);
+        return -PAL_ERROR_DENIED;
     }
 
     // initialize variables to get body
