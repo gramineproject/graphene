@@ -236,6 +236,24 @@ enclave_entry:
 	#     %rsp: untrusted stack
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
 .Lclear_and_eexit:
+
+	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
+
+	leaq .Lxrstor_init_arg(%rip), %rcx
+	# pal_sec.enclave_attributes.xfrm will always be zero before
+	# init_enclave has been called by pal_linux_main. So during early init
+	# nothing should use features not covered by fxrstor, like AVX.
+	movq (pal_sec + PAL_SEC_ENCLAVE_ATTRIBUTES + SGX_ARCH_ATTRIBUTES_XFRM)(%rip), %rax
+	testq $XSAVE_NON_FX_MASK, %rax
+	je 1f
+	mov $0xffffffff, %edx
+	mov $0xffffffff, %eax
+	xrstor (%rcx)
+	jmp 2f
+1:
+	fxrstor (%rcx)
+2:
+
 	# %rax is argument to EEXIT
 	# %rbx is argument to EEXIT
 	# %rcx is set to AEP by EEXIT
@@ -256,6 +274,31 @@ enclave_entry:
 	ENCLU
 
 	ud2 # We should never get here.
+
+	# fxsave/xsave area to reset extended state.
+	#
+	# The first 512 B are used by fxrstor. We set FCW = 0x037f and MXCSR =
+	# 0x1f80 and the rest to 0 (same values as xrstor uses in
+	# initialization mode).
+	#
+	# The fxsave area is followed by the 64 B xsave header. We use the
+	# "compact" format (XCOMP_BV[63] = 1). Since the rest of XSTATE_BV and
+	# XCOMP_BV are 0s, xrstor initializes all components (assuming it's
+	# called with RFBM set to all 1s). The fxsave area is ignored (because
+	# we request initialization not restore). And thanks to the compact
+	# format we don't need to provide anything after the header.
+.section .rodata
+	.balign 64
+.Lxrstor_init_arg:
+	.byte 0x7f, 0x03 	# FCW
+	.skip 6, 0
+	.byte 0x80, 0x1f, 0, 0 	# MXCSR
+	.skip 500, 0	 	# rest of fxstore area
+
+	.skip 15, 0	 	# XSTATE_BV and XCOMP_BV[55:0]
+	.byte 0x80	 	# XCOMP_BV[63:56] i.e. "compact" format
+	.skip 48, 0	 	# rest of xsave header
+.previous
 
 	.global sgx_ocall
 	.type sgx_ocall, @function
