@@ -577,16 +577,6 @@ int ocall_sock_connect (int domain, int type, int protocol,
     return retval;
 }
 
-/* 
- * FIXME: 
- *   - the control-flow, particulary wrt COPY_FROM_USER
- *     is playing fast and loose.
- *
- *   - also playing fast and loose with stack size, since
- *     the addr will take up some part of the stack which
- *     we proably aren't taking into account with the 4096
- *     count check.
- */
 int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
                      struct sockaddr * addr, unsigned int * addrlen)
 {
@@ -594,7 +584,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
     void *obuf = NULL;
     unsigned int len = addrlen ? *addrlen : 0;
 
-    if (count > 4096) {
+    if ((count + len) > 4096) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (retval < 0)
             return retval;
@@ -640,7 +630,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
     int retval = 0;
     void *obuf = NULL;
 
-    if (count > 4096) {
+    if ((count + addrlen) > 4096) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (retval < 0)
             return retval;
