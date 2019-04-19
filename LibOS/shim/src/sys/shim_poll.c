@@ -419,9 +419,8 @@ int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout)
             fds[i].revents |= (fds[i].events & (POLLIN|POLLRDNORM));
         if (polls[i].flags & RET_W)
             fds[i].revents |= (fds[i].events & (POLLOUT|POLLWRNORM));
-        if (polls[i].flags & RET_E) {
+        if (polls[i].flags & RET_E)
             fds[i].revents |= (POLLERR|POLLHUP);
-        }
 
         if (fds[i].revents)
             ret++;
