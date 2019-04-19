@@ -482,10 +482,10 @@ __restore_sgx_context:
 
 	popq %r14
 	popq %r15
-	popfq
 
 	/* void to clobber red zone */
-	subq $(REDZONE_SIZE + 8), -13 * 8(%rsp)
+	subq $(REDZONE_SIZE + 8), -12 * 8(%rsp)
+	popfq
 	movq -13 * 8(%rsp), %rsp
 	retq $REDZONE_SIZE
 
@@ -531,10 +531,10 @@ __restore_sgx_context_retry:
 	jc .Ltry_again
 
 	popq %r15
-	popfq
 
 	/* avoid to clobber red zone */
-	subq $(REDZONE_SIZE + 8), -13 * 8(%rsp)
+	subq $(REDZONE_SIZE + 8), -12 * 8(%rsp)
+	popfq
 	movq -13 * 8(%rsp), %rsp
 	retq $REDZONE_SIZE
 
