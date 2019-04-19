@@ -42,30 +42,26 @@
 typedef struct exception_event {
     PAL_IDX             event_num;
     PAL_CONTEXT *       context;
-    struct pal_frame *  frame;
 } PAL_EVENT;
 
 static void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
-                                    PAL_NUM arg, struct pal_frame * frame,
-                                    PAL_CONTEXT * context)
+                                    PAL_NUM arg, PAL_CONTEXT * context)
 {
     struct exception_event event;
 
     event.event_num = event_num;
     event.context = context;
-    event.frame = frame;
 
     (*upcall) ((PAL_PTR) &event, arg, context);
 }
 
 static bool
-_DkGenericSignalHandle (int event_num, PAL_NUM arg, struct pal_frame * frame,
-                        PAL_CONTEXT * context)
+_DkGenericSignalHandle (int event_num, PAL_NUM arg, PAL_CONTEXT * context)
 {
     PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
 
     if (upcall) {
-        _DkGenericEventTrigger(event_num, upcall, arg, frame, context);
+        _DkGenericEventTrigger(event_num, upcall, arg, context);
         return true;
     }
 
@@ -74,88 +70,6 @@ _DkGenericSignalHandle (int event_num, PAL_NUM arg, struct pal_frame * frame,
 
 #define ADDR_IN_PAL(addr)  \
         ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
-
-static struct pal_frame * get_frame (sgx_context_t * uc)
-{
-    unsigned long rbp;
-
-    if (uc) {
-        unsigned long rip = uc->rip;
-        rbp = uc->rbp;
-
-        if (!ADDR_IN_PAL(rip))
-            return NULL;
-    } else {
-        __asm__ volatile ("movq %%rbp, %0" : "=r"(rbp) :: "memory");
-    }
-
-    while (ADDR_IN_PAL(((unsigned long *) rbp)[1]))
-        rbp = *(unsigned long *) rbp;
-
-    struct pal_frame * frame = (struct pal_frame *) rbp - 1;
-
-    for (int i = 0 ; i < 8 ; i++) {
-        if (frame->identifier == PAL_FRAME_IDENTIFIER)
-            return frame;
-
-        frame = (struct pal_frame *) ((void *) frame - 8);
-    }
-
-    return NULL;
-}
-
-__asm__ (".type arch_exception_return_asm, @function;"
-     "arch_exception_return_asm:"
-     "  pop %rax;"
-     "  pop %rbx;"
-     "  pop %rcx;"
-     "  pop %rdx;"
-     "  pop %rsi;"
-     "  pop %rdi;"
-     "  pop %r8;"
-     "  pop %r9;"
-     "  pop %r10;"
-     "  pop %r11;"
-     "  pop %r12;"
-     "  pop %r13;"
-     "  pop %r14;"
-     "  pop %r15;"
-     "  retq;");
-
-extern void arch_exception_return (void) __asm__ ("arch_exception_return_asm");
-
-static void _DkExceptionRealHandler (
-    int event, PAL_NUM arg, struct pal_frame * frame, PAL_CONTEXT * context)
-{
-    if (frame) {
-        frame = __alloca(sizeof(struct pal_frame));
-        frame->identifier = PAL_FRAME_IDENTIFIER;
-        frame->func     = &_DkExceptionRealHandler;
-        frame->funcname = "_DkExceptionRealHandler";
-
-        store_register(rsp, frame->arch.rsp);
-        store_register(rbp, frame->arch.rbp);
-        unsigned long * last_frame = ((unsigned long *) frame->arch.rbp) + 1;
-        last_frame[0]  = (unsigned long) arch_exception_return;
-        last_frame[1]  = context->rax;
-        last_frame[2]  = context->rbx;
-        last_frame[3]  = context->rcx;
-        last_frame[4]  = context->rdx;
-        last_frame[5]  = context->rsi;
-        last_frame[6]  = context->rdi;
-        last_frame[7]  = context->r8;
-        last_frame[8]  = context->r9;
-        last_frame[9]  = context->r10;
-        last_frame[10] = context->r11;
-        last_frame[11] = context->r12;
-        last_frame[12] = context->r13;
-        last_frame[13] = context->r14;
-        last_frame[14] = context->r15;
-        last_frame[15] = context->rip;
-    }
-
-    _DkGenericSignalHandle(event, arg, frame, context);
-}
 
 static void restore_sgx_context (sgx_context_t * uc,
                                  PAL_XREGS_STATE * xregs_state)
@@ -353,8 +267,6 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
     ctx.oldmask = 0;
     ctx.cr2 = 0;
 
-    struct pal_frame * frame = get_frame(uc);
-
     PAL_NUM arg = 0;
     switch (event_num) {
     case PAL_EVENT_ILLEGAL:
@@ -370,7 +282,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
         /* nothing */
         break;
     }
-    _DkExceptionRealHandler(event_num, arg, frame, &ctx);
+    _DkGenericSignalHandle(event_num, arg, &ctx);
     restore_pal_context(uc, &ctx);
 }
 
@@ -384,7 +296,6 @@ void _DkRaiseFailure (int error)
     PAL_EVENT event;
     event.event_num = PAL_EVENT_FAILURE;
     event.context   = NULL;
-    event.frame     = NULL;
 
     (*upcall) ((PAL_PTR) &event, error, NULL);
 }
@@ -396,19 +307,8 @@ void _DkExceptionReturn (void * event)
     PAL_CONTEXT * ctx = e->context;
 
     if (!ctx) {
-        struct pal_frame * frame = e->frame;
-        if (!frame)
-            return;
-
-        __clear_frame(frame);
-        arch_restore_frame(&frame->arch);
-
-        __asm__ volatile (
-                      "xor %%rax, %%rax\r\n"
-                      "leaveq\r\n"
-                      "retq\r\n" ::: "memory");
+        return;
     }
-
     restore_pal_context(&uc, ctx);
 }
 
@@ -417,20 +317,6 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc,
 {
     assert((((uintptr_t)xregs_state) % PAL_XSTATE_ALIGN) == 0);
     assert((PAL_XREGS_STATE*) (uc + 1) == xregs_state);
-
-    struct pal_frame * frame = get_frame(uc);
-
-    if (event == PAL_EVENT_RESUME &&
-        frame && frame->func == DkObjectsWaitAny)
-        return;
-
-    if (!frame) {
-        frame = __alloca(sizeof(struct pal_frame));
-        frame->identifier = PAL_FRAME_IDENTIFIER;
-        frame->func = &_DkHandleExternalEvent;
-        frame->funcname = "_DkHandleExternalEvent";
-        arch_store_frame(&frame->arch);
-    }
 
     PAL_CONTEXT ctx;
     save_pal_context(&ctx, uc, xregs_state);
@@ -443,7 +329,7 @@ void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc,
 
     if (event != 0) {
         assert(uc->rax == -PAL_ERROR_INTERRUPTED);
-        if (!_DkGenericSignalHandle(event, 0, frame, &ctx)
+        if (!_DkGenericSignalHandle(event, 0, &ctx)
             && event != PAL_EVENT_RESUME)
             _DkThreadExit();
     }
