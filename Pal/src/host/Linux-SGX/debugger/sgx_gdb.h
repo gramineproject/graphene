@@ -3,8 +3,9 @@
 
 #define MAX_DBG_THREADS     64
 
-struct enclave_dbginfo {
+struct __attribute__((__packed__)) enclave_dbginfo {
     int                 pid;
+    int                 dummy; /* for 8B alignment */
     unsigned long       base, size;
     unsigned long       ssaframesize;
     void *              aep;
