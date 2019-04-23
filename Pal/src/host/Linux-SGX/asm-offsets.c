@@ -96,6 +96,9 @@ void dummy(void)
     DEFINE(PAL_EVENT_SUSPEND, PAL_EVENT_SUSPEND);
     DEFINE(PAL_EVENT_RESUME, PAL_EVENT_RESUME);
 
+    /* PAL ERROR */
+    DEFINE(PAL_ERROR_INTERRUPTED, PAL_ERROR_INTERRUPTED);
+
     /* ocall_marker_buf */
     OFFSET(OCALL_MARKER_RBX, ocall_marker_buf, rbx);
     OFFSET(OCALL_MARKER_RBP, ocall_marker_buf, rbp);
