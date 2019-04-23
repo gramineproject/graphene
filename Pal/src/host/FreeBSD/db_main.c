@@ -242,6 +242,10 @@ void pal_bsd_main (void * args)
     SET_HANDLE_TYPE(file, file);
     file->hdr.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
     file->file.fd = fd;
+    file->file.offset = 0;
+    file->file.append = false;
+    file->file.pass = false;
+    file->file.map_start = NULL;
     char * path = (void *) file + HANDLE_SIZE(file);
     get_norm_path(argv[0], path, 0, len + 1);
     file->file.realpath = path;
