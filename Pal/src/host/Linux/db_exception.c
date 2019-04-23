@@ -70,6 +70,8 @@
 
 DEFINE_RESTORE_RT(__NR_rt_sigreturn)
 
+/* Workaround for an old GAS (2.27) bug that incorrectly
+ * generates GOT for __restore_rt which is asm inlined */
 __attribute__((visibility("hidden"))) void __restore_rt();
 
 #endif
