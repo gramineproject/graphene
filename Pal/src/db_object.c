@@ -87,7 +87,7 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
         LEAVE_PAL_CALL_RETURN(NULL);
     }
 
-    for (int i = 0 ; i < count ; i++)
+    for (uint32_t i = 0 ; i < count ; i++)
         // We modify the caller's handleArray?
         if (handleArray[i] && UNKNOWN_HANDLE(handleArray[i]))
             handleArray[i] = NULL;
@@ -95,7 +95,7 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
     PAL_HANDLE polled = NULL;
 
     int ret = _DkObjectsWaitAny (count, handleArray,
-                                 timeout == NO_TIMEOUT ? -1 : timeout,
+                                 timeout == NO_TIMEOUT ? NO_TIMEOUT : timeout,
                                  &polled);
 
     if (ret < 0) {

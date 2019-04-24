@@ -248,7 +248,7 @@ static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if ((size_t)bytes == len)
+    if ((uint64_t)bytes == len)
         HANDLE_HDR(handle)->flags |= writeable;
     else
         HANDLE_HDR(handle)->flags &= ~writeable;
@@ -364,7 +364,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     }
 
     struct pollfd pfd = { .fd = read_fd, .events = POLLIN, .revents = 0 };
-    int waittime = 0;
+    int64_t waittime = 0;
     int ret = ocall_poll(&pfd, 1, &waittime);
     if (ret < 0)
         return ret;

@@ -328,7 +328,7 @@ int init_enclave(sgx_arch_secs_t * secs,
     SGX_DBG(DBG_I, "enclave initializing:\n");
     SGX_DBG(DBG_I, "    enclave id:   0x%016lx\n", enclave_valid_addr);
     SGX_DBG(DBG_I, "    enclave hash:");
-    for (unsigned int i = 0 ; i < sizeof(sgx_arch_hash_t) ; i++)
+    for (uint32_t i = 0 ; i < sizeof(sgx_arch_hash_t) ; i++)
         SGX_DBG(DBG_I, " %02x", sigstruct->enclave_hash[i]);
     SGX_DBG(DBG_I, "\n");
 

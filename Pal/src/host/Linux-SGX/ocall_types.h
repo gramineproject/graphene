@@ -6,6 +6,7 @@
  */
 
 #include "linux_types.h"
+#include "pal.h"
 
 /*
  * GCC's structure padding may cause leaking from uninialized
@@ -193,7 +194,7 @@ typedef struct {
 } ms_ocall_sock_connect_t;
 
 typedef struct {
-    int ms_sockfd;
+    PAL_IDX ms_sockfd;
     void * ms_buf;
     unsigned int ms_count;
     struct sockaddr * ms_addr;
@@ -201,7 +202,7 @@ typedef struct {
 } ms_ocall_sock_recv_t;
 
 typedef struct {
-    int ms_sockfd;
+    PAL_IDX ms_sockfd;
     const void * ms_buf;
     unsigned int ms_count;
     const struct sockaddr * ms_addr;

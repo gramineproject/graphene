@@ -348,7 +348,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     /* XXX: the enclave stack should be part of measurement */
     struct mem_area * stack_areas = &areas[area_num];
-    for (unsigned int t = 0 ; t < enclave->thread_num ; t++)
+    for (uint32_t t = 0 ; t < enclave->thread_num ; t++)
         set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 

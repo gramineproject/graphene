@@ -58,7 +58,7 @@ typedef __kernel_pid_t pid_t;
    address */
 #define PAL_SOCKADDR_SIZE   96
 
-static inline unsigned int addr_size (struct sockaddr * addr)
+static inline size_t addr_size (struct sockaddr * addr)
 {
     switch (addr->sa_family) {
         case AF_INET:
@@ -530,7 +530,7 @@ static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if ((size_t)bytes == len)
+    if ((uint64_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
@@ -723,7 +723,7 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if ((size_t)bytes == len)
+    if ((uint64_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
@@ -771,7 +771,7 @@ static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     if (bytes < 0)
         return bytes;
 
-    if ((size_t)bytes == len)
+    if ((uint64_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
@@ -855,7 +855,7 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     }
 
     struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
-    int waittime = 0;
+    int64_t waittime = 0;
     ret = ocall_poll(&pfd, 1, &waittime);
     if (ret < 0)
         return ret;
@@ -1108,7 +1108,7 @@ static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     if (bytes < 0)
         return bytes;
 
-    if ((size_t)bytes == size)
+    if ((uint64_t)bytes == size)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);

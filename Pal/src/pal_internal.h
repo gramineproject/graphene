@@ -319,7 +319,7 @@ int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
-int _DkEventWaitTimeout (PAL_HANDLE event, int timeout);
+int _DkEventWaitTimeout (PAL_HANDLE event, int64_t timeout);
 int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
@@ -343,8 +343,8 @@ void _DkExceptionReturn (void * event);
 int _DkInternalLock (PAL_LOCK * mut);
 int _DkInternalUnlock (PAL_LOCK * mut);
 unsigned long _DkSystemTimeQuery (void);
-int _DkFastRandomBitsRead (void * buffer, int size);
-int _DkRandomBitsRead (void * buffer, int size);
+size_t _DkFastRandomBitsRead (void * buffer, size_t size);
+size_t _DkRandomBitsRead (void * buffer, size_t size);
 int _DkSegmentRegisterSet (int reg, const void * addr);
 int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);

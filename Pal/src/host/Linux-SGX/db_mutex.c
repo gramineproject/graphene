@@ -63,7 +63,7 @@ _DkMutexCreate (PAL_HANDLE * handle, int initialCount)
     return 0;
 }
 
-int _DkMutexLockTimeout (struct mutex_handle * m, int timeout)
+int _DkMutexLockTimeout (struct mutex_handle * m, int64_t timeout)
 {
     int ret = 0;
 

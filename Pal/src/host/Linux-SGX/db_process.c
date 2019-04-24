@@ -369,7 +369,7 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (bytes < 0)
         return bytes;
 
-    if ((size_t)bytes == count)
+    if ((uint64_t)bytes == count)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);

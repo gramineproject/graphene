@@ -73,7 +73,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int64_t timeout)
         if (!nfds)
             return -PAL_ERROR_TRYAGAIN;
 
-        int waittime = timeout;
+        int64_t waittime = timeout;
         int ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
         if (ret < 0)
             return ret;
@@ -103,11 +103,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int64_t timeout)
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-<<<<<<< 0a0babc26a47b284671f708fcd4b179f4c1eda08
 int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
-=======
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
->>>>>>> Turn on -Wsign-compare flag and fix the produced warnings
                        PAL_HANDLE * polled)
 {
     if (count <= 0)
@@ -190,7 +186,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
     if (!nfds)
         return -PAL_ERROR_TRYAGAIN;
 
-    int waittime = timeout;
+    int64_t waittime = timeout;
     ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
     if (ret < 0)
         return ret;
@@ -215,7 +211,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int timeout,
 
         for (j = 0 ; j < MAX_FDS ; j++)
             if ((HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j))) &&
-                hdl->generic.fds[j] == (uint32_t)fds[i].fd)
+                hdl->generic.fds[j] == (PAL_IDX)fds[i].fd)
                 break;
 
         if (j == MAX_FDS)

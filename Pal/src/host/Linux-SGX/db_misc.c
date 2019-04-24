@@ -44,9 +44,9 @@ unsigned long _DkSystemTimeQuery (void)
     return microsec;
 }
 
-int _DkRandomBitsRead (void * buffer, int size)
+size_t _DkRandomBitsRead (void * buffer, size_t size)
 {
-    int i = 0;
+    size_t i = 0;
 
     for ( ; i < size ; i += 4) {
         uint32_t rand = rdrand();

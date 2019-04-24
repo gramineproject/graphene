@@ -207,7 +207,7 @@ _elf_dynamic_do_reloc(struct link_map *l, int dt_reloc, int dt_reloc_sz,
 /* Now this part is for our x86s machines */
 
 static void __attribute_unused
-_elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
+_elf_dynamic_do_reloc(struct link_map * l, uint64_t dt_reloc, int dt_reloc_sz,
                       void (*do_reloc) (struct link_map *, ElfW(Addr), int))
 {
     struct { ElfW(Addr) start, size; } ranges[2];
