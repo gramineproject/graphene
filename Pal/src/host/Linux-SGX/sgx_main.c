@@ -482,6 +482,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                     gs->exec_addr = (void *) enclave_secs.baseaddr + exec_area->addr;
                     gs->exec_size = exec_area->size;
                 }
+                gs->thread = NULL;
             }
         } else if (strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
@@ -884,7 +885,7 @@ static int load_enclave (struct pal_enclave * enclave,
         return ret;
 
     current_enclave = enclave;
-    map_tcs(INLINE_SYSCALL(gettid, 0));
+    map_tcs(INLINE_SYSCALL(gettid, 0), /* created_by_pthread=*/false);
 
     /* start running trusted PAL */
     ecall_enclave_start(args, args_size, env, env_size);

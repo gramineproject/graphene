@@ -16,7 +16,7 @@ struct enclave_tls {
         uint64_t enclave_size;
         uint64_t tcs_offset;
         uint64_t initial_stack_offset;
-        void*    aep;
+        void*    ecall_return_addr;
         void*    ssa;
         sgx_arch_gpr_t* gpr;
         void*    exit_target;
@@ -26,7 +26,7 @@ struct enclave_tls {
         void*    ustack;
         struct pal_handle_thread* thread;
         uint64_t ocall_prepared;
-        uint64_t ecall_called;
+        uint64_t thread_started;
         uint64_t ready_for_exceptions;
         uint64_t manifest_size;
         void*    heap_min;

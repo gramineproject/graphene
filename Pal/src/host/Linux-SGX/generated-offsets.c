@@ -6,6 +6,8 @@
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
 #include "pal_security.h"
+#include "ecall_types.h"
+#include "ocall_types.h"
 
 #include <generated-offsets-build.h>
 
@@ -68,7 +70,7 @@ void dummy(void)
     OFFSET(SGX_ENCLAVE_SIZE, enclave_tls, enclave_size);
     OFFSET(SGX_TCS_OFFSET, enclave_tls, tcs_offset);
     OFFSET(SGX_INITIAL_STACK_OFFSET, enclave_tls, initial_stack_offset);
-    OFFSET(SGX_AEP, enclave_tls, aep);
+    OFFSET(SGX_ECALL_RETURN_ADDR, enclave_tls, ecall_return_addr);
     OFFSET(SGX_SSA, enclave_tls, ssa);
     OFFSET(SGX_GPR, enclave_tls, gpr);
     OFFSET(SGX_EXIT_TARGET, enclave_tls, exit_target);
@@ -78,7 +80,7 @@ void dummy(void)
     OFFSET(SGX_USTACK, enclave_tls, ustack);
     OFFSET(SGX_THREAD, enclave_tls, thread);
     OFFSET(SGX_OCALL_PREPARED, enclave_tls, ocall_prepared);
-    OFFSET(SGX_ECALL_CALLED, enclave_tls, ecall_called);
+    OFFSET(SGX_THREAD_STARTED, enclave_tls, thread_started);
     OFFSET(SGX_READY_FOR_EXCEPTIONS, enclave_tls, ready_for_exceptions);
     OFFSET(SGX_MANIFEST_SIZE, enclave_tls, manifest_size);
     OFFSET(SGX_HEAP_MIN, enclave_tls, heap_min);
@@ -133,5 +135,13 @@ void dummy(void)
 
     /* errno */
     DEFINE(EINTR, EINTR);
+
+    /* Ecall numbers */
+    DEFINE(ECALL_ENCLAVE_START, ECALL_ENCLAVE_START);
+    DEFINE(ECALL_THREAD_START, ECALL_THREAD_START);
+    DEFINE(ECALL_THREAD_RESET, ECALL_THREAD_RESET);
+
+    /* Ocall Index */
+    DEFINE(OCALL_EXIT, OCALL_EXIT);
 }
 

@@ -1,6 +1,7 @@
 #include "ocall_types.h"
 #include "ecall_types.h"
 #include "sgx_internal.h"
+#include "sgx_enclave.h"
 #include "pal_security.h"
 #include "pal_linux_error.h"
 
@@ -30,10 +31,19 @@ static int sgx_ocall_exit(void* pms)
         ms->ms_exitcode = 255;
     }
 
+    /* exit the whole process if exit_group() */
     if (ms->ms_is_exitgroup)
         INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
-    else
+
+    /* otherwise call SGX-related thread reset and exit this thread */
+    block_async_signals(true);
+    ecall_thread_reset();
+
+    /* threads created with pthread_create() must exit with pthread_exit() */
+    if (!unmap_tcs())
         INLINE_SYSCALL(exit, 1, (int)ms->ms_exitcode);
+    else
+        thread_exit(&ms->ms_exitcode);
 
     return 0;
 }
@@ -725,6 +735,11 @@ int ecall_thread_start (void)
 {
     EDEBUG(ECALL_THREAD_START, NULL);
     return sgx_ecall(ECALL_THREAD_START, NULL);
+}
+
+int ecall_thread_reset(void) {
+    EDEBUG(ECALL_THREAD_RESET, NULL);
+    return sgx_ecall(ECALL_THREAD_RESET, NULL);
 }
 
 noreturn void __abort(void) {

@@ -125,6 +125,12 @@ class TC_00_Bootstrap(RegressionTestCase):
         except subprocess.CalledProcessError as e:
             self.assertNotEqual(e.returncode, 42, 'expected returncode != 42')
 
+    def test_600_multi_pthread(self):
+        stdout, stderr = self.run_binary(['multi_pthread'])
+
+        # Multiple thread creation
+        self.assertIn('128 Threads Created', stdout)
+
 @unittest.skipUnless(HAS_SGX,
     'This test is only meaningful on SGX PAL because only SGX catches raw '
     'syscalls and redirects to Graphene\'s LibOS. If we will add seccomp to '

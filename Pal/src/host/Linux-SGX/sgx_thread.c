@@ -1,3 +1,4 @@
+#include "assert.h"
 #include "pal_internal.h"
 #include "sgx_internal.h"
 #include "pal_security.h"
@@ -16,12 +17,15 @@ __thread sgx_arch_tcs_t * current_tcs;
 
 struct thread_map {
     unsigned int     tid;
+    bool             created_by_pthread;
     sgx_arch_tcs_t * tcs;
 };
 
 static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
+
+pthread_mutex_t tcs_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void create_tcs_mapper (void * tcs_base, unsigned int thread_num)
 {
@@ -35,34 +39,42 @@ void create_tcs_mapper (void * tcs_base, unsigned int thread_num)
     }
 }
 
-void map_tcs (unsigned int tid)
-{
+void map_tcs(unsigned int tid, bool created_by_pthread) {
+    pthread_mutex_lock(&tcs_lock);
     for (int i = 0 ; i < enclave_thread_num ; i++)
         if (!enclave_thread_map[i].tid) {
             enclave_thread_map[i].tid = tid;
+            enclave_thread_map[i].created_by_pthread = created_by_pthread;
             current_tcs = enclave_thread_map[i].tcs;
             ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[i] = tid;
             break;
         }
+    pthread_mutex_unlock(&tcs_lock);
 }
 
-void unmap_tcs (void)
-{
+/* return true if unmapped thread was created with pthread_create(), false otherwise */
+bool unmap_tcs(void) {
     int index = current_tcs - enclave_tcs;
+    bool ret = false;
     struct thread_map * map = &enclave_thread_map[index];
-    if (index >= enclave_thread_num)
-        return;
+
+    assert(index < enclave_thread_num);
     SGX_DBG(DBG_I, "unmap TCS at %p\n", map->tcs);
+
+    pthread_mutex_lock(&tcs_lock);
     current_tcs = NULL;
     ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[index] = 0;
     map->tid = 0;
-    map->tcs = NULL;
+    ret = map->created_by_pthread;
+    pthread_mutex_unlock(&tcs_lock);
+
+    return ret;
 }
 
 static void * thread_start (void * arg)
 {
     int tid = INLINE_SYSCALL(gettid, 0);
-    map_tcs(tid);
+    map_tcs(tid, /*created_by_pthread=*/true);
     current_enclave = arg;
 
     if (!current_tcs) {
@@ -78,10 +90,18 @@ static void * thread_start (void * arg)
     return NULL;
 }
 
-int clone_thread (void)
-{
+void thread_exit(void* rv) {
+    pthread_exit(rv);
+}
+
+int clone_thread(void) {
     pthread_t thread;
-    return pthread_create(&thread, NULL, thread_start, current_enclave);
+
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    return pthread_create(&thread, &attr, thread_start, current_enclave);
 }
 
 int interrupt_thread (void * tcs)

@@ -140,6 +140,15 @@ void _DkThreadYieldExecution (void)
 /* _DkThreadExit for internal use: Thread exiting */
 noreturn void _DkThreadExit (void)
 {
+    struct pal_handle_thread* exiting_thread = GET_ENCLAVE_TLS(thread);
+
+    /* main thread is not part of the thread_list */
+    if(exiting_thread != &pal_control.first_thread->thread) {
+        _DkInternalLock(&thread_list_lock);
+        LISTP_DEL(exiting_thread, &thread_list, list);
+        _DkInternalUnlock(&thread_list_lock);
+    }
+
     ocall_exit(0, /*is_exitgroup=*/false);
 }
 
@@ -147,12 +156,6 @@ int _DkThreadResume (PAL_HANDLE threadHandle)
 {
     int ret = ocall_wake_thread(threadHandle->thread.tcs);
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
-}
-
-int _DkThreadGetCurrent (PAL_HANDLE * threadHandle)
-{
-    *threadHandle = (PAL_HANDLE) GET_ENCLAVE_TLS(thread);
-    return 0;
 }
 
 struct handle_ops thread_ops = {
