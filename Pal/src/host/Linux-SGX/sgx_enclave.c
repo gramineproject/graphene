@@ -15,6 +15,7 @@
 #include <linux/in6.h>
 #include <math.h>
 #include <asm/errno.h>
+#include <limits.h>
 
 #ifndef SOL_IPV6
 # define SOL_IPV6 41
@@ -611,11 +612,22 @@ static int sgx_ocall_sleep(void * pms)
         return 0;
     }
     struct timespec req, rem;
-    req.tv_sec  = ms->ms_microsec / 1000000;
-    req.tv_nsec = (ms->ms_microsec - req.tv_sec * 1000000) * 1000;
+    unsigned long microsec = ms->ms_microsec;
+    long sec;
+    long nsec;
+    if (microsec / 1000000 > LONG_MAX) {
+        sec = LONG_MAX;
+        nsec = 0;
+    } else {
+        sec = microsec / 1000000;
+        nsec = (microsec - (unsigned long)sec * 1000000) * 1000;
+    }
+
+    req.tv_sec  = sec;
+    req.tv_nsec = nsec;
     ret = INLINE_SYSCALL(nanosleep, 2, &req, &rem);
     if (IS_ERR(ret) && ERRNO(ret) == EINTR)
-        ms->ms_microsec = rem.tv_sec * 1000000 + rem.tv_nsec / 1000;
+        ms->ms_microsec = rem.tv_sec * 1000000UL + rem.tv_nsec / 1000UL;
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : ret;
 }
 

@@ -40,6 +40,7 @@
 #include <sys/wait.h>
 #include <sys/timespec.h>
 #include <unistd.h>
+#include <limits.h>
 #define THREAD_STACK_SIZE   (pal_state.alloc_align)
 
 /* _DkThreadCreate for internal use. Create an internal thread
@@ -85,11 +86,17 @@ int _DkThreadDelayExecution (unsigned long * duration)
     struct timespec sleeptime;
     struct timespec remainingtime;
 
-    long sec = (unsigned long) *duration / 1000000;
-    long microsec = (unsigned long) *duration - (sec * 1000000);
-
+    long sec;
+    long nsec;
+    if (*duration / 1000000 > LONG_MAX) {
+        sec = LONG_MAX;
+        nsec = 0;
+    } else {
+        sec = *duration / 1000000;
+        nsec = (*duration - (unsigned long)sec * 1000000) * 1000;
+    }
     sleeptime.tv_sec = sec;
-    sleeptime.tv_nsec = microsec * 1000;
+    sleeptime.tv_nsec = nsec;
 
     int ret = INLINE_SYSCALL(nanosleep, 2, &sleeptime, &remainingtime);
 
