@@ -1284,7 +1284,10 @@ void * stack_before_call __attribute_unused = NULL;
 
 #define CALL_ENTRY(l, cookies)                                          \
     ({  long ret;                                                       \
-        __asm__ volatile("movq %%rsp, stack_before_call(%%rip)\r\n"     \
+        __asm__ volatile(                                               \
+                     "pushq $0\r\n"                                     \
+                     "popfq\r\n"                                        \
+                     "movq %%rsp, stack_before_call(%%rip)\r\n"         \
                      "leaq 1f(%%rip), %%rdx\r\n"                        \
                      "movq %2, %%rsp\r\n"                               \
                      "jmp *%1\r\n"                                      \
@@ -1292,7 +1295,7 @@ void * stack_before_call __attribute_unused = NULL;
                                                                         \
                      : "=a"(ret) : "a"(l->l_entry), "b"(cookies)        \
                      : "rcx", "rdx", "rdi", "rsi", "r8", "r9",          \
-                       "r10", "r11", "memory");                         \
+                       "r10", "r11", "memory", "cc");                   \
         ret; })
 #else
 # error "unsupported architecture"

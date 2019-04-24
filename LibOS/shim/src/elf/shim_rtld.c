@@ -1586,13 +1586,15 @@ int execute_elf_object (struct shim_handle * exec,
 
 #if defined(__x86_64__)
     asm volatile (
+                    "pushq $0\r\n"
+                    "popfq\r\n"
                     "movq %%rbx, %%rsp\r\n"
                     "jmp *%%rax\r\n"
                     :
                     : "a"(entry),
                       "b"(argcp),
                       "d"(0)
-                    : "memory");
+                    : "memory", "cc");
 #else
 # error "architecture not supported"
 #endif
