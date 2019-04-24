@@ -162,9 +162,53 @@ enclave_entry:
 	movq SGX_GPR_RSP(%rbx), %rsi
 	movq %gs:SGX_STACK, %rax
 	cmpq $0, %rax
-	je 1f
+	je .Lsetup_exception_handler
 	movq %rax, %rsi
+
+	/* we know we should've be in the middle of ocall */
+	cmpq $0, %gs:SGX_OCALL_PREPARED
+	jne 1f
+	FAIL_LOOP
 1:
+	movq SGX_GPR_RIP(%rbx), %rax
+	leaq .Locall_about_to_eexit_begin(%rip), %r11
+	cmpq %r11, %rax
+	jb 1f
+	leaq .Locall_about_to_eexit_end(%rip), %r11
+	cmpq %r11, %rax
+	jae 1f
+	/*
+	 * We're about to eexit for ocall in
+	 * [.Locall_about_to_eexit_begin, .Locall_about_to_eexit_end)
+	 * %rsp points to untrusted area, but we're still within enclave.
+	 * Skip eexit as if ocall returned PAL_ERROR_INTERRUPTED.
+	 */
+	movq $0, SGX_GPR_RAX(%rbx)
+	movq $-PAL_ERROR_INTERRUPTED, SGX_GPR_RDI(%rbx) # return value for .Lreturn_from_ocall
+	movq %rdi, SGX_GPR_RSI(%rbx) # external event for .Lreturn_from_ocall
+	movq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
+	movq %rax, SGX_GPR_RIP(%rbx)
+	movq %rsi, SGX_GPR_RSP(%rbx)
+	movq $0, %gs:SGX_STACK
+	movq $0, %gs:SGX_OCALL_PREPARED
+	xorq %r11, %r11
+	jmp .Leexit_exception
+
+1:
+	/*
+	 * We're right after eenter returning from ocall,
+     * but not establish stack yet.
+     */
+	movq %rdi, SGX_GPR_RSI(%rbx) # external event for .Lreturn_from_ocall
+	movq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
+	movq %rax, SGX_GPR_RIP(%rbx)
+	movq %rsi, SGX_GPR_RSP(%rbx)
+	movq $0, %gs:SGX_STACK
+	movq $0, %gs:SGX_OCALL_PREPARED
+	xorq %r11, %r11
+	jmp .Leexit_exception
+
+.Lsetup_exception_handler:
 	subq $SGX_CONTEXT_SIZE, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
@@ -216,6 +260,7 @@ enclave_entry:
 	leaq _DkExceptionHandler(%rip), %rdi
 	movq %rdi, SGX_GPR_RIP(%rbx)
 
+.Leexit_exception:
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
@@ -262,9 +307,6 @@ sgx_ocall:
 
 	pushq %rbp
 
-	movq $1, %gs:SGX_OCALL_PREPARED
-
-.Leexit:
 	xorq %rdx, %rdx
 	xorq %r8, %r8
 	xorq %r9, %r9
@@ -276,8 +318,10 @@ sgx_ocall:
 	xorq %r15, %r15
 	xorq %rbp, %rbp
 
+	movq $1, %gs:SGX_OCALL_PREPARED
 	movq %rsp, %gs:SGX_STACK
 
+.Locall_about_to_eexit_begin:
 	# It's ok to use the untrusted stack and exit target below without
 	# checks since the processor will ensure that after exiting enclave
 	# mode in-enclave memory can't be accessed.
@@ -288,13 +332,18 @@ sgx_ocall:
 	movq %gs:SGX_EXIT_TARGET, %rbx
 	movq $EEXIT, %rax
 	ENCLU
+.Locall_about_to_eexit_end:
 
 .Lreturn_from_ocall:
 	# PAL convention:
 	# RDI - return value
 	# RSI - external event (if there is any)
 
+	# restore the stack
+	movq $0, %rsp
+	xchgq %rsp, %gs:SGX_STACK
 	movq $0, %gs:SGX_OCALL_PREPARED
+.Lreturn_from_ocall_prepared_is_cleared:
 
 	movq %rdi, %rax
 
@@ -304,10 +353,6 @@ sgx_ocall:
 	je .Lno_fsbase
 	.byte 0xf3, 0x48, 0x0f, 0xae, 0xd3 /* WRFSBASE %RBX */
 .Lno_fsbase:
-
-	# restore the stack
-	movq $0, %rsp
-	xchgq %rsp, %gs:SGX_STACK
 
 	popq %rbp
 	fxrstor (%rsp)

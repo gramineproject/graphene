@@ -1,5 +1,6 @@
 #include <stddef.h>
 
+#include "pal_error.h"
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 
@@ -68,5 +69,7 @@ void dummy(void)
 
     /* sgx_arch_tcs_t */
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
-}
 
+    /* PAL ERROR */
+    DEFINE(PAL_ERROR_INTERRUPTED, PAL_ERROR_INTERRUPTED);
+}
