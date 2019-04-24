@@ -30,6 +30,8 @@ void sgx_ocfree (void);
 bool sgx_is_completely_within_enclave (const void * addr, uint64_t size);
 bool sgx_is_completely_outside_enclave(const void * addr, uint64_t size);
 
+int sgx_copy_to_enclave(void * dst, void * uptr_src, uint64_t size);
+
 int sgx_report (sgx_arch_targetinfo_t * targetinfo,
                 void * reportdata, sgx_arch_report_t * report);
 

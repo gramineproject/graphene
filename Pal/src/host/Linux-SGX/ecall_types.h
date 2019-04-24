@@ -10,7 +10,9 @@ enum {
 struct pal_sec;
 
 typedef struct {
-    const char ** ms_arguments;
-    const char ** ms_environments;
+    char * ms_args;
+    uint64_t ms_args_size;
+    char * ms_env;
+    uint64_t ms_env_size;
     struct pal_sec * ms_sec_info;
 } ms_ecall_enclave_start_t;

@@ -4,6 +4,6 @@
 #include "pal_linux.h"
 #include "pal_security.h"
 
-int ecall_enclave_start (const char ** arguments, const char ** environments);
+int ecall_enclave_start (char * args, uint64_t args_size, char * env, uint64_t env_size);
 
 int ecall_thread_start (void);
