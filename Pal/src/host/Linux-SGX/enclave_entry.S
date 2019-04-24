@@ -229,11 +229,8 @@ enclave_entry:
 	# Arguments for EEXIT/untrusted code (not cleared):
 	#
 	#     %rbx: exit target
-	#
 	#     %rsp: untrusted stack
-	#
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
-	#
 .Lclear_and_eexit:
 
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
@@ -255,7 +252,7 @@ enclave_entry:
 
 	# %rax is argument to EEXIT
 	# %rbx is argument to EEXIT
-	subq %rcx, %rcx # use sub to set flags to an fixed value
+	# %rcx is set to AEX by EEXIT
 	xorq %rdx, %rdx
 	# %rsi, %rdi are arguments to the untrusted code
 	xorq %rbp, %rbp
@@ -267,7 +264,7 @@ enclave_entry:
 	xorq %r12, %r12
 	xorq %r13, %r13
 	xorq %r14, %r14
-	xorq %r15, %r15
+	subq %r15, %r15 # use sub to set flags to a fixed value
 
 	movq $EEXIT, %rax
 	ENCLU
