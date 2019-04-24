@@ -213,10 +213,54 @@ enclave_entry:
 	movq SGX_GPR_RSP(%rbx), %rsi
 	movq %gs:SGX_STACK, %rax
 	cmpq $0, %rax
-	je 1f
+	je .Lsetup_exception_handler
 	movq %rax, %rsi
-1:
 
+	cmpq $0, %gs:SGX_OCALL_PREPARED
+	jne 1f
+	FAIL_LOOP
+1:
+	movq SGX_GPR_RIP(%rbx), %rax
+	leaq .Locall_about_to_eexit_begin(%rip), %r11
+	cmpq %r11, %rax
+	jb 1f
+	leaq .Locall_about_to_eexit_end(%rip), %r11
+	cmpq %r11, %rax
+	jae 1f
+	/*
+	 * We're about to eexit for ocall in
+	 * [.Locall_about_to_eexit_begin, .Locall_about_to_eexit_end)
+	 * the stack points to untrusted area, but we're still within enclave.
+	 * Skip eexit as if ocall returned PAL_ERROR_INTERRUPTED.
+	 */
+	movq $0, SGX_GPR_RAX(%rbx)
+	movq $-PAL_ERROR_INTERRUPTED, SGX_GPR_RDI(%rbx) # return value for .Lreturn_from_ocall
+	movq %rdi, SGX_GPR_RSI(%rbx) # external event for .Lreturn_from_ocall
+	movq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
+	movq %rax, SGX_GPR_RIP(%rbx)
+	movq %rsi, SGX_GPR_RSP(%rbx)
+	movq $0, %gs:SGX_STACK
+	movq $0, %gs:SGX_OCALL_PREPARED
+	jmp .Leexit_exception
+
+1:
+	/*
+	 * We're right after eenter from ocall, but not establish stack yet.
+	 * establish stack within enclave for __restore_sgx_context[_retry]
+	 */
+	# we know that ocall actually successfully completed. don't abort ocall.
+	# ocall_marker_clear()
+	movq $0, %gs:SGX_OCALL_MARKER
+	# Just let _DkHandleExternalEvent handles pending external events which
+	# we recorded above.
+	movq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
+	movq %rax, SGX_GPR_RIP(%rbx)
+	movq %rsi, SGX_GPR_RSP(%rbx)
+	movq $0, %gs:SGX_STACK
+	movq $0, %gs:SGX_OCALL_PREPARED
+	jmp .Leexit_exception
+
+.Lsetup_exception_handler:
 	movq %gs:SGX_SIG_STACK_LOW, %rax
 	cmpq %rax, %rsi
 	jbe .Lout_of_signal_stack
@@ -302,73 +346,7 @@ enclave_entry:
 
 	# FP registers are saved on entry of _DkExceptionHandler()
 
-	movq %gs:SGX_STACK, %rax
-	cmpq $0, %rax
-	je 2f
-	cmpq $0, %gs:SGX_OCALL_PREPARED
-	jne 1f
-	FAIL_LOOP
-1:
-	movq SGX_CONTEXT_RIP(%rsi), %rax
-	leaq .Locall_about_to_eexit_begin(%rip), %rax
-	jb 1f
-	leaq .Locall_about_to_eexit_end(%rip), %rax
-	jae 1f
-	/*
-	 * We're about to eexit for ocall,
-	 * [.Locall_about_to_eexit_begin, .Locall_about_to_eexit_end)
-	 * the stack points to untrusted area, but we're still within enclave.
-	 * We do the following in C code so that ocall is interrupted.
-	 * ocall_marker_clear()
-	 * ocall_marker_check()
-	 */
-	movq $0, %rax
-	xchgq %rax, %gs:SGX_OCALL_MARKER
-	movq $-PAL_ERROR_INTERRUPTED, %rsi
-	movq %rsi, SGX_GPR_RAX(%rbx)
-	movq $0, %rsi
-	movq %rsi, SGX_GPR_RDX(%rbx)
-	movq OCALL_MARKER_RBX(%rax), %rsi
-	movq %rsi, SGX_GPR_RBX(%rbx)
-	movq OCALL_MARKER_RBP(%rax), %rsi
-	movq %rsi, SGX_GPR_RBP(%rbx)
-	movq OCALL_MARKER_R12(%rax), %rsi
-	movq %rsi, SGX_GPR_R12(%rbx)
-	movq OCALL_MARKER_R13(%rax), %rsi
-	movq %rsi, SGX_GPR_R13(%rbx)
-	movq OCALL_MARKER_R14(%rax), %rsi
-	movq %rsi, SGX_GPR_R14(%rbx)
-	movq OCALL_MARKER_R15(%rax), %rsi
-	movq %rsi, SGX_GPR_R15(%rbx)
-	movq OCALL_MARKER_RSP(%rax), %rsi
-	movq %rsi, SGX_GPR_RSP(%rbx)
-	movq OCALL_MARKER_RIP(%rax), %rsi
-	movq %rsi, SGX_GPR_RIP(%rbx)
-	jmp 2f
-1:
-	/*
-	 * We're aright after eenter, but not establish stack set.
-	 * establish stack within enclave for __restore_sgx_context[_retry]
-	 */
-	# we know that ocall actually successfully completed. don't abort ocall.
-	# ocall_marker_clear()
-	movq $0, %rax
-	xchgq %rax, %gs:SGX_OCALL_MARKER
-
-	# trick to %rsp to point to trusted area
-	movq %gs:SGX_STACK, %rax
-	movq %rax, SGX_CONTEXT_RSP(%rsi)
-
-	# If we're at .Lreturn_from_ocall_rsp_is_set, the situation is unstable.
-	# emulate xchgq %rsp, %gs:SGX_STACK
-	movq SGX_CONTEXT_RIP(%rsi), %rax
-	leaq .Lreturn_from_ocall_rsp_is_zero(%rip), %rax
-	jne 2f
-	leaq .Lreturn_from_ocall_rsp_is_set(%rip), %rax
-	movq $0, %gs:SGX_STACK
-	movq %rax, SGX_CONTEXT_RIP(%rsi)
-2:
-
+.Leexit_exception:
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
@@ -379,6 +357,9 @@ enclave_entry:
 	movq $EEXIT, %rax
 	ENCLU
 
+	# TODO: merge. caution. fixup the check with .Locall_about_to_eexit_begin,
+	# and .Locall_about_to_eexit_end
+	# https://github.com/oscarlab/graphene/pull/626/commits/71b54115880907e2eb7f94d416185126dfa85abd
 
 	.global sgx_ocall
 	.type sgx_ocall, @function
@@ -496,14 +477,12 @@ sgx_ocall:
 
 	# restore the stack
 	movq $0, %rsp
-.Lreturn_from_ocall_rsp_is_zero:
 	xchgq %rsp, %gs:SGX_STACK
-.Lreturn_from_ocall_rsp_is_set:
-
 	movq $0, %gs:SGX_OCALL_PREPARED
+.Lreturn_from_ocall_prepared_is_cleared:
 
 	## sgx_context_t::rax = %rdi
-	movq %rdi, (%rsp) # return value
+	movq %rdi, SGX_CONTEXT_RAX(%rsp) # return value
 
 	# restore FSBASE if necessary
 	movq %gs:SGX_FSBASE, %rbx
