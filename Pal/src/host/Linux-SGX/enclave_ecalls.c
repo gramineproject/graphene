@@ -10,8 +10,9 @@
 
 #define SGX_CAST(type, item) ((type) (item))
 
-void pal_linux_main (const char ** arguments, const char ** environments,
-                     struct pal_sec * sec_info);
+void pal_linux_main(char * uptr_args, uint64_t args_size,
+                    char * uptr_env, uint64_t env_size,
+                    struct pal_sec * uptr_sec_info);
 
 void pal_start_thread (void);
 
@@ -73,9 +74,13 @@ void handle_ecall (long ecall_index, void * ecall_args, void * exit_target,
         ms_ecall_enclave_start_t * ms =
                 (ms_ecall_enclave_start_t *) ecall_args;
 
-        if (!ms) return;
+        if (!ms || !sgx_is_completely_outside_enclave(ms, sizeof(*ms))) {
+            return;
+        }
 
-        pal_linux_main(ms->ms_arguments, ms->ms_environments,
+        /* pal_linux_main is responsible to check the passed arguments */
+        pal_linux_main(ms->ms_args, ms->ms_args_size,
+                       ms->ms_env, ms->ms_env_size,
                        ms->ms_sec_info);
     } else {
         // ENCLAVE_START already called (maybe successfully, maybe not), so
