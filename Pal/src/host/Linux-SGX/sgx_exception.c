@@ -88,7 +88,11 @@ int set_sighandler (int * sigs, int nsig, void * handler)
     action.sa_restorer = restore_rt;
 #endif
 
+    /* during enclave handling exception,
+     * don't inject async exception nestedly. */
     __sigemptyset((__sigset_t *) &action.sa_mask);
+    __sigaddset((__sigset_t *) &action.sa_mask, SIGTERM);
+    __sigaddset((__sigset_t *) &action.sa_mask, SIGINT);
     __sigaddset((__sigset_t *) &action.sa_mask, SIGCONT);
 
     for (int i = 0 ; i < nsig ; i++) {
