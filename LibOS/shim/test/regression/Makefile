@@ -1,4 +1,4 @@
-special_executables = bootstrap_static bootstrap_pie shared_object openmp
+special_executables = bootstrap_static bootstrap_pie shared_object openmp multi_pthread
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
@@ -49,6 +49,10 @@ openmp: %: %.c
 	@$(CC) $(CFLAGS) -o $@ -fopenmp $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
+multi_pthread: %: %.c
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) -o $@ $< -lpthread \
+	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 else
 .IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
 $(special_executables) $(c_executables) $(cxx_executables):

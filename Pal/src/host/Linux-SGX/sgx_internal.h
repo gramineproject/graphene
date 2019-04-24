@@ -114,8 +114,9 @@ int interrupt_thread (void * tcs);
 int clone_thread (void);
 
 void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
-void map_tcs (unsigned int tid);
-void unmap_tcs (void);
+void map_tcs(unsigned int tid, bool created_by_pthread);
+bool unmap_tcs(void);
+void thread_exit(void* rv);
 
 extern __thread struct pal_enclave * current_enclave;
 

@@ -14,15 +14,17 @@
 	.type enclave_entry, @function
 
 enclave_entry:
-	# On EENTER, RAX is the current SSA index (aka CSSA),
-	# RBX is the address of TCS, RCX is the address of AEP.
-	# Other registers are not trusted.
+	# On EENTER, RAX is the current SSA index (aka CSSA), RBX is the address of
+	# TCS, RCX is the address of IP following EENTER. Other regs are not trusted.
 
 	# x86-64 sysv abi requires %rFLAGS.DF = 0 on entry to function call.
 	cld
 
 	cmpq $0, %rax
 	jne .Lprepare_resume
+
+	# ECALL return address in RCX (Trusted)
+	movq %rcx, %gs:SGX_ECALL_RETURN_ADDR
 
 	# The following code is hardened to defend attacks from untrusted host.
 	# Any states given by the host instead of the ISA must be assumed
@@ -48,23 +50,24 @@ enclave_entry:
 	cmpq $0, %gs:SGX_OCALL_PREPARED
 	jne .Lreturn_from_ocall
 
-	movq %rcx, %gs:SGX_AEP
+	# PAL convention:
+	# RDI - ECALL number
+	# RSI - pointer to ecall arguments
+	# RDX - exit target
+	# RCX (former RSP) - The untrusted stack
+	# R8  - enclave base
 
-	# Ecalls are only used to start a thread (either the main or an
-	# additional thread). So per thread we should only get exactly one
-	# ecall. Enforce this here.
+	cmpq $ECALL_THREAD_RESET, %rdi
+	je .Lhandle_thread_reset
+
+	# Except ecall_thread_reset, ecalls are only used to start a thread (main
+	# or additional threads). We already checked for case of ecall_thread_reset,
+	# so at this point we should only get exactly one ecall per thread
 	cmpq $0, %gs:SGX_ECALL_CALLED
 	je 1f
 	FAIL_LOOP
 1:
 	movq $1, %gs:SGX_ECALL_CALLED
-
-	# PAL convention:
-	# RDI - ECALL number
-	# RSI - prointer to ecall arguments
-	# RDX - exit target
-	# RCX (former RSP) - The untrusted stack
-	# R8  - enclave base
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
 	subq %gs:SGX_TCS_OFFSET, %rbx
@@ -94,6 +97,17 @@ enclave_entry:
 
 	# handle_ecall will only return when invalid parameters has been passed.
 	FAIL_LOOP
+
+	# Clear tls variables for thread reuse
+	# Signals are already blocked
+.Lhandle_thread_reset:
+	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
+	movq $0, %gs:SGX_ECALL_CALLED
+
+.Lecall_return:
+	movq %gs:SGX_ECALL_RETURN_ADDR, %rbx
+	movq $EEXIT, %rax
+	ENCLU
 
 .Lprepare_resume:
 	# PAL convention:
@@ -430,6 +444,11 @@ sgx_ocall:
 	fxsave (%rsp)
 
 	pushq %rbp
+
+	# ocall_exit never returns. Skip setting SGX_OCALL_PREPARED to avoid
+	# ECALL_THREAD_RESET falling into OCALL return handling.
+	cmpq $OCALL_EXIT, %rdi
+	je .Locall_after_set_ocall_prepared
 
 .Locall_before_set_ocall_prepared:
 	movq $1, %gs:SGX_OCALL_PREPARED

@@ -465,13 +465,6 @@ class TC_20_SingleProcess(RegressionTestCase):
         # Thread Cleanup: Exit by return.
         self.assertIn('Thread 2 ok.', stderr)
 
-    @expectedFailureIf(HAS_SGX)
-    def test_511_thread2_nosgx(self):
-        stdout, stderr = self.run_binary(['Thread2'])
-
-        # The 2 following tests are currently broken on SGX because TCS slots
-        # are not reused yet (needed because of thread limit), see issue #517.
-
         # Thread Cleanup: Exit by DkThreadExit.
         self.assertIn('Thread 3 ok.', stderr)
         self.assertNotIn('Exiting thread 3 failed.', stderr)
