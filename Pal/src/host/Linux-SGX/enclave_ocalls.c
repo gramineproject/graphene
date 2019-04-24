@@ -14,8 +14,6 @@
 #include <api.h>
 #include <asm/errno.h>
 
-#define SGX_OCALL(code, ms) sgx_ocall(code, ms)
-
 /* Allocate size bytes on untrusted stack frame of this OCALL.
  * NULL is returned if there is no memory available on untrusted
  * stack. Used to allocate ms structs. */
@@ -50,50 +48,47 @@ static void* copy_outside_enclave(const void* ptr, uint64_t size) {
     return (void*) ptr;
 }
 
-/* First copy value from possibly untrusted uptr inside enclave (to
- * prevent TOCTOU). Then check that the region uptr points to (with
- * the given size) is completely in untrusted memory. If the check is
- * successful, ptr is set to checked value and true is returned.
- * Otherwise ptr is set to NULL and false is returned. */
-static bool copy_ptr_inside_enclave(void** ptr, void* uptr, uint64_t size) {
-    void* uptr_safe;
-
+/* Check that the region uptr points to (with the given size) is
+ * completely in untrusted memory. If the check is successful,
+ * ptr is set to checked value and true is returned.
+ * Otherwise ptr is set to NULL and false is returned.
+ *
+ * NOTE: Value from possibly untrusted uptr must be copied inside
+ * CPU register or enclave stack (to prevent TOCTOU). Function call
+ * achieves this. Attribute ensures no inline optimization. */
+static __attribute__((noinline))
+bool copy_ptr_inside_enclave(void** ptr, void* uptr, uint64_t size) {
     if (!ptr)
         return false;
-
     *ptr = NULL;
-    memcpy(&uptr_safe, &uptr, sizeof(uptr_safe));
-    if (sgx_is_completely_outside_enclave(uptr_safe, size)) {
-        *ptr = uptr_safe;
+    if (sgx_is_completely_outside_enclave(uptr, size)) {
+        *ptr = uptr;
         return true;
     }
     return false;
 }
 
-/* First copy value from possibly untrusted uptr and usize inside enclave
- * (to prevent TOCTOU). Then check that:
+/* Check that:
  *   - there is no buffer/integer overflow and
  *   - region (uptr, usize) is completely in untrusted memory and
- *   - if destination ptr isn't same as uptr, then region (putr, usize)
+ *   - if destination ptr isn't same as uptr, then region (uptr, usize)
  *     is completely within enclave memory.
  * If the checks are successful, copy region of untrusted memory (uptr, usize)
- * inside enclave and return number of bytes copied. Otherwise return 0. */
-static uint64_t copy_inside_enclave(const void* ptr, const void* uptr, uint64_t maxsize, uint64_t usize) {
-    void* uptr_safe;
-    unsigned int usize_safe;
-
-    memcpy(&uptr_safe,  &uptr,  sizeof(uptr_safe));
-    memcpy(&usize_safe, &usize, sizeof(usize_safe));
-
-    if (usize_safe <= maxsize &&
-        sgx_is_completely_outside_enclave(uptr_safe, usize_safe)) {
-        if (ptr != uptr_safe) {
-            if (sgx_is_completely_within_enclave(ptr, usize_safe)) {
-                memcpy((void*) ptr, uptr_safe, usize_safe);
-                return usize_safe;
+ * inside enclave and return number of bytes copied. Otherwise return 0.
+ *
+ * NOTE: Value from possibly untrusted uptr and usize must be copied
+ * inside CPU registers or enclave stack (to prevent TOCTOU). Function
+ * call achieves this. Attribute ensures no inline optimization. */
+static __attribute__((noinline))
+uint64_t copy_inside_enclave(const void* ptr, uint64_t maxsize, const void* uptr, uint64_t usize) {
+    if (usize <= maxsize && sgx_is_completely_outside_enclave(uptr, usize)) {
+        if (ptr != uptr) {
+            if (sgx_is_completely_within_enclave(ptr, usize)) {
+                memcpy((void*) ptr, uptr, usize);
+                return usize;
             }
         } else {
-            return usize_safe;
+            return usize;
         }
     }
     return 0;
@@ -113,7 +108,7 @@ int ocall_exit(int exitcode)
     //  2. We can't trust the outside to actually exit, so we need to ensure
     //     that we never return even when the outside tries to trick us.
     while (true) {
-        SGX_OCALL(OCALL_EXIT, (void *) code);
+        sgx_ocall(OCALL_EXIT, (void *) code);
     }
     return 0;
 }
@@ -142,7 +137,7 @@ int ocall_print_string (const char * str, unsigned int length)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_PRINT_STRING, ms);
+    retval = sgx_ocall(OCALL_PRINT_STRING, ms);
 
     cleanup();
     return retval;
@@ -161,7 +156,7 @@ int ocall_alloc_untrusted (uint64_t size, void ** mem)
 
     ms->ms_size = size;
 
-    retval = SGX_OCALL(OCALL_ALLOC_UNTRUSTED, ms);
+    retval = sgx_ocall(OCALL_ALLOC_UNTRUSTED, ms);
 
     if (!retval) {
         if (!copy_ptr_inside_enclave(mem, ms->ms_mem, size)) {
@@ -192,7 +187,7 @@ int ocall_map_untrusted (int fd, uint64_t offset,
     ms->ms_size = size;
     ms->ms_prot = prot;
 
-    retval = SGX_OCALL(OCALL_MAP_UNTRUSTED, ms);
+    retval = sgx_ocall(OCALL_MAP_UNTRUSTED, ms);
 
     if (!retval) {
         if (!copy_ptr_inside_enclave(mem, ms->ms_mem, size)) {
@@ -224,7 +219,7 @@ int ocall_unmap_untrusted (const void * mem, uint64_t size)
     ms->ms_mem  = mem;
     ms->ms_size = size;
 
-    retval = SGX_OCALL(OCALL_UNMAP_UNTRUSTED, ms);
+    retval = sgx_ocall(OCALL_UNMAP_UNTRUSTED, ms);
 
     cleanup();
     return retval;
@@ -245,7 +240,7 @@ int ocall_cpuid (unsigned int leaf, unsigned int subleaf,
     ms->ms_leaf = leaf;
     ms->ms_subleaf = subleaf;
 
-    retval = SGX_OCALL(OCALL_CPUID, ms);
+    retval = sgx_ocall(OCALL_CPUID, ms);
 
     if (!retval) {
         values[0] = ms->ms_values[0];
@@ -279,7 +274,7 @@ int ocall_open (const char * pathname, int flags, unsigned short mode)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_OPEN, ms);
+    retval = sgx_ocall(OCALL_OPEN, ms);
 
     cleanup();
     return retval;
@@ -298,7 +293,7 @@ int ocall_close (int fd)
 
     ms->ms_fd = fd;
 
-    retval = SGX_OCALL(OCALL_CLOSE, ms);
+    retval = sgx_ocall(OCALL_CLOSE, ms);
 
     cleanup();
     return retval;
@@ -334,10 +329,10 @@ int ocall_read (int fd, void * buf, unsigned int count)
         goto out;
     }
 
-    retval = SGX_OCALL(OCALL_READ, ms);
+    retval = sgx_ocall(OCALL_READ, ms);
 
     if (retval > 0) {
-        if (!copy_inside_enclave(buf, ms->ms_buf, count, retval)) {
+        if (!copy_inside_enclave(buf, count, ms->ms_buf, retval)) {
             retval = -PAL_ERROR_DENIED;
             goto out;
         }
@@ -382,7 +377,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
         goto out;
     }
 
-    retval = SGX_OCALL(OCALL_WRITE, ms);
+    retval = sgx_ocall(OCALL_WRITE, ms);
 
 out:
     cleanup();
@@ -405,7 +400,7 @@ int ocall_fstat (int fd, struct stat * buf)
 
     ms->ms_fd = fd;
 
-    retval = SGX_OCALL(OCALL_FSTAT, ms);
+    retval = sgx_ocall(OCALL_FSTAT, ms);
 
     if (!retval)
         memcpy(buf, &ms->ms_stat, sizeof(struct stat));
@@ -427,7 +422,7 @@ int ocall_fionread (int fd)
 
     ms->ms_fd = fd;
 
-    retval = SGX_OCALL(OCALL_FIONREAD, ms);
+    retval = sgx_ocall(OCALL_FIONREAD, ms);
 
     cleanup();
     return retval;
@@ -447,7 +442,7 @@ int ocall_fsetnonblock (int fd, int nonblocking)
     ms->ms_fd = fd;
     ms->ms_nonblocking = nonblocking;
 
-    retval = SGX_OCALL(OCALL_FSETNONBLOCK, ms);
+    retval = sgx_ocall(OCALL_FSETNONBLOCK, ms);
 
     cleanup();
     return retval;
@@ -467,7 +462,7 @@ int ocall_fchmod (int fd, unsigned short mode)
     ms->ms_fd = fd;
     ms->ms_mode = mode;
 
-    retval = SGX_OCALL(OCALL_FCHMOD, ms);
+    retval = sgx_ocall(OCALL_FCHMOD, ms);
 
     cleanup();
     return retval;
@@ -486,7 +481,7 @@ int ocall_fsync (int fd)
 
     ms->ms_fd = fd;
 
-    retval = SGX_OCALL(OCALL_FSYNC, ms);
+    retval = sgx_ocall(OCALL_FSYNC, ms);
 
     cleanup();
     return retval;
@@ -506,7 +501,7 @@ int ocall_ftruncate (int fd, uint64_t length)
     ms->ms_fd = fd;
     ms->ms_length = length;
 
-    retval = SGX_OCALL(OCALL_FTRUNCATE, ms);
+    retval = sgx_ocall(OCALL_FTRUNCATE, ms);
 
     cleanup();
     return retval;
@@ -532,7 +527,7 @@ int ocall_mkdir (const char * pathname, unsigned short mode)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_MKDIR, ms);
+    retval = sgx_ocall(OCALL_MKDIR, ms);
 
     cleanup();
     return retval;
@@ -558,10 +553,10 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_GETDENTS, ms);
+    retval = sgx_ocall(OCALL_GETDENTS, ms);
 
     if (retval > 0) {
-        if (!copy_inside_enclave(dirp, ms->ms_dirp, size, retval)) {
+        if (!copy_inside_enclave(dirp, size, ms->ms_dirp, retval)) {
             cleanup();
             return -PAL_ERROR_DENIED;
         }
@@ -573,7 +568,7 @@ int ocall_getdents (int fd, struct linux_dirent64 * dirp, unsigned int size)
 
 int ocall_wake_thread (void * tcs)
 {
-    return SGX_OCALL(OCALL_WAKE_THREAD, tcs);
+    return sgx_ocall(OCALL_WAKE_THREAD, tcs);
 }
 
 int ocall_create_process (const char * uri,
@@ -608,7 +603,7 @@ int ocall_create_process (const char * uri,
         }
     }
 
-    retval = SGX_OCALL(OCALL_CREATE_PROCESS, ms);
+    retval = sgx_ocall(OCALL_CREATE_PROCESS, ms);
 
     if (!retval) {
         if (pid)
@@ -644,7 +639,7 @@ int ocall_futex (int * futex, int op, int val,
     ms->ms_val = val;
     ms->ms_timeout = timeout ? *timeout : OCALL_NO_TIMEOUT;
 
-    retval = SGX_OCALL(OCALL_FUTEX, ms);
+    retval = sgx_ocall(OCALL_FUTEX, ms);
 
     cleanup();
     return retval;
@@ -666,7 +661,7 @@ int ocall_socketpair (int domain, int type, int protocol,
     ms->ms_type = type;
     ms->ms_protocol = protocol;
 
-    retval = SGX_OCALL(OCALL_SOCKETPAIR, ms);
+    retval = sgx_ocall(OCALL_SOCKETPAIR, ms);
 
     if (!retval) {
         sockfds[0] = ms->ms_sockfds[0];
@@ -703,11 +698,11 @@ int ocall_sock_listen (int domain, int type, int protocol,
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_LISTEN, ms);
+    retval = sgx_ocall(OCALL_SOCK_LISTEN, ms);
 
     if (retval >= 0) {
         if (addr && len) {
-            copied = copy_inside_enclave(addr, ms->ms_addr, len, ms->ms_addrlen);
+            copied = copy_inside_enclave(addr, len, ms->ms_addr, ms->ms_addrlen);
             if (!copied) {
                 cleanup();
                 return -PAL_ERROR_DENIED;
@@ -747,11 +742,11 @@ int ocall_sock_accept (int sockfd, struct sockaddr * addr,
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_ACCEPT, ms);
+    retval = sgx_ocall(OCALL_SOCK_ACCEPT, ms);
 
     if (retval >= 0) {
         if (addr && len) {
-            copied = copy_inside_enclave(addr, ms->ms_addr, len, ms->ms_addrlen);
+            copied = copy_inside_enclave(addr, len, ms->ms_addr, ms->ms_addrlen);
             if (!copied) {
                 cleanup();
                 return -PAL_ERROR_DENIED;
@@ -798,11 +793,11 @@ int ocall_sock_connect (int domain, int type, int protocol,
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_CONNECT, ms);
+    retval = sgx_ocall(OCALL_SOCK_CONNECT, ms);
 
     if (retval >= 0) {
         if (bind_addr && bind_len) {
-            copied = copy_inside_enclave(bind_addr, ms->ms_bind_addr, bind_len, ms->ms_bind_addrlen);
+            copied = copy_inside_enclave(bind_addr, bind_len, ms->ms_bind_addr, ms->ms_bind_addrlen);
             if (!copied) {
                 cleanup();
                 return -PAL_ERROR_DENIED;
@@ -844,11 +839,11 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_RECV, ms);
+    retval = sgx_ocall(OCALL_SOCK_RECV, ms);
 
     if (retval >= 0) {
         if (addr && len) {
-            copied = copy_inside_enclave(addr, ms->ms_addr, len, ms->ms_addrlen);
+            copied = copy_inside_enclave(addr, len, ms->ms_addr, ms->ms_addrlen);
             if (!copied) {
                 cleanup();
                 return -PAL_ERROR_DENIED;
@@ -856,7 +851,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
             *addrlen = copied;
         }
 
-        if (!copy_inside_enclave(buf, ms->ms_buf, count, retval)) {
+        if (!copy_inside_enclave(buf, count, ms->ms_buf, retval)) {
             cleanup();
             return -PAL_ERROR_DENIED;
         }
@@ -889,7 +884,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_SEND, ms);
+    retval = sgx_ocall(OCALL_SOCK_SEND, ms);
 
     cleanup();
     return retval;
@@ -900,6 +895,7 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
 {
     int retval = 0;
     unsigned int copied;
+    unsigned int max_nfds_bytes = (*nfds) * sizeof(int);
     ms_ocall_sock_recv_fd_t * ms;
 
     ms = alloc_ms_outside_enclave(sizeof(*ms));
@@ -912,29 +908,27 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
     ms->ms_count = count;
     ms->ms_nfds = *nfds;
     ms->ms_buf = alloc_outside_enclave(buf, count);
-    ms->ms_fds = alloc_outside_enclave(fds, (*nfds) * sizeof(int));
+    ms->ms_fds = alloc_outside_enclave(fds, max_nfds_bytes);
 
     if (!ms->ms_buf || !ms->ms_fds) {
         cleanup();
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_RECV_FD, ms);
+    retval = sgx_ocall(OCALL_SOCK_RECV_FD, ms);
 
     if (retval >= 0) {
-        unsigned int ms_nfds_bytes  = ms->ms_nfds * sizeof(int);
-        unsigned int max_nfds_bytes = (*nfds) * sizeof(int);
-        copied = copy_inside_enclave(fds, ms->ms_fds, max_nfds_bytes, ms_nfds_bytes);
+        if (!copy_inside_enclave(buf, count, ms->ms_buf, retval)) {
+            cleanup();
+            return -PAL_ERROR_DENIED;
+        }
+
+        copied = copy_inside_enclave(fds, max_nfds_bytes, ms->ms_fds, ms->ms_nfds * sizeof(int));
         if (!copied) {
             cleanup();
             return -PAL_ERROR_DENIED;
         }
         *nfds = copied / sizeof(int);
-
-        if (!copy_inside_enclave(buf, ms->ms_buf, count, retval)) {
-            cleanup();
-            return -PAL_ERROR_DENIED;
-        }
     }
 
     cleanup();
@@ -964,7 +958,7 @@ int ocall_sock_send_fd (int sockfd, const void * buf, unsigned int count,
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_SEND_FD, ms);
+    retval = sgx_ocall(OCALL_SOCK_SEND_FD, ms);
 
     cleanup();
     return retval;
@@ -985,15 +979,20 @@ int ocall_sock_setopt (int sockfd, int level, int optname,
     ms->ms_sockfd = sockfd;
     ms->ms_level = level;
     ms->ms_optname = optname;
-    ms->ms_optlen = optlen;
-    ms->ms_optval = copy_outside_enclave(optval, optlen);
+    ms->ms_optlen = 0;
+    ms->ms_optval = NULL;
 
-    if (!ms->ms_optval) {
-        cleanup();
-        return -PAL_ERROR_DENIED;
+    if (optval && optlen > 0) {
+        ms->ms_optlen = optlen;
+        ms->ms_optval = copy_outside_enclave(optval, optlen);
+
+        if (!ms->ms_optval) {
+            cleanup();
+            return -PAL_ERROR_DENIED;
+        }
     }
 
-    retval = SGX_OCALL(OCALL_SOCK_SETOPT, ms);
+    retval = sgx_ocall(OCALL_SOCK_SETOPT, ms);
 
     cleanup();
     return retval;
@@ -1013,7 +1012,7 @@ int ocall_sock_shutdown (int sockfd, int how)
     ms->ms_sockfd = sockfd;
     ms->ms_how = how;
 
-    retval = SGX_OCALL(OCALL_SOCK_SHUTDOWN, ms);
+    retval = sgx_ocall(OCALL_SOCK_SHUTDOWN, ms);
 
     cleanup();
     return retval;
@@ -1030,7 +1029,7 @@ int ocall_gettime (unsigned long * microsec)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_GETTIME, ms);
+    retval = sgx_ocall(OCALL_GETTIME, ms);
     if (!retval)
         *microsec = ms->ms_microsec;
 
@@ -1051,7 +1050,7 @@ int ocall_sleep (unsigned long * microsec)
 
     ms->ms_microsec = microsec ? *microsec : 0;
 
-    retval = SGX_OCALL(OCALL_SLEEP, ms);
+    retval = sgx_ocall(OCALL_SLEEP, ms);
     if (microsec) {
         if (!retval)
             *microsec = 0;
@@ -1066,6 +1065,7 @@ int ocall_sleep (unsigned long * microsec)
 int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
 {
     int retval = 0;
+    unsigned int nfds_bytes = nfds * sizeof(struct pollfd);
     ms_ocall_poll_t * ms;
 
     ms = alloc_ms_outside_enclave(sizeof(*ms));
@@ -1076,21 +1076,20 @@ int ocall_poll (struct pollfd * fds, int nfds, uint64_t * timeout)
 
     ms->ms_nfds = nfds;
     ms->ms_timeout = timeout ? *timeout : OCALL_NO_TIMEOUT;
-    ms->ms_fds = copy_outside_enclave(fds, sizeof(struct pollfd) * nfds);
+    ms->ms_fds = copy_outside_enclave(fds, nfds_bytes);
 
     if (!ms->ms_fds) {
         cleanup();
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_POLL, ms);
+    retval = sgx_ocall(OCALL_POLL, ms);
 
     if (retval == -EINTR && timeout)
         *timeout = ms->ms_timeout;
 
     if (retval >= 0) {
-        unsigned int nfds_bytes = sizeof(struct pollfd) * nfds;
-        if (!copy_inside_enclave(fds, ms->ms_fds, nfds_bytes, nfds_bytes)) {
+        if (!copy_inside_enclave(fds, nfds_bytes, ms->ms_fds, nfds_bytes)) {
             cleanup();
             return -PAL_ERROR_DENIED;
         }
@@ -1121,7 +1120,7 @@ int ocall_rename (const char * oldpath, const char * newpath)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_RENAME, ms);
+    retval = sgx_ocall(OCALL_RENAME, ms);
 
     cleanup();
     return retval;
@@ -1145,7 +1144,7 @@ int ocall_delete (const char * pathname)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_DELETE, ms);
+    retval = sgx_ocall(OCALL_DELETE, ms);
 
     cleanup();
     return retval;
@@ -1162,7 +1161,7 @@ int ocall_load_debug(const char * command)
         return -PAL_ERROR_DENIED;
     }
 
-    retval = SGX_OCALL(OCALL_LOAD_DEBUG, (void *) ms);
+    retval = sgx_ocall(OCALL_LOAD_DEBUG, (void *) ms);
 
     cleanup();
     return retval;
