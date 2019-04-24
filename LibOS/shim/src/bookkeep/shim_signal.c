@@ -441,18 +441,24 @@ internal:
 #if 0
         if (rip[-2] == 0x0f && rip[-1] == 0x05) {
             /*
-             * TODO: syscall number is passed in siginfo::si_syscall
-             * Currently PAL_CONTEXT doesn't pass it.
-             * Fix PAL_CONTEXT and support Linux PAL with SYSSIG/seccomp.
+             * TODO:
+             * - add a new member for signfo_t::si_syscall to PAL_CONTEXT.
+             *   (and add more members of siginfo_t to PAL_CONTEXT for
+             *    consistency)
+             * - update PAL implementation to fill siginfo_t::si_syscall
+             *   (and other newly added members) in PAL_CONTEXT for upcall.
              */
-
             /*
-             * SIGSYS case (can happend with Linux PAL with seccomp)
+             * SIGSYS case (can happen with Linux PAL with seccomp)
              * rip points to the address after syscall instruction
              * %rcx: syscall instruction must put an
              *       instruction-after-syscall in rcx
              */
-            context->rax = siginfo->si_syscall; /* PAL_CONTEXT doesn't pass */
+            context->rax = siginfo->si_syscall; /* PAL_CONTEXT doesn't
+                                                 * include a member
+                                                 * corresponding to
+                                                 * siginfo_t::si_syscall yet.
+                                                 */
             context->rcx = (long)rip;
             context->rip = (long)&syscall_wrapper;
         } else

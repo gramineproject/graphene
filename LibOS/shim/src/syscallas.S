@@ -104,7 +104,7 @@ ret:
 isundef:
 #ifdef DEBUG
         mov %rax, %rdi
-        ## syscall_wrapper requires %rcx preserved
+        # syscall_wrapper requires %rcx preserved
         pushq %rcx
         call *debug_unsupp@GOTPCREL(%rip)
         popq %rcx

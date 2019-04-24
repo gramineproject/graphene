@@ -318,9 +318,7 @@ typedef struct ucontext {
     struct _libc_fpstate __fpregs_mem;
 } ucontext_t;
 
-#ifndef REDZONE_SIZE
-# define REDZONE_SIZE   128
-#endif
+#define REDZONE_SIZE   128
 
 /* bits/ustat.h */
 struct __kernel_ustat
