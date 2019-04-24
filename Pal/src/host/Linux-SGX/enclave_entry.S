@@ -102,6 +102,20 @@ enclave_entry:
 	# PAL convention:
 	# RDI - external event
 
+	# Nested exceptions at the host-OS level are disallowed:
+	# - Synchronous exceptions are assumed to never happen during
+	#   handle_resume;
+	# - Asynchronous signals are not nested by benign host OS because
+	#   we mask asynchronous signals on signal handler.
+	# If malicious host OS injects a nested signal, CSSA != 1 and we
+	# fail execution.
+	# This FAIL_LOOP is assertion only because
+	# currently this is also enforced by EENTER because NSSA == 2
+	cmpq $1, %rax
+	je 1f
+	FAIL_LOOP
+1:
+
 	# get some information from GPR
 	movq %gs:SGX_GPR, %rbx
 
