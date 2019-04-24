@@ -8,7 +8,7 @@
 # if defined(PSEUDO) && defined(SYSCALL_NAME) && defined(SYSCALL_SYMBOL)
 #  define SYSCALLDB                 \
     subq $128, %rsp;                \
-    call syscalldb@GOTPCREL(%rip);  \
+    callq *syscalldb@GOTPCREL(%rip);\
     addq $128, %rsp
 # else
 # define SYSCALLDB                  \
