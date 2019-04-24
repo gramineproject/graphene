@@ -370,7 +370,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (areas[i].addr)
             continue;
         areas[i].addr = populating - areas[i].size;
-        populating = areas[i].addr - MEMORY_GAP;
+        populating = areas[i].addr > MEMORY_GAP ? areas[i].addr - MEMORY_GAP : 0;
     }
 
     enclave_entry_addr += pal_area->addr;
@@ -379,7 +379,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (exec_area->addr + exec_area->size > pal_area->addr)
             return -EINVAL;
 
-        if (exec_area->addr + exec_area->size < populating) {
+        if (exec_area->addr + exec_area->size + MEMORY_GAP < populating) {
             if (populating > heap_min) {
                 unsigned long addr = exec_area->addr + exec_area->size + MEMORY_GAP;
                 if (addr < heap_min)
@@ -388,7 +388,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                          PROT_READ|PROT_WRITE|PROT_EXEC, SGX_PAGE_REG);
             }
 
-            populating = exec_area->addr - MEMORY_GAP;
+            populating = exec_area->addr > MEMORY_GAP ? exec_area->addr - MEMORY_GAP : 0;
         }
     }
 
