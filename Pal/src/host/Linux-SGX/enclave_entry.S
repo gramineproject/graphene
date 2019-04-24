@@ -99,6 +99,15 @@ enclave_entry:
 	# PAL convention:
 	# RDI - external event
 
+	# It is assumed that synchronous exception doesn't happen during
+	# .Lhandle_resume. the host OS doesn't inject async signal nestedly
+	# as it masks async signals on signal handler.
+	# If malicious host OS inject exception nestedly, stop execution.
+	cmpq $1, %rax
+	je 1f
+	FAIL_LOOP
+1:
+
 	# get some information from GPR
 	movq %gs:SGX_GPR, %rbx
 
