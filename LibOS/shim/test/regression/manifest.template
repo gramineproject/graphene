@@ -18,5 +18,6 @@ net.rules.2 = 0.0.0.0:0-65535:127.0.0.1:8000
 
 sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
+sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 sgx.trusted_files.victim = file:exec_victim
 sgx.trusted_children.victim = file:exec_victim.sig

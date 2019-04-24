@@ -30,6 +30,7 @@ static int sgx_ocall_exit(void* prv)
         SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
         rv = 255;
     }
+    unmap_tcs();
     INLINE_SYSCALL(exit, 1, (int)rv);
     return 0;
 }

@@ -58,7 +58,6 @@ void unmap_tcs (void)
     current_tcs = NULL;
     ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[index] = 0;
     map->tid = 0;
-    map->tcs = NULL;
 }
 
 static void * thread_start (void * arg)

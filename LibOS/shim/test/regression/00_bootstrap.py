@@ -48,3 +48,13 @@ regression.add_check(name="Exit Code Propagation",
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
+
+# Multi-thread Test
+regression = Regression(loader, "multi_pthread")
+
+regression.add_check(name="Multiple Thread Creation",
+    check=lambda res: "128 Threads Created" in res[0].out)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+

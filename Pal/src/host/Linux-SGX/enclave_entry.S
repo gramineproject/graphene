@@ -262,7 +262,17 @@ sgx_ocall:
 
 	pushq %rbp
 
+	# clear tls for tls/tcs reuse if it's ocall_exit
+	cmpq $0, %rdi
+	je .Lclear
+
 	movq $1, %gs:SGX_OCALL_PREPARED
+	jmp .Leexit
+
+.Lclear:
+	movq $0, %gs:SGX_OCALL_PREPARED
+	movq $0, %gs:SGX_ECALL_CALLED
+	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
 
 .Leexit:
 	xorq %rdx, %rdx
