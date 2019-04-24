@@ -23,6 +23,6 @@
 
 #define PRINT_ENCLAVE_STAT  (0)
 
-#define RED_ZONE            (128)
+#define RED_ZONE_SIZE       (128)
 
 #endif /* PAL_LINUX_DEFS_H */
