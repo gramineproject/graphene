@@ -326,13 +326,13 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
 
     // initialize variables to get body
     void * buffer = __alloca(hdl_hdr.data_size);
-    unsigned int nfds = 0;
+    uint32_t nfds = 0;
 
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i))
             nfds++;
 
-    unsigned int * fds = __alloca(sizeof(unsigned int) * nfds);
+    uint32_t * fds = __alloca(sizeof(unsigned int) * nfds);
 
     ret = ocall_sock_recv_fd(ch, buffer, hdl_hdr.data_size,
                              fds, &nfds);
@@ -345,8 +345,8 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     if (ret < 0)
         return ret;
 
-    unsigned int n = 0;
-    for (int i = 0 ; i < MAX_FDS ; i++)
+    uint32_t n = 0;
+    for (uint32_t i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < nfds) {
                 handle->generic.fds[i] = fds[n++];

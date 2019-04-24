@@ -955,7 +955,7 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
     assert(agreesz > 0 && agreesz <= sizeof agree);
     // TODO(security): use a real KDF
     memset(session_key, 0, sizeof(session_key));
-    for (unsigned int i = 0 ; i < agreesz ; i++)
+    for (uint32_t i = 0 ; i < agreesz ; i++)
         session_key[i % sizeof(session_key)] ^= agree[i];
 
     SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key,

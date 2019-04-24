@@ -414,7 +414,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
-            for (unsigned int t = 0 ; t < enclave->thread_num ; t++) {
+            for (uint32_t t = 0 ; t < enclave->thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
                 gs->enclave_size = enclave->size;
                 gs->tcs_offset = tcs_area->addr + pagesize * t;
@@ -431,7 +431,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 
-            for (unsigned int t = 0 ; t < enclave->thread_num ; t++) {
+            for (uint32_t t = 0 ; t < enclave->thread_num ; t++) {
                 sgx_arch_tcs_t * tcs = data + pagesize * t;
                 memset(tcs, 0, pagesize);
                 tcs->ossa = ssa_area->addr +

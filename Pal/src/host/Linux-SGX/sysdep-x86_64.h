@@ -160,7 +160,7 @@
 
 #undef INTERNAL_SYSCALL_ERROR_P
 #define INTERNAL_SYSCALL_ERROR_P(val) \
-  ((long) (val) >= -4095L)
+  ((unsigned long) (val) >= (unsigned long)-4095L)
 
 #undef INTERNAL_SYSCALL_ERRNO
 #define INTERNAL_SYSCALL_ERRNO(val) (-(val))

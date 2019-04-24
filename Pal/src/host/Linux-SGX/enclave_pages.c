@@ -120,7 +120,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
     void * avail_top = heap_base + heap_size;
 
     listp_for_each_entry(vma, &heap_vma_list, list) {
-        if ((uint64_t)avail_top - (uint64_t)vma->top > size) {
+        if ((char*)avail_top - (char*)vma->top > size) {
             addr = avail_top - size;
             goto allocated;
         }
