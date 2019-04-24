@@ -122,7 +122,7 @@ int _DkRandomBitsRead (void * buffer, int size)
     do {
         unsigned long rand;
         asm volatile (".Lretry: rdrand %%rax\r\n jnc .Lretry\r\n"
-                      : "=a"(rand) :: "memory");
+                      : "=a"(rand) :: "memory", "cc");
 
         if (total_bytes + sizeof(rand) <= size) {
             *(unsigned long *) (buffer + total_bytes) = rand;
