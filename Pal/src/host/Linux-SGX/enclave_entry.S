@@ -17,6 +17,10 @@ enclave_entry:
 	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
 	# RCX is the address of AEP. Other registers are not trusted.
 
+	# x86-64 sysv abi requires %rFLAGS.DF = 0 on entry to function call.
+	# Ensure it because we shouldn't depend on uRTS calling us.
+	cld
+
 	# current SSA is in RAX (Trusted)
 	cmpq $0, %rax
 	jne .Lhandle_resume
