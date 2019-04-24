@@ -35,7 +35,7 @@ extern uint64_t dummy_debug_variable;
         struct enclave_tls * tmp;                                   \
         uint64_t val;                                               \
         _Static_assert(sizeof(tmp->member) == 8,                    \
-                       "sgx_tls member should have 8bytes type");   \
+                       "sgx_tls member should have 8-byte type");   \
         __asm__ ("movq %%gs:%c1, %q0": "=r" (val)                   \
              : "i" (offsetof(struct enclave_tls, member)));         \
         (__typeof(tmp->member)) val;                                \
@@ -44,9 +44,9 @@ extern uint64_t dummy_debug_variable;
     do {                                                            \
         struct enclave_tls * tmp;                                   \
         _Static_assert(sizeof(tmp->member) == 8,                    \
-                       "sgx_tls member should have 8bytes type");   \
+                       "sgx_tls member should have 8-byte type");   \
         _Static_assert(sizeof(value) == 8,                          \
-                       "only 8 bytes type can be set to sgx_tls");  \
+                       "only 8-byte type can be set to sgx_tls");  \
         __asm__ ("movq %q0, %%gs:%c1":: "r" (value),                \
              "i" (offsetof(struct enclave_tls, member)));           \
     } while (0)

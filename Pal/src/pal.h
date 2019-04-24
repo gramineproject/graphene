@@ -86,7 +86,10 @@ typedef union pal_handle
 
 #endif /* !IN_PAL */
 
-//#define SHIM_TCB_USE_GS 1   /* TODO: configuration variable */
+/* TODO: introduce configuration system in long term and
+         make SHIM_TCB_USE_GS easily configurable without source code
+         modification */
+//#define SHIM_TCB_USE_GS 1
 #undef SHIM_TCB_USE_GS
 
 #if defined(IN_PAL) || defined(SHIM_TCB_USE_GS)
@@ -96,10 +99,9 @@ typedef struct pal_tcb {
     struct pal_tcb * self;
     /* uint64_t for alignment */
 #ifdef SHIM_TCB_USE_GS
-    uint64_t libos_tcb[PAL_LIBOS_TCB_SIZE / sizeof(uint64_t)];
+    uint64_t libos_tcb[(PAL_LIBOS_TCB_SIZE + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
 #endif
-    /* data private to PAL implementation follows. */
-    uint64_t private[];
+    /* data private to PAL implementation follow to this structure. */
 } PAL_TCB;
 
 static inline PAL_TCB * pal_get_tcb (void)
