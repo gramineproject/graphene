@@ -25,6 +25,8 @@ enclave_heap_min = DEFAULT_HEAP_MIN
 
 """ Utilities """
 
+ZERO_PAGE = "\0" * PAGESIZE
+
 def roundup(addr):
     remaining = addr % PAGESIZE
     if remaining:
@@ -301,13 +303,15 @@ def get_loadcmds(filename):
     return loadcmds
 
 class MemoryArea:
-    def __init__(self, desc, file=None, addr=None, size=None, flags=None):
+    def __init__(self, desc, file=None, content=None, addr=None, size=None, flags=None, measure=True):
         self.desc = desc
         self.file = file
+        self.content = content
         self.addr = addr
         self.size = size
         self.flags = flags
         self.is_binary = False
+        self.measure = measure
 
         if file:
             loadcmds = get_loadcmds(file)
@@ -352,6 +356,81 @@ def get_memory_areas(manifest, attr, args):
                                 flags=PAGEINFO_W|PAGEINFO_REG))
     return areas
 
+def find_areas(areas, desc):
+    return filter(lambda area: area.desc == desc, areas)
+
+def find_area(areas, desc, allow_none=False):
+    matching = find_areas(areas, desc)
+
+    if len(matching) == 0 and allow_none:
+        return None
+
+    if len(matching) != 1:
+        raise KeyError("Could not find exactly one MemoryArea '{}'".format(desc))
+
+    return matching[0]
+
+def entry_point(elf_path):
+    env = os.environ
+    env['LC_ALL'] = 'C'
+    out = subprocess.check_output(['readelf', '-l', '--', elf_path], env = env)
+    for line in out.splitlines():
+        if line.startswith("Entry point "):
+            return parse_int(line[12:])
+    raise ValueError("Could not find entry point of elf file")
+
+def baseaddr():
+    if enclave_heap_min == 0:
+        return ENCLAVE_HIGH_ADDRESS
+    else:
+        return 0
+
+def gen_area_content(attr, areas):
+    exec_area = find_area(areas, 'exec', True)
+    pal_area = find_area(areas, 'pal')
+    ssa_area = find_area(areas, 'ssa')
+    tcs_area = find_area(areas, 'tcs')
+    tls_area = find_area(areas, 'tls')
+    stacks = find_areas(areas, 'stack')
+
+    tcs_data = bytearray(tcs_area.size)
+    def set_tcs_field(t, offset, pack_fmt, value):
+        struct.pack_into(pack_fmt, tcs_data, t * TCS_SIZE + offset, value)
+
+    tls_data = bytearray(tls_area.size)
+    def set_tls_field(t, offset, value):
+        struct.pack_into('<Q', tls_data, t * PAGESIZE + offset, value)
+
+    enclave_heap_max = pal_area.addr - MEMORY_GAP
+
+    # Sanity check that we measure everything except the heap which is zeroed
+    # on enclave startup.
+    for area in areas:
+        if area.addr + area.size <= enclave_heap_min or area.addr >= enclave_heap_max or area is exec_area:
+            if not area.measure:
+                raise ValueError("Memory area, which is not the heap, is not measured")
+        elif area.desc != 'free':
+            raise ValueError("Unexpected memory area is in heap range")
+
+    for t in range(0, attr['thread_num']):
+        ssa_offset = ssa_area.addr + SSAFRAMESIZE * SSAFRAMENUM * t;
+        ssa = baseaddr() + ssa_offset
+        set_tcs_field(t, TCS_OSSA, '<Q', ssa_offset)
+        set_tcs_field(t, TCS_NSSA, '<L', SSAFRAMENUM)
+        set_tcs_field(t, TCS_OENTRY, '<Q', pal_area.addr + entry_point(pal_area.file))
+        set_tcs_field(t, TCS_OGSBASGX, '<Q', tls_area.addr + PAGESIZE * t)
+        set_tcs_field(t, TCS_FSLIMIT, '<L', 0xfff)
+        set_tcs_field(t, TCS_GSLIMIT, '<L', 0xfff)
+
+        set_tls_field(t, SGX_ENCLAVE_SIZE, attr['enclave_size'])
+        set_tls_field(t, SGX_TCS_OFFSET, tcs_area.addr + TCS_SIZE * t)
+        set_tls_field(t, SGX_INITIAL_STACK_OFFSET, stacks[t].addr + stacks[t].size)
+        set_tls_field(t, SGX_SSA, ssa)
+        set_tls_field(t, SGX_GPR, ssa + SSAFRAMESIZE - SGX_GPR_SIZE)
+
+    tcs_area.content = tcs_data
+    tls_area.content = tls_data
+
 def populate_memory_areas(manifest, attr, areas):
     populating = attr['enclave_size']
 
@@ -372,13 +451,17 @@ def populate_memory_areas(manifest, attr, areas):
         if area.addr + area.size < populating:
             addr = area.addr + area.size
             free_areas.append(MemoryArea('free', addr=addr, size=populating - addr,
-                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
+                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG,
+                                measure=False))
             populating = area.addr
 
     if populating > enclave_heap_min:
         free_areas.append(MemoryArea('free', addr=enclave_heap_min,
                                      size=populating - enclave_heap_min,
-                                     flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
+                                     flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG,
+                                     measure=False))
+
+    gen_area_content(attr, areas)
 
     return areas + free_areas
 
@@ -392,9 +475,22 @@ def generate_measurement(attr, areas):
         data = struct.pack("<8sQQ40s", "EADD", offset, flags, "")
         digest.update(data)
 
-    def do_eextend(digest, offset):
+    def do_eextend(digest, offset, content):
+        if len(content) != 256:
+            raise ValueError("Exactly 256 bytes expected")
+
         data = struct.pack("<8sQ48s", "EEXTEND", offset, "")
         digest.update(data)
+        digest.update(content)
+
+    def include_page(digest, offset, flags, content, measure):
+        if len(content) != PAGESIZE:
+            raise ValueError("Exactly one page expected")
+
+        do_eadd(digest, offset, flags)
+        if measure:
+            for i in range(0, PAGESIZE, 256):
+                do_eextend(digest, offset + i, content[i:i + 256])
 
     mrenclave = hashlib.sha256()
     do_ecreate(mrenclave, attr['enclave_size'])
@@ -428,42 +524,34 @@ def generate_measurement(attr, areas):
         f_size = roundup(offset + filesize) - f_addr
         m_size = roundup(addr + memsize) - m_addr
 
-        print_area(m_addr, f_size, flags, desc, True)
-        if f_size < m_size:
-            print_area(m_addr + f_size, m_size - f_size, flags, "bss", False)
+        print_area(m_addr, m_size, flags, desc, True)
 
         for pg in range(m_addr, m_addr + m_size, PAGESIZE):
-            do_eadd(digest, pg, flags)
-
-            if (pg >= m_addr + f_size):
-                continue
-
-            for er in range(pg, pg + PAGESIZE, 256):
-                do_eextend(digest, er)
-                start = er - m_addr + f_addr
-                end = start + 256
-                start_zero = ""
-                if start < offset:
-                    if offset - start >= 256:
-                        start_zero = chr(0) * 256
-                    else:
-                        start_zero = chr(0) * (offset - start)
-                end_zero = ""
-                if end > offset + filesize:
-                    if end - offset - filesize >= 256:
-                        end_zero = chr(0) * 256
-                    else:
-                        end_zero = chr(0) * (end - offset - filesize)
-                start += len(start_zero)
-                end -= len(end_zero)
-                if start < end:
-                    f.seek(start)
-                    data = f.read(end - start)
+            start = pg - m_addr + f_addr
+            end = start + PAGESIZE
+            start_zero = ""
+            if start < offset:
+                if offset - start >= PAGESIZE:
+                    start_zero = ZERO_PAGE
                 else:
-                    data = ""
-                if len(start_zero + data + end_zero) != 256:
+                    start_zero = chr(0) * (offset - start)
+            end_zero = ""
+            if end > offset + filesize:
+                if end - offset - filesize >= PAGESIZE:
+                    end_zero = ZERO_PAGE
+                else:
+                    end_zero = chr(0) * (end - offset - filesize)
+            start += len(start_zero)
+            end -= len(end_zero)
+            if start < end:
+                f.seek(start)
+                data = f.read(end - start)
+            else:
+                data = ""
+            if len(start_zero + data + end_zero) != PAGESIZE:
                     raise Exception("wrong calculation")
-                digest.update(start_zero + data + end_zero)
+
+            include_page(digest, pg, flags, start_zero + data + end_zero, True)
 
     for area in areas:
         if area.file:
@@ -497,8 +585,15 @@ def generate_measurement(attr, areas):
                               area.desc, area.flags)
         else:
             for a in range(area.addr, area.addr + area.size, PAGESIZE):
-                do_eadd(mrenclave, a, area.flags)
-            print_area(area.addr, area.size, area.flags, area.desc, False)
+                data = ZERO_PAGE
+                if area.content is not None:
+                    start = a - area.addr
+                    end = start + PAGESIZE
+                    data = area.content[start:end]
+
+                include_page(mrenclave, a, area.flags, data, area.measure)
+
+            print_area(area.addr, area.size, area.flags, area.desc, area.measure)
 
     return mrenclave.digest()
 

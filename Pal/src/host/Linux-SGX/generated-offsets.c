@@ -30,6 +30,7 @@ void dummy(void)
     OFFSET_T(SGX_GPR_RFLAGS, sgx_arch_gpr_t, rflags);
     OFFSET_T(SGX_GPR_RIP, sgx_arch_gpr_t, rip);
     OFFSET_T(SGX_GPR_EXITINFO, sgx_arch_gpr_t, exitinfo);
+    DEFINE(SGX_GPR_SIZE, sizeof(sgx_arch_gpr_t));
 
     /* sgx_context_t */
     OFFSET_T(SGX_CONTEXT_RAX, sgx_context_t, rax);
@@ -70,6 +71,12 @@ void dummy(void)
     OFFSET(SGX_READY_FOR_EXCEPTIONS, enclave_tls, ready_for_exceptions);
 
     /* sgx_arch_tcs_t */
+    OFFSET_T(TCS_OSSA, sgx_arch_tcs_t, ossa);
+    OFFSET_T(TCS_NSSA, sgx_arch_tcs_t, nssa);
+    OFFSET_T(TCS_OENTRY, sgx_arch_tcs_t, oentry);
+    OFFSET_T(TCS_OGSBASGX, sgx_arch_tcs_t, ogsbasgx);
+    OFFSET_T(TCS_FSLIMIT, sgx_arch_tcs_t, fslimit);
+    OFFSET_T(TCS_GSLIMIT, sgx_arch_tcs_t, gslimit);
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
 
     /* sgx_arch_attributes_t */
