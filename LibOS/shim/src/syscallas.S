@@ -137,16 +137,16 @@ isundef:
          * %rcx: Instruction address to continue app execution after trapped
          *       syscall instruction
          * %r11: rflags on entering syscall
+         *
+         * FIXME: preserve rflags.
          */
 syscall_wrapper:
         .cfi_startproc
 
         subq $RED_ZONE_SIZE, %rsp
-        pushq %rcx
-        pushq %r11
         callq *syscalldb@GOTPCREL(%rip)
-        popfq
-        retq $RED_ZONE_SIZE
+        addq $RED_ZONE_SIZE, %rsp
+        jmp *%rcx
 
         .cfi_endproc
         .size syscall_wrapper, .-syscall_wrapper
