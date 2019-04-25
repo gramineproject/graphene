@@ -2,6 +2,8 @@
 
 #include "sgx_arch.h"
 #include "sgx_tls.h"
+#include "pal_linux.h"
+#include "pal_linux_defs.h"
 
 #include <generated-offsets-build.h>
 
@@ -68,5 +70,15 @@ void dummy(void)
 
     /* sgx_arch_tcs_t */
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
+
+    /* pal_linux_def.h */
+    DEFINE(ENCLAVE_HIGH_ADDRESS, ENCLAVE_HIGH_ADDRESS);
+    DEFINE(SSAFRAMENUM, SSAFRAMENUM);
+    DEFINE(MEMORY_GAP, MEMORY_GAP);
+    DEFINE(ENCLAVE_STACK_SIZE, ENCLAVE_STACK_SIZE);
+    DEFINE(DEFAULT_HEAP_MIN, DEAFULT_HEAP_MIN);
+
+    /* pal_linux.h */
+    DEFINE(PAGESIZE, PRESET_PAGESIZE);
 }
 
