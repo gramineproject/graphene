@@ -1,4 +1,4 @@
-#include <asm-offsets-build.h>
+#include <generated-offsets-build.h>
 
 #include <stddef.h>
 

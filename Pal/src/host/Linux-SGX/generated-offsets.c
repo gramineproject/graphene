@@ -3,7 +3,7 @@
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 
-#include <asm-offsets-build.h>
+#include <generated-offsets-build.h>
 
 void dummy(void)
 {
