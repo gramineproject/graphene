@@ -460,6 +460,7 @@ internal:
                                                  * siginfo_t::si_syscall yet.
                                                  */
             context->rcx = (long)rip;
+            context->r11 = context->efl;
             context->rip = (long)&syscall_wrapper;
         } else
 #endif
@@ -471,6 +472,7 @@ internal:
              * TODO: check SIGILL and ILL_ILLOPN
              */
             context->rcx = (long)rip + 2;
+            context->r11 = context->efl;
             context->rip = (long)&syscall_wrapper;
         } else {
             deliver_signal(ALLOC_SIGINFO(SIGILL, ILL_ILLOPC, si_addr, (void *) arg), context);

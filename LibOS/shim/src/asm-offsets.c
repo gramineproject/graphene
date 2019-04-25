@@ -19,6 +19,6 @@ void dummy(void)
     OFFSET_T(TCB_REGS, shim_tcb_t, context.regs);
 
     /* definitions */
-    DEFINE(REDZONE_SIZE, REDZONE_SIZE);
+    DEFINE(RED_ZONE_SIZE, RED_ZONE_SIZE);
 }
 

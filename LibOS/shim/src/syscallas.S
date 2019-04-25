@@ -103,10 +103,24 @@ ret:
 
 isundef:
 #ifdef DEBUG
-        mov %rax, %rdi
-        # syscall_wrapper requires %rcx preserved
+        # syscalldb preseves registers. push caller save registers
         pushq %rcx
-        call *debug_unsupp@GOTPCREL(%rip)
+        pushq %rdx
+        pushq %rsi
+        pushq %rdi
+        pushq %r8
+        pushq %r9
+        pushq %r10
+        pushq %r11
+        movq %rax, %rdi
+        callq *debug_unsupp@GOTPCREL(%rip)
+        popq %r11
+        popq %r10
+        popq %r9
+        popq %r8
+        popq %rdi
+        popq %rsi
+        popq %rdx
         popq %rcx
 #endif
         movq $-38, %rax	    # ENOSYS = 38
@@ -122,14 +136,17 @@ isundef:
          * input:
          * %rcx: Instruction address to continue app execution after trapped
          *       syscall instruction
+         * %r11: rflags on entering syscall
          */
 syscall_wrapper:
         .cfi_startproc
 
-        subq $REDZONE_SIZE, %rsp
+        subq $RED_ZONE_SIZE, %rsp
+        pushq %rcx
+        pushq %r11
         callq *syscalldb@GOTPCREL(%rip)
-        addq $REDZONE_SIZE, %rsp
-        jmpq *%rcx  /* syscalldb preserves %rcx */
+        popfq
+        retq $RED_ZONE_SIZE
 
         .cfi_endproc
         .size syscall_wrapper, .-syscall_wrapper
