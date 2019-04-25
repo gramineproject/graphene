@@ -252,7 +252,7 @@ enclave_entry:
 
 	# %rax is argument to EEXIT
 	# %rbx is argument to EEXIT
-	# %rcx is set to AEX by EEXIT
+	# %rcx is set to AEP by EEXIT
 	xorq %rdx, %rdx
 	# %rsi, %rdi are arguments to the untrusted code
 	xorq %rbp, %rbp
