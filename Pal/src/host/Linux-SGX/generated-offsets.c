@@ -4,7 +4,7 @@
 #include "sgx_tls.h"
 #include "pal_security.h"
 
-#include <asm-offsets-build.h>
+#include <generated-offsets-build.h>
 
 void dummy(void)
 {

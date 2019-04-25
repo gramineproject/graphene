@@ -1,5 +1,6 @@
 /asm-offsets.h
-/asm-offsets.s
+/generated-offsets.s
+/generated_offsets.py
 /pal-sgx
 
 *.pem
