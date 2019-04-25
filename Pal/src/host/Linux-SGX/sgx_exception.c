@@ -91,8 +91,8 @@ int set_sighandler (int * sigs, int nsig, void * handler)
     action.sa_restorer = __restore_rt;
 #endif
 
-    /* during enclave handling exception,
-     * don't inject async exception nestedly. */
+    /* Disallow nested asynchronous signals during enclave exception handling.
+     */
     __sigemptyset((__sigset_t *) &action.sa_mask);
     __sigaddset((__sigset_t *) &action.sa_mask, SIGTERM);
     __sigaddset((__sigset_t *) &action.sa_mask, SIGINT);

@@ -99,10 +99,13 @@ enclave_entry:
 	# PAL convention:
 	# RDI - external event
 
-	# It is assumed that synchronous exception doesn't happen during
-	# .Lhandle_resume. the host OS doesn't inject async signal nestedly
-	# as it masks async signals on signal handler.
-	# If malicious host OS inject exception nestedly, stop execution.
+	# Nested exceptions at the host-OS level are disallowed:
+	# - Synchronous exceptions are assumed to never happen during
+	#   handle_resume;
+	# - Asynchronous signals are not nested by benign host OS because
+	#   we mask asynchronous signals on signal handler.
+	# If malicious host OS injects a nested signal, CSSA != 1 and we
+	# fail execution.
 	cmpq $1, %rax
 	je 1f
 	FAIL_LOOP
