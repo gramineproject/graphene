@@ -38,7 +38,6 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/wait.h>
-#include <limits.h>
 
 #if defined(__i386__)
 #include <asm/ldt.h>
@@ -140,17 +139,15 @@ int _DkThreadDelayExecution (unsigned long * duration)
     struct timespec sleeptime;
     struct timespec remainingtime;
 
-    long sec;
-    long nsec;
-    if (*duration / 1000000 > LONG_MAX) {
-        sec = LONG_MAX;
-        nsec = 0;
+#define VERY_LONG_TIME_IN_MS    (1000000L * 60 * 60 * 24 * 365 * 128)
+    if (*duration > VERY_LONG_TIME_IN_MS) {
+        /* avoid overflow with time_t */
+        sleeptime.tv_sec  = VERY_LONG_TIME_IN_MS / 1000000;
+        sleeptime.tv_nsec = 0;
     } else {
-        sec = *duration / 1000000;
-        nsec = (*duration - (unsigned long)sec * 1000000) * 1000;
+        sleeptime.tv_sec = *duration / 1000000;
+        sleeptime.tv_nsec = (*duration - sleeptime.tv_sec * 1000000) * 1000;
     }
-    sleeptime.tv_sec = sec;
-    sleeptime.tv_nsec = nsec;
 
     int ret = INLINE_SYSCALL(nanosleep, 2, &sleeptime, &remainingtime);
 
