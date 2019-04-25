@@ -249,15 +249,15 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     /* For {p,u,g}ids we can at least do some minimal checking. */
 
-    /* ppid should be positive when interpreted as signed. Or -1 if we don't
+    /* ppid should be positive when interpreted as signed. It's 0 if we don't
      * have a graphene parent process. */
-    if (sec_info.ppid > INT32_MAX && sec_info.ppid != (PAL_IDX)-1) {
+    if (sec_info.ppid > INT32_MAX) {
         return;
     }
     pal_sec.ppid = sec_info.ppid;
 
-    /* As ppid but we always have a pid, so -1 is invalid. */
-    if (sec_info.ppid > INT32_MAX) {
+    /* As ppid but we always have a pid, so 0 is invalid. */
+    if (sec_info.pid > INT32_MAX || sec_info.pid == 0) {
         return;
     }
     pal_sec.pid = sec_info.pid;
