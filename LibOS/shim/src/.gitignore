@@ -1,3 +1,3 @@
 libsysdb.so.cached
-asm-offsets.h
-asm-offsets.s
+/asm-offsets.h
+/generated-offsets.s
