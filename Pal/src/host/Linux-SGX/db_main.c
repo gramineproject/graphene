@@ -226,11 +226,8 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
      * We can't verify the following arguments from the urts. So we copy
      * them directly but need to be careful when we use them.
      */
+
     pal_sec.instance_id = sec_info.instance_id;
-    pal_sec.ppid = sec_info.ppid;
-    pal_sec.pid = sec_info.pid;
-    pal_sec.uid = sec_info.uid;
-    pal_sec.gid = sec_info.gid;
 
     COPY_ARRAY(pal_sec.exec_name, sec_info.exec_name);
     pal_sec.exec_name[sizeof(pal_sec.exec_name) - 1] = '\0';
@@ -249,6 +246,29 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 #if PRINT_ENCLAVE_STAT == 1
     pal_sec.start_time = sec_info.start_time;
 #endif
+
+    /* For {p,u,g}ids we can at least do some minimal checking. */
+
+    /* ppid should be positive when interpreted as signed. Or -1 if we don't
+     * have a graphene parent process. */
+    if (sec_info.ppid > INT32_MAX && sec_info.ppid != (PAL_IDX)-1) {
+        return;
+    }
+    pal_sec.ppid = sec_info.ppid;
+
+    /* As ppid but we always have a pid, so -1 is invalid. */
+    if (sec_info.ppid > INT32_MAX) {
+        return;
+    }
+    pal_sec.pid = sec_info.pid;
+
+    /* -1 is treated as special value for example by chown. */
+    if (sec_info.uid == (PAL_IDX)-1 || sec_info.gid == (PAL_IDX)-1) {
+        return;
+    }
+    pal_sec.uid = sec_info.uid;
+    pal_sec.gid = sec_info.gid;
+
 
     /* TODO: remove with PR #589 */
     pal_sec.heap_min = sec_info.heap_min;
