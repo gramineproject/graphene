@@ -340,7 +340,7 @@ void _DkExceptionReturn (void * event)
                       "retq\r\n" ::: "memory");
     }
 
-    // Allocate sgx_contex_t just below the "normal" stack (honoring the red
+    // Allocate sgx_context_t just below the "normal" stack (honoring the red
     // zone) and then copy the content of ctx there. This is needed by
     // restore_sgx_context.
     sgx_context_t * uc = (void *)ctx->rsp - sizeof(sgx_context_t) - RED_ZONE_SIZE;

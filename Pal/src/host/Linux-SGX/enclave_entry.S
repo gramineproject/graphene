@@ -472,12 +472,11 @@ _restore_sgx_context:
 	movq SGX_CONTEXT_R14(%rdi), %r14
 	movq SGX_CONTEXT_R15(%rdi), %r15
 
-        # We need to make sure that %rsp - RED_ZONE_SIZE never points above
-        # anything we still need. Otherwise .Lhandle_exception might mess with
-        # it. SGX_CONTEXT_RDI - SGX_CONTEXT_RFLAGS <= RED_ZONE_SIZE, see
-        # sgx_arch.h.
-	movq %rdi, %rsp
-	addq $SGX_CONTEXT_RFLAGS, %rsp
+	# We need to make sure that %rsp - RED_ZONE_SIZE never points above
+	# anything we still need. Otherwise .Lhandle_exception might mess with
+	# it. SGX_CONTEXT_RDI - SGX_CONTEXT_RFLAGS <= RED_ZONE_SIZE, see
+	# sgx_arch.h.
+	leaq SGX_CONTEXT_RFLAGS(%rdi), %rsp
 	popfq # remember to not touch any flags after here
 
 	movq SGX_CONTEXT_RDI(%rdi), %rdi

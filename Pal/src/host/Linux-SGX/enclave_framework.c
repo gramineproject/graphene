@@ -1188,7 +1188,7 @@ out:
  *     ctx == ctx->rsp - (sizeof(sgx_context_t) + RED_ZONE_SIZE)
  *
  * This means that the ctx is allocated directly below the "normal" stack
- * (honoring it's red zone). This is needed to properly restore the old state
+ * (honoring its red zone). This is needed to properly restore the old state
  * (see _restore_sgx_context for details).
  *
  * For the original sgx_context_t allocated by .Lhandle_exception this is true.
