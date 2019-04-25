@@ -10,21 +10,18 @@ import hashlib
 import binascii
 import shutil
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from generated_offsets import *
+
 """ Default / Architectural Options """
 
 ARCHITECTURE = "amd64"
 
-PAGESIZE = 4096
-MEMORY_GAP = PAGESIZE
-
-TCSSIZE = PAGESIZE
 SSAFRAMESIZE = PAGESIZE
-SSAFRAMENUM = 2
 
-ENCLAVE_STACK_SIZE = PAGESIZE * 16
 DEFAULT_ENCLAVE_SIZE = '256M'
 DEFAULT_THREAD_NUM = 4
-ENCLAVE_HEAP_MIN = 0x10000
+enclave_heap_min = DEFAULT_HEAP_MIN
 
 """ Utilities """
 
@@ -339,7 +336,7 @@ def get_memory_areas(manifest, attr, args):
     areas = []
     areas.append(MemoryArea('ssa', size=attr['thread_num'] * SSAFRAMESIZE * SSAFRAMENUM,
                             flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
-    areas.append(MemoryArea('tcs', size=attr['thread_num'] * TCSSIZE,
+    areas.append(MemoryArea('tcs', size=attr['thread_num'] * TCS_SIZE,
                             flags=PAGEINFO_TCS))
     areas.append(MemoryArea('tls', size=attr['thread_num'] * PAGESIZE,
                             flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
@@ -363,7 +360,7 @@ def populate_memory_areas(manifest, attr, areas):
             continue
 
         area.addr = populating - area.size
-        if area.addr < ENCLAVE_HEAP_MIN:
+        if area.addr < enclave_heap_min:
             raise Exception("Enclave size is not large enough")
         if area.desc == 'exec':
             populating = area.addr;
@@ -378,9 +375,9 @@ def populate_memory_areas(manifest, attr, areas):
                                 flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
             populating = area.addr
 
-    if populating > ENCLAVE_HEAP_MIN:
-        free_areas.append(MemoryArea('free', addr=ENCLAVE_HEAP_MIN,
-                                     size=populating - ENCLAVE_HEAP_MIN,
+    if populating > enclave_heap_min:
+        free_areas.append(MemoryArea('free', addr=enclave_heap_min,
+                                     size=populating - enclave_heap_min,
                                      flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG))
 
     return areas + free_areas
@@ -728,7 +725,7 @@ if __name__ == "__main__":
     if len([a for a in memory_areas if a.addr is not None]) > 0:
         manifest['sgx.static_address'] = '1'
     else:
-        ENCLAVE_HEAP_MIN = 0
+        enclave_heap_min = 0
 
     # Add manifest at the top
     shutil.copy2(args['manifest'], args['output'])
