@@ -219,7 +219,7 @@ int ocall_read (int fd, void * buf, unsigned int count)
     int retval = 0;
     void * obuf = NULL;
 
-    if (count > 4096) {
+    if (count > pal_state.pagesize) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (retval < 0)
             return retval;
@@ -252,7 +252,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
     int retval = 0;
     void * obuf = NULL;
 
-    if (count > 4096) {
+    if (count > pal_state.pagesize) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (retval < 0)
             return retval;
@@ -584,7 +584,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
     void *obuf = NULL;
     unsigned int len = addrlen ? *addrlen : 0;
 
-    if ((count + len) > 4096) {
+    if ((count + len) > pal_state.pagesize) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (retval < 0)
             return retval;
@@ -630,7 +630,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
     int retval = 0;
     void *obuf = NULL;
 
-    if ((count + addrlen) > 4096) {
+    if ((count + addrlen) > pal_state.pagesize) {
         retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
         if (retval < 0)
             return retval;
