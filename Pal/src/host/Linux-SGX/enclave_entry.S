@@ -271,12 +271,24 @@ enclave_entry:
 
 	ud2 # We should never get here.
 
+	# fxsave/xsave area to reset extended state.
+	#
+	# The first 512 B are used by fxrstor. We set FCW = 0x037f and MXCSR =
+	# 0x1f80 and the rest to 0 (same values as xrstor uses in
+	# initialization mode).
+	#
+	# The fxsave ares is followed by the 64 B xsave header. We use the
+	# "compact" format (XCOMP_BV[63] = 1). Since the rest of XSTATE_BV and
+	# XCOMP_BV are 0s, xrstor initializes all components (assuming it's
+	# called with RFBM set to all 1s). The fxsave area is ignored (because
+	# we request initialization not restore). And thanks to the compact
+	# format we don't need to provide anything after the header.
 .section .rodata
 	.balign 64
 .Lxrstor_init_arg:
-	.byte 0x7f, 0x03 	# fcw
+	.byte 0x7f, 0x03 	# FCW
 	.skip 6, 0
-	.byte 0x80, 0x1f, 0, 0 	# MXCSR (same as init value from xrstor)
+	.byte 0x80, 0x1f, 0, 0 	# MXCSR
 	.skip 500, 0	 	# rest of fxstore area
 
 	.skip 15, 0	 	# XSTATE_BV and XCOMP_BV[55:0]
