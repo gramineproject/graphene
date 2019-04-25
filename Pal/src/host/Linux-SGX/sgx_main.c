@@ -329,6 +329,9 @@ int initialize_enclave (struct pal_enclave * enclave)
         _a->prot = _prot; _a->type = _type; _a;                         \
     })
 
+    /* The manifest needs to be allocated at the upper end of the enclave
+     * memory. That's used by pal_linux_main to find the manifest area. So add
+     * it first to the list with memory areas. */
     struct mem_area * manifest_area =
         set_area("manifest", false, false, enclave->manifest,
                  0, ALLOC_ALIGNUP(manifest_size),
