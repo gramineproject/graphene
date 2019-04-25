@@ -326,23 +326,24 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
         return unix_to_pal_error(ERRNO(ret));
     if (ret < sizeof(struct hdl_header)) {
         /*
-         * This code block is just in case to cover all the possibility.
+         * This code block is just in case to cover all the possibilities
+         * to shield Iago attack.
+         * We know that the file descriptor is an unix domain socket with
+         * blocking mode and that the sender, _DkSendHandle() above, sends the
+         * header with single sendto syscall by ocall_sock_send() which
+         * transfers a message atomically.
          *
-         * read size == 0: return error to try again:
-         *                 This case won't happen because the file
-         *                 descriptor is Unix domain socket in blocking mode.
-         *                 It is actually EINTR.
+         * read size == 0: return error for the caller to try again.
+         *                 It should result in EINTR.
          *
-         * read size > 0: return partial read size and expect the caller
-         *                to handle it.
-         *                Actually this case won't happen because
-         *                This PAL API is used only for UNIX domain socket
-         *                and, the sender, _DkSendHandle, sends
-         *                struct hdl_header with single sendmsg() system call.
+         * read size > 0: return error for the caller to give up this file
+         *                descriptor.
+         *                If the header can't be send atomically for some
+         *                reason, the sender should get EMSGSIZE.
          */
         if (!ret)
             return -PAL_ERROR_TRYAGAIN;
-        return ret;
+        return -PAL_ERROR_DENIED;
     }
 
     // initialize variables to get body
