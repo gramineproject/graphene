@@ -3,7 +3,7 @@ from regression import Regression
 
 loader = os.environ['PAL_LOADER']
 
-regression = Regression(loader, "Process")
+regression = Regression(loader, "Process", timeout=8000)
 
 def check_times(target, lines, times):
     count = 0
