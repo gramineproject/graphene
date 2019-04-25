@@ -217,7 +217,7 @@ int load_enclave_binary (sgx_arch_secs_t * secs, int fd,
         if (zeroend > zeropage) {
             ret = add_pages_to_enclave(secs, (void *) base + zeropage, NULL,
                                        zeroend - zeropage,
-                                       SGX_PAGE_REG, c->prot, 1, "bss");
+                                       SGX_PAGE_REG, c->prot, false, "bss");
             if (ret < 0)
                 return ret;
         }
@@ -332,22 +332,19 @@ int initialize_enclave (struct pal_enclave * enclave)
                  0, ALLOC_ALIGNUP(manifest_size),
                  PROT_READ, SGX_PAGE_REG);
     struct mem_area * ssa_area =
-        set_area("ssa", true, false, -1, 0,
+        set_area("ssa", false, false, -1, 0,
                  enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
-    /* XXX: TCS should be part of measurement */
     struct mem_area * tcs_area =
-        set_area("tcs", true, false, -1, 0, enclave->thread_num * pagesize,
+        set_area("tcs", false, false, -1, 0, enclave->thread_num * pagesize,
                  0, SGX_PAGE_TCS);
-    /* XXX: TLS should be part of measurement */
     struct mem_area * tls_area =
-        set_area("tls", true, false, -1, 0, enclave->thread_num * pagesize,
+        set_area("tls", false, false, -1, 0, enclave->thread_num * pagesize,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
-    /* XXX: the enclave stack should be part of measurement */
     struct mem_area * stack_areas = &areas[area_num];
     for (int t = 0 ; t < enclave->thread_num ; t++)
-        set_area("stack", true, false, -1, 0, ENCLAVE_STACK_SIZE,
+        set_area("stack", false, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     struct mem_area * pal_area =
