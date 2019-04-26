@@ -488,6 +488,10 @@ void DkObjectClose (PAL_HANDLE objectHandle);
 PAL_NUM
 DkSystemTimeQuery (void);
 
+/*
+ * Cryptographically secure random.
+ * 0 on success, negative on failure.
+ */
 PAL_NUM
 DkRandomBitsRead (PAL_PTR buffer, PAL_NUM size);
 

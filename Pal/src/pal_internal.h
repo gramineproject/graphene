@@ -344,7 +344,13 @@ int _DkInternalLock (PAL_LOCK * mut);
 int _DkInternalUnlock (PAL_LOCK * mut);
 unsigned long _DkSystemTimeQuery (void);
 int _DkFastRandomBitsRead (void * buffer, int size);
+
+/*
+ * Cryptographically secure random.
+ * 0 on success, negative on failure.
+ */
 int _DkRandomBitsRead (void * buffer, int size);
+
 int _DkSegmentRegisterSet (int reg, const void * addr);
 int _DkSegmentRegisterGet (int reg, void ** addr);
 int _DkInstructionCacheFlush (const void * addr, int size);
