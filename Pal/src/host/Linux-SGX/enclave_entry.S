@@ -160,6 +160,8 @@ enclave_entry:
 	## %rsp during Leexit).
 
 	movq SGX_GPR_RSP(%rbx), %rsi
+	# This sgx_stack swap logic is okay because .Lhandle_exception doesn't nest
+	# due to TCS.nccs = 2.
 	movq %gs:SGX_STACK, %rax
 	cmpq $0, %rax
 	je .Lsetup_exception_handler
@@ -170,23 +172,57 @@ enclave_entry:
 	jne 1f
 	FAIL_LOOP
 1:
+
+	# triggering exception handler while %gs:SGX_STACK/SGX_OCALL_PREPARED != 0
+	# causes difficult situation:
+	#   exception handler may nestedly issue ocall to ovewrite
+	#   %gs:SGX_STACK/SGX_CALL_PREPARED. Which would require
+	#   complicated logic around SGX_STACK/SGX_OCALL_PREPARED.
+	#
+	# Instead if we're in such situation, we emulate it as if %rip reached to
+	# the safe point, .Lreturn_from_ocall_prepared_is_cleard, to avoid the
+	# subtle situation.
+	#
+	# ocall sequence:
+	# - SGX_OCALL_PREPARED=1
+	# - SGX_STACK=%rip: save trusted stack
+	# - EEXIT
+	# - unstrusted PAL which issues real host system call
+	# - EENTER
+	# - (%rip, SGX_STACK) = (SGX_STACK, 0): restore trusted stack
+	# - SGX_OCALL_PREPARED=0
+	#
+	# It's also required that sgx_ocall be atomic regarding to async exception.
+	# On host async signal, sgx_ocall should result in EINTR
+	# - without calling host signal or,
+	# - host signal resulted in EINTR or
+	# - host signal succeeded and then signal arrived.
+	#   the result of host systen call which isn't necessarily idempotent
+	#   should not be lost.
+	#
+	# on async exception we will
+	# - until EEXIT: pretend EINTR without real EEXIT
+	# - during untrusted PAL: return EINTR
+	#                         it's another story for untrusted PAL to ensure
+	#                         to not lose the successful result of host system
+	#                         call. host signal can arrive after host syscall
+	#                         instruction before EENTER.
+	# - From EENTER: ocall successed and raise exception handler
 	movq SGX_GPR_RIP(%rbx), %rax
 	leaq .Locall_about_to_eexit_begin(%rip), %r11
 	cmpq %r11, %rax
-	jb 1f
+	jb 2f
 	leaq .Locall_about_to_eexit_end(%rip), %r11
 	cmpq %r11, %rax
-	jae 1f
-	/*
-	 * We're about to eexit for ocall in
-	 * [.Locall_about_to_eexit_begin, .Locall_about_to_eexit_end)
-	 * %rsp points to untrusted area, but we're still within enclave.
-	 * Skip eexit as if ocall returned PAL_ERROR_INTERRUPTED.
-	 */
+	jae 2f
+
+	# We're about to eexit for ocall in
+	# [.Locall_about_to_eexit_begin, .Locall_about_to_eexit_end)
+	# Skip eexit as if ocall returned PAL_ERROR_INTERRUPTED.
 	movq $0, SGX_GPR_RAX(%rbx)
 	movq $-PAL_ERROR_INTERRUPTED, SGX_GPR_RDI(%rbx) # return value for .Lreturn_from_ocall
 	movq %rdi, SGX_GPR_RSI(%rbx) # external event for .Lreturn_from_ocall
-	movq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
+	leaq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
 	movq %rax, SGX_GPR_RIP(%rbx)
 	movq %rsi, SGX_GPR_RSP(%rbx)
 	movq $0, %gs:SGX_STACK
@@ -194,13 +230,13 @@ enclave_entry:
 	xorq %r11, %r11
 	jmp .Leexit_exception
 
-1:
-	/*
-	 * We're right after eenter returning from ocall,
-     * but not establish stack yet.
-     */
+2:
+	# We're right after eenter returning from successfull ocall.
+	# Move %rip to .Lreturn_from_ocall_prepared_is_cleard and let
+	# _DkHandleExternalEvent handle the exception.
+	# %rdi: keep ocall result
 	movq %rdi, SGX_GPR_RSI(%rbx) # external event for .Lreturn_from_ocall
-	movq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
+	leaq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
 	movq %rax, SGX_GPR_RIP(%rbx)
 	movq %rsi, SGX_GPR_RSP(%rbx)
 	movq $0, %gs:SGX_STACK
