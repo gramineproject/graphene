@@ -3,7 +3,9 @@
 *.backup
 *~
 
-/Runtime/
+/Runtime/*
+!/Runtime/Makefile
+!/Runtime/pal_loader
 /Jenkinsfiles/Jenkinsfile-*
 /Jenkinsfiles/JenkinsfileSGX-*
 
