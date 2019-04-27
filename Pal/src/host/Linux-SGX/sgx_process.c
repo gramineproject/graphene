@@ -160,13 +160,13 @@ int sgx_init_child_process (struct pal_sec * pal_sec)
         return 0;
 
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return ret;
 
     int child_status = 0;
     ret = INLINE_SYSCALL(write, 3, proc_args.proc_fds[1], &child_status,
                          sizeof(int));
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return ret;
 
     memcpy(pal_sec->exec_name, proc_args.exec_name, sizeof(PAL_SEC_STR));
     pal_sec->instance_id   = proc_args.instance_id;
