@@ -769,8 +769,8 @@ static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     int bytes = ocall_sock_send(handle->sock.fd, buf, len, &conn_addr,
                                 conn_addrlen);
 
-    if (IS_ERR(ret)) {
-        bytes = unix_to_pal_error(ERRNO(ret));
+    if (IS_ERR(bytes)) {
+        bytes = unix_to_pal_error(ERRNO(bytes));
         if (bytes == -PAL_ERROR_TRYAGAIN)
             HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
         return bytes;
