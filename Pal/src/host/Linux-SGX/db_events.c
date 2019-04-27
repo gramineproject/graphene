@@ -68,8 +68,10 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
                 ret = ocall_futex((int *) &event->event.signaled->counter,
                                   FUTEX_WAKE, nwaiters, NULL);
 
-                if (IS_ERR(ret))
+                if (IS_ERR(ret)) {
                     atomic_set(event->event.signaled, 0);
+                    ret = unix_to_pal_error(ERRNO(ret));
+                }
             }
         }
     } else {
