@@ -49,7 +49,7 @@ int _DkRandomBitsRead (void * buffer, int size)
     uint32_t rand;
     for (int i = 0; i < size; i += sizeof(rand)) {
         rand = rdrand();
-        memcpy(buffer + i, &rand, min(sizeof(rand), size - i));
+        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
     }
     return 0;
 }

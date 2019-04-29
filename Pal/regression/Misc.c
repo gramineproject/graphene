@@ -41,7 +41,7 @@ int main (int argc, const char ** argv, const char ** envp)
         int ret = DkRandomBitsRead(&data[i], sizeof(unsigned long));
         if (ret < 0) {
             pal_printf("DkRandomBitsRead() failed!\n");
-            return 0;
+            return 1;
         }
     }
 
