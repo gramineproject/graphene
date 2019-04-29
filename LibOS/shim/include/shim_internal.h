@@ -776,6 +776,15 @@ extern const char ** initial_envp;
         _stack;                                                     \
     })
 
+#define __switch_stack(stack_top, func, arg)                    \
+    do {                                                        \
+        __asm__ volatile (                                      \
+            "movq %0, %%rbp\n"                                  \
+            "movq %0, %%rsp\n"                                  \
+            "callq *%1\n"                                       \
+            ::"r"(stack_top), "r"(func), "D"(arg): "memory");   \
+    } while (0)
+
 static_always_inline void * current_stack(void)
 {
     void * _rsp;
