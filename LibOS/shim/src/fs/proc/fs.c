@@ -89,7 +89,7 @@ static int proc_root_open (struct shim_handle * hdl,
 {
 
     if (flags & (O_WRONLY|O_RDWR))
-        return -EACCES;
+        return -EISDIR;
 
     // Don't really need to do any work here, but keeping as a placeholder,
     // just in case.
@@ -230,10 +230,6 @@ static int proc_open (struct shim_handle * hdl, struct shim_dentry * dent,
 
     if ((ret = proc_match_name(rel_path, &ent)) < 0)
         return ret;
-
-    // Only reject a directory open if O_DIRECTORY is not passed
-    if (ent->dir && !(flags & O_DIRECTORY))
-        return -EISDIR;
 
     if (!ent->fs_ops || !ent->fs_ops->open)
         return -EACCES;
