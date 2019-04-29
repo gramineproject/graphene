@@ -59,7 +59,7 @@ regression: $(target)
 	@echo "\n\nSyscall Support:"
 	@for f in $(wildcard 30_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nFile System Support:"
-	@for f in $(wildcard 40_*.py); do env $(PYTHONENV) python $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
+	@for f in $(wildcard 40_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nSocket Support:"
 	@for f in $(wildcard 80_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
 	@echo "\n\nLarge File Support:"

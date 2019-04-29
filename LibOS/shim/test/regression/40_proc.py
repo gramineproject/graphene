@@ -1,13 +1,7 @@
-#!/usr/bin/env python2
-
 import os, sys, mmap
 from regression import Regression
 
 loader = sys.argv[1]
-try:
-    sgx = os.environ['SGX_RUN']
-except KeyError:
-    sgx = False
 
 # Running Bootstrap
 regression = Regression(loader, "proc")
