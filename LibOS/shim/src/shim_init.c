@@ -286,6 +286,7 @@ static int populate_user_stack (void * stack, size_t stack_size,
                                 int ** argcpp,
                                 const char *** argvp, const char *** envpp)
 {
+    const int argc = **argcpp;
     const char ** argv = *argvp, ** envp = *envpp;
     const char ** new_argv = NULL, ** new_envp = NULL;
     elf_auxv_t *new_auxp = NULL;
@@ -342,6 +343,7 @@ copy_envp:
     size_t move_size = stack_bottom - stack;
     *argcpp = stack_top - move_size;
     *argcpp = ALIGN_DOWN_PTR(*argcpp, 16UL);
+    **argcpp = argc;
     size_t shift = (void*)(*argcpp) - stack;
 
     memmove(*argcpp, stack, move_size);
