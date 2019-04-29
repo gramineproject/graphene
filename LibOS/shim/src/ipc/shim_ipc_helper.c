@@ -808,40 +808,32 @@ next:
 #define IPC_HELPER_STACK_SIZE       (allocsize * 4)
 #define IPC_HELPER_LIST_INIT_SIZE   32
 
-static void shim_ipc_helper (void * arg)
+static void shim_ipc_helper_end(struct shim_thread * self)
 {
-    /* set ipc helper thread */
-    struct shim_thread * self = (struct shim_thread *) arg;
-    if (!arg)
-        return;
+    /* Put our handle map reference */
+    if (self->handle_map)
+        put_handle_map(self->handle_map);
 
-    __libc_tcb_t tcb;
-    allocate_tls(&tcb, false, self);
-    debug_setbuf(&tcb.shim_tcb, true);
-    debug("set tcb to %p\n", &tcb);
-
-    lock(&ipc_helper_lock);
-    bool notme = (self != ipc_helper_thread);
-    unlock(&ipc_helper_lock);
-
-    if (notme) {
-        put_thread(self);
-        DkThreadExit();
-        return;
+    COMPILER_BARRIER();
+    if (ipc_helper_state == HELPER_HANDEDOVER) {
+        debug("ipc helper thread is the last thread, process exiting\n");
+        shim_terminate(0); // Same as shim_clean(), but this is the official termination function
     }
 
-    debug("ipc helper thread started\n");
+    lock(&ipc_helper_lock);
+    ipc_helper_state = HELPER_NOTALIVE;
+    ipc_helper_thread = NULL;
+    unlock(&ipc_helper_lock);
+    put_thread(self);
+    debug("ipc helper thread terminated\n");
 
-    void * stack = allocate_stack(IPC_HELPER_STACK_SIZE, allocsize, false);
+    DkThreadExit();
+}
 
-    if (!stack)
-        goto end;
-
-    self->stack_top = stack + IPC_HELPER_STACK_SIZE;
-    self->stack = stack;
-    SWITCH_STACK(stack + IPC_HELPER_STACK_SIZE);
-    self = get_cur_thread();
-    stack = self->stack;
+static void __shim_ipc_helper (void * dummy)
+{
+    struct shim_thread * self = get_cur_thread();
+    void * stack = self->stack;
 
     int port_num = 0, port_size = IPC_HELPER_LIST_INIT_SIZE;
     struct shim_ipc_port ** local_pobjs = stack, * pobj;
@@ -1023,28 +1015,43 @@ update_list:
     }
 
 end:
-    /* DP: Put our handle map reference */
-    if (self->handle_map)
-        put_handle_map(self->handle_map);
+    shim_ipc_helper_end(self);
+}
 
-    /* shim_clean ultimately calls del_all_ipc_ports(), which reacquires the
-     * helper lock.  Err on the side of caution by adding a barrier to ensure
-     * reading the latest ipc helper state.
-     */
-    COMPILER_BARRIER();
-    if (ipc_helper_state == HELPER_HANDEDOVER) {
-        debug("ipc helper thread is the last thread, process exiting\n");
-        shim_terminate(0); // Same as shim_clean(), but this is the official termination function
-    }
+static void shim_ipc_helper (void * arg)
+{
+    /* set ipc helper thread */
+    struct shim_thread * self = (struct shim_thread *) arg;
+    if (!arg)
+        return;
+
+    __libc_tcb_t tcb;
+    allocate_tls(&tcb, false, self);
+    debug_setbuf(&tcb.shim_tcb, true);
+    debug("set tcb to %p\n", &tcb);
 
     lock(&ipc_helper_lock);
-    ipc_helper_state = HELPER_NOTALIVE;
-    ipc_helper_thread = NULL;
+    bool notme = (self != ipc_helper_thread);
     unlock(&ipc_helper_lock);
-    put_thread(self);
-    debug("ipc helper thread terminated\n");
 
-    DkThreadExit();
+    if (notme) {
+        put_thread(self);
+        DkThreadExit();
+        return;
+    }
+
+    debug("ipc helper thread started\n");
+
+    void * stack = allocate_stack(IPC_HELPER_STACK_SIZE, allocsize, false);
+
+    if (!stack) {
+        shim_ipc_helper_end(self);
+        return;
+    }
+
+    self->stack_top = stack + IPC_HELPER_STACK_SIZE;
+    self->stack = stack;
+    __SWITCH_STACK(self->stack_top, __shim_ipc_helper, NULL);
 }
 
 /* This function shoudl be called with the ipc_helper_lock held */

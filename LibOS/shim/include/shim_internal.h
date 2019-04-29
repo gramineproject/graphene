@@ -760,20 +760,6 @@ bool test_user_string (const char * addr);
 int object_wait_with_retry(PAL_HANDLE handle);
 
 #ifdef __x86_64__
-#define SWITCH_STACK(stack_top)                                         \
-    ({                                                                  \
-        void * _rsp, * _rbp;                                            \
-        void * _stack = (stack_top);                                    \
-        __asm__ volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
-        __asm__ volatile ("movq %%rbp, %0" : "=r"(_rbp) :: "memory");   \
-        _rsp = _stack - (_rbp - _rsp);                                  \
-        _rbp = _stack;                                                  \
-        __asm__ volatile ("movq %0, %%rsp" :: "r"(_rsp) : "memory");    \
-        __asm__ volatile ("movq %0, %%rbp" :: "r"(_rbp) : "memory");    \
-        __asm__ volatile ("movq %%rbp, %0" : "=r"(_stack) :: "memory"); \
-        _stack;                                                         \
-    })
-
 #define __SWITCH_STACK(stack_top, func, arg)                    \
     do {                                                        \
         /* 16 Bytes align of stack */                           \
