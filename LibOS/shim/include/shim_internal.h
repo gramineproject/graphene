@@ -762,20 +762,6 @@ extern const char ** initial_envp;
 #define ALIGN_DOWN(addr)    \
     ((typeof(addr)) (((unsigned long) addr) & allocmask))
 
-#define switch_stack(stack_top)                                     \
-    ({                                                              \
-        void * _rsp, * _rbp;                                        \
-        void * _stack = (stack_top);                                \
-        asm volatile ("movq %%rsp, %0" : "=r"(_rsp) :: "memory");   \
-        asm volatile ("movq %%rbp, %0" : "=r"(_rbp) :: "memory");   \
-        _rsp = _stack - (_rbp - _rsp);                              \
-        _rbp = _stack;                                              \
-        asm volatile ("movq %0, %%rsp" :: "r"(_rsp) : "memory");    \
-        asm volatile ("movq %0, %%rbp" :: "r"(_rbp) : "memory");    \
-        asm volatile ("movq %%rbp, %0" : "=r"(_stack) :: "memory"); \
-        _stack;                                                     \
-    })
-
 #define __switch_stack(stack_top, func, arg)                    \
     do {                                                        \
         __asm__ volatile (                                      \
