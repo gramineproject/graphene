@@ -64,62 +64,33 @@ DEFINE_PROFILE_INTERVAL(unmap_loaded_binaries_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(unmap_all_vmas_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(load_new_executable_for_exec, exec_rtld);
 
-static void * old_stack_top, * old_stack, * old_stack_red;
-static const char ** new_argp;
-static int           new_argc;
-static int *         new_argcp;
-static elf_auxv_t *  new_auxp;
-
 #define REQUIRED_ELF_AUXV       6
 
 int init_brk_from_executable (struct shim_handle * exec);
 
-int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
-                         const char ** envp)
+struct execve_rtld_arg
 {
-    BEGIN_PROFILE_INTERVAL();
+    void *        old_stack_top;
+    void *        old_stack;
+    void *        old_stack_red;
+    const char ** new_argp;
+    int *         new_argcp;
+    elf_auxv_t *  new_auxp;
+};
+
+static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
+{
+    struct execve_rtld_arg arg;
+    memcpy(&arg, __arg, sizeof(arg));
+    void * old_stack_top = arg.old_stack_top;
+    void * old_stack = arg.old_stack;
+    void * old_stack_red = arg.old_stack_red;
+    const char ** new_argp = arg.new_argp;
+    int * new_argcp = arg.new_argcp;
+    elf_auxv_t * new_auxp = arg.new_auxp;
 
     struct shim_thread * cur_thread = get_cur_thread();
-    int ret;
-
-    if ((ret = close_cloexec_handle(cur_thread->handle_map)) < 0)
-        return ret;
-
-    SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
-
-    void * tcb = malloc(sizeof(__libc_tcb_t));
-    if (!tcb)
-        return -ENOMEM;
-
-    populate_tls(tcb, false);
-    __disable_preempt(&((__libc_tcb_t *) tcb)->shim_tcb); // Temporarily disable preemption
-                                                          // during execve().
-    debug("set tcb to %p\n", tcb);
-
-    put_handle(cur_thread->exec);
-    get_handle(hdl);
-    cur_thread->exec = hdl;
-
-    old_stack_top = cur_thread->stack_top;
-    old_stack     = cur_thread->stack;
-    old_stack_red = cur_thread->stack_red;
-    cur_thread->stack_top = NULL;
-    cur_thread->stack     = NULL;
-    cur_thread->stack_red = NULL;
-
-    initial_envp = NULL;
-    new_argc = 0;
-    for (const char ** a = argv ; *a ; a++, new_argc++);
-
-    new_argcp = &new_argc;
-    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp,
-                          REQUIRED_ELF_AUXV, &new_auxp)) < 0)
-        return ret;
-
-    SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
-
-    switch_stack(new_argp);
-    cur_thread = get_cur_thread();
+    int ret = 0;
 
     UPDATE_PROFILE_INTERVAL();
 
@@ -139,8 +110,10 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     size_t count = DEFAULT_VMA_COUNT;
     struct shim_vma_val * vmas = malloc(sizeof(struct shim_vma_val) * count);
 
-    if (!vmas)
-        return -ENOMEM;
+    if (!vmas) {
+        ret = -ENOMEM;
+        goto error;
+    }
 
 retry_dump_vmas:
     ret = dump_all_vmas(vmas, count);
@@ -150,7 +123,8 @@ retry_dump_vmas:
                 = malloc(sizeof(struct shim_vma_val) * count * 2);
         if (!new_vmas) {
             free(vmas);
-            return -ENOMEM;
+            ret = -ENOMEM;
+            goto error;
         }
         free(vmas);
         vmas = new_vmas;
@@ -160,7 +134,7 @@ retry_dump_vmas:
 
     if (ret < 0) {
         free(vmas);
-        return ret;
+        goto error;
     }
 
     count = ret;
@@ -200,6 +174,68 @@ retry_dump_vmas:
     execute_elf_object(cur_thread->exec, new_argcp, new_argp,
                        REQUIRED_ELF_AUXV, new_auxp);
 
+    return;
+
+error:
+    debug("execve: failed %d\n", ret);
+    shim_terminate(ret);
+}
+
+static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
+                         const char ** envp)
+{
+    BEGIN_PROFILE_INTERVAL();
+
+    struct shim_thread * cur_thread = get_cur_thread();
+    int ret;
+
+    if ((ret = close_cloexec_handle(cur_thread->handle_map)) < 0)
+        return ret;
+
+    SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
+
+    void * tcb = malloc(sizeof(__libc_tcb_t));
+    if (!tcb)
+        return -ENOMEM;
+
+    populate_tls(tcb, false);
+    __disable_preempt(&((__libc_tcb_t *) tcb)->shim_tcb); // Temporarily disable preemption
+                                                          // during execve().
+    debug("set tcb to %p\n", tcb);
+
+    put_handle(cur_thread->exec);
+    get_handle(hdl);
+    cur_thread->exec = hdl;
+
+    void * old_stack_top = cur_thread->stack_top;
+    void * old_stack     = cur_thread->stack;
+    void * old_stack_red = cur_thread->stack_red;
+    cur_thread->stack_top = NULL;
+    cur_thread->stack     = NULL;
+    cur_thread->stack_red = NULL;
+
+    initial_envp = NULL;
+    int new_argc = 0;
+    for (const char ** a = argv ; *a ; a++, new_argc++);
+
+    int * new_argcp = &new_argc;
+    const char ** new_argp;
+    elf_auxv_t * new_auxp;
+    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp,
+                          REQUIRED_ELF_AUXV, &new_auxp)) < 0)
+        return ret;
+
+    SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
+
+    struct execve_rtld_arg arg = {
+        .old_stack_top = old_stack_top,
+        .old_stack = old_stack,
+        .old_stack_red = old_stack_red,
+        .new_argp = new_argp,
+        .new_argcp = new_argcp,
+        .new_auxp = new_auxp
+    };
+    __switch_stack(new_argcp, &__shim_do_execve_rtld, &arg);
     return 0;
 }
 

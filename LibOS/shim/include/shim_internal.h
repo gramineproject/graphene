@@ -793,6 +793,19 @@ int object_wait_with_retry(PAL_HANDLE handle);
         _stack;                                                         \
     })
 
+#define __switch_stack(stack_top, func, arg)                    \
+    do {                                                        \
+        /* 16 Bytes align of stack */                           \
+        uintptr_t __stack_top = (uintptr_t)(stack_top);         \
+        __stack_top &= ~0xf;                                    \
+        __stack_top -= 8;                                       \
+        __asm__ volatile (                                      \
+            "movq %0, %%rbp\n"                                  \
+            "movq %0, %%rsp\n"                                  \
+            "jmpq *%1\n"                                        \
+            ::"r"(__stack_top), "r"(func), "D"(arg): "memory"); \
+    } while (0)
+
 static_always_inline void * current_stack(void)
 {
     void * _rsp;
