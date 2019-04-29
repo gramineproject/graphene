@@ -50,7 +50,7 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  $(addprefix ipc/shim_,ipc ipc_helper ipc_child) \
 	  $(addprefix ipc/shim_ipc_,$(ipcns)) \
 	  elf/shim_rtld \
-	  $(addprefix shim_,init table syscalls checkpoint random malloc \
+	  $(addprefix shim_,init table syscalls checkpoint malloc \
 	  async parser debug) syscallas start \
 	  $(patsubst %.c,%,$(wildcard sys/*.c))
 graphene_lib = .lib/graphene-lib.a
