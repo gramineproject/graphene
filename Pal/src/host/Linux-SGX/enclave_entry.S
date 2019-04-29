@@ -277,7 +277,7 @@ enclave_entry:
 	# 0x1f80 and the rest to 0 (same values as xrstor uses in
 	# initialization mode).
 	#
-	# The fxsave ares is followed by the 64 B xsave header. We use the
+	# The fxsave area is followed by the 64 B xsave header. We use the
 	# "compact" format (XCOMP_BV[63] = 1). Since the rest of XSTATE_BV and
 	# XCOMP_BV are 0s, xrstor initializes all components (assuming it's
 	# called with RFBM set to all 1s). The fxsave area is ignored (because
