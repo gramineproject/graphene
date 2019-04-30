@@ -42,6 +42,7 @@ shim_start:
 
     /* Align the stack to a 16 byte boundary to follow the ABI.  */
     andq  $~15, %rsp
+    pushq %rsp	# push 8byte because we push 8 more bytes
 
     movq %rdi, %rcx         /* Possibly the stack has to be switched */
     movq 0(%rbp), %rdi      /* Pop the argument count.  */
