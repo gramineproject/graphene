@@ -14,7 +14,7 @@
 	.type enclave_entry, @function
 
 enclave_entry:
-	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
+	# On EENTER, RAX is the current SSA, RBX is the address of TCS,
 	# RCX is the address of AEP. Other registers are not trusted.
 
 	# current SSA is in RAX (Trusted)
