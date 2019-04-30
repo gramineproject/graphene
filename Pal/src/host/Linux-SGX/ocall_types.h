@@ -56,8 +56,6 @@ enum {
     OCALL_NR,
 };
 
-#define OCALL_NO_TIMEOUT   ((int64_t)-1)
-
 typedef struct {
     int ms_exitcode;
     int ms_is_exitgroup;
@@ -162,9 +160,9 @@ typedef struct {
 } ms_ocall_create_process_t;
 
 typedef struct {
-    int * ms_futex;
+    int* ms_futex;
     int ms_op, ms_val;
-    int64_t ms_timeout;
+    int64_t ms_timeout_us;
 } ms_ocall_futex_t;
 
 typedef struct {
@@ -249,9 +247,9 @@ typedef struct {
 } ms_ocall_sleep_t;
 
 typedef struct {
-    struct pollfd * ms_fds;
+    struct pollfd* ms_fds;
     int ms_nfds;
-    int64_t ms_timeout;
+    int64_t ms_timeout_us;
 } ms_ocall_poll_t;
 
 typedef struct {

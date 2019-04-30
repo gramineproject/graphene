@@ -460,7 +460,7 @@ int shim_do_semtimedop (int semid, struct sembuf * sops, unsigned int nsops,
 int shim_do_epoll_create (int size);
 size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count);
 int shim_do_epoll_wait (int epfd, struct __kernel_epoll_event * events,
-                        int maxevents, int timeout);
+                        int maxevents, int timeout_ms);
 int shim_do_epoll_ctl (int epfd, int op, int fd,
                        struct __kernel_epoll_event * event);
 int shim_do_clock_gettime (clockid_t which_clock,
@@ -489,7 +489,7 @@ int shim_do_set_robust_list (struct robust_list_head * head, size_t len);
 int shim_do_get_robust_list (pid_t pid, struct robust_list_head ** head,
                              size_t * len);
 int shim_do_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
-                         int maxevents, int timeout, const __sigset_t * sigmask,
+                         int maxevents, int timeout_ms, const __sigset_t * sigmask,
                          size_t sigsetsize);
 int shim_do_accept4 (int sockfd, struct sockaddr * addr, socklen_t * addrlen,
                      int flags);
@@ -770,7 +770,7 @@ int shim_clock_nanosleep (clockid_t which_clock, int flags,
                           const struct timespec * rqtp, struct timespec * rmtp);
 int shim_exit_group (int error_code);
 int shim_epoll_wait (int epfd, struct __kernel_epoll_event * events,
-                     int maxevents, int timeout);
+                     int maxevents, int timeout_ms);
 int shim_epoll_ctl (int epfd, int op, int fd,
                     struct __kernel_epoll_event * event);
 int shim_tgkill (int tgid, int pid, int sig);
@@ -840,7 +840,7 @@ int shim_move_pages (pid_t pid, unsigned long nr_pages, void ** pages,
 int shim_utimensat (int dfd, const char * filename, struct timespec *
                     utimes, int flags);
 int shim_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
-                      int maxevents, int timeout, const __sigset_t * sigmask,
+                      int maxevents, int timeout_ms, const __sigset_t * sigmask,
                       size_t sigsetsize);
 int shim_signalfd (int ufd, __sigset_t * user_mask, size_t sizemask);
 int shim_timerfd_create (int clockid, int flags);

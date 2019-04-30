@@ -71,12 +71,10 @@ void DkObjectClose (PAL_HANDLE objectHandle)
     LEAVE_PAL_CALL();
 }
 
-/* PAL call DkObjectsWaitAny: wait for any of the handles in the handle array.
-   The wait can be timed out, unless NO_TIMEOUT is given for the timeout
-   argument. */
+// PAL call DkObjectsWaitAny: wait for any of the handles in the handle array.
+// The wait can be timed out, unless NO_TIMEOUT is given for the timeout_us argument.
 PAL_HANDLE
-DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
-{
+DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handleArray, PAL_NUM timeout_us) {
     ENTER_PAL_CALL(DkObjectsWaitAny);
 
     if (!count || !handleArray) {
@@ -91,8 +89,7 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
 
     PAL_HANDLE polled = NULL;
 
-    int ret = _DkObjectsWaitAny (count, handleArray, timeout, &polled);
-
+    int ret = _DkObjectsWaitAny(count, handleArray, timeout_us, &polled);
     if (ret < 0) {
         _DkRaiseFailure(-ret);
         polled = NULL;

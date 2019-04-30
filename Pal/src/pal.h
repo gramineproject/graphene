@@ -487,12 +487,9 @@ DkEventClear (PAL_HANDLE eventHandle);
 
 #define NO_TIMEOUT ((PAL_NUM)-1)
 
-/* assuming timeout to be in microseconds
- * NO_TIMEOUT means no timeout, as the name implies.
- */
 /* Returns: NULL if the call times out, the ready handle on success */
 PAL_HANDLE
-DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout);
+DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout_us);
 
 /* Deprecate DkObjectReference */
 

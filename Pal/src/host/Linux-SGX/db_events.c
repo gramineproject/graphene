@@ -63,7 +63,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
                     nwaiters = wakeup;
 
                 ret = ocall_futex((int *) &event->event.signaled->counter,
-                                  FUTEX_WAKE, nwaiters, NULL);
+                                  FUTEX_WAKE, nwaiters, -1);
 
                 if (IS_ERR(ret)) {
                     atomic_set(event->event.signaled, 0);
@@ -74,7 +74,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     } else {
         // Only one thread wakes up, leave unsignaled
         ret = ocall_futex((int *) &event->event.signaled->counter,
-                          FUTEX_WAKE, 1, NULL);
+                          FUTEX_WAKE, 1, -1);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
     }
@@ -82,18 +82,18 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, PAL_NUM timeout)
-{
+int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     int ret = 0;
 
-    if (!event->event.isnotification || !atomic_read(event->event.signaled)) {
-        int64_t waittime = timeout;
+    if (timeout_us < 0)
+        return _DkEventWait(event);
 
+    if (!event->event.isnotification || !atomic_read(event->event.signaled)) {
         atomic_inc(&event->event.nwaiters);
 
         do {
-            ret = ocall_futex((int *) &event->event.signaled->counter,
-                              FUTEX_WAIT, 0, timeout != NO_TIMEOUT ? &waittime : NULL);
+            ret = ocall_futex((int*)&event->event.signaled->counter, FUTEX_WAIT, 0, timeout_us);
+
             if (IS_ERR(ret)) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
@@ -120,7 +120,7 @@ int _DkEventWait (PAL_HANDLE event)
 
         do {
             ret = ocall_futex((int *) &event->event.signaled->counter,
-                              FUTEX_WAIT, 0, NULL);
+                              FUTEX_WAIT, 0, -1);
             if (IS_ERR(ret)) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
@@ -151,10 +151,8 @@ static int event_close (PAL_HANDLE handle)
     return 0;
 }
 
-static int event_wait (PAL_HANDLE handle, PAL_NUM timeout)
-{
-    return timeout == NO_TIMEOUT ? _DkEventWait(handle) :
-           _DkEventWaitTimeout(handle, timeout);
+static int event_wait(PAL_HANDLE handle, int64_t timeout_us) {
+    return _DkEventWaitTimeout(handle, timeout_us);
 }
 
 struct handle_ops event_ops = {

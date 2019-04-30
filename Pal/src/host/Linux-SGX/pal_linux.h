@@ -94,8 +94,8 @@ void pal_start_thread (void);
 int __DkMutexCreate (struct mutex_handle * mut);
 int _DkMutexAtomicCreate (struct mutex_handle * mut);
 int __DkMutexDestroy (struct mutex_handle * mut);
-int _DkMutexLock (struct mutex_handle * mut);
-int _DkMutexLockTimeout (struct mutex_handle * mut, PAL_NUM timeout);
+int _DkMutexLock(struct mutex_handle* mut);
+int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
 int _DkMutexUnlock (struct mutex_handle * mut);
 
 int * get_futex (void);

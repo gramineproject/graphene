@@ -101,10 +101,9 @@ struct poll_handle {
     struct poll_handle * children;
 } __attribute__((packed));
 
-#define POLL_NOTIMEOUT  ((unsigned long)-1)
+#define POLL_NOTIMEOUT  ((uint64_t)-1)
 
-static int __do_poll (int npolls, struct poll_handle * polls,
-                      unsigned long timeout)
+static int __do_poll(int npolls, struct poll_handle* polls, uint64_t timeout_us)
 {
     struct shim_thread * cur = get_cur_thread();
 
@@ -306,10 +305,10 @@ done_finding:
     SAVE_PROFILE_INTERVAL(do_poll_second_loop);
 
     while (npals) {
-        int pal_timeout = (has_r && !has_known) ? timeout : 0;
-        PAL_HANDLE polled = DkObjectsWaitAny(npals, pals, pal_timeout);
+        int pal_timeout_us = (has_r && !has_known) ? timeout_us : 0;
+        PAL_HANDLE polled = DkObjectsWaitAny(npals, pals, pal_timeout_us);
 
-        if (pal_timeout)
+        if (pal_timeout_us)
             SAVE_PROFILE_INTERVAL(do_poll_wait_any);
         else
             SAVE_PROFILE_INTERVAL(do_poll_wait_any_peek);
@@ -385,7 +384,7 @@ done_polling:
     return ret;
 }
 
-int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout)
+int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout_ms)
 {
     struct shim_thread * cur = get_cur_thread();
 
@@ -402,7 +401,7 @@ int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout)
     }
 
     int ret = __do_poll(nfds, polls,
-                        timeout < 0 ? POLL_NOTIMEOUT : timeout * 1000ULL);
+                        timeout_ms < 0 ? POLL_NOTIMEOUT : timeout_ms * 1000ULL);
 
     if (ret < 0)
         goto out;
@@ -448,11 +447,8 @@ int shim_do_ppoll (struct pollfd * fds, int nfds, struct timespec * tsp,
             polls[i].flags |= DO_W;
     }
 
-    unsigned long timeout = tsp ?
-                            tsp->tv_sec * 1000000ULL + tsp->tv_nsec / 1000 :
-                            POLL_NOTIMEOUT;
-
-    int ret = __do_poll(nfds, polls, timeout);
+    uint64_t timeout_us = tsp ? tsp->tv_sec * 1000000ULL + tsp->tv_nsec / 1000 : POLL_NOTIMEOUT;
+    int ret = __do_poll(nfds, polls, timeout_us);
 
     if (ret < 0)
         goto out;
@@ -552,11 +548,8 @@ int shim_do_select (int nfds, fd_set * readfds, fd_set * writefds,
 
     SAVE_PROFILE_INTERVAL(select_setup_array);
 
-    unsigned long timeout = tsv ?
-                            tsv->tv_sec * 1000000ULL + tsv->tv_usec :
-                            POLL_NOTIMEOUT;
-
-    int ret = __do_poll(npolls, polls, timeout);
+    uint64_t timeout_us = tsv ? tsv->tv_sec * 1000000ULL + tsv->tv_usec : POLL_NOTIMEOUT;
+    int ret = __do_poll(npolls, polls, timeout_us);
 
     SAVE_PROFILE_INTERVAL(select_do_poll);
 
@@ -620,11 +613,8 @@ int shim_do_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
         npolls++;
     }
 
-    unsigned long timeout = tsp ?
-                            tsp->tv_sec * 1000000ULL + tsp->tv_nsec / 1000 :
-                            POLL_NOTIMEOUT;
-
-    int ret = __do_poll(npolls, polls, timeout);
+    uint64_t timeout_us = tsp ? tsp->tv_sec * 1000000ULL + tsp->tv_nsec / 1000 : POLL_NOTIMEOUT;
+    int ret = __do_poll(npolls, polls, timeout_us);
 
     if (ret < 0)
         goto out;

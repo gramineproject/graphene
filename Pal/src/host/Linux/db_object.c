@@ -42,17 +42,15 @@
  *
  *  Returns 0 on success, negative value on failure (e.g., -PAL_ERROR_TRYAGAIN)
  */
-static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
-{
+static int _DkObjectWaitOne(PAL_HANDLE handle, int64_t timeout_us) {
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
     if (HANDLE_HDR(handle)->flags & HAS_FDS) {
         struct timespec timeout_ts;
 
-        if (timeout != NO_TIMEOUT) {
-            long sec = (unsigned long) timeout / 1000000;
-            long microsec = (unsigned long) timeout - (sec * 1000000);
-
+        if (timeout_us >= 0) {
+            int64_t sec = timeout_us / 1000000;
+            int64_t microsec = timeout_us - (sec * 1000000);
             timeout_ts.tv_sec = sec;
             timeout_ts.tv_nsec = microsec * 1000;
         }
@@ -85,7 +83,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
             return -PAL_ERROR_TRYAGAIN;
 
         int ret = INLINE_SYSCALL(ppoll, 5, &fds, nfds,
-                                 timeout != NO_TIMEOUT ? &timeout_ts : NULL,
+                                 timeout_us >= 0 ? &timeout_ts : NULL,
                                  NULL, 0);
 
         if (IS_ERR(ret))
@@ -117,14 +115,13 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, PAL_NUM timeout)
     if (!ops || !ops->wait)
         return -PAL_ERROR_NOTSUPPORT;
 
-    return ops->wait(handle, timeout);
+    return ops->wait(handle, timeout_us);
 }
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
-                       PAL_HANDLE * polled)
-{
+int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
+                      PAL_HANDLE* polled) {
     if (count <= 0)
         return 0;
 
@@ -134,7 +131,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
         if (!handleArray[0])
             return -PAL_ERROR_TRYAGAIN;
 
-        int rv = _DkObjectWaitOne(handleArray[0], timeout);
+        int rv = _DkObjectWaitOne(handleArray[0], timeout_us);
         if (rv == 0)
             *polled = handleArray[0];
         return rv;
@@ -207,15 +204,15 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
 
     struct timespec timeout_ts;
 
-    if (timeout != NO_TIMEOUT) {
-        long sec = (unsigned long) timeout / 1000000;
-        long microsec = (unsigned long) timeout - (sec * 1000000);
+    if (timeout_us >= 0) {
+        int64_t sec = timeout_us / 1000000;
+        int64_t microsec = timeout_us - (sec * 1000000);
         timeout_ts.tv_sec = sec;
         timeout_ts.tv_nsec = microsec * 1000;
     }
 
     ret = INLINE_SYSCALL(ppoll, 5, fds, nfds,
-                         timeout != NO_TIMEOUT ? &timeout_ts : NULL,
+                         timeout_us >= 0 ? &timeout_ts : NULL,
                          NULL, 0);
 
     if (IS_ERR(ret))

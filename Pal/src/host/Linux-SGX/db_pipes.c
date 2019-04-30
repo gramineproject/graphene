@@ -363,8 +363,7 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     }
 
     struct pollfd pfd = { .fd = read_fd, .events = POLLIN, .revents = 0 };
-    int64_t waittime = 0;
-    int ret = ocall_poll(&pfd, 1, &waittime);
+    int ret = ocall_poll(&pfd, 1, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
