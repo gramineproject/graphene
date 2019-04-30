@@ -60,7 +60,7 @@ size_t _DkFastRandomBitsRead (void * buffer, size_t size)
             *(unsigned long *) ((char *) buffer + bytes) = rand;
             bytes += sizeof(rand);
         } else {
-            for (uint32_t i = 0 ; i < size - bytes ; i++)
+            for (size_t i = 0 ; i < size - bytes ; i++)
                 *(unsigned char *) ((char *) buffer + bytes + i) = ((unsigned char *) &rand)[i];
             bytes = size;
         }

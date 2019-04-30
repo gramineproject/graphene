@@ -72,7 +72,7 @@ static void assert_vma_list (void)
 
 // TODO: This function should be fixed to always either return exactly `addr` or
 // fail.
-void * get_reserved_pages(void * addr, uint64_t size)
+void * get_reserved_pages(void * addr, size_t size)
 {
     if (!size)
         return NULL;
@@ -120,7 +120,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
     void * avail_top = heap_base + heap_size;
 
     listp_for_each_entry(vma, &heap_vma_list, list) {
-        if ((char*)avail_top - (char*)vma->top > size) {
+        if ((size_t)(avail_top - vma->top) > size) {
             addr = avail_top - size;
             goto allocated;
         }
@@ -252,7 +252,7 @@ allocated:
     return addr;
 }
 
-void free_pages(void * addr, uint64_t size)
+void free_pages(void * addr, size_t size)
 {
     void * addr_top = addr + size;
 

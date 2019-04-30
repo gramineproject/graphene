@@ -25,7 +25,7 @@ unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
 unsigned long pageshift = PRESET_PAGESIZE - 1;
 
 static inline
-const char * alloc_concat(const char * p, size_t plen,
+char * alloc_concat(const char * p, size_t plen,
                           const char * s, size_t slen)
 {
     plen = (plen != (size_t)-1) ? plen : (p ? strlen(p) : 0);

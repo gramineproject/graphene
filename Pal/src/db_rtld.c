@@ -173,7 +173,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
     l->l_entry = header->e_entry;
     l->l_phnum = header->e_phnum;
 
-    uint64_t maplength = header->e_phnum * sizeof (ElfW(Phdr));
+    size_t maplength = header->e_phnum * sizeof (ElfW(Phdr));
     ElfW(Phdr) * phdr;
 
     if (header->e_phoff + maplength <= fbp_len) {
@@ -861,7 +861,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     /* Chia-Che 11/23/13: Removing other checks, comparing the header
        should be enough */
 
-    uint64_t maplength = ehdr->e_phnum * sizeof (ElfW(Phdr));
+    size_t maplength = ehdr->e_phnum * sizeof (ElfW(Phdr));
 
     /* if e_phoff + maplength is smaller than the data read */
     if (ehdr->e_phoff + maplength <= (size_t) len) {
