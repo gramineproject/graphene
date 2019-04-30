@@ -1585,6 +1585,8 @@ int execute_elf_object (struct shim_handle * exec,
     __enable_preempt(tcb);
 
 #if defined(__x86_64__)
+    /* the ABI requires stack is 16 byte aligned on call */
+    assert((unsigned long)argcp % 16 == 0);
     asm volatile (
                     "movq %%rbx, %%rsp\r\n"
                     "jmp *%%rax\r\n"
