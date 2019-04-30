@@ -106,6 +106,8 @@ enclave_entry:
 	#   we mask asynchronous signals on signal handler.
 	# If malicious host OS injects a nested signal, CSSA != 1 and we
 	# fail execution.
+	# This FAIL_LOOP is assertion only because
+	# currently this is also enforced by EENTER because NSSA == 2
 	cmpq $1, %rax
 	je 1f
 	FAIL_LOOP
