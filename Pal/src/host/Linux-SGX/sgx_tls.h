@@ -4,6 +4,12 @@
 #ifndef __SGX_TLS_H__
 #define __SGX_TLS_H__
 
+/*
+ * Beside the classic thread local storage (like ustack, thread, etc.) the TLS
+ * area is also used to pass parameters needed during enclave or thread
+ * initialization. Some of them are thread specific (like tcs_offset) and some
+ * of them are identical for all threads (like enclave_size).
+ */
 struct enclave_tls {
     uint64_t enclave_size;
     uint64_t tcs_offset;
