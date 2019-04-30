@@ -47,7 +47,6 @@ sgx_entry:
 	leaq ocall_table(%rip), %rbx
 	movq (%rbx,%rdi,8), %rbx
 	movq %rsi, %rdi
-	cld
 	callq *%rbx
 
 	movq %rax, %rdi
