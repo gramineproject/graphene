@@ -547,13 +547,6 @@ static elf_auxv_t* __process_auxv (elf_auxv_t * auxp)
     return av + 1;
 }
 
-#define FIND_LAST_STACK(stack)                          \
-    do {                                                \
-        /* check if exist a NULL end */                 \
-        assert(*(uint64_t *) stack == 0);               \
-        stack += sizeof(uint64_t);                      \
-    } while (0)
-
 #ifdef PROFILE
 static void set_profile_enabled (const char ** envp)
 {

@@ -52,9 +52,8 @@ syscalldb:
         pushq %r15
         # shim_regs struct ends here.
 
-        .set save_area_size, 8*14
         movq %rsp, %rbp
-        .cfi_def_cfa_offset save_area_size+8  # +8 for ret_addr
+        .cfi_def_cfa_offset SHIM_REGS_SIZE+8  # +8 for ret_addr
         .cfi_offset 6,-16        # saved_rbp is at CFA-16 (ret + saved_rbp)
         .cfi_def_cfa_register 6  # %rbp
 
@@ -66,11 +65,10 @@ syscalldb:
         cmp $0, %rbx
         je isundef
 
-isdef:
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        leaq save_area_size+8(%rbp), %rax
+        leaq SHIM_REGS_SIZE+8(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SP)
-        movq save_area_size(%rbp), %rax
+        movq SHIM_REGS_SIZE(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
         movq %rbp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
