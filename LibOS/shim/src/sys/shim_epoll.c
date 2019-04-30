@@ -288,7 +288,7 @@ out:
 }
 
 int shim_do_epoll_wait (int epfd, struct __kernel_epoll_event * events,
-                        int maxevents, int timeout)
+                        int maxevents, int timeout_ms)
 {
     int ret = 0;
     struct shim_handle * epoll_hdl = get_fd_handle(epfd, NULL, NULL);
@@ -321,8 +321,9 @@ retry:
 
     unlock(epoll_hdl->lock);
 
+    PAL_NUM pal_timeout = timeout_ms == -1 ? NO_TIMEOUT : (PAL_NUM) timeout_ms * 1000;
     PAL_HANDLE polled = DkObjectsWaitAny(nread ? npals + 1 : npals, pal_handles,
-                                         nread ? (timeout == -1 ? NO_TIMEOUT : (PAL_NUM) timeout) : 0);
+                                         nread ? pal_timeout : 0);
 
     lock(epoll_hdl->lock);
 
@@ -384,10 +385,10 @@ reply:
 }
 
 int shim_do_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
-                         int maxevents, int timeout, const __sigset_t * sigmask,
+                         int maxevents, int timeout_ms, const __sigset_t * sigmask,
                          size_t sigsetsize)
 {
-    int ret = shim_do_epoll_wait (epfd, events, maxevents, timeout);
+    int ret = shim_do_epoll_wait (epfd, events, maxevents, timeout_ms);
     return ret;
 }
 

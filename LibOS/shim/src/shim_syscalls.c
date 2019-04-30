@@ -897,7 +897,7 @@ DEFINE_SHIM_SYSCALL (exit_group, 1, shim_do_exit_group, int, int, error_code)
 
 DEFINE_SHIM_SYSCALL (epoll_wait, 4, shim_do_epoll_wait, int, int, epfd,
                           struct __kernel_epoll_event *, events,
-                          int, maxevents, int, timeout)
+                          int, maxevents, int, timeout_ms)
 
 DEFINE_SHIM_SYSCALL (epoll_ctl, 4, shim_do_epoll_ctl, int, int, epfd, int, op, int, fd,
                           struct __kernel_epoll_event *, event)
@@ -1073,7 +1073,7 @@ SHIM_SYSCALL_PASSTHROUGH (utimensat, 4, int, int, dfd, const char *, filename,
 
 DEFINE_SHIM_SYSCALL (epoll_pwait, 6, shim_do_epoll_pwait, int, int, epfd,
                           struct __kernel_epoll_event *, events, int, maxevents,
-                          int, timeout, const __sigset_t *, sigmask,
+                          int, timeout_ms, const __sigset_t *, sigmask,
                           size_t, sigsetsize)
 
 SHIM_SYSCALL_PASSTHROUGH (signalfd, 3, int, int, ufd, __sigset_t *, user_mask,
