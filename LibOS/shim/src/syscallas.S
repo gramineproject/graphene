@@ -34,6 +34,7 @@ syscalldb:
         .cfi_startproc
 
         # DEP 7/9/12: Push a stack pointer so clone can find the return address
+        pushfq
         pushq %rbp
         .cfi_def_cfa_offset 16
         movq %rsp, %rbp
@@ -97,6 +98,7 @@ isdef:
 ret:
         popq %rbx
         popq %rbp
+        popfq
         retq
 
 isundef:

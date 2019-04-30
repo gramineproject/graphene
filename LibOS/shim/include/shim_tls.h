@@ -37,6 +37,7 @@ struct shim_regs {
     unsigned long           rdi;
     unsigned long           rbx;
     unsigned long           rbp;
+    unsigned long           rflags;
 };
 
 struct shim_context {

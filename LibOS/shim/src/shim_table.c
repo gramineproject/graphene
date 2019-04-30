@@ -26,6 +26,14 @@
 #include <shim_table.h>
 #include <shim_internal.h>
 
+/*
+ * 16-byte alignment for calling __shim_xxx
+ * after entering syscalldb. stack = 8 mod 16 (pushq %rip by callq)
+ * On calling __shim_xxx: (8 + sizeof(struct shim_regs)) mod 16 == 0
+ */
+_Static_assert((sizeof(struct shim_regs) % 16) == 8,
+               "stack isn't aligned to 16 byte on calling shim_table[]");
+
 void debug_unsupp (int num){
     debug ("Unsupported system call %d\n", num);
 }
