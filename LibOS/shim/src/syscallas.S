@@ -34,6 +34,7 @@ syscalldb:
         .cfi_startproc
 
         # Create shim_regs struct on the stack.
+        pushfq
         pushq %rbp
         pushq %rbx
         pushq %rdi
@@ -52,8 +53,8 @@ syscalldb:
 
         movq %rsp, %rbp
         .cfi_def_cfa_offset SHIM_REGS_SIZE+8  # +8 for ret_addr
-        .cfi_offset 6,-16        # saved_rbp is at CFA-16 (ret + saved_rbp)
-        .cfi_def_cfa_register 6  # %rbp
+        .cfi_offset %rbp, -3 * 8    # saved_rbp is at CFA-24 (ret + saved_rflags + saved_rbp)
+        .cfi_def_cfa_register %rbp  # %rbp
 
         cmp $LIBOS_SYSCALL_BOUND, %rax
         jae isundef
@@ -97,6 +98,7 @@ ret:
         popq %rdi
         popq %rbx
         popq %rbp
+        popfq
         retq
 
 isundef:
