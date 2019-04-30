@@ -215,6 +215,9 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         return;
     }
 
+    pal_sec.exec_addr = GET_ENCLAVE_TLS(exec_addr);
+    pal_sec.exec_size = GET_ENCLAVE_TLS(exec_size);
+
     /* Zero the heap. We need to take care to not zero the exec area. */
 
     void* zero1_start = sec_info.heap_min;
@@ -223,9 +226,9 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     void* zero2_start = sec_info.heap_max;
     void* zero2_end = sec_info.heap_max;
 
-    if (sec_info.exec_addr != NULL) {
-        zero1_end = MIN(zero1_end, sec_info.exec_addr);
-        zero2_start = MIN(zero2_start, sec_info.exec_addr + sec_info.exec_size);
+    if (pal_sec.exec_addr != NULL) {
+        zero1_end = MIN(zero1_end, pal_sec.exec_addr);
+        zero2_start = MIN(zero2_start, pal_sec.exec_addr + pal_sec.exec_size);
     }
 
     memset(zero1_start, 0, zero1_end - zero1_start);
@@ -290,10 +293,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     /* TODO: remove with PR #589 */
     pal_sec.heap_min = sec_info.heap_min;
     pal_sec.heap_max = sec_info.heap_max;
-
-    /* TODO: remove with PR #588 */
-    pal_sec.exec_addr = sec_info.exec_addr;
-    pal_sec.exec_size = sec_info.exec_size;
 
     /* set up page allocator and slab manager */
     init_slab_mgr(pagesz);

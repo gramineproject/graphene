@@ -27,6 +27,8 @@ struct enclave_tls {
     uint64_t ecall_called;
     uint64_t ready_for_exceptions;
     uint64_t manifest_size;
+    void *   exec_addr;
+    uint64_t exec_size;
 };
 
 #ifndef DEBUG
