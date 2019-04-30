@@ -117,6 +117,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
 
         if (ct->regs) {
             struct shim_regs * regs = ct->regs;
+            context->uc_mcontext.gregs[REG_EFL] = regs->rflags;
             context->uc_mcontext.gregs[REG_R15] = regs->r15;
             context->uc_mcontext.gregs[REG_R14] = regs->r14;
             context->uc_mcontext.gregs[REG_R13] = regs->r13;

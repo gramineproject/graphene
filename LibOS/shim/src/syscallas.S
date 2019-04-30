@@ -34,11 +34,12 @@ syscalldb:
         .cfi_startproc
 
         # DEP 7/9/12: Push a stack pointer so clone can find the return address
+        pushfq
         pushq %rbp
-        .cfi_def_cfa_offset 16
+        .cfi_def_cfa_offset 3 * 8
         movq %rsp, %rbp
-        .cfi_offset 6,-16
-        .cfi_def_cfa_register 6
+        .cfi_offset %rbp, -3 * 8
+        .cfi_def_cfa_register %rbp
 
         pushq %rbx
 
@@ -65,9 +66,9 @@ isdef:
         pushq %r15
 
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        leaq 16(%rbp), %rax
+        leaq 3 * 8(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SP)
-        movq 8(%rbp), %rax
+        movq 2 * 8(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
         movq %rsp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
@@ -97,6 +98,7 @@ isdef:
 ret:
         popq %rbx
         popq %rbp
+        popfq
         retq
 
 isundef:

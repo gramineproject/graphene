@@ -1289,6 +1289,7 @@ void restore_context (struct shim_context * context)
                      "popq %%rdi\r\n"
                      "popq %%rbx\r\n"
                      "popq %%rbp\r\n"
+                     "popfq\r\n"
                      "popq %%rsp\r\n"
                      "movq $0, %%rax\r\n"
                      "jmp *-128-8(%%rsp)\r\n"
