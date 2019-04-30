@@ -195,6 +195,7 @@ free_and_err:
 }
 
 extern void * enclave_base;
+extern void * enclave_top;
 
 void pal_linux_main(char * uptr_args, uint64_t args_size,
                     char * uptr_env, uint64_t env_size,
@@ -294,10 +295,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     pal_sec.exec_addr = sec_info.exec_addr;
     pal_sec.exec_size = sec_info.exec_size;
 
-    /* TODO: remove with PR #580 */
-    pal_sec.manifest_addr = sec_info.manifest_addr;
-    pal_sec.manifest_size = sec_info.manifest_size;
-
     /* set up page allocator and slab manager */
     init_slab_mgr(pagesz);
     init_untrusted_slab_mgr();
@@ -361,11 +358,14 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         SGX_DBG(DBG_I, "Run without executable\n");
     }
 
+    uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
+    void* manifest_addr = enclave_top - ALIGN_UP_PTR(manifest_size, pagesz);
+
     /* parse manifest data into config storage */
     struct config_store * root_config =
             malloc(sizeof(struct config_store));
-    root_config->raw_data = pal_sec.manifest_addr;
-    root_config->raw_size = pal_sec.manifest_size;
+    root_config->raw_data = manifest_addr;
+    root_config->raw_size = manifest_size;
     root_config->malloc = malloc;
     root_config->free = free;
 
@@ -376,9 +376,8 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     }
 
     pal_state.root_config = root_config;
-    __pal_control.manifest_preload.start = (PAL_PTR) pal_sec.manifest_addr;
-    __pal_control.manifest_preload.end = (PAL_PTR) pal_sec.manifest_addr +
-                                         pal_sec.manifest_size;
+    __pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
+    __pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
 
     init_trusted_files();
     init_trusted_children();
