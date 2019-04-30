@@ -327,10 +327,12 @@ int initialize_enclave (struct pal_enclave * enclave)
         _a->prot = _prot; _a->type = _type; _a;                         \
     })
 
-    struct mem_area * manifest_area =
-        set_area("manifest", false, false, enclave->manifest,
-                 0, ALLOC_ALIGNUP(manifest_size),
-                 PROT_READ, SGX_PAGE_REG);
+    /* The manifest needs to be allocated at the upper end of the enclave
+     * memory. That's used by pal_linux_main to find the manifest area. So add
+     * it first to the list with memory areas. */
+    set_area("manifest", false, false, enclave->manifest,
+             0, ALLOC_ALIGNUP(manifest_size),
+             PROT_READ, SGX_PAGE_REG);
     struct mem_area * ssa_area =
         set_area("ssa", false, false, -1, 0,
                  enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
@@ -420,6 +422,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                     enclave_secs.baseaddr;
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
+                gs->manifest_size = manifest_size;
             }
         } else if (strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
@@ -469,9 +472,6 @@ int initialize_enclave (struct pal_enclave * enclave)
         pal_sec->exec_addr = (void *) enclave_secs.baseaddr + exec_area->addr;
         pal_sec->exec_size = exec_area->size;
     }
-
-    pal_sec->manifest_addr = (void *) enclave_secs.baseaddr + manifest_area->addr;
-    pal_sec->manifest_size = manifest_size;
 
     struct enclave_dbginfo * dbg = (void *)
             INLINE_SYSCALL(mmap, 6, DBGINFO_ADDR,

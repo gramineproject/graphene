@@ -20,6 +20,7 @@ struct enclave_tls {
     uint64_t ocall_prepared;
     uint64_t ecall_called;
     uint64_t ready_for_exceptions;
+    uint64_t manifest_size;
 };
 
 #ifndef DEBUG
