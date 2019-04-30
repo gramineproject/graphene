@@ -103,7 +103,7 @@ ret:
 
 isundef:
 #ifdef DEBUG
-        # syscalldb preseves registers. push caller save registers
+        # syscalldb preserves registers. push caller-saved registers
         pushq %rcx
         pushq %rdx
         pushq %rsi
