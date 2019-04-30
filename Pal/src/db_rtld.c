@@ -1284,6 +1284,7 @@ void * stack_before_call __attribute_unused = NULL;
 
 #define CALL_ENTRY(l, cookies)                                          \
     ({  long ret;                                                       \
+        assert(((unsigned long)cookies) % 16UL == 0);                   \
         __asm__ volatile("movq %%rsp, stack_before_call(%%rip)\r\n"     \
                      "leaq 1f(%%rip), %%rdx\r\n"                        \
                      "movq %2, %%rsp\r\n"                               \
