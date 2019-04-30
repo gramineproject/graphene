@@ -70,6 +70,8 @@ void dummy(void)
     OFFSET(SGX_ECALL_CALLED, enclave_tls, ecall_called);
     OFFSET(SGX_READY_FOR_EXCEPTIONS, enclave_tls, ready_for_exceptions);
     OFFSET(SGX_MANIFEST_SIZE, enclave_tls, manifest_size);
+    OFFSET(SGX_EXEC_ADDR, enclave_tls, exec_addr);
+    OFFSET(SGX_EXEC_SIZE, enclave_tls, exec_size);
 
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_OSSA, sgx_arch_tcs_t, ossa);

@@ -423,6 +423,10 @@ int initialize_enclave (struct pal_enclave * enclave)
                 gs->gpr = gs->ssa +
                     enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
                 gs->manifest_size = manifest_size;
+                if (exec_area) {
+                    gs->exec_addr = (void *) enclave_secs.baseaddr + exec_area->addr;
+                    gs->exec_size = exec_area->size;
+                }
             }
         } else if (strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
@@ -467,11 +471,6 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     pal_sec->heap_min = (void *) enclave_secs.baseaddr + heap_min;
     pal_sec->heap_max = (void *) enclave_secs.baseaddr + pal_area->addr - MEMORY_GAP;
-
-    if (exec_area) {
-        pal_sec->exec_addr = (void *) enclave_secs.baseaddr + exec_area->addr;
-        pal_sec->exec_size = exec_area->size;
-    }
 
     struct enclave_dbginfo * dbg = (void *)
             INLINE_SYSCALL(mmap, 6, DBGINFO_ADDR,
