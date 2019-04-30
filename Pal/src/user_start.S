@@ -32,6 +32,7 @@ _start:
 
 	/* Align the stack to a 16 byte boundary to follow the ABI.  */
 	and  $~15, %rsp
+	pushq %rsp # add 8 bytes junk because we add 8 bytes more below
 
 	/* push the exit address on the stack */
 	pushq %rdx
