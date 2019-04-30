@@ -123,15 +123,15 @@ int init_thread (void);
 
 #define SHIM_THREAD_SELF()                                     \
     ({ struct shim_thread * __self;                            \
-       __asm__ volatile ("movq %%fs:%c1,%q0"                   \
-                         : "=r" (__self)                       \
-                         : "i" (offsetof(__libc_tcb_t, shim_tcb.tp))); \
+       __asm__ ("movq %%fs:%c1,%q0"                            \
+                : "=r" (__self)                                \
+                : "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));  \
        __self; })
 
 #define SAVE_SHIM_THREAD_SELF(__self)                         \
-    ({ __asm__ volatile ("movq %q0,%%fs:%c1" :                \
-                         : "r" (__self),                      \
-                           "i" (offsetof(__libc_tcb_t, shim_tcb.tp))); \
+    ({ __asm__ ("movq %q0,%%fs:%c1" :                         \
+                : "r" (__self),                               \
+                  "i" (offsetof(__libc_tcb_t, shim_tcb.tp))); \
        __self; })
 
 void get_thread (struct shim_thread * thread);
