@@ -76,7 +76,7 @@ endif
 PYTHONENV = "PYTHONPATH=../../Scripts"
 
 ifeq ($(SGX_RUN),1)
-	PYTHONENV += "TIMEOUT=5000"
+	PYTHONENV += "TIMEOUT=20000"
 endif
 
 regression: $(call expand_target,$(target))
