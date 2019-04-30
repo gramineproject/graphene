@@ -139,10 +139,10 @@ int _DkThreadDelayExecution (unsigned long * duration)
     struct timespec sleeptime;
     struct timespec remainingtime;
 
-#define VERY_LONG_TIME_IN_MS    (1000000L * 60 * 60 * 24 * 365 * 128)
-    if (*duration > VERY_LONG_TIME_IN_MS) {
+#define VERY_LONG_TIME_IN_US    (1000000L * 60 * 60 * 24 * 365 * 128)
+    if (*duration > VERY_LONG_TIME_IN_US) {
         /* avoid overflow with time_t */
-        sleeptime.tv_sec  = VERY_LONG_TIME_IN_MS / 1000000;
+        sleeptime.tv_sec  = VERY_LONG_TIME_IN_US / 1000000;
         sleeptime.tv_nsec = 0;
     } else {
         sleeptime.tv_sec = *duration / 1000000;
