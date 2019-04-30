@@ -47,7 +47,15 @@ sgx_entry:
 	leaq ocall_table(%rip), %rbx
 	movq (%rbx,%rdi,8), %rbx
 	movq %rsi, %rdi
+
+	pushq %rbp
+	movq %rsp, %rbp
+	andq $~0xF, %rsp  # Required by System V AMD64 ABI.
+
 	callq *%rbx
+
+	movq %rbp, %rsp
+	popq %rbp
 
 	movq %rax, %rdi
 	# Not interrupted

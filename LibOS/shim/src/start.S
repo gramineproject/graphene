@@ -27,35 +27,18 @@
 shim_start:
     .cfi_startproc
 
-/* Clear the frame pointer.  The ABI suggests this be done, to mark
-   the outermost frame obviously.  */
+    # Clear the frame pointer.  The ABI suggests this be done, to mark
+    # the outermost frame obviously.
     xorq %rbp, %rbp
-    movq %rsp, %rbp
 
-/* Extract the arguments as encoded on the stack and set up
-   the arguments for shim_init (int, void *, void **),
-   The arguments are passed via registers and on the stack:
-   argc:         %rdi
-   argv:         %rsi
-   stack:        %rdx
-*/
+    # Arguments for shim_init:
+    movq 0(%rsp), %rdi  # argc
+    leaq 8(%rsp), %rsi  # args
 
-    /* Align the stack to a 16 byte boundary to follow the ABI.  */
-    andq  $~15, %rsp
-
-    movq %rdi, %rcx         /* Possibly the stack has to be switched */
-    movq 0(%rbp), %rdi      /* Pop the argument count.  */
-    leaq 8(%rbp), %rsi      /* argv starts just at the current stack top.  */
-
-/* Provide the highest stack address to the user code (for stacks
-   which grow downwards).  */
-
-    pushq %rbp
-    movq %rsp, %rdx
+    # Required by System V AMD64 ABI.
+    andq  $~0xF, %rsp
 
     callq *shim_init@GOTPCREL(%rip)
 
-    popq %rbp
-    leaveq
-    retq
+    # TODO: Call initial %rdi to execute atexit callbacks.
     .cfi_endproc

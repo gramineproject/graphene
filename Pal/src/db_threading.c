@@ -79,11 +79,12 @@ void DkThreadYieldExecution (void)
 
 /* PAL call DkThreadExit: simply exit the current thread
    no matter what */
-void DkThreadExit (void)
+__attribute__((noreturn)) void DkThreadExit (void)
 {
     ENTER_PAL_CALL(DkThreadExit);
     _DkThreadExit();
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
+    while (1) {}
     LEAVE_PAL_CALL();
 }
 

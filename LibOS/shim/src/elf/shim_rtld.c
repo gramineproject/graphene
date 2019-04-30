@@ -1558,12 +1558,13 @@ int register_library (const char * name, unsigned long load_address)
     return 0;
 }
 
-int execute_elf_object (struct shim_handle * exec,
-                        int * argcp, const char ** argp,
-                        int nauxv, ElfW(auxv_t) * auxp)
+void execute_elf_object (struct shim_handle * exec,
+                         int * argcp, const char ** argp,
+                         int nauxv, ElfW(auxv_t) * auxp)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
+    assert((uintptr_t)argcp % 16 == 0);  // Stack should be aligned to 16 on entry point.
     assert((void*)argcp + sizeof(long) == argp || argp == NULL);
 
     auxp[0].a_type = AT_PHDR;
@@ -1597,8 +1598,6 @@ int execute_elf_object (struct shim_handle * exec,
 #else
 # error "architecture not supported"
 #endif
-    shim_do_exit(0);
-    return 0;
 }
 
 BEGIN_CP_FUNC(library)

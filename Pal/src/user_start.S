@@ -31,9 +31,10 @@ _start:
 	mov %rsp, %rsi
 
 	/* Align the stack to a 16 byte boundary to follow the ABI.  */
-	and  $~15, %rsp
+	and  $~0xF, %rsp
 
-	/* push the exit address on the stack */
+	/* push the exit address on the stack and preserve %rsp alignment */
+	subq $8, %rsp
 	pushq %rdx
 
 	/* find the environs */

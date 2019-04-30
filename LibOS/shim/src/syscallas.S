@@ -33,24 +33,9 @@
 syscalldb:
         .cfi_startproc
 
-        # DEP 7/9/12: Push a stack pointer so clone can find the return address
+        # Create shim_regs struct on the stack.
         pushq %rbp
-        .cfi_def_cfa_offset 16
-        movq %rsp, %rbp
-        .cfi_offset 6,-16
-        .cfi_def_cfa_register 6
-
         pushq %rbx
-
-        cmp $LIBOS_SYSCALL_BOUND, %rax
-        jae isundef
-
-        movq shim_table@GOTPCREL(%rip), %rbx
-        movq (%rbx,%rax,8), %rbx
-        cmp $0, %rbx
-        je isundef
-
-isdef:
         pushq %rdi
         pushq %rsi
         pushq %rdx
@@ -63,17 +48,32 @@ isdef:
         pushq %r13
         pushq %r14
         pushq %r15
+        # shim_regs struct ends here.
+
+        movq %rsp, %rbp
+        .cfi_def_cfa_offset SHIM_REGS_SIZE+8  # +8 for ret_addr
+        .cfi_offset 6,-16        # saved_rbp is at CFA-16 (ret + saved_rbp)
+        .cfi_def_cfa_register 6  # %rbp
+
+        cmp $LIBOS_SYSCALL_BOUND, %rax
+        jae isundef
+
+        movq shim_table@GOTPCREL(%rip), %rbx
+        movq (%rbx,%rax,8), %rbx
+        cmp $0, %rbx
+        je isundef
 
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        leaq 16(%rbp), %rax
+        leaq SHIM_REGS_SIZE+8(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SP)
-        movq 8(%rbp), %rax
+        movq SHIM_REGS_SIZE(%rbp), %rax
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
-        movq %rsp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
+        movq %rbp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
         /* Translating x86_64 kernel calling convention to user-space
          * calling convention */
         movq %r10, %rcx
+        andq $~0xF, %rsp  # Required by System V AMD64 ABI.
         call *%rbx
 
         movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
@@ -81,6 +81,8 @@ isdef:
         movq $0, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
         movq $0, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
+ret:
+        movq %rbp, %rsp
         popq %r15
         popq %r14
         popq %r13
@@ -93,8 +95,6 @@ isdef:
         popq %rdx
         popq %rsi
         popq %rdi
-
-ret:
         popq %rbx
         popq %rbp
         retq
@@ -102,9 +102,10 @@ ret:
 isundef:
 #ifdef DEBUG
         mov %rax, %rdi
+        andq $~0xF, %rsp  # Required by System V AMD64 ABI.
         call *debug_unsupp@GOTPCREL(%rip)
 #endif
-        movq $-38, %rax
+        movq $-38, %rax  # ENOSYS
         jmp ret
 
         .cfi_endproc
