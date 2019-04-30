@@ -398,7 +398,7 @@ DkThreadDelayExecution (PAL_NUM duration);
 void
 DkThreadYieldExecution (void);
 
-void
+__attribute__((noreturn)) void
 DkThreadExit (void);
 
 PAL_BOL

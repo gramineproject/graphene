@@ -24,6 +24,7 @@
  */
 
 #include <shim_internal.h>
+#include <shim_table.h>
 #include <shim_tls.h>
 #include <shim_thread.h>
 #include <shim_handle.h>
@@ -172,7 +173,6 @@ void * migrated_memory_start;
 void * migrated_memory_end;
 void * migrated_shim_addr;
 
-void * initial_stack;
 const char ** initial_envp __attribute_migratable;
 
 char ** library_paths;
@@ -272,6 +272,8 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     INC_PROFILE_OCCURENCE(alloc_stack_count);
 
     stack += protect_size;
+    // Ensure proper alignment for process' initial stack pointer value.
+    stack += (16 - (uintptr_t)stack % 16) % 16;
     DkVirtualMemoryProtect(stack, size, PAL_PROT_READ|PAL_PROT_WRITE);
 
     if (bkeep_mprotect(stack, size, PROT_READ|PROT_WRITE, flags) < 0)
@@ -533,7 +535,7 @@ struct shim_profile profile_root;
     } while (0)
 
 
-static void * __process_auxv (elf_auxv_t * auxp)
+static elf_auxv_t* __process_auxv (elf_auxv_t * auxp)
 {
     elf_auxv_t * av;
 
@@ -676,7 +678,7 @@ DEFINE_PROFILE_INTERVAL(init_signal,                init);
 
 extern PAL_HANDLE thread_start_event;
 
-int shim_init (int argc, void * args, void ** return_stack)
+__attribute__((noreturn)) void* shim_init (int argc, void * args)
 {
     debug_handle = PAL_CB(debug_stream);
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
@@ -710,9 +712,7 @@ int shim_init (int argc, void * args, void ** return_stack)
 
     /* call to figure out where the arguments are */
     FIND_ARG_COMPONENTS(args, argc, argv, envp, auxp);
-    initial_stack = __process_auxv(auxp);
-    int nauxv = (elf_auxv_t *) initial_stack - auxp;
-    FIND_LAST_STACK(initial_stack);
+    int nauxv = __process_auxv(auxp) - auxp;
 
 #ifdef PROFILE
     set_profile_enabled(envp);
@@ -791,7 +791,7 @@ restore:
         if (!DkStreamWrite(PAL_CB(parent_process), 0,
                            sizeof(struct newproc_response),
                            &res, NULL))
-            return -PAL_ERRNO;
+            shim_do_exit(-PAL_ERRNO);
     }
 
     debug("shim process initialized\n");
@@ -829,9 +829,7 @@ restore:
     if (cur_thread->exec)
         execute_elf_object(cur_thread->exec,
                            argcp, argp, nauxv, auxp);
-
-    *return_stack = initial_stack;
-    return 0;
+    shim_do_exit(0);
 }
 
 static int create_unique (int (*mkname) (char *, size_t, void *),

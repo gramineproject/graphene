@@ -427,6 +427,7 @@ __asm__ (".global start\r\n"
    messed up by function calls */
 __asm__ ("start:\r\n"
      "  movq %rsp, %rdi\r\n"
+     "  andq $~0xF, %rsp\r\n"
      "  call do_main\r\n");
 
 void do_main (void * args)
