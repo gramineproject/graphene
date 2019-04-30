@@ -157,7 +157,7 @@ if rv: sys.exit(rv)
 
 # Running Bootstrap6.manifest - SGX-specific test
 if sgx:
-    regression = Regression(loader, manifest_file("Bootstrap6"), timeout = 100000)
+    regression = Regression(loader, manifest_file("Bootstrap6"), timeout = 200000)
     regression.add_check(name="8GB Enclave Creation (SGX Only)",
                          check=lambda res: "Loaded Manifest: file:Bootstrap6.manifest.sgx" in res[0].log and
                          "Executable Range OK" in res[0].log)
