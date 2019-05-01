@@ -1,4 +1,4 @@
-SGX_DIR = $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+SGX_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 RUNTIME_DIR = $(SGX_DIR)/../../../../Runtime
 
 LIBPAL = $(RUNTIME_DIR)/libpal-Linux-SGX.so
