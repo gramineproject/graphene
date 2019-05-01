@@ -94,7 +94,9 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout)
 
     PAL_HANDLE polled = NULL;
 
-    int ret = _DkObjectsWaitAny (count, handleArray, timeout, &polled);
+    int ret = _DkObjectsWaitAny (count, handleArray,
+                                 timeout == NO_TIMEOUT ? NO_TIMEOUT : timeout,
+                                 &polled);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
