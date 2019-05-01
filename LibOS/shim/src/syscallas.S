@@ -33,8 +33,6 @@
 syscalldb:
         .cfi_startproc
 
-        # DEP 7/9/12: Push a stack pointer so clone can find the return address
-
         # Create shim_regs struct on the stack.
         pushq %rbp
         pushq %rbx
