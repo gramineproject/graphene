@@ -1,4 +1,4 @@
-DIR = $(dir $(lastword $(MAKEFILE_LIST)))
+DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 expand_target = $(1)
 
 ifeq ($(PAL_HOST),)
