@@ -156,7 +156,7 @@ static const char** make_argv_list(void * uptr_src, uint64_t src_size) {
         return NULL;
     }
 
-    if (sgx_copy_to_enclave(data, uptr_src, src_size) != 0) {
+    if (!sgx_copy_to_enclave(data, src_size, uptr_src, src_size)) {
         goto free_and_err;
     }
     data[src_size - 1] = '\0';
@@ -211,7 +211,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     int rv;
 
     struct pal_sec sec_info;
-    if (sgx_copy_to_enclave(&sec_info, uptr_sec_info, sizeof(sec_info)) != 0) {
+    if (!sgx_copy_to_enclave(&sec_info, sizeof(sec_info), uptr_sec_info, sizeof(sec_info))) {
         return;
     }
 
