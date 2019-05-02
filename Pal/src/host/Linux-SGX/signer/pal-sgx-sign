@@ -629,7 +629,7 @@ def generate_sigstruct(attr, args, mrenclave):
                            "4s",   attr['miscs'])
     fields['attrs']     = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
                            "8s8s", attr['flags'], attr['xfrms'])
-    fields['attrmask']  = (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK,
+    fields['attrmask']  = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
                            "8s8s", attr['flags'], attr['xfrms'])
     fields['mrenclave'] = (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH,
                            "32s",  mrenclave)
