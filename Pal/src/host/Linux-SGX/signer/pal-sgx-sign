@@ -133,19 +133,19 @@ def output_manifest(filename, manifest, manifest_layout):
 
 def get_enclave_attributes(manifest):
     sgx_flags = {
-        'FLAG_DEBUG'          : struct.pack("<Q", 0x02),
-        'FLAG_MODE64BIT'      : struct.pack("<Q", 0x04),
+        'FLAG_DEBUG'          : struct.pack("<Q", SGX_FLAGS_DEBUG),
+        'FLAG_MODE64BIT'      : struct.pack("<Q", SGX_FLAGS_MODE64BIT),
     }
 
     sgx_xfrms = {
-        'XFRM_LEGACY'         : struct.pack("<Q", 0x03),
-        'XFRM_AVX'            : struct.pack("<Q", 0x06),
-        'XFRM_AVX3'           : struct.pack("<Q", 0xe6),
-        'XFRM_MPX'            : struct.pack("<Q", 0x18),
+        'XFRM_LEGACY'         : struct.pack("<Q", SGX_XFRM_LEGACY),
+        'XFRM_AVX'            : struct.pack("<Q", SGX_XFRM_AVX),
+        'XFRM_AVX3'           : struct.pack("<Q", SGX_XFRM_AVX512),
+        'XFRM_MPX'            : struct.pack("<Q", SGX_XFRM_MPX),
     }
 
     sgx_miscs = {
-        'MISC_EXINFO'         : struct.pack("<L", 0x01),
+        'MISC_EXINFO'         : struct.pack("<L", SGX_MISCSELECT_EXINFO),
     }
 
     default_attributes = [
@@ -612,19 +612,31 @@ def generate_sigstruct(attr, args, mrenclave):
     # field format: (offset, type, value)
     fields = dict()
 
-    fields['header']    = (   0, "<4L",  0x00000006, 0x000000e1, 0x00010000, 0x00000000)
-    fields['vendor']    = (  16, "<L",   0x00000000)
-    fields['date']      = (  20, "<HBB", today.year, today.month, today.day)
-    fields['header2']   = (  24, "<4L",  0x00000101, 0x00000060, 0x00000060, 0x00000001)
-    fields['swdefined'] = (  40, "<L",   0x00000000)
+    fields['header']    = (SGX_ARCH_SIGSTRUCT_HEADER,
+                           "<4L",  0x00000006, 0x000000e1, 0x00010000, 0x00000000)
+    fields['vendor']    = (SGX_ARCH_SIGSTRUCT_VENDOR,
+                           "<L",   0x00000000)
+    fields['date']      = (SGX_ARCH_SIGSTRUCT_DATE,
+                           "<HBB", today.year, today.month, today.day)
+    fields['header2']   = (SGX_ARCH_SIGSTRUCT_HEADER2,
+                           "<4L",  0x00000101, 0x00000060, 0x00000060, 0x00000001)
+    fields['swdefined'] = (SGX_ARCH_SIGSTRUCT_SWDEFINED,
+                           "<L",   0x00000000)
 
-    fields['miscs']     = ( 900, "4s",   attr['miscs'])
-    fields['miscmask']  = ( 904, "4s",   attr['miscs'])
-    fields['attrs']     = ( 928, "8s8s", attr['flags'], attr['xfrms'])
-    fields['attrmask']  = ( 944, "8s8s", attr['flags'], attr['xfrms'])
-    fields['mrenclave'] = ( 960, "32s",  mrenclave)
-    fields['isvprodid'] = (1024, "<H",   attr['isvprodid'])
-    fields['isvsvn']    = (1026, "<H",   attr['isvsvn'])
+    fields['miscs']     = (SGX_ARCH_SIGSTRUCT_MISCSELECT,
+                           "4s",   attr['miscs'])
+    fields['miscmask']  = (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK,
+                           "4s",   attr['miscs'])
+    fields['attrs']     = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
+                           "8s8s", attr['flags'], attr['xfrms'])
+    fields['attrmask']  = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+                           "8s8s", attr['flags'], attr['xfrms'])
+    fields['mrenclave'] = (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH,
+                           "32s",  mrenclave)
+    fields['isvprodid'] = (SGX_ARCH_SIGSTRUCT_ISVPRODID,
+                           "<H",   attr['isvprodid'])
+    fields['isvsvn']    = (SGX_ARCH_SIGSTRUCT_ISVSVN,
+                           "<H",   attr['isvsvn'])
 
     sign_buffer = bytearray(128 + 128)
 
@@ -673,14 +685,14 @@ def generate_sigstruct(attr, args, mrenclave):
     q1 = int_to_bytes(q1_int)
     q2 = int_to_bytes(q2_int)
 
-    fields['modulus']   = ( 128, "384s", modulus)
-    fields['exponent']  = ( 512, "<L",   3)
-    fields['signature'] = ( 516, "384s", signature)
+    fields['modulus']   = (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", modulus)
+    fields['exponent']  = (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L",   3)
+    fields['signature'] = (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", signature)
 
-    fields['q1']        = (1040, "384s", q1)
-    fields['q2']        = (1424, "384s", q2)
+    fields['q1']        = (SGX_ARCH_SIGSTRUCT_Q1, "384s", q1)
+    fields['q2']        = (SGX_ARCH_SIGSTRUCT_Q2, "384s", q2)
 
-    buffer = bytearray(1808)
+    buffer = bytearray(SGX_ARCH_SIGSTRUCT_SIZE)
 
     for key, field in fields.items():
         struct.pack_into(field[1], buffer, field[0], *field[2:])
