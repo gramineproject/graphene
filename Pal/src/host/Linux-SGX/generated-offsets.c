@@ -10,6 +10,15 @@
 
 void dummy(void)
 {
+    /* defines in sgx_arch.h */
+    DEFINE(SGX_FLAGS_DEBUG, SGX_FLAGS_DEBUG);
+    DEFINE(SGX_FLAGS_MODE64BIT, SGX_FLAGS_MODE64BIT);
+    DEFINE(SGX_XFRM_LEGACY, SGX_XFRM_LEGACY);
+    DEFINE(SGX_XFRM_AVX, SGX_XFRM_AVX);
+    DEFINE(SGX_XFRM_MPX, SGX_XFRM_MPX);
+    DEFINE(SGX_XFRM_AVX512, SGX_XFRM_AVX512);
+    DEFINE(SGX_MISCSELECT_EXINFO, SGX_MISCSELECT_EXINFO);
+
     /* sgx_arch_gpr_t */
     OFFSET_T(SGX_GPR_RAX, sgx_arch_gpr_t, rax);
     OFFSET_T(SGX_GPR_RCX, sgx_arch_gpr_t, rcx);
@@ -86,6 +95,26 @@ void dummy(void)
 
     /* sgx_arch_attributes_t */
     OFFSET_T(SGX_ARCH_ATTRIBUTES_XFRM, sgx_arch_attributes_t, xfrm);
+
+    /* sgx_arch_sigstruct_t */
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_HEADER, sgx_arch_sigstruct_t, header);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_VENDOR, sgx_arch_sigstruct_t, vendor);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_DATE, sgx_arch_sigstruct_t, date);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_HEADER2, sgx_arch_sigstruct_t, header2);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_SWDEFINED, sgx_arch_sigstruct_t, swdefined);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_MODULUS, sgx_arch_sigstruct_t, modulus);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_EXPONENT, sgx_arch_sigstruct_t, exponent);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_SIGNATURE, sgx_arch_sigstruct_t, signature);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_MISCSELECT, sgx_arch_sigstruct_t, miscselect);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, sgx_arch_sigstruct_t, miscselect_mask);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_ATTRIBUTES, sgx_arch_sigstruct_t, attributes);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK, sgx_arch_sigstruct_t, attribute_mask);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, sgx_arch_sigstruct_t, enclave_hash);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_ISVPRODID, sgx_arch_sigstruct_t, isvprodid);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_ISVSVN, sgx_arch_sigstruct_t, isvsvn);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_Q1, sgx_arch_sigstruct_t, q1);
+    OFFSET_T(SGX_ARCH_SIGSTRUCT_Q2, sgx_arch_sigstruct_t, q2);
+    DEFINE(SGX_ARCH_SIGSTRUCT_SIZE, sizeof(sgx_arch_sigstruct_t));
 
     /* struct pal_sec */
     OFFSET(PAL_SEC_ENCLAVE_ATTRIBUTES, pal_sec, enclave_attributes);
