@@ -519,9 +519,10 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
                 map->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
                 break;
             case PT_LOAD: {
-                ElfW(Addr) start = (ElfW(Addr))ALLOC_ALIGN_DOWN(map->l_addr + ph->p_vaddr);
+                ElfW(Addr) addr_ = (ElfW(Addr))addr;
+                ElfW(Addr) start = (ElfW(Addr))ALLOC_ALIGN_DOWN(addr_ + ph->p_vaddr);
                 ElfW(Addr) end = (ElfW(Addr))
-                        ALLOC_ALIGN_UP(map->l_addr + ph->p_vaddr + ph->p_memsz);
+                        ALLOC_ALIGN_UP(addr_ + ph->p_vaddr + ph->p_memsz);
                 if (start < mapstart)
                     mapstart = start;
                 if (end > mapend)
@@ -529,13 +530,14 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
             }
         }
 
-    map->l_addr  = (ElfW(Addr)) addr - mapstart;
+    map->l_addr  = mapstart;
     map->l_entry = header->e_entry;
+    map->l_entry += map->l_addr;
     map->l_map_start = (ElfW(Addr)) addr;
     map->l_map_end = (ElfW(Addr)) addr + (mapend - mapstart);
 
     map->l_real_ld = (ElfW(Dyn) *)
-            ((char *) map->l_addr + (unsigned long) map->l_ld);
+            (map->l_addr + (unsigned long) map->l_ld);
     map->l_ld = malloc_copy(map->l_real_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
 
     elf_get_dynamic_info(map->l_ld, map->l_info, map->l_addr);
@@ -1228,6 +1230,8 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 
     l->l_addr = l->l_map_start - map_start;
     l->l_map_end = l->l_addr + map_end;
+    if (header->e_type == ET_DYN)
+        l->l_entry += l->l_addr;
 
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
         switch (ph->p_type) {
