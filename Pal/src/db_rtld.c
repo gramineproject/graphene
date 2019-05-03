@@ -543,6 +543,8 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
 
     map->l_addr  = (ElfW(Addr)) addr - mapstart;
     map->l_entry = header->e_entry;
+    if (header->e_type == ET_DYN)
+        map->l_entry += (ElfW(Addr))addr;
     map->l_map_start = (ElfW(Addr)) addr;
     map->l_map_end = (ElfW(Addr)) addr + (mapend - mapstart);
 
