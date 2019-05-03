@@ -151,7 +151,7 @@ void setup_pal_map (struct link_map * pal_map)
 
     pal_map->l_real_ld = pal_map->l_ld = (void *) elf_machine_dynamic();
     pal_map->l_type = OBJECT_RTLD;
-    pal_map->l_entry = header->e_entry;
+    pal_map->l_entry = header->e_entry + pal_map->l_addr;
     pal_map->l_phdr  = (void *) (pal_map->l_addr + header->e_phoff);
     pal_map->l_phnum = header->e_phnum;
     setup_elf_hash(pal_map);
