@@ -208,8 +208,12 @@ static int socket_parse_uri (char * uri,
     if (!uri || !(*uri)) {
         if (bind_addr)
             *bind_addr = NULL;
+        if (bind_addrlen)
+            *bind_addrlen = 0;
         if (dest_addr)
             *dest_addr = NULL;
+        if (dest_addrlen)
+            *dest_addrlen = 0;
         return 0;
     }
 
