@@ -378,18 +378,20 @@ static int sgx_ocall_sock_connect(void * pms)
             goto err_fd;
     }
 
-    ret = INLINE_SYSCALL(connect, 3, fd, ms->ms_addr, ms->ms_addrlen);
+    if (ms->ms_addr) {
+        ret = INLINE_SYSCALL(connect, 3, fd, ms->ms_addr, ms->ms_addrlen);
 
-    if (IS_ERR(ret) && ERRNO(ret) == EINPROGRESS) {
-        do {
-            struct pollfd pfd = { .fd = fd, .events = POLLOUT, .revents = 0, };
-            ret = INLINE_SYSCALL(ppoll, 4, &pfd, 1, NULL, NULL);
-        } while (IS_ERR(ret) &&
-                 ERRNO(ret) == -EWOULDBLOCK);
+        if (IS_ERR(ret) && ERRNO(ret) == EINPROGRESS) {
+            do {
+                struct pollfd pfd = { .fd = fd, .events = POLLOUT, .revents = 0, };
+                ret = INLINE_SYSCALL(ppoll, 4, &pfd, 1, NULL, NULL);
+            } while (IS_ERR(ret) &&
+                    ERRNO(ret) == -EWOULDBLOCK);
+        }
+
+        if (IS_ERR(ret))
+            goto err_fd;
     }
-
-    if (IS_ERR(ret))
-        goto err_fd;
 
     if (ms->ms_bind_addr && !ms->ms_bind_addr->sa_family) {
         socklen_t addrlen;
