@@ -17,9 +17,6 @@ enclave_entry:
 	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
 	# RCX is the address of AEP. Other registers are not trusted.
 
-	# x86-64 sysv abi requires %rFLAGS.DF = 0 on entry to function call.
-	cld
-
 	# current SSA is in RAX (Trusted)
 	cmpq $0, %rax
 	jne .Lhandle_resume
@@ -93,6 +90,7 @@ enclave_entry:
 
 	# register states need to be carefully checked, so we move the handling
 	# to handle_ecall() in enclave_ecalls.c
+	cld # x86-64 sysv abi requires %rFLAGS.DF = 0 on entry to function call.
 	callq handle_ecall
 
 	# handle_ecall will only return when invalid parameters has been passed.
@@ -232,6 +230,9 @@ enclave_entry:
 	# Align the stack for _DkExceptionHandler
 	andq $STACK_ALIGN, %rsi
 	movq %rsi, SGX_GPR_RSP(%rbx)
+
+	# clear rflags to conform the ABI which requires RFLAGS.DF = 0
+	movq $0, SGX_GPR_RFLAGS(%rbx)
 
 	# new RIP is the exception handler
 	leaq _DkExceptionHandler(%rip), %rdi
@@ -396,6 +397,7 @@ sgx_ocall:
 	pushq %rax
 	movq %rsi, %rdi
 	movq %rsp, %rsi
+	cld # x86-64 sysv abi requires %rFLAGS.DF = 0 on entry to function call.
 	callq _DkHandleExternalEvent
 	popq %rax
 .Lno_external_event:
