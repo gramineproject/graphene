@@ -233,6 +233,9 @@ enclave_entry:
 	andq $STACK_ALIGN, %rsi
 	movq %rsi, SGX_GPR_RSP(%rbx)
 
+	# clear rflags to conform the ABI which requires RFLAGS.DF = 0
+	movq $0, SGX_GPR_RFLAGS(%rbx)
+
 	# new RIP is the exception handler
 	leaq _DkExceptionHandler(%rip), %rdi
 	movq %rdi, SGX_GPR_RIP(%rbx)
