@@ -403,6 +403,9 @@ int read_environs (const char ** envp)
 {
     for (const char ** e = envp ; *e ; e++) {
         if (strpartcmp_static(*e, "LD_LIBRARY_PATH=")) {
+            /* populate library_paths global var with entries from
+             * LD_LIBRARY_PATH env var; library_paths is used to
+             * search for ELF program interpreter in specific paths */
             const char * s = *e + static_strlen("LD_LIBRARY_PATH=");
             size_t npaths = 2; // One for the first entry, one for the last
                                // NULL.
