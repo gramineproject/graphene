@@ -366,12 +366,12 @@ __map_elf_object (struct shim_handle * file,
     if (file && (!read || !mmap || !seek))
         return NULL;
 
-    struct link_map * l = remap ? NULL :
+    struct link_map * l = remap ? remap :
                           new_elf_object(file ? (!qstrempty(&file->path) ?
                                          qstrgetstr(&file->path) :
                                          qstrgetstr(&file->uri)) : "", type);
 
-    if (!remap && !l)
+    if (!l)
         return NULL;
 
     const char * errstring __attribute__((unused)) = NULL;
@@ -381,10 +381,7 @@ __map_elf_object (struct shim_handle * file,
     if (type != OBJECT_INTERNAL && !file) {
         errstring = "shared object has to be backed by file";
         errval = -EINVAL;
-call_lose:
-        debug("loading %s: %s\n", l->l_name, errstring);
-        free(l);
-        return NULL;
+        goto call_lose;
     }
 
     /* Scan the program header table, collecting its load commands.  */
@@ -732,6 +729,14 @@ postmap:
     setup_elf_hash(l);
 
     return l;
+
+call_lose:
+    debug("loading %s: %s\n", l->l_name, errstring);
+    if (l != remap) {
+        /* l was allocated via new_elf_object() */
+        free(l);
+    }
+    return NULL;
 }
 
 static inline
