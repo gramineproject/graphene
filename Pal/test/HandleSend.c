@@ -12,7 +12,7 @@ int main (int argc, char ** argv)
     int nsend = 5 , i;
     PAL_HANDLE handles[nsend];
 
-    if (argc == 1)  /* parent */ 
+    if (argc == 1)  /* parent */
     {
         pal_printf("Parent: Executing the program\n");
 

@@ -301,7 +301,7 @@ static inline void destroy_slab_mgr (SLAB_MGR mgr)
 static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
 {
     assert(level < SLAB_LEVEL);
-    /* DEP 11/24/17: This strategy basically doubles a level's size 
+    /* DEP 11/24/17: This strategy basically doubles a level's size
      * every time it grows.  The assumption if we get this far is that
      * mgr->addr == mgr->top_addr */
     assert(mgr->addr[level] == mgr->addr_top[level]);
@@ -455,7 +455,7 @@ static inline size_t slab_get_buf_size(const void * ptr)
 
 static inline void slab_free (SLAB_MGR mgr, void * obj)
 {
-    /* In a general purpose allocator, free of NULL is allowed (and is a 
+    /* In a general purpose allocator, free of NULL is allowed (and is a
      * nop). We might want to enforce stricter rules for our allocator if
      * we're sure that no clients rely on being able to free NULL. */
     if (!obj)

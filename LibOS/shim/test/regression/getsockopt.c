@@ -1,5 +1,5 @@
-/* Unit test for issue #92.  
- * Example for use of getsockopt with SO_TYPE 
+/* Unit test for issue #92.
+ * Example for use of getsockopt with SO_TYPE
  * taken from here: http://alas.matf.bg.ac.rs/manuals/lspe/snode=103.html
  */
 #include <stdio.h>
@@ -15,7 +15,7 @@ int main(int argc,char **argv) {
   int so_type = -1;    /* Socket type */
   socklen_t optlen;  /* Option length */
   int rv;
-  
+
   /*
    * Create a TCP/IP socket to use:
    */
@@ -36,7 +36,7 @@ int main(int argc,char **argv) {
 	    "SO_TYPE) %d", errno);
     exit(-1);
   }
-  
+
   assert(optlen == sizeof so_type);
   if (so_type == SOCK_STREAM) {
     printf("getsockopt: Got socket type OK\n");
@@ -44,7 +44,7 @@ int main(int argc,char **argv) {
     printf("getsockopt: Got socket type failed\n");
     rv = -1;
   }
-    
+
   return rv;
 }
-   
+

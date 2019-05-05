@@ -14,7 +14,7 @@ int main() {
     if (!fp) { perror("fopen"); return 1; }
     int rv = ftruncate(fileno(fp), TEST_LENGTH);
     if (rv) {perror ("ftruncate"); return 1;}
-    else 
+    else
         printf("large-mmap: ftruncate OK\n");
 
     void* a=mmap(NULL, TEST_LENGTH2, PROT_READ|PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);

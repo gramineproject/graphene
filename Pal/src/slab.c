@@ -154,7 +154,7 @@ char * strdup (const char *s)
 
     if (new)
         memcpy(new, s, len);
-    
+
     return new;
 }
 

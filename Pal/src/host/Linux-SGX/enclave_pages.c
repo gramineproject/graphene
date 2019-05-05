@@ -98,9 +98,9 @@ void * get_reserved_pages(void * addr, uint64_t size)
 
     /* Allocating in the heap region.  This loop searches the vma list to
      * find the first vma with a starting address lower than the requested
-     * address.  Recall that vmas are in descending order.  
-     * 
-     * If the very first vma matches, prev will be null.  
+     * address.  Recall that vmas are in descending order.
+     *
+     * If the very first vma matches, prev will be null.
      */
     if (addr && addr >= heap_base &&
         addr + size <= heap_base + heap_size) {
@@ -144,13 +144,13 @@ allocated:
         // If this is the last entry, don't wrap around
         if (prev->list.next == listp_first_entry(&heap_vma_list, struct heap_vma, list))
             next = NULL;
-        else 
+        else
             next = prev->list.next;
     } else {
-        /* In this case, the list is empty, or 
+        /* In this case, the list is empty, or
          * first vma starts at or below the allocation site.
-         * 
-         * The next field will be used to merge vmas with the allocation, if 
+         *
+         * The next field will be used to merge vmas with the allocation, if
          * they overlap, until the vmas drop below the requested addr
          * (traversing in decreasing virtual address order)
          */
@@ -257,7 +257,7 @@ void free_pages(void * addr, uint64_t size)
     void * addr_top = addr + size;
 
     SGX_DBG(DBG_M, "free_pages: trying to free %p %lu\n", addr, size);
-    
+
     if (!addr || !size)
         return;
 

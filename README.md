@@ -10,12 +10,12 @@
 
 Graphene Library OS is a project which provides lightweight guest OSes with
 support for Linux multi-process applications. Graphene can run applications
-in an isolated environment with virtualization benefits such as guest 
+in an isolated environment with virtualization benefits such as guest
 customization, platform independence, and migration, which is comparable
 to other virtual machines.
 
 Graphene Library OS supports native, unmodified Linux applications on
-any platform. Currently, Graphene Library OS is successfully ported to 
+any platform. Currently, Graphene Library OS is successfully ported to
 Linux, FreeBSD and Intel SGX enclaves upon Linux platforms.
 
 With the Intel:registered: SGX support, Graphene Library OS can secure a critical
@@ -108,7 +108,7 @@ Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
 ### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
-#### 2.1.1 Prerequisites 
+#### 2.1.1 Prerequisites
 
 (1) Generating signing keys
 A 3072-bit RSA private key (PEM format) is required for signing the enclaves.
@@ -118,7 +118,7 @@ If you don't have a private key, create it with the following command:
 
 You could either put the generated enclave key to the default path,
 'host/Linux-SGX/signer/enclave-key.pem', or specify the key through environment
-variable 'SGX_SIGNER_KEY' when building Graphene with SGX support. 
+variable 'SGX_SIGNER_KEY' when building Graphene with SGX support.
 
 After signing the enclaves, users may ship the application files with the
 built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
@@ -159,31 +159,31 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
 (1) Build and run a Hello World program with Graphene on SGX
 - go to LibOS/shim/test/native, build the enclaves via command:
-    
+
       make SGX=1
-  
+
   The command will build enclaves for all the programs in the folder
 - Generate the token from aesmd service, via command:
 
       make SGX_RUN=1
 
 - Run Hello World program with Graphene on SGX:
-  
+
       SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
-  
+
 (2) Build and run python helloworld script in Graphene on SGX
 - go to LibOS/shim/test/apps/python, build the enclave:
-  
+
       make SGX=1
-      
+
 - Generate token:
 
       make SGX_RUN=1
-      
+
 - Run python helloworld with Graphene-SGX via:
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
-       
+
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
@@ -194,16 +194,16 @@ file" given from the command line. Graphene provides three options for
 specifying the programs and manifest files:
 
    - option 1: (automatic manifest)
-   
+
     [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
    - option 2: (given manifest)
-   
+
     [PATH TO Runtime]/pal_loader [MANIFEST] [ARGUMENTS]...
 
    - option 3: (manifest as a script)
-   
+
     [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
 
@@ -215,16 +215,16 @@ reference monitor loader (libpal_sec.so). Graphene provides three options for
 specifying the programs and manifest files to the loader:
 
    - option 4: (automatic manifest - with reference monitor)
-   
+
     SEC=1 [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
     (Manifest file: "[PROGRAM].manifest" or "manifest")
 
    - option 5: (given manifest - with reference monitor)
-   
+
     SEC=1 [PATH TO Pal/src]/pal_loader [MANIFEST] [ARGUMENTS]...
 
    - option 6: (manifest as a script - with reference monitor)
-   
+
     SEC=1 [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH TO Pal/src]/pal_sec" as the first line)
 

@@ -91,7 +91,7 @@ void __abort(void) {
 }
 
 void warn (const char *format, ...)
-{ 
+{
     va_list args;
     va_start (args, format);
     vprintf(format, &args);

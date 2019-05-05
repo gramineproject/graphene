@@ -146,7 +146,7 @@ with open('../../../../syscalls.graphene') as testcases:
 
         if test=="seq":
             test = tokens[6]     #splice02
-        try: 
+        try:
             timeout = timeouts_dict[test]
         except KeyError:
             timeout = DEFAULT_TIMEOUT
@@ -155,7 +155,7 @@ os.chdir("../../../..")
 
 pool.close()
 pool.join()
-    
+
 stable_passed = dict()
 with open(stablePass, 'rb') as csvfile:
     test_subtest = csv.reader(csvfile)

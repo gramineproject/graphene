@@ -243,7 +243,7 @@ struct pal_frame {
 };
 
 /* DEP 12/25/17: This frame storage thing is important to mark volatile.
- * The compiler should not optimize out any of these changes, and 
+ * The compiler should not optimize out any of these changes, and
  * because some accesses can happen during an exception, these are not
  * visible to the compiler in an otherwise stack-local variable (so the
  * compiler will try to optimize out these assignments.

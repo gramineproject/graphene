@@ -1281,7 +1281,7 @@ int net_check (int family,
 		goto port;
 	if (flags1 & ADDR_ANY)
 		goto port;
-	
+
 	switch (family) {
 	case AF_INET:
 		if (memcmp(&addr1->addr.sin_addr,

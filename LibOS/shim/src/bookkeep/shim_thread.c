@@ -649,7 +649,7 @@ BEGIN_CP_FUNC(thread)
         *objp = (void *) new_thread;
 }
 END_CP_FUNC(thread)
-    
+
 BEGIN_RS_FUNC(thread)
 {
     struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
@@ -707,7 +707,7 @@ BEGIN_CP_FUNC(running_thread)
     }
 }
 END_CP_FUNC(running_thread)
-    
+
 int resume_wrapper (void * param)
 {
     struct shim_thread * thread = (struct shim_thread *) param;

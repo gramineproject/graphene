@@ -325,7 +325,7 @@ struct shim_mount;
 struct shim_qstr;
 struct shim_dentry;
 
-/* The epolls list links to the back field of the shim_epoll_fd structure 
+/* The epolls list links to the back field of the shim_epoll_fd structure
  */
 struct shim_handle {
     enum shim_handle_type   type;

@@ -483,10 +483,10 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    /* According to SDM: EBX[15:0] is to enumerate processor topology 
+    /* According to SDM: EBX[15:0] is to enumerate processor topology
      * of the system. However this value is intended for display/diagnostic
      * purposes. The actual number of logical processors available to
-     * BIOS/OS/App may be different. We use this leaf for now as it's the 
+     * BIOS/OS/App may be different. We use this leaf for now as it's the
      * best option we have so far to get the cpu number  */
 
     cpuid(0xb, 1, words);

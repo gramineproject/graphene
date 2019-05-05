@@ -146,7 +146,7 @@ struct shim_dentry {
     struct shim_qstr name;          /* caching the file's name. */
 
 
-    /* DEP 6/16/17: For now, let's try not hashing; I suspect it is 
+    /* DEP 6/16/17: For now, let's try not hashing; I suspect it is
      * overkill for most purposes.  I'll leave the field here for now,
      * but propose we move to a per-directory table to accelerate lookups,
      * rather than a global table, since this just supports one process.
@@ -179,15 +179,15 @@ struct shim_d_ops {
                  int flags);
 
     /* look up dentry and allocate internal data.
-     * 
+     *
      * On a successful lookup  (non-error, can be negative),
      * this function should call get_new_dentry(), populating additional fields,
      * and storing the new dentry in dent.
-     * 
+     *
      * Maybe drop force?
      */
     int (*lookup) (struct shim_dentry * dent, bool force);
-    
+
     /* this is to check file type and access, returning the stat.st_mode */
     int (*mode) (struct shim_dentry * dent, mode_t * mode, bool force);
 
@@ -223,7 +223,7 @@ struct shim_d_ops {
     /* readdir: given the path relative to the mount point, read the childs
        into the the buffer.  This call always returns everything under
        the directory in one big buffer; you do not need to try again
-       or keep a cursor in the directory.  You do need to free the 
+       or keep a cursor in the directory.  You do need to free the
        returned buffer. */
     int (*readdir) (struct shim_dentry * dent, struct shim_dirent ** dirent);
 };
@@ -281,7 +281,7 @@ extern struct shim_dentry * dentry_root;
                      (((x) == O_WRONLY || (x) == O_RDWR) ? MAY_WRITE : 0))
 
 #define LOOKUP_OPEN             0100 // Appears to be ignored
-#define LOOKUP_CREATE           0200 
+#define LOOKUP_CREATE           0200
 #define LOOKUP_ACCESS           0400 // Appears to be ignored
 #define LOOKUP_SYNC     (LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_ACCESS)
 
@@ -349,31 +349,31 @@ int permission (struct shim_dentry * dent, int mask, bool force);
 /* This function looks up a single dentry based on its parent dentry pointer
  * and the name.  Namelen is the length of char * name.
  * The dentry is returned in pointer *new.
- * 
+ *
  * The force flag causes the libOS to query the underlying file system for the
  * existence of the dentry, whereas without force, a negative dentry is
  * treated as definitive.  In some cases, this can be elided as an
  * optimization.
- * 
+ *
  * The caller should hold the dcache_lock.
  */
 int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
                    bool force, struct shim_dentry ** new, struct shim_mount * fs);
 
 /* Looks up path under start dentry.  Saves in dent.
- * 
+ *
  * Assumes dcache_lock is held; main difference from path_lookupat is that
  * dcache_lock is not released on return.
- * 
+ *
  * The refcount is dropped by one on the returned dentry.
- * 
+ *
  * The make_ancestor flag creates pseudo-dentries for any parent paths that
  * are not in cache and do not exist on the underlying file system.  This is
  * intended for use only in setting up the file system view specified in the manifest.
  *
  * If the file isnt' found, returns -ENOENT.
- * 
- * If the LOOKUP_DIRECTORY flag is set, and the found file isn't a directory, 
+ *
+ * If the LOOKUP_DIRECTORY flag is set, and the found file isn't a directory,
  *  returns -ENOTDIR.
  */
 int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
@@ -387,19 +387,19 @@ int path_lookupat (struct shim_dentry * start, const char * name, int flags,
 
 /* This function initializes dir to before a search, to either point
  * to the current working directory (if dfd == AT_FDCWD), or to the handle pointed to by dfd,
- * depending on the argument.  
- * 
- * Returns -EBADF if dfd is <0 or not a valid handle. 
+ * depending on the argument.
+ *
+ * Returns -EBADF if dfd is <0 or not a valid handle.
  * Returns -ENOTDIR if dfd is not a directory.
  */
 int path_startat (int dfd, struct shim_dentry ** dir);
 
 /* Open path with given flags, in mode, similar to Unix open.
- * 
+ *
  * The start dentry specifies where to begin the search.
- * hdl is an optional argument; if passed in, it is initialized to 
+ * hdl is an optional argument; if passed in, it is initialized to
  *   refer to the opened path.
- * 
+ *
  * The result is stored in dent.
  */
 
@@ -419,19 +419,19 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
                  int flags);
 
 /* This function enumerates a directory and caches the results in the dentry.
- * 
+ *
  * Input: A dentry for a directory in the DENTRY_ISDIRECTORY and not in the
  * DENTRY_LISTED state.  The dentry DENTRY_LISTED flag is set upon success.
- * 
+ *
  * Return value: 0 on success, <0 on error
  */
 int list_directory_dentry (struct shim_dentry *dir);
 
 /* This function caches the contents of a directory (dent), already
  * in the listed state, in a buffer associated with a handle (hdl).
- * 
+ *
  * This function should only be called once on a handle.
- * 
+ *
  * Returns 0 on success, <0 on failure.
  */
 int list_directory_handle (struct shim_dentry *dent, struct shim_handle *hdl );
@@ -502,17 +502,17 @@ const char * dentry_get_name (struct shim_dentry * dent)
 }
 
 /* Allocate and initialize a new dentry for path name, under
- * parent.  Return the dentry.  
- * 
+ * parent.  Return the dentry.
+ *
  * mount is the mountpoint the dentry is under; this is typically
- * the parent->fs, but is passed explicitly for initializing 
+ * the parent->fs, but is passed explicitly for initializing
  * the dentry of a mountpoint.
- * 
+ *
  * If hashptr is passed (as an optimization), this is a hash
  * of the name.
- * 
+ *
  * If parent is non-null, the ref count is 1; else it is zero.
- * 
+ *
  * This function also sets up both a name and a relative path
  */
 struct shim_dentry * get_new_dentry (struct shim_mount *mount,
@@ -520,28 +520,28 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
                                      const char * name, int namelen,
                                      HASHTYPE * hashptr);
 
-/* This function searches for name/namelen (as the relative path; 
- * path/pathlen is the fully-qualified path), 
+/* This function searches for name/namelen (as the relative path;
+ * path/pathlen is the fully-qualified path),
  * under parent dentry (start).
- * 
+ *
  * If requested, the expected hash of the dentry is returned in hashptr,
  * primarily so that the hashing can be reused to add the dentry later.
- * 
+ *
  * The reference count on the found dentry is incremented by one.
  *
- * Used only by shim_namei.c 
+ * Used only by shim_namei.c
  */
 struct shim_dentry *
 __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
                  const char * path, int pathlen, HASHTYPE * hashptr);
 
-/* This function recursively deletes and frees all dentries under root 
- * 
+/* This function recursively deletes and frees all dentries under root
+ *
  * XXX: Current code doesn't do a free..
  */
 int __del_dentry_tree(struct shim_dentry * root);
 
-/* XXX: Future work: current dcache never shrinks.  Would be nice 
+/* XXX: Future work: current dcache never shrinks.  Would be nice
  * to be able to do something like LRU under space pressure, although
  * for a single app, this may be over-kill. */
 

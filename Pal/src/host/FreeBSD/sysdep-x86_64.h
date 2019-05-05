@@ -107,7 +107,7 @@ INTERNAL_SYSCALL_NCS(SYS_ifyBSD(name), err, nr, ##args)
 #define INTERNAL_SYSCALL_ERRNO_P(val) (-((long) val))
 
 /*
-If a syscall fails, it generally sets the carry flag and returns the error code in rax. 
+If a syscall fails, it generally sets the carry flag and returns the error code in rax.
 To simplify matters and reuse a lot of the Linux code, we change rax to negative after checking the carry flag.
 */
 

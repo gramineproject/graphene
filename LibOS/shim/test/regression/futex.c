@@ -22,7 +22,7 @@ struct atomic_int {
     volatile int counter;
 };
 static struct atomic_int my_counter;
-    
+
 static inline void atomic_inc (struct atomic_int * v)
 {
     asm volatile( "lock; incl %0"
@@ -60,32 +60,32 @@ int main (int argc, const char ** argv)
     for (int i = 0; i < THREADS; i++) {
 
         varx[i] = (1 << i);
-        
+
         // Allocate the stack
         stacks[i] = malloc(FIBER_STACK);
         if (stacks[i] == 0) {
             perror("malloc: could not allocate stack");
             _exit(1);
         }
-        
+
         // Call the clone system call to create the child thread
         pids[i] = clone(&thread_function, (void *) stacks[i] + FIBER_STACK,
                         CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM,
                         &varx[i]);
-        
+
         //printf("clone() creates new thread %d\n", pids[i]);
-        
+
         if (pids[i] == -1) {
             perror("clone");
             _exit(2);
         }
     }
-    
+
     // Make sure the threads are sleeping
     do {
-        sleep(1); 
+        sleep(1);
     } while(my_counter.counter != THREADS);
-    
+
     printf("Waking up kiddos\n");
     /* Wake in reverse order */
     for (int i = THREADS-1; i >= 0; i--) {

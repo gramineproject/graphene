@@ -460,7 +460,7 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
     int ret, fd = -1;
 
     options = HOST_SOCKET_OPTIONS(options);
-	
+
     /* accepting two kind of different uri:
        dest-ip:dest-port or bind-ip:bind-port:dest-ip:dest-port */
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen,
@@ -614,7 +614,7 @@ static int tcp_write (PAL_HANDLE handle, int offset, int len, const void * buf)
     hdr.msg_control = NULL;
     hdr.msg_controllen = 0;
     hdr.msg_flags = 0;
-    
+
     int bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
     if (IS_ERR(bytes))
@@ -716,7 +716,7 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
 #endif
 
     options = HOST_SOCKET_OPTIONS(options);
-	
+
     fd = INLINE_SYSCALL(socket, 3, dest_addr ? dest_addr->sa_family : AF_INET,
                         SOCK_DGRAM|SOCK_CLOEXEC|options, 0);
 
@@ -1016,7 +1016,7 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     if (handle->sock.conn) {
         /* try use ioctl FIONEAD to get the size of socket */
         ret = INLINE_SYSCALL(ioctl, 3, fd, FIONREAD, &val);
-		
+
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
 

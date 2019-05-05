@@ -40,7 +40,7 @@ DkProcessCreate (PAL_STR uri, PAL_STR * args)
 {
     ENTER_PAL_CALL(DkProcessCreate);
 
-    /* DEP 3/22/17: There seems to be a default semantics that 
+    /* DEP 3/22/17: There seems to be a default semantics that
      * a NULL URI should replicate the parent. I think we may want
      * this to become an error in the future, but keep the behavior
      * for now, and make it consistent across hosts. */

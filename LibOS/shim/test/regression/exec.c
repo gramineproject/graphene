@@ -14,7 +14,7 @@ int main (int argc, const char ** argv, const char ** envp)
     char * const new_argv[] = { "./exec_victim", fd_argv, NULL };
 
     setenv("IN_EXECVE", "1", 1);
-    
+
     execv(new_argv[0], new_argv);
     return 0;
 }

@@ -63,7 +63,7 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
 
     unsigned long install_time = DkSystemTimeQuery();
     int64_t rv = 0;
-    
+
     debug("install async event at %lu\n", install_time);
 
     event->callback     = callback;
@@ -82,10 +82,10 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
             break;
     }
 
-    /* 
+    /*
      * man page of alarm system call :
      * DESCRIPTION
-     * alarm() arranges for a SIGALRM signal to be delivered to the 
+     * alarm() arranges for a SIGALRM signal to be delivered to the
 	 * calling process in seconds seconds.
      * If seconds is zero, any pending alarm is canceled.
      * In any event any previously set alarm() is canceled.
@@ -110,13 +110,13 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
     if (!time)    // If seconds is zero, any pending alarm is canceled.
         free(event);
     else
-        listp_add_tail(event, &async_list, list);   
+        listp_add_tail(event, &async_list, list);
 
     if (async_helper_state == HELPER_NOTALIVE)
         create_async_helper();
 
     unlock(async_helper_lock);
-    
+
     set_event(&async_helper_event, 1);
     return rv;
 }
@@ -191,7 +191,7 @@ static void shim_async_helper (void * arg)
 
         polled = DkObjectsWaitAny(object_num + 1, local_objects, sleep_time);
         barrier();
-        
+
         if (!polled) {
             if (next_event) {
                 debug("async event trigger at %lu\n",
@@ -318,7 +318,7 @@ int create_async_helper (void)
     /* Publish new and update the state once fully initialized */
     async_helper_thread = new;
     async_helper_state = HELPER_ALIVE;
-    
+
     return 0;
 }
 

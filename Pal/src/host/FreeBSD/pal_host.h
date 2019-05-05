@@ -235,11 +235,11 @@ struct pal_frame {
 };
 
 /* When a PAL call is issued, a special PAL_FRAME is placed on the stack.
- * This stores both a magic identifier, debugging information, 
+ * This stores both a magic identifier, debugging information,
  * as well as callee-saved state.  This is used as a way to deal
  * with PAL-internal failures where the goal is to exit the PAL and return a
  * failure.
- * 
+ *
  * Arguably, an alternative is to unwind the stack and handle error cases at
  * each stage.  In general, this is probably more robust, but would take work
  * in the short term.  The one exception where the current strategy is
@@ -248,7 +248,7 @@ struct pal_frame {
  */
 
 /* DEP 12/25/17: This frame storage thing is important to mark volatile.
- * The compiler should not optimize out any of these changes, and 
+ * The compiler should not optimize out any of these changes, and
  * because some accesses can happen during an exception, these are not
  * visible to the compiler in an otherwise stack-local variable (so the
  * compiler will try to optimize out these assignments.

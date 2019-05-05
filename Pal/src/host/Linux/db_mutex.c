@@ -49,13 +49,13 @@
 #define MUTEX_LOCKED   1
 
 /* Interplay between locked and nwaiters:
- * 
+ *
  * If lock is unlocked and uncontended, just set the locked state.
- * 
+ *
  * Important possible interleavings of lock and unlock:
- * 
- * Case 1: 
- * 
+ *
+ * Case 1:
+ *
  * Owner:                Locker:
  *                       Try lock and fail; increment nwaiters; sleep
  * Set state to unlocked
@@ -64,8 +64,8 @@
  *
  * ***************************************************
  *
- * Case 2: 
- * 
+ * Case 2:
+ *
  * Owner:                Locker:
  *                       Try lock and fail
  * Set state to unlocked

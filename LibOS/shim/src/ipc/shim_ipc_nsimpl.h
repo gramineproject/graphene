@@ -91,7 +91,7 @@ static LOCKTYPE range_map_lock;
 /* This hash table organizes range structs by hlist */
 DEFINE_LISTP(range);
 static LISTP_TYPE(range) range_table [RANGE_HASH_NUM];
-/* These lists organizes range structs by list 
+/* These lists organizes range structs by list
  */
 static LISTP_TYPE(range) owned_ranges;
 static LISTP_TYPE(range) offered_ranges;

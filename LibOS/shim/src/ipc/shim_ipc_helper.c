@@ -57,8 +57,8 @@ static LISTP_TYPE(shim_ipc_port) ipc_port_pool [PID_HASH_NUM];
 
 /* This variable can be read without the ipc_helper_lock held, but
  * should be modified with the ipc_helper_lock held (and in some cases,
- * the value should be re-checked after acquiring the lock. 
- * For reads in a loop without the lock, some caution should be taken to 
+ * the value should be re-checked after acquiring the lock.
+ * For reads in a loop without the lock, some caution should be taken to
  * use compiler barriers to ensure that a stale value isn't cached.
  */
 static enum {
@@ -1028,8 +1028,8 @@ end:
         put_handle_map(self->handle_map);
 
     /* shim_clean ultimately calls del_all_ipc_ports(), which reacquires the
-     * helper lock.  Err on the side of caution by adding a barrier to ensure 
-     * reading the latest ipc helper state.       
+     * helper lock.  Err on the side of caution by adding a barrier to ensure
+     * reading the latest ipc helper state.
      */
     barrier();
     if (ipc_helper_state == HELPER_HANDEDOVER) {
@@ -1052,7 +1052,7 @@ static int create_ipc_helper (void)
 {
     int ret = 0;
 
-    /* If we are holding the lock, no barrier is needed here, as 
+    /* If we are holding the lock, no barrier is needed here, as
      * the lock (and new function) form an implicit barrier, and
      * any "recent" changes should have come from this thread */
     if (ipc_helper_state == HELPER_ALIVE)

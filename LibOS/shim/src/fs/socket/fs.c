@@ -228,7 +228,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
     }
 
     ret = 0;
-    if (attr.disconnected) 
+    if (attr.disconnected)
         ret |= FS_POLL_ER;
     if ((poll_type & FS_POLL_RD) && attr.readable)
         ret |= FS_POLL_RD;

@@ -67,18 +67,18 @@
 
 /*
  * This Function is a wrapper around the user provided function.
- * Code flow for clone is as follows - 
- * 1) User application allocates stack for child process and  
- *    calls clone. The clone code sets up the user function 
+ * Code flow for clone is as follows -
+ * 1) User application allocates stack for child process and
+ *    calls clone. The clone code sets up the user function
  *    address and the argument address on the child stack.
- * 2)we Hijack the clone call and control flows to shim_clone 
- * 3)In Shim Clone we just call the DK Api to create a thread by providing a 
- *   wrapper function around the user provided function 
+ * 2)we Hijack the clone call and control flows to shim_clone
+ * 3)In Shim Clone we just call the DK Api to create a thread by providing a
+ *   wrapper function around the user provided function
  * 4)PAL layer allocates a stack and then invokes the clone syscall
  * 5)PAL runs thread_init function on PAL allocated Stack
- * 6)thread_init calls our wrapper and gives the user provided stack 
+ * 6)thread_init calls our wrapper and gives the user provided stack
  *   address.
- * 7.In the wrapper function ,we just do the stack switch to user 
+ * 7.In the wrapper function ,we just do the stack switch to user
  *   Provided stack and execute the user Provided function.
  */
 
@@ -96,7 +96,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
 
     struct clone_args *pcargs = arg;
     int stack_allocated = 0;
-    
+
     DkObjectsWaitAny(1, &pcargs->create_event, NO_TIMEOUT);
     DkObjectClose(pcargs->create_event);
 
@@ -133,7 +133,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     add_thread(my_thread);
     set_as_child(arg->parent, my_thread);
 
-    /* Don't signal the initialize event until we are actually init-ed */ 
+    /* Don't signal the initialize event until we are actually init-ed */
     DkEventSet(pcargs->initialize_event);
 
     /***** From here down, we are switching to the user-provided stack ****/
@@ -320,11 +320,11 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     new_args.stack     = user_stack_addr;
     new_args.return_pc = *(void **) user_stack_addr;
 
-    // Invoke DkThreadCreate to spawn off a child process using the actual 
-    // "clone" system call. DkThreadCreate allocates a stack for the child 
-    // and then runs the given function on that stack However, we want our 
-    // child to run on the Parent allocated stack , so once the DkThreadCreate 
-    // returns .The parent comes back here - however, the child is Happily 
+    // Invoke DkThreadCreate to spawn off a child process using the actual
+    // "clone" system call. DkThreadCreate allocates a stack for the child
+    // and then runs the given function on that stack However, we want our
+    // child to run on the Parent allocated stack , so once the DkThreadCreate
+    // returns .The parent comes back here - however, the child is Happily
     // running the function we gave to DkThreadCreate.
     PAL_HANDLE pal_handle = thread_create(clone_implementation_wrapper,
                                           &new_args, flags);

@@ -34,7 +34,7 @@
  * change in a macro for declarations, which generates a type declaration for
  * each list object (giving marginally more help from the compiler
  * in detecting bugs.
- * 
+ *
  * In particular, there is a small trade-off in that the association between
  * list heads and nodes is more explicit and a few more casting errors can be
  * caught by the compiler, but we add a parameter to some functions (well,
@@ -42,43 +42,43 @@
  */
 
 /* How-to:
- * 
+ *
  * Each list has a pointer (listp) type, and a node (list)type.  We assume
  * list nodes are embedded in a larger structure; the name of this structure
  * is used as part of the list type.
- * 
+ *
  * To define a listp/list pair for a struct foo:
- * 
+ *
  * DEFINE_LIST(foo);
  * struct foo {
  *   int x;
- *   LIST_TYPE(foo) list; // The list node 
+ *   LIST_TYPE(foo) list; // The list node
  * };
- * 
+ *
  * DEFINE_LISTP(foo);
  * static LISTP_TYPE(foo) the_list = LISTP_INIT;
- * 
+ *
  * -----
- * 
+ *
  * From here, you can use listp_add variants to add an object from the list:
- * 
+ *
  * struct foo *f = malloc(sizeof(struct foo));
  * f->x = 1;
  * INIT_LIST_HEAD(f, list); // The second parameter is the structure member
  * listp_add(f, &the_list, list);
- * 
+ *
  * -----
- * 
+ *
  * There are a number of add variants, some that add in a given position,
  * others that add to the head or the tail.
- * 
+ *
  * You can search for an object using a variant of listp_for_each_entry. The
  * safe variants are safe against deletion.
- * 
- * You can remove an object from a list using listp_del.  
- * 
+ *
+ * You can remove an object from a list using listp_del.
+ *
  * In this example, we delete everything with a key bigger than 5.
- * 
+ *
  * LIST_TYPE(foo) *f, *n; // n is not used, just for scratch space
  * listp_for_each_entry_safe(f, n, &the_list, list) {
  *    if (f->x > 4) {
@@ -86,28 +86,28 @@
  *         free(f);
  *    }
  * }
- * 
- * 
- * listp_splice moves an entire listp onto another, and list_move_tail takes 
+ *
+ *
+ * listp_splice moves an entire listp onto another, and list_move_tail takes
  * an element off of one list and places it on another.
- * 
+ *
  * static LISTP_TYPE(foo) other_list; // Assume it is full of goodies
  *  // Move everything on other_list to the_list
  * listp_splice_tail(&other_list, &the_list, list, foo); // the third argument
  *                                                       // is the field; the
  *                                                       // fourth is the type
- *                                                       // of the nodes (not 
+ *                                                       // of the nodes (not
  *                                                       // the head pointer).
- * 
- * // Use listp_empty to test for emptiness of the list 
+ *
+ * // Use listp_empty to test for emptiness of the list
  * assert(listp_empty(&other_ist));
- * 
+ *
  *  // Now move back anythign less than 6 back to other_list
  * listp_for_each_entry_safe(f, n, &the_list, list) {
- *    if (f->x < 6) 
+ *    if (f->x < 6)
  *         listp_move_tail(f, &other_list, &the_list, list);
  * }
- * 
+ *
  */
 
 // Maybe TODO?
@@ -132,8 +132,8 @@
 #define LIST_TYPE(STRUCT) struct list_head ##_## STRUCT
 #define LISTP_TYPE(STRUCT) struct listp ##_## STRUCT
 
-/* Declare the enclosing struct for convenience, on 
- * the assumption that this is primarily used in structure 
+/* Declare the enclosing struct for convenience, on
+ * the assumption that this is primarily used in structure
  * definitions, and harmless if duplicated. */
 #define DEFINE_LIST(STRUCT)                     \
     struct STRUCT;                              \
@@ -152,7 +152,7 @@
 
 #define LISTP_INIT {NULL}
 
-/* A node not on a list uses NULL; on a list, you 
+/* A node not on a list uses NULL; on a list, you
  * store self pointers */
 #define INIT_LIST_HEAD(OBJECT, FIELD) do {      \
         (OBJECT)->FIELD.next = NULL;            \
@@ -194,7 +194,7 @@
         }                                                   \
     } while (0)
 
-/* If NODE is defined, add NEW after NODE; if not, 
+/* If NODE is defined, add NEW after NODE; if not,
  * put NEW at the front of the list */
 #define listp_add_after(NEW, NODE, HEAD, FIELD) do { \
         if (NODE)                                \
@@ -343,7 +343,7 @@
         listp_splice_tail(NEW, OLD, FIELD, TYPE);           \
         INIT_LISTP(NEW);                                    \
     } while(0);
-    
+
 // list_move_tail - delete from OLD, make tail of NEW
 #define listp_move_tail(NODE, NEW, OLD, FIELD) do {   \
         listp_del_init(NODE, OLD, FIELD);             \

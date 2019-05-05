@@ -73,7 +73,7 @@ void assert_list(LISTP_TYPE(simple) *listp, int len, int *array, int stop_early_
     else
         assert(stop_early_ok);
 }
-    
+
 
 void print_list_reverse(LISTP_TYPE(simple) *listp) {
     struct simple *tmp;
@@ -107,12 +107,12 @@ int main() {
     assert(!listp_empty(&list_in_the_sky));
 
     assert_list(&list_in_the_sky, 7, sol1, 0);
-    
+
     /* Test list_add  - i.e., adding things in the middle of the list*/
     listp_for_each_entry_safe(tmp, n, &list_in_the_sky, list) {
         if ((tmp->idx % 2) == 0) {
             tmp2 = malloc(sizeof(struct simple));
-            tmp2->idx = (tmp->idx * 10) + 5; 
+            tmp2->idx = (tmp->idx * 10) + 5;
             INIT_LIST_HEAD(tmp2, list);
             assert(list_empty(tmp2, list));
             list_add(tmp2, tmp, list);
@@ -144,7 +144,7 @@ int main() {
 
         if ((tmp->idx % 2) == 1) {
             tmp2 = malloc(sizeof(struct simple));
-            tmp2->idx = ((tmp->idx - 1) * 10) + 5; 
+            tmp2->idx = ((tmp->idx - 1) * 10) + 5;
             INIT_LIST_HEAD(tmp2, list);
             assert(list_empty(tmp2, list));
             list_add_tail(tmp2, tmp, list);
@@ -157,7 +157,7 @@ int main() {
     assert_list(&list_in_the_sky, 20, sol4, 0);
 
     printf("Deletion test starting\n\n");
-    
+
     /* Test list deletion and safe iteration by destroying the list*/
     listp_for_each_entry_safe(tmp, n, &list_in_the_sky, list) {
         listp_del(tmp, &list_in_the_sky, list);
@@ -167,7 +167,7 @@ int main() {
     assert(listp_empty(&list_in_the_sky));
 
     printf("Deletion test Ending\n\n");
-    
+
     /* Rebuild the list */
     for (i = 0; i < 7; i++) {
         tmp = malloc(sizeof(struct simple));
@@ -180,7 +180,7 @@ int main() {
     assert(!listp_empty(&list_in_the_sky));
 
     printf("Deletion test 2 starting\n\n");
-    
+
     /* Test listp_del_init by migrating to another list */
     listp_for_each_entry_safe(tmp, n, &list_in_the_sky, list) {
         listp_del(tmp, &list_in_the_sky, list);
@@ -210,11 +210,11 @@ int main() {
     print_list_reverse(&list_in_the_sky);
     printf("\nfin\n");
     */
-    
+
     printf("Deletion test 2 Ending\n\n");
-    
+
     /* Test listp_for_each_entry_safe_continue; stop on 4
-     * after deleting 6 and 4, break, and continue. 
+     * after deleting 6 and 4, break, and continue.
      * */
     listp_for_each_entry_safe(tmp, n, &list_in_the_basement, list) {
         if (0 == (tmp->idx % 2)) {
@@ -222,11 +222,11 @@ int main() {
             listp_del(tmp, &list_in_the_basement, list);
             // NB: The continue pointer needs to be valid (will probably work
             // by accident even if 4 isn't freed, so better to leak one node
-            if (idx == 4) 
+            if (idx == 4)
                 break;
              else
                 free(tmp);
-            
+
         }
     }
 
@@ -257,7 +257,7 @@ int main() {
     assert(!listp_empty(&list_in_the_sky));
 
     printf("Begin splice tests \n\n");
-    
+
     /* Test listp splice */
     listp_splice_init(&list_in_the_basement, &list_in_the_sky, list, simple);
 
@@ -295,8 +295,8 @@ int main() {
     print_list(&list_in_the_sky);
     printf("\nfin\n");
     */
-    
-    
+
+
     printf("Before list move test \n\n");
 
     /* Test listp_move_tail */
@@ -318,7 +318,7 @@ int main() {
     print_list(&list_in_the_sky);
     printf("\nfin\n");
     */
-    
+
     printf("All tests passed!\n");
     return 0;
 }

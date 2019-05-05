@@ -19,7 +19,7 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
   df.write('# SWITCH to root \n')
   df.write('USER root \n')
   df.write('\n')
- 
+
   # DOWNLOAD dependencies
   df.write('# Download dependencies\n')
   df.write('RUN apt-get update \\\n')
@@ -57,16 +57,16 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir) :
   # Sign Enclave
   df.write('# Signing Enclave \n')
   df.write('RUN cd ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + ' && \ \n'
-           '    '+ proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-sign -libpal ' + proj_dir + 
-           '/Pal/src/host/Linux-SGX/../../../../Runtime/libpal-Linux-SGX.so -key ' + proj_dir + 
-           '/Pal/src/host/Linux-SGX/signer/enclave-key.pem -output ' + app_name + '.manifest.sgx ' + 
+           '    '+ proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-sign -libpal ' + proj_dir +
+           '/Pal/src/host/Linux-SGX/../../../../Runtime/libpal-Linux-SGX.so -key ' + proj_dir +
+           '/Pal/src/host/Linux-SGX/signer/enclave-key.pem -output ' + app_name + '.manifest.sgx ' +
            '-manifest ' + app_name + '.manifest \n')
   # Remove signing key
   df.write('# Removing key after signing \n')
   # TODO
-  
+
   # Overwrite Entry Point
-  df.write('ENTRYPOINT  ["/bin/bash", "/gbin/app_exec"] \n') 
+  df.write('ENTRYPOINT  ["/bin/bash", "/gbin/app_exec"] \n')
   df.close()
 
 def make_exec(path) :
@@ -85,13 +85,13 @@ def gen_app_executor(app_name, bin_cmd, proj_dir) :
   ef.write('#!/usr/bin/env bash\n\n')
   ef.write('cd ' + proj_dir + '/LibOS/shim/test/apps/' + app_name +'\n')
   ef.write('# Generate EINITOKEN \n')
-  ef.write(proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output ' 
+  ef.write(proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output '
            + app_name + '.token -sig ' + app_name + '.sig \n')
   ef.write('# Run the application \n')
   ef.write('SGX=1 ./' + app_name + '.manifest.sgx ' + bin_cmd + '\n')
-  
+
   ef.close()
-  
+
 if __name__ == "__main__":
   if len(sys.argv) < 3:
     print "Usage: gsce run [Image name] "
@@ -114,19 +114,19 @@ if __name__ == "__main__":
   print "bin_name: " + bin_name + " bin_cmd: " + bin_cmd
   # Store the rest arguments as docker run arguments
   docker_str = " " + " ".join(sys.argv[2:-1])
-  
+
   # print image_cmd
   proj_dir = os.path.abspath(os.getcwd() + "/../")
 
   # STEP 1: Generating Dockerfile
   gen_dockerfile(image_name, app_name, bin_name, proj_dir)
-  
+
   # STEP 2: Generating entry point execute script
   gen_app_executor(app_name, bin_cmd, proj_dir)
 
   # STEP 3: Building new docker image with generated Dockerfile
   os.chdir('..')
-  os.system("sudo docker build -f Tools/build/Dockerfile." + app_name + " -t gsc_" + app_name + " .\n") 
+  os.system("sudo docker build -f Tools/build/Dockerfile." + app_name + " -t gsc_" + app_name + " .\n")
 
   # STEP 4: Run GSC with the target app
   os.system("sudo docker run -i -t" + docker_str +" --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc_"+app_name+"\n")

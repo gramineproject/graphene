@@ -8,7 +8,7 @@ before_script:
   - git clone https://github.com/01org/linux-sgx-driver.git -b sgx_driver_$ISGX_DRIVER_VERSION
 
 script:
-  - make 
+  - make
   - cd $TRAVIS_BUILD_DIR/Pal/src && make clean && make SGX=1
   - cd $TRAVIS_BUILD_DIR/Pal/src && make clean && make DEBUG=1
   - cd $TRAVIS_BUILD_DIR/Pal/src && make clean && make SGX=1 DEBUG=1

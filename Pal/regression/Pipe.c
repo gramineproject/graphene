@@ -21,7 +21,7 @@ int main (int argc, char ** argv, char ** envp)
         if (!DkStreamAttributesQueryByHandle(pipe1, &attr)) {
             pal_printf("Failed to get any attributes from the pipesrv\n");
             return -1;
-        } else 
+        } else
             pal_printf("Pipe Attribute Query 1 on pipesrv returned OK\n");
         // DEP: would be nice to sanity check the attributes.
         // Job for another day...

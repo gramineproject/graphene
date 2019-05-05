@@ -61,7 +61,7 @@ int shim_do_unlink (const char * file)
     if (!dent->parent)
         return -EACCES;
 
-    if (dent->state & DENTRY_ISDIRECTORY) 
+    if (dent->state & DENTRY_ISDIRECTORY)
         return -EISDIR;
 
     if (dent->fs && dent->fs->d_ops &&
@@ -699,7 +699,7 @@ int shim_do_rename (const char * oldname, const char * newname)
     struct shim_dentry * old_dent = NULL, * new_dent = NULL;
     int ret = 0;
 
-    if ((ret = path_lookupat(NULL, oldname, LOOKUP_OPEN, &old_dent, NULL)) < 0) 
+    if ((ret = path_lookupat(NULL, oldname, LOOKUP_OPEN, &old_dent, NULL)) < 0)
         goto out;
 
     if (old_dent->state & DENTRY_NEGATIVE) {
@@ -718,7 +718,7 @@ int shim_do_rename (const char * oldname, const char * newname)
     // Both dentries should have a ref count of at least 2 at this point
     assert(REF_GET(old_dent->ref_count) >= 2);
     assert(REF_GET(new_dent->ref_count) >= 2);
-    
+
     ret = do_rename(old_dent, new_dent);
 
 out:

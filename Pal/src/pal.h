@@ -253,8 +253,8 @@ DkProcessExit (PAL_NUM exitCode);
 PAL_BOL
 DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags);
 
-/* The stream ABI includes nine calls to open, read, write, map, unmap, 
- * truncate, flush, delete and wait for I/O streams and three calls to 
+/* The stream ABI includes nine calls to open, read, write, map, unmap,
+ * truncate, flush, delete and wait for I/O streams and three calls to
  * access metadata about an I/O stream. The ABI purposefully does not
  * provide an ioctl call. Supported URI schemes include file:, pipe:,
  * http:, https:, tcp:, udp:, pipe.srv:, http.srv, tcp.srv:, and udp.srv:.
@@ -439,7 +439,7 @@ void DkExceptionReturn (PAL_PTR event);
  */
 /* Create a Mutex.
  * initialCount of 0 is totally unlocked; an initialCount of 1
- * is initialized to locked. */ 
+ * is initialized to locked. */
 PAL_HANDLE
 DkMutexCreate (PAL_NUM initialCount);
 
@@ -466,7 +466,7 @@ DkEventClear (PAL_HANDLE eventHandle);
 
 #define NO_TIMEOUT      ((PAL_NUM) -1)
 
-/* assuming timeout to be in microseconds 
+/* assuming timeout to be in microseconds
  * NO_TIMEOUT means no timeout, as the name implies.
  */
 /* Returns: NULL if the call times out, the ready handle on success */

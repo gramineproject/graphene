@@ -1,7 +1,7 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
-/* Copyright (C) 2014 Stony Brook University, 
+/* Copyright (C) 2014 Stony Brook University,
    2017 University of North Carolina at Chapel Hill and Fortanix, Inc.
    This file is part of Graphene Library OS.
 
@@ -81,7 +81,7 @@ int init_dcache (void)
 
     dentry_root = alloc_dentry();
 
-    /* The root is special; we assume it won't change or be freed, and 
+    /* The root is special; we assume it won't change or be freed, and
      * set its refcount to 1. */
     get_dentry(dentry_root);
 
@@ -119,13 +119,13 @@ static void free_dentry (struct shim_dentry *dent) {
 }
 
 /* Decrement the reference count on dent.
- * 
+ *
  * For now, we don't have an eviction policy, so just
- * keep everything.  
- * 
- * If a dentry is on the children list of a parent, it has 
- * a refcount of at least 1.  
- * 
+ * keep everything.
+ *
+ * If a dentry is on the children list of a parent, it has
+ * a refcount of at least 1.
+ *
  * If the ref count ever hits zero, we free the dentry.
  *
  */
@@ -137,7 +137,7 @@ void put_dentry (struct shim_dentry * dent) {
     if (count == 0) {
         debug("XXX Churn Warning: Freeing dentry %p; may not be expected\n", dent);
         // Add some assertions that the dentry is properly cleaned up, like it
-        // isn't on a parent's children list 
+        // isn't on a parent's children list
         assert(list_empty(dent, siblings));
         free_dentry(dent);
     }
@@ -146,17 +146,17 @@ void put_dentry (struct shim_dentry * dent) {
 }
 
 /* Allocate and initialize a new dentry for path name, under
- * parent.  Return the dentry.  
- * 
+ * parent.  Return the dentry.
+ *
  * mount is the mountpoint the dentry is under; this is typically
- * the parent->fs, but is passed explicitly for initializing 
+ * the parent->fs, but is passed explicitly for initializing
  * the dentry of a mountpoint.
- * 
+ *
  * If hashptr is passed (as an optimization), this is a hash
  * of the name.
- * 
+ *
  * If parent is non-null, the ref count is 1; else it is zero.
- * 
+ *
  * This function also sets up both a name and a relative path
  */
 struct shim_dentry * get_new_dentry (struct shim_mount *mount,
@@ -166,7 +166,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
 {
     struct shim_dentry * dent = alloc_dentry();
     HASHTYPE hash;
-    
+
     if (!dent)
         return NULL;
 
@@ -178,10 +178,10 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
         hash = *hashptr;
     } else
         hash = hash_dentry(parent, name, namelen);
-    
+
     qstrsetstr(&dent->name, name, namelen);
     dent->rel_path.hash = hash;
-    /* DEP 6/16/17: Not sure this flag is strictly necessary. 
+    /* DEP 6/16/17: Not sure this flag is strictly necessary.
      * But keeping it for now.
      */
     dent->state |= DENTRY_HASHED;
@@ -190,7 +190,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
         get_mount(mount);
         dent->fs = mount;
     }
-    
+
     if (parent) {
         // Increment both dentries' ref counts once they are linked
         get_dentry(parent);
@@ -212,38 +212,38 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
     return dent;
 }
 
-/* This function searches for name/namelen (as the relative path) under 
+/* This function searches for name/namelen (as the relative path) under
  * the parent directory (start).
- * 
+ *
  * path/pathlen is the fully-qualified path, and an optional (unused)
  * argument.  XXX: I am not sure what the case is where the full path
  * would resolve but the relative path would not; consider dropping
  * this argument, or documenting the reason (after testing).
- * 
+ *
  * If requested, the expected hash of the dentry is returned in hashptr,
  * primarily so that the hashing can be reused to add the dentry later.
- * 
+ *
  * The reference count on the found dentry is incremented by one.
- * 
- * Used only by shim_namei.c 
+ *
+ * Used only by shim_namei.c
  */
 struct shim_dentry *
 __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
                  const char * path, int pathlen, HASHTYPE * hashptr) {
 
-    /* In this implementation, we just look at the children 
+    /* In this implementation, we just look at the children
      * under the parent and see if there are matches.  It so,
-     * return it; if not, don't.  
-     * 
+     * return it; if not, don't.
+     *
      * To minimize disruption (and possibly for future optimization)
      * we are keeping hashes, so let's start with that for a marginally
-     * faster comparison 
+     * faster comparison
      */
     HASHTYPE hash = hash_dentry(start, name, namelen);
     struct shim_dentry *dent, *found = NULL;
 
     /* If start is NULL, there will be no hit in the cache.
-     * This mainly happens when boostrapping; in general, we assume the 
+     * This mainly happens when boostrapping; in general, we assume the
      * caller will use the current root or cwd.
      */
     if (!start) return NULL;
@@ -254,7 +254,7 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
         found = start;
         goto out;
     }
-    
+
     listp_for_each_entry(dent, &start->children, siblings) {
         /* DEP 6/20/XX: The old code skipped mountpoints; I don't see any good
          * reason for mount point lookup to fail, at least in this code.
@@ -265,13 +265,13 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
 
         // Check for memory corruption
         assert(0 == (dent->state & DENTRY_INVALID_FLAGS));
-        
+
         /* Compare the hash first */
         if (dent->rel_path.hash != hash)
             continue;
 
-        /* I think comparing the relative path is adequate; with a global 
-         * hash table, a full path comparison may be needed, but I think 
+        /* I think comparing the relative path is adequate; with a global
+         * hash table, a full path comparison may be needed, but I think
          * we can assume a parent has children with unique names */
         const char * filename = get_file_name(name, namelen);
         const char * dname = dentry_get_name(dent);
@@ -306,7 +306,7 @@ int __del_dentry_tree(struct shim_dentry * root) {
     struct shim_dentry *cursor, *n;
 
     listp_for_each_entry_safe(cursor, n, &root->children, siblings) {
-        // Recur if this is a non-empty directory 
+        // Recur if this is a non-empty directory
         if (!listp_empty(&cursor->children))
             __del_dentry_tree(cursor);
 
@@ -383,9 +383,9 @@ BEGIN_RS_FUNC(dentry)
 
     create_lock(dent->lock);
 
-    /* DEP 6/16/17: I believe the point of this line is to 
-     * fix up the children linked list.  Presumably the ref count and 
-     * child count is already correct in the checkpoint. */   
+    /* DEP 6/16/17: I believe the point of this line is to
+     * fix up the children linked list.  Presumably the ref count and
+     * child count is already correct in the checkpoint. */
     if (dent->parent) {
         get_dentry(dent->parent);
         get_dentry(dent);
