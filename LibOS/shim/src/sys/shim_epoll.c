@@ -338,7 +338,7 @@ retry:
     }
 
     PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQuerybyHandle(polled, &attr))
+    if (!DkStreamAttributesQueryByHandle(polled, &attr))
         goto reply;
 
     listp_for_each_entry(epoll_fd, &epoll->fds, list)

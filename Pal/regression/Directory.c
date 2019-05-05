@@ -15,7 +15,7 @@ int main (int argc, char ** argv, char ** envp)
         pal_printf("Directory Open Test 1 OK\n");
 
         PAL_STREAM_ATTR attr1;
-        if (DkStreamAttributesQuerybyHandle(dir1, &attr1))
+        if (DkStreamAttributesQueryByHandle(dir1, &attr1))
             pal_printf("Query by Handle: type = %d\n", attr1.handle_type);
 
         char buffer[80];

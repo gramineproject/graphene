@@ -150,7 +150,7 @@ static int socket_hstat (struct shim_handle * hdl, struct stat * stat)
 
     PAL_STREAM_ATTR attr;
 
-    if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr))
+    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
         return -PAL_ERRNO;
 
     memset(stat, 0, sizeof(struct stat));
@@ -217,7 +217,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
     }
 
     PAL_STREAM_ATTR attr;
-    if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr)) {
+    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
         ret = -PAL_ERRNO;
         goto out;
     }
@@ -252,7 +252,7 @@ static int socket_setflags (struct shim_handle * hdl, int flags)
 
     PAL_STREAM_ATTR attr;
 
-    if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr))
+    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
         return -PAL_ERRNO;
 
     if (attr.nonblocking) {
@@ -267,7 +267,7 @@ static int socket_setflags (struct shim_handle * hdl, int flags)
         attr.nonblocking = PAL_TRUE;
     }
 
-    if (!DkStreamAttributesSetbyHandle(hdl->pal_handle, &attr))
+    if (!DkStreamAttributesSetByHandle(hdl->pal_handle, &attr))
        return -PAL_ERRNO;
 
     return 0;

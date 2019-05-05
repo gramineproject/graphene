@@ -317,7 +317,7 @@ has_manifest:
 #endif
 
         PAL_STREAM_ATTR attr;
-        ret = _DkStreamAttributesQuerybyHandle(manifest_handle, &attr);
+        ret = _DkStreamAttributesQueryByHandle(manifest_handle, &attr);
         if (ret < 0)
             init_fail(-ret, "cannot open manifest file");
 

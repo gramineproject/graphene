@@ -17,7 +17,7 @@ PAL {
         DkSendHandle; DkReceiveHandle; # Added by us
         DkStreamWaitForClient;
         DkStreamGetName;
-        DkStreamAttributesQuerybyHandle; DkStreamAttributesQuery;
+        DkStreamAttributesQueryByHandle; DkStreamAttributesQuery;
 
         DkProcessCreate; DkProcessExit;
 
@@ -38,7 +38,7 @@ PAL {
         DkThreadPrivateSet; DkThreadPrivateGet; # set/get thread private area
         DkThreadGetCurrent; # get a handle to describe the current thread
         DkStreamChangeName;
-        DkStreamAttributesSetbyHandle;
+        DkStreamAttributesSetByHandle;
         DkSegmentRegister; # set segment register
         DkMemoryAvailableQuota;
         DkCpuIdRetrieve; # retrieve CPUID

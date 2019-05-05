@@ -34,8 +34,8 @@ int main (int argc, char ** argv, char ** envp)
     print_symbol(DkSendHandle);
     print_symbol(DkReceiveHandle);
     print_symbol(DkStreamAttributesQuery);
-    print_symbol(DkStreamAttributesQuerybyHandle);
-    print_symbol(DkStreamAttributesSetbyHandle);
+    print_symbol(DkStreamAttributesQueryByHandle);
+    print_symbol(DkStreamAttributesSetByHandle);
     print_symbol(DkStreamGetName);
     print_symbol(DkStreamChangeName);
 

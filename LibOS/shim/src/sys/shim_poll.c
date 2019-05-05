@@ -321,7 +321,7 @@ done_finding:
             break;
 
         PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQuerybyHandle(polled, &attr))
+        if (!DkStreamAttributesQueryByHandle(polled, &attr))
             break;
 
         n = &polling;

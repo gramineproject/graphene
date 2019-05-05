@@ -426,7 +426,7 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
 
             if (hdl->pal_handle) {
                 PAL_STREAM_ATTR attr;
-                if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr)) {
+                if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
                     ret = -PAL_ERRNO;
                     break;
                 }

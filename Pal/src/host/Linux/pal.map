@@ -17,7 +17,7 @@ PAL {
         DkSendHandle; DkReceiveHandle; # Added by us
         DkStreamWaitForClient;
         DkStreamGetName;
-        DkStreamAttributesQuerybyHandle; DkStreamAttributesQuery;
+        DkStreamAttributesQueryByHandle; DkStreamAttributesQuery;
 
         DkProcessCreate; DkProcessExit;
 
@@ -37,7 +37,7 @@ PAL {
         DkPhysicalMemoryMap; # IPC
         DkSegmentRegister; # set segmentation registers
         DkStreamChangeName;
-        DkStreamAttributesSetbyHandle;
+        DkStreamAttributesSetByHandle;
         DkMemoryAvailableQuota;
 
         # Debugging ABIs
