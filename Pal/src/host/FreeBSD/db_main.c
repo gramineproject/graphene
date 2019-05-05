@@ -220,7 +220,7 @@ void pal_bsd_main (void * args)
     bsd_state.pid = INLINE_SYSCALL(getpid, 0);
     bsd_state.uid = uid;
     bsd_state.gid = gid;
-    
+
     if (!bsd_state.parent_pid)
         bsd_state.parent_pid = bsd_state.pid;
 
@@ -360,10 +360,10 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  4,  8);
     ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  0,  4);
 
-    /* According to SDM: EBX[15:0] is to enumerate processor topology 
+    /* According to SDM: EBX[15:0] is to enumerate processor topology
      * of the system. However this value is intended for display/diagnostic
      * purposes. The actual number of logical processors available to
-     * BIOS/OS/App may be different. We use this leaf for now as it's the 
+     * BIOS/OS/App may be different. We use this leaf for now as it's the
      * best option we have so far to get the cpu number  */
 
     cpuid(0xb, 1, words, 0);

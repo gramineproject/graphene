@@ -256,7 +256,7 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
         return 1;
 
     /* DEP: Let's do a racy read of is_alive and in_vm.
-     * If either of these are zero it is a stable condition, 
+     * If either of these are zero it is a stable condition,
      * and we can elide the lock acquire (which helps perf).
      */
     if (!thread->is_alive)

@@ -54,7 +54,7 @@ static inline int init_tty_handle (struct shim_handle * hdl, bool write)
     struct shim_dentry * dent = NULL;
     int ret;
     struct shim_thread * cur_thread = get_cur_thread();
-    
+
     /* XXX: Try getting the root FS from current thread? */
     assert(cur_thread);
     assert(cur_thread->root);

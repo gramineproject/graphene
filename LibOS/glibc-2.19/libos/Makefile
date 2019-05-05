@@ -22,7 +22,7 @@
 subdir		:= libos
 
 # Installed header files.
-headers		:= 
+headers		:=
 
 # Internal header files.
 distribute	:= errno.h

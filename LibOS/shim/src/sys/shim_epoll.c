@@ -58,7 +58,7 @@
 
 struct shim_mount epoll_builtin_fs;
 
-/* shim_epoll_fds are linked as a list (by the list field), 
+/* shim_epoll_fds are linked as a list (by the list field),
  * hanging off of a shim_epoll_handle (by the fds field) */
 struct shim_epoll_fd {
     FDTYPE                      fd;

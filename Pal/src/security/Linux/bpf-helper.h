@@ -156,7 +156,7 @@ union arg64 {
 /* Loads the arg into A */
 #define ARG_32(idx) \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, LO_ARG(idx))
-	
+
 /* Loads the arg&flag into A */
 #define ARG_FLAG_32(idx, flag) \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, LO_ARG(idx)), \
@@ -184,7 +184,7 @@ union arg64 {
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, HI_ARG(idx)), \
 	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, HI_FLAG(flag)), \
 	BPF_STMT(BPF_ST, 1) /* hi -> M[1] */
-	
+
 #define JEQ32(value, jt) \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), 0, 1), \
 	jt

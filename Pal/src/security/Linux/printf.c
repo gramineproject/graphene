@@ -2,7 +2,7 @@
 // based on printfmt() and the sys_cputs() system call.
 //
 // cprintf is a debugging statement, not a generic output statement.
-// It is very important that it always go to the console, especially when 
+// It is very important that it always go to the console, especially when
 // debugging file descriptor code!
 
 #include <linux/unistd.h>

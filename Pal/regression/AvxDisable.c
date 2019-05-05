@@ -13,8 +13,8 @@ int main(){
 
   /* Display the elements of the result vector */
   float f = result[0];
-  
-  PAL_HANDLE file1 = DkStreamOpen("file:avxRes", PAL_ACCESS_RDWR, 0, 0, 0); 
+
+  PAL_HANDLE file1 = DkStreamOpen("file:avxRes", PAL_ACCESS_RDWR, 0, 0, 0);
   if (file1) {
     DkStreamWrite(file1, 0, sizeof(f), &f, NULL);
     DkObjectClose(file1);

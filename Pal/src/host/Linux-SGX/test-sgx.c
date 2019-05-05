@@ -28,7 +28,7 @@ int main(int argc, char **argv)
   printf("processor type %d\n", (eax >> 12) & 0x3); // Bit 13-12
   printf("extended model %d\n", (eax >> 16) & 0xF); // Bit 19-16
   printf("extended family %d\n", (eax >> 20) & 0xFF); // Bit 27-20
-  
+
   // if smx set - SGX global enable is supported
   printf("smx: %d\n", (ecx >> 6) & 1); // CPUID.1:ECX.[bit6]
 
@@ -45,9 +45,9 @@ int main(int argc, char **argv)
   /* SGX has to be enabled in MSR.IA32_Feature_Control.SGX_Enable
 	check with msr-tools: rdmsr -ax 0x3a
 	SGX_Enable is Bit 18
-	if SGX_Enable = 0 no leaf information will appear. 
+	if SGX_Enable = 0 no leaf information will appear.
      for more information check Intel Docs Architectures-software-developer-system-programming-manual - 35.1 Architectural MSRS
-  */	
+  */
 
   /* CPUID Leaf 12H, Sub-Leaf 0 Enumeration of Intel SGX Capabilities (EAX=12H,ECX=0) */
   printf("\nCPUID Leaf 12H, Sub-Leaf 0 of Intel SGX Capabilities (EAX=12H,ECX=0)\n");

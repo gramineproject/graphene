@@ -30,7 +30,7 @@ typedef uint8_t sgx_arch_key_t [384];
 typedef uint8_t sgx_arch_hash_t[32];
 typedef uint8_t sgx_arch_mac_t [16];
 // This if for passing a mac to hex2str
-#define MACBUF_SIZE ((sizeof(sgx_arch_mac_t)*2)+1) 
+#define MACBUF_SIZE ((sizeof(sgx_arch_mac_t)*2)+1)
 
 typedef struct {
     uint64_t flags, xfrm;

@@ -481,7 +481,7 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
     }
 
     if (sock->domain == AF_UNIX) {
-        if (addrlen != sizeof(struct sockaddr_un)) 
+        if (addrlen != sizeof(struct sockaddr_un))
             goto out;
 
         struct sockaddr_un * saddr = (struct sockaddr_un *) addr;
@@ -518,7 +518,7 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
 
     sock->sock_state = SOCK_BOUND;
 
-    if ((ret = create_socket_uri(hdl)) < 0) 
+    if ((ret = create_socket_uri(hdl)) < 0)
         goto out;
 
     PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&hdl->uri),

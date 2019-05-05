@@ -43,7 +43,7 @@
 #define FUTEX_MIN_VALUE 0
 #define FUTEX_MAX_VALUE 255
 
-/* futex_waiters are linked off of shim_futex_handle by the waiters 
+/* futex_waiters are linked off of shim_futex_handle by the waiters
  * listp */
 struct futex_waiter {
     struct shim_thread * thread;
@@ -203,7 +203,7 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             int nwaken = 0;
             uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? val3 :
                               0xffffffff;
-            
+
             debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",
                   uaddr, *uaddr, val, bitset);
 

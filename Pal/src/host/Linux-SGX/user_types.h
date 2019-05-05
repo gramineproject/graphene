@@ -3,7 +3,7 @@
 
 /**
  * INTEL CONFIDENTIAL
- * Copyright(c) 2013 Intel Corporation All Rights Reserved. 
+ * Copyright(c) 2013 Intel Corporation All Rights Reserved.
  *
  * The source code contained or described herein and all documents related to
  * the source code ("Material") are owned by Intel Corporation or its suppliers

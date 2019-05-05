@@ -221,7 +221,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     char normpath[URI_MAX];
     int ret, fd = file->file.fd, uri_len, len;
 
-    if (!(HANDLE_HDR(file)->flags & RFD(0))) 
+    if (!(HANDLE_HDR(file)->flags & RFD(0)))
         return -PAL_ERROR_DENIED;
 
     uri_len = _DkStreamGetName(file, uri, URI_MAX);
@@ -655,7 +655,7 @@ static int init_trusted_file (const char * key, const char * uri)
     char cskey[URI_MAX], * tmp;
     char checksum[URI_MAX];
     char normpath[URI_MAX];
-    
+
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 

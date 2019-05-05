@@ -26,7 +26,7 @@ $(PYTHON_SRC)/configure: $(PYTHON_SRC).tgz
 benchmarks: benchmarks.tar.gz
 	tar -xmzf $<
 
-regression: 
+regression:
 	@echo "\n\nBuilding Python..."
 	@$(MAKE) >> /dev/null 2>&1
 

@@ -729,13 +729,13 @@ PAL_BOL DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo)
 }
 
 /* PAL call DkRecvHandle: Read a handle to a pipe/process handle.
-   Return the received PAL_HANDLE by reference and 0 on success and 
+   Return the received PAL_HANDLE by reference and 0 on success and
    negative number on failure */
-/* 1. Should i take the received PAL_HANDLE as an input argument and 
-      pass by reference or return it rather? 
+/* 1. Should i take the received PAL_HANDLE as an input argument and
+      pass by reference or return it rather?
     Ans - We are not aware of the size of the variable members to return
    2. Would the recieved PAL_HANDLE start functioning automatically in
-      the new process environment? Should we initialize/modify some 
+      the new process environment? Should we initialize/modify some
       attibutes of the handle?
     Ans - Yes, Initialize and make it compatibile in the target process
    3. Should malloc_copy be done or the process shares the same references?

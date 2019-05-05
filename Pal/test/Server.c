@@ -3,8 +3,8 @@
 
 /* The server test program that accept multiple TCP connection at the same
  * time. A port number is taken as argument. If a port is locked up, try
- * another one. 
- * 
+ * another one.
+ *
  * Run this progam with a simple tcp client, like netcat.  For instance:
  *
  * Start the server:

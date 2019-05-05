@@ -41,7 +41,7 @@ typedef struct pal_handle
      * handles, so we hide the type name of these handles on purpose.
      */
     PAL_HDR hdr;
-    
+
     union {
         struct {
             PAL_IDX fds[2];
@@ -54,48 +54,48 @@ typedef struct pal_handle
         struct {
             PAL_IDX fd;
         } file;
-        
+
         struct {
             PAL_IDX fd;
         } pipe;
-        
+
         struct {
             PAL_IDX fd;
         } pipeprv;
-        
+
         struct {
             PAL_IDX fd;
             PAL_IDX dev_type;
         } dev;
-        
+
         struct {
             PAL_IDX fd;
         } dir;
-        
+
         struct {
             PAL_IDX fd;
         } gipc;
-        
+
         struct {
             PAL_IDX fd;
         } sock;
-        
+
         struct {
             PAL_IDX fd;
         } process;
-        
+
         struct {
             PAL_IDX fd;
         } mcast;
-        
+
         struct {
             PAL_IDX fd;
         } thread;
-        
+
         struct {
             PAL_IDX fd;
         } semaphore;
-        
+
         struct {
             PAL_IDX fd;
         } event;

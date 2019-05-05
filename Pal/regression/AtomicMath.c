@@ -13,10 +13,10 @@ int main (int argc, char ** argv, char ** envp)
   int64_t my_int = 0;
   struct atomic_int a_int;
   atomic_set(&a_int, 0);
-  
-  /* Check that INT_MIN and INT_MAX wrap around consistently 
+
+  /* Check that INT_MIN and INT_MAX wrap around consistently
    * with atomic values.
-   * 
+   *
    * Check atomic_sub specifically.
    */
   my_int -= INT_MIN;
@@ -37,11 +37,11 @@ int main (int argc, char ** argv, char ** envp)
     pal_printf("Subtract INT_MAX: Both values match %ld\n", my_int);
   else
     pal_printf("Subtract INT_MAX: Values do not match %ld, %ld\n", my_int, atomic_read(&a_int));
-  
+
   /* Check that 64-bit signed values also wrap properly. */
   atomic_set(&a_int, 0);
   my_int = 0;
-  
+
   my_int -= LLONG_MIN;
   atomic_sub(LLONG_MIN, &a_int);
 
@@ -61,6 +61,6 @@ int main (int argc, char ** argv, char ** envp)
   else
     pal_printf("Subtract LLONG_MAX: Values do not match %ld, %ld\n", my_int, atomic_read(&a_int));
 
-  
+
   return 0;
 }

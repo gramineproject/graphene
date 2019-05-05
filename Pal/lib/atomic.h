@@ -5,17 +5,17 @@
 #define _SHIM_ATOMIC_H_
 
 /* Copyright (C) 2014 Stony Brook University
- * Copyright (C) 2017 Fortanix Inc, and University of North Carolina 
+ * Copyright (C) 2017 Fortanix Inc, and University of North Carolina
  * at Chapel Hill.
  *
- * This file defines atomic operations (And barriers) for use in 
+ * This file defines atomic operations (And barriers) for use in
  * Graphene.
- * 
- * The atomic operation assembly code is taken from musl libc, which 
+ *
+ * The atomic operation assembly code is taken from musl libc, which
  * is subject to the MIT license.
- * 
+ *
  * At this point, we primarily focus on x86_64; there are some vestigial
- * 32-bit definitions here, but a more portable version would need to 
+ * 32-bit definitions here, but a more portable version would need to
  * move and reimplement portions of this for 32-bit x86 (or other architectures).
  */
 
@@ -62,7 +62,7 @@ __attribute__((aligned(sizeof(uint32_t))))
 
 
 /* The return types below effectively assume we are dealing with a 64-bit
- * signed value. 
+ * signed value.
  */
 #ifdef __x86_64__
 /*
@@ -149,16 +149,16 @@ static inline void atomic_dec (struct atomic_int * v)
         : "=m"(v->counter) : "m"(v->counter) : "memory", "cc");
 }
 
-/* Atomically substracts 1 from v.  Returns 1 if this causes the 
+/* Atomically substracts 1 from v.  Returns 1 if this causes the
    value to reach 0; returns 0 otherwise. */
 static inline int64_t atomic_dec_and_test (struct atomic_int * v)
 {
     int64_t i = _atomic_add(-1, v);
     return i == 0;
 }
- 
+
 /* Helper function to atomically compare-and-swap the value pointed to by p.
- * t is the old value, s is the new value.  Returns 
+ * t is the old value, s is the new value.  Returns
  * the value originally in p. */
 static inline int64_t cmpxchg(volatile int64_t *p, int64_t t, int64_t s)
 {

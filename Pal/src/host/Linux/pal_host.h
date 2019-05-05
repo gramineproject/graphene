@@ -32,7 +32,7 @@
 
 #include <atomic.h>
 
-/* Simpler mutex design: a single variable that tracks whether the 
+/* Simpler mutex design: a single variable that tracks whether the
  * mutex is locked (just waste a 64 bit word for now).  State is 1 (locked) or
  * 0 (unlocked).
  * Keep a count of how many threads are waiting on the mutex.
@@ -78,7 +78,7 @@ typedef struct pal_handle
      * handles, so we hide the type name of these handles on purpose.
      */
     PAL_HDR hdr;
-    
+
     union {
         struct {
             PAL_IDX fds[2];
@@ -97,7 +97,7 @@ typedef struct pal_handle
              */
             PAL_PTR map_start;
         } file;
-        
+
         struct {
             PAL_IDX fd;
             PAL_NUM pipeid;

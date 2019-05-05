@@ -12,7 +12,7 @@ int main (int argc, char ** argv, char ** envp)
     /* print all environmental variables */
     /* environmental variables in Manifest should appear */
     for (int i = 0; envp[i]; i++) {
-        pal_printf("%s\n", envp[i]);    
+        pal_printf("%s\n", envp[i]);
     }
 
     return 0;

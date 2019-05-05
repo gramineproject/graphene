@@ -617,7 +617,7 @@ int recv_next (struct task_struct *task, struct gipc_queue *gq)
 		if (signal_pending(task))
 			return -ERESTARTSYS;
 	}
-	
+
 	return gq->next;
 }
 

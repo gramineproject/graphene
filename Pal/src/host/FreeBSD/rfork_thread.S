@@ -71,7 +71,7 @@ ENTRY(rfork_thread)
 	 */
 1:
 	movq	%rsi, %rsp
-	movq	%r12, %rdi 
+	movq	%r12, %rdi
 	call	*%rbx
 	movl	%eax, %edi
 
@@ -100,7 +100,7 @@ ENTRY(rfork_thread)
 	movq	$SYS_sys_exit, %rax
 #endif
 	int	$0x80
-		
+
 END(rfork_thread)
 
 	.section .note.GNU-stack,"",%progbits

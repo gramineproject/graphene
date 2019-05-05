@@ -10,7 +10,7 @@ RUNTIME = $(level)../../../Runtime
 ifeq ($(SGX),1)
 PAL_LOADER = pal_loader SGX
 else
-PAL_LOADER = pal_loader 
+PAL_LOADER = pal_loader
 endif
 
 CC = gcc

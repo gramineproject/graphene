@@ -391,7 +391,7 @@ int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
             break;
 
         int size = INLINE_SYSCALL(getdents, 3, handle->dir.fd, dent_buf,
-                                  DIRBUF_SIZE); 
+                                  DIRBUF_SIZE);
 
         if (IS_ERR(size))
             return -PAL_ERROR_DENIED;

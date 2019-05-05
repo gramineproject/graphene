@@ -1,16 +1,16 @@
 Graphene-SGX Secure Container
 --------------------------------
-Graphene-SGX Secure Container (GSC) is a container system where the containerized application can be protected by Graphene-SGX while it is running in a container environment. The GSC system includes two parts: (1) a Docker container instance where the application is running inside Graphene-SGX and both of them are running inside the container instance; (2) a front-end named GSCE (GSC Engine) which takes a legacy Docker container image and automatically launches the contained application inside a GSC container instance. 
+Graphene-SGX Secure Container (GSC) is a container system where the containerized application can be protected by Graphene-SGX while it is running in a container environment. The GSC system includes two parts: (1) a Docker container instance where the application is running inside Graphene-SGX and both of them are running inside the container instance; (2) a front-end named GSCE (GSC Engine) which takes a legacy Docker container image and automatically launches the contained application inside a GSC container instance.
 
-Launching a GSC container instance includes following steps: 
+Launching a GSC container instance includes following steps:
 
-(1) Make sure there is a Docker container image of your application in the local or remote image repository. 
+(1) Make sure there is a Docker container image of your application in the local or remote image repository.
 
 (2) Download and Compile Graphene-SGX;
 
 (2) Go to graphene/Tools
 
-(3) Run a GSC container via the following command: 
+(3) Run a GSC container via the following command:
 
    ./gsce run [All the arguments used for launching a normal Docker container] [docker Image Name:Tag].
 
