@@ -445,7 +445,7 @@ static int set_graphene_task (const char * uri, int flags)
 
     PAL_STREAM_ATTR attr;
 
-    if ((ret = _DkStreamAttributesQuerybyHandle(handle, &attr)) < 0)
+    if ((ret = _DkStreamAttributesQueryByHandle(handle, &attr)) < 0)
         goto out;
 
     void * addr = NULL;

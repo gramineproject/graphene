@@ -104,11 +104,11 @@ struct handle_ops {
     int (*attrquery) (const char * type, const char * uri,
                       PAL_STREAM_ATTR * attr);
 
-    /* 'attrquerybyhdl' is used by DkStreamAttributesQuerybyHandle. It queries
+    /* 'attrquerybyhdl' is used by DkStreamAttributesQueryByHandle. It queries
        the attributes of a stream handle */
     int (*attrquerybyhdl) (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
 
-    /* 'attrsetbyhdl' is used by DkStreamAttributesSetbyHandle. It queries
+    /* 'attrsetbyhdl' is used by DkStreamAttributesSetByHandle. It queries
        the attributes of a stream handle */
     int (*attrsetbyhdl) (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
 
@@ -284,7 +284,7 @@ int64_t _DkStreamRead (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 int64_t _DkStreamWrite (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                         const void * buf, const char * addr, int addrlen);
 int _DkStreamAttributesQuery (const char * uri, PAL_STREAM_ATTR * attr);
-int _DkStreamAttributesQuerybyHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
+int _DkStreamAttributesQueryByHandle (PAL_HANDLE hdl, PAL_STREAM_ATTR * attr);
 int _DkStreamMap (PAL_HANDLE handle, void ** addr, int prot, uint64_t offset,
                   uint64_t size);
 int _DkStreamUnmap (void * addr, uint64_t size);

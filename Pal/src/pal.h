@@ -368,11 +368,11 @@ PAL_BOL
 DkStreamAttributesQuery (PAL_STR uri, PAL_STREAM_ATTR * attr);
 
 PAL_BOL
-DkStreamAttributesQuerybyHandle (PAL_HANDLE handle,
+DkStreamAttributesQueryByHandle (PAL_HANDLE handle,
                                  PAL_STREAM_ATTR * attr);
 
 PAL_BOL
-DkStreamAttributesSetbyHandle (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
+DkStreamAttributesSetByHandle (PAL_HANDLE handle, PAL_STREAM_ATTR * attr);
 
 PAL_NUM
 DkStreamGetName (PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size);

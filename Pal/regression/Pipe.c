@@ -18,7 +18,7 @@ int main (int argc, char ** argv, char ** envp)
 
         // DEP 10/24/16: Try to read some attributes of the pipe
         PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQuerybyHandle(pipe1, &attr)) {
+        if (!DkStreamAttributesQueryByHandle(pipe1, &attr)) {
             pal_printf("Failed to get any attributes from the pipesrv\n");
             return -1;
         } else 

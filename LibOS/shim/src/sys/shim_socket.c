@@ -902,14 +902,14 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
     if (flags & O_NONBLOCK) {
         PAL_STREAM_ATTR attr;
 
-        if (!DkStreamAttributesQuerybyHandle(accepted, &attr)) {
+        if (!DkStreamAttributesQueryByHandle(accepted, &attr)) {
             ret = -PAL_ERRNO;
             goto out;
         }
 
         attr.nonblocking = PAL_TRUE;
 
-        if (!DkStreamAttributesSetbyHandle(accepted, &attr)) {
+        if (!DkStreamAttributesSetByHandle(accepted, &attr)) {
             ret = -PAL_ERRNO;
             goto out;
         }
@@ -1559,7 +1559,7 @@ query:
     if (!attr) {
         attr = __alloca(sizeof(PAL_STREAM_ATTR));
 
-        if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, attr))
+        if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, attr))
             return -PAL_ERRNO;
     }
 
@@ -1629,7 +1629,7 @@ query:
     return 0;
 
 set:
-    if (!DkStreamAttributesSetbyHandle(hdl->pal_handle, attr))
+    if (!DkStreamAttributesSetByHandle(hdl->pal_handle, attr))
         return -PAL_ERRNO;
 
     return 0;
@@ -1644,7 +1644,7 @@ static int __process_pending_options (struct shim_handle * hdl)
 
     PAL_STREAM_ATTR attr;
 
-    if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr))
+    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr))
         return -PAL_ERRNO;
 
     struct shim_sock_option * o = sock->pending_options;
@@ -1795,7 +1795,7 @@ query:
     {
         PAL_STREAM_ATTR attr;
 
-        if (!DkStreamAttributesQuerybyHandle(hdl->pal_handle, &attr)) {
+        if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
             ret = -PAL_ERRNO;
             goto out;
         }

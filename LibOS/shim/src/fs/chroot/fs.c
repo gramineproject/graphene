@@ -221,7 +221,7 @@ static int __query_attr (struct shim_dentry * dent,
     enum shim_file_type old_type = data->type;
 
     if (pal_handle ?
-        !DkStreamAttributesQuerybyHandle(pal_handle, &pal_attr) :
+        !DkStreamAttributesQueryByHandle(pal_handle, &pal_attr) :
         !DkStreamAttributesQuery(qstrgetstr(&data->host_uri), &pal_attr))
         return -PAL_ERRNO;
 
@@ -1282,7 +1282,7 @@ static int chroot_chmod (struct shim_dentry * dent, mode_t mode)
 
     PAL_STREAM_ATTR attr = { .share_flags = mode };
 
-    if (!DkStreamAttributesSetbyHandle(pal_hdl, &attr)) {
+    if (!DkStreamAttributesSetByHandle(pal_hdl, &attr)) {
         DkObjectClose(pal_hdl);
         return -PAL_ERRNO;
     }

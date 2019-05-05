@@ -56,7 +56,7 @@ int main (int argc, char ** argv, char ** envp)
         /* test file attribute query */
 
         PAL_STREAM_ATTR attr1;
-        if (DkStreamAttributesQuerybyHandle(file1, &attr1))
+        if (DkStreamAttributesQueryByHandle(file1, &attr1))
             pal_printf("Query by Handle: type = %d, size = %ld\n",
                        attr1.handle_type, attr1.pending_size);
 

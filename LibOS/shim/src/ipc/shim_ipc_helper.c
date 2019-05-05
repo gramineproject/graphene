@@ -913,7 +913,7 @@ update_status:
         }
 
         PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQuerybyHandle(polled, &attr)) {
+        if (!DkStreamAttributesQueryByHandle(polled, &attr)) {
             debug("port %p (handle %p) is removed at querying\n",
                   pobj, polled);
             del_ipc_port_fini(pobj, -PAL_ERRNO);
