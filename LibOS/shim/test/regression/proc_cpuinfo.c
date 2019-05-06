@@ -71,7 +71,7 @@ static int parse_line(char *line, struct cpuinfo *ci) {
     return 0;
 
 fmt_err:
-    fprintf(stderr, "format error line: %s\n", line);
+    fprintf(stderr, "format error in line: %s\n", line);
     return -1;
 };
 
