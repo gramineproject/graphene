@@ -340,7 +340,10 @@ static bool is_sgx_pal() {
  * with a concurrent system call. The purpose of these functions is simply for
  * the compatibility with programs that rely on the error numbers, such as the
  * LTP test suite.
- */
+ *
+ * NOTE: `addr` and `size` may lead to ptr arithmetic overflow in the below
+ * while-loop. Ptr arithmetic overflow is undefined behavior, so we don't check
+ * for it here but rather assume that `size` was sanity-checked by caller. */
 bool test_user_memory (void * addr, size_t size, bool write)
 {
     if (!size)
