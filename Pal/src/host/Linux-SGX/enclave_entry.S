@@ -14,12 +14,13 @@
 	.type enclave_entry, @function
 
 enclave_entry:
-	# On EENTER, RAX is the current SSA, RBX is the address of TCS,
-	# RCX is the address of AEP. Other registers are not trusted.
+	# On EENTER, RAX is the current SSA index (aka CSSA),
+	# RBX is the address of TCS, RCX is the address of AEP.
+	# Other registers are not trusted.
 
 	# current SSA is in RAX (Trusted)
 	cmpq $0, %rax
-	jne .Lhandle_resume
+	jne .Lprepare_resume
 
 	# TCS is in RBX (Trusted)
 
@@ -42,7 +43,7 @@ enclave_entry:
 	# to deceive the trusted PAL.
 
 	# This thread can be interrupted but then the above check branches to
-	# .Lhandle_resume. So the outside can't re-enter the checks below in
+	# .Lprepare_resume. So the outside can't re-enter the checks below in
 	# the middle.
 
 	# Only jump to .Lreturn_from_ocall if we have prepared the stack for
@@ -95,7 +96,7 @@ enclave_entry:
 	# handle_ecall will only return when invalid parameters has been passed.
 	FAIL_LOOP
 
-.Lhandle_resume:
+.Lprepare_resume:
 	# PAL convention:
 	# RDI - external event
 
