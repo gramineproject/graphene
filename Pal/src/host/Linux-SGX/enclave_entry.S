@@ -22,7 +22,7 @@ enclave_entry:
 	cld
 
 	cmpq $0, %rax
-	jne .Lhandle_resume
+	jne .Lprepare_resume
 
 	movq %rcx, %gs:SGX_AEP
 
@@ -42,7 +42,7 @@ enclave_entry:
 	# to deceive the trusted PAL.
 
 	# This thread can be interrupted but then the above check branches to
-	# .Lhandle_resume. So the outside can't re-enter the checks below in
+	# .Lprepare_resume. So the outside can't re-enter the checks below in
 	# the middle.
 
 	# Only jump to .Lreturn_from_ocall if we have prepared the stack for
@@ -95,13 +95,13 @@ enclave_entry:
 	# handle_ecall will only return when invalid parameters has been passed.
 	FAIL_LOOP
 
-.Lhandle_resume:
+.Lprepare_resume:
 	# PAL convention:
 	# RDI - external event
 
 	# Nested exceptions at the host-OS level are disallowed:
 	# - Synchronous exceptions are assumed to never happen during
-	#   handle_resume;
+	#   prepare_resume;
 	# - Asynchronous signals are not nested by benign host OS because
 	#   we mask asynchronous signals on signal handler.
 	# If malicious host OS injects a nested signal, CSSA != 1 and we
