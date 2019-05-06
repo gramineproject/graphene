@@ -326,7 +326,7 @@ ret_exception:
  *
  * The second option is faster in fault-free case but cannot be used under
  * SGX PAL. We use the best option for each PAL for now. */
-static bool is_sgx_pal() {
+static bool is_sgx_pal(void) {
     static struct atomic_int sgx_pal = { .counter = 0 };
     static struct atomic_int inited  = { .counter = 0 };
 
@@ -415,7 +415,7 @@ bool test_user_string (const char * addr)
          * so we check string in chunks of 4K pages. */
         do {
             maxlen = next - addr;
-            if (!is_in_one_vma(addr, maxlen))
+            if (!is_in_one_vma((void*) addr, maxlen))
                 return true;
             size = strnlen(addr, maxlen);
             addr = next;
