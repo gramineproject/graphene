@@ -14,19 +14,16 @@
 	.type enclave_entry, @function
 
 enclave_entry:
-	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
-	# RCX is the address of AEP. Other registers are not trusted.
+	# On EENTER, RAX is the current SSA index (aka CSSA),
+	# RBX is the address of TCS, RCX is the address of AEP.
+	# Other registers are not trusted.
 
 	# x86-64 sysv abi requires %rFLAGS.DF = 0 on entry to function call.
 	cld
 
-	# current SSA is in RAX (Trusted)
 	cmpq $0, %rax
 	jne .Lhandle_resume
 
-	# TCS is in RBX (Trusted)
-
-	# AEP address in RCX (Trusted)
 	movq %rcx, %gs:SGX_AEP
 
 	# The following code is hardened to defend attacks from untrusted host.
