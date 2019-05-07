@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 import os, sys, mmap
 from regression import Regression
 
@@ -14,4 +12,5 @@ regression.add_check(name="Stat with invalid arguments",
                       "lstat(invalid-path-ptr) correctly returns error" in res[0].out and \
                       "lstat(invalid-buf-ptr) correctly returns error" in res[0].out)
 
-regression.run_checks()
+rv = regression.run_checks()
+if rv: sys.exit(rv)
