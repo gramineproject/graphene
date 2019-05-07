@@ -37,12 +37,14 @@ static int parse_line(char *line, struct cpuinfo *ci) {
 
     /* if the line does not have value string, p[1] should be '\n', otherwise
      * p[1] should be ' ' */
-    if (p[1] != '\n' && p[1] != ' ')
-        goto fmt_err;
-    if (p[2] == '\0')
-        return 0;
+    if (p[1] == '\n' && !p[2])
+        return 0;  /* No value string */
 
-    /* skip ": " to get value string) */
+    /* ':' should always be followed by a space */
+    if (p[1] != ' ')
+        goto fmt_err;
+
+    /* skip ": " to get value string */
     v = p + 2;
 
     /* get key string */
