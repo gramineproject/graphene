@@ -36,6 +36,7 @@ syscalldb:
         .cfi_startproc
 
         # Create shim_regs struct on the stack.
+        cld
         pushq %rbp
         pushq %rbx
         pushq %rdi
