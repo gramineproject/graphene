@@ -175,7 +175,7 @@ void * migrated_shim_addr;
 void * initial_stack;
 const char ** initial_envp __attribute_migratable;
 
-char ** library_paths;
+char ** library_paths = NULL;
 
 LOCKTYPE __master_lock;
 bool lock_enabled;
@@ -436,6 +436,8 @@ int read_environs (const char ** envp)
             }
 
             paths[cnt] = NULL;
+
+            assert(!library_paths);
             library_paths = paths;
             return 0;
         }
