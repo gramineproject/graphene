@@ -23,9 +23,6 @@ enclave_entry:
 
 	# TCS is in RBX (Trusted)
 
-	# AEP address in RCX (Trusted)
-	movq %rcx, %gs:SGX_AEP
-
 	# The following code is hardened to defend attacks from untrusted host.
 	# Any states given by the host instead of the ISA must be assumed
 	# potentially malicious.
@@ -49,6 +46,9 @@ enclave_entry:
 	# it.
 	cmpq $0, %gs:SGX_OCALL_PREPARED
 	jne .Lreturn_from_ocall
+
+	# AEP address in RCX (Trusted)
+	movq %rcx, %gs:SGX_AEP
 
 	# Ecalls are only used to start a thread (either the main or an
 	# additional thread). So per thread we should only get exactly one
@@ -158,21 +158,28 @@ enclave_entry:
 	## cannot trust value in SGX_GPR_RSP and should fall-back to using
 	## SGX_STACK (which was updated with the last known good in-enclave
 	## %rsp during Leexit).
+	##
+	## The SGX_STACK swap logic does not need to be atomic because nested
+	## exceptions are disallowed by SGX due to TCS.NSSA == 2
+	## (thus, .Lhandle_exception logic cannot be nested)
 
-	movq SGX_GPR_RSP(%rbx), %rsi
-	# This sgx_stack swap logic is okay because .Lhandle_exception doesn't nest
-	# due to TCS.nccs = 2.
-	movq %gs:SGX_STACK, %rax
-	cmpq $0, %rax
-	je .Lsetup_exception_handler
-	movq %rax, %rsi
-
-	/* we know we should've be in the middle of ocall */
+	# Assert: SGX_OCALL_PREPARED must be set to 1 before SGX_STACK is set
+	# to enclave stack
 	cmpq $0, %gs:SGX_OCALL_PREPARED
+	je .Lsetup_exception_handler
+
+	# Assert: %gs:SGX_STACK is set to enclave stack
+	movq %gs:SGX_STACK, %rsi
+	cmpq $0, %rsi
 	jne 1f
 	FAIL_LOOP
 1:
 
+	# At this point, we are in the exception handler,
+	# SGX_STACK=<trusted pointer to enclave stack>, SGX_OCALL_PREPARED=1,
+	# i.e. we are interrupted during handling of enclave's
+	# sgx_ocall/return_from_ocall assembly code.
+	#
 	# Triggering the exception handler while %gs:SGX_STACK/SGX_OCALL_PREPARED
 	# != 0 would be problematic because it could itself issue nested ocalls.
 	# This would mean the SGX_OCALL_PREPARED and SGX_STACK logic would need to
@@ -185,29 +192,37 @@ enclave_entry:
 	# ocall sequence:
 	#  0. call sgx_ocall()
 	#  1. SGX_OCALL_PREPARED=1
-	#  2. SGX_STACK=%rip: save trusted stack
+	#  2. SGX_STACK=%rsp: save trusted stack
 	#  3. EEXIT
 	#  4. unstrusted PAL which issues real host system call
 	#  5. EENTER (and start from enclave_entry)
 	#  6. .Lreturn_from_ocall:
-	#  7. (%rip, SGX_STACK) = (SGX_STACK, 0): restore trusted stack
+	#  7. (%rsp, SGX_STACK) = (SGX_STACK, 0): restore trusted stack
 	#  8. SGX_OCALL_PREPARED=0
 	#  9. .Lreturn_from_ocall_prepared_is_cleared:
 	# 10. call _DkHandleExternalEvent() if interrupted
 	# 11. return from sgx_ocall() to the caller
 	#
 	# It's also required that sgx_ocall be atomic regarding to async exception.
-	# On host async signal, sgx_ocall should result in EINTR
-	# - without calling host signal, or
-	# - host signal resulted in EINTR, or
-	# - host signal succeeded and then signal arrived.
-	# the result of host systen call which isn't necessarily idempotent
+	# When host async signal arrives, sgx_ocall() should result in EINTR.
+	#
+	# There are three possibilities when exactly host async signal arrives:
+	# A. before exiting enclave to perform host syscall
+	# B. after exiting enclave and before re-entering enclave
+	#    (i.e., during untrusted execution of host syscall)
+	# C. after re-entering enclave but before returning to sgx_ocall().
+	#
+	# Note that Case A didn't even issue host syscall, Case B may have
+	# interrupted host syscall (but maybe interrupt came after successful
+	# host syscall), and Case C was interrupted after successful host
+	# syscall.
+	# The result of host systen call which isn't necessarily idempotent
 	# should not be lost.
 	#
-	# on async exception we will
-	# A. until EEXIT(0.-5. in above sequence):
+	# On async exception we will
+	# A. until EEXIT(0.-2. in above sequence):
 	#	 pretend EINTR without real EEXIT
-	# B. during untrusted PAL(3.-5. in above sequence):
+	# B. during untrusted PAL(3.-4. in above sequence):
 	#	 return EINTR
 	#	 Exception (as host signal) is handled by _DkTerminateSighandler()
 	#	 @ sgx_exception.c
@@ -232,23 +247,26 @@ enclave_entry:
 	# We're about to eexit for ocall in
 	# [.Locall_about_to_eexit_begin, .Locall_about_to_eexit_end)
 	# Skip eexit as if ocall returned PAL_ERROR_INTERRUPTED.
-	movq $0, SGX_GPR_RAX(%rbx)
-	movq $-PAL_ERROR_INTERRUPTED, SGX_GPR_RDI(%rbx) # return value for .Lreturn_from_ocall
-	movq %rdi, SGX_GPR_RSI(%rbx) # external event for .Lreturn_from_ocall
-	leaq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
-	movq %rax, SGX_GPR_RIP(%rbx)
-	movq %rsi, SGX_GPR_RSP(%rbx)
-	movq $0, %gs:SGX_STACK
-	movq $0, %gs:SGX_OCALL_PREPARED
-	xorq %r11, %r11
-	jmp .Leexit_exception
+	# If there is registered signal handler for the current exception,
+	# _DkHandleExternalEvent() will be called (and thus we need to save
+	# %rdi = <external event>) before returning from ocall.
+	movq $-PAL_ERROR_INTERRUPTED, %rdi # return value for .Lreturn_from_ocall
+	# fallthrough to Case A.
+
+	# This code cannot land in Case B because
+	# (1) this code path (.Lhandle_exception) is triggered only if we haven't
+	# yet exited the enclave when signal arrived, and because
+	# (2) in Case B, we exited the enclave and signal arrived while in
+	# untrusted code. The two conditions cannot be true at the same time,
+	# so Case B never happens here (Case B results in return_from_ocall code
+	# path below).
 
 2:
 	# Case C.
 	# We're right after eenter returning from successfull ocall.
 	# Move %rip to .Lreturn_from_ocall_prepared_is_cleard and let
 	# _DkHandleExternalEvent handle the exception.
-	# SGX_GPR_RDI(%rdi): don't touch successfull ocall result.
+	# SGX_GPR_RDI(%rbx): don't touch successfull ocall result.
 	movq %rdi, SGX_GPR_RSI(%rbx) # external event for .Lreturn_from_ocall
 	leaq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
 	movq %rax, SGX_GPR_RIP(%rbx)
@@ -259,6 +277,48 @@ enclave_entry:
 	jmp .Leexit_exception
 
 .Lsetup_exception_handler:
+	#
+	# avoid overwriting %gs:SGX_STACK by exception handler
+	# when gs:SGX_STACK is set,
+	# i.e. saved %rip == .Locall_sgx_stack_set_after, or
+	#	                 .Lreturn_from_ocall_sgx_stack_retore_0, or
+	#	                 .Lreturn_from_ocall_sgx_stack_retore_1
+	# emulate it to safe point where %gs:SGX_STACK
+	# is not set.
+	#
+	leaq .Locall_sgx_stack_set_after(%rip), %rax
+	cmpq %rax, SGX_GPR_RIP(%rbx)
+	jne 1f
+	# saved %rip == .Locall_sgx_stack_set_after
+	# roll back "movq %rsp, %gs:SGX_STACK"
+	leaq .Locall_sgx_stack_set_before(%rip), %rax
+	movq %rax, SGX_GPR_RIP(%rbx)
+	movq $0, %gs:SGX_STACK
+	jmp 4f
+1:
+	leaq .Lreturn_from_ocall_sgx_stack_retore_0(%rip), %rax
+	cmpq %rax, SGX_GPR_RIP(%rbx)
+	je 2f
+	leaq .Lreturn_from_ocall_sgx_stack_retore_1(%rip), %rax
+	cmpq %rax, SGX_GPR_RIP(%rbx)
+	je 3f
+	jmp 4f
+2:
+	# saved %rip == .Lreturn_from_ocall_sgx_stack_retore_0
+	# emulate movq %gs:SGX_STACK, %rsp
+	movq %gs:SGX_STACK, %rax
+	movq %rax, SGX_GPR_RSP(%rbx)
+	# fall through
+3:
+	# saved %rip == .Lreturn_from_ocall_sgx_stack_retore_1
+	# emulate movq $0, %gs:SGX_STACK
+	movq $0, %gs:SGX_STACK
+	leaq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
+	movq %rax, SGX_GPR_RIP(%rbx)
+4:
+	movq SGX_GPR_RSP(%rbx), %rsi
+
+
 	subq $SGX_CONTEXT_SIZE, %rsi
 
 	# we have exitinfo in RDI, swap with the one on GPR
@@ -368,12 +428,14 @@ sgx_ocall:
 	xorq %r15, %r15
 	xorq %rbp, %rbp
 
-	movq $1, %gs:SGX_OCALL_PREPARED
+.Locall_sgx_stack_set_before:
 	movq %rsp, %gs:SGX_STACK
+.Locall_sgx_stack_set_after:
+	movq $1, %gs:SGX_OCALL_PREPARED
 
 .Locall_about_to_eexit_begin:
-	# From here .Lhandle_exception can mess out with %rip. We therefore
-	# need to be extremely careful when making changes here.
+	# From here .Lhandle_exception can mess out with state (%rip and %rsp).
+	# We therefore need to be extremely careful when making changes here.
 	#
 	# It's ok to use the untrusted stack and exit target below without
 	# checks since the processor will ensure that after exiting enclave
@@ -393,9 +455,11 @@ sgx_ocall:
 	# RSI - external event (if there is any)
 
 	# restore the stack
-	movq $0, %rsp
-	xchgq %rsp, %gs:SGX_STACK
 	movq $0, %gs:SGX_OCALL_PREPARED
+.Lreturn_from_ocall_sgx_stack_retore_0:
+	movq %gs:SGX_STACK, %rsp
+.Lreturn_from_ocall_sgx_stack_retore_1:
+	movq $0, %gs:SGX_STACK
 .Lreturn_from_ocall_prepared_is_cleared:
 
 	movq %rdi, %rax
