@@ -110,7 +110,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
                        PAL_HANDLE * polled)
 {
     if (count <= 0)

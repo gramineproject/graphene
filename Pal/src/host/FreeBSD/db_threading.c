@@ -54,15 +54,11 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                               PAL_PROT_READ|PAL_PROT_WRITE) < 0)
         return -PAL_ERROR_NOMEM;
 
-    // move child_stack to the top of stack. 
+    // move child_stack to the top of stack.
     child_stack += THREAD_STACK_SIZE;
 
-    // align child_stack to 16 
+    // align child_stack to 16
     child_stack = ALIGN_DOWN_PTR(child_stack, 16);
-
-    flags &= PAL_THREAD_MASK;
-
-    assert(!flags); //FreeBSD does not support any more flags for rfork!
 
     int ret = rfork_thread(
                     RFPROC|RFNOWAIT|RFSIGSHARE|RFMEM,
