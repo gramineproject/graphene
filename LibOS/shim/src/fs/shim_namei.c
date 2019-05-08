@@ -278,9 +278,14 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
     bool no_fs = false; // fs not passed
     struct shim_thread * cur_thread = get_cur_thread();
 
+    if (cur_thread && *path == '/') {
+        start = cur_thread->root;
+        no_start = true;
+        get_dentry(start);
+    }
     if (!start) {
         if (cur_thread) {
-            start = *path == '/' ? cur_thread->root : cur_thread->cwd;
+            start = cur_thread->cwd;
         } else {
             /* Start at the global root if we have no fs and no start dentry.
              * This shoud only happen as part of initialization.
