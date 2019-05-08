@@ -39,6 +39,7 @@
 #include <linux/un.h>
 
 #include <asm/fcntl.h>
+#include <asm/resource.h>
 
 /* start definition of shim handle */
 enum shim_handle_type {
@@ -383,10 +384,6 @@ struct shim_fd_handle {
     struct shim_handle * handle;
 };
 
-#define MAX_MAX_FDS         (65536)
-#define DEFAULT_MAX_FDS     (1024)
-extern unsigned int max_fds;
-
 struct shim_handle_map {
     /* the top of created file descriptors */
     FDTYPE      fd_size;
@@ -435,5 +432,7 @@ ssize_t get_file_size (struct shim_handle * file);
 
 int do_handle_read (struct shim_handle * hdl, void * buf, int count);
 int do_handle_write (struct shim_handle * hdl, const void * buf, int count);
+
+extern struct __kernel_rlimit __rlim[RLIM_NLIMITS];
 
 #endif /* _SHIM_HANDLE_H_ */

@@ -241,7 +241,7 @@ static int parse_thread_fd (const char * name, const char ** rest,
         if (*p < '0' || *p > '9')
             return -ENOENT;
         fd = fd * 10 + *p - '0';
-        if (fd >= max_fds)
+        if (fd >= __rlim[RLIMIT_NOFILE].rlim_cur)
             return -ENOENT;
     }
 
