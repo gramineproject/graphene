@@ -223,33 +223,16 @@ int shim_do_newfstatat(int dirfd, const char * pathname,
         return shim_do_fstat(dirfd, statbuf);
     }
 
-    int ret = 0;
-    struct shim_dentry * dir;
-    struct shim_handle * hdl = NULL;
-    if (dirfd == AT_FDCWD) {
-        dir = get_cur_thread()->cwd;
-    } else {
-        hdl = get_fd_handle(dirfd, NULL, NULL);
-        if (!hdl) {
-            ret = -EBADF;
-            goto out;
-        }
-        dir = hdl->dentry;
-        if (!(dir->state & DENTRY_ISDIRECTORY)) {
-            ret = -ENOTDIR;
-            goto out;
-        }
-    }
+    struct shim_dentry *dir;
+    int ret = path_startat(dirfd, &dir);
+    if (ret < 0)
+        return ret;
 
     struct shim_dentry *dent;
     ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
     if (ret < 0)
-        goto out;
+        return ret;
     ret = dent->fs->d_ops->stat(dent, statbuf);
     put_dentry(dent);
-
-out:
-    if (hdl)
-        put_handle(hdl);
     return ret;
 }
