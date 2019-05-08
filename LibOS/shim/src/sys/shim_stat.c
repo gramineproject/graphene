@@ -28,11 +28,14 @@
 #include <shim_handle.h>
 #include <shim_fs.h>
 #include <shim_profile.h>
+#include <shim_thread.h>
 
 #include <pal.h>
 #include <pal_error.h>
 
 #include <errno.h>
+
+#include <linux/fcntl.h>
 
 int shim_do_stat (const char * file, struct stat * stat)
 {
@@ -196,4 +199,57 @@ int shim_do_fstatfs (int fd, struct statfs * buf)
     struct shim_mount * fs = hdl->fs;
     put_handle(hdl);
     return __do_statfs (fs, buf);
+}
+
+int shim_do_newfstatat(int dirfd, const char * pathname,
+                       struct stat * statbuf, int flags)
+{
+    if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW))
+        return -EINVAL;
+
+    int lookup_flags = LOOKUP_FOLLOW;
+    if (flags & AT_SYMLINK_NOFOLLOW)
+        lookup_flags &= ~LOOKUP_FOLLOW;
+    if (flags & AT_NO_AUTOMOUNT) {
+        /* nothing as automount isn't supported */
+        debug("ignoring AT_NO_AUTOMOUNT.");
+    }
+
+    if ((flags & AT_EMPTY_PATH) && strlen(pathname) == 0) {
+        if (dirfd == AT_FDCWD) {
+            struct shim_dentry * cwd = get_cur_thread()->cwd;
+            return cwd->fs->d_ops->stat(cwd, statbuf);
+        }
+        return shim_do_fstat(dirfd, statbuf);
+    }
+
+    int ret = 0;
+    struct shim_dentry * dir;
+    struct shim_handle * hdl = NULL;
+    if (dirfd == AT_FDCWD) {
+        dir = get_cur_thread()->cwd;
+    } else {
+        hdl = get_fd_handle(dirfd, NULL, NULL);
+        if (!hdl) {
+            ret = -EBADF;
+            goto out;
+        }
+        dir = hdl->dentry;
+        if (!(dir->state & DENTRY_ISDIRECTORY)) {
+            ret = -ENOTDIR;
+            goto out;
+        }
+    }
+
+    struct shim_dentry *dent;
+    ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
+    if (ret < 0)
+        goto out;
+    ret = dent->fs->d_ops->stat(dent, statbuf);
+    put_dentry(dent);
+
+out:
+    if (hdl)
+        put_handle(hdl);
+    return ret;
 }

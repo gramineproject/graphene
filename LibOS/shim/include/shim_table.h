@@ -472,6 +472,8 @@ int shim_do_exit_group (int error_code);
 int shim_do_tgkill (int tgid, int pid, int sig);
 int shim_do_openat (int dfd, const char * filename, int flags, int mode);
 int shim_do_mkdirat (int dfd, const char * pathname, int mode);
+int shim_do_newfstatat (int dirfd, const char * pathname,
+                        struct stat * statbuf, int flags);
 int shim_do_unlinkat (int dfd, const char * pathname, int flag);
 int shim_do_renameat (int olddfd, const char * pathname, int newdfd,
                       const char * newname);
