@@ -216,7 +216,7 @@ enclave_entry:
 	# interrupted host syscall (but maybe interrupt came after successful
 	# host syscall), and Case C was interrupted after successful host
 	# syscall.
-	# The result of host systen call which isn't necessarily idempotent
+	# The result of host system call which isn't necessarily idempotent
 	# should not be lost.
 	#
 	# On async exception we will
@@ -233,7 +233,7 @@ enclave_entry:
 	#		   successful result of host system call. host signal can arrive
 	#		   after host syscall instruction before EENTER.
 	# C. From EENTER(5.-11. in above sequence):
-	#	 ocall successed and raise exception handler
+	#	 ocall succeeded and raise exception handler
 	#
 	movq SGX_GPR_RIP(%rbx), %rax
 	leaq .Locall_about_to_eexit_begin(%rip), %r11
@@ -251,7 +251,7 @@ enclave_entry:
 	# _DkHandleExternalEvent() will be called (and thus we need to save
 	# %rdi = <external event>) before returning from ocall.
 	movq $-PAL_ERROR_INTERRUPTED, %rdi # return value for .Lreturn_from_ocall
-	# fallthrough to Case A.
+	# fallthrough to Case C.
 
 	# This code cannot land in Case B because
 	# (1) this code path (.Lhandle_exception) is triggered only if we haven't
@@ -260,6 +260,7 @@ enclave_entry:
 	# untrusted code. The two conditions cannot be true at the same time,
 	# so Case B never happens here (Case B results in return_from_ocall code
 	# path below).
+	# starck pointer is %gs:SGX_STACK
 
 2:
 	# Case C.
@@ -281,8 +282,8 @@ enclave_entry:
 	# avoid overwriting %gs:SGX_STACK by exception handler
 	# when gs:SGX_STACK is set,
 	# i.e. saved %rip == .Locall_sgx_stack_set_after, or
-	#	                 .Lreturn_from_ocall_sgx_stack_retore_0, or
-	#	                 .Lreturn_from_ocall_sgx_stack_retore_1
+	#	                 .Lreturn_from_ocall_sgx_stack_restore_0, or
+	#	                 .Lreturn_from_ocall_sgx_stack_restore_1
 	# emulate it to safe point where %gs:SGX_STACK
 	# is not set.
 	#
@@ -296,21 +297,21 @@ enclave_entry:
 	movq $0, %gs:SGX_STACK
 	jmp 4f
 1:
-	leaq .Lreturn_from_ocall_sgx_stack_retore_0(%rip), %rax
+	leaq .Lreturn_from_ocall_sgx_stack_restore_0(%rip), %rax
 	cmpq %rax, SGX_GPR_RIP(%rbx)
 	je 2f
-	leaq .Lreturn_from_ocall_sgx_stack_retore_1(%rip), %rax
+	leaq .Lreturn_from_ocall_sgx_stack_restore_1(%rip), %rax
 	cmpq %rax, SGX_GPR_RIP(%rbx)
 	je 3f
 	jmp 4f
 2:
-	# saved %rip == .Lreturn_from_ocall_sgx_stack_retore_0
+	# saved %rip == .Lreturn_from_ocall_sgx_stack_restore_0
 	# emulate movq %gs:SGX_STACK, %rsp
 	movq %gs:SGX_STACK, %rax
 	movq %rax, SGX_GPR_RSP(%rbx)
 	# fall through
 3:
-	# saved %rip == .Lreturn_from_ocall_sgx_stack_retore_1
+	# saved %rip == .Lreturn_from_ocall_sgx_stack_restore_1
 	# emulate movq $0, %gs:SGX_STACK
 	movq $0, %gs:SGX_STACK
 	leaq .Lreturn_from_ocall_prepared_is_cleared(%rip), %rax
@@ -456,9 +457,9 @@ sgx_ocall:
 
 	# restore the stack
 	movq $0, %gs:SGX_OCALL_PREPARED
-.Lreturn_from_ocall_sgx_stack_retore_0:
+.Lreturn_from_ocall_sgx_stack_restore_0:
 	movq %gs:SGX_STACK, %rsp
-.Lreturn_from_ocall_sgx_stack_retore_1:
+.Lreturn_from_ocall_sgx_stack_restore_1:
 	movq $0, %gs:SGX_STACK
 .Lreturn_from_ocall_prepared_is_cleared:
 
