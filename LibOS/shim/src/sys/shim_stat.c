@@ -231,8 +231,10 @@ int shim_do_newfstatat(int dirfd, const char * pathname,
     struct shim_dentry *dent;
     ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
     if (ret < 0)
-        return ret;
+        goto out;
     ret = dent->fs->d_ops->stat(dent, statbuf);
     put_dentry(dent);
+out:
+    put_dentry(dir);
     return ret;
 }
