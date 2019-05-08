@@ -84,10 +84,6 @@ int shim_do_unlinkat (int dfd, const char * pathname, int flag)
     if (flag & ~AT_REMOVEDIR)
         return -EINVAL;
 
-    if (*pathname == '/')
-        return (flag & AT_REMOVEDIR) ? shim_do_rmdir(pathname) :
-               shim_do_unlink(pathname);
-
     struct shim_dentry * dir = NULL, * dent = NULL;
     int ret = 0;
 
@@ -141,9 +137,6 @@ int shim_do_mkdirat (int dfd, const char * pathname, int mode)
 
     if (test_user_string(pathname))
         return -EFAULT;
-
-    if (*pathname == '/')
-        return shim_do_mkdir(pathname, mode);
 
     struct shim_dentry * dir = NULL;
     int ret = 0;
@@ -239,9 +232,6 @@ int shim_do_fchmodat (int dfd, const char * filename, mode_t mode)
     if (test_user_string(filename))
         return -EFAULT;
 
-    if (*filename == '/')
-        return shim_do_chmod(filename, mode);
-
     struct shim_dentry * dir = NULL, * dent = NULL;
     int ret = 0;
 
@@ -313,14 +303,14 @@ int shim_do_fchownat (int dfd, const char * filename, uid_t uid, gid_t gid,
                       int flags)
 {
     __UNUSED(flags);
+    __UNUSED(uid);
+    __UNUSED(gid);
+
     if (!filename)
         return -EINVAL;
 
     if (test_user_string(filename))
         return -EFAULT;
-
-    if (*filename == '/')
-        return shim_do_chown(filename, uid, gid);
 
     struct shim_dentry * dir = NULL, * dent = NULL;
     int ret = 0;
