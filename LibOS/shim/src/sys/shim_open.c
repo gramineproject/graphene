@@ -137,9 +137,6 @@ int shim_do_openat (int dfd, const char * filename, int flags, int mode)
     if (!filename || test_user_string(filename))
         return -EFAULT;
 
-    if (*filename == '/')
-        return shim_do_open(filename, flags, mode);
-
     struct shim_dentry * dir = NULL;
     int ret = 0;
 
