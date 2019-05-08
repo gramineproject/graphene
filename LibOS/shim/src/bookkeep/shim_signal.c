@@ -308,7 +308,8 @@ ret_exception:
  *   exception (SGX v1 does not write address in SSA frame, SGX v2 writes
  *   it only at a granularity of 4K pages). Thus, we cannot rely on
  *   exception handling to compare against tcb.test_range.start/end.
- *   Instead, traverse VMAs to see if [addr, addr+size) is addressable.
+ *   Instead, traverse VMAs to see if [addr, addr+size) is addressable;
+ *   before traversing VMAs, grab a VMA lock.
  *
  * - For other PALs, we touch one byte of each page in [addr, addr+size).
  *   If some byte is not addressable, exception is raised. memfault_upcall
@@ -345,6 +346,9 @@ bool test_user_memory (void * addr, size_t size, bool write)
     if (!size)
         return false;
 
+    if (!access_ok(addr, size))
+        return true;
+
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
     if (is_sgx_pal())
         return !is_in_one_vma(addr, size);
@@ -356,27 +360,17 @@ bool test_user_memory (void * addr, size_t size, bool write)
     __disable_preempt(tcb);
 
     bool  has_fault = true;
-    void* end_addr  = NULL;
-
-    /* NOTE: addr and size may be arbitrary values and lead to ptr arithmetic
-     * overflow. Note that ptr arithmetic overflow is undef behavior, so cast
-     * to uintptr to at least have implementation-defined behavior. */
-    if ((uintptr_t)addr + (uintptr_t)size < (uintptr_t)addr) {
-        end_addr = (void*) UINTPTR_MAX;
-    } else {
-        end_addr = addr + size - 1;
-    }
 
     /* Add the memory region to the watch list. This is not racy because
      * each thread has its own record. */
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
     tcb->test_range.start = addr;
-    tcb->test_range.end   = end_addr;
+    tcb->test_range.end   = addr + size - 1;
 
     /* Try to read or write into one byte inside each page */
     void * tmp = addr;
-    while (tmp >= addr && tmp <= end_addr) {
+    while (tmp <= addr + size - 1) {
         if (write) {
             *(volatile char *) tmp = *(volatile char *) tmp;
         } else {
@@ -402,17 +396,22 @@ ret_fault:
  */
 bool test_user_string (const char * addr)
 {
+    if (!access_ok(addr, 1))
+        return true;
+
+    size_t size, maxlen;
+    const char * next = ALIGN_UP(addr + 1);
+
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA). */
     if (is_sgx_pal()) {
-        const char * next = ALIGN_UP(addr + 1);
-        size_t size, maxlen;
-
         /* We don't know length but using unprotected strlen() is dangerous
          * so we check string in chunks of 4K pages. */
         do {
             maxlen = next - addr;
-            if (!is_in_one_vma((void*) addr, maxlen))
+
+            if (!access_ok(addr, maxlen) || !is_in_one_vma((void*) addr, maxlen))
                 return true;
+
             size = strnlen(addr, maxlen);
             addr = next;
             next = ALIGN_UP(addr + 1);
@@ -432,27 +431,22 @@ bool test_user_string (const char * addr)
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
 
-    /* Test one page at a time. */
-    const char * next = ALIGN_UP(addr + 1);
     do {
         /* Add the memory region to the watch list. This is not racy because
          * each thread has its own record. */
         tcb->test_range.start = (void *) addr;
         tcb->test_range.end = (void *) (next - 1);
-        if ((uintptr_t)next < (uintptr_t)addr) {
-            /* ptr arithmetic overflow, adjust the end of range */
-            tcb->test_range.end = (void*) UINTPTR_MAX;
-        }
 
+        maxlen = next - addr;
+
+        if (!access_ok(addr, maxlen))
+            return true;
         *(volatile char *) addr; /* try to read one byte from the page */
 
-        /* If the string ends in this page, exit the loop. */
-        if (strnlen(addr, next - addr) < next - addr)
-            break;
-
+        size = strnlen(addr, maxlen);
         addr = next;
         next = ALIGN_UP(addr + 1);
-    } while (addr < next);
+    } while (size == maxlen);
 
     has_fault = false; /* All accesses have passed. Nothing wrong. */
 
