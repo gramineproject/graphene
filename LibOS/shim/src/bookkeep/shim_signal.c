@@ -339,11 +339,7 @@ static bool is_sgx_pal(void) {
  * guarantee further corruption of the buffer, or if the buffer is unmapped
  * with a concurrent system call. The purpose of these functions is simply for
  * the compatibility with programs that rely on the error numbers, such as the
- * LTP test suite.
- *
- * NOTE: `addr` and `size` may lead to ptr arithmetic overflow in the below
- * while-loop. Ptr arithmetic overflow is undefined behavior, so we don't check
- * for it here but rather assume that `size` was sanity-checked by caller. */
+ * LTP test suite. */
 bool test_user_memory (void * addr, size_t size, bool write)
 {
     if (!size)
@@ -359,18 +355,28 @@ bool test_user_memory (void * addr, size_t size, bool write)
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
-    bool has_fault = true;
+    bool  has_fault = true;
+    void* end_addr  = NULL;
+
+    /* NOTE: addr and size may be arbitrary values and lead to ptr arithmetic
+     * overflow. Note that ptr arithmetic overflow is undef behavior, so cast
+     * to uintptr to at least have implementation-defined behavior. */
+    if ((uintptr_t)addr + (uintptr_t)size < (uintptr_t)addr) {
+        end_addr = (void*) UINTPTR_MAX;
+    } else {
+        end_addr = addr + size - 1;
+    }
 
     /* Add the memory region to the watch list. This is not racy because
      * each thread has its own record. */
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.cont_addr = &&ret_fault;
     tcb->test_range.start = addr;
-    tcb->test_range.end = addr + size - 1;
+    tcb->test_range.end   = end_addr;
 
     /* Try to read or write into one byte inside each page */
     void * tmp = addr;
-    while (tmp <= addr + size - 1) {
+    while (tmp >= addr && tmp <= end_addr) {
         if (write) {
             *(volatile char *) tmp = *(volatile char *) tmp;
         } else {
@@ -433,6 +439,11 @@ bool test_user_string (const char * addr)
          * each thread has its own record. */
         tcb->test_range.start = (void *) addr;
         tcb->test_range.end = (void *) (next - 1);
+        if ((uintptr_t)next < (uintptr_t)addr) {
+            /* ptr arithmetic overflow, adjust the end of range */
+            tcb->test_range.end = (void*) UINTPTR_MAX;
+        }
+
         *(volatile char *) addr; /* try to read one byte from the page */
 
         /* If the string ends in this page, exit the loop. */
