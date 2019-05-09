@@ -1,4 +1,3 @@
-# source only please
 /glibc-*.tar.gz
 /glibc-*/
 /build.log
