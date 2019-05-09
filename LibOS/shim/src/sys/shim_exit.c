@@ -159,7 +159,7 @@ int try_process_exit (int error_code, int term_signal)
          */
         put_thread(ipc_thread); /* free resources of the thread */
     if (!ret)
-        shim_clean();
+        shim_clean(ret);
     else
         DkThreadExit();
 

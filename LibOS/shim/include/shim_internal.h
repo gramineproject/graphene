@@ -145,7 +145,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     return shim_stdio;
 }
 
-int shim_terminate (void);
+int shim_terminate (int err);
 
 /* assertions */
 #define USE_PAUSE       0
@@ -163,7 +163,7 @@ static inline void do_pause (void);
     do {                                                                    \
         __sys_printf("bug() " __FILE__ ":%d\n", __LINE__);                  \
         pause();                                                            \
-        shim_terminate();                                                   \
+        shim_terminate(-ENOTRECOVERABLE);                                   \
     } while (0)
 
 #if USE_ASSERT == 1
@@ -749,7 +749,8 @@ static inline bool memory_migrated(void * mem)
 extern void * __load_address, * __load_address_end;
 extern void * __code_address, * __code_address_end;
 
-int shim_clean (void);
+/* cleanup and terminate process, preserve exit code if err == 0 */
+int shim_clean (int err);
 
 unsigned long parse_int (const char * str);
 

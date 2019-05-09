@@ -1034,7 +1034,7 @@ end:
     barrier();
     if (ipc_helper_state == HELPER_HANDEDOVER) {
         debug("ipc helper thread is the last thread, process exiting\n");
-        shim_terminate(); // Same as shim_clean(), but this is the official termination function
+        shim_terminate(0); // Same as shim_clean(), but this is the official termination function
     }
 
     lock(ipc_helper_lock);

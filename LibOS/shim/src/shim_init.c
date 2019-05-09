@@ -59,7 +59,7 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 void __abort(void) {
     pause();
-    shim_terminate();
+    shim_terminate(-ENOTRECOVERABLE);
 }
 
 void warn (const char *format, ...)
@@ -671,7 +671,7 @@ DEFINE_PROFILE_INTERVAL(init_signal,                init);
         int _err = CALL_INIT(func, ##__VA_ARGS__);                      \
         if (_err < 0) {                                                 \
             sys_printf("shim_init() in " #func " (%d)\n", _err);        \
-            shim_terminate();                                           \
+            shim_terminate(_err);                                       \
         }                                                               \
         SAVE_PROFILE_INTERVAL(func);                                    \
     } while (0)
@@ -1121,18 +1121,19 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
 
 static struct atomic_int in_terminate = { .counter = 0, };
 
-int shim_terminate (void)
+int shim_terminate (int err)
 {
-    debug("teminating the whole process\n");
+    debug("teminating the whole process (%d)\n", err);
 
     /* do last clean-up of the process */
-    shim_clean();
+    shim_clean(err);
 
-    DkProcessExit(0);
+    DkProcessExit(err);
     return 0;
 }
 
-int shim_clean (void)
+/* cleanup and terminate process, preserve exit code if err == 0 */
+int shim_clean (int err)
 {
     /* preventing multiple cleanup, this is mostly caused by
        assertion in shim_clean */
@@ -1140,6 +1141,8 @@ int shim_clean (void)
     if (atomic_read(&in_terminate) > 1)
         return 0;
 
+    if (err != 0)
+        cur_process.exit_code = err;
     store_all_msg_persist();
 
 #ifdef PROFILE
