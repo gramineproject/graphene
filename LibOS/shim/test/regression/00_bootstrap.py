@@ -41,10 +41,20 @@ regression.add_check(name="Shared Object",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
+# Exit test
 regression = Regression(loader, "exit")
 
 regression.add_check(name="Exit Code Propagation",
     check=lambda res: 113 == res[0].code)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+
+# Early abort test
+regression = Regression(loader, "init_fail")
+
+regression.add_check(name="Early abort",
+    check=lambda res: res[0].code != 42 and res[0].code != 0)
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)

@@ -182,7 +182,7 @@ retry_dump_vmas:
     SAVE_PROFILE_INTERVAL(unmap_all_vmas_for_exec);
 
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
-        shim_terminate();
+        shim_terminate(ret);
 
     init_brk_from_executable(cur_thread->exec);
     load_elf_interp(cur_thread->exec);
