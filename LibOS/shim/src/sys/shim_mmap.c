@@ -54,11 +54,11 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     if (fd >= 0 && !ALIGNED(offset))
         return (void *) -EINVAL;
 
+    if (!length || !access_ok(addr, length))
+        return (void*) -EINVAL;
+
     if (!ALIGNED(length))
         length = ALIGN_UP(length);
-
-    if (addr + length < addr)
-        return (void *) -EINVAL;
 
     /* ignore MAP_32BIT when MAP_FIXED is set */
     if ((flags & (MAP_32BIT|MAP_FIXED)) == (MAP_32BIT|MAP_FIXED))
@@ -167,6 +167,9 @@ int shim_do_munmap (void * addr, size_t length)
      * length. munmap() will automatically round up the length.
      */
     if (!addr || !ALIGNED(addr))
+        return -EINVAL;
+
+    if (!length || !access_ok(addr, length))
         return -EINVAL;
 
     if (!ALIGNED(length))
