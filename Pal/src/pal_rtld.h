@@ -150,7 +150,7 @@ ELF_PREFERRED_ADDRESS_DATA;
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
 # define byteorder ELFDATA2LSB
 #else
-# error "Unknown BYTE_ORDER " BYTE_ORDER
+# error "Unknown __BYTE_ORDER " __BYTE_ORDER
 # define byteorder ELFDATANONE
 #endif
 
