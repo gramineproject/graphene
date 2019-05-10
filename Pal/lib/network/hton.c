@@ -21,9 +21,9 @@
 
 uint32_t __htonl (uint32_t x)
 {
-#if BYTE_ORDER == BIG_ENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
     return x;
-#elif BYTE_ORDER == LITTLE_ENDIAN
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
     return __bswap_32 (x);
 #else
 # error "What kind of system is this?"
@@ -37,9 +37,9 @@ uint32_t __ntohl (uint32_t x)
 
 uint16_t __htons (uint16_t x)
 {
-#if BYTE_ORDER == BIG_ENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
     return x;
-#elif BYTE_ORDER == LITTLE_ENDIAN
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
     return __bswap_16 (x);
 #else
 # error "What kind of system is this?"
