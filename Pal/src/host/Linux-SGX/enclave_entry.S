@@ -254,6 +254,25 @@ enclave_entry:
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
 .Lclear_and_eexit:
 
+#ifdef DEBUG
+
+	# Enclave and untrusted stacks are split (segmented). GDB refuses to
+	# unwind such stacks because it looks like stack frames "jump" back
+	# and forth. Luckily, GDB special-cases stack frames for a function
+	# with hardcoded name "__morestack". Declare this dummy function
+	# to make GDB happy.
+
+	.global __morestack
+	.type __morestack, @function
+__morestack:
+	.cfi_startproc
+
+	# CFA is away from RBP by ret_addr + saved_rbp + GPR context except RAX
+	.cfi_def_cfa %rbp, SGX_CONTEXT_SIZE - 8 + 16
+	.cfi_offset %rbp, -16
+
+#endif
+
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 
 	leaq .Lxrstor_init_arg(%rip), %rcx
@@ -276,7 +295,25 @@ enclave_entry:
 	# %rcx is set to AEP by EEXIT
 	xorq %rdx, %rdx
 	# %rsi, %rdi are arguments to the untrusted code
+
+#ifdef DEBUG
+
+.Lfor_cfa_debug_info:
+# Leave %rbp pointing to OCALL function on trusted stack.
+# Put %rip (current instruction in trusted PAL) on untrusted stack.
+# Note that sgx_entry() in untrusted PAL is responsible to shift
+# %rsp 8B down to accomodate the newly put %rip.
+# At sgx_entry(), GDB deduces saved-rip by looking at CFA-8 = rsp.
+	leaq .Lfor_cfa_debug_info(%rip), %r8
+	movq %r8, -8(%rsp)
+
+#else
+
+# In non-debug mode, clear %rbp to not leak trusted stack address.
 	xorq %rbp, %rbp
+
+#endif
+
 	# %rsp points to untrusted stack
 	xorq %r8, %r8
 	xorq %r9, %r9
@@ -291,6 +328,9 @@ enclave_entry:
 	ENCLU
 
 	ud2 # We should never get here.
+#ifdef DEBUG
+	.cfi_endproc
+#endif
 
 	# fxsave/xsave area to reset extended state.
 	#
@@ -321,8 +361,12 @@ enclave_entry:
 	.type sgx_ocall, @function
 
 sgx_ocall:
+	.cfi_startproc
 	pushq %rbp
+	.cfi_adjust_cfa_offset 8
 	movq %rsp, %rbp
+	.cfi_offset %rbp, -16
+	.cfi_def_cfa_register %rbp
 
 	movq 8(%rbp), %rax
 	pushq %rax	# previous RIP
@@ -347,6 +391,10 @@ sgx_ocall:
 	# no RAX
 
 	movq %rsp, %rbp
+
+	# CFA shifted away from RBP=RSP by the size of GPR context except RAX
+	.cfi_adjust_cfa_offset SGX_CONTEXT_SIZE - 8
+
 	subq $XSAVE_SIZE,  %rsp
 	andq $XSAVE_ALIGN, %rsp
 	fxsave (%rsp)
@@ -366,6 +414,7 @@ sgx_ocall:
 
 	movq %gs:SGX_EXIT_TARGET, %rbx
 	jmp .Lclear_and_eexit
+	.cfi_endproc
 
 .Lreturn_from_ocall:
 	# PAL convention:

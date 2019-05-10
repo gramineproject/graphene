@@ -98,7 +98,9 @@ ret:
         popq %rdi
         popq %rbx
         popq %rbp
+        .cfi_def_cfa %rsp, 2 * 8  # +8 for ret_addr, +8 for saved_rflags
         popfq
+        .cfi_def_cfa_offset 8     # +8 for ret_addr
         retq
 
 isundef:

@@ -44,18 +44,37 @@ sgx_raise:
 sgx_entry:
 	# arguments: RDI - code, RSI - ms
 
+	.cfi_startproc
+
+#ifdef DEBUG
+	# __morestack() in enclave code put saved-rip at RSP for GDB unwind.
+	# Move RSP to not overwrite it; also move it back before function ret.
+	.cfi_adjust_cfa_offset -8
+	subq $8, %rsp
+	.cfi_adjust_cfa_offset 8
+#endif
+
 	leaq ocall_table(%rip), %rbx
 	movq (%rbx,%rdi,8), %rbx
 	movq %rsi, %rdi
 
 	pushq %rbp
+	.cfi_adjust_cfa_offset 8
 	movq %rsp, %rbp
+	.cfi_offset %rbp, -16
+	.cfi_def_cfa_register %rbp
 	andq $~0xF, %rsp  # Required by System V AMD64 ABI.
 
 	callq *%rbx
 
 	movq %rbp, %rsp
 	popq %rbp
+	.cfi_def_cfa rsp, 8
+
+#ifdef DEBUG
+	addq $8, %rsp
+	.cfi_adjust_cfa_offset -8
+#endif
 
 	movq %rax, %rdi
 	# Not interrupted
@@ -69,6 +88,7 @@ sgx_entry_return:
 	# RDI - return value
 	# RSI - external event
 	jmp .Ldo_ecall
+	.cfi_endproc
 
 /*
  * rdfsbase:
