@@ -127,7 +127,7 @@ void * malloc (size_t size)
          * condition and must terminate the current process.
          */
         printf("******** Out-of-memory in PAL ********\n");
-        _DkProcessExit(-1);
+        _DkProcessExit(-ENOMEM);
     }
 
 #if PROFILING == 1

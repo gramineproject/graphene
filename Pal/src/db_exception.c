@@ -32,6 +32,8 @@
 #include "list.h"
 #include "pal_debug.h"
 
+#include <errno.h>
+
 #define INIT_EVENT_HANDLER      { .lock = LOCK_INIT }
 
 struct pal_event_handler {
@@ -87,7 +89,7 @@ void DkExceptionReturn (PAL_PTR event)
 
 /* This does not return */
 void __abort(void) {
-    _DkProcessExit(1);
+    _DkProcessExit(-ENOTRECOVERABLE);
 }
 
 void warn (const char *format, ...)
