@@ -79,7 +79,7 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 
         case RLIMIT_DATA:
             rlim->rlim_cur = brk_max_size;
-            rlim->rlim_max = brk_max_size;
+            rlim->rlim_max = __rlim[resource].rlim_max;
             return 0;
 
         default:
