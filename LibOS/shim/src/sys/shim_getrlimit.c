@@ -34,11 +34,15 @@
 
 /*
  * TODO: implement actual limitation on each resource.
+ *
+ * The current behavor(i.e. sys_stack_size, brk_max_size) may be subject
+ * to be fixed.
  */
 
 #define _STK_LIM        (8*1024*1024)
+#define MAX_THREADS     (0x3fffffff / 2)
 #define DEFAULT_MAX_FDS (1024)
-#define MAX_MAX_FDS     (65536) /* 4096: Linux initial value*/
+#define MAX_MAX_FDS     (65536) /* 4096: Linux initial value */
 #define MLOCK_LIMIT     (64*1024)
 #define MQ_BYTES_MAX    819200
 
@@ -49,12 +53,13 @@ struct __kernel_rlimit __rlim[RLIM_NLIMITS] __attribute_migratable = {
     [RLIMIT_STACK]      = {        _STK_LIM, RLIM_INFINITY },
     [RLIMIT_CORE]       = {               0, RLIM_INFINITY },
     [RLIMIT_RSS]        = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_NPROC]      = {               0,             0 },
+    [RLIMIT_NPROC]      = {     MAX_THREADS,   MAX_THREADS },
     [RLIMIT_NOFILE]     = { DEFAULT_MAX_FDS,   MAX_MAX_FDS },
     [RLIMIT_MEMLOCK]    = {     MLOCK_LIMIT,   MLOCK_LIMIT },
     [RLIMIT_AS]         = {   RLIM_INFINITY, RLIM_INFINITY },
     [RLIMIT_LOCKS]      = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_SIGPENDING] = {               0,             0 },
+    /* [RLIMIT_SIGPENDING] = [RLIMIT_NPROC] for initial value */
+    [RLIMIT_SIGPENDING] = {     MAX_THREADS,   MAX_THREADS },
     [RLIMIT_MSGQUEUE]   = {    MQ_BYTES_MAX,  MQ_BYTES_MAX },
     [RLIMIT_NICE]       = {               0,             0 },
     [RLIMIT_RTPRIO]     = {               0,             0 },
@@ -63,7 +68,7 @@ struct __kernel_rlimit __rlim[RLIM_NLIMITS] __attribute_migratable = {
 
 int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 {
-    if (resource >= RLIM_NLIMITS)
+    if (resource < 0 || RLIM_NLIMITS <= resource)
         return -EINVAL;
 
     switch (resource) {
@@ -85,18 +90,16 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 
 int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
 {
-    if (resource >= RLIM_NLIMITS)
+    if (resource < 0 || RLIM_NLIMITS <= resource)
         return -EINVAL;
+    if (!rlim || test_user_memory(rlim, sizeof(*rlim), false))
+        return -EFAULT;
     if (rlim->rlim_cur > rlim->rlim_max)
         return -EINVAL;
 
+    if (rlim->rlim_cur > __rlim->rlim_max)
+        return -EINVAL;
     switch (resource) {
-        case RLIMIT_NOFILE:
-            if (rlim->rlim_cur > MAX_MAX_FDS)
-                return -EINVAL;
-            __rlim[resource].rlim_cur = rlim->rlim_cur;
-            return 0;
-
         case RLIMIT_STACK:
             sys_stack_size = rlim->rlim_cur;
             return 0;
