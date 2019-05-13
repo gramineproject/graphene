@@ -19,8 +19,8 @@
 #include "api.h"
 #include <host_endian.h>
 
-#define __bswap_16(x) ((unsigned short)(__builtin_bswap32(x) >> 16))
-#define __bswap_32(x) ((unsigned int)__builtin_bswap32(x))
+#define __bswap_16(x) ((uint16_t)(__builtin_bswap32(x) >> 16))
+#define __bswap_32(x) ((uint32_t)__builtin_bswap32(x))
 
 uint32_t __htonl (uint32_t x)
 {
