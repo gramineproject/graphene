@@ -72,6 +72,8 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 {
     if (resource < 0 || RLIM_NLIMITS <= resource)
         return -EINVAL;
+    if (!rlim || test_user_memory(rlim, sizeof(*rlim), true))
+        return -EFAULT;
 
     switch (resource) {
         case RLIMIT_STACK:
