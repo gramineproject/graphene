@@ -282,6 +282,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
         start = cur_thread->root;
         no_start = true;
         get_dentry(start);
+        fs = NULL;
     }
     if (!start) {
         if (cur_thread) {
@@ -296,6 +297,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
         no_start = true;
         // refcount should only be incremented if the caller didn't do it
         get_dentry(start);
+        assert(fs == NULL);
     }
 
     assert(start);
