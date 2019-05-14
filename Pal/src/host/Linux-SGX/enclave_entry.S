@@ -281,16 +281,27 @@ enclave_entry:
 	#
 	# avoid overwriting %gs:SGX_OCALL_PREPARED after exception handler
 	# when gs:SGX_OCALL_PREPARED is set,
-	# i.e. saved %rip == .Lreturn_from_ocall_before_clear_ocall_prepared
-	# emulate movq $0, %gs:SGX_OCALL_PREPARED
+    # saved %rip == .Locall_after_set_ocall_prepared
+    #    rewind movq $1, %gs:SGX_OCALL_PREPARED
+	# saved %rip == .Lreturn_from_ocall_before_clear_ocall_prepared
+	#    emulate movq $0, %gs:SGX_OCALL_PREPARED
 	#
-	leaq .Lreturn_from_ocall_before_clear_ocall_prepared(%rip), %rax
+	leaq .Locall_after_set_ocall_prepared(%rip), %rax
 	cmpq %rax, SGX_GPR_RIP(%rbx)
 	jne 3f
+	leaq .Locall_before_set_ocall_prepared(%rip), %rax
+	movq %rax, SGX_GPR_RIP(%rbx)
+	movq $0, %gs:SGX_OCALL_PREPARED
+	jmp 4f
+3:
+
+	leaq .Lreturn_from_ocall_before_clear_ocall_prepared(%rip), %rax
+	cmpq %rax, SGX_GPR_RIP(%rbx)
+	jne 4f
 	leaq .Lreturn_from_ocall_after_clear_ocall_prepared(%rip), %rax
 	movq %rax, SGX_GPR_RIP(%rbx)
 	movq $0, %gs:SGX_OCALL_PREPARED
-3:
+4:
 
 	movq SGX_GPR_RSP(%rbx), %rsi
 	subq $SGX_CONTEXT_SIZE, %rsi
@@ -402,7 +413,9 @@ sgx_ocall:
 	xorq %r15, %r15
 	xorq %rbp, %rbp
 
+.Locall_before_set_ocall_prepared:
 	movq $1, %gs:SGX_OCALL_PREPARED
+.Locall_after_set_ocall_prepared:
 	movq %rsp, %gs:SGX_STACK
 
 .Locall_about_to_eexit_begin:
