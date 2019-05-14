@@ -49,7 +49,9 @@
 struct __kernel_rlimit __rlim[RLIM_NLIMITS] __attribute_migratable = {
     [RLIMIT_CPU]        = {   RLIM_INFINITY, RLIM_INFINITY },
     [RLIMIT_FSIZE]      = {   RLIM_INFINITY, RLIM_INFINITY },
+    /* For now __rlim[RLIMIT_DATA] isn't used. See the implementation */
     [RLIMIT_DATA]       = {   RLIM_INFINITY, RLIM_INFINITY },
+    /* For now __rlim[RLIMIT_STACK] isn't used. See the implementation */
     [RLIMIT_STACK]      = {        _STK_LIM, RLIM_INFINITY },
     [RLIMIT_CORE]       = {               0, RLIM_INFINITY },
     [RLIMIT_RSS]        = {   RLIM_INFINITY, RLIM_INFINITY },
