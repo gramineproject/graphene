@@ -42,7 +42,8 @@
  * Must be a null-terminated string. */
 static inline const char * eat_slashes (const char * string)
 {
-    while (*string == '/' && *string != '\0') string++;
+    while (*string == '/')
+        string++;
     return string;
 }
 
