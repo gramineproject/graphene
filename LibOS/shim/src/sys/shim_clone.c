@@ -41,6 +41,30 @@
 #include <linux/sched.h>
 #include <asm/prctl.h>
 
+void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
+{
+    /*
+     * work around for link.
+     * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
+     * due to missing syscall_wrapper_after_syscalldb.
+     */
+}
+
+/*
+ * See syscall_wrapper @ syscalldb.S and illegal_upcall() @ shim_signal.c
+ * for details.
+ * child thread can _not_ use parent stack. So return right after syscall
+ * instruction as if syscall_wrapper is executed.
+ */
+static void fixup_child_context(struct shim_context * context)
+{
+    if (context->ret_ip == &syscall_wrapper_after_syscalldb) {
+        context->sp -= RED_ZONE_SIZE;
+        context->regs->rflags = context->regs->r11;
+        context->ret_ip = context->regs->rcx;
+    }
+}
+
 /* from **sysdeps/unix/sysv/linux/x86_64/clone.S:
    The userland implementation is:
    int clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg),
@@ -147,6 +171,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     tcb->context.regs = &regs;
     tcb->context.sp = stack;
     tcb->context.ret_ip = return_pc;
+    fixup_child_context(&tcb->context);
 
     restore_context(&tcb->context);
     return 0;
