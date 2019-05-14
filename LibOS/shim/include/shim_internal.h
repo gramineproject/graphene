@@ -179,6 +179,7 @@ static inline void do_pause (void);
 void handle_signal (bool delayed_only);
 long convert_pal_errno (long err);
 void syscall_wrapper(void);
+void syscall_wrapper_after_syscalldb(void);
 
 #define PAL_ERRNO  convert_pal_errno(PAL_NATIVE_ERRNO)
 

@@ -30,7 +30,8 @@
         .extern shim_table, debug_unsupp
         .global syscall_wrapper
         .type syscall_wrapper, @function
-
+        .global syscall_wrapper_after_syscalldb
+        .type syscall_wrapper_after_syscalldb, @function
 
 syscalldb:
         .cfi_startproc
@@ -121,27 +122,37 @@ isundef:
         /*
          * syscall_wrapper: emulate syscall instruction
          *   prohibited in e.g. Linux-SGX PAL which raises a SIGILL exception
+         * See illegal_upcall() @ shim_signal.c and
+         *     fixup_child_context() @ shim_clone.c
          *
          * input:
          * %rcx: Instruction address to continue app execution after trapped
          *       syscall instruction
          * %r11: rflags on entering syscall
-         *
-         * FIXME: preserve rflags.
-         *        remember that clone-child can't use parent stack.
          */
 syscall_wrapper:
         .cfi_startproc
-
+        .cfi_def_cfa %rsp, 0
+        # %rcx is used as input for returning %rip
+        .cfi_register %rip, %rcx
+        # %r11 is used as input to keep %rflags
+        .cfi_register %rflags, %r11
         subq $RED_ZONE_SIZE, %rsp
+        .cfi_adjust_cfa_offset RED_ZONE_SIZE
         callq *syscalldb@GOTPCREL(%rip)
+syscall_wrapper_after_syscalldb:
         addq $RED_ZONE_SIZE, %rsp
-#if 0
-        # TODO: once clone emulation is fixed, remove this #if 0
+        .cfi_adjust_cfa_offset -RED_ZONE_SIZE
+        # restore %rflags for syscall abi compatibility.
+        # This must be done after "addq $RED_ZONE_SIZE, %rsp" above
+        # which destroys %rflags
         xchg %r11, (%rsp)
+        .cfi_offset %rflags, 0
         popfq
+        .cfi_adjust_cfa_offset -8
+        .cfi_same_value %rflags
         pushq %r11
-#endif
+        .cfi_adjust_cfa_offset 8
         jmp *%rcx
 
         .cfi_endproc
