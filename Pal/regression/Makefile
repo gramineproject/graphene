@@ -1,7 +1,7 @@
 include ../src/Makefile.Host
 
 CC	= gcc
-CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx \
+CFLAGS	= -Wall -Werror -O2 -std=c11 -fno-builtin -nostdlib -mavx \
 	  -I../include/pal -I../lib
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
@@ -30,10 +30,6 @@ ifeq ($(DEBUG),1)
 CC += -g
 endif
 export DEBUG
-
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
 
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath ../../Runtime/pal_loader):g' \

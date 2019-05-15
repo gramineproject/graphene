@@ -6,7 +6,7 @@ AS	= gcc
 AR	= ar rcs
 LD	= ld
 
-CFLAGS	= -Wall -fPIC -O2 -maes -std=c11 -U_FORTIFY_SOURCE \
+CFLAGS	= -Wall -Werror -fPIC -O2 -maes -std=c11 -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin -DIN_ENCLAVE
 
@@ -23,10 +23,6 @@ ARFLAGS	=
 
 CRYPTO_PROVIDER = mbedtls
 CFLAGS += -DCRYPTO_USE_MBEDTLS
-
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
 
 pal_loader = $(HOST_DIR)/pal-sgx
 pal_sec =

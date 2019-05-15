@@ -15,7 +15,7 @@ endif
 
 CC = gcc
 CXX = g++
-CFLAGS 	= -Wall -std=gnu99
+CFLAGS 	= -Wall -Werror -std=gnu99
 CFLAGS-debug = $(CFLAGS) -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib
 LDFLAGS	=
 LDFLAGS-debug = $(LDFLAGS) -L$(SHIMDIR) -L$(PALDIR) -Wl,-rpath-link=$(abspath $(RUNTIME))
@@ -35,10 +35,6 @@ CC += -g
 CXX += -g
 endif
 export DEBUG
-
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
 
 ifeq ($(ABSPATH_IN_MANIFEST),yes)
 manifest_rules = \
