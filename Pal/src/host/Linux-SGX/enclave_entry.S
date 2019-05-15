@@ -254,6 +254,10 @@ enclave_entry:
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
 .Lclear_and_eexit:
 
+	# CFA is away from RBP by ret_addr + saved_rbp + GPR context except RAX
+	.cfi_def_cfa %rbp, SGX_CONTEXT_SIZE - 8 + 16
+	.cfi_offset %rbp, -16
+
 	# Clear "extended" state (FPU aka x87, SSE, AVX, ...).
 
 	leaq .Lxrstor_init_arg(%rip), %rcx
@@ -321,8 +325,12 @@ enclave_entry:
 	.type sgx_ocall, @function
 
 sgx_ocall:
+	.cfi_startproc
 	pushq %rbp
+	.cfi_adjust_cfa_offset 8
 	movq %rsp, %rbp
+	.cfi_offset %rbp, -16
+	.cfi_def_cfa_register %rbp
 
 	movq 8(%rbp), %rax
 	pushq %rax	# previous RIP
@@ -347,6 +355,10 @@ sgx_ocall:
 	# no RAX
 
 	movq %rsp, %rbp
+
+	# CFA shifted away from RBP=RSP by the size of GPR context except RAX
+	.cfi_adjust_cfa_offset SGX_CONTEXT_SIZE - 8
+
 	subq $XSAVE_SIZE,  %rsp
 	andq $XSAVE_ALIGN, %rsp
 	fxsave (%rsp)
@@ -366,6 +378,7 @@ sgx_ocall:
 
 	movq %gs:SGX_EXIT_TARGET, %rbx
 	jmp .Lclear_and_eexit
+	.cfi_endproc
 
 .Lreturn_from_ocall:
 	# PAL convention:

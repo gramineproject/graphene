@@ -44,18 +44,23 @@ sgx_raise:
 sgx_entry:
 	# arguments: RDI - code, RSI - ms
 
+	.cfi_startproc
 	leaq ocall_table(%rip), %rbx
 	movq (%rbx,%rdi,8), %rbx
 	movq %rsi, %rdi
 
 	pushq %rbp
+	.cfi_adjust_cfa_offset 8
 	movq %rsp, %rbp
+	.cfi_offset %rbp, -16
+	.cfi_def_cfa_register %rbp
 	andq $~0xF, %rsp  # Required by System V AMD64 ABI.
 
 	callq *%rbx
 
 	movq %rbp, %rsp
 	popq %rbp
+	.cfi_def_cfa %rsp, 8
 
 	movq %rax, %rdi
 	# Not interrupted
@@ -69,6 +74,7 @@ sgx_entry_return:
 	# RDI - return value
 	# RSI - external event
 	jmp .Ldo_ecall
+	.cfi_endproc
 
 /*
  * rdfsbase:
