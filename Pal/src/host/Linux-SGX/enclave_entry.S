@@ -264,9 +264,9 @@ enclave_entry:
 	.global __morestack
 	.type __morestack, @function
 __morestack:
-	.cfi_startproc
 #endif
 
+	.cfi_startproc
 	# CFA is away from RBP by ret_addr + saved_rbp + GPR context except RAX
 	.cfi_def_cfa %rbp, SGX_CONTEXT_SIZE - 8 + 16
 	.cfi_offset %rbp, -16
@@ -297,7 +297,6 @@ __morestack:
 #ifdef DEBUG
 .Lfor_cfa_debug_info:
 	# Leave %rbp pointing to OCALL function on trusted stack.
-	nop
 #else
 	# In non-debug mode, clear %rbp to not leak trusted stack address.
 	xorq %rbp, %rbp
@@ -317,9 +316,7 @@ __morestack:
 	ENCLU
 
 	ud2 # We should never get here.
-#ifdef DEBUG
 	.cfi_endproc
-#endif
 
 	# fxsave/xsave area to reset extended state.
 	#
