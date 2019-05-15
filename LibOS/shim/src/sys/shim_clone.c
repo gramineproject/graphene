@@ -61,7 +61,7 @@ static void fixup_child_context(struct shim_context * context)
     if (context->ret_ip == &syscall_wrapper_after_syscalldb) {
         context->sp -= RED_ZONE_SIZE;
         context->regs->rflags = context->regs->r11;
-        context->ret_ip = context->regs->rcx;
+        context->ret_ip = (void*)context->regs->rcx;
     }
 }
 
