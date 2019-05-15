@@ -254,6 +254,19 @@ enclave_entry:
 	#     %rdi, %rsi: (optional) arguments to untrusted code.
 .Lclear_and_eexit:
 
+#ifdef DEBUG
+	# Enclave and untrusted stacks are split (segmented). GDB refuses to
+	# unwind such stacks because it looks like stack frames "jump" back
+	# and forth. Luckily, GDB special-cases stack frames for a function
+	# with hardcoded name "__morestack". Declare this dummy function
+	# to make GDB happy.
+
+	.global __morestack
+	.type __morestack, @function
+__morestack:
+#endif
+
+	.cfi_startproc
 	# CFA is away from RBP by ret_addr + saved_rbp + GPR context except RAX
 	.cfi_def_cfa %rbp, SGX_CONTEXT_SIZE - 8 + 16
 	.cfi_offset %rbp, -16
@@ -280,7 +293,15 @@ enclave_entry:
 	# %rcx is set to AEP by EEXIT
 	xorq %rdx, %rdx
 	# %rsi, %rdi are arguments to the untrusted code
+
+#ifdef DEBUG
+.Lfor_cfa_debug_info:
+	# Leave %rbp pointing to OCALL function on trusted stack.
+#else
+	# In non-debug mode, clear %rbp to not leak trusted stack address.
 	xorq %rbp, %rbp
+#endif
+
 	# %rsp points to untrusted stack
 	xorq %r8, %r8
 	xorq %r9, %r9
@@ -295,6 +316,7 @@ enclave_entry:
 	ENCLU
 
 	ud2 # We should never get here.
+	.cfi_endproc
 
 	# fxsave/xsave area to reset extended state.
 	#
@@ -375,6 +397,13 @@ sgx_ocall:
 
 	movq %gs:SGX_USTACK, %rsp
 	andq $STACK_ALIGN, %rsp
+
+#ifdef DEBUG
+	# Push %rip of some code inside __morestack() on untrusted stack.
+	# At sgx_entry(), GDB deduces saved_rip by looking at CFA-8 = %rsp.
+	leaq .Lfor_cfa_debug_info(%rip), %r8
+	pushq %r8
+#endif
 
 	movq %gs:SGX_EXIT_TARGET, %rbx
 	jmp .Lclear_and_eexit

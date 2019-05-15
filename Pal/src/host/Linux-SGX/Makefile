@@ -23,6 +23,7 @@ all: $(host_files)
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
+ASFLAGS += -DDEBUG
 export DEBUG
 endif
 
