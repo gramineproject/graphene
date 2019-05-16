@@ -168,13 +168,9 @@ static inline int64_t cmpxchg(volatile int64_t *p, int64_t t, int64_t s)
     return t;
 }
 
-static inline int atomic_add_return(int i, struct atomic_int *v)
+static inline int64_t atomic_add_return(int64_t i, struct atomic_int *v)
 {
-    int ret = i;
-    asm volatile ("lock ; xaddw %w0, %1"
-                  : "+r" (ret), "+m"(v->counter)
-                  : : "memory", "cc");
-    return ret + i;
+    return _atomic_add(i, v);
 }
 
 #define atomic_inc_return(v)    atomic_add_return(1, v)
