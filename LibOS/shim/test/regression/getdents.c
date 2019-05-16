@@ -2,7 +2,9 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
+#include <unistd.h>
 
 struct linux_dirent {
     unsigned long   d_ino;
