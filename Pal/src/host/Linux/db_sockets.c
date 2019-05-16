@@ -1398,6 +1398,7 @@ static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                 return -PAL_ERROR_CONNFAILED;
             case EAGAIN:
                 HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
+                /* fallthrough */
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }

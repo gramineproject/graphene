@@ -325,7 +325,7 @@ int open_memdevice (pid_t pid, int * memdev, struct enclave_dbginfo ** ei)
     if (nmemdevs == sizeof(memdevs) / sizeof(memdevs[0]))
         return -ENOMEM;
 
-    struct enclave_dbginfo eib;
+    struct enclave_dbginfo eib = { .pid = -1 };
     long int res;
     for (int off = 0 ; off < sizeof(eib) ; off += sizeof(long int)) {
 
