@@ -95,7 +95,7 @@ static inline int64_t atomic_read (const struct atomic_int * v)
     /* Use inline assembly to ensure this is one instruction */
     __asm__ __volatile__("mov %1, %0"
                          : "=r"(i) :
-                           "m"(v->counter) : "memory");
+                           "m"(v->counter));
     return i;
 }
 
@@ -107,7 +107,7 @@ static inline void atomic_set (struct atomic_int * v, int64_t i)
     /* Use inline assembly to ensure this is one instruction */
     __asm__ __volatile__("mov %2, %0"
                          : "=m"(v->counter) :
-                           "m"(v->counter), "r"(i) : "memory");
+                           "m"(v->counter), "r"(i));
 }
 
 /* Helper function that atomically adds a value to an atomic_int,
@@ -117,7 +117,7 @@ static inline int64_t _atomic_add (int64_t i, struct atomic_int * v)
     int64_t increment = i;
     __asm__ __volatile__(
         "lock ; xadd %0, %1"
-        : "=r"(i), "=m"(v->counter) : "0"(i) : "memory", "cc");
+        : "=r"(i), "=m"(v->counter) : "0"(i) : "cc");
     return i + increment;
 }
 
@@ -138,7 +138,7 @@ static inline void atomic_inc (struct atomic_int * v)
 {
     __asm__ __volatile__(
         "lock ; incl %0"
-        : "=m"(v->counter) : "m"(v->counter) : "memory", "cc");
+        : "=m"(v->counter) : "m"(v->counter) : "cc");
 }
 
 /* Atomically substracts 1 from v.  Does not return a value. */
@@ -146,7 +146,7 @@ static inline void atomic_dec (struct atomic_int * v)
 {
     __asm__ __volatile__(
         "lock ; decl %0"
-        : "=m"(v->counter) : "m"(v->counter) : "memory", "cc");
+        : "=m"(v->counter) : "m"(v->counter) : "cc");
 }
 
 /* Atomically substracts 1 from v.  Returns 1 if this causes the
@@ -164,7 +164,7 @@ static inline int64_t cmpxchg(volatile int64_t *p, int64_t t, int64_t s)
 {
     __asm__ __volatile__ (
         "lock ; cmpxchg %3, %1"
-        : "=a"(t), "=m"(*p) : "a"(t), "r"(s) : "memory", "cc");
+        : "=a"(t), "=m"(*p) : "a"(t), "r"(s) : "cc");
     return t;
 }
 
