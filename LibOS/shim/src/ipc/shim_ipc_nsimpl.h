@@ -71,6 +71,7 @@ struct range_bitmap {
     unsigned char       map[];
 };
 
+/* Helper functions, __*_range_*(), must be called with range_remap_lock held */
 static struct range_bitmap * range_map;
 static LOCKTYPE range_map_lock;
 
@@ -194,7 +195,6 @@ static int __extend_range_bitmap (int expected)
     return 0;
 }
 
-/* This function must be called with lock held */
 static int __set_range_bitmap (int off, bool unset)
 {
     int i = off / BITS;
@@ -519,26 +519,25 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     if (!r)
         goto failed;
 
-    ret = __set_range_bitmap(off, true);
-    if (ret < 0)
-        goto failed;
-
     if (r->subranges) {
         for (int i = 0 ; i < RANGE_SIZE ; i++)
             if (r->subranges->map[i]) {
-                __set_range_bitmap(off, false);
                 ret = -EBUSY;
                 goto failed;
             }
-
-        free(r->subranges);
     }
+    ret = __set_range_bitmap(off, true);
+
+    if (ret < 0)
+        goto failed;
 
     if (r->owner->vmid == cur_process.vmid)
         nowned--;
     else
         noffered--;
 
+    if (r->subranges)
+        free(r->subranges);
     if (r->used)
         free(r->used);
     // Re-acquire the head; kind of ugly
