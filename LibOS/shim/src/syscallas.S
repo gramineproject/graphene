@@ -131,7 +131,9 @@ isundef:
 syscall_wrapper:
         .cfi_startproc
         .cfi_def_cfa %rsp, 0
+        # %rcx is used as input for returning %rip
         .cfi_register %rip, %rcx
+        # %r11 is used as input to keep %rflags
         .cfi_register %rflags, %r11
         subq $RED_ZONE_SIZE, %rsp
         .cfi_adjust_cfa_offset RED_ZONE_SIZE
@@ -140,7 +142,8 @@ syscall_wrapper_after_syscalldb:
         addq $RED_ZONE_SIZE, %rsp
         .cfi_adjust_cfa_offset -RED_ZONE_SIZE
         # restore %rflags for syscall abi compatibility.
-        # This must be done after addq which destroys %rflags
+        # This must be done after "addq $RED_ZONE_SIZE, %rsp" above
+        # which destroys %rflags
         xchg %r11, (%rsp)
         .cfi_offset %rflags, 0
         popfq
