@@ -53,9 +53,10 @@ struct thread_param {
 extern void * enclave_base;
 
 /*
- * It isn't strictly required to be unique because
- * tid is only used for debug as id for thread at the moment.
- * So for now, tid allocation isn't tracked for simplicity.
+ * We do not currently handle tid counter wrap-around, and could, in
+ * principle, end up with two threads with the same ID. This is ok, as strict
+ * uniqueness is not required; the tid is only used for debugging. We could
+ * ensure uniqueness if needed in the future
  */
 static PAL_IDX pal_assign_tid(void)
 {
@@ -99,6 +100,10 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
 {
     PAL_HANDLE new_thread = malloc(HANDLE_SIZE(thread));
     SET_HANDLE_TYPE(new_thread, thread);
+    /*
+     * tid will be filled later by pal_start_thread()
+     * tid is cleared to avoid random value here.
+     */
     new_thread->thread.tid = 0;
     new_thread->thread.tcs = NULL;
     INIT_LIST_HEAD(&new_thread->thread, list);
