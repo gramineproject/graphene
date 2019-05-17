@@ -206,7 +206,7 @@ int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
         return -ENOMEM;
 
     unsigned long pages = ALIGN_UP(len) / allocsize;
-    if (test_user_memory(vec, (pages + 7) / 8, true))
+    if (test_user_memory(vec, pages, true))
         return -EFAULT;
 
     unsigned long i;
@@ -228,7 +228,7 @@ int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
     /* There is no good way to know if the page is in RAM.
      * Conservatively tell that it's not in RAM. */
     for (i = 0; i < pages; i++)
-        vec[i / 8] &= ~(1 << (i % 8));
+        vec[i] = 0;
 
     return 0;
 }
