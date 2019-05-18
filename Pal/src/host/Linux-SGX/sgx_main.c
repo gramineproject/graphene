@@ -283,10 +283,12 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     /* Reading sgx.static_address from manifest */
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 &&
-        cfgbuf[0] == '1')
+        cfgbuf[0] == '1') {
         enclave->baseaddr = heap_min;
-    else
+        enclave->size -= heap_min;
+    } else {
         enclave->baseaddr = heap_min = 0;
+    }
 
     TRY(read_enclave_token, enclave->token, &enclave_token);
     TRY(read_enclave_sigstruct, enclave->sigfile, &enclave_sigstruct);

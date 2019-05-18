@@ -148,7 +148,7 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     memset(secs, 0, sizeof(sgx_arch_secs_t));
     secs->size = pagesize;
-    while (secs->size < size)
+    while (secs->size < baseaddr + size)
         secs->size <<= 1;
     secs->ssaframesize = get_ssaframesize(token->attributes.xfrm) / pagesize;
     secs->miscselect = token->miscselect_mask;
@@ -160,27 +160,20 @@ int create_enclave(sgx_arch_secs_t * secs,
      * SIGSTRUCT during EINIT (see pp21 for ECREATE and pp34 for
      * EINIT in https://software.intel.com/sites/default/files/managed/48/88/329298-002.pdf). */
 
-    if (baseaddr) {
-        secs->baseaddr = (uint64_t) baseaddr & ~(secs->size - 1);
-    } else {
-        secs->baseaddr = ENCLAVE_HIGH_ADDRESS;
-    }
+    if (!baseaddr)
+        baseaddr = ENCLAVE_HIGH_ADDRESS;
 
-    uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, secs->size,
+    uint64_t addr = INLINE_SYSCALL(mmap, 6, baseaddr, size,
                                    PROT_READ|PROT_WRITE|PROT_EXEC,
                                    flags|MAP_FIXED, isgx_device, 0);
 
     if (IS_ERR_P(addr)) {
-        if (ERRNO_P(addr) == 1 && (flags | MAP_FIXED))
-            pal_printf("Permission denied on mapping enclave. "
-                       "You may need to set sysctl vm.mmap_min_addr to zero\n");
-
         SGX_DBG(DBG_I, "enclave ECREATE failed in allocating EPC memory "
                 "(errno = %ld)\n", ERRNO_P(addr));
         return -ENOMEM;
     }
 
-    secs->baseaddr = addr;
+    secs->baseaddr = addr & ~(secs->size - 1);
 
 #if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_create param = {
