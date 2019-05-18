@@ -165,6 +165,7 @@ struct shim_thread * alloc_new_thread (void)
     INIT_LIST_HEAD(thread, siblings);
     INIT_LISTP(&thread->exited_children);
     INIT_LIST_HEAD(thread, list);
+    /* default value as sigalt stack isn't specified yet */
     thread->signal_altstack.ss_flags = SS_DISABLE;
     return thread;
 }

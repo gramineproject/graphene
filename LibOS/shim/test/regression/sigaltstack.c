@@ -6,17 +6,16 @@
 #include <string.h>
 #include <unistd.h>
 
-uint8_t * sig_stack;
+uint8_t* sig_stack;
 size_t sig_stack_size = SIGSTKSZ;
-_Atomic int count = 0;
+_Atomic int count     = 0;
 
-void handler(int signal, siginfo_t * info, void * ucontext)
-{
+void handler(int signal, siginfo_t* info, void* ucontext) {
     int ret;
     count++;
 
     uint8_t a;
-    printf("sig %d count %d goes off %p: [%p %p)\n", signal, count, &a,
+    printf("sig %d count %d goes off with sp=%p, sig_stack: [%p %p)\n", signal, count, &a,
            sig_stack, sig_stack + sig_stack_size);
     if (sig_stack <= &a && &a < sig_stack + sig_stack_size) {
         printf("OK on signal stack\n");
@@ -32,9 +31,9 @@ void handler(int signal, siginfo_t * info, void * ucontext)
         err(EXIT_FAILURE, "sigaltstack in handler");
     }
     if (old.ss_flags & SS_ONSTACK) {
-        printf("OK on sigaltstack in handler\n");
+        printf("OK on sigaltstack in handler");
     } else {
-        printf("FAIL on sigaltstack in handler\n");
+        printf("FAIL on sigaltstack in handler");
     }
 
     /*
@@ -54,8 +53,7 @@ void handler(int signal, siginfo_t * info, void * ucontext)
     count--;
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int ret;
     sig_stack = malloc(sig_stack_size);
     if (sig_stack == NULL) {
@@ -63,9 +61,9 @@ int main(int argc, char ** argv)
     }
 
     stack_t ss = {
-        .ss_sp = sig_stack,
+        .ss_sp    = sig_stack,
         .ss_flags = 0,
-        .ss_size = sig_stack_size,
+        .ss_size  = sig_stack_size,
     };
     stack_t old;
     memset(&old, 0xff, sizeof(old));
@@ -83,12 +81,12 @@ int main(int argc, char ** argv)
     act.sa_sigaction = handler;
     sigemptyset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
-    ret = sigaction(SIGALRM, &act, NULL);
+    ret          = sigaction(SIGALRM, &act, NULL);
     if (ret < 0) {
         err(EXIT_FAILURE, "sigaction");
     }
 
-    printf("&act %p\n", &act);
+    printf("&act == %p\n", &act);
     fflush(stdout);
     alarm(1);
     pause();
