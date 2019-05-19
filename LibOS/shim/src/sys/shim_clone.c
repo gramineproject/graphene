@@ -115,6 +115,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     debug_setbuf(tcb, true);
     debug("set tcb to %p (stack allocated? %d)\n", my_thread->tcb, stack_allocated);
 
+    struct shim_regs regs = *arg->parent->tcb->shim_tcb.context.regs;
     if (my_thread->set_child_tid) {
         *(my_thread->set_child_tid) = my_thread->tid;
         my_thread->set_child_tid = NULL;
@@ -143,7 +144,6 @@ int clone_implementation_wrapper(struct clone_args * arg)
     debug("child swapping stack to %p return %p: %d\n",
           stack, return_pc, my_thread->tid);
 
-    struct shim_regs regs = *arg->parent->tcb->shim_tcb.context.regs;
     tcb->context.regs = &regs;
     tcb->context.sp = stack;
     tcb->context.ret_ip = return_pc;
@@ -289,7 +289,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         unlock(thread->lock);
 
         if (old_shim_tcb)
-            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(shim_tcb_t));
+            memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(tcb->shim_tcb));
         if (handle_map)
             put_handle_map(handle_map);
 
