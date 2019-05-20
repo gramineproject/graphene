@@ -186,23 +186,25 @@ enclave_entry:
 	# handle nesting.
 	#
 	# Instead if we're in such situation, we emulate it as if %rip reached to
-	# the safe point, .Lreturn_from_ocall_prepared_is_cleared, to side-step the
-	# subtle situation.
+	# the safe point, .Lreturn_from_ocall_after_clear_ocall_prepared, to
+	# side-step the subtle situation.
 	#
 	# ocall sequence:
 	#  0. call sgx_ocall()
-	#  1. SGX_OCALL_PREPARED=1
-	#  2. SGX_STACK=%rsp: save trusted stack
-	#  3. EEXIT
-	#  4. unstrusted PAL which issues real host system call
-	#  5. EENTER (and start from enclave_entry)
-	#  6. .Lreturn_from_ocall:
-	#  7. (%rsp, SGX_STACK) = (SGX_STACK, 0): restore trusted stack
-	#  8. SGX_OCALL_PREPARED=0
-	#  9. .Lreturn_from_ocall_before_clear_ocall_prepared:
-	# 10. .Lreturn_from_ocall_after_clear_ocall_prepared:
-	# 11. call _DkHandleExternalEvent() if interrupted
-	# 12. return from sgx_ocall() to the caller
+	#  1. .Locall_before_set_ocall_prepared:
+	#  2. SGX_OCALL_PREPARED=1
+	#  3. .Locall_after_set_ocall_prepared:
+	#  4. SGX_STACK=%rsp: save trusted stack
+	#  5. EEXIT
+	#  6. unstrusted PAL which issues real host system call
+	#  7. EENTER (and start from enclave_entry)
+	#  8. .Lreturn_from_ocall:
+	#  9. (%rsp, SGX_STACK) = (SGX_STACK, 0): restore trusted stack
+	# 11. .Lreturn_from_ocall_before_clear_ocall_prepared:
+	# 12. SGX_OCALL_PREPARED=0
+	# 13. .Lreturn_from_ocall_after_clear_ocall_prepared:
+	# 14. call _DkHandleExternalEvent() if interrupted
+	# 15. return from sgx_ocall() to the caller
 	#
 	# It's also required that sgx_ocall be atomic regarding to async exception.
 	# When host async signal arrives, sgx_ocall() should result in EINTR.
@@ -221,9 +223,9 @@ enclave_entry:
 	# should not be lost.
 	#
 	# On async exception we will
-	# A. until EEXIT(0. - 2. in above sequence):
+	# A. until EEXIT(0. - 4. in above sequence):
 	#	 pretend EINTR without real EEXIT
-	# B. during untrusted PAL(3.-4. in above sequence):
+	# B. during untrusted PAL(5. - 6. in above sequence):
 	#	 return EINTR
 	#	 Exception (as host signal) is handled by _DkTerminateSighandler()
 	#	 @ sgx_exception.c
@@ -233,9 +235,15 @@ enclave_entry:
 	#		   it's another story for untrusted PAL to ensure to not lose the
 	#		   successful result of host system call. host signal can arrive
 	#		   after host syscall instruction before EENTER.
-	# C. From EENTER(5. - 12. in above sequence):
+	# C. From EENTER(7. - 15. in above sequence):
 	#	 ocall succeeded and raise exception handler
 	#
+
+	# Find out which of cases A, B, or C happened:
+	# - copy rip at which the enclave was interrupted into %rax,
+	# - copy the boundaries between cases A, B, and C into %r11,
+	# - compare enclave's rip against these boundaries
+	#	(i.e., compare %rax vs %r11).
 	movq SGX_GPR_RIP(%rbx), %rax
 	leaq .Locall_about_to_eexit_begin(%rip), %r11
 	cmpq %r11, %rax
@@ -281,10 +289,10 @@ enclave_entry:
 	#
 	# avoid overwriting %gs:SGX_OCALL_PREPARED after exception handler
 	# when gs:SGX_OCALL_PREPARED is set,
-    # saved %rip == .Locall_after_set_ocall_prepared
-    #    rewind movq $1, %gs:SGX_OCALL_PREPARED
-	# saved %rip == .Lreturn_from_ocall_before_clear_ocall_prepared
-	#    emulate movq $0, %gs:SGX_OCALL_PREPARED
+	# - if saved %rip == .Locall_after_set_ocall_prepared
+	#   rewind movq $1, %gs:SGX_OCALL_PREPARED
+	# - if saved %rip == .Lreturn_from_ocall_before_clear_ocall_prepared
+	#   emulate movq $0, %gs:SGX_OCALL_PREPARED
 	#
 	leaq .Locall_after_set_ocall_prepared(%rip), %rax
 	cmpq %rax, SGX_GPR_RIP(%rbx)
