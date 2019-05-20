@@ -194,7 +194,7 @@ static int graphene_lib_release(struct inode *inode, struct file *file)
 }
 #endif
 
-#define DEFINE_PATH_BUFFER(kpath, max) char * kpath; int max;
+#define DEFINE_PATH_BUFFER(kpath, max) char* kpath; int max;
 
 #define GET_PATH_BUFFER(kpath, max)					\
 	kpath = __getname();						\

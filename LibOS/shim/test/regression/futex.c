@@ -15,7 +15,7 @@
 #include <assert.h>
 
 // 64kB stack
-#define FIBER_STACK 1024 * 64
+#define FIBER_STACK (1024 * 64)
 #define THREADS 2
 static int myfutex = 0;
 struct atomic_int {

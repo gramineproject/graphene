@@ -56,7 +56,7 @@ struct graphene_net_rule {
 	struct graphene_net_addr	addr;
 };
 
-#define GRAPHENE_SET_TASK	_IOW('k', 16, void *)
+#define GRAPHENE_SET_TASK (_IOW('k', 16, void*))
 
 struct graphene_policies {
 	int				npolicies;

@@ -1293,7 +1293,7 @@ void * stack_before_call __attribute_unused = NULL;
                      "jmp *%1\r\n"                                      \
                      "1: movq stack_before_call(%%rip), %%rsp\r\n"      \
                                                                         \
-                     : "=a"(ret) : "a"(l->l_entry), "b"(cookies)        \
+                     : "=a"(ret) : "a"((l)->l_entry), "b"(cookies)      \
                      : "rcx", "rdx", "rdi", "rsi", "r8", "r9",          \
                        "r10", "r11", "memory", "cc");                   \
         ret; })

@@ -13,7 +13,7 @@
 /* RUNTIME_FILE() is defined in pal_internal.h, and including pal_internal.h
  * causes compile issue. So PAL_LOADER is defined without RUNTIME_FILE
  * as workaround. */
-#define PAL_LOADER  XSTRINGIFY(RUNTIME_DIR)"/pal-Linux"
+#define PAL_LOADER  XSTRINGIFY(RUNTIME_DIR) "/pal-Linux"
 
 #ifdef __x86_64__
 # include "sysdep-x86_64.h"

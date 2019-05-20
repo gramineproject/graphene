@@ -416,19 +416,19 @@ static inline int is_pointer (const char * type)
 
 #define PRINTF(fmt, ...)                            \
     do {                                            \
-        debug_printf((fmt), __VA_ARGS__);           \
+        debug_printf(fmt, __VA_ARGS__);             \
     } while (0)
 #define PUTS(str)                                   \
     do {                                            \
-        debug_puts((str));                          \
+        debug_puts(str);                            \
     } while (0)
 #define PUTCH(ch)                                   \
     do {                                            \
-        debug_putch((ch));                          \
+        debug_putch(ch);                            \
     } while (0)
 #define VPRINTF(fmt, ap)                            \
     do {                                            \
-        debug_vprintf((fmt), (ap));                 \
+        debug_vprintf(fmt, ap);                     \
     } while (0)
 
 static inline void parse_string_arg (va_list * ap)

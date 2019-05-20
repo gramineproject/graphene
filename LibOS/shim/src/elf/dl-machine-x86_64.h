@@ -72,12 +72,12 @@ elf_machine_rela (struct link_map * l, ElfW(Rela) * reloc, Elf64_Sym * sym,
 
 #ifdef DEBUG_RELOC
 #define debug_reloc(r_type, sym, value)                             \
-    ({  if (strtab && sym && sym->st_name)                          \
-            debug(#r_type ": %s\n", strtab + sym->st_name);         \
+    ({  if (strtab && (sym) && (sym)->st_name)                      \
+            debug(#r_type ": %s\n", strtab + (sym)->st_name);       \
         else if (value)                                             \
-            debug(#r_type ": %p\n", value);                         \
+            debug(#r_type ": %p\n", (value));                       \
         else                                                        \
-            debug(#r_type "\n", value);                             \
+            debug(#r_type "\n", (value));                           \
     })
 #else
 #define debug_reloc(...) ({})

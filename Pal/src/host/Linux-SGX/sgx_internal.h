@@ -51,11 +51,11 @@ extern unsigned long pagesize, pageshift, pagemask;
 #undef ALLOC_ALIGNED
 
 #define ALLOC_ALIGNDOWN(addr) \
-    (pagesize ? ((unsigned long) (addr)) & pagemask : (unsigned long) (addr))
+    (pagesize ? ((unsigned long)(addr)) & pagemask : (unsigned long)(addr))
 #define ALLOC_ALIGNUP(addr) \
-    (pagesize ? (((unsigned long) (addr)) + pageshift) & pagemask : (unsigned long) (addr))
+    (pagesize ? (((unsigned long)(addr)) + pageshift) & pagemask : (unsigned long)(addr))
 #define ALLOC_ALIGNED(addr) \
-    (pagesize && ((unsigned long) (addr)) == (((unsigned long) (addr)) & pagemask))
+    (pagesize && ((unsigned long)(addr)) == (((unsigned long)(addr)) & pagemask))
 
 uint32_t htonl (uint32_t longval);
 uint16_t htons (uint16_t shortval);

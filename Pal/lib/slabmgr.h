@@ -170,7 +170,7 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #define OBJ_RAW(obj) (&(obj)->raw)
 
 #define RAW_TO_LEVEL(raw_ptr) \
-            (*((const unsigned char *) (raw_ptr) - OBJ_PADDING - 1))
+            (*((const unsigned char*)(raw_ptr) - OBJ_PADDING - 1))
 #define RAW_TO_OBJ(raw_ptr, type) container_of((raw_ptr), type, raw)
 
 #define __SUM_OBJ_SIZE(slab_size, size) \
@@ -184,7 +184,7 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #define __INIT_MIN_MEM_SIZE() \
             (sizeof(SLAB_MGR_TYPE) + sizeof(SLAB_AREA_TYPE) * SLAB_LEVEL)
 #define __INIT_MAX_MEM_SIZE(size) \
-            (__INIT_MIN_MEM_SIZE() + __INIT_SUM_OBJ_SIZE((size)))
+            (__INIT_MIN_MEM_SIZE() + __INIT_SUM_OBJ_SIZE(size))
 
 #ifdef PAGE_SIZE
 static inline int size_align_down(int slab_size, int size)

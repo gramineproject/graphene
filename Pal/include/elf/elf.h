@@ -62,7 +62,7 @@ typedef Elf64_Half Elf64_Versym;
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 
-#define EI_NIDENT (16)
+#define EI_NIDENT 16
 
 typedef struct
 {
@@ -477,7 +477,7 @@ typedef struct
 #define ELF32_ST_VISIBILITY(o)	((o) & 0x03)
 
 /* For ELF64 the definitions are the same.  */
-#define ELF64_ST_VISIBILITY(o)	ELF32_ST_VISIBILITY (o)
+#define ELF64_ST_VISIBILITY(o)	(ELF32_ST_VISIBILITY(o))
 
 /* Symbol visibility specification encoded in the st_other field.  */
 #define STV_DEFAULT	0		/* Default symbol visibility rules */

@@ -50,7 +50,7 @@
 #ifdef __ASSEMBLER__
 
 /* ELF uses byte-counts for .align, most others use log2 of count of bytes.  */
-#define ALIGNARG(log2) 1<<log2
+#define ALIGNARG(log2) (1 << (log2))
 #define ASM_GLOBAL_DIRECTIVE .global
 /* For ELF we need the `.type' directive to make shared libs work right.  */
 #define ASM_TYPE_DIRECTIVE(name,typearg) .type name,typearg;
@@ -173,7 +173,7 @@
 #define ASM_ARGS_0
 
 #define LOAD_ARGS_1(a1)                                 \
-  long int __arg1 = (long) (a1);                        \
+  long int __arg1 = (long)(a1);                         \
   LOAD_ARGS_0 ()
 #define LOAD_REGS_1                                     \
   register long int _a1 __asm__ ("rdi") = __arg1;       \
@@ -181,7 +181,7 @@
 #define ASM_ARGS_1    ASM_ARGS_0, "r" (_a1)
 
 #define LOAD_ARGS_2(a1, a2)                             \
-  long int __arg2 = (long) (a2);                        \
+  long int __arg2 = (long)(a2);                         \
   LOAD_ARGS_1 (a1)
 #define LOAD_REGS_2                                     \
   register long int _a2 __asm__ ("rsi") = __arg2;       \
@@ -189,7 +189,7 @@
 #define ASM_ARGS_2    ASM_ARGS_1, "r" (_a2)
 
 #define LOAD_ARGS_3(a1, a2, a3)                         \
-  long int __arg3 = (long) (a3);                        \
+  long int __arg3 = (long)(a3);                         \
   LOAD_ARGS_2 (a1, a2)
 #define LOAD_REGS_3                                     \
   register long int _a3 __asm__ ("rdx") = __arg3;       \
@@ -197,7 +197,7 @@
 #define ASM_ARGS_3    ASM_ARGS_2, "r" (_a3)
 
 #define LOAD_ARGS_4(a1, a2, a3, a4)                     \
-  long int __arg4 = (long) (a4);                        \
+  long int __arg4 = (long)(a4);                         \
   LOAD_ARGS_3 (a1, a2, a3)
 #define LOAD_REGS_4                                     \
   register long int _a4 __asm__ ("r10") = __arg4;       \
@@ -205,7 +205,7 @@
 #define ASM_ARGS_4    ASM_ARGS_3, "r" (_a4)
 
 #define LOAD_ARGS_5(a1, a2, a3, a4, a5)                 \
-  long int __arg5 = (long) (a5);                        \
+  long int __arg5 = (long)(a5);                         \
   LOAD_ARGS_4 (a1, a2, a3, a4)
 #define LOAD_REGS_5                                     \
   register long int _a5 __asm__ ("r8") = __arg5;        \
@@ -213,7 +213,7 @@
 #define ASM_ARGS_5    ASM_ARGS_4, "r" (_a5)
 
 #define LOAD_ARGS_6(a1, a2, a3, a4, a5, a6)             \
-  long int __arg6 = (long) (a6);                        \
+  long int __arg6 = (long)(a6);                         \
   LOAD_ARGS_5 (a1, a2, a3, a4, a5)
 #define LOAD_REGS_6                                     \
   register long int _a6 __asm__ ("r9") = __arg6;        \

@@ -66,7 +66,7 @@ extern struct pal_sec pal_sec;
 #endif
 
 #define GRAPHENE_TEMPDIR        "/tmp/graphene"
-#define GRAPHENE_PIPEDIR        GRAPHENE_TEMPDIR "/pipes"
+#define GRAPHENE_PIPEDIR        (GRAPHENE_TEMPDIR "/pipes")
 
 #define PROC_INIT_FD    255
 

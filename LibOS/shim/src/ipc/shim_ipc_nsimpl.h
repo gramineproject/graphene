@@ -47,7 +47,7 @@
 #define NS_STR     XSTRINGIFY(NS)
 #define NS_CAP_STR XSTRINGIFY(NS_CAP)
 
-#define RANGE_SIZE CONCAT2(NS_CAP, RANGE_SIZE)
+#define RANGE_SIZE (CONCAT2(NS_CAP, RANGE_SIZE))
 
 #define BITS    (sizeof(unsigned char) * 8)
 

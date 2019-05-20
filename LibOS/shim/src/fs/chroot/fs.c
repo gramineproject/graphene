@@ -59,8 +59,8 @@ struct mount_data {
     char                root_uri[];
 };
 
-#define HANDLE_MOUNT_DATA(h) ((struct mount_data *) (h)->fs->data)
-#define DENTRY_MOUNT_DATA(d) ((struct mount_data *) (d)->fs->data)
+#define HANDLE_MOUNT_DATA(h) ((struct mount_data*)(h)->fs->data)
+#define DENTRY_MOUNT_DATA(d) ((struct mount_data*)(d)->fs->data)
 
 static int chroot_mount (const char * uri, const char * root,
                          void ** mount_data)

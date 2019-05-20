@@ -35,7 +35,7 @@
 # include "sysdep-x86_64.h"
 #endif
 
-#define ENCLAVE_FILENAME RUNTIME_FILE("libpal-Linux-SGX.so")
+#define ENCLAVE_FILENAME (RUNTIME_FILE("libpal-Linux-SGX.so"))
 
 #define IS_ERR INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
@@ -97,10 +97,10 @@ int * get_futex (void);
 void free_futex (int * futex);
 
 extern char __text_start, __text_end, __data_start, __data_end;
-#define TEXT_START (void *) (&__text_start)
-#define TEXT_END   (void *) (&__text_end)
-#define DATA_START (void *) (&__text_start)
-#define DATA_END   (void *) (&__text_end)
+#define TEXT_START ((void*)(&__text_start))
+#define TEXT_END   ((void*)(&__text_end))
+#define DATA_START ((void*)(&__text_start))
+#define DATA_END   ((void*)(&__text_end))
 
 typedef struct { char bytes[32]; } sgx_checksum_t;
 typedef struct { char bytes[16]; } sgx_stub_t;

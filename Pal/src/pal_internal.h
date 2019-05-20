@@ -244,12 +244,12 @@ extern struct pal_internal_state {
 extern PAL_CONTROL __pal_control;
 
 #define ALLOC_ALIGNDOWN(addr)                               \
-        (((unsigned long) (addr)) & pal_state.alloc_mask)
+        (((unsigned long)(addr)) & pal_state.alloc_mask)
 #define ALLOC_ALIGNUP(addr)                                 \
-        ((((unsigned long) (addr)) + pal_state.alloc_shift) & pal_state.alloc_mask)
+        ((((unsigned long)(addr)) + pal_state.alloc_shift) & pal_state.alloc_mask)
 #define ALLOC_ALIGNED(addr)                                 \
-        ((unsigned long) (addr) ==                          \
-            (((unsigned long) (addr)) & pal_state.alloc_mask))
+        ((unsigned long)(addr) ==                           \
+            (((unsigned long)(addr)) & pal_state.alloc_mask))
 
 /* Main initialization function */
 void pal_main (

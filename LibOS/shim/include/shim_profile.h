@@ -144,10 +144,10 @@ extern struct shim_profile __profile_end;
 
 #define BEGIN_PROFILE_INTERVAL_SET(val)                     \
     unsigned long _interval;                                \
-    do { _interval = val; } while (0)
+    do { _interval = (val); } while (0)
 
 #define SET_PROFILE_INTERVAL(val)                           \
-    do { _interval = val; } while (0)
+    do { _interval = (val); } while (0)
 
 #define GET_PROFILE_INTERVAL() DkSystemTimeQuery()
 

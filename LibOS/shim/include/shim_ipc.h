@@ -405,7 +405,7 @@ struct shim_ipc_sysv_semop {
     struct sembuf sops[];
 } __attribute__((packed));
 
-#define IPC_SEM_NOTIMEOUT ((unsigned long) -1)
+#define IPC_SEM_NOTIMEOUT ((unsigned long)-1)
 
 int ipc_sysv_semop_send (IDTYPE semid, struct sembuf * sops, int nsops,
                          unsigned long timeout, unsigned long * seq);
@@ -606,7 +606,7 @@ void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
 
 int exit_with_ipc_helper (bool handover, struct shim_thread ** ret);
 
-#define IPC_FORCE_RECONNECT     ((void *) -1)
+#define IPC_FORCE_RECONNECT     ((void*)-1)
 
 int prepare_ns_leaders (void);
 

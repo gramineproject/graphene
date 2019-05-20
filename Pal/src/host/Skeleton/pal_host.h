@@ -31,8 +31,8 @@
 #endif
 
 typedef int PAL_LOCK;
-#define LOCK_INIT   (0)
-#define MAX_FDS     (3)
+#define LOCK_INIT   0
+#define MAX_FDS     3
 
 typedef struct pal_handle
 {

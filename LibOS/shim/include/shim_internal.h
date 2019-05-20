@@ -209,7 +209,7 @@ static inline uint64_t get_cur_preempt (void) {
 }
 
 #define BEGIN_SHIM(name, args ...)                          \
-    SHIM_ARG_TYPE __shim_##name (args) {                    \
+    SHIM_ARG_TYPE __shim_##name(args) {                     \
         SHIM_ARG_TYPE ret = 0;                              \
         uint64_t preempt = get_cur_preempt();               \
         /* handle_signal(true); */                          \
@@ -280,7 +280,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
 #define SHIM_SYSCALL_0(name, func, r)                           \
     BEGIN_SHIM(name, void)                                      \
         PARSE_SYSCALL1(name, 0);                                \
-        r __ret = func();                                       \
+        r __ret = (func)();                                     \
         PARSE_SYSCALL2(name, 0, #r, __ret);                     \
         ret = (SHIM_ARG_TYPE) __ret;                            \
     END_SHIM(name)
@@ -289,7 +289,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
     BEGIN_SHIM(name, SHIM_ARG_TYPE __arg1)                                  \
         t1 a1 = (t1) __arg1;                                                \
         PARSE_SYSCALL1(name, 1, #t1, a1);                                   \
-        r __ret = func(a1);                                                 \
+        r __ret = (func)(a1);                                               \
         PARSE_SYSCALL2(name, 1, #r, __ret, #t1, a1);                        \
         ret = (SHIM_ARG_TYPE) __ret;                                        \
     END_SHIM(name)
@@ -299,7 +299,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
         t1 a1 = (t1) __arg1;                                                \
         t2 a2 = (t2) __arg2;                                                \
         PARSE_SYSCALL1(name, 2, #t1, a1, #t2, a2);                          \
-        r __ret = func(a1, a2);                                             \
+        r __ret = (func)(a1, a2);                                           \
         PARSE_SYSCALL2(name, 2, #r, __ret, #t1, a1, #t2, a2);               \
         ret = (SHIM_ARG_TYPE) __ret;                                        \
     END_SHIM(name)
@@ -311,7 +311,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
         t2 a2 = (t2) __arg2;                                                \
         t3 a3 = (t3) __arg3;                                                \
         PARSE_SYSCALL1(name, 3, #t1, a1, #t2, a2, #t3, a3);                 \
-        r __ret = func(a1, a2, a3);                                         \
+        r __ret = (func)(a1, a2, a3);                                       \
         PARSE_SYSCALL2(name, 3, #r, __ret, #t1, a1, #t2, a2, #t3, a3);      \
         ret = (SHIM_ARG_TYPE) __ret;                                        \
     END_SHIM(name)
@@ -324,7 +324,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
         t3 a3 = (t3) __arg3;                                                \
         t4 a4 = (t4) __arg4;                                                \
         PARSE_SYSCALL1(name, 4, #t1, a1, #t2, a2, #t3, a3, #t4, a4);        \
-        r __ret = func(a1, a2, a3, a4);                                     \
+        r __ret = (func)(a1, a2, a3, a4);                                   \
         PARSE_SYSCALL2(name, 4, #r, __ret, #t1, a1, #t2, a2, #t3, a3,       \
                        #t4, a4);                                            \
         ret = (SHIM_ARG_TYPE) __ret;                                        \
@@ -341,7 +341,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
         t5 a5 = (t5) __arg5;                                                \
         PARSE_SYSCALL1(name, 5, #t1, a1, #t2, a2, #t3, a3, #t4, a4,         \
                        #t5, a5);                                            \
-        r __ret = func(a1, a2, a3, a4, a5);                                 \
+        r __ret = (func)(a1, a2, a3, a4, a5);                               \
         PARSE_SYSCALL2(name, 5, #r, __ret, #t1, a1, #t2, a2, #t3, a3,       \
                        #t4, a4, #t5, a5);                                   \
         ret = (SHIM_ARG_TYPE) __ret;                                        \
@@ -359,7 +359,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
         t6 a6 = (t6) __arg6;                                                \
         PARSE_SYSCALL1(name, 6, #t1, a1, #t2, a2, #t3, a3, #t4, a4,         \
                        #t5, a5, #t6, a6);                                   \
-        r __ret = func(a1, a2, a3, a4, a5, a6);                             \
+        r __ret = (func)(a1, a2, a3, a4, a5, a6);                           \
         PARSE_SYSCALL2(name, 6, #r, __ret, #t1, a1, #t2, a2, #t3, a3,       \
                        #t4, a4, #t5, a5, #t6, a6);  \
         ret = (SHIM_ARG_TYPE) __ret;                                        \
@@ -553,7 +553,7 @@ static inline bool locked(struct shim_lock* l)
     return tcb->tid == l->owner;
 }
 
-#define DEBUG_MASTER_LOCK       0
+#define DEBUG_MASTER_LOCK 0
 
 extern struct shim_lock __master_lock;
 
@@ -649,8 +649,8 @@ static inline void do_pause (void)
 }
 
 /* reference counter APIs */
-#define REF_GET(ref)            atomic_read(&ref)
-#define REF_SET(ref, count)     atomic_set(&ref, count)
+#define REF_GET(ref)            atomic_read(&(ref))
+#define REF_SET(ref, count)     atomic_set(&(ref), count)
 
 static inline int __ref_inc (REFTYPE * ref)
 {
@@ -738,11 +738,11 @@ unsigned long parse_int (const char * str);
 extern void * initial_stack;
 extern const char ** initial_envp;
 
-#define ALIGNED(addr)   (!(((unsigned long) addr) & allocshift))
+#define ALIGNED(addr)   (!(((unsigned long)(addr)) & allocshift))
 #define ALIGN_UP(addr)      \
-    ((__typeof__(addr)) ((((unsigned long) addr) + allocshift) & allocmask))
+    ((__typeof__(addr)) ((((unsigned long)(addr)) + allocshift) & allocmask))
 #define ALIGN_DOWN(addr)    \
-    ((__typeof__(addr)) (((unsigned long) addr) & allocmask))
+    ((__typeof__(addr)) (((unsigned long)(addr)) & allocmask))
 
 void get_brk_region (void ** start, void ** end, void ** current);
 

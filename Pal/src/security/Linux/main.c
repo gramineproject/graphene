@@ -23,7 +23,7 @@
 #include "internal.h"
 #include "graphene.h"
 
-#define PRESET_PAGESIZE  (4096UL)
+#define PRESET_PAGESIZE 4096UL
 
 unsigned long pagesize  = PRESET_PAGESIZE;
 unsigned long pageshift = PRESET_PAGESIZE - 1;

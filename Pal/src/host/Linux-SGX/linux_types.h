@@ -111,16 +111,15 @@ struct cmsghdr {
 # define SCM_RIGHTS 1
 #endif
 
-#define CMSG_DATA(cmsg) ((unsigned char *) ((struct cmsghdr *) (cmsg) + 1))
-#define CMSG_NXTHDR(mhdr, cmsg) __cmsg_nxthdr (mhdr, cmsg)
-#define CMSG_FIRSTHDR(mhdr) \
-  ((size_t) (mhdr)->msg_controllen >= sizeof (struct cmsghdr)		      \
-   ? (struct cmsghdr *) (mhdr)->msg_control : (struct cmsghdr *) 0)
+#define CMSG_DATA(cmsg) ((unsigned char*)((struct cmsghdr*)(cmsg) + 1))
+#define CMSG_NXTHDR(mhdr, cmsg) __cmsg_nxthdr(mhdr, cmsg)
+#define CMSG_FIRSTHDR(mhdr)                                             \
+  ((size_t)(mhdr)->msg_controllen >= sizeof(struct cmsghdr)             \
+   ? (struct cmsghdr*)(mhdr)->msg_control : (struct cmsghdr*)0)
 #define CMSG_ALIGN(len) (((len) + sizeof (size_t) - 1) \
                          & (size_t) ~(sizeof (size_t) - 1))
-#define CMSG_SPACE(len) (CMSG_ALIGN (len) \
-                         + CMSG_ALIGN (sizeof (struct cmsghdr)))
-#define CMSG_LEN(len)   (CMSG_ALIGN (sizeof (struct cmsghdr)) + (len))
+#define CMSG_SPACE(len) (CMSG_ALIGN(len) + CMSG_ALIGN(sizeof(struct cmsghdr)))
+#define CMSG_LEN(len)   (CMSG_ALIGN(sizeof(struct cmsghdr)) + (len))
 
 #include <linux/uio.h>
 
