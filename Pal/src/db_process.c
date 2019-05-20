@@ -66,6 +66,8 @@ noreturn void DkProcessExit (PAL_NUM exitcode)
     ENTER_PAL_CALL(DkProcessExit);
     _DkProcessExit(exitcode);
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
+    while (true)
+        /* nothing */;
     LEAVE_PAL_CALL();
 }
 
