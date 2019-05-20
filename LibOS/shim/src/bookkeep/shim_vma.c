@@ -679,6 +679,9 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
     int ret = __bkeep_munmap(&prev, addr, addr + length, flags);
     assert_vma_list();
     __restore_reserved_vmas();
+    /* DEP 5/20/19: If this is a debugging region we are removing, take it out
+     * of the checkpoint.  Otherwise, it will be restored erroneously after a fork. */
+    remove_r_debug(addr);
     unlock(vma_list_lock);
     return ret;
 }

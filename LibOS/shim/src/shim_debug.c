@@ -61,6 +61,7 @@ struct gdb_link_map
     struct gdb_link_map *l_next, *l_prev;
 };
 
+/* XXX: What lock protects this?  vma_list_lock? */
 static struct gdb_link_map * link_map_list = NULL;
 
 void clean_link_map_list (void)
