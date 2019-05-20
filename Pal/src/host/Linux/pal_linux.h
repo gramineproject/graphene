@@ -87,17 +87,17 @@ extern struct pal_linux_state {
             unsigned long flags;                                 \
             unsigned long fd;                                    \
             unsigned long offset;                                \
-        } args = {  .addr   = (unsigned long) (addr),            \
-                    .len    = (unsigned long) (len),             \
-                    .prot   = (unsigned long) (prot),            \
-                    .flags  = (unsigned long) (flags),           \
-                    .fd     = (unsigned long) (fd),              \
-                    .offset = (unsigned long) (offset), };       \
+        } args = {  .addr   = (unsigned long)(addr),             \
+                    .len    = (unsigned long)(len),              \
+                    .prot   = (unsigned long)(prot),             \
+                    .flags  = (unsigned long)(flags),            \
+                    .fd     = (unsigned long)(fd),               \
+                    .offset = (unsigned long)(offset), };        \
         INLINE_SYSCALL(mmap, 1, &args);                          \
     })
 # else
 #  define ARCH_MMAP(addr, len, prot, flags, fd, offset) \
-    INLINE_SYSCALL(mmap, 6, (addr), (len), (prot), (flags), (fd), (offset))
+    INLINE_SYSCALL(mmap, 6, addr, len, prot, flags, fd, offset)
 # endif
 #else
 # error "INLINE_SYSCALL not supported"
@@ -170,13 +170,13 @@ void signal_setup (void);
 unsigned long _DkSystemTimeQueryEarly (void);
 
 extern char __text_start, __text_end, __data_start, __data_end;
-#define TEXT_START (void *) (&__text_start)
-#define TEXT_END   (void *) (&__text_end)
-#define DATA_START (void *) (&__text_start)
-#define DATA_END   (void *) (&__text_end)
+#define TEXT_START ((void*)(&__text_start))
+#define TEXT_END   ((void*)(&__text_end))
+#define DATA_START ((void*)(&__text_start))
+#define DATA_END   ((void*)(&__text_end))
 
 #define ADDR_IN_PAL(addr) \
-        ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
+        ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
 DEFINE_LIST(event_queue);
 struct event_queue {

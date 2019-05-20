@@ -66,6 +66,6 @@ char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
  * This buffer can only be used within the caller frame (function).
  */
 #define ALLOCA_BYTES2HEXSTR(array) \
-    (BYTES2HEXSTR((array), __alloca(sizeof(array) * 2 + 1), sizeof(array) * 2 + 1))
+    (BYTES2HEXSTR(array, __alloca(sizeof(array) * 2 + 1), sizeof(array) * 2 + 1))
 
 #endif // HEX_H

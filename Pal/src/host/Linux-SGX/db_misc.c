@@ -84,7 +84,7 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
 }
 
 #define CPUID_CACHE_SIZE    64
-#define CPUID_CACHE_INVALID ((unsigned int) -1)
+#define CPUID_CACHE_INVALID ((unsigned int)-1)
 
 static PAL_LOCK cpuid_cache_lock = LOCK_INIT;
 

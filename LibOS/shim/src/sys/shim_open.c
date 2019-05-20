@@ -380,14 +380,14 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
             struct linux_dirent_tail * bt                               \
                     = (void *) b + sizeof(struct linux_dirent) + len + 1; \
                                                                         \
-            b->d_ino = dent->ino;                                       \
+            b->d_ino = (dent)->ino;                                     \
             b->d_off = ++dirhdl->offset;                                \
             b->d_reclen = DIRENT_SIZE(len);                             \
                                                                         \
             memcpy(b->d_name, name, len + 1);                           \
                                                                         \
             bt->pad = 0;                                                \
-            bt->d_type = type;                                          \
+            bt->d_type = (type);                                        \
                                                                         \
             b = (void *) bt + sizeof(struct linux_dirent_tail);         \
             bytes += DIRENT_SIZE(len);                                  \
@@ -481,10 +481,10 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
             if (bytes + DIRENT_SIZE(len) > count)                       \
                 goto done;                                              \
                                                                         \
-            b->d_ino = dent->ino;                                       \
+            b->d_ino = (dent)->ino;                                     \
             b->d_off = ++dirhdl->offset;                                \
             b->d_reclen = DIRENT_SIZE(len);                             \
-            b->d_type = type;                                           \
+            b->d_type = (type);                                         \
                                                                         \
             memcpy(b->d_name, name, len + 1);                           \
                                                                         \

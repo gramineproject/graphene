@@ -62,7 +62,7 @@
 #endif
 
 #define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
-# define DEFINE_RESTORE_RT2(syscall)                \
+#define DEFINE_RESTORE_RT2(syscall)                 \
     __asm__ (                                       \
          "    nop\n"                                \
          ".align 16\n"                              \

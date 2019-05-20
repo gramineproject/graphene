@@ -48,10 +48,10 @@ typedef struct mutex_handle {
 
 /* Initializer of Mutexes */
 #define MUTEX_HANDLE_INIT    { .locked = 0, .nwaiters.counter = 0 }
-#define INIT_MUTEX_HANDLE(m)  do { m->locked = 0; atomic_set(&m->nwaiters, 0); } while (0)
+#define INIT_MUTEX_HANDLE(m)  do { (m)->locked = 0; atomic_set(&(m)->nwaiters, 0); } while (0)
 
 #define LOCK_INIT MUTEX_HANDLE_INIT
-#define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock);
+#define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock)
 
 /* Locking and unlocking of Mutexes */
 int _DkMutexLock (struct mutex_handle * mut);
@@ -70,7 +70,7 @@ typedef struct {
 #endif
 } PAL_RESERVED_HDR;
 
-#define MAX_FDS         (3)
+#define MAX_FDS 3
 
 typedef struct pal_handle
 {
@@ -184,7 +184,7 @@ typedef struct pal_handle
 #define WFD(n)          (00010 << (n))
 #define WRITEABLE(n)    (00100 << (n))
 #define ERROR(n)        (01000 << (n))
-#define HAS_FDS         (00077)
+#define HAS_FDS         00077
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 

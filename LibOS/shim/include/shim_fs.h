@@ -130,7 +130,7 @@ struct shim_fs_ops {
                                     * well-defined. */
 
 // Catch memory corruption issues by checking for invalid state values
-#define DENTRY_INVALID_FLAGS ~0x7FFF
+#define DENTRY_INVALID_FLAGS (~0x7FFF)
 
 #define DCACHE_HASH_SIZE    1024
 #define DCACHE_HASH(hash) ((hash) & (DCACHE_HASH_SIZE - 1))

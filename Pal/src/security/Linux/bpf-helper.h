@@ -56,17 +56,17 @@ void seccomp_bpf_print(struct sock_filter *filter, int count);
 #define DENY \
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
 #define JUMP(labels, label) \
-	BPF_JUMP(BPF_JMP+BPF_JA, FIND_LABEL((labels), (label)), \
+	BPF_JUMP(BPF_JMP+BPF_JA, FIND_LABEL(labels, label), \
 		 JUMP_JT, JUMP_JF)
 #define LABEL(labels, label) \
-	BPF_JUMP(BPF_JMP+BPF_JA, FIND_LABEL((labels), (label)), \
+	BPF_JUMP(BPF_JMP+BPF_JA, FIND_LABEL(labels, label), \
 		 LABEL_JT, LABEL_JF)
 #define SYSCALL(nr, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (nr), 0, 1), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, nr, 0, 1), \
 	jt
 
 /* Lame, but just an example */
-#define FIND_LABEL(labels, label) seccomp_bpf_label((labels), #label)
+#define FIND_LABEL(labels, label) seccomp_bpf_label(labels, #label)
 
 #define EXPAND(...) __VA_ARGS__
 
@@ -74,10 +74,10 @@ void seccomp_bpf_print(struct sock_filter *filter, int count);
 #define HI_FLAG(flag) ((flag >> sizeof(__u32)) & ((1 << sizeof(__u32)) - 1))
 /* Ensure that we load the logically correct offset. */
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-#define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
+#define LO_ARG(idx) offsetof(struct seccomp_data, args[idx])
 #define LO_IP offsetof(struct seccomp_data, instruction_pointer)
 #elif __BYTE_ORDER == __BIG_ENDIAN
-#define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
+#define LO_ARG(idx) offsetof(struct seccomp_data, args[idx]) + sizeof(__u32)
 #define LO_IP offsetof(struct seccomp_data, instruction_pointer) + sizeof(__u32)
 #else
 #error "Unknown endianness"
@@ -101,11 +101,11 @@ void seccomp_bpf_print(struct sock_filter *filter, int count);
 /* Ensure that we load the logically correct offset. */
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define ENDIAN(_lo, _hi) _lo, _hi
-#define HI_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
+#define HI_ARG(idx) offsetof(struct seccomp_data, args[idx]) + sizeof(__u32)
 #define HI_IP offsetof(struct seccomp_data, instruction_pointer) + sizeof(__u32)
 #elif __BYTE_ORDER == __BIG_ENDIAN
 #define ENDIAN(_lo, _hi) _hi, _lo
-#define HI_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
+#define HI_ARG(idx) offsetof(struct seccomp_data, args[idx])
 #define HI_IP offsetof(struct seccomp_data, instruction_pointer)
 #endif
 
@@ -186,94 +186,94 @@ union arg64 {
 	BPF_STMT(BPF_ST, 1) /* hi -> M[1] */
 
 #define JEQ32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), 0, 1), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, value, 0, 1), \
 	jt
 
 #define JNE32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), 1, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, value, 1, 0), \
 	jt
 
 /* Checks the lo, then swaps to check the hi. A=lo,X=hi */
 #define JEQ64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, hi, 0, 5),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (lo), 0, 2), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, lo, 0, 2),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
-	jt, \
+	jt,                                           \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JNE64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 5, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, hi, 5, 0),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (lo), 2, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, lo, 2, 0),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
-	jt, \
+	jt,                                           \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JA32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (value), 0, 1), \
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, value, 0, 1), \
 	jt
 
 #define JA64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (hi), 3, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, hi, 3, 0),   \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, (lo), 0, 2), \
+	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_K, lo, 0, 2),   \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
-	jt, \
+	jt,                                           \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JGE32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (value), 0, 1), \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, value, 0, 1), \
 	jt
 
 #define JLT32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (value), 1, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, value, 1, 0), \
 	jt
 
 /* Shortcut checking if hi > arg.hi. */
 #define JGE64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, hi, 4, 0),    \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, hi, 0, 5),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (lo), 0, 2), \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, lo, 0, 2),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
-	jt, \
+	jt,                                           \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JLT64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, (hi), 0, 4), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
+	BPF_JUMP(BPF_JMP+BPF_JGE+BPF_K, hi, 0, 4),    \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, hi, 0, 5),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 2, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, lo, 2, 0),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
-	jt, \
+	jt,                                           \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JGT32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (value), 0, 1), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, value, 0, 1), \
 	jt
 
 #define JLE32(value, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (value), 1, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, value, 1, 0), \
 	jt
 
 /* Check hi > args.hi first, then do the GE checking */
 #define JGT64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 4, 0), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 5), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, hi, 4, 0),    \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, hi, 0, 5),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 0, 2), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, lo, 0, 2),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
-	jt, \
+	jt,                                           \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define JLE64(lo, hi, jt) \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (hi), 6, 0), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (hi), 0, 3), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, hi, 6, 0),    \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, hi, 0, 3),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 0), /* swap in lo */ \
-	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, (lo), 2, 0), \
+	BPF_JUMP(BPF_JMP+BPF_JGT+BPF_K, lo, 2, 0),    \
 	BPF_STMT(BPF_LD+BPF_MEM, 1), /* passed: swap hi back in */ \
-	jt, \
+	jt,                                           \
 	BPF_STMT(BPF_LD+BPF_MEM, 1) /* failed: swap hi back in */
 
 #define LOAD_SYSCALL_NR \

@@ -1210,7 +1210,7 @@ int message_confirm (const char * message, const char * options)
     }
 
 #define WRITE(buf, len)                                             \
-    ({  int _ret = DkStreamWrite(hdl, 0, len, (void *) buf, NULL);  \
+    ({  int _ret = DkStreamWrite(hdl, 0, len, (void*)(buf), NULL);  \
         _ret ? : -PAL_ERRNO; })
 
 #define READ(buf, len)                                              \

@@ -367,6 +367,14 @@ inval:
         *errstring = err;
 
     return -PAL_ERROR_INVAL;
+
+#undef CHECK_PTR
+#undef GOTO_INVAL
+#undef RANGE
+#undef IS_SKIP
+#undef IS_VALID
+#undef IS_BREAK
+#undef IS_SPACE
 }
 
 int free_config (struct config_store * store)

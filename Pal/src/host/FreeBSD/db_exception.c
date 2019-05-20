@@ -303,7 +303,7 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
 }
 
 #define ADDR_IN_PAL(addr) \
-        ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
+        ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
 static struct pal_frame * get_frame (ucontext_t * uc)
 {

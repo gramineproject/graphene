@@ -241,7 +241,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
 #define TRY(func, ...)                                              \
     ({                                                              \
-        ret = func(__VA_ARGS__);                                    \
+        ret = (func)(__VA_ARGS__);                                  \
         if (ret < 0) {                                              \
             SGX_DBG(DBG_E, "initializing enclave failed: " #func ": %d\n",  \
                    -ret);                                           \
@@ -321,14 +321,14 @@ int initialize_enclave (struct pal_enclave * enclave)
 #define SET_AREA(_desc, _skip_eextend, _is_binary, _fd, _addr, _size, _prot, _type) \
     ({                                                   \
         struct mem_area* _a = &areas[area_num++];        \
-        _a->desc            = _desc;                     \
-        _a->skip_eextend    = _skip_eextend;             \
-        _a->is_binary       = _is_binary;                \
-        _a->fd              = _fd;                       \
-        _a->addr            = _addr;                     \
-        _a->size            = _size;                     \
-        _a->prot            = _prot;                     \
-        _a->type            = _type;                     \
+        _a->desc            = (_desc);                   \
+        _a->skip_eextend    = (_skip_eextend);           \
+        _a->is_binary       = (_is_binary);              \
+        _a->fd              = (_fd);                     \
+        _a->addr            = (_addr);                   \
+        _a->size            = (_size);                   \
+        _a->prot            = (_prot);                   \
+        _a->type            = (_type);                   \
         _a;                                              \
     })
 

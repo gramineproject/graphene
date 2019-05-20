@@ -464,7 +464,7 @@ DkEventSet (PAL_HANDLE eventHandle);
 void
 DkEventClear (PAL_HANDLE eventHandle);
 
-#define NO_TIMEOUT      ((PAL_NUM) -1)
+#define NO_TIMEOUT ((PAL_NUM)-1)
 
 /* assuming timeout to be in microseconds
  * NO_TIMEOUT means no timeout, as the name implies.

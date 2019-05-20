@@ -5,7 +5,7 @@
 #include "pal_debug.h"
 #include "api.h"
 
-#define UNIT pal_control.alloc_align
+#define UNIT (pal_control.alloc_align)
 
 static volatile int count = 0;
 

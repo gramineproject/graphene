@@ -13,7 +13,7 @@
 #include <asm/prctl.h>
 
 // 64kB stack
-#define FIBER_STACK 1024 * 64
+#define FIBER_STACK (1024 * 64)
 
 __thread int mypid = 0;
 

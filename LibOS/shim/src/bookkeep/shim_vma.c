@@ -880,7 +880,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
      * If MAP_32BIT is given in the flags, force the searching range to
      * be lower than 1ULL << 32.
      */
-#define ADDR_32BIT ((void *) (1ULL << 32))
+#define ADDR_32BIT ((void*)(1ULL << 32))
 
     if (flags & MAP_32BIT) {
         /* Try the lower 4GB memory space */

@@ -416,10 +416,10 @@ static void cpuid (unsigned int leaf, unsigned int subleaf,
 #define POWER2(power) \
    (1ULL << (power))
 #define RIGHTMASK(width) \
-   (((unsigned long) (width) >= BPI) ? ~0ULL : POWER2(width)-1ULL)
+   (((unsigned long)(width) >= BPI) ? ~0ULL : POWER2(width) - 1ULL)
 
 #define BIT_EXTRACT_LE(value, start, after) \
-   (((unsigned long) (value) & RIGHTMASK(after)) >> start)
+   (((unsigned long)(value) & RIGHTMASK(after)) >> start)
 
 static char * cpu_flags[]
       = { "fpu",    // "x87 FPU on chip"

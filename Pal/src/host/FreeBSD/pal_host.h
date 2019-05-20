@@ -50,7 +50,7 @@ typedef struct mutex_handle {
 
 #define _DkInternalLock _DkMutexLock
 #define _DkInternalUnlock _DkMutexUnlock
-#define MAX_FDS         (3)
+#define MAX_FDS 3
 typedef union pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE
@@ -176,7 +176,7 @@ typedef union pal_handle
 #define WFD(n)          (00010 << (n))
 #define WRITEABLE(n)    (00100 << (n))
 #define ERROR(n)        (01000 << (n))
-#define HAS_FDS         (00077)
+#define HAS_FDS         00077
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 struct arch_frame {

@@ -186,7 +186,7 @@ enum {
                                                                     \
             store->bound = new_bound;                               \
         }                                                           \
-        store->offset += size;                                      \
+        store->offset += (size);                                    \
     _off;  })
 
 #define ADD_CP_ENTRY(type, value)                                   \
@@ -313,13 +313,13 @@ enum {
 #define DO_CP_SIZE(name, obj, size, objp)                       \
     do {                                                        \
         extern DEFINE_CP_FUNC(name);                            \
-        int ret = cp_##name(store, obj, size, (void **) objp);  \
+        int ret = cp_##name(store, obj, size, (void**)(objp));  \
         if (ret < 0) return ret;                                \
     } while (0)
 
 
 #define DO_CP(name, obj, objp)                                  \
-        DO_CP_SIZE(name, obj, sizeof(*obj), objp)
+        DO_CP_SIZE(name, obj, sizeof(*(obj)), objp)
 
 #define DO_CP_MEMBER(name, obj, newobj, member)                 \
         DO_CP(name, (obj)->member, &((newobj)->member));
@@ -338,14 +338,14 @@ get_cp_map_entry (void * map, void * addr, bool create);
 #define GET_FROM_CP_MAP(obj)                                    \
     ({                                                          \
         struct shim_cp_map_entry * e =                          \
-                get_cp_map_entry(store->cp_map, (obj), false);  \
+                get_cp_map_entry(store->cp_map, obj, false);    \
     e ? e->off : 0; })
 
 #define ADD_TO_CP_MAP(obj, off)                                 \
     do {                                                        \
         struct shim_cp_map_entry * e =                          \
-                get_cp_map_entry(store->cp_map, (obj), true);   \
-        e->off = off;                                           \
+                get_cp_map_entry(store->cp_map, obj, true);     \
+        e->off = (off);                                         \
     } while (0)
 
 #define BEGIN_MIGRATION_DEF(name, ...)                                  \
@@ -362,7 +362,7 @@ get_cp_map_entry (void * map, void * addr, bool create);
 #define DEFINE_MIGRATE(name, obj, size)                                 \
     do {                                                                \
         extern DEFINE_CP_FUNC(name);                                    \
-        if ((ret = cp_##name(store, (obj), (size), NULL)) < 0)          \
+        if ((ret = cp_##name(store, obj, size, NULL)) < 0)              \
             return ret;                                                 \
     } while (0)
 
@@ -390,7 +390,7 @@ get_cp_map_entry (void * map, void * addr, bool create);
             }                                                               \
             SAVE_PROFILE_INTERVAL(checkpoint_create_map);                   \
                                                                             \
-            ret = migrate_##name((store), ##__VA_ARGS__);                   \
+            ret = migrate_##name(store, ##__VA_ARGS__);                     \
             if (ret < 0)                                                    \
                 goto out;                                                   \
                                                                             \

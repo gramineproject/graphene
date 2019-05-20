@@ -28,7 +28,7 @@ struct sprintbuf {
 	int cnt;
 };
 
-#define sys_cputs(fd, bf, cnt) INLINE_SYSCALL(write, 3, (fd), (bf), (cnt))
+#define sys_cputs(fd, bf, cnt) INLINE_SYSCALL(write, 3, fd, bf, cnt)
 
 static int
 fputch(int fd, int ch, struct printbuf *b)

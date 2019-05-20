@@ -97,7 +97,7 @@ struct shim_file_handle {
 };
 
 #define FILE_HANDLE_DATA(hdl)   ((hdl)->info.file.data)
-#define FILE_DENTRY_DATA(dent)  ((struct shim_file_data *) (dent)->data)
+#define FILE_DENTRY_DATA(dent)  ((struct shim_file_data*)(dent)->data)
 
 struct shim_dev_ops {
     /* open: provide a filename relative to the mount point and flags,
@@ -398,7 +398,7 @@ struct shim_handle_map {
 };
 
 /* allocating file descriptors */
-#define FD_NULL ((FDTYPE) -1)
+#define FD_NULL ((FDTYPE)-1)
 #define HANDLE_ALLOCATED(fd_handle) ((fd_handle) && (fd_handle)->vfd != FD_NULL)
 
 struct shim_handle * __get_fd_handle (FDTYPE fd, int * flags,

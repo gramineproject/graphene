@@ -207,7 +207,7 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
 }
 
 #define ADDR_IN_PAL(addr) \
-        ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
+        ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
 /* This function walks the stack to find the PAL_FRAME
  * that was saved upon entry to the PAL, if an exception/interrupt

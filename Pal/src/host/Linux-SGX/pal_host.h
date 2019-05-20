@@ -43,7 +43,7 @@ int _DkSpinUnlock (struct spinlock * lock);
 #define LOCK_INIT   { .value =  { 0 } }
 #define _DkInternalLock _DkSpinLock
 #define _DkInternalUnlock _DkSpinUnlock
-#define MAX_FDS           (3)
+#define MAX_FDS 3
 
 void * malloc_untrusted (int size);
 void free_untrusted (void * mem);
@@ -183,7 +183,7 @@ typedef struct pal_handle
 #define WFD(n)          (00010 << (n))
 #define WRITEABLE(n)    (00100 << (n))
 #define ERROR(n)        (01000 << (n))
-#define HAS_FDS         (00077)
+#define HAS_FDS         00077
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 
@@ -233,7 +233,7 @@ struct arch_frame {
 # error "unsupported architecture"
 #endif
 
-#define PAL_FRAME_IDENTIFIER    (0xdeaddeadbeefbeef)
+#define PAL_FRAME_IDENTIFIER 0xdeaddeadbeefbeef
 
 struct pal_frame {
     volatile uint64_t           identifier;

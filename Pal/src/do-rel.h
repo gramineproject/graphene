@@ -30,7 +30,7 @@
 #include "dl-machine-x86_64.h"
 
 #define elf_dynamic_do_rel          elf_dynamic_do_rela
-#define RELCOUNT_IDX                VERSYMIDX (DT_RELACOUNT)
+#define RELCOUNT_IDX                VERSYMIDX(DT_RELACOUNT)
 #define Rel                         Rela
 #define elf_machine_rel             elf_machine_rela
 #define elf_machine_rel_relative    elf_machine_rela_relative

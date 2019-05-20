@@ -107,8 +107,8 @@ void *calloc(size_t nmemb, size_t size);
 
 /* copy static string and return the address of the null end (null if the dest
  * is not large enough).*/
-#define strcpy_static(var, str, max) \
-    (static_strlen(force_static(str)) + 1 > max ? NULL : \
+#define strcpy_static(var, str, max)                                          \
+    (static_strlen(force_static(str)) + 1 > (max) ? NULL :                    \
      memcpy((var), force_static(str), static_strlen(force_static(str)) + 1) + \
      static_strlen(force_static(str)))
 

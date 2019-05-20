@@ -73,7 +73,7 @@ _DkGenericSignalHandle (int event_num, PAL_NUM arg, struct pal_frame * frame,
 }
 
 #define ADDR_IN_PAL(addr)  \
-        ((void *) (addr) > TEXT_START && (void *) (addr) < TEXT_END)
+        ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
 static struct pal_frame * get_frame (sgx_context_t * uc)
 {

@@ -12,7 +12,7 @@
 #include <stdio.h>
 
 #define SLEEP_TIME      10
-#define FIBER_STACK     1024 * 64
+#define FIBER_STACK     (1024 * 64)
 
 int proc;
 

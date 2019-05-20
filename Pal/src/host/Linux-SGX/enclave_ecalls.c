@@ -8,7 +8,7 @@
 
 #include "ecall_types.h"
 
-#define SGX_CAST(type, item) ((type) (item))
+#define SGX_CAST(type, item) ((type)(item))
 
 void pal_linux_main(char * uptr_args, uint64_t args_size,
                     char * uptr_env, uint64_t env_size,

@@ -104,7 +104,7 @@ struct poll_handle {
     struct poll_handle * children;
 } __attribute__((packed));
 
-#define POLL_NOTIMEOUT  ((unsigned long) -1)
+#define POLL_NOTIMEOUT  ((unsigned long)-1)
 
 static int __do_poll (int npolls, struct poll_handle * polls,
                       unsigned long timeout)
@@ -483,7 +483,7 @@ out:
 typedef long int __fd_mask;
 
 #ifndef __NFDBITS
-#define __NFDBITS    (8 * (int) sizeof (__fd_mask))
+#define __NFDBITS    (8 * (int)sizeof(__fd_mask))
 #endif
 #ifndef __FDS_BITS
 #define __FDS_BITS(set) ((set)->fds_bits)
@@ -500,14 +500,14 @@ typedef long int __fd_mask;
     } while (0)
 
 #define __FD_ELT(d)     ((d) / __NFDBITS)
-#define __FD_MASK(d)    ((__fd_mask) 1 << ((d) % __NFDBITS))
+#define __FD_MASK(d)    ((__fd_mask)1 << ((d) % __NFDBITS))
 
 #define __FD_SET(d, set)                                    \
-  ((void) (__FDS_BITS (set)[__FD_ELT (d)] |= __FD_MASK (d)))
+  ((void)(__FDS_BITS(set)[__FD_ELT(d)] |= __FD_MASK(d)))
 #define __FD_CLR(d, set)                                    \
-  ((void) (__FDS_BITS (set)[__FD_ELT (d)] &= ~__FD_MASK (d)))
+  ((void)(__FDS_BITS(set)[__FD_ELT(d)] &= ~__FD_MASK(d)))
 #define __FD_ISSET(d, set)                                  \
-  ((__FDS_BITS (set)[__FD_ELT (d)] & __FD_MASK (d)) != 0)
+  ((__FDS_BITS(set)[__FD_ELT(d)] & __FD_MASK(d)) != 0)
 
 DEFINE_PROFILE_CATAGORY(select, );
 DEFINE_PROFILE_INTERVAL(select_tryalloca_1, select);

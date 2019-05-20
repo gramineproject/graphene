@@ -58,7 +58,7 @@ enum {
     OCALL_NR,
 };
 
-#define OCALL_NO_TIMEOUT   ((uint64_t) -1)
+#define OCALL_NO_TIMEOUT   ((uint64_t)-1)
 
 typedef struct {
     const char * ms_str;
