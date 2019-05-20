@@ -39,7 +39,7 @@
 
 #include <linux/fcntl.h>
 
-void __attribute__ ((noreturn))
+noreturn void
 fortify_fail (const char *msg)
 {
     /* The loop is added only to keep gcc happy.  */
@@ -47,7 +47,7 @@ fortify_fail (const char *msg)
         debug("*** %s ***\n", msg);
 }
 
-void __attribute__ ((noreturn))
+noreturn void
 chk_fail (void)
 {
     fortify_fail ("buffer overflow detected");

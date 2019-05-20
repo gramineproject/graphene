@@ -196,7 +196,7 @@ int shim_do_exit_group (int error_code)
     return 0;
 }
 
-__attribute__((noreturn)) int shim_do_exit (int error_code)
+noreturn int shim_do_exit (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();

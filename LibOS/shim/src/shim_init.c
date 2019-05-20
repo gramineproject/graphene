@@ -57,7 +57,7 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
     shim_get_tls()->pal_errno = (arg <= PAL_ERROR_BOUND) ? arg : 0;
 }
 
-void __abort(void) {
+noreturn void __abort(void) {
     pause();
     shim_terminate(-ENOTRECOVERABLE);
 }
@@ -676,7 +676,7 @@ DEFINE_PROFILE_INTERVAL(init_signal,                init);
 
 extern PAL_HANDLE thread_start_event;
 
-__attribute__((noreturn)) void* shim_init (int argc, void * args)
+noreturn void* shim_init (int argc, void * args)
 {
     debug_handle = PAL_CB(debug_stream);
     cur_process.vmid = (IDTYPE) PAL_CB(process_id);
@@ -1119,7 +1119,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
 
 static struct atomic_int in_terminate = { .counter = 0, };
 
-int shim_terminate (int err)
+noreturn void shim_terminate (int err)
 {
     debug("teminating the whole process (%d)\n", err);
 
@@ -1127,7 +1127,7 @@ int shim_terminate (int err)
     shim_clean(err);
 
     DkProcessExit(err);
-    return 0;
+    /* NOTREACHED */
 }
 
 /* cleanup and terminate process, preserve exit code if err == 0 */

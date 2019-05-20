@@ -78,7 +78,7 @@ struct execve_rtld_arg
     elf_auxv_t *  new_auxp;
 };
 
-static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
+noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
 {
     struct execve_rtld_arg arg;
     memcpy(&arg, __arg, sizeof(arg));
@@ -173,8 +173,7 @@ retry_dump_vmas:
     debug("execve: start execution\n");
     execute_elf_object(cur_thread->exec, new_argcp, new_argp,
                        REQUIRED_ELF_AUXV, new_auxp);
-
-    return;
+    /* NOTREACHED */
 
 error:
     debug("execve: failed %d\n", ret);

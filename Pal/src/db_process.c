@@ -61,11 +61,13 @@ DkProcessCreate (PAL_STR uri, PAL_STR * args)
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-void DkProcessExit (PAL_NUM exitcode)
+noreturn void DkProcessExit (PAL_NUM exitcode)
 {
     ENTER_PAL_CALL(DkProcessExit);
     _DkProcessExit(exitcode);
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
+    while (true)
+        __asm__ __volatile__ ("");
     LEAVE_PAL_CALL();
 }
 
