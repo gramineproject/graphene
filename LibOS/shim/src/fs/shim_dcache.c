@@ -138,7 +138,7 @@ void put_dentry (struct shim_dentry * dent) {
         debug("XXX Churn Warning: Freeing dentry %p; may not be expected\n", dent);
         // Add some assertions that the dentry is properly cleaned up, like it
         // isn't on a parent's children list
-        assert(list_empty(dent, siblings));
+        assert(LIST_EMPTY(dent, siblings));
         free_dentry(dent);
     }
 
@@ -195,7 +195,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
         // Increment both dentries' ref counts once they are linked
         get_dentry(parent);
         get_dentry(dent);
-        listp_add_tail(dent, &parent->children, siblings);
+        LISTP_ADD_TAIL(dent, &parent->children, siblings);
         dent->parent = parent;
         parent->nchildren++;
 
@@ -255,7 +255,7 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
         goto out;
     }
 
-    listp_for_each_entry(dent, &start->children, siblings) {
+    LISTP_FOR_EACH_ENTRY(dent, &start->children, siblings) {
         /* DEP 6/20/XX: The old code skipped mountpoints; I don't see any good
          * reason for mount point lookup to fail, at least in this code.
          * Keeping a note just in case.  That is why you always leave a note.
@@ -305,12 +305,12 @@ out:
 int __del_dentry_tree(struct shim_dentry * root) {
     struct shim_dentry *cursor, *n;
 
-    listp_for_each_entry_safe(cursor, n, &root->children, siblings) {
+    LISTP_FOR_EACH_ENTRY_SAFE(cursor, n, &root->children, siblings) {
         // Recur if this is a non-empty directory
-        if (!listp_empty(&cursor->children))
+        if (!LISTP_EMPTY(&cursor->children))
             __del_dentry_tree(cursor);
 
-        listp_del_init(cursor, &root->children, siblings);
+        LISTP_DEL_INIT(cursor, &root->children, siblings);
         cursor->parent = NULL;
         root->nchildren--;
         // Clear the hashed flag, in case there is any vestigial code based
@@ -389,7 +389,7 @@ BEGIN_RS_FUNC(dentry)
     if (dent->parent) {
         get_dentry(dent->parent);
         get_dentry(dent);
-        listp_add_tail(dent, &dent->parent->children, siblings);
+        LISTP_ADD_TAIL(dent, &dent->parent->children, siblings);
     }
 
     DEBUG_RS("hash=%08lx,path=%s,fs=%s", dent->rel_path.hash,

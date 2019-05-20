@@ -327,7 +327,7 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
 
     lock(&mount_list_lock);
     get_mount(mount);
-    listp_add_tail(mount, &mount_list, list);
+    LISTP_ADD_TAIL(mount, &mount_list, list);
     unlock(&mount_list_lock);
 
     do {
@@ -513,7 +513,7 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
 
     lock(&mount_list_lock);
 
-    listp_for_each_entry_safe(mount, n, &mount_list, list) {
+    LISTP_FOR_EACH_ENTRY_SAFE(mount, n, &mount_list, list) {
         if ((ret = (*walk) (mount, arg)) < 0)
             break;
 
@@ -531,7 +531,7 @@ struct shim_mount * find_mount_from_uri (const char * uri)
     int longest_path = 0;
 
     lock(&mount_list_lock);
-    listp_for_each_entry(mount, &mount_list, list) {
+    LISTP_FOR_EACH_ENTRY(mount, &mount_list, list) {
         if (qstrempty(&mount->uri))
             continue;
 
@@ -630,7 +630,7 @@ BEGIN_RS_FUNC(mount)
     mount->fs_ops = fs->fs_ops;
     mount->d_ops = fs->d_ops;
 
-    listp_add_tail(mount, &mount_list, list);
+    LISTP_ADD_TAIL(mount, &mount_list, list);
 
     if (!qstrempty(&mount->path)) {
         DEBUG_RS("type=%s,uri=%s,path=%s", mount->type, qstrgetstr(&mount->uri),
@@ -645,7 +645,7 @@ BEGIN_CP_FUNC(all_mounts)
 {
     struct shim_mount * mount;
     lock(&mount_list_lock);
-    listp_for_each_entry(mount, &mount_list, list)
+    LISTP_FOR_EACH_ENTRY(mount, &mount_list, list)
         DO_CP(mount, mount, NULL);
     unlock(&mount_list_lock);
 

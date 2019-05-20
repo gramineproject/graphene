@@ -69,7 +69,7 @@ block_pid:
             return 0;
         }
 
-        if (!list_empty(thread, siblings)) {
+        if (!LIST_EMPTY(thread, siblings)) {
             debug("reaping thread %p\n", thread);
             struct shim_thread * parent = thread->parent;
             assert(parent);
@@ -77,7 +77,7 @@ block_pid:
             lock(&parent->lock);
             /* DEP 5/15/17: These threads are exited */
             assert(!thread->is_alive);
-            listp_del_init(thread, &thread->parent->exited_children, siblings);
+            LISTP_DEL_INIT(thread, &thread->parent->exited_children, siblings);
             unlock(&parent->lock);
 
             put_thread(parent);
@@ -91,8 +91,8 @@ block_pid:
 
     lock(&cur->lock);
 
-    if (listp_empty(&cur->children) &&
-        listp_empty(&cur->exited_children)) {
+    if (LISTP_EMPTY(&cur->children) &&
+        LISTP_EMPTY(&cur->exited_children)) {
         unlock(&cur->lock);
         return -ECHILD;
     }
@@ -100,7 +100,7 @@ block_pid:
     if (!(option & WNOHANG)) {
 block:
         if (cur->child_exit_event)
-            while (listp_empty(&cur->exited_children)) {
+            while (LISTP_EMPTY(&cur->exited_children)) {
                 unlock(&cur->lock);
                 object_wait_with_retry(cur->child_exit_event);
                 lock(&cur->lock);
@@ -111,15 +111,15 @@ block:
         if (pid == 0)
             pid = -cur->pgid;
 
-        listp_for_each_entry(thread, &cur->exited_children, siblings)
+        LISTP_FOR_EACH_ENTRY(thread, &cur->exited_children, siblings)
             if (thread->pgid == -pid)
                 goto found_child;
 
         if (!(option & WNOHANG))
             goto block;
     } else {
-        if (!listp_empty(&cur->exited_children)) {
-            thread = listp_first_entry(&cur->exited_children,
+        if (!LISTP_EMPTY(&cur->exited_children)) {
+            thread = LISTP_FIRST_ENTRY(&cur->exited_children,
                                        struct shim_thread, siblings);
             goto found_child;
         }
@@ -129,11 +129,11 @@ block:
     return 0;
 
 found_child:
-    listp_del_init(thread, &cur->exited_children, siblings);
+    LISTP_DEL_INIT(thread, &cur->exited_children, siblings);
     put_thread(cur);
     thread->parent = NULL;
 
-    if (listp_empty(&cur->exited_children))
+    if (LISTP_EMPTY(&cur->exited_children))
         DkEventClear(cur->child_exit_event);
 
     unlock(&cur->lock);

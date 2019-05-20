@@ -70,7 +70,7 @@ void dump_threads (void)
     struct shim_thread * tmp;
 
     lock(&thread_list_lock);
-    listp_for_each_entry(tmp, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
         debug("thread %d, vmid = %d, pgid = %d, ppid = %d, tgid = %d, in_vm = %d\n",
                 tmp->tid, tmp->vmid, tmp->pgid, tmp->ppid, tmp->tgid, tmp->in_vm);
     }
@@ -81,7 +81,7 @@ struct shim_thread * __lookup_thread (IDTYPE tid)
 {
     struct shim_thread * tmp;
 
-    listp_for_each_entry(tmp, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
         if (tmp->tid == tid) {
             get_thread(tmp);
             return tmp;
@@ -265,7 +265,7 @@ struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid)
 {
     struct shim_simple_thread * tmp;
 
-    listp_for_each_entry(tmp, &simple_thread_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &simple_thread_list, list) {
         if (tmp->tid == tid) {
             get_simple_thread(tmp);
             return tmp;
@@ -357,7 +357,7 @@ void put_simple_thread (struct shim_simple_thread * thread)
 
     if (!ref_count) {
         /* Simple threads always live on the simple thread list */
-        listp_del(thread, &simple_thread_list, list);
+        LISTP_DEL(thread, &simple_thread_list, list);
         if (thread->exit_event)
             DkObjectClose(thread->exit_event);
         destroy_lock(&thread->lock);
@@ -379,7 +379,7 @@ void set_as_child (struct shim_thread * parent,
     child->parent = parent;
 
     lock(&parent->lock);
-    listp_add_tail(child, &parent->children, siblings);
+    LISTP_ADD_TAIL(child, &parent->children, siblings);
     unlock(&parent->lock);
 
     unlock(&child->lock);
@@ -387,14 +387,14 @@ void set_as_child (struct shim_thread * parent,
 
 void add_thread (struct shim_thread * thread)
 {
-    if (is_internal(thread) || !list_empty(thread, list))
+    if (is_internal(thread) || !LIST_EMPTY(thread, list))
         return;
 
     struct shim_thread * tmp, * prev = NULL;
     lock(&thread_list_lock);
 
     /* keep it sorted */
-    listp_for_each_entry_reverse(tmp, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY_REVERSE(tmp, &thread_list, list) {
         if (tmp->tid == thread->tid) {
             unlock(&thread_list_lock);
             return;
@@ -406,7 +406,7 @@ void add_thread (struct shim_thread * thread)
     }
 
     get_thread(thread);
-    listp_add_after(thread, prev, &thread_list, list);
+    LISTP_ADD_AFTER(thread, prev, &thread_list, list);
     unlock(&thread_list_lock);
 }
 
@@ -415,28 +415,28 @@ void del_thread (struct shim_thread * thread)
     debug("del_thread(%p, %d, %ld)\n", thread, thread ? thread->tid : -1,
           atomic_read(&thread->ref_count));
 
-    if (is_internal(thread) || list_empty(thread, list)) {
+    if (is_internal(thread) || LIST_EMPTY(thread, list)) {
         debug("del_thread: internal\n");
         return;
     }
 
     lock(&thread_list_lock);
     /* thread->list goes on the thread_list */
-    listp_del_init(thread, &thread_list, list);
+    LISTP_DEL_INIT(thread, &thread_list, list);
     unlock(&thread_list_lock);
     put_thread(thread);
 }
 
 void add_simple_thread (struct shim_simple_thread * thread)
 {
-    if (!list_empty(thread, list))
+    if (!LIST_EMPTY(thread, list))
         return;
 
     struct shim_simple_thread * tmp, * prev = NULL;
     lock(&thread_list_lock);
 
     /* keep it sorted */
-    listp_for_each_entry_reverse(tmp, &simple_thread_list, list) {
+    LISTP_FOR_EACH_ENTRY_REVERSE(tmp, &simple_thread_list, list) {
         if (tmp->tid == thread->tid) {
             unlock(&thread_list_lock);
             return;
@@ -448,17 +448,17 @@ void add_simple_thread (struct shim_simple_thread * thread)
     }
 
     get_simple_thread(thread);
-    listp_add_after(thread, prev, &simple_thread_list, list);
+    LISTP_ADD_AFTER(thread, prev, &simple_thread_list, list);
     unlock(&thread_list_lock);
 }
 
 void del_simple_thread (struct shim_simple_thread * thread)
 {
-    if (list_empty(thread, list))
+    if (LIST_EMPTY(thread, list))
         return;
 
     lock(&thread_list_lock);
-    listp_del_init(thread, &simple_thread_list, list);
+    LISTP_DEL_INIT(thread, &simple_thread_list, list);
     unlock(&thread_list_lock);
     put_simple_thread(thread);
 }
@@ -471,7 +471,7 @@ int check_last_thread (struct shim_thread * self)
     /* find out if there is any thread that is
        1) no current thread 2) in current vm
        3) still alive */
-    listp_for_each_entry(tmp, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
         if (tmp->tid &&
             (!self || tmp->tid != self->tid) && tmp->in_vm && tmp->is_alive) {
             debug("check_last_thread: thread %d is alive\n", tmp->tid);
@@ -498,7 +498,7 @@ relock:
 
     debug("walk_thread_list(callback=%p)\n", callback);
 
-    listp_for_each_entry_safe(tmp, n, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &thread_list, list) {
         if (tmp->tid <= min_tid)
             continue;
 
@@ -537,7 +537,7 @@ int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
 relock:
     lock(&thread_list_lock);
 
-    listp_for_each_entry_safe(tmp, n, &simple_thread_list, list) {
+    LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &simple_thread_list, list) {
         if (tmp->tid <= min_tid)
             continue;
         bool unlocked = false;
@@ -776,7 +776,7 @@ BEGIN_CP_FUNC(all_running_threads)
     struct shim_thread * thread;
     lock(&thread_list_lock);
 
-    listp_for_each_entry(thread, &thread_list, list) {
+    LISTP_FOR_EACH_ENTRY(thread, &thread_list, list) {
         if (!thread->in_vm || !thread->is_alive)
             continue;
 

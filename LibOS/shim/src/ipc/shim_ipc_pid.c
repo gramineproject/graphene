@@ -330,7 +330,7 @@ int get_all_pid_status (struct pid_status ** status)
     lock(&range_map_lock);
 
 retry:
-    listp_for_each_entry (r, list, list) {
+    LISTP_FOR_EACH_ENTRY(r, list, list) {
         struct subrange * s = NULL;
         struct shim_ipc_info * p;
         int off, idx;
@@ -377,12 +377,12 @@ next_sub:
                 add_ipc_port_by_id(owner, pal_handle, type, NULL, &port);
 
             lock(&range_map_lock);
-            listp_for_each_entry(r, list, list)
+            LISTP_FOR_EACH_ENTRY(r, list, list)
                 if (r->offset >= off)
                     break;
             /* DEP 5/15/17: I believe this is checking if the list is empty */
             //if (&r->list == list)
-            if (listp_empty(list))
+            if (LISTP_EMPTY(list))
                 break;
             if (r->offset > off)
                 goto next_range;
@@ -756,9 +756,9 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
     create_lock_runtime(&rpc_queue_lock);
     lock(&rpc_queue_lock);
 
-    if (!listp_empty(&rpc_msgs)) {
-        struct rpcmsg * m = listp_first_entry(&rpc_msgs, struct rpcmsg, list);
-        listp_del(m, &rpc_msgs, list);
+    if (!LISTP_EMPTY(&rpc_msgs)) {
+        struct rpcmsg * m = LISTP_FIRST_ENTRY(&rpc_msgs, struct rpcmsg, list);
+        LISTP_DEL(m, &rpc_msgs, list);
         if (m->len < len)
             len = m->len;
         if (sender)
@@ -779,7 +779,7 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
     r->len = len;
     r->buffer = buf;
     thread_setwait(&r->thread, NULL);
-    listp_add_tail(r, &rpc_reqs, list);
+    LISTP_ADD_TAIL(r, &rpc_reqs, list);
     unlock(&rpc_queue_lock);
     thread_sleep(NO_TIMEOUT);
     put_thread(r->thread);
@@ -801,9 +801,9 @@ int ipc_pid_sendrpc_callback (IPC_CALLBACK_ARGS)
     create_lock_runtime(&rpc_queue_lock);
     lock(&rpc_queue_lock);
 
-    if (!listp_empty(&rpc_reqs)) {
-        struct rpcreq * r = listp_first_entry(&rpc_reqs, struct rpcreq, list);
-        listp_del(r, &rpc_reqs, list);
+    if (!LISTP_EMPTY(&rpc_reqs)) {
+        struct rpcreq * r = LISTP_FIRST_ENTRY(&rpc_reqs, struct rpcreq, list);
+        LISTP_DEL(r, &rpc_reqs, list);
         if (msgin->len < r->len)
             r->len = msgin->len;
         r->sender = msgin->sender;
@@ -822,7 +822,7 @@ int ipc_pid_sendrpc_callback (IPC_CALLBACK_ARGS)
     m->sender = msgin->sender;
     m->len = msgin->len;
     memcpy(m->payload, msgin->payload, msgin->len);
-    listp_add_tail(m, &rpc_msgs, list);
+    LISTP_ADD_TAIL(m, &rpc_msgs, list);
 out:
     unlock(&rpc_queue_lock);
     SAVE_PROFILE_INTERVAL(ipc_pid_sendrpc_callback);

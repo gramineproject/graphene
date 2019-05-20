@@ -391,7 +391,7 @@ err:
                     }
                     if (*c == ' ' || *c == '\n') {
                         INIT_LIST_HEAD(next, list);
-                        listp_add_tail(next, &new_shargs, list);
+                        LISTP_ADD_TAIL(next, &new_shargs, list);
                         next = NULL;
                         s = c + 1;
                         if (*c == '\n') {
@@ -406,15 +406,15 @@ err:
         if (started) {
             if (next) {
                 INIT_LIST_HEAD(next, list);
-                listp_add_tail(next, &new_shargs, list);
+                LISTP_ADD_TAIL(next, &new_shargs, list);
             }
 
             struct sharg * first =
-                listp_first_entry(&new_shargs, struct sharg, list);
+                LISTP_FIRST_ENTRY(&new_shargs, struct sharg, list);
             assert(first);
             debug("detected as script: run by %s\n", first->arg);
             file = first->arg;
-            listp_splice(&new_shargs, &shargs, list, sharg);
+            LISTP_SPLICE(&new_shargs, &shargs, list, sharg);
             put_handle(exec);
             goto reopen;
         }
@@ -435,16 +435,16 @@ err:
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
-    if (!listp_empty(&shargs)) {
+    if (!LISTP_EMPTY(&shargs)) {
         struct sharg * sh;
         int shargc = 0, cnt = 0;
-        listp_for_each_entry(sh, &shargs, list)
+        LISTP_FOR_EACH_ENTRY(sh, &shargs, list)
             shargc++;
 
         const char ** new_argv =
                 __alloca(sizeof(const char *) * (argc + shargc + 1));
 
-        listp_for_each_entry(sh, &shargs, list)
+        LISTP_FOR_EACH_ENTRY(sh, &shargs, list)
             new_argv[cnt++] = sh->arg;
 
         for (cnt = 0 ; cnt < argc ; cnt++)

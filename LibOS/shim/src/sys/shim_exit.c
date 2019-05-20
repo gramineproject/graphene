@@ -83,8 +83,8 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
         debug("thread exits, notifying thread %d\n", parent->tid);
 
         lock(&parent->lock);
-        listp_del_init(self, &parent->children, siblings);
-        listp_add_tail(self, &parent->exited_children, siblings);
+        LISTP_DEL_INIT(self, &parent->children, siblings);
+        LISTP_ADD_TAIL(self, &parent->exited_children, siblings);
 
         if (!self->in_vm) {
             debug("deliver SIGCHLD (thread = %d, exitval = %d)\n",

@@ -781,7 +781,7 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
         return -ENOMEM;
 
     lock(&dcache_lock);
-    listp_for_each_entry(child, &dent->children, siblings) {
+    LISTP_FOR_EACH_ENTRY(child, &dent->children, siblings) {
         if (count >= nchildren)
             break;
 

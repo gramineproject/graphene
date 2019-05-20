@@ -265,7 +265,7 @@ static inline SLAB_MGR create_slab_mgr (void)
 
         INIT_LIST_HEAD(area, __list);
         INIT_LISTP(&mgr->area_list[i]);
-        listp_add_tail(area, &mgr->area_list[i], __list);
+        LISTP_ADD_TAIL(area, &mgr->area_list[i], __list);
 
         INIT_LISTP(&mgr->free_list[i]);
         mgr->size[i] = 0;
@@ -285,7 +285,7 @@ static inline void destroy_slab_mgr (SLAB_MGR mgr)
     for (i = 0 ; i < SLAB_LEVEL; i++) {
         area = (SLAB_AREA) addr;
 
-        listp_for_each_entry_safe(tmp, n, &mgr->area_list[i], __list) {
+        LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &mgr->area_list[i], __list) {
             if (tmp != area)
                 system_free(area,
                             __MAX_MEM_SIZE(slab_levels[i], area->size));
@@ -310,7 +310,7 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
     SLAB_AREA area;
 
     /* If there is a previously allocated area, just activate it. */
-    area = listp_prev_entry(mgr->active_area[level], &mgr->area_list[level], __list);
+    area = LISTP_PREV_ENTRY(mgr->active_area[level], &mgr->area_list[level], __list);
     if (area) {
         __set_free_slab_area(area, mgr, level);
         return 0;
@@ -340,7 +340,7 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
     /* There can be concurrent operations to extend the SLAB manager. In case
      * someone has already enlarged the space, we just add the new area to the
      * list for later use. */
-    listp_add(area, &mgr->area_list[level], __list);
+    LISTP_ADD(area, &mgr->area_list[level], __list);
     if (mgr->size[level] == size) /* check if the size has changed */
         __set_free_slab_area(area, mgr, level);
 
@@ -374,7 +374,7 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
     SYSTEM_LOCK();
     assert(mgr->addr[level] <= mgr->addr_top[level]);
     if (mgr->addr[level] == mgr->addr_top[level] &&
-          listp_empty(&mgr->free_list[level])) {
+          LISTP_EMPTY(&mgr->free_list[level])) {
         int ret = enlarge_slab_mgr(mgr, level);
         if (ret < 0) {
             SYSTEM_UNLOCK();
@@ -382,9 +382,9 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
         }
     }
 
-    if (!listp_empty(&mgr->free_list[level])) {
-        mobj = listp_first_entry(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
-        listp_del(mobj, &mgr->free_list[level], __list);
+    if (!LISTP_EMPTY(&mgr->free_list[level])) {
+        mobj = LISTP_FIRST_ENTRY(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
+        LISTP_DEL(mobj, &mgr->free_list[level], __list);
     } else {
         mobj = (void *) mgr->addr[level];
         mgr->addr[level] += slab_levels[level] + SLAB_HDR_SIZE;
@@ -490,7 +490,7 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
 
     SYSTEM_LOCK();
     INIT_LIST_HEAD(mobj, __list);
-    listp_add_tail(mobj, &mgr->free_list[level], __list);
+    LISTP_ADD_TAIL(mobj, &mgr->free_list[level], __list);
     SYSTEM_UNLOCK();
 }
 

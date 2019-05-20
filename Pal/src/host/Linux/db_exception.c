@@ -236,7 +236,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 
             INIT_LIST_HEAD(ev, list);
             ev->event_num = event_num;
-            listp_add_tail(ev, &tcb->pending_queue, list);
+            LISTP_ADD_TAIL(ev, &tcb->pending_queue, list);
         }
         return;
     }
@@ -271,11 +271,11 @@ void __check_pending_event (void)
         tcb->pending_event = 0;
         _DkGenericSignalHandle(event, NULL, NULL);
 
-        if (!listp_empty(&tcb->pending_queue)) {
+        if (!LISTP_EMPTY(&tcb->pending_queue)) {
             // If there are more than one pending events, process them from the queue
             struct event_queue * ev, * n;
-            listp_for_each_entry_safe(ev, n, &tcb->pending_queue, list) {
-                listp_del(ev, &tcb->pending_queue, list);
+            LISTP_FOR_EACH_ENTRY_SAFE(ev, n, &tcb->pending_queue, list) {
+                LISTP_DEL(ev, &tcb->pending_queue, list);
                 _DkGenericSignalHandle(ev->event_num, NULL, NULL);
                 free(ev);
             }

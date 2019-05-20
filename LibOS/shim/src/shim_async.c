@@ -77,7 +77,7 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
 
     struct async_event * tmp;
 
-    listp_for_each_entry(tmp, &async_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &async_list, list) {
         if (event->expire_time && tmp->expire_time > event->expire_time)
             break;
     }
@@ -90,8 +90,8 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
      * If seconds is zero, any pending alarm is canceled.
      * In any event any previously set alarm() is canceled.
      */
-    if (!listp_empty(&async_list)) {
-        tmp = listp_first_entry(&async_list, struct async_event, list);
+    if (!LISTP_EMPTY(&async_list)) {
+        tmp = LISTP_FIRST_ENTRY(&async_list, struct async_event, list);
         tmp = tmp->list.prev;
 
         rv = tmp->expire_time - install_time;
@@ -100,7 +100,7 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
          * any previously set alarm() is canceled.
          * There should be exactly only one timer pending
          */
-        listp_del(tmp, &async_list, list);
+        LISTP_DEL(tmp, &async_list, list);
         free(tmp);
     } else {
         tmp = NULL;
@@ -110,7 +110,7 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
     if (!time)    // If seconds is zero, any pending alarm is canceled.
         free(event);
     else
-        listp_add_tail(event, &async_list, list);
+        LISTP_ADD_TAIL(event, &async_list, list);
 
     if (async_helper_state == HELPER_NOTALIVE)
         create_async_helper();
@@ -201,7 +201,7 @@ static void shim_async_helper (void * arg)
 
                 lock(&async_helper_lock);
                 /* DEP: Events can only be on the async list */
-                listp_del(next_event, &async_list, list);
+                LISTP_DEL(next_event, &async_list, list);
                 free(next_event);
                 goto update_list;
             }
@@ -224,7 +224,7 @@ update_status:
 
         lock(&async_helper_lock);
 
-        listp_for_each_entry_safe(tmp, n, &async_list, list) {
+        LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
             if (tmp->object == polled) {
                 debug("async event trigger at %lu\n",
                       latest_time);
@@ -239,10 +239,10 @@ update_list:
         next_event = NULL;
         object_num = 0;
 
-        if (!listp_empty(&async_list)) {
+        if (!LISTP_EMPTY(&async_list)) {
             struct async_event * tmp, * n;
 
-            listp_for_each_entry_safe(tmp, n, &async_list, list) {
+            LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &async_list, list) {
                 if (tmp->object) {
                     local_objects[object_num + 1] = tmp->object;
                     object_num++;
@@ -258,7 +258,7 @@ update_list:
 
                 debug("async event trigger at %lu (expire at %lu)\n",
                       latest_time, tmp->expire_time);
-                listp_del(tmp, &async_list, list);
+                LISTP_DEL(tmp, &async_list, list);
                 unlock(&async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
                 free(tmp);

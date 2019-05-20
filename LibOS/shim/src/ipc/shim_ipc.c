@@ -197,7 +197,7 @@ lookup_and_alloc_client (IDTYPE vmid, const char * uri)
     assert(vmid);
 
     lock(&ipc_info_lock);
-    listp_for_each_entry(p, head, hlist)
+    LISTP_FOR_EACH_ENTRY(p, head, hlist)
         if (p->vmid == vmid && !qstrcmpstr(&p->uri, uri, len)) {
             get_ipc_info(p);
             unlock(&ipc_info_lock);
@@ -206,7 +206,7 @@ lookup_and_alloc_client (IDTYPE vmid, const char * uri)
 
     p = __get_new_ipc_info(vmid, uri, len);
     if (p) {
-        listp_add(p, head, hlist);
+        LISTP_ADD(p, head, hlist);
         get_ipc_info(p);
     }
     unlock(&ipc_info_lock);
@@ -220,7 +220,7 @@ void put_client (struct shim_ipc_info * info)
     LISTP_TYPE(shim_ipc_info) *head = client_table + CLIENT_HASH(info->vmid);
     __put_ipc_info(info);
     if (REF_GET(info->ref_count) == 1) {
-        listp_del_init(info, head, hlist);
+        LISTP_DEL_INIT(info, head, hlist);
         __put_ipc_info(info);
     }
     unlock(&ipc_info_lock);
@@ -235,7 +235,7 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
     assert(vmid);
 
     lock(&ipc_info_lock);
-    listp_for_each_entry(p, head, hlist)
+    LISTP_FOR_EACH_ENTRY(p, head, hlist)
         if (p->vmid == vmid && !qstrempty(&p->uri)) {
             __get_ipc_info(p);
             unlock(&ipc_info_lock);
@@ -389,8 +389,8 @@ int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
         // Check if the message is pending on the port for response. If so,
         // remove the message from the list.
         lock(&port->msgs_lock);
-        if (!list_empty(msg, list))
-            listp_del_init(msg, &port->msgs, list);
+        if (!LIST_EMPTY(msg, list))
+            LISTP_DEL_INIT(msg, &port->msgs, list);
         unlock(&port->msgs_lock);
     }
 
@@ -414,7 +414,7 @@ int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
     if (save) {
         lock(&port->msgs_lock);
         msg->private = private_data;
-        listp_add_tail(msg, &port->msgs, list);
+        LISTP_ADD_TAIL(msg, &port->msgs, list);
         unlock(&port->msgs_lock);
     }
 
@@ -434,10 +434,10 @@ struct shim_ipc_msg_obj * find_ipc_msg_duplex (struct shim_ipc_port * port,
 {
     struct shim_ipc_msg_obj * tmp, * found = NULL;
     lock(&port->msgs_lock);
-    listp_for_each_entry(tmp, &port->msgs, list)
+    LISTP_FOR_EACH_ENTRY(tmp, &port->msgs, list)
         if (tmp->msg.seq == seq) {
             found = tmp;
-            listp_del_init(tmp, &port->msgs, list);
+            LISTP_DEL_INIT(tmp, &port->msgs, list);
             break;
         }
     unlock(&port->msgs_lock);

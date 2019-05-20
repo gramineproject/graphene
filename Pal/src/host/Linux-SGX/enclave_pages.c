@@ -43,7 +43,7 @@ void init_pages (void)
         vma->top = pal_sec.exec_addr + pal_sec.exec_size;
         vma->bottom = pal_sec.exec_addr;
         INIT_LIST_HEAD(vma, list);
-        listp_add(vma, &heap_vma_list, list);
+        LISTP_ADD(vma, &heap_vma_list, list);
     }
 }
 
@@ -55,7 +55,7 @@ static void assert_vma_list (void)
     void * last_addr = heap_base + heap_size;
     struct heap_vma * vma;
 
-    listp_for_each_entry(vma, &heap_vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
         SGX_DBG(DBG_M, "[%d] %p - %p\n", pal_sec.pid, vma->bottom, vma->top);
         if (last_addr < vma->top || vma->top <= vma->bottom) {
             SGX_DBG(DBG_E, "*** [%d] corrupted heap vma: %p - %p (last = %p) ***\n", pal_sec.pid, vma->bottom, vma->top, last_addr);
@@ -104,7 +104,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
      */
     if (addr && addr >= heap_base &&
         addr + size <= heap_base + heap_size) {
-        listp_for_each_entry(vma, &heap_vma_list, list) {
+        LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
             if (vma->bottom < addr)
                 break;
             prev = vma;
@@ -119,7 +119,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
 
     void * avail_top = heap_base + heap_size;
 
-    listp_for_each_entry(vma, &heap_vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
         if (avail_top - vma->top > size) {
             addr = avail_top - size;
             goto allocated;
@@ -142,7 +142,7 @@ void * get_reserved_pages(void * addr, uint64_t size)
 allocated:
     if (prev) {
         // If this is the last entry, don't wrap around
-        if (prev->list.next == listp_first_entry(&heap_vma_list, struct heap_vma, list))
+        if (prev->list.next == LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list))
             next = NULL;
         else
             next = prev->list.next;
@@ -154,8 +154,8 @@ allocated:
          * they overlap, until the vmas drop below the requested addr
          * (traversing in decreasing virtual address order)
          */
-        next = listp_empty(&heap_vma_list) ? NULL :
-            listp_first_entry(&heap_vma_list, struct heap_vma, list);
+        next = LISTP_EMPTY(&heap_vma_list) ? NULL :
+            LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list);
     }
 
     if (prev && next)
@@ -175,8 +175,8 @@ allocated:
 
         /* This appears to be doing a reverse search; we should stop before we
          * wrap back to the last entry */
-        if (prev->list.prev != listp_last_entry(&heap_vma_list, struct heap_vma, list))
-            prev_prev = list_entry(prev->list.prev, struct heap_vma, list);
+        if (prev->list.prev != LISTP_LAST_ENTRY(&heap_vma_list, struct heap_vma, list))
+            prev_prev = LIST_ENTRY(prev->list.prev, struct heap_vma, list);
 
         if (!vma) {
             SGX_DBG(DBG_M, "merge %p-%p and %p-%p\n", addr, addr + size,
@@ -190,7 +190,7 @@ allocated:
                     prev->bottom, prev->top);
 
             vma->top = (prev->top > vma->top) ? prev->top : vma->top;
-            listp_del(prev, &heap_vma_list,list);
+            LISTP_DEL(prev, &heap_vma_list,list);
             free(prev);
         }
 
@@ -203,8 +203,8 @@ allocated:
         if (next->top < addr)
             break;
 
-        if (next->list.next != listp_first_entry(&heap_vma_list, struct heap_vma, list))
-            next_next = list_entry(next->list.next, struct heap_vma, list);
+        if (next->list.next != LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list))
+            next_next = LIST_ENTRY(next->list.next, struct heap_vma, list);
 
         if (!vma) {
             SGX_DBG(DBG_M, "merge %p-%p and %p-%p\n", addr, addr + size,
@@ -217,7 +217,7 @@ allocated:
                     next->bottom, next->top);
 
             vma->bottom = next->bottom;
-            listp_del(next, &heap_vma_list, list);
+            LISTP_DEL(next, &heap_vma_list, list);
             free(next);
         }
 
@@ -233,7 +233,7 @@ allocated:
         vma->top = addr + size;
         vma->bottom = addr;
         INIT_LIST_HEAD(vma, list);
-        listp_add_after(vma, prev, &heap_vma_list, list);
+        LISTP_ADD_AFTER(vma, prev, &heap_vma_list, list);
     }
 
     if (vma->bottom >= vma->top) {
@@ -282,7 +282,7 @@ void free_pages(void * addr, uint64_t size)
 
     struct heap_vma * vma, * p;
 
-    listp_for_each_entry_safe(vma, p, &heap_vma_list, list) {
+    LISTP_FOR_EACH_ENTRY_SAFE(vma, p, &heap_vma_list, list) {
         if (vma->bottom >= addr_top)
             continue;
         if (vma->top <= addr)
@@ -292,12 +292,12 @@ void free_pages(void * addr, uint64_t size)
             new->top = addr;
             new->bottom = vma->bottom;
             INIT_LIST_HEAD(new, list);
-            list_add(new, vma, list);
+            LIST_ADD(new, vma, list);
         }
 
         vma->bottom = addr_top;
         if (vma->top <= vma->bottom) {
-            listp_del(vma, &heap_vma_list, list); free(vma);
+            LISTP_DEL(vma, &heap_vma_list, list); free(vma);
         }
     }
 

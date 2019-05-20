@@ -70,7 +70,7 @@ void pal_start_thread (void)
     struct pal_handle_thread *new_thread = NULL, *tmp;
 
     _DkInternalLock(&thread_list_lock);
-    listp_for_each_entry(tmp, &thread_list, list)
+    LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list)
         if (!tmp->tcs) {
             new_thread = tmp;
             new_thread->tid = pal_assign_tid();
@@ -116,7 +116,7 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     new_thread->thread.param = (void *) thread_param;
 
     _DkInternalLock(&thread_list_lock);
-    listp_add_tail(&new_thread->thread, &thread_list, list);
+    LISTP_ADD_TAIL(&new_thread->thread, &thread_list, list);
     _DkInternalUnlock(&thread_list_lock);
 
     int ret = ocall_wake_thread(NULL);
