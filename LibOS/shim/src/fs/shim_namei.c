@@ -471,9 +471,9 @@ int path_lookupat (struct shim_dentry * start, const char * name, int flags,
                    struct shim_dentry ** dent, struct shim_mount * fs)
 {
     int ret = 0;
-    lock(dcache_lock);
+    lock(&dcache_lock);
     ret = __path_lookupat (start, name, flags, dent, 0, fs, 0);
-    unlock(dcache_lock);
+    unlock(&dcache_lock);
     return ret;
 }
 
@@ -501,7 +501,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
     int err = 0, newly_created = 0;
     struct shim_dentry *mydent = NULL;
 
-    lock(dcache_lock);
+    lock(&dcache_lock);
 
     // lookup the path from start, passing flags
     err = __path_lookupat(start, path, lookup_flags, &mydent, 0, NULL, 0);
@@ -572,7 +572,7 @@ out:
     if (dent && !err)
         *dent = mydent;
 
-    unlock(dcache_lock);
+    unlock(&dcache_lock);
 
     return err;
 }
@@ -695,14 +695,14 @@ int list_directory_dentry (struct shim_dentry *dent) {
 
     int ret = 0;
     struct shim_mount * fs = dent->fs;
-    lock(dcache_lock);
+    lock(&dcache_lock);
 
     /* DEP 8/4/17: Another process could list this directory
      * while we are waiting on the dcache lock.  This is ok,
      * no need to blow an assert.
      */
     if (dent->state & DENTRY_LISTED){
-        unlock(dcache_lock);
+        unlock(&dcache_lock);
         return 0;
     }
 
@@ -711,7 +711,7 @@ int list_directory_dentry (struct shim_dentry *dent) {
     // expect to learn is beyond me, but be careful with blowing assert
     // and tell the program something to keep it moving.
     if (dent->state & DENTRY_NEGATIVE) {
-        unlock(dcache_lock);
+        unlock(&dcache_lock);
         return 0;
     }
 
@@ -745,7 +745,7 @@ int list_directory_dentry (struct shim_dentry *dent) {
     dent->state |= DENTRY_LISTED;
 
 done_read:
-    unlock(dcache_lock);
+    unlock(&dcache_lock);
     free(dirent);
     return ret;
 }
@@ -780,7 +780,7 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
     if (!children)
         return -ENOMEM;
 
-    lock(dcache_lock);
+    lock(&dcache_lock);
     listp_for_each_entry(child, &dent->children, siblings) {
         if (count >= nchildren)
             break;
@@ -800,7 +800,7 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
     hdl->info.dir.buf = children;
     hdl->info.dir.ptr = children;
 
-    unlock(dcache_lock);
+    unlock(&dcache_lock);
 
     return 0;
 }

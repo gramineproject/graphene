@@ -151,14 +151,14 @@ static struct shim_file_data * __create_data (void)
     if (!data)
         return NULL;
 
-    create_lock(data->lock);
+    create_lock(&data->lock);
     return data;
 }
 
 static void __destroy_data (struct shim_file_data * data)
 {
     qstrfree(&data->host_uri);
-    destroy_lock(data->lock);
+    destroy_lock(&data->lock);
     free(data);
 }
 
@@ -246,7 +246,7 @@ static int __query_attr (struct shim_dentry * dent,
         if (old_type != FILE_DIR) {
             dent->state |= DENTRY_ISDIRECTORY;
             if ((ret = make_uri(dent)) < 0) {
-                unlock(data->lock);
+                unlock(&data->lock);
                 return ret;
             }
         }
@@ -302,10 +302,10 @@ static inline int try_create_data (struct shim_dentry * dent,
     struct shim_file_data * data = FILE_DENTRY_DATA(dent);
 
     if (!data) {
-        lock(dent->lock);
+        lock(&dent->lock);
         int ret = create_data(dent, uri, len);
         data = FILE_DENTRY_DATA(dent);
-        unlock(dent->lock);
+        unlock(&dent->lock);
         if (ret < 0) {
             return ret;
         }
@@ -324,10 +324,10 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
-    lock(data->lock);
+    lock(&data->lock);
 
     if (!data->queried && (ret = __query_attr(dent, data, pal_handle)) < 0) {
-        unlock(data->lock);
+        unlock(&data->lock);
         return ret;
     }
 
@@ -364,7 +364,7 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
         }
     }
 
-    unlock(data->lock);
+    unlock(&data->lock);
     return 0;
 }
 
@@ -426,9 +426,9 @@ static int __chroot_open (struct shim_dentry * dent,
     }
 
     if (!data->queried) {
-        lock(data->lock);
+        lock(&data->lock);
         ret = __query_attr(dent, data, palhdl);
-        unlock(data->lock);
+        unlock(&data->lock);
     }
 
     if (!hdl) {
@@ -454,10 +454,10 @@ static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
         return ret;
 
     if (dent->mode == NO_MODE) {
-        lock(data->lock);
+        lock(&data->lock);
         ret = __query_attr(dent, data, NULL);
         dent->mode = data->mode;
-        unlock(data->lock);
+        unlock(&data->lock);
     }
 
     if ((ret = __chroot_open(dent, NULL, 0, flags, dent->mode, hdl, data)) < 0)
@@ -508,10 +508,10 @@ static int chroot_creat (struct shim_handle * hdl, struct shim_dentry * dir,
     /* Increment the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
     if (parent_data) {
-        lock(parent_data->lock);
+        lock(&parent_data->lock);
         if (parent_data->queried)
             parent_data->nlink++;
-        unlock(parent_data->lock);
+        unlock(&parent_data->lock);
     }
     return 0;
 }
@@ -536,10 +536,10 @@ static int chroot_mkdir (struct shim_dentry * dir, struct shim_dentry * dent,
     /* Increment the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
     if (parent_data) {
-        lock(parent_data->lock);
+        lock(&parent_data->lock);
         if (parent_data->queried)
             parent_data->nlink++;
-        unlock(parent_data->lock);
+        unlock(&parent_data->lock);
     }
     return ret;
 }
@@ -615,12 +615,12 @@ static int chroot_flush (struct shim_handle * hdl)
     struct shim_file_handle * file = &hdl->info.file;
 
     if (file->buf_type == FILEBUF_MAP) {
-        lock(hdl->lock);
+        lock(&hdl->lock);
         void * mapbuf = file->mapbuf;
         int mapsize = file->mapsize;
         file->mapoffset = 0;
         file->mapbuf = NULL;
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
 
         if (mapbuf) {
             DkStreamUnmap(mapbuf, mapsize);
@@ -693,7 +693,7 @@ static int map_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     struct shim_file_handle * file = &hdl->info.file;
     int ret = 0;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
     uint64_t size = atomic_read(&data->size);
@@ -710,7 +710,7 @@ static int map_read (struct shim_handle * hdl, void * buf, size_t count)
     }
 
     if ((ret = __map_buffer(hdl, count)) < 0) {
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         return ret;
     }
 
@@ -723,7 +723,7 @@ static int map_read (struct shim_handle * hdl, void * buf, size_t count)
     }
 
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return count;
 }
 
@@ -733,7 +733,7 @@ static int map_write (struct shim_handle * hdl, const void * buf,
     struct shim_file_handle * file = &hdl->info.file;
     int ret = 0;
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
     uint64_t marker = file->marker;
@@ -777,7 +777,7 @@ static int map_write (struct shim_handle * hdl, const void * buf,
 
     ret = count;
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -805,10 +805,10 @@ static int chroot_read (struct shim_handle * hdl, void * buf,
         if (ret != -EACCES)
             goto out;
 
-        lock(hdl->lock);
+        lock(&hdl->lock);
         file->buf_type = FILEBUF_NONE;
     } else {
-        lock(hdl->lock);
+        lock(&hdl->lock);
     }
 
     ret = DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0) ? :
@@ -817,7 +817,7 @@ static int chroot_read (struct shim_handle * hdl, void * buf,
     if (ret > 0 && file->type != FILE_TTY)
         file->marker += ret;
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     return ret;
 }
@@ -846,10 +846,10 @@ static int chroot_write (struct shim_handle * hdl, const void * buf,
         if (ret != -EACCES)
             goto out;
 
-        lock(hdl->lock);
+        lock(&hdl->lock);
         file->buf_type = FILEBUF_NONE;
     } else {
-        lock(hdl->lock);
+        lock(&hdl->lock);
     }
 
     ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL) ? :
@@ -858,7 +858,7 @@ static int chroot_write (struct shim_handle * hdl, const void * buf,
     if (ret > 0 && file->type != FILE_TTY)
         file->marker += ret;
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     return ret;
 
@@ -898,7 +898,7 @@ static int chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
         return ret;
 
     struct shim_file_handle * file = &hdl->info.file;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     int marker = file->marker;
     int size = file->size;
@@ -930,7 +930,7 @@ static int chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
     ret = file->marker = marker;
 
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -946,7 +946,7 @@ static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
         return -EINVAL;
 
     struct shim_file_handle * file = &hdl->info.file;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     file->size = len;
 
@@ -968,7 +968,7 @@ static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
         file->marker = len;
 
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -1190,10 +1190,10 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
     /* Drop the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
     if (parent_data) {
-        lock(parent_data->lock);
+        lock(&parent_data->lock);
         if (parent_data->queried)
             parent_data->nlink--;
-        unlock(parent_data->lock);
+        unlock(&parent_data->lock);
     }
 
     return 0;
@@ -1211,7 +1211,7 @@ static int chroot_poll (struct shim_handle * hdl, int poll_type)
     if (poll_type == FS_POLL_SZ)
         return size;
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     struct shim_file_handle * file = &hdl->info.file;
     if (check_version(hdl) &&
@@ -1230,7 +1230,7 @@ static int chroot_poll (struct shim_handle * hdl, int poll_type)
     ret = -EAGAIN;
 
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 

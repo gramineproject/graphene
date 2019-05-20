@@ -327,7 +327,7 @@ int get_all_pid_status (struct pid_status ** status)
     struct range * r;
     int ret;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
 retry:
     listp_for_each_entry (r, list, list) {
@@ -369,14 +369,14 @@ next_sub:
             IDTYPE owner = p->vmid;
             char * uri = qstrtostr(&p->uri, true);
             struct shim_ipc_port * port = NULL;
-            unlock(range_map_lock);
+            unlock(&range_map_lock);
 
             PAL_HANDLE pal_handle = DkStreamOpen(uri, 0, 0, 0, 0);
 
             if (pal_handle)
                 add_ipc_port_by_id(owner, pal_handle, type, NULL, &port);
 
-            lock(range_map_lock);
+            lock(&range_map_lock);
             listp_for_each_entry(r, list, list)
                 if (r->offset >= off)
                     break;
@@ -428,7 +428,7 @@ next_sub:
                 struct pid_status * new_buf = malloc(newsize);
 
                 if (!new_buf) {
-                    unlock(range_map_lock);
+                    unlock(&range_map_lock);
                     free(range_status);
                     free(status_buf);
                     return -ENOMEM;
@@ -457,7 +457,7 @@ next_sub:
         goto retry;
     }
 
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
 
     if (!nstatus) {
         free(status_buf);
@@ -522,7 +522,7 @@ int ipc_pid_getmeta_callback (IPC_CALLBACK_ARGS)
         goto out;
     }
 
-    lock(thread->lock);
+    lock(&thread->lock);
 
     switch (msgin->code) {
         case PID_META_CRED:
@@ -557,7 +557,7 @@ int ipc_pid_getmeta_callback (IPC_CALLBACK_ARGS)
             break;
     }
 
-    unlock(thread->lock);
+    unlock(&thread->lock);
     put_thread(thread);
 
     if (ret < 0)
@@ -754,7 +754,7 @@ static struct shim_lock rpc_queue_lock;
 int get_rpc_msg (IDTYPE * sender, void * buf, int len)
 {
     create_lock_runtime(&rpc_queue_lock);
-    lock(rpc_queue_lock);
+    lock(&rpc_queue_lock);
 
     if (!listp_empty(&rpc_msgs)) {
         struct rpcmsg * m = listp_first_entry(&rpc_msgs, struct rpcmsg, list);
@@ -764,13 +764,13 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
         if (sender)
             *sender = m->sender;
         memcpy(buf, m->payload, len);
-        unlock(rpc_queue_lock);
+        unlock(&rpc_queue_lock);
         return len;
     }
 
     struct rpcreq * r = malloc(sizeof(struct rpcreq));
     if (!r) {
-        unlock(rpc_queue_lock);
+        unlock(&rpc_queue_lock);
         return -ENOMEM;
     }
 
@@ -780,7 +780,7 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
     r->buffer = buf;
     thread_setwait(&r->thread, NULL);
     listp_add_tail(r, &rpc_reqs, list);
-    unlock(rpc_queue_lock);
+    unlock(&rpc_queue_lock);
     thread_sleep(NO_TIMEOUT);
     put_thread(r->thread);
     if (sender)
@@ -799,7 +799,7 @@ int ipc_pid_sendrpc_callback (IPC_CALLBACK_ARGS)
           msgin->sender, msgin->len);
 
     create_lock_runtime(&rpc_queue_lock);
-    lock(rpc_queue_lock);
+    lock(&rpc_queue_lock);
 
     if (!listp_empty(&rpc_reqs)) {
         struct rpcreq * r = listp_first_entry(&rpc_reqs, struct rpcreq, list);
@@ -824,7 +824,7 @@ int ipc_pid_sendrpc_callback (IPC_CALLBACK_ARGS)
     memcpy(m->payload, msgin->payload, msgin->len);
     listp_add_tail(m, &rpc_msgs, list);
 out:
-    unlock(rpc_queue_lock);
+    unlock(&rpc_queue_lock);
     SAVE_PROFILE_INTERVAL(ipc_pid_sendrpc_callback);
     return ret;
 }

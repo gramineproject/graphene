@@ -354,7 +354,7 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
 
     /* we are grabbing the lock because the handle content is actually
        updated */
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     struct shim_dir_handle * dirhdl = &hdl->info.dir;
     struct shim_dentry * dent = hdl->dentry;
@@ -432,7 +432,7 @@ done:
                        (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out_no_unlock:
     put_handle(hdl);
     return ret;
@@ -460,7 +460,7 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
         goto out;
     }
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     struct shim_dir_handle * dirhdl = &hdl->info.dir;
     struct shim_dentry * dent = hdl->dentry;
@@ -528,7 +528,7 @@ done:
     if (bytes == 0 && (dirhdl->dot || dirhdl->dotdot ||
                        (dirhdl->ptr && *dirhdl->ptr)))
         ret = -EINVAL;
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     put_handle(hdl);
     return ret;

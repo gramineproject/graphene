@@ -78,7 +78,7 @@ int shim_do_vfork (void)
     memcpy(dummy_stack, new_thread->frameptr, stack_size);
 
     /* assigned the stack of the thread */
-    lock(cur_thread->lock);
+    lock(&cur_thread->lock);
     new_thread->tgid      = new_thread->tid;
     new_thread->in_vm     = true;
     new_thread->is_alive  = true;
@@ -89,7 +89,7 @@ int shim_do_vfork (void)
     cur_thread->stack     = dummy_stack;
     cur_thread->stack_top = dummy_stack + stack_size;
     cur_thread->frameptr  = NULL;
-    unlock(cur_thread->lock);
+    unlock(&cur_thread->lock);
 
     /* Now we are good, set this child as ours */
     set_as_child(NULL, new_thread);

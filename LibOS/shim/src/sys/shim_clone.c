@@ -352,10 +352,10 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         if (ret < 0)
             goto failed;
 
-        lock(thread->lock);
+        lock(&thread->lock);
         handle_map = thread->handle_map;
         thread->handle_map = NULL;
-        unlock(thread->lock);
+        unlock(&thread->lock);
 
         if (handle_map)
             put_handle_map(handle_map);

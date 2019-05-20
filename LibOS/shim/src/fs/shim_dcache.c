@@ -77,7 +77,7 @@ int init_dcache (void)
 {
     dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
 
-    create_lock(dcache_lock);
+    create_lock(&dcache_lock);
 
     dentry_root = alloc_dentry();
 
@@ -336,14 +336,14 @@ BEGIN_CP_FUNC(dentry)
         ADD_TO_CP_MAP(obj, off);
         new_dent = (struct shim_dentry *) (base + off);
 
-        lock(dent->lock);
+        lock(&dent->lock);
         *new_dent = *dent;
         INIT_LIST_HEAD(new_dent, hlist);
         INIT_LIST_HEAD(new_dent, list);
         INIT_LISTP(&new_dent->children);
         INIT_LIST_HEAD(new_dent, siblings);
         new_dent->data = NULL;
-        clear_lock(new_dent->lock);
+        clear_lock(&new_dent->lock);
         REF_SET(new_dent->ref_count, 0);
 
         DO_CP_IN_MEMBER(qstr, new_dent, rel_path);
@@ -358,7 +358,7 @@ BEGIN_CP_FUNC(dentry)
         if (dent->mounted)
             DO_CP_MEMBER(mount, dent, new_dent, mounted);
 
-        unlock(dent->lock);
+        unlock(&dent->lock);
         ADD_CP_FUNC_ENTRY(off);
     } else {
         new_dent = (struct shim_dentry *) (base + off);
@@ -381,7 +381,7 @@ BEGIN_RS_FUNC(dentry)
     CP_REBASE(dent->parent);
     CP_REBASE(dent->mounted);
 
-    create_lock(dent->lock);
+    create_lock(&dent->lock);
 
     /* DEP 6/16/17: I believe the point of this line is to
      * fix up the children linked list.  Presumably the ref count and

@@ -28,8 +28,8 @@
 
 static struct shim_lock str_mgr_lock;
 
-#define system_lock()       lock(str_mgr_lock)
-#define system_unlock()     unlock(str_mgr_lock)
+#define system_lock()       lock(&str_mgr_lock)
+#define system_unlock()     unlock(&str_mgr_lock)
 
 #define STR_MGR_ALLOC  32
 #define PAGE_SIZE      allocsize
@@ -41,7 +41,7 @@ static MEM_MGR str_mgr = NULL;
 
 int init_str_mgr (void)
 {
-    create_lock(str_mgr_lock);
+    create_lock(&str_mgr_lock);
     str_mgr = create_mem_mgr(init_align_up(STR_MGR_ALLOC));
     return 0;
 }

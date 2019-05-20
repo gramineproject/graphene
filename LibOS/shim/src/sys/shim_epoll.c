@@ -136,10 +136,10 @@ static void update_epoll (struct shim_epoll_handle * epoll)
 int delete_from_epoll_handles (struct shim_handle * handle)
 {
     while (1) {
-        lock(handle->lock);
+        lock(&handle->lock);
 
         if (listp_empty(&handle->epolls)) {
-            unlock(handle->lock);
+            unlock(&handle->lock);
             break;
         }
 
@@ -147,7 +147,7 @@ int delete_from_epoll_handles (struct shim_handle * handle)
                                  struct shim_epoll_fd, back);
 
         listp_del(epoll_fd, &handle->epolls, back);
-        unlock(handle->lock);
+        unlock(&handle->lock);
         put_handle(handle);
 
         struct shim_handle * epoll_hdl = epoll_fd->epoll;
@@ -156,14 +156,14 @@ int delete_from_epoll_handles (struct shim_handle * handle)
         debug("delete handle %p from epoll handle %p\n", handle,
               &epoll_hdl->info.epoll);
 
-        lock(epoll_hdl->lock);
+        lock(&epoll_hdl->lock);
 
         listp_del(epoll_fd, &epoll->fds, list);
         free(epoll_fd);
 
         epoll_hdl->info.epoll.nfds--;
         update_epoll(&epoll_hdl->info.epoll);
-        unlock(epoll_hdl->lock);
+        unlock(&epoll_hdl->lock);
         put_handle(epoll_hdl);
     }
 
@@ -187,7 +187,7 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
     struct shim_epoll_handle * epoll = &epoll_hdl->info.epoll;
     struct shim_epoll_fd * epoll_fd;
 
-    lock(epoll_hdl->lock);
+    lock(&epoll_hdl->lock);
 
     switch (op) {
         case EPOLL_CTL_ADD: {
@@ -227,10 +227,10 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
 
             /* Register the epoll handle */
             get_handle(epoll_hdl);
-            lock(hdl->lock);
+            lock(&hdl->lock);
             INIT_LIST_HEAD(epoll_fd, back);
             listp_add_tail(epoll_fd, &hdl->epolls, back);
-            unlock(hdl->lock);
+            unlock(&hdl->lock);
 
             INIT_LIST_HEAD(epoll_fd, list);
             listp_add_tail(epoll_fd, &epoll->fds, list);
@@ -256,9 +256,9 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
                     struct shim_handle * hdl = epoll_fd->handle;
 
                     /* Unregister the epoll handle */
-                    lock(hdl->lock);
+                    lock(&hdl->lock);
                     listp_del(epoll_fd, &hdl->epolls, back);
-                    unlock(hdl->lock);
+                    unlock(&hdl->lock);
                     put_handle(epoll_hdl);
 
                     debug("delete handle %p from epoll handle %p\n",
@@ -282,7 +282,7 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
 update:
     update_epoll(epoll);
 out:
-    unlock(epoll_hdl->lock);
+    unlock(&epoll_hdl->lock);
     put_handle(epoll_hdl);
     return ret;
 }
@@ -305,7 +305,7 @@ int shim_do_epoll_wait (int epfd, struct __kernel_epoll_event * events,
     int npals, nread;
     bool need_update = false;
 
-    lock(epoll_hdl->lock);
+    lock(&epoll_hdl->lock);
 retry:
     if (!(npals = epoll->npals))
         goto reply;
@@ -319,12 +319,12 @@ retry:
     if ((nread = epoll->nread))
         epoll->nwaiters++;
 
-    unlock(epoll_hdl->lock);
+    unlock(&epoll_hdl->lock);
 
     PAL_HANDLE polled = DkObjectsWaitAny(nread ? npals + 1 : npals, pal_handles,
                                          nread ? (timeout == -1 ? NO_TIMEOUT : (PAL_NUM) timeout) : 0);
 
-    lock(epoll_hdl->lock);
+    lock(&epoll_hdl->lock);
 
     if (nread)
         epoll->nwaiters--;
@@ -377,7 +377,7 @@ reply:
     if (need_update)
         update_epoll(epoll);
 
-    unlock(epoll_hdl->lock);
+    unlock(&epoll_hdl->lock);
     ret = nevents;
     put_handle(epoll_hdl);
     return ret;

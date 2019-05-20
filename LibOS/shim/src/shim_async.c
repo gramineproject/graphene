@@ -73,7 +73,7 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
     event->install_time = time ? install_time : 0;
     event->expire_time  = time ? install_time + time : 0;
 
-    lock(async_helper_lock);
+    lock(&async_helper_lock);
 
     struct async_event * tmp;
 
@@ -115,7 +115,7 @@ int64_t install_async_event (PAL_HANDLE object, unsigned long time,
     if (async_helper_state == HELPER_NOTALIVE)
         create_async_helper();
 
-    unlock(async_helper_lock);
+    unlock(&async_helper_lock);
 
     set_event(&async_helper_event, 1);
     return rv;
@@ -126,7 +126,7 @@ int init_async (void)
     /* This is early enough in init that we can write this variable without
      * the lock. */
     async_helper_state = HELPER_NOTALIVE;
-    create_lock(async_helper_lock);
+    create_lock(&async_helper_lock);
     create_event(&async_helper_event);
     return 0;
 }
@@ -145,9 +145,9 @@ static void shim_async_helper (void * arg)
     debug_setbuf(&tcb.shim_tcb, true);
     debug("set tcb to %p\n", &tcb);
 
-    lock(async_helper_lock);
+    lock(&async_helper_lock);
     bool notme = (self != async_helper_thread);
-    unlock(async_helper_lock);
+    unlock(&async_helper_lock);
 
     if (notme) {
         put_thread(self);
@@ -199,7 +199,7 @@ static void shim_async_helper (void * arg)
 
                 next_event->callback(next_event->caller, next_event->arg);
 
-                lock(async_helper_lock);
+                lock(&async_helper_lock);
                 /* DEP: Events can only be on the async list */
                 listp_del(next_event, &async_list, list);
                 free(next_event);
@@ -215,22 +215,22 @@ update_status:
             if (async_helper_state == HELPER_NOTALIVE) {
                 break;
             } else {
-                lock(async_helper_lock);
+                lock(&async_helper_lock);
                 goto update_list;
             }
         }
 
         struct async_event * tmp, * n;
 
-        lock(async_helper_lock);
+        lock(&async_helper_lock);
 
         listp_for_each_entry_safe(tmp, n, &async_list, list) {
             if (tmp->object == polled) {
                 debug("async event trigger at %lu\n",
                       latest_time);
-                unlock(async_helper_lock);
+                unlock(&async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
-                lock(async_helper_lock);
+                lock(&async_helper_lock);
                 break;
             }
         }
@@ -259,16 +259,16 @@ update_list:
                 debug("async event trigger at %lu (expire at %lu)\n",
                       latest_time, tmp->expire_time);
                 listp_del(tmp, &async_list, list);
-                unlock(async_helper_lock);
+                unlock(&async_helper_lock);
                 tmp->callback(tmp->caller, tmp->arg);
                 free(tmp);
-                lock(async_helper_lock);
+                lock(&async_helper_lock);
             }
 
             idle_cycles = 0;
         }
 
-        unlock(async_helper_lock);
+        unlock(&async_helper_lock);
 
         if (idle_cycles++ == MAX_IDLE_CYCLES) {
             debug("async helper thread reach helper cycle\n");
@@ -278,10 +278,10 @@ update_list:
         }
     }
 
-    lock(async_helper_lock);
+    lock(&async_helper_lock);
     async_helper_state = HELPER_NOTALIVE;
     async_helper_thread = NULL;
-    unlock(async_helper_lock);
+    unlock(&async_helper_lock);
     put_thread(self);
     debug("async helper thread terminated\n");
     free(local_objects);
@@ -337,12 +337,12 @@ struct shim_thread * terminate_async_helper (void)
     if (async_helper_state != HELPER_ALIVE)
         return NULL;
 
-    lock(async_helper_lock);
+    lock(&async_helper_lock);
     struct shim_thread * ret = async_helper_thread;
     if (ret)
         get_thread(ret);
     async_helper_state = HELPER_NOTALIVE;
-    unlock(async_helper_lock);
+    unlock(&async_helper_lock);
     set_event(&async_helper_event, 1);
     return ret;
 }

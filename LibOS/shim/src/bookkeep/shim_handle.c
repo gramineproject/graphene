@@ -36,8 +36,8 @@ static struct shim_lock handle_mgr_lock;
 
 #define HANDLE_MGR_ALLOC        32
 
-#define system_lock()   lock(handle_mgr_lock)
-#define system_unlock() unlock(handle_mgr_lock)
+#define system_lock()   lock(&handle_mgr_lock)
+#define system_unlock() unlock(&handle_mgr_lock)
 #define PAGE_SIZE       allocsize
 
 #define OBJ_TYPE struct shim_handle
@@ -111,9 +111,9 @@ static inline int init_exec_handle (struct shim_thread * thread)
         set_handle_fs(exec, &chroot_builtin_fs);
     }
 
-    lock(thread->lock);
+    lock(&thread->lock);
     thread->exec = exec;
-    unlock(thread->lock);
+    unlock(&thread->lock);
 
     return 0;
 }
@@ -130,7 +130,7 @@ static struct shim_handle_map * __enlarge_handle_map
 
 int init_handle (void)
 {
-    create_lock(handle_mgr_lock);
+    create_lock(&handle_mgr_lock);
     handle_mgr = create_mem_mgr(init_align_up(HANDLE_MGR_ALLOC));
     if (!handle_mgr)
         return -ENOMEM;
@@ -154,11 +154,11 @@ int init_important_handles (void)
         set_handle_map(thread, handle_map);
     }
 
-    lock(handle_map->lock);
+    lock(&handle_map->lock);
 
     if (handle_map->fd_size < 3) {
         if (!__enlarge_handle_map(handle_map, INIT_HANDLE_MAP_SIZE)) {
-            unlock(handle_map->lock);
+            unlock(&handle_map->lock);
             return -ENOMEM;
         }
     }
@@ -193,7 +193,7 @@ int init_important_handles (void)
     if (handle_map->fd_top == FD_NULL || handle_map->fd_top < 2)
         handle_map->fd_top = 2;
 
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
 
 done:
     init_exec_handle(thread);
@@ -226,10 +226,10 @@ struct shim_handle * get_fd_handle (FDTYPE fd, int * flags,
         map = get_cur_handle_map(NULL);
 
     struct shim_handle * hdl = NULL;
-    lock(map->lock);
+    lock(&map->lock);
     if ((hdl = __get_fd_handle(fd, flags, map)))
         get_handle(hdl);
-    unlock(map->lock);
+    unlock(&map->lock);
     return hdl;
 }
 
@@ -268,13 +268,13 @@ struct shim_handle * detach_fd_handle (FDTYPE fd, int * flags,
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
         return NULL;
 
-    lock(handle_map->lock);
+    lock(&handle_map->lock);
 
     if (fd < handle_map->fd_size)
         handle = __detach_fd_handle(handle_map->map[fd], flags,
                                     handle_map);
 
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
     return handle;
 }
 
@@ -288,7 +288,7 @@ struct shim_handle * get_new_handle (void)
 
     memset(new_handle, 0, sizeof(struct shim_handle));
     REF_SET(new_handle->ref_count, 1);
-    create_lock(new_handle->lock);
+    create_lock(&new_handle->lock);
     new_handle->owner = cur_process.vmid;
     INIT_LISTP(&new_handle->epolls);
     return new_handle;
@@ -323,7 +323,7 @@ int set_new_fd_handle (struct shim_handle * hdl, int flags,
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
         return -EBADF;
 
-    lock(handle_map->lock);
+    lock(&handle_map->lock);
 
     if (!handle_map->map ||
         handle_map->fd_size < INIT_HANDLE_MAP_SIZE)
@@ -359,7 +359,7 @@ extend:
     } else
         ret = fd;
 out:
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
     return ret;
 }
 
@@ -372,7 +372,7 @@ int set_new_fd_handle_by_fd (FDTYPE fd, struct shim_handle * hdl, int flags,
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
         return -EBADF;
 
-    lock(handle_map->lock);
+    lock(&handle_map->lock);
 
     if (!handle_map->map ||
         handle_map->fd_size < INIT_HANDLE_MAP_SIZE)
@@ -423,7 +423,7 @@ extend:
     } else
         ret = fd;
 out:
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
     return ret;
 }
 
@@ -518,7 +518,7 @@ void get_handle (struct shim_handle * hdl)
 
 static void destroy_handle (struct shim_handle * hdl)
 {
-    destroy_lock(hdl->lock);
+    destroy_lock(&hdl->lock);
 
     if (memory_migrated(hdl))
         memset(hdl, 0, sizeof(struct shim_handle));
@@ -586,7 +586,7 @@ void dup_fd_handle (struct shim_handle_map * map,
 {
     struct shim_handle * replaced = NULL;
 
-    lock(map->lock);
+    lock(&map->lock);
 
     if (old->vfd != FD_NULL) {
         open_handle(old->handle);
@@ -594,7 +594,7 @@ void dup_fd_handle (struct shim_handle_map * map,
         new->handle = old->handle;
     }
 
-    unlock(map->lock);
+    unlock(&map->lock);
 
     if (replaced)
         close_handle(replaced);
@@ -617,7 +617,7 @@ static struct shim_handle_map * get_new_handle_map (FDTYPE size)
 
     handle_map->fd_top  = FD_NULL;
     handle_map->fd_size = size;
-    create_lock(handle_map->lock);
+    create_lock(&handle_map->lock);
 
     return handle_map;
 }
@@ -645,7 +645,7 @@ static struct shim_handle_map * __enlarge_handle_map
 int dup_handle_map (struct shim_handle_map ** new,
                     struct shim_handle_map * old_map)
 {
-    lock(old_map->lock);
+    lock(&old_map->lock);
 
     /* allocate a new handle mapping with the same size as
        the old one */
@@ -677,7 +677,7 @@ int dup_handle_map (struct shim_handle_map ** new,
                     close_handle(new_map->map[j]->handle);
                     free(new_map->map[j]);
                 }
-                unlock(old_map->lock);
+                unlock(&old_map->lock);
                 *new = NULL;
                 free(new_map);
                 return -ENOMEM;
@@ -692,7 +692,7 @@ int dup_handle_map (struct shim_handle_map ** new,
     }
 
 done:
-    unlock(old_map->lock);
+    unlock(&old_map->lock);
     *new = new_map;
     return 0;
 }
@@ -725,7 +725,7 @@ void put_handle_map (struct shim_handle_map * map)
         }
 
 done:
-        destroy_lock(map->lock);
+        destroy_lock(&map->lock);
         free(map->map);
         free(map);
     }
@@ -734,7 +734,7 @@ done:
 int flush_handle_map (struct shim_handle_map * map)
 {
     get_handle_map(map);
-    lock(map->lock);
+    lock(&map->lock);
 
     if (map->fd_top == FD_NULL)
         goto done;
@@ -751,7 +751,7 @@ int flush_handle_map (struct shim_handle_map * map)
     }
 
 done:
-    unlock(map->lock);
+    unlock(&map->lock);
     put_handle_map(map);
     return 0;
 }
@@ -761,7 +761,7 @@ int walk_handle_map (int (*callback) (struct shim_fd_handle *,
                      struct shim_handle_map * map, void * arg)
 {
     int ret = 0;
-    lock(map->lock);
+    lock(&map->lock);
 
     if (map->fd_top == FD_NULL)
         goto done;
@@ -775,7 +775,7 @@ int walk_handle_map (int (*callback) (struct shim_fd_handle *,
     }
 
 done:
-    unlock(map->lock);
+    unlock(&map->lock);
     return ret;
 }
 
@@ -793,7 +793,7 @@ BEGIN_CP_FUNC(handle)
         ADD_TO_CP_MAP(obj, off);
         new_hdl = (struct shim_handle *) (base + off);
 
-        lock(hdl->lock);
+        lock(&hdl->lock);
         struct shim_mount * fs = hdl->fs;
         *new_hdl = *hdl;
 
@@ -803,7 +803,7 @@ BEGIN_CP_FUNC(handle)
         new_hdl->dentry = NULL;
         REF_SET(new_hdl->opened, 0);
         REF_SET(new_hdl->ref_count, 0);
-        clear_lock(new_hdl->lock);
+        clear_lock(&new_hdl->lock);
 
         DO_CP_IN_MEMBER(qstr, new_hdl, path);
         DO_CP_IN_MEMBER(qstr, new_hdl, uri);
@@ -829,7 +829,7 @@ BEGIN_CP_FUNC(handle)
 
         INIT_LISTP(&new_hdl->epolls);
 
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         ADD_CP_FUNC_ENTRY(off);
     } else {
         new_hdl = (struct shim_handle *) (base + off);
@@ -849,7 +849,7 @@ BEGIN_RS_FUNC(handle)
     CP_REBASE(hdl->dentry);
     CP_REBASE(hdl->epolls);
 
-    create_lock(hdl->lock);
+    create_lock(&hdl->lock);
 
     if (!hdl->fs) {
         assert(hdl->fs_type);
@@ -894,7 +894,7 @@ BEGIN_CP_FUNC(handle_map)
     struct shim_handle_map * new_handle_map = NULL;
     struct shim_fd_handle ** ptr_array;
 
-    lock(handle_map->lock);
+    lock(&handle_map->lock);
 
     int fd_size = handle_map->fd_top != FD_NULL ?
                   handle_map->fd_top + 1 : 0;
@@ -917,7 +917,7 @@ BEGIN_CP_FUNC(handle_map)
         new_handle_map->map = fd_size ? ptr_array : NULL;
 
         REF_SET(new_handle_map->ref_count, 0);
-        clear_lock(new_handle_map->lock);
+        clear_lock(&new_handle_map->lock);
 
         for (int i = 0 ; i < fd_size ; i++) {
             if (HANDLE_ALLOCATED(handle_map->map[i]))
@@ -931,7 +931,7 @@ BEGIN_CP_FUNC(handle_map)
         new_handle_map = (struct shim_handle_map *) (base + off);
     }
 
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
 
     if (objp)
         *objp = (void *) new_handle_map;
@@ -947,8 +947,8 @@ BEGIN_RS_FUNC(handle_map)
 
     DEBUG_RS("size=%d,top=%d", handle_map->fd_size, handle_map->fd_top);
 
-    create_lock(handle_map->lock);
-    lock(handle_map->lock);
+    create_lock(&handle_map->lock);
+    lock(&handle_map->lock);
 
     if (handle_map->fd_top != FD_NULL)
         for (int i = 0 ; i <= handle_map->fd_top ; i++) {
@@ -963,6 +963,6 @@ BEGIN_RS_FUNC(handle_map)
             }
         }
 
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
 }
 END_RS_FUNC(handle_map)

@@ -59,10 +59,10 @@ block_pid:
             object_wait_with_retry(thread->exit_event);
         }
 
-        lock(thread->lock);
+        lock(&thread->lock);
 
         if (thread->is_alive) {
-            unlock(thread->lock);
+            unlock(&thread->lock);
             if (!(option & WNOHANG))
                 goto block_pid;
             put_thread(thread);
@@ -74,26 +74,26 @@ block_pid:
             struct shim_thread * parent = thread->parent;
             assert(parent);
 
-            lock(parent->lock);
+            lock(&parent->lock);
             /* DEP 5/15/17: These threads are exited */
             assert(!thread->is_alive);
             listp_del_init(thread, &thread->parent->exited_children, siblings);
-            unlock(parent->lock);
+            unlock(&parent->lock);
 
             put_thread(parent);
             put_thread(thread);
             thread->parent = NULL;
         }
 
-        unlock(thread->lock);
+        unlock(&thread->lock);
         goto found;
     }
 
-    lock(cur->lock);
+    lock(&cur->lock);
 
     if (listp_empty(&cur->children) &&
         listp_empty(&cur->exited_children)) {
-        unlock(cur->lock);
+        unlock(&cur->lock);
         return -ECHILD;
     }
 
@@ -101,9 +101,9 @@ block_pid:
 block:
         if (cur->child_exit_event)
             while (listp_empty(&cur->exited_children)) {
-                unlock(cur->lock);
+                unlock(&cur->lock);
                 object_wait_with_retry(cur->child_exit_event);
-                lock(cur->lock);
+                lock(&cur->lock);
             }
     }
 
@@ -125,7 +125,7 @@ block:
         }
     }
 
-    unlock(cur->lock);
+    unlock(&cur->lock);
     return 0;
 
 found_child:
@@ -136,7 +136,7 @@ found_child:
     if (listp_empty(&cur->exited_children))
         DkEventClear(cur->child_exit_event);
 
-    unlock(cur->lock);
+    unlock(&cur->lock);
 
 found:
     if (status) {

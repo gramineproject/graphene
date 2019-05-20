@@ -61,7 +61,7 @@ int init_ipc (void)
 {
     int ret = 0;
 
-    create_lock(ipc_info_lock);
+    create_lock(&ipc_info_lock);
 
     if (!(ipc_info_mgr = create_mem_mgr(init_align_up(ipc_info_mgr_ALLOC))))
         return -ENOMEM;
@@ -110,9 +110,9 @@ static struct shim_ipc_info * __get_new_ipc_info (IDTYPE vmid, const char * uri,
 struct shim_ipc_info * get_new_ipc_info (IDTYPE vmid, const char * uri,
                                          size_t len)
 {
-    lock(ipc_info_lock);
+    lock(&ipc_info_lock);
     struct shim_ipc_info * info = __get_new_ipc_info(vmid, uri, len);
-    unlock(ipc_info_lock);
+    unlock(&ipc_info_lock);
     return info;
 }
 
@@ -173,9 +173,9 @@ void put_ipc_info (struct shim_ipc_info * info)
         return;
 
     unset_ipc_info(info);
-    lock(ipc_info_lock);
+    lock(&ipc_info_lock);
     free_mem_obj_to_mgr(ipc_info_mgr, info);
-    unlock(ipc_info_lock);
+    unlock(&ipc_info_lock);
 }
 
 #define CLIENT_HASH_LEN     6
@@ -196,11 +196,11 @@ lookup_and_alloc_client (IDTYPE vmid, const char * uri)
 
     assert(vmid);
 
-    lock(ipc_info_lock);
+    lock(&ipc_info_lock);
     listp_for_each_entry(p, head, hlist)
         if (p->vmid == vmid && !qstrcmpstr(&p->uri, uri, len)) {
             get_ipc_info(p);
-            unlock(ipc_info_lock);
+            unlock(&ipc_info_lock);
             return p;
         }
 
@@ -209,13 +209,13 @@ lookup_and_alloc_client (IDTYPE vmid, const char * uri)
         listp_add(p, head, hlist);
         get_ipc_info(p);
     }
-    unlock(ipc_info_lock);
+    unlock(&ipc_info_lock);
     return p;
 }
 
 void put_client (struct shim_ipc_info * info)
 {
-    lock(ipc_info_lock);
+    lock(&ipc_info_lock);
     /* Look up the hash */
     LISTP_TYPE(shim_ipc_info) *head = client_table + CLIENT_HASH(info->vmid);
     __put_ipc_info(info);
@@ -223,7 +223,7 @@ void put_client (struct shim_ipc_info * info)
         listp_del_init(info, head, hlist);
         __put_ipc_info(info);
     }
-    unlock(ipc_info_lock);
+    unlock(&ipc_info_lock);
 }
 
 struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
@@ -234,14 +234,14 @@ struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
 
     assert(vmid);
 
-    lock(ipc_info_lock);
+    lock(&ipc_info_lock);
     listp_for_each_entry(p, head, hlist)
         if (p->vmid == vmid && !qstrempty(&p->uri)) {
             __get_ipc_info(p);
-            unlock(ipc_info_lock);
+            unlock(&ipc_info_lock);
             return p;
         }
-    unlock(ipc_info_lock);
+    unlock(&ipc_info_lock);
     return NULL;
 
     if (!ipc_finduri_send(port, vmid, &p))
@@ -261,7 +261,7 @@ struct shim_process * create_new_process (bool inherit_parent)
     if (!inherit_parent)
         return new_process;
 
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (cur_process.self)
         qstrcopy(&new_process->parent->uri, &cur_process.self->uri);
@@ -273,7 +273,7 @@ struct shim_process * create_new_process (bool inherit_parent)
                                  qstrgetstr(&cur_process.ns[i]->uri),
                                  cur_process.ns[i]->uri.len);
 
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
     return new_process;
 }
 
@@ -388,10 +388,10 @@ int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
     if (port) {
         // Check if the message is pending on the port for response. If so,
         // remove the message from the list.
-        lock(port->msgs_lock);
+        lock(&port->msgs_lock);
         if (!list_empty(msg, list))
             listp_del_init(msg, &port->msgs, list);
-        unlock(port->msgs_lock);
+        unlock(&port->msgs_lock);
     }
 
     if (msg->thread) {
@@ -412,10 +412,10 @@ int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
     msg->msg.seq = atomic_read(&ipc_seq_counter);
 
     if (save) {
-        lock(port->msgs_lock);
+        lock(&port->msgs_lock);
         msg->private = private_data;
         listp_add_tail(msg, &port->msgs, list);
-        unlock(port->msgs_lock);
+        unlock(&port->msgs_lock);
     }
 
     int ret = send_ipc_message(&msg->msg, port);
@@ -433,14 +433,14 @@ struct shim_ipc_msg_obj * find_ipc_msg_duplex (struct shim_ipc_port * port,
                                                unsigned long seq)
 {
     struct shim_ipc_msg_obj * tmp, * found = NULL;
-    lock(port->msgs_lock);
+    lock(&port->msgs_lock);
     listp_for_each_entry(tmp, &port->msgs, list)
         if (tmp->msg.seq == seq) {
             found = tmp;
             listp_del_init(tmp, &port->msgs, list);
             break;
         }
-    unlock(port->msgs_lock);
+    unlock(&port->msgs_lock);
     return found;
 }
 
@@ -494,7 +494,7 @@ struct shim_ipc_info * create_ipc_port (IDTYPE vmid, bool listen)
 
 int create_ipc_location (struct shim_ipc_info ** info)
 {
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
     int ret = -EACCES;
 
     if (cur_process.self)
@@ -509,7 +509,7 @@ success:
     *info = cur_process.self;
     ret = 0;
 out:
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
     return ret;
 }
 
@@ -749,7 +749,7 @@ BEGIN_RS_FUNC(process)
 
     proc->vmid = cur_process.vmid;
     memcpy(&cur_process, proc, sizeof(struct shim_process));
-    create_lock(cur_process.lock);
+    create_lock(&cur_process.lock);
 
     DEBUG_RS("vmid=%u,uri=%s,parent=%u(%s)", proc->vmid,
              proc->self ? qstrgetstr(&proc->self->uri) : "",

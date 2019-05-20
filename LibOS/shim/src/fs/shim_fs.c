@@ -60,8 +60,8 @@ struct shim_mount * builtin_fs [NUM_BUILTIN_FS] = {
 
 static struct shim_lock mount_mgr_lock;
 
-#define system_lock()       lock(mount_mgr_lock)
-#define system_unlock()     unlock(mount_mgr_lock)
+#define system_lock()       lock(&mount_mgr_lock)
+#define system_unlock()     unlock(&mount_mgr_lock)
 
 #define MOUNT_MGR_ALLOC     64
 #define PAGE_SIZE           allocsize
@@ -81,8 +81,8 @@ int init_fs (void)
     if (!mount_mgr)
         return -ENOMEM;
 
-    create_lock(mount_mgr_lock);
-    create_lock(mount_list_lock);
+    create_lock(&mount_mgr_lock);
+    create_lock(&mount_list_lock);
     return 0;
 }
 
@@ -325,10 +325,10 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
     if ((ret = __del_dentry_tree(dent)) < 0)
         return ret;
 
-    lock(mount_list_lock);
+    lock(&mount_list_lock);
     get_mount(mount);
     listp_add_tail(mount, &mount_list, list);
-    unlock(mount_list_lock);
+    unlock(&mount_list_lock);
 
     do {
         struct shim_dentry * parent = dent->parent;
@@ -422,7 +422,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
         }
     }
 
-    lock(dcache_lock);
+    lock(&dcache_lock);
 
     struct shim_mount * mount = alloc_mount();
     void * mount_data = NULL;
@@ -489,7 +489,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
         *dentp = dent;
 
 out_with_unlock:
-    unlock(dcache_lock);
+    unlock(&dcache_lock);
 out:
     return ret;
 }
@@ -511,7 +511,7 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
     int ret = 0;
     int nsrched = 0;
 
-    lock(mount_list_lock);
+    lock(&mount_list_lock);
 
     listp_for_each_entry_safe(mount, n, &mount_list, list) {
         if ((ret = (*walk) (mount, arg)) < 0)
@@ -521,7 +521,7 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
             nsrched++;
     }
 
-    unlock(mount_list_lock);
+    unlock(&mount_list_lock);
     return ret < 0 ? ret : (nsrched ? 0 : -ESRCH);
 }
 
@@ -530,7 +530,7 @@ struct shim_mount * find_mount_from_uri (const char * uri)
     struct shim_mount * mount, * found = NULL;
     int longest_path = 0;
 
-    lock(mount_list_lock);
+    lock(&mount_list_lock);
     listp_for_each_entry(mount, &mount_list, list) {
         if (qstrempty(&mount->uri))
             continue;
@@ -547,7 +547,7 @@ struct shim_mount * find_mount_from_uri (const char * uri)
     if (found)
         get_mount(found);
 
-    unlock(mount_list_lock);
+    unlock(&mount_list_lock);
     return found;
 }
 
@@ -644,10 +644,10 @@ END_RS_FUNC(mount)
 BEGIN_CP_FUNC(all_mounts)
 {
     struct shim_mount * mount;
-    lock(mount_list_lock);
+    lock(&mount_list_lock);
     listp_for_each_entry(mount, &mount_list, list)
         DO_CP(mount, mount, NULL);
-    unlock(mount_list_lock);
+    unlock(&mount_list_lock);
 
     /* add an empty entry to mark as migrated */
     ADD_CP_FUNC_ENTRY(0UL);

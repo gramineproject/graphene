@@ -1491,11 +1491,11 @@ int init_loader (void)
     struct shim_thread * cur_thread = get_cur_thread();
     int ret = 0;
 
-    lock(cur_thread->lock);
+    lock(&cur_thread->lock);
     struct shim_handle * exec = cur_thread->exec;
     if (exec)
         get_handle(exec);
-    unlock(cur_thread->lock);
+    unlock(&cur_thread->lock);
 
     if (!exec)
         return 0;

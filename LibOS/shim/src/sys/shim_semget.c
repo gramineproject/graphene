@@ -142,9 +142,9 @@ failed:
 
 int add_sem_handle (unsigned long key, IDTYPE id, int nsems, bool owned)
 {
-    lock(sem_list_lock);
+    lock(&sem_list_lock);
     int ret = __add_sem_handle(key, id, nsems, owned, NULL);
-    unlock(sem_list_lock);
+    unlock(&sem_list_lock);
     return ret;
 }
 
@@ -153,7 +153,7 @@ struct shim_sem_handle * get_sem_handle_by_key (unsigned long key)
     LISTP_TYPE(shim_sem_handle) * key_head = &sem_key_hlist[SEM_HASH(key)];
     struct shim_sem_handle * tmp, * found = NULL;
 
-    lock(sem_list_lock);
+    lock(&sem_list_lock);
 
     listp_for_each_entry(tmp, key_head, key_hlist)
         if (tmp->semkey == key) {
@@ -164,7 +164,7 @@ struct shim_sem_handle * get_sem_handle_by_key (unsigned long key)
     if (found)
         get_handle(SEM_TO_HANDLE(found));
 
-    unlock(sem_list_lock);
+    unlock(&sem_list_lock);
     return found;
 }
 
@@ -173,7 +173,7 @@ struct shim_sem_handle * get_sem_handle_by_id (IDTYPE semid)
     LISTP_TYPE(shim_sem_handle) * sid_head = &sem_sid_hlist[SEM_HASH(semid)];
     struct shim_sem_handle * tmp, * found = NULL;
 
-    lock(sem_list_lock);
+    lock(&sem_list_lock);
 
     listp_for_each_entry(tmp, sid_head, sid_hlist)
         if (tmp->semid == semid) {
@@ -184,7 +184,7 @@ struct shim_sem_handle * get_sem_handle_by_id (IDTYPE semid)
     if (found)
         get_handle(SEM_TO_HANDLE(found));
 
-    unlock(sem_list_lock);
+    unlock(&sem_list_lock);
     return found;
 }
 
@@ -202,7 +202,7 @@ static int __del_sem_handle (struct shim_sem_handle * sem)
 
     struct shim_handle * hdl = SEM_TO_HANDLE(sem);
 
-    lock(sem_list_lock);
+    lock(&sem_list_lock);
     listp_del_init(sem, &sem_list, list);
     put_handle(hdl);
     if (!list_empty(sem, key_hlist)) {
@@ -217,16 +217,16 @@ static int __del_sem_handle (struct shim_sem_handle * sem)
         listp_del_init(sem, sid_head, sid_hlist);
         put_handle(hdl);
     }
-    unlock(sem_list_lock);
+    unlock(&sem_list_lock);
     return 0;
 }
 
 int del_sem_handle (struct shim_sem_handle * sem)
 {
     struct shim_handle * hdl = SEM_TO_HANDLE(sem);
-    lock(hdl->lock);
+    lock(&hdl->lock);
     int ret = del_sem_handle(sem);
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -293,9 +293,9 @@ static int connect_sem_handle (int semid, int nsems,
             return ret;
 
         if (!sem) {
-            lock(sem_list_lock);
+            lock(&sem_list_lock);
             ret = __add_sem_handle(IPC_PRIVATE, semid, nsems, false, &sem);
-            unlock(sem_list_lock);
+            unlock(&sem_list_lock);
             if (ret < 0)
                 return ret;
         }
@@ -310,7 +310,7 @@ int recover_sem_ownership (struct shim_sem_handle * sem,
                            struct sem_client_backup * clients, int nclients)
 {
     struct shim_handle * hdl = SEM_TO_HANDLE(sem);
-    lock(hdl->lock);
+    lock(&hdl->lock);
     assert(!sem->owned);
     assert(!sem->nsems && !sem->sems);
 
@@ -348,7 +348,7 @@ int recover_sem_ownership (struct shim_sem_handle * sem,
     sem->owned = true;
     DkEventSet(sem->event);
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return 0;
 }
 
@@ -398,7 +398,7 @@ int shim_do_semctl (int semid, int semnum, int cmd, unsigned long arg)
        return ret;
 
     struct shim_handle * hdl = SEM_TO_HANDLE(sem);
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     switch (cmd) {
         case IPC_RMID: {
@@ -489,7 +489,7 @@ int shim_do_semctl (int semid, int semnum, int cmd, unsigned long arg)
     }
 
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     put_sem_handle(sem);
     return ret;
 }
@@ -689,7 +689,7 @@ int submit_sysv_sem (struct shim_sem_handle * sem, struct sembuf * sops,
     stat.failed     = false;
     SAVE_PROFILE_INTERVAL(sem_prepare_stat);
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
     SAVE_PROFILE_INTERVAL(sem_lock_handle);
 
     if (sem->deleted) {
@@ -758,13 +758,13 @@ int submit_sysv_sem (struct shim_sem_handle * sem, struct sembuf * sops,
         }
 
 unowned:
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         ret = ipc_sysv_semop_send(semid, sops, nsops, timeout, &seq);
         if (ret != -EAGAIN &&
             ret != -ECONNREFUSED)
             goto out;
 
-        lock(hdl->lock);
+        lock(&hdl->lock);
         SAVE_PROFILE_INTERVAL(sem_send_ipc_semop);
         if (!sem->owned)
             goto out_locked;
@@ -858,16 +858,16 @@ unowned:
             goto unowned;
         }
 
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         object_wait_with_retry(sem->event);
-        lock(hdl->lock);
+        lock(&hdl->lock);
         SAVE_PROFILE_INTERVAL(sem_wait_for_complete);
     }
 
     ret = sem_ops->stat.completed ? 0 : -EAGAIN;
 
 out_locked:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     if (sem_ops && malloced)
         free(sem_ops);

@@ -52,12 +52,12 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     if (self->in_vm && send_ipc)
         ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
 
-    lock(self->lock);
+    lock(&self->lock);
 
     if (!self->is_alive) {
         debug("thread %d is dead\n", self->tid);
     out:
-        unlock(self->lock);
+        unlock(&self->lock);
         return 0;
     }
 
@@ -82,7 +82,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
         assert(parent->child_exit_event);
         debug("thread exits, notifying thread %d\n", parent->tid);
 
-        lock(parent->lock);
+        lock(&parent->lock);
         listp_del_init(self, &parent->children, siblings);
         listp_add_tail(self, &parent->exited_children, siblings);
 
@@ -99,7 +99,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
 
             append_signal(parent, SIGCHLD, &info, true);
         }
-        unlock(parent->lock);
+        unlock(&parent->lock);
 
         DkEventSet(parent->child_exit_event);
     } else {
@@ -110,7 +110,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     struct robust_list_head * robust_list = (void *) self->robust_list;
     self->robust_list = NULL;
 
-    unlock(self->lock);
+    unlock(&self->lock);
 
     if (handle_map)
         put_handle_map(handle_map);

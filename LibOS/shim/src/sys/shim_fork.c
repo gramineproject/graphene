@@ -100,10 +100,10 @@ int shim_do_fork (void)
         return ret;
     }
 
-    lock(new_thread->lock);
+    lock(&new_thread->lock);
     struct shim_handle_map * handle_map = new_thread->handle_map;
     new_thread->handle_map = NULL;
-    unlock(new_thread->lock);
+    unlock(&new_thread->lock);
     if (handle_map)
         put_handle_map(handle_map);
 

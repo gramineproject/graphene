@@ -95,10 +95,10 @@ int shim_do_chdir (const char * filename)
         return -ENOTDIR;
     }
 
-    lock(thread->lock);
+    lock(&thread->lock);
     put_dentry(thread->cwd);
     thread->cwd = dent;
-    unlock(thread->lock);
+    unlock(&thread->lock);
     return 0;
 }
 
@@ -117,11 +117,11 @@ int shim_do_fchdir (int fd)
         return -ENOTDIR;
     }
 
-    lock(thread->lock);
+    lock(&thread->lock);
     get_dentry(dent);
     put_dentry(thread->cwd);
     thread->cwd = dent;
-    unlock(thread->lock);
+    unlock(&thread->lock);
     put_handle(hdl);
     return 0;
 }

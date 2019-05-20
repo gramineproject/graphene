@@ -334,7 +334,7 @@ int init_vma (void)
         assert(reserved_vmas[i]);
     }
 
-    create_lock(vma_list_lock);
+    create_lock(&vma_list_lock);
 
     current_heap_top = PAL_CB(user_address.end);
 
@@ -499,14 +499,14 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
 
     debug("bkeep_mmap: %p-%p\n", addr, addr + length);
 
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mmap(prev, addr, addr + length, prot, flags, file, offset,
                            comment);
     assert_vma_list();
     __restore_reserved_vmas();
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return ret;
 }
 
@@ -680,13 +680,13 @@ int bkeep_munmap (void * addr, uint64_t length, int flags)
 
     debug("bkeep_munmap: %p-%p\n", addr, addr + length);
 
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_munmap(&prev, addr, addr + length, flags);
     assert_vma_list();
     __restore_reserved_vmas();
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return ret;
 }
 
@@ -791,13 +791,13 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
 
     debug("bkeep_mprotect: %p-%p\n", addr, addr + length);
 
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
     struct shim_vma * prev = NULL;
     __lookup_vma(addr, &prev);
     int ret = __bkeep_mprotect(prev, addr, addr + length, prot, flags);
     assert_vma_list();
     __restore_reserved_vmas();
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return ret;
 }
 
@@ -855,12 +855,12 @@ void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
                        int prot, int flags, struct shim_handle * file,
                        uint64_t offset, const char * comment)
 {
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
     void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
                                    file, offset, comment);
     assert_vma_list();
     __restore_reserved_vmas();
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return addr;
 }
 
@@ -868,7 +868,7 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
                             struct shim_handle * file,
                             uint64_t offset, const char * comment)
 {
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
 
     void * bottom_addr = PAL_CB(user_address.start);
     void * top_addr = current_heap_top;
@@ -925,7 +925,7 @@ again:
 
 out:
     __restore_reserved_vmas();
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
 #ifdef MAP_32BIT
     assert(!(flags & MAP_32BIT) || !addr || addr + length <= ADDR_32BIT);
 #endif
@@ -948,18 +948,18 @@ __dump_vma (struct shim_vma_val * val, const struct shim_vma * vma)
 
 int lookup_vma (void * addr, struct shim_vma_val * res)
 {
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
 
     struct shim_vma * vma = __lookup_vma(addr, NULL);
     if (!vma) {
-        unlock(vma_list_lock);
+        unlock(&vma_list_lock);
         return -ENOENT;
     }
 
     if (res)
         __dump_vma(res, vma);
 
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return 0;
 }
 
@@ -968,7 +968,7 @@ int lookup_overlap_vma (void * addr, uint64_t length,
 {
     struct shim_vma * tmp, * vma = NULL;
 
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
 
     listp_for_each_entry(tmp, &vma_list, list)
         if (test_vma_overlap (tmp, addr, addr + length)) {
@@ -978,14 +978,14 @@ int lookup_overlap_vma (void * addr, uint64_t length,
 
 
     if (!vma) {
-        unlock(vma_list_lock);
+        unlock(&vma_list_lock);
         return -ENOENT;
     }
 
     if (res)
         __dump_vma(res, vma);
 
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return 0;
 }
 
@@ -993,14 +993,14 @@ bool is_in_one_vma (void * addr, size_t length)
 {
     struct shim_vma* vma;
 
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
     listp_for_each_entry(vma, &vma_list, list)
         if (test_vma_contain(vma, addr, addr + length)) {
-            unlock(vma_list_lock);
+            unlock(&vma_list_lock);
             return true;
         }
 
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return false;
 }
 
@@ -1009,7 +1009,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
     struct shim_vma_val * val = vmas;
     struct shim_vma * vma;
     int cnt = 0;
-    lock(vma_list_lock);
+    lock(&vma_list_lock);
 
     listp_for_each_entry(vma, &vma_list, list) {
         if (VMA_TYPE(vma->flags))
@@ -1030,7 +1030,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
         val++;
     }
 
-    unlock(vma_list_lock);
+    unlock(&vma_list_lock);
     return cnt;
 }
 
