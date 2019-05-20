@@ -52,6 +52,7 @@ ifeq ($(SGX_RUN),1)
 	PYTHONENV += "TIMEOUT=20000"
 endif
 
+# 30_sigaltstack.py fails because sigaltstack isn't correctly implemented.
 BLOCKED_TESTS = \
 	30_sigaltstack.py
 get_tests = $(filter-out $(BLOCKED_TESTS),$(wildcard $(1)))

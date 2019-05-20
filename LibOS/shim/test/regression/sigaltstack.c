@@ -15,7 +15,7 @@ void handler(int signal, siginfo_t* info, void* ucontext) {
     count++;
 
     uint8_t a;
-    printf("sig %d count %d goes off with sp=%p, sig_stack: [%p %p)\n", signal, count, &a,
+    printf("sig %d count %d goes off with sp=%p, sig_stack: [%p, %p)\n", signal, count, &a,
            sig_stack, sig_stack + sig_stack_size);
     if (sig_stack <= &a && &a < sig_stack + sig_stack_size) {
         printf("OK on signal stack\n");
@@ -31,9 +31,9 @@ void handler(int signal, siginfo_t* info, void* ucontext) {
         err(EXIT_FAILURE, "sigaltstack in handler");
     }
     if (old.ss_flags & SS_ONSTACK) {
-        printf("OK on sigaltstack in handler");
+        printf("OK on sigaltstack in handler\n");
     } else {
-        printf("FAIL on sigaltstack in handler");
+        printf("FAIL on sigaltstack in handler\n");
     }
 
     /*
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
         err(EXIT_FAILURE, "sigaltstack");
     }
     if (old.ss_flags & SS_ONSTACK) {
-        printf("FAIL on sigaltstack in main thread before alarm \n");
+        printf("FAIL on sigaltstack in main thread before alarm\n");
     } else {
         printf("OK on sigaltstack in main thread before alarm\n");
     }
