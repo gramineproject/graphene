@@ -24,8 +24,8 @@
  * Most of the source codes are imported from GNU C library.
  */
 
-#ifndef __dl_machine_h__
-#define __dl_machine_h__
+#ifndef __DL_MACHINE_H__
+#define __DL_MACHINE_H__
 
 #define ELF_MACHINE_NAME "x86_64"
 
@@ -130,4 +130,4 @@ elf_machine_rela (struct link_map * l, ElfW(Rela) * reloc, Elf64_Sym * sym,
     return true;
 }
 
-#endif /* !dl_machine_h */
+#endif /* !DL_MACHINE_H */

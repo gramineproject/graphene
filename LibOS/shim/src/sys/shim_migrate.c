@@ -102,7 +102,7 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
         goto err;
 
     open_handle(cpsession->cpfile);
-    master_lock();
+    MASTER_LOCK();
 
     struct cp_session * s;
     if (*sid) {
@@ -127,11 +127,11 @@ retry:
     }
 
     listp_add_tail(cpsession, &cp_sessions, list);
-    master_unlock();
+    MASTER_UNLOCK();
     return 0;
 
 err_locked:
-    master_unlock();
+    MASTER_UNLOCK();
 err:
     if (cpsession->cpfile)
         close_handle(cpsession->cpfile);
@@ -167,7 +167,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
     int ret = 0;
     bool do_checkpoint = false;
 
-    master_lock();
+    MASTER_LOCK();
 
     listp_for_each_entry(s, &cp_sessions, list)
         if (s->sid == sid) {
@@ -176,7 +176,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
         }
 
     if (!cpsession) {
-        master_unlock();
+        MASTER_UNLOCK();
         return -EINVAL;
     }
 
@@ -193,7 +193,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
         do_checkpoint = true;
 
     PAL_HANDLE finish_event = cpsession->finish_event;
-    master_unlock();
+    MASTER_UNLOCK();
 
     if (!do_checkpoint) {
         debug("waiting for checkpointing\n");

@@ -318,45 +318,50 @@ int initialize_enclave (struct pal_enclave * enclave)
         __alloca(sizeof(areas[0]) * (10 + enclave->thread_num));
     int area_num = 0;
 
-#define set_area(_desc, _skip_eextend, _is_binary, _fd, _addr, _size, _prot, _type)\
-    ({                                                                  \
-        struct mem_area * _a = &areas[area_num++];                      \
-        _a->desc = _desc; _a->skip_eextend = _skip_eextend;             \
-        _a->is_binary = _is_binary;                                     \
-        _a->fd = _fd; _a->addr = _addr; _a->size = _size;               \
-        _a->prot = _prot; _a->type = _type; _a;                         \
+#define SET_AREA(_desc, _skip_eextend, _is_binary, _fd, _addr, _size, _prot, _type) \
+    ({                                                   \
+        struct mem_area* _a = &areas[area_num++];        \
+        _a->desc            = _desc;                     \
+        _a->skip_eextend    = _skip_eextend;             \
+        _a->is_binary       = _is_binary;                \
+        _a->fd              = _fd;                       \
+        _a->addr            = _addr;                     \
+        _a->size            = _size;                     \
+        _a->prot            = _prot;                     \
+        _a->type            = _type;                     \
+        _a;                                              \
     })
 
     /* The manifest needs to be allocated at the upper end of the enclave
      * memory. That's used by pal_linux_main to find the manifest area. So add
      * it first to the list with memory areas. */
-    set_area("manifest", false, false, enclave->manifest,
+    SET_AREA("manifest", false, false, enclave->manifest,
              0, ALLOC_ALIGNUP(manifest_size),
              PROT_READ, SGX_PAGE_REG);
     struct mem_area * ssa_area =
-        set_area("ssa", false, false, -1, 0,
+        SET_AREA("ssa", false, false, -1, 0,
                  enclave->thread_num * enclave->ssaframesize * SSAFRAMENUM,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
     struct mem_area * tcs_area =
-        set_area("tcs", false, false, -1, 0, enclave->thread_num * pagesize,
+        SET_AREA("tcs", false, false, -1, 0, enclave->thread_num * pagesize,
                  0, SGX_PAGE_TCS);
     struct mem_area * tls_area =
-        set_area("tls", false, false, -1, 0, enclave->thread_num * pagesize,
+        SET_AREA("tls", false, false, -1, 0, enclave->thread_num * pagesize,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     struct mem_area * stack_areas = &areas[area_num];
     for (int t = 0 ; t < enclave->thread_num ; t++)
-        set_area("stack", false, false, -1, 0, ENCLAVE_STACK_SIZE,
+        SET_AREA("stack", false, false, -1, 0, ENCLAVE_STACK_SIZE,
                  PROT_READ|PROT_WRITE, SGX_PAGE_REG);
 
     struct mem_area * pal_area =
-        set_area("pal", false, true, enclave_image, 0, 0, 0, SGX_PAGE_REG);
+        SET_AREA("pal", false, true, enclave_image, 0, 0, 0, SGX_PAGE_REG);
     TRY(scan_enclave_binary,
         enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
 
     struct mem_area * exec_area = NULL;
     if (enclave->exec != -1) {
-        exec_area = set_area("exec", false, true, enclave->exec, 0, 0,
+        exec_area = SET_AREA("exec", false, true, enclave->exec, 0, 0,
                              PROT_WRITE, SGX_PAGE_REG);
         TRY(scan_enclave_binary,
             enclave->exec, &exec_area->addr, &exec_area->size, NULL);
@@ -384,7 +389,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                 unsigned long addr = exec_area->addr + exec_area->size;
                 if (addr < heap_min)
                     addr = heap_min;
-                set_area("free", true, false, -1, addr, populating - addr,
+                SET_AREA("free", true, false, -1, addr, populating - addr,
                          PROT_READ|PROT_WRITE|PROT_EXEC, SGX_PAGE_REG);
             }
 
@@ -393,7 +398,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     if (populating > heap_min) {
-        set_area("free", true, false, -1, heap_min, populating - heap_min,
+        SET_AREA("free", true, false, -1, heap_min, populating - heap_min,
                  PROT_READ|PROT_WRITE|PROT_EXEC, SGX_PAGE_REG);
     }
 
@@ -490,6 +495,8 @@ int initialize_enclave (struct pal_enclave * enclave)
         dbg->tcs_addrs[i] = tcs_addrs[i];
 
     return 0;
+#undef SET_AREA
+#undef TRY
 }
 
 static int mcast_s (int port)

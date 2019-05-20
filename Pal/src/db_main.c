@@ -67,7 +67,7 @@ static void load_libraries (void)
 
                 *c = 0;
                 if ((ret = load_elf_object(library_name, OBJECT_PRELOAD)) < 0)
-                    init_fail(-ret, "Unable to load preload library");
+                    INIT_FAIL(-ret, "Unable to load preload library");
 
 #if PROFILING == 1
                 pal_state.linking_time +=
@@ -197,7 +197,7 @@ static void set_debug_type (void)
         ret = get_config(pal_state.root_config, "loader.debug_file",
                          cfgbuf, CONFIG_MAX);
         if (ret <= 0)
-            init_fail(PAL_ERROR_INVAL, "debug file not specified");
+            INIT_FAIL(PAL_ERROR_INVAL, "debug file not specified");
 
         ret = _DkStreamOpen(&handle, cfgbuf,
                             PAL_ACCESS_RDWR,
@@ -209,11 +209,11 @@ static void set_debug_type (void)
     if (strcmp_static(cfgbuf, "none"))
         goto out;
 
-    init_fail(PAL_ERROR_INVAL, "unknown debug type");
+    INIT_FAIL(PAL_ERROR_INVAL, "unknown debug type");
 
 out:
     if (ret < 0)
-        init_fail(-ret, "cannot open debug stream");
+        INIT_FAIL(-ret, "cannot open debug stream");
 
     __pal_control.debug_stream = handle;
 }
@@ -264,7 +264,7 @@ void pal_main (
     if (exec_handle) {
         ret = _DkStreamGetName(exec_handle, uri_buf, URI_MAX);
         if (ret < 0)
-            init_fail(-ret, "cannot get executable name");
+            INIT_FAIL(-ret, "cannot get executable name");
 
         exec_uri = malloc_copy(uri_buf, ret + 1);
     }
@@ -272,14 +272,14 @@ void pal_main (
     if (manifest_handle) {
         ret = _DkStreamGetName(manifest_handle, uri_buf, URI_MAX);
         if (ret < 0)
-            init_fail(-ret, "cannot get manifest name");
+            INIT_FAIL(-ret, "cannot get manifest name");
 
         manifest_uri = malloc_copy(uri_buf, ret + 1);
         goto has_manifest;
     }
 
     if (!exec_handle)
-        init_fail(PAL_ERROR_INVAL, "Must have manifest or executable");
+        INIT_FAIL(PAL_ERROR_INVAL, "Must have manifest or executable");
 
 #if PROFILING == 1
     unsigned long before_find_manifest = _DkSystemTimeQuery();
@@ -319,7 +319,7 @@ has_manifest:
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQueryByHandle(manifest_handle, &attr);
         if (ret < 0)
-            init_fail(-ret, "cannot open manifest file");
+            INIT_FAIL(-ret, "cannot open manifest file");
 
         void * cfg_addr = NULL;
         int cfg_size = attr.pending_size;
@@ -328,7 +328,7 @@ has_manifest:
                            PAL_PROT_READ, 0,
                            ALLOC_ALIGNUP(cfg_size));
         if (ret < 0)
-            init_fail(-ret, "cannot open manifest file");
+            INIT_FAIL(-ret, "cannot open manifest file");
 
         struct config_store * root_config = malloc(sizeof(struct config_store));
         root_config->raw_data = cfg_addr;
@@ -340,7 +340,7 @@ has_manifest:
         if ((ret = read_config(root_config, loader_filter, &errstring)) < 0) {
             if (_DkStreamGetName(manifest_handle, uri_buf, URI_MAX) > 0)
                 printf("reading manifest \"%s\" failed\n", uri_buf);
-            init_fail(-ret, errstring);
+            INIT_FAIL(-ret, errstring);
         }
 
         pal_state.root_config = root_config;
@@ -360,7 +360,7 @@ has_manifest:
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
                                 0, 0, 0);
             if (ret < 0)
-                init_fail(-ret, "cannot open executable");
+                INIT_FAIL(-ret, "cannot open executable");
         }
     }
 
@@ -383,7 +383,7 @@ has_manifest:
         if (success) {
             exec_uri = malloc(exec_strlen + 1);
             if (!exec_uri)
-                init_fail(-PAL_ERROR_NOMEM, "Cannot allocate URI buf");
+                INIT_FAIL(-PAL_ERROR_NOMEM, "Cannot allocate URI buf");
             memcpy (exec_uri, manifest_uri, exec_strlen);
             exec_uri[exec_strlen] = '\0';
             ret = _DkStreamOpen(&exec_handle, exec_uri, PAL_ACCESS_RDONLY,
@@ -400,7 +400,7 @@ has_manifest:
 
     /* must be a ELF */
     if (exec_handle && check_elf_object(exec_handle) < 0)
-        init_fail(PAL_ERROR_INVAL, "executable is not a ELF binary");
+        INIT_FAIL(PAL_ERROR_INVAL, "executable is not a ELF binary");
 
     pal_state.manifest        = manifest_uri;
     pal_state.manifest_handle = manifest_handle;
@@ -436,7 +436,7 @@ has_manifest:
         }
 
         if (ret < 0)
-            init_fail(ret, PAL_STRERROR(ret));
+            INIT_FAIL(ret, PAL_STRERROR(ret));
 
 #if PROFILING == 1
         pal_state.linking_time += _DkSystemTimeQuery() - before_load_exec;
@@ -483,7 +483,7 @@ has_manifest:
     start_execution(first_argument, arguments, environments);
 
     /* We wish we will never reached here */
-    init_fail(PAL_ERROR_DENIED, "unexpected termination");
+    INIT_FAIL(PAL_ERROR_DENIED, "unexpected termination");
 }
 
 void write_log (int nstrs, ...)

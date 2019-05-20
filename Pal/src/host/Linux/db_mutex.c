@@ -100,7 +100,7 @@ int _DkMutexLockTimeout (struct mutex_handle * m, uint64_t timeout)
     for (i = 0; i < iterations; i++) {
         if (MUTEX_UNLOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED))
             goto success;
-        cpu_relax();
+        CPU_RELAX();
     }
 
     if (timeout == 0) {
@@ -180,7 +180,7 @@ int _DkMutexUnlock (struct mutex_handle * m)
     m->locked = 0;
     /* We need to make sure the write to locked is visible to lock-ers
      * before we read the waiter count. */
-    mb();
+    MB();
 
     need_wake = atomic_read(&m->nwaiters);
 

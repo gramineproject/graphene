@@ -119,7 +119,7 @@ static inline LEASETYPE get_lease (void)
 void CONCAT3(debug_print, NS, ranges) (void)
 {
     lock(&range_map_lock);
-    sys_printf(NS_STR " ranges in process %010u:\n", cur_process.vmid);
+    SYS_PRINTF(NS_STR " ranges in process %010u:\n", cur_process.vmid);
 
     if (!range_map) {
         unlock(&range_map_lock);
@@ -150,7 +150,7 @@ void CONCAT3(debug_print, NS, ranges) (void)
             IDTYPE base = RANGE_SIZE * off + 1;
             struct shim_ipc_info * p = r->owner;
 
-            sys_printf("%04u - %04u: owner %010u, port \"%s\" lease %lu\n",
+            SYS_PRINTF("%04u - %04u: owner %010u, port \"%s\" lease %lu\n",
                        base, base + RANGE_SIZE - 1,
                        p->vmid, qstrgetstr(&p->uri), r->lease);
 
@@ -163,7 +163,7 @@ void CONCAT3(debug_print, NS, ranges) (void)
                     continue;
 
                 p = s->owner;
-                sys_printf("   %04u: owner %010u, port \"%s\" lease %lu\n",
+                SYS_PRINTF("   %04u: owner %010u, port \"%s\" lease %lu\n",
                            base + k, p->vmid,
                            qstrgetstr(&p->uri), s->lease);
             }

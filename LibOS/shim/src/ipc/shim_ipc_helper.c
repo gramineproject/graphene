@@ -110,10 +110,10 @@ static void ipc_broadcast_exit (struct shim_ipc_port * port, IDTYPE vmid,
                                 unsigned exitcode)
 {
     if (port == broadcast_port) {
-        master_lock();
+        MASTER_LOCK();
         broadcast_port = NULL;
         put_ipc_port(port);
-        master_unlock();
+        MASTER_UNLOCK();
     }
 }
 
@@ -839,7 +839,7 @@ static void shim_ipc_helper (void * arg)
 
     self->stack_top = stack + IPC_HELPER_STACK_SIZE;
     self->stack = stack;
-    switch_stack(stack + IPC_HELPER_STACK_SIZE);
+    SWITCH_STACK(stack + IPC_HELPER_STACK_SIZE);
     self = get_cur_thread();
     stack = self->stack;
 
@@ -864,7 +864,7 @@ static void shim_ipc_helper (void * arg)
            nalive) {
         /* do a global poll on all the ports */
         polled = DkObjectsWaitAny(port_num + 1, local_ports, NO_TIMEOUT);
-        barrier();
+        BARRIER();
 
         if (!polled)
             continue;
@@ -874,7 +874,7 @@ static void shim_ipc_helper (void * arg)
         if (polled == ipc_event_handle) {
             clear_event(&ipc_helper_event);
 update_status:
-            barrier();
+            BARRIER();
             if (ipc_helper_state == HELPER_NOTALIVE)
                 goto end;
             else
@@ -1031,7 +1031,7 @@ end:
      * helper lock.  Err on the side of caution by adding a barrier to ensure
      * reading the latest ipc helper state.
      */
-    barrier();
+    BARRIER();
     if (ipc_helper_state == HELPER_HANDEDOVER) {
         debug("ipc helper thread is the last thread, process exiting\n");
         shim_terminate(0); // Same as shim_clean(), but this is the official termination function
@@ -1131,7 +1131,7 @@ int exit_with_ipc_helper (bool handover, struct shim_thread ** ret)
          * generated the signal doesn't hang waiting for IPC_RESP. */
         int loops = 0;
         while (ipc_helper_thread != NULL && loops++ < 2000) {
-            barrier();
+            BARRIER();
             DkThreadDelayExecution(1000);
         }
         if (ipc_helper_thread != NULL) {

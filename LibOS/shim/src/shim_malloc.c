@@ -40,8 +40,8 @@
 
 static struct shim_lock slab_mgr_lock;
 
-#define system_lock()       lock(&slab_mgr_lock)
-#define system_unlock()     unlock(&slab_mgr_lock)
+#define SYSTEM_LOCK()       lock(&slab_mgr_lock)
+#define SYSTEM_UNLOCK()     unlock(&slab_mgr_lock)
 #define PAGE_SIZE           allocsize
 
 #ifdef SLAB_DEBUG_TRACE
@@ -103,7 +103,7 @@ void __system_free (void * addr, size_t size)
     DkVirtualMemoryFree(addr, ALIGN_UP(size));
 
     if (bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL) < 0)
-        bug();
+        BUG();
 }
 
 int init_slab (void)
@@ -113,7 +113,7 @@ int init_slab (void)
     return 0;
 }
 
-extern_alias(init_slab);
+EXTERN_ALIAS(init_slab);
 
 int reinit_slab (void)
 {
@@ -192,7 +192,7 @@ void * malloc (size_t size)
          * If malloc() failed internally, we cannot handle the
          * condition and must terminate the current process.
          */
-        sys_printf("******** Out-of-memory in library OS ********\n");
+        SYS_PRINTF("******** Out-of-memory in library OS ********\n");
         __abort();
     }
 
@@ -202,7 +202,7 @@ void * malloc (size_t size)
     return mem;
 }
 #if !defined(SLAB_DEBUG_PRINT) && !defined(SLAB_DEBUG_TRACE)
-extern_alias(malloc);
+EXTERN_ALIAS(malloc);
 #endif
 
 void * calloc (size_t nmemb, size_t size)
@@ -216,7 +216,7 @@ void * calloc (size_t nmemb, size_t size)
         memset(ptr, 0, total);
     return ptr;
 }
-extern_alias(calloc);
+EXTERN_ALIAS(calloc);
 
 #if 0 /* Temporarily disabling this code */
 void * realloc(void * ptr, size_t new_size)
@@ -244,7 +244,7 @@ void * realloc(void * ptr, size_t new_size)
     free(ptr);
     return new_buf;
 }
-extern_alias(realloc);
+EXTERN_ALIAS(realloc);
 #endif
 
 // Copies data from `mem` to a newly allocated buffer of a specified size.
@@ -265,7 +265,7 @@ void * malloc_copy (const void * mem, size_t size)
     return buff;
 }
 #if !defined(SLAB_DEBUG_PRINT) && !defined(SLABD_DEBUG_TRACE)
-extern_alias(malloc_copy);
+EXTERN_ALIAS(malloc_copy);
 #endif
 
 DEFINE_PROFILE_OCCURENCE(free_0, memory);
@@ -337,5 +337,5 @@ void free (void * mem)
 #endif
 }
 #if !defined(SLAB_DEBUG_PRINT) && !defined(SLABD_DEBUG_TRACE)
-extern_alias(free);
+EXTERN_ALIAS(free);
 #endif

@@ -57,16 +57,16 @@ static struct {
 
 void signal_itimer (IDTYPE target, void * arg)
 {
-    master_lock();
+    MASTER_LOCK();
 
     if (real_itimer.timeout != (unsigned long) arg) {
-        master_unlock();
+        MASTER_UNLOCK();
         return;
     }
 
     real_itimer.timeout += real_itimer.reset;
     real_itimer.reset = 0;
-    master_unlock();
+    MASTER_UNLOCK();
 }
 
 #ifndef ITIMER_REAL
@@ -93,7 +93,7 @@ int shim_do_setitimer (int which, struct __kernel_itimerval * value,
     unsigned long next_reset = value->it_interval.tv_sec * 1000000
                                + value->it_interval.tv_usec;
 
-    master_lock();
+    MASTER_LOCK();
 
     unsigned long current_timeout = real_itimer.timeout > setup_time ?
                                     real_itimer.timeout - setup_time : 0;
@@ -103,14 +103,14 @@ int shim_do_setitimer (int which, struct __kernel_itimerval * value,
                                        (void *) (setup_time + next_value));
 
     if (ret < 0) {
-        master_unlock();
+        MASTER_UNLOCK();
         return ret;
     }
 
     real_itimer.timeout = setup_time + next_value;
     real_itimer.reset = next_reset;
 
-    master_unlock();
+    MASTER_UNLOCK();
 
     if (ovalue) {
         ovalue->it_interval.tv_sec = current_reset / 1000000;
@@ -134,11 +134,11 @@ int shim_do_getitimer (int which, struct __kernel_itimerval * value)
 
     unsigned long setup_time = DkSystemTimeQuery();
 
-    master_lock();
+    MASTER_LOCK();
     unsigned long current_timeout = real_itimer.timeout > setup_time ?
                                     real_itimer.timeout - setup_time : 0;
     unsigned long current_reset = real_itimer.reset;
-    master_unlock();
+    MASTER_UNLOCK();
 
     value->it_interval.tv_sec = current_reset / 1000000;
     value->it_interval.tv_usec = current_reset % 1000000;

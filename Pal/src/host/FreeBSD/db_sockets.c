@@ -58,8 +58,7 @@ typedef uint16_t __be16;
 #define SOL_TCP			6
 #define TCP_CORK	TCP_NOPUSH
 
-static inline int addr_size (struct sockaddr * addr)
-{
+static size_t addr_size(const struct sockaddr* addr) {
     switch (addr->sa_family) {
         case AF_INET:
             return sizeof(struct sockaddr_in);

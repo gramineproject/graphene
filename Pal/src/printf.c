@@ -75,6 +75,6 @@ printf(const char * fmt, ...)
 
     return cnt;
 }
-extern_alias(printf);
+EXTERN_ALIAS(printf);
 
 #endif

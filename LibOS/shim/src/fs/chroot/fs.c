@@ -626,7 +626,7 @@ static int chroot_flush (struct shim_handle * hdl)
             DkStreamUnmap(mapbuf, mapsize);
 
             if (bkeep_munmap(mapbuf, mapsize, VMA_INTERNAL) < 0)
-                bug();
+                BUG();
         }
     }
 
@@ -645,7 +645,7 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
         DkStreamUnmap(file->mapbuf, file->mapsize);
 
         if (bkeep_munmap(file->mapbuf, file->mapsize, VMA_INTERNAL) < 0)
-            bug();
+            BUG();
 
         file->mapbuf    = NULL;
         file->mapoffset = 0;

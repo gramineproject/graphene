@@ -159,7 +159,7 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
 
     while (1) {
         if (start_addr >= end_addr)
-            init_fail(PAL_ERROR_NOMEM, "no user memory available");
+            INIT_FAIL(PAL_ERROR_NOMEM, "no user memory available");
 
         void * mem = (void *) ARCH_MMAP(start_addr,
                                         pal_state.alloc_align,
@@ -231,7 +231,7 @@ void pal_linux_main (void * args)
 
     first_thread = malloc(HANDLE_SIZE(thread));
     if (!first_thread)
-        init_fail(PAL_ERROR_NOMEM, "Out of memory");
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
     first_thread->thread.stack = NULL;
@@ -239,7 +239,7 @@ void pal_linux_main (void * args)
     void * alt_stack = NULL;
     _DkVirtualMemoryAlloc(&alt_stack, ALT_STACK_SIZE, 0, PAL_PROT_READ|PAL_PROT_WRITE);
     if (!alt_stack)
-        init_fail(PAL_ERROR_NOMEM, "Out of memory");
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
 
     // Initialize TCB at the top of the alternative stack.
     PAL_TCB * tcb  = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB);

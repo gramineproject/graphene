@@ -36,7 +36,7 @@
 #include <pal_error.h>
 #include <list.h>
 
-#define ipc_info_mgr_ALLOC  32
+#define IPC_INFO_MGR_ALLOC  32
 #define PAGE_SIZE           allocsize
 
 #define OBJ_TYPE struct shim_ipc_info
@@ -63,7 +63,7 @@ int init_ipc (void)
 
     create_lock(&ipc_info_lock);
 
-    if (!(ipc_info_mgr = create_mem_mgr(init_align_up(ipc_info_mgr_ALLOC))))
+    if (!(ipc_info_mgr = create_mem_mgr(init_align_up(IPC_INFO_MGR_ALLOC))))
         return -ENOMEM;
 
     if ((ret = init_ipc_ports()) < 0)
@@ -93,7 +93,7 @@ static struct shim_ipc_info * __get_new_ipc_info (IDTYPE vmid, const char * uri,
 {
     struct shim_ipc_info * info =
                 get_mem_obj_from_mgr_enlarge(ipc_info_mgr,
-                                             size_align_up(ipc_info_mgr_ALLOC));
+                                             size_align_up(IPC_INFO_MGR_ALLOC));
     if (!info)
         return NULL;
 

@@ -347,7 +347,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
 
     if (IS_ERR(bytes)) {
         if (ERRNO(bytes) != EBADF)
-            init_fail(PAL_ERROR_DENIED, "communication fail with parent");
+            INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
 
         /* in the first process */
         /* occupy PROC_INIT_FD so no one will use it */
@@ -357,7 +357,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
 
     /* a child must have parent handle and an executable */
     if (!proc_args->parent_data_size)
-        init_fail(PAL_ERROR_INVAL, "invalid process created");
+        INIT_FAIL(PAL_ERROR_INVAL, "invalid process created");
 
     int datasz = proc_args->parent_data_size + proc_args->exec_data_size +
                  proc_args->manifest_data_size;
@@ -372,13 +372,13 @@ void init_child_process (PAL_HANDLE * parent_handle,
 
     bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, data, datasz);
     if (IS_ERR(bytes))
-        init_fail(PAL_ERROR_DENIED, "communication fail with parent");
+        INIT_FAIL(PAL_ERROR_DENIED, "communication fail with parent");
 
     /* now deserialize the parent_handle */
     PAL_HANDLE parent = NULL;
     ret = handle_deserialize(&parent, data, proc_args->parent_data_size);
     if (ret < 0)
-        init_fail(-ret, "cannot deseilaize parent process handle");
+        INIT_FAIL(-ret, "cannot deseilaize parent process handle");
     data += proc_args->parent_data_size;
     *parent_handle = parent;
 
@@ -392,7 +392,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
         ret = handle_deserialize(&exec, data,
                                  proc_args->exec_data_size);
         if (ret < 0)
-            init_fail(-ret, "cannot deserialize executable handle");
+            INIT_FAIL(-ret, "cannot deserialize executable handle");
 
         data += proc_args->exec_data_size;
         *exec_handle = exec;
@@ -405,7 +405,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
         ret = handle_deserialize(&manifest, data,
                                  proc_args->manifest_data_size);
         if (ret < 0)
-            init_fail(-ret, "cannot deserialize manifest handle");
+            INIT_FAIL(-ret, "cannot deserialize manifest handle");
 
         data += proc_args->manifest_data_size;
         *manifest_handle = manifest;

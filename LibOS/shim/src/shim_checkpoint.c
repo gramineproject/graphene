@@ -624,7 +624,7 @@ int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
         rs_func rs = (&__rs_func) [cpent->cp_type - CP_FUNC_BASE];
         ret = (*rs) (cpent, base, offset, rebase);
         if (ret < 0) {
-            sys_printf("restore_checkpoint() at %s (%d)\n",
+            SYS_PRINTF("restore_checkpoint() at %s (%d)\n",
                        CP_FUNC_NAME(cpent->cp_type), ret);
             return ret;
         }
@@ -940,7 +940,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     } else {
         if (warn_no_gipc) {
             warn_no_gipc = false;
-            sys_printf("WARNING: no physical memory support, process creation "
+            SYS_PRINTF("WARNING: no physical memory support, process creation "
                        "may be slow.\n");
         }
     }
@@ -1121,7 +1121,7 @@ err:
     if (new_process)
         destroy_process(new_process);
 
-    sys_printf("process creation failed\n");
+    SYS_PRINTF("process creation failed\n");
     return ret;
 }
 

@@ -6,7 +6,7 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-#define file_uri "file:test.txt"
+#define FILE_URI "file:test.txt"
 
 char str[12];
 
@@ -14,7 +14,7 @@ int main (int argc, char ** argv, char ** envp)
 {
     pal_printf("Enter Main Thread\n");
 
-    PAL_HANDLE out = DkStreamOpen(file_uri, PAL_ACCESS_RDWR,
+    PAL_HANDLE out = DkStreamOpen(FILE_URI, PAL_ACCESS_RDWR,
                                   PAL_SHARE_OWNER_W | PAL_SHARE_OWNER_R,
                                   PAL_CREATE_TRY, 0);
 
@@ -45,7 +45,7 @@ int main (int argc, char ** argv, char ** envp)
 
     DkObjectClose(out);
 
-    PAL_HANDLE in = DkStreamOpen(file_uri, PAL_ACCESS_RDONLY, 0, 0, 0);
+    PAL_HANDLE in = DkStreamOpen(FILE_URI, PAL_ACCESS_RDONLY, 0, 0, 0);
 
     bytes = DkStreamRead(in, 0, 20, str, NULL, 0);
 
@@ -58,7 +58,7 @@ int main (int argc, char ** argv, char ** envp)
 
     DkStreamDelete(in, 0);
 
-    PAL_HANDLE del = DkStreamOpen(file_uri, PAL_ACCESS_RDWR, 0, 0, 0);
+    PAL_HANDLE del = DkStreamOpen(FILE_URI, PAL_ACCESS_RDWR, 0, 0, 0);
 
     if (del) {
         pal_printf("DkStreamDelete failed\n");

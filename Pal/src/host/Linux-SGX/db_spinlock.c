@@ -44,7 +44,7 @@ int _DkSpinLock (struct spinlock * lock)
         int c = atomic_read(m);
         if (!c && atomic_cmpxchg(m, 0, 1) == 0)
             break;
-        cpu_relax();
+        CPU_RELAX();
     }
     return 0;
 }

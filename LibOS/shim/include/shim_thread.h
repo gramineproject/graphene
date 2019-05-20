@@ -204,7 +204,7 @@ void set_cur_thread (struct shim_thread * thread)
         put_thread(tcb->tp);
         tcb->tp = NULL;
     } else {
-        bug();
+        BUG();
     }
 
     if (tcb->tid != tid) {

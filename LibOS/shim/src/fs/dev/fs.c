@@ -336,7 +336,7 @@ retry:
     *dirent = ptr = buf;
     struct shim_dirent ** last = dirent;
 
-#define copy_entry(devname, devtype)                                \
+#define COPY_ENTRY(devname, devtype)                                \
     do {                                                            \
         int name_len = strlen(devname);                             \
                                                                     \
@@ -352,11 +352,12 @@ retry:
         ptr = ptr->next;                                            \
     } while (0)
 
-    copy_entry("null",   LINUX_DT_CHR);
-    copy_entry("zero",   LINUX_DT_CHR);
-    copy_entry("stdin",  LINUX_DT_LNK);
-    copy_entry("stdout", LINUX_DT_LNK);
-    copy_entry("stderr", LINUX_DT_LNK);
+    COPY_ENTRY("null",   LINUX_DT_CHR);
+    COPY_ENTRY("zero",   LINUX_DT_CHR);
+    COPY_ENTRY("stdin",  LINUX_DT_LNK);
+    COPY_ENTRY("stdout", LINUX_DT_LNK);
+    COPY_ENTRY("stderr", LINUX_DT_LNK);
+#undef COPY_ENTRY
 
     *last = NULL;
     return 0;

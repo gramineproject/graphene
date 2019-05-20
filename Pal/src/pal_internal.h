@@ -361,7 +361,7 @@ int _DkPhysicalMemoryMap (PAL_HANDLE channel, int entries,
                           PAL_PTR * addrs, PAL_NUM * sizes, PAL_FLG * prots);
 int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int values[4]);
 
-#define init_fail(exitcode, reason)                                     \
+#define INIT_FAIL(exitcode, reason)                                     \
     do {                                                                \
         printf("PAL failed at " __FILE__  ":%s:%u (exitcode = %u, reason=%s)\n", \
                __FUNCTION__, (unsigned int)__LINE__,                    \
@@ -398,12 +398,12 @@ void free (void * mem);
 # define __attribute_noinline
 #endif
 
-#define alias_str(name) #name
+#define ALIAS_STR(name) #name
 #ifdef __GNUC__
-# define extern_alias(name) \
-    extern __typeof(name) pal_##name __attribute ((alias (alias_str(name))))
+# define EXTERN_ALIAS(name) \
+    extern __typeof(name) pal_##name __attribute ((alias (ALIAS_STR(name))))
 #else
-# define extern_alias(name)
+# define EXTERN_ALIAS(name)
 #endif
 
 void _DkPrintConsole (const void * buf, int size);

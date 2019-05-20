@@ -45,11 +45,11 @@ Copyright (C) 2005-2014 Rich Felker, et al.
 */
 
 /* Optimization barrier */
-#define barrier()    __asm__ __volatile__("": : :"memory")
-# define cpu_relax() __asm__ __volatile__("rep; nop" ::: "memory");
+#define BARRIER()   __asm__ __volatile__("": : :"memory")
+#define CPU_RELAX() __asm__ __volatile__("rep; nop" ::: "memory");
 
 #ifdef __i386__
-# define rmb()      __asm__ __volatile__("lock; addl $0,0(%%esp)" ::: "memory")
+# define RMB()      __asm__ __volatile__("lock; addl $0,0(%%esp)" ::: "memory")
 
 struct atomic_int {
     volatile int32_t counter;
@@ -66,12 +66,12 @@ __attribute__((aligned(sizeof(uint32_t))))
  */
 #ifdef __x86_64__
 /*
- * Some non-Intel clones support out of order store. wmb() ceases to be a
+ * Some non-Intel clones support out of order store. WMB() ceases to be a
  * nop for these.
  */
-# define mb()    __asm__ __volatile__ ("mfence" ::: "memory")
-# define rmb()   __asm__ __volatile__ ("lfence" ::: "memory")
-# define wmb()   __asm__ __volatile__ ("sfence" ::: "memory")
+# define MB()    __asm__ __volatile__ ("mfence" ::: "memory")
+# define RMB()   __asm__ __volatile__ ("lfence" ::: "memory")
+# define WMB()   __asm__ __volatile__ ("sfence" ::: "memory")
 
 struct atomic_int {
     volatile int64_t counter;

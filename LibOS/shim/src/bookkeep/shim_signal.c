@@ -174,7 +174,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
             *signal_log = signal;
         }
         if (signal && !signal_log) {
-            sys_printf("signal queue is full (TID = %u, SIG = %d)\n",
+            SYS_PRINTF("signal queue is full (TID = %u, SIG = %d)\n",
                        tcb->tid, sig);
             free(signal);
         }
@@ -214,15 +214,15 @@ static inline void internal_fault(const char* errstr,
 {
     IDTYPE tid = get_cur_tid();
     if (context_is_internal(context))
-        sys_printf("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
+        SYS_PRINTF("%s at 0x%08lx (IP = +0x%lx, VMID = %u, TID = %u)\n", errstr,
                    addr, (void *) context->IP - (void *) &__load_address,
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
     else
-        sys_printf("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr,
+        SYS_PRINTF("%s at 0x%08lx (IP = 0x%08lx, VMID = %u, TID = %u)\n", errstr,
                    addr, context ? context->IP : 0,
                    cur_process.vmid, is_internal_tid(tid) ? 0 : tid);
 
-    pause();
+    PAUSE();
 }
 
 static void arithmetic_error_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
@@ -324,10 +324,10 @@ static bool is_sgx_pal(void) {
     if (!atomic_read(&inited)) {
         /* Ensure that is_sgx_pal is updated before initialized */
         atomic_set(&sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
-        mb();
+        MB();
         atomic_set(&inited, 1);
     }
-    mb();
+    MB();
 
     return atomic_read(&sgx_pal) != 0;
 }
@@ -604,7 +604,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
     void (*handler) (int, siginfo_t *, void *) = NULL;
 
     if (signal->info.si_signo == SIGCP) {
-        join_checkpoint(thread, &signal->context, si_cp_session(&signal->info));
+        join_checkpoint(thread, &signal->context, SI_CP_SESSION(&signal->info));
         return;
     }
 
@@ -746,7 +746,7 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
             DkThreadResume(thread->pal_handle);
         }
     } else {
-        sys_printf("signal queue is full (TID = %u, SIG = %d)\n",
+        SYS_PRINTF("signal queue is full (TID = %u, SIG = %d)\n",
                    thread->tid, sig);
         free(signal);
     }

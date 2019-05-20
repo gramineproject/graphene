@@ -34,18 +34,18 @@
 #include <sys/mman.h>
 
 // Before calling any of `system_malloc` and `system_free` this library will
-// acquire `system_lock` (the systen_* implementation must not do it).
+// acquire `SYSTEM_LOCK` (the systen_* implementation must not do it).
 #ifndef system_malloc
 #error "macro \"void * system_malloc(int size)\" not declared"
 #endif
 #ifndef system_free
 #error "macro \"void * system_free(void * ptr, int size)\" not declared"
 #endif
-#ifndef system_lock
-#define system_lock() ({})
+#ifndef SYSTEM_LOCK
+#define SYSTEM_LOCK() ({})
 #endif
-#ifndef system_unlock
-#define system_unlock() ({})
+#ifndef SYSTEM_UNLOCK
+#define SYSTEM_UNLOCK() ({})
 #endif
 
 /* malloc is supposed to provide some kind of alignment guarantees, but
@@ -297,7 +297,7 @@ static inline void destroy_slab_mgr (SLAB_MGR mgr)
     system_free(mgr, addr - (void *) mgr);
 }
 
-// system_lock needs to be held by the caller on entry.
+// SYSTEM_LOCK needs to be held by the caller on entry.
 static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
 {
     assert(level < SLAB_LEVEL);
@@ -318,7 +318,7 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
 
     /* system_malloc() may be blocking, so we release the lock before
      * allocating more memory */
-    system_unlock();
+    SYSTEM_UNLOCK();
 
     /* If the allocation failed, always try smaller sizes */
     for (; size > 0; size >>= 1) {
@@ -328,11 +328,11 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
     }
 
     if (!area) {
-        system_lock();
+        SYSTEM_LOCK();
         return -ENOMEM;
     }
 
-    system_lock();
+    SYSTEM_LOCK();
 
     area->size = size;
     INIT_LIST_HEAD(area, __list);
@@ -371,13 +371,13 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
         return OBJ_RAW(mem);
     }
 
-    system_lock();
+    SYSTEM_LOCK();
     assert(mgr->addr[level] <= mgr->addr_top[level]);
     if (mgr->addr[level] == mgr->addr_top[level] &&
           listp_empty(&mgr->free_list[level])) {
         int ret = enlarge_slab_mgr(mgr, level);
         if (ret < 0) {
-            system_unlock();
+            SYSTEM_UNLOCK();
             return NULL;
         }
     }
@@ -391,7 +391,7 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
     }
     assert(mgr->addr[level] <= mgr->addr_top[level]);
     OBJ_LEVEL(mobj) = level;
-    system_unlock();
+    SYSTEM_UNLOCK();
 
 #ifdef SLAB_CANARY
     unsigned long * m =
@@ -488,10 +488,10 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
 
     SLAB_OBJ mobj = RAW_TO_OBJ(obj, SLAB_OBJ_TYPE);
 
-    system_lock();
+    SYSTEM_LOCK();
     INIT_LIST_HEAD(mobj, __list);
     listp_add_tail(mobj, &mgr->free_list[level], __list);
-    system_unlock();
+    SYSTEM_UNLOCK();
 }
 
 #ifdef SLAB_DEBUG
