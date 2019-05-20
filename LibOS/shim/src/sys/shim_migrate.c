@@ -106,7 +106,7 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
 
     struct cp_session * s;
     if (*sid) {
-        listp_for_each_entry(s, &cp_sessions, list)
+        LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
             if (s->sid == *sid) {
                 ret = 0;
                 goto err_locked;
@@ -119,14 +119,14 @@ retry:
             goto err_locked;
         }
 
-        listp_for_each_entry(s, &cp_sessions, list)
+        LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
             if (s->sid == cpsession->sid)
                 goto retry;
 
         *sid = cpsession->sid;
     }
 
-    listp_add_tail(cpsession, &cp_sessions, list);
+    LISTP_ADD_TAIL(cpsession, &cp_sessions, list);
     MASTER_UNLOCK();
     return 0;
 
@@ -152,7 +152,7 @@ static int check_thread (struct shim_thread * thread, void * arg,
     if (!thread->in_vm || !thread->is_alive)
         return 0;
 
-    listp_for_each_entry(t, registered, list)
+    LISTP_FOR_EACH_ENTRY(t, registered, list)
         if (t->thread == thread)
             return 0;
 
@@ -169,7 +169,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
 
     MASTER_LOCK();
 
-    listp_for_each_entry(s, &cp_sessions, list)
+    LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
         if (s->sid == sid) {
             cpsession = s;
             break;
@@ -182,7 +182,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
 
     INIT_LIST_HEAD(&cpthread, list);
     cpthread.thread = thread;
-    listp_add_tail(&cpthread, &cpsession->registered_threads, list);
+    LISTP_ADD_TAIL(&cpthread, &cpsession->registered_threads, list);
 
     /* find out if there is any thread that is not registered yet */
     ret = walk_thread_list(&check_thread,

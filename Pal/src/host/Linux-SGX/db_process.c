@@ -64,7 +64,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
 
     _DkSpinLock(&trusted_children_lock);
 
-    listp_for_each_entry(tc, &trusted_children, list) {
+    LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
             _DkSpinUnlock(&trusted_children_lock);
             return 0;
@@ -121,7 +121,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
 
     _DkSpinLock(&trusted_children_lock);
 
-    listp_for_each_entry(tc, &trusted_children, list) {
+    LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
         if (!memcmp(tc->uri, uri, uri_len + 1)) {
             _DkSpinUnlock(&trusted_children_lock);
             free(new);
@@ -129,7 +129,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
         }
     }
 
-    listp_add_tail(new, &trusted_children, list);
+    LISTP_ADD_TAIL(new, &trusted_children, list);
     _DkSpinUnlock(&trusted_children_lock);
     return 0;
 }
@@ -178,7 +178,7 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
     struct trusted_child * tc;
     _DkSpinLock(&trusted_children_lock);
 
-    listp_for_each_entry(tc, &trusted_children, list) {
+    LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
         if (!memcmp(mrenclave, tc->mrenclave, sizeof(sgx_arch_hash_t))) {
             _DkSpinUnlock(&trusted_children_lock);
             SGX_DBG(DBG_S, "trusted child: %s\n", tc->uri);

@@ -60,7 +60,7 @@ static int __add_config (struct config_store * store,
             if (token[len] == '.')
                 break;
 
-        listp_for_each_entry(e, list, siblings)
+        LISTP_FOR_EACH_ENTRY(e, list, siblings)
             if (e->klen == len && !memcmp(e->key, token, len))
                 goto next;
 
@@ -74,10 +74,10 @@ static int __add_config (struct config_store * store,
         e->vlen = 0;
         e->buf  = NULL;
         INIT_LIST_HEAD(e, list);
-        listp_add_tail(e, &store->entries, list);
+        LISTP_ADD_TAIL(e, &store->entries, list);
         INIT_LISTP(&e->children);
         INIT_LIST_HEAD(e, siblings);
-        listp_add_tail(e, list, siblings);
+        LISTP_ADD_TAIL(e, list, siblings);
         if (parent)
             parent->vlen += (len + 1);
 
@@ -90,7 +90,7 @@ next:
         parent = e;
     }
 
-    if (!e || e->val || !listp_empty(&e->children))
+    if (!e || e->val || !LISTP_EMPTY(&e->children))
         return -PAL_ERROR_INVAL;
 
     e->val  = val;
@@ -115,7 +115,7 @@ static struct config * __get_config (struct config_store * store,
             if (token[len] == '.')
                 break;
 
-        listp_for_each_entry(e, list, siblings)
+        LISTP_FOR_EACH_ENTRY(e, list, siblings)
             if (e->klen == len && !memcmp(e->key, token, len))
                 goto next;
 
@@ -158,7 +158,7 @@ int get_config_entries (struct config_store * store, const char * key,
     LISTP_TYPE(config) * children = &e->children;
     int nentries = 0;
 
-    listp_for_each_entry(e, children, siblings) {
+    LISTP_FOR_EACH_ENTRY(e, children, siblings) {
         if (e->klen + 1 > key_bufsize)
             return -PAL_ERROR_TOOLONG;
         memcpy(key_buf, e->key, e->klen);
@@ -192,7 +192,7 @@ static int __del_config (struct config_store * store,
         if (key[len] == '.')
             break;
 
-    listp_for_each_entry(e, root, siblings)
+    LISTP_FOR_EACH_ENTRY(e, root, siblings)
         if (e->klen == len && !memcmp(e->key, key, len)) {
             found = e;
             break;
@@ -207,7 +207,7 @@ static int __del_config (struct config_store * store,
         int ret = __del_config(store, &found->children, found, key + len + 1);
         if (ret < 0)
             return ret;
-        if (!listp_empty(&found->children))
+        if (!LISTP_EMPTY(&found->children))
             return 0;
     } else {
         if (!found->val)
@@ -216,8 +216,8 @@ static int __del_config (struct config_store * store,
 
     if (p)
         p->vlen -= (found->klen + 1);
-    listp_del(found, root, siblings);
-    listp_del(found, &store->entries, list);
+    LISTP_DEL(found, root, siblings);
+    LISTP_DEL(found, &store->entries, list);
     if (found->buf)
         store->free(found->buf);
     store->free(found);
@@ -372,7 +372,7 @@ inval:
 int free_config (struct config_store * store)
 {
     struct config * e, * n;
-    listp_for_each_entry_safe(e, n, &store->entries, list) {
+    LISTP_FOR_EACH_ENTRY_SAFE(e, n, &store->entries, list) {
         store->free(e->buf);
         store->free(e);
     }
@@ -390,7 +390,7 @@ static int __dup_config (const struct config_store * ss,
 {
     struct config * e, * new;
 
-    listp_for_each_entry(e, sr, siblings) {
+    LISTP_FOR_EACH_ENTRY(e, sr, siblings) {
         char * key = NULL, * val = NULL, * buf = NULL;
         int need = 0;
 
@@ -439,12 +439,12 @@ static int __dup_config (const struct config_store * ss,
         new->vlen = e->vlen;
         new->buf  = buf;
         INIT_LIST_HEAD(new, list);
-        listp_add_tail(new, &ts->entries, list);
+        LISTP_ADD_TAIL(new, &ts->entries, list);
         INIT_LISTP(&new->children);
         INIT_LIST_HEAD(new, siblings);
-        listp_add_tail(new, tr, siblings);
+        LISTP_ADD_TAIL(new, tr, siblings);
 
-        if (!listp_empty(&e->children)) {
+        if (!LISTP_EMPTY(&e->children)) {
             int ret = __dup_config(ss, &e->children,
                                    ts, &new->children,
                                    data, size);
@@ -464,7 +464,7 @@ int copy_config (struct config_store * store, struct config_store * new_store)
     struct config * e;
     int size = 0;
 
-    listp_for_each_entry(e, &store->entries, list) {
+    LISTP_FOR_EACH_ENTRY(e, &store->entries, list) {
         if (e->key)
             size += e->klen;
         if (e->val)
@@ -497,7 +497,7 @@ static int __write_config (void * f, int (*write) (void *, void *, int),
     char * buf = NULL;
     int bufsz = 0;
 
-    listp_for_each_entry(e, root, siblings)
+    LISTP_FOR_EACH_ENTRY(e, root, siblings)
         if (e->val) {
             int total = klen + e->klen + e->vlen + 2;
 

@@ -172,7 +172,7 @@ static inline void __assert_vma_list (void)
     struct shim_vma * tmp;
     struct shim_vma * prev __attribute__((unused)) = NULL;
 
-    listp_for_each_entry(tmp, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &vma_list, list) {
         /* Assert we are really sorted */
         assert(tmp->end > tmp->start);
         assert(!prev || prev->end <= tmp->start);
@@ -202,7 +202,7 @@ __lookup_vma (void * addr, struct shim_vma ** pprev)
 {
     struct shim_vma * vma, * prev = NULL;
 
-    listp_for_each_entry(vma, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
         if (addr < vma->start)
             goto none;
         if (test_vma_contain(vma, addr, addr + 1))
@@ -233,15 +233,15 @@ __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 
     /* check the next entry */
     struct shim_vma * next = prev ?
-            listp_next_entry(prev, &vma_list, list) :
-            listp_first_entry(&vma_list, struct shim_vma, list);
+            LISTP_NEXT_ENTRY(prev, &vma_list, list) :
+            LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list);
 
     assert(!next || vma->end <= next->start);
 
     if (prev)
-        listp_add_after(vma, prev, &vma_list, list);
+        LISTP_ADD_AFTER(vma, prev, &vma_list, list);
     else
-        listp_add(vma, &vma_list, list);
+        LISTP_ADD(vma, &vma_list, list);
 }
 
 /*
@@ -253,7 +253,7 @@ static inline void
 __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
     assert(vma != prev);
-    listp_del(vma, &vma_list, list);
+    LISTP_DEL(vma, &vma_list, list);
 }
 
 /*
@@ -321,7 +321,7 @@ int init_vma (void)
             struct shim_vma * new = get_mem_obj_from_mgr(vma_mgr);
             assert(new);
             struct shim_vma * e = &early_vmas[i];
-            struct shim_vma * prev = listp_prev_entry(e, &vma_list, list);
+            struct shim_vma * prev = LISTP_PREV_ENTRY(e, &vma_list, list);
             debug("Converting early VMA [%p] %p-%p\n", e, e->start, e->end);
             memcpy(new, e, sizeof(*e));
             INIT_LIST_HEAD(new, list);
@@ -612,14 +612,14 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
     struct shim_vma * cur, * next;
 
     if (!prev) {
-        cur = listp_first_entry(&vma_list, struct shim_vma, list);
+        cur = LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list);
         if (!cur)
             return 0;
     } else {
-        cur = listp_next_entry(prev, &vma_list, list);
+        cur = LISTP_NEXT_ENTRY(prev, &vma_list, list);
     }
 
-    next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
+    next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
 
     while (cur) {
         struct shim_vma * tail = NULL;
@@ -659,13 +659,13 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
 
 cont:
         cur = next;
-        next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
+        next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
     }
 
     if (prev)
-        assert(cur == listp_next_entry(prev, &vma_list, list));
+        assert(cur == LISTP_NEXT_ENTRY(prev, &vma_list, list));
     else
-        assert(cur == listp_first_entry(&vma_list, struct shim_vma, list));
+        assert(cur == LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list));
 
     assert(!prev || prev->end <= start);
     assert(!cur || end <= cur->start);
@@ -706,14 +706,14 @@ static int __bkeep_mprotect (struct shim_vma * prev,
     struct shim_vma * cur, * next;
 
     if (!prev) {
-        cur = listp_first_entry(&vma_list, struct shim_vma, list);
+        cur = LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list);
         if (!cur)
             return 0;
     } else {
-        cur = listp_next_entry(prev, &vma_list, list);
+        cur = LISTP_NEXT_ENTRY(prev, &vma_list, list);
     }
 
-    next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
+    next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
 
     while (cur) {
         struct shim_vma * new, * tail = NULL;
@@ -778,7 +778,7 @@ static int __bkeep_mprotect (struct shim_vma * prev,
 cont:
         prev = cur;
         cur = next;
-        next = cur ? listp_next_entry(cur, &vma_list, list) : NULL;
+        next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
     }
 
     return 0;
@@ -845,7 +845,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
             break;
 
         cur = prev;
-        prev = listp_prev_entry(cur, &vma_list, list);
+        prev = LISTP_PREV_ENTRY(cur, &vma_list, list);
     }
 
     return NULL;
@@ -970,7 +970,7 @@ int lookup_overlap_vma (void * addr, uint64_t length,
 
     lock(&vma_list_lock);
 
-    listp_for_each_entry(tmp, &vma_list, list)
+    LISTP_FOR_EACH_ENTRY(tmp, &vma_list, list)
         if (test_vma_overlap (tmp, addr, addr + length)) {
             vma = tmp;
             break;
@@ -994,7 +994,7 @@ bool is_in_one_vma (void * addr, size_t length)
     struct shim_vma* vma;
 
     lock(&vma_list_lock);
-    listp_for_each_entry(vma, &vma_list, list)
+    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list)
         if (test_vma_contain(vma, addr, addr + length)) {
             unlock(&vma_list_lock);
             return true;
@@ -1011,7 +1011,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
     int cnt = 0;
     lock(&vma_list_lock);
 
-    listp_for_each_entry(vma, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
         if (VMA_TYPE(vma->flags))
             continue;
         if (vma->flags & VMA_UNMAPPED)
@@ -1260,7 +1260,7 @@ void debug_print_vma_list (void)
     SYS_PRINTF("vma bookkeeping:\n");
 
     struct shim_vma * vma;
-    listp_for_each_entry(vma, &vma_list, list) {
+    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
         const char * type = "", * name = "";
 
         if (vma->file) {

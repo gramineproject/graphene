@@ -251,7 +251,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     _DkSpinLock(&trusted_file_lock);
 
-    listp_for_each_entry(tmp, &trusted_file_list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, &trusted_file_list, list) {
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
             if (tmp->uri_len == uri_len && !memcmp(tmp->uri, normpath, uri_len + 1)) {
@@ -564,7 +564,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
 
     _DkSpinLock(&trusted_file_lock);
 
-    listp_for_each_entry(tf, &trusted_file_list, list) {
+    LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
             _DkSpinUnlock(&trusted_file_lock);
             return 0;
@@ -637,7 +637,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
 
     _DkSpinLock(&trusted_file_lock);
 
-    listp_for_each_entry(tf, &trusted_file_list, list) {
+    LISTP_FOR_EACH_ENTRY(tf, &trusted_file_list, list) {
         if (tf->uri_len == uri_len && !memcmp(tf->uri, uri, uri_len)) {
             _DkSpinUnlock(&trusted_file_lock);
             free(new);
@@ -645,7 +645,7 @@ static int register_trusted_file (const char * uri, const char * checksum_str)
         }
     }
 
-    listp_add_tail(new, &trusted_file_list, list);
+    LISTP_ADD_TAIL(new, &trusted_file_list, list);
     _DkSpinUnlock(&trusted_file_lock);
     return 0;
 }

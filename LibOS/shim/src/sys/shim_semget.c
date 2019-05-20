@@ -68,7 +68,7 @@ static int __add_sem_handle (unsigned long key, IDTYPE semid,
     int ret = 0;
 
     if (key_head)
-        listp_for_each_entry(tmp, key_head, key_hlist)
+        LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
             if (tmp->semkey == key) {
                 if (tmp->semid == semid)
                     goto out;
@@ -76,7 +76,7 @@ static int __add_sem_handle (unsigned long key, IDTYPE semid,
             }
 
     if (sid_head)
-        listp_for_each_entry(tmp, sid_head, sid_hlist)
+        LISTP_FOR_EACH_ENTRY(tmp, sid_head, sid_hlist)
             if (tmp->semid == semid) {
                 if (key)
                     tmp->semkey = key;
@@ -115,15 +115,15 @@ static int __add_sem_handle (unsigned long key, IDTYPE semid,
     INIT_LISTP(&tmp->migrated);
     INIT_LIST_HEAD(tmp, list);
     get_handle(hdl);
-    listp_add_tail(tmp, &sem_list, list);
+    LISTP_ADD_TAIL(tmp, &sem_list, list);
     INIT_LIST_HEAD(tmp, key_hlist);
     if (key_head) {
         get_handle(hdl);
-        listp_add(tmp, key_head, key_hlist);
+        LISTP_ADD(tmp, key_head, key_hlist);
     }
     if (sid_head) {
         get_handle(hdl);
-        listp_add(tmp, sid_head, sid_hlist);
+        LISTP_ADD(tmp, sid_head, sid_hlist);
     }
 
 out:
@@ -155,7 +155,7 @@ struct shim_sem_handle * get_sem_handle_by_key (unsigned long key)
 
     lock(&sem_list_lock);
 
-    listp_for_each_entry(tmp, key_head, key_hlist)
+    LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
         if (tmp->semkey == key) {
             found = tmp;
             break;
@@ -175,7 +175,7 @@ struct shim_sem_handle * get_sem_handle_by_id (IDTYPE semid)
 
     lock(&sem_list_lock);
 
-    listp_for_each_entry(tmp, sid_head, sid_hlist)
+    LISTP_FOR_EACH_ENTRY(tmp, sid_head, sid_hlist)
         if (tmp->semid == semid) {
             found = tmp;
             break;
@@ -203,18 +203,18 @@ static int __del_sem_handle (struct shim_sem_handle * sem)
     struct shim_handle * hdl = SEM_TO_HANDLE(sem);
 
     lock(&sem_list_lock);
-    listp_del_init(sem, &sem_list, list);
+    LISTP_DEL_INIT(sem, &sem_list, list);
     put_handle(hdl);
-    if (!list_empty(sem, key_hlist)) {
+    if (!LIST_EMPTY(sem, key_hlist)) {
         // DEP: Yuck
         LISTP_TYPE(shim_sem_handle) * key_head = &sem_key_hlist[SEM_HASH(sem->semkey)];
-        listp_del_init(sem, key_head, key_hlist);
+        LISTP_DEL_INIT(sem, key_head, key_hlist);
         put_handle(hdl);
     }
-    if (!list_empty(sem, sid_hlist)) {
+    if (!LIST_EMPTY(sem, sid_hlist)) {
         // DEP: Yuck
         LISTP_TYPE(shim_sem_handle) * sid_head = &sem_sid_hlist[SEM_HASH(sem->semid)];
-        listp_del_init(sem, sid_head, sid_hlist);
+        LISTP_DEL_INIT(sem, sid_head, sid_hlist);
         put_handle(hdl);
     }
     unlock(&sem_list_lock);
@@ -342,7 +342,7 @@ int recover_sem_ownership (struct shim_sem_handle * sem,
         op->client.port = NULL;
         op->client.seq  = clients[i].seq;
         INIT_LIST_HEAD(op, progress);
-        listp_add_tail(op, &sem->migrated, progress);
+        LISTP_ADD_TAIL(op, &sem->migrated, progress);
     }
 
     sem->owned = true;
@@ -501,15 +501,15 @@ static bool __handle_sysv_sems (struct shim_sem_handle * sem)
 
     struct sem_obj * sobj;
     for (sobj = sem->sems ; sobj < &sem->sems[sem->nsems] ; sobj++)
-        listp_splice_tail_init(&sobj->next_ops, &sobj->ops, progress, sem_ops);
+        LISTP_SPLICE_TAIL_INIT(&sobj->next_ops, &sobj->ops, progress, sem_ops);
 
     for (sobj = sem->sems ; sobj < &sem->sems[sem->nsems] ; sobj++) {
         struct sem_ops * sops, * n;
 
-        listp_for_each_entry_safe(sops, n, &sobj->ops, progress) {
+        LISTP_FOR_EACH_ENTRY_SAFE(sops, n, &sobj->ops, progress) {
             struct sembuf * op = &sops->ops[sops->stat.current];
             assert(op->sem_num == sobj->num);
-            // first_iter is a variable defined by listp_for_each_entry_safe
+            // first_iter is a variable defined by LISTP_FOR_EACH_ENTRY_SAFE
             // The second part of this assertion is only valid after the first attempt
             assert(first_iter || (sops != n));
             if (sops->stat.completed)
@@ -551,7 +551,7 @@ again:
 
             op = &sops->ops[sops->stat.current];
             if (op->sem_num != sobj->num) {
-                listp_move_tail(sops,
+                LISTP_MOVE_TAIL(sops,
                                 &sem->sems[op->sem_num].next_ops,
                                 &sobj->ops,
                                 progress);
@@ -565,7 +565,7 @@ failed:
 send_result:
             /* Chia-Che 10/17/17: If the code reaches this point, sops should
              * still be in sobj->ops. */
-            listp_del_init(sops, &sobj->ops, progress);
+            LISTP_DEL_INIT(sops, &sobj->ops, progress);
             sem->nreqs--;
             if (!sops->client.vmid) {
                 setevent = true;
@@ -773,10 +773,10 @@ unowned:
     if (seq) {
         struct sem_ops * op;
 
-        listp_for_each_entry(op, &sem->migrated, progress)
+        LISTP_FOR_EACH_ENTRY(op, &sem->migrated, progress)
             if (op->client.vmid == (client ? client->vmid : cur_process.vmid)
                 && seq == op->client.seq) {
-                listp_del_init(op, &sem->migrated, progress);
+                LISTP_DEL_INIT(op, &sem->migrated, progress);
                 sem_ops = op;
                 stat = sem_ops->stat;
                 malloced = true;
@@ -833,9 +833,9 @@ unowned:
 
     LISTP_TYPE(sem_ops) * next_ops =
             &sem->sems[sops[stat.current].sem_num].next_ops;
-    assert(list_empty(sem_ops, progress));
-    listp_add_tail(sem_ops, next_ops, progress);
-    //check_list_head(next_ops);
+    assert(LIST_EMPTY(sem_ops, progress));
+    LISTP_ADD_TAIL(sem_ops, next_ops, progress);
+    //CHECK_LIST_HEAD(next_ops);
     sem->nreqs++;
     SAVE_PROFILE_INTERVAL(sem_append_semop);
 
@@ -854,7 +854,7 @@ unowned:
             /* Chia-Che 10/17/17: sem_ops may move from semaphore to semaphore
                base on its current state */
             next_ops = &sem->sems[sem_ops->ops[sem_ops->stat.current].sem_num].next_ops;
-            listp_del_init(sem_ops, next_ops, progress);
+            LISTP_DEL_INIT(sem_ops, next_ops, progress);
             goto unowned;
         }
 
@@ -900,10 +900,10 @@ static int sem_balance_migrate (struct shim_handle * hdl,
         b->ncnt = sobj->ncnt;
         b->pid  = sobj->pid;
 
-        listp_splice_tail(&sobj->next_ops, &sobj->ops, progress, sem_ops);
+        LISTP_SPLICE_TAIL(&sobj->next_ops, &sobj->ops, progress, sem_ops);
 
         struct sem_ops * sops;
-        listp_for_each_entry(sops, &sobj->ops, progress) {
+        LISTP_FOR_EACH_ENTRY(sops, &sobj->ops, progress) {
             assert(client_cnt < sem->nreqs);
             struct sem_client_backup * c = clients + (client_cnt)++;
             c->vmid = sops->client.vmid;
@@ -932,8 +932,8 @@ static int sem_balance_migrate (struct shim_handle * hdl,
 
     for (sobj = sem->sems ; sobj < &sem->sems[sem->nsems] ; sobj++) {
         struct sem_ops * sops, * n;
-        listp_for_each_entry_safe(sops, n, &sobj->ops, progress) {
-            listp_del_init(sops, &sobj->ops, progress);
+        LISTP_FOR_EACH_ENTRY_SAFE(sops, n, &sobj->ops, progress) {
+            LISTP_DEL_INIT(sops, &sobj->ops, progress);
             sem->nreqs--;
             sops->stat.failed = true;
             if (!sops->client.vmid)

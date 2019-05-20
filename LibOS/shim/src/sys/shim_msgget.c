@@ -70,7 +70,7 @@ static int __add_msg_handle (unsigned long key, IDTYPE msqid, bool owned,
     struct shim_msg_handle * tmp;
 
     if (key_head)
-        listp_for_each_entry(tmp, key_head, key_hlist)
+        LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
             if (tmp->msqkey == key) {
                 if (tmp->msqid == msqid) {
                     if (msghdl)
@@ -81,7 +81,7 @@ static int __add_msg_handle (unsigned long key, IDTYPE msqid, bool owned,
             }
 
     if (qid_head)
-        listp_for_each_entry(tmp, qid_head, qid_hlist)
+        LISTP_FOR_EACH_ENTRY(tmp, qid_head, qid_hlist)
             if (tmp->msqid == msqid) {
                 if (key)
                     tmp->msqkey = key;
@@ -115,17 +115,17 @@ static int __add_msg_handle (unsigned long key, IDTYPE msqid, bool owned,
 
     INIT_LIST_HEAD(msgq, list);
     get_handle(hdl);
-    listp_add_tail(msgq, &msgq_list, list);
+    LISTP_ADD_TAIL(msgq, &msgq_list, list);
 
     INIT_LIST_HEAD(msgq, key_hlist);
     if (key_head) {
         get_handle(hdl);
-        listp_add(msgq, key_head, key_hlist);
+        LISTP_ADD(msgq, key_head, key_hlist);
     }
     INIT_LIST_HEAD(msgq, qid_hlist);
     if (qid_head) {
         get_handle(hdl);
-        listp_add(msgq, qid_head, qid_hlist);
+        LISTP_ADD(msgq, qid_head, qid_hlist);
     }
 
     if (!msghdl) {
@@ -153,7 +153,7 @@ struct shim_msg_handle * get_msg_handle_by_key (unsigned long key)
 
     lock(&msgq_list_lock);
 
-    listp_for_each_entry(tmp, key_head, key_hlist)
+    LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
         if (tmp->msqkey == key) {
             found = tmp;
             break;
@@ -173,7 +173,7 @@ struct shim_msg_handle * get_msg_handle_by_id (IDTYPE msqid)
 
     lock(&msgq_list_lock);
 
-    listp_for_each_entry(tmp, qid_head, qid_hlist)
+    LISTP_FOR_EACH_ENTRY(tmp, qid_head, qid_hlist)
         if (tmp->msqid == msqid) {
             found = tmp;
             break;
@@ -243,18 +243,18 @@ static int __del_msg_handle (struct shim_msg_handle * msgq)
     struct shim_handle * hdl = MSG_TO_HANDLE(msgq);
 
     lock(&msgq_list_lock);
-    listp_del_init(msgq, &msgq_list, list);
+    LISTP_DEL_INIT(msgq, &msgq_list, list);
     put_handle(hdl);
-    if (!list_empty(msgq, key_hlist)) {
+    if (!LIST_EMPTY(msgq, key_hlist)) {
         // DEP: Yuck, re-find the head; maybe we can do better...
         LISTP_TYPE(shim_msg_handle) * key_head = &msgq_key_hlist[MSGQ_HASH(msgq->msqkey)];
-        listp_del_init(msgq, key_head, key_hlist);
+        LISTP_DEL_INIT(msgq, key_head, key_hlist);
         put_handle(hdl);
     }
-    if (!list_empty(msgq, qid_hlist)) {
+    if (!LIST_EMPTY(msgq, qid_hlist)) {
         // DEP: Yuck, re-find the head; maybe we can do better...
         LISTP_TYPE(shim_msg_handle) * qid_head = &msgq_qid_hlist[MSGQ_HASH(msgq->msqid)];
-        listp_del_init(msgq, qid_head, qid_hlist);
+        LISTP_DEL_INIT(msgq, qid_head, qid_hlist);
         put_handle(hdl);
     }
     unlock(&msgq_list_lock);
@@ -933,7 +933,7 @@ int store_all_msg_persist (void)
 
     lock(&msgq_list_lock);
 
-    listp_for_each_entry_safe(msgq, n, &msgq_list, list)
+    LISTP_FOR_EACH_ENTRY_SAFE(msgq, n, &msgq_list, list)
         if (msgq->owned) {
             struct shim_handle * hdl = container_of(msgq, struct shim_handle,
                                                     info.msg);

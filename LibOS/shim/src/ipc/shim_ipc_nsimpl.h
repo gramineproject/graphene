@@ -140,7 +140,7 @@ void CONCAT3(debug_print, NS, ranges) (void)
             LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
             struct range * tmp, * r = NULL;
 
-            listp_for_each_entry(tmp, head, hlist)
+            LISTP_FOR_EACH_ENTRY(tmp, head, hlist)
                 if (tmp->offset == off) {
                     r = tmp;
                     break;
@@ -243,7 +243,7 @@ static struct range * __get_range (int off)
 
     struct range * r;
 
-    listp_for_each_entry(r, head, hlist)
+    LISTP_FOR_EACH_ENTRY(r, head, hlist)
         if (r->offset == off)
             return r;
 
@@ -278,18 +278,18 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
     if (ret == -EEXIST) {
         struct range * tmp;
 
-        listp_for_each_entry(tmp, head, hlist)
+        LISTP_FOR_EACH_ENTRY(tmp, head, hlist)
             if (tmp->offset == off) {
-                listp_del(tmp, head, hlist);
+                LISTP_DEL(tmp, head, hlist);
 
                 /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
                  * and tmp->owner->vmid == cur_process.vmid, tmp is on the
                  * owned list, otherwise it is an offered. */
                 if (tmp->owner && tmp->owner->vmid == cur_process.vmid) {
-                    listp_del(tmp, &owned_ranges, list);
+                    LISTP_DEL(tmp, &owned_ranges, list);
                     nowned--;
                 } else {
-                    listp_del(tmp, &offered_ranges, list);
+                    LISTP_DEL(tmp, &offered_ranges, list);
                     noffered--;
                 }
 
@@ -304,22 +304,22 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
     }
 
     INIT_LIST_HEAD(r, hlist);
-    listp_add(r, head, hlist);
+    LISTP_ADD(r, head, hlist);
     INIT_LIST_HEAD(r, list);
 
     LISTP_TYPE(range)* list = (owner == cur_process.vmid) ? &owned_ranges
                               : &offered_ranges;
-    struct range * prev = listp_first_entry(list, range, list);
+    struct range * prev = LISTP_FIRST_ENTRY(list, range, list);
     struct range * tmp;
 
 
-    listp_for_each_entry(tmp, list, list) {
+    LISTP_FOR_EACH_ENTRY(tmp, list, list) {
         if (tmp->offset >= off)
             break;
         prev = tmp;
     }
 
-    listp_add_after(r, prev, list, list);
+    LISTP_ADD_AFTER(r, prev, list, list);
 
     if (owner == cur_process.vmid)
         nowned++;
@@ -550,15 +550,15 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
         free(r->used);
     // Re-acquire the head; kind of ugly
     LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
-    listp_del(r, head, hlist);
+    LISTP_DEL(r, head, hlist);
 
     /* Chia-Che Tsai 10/17/17: only when r->owner is non-NULL,
      * and r->owner->vmid == cur_process.vmid, r is on the
      * owned list, otherwise it is an offered. */
     if (r->owner && r->owner->vmid == cur_process.vmid)
-        listp_del(r, &owned_ranges, list);
+        LISTP_DEL(r, &owned_ranges, list);
     else
-        listp_del(r, &offered_ranges, list);
+        LISTP_DEL(r, &offered_ranges, list);
 
     put_ipc_info(r->owner);
     free(r);
@@ -642,7 +642,7 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
     struct range * r;
     lock(&range_map_lock);
 
-    listp_for_each_entry (r, &owned_ranges, list) {
+    LISTP_FOR_EACH_ENTRY(r, &owned_ranges, list) {
         if (max && idx >= max)
             break;
 
@@ -1041,7 +1041,7 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
             get_ipc_port(port);
             query->port = port;
             INIT_LIST_HEAD(query, list);
-            listp_add_tail(query, &ns_queries, list);
+            LISTP_ADD_TAIL(query, &ns_queries, list);
         } else {
             ret = -ENOMEM;
         }
@@ -1103,8 +1103,8 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
 
     struct ns_query * query, * pos;
 
-    listp_for_each_entry_safe(query, pos, &ns_queries, list) {
-        listp_del(query, &ns_queries, list);
+    LISTP_FOR_EACH_ENTRY_SAFE(query, pos, &ns_queries, list) {
+        LISTP_DEL(query, &ns_queries, list);
         NS_SEND(tellns)(query->port, query->dest, NS_LEADER, query->seq);
         put_ipc_port(query->port);
         free(query);
@@ -1561,7 +1561,7 @@ int NS_CALLBACK(queryall) (IPC_CALLBACK_ARGS)
     int owner_offset = 0;
 
 retry:
-    listp_for_each_entry (r, list, list) {
+    LISTP_FOR_EACH_ENTRY(r, list, list) {
         struct shim_ipc_info * p = r->owner;
         int datasz = sizeof(struct ipc_ns_client) + p->uri.len;
         struct ipc_ns_client * owner = __alloca(datasz);
@@ -1734,7 +1734,7 @@ int CONCAT2(NS, add_key) (NS_KEY * key, IDTYPE id)
 
     lock(&range_map_lock);
 
-    listp_for_each_entry(k, head, hlist)
+    LISTP_FOR_EACH_ENTRY(k, head, hlist)
         if (!KEY_COMP(&k->key, key))
             goto out;
 
@@ -1747,7 +1747,7 @@ int CONCAT2(NS, add_key) (NS_KEY * key, IDTYPE id)
     KEY_COPY(&k->key, key);
     k->id  = id;
     INIT_LIST_HEAD(k, hlist);
-    listp_add(k, head, hlist);
+    LISTP_ADD(k, head, hlist);
 
     debug("add key/id pair (%lu, %u) to hash list: %p\n",
           KEY_HASH(key), id, head);
@@ -1765,11 +1765,11 @@ int CONCAT2(NS, get_key) (NS_KEY * key, bool delete)
 
     lock(&range_map_lock);
 
-    listp_for_each_entry(k, head, hlist)
+    LISTP_FOR_EACH_ENTRY(k, head, hlist)
         if (!KEY_COMP(&k->key, key)) {
             id = k->id;
             if (delete) {
-                listp_del(k, head, hlist);
+                LISTP_DEL(k, head, hlist);
                 free(k);
             }
             break;

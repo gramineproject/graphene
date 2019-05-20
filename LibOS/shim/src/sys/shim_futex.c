@@ -72,7 +72,7 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
     create_lock_runtime(&futex_list_lock);
     lock(&futex_list_lock);
 
-    listp_for_each_entry(tmp, &futex_list, list)
+    LISTP_FOR_EACH_ENTRY(tmp, &futex_list, list)
         if (tmp->uaddr == uaddr) {
             futex = tmp;
             break;
@@ -93,12 +93,12 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
         get_handle(hdl);
         INIT_LISTP(&futex->waiters);
         INIT_LIST_HEAD(futex, list);
-        listp_add_tail(futex, &futex_list, list);
+        LISTP_ADD_TAIL(futex, &futex_list, list);
     }
 
     if (futex_op == FUTEX_WAKE_OP || futex_op == FUTEX_REQUEUE ||
             futex_op == FUTEX_CMP_REQUEUE) {
-        listp_for_each_entry(tmp, &futex_list, list)
+        LISTP_FOR_EACH_ENTRY(tmp, &futex_list, list)
             if (tmp->uaddr == uaddr2) {
                 futex2 = tmp;
                 break;
@@ -119,7 +119,7 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             get_handle(hdl2);
             INIT_LISTP(&futex2->waiters);
             INIT_LIST_HEAD(futex2, list);
-            listp_add_tail(futex2, &futex_list, list);
+            LISTP_ADD_TAIL(futex2, &futex_list, list);
         }
 
         val2 = (uint32_t)(uint64_t) utime;
@@ -180,7 +180,7 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             thread_setwait(&waiter.thread, NULL);
             INIT_LIST_HEAD(&waiter, list);
             waiter.bitset = bitset;
-            listp_add_tail(&waiter, &futex->waiters, list);
+            LISTP_ADD_TAIL(&waiter, &futex->waiters, list);
 
             unlock(&hdl->lock);
             ret = thread_sleep(timeout_us);
@@ -188,12 +188,12 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             if (ret == -EAGAIN)
                 ret = -ETIMEDOUT;
             if (ret == -ETIMEDOUT)
-                listp_del(&waiter, &futex->waiters, list);
+                LISTP_DEL(&waiter, &futex->waiters, list);
             lock(&hdl->lock);
             /* Chia-Che 10/17/17: FUTEX_WAKE should remove the waiter
              * from the list; if not, we should remove it now. */
-            if (!list_empty(&waiter, list))
-                listp_del(&waiter, &futex->waiters, list);
+            if (!LIST_EMPTY(&waiter, list))
+                LISTP_DEL(&waiter, &futex->waiters, list);
             break;
         }
 
@@ -207,14 +207,14 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",
                   uaddr, *uaddr, val, bitset);
 
-            listp_for_each_entry_safe(waiter, wtmp, &futex->waiters, list) {
+            LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
                 if (!(bitset & waiter->bitset))
                     continue;
 
                 debug("FUTEX_WAKE wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
 
-                listp_del_init(waiter, &futex->waiters, list);
+                LISTP_DEL_INIT(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
                 if (nwaken >= val) break;
@@ -252,10 +252,10 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             struct futex_waiter * waiter, * wtmp;
             int nwaken = 0;
             debug("FUTEX_WAKE_OP: %p (val = %d) count = %d\n", uaddr, *uaddr, val);
-            listp_for_each_entry_safe(waiter, wtmp, &futex->waiters, list) {
+            LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
                 debug("FUTEX_WAKE_OP wake thread %d: %p (val = %d)\n",
                       waiter->thread->tid, uaddr, *uaddr);
-                listp_del_init(waiter, &futex->waiters, list);
+                LISTP_DEL_INIT(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
             }
@@ -267,10 +267,10 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
                 lock(&hdl->lock);
                 debug("FUTEX_WAKE: %p (val = %d) count = %d\n", uaddr2,
                       *uaddr2, val2);
-                listp_for_each_entry_safe(waiter, wtmp, &futex2->waiters, list) {
+                LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex2->waiters, list) {
                     debug("FUTEX_WAKE_OP(2) wake thread %d: %p (val = %d)\n",
                           waiter->thread->tid, uaddr2, *uaddr2);
-                    listp_del_init(waiter, &futex2->waiters, list);
+                    LISTP_DEL_INIT(waiter, &futex2->waiters, list);
                     thread_wakeup(waiter->thread);
                     nwaken++;
                 }
@@ -289,8 +289,8 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             assert(futex2);
             struct futex_waiter * waiter, * wtmp;
             int nwaken = 0;
-            listp_for_each_entry_safe(waiter, wtmp, &futex->waiters, list) {
-                listp_del_init(waiter, &futex->waiters, list);
+            LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
+                LISTP_DEL_INIT(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
                 nwaken++;
                 if (nwaken >= val)
@@ -298,7 +298,7 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             }
 
             lock(&hdl2->lock);
-            listp_splice_init(&futex->waiters, &futex2->waiters, list, futex_waiter);
+            LISTP_SPLICE_INIT(&futex->waiters, &futex2->waiters, list, futex_waiter);
             unlock(&hdl2->lock);
             put_handle(hdl2);
             ret = nwaken;
@@ -367,7 +367,7 @@ void release_robust_list (struct robust_list_head * head)
 
         lock(&futex_list_lock);
 
-        listp_for_each_entry(tmp, &futex_list, list)
+        LISTP_FOR_EACH_ENTRY(tmp, &futex_list, list)
             if (tmp->uaddr == futex_addr) {
                 futex = tmp;
                 break;
@@ -386,8 +386,8 @@ void release_robust_list (struct robust_list_head * head)
 
         debug("release robust list: %p\n", futex_addr);
         *(int *) futex_addr = 0;
-        listp_for_each_entry_safe(waiter, wtmp, &futex->waiters, list) {
-            listp_del_init(waiter, &futex->waiters, list);
+        LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
+            LISTP_DEL_INIT(waiter, &futex->waiters, list);
             thread_wakeup(waiter->thread);
         }
 
@@ -406,7 +406,7 @@ void release_clear_child_id (int * clear_child_tid)
     struct shim_futex_handle * tmp, * futex = NULL;
     lock(&futex_list_lock);
 
-    listp_for_each_entry(tmp, &futex_list, list)
+    LISTP_FOR_EACH_ENTRY(tmp, &futex_list, list)
         if (tmp->uaddr == (void *) clear_child_tid) {
             futex = tmp;
             break;
@@ -425,8 +425,8 @@ void release_clear_child_id (int * clear_child_tid)
 
     debug("release futex at %p\n", clear_child_tid);
     *clear_child_tid = 0;
-    listp_for_each_entry_safe(waiter, wtmp, &futex->waiters, list) {
-        listp_del_init(waiter, &futex->waiters, list);
+    LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
+        LISTP_DEL_INIT(waiter, &futex->waiters, list);
         thread_wakeup(waiter->thread);
     }
 

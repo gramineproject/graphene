@@ -154,7 +154,7 @@ get_cp_map_entry (void * map, void * addr, bool create)
     struct cp_map_entry * tmp;
     struct shim_cp_map_entry * e = NULL;
 
-    listp_for_each_entry(tmp, head, hlist)
+    LISTP_FOR_EACH_ENTRY(tmp, head, hlist)
         if (tmp->entry.addr == addr)
             e = &tmp->entry;
 
@@ -166,7 +166,7 @@ get_cp_map_entry (void * map, void * addr, bool create)
 
         struct cp_map_entry *new = &buffer->entries[buffer->cnt++];
         INIT_LIST_HEAD(new, hlist);
-        listp_add(new, head, hlist);
+        LISTP_ADD(new, head, hlist);
 
         new->entry.addr = addr;
         new->entry.off  = 0;
