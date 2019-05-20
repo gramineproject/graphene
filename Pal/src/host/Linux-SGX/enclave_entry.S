@@ -399,12 +399,10 @@ sgx_ocall:
 	andq $STACK_ALIGN, %rsp
 
 #ifdef DEBUG
-	# Put %rip of some code inside __morestack() on untrusted stack
-	# and shift %rsp 8B down to accomodate the newly put %rip.
-	# At sgx_entry(), GDB deduces saved-rip by looking at CFA-8 = rsp.
-	subq $8, %rsp
+	# Push %rip of some code inside __morestack() on untrusted stack.
+	# At sgx_entry(), GDB deduces saved_rip by looking at CFA-8 = %rsp.
 	leaq .Lfor_cfa_debug_info(%rip), %r8
-	movq %r8, (%rsp)
+	pushq %r8
 #endif
 
 	movq %gs:SGX_EXIT_TARGET, %rbx
