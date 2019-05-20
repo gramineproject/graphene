@@ -280,6 +280,14 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
     struct shim_thread * cur_thread = get_cur_thread();
 
     if (cur_thread && *path == '/') {
+        /*
+         * Allow (start != NULL, absolute path) for *at() system calls.
+         * which are common case as normal namei path resolution.
+         *
+         * init_exec_handle() for PAL_CB(executable) is an exceptional case
+         * to lookup pathname under a given mount point. which requires
+         * a relative path name. Path name is given by user in manifest file.
+         */
         start = cur_thread->root;
         no_start = true;
         get_dentry(start);
