@@ -472,7 +472,7 @@ int shim_do_bind (int sockfd, struct sockaddr * addr, socklen_t addrlen)
     }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
-    lock(hdl->lock);
+    lock(&hdl->lock);
     enum shim_sock_state state = sock->sock_state;
 
     if (state != SOCK_CREATED) {
@@ -576,7 +576,7 @@ out:
         }
     }
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     put_handle(hdl);
     return ret;
 }
@@ -673,7 +673,7 @@ int shim_do_listen (int sockfd, int backlog)
         return -EINVAL;
     }
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     enum shim_sock_state state = sock->sock_state;
     int ret = -EINVAL;
@@ -692,7 +692,7 @@ out:
     if (ret < 0)
         sock->sock_state = state;
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     put_handle(hdl);
     return ret;
 }
@@ -720,7 +720,7 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
     }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
-    lock(hdl->lock);
+    lock(&hdl->lock);
     enum shim_sock_state state = sock->sock_state;
     int ret = -EINVAL;
 
@@ -809,12 +809,12 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
 
     if (sock->domain == AF_UNIX) {
         struct shim_dentry * dent = sock->addr.un.dentry;
-        lock(dent->lock);
+        lock(&dent->lock);
         dent->state ^= DENTRY_NEGATIVE;
         dent->state |= DENTRY_VALID|DENTRY_RECENTLY;
         dent->fs = &socket_builtin_fs;
         dent->data = sock->addr.un.data;
-        unlock(dent->lock);
+        unlock(&dent->lock);
     }
 
     if (sock->domain == AF_INET || sock->domain == AF_INET6) {
@@ -854,7 +854,7 @@ out:
         }
     }
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     put_handle(hdl);
     return ret;
 }
@@ -885,7 +885,7 @@ int __do_accept (struct shim_handle * hdl, int flags, struct sockaddr * addr,
             return -EINVAL;
     }
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (sock->sock_state != SOCK_LISTENED) {
         debug("shim_accpet: invalid socket\n");
@@ -988,7 +988,7 @@ out:
         sock->error = -ret;
     if (accepted)
         DkObjectClose(accepted);
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -1046,7 +1046,7 @@ static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
             goto out;
     }
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     PAL_HANDLE pal_hdl = hdl->pal_handle;
     char * uri = NULL;
@@ -1098,7 +1098,7 @@ static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
         uri = __alloca(SOCK_URI_SIZE);
     }
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 
     if (uri) {
         struct addr_inet addr_buf;
@@ -1107,7 +1107,7 @@ static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
         memcpy(uri, "udp:", 5);
         if ((ret = inet_translate_addr(sock->domain, uri + 4, SOCK_URI_SIZE - 4,
                                        &addr_buf)) < 0) {
-            lock(hdl->lock);
+            lock(&hdl->lock);
             goto out_locked;
         }
 
@@ -1133,7 +1133,7 @@ static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
     if (bytes)
         ret = bytes;
     if (ret < 0) {
-        lock(hdl->lock);
+        lock(&hdl->lock);
         goto out_locked;
     }
     goto out;
@@ -1142,7 +1142,7 @@ out_locked:
     if (ret < 0)
         sock->error = -ret;
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     put_handle(hdl);
     return ret;
@@ -1224,7 +1224,7 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
             goto out;
     }
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     PAL_HANDLE pal_hdl = hdl->pal_handle;
     char * uri = NULL;
@@ -1253,7 +1253,7 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
         uri = __alloca(SOCK_URI_SIZE);
     }
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 
     bool address_received = false;
     int bytes = 0;
@@ -1285,7 +1285,7 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
 
                 if ((ret = inet_parse_addr(sock->domain, sock->sock_type, uri,
                                            &conn, NULL)) < 0) {
-                    lock(hdl->lock);
+                    lock(&hdl->lock);
                     goto out_locked;
                 }
 
@@ -1307,7 +1307,7 @@ static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
     if (bytes)
         ret = bytes;
     if (ret < 0) {
-        lock(hdl->lock);
+        lock(&hdl->lock);
         goto out_locked;
     }
     goto out;
@@ -1316,7 +1316,7 @@ out_locked:
     if (ret < 0)
         sock->error = -ret;
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     put_handle(hdl);
     return ret;
@@ -1376,7 +1376,7 @@ int shim_do_shutdown (int sockfd, int how)
         goto out;
     }
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (sock->sock_state != SOCK_LISTENED &&
         sock->sock_state != SOCK_ACCEPTED &&
@@ -1407,7 +1407,7 @@ out_locked:
     if (ret < 0)
         sock->error = -ret;
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     put_handle(hdl);
     return ret;
@@ -1436,7 +1436,7 @@ int shim_do_getsockname (int sockfd, struct sockaddr * addr, int * addrlen)
     }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     struct sockaddr saddr;
     int len = inet_copy_addr(sock->domain, &saddr, &sock->addr.in.bind);
@@ -1447,7 +1447,7 @@ int shim_do_getsockname (int sockfd, struct sockaddr * addr, int * addrlen)
     memcpy(addr, &saddr, len);
     *addrlen = len;
     ret = 0;
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     put_handle(hdl);
     return ret;
@@ -1476,7 +1476,7 @@ int shim_do_getpeername (int sockfd, struct sockaddr * addr, int * addrlen)
     }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     /* Data gram sock need not be conneted or bound at all */
     if (sock->sock_type == SOCK_STREAM &&
@@ -1504,7 +1504,7 @@ int shim_do_getpeername (int sockfd, struct sockaddr * addr, int * addrlen)
     *addrlen = len;
     ret = 0;
 out_locked:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     put_handle(hdl);
     return ret;
@@ -1684,7 +1684,7 @@ int shim_do_setsockopt (int fd, int level, int optname, char * optval,
     }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (!hdl->pal_handle) {
         struct shim_sock_option * o = malloc(sizeof(struct shim_sock_option) +
@@ -1710,7 +1710,7 @@ int shim_do_setsockopt (int fd, int level, int optname, char * optval,
     ret = __do_setsockopt(hdl, level, optname, optval, optlen, NULL);
 
 out_locked:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     put_handle(hdl);
     return ret;
@@ -1734,7 +1734,7 @@ int shim_do_getsockopt (int fd, int level, int optname, char * optval,
     }
 
     struct shim_sock_handle * sock = &hdl->info.sock;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     int * intval = (int *) optval;
 
@@ -1843,7 +1843,7 @@ query:
     }
 
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     put_handle(hdl);
     return ret;
 }

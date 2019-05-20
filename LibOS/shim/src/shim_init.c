@@ -702,7 +702,7 @@ __attribute__((noreturn)) void* shim_init (int argc, void * args)
     allocshift = allocsize - 1;
     allocmask = ~allocshift;
 
-    create_lock(__master_lock);
+    create_lock(&__master_lock);
 
     int * argcp = &argc;
     const char ** argv, ** envp, ** argp = NULL;

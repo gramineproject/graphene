@@ -205,16 +205,16 @@ static int proc_match_ipc_thread (const char * name)
         return 0;
 
     create_lock_runtime(&status_lock);
-    lock(status_lock);
+    lock(&status_lock);
 
     if (pid_status_cache)
         for (int i = 0 ; i < pid_status_cache->nstatus ; i++)
             if (pid_status_cache->status[i].pid == pid) {
-                unlock(status_lock);
+                unlock(&status_lock);
                 return 1;
             }
 
-    unlock(status_lock);
+    unlock(&status_lock);
     return 0;
 }
 
@@ -228,17 +228,17 @@ static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
         return 0;
 
     create_lock_runtime(&status_lock);
-    lock(status_lock);
+    lock(&status_lock);
 
     if (pid_status_cache)
         for (int i = 0 ; i < pid_status_cache->nstatus ; i++)
             if (pid_status_cache->status[i].pid == pid) {
-                unlock(status_lock);
+                unlock(&status_lock);
                 *mode = 0500;
                 return 0;
             }
 
-    unlock(status_lock);
+    unlock(&status_lock);
     return -ENOENT;
 }
 
@@ -252,7 +252,7 @@ static int proc_ipc_thread_dir_stat (const char * name, struct stat * buf)
         return 0;
 
     create_lock_runtime(&status_lock);
-    lock(status_lock);
+    lock(&status_lock);
 
     if (pid_status_cache)
         for (int i = 0 ; i < pid_status_cache->nstatus ; i++)
@@ -263,11 +263,11 @@ static int proc_ipc_thread_dir_stat (const char * name, struct stat * buf)
                 buf->st_uid = 0; /* XXX */
                 buf->st_gid = 0; /* XXX */
                 buf->st_size = 4096;
-                unlock(status_lock);
+                unlock(&status_lock);
                 return 0;
             }
 
-    unlock(status_lock);
+    unlock(&status_lock);
     return -ENOENT;
 }
 
@@ -281,12 +281,12 @@ static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
 
     create_lock_runtime(&status_lock);
 
-    lock(status_lock);
+    lock(&status_lock);
     if (pid_status_cache && !pid_status_cache->dirty) {
         status = pid_status_cache;
         status->ref_count++;
     }
-    unlock(status_lock);
+    unlock(&status_lock);
 
     if (!status) {
         status = malloc(sizeof(struct pid_status_cache));
@@ -303,7 +303,7 @@ static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
         status->ref_count = 1;
         status->dirty = false;
 
-        lock(status_lock);
+        lock(&status_lock);
         if (pid_status_cache) {
             if (pid_status_cache->dirty) {
                 if (!pid_status_cache->ref_count)
@@ -319,7 +319,7 @@ static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
         } else {
             pid_status_cache = status;
         }
-        unlock(status_lock);
+        unlock(&status_lock);
     }
 
     if (!status->nstatus)
@@ -353,19 +353,19 @@ static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
 
     *buf = ptr;
 success:
-    lock(status_lock);
+    lock(&status_lock);
     status->dirty = true;
     status->ref_count--;
     if (!status->ref_count && status != pid_status_cache)
         free(status);
-    unlock(status_lock);
+    unlock(&status_lock);
     return 0;
 err:
-    lock(status_lock);
+    lock(&status_lock);
     status->ref_count--;
     if (!status->ref_count && status != pid_status_cache)
         free(status);
-    unlock(status_lock);
+    unlock(&status_lock);
     return ret;
 }
 

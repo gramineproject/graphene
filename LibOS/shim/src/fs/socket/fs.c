@@ -54,14 +54,14 @@ static int socket_read (struct shim_handle * hdl, void * buf,
     if (!count)
         return 0;
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (sock->sock_type == SOCK_STREAM &&
         sock->sock_state != SOCK_ACCEPTED &&
         sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = ENOTCONN;
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         return -ENOTCONN;
     }
 
@@ -69,11 +69,11 @@ static int socket_read (struct shim_handle * hdl, void * buf,
         sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = EDESTADDRREQ;
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         return -EDESTADDRREQ;
     }
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 
     bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
@@ -83,9 +83,9 @@ static int socket_read (struct shim_handle * hdl, void * buf,
                 return 0;
             default: {
                 int err = PAL_ERRNO;
-                lock(hdl->lock);
+                lock(&hdl->lock);
                 sock->error = err;
-                unlock(hdl->lock);
+                unlock(&hdl->lock);
                 return -err;
             }
         }
@@ -98,14 +98,14 @@ static int socket_write (struct shim_handle * hdl, const void * buf,
 {
     struct shim_sock_handle * sock = &hdl->info.sock;
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (sock->sock_type == SOCK_STREAM &&
         sock->sock_state != SOCK_ACCEPTED &&
         sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = ENOTCONN;
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         return -ENOTCONN;
     }
 
@@ -113,11 +113,11 @@ static int socket_write (struct shim_handle * hdl, const void * buf,
         sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = EDESTADDRREQ;
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         return -EDESTADDRREQ;
     }
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 
     if (!count)
         return 0;
@@ -134,9 +134,9 @@ static int socket_write (struct shim_handle * hdl, const void * buf,
                 err = PAL_ERRNO;
                 break;
         }
-        lock(hdl->lock);
+        lock(&hdl->lock);
         sock->error = err;
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         return -err;
     }
 
@@ -173,7 +173,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
     struct shim_sock_handle * sock = &hdl->info.sock;
     int ret = 0;
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (poll_type & FS_POLL_RD) {
         if (sock->sock_type == SOCK_STREAM) {
@@ -241,7 +241,7 @@ out:
         sock->error = -ret;
     }
 
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 

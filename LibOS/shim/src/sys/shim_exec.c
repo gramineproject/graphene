@@ -454,7 +454,7 @@ err:
         argv = new_argv;
     }
 
-    lock(cur_thread->lock);
+    lock(&cur_thread->lock);
     put_handle(cur_thread->exec);
     cur_thread->exec = exec;
 
@@ -470,11 +470,11 @@ err:
     cur_thread->tcb       = NULL;
     cur_thread->user_tcb  = false;
     cur_thread->in_vm     = false;
-    unlock(cur_thread->lock);
+    unlock(&cur_thread->lock);
 
     ret = do_migrate_process(&migrate_execve, exec, argv, cur_thread, envp);
 
-    lock(cur_thread->lock);
+    lock(&cur_thread->lock);
     cur_thread->stack       = stack;
     cur_thread->stack_top   = stack_top;
     cur_thread->frameptr    = frameptr;
@@ -483,13 +483,13 @@ err:
 
     if (ret < 0) {
         cur_thread->in_vm = true;
-        unlock(cur_thread->lock);
+        unlock(&cur_thread->lock);
         return ret;
     }
 
     struct shim_handle_map * handle_map = cur_thread->handle_map;
     cur_thread->handle_map = NULL;
-    unlock(cur_thread->lock);
+    unlock(&cur_thread->lock);
     if (handle_map)
         put_handle_map(handle_map);
 

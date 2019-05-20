@@ -139,9 +139,9 @@ static int __add_msg_handle (unsigned long key, IDTYPE msqid, bool owned,
 
 int add_msg_handle (unsigned long key, IDTYPE id, bool owned)
 {
-    lock(msgq_list_lock);
+    lock(&msgq_list_lock);
     int ret = __add_msg_handle(key, id, owned, NULL);
-    unlock(msgq_list_lock);
+    unlock(&msgq_list_lock);
     return ret;
 }
 
@@ -151,7 +151,7 @@ struct shim_msg_handle * get_msg_handle_by_key (unsigned long key)
     LISTP_TYPE(shim_msg_handle) * key_head = &msgq_key_hlist[MSGQ_HASH(key)];
     struct shim_msg_handle * tmp, * found = NULL;
 
-    lock(msgq_list_lock);
+    lock(&msgq_list_lock);
 
     listp_for_each_entry(tmp, key_head, key_hlist)
         if (tmp->msqkey == key) {
@@ -162,7 +162,7 @@ struct shim_msg_handle * get_msg_handle_by_key (unsigned long key)
     if (found)
         get_handle(MSG_TO_HANDLE(found));
 
-    unlock(msgq_list_lock);
+    unlock(&msgq_list_lock);
     return found;
 }
 
@@ -171,7 +171,7 @@ struct shim_msg_handle * get_msg_handle_by_id (IDTYPE msqid)
     LISTP_TYPE(shim_msg_handle) * qid_head = &msgq_qid_hlist[MSGQ_HASH(msqid)];
     struct shim_msg_handle * tmp, * found = NULL;
 
-    lock(msgq_list_lock);
+    lock(&msgq_list_lock);
 
     listp_for_each_entry(tmp, qid_head, qid_hlist)
         if (tmp->msqid == msqid) {
@@ -182,7 +182,7 @@ struct shim_msg_handle * get_msg_handle_by_id (IDTYPE msqid)
     if (found)
         get_handle(MSG_TO_HANDLE(found));
 
-    unlock(msgq_list_lock);
+    unlock(&msgq_list_lock);
     return found;
 }
 
@@ -242,7 +242,7 @@ static int __del_msg_handle (struct shim_msg_handle * msgq)
 
     struct shim_handle * hdl = MSG_TO_HANDLE(msgq);
 
-    lock(msgq_list_lock);
+    lock(&msgq_list_lock);
     listp_del_init(msgq, &msgq_list, list);
     put_handle(hdl);
     if (!list_empty(msgq, key_hlist)) {
@@ -257,16 +257,16 @@ static int __del_msg_handle (struct shim_msg_handle * msgq)
         listp_del_init(msgq, qid_head, qid_hlist);
         put_handle(hdl);
     }
-    unlock(msgq_list_lock);
+    unlock(&msgq_list_lock);
     return 0;
 }
 
 int del_msg_handle (struct shim_msg_handle * msgq)
 {
     struct shim_handle * hdl = MSG_TO_HANDLE(msgq);
-    lock(hdl->lock);
+    lock(&hdl->lock);
     int ret = __del_msg_handle(msgq);
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 
@@ -337,9 +337,9 @@ static int connect_msg_handle (int msqid, struct shim_msg_handle ** msgqp)
             return ret;
 
         if (!msgq) {
-            lock(msgq_list_lock);
+            lock(&msgq_list_lock);
             ret = __add_msg_handle(IPC_PRIVATE, msqid, false, &msgq);
-            unlock(msgq_list_lock);
+            unlock(&msgq_list_lock);
             if (ret < 0)
                 return ret;
         }
@@ -355,7 +355,7 @@ static int connect_msg_handle (int msqid, struct shim_msg_handle ** msgqp)
 int recover_msg_ownership (struct shim_msg_handle * msgq)
 {
     struct shim_handle * hdl = MSG_TO_HANDLE(msgq);
-    lock(hdl->lock);
+    lock(&hdl->lock);
     assert(!msgq->owned);
     int ret = __load_msg_persist(msgq, true);
 
@@ -367,7 +367,7 @@ int recover_msg_ownership (struct shim_msg_handle * msgq)
     msgq->owned = true;
     DkEventSet(msgq->event);
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return 0;
 }
 
@@ -592,7 +592,7 @@ int add_sysv_msg (struct shim_msg_handle * msgq,
 
     struct shim_handle * hdl = MSG_TO_HANDLE(msgq);
     int ret = 0;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (msgq->deleted) {
         ret = -EIDRM;
@@ -600,7 +600,7 @@ int add_sysv_msg (struct shim_msg_handle * msgq,
     }
 
     if (!msgq->owned) {
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         ret = ipc_sysv_msgsnd_send(src->port, src->vmid, msgq->msqid,
                                    type, data, size, src->seq);
         goto out;
@@ -621,7 +621,7 @@ int add_sysv_msg (struct shim_msg_handle * msgq,
     DkEventSet(msgq->event);
     ret  = 0;
 out_locked:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     SAVE_PROFILE_INTERVAL(add_sysv_msg);
     return ret;
@@ -677,7 +677,7 @@ int get_sysv_msg (struct shim_msg_handle * msgq,
     struct shim_handle * hdl = MSG_TO_HANDLE(msgq);
     struct msg_item * msg = NULL;
     struct msg_type * alltypes = NULL, * mtype = NULL;
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (msgq->deleted) {
         ret = -EIDRM;
@@ -714,13 +714,13 @@ int get_sysv_msg (struct shim_msg_handle * msgq,
         }
 
 unowned:
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         ret = ipc_sysv_msgrcv_send(msqid, type, flags, data, size);
         if (ret != -EAGAIN &&
             ret != -ECONNREFUSED)
             goto out;
 
-        lock(hdl->lock);
+        lock(&hdl->lock);
 
         if (!msgq->owned)
             goto out_locked;
@@ -744,9 +744,9 @@ unowned:
         if (flags & IPC_NOWAIT || src)
             break;
 
-        unlock(hdl->lock);
+        unlock(&hdl->lock);
         while (!DkObjectsWaitAny(1, &msgq->event, NO_TIMEOUT));
-        lock(hdl->lock);
+        lock(&hdl->lock);
 
         if (!msgq->owned)
             goto unowned;
@@ -763,7 +763,7 @@ unowned:
 
     ret = msg->size;
 out_locked:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 out:
     SAVE_PROFILE_INTERVAL(get_sysv_msg);
     return ret;
@@ -931,18 +931,18 @@ int store_all_msg_persist (void)
 {
     struct shim_msg_handle * msgq, *n;
 
-    lock(msgq_list_lock);
+    lock(&msgq_list_lock);
 
     listp_for_each_entry_safe(msgq, n, &msgq_list, list)
         if (msgq->owned) {
             struct shim_handle * hdl = container_of(msgq, struct shim_handle,
                                                     info.msg);
-            lock(hdl->lock);
+            lock(&hdl->lock);
             __store_msg_persist(msgq);
-            unlock(hdl->lock);
+            unlock(&hdl->lock);
         }
 
-    unlock(msgq_list_lock);
+    unlock(&msgq_list_lock);
     return 0;
 }
 
@@ -959,18 +959,18 @@ int shim_do_msgpersist (int msqid, int cmd)
                 return -EINVAL;
 
             hdl = container_of(msgq, struct shim_handle, info.msg);
-            lock(hdl->lock);
+            lock(&hdl->lock);
             ret = __store_msg_persist(msgq);
-            unlock(hdl->lock);
+            unlock(&hdl->lock);
             put_msg_handle(msgq);
             break;
 
         case MSGPERSIST_LOAD:
-            lock(msgq_list_lock);
+            lock(&msgq_list_lock);
             ret = __add_msg_handle(0, msqid, false, &msgq);
             if (!ret)
                 ret = __load_msg_persist(msgq, true);
-            unlock(msgq_list_lock);
+            unlock(&msgq_list_lock);
             put_msg_handle(msgq);
             break;
     }

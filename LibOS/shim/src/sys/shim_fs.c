@@ -203,10 +203,10 @@ out:
 mode_t shim_do_umask (mode_t mask)
 {
     struct shim_thread * cur = get_cur_thread();
-    lock(cur->lock);
+    lock(&cur->lock);
     mode_t old = cur->umask;
     cur->umask = mask & 0777;
-    unlock(cur->lock);
+    unlock(&cur->lock);
     return old;
 }
 
@@ -818,10 +818,10 @@ int shim_do_chroot (const char * filename)
     }
 
     struct shim_thread * thread = get_cur_thread();
-    lock(thread->lock);
+    lock(&thread->lock);
     put_dentry(thread->root);
     thread->root = dent;
-    unlock(thread->lock);
+    unlock(&thread->lock);
 out:
     return ret;
 }

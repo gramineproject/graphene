@@ -60,7 +60,7 @@ int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
 
     struct shim_signal_handle * sighdl = &cur->signal_handles[signum - 1];
 
-    lock(cur->lock);
+    lock(&cur->lock);
 
     if (oldact) {
         if (sighdl->action) {
@@ -85,7 +85,7 @@ int shim_do_sigaction (int signum, const struct __kernel_sigaction * act,
 
     err = 0;
 out:
-    unlock(cur->lock);
+    unlock(&cur->lock);
     return err;
 }
 
@@ -112,7 +112,7 @@ int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset)
     struct shim_thread * cur = get_cur_thread();
     int err = 0;
 
-    lock(cur->lock);
+    lock(&cur->lock);
 
     old = get_sig_mask(cur);
     if (oldset) {
@@ -144,7 +144,7 @@ int shim_do_sigprocmask (int how, const __sigset_t * set, __sigset_t * oldset)
     set_sig_mask(cur, &set_tmp);
 
 out:
-    unlock(cur->lock);
+    unlock(&cur->lock);
 
     if (!err && oldset)
         memcpy(oldset, old, sizeof(__sigset_t));
@@ -158,21 +158,21 @@ int shim_do_sigaltstack (const stack_t * ss, stack_t * oss)
         return -EINVAL;
 
     struct shim_thread * cur = get_cur_thread();
-    lock(cur->lock);
+    lock(&cur->lock);
 
     if (oss)
         *oss = cur->signal_altstack;
 
     if (ss) {
         if (ss->ss_size < MINSIGSTKSZ) {
-            unlock(cur->lock);
+            unlock(&cur->lock);
             return -ENOMEM;
         }
 
         cur->signal_altstack = *ss;
     }
 
-    unlock(cur->lock);
+    unlock(&cur->lock);
     return 0;
 }
 
@@ -184,7 +184,7 @@ int shim_do_sigsuspend (const __sigset_t * mask)
     __sigset_t * old, tmp;
     struct shim_thread * cur = get_cur_thread();
 
-    lock(cur->lock);
+    lock(&cur->lock);
 
     old = get_sig_mask(cur);
     memcpy(&tmp, old, sizeof(__sigset_t));
@@ -195,7 +195,7 @@ int shim_do_sigsuspend (const __sigset_t * mask)
     thread_setwait(NULL, NULL);
     thread_sleep(NO_TIMEOUT);
 
-    unlock(cur->lock);
+    unlock(&cur->lock);
     set_sig_mask(cur, old);
     return -EINTR;
 }
@@ -263,12 +263,12 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
         goto out;
 
     if (!thread->in_vm) {
-        unlock(thread_list_lock);
+        unlock(&thread_list_lock);
         *unlocked = true;
         return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS,
                                    warg->sig)) ? 1 : 0;
     } else {
-        lock(thread->lock);
+        lock(&thread->lock);
 
         if (!thread->is_alive)
             goto out_locked;
@@ -279,15 +279,15 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
             srched = 1;
         } else {
             /* This double-check case is probably unnecessary, but keep it for now */
-            unlock(thread->lock);
-            unlock(thread_list_lock);
+            unlock(&thread->lock);
+            unlock(&thread_list_lock);
             *unlocked = true;
             return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS,
                                    warg->sig)) ? 1 : 0;
         }
     }
 out_locked:
-    unlock(thread->lock);
+    unlock(&thread->lock);
 out:
     return srched;
 }
@@ -301,17 +301,17 @@ static int __kill_proc_simple (struct shim_simple_thread * sthread,
     if (sthread->tgid != warg->id)
         return 0;
 
-    lock(sthread->lock);
+    lock(&sthread->lock);
 
     if (sthread->is_alive) {
-        unlock(sthread->lock);
-        unlock(thread_list_lock);
+        unlock(&sthread->lock);
+        unlock(&thread_list_lock);
         *unlocked = true;
         return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PROCESS,
                                    warg->sig)) ? 1 : 0;
     }
 
-    unlock(sthread->lock);
+    unlock(&sthread->lock);
     return srched;
 }
 
@@ -364,7 +364,7 @@ static int __kill_pgroup (struct shim_thread * thread, void * arg,
     if (warg->current == thread)
         return 1;
 
-    lock(thread->lock);
+    lock(&thread->lock);
 
     if (!thread->is_alive)
         goto out;
@@ -375,15 +375,15 @@ static int __kill_pgroup (struct shim_thread * thread, void * arg,
 
         srched = 1;
     } else {
-        unlock(thread->lock);
-        unlock(thread_list_lock);
+        unlock(&thread->lock);
+        unlock(&thread_list_lock);
         *unlocked = true;
         return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP,
                                    warg->sig)) ? 1 : 0;
     }
 
 out:
-    unlock(thread->lock);
+    unlock(&thread->lock);
     return srched;
 }
 
@@ -396,17 +396,17 @@ static int __kill_pgroup_simple (struct shim_simple_thread * sthread,
     if (sthread->pgid != warg->id)
         return 0;
 
-    lock(sthread->lock);
+    lock(&sthread->lock);
 
     if (sthread->is_alive) {
-        unlock(sthread->lock);
-        unlock(thread_list_lock);
+        unlock(&sthread->lock);
+        unlock(&thread_list_lock);
         *unlocked = true;
         return (!ipc_pid_kill_send(warg->sender, warg->id, KILL_PGROUP,
                                    warg->sig)) ? 1 : 0;
     }
 
-    unlock(sthread->lock);
+    unlock(&sthread->lock);
     return srched;
 }
 
@@ -455,14 +455,14 @@ static int __kill_all_threads (struct shim_thread * thread, void * arg,
     if (warg->current == thread)
         return 1;
 
-    lock(thread->lock);
+    lock(&thread->lock);
 
     if (thread->in_vm) {
         __append_signal(thread, warg->sig, warg->sender);
         srched = 1;
     }
 
-    unlock(thread->lock);
+    unlock(&thread->lock);
     return srched;
 }
 
@@ -545,7 +545,7 @@ int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
     int ret = 0;
 
     if (thread) {
-        lock(thread->lock);
+        lock(&thread->lock);
 
         if (thread->in_vm) {
             if (!tgid || thread->tgid == tgid)
@@ -553,11 +553,11 @@ int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
             else
                 ret = -ESRCH;
         } else {
-            unlock(thread->lock);
+            unlock(&thread->lock);
             return ipc_pid_kill_send(sender, tid, KILL_THREAD, sig);
         }
 
-        unlock(thread->lock);
+        unlock(&thread->lock);
         return ret;
     }
 

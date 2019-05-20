@@ -118,11 +118,11 @@ static inline LEASETYPE get_lease (void)
 
 void CONCAT3(debug_print, NS, ranges) (void)
 {
-    lock(range_map_lock);
+    lock(&range_map_lock);
     sys_printf(NS_STR " ranges in process %010u:\n", cur_process.vmid);
 
     if (!range_map) {
-        unlock(range_map_lock);
+        unlock(&range_map_lock);
         return;
     }
 
@@ -170,7 +170,7 @@ void CONCAT3(debug_print, NS, ranges) (void)
         }
     }
 
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
 }
 
 #define INIT_RANGE_MAP_SIZE     32
@@ -339,12 +339,12 @@ int CONCAT3(add, NS, range) (IDTYPE base, IDTYPE owner,
     if (!r)
         return -ENOMEM;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
     r->owner = NULL;
     ret = __add_range(r, off, owner, uri, lease);
     if (ret < 0)
         free(r);
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return ret;
 }
 
@@ -367,7 +367,7 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
         return -ENOMEM;
 
     assert(owner);
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     s->owner = lookup_and_alloc_client(owner, uri);
     if (!s->owner) {
@@ -410,14 +410,14 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
     if (lease)
         *lease = s->lease;
 
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return 0;
 
 failed:
     if (s->owner)
         put_ipc_info(s->owner);
 
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     free(s);
     return err;
 }
@@ -430,7 +430,7 @@ int CONCAT3(alloc, NS, range) (IDTYPE owner, const char * uri,
         return -ENOMEM;
 
     int ret = 0;
-    lock(range_map_lock);
+    lock(&range_map_lock);
     r->owner = NULL;
     int i = 0, j = 0;
 
@@ -462,7 +462,7 @@ int CONCAT3(alloc, NS, range) (IDTYPE owner, const char * uri,
     if (lease)
         *lease = l;
 out:
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return ret;
 }
 
@@ -472,11 +472,11 @@ int CONCAT3(get, NS, range) (IDTYPE idx,
 {
     int off = (idx - 1) / RANGE_SIZE;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     struct range * r = __get_range(off);
     if (!r) {
-        unlock(range_map_lock);
+        unlock(&range_map_lock);
         return -ESRCH;
     }
 
@@ -494,7 +494,7 @@ int CONCAT3(get, NS, range) (IDTYPE idx,
     }
 
     if (!p) {
-        unlock(range_map_lock);
+        unlock(&range_map_lock);
         return -ESRCH;
     }
 
@@ -513,7 +513,7 @@ int CONCAT3(get, NS, range) (IDTYPE idx,
         *info = p;
     }
 
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return 0;
 }
 
@@ -522,7 +522,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
     int off = (idx - 1) / RANGE_SIZE;
     int ret = -ESRCH;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     struct range * r = __get_range(off);
     if (!r)
@@ -565,7 +565,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
 
     ret = 0;
 failed:
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return ret;
 }
 
@@ -575,7 +575,7 @@ int CONCAT3(del, NS, subrange) (IDTYPE idx)
     IDTYPE base = off * RANGE_SIZE + 1;
     int ret = -ESRCH;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     struct range * r = __get_range(off);
     if (!r)
@@ -587,7 +587,7 @@ int CONCAT3(del, NS, subrange) (IDTYPE idx)
     CONCAT3(__del, NS, subrange) (&r->subranges->map[idx - base]);
     ret = 0;
 failed:
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return ret;
 }
 
@@ -595,18 +595,18 @@ int CONCAT3(renew, NS, range) (IDTYPE idx, LEASETYPE * lease)
 {
     int off = (idx - 1) / RANGE_SIZE;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     struct range * r = __get_range(off);
     if (!r) {
-        unlock(range_map_lock);
+        unlock(&range_map_lock);
         return -ESRCH;
     }
 
     r->lease = get_lease();
     if (lease)
         *lease = r->lease;
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return 0;
 }
 
@@ -615,16 +615,16 @@ int CONCAT3(renew, NS, subrange) (IDTYPE idx, LEASETYPE * lease)
     int off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     struct range * r = __get_range(off);
     if (!r) {
-        unlock(range_map_lock);
+        unlock(&range_map_lock);
         return -ESRCH;
     }
 
     if (!r->subranges || !r->subranges->map[idx - base]) {
-        unlock(range_map_lock);
+        unlock(&range_map_lock);
         return -ESRCH;
     }
 
@@ -632,7 +632,7 @@ int CONCAT3(renew, NS, subrange) (IDTYPE idx, LEASETYPE * lease)
     s->lease = get_lease();
     if (lease)
         *lease = s->lease;
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return 0;
 }
 
@@ -640,7 +640,7 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
 {
     IDTYPE idx = min;
     struct range * r;
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     listp_for_each_entry (r, &owned_ranges, list) {
         if (max && idx >= max)
@@ -679,7 +679,7 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
     idx = 0;
 
 out:
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return idx;
 }
 
@@ -688,7 +688,7 @@ void CONCAT2(release, NS) (IDTYPE idx)
     int off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     struct range * r = __get_range(off);
     if (!r)
@@ -713,13 +713,13 @@ void CONCAT2(release, NS) (IDTYPE idx)
     }
 
 out:
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
 }
 
 
 static inline void init_namespace (void)
 {
-    create_lock(range_map_lock);
+    create_lock(&range_map_lock);
 }
 
 #define _NS_ID(ns)     __NS_ID(ns)
@@ -741,16 +741,16 @@ static inline void init_namespace (void)
 static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
                              unsigned int exitcode)
 {
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (!NS_LEADER || NS_LEADER->port != port) {
-        unlock(cur_process.lock);
+        unlock(&cur_process.lock);
         return;
     }
 
     struct shim_ipc_info * info = NS_LEADER;
     NS_LEADER = NULL;
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
 
     debug("ipc port %p of process %u closed suggests " NS_STR " leader exits\n",
           port, vmid);
@@ -766,7 +766,7 @@ static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
 static void __discover_ns (bool block, bool need_locate)
 {
     bool ipc_pending = false;
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (NS_LEADER) {
         if (NS_LEADER->vmid == cur_process.vmid) {
@@ -793,18 +793,18 @@ static void __discover_ns (bool block, bool need_locate)
      * succeeds, NS_LEADER will contain the IPC information of the namespace leader.
      */
 
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
 
     // Send out an IPC message to find out the namespace information.
     // If the call is non-blocking, can't expect the answer when the function finishes.
     if (!NS_SEND(findns)(block)) {
         ipc_pending = !block; // There is still some unfinished business with IPC
-        lock(cur_process.lock);
+        lock(&cur_process.lock);
         assert(NS_LEADER);
         goto out;
     }
 
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (NS_LEADER && (!need_locate || !qstrempty(&NS_LEADER->uri)))
         goto out;
@@ -834,29 +834,29 @@ out:
             assert(!qstrempty(&NS_LEADER->uri));        // A known URI is needed
     }
 
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
 }
 
 static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
 {
     __discover_ns(true, false); // This function cannot be called with cur_process.lock held
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (!NS_LEADER) {
-        unlock(cur_process.lock);
+        unlock(&cur_process.lock);
         return -ESRCH;
     }
 
     if (NS_LEADER->vmid == cur_process.vmid) {
         if (vmid)
             *vmid = NS_LEADER->vmid;
-        unlock(cur_process.lock);
+        unlock(&cur_process.lock);
         return 0;
     }
 
     if (!NS_LEADER->port) {
         if (qstrempty(&NS_LEADER->uri)) {
-            unlock(cur_process.lock);
+            unlock(&cur_process.lock);
             return -ESRCH;
         }
 
@@ -864,7 +864,7 @@ static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
                                              0, 0, 0, 0);
 
         if (!pal_handle) {
-            unlock(cur_process.lock);
+            unlock(&cur_process.lock);
             return -PAL_ERRNO;
         }
 
@@ -881,7 +881,7 @@ static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
         *portptr = NS_LEADER->port;
     }
 
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
     return 0;
 }
 
@@ -890,12 +890,12 @@ static int connect_ns (IDTYPE * vmid, struct shim_ipc_port ** portptr)
 #if 0
 static int disconnect_ns(struct shim_ipc_port * port)
 {
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
     if (NS_LEADER && NS_LEADER->port == port) {
         NS_LEADER->port = NULL;
         put_ipc_port(port);
     }
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
     del_ipc_port(port, IPC_PORT_LDR);
     return 0;
 }
@@ -903,9 +903,9 @@ static int disconnect_ns(struct shim_ipc_port * port)
 
 int CONCAT3(prepare, NS, leader) (void)
 {
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
     bool need_discover = (!NS_LEADER || qstrempty(&NS_LEADER->uri));
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
 
     if (need_discover)
         __discover_ns(true, true); // This function cannot be called with cur_process.lock held
@@ -954,12 +954,12 @@ static int connect_owner (IDTYPE idx, struct shim_ipc_port ** portptr,
         assert(range.port);
     }
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
     if (info->port)
         put_ipc_port(info->port);
     get_ipc_port(range.port);
     info->port = range.port;
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
 
 success:
     if (portptr)
@@ -984,16 +984,16 @@ int NS_SEND(findns) (bool block)
 {
     BEGIN_PROFILE_INTERVAL();
     int ret = -ESRCH;
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
     if (!cur_process.parent || !cur_process.parent->port) {
-        unlock(cur_process.lock);
+        unlock(&cur_process.lock);
         goto out;
     }
 
     IDTYPE dest = cur_process.parent->vmid;
     struct shim_ipc_port * port = cur_process.parent->port;
     get_ipc_port(port);
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
 
     if (block) {
         struct shim_ipc_msg_obj * msg =
@@ -1027,7 +1027,7 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
 
     int ret = 0;
     __discover_ns(false, true); // This function cannot be called with cur_process.lock held
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (NS_LEADER && !qstrempty(&NS_LEADER->uri)) {
         // Got the answer! Send back the discovery now.
@@ -1046,7 +1046,7 @@ int NS_CALLBACK(findns) (IPC_CALLBACK_ARGS)
             ret = -ENOMEM;
         }
     }
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
     SAVE_PROFILE_INTERVAL(NS_CALLBACK(findns));
     return ret;
 }
@@ -1084,7 +1084,7 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
     debug("ipc callback from %u: " NS_CODE_STR(TELLNS) "(%u, %s)\n",
           msg->src, msgin->vmid, msgin->uri);
 
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (NS_LEADER) {
         NS_LEADER->vmid = msgin->vmid;
@@ -1115,7 +1115,7 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
         thread_wakeup(obj->thread);
 
 out:
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
     SAVE_PROFILE_INTERVAL(NS_CALLBACK(tellns));
     return ret;
 }
@@ -1549,7 +1549,7 @@ int NS_CALLBACK(queryall) (IPC_CALLBACK_ARGS)
     struct range * r;
     int ret;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     int maxanswers = nowned + noffered + nsubed;
     int nanswers = 0, nowners = 0, i;
@@ -1618,7 +1618,7 @@ retry:
         goto retry;
     }
 
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
 
     ret = NS_SEND(answer)(port, msg->src, nanswers, answers, nowners,
                           ownerdata, ownerdatasz, msg->seq);
@@ -1732,7 +1732,7 @@ int CONCAT2(NS, add_key) (NS_KEY * key, IDTYPE id)
     struct key * k;
     int ret = -EEXIST;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     listp_for_each_entry(k, head, hlist)
         if (!KEY_COMP(&k->key, key))
@@ -1753,7 +1753,7 @@ int CONCAT2(NS, add_key) (NS_KEY * key, IDTYPE id)
           KEY_HASH(key), id, head);
     ret = 0;
 out:
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return ret;
 }
 
@@ -1763,7 +1763,7 @@ int CONCAT2(NS, get_key) (NS_KEY * key, bool delete)
     struct key * k;
     int id = -ENOENT;
 
-    lock(range_map_lock);
+    lock(&range_map_lock);
 
     listp_for_each_entry(k, head, hlist)
         if (!KEY_COMP(&k->key, key)) {
@@ -1775,7 +1775,7 @@ int CONCAT2(NS, get_key) (NS_KEY * key, bool delete)
             break;
         }
 
-    unlock(range_map_lock);
+    unlock(&range_map_lock);
     return id;
 }
 

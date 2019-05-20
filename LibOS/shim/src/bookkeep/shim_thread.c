@@ -49,7 +49,7 @@ PAL_HANDLE thread_start_event = NULL;
 
 int init_thread (void)
 {
-    create_lock(thread_list_lock);
+    create_lock(&thread_list_lock);
 
     struct shim_thread * cur_thread = get_cur_thread();
     if (cur_thread)
@@ -69,12 +69,12 @@ void dump_threads (void)
 {
     struct shim_thread * tmp;
 
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
     listp_for_each_entry(tmp, &thread_list, list) {
         debug("thread %d, vmid = %d, pgid = %d, ppid = %d, tgid = %d, in_vm = %d\n",
                 tmp->tid, tmp->vmid, tmp->pgid, tmp->ppid, tmp->tgid, tmp->in_vm);
     }
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
 }
 
 struct shim_thread * __lookup_thread (IDTYPE tid)
@@ -93,9 +93,9 @@ struct shim_thread * __lookup_thread (IDTYPE tid)
 
 struct shim_thread * lookup_thread (IDTYPE tid)
 {
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
     struct shim_thread * thread = __lookup_thread(tid);
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
     return thread;
 }
 
@@ -144,10 +144,10 @@ IDTYPE get_pid (void)
 
 static IDTYPE get_internal_pid (void)
 {
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
     internal_tid_alloc_idx++;
     IDTYPE idx = internal_tid_alloc_idx;
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
     assert(is_internal_tid(idx));
     return idx;
 }
@@ -237,7 +237,7 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
     thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
                                  NUM_SIGS);
     thread->vmid = cur_process.vmid;
-    create_lock(thread->lock);
+    create_lock(&thread->lock);
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
@@ -256,7 +256,7 @@ struct shim_thread * get_new_internal_thread (void)
     thread->vmid  = cur_process.vmid;
     thread->tid   = new_tid;
     thread->in_vm = thread->is_alive = true;
-    create_lock(thread->lock);
+    create_lock(&thread->lock);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     return thread;
 }
@@ -277,9 +277,9 @@ struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid)
 
 struct shim_simple_thread * lookup_simple_thread (IDTYPE tid)
 {
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
     struct shim_simple_thread * thread = __lookup_simple_thread(tid);
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
     return thread;
 }
 
@@ -295,7 +295,7 @@ struct shim_simple_thread * get_new_simple_thread (void)
 
     INIT_LIST_HEAD(thread, list);
 
-    create_lock(thread->lock);
+    create_lock(&thread->lock);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
 
     return thread;
@@ -339,7 +339,7 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->exit_event);
         if (thread->child_exit_event)
             DkObjectClose(thread->child_exit_event);
-        destroy_lock(thread->lock);
+        destroy_lock(&thread->lock);
 
         free(thread->signal_logs);
         free(thread);
@@ -360,7 +360,7 @@ void put_simple_thread (struct shim_simple_thread * thread)
         listp_del(thread, &simple_thread_list, list);
         if (thread->exit_event)
             DkObjectClose(thread->exit_event);
-        destroy_lock(thread->lock);
+        destroy_lock(&thread->lock);
         free(thread);
     }
 }
@@ -374,15 +374,15 @@ void set_as_child (struct shim_thread * parent,
     get_thread(parent);
     get_thread(child);
 
-    lock(child->lock);
+    lock(&child->lock);
     child->ppid = parent->tid;
     child->parent = parent;
 
-    lock(parent->lock);
+    lock(&parent->lock);
     listp_add_tail(child, &parent->children, siblings);
-    unlock(parent->lock);
+    unlock(&parent->lock);
 
-    unlock(child->lock);
+    unlock(&child->lock);
 }
 
 void add_thread (struct shim_thread * thread)
@@ -391,12 +391,12 @@ void add_thread (struct shim_thread * thread)
         return;
 
     struct shim_thread * tmp, * prev = NULL;
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
 
     /* keep it sorted */
     listp_for_each_entry_reverse(tmp, &thread_list, list) {
         if (tmp->tid == thread->tid) {
-            unlock(thread_list_lock);
+            unlock(&thread_list_lock);
             return;
         }
         if (tmp->tid < thread->tid) {
@@ -407,7 +407,7 @@ void add_thread (struct shim_thread * thread)
 
     get_thread(thread);
     listp_add_after(thread, prev, &thread_list, list);
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
 }
 
 void del_thread (struct shim_thread * thread)
@@ -420,10 +420,10 @@ void del_thread (struct shim_thread * thread)
         return;
     }
 
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
     /* thread->list goes on the thread_list */
     listp_del_init(thread, &thread_list, list);
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
     put_thread(thread);
 }
 
@@ -433,12 +433,12 @@ void add_simple_thread (struct shim_simple_thread * thread)
         return;
 
     struct shim_simple_thread * tmp, * prev = NULL;
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
 
     /* keep it sorted */
     listp_for_each_entry_reverse(tmp, &simple_thread_list, list) {
         if (tmp->tid == thread->tid) {
-            unlock(thread_list_lock);
+            unlock(&thread_list_lock);
             return;
         }
         if (tmp->tid < thread->tid) {
@@ -449,7 +449,7 @@ void add_simple_thread (struct shim_simple_thread * thread)
 
     get_simple_thread(thread);
     listp_add_after(thread, prev, &simple_thread_list, list);
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
 }
 
 void del_simple_thread (struct shim_simple_thread * thread)
@@ -457,9 +457,9 @@ void del_simple_thread (struct shim_simple_thread * thread)
     if (list_empty(thread, list))
         return;
 
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
     listp_del_init(thread, &simple_thread_list, list);
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
     put_simple_thread(thread);
 }
 
@@ -467,7 +467,7 @@ int check_last_thread (struct shim_thread * self)
 {
     struct shim_thread * tmp;
 
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
     /* find out if there is any thread that is
        1) no current thread 2) in current vm
        3) still alive */
@@ -475,13 +475,13 @@ int check_last_thread (struct shim_thread * self)
         if (tmp->tid &&
             (!self || tmp->tid != self->tid) && tmp->in_vm && tmp->is_alive) {
             debug("check_last_thread: thread %d is alive\n", tmp->tid);
-            unlock(thread_list_lock);
+            unlock(&thread_list_lock);
             return tmp->tid;
         }
     }
 
     debug("this is the only thread %d\n", self->tid);
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
     return 0;
 }
 
@@ -494,7 +494,7 @@ int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
     IDTYPE min_tid = 0;
 
 relock:
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
 
     debug("walk_thread_list(callback=%p)\n", callback);
 
@@ -520,7 +520,7 @@ relock:
 
     ret = srched ? 0 : -ESRCH;
 out_locked:
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
 out:
     return ret;
 }
@@ -535,7 +535,7 @@ int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
     IDTYPE min_tid = 0;
 
 relock:
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
 
     listp_for_each_entry_safe(tmp, n, &simple_thread_list, list) {
         if (tmp->tid <= min_tid)
@@ -558,7 +558,7 @@ relock:
 
     ret = srched ? 0 : -ESRCH;
 out_locked:
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
 out:
     return ret;
 }
@@ -664,7 +664,7 @@ BEGIN_RS_FUNC(thread)
     CP_REBASE(thread->cwd);
     CP_REBASE(thread->signal_handles);
 
-    create_lock(thread->lock);
+    create_lock(&thread->lock);
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
     thread->exit_event = DkNotificationEventCreate(PAL_FALSE);
     thread->child_exit_event = DkNotificationEventCreate(PAL_FALSE);
@@ -774,7 +774,7 @@ END_RS_FUNC(running_thread)
 BEGIN_CP_FUNC(all_running_threads)
 {
     struct shim_thread * thread;
-    lock(thread_list_lock);
+    lock(&thread_list_lock);
 
     listp_for_each_entry(thread, &thread_list, list) {
         if (!thread->in_vm || !thread->is_alive)
@@ -784,6 +784,6 @@ BEGIN_CP_FUNC(all_running_threads)
         DO_CP(handle_map, thread->handle_map, NULL);
     }
 
-    unlock(thread_list_lock);
+    unlock(&thread_list_lock);
 }
 END_CP_FUNC_NO_RS(all_running_threads)

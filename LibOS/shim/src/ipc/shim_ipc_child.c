@@ -89,14 +89,14 @@ void ipc_parent_exit (struct shim_ipc_port * port, IDTYPE vmid,
 
     struct shim_ipc_info * parent = NULL;
 
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
 
     if (parent && vmid == cur_process.parent->vmid) {
         parent = cur_process.parent;
         cur_process.parent = NULL;
     }
 
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
 
     if (parent)
         put_ipc_info(parent);
@@ -177,12 +177,12 @@ void ipc_child_exit (struct shim_ipc_port * port, IDTYPE vmid,
 static struct shim_ipc_port * get_parent_port (IDTYPE * dest)
 {
     struct shim_ipc_port * port = NULL;
-    lock(cur_process.lock);
+    lock(&cur_process.lock);
     if (cur_process.parent && (port = cur_process.parent->port)) {
         get_ipc_port(port);
         *dest = cur_process.parent->vmid;
     }
-    unlock(cur_process.lock);
+    unlock(&cur_process.lock);
     return port;
 }
 

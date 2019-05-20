@@ -284,10 +284,10 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         if (old_shim_tcb)
             memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(shim_tcb_t));
 
-        lock(thread->lock);
+        lock(&thread->lock);
         handle_map = thread->handle_map;
         thread->handle_map = NULL;
-        unlock(thread->lock);
+        unlock(&thread->lock);
         if (handle_map)
             put_handle_map(handle_map);
 

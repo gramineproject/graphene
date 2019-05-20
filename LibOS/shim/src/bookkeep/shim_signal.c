@@ -610,7 +610,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 
     debug("%s handled\n", signal_name(sig));
 
-    lock(thread->lock);
+    lock(&thread->lock);
 
     if (sighdl->action) {
         struct __kernel_sigaction * act = sighdl->action;
@@ -630,7 +630,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
         }
     }
 
-    unlock(thread->lock);
+    unlock(&thread->lock);
 
     if ((void *) handler == (void *) 1) /* SIG_IGN */
         return;

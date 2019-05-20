@@ -107,7 +107,7 @@ static int pipe_poll (struct shim_handle * hdl, int poll_type)
 {
     int ret = 0;
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
 
     if (!hdl->pal_handle) {
         ret = -EBADF;
@@ -134,7 +134,7 @@ static int pipe_poll (struct shim_handle * hdl, int poll_type)
         ret |= FS_POLL_WR;
 
 out:
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
     return ret;
 }
 

@@ -156,7 +156,7 @@ int init_ipc_helper (void)
 {
     bool need_helper = (ipc_helper_state == HELPER_DELAYED);
     ipc_helper_state = HELPER_NOTALIVE;
-    create_lock(ipc_helper_lock);
+    create_lock(&ipc_helper_lock);
     create_event(&ipc_helper_event);
     if (need_helper) {
         /*
@@ -166,9 +166,9 @@ int init_ipc_helper (void)
         enable_locking();
 
         /* Go ahead and lock the ipc helper lock here, for consistency */
-        lock(ipc_helper_lock);
+        lock(&ipc_helper_lock);
         create_ipc_helper();
-        unlock(ipc_helper_lock);
+        unlock(&ipc_helper_lock);
     }
     return 0;
 }
@@ -192,7 +192,7 @@ static void __free_ipc_port (struct shim_ipc_port * pobj)
         pobj->pal_handle = NULL;
     }
 
-    destroy_lock(pobj->msgs_lock);
+    destroy_lock(&pobj->msgs_lock);
     free_mem_obj_to_mgr(port_mgr, pobj);
 }
 
@@ -298,12 +298,12 @@ void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, int type,
     debug("adding port %p (handle %p) for process %u (type=%04x)\n",
           port, port->pal_handle, port->info.vmid, type);
 
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
     bool need_restart = __add_ipc_port(port, vmid, type, fini);
     if (need_restart)
         restart_ipc_helper(true);
 
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 }
 
 static struct shim_ipc_port * __get_new_ipc_port (PAL_HANDLE hdl)
@@ -324,7 +324,7 @@ static struct shim_ipc_port * __get_new_ipc_port (PAL_HANDLE hdl)
     INIT_LIST_HEAD(port, list);
     INIT_LISTP(&port->msgs);
     REF_SET(port->ref_count, 1);
-    create_lock(port->msgs_lock);
+    create_lock(&port->msgs_lock);
     return port;
 }
 
@@ -335,7 +335,7 @@ void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
           hdl, vmid, type);
 
     assert(!!hdl && PAL_GET_TYPE(hdl));
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
 
     LISTP_TYPE(shim_ipc_port) * head = vmid ? &ipc_port_pool[PID_HASH(vmid)] : NULL;
     struct shim_ipc_port * tmp, * port = NULL;
@@ -374,7 +374,7 @@ void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
         restart_ipc_helper(true);
 
 out:
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 }
 
 static bool __del_ipc_port (struct shim_ipc_port * port, int type)
@@ -420,7 +420,7 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
 
     // Need to check if there are any pending messages on the port, which means
     // some threads might be blocking for responses.
-    lock(port->msgs_lock);
+    lock(&port->msgs_lock);
     struct shim_ipc_msg_obj * msg, * n;
     listp_for_each_entry_safe(msg, n, &port->msgs, list) {
         listp_del_init(msg, &port->msgs, list);
@@ -430,7 +430,7 @@ static bool __del_ipc_port (struct shim_ipc_port * port, int type)
             thread_wakeup(msg->thread);
         }
     }
-    unlock(port->msgs_lock);
+    unlock(&port->msgs_lock);
 
 out:
     port->update = true;
@@ -440,11 +440,11 @@ out:
 
 void del_ipc_port (struct shim_ipc_port * port, int type)
 {
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
 
     // If the port is already deleted, don't delete it again.
     if (list_empty(port, list)) {
-        unlock(ipc_helper_lock);
+        unlock(&ipc_helper_lock);
         return;
     }
 
@@ -453,7 +453,7 @@ void del_ipc_port (struct shim_ipc_port * port, int type)
     if (need_restart)
         restart_ipc_helper(false);
 
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 }
 
 void del_ipc_port_by_id (IDTYPE vmid, int type)
@@ -462,7 +462,7 @@ void del_ipc_port_by_id (IDTYPE vmid, int type)
     struct shim_ipc_port * port, *n;
     bool need_restart = false;
 
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
 
     listp_for_each_entry_safe(port, n, head, hlist) {
         if (list_empty(port, list))
@@ -478,7 +478,7 @@ void del_ipc_port_by_id (IDTYPE vmid, int type)
     if (need_restart)
         restart_ipc_helper(false);
 
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 }
 
 void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
@@ -486,11 +486,11 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
     port_fini fini[MAX_IPC_PORT_FINI_CB];
     int nfini = 0;
     assert(REF_GET(port->ref_count) > 0);
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
 
     // If the port is already deleted, don't delete it again.
     if (list_empty(port, list)) {
-        unlock(ipc_helper_lock);
+        unlock(&ipc_helper_lock);
         return;
     }
 
@@ -506,7 +506,7 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
     if (need_restart)
         restart_ipc_helper(false);
 
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 
     for (int i = 0 ; i < nfini ; i++)
         (fini[i])(port, vmid, exitcode);
@@ -530,13 +530,13 @@ static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)
 
 struct shim_ipc_port * lookup_ipc_port (IDTYPE vmid, int type)
 {
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
     struct shim_ipc_port * port = __lookup_ipc_port(vmid, type);
     if (port) {
         assert(!list_empty(port, list));
         assert(!vmid || !list_empty(port, hlist));
     }
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
     return port;
 }
 
@@ -556,9 +556,9 @@ void put_ipc_port (struct shim_ipc_port * port)
 #endif
 
     if (!ref_count) {
-        lock(ipc_helper_lock); // Need to grab the lock
+        lock(&ipc_helper_lock); // Need to grab the lock
         __free_ipc_port(port);
-        unlock(ipc_helper_lock);
+        unlock(&ipc_helper_lock);
     }
 }
 
@@ -567,7 +567,7 @@ void del_all_ipc_ports (int type)
     struct shim_ipc_port * pobj, * n;
     bool need_restart = false;
 
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
 
     listp_for_each_entry_safe(pobj, n, &pobj_list, list) {
         if (__del_ipc_port(pobj, type))
@@ -577,7 +577,7 @@ void del_all_ipc_ports (int type)
     if (need_restart)
         restart_ipc_helper(false);
 
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 }
 
 int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
@@ -597,7 +597,7 @@ int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
             return 0;
     }
 
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
 
     int ntargets = 0;
     listp_for_each_entry(pobj, &pobj_list, list) {
@@ -616,7 +616,7 @@ int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
             targets[i++] = pobj;
         }
 
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 
     for (i = 0 ; i < ntargets ; i++) {
         pobj = targets[i];
@@ -820,9 +820,9 @@ static void shim_ipc_helper (void * arg)
     debug_setbuf(&tcb.shim_tcb, true);
     debug("set tcb to %p\n", &tcb);
 
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
     bool notme = (self != ipc_helper_thread);
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 
     if (notme) {
         put_thread(self);
@@ -934,7 +934,7 @@ update_status:
             continue;
 update_list:
         ipc_helper_update = false;
-        lock(ipc_helper_lock);
+        lock(&ipc_helper_lock);
 
         int compact = 0;
         /* first walk though all the polling ports and remove the one
@@ -1014,7 +1014,7 @@ update_list:
                   pobj->private.type);
         }
 
-        unlock(ipc_helper_lock);
+        unlock(&ipc_helper_lock);
     }
 
     for (int i = 0 ; i < port_num ; i++) {
@@ -1037,10 +1037,10 @@ end:
         shim_terminate(0); // Same as shim_clean(), but this is the official termination function
     }
 
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
     ipc_helper_state = HELPER_NOTALIVE;
     ipc_helper_thread = NULL;
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
     put_thread(self);
     debug("ipc helper thread terminated\n");
 
@@ -1095,7 +1095,7 @@ int exit_with_ipc_helper (bool handover, struct shim_thread ** ret)
     if (IN_HELPER() || ipc_helper_state != HELPER_ALIVE)
         return 0;
 
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
     if (handover) {
         handover = false;
         struct shim_ipc_port * pobj;
@@ -1119,7 +1119,7 @@ int exit_with_ipc_helper (bool handover, struct shim_thread ** ret)
         get_thread(ipc_helper_thread);
         *ret = ipc_helper_thread;
     }
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
 
     set_event(&ipc_helper_event, 1);
 
@@ -1143,17 +1143,17 @@ int exit_with_ipc_helper (bool handover, struct shim_thread ** ret)
 
 int terminate_ipc_helper (void)
 {
-    lock(ipc_helper_lock);
+    lock(&ipc_helper_lock);
 
     struct shim_thread * thread = ipc_helper_thread;
     if (!thread) {
-        unlock(ipc_helper_lock);
+        unlock(&ipc_helper_lock);
         return -ESRCH;
     }
 
     debug("terminating ipc helper\n");
     ipc_helper_state = HELPER_NOTALIVE;
     set_event(&ipc_helper_event, 1);
-    unlock(ipc_helper_lock);
+    unlock(&ipc_helper_lock);
     return 0;
 }

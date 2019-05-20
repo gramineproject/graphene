@@ -436,7 +436,7 @@ int ipc_sysv_msgmov_callback (IPC_CALLBACK_ARGS)
     struct shim_handle * hdl = container_of(msgq, struct shim_handle,
                                             info.msg);
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
     int nscores = (msgin->nscores > MAX_SYSV_CLIENTS) ?
                   MAX_SYSV_CLIENTS : msgin->nscores;
     if (nscores)
@@ -444,7 +444,7 @@ int ipc_sysv_msgmov_callback (IPC_CALLBACK_ARGS)
     if (nscores < MAX_SYSV_CLIENTS)
         memset(msgq->scores + nscores, 0,
                sizeof(struct sysv_score) * (MAX_SYSV_CLIENTS - nscores));
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 
     ret = recover_msg_ownership(msgq);
 
@@ -826,7 +826,7 @@ int ipc_sysv_semmov_callback (IPC_CALLBACK_ARGS)
     struct shim_handle * hdl = container_of(sem, struct shim_handle,
                                             info.sem);
 
-    lock(hdl->lock);
+    lock(&hdl->lock);
     int nscores = (msgin->nscores > MAX_SYSV_CLIENTS) ?
                   MAX_SYSV_CLIENTS : msgin->nscores;
     if (nscores)
@@ -834,7 +834,7 @@ int ipc_sysv_semmov_callback (IPC_CALLBACK_ARGS)
     if (nscores < MAX_SYSV_CLIENTS)
         memset(sem->scores + nscores, 0,
                sizeof(struct sysv_score) * (MAX_SYSV_CLIENTS - nscores));
-    unlock(hdl->lock);
+    unlock(&hdl->lock);
 
     ret = recover_sem_ownership(sem, sems, msgin->nsems, clients,
                                 msgin->nsrcs);

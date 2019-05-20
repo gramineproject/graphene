@@ -87,7 +87,7 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
         goto out;
     }
 
-    lock(thread->lock);
+    lock(&thread->lock);
 
     if (next_len == static_strlen("root") && !memcmp(next, "root", next_len)) {
         dent = thread->root;
@@ -102,7 +102,7 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
     if (next_len == static_strlen("exe") && !memcmp(next, "exe", next_len)) {
         struct shim_handle * exec = thread->exec;
         if (!exec->dentry) {
-            unlock(thread->lock);
+            unlock(&thread->lock);
             ret = -EINVAL;
             goto out;
         }
@@ -110,7 +110,7 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
         get_dentry(dent);
     }
 
-    unlock(thread->lock);
+    unlock(&thread->lock);
 
     if (nextnext) {
         struct shim_dentry * next_dent = NULL;
@@ -252,12 +252,12 @@ static int parse_thread_fd (const char * name, const char ** rest,
 
     struct shim_handle_map * handle_map = get_cur_handle_map(thread);
 
-    lock(handle_map->lock);
+    lock(&handle_map->lock);
 
     if (fd >= handle_map->fd_top ||
         handle_map->map[fd] == NULL ||
         handle_map->map[fd]->handle == NULL) {
-        unlock(handle_map->lock);
+        unlock(&handle_map->lock);
         return -ENOENT;
     }
 
@@ -266,7 +266,7 @@ static int parse_thread_fd (const char * name, const char ** rest,
         get_handle(*phdl);
     }
 
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
 
     if (rest)
         *rest = *p ? p + 1 : NULL;
@@ -300,7 +300,7 @@ static int proc_list_thread_each_fd (const char * name,
     int err = 0, bytes = 0;
     struct shim_dirent * dirent = *buf, ** last = NULL;
 
-    lock(handle_map->lock);
+    lock(&handle_map->lock);
 
     for (int i = 0 ; i < handle_map->fd_size ; i++)
         if (handle_map->map[i] &&
@@ -326,7 +326,7 @@ static int proc_list_thread_each_fd (const char * name,
             dirent = dirent->next;
         }
 
-    unlock(handle_map->lock);
+    unlock(&handle_map->lock);
     put_thread(thread);
 
     if (last)
@@ -352,14 +352,14 @@ static int find_thread_each_fd (const char * name, struct shim_qstr * link,
     if ((ret = parse_thread_fd(name, &rest, &handle)) < 0)
         return ret;
 
-    lock(handle->lock);
+    lock(&handle->lock);
 
     if (handle->dentry) {
         dent = handle->dentry;
         get_dentry(dent);
     }
 
-    unlock(handle->lock);
+    unlock(&handle->lock);
 
     if (!dent) {
         ret = -ENOENT;
@@ -680,10 +680,10 @@ static int proc_thread_dir_stat (const char * name, struct stat * buf)
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = buf->st_ino = 1;
     buf->st_mode = 0500|S_IFDIR;
-    lock(thread->lock);
+    lock(&thread->lock);
     buf->st_uid = thread->uid;
     buf->st_gid = thread->gid;
-    unlock(thread->lock);
+    unlock(&thread->lock);
     buf->st_size = 4096;
     return 0;
 }

@@ -124,7 +124,7 @@ static int __do_poll (int npolls, struct poll_handle * polls,
     BEGIN_PROFILE_INTERVAL_SET(begin_time);
 #endif
 
-    lock(map->lock);
+    lock(&map->lock);
 
     for (p = polls ; p < polls + npolls ; p++) {
         bool do_r = p->flags & DO_R;
@@ -218,7 +218,7 @@ no_op:
 
                 if (polled < 0) {
                     if (polled != -EAGAIN) {
-                        unlock(map->lock);
+                        unlock(&map->lock);
                         ret = polled;
                         goto done_polling;
                     }
@@ -279,7 +279,7 @@ done_finding:
         SAVE_PROFILE_INTERVAL(do_poll_update_bookkeeping);
     }
 
-    unlock(map->lock);
+    unlock(&map->lock);
 
     SAVE_PROFILE_INTERVAL_SINCE(do_poll_first_loop, begin_time);
 

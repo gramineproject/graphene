@@ -106,10 +106,10 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
          *   Set the file descriptor flags to the value specified by arg.
          */
         case F_SETFD:
-            lock(handle_map->lock);
+            lock(&handle_map->lock);
             if (HANDLE_ALLOCATED(handle_map->map[fd]))
                 handle_map->map[fd]->flags = arg & FD_CLOEXEC;
-            unlock(handle_map->lock);
+            unlock(&handle_map->lock);
             ret = 0;
             break;
 
@@ -126,9 +126,9 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
          */
 
         case F_GETFL:
-            lock(hdl->lock);
+            lock(&hdl->lock);
             flags = hdl->flags;
-            unlock(hdl->lock);
+            unlock(&hdl->lock);
             ret = flags;
             break;
 
@@ -143,13 +143,13 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
 #define FCNTL_SETFL_MASK (O_APPEND|O_NONBLOCK)
 
         case F_SETFL:
-            lock(hdl->lock);
+            lock(&hdl->lock);
             if (hdl->fs && hdl->fs->fs_ops &&
                 hdl->fs->fs_ops->setflags)
                 hdl->fs->fs_ops->setflags(hdl, arg & FCNTL_SETFL_MASK);
             hdl->flags = (hdl->flags & ~FCNTL_SETFL_MASK) |
                          (arg & FCNTL_SETFL_MASK);
-            unlock(hdl->lock);
+            unlock(&hdl->lock);
             ret = 0;
             break;
 

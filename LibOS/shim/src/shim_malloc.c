@@ -40,8 +40,8 @@
 
 static struct shim_lock slab_mgr_lock;
 
-#define system_lock()       lock(slab_mgr_lock)
-#define system_unlock()     unlock(slab_mgr_lock)
+#define system_lock()       lock(&slab_mgr_lock)
+#define system_unlock()     unlock(&slab_mgr_lock)
 #define PAGE_SIZE           allocsize
 
 #ifdef SLAB_DEBUG_TRACE
@@ -108,7 +108,7 @@ void __system_free (void * addr, size_t size)
 
 int init_slab (void)
 {
-    create_lock(slab_mgr_lock);
+    create_lock(&slab_mgr_lock);
     slab_mgr = create_slab_mgr();
     return 0;
 }
