@@ -199,7 +199,7 @@ int shim_do_munmap (void * addr, size_t length)
     DkVirtualMemoryFree(addr, length);
 
     if (bkeep_munmap(addr, length, 0) < 0)
-        bug();
+        BUG();
 
     return 0;
 }

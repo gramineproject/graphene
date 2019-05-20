@@ -95,7 +95,7 @@ void md5_init (mdContext)
     mdContext->buf[2] = (UINT4)0x98badcfe;
     mdContext->buf[3] = (UINT4)0x10325476;
 }
-extern_alias(md5_init);
+EXTERN_ALIAS(md5_init);
 
 void md5_update (mdContext, inBuf, inLen)
     struct shim_md5_ctx *mdContext;
@@ -131,7 +131,7 @@ void md5_update (mdContext, inBuf, inLen)
         }
     }
 }
-extern_alias(md5_update);
+EXTERN_ALIAS(md5_update);
 
 void md5_final (mdContext)
     struct shim_md5_ctx *mdContext;
@@ -273,7 +273,7 @@ static void __transform (buf, in)
     buf[2] += c;
     buf[3] += d;
 }
-extern_alias(md5_final);
+EXTERN_ALIAS(md5_final);
 
 /*
  **********************************************************************

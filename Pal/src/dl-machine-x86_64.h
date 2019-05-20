@@ -25,8 +25,8 @@
  * The source code is imported and modified from the GNU C Library.
  */
 
-#ifndef dl_machine_h
-#define dl_machine_h
+#ifndef DL_MACHINE_H
+#define DL_MACHINE_H
 
 #define ELF_MACHINE_NAME "x86_64"
 
@@ -171,4 +171,4 @@ elf_machine_rela_relative (struct link_map *l, const Elf64_Rela *reloc,
     *reloc_addr = l->l_addr + reloc->r_addend;
 }
 
-#endif /* !dl_machine_h */
+#endif /* !DL_MACHINE_H */

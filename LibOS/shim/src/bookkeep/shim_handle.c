@@ -36,8 +36,8 @@ static struct shim_lock handle_mgr_lock;
 
 #define HANDLE_MGR_ALLOC        32
 
-#define system_lock()   lock(&handle_mgr_lock)
-#define system_unlock() unlock(&handle_mgr_lock)
+#define SYSTEM_LOCK()   lock(&handle_mgr_lock)
+#define SYSTEM_UNLOCK() unlock(&handle_mgr_lock)
 #define PAGE_SIZE       allocsize
 
 #define OBJ_TYPE struct shim_handle

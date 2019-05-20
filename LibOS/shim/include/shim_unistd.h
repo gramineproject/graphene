@@ -66,7 +66,7 @@ struct sigcp {
     int si_session;
 };
 
-#define si_cp_session(info) \
+#define SI_CP_SESSION(info) \
     (((struct sigcp *) (info)->_sifields._pad)->si_session)
 
 #define SIGCP                   33

@@ -35,8 +35,8 @@
 static int slab_alignment;
 static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 
-#define system_lock()   _DkInternalLock(&slab_mgr_lock)
-#define system_unlock() _DkInternalUnlock(&slab_mgr_lock)
+#define SYSTEM_LOCK()   _DkInternalLock(&slab_mgr_lock)
+#define SYSTEM_UNLOCK() _DkInternalUnlock(&slab_mgr_lock)
 
 #if STATIC_SLAB == 1
 # define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
@@ -99,7 +99,7 @@ void init_slab_mgr (int alignment)
     slab_alignment = alignment;
     slab_mgr = create_slab_mgr();
     if (!slab_mgr)
-        init_fail(PAL_ERROR_NOMEM, "cannot initialize slab manager");
+        INIT_FAIL(PAL_ERROR_NOMEM, "cannot initialize slab manager");
 
 #if PROFILING == 1
     pal_state.slab_time += _DkSystemTimeQuery() - before_slab;

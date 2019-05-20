@@ -60,8 +60,8 @@ struct shim_mount * builtin_fs [NUM_BUILTIN_FS] = {
 
 static struct shim_lock mount_mgr_lock;
 
-#define system_lock()       lock(&mount_mgr_lock)
-#define system_unlock()     unlock(&mount_mgr_lock)
+#define SYSTEM_LOCK()       lock(&mount_mgr_lock)
+#define SYSTEM_UNLOCK()     unlock(&mount_mgr_lock)
 
 #define MOUNT_MGR_ALLOC     64
 #define PAGE_SIZE           allocsize

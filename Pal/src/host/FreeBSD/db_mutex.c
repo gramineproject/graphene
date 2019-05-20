@@ -40,14 +40,14 @@
 #include <unistd.h>
 
 #if defined(__i386__)
-#define rmb()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
-#define cpu_relax()     asm volatile("rep; nop" ::: "memory");
+#define RMB()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
+#define CPU_RELAX()     asm volatile("rep; nop" ::: "memory");
 #endif
 
 #if defined(__x86_64__)
 #include <unistd.h>
-#define rmb()           asm volatile("lfence" ::: "memory")
-#define cpu_relax()     asm volatile("rep; nop" ::: "memory");
+#define RMB()           asm volatile("lfence" ::: "memory")
+#define CPU_RELAX()     asm volatile("rep; nop" ::: "memory");
 #endif
 
 #define MUTEX_SPINLOCK_TIMES    20
@@ -68,7 +68,7 @@ int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout)
         c = atomic_dec_and_test(m);
         if (c)
             goto success;
-        cpu_relax();
+        CPU_RELAX();
     }
 
     /* The lock is now contended */
@@ -132,7 +132,7 @@ int _DkMutexLock (struct mutex_handle * mut)
         c = atomic_dec_and_test(m);
         if (c)
             goto success;
-        cpu_relax();
+        CPU_RELAX();
     }
 
     /* The lock is now contended */

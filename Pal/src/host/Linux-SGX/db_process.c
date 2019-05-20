@@ -237,7 +237,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
                 data.keyhash_mac, sizeof(data.keyhash_mac));
 
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n",
-            alloca_bytes2hexstr(data.keyhash_mac));
+            ALLOCA_BYTES2HEXSTR(data.keyhash_mac));
 
     ret = _DkStreamAttestationRequest(proc, &data,
                                       &check_child_mrenclave, &param);
@@ -309,7 +309,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
                 data.keyhash_mac, sizeof(data.keyhash_mac));
 
     SGX_DBG(DBG_P|DBG_S, "Attestation data: %s\n",
-            alloca_bytes2hexstr(data.keyhash_mac));
+            ALLOCA_BYTES2HEXSTR(data.keyhash_mac));
 
     ret = _DkStreamAttestationRespond(parent, &data,
                                       &check_parent_mrenclave,

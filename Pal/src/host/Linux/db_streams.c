@@ -102,16 +102,16 @@ int _DkStreamUnmap (void * addr, uint64_t size)
     return 0;
 }
 
-#define addr_size(addr)                                     \
-    ({  int _size = 0;                                      \
-        switch (((struct sockaddr *) addr)->sa_family) {    \
-            case AF_INET:                                   \
-                _size = sizeof(struct sockaddr_in); break;  \
-            case AF_INET6:                                  \
-                _size = sizeof(struct sockaddr_in6); break; \
-            default: break;                                 \
-        } _size;                                            \
-    })
+static size_t addr_size(const struct sockaddr* addr) {
+    switch (addr->sa_family) {
+        case AF_INET:
+            return sizeof(struct sockaddr_in);
+        case AF_INET6:
+            return sizeof(struct sockaddr_in6);
+        default:
+            return 0;
+    }
+}
 
 int handle_serialize (PAL_HANDLE handle, void ** data)
 {
@@ -239,9 +239,9 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
         case pal_type_udpsrv: {
             int s1 = 0, s2 = 0;
             if (hdl_data->sock.bind)
-                s1 = addr_size(data);
+                s1 = addr_size((const struct sockaddr*)data);
             if (hdl_data->sock.conn)
-                s2 = addr_size(data + s1);
+                s2 = addr_size((const struct sockaddr*)(data + s1));
             hdl = malloc(hdlsz + s1 + s2);
             if (!hdl)
                 break;

@@ -84,16 +84,16 @@ int _DkStreamUnmap (void * addr, uint64_t size)
     return 0;
 }
 
-#define addr_size(addr)                                     \
-    ({  int _size = 0;                                      \
-        switch (((struct sockaddr *) addr)->sa_family) {    \
-            case AF_INET:                                   \
-                _size = sizeof(struct sockaddr_in); break;  \
-            case AF_INET6:                                  \
-                _size = sizeof(struct sockaddr_in6); break; \
-            default: break;                                 \
-        } _size;                                            \
-    })
+static size_t addr_size(const struct sockaddr* addr) {
+    switch (addr->sa_family) {
+        case AF_INET:
+            return sizeof(struct sockaddr_in);
+        case AF_INET6:
+            return sizeof(struct sockaddr_in6);
+        default:
+            return 0;
+    }
+}
 
 int handle_serialize (PAL_HANDLE handle, void ** data)
 {

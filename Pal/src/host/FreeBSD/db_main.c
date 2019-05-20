@@ -156,7 +156,7 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
 
     while (1) {
         if (start_addr >= end_addr)
-            init_fail(PAL_ERROR_NOMEM, "no user memory available");
+            INIT_FAIL(PAL_ERROR_NOMEM, "no user memory available");
 
         void * mem = (void *) ARCH_MMAP(start_addr,
                                         pal_state.alloc_align,

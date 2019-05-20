@@ -28,8 +28,8 @@
 static PAL_LOCK malloc_lock = LOCK_INIT;
 static int pagesize = PRESET_PAGESIZE;
 
-#define system_lock()   _DkSpinLock(&malloc_lock)
-#define system_unlock() _DkSpinUnlock(&malloc_lock)
+#define SYSTEM_LOCK()   _DkSpinLock(&malloc_lock)
+#define SYSTEM_UNLOCK() _DkSpinUnlock(&malloc_lock)
 
 #define PAGE_SIZE pagesize
 
@@ -61,7 +61,7 @@ void init_untrusted_slab_mgr ()
 
     untrusted_slabmgr = create_slab_mgr();
     if (!untrusted_slabmgr)
-        init_fail(PAL_ERROR_NOMEM, "cannot initialize slab manager");
+        INIT_FAIL(PAL_ERROR_NOMEM, "cannot initialize slab manager");
 }
 
 void * malloc_untrusted (int size)

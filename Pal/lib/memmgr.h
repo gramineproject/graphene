@@ -39,11 +39,11 @@
 #ifndef system_free
 #error "macro \"void * system_free (void * ptr, size_t size)\" not declared"
 #endif
-#ifndef system_lock
-#define system_lock() ({})
+#ifndef SYSTEM_LOCK
+#define SYSTEM_LOCK() ({})
 #endif
-#ifndef system_unlock
-#define system_unlock() ({})
+#ifndef SYSTEM_UNLOCK
+#define SYSTEM_UNLOCK() ({})
 #endif
 
 DEFINE_LIST(mem_obj);
@@ -150,12 +150,12 @@ static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
     if (!area)
         return NULL;
 
-    system_lock();
+    SYSTEM_LOCK();
     area->size = size;
     INIT_LIST_HEAD(area, __list);
     listp_add(area, &mgr->area_list, __list);
     __set_free_mem_area(area, mgr);
-    system_unlock();
+    SYSTEM_UNLOCK();
     return mgr;
 }
 
@@ -181,9 +181,9 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr (MEM_MGR mgr)
 {
     MEM_OBJ mobj;
 
-    system_lock();
+    SYSTEM_LOCK();
     if (mgr->obj == mgr->obj_top && listp_empty(&mgr->free_list)) {
-        system_unlock();
+        SYSTEM_UNLOCK();
         return NULL;
     }
 
@@ -194,7 +194,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr (MEM_MGR mgr)
     } else {
         mobj = mgr->obj++;
     }
-    system_unlock();
+    SYSTEM_UNLOCK();
     return &mobj->obj;
 }
 
@@ -203,7 +203,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
 {
     MEM_OBJ mobj;
 
-    system_lock();
+    SYSTEM_LOCK();
     if (mgr->obj == mgr->obj_top && listp_empty(&mgr->free_list)) {
         size_t mgr_size = mgr->size;
         MEM_AREA area;
@@ -215,7 +215,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
             goto alloc;
         }
 
-        system_unlock();
+        SYSTEM_UNLOCK();
 
         if (!size)
             return NULL;
@@ -227,7 +227,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
         if (!area)
             return NULL;
 
-        system_lock();
+        SYSTEM_LOCK();
         area->size = size;
         INIT_LIST_HEAD(area, __list);
 
@@ -248,7 +248,7 @@ alloc:
         mobj = mgr->obj++;
     }
     assert(mgr->obj <= mgr->obj_top);
-    system_unlock();
+    SYSTEM_UNLOCK();
     return &mobj->obj;
 }
 
@@ -256,7 +256,7 @@ static inline void free_mem_obj_to_mgr (MEM_MGR mgr, OBJ_TYPE * obj)
 {
     MEM_OBJ mobj = container_of(obj, MEM_OBJ_TYPE, obj);
 
-    system_lock();
+    SYSTEM_LOCK();
     MEM_AREA area, found = NULL;
     listp_for_each_entry(area, &mgr->area_list, __list)
         if (mobj >= area->objs && mobj < area->objs + area->size) {
@@ -270,7 +270,7 @@ static inline void free_mem_obj_to_mgr (MEM_MGR mgr, OBJ_TYPE * obj)
         check_list_head(MEM_OBJ, &mgr->free_list, __list);
     }
 
-    system_unlock();
+    SYSTEM_UNLOCK();
 }
 
 #endif /* MEMMGR_H */

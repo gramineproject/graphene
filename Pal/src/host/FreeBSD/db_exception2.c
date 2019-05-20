@@ -401,7 +401,7 @@ void signal_setup (void)
 
     return;
 err:
-    init_fail(-ret, "cannot setup signal handlers");
+    INIT_FAIL(-ret, "cannot setup signal handlers");
 }
 
 void _DkExceptionReturn (void * event)

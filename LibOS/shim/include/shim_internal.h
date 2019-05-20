@@ -30,10 +30,10 @@
 
 #define attribute_hidden __attribute__ ((visibility ("hidden")))
 
-#define alias_str(name) #name
+#define ALIAS_STR(name) #name
 
-#define extern_alias(name) \
-    extern __typeof__(name) shim_##name __attribute ((alias (alias_str(name))))
+#define EXTERN_ALIAS(name) \
+    extern __typeof__(name) shim_##name __attribute ((alias (ALIAS_STR(name))))
 
 #define static_always_inline static inline __attribute__((always_inline))
 
@@ -63,26 +63,26 @@ struct debug_buf {
     char buf[DEBUGBUF_SIZE];
 };
 
-# include <pal.h>
-# include <pal_debug.h>
-# include <pal_error.h>
+#include <pal.h>
+#include <pal_debug.h>
+#include <pal_error.h>
 
 extern PAL_HANDLE debug_handle;
 
-# include <stdarg.h>
+#include <stdarg.h>
 
 void debug_printf (const char * fmt, ...) __attribute__((format (printf, 1, 2)));
 void debug_puts (const char * str);
 void debug_putch (int ch);
 void debug_vprintf (const char * fmt, va_list * ap) __attribute__((format (printf, 1, 0)));
 
-# define VMID_PREFIX     "[P%05u] "
-# define TID_PREFIX      "[%-6u] "
-# define NOID_PREFIX     "[      ] "
-# define debug(fmt, ...)                                                    \
+#define VMID_PREFIX     "[P%05u] "
+#define TID_PREFIX      "[%-6u] "
+#define NOID_PREFIX     "[      ] "
+#define debug(fmt, ...)                                                     \
     do {                                                                    \
         if (debug_handle)                                                   \
-            debug_printf((fmt), ##__VA_ARGS__);                             \
+            debug_printf(fmt, ##__VA_ARGS__);                               \
     } while (0)
 
 /* print system messages */
@@ -91,38 +91,38 @@ void debug_vprintf (const char * fmt, va_list * ap) __attribute__((format (print
 void handle_printf (PAL_HANDLE hdl, const char * fmt, ...) __attribute__((format (printf, 2, 3)));
 void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap) __attribute__((format (printf, 2, 0)));
 
-#define __sys_printf(fmt, ...)                                              \
+#define __SYS_PRINTF(fmt, ...)                                              \
     do {                                                                    \
         PAL_HANDLE _hdl = __open_shim_stdio();                              \
         if (_hdl)                                                           \
-           handle_printf(_hdl, (fmt), ##__VA_ARGS__);                       \
+           handle_printf(_hdl, fmt, ##__VA_ARGS__);                         \
     } while (0)
 
-#define __sys_vprintf(fmt, va)                                              \
+#define __SYS_VPRINTF(fmt, va)                                              \
     do {                                                                    \
         PAL_HANDLE _hdl = __open_shim_stdio();                              \
         if (_hdl)                                                           \
-            handle_vprintf(_hdl, (fmt), (va));                              \
+            handle_vprintf(_hdl, fmt, va);                                  \
     } while (0)
 
 
-#define __sys_fprintf(hdl, fmt, ...)                                        \
+#define __SYS_FPRINTF(hdl, fmt, ...)                                        \
     do {                                                                    \
-        handle_printf((hdl), (fmt), ##__VA_ARGS__);                         \
+        handle_printf(hdl, fmt, ##__VA_ARGS__);                             \
     } while (0)
 
-#define sys_printf(fmt, ...)                                                \
+#define SYS_PRINTF(fmt, ...)                                                \
     do {                                                                    \
-        master_lock();                                                      \
-        __sys_printf((fmt), ##__VA_ARGS__);                                 \
-        master_unlock();                                                    \
+        MASTER_LOCK();                                                      \
+        __SYS_PRINTF(fmt, ##__VA_ARGS__);                                   \
+        MASTER_UNLOCK();                                                    \
     } while (0)
 
-#define sys_fprintf(hdl, fmt, ...)                                          \
+#define SYS_FPRINTF(hdl, fmt, ...)                                          \
     do {                                                                    \
-        master_lock();                                                      \
-        __sys_fprintf((hdl), (fmt), ##__VA_ARGS__);                         \
-        master_unlock();                                                    \
+        MASTER_LOCK();                                                      \
+        __SYS_FPRINTF(hdl, fmt, ##__VA_ARGS__);                             \
+        MASTER_UNLOCK();                                                    \
     } while (0)
 
 extern PAL_HANDLE shim_stdio;
@@ -154,15 +154,15 @@ int shim_terminate (int err);
 static inline void do_pause (void);
 
 #if USE_PAUSE == 1
-# define pause() do { do_pause(); } while (0)
+# define PAUSE() do { do_pause(); } while (0)
 #else
-# define pause() do { __asm__ volatile ("int $3"); } while (0)
+# define PAUSE() do { __asm__ volatile ("int $3"); } while (0)
 #endif
 
-#define bug()                                                               \
+#define BUG()                                                               \
     do {                                                                    \
-        __sys_printf("bug() " __FILE__ ":%d\n", __LINE__);                  \
-        pause();                                                            \
+        __SYS_PRINTF("BUG() " __FILE__ ":%d\n", __LINE__);                  \
+        PAUSE();                                                            \
         shim_terminate(-ENOTRECOVERABLE);                                   \
     } while (0)
 
@@ -559,28 +559,28 @@ static inline bool locked(struct shim_lock* l)
 extern struct shim_lock __master_lock;
 
 #if DEBUG_MASTER_LOCK == 1
-# define master_lock()                                              \
+# define MASTER_LOCK()                                              \
     do {                                                            \
         lock(&__master_lock);                                       \
         pal_printf("master lock " __FILE__ ":%d\n", __LINE__);      \
     } while (0)
-# define master_unlock()                                            \
+# define MASTER_UNLOCK()                                            \
     do {                                                            \
         pal_printf("master unlock " __FILE__ ":%d\n", __LINE__);    \
         unlock(&__master_lock);                                     \
     } while (0)
 #else
-# define master_lock() do { lock(&__master_lock); } while (0)
-# define master_unlock() do { unlock(&__master_lock); } while (0)
+# define MASTER_LOCK() do { lock(&__master_lock); } while (0)
+# define MASTER_UNLOCK() do { unlock(&__master_lock); } while (0)
 #endif
 
 static inline void create_lock_runtime(struct shim_lock* l)
 {
     if (!lock_created(l)) {
-        master_lock();
+        MASTER_LOCK();
         if (!lock_created(l))
             create_lock(l);
-        master_unlock();
+        MASTER_UNLOCK();
     }
 }
 
@@ -672,7 +672,7 @@ static inline int __ref_dec (REFTYPE * ref)
         _c = atomic_read(ref);
         if (!_c) {
             debug("Fail: Trying to drop reference count below 0\n");
-            bug();
+            BUG();
             return 0;
         }
     } while (atomic_cmpxchg(ref, _c, _c - 1) != _c);
@@ -716,8 +716,8 @@ extern unsigned long allocmask;
 void * __system_malloc (size_t size);
 void __system_free (void * addr, size_t size);
 
-#define system_malloc(size) __system_malloc(size)
-#define system_free(addr, size) __system_free(addr, size)
+#define system_malloc __system_malloc
+#define system_free __system_free
 
 extern void * migrated_memory_start;
 extern void * migrated_memory_end;
@@ -760,7 +760,7 @@ bool test_user_string (const char * addr);
 int object_wait_with_retry(PAL_HANDLE handle);
 
 #ifdef __x86_64__
-#define switch_stack(stack_top)                                         \
+#define SWITCH_STACK(stack_top)                                         \
     ({                                                                  \
         void * _rsp, * _rbp;                                            \
         void * _stack = (stack_top);                                    \
@@ -792,10 +792,9 @@ static_always_inline bool __range_not_ok(unsigned long addr, unsigned long size)
 
 /* Check if pointer to memory region is valid. Return true if the memory
  * region may be valid, false if it is definitely invalid. */
-#define access_ok(addr, size)                                       \
-    ({                                                              \
-        !__range_not_ok((unsigned long)addr, (unsigned long)size);  \
-    })
+static inline bool access_ok(const volatile void* addr, size_t size) {
+    return !__range_not_ok((unsigned long)addr, (unsigned long)size);
+}
 
 #else
 # error "Unsupported architecture"

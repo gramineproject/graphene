@@ -52,11 +52,11 @@ DEFINE_PROFILE_OCCURENCE(brk_migrate_count, memory);
 
 void get_brk_region (void ** start, void ** end, void ** current)
 {
-    master_lock();
+    MASTER_LOCK();
     *start   = region.brk_start;
     *end     = region.brk_end;
     *current = region.brk_current;
-    master_unlock();
+    MASTER_UNLOCK();
 }
 
 int init_brk_region (void * brk_region)
@@ -108,7 +108,7 @@ int init_brk_region (void * brk_region)
          */
         if (bkeep_mmap(brk_region, brk_max_size, PROT_READ|PROT_WRITE,
                        flags|VMA_UNMAPPED, NULL, 0, "brk") < 0)
-            bug();
+            BUG();
     } else {
         brk_region = bkeep_unmapped_heap(brk_max_size, PROT_READ|PROT_WRITE,
                                          flags|VMA_UNMAPPED, NULL, 0, "brk");
@@ -148,17 +148,17 @@ int init_brk_region (void * brk_region)
      */
     if (bkeep_mmap(brk_region, BRK_SIZE, PROT_READ|PROT_WRITE, flags,
                    NULL, 0, "brk") < 0)
-        bug();
+        BUG();
 
     return 0;
 }
 
 int reset_brk (void)
 {
-    master_lock();
+    MASTER_LOCK();
 
     if (!region.brk_start) {
-        master_unlock();
+        MASTER_UNLOCK();
         return 0;
     }
 
@@ -166,19 +166,19 @@ int reset_brk (void)
                              region.brk_end - region.brk_start);
 
     if (ret < 0) {
-        master_unlock();
+        MASTER_UNLOCK();
         return ret;
     }
 
     region.brk_start = region.brk_end = region.brk_current = NULL;
 
-    master_unlock();
+    MASTER_UNLOCK();
     return 0;
 }
 
 void * shim_do_brk (void * brk)
 {
-    master_lock();
+    MASTER_LOCK();
 
     if (init_brk_region(NULL) < 0) {
         debug("Failed to initialize brk!\n");
@@ -218,7 +218,7 @@ unchanged:
     region.brk_current = brk;
 
 out:
-    master_unlock();
+    MASTER_UNLOCK();
     return brk;
 }
 

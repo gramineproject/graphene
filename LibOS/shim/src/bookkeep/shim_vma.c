@@ -377,7 +377,7 @@ static inline struct shim_vma * __get_new_vma (void)
 
     /* Should never reach here; if this happens, increase RESERVED_VMAS */
     debug("failed to allocate new vma\n");
-    bug();
+    BUG();
     return NULL;
 
 out:
@@ -426,7 +426,7 @@ __assert_vma_flags (const struct shim_vma * vma, int flags)
             && VMA_TYPE(vma->flags) != VMA_TYPE(flags)) {
         debug("Check vma flag failure: vma flags %x, checked flags %x\n",
               vma->flags, flags);
-        bug();
+        BUG();
     }
 }
 
@@ -586,7 +586,7 @@ static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end
     }
 
     /* Never reach here */
-    bug();
+    BUG();
 
 finish:
     assert(!test_vma_overlap(vma, start, end));
@@ -654,7 +654,7 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
             break;
         } else {
             /* __shrink_vma() should never allow this case. */
-            bug();
+            BUG();
         }
 
 cont:
@@ -767,7 +767,7 @@ static int __bkeep_mprotect (struct shim_vma * prev,
             assert(!tail);
         } else {
             /* __shrink_vma() should never allow this case. */
-            bug();
+            BUG();
         }
 
         /* Now insert the new protected vma between prev and cur */
@@ -1200,7 +1200,7 @@ BEGIN_RS_FUNC(vma)
         }
 
         if (need_mapped < vma->addr + vma->length)
-            sys_printf("vma %p-%p cannot be allocated!\n", need_mapped,
+            SYS_PRINTF("vma %p-%p cannot be allocated!\n", need_mapped,
                        vma->addr + vma->length);
     }
 
@@ -1257,7 +1257,7 @@ END_CP_FUNC_NO_RS(all_vmas)
 
 void debug_print_vma_list (void)
 {
-    sys_printf("vma bookkeeping:\n");
+    SYS_PRINTF("vma bookkeeping:\n");
 
     struct shim_vma * vma;
     listp_for_each_entry(vma, &vma_list, list) {
@@ -1273,7 +1273,7 @@ void debug_print_vma_list (void)
             }
         }
 
-        sys_printf("[%p-%p] prot=%08x flags=%08x%s%s offset=%ld%s%s%s%s\n",
+        SYS_PRINTF("[%p-%p] prot=%08x flags=%08x%s%s offset=%ld%s%s%s%s\n",
                    vma->start, vma->end,
                    vma->prot,
                    vma->flags & ~(VMA_INTERNAL|VMA_UNMAPPED|VMA_TAINTED|VMA_CP),

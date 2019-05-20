@@ -118,7 +118,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
 
-    switch_stack(new_argp);
+    SWITCH_STACK(new_argp);
     cur_thread = get_cur_thread();
 
     UPDATE_PROFILE_INTERVAL();
@@ -128,7 +128,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     if (bkeep_munmap(old_stack, old_stack_top - old_stack, 0) < 0 ||
         bkeep_munmap(old_stack_red, old_stack - old_stack_red, 0) < 0)
-        bug();
+        BUG();
 
     remove_loaded_libraries();
     clean_link_map_list();

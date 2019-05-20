@@ -58,7 +58,7 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 }
 
 void __abort(void) {
-    pause();
+    PAUSE();
     shim_terminate(-ENOTRECOVERABLE);
 }
 
@@ -66,7 +66,7 @@ void warn (const char *format, ...)
 {
     va_list args;
     va_start (args, format);
-    __sys_vprintf(format, &args);
+    __SYS_VPRINTF(format, &args);
     va_end (args);
 }
 
@@ -509,7 +509,7 @@ int init_manifest (PAL_HANDLE manifest_handle)
     const char * errstring = "Unexpected error";
 
     if ((ret = read_config(new_root_config, NULL, &errstring)) < 0) {
-        sys_printf("Unable to read manifest file: %s\n", errstring);
+        SYS_PRINTF("Unable to read manifest file: %s\n", errstring);
         goto fail;
     }
 
@@ -520,7 +520,7 @@ fail:
     if (map_size) {
         DkStreamUnmap(addr, map_size);
         if (bkeep_munmap(addr, map_size, MAP_FLAGS) < 0)
-            bug();
+            BUG();
     }
     free(new_root_config);
     return ret;
@@ -668,7 +668,7 @@ DEFINE_PROFILE_INTERVAL(init_signal,                init);
     do {                                                                \
         int _err = CALL_INIT(func, ##__VA_ARGS__);                      \
         if (_err < 0) {                                                 \
-            sys_printf("shim_init() in " #func " (%d)\n", _err);        \
+            SYS_PRINTF("shim_init() in " #func " (%d)\n", _err);        \
             shim_terminate(_err);                                       \
         }                                                               \
         SAVE_PROFILE_INTERVAL(func);                                    \
@@ -1056,10 +1056,10 @@ void check_stack_hook (void)
 
     if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
         if (rsp - cur_thread->stack < PAL_CB(pagesize))
-            sys_printf("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
+            SYS_PRINTF("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
                        rsp, cur_thread->stack, cur_thread->stack_top);
     } else {
-        sys_printf("*** context dismatched with thread stack (RSP = %p, stack = %p-%p) ***\n",
+        SYS_PRINTF("*** context dismatched with thread stack (RSP = %p, stack = %p-%p) ***\n",
                    rsp, cur_thread->stack, cur_thread->stack_top);
     }
 }
@@ -1080,8 +1080,8 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
                     atomic_read(&profile->val.occurence.count);
                 if (count) {
                     for (int j = 0 ; j < level ; j++)
-                        __sys_fprintf(hdl, "  ");
-                    __sys_fprintf(hdl, "- %s: %u times\n", profile->name, count);
+                        __SYS_FPRINTF(hdl, "  ");
+                    __SYS_FPRINTF(hdl, "- %s: %u times\n", profile->name, count);
                 }
                 break;
             }
@@ -1095,22 +1095,22 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
                     total_interval_time += time;
                     total_interval_count += count;
                     for (int j = 0 ; j < level ; j++)
-                        __sys_fprintf(hdl, "  ");
-                    __sys_fprintf(hdl, "- (%11.11lu) %s: %u times, %lu msec\n",
+                        __SYS_FPRINTF(hdl, "  ");
+                    __SYS_FPRINTF(hdl, "- (%11.11lu) %s: %u times, %lu msec\n",
                                   time, profile->name, count, ind_time);
                 }
                 break;
             }
             case CATAGORY:
                 for (int j = 0 ; j < level ; j++)
-                    __sys_fprintf(hdl, "  ");
-                __sys_fprintf(hdl, "- %s:\n", profile->name);
+                    __SYS_FPRINTF(hdl, "  ");
+                __SYS_FPRINTF(hdl, "- %s:\n", profile->name);
                 print_profile_result(hdl, profile, level + 1);
                 break;
         }
     }
     if (total_interval_count) {
-        __sys_fprintf(hdl, "                - (%11.11u) total: %u times, %lu msec\n",
+        __SYS_FPRINTF(hdl, "                - (%11.11u) total: %u times, %lu msec\n",
                       total_interval_time, total_interval_count,
                       total_interval_time / total_interval_count);
     }
@@ -1156,18 +1156,18 @@ int shim_clean (int err)
     }
 
     if (ipc_cld_profile_send()) {
-        master_lock();
+        MASTER_LOCK();
 
         PAL_HANDLE hdl = __open_shim_stdio();
 
         if (hdl) {
-            __sys_fprintf(hdl, "******************************\n");
-            __sys_fprintf(hdl, "profiling:\n");
+            __SYS_FPRINTF(hdl, "******************************\n");
+            __SYS_FPRINTF(hdl, "profiling:\n");
             print_profile_result(hdl, &profile_root, 0);
-            __sys_fprintf(hdl, "******************************\n");
+            __SYS_FPRINTF(hdl, "******************************\n");
         }
 
-        master_unlock();
+        MASTER_UNLOCK();
         DkObjectClose(hdl);
     }
 #endif
@@ -1179,7 +1179,7 @@ int shim_clean (int err)
 
     shim_stdio = NULL;
     debug("process %u exited with status %d\n", cur_process.vmid & 0xFFFF, cur_process.exit_code);
-    master_lock();
+    MASTER_LOCK();
     DkProcessExit(cur_process.exit_code);
     return 0;
 }
@@ -1201,11 +1201,11 @@ int message_confirm (const char * message, const char * options)
     *(str++) = ']';
     *(str++) = ' ';
 
-    master_lock();
+    MASTER_LOCK();
 
     PAL_HANDLE hdl = __open_shim_stdio();
     if (!hdl) {
-        master_unlock();
+        MASTER_UNLOCK();
         return -EACCES;
     }
 
@@ -1226,6 +1226,6 @@ int message_confirm (const char * message, const char * options)
 
 out:
     DkObjectClose(hdl);
-    master_unlock();
+    MASTER_UNLOCK();
     return (ret < 0) ? ret : answer;
 }
