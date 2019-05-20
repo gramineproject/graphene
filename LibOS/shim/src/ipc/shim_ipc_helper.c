@@ -73,7 +73,7 @@ static AEVENTTYPE            ipc_helper_event;
 #define IN_HELPER() \
     (ipc_helper_thread && ipc_helper_thread == get_cur_thread())
 
-static LOCKTYPE ipc_helper_lock;
+static struct shim_lock ipc_helper_lock;
 
 static struct shim_ipc_port * broadcast_port;
 

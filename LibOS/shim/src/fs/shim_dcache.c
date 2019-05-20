@@ -32,7 +32,7 @@
 
 #include <list.h>
 
-LOCKTYPE dcache_lock;
+struct shim_lock dcache_lock;
 
 #define DCACHE_MGR_ALLOC    64
 #define PAGE_SIZE           allocsize

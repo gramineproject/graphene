@@ -51,7 +51,7 @@ static enum {  HELPER_NOTALIVE, HELPER_ALIVE } async_helper_state;
 static struct shim_thread * async_helper_thread;
 static AEVENTTYPE           async_helper_event;
 
-static LOCKTYPE async_helper_lock;
+static struct shim_lock async_helper_lock;
 
 /* Returns remaining usecs */
 int64_t install_async_event (PAL_HANDLE object, unsigned long time,

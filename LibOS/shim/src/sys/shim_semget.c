@@ -48,7 +48,7 @@ DEFINE_LISTP(shim_sem_handle);
 static LISTP_TYPE(shim_sem_handle) sem_list;
 static LISTP_TYPE(shim_sem_handle) sem_key_hlist [SEM_HASH_NUM];
 static LISTP_TYPE(shim_sem_handle) sem_sid_hlist [SEM_HASH_NUM];
-static LOCKTYPE sem_list_lock;
+static struct shim_lock sem_list_lock;
 
 DEFINE_PROFILE_CATAGORY(sysv_sem, );
 

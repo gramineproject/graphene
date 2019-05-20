@@ -39,7 +39,7 @@ static IDTYPE tid_alloc_idx __attribute_migratable = 0;
 static LISTP_TYPE(shim_thread) thread_list = LISTP_INIT;
 DEFINE_LISTP(shim_simple_thread);
 static LISTP_TYPE(shim_simple_thread) simple_thread_list = LISTP_INIT;
-LOCKTYPE thread_list_lock;
+struct shim_lock thread_list_lock;
 
 static IDTYPE internal_tid_alloc_idx = INTERNAL_TID_BASE;
 

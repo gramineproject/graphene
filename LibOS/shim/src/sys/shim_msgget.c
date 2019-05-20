@@ -47,7 +47,7 @@ DEFINE_LISTP(shim_msg_handle);
 static LISTP_TYPE(shim_msg_handle) msgq_list;
 static LISTP_TYPE(shim_msg_handle) msgq_key_hlist [MSGQ_HASH_NUM];
 static LISTP_TYPE(shim_msg_handle) msgq_qid_hlist [MSGQ_HASH_NUM];
-static LOCKTYPE msgq_list_lock;
+static struct shim_lock msgq_list_lock;
 
 static int __load_msg_persist (struct shim_msg_handle * msgq, bool readmsg);
 static int __store_msg_persist(struct shim_msg_handle * msgq);

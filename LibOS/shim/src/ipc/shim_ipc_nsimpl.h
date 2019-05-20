@@ -82,7 +82,7 @@ struct range_bitmap {
 
 /* Helper functions __*_range_*() must be called with range_map_lock held */
 static struct range_bitmap * range_map;
-static LOCKTYPE range_map_lock;
+static struct shim_lock range_map_lock;
 
 #define RANGE_HASH_LEN      6
 #define RANGE_HASH_NUM      (1 << RANGE_HASH_LEN)

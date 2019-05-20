@@ -168,7 +168,7 @@ struct shim_dentry {
     mode_t type;
     mode_t mode;
 
-    LOCKTYPE lock;
+    struct shim_lock lock;
     REFTYPE ref_count;
 };
 
@@ -339,7 +339,7 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
 /* functions for dcache supports */
 int init_dcache (void);
 
-extern LOCKTYPE dcache_lock;
+extern struct shim_lock dcache_lock;
 
 /* check permission (specified by mask) of a dentry. If force is not set,
  * permission is considered granted on invalid dentries */

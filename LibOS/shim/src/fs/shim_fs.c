@@ -58,7 +58,7 @@ struct shim_mount * builtin_fs [NUM_BUILTIN_FS] = {
                 &epoll_builtin_fs,
         };
 
-static LOCKTYPE mount_mgr_lock;
+static struct shim_lock mount_mgr_lock;
 
 #define system_lock()       lock(mount_mgr_lock)
 #define system_unlock()     unlock(mount_mgr_lock)
@@ -73,7 +73,7 @@ static MEM_MGR mount_mgr = NULL;
 DEFINE_LISTP(shim_mount);
 /* Links to mount->list */
 static LISTP_TYPE(shim_mount) mount_list;
-static LOCKTYPE mount_list_lock;
+static struct shim_lock mount_list_lock;
 
 int init_fs (void)
 {

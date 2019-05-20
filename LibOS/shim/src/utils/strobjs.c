@@ -26,7 +26,7 @@
 #include <shim_internal.h>
 #include <shim_utils.h>
 
-static LOCKTYPE str_mgr_lock;
+static struct shim_lock str_mgr_lock;
 
 #define system_lock()       lock(str_mgr_lock)
 #define system_unlock()     unlock(str_mgr_lock)

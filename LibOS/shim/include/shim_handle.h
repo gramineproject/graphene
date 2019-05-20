@@ -69,7 +69,7 @@ enum shim_file_type {
 };
 
 struct shim_file_data {
-    LOCKTYPE            lock;
+    struct shim_lock    lock;
     struct atomic_int   version;
     bool                queried;
     enum shim_file_type type;
@@ -365,7 +365,7 @@ struct shim_handle {
     int                 acc_mode;
     IDTYPE              owner;
     REFTYPE             opened;
-    LOCKTYPE            lock;
+    struct shim_lock    lock;
 };
 
 /* allocating / manage handle */
@@ -390,8 +390,8 @@ struct shim_handle_map {
     FDTYPE      fd_top;
 
     /* refrence count and lock */
-    REFTYPE     ref_count;
-    LOCKTYPE    lock;
+    REFTYPE          ref_count;
+    struct shim_lock lock;
 
     /* An array of file descriptor belong to this mapping */
     struct shim_fd_handle ** map;
