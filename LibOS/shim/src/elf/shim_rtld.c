@@ -1554,9 +1554,9 @@ int register_library (const char * name, unsigned long load_address)
     return 0;
 }
 
-void execute_elf_object (struct shim_handle * exec,
-                         int * argcp, const char ** argp,
-                         ElfW(auxv_t) * auxp)
+noreturn void execute_elf_object (struct shim_handle * exec,
+                                  int * argcp, const char ** argp,
+                                  ElfW(auxv_t) * auxp)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
@@ -1611,6 +1611,8 @@ void execute_elf_object (struct shim_handle * exec,
 #else
 # error "architecture not supported"
 #endif
+    while (true)
+        /* nothing */;
 }
 
 BEGIN_CP_FUNC(library)

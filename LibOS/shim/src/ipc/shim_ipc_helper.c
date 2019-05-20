@@ -805,7 +805,7 @@ next:
 #define IPC_HELPER_STACK_SIZE       (allocsize * 4)
 #define IPC_HELPER_LIST_INIT_SIZE   32
 
-static void shim_ipc_helper_end(struct shim_thread * self)
+noreturn static void shim_ipc_helper_end(struct shim_thread * self)
 {
     /* Put our handle map reference */
     if (self->handle_map)
@@ -831,7 +831,7 @@ static void shim_ipc_helper_end(struct shim_thread * self)
     DkThreadExit();
 }
 
-static void __shim_ipc_helper (void * dummy)
+noreturn static void __shim_ipc_helper (void * dummy)
 {
     struct shim_thread * self = get_cur_thread();
     void * stack = self->stack;
