@@ -195,7 +195,7 @@ static struct pid_status_cache {
     struct pid_status * status;
 } * pid_status_cache;
 
-static LOCKTYPE status_lock;
+static struct shim_lock status_lock;
 
 static int proc_match_ipc_thread (const char * name)
 {

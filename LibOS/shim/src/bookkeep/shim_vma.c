@@ -113,7 +113,7 @@ static MEM_MGR vma_mgr = NULL;
  */
 DEFINE_LISTP(shim_vma);
 static LISTP_TYPE(shim_vma) vma_list = LISTP_INIT;
-static LOCKTYPE vma_list_lock;
+static struct shim_lock vma_list_lock;
 
 /*
  * Return true if [s, e) is exactly the area represented by vma.

@@ -44,7 +44,7 @@
 
 static MEM_MGR ipc_info_mgr;
 
-LOCKTYPE ipc_info_lock;
+struct shim_lock ipc_info_lock;
 
 struct shim_process cur_process;
 

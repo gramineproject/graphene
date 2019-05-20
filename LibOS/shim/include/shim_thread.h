@@ -89,7 +89,7 @@ struct shim_thread {
     void * frameptr;
 
     REFTYPE ref_count;
-    LOCKTYPE lock;
+    struct shim_lock lock;
 
 #ifdef PROFILE
     unsigned long exit_time;
@@ -112,7 +112,7 @@ struct shim_simple_thread {
     LIST_TYPE(shim_simple_thread) list;
 
     REFTYPE ref_count;
-    LOCKTYPE lock;
+    struct shim_lock lock;
 
 #ifdef PROFILE
     unsigned long exit_time;
@@ -246,7 +246,7 @@ static inline void thread_wakeup (struct shim_thread * thread)
     DkEventSet(thread->scheduler_event);
 }
 
-extern LOCKTYPE thread_list_lock;
+extern struct shim_lock thread_list_lock;
 
 struct shim_thread * __lookup_thread (IDTYPE tid);
 struct shim_thread * lookup_thread (IDTYPE tid);

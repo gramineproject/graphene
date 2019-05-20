@@ -181,7 +181,7 @@ const char ** initial_envp __attribute_migratable;
  * never freed or updated. */
 char ** library_paths = NULL;
 
-LOCKTYPE __master_lock;
+struct shim_lock __master_lock;
 bool lock_enabled;
 
 void init_tcb (shim_tcb_t * tcb)

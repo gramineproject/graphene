@@ -38,7 +38,7 @@
 
 #include <asm/mman.h>
 
-static LOCKTYPE slab_mgr_lock;
+static struct shim_lock slab_mgr_lock;
 
 #define system_lock()       lock(slab_mgr_lock)
 #define system_unlock()     unlock(slab_mgr_lock)

@@ -32,7 +32,7 @@
 #include <pal.h>
 #include <pal_error.h>
 
-static LOCKTYPE handle_mgr_lock;
+static struct shim_lock handle_mgr_lock;
 
 #define HANDLE_MGR_ALLOC        32
 

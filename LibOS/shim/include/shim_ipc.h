@@ -49,7 +49,7 @@ enum { PID_NS, SYSV_NS, TOTAL_NS };
 
 struct shim_process {
     IDTYPE              vmid;
-    LOCKTYPE            lock;
+    struct shim_lock    lock;
     int                 exit_code;
     struct shim_ipc_info * self, * parent;
     struct shim_ipc_info * ns[TOTAL_NS];
@@ -97,7 +97,7 @@ struct shim_ipc_port {
     LIST_TYPE(shim_ipc_port) hlist;
     LIST_TYPE(shim_ipc_port) list;
     LISTP_TYPE(shim_ipc_msg_obj) msgs;
-    LOCKTYPE            msgs_lock;
+    struct shim_lock    msgs_lock;
 
     port_fini           fini[MAX_IPC_PORT_FINI_CB];
 

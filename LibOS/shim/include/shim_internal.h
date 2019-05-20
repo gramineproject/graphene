@@ -474,14 +474,14 @@ static inline void enable_preempt (shim_tcb_t * tcb)
 
 #define DEBUG_LOCK      0
 
-static inline bool __lock_created(LOCKTYPE * l)
+static inline bool __lock_created(struct shim_lock* l)
 {
     return l->lock != NULL;
 }
 
 #define lock_created(l)  __lock_created(&(l))
 
-static inline void __clear_lock(LOCKTYPE * l)
+static inline void __clear_lock(struct shim_lock* l)
 {
     l->lock = NULL;
     l->owner = 0;
@@ -489,7 +489,7 @@ static inline void __clear_lock(LOCKTYPE * l)
 
 #define clear_lock(l)  __clear_lock(&(l))
 
-static inline void __create_lock(LOCKTYPE * l)
+static inline void __create_lock(struct shim_lock* l)
 {
     l->lock = DkMutexCreate(0);
     /* l->owner = LOCK_FREE; */
@@ -498,14 +498,14 @@ static inline void __create_lock(LOCKTYPE * l)
 
 #define create_lock(l)  __create_lock(&(l))
 
-static inline void __destroy_lock(LOCKTYPE * l)
+static inline void __destroy_lock(struct shim_lock* l)
 {
     DkObjectClose(l->lock);
 }
 
 #define destroy_lock(l) __destroy_lock(&(l))
 
-static inline void ____try_create_lock(LOCKTYPE * l)
+static inline void ____try_create_lock(struct shim_lock* l)
 {
     if (!__lock_created(l))
         __create_lock(l);
@@ -515,11 +515,11 @@ static inline void ____try_create_lock(LOCKTYPE * l)
 
 #if DEBUG_LOCK == 1
 # define lock(l) __lock(&(l), #l, __FILE__, __LINE__)
-static inline void __lock (LOCKTYPE * l,
+static inline void __lock (struct shim_lock* l,
                            const char * name, const char * file, int line)
 #else
 # define lock(l) __lock(&(l))
-static inline void __lock (LOCKTYPE * l)
+static inline void __lock (struct shim_lock* l)
 #endif
 {
     if (!lock_enabled || !l->lock)
@@ -541,11 +541,11 @@ static inline void __lock (LOCKTYPE * l)
 
 #if DEBUG_LOCK == 1
 # define unlock(l) __unlock(&(l), #l, __FILE__, __LINE__)
-static inline void __unlock (LOCKTYPE * l,
+static inline void __unlock (struct shim_lock* l,
                              const char * name, const char * file, int line)
 #else
 # define unlock(l) __unlock(&(l))
-static inline void __unlock (LOCKTYPE * l)
+static inline void __unlock (struct shim_lock* l)
 #endif
 {
     if (!lock_enabled || !l->lock)
@@ -562,7 +562,7 @@ static inline void __unlock (LOCKTYPE * l)
     enable_preempt(tcb);
 }
 
-static inline bool __locked (LOCKTYPE * l)
+static inline bool __locked (struct shim_lock* l)
 {
     if (!lock_enabled || !l->lock)
         return false;
@@ -575,7 +575,7 @@ static inline bool __locked (LOCKTYPE * l)
 
 #define DEBUG_MASTER_LOCK       0
 
-extern LOCKTYPE __master_lock;
+extern struct shim_lock __master_lock;
 
 #if DEBUG_MASTER_LOCK == 1
 # define master_lock()                                              \
@@ -593,7 +593,7 @@ extern LOCKTYPE __master_lock;
 # define master_unlock() do { unlock(__master_lock); } while (0)
 #endif
 
-static inline void create_lock_runtime (LOCKTYPE * l)
+static inline void create_lock_runtime (struct shim_lock* l)
 {
     if (!lock_created(*l)) {
         master_lock();

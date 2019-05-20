@@ -749,7 +749,7 @@ DEFINE_LISTP(rpcmsg);
 DEFINE_LISTP(rpcreq);
 static LISTP_TYPE(rpcmsg) rpc_msgs;
 static LISTP_TYPE(rpcreq) rpc_reqs;
-static LOCKTYPE rpc_queue_lock;
+static struct shim_lock rpc_queue_lock;
 
 int get_rpc_msg (IDTYPE * sender, void * buf, int len)
 {

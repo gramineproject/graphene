@@ -54,7 +54,7 @@ struct futex_waiter {
 // Links shim_futex_handle by the list field
 DEFINE_LISTP(shim_futex_handle);
 static LISTP_TYPE(shim_futex_handle) futex_list = LISTP_INIT;
-static LOCKTYPE futex_list_lock;
+static struct shim_lock futex_list_lock;
 
 int shim_do_futex (int * uaddr, int op, int val, void * utime,
                    int * uaddr2, int val3)

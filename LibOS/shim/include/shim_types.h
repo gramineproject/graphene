@@ -476,10 +476,10 @@ typedef struct atomic_int REFTYPE;
 
 #include <pal.h>
 
-typedef struct shim_lock {
+struct shim_lock {
     PAL_HANDLE lock;
     IDTYPE owner;
-} LOCKTYPE;
+};
 
 typedef struct shim_aevent {
     PAL_HANDLE event;
