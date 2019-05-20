@@ -44,7 +44,7 @@
 void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
 {
     /*
-     * work around for link.
+     * workaround for linking.
      * syscalldb.S is excluded for libsysdb_debug.so so it fails to link
      * due to missing syscall_wrapper_after_syscalldb.
      */
