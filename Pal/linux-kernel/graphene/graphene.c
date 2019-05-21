@@ -615,10 +615,10 @@ int __common_net_perm(struct graphene_info *gi, int op, struct socket *sock,
 
 	BUG_ON(!address);
 
-	if (LIST_EMPTY(head))
+	if (list_empty(head))
 		goto no_rules;
 
-	LIST_FOR_EACH_ENTRY(gn, head, list) {
+	list_for_each_entry(gn, head, list) {
 		if (gn->family != sk->sk_family)
 			continue;
 
@@ -901,10 +901,10 @@ static int set_net_rule(struct graphene_net_rule *nr, struct graphene_info *gi,
 
 	INIT_LIST_HEAD(&n->list);
 	if (bind) {
-		LIST_ADD_TAIL(&n->list, &gi->gi_binds);
+		list_add_tail(&n->list, &gi->gi_binds);
 		print_net_rule(KERN_INFO "Graphene: PID %d NET BIND %s\n", n);
 	} else {
-		LIST_ADD_TAIL(&n->list, &gi->gi_peers);
+		list_add_tail(&n->list, &gi->gi_peers);
 		print_net_rule(KERN_INFO "Graphene: PID %d NET PEER %s\n", n);
 	}
 	return 0;
@@ -1127,7 +1127,7 @@ int set_graphene(struct task_struct *current_tsk,
 #endif
 			p->type = flags;
 			INIT_LIST_HEAD(&p->list);
-			LIST_ADD_TAIL(&p->list,
+			list_add_tail(&p->list,
 				      (flags & GRAPHENE_FS_RECURSIVE) ?
 				      &gi->gi_rpaths : &gi->gi_paths);
 			break;
@@ -1387,7 +1387,7 @@ static int update_graphene(struct task_struct *current_tsk,
 		new->gi_console[i] = gi->gi_console[i];
 	}
 
-	LIST_FOR_EACH_ENTRY(p, &new->gi_paths, list) {
+	list_for_each_entry(p, &new->gi_paths, list) {
 		u32 mask = 0;
 		if (p->type & GRAPHENE_FS_READ)
 			mask |= MAY_READ;
@@ -1399,13 +1399,13 @@ static int update_graphene(struct task_struct *current_tsk,
 			return -EPERM;
 	}
 
-	LIST_FOR_EACH_ENTRY(n1, &new->gi_binds, list) {
+	list_for_each_entry(n1, &new->gi_binds, list) {
 		bool accepted = false;
 		print_net_rule(KERN_INFO
 			       "Graphene: PID %d CHECK RULE BIND %s\n",
 			       n1);
 
-		LIST_FOR_EACH_ENTRY(n2, &gi->gi_binds, list) {
+		list_for_each_entry(n2, &gi->gi_binds, list) {
 			if (n1->family != n2->family)
 				continue;
 
@@ -1429,13 +1429,13 @@ static int update_graphene(struct task_struct *current_tsk,
 		}
 	}
 
-	LIST_FOR_EACH_ENTRY(n1, &new->gi_peers, list) {
+	list_for_each_entry(n1, &new->gi_peers, list) {
 		bool accepted = false;
 		print_net_rule(KERN_INFO
 			       "Graphene: PID %d CHECK RULE CONNECT %s\n",
 			       n1);
 
-		LIST_FOR_EACH_ENTRY(n2, &gi->gi_peers, list) {
+		list_for_each_entry(n2, &gi->gi_peers, list) {
 			if (n1->family != n2->family)
 				continue;
 

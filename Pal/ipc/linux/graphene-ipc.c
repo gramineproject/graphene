@@ -183,7 +183,7 @@ static inline struct gipc_queue * create_gipc_queue(struct file *creator)
 	atomic_set(&gq->count, 1);
 
 	spin_lock(&gdev.lock);
-	LIST_ADD(&gq->list, &gdev.channels);
+	list_add(&gq->list, &gdev.channels);
 	gq->token = gdev.max_token++;
 	spin_unlock(&gdev.lock);
 
