@@ -9,8 +9,8 @@
 - [ ] Common PAL code
 - [ ] Library OS (i.e., SHIM), including GLIBC
 
-## Description of the changes (reasons and measures)
+## Description of the changes <!-- (reasons and measures) -->
 
 
-## How to test this PR? (if applicable)
+## How to test this PR? <!-- (if applicable) -->
 
