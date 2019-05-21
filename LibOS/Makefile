@@ -81,11 +81,6 @@ GLIBC_PATCHES = \
 	glibc-no-pie.patch \
 	glibc-liblibos.patch
 
-# USE_clone_FOR_fork = true
-ifneq ($(USE_clone_FOR_fork),)
-GLIBC_PATCHES += glibc-arch-fork.patch
-endif
-
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
 GLIBC_PATCHES += glibc-ld.gold.patch
 endif
