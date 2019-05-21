@@ -11,11 +11,14 @@ messages = (
     "&act == 0x",
     "sig 14 count 1 goes off with sp=0x",
     "OK on signal stack",
-    "OK on sigaltstack in handlersig 14 count 2 goes off with sp=0x",
+    "OK on sigaltstack in handler",
+    "sig 14 count 2 goes off with sp=0x",
     "OK on signal stack",
-    "OK on sigaltstack in handlersig 14 count 3 goes off with sp=0x",
+    "OK on sigaltstack in handler",
+    "sig 14 count 3 goes off with sp=0x",
     "OK on signal stack",
-    "OK on sigaltstack in handlerOK on sigaltstack in main thread",
+    "OK on sigaltstack in handler",
+    "OK on sigaltstack in main thread",
     "done exiting",
 )
 
