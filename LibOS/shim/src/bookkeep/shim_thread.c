@@ -739,7 +739,12 @@ BEGIN_RS_FUNC(running_thread)
         CP_REBASE(thread->tcb);
 
     if (thread->set_child_tid) {
-        /* CLONE_CHILD_SETTID */
+        /* CLONE_CHILD_SETTID
+         * This code "stores the child thread ID at the location
+         * <*set_child_tid> in the child's memory" (per CLONE_CHILD_SETTID man
+         * page). After storing, we don't need this location anymore so we
+         * nullify it.
+         */
         *thread->set_child_tid = thread->tid;
         thread->set_child_tid = NULL;
     }
@@ -767,7 +772,7 @@ BEGIN_RS_FUNC(running_thread)
             debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
             /*
-             * execve case: the followings holds
+             * execve case: the followings hold
              * stack = NULL
              * stack_top = NULL
              * frameptr = NULL
