@@ -767,7 +767,7 @@ BEGIN_RS_FUNC(running_thread)
             debug("after resume, set tcb to %p\n", libc_tcb);
         } else {
             /*
-             * In execve case, the followings hold:
+             * In execve case, the following holds:
              * stack = NULL
              * stack_top = NULL
              * frameptr = NULL

@@ -216,7 +216,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         CLONE_NEWNET |
         CLONE_IO;
     if (flags & unsupported_flags)
-        debug("clone with flags 0x%x flags not yet implemented\n",
+        debug("clone with flags 0x%x is not yet implemented\n",
             flags & unsupported_flags);
 
     if ((flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
