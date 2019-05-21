@@ -86,11 +86,6 @@ GLIBC_PATCHES = \
 	glibc-fix-warning.patch \
 	glibc-no-pie.patch
 
-# USE_clone_FOR_fork = true
-ifneq ($(USE_clone_FOR_fork),)
-GLIBC_PATCHES += glibc-arch-fork.patch
-endif
-
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 	[ -f $(GLIBC_SRC).tar.gz ] || \
 	for MIRROR in $(GLIBC_MIRRORS); do \
