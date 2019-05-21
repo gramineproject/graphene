@@ -24,13 +24,13 @@ void __abort(void);
 
 # define assert(test)                                                   \
     ({                                                                  \
-        long _val = (long) (test);                                      \
+        long _val = (long)(test);                                       \
         (!(_val))                                                       \
             ? ({                                                        \
                     warn("assert failed " __FILE__ ":%d " #test " (value:%x)\n", \
                          __LINE__, _val);                               \
                     __abort(); })                                       \
-            : (void) 0;                                                 \
+            : (void)0;                                                  \
     })
 
 #endif

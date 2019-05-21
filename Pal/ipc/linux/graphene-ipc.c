@@ -44,13 +44,13 @@ struct kmem_cache *gipc_send_buffer_cachep;
 #  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
 	({								\
 		unsigned long populate;					\
-		unsigned long rv = do_mmap_pgoff((file), (addr), (len), \
-						 (prot), (flags),	\
-			 			 (pgoff), &populate);	\
+		unsigned long rv = do_mmap_pgoff(file, addr, len, 	\
+						 prot, flags,		\
+						 pgoff, &populate);	\
 	rv; })
 # else
 #  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
-	do_mmap_pgoff((file), (addr), (len), (prot), (flags), (pgoff))
+	do_mmap_pgoff(file, addr, len, prot, flags, pgoff)
 # endif /* kernel_version < 3.9.0 */
 #else
 # if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
@@ -59,8 +59,8 @@ struct kmem_cache *gipc_send_buffer_cachep;
 	({								\
 		unsigned long populate;					\
 		unsigned long rv;					\
-	 	rv = KSYM(do_mmap)((file), (addr), (len),		\
-				   (prot), (flags), 0, (pgoff),		\
+		rv = KSYM(do_mmap)(file, addr, len,			\
+				   prot, flags, 0, pgoff,		\
 				   &populate, NULL);			\
 	rv; })
 
@@ -70,8 +70,8 @@ struct kmem_cache *gipc_send_buffer_cachep;
 	({								\
 		unsigned long populate;					\
 		unsigned long rv;					\
-	 	rv = KSYM(do_mmap)((file), (addr), (len),		\
-				   (prot), (flags), 0, (pgoff),		\
+		rv = KSYM(do_mmap)(file, addr, len,			\
+				   prot, flags, 0, pgoff,		\
 				   &populate);				\
 	rv; })
 # elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
@@ -80,14 +80,14 @@ struct kmem_cache *gipc_send_buffer_cachep;
 	({								\
 		unsigned long populate;					\
 		unsigned long rv;					\
-	 	rv = KSYM(do_mmap_pgoff)((file), (addr), (len),		\
-					 (prot), (flags), (pgoff),	\
+		rv = KSYM(do_mmap_pgoff)(file, addr, len,		\
+					 prot, flags, pgoff,		\
 					 &populate);			\
 	rv; })
 # else
 #  define MY_DO_MMAP_PGOFF
 #  define DO_MMAP_PGOFF(file, addr, len, prot, flags, pgoff)		\
-	KSYM(do_mmap_pgoff)((file), (addr), (len), (prot), (flags), (pgoff))
+	KSYM(do_mmap_pgoff)(file, addr, len, prot, flags, pgoff)
 # endif /* kernel version < 3.9 */
 #endif /* !CONFIG_GRAPHENE_BULK_IPC && kernel version > 3.4.0 */
 

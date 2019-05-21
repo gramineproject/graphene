@@ -36,8 +36,8 @@
 
 #ifndef DO_ELF_MACHINE_REL_RELATIVE
 # define DO_ELF_MACHINE_REL_RELATIVE(l, relative)           \
-    elf_machine_rel_relative (l, relative,                  \
-                              (void *) (l->l_addr + relative->r_offset))
+    elf_machine_rel_relative(l, relative,                   \
+                             (void*)((l)->l_addr + relative->r_offset))
 #endif
 
 #ifndef VERSYMIDX
@@ -46,7 +46,7 @@
 
 #ifndef VALIDX
 # define VALIDX(tag) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM    \
-                      + DT_EXTRANUM + DT_VALTAGIDX (tag))
+                      + DT_EXTRANUM + DT_VALTAGIDX(tag))
 #endif
 
 #define elf_dynamic_copy_rel        elf_dynamic_copy_rela

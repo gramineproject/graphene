@@ -75,12 +75,12 @@ extern struct pal_bsd_state {
             unsigned long flags;                                 \
             unsigned long fd;                                    \
             unsigned long offset;                                \
-        } args = {  .addr   = (unsigned long) (addr),            \
-                    .len    = (unsigned long) (len),             \
-                    .prot   = (unsigned long) (prot),            \
-                    .flags  = (unsigned long) (flags),           \
-                    .fd     = (unsigned long) (fd),              \
-                    .offset = (unsigned long) (offset), };       \
+        } args = {  .addr   = (unsigned long)(addr),             \
+                    .len    = (unsigned long)(len),              \
+                    .prot   = (unsigned long)(prot),             \
+                    .flags  = (unsigned long)(flags),            \
+                    .fd     = (unsigned long)(fd),               \
+                    .offset = (unsigned long)(offset), };        \
         INLINE_SYSCALL(mmap, 1, &args);                          \
     })
 # else

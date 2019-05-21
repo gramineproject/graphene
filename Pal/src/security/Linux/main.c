@@ -29,7 +29,7 @@ unsigned long pagesize  = PRESET_PAGESIZE;
 unsigned long pageshift = PRESET_PAGESIZE - 1;
 unsigned long pagemask  = ~(PRESET_PAGESIZE - 1);
 
-# define POOL_SIZE 4096 * 64
+#define POOL_SIZE (4096 * 64)
 static char mem_pool[POOL_SIZE];
 static char *bump = mem_pool;
 static char *mem_pool_end = &mem_pool[POOL_SIZE];

@@ -132,16 +132,16 @@ ELF_PREFERRED_ADDRESS_DATA;
 #endif
 
 #ifndef ELF_FIXED_ADDRESS
-# define ELF_FIXED_ADDRESS(loader, mapstart) ((void) 0)
+# define ELF_FIXED_ADDRESS(loader, mapstart) ((void)0)
 #endif
 
 #ifndef VERSYMIDX
-# define VERSYMIDX(sym) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGIDX (sym))
+# define VERSYMIDX(sym) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGIDX(sym))
 #endif
 
 #ifndef VALIDX
 # define VALIDX(tag) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM \
-                      + DT_EXTRANUM + DT_VALTAGIDX (tag))
+                      + DT_EXTRANUM + DT_VALTAGIDX(tag))
 #endif
 
 #include <host_endian.h>

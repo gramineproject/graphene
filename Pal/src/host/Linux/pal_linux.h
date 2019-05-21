@@ -87,17 +87,17 @@ extern struct pal_linux_state {
             unsigned long flags;                                 \
             unsigned long fd;                                    \
             unsigned long offset;                                \
-        } args = {  .addr   = (unsigned long) (addr),            \
-                    .len    = (unsigned long) (len),             \
-                    .prot   = (unsigned long) (prot),            \
-                    .flags  = (unsigned long) (flags),           \
-                    .fd     = (unsigned long) (fd),              \
-                    .offset = (unsigned long) (offset), };       \
+        } args = {  .addr   = (unsigned long)(addr),             \
+                    .len    = (unsigned long)(len),              \
+                    .prot   = (unsigned long)(prot),             \
+                    .flags  = (unsigned long)(flags),            \
+                    .fd     = (unsigned long)(fd),               \
+                    .offset = (unsigned long)(offset), };        \
         INLINE_SYSCALL(mmap, 1, &args);                          \
     })
 # else
 #  define ARCH_MMAP(addr, len, prot, flags, fd, offset) \
-    INLINE_SYSCALL(mmap, 6, (addr), (len), (prot), (flags), (fd), (offset))
+    INLINE_SYSCALL(mmap, 6, addr, len, prot, flags, fd, offset)
 # endif
 #else
 # error "INLINE_SYSCALL not supported"
