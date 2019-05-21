@@ -43,7 +43,7 @@ manifest_rules = \
 manifest: manifest.template
 	sed $(manifest_rules) $< >$@
 
-%.manifest: %.manifest.template
+%.manifest: %.manifest.template $(executables) $(pal_lib)
 	sed $(manifest_rules) $< >$@
 	(grep -q "#\!" $@ && chmod +x $@) || true
 
@@ -67,6 +67,8 @@ $(executables): %: %.c ../src/user_start.o \
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
+
+Process2.manifest.sgx: Bootstrap.manifest.sgx
 
 else
 .IGNORE: $(preloads) $(executables)
