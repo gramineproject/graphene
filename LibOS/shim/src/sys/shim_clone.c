@@ -117,12 +117,6 @@ int clone_implementation_wrapper(struct clone_args * arg)
 
     struct shim_regs regs = *arg->parent->tcb->shim_tcb.context.regs;
     if (my_thread->set_child_tid) {
-        /*
-         * This code "stores the child thread ID at the location
-         * <*set_child_tid> in the child's memory" (per CLONE_CHILD_SETTID man
-         * page). After storing, we don't need this location anymore so we
-         * nullify it.
-         */
         *(my_thread->set_child_tid) = my_thread->tid;
         my_thread->set_child_tid = NULL;
     }
@@ -222,7 +216,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         CLONE_NEWNET |
         CLONE_IO;
     if (flags & unsupported_flags)
-        debug("clone with flags 0x%x flags yet implemented\n",
+        debug("clone with flags 0x%x flags not yet implemented\n",
             flags & unsupported_flags);
 
     if ((flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
