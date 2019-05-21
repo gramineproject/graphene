@@ -12,14 +12,10 @@ ifeq ($(OS),Linux)
 	LINUX_KERNEL := $(LINUX_SRC)/arch/x86/boot/bzImage
 endif
 
-DIRS = src test regression
-
 .PHONY: all clean
 all clean:
-	for d in $(DIRS); \
-	do \
-		$(MAKE) -C $$d $@ || exit $?; \
-	done
+	$(MAKE) -C src $@ || exit $?;
+	$(MAKE) -C regression $@ || exit $?;
 
 .PHONY: linux-kernel
 linux-kernel: $(LINUX_KERNEL)
@@ -55,10 +51,6 @@ else
 kernel_install:
 endif
 
-.PHONY: test
-test:
-	$(MAKE) -C test test
-
 .PHONY: format
 format:
 	clang-format -i $(shell find . -path ./linux-kernel -prune -o \
@@ -71,5 +63,4 @@ format:
 
 .PHONY: pack
 pack:
-	$(MAKE) -C test pack
 	$(MAKE) -C regression pack
