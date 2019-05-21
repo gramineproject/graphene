@@ -7,10 +7,10 @@
 #define GIPC_MINOR		240
 
 /* Ioctl codes */
-#define GIPC_SEND   (_IOW('k', 0, void *))
-#define GIPC_RECV   (_IOR('k', 1, void *))
-#define GIPC_CREATE (_IOR('k', 2, void *))
-#define GIPC_JOIN   (_IOR('k', 3, void *))
+#define GIPC_SEND   _IOW('k', 0, void *)
+#define GIPC_RECV   _IOR('k', 1, void *)
+#define GIPC_CREATE _IOR('k', 2, void *)
+#define GIPC_JOIN   _IOR('k', 3, void *)
 
 // Must be a power of 2!
 #define PAGE_QUEUE 2048

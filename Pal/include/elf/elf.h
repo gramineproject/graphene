@@ -477,7 +477,7 @@ typedef struct
 #define ELF32_ST_VISIBILITY(o)	((o) & 0x03)
 
 /* For ELF64 the definitions are the same.  */
-#define ELF64_ST_VISIBILITY(o)	(ELF32_ST_VISIBILITY(o))
+#define ELF64_ST_VISIBILITY(o)	ELF32_ST_VISIBILITY(o)
 
 /* Symbol visibility specification encoded in the st_other field.  */
 #define STV_DEFAULT	0		/* Default symbol visibility rules */

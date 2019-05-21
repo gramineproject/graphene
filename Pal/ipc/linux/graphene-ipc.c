@@ -160,7 +160,7 @@ struct {
 } gdev;
 
 #ifdef gipc_get_session
-#define GIPC_OWNER (gipc_get_session(current))
+#define GIPC_OWNER gipc_get_session(current)
 #else
 #define GIPC_OWNER (my_gipc_get_session ? my_gipc_get_session(current) : 0)
 #endif

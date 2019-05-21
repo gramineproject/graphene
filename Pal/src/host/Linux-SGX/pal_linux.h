@@ -35,7 +35,7 @@
 # include "sysdep-x86_64.h"
 #endif
 
-#define ENCLAVE_FILENAME (RUNTIME_FILE("libpal-Linux-SGX.so"))
+#define ENCLAVE_FILENAME RUNTIME_FILE("libpal-Linux-SGX.so")
 
 #define IS_ERR INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
