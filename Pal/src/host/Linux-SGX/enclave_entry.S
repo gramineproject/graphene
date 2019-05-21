@@ -226,11 +226,11 @@ enclave_entry:
 	# Pass pointer to sgx_context_t to _DkExceptionHandler
 	movq %rsi, SGX_GPR_RSI(%rbx)
 
-	# Align the stack for _DkExceptionHandler
+	# x86-64 sysv abi requires 16B alignment of stack before call instruction
+	# which implies a (8 mod 16)B alignment on function entry (due to implicit
+	# push %rip).
+	# Align the stack for _DkExceptionHandler according to this requirement.
 	andq $STACK_ALIGN, %rsi
-	# x86-64 sysv abi requires 16-bytes align on entering function
-	# i.e. before issueing call instruction.
-	# It means that after entering function, the stack is (8 mod 16).
 	subq $8, %rsi
 	movq %rsi, SGX_GPR_RSP(%rbx)
 
@@ -366,8 +366,6 @@ sgx_ocall:
 	# mode in-enclave memory can't be accessed.
 
 	movq %gs:SGX_USTACK, %rsp
-	# callee sgx_entry() aligns stack itself.
-	# So we don't need align untrusted stack here.
 
 	movq %gs:SGX_EXIT_TARGET, %rbx
 	jmp .Lclear_and_eexit
