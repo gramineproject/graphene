@@ -58,10 +58,10 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
  */
 static void fixup_child_context(struct shim_context * context)
 {
-    if (context->ret_ip == &syscall_wrapper_after_syscalldb) {
+    if (context->regs->ret_ip == (unsigned long)&syscall_wrapper_after_syscalldb) {
         context->sp += RED_ZONE_SIZE;
         context->regs->rflags = context->regs->r11;
-        context->ret_ip = (void*)context->regs->rcx;
+        context->regs->ret_ip = context->regs->rcx;
     }
 }
 
@@ -145,7 +145,6 @@ int clone_implementation_wrapper(struct clone_args * arg)
     }
 
     void * stack = arg->stack;
-    void * return_pc = arg->return_pc;
 
     struct shim_vma_val vma;
     lookup_vma(ALIGN_DOWN(stack), &vma);
@@ -164,12 +163,11 @@ int clone_implementation_wrapper(struct clone_args * arg)
     //user_stack_addr[0] ==> user provided function address
     //user_stack_addr[1] ==> arguments to user provided function.
 
-    debug("child swapping stack to %p return %p: %d\n",
-          stack, return_pc, my_thread->tid);
+    debug("child swapping stack to %p return 0x%lx: %d\n",
+          stack, regs.ret_ip, my_thread->tid);
 
     tcb->context.regs = &regs;
     tcb->context.sp = stack;
-    tcb->context.ret_ip = return_pc;
     fixup_child_context(&tcb->context);
 
     restore_context(&tcb->context);
@@ -338,7 +336,6 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
             tcb->shim_tcb.context.sp = user_stack_addr;
-            tcb->shim_tcb.context.ret_ip = shim_get_tls()->context.ret_ip;
         }
 
         thread->is_alive = true;
@@ -387,7 +384,6 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     new_args.thread    = thread;
     new_args.parent    = self;
     new_args.stack     = user_stack_addr;
-    new_args.return_pc = shim_get_tls()->context.ret_ip;
 
     // Invoke DkThreadCreate to spawn off a child process using the actual
     // "clone" system call. DkThreadCreate allocates a stack for the child

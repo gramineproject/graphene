@@ -316,7 +316,6 @@ struct clone_args {
     PAL_HANDLE initialize_event;
     struct shim_thread * parent, * thread;
     void * stack;
-    void * return_pc;
 };
 
 int clone_implementation_wrapper(struct clone_args * arg);
