@@ -59,7 +59,10 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
 static void fixup_child_context(struct shim_context * context)
 {
     if (context->ret_ip == &syscall_wrapper_after_syscalldb) {
-        context->sp += RED_ZONE_SIZE;
+        /*
+         * context->sp is overwritten by child stack:
+         * context->sp += RED_ZONE_SIZE;
+         */
         context->regs->rflags = context->regs->r11;
         context->ret_ip = (void*)context->regs->rcx;
     }
@@ -168,9 +171,9 @@ int clone_implementation_wrapper(struct clone_args * arg)
           stack, return_pc, my_thread->tid);
 
     tcb->context.regs = &regs;
-    tcb->context.sp = stack;
     tcb->context.ret_ip = return_pc;
     fixup_child_context(&tcb->context);
+    tcb->context.sp = stack;
 
     restore_context(&tcb->context);
     return 0;
