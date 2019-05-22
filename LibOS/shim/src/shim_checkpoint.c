@@ -23,6 +23,7 @@
  * This file contains codes for checkpoint / migration scheme of library OS.
  */
 
+#include "asm-offsets.h"
 #include <shim_internal.h>
 #include <shim_utils.h>
 #include <shim_thread.h>
@@ -1255,19 +1256,19 @@ void restore_context (struct shim_context * context)
 {
     int nregs = sizeof(struct shim_regs) / sizeof(void *);
     const int rip_index = offsetof(struct shim_regs, rip)/sizeof(unsigned long);
-    void * regs[nregs + 1];
+    void * regs[nregs];
 
     if (context->regs)
         memcpy(regs, context->regs, sizeof(struct shim_regs));
     else
         memset(regs, 0, sizeof(struct shim_regs));
 
-    debug("restore context: SP = %p, IP = %p\n", context->sp, regs[rip_index]);
+    debug("restore context: SP = 0x%08lx, IP = %p\n",
+          context->regs->rsp, regs[rip_index]);
 
-    regs[nregs] = (void *) context->sp;
     /* don't clobber redzone. If sigaltstack is used,
      * this area won't be clobbered by signal context */
-    *(void **) (context->sp - 128 - 8) = regs[rip_index];
+    *(void **) (context->regs->rsp - 128 - 8) = regs[rip_index];
 
     /* Ready to resume execution, re-enable preemption. */
     shim_tcb_t * tcb = shim_get_tls();
@@ -1276,6 +1277,7 @@ void restore_context (struct shim_context * context)
     memset(context, 0, sizeof(struct shim_context));
 
     __asm__ volatile("movq %0, %%rsp\r\n"
+                     "addq $8, %%rsp\r\n"    /* skip rsp */
                      "popq %%r15\r\n"
                      "popq %%r14\r\n"
                      "popq %%r13\r\n"
@@ -1291,7 +1293,7 @@ void restore_context (struct shim_context * context)
                      "popq %%rbx\r\n"
                      "popq %%rbp\r\n"
                      "popfq\r\n"
-                     "popq %%rsp\r\n"
+                     "movq "XSTRINGIFY(SHIM_REGS_SP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
                      "movq $0, %%rax\r\n"
                      "jmp *-128-8(%%rsp)\r\n"
                      :: "g"(&regs) : "memory");

@@ -56,12 +56,17 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
  * child thread can _not_ use parent stack. So return right after syscall
  * instruction as if syscall_wrapper is executed.
  */
-static void fixup_child_context(struct shim_context * context)
+static void fixup_child_context(struct shim_regs * regs)
 {
-    if (context->regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
-        context->sp += RED_ZONE_SIZE;
-        context->regs->rflags = context->regs->r11;
-        context->regs->rip = context->regs->rcx;
+    if (regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
+        /*
+         * we don't need to emulate stack pointer change because %rsp is
+         * initialized to new child user stack passed to clone() system call.
+         * See the caller of fixup_child_context().
+         */
+        /* regs->rsp += RED_ZONE_SIZE; */
+        regs->rflags = regs->r11;
+        regs->rip = regs->rcx;
     }
 }
 
@@ -167,8 +172,8 @@ int clone_implementation_wrapper(struct clone_args * arg)
           stack, regs.rip, my_thread->tid);
 
     tcb->context.regs = &regs;
-    tcb->context.sp = stack;
-    fixup_child_context(&tcb->context);
+    fixup_child_context(tcb->context.regs);
+    tcb->context.regs->rsp = (unsigned long)stack;
 
     restore_context(&tcb->context);
     return 0;
@@ -320,6 +325,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     if (!(flags & CLONE_VM)) {
         __libc_tcb_t * tcb;
         shim_tcb_t * old_shim_tcb = NULL;
+        void * parent_stack = NULL;
 
         if (thread->tcb) {
             tcb = thread->tcb;
@@ -335,7 +341,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             lookup_vma(ALIGN_DOWN(user_stack_addr), &vma);
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
-            tcb->shim_tcb.context.sp = user_stack_addr;
+            parent_stack = (void *)tcb->shim_tcb.context.regs->rsp;
+            tcb->shim_tcb.context.regs->rsp = (unsigned long)user_stack_addr;
         }
 
         thread->is_alive = true;
@@ -346,6 +353,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         ret = do_migrate_process(&migrate_fork, NULL, NULL, thread);
         if (old_shim_tcb)
             memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(tcb->shim_tcb));
+        if (parent_stack)
+            tcb->shim_tcb.context.regs->rsp = (unsigned long)parent_stack;
         if (ret < 0)
             goto failed;
 

@@ -720,7 +720,7 @@ int resume_wrapper (void * param)
     __libc_tcb_t * libc_tcb = thread->tcb;
     assert(libc_tcb);
     shim_tcb_t * tcb = &libc_tcb->shim_tcb;
-    assert(tcb->context.sp);
+    assert(tcb->context.regs && tcb->context.regs->rsp);
 
     thread->in_vm = thread->is_alive = true;
     allocate_tls(libc_tcb, thread->user_tcb, thread);
@@ -762,7 +762,7 @@ BEGIN_RS_FUNC(running_thread)
 
         if (libc_tcb) {
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;
-            assert(tcb->context.sp);
+            assert(tcb->context.regs && tcb->context.regs->rsp);
             tcb->debug_buf = shim_get_tls()->debug_buf;
             allocate_tls(libc_tcb, thread->user_tcb, thread);
             /* Temporarily disable preemption until the thread resumes. */

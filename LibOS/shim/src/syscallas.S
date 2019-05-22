@@ -59,6 +59,8 @@ syscalldb:
         pushq %r13
         pushq %r14
         pushq %r15
+        leaq SHIM_REGS_SIZE - SHIM_REGS_R15(%rsp), %rbx
+        pushq %rbx
         # shim_regs struct ends here.
 
         movq %rsp, %rbp
@@ -75,8 +77,6 @@ syscalldb:
         je isundef
 
         movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        leaq SHIM_REGS_SIZE+8(%rbp), %rax
-        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SP)
         movq %rbp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
         /* Translating x86_64 kernel calling convention to user-space
@@ -86,11 +86,11 @@ syscalldb:
         call *%rbx
 
         movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SP)
         movq $0, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
 ret:
         movq %rbp, %rsp
+        addq $8, %rsp   # skip rsp
         popq %r15
         popq %r14
         popq %r13

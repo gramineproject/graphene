@@ -112,8 +112,6 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
     if (tcb && tcb->context.syscall_nr) {
         struct shim_context * ct = &tcb->context;
 
-        context->uc_mcontext.gregs[REG_RSP] = (unsigned long) ct->sp;
-
         if (ct->regs) {
             struct shim_regs * regs = ct->regs;
             context->uc_mcontext.gregs[REG_RIP] = regs->rip;
@@ -132,6 +130,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
             context->uc_mcontext.gregs[REG_RDI] = regs->rdi;
             context->uc_mcontext.gregs[REG_RBX] = regs->rbx;
             context->uc_mcontext.gregs[REG_RBP] = regs->rbp;
+            context->uc_mcontext.gregs[REG_RSP] = regs->rsp;
         }
 
         signal->context_stored = true;
