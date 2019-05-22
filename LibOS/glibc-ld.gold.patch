@@ -1,0 +1,203 @@
+diff --git a/configure b/configure
+index fc023d0..b71c1f9 100755
+--- a/configure
++++ b/configure
+@@ -630,7 +630,8 @@ SED
+ MAKEINFO
+ MSGFMT
+ MAKE
+-LD
++LD_GOLD
++LD_BFD
+ AS
+ OBJCOPY
+ OBJDUMP
+@@ -4593,17 +4594,22 @@ if test $ac_verc_fail = yes; then
+   AS=: critic_missing="$critic_missing as"
+ fi
+
+-for ac_prog in $LD
++LD_BFD=
++LD_GOLD=
++ld_is_gold="`$LD --version | sed -n 's/^GNU \(gold\).*$/\1/p'`"
++if test -z "$ld_is_gold"; then
++  LD_BFD=$LD
++  for ac_prog in $LD_BFD
+ do
+   # Extract the first word of "$ac_prog", so it can be a program name with args.
+ set dummy $ac_prog; ac_word=$2
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+ $as_echo_n "checking for $ac_word... " >&6; }
+-if ${ac_cv_prog_LD+:} false; then :
++if ${ac_cv_prog_LD_BFD+:} false; then :
+   $as_echo_n "(cached) " >&6
+ else
+-  if test -n "$LD"; then
+-  ac_cv_prog_LD="$LD" # Let the user override the test.
++  if test -n "$LD_BFD"; then
++  ac_cv_prog_LD_BFD="$LD_BFD" # Let the user override the test.
+ else
+ as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+ for as_dir in $PATH
+@@ -4612,7 +4618,7 @@ do
+   test -z "$as_dir" && as_dir=.
+     for ac_exec_ext in '' $ac_executable_extensions; do
+   if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+-    ac_cv_prog_LD="$ac_prog"
++    ac_cv_prog_LD_BFD="$ac_prog"
+     $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+     break 2
+   fi
+@@ -4622,26 +4628,26 @@ IFS=$as_save_IFS
+
+ fi
+ fi
+-LD=$ac_cv_prog_LD
+-if test -n "$LD"; then
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LD" >&5
+-$as_echo "$LD" >&6; }
++LD_BFD=$ac_cv_prog_LD_BFD
++if test -n "$LD_BFD"; then
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LD_BFD" >&5
++$as_echo "$LD_BFD" >&6; }
+ else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+ $as_echo "no" >&6; }
+ fi
+
+
+-  test -n "$LD" && break
++  test -n "$LD_BFD" && break
+ done
+
+-if test -z "$LD"; then
++if test -z "$LD_BFD"; then
+   ac_verc_fail=yes
+ else
+   # Found it, now check the version.
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking version of $LD" >&5
+-$as_echo_n "checking version of $LD... " >&6; }
+-  ac_prog_version=`$LD --version 2>&1 | sed -n 's/^.*GNU ld.* \([0-9][0-9]*\.[0-9.]*\).*$/\1/p'`
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking version of $LD_BFD" >&5
++$as_echo_n "checking version of $LD_BFD... " >&6; }
++  ac_prog_version=`$LD_BFD --version 2>&1 | sed -n 's/^.*GNU ld.* \([0-9][0-9]*\.[0-9.]*\).*$/\1/p'`
+   case $ac_prog_version in
+     '') ac_prog_version="v. ?.??, bad"; ac_verc_fail=yes;;
+     2.1[0-9][0-9]*|2.[2-9][0-9]*|[3-9].*|[1-9][0-9]*)
+@@ -4653,9 +4659,80 @@ $as_echo_n "checking version of $LD... " >&6; }
+ $as_echo "$ac_prog_version" >&6; }
+ fi
+ if test $ac_verc_fail = yes; then
+-  LD=: critic_missing="$critic_missing ld"
++  LD_BFD=:
+ fi
+
++else
++# Accept gold 1.11 or higher.
++  LD_GOLD=$LD
++  for ac_prog in $LD_GOLD
++do
++  # Extract the first word of "$ac_prog", so it can be a program name with args.
++set dummy $ac_prog; ac_word=$2
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
++$as_echo_n "checking for $ac_word... " >&6; }
++if ${ac_cv_prog_LD_GOLD+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  if test -n "$LD_GOLD"; then
++  ac_cv_prog_LD_GOLD="$LD_GOLD" # Let the user override the test.
++else
++as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
++for as_dir in $PATH
++do
++  IFS=$as_save_IFS
++  test -z "$as_dir" && as_dir=.
++    for ac_exec_ext in '' $ac_executable_extensions; do
++  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
++    ac_cv_prog_LD_GOLD="$ac_prog"
++    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
++    break 2
++  fi
++done
++  done
++IFS=$as_save_IFS
++
++fi
++fi
++LD_GOLD=$ac_cv_prog_LD_GOLD
++if test -n "$LD_GOLD"; then
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LD_GOLD" >&5
++$as_echo "$LD_GOLD" >&6; }
++else
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++$as_echo "no" >&6; }
++fi
++
++
++  test -n "$LD_GOLD" && break
++done
++
++if test -z "$LD_GOLD"; then
++  ac_verc_fail=yes
++else
++  # Found it, now check the version.
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking version of $LD_GOLD" >&5
++$as_echo_n "checking version of $LD_GOLD... " >&6; }
++  ac_prog_version=`$LD_GOLD --version 2>&1 | sed -n 's/^.*GNU gold.* \([0-9][0-9]*\.[0-9.]*\).*$/\1/p'`
++  case $ac_prog_version in
++    '') ac_prog_version="v. ?.??, bad"; ac_verc_fail=yes;;
++    1.1[1-9]*|1.[2-9][0-9]*|1.1[0-9][0-9]*|[2-9].*|[1-9][0-9]*)
++       ac_prog_version="$ac_prog_version, ok"; ac_verc_fail=no;;
++    *) ac_prog_version="$ac_prog_version, bad"; ac_verc_fail=yes;;
++
++  esac
++  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_prog_version" >&5
++$as_echo "$ac_prog_version" >&6; }
++fi
++if test $ac_verc_fail = yes; then
++  LD_GOLD=:
++fi
++
++fi
++# Neither ld nor gold are new enough.
++if test -z "$LD_BFD" && test -z "$LD_GOLD"; then
++  critic_missing="$critic_missing ld"
++fi
+ 
+ # These programs are version sensitive.
+
+@@ -6391,6 +6468,16 @@ $as_echo "$libc_cv_use_default_link" >&6; }
+   use_default_link=$libc_cv_use_default_link
+ fi
+
++# The gold linker has no builtin default linker script,
++# and the fallback of editing the builtin linker
++# script is not available. Therefore if use_default_link
++# is `no' then we can't use gold. This check is independent
++# of gold's version and is used to sanity check that the
++# linker continues to produce a useful shared link.
++if test "$ld_is_gold" && test "$use_default_link" = "no"; then
++  as_fn_error $? "$LD did not generate a useful shared link. Try using GNU ld.bfd?" "$LINENO" 5
++fi
++
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking linker output format" >&5
+ $as_echo_n "checking linker output format... " >&6; }
+ if ${libc_cv_output_format+:} false; then :
+@@ -6409,6 +6496,17 @@ fi
+ $as_echo "$libc_cv_output_format" >&6; }
+
+
++# The gold linker has no builtin default linker script,
++# and the fallback of parsing the builtin linker
++# script to determine the target is not available.
++# Therefore if libc_cv_output_format is `unknown' then
++# we can't use gold. This check is independent of gold's
++# version and is used to sanity check that the linker
++# continues to support --print-output-format.
++if test "$ld_is_gold" && test "$libc_cv_output_format" = "unknown"; then
++  as_fn_error $? "$LD did not support --print-output-format. Try using GNU ld.bfd?" "$LINENO" 5
++fi
++
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fno-toplevel-reorder -fno-section-anchors" >&5
+ $as_echo_n "checking for -fno-toplevel-reorder -fno-section-anchors... " >&6; }
+ if ${libc_cv_fno_toplevel_reorder+:} false; then :

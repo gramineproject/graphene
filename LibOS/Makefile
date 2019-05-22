@@ -105,6 +105,8 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 		echo applying $$p; \
 		patch -p1 < ../$$p; \
 	done
+	[ ! /usr/bin/ld -ef /usr/bin/ld.gold ] || \
+		cd $(GLIBC_SRC) && patch -p1 < ../glibc-ld.gold.patch
 endif
 
 .PHONY: clean
