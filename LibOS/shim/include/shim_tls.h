@@ -23,6 +23,7 @@ struct lock_record {
 #define NUM_LOCK_RECORD_MASK (NUM_LOCK_RECORD - 1)
 
 struct shim_regs {
+    unsigned long           orig_rax;
     unsigned long           rsp;
     unsigned long           r15;
     unsigned long           r14;
@@ -43,7 +44,6 @@ struct shim_regs {
 };
 
 struct shim_context {
-    unsigned long           syscall_nr;
     struct shim_regs *      regs;
     struct shim_context *   next;
     uint64_t                enter_time;

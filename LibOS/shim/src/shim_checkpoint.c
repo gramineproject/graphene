@@ -1277,7 +1277,7 @@ void restore_context (struct shim_context * context)
     memset(context, 0, sizeof(struct shim_context));
 
     __asm__ volatile("movq %0, %%rsp\r\n"
-                     "addq $8, %%rsp\r\n"    /* skip rsp */
+                     "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */
                      "popq %%r15\r\n"
                      "popq %%r14\r\n"
                      "popq %%r13\r\n"
@@ -1293,7 +1293,7 @@ void restore_context (struct shim_context * context)
                      "popq %%rbx\r\n"
                      "popq %%rbp\r\n"
                      "popfq\r\n"
-                     "movq "XSTRINGIFY(SHIM_REGS_SP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
+                     "movq "XSTRINGIFY(SHIM_REGS_RSP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
                      "movq $0, %%rax\r\n"
                      "jmp *-128-8(%%rsp)\r\n"
                      :: "g"(&regs) : "memory");
