@@ -791,7 +791,7 @@ static_always_inline bool __range_not_ok(unsigned long addr, unsigned long size)
 
 /* Check if pointer to memory region is valid. Return true if the memory
  * region may be valid, false if it is definitely invalid. */
-static inline bool access_ok(const void* addr, size_t size) {
+static inline bool access_ok(const volatile void* addr, size_t size) {
     return !__range_not_ok((unsigned long)addr, (unsigned long)size);
 }
 
