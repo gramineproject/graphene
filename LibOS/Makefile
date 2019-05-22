@@ -91,6 +91,10 @@ ifneq ($(USE_clone_FOR_fork),)
 GLIBC_PATCHES += glibc-arch-fork.patch
 endif
 
+ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
+GLIBC_PATCHES += glibc-ld.gold.patch
+endif
+
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 	[ -f $(GLIBC_SRC).tar.gz ] || \
 	for MIRROR in $(GLIBC_MIRRORS); do \
