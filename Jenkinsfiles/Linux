@@ -7,6 +7,8 @@ pipeline {
                     steps {
                         sh '''
                             make -j 8 WERROR=1
+                            cd Pal/ipc/linux
+                            make
                            '''
                     }
                 }
