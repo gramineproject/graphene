@@ -59,11 +59,14 @@ syscalldb:
         pushq %r13
         pushq %r14
         pushq %r15
+        leaq SHIM_REGS_SIZE - SHIM_REGS_R15(%rsp), %rbx
+        pushq %rbx
+        pushq %rax
         # shim_regs struct ends here.
 
         movq %rsp, %rbp
-        .cfi_def_cfa_offset SHIM_REGS_SIZE+8  # +8 for ret_addr
-        .cfi_offset %rbp, -3 * 8    # saved_rbp is at CFA-24 (ret + saved_rflags + saved_rbp)
+        .cfi_def_cfa_offset SHIM_REGS_SIZE
+        .cfi_offset %rbp, -3 * 8    # saved_rbp is at CFA-24 (saved_rflags + saved_rbp)
         .cfi_def_cfa_register %rbp  # %rbp
 
         cmp $LIBOS_SYSCALL_BOUND, %rax
@@ -74,11 +77,6 @@ syscalldb:
         cmp $0, %rbx
         je isundef
 
-        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        leaq SHIM_REGS_SIZE+8(%rbp), %rax
-        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_SP)
-        movq SHIM_REGS_SIZE(%rbp), %rax
-        movq %rax, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
         movq %rbp, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
         /* Translating x86_64 kernel calling convention to user-space
@@ -87,13 +85,11 @@ syscalldb:
         andq $~0xF, %rsp  # Required by System V AMD64 ABI.
         call *%rbx
 
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SYSCALL_NR)
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_SP)
-        movq $0, %fs:(SHIM_TCB_OFFSET + TCB_RET_IP)
         movq $0, %fs:(SHIM_TCB_OFFSET + TCB_REGS)
 
 ret:
         movq %rbp, %rsp
+        addq $2 * 8, %rsp   # skip orig_rax and rsp
         popq %r15
         popq %r14
         popq %r13

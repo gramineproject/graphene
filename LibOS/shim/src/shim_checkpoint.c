@@ -20,6 +20,7 @@
  * This file contains codes for checkpoint / migration scheme of library OS.
  */
 
+#include "asm-offsets.h"
 #include <shim_internal.h>
 #include <shim_utils.h>
 #include <shim_thread.h>
@@ -1250,20 +1251,13 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
 void restore_context (struct shim_context * context)
 {
-    int nregs = sizeof(struct shim_regs) / sizeof(void *);
-    void * regs[nregs + 1];
+    assert(context->regs);
+    struct shim_regs regs = *context->regs;
+    debug("restore context: SP = 0x%08lx, IP = 0x%08lx\n", regs.rsp, regs.rip);
 
-    if (context->regs)
-        memcpy(regs, context->regs, sizeof(struct shim_regs));
-    else
-        memset(regs, 0, sizeof(struct shim_regs));
-
-    debug("restore context: SP = %p, IP = %p\n", context->sp, context->ret_ip);
-
-    regs[nregs] = (void *) context->sp;
     /* don't clobber redzone. If sigaltstack is used,
      * this area won't be clobbered by signal context */
-    *(void **) (context->sp - 128 - 8) = context->ret_ip;
+    *(unsigned long*) (regs.rsp - RED_ZONE_SIZE - 8) = regs.rip;
 
     /* Ready to resume execution, re-enable preemption. */
     shim_tcb_t * tcb = shim_get_tls();
@@ -1272,6 +1266,7 @@ void restore_context (struct shim_context * context)
     memset(context, 0, sizeof(struct shim_context));
 
     __asm__ volatile("movq %0, %%rsp\r\n"
+                     "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */
                      "popq %%r15\r\n"
                      "popq %%r14\r\n"
                      "popq %%r13\r\n"
@@ -1287,8 +1282,8 @@ void restore_context (struct shim_context * context)
                      "popq %%rbx\r\n"
                      "popq %%rbp\r\n"
                      "popfq\r\n"
-                     "popq %%rsp\r\n"
+                     "movq "XSTRINGIFY(SHIM_REGS_RSP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
                      "movq $0, %%rax\r\n"
-                     "jmp *-128-8(%%rsp)\r\n"
+                     "jmp *-"XSTRINGIFY(RED_ZONE_SIZE)"-8(%%rsp)\r\n"
                      :: "g"(&regs) : "memory");
 }

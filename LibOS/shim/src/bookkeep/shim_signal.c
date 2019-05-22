@@ -106,14 +106,12 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
 {
     ucontext_t * context = &signal->context;
 
-    if (tcb && tcb->context.syscall_nr) {
+    if (tcb && tcb->context.regs && tcb->context.regs->orig_rax) {
         struct shim_context * ct = &tcb->context;
-
-        context->uc_mcontext.gregs[REG_RSP] = (unsigned long) ct->sp;
-        context->uc_mcontext.gregs[REG_RIP] = (unsigned long) ct->ret_ip;
 
         if (ct->regs) {
             struct shim_regs * regs = ct->regs;
+            context->uc_mcontext.gregs[REG_RIP] = regs->rip;
             context->uc_mcontext.gregs[REG_EFL] = regs->rflags;
             context->uc_mcontext.gregs[REG_R15] = regs->r15;
             context->uc_mcontext.gregs[REG_R14] = regs->r14;
@@ -129,6 +127,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
             context->uc_mcontext.gregs[REG_RDI] = regs->rdi;
             context->uc_mcontext.gregs[REG_RBX] = regs->rbx;
             context->uc_mcontext.gregs[REG_RBP] = regs->rbp;
+            context->uc_mcontext.gregs[REG_RSP] = regs->rsp;
         }
 
         signal->context_stored = true;
@@ -643,10 +642,10 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 
     struct shim_context * context = NULL;
 
-    if (tcb->context.syscall_nr) {
+    if (tcb->context.regs && tcb->context.regs->orig_rax) {
         context = __alloca(sizeof(struct shim_context));
         memcpy(context, &tcb->context, sizeof(struct shim_context));
-        tcb->context.syscall_nr = 0;
+        tcb->context.regs->orig_rax = 0;
         tcb->context.next = context;
     }
 

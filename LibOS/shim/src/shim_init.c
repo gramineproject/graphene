@@ -799,7 +799,7 @@ restore:
     shim_tcb_t * cur_tcb = shim_get_tls();
     struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
 
-    if (cur_tcb->context.sp)
+    if (cur_tcb->context.regs && cur_tcb->context.regs->rsp)
         restore_context(&cur_tcb->context);
 
     if (cur_thread->exec)
@@ -1121,7 +1121,7 @@ int shim_clean (int err)
 
 #ifdef PROFILE
     if (ENTER_TIME) {
-        switch (shim_get_tls()->context.syscall_nr) {
+        switch (shim_get_tls()->context.orig_rax) {
             case __NR_exit_group:
                 SAVE_PROFILE_INTERVAL_SINCE(syscall_exit_group, ENTER_TIME);
                 break;
