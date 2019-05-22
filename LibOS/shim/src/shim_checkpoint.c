@@ -1254,6 +1254,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 void restore_context (struct shim_context * context)
 {
     int nregs = sizeof(struct shim_regs) / sizeof(void *);
+    const int rip_index = offsetof(struct shim_regs, rip)/sizeof(unsigned long);
     void * regs[nregs + 1];
 
     if (context->regs)
@@ -1261,12 +1262,12 @@ void restore_context (struct shim_context * context)
     else
         memset(regs, 0, sizeof(struct shim_regs));
 
-    debug("restore context: SP = %p, IP = %p\n", context->sp, context->ret_ip);
+    debug("restore context: SP = %p, IP = %p\n", context->sp, regs[rip_index]);
 
     regs[nregs] = (void *) context->sp;
     /* don't clobber redzone. If sigaltstack is used,
      * this area won't be clobbered by signal context */
-    *(void **) (context->sp - 128 - 8) = context->ret_ip;
+    *(void **) (context->sp - 128 - 8) = regs[rip_index];
 
     /* Ready to resume execution, re-enable preemption. */
     shim_tcb_t * tcb = shim_get_tls();

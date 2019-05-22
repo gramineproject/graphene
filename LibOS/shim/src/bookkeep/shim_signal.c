@@ -113,10 +113,10 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
         struct shim_context * ct = &tcb->context;
 
         context->uc_mcontext.gregs[REG_RSP] = (unsigned long) ct->sp;
-        context->uc_mcontext.gregs[REG_RIP] = (unsigned long) ct->ret_ip;
 
         if (ct->regs) {
             struct shim_regs * regs = ct->regs;
+            context->uc_mcontext.gregs[REG_RIP] = regs->rip;
             context->uc_mcontext.gregs[REG_EFL] = regs->rflags;
             context->uc_mcontext.gregs[REG_R15] = regs->r15;
             context->uc_mcontext.gregs[REG_R14] = regs->r14;

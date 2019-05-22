@@ -38,12 +38,12 @@ struct shim_regs {
     unsigned long           rbx;
     unsigned long           rbp;
     unsigned long           rflags;
+    unsigned long           rip;
 };
 
 struct shim_context {
     unsigned long           syscall_nr;
     void *                  sp;
-    void *                  ret_ip;
     struct shim_regs *      regs;
     struct shim_context *   next;
     uint64_t                enter_time;
