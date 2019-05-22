@@ -1602,7 +1602,7 @@ noreturn void execute_elf_object (struct shim_handle * exec,
 # error "architecture not supported"
 #endif
     while (true)
-        __asm__ __volatile__("");
+        /* nothing */;
 }
 
 BEGIN_CP_FUNC(library)

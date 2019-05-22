@@ -85,7 +85,7 @@ noreturn void DkThreadExit (void)
     _DkThreadExit();
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
     while (true)
-        __asm__ __volatile__ ("");
+        /* nothing */;
     LEAVE_PAL_CALL();
 }
 

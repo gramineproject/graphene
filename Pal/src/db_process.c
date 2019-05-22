@@ -67,7 +67,7 @@ noreturn void DkProcessExit (PAL_NUM exitcode)
     _DkProcessExit(exitcode);
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
     while (true)
-        __asm__ __volatile__ ("");
+        /* nothing */;
     LEAVE_PAL_CALL();
 }
 
