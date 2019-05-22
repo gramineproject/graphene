@@ -864,7 +864,7 @@ static void shim_ipc_helper (void * arg)
            nalive) {
         /* do a global poll on all the ports */
         polled = DkObjectsWaitAny(port_num + 1, local_ports, NO_TIMEOUT);
-        BARRIER();
+        COMPILER_BARRIER();
 
         if (!polled)
             continue;
@@ -874,7 +874,7 @@ static void shim_ipc_helper (void * arg)
         if (polled == ipc_event_handle) {
             clear_event(&ipc_helper_event);
 update_status:
-            BARRIER();
+            COMPILER_BARRIER();
             if (ipc_helper_state == HELPER_NOTALIVE)
                 goto end;
             else
@@ -1031,7 +1031,7 @@ end:
      * helper lock.  Err on the side of caution by adding a barrier to ensure
      * reading the latest ipc helper state.
      */
-    BARRIER();
+    COMPILER_BARRIER();
     if (ipc_helper_state == HELPER_HANDEDOVER) {
         debug("ipc helper thread is the last thread, process exiting\n");
         shim_terminate(0); // Same as shim_clean(), but this is the official termination function
@@ -1131,7 +1131,7 @@ int exit_with_ipc_helper (bool handover, struct shim_thread ** ret)
          * generated the signal doesn't hang waiting for IPC_RESP. */
         int loops = 0;
         while (ipc_helper_thread != NULL && loops++ < 2000) {
-            BARRIER();
+            COMPILER_BARRIER();
             DkThreadDelayExecution(1000);
         }
         if (ipc_helper_thread != NULL) {

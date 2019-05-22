@@ -190,7 +190,7 @@ static void shim_async_helper (void * arg)
         }
 
         polled = DkObjectsWaitAny(object_num + 1, local_objects, sleep_time);
-        BARRIER();
+        COMPILER_BARRIER();
 
         if (!polled) {
             if (next_event) {
