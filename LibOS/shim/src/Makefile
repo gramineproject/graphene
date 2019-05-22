@@ -131,7 +131,7 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 	@echo [ $@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
 
-syscallas.S: asm-offsets.h
+syscallas.S shim_checkpoint.c: asm-offsets.h
 
 include ../../../Makefile.rules
 

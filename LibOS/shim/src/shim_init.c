@@ -820,7 +820,7 @@ restore:
     shim_tcb_t * cur_tcb = shim_get_tls();
     struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
 
-    if (cur_tcb->context.sp)
+    if (cur_tcb->context.regs && cur_tcb->context.regs->sp)
         restore_context(&cur_tcb->context);
 
     if (cur_thread->exec)
