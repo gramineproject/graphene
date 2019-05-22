@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import sys, os, string, subprocess, shutil, fileinput, multiprocessing, re, resource
 
@@ -45,31 +45,31 @@ if True:
     #########################################
 
     if not quiet:
-        iput = raw_input('use {0} as the source of GNU libc? ([y]/n):'.format(glibc)).lower()
+        iput = input('use {0} as the source of GNU libc? ([y]/n):'.format(glibc)).lower()
         if not iput == 'y' and not iput == '' :
-            glibc = raw_input('enter the glibc source to install with: ')
+            glibc = input('enter the glibc source to install with: ')
 
     if not quiet:
-        iput = raw_input('{0} contains glibc code to compile? ([y]/n): '.format(glibc)).lower()
+        iput = input('{0} contains glibc code to compile? ([y]/n): '.format(glibc)).lower()
         if not iput == 'y' and not iput == '':
-            glibc = raw_input('directory containing glibc code to compile: ')
+            glibc = input('directory containing glibc code to compile: ')
 
     if os.path.isdir(glibc) :
         glibc = os.path.abspath(glibc)
         glibcParent,glibcDir = os.path.split(glibc)
-        print 'building in {0}: {1}'.format(glibcParent, glibcDir)
+        print('building in {0}: {1}'.format(glibcParent, glibcDir))
 
     if not quiet:
-        iput = raw_input('use {0} as the directory to build glibc in? ([y]/n): '.format(buildDir)).lower()
+        iput = input('use {0} as the directory to build glibc in? ([y]/n): '.format(buildDir)).lower()
         if not iput == 'y' and not iput == '':
-            buildDir = raw_input('the directory to build glibc in:  ')
+            buildDir = input('the directory to build glibc in:  ')
 
     buildDir = os.path.abspath(buildDir)
-    print 'using build dir: {0}'.format(buildDir)
+    print('using build dir: {0}'.format(buildDir))
 
     if os.path.isdir(buildDir) :
         if not quiet:
-            clean = raw_input('clean build (delete {0}, rerun configure, etc.)? ([y]/n): '.format(buildDir))
+            clean = input('clean build (delete {0}, rerun configure, etc.)? ([y]/n): '.format(buildDir))
         else:
             clean = 'y'
 
@@ -77,18 +77,18 @@ if True:
             shutil.rmtree(buildDir)
             os.makedirs(buildDir)
         else :
-            print 'Then just go to {0} and type make...'.format(buildDir)
+            print('Then just go to {0} and type make...'.format(buildDir))
             exit(0)
     else :
         os.makedirs(buildDir)
 
     if not quiet:
-        iput = raw_input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
+        iput = input('use {0} as the directory to install glibc in? ([y]/n): '.format(installDir)).lower()
         if not iput == 'y' and not iput == '':
-            installDir = raw_input('the directory to install glibc in:  ')
+            installDir = input('the directory to install glibc in:  ')
 
     installDir = os.path.abspath(installDir)
-    print 'using install dir: {0}'.format(installDir)
+    print('using install dir: {0}'.format(installDir))
 
 
 if True:
@@ -106,7 +106,7 @@ if True:
 
     ##    configure
     commandStr = r'CFLAGS="{2}" {3} {0}/configure --prefix={1} {4} | tee configure.out'.format(glibc, installDir, cflags, extra_defs, extra_flags)
-    print commandStr
+    print(commandStr)
     commandOutput = subprocess.call(commandStr, shell=True)
 
     ##    Enable parallel builds
