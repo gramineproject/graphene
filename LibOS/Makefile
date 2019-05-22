@@ -102,6 +102,12 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
 	done
 endif
 
+$(GLIBC_SRC)/elf/Versions: $(GLIBC_SRC)/configure
+
+$(GLIBC_SRC)/nptl/Versions: $(GLIBC_SRC)/configure
+
+$(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
+
 .PHONY: clean
 clean:
 	$(MAKE) -C $(SHIM_DIR) clean
