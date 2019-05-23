@@ -61,7 +61,7 @@ int shim_do_getcwd (char * buf, size_t len)
     } else if (plen + 1 > len) {
         ret = -ERANGE;
     } else {
-        ret = plen;
+        ret = plen + 1;
         memcpy(buf, path, plen + 1);
     }
     return ret;
