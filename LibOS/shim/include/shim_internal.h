@@ -821,4 +821,9 @@ static_always_inline bool __range_not_ok(unsigned long addr, unsigned long size)
 # error "Unsupported architecture"
 #endif /* __x86_64__ */
 
+static inline IDTYPE hashtype_to_idtype(HASHTYPE hash) {
+    assert(sizeof(HASHTYPE) == 8 && sizeof(IDTYPE) == 4);
+    return ((IDTYPE) hash) ^ ((IDTYPE) (hash >> 32));
+}
+
 #endif /* _PAL_INTERNAL_H_ */
