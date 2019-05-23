@@ -1,0 +1,178 @@
+diff --git a/Makeconfig b/Makeconfig
+index 1908f27..cf34ba1 100644
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -1033,7 +1034,7 @@ all-subdirs = csu assert ctype locale intl catgets math setjmp signal	    \
+ 	      grp pwd posix io termios resource misc socket sysvipc gmon    \
+ 	      gnulib iconv iconvdata wctype manual shadow gshadow po argp   \
+ 	      crypt localedata timezone rt conform debug		    \
+-	      $(add-on-subdirs) dlfcn elf
++	      $(add-on-subdirs) dlfcn elf libos
+ 
+ ifndef avoid-generated
+ # sysd-sorted itself will contain rules making the sysd-sorted target
+diff --git a/Versions.def b/Versions.def
+index 759c754..e1a270e 100644
+--- a/Versions.def
++++ b/Versions.def
+@@ -148,3 +152,6 @@ libanl {
+ libcidn {
+   GLIBC_PRIVATE
+ }
++liblibos {
++  GLIBC_2.12
++}
+diff --git a/shlib-versions b/shlib-versions
+index 78b0ad7..5c3dcf2 100644
+--- a/shlib-versions
++++ b/shlib-versions
+@@ -108,3 +108,5 @@ sparc64.*-.*-.*		libBrokenLocale=1	GLIBC_2.2
+ # This defines the libgcc soname version this glibc is to load for
+ # asynchronous cancellation to work correctly.
+ .*-.*-.*		libgcc_s=1
++
++.*-.*-.*		liblibos=1
+diff --git a/libos/Makefile b/libos/Makefile
+new file mode 100644
+index 0000000..7e0027d
+--- /dev/null
++++ b/libos/Makefile
+@@ -0,0 +1,56 @@
++# Copyright (C) 1996-2001,2002,2003,2004,2005,2006
++#	Free Software Foundation, Inc.
++# This file is part of the GNU C Library.
++
++# The GNU C Library is free software; you can redistribute it and/or
++# modify it under the terms of the GNU Lesser General Public
++# License as published by the Free Software Foundation; either
++# version 2.1 of the License, or (at your option) any later version.
++
++# The GNU C Library is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# Lesser General Public License for more details.
++
++# You should have received a copy of the GNU Lesser General Public
++# License along with the GNU C Library; if not, write to the Free
++# Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++# 02111-1307 USA.
++
++# Makefile for the libos library.
++
++subdir		:= libos
++
++# Installed header files.
++headers		:=
++
++# Internal header files.
++distribute	:= errno.h
++
++liblibos-routines := wrapper
++
++# Build the -llibos library.
++
++extra-libs	:= liblibos
++extra-libs-others = $(extra-libs)
++
++include ../Makeconfig
++
++ifeq ($(versioning),yes)
++liblibos-routines	+=
++liblibos-shared-only-routines :=
++endif
++
++tests =
++
++modules-names =
++
++extra-test-objs += $(modules-names:=.os)
++generated := $(modules-names:=.so)
++
++include ../Rules
++
++# Depend on libc.so so a DT_NEEDED is generated in the shared objects.
++# This ensures they will load libc.so for needed symbols if loaded by
++# a statically-linked program that hasn't already loaded it.
++$(objpfx)liblibos.so: $(common-objpfx)libc.so $(common-objpfx)libc_nonshared.a
+diff --git a/libos/Versions b/libos/Versions
+new file mode 100644
+index 0000000..3211637
+--- /dev/null
++++ b/libos/Versions
+@@ -0,0 +1,8 @@
++liblibos {
++  GLIBC_2.12 {
++    checkpoint;
++    sandbox_create; sandbox_attach; sandbox_current;
++    msgpersist;
++    benchmark_rpc; send_rpc; recv_rpc;
++  }
++}
+diff --git a/libos/wrapper.c b/libos/wrapper.c
+new file mode 100644
+index 0000000..8785629
+--- /dev/null
++++ b/libos/wrapper.c
+@@ -0,0 +1,62 @@
++#include <errno.h>
++#include <kernel-features.h>
++#include <shim_unistd.h>
++#include <sysdep.h>
++#include <sysdep-cancel.h>
++#include <sys/syscall.h>
++
++#ifdef __NR_checkpoint
++int checkpoint (const char *filename)
++{
++	return INLINE_SYSCALL (checkpoint, 1, filename);
++}
++#endif
++
++#ifdef __NR_sandbox_create
++long sandbox_create(int flags, const char *fs_sb, struct net_sb *net_sb)
++{
++	return INLINE_SYSCALL (sandbox_create, 3, flags, fs_sb, net_sb);
++}
++#endif
++
++#ifdef __NR_sandbox_attach
++int sandbox_attach(unsigned int sbid)
++{
++	return INLINE_SYSCALL (sandbox_attach, 1, sbid);
++}
++#endif
++
++#ifdef __NR_sandbox_current
++long sandbox_current(void)
++{
++	return INLINE_SYSCALL (sandbox_current, 0);
++}
++#endif
++
++#ifdef __NR_msgpersist
++int msgpersist (int msqid, int cmd)
++{
++	return INLINE_SYSCALL (msgpersist, 2, msqid, cmd);
++}
++#endif
++
++#ifdef __NR_benchmark_rpc
++int benchmark_rpc(pid_t pid, int times, const void *buf, size_t size)
++{
++	return INLINE_SYSCALL (benchmark_rpc, 4, pid, times, buf, size);
++}
++#endif
++
++#ifdef __NR_send_rpc
++size_t send_rpc (pid_t pid, const void *buf, size_t size)
++{
++	return INLINE_SYSCALL (send_rpc, 3, pid, buf, size);
++}
++#endif
++
++#ifdef __NR_recv_rpc
++size_t recv_rpc (pid_t * pid, void *buf, size_t size)
++{
++	return INLINE_SYSCALL (recv_rpc, 3, pid, buf, size);
++}
++#endif
