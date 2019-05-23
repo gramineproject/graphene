@@ -45,12 +45,6 @@ GLIBC_ADDED_FILES = \
         $(GLIBC_SRC)/syscallas.S \
         $(GLIBC_SRC)/syscalldb.c \
         $(GLIBC_SRC)/syscalldb.h \
-        $(GLIBC_SRC)/libos/Makefile \
-        $(GLIBC_SRC)/libos/Versions \
-        $(GLIBC_SRC)/libos/benchmark.c \
-        $(GLIBC_SRC)/libos/checkpoint.c \
-        $(GLIBC_SRC)/libos/msgpersist.c \
-        $(GLIBC_SRC)/libos/sandbox.c \
         $(GLIBC_SRC)/elf/syscalldb.c \
         $(GLIBC_SRC)/elf/syscallas.S \
         $(GLIBC_SRC)/sysdeps/unix/sysv/linux/x86_64/syscalldb.h
@@ -84,7 +78,8 @@ ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
 GLIBC_PATCHES = \
 	$(GLIBC_SRC).patch \
 	glibc-fix-warning.patch \
-	glibc-no-pie.patch
+	glibc-no-pie.patch \
+	glibc-liblibos.patch
 
 # USE_clone_FOR_fork = true
 ifneq ($(USE_clone_FOR_fork),)
