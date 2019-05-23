@@ -1,0 +1,108 @@
+diff --git a/elf/syscallas.S b/elf/syscallas.S
+new file mode 120000
+index 0000000..107bd13
+--- /dev/null
++++ b/elf/syscallas.S
+@@ -0,0 +1 @@
++../syscallas.S
+\ No newline at end of file
+diff --git a/elf/syscalldb.c b/elf/syscalldb.c
+new file mode 120000
+index 0000000..61dca52
+--- /dev/null
++++ b/elf/syscalldb.c
+@@ -0,0 +1 @@
++../syscalldb.c
+\ No newline at end of file
+diff --git a/syscallas.S b/syscallas.S
+new file mode 100644
+index 0000000..07c6ffc
+--- /dev/null
++++ b/syscallas.S
+@@ -0,0 +1,11 @@
++#include <syscalldb.h>
++
++.weak syscalldb
++.type syscalldb,@function
++
++syscalldb:
++	.cfi_startproc
++	syscall
++	retq
++	.cfi_endproc
++	.size syscalldb,.-syscalldb
+diff --git a/syscalldb.c b/syscalldb.c
+new file mode 100644
+index 0000000..7a56162
+--- /dev/null
++++ b/syscalldb.c
+@@ -0,0 +1,16 @@
++#include "syscalldb.h"
++#include <stdarg.h>
++#include <errno.h>
++
++int register_library (const char * name, unsigned long load_address)
++	__attribute__((weak));
++
++int register_library (const char * name, unsigned long load_address)
++{
++	return 0;
++}
++
++long int glibc_option (const char * opt)
++{
++	return -EINVAL;
++}
+diff --git a/syscalldb.h b/syscalldb.h
+new file mode 100644
+index 0000000..2833def
+--- /dev/null
++++ b/syscalldb.h
+@@ -0,0 +1,39 @@
++#ifndef _SYSCALLDB_H_
++#define _SYSCALLDB_H_
++
++#ifdef __ASSEMBLER__
++.weak syscalldb
++.type syscalldb, @function
++
++# if defined(PSEUDO) && defined(SYSCALL_NAME) && defined(SYSCALL_SYMBOL)
++#  define SYSCALLDB                     \
++    subq $128, %rsp;                    \
++    callq *syscalldb@GOTPCREL(%rip);    \
++    addq $128, %rsp
++# else
++#  define SYSCALLDB                             \
++    callq *syscalldb@GOTPCREL(%rip)
++# endif
++
++#else /* !__ASSEMBLER__ */
++asm (
++".weak syscalldb\r\n"
++".type syscalldb, @function\r\n");
++
++#define SYSCALLDB                           \
++    "subq $128, %%rsp\n\t"                  \
++    "callq *syscalldb@GOTPCREL(%%rip)\n\t"  \
++    "addq $128, %%rsp\n\t"
++
++#define SYSCALLDB_ASM                       \
++    "callq *syscalldb@GOTPCREL(%rip)\n\t"
++
++long int glibc_option (const char * opt);
++
++asm (
++".weak glibc_option\r\n"
++".type glibc_option, @function\r\n");
++
++#endif /* Assembler */
++
++#endif /* _SYSCALLDB_H */
+diff --git a/sysdeps/unix/sysv/linux/x86_64/syscalldb.h b/sysdeps/unix/sysv/linux/x86_64/syscalldb.h
+new file mode 120000
+index 0000000..55ab305
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/x86_64/syscalldb.h
+@@ -0,0 +1 @@
++../../../../../syscalldb.h
+\ No newline at end of file

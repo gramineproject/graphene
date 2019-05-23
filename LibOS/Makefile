@@ -42,18 +42,12 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 .SECONDARY: $(BUILD_DIR)/Build.success
 
 GLIBC_ADDED_FILES = \
-        $(GLIBC_SRC)/syscallas.S \
-        $(GLIBC_SRC)/syscalldb.c \
-        $(GLIBC_SRC)/syscalldb.h \
         $(GLIBC_SRC)/libos/Makefile \
         $(GLIBC_SRC)/libos/Versions \
         $(GLIBC_SRC)/libos/benchmark.c \
         $(GLIBC_SRC)/libos/checkpoint.c \
         $(GLIBC_SRC)/libos/msgpersist.c \
         $(GLIBC_SRC)/libos/sandbox.c \
-        $(GLIBC_SRC)/elf/syscalldb.c \
-        $(GLIBC_SRC)/elf/syscallas.S \
-        $(GLIBC_SRC)/sysdeps/unix/sysv/linux/x86_64/syscalldb.h
 
 $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile $(GLIBC_ADDED_FILES)
 	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
@@ -83,6 +77,7 @@ GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
 GLIBC_PATCHES = \
 	$(GLIBC_SRC).patch \
+	glibc-syscalldb-api.patch \
 	glibc-fix-warning.patch \
 	glibc-no-pie.patch
 
