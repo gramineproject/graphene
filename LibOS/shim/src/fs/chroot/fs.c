@@ -87,7 +87,7 @@ static int chroot_mount (const char * uri, const char * root,
 
     mdata->data_size = data_size;
     mdata->base_type = type;
-    mdata->ino_base = hash_path(uri, uri_len, NULL);
+    mdata->ino_base = hash_path(uri, uri_len);
     mdata->root_uri_len = uri_len;
     memcpy(mdata->root_uri, uri, uri_len + 1);
 
@@ -289,7 +289,7 @@ static void chroot_update_ino (struct shim_dentry * dent)
 
     if (!qstrempty(&dent->rel_path))
         ino = rehash_path(mdata->ino_base, qstrgetstr(&dent->rel_path),
-                          dent->rel_path.len, NULL);
+                          dent->rel_path.len);
 
     dent->ino = ino;
     dent->state |= DENTRY_INO_UPDATED;

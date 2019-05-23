@@ -47,8 +47,7 @@ struct shim_dentry * dentry_root = NULL;
 static inline
 HASHTYPE hash_dentry (struct shim_dentry * start, const char * path, int len)
 {
-    return rehash_path(start ? start->rel_path.hash : 0,
-                       path, len, NULL);
+    return rehash_path(start ? start->rel_path.hash : 0, path, len);
 }
 
 static struct shim_dentry * alloc_dentry (void)

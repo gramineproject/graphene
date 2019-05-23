@@ -255,8 +255,7 @@ static int proc_readdir (struct shim_dentry * dent,
     const struct proc_ent * tmp = ent->dir->ent;
     const struct proc_ent * end = tmp + ent->dir->size;
 
-    HASHTYPE self_hash = hash_path(rel_path,
-                                   dent->rel_path.len, NULL);
+    HASHTYPE self_hash = hash_path(rel_path, dent->rel_path.len);
     HASHTYPE new_hash;
     struct shim_dirent * buf, * ptr;
     int buf_size = MAX_PATH;
