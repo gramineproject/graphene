@@ -800,4 +800,9 @@ static inline bool access_ok(const volatile void* addr, size_t size) {
 # error "Unsupported architecture"
 #endif /* __x86_64__ */
 
+static inline IDTYPE hashtype_to_idtype(HASHTYPE hash) {
+    assert(sizeof(HASHTYPE) == 8 && sizeof(IDTYPE) == 4);
+    return ((IDTYPE)hash) ^ ((IDTYPE)(hash >> 32));
+}
+
 #endif /* _PAL_INTERNAL_H_ */
