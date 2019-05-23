@@ -470,7 +470,7 @@ typedef Elf64_auxv_t elf_auxv_t;
 typedef unsigned int IDTYPE;
 typedef uint16_t FDTYPE;
 typedef unsigned long LEASETYPE;
-typedef unsigned long HASHTYPE;
+typedef uint64_t HASHTYPE;
 
 typedef struct atomic_int REFTYPE;
 

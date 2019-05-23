@@ -552,14 +552,9 @@ int __del_dentry_tree(struct shim_dentry * root);
 
 #define MOUNT_HASH(hash) ((hash) & (MOUNT_HASH_SIZE - 1))
 
-HASHTYPE hash_path (const char * path, int size,
-                    const char * sep);
-HASHTYPE hash_parent_path (HASHTYPE hbuf, const char * name,
-                           int * size, const char * sep);
-HASHTYPE rehash_name (HASHTYPE parent_hbuf,
-                      const char * name, int size);
-HASHTYPE rehash_path (HASHTYPE ancester_hbuf,
-                      const char * path, int size, const char * sep);
+HASHTYPE hash_path(const char* path, size_t size);
+HASHTYPE rehash_name(HASHTYPE parent_hbuf, const char* name, size_t size);
+HASHTYPE rehash_path(HASHTYPE ancester_hbuf, const char* path, size_t size);
 
 extern struct shim_fs_ops chroot_fs_ops;
 extern struct shim_d_ops  chroot_d_ops;
