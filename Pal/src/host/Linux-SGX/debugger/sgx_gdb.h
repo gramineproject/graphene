@@ -1,17 +1,21 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
+#define MAX_DBG_THREADS 64
 
-#define MAX_DBG_THREADS     64
+/* This address is shared between our GDB and Graphene-SGX and must
+ * reside in non-enclave memory. Graphene-SGX puts an enclave_dbginfo
+ * object at this address and periodically updates it. Our GDB
+ * reads the object from this address to update its internal structs
+ * and learn about enclave layout, active threads, etc. */
+#define DBGINFO_ADDR 0x100000000000
 
-struct __attribute__((__packed__)) enclave_dbginfo {
-    int                 pid;
-    int                 dummy; /* for 8B alignment */
-    unsigned long       base, size;
-    unsigned long       ssaframesize;
-    void *              aep;
-    int                 thread_tids[MAX_DBG_THREADS];
-    void *              tcs_addrs[MAX_DBG_THREADS];
-    unsigned long long  thread_stepping;
+/* This struct is read using PTRACE_PEEKDATA in 8B increments
+ * therefore it is aligned as long and has a dummy int. */
+struct __attribute__((aligned(__alignof__(long)))) enclave_dbginfo {
+    int pid;
+    int dummy;
+    unsigned long base, size;
+    unsigned long ssaframesize;
+    void* aep;
+    int thread_tids[MAX_DBG_THREADS];
+    void* tcs_addrs[MAX_DBG_THREADS];
+    unsigned long long thread_stepping;
 };
-
-#define DBGINFO_ADDR        0x100000000000
