@@ -37,12 +37,9 @@
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
-#include <stdlib.h>
 #define mbedtls_calloc    calloc
 #define mbedtls_free       free
 #endif
-
-#include <string.h>
 
 #if defined(MBEDTLS_FS_IO)
 #include <stdio.h>
@@ -96,6 +93,7 @@ const int *mbedtls_md_list( void )
     return( supported_digests );
 }
 
+#if 0
 const mbedtls_md_info_t *mbedtls_md_info_from_string( const char *md_name )
 {
     if( NULL == md_name )
@@ -136,6 +134,7 @@ const mbedtls_md_info_t *mbedtls_md_info_from_string( const char *md_name )
 #endif
     return( NULL );
 }
+#endif
 
 const mbedtls_md_info_t *mbedtls_md_info_from_type( mbedtls_md_type_t md_type )
 {

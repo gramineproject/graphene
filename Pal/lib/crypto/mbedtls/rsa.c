@@ -453,7 +453,7 @@ cleanup:
     return( 0 );
 }
 
-#if defined(MBEDTLS_PKCS1_V21)
+#if defined(MBEDTLS_PKCS1_V21) || defined(MBEDTLS_PKCS1_V15)
 /**
  * Generate and apply the MGF1 operation (from PKCS#1 v2.1) to a buffer.
  *
