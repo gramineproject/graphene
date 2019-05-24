@@ -76,6 +76,8 @@ elf_get_dynamic_info (ElfW(Dyn) *dyn, ElfW(Dyn) **l_info, ElfW(Addr) l_addr)
 #endif
 
     while (dyn->d_tag != DT_NULL) {
+        d_tag_utype dt_extranum = DT_EXTRANUM;
+
         if ((d_tag_utype) dyn->d_tag < DT_NUM)
             l_info[dyn->d_tag] = dyn;
 
@@ -86,7 +88,7 @@ elf_get_dynamic_info (ElfW(Dyn) *dyn, ElfW(Dyn) **l_info, ElfW(Addr) l_addr)
         else if ((d_tag_utype) DT_VERSIONTAGIDX (dyn->d_tag) < DT_VERSIONTAGNUM)
             l_info[VERSYMIDX (dyn->d_tag)] = dyn;
 
-        else if ((d_tag_utype) DT_EXTRATAGIDX (dyn->d_tag) < DT_EXTRANUM)
+        else if ((d_tag_utype) DT_EXTRATAGIDX (dyn->d_tag) < dt_extranum)
             l_info[DT_EXTRATAGIDX (dyn->d_tag) + DT_NUM + DT_THISPROCNUM
                    + DT_VERSIONTAGNUM] = dyn;
 

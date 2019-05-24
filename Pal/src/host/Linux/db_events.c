@@ -75,7 +75,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
+int _DkEventWaitTimeout (PAL_HANDLE event, PAL_NUM timeout)
 {
     int ret = 0;
 
@@ -149,7 +149,7 @@ static int event_close (PAL_HANDLE handle)
     return 0;
 }
 
-static int event_wait (PAL_HANDLE handle, uint64_t timeout)
+static int event_wait (PAL_HANDLE handle, PAL_NUM timeout)
 {
     return timeout == NO_TIMEOUT ? _DkEventWait(handle) :
            _DkEventWaitTimeout(handle, timeout);

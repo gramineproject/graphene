@@ -118,7 +118,7 @@ struct handle_ops {
      * Timeout: -PAL_ERROR_TRYAGAIN
      * Positive return values are undefined.
      */
-    int (*wait) (PAL_HANDLE handle, uint64_t time);
+    int (*wait) (PAL_HANDLE handle, PAL_NUM time);
 
     /* 'rename' is used to change name of a stream, or reset its share
        option */
@@ -311,7 +311,7 @@ int _DkProcessSandboxCreate (const char * manifest, int flags);
 /* DkMutex calls */
 int _DkMutexCreate (PAL_HANDLE * handle, int initialCount);
 int _DkMutexAcquire (PAL_HANDLE sem);
-int _DkMutexAcquireTimeout (PAL_HANDLE sem, int timeout);
+int _DkMutexAcquireTimeout (PAL_HANDLE sem, PAL_NUM timeout);
 void _DkMutexRelease (PAL_HANDLE sem);
 int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 
@@ -319,7 +319,7 @@ int _DkMutexGetCurrentCount (PAL_HANDLE sem);
 int _DkEventCreate (PAL_HANDLE * event, bool initialState,
                     bool isnotification);
 int _DkEventSet (PAL_HANDLE event, int wakeup);
-int _DkEventWaitTimeout (PAL_HANDLE event, int64_t timeout);
+int _DkEventWaitTimeout (PAL_HANDLE event, PAL_NUM timeout);
 int _DkEventWait (PAL_HANDLE event);
 int _DkEventClear (PAL_HANDLE event);
 
@@ -331,7 +331,7 @@ int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot);
 /* DkObject calls */
 int _DkObjectReference (PAL_HANDLE objectHandle);
 int _DkObjectClose (PAL_HANDLE objectHandle);
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
+int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
                        PAL_HANDLE * polled);
 
 /* DkException calls & structures */

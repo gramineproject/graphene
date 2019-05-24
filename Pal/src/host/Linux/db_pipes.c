@@ -577,7 +577,7 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     return 0;
 }
 
-static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
+static int pipe_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     int old_count = count;
     int ret;

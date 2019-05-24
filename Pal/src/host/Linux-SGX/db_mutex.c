@@ -63,7 +63,7 @@ _DkMutexCreate (PAL_HANDLE * handle, int initialCount)
     return 0;
 }
 
-int _DkMutexLockTimeout (struct mutex_handle * m, int64_t timeout)
+int _DkMutexLockTimeout (struct mutex_handle * m, PAL_NUM timeout)
 {
     int ret = 0;
 
@@ -84,7 +84,8 @@ int _DkMutexLockTimeout (struct mutex_handle * m, int64_t timeout)
          * can be used for futex. Potentially this design may allow
          * attackers to change the mutex value and cause DoS.
          */
-        ret = ocall_futex((int *) m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout == -1 ? NULL : &timeout);
+        int64_t waittime = timeout;
+        ret = ocall_futex((int *) m->locked, FUTEX_WAIT, MUTEX_LOCKED, timeout == NO_TIMEOUT ? NULL : &waittime);
 
         if (ret < 0) {
             if (-ret == EWOULDBLOCK) {
@@ -111,7 +112,7 @@ int _DkMutexLock (struct mutex_handle * m)
     return _DkMutexLockTimeout(m, -1);
 }
 
-int _DkMutexAcquireTimeout (PAL_HANDLE handle, int _timeout)
+int _DkMutexAcquireTimeout (PAL_HANDLE handle, PAL_NUM _timeout)
 {
     struct mutex_handle * mut = &handle->mutex.mut;
     return _DkMutexLockTimeout(mut, _timeout);
@@ -146,7 +147,7 @@ void _DkMutexRelease (PAL_HANDLE handle)
     return;
 }
 
-static int mutex_wait (PAL_HANDLE handle, uint64_t timeout)
+static int mutex_wait (PAL_HANDLE handle, PAL_NUM timeout)
 {
     return _DkMutexAcquireTimeout(handle, timeout);
 }
