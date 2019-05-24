@@ -26,6 +26,7 @@
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 #include "sgx_api.h"
+#include "sgx_attest.h"
 #include "enclave_ocalls.h"
 
 #include <linux/mman.h>

@@ -1,6 +1,9 @@
 include ../../../../Makefile.configs
 include Makefile.am
 
+ias_cert_url ?= https://software.intel.com/sites/default/files/managed/7b/de/RK_PUB.zip
+ias_cert_zip = quote/$(notdir $(ias_cert_url))
+
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
@@ -12,9 +15,10 @@ ASFLAGS += $(defs)
 enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 		 threading mutex events process object main rtld \
 		 exception misc ipc spinlock) \
-	       $(addprefix enclave_,ocalls ecalls framework pages untrusted)
+	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted)
 enclave-asm-objs = enclave_entry
-urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene)
+urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
+	    quote/aesm.pb-c
 urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 
@@ -40,6 +44,9 @@ $(addsuffix .s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(addsuffix .o,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 $(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 
+$(addsuffix .o,$(urts-objs)): quote/aesm.pb-c.h
+$(addsuffix .o,$(enclave-objs)): quote/generated-cacert.h
+
 %.o: %.c
 	$(call cmd,cc_o_c)
 
@@ -57,7 +64,19 @@ $(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now -pie $^ -lc -pthread -o $@
+	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now -pie $^ -lc -pthread -lprotobuf-c -o $@
+
+quote/aesm.pb-c.o: quote/aesm.pb-c.c quote/aesm.pb-c.h
+quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto
+	@echo [ host/Linux-SGX/quote/aesm.pb-c.c ]
+	@echo [ host/Linux-SGX/quote/aesm.pb-c.h ]
+	@protoc-c --c_out=. $<
+
+quote/generated-cacert.h: $(ias_cert_zip)
+	@echo "#define IAS_CA_CERT \"$(shell unzip -p $< | tr -d '[\r\n]')\"" > $@
+
+$(ias_cert_zip):
+	@wget $(ias_cert_url) -O $@
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
@@ -75,6 +94,8 @@ include ../../../../Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o
+CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h
+CLEAN_FILES += $(ias_cert_zip) quote/generated-cacert.h
 
 .PHONY: clean
 clean:

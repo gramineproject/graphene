@@ -219,31 +219,23 @@ int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
     return 0;
 }
 
-int lib_RSAVerifySHA256(LIB_RSA_KEY *key, const uint8_t *signature,
-                        uint64_t signature_len, uint8_t *signed_data_out,
-                        uint64_t signed_data_out_len)
-{
-    size_t real_data_out_len;
+int lib_RSAVerifySHA256(LIB_RSA_KEY* key, const uint8_t* hash, uint64_t hash_len,
+                        const uint8_t* signature, uint64_t signature_len) {
 
     /* The mbedtls decrypt API assumes that you have a memory buffer that
      * is as large as the key size and take the length as a parameter. We
      * check, so that in the event the caller makes a mistake, you'll get
      * an error instead of reading off the end of the buffer. */
-    if (signature_len != key->len) {
+    if (signature_len != key->len)
         return -PAL_ERROR_INVAL;
-    }
-    int ret = mbedtls_rsa_rsaes_pkcs1_v15_decrypt(key, NULL, NULL,
-                                                  MBEDTLS_RSA_PUBLIC,
-                                                  &real_data_out_len,
-                                                  signature,
-                                                  signed_data_out,
-                                                  signed_data_out_len);
-    if (ret == 0) {
-        if (real_data_out_len != SHA256_DIGEST_LEN) {
-            return -PAL_ERROR_INVAL;
-        }
-    }
-    return ret;
+
+    int ret = mbedtls_rsa_pkcs1_verify(key, NULL, NULL, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256,
+                                       hash_len, hash, signature);
+
+    if (ret < 0)
+        return -PAL_ERROR_DENIED;
+
+    return 0;
 }
 
 int lib_RSAFreeKey(LIB_RSA_KEY *key)

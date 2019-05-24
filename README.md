@@ -52,7 +52,7 @@ Run the following command on Ubuntu to install dependencies for Graphene:
 
 For building Graphene for SGX, run the following command in addition:
 
-    sudo apt-get install -y python-protobuf
+    sudo apt-get install -y python-protobuf libprotobuf-c-dev protobuf-c-compiler
 
 
 To run unit tests locally, you also need the python3-pytest package:
@@ -162,6 +162,47 @@ To add the application test cases, issue the following command from the root
 of the source tree:
 
     git submodule update --init -- LibOS/shim/test/apps/
+
+#### 2.1.4 Testing the remote attestation feature
+
+To enable tests for the built-in remote attestation feature for Graphene-SGX, obtain a SPID
+and a subscription key (can be linkable or unlinkable) from the Intel API Portal:
+https://api.portal.trustedservices.intel.com/EPID-attestation
+
+Specify the SPID, subscription key, and the type of the SPID/key in the manifest:
+
+    sgx.ra_client_spid = <SPID>
+    sgx.ra_client_key = <KEY>
+    sgx.ra_client_linkable = 1 # or 0 if the SPID/key is unlinkable (default)
+
+If the remote attestation feature is enabled, Graphene-SGX will terminate if the platform
+is not successfully verified by the Intel Attestation Service (IAS). The feature ensures that
+Graphene-SGX only executes on a genuine, up-to-date SGX hardware.
+
+
+To enable remote attestation tests in `Pal/regression`, specify the following variables:
+
+    cd PAL/regression
+    make SGX=1 RA_CLIENT_SPID=<SPID> RA_CLIENT_KEY=<KEY>
+    make SGX_RUN=1
+
+
+If you receive a "GROUP_OUT_OF_DATE" status from IAS, this status indicates that your CPU
+is out of date and can be vulnerable to hardware attacks. If you wish to bypass this error,
+you can specify the following option in the manifest:
+
+    sgx.ra_accept_group_out_of_date = 1
+
+SECURITY ADVISORIES:
+
+"GROUP_OUT_OF_DATE" may indicate that the firmware (microcode) of you CPU is not updated
+according to INTEL-SA-00233 (Load/store data sampling) and INTEL-SA-00161 (L1 terminal fault).
+It's recommended that you update the BIOS of your platform to later than June 2019.
+
+If you receive status "CONFIGURATION_NEEDED" from the IAS after updating your BIOS, you may
+need to disable hyperthreading in your BIOS to mitigate L1 terminal fault.
+
+
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 

@@ -2,6 +2,8 @@
 /generated-offsets.s
 /generated_offsets.py
 /pal-sgx
+/quote/aesm.pb-c.c
+/quote/aesm.pb-c.h
 
 *.pem
 *.pub

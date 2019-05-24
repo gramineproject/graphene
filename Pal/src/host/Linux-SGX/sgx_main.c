@@ -1,6 +1,8 @@
 #include <pal_linux.h>
 #include <pal_linux_error.h>
 #include <pal_rtld.h>
+#include <hex.h>
+
 #include "sgx_internal.h"
 #include "sgx_tls.h"
 #include "sgx_enclave.h"
@@ -12,6 +14,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <asm/errno.h>
+#include <ctype.h>
 
 #include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
@@ -53,18 +56,12 @@ static unsigned long parse_int (const char * str)
     }
 
     while ((c = *(str++))) {
-        int val;
-        if (c >= 'A' && c <= 'F')
-            val = c - 'A' + 10;
-        else if (c >= 'a' && c <= 'f')
-            val = c - 'a' + 10;
-        else if (c >= '0' && c <= '9')
-            val = c - '0';
-        else
+        int8_t val = hex2dec(c);
+        if (val < 0)
             break;
-        if (val >= radix)
+        if ((uint8_t) val >= radix)
             break;
-        num = num * radix + val;
+        num = num * radix + (uint8_t) val;
     }
 
     if (c == 'G' || c == 'g')
@@ -652,10 +649,9 @@ void getrand (void * buffer, size_t size)
 
 static void create_instance (struct pal_sec * pal_sec)
 {
-    unsigned int id;
+    PAL_NUM id;
     getrand(&id, sizeof(id));
-    snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix),
-             "/graphene/%x/", id);
+    snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix), "/graphene/%016lx/", id);
     pal_sec->instance_id = id;
 }
 
@@ -935,6 +931,10 @@ static int load_enclave (struct pal_enclave * enclave,
     }
 
     ret = sgx_signal_setup();
+    if (ret < 0)
+        return ret;
+
+    ret = init_aesm_targetinfo(&pal_sec->aesm_targetinfo);
     if (ret < 0)
         return ret;
 

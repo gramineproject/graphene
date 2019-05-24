@@ -33,9 +33,17 @@ ifeq ($(WERROR),1)
 CFLAGS += -Werror
 endif
 
+# To enable tests for remote attestation, please provide RA_CLIENT_SPID and RA_CLIENT_KEY
+# in the environment variables.
+# To obtain a SPID, register in the Intel API portal:
+# https://api.portal.trustedservices.intel.com/EPID-attestation
+
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath ../../Runtime/pal_loader):g' \
 	-e 's:\$$(PWD):$(shell pwd)/:g' \
+	-e 's:\$$(RA_CLIENT_SPID):$(RA_CLIENT_SPID):g' \
+	-e 's:\$$(RA_CLIENT_KEY):$(RA_CLIENT_KEY):g' \
+	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
 	$(extra_rules)
 
 manifest: manifest.template

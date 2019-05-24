@@ -27,5 +27,6 @@ void free(void *);
 
 #define mbedtls_calloc calloc
 #define mbedtls_free free
-
+#define mbedtls_snprintf snprintf
+#define mbedtls_platform_zeroize(buf, len) do { memset((buf), 0, (len)); } while (0)
 #endif

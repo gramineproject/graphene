@@ -88,12 +88,25 @@ uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr
     return usize;
 }
 
+static void print_report(sgx_arch_report_t* r) {
+    SGX_DBG(DBG_S, "  cpusvn:     %08lx %08lx\n", r->body.cpusvn[0], r->body.cpusvn[1]);
+    SGX_DBG(DBG_S, "  mrenclave:  %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrenclave));
+    SGX_DBG(DBG_S, "  mrsigner:   %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrsigner));
+    SGX_DBG(DBG_S, "  attr.flags: %016lx\n",    r->body.attributes.flags);
+    SGX_DBG(DBG_S, "  attr.xfrm:  %016lx\n",    r->body.attributes.xfrm);
+    SGX_DBG(DBG_S, "  isvprodid:  %02x\n",      r->body.isvprodid);
+    SGX_DBG(DBG_S, "  isvsvn:     %02x\n",      r->body.isvsvn);
+    SGX_DBG(DBG_S, "  reportdata: %s\n",        ALLOCA_BYTES2HEXSTR(r->body.report_data));
+    SGX_DBG(DBG_S, "  keyid:      %s\n",        ALLOCA_BYTES2HEXSTR(r->keyid));
+    SGX_DBG(DBG_S, "  mac:        %s\n",        ALLOCA_BYTES2HEXSTR(r->mac));
+}
+
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
                     void * enclave_data,
                     sgx_arch_report_t * report)
 {
-    sgx_arch_targetinfo_t targetinfo;
+    sgx_arch_targetinfo_t targetinfo __sgx_mem_aligned;
 
     memset(&targetinfo, 0, sizeof(sgx_arch_targetinfo_t));
     memcpy(targetinfo.mrenclave, mrenclave, sizeof(sgx_arch_hash_t));
@@ -107,47 +120,56 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     if (ret)
         return -PAL_ERROR_INVAL;
 
-    SGX_DBG(DBG_S, "Generated report:\n");
-    SGX_DBG(DBG_S, "    cpusvn:           %08lx %08lx\n", report->cpusvn[0],
-                                                report->cpusvn[1]);
-    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        ALLOCA_BYTES2HEXSTR(report->mrenclave));
-    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        ALLOCA_BYTES2HEXSTR(report->mrsigner));
-    SGX_DBG(DBG_S, "    attributes.flags: %016lx\n",    report->attributes.flags);
-    SGX_DBG(DBG_S, "    sttributes.xfrm:  %016lx\n",    report->attributes.xfrm);
-
-    SGX_DBG(DBG_S, "    isvprodid:        %02x\n",      report->isvprodid);
-    SGX_DBG(DBG_S, "    isvsvn:           %02x\n",      report->isvsvn);
-    SGX_DBG(DBG_S, "    keyid:            %s\n",        ALLOCA_BYTES2HEXSTR(report->keyid));
-    SGX_DBG(DBG_S, "    mac:              %s\n",        ALLOCA_BYTES2HEXSTR(report->mac));
-
+    print_report(report);
     return 0;
 }
 
 static sgx_arch_key128_t enclave_key;
 
-#define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
 int sgx_verify_report (sgx_arch_report_t * report)
 {
-    sgx_arch_keyrequest_t keyrequest;
+    sgx_arch_keyrequest_t keyrequest __sgx_mem_aligned;
     memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
     keyrequest.keyname = REPORT_KEY;
     memcpy(keyrequest.keyid, report->keyid, sizeof(keyrequest.keyid));
 
-    int ret = sgx_getkey(&keyrequest, &enclave_key);
+    sgx_arch_key128_t report_key __attribute__((aligned(sizeof(sgx_arch_key128_t))));
+    int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
         SGX_DBG(DBG_S, "Can't get report key\n");
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n",
-            ALLOCA_BYTES2HEXSTR(enclave_key));
+    SGX_DBG(DBG_S, "Get report key for verification: %s\n", ALLOCA_BYTES2HEXSTR(report_key));
+
+    sgx_arch_mac_t check_mac;
+    memset(&check_mac, 0, sizeof(sgx_arch_mac_t));
+
+    // Generating the MAC with AES-CMAC using the report key. Only hash the part of the report
+    // BEFORE the keyid field (hence the offsetof(...) trick). ENCLU[EREPORT] does not include
+    // the MAC and the keyid fields when generating the MAC.
+    lib_AESCMAC((uint8_t*)&report_key, sizeof(report_key),
+                (uint8_t*)report, offsetof(sgx_arch_report_t, keyid),
+                (uint8_t*)&check_mac, sizeof(sgx_arch_mac_t));
+
+    // Clear the report key for security
+    memset(&report_key, 0, sizeof(sgx_arch_key128_t));
+
+    SGX_DBG(DBG_S, "Verify report:\n");
+    print_report(report);
+    SGX_DBG(DBG_S, "  verify:     %s\n", ALLOCA_BYTES2HEXSTR(check_mac));
+
+    if (memcmp(&check_mac, &report->mac, sizeof(check_mac))) {
+        SGX_DBG(DBG_S, "Local attestation verification failed\n");
+        return -PAL_ERROR_DENIED;
+    }
 
     return 0;
 }
 
 int init_enclave_key (void)
 {
-    sgx_arch_keyrequest_t keyrequest;
+    sgx_arch_keyrequest_t keyrequest __sgx_mem_aligned;
     memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
     keyrequest.keyname = SEAL_KEY;
 
@@ -933,17 +955,17 @@ int init_enclave (void)
 
     // Since this report is only read by ourselves we can
     // leave targetinfo zeroed.
-    sgx_arch_targetinfo_t targetinfo = {0};
+    sgx_arch_targetinfo_t targetinfo __sgx_mem_aligned = {0};
     struct pal_enclave_state reportdata = {0};
-    sgx_arch_report_t report;
+    sgx_arch_report_t report __sgx_mem_aligned;
 
     int ret = sgx_report(&targetinfo, &reportdata, &report);
     if (ret)
         return -PAL_ERROR_INVAL;
 
-    memcpy(pal_sec.mrenclave, report.mrenclave, sizeof(pal_sec.mrenclave));
-    memcpy(pal_sec.mrsigner, report.mrsigner, sizeof(pal_sec.mrsigner));
-    pal_sec.enclave_attributes = report.attributes;
+    memcpy(pal_sec.mrenclave, report.body.mrenclave, sizeof(pal_sec.mrenclave));
+    memcpy(pal_sec.mrsigner,  report.body.mrsigner,  sizeof(pal_sec.mrsigner));
+    pal_sec.enclave_attributes = report.body.attributes;
 
 #if 0
     /*
@@ -1111,7 +1133,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave, &att.report.report_data,
+    ret = check_mrenclave(&att.report.body.mrenclave, &att.report.body.report_data,
                           check_param);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);
@@ -1127,12 +1149,14 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
 
     SGX_DBG(DBG_S, "Remote attestation succeed!\n");
 
-    ret = sgx_get_report(&att.mrenclave, &att.attributes, data, &att.report);
+    sgx_arch_report_t report __sgx_mem_aligned;
+    ret = sgx_get_report(&att.mrenclave, &att.attributes, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: sgx_get_report failed: %d\n", ret);
         goto out;
     }
 
+    memcpy(&att.report, &report, sizeof(sgx_arch_report_t));
     memcpy(att.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
     memcpy(&att.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
@@ -1178,12 +1202,14 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     SGX_DBG(DBG_S, "Received attestation request ... (mrenclave = %s)\n",
             ALLOCA_BYTES2HEXSTR(req.mrenclave));
 
-    ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &att.report);
+    sgx_arch_report_t report __sgx_mem_aligned;
+    ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Respond: sgx_get_report failed: %d\n", ret);
         goto out;
     }
 
+    memcpy(&att.report, &report, sizeof(sgx_arch_report_t));
     memcpy(att.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
     memcpy(&att.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
@@ -1223,7 +1249,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave, &att.report.report_data,
+    ret = check_mrenclave(&att.report.body.mrenclave, &att.report.body.report_data,
                           check_param);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);
