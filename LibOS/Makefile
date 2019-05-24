@@ -47,7 +47,7 @@ GLIBC_ADDED_FILES = \
         $(GLIBC_SRC)/libos/benchmark.c \
         $(GLIBC_SRC)/libos/checkpoint.c \
         $(GLIBC_SRC)/libos/msgpersist.c \
-        $(GLIBC_SRC)/libos/sandbox.c \
+        $(GLIBC_SRC)/libos/sandbox.c
 
 $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile $(GLIBC_ADDED_FILES)
 	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
