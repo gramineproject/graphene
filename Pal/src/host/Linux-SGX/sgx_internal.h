@@ -27,6 +27,7 @@
 #include "pal_linux.h"
 #include "pal_security.h"
 #include "api.h"
+#include "sgx_arch.h"
 
 #include "sysdep-x86_64.h"
 #include <sys/syscall.h>
@@ -71,6 +72,8 @@ struct pal_enclave {
     int exec;
     int sigfile;
     int token;
+    const char* ra_cert;
+    const char* ra_pkey;
 
     /* manifest */
     struct config_store * config;
@@ -97,6 +100,10 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                          enum sgx_page_type type, int prot,
                          bool skip_eextend,
                          const char * comment);
+
+int init_quote(sgx_arch_targetinfo_t* aesm_targetinfo);
+int get_quote(const sgx_spid_t* spid, bool linkable, const sgx_arch_report_t* report,
+              const sgx_quote_nonce_t* nonce, sgx_arch_report_t* qe_report, sgx_quote_t* quote);
 
 int init_enclave(sgx_arch_secs_t * secs,
                  sgx_arch_sigstruct_t * sigstruct,

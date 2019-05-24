@@ -2,8 +2,11 @@
  * This is for enclave to make ocalls to untrusted runtime.
  */
 
+#include <stdbool.h>
+#include <stddef.h>
 #include "linux_types.h"
 #include "pal.h"
+#include "sgx_arch.h"
 
 /*
  * GCC's structure padding may cause leaking from uninialized
@@ -53,6 +56,7 @@ enum {
     OCALL_RENAME,
     OCALL_DELETE,
     OCALL_LOAD_DEBUG,
+    OCALL_GET_QUOTE,
     OCALL_NR,
 };
 
@@ -261,5 +265,13 @@ typedef struct {
 typedef struct {
     unsigned int ms_tid;
 } ms_ocall_schedule_t;
+
+typedef struct {
+    sgx_spid_t        ms_spid;
+    bool              ms_linkable;
+    sgx_arch_report_t ms_report;
+    sgx_quote_nonce_t ms_nonce;
+    sgx_quote_t       ms_quote;
+} ms_ocall_get_quote_t;
 
 #pragma pack(pop)

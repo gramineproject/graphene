@@ -1,11 +1,20 @@
 #include <pal_linux.h>
 #include <pal_rtld.h>
+#include <hex.h>
+
 #include "sgx_internal.h"
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
 #include "graphene-sgx.h"
+#include "quote/aesm.pb-c.h"
 
 #include <asm/errno.h>
+#include <linux/fs.h>
+#include <linux/un.h>
+
+#ifndef PF_UNIX
+# define PF_UNIX 1
+#endif
 
 int gsgx_device = -1;
 int isgx_device = -1;
@@ -375,6 +384,314 @@ int init_enclave(sgx_arch_secs_t * secs,
     }
 
     return 0;
+}
+
+static int connect_aesm_service(void) {
+
+    int ret, sock = INLINE_SYSCALL(socket, 3, PF_UNIX, SOCK_STREAM, 0);
+    if (IS_ERR(sock))
+        return -ERRNO(sock);
+
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    (void) strcpy_static(addr.sun_path, "\0sgx_aesm_socket_base", sizeof(addr.sun_path));
+
+    ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
+    if (!IS_ERR(ret))
+        goto success;
+    if (ERRNO(ret) != ECONNREFUSED)
+        goto err;
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    (void) strcpy_static(addr.sun_path, "/var/run/aesmd/aesm.socket", sizeof(addr.sun_path));
+
+    ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
+    if (IS_ERR(ret))
+        goto err;
+
+success:
+    return sock;
+err:
+    INLINE_SYSCALL(close, 1, sock);
+    return -ERRNO(ret);
+}
+
+static int request_aesm_service(Request* req, Response** res) {
+
+    int aesm_socket = connect_aesm_service();
+    if (aesm_socket < 0)
+        return aesm_socket;
+
+    uint32_t req_len = (uint32_t) request__get_packed_size(req);
+    uint8_t* req_buf = __alloca(req_len);
+    request__pack(req, req_buf);
+
+    int ret = INLINE_SYSCALL(write, 3, aesm_socket, &req_len, sizeof(req_len));
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
+
+    ret = INLINE_SYSCALL(write, 3, aesm_socket, req_buf, req_len);
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
+
+    uint32_t res_len;
+    ret = INLINE_SYSCALL(read, 3, aesm_socket, &res_len, sizeof(res_len));
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
+
+    uint8_t* res_buf = __alloca(res_len);
+    ret = INLINE_SYSCALL(read, 3, aesm_socket, res_buf, res_len);
+    if (IS_ERR(ret))
+        return -ERRNO(ret);
+
+    *res = response__unpack(NULL, res_len, res_buf);
+    return *res == NULL ? -EINVAL : 0;
+}
+
+int init_quote(sgx_arch_targetinfo_t* aesm_targetinfo) {
+
+    Request req = REQUEST__INIT;
+    Request__InitQuoteRequest initreq = REQUEST__INIT_QUOTE_REQUEST__INIT;
+    req.initquotereq = &initreq;
+
+    Response* res = NULL;
+    int ret = request_aesm_service(&req, &res);
+    if (ret < 0)
+        return ret;
+
+    if (!res->initquoteres) {
+        SGX_DBG(DBG_E, "aesm_service returns wrong message\n");
+        goto failed;
+    }
+
+    Response__InitQuoteResponse* r = res->initquoteres;
+    if (r->errorcode != 0) {
+        SGX_DBG(DBG_E, "aesm_service returns error: %d\n", r->errorcode);
+        goto failed;
+    }
+
+    assert(r->targetinfo.len == sizeof(*aesm_targetinfo));
+    memcpy(aesm_targetinfo, r->targetinfo.data, sizeof(*aesm_targetinfo));
+    response__free_unpacked(res, NULL);
+    return 0;
+
+failed:
+    response__free_unpacked(res, NULL);
+    return -EPERM;
+}
+
+#define IAS_TEST_REPORT_URL \
+    "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/report"
+
+int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote) {
+
+    int ret = 0;
+    char* quote_str = base64_encode((uint8_t*)quote, sizeof(sgx_quote_t) + quote->sig_len, NULL);
+    char* nonce_str = __bytes2hexstr((void *) nonce, sizeof(sgx_quote_nonce_t),
+                      malloc(sizeof(sgx_quote_nonce_t) * 2 + 1), sizeof(sgx_quote_nonce_t) * 2 + 1);
+
+    char body_path[URI_MAX], resp_path[URI_MAX], head_path[URI_MAX];
+    const char* temp_dir = (const char *) current_enclave->pal_sec.temp_dir;
+    char* head = NULL;
+    char* resp = NULL;
+    snprintf(body_path, URI_MAX, "@%sias-body",  temp_dir);
+    snprintf(resp_path, URI_MAX, "%sias-resp",   temp_dir);
+    snprintf(head_path, URI_MAX, "%sias-header", temp_dir);
+
+    int body_file = INLINE_SYSCALL(open, 3, body_path + 1, O_WRONLY|O_CREAT|O_TRUNC, 0600);
+    if (IS_ERR(body_file))
+        goto failed;
+
+    const char* body_lines[5] = {
+        "{\"isvEnclaveQuote\":\"",
+        quote_str,
+        "\",\"nonce\":\"",
+        nonce_str,
+        "\"}"
+    };
+
+    for (size_t i = 0; i < 5; i++)
+        INLINE_SYSCALL(write, 3, body_file, body_lines[i], strlen(body_lines[i]));
+
+    INLINE_SYSCALL(close, 1, body_file);
+
+    if (!current_enclave->ra_cert ||
+        !current_enclave->ra_pkey) {
+        SGX_DBG(DBG_E, "Need both certificate and private key for contacting IAS\n");
+        goto failed;
+    }
+
+    const char* https_client_args[] = {
+            "/usr/bin/curl", "-s", "--tlsv1.2", "-X", "POST", "-H", "Accept: application/json",
+            "--cert", current_enclave->ra_cert,
+            "--key",  current_enclave->ra_pkey,
+            "--data", body_path, "-o", resp_path, "-D", head_path,
+            IAS_TEST_REPORT_URL, NULL,
+        };
+
+    ret = ARCH_VFORK();
+    if (IS_ERR(ret))
+        goto failed;
+
+    if (!ret) {
+        extern char** environ;
+        INLINE_SYSCALL(execve, 3, https_client_args[0], https_client_args, environ);
+
+        /* shouldn't get to here */
+        SGX_DBG(DBG_E, "unexpected failure of new process\n");
+        __asm__ volatile ("hlt");
+        return 0;
+    }
+
+    int status;
+    INLINE_SYSCALL(wait4, 4, ret, &status, 0, NULL);
+
+    // Reading response
+    int resp_file = INLINE_SYSCALL(open, 2, resp_path, O_RDONLY);
+    if (IS_ERR(resp_file))
+        goto failed;
+
+    size_t resp_size = INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_END);
+    resp = malloc(resp_size + 1);
+    INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_SET);
+    ret = INLINE_SYSCALL(read, 3, resp_file, resp, resp_size);
+    if (IS_ERR(ret) || (size_t) ret < resp_size)
+        goto failed;
+    resp[resp_size] = '\0';
+
+    // Reading headers
+    int head_file = INLINE_SYSCALL(open, 2, head_path, O_RDONLY);
+    if (IS_ERR(head_file))
+        goto failed;
+
+    size_t head_size = INLINE_SYSCALL(lseek, 3, head_file, 0, SEEK_END);
+    head = malloc(head_size + 1);
+    INLINE_SYSCALL(lseek, 3, head_file, 0, SEEK_SET);
+    ret = INLINE_SYSCALL(read, 3, head_file, head, head_size);
+    if (IS_ERR(ret) || (size_t) ret < head_size)
+        goto failed;
+    head[head_size] = '\0';
+
+    size_t   ias_sig_len = 0;
+    uint8_t* ias_sig     = NULL;
+    char*    ias_cert    = NULL;
+    char*    start       = head;
+    char*    end         = strchr(head, '\n');
+    while (end) {
+        if (strpartcmp_static(start, "x-iasreport-signature: ")) {
+            start += static_strlen("x-iasreport-signature: ");
+            ias_sig = base64_decode(start, end - start, &ias_sig_len);
+        } else if (strpartcmp_static(start, "x-iasreport-signing-certificate: ")) {
+            start += static_strlen("x-iasreport-signing-certificate: ");
+            size_t len = end - start;
+            char* p = ias_cert = malloc(len + 1);
+            for (size_t i = 0; i < len; i++) {
+                if (start[i] == '%') {
+                    int8_t hex1 = hex2dec(start[i + 1]), hex2 = hex2dec(start[i + 2]);
+                    if (hex1 < 0 || hex2 < 0)
+                        goto failed;
+                    *(p++) = hex1 * 16 + hex2;
+                    i += 2;
+                } else {
+                    *(p++) = start[i];
+                }
+            }
+            *p = '\0';
+        }
+
+        start = end + 1;
+        end   = strchr(start, '\n');
+    }
+
+    if (!ias_sig_len || !ias_sig || !ias_cert) {
+        SGX_DBG(DBG_E, "IAS return invalid headers\n");
+        goto failed;
+    }
+
+    SGX_DBG(DBG_S, "IAS response:   %s\n",  resp);
+    SGX_DBG(DBG_S, "IAS signature:  %ld\n", ias_sig_len);
+    SGX_DBG(DBG_S, "IAS cert:       %s\n",  ias_cert);
+
+    ret = 0;
+done:
+    if (head) free(head);
+    if (resp) free(resp);
+    INLINE_SYSCALL(unlink, 1, body_path + 1);
+    INLINE_SYSCALL(unlink, 1, resp_path);
+    INLINE_SYSCALL(unlink, 1, head_path);
+    free(quote_str);
+    free(nonce_str);
+    return ret;
+failed:
+    ret = -PAL_ERROR_DENIED;
+    goto done;
+}
+
+enum {
+    SGX_UNLINKABLE_SIGNATURE,
+    SGX_LINKABLE_SIGNATURE
+};
+
+#define SGX_QUOTE_MAX_SIZE   (2048)
+
+int get_quote(const sgx_spid_t* spid, bool linkable, const sgx_arch_report_t* report,
+              const sgx_quote_nonce_t* nonce, sgx_arch_report_t* qe_report, sgx_quote_t* quote) {
+
+    int ret = connect_aesm_service();
+    if (ret < 0)
+        return ret;
+
+    Request req = REQUEST__INIT;
+    Request__GetQuoteRequest getreq = REQUEST__GET_QUOTE_REQUEST__INIT;
+    getreq.report.data   = (uint8_t*) report;
+    getreq.report.len    = SGX_REPORT_ACTUAL_SIZE;
+    getreq.quote_type    = linkable ? SGX_LINKABLE_SIGNATURE : SGX_UNLINKABLE_SIGNATURE;
+    getreq.spid.data     = (uint8_t*) spid;
+    getreq.spid.len      = sizeof(*spid);
+    getreq.has_nonce     = true;
+    getreq.nonce.data    = (uint8_t*) nonce;
+    getreq.nonce.len     = sizeof(*nonce);
+    getreq.buf_size      = SGX_QUOTE_MAX_SIZE;
+    getreq.has_qe_report = true;
+    getreq.qe_report     = true;
+    req.getquotereq      = &getreq;
+
+    Response* res = NULL;
+    ret = request_aesm_service(&req, &res);
+    if (ret < 0)
+        return ret;
+
+    if (!res->getquoteres) {
+        SGX_DBG(DBG_E, "aesm_service returns wrong message\n");
+        goto failed;
+    }
+
+    Response__GetQuoteResponse* r = res->getquoteres;
+    if (r->errorcode != 0) {
+        SGX_DBG(DBG_E, "aesm_service returns error: %d\n", r->errorcode);
+        goto failed;
+    }
+
+    if (!r->has_quote     || r->quote.len < sizeof(sgx_quote_t) ||
+        !r->has_qe_report || r->qe_report.len != SGX_REPORT_ACTUAL_SIZE) {
+        SGX_DBG(DBG_E, "aesm_service returns invalid quote or report\n");
+        goto failed;
+    }
+
+    ret = contact_intel_attest_service(nonce, (sgx_quote_t *) r->quote.data);
+    if (ret < 0)
+        goto failed;
+
+    memcpy(quote, r->quote.data, sizeof(sgx_quote_t));
+    memcpy(qe_report, r->qe_report.data, sizeof(sgx_arch_report_t));
+    response__free_unpacked(res, NULL);
+    return 0;
+
+failed:
+    response__free_unpacked(res, NULL);
+    return -PAL_ERROR_DENIED;
 }
 
 int destroy_enclave(void * base_addr, size_t length)

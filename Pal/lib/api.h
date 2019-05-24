@@ -164,6 +164,9 @@ uint16_t __ntohs (uint16_t x);
 
 extern const char * const * sys_errlist_internal;
 
+char* base64_encode(const uint8_t* src, size_t len, size_t* out_len);
+uint8_t* base64_decode(const char *src, size_t len, size_t* out_len);
+
 /* Graphene functions */
 
 int get_norm_path (const char * path, char * buf, int offset, int size);
