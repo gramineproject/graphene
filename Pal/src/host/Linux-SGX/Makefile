@@ -11,7 +11,8 @@ enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 		 exception misc ipc spinlock) \
 	       $(addprefix enclave_,ocalls ecalls framework pages untrusted)
 enclave-asm-objs = enclave_entry
-urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene)
+urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene) \
+	    quote/aesm.pb-c
 urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
@@ -84,7 +85,7 @@ $(addsuffix .o,$(urts-asm-objs)): %.o: %.S $(headers)
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) -pie $^ -lc -pthread -o $@
+	@$(CC) $(CFLAGS) -pie $^ -lc -pthread -lprotobuf-c -o $@
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]

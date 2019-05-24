@@ -31,6 +31,7 @@ struct pal_sec {
     PAL_IDX         ppid, pid, uid, gid;
 
     /* enclave information */
+    sgx_arch_targetinfo_t   aesm_targetinfo;
     sgx_arch_hash_t         mrenclave;
     sgx_arch_hash_t         mrsigner;
     sgx_arch_attributes_t   enclave_attributes;
@@ -49,6 +50,7 @@ struct pal_sec {
     PAL_IDX         proc_fds[3];
 
     /* additional information */
+    PAL_SEC_STR     temp_dir;
     PAL_SEC_STR     pipe_prefix;
     PAL_IDX         mcast_port, mcast_srv, mcast_cli;
 

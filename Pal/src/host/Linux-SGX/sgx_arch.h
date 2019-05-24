@@ -228,11 +228,36 @@ typedef struct {
     uint16_t isvprodid, isvsvn;
     uint8_t  reserved4[60];
     uint8_t  report_data[64];
+} __attribute__((packed)) sgx_arch_report_body_t;
+
+typedef struct {
+    sgx_arch_report_body_t body;
     uint8_t  keyid[32];
     sgx_arch_mac_t mac;
 } __attribute__((packed, aligned(512))) sgx_arch_report_t;
 
 #define SGX_REPORT_SIGNED_SIZE  384
+#define SGX_REPORT_ACTUAL_SIZE  432
+
+typedef struct {
+    uint16_t version;
+    uint16_t sigtype;
+    uint32_t gid;
+    uint16_t isvsvn_qe;
+    uint16_t isvsvn_pce;
+    uint8_t  reserved[4];
+    uint8_t  base[32];
+} __attribute__((packed)) sgx_quote_body_t;
+
+typedef struct {
+    sgx_quote_body_t       body;
+    sgx_arch_report_body_t report_body;
+    uint32_t               sig_len;
+    uint8_t                sig[];
+} __attribute__((packed)) sgx_quote_t;
+
+typedef uint8_t sgx_spid_t[16];
+typedef uint8_t sgx_quote_nonce_t[16];
 
 typedef struct {
     sgx_arch_hash_t mrenclave;

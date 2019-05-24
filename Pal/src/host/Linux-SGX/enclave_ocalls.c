@@ -1108,3 +1108,40 @@ int ocall_load_debug(const char * command)
     sgx_reset_ustack();
     return retval;
 }
+
+int ocall_get_quote (const sgx_spid_t* spid, bool linkable, const sgx_arch_report_t* report,
+                     const sgx_quote_nonce_t* nonce, sgx_arch_report_t* qe_report,
+                     sgx_quote_t* quote) {
+
+    ms_ocall_get_quote_t * ms;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        sgx_reset_ustack();
+        return -EPERM;
+    }
+
+    memcpy(&ms->ms_spid,   spid,   sizeof(sgx_spid_t));
+    memcpy(&ms->ms_report, report, sizeof(sgx_arch_report_t));
+    memcpy(&ms->ms_nonce,  nonce,  sizeof(sgx_quote_nonce_t));
+    ms->ms_linkable = linkable;
+
+    int retval = sgx_ocall(OCALL_GET_QUOTE, ms);
+
+    if (retval >= 0) {
+        if (!sgx_copy_to_enclave(qe_report, sizeof(sgx_arch_report_t),
+                                 &ms->ms_report, sizeof(sgx_arch_report_t))) {
+            sgx_reset_ustack();
+            return -EPERM;
+        }
+
+        if (!sgx_copy_to_enclave(quote, sizeof(sgx_quote_t),
+                                 &ms->ms_quote, sizeof(sgx_quote_t))) {
+            sgx_reset_ustack();
+            return -EPERM;
+        }
+    }
+
+    sgx_reset_ustack();
+    return retval;
+}
