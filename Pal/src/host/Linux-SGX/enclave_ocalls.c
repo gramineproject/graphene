@@ -1102,3 +1102,103 @@ int ocall_load_debug(const char * command)
     sgx_reset_ustack();
     return retval;
 }
+
+/*
+ * ocall_get_attestation() triggers remote attestation in untrusted PAL (see sgx_platform.c:
+ * retrieve_verified_quote()). If the OCall returns successfully, the function returns
+ * attestation data required for platform verification (i.e., sgx_attestation_t). Except the
+ * QE report, most data fields of the attestation need to be copied into the enclave.
+ *
+ * @spid:        The client SPID registered with the IAS.
+ * @subkey:      SPID subscription key.
+ * @linkable:    Whether the SPID is linkable.
+ * @report:      Local attestation report for the quoting enclave.
+ * @nonce:       Randomly-generated nonce for freshness.
+ * @attestation: Returns the attestation data (QE report, quote, IAS report, signature,
+ *               and certificate chain).
+ */
+int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool linkable,
+                           const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                           sgx_attestation_t* attestation) {
+
+    ms_ocall_get_attestation_t * ms;
+    int retval = -EPERM;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms)
+        goto reset;
+
+    memcpy(&ms->ms_spid,   spid,   sizeof(sgx_spid_t));
+    ms->ms_subkey = sgx_copy_to_ustack(subkey, strlen(subkey) + 1);
+    memcpy(&ms->ms_report, report, sizeof(sgx_arch_report_t));
+    memcpy(&ms->ms_nonce,  nonce,  sizeof(sgx_quote_nonce_t));
+    ms->ms_linkable = linkable;
+
+    retval = sgx_ocall(OCALL_GET_ATTESTATION, ms);
+
+    if (retval >= 0) {
+        // First, try to copy the whole ms->ms_attestation inside
+        if (!sgx_copy_to_enclave(attestation, sizeof(sgx_attestation_t), &ms->ms_attestation,
+                                 sizeof(sgx_attestation_t))) {
+            retval = -EACCES;
+            goto reset;
+        }
+
+        // For calling ocall_unmap_untrusted, need to reset the untrusted stack
+        sgx_reset_ustack();
+
+        // Copy each field inside and free the untrusted buffers
+        if (attestation->quote) {
+            size_t len = attestation->quote_len;
+            sgx_quote_t* quote = malloc(len);
+            if (!sgx_copy_to_enclave(quote, len, attestation->quote, len))
+                retval = -EACCES;
+            ocall_unmap_untrusted(attestation->quote, ALLOC_ALIGNUP(len));
+            attestation->quote = quote;
+        }
+
+        if (attestation->ias_report) {
+            size_t len = attestation->ias_report_len;
+            char* ias_report = malloc(len + 1);
+            if (!sgx_copy_to_enclave(ias_report, len, attestation->ias_report, len))
+                retval = -EACCES;
+            ocall_unmap_untrusted(attestation->ias_report, ALLOC_ALIGNUP(len));
+            ias_report[len] = 0; // Ensure null-ending
+            attestation->ias_report = ias_report;
+        }
+
+        if (attestation->ias_sig) {
+            size_t len = attestation->ias_sig_len;
+            uint8_t* ias_sig = malloc(len);
+            if (!sgx_copy_to_enclave(ias_sig, len, attestation->ias_sig, len))
+                retval = -EACCES;
+            ocall_unmap_untrusted(attestation->ias_sig, ALLOC_ALIGNUP(len));
+            attestation->ias_sig = ias_sig;
+        }
+
+        if (attestation->ias_certs) {
+            size_t len = attestation->ias_certs_len;
+            char* ias_certs = malloc(len + 1);
+            if (!sgx_copy_to_enclave(ias_certs, len, attestation->ias_certs, len))
+                retval = -EACCES;
+            ocall_unmap_untrusted(attestation->ias_certs, ALLOC_ALIGNUP(len));
+            ias_certs[len] = 0; // Ensure null-ending
+            attestation->ias_certs = ias_certs;
+        }
+
+        // At this point, no field should point to outside the enclave
+        if (retval < 0) {
+            if (attestation->quote)      free(attestation->quote);
+            if (attestation->ias_report) free(attestation->ias_report);
+            if (attestation->ias_sig)    free(attestation->ias_sig);
+            if (attestation->ias_certs)  free(attestation->ias_certs);
+        }
+
+        goto out;
+    }
+
+reset:
+    sgx_reset_ustack();
+out:
+    return retval;
+}

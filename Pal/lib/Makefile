@@ -46,6 +46,7 @@ ifeq ($(CRYPTO_PROVIDER),mbedtls)
 CFLAGS += -DCRYPTO_USE_MBEDTLS
 objs += crypto/adapters/mbedtls_adapter.o
 objs += crypto/adapters/mbedtls_dh.o
+objs += crypto/adapters/mbedtls_encoding.o
 endif
 ifeq ($(CRYPTO_PROVIDER),wolfssl)
 CFLAGS += -DCRYPTO_USE_WOLFSSL

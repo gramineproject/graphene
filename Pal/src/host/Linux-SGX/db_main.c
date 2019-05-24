@@ -80,10 +80,10 @@ PAL_NUM _DkGetHostId (void)
 void setup_pal_map (struct link_map * map);
 static struct link_map pal_map;
 
-void init_untrusted_slab_mgr ();
-int init_enclave (void);
-int init_enclave_key (void);
-int init_child_process (PAL_HANDLE * parent_handle);
+void init_untrusted_slab_mgr(void);
+int init_enclave(void);
+int init_enclave_key(void);
+int init_child_process(PAL_HANDLE* parent_handle);
 
 /*
  * Creates a dummy file handle with the given name.
@@ -262,6 +262,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     COPY_ARRAY(pal_sec.proc_fds, sec_info.proc_fds);
     COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
+    pal_sec.aesm_targetinfo = sec_info.aesm_targetinfo;
     pal_sec.mcast_port = sec_info.mcast_port;
     pal_sec.mcast_srv = sec_info.mcast_srv;
     pal_sec.mcast_cli = sec_info.mcast_cli;
@@ -309,6 +310,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     /* now we can add a link map for PAL itself */
     setup_pal_map(&pal_map);
+
+    /* Set the alignment early */
+    pal_state.alloc_align = pagesz;
+    pal_state.alloc_shift = pagesz - 1;
+    pal_state.alloc_mask  = ~pagesz;
 
     /* initialize enclave properties */
     rv = init_enclave();
@@ -385,8 +391,20 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     __pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
     __pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
 
-    init_trusted_files();
-    init_trusted_children();
+    if ((rv = init_trusted_platform()) < 0) {
+        SGX_DBG(DBG_E, "Failed to verify the platform using remote attestation: %d\n", rv);
+        ocall_exit(rv, true);
+    }
+
+    if ((rv = init_trusted_files()) < 0) {
+        SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", rv);
+        ocall_exit(rv, true);
+    }
+
+    if ((rv = init_trusted_children()) < 0) {
+        SGX_DBG(DBG_E, "Failed to load the measurement of trusted child enclaves: %d\n", rv);
+        ocall_exit(rv, true);
+    }
 
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "

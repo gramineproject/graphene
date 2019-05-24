@@ -1,0 +1,10 @@
+# the executable to run
+loader.exec = file:Attestation
+
+# debug type: inline|none
+loader.debug_type = none
+
+sgx.ra_client_spid = $(RA_CLIENT_SPID)
+sgx.ra_client_key  = $(RA_CLIENT_KEY)
+sgx.ra_client_linkable = $(RA_CLIENT_LINKABLE)
+sgx.ra_accept_group_out_of_date = 1

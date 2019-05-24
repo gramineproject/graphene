@@ -36,7 +36,13 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd Pal/regression
-                                make SGX=1
+                                if [ "${ra_client_spid}" != "" ]; then \
+                                    make clean SGX=1; \
+                                    make SGX=1 RA_CLIENT_SPID=${ra_client_spid} \
+                                        RA_CLIENT_KEY=${ra_client_key}; \
+                                else \
+                                    make SGX=1; \
+                                fi
                                 make SGX_RUN=1
                                 make SGX_RUN=1 KEEP_LOG=1 regression
                                 '''
