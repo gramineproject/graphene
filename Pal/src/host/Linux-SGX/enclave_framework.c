@@ -90,6 +90,18 @@ uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr
     return usize;
 }
 
+static void print_report(sgx_arch_report_t* r) {
+    SGX_DBG(DBG_S, "  cpusvn:     %08lx %08lx\n", r->body.cpusvn[0], r->body.cpusvn[1]);
+    SGX_DBG(DBG_S, "  mrenclave:  %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrenclave));
+    SGX_DBG(DBG_S, "  mrsigner:   %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrsigner));
+    SGX_DBG(DBG_S, "  attr.flags: %016lx\n",    r->body.attributes.flags);
+    SGX_DBG(DBG_S, "  sttr.xfrm:  %016lx\n",    r->body.attributes.xfrm);
+    SGX_DBG(DBG_S, "  isvprodid:  %02x\n",      r->body.isvprodid);
+    SGX_DBG(DBG_S, "  isvsvn:     %02x\n",      r->body.isvsvn);
+    SGX_DBG(DBG_S, "  keyid:      %s\n",        ALLOCA_BYTES2HEXSTR(r->keyid));
+    SGX_DBG(DBG_S, "  mac:        %s\n",        ALLOCA_BYTES2HEXSTR(r->mac));
+}
+
 int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     sgx_arch_attributes_t * attributes,
                     void * enclave_data,
@@ -110,18 +122,7 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
         return -PAL_ERROR_DENIED;
 
     SGX_DBG(DBG_S, "Generated report:\n");
-    SGX_DBG(DBG_S, "    cpusvn:           %08lx %08lx\n", report->cpusvn[0],
-                                                report->cpusvn[1]);
-    SGX_DBG(DBG_S, "    mrenclave:        %s\n",        ALLOCA_BYTES2HEXSTR(report->mrenclave));
-    SGX_DBG(DBG_S, "    mrsigner:         %s\n",        ALLOCA_BYTES2HEXSTR(report->mrsigner));
-    SGX_DBG(DBG_S, "    attributes.flags: %016lx\n",    report->attributes.flags);
-    SGX_DBG(DBG_S, "    sttributes.xfrm:  %016lx\n",    report->attributes.xfrm);
-
-    SGX_DBG(DBG_S, "    isvprodid:        %02x\n",      report->isvprodid);
-    SGX_DBG(DBG_S, "    isvsvn:           %02x\n",      report->isvsvn);
-    SGX_DBG(DBG_S, "    keyid:            %s\n",        ALLOCA_BYTES2HEXSTR(report->keyid));
-    SGX_DBG(DBG_S, "    mac:              %s\n",        ALLOCA_BYTES2HEXSTR(report->mac));
-
+    print_report(report);
     return 0;
 }
 
@@ -143,6 +144,73 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
     SGX_DBG(DBG_S, "Get report key for verification: %s\n",
             ALLOCA_BYTES2HEXSTR(enclave_key));
+
+    return 0;
+}
+
+int init_quote(void) {
+    char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
+    ssize_t len = get_config(pal_state.root_config, "sgx.spid", spid_hex, sizeof(spid_hex));
+    if (len < 0)
+        return 0;
+    if (len != sizeof(sgx_spid_t) * 2) {
+        SGX_DBG(DBG_E, "Malformed value for sgx.spid in the manifest: %s\n", spid_hex);
+        return -PAL_ERROR_INVAL;
+    }
+
+    sgx_spid_t spid;
+    memset(&spid, 0, sizeof(spid));
+
+    for (ssize_t i = 0; i < len; i++) {
+        int8_t val = hex2dec(spid_hex[i]);
+        if (val < 0) {
+            SGX_DBG(DBG_E, "Malformed value for sgx.spid in the manifest: %s\n", spid_hex);
+            return -PAL_ERROR_INVAL;
+        }
+        spid[i/2] = spid[i/2] * 16 + (uint8_t) val;
+    }
+
+    char buf[2];
+    len = get_config(pal_state.root_config, "sgx.linkable", buf, sizeof(buf));
+    bool linkable =  (len == 1 && buf[0] == '1');
+
+    sgx_quote_nonce_t nonce;
+     _DkRandomBitsRead(&nonce, sizeof(nonce));
+
+    SGX_DBG(DBG_S, "Request quote:\n");
+    SGX_DBG(DBG_S, "  spid:  %s\n", ALLOCA_BYTES2HEXSTR(spid));
+    SGX_DBG(DBG_S, "  type:  %s\n", linkable ? "linkable" : "unlinkable");
+    SGX_DBG(DBG_S, "  nonce: %s\n", ALLOCA_BYTES2HEXSTR(nonce));
+
+    uint8_t report_data[PAL_ATTESTATION_DATA_SIZE] __attribute__((aligned(128)));
+    memset(report_data, 0, sizeof(report_data));
+
+    sgx_arch_report_t report;
+    int ret = sgx_report(&pal_sec.aesm_targetinfo, &report_data, &report);
+    if (ret) {
+        SGX_DBG(DBG_E, "Fail to get report for attestation\n");
+        return -PAL_ERROR_DENIED;
+    }
+
+    SGX_DBG(DBG_S, "Local report:\n");
+    print_report(&report);
+
+    sgx_arch_report_t qe_report;
+    sgx_quote_t quote;
+    ret = ocall_get_quote(&spid, linkable, &report, &nonce, &qe_report, &quote);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Fail to get quote from aesm service\n");
+        return ret;
+    }
+
+    SGX_DBG(DBG_S, "QE report:\n");
+    print_report(&qe_report);
+
+    ret = sgx_verify_report(&qe_report);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Fail to verify report from aesm service\n");
+        return ret;
+    }
 
     return 0;
 }
@@ -917,9 +985,9 @@ int init_enclave (void)
         SGX_DBG(DBG_E, "failed to get self report: %d\n", ret);
         return -PAL_ERROR_INVAL;
     }
-    memcpy(pal_sec.mrenclave, report.mrenclave, sizeof(pal_sec.mrenclave));
-    memcpy(pal_sec.mrsigner, report.mrsigner, sizeof(pal_sec.mrsigner));
-    pal_sec.enclave_attributes = report.attributes;
+    memcpy(pal_sec.mrenclave, report.body.mrenclave, sizeof(pal_sec.mrenclave));
+    memcpy(pal_sec.mrsigner, report.body.mrsigner, sizeof(pal_sec.mrsigner));
+    pal_sec.enclave_attributes = report.body.attributes;
 
 #if 0
     /*
@@ -1087,7 +1155,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave, &att.report.report_data,
+    ret = check_mrenclave(&att.report.body.mrenclave, &att.report.body.report_data,
                           check_param);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);
@@ -1199,7 +1267,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave, &att.report.report_data,
+    ret = check_mrenclave(&att.report.body.mrenclave, &att.report.body.report_data,
                           check_param);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);

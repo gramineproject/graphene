@@ -51,6 +51,22 @@ char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 #define IS_INDEXABLE(arg) (sizeof((arg)[0]))
 #define IS_ARRAY(arg) (IS_INDEXABLE(arg) > 0 && (((void *) &(arg)) == ((void *) (arg))))
 
+static inline __attribute__((always_inline))
+bool is_hex(char c) {
+    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+}
+
+static inline __attribute__((always_inline))
+int8_t hex2dec(char c) {
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    else if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    else if (c >= '0' && c <= '9')
+        return c - '0';
+    else
+        return -1;
+}
 
 /*
  * BYTES2HEXSTR converts an array into a hexadecimal string and fills into a

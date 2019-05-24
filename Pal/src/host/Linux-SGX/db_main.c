@@ -85,6 +85,7 @@ static struct link_map pal_map;
 void init_untrusted_slab_mgr ();
 int init_enclave (void);
 int init_enclave_key (void);
+int init_quote (void);
 int init_child_process (PAL_HANDLE * parent_handle);
 
 /*
@@ -259,6 +260,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     COPY_ARRAY(pal_sec.proc_fds, sec_info.proc_fds);
     COPY_ARRAY(pal_sec.pipe_prefix, sec_info.pipe_prefix);
+    pal_sec.aesm_targetinfo = sec_info.aesm_targetinfo;
     pal_sec.mcast_port = sec_info.mcast_port;
     pal_sec.mcast_srv = sec_info.mcast_srv;
     pal_sec.mcast_cli = sec_info.mcast_cli;
@@ -378,6 +380,9 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     init_trusted_files();
     init_trusted_children();
+    rv = init_quote();
+    if (rv < 0)
+        return;
 
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "
