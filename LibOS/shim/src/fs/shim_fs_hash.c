@@ -1,6 +1,3 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
 /* Copyright (C) 2014 Stony Brook University
    This file is part of Graphene Library OS.
 
@@ -18,8 +15,6 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
- * shim_fs_hash.c
- *
  * This file contains functions to generate hash values for FS paths.
  */
 
@@ -29,15 +24,15 @@ static HASHTYPE __hash(const char* p, size_t len) {
     HASHTYPE hash = 0;
 
     for (; len >= sizeof(hash); p += sizeof(hash), len -= sizeof(hash)) {
-        hash += *((HASHTYPE*) p);
+        hash += *((HASHTYPE*)p);
         hash *= 9;
     }
 
     if (len) {
         HASHTYPE rest = 0;
         for (; len > 0; p++, len--) {
-            rest  += (HASHTYPE) *p;
             rest <<= 8;
+            rest += (HASHTYPE)*p;
         }
         hash += rest;
         hash *= 9;
@@ -49,17 +44,17 @@ static HASHTYPE __hash(const char* p, size_t len) {
 HASHTYPE hash_path(const char* path, size_t size) {
     HASHTYPE digest = 0;
 
-    const char* name = path;
-    const char* c    = path;
+    const char* elem_start = path;
+    const char* c          = path;
 
-    for (; c < path+size && *c; c++) {
+    for (; c < path + size && *c; c++) {
         if (*c == '/') {
-            digest ^= __hash(name, c - name);
-            name = c + 1;
+            digest ^= __hash(elem_start, c - elem_start);
+            elem_start = c + 1;
         }
     }
 
-    digest ^= __hash(name, c - name);
+    digest ^= __hash(elem_start, c - elem_start);
     return digest;
 }
 
