@@ -433,7 +433,17 @@ static inline int is_pointer (const char * type)
 
 static inline void parse_string_arg (va_list * ap)
 {
-    VPRINTF("\"%s\"", ap);
+    va_list ap_test_arg;
+    va_copy(ap_test_arg, *ap);
+    void* test_arg = va_arg(ap_test_arg, const char*);
+    if (!test_user_string(test_arg)) {
+        VPRINTF("\"%s\"", ap);
+    } else {
+        /* invalid memory region, skip arg */
+        test_arg = va_arg(*ap, const char*);
+        VPRINTF("\"(invalid-addr)\"", ap_test_arg);
+    }
+    va_end(ap_test_arg);
 }
 
 static inline void parse_pointer_arg (va_list * ap)
@@ -732,7 +742,17 @@ static void parse_exec_args (const char * type, va_list * ap)
 
     PUTS("[");
 
-    for (; *args ; args++) {
+    for (; /* no condition*/; args++) {
+        if (test_user_memory(args, sizeof(*args), false)) {
+            PUTS("(invalid-argv)");
+            break;
+        }
+        if (*args == NULL)
+            break;
+        if (test_user_string(*args)) {
+            PUTS("(invalid-addr),");
+            continue;
+        }
         PUTS(*args);
         PUTS(",");
     }
@@ -749,15 +769,23 @@ static void parse_exec_envp (const char * type, va_list * ap)
         return;
     }
 
-    int cnt = 0;
-
     PUTS("[");
 
-    for (; *envp ; envp++)
-        if (cnt++ < 2) {
-            PUTS(*envp);
-            PUTS(",");
+    int cnt = 0;
+    for (; cnt < 2; cnt++, envp++) {
+        if (test_user_memory(envp, sizeof(*envp), false)) {
+            PUTS("(invalid-envp)");
+            break;
         }
+        if (*envp == NULL)
+            break;
+        if (test_user_string(*envp)) {
+            PUTS("(invalid-addr),");
+            continue;
+        }
+        PUTS(*envp);
+        PUTS(",");
+    }
 
     if (cnt > 2)
         PRINTF("(%d more)", cnt);
@@ -830,6 +858,11 @@ static void parse_sigmask (const char * type, va_list * ap)
         return;
     }
 
+    if (test_user_memory(sigset, sizeof(*sigset), false)) {
+        PUTS("(invalid-addr)");
+        return;
+    }
+
     PUTS("[");
 
     for (int signum = 1 ; signum <= sizeof(sigset) * 8 ; signum++)
@@ -870,6 +903,11 @@ static void parse_timespec (const char * type, va_list * ap)
         return;
     }
 
+    if (test_user_memory(tv, sizeof(*tv), false)) {
+        PUTS("(invalid-addr)");
+        return;
+    }
+
     PRINTF("[%ld,%ld]", tv->tv_sec, tv->tv_nsec);
 }
 
@@ -879,6 +917,11 @@ static void parse_sockaddr (const char * type, va_list *ap)
 
     if (!addr) {
         PUTS("NULL");
+        return;
+    }
+
+    if (test_user_memory(addr, sizeof(*addr), false)) {
+        PUTS("(invalid-addr)");
         return;
     }
 
