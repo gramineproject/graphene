@@ -306,6 +306,14 @@ int init_vma (void)
     if (ret < 0)
         return ret;
 
+    /* Keep track of LibOS code itself so nothing overwrites it */
+    ret = __bkeep_preloaded(&__load_address,
+                            ALIGN_UP(&__load_address_end),
+                            PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
+                            "LibOS");
+    if (ret < 0)
+        return ret;
+
     /* Initialize the allocator */
 
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
