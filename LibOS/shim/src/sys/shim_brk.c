@@ -74,6 +74,8 @@ int init_brk_region (void * brk_region)
     }
 
     int flags = MAP_PRIVATE|MAP_ANONYMOUS;
+    bool brk_on_heap = (brk_region == NULL);
+    const int tries = 10;
 
     /*
      * Chia-Che 8/24/2017
@@ -83,24 +85,52 @@ int init_brk_region (void * brk_region)
      * should be within [exec-data-end, exec-data-end + 0x2000000)
      */
     if (brk_region) {
-        while (true) {
-            uint32_t rand;
-            int ret = DkRandomBitsRead(&rand, sizeof(rand));
-            if (ret < 0)
-                return -convert_pal_errno(-ret);
-            rand %= 0x2000000;
-            rand = ALIGN_UP(rand);
+        size_t max_brk = 0;
+        if (PAL_CB(user_address.end) >= PAL_CB(executable_range.end))
+            max_brk = PAL_CB(user_address.end) - PAL_CB(executable_range.end);
 
-            struct shim_vma_val vma;
-            if (lookup_overlap_vma(brk_region + rand, brk_max_size, &vma)
-                == -ENOENT) {
-                brk_region += rand;
-                break;
+        /* Check whether the brk region can potentially be located after exec at all. */
+        if (brk_max_size > max_brk) {
+            /* We can't fit brk after exec, defer to placing it anywhere on the heap.
+             * This is mostly the case for PIE images. */
+            brk_on_heap = true;
+        } else {
+            /* Try to find a place for brk */
+            int try;
+            for (try = tries; try > 0; try--) {
+                uint32_t rand;
+                int ret = DkRandomBitsRead(&rand, sizeof(rand));
+                if (ret < 0)
+                    return -convert_pal_errno(-ret);
+                rand %= 0x2000000;
+                rand = ALIGN_UP(rand);
+
+                if (brk_region + rand + brk_max_size >= PAL_CB(user_address.end))
+                    continue;
+
+                struct shim_vma_val vma;
+                if (lookup_overlap_vma(brk_region + rand, brk_max_size, &vma) == -ENOENT) {
+                    /* Found a place for brk */
+                    brk_region += rand;
+                    brk_on_heap = false;
+                    break;
+                }
             }
 
-            brk_region = vma.addr + vma.length;
+            if (try == 0 || brk_region >= PAL_CB(user_address.end)) {
+                /* Couldn't find a place, defer to heap allocation */
+                brk_on_heap = true;
+            }
         }
+    }
 
+    if (brk_on_heap) {
+        brk_region = bkeep_unmapped_heap(brk_max_size, PROT_READ|PROT_WRITE,
+                                         flags|VMA_UNMAPPED, NULL, 0, "brk");
+        if (!brk_region) {
+            return -ENOMEM;
+        }
+    } else {
         /*
          * Create the bookkeeping before allocating the brk region.
          * The bookkeeping should never fail because we've already confirmed
@@ -109,11 +139,6 @@ int init_brk_region (void * brk_region)
         if (bkeep_mmap(brk_region, brk_max_size, PROT_READ|PROT_WRITE,
                        flags|VMA_UNMAPPED, NULL, 0, "brk") < 0)
             BUG();
-    } else {
-        brk_region = bkeep_unmapped_heap(brk_max_size, PROT_READ|PROT_WRITE,
-                                         flags|VMA_UNMAPPED, NULL, 0, "brk");
-        if (!brk_region)
-            return -ENOMEM;
     }
 
     void * end_brk_region = NULL;
