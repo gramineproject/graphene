@@ -473,6 +473,8 @@ static int __bkeep_mmap (struct shim_vma * prev,
 {
     int ret = 0;
     struct shim_vma * new = __get_new_vma();
+    if (!new)
+        return -ENOMEM;
 
     /* First, remove any overlapping VMAs */
     ret = __bkeep_munmap(&prev, start, end, flags);
