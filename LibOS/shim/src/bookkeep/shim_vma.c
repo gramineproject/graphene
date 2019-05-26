@@ -306,6 +306,14 @@ int init_vma (void)
     if (ret < 0)
         return ret;
 
+    /* Keep track of LibOS code itself so nothing overwrites it */
+    ret = __bkeep_preloaded(&__load_address,
+                            ALIGN_UP(&__load_address_end),
+                            PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,
+                            "LibOS");
+    if (ret < 0)
+        return ret;
+
     /* Initialize the allocator */
 
     if (!(vma_mgr = create_mem_mgr(init_align_up(VMA_MGR_ALLOC)))) {
@@ -1252,33 +1260,38 @@ retry_dump_vmas:
 }
 END_CP_FUNC_NO_RS(all_vmas)
 
+void debug_print_vma (struct shim_vma *vma)
+{
+    const char * type = "", * name = "";
+
+    if (vma->file) {
+        if (!qstrempty(&vma->file->path)) {
+            type = " path=";
+            name = qstrgetstr(&vma->file->path);
+        } else if (!qstrempty(&vma->file->uri)) {
+            type = " uri=";
+            name = qstrgetstr(&vma->file->uri);
+        }
+    }
+
+    SYS_PRINTF("[%p-%p] prot=%08x flags=%08x%s%s offset=%ld%s%s%s%s\n",
+               vma->start, vma->end,
+               vma->prot,
+               vma->flags & ~(VMA_INTERNAL|VMA_UNMAPPED|VMA_TAINTED|VMA_CP),
+               type, name,
+               vma->offset,
+               vma->flags & VMA_INTERNAL ? " (internal)" : "",
+               vma->flags & VMA_UNMAPPED ? " (unmapped)" : "",
+               vma->comment[0] ? " comment=" : "",
+               vma->comment[0] ? vma->comment : "");
+}
+
 void debug_print_vma_list (void)
 {
     SYS_PRINTF("vma bookkeeping:\n");
 
     struct shim_vma * vma;
     LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
-        const char * type = "", * name = "";
-
-        if (vma->file) {
-            if (!qstrempty(&vma->file->path)) {
-                type = " path=";
-                name = qstrgetstr(&vma->file->path);
-            } else if (!qstrempty(&vma->file->uri)) {
-                type = " uri=";
-                name = qstrgetstr(&vma->file->uri);
-            }
-        }
-
-        SYS_PRINTF("[%p-%p] prot=%08x flags=%08x%s%s offset=%ld%s%s%s%s\n",
-                   vma->start, vma->end,
-                   vma->prot,
-                   vma->flags & ~(VMA_INTERNAL|VMA_UNMAPPED|VMA_TAINTED|VMA_CP),
-                   type, name,
-                   vma->offset,
-                   vma->flags & VMA_INTERNAL ? " (internal)" : "",
-                   vma->flags & VMA_UNMAPPED ? " (unmapped)" : "",
-                   vma->comment[0] ? " comment=" : "",
-                   vma->comment[0] ? vma->comment : "");
+        debug_print_vma(vma);
     }
 }

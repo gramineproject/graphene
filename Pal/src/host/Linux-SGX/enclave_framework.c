@@ -332,7 +332,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
          * store the data for checksum generation.
          */
 
-#define FILE_CHUNK_SIZE 1024
+#define FILE_CHUNK_SIZE 1024UL
 
         uint8_t small_chunk[FILE_CHUNK_SIZE]; /* Buffer for hashing */
         size_t chunk_offset = 0;

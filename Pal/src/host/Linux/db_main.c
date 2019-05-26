@@ -172,7 +172,7 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
         start_addr = (void *) ((unsigned long) start_addr << 1);
     }
 
-    *end   = (PAL_PTR) end_addr - USER_ADDRESS_RESERVED;
+    *end   = (PAL_PTR) end_addr;
     *start = (PAL_PTR) start_addr;
 }
 
