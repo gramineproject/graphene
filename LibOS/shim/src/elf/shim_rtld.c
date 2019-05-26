@@ -1484,8 +1484,6 @@ int init_internal_map (void)
     return 0;
 }
 
-int init_brk_from_executable (struct shim_handle * exec);
-
 int init_loader (void)
 {
     struct shim_thread * cur_thread = get_cur_thread();
@@ -1512,7 +1510,9 @@ int init_loader (void)
         exec_map = __search_map_by_handle(exec);
     }
 
-    init_brk_from_executable(exec);
+    ret = init_brk_from_executable(exec);
+    if (ret < 0)
+        goto out;
 
     if (!interp_map
         && __need_interp(exec_map)
@@ -1528,16 +1528,17 @@ out:
 int init_brk_from_executable (struct shim_handle * exec)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
+    int ret = 0;
 
     if (exec_map) {
         /*
          * Chia-Che 8/24/2017:
          * initialize brk region at the end of the executable data segment.
          */
-        init_brk_region((void *) ALIGN_UP(exec_map->l_map_end));
+        ret = init_brk_region((void *) ALIGN_UP(exec_map->l_map_end));
     }
 
-    return 0;
+    return ret;
 }
 
 int register_library (const char * name, unsigned long load_address)

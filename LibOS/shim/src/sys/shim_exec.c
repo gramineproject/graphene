@@ -72,8 +72,6 @@ static elf_auxv_t *  new_auxp;
 
 #define REQUIRED_ELF_AUXV       6
 
-int init_brk_from_executable (struct shim_handle * exec);
-
 int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
                          const char ** envp)
 {
@@ -184,7 +182,10 @@ retry_dump_vmas:
     if ((ret = load_elf_object(cur_thread->exec, NULL, 0)) < 0)
         shim_terminate(ret);
 
-    init_brk_from_executable(cur_thread->exec);
+    ret = init_brk_from_executable(cur_thread->exec);
+    if (ret < 0)
+        return ret;
+
     load_elf_interp(cur_thread->exec);
 
     SAVE_PROFILE_INTERVAL(load_new_executable_for_exec);
