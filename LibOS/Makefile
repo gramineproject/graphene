@@ -3,8 +3,9 @@ export SYS
 
 export DEBUG
 
-GLIBC_SRC = glibc-2.19
-GLIBC_CHECKSUM = 18ad6db70724699d264add80b1f813630d0141cf3a3558b4e1a7c15f6beac796
+GLIBC_VERSION ?= 2.23
+GLIBC_SRC = glibc-$(GLIBC_VERSION)
+GLIBC_CHECKSUM = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
 SHIM_DIR = shim
 BUILD_DIR = glibc-build
 RUNTIME_DIR = $(CURDIR)/../Runtime
@@ -50,9 +51,9 @@ $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
 $(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
 ifeq ($(DEBUG),1)
-	./buildglibc.py --quiet --debug
+	./buildglibc.py --src $(GLIBC_SRC) --quiet --debug
 else
-	./buildglibc.py --quiet
+	./buildglibc.py --src $(GLIBC_SRC) --quiet
 endif
 
 define LN_SF_TO_RUNTIME_DIR_template =
@@ -66,19 +67,36 @@ GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 		https://mirrors.kernel.org/gnu/ \
 		https://mirrors.ocf.berkeley.edu/gnu/
 
-ifeq ($(shell git ls-files $(GLIBC_SRC)/configure),)
 GLIBC_PATCHES = \
-	$(GLIBC_SRC).patch \
-	glibc-syscalldb-api.patch \
-	glibc-fix-warning.patch \
-	glibc-no-pie.patch \
-	glibc-liblibos.patch
+	glibc-patches/$(GLIBC_SRC).patch \
+	glibc-patches/syscalldb-api.patch \
+	glibc-patches/liblibos.patch
+
+GLIBC_PATCHES_2.19 = \
+	glibc-patches/fix-make-warnings.patch \
+	glibc-patches/no-pie.patch \
+	glibc-patches/liblibos-2.19.patch
+
+GLIBC_PATCHES_2.23 = \
+	glibc-patches/liblibos-2.23+.patch \
+	glibc-patches/dangling-else.patch \
+	glibc-patches/cvs-common-symbols.patch \
+	glibc-patches/rpc-format-overflow.patch \
+	glibc-patches/ieee754-boolean-context.patch \
+	glibc-patches/nis-bogus-conditional.patch
 
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
-GLIBC_PATCHES += glibc-ld.gold.patch
+GLIBC_PATCHES += glibc-patches/ld-gold.patch
 endif
 
+GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
+
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
+	[ -f $(GLIBC_SRC).tar.gz ] || \
+	for MIRROR in $(GLIBC_MIRRORS); do \
+		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
+		&& break; \
+	done
 	[ "`sha256sum $(GLIBC_SRC).tar.gz`" = "$(GLIBC_CHECKSUM)  $(GLIBC_SRC).tar.gz" ] || \
 		(echo "*** $(GLIBC_SRC).tar.gz has a wrong checksum ***"; exit 255)
 	rm -rf $(GLIBC_SRC)
@@ -89,7 +107,6 @@ $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 		patch -p1 < ../$$p || exit 255; \
 	done
 	touch $@
-endif
 
 $(GLIBC_SRC).tar.gz:
 	for MIRROR in $(GLIBC_MIRRORS); do \
