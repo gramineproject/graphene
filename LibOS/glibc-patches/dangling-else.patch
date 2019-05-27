@@ -1,0 +1,42 @@
+diff -ruNp old/stdlib/setenv.c new/stdlib/setenv.c
+--- old/stdlib/setenv.c
++++ new/stdlib/setenv.c
+@@ -276,7 +276,7 @@ unsetenv (const char *name)
+   LOCK;
+ 
+   ep = __environ;
+-  if (ep != NULL)
++  if (ep != NULL) {
+     while (*ep != NULL)
+       if (!strncmp (*ep, name, len) && (*ep)[len] == '=')
+ 	{
+@@ -288,8 +288,9 @@ unsetenv (const char *name)
+ 	  while (*dp++);
+ 	  /* Continue the loop in case NAME appears again.  */
+ 	}
+       else
+ 	++ep;
++  }
+ 
+   UNLOCK;
+ 
+diff -ruNp old/nis/nis_call.c new/nis/nis_call.c
+--- old/nis/nis_call.c
++++ new/nis/nis_call.c
+@@ -679,7 +679,7 @@ nis_server_cache_add (const_nis_name nam
+ 
+   /* Choose which entry should be evicted from the cache.  */
+   loc = &nis_server_cache[0];
+-  if (*loc != NULL)
++  if (*loc != NULL) {
+     for (i = 1; i < 16; ++i)
+       if (nis_server_cache[i] == NULL)
+ 	{
+@@ -690,6 +690,7 @@ nis_server_cache_add (const_nis_name nam
+ 	       || ((*loc)->uses == nis_server_cache[i]->uses
+ 		   && (*loc)->expires > nis_server_cache[i]->expires))
+ 	loc = &nis_server_cache[i];
++  }
+   old = *loc;
+   *loc = new;
+ 
