@@ -1,0 +1,59 @@
+diff -ruNp a/malloc/arena.c b/malloc/arena.c
+--- a/malloc/arena.c
++++ b/malloc/arena.c
+@@ -21,6 +21,27 @@
+ 
+ /* Compile-time constants.  */
+ 
++#ifndef HEAP_MAX_SIZE
++# ifdef DEFAULT_MMAP_THRESHOLD_MAX
++#  define DEFAULT_HEAP_MAX_SIZE (2 * DEFAULT_MMAP_THRESHOLD_MAX)
++# else
++#  define DEFAULT_HEAP_MAX_SIZE (1024 * 1024) /* must be a power of two */
++# endif
++# include <sysdep.h>
++static long int heap_max_size = 0;
++# define HEAP_MAX_SIZE								\
++	({									\
++		if (!heap_max_size) {						\
++			long int size = glibc_option("heap_size");		\
++			if (size > 0)						\
++				heap_max_size = size;				\
++			else							\
++				heap_max_size = DEFAULT_HEAP_MAX_SIZE;		\
++		}								\
++		heap_max_size;							\
++	})
++#endif
++
+ #define HEAP_MIN_SIZE (32 * 1024)
+ #ifndef HEAP_MAX_SIZE
+ # ifdef DEFAULT_MMAP_THRESHOLD_MAX
+@@ -556,17 +577,6 @@ new_heap (size_t size, size_t top_pad)
+      mapping (on Linux, this is the case for all non-writable mappings
+      anyway). */
+   p2 = MAP_FAILED;
+-  if (aligned_heap_area)
+-    {
+-      p2 = (char *) MMAP (aligned_heap_area, HEAP_MAX_SIZE, PROT_NONE,
+-                          MAP_NORESERVE);
+-      aligned_heap_area = NULL;
+-      if (p2 != MAP_FAILED && ((unsigned long) p2 & (HEAP_MAX_SIZE - 1)))
+-        {
+-          __munmap (p2, HEAP_MAX_SIZE);
+-          p2 = MAP_FAILED;
+-        }
+-    }
+   if (p2 == MAP_FAILED)
+     {
+       p1 = (char *) MMAP (0, HEAP_MAX_SIZE << 1, PROT_NONE, MAP_NORESERVE);
+@@ -577,8 +587,6 @@ new_heap (size_t size, size_t top_pad)
+           ul = p2 - p1;
+           if (ul)
+             __munmap (p1, ul);
+-          else
+-            aligned_heap_area = p2 + HEAP_MAX_SIZE;
+           __munmap (p2 + HEAP_MAX_SIZE, HEAP_MAX_SIZE - ul);
+         }
+       else
+

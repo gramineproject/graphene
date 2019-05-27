@@ -118,39 +118,6 @@ index 2383992..98687f6 100644
 +    syscalldb; glibc_version; glibc_option; register_library;
 +  }
  }
-diff --git a/elf/dl-debug.c b/elf/dl-debug.c
-index 4e7c593..3e0bff4 100644
---- a/elf/dl-debug.c
-+++ b/elf/dl-debug.c
-@@ -34,7 +34,7 @@ extern const int verify_link_map_members
-    normally finds it via the DT_DEBUG entry in the dynamic section, but in
-    a statically-linked program there is no dynamic section for the debugger
-    to examine and it looks for this particular symbol name.  */
--struct r_debug _r_debug;
-+struct r_debug __libc_r_debug;
- 
- 
- /* Initialize _r_debug if it has not already been done.  The argument is
-@@ -48,7 +48,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
-   struct r_debug *r;
- 
-   if (ns == LM_ID_BASE)
--    r = &_r_debug;
-+    r = &__libc_r_debug;
-   else
-     r = &GL(dl_ns)[ns]._ns_debug;
- 
-@@ -56,9 +56,9 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
-     {
-       /* Tell the debugger where to find the map of loaded objects.  */
-       r->r_version = 1	/* R_DEBUG_VERSION XXX */;
--      r->r_ldbase = ldbase ?: _r_debug.r_ldbase;
-+      r->r_ldbase = ldbase ?: __libc_r_debug.r_ldbase;
-       r->r_map = (void *) GL(dl_ns)[ns]._ns_loaded;
-       r->r_brk = (ElfW(Addr)) &_dl_debug_state;
-     }
- 
-   return r;
 diff --git a/elf/dl-load.c b/elf/dl-load.c
 index 1be7a3c..c560ec1 100644
 --- a/elf/dl-load.c
@@ -174,18 +141,6 @@ index 1be7a3c..c560ec1 100644
    /* Now that the object is fully initialized add it to the object list.  */
    _dl_add_to_namespace_list (l, nsid);
  
-diff --git a/elf/link.h b/elf/link.h
-index d5905d1..f4e108a 100644
---- a/elf/link.h
-+++ b/elf/link.h
-@@ -65,6 +65,7 @@ struct r_debug
- 
- /* This is the instance of that structure used by the dynamic linker.  */
- extern struct r_debug _r_debug;
-+asm (".symver _r_debug, __libc_r_debug@GLIBC_PRIVATE");
- 
- /* This symbol refers to the "dynamic structure" in the `.dynamic' section
-    of whatever module refers to `_DYNAMIC'.  So, to find its own
 diff --git a/elf/rtld.c b/elf/rtld.c
 index 6dcbabc..c87c773 100644
 --- a/elf/rtld.c
@@ -224,65 +179,6 @@ index 6dcbabc..c87c773 100644
    /* Now life is sane; we can call functions and access global data.
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
-diff --git a/malloc/arena.c b/malloc/arena.c
-index 5088a25..33a3879 100644
---- a/malloc/arena.c
-+++ b/malloc/arena.c
-@@ -21,6 +21,27 @@
- 
- /* Compile-time constants.  */
- 
-+#ifndef HEAP_MAX_SIZE
-+# ifdef DEFAULT_MMAP_THRESHOLD_MAX
-+#  define DEFAULT_HEAP_MAX_SIZE (2 * DEFAULT_MMAP_THRESHOLD_MAX)
-+# else
-+#  define DEFAULT_HEAP_MAX_SIZE (1024 * 1024) /* must be a power of two */
-+# endif
-+# include <sysdep.h>
-+static long int heap_max_size = 0;
-+# define HEAP_MAX_SIZE								\
-+	({									\
-+		if (!heap_max_size) {						\
-+			long int size = glibc_option("heap_size");		\
-+			if (size > 0)						\
-+				heap_max_size = size;				\
-+			else							\
-+				heap_max_size = DEFAULT_HEAP_MAX_SIZE;		\
-+		}								\
-+		heap_max_size;							\
-+	})
-+#endif
-+
- #define HEAP_MIN_SIZE (32 * 1024)
- #ifndef HEAP_MAX_SIZE
- # ifdef DEFAULT_MMAP_THRESHOLD_MAX
-@@ -545,17 +566,6 @@ new_heap (size_t size, size_t top_pad)
-      mapping (on Linux, this is the case for all non-writable mappings
-      anyway). */
-   p2 = MAP_FAILED;
--  if (aligned_heap_area)
--    {
--      p2 = (char *) MMAP (aligned_heap_area, HEAP_MAX_SIZE, PROT_NONE,
--                          MAP_NORESERVE);
--      aligned_heap_area = NULL;
--      if (p2 != MAP_FAILED && ((unsigned long) p2 & (HEAP_MAX_SIZE - 1)))
--        {
--          __munmap (p2, HEAP_MAX_SIZE);
--          p2 = MAP_FAILED;
--        }
--    }
-   if (p2 == MAP_FAILED)
-     {
-       p1 = (char *) MMAP (0, HEAP_MAX_SIZE << 1, PROT_NONE, MAP_NORESERVE);
-@@ -566,8 +576,6 @@ new_heap (size_t size, size_t top_pad)
-           ul = p2 - p1;
-           if (ul)
-             __munmap (p1, ul);
--          else
--            aligned_heap_area = p2 + HEAP_MAX_SIZE;
-           __munmap (p2 + HEAP_MAX_SIZE, HEAP_MAX_SIZE - ul);
-         }
-       else
 diff --git a/nptl/Makefile b/nptl/Makefile
 index 57cc8c6..81f1bf4 100644
 --- a/nptl/Makefile
@@ -1316,32 +1212,3 @@ index 504c95f..dcfc259 100644
      _dl_reloc_bad_type (map, r_type, 1);
  }
  
-diff --git a/sysdeps/x86_64/hp-timing.h b/sysdeps/x86_64/hp-timing.h
-index d88206c..886c500 100644
---- a/sysdeps/x86_64/hp-timing.h
-+++ b/sysdeps/x86_64/hp-timing.h
-@@ -18,23 +18,6 @@
- 
- #ifndef _HP_TIMING_H
- 
--/* We can use some of the i686 implementation without changes.  */
--# include <sysdeps/i386/i686/hp-timing.h>
--
--/* The "=A" constraint used in 32-bit mode does not work in 64-bit mode.  */
--# undef HP_TIMING_NOW
--# define HP_TIMING_NOW(Var) \
--  ({ unsigned int _hi, _lo; \
--     asm volatile ("rdtsc" : "=a" (_lo), "=d" (_hi)); \
--     (Var) = ((unsigned long long int) _hi << 32) | _lo; })
--
--/* The funny business for 32-bit mode is not required here.  */
--# undef HP_TIMING_ACCUM
--# define HP_TIMING_ACCUM(Sum, Diff)					      \
--  do {									      \
--    hp_timing_t __diff = (Diff) - GLRO(dl_hp_timing_overhead);		      \
--    __asm__ __volatile__ ("lock; addq %1, %0"				      \
--			  : "=m" (Sum) : "r" (__diff), "m" (Sum));	      \
--  } while (0)
-+# include <sysdeps/generic/hp-timing.h>
- 
- #endif /* hp-timing.h */
