@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pkg_resources import parse_version
 
 def prependText(filename, text) :
     data = ""
@@ -29,11 +30,17 @@ commandOutput = ""
 quiet = False
 debug_flags = ""
 
+index = 0
 for arg in sys.argv[1:]:
+    index += 1
+    if (arg == '--src' or arg == '-s') and index + 1 < len(sys.argv):
+        glibc = sys.argv[index + 1]
     if arg == '--quiet' or arg == '-q':
         quiet = True
     if arg == '--debug':
         debug_flags = "-g"
+
+version = parse_version(glibc.replace("glibc-", ""))
 
 if True:
 
@@ -99,7 +106,10 @@ if True:
     cflags = '{0} -O2 -U_FORTIFY_SOURCE -fno-stack-protector -Wno-unused-value'.format(debug_flags)
     extra_defs = ''
     disabled_features = { 'nscd' }
-    extra_flags = '--with-tls --enable-add-ons=nptl --without-selinux --disable-test {0}'.format(' '.join(['--disable-' + f for f in disabled_features]))
+    extra_flags = '--with-tls --without-selinux --disable-test {0}'.format(' '.join(['--disable-' + f for f in disabled_features]))
+
+    if version <= parse_version('2.21'):
+        extra_flags += ' --enable-add-ons=nptl'
 
     ##    configure
     commandStr = r'CFLAGS="{2}" {3} {0}/configure --prefix={1} {4} | tee configure.out'.format(glibc, installDir, cflags, extra_defs, extra_flags)
