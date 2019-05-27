@@ -2,36 +2,14 @@ diff --git a/Makeconfig b/Makeconfig
 index 1908f27..cf34ba1 100644
 --- a/Makeconfig
 +++ b/Makeconfig
-@@ -1033,7 +1034,7 @@ all-subdirs = csu assert ctype locale intl catgets math setjmp signal	    \
- 	      grp pwd posix io termios resource misc socket sysvipc gmon    \
- 	      gnulib iconv iconvdata wctype manual shadow gshadow po argp   \
- 	      crypt localedata timezone rt conform debug		    \
--	      $(add-on-subdirs) dlfcn elf
-+	      $(add-on-subdirs) dlfcn elf libos
+@@ -1100,4 +1100,7 @@ all-subdirs = csu assert ctype locale in
+ 	      $(add-on-subdirs) dlfcn elf
  
++# Add libos for Graphene
++all-subdirs += libos
++
  ifndef avoid-generated
  # sysd-sorted itself will contain rules making the sysd-sorted target
-diff --git a/Versions.def b/Versions.def
-index 759c754..e1a270e 100644
---- a/Versions.def
-+++ b/Versions.def
-@@ -148,3 +152,6 @@ libanl {
- libcidn {
-   GLIBC_PRIVATE
- }
-+liblibos {
-+  GLIBC_2.12
-+}
-diff --git a/shlib-versions b/shlib-versions
-index 78b0ad7..5c3dcf2 100644
---- a/shlib-versions
-+++ b/shlib-versions
-@@ -108,3 +108,5 @@ sparc64.*-.*-.*		libBrokenLocale=1	GLIBC_2.2
- # This defines the libgcc soname version this glibc is to load for
- # asynchronous cancellation to work correctly.
- .*-.*-.*		libgcc_s=1
-+
-+.*-.*-.*		liblibos=1
 diff --git a/libos/Makefile b/libos/Makefile
 new file mode 100644
 index 0000000..7e0027d
@@ -101,7 +79,7 @@ index 0000000..3211637
 +++ b/libos/Versions
 @@ -0,0 +1,7 @@
 +liblibos {
-+  GLIBC_2.12 {
++  GLIBC_2.19 {
 +    checkpoint;
 +    msgpersist;
 +    benchmark_rpc; send_rpc; recv_rpc;

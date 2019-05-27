@@ -1,0 +1,25 @@
+diff --git a/Versions.def b/Versions.def
+index 759c754..e1a270e 100644
+--- a/Versions.def
++++ b/Versions.def
+@@ -148,3 +152,6 @@ libanl {
+ libcidn {
+   GLIBC_PRIVATE
+ }
++liblibos {
++  GLIBC_2.19
++}
+diff --git a/shlib-versions b/shlib-versions
+index 78b0ad7..5c3dcf2 100644
+--- a/shlib-versions
++++ b/shlib-versions
+@@ -64,6 +64,9 @@ sh.*-.*-linux.*		ld=ld-linux.so.2	GLIBC_
+ # The -ldl interface (see <dlfcn.h>) is the same on all platforms.
+ .*-.*-.*		libdl=2
+ 
++# Interface for Graphene
++.*-.*-.*		liblibos=1
++
+ # So far the -lutil interface is the same on all platforms, except for the
+ # `struct utmp' format, which depends on libc.
+ .*-.*-.*		libutil=1

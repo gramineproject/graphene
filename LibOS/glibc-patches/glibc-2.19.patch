@@ -29,30 +29,6 @@ diff --git a/Versions.def b/Versions.def
 index 759c754..e1a270e 100644
 --- a/Versions.def
 +++ b/Versions.def
-@@ -41,6 +41,7 @@ libc {
-   GCC_3.0
- %endif
-   GLIBC_PRIVATE
-+  SHIM
- }
- libcrypt {
-   GLIBC_2.0
-@@ -50,6 +51,7 @@ libdl {
-   GLIBC_2.1
-   GLIBC_2.3.3
-   GLIBC_2.3.4
-+  SHIM
- }
- libm {
-   GLIBC_2.0
-@@ -108,6 +110,7 @@ libpthread {
-   GLIBC_2.18
-   GLIBC_2.19
-   GLIBC_PRIVATE
-+  SHIM
- }
- libresolv {
-   GLIBC_2.0
 @@ -135,6 +138,7 @@ ld {
    GLIBC_2.3
    GLIBC_2.4
@@ -61,18 +37,6 @@ index 759c754..e1a270e 100644
  }
  libthread_db {
    GLIBC_2.1.3
-diff --git a/dlfcn/Versions b/dlfcn/Versions
-index 97902f0..c1874c1 100644
---- a/dlfcn/Versions
-+++ b/dlfcn/Versions
-@@ -14,4 +14,7 @@ libdl {
-   GLIBC_PRIVATE {
-     _dlfcn_hook;
-   }
-+  SHIM {
-+    syscalldb;
-+  }
- }
 diff --git a/elf/Makefile b/elf/Makefile
 index 4c58fc9..0ae2fa8 100644
 --- a/elf/Makefile
@@ -100,16 +64,6 @@ diff --git a/elf/Versions b/elf/Versions
 index 2383992..98687f6 100644
 --- a/elf/Versions
 +++ b/elf/Versions
-@@ -24,6 +24,9 @@ libc {
-     _dl_sym; _dl_vsym;
-     __libc_dlclose; __libc_dlopen_mode; __libc_dlsym;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- ld {
 @@ -62,4 +65,7 @@ ld {
      # Pointer protection.
      __pointer_chk_guard;
@@ -118,39 +72,6 @@ index 2383992..98687f6 100644
 +    syscalldb; glibc_version; glibc_option; register_library;
 +  }
  }
-diff --git a/elf/dl-debug.c b/elf/dl-debug.c
-index 4e7c593..3e0bff4 100644
---- a/elf/dl-debug.c
-+++ b/elf/dl-debug.c
-@@ -34,7 +34,7 @@ extern const int verify_link_map_members
-    normally finds it via the DT_DEBUG entry in the dynamic section, but in
-    a statically-linked program there is no dynamic section for the debugger
-    to examine and it looks for this particular symbol name.  */
--struct r_debug _r_debug;
-+struct r_debug __libc_r_debug;
- 
- 
- /* Initialize _r_debug if it has not already been done.  The argument is
-@@ -48,7 +48,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
-   struct r_debug *r;
- 
-   if (ns == LM_ID_BASE)
--    r = &_r_debug;
-+    r = &__libc_r_debug;
-   else
-     r = &GL(dl_ns)[ns]._ns_debug;
- 
-@@ -56,9 +56,9 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
-     {
-       /* Tell the debugger where to find the map of loaded objects.  */
-       r->r_version = 1	/* R_DEBUG_VERSION XXX */;
--      r->r_ldbase = ldbase ?: _r_debug.r_ldbase;
-+      r->r_ldbase = ldbase ?: __libc_r_debug.r_ldbase;
-       r->r_map = (void *) GL(dl_ns)[ns]._ns_loaded;
-       r->r_brk = (ElfW(Addr)) &_dl_debug_state;
-     }
- 
-   return r;
 diff --git a/elf/dl-load.c b/elf/dl-load.c
 index 1be7a3c..c560ec1 100644
 --- a/elf/dl-load.c
@@ -174,18 +95,6 @@ index 1be7a3c..c560ec1 100644
    /* Now that the object is fully initialized add it to the object list.  */
    _dl_add_to_namespace_list (l, nsid);
  
-diff --git a/elf/link.h b/elf/link.h
-index d5905d1..f4e108a 100644
---- a/elf/link.h
-+++ b/elf/link.h
-@@ -65,6 +65,7 @@ struct r_debug
- 
- /* This is the instance of that structure used by the dynamic linker.  */
- extern struct r_debug _r_debug;
-+asm (".symver _r_debug, __libc_r_debug@GLIBC_PRIVATE");
- 
- /* This symbol refers to the "dynamic structure" in the `.dynamic' section
-    of whatever module refers to `_DYNAMIC'.  So, to find its own
 diff --git a/elf/rtld.c b/elf/rtld.c
 index 6dcbabc..c87c773 100644
 --- a/elf/rtld.c
@@ -198,7 +107,7 @@ index 6dcbabc..c87c773 100644
 +   library. If not, tell the user to update glibc. */
 +#include "glibc-version.h"
 +
-+volatile const int glibc_version __attribute__((weak)) = GLIBC_VERSION;
++const unsigned int glibc_version __attribute__((weak)) = GLIBC_VERSION;
 +
 +static void __attribute__((noinline,optimize("-O0")))
 +check_glibc_version (void)
@@ -224,112 +133,18 @@ index 6dcbabc..c87c773 100644
    /* Now life is sane; we can call functions and access global data.
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
-diff --git a/malloc/arena.c b/malloc/arena.c
-index 5088a25..33a3879 100644
---- a/malloc/arena.c
-+++ b/malloc/arena.c
-@@ -21,6 +21,27 @@
- 
- /* Compile-time constants.  */
- 
-+#ifndef HEAP_MAX_SIZE
-+# ifdef DEFAULT_MMAP_THRESHOLD_MAX
-+#  define DEFAULT_HEAP_MAX_SIZE (2 * DEFAULT_MMAP_THRESHOLD_MAX)
-+# else
-+#  define DEFAULT_HEAP_MAX_SIZE (1024 * 1024) /* must be a power of two */
-+# endif
-+# include <sysdep.h>
-+static long int heap_max_size = 0;
-+# define HEAP_MAX_SIZE								\
-+	({									\
-+		if (!heap_max_size) {						\
-+			long int size = glibc_option("heap_size");		\
-+			if (size > 0)						\
-+				heap_max_size = size;				\
-+			else							\
-+				heap_max_size = DEFAULT_HEAP_MAX_SIZE;		\
-+		}								\
-+		heap_max_size;							\
-+	})
-+#endif
-+
- #define HEAP_MIN_SIZE (32 * 1024)
- #ifndef HEAP_MAX_SIZE
- # ifdef DEFAULT_MMAP_THRESHOLD_MAX
-@@ -545,17 +566,6 @@ new_heap (size_t size, size_t top_pad)
-      mapping (on Linux, this is the case for all non-writable mappings
-      anyway). */
-   p2 = MAP_FAILED;
--  if (aligned_heap_area)
--    {
--      p2 = (char *) MMAP (aligned_heap_area, HEAP_MAX_SIZE, PROT_NONE,
--                          MAP_NORESERVE);
--      aligned_heap_area = NULL;
--      if (p2 != MAP_FAILED && ((unsigned long) p2 & (HEAP_MAX_SIZE - 1)))
--        {
--          __munmap (p2, HEAP_MAX_SIZE);
--          p2 = MAP_FAILED;
--        }
--    }
-   if (p2 == MAP_FAILED)
-     {
-       p1 = (char *) MMAP (0, HEAP_MAX_SIZE << 1, PROT_NONE, MAP_NORESERVE);
-@@ -566,8 +576,6 @@ new_heap (size_t size, size_t top_pad)
-           ul = p2 - p1;
-           if (ul)
-             __munmap (p1, ul);
--          else
--            aligned_heap_area = p2 + HEAP_MAX_SIZE;
-           __munmap (p2 + HEAP_MAX_SIZE, HEAP_MAX_SIZE - ul);
-         }
-       else
-diff --git a/nptl/Makefile b/nptl/Makefile
-index 57cc8c6..81f1bf4 100644
---- a/nptl/Makefile
-+++ b/nptl/Makefile
-@@ -20,7 +20,7 @@
- #
- subdir	:= nptl
- 
--headers := pthread.h semaphore.h bits/semaphore.h
-+headers := pthread.h semaphore.h bits/semaphore.h syscalldb.h
- 
- extra-libs := libpthread
- extra-libs-others := $(extra-libs)
 diff --git a/nptl/Versions b/nptl/Versions
 index bb11277..354149a 100644
---- a/nptl/Versions
-+++ b/nptl/Versions
-@@ -31,6 +31,9 @@ libc {
-     # Internal libc interface to libpthread
-     __libc_dl_error_tsd;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- libpthread {
-@@ -262,4 +265,8 @@ libpthread {
-     __pthread_clock_gettime; __pthread_clock_settime;
-     __pthread_unwind; __pthread_get_minstack;
-   }
-+
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 index 89fda5e..f6963f6 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
-@@ -111,7 +111,8 @@ ENTRY(__pthread_disable_asynccancel)
+@@ -111,7 +111,7 @@ ENTRY(__pthread_disable_asynccancel)
  	xorq	%r10, %r10
  	addq	$CANCELHANDLING, %rdi
  	LOAD_PRIVATE_FUTEX_WAIT (%esi)
 -	syscall
 +	SYSCALLDB
-+
  	movl	%fs:CANCELHANDLING, %eax
  	jmp	3b
  END(__pthread_disable_asynccancel)
@@ -595,7 +410,8 @@ index 0dc2340..8aff242 100644
  	subq	$cond_nwaiters, %rdi
  
  55:	LOCK
-@@ -493,6 +488,6 @@
+@@ -492,7 +492,7 @@ __pthread_cond_timedwait:
+ 	call	*%rax
  #  else
  	movl	$__NR_clock_gettime, %eax
 -	syscall
@@ -857,14 +673,6 @@ index cbb5e9e..9b87e25 100644
    int rtld_must_xmm_save;
    /* Reservation of some values for the TM ABI.  */
    void *__private_tm[4];
-@@ -137,7 +143,6 @@ typedef struct
- # define GET_DTV(descr) \
-   (((tcbhead_t *) (descr))->dtv)
- 
--
- /* Code to initially initialize the thread pointer.  This might need
-    special attention since 'errno' is not yet available and if the
-    operation can cause a failure 'errno' must not be touched.
 @@ -154,7 +159,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \
@@ -874,22 +682,6 @@ index cbb5e9e..9b87e25 100644
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
-diff --git a/scripts/mkinstalldirs b/scripts/mkinstalldirs
-index 55d537f..57bf12b 100755
---- a/scripts/mkinstalldirs
-+++ b/scripts/mkinstalldirs
-@@ -126,9 +126,9 @@ do
-     esac
- 
-     if test ! -d "$pathcomp"; then
--      echo "mkdir $pathcomp"
-+      echo "mkdir -p $pathcomp"
- 
--      mkdir "$pathcomp" || lasterr=$?
-+      mkdir -p "$pathcomp" || lasterr=$?
- 
-       if test ! -d "$pathcomp"; then
- 	errstatus=$lasterr
 diff --git a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
 index 2468228..a9f1cd6 100644
 --- a/sysdeps/unix/sysv/linux/_exit.c
@@ -1012,12 +804,7 @@ diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/
 index 92c2f5b..e32ebb2 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-@@ -31,10 +31,12 @@
- 	movq %rsi, %rdi		/* shift arg1 - arg5.  */
- 	movq %rdx, %rsi
- 	movq %rcx, %rdx
-+	/* DEP 8/17/17: Keep kernel calling
-+	 * 	convention and fix in libOS */
+@@ -34,7 +34,7 @@
  	movq %r8, %r10
  	movq %r9, %r8
  	movq 8(%rsp),%r9	/* arg6 is on the stack.  */
@@ -1043,7 +830,7 @@ index 4a9a9d9..dc452ed 100644
      DOARGS_##args				\
      movl $SYS_ify (syscall_name), %eax;		\
 -    syscall;
-+    SYSCALLDB
++    SYSCALLDB;
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */
@@ -1141,32 +928,3 @@ index 504c95f..dcfc259 100644
      _dl_reloc_bad_type (map, r_type, 1);
  }
  
-diff --git a/sysdeps/x86_64/hp-timing.h b/sysdeps/x86_64/hp-timing.h
-index d88206c..886c500 100644
---- a/sysdeps/x86_64/hp-timing.h
-+++ b/sysdeps/x86_64/hp-timing.h
-@@ -18,23 +18,6 @@
- 
- #ifndef _HP_TIMING_H
- 
--/* We can use some of the i686 implementation without changes.  */
--# include <sysdeps/i386/i686/hp-timing.h>
--
--/* The "=A" constraint used in 32-bit mode does not work in 64-bit mode.  */
--# undef HP_TIMING_NOW
--# define HP_TIMING_NOW(Var) \
--  ({ unsigned int _hi, _lo; \
--     asm volatile ("rdtsc" : "=a" (_lo), "=d" (_hi)); \
--     (Var) = ((unsigned long long int) _hi << 32) | _lo; })
--
--/* The funny business for 32-bit mode is not required here.  */
--# undef HP_TIMING_ACCUM
--# define HP_TIMING_ACCUM(Sum, Diff)					      \
--  do {									      \
--    hp_timing_t __diff = (Diff) - GLRO(dl_hp_timing_overhead);		      \
--    __asm__ __volatile__ ("lock; addq %1, %0"				      \
--			  : "=m" (Sum) : "r" (__diff), "m" (Sum));	      \
--  } while (0)
-+# include <sysdeps/generic/hp-timing.h>
- 
- #endif /* hp-timing.h */
