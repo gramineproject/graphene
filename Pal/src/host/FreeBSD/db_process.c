@@ -383,7 +383,7 @@ no_data:
     memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
 }
 
-void _DkProcessExit (int exitcode)
+noreturn void _DkProcessExit (int exitcode)
 {
     INLINE_SYSCALL(exit, 1, exitcode);
 }

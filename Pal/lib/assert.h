@@ -12,6 +12,8 @@
 #ifndef ASSERT_H
 #define ASSERT_H
 
+#include <stdnoreturn.h>
+
 #define COMPILE_TIME_ASSERT(pred) switch(0){case 0:case (pred):;}
 
 /* All environments should implement warn, which prints a non-optional debug
@@ -20,7 +22,7 @@
  */
 
 void warn (const char *format, ...);
-void __abort(void);
+noreturn void __abort(void);
 
 # define assert(test)                                                   \
     ({                                                                  \

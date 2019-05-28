@@ -420,9 +420,12 @@ no_data:
     memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
 }
 
-void _DkProcessExit (int exitcode)
+noreturn void _DkProcessExit (int exitcode)
 {
     INLINE_SYSCALL(exit_group, 1, exitcode);
+    while (true) {
+        /* nothing */;
+    }
 }
 
 int ioctl_set_graphene (struct config_store * config, int ndefault,

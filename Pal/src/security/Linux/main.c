@@ -588,8 +588,11 @@ exit:
 }
 
 /* This does not return */
-void __abort(void) {
+noreturn void __abort(void) {
     INLINE_SYSCALL(exit_group, 1, -1);
+    while (true) {
+        /* nothing */;
+    }
 }
 
 void warn (const char *format, ...)

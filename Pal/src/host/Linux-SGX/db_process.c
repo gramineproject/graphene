@@ -323,7 +323,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
 
 void print_alloced_pages (void);
 
-void _DkProcessExit (int exitcode)
+noreturn void _DkProcessExit (int exitcode)
 {
 #if PRINT_ENCLAVE_STAT
     print_alloced_pages();
@@ -331,6 +331,9 @@ void _DkProcessExit (int exitcode)
     if (exitcode)
         SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
     ocall_exit(exitcode);
+    while (true) {
+        /* nothing */;
+    }
 }
 
 int _DkProcessSandboxCreate (const char * manifest, int flags)

@@ -41,7 +41,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-void _DkProcessExit (int exitcode)
+noreturn void _DkProcessExit (int exitcode)
 {
     /* need to be implemented */
 }

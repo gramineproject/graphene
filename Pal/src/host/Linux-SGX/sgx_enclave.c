@@ -720,6 +720,9 @@ int ecall_thread_start (void)
     return sgx_ecall(ECALL_THREAD_START, NULL);
 }
 
-void __abort(void) {
+noreturn void __abort(void) {
     INLINE_SYSCALL(exit_group, 1, -1);
+    while (true) {
+        /* nothing */;
+    }
 }
