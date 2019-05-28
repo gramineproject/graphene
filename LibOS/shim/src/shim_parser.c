@@ -439,9 +439,8 @@ static inline void parse_string_arg (va_list * ap)
     if (!test_user_string(test_arg)) {
         VPRINTF("\"%s\"", ap);
     } else {
-        /* invalid memory region, skip arg */
-        test_arg = va_arg(*ap, const char*);
-        VPRINTF("\"(invalid-addr)\"", ap_test_arg);
+        /* invalid memory region, print arg as ptr not string */
+        VPRINTF("\"(invalid-addr %p)\"", ap);
     }
     va_end(ap_test_arg);
 }
@@ -742,15 +741,15 @@ static void parse_exec_args (const char * type, va_list * ap)
 
     PUTS("[");
 
-    for (; /* no condition*/; args++) {
+    for (; ; args++) {
         if (test_user_memory(args, sizeof(*args), false)) {
-            PUTS("(invalid-argv)");
+            PRINTF("(invalid-argv %p)", args);
             break;
         }
         if (*args == NULL)
             break;
         if (test_user_string(*args)) {
-            PUTS("(invalid-addr),");
+            PRINTF("(invalid-addr %p),", *args);
             continue;
         }
         PUTS(*args);
@@ -774,13 +773,13 @@ static void parse_exec_envp (const char * type, va_list * ap)
     int cnt = 0;
     for (; cnt < 2; cnt++, envp++) {
         if (test_user_memory(envp, sizeof(*envp), false)) {
-            PUTS("(invalid-envp)");
+            PRINTF("(invalid-envp %p)", envp);
             break;
         }
         if (*envp == NULL)
             break;
         if (test_user_string(*envp)) {
-            PUTS("(invalid-addr),");
+            PRINTF("(invalid-addr %p),", *envp);
             continue;
         }
         PUTS(*envp);
@@ -859,7 +858,7 @@ static void parse_sigmask (const char * type, va_list * ap)
     }
 
     if (test_user_memory(sigset, sizeof(*sigset), false)) {
-        PUTS("(invalid-addr)");
+        PRINTF("(invalid-addr %p)", sigset);
         return;
     }
 
@@ -904,7 +903,7 @@ static void parse_timespec (const char * type, va_list * ap)
     }
 
     if (test_user_memory(tv, sizeof(*tv), false)) {
-        PUTS("(invalid-addr)");
+        PRINTF("(invalid-addr %p)", tv);
         return;
     }
 
@@ -921,7 +920,7 @@ static void parse_sockaddr (const char * type, va_list *ap)
     }
 
     if (test_user_memory(addr, sizeof(*addr), false)) {
-        PUTS("(invalid-addr)");
+        PRINTF("(invalid-addr %p)", addr);
         return;
     }
 
