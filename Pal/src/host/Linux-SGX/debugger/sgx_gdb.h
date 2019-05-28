@@ -8,10 +8,9 @@
 #define DBGINFO_ADDR 0x100000000000
 
 /* This struct is read using PTRACE_PEEKDATA in 8B increments
- * therefore it is aligned as long and has a dummy int. */
+ * therefore it is aligned as long. */
 struct __attribute__((aligned(__alignof__(long)))) enclave_dbginfo {
     int pid;
-    int dummy;
     unsigned long base, size;
     unsigned long ssaframesize;
     void* aep;

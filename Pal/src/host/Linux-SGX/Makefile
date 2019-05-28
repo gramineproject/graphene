@@ -88,7 +88,7 @@ pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
-	$(CC) -Wall -Wno-format-zero-length -fPIC -O2 -std=c11 -c debugger/sgx_gdb.c -o debugger/sgx_gdb.o
+	$(CC) -Wall -fPIC -O2 -std=c11 -c debugger/sgx_gdb.c -o debugger/sgx_gdb.o
 	$(LD) -shared debugger/sgx_gdb.o -o debugger/sgx_gdb.so -lc
 
 enclave_entry.o sgx_entry.o: asm-offsets.h
