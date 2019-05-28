@@ -1572,7 +1572,11 @@ void execute_elf_object (struct shim_handle * exec,
 
     /* random 16 bytes follows auxp */
     ElfW(Addr) random = (ElfW(Addr))&auxp[7];
-    DkRandomBitsRead((PAL_PTR)random, 16);
+    int ret = DkRandomBitsRead((PAL_PTR)random, 16);
+    if (ret < 0) {
+        debug("failed to execute\n");
+        DkThreadExit();
+    }
 
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
