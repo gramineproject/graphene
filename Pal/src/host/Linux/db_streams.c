@@ -331,7 +331,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
 
     // Control message buffer with added space for 2 fds (ie. max size
     // that it will have)
-    char cbuf[sizeof(struct cmsghdr) + nfds * sizeof(int)];
+    char cbuf[sizeof(struct cmsghdr) + MAX_FDS * sizeof(int)];
 
     // Initialize iovec[0] with struct PAL_HANDLE
     iov[0].iov_base = hdl_data;
@@ -340,7 +340,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     hdr.msg_iov = iov;
     hdr.msg_iovlen = 1;
     hdr.msg_control = cbuf; // Control Message Buffer
-    hdr.msg_controllen = sizeof(struct cmsghdr) + sizeof(int) * nfds;
+    hdr.msg_controllen = sizeof(cbuf);
 
     // Fill control message infomation for the file descriptors
     // Check hdr.msg_controllen >= sizeof(struct cmsghdr) to point to
