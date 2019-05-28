@@ -29,6 +29,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdnoreturn.h>
 
 typedef uint64_t      PAL_NUM;
 typedef const char *  PAL_STR;
@@ -245,7 +246,7 @@ DkVirtualMemoryProtect (PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 PAL_HANDLE
 DkProcessCreate (PAL_STR uri, PAL_STR * args);
 
-void
+noreturn void
 DkProcessExit (PAL_NUM exitCode);
 
 #define PAL_SANDBOX_PIPE         0x1
@@ -398,7 +399,7 @@ DkThreadDelayExecution (PAL_NUM duration);
 void
 DkThreadYieldExecution (void);
 
-__attribute__((noreturn)) void
+noreturn void
 DkThreadExit (void);
 
 PAL_BOL

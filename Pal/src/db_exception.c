@@ -88,7 +88,7 @@ void DkExceptionReturn (PAL_PTR event)
 }
 
 /* This does not return */
-void __abort(void) {
+noreturn void __abort(void) {
     _DkProcessExit(-ENOTRECOVERABLE);
 }
 

@@ -305,7 +305,7 @@ void _DkThreadYieldExecution (void);
 int _DkThreadResume (PAL_HANDLE threadHandle);
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
                       const char ** args);
-void _DkProcessExit (int exitCode);
+noreturn void _DkProcessExit (int exitCode);
 int _DkProcessSandboxCreate (const char * manifest, int flags);
 
 /* DkMutex calls */
