@@ -26,5 +26,4 @@ sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
 
-sgx.trusted_files.unix_pipe = file:unix.c
 sgx.trusted_files.tcp_c = file:tcp.c
