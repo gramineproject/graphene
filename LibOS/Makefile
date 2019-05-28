@@ -3,7 +3,7 @@ export SYS
 
 export DEBUG
 
-GLIBC_VERSION ?= 2.23
+GLIBC_VERSION ?= 2.27
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
 GLIBC_CHECKSUM = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))
 SHIM_DIR = shim
@@ -87,6 +87,10 @@ GLIBC_PATCHES_2.23 = \
 	glibc-patches/rpc-format-overflow.patch \
 	glibc-patches/ieee754-boolean-context.patch \
 	glibc-patches/nis-bogus-conditional.patch
+
+GLIBC_PATCHES_2.27 = \
+	glibc-patches/liblibos-2.23+.patch \
+	glibc-patches/hp-timing-2.23+.patch
 
 ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
 GLIBC_PATCHES += glibc-patches/ld-gold.patch
