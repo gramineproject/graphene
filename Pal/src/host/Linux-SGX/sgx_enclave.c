@@ -301,7 +301,7 @@ static int sgx_ocall_sock_listen(void * pms)
         goto err_fd;
 
     if (ms->ms_addr) {
-        socklen_t addrlen;
+        socklen_t addrlen = ms->ms_addrlen;
         ret = INLINE_SYSCALL(getsockname, 3, fd, ms->ms_addr, &addrlen);
         if (IS_ERR(ret))
             goto err_fd;
@@ -394,7 +394,7 @@ static int sgx_ocall_sock_connect(void * pms)
     }
 
     if (ms->ms_bind_addr && !ms->ms_bind_addr->sa_family) {
-        socklen_t addrlen;
+        socklen_t addrlen = ms->ms_bind_addrlen;
         ret = INLINE_SYSCALL(getsockname, 3, fd, ms->ms_bind_addr,
                              &addrlen);
         if (IS_ERR(ret))
