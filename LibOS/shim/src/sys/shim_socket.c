@@ -756,8 +756,13 @@ int shim_do_connect (int sockfd, struct sockaddr * addr, int addrlen)
         char * spath = saddr->sun_path;
         struct shim_dentry * dent;
 
-        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0)
-            goto out;
+        if ((ret = path_lookupat(NULL, spath, LOOKUP_CREATE, &dent, NULL)) < 0) {
+            // DEP 7/3/17: We actually want either 0 or -ENOENT, as the
+            // expected case is that the name is free (and we get the dent to
+            // populate the name)
+            if (ret != -ENOENT || !dent)
+                goto out;
+        }
 
         struct shim_unix_data * data = dent->data;
 
