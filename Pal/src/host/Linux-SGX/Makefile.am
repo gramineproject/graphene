@@ -10,7 +10,7 @@ CFLAGS	= -Wall -fPIC -O2 -maes -std=c11 -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin -DIN_ENCLAVE
 
-EXTRAFLAGS = -Wextra -Wno-sign-compare
+EXTRAFLAGS = -Wextra -Wno-sign-compare -Wnull-dereference
 
 CFLAGS += $(EXTRAFLAGS)
 
