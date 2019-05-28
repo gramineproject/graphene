@@ -147,8 +147,8 @@ static long int host_ptrace(enum __ptrace_request request, pid_t tid, void* addr
         DEBUG("[GDB %d] Executed host ptrace(%s, %d, %p, %p) = %ld\n", getpid(),
               str_ptrace_request(request), tid, addr, data, ret);
 
-    if (ret < 0) {
-        errno = -ret;
+    if (ret == -1) {
+        /* errno is set by SYS_ptrace syscall wrapper */
         return -1;
     }
 
@@ -602,13 +602,10 @@ pid_t waitpid(pid_t tid, int* status, int options) {
                   (long int)NULL);
     DEBUG("[GDB %d] Executed host waitpid(%d, <status>, %d) = %d\n", getpid(), tid, options, res);
 
-    if (res < 0) {
-        errno = -res;
-        return -1;
-    }
-
-    if (!status)
+    if (res == -1 || !status) {
+        /* errno is set by SYS_wait4 syscall wrapper */
         return res;
+    }
 
     if (WIFSTOPPED(*status) && WSTOPSIG(*status) == SIGTRAP) {
         tid = res;
