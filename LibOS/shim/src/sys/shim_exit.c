@@ -166,7 +166,7 @@ int try_process_exit (int error_code, int term_signal)
     return 0;
 }
 
-int shim_do_exit_group (int error_code)
+noreturn int shim_do_exit_group (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();
@@ -193,10 +193,9 @@ int shim_do_exit_group (int error_code)
 #endif
 
     DkThreadExit();
-    return 0;
 }
 
-__attribute__((noreturn)) int shim_do_exit (int error_code)
+noreturn int shim_do_exit (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();

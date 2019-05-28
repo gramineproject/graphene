@@ -145,7 +145,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     return shim_stdio;
 }
 
-int shim_terminate (int err);
+noreturn void shim_terminate (int err);
 
 /* assertions */
 #define USE_PAUSE       0

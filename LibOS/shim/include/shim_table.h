@@ -4,6 +4,8 @@
 #ifndef _SHIM_TABLE_H_
 #define _SHIM_TABLE_H_
 
+#include <stdnoreturn.h>
+
 #include <shim_types.h>
 #include <shim_unistd.h>
 
@@ -395,7 +397,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
 int shim_do_fork (void);
 int shim_do_vfork (void);
 int shim_do_execve (const char * file, const char ** argv, const char ** envp);
-__attribute__((noreturn)) int shim_do_exit (int error_code);
+noreturn int shim_do_exit (int error_code);
 pid_t shim_do_wait4 (pid_t pid, int * stat_addr, int option,
                      struct __kernel_rusage * ru);
 int shim_do_kill (pid_t pid, int sig);
@@ -469,7 +471,7 @@ int shim_do_clock_gettime (clockid_t which_clock,
                            struct timespec * tp);
 int shim_do_clock_getres (clockid_t which_clock,
                           struct timespec * tp);
-int shim_do_exit_group (int error_code);
+noreturn int shim_do_exit_group (int error_code);
 int shim_do_tgkill (int tgid, int pid, int sig);
 int shim_do_openat (int dfd, const char * filename, int flags, int mode);
 int shim_do_mkdirat (int dfd, const char * pathname, int mode);
