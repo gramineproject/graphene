@@ -70,15 +70,18 @@ GLIBC_MIRRORS ?= https://ftp.gnu.org/gnu/ \
 GLIBC_PATCHES = \
 	glibc-patches/$(GLIBC_SRC).patch \
 	glibc-patches/syscalldb-api.patch \
-	glibc-patches/liblibos.patch
+	glibc-patches/liblibos.patch \
+	glibc-patches/malloc-arena-size.patch
 
 GLIBC_PATCHES_2.19 = \
 	glibc-patches/fix-make-warnings.patch \
 	glibc-patches/no-pie.patch \
-	glibc-patches/liblibos-2.19.patch
+	glibc-patches/liblibos-2.19.patch \
+	glibc-patches/hp-timing-2.19.patch
 
 GLIBC_PATCHES_2.23 = \
 	glibc-patches/liblibos-2.23+.patch \
+	glibc-patches/hp-timing-2.23+.patch \
 	glibc-patches/dangling-else.patch \
 	glibc-patches/cvs-common-symbols.patch \
 	glibc-patches/rpc-format-overflow.patch \

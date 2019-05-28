@@ -1,0 +1,29 @@
+diff --git a/sysdeps/x86_64/hp-timing.h b/sysdeps/x86_64/hp-timing.h
+index d88206c..886c500 100644
+--- a/sysdeps/x86_64/hp-timing.h
++++ b/sysdeps/x86_64/hp-timing.h
+@@ -18,23 +18,6 @@
+ 
+ #ifndef _HP_TIMING_H
+ 
+-/* We can use some of the i686 implementation without changes.  */
+-# include <sysdeps/i386/i686/hp-timing.h>
+-
+-/* The "=A" constraint used in 32-bit mode does not work in 64-bit mode.  */
+-# undef HP_TIMING_NOW
+-# define HP_TIMING_NOW(Var) \
+-  ({ unsigned int _hi, _lo; \
+-     asm volatile ("rdtsc" : "=a" (_lo), "=d" (_hi)); \
+-     (Var) = ((unsigned long long int) _hi << 32) | _lo; })
+-
+-/* The funny business for 32-bit mode is not required here.  */
+-# undef HP_TIMING_ACCUM
+-# define HP_TIMING_ACCUM(Sum, Diff)					      \
+-  do {									      \
+-    hp_timing_t __diff = (Diff) - GLRO(dl_hp_timing_overhead);		      \
+-    __asm__ __volatile__ ("lock; addq %1, %0"				      \
+-			  : "=m" (Sum) : "r" (__diff), "m" (Sum));	      \
+-  } while (0)
++#include <sysdeps/generic/hp-timing.h>
+ 
+ #endif /* hp-timing.h */
