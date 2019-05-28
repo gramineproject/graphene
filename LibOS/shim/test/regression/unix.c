@@ -1,7 +1,8 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
-/* copied from http://www.daniweb.com/software-development/c/threads/179814 */
+/* NOTE: Under Graphene, this test must be run only in fork mode.
+ * This is due to Graphene restricting communication via Unix
+ * domain sockets only for processes in same Graphene instance
+ * (i.e. only between parent and its child in this test).
+ */
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -14,21 +15,43 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#define SRV_IP "127.0.0.1"
-#define PORT 9930
-#define BUFLEN 512
-#define NPACK 10
-
-const char * fname;
-
 enum { SINGLE, PARALLEL } mode = PARALLEL;
 int do_fork = 0;
 
 int pipefds[2];
 
+int server_dummy_socket(void)
+{
+    int create_socket;
+    struct sockaddr_un address;
+
+    if ((create_socket = socket(AF_UNIX,SOCK_STREAM,
+                                0)) > 0)
+        printf("Dummy socket was created\n");
+
+    address.sun_family = AF_UNIX;
+    memcpy(address.sun_path,"dummy",10);
+
+    if (bind(create_socket,(struct sockaddr *)&address,
+             sizeof(address)) < 0) {
+        perror("bind");
+        close(create_socket);
+        exit(-1);
+    }
+
+    if (listen(create_socket,3) < 0) {
+        perror("listen");
+        close(create_socket);
+        exit(-1);
+    }
+
+    /* do not close this socket to test two sockets in parallel */
+    return 0;
+}
+
 int server(void)
 {
-    int conn,create_socket,new_socket,fd;
+    int create_socket,new_socket;
     socklen_t addrlen;
     int bufsize = 1024;
     char *buffer = malloc(bufsize);
@@ -83,17 +106,14 @@ int server(void)
         }
     }
 
-    if ((fd = open(fname,O_RDONLY,0)) < 0) {
-        perror("File Open Failed");
-        close(new_socket);
-        exit(-1);
+    for (int i = 0; i < 10; i++) {
+        sprintf(buffer, "Data: This is packet %d\n", i);
+        if (sendto(new_socket, buffer, strlen(buffer), 0, 0, 0) == -1) {
+            fprintf(stderr, "sendto() failed\n");
+            exit(-1);
+        }
     }
 
-    while((conn = read(fd,buffer,
-                       bufsize)) > 0)
-        sendto(new_socket,buffer,conn,0,0,0);
-
-    printf("Request completed\n");
 
     close(new_socket);
     if (do_fork)
@@ -136,13 +156,12 @@ int client(void)
         }
     }
 
-    printf("The contents of file are...\n\n");
-    while((count=recv(create_socket,buffer,bufsize,0))>0)
-        write(1,buffer,count);
+    puts("Receiving:");
+    while ((count = recv(create_socket,buffer,bufsize,0)) > 0) {
+        printf("%s", buffer);
+    }
+    puts("Done");
 
-    printf("\nEOF\n");
-
-    buffer[0] = 0;
     close(create_socket);
     if (do_fork)
         exit(0);
@@ -151,11 +170,6 @@ int client(void)
 
 int main(int argc, char ** argv)
 {
-    char fnamebuf[40];
-    strcpy(fnamebuf, "unix");
-    strcat(fnamebuf, ".c");
-    fname = fnamebuf;
-
     if (argc > 1) {
         if (strcmp(argv[1], "client") == 0) {
             mode = SINGLE;
@@ -165,6 +179,7 @@ int main(int argc, char ** argv)
 
         if (strcmp(argv[1], "server") == 0) {
             mode = SINGLE;
+            server_dummy_socket();
             server();
             return 0;
         }
@@ -180,10 +195,12 @@ old:
 
         int pid = fork();
 
-        if (pid == 0)
+        if (pid == 0) {
             client();
-        else
+        } else {
+            server_dummy_socket();
             server();
+        }
     }
 
     return 0;
