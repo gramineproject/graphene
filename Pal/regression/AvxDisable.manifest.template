@@ -1,2 +1,3 @@
-sgx.disable_avx = 1
+sgx.enable_avx = 0
+sgx.enable_avx512 = 0
 sgx.allowed_files.res = file:avxRes
