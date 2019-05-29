@@ -1134,7 +1134,7 @@ no_mem:
 }
 END_CP_FUNC(vma)
 
-DEFINE_PROFILE_CATAGORY(inside_rs_vma, resume_func);
+DEFINE_PROFILE_CATEGORY(inside_rs_vma, resume_func);
 DEFINE_PROFILE_INTERVAL(vma_add_bookkeep,   inside_rs_vma);
 DEFINE_PROFILE_INTERVAL(vma_map_file,       inside_rs_vma);
 DEFINE_PROFILE_INTERVAL(vma_map_anonymous,  inside_rs_vma);

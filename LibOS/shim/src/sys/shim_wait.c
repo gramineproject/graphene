@@ -38,7 +38,7 @@
 #include <linux/wait.h>
 #include <errno.h>
 
-DEFINE_PROFILE_CATAGORY(wait, );
+DEFINE_PROFILE_CATEGORY(wait, );
 DEFINE_PROFILE_INTERVAL(child_exit_notification, wait);
 
 pid_t shim_do_wait4 (pid_t pid, int * status, int option,

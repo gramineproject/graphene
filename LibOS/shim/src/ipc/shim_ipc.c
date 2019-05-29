@@ -48,7 +48,7 @@ struct shim_lock ipc_info_lock;
 
 struct shim_process cur_process;
 
-DEFINE_PROFILE_CATAGORY(ipc, );
+DEFINE_PROFILE_CATEGORY(ipc, );
 DEFINE_PROFILE_OCCURENCE(syscall_use_ipc, ipc);
 
 //#define DEBUG_REF

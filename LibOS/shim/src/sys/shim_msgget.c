@@ -52,7 +52,7 @@ static struct shim_lock msgq_list_lock;
 static int __load_msg_persist (struct shim_msg_handle * msgq, bool readmsg);
 static int __store_msg_persist(struct shim_msg_handle * msgq);
 
-DEFINE_PROFILE_CATAGORY(sysv_msg, );
+DEFINE_PROFILE_CATEGORY(sysv_msg, );
 
 #define MSG_TO_HANDLE(msghdl)   \
         container_of((msghdl), struct shim_handle, info.msg)

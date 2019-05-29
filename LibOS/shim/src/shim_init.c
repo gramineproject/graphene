@@ -577,7 +577,7 @@ static void set_profile_enabled (const char ** envp)
                 struct shim_profile * profile = &PROFILES[i];
                 if (!memcmp(profile->name, str, len) && !profile->name[len]) {
                     profile->disabled = false;
-                    if (profile->type == CATAGORY)
+                    if (profile->type == CATEGORY)
                         enabled = true;
                 }
             }
@@ -593,7 +593,7 @@ static void set_profile_enabled (const char ** envp)
                 continue;
             if (!profile->root->disabled) {
                 profile->disabled = false;
-                if (profile->type == CATAGORY)
+                if (profile->type == CATEGORY)
                     enabled = true;
             }
         }
@@ -601,7 +601,7 @@ static void set_profile_enabled (const char ** envp)
 
     for (int i = 0 ; i < N_PROFILE ; i++) {
         struct shim_profile * profile = &PROFILES[i];
-        if (profile->type == CATAGORY || profile->disabled)
+        if (profile->type == CATEGORY || profile->disabled)
             continue;
         for (profile = profile->root ;
              profile != &profile_ && profile->disabled ;
@@ -626,7 +626,7 @@ static int init_newproc (struct newproc_header * hdr)
     return hdr->failure;
 }
 
-DEFINE_PROFILE_CATAGORY(pal, );
+DEFINE_PROFILE_CATEGORY(pal, );
 DEFINE_PROFILE_INTERVAL(pal_startup_time,               pal);
 DEFINE_PROFILE_INTERVAL(pal_host_specific_startup_time, pal);
 DEFINE_PROFILE_INTERVAL(pal_relocation_time,            pal);
@@ -636,7 +636,7 @@ DEFINE_PROFILE_INTERVAL(pal_allocation_time,            pal);
 DEFINE_PROFILE_INTERVAL(pal_tail_startup_time,          pal);
 DEFINE_PROFILE_INTERVAL(pal_child_creation_time,        pal);
 
-DEFINE_PROFILE_CATAGORY(init, );
+DEFINE_PROFILE_CATEGORY(init, );
 DEFINE_PROFILE_INTERVAL(init_vma,                   init);
 DEFINE_PROFILE_INTERVAL(init_slab,                  init);
 DEFINE_PROFILE_INTERVAL(init_str_mgr,               init);
@@ -1101,7 +1101,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
                 }
                 break;
             }
-            case CATAGORY:
+            case CATEGORY:
                 for (int j = 0 ; j < level ; j++)
                     __SYS_FPRINTF(hdl, "  ");
                 __SYS_FPRINTF(hdl, "- %s:\n", profile->name);

@@ -56,7 +56,7 @@ static int close_cloexec_handle (struct shim_handle_map * map)
     return walk_handle_map(&close_on_exec, map, NULL);
 }
 
-DEFINE_PROFILE_CATAGORY(exec_rtld, exec);
+DEFINE_PROFILE_CATEGORY(exec_rtld, exec);
 DEFINE_PROFILE_INTERVAL(alloc_new_stack_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(arrange_arguments_for_exec, exec_rtld);
 DEFINE_PROFILE_INTERVAL(unmap_executable_for_exec, exec_rtld);
@@ -205,7 +205,7 @@ retry_dump_vmas:
 
 #include <shim_checkpoint.h>
 
-DEFINE_PROFILE_CATAGORY(exec, );
+DEFINE_PROFILE_CATEGORY(exec, );
 DEFINE_PROFILE_INTERVAL(search_and_check_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(open_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);

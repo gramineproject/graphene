@@ -55,7 +55,7 @@ static struct shim_lock slab_mgr_lock;
 
 static SLAB_MGR slab_mgr = NULL;
 
-DEFINE_PROFILE_CATAGORY(memory, );
+DEFINE_PROFILE_CATEGORY(memory, );
 
 /* Returns NULL on failure */
 void * __system_malloc (size_t size)

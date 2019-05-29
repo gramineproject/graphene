@@ -295,7 +295,7 @@ int ipc_cld_profile_send (void)
                 if (atomic_read(&PROFILES[i].val.interval.count))
                     nsending++;
                 break;
-            case CATAGORY:
+            case CATEGORY:
                 break;
         }
 
@@ -336,7 +336,7 @@ int ipc_cld_profile_send (void)
                 }
                 break;
             }
-            case CATAGORY:
+            case CATEGORY:
                 break;
         }
 
@@ -378,7 +378,7 @@ int ipc_cld_profile_callback (IPC_CALLBACK_ARGS)
                 atomic_add(msgin->profile[i].val.interval.time,
                            &PROFILES[idx].val.interval.time);
                 break;
-            case CATAGORY:
+            case CATEGORY:
                 break;
         }
     }

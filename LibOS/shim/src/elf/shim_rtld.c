@@ -1664,7 +1664,7 @@ BEGIN_CP_FUNC(library)
 }
 END_CP_FUNC(library)
 
-DEFINE_PROFILE_CATAGORY(inside_rs_library, resume_func);
+DEFINE_PROFILE_CATEGORY(inside_rs_library, resume_func);
 DEFINE_PROFILE_INTERVAL(clean_up_library,       inside_rs_library);
 DEFINE_PROFILE_INTERVAL(search_library_vma,     inside_rs_library);
 DEFINE_PROFILE_INTERVAL(relocate_library,       inside_rs_library);
