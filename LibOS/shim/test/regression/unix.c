@@ -30,7 +30,7 @@ int server_dummy_socket(void)
         printf("Dummy socket was created\n");
 
     address.sun_family = AF_UNIX;
-    memcpy(address.sun_path,"dummy",10);
+    strncpy(address.sun_path, "dummy", sizeof(address.sun_path));
 
     if (bind(create_socket,(struct sockaddr *)&address,
              sizeof(address)) < 0) {
@@ -62,7 +62,7 @@ int server(void)
         printf("The socket was created\n");
 
     address.sun_family = AF_UNIX;
-    memcpy(address.sun_path,"u",10);
+    strncpy(address.sun_path, "u", sizeof(address.sun_path));
 
     if (bind(create_socket,(struct sockaddr *)&address,
              sizeof(address)) < 0) {
@@ -138,7 +138,7 @@ int client(void)
         printf("The socket was created\n");
 
     address.sun_family = AF_UNIX;
-    memcpy(address.sun_path,"u",10);
+    strncpy(address.sun_path, "u", sizeof(address.sun_path));
 
     if (connect(create_socket,(struct sockaddr *)&address,
                 sizeof(address)) == 0)
