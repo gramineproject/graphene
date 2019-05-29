@@ -435,7 +435,7 @@ static inline void parse_string_arg (va_list * ap)
 {
     va_list ap_test_arg;
     va_copy(ap_test_arg, *ap);
-    void* test_arg = va_arg(ap_test_arg, const char*);
+    const char* test_arg = va_arg(ap_test_arg, const char*);
     if (!test_user_string(test_arg)) {
         VPRINTF("\"%s\"", ap);
     } else {
@@ -902,7 +902,7 @@ static void parse_timespec (const char * type, va_list * ap)
         return;
     }
 
-    if (test_user_memory(tv, sizeof(*tv), false)) {
+    if (test_user_memory((void*)tv, sizeof(*tv), false)) {
         PRINTF("(invalid-addr %p)", tv);
         return;
     }
@@ -919,7 +919,7 @@ static void parse_sockaddr (const char * type, va_list *ap)
         return;
     }
 
-    if (test_user_memory(addr, sizeof(*addr), false)) {
+    if (test_user_memory((void*)addr, sizeof(*addr), false)) {
         PRINTF("(invalid-addr %p)", addr);
         return;
     }
