@@ -158,7 +158,7 @@ int client(void)
 
     puts("Receiving:");
     while ((count = recv(create_socket,buffer,bufsize,0)) > 0) {
-        printf("%s", buffer);
+        fwrite(buffer, count, 1, stdout);
     }
     puts("Done");
 
