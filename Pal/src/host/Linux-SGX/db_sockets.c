@@ -739,7 +739,7 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
-                               const void * buf, const char * addr, uint64_t addrlen)
+                               const void * buf, const char * addr, size_t addrlen)
 {
     if (offset)
         return -PAL_ERROR_INVAL;

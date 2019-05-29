@@ -47,7 +47,7 @@ unsigned long _DkSystemTimeQuery (void)
 size_t _DkRandomBitsRead (void * buffer, size_t size)
 {
     uint32_t rand;
-    for (uint32_t i = 0; i < size; i += sizeof(rand)) {
+    for (size_t i = 0; i < size; i += sizeof(rand)) {
         rand = rdrand();
         memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
     }
