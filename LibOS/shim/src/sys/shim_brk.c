@@ -74,8 +74,8 @@ int init_brk_region (void * brk_region)
     }
 
     int flags = MAP_PRIVATE|MAP_ANONYMOUS;
-    bool brk_on_heap = (brk_region == NULL);
-    const int tries = 10;
+    bool brk_on_heap = true;
+    const int TRIES = 10;
 
     /*
      * Chia-Che 8/24/2017
@@ -90,23 +90,24 @@ int init_brk_region (void * brk_region)
             max_brk = PAL_CB(user_address.end) - PAL_CB(executable_range.end);
 
         /* Check whether the brk region can potentially be located after exec at all. */
-        if (brk_max_size > max_brk) {
-            /* We can't fit brk after exec, defer to placing it anywhere on the heap.
-             * This is mostly the case for PIE images. */
-            brk_on_heap = true;
-        } else {
-            /* Try to find a place for brk */
+        if (brk_max_size <= max_brk) {
             int try;
-            for (try = tries; try > 0; try--) {
-                uint32_t rand;
+            for (try = TRIES; try > 0; try--) {
+                uint32_t rand = 0;
+#if ENABLE_ASLR == 1
                 int ret = DkRandomBitsRead(&rand, sizeof(rand));
                 if (ret < 0)
                     return -convert_pal_errno(-ret);
                 rand %= 0x2000000;
-                rand = ALIGN_UP(rand);
+                rand = ALIGN_DOWN(rand);
 
                 if (brk_region + rand + brk_max_size >= PAL_CB(user_address.end))
                     continue;
+#else
+                /* Without randomization there is no point to retry here */
+                if (brk_region + rand + brk_max_size >= PAL_CB(user_address.end))
+                    break;
+#endif
 
                 struct shim_vma_val vma;
                 if (lookup_overlap_vma(brk_region + rand, brk_max_size, &vma) == -ENOENT) {
@@ -115,11 +116,10 @@ int init_brk_region (void * brk_region)
                     brk_on_heap = false;
                     break;
                 }
-            }
-
-            if (try == 0 || brk_region >= PAL_CB(user_address.end)) {
-                /* Couldn't find a place, defer to heap allocation */
-                brk_on_heap = true;
+#if !(ENABLE_ASLR == 1)
+                /* Without randomization, try memory directly after the overlapping block */
+                brk_region = vma.addr + vma.length;
+#endif
             }
         }
     }
