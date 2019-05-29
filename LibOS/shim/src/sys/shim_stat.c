@@ -111,7 +111,7 @@ out:
     return ret;
 }
 
-int shim_do_readlink (const char * file, char * buf, int bufsize)
+int shim_do_readlink (const char * file, char * buf, size_t bufsize)
 {
     if (!file || test_user_string(file))
         return -EFAULT;

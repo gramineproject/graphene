@@ -568,7 +568,7 @@ DEFINE_PROFILE_INTERVAL(ipc_sysv_semctl_send, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_sysv_semctl_callback, ipc);
 
 int ipc_sysv_semctl_send (IDTYPE semid, int semnum, int cmd, void * vals,
-                          int valsize)
+                          size_t valsize)
 {
     BEGIN_PROFILE_INTERVAL();
     IDTYPE owner;
@@ -622,7 +622,7 @@ int ipc_sysv_semctl_callback (IPC_CALLBACK_ARGS)
     }
 
     void * vals = NULL;
-    int valsize;
+    size_t valsize;
     switch(msgin->cmd) {
         case GETALL: {
             unsigned short * allsems = __alloca(sizeof(unsigned short) *
@@ -701,7 +701,7 @@ DEFINE_PROFILE_INTERVAL(ipc_sysv_semret_send, ipc);
 DEFINE_PROFILE_INTERVAL(ipc_sysv_semret_callback, ipc);
 
 int ipc_sysv_semret_send (struct shim_ipc_port * port, IDTYPE dest, void * vals,
-                          int valsize, unsigned long seq)
+                          size_t valsize, unsigned long seq)
 {
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
@@ -745,7 +745,7 @@ int ipc_sysv_semret_callback (IPC_CALLBACK_ARGS)
                 case GETPID:
                 case GETVAL:
                 case GETZCNT: {
-                    int retvalsize = semret->valsize;
+                    size_t retvalsize = semret->valsize;
                     if (retvalsize > semctl->valsize)
                         retvalsize = semctl->valsize;
                     memcpy(vals, semret->vals, retvalsize);

@@ -57,7 +57,7 @@ struct shim_vma_val {
 static inline
 void free_vma_val_array (struct shim_vma_val * vmas, size_t count)
 {
-    for (int i = 0 ; i < count ; i++) {
+    for (size_t i = 0 ; i < count ; i++) {
         /* need to release the file handle */
         if (vmas[i].file)
             put_handle(vmas[i].file);

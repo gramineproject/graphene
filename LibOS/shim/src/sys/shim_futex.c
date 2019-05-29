@@ -165,7 +165,7 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
             }
 
         {
-            uint32_t bitset = (futex_op == FUTEX_WAIT_BITSET) ? val3 :
+            uint32_t bitset = (futex_op == FUTEX_WAIT_BITSET) ? (uint32_t) val3 :
                               0xffffffff;
 
             debug("FUTEX_WAIT: %p (val = %d) vs %d mask = %08x, timeout ptr %p\n",
@@ -201,7 +201,7 @@ int shim_do_futex (int * uaddr, int op, int val, void * utime,
         case FUTEX_WAKE_BITSET: {
             struct futex_waiter * waiter, * wtmp;
             int nwaken = 0;
-            uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? val3 :
+            uint32_t bitset = (futex_op == FUTEX_WAKE_BITSET) ? (uint32_t) val3 :
                               0xffffffff;
 
             debug("FUTEX_WAKE: %p (val = %d) count = %d mask = %08x\n",

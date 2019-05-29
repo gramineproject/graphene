@@ -173,7 +173,7 @@ enum {
     ({                                                              \
         ptr_t _off = store->offset;                                 \
         if (store->offset + (size) > store->bound) {                \
-            int new_bound = store->bound * 2;                       \
+            ptr_t new_bound = store->bound * 2;                     \
                                                                     \
             while (store->offset + (size) > new_bound)              \
                 new_bound *= 2;                                     \
@@ -444,7 +444,7 @@ struct newproc_response {
 int do_migration (struct newproc_cp_header * hdr, void ** cpptr);
 
 int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
-                        ptr_t base, int type);
+                        ptr_t base, ptr_t type);
 
 int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                                         struct shim_thread *,

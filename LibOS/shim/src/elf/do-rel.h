@@ -58,7 +58,7 @@
    relocations; they should be set up to call _dl_runtime_resolve, rather
    than fully resolved now.  */
 static void __attribute__((unused))
-elf_dynamic_do_rel (struct link_map * l, ElfW(Addr) reladdr, int relsize)
+elf_dynamic_do_rel (struct link_map * l, ElfW(Addr) reladdr, size_t relsize)
 {
     if (!l->l_info[DT_SYMTAB])
         return;
@@ -68,7 +68,7 @@ elf_dynamic_do_rel (struct link_map * l, ElfW(Addr) reladdr, int relsize)
     ElfW(Rel) * end = (void *) (reladdr + relsize);
     ElfW(Word) nrelative = l->l_info[RELCOUNT_IDX] == NULL
                            ? 0 : l->l_info[RELCOUNT_IDX]->d_un.d_val;
-    int nrelsize = relsize / sizeof (ElfW(Rel));
+    size_t nrelsize = relsize / sizeof (ElfW(Rel));
 
     r = r + (nrelative < nrelsize ? nrelative : nrelsize);
     for (; r < end; ++r) {

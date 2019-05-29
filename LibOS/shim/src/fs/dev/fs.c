@@ -58,21 +58,18 @@
 
 #define DEV_INO_BASE   1025
 
-static int dev_null_read (struct shim_handle * hdl, void * buf,
-                          size_t count)
+static int64_t dev_null_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     return 0;
 }
 
-static int dev_zero_read (struct shim_handle * hdl, void * buf,
-                          size_t count)
+static int64_t dev_zero_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     memset(buf, 0, count);
     return count;
 }
 
-static int dev_null_write (struct shim_handle * hdl, const void * buf,
-                           size_t count)
+static int64_t dev_null_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     return count;
 }
@@ -114,17 +111,15 @@ static int dev_random_mode (const char * name, mode_t * mode)
     return 0;
 }
 
-static int dev_urandom_read (struct shim_handle * hdl, void * buf,
-                             size_t count)
+static int64_t dev_urandom_read (struct shim_handle * hdl, void * buf, size_t count)
 {
-    int ret = DkRandomBitsRead(buf, count);
+    int64_t ret = DkRandomBitsRead(buf, count);
     if (ret < 0)
         return -convert_pal_errno(-ret);
     return count;
 }
 
-static int dev_random_read (struct shim_handle * hdl, void * buf,
-                            size_t count)
+static int64_t dev_random_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     return dev_urandom_read(hdl, buf, count);
 }
@@ -282,8 +277,7 @@ static int dev_close (struct shim_handle * hdl)
     return hdl->info.dev.dev_ops.close(hdl);
 }
 
-static int dev_read (struct shim_handle * hdl, void * buf,
-                     size_t count)
+static int64_t dev_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     if (!hdl->info.dev.dev_ops.read)
         return -EACCES;
@@ -291,8 +285,7 @@ static int dev_read (struct shim_handle * hdl, void * buf,
     return hdl->info.dev.dev_ops.read(hdl, buf, count);
 }
 
-static int dev_write (struct shim_handle * hdl, const void * buf,
-                     size_t count)
+static int64_t dev_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     if (!hdl->info.dev.dev_ops.write)
         return -EACCES;

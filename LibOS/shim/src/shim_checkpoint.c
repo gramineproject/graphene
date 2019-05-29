@@ -564,7 +564,7 @@ static int restore_gipc (PAL_HANDLE gipc, struct gipc_header * hdr, ptr_t base,
 }
 
 int restore_checkpoint (struct cp_header * cphdr, struct mem_header * memhdr,
-                        ptr_t base, int type)
+                        ptr_t base, ptr_t type)
 {
     ptr_t cpoffset = cphdr->offset;
     ptr_t * offset = &cpoffset;
@@ -899,7 +899,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     int ret = 0;
     struct shim_process * new_process = NULL;
     struct newproc_header hdr;
-    int bytes;
+    size_t bytes;
     memset(&hdr, 0, sizeof(hdr));
 
 #ifdef PROFILE
@@ -1216,7 +1216,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         SAVE_PROFILE_INTERVAL(child_load_memory_by_gipc);
         DkStreamDelete(gipc_store, 0);
     } else {
-        int total_bytes = 0;
+        size_t total_bytes = 0;
         while (total_bytes < size) {
             int bytes = DkStreamRead(PAL_CB(parent_process), 0,
                                      size - total_bytes,
@@ -1233,7 +1233,7 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
         }
 
         SAVE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe);
-        debug("%d bytes read on stream\n", total_bytes);
+        debug("%lu bytes read on stream\n", total_bytes);
     }
 
     /* Receive socket or RPC handles from the parent process. */

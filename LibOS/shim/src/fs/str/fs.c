@@ -90,10 +90,9 @@ int str_close (struct shim_handle * hdl)
     return 0;
 }
 
-int str_read (struct shim_handle * hdl, void * buf,
-              size_t count)
+int64_t str_read (struct shim_handle * hdl, void * buf, size_t count)
 {
-    int ret = 0;
+    int64_t ret = 0;
 
     if (!(hdl->acc_mode && MAY_READ)) {
         ret = -EACCES;
@@ -116,8 +115,8 @@ int str_read (struct shim_handle * hdl, void * buf,
     if (!strhdl->ptr)
         strhdl->ptr = data->str;
 
-    int offset = strhdl->ptr - data->str;
-    int remain = data->len - offset;
+    uint64_t offset = strhdl->ptr - data->str;
+    uint64_t remain = data->len - offset;
 
     if (count >= remain) {
         memcpy(buf, strhdl->ptr, remain);
@@ -136,8 +135,7 @@ out:
     return ret;
 }
 
-int str_write (struct shim_handle * hdl, const void * buf,
-               size_t count)
+int64_t str_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     if (!(hdl->acc_mode && MAY_WRITE))
         return -EACCES;

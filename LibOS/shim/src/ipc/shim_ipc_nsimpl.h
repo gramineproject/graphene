@@ -68,7 +68,7 @@ DEFINE_LIST(range);
 struct range {
     LIST_TYPE(range)    hlist;
     LIST_TYPE(range)    list;
-    int                 offset;
+    IDTYPE              offset;
     struct shim_ipc_info *  owner;
     LEASETYPE           lease;
     struct idx_bitmap * used;
@@ -76,7 +76,7 @@ struct range {
 };
 
 struct range_bitmap {
-    int                 map_size;
+    IDTYPE              map_size;
     unsigned char       map[];
 };
 
@@ -126,17 +126,17 @@ void CONCAT3(debug_print, NS, ranges) (void)
         return;
     }
 
-    for (int i = 0 ; i < range_map->map_size ; i++) {
+    for (IDTYPE i = 0 ; i < range_map->map_size ; i++) {
         unsigned char map = range_map->map[i];
 
         if (!map)
             continue;
 
-        for (int j = 0 ; j < BITS ; map >>= 1, j++) {
+        for (IDTYPE j = 0 ; j < BITS ; map >>= 1, j++) {
             if (!(map & 1))
                 continue;
 
-            int off = i * BITS + j;
+            IDTYPE off = i * BITS + j;
             LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
             struct range * tmp, * r = NULL;
 
@@ -157,7 +157,7 @@ void CONCAT3(debug_print, NS, ranges) (void)
             if (!r->subranges)
                 continue;
 
-            for (int k = 0 ; k < RANGE_SIZE ; k++) {
+            for (IDTYPE k = 0 ; k < RANGE_SIZE ; k++) {
                 struct subrange * s = r->subranges->map[j];
                 if (!s)
                     continue;
@@ -175,9 +175,9 @@ void CONCAT3(debug_print, NS, ranges) (void)
 
 #define INIT_RANGE_MAP_SIZE     32
 
-static int __extend_range_bitmap (int expected)
+static int __extend_range_bitmap (IDTYPE expected)
 {
-    int size = INIT_RANGE_MAP_SIZE;
+    IDTYPE size = INIT_RANGE_MAP_SIZE;
 
     if (range_map)
         size = range_map->map_size;
@@ -204,11 +204,11 @@ static int __extend_range_bitmap (int expected)
     return 0;
 }
 
-static int __set_range_bitmap (int off, bool unset)
+static int __set_range_bitmap (IDTYPE off, bool unset)
 {
-    int i = off / BITS;
-    int j = off - i * BITS;
-    unsigned char * m = range_map->map + i;
+    IDTYPE i = off / BITS;
+    IDTYPE j = off - i * BITS;
+    unsigned char* m = range_map->map + i;
     unsigned char f = 1U << j;
     if (unset) {
         if (!((*m) & f))
@@ -222,16 +222,16 @@ static int __set_range_bitmap (int off, bool unset)
     return 0;
 }
 
-static bool __check_range_bitmap (int off)
+static bool __check_range_bitmap (IDTYPE off)
 {
-    int i = off / BITS;
-    int j = off - i * BITS;
-    unsigned char * m = range_map->map + i;
+    IDTYPE i = off / BITS;
+    IDTYPE j = off - i * BITS;
+    unsigned char* m = range_map->map + i;
     unsigned char f = 1U << j;
     return (*m) && ((*m) & f);
 }
 
-static struct range * __get_range (int off)
+static struct range * __get_range (IDTYPE off)
 {
     LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
 
@@ -250,7 +250,7 @@ static struct range * __get_range (int off)
     return NULL;
 }
 
-static int __add_range (struct range * r, int off, IDTYPE owner,
+static int __add_range (struct range * r, IDTYPE off, IDTYPE owner,
                         const char * uri, LEASETYPE lease)
 {
     LISTP_TYPE(range) * head = range_table + RANGE_HASH(off);
@@ -332,7 +332,7 @@ static int __add_range (struct range * r, int off, IDTYPE owner,
 int CONCAT3(add, NS, range) (IDTYPE base, IDTYPE owner,
                              const char * uri, LEASETYPE lease)
 {
-    int off = (base - 1) / RANGE_SIZE;
+    IDTYPE off = (base - 1) / RANGE_SIZE;
     int ret;
 
     struct range * r = malloc(sizeof(struct range));
@@ -360,8 +360,9 @@ static void CONCAT3(__del, NS, subrange) (struct subrange ** ptr)
 int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
                                 const char * uri, LEASETYPE * lease)
 {
-    int off = (idx - 1) / RANGE_SIZE, err = 0;
+    IDTYPE off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
+    int err = 0;
     struct subrange * s = malloc(sizeof(struct subrange));
     if (!s)
         return -ENOMEM;
@@ -432,7 +433,7 @@ int CONCAT3(alloc, NS, range) (IDTYPE owner, const char * uri,
     int ret = 0;
     lock(&range_map_lock);
     r->owner = NULL;
-    int i = 0, j = 0;
+    IDTYPE i = 0, j = 0;
 
     if (range_map)
         for (i = 0 ; i < range_map->map_size ; i++) {
@@ -470,7 +471,7 @@ int CONCAT3(get, NS, range) (IDTYPE idx,
                              struct CONCAT2(NS, range) * range,
                              struct shim_ipc_info ** info)
 {
-    int off = (idx - 1) / RANGE_SIZE;
+    IDTYPE off = (idx - 1) / RANGE_SIZE;
 
     lock(&range_map_lock);
 
@@ -519,7 +520,7 @@ int CONCAT3(get, NS, range) (IDTYPE idx,
 
 int CONCAT3(del, NS, range) (IDTYPE idx)
 {
-    int off = (idx - 1) / RANGE_SIZE;
+    IDTYPE off = (idx - 1) / RANGE_SIZE;
     int ret = -ESRCH;
 
     lock(&range_map_lock);
@@ -529,7 +530,7 @@ int CONCAT3(del, NS, range) (IDTYPE idx)
         goto failed;
 
     if (r->subranges) {
-        for (int i = 0 ; i < RANGE_SIZE ; i++)
+        for (IDTYPE i = 0 ; i < RANGE_SIZE ; i++)
             if (r->subranges->map[i]) {
                 ret = -EBUSY;
                 goto failed;
@@ -571,7 +572,7 @@ failed:
 
 int CONCAT3(del, NS, subrange) (IDTYPE idx)
 {
-    int off = (idx - 1) / RANGE_SIZE;
+    IDTYPE off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
     int ret = -ESRCH;
 
@@ -593,7 +594,7 @@ failed:
 
 int CONCAT3(renew, NS, range) (IDTYPE idx, LEASETYPE * lease)
 {
-    int off = (idx - 1) / RANGE_SIZE;
+    IDTYPE off = (idx - 1) / RANGE_SIZE;
 
     lock(&range_map_lock);
 
@@ -612,7 +613,7 @@ int CONCAT3(renew, NS, range) (IDTYPE idx, LEASETYPE * lease)
 
 int CONCAT3(renew, NS, subrange) (IDTYPE idx, LEASETYPE * lease)
 {
-    int off = (idx - 1) / RANGE_SIZE;
+    IDTYPE off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
 
     lock(&range_map_lock);
@@ -657,8 +658,8 @@ IDTYPE CONCAT2(allocate, NS) (IDTYPE min, IDTYPE max)
                 continue;
         }
 
-        int i = (idx - base) / BITS;
-        int j = (idx - base) - i * BITS;
+        IDTYPE i = (idx - base) / BITS;
+        IDTYPE j = (idx - base) - i * BITS;
         unsigned char * m = r->used->map + i;
         unsigned char f = 1U << j;
 
@@ -685,7 +686,7 @@ out:
 
 void CONCAT2(release, NS) (IDTYPE idx)
 {
-    int off = (idx - 1) / RANGE_SIZE;
+    IDTYPE off = (idx - 1) / RANGE_SIZE;
     IDTYPE base = off * RANGE_SIZE + 1;
 
     lock(&range_map_lock);
@@ -703,8 +704,8 @@ void CONCAT2(release, NS) (IDTYPE idx)
     if (idx < base || idx >= base + RANGE_SIZE)
         goto out;
 
-    int i = (idx - base) / BITS;
-    int j = (idx - base) - i * BITS;
+    IDTYPE i = (idx - base) / BITS;
+    IDTYPE j = (idx - base) - i * BITS;
     unsigned char * m = r->used->map + i;
     unsigned char f = 1U << j;
     if ((*m) & f) {
@@ -939,7 +940,7 @@ static int connect_owner (IDTYPE idx, struct shim_ipc_port ** portptr,
     if (range.port)
         goto success;
 
-    int type = IPC_PORT_OWN|IPC_PORT_LISTEN;
+    IDTYPE type = IPC_PORT_OWN|IPC_PORT_LISTEN;
 
     if (!range.port) {
         PAL_HANDLE pal_handle = DkStreamOpen(qstrgetstr(&range.uri),

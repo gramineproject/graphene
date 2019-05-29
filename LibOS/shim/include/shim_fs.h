@@ -52,10 +52,10 @@ struct shim_fs_ops {
     int (*close) (struct shim_handle * hdl);
 
     /* read: the content from the file opened as handle */
-    int (*read) (struct shim_handle * hdl, void * buf, size_t count);
+    int64_t (*read) (struct shim_handle * hdl, void * buf, size_t count);
 
     /* write: the content from the file opened as handle */
-    int (*write) (struct shim_handle * hdl, const void * buf, size_t count);
+    int64_t (*write) (struct shim_handle * hdl, const void * buf, size_t count);
 
     /* mmap: mmap handle to address */
     int (*mmap) (struct shim_handle * hdl, void ** addr, size_t size,
@@ -344,7 +344,7 @@ extern struct shim_lock dcache_lock;
 /* check permission (specified by mask) of a dentry. If force is not set,
  * permission is considered granted on invalid dentries */
 /* Assume caller has acquired dcache_lock */
-int permission (struct shim_dentry * dent, int mask, bool force);
+int permission (struct shim_dentry * dent, mode_t mask, bool force);
 
 /* This function looks up a single dentry based on its parent dentry pointer
  * and the name.  Namelen is the length of char * name.
@@ -443,22 +443,22 @@ void get_dentry (struct shim_dentry * dent);
 void put_dentry (struct shim_dentry * dent);
 
 static_always_inline
-void fast_pathcpy (char * dst, const char * src, int size, char ** ptr)
+void fast_pathcpy (char * dst, const char * src, size_t size, char ** ptr)
 {
     char * d = dst;
     const char * s = src;
-    for (int i = 0 ; i < size ; i++, s++, d++)
+    for (size_t i = 0 ; i < size ; i++, s++, d++)
         *d = *s;
     *ptr = d;
 }
 
 static_always_inline
 char * dentry_get_path (struct shim_dentry * dent, bool on_stack,
-                        int * sizeptr)
+                        size_t * sizeptr)
 {
     struct shim_mount * fs = dent->fs;
     char * buffer, * c;
-    int bufsize = dent->rel_path.len + 1;
+    size_t bufsize = dent->rel_path.len + 1;
 
     if (fs)
         bufsize += fs->path.len + 1;
@@ -612,8 +612,8 @@ int str_add_file (const char * path, mode_t mode, struct shim_dentry ** dent);
 int str_open (struct shim_handle * hdl, struct shim_dentry * dent, int flags);
 int str_dput (struct shim_dentry * dent);
 int str_close (struct shim_handle * hdl);
-int str_read (struct shim_handle * hdl, void * buf, size_t count);
-int str_write (struct shim_handle * hdl, const void * buf, size_t count);
+int64_t str_read (struct shim_handle * hdl, void * buf, size_t count);
+int64_t str_write (struct shim_handle * hdl, const void * buf, size_t count);
 int str_seek (struct shim_handle * hdl, off_t offset, int whence);
 int str_flush (struct shim_handle * hdl);
 

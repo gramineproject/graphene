@@ -112,7 +112,7 @@ int shim_do_setpgid (pid_t pid, pid_t pgid)
     if (!thread)
         return -ESRCH;
 
-    thread->pgid = pgid ? : thread->tgid;
+    thread->pgid = (IDTYPE) pgid ? : thread->tgid;
 
     return 0;
 }

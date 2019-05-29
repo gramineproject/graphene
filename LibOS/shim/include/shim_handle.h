@@ -108,10 +108,10 @@ struct shim_dev_ops {
     int (*close) (struct shim_handle * hdl);
 
     /* read: the content from the file opened as handle */
-    int (*read) (struct shim_handle * hdl, void * buf, size_t count);
+    int64_t (*read) (struct shim_handle * hdl, void * buf, size_t count);
 
     /* write: the content from the file opened as handle */
-    int (*write) (struct shim_handle * hdl, const void * buf, size_t count);
+    int64_t (*write) (struct shim_handle * hdl, const void * buf, size_t count);
 
     /* flush: flush out user buffer */
     int (*flush) (struct shim_handle * hdl);

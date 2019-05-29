@@ -531,14 +531,14 @@ int shim_do_kill (pid_t pid, int sig)
        specified by pid. */
     else if (pid > 0) {
         ret = do_kill_proc(cur->tid, pid, sig, true);
-        send_to_self = (pid == cur->tgid);
+        send_to_self = ((IDTYPE) pid == cur->tgid);
     }
 
     /* If pid is less than -1, then sig is sent to every process in the
        process group whose id is -pid */
     else {
         ret = do_kill_pgroup(cur->tid, -pid, sig, true);
-        send_to_self = (-pid == cur->pgid);
+        send_to_self = ((IDTYPE) -pid == cur->pgid);
     }
 
     if (send_to_self) {
@@ -597,7 +597,7 @@ int shim_do_tkill (pid_t tid, int sig)
 
     struct shim_thread * cur = get_cur_thread();
 
-    if (tid == cur->tid) {
+    if ((IDTYPE) tid == cur->tid) {
         if (sig) {
             siginfo_t info;
             memset(&info, 0, sizeof(siginfo_t));
@@ -623,7 +623,7 @@ int shim_do_tgkill (pid_t tgid, pid_t tid, int sig)
 
     struct shim_thread * cur = get_cur_thread();
 
-    if (tid == cur->tid) {
+    if ((IDTYPE) tid == cur->tid) {
         if (sig) {
             siginfo_t info;
             memset(&info, 0, sizeof(siginfo_t));

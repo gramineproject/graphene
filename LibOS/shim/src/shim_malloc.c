@@ -141,10 +141,9 @@ void * malloc (size_t size)
 #endif
 {
 #ifdef PROFILE
-    int i;
     int level = -1;
 
-    for (i = 0 ; i < SLAB_LEVEL ; i++)
+    for (size_t i = 0 ; i < SLAB_LEVEL ; i++)
         if (size < slab_levels[i]) {
             level = i;
             break;

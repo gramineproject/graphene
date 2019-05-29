@@ -287,7 +287,7 @@ int shim_do_msgget (key_t key, int msgflg)
         if (msgq) {
             msgid = msgq->msqid;
             put_msg_handle(msgq);
-            return (msgflg & IPC_EXCL) ? -EEXIST : msgid;
+            return (msgflg & IPC_EXCL) ? -EEXIST : (int) msgid;
         }
     }
 
@@ -497,7 +497,7 @@ static int __load_msg_qobjs (struct shim_msg_handle * msgq,
                              struct msg_type * mtype,
                              struct msg_item * msg, void * data)
 {
-    int copysize = MSG_ITEM_DATA_SIZE(msg->size);
+    size_t copysize = MSG_ITEM_DATA_SIZE(msg->size);
     memcpy(data, msg->data, copysize);
     mtype->msgs = msg->next;
     __free_msg_qobj(msgq, msg);
@@ -505,7 +505,7 @@ static int __load_msg_qobjs (struct shim_msg_handle * msgq,
     while (copysize < msg->size) {
         assert(mtype->msgs);
         struct msg_ext_item * ext = (struct msg_ext_item *) mtype->msgs;
-        int sz = MSG_EXT_ITEM_DATA_SIZE(msg->size - copysize);
+        size_t sz = MSG_EXT_ITEM_DATA_SIZE(msg->size - copysize);
         memcpy(data + copysize, ext->data, sz);
         copysize += sz;
         mtype->msgs = ext->next;
@@ -522,7 +522,7 @@ static int __load_msg_qobjs (struct shim_msg_handle * msgq,
 
 static int __store_msg_qobjs (struct shim_msg_handle * msgq,
                               struct msg_type * mtype,
-                              int size, const void * data)
+                              size_t size, const void * data)
 {
     struct msg_item * newmsg = __get_msg_qobj(msgq);
     if (!newmsg)
@@ -532,7 +532,7 @@ static int __store_msg_qobjs (struct shim_msg_handle * msgq,
 
     newmsg->next = NULL;
     newmsg->size = size;
-    int copysize = MSG_ITEM_DATA_SIZE(size);
+    size_t copysize = MSG_ITEM_DATA_SIZE(size);
     memcpy(newmsg->data, data, copysize);
 
     if (mtype->msg_tail) {
@@ -548,7 +548,7 @@ static int __store_msg_qobjs (struct shim_msg_handle * msgq,
         if (!ext)
             goto eagain;
 
-        int sz = MSG_EXT_ITEM_DATA_SIZE(size - copysize);
+        size_t sz = MSG_EXT_ITEM_DATA_SIZE(size - copysize);
         memcpy(ext->data, data + copysize, sz);
         ext->next = NULL;
         mtype->msg_tail->next = ext;
@@ -585,7 +585,7 @@ static struct sysv_balance_policy msg_policy  = {
 DEFINE_PROFILE_INTERVAL(add_sysv_msg, sysv_msg);
 
 int add_sysv_msg (struct shim_msg_handle * msgq,
-                  long type, int size, const void * data,
+                  long type, size_t size, const void * data,
                   struct sysv_client * src)
 {
     BEGIN_PROFILE_INTERVAL();
@@ -669,7 +669,7 @@ static int __add_msg_req (struct shim_msg_handle * msgq,
 DEFINE_PROFILE_INTERVAL(get_sysv_msg, sysv_msg);
 
 int get_sysv_msg (struct shim_msg_handle * msgq,
-                  long type, int size, void * data, int flags,
+                  long type, size_t size, void * data, int flags,
                   struct sysv_client * src)
 {
     BEGIN_PROFILE_INTERVAL();
@@ -873,8 +873,8 @@ static int __load_msg_persist (struct shim_msg_handle * msgq, bool readmsg)
 
     struct msg_handle_backup mback;
 
-    int bytes = DkStreamRead(file, 0, sizeof(struct msg_handle_backup),
-                             &mback, NULL, 0);
+    size_t bytes = DkStreamRead(file, 0, sizeof(struct msg_handle_backup),
+                                &mback, NULL, 0);
 
     if (bytes < sizeof(struct msg_handle_backup)) {
         ret = bytes ? -EFAULT : -PAL_ERRNO;

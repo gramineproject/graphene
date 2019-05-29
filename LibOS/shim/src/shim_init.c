@@ -568,7 +568,7 @@ static void set_profile_enabled (const char ** envp)
     if (!(*p))
         return;
 
-    for (int i = 0 ; i < N_PROFILE ; i++)
+    for (size_t i = 0 ; i < N_PROFILE ; i++)
          PROFILES[i].disabled = true;
 
     const char * str = (*p) + 16;
@@ -577,8 +577,8 @@ static void set_profile_enabled (const char ** envp)
         const char * next = str;
         for ( ; (*next) && (*next) != ',' ; next++);
         if (next > str) {
-            int len = next - str;
-            for (int i = 0 ; i < N_PROFILE ; i++) {
+            size_t len = next - str;
+            for (size_t i = 0 ; i < N_PROFILE ; i++) {
                 struct shim_profile * profile = &PROFILES[i];
                 if (!memcmp(profile->name, str, len) && !profile->name[len]) {
                     profile->disabled = false;
@@ -592,7 +592,7 @@ static void set_profile_enabled (const char ** envp)
 
     while (enabled) {
         enabled = false;
-        for (int i = 0 ; i < N_PROFILE ; i++) {
+        for (size_t i = 0 ; i < N_PROFILE ; i++) {
             struct shim_profile * profile = &PROFILES[i];
             if (!profile->disabled || profile->root == &profile_)
                 continue;
@@ -604,7 +604,7 @@ static void set_profile_enabled (const char ** envp)
         }
     }
 
-    for (int i = 0 ; i < N_PROFILE ; i++) {
+    for (size_t i = 0 ; i < N_PROFILE ; i++) {
         struct shim_profile * profile = &PROFILES[i];
         if (profile->type == CATEGORY || profile->disabled)
             continue;
@@ -861,7 +861,7 @@ static int create_unique (int (*mkname) (char *, size_t, void *),
 static int name_pipe (char * uri, size_t size, void * id)
 {
     IDTYPE pipeid;
-    int len;
+    size_t len;
     int ret = DkRandomBitsRead(&pipeid, sizeof(pipeid));
     if (ret < 0)
         return -convert_pal_errno(-ret);
@@ -889,7 +889,7 @@ static int pipe_addr (char * uri, size_t size, const void * id,
                       struct shim_qstr * qstr)
 {
     IDTYPE pipeid = *((IDTYPE *) id);
-    int len;
+    size_t len;
     if ((len = snprintf(uri, size, "pipe:%u", pipeid)) == size)
         return -ERANGE;
     if (qstr)
@@ -912,7 +912,7 @@ static int name_path (char * path, size_t size, void * id)
 {
     unsigned int suffix;
     int prefix_len = strlen(path);
-    int len;
+    size_t len;
     int ret = DkRandomBitsRead(&suffix, sizeof(suffix));
     if (ret < 0)
         return -convert_pal_errno(-ret);
@@ -998,7 +998,7 @@ static int open_pal_handle (const char * uri, void * obj)
 static int output_path (char * path, size_t size, const void * id,
                         struct shim_qstr * qstr)
 {
-    int len = strlen(path);
+    size_t len = strlen(path);
     if (qstr)
         qstrsetstr(qstr, path, len);
     return len;
@@ -1010,7 +1010,7 @@ int create_dir (const char * prefix, char * path, size_t size,
     unsigned int suffix;
 
     if (prefix) {
-        int len = strlen(prefix);
+        size_t len = strlen(prefix);
         if (len >= size)
             return -ERANGE;
         memcpy(path, prefix, len + 1);
@@ -1026,7 +1026,7 @@ int create_file (const char * prefix, char * path, size_t size,
     unsigned int suffix;
 
     if (prefix) {
-        int len = strlen(prefix);
+        size_t len = strlen(prefix);
         if (len >= size)
             return -ERANGE;
         memcpy(path, prefix, len + 1);
@@ -1042,7 +1042,7 @@ int create_handle (const char * prefix, char * uri, size_t size,
     unsigned int suffix;
 
     if (prefix) {
-        int len = strlen(prefix);
+        size_t len = strlen(prefix);
         if (len >= size)
             return -ERANGE;
         memcpy(uri, prefix, len + 1);
@@ -1060,7 +1060,7 @@ void check_stack_hook (void)
     __asm__ volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
 
     if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
-        if (rsp - cur_thread->stack < PAL_CB(pagesize))
+        if ((uint64_t) rsp - (uint64_t) cur_thread->stack < PAL_CB(pagesize))
             SYS_PRINTF("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
                        rsp, cur_thread->stack, cur_thread->stack_top);
     } else {
@@ -1075,7 +1075,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
 {
     unsigned long total_interval_time = 0;
     unsigned long total_interval_count = 0;
-    for (int i = 0 ; i < N_PROFILE ; i++) {
+    for (size_t i = 0 ; i < N_PROFILE ; i++) {
         struct shim_profile * profile = &PROFILES[i];
         if (profile->root != root || profile->disabled)
             continue;
@@ -1115,7 +1115,7 @@ static void print_profile_result (PAL_HANDLE hdl, struct shim_profile * root,
         }
     }
     if (total_interval_count) {
-        __SYS_FPRINTF(hdl, "                - (%11.11u) total: %u times, %lu msec\n",
+        __SYS_FPRINTF(hdl, "                - (%11.11lu) total: %lu times, %lu msec\n",
                       total_interval_time, total_interval_count,
                       total_interval_time / total_interval_count);
     }

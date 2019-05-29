@@ -814,7 +814,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
 {
     assert(top_addr > bottom_addr);
 
-    if (!length || length > top_addr - bottom_addr)
+    if (!length || length > (uint64_t) top_addr - (uint64_t) bottom_addr)
         return NULL;
 
     struct shim_vma * prev = NULL;
@@ -829,7 +829,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
         assert(start <= end);
 
         /* Check if there is enough space between prev and cur */
-        if (length <= end - start) {
+        if (length <= (uint64_t) end - (uint64_t) start) {
             /* create a new VMA at the top of the range */
             __bkeep_mmap(prev, end - length, end, prot, flags,
                          file, offset, comment);
@@ -1008,7 +1008,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
 {
     struct shim_vma_val * val = vmas;
     struct shim_vma * vma;
-    int cnt = 0;
+    size_t cnt = 0;
     lock(&vma_list_lock);
 
     LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
@@ -1019,7 +1019,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
 
         if (cnt == max_count) {
             cnt = -EOVERFLOW;
-            for (int i = 0 ; i < max_count ; i++)
+            for (size_t i = 0 ; i < max_count ; i++)
                 if (vmas[i].file)
                     put_handle(vmas[i].file);
             break;
@@ -1085,9 +1085,9 @@ BEGIN_CP_FUNC(vma)
              */
             int64_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
-                vma->offset + vma->length > file_len) {
-                send_size = file_len > vma->offset ?
-                            file_len - vma->offset : 0;
+                vma->offset + vma->length > (uint64_t) file_len) {
+                send_size = (uint64_t) file_len > vma->offset ?
+                            (uint64_t) file_len - vma->offset : 0;
                 send_size = ALIGN_UP(send_size);
             }
         }

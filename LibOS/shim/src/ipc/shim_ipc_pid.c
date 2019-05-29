@@ -333,18 +333,20 @@ retry:
     LISTP_FOR_EACH_ENTRY(r, list, list) {
         struct subrange * s = NULL;
         struct shim_ipc_info * p;
-        int off, idx;
+        IDTYPE off, idx;
         IDTYPE base;
         IDTYPE pids[RANGE_SIZE];
         struct pid_status * range_status;
 
+#define UNDEF_IDX   ((IDTYPE) -1)
+
 next_range:
-        idx = -1;
+        idx = UNDEF_IDX;
         off = r->offset;
         base = off * RANGE_SIZE + 1;
 
 next_sub:
-        if (idx == -1) {
+        if (idx == UNDEF_IDX) {
             p = r->owner;
         } else {
             if (idx >= RANGE_SIZE)
@@ -365,7 +367,7 @@ next_sub:
         }
 
         if (!p->port) {
-            int type = IPC_PORT_PIDOWN|IPC_PORT_LISTEN;
+            IDTYPE type = IPC_PORT_PIDOWN|IPC_PORT_LISTEN;
             IDTYPE owner = p->vmid;
             char * uri = qstrtostr(&p->uri, true);
             struct shim_ipc_port * port = NULL;
@@ -389,7 +391,7 @@ next_sub:
             if (!port)
                 continue;
 
-            if (idx == -1) {
+            if (idx == UNDEF_IDX) {
             } else {
                 if (!r->subranges)
                     continue;
@@ -407,7 +409,7 @@ next_sub:
             p->port = port;
         }
 
-        if (idx == -1) {
+        if (idx == UNDEF_IDX) {
             for (int i = 0 ; i < RANGE_SIZE ; i++)
                 pids[i] = base + i;
         } else {
@@ -415,7 +417,7 @@ next_sub:
         }
 
         ret = ipc_pid_getstatus_send(p->port, p->vmid,
-                                     idx == -1 ? RANGE_SIZE : 1, pids,
+                                     idx == UNDEF_IDX ? RANGE_SIZE : 1, pids,
                                      &range_status);
 
         if (ret > 0) {
@@ -515,7 +517,7 @@ int ipc_pid_getmeta_callback (IPC_CALLBACK_ARGS)
 
     struct shim_thread * thread = lookup_thread(msgin->pid);
     void * data = NULL;
-    int datasize = 0;
+    size_t datasize = 0;
 
     if (!thread) {
         ret = -ESRCH;

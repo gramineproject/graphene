@@ -150,10 +150,10 @@ void put_msg_handle (struct shim_msg_handle * msgq);
 int recover_msg_ownership (struct shim_msg_handle * msgq);
 
 int add_sysv_msg (struct shim_msg_handle * msgq,
-                  long type, int size, const void * data,
+                  long type, size_t size, const void * data,
                   struct sysv_client * src);
 int get_sysv_msg (struct shim_msg_handle * msgq,
-                  long type, int size, void * data, int flags,
+                  long type, size_t size, void * data, int flags,
                   struct sysv_client * src);
 
 int store_all_msg_persist (void);

@@ -45,10 +45,9 @@ static int socket_close (struct shim_handle * hdl)
     return 0;
 }
 
-static int socket_read (struct shim_handle * hdl, void * buf,
-                        size_t count)
+static int64_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
 {
-    int bytes = 0;
+    int64_t bytes = 0;
     struct shim_sock_handle * sock = &hdl->info.sock;
 
     if (!count)
@@ -75,7 +74,7 @@ static int socket_read (struct shim_handle * hdl, void * buf,
 
     unlock(&hdl->lock);
 
-    bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
+    bytes = (int64_t) DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
     if (!bytes)
         switch(PAL_NATIVE_ERRNO) {
@@ -93,8 +92,7 @@ static int socket_read (struct shim_handle * hdl, void * buf,
     return bytes;
 }
 
-static int socket_write (struct shim_handle * hdl, const void * buf,
-                         size_t count)
+static int64_t socket_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     struct shim_sock_handle * sock = &hdl->info.sock;
 
@@ -122,7 +120,7 @@ static int socket_write (struct shim_handle * hdl, const void * buf,
     if (!count)
         return 0;
 
-    int bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    int64_t bytes = (int64_t) DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
 
     if (!bytes) {
         int err;

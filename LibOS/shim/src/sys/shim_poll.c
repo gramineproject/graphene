@@ -395,7 +395,7 @@ int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout)
     struct poll_handle * polls =
             __try_alloca(cur, sizeof(struct poll_handle) * nfds);
 
-    for (int i = 0 ; i < nfds ; i++) {
+    for (size_t i = 0 ; i < nfds ; i++) {
         polls[i].fd = fds[i].fd;
         polls[i].flags = 0;
         if (fds[i].events & (POLLIN|POLLRDNORM))
@@ -412,7 +412,7 @@ int shim_do_poll (struct pollfd * fds, nfds_t nfds, int timeout)
 
     ret = 0;
 
-    for (int i = 0 ; i < nfds ; i++) {
+    for (size_t i = 0 ; i < nfds ; i++) {
         fds[i].revents = 0;
 
         if (polls[i].flags & RET_R)

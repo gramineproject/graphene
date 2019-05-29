@@ -124,7 +124,7 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
     }
 
     if (link) {
-        int size;
+        size_t size;
         char * path = dentry_get_path(dent, true, &size);
         qstrsetstr(link, path, size);
     }
@@ -235,7 +235,7 @@ static int parse_thread_fd (const char * name, const char ** rest,
         return -EINVAL;
 
     const char * p = nextnext;
-    int fd = 0;
+    uint64_t fd = 0;
 
     for ( ; *p && *p != '/' ; p++) {
         if (*p < '0' || *p > '9')
@@ -378,7 +378,7 @@ static int find_thread_each_fd (const char * name, struct shim_qstr * link,
     }
 
     if (link) {
-        int size;
+        size_t size;
         char * path = dentry_get_path(dent, true, &size);
         qstrsetstr(link, path, size);
     }

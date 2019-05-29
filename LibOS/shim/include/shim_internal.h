@@ -260,7 +260,7 @@ static inline uint64_t get_cur_preempt (void) {
     r shim_##name (PROTO_ARGS_##n (args)) {                         \
         SHIM_ARG_TYPE ret =  __shim_##name (CAST_ARGS_##n (args));  \
         if (POINTER_TYPE(r)) {                                      \
-            if ((unsigned long) ret >= -4095L) return (r) 0;        \
+            if ((uint64_t) ret >= (uint64_t) -4095L) return (r) 0;  \
         } else {                                                    \
             if ((int) ret < 0) return (r) -1;                       \
         }                                                           \

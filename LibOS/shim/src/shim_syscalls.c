@@ -454,7 +454,7 @@ SHIM_SYSCALL_PASSTHROUGH (symlink, 2, int, const char *, old, const char *, new)
 
 /* readlink: sys/shim_stat.c */
 DEFINE_SHIM_SYSCALL (readlink, 3, shim_do_readlink, int, const char *, path,
-                     char *, buf, int, bufsize)
+                     char *, buf, size_t, bufsize)
 
 DEFINE_SHIM_SYSCALL (chmod, 2, shim_do_chmod, int, const char *, filename,
                      mode_t, mode)
@@ -1130,8 +1130,8 @@ SHIM_SYSCALL_PASSTHROUGH (perf_event_open, 5, int, struct perf_event_attr *,
                           attr_uptr, pid_t, pid, int, cpu, int, group_fd,
                           int, flags)
 
-DEFINE_SHIM_SYSCALL (recvmmsg, 5, shim_do_recvmmsg, int, int, fd,
-                     struct mmsghdr *, msg, int, vlen, int, flags,
+DEFINE_SHIM_SYSCALL (recvmmsg, 5, shim_do_recvmmsg, ssize_t, int, fd,
+                     struct mmsghdr *, msg, size_t, vlen, int, flags,
                      struct __kernel_timespec *, timeout)
 
 SHIM_SYSCALL_PASSTHROUGH (fanotify_init, 2, int, int, flags, int, event_f_flags)
@@ -1156,8 +1156,8 @@ SHIM_SYSCALL_PASSTHROUGH (clock_adjtime, 2, int, clockid_t, which_clock,
 
 SHIM_SYSCALL_PASSTHROUGH (syncfs, 1, int, int, fd)
 
-DEFINE_SHIM_SYSCALL (sendmmsg, 4, shim_do_sendmmsg, int, int, fd,
-                     struct mmsghdr *, msg, int, vlen, int, flags)
+DEFINE_SHIM_SYSCALL (sendmmsg, 4, shim_do_sendmmsg, ssize_t, int, fd,
+                     struct mmsghdr *, msg, size_t, vlen, int, flags)
 
 SHIM_SYSCALL_PASSTHROUGH (setns, 2, int, int, fd, int, nstype)
 

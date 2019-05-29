@@ -11,6 +11,12 @@
 # define DT_THISPROCNUM 0
 #endif
 
+#if __ELF_NATIVE_CLASS == 32
+typedef Elf32_Word  d_tag_utype, d_val_utype;
+#elif __ELF_NATIVE_CLASS == 64
+typedef Elf64_Xword d_tag_utype, d_val_utype;
+#endif
+
 #define IN_RANGE(l, addr)   \
         ((ElfW(Addr)) (addr) >= (l)->l_map_start && (ElfW(Addr)) (addr) < (l)->l_map_end)
 
@@ -27,11 +33,6 @@ static inline
 void __attribute__ ((unused, always_inline))
 elf_get_dynamic_info (struct link_map * l)
 {
-#if __ELF_NATIVE_CLASS == 32
-    typedef Elf32_Word d_tag_utype;
-#elif __ELF_NATIVE_CLASS == 64
-    typedef Elf64_Xword d_tag_utype;
-#endif
     ElfW(Dyn) * dyn = l->l_ld;
 
     if (dyn == NULL)
@@ -139,8 +140,8 @@ elf_get_dynamic_info (struct link_map * l)
    We will keep it for now */
 
 static void
-_elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
-                      void (*do_reloc) (struct link_map *, ElfW(Addr), int))
+_elf_dynamic_do_reloc(struct link_map * l, d_val_utype dt_reloc, d_val_utype dt_reloc_sz,
+                      void (*do_reloc) (struct link_map *, ElfW(Addr), size_t))
 {
     struct { ElfW(Addr) start, size; } ranges[3];
 
@@ -160,8 +161,8 @@ _elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
 /* Now this part is for our x86s machines */
 
 static void __attribute__((unused))
-_elf_dynamic_do_reloc(struct link_map * l, int dt_reloc, int dt_reloc_sz,
-                      void (*do_reloc) (struct link_map *, ElfW(Addr), int))
+_elf_dynamic_do_reloc(struct link_map * l, d_val_utype dt_reloc, d_val_utype dt_reloc_sz,
+                      void (*do_reloc) (struct link_map *, ElfW(Addr), size_t))
 {
     struct { ElfW(Addr) start, size; } ranges[2];
     ranges[0].size = ranges[1].size = 0;
