@@ -135,8 +135,8 @@ static void fill_gpr(sgx_arch_gpr_t* gpr, const struct user_regs_struct* regs) {
     gpr->gsbase = regs->gs_base;
 }
 
-/* This function emulates Glibc ptrace() by issuing Glibc's ptrace syscall
- * and setting errno on error. It is used to access non-enclave memory. */
+/* This function emulates Glibc ptrace() by issuing ptrace syscall and
+ * setting errno on error. It is used to access non-enclave memory. */
 static long int host_ptrace(enum __ptrace_request request, pid_t tid, void* addr, void* data) {
     long int res, ret, is_dbginfo_addr;
     int ptrace_errno;
