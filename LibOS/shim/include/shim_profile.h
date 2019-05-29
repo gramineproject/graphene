@@ -33,7 +33,7 @@
 
 struct shim_profile {
     const char * name;
-    enum { CATAGORY, OCCURENCE, INTERVAL } type;
+    enum { CATEGORY, OCCURENCE, INTERVAL } type;
     bool disabled;
     struct shim_profile * root;
     union {
@@ -68,27 +68,27 @@ extern struct shim_profile __profile_end;
 
 #define PROFILES (&__profile)
 
-#define DEFINE_PROFILE_CATAGORY(prof, rprof)                \
-    _DEFINE_PROFILE_CATAGORY(prof, rprof)
-#define _DEFINE_PROFILE_CATAGORY(prof, rprof)               \
+#define DEFINE_PROFILE_CATEGORY(prof, rprof)                \
+    _DEFINE_PROFILE_CATEGORY(prof, rprof)
+#define _DEFINE_PROFILE_CATEGORY(prof, rprof)               \
     extern struct shim_profile profile_##rprof;             \
     struct shim_profile profile_##prof                      \
         __attribute__((section(".profile"))) = {            \
         .name = #prof,                                      \
         .root = &profile_##rprof,                           \
-        .type = CATAGORY,                                   \
+        .type = CATEGORY,                                   \
     };
 
-#define DEFINE_PROFILE_CATAGORY_DISABLED(prof, rprof)       \
-    _DEFINE_PROFILE_CATAGORY(prof, rprof)
-#define _DEFINE_PROFILE_CATAGORY_DISABLED(prof, rprof)      \
+#define DEFINE_PROFILE_CATEGORY_DISABLED(prof, rprof)       \
+    _DEFINE_PROFILE_CATEGORY(prof, rprof)
+#define _DEFINE_PROFILE_CATEGORY_DISABLED(prof, rprof)      \
     extern struct shim_profile profile_##rprof;             \
     struct shim_profile profile_##prof                      \
         __attribute__((section(".profile"))) = {            \
         .name = #prof,                                      \
         .disabled = true,                                   \
         .root = &profile_##rprof,                           \
-        .type = CATAGORY,                                   \
+        .type = CATEGORY,                                   \
     };
 
 
@@ -211,7 +211,7 @@ extern struct shim_profile __profile_end;
 
 #else
 
-#define DEFINE_PROFILE_CATAGORY(prof, rprof)
+#define DEFINE_PROFILE_CATEGORY(prof, rprof)
 #define DEFINE_PROFILE_OCCURENCE(prof, rprof)
 #define DEFINE_PROFILE_INTERVAL(prof, rprof)
 #define INC_PROFILE_OCCURENCE(prof) ({ do {} while (0); 0; })

@@ -72,7 +72,7 @@ void __try_free (struct shim_thread * cur, void * mem)
         free(mem);
 }
 
-DEFINE_PROFILE_CATAGORY(__do_poll, select);
+DEFINE_PROFILE_CATEGORY(__do_poll, select);
 DEFINE_PROFILE_INTERVAL(do_poll_get_handle, __do_poll);
 DEFINE_PROFILE_INTERVAL(do_poll_search_repeat, __do_poll);
 DEFINE_PROFILE_INTERVAL(do_poll_set_bookkeeping, __do_poll);
@@ -509,7 +509,7 @@ typedef long int __fd_mask;
 #define __FD_ISSET(d, set)                                  \
   ((__FDS_BITS(set)[__FD_ELT(d)] & __FD_MASK(d)) != 0)
 
-DEFINE_PROFILE_CATAGORY(select, );
+DEFINE_PROFILE_CATEGORY(select, );
 DEFINE_PROFILE_INTERVAL(select_tryalloca_1, select);
 DEFINE_PROFILE_INTERVAL(select_setup_array, select);
 DEFINE_PROFILE_INTERVAL(select_do_poll, select);

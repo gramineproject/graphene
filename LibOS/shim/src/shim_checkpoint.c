@@ -41,18 +41,18 @@
 #include <asm/fcntl.h>
 #include <asm/mman.h>
 
-DEFINE_PROFILE_CATAGORY(migrate, );
+DEFINE_PROFILE_CATEGORY(migrate, );
 
-DEFINE_PROFILE_CATAGORY(checkpoint, migrate);
+DEFINE_PROFILE_CATEGORY(checkpoint, migrate);
 DEFINE_PROFILE_INTERVAL(checkpoint_create_map,  checkpoint);
 DEFINE_PROFILE_INTERVAL(checkpoint_copy,        checkpoint);
-DEFINE_PROFILE_CATAGORY(checkpoint_func,        checkpoint);
+DEFINE_PROFILE_CATEGORY(checkpoint_func,        checkpoint);
 DEFINE_PROFILE_INTERVAL(checkpoint_destroy_map, checkpoint);
 
 DEFINE_PROFILE_OCCURENCE(checkpoint_count,      checkpoint);
 DEFINE_PROFILE_OCCURENCE(checkpoint_total_size, checkpoint);
 
-DEFINE_PROFILE_CATAGORY(resume, migrate);
+DEFINE_PROFILE_CATEGORY(resume, migrate);
 DEFINE_PROFILE_INTERVAL(child_created_in_new_process,  resume);
 DEFINE_PROFILE_INTERVAL(child_wait_header,             resume);
 DEFINE_PROFILE_INTERVAL(child_receive_header,          resume);
@@ -62,7 +62,7 @@ DEFINE_PROFILE_INTERVAL(child_load_memory_by_gipc,     resume);
 DEFINE_PROFILE_INTERVAL(child_load_checkpoint_on_pipe, resume);
 DEFINE_PROFILE_INTERVAL(child_receive_handles,         resume);
 DEFINE_PROFILE_INTERVAL(restore_checkpoint,            resume);
-DEFINE_PROFILE_CATAGORY(resume_func,                   resume);
+DEFINE_PROFILE_CATEGORY(resume_func,                   resume);
 DEFINE_PROFILE_INTERVAL(child_total_migration_time,    resume);
 
 #define CP_HASH_SIZE    256
@@ -863,7 +863,7 @@ static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
     return addr;
 }
 
-DEFINE_PROFILE_CATAGORY(migrate_proc, migrate);
+DEFINE_PROFILE_CATEGORY(migrate_proc, migrate);
 DEFINE_PROFILE_INTERVAL(migrate_create_process,   migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_create_gipc,      migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_connect_ipc,      migrate_proc);

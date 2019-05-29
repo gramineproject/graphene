@@ -44,7 +44,7 @@ long int if_call_defined (long int sys_no)
     return shim_table[sys_no] != 0;
 }
 
-DEFINE_PROFILE_CATAGORY(syscall, );
+DEFINE_PROFILE_CATEGORY(syscall, );
 
 //////////////////////////////////////////////////
 //  Mappings from system calls to shim calls

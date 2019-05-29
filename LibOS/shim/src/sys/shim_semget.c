@@ -50,7 +50,7 @@ static LISTP_TYPE(shim_sem_handle) sem_key_hlist [SEM_HASH_NUM];
 static LISTP_TYPE(shim_sem_handle) sem_sid_hlist [SEM_HASH_NUM];
 static struct shim_lock sem_list_lock;
 
-DEFINE_PROFILE_CATAGORY(sysv_sem, );
+DEFINE_PROFILE_CATEGORY(sysv_sem, );
 
 #define SEM_TO_HANDLE(semhdl) \
         container_of((semhdl), struct shim_handle, info.sem)
@@ -659,7 +659,7 @@ static struct sysv_balance_policy sem_policy  = {
     };
 #endif
 
-DEFINE_PROFILE_CATAGORY(submit_sysv_sem, sysv_sem);
+DEFINE_PROFILE_CATEGORY(submit_sysv_sem, sysv_sem);
 DEFINE_PROFILE_INTERVAL(sem_prepare_stat, submit_sysv_sem);
 DEFINE_PROFILE_INTERVAL(sem_lock_handle, submit_sysv_sem);
 DEFINE_PROFILE_INTERVAL(sem_count_score, submit_sysv_sem);
