@@ -525,7 +525,7 @@ int walk_mounts (int (*walk) (struct shim_mount * mount, void * arg),
 struct shim_mount * find_mount_from_uri (const char * uri)
 {
     struct shim_mount * mount, * found = NULL;
-    int longest_path = 0;
+    size_t longest_path = 0;
 
     lock(&mount_list_lock);
     LISTP_FOR_EACH_ENTRY(mount, &mount_list, list) {

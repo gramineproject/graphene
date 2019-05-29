@@ -109,7 +109,7 @@ block:
             pid = -cur->pgid;
 
         LISTP_FOR_EACH_ENTRY(thread, &cur->exited_children, siblings)
-            if (thread->pgid == -pid)
+            if (thread->pgid == (IDTYPE) -pid)
                 goto found_child;
 
         if (!(option & WNOHANG))

@@ -76,7 +76,7 @@ static struct shim_ipc_port * broadcast_port;
 
 //#define DEBUG_REF
 
-static int init_ipc_port (struct shim_ipc_info * info, PAL_HANDLE hdl, int type)
+static int init_ipc_port (struct shim_ipc_info * info, PAL_HANDLE hdl, IDTYPE type)
 {
     if (!info)
         return 0;
@@ -233,7 +233,7 @@ static inline void restart_ipc_helper (bool need_create)
 }
 
 static bool __add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid,
-                            int type, port_fini fini)
+                            IDTYPE type, port_fini fini)
 {
     bool need_restart = false;
     assert(vmid != cur_process.vmid);
@@ -289,7 +289,7 @@ static bool __add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid,
     }
 }
 
-void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, int type,
+void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, IDTYPE type,
                    port_fini fini)
 {
     debug("adding port %p (handle %p) for process %u (type=%04x)\n",
@@ -325,7 +325,7 @@ static struct shim_ipc_port * __get_new_ipc_port (PAL_HANDLE hdl)
     return port;
 }
 
-void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
+void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type,
                          port_fini fini, struct shim_ipc_port ** portptr)
 {
     debug("adding port (handle %p) for process %u (type %04x)\n",
@@ -374,7 +374,7 @@ out:
     unlock(&ipc_helper_lock);
 }
 
-static bool __del_ipc_port (struct shim_ipc_port * port, int type)
+static bool __del_ipc_port (struct shim_ipc_port * port, IDTYPE type)
 {
     debug("deleting port %p (handle %p) for process %u\n",
           port, port->pal_handle, port->info.vmid);
@@ -435,7 +435,7 @@ out:
     return need_restart;
 }
 
-void del_ipc_port (struct shim_ipc_port * port, int type)
+void del_ipc_port (struct shim_ipc_port * port, IDTYPE type)
 {
     lock(&ipc_helper_lock);
 
@@ -453,7 +453,7 @@ void del_ipc_port (struct shim_ipc_port * port, int type)
     unlock(&ipc_helper_lock);
 }
 
-void del_ipc_port_by_id (IDTYPE vmid, int type)
+void del_ipc_port_by_id (IDTYPE vmid, IDTYPE type)
 {
     LISTP_TYPE(shim_ipc_port) * head = &ipc_port_pool[PID_HASH(vmid)];
     struct shim_ipc_port * port, *n;
@@ -509,7 +509,7 @@ void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode)
         (fini[i])(port, vmid, exitcode);
 }
 
-static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)
+static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, IDTYPE type)
 {
     LISTP_TYPE(shim_ipc_port) * head = &ipc_port_pool[PID_HASH(vmid)];
     struct shim_ipc_port * tmp;
@@ -525,7 +525,7 @@ static struct shim_ipc_port * __lookup_ipc_port (IDTYPE vmid, int type)
     return NULL;
 }
 
-struct shim_ipc_port * lookup_ipc_port (IDTYPE vmid, int type)
+struct shim_ipc_port * lookup_ipc_port (IDTYPE vmid, IDTYPE type)
 {
     lock(&ipc_helper_lock);
     struct shim_ipc_port * port = __lookup_ipc_port(vmid, type);
@@ -559,7 +559,7 @@ void put_ipc_port (struct shim_ipc_port * port)
     }
 }
 
-void del_all_ipc_ports (int type)
+void del_all_ipc_ports (IDTYPE type)
 {
     struct shim_ipc_port * pobj, * n;
     bool need_restart = false;
@@ -895,8 +895,8 @@ update_status:
         if (pobj->private.type & IPC_PORT_SERVER) {
             PAL_HANDLE cli = DkStreamWaitForClient(polled);
             if (cli) {
-                int type = (pobj->private.type & ~IPC_PORT_SERVER) |
-                           IPC_PORT_LISTEN;
+                IDTYPE type = (pobj->private.type & ~IPC_PORT_SERVER) |
+                              IPC_PORT_LISTEN;
                 add_ipc_port_by_id(pobj->private.vmid, cli, type,
                                    NULL, NULL);
             } else {

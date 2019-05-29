@@ -421,7 +421,7 @@ int shim_do_mkdir (const char * pathname, int mode);
 int shim_do_rmdir (const char * pathname);
 int shim_do_creat (const char * path, mode_t mode);
 int shim_do_unlink (const char * file);
-int shim_do_readlink (const char * file, char * buf, int bufsize);
+int shim_do_readlink (const char * file, char * buf, size_t bufsize);
 int shim_do_chmod (const char * filename, mode_t mode);
 int shim_do_fchmod (int fd, mode_t mode);
 int shim_do_chown (const char * filename, uid_t user, gid_t group);
@@ -495,9 +495,9 @@ int shim_do_accept4 (int sockfd, struct sockaddr * addr, socklen_t * addrlen,
 int shim_do_dup3 (int oldfd, int newfd, int flags);
 int shim_do_epoll_create1 (int flags);
 int shim_do_pipe2 (int * fildes, int flags);
-int shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags,
-                      struct __kernel_timespec * timeout);
-int shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags);
+ssize_t shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags,
+                          struct __kernel_timespec * timeout);
+ssize_t shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags);
 
 /* libos call implementation */
 long shim_do_sandbox_create (int flags, const char * fs_sb,
@@ -613,7 +613,7 @@ int shim_creat (const char * path, mode_t mode);
 int shim_link (const char * oldname, const char * newname);
 int shim_unlink (const char * file);
 int shim_symlink (const char * old, const char * new);
-int shim_readlink (const char * file, char * buf, int bufsize);
+int shim_readlink (const char * file, char * buf, size_t bufsize);
 int shim_chmod (const char * filename, mode_t mode);
 int shim_fchmod (int fd, mode_t mode);
 int shim_chown (const char * filename, uid_t user, gid_t group);
@@ -866,9 +866,9 @@ int shim_pwritev (unsigned long fd, const struct iovec * vec,
 int shim_rt_tgsigqueueinfo (pid_t tgid, pid_t pid, int sig, siginfo_t * uinfo);
 int shim_perf_event_open (struct perf_event_attr * attr_uptr, pid_t pid,
                           int cpu, int group_fd, int flags);
-int shim_recvmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags,
-                   struct __kernel_timespec * timeout);
-int shim_sendmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags);
+ssize_t shim_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags,
+                       struct __kernel_timespec * timeout);
+ssize_t shim_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags);
 
 /* libos call wrappers */
 long shim_sandbox_create (int flags, const char * fs_sb, struct net_sb * net_sb);

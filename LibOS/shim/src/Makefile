@@ -16,7 +16,7 @@ CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal
 
-EXTRAFLAGS = -Wextra -Wno-unused-parameter -Wno-sign-compare
+EXTRAFLAGS = -Wextra -Wno-unused-parameter
 
 CFLAGS += $(EXTRAFLAGS)
 

@@ -413,7 +413,7 @@ void add_thread (struct shim_thread * thread)
 
 void del_thread (struct shim_thread * thread)
 {
-    debug("del_thread(%p, %d, %ld)\n", thread, thread ? thread->tid : -1,
+    debug("del_thread(%p, %d, %ld)\n", thread, thread ? (int) thread->tid : -1,
           atomic_read(&thread->ref_count));
 
     if (is_internal(thread) || LIST_EMPTY(thread, list)) {

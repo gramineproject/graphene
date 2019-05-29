@@ -281,8 +281,8 @@ int ipc_cld_profile_send (void)
         return -ESRCH;
 
     unsigned long time = GET_PROFILE_INTERVAL();
-    int nsending = 0;
-    for (int i = 0 ; i < N_PROFILE ; i++)
+    size_t nsending = 0;
+    for (size_t i = 0 ; i < N_PROFILE ; i++)
         switch (PROFILES[i].type) {
             case OCCURENCE:
                 if (atomic_read(&PROFILES[i].val.occurence.count))
@@ -305,8 +305,8 @@ int ipc_cld_profile_send (void)
     struct shim_ipc_cld_profile * msgin =
                 (struct shim_ipc_cld_profile *) &msg->msg;
 
-    int nsent = 0;
-    for (int i = 0 ; i < N_PROFILE && nsent < nsending ; i++)
+    size_t nsent = 0;
+    for (size_t i = 0 ; i < N_PROFILE && nsent < nsending ; i++)
         switch (PROFILES[i].type) {
             case OCCURENCE: {
                 unsigned long count =

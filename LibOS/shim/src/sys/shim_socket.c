@@ -64,7 +64,7 @@
 
 static int rebase_on_lo __attribute_migratable = -1;
 
-static int minimal_addrlen (int domain)
+static size_t minimal_addrlen (int domain)
 {
     switch(domain) {
         case AF_INET:
@@ -330,12 +330,12 @@ static inline void unix_copy_addr (struct sockaddr * saddr,
 {
     struct sockaddr_un * un = (struct sockaddr_un *) saddr;
     un->sun_family = AF_UNIX;
-    int size;
+    size_t size;
     const char * path = dentry_get_path(dent, true, &size);
     memcpy(un->sun_path, path, size + 1);
 }
 
-static int inet_check_addr (int domain, struct sockaddr * addr, int addrlen)
+static int inet_check_addr (int domain, struct sockaddr * addr, socklen_t addrlen)
 {
     if (domain == AF_INET) {
         if (addr->sa_family != AF_INET)
@@ -1166,17 +1166,17 @@ ssize_t shim_do_sendmsg (int sockfd, struct msghdr * msg, int flags)
                       msg->msg_name, msg->msg_namelen);
 }
 
-int shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags)
+ssize_t shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags)
 {
-    int i, total = 0;
+    ssize_t total = 0;
 
-    for (i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
+    for (size_t i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
         struct msghdr * m = &msg[i].msg_hdr;
 
-        int bytes = do_sendmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
-                               m->msg_name, m->msg_namelen);
+        ssize_t bytes = do_sendmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
+                                   m->msg_name, m->msg_namelen);
         if (bytes < 0)
-            return total ? : bytes;
+            return total > 0 ? total : bytes;
 
         msg[i].msg_len = bytes;
         total++;
@@ -1340,18 +1340,18 @@ ssize_t shim_do_recvmsg (int sockfd, struct msghdr * msg, int flags)
                       msg->msg_name, &msg->msg_namelen);
 }
 
-int shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, int vlen, int flags,
-                      struct __kernel_timespec * timeout)
+ssize_t shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags,
+                          struct __kernel_timespec * timeout)
 {
-    int i, total = 0;
+    ssize_t total = 0;
 
-    for (i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
+    for (size_t i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
         struct msghdr * m = &msg[i].msg_hdr;
 
-        int bytes = do_recvmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
-                               m->msg_name, &m->msg_namelen);
+        ssize_t bytes = do_recvmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
+                                   m->msg_name, &m->msg_namelen);
         if (bytes < 0)
-            return total ? : bytes;
+            return total > 0 ? total : bytes;
 
         msg[i].msg_len = bytes;
         total++;

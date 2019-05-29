@@ -244,7 +244,7 @@ int shim_do_semget (key_t key, int nsems, int semflg)
         if (sem) {
             semid = sem->semid;
             put_sem_handle(sem);
-            return (semflg & IPC_EXCL) ? -EEXIST : semid;
+            return (semflg & IPC_EXCL) ? -EEXIST : (int) semid;
         }
     }
 
@@ -354,9 +354,9 @@ static int __do_semop (int semid, struct sembuf * sops, unsigned int nsops,
 {
     int ret;
     struct shim_sem_handle * sem;
-    int nsems = 0;
+    size_t nsems = 0;
 
-    for (int i = 0 ; i < nsops ; i++)
+    for (size_t i = 0 ; i < nsops ; i++)
         if (sops[i].sem_num >= nsems)
             nsems = sops[i].sem_num + 1;
 

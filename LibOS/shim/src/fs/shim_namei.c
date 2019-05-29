@@ -71,7 +71,7 @@ static inline int __lookup_flags (int flags)
  * Returns 0 on success, negative on failure.
  */
 /* Assume caller has acquired dcache_lock */
-int permission (struct shim_dentry * dent, int mask, bool force) {
+int permission (struct shim_dentry * dent, mode_t mask, bool force) {
 
     mode_t mode = 0;
 
@@ -494,7 +494,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
                 struct shim_dentry ** dent)
 {
     int lookup_flags = __lookup_flags(flags);
-    int acc_mode = ACC_MODE(flags & O_ACCMODE);
+    mode_t acc_mode = ACC_MODE(flags & O_ACCMODE);
     int err = 0, newly_created = 0;
     struct shim_dentry *mydent = NULL;
 
@@ -586,7 +586,7 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
                  int flags)
 {
     int ret = 0;
-    int size;
+    size_t size;
     char *path;
     struct shim_mount * fs = dent->fs;
 

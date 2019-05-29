@@ -562,7 +562,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...)
         }
 
     if (is_pointer(ret_type)) {
-        if (ret_ptr < -4095L)
+        if ((uint64_t) ret_ptr < (uint64_t) -4095L)
             PRINTF(") = 0x%08lx\n", ret_ptr);
         else
             PRINTF(") = %ld\n", (long) ret_ptr);
@@ -648,7 +648,7 @@ static void parse_clone_flags (const char * type, va_list * ap)
 #undef FLG
 
     bool printed = false;
-    for (int i = 0 ; i < sizeof(all_flags) / sizeof(all_flags[0]) ; i++)
+    for (size_t i = 0 ; i < sizeof(all_flags) / sizeof(all_flags[0]) ; i++)
         if (flags & all_flags[i].flag) {
             if (printed)
                 PUTCH('|');
@@ -861,7 +861,7 @@ static void parse_sigmask (const char * type, va_list * ap)
 
     PUTS("[");
 
-    for (int signum = 1 ; signum <= sizeof(sigset) * 8 ; signum++)
+    for (size_t signum = 1 ; signum <= sizeof(sigset) * 8 ; signum++)
         if (__sigismember(sigset, signum)) {
             PUTS(signal_name(signum));
             PUTS(",");

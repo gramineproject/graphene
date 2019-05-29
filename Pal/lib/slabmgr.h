@@ -140,7 +140,7 @@ struct slab_debug {
 
 // User buffer sizes on each level (not counting mandatory header
 // (SLAB_HDR_SIZE)).
-static const int slab_levels[SLAB_LEVEL] = { SLAB_LEVEL_SIZES };
+static const size_t slab_levels[SLAB_LEVEL] = { SLAB_LEVEL_SIZES };
 
 DEFINE_LISTP(slab_obj);
 DEFINE_LISTP(slab_area);
@@ -344,7 +344,7 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
     return 0;
 }
 
-static inline void * slab_alloc (SLAB_MGR mgr, int size)
+static inline void * slab_alloc (SLAB_MGR mgr, size_t size)
 {
     SLAB_OBJ mobj;
     int i;
@@ -400,7 +400,7 @@ static inline void * slab_alloc (SLAB_MGR mgr, int size)
 }
 
 #ifdef SLAB_DEBUG
-static inline void * slab_alloc_debug (SLAB_MGR mgr, int size,
+static inline void * slab_alloc_debug (SLAB_MGR mgr, size_t size,
                                        const char * file, int line)
 {
     void * mem = slab_alloc(mgr, size);

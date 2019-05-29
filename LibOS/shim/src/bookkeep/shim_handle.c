@@ -69,7 +69,7 @@ static inline int init_tty_handle (struct shim_handle * hdl, bool write)
     hdl->dentry = dent;
     hdl->flags = O_RDWR|O_APPEND|0100000;
 
-    int size;
+    size_t size;
     char * path = dentry_get_path(dent, true, &size);
     if (path)
         qstrsetstr(&hdl->path, path, size);
@@ -99,7 +99,7 @@ static inline int init_exec_handle (struct shim_thread * thread)
                       &exec->dentry, fs);
         set_handle_fs(exec, fs);
         if (exec->dentry) {
-            int len;
+            size_t len;
             const char * path = dentry_get_path(exec->dentry, true, &len);
             qstrsetstr(&exec->path, path, len);
         }
@@ -558,7 +558,7 @@ void put_handle (struct shim_handle * hdl)
     }
 }
 
-ssize_t get_file_size (struct shim_handle * hdl)
+off_t get_file_size (struct shim_handle * hdl)
 {
     if (!hdl->fs || !hdl->fs->fs_ops)
         return -EINVAL;

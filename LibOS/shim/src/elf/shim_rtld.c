@@ -353,11 +353,11 @@ __map_elf_object (struct shim_handle * file,
     if (file && (!file->fs || !file->fs->fs_ops))
         return NULL;
 
-    int (*read) (struct shim_handle *, void *, size_t) =
+    ssize_t (*read) (struct shim_handle *, void *, size_t) =
         file ? file->fs->fs_ops->read : NULL;
     int (*mmap) (struct shim_handle *, void **, size_t, int, int, off_t) =
         file ? file->fs->fs_ops->mmap : NULL;
-    int (*seek) (struct shim_handle *, off_t, int) =
+    off_t (*seek) (struct shim_handle *, off_t, int) =
         file ? file->fs->fs_ops->seek : NULL;
 
     if (file && (!read || !mmap || !seek))
@@ -647,11 +647,9 @@ postmap:
                 if (type != OBJECT_MAPPED &&
                     type != OBJECT_INTERNAL &&
                     type != OBJECT_USER) {
-                    int64_t mapat = (int64_t)
-                        DkVirtualMemoryAlloc((void *)zeropage,
-                                             zeroend - zeropage,
-                                             0, c->prot);
-                    if (__builtin_expect (mapat < 0, 0)) {
+                    PAL_PTR mapat = DkVirtualMemoryAlloc((void *)zeropage, zeroend - zeropage,
+                                                         0, c->prot);
+                    if (__builtin_expect (!mapat, 0)) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
                     }
@@ -843,7 +841,7 @@ int free_elf_object (struct shim_handle * file)
     return 0;
 }
 
-static int __check_elf_header (void * fbp, int len)
+static int __check_elf_header (void * fbp, size_t len)
 {
     const char * errstring __attribute__((unused));
 
@@ -941,9 +939,9 @@ static int __read_elf_header (struct shim_handle * file, void * fbp)
     if (!file->fs || !file->fs->fs_ops)
         return -EACCES;
 
-    int (*read) (struct shim_handle *, void *, size_t) =
+    ssize_t (*read) (struct shim_handle *, void *, size_t) =
         file->fs->fs_ops->read;
-    int (*seek) (struct shim_handle *, off_t, int) =
+    off_t (*seek) (struct shim_handle *, off_t, int) =
         file->fs->fs_ops->seek;
 
     if (!read || !seek)

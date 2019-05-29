@@ -95,7 +95,8 @@ int init_brk_region (void * brk_region)
                 int ret = DkRandomBitsRead(&rand, sizeof(rand));
                 if (ret < 0)
                     return -convert_pal_errno(-ret);
-                rand %= MIN(0x2000000, PAL_CB(user_address.end) - brk_region - brk_max_size);
+                rand %= MIN((uint32_t) 0x2000000,
+                            (uint32_t) (PAL_CB(user_address.end) - brk_region - brk_max_size));
                 rand = ALIGN_DOWN(rand);
 
                 if (brk_region + rand + brk_max_size >= PAL_CB(user_address.end))

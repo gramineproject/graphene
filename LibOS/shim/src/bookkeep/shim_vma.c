@@ -47,7 +47,7 @@ struct shim_vma {
     void *                  end;
     int                     prot;
     int                     flags;
-    uint64_t                offset;
+    off_t                   offset;
     struct shim_handle *    file;
     char                    comment[VMA_COMMENT_LEN];
 };
@@ -60,9 +60,9 @@ static struct shim_vma * reserved_vmas[RESERVED_VMAS];
 static struct shim_vma early_vmas[RESERVED_VMAS];
 
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
-                                uint64_t length, int prot, int flags,
+                                size_t length, int prot, int flags,
                                 struct shim_handle * file,
-                                uint64_t offset, const char * comment);
+                                off_t offset, const char * comment);
 
 /*
  * Because the default system_malloc() must create VMA(s), we need
@@ -262,7 +262,7 @@ static void * current_heap_top;
 
 static int __bkeep_mmap (struct shim_vma * prev,
                          void * start, void * end, int prot, int flags,
-                         struct shim_handle * file, uint64_t offset,
+                         struct shim_handle * file, off_t offset,
                          const char * comment);
 
 static int __bkeep_munmap (struct shim_vma ** prev,
@@ -349,9 +349,9 @@ int init_vma (void)
      * This is a simplified version of the mmap_base() logic in the Linux
      * kernel: https://elixir.bootlin.com/linux/v4.8/ident/mmap_base
      */
-    uint64_t addr_rand_size =
+    size_t addr_rand_size =
         (PAL_CB(user_address.end) - PAL_CB(user_address.start)) * 5 / 6;
-    uint64_t rand;
+    size_t rand;
     ret = DkRandomBitsRead(&rand, sizeof(rand));
     if (ret < 0)
         return -convert_pal_errno(-ret);
@@ -443,7 +443,7 @@ __set_vma_comment (struct shim_vma * vma, const char * comment)
         return;
     }
 
-    uint64_t len = strlen(comment);
+    size_t len = strlen(comment);
 
     if (len > VMA_COMMENT_LEN - 1)
         len = VMA_COMMENT_LEN - 1;
@@ -465,7 +465,7 @@ __set_vma_comment (struct shim_vma * vma, const char * comment)
  */
 static int __bkeep_mmap (struct shim_vma * prev,
                          void * start, void * end, int prot, int flags,
-                         struct shim_handle * file, uint64_t offset,
+                         struct shim_handle * file, off_t offset,
                          const char * comment)
 {
     int ret = 0;
@@ -492,9 +492,8 @@ static int __bkeep_mmap (struct shim_vma * prev,
     return 0;
 }
 
-int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
-                struct shim_handle * file, uint64_t offset,
-                const char * comment)
+int bkeep_mmap (void * addr, size_t length, int prot, int flags,
+                struct shim_handle * file, off_t offset, const char * comment)
 {
     if (!addr || !length)
         return -EINVAL;
@@ -678,7 +677,7 @@ cont:
     return 0;
 }
 
-int bkeep_munmap (void * addr, uint64_t length, int flags)
+int bkeep_munmap (void * addr, size_t length, int flags)
 {
     if (!length)
         return -EINVAL;
@@ -789,7 +788,7 @@ cont:
     return 0;
 }
 
-int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
+int bkeep_mprotect (void * addr, size_t length, int prot, int flags)
 {
     if (!addr || !length)
         return -EINVAL;
@@ -813,13 +812,13 @@ int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags)
  * added to the VMA list.
  */
 static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
-                                uint64_t length, int prot, int flags,
+                                size_t length, int prot, int flags,
                                 struct shim_handle * file,
-                                uint64_t offset, const char * comment)
+                                off_t offset, const char * comment)
 {
     assert(top_addr > bottom_addr);
 
-    if (!length || length > top_addr - bottom_addr)
+    if (!length || length > (uintptr_t) top_addr - (uintptr_t) bottom_addr)
         return NULL;
 
     struct shim_vma * prev = NULL;
@@ -834,7 +833,7 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
         assert(start <= end);
 
         /* Check if there is enough space between prev and cur */
-        if (length <= end - start) {
+        if (length <= (uintptr_t) end - (uintptr_t) start) {
             /* create a new VMA at the top of the range */
             __bkeep_mmap(prev, end - length, end, prot, flags,
                          file, offset, comment);
@@ -856,9 +855,9 @@ static void * __bkeep_unmapped (void * top_addr, void * bottom_addr,
     return NULL;
 }
 
-void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
+void * bkeep_unmapped (void * top_addr, void * bottom_addr, size_t length,
                        int prot, int flags, struct shim_handle * file,
-                       uint64_t offset, const char * comment)
+                       off_t offset, const char * comment)
 {
     lock(&vma_list_lock);
     void * addr = __bkeep_unmapped(top_addr, bottom_addr, length, prot, flags,
@@ -869,9 +868,9 @@ void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
     return addr;
 }
 
-void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
+void * bkeep_unmapped_heap (size_t length, int prot, int flags,
                             struct shim_handle * file,
-                            uint64_t offset, const char * comment)
+                            off_t offset, const char * comment)
 {
     lock(&vma_list_lock);
 
@@ -968,8 +967,7 @@ int lookup_vma (void * addr, struct shim_vma_val * res)
     return 0;
 }
 
-int lookup_overlap_vma (void * addr, uint64_t length,
-                        struct shim_vma_val * res)
+int lookup_overlap_vma (void * addr, size_t length, struct shim_vma_val * res)
 {
     struct shim_vma * tmp, * vma = NULL;
 
@@ -1013,7 +1011,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
 {
     struct shim_vma_val * val = vmas;
     struct shim_vma * vma;
-    int cnt = 0;
+    size_t cnt = 0;
     lock(&vma_list_lock);
 
     LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
@@ -1024,7 +1022,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
 
         if (cnt == max_count) {
             cnt = -EOVERFLOW;
-            for (int i = 0 ; i < max_count ; i++)
+            for (size_t i = 0 ; i < max_count ; i++)
                 if (vmas[i].file)
                     put_handle(vmas[i].file);
             break;
@@ -1070,8 +1068,8 @@ BEGIN_CP_FUNC(vma)
 #endif
             goto no_mem;
 
-        void *   send_addr = vma->addr;
-        uint64_t send_size = vma->length;
+        void * send_addr = vma->addr;
+        size_t send_size = vma->length;
         if (vma->file) {
             /*
              * Chia-Che 8/13/2017:
@@ -1088,9 +1086,9 @@ BEGIN_CP_FUNC(vma)
              * (3) Data in the last file-backed page is valid before or after
              *     forking. Has to be included in process migration.
              */
-            int64_t file_len = get_file_size(vma->file);
+            off_t file_len = get_file_size(vma->file);
             if (file_len >= 0 &&
-                vma->offset + vma->length > file_len) {
+                (off_t) (vma->offset + vma->length) > file_len) {
                 send_size = file_len > vma->offset ?
                             file_len - vma->offset : 0;
                 send_size = ALIGN_UP(send_size);

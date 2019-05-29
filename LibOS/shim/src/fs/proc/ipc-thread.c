@@ -19,12 +19,12 @@
 #include <asm/unistd.h>
 #include <asm/prctl.h>
 
-static int parse_ipc_thread_name (const char * name,
-                                  const char ** next, int * next_len,
+static int parse_ipc_thread_name (const char * name, IDTYPE * pidptr,
+                                  const char ** next, size_t * next_len,
                                   const char ** nextnext)
 {
     const char * p = name;
-    int pid = 0;
+    IDTYPE pid = 0;
 
     if (*p == '/')
         p++;
@@ -53,24 +53,24 @@ static int parse_ipc_thread_name (const char * name,
         }
     }
 
-    return pid;
+    if (pidptr) *pidptr = pid;
+    return 0;
 }
 
 static int find_ipc_thread_link (const char * name, struct shim_qstr * link,
                                  struct shim_dentry ** dentptr)
 {
     const char * next, * nextnext;
-    int next_len;
+    size_t next_len;
+    IDTYPE pid;
 
-    int pid = parse_ipc_thread_name(name, &next, &next_len, &nextnext);
-
-    if (pid < 0)
-        return pid;
+    int ret = parse_ipc_thread_name(name, &pid, &next, &next_len, &nextnext);
+    if (ret < 0)
+        return ret;
 
     struct shim_dentry * dent = NULL;
     enum pid_meta_code ipc_code;
     void * ipc_data = NULL;
-    int ret = 0;
 
     if (!memcmp(next, "root", next_len)) {
         ipc_code = PID_META_ROOT;
@@ -186,9 +186,9 @@ static const struct proc_fs_ops fs_ipc_thread_link = {
         };
 
 static struct pid_status_cache {
-    int ref_count;
+    uint32_t ref_count;
     bool dirty;
-    int nstatus;
+    size_t nstatus;
     struct pid_status * status;
 } * pid_status_cache;
 
@@ -196,16 +196,15 @@ static struct shim_lock status_lock;
 
 static int proc_match_ipc_thread (const char * name)
 {
-    int pid = parse_ipc_thread_name(name, NULL, NULL, NULL);
-
-    if (pid < 0)
+    IDTYPE pid;
+    if (parse_ipc_thread_name(name, &pid, NULL, NULL, NULL) < 0)
         return 0;
 
     create_lock_runtime(&status_lock);
     lock(&status_lock);
 
     if (pid_status_cache)
-        for (int i = 0 ; i < pid_status_cache->nstatus ; i++)
+        for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 unlock(&status_lock);
                 return 1;
@@ -218,17 +217,17 @@ static int proc_match_ipc_thread (const char * name)
 static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
 {
     const char * next;
-    int next_len;
-    int pid = parse_ipc_thread_name(name, &next, &next_len, NULL);
-
-    if (pid < 0)
-        return 0;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_ipc_thread_name(name, &pid, &next, &next_len, NULL);
+    if (ret < 0)
+        return ret;
 
     create_lock_runtime(&status_lock);
     lock(&status_lock);
 
     if (pid_status_cache)
-        for (int i = 0 ; i < pid_status_cache->nstatus ; i++)
+        for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 unlock(&status_lock);
                 *mode = 0500;
@@ -242,17 +241,17 @@ static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
 static int proc_ipc_thread_dir_stat (const char * name, struct stat * buf)
 {
     const char * next;
-    int next_len;
-    int pid = parse_ipc_thread_name(name, &next, &next_len, NULL);
-
-    if (pid < 0)
-        return 0;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_ipc_thread_name(name, &pid, &next, &next_len, NULL);
+    if (ret < 0)
+        return ret;
 
     create_lock_runtime(&status_lock);
     lock(&status_lock);
 
     if (pid_status_cache)
-        for (int i = 0 ; i < pid_status_cache->nstatus ; i++)
+        for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 memset(buf, 0, sizeof(struct stat));
                 buf->st_dev = buf->st_ino = 1;
@@ -325,7 +324,7 @@ static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
     struct shim_dirent * ptr = (*buf);
     void * buf_end = (void *) ptr + len;
 
-    for (int i = 0 ; i < status->nstatus ; i++) {
+    for (size_t i = 0 ; i < status->nstatus ; i++) {
         if (status->status[i].pid != status->status[i].tgid)
             continue;
 

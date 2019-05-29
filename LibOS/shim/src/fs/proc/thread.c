@@ -18,12 +18,12 @@
 #include <asm/unistd.h>
 #include <asm/prctl.h>
 
-static int parse_thread_name (const char * name,
-                              const char ** next, int * next_len,
+static int parse_thread_name (const char * name, IDTYPE * pidptr,
+                              const char ** next, size_t * next_len,
                               const char ** nextnext)
 {
     const char * p = name;
-    int pid = 0;
+    IDTYPE pid = 0;
 
     if (*p == '/')
         p++;
@@ -59,7 +59,8 @@ static int parse_thread_name (const char * name,
         }
     }
 
-    return pid;
+    if (pidptr) *pidptr = pid;
+    return 0;
 }
 
 static int find_thread_link (const char * name, struct shim_qstr * link,
@@ -67,14 +68,14 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
                              struct shim_thread ** threadptr)
 {
     const char * next, * nextnext;
-    int next_len;
-    int pid = parse_thread_name(name, &next, &next_len, &nextnext);
-    if (pid < 0)
-        return pid;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_thread_name(name, &pid, &next, &next_len, &nextnext);
+    if (ret < 0)
+        return ret;
 
     struct shim_thread * thread = lookup_thread(pid);
     struct shim_dentry * dent = NULL;
-    int ret = 0;
 
     if (!thread)
         return -ENOENT;
@@ -121,7 +122,7 @@ static int find_thread_link (const char * name, struct shim_qstr * link,
     }
 
     if (link) {
-        int size;
+        size_t size;
         char * path = dentry_get_path(dent, true, &size);
         qstrsetstr(link, path, size);
     }
@@ -221,18 +222,17 @@ static int parse_thread_fd (const char * name, const char ** rest,
                             struct shim_handle ** phdl)
 {
     const char * next, * nextnext;
-    int next_len;
-
-    int pid = parse_thread_name(name, &next, &next_len, &nextnext);
-
-    if (!pid)
-        return pid;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_thread_name(name, &pid, &next, &next_len, &nextnext);
+    if (ret < 0)
+        return ret;
 
     if (!next || !nextnext || memcmp(next, "fd", next_len))
         return -EINVAL;
 
     const char * p = nextnext;
-    int fd = 0;
+    FDTYPE fd = 0;
 
     for ( ; *p && *p != '/' ; p++) {
         if (*p < '0' || *p > '9')
@@ -280,11 +280,11 @@ static int proc_list_thread_each_fd (const char * name,
                                      struct shim_dirent ** buf, int count)
 {
     const char * next;
-    int next_len;
-    int pid = parse_thread_name(name, &next, &next_len, NULL);
-
-    if (!pid)
-        return pid;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_thread_name(name, &pid, &next, &next_len, NULL);
+    if (ret < 0)
+        return ret;
 
     if (!next || memcmp(next, "fd", next_len))
         return -EINVAL;
@@ -375,7 +375,7 @@ static int find_thread_each_fd (const char * name, struct shim_qstr * link,
     }
 
     if (link) {
-        int size;
+        size_t size;
         char * path = dentry_get_path(dent, true, &size);
         qstrsetstr(link, path, size);
     }
@@ -475,12 +475,11 @@ static int proc_thread_maps_open (struct shim_handle * hdl,
         return -EACCES;
 
     const char * next;
-    int next_len;
-    int pid = parse_thread_name(name, &next, &next_len, NULL);
-    int ret = 0;
-
-    if (pid < 0)
-        return pid;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_thread_name(name, &pid, &next, &next_len, NULL);
+    if (ret < 0)
+        return ret;
 
     struct shim_thread * thread = lookup_thread(pid);
 
@@ -526,8 +525,8 @@ retry_dump_vmas:
 
     for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
         size_t old_offset = offset;
-        uint64_t start = (uint64_t) vma->addr;
-        uint64_t end   = (uint64_t) vma->addr + vma->length;
+        uintptr_t start = (uintptr_t) vma->addr;
+        uintptr_t end   = (uintptr_t) vma->addr + vma->length;
         char pt[3] = {
             (vma->prot & PROT_READ)  ? 'r' : '-',
             (vma->prot & PROT_WRITE) ? 'w' : '-',
@@ -650,11 +649,11 @@ static int proc_thread_dir_open (struct shim_handle * hdl,
 static int proc_thread_dir_mode (const char * name, mode_t * mode)
 {
     const char * next;
-    int next_len;
-    int pid = parse_thread_name(name, &next, &next_len, NULL);
-
-    if (pid < 0)
-        return pid;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_thread_name(name, &pid, &next, &next_len, NULL);
+    if (ret < 0)
+        return ret;
 
     *mode = 0500;
     return 0;
@@ -663,11 +662,11 @@ static int proc_thread_dir_mode (const char * name, mode_t * mode)
 static int proc_thread_dir_stat (const char * name, struct stat * buf)
 {
     const char * next;
-    int next_len;
-    int pid = parse_thread_name(name, &next, &next_len, NULL);
-
-    if (pid < 0)
-        return pid;
+    size_t next_len;
+    IDTYPE pid;
+    int ret = parse_thread_name(name, &pid, &next, &next_len, NULL);
+    if (ret < 0)
+        return ret;
 
     struct shim_thread * thread = lookup_thread(pid);
 
@@ -692,9 +691,8 @@ static const struct proc_fs_ops fs_thread_fd = {
 
 static int proc_match_thread (const char * name)
 {
-    int pid = parse_thread_name(name, NULL, NULL, NULL);
-
-    if (pid < 0)
+    IDTYPE pid;
+    if (parse_thread_name(name, &pid, NULL, NULL, NULL) < 0)
         return 0;
 
     struct shim_thread * thread = lookup_thread(pid);

@@ -100,7 +100,7 @@ struct shim_ipc_port {
 
     bool                update, recent;
     struct {
-        unsigned int    type;
+        IDTYPE          type;
         IDTYPE          vmid;
     }                   info, private;
 };
@@ -373,7 +373,7 @@ int ipc_sysv_msgsnd_callback (IPC_CALLBACK_ARGS);
 struct shim_ipc_sysv_msgrcv {
     IDTYPE msgid;
     long msgtype;
-    int size;
+    size_t size;
     int flags;
 } __attribute__((packed));
 
@@ -413,22 +413,22 @@ struct shim_ipc_sysv_semctl {
     IDTYPE semid;
     int semnum;
     int cmd;
-    int valsize;
+    size_t valsize;
     unsigned char vals[];
 } __attribute__((packed));
 
 int ipc_sysv_semctl_send (IDTYPE semid, int semnum, int cmd, void * vals,
-                          int valsize);
+                          size_t valsize);
 int ipc_sysv_semctl_callback (IPC_CALLBACK_ARGS);
 
 /* SYSV_SEMRET */
 struct shim_ipc_sysv_semret {
-    int valsize;
+    size_t valsize;
     unsigned char vals[];
 } __attribute__((packed));
 
 int ipc_sysv_semret_send (struct shim_ipc_port * port, IDTYPE dest,
-                          void * vals, int valsize, unsigned long seq);
+                          void * vals, size_t valsize, unsigned long seq);
 int ipc_sysv_semret_callback (IPC_CALLBACK_ARGS);
 
 /* SYSV_SEMMOV */
@@ -503,18 +503,18 @@ enum {
 #define IPC_PORT_IFPOLL    (IPC_PORT_SERVER|IPC_PORT_LISTEN)
 
 /* general-purpose routines */
-void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, int type,
+void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type,
                          port_fini fini,
                          struct shim_ipc_port ** portptr);
-void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, int type,
+void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, IDTYPE type,
                    port_fini fini);
-void del_ipc_port_by_id (IDTYPE vm_pid, int type);
-void del_ipc_port (struct shim_ipc_port * port, int type);
+void del_ipc_port_by_id (IDTYPE vm_pid, IDTYPE type);
+void del_ipc_port (struct shim_ipc_port * port, IDTYPE type);
 void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode);
-struct shim_ipc_port * lookup_ipc_port (IDTYPE vmid, int type);
+struct shim_ipc_port * lookup_ipc_port (IDTYPE vmid, IDTYPE type);
 void get_ipc_port (struct shim_ipc_port * port);
 void put_ipc_port (struct shim_ipc_port * port);
-void del_all_ipc_ports (int type);
+void del_all_ipc_ports (IDTYPE type);
 
 struct shim_ipc_info * get_new_ipc_info (IDTYPE vmid, const char * uri,
                                          size_t len);

@@ -44,9 +44,9 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
 
     /* Linux kernel bitmap is based on long. So according to its
      * implementation, round up the result to sizeof(long) */
-    int bitmask_long_count = (ncpus + sizeof(long) * 8 - 1) /
-        (sizeof(long) * 8);
-    int bitmask_size_in_bytes = bitmask_long_count * sizeof(long);
+    size_t bitmask_long_count = (ncpus + sizeof(long) * 8 - 1) /
+                                (sizeof(long) * 8);
+    size_t bitmask_size_in_bytes = bitmask_long_count * sizeof(long);
     if (len < bitmask_size_in_bytes)
         return -EINVAL;
     /* Linux kernel also rejects non-natural size */

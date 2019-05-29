@@ -336,7 +336,7 @@ err:
         return -EACCES;
     }
 
-    int pathlen;
+    size_t pathlen;
     char *path = dentry_get_path(dent, true, &pathlen);
     qstrsetstr(&exec->path, path, pathlen);
 

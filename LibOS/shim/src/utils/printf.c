@@ -34,7 +34,7 @@ struct debugbuf {
 static inline int
 debug_fputs (void * f, const char * buf, int len)
 {
-    if (DkStreamWrite(debug_handle, 0, len, (void *) buf, NULL) == len)
+    if (DkStreamWrite(debug_handle, 0, len, (void *) buf, NULL) == (PAL_NUM) len)
         return 0;
     else
         return -1;

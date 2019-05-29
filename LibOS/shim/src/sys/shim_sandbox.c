@@ -65,7 +65,7 @@ static int isolate_fs (struct config_store * cfg, const char * path)
         return -ENOTDIR;
     }
 
-    int dpath_len = 0;
+    size_t dpath_len = 0;
     char * dpath = dentry_get_path(dent, true, &dpath_len);
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
@@ -97,21 +97,21 @@ static int isolate_fs (struct config_store * cfg, const char * path)
         bool is_chroot = false;
 
         /* Skip FS that are not chroot */
-        strcpy_static(kp, ".type", k + CONFIG_MAX - kp);
+        strcpy_static(kp, ".type", (size_t) ((k + CONFIG_MAX) - kp));
         if (get_config(cfg, k, t, CONFIG_MAX) <= 0)
             continue;
         if (strpartcmp_static(t, "chroot"))
             is_chroot = true;
 
-        strcpy_static(kp, ".uri", k + CONFIG_MAX - kp);
+        strcpy_static(kp, ".uri",  (size_t) ((k + CONFIG_MAX) - kp));
         if ((ulen = get_config(cfg, k, u, CONFIG_MAX)) <= 0)
             continue;
 
-        strcpy_static(kp, ".path", k + CONFIG_MAX - kp);
+        strcpy_static(kp, ".path", (size_t) ((k + CONFIG_MAX) - kp));
         if ((plen = get_config(cfg, k, p, CONFIG_MAX)) <= 0)
             continue;
 
-        if (plen >= dpath_len) {
+        if ((size_t) plen >= dpath_len) {
             if (!memcmp(p, dpath, dpath_len)) {
                 if (!p[dpath_len]) {
                     root_created = true;
@@ -129,9 +129,9 @@ remove:
                     continue;
                 }
                 set_config(cfg, k, NULL);
-                strcpy_static(kp, ".type", k + CONFIG_MAX - kp);
+                strcpy_static(kp, ".type", (size_t) ((k + CONFIG_MAX) - kp));
                 set_config(cfg, k, NULL);
-                strcpy_static(kp, ".uri", k + CONFIG_MAX - kp);
+                strcpy_static(kp, ".uri",  (size_t) ((k + CONFIG_MAX) - kp));
                 set_config(cfg, k, NULL);
                 debug("deleted file rule: %s => %s\n", p, u);
             }
@@ -150,7 +150,7 @@ remove:
 
             append_uri(u, ulen, dpath + plen, dpath_len - plen);
             set_config(cfg, k, dpath);
-            strcpy_static(kp, "uri", k + CONFIG_MAX - kp);
+            strcpy_static(kp, "uri", (size_t) ((k + CONFIG_MAX) - kp));
             set_config(cfg, k, u);
             root_created = true;
             debug("added file rule: %s => %s\n", dpath, u);

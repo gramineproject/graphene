@@ -84,12 +84,12 @@ struct shim_file_handle {
     struct shim_file_data * data;
 
     enum shim_file_type type;
-    uint64_t		size;
-    uint64_t 		marker;
+    off_t               size;
+    off_t               marker;
 
     enum { FILEBUF_MAP, FILEBUF_NONE } buf_type;
-    uint64_t 		mapsize;
-    uint64_t 		mapoffset;
+    size_t              mapsize;
+    off_t               mapoffset;
     void *              mapbuf;
 };
 
@@ -105,16 +105,16 @@ struct shim_dev_ops {
     int (*close) (struct shim_handle * hdl);
 
     /* read: the content from the file opened as handle */
-    int (*read) (struct shim_handle * hdl, void * buf, size_t count);
+    ssize_t (*read) (struct shim_handle * hdl, void * buf, size_t count);
 
     /* write: the content from the file opened as handle */
-    int (*write) (struct shim_handle * hdl, const void * buf, size_t count);
+    ssize_t (*write) (struct shim_handle * hdl, const void * buf, size_t count);
 
     /* flush: flush out user buffer */
     int (*flush) (struct shim_handle * hdl);
 
     /* seek: the content from the file opened as handle */
-    int (*seek) (struct shim_handle * hdl, off_t offset, int wence);
+    off_t (*seek) (struct shim_handle * hdl, off_t offset, int wence);
 
     int (*truncate) (struct shim_handle * hdl, uint64_t len);
 
@@ -290,7 +290,7 @@ struct shim_futex_handle {
 struct shim_str_data {
     REFTYPE ref_count;
     char * str;
-    size_t len;
+    off_t len;
     size_t buf_size;
     bool dirty;
     int (*update) (struct shim_handle * hdl);
@@ -425,7 +425,7 @@ int walk_handle_map (int (*callback) (struct shim_fd_handle *,
 int init_handle (void);
 int init_important_handles (void);
 
-ssize_t get_file_size (struct shim_handle * file);
+off_t get_file_size (struct shim_handle * file);
 
 int do_handle_read (struct shim_handle * hdl, void * buf, int count);
 int do_handle_write (struct shim_handle * hdl, const void * buf, int count);

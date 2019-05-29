@@ -49,7 +49,7 @@ int shim_do_getcwd (char * buf, size_t len)
 
     struct shim_dentry * cwd = thread->cwd;
 
-    int plen;
+    size_t plen;
     const char * path = dentry_get_path(cwd, true, &plen);
 
     int ret;
