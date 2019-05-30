@@ -96,7 +96,7 @@ struct shim_fs_ops {
     int (*checkin) (struct shim_handle * hdl);
 
     /* poll a single handle */
-    /* POLL_RD|POLL_WR: return POLL_RD|POLL_WR for readable|writeable,
+    /* POLL_RD|POLL_WR: return POLL_RD|POLL_WR for readable|writable,
        POLL_ER for failure, -EAGAIN for unknown. */
     /* POLL_SZ: return total size */
     int (*poll) (struct shim_handle * hdl, int poll_type);

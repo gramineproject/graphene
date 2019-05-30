@@ -79,7 +79,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    phdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    phdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
     phdl->process.stream_in   = proc_fds[0][0];
     phdl->process.stream_out  = proc_fds[0][1];
     phdl->process.cargo       = proc_fds[0][2];
@@ -93,7 +93,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    chdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    chdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
     chdl->process.stream_in   = proc_fds[1][0];
     chdl->process.stream_out  = proc_fds[1][1];
     chdl->process.cargo       = proc_fds[1][2];
@@ -425,7 +425,7 @@ static int proc_write (PAL_HANDLE handle, int offset, int count,
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                handle->hdr.flags &= ~WRITEABLE(1);
+                handle->hdr.flags &= ~WRITABLE(1);
                 return-PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
@@ -434,9 +434,9 @@ static int proc_write (PAL_HANDLE handle, int offset, int count,
         }
 
     if (bytes == count)
-        handle->hdr.flags |= WRITEABLE(1);
+        handle->hdr.flags |= WRITABLE(1);
     else
-        handle->hdr.flags &= ~WRITEABLE(1);
+        handle->hdr.flags &= ~WRITABLE(1);
 
     return bytes;
 }
@@ -511,7 +511,7 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     attr->nonblocking  = handle->process.nonblocking;
     attr->disconnected = handle->hdr.flags & (ERROR(0)|ERROR(1));
     attr->readable     = !!val;
-    attr->writeable    = handle->hdr.flags & WRITEABLE(1);
+    attr->writable     = handle->hdr.flags & WRITABLE(1);
     attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
 

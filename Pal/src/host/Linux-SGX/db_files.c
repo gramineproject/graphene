@@ -60,7 +60,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(hdl, file);
-    HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0)|WRITABLE(0);
     hdl->file.fd = fd;
     hdl->file.append = 0;
     hdl->file.pass = 0;
@@ -208,7 +208,7 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
     }
 
     if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {
-        SGX_DBG(DBG_E, "file_map does not currently support writeable pass-through mappings on SGX.  You may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your file mapping to keep the writes inside the enclave but they won't be reflected outside of the enclave.\n");
+        SGX_DBG(DBG_E, "file_map does not currently support writable pass-through mappings on SGX.  You may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your file mapping to keep the writes inside the enclave but they won't be reflected outside of the enclave.\n");
         return -PAL_ERROR_DENIED;
     }
 
@@ -292,11 +292,11 @@ static inline int file_stat_type (struct stat * stat)
 static inline void
 file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 {
-    attr->handle_type = file_stat_type(stat);
+    attr->handle_type  = file_stat_type(stat);
     attr->disconnected = PAL_FALSE;
     attr->nonblocking  = PAL_FALSE;
     attr->readable     = stataccess(stat, ACCESS_R);
-    attr->writeable    = stataccess(stat, ACCESS_W);
+    attr->writable     = stataccess(stat, ACCESS_W);
     attr->runnable     = stataccess(stat, ACCESS_X);
     attr->share_flags  = stat->st_mode;
     attr->pending_size = stat->st_size;

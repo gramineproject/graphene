@@ -233,9 +233,9 @@ static int __query_attr (struct shim_dentry * dent,
             case pal_type_dev:  data->type = FILE_DEV;     if (dent) dent->type = S_IFCHR; break;
         }
 
-    data->mode = (pal_attr.readable  ? S_IRUSR : 0) |
-                 (pal_attr.writeable ? S_IWUSR : 0) |
-                 (pal_attr.runnable  ? S_IXUSR : 0);
+    data->mode = (pal_attr.readable ? S_IRUSR : 0) |
+                 (pal_attr.writable ? S_IWUSR : 0) |
+                 (pal_attr.runnable ? S_IXUSR : 0);
 
     atomic_set(&data->size, pal_attr.pending_size);
 

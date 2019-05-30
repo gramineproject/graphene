@@ -195,7 +195,7 @@ no_op:
 
         if (do_w && !(hdl->acc_mode & MAY_WRITE)) {
             p->flags |= KNOWN_W;
-            debug("fd %d known to be not writeable\n", p->fd);
+            debug("fd %d known to be not writable\n", p->fd);
             do_w = false;
         }
 
@@ -236,7 +236,7 @@ no_op:
                     }
 
                     if (polled & FS_POLL_WR) {
-                        debug("fd %d known to be writeable\n", p->fd);
+                        debug("fd %d known to be writable\n", p->fd);
                         p->flags |= KNOWN_W|RET_W;
                         do_w = false;
                     }
@@ -346,8 +346,8 @@ done_finding:
             debug("handle is polled to be readable\n");
             p->flags |= RET_R;
         }
-        if (attr.writeable) {
-            debug("handle is polled to be writeable\n");
+        if (attr.writable) {
+            debug("handle is polled to be writable\n");
             p->flags |= RET_W;
         }
 

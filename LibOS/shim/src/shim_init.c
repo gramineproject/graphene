@@ -248,7 +248,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
     size = ALIGN_UP(size);
     protect_size = ALIGN_UP(protect_size);
 
-    /* preserve a non-readable, non-writeable page below the user
+    /* preserve a non-readable, non-writable page below the user
        stack to stop user program to clobber other vmas */
     void * stack = NULL;
     int flags = STACK_FLAGS|(user ? 0 : VMA_INTERNAL);

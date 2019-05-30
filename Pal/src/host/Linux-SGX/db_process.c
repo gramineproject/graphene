@@ -212,7 +212,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     PAL_HANDLE proc = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(proc, process);
-    HANDLE_HDR(proc)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    HANDLE_HDR(proc)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
     proc->process.stream_in  = proc_fds[0];
     proc->process.stream_out = proc_fds[1];
     proc->process.cargo      = proc_fds[2];
@@ -284,7 +284,7 @@ int init_child_process (PAL_HANDLE * parent_handle)
 {
     PAL_HANDLE parent = malloc(HANDLE_SIZE(process));
     SET_HANDLE_TYPE(parent, process);
-    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    HANDLE_HDR(parent)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
 
     parent->process.stream_in  = pal_sec.proc_fds[0];
     parent->process.stream_out = pal_sec.proc_fds[1];
@@ -371,14 +371,14 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (IS_ERR(bytes)) {
         bytes = unix_to_pal_error(ERRNO(bytes));
         if (bytes == -PAL_ERROR_TRYAGAIN)
-            HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
+            HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
         return bytes;
     }
 
     if ((uint64_t)bytes == count)
-        HANDLE_HDR(handle)->flags |= WRITEABLE(1);
+        HANDLE_HDR(handle)->flags |= WRITABLE(1);
     else
-        HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
+        HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
 
     return bytes;
 }
@@ -451,7 +451,7 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     attr->pending_size = ret;
     attr->disconnected = HANDLE_HDR(handle)->flags & (ERROR(0)|ERROR(1));
     attr->readable = (attr->pending_size > 0);
-    attr->writeable = HANDLE_HDR(handle)->flags & WRITEABLE(1);
+    attr->writable = HANDLE_HDR(handle)->flags & WRITABLE(1);
     attr->nonblocking = handle->process.nonblocking;
     return 0;
 }

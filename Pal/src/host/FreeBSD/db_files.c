@@ -58,7 +58,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     int len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(hdl, file);
-    hdl->hdr.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    hdl->hdr.flags |= RFD(0)|WFD(0)|WRITABLE(0);
     hdl->file.fd = ret;
     hdl->file.offset = 0;
     hdl->file.append = 0;
@@ -218,7 +218,7 @@ file_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
     attr->disconnected = PAL_FALSE;
     attr->nonblocking  = PAL_FALSE;
     attr->readable     = stataccess(stat, ACCESS_R);
-    attr->writeable    = stataccess(stat, ACCESS_W);
+    attr->writable     = stataccess(stat, ACCESS_W);
     attr->runnable     = stataccess(stat, ACCESS_X);
     attr->share_flags  = stat->st_mode;
     attr->pending_size = stat->st_size;

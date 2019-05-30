@@ -160,14 +160,14 @@ static int pipe_waitforclient (PAL_HANDLE handle, PAL_HANDLE * client)
 
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipeprv));
     SET_HANDLE_TYPE(clnt, pipeprv);
-    clnt->hdr.flags |= RFD(0)|WFD(1)|WRITEABLE(1);
+    clnt->hdr.flags |= RFD(0)|WFD(1)|WRITABLE(1);
     clnt->pipeprv.fds[0] = pipes[0];
     clnt->pipeprv.fds[1] = pipes[1];
     *client = clnt;
 #else
     PAL_HANDLE clnt = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(clnt, pipecli);
-    clnt->hdr.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    clnt->hdr.flags |= RFD(0)|WFD(0)|WRITABLE(0);
     clnt->pipe.fd = newfd;
     clnt->pipe.nonblocking = PAL_FALSE;
     clnt->pipe.pipeid = handle->pipe.pipeid;
@@ -254,7 +254,7 @@ static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
     SET_HANDLE_TYPE(hdl, pipeprv);
-    hdl->hdr.flags |= RFD(0)|WFD(1)|WRITEABLE(1);
+    hdl->hdr.flags |= RFD(0)|WFD(1)|WRITABLE(1);
     hdl->pipeprv.fds[0] = pipes[0];
     hdl->pipeprv.fds[1] = pipes[1];
     hdl->pipeprv.nonblocking = (options & O_NONBLOCK) ?
@@ -262,7 +262,7 @@ static int pipe_connect (PAL_HANDLE * handle, PAL_NUM pipeid, int options)
 #else
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipe));
     SET_HANDLE_TYPE(hdl, pipe);
-    hdl->hdr.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    hdl->hdr.flags |= RFD(0)|WFD(0)|WRITABLE(0);
     hdl->pipe.fd = fd;
     hdl->pipe.pipeid = pipeid;
     hdl->pipe.nonblocking = (options & O_NONBLOCK) ?
@@ -290,7 +290,7 @@ static int pipe_private (PAL_HANDLE * handle, int options)
 
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(pipeprv));
     SET_HANDLE_TYPE(hdl, pipeprv);
-    hdl->hdr.flags |= RFD(0)|WFD(1)|WRITEABLE(1);
+    hdl->hdr.flags |= RFD(0)|WFD(1)|WRITABLE(1);
     hdl->pipeprv.fds[0] = fds[0];
     hdl->pipeprv.fds[1] = fds[1];
     hdl->pipeprv.nonblocking = (options & O_NONBLOCK) ?
@@ -414,13 +414,13 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
     }
 #endif
 
-    PAL_FLG writeable = IS_HANDLE_TYPE(handle, pipeprv) ? WRITEABLE(1) :
-                        WRITEABLE(0);
+    PAL_FLG writable = IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) :
+                       WRITABLE(0);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                handle->hdr.flags &= ~writeable;
+                handle->hdr.flags &= ~writable;
                 return-PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
@@ -429,9 +429,9 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
         }
 
     if (bytes == len)
-        handle->hdr.flags |= writeable;
+        handle->hdr.flags |= writable;
     else
-        handle->hdr.flags &= ~writeable;
+        handle->hdr.flags &= ~writable;
 
     return bytes;
 }
@@ -531,9 +531,9 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
                          handle->pipeprv.nonblocking : handle->pipe.nonblocking;
     attr->readable     = val > 0;
     if (PAL_GET_TYPE(handle) == pal_type_pipeprv)
-        attr->writeable = handle->hdr.flags & WRITEABLE(1);
+        attr->writable = handle->hdr.flags & WRITABLE(1);
     else
-        attr->writeable = handle->hdr.flags & WRITEABLE(0);
+        attr->writable = handle->hdr.flags & WRITABLE(0);
     attr->pending_size = val;
     return 0;
 }

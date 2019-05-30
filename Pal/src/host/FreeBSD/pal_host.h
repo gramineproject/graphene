@@ -174,7 +174,7 @@ typedef union pal_handle
 
 #define RFD(n)          (00001 << (n))
 #define WFD(n)          (00010 << (n))
-#define WRITEABLE(n)    (00100 << (n))
+#define WRITABLE(n)     (00100 << (n))
 #define ERROR(n)        (01000 << (n))
 #define HAS_FDS         00077
 
