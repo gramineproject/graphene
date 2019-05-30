@@ -351,7 +351,7 @@ void signal_setup (void)
         PAL_EVENT_RESUME,
     };
 
-    for (int e = 0 ; e < sizeof(events) / sizeof(events[0]) ; e++)
+    for (size_t e = 0 ; e < sizeof(events) / sizeof(events[0]) ; e++)
         if ((ret = _DkPersistentSighandlerSetup(events[e])) < 0)
             goto err;
 

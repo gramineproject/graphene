@@ -212,7 +212,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     /* step 3: compose process parameter */
 
-    int parent_datasz = 0, exec_datasz = 0, manifest_datasz = 0;
+    size_t parent_datasz = 0, exec_datasz = 0, manifest_datasz = 0;
     void * parent_data = NULL;
     void * exec_data = NULL;
     void * manifest_data = NULL;
@@ -220,7 +220,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
         goto out;
-    parent_datasz = ret;
+    parent_datasz = (size_t)ret;
 
     if (exec) {
         ret = handle_serialize(exec, &exec_data);
@@ -228,7 +228,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
             free(parent_data);
             goto out;
         }
-        exec_datasz = ret;
+        exec_datasz = (size_t)ret;
     }
 
     if (pal_state.manifest_handle) {
@@ -238,12 +238,11 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
             free(exec_data);
             goto out;
         }
-        manifest_datasz = ret;
+        manifest_datasz = (size_t)ret;
     }
 
-    unsigned int datasz = parent_datasz + exec_datasz + manifest_datasz;
-    struct proc_args * proc_args =
-            __alloca(sizeof(struct proc_args) + datasz);
+    size_t datasz = parent_datasz + exec_datasz + manifest_datasz;
+    struct proc_args * proc_args = __alloca(sizeof(struct proc_args) + datasz);
 
     proc_args->parent_process_id = linux_state.parent_process_id;
     memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
@@ -311,8 +310,7 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
                          proc_args,
                          sizeof(struct proc_args) + datasz);
 
-    if (IS_ERR(ret) ||
-        ret < sizeof(struct proc_args) + datasz) {
+    if (IS_ERR(ret) || (size_t)ret < sizeof(struct proc_args) + datasz) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -543,7 +541,8 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                 return -PAL_ERROR_DENIED;
         }
 
-    if (bytes == count)
+    assert(!IS_ERR(bytes));
+    if ((size_t)bytes == count)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);

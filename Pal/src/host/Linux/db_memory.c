@@ -40,7 +40,7 @@ bool _DkCheckMemoryMappable (const void * addr, size_t size)
     return (addr < DATA_END && addr + size > TEXT_START);
 }
 
-int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type,
+int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
                            int prot)
 {
     void * addr = *paddr, * mem = addr;
@@ -58,14 +58,14 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type,
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, uint64_t size)
+int _DkVirtualMemoryFree (void * addr, size_t size)
 {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
+int _DkVirtualMemoryProtect (void * addr, size_t size, int prot)
 {
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, HOST_PROT(prot));
 
@@ -80,7 +80,10 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
         return -PAL_ERROR_DENIED;
 
     char buffer[40];
-    int r = 0, n, ret = 0, len = strlen(key);
+    int ret = 0;
+    size_t n;
+    size_t r = 0;
+    size_t len = strlen(key);
 
     ret = -PAL_ERROR_DENIED;
     while (1) {
@@ -101,7 +104,7 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
         }
 
         if (!memcmp(key, buffer, len) && buffer[len] == ':') {
-            for (int i = len + 1; i < n ; i++)
+            for (size_t i = len + 1; i < n ; i++)
                 if (buffer[i] != ' ') {
                     *val = atol(buffer + i);
                     break;

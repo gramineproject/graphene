@@ -396,7 +396,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
 
     int ret = INLINE_SYSCALL(recvmsg, 3, ch, &hdr, 0);
 
-    if (IS_ERR(ret) || ret < sizeof(struct hdl_header)) {
+    if (IS_ERR(ret) || (size_t)ret < sizeof(struct hdl_header)) {
         if (!IS_ERR(ret))
             return -PAL_ERROR_TRYAGAIN;
 
@@ -406,7 +406,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
 
     // initialize variables to get body
     void * buffer = __alloca(hdl_hdr.data_size);
-    int nfds = 0;
+    size_t nfds = 0;
 
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i))

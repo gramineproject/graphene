@@ -195,7 +195,7 @@ static int64_t char_read(PAL_HANDLE handle, uint64_t offset, uint64_t size, void
 
     int fd = handle->dev.fd_in;
 
-    if (fd == PAL_IDX_POISON)
+    if ((PAL_IDX)fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
     int64_t bytes = INLINE_SYSCALL(read, 3, fd, buffer, size);
@@ -213,7 +213,7 @@ static int64_t char_write(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
 
     int fd = handle->dev.fd_out;
 
-    if (fd == PAL_IDX_POISON)
+    if ((PAL_IDX)fd == PAL_IDX_POISON)
         return -PAL_ERROR_DENIED;
 
     int64_t bytes = INLINE_SYSCALL(write, 3, fd, buffer, size);

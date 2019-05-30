@@ -39,7 +39,7 @@
  * author:
  *    Paul Vixie, 1996.
  */
-int inet_pton4 (const char *src, int len, void *dstp)
+int inet_pton4 (const char *src, size_t len, void *dstp)
 {
     unsigned char *dst = (unsigned char *) dstp;
     const char *end = src + len;
@@ -95,7 +95,7 @@ static int tolower (char c)
  * author:
  *    Paul Vixie, 1996.
  */
-int inet_pton6 (const char *src, int len, void *dstp)
+int inet_pton6 (const char *src, size_t len, void *dstp)
 {
     unsigned char *dst = (unsigned char *) dstp;
     const char *end = src + len;

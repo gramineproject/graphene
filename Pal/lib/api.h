@@ -151,8 +151,8 @@ int snprintf (char * buf, int n, const char * fmt, ...);
 
 /* Miscelleneous */
 
-int inet_pton4 (const char *src, int len, void *dst);
-int inet_pton6 (const char *src, int len, void *dst);
+int inet_pton4 (const char *src, size_t len, void *dst);
+int inet_pton6 (const char *src, size_t len, void *dst);
 
 uint32_t __htonl (uint32_t x);
 uint32_t __ntohl (uint32_t x);

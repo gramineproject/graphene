@@ -146,14 +146,14 @@ size_t _DkRandomBitsRead (void * buffer, size_t size)
         pal_sec.random_device = fd;
     }
 
-    int total_bytes = 0;
+    size_t total_bytes = 0;
     do {
         int bytes = INLINE_SYSCALL(read, 3, pal_sec.random_device,
                                    buffer + total_bytes, size - total_bytes);
         if (IS_ERR(bytes))
             return -PAL_ERROR_DENIED;
 
-        total_bytes += bytes;
+        total_bytes += (size_t)bytes;
     } while (total_bytes < size);
 
     return 0;

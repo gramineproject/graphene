@@ -379,7 +379,7 @@ static int64_t pipe_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 /* 'write' operation of pipe stream. offset does not apply here. */
-static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, size_t len,
                            const void * buffer)
 {
     if (offset)
@@ -424,13 +424,13 @@ static int64_t pipe_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     PAL_FLG writeable = IS_HANDLE_TYPE(handle, pipeprv) ? WRITEABLE(1) :
                         WRITEABLE(0);
 
-    if (IS_ERR(bytes))
-        bytes = unix_to_pal_error(ERRNO(bytes));
-
-    if (bytes == len)
+    if (!IS_ERR(bytes) && (size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= writeable;
     else
         HANDLE_HDR(handle)->flags &= ~writeable;
+
+    if (IS_ERR(bytes))
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     return bytes;
 }
@@ -579,11 +579,11 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
 static int pipe_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
-    int old_count = count;
+    size_t old_count = count;
     int ret;
 
     const char * prefix = NULL;
-    int prefix_len = 0;
+    size_t prefix_len = 0;
 
     switch (PAL_GET_TYPE(handle)) {
         case pal_type_pipesrv:
