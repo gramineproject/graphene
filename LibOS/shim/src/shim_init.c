@@ -1145,7 +1145,7 @@ int shim_clean (int err)
 
 #ifdef PROFILE
     if (ENTER_TIME) {
-        switch (shim_get_tls()->context.syscall_nr) {
+        switch (shim_get_tls()->context.orig_rax) {
             case __NR_exit_group:
                 SAVE_PROFILE_INTERVAL_SINCE(syscall_exit_group, ENTER_TIME);
                 break;

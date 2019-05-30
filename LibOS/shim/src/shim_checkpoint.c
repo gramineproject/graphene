@@ -1275,7 +1275,7 @@ void restore_context (struct shim_context * context)
     memset(context, 0, sizeof(struct shim_context));
 
     __asm__ volatile("movq %0, %%rsp\r\n"
-                     "addq $2 * 8, %%rsp\r\n"    /* skip syscall_nr and rsp */
+                     "addq $2 * 8, %%rsp\r\n"    /* skip orig_rax and rsp */
                      "popq %%r15\r\n"
                      "popq %%r14\r\n"
                      "popq %%r13\r\n"

@@ -109,7 +109,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
 {
     ucontext_t * context = &signal->context;
 
-    if (tcb && tcb->context.regs && tcb->context.regs->syscall_nr) {
+    if (tcb && tcb->context.regs && tcb->context.regs->orig_rax) {
         struct shim_context * ct = &tcb->context;
 
         if (ct->regs) {
@@ -645,10 +645,10 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 
     struct shim_context * context = NULL;
 
-    if (tcb->context.regs && tcb->context.regs->syscall_nr) {
+    if (tcb->context.regs && tcb->context.regs->orig_rax) {
         context = __alloca(sizeof(struct shim_context));
         memcpy(context, &tcb->context, sizeof(struct shim_context));
-        tcb->context.regs->syscall_nr = 0;
+        tcb->context.regs->orig_rax = 0;
         tcb->context.next = context;
     }
 
