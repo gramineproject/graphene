@@ -83,7 +83,7 @@ syscalldb:
 
 ret:
         movq %rbp, %rsp
-        addq $2 * 8, %rsp   # skip syscall_nr and sp
+        addq $2 * 8, %rsp   # skip syscall_nr and rsp
         popq %r15
         popq %r14
         popq %r13

@@ -1262,11 +1262,11 @@ void restore_context (struct shim_context * context)
         memset(&regs, 0, sizeof(regs));
 
     debug("restore context: SP = 0x%08lx, IP = 0x%08lx\n",
-          context->regs->sp, context->regs->rip);
+          context->regs->rsp, context->regs->rip);
 
     /* don't clobber redzone. If sigaltstack is used,
      * this area won't be clobbered by signal context */
-    *(void **) (context->regs->sp - 128 - 8) = (void *)regs.rip;
+    *(void **) (context->regs->rsp - 128 - 8) = (void *)regs.rip;
 
     /* Ready to resume execution, re-enable preemption. */
     shim_tcb_t * tcb = shim_get_tls();
@@ -1275,7 +1275,7 @@ void restore_context (struct shim_context * context)
     memset(context, 0, sizeof(struct shim_context));
 
     __asm__ volatile("movq %0, %%rsp\r\n"
-                     "addq $2 * 8, %%rsp\r\n"    /* skip syscall_nr and sp */
+                     "addq $2 * 8, %%rsp\r\n"    /* skip syscall_nr and rsp */
                      "popq %%r15\r\n"
                      "popq %%r14\r\n"
                      "popq %%r13\r\n"
@@ -1291,7 +1291,7 @@ void restore_context (struct shim_context * context)
                      "popq %%rbx\r\n"
                      "popq %%rbp\r\n"
                      "popfq\r\n"
-                     "movq "XSTRINGIFY(SHIM_REGS_SP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
+                     "movq "XSTRINGIFY(SHIM_REGS_RSP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
                      "movq $0, %%rax\r\n"
                      "jmp *-128-8(%%rsp)\r\n"
                      :: "g"(&regs) : "memory");

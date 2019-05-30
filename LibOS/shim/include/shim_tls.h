@@ -24,7 +24,7 @@ struct lock_record {
 
 struct shim_regs {
     unsigned long           syscall_nr;
-    unsigned long           sp;
+    unsigned long           rsp;
     unsigned long           r15;
     unsigned long           r14;
     unsigned long           r13;

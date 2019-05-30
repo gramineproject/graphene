@@ -130,7 +130,7 @@ void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
             context->uc_mcontext.gregs[REG_RDI] = regs->rdi;
             context->uc_mcontext.gregs[REG_RBX] = regs->rbx;
             context->uc_mcontext.gregs[REG_RBP] = regs->rbp;
-            context->uc_mcontext.gregs[REG_RSP] = regs->sp;
+            context->uc_mcontext.gregs[REG_RSP] = regs->rsp;
         }
 
         signal->context_stored = true;

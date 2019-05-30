@@ -59,7 +59,7 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
 static void fixup_child_context(struct shim_regs * regs)
 {
     if (regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
-        regs->sp += RED_ZONE_SIZE;
+        regs->rsp += RED_ZONE_SIZE;
         regs->rflags = regs->r11;
         regs->rip = regs->rcx;
     }
@@ -168,7 +168,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
 
     tcb->context.regs = &regs;
     fixup_child_context(tcb->context.regs);
-    tcb->context.regs->sp = (unsigned long)stack;
+    tcb->context.regs->rsp = (unsigned long)stack;
 
     restore_context(&tcb->context);
     return 0;
@@ -336,8 +336,8 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             lookup_vma(ALIGN_DOWN(user_stack_addr), &vma);
             thread->stack_top = vma.addr + vma.length;
             thread->stack_red = thread->stack = vma.addr;
-            parent_stack = tcb->shim_tcb.context.regs->sp;
-            tcb->shim_tcb.context.regs->sp = (unsigned long)user_stack_addr;
+            parent_stack = (void *)tcb->shim_tcb.context.regs->rsp;
+            tcb->shim_tcb.context.regs->rsp = (unsigned long)user_stack_addr;
         }
 
         thread->is_alive = true;
@@ -349,7 +349,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         if (old_shim_tcb)
             memcpy(&tcb->shim_tcb, old_shim_tcb, sizeof(tcb->shim_tcb));
         if (parent_stack)
-            tcb->shim_tcb.context.regs->sp = parent_stack;
+            tcb->shim_tcb.context.regs->rsp = (unsigned long)parent_stack;
         if (ret < 0)
             goto failed;
 
