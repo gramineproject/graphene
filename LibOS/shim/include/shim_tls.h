@@ -40,7 +40,7 @@ struct shim_regs {
     unsigned long           rbx;
     unsigned long           rbp;
     unsigned long           rflags;
-    unsigned long           ret_ip;
+    unsigned long           rip;
 };
 
 struct shim_context {

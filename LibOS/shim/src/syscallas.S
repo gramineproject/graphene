@@ -60,7 +60,7 @@ syscalldb:
 
         movq %rsp, %rbp
         .cfi_def_cfa_offset SHIM_REGS_SIZE
-        .cfi_offset %rbp, -2 * 8    # saved_rbp is at CFA-24 (saved_rflags + saved_rbp)
+        .cfi_offset %rbp, -3 * 8    # saved_rbp is at CFA-24 (saved_rflags + saved_rbp)
         .cfi_def_cfa_register %rbp  # %rbp
 
         cmp $LIBOS_SYSCALL_BOUND, %rax

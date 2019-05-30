@@ -58,10 +58,10 @@ void __attribute__((weak)) syscall_wrapper_after_syscalldb(void)
  */
 static void fixup_child_context(struct shim_regs * regs)
 {
-    if (regs->ret_ip == (unsigned long)&syscall_wrapper_after_syscalldb) {
+    if (regs->rip == (unsigned long)&syscall_wrapper_after_syscalldb) {
         regs->sp += RED_ZONE_SIZE;
         regs->rflags = regs->r11;
-        regs->ret_ip = regs->rcx;
+        regs->rip = regs->rcx;
     }
 }
 
@@ -164,7 +164,7 @@ int clone_implementation_wrapper(struct clone_args * arg)
     //user_stack_addr[1] ==> arguments to user provided function.
 
     debug("child swapping stack to %p return 0x%lx: %d\n",
-          stack, regs.ret_ip, my_thread->tid);
+          stack, regs.rip, my_thread->tid);
 
     tcb->context.regs = &regs;
     fixup_child_context(tcb->context.regs);
