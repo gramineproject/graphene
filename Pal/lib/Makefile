@@ -5,7 +5,8 @@ AR	= ar rcs
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
-	  -fno-stack-protector -fno-builtin
+	  -fno-stack-protector -fno-builtin \
+	  $(CFLAGS_SANITIZE)
 ARFLAGS	=
 
 include ../src/host/$(PAL_HOST)/Makefile.am

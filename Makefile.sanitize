@@ -1,0 +1,9 @@
+# ENABLE_UBSAN = y
+ifneq ($(ENABLE_UBSAN),)
+	CFLAGS_SANITIZE += $(call cc-option,-fsantize=undfined)
+endif
+
+# ENABLE_ASAN = y
+ifneq ($(ENABLE_ASAN),)
+	CFLAGS_SANITIZE += $(call cc-option,-fsantize=address)
+endif

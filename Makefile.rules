@@ -64,3 +64,6 @@ cc-option = $(shell set -e; \
 	if ($(CC) -Werror $(1) -c -x c /dev/null -o /dev/null) >/dev/null 2>&1; \
 	then echo "$(1)"; \
 	fi)
+
+MAKEFILE_RULES_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+include $(MAKEFILE_RULES_DIR)/Makefile.sanitize
