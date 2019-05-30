@@ -669,7 +669,7 @@ static int load_enclave (struct pal_enclave * enclave,
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
 
 #ifdef DEBUG
-    int env_i = 0;
+    uint64_t env_i = 0;
     while (env_i < env_size) {
         if (strcmp_static(&env[env_i], "IN_GDB=1")) {
             SGX_DBG(DBG_I, "being GDB'ed!!!\n");
