@@ -1254,21 +1254,13 @@ int do_migration (struct newproc_cp_header * hdr, void ** cpptr)
 
 void restore_context (struct shim_context * context)
 {
-    int nregs = sizeof(struct shim_regs) / sizeof(void *);
-    const int rip_index = offsetof(struct shim_regs, rip)/sizeof(unsigned long);
-    void * regs[nregs];
-
-    if (context->regs)
-        memcpy(regs, context->regs, sizeof(struct shim_regs));
-    else
-        memset(regs, 0, sizeof(struct shim_regs));
-
-    debug("restore context: SP = 0x%08lx, IP = %p\n",
-          context->regs->rsp, regs[rip_index]);
+    assert(context->regs);
+    struct shim_regs regs = *context->regs;
+    debug("restore context: SP = 0x%08lx, IP = 0x%08lx\n", regs.rsp, regs.rip);
 
     /* don't clobber redzone. If sigaltstack is used,
      * this area won't be clobbered by signal context */
-    *(void **) (context->regs->rsp - 128 - 8) = regs[rip_index];
+    *(unsigned long*) (regs.rsp - RED_ZONE_SIZE - 8) = regs.rip;
 
     /* Ready to resume execution, re-enable preemption. */
     shim_tcb_t * tcb = shim_get_tls();
@@ -1295,6 +1287,6 @@ void restore_context (struct shim_context * context)
                      "popfq\r\n"
                      "movq "XSTRINGIFY(SHIM_REGS_RSP)" - "XSTRINGIFY(SHIM_REGS_RIP)"(%%rsp), %%rsp\r\n"
                      "movq $0, %%rax\r\n"
-                     "jmp *-128-8(%%rsp)\r\n"
+                     "jmp *-"XSTRINGIFY(RED_ZONE_SIZE)"-8(%%rsp)\r\n"
                      :: "g"(&regs) : "memory");
 }
