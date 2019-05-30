@@ -354,7 +354,7 @@ retry:
             }
             if (attr.readable)
                 epoll_fd->revents |= EPOLLIN;
-            if (attr.writeable)
+            if (attr.writable)
                 epoll_fd->revents |= EPOLLOUT;
             break;
         }

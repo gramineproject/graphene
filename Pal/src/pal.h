@@ -350,7 +350,7 @@ typedef struct {
     PAL_IDX handle_type;
     PAL_BOL disconnected;
     PAL_BOL nonblocking;
-    PAL_BOL readable, writeable, runnable;
+    PAL_BOL readable, writable, runnable;
     PAL_FLG share_flags;
     PAL_NUM pending_size;
     union {

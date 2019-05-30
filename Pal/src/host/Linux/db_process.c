@@ -80,7 +80,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    HANDLE_HDR(phdl)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    HANDLE_HDR(phdl)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
     phdl->process.stream_in   = proc_fds[0][0];
     phdl->process.stream_out  = proc_fds[0][1];
     phdl->process.cargo       = proc_fds[0][2];
@@ -94,7 +94,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    HANDLE_HDR(chdl)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
     chdl->process.stream_in   = proc_fds[1][0];
     chdl->process.stream_out  = proc_fds[1][1];
     chdl->process.cargo       = proc_fds[1][2];
@@ -536,7 +536,7 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
             case EWOULDBLOCK:
-                HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
+                HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
                 return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
@@ -546,9 +546,9 @@ static int64_t proc_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
 
     assert(!IS_ERR(bytes));
     if ((size_t)bytes == count)
-        HANDLE_HDR(handle)->flags |= WRITEABLE(1);
+        HANDLE_HDR(handle)->flags |= WRITABLE(1);
     else
-        HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
+        HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
 
     return bytes;
 }
@@ -627,7 +627,7 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     attr->nonblocking  = handle->process.nonblocking;
     attr->disconnected = HANDLE_HDR(handle)->flags & (ERROR(0)|ERROR(1));
     attr->readable     = !!val;
-    attr->writeable    = HANDLE_HDR(handle)->flags & WRITEABLE(1);
+    attr->writable     = HANDLE_HDR(handle)->flags & WRITABLE(1);
     attr->runnable     = PAL_FALSE;
     attr->pending_size = val;
 

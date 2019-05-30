@@ -71,7 +71,7 @@ void free_vma_val_array (struct shim_vma_val * vmas, size_t count)
                                      memory is not actually allocated */
 #define VMA_INTERNAL 0x20000000   /* vma is used internally */
 
-#define VMA_TAINTED  0x40000000   /* vma has been protected as writeable,
+#define VMA_TAINTED  0x40000000   /* vma has been protected as writable,
                                      so it has to be checkpointed during
                                      migration */
 

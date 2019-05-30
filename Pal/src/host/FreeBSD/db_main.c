@@ -240,7 +240,7 @@ void pal_bsd_main (void * args)
     int len = strlen(argv[0]);
     PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(file, file);
-    file->hdr.flags |= RFD(0)|WFD(0)|WRITEABLE(0);
+    file->hdr.flags |= RFD(0)|WFD(0)|WRITABLE(0);
     file->file.fd = fd;
     char * path = (void *) file + HANDLE_SIZE(file);
     get_norm_path(argv[0], path, 0, len + 1);

@@ -232,7 +232,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
         ret |= FS_POLL_ER;
     if ((poll_type & FS_POLL_RD) && attr.readable)
         ret |= FS_POLL_RD;
-    if ((poll_type & FS_POLL_WR) && attr.writeable)
+    if ((poll_type & FS_POLL_WR) && attr.writable)
         ret |= FS_POLL_WR;
 
 out:

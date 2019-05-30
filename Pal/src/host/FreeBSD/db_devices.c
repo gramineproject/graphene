@@ -154,9 +154,9 @@ static int term_attrquery (const char * type, const char * uri,
                            PAL_STREAM_ATTR * attr)
 {
     attr->handle_type = pal_type_dev;
-    attr->readable  = PAL_TRUE;
-    attr->writeable = PAL_TRUE;
-    attr->runnable  = PAL_FALSE;
+    attr->readable = PAL_TRUE;
+    attr->writable = PAL_TRUE;
+    attr->runnable = PAL_FALSE;
     attr->pending_size = 0;
     return 0;
 }
@@ -166,9 +166,9 @@ static int term_attrquerybyhdl (PAL_HANDLE hdl,
                                 PAL_STREAM_ATTR * attr)
 {
     attr->handle_type = pal_type_dev;
-    attr->readable  = (hdl->dev.fd_in  != PAL_IDX_POISON);
-    attr->writeable = (hdl->dev.fd_out != PAL_IDX_POISON);
-    attr->runnable  = PAL_FALSE;
+    attr->readable = (hdl->dev.fd_in  != PAL_IDX_POISON);
+    attr->writable = (hdl->dev.fd_out != PAL_IDX_POISON);
+    attr->runnable = PAL_FALSE;
     attr->pending_size = 0;
     return 0;
 }
@@ -363,9 +363,9 @@ dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
 {
     attr->handle_type = pal_type_dev;
 	/* readable, writable and runnable are decied by euidstataccess */
-    attr->readable  = stataccess(stat, ACCESS_R);
-    attr->writeable = stataccess(stat, ACCESS_W);
-    attr->runnable  = stataccess(stat, ACCESS_X);
+    attr->readable = stataccess(stat, ACCESS_R);
+    attr->writable = stataccess(stat, ACCESS_W);
+    attr->runnable = stataccess(stat, ACCESS_X);
     attr->pending_size = stat->st_size;
 }
 
@@ -416,9 +416,9 @@ static int dev_attrquerybyhdl (PAL_HANDLE handle,
             stat_out = &stat_buf;
     }
 
-    attr->readable  = (stat_in  && stataccess(stat_in,  ACCESS_R));
-    attr->runnable  = (stat_in  && stataccess(stat_in,  ACCESS_X));
-    attr->writeable = (stat_out && stataccess(stat_out, ACCESS_W));
+    attr->readable = (stat_in  && stataccess(stat_in,  ACCESS_R));
+    attr->runnable = (stat_in  && stataccess(stat_in,  ACCESS_X));
+    attr->writable = (stat_out && stataccess(stat_out, ACCESS_W));
     attr->pending_size = stat_in ? stat_in->st_size :
                          (stat_out ? stat_out->st_size : 0);
     return 0;

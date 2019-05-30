@@ -58,7 +58,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
                 events |= POLLIN;
 
             if ((handle->hdr.flags & WFD(i)) &&
-                !(handle->hdr.flags & WRITEABLE(i)) &&
+                !(handle->hdr.flags & WRITABLE(i)) &&
                 !(handle->hdr.flags & ERROR(i)))
                 events |= POLLOUT;
 
@@ -92,7 +92,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
             if (!fds[i].revents)
                 continue;
             if (fds[i].revents & POLLOUT)
-                handle->hdr.flags |= WRITEABLE(off[i]);
+                handle->hdr.flags |= WRITABLE(off[i]);
             if (fds[i].revents & (POLLHUP|POLLERR))
                 handle->hdr.flags |= ERROR(off[i]);
         }
@@ -169,7 +169,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                 events |= POLLIN;
 
             if ((hdl->hdr.flags & WFD(j)) &&
-                !(hdl->hdr.flags & WRITEABLE(j)) &&
+                !(hdl->hdr.flags & WRITABLE(j)) &&
                 !(hdl->hdr.flags & ERROR(j)))
                 events |= POLLOUT;
 
@@ -223,7 +223,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
             continue;
 
         if (fds[i].revents & POLLOUT)
-            hdl->hdr.flags |= WRITEABLE(j);
+            hdl->hdr.flags |= WRITABLE(j);
         if (fds[i].revents & (POLLHUP|POLLERR))
             hdl->hdr.flags |= ERROR(j);
     }
