@@ -104,16 +104,19 @@ next:
 int get_fs_paths (struct config_store * config, const char *** paths)
 {
     char * keys;
-    int nkeys;
+    size_t nkeys;
     ssize_t cfgsize;
+    int ret;
 
     cfgsize = get_config_entries_size(config, "fs.mount");
     if (cfgsize)
         return 0;
 
     keys = __alloca(cfgsize);
-    if ((nkeys = get_config_entries(config, "fs.mount", keys, cfgsize)) < 0)
+    if ((ret = get_config_entries(config, "fs.mount", keys, cfgsize)) < 0)
         nkeys = 0;
+    else
+        nkeys = (size_t)ret;
 
     *paths = malloc(sizeof(const char *) * (1 + nkeys));
     if (!(*paths))
@@ -128,13 +131,13 @@ int get_fs_paths (struct config_store * config, const char *** paths)
     char key[CONFIG_MAX], * k = keys, * n;
     char * tmp;
 
-    tmp = strcpy_static(key, "fs.mount.", CONFIG_MAX);
+    tmp = strcpy_static(key, "fs.mount.", (size_t)CONFIG_MAX);
 
-    for (int i = 0 ; i < nkeys ; i++) {
+    for (size_t i = 0 ; i < nkeys ; i++) {
         for (n = k ; *n ; n++);
-        int len = n - k;
+        size_t len = n - k;
         memcpy(tmp, k, len);
-        strcpy_static(tmp + len, ".uri", (key + CONFIG_MAX) - (tmp + len));
+        strcpy_static(tmp + len, ".uri", (size_t)((key + CONFIG_MAX) - (tmp + len)));
 
         const char * path = __get_path(config, key);
         if (path)

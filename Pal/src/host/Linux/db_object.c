@@ -250,7 +250,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, PAL_NUM timeout,
 
         for (j = 0 ; j < MAX_FDS ; j++)
             if ((HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j))) &&
-                hdl->generic.fds[j] == fds[i].fd)
+                hdl->generic.fds[j] == (PAL_IDX)fds[i].fd)
                 break;
 
         if (j == MAX_FDS)

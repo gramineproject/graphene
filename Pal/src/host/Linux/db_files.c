@@ -57,7 +57,7 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
         return unix_to_pal_error(ERRNO(ret));
 
     /* if try_create_path succeeded, prepare for the file handle */
-    int len = strlen(uri);
+    size_t len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len + 1);
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0)|WRITEABLE(0);
@@ -315,7 +315,7 @@ static int file_getname (PAL_HANDLE handle, char * buffer, size_t count)
     if (!handle->file.realpath)
         return 0;
 
-    int len = strlen(handle->file.realpath);
+    size_t len = strlen(handle->file.realpath);
     char * tmp = strcpy_static(buffer, "file:", count);
 
     if (!tmp || buffer + count < tmp + len + 1)
@@ -373,7 +373,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
-    int len = strlen(uri);
+    size_t len = strlen(uri);
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(dir) + len + 1);
     SET_HANDLE_TYPE(hdl, dir);
     HANDLE_HDR(hdl)->flags |= RFD(0);
@@ -411,7 +411,7 @@ struct linux_dirent64 {
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operat4on. */
-int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count, void * buf)
+int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count, void * buf)
 {
     if (offset)
         return -PAL_ERROR_INVAL;
@@ -451,7 +451,7 @@ output:
                 goto next;
 
             bool isdir = (d->d_type == DT_DIR);
-            int len = strlen(d->d_name);
+            size_t len = strlen(d->d_name);
             if (len + (isdir ? 2 : 1) > count)
                 break;
 
@@ -557,7 +557,7 @@ static int dir_getname (PAL_HANDLE handle, char * buffer, size_t count)
     if (!handle->dir.realpath)
         return 0;
 
-    int len = strlen(handle->dir.realpath);
+    size_t len = strlen(handle->dir.realpath);
     char * tmp = strcpy_static(buffer, "dir:", count);
 
     if (!tmp || buffer + count < tmp + len + 1)

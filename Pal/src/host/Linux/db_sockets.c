@@ -79,15 +79,15 @@ static size_t addr_size(const struct sockaddr* addr) {
 
 /* parsing the string of uri, and fill in the socket address structure.
    the latest pointer of uri, length of socket address are returned. */
-static int inet_parse_uri (char ** uri, struct sockaddr * addr, int * addrlen)
+static int inet_parse_uri (char ** uri, struct sockaddr * addr, size_t * addrlen)
 {
     char * tmp = *uri, * end;
     char * addr_str = NULL, * port_str;
     int af;
     void * addr_buf;
-    int addr_len;
+    size_t addr_len;
     __be16 * port_buf;
-    int slen;
+    size_t slen;
 
     if (tmp[0] == '[') {
         /* for IPv6, the address will be in the form of
@@ -149,10 +149,10 @@ inval:
 }
 
 /* create the string of uri from the given socket address */
-static int inet_create_uri (char * uri, int count, struct sockaddr * addr,
-                            int addrlen)
+static int inet_create_uri (char * uri, size_t count, struct sockaddr * addr,
+                            size_t addrlen)
 {
-    int len = 0;
+    size_t len = 0;
 
     if (addr->sa_family == AF_INET) {
         if (addrlen != sizeof(struct sockaddr_in))
@@ -196,8 +196,8 @@ static int inet_create_uri (char * uri, int count, struct sockaddr * addr,
    of uri will be either "bind-addr:bind-port:connect-addr:connect-port"
    or "addr:port". */
 static int socket_parse_uri (char * uri,
-                             struct sockaddr ** bind_addr, int * bind_addrlen,
-                             struct sockaddr ** dest_addr, int * dest_addrlen)
+                             struct sockaddr ** bind_addr, size_t * bind_addrlen,
+                             struct sockaddr ** dest_addr, size_t * dest_addrlen)
 {
     int ret;
 
@@ -238,8 +238,8 @@ static int socket_parse_uri (char * uri,
 /* fill in the PAL handle based on the file descriptors and address given. */
 static inline
 PAL_HANDLE socket_create_handle (int type, int fd, int options,
-                                 struct sockaddr * bind_addr, int bind_addrlen,
-                                 struct sockaddr * dest_addr, int dest_addrlen)
+                                 struct sockaddr * bind_addr, size_t bind_addrlen,
+                                 struct sockaddr * dest_addr, size_t dest_addrlen)
 {
     PAL_HANDLE hdl = malloc(HANDLE_SIZE(sock) + (bind_addr ? bind_addrlen : 0) +
                             (dest_addr ? dest_addrlen : 0));
@@ -275,7 +275,8 @@ PAL_HANDLE socket_create_handle (int type, int fd, int options,
         hdl->sock.receivebuf     = 0;
         hdl->sock.sendbuf        = 0;
     } else {
-        int ret, val, len = sizeof(int);
+        int ret, val;
+        socklen_t len = sizeof(int);
 
         ret = INLINE_SYSCALL(getsockopt, 5, fd, SOL_SOCKET, SO_RCVBUF,
                              &val, &len);
@@ -347,7 +348,7 @@ static bool check_any_addr (struct sockaddr * addr)
 static int tcp_listen (PAL_HANDLE * handle, char * uri, int options)
 {
     struct sockaddr buffer, * bind_addr = &buffer;
-    int bind_addrlen;
+    size_t bind_addrlen;
     int ret, fd = -1;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen,
@@ -433,7 +434,7 @@ static int tcp_accept (PAL_HANDLE handle, PAL_HANDLE * client)
         return -PAL_ERROR_BADHANDLE;
 
     struct sockaddr * bind_addr = (struct sockaddr *) handle->sock.bind;
-    int bind_addrlen = addr_size(bind_addr);
+    size_t bind_addrlen = addr_size(bind_addr);
     struct sockaddr buffer;
     socklen_t addrlen = sizeof(struct sockaddr);
     int ret = 0;
@@ -452,7 +453,7 @@ static int tcp_accept (PAL_HANDLE handle, PAL_HANDLE * client)
         }
 
     struct sockaddr * dest_addr = &buffer;
-    int dest_addrlen = addrlen;
+    size_t dest_addrlen = addrlen;
 
     *client = socket_create_handle(pal_type_tcp, newfd, 0,
                                    bind_addr, bind_addrlen,
@@ -475,7 +476,7 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
 {
     struct sockaddr buffer[3];
     struct sockaddr * bind_addr = buffer, * dest_addr = buffer + 1;
-    int bind_addrlen, dest_addrlen;
+    size_t bind_addrlen, dest_addrlen;
     int ret, fd = -1;
 
     /* accepting two kind of different uri:
@@ -566,7 +567,7 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
         !WITHIN_MASK(create, PAL_CREATE_MASK))
         return -PAL_ERROR_INVAL;
 
-    int uri_len = strlen(uri) + 1;
+    size_t uri_len = strlen(uri) + 1;
 
     if (uri_len > PAL_SOCKADDR_SIZE)
         return -PAL_ERROR_TOOLONG;
@@ -584,7 +585,7 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of tcp stream */
-static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, size_t len,
                          void * buf)
 {
     if (offset)
@@ -620,7 +621,7 @@ static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 }
 
 /* write' operation of tcp stream */
-static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, size_t len,
                           const void * buf)
 {
     if (offset)
@@ -646,13 +647,13 @@ static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
-    if (IS_ERR(bytes))
-        bytes = unix_to_pal_error(ERRNO(bytes));
-
-    if (bytes == len)
+    if (!IS_ERR(bytes) && (size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
+
+    if (IS_ERR(bytes))
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     return bytes;
 }
@@ -661,7 +662,7 @@ static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 static int udp_bind (PAL_HANDLE * handle, char * uri, int options)
 {
     struct sockaddr buffer, * bind_addr = &buffer;
-    int bind_addrlen;
+    size_t bind_addrlen;
     int ret = 0, fd = -1;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen,
@@ -726,7 +727,7 @@ static int udp_connect (PAL_HANDLE * handle, char * uri, int options)
 {
     struct sockaddr buffer[2];
     struct sockaddr * bind_addr = buffer, * dest_addr = buffer + 1;
-    int bind_addrlen, dest_addrlen;
+    size_t bind_addrlen, dest_addrlen;
     int ret, fd = -1;
 
     if ((ret = socket_parse_uri(uri, &bind_addr, &bind_addrlen,
@@ -797,7 +798,7 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
         return -PAL_ERROR_INVAL;
 
     char buf[PAL_SOCKADDR_SIZE];
-    int len = strlen(uri);
+    size_t len = strlen(uri);
 
     if (len >= PAL_SOCKADDR_SIZE)
         return -PAL_ERROR_TOOLONG;
@@ -813,7 +814,7 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     return -PAL_ERROR_NOTSUPPORT;
 }
 
-static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, size_t len,
                             void * buf)
 {
     if (offset)
@@ -845,7 +846,7 @@ static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     return bytes;
 }
 
-static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, size_t len,
                                   void * buf, char * addr, size_t addrlen)
 {
     if (offset)
@@ -889,7 +890,7 @@ static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t l
     return bytes;
 }
 
-static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, size_t len,
                          const void * buf)
 {
     if (offset)
@@ -915,18 +916,18 @@ static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
-    if (IS_ERR(bytes))
-        bytes = unix_to_pal_error(ERRNO(bytes));
-
-    if (bytes == len)
+    if (!IS_ERR(bytes) && (size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
 
+    if (IS_ERR(bytes))
+        bytes = unix_to_pal_error(ERRNO(bytes));
+
     return bytes;
 }
 
-static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
+static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, size_t len,
                                const void * buf, const char * addr, size_t addrlen)
 {
     if (offset)
@@ -948,7 +949,7 @@ static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
     memcpy(addrbuf, addr, addrlen);
 
     struct sockaddr conn_addr;
-    int conn_addrlen;
+    size_t conn_addrlen;
 
     int ret = inet_parse_uri(&addrbuf, &conn_addr, &conn_addrlen);
     if (ret < 0)
@@ -968,13 +969,13 @@ static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
 
     int64_t bytes = INLINE_SYSCALL(sendmsg, 3, handle->sock.fd, &hdr, MSG_NOSIGNAL);
 
-    if (IS_ERR(bytes))
-        bytes = unix_to_pal_error(ERRNO(bytes));
-
-    if (bytes == len)
+    if (!IS_ERR(bytes) && (size_t)bytes == len)
         HANDLE_HDR(handle)->flags |= WRITEABLE(0);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(0);
+
+    if (IS_ERR(bytes))
+        bytes = unix_to_pal_error(ERRNO(bytes));
 
     return bytes;
 }
@@ -1193,11 +1194,11 @@ static int socket_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
 
 static int socket_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
-    int old_count = count;
+    size_t old_count = count;
     int ret;
 
     const char * prefix = NULL;
-    int prefix_len = 0;
+    size_t prefix_len = 0;
     struct sockaddr * bind_addr = NULL, * dest_addr = NULL;
 
     switch (PAL_GET_TYPE(handle)) {
@@ -1402,7 +1403,8 @@ static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
                 return unix_to_pal_error(ERRNO(bytes));
         }
 
-    if (bytes == size)
+    assert(!IS_ERR(bytes));
+    if ((size_t)bytes == size)
         HANDLE_HDR(handle)->flags |= WRITEABLE(1);
     else
         HANDLE_HDR(handle)->flags &= ~WRITEABLE(1);
@@ -1410,7 +1412,7 @@ static int64_t mcast_send (PAL_HANDLE handle, uint64_t offset, uint64_t size,
     return bytes;
 }
 
-static int64_t mcast_receive (PAL_HANDLE handle, uint64_t offset, uint64_t size,
+static int64_t mcast_receive (PAL_HANDLE handle, uint64_t offset, size_t size,
                               void * buf)
 {
     if (offset)
