@@ -9,6 +9,7 @@ CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
+	  $(CFLAGS_SANITIZE) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal
 

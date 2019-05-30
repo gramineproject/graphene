@@ -11,3 +11,13 @@ ifeq ($(origin LD),default)
 LD	= ld
 endif
 OBJCOPY ?= objcopy
+
+# CONFIG_ENABLE_UBSAN=y
+CONFIG_ENABLE_UBSAN=n
+
+#
+# variables depend on configrations
+#
+ifeq ($(CONFIG_ENABLE_UBSAN),y)
+	CFLAGS_SANITIZE += $(call cc-option,-fsanitize=undefined)
+endif
