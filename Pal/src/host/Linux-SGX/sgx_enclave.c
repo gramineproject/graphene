@@ -702,7 +702,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
 
 #define EDEBUG(code, ms) do {} while (0)
 
-int ecall_enclave_start (char * args, uint64_t args_size, char * env, uint64_t env_size)
+int ecall_enclave_start (char * args, size_t args_size, char * env, size_t env_size)
 {
     ms_ecall_enclave_start_t ms;
     ms.ms_args = args;
