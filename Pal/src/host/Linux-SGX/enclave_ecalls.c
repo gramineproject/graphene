@@ -10,12 +10,6 @@
 
 #define SGX_CAST(type, item) ((type)(item))
 
-void pal_linux_main(char * uptr_args, uint64_t args_size,
-                    char * uptr_env, uint64_t env_size,
-                    struct pal_sec * uptr_sec_info);
-
-void pal_start_thread (void);
-
 extern void * enclave_base, * enclave_top;
 
 static struct atomic_int enclave_start_called = ATOMIC_INIT(0);

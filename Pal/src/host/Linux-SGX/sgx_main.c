@@ -640,8 +640,8 @@ finalize:
 static int load_enclave (struct pal_enclave * enclave,
                          const char * manifest_uri,
                          const char * exec_uri,
-                         char * args, uint64_t args_size,
-                         char * env, uint64_t env_size,
+                         char * args, size_t args_size,
+                         char * env, size_t env_size,
                          bool exec_uri_inferred)
 {
     struct pal_sec * pal_sec = &enclave->pal_sec;
@@ -931,14 +931,14 @@ int main (int argc, char ** argv, char ** envp)
      * saves us creating a copy of all argv and envp strings.
      */
     char * args = argv[0];
-    uint64_t args_size = argc > 0 ? (argv[argc - 1] - argv[0]) + strlen(argv[argc - 1]) + 1: 0;
+    size_t args_size = argc > 0 ? (argv[argc - 1] - argv[0]) + strlen(argv[argc - 1]) + 1: 0;
 
     int envc = 0;
     while (envp[envc] != NULL) {
         envc++;
     }
     char * env = envp[0];
-    uint64_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
+    size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
 
 
     return load_enclave(enclave, manifest_uri, exec_uri,
