@@ -40,6 +40,10 @@ $(LINUX_SRC)/.config: $(LINUX_SRC)/Makefile
 kernel_install: kernel
 	$(MAKE) -C $(LINUX_SRC) install modules_install headers_install
 
+.PHONY: test
+test:
+	$(MAKE) -C test test
+
 linux-deb:
 	if [ ! -f $(LINUX_SRC)/.config ]; then \
 		cp /boot/config-$(shell uname -r) $(LINUX_SRC)/.config && \
@@ -64,4 +68,5 @@ format:
 
 .PHONY: pack
 pack:
+	$(MAKE) -C test pack
 	$(MAKE) -C regression pack
