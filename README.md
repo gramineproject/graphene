@@ -42,7 +42,7 @@ Graphene Library OS currently only works on x86_64 architecture.
 
 Graphene Library OS is tested to be compiling and running on Ubuntu 14.04/16.04
 (both server and desktop version), along with Linux kernel 3.5/3.14/4.4.
-We recommand to build and install Graphene with the same host platform.
+We recommend to build and install Graphene with the same host platform.
 Other distributions of 64-bit Linux can potentially, but the result is not
 guaranteed. If you find Graphene not working on other distributions, please
 contact us with a detailed bug report.
@@ -131,7 +131,7 @@ from the official Intel github repositories:
    - <https://github.com/01org/linux-sgx>
    - <https://github.com/01org/linux-sgx-driver>
 
-A Linux driver must be installed before runing Graphene Library OS in enclaves.
+A Linux driver must be installed before running Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
 
 __** Please make sure the GCC version is either 4 or 5 **__
@@ -208,7 +208,7 @@ specifying the programs and manifest files:
     (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
 
 Using "libpal.so" as loader to start Graphene will not attach the applications
-to the Graphene reference monitor. Tha applications will have better
+to the Graphene reference monitor. The applications will have better
 performance, but no strong security isolation. To attach the applications to
 the Graphene reference monitor, Graphene must be started with the PAL
 reference monitor loader (libpal_sec.so). Graphene provides three options for

@@ -611,6 +611,6 @@ _restore_sgx_context:
 	# Now pop %rip and fix stack pointer in one operation (to avoid
 	# problems with nesting, see comment above). SGX_CONTEXT_RIP is
 	# directly after SGX_CONTEXT_RFLAGS, see sgx_arch.h. Note that retq
-	# decreases %rsp by 8 for the poped %rip additionaly to the passed
+	# decreases %rsp by 8 for the popped %rip additionally to the passed
 	# offset.
 	retq $(SGX_CONTEXT_SIZE + RED_ZONE_SIZE - SGX_CONTEXT_RIP - 8)
