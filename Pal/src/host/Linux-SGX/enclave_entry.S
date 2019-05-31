@@ -361,6 +361,7 @@ sgx_ocall:
 	movq 8(%rbp), %rax
 	pushq %rax	# previous RIP
 	pushfq
+	andq $~0x100, (%rsp) # reset Trap Flag (for GDB)
 	pushq %r15
 	pushq %r14
 	pushq %r13

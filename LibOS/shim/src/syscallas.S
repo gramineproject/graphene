@@ -38,6 +38,7 @@ syscalldb:
 
         # Create shim_regs struct on the stack.
         pushfq
+        andq $~0x100, (%rsp) # reset Trap Flag (for GDB)
         cld
         pushq %rbp
         pushq %rbx
