@@ -15,6 +15,7 @@ endif
 .PHONY: all clean
 all clean:
 	$(MAKE) -C src $@ || exit $?;
+	$(MAKE) -C test $@ || exit $?;
 	$(MAKE) -C regression $@ || exit $?;
 
 .PHONY: linux-kernel
