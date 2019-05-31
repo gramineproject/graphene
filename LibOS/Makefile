@@ -48,7 +48,7 @@ $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 
 $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
-$(BUILD_DIR)/Makefile: $(addprefix $(GLIBC_SRC)/,configure elf/Versions nptl/Versions dlfcn/Versions)
+$(BUILD_DIR)/Makefile: $(GLIBC_SRC)/configure
 ifeq ($(DEBUG),1)
 	./buildglibc.py --quiet --debug
 else
@@ -78,21 +78,24 @@ ifneq ($(filter %.gold,$(shell readlink -f /usr/bin/ld)),)
 GLIBC_PATCHES += glibc-ld.gold.patch
 endif
 
-$(GLIBC_SRC)/configure: $(GLIBC_PATCHES) Makefile
-	[ -f $(GLIBC_SRC).tar.gz ] || \
-	for MIRROR in $(GLIBC_MIRRORS); do \
-		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
-		&& break; \
-	done
+$(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
 	[ "`sha256sum $(GLIBC_SRC).tar.gz`" = "$(GLIBC_CHECKSUM)  $(GLIBC_SRC).tar.gz" ] || \
 		(echo "*** $(GLIBC_SRC).tar.gz has a wrong checksum ***"; exit 255)
+	rm -rf $(GLIBC_SRC)
 	tar -xzf $(GLIBC_SRC).tar.gz
 	cd $(GLIBC_SRC) && \
 	for p in $(GLIBC_PATCHES); do \
 		echo applying $$p; \
-		patch -p1 < ../$$p; \
+		patch -p1 < ../$$p || exit 255; \
 	done
+	touch $@
 endif
+
+$(GLIBC_SRC).tar.gz:
+	for MIRROR in $(GLIBC_MIRRORS); do \
+		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
+		&& break; \
+	done
 
 .PHONY: clean
 clean:
