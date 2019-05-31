@@ -304,7 +304,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     /* initialize enclave properties */
     rv = init_enclave();
     if (rv) {
-        SGX_DBG(DBG_E, "Failed to initalize enclave properties: %d\n", rv);
+        SGX_DBG(DBG_E, "Failed to initialize enclave properties: %d\n", rv);
         ocall_exit(rv);
     }
 
