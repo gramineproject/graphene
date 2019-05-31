@@ -38,6 +38,12 @@ syscalldb:
 
         # Create shim_regs struct on the stack.
         pushfq
+
+        # Under GDB, single-stepping sets Trap Flag (TP) of EFLAGS,
+        # thus TP=1 is stored on pushfq above. Upon consequent popfq,
+        # TP is 1, resulting in spurious trap. Reset TP here.
+        andq $~0x100, (%rsp)
+
         cld
         pushq %rbp
         pushq %rbx
