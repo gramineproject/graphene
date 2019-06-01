@@ -190,10 +190,7 @@ static void set_debug_type (void)
 
     if (strcmp_static(cfgbuf, "inline")) {
         ret = _DkStreamOpen(&handle, "dev:tty", PAL_ACCESS_RDWR, 0, 0, 0);
-        goto out;
-    }
-
-    if (strcmp_static(cfgbuf, "file")) {
+    } else if (strcmp_static(cfgbuf, "file")) {
         ret = get_config(pal_state.root_config, "loader.debug_file",
                          cfgbuf, CONFIG_MAX);
         if (ret <= 0)
@@ -203,15 +200,12 @@ static void set_debug_type (void)
                             PAL_ACCESS_RDWR,
                             PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
                             PAL_CREATE_TRY, 0);
-        goto out;
+    } else if (strcmp_static(cfgbuf, "none")) {
+        ret = 0;
+    } else {
+        INIT_FAIL(PAL_ERROR_INVAL, "unknown debug type");
     }
 
-    if (strcmp_static(cfgbuf, "none"))
-        goto out;
-
-    INIT_FAIL(PAL_ERROR_INVAL, "unknown debug type");
-
-out:
     if (ret < 0)
         INIT_FAIL(-ret, "cannot open debug stream");
 
@@ -275,41 +269,37 @@ void pal_main (
             INIT_FAIL(-ret, "cannot get manifest name");
 
         manifest_uri = malloc_copy(uri_buf, ret + 1);
-        goto has_manifest;
+    } else {
+        if (!exec_handle)
+            INIT_FAIL(PAL_ERROR_INVAL, "Must have manifest or executable");
+
+#if PROFILING == 1
+        unsigned long before_find_manifest = _DkSystemTimeQuery();
+#endif
+
+        /* The rule is to only find the manifest in the current directory */
+        /* try open "<execname>.manifest" */
+        ret = get_base_name(exec_uri, uri_buf, URI_MAX);
+
+        strcpy_static(uri_buf + ret, ".manifest", URI_MAX - (size_t)ret);
+        ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
+        if (ret) {
+            /* try open "file:manifest" */
+            manifest_uri = "file:manifest";
+            ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY,
+                                0, 0, 0);
+            if (ret) {
+#if PROFILING == 1
+                pal_state.manifest_loading_time +=
+                    _DkSystemTimeQuery() - before_find_manifest;
+#endif
+
+                /* well, there is no manifest file, leave it alone */
+                printf("Can't find any manifest, will run without one.\n");
+            }
+        }
     }
 
-    if (!exec_handle)
-        INIT_FAIL(PAL_ERROR_INVAL, "Must have manifest or executable");
-
-#if PROFILING == 1
-    unsigned long before_find_manifest = _DkSystemTimeQuery();
-#endif
-
-    /* The rule is to only find the manifest in the current directory */
-    /* try open "<execname>.manifest" */
-    ret = get_base_name(exec_uri, uri_buf, URI_MAX);
-
-    strcpy_static(uri_buf + ret, ".manifest", URI_MAX - (size_t)ret);
-    ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
-    if (!ret)
-        goto has_manifest;
-
-    /* try open "file:manifest" */
-    manifest_uri = "file:manifest";
-    ret = _DkStreamOpen(&manifest_handle, manifest_uri, PAL_ACCESS_RDONLY,
-                        0, 0, 0);
-    if (!ret)
-        goto has_manifest;
-
-#if PROFILING == 1
-    pal_state.manifest_loading_time +=
-            _DkSystemTimeQuery() - before_find_manifest;
-#endif
-
-    /* well, there is no manifest file, leave it alone */
-    printf("Can't find any manifest, will run without one.\n");
-
-has_manifest:
     /* load manifest if there is one */
     if (!pal_state.root_config && manifest_handle) {
 #if PROFILING == 1
