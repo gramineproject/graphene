@@ -201,23 +201,23 @@ static inline struct shim_vma *
 __lookup_vma (void * addr, struct shim_vma ** pprev)
 {
     struct shim_vma * vma, * prev = NULL;
+    struct shim_vma * found = NULL;
 
     LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
         if (addr < vma->start)
-            goto none;
-        if (test_vma_contain(vma, addr, addr + 1))
-            goto out;
+            break;
+        if (test_vma_contain(vma, addr, addr + 1)) {
+            found = vma;
+            break;
+        }
 
         assert(vma->end > vma->start);
         assert(!prev || prev->end <= vma->start);
         prev = vma;
     }
 
-none:
-    vma = NULL;
-out:
     if (pprev) *pprev = prev;
-    return vma;
+    return found;
 }
 
 /*
@@ -360,27 +360,25 @@ int init_vma (void)
 
 static inline struct shim_vma * __get_new_vma (void)
 {
-    struct shim_vma * tmp;
+    struct shim_vma * tmp = NULL;
 
-    if (vma_mgr) {
+    if (vma_mgr)
         tmp = get_mem_obj_from_mgr(vma_mgr);
-        if (tmp)
-            goto out;
+    if (tmp == NULL) {
+        for (int i = 0 ; i < RESERVED_VMAS ; i++)
+            if (reserved_vmas[i]) {
+                tmp = reserved_vmas[i];
+                reserved_vmas[i] = NULL;
+                break;
+            }
     }
 
-    for (int i = 0 ; i < RESERVED_VMAS ; i++)
-        if (reserved_vmas[i]) {
-            tmp = reserved_vmas[i];
-            reserved_vmas[i] = NULL;
-            goto out;
-        }
-
-    /* Should never reach here; if this happens, increase RESERVED_VMAS */
-    debug("failed to allocate new vma\n");
-    BUG();
-    return NULL;
-
-out:
+    if (tmp == NULL) {
+        /* Should never reach here; if this happens, increase RESERVED_VMAS */
+        debug("failed to allocate new vma\n");
+        BUG();
+        return NULL;
+    }
     memset(tmp, 0, sizeof(*tmp));
     INIT_LIST_HEAD(tmp, list);
     return tmp;
@@ -536,30 +534,24 @@ static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end
                 vma->offset += vma->end - vma->start;
             vma->start = vma->end;
         }
-
-        goto finish;
     }
-
     /*
      * Dealing with the tail: if the ending address of "vma" is in
      * [start, end), move the ending address.
      */
-    if (test_vma_endin(vma, start, end)) {
+    else if (test_vma_endin(vma, start, end)) {
         if (start > vma->start) {
             vma->end = start;
         } else {
             vma->end = vma->start;
         }
         /* offset is not affected */
-
-        goto finish;
     }
-
     /*
      * If [start, end) is inside the range of "vma", divide up
      * the VMA. A new VMA is created to represent the remaining tail.
      */
-    if (test_vma_contain(vma, start, end)) {
+    else if (test_vma_contain(vma, start, end)) {
         void * old_end = vma->end;
         vma->end = start;
 
@@ -581,14 +573,11 @@ static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end
             memcpy(tail->comment, vma->comment, VMA_COMMENT_LEN);
             *tailptr = tail;
         }
-
-        goto finish;
+    } else {
+        /* Never reach here */
+        BUG();
     }
 
-    /* Never reach here */
-    BUG();
-
-finish:
     assert(!test_vma_overlap(vma, start, end));
     assert(vma->start < vma->end);
 }
@@ -635,29 +624,27 @@ static int __bkeep_munmap (struct shim_vma ** pprev,
         if (start <= cur->start && cur->end <= end) {
             __remove_vma(cur, prev);
             __drop_vma(cur);
-            goto cont;
-        }
-
-        __shrink_vma(cur, start, end, &tail);
-
-        if (cur->end <= start) {
-            prev = cur;
-            if (tail) {
-                __insert_vma(tail, cur); /* insert "tail" after "cur" */
-                cur = tail; /* "tail" is the new "cur" */
-                break;
-            }
-        } else if (cur->start >= end) {
-            /* __shrink_vma() only creates a new VMA when the beginning of the
-             * original VMA is preserved. */
-            assert(!tail);
-            break;
         } else {
-            /* __shrink_vma() should never allow this case. */
-            BUG();
+            __shrink_vma(cur, start, end, &tail);
+
+            if (cur->end <= start) {
+                prev = cur;
+                if (tail) {
+                    __insert_vma(tail, cur); /* insert "tail" after "cur" */
+                    cur = tail; /* "tail" is the new "cur" */
+                    break;
+                }
+            } else if (cur->start >= end) {
+                /* __shrink_vma() only creates a new VMA when the beginning of the
+                 * original VMA is preserved. */
+                assert(!tail);
+                break;
+            } else {
+                /* __shrink_vma() should never allow this case. */
+                BUG();
+            }
         }
 
-cont:
         cur = next;
         next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
     }
@@ -727,55 +714,52 @@ static int __bkeep_mprotect (struct shim_vma * prev,
             return -EACCES;
 
         /* If protection doesn't change anything, move on to the next */
-        if (cur->prot == prot)
-            goto cont;
+        if (cur->prot != prot) {
+            /* If [start, end) contains the VMA, just update its protection. */
+            if (start <= cur->start && cur->end <= end) {
+                cur->prot = prot;
+            } else {
+                /* Create a new VMA for the protected area */
+                new = __get_new_vma();
+                new->start = cur->start > start ? cur->start : start;
+                new->end   = cur->end < end ? cur->end : end;
+                new->prot  = prot;
+                new->flags = cur->flags;
+                new->file  = cur->file;
+                if (new->file) {
+                    get_handle(new->file);
+                    new->offset = cur->offset + (new->start - cur->start);
+                } else {
+                    new->offset = 0;
+                }
+                memcpy(new->comment, cur->comment, VMA_COMMENT_LEN);
 
-        /* If [start, end) contains the VMA, just update its protection. */
-        if (start <= cur->start && cur->end <= end) {
-            cur->prot = prot;
-            goto cont;
-        }
+                /* Like unmapping, shrink (and potentially split) the VMA first. */
+                __shrink_vma(cur, start, end, &tail);
 
-        /* Create a new VMA for the protected area */
-        new = __get_new_vma();
-        new->start = cur->start > start ? cur->start : start;
-        new->end   = cur->end < end ? cur->end : end;
-        new->prot  = prot;
-        new->flags = cur->flags;
-        new->file  = cur->file;
-        if (new->file) {
-            get_handle(new->file);
-            new->offset = cur->offset + (new->start - cur->start);
-        } else {
-            new->offset = 0;
-        }
-        memcpy(new->comment, cur->comment, VMA_COMMENT_LEN);
+                if (cur->end <= start) {
+                    prev = cur;
+                    if (tail) {
+                        __insert_vma(tail, cur); /* insert "tail" after "cur" */
+                        cur = tail; /* "tail" is the new "cur" */
+                        /* "next" is the same */
+                    }
+                } else if (cur->start >= end) {
+                    /* __shrink_vma() only creates a new VMA when the beginning of the
+                     * original VMA is preserved. */
+                    assert(!tail);
+                } else {
+                    /* __shrink_vma() should never allow this case. */
+                    BUG();
+                }
 
-        /* Like unmapping, shrink (and potentially split) the VMA first. */
-        __shrink_vma(cur, start, end, &tail);
-
-        if (cur->end <= start) {
-            prev = cur;
-            if (tail) {
-                __insert_vma(tail, cur); /* insert "tail" after "cur" */
-                cur = tail; /* "tail" is the new "cur" */
-                /* "next" is the same */
+                /* Now insert the new protected vma between prev and cur */
+                __insert_vma(new, prev);
+                assert(!prev || prev->end <= new->end);
+                assert(new->start < new->end);
             }
-        } else if (cur->start >= end) {
-            /* __shrink_vma() only creates a new VMA when the beginning of the
-             * original VMA is preserved. */
-            assert(!tail);
-        } else {
-            /* __shrink_vma() should never allow this case. */
-            BUG();
         }
 
-        /* Now insert the new protected vma between prev and cur */
-        __insert_vma(new, prev);
-        assert(!prev || prev->end <= new->end);
-        assert(new->start < new->end);
-
-cont:
         prev = cur;
         cur = next;
         next = cur ? LISTP_NEXT_ENTRY(cur, &vma_list, list) : NULL;
@@ -892,15 +876,13 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
     }
 #endif
 
-    if (top_addr <= bottom_addr)
-        goto again;
-
-    /* Try first time */
-    addr = __bkeep_unmapped(top_addr, bottom_addr,
-                            length, prot, flags,
-                            file, offset, comment);
-    assert_vma_list();
-
+    if (top_addr > bottom_addr) {
+        /* Try first time */
+        addr = __bkeep_unmapped(top_addr, bottom_addr,
+                                length, prot, flags,
+                                file, offset, comment);
+        assert_vma_list();
+    }
     if (addr) {
         /*
          * we only update the current heap top when we get the
@@ -910,20 +892,14 @@ void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
             debug("heap top adjusted to %p\n", addr);
             current_heap_top = addr;
         }
-        goto out;
+    } else if (top_addr < heap_max) {
+        /* Try to allocate above the current heap top */
+        addr = __bkeep_unmapped(heap_max, bottom_addr,
+                                length, prot, flags,
+                                file, offset, comment);
+        assert_vma_list();
     }
 
-again:
-    if (top_addr >= heap_max)
-        goto out;
-
-    /* Try to allocate above the current heap top */
-    addr = __bkeep_unmapped(heap_max, bottom_addr,
-                            length, prot, flags,
-                            file, offset, comment);
-    assert_vma_list();
-
-out:
     __restore_reserved_vmas();
     unlock(&vma_list_lock);
 #ifdef MAP_32BIT
@@ -1056,73 +1032,67 @@ BEGIN_CP_FUNC(vma)
 
         void * need_mapped = vma->addr;
 
+        if (
 #if MIGRATE_MORE_GIPC == 1
-        if (store->use_gipc ?
-            !NEED_MIGRATE_MEMORY_IF_GIPC(vma) :
-            !NEED_MIGRATE_MEMORY(vma))
-#else
-        if (!NEED_MIGRATE_MEMORY(vma))
+            store->use_gipc ?
+            NEED_MIGRATE_MEMORY_IF_GIPC(vma) :
 #endif
-            goto no_mem;
+            NEED_MIGRATE_MEMORY(vma)) {
+            void *   send_addr = vma->addr;
+            uint64_t send_size = vma->length;
+            if (vma->file) {
+                /*
+                 * Chia-Che 8/13/2017:
+                 * A fix for cloning a private VMA which maps a file to a process.
+                 *
+                 * (1) Application can access any page backed by the file, wholly
+                 *     or partially.
+                 *
+                 * (2) Access beyond the last file-backed page will cause SIGBUS.
+                 *     For reducing fork latency, the following code truncates the
+                 *     memory size for migrating a process. The memory size is
+                 *     truncated to the file size, round up to pages.
+                 *
+                 * (3) Data in the last file-backed page is valid before or after
+                 *     forking. Has to be included in process migration.
+                 */
+                int64_t file_len = get_file_size(vma->file);
+                if (file_len >= 0 &&
+                    vma->offset + vma->length > file_len) {
+                    send_size = file_len > vma->offset ?
+                        file_len - vma->offset : 0;
+                    send_size = ALIGN_UP(send_size);
+                }
+            }
+            if (send_size > 0) {
+#if HASH_GIPC == 1
+                if (!(pal_prot & PAL_PROT_READ)) {
+#else
+                if (!store->use_gipc && !(pal_prot & PAL_PROT_READ)) {
+#endif
+                    /* Make the area readable */
+                    DkVirtualMemoryProtect(send_addr, send_size,
+                                           pal_prot|PAL_PROT_READ);
+                }
 
-        void *   send_addr = vma->addr;
-        uint64_t send_size = vma->length;
-        if (vma->file) {
-            /*
-             * Chia-Che 8/13/2017:
-             * A fix for cloning a private VMA which maps a file to a process.
-             *
-             * (1) Application can access any page backed by the file, wholly
-             *     or partially.
-             *
-             * (2) Access beyond the last file-backed page will cause SIGBUS.
-             *     For reducing fork latency, the following code truncates the
-             *     memory size for migrating a process. The memory size is
-             *     truncated to the file size, round up to pages.
-             *
-             * (3) Data in the last file-backed page is valid before or after
-             *     forking. Has to be included in process migration.
-             */
-            int64_t file_len = get_file_size(vma->file);
-            if (file_len >= 0 &&
-                vma->offset + vma->length > file_len) {
-                send_size = file_len > vma->offset ?
-                            file_len - vma->offset : 0;
-                send_size = ALIGN_UP(send_size);
+                if (store->use_gipc) {
+                    struct shim_gipc_entry * gipc;
+                    DO_CP_SIZE(gipc, send_addr, send_size, &gipc);
+                    gipc->mem.prot = pal_prot;
+                } else {
+                    struct shim_mem_entry * mem;
+                    DO_CP_SIZE(memory, send_addr, send_size, &mem);
+                    mem->prot = pal_prot;
+                }
+
+                need_mapped = vma->addr + vma->length;
+
+#if HASH_GIPC == 1
+                if (store->use_gipc && !(pal_prot & PAL_PROT_READ))
+                    DkVirtualMemoryProtect(send_addr, send_size, pal_prot);
+#endif
             }
         }
-
-        if (!send_size)
-            goto no_mem;
-
-#if HASH_GIPC == 1
-        if (!(pal_prot & PAL_PROT_READ)) {
-#else
-        if (!store->use_gipc && !(pal_prot & PAL_PROT_READ)) {
-#endif
-            /* Make the area readable */
-            DkVirtualMemoryProtect(send_addr, send_size,
-                                   pal_prot|PAL_PROT_READ);
-        }
-
-        if (store->use_gipc) {
-            struct shim_gipc_entry * gipc;
-            DO_CP_SIZE(gipc, send_addr, send_size, &gipc);
-            gipc->mem.prot = pal_prot;
-        } else {
-            struct shim_mem_entry * mem;
-            DO_CP_SIZE(memory, send_addr, send_size, &mem);
-            mem->prot = pal_prot;
-        }
-
-        need_mapped = vma->addr + vma->length;
-
-#if HASH_GIPC == 1
-        if (store->use_gipc && !(pal_prot & PAL_PROT_READ))
-            DkVirtualMemoryProtect(send_addr, send_size, pal_prot);
-#endif
-
-no_mem:
         ADD_CP_FUNC_ENTRY(off);
         ADD_CP_ENTRY(ADDR, need_mapped);
     } else {
@@ -1228,12 +1198,13 @@ BEGIN_CP_FUNC(all_vmas)
     if (!vmas)
         return -ENOMEM;
 
-retry_dump_vmas:
-    ret = dump_all_vmas(vmas, count);
+    while (true) {
+        ret = dump_all_vmas(vmas, count);
+        if (ret != -EOVERFLOW)
+            break;
 
-    if (ret == -EOVERFLOW) {
         struct shim_vma_val * new_vmas
-                = malloc(sizeof(*new_vmas) * count * 2);
+            = malloc(sizeof(*new_vmas) * count * 2);
         if (!new_vmas) {
             free(vmas);
             return -ENOMEM;
@@ -1241,7 +1212,6 @@ retry_dump_vmas:
         free(vmas);
         vmas = new_vmas;
         count *= 2;
-        goto retry_dump_vmas;
     }
 
     if (ret < 0)
