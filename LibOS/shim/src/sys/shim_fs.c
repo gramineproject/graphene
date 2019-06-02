@@ -500,42 +500,34 @@ static ssize_t handle_copy (struct shim_handle * hdli, off_t * offseti,
             bufi = NULL;
             DkVirtualMemoryFree(bufo, ALIGN_UP(bufsize + boffo));
             bufo = NULL;
-            goto done_copy;
-        }
-
-        if (do_mapo) {
+        } else if (do_mapo) {
             copysize = fsi->fs_ops->read(hdli, bufo + boffo, bufsize);
             DkVirtualMemoryFree(bufo, ALIGN_UP(bufsize + boffo));
             bufo = NULL;
             if (copysize < 0)
                 break;
-            goto done_copy;
-        }
-
-        if (do_mapi) {
+        } else if (do_mapi) {
             copysize = fso->fs_ops->write(hdlo, bufi + boffi, bufsize);
             DkVirtualMemoryFree(bufi, ALIGN_UP(bufsize + boffi));
             bufi = NULL;
             if (copysize < 0)
                 break;
-            goto done_copy;
+        } else {
+            if (!bufi)
+                bufi = __alloca((bufsize = (bufsize > BUF_SIZE) ? BUF_SIZE :
+                                 bufsize));
+
+            copysize = fsi->fs_ops->read(hdli, bufi, bufsize);
+
+            if (copysize <= 0)
+                break;
+
+            expectsize = copysize;
+            copysize = fso->fs_ops->write(hdlo, bufi, expectsize);
+            if (copysize < 0)
+                break;
         }
 
-        if (!bufi)
-            bufi = __alloca((bufsize = (bufsize > BUF_SIZE) ? BUF_SIZE :
-                             bufsize));
-
-        copysize = fsi->fs_ops->read(hdli, bufi, bufsize);
-
-        if (copysize <= 0)
-            break;
-
-        expectsize = copysize;
-        copysize = fso->fs_ops->write(hdlo, bufi, expectsize);
-        if (copysize < 0)
-            break;
-
-done_copy:
         debug("copy %d bytes\n", copysize);
         bytes += copysize;
         offi += copysize;
