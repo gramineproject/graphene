@@ -418,20 +418,15 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
                     break;
 
                 size = stat.st_size;
-                goto done_fioread;
-            }
-
-            if (hdl->pal_handle) {
+            } else if (hdl->pal_handle) {
                 PAL_STREAM_ATTR attr;
                 if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
                     ret = -PAL_ERRNO;
                     break;
                 }
                 size = attr.pending_size;
-                goto done_fioread;
             }
 
-done_fioread:
             if (fs->fs_ops->seek) {
                 ret = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
                 if (ret < 0)
