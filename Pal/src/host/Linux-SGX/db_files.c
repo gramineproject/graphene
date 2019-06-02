@@ -467,11 +467,31 @@ static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count,
     void * end = (void *) handle->dir.end;
     int bytes = 0;
 
-    if (ptr && ptr < end)
-        goto output;
+    while (true) {
+        while (ptr && ptr < end) {
+            struct linux_dirent64 * d = (struct linux_dirent64 *) ptr;
 
-    do {
-        if (handle->dir.endofstream)
+            if (!(d->d_name[0] == '.' &&
+                  (!d->d_name[1] || d->d_name[1] == '.'))) {
+                bool isdir = (d->d_type == DT_DIR);
+                size_t len = strlen(d->d_name);
+                if (len + (isdir ? 2 : 1) > count)
+                    break;
+
+                memcpy(buf, d->d_name, len);
+                if (isdir)
+                    ((char *) buf)[len++] = '/';
+                ((char *) buf)[len++] = '\0';
+
+                bytes += len;
+                buf += len;
+                count -= len;
+            }
+
+            ptr += d->d_reclen;
+        }
+
+        if (handle->dir.endofstream || ptr < end)
             break;
 
         int size = ocall_getdents(handle->dir.fd, dent_buf, DIRBUF_SIZE);
@@ -486,32 +506,7 @@ static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count,
 
         ptr = dent_buf;
         end = dent_buf + size;
-
-output:
-        while (ptr < end) {
-            struct linux_dirent64 * d = (struct linux_dirent64 *) ptr;
-
-            if (d->d_name[0] == '.' &&
-                (!d->d_name[1] || d->d_name[1] == '.'))
-                goto next;
-
-            bool isdir = (d->d_type == DT_DIR);
-            size_t len = strlen(d->d_name);
-            if (len + (isdir ? 2 : 1) > count)
-                break;
-
-            memcpy(buf, d->d_name, len);
-            if (isdir)
-                ((char *) buf)[len++] = '/';
-            ((char *) buf)[len++] = '\0';
-
-            bytes += len;
-            buf += len;
-            count -= len;
-next:
-            ptr += d->d_reclen;
-        }
-    } while (ptr == end);
+    }
 
     if (ptr < end) {
         if (!handle->dir.buf)
