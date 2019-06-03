@@ -64,3 +64,32 @@ cc-option = $(shell set -e; \
 	if ($(CC) -Werror $(1) -c -x c /dev/null -o /dev/null) >/dev/null 2>&1; \
 	then echo "$(1)"; \
 	fi)
+
+
+# .c
+quiet_cmd_cc_o_c = [ $@ ]
+      cmd_cc_o_c = $(CC) $(CFLAGS) $(CFLAGS-$@) -c -o $@ $<
+
+quiet_cmd_cpp_i_c = [ $@ ]
+      cmd_cpp_i_c = (CC) $(CFLAGS) $(CFLAGS-$@) -E -o $@ $<
+
+quiet_cmd_cc_s_c = [ $@ ]
+      cmd_cc_s_c = (CC) $(CFLAGS) $(CFLAGS-$@) -S -o $@ $<
+
+# .S
+quiet_cmd_as_o_S = [ $@ ]
+      cmd_as_o_S = $(CC) $(ASFLAGS) $(ASFLAGS-$@) -c -o $@ $<
+
+quiet_cmd_cpp_s_S = [ $@ ]
+      cmd_cpp_s_S = $(CC) $(ASFLAGS) $(ASFLAGS-$@) -E -o $@ $<
+
+# LD
+quiet_cmd_ld_so_o = [ $@ ]
+      cmd_ld_so_o = $(LD) $(LDFLAGS) $(LDFLAGS-$@) -o $@ $(filter-out %.map %.lds,$^) -soname $@
+
+# AR
+quiet_cmd_ar_so_o = [ $@ ]
+      cmd_ar_so_o = $(AR) $(ARFLAGS) $(ARFLAGS-$@) $@ $^
+
+quiet_cmd_ar_a_o = [ $@ ]
+      cmd_ar_a_o = $(AR) $(ARFLAGS) $(ARFLAGS-$@) $@ $^
