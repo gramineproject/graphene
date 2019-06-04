@@ -40,10 +40,6 @@ $(addsuffix .o,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(addsuffix .o,$(enclave-objs)): %.o: %.c $(headers)
 	$(call cmd,cc_o_c)
 
-$(addsuffix .e,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .e,$(enclave-objs)): %.e: %.c $(headers)
-	$(call cmd,cpp_i_c)
-
 $(addsuffix .i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(addsuffix .i,$(enclave-objs)): %.i: %.c $(headers)
 	$(call cmd,cpp_i_c)
@@ -62,9 +58,6 @@ $(addsuffix .s,$(enclave-asm-objs)): %.s: %.S $(headers)
 
 $(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
 	$(call cmd,cc_o_c)
-
-$(addsuffix .e,$(urts-objs)): %.e: %.c $(headers)
-	$(call cmd,cpp_i_c)
 
 $(addsuffix .i,$(urts-objs)): %.i: %.c $(headers)
 	$(call cmd,cpp_i_c)
