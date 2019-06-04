@@ -32,11 +32,6 @@ pal-gdb: pal-gdb.template
 libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
-%.asm: %.c $(headers)
-	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
-
 %.o: %.c $(headers)
 	$(call cmd,cc_o_c)
 
