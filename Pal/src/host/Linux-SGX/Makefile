@@ -7,6 +7,8 @@ ASFLAGS += -I. -I../.. -I../../../include
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so generated_offsets.py
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
+CFLAGS += $(defs)
+ASFLAGS += $(defs)
 enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 		 threading mutex events process object main rtld \
 		 exception misc ipc spinlock) \
@@ -32,56 +34,49 @@ endif
 	$(MAKE) -C ../../ $<
 
 libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
-	@echo [ host/Linux-SGX/$@ ]
-	$(AR) $(ARFLAGS) $@ $^
+	$(call cmd,ar_a_o)
 
+$(addsuffix .o,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(addsuffix .o,$(enclave-objs)): %.o: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -c $< -o $@
+	$(call cmd,cc_o_c)
 
+$(addsuffix .e,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(addsuffix .e,$(enclave-objs)): %.e: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -E $< -o $@
+	$(call cmd,cpp_i_c)
 
+$(addsuffix .i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(addsuffix .i,$(enclave-objs)): %.i: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -E $< -o $@
+	$(call cmd,cpp_i_c)
 
+$(addsuffix .s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
 $(addsuffix .s,$(enclave-objs)): %.s: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -S $< -o $@
+	$(call cmd,cc_s_c)
 
+$(addsuffix .o,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 $(addsuffix .o,$(enclave-asm-objs)): %.o: %.S $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -DIN_ENCLAVE -c $< -o $@
+	$(call cmd,as_o_S)
 
+$(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
 $(addsuffix .s,$(enclave-asm-objs)): %.s: %.S $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -DIN_ENCLAVE -E $< -o $@
+	$(call cmd,cpp_s_S)
 
 $(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -c $< -o $@
+	$(call cmd,cc_o_c)
 
 $(addsuffix .e,$(urts-objs)): %.e: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -E $< -o $@
+	$(call cmd,cpp_i_c)
 
 $(addsuffix .i,$(urts-objs)): %.i: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -E $< -o $@
+	$(call cmd,cpp_i_c)
 
 $(addsuffix .s,$(urts-objs)): %.s: %.c $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(filter-out -DIN_ENCLAVE,$(CFLAGS)) $(defs) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 $(addsuffix .s,$(urts-asm-objs)): %.s: %.S $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(AS) $(filter-out -DIN_ENCLAVE,$(ASFLAGS)) $(defs) -E $< -o $@
+	$(call cmd,cpp_s_S)
 
 $(addsuffix .o,$(urts-asm-objs)): %.o: %.S $(headers)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(AS) $(filter-out -DIN_ENCLAVE,$(ASFLAGS)) $(defs) -c $< -o $@
+	$(call cmd,as_o_S)
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]

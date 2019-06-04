@@ -7,6 +7,8 @@ ASFLAGS += -I. -I../.. -I../../../include
 host_target = libpal-Skeleton.a
 
 defs	= -DIN_PAL
+CFLAGS += $(defs)
+ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    semaphore events process object main rtld misc ipc exception)
 graphene_lib = ../../../lib/graphene-lib.a
@@ -25,8 +27,7 @@ endif
 	$(MAKE) -C ../../ $<
 
 libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
-	@echo [ host/$(PAL_HOST)/$@ ]
-	@$(AR) $(ARFLAGS) $@ $^
+	$(call cmd,ar_a_o)
 
 %.asm: %.c $(headers)
 	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
@@ -34,12 +35,12 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@rm $<.o
 
 %.o: %.c $(headers)
-	@echo [ host/$(PAL_HOST)/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
+	$(call cmd,cc_o_c)
 
 %.o: %.S $(headers)
-	@echo [ host/$(PAL_HOST)/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+	$(call cmd,as_o_S)
+
+include ../../../../Makefile.rules
 
 .PHONY: clean
 clean:
