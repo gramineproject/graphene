@@ -5,7 +5,8 @@
 
 int main(int argc, const char** argv, const char** envp) {
     int r;
-    char* badptr = (char*) -1;
+    char** badptr_argv = (char**)-1;
+    char* badptr = (char*)-1;
 
     char* bad_argv[]  = { badptr,  NULL };
     char* good_argv[] = { "DUMMY", NULL };
@@ -17,11 +18,11 @@ int main(int argc, const char** argv, const char** envp) {
     if (r == -1 && errno == EFAULT)
         printf("execve(invalid-path) correctly returned error\n");
 
-    r = execve(argv[0], badptr, good_envp);
+    r = execve(argv[0], badptr_argv, good_envp);
     if (r == -1 && errno == EFAULT)
         printf("execve(invalid-argv-ptr) correctly returned error\n");
 
-    r = execve(argv[0], good_argv, badptr);
+    r = execve(argv[0], good_argv, badptr_argv);
     if (r == -1 && errno == EFAULT)
         printf("execve(invalid-envp-ptr) correctly returned error\n");
 
