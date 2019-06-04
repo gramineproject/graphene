@@ -35,7 +35,7 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 %.o: %.c $(headers)
 	$(call cmd,cc_o_c)
 
-%.e %.i: %.c $(headers)
+%.i: %.c $(headers)
 	$(call cmd,cpp_i_c)
 
 %.s: %.c $(headers)
@@ -44,7 +44,7 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 %.o: %.S $(headers)
 	$(call cmd,as_o_S)
 
-%.e %.s: %.S $(headers)
+%.s: %.S $(headers)
 	$(call cmd,cpp_s_S)
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
