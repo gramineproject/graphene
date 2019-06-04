@@ -27,11 +27,9 @@ CFLAGS += -fno-omit-frame-pointer -DOMIT_FRAME_POINTER=0
 endif
 ASFLAGS	= -Wa,--noexecstack -x assembler-with-cpp -I../include
 
-LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
-	  -z combreloc -z relro -z defs \
+LDFLAGS	= -shared -nostdlib -z combreloc -z relro -z defs \
 	  -dynamic-link=libpal.so \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
-LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
 
 ifeq ($(WERROR),1)
@@ -42,6 +40,8 @@ files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 
 defs	= -DIN_SHIM
+CFLAGS += $(defs)
+ASFLAGS += $(defs)
 fs	= chroot str pipe socket proc dev
 ipcns	= pid sysv
 objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
@@ -75,16 +75,16 @@ $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
+LDFLAGS-libsysdb.so += --version-script shim.map -T shim.lds
+libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 	     $(graphene_lib) $(pal_lib)
-	@echo [ $@ ]
-	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) -soname $@
+	$(call cmd,ld_so_o)
 
+LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim.lds
 libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
-		   $(filter %.map %.lds,$($LDFLAGS-debug)) \
+		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
 		   $(graphene_lib) $(pal_lib)
-	@echo [ $@ ]
-	$(LD) $(LDFLAGS-debug) -o $@ $(filter-out %.map %.lds,$^) -soname $@
+	$(call cmd,ld_so_o)
 
 .lib/host_endian.h: ../../../Pal/src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
@@ -95,8 +95,7 @@ $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../../../Pal/lib target=$(abspath .lib)/
 
 libsysdb.a: $(addsuffix .o,$(objs))
-	@echo [ $@ ]
-	$(AR) $(ARFLAGS) $@ $^
+	$(call cmd,ar_a_o)
 else
 .IGNORE: $(shim_target)
 $(shim_target):
@@ -113,24 +112,19 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 
 
 %.o: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
+	$(call cmd,cc_o_c)
 
 %.e %.i: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+	$(call cmd,cpp_i_c)
 
 %.s: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 %.o: %.S $(headers)
-	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+	$(call cmd,as_o_S)
 
 %.e %.s: %.S $(headers)
-	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
+	$(call cmd,cpp_s_S)
 
 syscallas.S: asm-offsets.h
 
