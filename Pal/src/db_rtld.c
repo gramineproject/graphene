@@ -1354,7 +1354,7 @@ void start_execution (const char * first_argument, const char ** arguments,
     ElfW(Addr) random = (ElfW(Addr))&auxv[7];
     int ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0)
-        INIT_FAIL(-ret, "start_execution: DkRandombBitsRead failed\n");
+        INIT_FAIL(-ret, "start_execution: DkRandomBitsRead failed\n");
 
     auxv[0].a_type = AT_PHDR;
     auxv[0].a_un.a_val = exec_map ? (unsigned long) exec_map->l_phdr  : 0;
