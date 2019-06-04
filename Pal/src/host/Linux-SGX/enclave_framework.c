@@ -162,20 +162,12 @@ int init_quote(void) {
     memset(&spid, 0, sizeof(spid));
 
     for (ssize_t i = 0; i < len; i++) {
-        char c = spid_hex[i];
-        uint8_t val;
-        if (c >= 'A' && c <= 'F') {
-            val = c - 'A' + 10;
-        } else if (c >= 'a' && c <= 'f') {
-            val = c - 'a' + 10;
-        } else if (c >= '0' && c <= '9') {
-            val = c - '0';
-        } else {
+        int8_t val = hex2dec(spid_hex[i]);
+        if (val < 0) {
             SGX_DBG(DBG_E, "Malformed value for sgx.spid in the manifest: %s\n", spid_hex);
             return -PAL_ERROR_INVAL;
         }
-
-        spid[i/2] = spid[i/2] * 16 + val;
+        spid[i/2] = spid[i/2] * 16 + (uint8_t) val;
     }
 
     char buf[2];
