@@ -19,21 +19,19 @@ CC += -g
 CFLAGS += -DDEBUG
 endif
 
+include ../../../../Makefile.rules
+
 libpal_sec.so: $(addsuffix .o,$(objs)) $(graphene_lib)
-	@echo [ security/Linux/$@ ]
-	@$(LD) $(LDFLAGS) -o $@ $^ -soname=libpal_sec.so
+	$(call cmd,ld_so_o)
 
 %.o: %.c
-	@echo [ security/Linux/$@ ]
-	@$(CC) $(CFLAGS) -c $< -o $@
+	$(call cmd,cc_o_c)
 
 %.e %.i: %.c
-	@echo [ security/Linux/$@ ]
-	@$(CC) $(CFLAGS) -E $< -o $@
+	$(call cmd,cpp_i_o)
 
 %.s: %.c
-	@echo [ security/Linux/$@ ]
-	@$(CC) $(CFLAGS) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 .PHONY: clean
 clean:
