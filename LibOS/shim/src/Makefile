@@ -97,12 +97,6 @@ else
 $(shim_target):
 endif
 
-%.asm: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
-
 $(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)
 elf/shim_rtld.o: $(wildcard elf/*.h)
 
