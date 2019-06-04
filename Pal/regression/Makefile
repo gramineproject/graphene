@@ -35,9 +35,18 @@ ifeq ($(WERROR),1)
 CFLAGS += -Werror
 endif
 
+TEST_SPID ?= 4F95EF7E0FE794C67C1F9C7455F2098B
+TEST_CERT ?= RACertificate.pem
+TEST_PKEY ?= RAKey.pem
+
+ifeq ($(wildcard $(TEST_CERT))+$(wildcard $(TEST_PKEY)),$(TEST_CERT)+$(TEST_PKEY))
+RA_RULES = sgx.spid = $(TEST_SPID)\nsgx.ra_cert = $(TEST_CERT)\nsgx.ra_pkey = $(TEST_PKEY)
+endif
+
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath ../../Runtime/pal_loader):g' \
 	-e 's:\$$(PWD):$(shell pwd)/:g' \
+	-e 's:\$$(RA_RULES):$(RA_RULES):g' \
 	$(extra_rules)
 
 manifest: manifest.template
