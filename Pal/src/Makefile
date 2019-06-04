@@ -134,13 +134,6 @@ $(pal_static): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	       $(host_lib) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
-$(OBJ_DIR)/%.asm: %.c $(headers)
-	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
-
 user_start.o: ASFLAGS =
 user_start.o: user_start.S
 	$(call cmd,as_o_S)
