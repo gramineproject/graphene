@@ -1,4 +1,5 @@
 include ../../Makefile.configs
+include ../../Makefile.rules
 include ../src/Makefile.Host
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
@@ -64,14 +65,12 @@ CFLAGS += -DDEBUG
 endif
 
 $(target)graphene-lib.a: $(addprefix $(target),$(objs))
-	@echo [ $(notdir $@) ]
 	@mkdir -p $(dir $@)
-	@$(AR) $(ARFLAGS) $@ $^
+	$(call cmd,ar_a_o)
 
 $(target)%.o: %.c $(headers)
-	@echo [ $(notdir $@) ]
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c $< -o $@
+	$(call cmd,cc_o_c)
 
 .PHONY: clean
 clean:
