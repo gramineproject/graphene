@@ -146,7 +146,7 @@ $(OBJ_DIR)/%.o: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_o_c)
 
-$(OBJ_DIR)/%.e $(OBJ_DIR)/%.i: %.c $(headers)
+$(OBJ_DIR)/%.i: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cpp_i_c)
 
