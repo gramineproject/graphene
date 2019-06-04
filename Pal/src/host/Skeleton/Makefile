@@ -27,11 +27,6 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
 
-%.asm: %.c $(headers)
-	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
-
 %.o: %.c $(headers)
 	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@

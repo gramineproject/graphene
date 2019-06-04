@@ -30,11 +30,6 @@ libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/FreeBSD/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
 
-%.asm: %.c $(headers)
-	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
-
 %.o: %.c $(headers)
 	@echo [ host/FreeBSD/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
