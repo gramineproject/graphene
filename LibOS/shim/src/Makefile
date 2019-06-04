@@ -108,7 +108,7 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 %.o: %.c $(headers)
 	$(call cmd,cc_o_c)
 
-%.e %.i: %.c $(headers)
+%.i: %.c $(headers)
 	$(call cmd,cpp_i_c)
 
 %.s: %.c $(headers)
@@ -117,7 +117,7 @@ elf/shim_rtld.o: $(wildcard elf/*.h)
 %.o: %.S $(headers)
 	$(call cmd,as_o_S)
 
-%.e %.s: %.S $(headers)
+%.s: %.S $(headers)
 	$(call cmd,cpp_s_S)
 
 syscallas.S shim_checkpoint.c: asm-offsets.h
