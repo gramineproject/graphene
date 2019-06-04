@@ -26,7 +26,7 @@ libpal_sec.so: $(addsuffix .o,$(objs)) $(graphene_lib)
 %.o: %.c
 	$(call cmd,cc_o_c)
 
-%.e %.i: %.c
+%.i: %.c
 	$(call cmd,cpp_i_o)
 
 %.s: %.c
