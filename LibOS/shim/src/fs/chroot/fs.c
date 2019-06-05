@@ -464,7 +464,7 @@ static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
         return ret;
 
     struct shim_file_handle * file = &hdl->info.file;
-    int size = atomic_read(&data->size);
+    uint64_t size = atomic_read(&data->size);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type       = TYPE_FILE;
@@ -494,7 +494,7 @@ static int chroot_creat (struct shim_handle * hdl, struct shim_dentry * dir,
         return 0;
 
     struct shim_file_handle * file = &hdl->info.file;
-    int size = atomic_read(&data->size);
+    uint64_t size = atomic_read(&data->size);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type       = TYPE_FILE;
@@ -617,7 +617,7 @@ static int chroot_flush (struct shim_handle * hdl)
     if (file->buf_type == FILEBUF_MAP) {
         lock(&hdl->lock);
         void * mapbuf = file->mapbuf;
-        int mapsize = file->mapsize;
+        uint64_t mapsize = file->mapsize;
         file->mapoffset = 0;
         file->mapbuf = NULL;
         unlock(&hdl->lock);
@@ -901,7 +901,7 @@ static int chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
     lock(&hdl->lock);
 
     int marker = file->marker;
-    int size = file->size;
+    uint64_t size = file->size;
 
     if (check_version(hdl)) {
         struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
