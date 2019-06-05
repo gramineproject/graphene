@@ -1478,7 +1478,7 @@ int remove_loaded_libraries (void)
 {
     struct link_map * map = loaded_libraries, * next_map = map->l_next;
     while (map) {
-        if (map->l_type != OBJECT_INTERNAL)
+        if (map->l_type != OBJECT_INTERNAL && map->l_type != OBJECT_VDSO)
             __remove_elf_object(map);
 
         map = next_map;
@@ -1488,63 +1488,135 @@ int remove_loaded_libraries (void)
     return 0;
 }
 
-void * __load_address;
-void * migrated_shim_addr __attribute_migratable = &__load_address;
+/*
+ * libsysdb.so is loaded as shared library and
+ * loaded address for child may not match to the one for parent.
+ * just tread vdso page as user program and adjust function pointers
+ * for used function after migration.
+ */
+static void * vdso_addr __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_clock_gettime __attribute_migratable = 0;
+static ElfW(Addr) * __vdso_shim_gettimeofday __attribute_migratable = 0;
+static ElfW(Addr) * __vdso_shim_time __attribute_migratable = 0;
+static ElfW(Addr) * __vdso_shim_getcpu __attribute_migratable = 0;
 
-static int init_vdso_map(void)
-{
-    __load_elf_object(NULL, vdso_so, OBJECT_VDSO, NULL);
-    vdso_map->l_name = "vDSO";
-
-    if (!DkVirtualMemoryProtect(ALIGN_DOWN((void*)vdso_so),
-                                ALIGN_UP(sizeof(vdso_so)),
-                                PAL_PROT_READ | PAL_PROT_WRITE)) {
-            return -PAL_ERRNO;
+static const struct {
+    const char *name;
+    ElfW(Addr) value;
+    ElfW(Addr) ** func;
+} vsyms[] = {
+    {
+        .name = "__vdso_shim_clock_gettime",
+        .value = (ElfW(Addr))&__shim_clock_gettime,
+        .func = &__vdso_shim_clock_gettime,
+    },
+    {
+        .name = "__vdso_shim_gettimeofday",
+        .value = (ElfW(Addr))&__shim_gettimeofday,
+        .func = &__vdso_shim_gettimeofday,
+    },
+    {
+        .name = "__vdso_shim_time",
+        .value = (ElfW(Addr))&__shim_time,
+        .func = &__vdso_shim_time,
+    },
+    {
+        .name = "__vdso_shim_getcpu",
+        .value = (ElfW(Addr))&__shim_getcpu,
+        .func = &__vdso_shim_getcpu,
     }
+};
 
-    struct {
-        const char *name;
-        uintptr_t value;
-    } vsyms[] = {
-        {
-            .name = "__vdso_clock_gettime",
-            .value = (uintptr_t)&__shim_clock_gettime,
-        },
-        {
-            .name = "__vdso_gettimeofday",
-            .value = (uintptr_t)&__shim_gettimeofday,
-        },
-        {
-            .name = "__vdso_time",
-            .value = (uintptr_t)&__shim_time,
-        },
-        {
-            .name = "__vdso_getcpu",
-            .value = (uintptr_t)&__shim_getcpu,
-        }
-    };
+static int __vdso_map_init(void)
+{
+    if (!DkVirtualMemoryProtect(ALIGN_DOWN((void*)&vdso_so),
+                                ALIGN_UP(sizeof(vdso_so)),
+                                PAL_PROT_READ | PAL_PROT_WRITE))
+            return -PAL_ERRNO;
+
     for (int i = 0; i < sizeof(vsyms)/sizeof(vsyms[0]); i++) {
         ElfW(Sym) *sym = __do_lookup(vsyms[i].name, NULL, vdso_map);
         if (sym == NULL) {
             debug("vDSO: unfound symbol value for %s\n", vsyms[i].name);
             continue;
         }
-        sym->st_value = vsyms[i].value - vdso_map->l_addr;
+        *vsyms[i].func = (ElfW(Addr)*)(vdso_map->l_addr + sym->st_value);
+        **vsyms[i].func = vsyms[i].value;
     }
 
-    if (!DkVirtualMemoryProtect(ALIGN_DOWN((void*)vdso_so),
+    if (!DkVirtualMemoryProtect(ALIGN_DOWN((void*)&vdso_so),
                                 ALIGN_UP(sizeof(vdso_so)),
-                                PAL_PROT_READ | PAL_PROT_EXEC)) {
+                                PAL_PROT_READ | PAL_PROT_EXEC))
             return -PAL_ERRNO;
-    }
+
+    /* treat vdso page as ones used by user program to be migrated */
+    int ret = bkeep_mmap(&vdso_so, sizeof(vdso_so),
+                         PAL_PROT_READ | PAL_PROT_EXEC, 0,
+                         NULL, 0, "linux-vdso.so.1");
+    if (ret < 0)
+        return ret;
+
+    vdso_addr = &vdso_so;
     return 0;
 }
+
+/*
+ * execve case:
+ * Now we don't have to keep vdso are derived by fork.
+ * discard it and use our own.
+ */
+static int __vdso_map_execve(void)
+{
+    if (vdso_addr == &vdso_so)
+        return 0;
+
+    DkVirtualMemoryFree(ALIGN_DOWN(vdso_addr), ALIGN_UP(sizeof(vdso_so)));
+    int ret = bkeep_munmap(vdso_addr, sizeof(vdso_so), 0);
+    if (ret < 0)
+        return ret;
+
+    return __vdso_map_init();
+}
+
+static int vdso_map_init(void)
+{
+    if (vdso_addr)
+        return __vdso_map_execve();
+    else
+        return __vdso_map_init();
+}
+
+int vdso_map_migrate(void)
+{
+    if (vdso_addr == NULL)
+        return 0;
+
+    if (!DkVirtualMemoryProtect(ALIGN_DOWN(vdso_addr),
+                                ALIGN_UP(sizeof(vdso_so)),
+                                PAL_PROT_READ | PAL_PROT_WRITE))
+            return -PAL_ERRNO;
+
+    /* adjust funcs to loaded address for newly loaded libsysdb */
+    for (int i = 0; i < sizeof(vsyms)/sizeof(vsyms[0]); i++)
+        **vsyms[i].func = vsyms[i].value;
+
+    if (!DkVirtualMemoryProtect(ALIGN_DOWN((void*)vdso_addr),
+                                ALIGN_UP(sizeof(vdso_so)),
+                                PAL_PROT_READ | PAL_PROT_EXEC))
+            return -PAL_ERRNO;
+    return 0;
+}
+
+void * __load_address;
+void * migrated_shim_addr __attribute_migratable = &__load_address;
 
 int init_internal_map (void)
 {
     __load_elf_object(NULL, &__load_address, OBJECT_INTERNAL, NULL);
     internal_map->l_name = "libsysdb.so";
-    return init_vdso_map();
+    __load_elf_object(NULL, &vdso_so, OBJECT_VDSO, NULL);
+    vdso_map->l_name = "vDSO";
+    return 0;
 }
 
 int init_brk_from_executable (struct shim_handle * exec);
@@ -1628,6 +1700,10 @@ void execute_elf_object (struct shim_handle * exec,
                          int * argcp, const char ** argp,
                          int nauxv, ElfW(auxv_t) * auxp)
 {
+    int ret = vdso_map_init();
+    if (ret)
+        shim_clean(ret);
+
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
     assert((uintptr_t)argcp % 16 == 0);  // Stack should be aligned to 16 on entry point.
@@ -1644,7 +1720,7 @@ void execute_elf_object (struct shim_handle * exec,
     auxp[4].a_type = AT_BASE;
     auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
     auxp[5].a_type = AT_SYSINFO_EHDR;
-    auxp[5].a_un.a_val = (uint64_t)vdso_so;
+    auxp[5].a_un.a_val = (uint64_t)&vdso_so;
     auxp[6].a_type = AT_NULL;
 
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;

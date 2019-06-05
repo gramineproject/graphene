@@ -33,6 +33,7 @@
 #include <shim_fs.h>
 #include <shim_ipc.h>
 #include <shim_profile.h>
+#include <shim_vdso.h>
 
 #include <pal.h>
 #include <pal_debug.h>
@@ -821,8 +822,10 @@ restore:
     shim_tcb_t * cur_tcb = shim_get_tls();
     struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
 
-    if (cur_tcb->context.sp)
+    if (cur_tcb->context.sp) {
+        vdso_map_migrate();
         restore_context(&cur_tcb->context);
+    }
 
     if (cur_thread->exec)
         execute_elf_object(cur_thread->exec,

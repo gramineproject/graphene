@@ -29,6 +29,7 @@
 #include <shim_fs.h>
 #include <shim_ipc.h>
 #include <shim_profile.h>
+#include <shim_vdso.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -167,6 +168,9 @@ retry_dump_vmas:
     for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
         /* Don't free the current stack */
         if (vma->addr == cur_thread->stack)
+            continue;
+        /* vdso comes from our libsysdb.so */
+        if (vma->addr == &vdso_so)
             continue;
 
         /* Free all the mapped VMAs */

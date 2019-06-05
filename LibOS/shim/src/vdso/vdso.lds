@@ -72,6 +72,11 @@ VERSION {
                 __vdso_getcpu;
                 time;
                 __vdso_time;
+
+                __vdso_shim_clock_gettime;
+                __vdso_shim_gettimeofday;
+                __vdso_shim_time;
+                __vdso_shim_getcpu;
         local: *;
         };
 }
