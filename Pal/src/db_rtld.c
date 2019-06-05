@@ -1369,6 +1369,7 @@ void start_execution (const char * first_argument, const char ** arguments,
     auxv[5].a_type = AT_RANDOM;
     auxv[5].a_un.a_val = random;
     auxv[6].a_type = AT_NULL;
+    auxv[6].a_un.a_val = 0;
 
 #if PROFILING == 1
     __pal_control.startup_time = _DkSystemTimeQuery() - pal_state.start_time;

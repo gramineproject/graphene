@@ -70,7 +70,7 @@ static int           new_argc;
 static int *         new_argcp;
 static elf_auxv_t *  new_auxp;
 
-#define REQUIRED_ELF_AUXV       6
+#define REQUIRED_ELF_AUXV       7
 
 int init_brk_from_executable (struct shim_handle * exec);
 

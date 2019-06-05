@@ -715,7 +715,7 @@ noreturn void* shim_init (int argc, void * args)
 
     /* call to figure out where the arguments are */
     FIND_ARG_COMPONENTS(args, argc, argv, envp, auxp);
-    int nauxv = __process_auxv(auxp) - auxp;
+    int nauxv = (__process_auxv(auxp) - auxp) + 1; /* +1 for last AT_NULL */
 
 #ifdef PROFILE
     set_profile_enabled(envp);
