@@ -532,4 +532,7 @@ DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
 # define symbol_version_default(real, name, version)
 #endif
 
+#define PAL_SUPPORTED_ELF_AUXV 7  /* includes AT_NULL marking end of auxv */
+#define PAL_ADDITIONAL_ELF_AUXV_SPACE 16    /* 16B for value in AT_RANDOM */
+
 #endif /* PAL_H */

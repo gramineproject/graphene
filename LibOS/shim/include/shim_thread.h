@@ -349,6 +349,6 @@ bool check_on_stack (struct shim_thread * cur_thread, void * mem)
 
 int init_stack (const char ** argv, const char ** envp,
                 int ** argcpp, const char *** argpp,
-                int nauxv, elf_auxv_t ** auxpp);
+                elf_auxv_t ** auxpp);
 
 #endif /* _SHIM_THREAD_H_ */

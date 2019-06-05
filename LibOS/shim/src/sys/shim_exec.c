@@ -70,8 +70,6 @@ static int           new_argc;
 static int *         new_argcp;
 static elf_auxv_t *  new_auxp;
 
-#define REQUIRED_ELF_AUXV       6
-
 int init_brk_from_executable (struct shim_handle * exec);
 
 int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
@@ -112,8 +110,7 @@ int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     for (const char ** a = argv ; *a ; a++, new_argc++);
 
     new_argcp = &new_argc;
-    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp,
-                          REQUIRED_ELF_AUXV, &new_auxp)) < 0)
+    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
         return ret;
 
     SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
@@ -197,8 +194,7 @@ retry_dump_vmas:
 #endif
 
     debug("execve: start execution\n");
-    execute_elf_object(cur_thread->exec, new_argcp, new_argp,
-                       REQUIRED_ELF_AUXV, new_auxp);
+    execute_elf_object(cur_thread->exec, new_argcp, new_argp, new_auxp);
 
     return 0;
 }

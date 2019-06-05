@@ -1305,6 +1305,8 @@ void * stack_before_call __attribute_unused = NULL;
 void start_execution (const char * first_argument, const char ** arguments,
                       const char ** environs)
 {
+    assert(PAL_SUPPORTED_ELF_AUXV >= 7 && PAL_ADDITIONAL_ELF_AUXV_SPACE >= 16);
+
     /* First we will try to run all the preloaded libraries which come with
        entry points */
     if (exec_map) {
@@ -1331,7 +1333,8 @@ void start_execution (const char * first_argument, const char ** arguments,
     ncookies++; /* for NULL-end */
 
     int cookiesz = sizeof(unsigned long int) * ncookies
-                      + sizeof(ElfW(auxv_t)) * 6 + 16
+                      + sizeof(ElfW(auxv_t)) * PAL_SUPPORTED_ELF_AUXV
+                      + PAL_ADDITIONAL_ELF_AUXV_SPACE
                       + sizeof(void *) * 4 + 16;
 
     unsigned long int * cookies = __alloca(cookiesz);

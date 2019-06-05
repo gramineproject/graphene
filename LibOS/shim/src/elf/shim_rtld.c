@@ -1563,12 +1563,13 @@ int register_library (const char * name, unsigned long load_address)
 
 void execute_elf_object (struct shim_handle * exec,
                          int * argcp, const char ** argp,
-                         int nauxv, ElfW(auxv_t) * auxp)
+                         ElfW(auxv_t) * auxp)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
     assert((uintptr_t)argcp % 16 == 0);  // Stack should be aligned to 16 on entry point.
     assert((void*)argcp + sizeof(long) == argp || argp == NULL);
+    assert(PAL_SUPPORTED_ELF_AUXV >= 7 && PAL_ADDITIONAL_ELF_AUXV_SPACE >= 16);
 
     /* random 16 bytes follows auxp */
     ElfW(Addr) random = (ElfW(Addr))&auxp[7];
