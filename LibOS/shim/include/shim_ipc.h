@@ -596,8 +596,6 @@ int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
                    struct shim_ipc_port * port, unsigned long * seq,
                    void * private_data);
 
-void ipc_parent_exit  (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode);
 void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
                        unsigned int exitcode);
 

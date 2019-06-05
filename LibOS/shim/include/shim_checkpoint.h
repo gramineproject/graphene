@@ -282,7 +282,8 @@ enum {
 
 #define END_CP_FUNC_NO_RS(name)                                     \
     END_CP_FUNC(name)                                               \
-    BEGIN_RS_FUNC(name) {} END_RS_FUNC(name)
+    BEGIN_RS_FUNC(name) {__UNUSED(entry); __UNUSED(base);           \
+        __UNUSED(offset); __UNUSED(rebase); } END_RS_FUNC(name)
 
 #define BEGIN_RS_FUNC(name)                                         \
     DEFINE_RS_FUNC(name)                                            \
@@ -460,7 +461,6 @@ int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
 void restore_context (struct shim_context * context);
 
 int create_checkpoint (const char * cpdir, IDTYPE * session);
-int join_checkpoint (struct shim_thread * cur, ucontext_t * context,
-                     IDTYPE sid);
+int join_checkpoint (struct shim_thread * cur, IDTYPE sid);
 
 #endif /* _SHIM_CHECKPOINT_H_ */

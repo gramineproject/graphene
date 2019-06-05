@@ -45,7 +45,7 @@ int shim_do_access (const char * file, mode_t mode)
 
     ret = path_lookupat(NULL, file, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent, NULL);
     if (!ret)
-        ret = permission(dent, mode, 1);
+        ret = permission(dent, mode);
 
     return ret;
 }
@@ -71,7 +71,7 @@ int shim_do_faccessat (int dfd, const char * filename, mode_t mode)
     if (ret < 0)
         goto out;
 
-    ret = permission(dent, mode, 1);
+    ret = permission(dent, mode);
 
 out:
     put_dentry(dir);

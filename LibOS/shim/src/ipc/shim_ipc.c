@@ -725,6 +725,7 @@ END_CP_FUNC(process)
 
 BEGIN_RS_FUNC(process)
 {
+    __UNUSED(offset);
     struct shim_process * proc = (void *) (base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(proc->self);

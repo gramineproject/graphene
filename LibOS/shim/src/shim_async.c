@@ -281,7 +281,7 @@ static int create_async_helper(void) {
     if (!new)
         return -ENOMEM;
 
-    PAL_HANDLE handle = thread_create(shim_async_helper, new, 0);
+    PAL_HANDLE handle = thread_create(shim_async_helper, new);
 
     if (!handle) {
         async_helper_thread = NULL;

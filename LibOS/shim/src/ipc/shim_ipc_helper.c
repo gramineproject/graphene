@@ -106,6 +106,9 @@ static int init_ipc_port (struct shim_ipc_info * info, PAL_HANDLE hdl, IDTYPE ty
 static void ipc_broadcast_exit (struct shim_ipc_port * port, IDTYPE vmid,
                                 unsigned exitcode)
 {
+    // Arguments for compatibility
+    __UNUSED(vmid);
+    __UNUSED(exitcode);
     if (port == broadcast_port) {
         MASTER_LOCK();
         broadcast_port = NULL;
@@ -833,6 +836,7 @@ noreturn static void shim_ipc_helper_end(struct shim_thread * self)
 
 noreturn static void __shim_ipc_helper (void * dummy)
 {
+    __UNUSED(dummy);
     struct shim_thread * self = get_cur_thread();
     void * stack = self->stack;
 
@@ -1073,7 +1077,7 @@ static int create_ipc_helper (void)
     ipc_helper_thread = new;
     ipc_helper_state = HELPER_ALIVE;
 
-    PAL_HANDLE handle = thread_create(shim_ipc_helper, new, 0);
+    PAL_HANDLE handle = thread_create(shim_ipc_helper, new);
 
     if (!handle) {
         ret = -PAL_ERRNO;

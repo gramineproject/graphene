@@ -40,11 +40,15 @@ void clean_link_map_list (void)
 
 void remove_r_debug (void * addr)
 {
+    __UNUSED(addr);
     /* do nothing */
 }
 
 void append_r_debug (const char * uri, void * addr, void * dyn_addr)
 {
+    __UNUSED(uri);
+    __UNUSED(addr);
+    __UNUSED(dyn_addr);
     /* do nothing */
 }
 
@@ -136,6 +140,9 @@ void append_r_debug (const char * uri, void * addr, void * dyn_addr)
 
 BEGIN_CP_FUNC(gdb_map)
 {
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
     struct gdb_link_map *m = link_map_list;
     struct gdb_link_map *newm = NULL;
 
@@ -158,6 +165,7 @@ END_CP_FUNC(gdb_map)
 
 BEGIN_RS_FUNC(gdb_map)
 {
+    __UNUSED(offset);
     struct gdb_link_map * map = (void *) (base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(map->l_name);

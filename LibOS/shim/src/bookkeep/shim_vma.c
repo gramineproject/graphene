@@ -1214,6 +1214,9 @@ BEGIN_CP_FUNC(all_vmas)
     size_t count = DEFAULT_VMA_COUNT;
     struct shim_vma_val * vmas = malloc(sizeof(*vmas) * count);
     int ret;
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
 
     if (!vmas)
         return -ENOMEM;

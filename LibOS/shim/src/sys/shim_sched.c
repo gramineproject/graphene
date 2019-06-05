@@ -36,6 +36,7 @@ int shim_do_sched_yield (void)
 int shim_do_sched_getaffinity (pid_t pid, size_t len,
                                __kernel_cpu_set_t * user_mask_ptr)
 {
+    __UNUSED(pid);
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
     /* Check that user_mask_ptr is valid; if not, should return -EFAULT */

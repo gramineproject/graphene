@@ -389,6 +389,7 @@ err:
 
 int shim_do_sandbox_attach (unsigned int sbid)
 {
+    __UNUSED(sbid);
     return -ENOSYS;
 }
 

@@ -371,6 +371,9 @@ out:
 int shim_do_msgsnd (int msqid, const void * msgp, size_t msgsz, int msgflg)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
+    // Issue #755 - https://github.com/oscarlab/graphene/issues/755
+    __UNUSED(msgflg);
+
     int ret;
 
     if (msgsz > MSGMAX)
@@ -399,6 +402,10 @@ int shim_do_msgrcv (int msqid, void * msgp, size_t msgsz, long msgtype,
                     int msgflg)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
+
+    // Issue #755 - https://github.com/oscarlab/graphene/issues/755
+    __UNUSED(msgflg);
+
     int ret;
 
     if (msgsz > MSGMAX)
@@ -421,6 +428,10 @@ int shim_do_msgrcv (int msqid, void * msgp, size_t msgsz, long msgtype,
 int shim_do_msgctl (int msqid, int cmd, struct msqid_ds * buf)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
+
+    // Issue #756 - https://github.com/oscarlab/graphene/issues/756
+    __UNUSED(buf);
+
     struct shim_msg_handle * msgq;
     int ret;
     __try_create_lock();

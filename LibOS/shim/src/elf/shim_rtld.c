@@ -1414,7 +1414,7 @@ err:
 
         if (fs->d_ops->mode) {
             mode_t mode;
-            if ((ret = fs->d_ops->mode(dent, &mode, 1)) < 0)
+            if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
                 goto err;
         }
 
@@ -1565,6 +1565,7 @@ noreturn void execute_elf_object (struct shim_handle * exec,
 
     /* populate ELF aux vectors */
     assert(REQUIRED_ELF_AUXV >= 7); /* stack allocated enough space */
+
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;
@@ -1684,6 +1685,7 @@ DEFINE_PROFILE_INTERVAL(add_or_replace_library, inside_rs_library);
 
 BEGIN_RS_FUNC(library)
 {
+    __UNUSED(offset);
     struct link_map * map = (void *) (base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(map->l_name);
@@ -1723,6 +1725,9 @@ END_RS_FUNC(library)
 
 BEGIN_CP_FUNC(loaded_libraries)
 {
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
     struct link_map * map = loaded_libraries, * new_interp_map = NULL;
     while (map) {
         struct link_map * new_map = NULL;
@@ -1742,6 +1747,8 @@ END_CP_FUNC(loaded_libraries)
 
 BEGIN_RS_FUNC(loaded_libraries)
 {
+    __UNUSED(base);
+    __UNUSED(offset);
     interp_map = (void *) GET_CP_FUNC_ENTRY();
 
     if (interp_map) {

@@ -384,12 +384,15 @@ int shim_do_epoll_pwait (int epfd, struct __kernel_epoll_event * events,
                          int maxevents, int timeout, const __sigset_t * sigmask,
                          size_t sigsetsize)
 {
+    __UNUSED(sigmask);
+    __UNUSED(sigsetsize);
     int ret = shim_do_epoll_wait (epfd, events, maxevents, timeout);
     return ret;
 }
 
 static int epoll_close (struct shim_handle * hdl)
 {
+    __UNUSED(hdl);
     return 0;
 }
 
@@ -435,6 +438,7 @@ END_CP_FUNC(epoll_fd)
 
 BEGIN_RS_FUNC(epoll_fd)
 {
+    __UNUSED(offset);
     LISTP_TYPE(shim_epoll_fd) * list = (void *) (base + GET_CP_FUNC_ENTRY());
     struct shim_epoll_fd * epoll_fd;
 

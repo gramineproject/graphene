@@ -419,8 +419,8 @@ int flush_handle_map (struct shim_handle_map * map);
 void get_handle_map (struct shim_handle_map * map);
 void put_handle_map (struct shim_handle_map * map);
 int walk_handle_map (int (*callback) (struct shim_fd_handle *,
-                                      struct shim_handle_map *, void *),
-                     struct shim_handle_map * map, void * arg);
+                                      struct shim_handle_map *),
+                     struct shim_handle_map * map);
 
 int init_handle (void);
 int init_important_handles (void);

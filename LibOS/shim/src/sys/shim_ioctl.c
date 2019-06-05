@@ -166,6 +166,11 @@ static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
 static int ioctl_fd (struct shim_handle * hdl, unsigned int cmd,
                      unsigned long arg)
 {
+    // This is just a placeholder function; arguments are not actually used
+    // right now
+    __UNUSED(hdl);
+    __UNUSED(arg);
+
     switch(cmd) {
         /* <include/linux/fd.h> */
 
@@ -228,6 +233,10 @@ static int ioctl_fd (struct shim_handle * hdl, unsigned int cmd,
 static int ioctl_netdevice (struct shim_handle * hdl, unsigned int cmd,
                             unsigned long arg)
 {
+    // This is just a placeholder function; arguments are not actually used
+    // right now
+    __UNUSED(arg);
+
     if (hdl->type != TYPE_SOCK)
         return -ENOTSOCK;
 
@@ -287,8 +296,11 @@ static int ioctl_netdevice (struct shim_handle * hdl, unsigned int cmd,
     return -EAGAIN;
 }
 
-void signal_io (IDTYPE target, void * arg)
+void signal_io (IDTYPE target, void *arg)
 {
+    // Kept for compatibility with signal_itimer
+    __UNUSED(arg);
+
     debug("detecting input, signaling thread %u\n", target);
 
     struct shim_thread * thread = lookup_thread(target);

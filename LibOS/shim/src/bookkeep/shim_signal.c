@@ -60,7 +60,7 @@ allocate_signal_log (struct shim_thread * thread, int sig)
 }
 
 static struct shim_signal *
-fetch_signal_log (shim_tcb_t * tcb, struct shim_thread * thread, int sig)
+fetch_signal_log (struct shim_thread * thread, int sig)
 {
     struct shim_signal_log * log = &thread->signal_logs[sig - 1];
     struct shim_signal * signal = NULL;
@@ -175,7 +175,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
             free(signal);
         }
     } else {
-        __handle_signal(tcb, sig, &signal->context);
+        __handle_signal(tcb, sig);
         __handle_one_signal(tcb, sig, signal);
     }
 
@@ -523,6 +523,8 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    __UNUSED(arg);
+    __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
         deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
     }
@@ -531,6 +533,8 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    __UNUSED(arg);
+    __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
         deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
     }
@@ -539,6 +543,8 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    __UNUSED(arg);
+    __UNUSED(context);
     shim_tcb_t * tcb = shim_get_tls();
     if (!tcb || !tcb->tp)
         return;
@@ -548,7 +554,7 @@ static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
             tcb->context.preempt |= SIGNAL_DELAYED;
         } else {
-            __handle_signal(tcb, 0, NULL);
+            __handle_signal(tcb, 0);
         }
         __enable_preempt(tcb);
     }
@@ -600,7 +606,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
     void (*handler) (int, siginfo_t *, void *) = NULL;
 
     if (signal->info.si_signo == SIGCP) {
-        join_checkpoint(thread, &signal->context, SI_CP_SESSION(&signal->info));
+        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
         return;
     }
 
@@ -662,7 +668,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
                sizeof(PAL_CONTEXT));
 }
 
-void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
+void __handle_signal (shim_tcb_t * tcb, int sig)
 {
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
     int begin_sig = 1, end_sig = NUM_KNOWN_SIGS;
@@ -677,7 +683,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
 
         for ( ; sig < end_sig ; sig++)
             if (!__sigismember(&thread->signal_mask, sig) &&
-                (signal = fetch_signal_log(tcb, thread, sig)))
+                (signal = fetch_signal_log(thread, sig)))
                 break;
 
         if (!signal)
@@ -710,7 +716,7 @@ void handle_signal (bool delayed_only)
         debug("signal delayed (%ld)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
         tcb->context.preempt |= SIGNAL_DELAYED;
     } else if (!(delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))) {
-        __handle_signal(tcb, 0, NULL);
+        __handle_signal(tcb, 0);
     }
 
     __enable_preempt(tcb);
@@ -750,6 +756,7 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
 
 static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
 {
+    __UNUSED(ucontext);
     debug("killed by %s\n", signal_name(sig));
 
     if (!info->si_pid)

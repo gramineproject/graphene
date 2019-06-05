@@ -28,6 +28,9 @@
 
 void signal_alarm (IDTYPE target, void * arg)
 {
+    // Kept for API compatibility wtih signal_itimer
+    __UNUSED(arg);
+
     debug("alarm goes off, signaling thread %u\n", target);
 
     struct shim_thread * thread = lookup_thread(target);
@@ -58,6 +61,9 @@ static struct {
 
 void signal_itimer (IDTYPE target, void * arg)
 {
+    // XXX: Can we simplify this code or streamline with the other callback?
+    __UNUSED(target);
+
     MASTER_LOCK();
 
     if (real_itimer.timeout != (unsigned long) arg) {

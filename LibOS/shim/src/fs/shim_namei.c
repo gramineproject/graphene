@@ -71,7 +71,7 @@ static inline int __lookup_flags (int flags)
  * Returns 0 on success, negative on failure.
  */
 /* Assume caller has acquired dcache_lock */
-int permission (struct shim_dentry * dent, mode_t mask, bool force) {
+int permission (struct shim_dentry * dent, mode_t mask) {
 
     mode_t mode = 0;
 
@@ -94,9 +94,6 @@ int permission (struct shim_dentry * dent, mode_t mask, bool force) {
      * just NO_MODE.
      */
     if (dent->mode == NO_MODE) {
-        /* DEP 6/16/17: This semantic seems risky to me */
-        if (!force)
-            return 0;
 
         /* DEP 6/16/17: I don't think we should be defaulting to 0 if
          * there isn't a mode function. */
@@ -105,7 +102,7 @@ int permission (struct shim_dentry * dent, mode_t mask, bool force) {
         assert(dent->fs->d_ops->mode);
 
         /* Fall back to the low-level file system */
-        int err = dent->fs->d_ops->mode(dent, &mode, force);
+        int err = dent->fs->d_ops->mode(dent, &mode);
 
         /*
          * DEP 6/16/17: I think the low-level file system should be
@@ -148,11 +145,6 @@ int permission (struct shim_dentry * dent, mode_t mask, bool force) {
  * This function checks the dcache first, and then, on a miss, falls back
  * to the low-level file system.
  *
- * The force flag causes the libOS to query the underlying file system for the
- * existence of the dentry, even on a dcache hit, whereas without force, a
- * negative dentry is treated as definitive.  A hit with a valid dentry is
- * _always_ treated as definitive, even if force is set.
- *
  * XXX: The original code returned whether the process can exec the task?
  *       Not clear this is needed; try not doing this.
  *
@@ -161,16 +153,14 @@ int permission (struct shim_dentry * dent, mode_t mask, bool force) {
  *
  * The caller should hold the dcache_lock.
  */
-int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
-                   bool force, struct shim_dentry ** new,
-                   struct shim_mount * fs)
+int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, struct shim_dentry ** new, struct shim_mount * fs)
 {
     struct shim_dentry * dent = NULL;
     int do_fs_lookup = 0;
     int err = 0;
 
     /* Look up the name in the dcache first, one atom at a time. */
-    dent = __lookup_dcache(parent, name, namelen, NULL, 0, NULL);
+    dent = __lookup_dcache(parent, name, namelen, NULL);
 
     if (!dent) {
         dent = get_new_dentry(fs, parent, name, namelen, NULL);
@@ -183,8 +173,6 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
     } else {
         if (!(dent->state & DENTRY_VALID))
             do_fs_lookup = 1;
-        else if (force && (dent->state & DENTRY_NEGATIVE))
-            do_fs_lookup = 1;
     }
 
     if (do_fs_lookup) {
@@ -193,7 +181,7 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
         assert (dent->fs);
         assert (dent->fs->d_ops);
         assert (dent->fs->d_ops->lookup);
-        err = dent->fs->d_ops->lookup(dent, force);
+        err = dent->fs->d_ops->lookup(dent);
 
         /* XXX: On an error, it seems like we should probably destroy
          * the dentry, rather than keep some malformed dentry lying around.
@@ -342,8 +330,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
 
         } else {
             // Once we have an atom, look it up and update start
-            // XXX: Assume we don't need the force flag here?
-            err = lookup_dentry(start, path, my_pathlen, 0, &my_dent, fs);
+            err = lookup_dentry(start, path, my_pathlen, &my_dent, fs);
             // my_dent's refcount is incremented after this, consistent with cases above
 
             // Allow a negative dentry to move forward
@@ -515,7 +502,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
         }
 
         // Check the parent permission first
-        err = permission(dir, MAY_WRITE | MAY_EXEC, true);
+        err = permission(dir, MAY_WRITE | MAY_EXEC);
         if (err)  goto out;
 
         // Try EINVAL when creat isn't an option
@@ -557,7 +544,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
     // creat/O_CREAT have idiosyncratic semantics about opening a
     // newly-created, read-only file for writing, but only the first time.
     if (!newly_created) {
-        if ((err = permission(mydent, acc_mode, true)) < 0)
+        if ((err = permission(mydent, acc_mode)) < 0)
             goto out;
     }
 
@@ -724,7 +711,7 @@ int list_directory_dentry (struct shim_dentry *dent) {
     struct shim_dirent * d = dirent;
     for ( ; d ; d = d->next) {
         struct shim_dentry * child;
-        if ((ret = lookup_dentry(dent, d->name, strlen(d->name), false,
+        if ((ret = lookup_dentry(dent, d->name, strlen(d->name),
                                  &child, fs)) < 0)
             goto done_read;
 
@@ -837,5 +824,3 @@ int path_startat (int dfd, struct shim_dentry ** dir)
         return 0;
     }
 }
-
-

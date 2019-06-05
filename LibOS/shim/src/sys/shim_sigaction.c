@@ -88,6 +88,7 @@ out:
 
 int shim_do_sigreturn (int __unused)
 {
+    __UNUSED(__unused);
     /* do nothing */
     return 0;
 }
@@ -220,7 +221,10 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
 int shim_do_sigpending (__sigset_t * set, size_t sigsetsize)
 {
-    if (!set || test_user_memory(set, sizeof(*set), false))
+    if (sigsetsize != sizeof(*set))
+        return -EINVAL;
+
+    if (!set || test_user_memory(set, sigsetsize, false))
         return -EFAULT;
 
     struct shim_thread * cur = get_cur_thread();
@@ -351,13 +355,13 @@ int do_kill_proc (IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc)
 
     bool srched = false;
 
-    if (!walk_thread_list(__kill_proc, &arg, false))
+    if (!walk_thread_list(__kill_proc, &arg))
         srched = true;
 
     if (!use_ipc || srched)
         goto out;
 
-    if (!walk_simple_thread_list(__kill_proc_simple, &arg, false))
+    if (!walk_simple_thread_list(__kill_proc_simple, &arg))
         srched = true;
 
     if (!srched && !ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig))
@@ -445,13 +449,13 @@ int do_kill_pgroup (IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc)
 
     bool srched = false;
 
-    if (!walk_thread_list(__kill_pgroup, &arg, false))
+    if (!walk_thread_list(__kill_pgroup, &arg))
         srched = true;
 
     if (!use_ipc || srched)
         goto out;
 
-    if (!walk_simple_thread_list(__kill_pgroup_simple, &arg, false))
+    if (!walk_simple_thread_list(__kill_pgroup_simple, &arg))
         srched = true;
 
     if (!srched && !ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig))
@@ -464,6 +468,7 @@ out:
 static int __kill_all_threads (struct shim_thread * thread, void * arg,
                                bool * unlocked)
 {
+    __UNUSED(unlocked); // Retained for API compatibility
     int srched = 0;
     struct walk_arg * warg = (struct walk_arg *) arg;
 
@@ -494,7 +499,7 @@ int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig)
     arg.id      = 0;
     arg.sig     = sig;
     arg.use_ipc = false;
-    walk_thread_list(__kill_all_threads, &arg, false);
+    walk_thread_list(__kill_all_threads, &arg);
     return 0;
 }
 

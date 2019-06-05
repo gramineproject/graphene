@@ -478,6 +478,7 @@ DEFINE_SHIM_SYSCALL (getrlimit, 2, shim_do_getrlimit, int, int, resource,
 
 int shim_do_getrusage (int who, struct __kernel_rusage * ru)
 {
+    __UNUSED(who);
     memset(ru, 0, sizeof(struct __kernel_rusage));
     return -ENOSYS;
 }

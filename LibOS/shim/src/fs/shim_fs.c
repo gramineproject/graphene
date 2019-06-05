@@ -289,7 +289,7 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
         /* mount_root->state |= DENTRY_VALID; */
         mount_root = get_new_dentry(mount, NULL, "", 0, NULL);
         assert(mount->d_ops && mount->d_ops->lookup);
-        ret = mount->d_ops->lookup(mount_root, 0);
+        ret = mount->d_ops->lookup(mount_root);
         if (ret < 0) {
             /* Try getting rid of ESKIPPED case */
             assert (ret != -ESKIPPED);
@@ -425,7 +425,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
     void * mount_data = NULL;
 
     /* call fs-specific mount to allocate mount_data */
-    if ((ret = fs->fs_ops->mount(uri, mount_point, &mount_data)) < 0)
+    if ((ret = fs->fs_ops->mount(uri, &mount_data)) < 0)
         goto out_with_unlock;
 
 
@@ -443,9 +443,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
     if (last_len == 0)
         dent = dentry_root;
     else {
-        dent = __lookup_dcache(parent, last,
-                               last_len,
-                               NULL, 0, NULL);
+        dent = __lookup_dcache(parent, last, last_len, NULL);
 
         if (!dent) {
             dent = get_new_dentry(mount, parent, last, last_len, NULL);
@@ -607,6 +605,7 @@ END_CP_FUNC(mount)
 
 BEGIN_RS_FUNC(mount)
 {
+    __UNUSED(offset);
     struct shim_mount * mount = (void *) (base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(mount->cpdata);
@@ -639,6 +638,9 @@ END_RS_FUNC(mount)
 
 BEGIN_CP_FUNC(all_mounts)
 {
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
     struct shim_mount * mount;
     lock(&mount_list_lock);
     LISTP_FOR_EACH_ENTRY(mount, &mount_list, list)
@@ -652,6 +654,10 @@ END_CP_FUNC(all_mounts)
 
 BEGIN_RS_FUNC(all_mounts)
 {
+    __UNUSED(entry);
+    __UNUSED(base);
+    __UNUSED(offset);
+    __UNUSED(rebase);
     /* to prevent file system from being mount again */
     mount_migrated = true;
 }
