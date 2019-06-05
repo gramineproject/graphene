@@ -267,10 +267,10 @@ int check_last_thread (struct shim_thread * self);
 void switch_dummy_thread (struct shim_thread * thread);
 
 int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
-                      void * arg, bool may_write);
+                      void * arg);
 int walk_simple_thread_list (int (*callback) (struct shim_simple_thread *,
                                               void *, bool *),
-                             void * arg, bool may_write);
+                             void * arg);
 
 /* reference counting of handle maps */
 void get_handle_map (struct shim_handle_map * map);

@@ -282,7 +282,8 @@ enum {
 
 #define END_CP_FUNC_NO_RS(name)                                     \
     END_CP_FUNC(name)                                               \
-    BEGIN_RS_FUNC(name) {} END_RS_FUNC(name)
+    BEGIN_RS_FUNC(name) {__UNUSED(entry); __UNUSED(base);           \
+        __UNUSED(offset); __UNUSED(rebase); } END_RS_FUNC(name)
 
 #define BEGIN_RS_FUNC(name)                                         \
     DEFINE_RS_FUNC(name)                                            \

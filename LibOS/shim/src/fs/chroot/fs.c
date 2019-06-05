@@ -59,8 +59,7 @@ struct mount_data {
 #define HANDLE_MOUNT_DATA(h) ((struct mount_data*)(h)->fs->data)
 #define DENTRY_MOUNT_DATA(d) ((struct mount_data*)(d)->fs->data)
 
-static int chroot_mount (const char * uri, const char * root,
-                         void ** mount_data)
+static int chroot_mount (const char * uri, void ** mount_data)
 {
     enum shim_file_type type;
 
@@ -378,14 +377,14 @@ static int chroot_stat (struct shim_dentry * dent, struct stat * statbuf)
     return query_dentry(dent, NULL, NULL, statbuf);
 }
 
-static int chroot_lookup (struct shim_dentry * dent, bool force)
+static int chroot_lookup (struct shim_dentry * dent)
 {
 
     return query_dentry(dent, NULL, NULL, NULL);
 }
 
 static int __chroot_open (struct shim_dentry * dent,
-                          const char * uri, size_t len, int flags, mode_t mode,
+                          const char * uri, int flags, mode_t mode,
                           struct shim_handle * hdl,
                           struct shim_file_data * data)
 {
@@ -457,7 +456,7 @@ static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
         unlock(&data->lock);
     }
 
-    if ((ret = __chroot_open(dent, NULL, 0, flags, dent->mode, hdl, data)) < 0)
+    if ((ret = __chroot_open(dent, NULL, flags, dent->mode, hdl, data)) < 0)
         return ret;
 
     struct shim_file_handle * file = &hdl->info.file;
@@ -483,7 +482,7 @@ static int chroot_creat (struct shim_handle * hdl, struct shim_dentry * dir,
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
-    if ((ret = __chroot_open(dent, NULL, 0, flags|O_CREAT|O_EXCL, mode, hdl,
+    if ((ret = __chroot_open(dent, NULL, flags|O_CREAT|O_EXCL, mode, hdl,
                              data)) < 0)
         return ret;
 
@@ -528,7 +527,7 @@ static int chroot_mkdir (struct shim_dentry * dir, struct shim_dentry * dent,
             return ret;
     }
 
-    ret = __chroot_open(dent, NULL, 0, O_CREAT|O_EXCL, mode, NULL, data);
+    ret = __chroot_open(dent, NULL, O_CREAT|O_EXCL, mode, NULL, data);
 
     /* Increment the parent's link count */
     struct shim_file_data *parent_data = FILE_DENTRY_DATA(dir);
@@ -569,7 +568,7 @@ static int chroot_recreate (struct shim_handle * hdl)
      * when recreating a file handle after migration, the file should
      * not be created again.
      */
-    return __chroot_open(hdl->dentry, uri, len, hdl->flags & ~(O_CREAT|O_EXCL),
+    return __chroot_open(hdl->dentry, uri, hdl->flags & ~(O_CREAT|O_EXCL),
                          0, hdl, data);
 }
 

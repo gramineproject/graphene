@@ -32,7 +32,7 @@ struct debugbuf {
 };
 
 static inline int
-debug_fputs (void * f, const char * buf, int len)
+debug_fputs (const char * buf, int len)
 {
     if (DkStreamWrite(debug_handle, 0, len, (void *) buf, NULL) == (PAL_NUM) len)
         return 0;
@@ -43,11 +43,12 @@ debug_fputs (void * f, const char * buf, int len)
 static int
 debug_fputch (void * f, int ch, void * b)
 {
+    __UNUSED(f);
     struct debug_buf * buf = (struct debug_buf *) b;
     buf->buf[buf->end++] = ch;
 
     if (ch == '\n') {
-        int ret = debug_fputs(NULL, buf->buf, buf->end);
+        int ret = debug_fputs(buf->buf, buf->end);
         buf->end = buf->start;
         return ret;
     }
@@ -57,14 +58,14 @@ debug_fputch (void * f, int ch, void * b)
         buf->buf[buf->end++] = '.';
         buf->buf[buf->end++] = '.';
         buf->buf[buf->end++] = '\n';
-        debug_fputs(NULL, buf->buf, buf->end);
+        debug_fputs(buf->buf, buf->end);
         buf->end = buf->start;
         buf->buf[buf->end++] = '.';
         buf->buf[buf->end++] = '.';
     }
 #else
     if (buf->end == DEBUGBUF_SIZE) {
-        debug_fputs(NULL, buf->buf, buf->end);
+        debug_fputs(buf->buf, buf->end);
         buf->end = buf->start;
     }
 #endif
@@ -96,7 +97,7 @@ void debug_puts (const char * str)
             buf->buf[buf->end++] = '.';
             buf->buf[buf->end++] = '.';
             buf->buf[buf->end++] = '\n';
-            debug_fputs(NULL, buf->buf, buf->end);
+            debug_fputs(buf->buf, buf->end);
             buf->end = buf->start;
             buf->buf[buf->end++] = '.';
             buf->buf[buf->end++] = '.';
@@ -156,6 +157,8 @@ sys_fputs (void * f, const char * str, int len)
 static void
 sys_fputch (void * f, int ch, void * b)
 {
+    __UNUSED(b);
+
     sys_putdat.buf[sys_putdat.cnt++] = ch;
 
     if (ch == '\n') {

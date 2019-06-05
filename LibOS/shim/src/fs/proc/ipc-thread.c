@@ -272,6 +272,8 @@ int get_all_pid_status (struct pid_status ** status);
 static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
                                  int len)
 {
+    // Only one valid name
+    __UNUSED(name);
     struct pid_status_cache * status = NULL;
     int ret = 0;
 

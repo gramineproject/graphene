@@ -39,6 +39,8 @@
 
 static int socket_close (struct shim_handle * hdl)
 {
+    /* XXX: Shouldn't this do something? */
+    __UNUSED(hdl);
     return 0;
 }
 

@@ -1073,7 +1073,7 @@ static int create_ipc_helper (void)
     ipc_helper_thread = new;
     ipc_helper_state = HELPER_ALIVE;
 
-    PAL_HANDLE handle = thread_create(shim_ipc_helper, new, 0);
+    PAL_HANDLE handle = thread_create(shim_ipc_helper, new);
 
     if (!handle) {
         ret = -PAL_ERRNO;
