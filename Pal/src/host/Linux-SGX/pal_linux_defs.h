@@ -15,7 +15,7 @@
 #define DEBUG_ECALL         0
 #define DEBUG_OCALL         0
 
-#define TRUSTED_STUB_SIZE   (PRESET_PAGESIZE * 4)
+#define TRUSTED_STUB_SIZE   (PRESET_PAGESIZE * 4UL)
 
 #define CACHE_FILE_STUBS    1
 
