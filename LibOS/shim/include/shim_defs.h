@@ -37,4 +37,8 @@
 #define MIGRATE_SYSV_SEM            0
 #define MIGRATE_SYSV_MSG            1
 
+/* ELF aux vectors  */
+#define REQUIRED_ELF_AUXV           7   /* number of LibOS-supported vectors */
+#define REQUIRED_ELF_AUXV_SPACE     16  /* extra memory space (in bytes) */
+
 #endif /* _SHIM_DEFS_H_ */

@@ -215,7 +215,7 @@ int load_elf_interp (struct shim_handle * exec);
 int free_elf_interp (void);
 void execute_elf_object (struct shim_handle * exec,
                          int * argcp, const char ** argp,
-                         int nauxv, elf_auxv_t * auxp);
+                         elf_auxv_t * auxp);
 int remove_loaded_libraries (void);
 
 /* gdb debugging support */

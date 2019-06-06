@@ -1563,21 +1563,15 @@ int register_library (const char * name, unsigned long load_address)
 
 void execute_elf_object (struct shim_handle * exec,
                          int * argcp, const char ** argp,
-                         int nauxv, ElfW(auxv_t) * auxp)
+                         ElfW(auxv_t) * auxp)
 {
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
-    assert((uintptr_t)argcp % 16 == 0);  // Stack should be aligned to 16 on entry point.
+    assert((uintptr_t)argcp % 16 == 0);  /* stack must be 16B-aligned */
     assert((void*)argcp + sizeof(long) == argp || argp == NULL);
 
-    /* random 16 bytes follows auxp */
-    ElfW(Addr) random = (ElfW(Addr))&auxp[7];
-    int ret = DkRandomBitsRead((PAL_PTR)random, 16);
-    if (ret < 0) {
-        debug("execute_elf_object: DkRandomBitsRead failed.\n");
-        DkThreadExit();
-    }
-
+    /* populate ELF aux vectors */
+    assert(REQUIRED_ELF_AUXV >= 7); /* stack allocated enough space */
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;
@@ -1589,8 +1583,21 @@ void execute_elf_object (struct shim_handle * exec,
     auxp[4].a_type = AT_BASE;
     auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
     auxp[5].a_type = AT_RANDOM;
-    auxp[5].a_un.a_val = random;
+    auxp[5].a_un.a_val = 0; /* filled later */
     auxp[6].a_type = AT_NULL;
+    auxp[6].a_un.a_val = 0;
+
+    /* populate extra memory space for aux vector data */
+    assert(REQUIRED_ELF_AUXV_SPACE >= 16); /* stack allocated enough space */
+    ElfW(Addr) auxp_extra = (ElfW(Addr))&auxp[7];
+
+    ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
+    int ret = DkRandomBitsRead((PAL_PTR)random, 16);
+    if (ret < 0) {
+        debug("execute_elf_object: DkRandomBitsRead failed.\n");
+        DkThreadExit();
+    }
+    auxp[5].a_un.a_val = random;
 
     ElfW(Addr) entry = interp_map ? interp_map->l_entry : exec_map->l_entry;
 

@@ -1331,7 +1331,7 @@ void start_execution (const char * first_argument, const char ** arguments,
     ncookies++; /* for NULL-end */
 
     int cookiesz = sizeof(unsigned long int) * ncookies
-                      + sizeof(ElfW(auxv_t)) * 6 + 16
+                      + sizeof(ElfW(auxv_t)) * 1  /* only AT_NULL */
                       + sizeof(void *) * 4 + 16;
 
     unsigned long int * cookies = __alloca(cookiesz);
@@ -1349,26 +1349,12 @@ void start_execution (const char * first_argument, const char ** arguments,
         cookies[cnt++] = (unsigned long int) environs[i];
     cookies[cnt++] = 0;
 
+    /* NOTE: LibOS implements its own ELF aux vectors. Any info from host's
+     * aux vectors must be passed in PAL_CONTROL. Here we pass an empty list
+     * of aux vectors for sanity. */
     ElfW(auxv_t) * auxv = (ElfW(auxv_t) *) &cookies[cnt];
-    /* random 16 bytes follows auxp */
-    ElfW(Addr) random = (ElfW(Addr))&auxv[7];
-    int ret = DkRandomBitsRead((PAL_PTR)random, 16);
-    if (ret < 0)
-        INIT_FAIL(-ret, "start_execution: DkRandomBitsRead failed\n");
-
-    auxv[0].a_type = AT_PHDR;
-    auxv[0].a_un.a_val = exec_map ? (unsigned long) exec_map->l_phdr  : 0;
-    auxv[1].a_type = AT_PHNUM;
-    auxv[1].a_un.a_val = exec_map ? exec_map->l_phnum : 0;
-    auxv[2].a_type = AT_PAGESZ;
-    auxv[2].a_un.a_val = __pal_control.pagesize;
-    auxv[3].a_type = AT_ENTRY;
-    auxv[3].a_un.a_val = exec_map ? exec_map->l_entry : 0;
-    auxv[4].a_type = AT_BASE;
-    auxv[4].a_un.a_val = exec_map ? exec_map->l_addr  : 0;
-    auxv[5].a_type = AT_RANDOM;
-    auxv[5].a_un.a_val = random;
-    auxv[6].a_type = AT_NULL;
+    auxv[0].a_type = AT_NULL;
+    auxv[0].a_un.a_val = 0;
 
 #if PROFILING == 1
     __pal_control.startup_time = _DkSystemTimeQuery() - pal_state.start_time;

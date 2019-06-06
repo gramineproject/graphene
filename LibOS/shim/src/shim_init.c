@@ -286,8 +286,7 @@ void * allocate_stack (size_t size, size_t protect_size, bool user)
 }
 
 static int populate_user_stack (void * stack, size_t stack_size,
-                                int nauxv, elf_auxv_t ** auxpp,
-                                int ** argcpp,
+                                elf_auxv_t ** auxpp, int ** argcpp,
                                 const char *** argvp, const char *** envpp)
 {
     const int argc = **argcpp;
@@ -336,16 +335,9 @@ copy_envp:
     if (!new_envp)
         *(const char **) ALLOCATE_BOTTOM(sizeof(const char *)) = NULL;
 
-    if (nauxv) {
-        new_auxp = ALLOCATE_BOTTOM(sizeof(elf_auxv_t) * nauxv);
-        if (*auxpp)
-            memcpy(new_auxp, *auxpp, nauxv * sizeof(elf_auxv_t));
-    }
-
-    /* reserve at least 16 bytes on the stack to accommodate AT_RANDOM bytes
-     * later
-     */
-    ALLOCATE_TOP(16);
+    /* reserve space for ELF aux vectors, populated later by LibOS */
+    new_auxp = ALLOCATE_BOTTOM(REQUIRED_ELF_AUXV * sizeof(elf_auxv_t) +
+                               REQUIRED_ELF_AUXV_SPACE);
 
     /* x86_64 ABI requires 16 bytes alignment on stack on every function
        call. */
@@ -369,7 +361,7 @@ unsigned long sys_stack_size = 0;
 
 int init_stack (const char ** argv, const char ** envp,
                 int ** argcpp, const char *** argpp,
-                int nauxv, elf_auxv_t ** auxpp)
+                elf_auxv_t ** auxpp)
 {
     if (!sys_stack_size) {
         sys_stack_size = DEFAULT_SYS_STACK_SIZE;
@@ -393,8 +385,7 @@ int init_stack (const char ** argv, const char ** envp,
     if (initial_envp)
         envp = initial_envp;
 
-    int ret = populate_user_stack(stack, sys_stack_size,
-                                  nauxv, auxpp, argcpp, &argv, &envp);
+    int ret = populate_user_stack(stack, sys_stack_size, auxpp, argcpp, &argv, &envp);
     if (ret < 0)
         return ret;
 
@@ -545,18 +536,6 @@ struct shim_profile profile_root;
         (auxp) = _tmp + sizeof(char *);                             \
     } while (0)
 
-
-static elf_auxv_t* __process_auxv (elf_auxv_t * auxp)
-{
-    elf_auxv_t * av;
-
-    for (av = auxp; av->a_type != AT_NULL; av++)
-        switch (av->a_type) {
-            default: break;
-        }
-
-    return av + 1;
-}
 
 #ifdef PROFILE
 static void set_profile_enabled (const char ** envp)
@@ -715,7 +694,6 @@ noreturn void* shim_init (int argc, void * args)
 
     /* call to figure out where the arguments are */
     FIND_ARG_COMPONENTS(args, argc, argv, envp, auxp);
-    int nauxv = __process_auxv(auxp) - auxp;
 
 #ifdef PROFILE
     set_profile_enabled(envp);
@@ -780,7 +758,7 @@ restore:
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
-    RUN_INIT(init_stack, argv, envp, &argcp, &argp, nauxv, &auxp);
+    RUN_INIT(init_stack, argv, envp, &argcp, &argp, &auxp);
     RUN_INIT(init_loader);
     RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
@@ -829,8 +807,7 @@ restore:
         restore_context(&cur_tcb->context);
 
     if (cur_thread->exec)
-        execute_elf_object(cur_thread->exec,
-                           argcp, argp, nauxv, auxp);
+        execute_elf_object(cur_thread->exec, argcp, argp, auxp);
     shim_do_exit(0);
 }
 
