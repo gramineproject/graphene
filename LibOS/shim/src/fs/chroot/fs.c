@@ -900,7 +900,7 @@ static int chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
     struct shim_file_handle * file = &hdl->info.file;
     lock(&hdl->lock);
 
-    int marker = file->marker;
+    uint64_t marker = file->marker;
     uint64_t size = file->size;
 
     if (check_version(hdl)) {
