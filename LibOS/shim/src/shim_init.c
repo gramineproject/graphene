@@ -171,7 +171,6 @@ long int glibc_option (const char * opt)
 
 void * migrated_memory_start;
 void * migrated_memory_end;
-void * migrated_shim_addr;
 
 const char ** initial_envp __attribute_migratable;
 
