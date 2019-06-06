@@ -47,6 +47,8 @@ libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 %.s: %.S $(headers)
 	$(call cmd,cpp_s_S)
 
+include ../../../../Makefile.rules
+
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 
 .PHONY: clean
