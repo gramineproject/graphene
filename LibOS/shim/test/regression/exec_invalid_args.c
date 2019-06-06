@@ -5,8 +5,8 @@
 
 int main(int argc, const char** argv, const char** envp) {
     int r;
-    char** badptr_argv = (char**) -1;
-    char* badptr = (char*) -1;
+    char** badptr_argv = (char**)-1;
+    char* badptr = (char*)-1;
 
     char* bad_argv[]  = { badptr,  NULL };
     char* good_argv[] = { "DUMMY", NULL };
