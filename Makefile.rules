@@ -1,3 +1,13 @@
+#
+# All Makefiles must follow the following conventions:
+#
+# - Compilation and linking steps must be done via the 'cmd' function:
+#   e.g., use '$(call cmd,ld_so_o)' to create a shared library using LD
+#
+# - File-specific build flags must be specified via variables of the format 'FLAG-filename':
+#   e.g., use 'LDFLAGS-libsysdb.so=...' to specify libsysdb.so-specific linker flags
+#
+
 ifeq ("$(origin V)", "command line")
   BUILD_VERBOSE = $(V)
 endif
