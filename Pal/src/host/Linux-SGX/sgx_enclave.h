@@ -7,3 +7,5 @@
 int ecall_enclave_start (const char ** arguments, const char ** environments);
 
 int ecall_thread_start (void);
+
+int ecall_thread_reset (void);

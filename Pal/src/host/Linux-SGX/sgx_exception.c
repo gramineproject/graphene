@@ -271,3 +271,18 @@ int sgx_signal_setup (void)
 err:
     return ret;
 }
+
+int sgx_signal_mask(uint8_t to_block)
+{
+    int sig[7];
+
+    sig[0] = SIGTERM;
+    sig[1] = SIGINT;
+    sig[2] = SIGCONT;
+    sig[3] = SIGSEGV;
+    sig[4] = SIGILL;
+    sig[5] = SIGFPE;
+    sig[6] = SIGBUS;
+
+    return to_block ? block_signals(sig, 7) : unblock_signals(sig, 7);
+}

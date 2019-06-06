@@ -14,8 +14,8 @@
 	.type enclave_entry, @function
 
 enclave_entry:
-	# On EENTER/ERESUME, RAX is the current SSA, RBX is the address of TCS,
-	# RCX is the address of AEP. Other registers are not trusted.
+	# On EENTER, RAX is the current SSA, RBX is the address of TCS,
+	# RCX is the address of IP following EENTER. Other registers are not trusted.
 
 	# current SSA is in RAX (Trusted)
 	cmpq $0, %rax
@@ -23,8 +23,8 @@ enclave_entry:
 
 	# TCS is in RBX (Trusted)
 
-	# AEP address in RCX (Trusted)
-	movq %rcx, %gs:SGX_AEP
+	# ECALL return address in RCX (Trusted)
+	movq %rcx, %gs:SGX_ECALL_RETURN_ADDR
 
 	# The following code is hardened to defend attacks from untrusted host.
 	# Any states given by the host instead of the ISA must be assumed
@@ -50,6 +50,9 @@ enclave_entry:
 	cmpq $0, %gs:SGX_OCALL_PREPARED
 	jne .Lreturn_from_ocall
 
+	cmpq $ECALL_THREAD_RESET, %rdi
+	je .Lhandle_thread_reset
+	
 	# Ecalls are only used to start a thread (either the main or an
 	# additional thread). So per thread we should only get exactly one
 	# ecall. Enforce this here.
@@ -94,6 +97,16 @@ enclave_entry:
 
 	# handle_ecall will only return when invalid parameters has been passed.
 	FAIL_LOOP
+
+	# Clear tls variables for thread reuse
+.Lhandle_thread_reset:
+	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
+	movq $0, %gs:SGX_ECALL_CALLED
+
+.Lecall_return:
+	movq %gs:SGX_ECALL_RETURN_ADDR, %rbx
+	movq $EEXIT, %rax
+	ENCLU
 
 .Lhandle_resume:
 	# PAL convention:
@@ -262,17 +275,11 @@ sgx_ocall:
 
 	pushq %rbp
 
-	# clear tls for tls/tcs reuse if it's ocall_exit
-	cmpq $0, %rdi
-	je .Lclear
+	# ocall_exit never returns
+	cmpq $OCALL_EXIT, %rdi
+	je .Leexit
 
 	movq $1, %gs:SGX_OCALL_PREPARED
-	jmp .Leexit
-
-.Lclear:
-	movq $0, %gs:SGX_OCALL_PREPARED
-	movq $0, %gs:SGX_ECALL_CALLED
-	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
 
 .Leexit:
 	xorq %rdx, %rdx

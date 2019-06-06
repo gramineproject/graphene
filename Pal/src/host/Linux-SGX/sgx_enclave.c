@@ -16,6 +16,8 @@
 #include <math.h>
 #include <asm/errno.h>
 
+#include "sgx_enclave.h"
+
 #ifndef SOL_IPV6
 # define SOL_IPV6 41
 #endif
@@ -30,8 +32,22 @@ static int sgx_ocall_exit(void* prv)
         SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
         rv = 255;
     }
-    unmap_tcs();
-    INLINE_SYSCALL(exit, 1, (int)rv);
+	/* 
+	 * Clear Thread Context for reuse:
+	 * 1. block all the signals
+	 * 2. reset in-enclave thread context
+	 * 3. unblock the signals
+	 */
+	 
+    sgx_signal_mask(1);
+    ecall_thread_reset();
+    sgx_signal_mask(0);
+
+
+    if(!unmap_tcs())
+        INLINE_SYSCALL(exit, 1, (int)rv);
+    else
+        thread_exit(&rv);
     return 0;
 }
 
@@ -726,6 +742,12 @@ int ecall_thread_start (void)
 {
     EDEBUG(ECALL_THREAD_START, NULL);
     return sgx_ecall(ECALL_THREAD_START, NULL);
+}
+
+int ecall_thread_reset (void)
+{
+    EDEBUG(ECALL_THREAD_RESET, NULL);
+    return sgx_ecall(ECALL_THREAD_RESET, NULL);
 }
 
 void __abort(void) {

@@ -53,7 +53,7 @@ void dummy(void)
     OFFSET(SGX_ENCLAVE_SIZE, enclave_tls, enclave_size);
     OFFSET(SGX_TCS_OFFSET, enclave_tls, tcs_offset);
     OFFSET(SGX_INITIAL_STACK_OFFSET, enclave_tls, initial_stack_offset);
-    OFFSET(SGX_AEP, enclave_tls, aep);
+    OFFSET(SGX_ECALL_RETURN_ADDR, enclave_tls, ecall_return_addr);
     OFFSET(SGX_SSA, enclave_tls, ssa);
     OFFSET(SGX_GPR, enclave_tls, gpr);
     OFFSET(SGX_EXIT_TARGET, enclave_tls, exit_target);
@@ -68,5 +68,13 @@ void dummy(void)
 
     /* sgx_arch_tcs_t */
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
+
+    /* Ecall numbers */
+    DEFINE(ECALL_ENCLAVE_START, 0);
+    DEFINE(ECALL_THREAD_START, 1);
+    DEFINE(ECALL_THREAD_RESET, 2);
+
+    /* Ocall Index */
+    DEFINE(OCALL_EXIT, 0);
 }
 
