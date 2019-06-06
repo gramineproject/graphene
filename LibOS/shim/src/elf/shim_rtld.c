@@ -1469,9 +1469,6 @@ int remove_loaded_libraries (void)
     return 0;
 }
 
-void * __load_address;
-void * migrated_shim_addr __attribute_migratable = &__load_address;
-
 int init_internal_map (void)
 {
     __load_elf_object(NULL, &__load_address, OBJECT_INTERNAL, NULL);
