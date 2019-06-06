@@ -133,7 +133,7 @@ $(pal_static): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	       $(host_lib) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
-user_shared.o: ASFLAGS =
+user_start.o: ASFLAGS =
 user_start.o: user_start.S
 	$(call cmd,as_o_S)
 

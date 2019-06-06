@@ -44,7 +44,7 @@ libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	$(call cmd,as_o_S)
 
 %.s: %.S $(headers)
-	$(call cmd,app_s_S)
+	$(call cmd,cpp_s_S)
 
 
 include ../../../../Makefile.rules
