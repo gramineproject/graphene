@@ -1495,10 +1495,10 @@ int remove_loaded_libraries (void)
  * for vdso functions after migration.
  */
 static void * vdso_addr __attribute_migratable = NULL;
-static ElfW(Addr) * __vdso_shim_clock_gettime __attribute_migratable = 0;
-static ElfW(Addr) * __vdso_shim_gettimeofday __attribute_migratable = 0;
-static ElfW(Addr) * __vdso_shim_time __attribute_migratable = 0;
-static ElfW(Addr) * __vdso_shim_getcpu __attribute_migratable = 0;
+static ElfW(Addr) * __vdso_shim_clock_gettime __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_gettimeofday __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_time __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_getcpu __attribute_migratable = NULL;
 
 static const struct {
     const char *name;
