@@ -520,11 +520,11 @@ int bkeep_mmap (void * addr, uint64_t length, int prot, int flags,
 static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end,
                                  struct shim_vma ** tailptr)
 {
-    /*
-     * Dealing with the head: if the starting address of "vma" is in
-     * [start, end), move the starting address.
-     */
     if (test_vma_startin(vma, start, end)) {
+        /*
+         * Dealing with the head: if the starting address of "vma" is in
+         * [start, end), move the starting address.
+         */
         if (end < vma->end) {
             if (vma->file) /* must adjust offset */
                 vma->offset += end - vma->start;
@@ -534,24 +534,22 @@ static inline void __shrink_vma (struct shim_vma * vma, void * start, void * end
                 vma->offset += vma->end - vma->start;
             vma->start = vma->end;
         }
-    }
-    /*
-     * Dealing with the tail: if the ending address of "vma" is in
-     * [start, end), move the ending address.
-     */
-    else if (test_vma_endin(vma, start, end)) {
+    } else if (test_vma_endin(vma, start, end)) {
+        /*
+         * Dealing with the tail: if the ending address of "vma" is in
+         * [start, end), move the ending address.
+         */
         if (start > vma->start) {
             vma->end = start;
         } else {
             vma->end = vma->start;
         }
         /* offset is not affected */
-    }
-    /*
-     * If [start, end) is inside the range of "vma", divide up
-     * the VMA. A new VMA is created to represent the remaining tail.
-     */
-    else if (test_vma_contain(vma, start, end)) {
+    } else if (test_vma_contain(vma, start, end)) {
+        /*
+         * If [start, end) is inside the range of "vma", divide up
+         * the VMA. A new VMA is created to represent the remaining tail.
+         */
         void * old_end = vma->end;
         vma->end = start;
 
