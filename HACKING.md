@@ -22,3 +22,5 @@ if GitUrl =~ "oscarlab/graphene"
   set formatoptions=tcq
 endif
 ```
+
+__** Disclaimer: Due to security concerns, we do not suggest using Vim modelines or `.exrc`. **__
