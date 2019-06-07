@@ -1491,8 +1491,8 @@ int remove_loaded_libraries (void)
 /*
  * libsysdb.so is loaded as shared library and
  * loaded address for child may not match to the one for parent.
- * just tread vdso page as user program and adjust function pointers
- * for used function after migration.
+ * just treat vdso page as user-program data and adjust function pointers
+ * for vdso functions after migration.
  */
 static void * vdso_addr __attribute_migratable = NULL;
 static ElfW(Addr) * __vdso_shim_clock_gettime __attribute_migratable = 0;
@@ -1549,7 +1549,7 @@ static int __vdso_map_init(void)
                                 PAL_PROT_READ | PAL_PROT_EXEC))
             return -PAL_ERRNO;
 
-    /* treat vdso page as ones used by user program to be migrated */
+    /* treat vdso page as used by user program to be migrated */
     int ret = bkeep_mmap(&vdso_so, sizeof(vdso_so),
                          PAL_PROT_READ | PAL_PROT_EXEC, 0,
                          NULL, 0, "linux-vdso.so.1");
@@ -1561,9 +1561,9 @@ static int __vdso_map_init(void)
 }
 
 /*
- * execve case:
- * Now we don't have to keep vdso are derived by fork.
- * discard it and use our own.
+ * On execve, vdso_so page may have been relocated (e.g. due to ASLR), so
+ * discard the old vdso page and create our own one. Note that vdso_addr
+ * migrated to the new process and contains the old address of vdso_so.
  */
 static int __vdso_map_execve(void)
 {
@@ -1580,6 +1580,7 @@ static int __vdso_map_execve(void)
 
 static int vdso_map_init(void)
 {
+    /* after fork, vdso_addr contains a non-zero address of the old vdso_so */
     if (vdso_addr)
         return __vdso_map_execve();
     else
@@ -1588,7 +1589,7 @@ static int vdso_map_init(void)
 
 int vdso_map_migrate(void)
 {
-    if (vdso_addr == NULL)
+    if (!vdso_addr)
         return 0;
 
     if (!DkVirtualMemoryProtect(ALIGN_DOWN(vdso_addr),
@@ -1701,8 +1702,10 @@ void execute_elf_object (struct shim_handle * exec,
                          int nauxv, ElfW(auxv_t) * auxp)
 {
     int ret = vdso_map_init();
-    if (ret)
+    if (ret) {
+        SYS_PRINTF("Could not initialize vDSO (error code = %d)", ret);
         shim_clean(ret);
+    }
 
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);

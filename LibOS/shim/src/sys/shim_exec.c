@@ -169,7 +169,7 @@ retry_dump_vmas:
         /* Don't free the current stack */
         if (vma->addr == cur_thread->stack)
             continue;
-        /* vdso comes from our libsysdb.so */
+        /* Don't free vdso page (it is reused with adjusted addresses if needed) */
         if (vma->addr == &vdso_so)
             continue;
 
