@@ -62,7 +62,7 @@ be installed with 'apt-get install'):
 To build the system, simply run the following commands in the root of the
 source tree:
 
-    git submodule update --init
+    git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
     make
 
 Each part of Graphene can be built separately in the subdirectories.
@@ -184,6 +184,12 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
+#### 2.1.3 Including Application Test Cases
+
+To add the application test cases, issue the following command from the root
+of the source tree:
+
+    git submodule update --init -- LibOS/shim/test/apps/
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
