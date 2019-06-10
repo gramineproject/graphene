@@ -147,7 +147,7 @@ static int proc_ipc_thread_link_mode (const char * name, mode_t * mode)
         goto out;
     }
 
-    ret = dent->fs->d_ops->mode(dent, mode, true);
+    ret = dent->fs->d_ops->mode(dent, mode);
 out:
     put_dentry(dent);
     return ret;

@@ -184,7 +184,7 @@ struct shim_d_ops {
     int (*lookup) (struct shim_dentry * dent);
 
     /* this is to check file type and access, returning the stat.st_mode */
-    int (*mode) (struct shim_dentry * dent, mode_t * mode, bool force);
+    int (*mode) (struct shim_dentry * dent, mode_t * mode);
 
     /* detach internal data from dentry */
     int (*dput) (struct shim_dentry * dent);
@@ -339,7 +339,7 @@ extern struct shim_lock dcache_lock;
 /* check permission (specified by mask) of a dentry. If force is not set,
  * permission is considered granted on invalid dentries */
 /* Assume caller has acquired dcache_lock */
-int permission (struct shim_dentry * dent, mode_t mask, bool force);
+int permission (struct shim_dentry * dent, mode_t mask);
 
 /* This function looks up a single dentry based on its parent dentry pointer
  * and the name.  Namelen is the length of char * name.

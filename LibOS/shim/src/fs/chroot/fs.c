@@ -364,11 +364,8 @@ static int query_dentry (struct shim_dentry * dent, PAL_HANDLE pal_handle,
     return 0;
 }
 
-static int chroot_mode (struct shim_dentry * dent, mode_t * mode, bool force)
+static int chroot_mode (struct shim_dentry * dent, mode_t * mode)
 {
-    if (!force)
-        return -ESKIPPED;
-
     return query_dentry(dent, NULL, mode, NULL);
 }
 

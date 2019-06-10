@@ -63,12 +63,14 @@ const struct proc_dir proc_root = {
 
 static int proc_root_mode (const char * name, mode_t * mode)
 {
+    __UNUSED(name); // We know this is /proc
     *mode = 0555;
     return 0;
 }
 
 static int proc_root_stat (const char * name, struct stat * buf)
 {
+    __UNUSED(name); // We know this is /proc
     memset(buf, 0, sizeof(struct stat));
 
     buf->st_dev = buf->st_ino = 1;
@@ -84,6 +86,9 @@ static int proc_root_stat (const char * name, struct stat * buf)
 static int proc_root_open (struct shim_handle * hdl,
                            const char * name, int flags)
 {
+    __UNUSED(hdl); // this is a placeholder function
+    __UNUSED(name); // We know this is /proc
+
 
     if (flags & (O_WRONLY|O_RDWR))
         return -EISDIR;
@@ -159,7 +164,7 @@ found:
     return 0;
 }
 
-static int proc_mode (struct shim_dentry * dent, mode_t * mode, bool force)
+static int proc_mode (struct shim_dentry * dent, mode_t * mode)
 {
     if (qstrempty(&dent->rel_path)) {
         dent->ino = PROC_INO_BASE;
@@ -181,7 +186,7 @@ static int proc_mode (struct shim_dentry * dent, mode_t * mode, bool force)
     return ent->fs_ops->mode(rel_path, mode);
 }
 
-static int proc_lookup (struct shim_dentry * dent, bool force)
+static int proc_lookup (struct shim_dentry * dent)
 {
     if (qstrempty(&dent->rel_path)) {
         dent->ino = PROC_INO_BASE;
@@ -202,14 +207,19 @@ static int proc_lookup (struct shim_dentry * dent, bool force)
      return ret;
 }
 
-static int proc_mount (const char * uri, const char * root, void ** mount_data)
+static int proc_mount (const char * uri, void ** mount_data)
 {
+    // Arguments for compatibility with other FSes
+    __UNUSED(uri);
+    __UNUSED(mount_data);
     /* do nothing */
     return 0;
 }
 
 static int proc_unmount (void * mount_data)
 {
+    // Arguments for compatibility with other FSes
+    __UNUSED(mount_data);
     /* do nothing */
     return 0;
 }

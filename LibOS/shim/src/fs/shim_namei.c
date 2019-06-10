@@ -71,7 +71,7 @@ static inline int __lookup_flags (int flags)
  * Returns 0 on success, negative on failure.
  */
 /* Assume caller has acquired dcache_lock */
-int permission (struct shim_dentry * dent, mode_t mask, bool force) {
+int permission (struct shim_dentry * dent, mode_t mask) {
 
     mode_t mode = 0;
 
@@ -94,9 +94,6 @@ int permission (struct shim_dentry * dent, mode_t mask, bool force) {
      * just NO_MODE.
      */
     if (dent->mode == NO_MODE) {
-        /* DEP 6/16/17: This semantic seems risky to me */
-        if (!force)
-            return 0;
 
         /* DEP 6/16/17: I don't think we should be defaulting to 0 if
          * there isn't a mode function. */
@@ -105,7 +102,7 @@ int permission (struct shim_dentry * dent, mode_t mask, bool force) {
         assert(dent->fs->d_ops->mode);
 
         /* Fall back to the low-level file system */
-        int err = dent->fs->d_ops->mode(dent, &mode, force);
+        int err = dent->fs->d_ops->mode(dent, &mode);
 
         /*
          * DEP 6/16/17: I think the low-level file system should be
@@ -507,7 +504,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
         }
 
         // Check the parent permission first
-        err = permission(dir, MAY_WRITE | MAY_EXEC, true);
+        err = permission(dir, MAY_WRITE | MAY_EXEC);
         if (err)  goto out;
 
         // Try EINVAL when creat isn't an option
@@ -549,7 +546,7 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
     // creat/O_CREAT have idiosyncratic semantics about opening a
     // newly-created, read-only file for writing, but only the first time.
     if (!newly_created) {
-        if ((err = permission(mydent, acc_mode, true)) < 0)
+        if ((err = permission(mydent, acc_mode)) < 0)
             goto out;
     }
 

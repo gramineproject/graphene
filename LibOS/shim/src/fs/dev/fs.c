@@ -57,28 +57,45 @@
 
 static ssize_t dev_null_read (struct shim_handle * hdl, void * buf, size_t count)
 {
+    // Arguments for compatibility
+    __UNUSED(hdl);
+    __UNUSED(buf);
+    __UNUSED(count);
+
     return 0;
 }
 
 static ssize_t dev_zero_read (struct shim_handle * hdl, void * buf, size_t count)
 {
+    // Argument for compatibility
+    __UNUSED(hdl);
+
     memset(buf, 0, count);
     return count;
 }
 
 static ssize_t dev_null_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
+    // Arguments for compatibility
+    __UNUSED(hdl);
+    __UNUSED(buf);
+    __UNUSED(count);
+
     return count;
 }
 
 static int dev_null_mode (const char * name, mode_t * mode)
 {
+    __UNUSED(name); // We know it is /dev/null
+
     *mode = 0666|S_IFCHR;
     return 0;
 }
 
 static int dev_null_stat (const char * name, struct stat * stat)
 {
+    __UNUSED(name); // We know it is /dev/null
+
     stat->st_mode = 0666|S_IFCHR;
     stat->st_uid = 0;
     stat->st_gid = 0;
@@ -89,6 +106,8 @@ static int dev_null_stat (const char * name, struct stat * stat)
 
 static int dev_null_hstat (struct shim_handle * hdl, struct stat * stat)
 {
+    __UNUSED(hdl); // We know it is /dev/null
+
     stat->st_mode = 0666|S_IFCHR;
     stat->st_uid = 0;
     stat->st_gid = 0;
@@ -99,18 +118,26 @@ static int dev_null_hstat (struct shim_handle * hdl, struct stat * stat)
 
 static int dev_null_truncate (struct shim_handle * hdl, uint64_t size)
 {
+    // Arguments for compatibility
+    __UNUSED(hdl);
+    __UNUSED(size);
+
     return 0;
 }
 
 static int dev_random_mode (const char * name, mode_t * mode)
 {
+    __UNUSED(name); // We know it is /dev/random
+
     *mode = 0666|S_IFCHR;
     return 0;
 }
 
 static ssize_t dev_urandom_read (struct shim_handle * hdl, void * buf, size_t count)
 {
+    __UNUSED(hdl);
     ssize_t ret = DkRandomBitsRead(buf, count);
+
     if (ret < 0)
         return -convert_pal_errno(-ret);
     return count;
@@ -123,6 +150,8 @@ static ssize_t dev_random_read (struct shim_handle * hdl, void * buf, size_t cou
 
 static int dev_random_stat (const char * name, struct stat * stat)
 {
+    __UNUSED(name); // we know it is /dev/random
+
     stat->st_mode = 0666|S_IFCHR;
     stat->st_uid = 0;
     stat->st_gid = 0;
@@ -133,6 +162,8 @@ static int dev_random_stat (const char * name, struct stat * stat)
 
 static int dev_random_hstat (struct shim_handle * hdl, struct stat * stat)
 {
+    __UNUSED(hdl); // pseudo-device
+
     stat->st_mode = 0444|S_IFCHR;
     stat->st_uid = 0;
     stat->st_gid = 0;
@@ -188,14 +219,21 @@ random_dev:
     return -ENOENT;
 }
 
-static int dev_mount (const char * uri, const char * root, void ** mount_data)
+static int dev_mount (const char * uri, void ** mount_data)
 {
+    // Arguments for compatibility
+    __UNUSED(uri);
+    __UNUSED(mount_data);
+
     /* do nothing */
     return 0;
 }
 
 static int dev_unmount (void * mount_data)
 {
+    // Arguments for compatibility
+    __UNUSED(mount_data);
+
     /* do nothing */
     return 0;
 }
@@ -228,7 +266,7 @@ static int dev_open (struct shim_handle * hdl, struct shim_dentry * dent,
     return 0;
 }
 
-static int dev_lookup (struct shim_dentry * dent, bool force)
+static int dev_lookup (struct shim_dentry * dent)
 {
     if (qstrempty(&dent->rel_path)) {
         dent->state |= DENTRY_ISDIRECTORY;
@@ -240,7 +278,7 @@ static int dev_lookup (struct shim_dentry * dent, bool force)
     return search_dev_driver(qstrgetstr(&dent->rel_path), NULL);
 }
 
-static int dev_mode (struct shim_dentry * dent, mode_t * mode, bool force)
+static int dev_mode (struct shim_dentry * dent, mode_t * mode)
 {
     if (qstrempty(&dent->rel_path)) {
         dent->ino = DEV_INO_BASE;

@@ -179,7 +179,7 @@ static int proc_thread_link_mode (const char * name, mode_t * mode)
         goto out;
     }
 
-    ret = dent->fs->d_ops->mode(dent, mode, true);
+    ret = dent->fs->d_ops->mode(dent, mode);
 out:
     put_dentry(dent);
     return ret;
@@ -426,7 +426,7 @@ static int proc_thread_each_fd_mode (const char * name, mode_t * mode)
         goto out;
     }
 
-    ret = dent->fs->d_ops->mode(dent, mode, true);
+    ret = dent->fs->d_ops->mode(dent, mode);
 out:
     put_dentry(dent);
     return 0;
@@ -738,10 +738,11 @@ static int walk_cb (struct shim_thread * thread, void * arg, bool * unlocked)
 static int proc_list_thread (const char * name, struct shim_dirent ** buf,
                              int len)
 {
+    __UNUSED(name); // We know this is for "/proc/self"
     struct walk_thread_arg args =
         { .buf = *buf, .buf_end = (void *) *buf + len, };
 
-    int ret = walk_thread_list(&walk_cb, &args, false);
+    int ret = walk_thread_list(&walk_cb, &args);
     if (ret < 0)
         return ret;
 
