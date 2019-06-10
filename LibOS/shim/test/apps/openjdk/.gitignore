@@ -1,6 +1,0 @@
-/openjdk-*/
-/openjdk-*-jre/
-*.tar.bz2
-*.class
-/pal_loader
-/jdk-*/

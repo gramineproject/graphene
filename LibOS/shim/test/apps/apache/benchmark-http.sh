@@ -1,1 +1,0 @@
-../lighttpd/benchmark-http.sh
