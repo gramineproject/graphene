@@ -1171,21 +1171,21 @@ ssize_t shim_do_sendmsg (int sockfd, struct msghdr * msg, int flags)
 
 ssize_t shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags)
 {
-    size_t i, total = 0;
+    ssize_t total = 0;
 
-    for (i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
+    for (size_t i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
         struct msghdr * m = &msg[i].msg_hdr;
 
         ssize_t bytes = do_sendmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
                                    m->msg_name, m->msg_namelen);
         if (bytes < 0)
-            return total > 0 ? (ssize_t) total : bytes;
+            return total > 0 ? total : bytes;
 
         msg[i].msg_len = bytes;
         total++;
     }
 
-    return (ssize_t) total;
+    return total;
 }
 
 static ssize_t do_recvmsg (int fd, struct iovec * bufs, int nbufs, int flags,
@@ -1346,21 +1346,21 @@ ssize_t shim_do_recvmsg (int sockfd, struct msghdr * msg, int flags)
 ssize_t shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags,
                           struct __kernel_timespec * timeout)
 {
-    size_t i, total = 0;
+    ssize_t total = 0;
 
-    for (i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
+    for (size_t i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
         struct msghdr * m = &msg[i].msg_hdr;
 
         ssize_t bytes = do_recvmsg(sockfd, m->msg_iov, m->msg_iovlen, flags,
                                    m->msg_name, &m->msg_namelen);
         if (bytes < 0)
-            return total > 0 ? (ssize_t) total : bytes;
+            return total > 0 ? total : bytes;
 
         msg[i].msg_len = bytes;
         total++;
     }
 
-    return (ssize_t) total;
+    return total;
 }
 
 #define SHUT_RD     0

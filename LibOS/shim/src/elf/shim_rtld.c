@@ -356,11 +356,11 @@ __map_elf_object (struct shim_handle * file,
     if (file && (!file->fs || !file->fs->fs_ops))
         return NULL;
 
-    int64_t (*read) (struct shim_handle *, void *, size_t) =
+    ssize_t (*read) (struct shim_handle *, void *, size_t) =
         file ? file->fs->fs_ops->read : NULL;
     int (*mmap) (struct shim_handle *, void **, size_t, int, int, off_t) =
         file ? file->fs->fs_ops->mmap : NULL;
-    int (*seek) (struct shim_handle *, off_t, int) =
+    off_t (*seek) (struct shim_handle *, off_t, int) =
         file ? file->fs->fs_ops->seek : NULL;
 
     if (file && (!read || !mmap || !seek))
@@ -944,9 +944,9 @@ static int __read_elf_header (struct shim_handle * file, void * fbp)
     if (!file->fs || !file->fs->fs_ops)
         return -EACCES;
 
-    int64_t (*read) (struct shim_handle *, void *, size_t) =
+    ssize_t (*read) (struct shim_handle *, void *, size_t) =
         file->fs->fs_ops->read;
-    int (*seek) (struct shim_handle *, off_t, int) =
+    off_t (*seek) (struct shim_handle *, off_t, int) =
         file->fs->fs_ops->seek;
 
     if (!read || !seek)

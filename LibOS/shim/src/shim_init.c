@@ -1060,7 +1060,7 @@ void check_stack_hook (void)
     __asm__ volatile ("movq %%rsp, %0" : "=r"(rsp) :: "memory");
 
     if (rsp <= cur_thread->stack_top && rsp > cur_thread->stack) {
-        if ((uint64_t) rsp - (uint64_t) cur_thread->stack < PAL_CB(pagesize))
+        if ((uintptr_t) rsp - (uintptr_t) cur_thread->stack < PAL_CB(pagesize))
             SYS_PRINTF("*** stack is almost drained (RSP = %p, stack = %p-%p) ***\n",
                        rsp, cur_thread->stack, cur_thread->stack_top);
     } else {

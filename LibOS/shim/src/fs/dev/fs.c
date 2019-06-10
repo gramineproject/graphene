@@ -58,18 +58,18 @@
 
 #define DEV_INO_BASE   1025
 
-static int64_t dev_null_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t dev_null_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     return 0;
 }
 
-static int64_t dev_zero_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t dev_zero_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     memset(buf, 0, count);
     return count;
 }
 
-static int64_t dev_null_write (struct shim_handle * hdl, const void * buf, size_t count)
+static ssize_t dev_null_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     return count;
 }
@@ -111,15 +111,15 @@ static int dev_random_mode (const char * name, mode_t * mode)
     return 0;
 }
 
-static int64_t dev_urandom_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t dev_urandom_read (struct shim_handle * hdl, void * buf, size_t count)
 {
-    int64_t ret = DkRandomBitsRead(buf, count);
+    ssize_t ret = DkRandomBitsRead(buf, count);
     if (ret < 0)
         return -convert_pal_errno(-ret);
     return count;
 }
 
-static int64_t dev_random_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t dev_random_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     return dev_urandom_read(hdl, buf, count);
 }
@@ -277,7 +277,7 @@ static int dev_close (struct shim_handle * hdl)
     return hdl->info.dev.dev_ops.close(hdl);
 }
 
-static int64_t dev_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t dev_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     if (!hdl->info.dev.dev_ops.read)
         return -EACCES;
@@ -285,7 +285,7 @@ static int64_t dev_read (struct shim_handle * hdl, void * buf, size_t count)
     return hdl->info.dev.dev_ops.read(hdl, buf, count);
 }
 
-static int64_t dev_write (struct shim_handle * hdl, const void * buf, size_t count)
+static ssize_t dev_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     if (!hdl->info.dev.dev_ops.write)
         return -EACCES;
@@ -293,7 +293,7 @@ static int64_t dev_write (struct shim_handle * hdl, const void * buf, size_t cou
     return hdl->info.dev.dev_ops.write(hdl, buf, count);
 }
 
-static int dev_seek (struct shim_handle * hdl, off_t offset, int wence)
+static off_t dev_seek (struct shim_handle * hdl, off_t offset, int wence)
 {
     if (!hdl->info.dev.dev_ops.seek)
         return -EACCES;
@@ -301,7 +301,7 @@ static int dev_seek (struct shim_handle * hdl, off_t offset, int wence)
     return hdl->info.dev.dev_ops.seek(hdl, offset, wence);
 }
 
-static int dev_truncate (struct shim_handle * hdl, uint64_t len)
+static int dev_truncate (struct shim_handle * hdl, off_t len)
 {
     if (!hdl->info.dev.dev_ops.truncate)
         return -EACCES;
@@ -402,12 +402,12 @@ static int dev_hstat (struct shim_handle * hdl, struct stat * buf)
     return hdl->info.dev.dev_ops.hstat(hdl, buf);
 }
 
-static int dev_poll (struct shim_handle * hdl, int poll_type)
+static off_t dev_poll (struct shim_handle * hdl, int poll_type)
 {
     if (poll_type == FS_POLL_SZ)
         return 0;
 
-    int ret = 0;
+    off_t ret = 0;
     if ((poll_type & FS_POLL_RD) && hdl->info.dev.dev_ops.read)
         ret |= FS_POLL_RD;
     if ((poll_type & FS_POLL_WR) && hdl->info.dev.dev_ops.write)

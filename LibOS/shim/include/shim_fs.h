@@ -52,10 +52,10 @@ struct shim_fs_ops {
     int (*close) (struct shim_handle * hdl);
 
     /* read: the content from the file opened as handle */
-    int64_t (*read) (struct shim_handle * hdl, void * buf, size_t count);
+    ssize_t (*read) (struct shim_handle * hdl, void * buf, size_t count);
 
     /* write: the content from the file opened as handle */
-    int64_t (*write) (struct shim_handle * hdl, const void * buf, size_t count);
+    ssize_t (*write) (struct shim_handle * hdl, const void * buf, size_t count);
 
     /* mmap: mmap handle to address */
     int (*mmap) (struct shim_handle * hdl, void ** addr, size_t size,
@@ -65,14 +65,14 @@ struct shim_fs_ops {
     int (*flush) (struct shim_handle * hdl);
 
     /* seek: the content from the file opened as handle */
-    int (*seek) (struct shim_handle * hdl, off_t offset, int wence);
+    off_t (*seek) (struct shim_handle * hdl, off_t offset, int wence);
 
     /* move, copy: rename or duplicate the file */
     int (*move) (const char * trim_old_name, const char * trim_new_name);
     int (*copy) (const char * trim_old_name, const char * trim_new_name);
 
     /* Returns 0 on success, -errno on error */
-    int (*truncate) (struct shim_handle * hdl, uint64_t len);
+    int (*truncate) (struct shim_handle * hdl, off_t len);
 
     /* hstat: get status of the file */
     int (*hstat) (struct shim_handle * hdl, struct stat * buf);
@@ -99,7 +99,7 @@ struct shim_fs_ops {
     /* POLL_RD|POLL_WR: return POLL_RD|POLL_WR for readable|writable,
        POLL_ER for failure, -EAGAIN for unknown. */
     /* POLL_SZ: return total size */
-    int (*poll) (struct shim_handle * hdl, int poll_type);
+    off_t (*poll) (struct shim_handle * hdl, int poll_type);
 
     /* checkpoint/migrate the filesystem */
     int (*checkpoint) (void ** checkpoint, void * mount_data);
@@ -612,9 +612,9 @@ int str_add_file (const char * path, mode_t mode, struct shim_dentry ** dent);
 int str_open (struct shim_handle * hdl, struct shim_dentry * dent, int flags);
 int str_dput (struct shim_dentry * dent);
 int str_close (struct shim_handle * hdl);
-int64_t str_read (struct shim_handle * hdl, void * buf, size_t count);
-int64_t str_write (struct shim_handle * hdl, const void * buf, size_t count);
-int str_seek (struct shim_handle * hdl, off_t offset, int whence);
+ssize_t str_read (struct shim_handle * hdl, void * buf, size_t count);
+ssize_t str_write (struct shim_handle * hdl, const void * buf, size_t count);
+off_t str_seek (struct shim_handle * hdl, off_t offset, int whence);
 int str_flush (struct shim_handle * hdl);
 
 #endif /* _SHIM_FS_H_ */

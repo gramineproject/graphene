@@ -529,8 +529,8 @@ retry_dump_vmas:
 
     for (struct shim_vma_val * vma = vmas ; vma < vmas + count ; vma++) {
         size_t old_offset = offset;
-        uint64_t start = (uint64_t) vma->addr;
-        uint64_t end   = (uint64_t) vma->addr + vma->length;
+        uintptr_t start = (uintptr_t) vma->addr;
+        uintptr_t end   = (uintptr_t) vma->addr + vma->length;
         char pt[3] = {
             (vma->prot & PROT_READ)  ? 'r' : '-',
             (vma->prot & PROT_WRITE) ? 'w' : '-',

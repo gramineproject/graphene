@@ -45,32 +45,32 @@
 #include <asm/fcntl.h>
 #include <shim_profile.h>
 
-static int64_t pipe_read (struct shim_handle * hdl, void * buf,
+static ssize_t pipe_read (struct shim_handle * hdl, void * buf,
                           size_t count)
 {
-    int64_t rv = 0;
+    ssize_t rv = 0;
 
     if (!count)
         goto out;
 
-    rv = (int64_t) DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0) ? :
+    rv = (ssize_t) DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0) ? :
          -PAL_ERRNO;
 out:
     return rv;
 }
 
-static int64_t pipe_write (struct shim_handle * hdl, const void * buf,
+static ssize_t pipe_write (struct shim_handle * hdl, const void * buf,
                            size_t count)
 {
     if (!count)
         return 0;
 
-    uint64_t bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    size_t bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
 
     if (!bytes)
         return -PAL_ERRNO;
 
-    return (int64_t) bytes;
+    return (ssize_t) bytes;
 }
 
 static int pipe_hstat (struct shim_handle * hdl, struct stat * stat)
@@ -103,9 +103,9 @@ static int pipe_checkout (struct shim_handle * hdl)
     return 0;
 }
 
-static int pipe_poll (struct shim_handle * hdl, int poll_type)
+static off_t pipe_poll (struct shim_handle * hdl, int poll_type)
 {
-    int ret = 0;
+    off_t ret = 0;
 
     lock(&hdl->lock);
 

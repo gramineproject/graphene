@@ -46,10 +46,10 @@ struct shim_handle;
  */
 struct shim_vma_val {
     void *                  addr;
-    uint64_t                length;
+    size_t                  length;
     int                     prot;
     int                     flags;
-    uint64_t                offset;
+    off_t                   offset;
     struct shim_handle *    file;
     char                    comment[VMA_COMMENT_LEN];
 };
@@ -115,23 +115,20 @@ static inline PAL_FLG PAL_PROT (int prot, int flags)
 int init_vma (void);
 
 /* Bookkeeping mmap() system call */
-int bkeep_mmap (void * addr, uint64_t length,
-                int prot, int flags,
-                struct shim_handle * file, uint64_t offset,
-                const char * comment);
+int bkeep_mmap (void * addr, size_t length, int prot, int flags,
+                struct shim_handle * file, off_t offset, const char * comment);
 
 /* Bookkeeping munmap() system call */
-int bkeep_munmap (void * addr, uint64_t length, int flags);
+int bkeep_munmap (void * addr, size_t length, int flags);
 
 /* Bookkeeping mprotect() system call */
-int bkeep_mprotect (void * addr, uint64_t length, int prot, int flags);
+int bkeep_mprotect (void * addr, size_t length, int prot, int flags);
 
 /* Looking up VMA that contains [addr, length) */
 int lookup_vma (void * addr, struct shim_vma_val * vma);
 
 /* Looking up VMA that overlaps with [addr, length) */
-int lookup_overlap_vma (void * addr, uint64_t length,
-                        struct shim_vma_val * vma);
+int lookup_overlap_vma (void * addr, size_t length, struct shim_vma_val * vma);
 
 /* True if [addr, addr+length) is found in one VMA (valid memory region) */
 bool is_in_one_vma (void * addr, size_t length);
@@ -142,23 +139,20 @@ bool is_in_one_vma (void * addr, size_t length);
  *
  * Note: the first argument is "top_addr" because the search is top-down.
  */
-void * bkeep_unmapped (void * top_addr, void * bottom_addr, uint64_t length,
-                       int prot, int flags, struct shim_handle * file,
-                       uint64_t offset, const char * comment);
+void * bkeep_unmapped (void * top_addr, void * bottom_addr, size_t length, int prot, int flags,
+                       struct shim_handle * file, off_t offset, const char * comment);
 
 static inline void *
-bkeep_unmapped_any (uint64_t length, int prot, int flags,
-                    struct shim_handle * file, uint64_t offset,
-                    const char * comment)
+bkeep_unmapped_any (size_t length, int prot, int flags, struct shim_handle * file,
+                    off_t offset, const char * comment)
 {
     return bkeep_unmapped(PAL_CB(user_address.end),
                           PAL_CB(user_address.start),
                           length, prot, flags, file, offset, comment);
 }
 
-void * bkeep_unmapped_heap (uint64_t length, int prot, int flags,
-                            struct shim_handle * file, uint64_t offset,
-                            const char * comment);
+void * bkeep_unmapped_heap (size_t length, int prot, int flags, struct shim_handle * file,
+                            off_t offset, const char * comment);
 
 /*
  * Dumping all *non-internal* VMAs into a user-allocated buffer ("max_count" is

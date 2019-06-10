@@ -45,9 +45,9 @@ static int socket_close (struct shim_handle * hdl)
     return 0;
 }
 
-static int64_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
 {
-    int64_t bytes = 0;
+    ssize_t bytes = 0;
     struct shim_sock_handle * sock = &hdl->info.sock;
 
     if (!count)
@@ -74,7 +74,7 @@ static int64_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
 
     unlock(&hdl->lock);
 
-    bytes = (int64_t) DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
+    bytes = (ssize_t) DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
     if (!bytes)
         switch(PAL_NATIVE_ERRNO) {
@@ -92,7 +92,7 @@ static int64_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
     return bytes;
 }
 
-static int64_t socket_write (struct shim_handle * hdl, const void * buf, size_t count)
+static ssize_t socket_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     struct shim_sock_handle * sock = &hdl->info.sock;
 
@@ -120,7 +120,7 @@ static int64_t socket_write (struct shim_handle * hdl, const void * buf, size_t 
     if (!count)
         return 0;
 
-    int64_t bytes = (int64_t) DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    ssize_t bytes = (ssize_t) DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
 
     if (!bytes) {
         int err;
@@ -166,10 +166,10 @@ static int socket_checkout (struct shim_handle * hdl)
     return 0;
 }
 
-static int socket_poll (struct shim_handle * hdl, int poll_type)
+static off_t socket_poll (struct shim_handle * hdl, int poll_type)
 {
     struct shim_sock_handle * sock = &hdl->info.sock;
-    int ret = 0;
+    off_t ret = 0;
 
     lock(&hdl->lock);
 
@@ -235,7 +235,7 @@ static int socket_poll (struct shim_handle * hdl, int poll_type)
 
 out:
     if (ret < 0) {
-        debug("socket_poll failed (%d)\n", ret);
+        debug("socket_poll failed (%ld)\n", ret);
         sock->error = -ret;
     }
 

@@ -464,7 +464,7 @@ static int chroot_open (struct shim_handle * hdl, struct shim_dentry * dent,
         return ret;
 
     struct shim_file_handle * file = &hdl->info.file;
-    int size = atomic_read(&data->size);
+    size_t size = atomic_read(&data->size);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type       = TYPE_FILE;
@@ -494,7 +494,7 @@ static int chroot_creat (struct shim_handle * hdl, struct shim_dentry * dir,
         return 0;
 
     struct shim_file_handle * file = &hdl->info.file;
-    int size = atomic_read(&data->size);
+    size_t size = atomic_read(&data->size);
 
     /* initialize hdl, does not need a lock because no one is sharing */
     hdl->type       = TYPE_FILE;
@@ -617,7 +617,7 @@ static int chroot_flush (struct shim_handle * hdl)
     if (file->buf_type == FILEBUF_MAP) {
         lock(&hdl->lock);
         void * mapbuf = file->mapbuf;
-        int mapsize = file->mapsize;
+        size_t mapsize = file->mapsize;
         file->mapoffset = 0;
         file->mapbuf = NULL;
         unlock(&hdl->lock);
@@ -633,7 +633,7 @@ static int chroot_flush (struct shim_handle * hdl)
     return 0;
 }
 
-static inline int __map_buffer (struct shim_handle * hdl, int size)
+static inline int __map_buffer (struct shim_handle * hdl, size_t size)
 {
     struct shim_file_handle * file = &hdl->info.file;
 
@@ -652,9 +652,9 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     }
 
     /* second, reallocate the buffer */
-    uint64_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
-    uint64_t mapoff = file->marker & ~(bufsize - 1);
-    uint64_t maplen = bufsize;
+    size_t bufsize = file->mapsize ? : FILE_BUFMAP_SIZE;
+    off_t  mapoff = file->marker & ~(bufsize - 1);
+    size_t maplen = bufsize;
     int flags = MAP_FILE | MAP_PRIVATE | VMA_INTERNAL;
     int prot = PROT_READ;
 
@@ -689,20 +689,20 @@ static inline int __map_buffer (struct shim_handle * hdl, int size)
     return 0;
 }
 
-static int64_t map_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t map_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     struct shim_file_handle * file = &hdl->info.file;
-    int64_t ret = 0;
+    ssize_t ret = 0;
     lock(&hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    uint64_t size = atomic_read(&data->size);
+    off_t size = atomic_read(&data->size);
 
     if (check_version(hdl) &&
         file->size < size)
         file->size = size;
 
-    uint64_t marker = file->marker;
+    off_t marker = file->marker;
 
     if (marker >= file->size) {
         count = 0;
@@ -714,7 +714,7 @@ static int64_t map_read (struct shim_handle * hdl, void * buf, size_t count)
         return ret;
     }
 
-    if (marker + count > file->size)
+    if ((off_t) (marker + count) > file->size)
         count = file->size - marker;
 
     if (count) {
@@ -727,16 +727,16 @@ out:
     return count;
 }
 
-static int64_t map_write (struct shim_handle * hdl, const void * buf, size_t count)
+static ssize_t map_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
     struct shim_file_handle * file = &hdl->info.file;
-    int64_t ret = 0;
+    ssize_t ret = 0;
     lock(&hdl->lock);
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    uint64_t marker = file->marker;
+    off_t marker = file->marker;
 
-    if (file->marker + count > file->size) {
+    if ((off_t) (file->marker + count) > file->size) {
         file->size = file->marker + count;
 
         PAL_NUM pal_ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL);
@@ -751,13 +751,13 @@ static int64_t map_write (struct shim_handle * hdl, const void * buf, size_t cou
         }
 
         if (check_version(hdl)) {
-            uint64_t size;
+            off_t size;
             do {
                 if ((size = atomic_read(&data->size)) >= file->size) {
                     file->size = size;
                     break;
                 }
-            } while ((uint64_t) atomic_cmpxchg(&data->size, size, file->size) != size);
+            } while ((off_t) atomic_cmpxchg(&data->size, size, file->size) != size);
         }
 
         file->marker = marker + pal_ret;
@@ -780,9 +780,9 @@ out:
     return ret;
 }
 
-static int64_t chroot_read (struct shim_handle * hdl, void * buf, size_t count)
+static ssize_t chroot_read (struct shim_handle * hdl, void * buf, size_t count)
 {
-    int64_t ret = 0;
+    ssize_t ret = 0;
 
     if (count == 0)
         goto out;
@@ -809,7 +809,7 @@ static int64_t chroot_read (struct shim_handle * hdl, void * buf, size_t count)
         lock(&hdl->lock);
     }
 
-    ret = (int64_t) DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0) ? :
+    ret = (ssize_t) DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0) ? :
           (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO);
 
     if (ret > 0 && file->type != FILE_TTY)
@@ -820,9 +820,9 @@ out:
     return ret;
 }
 
-static int64_t chroot_write (struct shim_handle * hdl, const void * buf, size_t count)
+static ssize_t chroot_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
-    int64_t ret;
+    ssize_t ret;
 
     if (count == 0)
         return 0;
@@ -849,7 +849,7 @@ static int64_t chroot_write (struct shim_handle * hdl, const void * buf, size_t 
         lock(&hdl->lock);
     }
 
-    ret = (int64_t) DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL) ? :
+    ret = (ssize_t) DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL) ? :
           -PAL_ERRNO;
 
     if (ret > 0 && file->type != FILE_TTY)
@@ -886,7 +886,7 @@ static int chroot_mmap (struct shim_handle * hdl, void ** addr, size_t size,
     return 0;
 }
 
-static int chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
+static off_t chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
 {
     int ret = -EINVAL;
 
@@ -930,10 +930,9 @@ out:
     return ret;
 }
 
-static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
+static int chroot_truncate (struct shim_handle * hdl, off_t len)
 {
     int ret = 0;
-    uint64_t rv;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
@@ -950,7 +949,8 @@ static int chroot_truncate (struct shim_handle * hdl, uint64_t len)
         struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
         atomic_set(&data->size, len);
     }
-    rv = DkStreamSetLength(hdl->pal_handle, len);
+
+    PAL_NUM rv = DkStreamSetLength(hdl->pal_handle, len);
     if (rv) {
         // For an error, cast it back down to an int return code
         ret = -((int)rv);
@@ -1195,14 +1195,14 @@ static int chroot_unlink (struct shim_dentry * dir, struct shim_dentry * dent)
     return 0;
 }
 
-static int chroot_poll (struct shim_handle * hdl, int poll_type)
+static off_t chroot_poll (struct shim_handle * hdl, int poll_type)
 {
     int ret;
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
 
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
-    size_t size = atomic_read(&data->size);
+    off_t size = atomic_read(&data->size);
 
     if (poll_type == FS_POLL_SZ)
         return size;
@@ -1214,7 +1214,7 @@ static int chroot_poll (struct shim_handle * hdl, int poll_type)
         file->size < size)
         file->size = size;
 
-    uint64_t marker = file->marker;
+    off_t marker = file->marker;
 
     if (file->buf_type == FILEBUF_MAP) {
         ret = poll_type & FS_POLL_WR;
