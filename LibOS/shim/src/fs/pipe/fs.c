@@ -48,15 +48,16 @@
 static ssize_t pipe_read (struct shim_handle * hdl, void * buf,
                           size_t count)
 {
-    ssize_t rv = 0;
-
     if (!count)
-        goto out;
+        return 0;
 
-    rv = (ssize_t) DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0) ? :
-         -PAL_ERRNO;
-out:
-    return rv;
+    PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
+
+    if (!bytes)
+        return -PAL_ERRNO;
+
+    assert((ssize_t) bytes > 0);
+    return (ssize_t) bytes;
 }
 
 static ssize_t pipe_write (struct shim_handle * hdl, const void * buf,
@@ -65,11 +66,12 @@ static ssize_t pipe_write (struct shim_handle * hdl, const void * buf,
     if (!count)
         return 0;
 
-    size_t bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
 
     if (!bytes)
         return -PAL_ERRNO;
 
+    assert((ssize_t) bytes > 0);
     return (ssize_t) bytes;
 }
 
