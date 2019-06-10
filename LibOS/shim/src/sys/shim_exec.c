@@ -69,8 +69,6 @@ static elf_auxv_t *  new_auxp;
 
 int init_brk_from_executable (struct shim_handle * exec);
 
-#define REQUIRED_ELF_AUXV       6
-
 int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
                          const char ** envp)
 {
