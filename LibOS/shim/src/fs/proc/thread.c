@@ -235,7 +235,7 @@ static int parse_thread_fd (const char * name, const char ** rest,
         return -EINVAL;
 
     const char * p = nextnext;
-    IDTYPE fd = 0;
+    FDTYPE fd = 0;
 
     for ( ; *p && *p != '/' ; p++) {
         if (*p < '0' || *p > '9')
