@@ -760,8 +760,9 @@ static ssize_t map_write (struct shim_handle * hdl, const void * buf, size_t cou
             } while ((off_t) atomic_cmpxchg(&data->size, size, file->size) != size);
         }
 
+        assert(marker + pal_ret > 0 && (ssize_t) pal_ret > 0);
         file->marker = marker + pal_ret;
-        ret = pal_ret;
+        ret = (ssize_t) pal_ret;
         goto out;
     }
 
@@ -910,7 +911,7 @@ static int chroot_mmap (struct shim_handle * hdl, void ** addr, size_t size,
 
 static off_t chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
 {
-    int ret = -EINVAL;
+    off_t ret = -EINVAL;
 
     if (NEED_RECREATE(hdl) && (ret = chroot_recreate(hdl)) < 0)
         return ret;
@@ -918,8 +919,8 @@ static off_t chroot_seek (struct shim_handle * hdl, off_t offset, int wence)
     struct shim_file_handle * file = &hdl->info.file;
     lock(&hdl->lock);
 
-    int marker = file->marker;
-    int size = file->size;
+    off_t marker = file->marker;
+    off_t size = file->size;
 
     if (check_version(hdl)) {
         struct shim_file_data * data = FILE_HANDLE_DATA(hdl);

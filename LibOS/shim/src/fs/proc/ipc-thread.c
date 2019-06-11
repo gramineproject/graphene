@@ -231,7 +231,7 @@ static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
 
     if (pid_status_cache)
         for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
-            if (pid_status_cache->status[i].pid == (IDTYPE) pid) {
+            if (pid_status_cache->status[i].pid == pid) {
                 unlock(&status_lock);
                 *mode = 0500;
                 return 0;
@@ -255,7 +255,7 @@ static int proc_ipc_thread_dir_stat (const char * name, struct stat * buf)
 
     if (pid_status_cache)
         for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
-            if (pid_status_cache->status[i].pid == (IDTYPE) pid) {
+            if (pid_status_cache->status[i].pid == pid) {
                 memset(buf, 0, sizeof(struct stat));
                 buf->st_dev = buf->st_ino = 1;
                 buf->st_mode = 0500|S_IFDIR;

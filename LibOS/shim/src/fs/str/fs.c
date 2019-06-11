@@ -92,7 +92,7 @@ int str_close (struct shim_handle * hdl)
 
 ssize_t str_read (struct shim_handle * hdl, void * buf, size_t count)
 {
-    int64_t ret = 0;
+    ssize_t ret = 0;
 
     if (!(hdl->acc_mode && MAY_READ)) {
         ret = -EACCES;

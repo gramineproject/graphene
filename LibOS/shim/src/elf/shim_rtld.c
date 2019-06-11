@@ -650,11 +650,9 @@ postmap:
                 if (type != OBJECT_MAPPED &&
                     type != OBJECT_INTERNAL &&
                     type != OBJECT_USER) {
-                    int64_t mapat = (int64_t)
-                        DkVirtualMemoryAlloc((void *)zeropage,
-                                             zeroend - zeropage,
-                                             0, c->prot);
-                    if (__builtin_expect (mapat < 0, 0)) {
+                    PAL_PTR mapat = DkVirtualMemoryAlloc((void *)zeropage, zeroend - zeropage,
+                                                         0, c->prot);
+                    if (__builtin_expect (!mapat, 0)) {
                         errstring = "cannot map zero-fill pages";
                         goto call_lose;
                     }
