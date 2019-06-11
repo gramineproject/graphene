@@ -120,7 +120,7 @@ static ssize_t socket_write (struct shim_handle * hdl, const void * buf, size_t 
     if (!count)
         return 0;
 
-    PAL_NUM bytes = (ssize_t) DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
 
     if (!bytes) {
         int err;
