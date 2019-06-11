@@ -43,6 +43,7 @@
 static int thread_add_subrange (struct shim_thread * thread, void * arg,
                                 bool * unlocked)
 {
+    __UNUSED(unlocked); // Kept for API compatibility - used by some callbacks
     if (!thread->in_vm)
         return 0;
 
@@ -63,7 +64,7 @@ int init_ns_pid (void)
     if ((ret = create_ipc_location(&info)) < 0)
         return ret;
 
-    walk_thread_list(&thread_add_subrange, info, false);
+    walk_thread_list(&thread_add_subrange, info);
     return 0;
 }
 
@@ -210,6 +211,7 @@ int ipc_pid_getstatus_callback (IPC_CALLBACK_ARGS)
     int check_thread (struct shim_thread * thread, void * arg,
                       bool * unlocked)
     {
+        __UNUSED(unlocked); // Kept for API compatibility
         struct thread_status * status = (struct thread_status *) arg;
 
         for (int i = 0 ; i < status->npids ; i++)
@@ -231,7 +233,7 @@ int ipc_pid_getstatus_callback (IPC_CALLBACK_ARGS)
     status.nstatus = 0;
     status.status = __alloca(sizeof(struct pid_status) * msgin->npids);
 
-    ret = walk_thread_list(&check_thread, &status, false);
+    ret = walk_thread_list(&check_thread, &status);
     if (ret < 0 && ret != -ESRCH)
         goto out;
 
@@ -789,6 +791,7 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
 
 int ipc_pid_sendrpc_callback (IPC_CALLBACK_ARGS)
 {
+    __UNUSED(port); // API compatibility
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_pid_sendrpc * msgin =

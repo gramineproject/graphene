@@ -739,6 +739,7 @@ static inline void init_namespace (void)
 static void ipc_leader_exit (struct shim_ipc_port * port, IDTYPE vmid,
                              unsigned int exitcode)
 {
+    __UNUSED(exitcode); // Kept for API compatibility
     lock(&cur_process.lock);
 
     if (!NS_LEADER || NS_LEADER->port != port) {
@@ -1315,61 +1316,6 @@ int NS_CALLBACK(renew) (IPC_CALLBACK_ARGS)
 
 out:
     SAVE_PROFILE_INTERVAL(NS_CALLBACK(renew));
-    return ret;
-}
-
-DEFINE_PROFILE_INTERVAL(NS_SEND(revoke), ipc);
-DEFINE_PROFILE_INTERVAL(NS_CALLBACK(revoke), ipc);
-
-int NS_SEND(revoke) (IDTYPE base, IDTYPE size)
-{
-    BEGIN_PROFILE_INTERVAL();
-    IDTYPE leader;
-    struct shim_ipc_port * port = NULL;
-    int ret = 0;
-
-    if ((ret = connect_ns(&leader, &port)) < 0)
-        goto out;
-
-    struct shim_ipc_msg * msg =
-            create_ipc_msg_on_stack(NS_CODE(REVOKE),
-                                    sizeof(NS_MSG_TYPE(revoke)), leader);
-    NS_MSG_TYPE(revoke) * msgin = (void *) &msg->msg;
-    msgin->base = base;
-    msgin->size = size;
-
-    debug("ipc send to %u: " NS_CODE_STR(REVOKE) "(%u, %u)\n",
-          leader, base, size);
-
-    ret = send_ipc_message(msg, port);
-    put_ipc_port(port);
-out:
-    SAVE_PROFILE_INTERVAL(NS_SEND(revoke));
-    return ret;
-}
-
-int NS_CALLBACK(revoke) (IPC_CALLBACK_ARGS)
-{
-    BEGIN_PROFILE_INTERVAL();
-    NS_MSG_TYPE(revoke) * msgin = (void *) &msg->msg;
-    int ret = 0;
-
-    debug("ipc callback from %u: " NS_CODE_STR(REVOKE) "(%u, %u)\n",
-           msg->src, msgin->base, msgin->size);
-
-    switch (msgin->size) {
-        case RANGE_SIZE:
-            ret = CONCAT3(del, NS, range)(msgin->base);
-            break;
-        case 1:
-            ret = CONCAT3(del, NS, subrange)(msgin->size);
-            break;
-        default:
-            ret = -EINVAL;
-            break;
-    }
-
-    SAVE_PROFILE_INTERVAL(NS_CALLBACK(revoke));
     return ret;
 }
 
