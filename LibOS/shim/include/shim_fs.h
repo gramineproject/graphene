@@ -102,7 +102,7 @@ struct shim_fs_ops {
     off_t (*poll) (struct shim_handle * hdl, int poll_type);
 
     /* checkpoint/migrate the filesystem */
-    int (*checkpoint) (void ** checkpoint, void * mount_data);
+    ssize_t (*checkpoint) (void ** checkpoint, void * mount_data);
     int (*migrate) (void * checkpoint, void ** mount_data);
 };
 

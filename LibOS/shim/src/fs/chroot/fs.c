@@ -1161,7 +1161,7 @@ static int chroot_checkout (struct shim_handle * hdl)
     return 0;
 }
 
-static int chroot_checkpoint (void ** checkpoint, void * mount_data)
+static ssize_t chroot_checkpoint (void ** checkpoint, void * mount_data)
 {
     struct mount_data * mdata = mount_data;
 
@@ -1172,9 +1172,7 @@ static int chroot_checkpoint (void ** checkpoint, void * mount_data)
 static int chroot_migrate (void * checkpoint, void ** mount_data)
 {
     struct mount_data * mdata = checkpoint;
-
-    int alloc_len = mdata->root_uri_len +
-                    sizeof(struct mount_data) + 1;
+    size_t alloc_len = mdata->root_uri_len + sizeof(struct mount_data) + 1;
 
     void * new_data = malloc(alloc_len);
     if (!new_data)
