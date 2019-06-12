@@ -992,16 +992,32 @@ int lookup_overlap_vma (void * addr, size_t length, struct shim_vma_val * res)
     return 0;
 }
 
-bool is_in_one_vma (void * addr, size_t length)
+bool is_in_adjacent_vmas (void * addr, size_t length)
 {
     struct shim_vma* vma;
-
+    struct shim_vma* prev = NULL;
     lock(&vma_list_lock);
-    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list)
-        if (test_vma_contain(vma, addr, addr + length)) {
-            unlock(&vma_list_lock);
-            return true;
+
+    /* we rely on the fact that VMAs are sorted (for adjacent VMAs) */
+    assert_vma_list();
+
+    LISTP_FOR_EACH_ENTRY(vma, &vma_list, list) {
+        if (addr >= vma->start && addr < vma->end) {
+            assert(prev == NULL);
+            prev = vma;
         }
+        if (prev) {
+            if (prev != vma && prev->end != vma->start) {
+                /* prev and current VMAs are not adjacent */
+                break;
+            }
+            if ((addr + length) > vma->start && (addr + length) <= vma->end) {
+                unlock(&vma_list_lock);
+                return true;
+            }
+            prev = vma;
+        }
+    }
 
     unlock(&vma_list_lock);
     return false;

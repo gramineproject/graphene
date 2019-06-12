@@ -348,7 +348,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
 
     /* SGX path: check if [addr, addr+size) is addressable (in some VMA) */
     if (is_sgx_pal())
-        return !is_in_one_vma(addr, size);
+        return !is_in_adjacent_vmas(addr, size);
 
     /* Non-SGX path: check if [addr, addr+size) is addressable by touching
      * a byte of each page; invalid access will be caught in memfault_upcall */
@@ -406,7 +406,7 @@ bool test_user_string (const char * addr)
         do {
             maxlen = next - addr;
 
-            if (!access_ok(addr, maxlen) || !is_in_one_vma((void*) addr, maxlen))
+            if (!access_ok(addr, maxlen) || !is_in_adjacent_vmas((void*) addr, maxlen))
                 return true;
 
             size = strnlen(addr, maxlen);
