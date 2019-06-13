@@ -814,13 +814,10 @@ noreturn static void shim_ipc_helper_end(struct shim_thread * self)
     if (self->handle_map)
         put_handle_map(self->handle_map);
 
-    /*
-     * Another thread may be calling shim_clean(). Lower the chances of our
-     * IPC helper thread and another thread competing on
-     * shim_clean/shim_terminate (which is benign due to protection via
-     * ipc_helper_lock) by adding a barrier to ensure reading the latest IPC
-     * helper state.
-     */
+    /* Another thread may be calling shim_clean(). Lower the chances of our
+     * IPC helper thread and another thread competing on shim_clean/shim_terminate
+     * (which is benign due to protection via ipc_helper_lock) by adding a barrier
+     * to ensure reading the latest IPC helper state. */
     COMPILER_BARRIER();
     if (ipc_helper_state == HELPER_HANDEDOVER) {
         debug("ipc helper thread is the last thread, process exiting\n");
