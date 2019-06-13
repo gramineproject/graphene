@@ -7,7 +7,8 @@ loader = sys.argv[1]
 regression = Regression(loader, "getcwd")
 
 regression.add_check(name="Getcwd syscall",
-    check=lambda res: "getcwd succeeded: /" in res[0].out)
+    check=lambda res: "[bss_cwd_buf] getcwd succeeded: /" in res[0].out and \
+                      "[mmapped_cwd_buf] getcwd succeeded: /" in res[0].out)
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
