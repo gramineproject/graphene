@@ -26,6 +26,8 @@
 #include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_thread.h>
+#include <shim_ipc.h>
+#include <shim_checkpoint.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -87,61 +89,59 @@ int shim_do_setgid (gid_t gid)
     return 0;
 }
 
-int shim_do_setgroups (int gidsetsize, gid_t * grouplist)
-{
-    struct shim_thread * cur = get_cur_thread();
-    struct groups_info * groups;
-    int i;
+/* shim_do_set{get}groups() do not propagate group info to host OS but rather are dummies */
+#define NGROUPS_MAX 65536  /* # of supplemental group IDs; has to be same as host OS */
 
-    if (gidsetsize > NGROUPS_MAX)
+static struct groups_info_t {
+    int size;
+    gid_t spl_gid[NGROUPS_MAX];
+} g_groups_info __attribute_migratable = { .size = -1 };
+
+int shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
+    if ((unsigned)gidsetsize > NGROUPS_MAX)
         return -EINVAL;
 
-    groups = calloc(1, sizeof(struct groups_info));
-    if (!groups)
-        return -ENOMEM;
+    if (gidsetsize && test_user_memory(grouplist, gidsetsize * sizeof(gid_t), true))
+        return -EFAULT;
 
-    groups->size = gidsetsize;
-
-    for (i = 0; i < gidsetsize; i++) {
-        if (!grouplist[i]) {
-            free(groups);
-            return -EINVAL;
-        }
-        groups->spl_gid[i] = grouplist[i];
-    }
-
-    lock(&cur->lock);
-    memcpy(cur->groups, groups, sizeof(struct groups_info));
-    unlock(&cur->lock);
-
-    free(groups);
+    lock(&cur_process.lock);
+    g_groups_info.size = gidsetsize;
+    for (int i = 0; i < gidsetsize; i++)
+        g_groups_info.spl_gid[i] = grouplist[i];
+    unlock(&cur_process.lock);
 
     return 0;
 }
 
-int shim_do_getgroups (int gidsetsize, gid_t * grouplist)
-{
-    struct shim_thread * cur = get_cur_thread();
-    int cur_groups_size, i;
+int shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
+    int cur_groups_size;
 
     if (gidsetsize < 0)
         return -EINVAL;
 
-    lock(&cur->lock);
-    if (cur->groups) {
-        cur_groups_size = cur->groups->size;
-        if (gidsetsize) {
-            if (cur_groups_size > gidsetsize) {
-                unlock(&cur->lock);
-                return -EINVAL;
-            }
+    if (gidsetsize && test_user_memory(grouplist, gidsetsize * sizeof(gid_t), true))
+        return -EFAULT;
 
-            for (i = 0; i < cur_groups_size; i++)
-                grouplist[i] = cur->groups->spl_gid[i];
-        }
+    lock(&cur_process.lock);
+
+    if (g_groups_info.size == -1) {
+        /* initialize with getgid() */
+        g_groups_info.size = 1;
+        g_groups_info.spl_gid[0] = shim_do_getgid();
     }
-    unlock(&cur->lock);
 
+    cur_groups_size = g_groups_info.size;
+    if (gidsetsize) {
+        if (cur_groups_size > gidsetsize) {
+            unlock(&cur_process.lock);
+            return -EINVAL;
+        }
+
+        for (int i = 0; i < cur_groups_size; i++)
+            grouplist[i] = g_groups_info.spl_gid[i];
+    }
+
+    unlock(&cur_process.lock);
     return cur_groups_size;
 }
 

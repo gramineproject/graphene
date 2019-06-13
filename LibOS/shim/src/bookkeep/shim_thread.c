@@ -237,7 +237,6 @@ struct shim_thread * get_new_thread (IDTYPE new_tid)
 
     thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
                                  NUM_SIGS);
-    thread->groups = malloc(sizeof(struct groups_info));
     thread->vmid = cur_process.vmid;
     create_lock(&thread->lock);
     thread->scheduler_event = DkNotificationEventCreate(PAL_TRUE);
@@ -341,9 +340,6 @@ void put_thread (struct shim_thread * thread)
             DkObjectClose(thread->exit_event);
         if (thread->child_exit_event)
             DkObjectClose(thread->child_exit_event);
-        if (thread->groups) {
-            free(thread->groups);
-        }
         destroy_lock(&thread->lock);
 
         free(thread->signal_logs);
@@ -629,7 +625,6 @@ BEGIN_CP_FUNC(thread)
         new_thread->cwd    = NULL;
         new_thread->signal_logs = NULL;
         new_thread->robust_list = NULL;
-        new_thread->groups = NULL;
         REF_SET(new_thread->ref_count, 0);
 
         for (int i = 0 ; i < NUM_SIGS ; i++)
@@ -752,7 +747,6 @@ BEGIN_RS_FUNC(running_thread)
 
     thread->signal_logs = malloc(sizeof(struct shim_signal_log) *
                                  NUM_SIGS);
-    thread->groups = malloc(sizeof(struct groups_info));
 
     if (cur_thread) {
         PAL_HANDLE handle = DkThreadCreate(resume_wrapper, thread);
