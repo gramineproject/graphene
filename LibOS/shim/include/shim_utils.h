@@ -242,7 +242,6 @@ int init_async (void);
 int64_t install_async_event (PAL_HANDLE object, unsigned long time,
                               void (*callback) (IDTYPE caller, void * arg),
                               void * arg);
-int create_async_helper (void);
 struct shim_thread * terminate_async_helper (void);
 
 extern struct config_store * root_config;

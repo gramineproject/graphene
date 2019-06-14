@@ -43,8 +43,12 @@ void signal_alarm (IDTYPE target, void * arg)
 int shim_do_alarm (unsigned int seconds)
 {
     uint64_t usecs = 1000000ULL * seconds;
-    uint64_t usecs_left = install_async_event(NULL, usecs, &signal_alarm, NULL);
-    // Alarm expects the number of seconds remaining.  Round up.
+
+    int64_t ret = install_async_event(NULL, usecs, &signal_alarm, NULL);
+    if (ret < 0)
+        return ret;
+
+    uint64_t usecs_left = (uint64_t) ret;
     int secs = usecs_left / 1000000ULL;
     if (usecs_left % 1000000ULL) secs++;
     return secs;
