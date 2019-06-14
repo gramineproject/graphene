@@ -107,6 +107,7 @@ int64_t install_async_event(PAL_HANDLE object, uint64_t time,
             /* This is alarm(0), we cancelled all pending alarms/timers
              * and user doesn't want to set a new alarm: we are done. */
             free(event);
+            unlock(async_helper_lock);
             return max_prev_expire_time - now;
         }
     }
