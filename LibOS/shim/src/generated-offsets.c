@@ -16,5 +16,10 @@ void dummy(void)
 
     /* definitions */
     DEFINE(RED_ZONE_SIZE, RED_ZONE_SIZE);
+
+#ifdef ENABLE_STACK_PROTECTOR
+    /* stack protector*/
+    OFFSET_T(STACK_PROTECTOR_CANARY, __libc_tcb_t, shim_tcb.stack_protector_canary);
+#endif
 }
 

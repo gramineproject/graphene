@@ -34,7 +34,11 @@ shim_start:
     # Required by System V AMD64 ABI.
     andq  $~0xF, %rsp
 
+#ifdef ENABLE_STACK_PROTECTOR
+    callq *__shim_init@GOTPCREL(%rip)
+#else
     callq *shim_init@GOTPCREL(%rip)
+#endif
 
     # TODO: Call initial %rdi to execute atexit callbacks.
     .cfi_endproc

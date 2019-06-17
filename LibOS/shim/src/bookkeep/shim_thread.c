@@ -765,12 +765,15 @@ BEGIN_RS_FUNC(running_thread)
         thread->pal_handle = handle;
     } else {
         __libc_tcb_t * libc_tcb = thread->tcb;
+#ifdef ENABLE_STACK_PROTECTOR
+        uint64_t stack_protector_canary = shim_libc_tcb()->shim_tcb.stack_protector_canary;
+#endif
 
         if (libc_tcb) {
             shim_tcb_t * tcb = &libc_tcb->shim_tcb;
             assert(tcb->context.regs && tcb->context.regs->rsp);
             tcb->debug_buf = shim_get_tls()->debug_buf;
-            allocate_tls(libc_tcb, thread->user_tcb, thread);
+            __allocate_tls(libc_tcb, thread->user_tcb, thread);
             /* Temporarily disable preemption until the thread resumes. */
             __disable_preempt(tcb);
             debug_setprefix(tcb);
@@ -785,12 +788,15 @@ BEGIN_RS_FUNC(running_thread)
              * user_tcb = false
              * in_vm = false
              */
-            init_tcb(&shim_libc_tcb()->shim_tcb);
+            __init_tcb(&shim_libc_tcb()->shim_tcb);
             set_cur_thread(thread);
         }
 
         thread->in_vm = thread->is_alive = true;
         thread->pal_handle = PAL_CB(first_thread);
+#ifdef ENABLE_STACK_PROTECTOR
+        shim_libc_tcb()->shim_tcb.stack_protector_canary = stack_protector_canary;
+#endif
     }
 
     DEBUG_RS("tid=%d", thread->tid);

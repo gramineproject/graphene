@@ -142,6 +142,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
     return shim_stdio;
 }
 
+noreturn void* shim_init (int argc, void * args);
 noreturn void shim_terminate (int err);
 
 /* assertions */

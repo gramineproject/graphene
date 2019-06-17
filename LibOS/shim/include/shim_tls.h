@@ -54,6 +54,10 @@ struct debug_buf;
 typedef struct shim_tcb shim_tcb_t;
 struct shim_tcb {
     uint64_t                canary;
+#ifdef ENABLE_STACK_PROTECTOR
+#define STACK_PROTECTOR_CANARY_DEFAULT  0xbadbadbadbadUL
+    uint64_t                stack_protector_canary;
+#endif
     shim_tcb_t *            self;
     struct shim_thread *    tp;
     struct shim_context     context;
@@ -94,7 +98,15 @@ struct __libc_tcb_t
 
 #include <stddef.h>
 
+void __init_tcb (shim_tcb_t * tcb);
+#ifdef ENABLE_STACK_PROTECTOR
 void init_tcb (shim_tcb_t * tcb);
+#else
+static inline void init_tcb (shim_tcb_t * tcb)
+{
+    __init_tcb(tcb);
+}
+#endif
 
 static inline bool shim_tls_check_canary(void)
 {

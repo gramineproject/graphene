@@ -71,9 +71,14 @@ void warn (const char *format, ...)
 }
 
 
-void __stack_chk_fail (void)
+#ifdef ENABLE_STACK_PROTECTOR
+noreturn void __stack_chk_fail (void)
 {
+    __SYS_PRINTF("stack protector: libos stack is corrupted in %p",
+                 __builtin_return_address(0));
+    __abort();
 }
+#endif
 
 static int pal_errno_to_unix_errno [PAL_ERROR_BOUND + 1] = {
         /* reserved                 */  0,
@@ -183,7 +188,7 @@ char ** library_paths = NULL;
 struct shim_lock __master_lock;
 bool lock_enabled;
 
-void init_tcb (shim_tcb_t * tcb)
+void __init_tcb (shim_tcb_t * tcb)
 {
     tcb->canary = SHIM_TLS_CANARY;
     tcb->self = tcb;
@@ -193,6 +198,9 @@ void copy_tcb (shim_tcb_t * new_tcb, const shim_tcb_t * old_tcb)
 {
     memset(new_tcb, 0, sizeof(shim_tcb_t));
     new_tcb->canary = SHIM_TLS_CANARY;
+#ifdef ENABLE_STACK_PROTECTOR
+    new_tcb->stack_protector_canary = old_tcb->stack_protector_canary;
+#endif
     new_tcb->self = new_tcb;
     new_tcb->tp   = old_tcb->tp;
     memcpy(&new_tcb->context, &old_tcb->context, sizeof(struct shim_context));
@@ -201,11 +209,11 @@ void copy_tcb (shim_tcb_t * new_tcb, const shim_tcb_t * old_tcb)
 }
 
 /* This function is used to allocate tls before interpreter start running */
-void allocate_tls (__libc_tcb_t * tcb, bool user, struct shim_thread * thread)
+void __allocate_tls (__libc_tcb_t * tcb, bool user, struct shim_thread * thread)
 {
     assert(tcb);
     tcb->tcb = tcb;
-    init_tcb(&tcb->shim_tcb);
+    __init_tcb(&tcb->shim_tcb);
 
     if (thread) {
         thread->tcb       = tcb;

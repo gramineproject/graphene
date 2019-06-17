@@ -109,3 +109,10 @@ quiet_cmd_ld = [ $@ ]
 # OBJCOPY
 quiet_cmd_objcopy = [ $@ ]
       cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS-$@) $< $@
+
+# stack protector
+quiet_cmd_makefile_stack_protector = [ $@ ]
+      cmd_makefile_stack_protector = \
+        (set -e; \
+         awk '/\#define STACK_PROTECTOR_CANARY/{print "CONFIG_STACK_PROTECTOR_GUARD_OFFSET="$$3}' $^; \
+         ) > $@
