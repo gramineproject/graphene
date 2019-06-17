@@ -3,7 +3,7 @@ HOST_DIR = host/$(PAL_HOST)
 SEC_DIR = security/$(PAL_HOST)
 
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
-	  -fno-stack-protector -fno-builtin
+	  -fno-builtin
 
 EXTRAFLAGS = -Wextra $(call cc-option,-Wnull-dereference)
 

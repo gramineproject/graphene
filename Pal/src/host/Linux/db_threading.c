@@ -42,41 +42,6 @@
 #include <asm/prctl.h>
 #endif
 
-/*
- * pal_thread_init(): An initialization wrapper of a newly-created thread (including
- * the first thread). This function accepts a TCB pointer to be set to the GS register
- * of the thread. The rest of the TCB is used as the alternative stack for signal
- * handling.
- */
-int pal_thread_init (void * tcbptr)
-{
-    PAL_TCB * tcb = tcbptr;
-    int ret;
-
-    ret = INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, tcb);
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    if (tcb->alt_stack) {
-        // Align stack to 16 bytes
-        void * alt_stack_top = (void *) ((uint64_t) tcb & ~15);
-        assert(alt_stack_top > tcb->alt_stack);
-        stack_t ss;
-        ss.ss_sp    = alt_stack_top;
-        ss.ss_flags = 0;
-        ss.ss_size  = alt_stack_top - tcb->alt_stack;
-
-        ret = INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
-        if (IS_ERR(ret))
-            return -ERRNO(ret);
-    }
-
-    if (tcb->callback)
-        return (*tcb->callback) (tcb->param);
-
-    return 0;
-}
-
 /* _DkThreadCreate for internal use. Create an internal thread
    inside the current process. The arguments callback and param
    specify the starting function and parameters */
@@ -105,6 +70,13 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     tcb->alt_stack = child_stack; // Stack bottom
     tcb->callback  = callback;
     tcb->param     = (void *) param;
+#ifdef ENABLE_STACK_PROTECTOR
+    uint64_t canary;
+    ret = _DkRandomBitsRead(&canary, sizeof(canary));
+    if (ret < 0)
+        canary = STACK_PROTECTOR_CANARY_DEFAULT;
+    tcb->stack_protector_canary = canary;
+#endif
 
     /* align child_stack to 16 */
     child_stack = ALIGN_DOWN_PTR(child_stack, 16);

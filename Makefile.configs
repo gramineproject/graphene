@@ -11,3 +11,6 @@ ifeq ($(origin LD),default)
 LD	= ld
 endif
 OBJCOPY ?= objcopy
+
+CONFIG_PAL_STACK_PROTECTOR = n
+# CONFIG_PAL_STACK_PROTECTOR = y

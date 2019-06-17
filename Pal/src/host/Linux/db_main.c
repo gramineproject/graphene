@@ -37,6 +37,7 @@
 #include <elf/elf.h>
 #include <sysdeps/generic/ldsodefs.h>
 
+#ifndef ENABLE_STACK_PROTECTOR
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
    messed up by function calls */
@@ -45,6 +46,7 @@ __asm__ (".global pal_start \n"
      "pal_start: \n"
      "  movq %rsp, %rdi \n"
      "  call pal_linux_main \n");
+#endif
 
 #define RTLD_BOOTSTRAP
 
@@ -245,6 +247,9 @@ void pal_linux_main (void * args)
     tcb->alt_stack = alt_stack; // Stack bottom
     tcb->callback  = NULL;
     tcb->param     = NULL;
+#if ENABLE_STACK_PROTECTOR
+    tcb->stack_protector_canary = STACK_PROTECTOR_CANARY_DEFAULT;
+#endif
     pal_thread_init(tcb);
 
     setup_pal_map(&pal_map);

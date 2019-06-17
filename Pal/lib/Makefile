@@ -12,6 +12,11 @@ include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src
 
+# TODO: enable stack protector pal/lib. security/Linux/libpal_sec.so is blocker.
+# Makefile.am overwrites CFLAGS. defining CFLAGS before Makefile.am
+# may not have effects.
+CFLAGS += -fno-stack-protector
+
 # Include host_endian.h from either the host-specific directory,
 # or directly under the target directory.
 ifeq ($(target),)
