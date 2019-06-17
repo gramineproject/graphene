@@ -42,7 +42,7 @@
  *
  *  Returns 0 on success, negative value on failure (e.g., -PAL_ERROR_TRYAGAIN)
  */
-static int _DkObjectWaitOne(PAL_HANDLE handle, int64_t timeout) {
+static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
     int writeable_fd = -1;
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
@@ -144,7 +144,7 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, int64_t timeout) {
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout, PAL_HANDLE* polled) {
+int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, PAL_NUM timeout, PAL_HANDLE* polled) {
     int writeable_fd = -1;
     if (count <= 0)
         return 0;
