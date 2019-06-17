@@ -1,5 +1,4 @@
-CC	= gcc
-LD	= ld
+include ../../../../Makefile.configs
 
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -Wall -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin \

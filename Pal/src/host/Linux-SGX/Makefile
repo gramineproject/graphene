@@ -1,3 +1,4 @@
+include ../../../../Makefile.configs
 include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -Isgx-driver

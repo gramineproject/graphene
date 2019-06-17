@@ -1,11 +1,7 @@
 RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
+include ../../../Makefile.configs
 include ../../../Pal/src/Makefile.Host
-
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
-LD	= ld
 
 OMIT_FRAME_POINTER = no
 

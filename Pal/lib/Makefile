@@ -1,8 +1,6 @@
+include ../../Makefile.configs
 include ../../Makefile.rules
 include ../src/Makefile.Host
-
-CC	= gcc
-AR	= ar rcs
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  $(call cc-option,-Wnull-dereference) \
