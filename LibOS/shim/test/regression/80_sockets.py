@@ -15,7 +15,7 @@ if rv: sys.exit(rv)
 # Run epoll_socket
 try:
     pid = os.fork()
-except OSError, e:
+except OSError:
     ## some debug output
     sys.exit(1)
 if pid == 0:
@@ -30,7 +30,7 @@ regression = Regression(loader, "epoll_socket", None)
 
 regression.add_check(name="Epoll on a writeable socket",
                      args = ['8001'],
-                     check=lambda res: "Accepted connection" in res[0].out and 
+                     check=lambda res: "Accepted connection" in res[0].out and
                      "socket is writable" in res[0].out)
 
 rv = regression.run_checks()
