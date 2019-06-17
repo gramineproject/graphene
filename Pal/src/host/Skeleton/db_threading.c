@@ -49,9 +49,12 @@ void _DkThreadYieldExecution (void)
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-void _DkThreadExit (void)
+noreturn void _DkThreadExit (void)
 {
     /* need to be implemented */
+    while (true) {
+        /* nothing */
+    }
 }
 
 int _DkThreadResume (PAL_HANDLE threadHandle)

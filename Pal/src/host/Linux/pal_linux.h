@@ -192,6 +192,7 @@ typedef struct pal_tcb {
     void *            param;
 } PAL_TCB;
 
+noreturn void pal_linux_main (void * args);
 int pal_thread_init (void * tcbptr);
 
 static inline PAL_TCB * get_tcb (void)
