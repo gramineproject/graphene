@@ -32,6 +32,15 @@
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
 
+#ifdef ENABLE_STACK_PROTECTOR
+void __stack_chk_fail(void)
+{
+    printf("stack protector: Pal stack is corrupted in %p\n",
+           __builtin_return_address(0));
+    _DkThreadExit();
+}
+#endif
+
 PAL_CONTROL __pal_control;
 
 PAL_CONTROL * pal_control_addr (void)

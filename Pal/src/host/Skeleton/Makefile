@@ -23,6 +23,10 @@ CFLAGS += -DDEBUG
 export DEBUG
 endif
 
+ifeq ($(CONFIG_PAL_STACK_PROTECTOR),y)
+$(error CONFIG_PAL_STACK_PROTECTOR is not supported)
+endif
+
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
 

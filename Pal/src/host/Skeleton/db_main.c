@@ -28,10 +28,6 @@
 #include "pal_error.h"
 #include "api.h"
 
-void __stack_chk_fail(void)
-{
-}
-
 /* must implement "pal_start", and call "pal_main" inside */
 void pal_start (void);
 

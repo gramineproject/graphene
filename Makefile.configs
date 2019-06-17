@@ -10,3 +10,6 @@ endif
 ifeq ($(origin LD),default)
 LD	= ld
 endif
+
+CONFIG_PAL_STACK_PROTECTOR = n
+# CONFIG_PAL_STACK_PROTECTOR = y

@@ -186,6 +186,10 @@ struct event_queue {
 DEFINE_LISTP(event_queue);
 typedef struct pal_tcb {
     struct pal_tcb *  self;
+#ifdef ENABLE_STACK_PROTECTOR
+#define STACK_PROTECTOR_CANARY_DEFAULT  0x2bad2bad2bad2badUL
+    uint64_t          stack_protector_canary;
+#endif
     int               pending_event;
     LISTP_TYPE(event_queue) pending_queue;
     PAL_HANDLE        handle;

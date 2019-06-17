@@ -56,6 +56,27 @@ CFLAGS += -DDEBUG
 endif
 export DEBUG
 
+
+$(HOST_DIR)/asm-offsets.h:
+	$(MAKE) -C $(HOST_DIR) $(notdir $@)
+
+$(HOST_DIR)/.Makefile.stack-protector: $(HOST_DIR)/asm-offsets.h
+	$(call cmd,makefile_stack_protector)
+
+ifeq ($(CONFIG_PAL_STACK_PROTECTOR),y)
+include $(HOST_DIR)/.Makefile.stack-protector
+$(addsuffix .o,$(objs)): $(HOST_DIR)/.Makefile.stack-protector
+ASFLAGS += -DENABLE_STACK_PROTECTOR=1
+CFLAGS += -DENABLE_STACK_PROTECTOR=1
+ifneq ($(CONFIG_STACK_PROTECTOR_GUARD_OFFSET),)
+CFLAGS += -mstack-protector-guard-offset=$(CONFIG_STACK_PROTECTOR_GUARD_OFFSET)
+endif
+CFLAGS += -mstack-protector-guard-reg=%gs
+else
+CFLAGS += -fno-stack-protector
+endif
+
+
 # Install Targets (all in RUNTIME_DIR):
 #       pal-{Host Name}:       loader for PAL (as an executable)
 #       libpal-{Host Name}.so: dynamic-linking library
