@@ -378,6 +378,17 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
 #define SHIM_PASS_ARGS_5 SHIM_PASS_ARGS_4, __arg5
 #define SHIM_PASS_ARGS_6 SHIM_PASS_ARGS_5, __arg6
 
+#define SHIM_UNUSED_ARGS_0
+#define SHIM_UNUSED_ARGS_1 __UNUSED(__arg1);
+#define SHIM_UNUSED_ARGS_2 __UNUSED(__arg1); __UNUSED(__arg2);
+#define SHIM_UNUSED_ARGS_3 __UNUSED(__arg1); __UNUSED(__arg2); __UNUSED(__arg3);
+#define SHIM_UNUSED_ARGS_4 __UNUSED(__arg1); __UNUSED(__arg2); __UNUSED(__arg3); \
+    __UNUSED(__arg4);
+#define SHIM_UNUSED_ARGS_5 __UNUSED(__arg1); __UNUSED(__arg2); __UNUSED(__arg3); \
+    __UNUSED(__arg4); __UNUSED(__arg5);
+#define SHIM_UNUSED_ARGS_6 __UNUSED(__arg1); __UNUSED(__arg2); __UNUSED(__arg3); \
+    __UNUSED(__arg4); __UNUSED(__arg5); __UNUSED(__arg6);
+
 #define DO_SYSCALL(...) DO_SYSCALL2(__VA_ARGS__)
 #define DO_SYSCALL2(n, ...) -ENOSYS
 
@@ -392,7 +403,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
 #define SHIM_SYSCALL_PASSTHROUGH(name, n, ...)                      \
     DEFINE_PROFILE_INTERVAL(syscall_##name##_slow, syscall);        \
     DEFINE_PROFILE_INTERVAL(syscall_##name, syscall);               \
-    BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                           \
+    BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n##)                         \
         debug("WARNING: shim_" #name " not implemented\n");         \
         ret = DO_SYSCALL_##n(__NR_##name);                          \
     END_SHIM(name)                                                  \

@@ -108,6 +108,8 @@ out:
 
 int ipc_sysv_delres_callback (IPC_CALLBACK_ARGS)
 {
+    __UNUSED(port);
+
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_sysv_delres * msgin  =
@@ -416,6 +418,8 @@ int ipc_sysv_msgmov_send (struct shim_ipc_port * port, IDTYPE dest,
 
 int ipc_sysv_msgmov_callback (IPC_CALLBACK_ARGS)
 {
+    __UNUSED(port);
+
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_sysv_msgmov * msgin =
@@ -800,6 +804,8 @@ int ipc_sysv_semmov_send (struct shim_ipc_port * port, IDTYPE dest,
 
 int ipc_sysv_semmov_callback (IPC_CALLBACK_ARGS)
 {
+    __UNUSED(port);
+
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_sysv_semmov * msgin =

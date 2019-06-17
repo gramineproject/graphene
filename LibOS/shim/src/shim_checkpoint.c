@@ -217,6 +217,8 @@ END_CP_FUNC(palhdl)
 BEGIN_RS_FUNC(palhdl)
 {
     __UNUSED(offset);
+    __UNUSED(rebase);
+
     struct shim_palhdl_entry * ent = (void *) (base + GET_CP_FUNC_ENTRY());
 
     if (ent->phandle && !ent->phandle && ent->uri) {
@@ -227,6 +229,9 @@ END_RS_FUNC(palhdl)
 
 BEGIN_CP_FUNC(migratable)
 {
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
     struct shim_mem_entry * mem_entry;
 
     DO_CP_SIZE(memory, &__migratable, &__migratable_end - &__migratable,
@@ -239,6 +244,9 @@ END_CP_FUNC(migratable)
 
 BEGIN_RS_FUNC(migratable)
 {
+    __UNUSED(base);
+    __UNUSED(offset);
+
     void * data = (void *) GET_CP_FUNC_ENTRY();
     CP_REBASE(data);
     memcpy(&__migratable, data, &__migratable_end - &__migratable);
@@ -247,6 +255,9 @@ END_RS_FUNC(migratable)
 
 BEGIN_CP_FUNC(environ)
 {
+    __UNUSED(size);
+    __UNUSED(objp);
+
     const char ** e, ** envp = (void *) obj;
     int nenvp = 0;
     int envp_bytes = 0;
@@ -274,6 +285,8 @@ END_CP_FUNC(environ)
 
 BEGIN_RS_FUNC(environ)
 {
+    __UNUSED(offset);
+
     const char ** envp = (void *) base + GET_CP_FUNC_ENTRY();
     const char ** e;
 
@@ -288,6 +301,9 @@ END_RS_FUNC(environ)
 
 BEGIN_CP_FUNC(qstr)
 {
+    __UNUSED(size);
+    __UNUSED(objp);
+
     struct shim_qstr * qstr = (struct shim_qstr *) obj;
 
     if (qstr->len < QSTR_SIZE) {
@@ -307,6 +323,8 @@ END_CP_FUNC(qstr)
 
 BEGIN_RS_FUNC(qstr)
 {
+    __UNUSED(offset);
+
     struct shim_qstr * qstr = (void *) (base + GET_CP_FUNC_ENTRY());
     CP_REBASE(qstr->oflow);
 }
@@ -345,6 +363,11 @@ END_CP_FUNC(gipc)
 
 BEGIN_RS_FUNC(gipc)
 {
+    __UNUSED(rebase);
+    __UNUSED(offset);
+    __UNUSED(base);
+    __UNUSED(entry);
+
 #if HASH_GIPC == 1
     struct shim_gipc_entry * entry = (void *) (base + GET_CP_FUNC_ENTRY());
 
@@ -666,7 +689,7 @@ int init_from_checkpoint_file (const char * filename,
     struct shim_dirent * d = dirent;
     for ( ; d ; d = d->next) {
         struct shim_dentry * file;
-        if ((ret = lookup_dentry(dir, d->name, strlen(d->name), false,
+        if ((ret = lookup_dentry(dir, d->name, strlen(d->name),
                                  &file, dir->fs)) < 0)
             continue;
         if (file->state & DENTRY_NEGATIVE)
@@ -814,6 +837,8 @@ int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
 
 static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
 {
+    // Keeping for api compatibility; not 100% sure this is needed
+    __UNUSED(store);
     if (addr) {
         /*
          * If the checkpoint needs more space, try to extend the checkpoint

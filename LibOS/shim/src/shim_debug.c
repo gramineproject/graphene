@@ -40,11 +40,15 @@ void clean_link_map_list (void)
 
 void remove_r_debug (void * addr)
 {
+    __UNUSED(addr);
     /* do nothing */
 }
 
 void append_r_debug (const char * uri, void * addr, void * dyn_addr)
 {
+    __UNUSED(uri);
+    __UNUSED(addr);
+    __UNUSED(dyn_addr);
     /* do nothing */
 }
 

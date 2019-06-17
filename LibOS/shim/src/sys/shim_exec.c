@@ -39,7 +39,7 @@
 #include <asm/prctl.h>
 
 static int close_on_exec (struct shim_fd_handle * fd_hdl,
-                          struct shim_handle_map * map, void * arg)
+                          struct shim_handle_map * map)
 {
     if (fd_hdl->flags & FD_CLOEXEC) {
         struct shim_handle * hdl = __detach_fd_handle(fd_hdl, NULL, map);
@@ -50,7 +50,7 @@ static int close_on_exec (struct shim_fd_handle * fd_hdl,
 
 static int close_cloexec_handle (struct shim_handle_map * map)
 {
-    return walk_handle_map(&close_on_exec, map, NULL);
+    return walk_handle_map(&close_on_exec, map);
 }
 
 DEFINE_PROFILE_CATEGORY(exec_rtld, exec);

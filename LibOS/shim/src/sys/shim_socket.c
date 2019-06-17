@@ -1025,6 +1025,9 @@ int shim_do_accept4 (int fd, struct sockaddr * addr, socklen_t * addrlen,
 static ssize_t do_sendmsg (int fd, struct iovec * bufs, int nbufs, int flags,
                            const struct sockaddr * addr, socklen_t addrlen)
 {
+    // Issue #752
+    __UNUSED(flags);
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
@@ -1345,6 +1348,14 @@ ssize_t shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int fla
 {
     ssize_t total = 0;
 
+    // Issue # 753
+    /* TODO timeout properly. For now, explicitly return an error. */
+    if (timeout) {
+        debug("recvmmsg(): timeout parameter unsupported.\n");
+        return -EOPNOTSUPP;
+    }
+
+
     for (size_t i = 0 ; i * sizeof(struct mmsghdr) < vlen ; i++) {
         struct msghdr * m = &msg[i].msg_hdr;
 
@@ -1520,6 +1531,9 @@ struct __kernel_linger {
 static int __do_setsockopt (struct shim_handle * hdl, int level, int optname,
                             char * optval, int optlen, PAL_STREAM_ATTR * attr)
 {
+    // Issue 754
+    __UNUSED(optlen);
+
     int intval = *((int *) optval);
     PAL_BOL bolval = intval ? PAL_TRUE : PAL_FALSE;
 
