@@ -1,3 +1,4 @@
+include ../../../../Makefile.rules
 include Makefile.am
 
 CFLAGS  += -I. -I../.. -I../../../include -I../../../lib
