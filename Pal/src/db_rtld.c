@@ -1299,8 +1299,8 @@ void * stack_before_call __attribute_unused = NULL;
 #endif
 #endif /* !CALL_ENTRY */
 
-void start_execution (const char * first_argument, const char ** arguments,
-                      const char ** environs)
+noreturn void start_execution (const char * first_argument,
+                               const char ** arguments, const char ** environs)
 {
     /* First we will try to run all the preloaded libraries which come with
        entry points */

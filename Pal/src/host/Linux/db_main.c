@@ -306,7 +306,6 @@ done_init:
         printf("Executable not found\n");
         printf("USAGE: %s [executable|manifest] args ...\n", pal_name);
         _DkProcessExit(0);
-        return;
     }
 
     signal_setup();

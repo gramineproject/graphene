@@ -180,5 +180,7 @@ do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
 void _DkDebugAddMap (struct link_map * map);
 void _DkDebugDelMap (struct link_map * map);
 
+noreturn void start_execution (const char * first_argument,
+                               const char ** arguments, const char ** environs);
 
 #endif /* PAL_RTLD_H */

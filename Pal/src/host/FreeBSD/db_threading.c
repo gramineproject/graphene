@@ -113,7 +113,7 @@ void _DkThreadYieldExecution (void)
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-void _DkThreadExit (void)
+noreturn void _DkThreadExit (void)
 {
     INLINE_SYSCALL(exit, 1, 0);
 }

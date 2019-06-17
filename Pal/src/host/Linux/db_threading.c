@@ -167,7 +167,7 @@ void _DkThreadYieldExecution (void)
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-void _DkThreadExit (void)
+noreturn void _DkThreadExit (void)
 {
     PAL_TCB* tcb = get_tcb();
     PAL_HANDLE handle = tcb->handle;
@@ -191,6 +191,9 @@ void _DkThreadExit (void)
     }
 
     INLINE_SYSCALL(exit, 1, 0);
+    while (true) {
+        /* nothing */
+    }
 }
 
 int _DkThreadResume (PAL_HANDLE threadHandle)

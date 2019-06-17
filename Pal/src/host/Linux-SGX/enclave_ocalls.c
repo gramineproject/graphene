@@ -11,7 +11,7 @@
 #include <api.h>
 #include <asm/errno.h>
 
-int ocall_exit(int exitcode)
+noreturn void ocall_exit(int exitcode)
 {
     int64_t code = exitcode;
     // There are two reasons for this loop:
@@ -21,7 +21,6 @@ int ocall_exit(int exitcode)
     while (true) {
         sgx_ocall(OCALL_EXIT, (void *) code);
     }
-    return 0;
 }
 
 int ocall_print_string (const char * str, unsigned int length)

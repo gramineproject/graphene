@@ -26,6 +26,7 @@
 #include "pal_internal.h"
 #include "pal_debug.h"
 #include "pal_error.h"
+#include "pal_rtld.h"
 #include "api.h"
 
 #include <sysdeps/generic/ldsodefs.h>
@@ -216,11 +217,8 @@ static int loader_filter (const char * key, int len)
             key[4] == 'e' && key[5] == 'r' && key[6] == '.') ? 0 : 1;
 }
 
-void start_execution (const char * first_argument, const char ** arguments,
-                      const char ** environments);
-
 /* 'pal_main' must be called by the host-specific bootloader */
-void pal_main (
+noreturn void pal_main (
         PAL_NUM    instance_id,      /* current instance id */
         PAL_HANDLE manifest_handle,  /* manifest handle if opened */
         PAL_HANDLE exec_handle,      /* executable handle if opened */

@@ -249,7 +249,7 @@ extern PAL_CONTROL __pal_control;
             (((unsigned long)(addr)) & pal_state.alloc_mask))
 
 /* Main initialization function */
-void pal_main (
+noreturn void pal_main (
         PAL_NUM    instance_id,      /* current instance id */
         PAL_HANDLE manifest_handle,  /* manifest handle if opened */
         PAL_HANDLE exec_handle,      /* executable handle if opened */
@@ -296,7 +296,7 @@ PAL_HANDLE _DkBroadcastStreamOpen (void);
 /* DkProcess and DkThread calls */
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param);
-void _DkThreadExit (void);
+noreturn void _DkThreadExit (void);
 int _DkThreadDelayExecution (unsigned long * duration);
 void _DkThreadYieldExecution (void);
 int _DkThreadResume (PAL_HANDLE threadHandle);
