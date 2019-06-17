@@ -2,11 +2,6 @@
 HOST_DIR = host/$(PAL_HOST)
 SEC_DIR = security/$(PAL_HOST)
 
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
-LD	= ld
-
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin
 
