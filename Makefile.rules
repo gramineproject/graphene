@@ -103,3 +103,11 @@ quiet_cmd_ar_so_o = [ $@ ]
 
 quiet_cmd_ar_a_o = [ $@ ]
       cmd_ar_a_o = $(AR) $(ARFLAGS) $(ARFLAGS-$@) $@ $^
+
+
+# stack protector
+quiet_cmd_makefile_stack_protector = [ $@ ]
+      cmd_makefile_stack_protector = \
+        (set -e; \
+         awk '/\#define STACK_PROTECTOR_CANARY/{print "CONFIG_STACK_PROTECTOR_GUARD_OFFSET="$$3}' $^; \
+         ) > $@

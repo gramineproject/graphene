@@ -143,7 +143,15 @@ void put_thread (struct shim_thread * thread);
 void get_simple_thread (struct shim_simple_thread * thread);
 void put_simple_thread (struct shim_simple_thread * thread);
 
+void __allocate_tls (__libc_tcb_t * tcb_location, bool user, struct shim_thread * thread);
+#ifdef ENABLE_STACK_PROTECTOR
 void allocate_tls (__libc_tcb_t * tcb_location, bool user, struct shim_thread * thread);
+#else
+static inline void allocate_tls (__libc_tcb_t * tcb_location, bool user, struct shim_thread * thread)
+{
+    __allocate_tls(tcb_location, user, thread);
+}
+#endif
 void populate_tls (__libc_tcb_t * tcb_location, bool user);
 
 void debug_setprefix (shim_tcb_t * tcb);

@@ -9,7 +9,7 @@ CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
-	  -fno-stack-protector -fno-builtin -Wno-inline \
+	  -fno-builtin -Wno-inline \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal
 
 EXTRAFLAGS = -Wextra -Wno-unused-parameter
@@ -65,6 +65,26 @@ export DEBUG
 
 ifeq ($(PROFILING), 1)
 CFLAGS += -DPROFILE
+endif
+
+.Makefile.stack-protector: asm-offsets.h
+	$(call cmd,makefile_stack_protector)
+
+ifeq ($(CONFIG_SHIM_STACK_PROTECTOR),y)
+objs += shim_stack_protector
+CFLAGS-shim_stack_protector.o += -fno-stack-protector
+# gcc 8 or later is required for the folloings options
+# -mstack-protector-guard-offset, -mstack-protector-guard-reg
+include .Makefile.stack-protector
+$(addsuffix .o,$(objs)): .Makefile.stack-protector
+ASFLAGS += -DENABLE_STACK_PROTECTOR=1
+CFLAGS += -DENABLE_STACK_PROTECTOR=1
+ifneq ($(CONFIG_STACK_PROTECTOR_GUARD_OFFSET),)
+CFLAGS += -mstack-protector-guard-offset=$(CONFIG_STACK_PROTECTOR_GUARD_OFFSET)
+endif
+CFLAGS += -mstack-protector-guard-reg=%fs
+else
+CFLAGS += -fno-stack-protector
 endif
 
 $(files_to_install): $(RUNTIME_DIR)/%: %
