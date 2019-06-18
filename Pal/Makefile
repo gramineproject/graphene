@@ -14,12 +14,15 @@ endif
 
 DIRS = src test regression
 
-.PHONY: all clean
-all clean:
-	for d in $(DIRS); \
-	do \
-		$(MAKE) -C $$d $@ || exit $?; \
-	done
+.PHONY: all
+all:
+	$(MAKE) -C src
+
+.PHONY: clean
+clean:
+	$(MAKE) -C src clean
+	$(MAKE) -C test clean
+	$(MAKE) -C regression clean
 
 .PHONY: linux-kernel
 linux-kernel: $(LINUX_KERNEL)
@@ -57,7 +60,9 @@ endif
 
 .PHONY: test
 test:
-	$(MAKE) -C test test
+	$(MAKE) -C src test
+	$(MAKE) -C test
+	$(MAKE) -C regression
 
 .PHONY: format
 format:

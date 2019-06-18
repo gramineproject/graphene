@@ -7,3 +7,6 @@ clean:
 
 .PHONY: format
 format:
+
+.PHONY: test
+test:

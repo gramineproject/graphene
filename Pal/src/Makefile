@@ -169,3 +169,7 @@ clean:
 	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build)
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) clean
 	@[ ! -d security/$(PAL_HOST) ] || $(MAKE) -C security/$(PAL_HOST) clean
+
+.PHONY: test
+test:
+	$(MAKE) -C $(HOST_DIR) test

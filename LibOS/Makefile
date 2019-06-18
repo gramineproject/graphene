@@ -110,3 +110,7 @@ $(GLIBC_TARGET):
 clean:
 	rm -rf $(BUILD_DIR)
 endif
+
+.PHONY: test
+test:
+	$(MAKE) -C $(SHIM_DIR) test
