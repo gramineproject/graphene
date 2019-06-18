@@ -84,7 +84,7 @@ $(addsuffix .o,$(urts-asm-objs)): %.o: %.S $(headers)
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) -pie $^ -lc -pthread -o $@
+	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now -pie $^ -lc -pthread -o $@
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
