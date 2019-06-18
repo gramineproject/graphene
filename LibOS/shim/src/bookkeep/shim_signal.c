@@ -613,16 +613,15 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 
     if (sighdl->action) {
         struct __kernel_sigaction * act = sighdl->action;
-        /* This is a workaround. The truth is that many program will
-           use sa_handler as sa_sigaction, because sa_sigaction is
-           not supported in amd64 */
+        /*
+         * on amd64, sa_handler can be treated as sa_sigaction
+         * because 1-3 arguments are passed by register and
+         * sa_handler simply ignores 2nd and 3rd argument.
+         */
 #ifdef __i386__
-        handler = (void (*) (int, siginfo_t *, void *)) act->_u._sa_handler;
-        if (act->sa_flags & SA_SIGINFO)
-            sa_handler = act->_u._sa_sigaction;
-#else
-        handler = (void (*) (int, siginfo_t *, void *)) act->k_sa_handler;
+# error "x86-32 support is heavily broken."
 #endif
+        handler = (void *)act->k_sa_handler;
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
             free(act);
