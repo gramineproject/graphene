@@ -134,13 +134,6 @@ $(pal_static): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	@echo [ $@ ]
 	@$(AR) $(ARFLAGS) $@ $^ $(ARFLAGS-suffix)
 
-$(OBJ_DIR)/%.asm: %.c $(headers)
-	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
-
 user_start.o: user_start.S
 	@echo [ $@ ]
 	@$(CC) -c $< -o $@
@@ -153,16 +146,6 @@ $(OBJ_DIR)/%.o: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(defs) -c $< -o $@ $(CFLAGS-suffix)
-
-$(OBJ_DIR)/%.e $(OBJ_DIR)/%.i: %.c $(headers)
-	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
-
-$(OBJ_DIR)/%.s: %.c $(headers)
-	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -S $< -o $@ $(CFLAGS-suffix)
 
 .PHONY: clean
 clean:
