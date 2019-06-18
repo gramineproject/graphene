@@ -83,6 +83,9 @@ void dummy(void)
     OFFSET(SGX_HEAP_MAX, enclave_tls, heap_max);
     OFFSET(SGX_EXEC_ADDR, enclave_tls, exec_addr);
     OFFSET(SGX_EXEC_SIZE, enclave_tls, exec_size);
+#ifdef ENABLE_STACK_PROTECTOR
+    OFFSET(STACK_PROTECTOR_CANARY, enclave_tls, stack_protector_canary);
+#endif
 
     /* sgx_arch_tcs_t */
     OFFSET_T(TCS_OSSA, sgx_arch_tcs_t, ossa);

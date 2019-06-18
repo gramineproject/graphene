@@ -30,8 +30,24 @@ ASFLAGS += -DDEBUG
 export DEBUG
 endif
 
+.Makefile.stack-protector: asm-offsets.h
+       $(call cmd,makefile_stack_protector)
+
+CFLAGS_ENCLAVE += -DIN_ENCLAVE
+ASFLAGS_ENCLAVE += -DIN_ENCLAVE
+
 ifeq ($(CONFIG_PAL_STACK_PROTECTOR),y)
-$(error CONFIG_PAL_STACK_PROTECTOR is not supported)
+include .Makefile.stack-protector
+$(addsuffix .o,$(objs)): .Makefile.stack-protector
+ASFLAGS += -DENABLE_STACK_PROTECTOR=1
+CFLAGS += -DENABLE_STACK_PROTECTOR=1
+ifneq ($(CONFIG_STACK_PROTECTOR_GUARD_OFFSET),)
+CFLAGS_ENCLAVE += -mstack-protector-guard-offset=$(CONFIG_STACK_PROTECTOR_GUARD_OFFSET)
+endif
+CFLAGS_ENCLAVE += -mstack-protector-guard-reg=%gs
+CFLAGS_URTS += -fstack-protector
+else
+CFLAGS += -fno-stack-protector
 endif
 
 ../../host_endian.h: host_endian.h
@@ -40,32 +56,35 @@ endif
 libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
 	$(call cmd,ar_a_o)
 
-$(addsuffix .o,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
+$(addsuffix .o,$(enclave-objs)): CFLAGS += $(CFLAGS_ENCLAVE)
 $(addsuffix .o,$(enclave-objs)): %.o: %.c $(headers)
 	$(call cmd,cc_o_c)
 
-$(addsuffix .i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
+$(addsuffix .i,$(enclave-objs)): CFLAGS += $(CFLAGS_ENCLAVE)
 $(addsuffix .i,$(enclave-objs)): %.i: %.c $(headers)
 	$(call cmd,cpp_i_c)
 
-$(addsuffix .s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
+$(addsuffix .s,$(enclave-objs)): CFLAGS += $(CFLAGS_ENCLAVE)
 $(addsuffix .s,$(enclave-objs)): %.s: %.c $(headers)
 	$(call cmd,cc_s_c)
 
-$(addsuffix .o,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
+$(addsuffix .o,$(enclave-asm-objs)): ASFLAGS += $(ASFLAGS_ENCLAVE)
 $(addsuffix .o,$(enclave-asm-objs)): %.o: %.S $(headers)
 	$(call cmd,as_o_S)
 
-$(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
+$(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += $(ASFLAGS_ENCLAVE)
 $(addsuffix .s,$(enclave-asm-objs)): %.s: %.S $(headers)
 	$(call cmd,cpp_s_S)
 
+$(addsuffix .o,$(urts-objs)): CFLAGS += $(CFLAGS_URTS)
 $(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
 	$(call cmd,cc_o_c)
 
+$(addsuffix .i,$(urts-objs)): CFLAGS += $(CFLAGS_URTS)
 $(addsuffix .i,$(urts-objs)): %.i: %.c $(headers)
 	$(call cmd,cpp_i_c)
 
+$(addsuffix .s,$(urts-objs)): CFLAGS += $(CFLAGS_URTS)
 $(addsuffix .s,$(urts-objs)): %.s: %.c $(headers)
 	$(call cmd,cc_s_c)
 

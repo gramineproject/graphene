@@ -11,6 +11,10 @@ struct enclave_tls {
     uint64_t enclave_size;
     uint64_t tcs_offset;
     uint64_t initial_stack_offset;
+#ifdef ENABLE_STACK_PROTECTOR
+#define STACK_PROTECTOR_CANARY_DEFAULT  0x2bad2bad2bad2badUL
+    uint64_t stack_protector_canary;
+#endif
     void *   aep;
     void *   ssa;
     sgx_arch_gpr_t * gpr;

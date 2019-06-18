@@ -88,6 +88,14 @@ void pal_start_thread (void)
     new_thread->param = NULL;
     SET_ENCLAVE_TLS(thread, new_thread);
     SET_ENCLAVE_TLS(ready_for_exceptions, 1UL);
+
+#ifdef ENABLE_STACK_PROTECTOR
+    uint64_t canary;
+    int ret = _DkRandomBitsRead(&canary, sizeof(canary));
+    if (ret < 0)
+        canary = STACK_PROTECTOR_CANARY_DEFAULT;
+    SET_ENCLAVE_TLS(stack_protector_canary, canary);
+#endif
     callback((void *) param);
     _DkThreadExit();
 }
