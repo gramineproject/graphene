@@ -28,7 +28,7 @@ endif
 ASFLAGS	= -Wa,--noexecstack -x assembler-with-cpp -I../include
 
 LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
-	  -z combreloc -z relro -z defs \
+	  -z combreloc -z relro -z now -z defs \
 	  -dynamic-link=libpal.so \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
 LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
