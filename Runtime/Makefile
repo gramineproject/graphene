@@ -7,6 +7,3 @@ clean:
 
 .PHONY: format
 format:
-
-.PHONY: pack
-pack:

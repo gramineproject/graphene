@@ -68,8 +68,3 @@ format:
 	                               -path ./src/security/Linux/bpf-helper.h -prune -o \
 	                               -path ./src/security/Linux/bpf_helper.c -prune -o \
 	                               \( -name '*.h' -o -name '*.c' \) -print)
-
-.PHONY: pack
-pack:
-	$(MAKE) -C test pack
-	$(MAKE) -C regression pack
