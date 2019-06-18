@@ -56,7 +56,6 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  $(patsubst %.c,%,$(wildcard sys/*.c))
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
-headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
 
 all: $(files_to_build) $(files_to_install)
 
@@ -106,17 +105,19 @@ $(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)
 elf/shim_rtld.o: $(wildcard elf/*.h)
 
 
-%.o: %.c $(headers)
+%.o: %.c
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
+	@$(CC) -MD -MP $(CFLAGS) $(defs) -c $< -o $@
 
 %.o: %.S $(headers)
 	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+	@$(AS) -MD -MP $(ASFLAGS) $(defs) -c $< -o $@
 
 syscallas.S: asm-offsets.h
 
 include ../../../Makefile.rules
 
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
+	rm -rf $(addsuffix .o,$(objs)) $(addsuffix .d,$(objs)) $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
+
+-include $(addsuffix .d,$(objs))

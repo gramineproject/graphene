@@ -42,7 +42,6 @@ objs	= $(addprefix db_,streams memory threading mutex events process \
 
 graphene_lib = $(LIB_DIR)/graphene-lib.a
 host_lib = $(HOST_DIR)/libpal-$(PAL_HOST).a
-headers	= $(wildcard *.h) $(wildcard ../lib/*.h) $(HOST_DIR)/pal_host.h
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 files_to_build += user_start.o user_shared_start.o
@@ -136,20 +135,22 @@ $(pal_static): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 
 user_start.o: user_start.S
 	@echo [ $@ ]
-	@$(CC) -c $< -o $@
+	@$(CC) -MD -MP -c $< -o $@
 
 user_shared_start.o: user_start.S
 	@echo [ $@ ]
-	@$(CC) -DSHARED -fPIC -c $< -o $@
+	@$(CC) -MD -MP -DSHARED -fPIC -c $< -o $@
 
-$(OBJ_DIR)/%.o: %.c $(headers)
+$(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(OBJ_DIR)
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@ $(CFLAGS-suffix)
+	@$(CC) -MD -MP $(CFLAGS) $(defs) -c $< -o $@ $(CFLAGS-suffix)
+
+include $(wildcard *.d)
 
 .PHONY: clean
 clean:
-	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build)
+	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build) *.d
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) clean
 	@[ ! -d security/$(PAL_HOST) ] || $(MAKE) -C security/$(PAL_HOST) clean
 

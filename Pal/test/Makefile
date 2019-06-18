@@ -17,7 +17,6 @@ target = $(executables) $(manifests)
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
-headers = $(wildcard ../include/pal/*.h)
 
 .PHONY: all
 all:	pal_loader $(call expand_target,$(target))
@@ -43,7 +42,7 @@ manifest: manifest.template
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(if $(filter Pie,$@),-fPIC -pie,) $^ -o $@
+	@$(CC) -MD -MP $(CFLAGS) $(if $(filter Pie,$@),-fPIC -pie,) $^ -o $@
 
 .lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
@@ -56,6 +55,8 @@ else
 $(executables):
 endif
 
+-include $(addsuffix .d, $(executables))
+
 .PHONY: clean
 clean:
-	rm -rf pal_loader $(call expand_target,$(target)) .lib *.cached
+	rm -rf pal_loader $(call expand_target,$(target)) .lib *.cached $(addsuffix .d, $(executables))
