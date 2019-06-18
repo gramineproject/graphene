@@ -618,7 +618,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
         if (act->sa_flags & SA_SIGINFO)
             sa_handler = act->_u._sa_sigaction;
 #else
-        handler = (void (*) (int, siginfo_t *, void *)) act->k_sa_handler;
+        handler = (void*)act->k_sa_handler;
 #endif
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
