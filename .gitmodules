@@ -3,4 +3,4 @@
 	url = https://github.com/oscarlab/graphene-sgx-driver.git
 [submodule "LibOS/shim/test/apps"]
 	path = LibOS/shim/test/apps
-	url = https://github.com/oscarlab/graphene-tests.git
+	url = https://github.com/oscarlab/graphene-apps.git
