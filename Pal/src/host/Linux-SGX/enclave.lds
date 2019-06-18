@@ -10,6 +10,7 @@ PHDRS
   dynamic PT_DYNAMIC;
   tls PT_TLS;
   gnu_stack PT_GNU_STACK;
+  gnu_relro 0x6474e552;
 }
 
 SECTIONS
@@ -68,6 +69,7 @@ SECTIONS
   .jcr           : { KEEP(*(.jcr)) } :data
   .got           : { *(.got) *(.igot) } :data
   .got.plt       : { *(.got.plt) *(.igot.plt) } :data
+  . = DATA_SEGMENT_RELRO_END (0, .);
   .data          :
   {
     section_data = .;

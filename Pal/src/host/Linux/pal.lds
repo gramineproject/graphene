@@ -66,6 +66,7 @@ SECTIONS
   .dynamic       : { *(.dynamic) }
   .got           : { *(.got) *(.igot) }
   .got.plt       : { *(.got.plt) *(.igot.plt) }
+  . = DATA_SEGMENT_RELRO_END (0, .);
   .data :
   {
     /* the rest of data segment */

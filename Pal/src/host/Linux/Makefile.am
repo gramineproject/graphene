@@ -12,7 +12,8 @@ CFLAGS += $(EXTRAFLAGS)
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
-	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds
+	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds \
+	  -z relro -z now
 ARFLAGS	=
 
 ifeq ($(WERROR),1)
