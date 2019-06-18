@@ -12,11 +12,14 @@ ifeq ($(OS),Linux)
 	LINUX_KERNEL := $(LINUX_SRC)/arch/x86/boot/bzImage
 endif
 
+DIRS = src test regression
+
 .PHONY: all clean
 all clean:
-	$(MAKE) -C src $@ || exit $?;
-	$(MAKE) -C test $@ || exit $?;
-	$(MAKE) -C regression $@ || exit $?;
+	for d in $(DIRS); \
+	do \
+		$(MAKE) -C $$d $@ || exit $?; \
+	done
 
 .PHONY: linux-kernel
 linux-kernel: $(LINUX_KERNEL)
@@ -40,10 +43,6 @@ $(LINUX_SRC)/.config: $(LINUX_SRC)/Makefile
 kernel_install: kernel
 	$(MAKE) -C $(LINUX_SRC) install modules_install headers_install
 
-.PHONY: test
-test:
-	$(MAKE) -C test test
-
 linux-deb:
 	if [ ! -f $(LINUX_SRC)/.config ]; then \
 		cp /boot/config-$(shell uname -r) $(LINUX_SRC)/.config && \
@@ -55,6 +54,10 @@ linux-deb:
 else
 kernel_install:
 endif
+
+.PHONY: test
+test:
+	$(MAKE) -C test test
 
 .PHONY: format
 format:
