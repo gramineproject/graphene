@@ -389,6 +389,13 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         enclave_base + GET_ENCLAVE_TLS(tcs_offset);
     SET_ENCLAVE_TLS(thread, (__pal_control.first_thread = first_thread));
 
+#ifdef ENABLE_STACK_PROTECTOR
+    uint64_t canary;
+    int ret = _DkRandomBitsRead(&canary, sizeof(canary));
+    if (ret < 0)
+        canary = STACK_PROTECTOR_CANARY_DEFAULT;
+    SET_ENCLAVE_TLS(stack_protector_canary, canary);
+#endif
     /* call main function */
     pal_main(pal_sec.instance_id, manifest, exec,
              pal_sec.exec_addr, parent, first_thread,
