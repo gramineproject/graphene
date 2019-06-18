@@ -711,8 +711,9 @@ static ssize_t map_read (struct shim_handle * hdl, void * buf, size_t count)
         return ret;
     }
 
-    if ((off_t) (marker + count) > file->size)
-        count = file->size - marker;
+    size_t bytes_left;
+    if (!__builtin_sub_overflow(file->size, marker, &bytes_left) && bytes_left < count)
+        count = bytes_left;
 
     if (count) {
         memcpy(buf, file->mapbuf + (marker - file->mapoffset), count);
@@ -733,8 +734,15 @@ static ssize_t map_write (struct shim_handle * hdl, const void * buf, size_t cou
     struct shim_file_data * data = FILE_HANDLE_DATA(hdl);
     off_t marker = file->marker;
 
-    if ((off_t) (file->marker + count) > file->size) {
-        file->size = file->marker + count;
+    off_t new_marker;
+    if (__builtin_add_overflow(marker, count, &new_marker)) {
+        // We can't handle this case reasonably.
+        ret = -EFBIG;
+        goto out;
+    }
+
+    if (new_marker > file->size) {
+        file->size = new_marker;
 
         PAL_NUM pal_ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL);
 
@@ -757,8 +765,10 @@ static ssize_t map_write (struct shim_handle * hdl, const void * buf, size_t cou
             } while ((off_t) atomic_cmpxchg(&data->size, size, file->size) != size);
         }
 
-        assert(marker + pal_ret > 0 && (ssize_t) pal_ret > 0);
-        file->marker = marker + pal_ret;
+        if (__builtin_add_overflow(marker, pal_ret, &file->marker)) {
+            // Should never happen. Even if it would, we couldn't recover from this condition.
+            BUG();
+        }
         ret = (ssize_t) pal_ret;
         goto out;
     }
@@ -769,7 +779,7 @@ static ssize_t map_write (struct shim_handle * hdl, const void * buf, size_t cou
 
     if (count) {
         memcpy(file->mapbuf + (marker - file->mapoffset), buf, count);
-        file->marker = marker + count;
+        file->marker = new_marker;
     }
 
     ret = count;
@@ -796,7 +806,8 @@ static ssize_t chroot_read (struct shim_handle * hdl, void * buf, size_t count)
 
     struct shim_file_handle * file = &hdl->info.file;
 
-    if (file->type != FILE_TTY && (off_t) (file->marker + count) < 0) {
+    off_t dummy_off_t;
+    if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
         ret = -EFBIG;
         goto out;
     }
@@ -814,12 +825,10 @@ static ssize_t chroot_read (struct shim_handle * hdl, void * buf, size_t count)
 
     PAL_NUM pal_ret = DkStreamRead(hdl->pal_handle, file->marker, count, buf, NULL, 0);
     if (pal_ret > 0) {
-        ret = (ssize_t) pal_ret;
-        assert(ret > 0);
-        if (file->type != FILE_TTY) {
-            assert(file->marker + pal_ret > 0);
-            file->marker += pal_ret;
-        }
+        if (__builtin_add_overflow(pal_ret, 0, &ret))
+            BUG();
+        if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, pal_ret, &file->marker))
+            BUG();
     } else {
         ret = PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO;
     }
@@ -847,7 +856,8 @@ static ssize_t chroot_write (struct shim_handle * hdl, const void * buf, size_t 
 
     struct shim_file_handle * file = &hdl->info.file;
 
-    if (file->type != FILE_TTY && (off_t) (file->marker + count) < 0) {
+    off_t dummy_off_t;
+    if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, count, &dummy_off_t)) {
         ret = -EFBIG;
         goto out;
     }
@@ -865,12 +875,10 @@ static ssize_t chroot_write (struct shim_handle * hdl, const void * buf, size_t 
 
     PAL_NUM pal_ret = DkStreamWrite(hdl->pal_handle, file->marker, count, (void *) buf, NULL);
     if (pal_ret > 0) {
-        ret = (ssize_t) pal_ret;
-        assert(ret > 0);
-        if (file->type != FILE_TTY) {
-            assert(file->marker + pal_ret > 0);
-            file->marker += pal_ret;
-        }
+        if (__builtin_add_overflow(pal_ret, 0, &ret))
+            BUG();
+        if (file->type != FILE_TTY && __builtin_add_overflow(file->marker, pal_ret, &file->marker))
+            BUG();
     } else {
         ret = PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM ?  0 : -PAL_ERRNO;
     }
