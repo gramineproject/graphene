@@ -81,10 +81,10 @@ quiet_cmd_cc_o_c = [ $@ ]
       cmd_cc_o_c = $(CC) $(CFLAGS) $(CFLAGS-$@) -c -o $@ $<
 
 quiet_cmd_cpp_i_c = [ $@ ]
-      cmd_cpp_i_c = (CC) $(CFLAGS) $(CFLAGS-$@) -E -o $@ $<
+      cmd_cpp_i_c = $(CC) $(CFLAGS) $(CFLAGS-$@) -E -o $@ $<
 
 quiet_cmd_cc_s_c = [ $@ ]
-      cmd_cc_s_c = (CC) $(CFLAGS) $(CFLAGS-$@) -S -o $@ $<
+      cmd_cc_s_c = $(CC) $(CFLAGS) $(CFLAGS-$@) -S -o $@ $<
 
 # .S
 quiet_cmd_as_o_S = [ $@ ]
