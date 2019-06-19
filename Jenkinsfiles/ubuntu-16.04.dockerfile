@@ -21,7 +21,7 @@ RUN apt-get update \
        python3-minimal \
        texinfo \
        wget \
-       libomp-dev
+       libomp-dev \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
