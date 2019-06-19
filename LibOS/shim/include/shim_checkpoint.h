@@ -32,12 +32,11 @@
 #include <stdarg.h>
 
 #ifdef __i386__
-typedef uint32_t ptr_t;
-# define hashfunc hash32
-#else
+# error "x86-32 support is heavily broken."
+#endif
+
 typedef uint64_t ptr_t;
 # define hashfunc hash64
-#endif
 
 #define __attribute_migratable __attribute__((section(".migratable")))
 
