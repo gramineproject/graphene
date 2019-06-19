@@ -39,11 +39,11 @@
 
 struct proc_args {
     PAL_SEC_STR     exec_name;
-    unsigned int    instance_id;
-    unsigned int    parent_process_id;
-    unsigned int    proc_fds[3];
+    PAL_NUM         instance_id;
+    PAL_IDX         parent_process_id;
+    int             proc_fds[3];
     PAL_SEC_STR     pipe_prefix;
-    unsigned int    mcast_port;
+    PAL_IDX         mcast_port;
 };
 
 int sgx_create_process (const char * uri, int nargs, const char ** args,
