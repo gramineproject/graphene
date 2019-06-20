@@ -135,10 +135,17 @@ struct proc_args {
     unsigned int    manifest_data_size;
 };
 
-static int child_process (void * param)
+/*
+ * vfork() shares stack so that we have to be very careful for child to not
+ * modify parents stack. NOTE: compiler can share same stack area for
+ * different local variables if their aliveness are distinct.
+ */
+static int __attribute__((noinline))
+child_process (struct proc_param * proc_param)
 {
-    struct proc_param * proc_param = param;
-    int ret;
+    int ret = ARCH_VFORK();
+    if (ret)
+        return ret;
 
     ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream_in,
                          PROC_INIT_FD);
@@ -157,6 +164,7 @@ static int child_process (void * param)
 
 failed:
     /* fail is it gets here */
+    INLINE_SYSCALL(exit, 1, 1);
     return -PAL_ERROR_DENIED;
 }
 
@@ -285,16 +293,10 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     proc_args->process_create_time = before_create;
 #endif
 
-    ret = ARCH_VFORK();
-
+    ret = child_process(&param);
     if (IS_ERR(ret)) {
         ret = -PAL_ERROR_DENIED;
         goto out;
-    }
-
-    if (!ret) {
-        ret = child_process(&param);
-        goto out; /* if child_process returned, there was a failure */
     }
 
     proc_args->pal_sec.process_id = ret;
