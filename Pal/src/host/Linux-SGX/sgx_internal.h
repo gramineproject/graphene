@@ -132,5 +132,7 @@ void sgx_edbgwr (void * addr, uint64_t data);
 
 int sgx_init_child_process (struct pal_sec * pal_sec);
 int sgx_signal_setup (void);
+int block_signals (bool block, const int * sigs, int nsig);
+int block_async_signals (bool block);
 
 #endif
