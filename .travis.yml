@@ -1,7 +1,7 @@
 language: c
 
 before_install:
-  - sudo apt-get install python-protobuf python-crypto
+  - sudo apt-get install python-protobuf
   - sudo apt-get install linux-headers-$(uname -r)
 
 before_script:
