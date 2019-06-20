@@ -723,11 +723,10 @@ noreturn void* shim_init (int argc, void * args)
             RUN_INIT(init_mount_root);
             RUN_INIT(init_from_checkpoint_file, filename, &hdr.checkpoint,
                      &cpaddr);
-            goto restore;
         }
     }
 
-    if (PAL_CB(parent_process)) {
+    if (!cpaddr && PAL_CB(parent_process)) {
         RUN_INIT(init_newproc, &hdr);
         SAVE_PROFILE_INTERVAL_SET(child_created_in_new_process,
                                   hdr.create_time, begin_time);
@@ -740,7 +739,6 @@ noreturn void* shim_init (int argc, void * args)
     }
 
     if (cpaddr) {
-restore:
         thread_start_event = DkNotificationEventCreate(PAL_FALSE);
         RUN_INIT(restore_checkpoint,
                  &hdr.checkpoint.hdr, &hdr.checkpoint.mem,
