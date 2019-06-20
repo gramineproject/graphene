@@ -78,15 +78,18 @@ struct shim_tcb {
 
 #ifdef IN_SHIM
 
-typedef struct
+struct __libc_tcb_t;
+typedef struct __libc_tcb_t __libc_tcb_t;
+struct __libc_tcb_t
 {
-    void *                  tcb, * dtv, * self;
+    __libc_tcb_t *          tcb;
+    void *                  dtv, * self;
     int                     mthreads, gscope;
     uintptr_t               sysinfo, sg, pg;
     unsigned long int       vgetcpu_cache[2];
     int                     __unused1;
     shim_tcb_t              shim_tcb;
-} __libc_tcb_t;
+};
 
 #include <stddef.h>
 
