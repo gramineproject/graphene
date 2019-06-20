@@ -776,7 +776,7 @@ BEGIN_RS_FUNC(running_thread)
              * user_tcb = false
              * in_vm = false
              */
-            init_tcb(shim_libc_tcb()->tcb);
+            init_tcb(&shim_libc_tcb()->shim_tcb);
             set_cur_thread(thread);
         }
 
