@@ -135,11 +135,25 @@ struct proc_args {
     unsigned int    manifest_data_size;
 };
 
-static int child_process (void * param)
+/*
+ * vfork() shares stack between child and parent. Any stack modifications in
+ * child are reflected in parent's stack. Compiler may unwittingly modify
+ * child's stack for its own purposes and thus corrupt parent's stack
+ * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
+ * lifetimes).
+ * Introduce noinline function with stack area used only by child.
+ * Make this function non-local to keep function signature.
+ * NOTE: more tricks may be needed to prevent unexpected optimization for
+ * future compiler.
+ */
+int __attribute_noinline
+child_process (struct proc_param * proc_param)
 {
-    struct proc_param * proc_param = param;
-    int ret;
+    int ret = ARCH_VFORK();
+    if (ret)
+        return ret;
 
+    /* child */
     ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream_in,
                          PROC_INIT_FD);
     if (IS_ERR(ret))
@@ -285,16 +299,10 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     proc_args->process_create_time = before_create;
 #endif
 
-    ret = ARCH_VFORK();
-
+    ret = child_process(&param);
     if (IS_ERR(ret)) {
         ret = -PAL_ERROR_DENIED;
         goto out;
-    }
-
-    if (!ret) {
-        ret = child_process(&param);
-        goto out; /* if child_process returned, there was a failure */
     }
 
     proc_args->pal_sec.process_id = ret;
