@@ -1,11 +1,7 @@
 #ifndef _SHIM_TLS_H_
 #define _SHIM_TLS_H_
 
-#ifdef __ASSEMBLER__
-
-#define SHIM_TLS_CANARY $xdeadbeef
-
-#else /* !__ASSEMBLER__ */
+#ifndef __ASSEMBLER__
 
 #define SHIM_TLS_CANARY 0xdeadbeef
 
