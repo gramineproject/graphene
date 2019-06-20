@@ -101,11 +101,24 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
     memcpy(argv + 1, args, sizeof(const char *) * nargs);
     argv[nargs + 1] = NULL;
 
+    ret = block_async_signals(true);
+    if (ret < 0) {
+        ret = -ret;
+        goto out;
+    }
+
     ret = vfork_exec(proc_fds[0][0], proc_fds[1], argv);
     if (IS_ERR(ret))
         goto out;
 
     child = ret;
+
+    /* children unblock async signals by sgx_signal_setup() */
+    ret = block_async_signals(false);
+    if (ret < 0) {
+        ret = -ret;
+        goto out;
+    }
 
     for (int i = 0 ; i < 3 ; i++)
         INLINE_SYSCALL(close, 1, proc_fds[0][i]);
