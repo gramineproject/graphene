@@ -74,6 +74,13 @@ struct shim_tcb {
 
 #ifdef IN_SHIM
 
+/*
+ * This struct must match the one defined in glibc/nptl/sysdeps/x86_64/tls.h
+ * The first 10 members(from tcb to __unused1) are used by Glibc-internal,
+ * they are NOT used by Graphene.
+ * But Graphene needs to preserve the correct offset of shim_tcb so we have to
+ * duplicate these 10 fields from the original Glibc struct.
+ */
 struct __libc_tcb_t;
 typedef struct __libc_tcb_t __libc_tcb_t;
 struct __libc_tcb_t
