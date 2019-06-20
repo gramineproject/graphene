@@ -57,7 +57,6 @@ with 'apt-get install')
 The following packages are also required for building Graphene for SGX (can
 be installed with 'apt-get install'):
    - python-protobuf
-   - python-crypto
 
 To build the system, simply run the following commands in the root of the
 source tree:
