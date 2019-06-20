@@ -26,6 +26,7 @@
 #include "ecall_types.h"
 #include "ocall_types.h"
 #include "sgx_internal.h"
+#include "pal_linux.h"
 
 #include <atomic.h>
 #include <sigset.h>
@@ -34,11 +35,6 @@
 #include <asm/errno.h>
 
 #include "sgx_enclave.h"
-
-#define IS_ERR INTERNAL_SYSCALL_ERROR
-#define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
-#define ERRNO INTERNAL_SYSCALL_ERRNO
-#define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
 #if !defined(__i386__)
 /* In x86_64 kernels, sigaction is required to have a user-defined
@@ -77,6 +73,15 @@ __attribute__((visibility("hidden"))) void __restore_rt(void);
 
 #endif
 
+static const int async_signals[] =
+{
+    SIGTERM,
+    SIGINT,
+    SIGCONT,
+};
+
+static const int nasync_signals = sizeof(async_signals) / sizeof(async_signals[0]);
+
 int set_sighandler (int * sigs, int nsig, void * handler)
 {
     struct sigaction action;
@@ -91,9 +96,8 @@ int set_sighandler (int * sigs, int nsig, void * handler)
     /* Disallow nested asynchronous signals during enclave exception handling.
      */
     __sigemptyset((__sigset_t *) &action.sa_mask);
-    __sigaddset((__sigset_t *) &action.sa_mask, SIGTERM);
-    __sigaddset((__sigset_t *) &action.sa_mask, SIGINT);
-    __sigaddset((__sigset_t *) &action.sa_mask, SIGCONT);
+    for (int i = 0; i < nasync_signals; i++)
+        __sigaddset((__sigset_t *) &action.sa_mask, async_signals[i]);
 
     for (int i = 0 ; i < nsig ; i++) {
         if (sigs[i] == SIGCHLD)
@@ -130,8 +134,9 @@ int set_sighandler (int * sigs, int nsig, void * handler)
     return 0;
 }
 
-int block_signals (int * sigs, int nsig)
+int block_signals (bool block, const int * sigs, int nsig)
 {
+    int how = block? SIG_BLOCK: SIG_UNBLOCK;
     int ret = 0;
     __sigset_t mask;
     __sigemptyset(&mask);
@@ -139,9 +144,9 @@ int block_signals (int * sigs, int nsig)
         __sigaddset(&mask, sigs[i]);
 
 #if defined(__i386__)
-    ret = INLINE_SYSCALL(sigprocmask, 3, SIG_BLOCK, &mask, NULL)
+    ret = INLINE_SYSCALL(sigprocmask, 3, how, &mask, NULL)
 #else
-    ret = INLINE_SYSCALL(rt_sigprocmask, 4, SIG_BLOCK, &mask, NULL,
+    ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL,
                          sizeof(sigset_t));
 #endif
 
@@ -151,25 +156,9 @@ int block_signals (int * sigs, int nsig)
     return 0;
 }
 
-int unblock_signals (int * sigs, int nsig)
+int block_async_signals (bool block)
 {
-    int ret = 0;
-    __sigset_t mask;
-    __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        __sigaddset(&mask, sigs[i]);
-
-#if defined(__i386__)
-    ret = INLINE_SYSCALL(sigprocmask, 3, SIG_UNBLOCK, &mask, NULL)
-#else
-    ret = INLINE_SYSCALL(rt_sigprocmask, 4, SIG_UNBLOCK, &mask, NULL,
-                         sizeof(sigset_t));
-#endif
-
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    return 0;
+    return block_signals(block, async_signals, nasync_signals);
 }
 
 int unset_sighandler (int * sigs, int nsig)
