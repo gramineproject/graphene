@@ -162,6 +162,8 @@ void init_child_process (PAL_HANDLE * parent, PAL_HANDLE * exec,
 
 void cpuid (unsigned int leaf, unsigned int subleaf,
             unsigned int words[]);
+int block_signals (bool block, const int * sigs, int nsig);
+int block_async_signals (bool block);
 void signal_setup (void);
 
 unsigned long _DkSystemTimeQueryEarly (void);
