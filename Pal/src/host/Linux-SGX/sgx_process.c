@@ -47,13 +47,14 @@ struct proc_args {
 };
 
 /*
- * vfork() shares stack so that we have to be very careful for child to not
- * modify parents stack. NOTE: compiler can share same stack area for
- * different local variables if their aliveness are distinct.
- * Introduce minimal function (no inline) to allocate dedicated stack
- * area for child.
+ * vfork() shares stack between child and parent. Any stack modifications in
+ * child are reflected in parent's stack. Compiler may unwittingly modify
+ * child's stack for its own purposes and thus corrupt parent's stack
+ * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
+ * lifetimes).
+ * Introduce noinline function with stack area used only by child.
  */
-static int __attribute__ ((noinline))
+static int __attribute_noinline
 vfork_exec(int pipe_input, int proc_fds[3], const char** argv)
 {
     int ret = ARCH_VFORK();
