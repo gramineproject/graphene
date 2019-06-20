@@ -5,7 +5,6 @@ import sys
 import struct
 import socket
 from google.protobuf import message as _message
-from Crypto.PublicKey import RSA
 import aesm_pb2
 
 """ Utilities """

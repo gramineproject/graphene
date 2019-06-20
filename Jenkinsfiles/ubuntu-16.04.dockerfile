@@ -16,7 +16,6 @@ RUN apt-get update \
        libxml2-dev \
        net-tools \
        python \
-       python-crypto \
        python-protobuf \
        python3-minimal \
        texinfo \
