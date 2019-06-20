@@ -136,11 +136,14 @@ struct proc_args {
 };
 
 /*
- * vfork() shares stack so that we have to be very careful for child to not
- * modify parents stack. NOTE: compiler can share same stack area for
- * different local variables if their aliveness are distinct.
+ * vfork() shares stack between child and parent. Any stack modifications in
+ * child are reflected in parent's stack. Compiler may unwittingly modify
+ * child's stack for its own purposes and thus corrupt parent's stack
+ * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
+ * lifetimes).
+ * Introduce noinline function with stack area used only by child.
  */
-static int __attribute__((noinline))
+static int __attribute_noinline
 child_process (struct proc_param * proc_param)
 {
     int ret = ARCH_VFORK();
@@ -164,7 +167,6 @@ child_process (struct proc_param * proc_param)
 
 failed:
     /* fail is it gets here */
-    INLINE_SYSCALL(exit, 1, 1);
     return -PAL_ERROR_DENIED;
 }
 
