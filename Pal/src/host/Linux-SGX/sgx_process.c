@@ -46,6 +46,36 @@ struct proc_args {
     unsigned int    mcast_port;
 };
 
+/*
+ * vfork() shares stack so that we have to be very careful for child to not
+ * modify parents stack. NOTE: compiler can share same stack area for
+ * different local variables if their aliveness are distinct.
+ * Introduce minimal function (no inline) to allocate dedicated stack
+ * area for child.
+ */
+static int __attribute__ ((noinline))
+vfork_exec(int pipe_input, int proc_fds[3], const char** argv)
+{
+    int ret = ARCH_VFORK();
+    if (ret)
+        return ret;
+
+    /* child */
+    for (int i = 0 ; i < 3 ; i++)
+        INLINE_SYSCALL(close, 1, proc_fds[i]);
+
+    ret = INLINE_SYSCALL(dup2, 2, pipe_input, PROC_INIT_FD);
+    if (!IS_ERR(ret)) {
+        extern char** environ;
+        ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
+
+        /* shouldn't get to here */
+        SGX_DBG(DBG_E, "unexpected failure of new process\n");
+    }
+    __asm__ volatile ("hlt");
+    return 0;
+}
+
 int sgx_create_process (const char * uri, int nargs, const char ** args,
                         int * retfds)
 {
@@ -71,26 +101,9 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
     memcpy(argv + 1, args, sizeof(const char *) * nargs);
     argv[nargs + 1] = NULL;
 
-    ret = ARCH_VFORK();
-
+    ret = vfork_exec(proc_fds[0][0], proc_fds[1], argv);
     if (IS_ERR(ret))
         goto out;
-
-    if (!ret) {
-        for (int i = 0 ; i < 3 ; i++)
-            INLINE_SYSCALL(close, 1, proc_fds[1][i]);
-
-        ret = INLINE_SYSCALL(dup2, 2, proc_fds[0][0], PROC_INIT_FD);
-        if (!IS_ERR(ret)) {
-            extern char** environ;
-            ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
-
-            /* shouldn't get to here */
-            SGX_DBG(DBG_E, "unexpected failure of new process\n");
-        }
-        __asm__ volatile ("hlt");
-        return 0;
-    }
 
     child = ret;
 
