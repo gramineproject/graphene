@@ -36,8 +36,8 @@
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
-int printf(const char * fmt, ...);
-int snprintf(char * str, int size, const char * fmt, ...);
+int printf(const char * fmt, ...) __attribute__((format(printf, 1, 2)));
+int snprintf(char * str, int size, const char * fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /* constants and macros to help rounding addresses to page
    boundaries */

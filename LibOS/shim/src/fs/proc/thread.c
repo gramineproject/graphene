@@ -534,7 +534,7 @@ retry_dump_vmas:
         };
         char pr = (vma->flags & MAP_PRIVATE) ? 'p' : 's';
 
-#define ADDR_FMT(addr) ((addr) > 0xffffffff ? "%lx" : "%08x")
+#define ADDR_FMT(addr) ((addr) > 0xffffffff ? "%lx" : "%08lx")
 #define EMIT(fmt ...)                                                   \
         do {                                                            \
             offset += snprintf(buffer + offset, buffer_size - offset,   \
@@ -553,7 +553,7 @@ retry_emit_vma:
             EMIT(ADDR_FMT(start), start);
             EMIT("-");
             EMIT(ADDR_FMT(end),   end);
-            EMIT(" %c%c%c%c %08lx %02d:%02d %u %s\n", pt[0], pt[1], pt[2], pr,
+            EMIT(" %c%c%c%c %08lx %02d:%02d %lu %s\n", pt[0], pt[1], pt[2], pr,
                  vma->offset, dev_major, dev_minor, ino, name);
         } else {
             EMIT(ADDR_FMT(start), start);

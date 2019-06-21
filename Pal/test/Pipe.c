@@ -16,7 +16,7 @@ int main (int argc, char ** argv)
     }
     pipeid = pipeid % 1024;
 
-    snprintf(uri, 40, "pipe.srv:%d", pipeid);
+    snprintf(uri, 40, "pipe.srv:%ld", pipeid);
 
     PAL_HANDLE srv = DkStreamOpen(uri, 0, 0,
                                   PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
@@ -26,7 +26,7 @@ int main (int argc, char ** argv)
         return -1;
     }
 
-    snprintf(uri, 40, "pipe:%d", pipeid);
+    snprintf(uri, 40, "pipe:%ld", pipeid);
 
     PAL_HANDLE cli = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0,
                                   PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);

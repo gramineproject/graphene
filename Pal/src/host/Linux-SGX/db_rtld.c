@@ -111,7 +111,7 @@ void _DkDebugAddMap (struct link_map * map)
     char buffer[BUFFER_LENGTH], * ptr = buffer;
 
     snprintf(ptr, BUFFER_LENGTH - (ptr - buffer),
-             "add-symbol-file %s 0x%016llx -readnow", map->l_name, text_addr);
+             "add-symbol-file %s 0x%016lx -readnow", map->l_name, text_addr);
     ptr += strlen(ptr);
 
     for (ElfW(Shdr) * s = shdr ; s < shdrend ; s++) {
@@ -125,7 +125,7 @@ void _DkDebugAddMap (struct link_map * map)
             continue;
 
         snprintf(ptr, BUFFER_LENGTH - (ptr - buffer),
-                 " -s %s 0x%016llx", shstrtab + s->sh_name,
+                 " -s %s 0x%016lx", shstrtab + s->sh_name,
                  map->l_addr + s->sh_addr);
         ptr += strlen(ptr);
     }
@@ -158,8 +158,8 @@ void setup_pal_map (struct link_map * pal_map)
 
     char buffer[BUFFER_LENGTH];
     snprintf(buffer, BUFFER_LENGTH,
-             "add-symbol-file %s 0x%016llx -readnow -s .rodata 0x%016llx "
-             "-s .dynamic 0x%016llx -s .data 0x%016llx -s .bss 0x%016llx",
+             "add-symbol-file %s 0x%p -readnow -s .rodata 0x%p "
+             "-s .dynamic 0x%p -s .data 0x%p -s .bss 0x%p",
              pal_map->l_name,
              &section_text, &section_rodata, &section_dynamic,
              &section_data, &section_bss);
