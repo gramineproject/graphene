@@ -288,15 +288,15 @@ BEGIN_CP_FUNC(qstr)
 {
     struct shim_qstr * qstr = (struct shim_qstr *) obj;
 
-    if (qstr->len < QSTR_SIZE) {
-        if (qstr->oflow) {
-            memcpy(qstr->name, qstr->oflow, qstr->len + 1);
-            qstr->oflow = NULL;
-        }
-    } else {
+    /* qstr is always embedded as sub-object in other objects so it is
+     * automatically checkpointed as part of other checkpoint routines.
+     * However, its oflow string resides in some other memory region
+     * and must be checkpointed and restored explicitly. */
+    if (qstr->oflow) {
         struct shim_str * str =
             (void *) (base + ADD_CP_OFFSET(qstr->len + 1));
         memcpy(str, qstr->oflow, qstr->len + 1);
+        free_str_obj(qstr->oflow);
         qstr->oflow = str;
         ADD_CP_FUNC_ENTRY((ptr_t) qstr - base);
     }
