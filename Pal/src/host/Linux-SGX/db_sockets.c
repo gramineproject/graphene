@@ -443,6 +443,11 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int options)
 
 
     struct sockopt sock_options;
+
+    // initialize the above sock_options variable
+    memset(&sock_options, 0, sizeof(sock_options));
+    sock_options.reuseaddr = 1;
+        
     ret = ocall_sock_connect(dest_addr->sa_family,
                              sock_type(SOCK_STREAM, options), 0,
                              dest_addr, dest_addrlen,
