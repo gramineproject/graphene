@@ -15,6 +15,12 @@ Internet Software Consortium (permissive license): Pal/lib/network/inet_pton.c
 MIT JOS (mix of MIT and BSD licenses:
 * Pal/lib/stdlib/printfmt.c
 
+ubsan.c from NetBSD - BSD license
+* Pal/lib/ubsan.c
+  stolen from
+  https://github.com/NetBSD/src/blob/trunk/common/lib/libc/misc/ubsan.c
+  8b156a9c12438e03a072fa9a7a97398974bd5431
+  
 A number of files taken from other C libraries:
 * musl - MIT
 * glibc - LGPL
