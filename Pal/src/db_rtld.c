@@ -888,11 +888,18 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 done:
 #endif
 
-    if (loaded_maps)
-        loaded_maps->l_prev = map;
-    map->l_next = loaded_maps;
-    map->l_prev = NULL;
-    loaded_maps = map;
+    map->l_next = NULL;
+    if (!loaded_maps) {
+        map->l_prev = NULL;
+        loaded_maps = map;
+    } else {
+        struct link_map * end = loaded_maps;
+        while (end->l_next)
+            end = end->l_next;
+        end->l_next = map;
+        map->l_prev = end;
+    }
+
     if (map->l_type == OBJECT_EXEC)
         exec_map = map;
 
@@ -1360,9 +1367,7 @@ noreturn void start_execution (const char * first_argument,
 #endif
 
     struct link_map * l = loaded_maps;
-    /* run entry point in reverse order */
-    for (; l->l_next ; l = l->l_next);
-    for (; l ; l = l->l_prev)
+    for (; l ; l = l->l_next)
         if (l->l_type == OBJECT_PRELOAD && l->l_entry)
             CALL_ENTRY(l, cookies);
 
