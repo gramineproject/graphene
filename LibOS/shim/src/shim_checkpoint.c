@@ -1015,7 +1015,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (cpstore.use_gipc) {
         snprintf(hdr.checkpoint.gipc.uri, sizeof(hdr.checkpoint.gipc.uri),
-                 "gipc:%lld", gipc_key);
+                 "gipc:%ld", gipc_key);
 
         if (cpstore.gipc_nentries) {
             hdr.checkpoint.gipc.entoffset =

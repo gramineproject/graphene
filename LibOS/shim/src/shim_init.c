@@ -63,7 +63,7 @@ void warn (const char *format, ...)
 {
     va_list args;
     va_start (args, format);
-    __SYS_VPRINTF(format, &args);
+    __SYS_VPRINTF(format, args);
     va_end (args);
 }
 

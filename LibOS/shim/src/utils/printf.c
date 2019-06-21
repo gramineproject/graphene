@@ -109,7 +109,7 @@ void debug_putch (int ch)
     debug_fputch(NULL, ch, shim_get_tls()->debug_buf);
 }
 
-void debug_vprintf (const char * fmt, va_list * ap)
+void debug_vprintf (const char * fmt, va_list ap)
 {
     vfprintfmt((void *) debug_fputch, NULL, shim_get_tls()->debug_buf,
                fmt, ap);
@@ -119,7 +119,7 @@ void debug_printf (const char * fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    debug_vprintf(fmt, &ap);
+    debug_vprintf(fmt, ap);
     va_end(ap);
 }
 
@@ -171,7 +171,7 @@ sys_fputch (void * f, int ch, void * b)
 }
 
 static void
-sys_vfprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap)
+sys_vfprintf (PAL_HANDLE hdl, const char * fmt, va_list ap)
 {
     vfprintfmt((void *) &sys_fputch, hdl, NULL, fmt, ap);
 }
@@ -180,11 +180,11 @@ void handle_printf (PAL_HANDLE hdl, const char * fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    sys_vfprintf(hdl, fmt, &ap);
+    sys_vfprintf(hdl, fmt, ap);
     va_end(ap);
 }
 
-void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap)
+void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list ap)
 {
     sys_vfprintf(hdl, fmt, ap);
 }

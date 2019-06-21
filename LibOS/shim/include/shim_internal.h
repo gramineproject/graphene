@@ -71,7 +71,7 @@ extern PAL_HANDLE debug_handle;
 void debug_printf (const char * fmt, ...) __attribute__((format (printf, 1, 2)));
 void debug_puts (const char * str);
 void debug_putch (int ch);
-void debug_vprintf (const char * fmt, va_list * ap) __attribute__((format (printf, 1, 0)));
+void debug_vprintf (const char * fmt, va_list ap) __attribute__((format (printf, 1, 0)));
 
 #define VMID_PREFIX     "[P%05u] "
 #define TID_PREFIX      "[%-6u] "
@@ -86,7 +86,7 @@ void debug_vprintf (const char * fmt, va_list * ap) __attribute__((format (print
 #define SYSPRINT_BUFFER_SIZE    256
 
 void handle_printf (PAL_HANDLE hdl, const char * fmt, ...) __attribute__((format (printf, 2, 3)));
-void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap) __attribute__((format (printf, 2, 0)));
+void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list ap) __attribute__((format (printf, 2, 0)));
 
 #define __SYS_PRINTF(fmt, ...)                                              \
     do {                                                                    \

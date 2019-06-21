@@ -200,7 +200,7 @@ int main (int argc, char ** argv, char ** envp)
         PAL_HANDLE ipc1 = DkCreatePhysicalMemoryChannel(&key1);
 
         if (ipc1) {
-            snprintf(gipc_uri, 20, "gipc:%lld", key1);
+            snprintf(gipc_uri, 20, "gipc:%ld", key1);
             pal_printf("Create Physical Memory Store OK\n");
 
             void * mem1 =
@@ -237,7 +237,7 @@ int main (int argc, char ** argv, char ** envp)
         PAL_HANDLE ipc2 = DkCreatePhysicalMemoryChannel(&key2);
 
         if (ipc2) {
-            snprintf(gipc_uri, 20, "gipc:%lld", key2);
+            snprintf(gipc_uri, 20, "gipc:%ld", key2);
             pal_printf("Create Physical Memory Store OK\n");
 
             void * mem2 =
@@ -272,7 +272,7 @@ int main (int argc, char ** argv, char ** envp)
         PAL_HANDLE ipc3 = DkCreatePhysicalMemoryChannel(&key3);
 
         if (ipc3) {
-            snprintf(gipc_uri, 20, "gipc:%lld", key3);
+            snprintf(gipc_uri, 20, "gipc:%ld", key3);
             pal_printf("Create Physical Memory Store OK\n");
 
             void * mem3 = NULL;
@@ -310,7 +310,7 @@ int main (int argc, char ** argv, char ** envp)
         PAL_HANDLE ipc4 = DkCreatePhysicalMemoryChannel(&key4);
 
         if (ipc4) {
-            snprintf(gipc_uri, 20, "gipc:%lld", key4);
+            snprintf(gipc_uri, 20, "gipc:%ld", key4);
             pal_printf("Create Physical Memory Store OK\n");
 
             void * mem4 = NULL;
@@ -344,7 +344,7 @@ int main (int argc, char ** argv, char ** envp)
         PAL_HANDLE ipc5 = DkCreatePhysicalMemoryChannel(&key5);
 
         if (ipc5) {
-            snprintf(gipc_uri, 20, "gipc:%lld", key5);
+            snprintf(gipc_uri, 20, "gipc:%ld", key5);
             pal_printf("Create Physical Memory Store OK\n");
 
             void * mem5 =
