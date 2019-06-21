@@ -26,11 +26,6 @@
 
 PAL_HANDLE debug_handle = NULL;
 
-struct debugbuf {
-    int cnt;
-    char buf[DEBUGBUF_SIZE];
-};
-
 static inline int
 debug_fputs (void * f, const char * buf, int len)
 {
