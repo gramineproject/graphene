@@ -306,16 +306,15 @@ BEGIN_CP_FUNC(qstr)
 
     struct shim_qstr * qstr = (struct shim_qstr *) obj;
 
-    if (qstr->len < QSTR_SIZE) {
-        if (qstr->oflow) {
-            memcpy(qstr->name, qstr->oflow, qstr->len + 1);
-            qstr->oflow = NULL;
-        }
-    } else {
+    /* qstr is always embedded as sub-object in other objects so it is
+     * automatically checkpointed as part of other checkpoint routines.
+     * However, its oflow string resides in some other memory region
+     * and must be checkpointed and restored explicitly. Copy oflow
+     * string inside checkpoint right before qstr cp entry. */
+    if (qstr->oflow) {
         struct shim_str * str =
             (void *) (base + ADD_CP_OFFSET(qstr->len + 1));
         memcpy(str, qstr->oflow, qstr->len + 1);
-        qstr->oflow = str;
         ADD_CP_FUNC_ENTRY((ptr_t) qstr - base);
     }
 }
@@ -324,9 +323,15 @@ END_CP_FUNC(qstr)
 BEGIN_RS_FUNC(qstr)
 {
     __UNUSED(offset);
+    __UNUSED(rebase);
 
+    /* If we are here, qstr has oflow string. We know that oflow string
+     * is right before this qstr cp entry (aligned to 8B). Calculate
+     * oflow string's base address and update qstr to point to it. */
     struct shim_qstr * qstr = (void *) (base + GET_CP_FUNC_ENTRY());
-    CP_REBASE(qstr->oflow);
+    size_t size = qstr->len + 1;
+    size = ((size) + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
+    qstr->oflow = (void *)entry - size;
 }
 END_RS_FUNC(qstr)
 
