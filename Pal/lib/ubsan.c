@@ -27,6 +27,28 @@
  */
 
 
+#include "api.h"
+#include "pal_debug.h"
+
+/* NetBSD specific definitions
+ * Stolen from
+ * https://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/sys/sys/cdefs.h
+ */
+#define __printflike(fmtarg, firstvararg)	\
+	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#define	__BIT(__n)	\
+    (((uintmax_t)(__n) >= NBBY * sizeof(uintmax_t)) ? 0 : \
+    ((uintmax_t)1 << (uintmax_t)((__n) & (NBBY * sizeof(uintmax_t) - 1))))
+#define	__LOWEST_SET_BIT(__mask) ((((__mask) - 1) & (__mask)) ^ (__mask))
+#define	__SHIFTOUT(__x, __mask)	(((__x) & (__mask)) / __LOWEST_SET_BIT(__mask))
+#define	__arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
+#define	__unreachable()	__builtin_unreachable()
+
+/* work around */
+#define __RCSID(x)
+#define warn(...) pal_printf(__VA_ARGS__)
+#define abort() __abort()
+
 /*
  * The micro UBSan implementation for the userland (uUBSan) and kernel (kUBSan).
  * The uBSSan versions is suitable for inclusion into libc or used standalone
@@ -60,10 +82,12 @@ __RCSID("$NetBSD: ubsan.c,v 1.6 2019/06/17 18:55:37 kamil Exp $");
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+#if 0   /* those headers/functions are missing */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#endif
 #include <unistd.h>
 #if defined(_LIBC)
 #include "extern.h"
@@ -1139,6 +1163,7 @@ Report(bool isFatal, const char *pFormat, ...)
 
 		ubsan_flags = UBSAN_STDERR;
 
+#if 0   /* getnenv_r is missing */
 		if (getenv_r("LIBC_UBSAN", buf, sizeof(buf)) != -1) {
 			for (p = buf; *p; p++) {
 				switch (*p) {
@@ -1171,8 +1196,10 @@ Report(bool isFatal, const char *pFormat, ...)
 				}
 			}
 		}
+#endif
 	}
 
+#if 0 /* stdout, stderr, syslog are missing */
 	// The *v*print* functions can flush the va_list argument.
 	// Create a local copy for each call to prevent invalid read.
 	if (ISSET(ubsan_flags, UBSAN_STDOUT)) {
@@ -1196,6 +1223,7 @@ Report(bool isFatal, const char *pFormat, ...)
 		ubsan_vsyslog(LOG_DEBUG | LOG_USER, &SyslogData, pFormat, tmp);
 		va_end(tmp);
 	}
+#endif
 	if (isFatal || alwaysFatal || ISSET(ubsan_flags, UBSAN_ABORT)) {
 		abort();
 		__unreachable();
@@ -1273,6 +1301,7 @@ DeserializeUINT128(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *
 
 	memcpy(rgNumber, &U128, sizeof(U128));
 
+#if 0   /* strlcat() is missing */
 	strlcpy(pBuffer, "Undecoded-128-bit-Integer-Type (0x", zBUfferLength);
 #if BYTE_ORDER == LITTLE_ENDIAN
 	for (zI = sizeof(ulongest) - 1; zI >= 0; zI--) {
@@ -1283,6 +1312,7 @@ DeserializeUINT128(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *
 		strlcat(pBuffer, szBuf, zBUfferLength);
 	}
 	strlcat(pBuffer, ")", zBUfferLength);
+#endif
 }
 #endif
 

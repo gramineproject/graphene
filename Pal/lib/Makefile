@@ -57,6 +57,12 @@ objs += crypto/adapters/wolfssl_adapter.o
 objs += crypto/adapters/wolfssl_dh.o
 endif
 
+ifeq ($(CONFIG_ENABLE_UBSAN),y)
+CFLAGS-ubsan.o += -Wno-unused-parameter -Wno-unused-variable
+objs += ubsan.o
+endif
+
+.DEFAULT: all
 .PHONY: all
 all: $(target)graphene-lib.a
 
