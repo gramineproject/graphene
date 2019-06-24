@@ -43,7 +43,7 @@
  *  Returns 0 on success, negative value on failure (e.g., -PAL_ERROR_TRYAGAIN)
  */
 static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
-    int writeable_fd = -1;
+    int writable_fd = -1;
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
     if (HANDLE_HDR(handle)->flags & HAS_FDS) {
@@ -67,7 +67,7 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
                 events |= POLLIN;
 
             /* DEP 4/2/18: Go ahead and check for POLLOUT even if
-             * we have already cached the WRITEABLE property.
+             * we have already cached the WRITABLE property.
              * It should go quickly.  Or, we could quit early.
              */
             if ((HANDLE_HDR(handle)->flags & WFD(i))) {
@@ -75,7 +75,7 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
                     events |= POLLOUT;
                 else if (events && !(HANDLE_HDR(handle)->flags & ERROR(i))) {
                     // We should be able to at least return that this handle
-                    // is writeable, if anyone cares.  We only need to return
+                    // is writable, if anyone cares.  We only need to return
                     // one, so it is ok to set the last one.  If there isn't a timeout
                     // set, drop it to zero
                     if (timeout == NO_TIMEOUT)
@@ -83,7 +83,7 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
                     // DEP 2/5/19: This works out because the next `if` statement
                     // will populate this field.  This function really needs a
                     // major overhaul for clarity
-                    writeable_fd = nfds;
+                    writable_fd = nfds;
                 }
             }
 
@@ -113,10 +113,10 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
             }
 
         if (!ret) {
-            // DEP 4/2/18: Patch up the case where a WRITEABLE socket can
+            // DEP 4/2/18: Patch up the case where a WRITABLE socket can
             // return immediately
-            if (writeable_fd != -1) {
-                fds[writeable_fd].revents |= POLLOUT;
+            if (writable_fd != -1) {
+                fds[writable_fd].revents |= POLLOUT;
             } else {
                 return -PAL_ERROR_TRYAGAIN;
             }
@@ -145,7 +145,7 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, PAL_NUM timeout) {
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
 int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, PAL_NUM timeout, PAL_HANDLE* polled) {
-    int writeable_fd = -1;
+    int writable_fd = -1;
     if (count <= 0)
         return 0;
 
@@ -208,7 +208,7 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, PAL_NUM timeout, PAL_H
                 events |= POLLIN;
 
             /* DEP 4/2/18: Go ahead and check for POLLOUT even if
-             * we have already cached the WRITEABLE property.
+             * we have already cached the WRITABLE property.
              * It should go quickly.  Or, we could quit early.
              */
             if ((HANDLE_HDR(hdl)->flags & WFD(j))) {
@@ -218,15 +218,15 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, PAL_NUM timeout, PAL_H
                 else if ((!(HANDLE_HDR(hdl)->flags & ERROR(j))) && events &&
                          hdl->generic.fds[j] != PAL_IDX_POISON) {
                     // We should be able to at least return that this handle
-                    // is writeable, if anyone cares.  We only need to return
+                    // is writable, if anyone cares.  We only need to return
                     // one, so it is ok to set the last one. If there isn't a
                     // timeout set, drop it to zero
                     if (timeout == NO_TIMEOUT)
                         timeout = 0;
                     // DEP 2/5/19: This works out because the next if statement
-                    // will popuate this field.  This function really needs a
+                    // will populate this field.  This function really needs a
                     // major overhaul for clarity
-                    writeable_fd = nfds;
+                    writable_fd = nfds;
                 }
             }
 
@@ -266,10 +266,10 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, PAL_NUM timeout, PAL_H
         }
 
     if (!ret) {
-        // DEP 4/2/18: Patch up the case where a WRITEABLE socket can
+        // DEP 4/2/18: Patch up the case where a WRITABLE socket can
         // return immediately
-        if (writeable_fd != -1) {
-            fds[writeable_fd].revents |= POLLOUT;
+        if (writable_fd != -1) {
+            fds[writable_fd].revents |= POLLOUT;
         } else
             return -PAL_ERROR_TRYAGAIN;
     }
