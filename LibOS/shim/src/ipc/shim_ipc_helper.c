@@ -836,6 +836,7 @@ noreturn static void shim_ipc_helper_end(struct shim_thread * self)
 
 noreturn static void __shim_ipc_helper (void * dummy)
 {
+    __UNUSED(dummy);
     struct shim_thread * self = get_cur_thread();
     void * stack = self->stack;
 
