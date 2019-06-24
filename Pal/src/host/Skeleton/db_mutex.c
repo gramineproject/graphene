@@ -16,10 +16,6 @@
 
 /*
  * db_mutex.c
- *
- * This file contains APIs that provide operations of (futex based) mutexes.
- * Based on "Mutexes and Condition Variables using Futexes"
- * (http://locklessinc.com/articles/mutex_cv_futex)
  */
 
 #include "pal_defs.h"
