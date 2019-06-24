@@ -54,7 +54,7 @@ Run the following command on Ubuntu to install dependencies for Graphene:
 
 For building Graphene for SGX, run the following command in addition:
 
-    sudo apt-get install -y python-protobuf python-crypto
+    sudo apt-get install -y python-protobuf
 
 
 To build the system, simply run the following commands in the root of the
