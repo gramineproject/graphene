@@ -10,7 +10,7 @@ ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
 endif
 
-host_files = libpal-Linux.a
+host_files = libpal-Linux.a pal.map
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
@@ -31,6 +31,9 @@ endif
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/Linux/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
+
+pal.map: pal.map.template ../../pal-symbols
+	sed -e 's:\$$(PAL_SYMBOLS):$(shell sed -e 's:$$:;:g' ../../pal-symbols):g' $< > $@
 
 %.asm: %.c $(headers)
 	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o

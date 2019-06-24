@@ -5,7 +5,7 @@ CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
-host_target = libpal-FreeBSD.a ../../pal-gdb
+host_files = libpal-FreeBSD.a pal.map ../../pal-gdb
 
 defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
@@ -14,8 +14,7 @@ objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
-.PHONY: all
-all: $(host_target)
+all: $(host_files)
 
 ifeq ($(DEBUG),1)
 CC += -g -gdwarf-2 -gstrict-dwarf
@@ -30,6 +29,9 @@ pal-gdb: pal-gdb.template
 libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/FreeBSD/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
+
+pal.map: pal.map.template ../../pal-symbols
+	sed -e 's:\$$(PAL_SYMBOLS):$(shell sed -e 's:$$:;:g' ../../pal-symbols):g' $< > $@
 
 %.asm: %.c $(headers)
 	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
@@ -60,4 +62,4 @@ CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 
 .PHONY: clean
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_target) $(CLEAN_FILES)
+	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES)
