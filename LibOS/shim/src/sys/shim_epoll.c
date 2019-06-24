@@ -256,10 +256,12 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
                     lock(&hdl->lock);
                     LISTP_DEL(epoll_fd, &hdl->epolls, back);
                     unlock(&hdl->lock);
-                    put_handle(epoll_hdl);
 
                     debug("delete handle %p from epoll handle %p\n",
                           hdl, epoll);
+
+                    put_handle(epoll_hdl);
+                    put_handle(hdl);
 
                     LISTP_DEL(epoll_fd, &epoll->fds, list);
                     epoll->nfds--;
