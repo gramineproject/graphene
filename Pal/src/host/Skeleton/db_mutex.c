@@ -15,9 +15,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
- * db_semaphore.c
- *
- * This file contains APIs that provides operations of semaphores.
+ * db_mutex.c
  */
 
 #include "api.h"
@@ -26,26 +24,42 @@
 #include "pal_error.h"
 #include "pal_internal.h"
 
-int _DkSemaphoreCreate(PAL_HANDLE handle, int initialCount, int maxCount) {
+int
+_DkMutexCreate (PAL_HANDLE * handle, int initialCount)
+{
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-void _DkSemaphoreDestroy(PAL_HANDLE semaphoreHandle) {
-    /* need to be implemented */
-}
-
-int _DkSemaphoreAcquire(PAL_HANDLE sem, int count) {
+int _DkMutexLockTimeout (struct mutex_handle * m, int64_t timeout_us)
+{
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSemaphoreAcquireTimeout(PAL_HANDLE sem, int count, int timeout) {
+int _DkMutexLock (struct mutex_handle * m)
+{
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-void _DkSemaphoreRelease(PAL_HANDLE sem, int count) {
-    /* need to be implemented */
-}
-
-int _DkSemaphoreGetCurrentCount(PAL_HANDLE sem) {
+int _DkMutexAcquireTimeout (PAL_HANDLE handle, int64_t timeout_us)
+{
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+int _DkMutexUnlock (struct mutex_handle * m)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+void _DkMutexRelease (PAL_HANDLE handle)
+{
+    /* Not implemented yet */
+}
+
+static int mutex_wait (PAL_HANDLE handle, int64_t timeout_us)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+struct handle_ops mutex_ops = {
+        .wait               = &mutex_wait,
+    };

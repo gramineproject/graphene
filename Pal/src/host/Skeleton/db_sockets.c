@@ -54,7 +54,7 @@ static int tcp_connect (PAL_HANDLE * handle, char * uri, int create)
 static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
-    int uri_len = strlen(uri) + 1;
+    size_t uri_len = strlen(uri) + 1;
 
     if (uri_len > PAL_SOCKADDR_SIZE)
         return -PAL_ERROR_TOOLONG;
@@ -72,13 +72,13 @@ static int tcp_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of tcp stream */
-static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, uint64_t len, void * buf)
+static int64_t tcp_read (PAL_HANDLE handle, uint64_t offset, size_t len, void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 /* write' operation of tcp stream */
-static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, uint64_t len, const void * buf)
+static int64_t tcp_write (PAL_HANDLE handle, uint64_t offset, size_t len, const void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -99,7 +99,7 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
                      int access, int share, int create, int options)
 {
     char buf[PAL_SOCKADDR_SIZE];
-    int len = strlen(uri);
+    size_t len = strlen(uri);
 
     if (len >= PAL_SOCKADDR_SIZE)
         return -PAL_ERROR_TOOLONG;
@@ -115,24 +115,24 @@ static int udp_open (PAL_HANDLE *hdl, const char * type, const char * uri,
     return -PAL_ERROR_NOTSUPPORT;
 }
 
-static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, uint64_t len, void * buf)
+static int64_t udp_receive (PAL_HANDLE handle, uint64_t offset, size_t len, void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
-                              void * buf, char * addr, int addrlen)
+static int64_t udp_receivebyaddr (PAL_HANDLE handle, uint64_t offset, size_t len,
+                              void * buf, char * addr, size_t addrlen)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, uint64_t len, const void * buf)
+static int64_t udp_send (PAL_HANDLE handle, uint64_t offset, size_t len, const void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, uint64_t len,
-                               const void * buf, const char * addr, int addrlen)
+static int64_t udp_sendbyaddr (PAL_HANDLE handle, uint64_t offset, size_t len,
+                               const void * buf, const char * addr, size_t addrlen)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -152,7 +152,7 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int socket_getname (PAL_HANDLE handle, char * buffer, int count)
+static int socket_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

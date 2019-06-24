@@ -9,6 +9,10 @@ pipeline {
                             make -j 8 DEBUG=1 WERROR=1
                             make -j 8 DEBUG=1 WERROR=1 test
                            '''
+                        sh '''
+                            cd Pal/src
+                            make -j 8 PAL_HOST=Skeleton DEBUG=1 WERROR=1
+                           '''
                     }
                 }
                 stage('Test') {

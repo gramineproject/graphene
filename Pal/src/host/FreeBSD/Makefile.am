@@ -16,6 +16,6 @@ endif
 
 pal_loader = $(HOST_DIR)/libpal.so
 pal_lib = $(HOST_DIR)/libpal.so
-pal_lib_deps = $(HOST_DIR)/pal.map $(HOST_DIR)/pal.lds
+pal_lib_deps = pal-symbols $(HOST_DIR)/pal.map.template $(HOST_DIR)/pal.lds
 pal_lib_post =
 pal_static = $(HOST_DIR)/libpal.a

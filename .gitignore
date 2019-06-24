@@ -16,6 +16,7 @@
 *.s
 *.e
 *.d
+pal.map
 
 # object file/libraries
 *.a

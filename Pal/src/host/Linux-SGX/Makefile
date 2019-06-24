@@ -4,7 +4,7 @@ include Makefile.am
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
-host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so generated_offsets.py
+host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)

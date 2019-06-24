@@ -204,7 +204,7 @@ static int dev_attrquery (const char * type, const char * uri,
                           PAL_STREAM_ATTR * attr)
 {
     struct handle_ops * ops = NULL;
-    const char * dev_type = NULL;
+    char * dev_type = NULL;
     int ret = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);

@@ -102,7 +102,7 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int file_getname (PAL_HANDLE handle, char * buffer, int count)
+static int file_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -169,7 +169,7 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
+static int dir_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

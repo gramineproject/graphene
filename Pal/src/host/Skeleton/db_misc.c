@@ -41,7 +41,7 @@ unsigned long _DkSystemTimeQuery (void)
     return 0;
 }
 
-int _DkRandomBitsRead (void * buffer, int size)
+size_t _DkRandomBitsRead (void * buffer, size_t size)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -57,6 +57,12 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
 }
 
 int _DkInstructionCacheFlush (const void * addr, int size)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
+                      unsigned int values[4])
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

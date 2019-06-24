@@ -93,7 +93,7 @@ quiet_cmd_cpp_s_S = [ $@ ]
 
 # LD
 quiet_cmd_ld_so_o = [ $@ ]
-      cmd_ld_so_o = $(LD) $(LDFLAGS) $(LDFLAGS-$@) -o $@ $(filter-out %.map %.lds,$^) -soname $(notdir $@)
+      cmd_ld_so_o = $(LD) $(LDFLAGS) $(LDFLAGS-$@) -o $@ $(filter-out pal-symbols %.map %.map.template %.lds,$^) -soname $(notdir $@)
 
 # AR
 quiet_cmd_ar_so_o = [ $@ ]
@@ -104,7 +104,7 @@ quiet_cmd_ar_a_o = [ $@ ]
 
 # LD only
 quiet_cmd_ld = [ $@ ]
-      cmd_ld = $(LD) $(LDFLAGS) $(LDFLAGS-$@) -o $@ $(filter-out %.map %.lds,$^)
+      cmd_ld = $(LD) $(LDFLAGS) $(LDFLAGS-$@) -o $@ $(filter-out pal-symbols %.map %.map.template %.lds,$^)
 
 # OBJCOPY
 quiet_cmd_objcopy = [ $@ ]
@@ -142,3 +142,13 @@ quiet_cmd_sgx_manifest_dependency = [ $@ ]
 	 awk -F= '/^\s*sgx.trusted_files./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file)}' $<; \
 	 awk -F= '/^\s*sgx.trusted_children./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file); gsub(".sig", "", file); printf(" \\\n\t%s.manifest.sgx", file)}' $<; \
 	 echo "") > $@
+
+# pal map
+PAL_SYMBOL_FILE = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))Pal/src/pal-symbols
+PAL_SYMBOLS = $(shell sed -e 's|$$|;|g' $(PAL_SYMBOL_FILE))
+
+quiet_cmd_pal_map = [ $@ ]
+      cmd_pal_map = sed -e 's|\$$(PAL_SYMBOLS)|$(PAL_SYMBOLS)|g' $< > $@
+
+pal.map: pal.map.template $(PAL_SYMBOL_FILE)
+	$(call cmd,pal_map)

@@ -5,7 +5,7 @@ CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
-host_target = libpal-FreeBSD.a ../../pal-gdb
+host_files = libpal-FreeBSD.a pal.map ../../pal-gdb
 
 defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
 CFLAGS += $(defs)
@@ -17,7 +17,7 @@ graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
-all: $(host_target)
+all: $(host_files)
 
 ifeq ($(DEBUG),1)
 CC += -g -gdwarf-2 -gstrict-dwarf
@@ -50,8 +50,8 @@ libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 
 include ../../../../Makefile.rules
 
-CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
+CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 
 .PHONY: clean
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_target) $(CLEAN_FILES)
+	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES)

@@ -32,15 +32,16 @@
 #include "pal_error.h"
 #include "api.h"
 
-int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
-                      int flags, const char ** args)
+int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 noreturn void _DkProcessExit (int exitcode)
 {
-    /* need to be implemented */
+    while (true) {
+        /* nothing */;
+    }
 }
 
 static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,

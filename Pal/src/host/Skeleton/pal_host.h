@@ -27,8 +27,13 @@
 # error "cannot be included outside PAL"
 #endif
 
-typedef int PAL_LOCK;
-#define LOCK_INIT   0
+typedef struct mutex_handle {
+    int unused;
+} PAL_LOCK;
+
+#define LOCK_INIT   {}
+#define INIT_LOCK(lock) do {} while (0)
+
 #define MAX_FDS     3
 
 typedef struct pal_handle
@@ -79,20 +84,20 @@ typedef struct pal_handle
         } sock;
 
         struct {
-            PAL_IDX fd;
+            PAL_IDX unused;
         } process;
 
         struct {
-            PAL_IDX fd;
+            PAL_IDX unused;
         } mcast;
 
         struct {
-            PAL_IDX fd;
+            PAL_IDX unused;
         } thread;
 
         struct {
             PAL_IDX fd;
-        } semaphore;
+        } mutex;
 
         struct {
             PAL_IDX fd;

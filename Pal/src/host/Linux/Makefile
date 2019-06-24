@@ -10,7 +10,7 @@ ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
 endif
 
-host_files = libpal-Linux.a
+host_files = libpal-Linux.a pal.map
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
@@ -51,7 +51,7 @@ include ../../../../Makefile.rules
 
 -include $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs))
 
-CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
+CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 
 .PHONY: clean
 clean:

@@ -17,6 +17,10 @@ pipeline {
                             cd Pal/ipc/linux
                             make KERNELDIR=/lib/modules/4.4.0-161-generic/build
                            '''
+                        sh '''
+                            cd Pal/src
+                            make -j 8 PAL_HOST=Skeleton WERROR=1
+                           '''
                     }
                 }
                 stage('Test') {

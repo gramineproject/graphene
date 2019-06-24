@@ -41,7 +41,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
+int _DkEventWaitTimeout (PAL_HANDLE event, int64_t timeout_us)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
@@ -55,3 +55,18 @@ int _DkEventClear (PAL_HANDLE event)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+static int event_close (PAL_HANDLE handle)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+static int event_wait (PAL_HANDLE handle, int64_t timeout_us)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+struct handle_ops event_ops = {
+        .close              = &event_close,
+        .wait               = &event_wait,
+    };

@@ -4,18 +4,17 @@ include Makefile.am
 CFLAGS  += -I. -I../.. -I../../../include -I../../../lib
 ASFLAGS += -I. -I../.. -I../../../include
 
-host_target = libpal-Skeleton.a
+host_files = libpal-Skeleton.a pal.map
 
 defs	= -DIN_PAL
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    semaphore events process object main rtld misc ipc exception)
-graphene_lib = ../../../lib/graphene-lib.a
+	    mutex events process object main rtld misc ipc exception)
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
-all: $(host_target)
+all: $(host_files)
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
@@ -26,7 +25,7 @@ endif
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
 
-libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
+libpal-Skeleton.a: $(addsuffix .o,$(objs))
 	$(call cmd,ar_a_o)
 
 %.o: %.c $(headers)
@@ -39,4 +38,4 @@ include ../../../../Makefile.rules
 
 .PHONY: clean
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_target)
+	rm -f $(addsuffix .o,$(objs)) $(host_files)
