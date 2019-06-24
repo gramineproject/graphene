@@ -110,7 +110,7 @@ ifneq ($(pal_lib),)
 $(pal_lib): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	    $(host_lib) $(graphene_lib) $(pal_lib_deps)
 	@echo [ $@ ]
-	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) $(LDFLAGS-suffix)
+	$(LD) $(LDFLAGS) -o $@ $(filter-out $(pal_lib_deps),$^) $(LDFLAGS-suffix)
 
 $(runtime_lib): $(pal_lib)
 	$(call cmd,ln_sf)
