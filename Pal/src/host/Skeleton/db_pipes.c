@@ -109,7 +109,7 @@ static int pipe_delete (PAL_HANDLE handle, int access)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
+static int pipe_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

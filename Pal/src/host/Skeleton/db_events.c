@@ -55,3 +55,18 @@ int _DkEventClear (PAL_HANDLE event)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
+
+static int event_close (PAL_HANDLE handle)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+static int event_wait (PAL_HANDLE handle, PAL_NUM timeout)
+{
+    return -PAL_ERROR_NOTIMPLEMENTED;
+}
+
+struct handle_ops event_ops = {
+        .close              = &event_close,
+        .wait               = &event_wait,
+    };

@@ -8,8 +8,7 @@ host_target = libpal-Skeleton.a
 
 defs	= -DIN_PAL
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    semaphore events process object main rtld misc ipc exception)
-graphene_lib = ../../../lib/graphene-lib.a
+	    mutex events process object main rtld misc ipc exception)
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
@@ -24,7 +23,7 @@ endif
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
 
-libpal-Skeleton.a: $(addsuffix .o,$(objs)) $(graphene_lib)
+libpal-Skeleton.a: $(addsuffix .o,$(objs))
 	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
 

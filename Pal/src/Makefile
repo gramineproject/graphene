@@ -61,7 +61,9 @@ export DEBUG
 #       pal_sec-{Host Name}:   secure loader for PAL (as an executable)
 #       pal_gdb-{Host Name}:   debugger for PAL (as an executable)
 
-runtime_loader = $(RUNTIME_DIR)/pal-$(PAL_HOST)
+ifneq ($(pal_loader),)
+	runtime_loader += $(RUNTIME_DIR)/pal-$(PAL_HOST)
+endif
 
 ifneq ($(pal_lib),)
 	runtime_lib += $(RUNTIME_DIR)/libpal-$(PAL_HOST)$(suffix $(pal_lib))
@@ -99,8 +101,10 @@ $(host_lib): $(graphene_lib)
 
 $(pal_loader) $(pal_sec): $(host_lib)
 
+ifneq ($(pal_loader),)
 $(runtime_loader): $(pal_loader)
 	$(call cmd,ln_sf)
+endif
 
 ifneq ($(pal_lib),)
 $(pal_lib): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
