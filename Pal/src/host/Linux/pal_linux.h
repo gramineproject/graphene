@@ -26,6 +26,7 @@
 
 #define PAL_LOADER RUNTIME_FILE("pal-Linux")
 
+#include <linux/mman.h>
 #include <sys/syscall.h>
 #include <sigset.h>
 

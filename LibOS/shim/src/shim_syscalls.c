@@ -670,7 +670,7 @@ void * shim_do_arch_prctl (int code, void * addr)
     return (void *) -ENOSYS;
 }
 
-SHIM_SYSCALL_PASSTHROUGH (adjtimex, 1, int, struct __kernel_timex *, txc_p)
+SHIM_SYSCALL_PASSTHROUGH (adjtimex, 1, int, struct ____kernel_timex *, txc_p)
 
 /* setrlimit: sys/shim_getrlimit.c */
 DEFINE_SHIM_SYSCALL (setrlimit, 2, shim_do_setrlimit, int, int, resource,
