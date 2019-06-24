@@ -247,6 +247,9 @@ out:
 
 BEGIN_CP_FUNC(brk)
 {
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
     if (region.brk_start) {
         ADD_CP_FUNC_ENTRY((ptr_t)region.brk_start);
         ADD_CP_ENTRY(ADDR, region.brk_current);
@@ -259,6 +262,7 @@ END_CP_FUNC(bek)
 
 BEGIN_RS_FUNC(brk)
 {
+    __UNUSED(rebase);
     region.brk_start   = (void *) GET_CP_FUNC_ENTRY();
     region.brk_current = (void *) GET_CP_ENTRY(ADDR);
     region.brk_end     = region.brk_start + GET_CP_ENTRY(SIZE);

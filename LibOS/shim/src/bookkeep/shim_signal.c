@@ -606,7 +606,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
     void (*handler) (int, siginfo_t *, void *) = NULL;
 
     if (signal->info.si_signo == SIGCP) {
-        join_checkpoint(thread, &signal->context, SI_CP_SESSION(&signal->info));
+        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
         return;
     }
 

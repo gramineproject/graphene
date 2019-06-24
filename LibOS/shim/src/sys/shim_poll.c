@@ -432,6 +432,8 @@ out:
 int shim_do_ppoll (struct pollfd * fds, int nfds, struct timespec * tsp,
                    const __sigset_t * sigmask, size_t sigsetsize)
 {
+    __UNUSED(sigmask);
+    __UNUSED(sigsetsize);
     struct shim_thread * cur = get_cur_thread();
 
     struct poll_handle * polls =
@@ -598,6 +600,7 @@ int shim_do_pselect6 (int nfds, fd_set * readfds, fd_set * writefds,
                       fd_set * errorfds, const struct __kernel_timespec * tsp,
                       const __sigset_t * sigmask)
 {
+    __UNUSED(sigmask);
     if (!nfds)
         return tsp ? shim_do_nanosleep (tsp, NULL) : -EINVAL;
 

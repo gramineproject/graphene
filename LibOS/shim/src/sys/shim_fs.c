@@ -292,6 +292,8 @@ int shim_do_chown (const char * path, uid_t uid, gid_t gid)
 {
     struct shim_dentry * dent = NULL;
     int ret = 0;
+    __UNUSED(uid);
+    __UNUSED(gid);
 
     if (!path)
         return -EINVAL;
@@ -310,6 +312,7 @@ int shim_do_chown (const char * path, uid_t uid, gid_t gid)
 int shim_do_fchownat (int dfd, const char * filename, uid_t uid, gid_t gid,
                       int flags)
 {
+    __UNUSED(flags);
     if (!filename)
         return -EINVAL;
 
@@ -337,6 +340,9 @@ out:
 
 int shim_do_fchown (int fd, uid_t uid, gid_t gid)
 {
+    __UNUSED(uid);
+    __UNUSED(gid);
+
     struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;

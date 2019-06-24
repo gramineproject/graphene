@@ -348,7 +348,7 @@ err:
 
     if (fs->d_ops->mode) {
         __kernel_mode_t mode;
-        if ((ret = fs->d_ops->mode(dent, &mode, 1)) < 0)
+        if ((ret = fs->d_ops->mode(dent, &mode)) < 0)
             goto err;
     }
 
