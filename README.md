@@ -47,17 +47,15 @@ Other distributions of 64-bit Linux can potentially, but the result is not
 guaranteed. If you find Graphene not working on other distributions, please
 contact us with a detailed bug report.
 
-The following packages are required for building Graphene: (can be installed
-with 'apt-get install')
-   - build-essential
-   - autoconf
-   - gawk
-   - gcc 4 or 5
+Run the following command on Ubuntu to install dependencies for Graphene:
 
-The following packages are also required for building Graphene for SGX (can
-be installed with 'apt-get install'):
-   - python-protobuf
-   - python-crypto
+    sudo apt-get install -y build-essential autoconf gawk
+
+
+For building Graphene for SGX, run the following command in addition:
+
+    sudo apt-get install -y python-protobuf python-crypto
+
 
 To build the system, simply run the following commands in the root of the
 source tree:
