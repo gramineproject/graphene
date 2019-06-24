@@ -26,7 +26,7 @@ endif
 pal_loader = $(HOST_DIR)/pal-sgx
 pal_sec =
 pal_lib = $(HOST_DIR)/libpal.so
-pal_lib_deps = $(HOST_DIR)/enclave.lds $(HOST_DIR)/pal.map
+pal_lib_deps = pal-symbols $(HOST_DIR)/pal.map.template $(HOST_DIR)/enclave.lds
 pal_static = $(HOST_DIR)/libpal.a
 pal_gdb = $(HOST_DIR)/debugger/gdb
 pal_signer = pal-sgx-get-token pal-sgx-sign aesm_pb2.py
