@@ -11,6 +11,7 @@ objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc exception)
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
+.PHONY: all
 all: $(host_files)
 
 ifeq ($(DEBUG),1)
