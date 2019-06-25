@@ -499,6 +499,13 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
     // lookup the path from start, passing flags
     err = __path_lookupat(start, path, lookup_flags, &mydent, 0, NULL, 0);
 
+    if (mydent && (mydent->state & DENTRY_ISDIRECTORY)) {
+        if (flags & O_WRONLY || flags & O_RDWR) {
+            err = -EISDIR;
+            goto out;
+        }
+    }
+
     // Deal with O_CREAT, O_EXCL, but only if we actually got a valid prefix
     // of directories.
     if (mydent && err == -ENOENT && (flags & O_CREAT)) {
@@ -630,8 +637,12 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
     }
     qstrsetstr(&hdl->path, path, size);
 
-    /* truncate the file if O_TRUNC is given */
-    if (flags & O_TRUNC) {
+    /* truncate regular writable file if O_TRUNC is given */
+    if ((flags & O_TRUNC) &&
+            ((flags & O_RDWR) | (flags & O_WRONLY)) &&
+            !(dent->state & DENTRY_ISDIRECTORY) &&
+            !(dent->state & DENTRY_MOUNTPOINT) &&
+            !(dent->state & DENTRY_ISLINK)) {
         if (!fs->fs_ops->truncate) {
             ret = -EINVAL;
             goto out;
