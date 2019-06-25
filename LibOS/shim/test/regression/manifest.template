@@ -20,3 +20,6 @@ sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
 sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
 sgx.trusted_files.victim = file:exec_victim
 sgx.trusted_children.victim = file:exec_victim.sig
+
+sgx.allowed_files.tmp_dir = file:tmp/
+sgx.allowed_files.tmp_longname_file = file:tmp/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

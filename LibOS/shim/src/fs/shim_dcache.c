@@ -198,6 +198,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
         if (!qstrempty(&parent->rel_path)) {
             const char * strs[] = { qstrgetstr(&parent->rel_path), "/", name };
             size_t lens[] = { parent->rel_path.len, 1, namelen };
+            assert(lens[0] + lens[1] + lens[2] < STR_SIZE);
             qstrsetstrs(&dent->rel_path, 3, strs, lens);
         } else
             qstrsetstr(&dent->rel_path, name, namelen);
