@@ -5,7 +5,7 @@ SEC_DIR = security/$(PAL_HOST)
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin
 
-EXTRAFLAGS = -Wextra -Wno-sign-compare $(call cc-option,-Wnull-dereference)
+EXTRAFLAGS = -Wextra $(call cc-option,-Wnull-dereference)
 
 CFLAGS += $(EXTRAFLAGS)
 
