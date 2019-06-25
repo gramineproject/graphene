@@ -153,9 +153,7 @@ int permission (struct shim_dentry * dent, mode_t mask) {
  *
  * The caller should hold the dcache_lock.
  */
-int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
-                   struct shim_dentry ** new,
-                   struct shim_mount * fs)
+int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, struct shim_dentry ** new, struct shim_mount * fs)
 {
     struct shim_dentry * dent = NULL;
     int do_fs_lookup = 0;

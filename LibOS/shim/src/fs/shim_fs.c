@@ -443,9 +443,7 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
     if (last_len == 0)
         dent = dentry_root;
     else {
-        dent = __lookup_dcache(parent, last,
-                               last_len,
-                               NULL);
+        dent = __lookup_dcache(parent, last, last_len, NULL);
 
         if (!dent) {
             dent = get_new_dentry(mount, parent, last, last_len, NULL);
