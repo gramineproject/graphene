@@ -419,6 +419,16 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
         }
     }
 
+    if (parent && last_len > 0) {
+        /* Newly created dentry's relative path will be a concatenation of parent
+         * + last strings (see get_new_dentry), make sure it fits into qstr */
+        if (parent->rel_path.len + 1 + last_len >= STR_SIZE) {  /* +1 for '/' */
+            debug("Relative path exceeds the limit %d\n", STR_SIZE);
+            ret = -ENAMETOOLONG;
+            goto out;
+        }
+    }
+
     lock(&dcache_lock);
 
     struct shim_mount * mount = alloc_mount();

@@ -163,6 +163,15 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, 
     dent = __lookup_dcache(parent, name, namelen, NULL);
 
     if (!dent) {
+        if (parent) {
+            /* Newly created dentry's relative path will be a concatenation of parent
+             * + name strings (see get_new_dentry), make sure it fits into qstr */
+            if (parent->rel_path.len + 1 + namelen >= STR_SIZE) {  /* +1 for '/' */
+                debug("Relative path exceeds the limit %d\n", STR_SIZE);
+                return -ENAMETOOLONG;
+            }
+        }
+
         dent = get_new_dentry(fs, parent, name, namelen, NULL);
         if (!dent)
             return -ENOMEM;

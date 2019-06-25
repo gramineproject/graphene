@@ -482,7 +482,7 @@ typedef struct shim_aevent {
     PAL_HANDLE event;
 } AEVENTTYPE;
 
-#define STR_SIZE    256
+#define STR_SIZE    4096
 
 struct shim_str {
     char str[STR_SIZE];
