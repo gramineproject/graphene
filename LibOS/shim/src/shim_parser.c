@@ -507,6 +507,8 @@ void parse_syscall_before (int sysno, const char * name, int nr, ...)
             PUTCH(',');
 
         if (parser->parser[i]) {
+            const char * type = va_arg(ap, const char *);
+            __UNUSED(type); // type not needed on this path
             (*parser->parser[i])(&ap);
         } else
             parse_syscall_args(&ap);
@@ -554,6 +556,8 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...)
                 PUTCH(',');
 
             if (parser->parser[i]) {
+                const char * type = va_arg(ap, const char *);
+                __UNUSED(type); // type not needed on this path
                 (*parser->parser[i])(&ap);
             } else
                 parse_syscall_args(&ap);
