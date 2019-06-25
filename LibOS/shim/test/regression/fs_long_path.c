@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #define FILENAME_MAX_LENGTH 255
 #define PATH "tmp/"
@@ -17,8 +18,16 @@ int main(int argc, char** argv) {
 
     printf("filepath = %s (len = %lu)\n", filepath, strlen(filepath));
 
+    /* sanity check: try fopening dir in write mode (must fail) */
+    errno = 0;
+    FILE* fp = fopen(PATH, "w");
+    if (fp != NULL || errno != EISDIR) {
+        perror("(sanity check) fopen of dir with write access did not fail");
+        return 1;
+    }
+
     /* write to file */
-    FILE* fp = fopen(filepath, "w");
+    fp = fopen(filepath, "w");
     if (fp == NULL) {
         perror("fopen failed");
         return 1;
@@ -26,8 +35,8 @@ int main(int argc, char** argv) {
 
     int ret = fwrite(MSG, sizeof(char), sizeof(MSG), fp);
     if (ret != sizeof(MSG)) {
-        return 1;
         perror("fwrite failed");
+        return 1;
     }
 
     fclose(fp);
@@ -42,8 +51,8 @@ int main(int argc, char** argv) {
     char buf[256];
     ret = fread(buf, sizeof(char), sizeof(buf), fp);
     if (ret != sizeof(MSG)) {
-        return 1;
         perror("fread failed");
+        return 1;
     }
 
     fclose(fp);
