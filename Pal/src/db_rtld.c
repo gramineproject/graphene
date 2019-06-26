@@ -554,12 +554,21 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
     setup_elf_hash(map);
     ELF_DYNAMIC_RELOCATE(map);
 
-    struct link_map * prev = loaded_maps;
-    while (prev->l_next)
-        prev = prev->l_next;
-    map->l_prev = prev;
+    /* append to list (to preserve order of libs specified in
+     * manifest, e.g., loader.preload)
+     */
     map->l_next = NULL;
-    prev->l_next = map;
+    if (!loaded_maps) {
+        map->l_prev = NULL;
+        loaded_maps = map;
+    } else {
+        struct link_map * end = loaded_maps;
+        while (end->l_next)
+            end = end->l_next;
+        end->l_next = map;
+        map->l_prev = end;
+    }
+
     if (type == OBJECT_EXEC)
         exec_map = map;
 
@@ -888,6 +897,9 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 done:
 #endif
 
+    /* append to list (to preserve order of libs specified in
+     * manifest, e.g., loader.preload)
+     */
     map->l_next = NULL;
     if (!loaded_maps) {
         map->l_prev = NULL;
@@ -1366,8 +1378,7 @@ noreturn void start_execution (const char * first_argument,
             pal_state.tail_startup_time += _DkSystemTimeQuery() - before_tail;
 #endif
 
-    struct link_map * l = loaded_maps;
-    for (; l ; l = l->l_next)
+    for (struct link_map * l = loaded_maps; l ; l = l->l_next)
         if (l->l_type == OBJECT_PRELOAD && l->l_entry)
             CALL_ENTRY(l, cookies);
 
