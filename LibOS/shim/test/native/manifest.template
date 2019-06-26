@@ -1,11 +1,19 @@
 loader.preload = file:$(SHIMPATH)
-loader.env.LD_LIBRARY_PATH = /lib
+loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu
 loader.debug_type = inline
 loader.syscall_symbol = syscalldb
 
-fs.mount.lib.type = chroot
-fs.mount.lib.path = /lib
-fs.mount.lib.uri = file:$(LIBCDIR)
+fs.mount.graphene_lib.type = chroot
+fs.mount.graphene_lib.path = /lib
+fs.mount.graphene_lib.uri = file:$(LIBCDIR)
+
+fs.mount.host_lib.type = chroot
+fs.mount.host_lib.path = /lib/x86_64-linux-gnu
+fs.mount.host_lib.uri = file:/lib/x86_64-linux-gnu
+
+fs.mount.host_usr_lib.type = chroot
+fs.mount.host_usr_lib.path = /usr/lib/x86_64-linux-gnu
+fs.mount.host_usr_lib.uri = file:/usr/lib/x86_64-linux-gnu
 
 fs.mount.bin.type = chroot
 fs.mount.bin.path = /bin
@@ -25,5 +33,7 @@ sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
 sgx.trusted_files.libdl = file:$(LIBCDIR)/libdl.so.2
 sgx.trusted_files.libm = file:$(LIBCDIR)/libm.so.6
 sgx.trusted_files.libpthread = file:$(LIBCDIR)/libpthread.so.0
+sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
+sgx.trusted_files.libstdcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
 
 sgx.trusted_files.tcp_c = file:tcp.c
