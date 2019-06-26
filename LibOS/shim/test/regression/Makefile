@@ -24,7 +24,7 @@ $(c_executables): %: %.c
 
 $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) -o $@ $< \
+	@$(CXX) $(CXXFLAGS) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 bootstrap_static: %: %.c

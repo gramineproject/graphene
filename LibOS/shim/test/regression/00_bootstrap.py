@@ -23,6 +23,14 @@ regression.add_check(name="Five Arguments Given",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
+regression = Regression(loader, "bootstrap-c++")
+
+regression.add_check(name="Basic Bootstrapping (C++)",
+    check=lambda res: "User Program Started" in res[0].out)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+
 # Running Exec
 regression = Regression(loader, "exec")
 
