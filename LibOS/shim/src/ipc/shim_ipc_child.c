@@ -89,7 +89,7 @@ struct thread_info {
 static int child_sthread_exit (struct shim_simple_thread * thread, void * arg,
                                bool * unlocked)
 {
-    __UNUSED(unlocked); // Used by other calbacks
+    __UNUSED(unlocked); // Used by other callbacks
     struct thread_info * info = (struct thread_info *) arg;
     if (thread->vmid == info->vmid) {
         if (thread->is_alive) {
@@ -106,7 +106,7 @@ static int child_sthread_exit (struct shim_simple_thread * thread, void * arg,
 static int child_thread_exit (struct shim_thread * thread, void * arg,
                               bool * unlocked)
 {
-    __UNUSED(unlocked); // Used by other calbacks
+    __UNUSED(unlocked); // Used by other callbacks
     struct thread_info * info = (struct thread_info *) arg;
     if (thread->vmid == info->vmid) {
         if (thread->is_alive) {

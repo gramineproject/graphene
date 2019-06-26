@@ -510,7 +510,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
                                      const char * name, int namelen,
                                      HASHTYPE * hashptr);
 
-/* This function searches for name/namelen (as the relative path)
+/* This function searches for name/namelen (as the relative path).
  *
  * If requested, the expected hash of the dentry is returned in hashptr,
  * primarily so that the hashing can be reused to add the dentry later.
