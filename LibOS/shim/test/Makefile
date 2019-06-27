@@ -17,7 +17,7 @@ CC = gcc
 CXX = g++
 CFLAGS 	= -Wall -std=gnu99
 CFLAGS-debug = $(CFLAGS) -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib
-CXXFLAGS = -Wall -std=c++11
+CXXFLAGS = -Wall -std=c++14
 CXXFLAGS-debug = $(CXXFLAGS) -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib
 LDFLAGS	=
 LDFLAGS-debug = $(LDFLAGS) -L$(SHIMDIR) -L$(PALDIR) -Wl,-rpath-link=$(abspath $(RUNTIME))

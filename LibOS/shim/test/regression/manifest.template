@@ -30,7 +30,7 @@ sgx.trusted_files.libdl = file:../../../../Runtime/libdl.so.2
 sgx.trusted_files.libm = file:../../../../Runtime/libm.so.6
 sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
 sgx.trusted_files.libgcc_s = file:/lib/x86_64-linux-gnu/libgcc_s.so.1
-sgx.trusted_files.libstdcpp = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+sgx.trusted_files.libstdcxx = file:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
 
 sgx.trusted_files.victim = file:exec_victim
 sgx.trusted_children.victim = file:exec_victim.sig
