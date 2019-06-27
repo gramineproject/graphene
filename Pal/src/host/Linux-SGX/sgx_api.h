@@ -44,13 +44,14 @@ int sgx_verify_report (sgx_arch_report_t * report);
  * sgx_report:
  * Generate SGX hardware signed report.
  */
-static inline void sgx_report (sgx_arch_targetinfo_t * targetinfo,
+static inline int sgx_report (sgx_arch_targetinfo_t * targetinfo,
                                void * reportdata, sgx_arch_report_t * report)
 {
     __asm__ volatile(
         ENCLU "\n"
         :: "a"(EREPORT), "b"(targetinfo), "c"(reportdata), "d"(report)
         : "memory");
+    return 0;
 }
 
 /*
