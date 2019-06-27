@@ -282,7 +282,6 @@ enclave_entry:
 	movq %rsi, SGX_GPR_RSP(%rbx)
 	movq $0, %gs:SGX_STACK
 	movq $0, %gs:SGX_OCALL_PREPARED
-	xorq %r11, %r11
 	jmp .Leexit_exception
 
 .Lsetup_exception_handler:
