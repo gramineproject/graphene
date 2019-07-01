@@ -6,12 +6,15 @@
 #include "sgx_internal.h"
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
+#include "sgx_attest.h"
 #include "graphene-sgx.h"
 #include "quote/aesm.pb-c.h"
 
 #include <asm/errno.h>
 #include <linux/fs.h>
 #include <linux/un.h>
+#define __USE_XOPEN2K8
+#include <stdlib.h>
 
 #ifndef PF_UNIX
 # define PF_UNIX 1
@@ -483,9 +486,6 @@ failed:
     return -EPERM;
 }
 
-#define IAS_TEST_REPORT_URL \
-    "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/report"
-
 int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote) {
     size_t quote_len = sizeof(sgx_quote_t) + quote->sig_len;
     size_t quote_str_len;
@@ -495,33 +495,41 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     if (ret < 0)
         return ret;
 
-    char* nonce_str = __bytes2hexstr((void *) nonce, sizeof(sgx_quote_nonce_t),
-                      __alloca(sizeof(sgx_quote_nonce_t) * 2 + 1), sizeof(sgx_quote_nonce_t) * 2 + 1);
+    size_t nonce_str_len = sizeof(sgx_quote_nonce_t) * 2 + 1;
+    char* nonce_str = __alloca(nonce_str_len);
+    __bytes2hexstr((void *)nonce, sizeof(sgx_quote_nonce_t), nonce_str, nonce_str_len);
 
-    char body_path[URI_MAX], resp_path[URI_MAX], head_path[URI_MAX];
-    const char* temp_dir = (const char *) current_enclave->pal_sec.temp_dir;
+    char head_path[] = "gsgx-ra-head-XXXXXX";
+    char resp_path[] = "gsgx-ra-resp-XXXXXX";
     char* head = NULL;
     char* resp = NULL;
-    snprintf(body_path, URI_MAX, "@%sias-body",  temp_dir);
-    snprintf(resp_path, URI_MAX, "%sias-resp",   temp_dir);
-    snprintf(head_path, URI_MAX, "%sias-header", temp_dir);
+    int head_file = -1;
+    int resp_file = -1;
+    int pipefds[2] = { -1, -1 };
 
-    int body_file = INLINE_SYSCALL(open, 3, body_path + 1, O_WRONLY|O_CREAT|O_TRUNC, 0600);
-    if (IS_ERR(body_file))
+    head_file = mkstemp(head_path);
+    if (head_file < 0)
         goto failed;
 
-    const char* body_lines[5] = {
-        "{\"isvEnclaveQuote\":\"",
-        quote_str,
-        "\",\"nonce\":\"",
-        nonce_str,
-        "\"}"
-    };
+    resp_file = mkstemp(resp_path);
+    if (resp_file < 0)
+        goto failed;
 
-    for (size_t i = 0; i < 5; i++)
-        INLINE_SYSCALL(write, 3, body_file, body_lines[i], strlen(body_lines[i]));
+    ret = INLINE_SYSCALL(pipe, 1, pipefds);
+    if (IS_ERR(ret))
+        goto failed;
 
-    INLINE_SYSCALL(close, 1, body_file);
+    size_t http_data_max = quote_str_len + nonce_str_len + 64;
+    char* http_data = __alloca(http_data_max);
+    size_t http_data_len =
+            snprintf(http_data, http_data_max, "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}",
+                     quote_str, nonce_str);
+    assert(http_data_len < http_data_max);
+    ret = INLINE_SYSCALL(write, 3, pipefds[1], http_data, http_data_len);
+    if (IS_ERR(ret))
+        goto failed;
+    INLINE_SYSCALL(close, 1, pipefds[1]);
+    pipefds[1] = -1;
 
     if (!current_enclave->ra_cert ||
         !current_enclave->ra_pkey) {
@@ -533,7 +541,7 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
             "/usr/bin/curl", "-s", "--tlsv1.2", "-X", "POST", "-H", "Accept: application/json",
             "--cert", current_enclave->ra_cert,
             "--key",  current_enclave->ra_pkey,
-            "--data", body_path, "-o", resp_path, "-D", head_path,
+            "--data", "@-", "-o", resp_path, "-D", head_path,
             IAS_TEST_REPORT_URL, NULL,
         };
 
@@ -542,6 +550,7 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
         goto failed;
 
     if (!ret) {
+        INLINE_SYSCALL(dup2, 2, pipefds[0], 0);
         extern char** environ;
         INLINE_SYSCALL(execve, 3, https_client_args[0], https_client_args, environ);
 
@@ -555,9 +564,11 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     INLINE_SYSCALL(wait4, 4, ret, &status, 0, NULL);
 
     // Reading response
-    int resp_file = INLINE_SYSCALL(open, 2, resp_path, O_RDONLY);
-    if (IS_ERR(resp_file))
+    ret = INLINE_SYSCALL(open, 2, resp_path, O_RDONLY);
+    if (IS_ERR(ret))
         goto failed;
+    INLINE_SYSCALL(close, 1, resp_file);
+    resp_file = ret;
 
     size_t resp_size = INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_END);
     resp = malloc(resp_size + 1);
@@ -568,9 +579,11 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     resp[resp_size] = '\0';
 
     // Reading headers
-    int head_file = INLINE_SYSCALL(open, 2, head_path, O_RDONLY);
-    if (IS_ERR(head_file))
+    ret = INLINE_SYSCALL(open, 2, head_path, O_RDONLY);
+    if (IS_ERR(ret))
         goto failed;
+    INLINE_SYSCALL(close, 1, head_file);
+    head_file = ret;
 
     size_t head_size = INLINE_SYSCALL(lseek, 3, head_file, 0, SEEK_END);
     head = malloc(head_size + 1);
@@ -634,9 +647,16 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
 done:
     if (head) free(head);
     if (resp) free(resp);
-    INLINE_SYSCALL(unlink, 1, body_path + 1);
-    INLINE_SYSCALL(unlink, 1, resp_path);
-    INLINE_SYSCALL(unlink, 1, head_path);
+    if (pipefds[0] != -1) INLINE_SYSCALL(close, 1, pipefds[0]);
+    if (pipefds[1] != -1) INLINE_SYSCALL(close, 1, pipefds[1]);
+    if (head_file != -1) {
+        INLINE_SYSCALL(unlink, 1, head_path);
+        INLINE_SYSCALL(close,  1, head_file);
+    }
+    if (resp_file != -1) {
+        INLINE_SYSCALL(unlink, 1, resp_path);
+        INLINE_SYSCALL(close,  1, resp_file);
+    }
     return ret;
 failed:
     ret = -PAL_ERROR_DENIED;
@@ -647,8 +667,6 @@ enum {
     SGX_UNLINKABLE_SIGNATURE,
     SGX_LINKABLE_SIGNATURE
 };
-
-#define SGX_QUOTE_MAX_SIZE   (2048)
 
 int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
                             const sgx_arch_report_t* report,

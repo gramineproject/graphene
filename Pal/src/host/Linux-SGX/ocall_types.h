@@ -7,6 +7,7 @@
 #include "linux_types.h"
 #include "pal.h"
 #include "sgx_arch.h"
+#include "sgx_attest.h"
 
 /*
  * GCC's structure padding may cause leaking from uninialized

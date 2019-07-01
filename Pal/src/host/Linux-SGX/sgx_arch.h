@@ -237,26 +237,6 @@ typedef struct {
 #define SGX_REPORT_ACTUAL_SIZE  432
 
 typedef struct {
-    uint16_t version;
-    uint16_t sigtype;
-    uint32_t gid;
-    uint16_t isvsvn_qe;
-    uint16_t isvsvn_pce;
-    uint8_t  reserved[4];
-    uint8_t  base[32];
-} __attribute__((packed)) sgx_quote_body_t;
-
-typedef struct {
-    sgx_quote_body_t       body;
-    sgx_arch_report_body_t report_body;
-    uint32_t               sig_len;
-    uint8_t                sig[];
-} __attribute__((packed)) sgx_quote_t;
-
-typedef uint8_t sgx_spid_t[16];
-typedef uint8_t sgx_quote_nonce_t[16];
-
-typedef struct {
     sgx_arch_hash_t mrenclave;
     sgx_arch_attributes_t attributes;
     uint8_t  reserved[464];

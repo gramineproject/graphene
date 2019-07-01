@@ -579,16 +579,6 @@ static void create_instance (struct pal_sec * pal_sec)
     getrand(&id, sizeof(id));
     snprintf(pal_sec->pipe_prefix, sizeof(pal_sec->pipe_prefix), "/graphene/%016lx/", id);
     pal_sec->instance_id = id;
-
-    // Create Graphene temp directory
-    snprintf(pal_sec->temp_dir, URI_MAX, GRAPHENE_TEMPDIR "/%016lx/", id);
-    for (char* p = pal_sec->temp_dir + 1; (*p); p++)
-        if (*p == '/') {
-            char c = *p;
-            *p = '\0';
-            INLINE_SYSCALL(mkdir, 2, pal_sec->temp_dir, isxdigit(*(p + 1)) ? 0700 : 0777);
-            *p = c;
-        }
 }
 
 int load_manifest (int fd, struct config_store ** config_ptr)

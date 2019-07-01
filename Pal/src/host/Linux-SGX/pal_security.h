@@ -47,7 +47,6 @@ struct pal_sec {
     PAL_IDX         proc_fds[3];
 
     /* additional information */
-    PAL_SEC_STR     temp_dir;
     PAL_SEC_STR     pipe_prefix;
     PAL_IDX         mcast_port, mcast_srv, mcast_cli;
 
