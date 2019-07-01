@@ -817,6 +817,34 @@ if __name__ == "__main__":
     print >>sys.stderr, "    xfrms:     %016x" % (bytes_to_int(attr['xfrms']))
     print >>sys.stderr, "    miscs:     %08x"  % (bytes_to_int(attr['miscs']))
 
+    # Check client info for remote attestation. Skip and warn if sgx.ra_client.spid is not provided.
+    print >>sys.stderr, "Attestation:"
+    if 'sgx.ra_client_spid' in manifest and manifest['sgx.ra_client_spid']:
+        print >>sys.stderr, "    spid:     " + manifest['sgx.ra_client_spid']
+        need_client_info = False
+        if 'sgx.ra_client_cert' not in manifest or not manifest['sgx.ra_client_cert']:
+            print >>sys.stderr, "    *** sgx.ra_client_cert not specified ***"
+            need_client_info = True
+        else:
+            print >>sys.stderr, "    cert:     " + manifest['sgx.ra_client_cert']
+        if 'sgx.ra_client_pkey' not in manifest or not manifest['sgx.ra_client_pkey']:
+            print >>sys.stderr, "    *** sgx.ra_client.pkey not specified ***"
+            need_client_info = True
+        else:
+            print >>sys.stderr, "    pkey:     " + manifest['sgx.ra_client_pkey']
+        if 'sgx.ra_client_linkable' in manifest:
+            print >>sys.stderr, "    linkable: " + manifest['sgx.ra_client_linkable']
+        else:
+            print >>sys.stderr, "    linkable: 0"
+        if need_client_info: sys.exit(-1)
+
+    else:
+        print >>sys.stderr, "    *** Client info is not specified. Graphene" + \
+            " will not perform remote attestation before execution." + \
+            " Please provide sgx.ra_client_spid, sgx.ra_client_cert," + \
+            " and sgx.ra_client_pkey in the manifest. ***"
+
+
     # Get trusted checksums and measurements
     print >>sys.stderr, "Trusted files:"
     for key, val in get_trusted_files(manifest, args).items():

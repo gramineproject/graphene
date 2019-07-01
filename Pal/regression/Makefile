@@ -35,18 +35,18 @@ ifeq ($(WERROR),1)
 CFLAGS += -Werror
 endif
 
-TEST_SPID ?= 4F95EF7E0FE794C67C1F9C7455F2098B
-TEST_CERT ?= RACertificate.pem
-TEST_PKEY ?= RAKey.pem
-
-ifeq ($(wildcard $(TEST_CERT))+$(wildcard $(TEST_PKEY)),$(TEST_CERT)+$(TEST_PKEY))
-RA_RULES = sgx.spid = $(TEST_SPID)\nsgx.ra_cert = $(TEST_CERT)\nsgx.ra_pkey = $(TEST_PKEY)
-endif
+# To enable tests for remote attestation, please provide RA_CLIENT_SPID,
+# RA_CLIENT_CERT, and RA_CLIENT_PKEY in the environment variables.
+# To obtain a dev-only SPID, please register a self-sigend certificate at
+# https://software.intel.com/en-us/form/sgx-onboarding
 
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath ../../Runtime/pal_loader):g' \
 	-e 's:\$$(PWD):$(shell pwd)/:g' \
-	-e 's:\$$(RA_RULES):$(RA_RULES):g' \
+	-e 's:\$$(RA_CLIENT_SPID):$(RA_CLIENT_SPID):g' \
+	-e 's:\$$(RA_CLIENT_CERT):$(RA_CLIENT_CERT):g' \
+	-e 's:\$$(RA_CLIENT_PKEY):$(RA_CLIENT_PKEY):g' \
+	-e 's:\$$(RA_CLIENT_LINKABLE):$(if,$(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
 	$(extra_rules)
 
 manifest: manifest.template

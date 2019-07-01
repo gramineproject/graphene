@@ -147,11 +147,14 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
 int init_quote(void) {
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
-    ssize_t len = get_config(pal_state.root_config, "sgx.spid", spid_hex, sizeof(spid_hex));
-    if (len < 0)
+    ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex, sizeof(spid_hex));
+    if (len <= 0) {
+        SGX_DBG(DBG_E, "*** No client info specified in the manifest. Graphene will not perform remote attestation. ***\n");
         return 0;
+    }
+
     if (len != sizeof(sgx_spid_t) * 2) {
-        SGX_DBG(DBG_E, "Malformed value for sgx.spid in the manifest: %s\n", spid_hex);
+        SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
         return -PAL_ERROR_INVAL;
     }
 
@@ -161,14 +164,14 @@ int init_quote(void) {
     for (ssize_t i = 0; i < len; i++) {
         int8_t val = hex2dec(spid_hex[i]);
         if (val < 0) {
-            SGX_DBG(DBG_E, "Malformed value for sgx.spid in the manifest: %s\n", spid_hex);
+            SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
             return -PAL_ERROR_INVAL;
         }
         spid[i/2] = spid[i/2] * 16 + (uint8_t) val;
     }
 
     char buf[2];
-    len = get_config(pal_state.root_config, "sgx.linkable", buf, sizeof(buf));
+    len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
     bool linkable =  (len == 1 && buf[0] == '1');
 
     sgx_quote_nonce_t nonce;
