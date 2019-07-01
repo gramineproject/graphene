@@ -86,6 +86,10 @@ class Regression:
                     with open(filename, 'w') as f:
                         f.write(log + out)
                     print('keep log to %s' % (filename))
+                    print('=== STDOUT of %s ===' % (filename))
+                    print(out)
+                    print('=== STDERR of %s ===' % (filename))
+                    print(log)
         if something_failed:
             return -1
         else:

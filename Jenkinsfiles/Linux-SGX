@@ -45,7 +45,7 @@ pipeline {
                                 cd LibOS/shim/test/regression
                                 make SGX=1
                                 make SGX_RUN=1
-                                make SGX_RUN=1 regression
+                                make SGX_RUN=1 KEEP_LOG=1 regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
