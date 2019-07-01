@@ -818,7 +818,7 @@ static int load_enclave (struct pal_enclave * enclave,
         enclave->ra_pkey = alloc_concat(cfgbuf, -1, NULL, -1);
     }
 
-    ret = init_quote(&pal_sec->aesm_targetinfo);
+    ret = init_aesm_targetinfo(&pal_sec->aesm_targetinfo);
     if (ret < 0)
         return ret;
 

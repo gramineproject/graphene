@@ -145,7 +145,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
     return 0;
 }
 
-int init_quote(void) {
+int sgx_verify_platform(void) {
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
     ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex, sizeof(spid_hex));
     if (len <= 0) {

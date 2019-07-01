@@ -660,8 +660,8 @@ static int sgx_ocall_load_debug(void * pms)
 static int sgx_ocall_get_quote(void* pms) {
     ms_ocall_get_quote_t * ms = (ms_ocall_get_quote_t *) pms;
     ODEBUG(OCALL_GET_QUOTE, ms);
-    return get_quote(&ms->ms_spid, ms->ms_linkable, &ms->ms_report, &ms->ms_nonce,
-                     &ms->ms_report, &ms->ms_quote);
+    return retrieve_verified_quote(&ms->ms_spid, ms->ms_linkable, &ms->ms_report, &ms->ms_nonce,
+                                   &ms->ms_report, &ms->ms_quote);
 }
 
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {

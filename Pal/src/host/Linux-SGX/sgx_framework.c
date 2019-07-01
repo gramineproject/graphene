@@ -451,7 +451,7 @@ static int request_aesm_service(Request* req, Response** res) {
     return *res == NULL ? -EINVAL : 0;
 }
 
-int init_quote(sgx_arch_targetinfo_t* aesm_targetinfo) {
+int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo) {
 
     Request req = REQUEST__INIT;
     Request__InitQuoteRequest initreq = REQUEST__INIT_QUOTE_REQUEST__INIT;
@@ -650,8 +650,10 @@ enum {
 
 #define SGX_QUOTE_MAX_SIZE   (2048)
 
-int get_quote(const sgx_spid_t* spid, bool linkable, const sgx_arch_report_t* report,
-              const sgx_quote_nonce_t* nonce, sgx_arch_report_t* qe_report, sgx_quote_t* quote) {
+int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
+                            const sgx_arch_report_t* report,
+                            const sgx_quote_nonce_t* nonce,
+                            sgx_arch_report_t* qe_report, sgx_quote_t* quote) {
 
     int ret = connect_aesm_service();
     if (ret < 0)
