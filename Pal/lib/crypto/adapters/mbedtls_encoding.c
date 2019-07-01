@@ -20,16 +20,6 @@
 #include "pal_error.h"
 #include "crypto/mbedtls/mbedtls/base64.h"
 
-size_t lib_Base64Length(size_t len, bool get_encode_length) {
-    size_t out_len = 0;
-    if (get_encode_length) {
-        mbedtls_base64_encode(NULL, 0, &out_len, NULL, len);
-    } else {
-        mbedtls_base64_decode(NULL, 0, &out_len, NULL, len);
-    }
-    return out_len;
-}
-
 int lib_Base64Encode(const uint8_t* src, size_t slen, char* dst, size_t* dlen) {
     int ret = mbedtls_base64_encode((unsigned char*)dst, *dlen, dlen,
                                     (const unsigned char*)src, slen);
