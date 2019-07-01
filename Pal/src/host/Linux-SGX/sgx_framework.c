@@ -1,5 +1,6 @@
 #include <pal_linux.h>
 #include <pal_rtld.h>
+#include <pal_crypto.h>
 #include <hex.h>
 
 #include "sgx_internal.h"
@@ -488,7 +489,7 @@ failed:
 int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote) {
 
     int ret = 0;
-    char* quote_str = base64_encode((uint8_t*)quote, sizeof(sgx_quote_t) + quote->sig_len, NULL);
+    char* quote_str = lib_Base64Encode((uint8_t*)quote, sizeof(sgx_quote_t) + quote->sig_len, NULL);
     char* nonce_str = __bytes2hexstr((void *) nonce, sizeof(sgx_quote_nonce_t),
                       malloc(sizeof(sgx_quote_nonce_t) * 2 + 1), sizeof(sgx_quote_nonce_t) * 2 + 1);
 
@@ -582,7 +583,7 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     while (end) {
         if (strpartcmp_static(start, "x-iasreport-signature: ")) {
             start += static_strlen("x-iasreport-signature: ");
-            ias_sig = base64_decode(start, end - start, &ias_sig_len);
+            ias_sig = lib_Base64Decode(start, end - start, &ias_sig_len);
         } else if (strpartcmp_static(start, "x-iasreport-signing-certificate: ")) {
             start += static_strlen("x-iasreport-signing-certificate: ");
             size_t len = end - start;
@@ -706,5 +707,16 @@ int destroy_enclave(void * base_addr, size_t length)
         return -ERRNO(ret);
     }
 
+    return 0;
+}
+
+// Need this function because it's used by mbedtls_adaptor.c
+size_t _DkRandomBitsRead (void * buffer, size_t size)
+{
+    uint32_t rand;
+    for (size_t i = 0; i < size; i += sizeof(rand)) {
+        rand = rdrand();
+        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
+    }
     return 0;
 }

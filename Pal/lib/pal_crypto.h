@@ -131,4 +131,7 @@ int lib_RSAVerifySHA256(LIB_RSA_KEY *key, const uint8_t *signature,
 // Frees memory allocated in lib_RSAInitKey.
 int lib_RSAFreeKey(LIB_RSA_KEY *key);
 
+char* lib_Base64Encode(const uint8_t* src, size_t len, size_t* out_len);
+uint8_t* lib_Base64Decode(const char *src, size_t len, size_t* out_len);
+
 #endif
