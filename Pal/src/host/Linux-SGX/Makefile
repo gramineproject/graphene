@@ -17,7 +17,8 @@ urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exceptio
 urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
-	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h)
+	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h) \
+	  quote/aesm.pb-c.h
 
 .PHONY: all
 all: $(host_files)
@@ -88,9 +89,11 @@ pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]
 	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now -pie $^ -lc -pthread -lprotobuf-c -o $@
 
-quote/aesm.pb-c: quote/aesm.pb-c.c quote/aesm.pb-c.h
+quote/aesm.pb-c.o: quote/aesm.pb-c.c quote/aesm.pb-c.h
 quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto
-	protoc-c --c_out=. $<
+	@echo [ host/Linux-SGX/quote/aesm.pb-c.c ]
+	@echo [ host/Linux-SGX/quote/aesm.pb-c.h ]
+	@protoc-c --c_out=. $<
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
@@ -106,6 +109,7 @@ include ../../../../Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o
+CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h
 
 .PHONY: clean
 clean:
