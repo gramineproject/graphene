@@ -27,7 +27,6 @@
 #include "crypto/mbedtls/mbedtls/cmac.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
 #include "crypto/mbedtls/mbedtls/rsa.h"
-#include "crypto/mbedtls/mbedtls/base64.h"
 
 #define BITS_PER_BYTE 8
 
@@ -253,46 +252,4 @@ int lib_RSAFreeKey(LIB_RSA_KEY *key)
     return 0;
 }
 
-char* lib_Base64Encode(const uint8_t* src, size_t len, size_t* out_len) {
-    size_t dlen = 0;
-    int ret = 0;
 
-    ret = mbedtls_base64_encode(NULL, 0, &dlen, (const unsigned char*)src, len);
-    if (ret < 0)
-        return NULL;
-
-    char* buf = malloc(dlen);
-    if (!buf)
-        return NULL;
-
-    ret = mbedtls_base64_encode((unsigned char*)buf, dlen, out_len,
-                                (const unsigned char*)src, len);
-    if (ret < 0) {
-        free(buf);
-        return NULL;
-    }
-
-    return buf;
-}
-
-uint8_t* lib_Base64Decode(const char *src, size_t len, size_t* out_len) {
-    size_t dlen = 0;
-    int ret = 0;
-
-    ret = mbedtls_base64_encode(NULL, 0, &dlen, (const unsigned char*)src, len);
-    if (ret < 0)
-        return NULL;
-
-    uint8_t* buf = malloc(dlen);
-    if (!buf)
-        return NULL;
-
-    ret = mbedtls_base64_decode((unsigned char*)buf, dlen, out_len,
-                                (const unsigned char*)src, len);
-    if (ret < 0) {
-        free(buf);
-        return NULL;
-    }
-
-    return buf;
-}

@@ -13,6 +13,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <asm/errno.h>
+#include <ctype.h>
 
 #include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
@@ -585,7 +586,7 @@ static void create_instance (struct pal_sec * pal_sec)
         if (*p == '/') {
             char c = *p;
             *p = '\0';
-            INLINE_SYSCALL(mkdir, 2, pal_sec->temp_dir, is_hex(*(p + 1)) ? 0700 : 0777);
+            INLINE_SYSCALL(mkdir, 2, pal_sec->temp_dir, isxdigit(*(p + 1)) ? 0700 : 0777);
             *p = c;
         }
 }

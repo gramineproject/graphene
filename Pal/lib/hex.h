@@ -49,11 +49,6 @@ char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 #define IS_ARRAY(arg) (IS_INDEXABLE(arg) > 0 && (((void *) &(arg)) == ((void *) (arg))))
 
 static inline __attribute__((always_inline))
-bool is_hex(char c) {
-    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-}
-
-static inline __attribute__((always_inline))
 int8_t hex2dec(char c) {
     if (c >= 'A' && c <= 'F')
         return c - 'A' + 10;

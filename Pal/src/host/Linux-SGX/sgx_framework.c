@@ -487,11 +487,16 @@ failed:
     "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/report"
 
 int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote) {
+    size_t quote_len = sizeof(sgx_quote_t) + quote->sig_len;
+    size_t quote_str_len;
+    lib_Base64Encode((uint8_t*)quote, quote_len, NULL, &quote_str_len);
+    char* quote_str = __alloca(quote_str_len);
+    int ret = lib_Base64Encode((uint8_t*)quote, quote_len, quote_str, &quote_str_len);
+    if (ret < 0)
+        return ret;
 
-    int ret = 0;
-    char* quote_str = lib_Base64Encode((uint8_t*)quote, sizeof(sgx_quote_t) + quote->sig_len, NULL);
     char* nonce_str = __bytes2hexstr((void *) nonce, sizeof(sgx_quote_nonce_t),
-                      malloc(sizeof(sgx_quote_nonce_t) * 2 + 1), sizeof(sgx_quote_nonce_t) * 2 + 1);
+                      __alloca(sizeof(sgx_quote_nonce_t) * 2 + 1), sizeof(sgx_quote_nonce_t) * 2 + 1);
 
     char body_path[URI_MAX], resp_path[URI_MAX], head_path[URI_MAX];
     const char* temp_dir = (const char *) current_enclave->pal_sec.temp_dir;
@@ -583,7 +588,17 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     while (end) {
         if (strpartcmp_static(start, "x-iasreport-signature: ")) {
             start += static_strlen("x-iasreport-signature: ");
-            ias_sig = lib_Base64Decode(start, end - start, &ias_sig_len);
+            ret = lib_Base64Decode(start, end - start, NULL, &ias_sig_len);
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Malformed IAS signature\n");
+                goto failed;
+            }
+            ias_sig = __alloca(ias_sig_len);
+            ret = lib_Base64Decode(start, end - start, ias_sig, &ias_sig_len);
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Malformed IAS signature\n");
+                goto failed;
+            }
         } else if (strpartcmp_static(start, "x-iasreport-signing-certificate: ")) {
             start += static_strlen("x-iasreport-signing-certificate: ");
             size_t len = end - start;
@@ -622,8 +637,6 @@ done:
     INLINE_SYSCALL(unlink, 1, body_path + 1);
     INLINE_SYSCALL(unlink, 1, resp_path);
     INLINE_SYSCALL(unlink, 1, head_path);
-    free(quote_str);
-    free(nonce_str);
     return ret;
 failed:
     ret = -PAL_ERROR_DENIED;
@@ -707,16 +720,5 @@ int destroy_enclave(void * base_addr, size_t length)
         return -ERRNO(ret);
     }
 
-    return 0;
-}
-
-// Need this function because it's used by mbedtls_adaptor.c
-size_t _DkRandomBitsRead (void * buffer, size_t size)
-{
-    uint32_t rand;
-    for (size_t i = 0; i < size; i += sizeof(rand)) {
-        rand = rdrand();
-        memcpy(buffer + i, &rand, MIN(sizeof(rand), size - i));
-    }
     return 0;
 }

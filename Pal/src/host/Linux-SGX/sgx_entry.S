@@ -83,16 +83,6 @@ sgx_entry_return:
 	.global rdrand
 	.type rdrand, @function
 
-rdrand:
-	.cfi_startproc
-.Lretry_rdrand:
-	.byte 0x0f, 0xc7, 0xf0 /* RDRAND %EAX */
-	jnc .Lretry_rdrand
-	retq
-
-	.cfi_endproc
-	.size rdrand, .-rdrand
-
 /*
  * rdfsbase:
  * read FS register (allowed in enclaves).

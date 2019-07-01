@@ -24,6 +24,10 @@
 #ifndef PAL_CRYPTO_H
 #define PAL_CRYPTO_H
 
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 #define SHA256_DIGEST_LEN 32
 
 #define AES_CMAC_KEY_LEN    16
@@ -131,7 +135,9 @@ int lib_RSAVerifySHA256(LIB_RSA_KEY *key, const uint8_t *signature,
 // Frees memory allocated in lib_RSAInitKey.
 int lib_RSAFreeKey(LIB_RSA_KEY *key);
 
-char* lib_Base64Encode(const uint8_t* src, size_t len, size_t* out_len);
-uint8_t* lib_Base64Decode(const char *src, size_t len, size_t* out_len);
+// Encode and decode Base64 messages.
+// These two functions can be used to query encode and decode sizes if dst is given NULL
+int lib_Base64Encode(const uint8_t* src, size_t slen, char* dst, size_t* dlen);
+int lib_Base64Decode(const char *src, size_t slen, uint8_t* dst, size_t* dlen);
 
 #endif
