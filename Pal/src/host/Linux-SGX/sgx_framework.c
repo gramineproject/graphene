@@ -486,6 +486,158 @@ failed:
     return -EPERM;
 }
 
+static int parse_x509_certificate(uint8_t* cert, size_t cert_len) {
+    uint8_t* ptr = cert;
+    uint8_t* end = cert + cert_len;
+    enum asn1_tag tag;
+    bool is_cons;
+    uint8_t* buf;
+    size_t buf_len;
+    int ret;
+
+    // X509Certificate := SEQUENCE {
+    //     Body CertificateBody,
+    //     SignatureAlgorithm AlgorithmDescriptor,
+    //     Signature BIT STRING }
+
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+    if (tag != ASN1_SEQUENCE || !is_cons)
+        return -PAL_ERROR_INVAL;
+
+    uint8_t* cert_body;
+    uint8_t* cert_sig;
+    size_t cert_body_len, cert_sig_len;
+    ptr = buf;
+    end = buf + buf_len;
+
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &cert_body, &cert_body_len);
+    if (ret < 0)
+        return ret;
+    if (tag != ASN1_SEQUENCE || !is_cons)
+        return -PAL_ERROR_INVAL;
+
+    // Skip SignatureAlgorithm
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &cert_sig, &cert_sig_len);
+    if (ret < 0)
+        return ret;
+    if (tag != ASN1_BIT_STRING || is_cons)
+        return -PAL_ERROR_INVAL;
+
+    // CertficateBody := SEQUENCE {
+    //     Version CONSTANT,
+    //     SerialNumber INTEGER,
+    //     Signature AlgorithmDiscriptor,
+    //     Issuer Name,
+    //     Velidity ValidityTime,
+    //     Subject Name,
+    //     SubjectPublicKeyInfo PublicKeyInfo,
+    //     (optional fields) }
+
+    ptr = cert_body;
+    end = cert_body + cert_body_len;
+
+    // Skip Version
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Skip SerialNumber
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Skip Signature
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Skip Issuer
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Get Validity
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Skip Subject
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Get SubjectPublicKeyInfo
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+    if (tag != ASN1_SEQUENCE || !is_cons)
+        return -PAL_ERROR_INVAL;
+
+    // PublickKeyInfo := SEQUENCE {
+    //     PublicKeyAlgorithm AgorithmDescriptor,
+    //     PublicKey BIT STRING }
+
+    uint8_t* pubkey;
+    size_t pubkey_len;
+    ptr = buf;
+    end = buf + buf_len;
+
+    // Skip PublicKeyAlgorithm
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Get PublicKey
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &pubkey, &pubkey_len);
+    if (ret < 0)
+        return ret;
+
+    return 0;
+}
+
+static int parse_x509_certificate_pem(char* cert, char** cert_end) {
+
+    int ret;
+    char* start = strchr(cert, '-');
+    if (!start) {
+        // No more certificate
+        *cert_end = NULL;
+        return 0;
+    }
+
+    if (!strpartcmp_static(start, "-----BEGIN CERTIFICATE-----"))
+        return -PAL_ERROR_INVAL;
+
+    start += static_strlen("-----BEGIN CERTIFICATE-----");
+    char* end = strchr(start, '-');
+
+    if (!strpartcmp_static(end, "-----END CERTIFICATE-----"))
+        return -PAL_ERROR_INVAL;
+
+    size_t cert_der_len;
+    ret = lib_Base64Decode(start, end - start, NULL, &cert_der_len);
+    if (ret < 0)
+        return ret;
+
+    uint8_t* cert_der = __alloca(cert_der_len);
+    ret = lib_Base64Decode(start, end - start, cert_der, &cert_der_len);
+    if (ret < 0)
+        return ret;
+
+    ret = parse_x509_certificate(cert_der, cert_der_len);
+    if (ret < 0)
+        return ret;
+
+    *cert_end = end + static_strlen("-----END CERTIFICATE-----");
+    return 0;
+}
+
 int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote) {
     size_t quote_len = sizeof(sgx_quote_t) + quote->sig_len;
     size_t quote_str_len;
@@ -599,6 +751,11 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     char*    start       = head;
     char*    end         = strchr(head, '\n');
     while (end) {
+        char* next_start = end + 1;
+        // If the eol (\n) is preceded by a return (\r), move the end pointer.
+        if (end > start + 1 && *(end - 1) == '\r')
+            end--;
+
         if (strpartcmp_static(start, "x-iasreport-signature: ")) {
             start += static_strlen("x-iasreport-signature: ");
             ret = lib_Base64Decode(start, end - start, NULL, &ias_sig_len);
@@ -616,12 +773,15 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
             start += static_strlen("x-iasreport-signing-certificate: ");
             size_t len = end - start;
             char* p = ias_cert = malloc(len + 1);
+            // Covert escaped characters
             for (size_t i = 0; i < len; i++) {
                 if (start[i] == '%') {
                     int8_t hex1 = hex2dec(start[i + 1]), hex2 = hex2dec(start[i + 2]);
                     if (hex1 < 0 || hex2 < 0)
                         goto failed;
-                    *(p++) = hex1 * 16 + hex2;
+
+                    char c = hex1 * 16 + hex2;
+                    if (c != '\n') *(p++) = c;
                     i += 2;
                 } else {
                     *(p++) = start[i];
@@ -630,7 +790,7 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
             *p = '\0';
         }
 
-        start = end + 1;
+        start = next_start;
         end   = strchr(start, '\n');
     }
 
@@ -641,7 +801,15 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
 
     SGX_DBG(DBG_S, "IAS response:   %s\n",  resp);
     SGX_DBG(DBG_S, "IAS signature:  %ld\n", ias_sig_len);
-    SGX_DBG(DBG_S, "IAS cert:       %s\n",  ias_cert);
+
+    start = ias_cert;
+    while (start && *start) {
+        ret = parse_x509_certificate_pem(start, &start);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Malformed IAS certificate, rv = %d\n", ret);
+            goto failed;
+        }
+    }
 
     ret = 0;
 done:
