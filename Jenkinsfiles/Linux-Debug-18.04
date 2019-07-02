@@ -1,12 +1,12 @@
 pipeline {
-	agent {
+        agent {
               dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile' }
-	}
+        }
         stages {
                 stage('Build') {
                     steps {
                         sh '''
-                            make DEBUG=1
+                            make -j 8 DEBUG=1 WERROR=1
                            '''
                     }
                 }
@@ -25,32 +25,41 @@ pipeline {
                             make
                             ./syscalls.sh
                             '''
-                        sh '''
-                            cd LibOS/shim/test/apps/python
-                            make regression
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/python
+                                make regression
                             '''
+                        }
                         sh '''
                             cd LibOS/shim/test/apps/bash
                             make regression
                             '''
-			timeout(time: 5, unit: 'MINUTES') {		    
+                        timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
                                 make regression
                            '''
-			}
-			timeout(time: 20, unit: 'MINUTES') {
+                        }
+                        timeout(time: 20, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
                                 make regression
                             '''
-			}
+                        }
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
                             make
                             make start-graphene-server &
-			    sleep 1
+                            sleep 1
                             ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+                            make
+                            make start-graphene-server &
+                            sleep 1
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
                             '''
                     }
                 }
@@ -72,4 +81,3 @@ pipeline {
                 }
         }
 }
-
