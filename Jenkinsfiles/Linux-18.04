@@ -20,11 +20,13 @@ pipeline {
                             cd LibOS/shim/test/regression
                             make regression
                             '''
+                        /*
                         sh '''
                             cd LibOS/shim/test/apps/ltp
                             make
                             ./syscalls.sh
                             '''
+                        */
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python
