@@ -169,11 +169,11 @@ typedef union pal_handle
     } event;
 } * PAL_HANDLE;
 
-#define RFD(n)          (00001 << (n))
-#define WFD(n)          (00010 << (n))
-#define WRITABLE(n)     (00100 << (n))
-#define ERROR(n)        (01000 << (n))
-#define HAS_FDS         00077
+#define RFD(n)          (1 << (MAX_FDS*0 + (n)))
+#define WFD(n)          (1 << (MAX_FDS*1 + (n)))
+#define WRITABLE(n)     (1 << (MAX_FDS*2 + (n)))
+#define ERROR(n)        (1 << (MAX_FDS*3 + (n)))
+#define HAS_FDS         ((1 << MAX_FDS*2) - 1)
 
 #define HANDLE_TYPE(handle)  ((handle)->hdr.type)
 struct arch_frame {
