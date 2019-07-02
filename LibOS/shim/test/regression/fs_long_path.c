@@ -8,11 +8,13 @@
 #define MSG "Hello World"
 
 int main(int argc, char** argv) {
+    size_t rets;
+    int reti;
     char filename[FILENAME_MAX_LENGTH];
     memset(filename, 'a', sizeof(filename));
     filename[FILENAME_MAX_LENGTH-1] = '\0';
 
-    char filepath[sizeof(PATH) + sizeof(filename)];
+    char filepath[sizeof(PATH) + sizeof(filename) - 1];
     strcpy(filepath, PATH);
     strcat(filepath, filename);
 
@@ -33,13 +35,17 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    int ret = fwrite(MSG, sizeof(char), sizeof(MSG), fp);
-    if (ret != sizeof(MSG)) {
+    rets = fwrite(MSG, sizeof(MSG), 1, fp); /* with NULL byte for later printf */
+    if (rets != 1) {
         perror("fwrite failed");
         return 1;
     }
 
-    fclose(fp);
+    reti = fclose(fp);
+    if (reti) {
+        perror("fclose failed");
+        return 1;
+    }
 
     /* read from same file */
     fp = fopen(filepath, "r");
@@ -49,16 +55,24 @@ int main(int argc, char** argv) {
     }
 
     char buf[256];
-    ret = fread(buf, sizeof(char), sizeof(buf), fp);
-    if (ret != sizeof(MSG)) {
+    clearerr(fp);
+    rets = fread(buf, sizeof(buf), 1, fp);
+    if (rets != 1 && ferror(fp)) {
         perror("fread failed");
         return 1;
     }
 
-    fclose(fp);
+    reti = fclose(fp);
+    if (reti) {
+        perror("fclose failed");
+        return 1;
+    }
 
-    printf("Succesfully read from file: %s\n", buf);
+    reti = printf("Successfully read from file: %s\n", buf);
+    if (reti < 0) {
+        perror("printf failed");
+        return 1;
+    }
 
     return 0;
 }
-
