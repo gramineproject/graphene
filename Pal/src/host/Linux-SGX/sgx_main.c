@@ -247,14 +247,14 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     /* Reading sgx.enclave_size from manifest */
     if (get_config(enclave->config, "sgx.enclave_size", cfgbuf, CONFIG_MAX) <= 0) {
-        SGX_DBG(DBG_E, "Enclave_size is not specified\n");
+        SGX_DBG(DBG_E, "Enclave size is not specified\n");
         ret = -EINVAL;
         goto out;
     }
 
     enclave->size = parse_int(cfgbuf);
     if (enclave->size & (enclave->size - 1)) {
-        SGX_DBG(DBG_E, "Enclave size not a power of two (SGX requires power-of-two enclaves)\n");
+        SGX_DBG(DBG_E, "Enclave size not a power of two (an SGX-imposed requirement)\n");
         ret = -EINVAL;
         goto out;
     }
@@ -355,8 +355,8 @@ int initialize_enclave (struct pal_enclave * enclave)
     for (uint32_t t = 0; t < enclave->thread_num; t++) {
         areas[area_num] = (struct mem_area) {
             .desc = "stack", .skip_eextend = false, .is_binary = false,
-                .fd = -1, .addr = 0, .size = ENCLAVE_STACK_SIZE,
-                .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
+            .fd = -1, .addr = 0, .size = ENCLAVE_STACK_SIZE,
+            .prot = PROT_READ | PROT_WRITE, .type = SGX_PAGE_REG
         };
         area_num++;
     }
@@ -370,7 +370,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     ret = scan_enclave_binary(enclave_image, &pal_area->addr, &pal_area->size, &enclave_entry_addr);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Scanning trusted-Pal binary (%s) failed: %d\n", ENCLAVE_FILENAME, -ret);
+        SGX_DBG(DBG_E, "Scanning Pal binary (%s) failed: %d\n", ENCLAVE_FILENAME, -ret);
         goto out;
     }
 
@@ -378,14 +378,14 @@ int initialize_enclave (struct pal_enclave * enclave)
     if (enclave->exec != -1) {
         areas[area_num] = (struct mem_area) {
             .desc = "exec", .skip_eextend = false, .is_binary = true,
-                .fd = enclave->exec, .addr = 0, .size = 0 /* set below */,
-                .prot = PROT_WRITE, .type = SGX_PAGE_REG
+            .fd = enclave->exec, .addr = 0, .size = 0 /* set below */,
+            .prot = PROT_WRITE, .type = SGX_PAGE_REG
         };
         exec_area = &areas[area_num++];
 
         ret = scan_enclave_binary(enclave->exec, &exec_area->addr, &exec_area->size, NULL);
         if (ret < 0) {
-            SGX_DBG(DBG_E, "Scanning enclave-app binary failed: %d\n", -ret);
+            SGX_DBG(DBG_E, "Scanning application binary failed: %d\n", -ret);
             goto out;
         }
     }
@@ -405,7 +405,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     if (exec_area) {
         if (exec_area->addr + exec_area->size > pal_area->addr) {
-            SGX_DBG(DBG_E, "Enclave-app binary overlaps with trusted-Pal binary\n");
+            SGX_DBG(DBG_E, "Application binary overlaps with Pal binary\n");
             ret = -EINVAL;
             goto out;
         }
@@ -418,8 +418,8 @@ int initialize_enclave (struct pal_enclave * enclave)
 
                 areas[area_num] = (struct mem_area) {
                     .desc = "free", .skip_eextend = true, .is_binary = false,
-                        .fd = -1, .addr = addr, .size = populating - addr,
-                        .prot = PROT_READ | PROT_WRITE | PROT_EXEC, .type = SGX_PAGE_REG
+                    .fd = -1, .addr = addr, .size = populating - addr,
+                    .prot = PROT_READ | PROT_WRITE | PROT_EXEC, .type = SGX_PAGE_REG
                 };
                 area_num++;
             }
@@ -431,8 +431,8 @@ int initialize_enclave (struct pal_enclave * enclave)
     if (populating > heap_min) {
         areas[area_num] = (struct mem_area) {
             .desc = "free", .skip_eextend = true, .is_binary = false,
-                .fd = -1, .addr = heap_min, .size = populating - heap_min,
-                .prot = PROT_READ | PROT_WRITE | PROT_EXEC, .type = SGX_PAGE_REG
+            .fd = -1, .addr = heap_min, .size = populating - heap_min,
+            .prot = PROT_READ | PROT_WRITE | PROT_EXEC, .type = SGX_PAGE_REG
         };
         area_num++;
     }
@@ -453,6 +453,11 @@ int initialize_enclave (struct pal_enclave * enclave)
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+            if (data == (void *)-1 || data == NULL) {
+                /* Note that Graphene currently doesn't handle 0x0 addresses */
+                SGX_DBG(DBG_E, "Allocating memory for tls pages failed\n");
+                goto out;
+            }
 
             for (uint32_t t = 0 ; t < enclave->thread_num ; t++) {
                 struct enclave_tls * gs = data + pagesize * t;
@@ -477,6 +482,11 @@ int initialize_enclave (struct pal_enclave * enclave)
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+            if (data == (void *)-1 || data == NULL) {
+                /* Note that Graphene currently doesn't handle 0x0 addresses */
+                SGX_DBG(DBG_E, "Allocating memory for tcs pages failed\n");
+                goto out;
+            }
 
             for (uint32_t t = 0 ; t < enclave->thread_num ; t++) {
                 sgx_arch_tcs_t * tcs = data + pagesize * t;
@@ -492,11 +502,17 @@ int initialize_enclave (struct pal_enclave * enclave)
                 tcs_addrs[t] = (void *) enclave_secs.baseaddr + tcs_area->addr
                     + pagesize * t;
             }
-        } else if (areas[i].fd != -1)
+        } else if (areas[i].fd != -1) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ,
                                            MAP_FILE|MAP_PRIVATE,
                                            areas[i].fd, 0);
+            if (data == (void *)-1 || data == NULL) {
+                /* Note that Graphene currently doesn't handle 0x0 addresses */
+                SGX_DBG(DBG_E, "Allocating memory for file %s failed\n", areas[i].desc);
+                goto out;
+            }
+        }
 
         ret = add_pages_to_enclave(&enclave_secs, (void *) areas[i].addr, data, areas[i].size,
                 areas[i].type, areas[i].prot, areas[i].skip_eextend, areas[i].desc);
@@ -537,6 +553,8 @@ int initialize_enclave (struct pal_enclave * enclave)
         for (int i = 0 ; i < MAX_DBG_THREADS ; i++)
             dbg->tcs_addrs[i] = tcs_addrs[i];
     }
+
+    ret = 0;
 
 out:
     if (enclave_image >= 0)
@@ -671,6 +689,7 @@ int load_manifest (int fd, struct config_store ** config_ptr)
     }
 
     *config_ptr = config;
+    ret = 0;
 
 out:
     if (ret < 0) {
@@ -785,7 +804,7 @@ static int load_enclave (struct pal_enclave * enclave,
     }
 
     if (get_config(enclave->config, "sgx.sigfile", cfgbuf, CONFIG_MAX) < 0) {
-        SGX_DBG(DBG_E, "Sigstruct file not found (\'sgx.sigfile\' must be specified in manifest)\n");
+        SGX_DBG(DBG_E, "Sigstruct file not found ('sgx.sigfile' must be specified in manifest)\n");
         return -EINVAL;
     }
 
