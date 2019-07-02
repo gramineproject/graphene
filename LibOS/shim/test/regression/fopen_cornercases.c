@@ -55,9 +55,8 @@ int main(int argc, char** argv) {
     }
 
     char buf[256];
-    clearerr(fp);
-    rets = fread(buf, sizeof(buf), 1, fp);
-    if (rets != 1 && ferror(fp)) {
+    rets = fread(buf, 1, sizeof(buf), fp);
+    if (rets != sizeof(MSG)) {
         perror("fread failed");
         return 1;
     }
