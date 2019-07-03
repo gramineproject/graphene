@@ -49,7 +49,7 @@ contact us with a detailed bug report.
 
 Run the following command on Ubuntu to install dependencies for Graphene:
 
-    sudo apt-get install -y build-essential autoconf gawk
+    sudo apt-get install -y build-essential autoconf gawk bison
 
 
 For building Graphene for SGX, run the following command in addition:

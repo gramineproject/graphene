@@ -8,6 +8,7 @@ RUN apt-get update \
        autoconf \
        build-essential \
        gawk \
+       bison \
        gettext \
        git \
        libexpat1 \
