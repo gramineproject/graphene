@@ -601,18 +601,18 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
 
         // Set dot and dot dot for some reason
         get_dentry(dent);
-        hdl->info.dir.dot = dent;
+        hdl->dir_info.dot = dent;
 
         if (dent->parent) {
             get_dentry(dent->parent);
-            hdl->info.dir.dotdot = dent->parent;
+            hdl->dir_info.dotdot = dent->parent;
         } else
-            hdl->info.dir.dotdot = NULL;
+            hdl->dir_info.dotdot = NULL;
 
         // Let's defer setting the DENTRY_LISTED flag until we need it
         // Use -1 to indicate that the buf/ptr isn't initialized
-        hdl->info.dir.buf = (void *)-1;
-        hdl->info.dir.ptr = (void *)-1;
+        hdl->dir_info.buf = (void *)-1;
+        hdl->dir_info.ptr = (void *)-1;
     }
     path = dentry_get_path(dent, true, &size);
     if (!path) {
@@ -748,15 +748,15 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
     int nchildren = dent->nchildren, count = 0;
     struct shim_dentry * child;
 
-    assert(hdl->info.dir.buf == (void *)-1);
-    assert(hdl->info.dir.ptr == (void *)-1);
+    assert(hdl->dir_info.buf == (void *)-1);
+    assert(hdl->dir_info.ptr == (void *)-1);
 
     // Handle the case where the handle is on a rmdir-ed directory
     // Handle is already locked by caller, so these values shouldn't change
     // after dcache lock is acquired
     if (dent->state & DENTRY_NEGATIVE) {
-        hdl->info.dir.buf = NULL;
-        hdl->info.dir.ptr = NULL;
+        hdl->dir_info.buf = NULL;
+        hdl->dir_info.ptr = NULL;
         return 0;
     }
 
@@ -781,8 +781,8 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
     }
     children[count] = NULL;
 
-    hdl->info.dir.buf = children;
-    hdl->info.dir.ptr = children;
+    hdl->dir_info.buf = children;
+    hdl->dir_info.ptr = children;
 
     unlock(&dcache_lock);
 

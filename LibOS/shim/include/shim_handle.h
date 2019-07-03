@@ -349,7 +349,6 @@ struct shim_handle {
         struct shim_dev_handle    dev;
         struct shim_pipe_handle   pipe;
         struct shim_sock_handle   sock;
-        struct shim_dir_handle    dir;
         struct shim_shm_handle    shm;
         struct shim_msg_handle    msg;
         struct shim_sem_handle    sem;
@@ -357,6 +356,8 @@ struct shim_handle {
         struct shim_str_handle    str;
         struct shim_epoll_handle  epoll;
     } info;
+
+    struct shim_dir_handle    dir_info;
 
     int                 flags;
     int                 acc_mode;
