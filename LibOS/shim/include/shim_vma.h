@@ -161,8 +161,4 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count);
 /* Debugging */
 void debug_print_vma_list (void);
 
-/* Constants */
-extern unsigned long brk_max_size;
-extern unsigned long sys_stack_size;
-
 #endif /* _SHIM_VMA_H_ */

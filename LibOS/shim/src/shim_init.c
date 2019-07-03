@@ -355,19 +355,17 @@ copy_envp:
     return 0;
 }
 
-unsigned long sys_stack_size = 0;
-
 int init_stack (const char ** argv, const char ** envp,
                 int ** argcpp, const char *** argpp,
                 elf_auxv_t ** auxpp)
 {
-    if (!sys_stack_size) {
-        sys_stack_size = DEFAULT_SYS_STACK_SIZE;
-        if (root_config) {
-            char stack_cfg[CONFIG_MAX];
-            if (get_config(root_config, "sys.stack.size", stack_cfg,
-                           CONFIG_MAX) > 0)
-                sys_stack_size = ALIGN_UP(parse_int(stack_cfg));
+    uint64_t stack_size = get_rlimit_cur(RLIMIT_STACK);
+
+    if (root_config) {
+        char stack_cfg[CONFIG_MAX];
+        if (get_config(root_config, "sys.stack.size", stack_cfg, CONFIG_MAX) > 0) {
+            stack_size = ALIGN_UP(parse_int(stack_cfg));
+            set_rlimit_cur(RLIMIT_STACK, stack_size);
         }
     }
 
@@ -376,21 +374,21 @@ int init_stack (const char ** argv, const char ** envp,
     if (!cur_thread || cur_thread->stack)
         return 0;
 
-    void * stack = allocate_stack(sys_stack_size, allocsize, true);
+    void * stack = allocate_stack(stack_size, allocsize, true);
     if (!stack)
         return -ENOMEM;
 
     if (initial_envp)
         envp = initial_envp;
 
-    int ret = populate_user_stack(stack, sys_stack_size, auxpp, argcpp, &argv, &envp);
+    int ret = populate_user_stack(stack, stack_size, auxpp, argcpp, &argv, &envp);
     if (ret < 0)
         return ret;
 
     *argpp = argv;
     initial_envp = envp;
 
-    cur_thread->stack_top = stack + sys_stack_size;
+    cur_thread->stack_top = stack + stack_size;
     cur_thread->stack     = stack;
     cur_thread->stack_red = stack - allocsize;
 

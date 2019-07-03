@@ -36,20 +36,17 @@
  * to be fixed.
  */
 
-#define _STK_LIM        (8*1024*1024)
 #define MAX_THREADS     (0x3fffffff / 2)
 #define DEFAULT_MAX_FDS (1024)
 #define MAX_MAX_FDS     (65536) /* 4096: Linux initial value */
 #define MLOCK_LIMIT     (64*1024)
 #define MQ_BYTES_MAX    819200
 
-struct __kernel_rlimit __rlim[RLIM_NLIMITS] __attribute_migratable = {
+struct __kernel_rlimit64 __rlim[RLIM_NLIMITS] __attribute_migratable = {
     [RLIMIT_CPU]        = {   RLIM_INFINITY, RLIM_INFINITY },
     [RLIMIT_FSIZE]      = {   RLIM_INFINITY, RLIM_INFINITY },
-    /* For now __rlim[RLIMIT_DATA] isn't used. See the implementation */
-    [RLIMIT_DATA]       = {   RLIM_INFINITY, RLIM_INFINITY },
-    /* For now __rlim[RLIMIT_STACK] isn't used. See the implementation */
-    [RLIMIT_STACK]      = {        _STK_LIM, RLIM_INFINITY },
+    [RLIMIT_DATA]       = { DEFAULT_BRK_MAX_SIZE,   RLIM_INFINITY },
+    [RLIMIT_STACK]      = { DEFAULT_SYS_STACK_SIZE, RLIM_INFINITY },
     [RLIMIT_CORE]       = {               0, RLIM_INFINITY },
     [RLIMIT_RSS]        = {   RLIM_INFINITY, RLIM_INFINITY },
     [RLIMIT_NPROC]      = {     MAX_THREADS,   MAX_THREADS },
@@ -65,6 +62,16 @@ struct __kernel_rlimit __rlim[RLIM_NLIMITS] __attribute_migratable = {
     [RLIMIT_RTTIME]     = {   RLIM_INFINITY, RLIM_INFINITY },
 };
 
+uint64_t get_rlimit_cur(int resource) {
+    assert(resource >= 0 && RLIM_NLIMITS > resource);
+    return __rlim[resource].rlim_cur;
+}
+
+void set_rlimit_cur(int resource, uint64_t rlim) {
+    assert(resource >= 0 && RLIM_NLIMITS > resource);
+    __rlim[resource].rlim_cur = rlim;
+}
+
 int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 {
     if (resource < 0 || RLIM_NLIMITS <= resource)
@@ -72,21 +79,9 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
     if (!rlim || test_user_memory(rlim, sizeof(*rlim), true))
         return -EFAULT;
 
-    switch (resource) {
-        case RLIMIT_STACK:
-            rlim->rlim_cur = sys_stack_size;
-            rlim->rlim_max = sys_stack_size;
-            return 0;
-
-        case RLIMIT_DATA:
-            rlim->rlim_cur = brk_max_size;
-            rlim->rlim_max = __rlim[resource].rlim_max;
-            return 0;
-
-        default:
-            *rlim = __rlim[resource];
-            return 0;
-    }
+    rlim->rlim_cur = __rlim[resource].rlim_cur;
+    rlim->rlim_max = __rlim[resource].rlim_max;
+    return 0;
 }
 
 int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
@@ -97,16 +92,44 @@ int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
         return -EFAULT;
     if (rlim->rlim_cur > rlim->rlim_max)
         return -EINVAL;
-
     if (rlim->rlim_cur > __rlim->rlim_max)
         return -EINVAL;
-    switch (resource) {
-        case RLIMIT_STACK:
-            sys_stack_size = rlim->rlim_cur;
-            return 0;
 
-        default:
-            __rlim[resource].rlim_cur = rlim->rlim_cur;
-            return 0;
+    __rlim[resource].rlim_cur = rlim->rlim_cur;
+    __rlim[resource].rlim_max = rlim->rlim_max;
+    return 0;
+}
+
+int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
+                      struct __kernel_rlimit64* old_rlim) {
+
+    struct shim_thread* cur_thread = get_cur_thread();
+    assert(cur_thread);
+
+    // XXX: Do not support setting/getting the rlimit of other processes yet.
+    if (pid && pid != (pid_t)cur_thread->tgid)
+        return -ENOSYS;
+
+    if (resource < 0 || RLIM_NLIMITS <= resource)
+        return -EINVAL;
+
+    if (old_rlim) {
+        if (test_user_memory(old_rlim, sizeof(*old_rlim), true))
+            return -EFAULT;
+
+        *old_rlim = __rlim[resource];
     }
+
+    if (new_rlim) {
+        if (test_user_memory((void*)new_rlim, sizeof(*new_rlim), false))
+            return -EFAULT;
+        if (new_rlim->rlim_cur > new_rlim->rlim_max)
+            return -EINVAL;
+        if (new_rlim->rlim_cur > __rlim->rlim_max)
+            return -EINVAL;
+
+        __rlim[resource] = *new_rlim;
+    }
+
+    return 0;
 }

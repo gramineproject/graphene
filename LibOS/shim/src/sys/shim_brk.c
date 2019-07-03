@@ -33,8 +33,6 @@
 
 #define BRK_SIZE           4096
 
-unsigned long brk_max_size = 0;
-
 struct shim_brk_info {
     void * brk_start;
     void * brk_end;
@@ -61,13 +59,14 @@ int init_brk_region (void * brk_region)
     if (region.brk_start)
         return 0;
 
-    if (!brk_max_size) {
+    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA);
+
+    if (root_config) {
         char brk_cfg[CONFIG_MAX];
-        if (root_config &&
-            get_config(root_config, "sys.brk.size", brk_cfg, CONFIG_MAX) > 0)
+        if (get_config(root_config, "sys.brk.size", brk_cfg, CONFIG_MAX) > 0) {
             brk_max_size = parse_int(brk_cfg);
-        if (!brk_max_size)
-            brk_max_size = DEFAULT_BRK_MAX_SIZE;
+            set_rlimit_cur(RLIMIT_DATA, brk_max_size);
+        }
     }
 
     int flags = MAP_PRIVATE|MAP_ANONYMOUS;
@@ -219,6 +218,8 @@ unchanged:
         goto unchanged;
 
     if (brk > region.brk_end) {
+        uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA);
+
         if (brk > region.brk_start + brk_max_size)
             goto unchanged;
 
@@ -254,8 +255,6 @@ BEGIN_CP_FUNC(brk)
         ADD_CP_FUNC_ENTRY((ptr_t)region.brk_start);
         ADD_CP_ENTRY(ADDR, region.brk_current);
         ADD_CP_ENTRY(SIZE, region.brk_end - region.brk_start);
-        assert(brk_max_size);
-        ADD_CP_ENTRY(SIZE, brk_max_size);
     }
 }
 END_CP_FUNC(bek)
@@ -266,11 +265,11 @@ BEGIN_RS_FUNC(brk)
     region.brk_start   = (void *) GET_CP_FUNC_ENTRY();
     region.brk_current = (void *) GET_CP_ENTRY(ADDR);
     region.brk_end     = region.brk_start + GET_CP_ENTRY(SIZE);
-    brk_max_size       = GET_CP_ENTRY(SIZE);
 
     debug("brk area: %p - %p\n", region.brk_start, region.brk_end);
 
     size_t brk_size = region.brk_end - region.brk_start;
+    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA);
 
     if (brk_size < brk_max_size) {
         void * alloc_addr = region.brk_end;
@@ -278,9 +277,9 @@ BEGIN_RS_FUNC(brk)
         struct shim_vma_val vma;
 
         if (!lookup_overlap_vma(alloc_addr, alloc_size, &vma)) {
-            /* if memory are already allocated here, adjust brk_max_size */
+            /* if memory are already allocated here, adjust RLIMIT_DATA */
             alloc_size = vma.addr - alloc_addr;
-            brk_max_size = brk_size + alloc_size;
+            set_rlimit_cur(RLIMIT_DATA, (uint64_t) brk_size + alloc_size);
         }
 
         int ret = bkeep_mmap(alloc_addr, alloc_size,

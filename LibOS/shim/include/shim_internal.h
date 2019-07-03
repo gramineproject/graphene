@@ -795,6 +795,9 @@ int init_manifest (PAL_HANDLE manifest_handle);
 bool test_user_memory (void * addr, size_t size, bool write);
 bool test_user_string (const char * addr);
 
+uint64_t get_rlimit_cur(int resource);
+void set_rlimit_cur(int resource, uint64_t rlim);
+
 int object_wait_with_retry(PAL_HANDLE handle);
 
 #ifdef __x86_64__

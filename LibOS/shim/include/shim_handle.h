@@ -430,6 +430,4 @@ off_t get_file_size (struct shim_handle * file);
 int do_handle_read (struct shim_handle * hdl, void * buf, int count);
 int do_handle_write (struct shim_handle * hdl, const void * buf, int count);
 
-extern struct __kernel_rlimit __rlim[RLIM_NLIMITS];
-
 #endif /* _SHIM_HANDLE_H_ */
