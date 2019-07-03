@@ -99,11 +99,6 @@ endif
 GLIBC_PATCHES += $(GLIBC_PATCHES_$(GLIBC_VERSION))
 
 $(GLIBC_SRC)/configure: $(GLIBC_PATCHES) $(GLIBC_SRC).tar.gz
-	[ -f $(GLIBC_SRC).tar.gz ] || \
-	for MIRROR in $(GLIBC_MIRRORS); do \
-		wget --timeout=10 $${MIRROR}glibc/$(GLIBC_SRC).tar.gz \
-		&& break; \
-	done
 	[ "`sha256sum $(GLIBC_SRC).tar.gz`" = "$(GLIBC_CHECKSUM)  $(GLIBC_SRC).tar.gz" ] || \
 		(echo "*** $(GLIBC_SRC).tar.gz has a wrong checksum ***"; exit 255)
 	rm -rf $(GLIBC_SRC)
