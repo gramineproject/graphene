@@ -14,3 +14,12 @@ regression.add_check(name="Stat with invalid arguments",
 
 rv = regression.run_checks()
 if rv: sys.exit(rv)
+
+# Running fstat
+regression = Regression(loader, "fstat_cwd")
+
+regression.add_check(name="Fstat on a directory",
+    check=lambda res: "fstat returns the fd type as S_IFDIR" in res[0].out)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
