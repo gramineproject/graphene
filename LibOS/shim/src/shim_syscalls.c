@@ -1004,8 +1004,8 @@ DEFINE_SHIM_SYSCALL (fchownat, 5, shim_do_fchownat, int, int, dfd,
 SHIM_SYSCALL_PASSTHROUGH (futimesat, 3, int, int, dfd, const char *, filename,
                           struct timeval *, utimes)
 
-SHIM_SYSCALL_PASSTHROUGH (newfstatat, 4, int, int, dfd, const char *, filename,
-                          struct stat *, statbuf, int, flag)
+DEFINE_SHIM_SYSCALL (newfstatat, 4, shim_do_newfstatat, int, int, dfd, const char*, filename,
+                     struct stat*, statbuf, int, flag)
 
 /* unlinkat: sys/shim_fs.c */
 DEFINE_SHIM_SYSCALL (unlinkat, 3, shim_do_unlinkat, int, int, dfd,

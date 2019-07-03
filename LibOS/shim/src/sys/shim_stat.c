@@ -29,6 +29,7 @@
 #include <pal.h>
 #include <pal_error.h>
 
+#include <linux/fcntl.h>
 #include <errno.h>
 
 int shim_do_stat (const char * file, struct stat * stat)
@@ -105,6 +106,54 @@ int shim_do_fstat (int fd, struct stat * stat)
     ret = fs->fs_ops->hstat(hdl, stat);
 out:
     put_handle(hdl);
+    return ret;
+}
+
+int shim_do_newfstatat (int dfd, const char* filename, struct stat* stat, int flag) {
+    if (!filename)
+        return -EINVAL;
+
+    if (test_user_string(filename))
+        return -EFAULT;
+
+    // XXX: AT_NO_AUTOMOUNT is ignored for now
+    if (flag & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW))
+        return -EINVAL;
+
+    if (*filename == '/')
+        return (flag & AT_SYMLINK_NOFOLLOW) ? shim_do_lstat(filename, stat) :
+               shim_do_stat(filename, stat);
+
+    struct shim_dentry * dir = NULL, * dent = NULL;
+    int ret = 0;
+    int lookup_flags = LOOKUP_ACCESS;
+    if (!(flag & AT_SYMLINK_NOFOLLOW))
+        lookup_flags |= LOOKUP_FOLLOW;
+
+    if ((ret = path_startat(dfd, &dir)) < 0)
+        return ret;
+
+    if (!*filename) {
+        if (flag & AT_EMPTY_PATH)
+            dent = dir;
+        else
+            return -ENOENT;
+    } else {
+        if ((ret = path_lookupat(dir, filename, lookup_flags, &dent, NULL)) < 0)
+            goto out;
+    }
+
+    struct shim_mount * fs = dent->fs;
+
+    if (!fs->d_ops || !fs->d_ops->stat) {
+        ret = -EACCES;
+        goto out_dentry;
+    }
+
+    ret = fs->d_ops->stat(dent, stat);
+out_dentry:
+    put_dentry(dent);
+out:
     return ret;
 }
 

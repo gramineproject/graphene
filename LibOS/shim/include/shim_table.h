@@ -474,6 +474,7 @@ noreturn int shim_do_exit_group (int error_code);
 int shim_do_tgkill (int tgid, int pid, int sig);
 int shim_do_openat (int dfd, const char * filename, int flags, int mode);
 int shim_do_mkdirat (int dfd, const char * pathname, int mode);
+int shim_do_newfstatat (int dfd, const char* filename, struct stat* statbuf, int flag);
 int shim_do_unlinkat (int dfd, const char * pathname, int flag);
 int shim_do_renameat (int olddfd, const char * pathname, int newdfd,
                       const char * newname);
@@ -812,8 +813,7 @@ int shim_mknodat (int dfd, const char * filename, int mode, unsigned dev);
 int shim_fchownat (int dfd, const char * filename, uid_t user, gid_t group,
                    int flag);
 int shim_futimesat (int dfd, const char * filename, struct timeval * utimes);
-int shim_newfstatat (int dfd, const char * filename, struct stat * statbuf,
-                     int flag);
+int shim_newfstatat(int dfd, const char* filename, struct stat* statbuf, int flag);
 int shim_unlinkat (int dfd, const char * pathname, int flag);
 int shim_renameat (int olddfd, const char * oldname, int newdfd,
                    const char * newname);
