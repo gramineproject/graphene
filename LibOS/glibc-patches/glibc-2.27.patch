@@ -9,36 +9,6 @@ diff -ruNp a/dlfcn/Versions b/dlfcn/Versions
 +    syscalldb;
 +  }
  }
-diff -ruNp a/elf/dl-debug.c b/elf/dl-debug.c
---- a/elf/dl-debug.c
-+++ b/elf/dl-debug.c
-@@ -34,7 +34,7 @@ extern const int verify_link_map_members
-    normally finds it via the DT_DEBUG entry in the dynamic section, but in
-    a statically-linked program there is no dynamic section for the debugger
-    to examine and it looks for this particular symbol name.  */
--struct r_debug _r_debug;
-+struct r_debug __libc_r_debug;
- 
- 
- /* Initialize _r_debug if it has not already been done.  The argument is
-@@ -47,7 +47,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
-   struct r_debug *r;
- 
-   if (ns == LM_ID_BASE)
--    r = &_r_debug;
-+    r = &__libc_r_debug;
-   else
-     r = &GL(dl_ns)[ns]._ns_debug;
- 
-@@ -55,7 +55,7 @@ _dl_debug_initialize (ElfW(Addr) ldbase,
-     {
-       /* Tell the debugger where to find the map of loaded objects.  */
-       r->r_version = 1	/* R_DEBUG_VERSION XXX */;
--      r->r_ldbase = ldbase ?: _r_debug.r_ldbase;
-+      r->r_ldbase = ldbase ?: __libc_r_debug.r_ldbase;
-       r->r_map = (void *) GL(dl_ns)[ns]._ns_loaded;
-       r->r_brk = (ElfW(Addr)) &_dl_debug_state;
-     }
 diff -ruNp a/elf/dl-load.c b/elf/dl-load.c
 --- a/elf/dl-load.c
 +++ b/elf/dl-load.c
@@ -60,17 +30,6 @@ diff -ruNp a/elf/dl-load.c b/elf/dl-load.c
    /* Now that the object is fully initialized add it to the object list.  */
    _dl_add_to_namespace_list (l, nsid);
  
-diff -ruNp a/elf/link.h b/elf/link.h
---- a/elf/link.h
-+++ b/elf/link.h
-@@ -65,6 +65,7 @@ struct r_debug
- 
- /* This is the instance of that structure used by the dynamic linker.  */
- extern struct r_debug _r_debug;
-+asm (".symver _r_debug, __libc_r_debug@GLIBC_PRIVATE");
- 
- /* This symbol refers to the "dynamic structure" in the `.dynamic' section
-    of whatever module refers to `_DYNAMIC'.  So, to find its own
 diff -ruNp a/elf/Makefile b/elf/Makefile
 --- a/elf/Makefile
 +++ b/elf/Makefile
