@@ -501,6 +501,8 @@ int shim_do_epoll_create1 (int flags);
 int shim_do_pipe2 (int * fildes, int flags);
 ssize_t shim_do_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags,
                           struct __kernel_timespec * timeout);
+int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
+                      struct __kernel_rlimit64* old_rlim);
 ssize_t shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags);
 
 /* libos call implementation */
@@ -872,6 +874,8 @@ int shim_perf_event_open (struct perf_event_attr * attr_uptr, pid_t pid,
                           int cpu, int group_fd, int flags);
 ssize_t shim_recvmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags,
                        struct __kernel_timespec * timeout);
+int shim_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
+                   struct __kernel_rlimit64* old_rlim);
 ssize_t shim_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags);
 
 /* libos call wrappers */

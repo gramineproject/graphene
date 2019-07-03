@@ -1615,20 +1615,19 @@ out:
     return ret;
 }
 
-int init_brk_from_executable (struct shim_handle * exec)
-{
-    struct link_map * exec_map = __search_map_by_handle(exec);
-    int ret = 0;
-
+int init_brk_from_executable(struct shim_handle* exec) {
+    struct link_map* exec_map = __search_map_by_handle(exec);
     if (exec_map) {
-        /*
-         * Chia-Che 8/24/2017:
-         * initialize brk region at the end of the executable data segment.
-         */
-        ret = init_brk_region((void *) ALIGN_UP(exec_map->l_map_end));
-    }
+        size_t data_segment_size = 0;
+        // Count all the data segments (including BSS)
+        struct loadcmd* c = exec_map->loadcmds;
+        for (; c < &exec_map->loadcmds[exec_map->nloadcmds]; c++)
+            if (!(c->prot & PROT_EXEC))
+                data_segment_size += c->allocend - c->mapstart;
 
-    return ret;
+        return init_brk_region((void*)ALIGN_UP(exec_map->l_map_end), data_segment_size);
+    }
+    return 0;
 }
 
 int register_library (const char * name, unsigned long load_address)

@@ -786,14 +786,18 @@ void get_brk_region (void ** start, void ** end, void ** current);
 int reset_brk (void);
 struct shim_handle;
 int init_brk_from_executable (struct shim_handle * exec);
-int init_brk_region (void * brk_region);
+int init_brk_region(void* brk_region, size_t data_segment_size);
 int init_heap (void);
 int init_internal_map (void);
 int init_loader (void);
 int init_manifest (PAL_HANDLE manifest_handle);
+int init_rlimit(void);
 
 bool test_user_memory (void * addr, size_t size, bool write);
 bool test_user_string (const char * addr);
+
+uint64_t get_rlimit_cur(int resource);
+void set_rlimit_cur(int resource, uint64_t rlim);
 
 int object_wait_with_retry(PAL_HANDLE handle);
 
