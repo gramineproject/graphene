@@ -1204,7 +1204,7 @@ int NS_SEND(offer) (struct shim_ipc_port * port, IDTYPE dest, IDTYPE base,
     msg->seq     = seq;
 
     debug("ipc send to %u: " NS_CODE_STR(OFFER) "(%u, %u, %lu)\n",
-          port->info.vmid, base, size, lease);
+          port->vmid, base, size, lease);
     ret = send_ipc_message(msg, port);
     SAVE_PROFILE_INTERVAL(NS_SEND(offer));
     return ret;

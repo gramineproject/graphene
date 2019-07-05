@@ -275,11 +275,12 @@ static int create_async_helper(void) {
     if (async_helper_state == HELPER_ALIVE)
         return 0;
 
-    enable_locking();
-
     struct shim_thread* new = get_new_internal_thread();
     if (!new)
         return -ENOMEM;
+
+    async_helper_thread = new;
+    async_helper_state = HELPER_ALIVE;
 
     PAL_HANDLE handle = thread_create(shim_async_helper, new);
 
@@ -291,8 +292,6 @@ static int create_async_helper(void) {
     }
 
     new->pal_handle = handle;
-    async_helper_thread = new;
-    async_helper_state = HELPER_ALIVE;
     return 0;
 }
 

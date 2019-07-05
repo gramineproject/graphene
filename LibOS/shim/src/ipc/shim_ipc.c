@@ -48,8 +48,6 @@ struct shim_process cur_process;
 DEFINE_PROFILE_CATEGORY(ipc, );
 DEFINE_PROFILE_OCCURENCE(syscall_use_ipc, ipc);
 
-//#define DEBUG_REF
-
 int init_ipc_ports (void);
 int init_ns_pid    (void);
 int init_ns_sysv   (void);
@@ -115,14 +113,7 @@ struct shim_ipc_info * get_new_ipc_info (IDTYPE vmid, const char * uri,
 
 static void __get_ipc_info (struct shim_ipc_info * info)
 {
-#ifdef DEBUG_REF
-    int ref_count = REF_INC(info->ref_count);
-
-    debug("get port %p (vmid %u uri %s, ref_count = %d)\n", info,
-          info->vmid, qstrgetstr(&info->uri), ref_count);
-#else
     REF_INC(info->ref_count);
-#endif
 }
 
 void get_ipc_info (struct shim_ipc_info * info)
@@ -145,11 +136,6 @@ static void __put_ipc_info (struct shim_ipc_info * info)
 {
     int ref_count = REF_DEC(info->ref_count);
 
-#ifdef DEBUG_REF
-    debug("put port %p (vmid %u uri %s, ref_count = %d)\n", info,
-          info->vmid, qstrgetstr(&info->uri), ref_count);
-#endif
-
     if (ref_count)
         return;
 
@@ -160,11 +146,6 @@ static void __put_ipc_info (struct shim_ipc_info * info)
 void put_ipc_info (struct shim_ipc_info * info)
 {
     int ref_count = REF_DEC(info->ref_count);
-
-#ifdef DEBUG_REF
-    debug("put port %p (vmid %u uri %s, ref_count = %d)\n", info,
-          info->vmid, qstrgetstr(&info->uri), ref_count);
-#endif
 
     if (ref_count)
         return;
@@ -627,7 +608,7 @@ int ipc_checkpoint_send (const char * cpdir, IDTYPE cpsession)
     debug("ipc broadcast to all: IPC_CHECKPOINT(%u, %s)\n",
           cpsession, cpdir);
 
-    ret = broadcast_ipc(msg, NULL, 0, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT);
+    ret = broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, /*exclude_port*/ NULL);
     SAVE_PROFILE_INTERVAL(ipc_checkpoint_send);
     return ret;
 }
@@ -647,7 +628,7 @@ int ipc_checkpoint_callback (IPC_CALLBACK_ARGS)
         goto out;
 
     kill_all_threads(NULL, msgin->cpsession, SIGCP);
-    broadcast_ipc(msg, &port, 1, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD);
+    broadcast_ipc(msg, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD, port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_checkpoint_callback);
     return ret;

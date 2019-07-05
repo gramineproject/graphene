@@ -1154,7 +1154,7 @@ int shim_clean (int err)
     }
 #endif
 
-    del_all_ipc_ports(0);
+    del_all_ipc_ports();
 
     if (shim_stdio && shim_stdio != (PAL_HANDLE) -1)
         DkObjectClose(shim_stdio);
