@@ -191,7 +191,7 @@ int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned 
 
     debug("ipc broadcast: IPC_CLD_EXIT(%u, %u, %d)\n", ppid, tid, exitcode);
 
-    ret = broadcast_ipc(msg, NULL, 0, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD);
+    ret = broadcast_ipc(msg, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD, /*exclude_port*/ NULL);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_send);
     return ret;
 }

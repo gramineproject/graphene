@@ -55,7 +55,6 @@ struct shim_process {
 extern struct shim_process cur_process;
 
 #define IPC_MSG_MINIMAL_SIZE        48
-#define IPC_MSG_READAHEAD           96
 
 struct shim_ipc_msg {
     unsigned char       code;
@@ -91,18 +90,14 @@ struct shim_ipc_port {
     PAL_HANDLE          pal_handle;
 
     REFTYPE             ref_count;
-    LIST_TYPE(shim_ipc_port) hlist;
     LIST_TYPE(shim_ipc_port) list;
     LISTP_TYPE(shim_ipc_msg_obj) msgs;
     struct shim_lock    msgs_lock;
 
     port_fini           fini[MAX_IPC_PORT_FINI_CB];
 
-    bool                update, recent;
-    struct {
-        IDTYPE          type;
-        IDTYPE          vmid;
-    }                   info, private;
+    IDTYPE              type;
+    IDTYPE              vmid;
 };
 
 #define IPC_CALLBACK_ARGS   \
@@ -481,7 +476,7 @@ struct shim_ipc_info * create_ipc_port (IDTYPE vmid, bool listen);
 int create_ipc_location (struct shim_ipc_info ** pinfo);
 
 enum {
-    LISTEN,     /* listening */
+    LISTEN=0,   /* listening */
     SERVER,     /* connect as a server */
     KEEPALIVE,  /* keep the connetion alive */
     DIRCLD,     /* direct child */
@@ -500,21 +495,17 @@ enum {
     NS_PORT_TYPES(SYSV)
 };
 
-#define IPC_PORT_IFPOLL    (IPC_PORT_SERVER|IPC_PORT_LISTEN)
-
 /* general-purpose routines */
 void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type,
                          port_fini fini,
                          struct shim_ipc_port ** portptr);
 void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, IDTYPE type,
                    port_fini fini);
-void del_ipc_port_by_id (IDTYPE vm_pid, IDTYPE type);
-void del_ipc_port (struct shim_ipc_port * port, IDTYPE type);
 void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode);
 struct shim_ipc_port * lookup_ipc_port (IDTYPE vmid, IDTYPE type);
 void get_ipc_port (struct shim_ipc_port * port);
 void put_ipc_port (struct shim_ipc_port * port);
-void del_all_ipc_ports (IDTYPE type);
+void del_all_ipc_ports (void);
 
 struct shim_ipc_info * get_new_ipc_info (IDTYPE vmid, const char * uri,
                                          size_t len);
@@ -581,15 +572,12 @@ int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                              void * private_data);
 int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
                               struct shim_ipc_port * port);
-int broadcast_ipc (struct shim_ipc_msg * msg, struct shim_ipc_port ** exclude,
-                   int exsize, int target_type);
+int broadcast_ipc (struct shim_ipc_msg * msg, int target_type,
+                   struct shim_ipc_port * exclude_port);
 struct shim_ipc_msg_obj * find_ipc_msg_duplex (struct shim_ipc_port * port,
                                                unsigned long seq);
-int receive_ipc_message (struct shim_ipc_port * port, unsigned long seq,
-                         struct shim_ipc_msg ** msg);
 
-/* for convenience */
-int __response_ipc_message (struct shim_ipc_port * port, IDTYPE dest,
+int send_response_ipc_message (struct shim_ipc_port * port, IDTYPE dest,
                             int ret, unsigned long seq);
 
 int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
@@ -599,7 +587,7 @@ int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
 void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
                        unsigned int exitcode);
 
-int exit_with_ipc_helper (bool handover, struct shim_thread ** ret);
+struct shim_thread* terminate_ipc_helper(void);
 
 #define IPC_FORCE_RECONNECT     ((void*)-1)
 
