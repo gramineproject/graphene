@@ -87,7 +87,7 @@ int broadcast_signal (IDTYPE sender, int signum)
     debug("ipc send to %u: IPC_PID_KILL(%u, %d, %u, %d)\n", 0,
           sender, KILL_ALL, 0, signum);
 
-    ret = broadcast_ipc(msg, NULL, 0, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT);
+    ret = broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, /*exclude_port*/ NULL);
     SAVE_PROFILE_INTERVAL(ipc_pid_kill_send);
     return ret;
 }
@@ -152,7 +152,7 @@ int ipc_pid_kill_callback (IPC_CALLBACK_ARGS)
                                  true);
             break;
         case KILL_ALL:
-            broadcast_ipc(msg, &port, 1, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD);
+            broadcast_ipc(msg, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD, port);
             kill_all_threads(NULL, msgin->sender, msgin->signum);
             break;
     }

@@ -844,7 +844,7 @@ static int __store_msg_persist (struct shim_msg_handle * msgq)
                 struct sysv_client * c = &req->dest;
                 struct msg_req * next = req->next;
 
-                __response_ipc_message(c->port, c->vmid, -EIDRM, c->seq);
+                send_response_ipc_message(c->port, c->vmid, -EIDRM, c->seq);
 
                 put_ipc_port(c->port);
                 __free_msg_qobj(msgq, req);
