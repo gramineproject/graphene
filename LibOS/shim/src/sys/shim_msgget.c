@@ -998,7 +998,7 @@ static int msg_balance_migrate (struct shim_handle * hdl,
     if ((ret = __store_msg_persist(msgq)) < 0)
         return 0;
 
-    struct shim_ipc_info * info = discover_client(src->port, src->vmid);
+    struct shim_ipc_info * info = lookup_ipc_info(src->vmid);
     if (!info)
         goto failed;
 
