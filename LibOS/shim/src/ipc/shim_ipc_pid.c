@@ -61,7 +61,7 @@ int init_ns_pid (void)
 
     init_namespace();
 
-    if ((ret = create_ipc_location(&info)) < 0)
+    if ((ret = get_ipc_info_cur_process(&info)) < 0)
         return ret;
 
     walk_thread_list(&thread_add_subrange, info);
@@ -73,9 +73,9 @@ int broadcast_signal (IDTYPE sender, int signum)
     BEGIN_PROFILE_INTERVAL();
     int ret;
 
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_PID_KILL,
-                                        sizeof(struct shim_ipc_pid_kill), 0);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_pid_kill));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_PID_KILL, total_msg_size, 0);
     struct shim_ipc_pid_kill * msgin =
                     (struct shim_ipc_pid_kill *) &msg->msg;
 
@@ -103,13 +103,12 @@ int ipc_pid_kill_send (IDTYPE sender, IDTYPE id, enum kill_type type,
     if ((ret = connect_owner(id, &port, &dest)) < 0)
         goto out;
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_PID_KILL,
-                                        sizeof(struct shim_ipc_pid_kill),
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_kill));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_PID_KILL, total_msg_size, dest);
+
     struct shim_ipc_pid_kill * msgin =
                     (struct shim_ipc_pid_kill *) &msg->msg.msg;
-
     msgin->sender = sender;
     msgin->id     = id;
     msgin->type   = type;
@@ -118,7 +117,7 @@ int ipc_pid_kill_send (IDTYPE sender, IDTYPE id, enum kill_type type,
     debug("ipc send to %u: IPC_PID_KILL(%u, %d, %u, %d)\n", dest,
           sender, type, id, signum);
 
-    ret = do_ipc_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_pid_kill_send);
@@ -171,21 +170,20 @@ int ipc_pid_getstatus_send (struct shim_ipc_port * port, IDTYPE dest,
     BEGIN_PROFILE_INTERVAL();
     int ret;
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_PID_GETSTATUS,
-                                        sizeof(struct shim_ipc_pid_getstatus) +
-                                        sizeof(IDTYPE) * npids,
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_getstatus) +
+                                                 sizeof(IDTYPE) * npids);
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_PID_GETSTATUS, total_msg_size, dest);
+
     struct shim_ipc_pid_getstatus * msgin =
                     (struct shim_ipc_pid_getstatus *) &msg->msg.msg;
-
     msgin->npids = npids;
     memcpy(msgin->pids, pids, sizeof(IDTYPE) * npids);
 
     debug("ipc send to %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n", dest,
           npids, pids[0]);
 
-    ret = do_ipc_duplex(msg, port, NULL, status);
+    ret = send_ipc_message_duplex(msg, port, NULL, status);
 
     SAVE_PROFILE_INTERVAL(ipc_pid_getstatus_send);
     return ret;
@@ -254,11 +252,11 @@ int ipc_pid_retstatus_send (struct shim_ipc_port * port, IDTYPE dest,
     BEGIN_PROFILE_INTERVAL();
     int ret;
 
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_PID_RETSTATUS,
-                                        sizeof(struct shim_ipc_pid_retstatus) +
-                                        sizeof(struct pid_status) * nstatus,
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retstatus) +
+                                             sizeof(struct pid_status) * nstatus);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_PID_RETSTATUS, total_msg_size, dest);
+
     struct shim_ipc_pid_retstatus * msgin =
                     (struct shim_ipc_pid_retstatus *) &msg->msg;
 
@@ -291,7 +289,7 @@ int ipc_pid_retstatus_callback (IPC_CALLBACK_ARGS)
         debug("ipc callback from %u: IPC_PID_RETSTATUS(0, [])\n", msg->src);
 
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (obj) {
         struct pid_status ** status = (struct pid_status **) obj->private;
 
@@ -485,10 +483,10 @@ int ipc_pid_getmeta_send (IDTYPE pid, enum pid_meta_code code,
     if ((ret = connect_owner(pid, &port, &dest)) < 0)
         goto out;
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_PID_GETMETA,
-                                        sizeof(struct shim_ipc_pid_getmeta),
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_getmeta));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_PID_GETMETA, total_msg_size, dest);
+
     struct shim_ipc_pid_getmeta * msgin =
                     (struct shim_ipc_pid_getmeta *) &msg->msg.msg;
     msgin->pid  = pid;
@@ -497,7 +495,7 @@ int ipc_pid_getmeta_send (IDTYPE pid, enum pid_meta_code code,
     debug("ipc send to %u: IPC_PID_GETMETA(%u, %s)\n", dest,
           pid, pid_meta_code_str[code]);
 
-    ret = do_ipc_duplex(msg, port, NULL, data);
+    ret = send_ipc_message_duplex(msg, port, NULL, data);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_pid_getmeta_send);
@@ -582,10 +580,9 @@ int ipc_pid_retmeta_send (struct shim_ipc_port * port, IDTYPE dest,
     BEGIN_PROFILE_INTERVAL();
     int ret;
 
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_PID_RETMETA,
-                                        sizeof(struct shim_ipc_pid_retmeta) +
-                                        datasize, dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_pid_retmeta) + datasize);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_PID_RETMETA, total_msg_size, dest);
     struct shim_ipc_pid_retmeta * msgin =
                     (struct shim_ipc_pid_retmeta *) &msg->msg;
 
@@ -613,7 +610,7 @@ int ipc_pid_retmeta_callback (IPC_CALLBACK_ARGS)
     debug("ipc callback from %u: IPC_PID_RETMETA(%u, %s, %d)\n", msg->src,
           msgin->pid, pid_meta_code_str[msgin->code], msgin->datasize);
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (obj) {
         void ** data = (void **) obj->private;
 
@@ -652,13 +649,12 @@ int ipc_pid_nop_send (struct shim_ipc_port * port, IDTYPE dest, int count,
                       const void * buf, int len)
 {
     BEGIN_PROFILE_INTERVAL();
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_PID_NOP,
-                                        sizeof(struct shim_ipc_pid_nop) +
-                                        len, dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_pid_nop) + len);
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_PID_NOP, total_msg_size, dest);
+
     struct shim_ipc_pid_nop * msgin =
                 (struct shim_ipc_pid_nop *) &msg->msg.msg;
-
     msgin->count = count * 2;
     memcpy(msgin->payload, buf, len);
 
@@ -666,7 +662,7 @@ int ipc_pid_nop_send (struct shim_ipc_port * port, IDTYPE dest, int count,
 
     SAVE_PROFILE_INTERVAL(ipc_pid_nop_send);
 
-    return do_ipc_duplex(msg, port, NULL, NULL);
+    return send_ipc_message_duplex(msg, port, NULL, NULL);
 }
 
 int ipc_pid_nop_callback (IPC_CALLBACK_ARGS)
@@ -679,7 +675,7 @@ int ipc_pid_nop_callback (IPC_CALLBACK_ARGS)
           msgin->count);
 
     if (!(--msgin->count)) {
-        struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+        struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
         if (obj && obj->thread)
             thread_wakeup(obj->thread);
 
@@ -711,10 +707,9 @@ int ipc_pid_sendrpc_send (IDTYPE pid, IDTYPE sender, const void * buf,
     if ((ret = get_pid_port(pid, &dest, &port)) < 0)
         return ret;
 
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                     IPC_PID_SENDRPC,
-                                     sizeof(struct shim_ipc_pid_sendrpc) +
-                                     len, dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_pid_sendrpc) + len);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_PID_SENDRPC, total_msg_size, dest);
     struct shim_ipc_pid_sendrpc * msgin =
                     (struct shim_ipc_pid_sendrpc *) &msg->msg;
 

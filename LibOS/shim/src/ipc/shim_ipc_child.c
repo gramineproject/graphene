@@ -176,9 +176,10 @@ int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned 
     BEGIN_PROFILE_INTERVAL_SET(send_time);
     int ret = 0;
 
-    struct shim_ipc_msg * msg =
-            create_ipc_msg_on_stack(IPC_CLD_EXIT,
-                                    sizeof(struct shim_ipc_cld_exit), 0);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_CLD_EXIT, total_msg_size, 0);
+
     struct shim_ipc_cld_exit * msgin =
                 (struct shim_ipc_cld_exit *) &msg->msg;
     msgin->ppid = ppid;
@@ -236,8 +237,9 @@ int ipc_cld_join_send (IDTYPE dest)
     if (!port)
         return -ESRCH;
 
-    struct shim_ipc_msg * msg =
-                create_ipc_msg_on_stack(IPC_CLD_JOIN, 0, dest);
+    size_t total_msg_size = get_ipc_msg_size(0);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_CLD_JOIN, total_msg_size, dest);
 
     debug("ipc send to %u: IPC_CLD_JOIN\n", dest);
 
@@ -285,11 +287,11 @@ int ipc_cld_profile_send (void)
         }
 
 
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_CLD_PROFILE,
-                                        sizeof(struct shim_ipc_cld_profile) +
-                                        sizeof(struct profile_val) *
-                                        nsending, dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_cld_profile) +
+                                             sizeof(struct profile_val) * nsending);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_CLD_PROFILE, total_msg_size, dest);
+
     struct shim_ipc_cld_profile * msgin =
                 (struct shim_ipc_cld_profile *) &msg->msg;
 

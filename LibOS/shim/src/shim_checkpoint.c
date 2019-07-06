@@ -976,12 +976,19 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     }
 
     /* Create process and IPC bookkeepings */
-    if (!(new_process = create_new_process(true))) {
+    if (!(new_process = create_process())) {
         ret = -ENOMEM;
         goto err;
     }
 
-    if (!(new_process->self = create_ipc_port(0, false))) {
+    if (!(new_process->self = create_ipc_info(0, NULL, 0))) {
+        ret = -EACCES;
+        goto err;
+    }
+
+    char pipe_uri[PIPE_URI_SIZE];
+    if (create_pipe(NULL, pipe_uri, PIPE_URI_SIZE, &new_process->self->pal_handle,
+                    &new_process->self->uri) < 0) {
         ret = -EACCES;
         goto err;
     }
@@ -1141,7 +1148,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                        &ipc_child_exit,
                        NULL);
 
-    destroy_process(new_process);
+    free_process(new_process);
     return 0;
 err:
     if (gipc_hdl)
@@ -1149,7 +1156,7 @@ err:
     if (proc)
         DkObjectClose(proc);
     if (new_process)
-        destroy_process(new_process);
+        free_process(new_process);
 
     SYS_PRINTF("process creation failed\n");
     return ret;

@@ -57,8 +57,6 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 
 static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
     /* RESP             */  &ipc_resp_callback,
-    /* FINDURI          */  &ipc_finduri_callback,
-    /* TELLURI          */  &ipc_telluri_callback,
     /* CHECKPOINT       */  &ipc_checkpoint_callback,
 
     /* parents and children */
@@ -244,8 +242,8 @@ static void __del_ipc_port(struct shim_ipc_port* port) {
 
     /* Check for pending messages on port (threads might be blocking for responses) */
     lock(&port->msgs_lock);
-    struct shim_ipc_msg_obj* msg;
-    struct shim_ipc_msg_obj* tmp;
+    struct shim_ipc_msg_duplex* msg;
+    struct shim_ipc_msg_duplex* tmp;
     LISTP_FOR_EACH_ENTRY_SAFE(msg, tmp, &port->msgs, list) {
         LISTP_DEL_INIT(msg, &port->msgs, list);
         msg->retval = -ECONNRESET;
@@ -447,7 +445,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
         return resp->retval;
 
     /* find a corresponding request msg for this response msg */
-    struct shim_ipc_msg_obj* req_msg = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex* req_msg = pop_ipc_msg_duplex(port, msg->seq);
 
     /* if some thread waits for response, wake it up with response retval */
     if (req_msg) {
@@ -464,7 +462,14 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
     ret = (ret == RESPONSE_CALLBACK) ? 0 : ret;
 
     /* create IPC_RESP msg to send to dest, with sequence number seq, and in-body retval ret */
-    struct shim_ipc_msg* resp_msg = create_ipc_resp_msg_on_stack(ret, dest, seq);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
+    struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
+    init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, dest);
+    resp_msg->seq = seq;
+
+    struct shim_ipc_resp* resp = (struct shim_ipc_resp *) resp_msg->msg;
+    resp->retval = ret;
+
     debug("IPC send to %u: IPC_RESP(%d)\n", resp_msg->dst & 0xFFFF, ret);
     return send_ipc_message(resp_msg, port);
 }
@@ -490,6 +495,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 msg = tmp_buf;
             }
 
+            /* TODO: Add while-loop to receive all msg */
             int read = DkStreamRead(port->pal_handle, /*offset*/ 0, expected_size - bytes + readahead,
                                      (void *) msg + bytes, NULL, 0);
 
@@ -508,7 +514,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 expected_size = msg->size;
         }
 
-        debug("Received IPC message from port %p (handle %p): code=%d size=%d src=%u dst=%u seq=%lx\n",
+        debug("Received IPC message from port %p (handle %p): code=%d size=%lu src=%u dst=%u seq=%lx\n",
               port, port->pal_handle, msg->code, msg->size, msg->src & 0xFFFF, msg->dst & 0xFFFF, msg->seq);
 
         /* skip messages coming from myself (in case of broadcast) */
