@@ -569,10 +569,15 @@ send_result:
                 continue;
             }
 
-            send_ipc_message(create_ipc_resp_msg_on_stack(
-                             sops->stat.completed ? 0 : -EAGAIN,
-                             sops->client.vmid,
-                             sops->client.seq), sops->client.port);
+            size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
+            struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
+            init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, sops->client.vmid);
+            resp_msg->seq = sops->client.seq;
+
+            struct shim_ipc_resp* resp = (struct shim_ipc_resp *) resp_msg->msg;
+            resp->retval = sops->stat.completed ? 0 : -EAGAIN;
+
+            send_ipc_message(resp_msg, sops->client.port);
 
             put_ipc_port(sops->client.port);
             sops->client.vmid = 0;
@@ -786,10 +791,17 @@ unowned:
 
     if (stat.completed || stat.failed) {
         ret = stat.completed ? 0 : -EAGAIN;
-        if (client && sendreply)
-            ret = send_ipc_message(create_ipc_resp_msg_on_stack(
-                                            ret, client->vmid,
-                                            client->seq), client->port);
+        if (client && sendreply) {
+            size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_resp));
+            struct shim_ipc_msg* resp_msg = __alloca(total_msg_size);
+            init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, client->vmid);
+            resp_msg->seq = client->seq;
+
+            struct shim_ipc_resp* resp = (struct shim_ipc_resp *) resp_msg->msg;
+            resp->retval = ret;
+
+            ret = send_ipc_message(resp_msg, client->port);
+        }
 
         SAVE_PROFILE_INTERVAL(sem_send_ipc_response);
         goto out_locked;
@@ -910,7 +922,7 @@ static int sem_balance_migrate (struct shim_handle * hdl,
         }
     }
 
-    struct shim_ipc_info * info = discover_client(src->port, src->vmid);
+    struct shim_ipc_info * info = lookup_ipc_info(src->vmid);
     if (!info)
         goto out;
 

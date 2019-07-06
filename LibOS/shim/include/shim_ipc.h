@@ -58,7 +58,7 @@ extern struct shim_process cur_process;
 
 struct shim_ipc_msg {
     unsigned char       code;
-    unsigned int        size;
+    size_t              size;
     IDTYPE              src, dst;
     unsigned long       seq;
 #ifdef PROFILE
@@ -70,10 +70,10 @@ struct shim_ipc_msg {
 struct shim_ipc_port;
 struct shim_thread;
 
-DEFINE_LIST(shim_ipc_msg_obj);
-struct shim_ipc_msg_obj {
+DEFINE_LIST(shim_ipc_msg_duplex);
+struct shim_ipc_msg_duplex {
     struct shim_thread *    thread;
-    LIST_TYPE(shim_ipc_msg_obj) list;
+    LIST_TYPE(shim_ipc_msg_duplex) list;
     int                     retval;
     void *                  private;
     struct shim_ipc_msg     msg;
@@ -85,13 +85,13 @@ typedef void (*port_fini) (struct shim_ipc_port *, IDTYPE vmid,
 #define MAX_IPC_PORT_FINI_CB        3
 
 DEFINE_LIST(shim_ipc_port);
-DEFINE_LISTP(shim_ipc_msg_obj);
+DEFINE_LISTP(shim_ipc_msg_duplex);
 struct shim_ipc_port {
     PAL_HANDLE          pal_handle;
 
     REFTYPE             ref_count;
     LIST_TYPE(shim_ipc_port) list;
-    LISTP_TYPE(shim_ipc_msg_obj) msgs;
+    LISTP_TYPE(shim_ipc_msg_duplex) msgs;
     struct shim_lock    msgs_lock;
 
     port_fini           fini[MAX_IPC_PORT_FINI_CB];
@@ -109,11 +109,9 @@ struct shim_ipc_port {
 
 typedef int (*ipc_callback) (IPC_CALLBACK_ARGS);
 
-/* Messagge code to response the connection */
+/* Basic message codes */
 enum {
     IPC_RESP = 0,
-    IPC_FINDURI,
-    IPC_TELLURI,
     IPC_CHECKPOINT,
     IPC_BASE_BOUND,
 };
@@ -122,20 +120,6 @@ enum {
 struct shim_ipc_resp {
     int retval;
 } __attribute__((packed));
-
-/* IPC_FINDURI: request a URI from a connect process */
-int ipc_finduri_send (struct shim_ipc_port * port, IDTYPE dest,
-                      struct shim_ipc_info ** info);
-int ipc_finduri_callback (IPC_CALLBACK_ARGS);
-
-/* IPC_TELLURI: replying with a connectable URI */
-struct shim_ipc_telluri {
-    char uri[1];
-} __attribute__((packed));
-
-int ipc_telluri_send (struct shim_ipc_port * port, IDTYPE dest,
-                      struct shim_ipc_info * info);
-int ipc_telluri_callback (IPC_CALLBACK_ARGS);
 
 /* PID_CHECKPOINT: broadcast checkpointing */
 struct shim_ipc_checkpoint {
@@ -469,11 +453,11 @@ int ipc_sysv_semreply_callback (IPC_CALLBACK_ARGS);
 int init_ipc (void);
 int init_ipc_helper (void);
 
-struct shim_process * create_new_process (bool inherit_parent);
-void destroy_process (struct shim_process * proc);
+struct shim_process* create_process(void);
+void free_process(struct shim_process* process);
 
-struct shim_ipc_info * create_ipc_port (IDTYPE vmid, bool listen);
-int create_ipc_location (struct shim_ipc_info ** pinfo);
+struct shim_ipc_info* create_ipc_info_cur_process(void);
+int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 
 enum {
     LISTEN=0,   /* listening */
@@ -507,82 +491,34 @@ void get_ipc_port (struct shim_ipc_port * port);
 void put_ipc_port (struct shim_ipc_port * port);
 void del_all_ipc_ports (void);
 
-struct shim_ipc_info * get_new_ipc_info (IDTYPE vmid, const char * uri,
-                                         size_t len);
-void get_ipc_info(struct shim_ipc_info * port);
-void put_ipc_info(struct shim_ipc_info * port);
+struct shim_ipc_info* create_ipc_info(IDTYPE vmid, const char* uri, size_t len);
+void get_ipc_info(struct shim_ipc_info* port);
+void put_ipc_info(struct shim_ipc_info* port);
 
-struct shim_ipc_info * lookup_and_alloc_client (IDTYPE vmid, const char * uri);
-void put_client (struct shim_ipc_info * info);
-struct shim_ipc_info * discover_client (struct shim_ipc_port * port,
-                                        IDTYPE vmid);
+struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri);
+void put_ipc_info_in_list(struct shim_ipc_info* info);
+struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid);
 
-#define IPC_MSG_SIZE(extra)                                             \
-    ({  int _size = (extra) + sizeof(struct shim_ipc_msg);              \
-        _size > IPC_MSG_MINIMAL_SIZE ? _size : IPC_MSG_MINIMAL_SIZE; })
-#define IPC_MSGOBJ_SIZE(extra)                                          \
-    ({  int _size = (extra) + sizeof(struct shim_ipc_msg);              \
-        (_size > IPC_MSG_MINIMAL_SIZE ? _size : IPC_MSG_MINIMAL_SIZE) + \
-        (sizeof(struct shim_ipc_msg_obj) - sizeof(struct shim_ipc_msg)); })
-
-int __init_ipc_msg (struct shim_ipc_msg * msg, int code, int size, IDTYPE dest);
-struct shim_ipc_msg * create_ipc_msg (int code, int size, IDTYPE dest);
-
-static_always_inline
-struct shim_ipc_msg * create_ipc_msg_on_stack (int code, int size, IDTYPE dest)
-{
-    struct shim_ipc_msg * msg = __alloca(IPC_MSG_SIZE(size));
-
-    return (!__init_ipc_msg(msg, code, size, dest)) ? msg : NULL;
+static_always_inline size_t get_ipc_msg_size(size_t payload) {
+    size_t size = sizeof(struct shim_ipc_msg) + payload;
+    return (size > IPC_MSG_MINIMAL_SIZE) ? size : IPC_MSG_MINIMAL_SIZE;
 }
 
-int __init_ipc_msg_duplex (struct shim_ipc_msg_obj * msg, int code, int size,
-                           IDTYPE dest);
-struct shim_ipc_msg_obj *
-create_ipc_msg_duplex (int code, int size, IDTYPE dest);
-
-static_always_inline
-struct shim_ipc_msg_obj *
-create_ipc_msg_duplex_on_stack (int code, int size, IDTYPE dest)
-{
-    struct shim_ipc_msg_obj * msg = __alloca(IPC_MSGOBJ_SIZE(size));
-
-    return (!__init_ipc_msg_duplex(msg, code, size, dest)) ?
-           msg : NULL;
+static_always_inline size_t get_ipc_msg_duplex_size(size_t payload) {
+    return get_ipc_msg_size(payload) +
+        (sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg));
 }
 
-int __init_ipc_resp_msg (struct shim_ipc_msg * resp, int ret,
-                         unsigned long seq);
-struct shim_ipc_msg *
-create_ipc_resp_msg (int ret, IDTYPE dest, unsigned long seq);
+void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest);
+void init_ipc_msg_duplex(struct shim_ipc_msg_duplex* msg, int code, size_t size, IDTYPE dest);
 
-static_always_inline
-struct shim_ipc_msg *
-create_ipc_resp_msg_on_stack (int ret, IDTYPE dest, unsigned long seq)
-{
-    struct shim_ipc_msg * resp = create_ipc_msg_on_stack(IPC_RESP,
-                                        sizeof(struct shim_ipc_resp), dest);
+struct shim_ipc_msg_duplex* pop_ipc_msg_duplex(struct shim_ipc_port* port, unsigned long seq);
 
-    return (resp && !__init_ipc_resp_msg(resp, ret, seq)) ? resp : NULL;
-}
-
-int send_ipc_message (struct shim_ipc_msg * msg, struct shim_ipc_port * port);
-int send_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
-                             struct shim_ipc_port * port, bool save,
-                             void * private_data);
-int close_ipc_message_duplex (struct shim_ipc_msg_obj * msg,
-                              struct shim_ipc_port * port);
-int broadcast_ipc (struct shim_ipc_msg * msg, int target_type,
-                   struct shim_ipc_port * exclude_port);
-struct shim_ipc_msg_obj * find_ipc_msg_duplex (struct shim_ipc_port * port,
-                                               unsigned long seq);
-
-int send_response_ipc_message (struct shim_ipc_port * port, IDTYPE dest,
-                            int ret, unsigned long seq);
-
-int do_ipc_duplex (struct shim_ipc_msg_obj * msg,
-                   struct shim_ipc_port * port, unsigned long * seq,
-                   void * private_data);
+int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_port* exclude_port);
+int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
+int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_port* port,
+                            unsigned long* seq, void* private_data);
+int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, unsigned long seq);
 
 void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
                        unsigned int exitcode);
