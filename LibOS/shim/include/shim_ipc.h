@@ -107,7 +107,7 @@ struct shim_ipc_port {
    succeed. */
 #define RESPONSE_CALLBACK   1
 
-typedef int (*ipc_callback) (IPC_CALLBACK_ARGS);
+typedef int (*ipc_callback)(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* Basic message codes */
 enum {
@@ -127,14 +127,13 @@ struct shim_ipc_checkpoint {
     char cpdir[1];
 } __attribute__((packed));
 
-int ipc_checkpoint_send (const char * cpdir, IDTYPE cpsession);
-int ipc_checkpoint_callback (IPC_CALLBACK_ARGS);
+int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession);
+int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* Message code from child to parent */
 #define IPC_CLD_BASE       IPC_BASE_BOUND
 enum {
     IPC_CLD_EXIT = IPC_CLD_BASE,
-    IPC_CLD_JOIN,
 #ifdef PROFILE
     IPC_CLD_PROFILE,
 #endif
@@ -151,12 +150,8 @@ struct shim_ipc_cld_exit {
 #endif
 } __attribute__((packed));
 
-int ipc_cld_exit_send (IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal);
-int ipc_cld_exit_callback (IPC_CALLBACK_ARGS);
-
-/* CLD_JOIN: child join the parent group */
-int ipc_cld_join_send (IDTYPE dest);
-int ipc_cld_join_callback (IPC_CALLBACK_ARGS);
+int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned int term_signal);
+int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 #ifdef PROFILE
 # include <shim_profile.h>
@@ -167,8 +162,8 @@ struct shim_ipc_cld_profile {
     struct profile_val profile[];
 } __attribute__((packed));
 
-int ipc_cld_profile_send (void);
-int ipc_cld_profile_callback (IPC_CALLBACK_ARGS);
+int ipc_cld_profile_send(void);
+int ipc_cld_profile_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 #endif
 
 /* Message code to namespace manager */
@@ -450,8 +445,8 @@ int ipc_sysv_semreply_callback (IPC_CALLBACK_ARGS);
 #define IPC_CODE_NUM     IPC_SYSV_BOUND
 
 /* functions and routines */
-int init_ipc (void);
-int init_ipc_helper (void);
+int init_ipc(void);
+int init_ipc_helper(void);
 
 struct shim_process* create_process(void);
 void free_process(struct shim_process* process);
@@ -480,16 +475,14 @@ enum {
 };
 
 /* general-purpose routines */
-void add_ipc_port_by_id (IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type,
-                         port_fini fini,
-                         struct shim_ipc_port ** portptr);
-void add_ipc_port (struct shim_ipc_port * port, IDTYPE vmid, IDTYPE type,
-                   port_fini fini);
-void del_ipc_port_fini (struct shim_ipc_port * port, unsigned int exitcode);
-struct shim_ipc_port * lookup_ipc_port (IDTYPE vmid, IDTYPE type);
-void get_ipc_port (struct shim_ipc_port * port);
-void put_ipc_port (struct shim_ipc_port * port);
-void del_all_ipc_ports (void);
+void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type,
+                        port_fini fini, struct shim_ipc_port** portptr);
+void add_ipc_port(struct shim_ipc_port * port, IDTYPE vmid, IDTYPE type, port_fini fini);
+void del_ipc_port_fini(struct shim_ipc_port * port, unsigned int exitcode);
+struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type);
+void get_ipc_port(struct shim_ipc_port* port);
+void put_ipc_port(struct shim_ipc_port* port);
+void del_all_ipc_ports(void);
 
 struct shim_ipc_info* create_ipc_info(IDTYPE vmid, const char* uri, size_t len);
 void get_ipc_info(struct shim_ipc_info* port);
@@ -520,13 +513,12 @@ int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_por
                             unsigned long* seq, void* private_data);
 int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, unsigned long seq);
 
-void ipc_child_exit   (struct shim_ipc_port * port, IDTYPE vmid,
-                       unsigned int exitcode);
+void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode);
 
 struct shim_thread* terminate_ipc_helper(void);
 
 #define IPC_FORCE_RECONNECT     ((void*)-1)
 
-int prepare_ns_leaders (void);
+int prepare_ns_leaders(void);
 
 #endif /* _SHIM_IPC_H_ */

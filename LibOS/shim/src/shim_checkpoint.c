@@ -1145,7 +1145,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     /* Listen on the RPC stream to the new process */
     add_ipc_port_by_id(res.child_vmid, proc,
                        IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
-                       &ipc_child_exit,
+                       &ipc_port_with_child_fini,
                        NULL);
 
     free_process(new_process);

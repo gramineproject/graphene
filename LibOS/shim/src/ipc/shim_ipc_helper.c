@@ -61,7 +61,7 @@ static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
 
     /* parents and children */
     /* CLD_EXIT         */  &ipc_cld_exit_callback,
-    /* CLD_JOIN         */  &ipc_cld_join_callback,
+
 #ifdef PROFILE
     /* CLD_PROFILE      */  &ipc_cld_profile_callback,
 #endif
