@@ -489,8 +489,6 @@ static int __kill_all_threads (struct shim_thread * thread, void * arg,
     return srched;
 }
 
-int broadcast_signal (IDTYPE sender, int sig);
-
 int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig)
 {
     struct walk_arg arg;
@@ -524,7 +522,7 @@ int shim_do_kill (pid_t pid, int sig)
     /* If pid equals -1, then sig is sent to every process for which the
        calling process has permission to send */
     else if (pid == -1) {
-        broadcast_signal(cur->tid, sig);
+        ipc_pid_kill_send(cur->tid, /*target*/ 0, KILL_ALL, sig);
         kill_all_threads(cur, cur->tid, sig);
         send_to_self = true;
     }
