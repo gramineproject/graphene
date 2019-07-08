@@ -195,9 +195,8 @@ struct shim_ipc_pid_kill {
     int signum;
 } __attribute__((packed));
 
-int ipc_pid_kill_send (IDTYPE sender, IDTYPE id, enum kill_type type,
-                       int signum);
-int ipc_pid_kill_callback (IPC_CALLBACK_ARGS);
+int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int signum);
+int ipc_pid_kill_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 struct pid_status {
     IDTYPE pid, tgid, pgid;
