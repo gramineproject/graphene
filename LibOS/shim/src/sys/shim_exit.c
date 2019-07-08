@@ -44,10 +44,14 @@ void release_clear_child_id (int * clear_child_tid);
 
 int thread_exit(struct shim_thread * self, bool send_ipc)
 {
+    bool sent_exit_msg = false;
+
     /* Chia-Che: Broadcast exit message as early as possible,
        so other process can start early on responding. */
-    if (self->in_vm && send_ipc)
+    if (self->in_vm && send_ipc) {
         ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
+        sent_exit_msg = true;
+    }
 
     lock(&self->lock);
 
@@ -99,7 +103,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
         unlock(&parent->lock);
 
         DkEventSet(parent->child_exit_event);
-    } else {
+    } else if (!sent_exit_msg) {
         debug("parent not here, need to tell another process\n");
         ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
     }
