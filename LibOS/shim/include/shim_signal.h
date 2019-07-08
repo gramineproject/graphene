@@ -149,7 +149,6 @@ int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
 int do_kill_proc (IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc);
 int do_kill_pgroup (IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc);
 
-int broadcast_signal (IDTYPE sender, int sig);
 int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig);
 
 #endif /* _SHIM_SIGNAL_H_ */
