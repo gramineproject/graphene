@@ -747,16 +747,20 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
     }
 }
 
+#define __WCOREDUMP_BIT 0x80
+
 static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
 {
+    int sig_without_coredump_bit = sig & ~(__WCOREDUMP_BIT);
+
     __UNUSED(ucontext);
-    debug("killed by %s\n", signal_name(sig));
+    debug("killed by %s\n", signal_name(sig_without_coredump_bit));
 
     if (!info->si_pid)
         switch(sig) {
             case SIGTERM:
             case SIGINT:
-                shim_do_kill(-1, sig);
+                shim_do_kill(-1, sig_without_coredump_bit);
                 break;
         }
 
@@ -764,10 +768,11 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
     DkThreadExit();
 }
 
-/* We don't currently implement core dumps, but put a wrapper
- * in case we do in the future */
 static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
 {
+    /* NOTE: This implementation only indicates the core dump for wait4()
+     *       and friends. No actual core-dump file is created. */
+    sig = __WCOREDUMP_BIT | sig;
     sighandler_kill(sig, info, ucontext);
 }
 
@@ -775,24 +780,33 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
     {
         /* SIGHUP */    &sighandler_kill,
         /* SIGINT */    &sighandler_kill,
-        /* SIGQUIT */   &sighandler_kill,
-        /* SIGILL */    &sighandler_kill,
+        /* SIGQUIT */   &sighandler_core,
+        /* SIGILL */    &sighandler_core,
         /* SIGTRAP */   &sighandler_core,
-        /* SIGABRT */   &sighandler_kill,
-        /* SIGBUS */    &sighandler_kill,
-        /* SIGFPE */    &sighandler_kill,
+        /* SIGABRT */   &sighandler_core,
+        /* SIGBUS */    &sighandler_core,
+        /* SIGFPE */    &sighandler_core,
         /* SIGKILL */   &sighandler_kill,
-        /* SIGUSR1 */   NULL,
-        /* SIGSEGV */   &sighandler_kill,
-        /* SIGUSR2 */   NULL,
+        /* SIGUSR1 */   &sighandler_kill,
+        /* SIGSEGV */   &sighandler_core,
+        /* SIGUSR2 */   &sighandler_kill,
         /* SIGPIPE */   &sighandler_kill,
         /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
-        /* SIGSTKFLT */ NULL,
+        /* SIGSTKFLT */ &sighandler_kill,
         /* SIGCHLD */   NULL,
         /* SIGCONT */   NULL,
         /* SIGSTOP */   NULL,
         /* SIGTSTP */   NULL,
         /* SIGTTIN */   NULL,
         /* SIGTTOU */   NULL,
+        /* SIGURG  */   NULL,
+        /* SIGXCPU */   &sighandler_core,
+        /* SIGXFSZ */   &sighandler_core,
+        /* SIGVTALRM */ &sighandler_kill,
+        /* SIGPROF   */ &sighandler_kill,
+        /* SIGWINCH  */ NULL,
+        /* SIGIO   */   &sighandler_kill,
+        /* SIGPWR  */   &sighandler_kill,
+        /* SIGSYS  */   &sighandler_core
     };

@@ -129,6 +129,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     return 0;
 }
 
+/* note that term_signal argument may contain WCOREDUMP bit (0x80) */
 int try_process_exit (int error_code, int term_signal)
 {
     struct shim_thread * cur_thread = get_cur_thread();
