@@ -257,15 +257,24 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     msg->src = cur_process.vmid;
     debug("Sending ipc message to port %p (handle %p)\n", port, port->pal_handle);
 
-    /* TODO: Handle benign EINTR case? */
-    /* TODO: Add while-loop to send all msg */
-    int ret = DkStreamWrite(port->pal_handle, 0, msg->size, msg, NULL);
+    size_t total_bytes = msg->size;
+    size_t bytes = 0;
 
-    if (ret == 0 && PAL_NATIVE_ERRNO) {
-        debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
-        del_ipc_port_fini(port, -ECHILD);
-        return -PAL_ERRNO;
-    }
+    do {
+        size_t ret = DkStreamWrite(port->pal_handle, 0, total_bytes - bytes,
+                                   (void *)msg + bytes, NULL);
+
+        if (!ret) {
+            if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
+                continue;
+
+            debug("Port %p (handle %p) was removed during sending\n", port, port->pal_handle);
+            del_ipc_port_fini(port, -ECHILD);
+            return -PAL_ERRNO;
+        }
+
+        bytes += ret;
+    } while (bytes < total_bytes);
 
     return 0;
 }

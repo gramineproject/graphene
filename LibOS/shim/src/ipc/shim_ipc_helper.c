@@ -495,12 +495,13 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 msg = tmp_buf;
             }
 
-            /* TODO: Add while-loop to receive all msg */
             int read = DkStreamRead(port->pal_handle, /*offset*/ 0, expected_size - bytes + readahead,
                                      (void *) msg + bytes, NULL, 0);
 
-            if (read == 0) {
-                /* TODO: Handle benign EINTR case? */
+            if (!read) {
+                if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
+                    continue;
+
                 debug("Port %p (handle %p) closed while receiving IPC message\n", port, port->pal_handle);
                 del_ipc_port_fini(port, -ECHILD);
                 ret = -PAL_ERRNO;
@@ -639,7 +640,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
                 if (DkStreamAttributesQueryByHandle(polled_port->pal_handle, &attr)) {
                     /* can read on this port, so receive messages */
                     if (attr.readable) {
-                        /* TODO: IPC helper thread does not handle failures currently */
+                        /* NOTE: IPC helper thread does not handle failures currently */
                         receive_ipc_message(polled_port);
                     }
 
