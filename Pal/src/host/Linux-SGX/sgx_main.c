@@ -803,7 +803,7 @@ static int load_enclave (struct pal_enclave * enclave,
         return ret;
 
     current_enclave = enclave;
-    map_tcs(INLINE_SYSCALL(gettid, 0), 0);
+    map_tcs(INLINE_SYSCALL(gettid, 0), false);
 
     /* start running trusted PAL */
     ecall_enclave_start(arguments, environments);

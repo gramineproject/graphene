@@ -123,12 +123,12 @@ void _DkThreadYieldExecution (void)
 /* _DkThreadExit for internal use: Thread exiting */
 void _DkThreadExit (void)
 {
-    struct pal_handle_thread* exit_thread = GET_ENCLAVE_TLS(thread);
+    struct pal_handle_thread* exiting_thread = GET_ENCLAVE_TLS(thread);
 
     /* Main thread is not part of the list */
-    if(exit_thread != &pal_control.first_thread->thread) {
+    if(exiting_thread != &pal_control.first_thread->thread) {
         _DkInternalLock(&thread_list_lock);
-        listp_del(exit_thread, &thread_list, list);
+        listp_del(exiting_thread, &thread_list, list);
         _DkInternalUnlock(&thread_list_lock);   
     }
     

@@ -272,7 +272,7 @@ err:
     return ret;
 }
 
-int sgx_signal_mask(uint8_t to_block)
+int sgx_signal_mask(bool do_block)
 {
     int sig[7];
 
@@ -284,5 +284,5 @@ int sgx_signal_mask(uint8_t to_block)
     sig[5] = SIGFPE;
     sig[6] = SIGBUS;
 
-    return to_block ? block_signals(sig, 7) : unblock_signals(sig, 7);
+    return do_block ? block_signals(sig, 7) : unblock_signals(sig, 7);
 }

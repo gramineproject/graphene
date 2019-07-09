@@ -117,8 +117,8 @@ int interrupt_thread (void * tcs);
 int clone_thread (void);
 
 int create_tcs_mapper (void * tcs_base, unsigned int thread_num);
-void map_tcs (unsigned int tid, uint8_t is_pthread);
-int unmap_tcs (void);
+void map_tcs (unsigned int tid, bool is_pthread);
+bool unmap_tcs (void);
 void thread_exit(void* rv);
 
 extern __thread struct pal_enclave * current_enclave;
@@ -136,6 +136,6 @@ void sgx_edbgwr (void * addr, uint64_t data);
 
 int sgx_init_child_process (struct pal_sec * pal_sec);
 int sgx_signal_setup (void);
-int sgx_signal_mask(uint8_t to_block);
+int sgx_signal_mask(bool do_block);
 
 #endif

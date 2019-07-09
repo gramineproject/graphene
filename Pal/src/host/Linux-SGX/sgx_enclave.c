@@ -32,18 +32,13 @@ static int sgx_ocall_exit(void* prv)
         SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n", rv, (uint8_t) rv);
         rv = 255;
     }
-	/* 
-	 * Clear Thread Context for reuse:
-	 * 1. block all the signals
-	 * 2. reset in-enclave thread context
-	 * 3. unblock the signals
-	 */
-	 
-    sgx_signal_mask(1);
+
+    sgx_signal_mask(true);
     ecall_thread_reset();
-    sgx_signal_mask(0);
+    sgx_signal_mask(false);
 
 
+    /* The threads created with pthread_exit will be exiting with pthread_exit */
     if(!unmap_tcs())
         INLINE_SYSCALL(exit, 1, (int)rv);
     else

@@ -2,6 +2,8 @@
 
 #include "sgx_arch.h"
 #include "sgx_tls.h"
+#include "ecall_types.h"
+#include "ocall_types.h"
 
 #include <asm-offsets-build.h>
 
@@ -70,11 +72,11 @@ void dummy(void)
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
 
     /* Ecall numbers */
-    DEFINE(ECALL_ENCLAVE_START, 0);
-    DEFINE(ECALL_THREAD_START, 1);
-    DEFINE(ECALL_THREAD_RESET, 2);
+    DEFINE(ECALL_ENCLAVE_START, ECALL_ENCLAVE_START);
+    DEFINE(ECALL_THREAD_START, ECALL_THREAD_START);
+    DEFINE(ECALL_THREAD_RESET, ECALL_THREAD_RESET);
 
     /* Ocall Index */
-    DEFINE(OCALL_EXIT, 0);
+    DEFINE(OCALL_EXIT, OCALL_EXIT);
 }
 

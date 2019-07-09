@@ -50,17 +50,6 @@ enclave_entry:
 	cmpq $0, %gs:SGX_OCALL_PREPARED
 	jne .Lreturn_from_ocall
 
-	cmpq $ECALL_THREAD_RESET, %rdi
-	je .Lhandle_thread_reset
-	
-	# Ecalls are only used to start a thread (either the main or an
-	# additional thread). So per thread we should only get exactly one
-	# ecall. Enforce this here.
-	cmpq $0, %gs:SGX_ECALL_CALLED
-	je 1f
-	FAIL_LOOP
-1:
-	movq $1, %gs:SGX_ECALL_CALLED
 
 	# PAL convention:
 	# RDI - ECALL number
@@ -68,6 +57,18 @@ enclave_entry:
 	# RDX - exit target
 	# RCX (former RSP) - The unstrusted stack
 	# R8  - enclave base
+
+	cmpq $ECALL_THREAD_RESET, %rdi
+	je .Lhandle_thread_reset
+
+	# Except ecall_thread_reset, ecalls are only used to start a thread (main
+	# or additional threads). So per thread we should only get exactly one ecall.
+	# Enforce this here.
+	cmpq $0, %gs:SGX_ECALL_CALLED
+	je 1f
+	FAIL_LOOP
+1:
+	movq $1, %gs:SGX_ECALL_CALLED
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
 	subq %gs:SGX_TCS_OFFSET, %rbx
@@ -99,6 +100,7 @@ enclave_entry:
 	FAIL_LOOP
 
 	# Clear tls variables for thread reuse
+	# Signals are already blocked
 .Lhandle_thread_reset:
 	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
 	movq $0, %gs:SGX_ECALL_CALLED
@@ -276,6 +278,8 @@ sgx_ocall:
 	pushq %rbp
 
 	# ocall_exit never returns
+	# Skip setting SGX_OCALL_PREPARED to avoid ECALL_THREAD_RESET
+	# falls into OCALL return handling
 	cmpq $OCALL_EXIT, %rdi
 	je .Leexit
 

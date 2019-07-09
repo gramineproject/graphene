@@ -18,7 +18,7 @@ __thread sgx_arch_tcs_t * current_tcs;
 
 struct thread_map {
     unsigned int     tid;
-    uint8_t          is_pthread;
+    bool          is_pthread; /* Created by pthread_create or not */
     sgx_arch_tcs_t * tcs;
 };
 
@@ -47,7 +47,7 @@ int create_tcs_mapper (void * tcs_base, unsigned int thread_num)
     return ret;
 }
 
-void map_tcs (unsigned int tid, uint8_t is_pthread)
+void map_tcs (unsigned int tid, bool is_pthread)
 {
     pthread_mutex_lock(&tcs_lock);
     for (int i = 0 ; i < enclave_thread_num ; i++)
@@ -61,12 +61,12 @@ void map_tcs (unsigned int tid, uint8_t is_pthread)
     pthread_mutex_unlock(&tcs_lock);
 }
 
-int unmap_tcs (void)
+bool unmap_tcs (void)
 {
     int index = current_tcs - enclave_tcs;
     struct thread_map * map = &enclave_thread_map[index];
     if (index >= enclave_thread_num)
-        return 0;
+        return -1;
     SGX_DBG(DBG_I, "unmap TCS at 0x%08lx\n", map->tcs);
     current_tcs = NULL;
     ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[index] = 0;
@@ -77,7 +77,7 @@ int unmap_tcs (void)
 static void * thread_start (void * arg)
 {
     int tid = INLINE_SYSCALL(gettid, 0);
-    map_tcs(tid, 1);
+    map_tcs(tid, true);
     current_enclave = arg;
 
     if (!current_tcs) {
