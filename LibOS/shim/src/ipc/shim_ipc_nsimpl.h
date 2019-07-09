@@ -795,7 +795,8 @@ static void __discover_ns (bool block, bool need_locate)
 
     // Send out an IPC message to find out the namespace information.
     // If the call is non-blocking, can't expect the answer when the function finishes.
-    if (!NS_SEND(findns)(block)) {
+    int ret = NS_SEND(findns)(block);
+    if (!ret) {
         ipc_pending = !block; // There is still some unfinished business with IPC
         lock(&cur_process.lock);
         assert(NS_LEADER);
@@ -804,17 +805,16 @@ static void __discover_ns (bool block, bool need_locate)
 
     lock(&cur_process.lock);
 
-    if (NS_LEADER && (!need_locate || !qstrempty(&NS_LEADER->uri)))
-        goto out;
+    // At this point, (1) the leader is not me, (2) I don't know leader's URI,
+    // and (3) I failed to find out the leader via IPC. But I am pressed to
+    // report the leader so promote myself (and remove stale leader info).
+    if (NS_LEADER)
+        put_ipc_info(NS_LEADER);
 
-    // If all other ways failed, the current process becomes the leader
     if (!need_locate) {
         NS_LEADER = create_ipc_info(cur_process.vmid, NULL, 0);
         goto out;
     }
-
-    if (NS_LEADER)
-        put_ipc_info(NS_LEADER);
 
     if (!(NS_LEADER = create_ipc_info_cur_process()))
         goto out;
