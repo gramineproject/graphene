@@ -142,14 +142,18 @@ struct proc_args {
  * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
  * lifetimes).
  * Introduce noinline function with stack area used only by child.
+ * Make this function non-local to keep function signature.
+ * NOTE: more tricks may be needed to prevent unexpected optimization for
+ * future compiler.
  */
-static int __attribute_noinline
+int __attribute_noinline
 child_process (struct proc_param * proc_param)
 {
     int ret = ARCH_VFORK();
     if (ret)
         return ret;
 
+    /* child */
     ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream_in,
                          PROC_INIT_FD);
     if (IS_ERR(ret))
