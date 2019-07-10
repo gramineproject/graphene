@@ -53,8 +53,11 @@ struct proc_args {
  * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
  * lifetimes).
  * Introduce noinline function with stack area used only by child.
+ * Make this function non-local to keep function signature.
+ * NOTE: more tricks may be needed to prevent unexpected optimization for
+ * future compiler.
  */
-static int __attribute_noinline
+int __attribute_noinline
 vfork_exec(int pipe_input, int proc_fds[3], const char** argv)
 {
     int ret = ARCH_VFORK();
