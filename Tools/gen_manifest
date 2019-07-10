@@ -22,12 +22,19 @@ def parse_libs (bin_path) :
     match = re.match(r'\t(.*) => (.*) \(0x', line)
     if match and match.group(1) and match.group(2):
       full_lib_name = match.group(1)
-      name_match = re.match(r'([\w\d]*)(\.*)(.*)', full_lib_name)
+      name_match = re.match(r'([\w\d]*)(-*)([\w\d]*)(\.*)(.*)', full_lib_name)
       if name_match:
         lib_name = name_match.group(1)
-        lib_path = match.group(2)
+
+	# Sometimes the library is formatted as libxxx-xxx.so
+        # which is invalid key format in manifest, reformat to
+        # libxxx_xxx as the option key
+	if name_match.group(2) == '-' and name_match.group(3) :
+	  lib_name += '_' + name_match.group(3)
+
+	lib_path = match.group(2)
         if lib_name not in runtime_libs :
-          lib_list.append((name_match.group(1), match.group(2)))
+          lib_list.append((lib_name, match.group(2)))
   return lib_list
 
 def make_exec(path) :
@@ -47,7 +54,8 @@ def gen_manifest(app_name, bin_name, g_path) :
   bin_path = subprocess.check_output(['which', bin_name]).strip()
   mf.write('loader.exec = file:' + bin_path + '\n')
   mf.write('loader.execname = ' + bin_name + '\n')
-  mf.write('loader.env.LD_LIBRARY_PATH = /graphene:/graphene/resolv:/host:/usr/local/lib:/usr/lib:/usr/lib/x86_64-linux-gnu \n')
+  mf.write('loader.env.LD_LIBRARY_PATH = /graphene:/graphene/resolv:/host:/usr/local/lib:/usr/lib:/usr/lib/x86_64-linux-gnu')
+  mf.write(':'+os.environ['LD_LIBRARY_PATH']+"\n")
   mf.write('loader.env.PATH = /usr/local/bin:/usr/bin:/bin \n' +
            'loader.env.USERNAME = \n' +
            'loader.env.PWD = \n' +
@@ -74,6 +82,10 @@ def gen_manifest(app_name, bin_name, g_path) :
   mf.write('fs.mount.etc.type = chroot \n' +
 	   'fs.mount.etc.path = /etc \n' +
 	   'fs.mount.etc.uri = file: \n \n')
+
+  mf.write('fs.mount.opt.type = chroot \n' +
+	   'fs.mount.opt.path = /opt \n' +
+	   'fs.mount.opt.uri = file: \n \n')
 
   # Set Dependent Libraries
 
