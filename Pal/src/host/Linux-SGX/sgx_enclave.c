@@ -19,15 +19,22 @@
 
 #define ODEBUG(code, ms) do {} while (0)
 
-static int sgx_ocall_exit(void* prv)
+static int sgx_ocall_exit(void* pms)
 {
-    int64_t rv = (int64_t) prv;
+    ms_ocall_exit_t * ms = (ms_ocall_exit_t *) pms;
     ODEBUG(OCALL_EXIT, NULL);
-    if (rv != (int64_t) ((uint8_t) rv)) {
-        SGX_DBG(DBG_E, "Saturation error in exit code %ld, getting rounded down to %u\n", rv, (uint8_t) rv);
-        rv = 255;
+
+    if (ms->ms_exitcode != (int) ((uint8_t) ms->ms_exitcode)) {
+        SGX_DBG(DBG_E, "Saturation error in exit code %d, getting rounded down to %u\n",
+                ms->ms_exitcode, (uint8_t) ms->ms_exitcode);
+        ms->ms_exitcode = 255;
     }
-    INLINE_SYSCALL(exit, 1, (int)rv);
+
+    if (ms->ms_is_exitgroup)
+        INLINE_SYSCALL(exit_group, 1, (int)ms->ms_exitcode);
+    else
+        INLINE_SYSCALL(exit, 1, (int)ms->ms_exitcode);
+
     return 0;
 }
 
