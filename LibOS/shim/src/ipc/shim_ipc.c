@@ -202,22 +202,76 @@ struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid) {
     return NULL;
 }
 
-struct shim_process* create_process(void) {
+struct shim_process* create_process(bool dup_cur_process) {
     struct shim_process* new_process = calloc(1, sizeof(struct shim_process));
     if (!new_process)
         return NULL;
 
-    new_process->parent = create_ipc_info(cur_process.vmid, NULL, 0);
-
     lock(&cur_process.lock);
 
-    if (cur_process.self)
-        qstrcopy(&new_process->parent->uri, &cur_process.self->uri);
+    /* current process must have been initialized with info on its own IPC info */
+    assert(cur_process.self);
+    assert(cur_process.self->pal_handle && !qstrempty(&cur_process.self->uri));
+
+    if (dup_cur_process) {
+        /* execve case, new process assumes identity of current process and thus has
+         * - same vmid as current process
+         * - same self IPC info as current process
+         * - same parent IPC info as current process
+         */
+        new_process->vmid = cur_process.vmid;
+
+        new_process->self = create_ipc_info(cur_process.self->vmid,
+                                            qstrgetstr(&cur_process.self->uri),
+                                            cur_process.self->uri.len);
+        new_process->self->pal_handle = cur_process.self->pal_handle;
+        if (!new_process->self) {
+            unlock(&cur_process.lock);
+            return NULL;
+        }
+
+        /* there is a corner case of execve in very first process; such process does
+         * not have parent process, so cannot copy parent IPC info */
+        if (cur_process.parent) {
+            new_process->parent = create_ipc_info(cur_process.parent->vmid,
+                                                  qstrgetstr(&cur_process.parent->uri),
+                                                  cur_process.parent->uri.len);
+            new_process->parent->pal_handle = cur_process.parent->pal_handle;
+        }
+    }
+    else {
+        /* fork/clone case, new process has new identity but inherits parent  */
+        new_process->vmid = 0;
+        new_process->self = NULL;
+        new_process->parent = create_ipc_info(cur_process.self->vmid,
+                                              qstrgetstr(&cur_process.self->uri),
+                                              cur_process.self->uri.len);
+    }
+
+    if (cur_process.parent && !new_process->parent) {
+        if (new_process->self)
+            put_ipc_info(new_process->self);
+        unlock(&cur_process.lock);
+        return NULL;
+    }
+
+    /* new process inherits the same namespace leaders */
     for (int i = 0; i < TOTAL_NS; i++) {
-        if (cur_process.ns[i])
+        if (cur_process.ns[i]) {
             new_process->ns[i] = create_ipc_info(cur_process.ns[i]->vmid,
                                                  qstrgetstr(&cur_process.ns[i]->uri),
                                                  cur_process.ns[i]->uri.len);
+            if (!new_process->ns[i]) {
+                if (new_process->self)
+                    put_ipc_info(new_process->self);
+                if (new_process->parent)
+                    put_ipc_info(new_process->parent);
+                for (int j = 0; j < i; j++)
+                    put_ipc_info(new_process->ns[j]);
+                unlock(&cur_process.lock);
+                return NULL;
+            }
+        }
     }
 
     unlock(&cur_process.lock);
@@ -352,19 +406,19 @@ out:
 }
 
 /* must be called with cur_process.lock taken */
-struct shim_ipc_info* create_ipc_info_cur_process(void) {
+struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info) {
     struct shim_ipc_info* info = create_ipc_info(cur_process.vmid, NULL, 0);
     if (!info)
         return NULL;
 
+    /* pipe for cur_process.self is of format "pipe:<cur_process.vmid>", others with random name */
     char uri[PIPE_URI_SIZE];
-    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle,
-                    &info->uri) < 0) {
+    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle, &info->uri, is_self_ipc_info) < 0) {
         put_ipc_info(info);
         return NULL;
     }
 
-    add_ipc_port_by_id(0, info->pal_handle, IPC_PORT_SERVER,
+    add_ipc_port_by_id(cur_process.vmid, info->pal_handle, IPC_PORT_SERVER,
             NULL, &info->port);
 
     return info;
@@ -374,7 +428,7 @@ int get_ipc_info_cur_process(struct shim_ipc_info** info) {
     lock(&cur_process.lock);
 
     if (!cur_process.self) {
-        cur_process.self = create_ipc_info_cur_process();
+        cur_process.self = create_ipc_info_cur_process(true);
         if (!cur_process.self) {
             unlock(&cur_process.lock);
             return -EACCES;
@@ -457,7 +511,7 @@ BEGIN_CP_FUNC(ipc_info) {
         /* call qstr-specific checkpointing function for new_info->uri */
         DO_CP_IN_MEMBER(qstr, new_info, uri);
 
-        if (info->pal_handle && info->pal_handle != IPC_FORCE_RECONNECT) {
+        if (info->pal_handle) {
             struct shim_palhdl_entry* entry;
             /* call palhdl-specific checkpointing function to checkpoint
              * info->pal_handle and return created object in entry */
@@ -517,12 +571,17 @@ BEGIN_RS_FUNC(process) {
     __UNUSED(offset);
     struct shim_process* process = (void *) (base + GET_CP_FUNC_ENTRY());
 
+    /* process vmid  = 0: fork/clone case, forces to pick up new host-OS vmid
+     * process vmid != 0: execve case, forces to re-use vmid of parent */
+    if (!process->vmid)
+        process->vmid = cur_process.vmid;
+
     CP_REBASE(process->self);
     CP_REBASE(process->parent);
     CP_REBASE(process->ns);
 
     if (process->self) {
-        process->self->vmid = cur_process.vmid;
+        process->self->vmid = process->vmid;
         get_ipc_info(process->self);
     }
     if (process->parent)
@@ -531,7 +590,6 @@ BEGIN_RS_FUNC(process) {
         if (process->ns[i])
             get_ipc_info(process->ns[i]);
 
-    process->vmid = cur_process.vmid;
     memcpy(&cur_process, process, sizeof(struct shim_process));
     create_lock(&cur_process.lock);
 

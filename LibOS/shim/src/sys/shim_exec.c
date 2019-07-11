@@ -15,7 +15,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
- * shim_epoll.c
+ * shim_exec.c
  *
  * Implementation of system call "execve".
  */
@@ -240,6 +240,8 @@ DEFINE_PROFILE_INTERVAL(search_and_check_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(open_file_for_exec, exec);
 DEFINE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec, exec);
 
+/* thread is cur_thread stripped off stack & tcb (see below func);
+ * process is new process which is forked and waits for checkpoint. */
 static int migrate_execve (struct shim_cp_store * cpstore,
                            struct shim_thread * thread,
                            struct shim_process * process, va_list ap)
@@ -512,20 +514,18 @@ err:
     cur_thread->user_tcb    = user_tcb;
 
     if (ret < 0) {
+        /* execve failed, so reanimate this thread as if nothing happened */
         cur_thread->in_vm = true;
         unlock(&cur_thread->lock);
         return ret;
     }
 
-    struct shim_handle_map * handle_map = cur_thread->handle_map;
-    cur_thread->handle_map = NULL;
-    unlock(&cur_thread->lock);
-    if (handle_map)
-        put_handle_map(handle_map);
+    /* This "temporary" process must die quietly, not sending any messages
+     * to not confuse the parent and the execve'ed child */
+    debug("Temporary process %u exited after emulating execve (by forking new process to replace this one)\n",
+          cur_process.vmid & 0xFFFF);
+    MASTER_LOCK();
+    DkProcessExit(0);
 
-    if (cur_thread->dummy)
-        switch_dummy_thread(cur_thread);
-
-    try_process_exit(0, 0);
     return 0;
 }
