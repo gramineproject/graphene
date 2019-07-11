@@ -173,7 +173,7 @@ static inline void do_pause (void);
     do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
 
 /* definition for syscall table */
-void handle_signal ();
+void handle_signal (void);
 long convert_pal_errno (long err);
 void syscall_wrapper(void);
 void syscall_wrapper_after_syscalldb(void);

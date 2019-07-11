@@ -695,7 +695,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig)
     }
 }
 
-void handle_signal ()
+void handle_signal (void)
 {
     shim_tcb_t * tcb = shim_get_tls();
     assert(tcb);
