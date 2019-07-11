@@ -26,13 +26,13 @@ def parse_libs (bin_path) :
       if name_match:
         lib_name = name_match.group(1)
 
-	# Sometimes the library is formatted as libxxx-xxx.so
+        # Sometimes the library is formatted as libxxx-xxx.so
         # which is invalid key format in manifest, reformat to
         # libxxx_xxx as the option key
-	if name_match.group(2) == '-' and name_match.group(3) :
-	  lib_name += '_' + name_match.group(3)
+        if name_match.group(2) == '-' and name_match.group(3) :
+          lib_name += '_' + name_match.group(3)
 
-	lib_path = match.group(2)
+        lib_path = match.group(2)
         if lib_name not in runtime_libs :
           lib_list.append((lib_name, match.group(2)))
   return lib_list
@@ -69,23 +69,23 @@ def gen_manifest(app_name, bin_name, g_path) :
 
   mf.write('fs.mount.lib2.type = chroot \n' +
            'fs.mount.lib2.path = /host \n' +
-	   'fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu \n \n')
+           'fs.mount.lib2.uri = file:/lib/x86_64-linux-gnu \n \n')
 
   mf.write('fs.mount.bin.type = chroot \n' +
-	   'fs.mount.bin.path = /bin \n' +
-	   'fs.mount.bin.uri = file:/bin \n \n')
+           'fs.mount.bin.path = /bin \n' +
+           'fs.mount.bin.uri = file:/bin \n \n')
 
   mf.write('fs.mount.usr.type = chroot \n' +
-	   'fs.mount.usr.path = /usr \n' +
-	   'fs.mount.usr.uri = file:/usr \n \n')
+           'fs.mount.usr.path = /usr \n' +
+           'fs.mount.usr.uri = file:/usr \n \n')
 
   mf.write('fs.mount.etc.type = chroot \n' +
-	   'fs.mount.etc.path = /etc \n' +
-	   'fs.mount.etc.uri = file: \n \n')
+           'fs.mount.etc.path = /etc \n' +
+           'fs.mount.etc.uri = file: \n \n')
 
   mf.write('fs.mount.opt.type = chroot \n' +
-	   'fs.mount.opt.path = /opt \n' +
-	   'fs.mount.opt.uri = file: \n \n')
+           'fs.mount.opt.path = /opt \n' +
+           'fs.mount.opt.uri = file: \n \n')
 
   # Set Dependent Libraries
 
@@ -105,8 +105,6 @@ def gen_manifest(app_name, bin_name, g_path) :
     mf.write('sgx.trusted_files.' + lib_name + ' = file:' + lib_path + '\n')
 
   mf.write('\n')
-
-  #	   'sgx.allowed_files.usr = file:/usr \n')
 
   mf.close()
 
