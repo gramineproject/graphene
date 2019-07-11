@@ -1,19 +1,19 @@
-	/* This .note section tells about vDSO to dynamic linker */
+	/* This .note section informs dynamic linker about vDSO */
 	.section .note.Linux, "a", @note
 
-	.align 4
-	.long	6
-	.long	4
-	.long	0
-	.string "Linux"
-	.zero	2
+	.balign 4
+	.long	6		/* namesz */
+	.long	4		/* descsz */
+	.long	0		/* type */
+	.string "Linux"	/* name */
+	.zero	2		/* padding for 4-byte alignment */
 	.long	267008	/* LINUX_VERSION_CODE */
 
-	.align 4
-	.long	6
-	.long	4
-	.long	0x100
-	.string "Linux"
-	.zero	2
+	.balign 4
+	.long	6		/* namesz */
+	.long	4		/* descsz */
+	.long	0x100	/* type */
+	.string "Linux"	/* name */
+	.zero	2		/* padding for 4-byte alignment */
 	.long	0		/* CONFIG_BUILD_SALT. 0 for now.
 					   TODO: make it compile-time configurable */

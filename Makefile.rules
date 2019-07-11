@@ -59,8 +59,15 @@ CLEAN_FILES += generated_offsets.py generated_offsets.pyc
 quiet_cmd_ln_sf = [ $@ ]
       cmd_ln_sf = ln -sf $(abspath $<) $@
 
-
 cc-option = $(shell set -e; \
 	if ($(CC) -Werror $(1) -c -x c /dev/null -o /dev/null) >/dev/null 2>&1; \
 	then echo "$(1)"; \
 	fi)
+
+# LD only
+quiet_cmd_ld = [ $@ ]
+      cmd_ld = $(LD) $(LDFLAGS) $(LDFLAGS-$@) -o $@ $(filter-out %.map %.lds,$^)
+
+# OBJCOPY
+quiet_cmd_objcopy = [ $@ ]
+      cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS-$@) $< $@

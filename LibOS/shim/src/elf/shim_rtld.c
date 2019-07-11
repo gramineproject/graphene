@@ -1485,10 +1485,9 @@ int remove_loaded_libraries (void)
 }
 
 /*
- * libsysdb.so is loaded as shared library and
- * loaded address for child may not match to the one for parent.
- * just treat vdso page as user-program data and adjust function pointers
- * for vdso functions after migration.
+ * libsysdb.so is loaded as shared library and load address for child may not match the one for
+ * parent. Just treat vdso page as user-program data and adjust function pointers for vdso
+ * functions after migration.
  */
 static void * vdso_addr __attribute_migratable = NULL;
 static ElfW(Addr) * __vdso_shim_clock_gettime __attribute_migratable = NULL;
@@ -1523,71 +1522,45 @@ static const struct {
     }
 };
 
-static int __vdso_map_init(void)
+static int vdso_map_init(void)
 {
-    if (!DkVirtualMemoryProtect((void*)&vdso_so, sizeof(vdso_so),
-                                PAL_PROT_READ | PAL_PROT_WRITE))
-            return -PAL_ERRNO;
+    /*
+     * Allocate vdso page as user program allocated it.
+     * Using directly vdso code in LibOS causes trouble when fork emulation.
+     * In host child process, LibOS may or may not be loaded at the same address.
+     * When LibOS is loaded at different address, it may overlap with the old vDSO area.
+     */
+    assert(vdso_so_size <= VDSO_SIZE);
+    void *addr = bkeep_unmapped_heap(
+        VDSO_SIZE, PROT_READ | PROT_EXEC, 0, NULL, 0, "linux-vdso.so.1");
+    assert(addr = ALIGN_UP(addr));
+
+    void *ret_addr = (void *) DkVirtualMemoryAlloc(
+        addr, VDSO_SIZE, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    if (!ret_addr)
+        return -PAL_ERRNO;
+    assert(addr == ret_addr);
+
+    memcpy(addr, &vdso_so, vdso_so_size);
+    memset(addr + vdso_so_size, 0, VDSO_SIZE - vdso_so_size);
+    __load_elf_object(NULL, addr, OBJECT_VDSO, NULL);
+    vdso_map->l_name = "vDSO";
 
     for (size_t i = 0; i < sizeof(vsyms)/sizeof(vsyms[0]); i++) {
         ElfW(Sym) *sym = __do_lookup(vsyms[i].name, NULL, vdso_map);
         if (sym == NULL) {
-            debug("vDSO: unfound symbol value for %s\n", vsyms[i].name);
+            debug("vDSO: symbol value for %s not found\n", vsyms[i].name);
             continue;
         }
         *vsyms[i].func = (ElfW(Addr)*)(vdso_map->l_addr + sym->st_value);
         **vsyms[i].func = vsyms[i].value;
     }
 
-    if (!DkVirtualMemoryProtect((void*)&vdso_so, sizeof(vdso_so),
-                                PAL_PROT_READ | PAL_PROT_EXEC))
+    if (!DkVirtualMemoryProtect(addr, VDSO_SIZE, PAL_PROT_READ | PAL_PROT_EXEC))
             return -PAL_ERRNO;
 
-    /*
-     * treat vdso page as used by user program to be migrated.
-     * Because libos is registered as INTERNAL by init_vma(),
-     * unregister it from internal region and register it as user region.
-     */
-    int ret = bkeep_munmap(&vdso_so, sizeof(vdso_so),
-                           MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL);
-    if (ret < 0)
-        return ret;
-
-    ret = bkeep_mmap(&vdso_so, sizeof(vdso_so),
-                     PAL_PROT_READ | PAL_PROT_EXEC, 0,
-                     NULL, 0, "linux-vdso.so.1");
-    if (ret < 0)
-        return ret;
-
-    vdso_addr = &vdso_so;
+    vdso_addr = addr;
     return 0;
-}
-
-/*
- * On execve, vdso_so page may have been relocated (e.g. due to ASLR), so
- * discard the old vdso page and create our own one. Note that vdso_addr
- * migrated to the new process and contains the old address of vdso_so.
- */
-static int __vdso_map_execve(void)
-{
-    if (vdso_addr == &vdso_so)
-        return 0;
-
-    DkVirtualMemoryFree(vdso_addr, sizeof(vdso_so));
-    int ret = bkeep_munmap(vdso_addr, sizeof(vdso_so), 0);
-    if (ret < 0)
-        return ret;
-
-    return __vdso_map_init();
-}
-
-static int vdso_map_init(void)
-{
-    /* after fork, vdso_addr contains a non-zero address of the old vdso_so */
-    if (vdso_addr)
-        return __vdso_map_execve();
-    else
-        return __vdso_map_init();
 }
 
 int vdso_map_migrate(void)
@@ -1595,7 +1568,7 @@ int vdso_map_migrate(void)
     if (!vdso_addr)
         return 0;
 
-    if (!DkVirtualMemoryProtect(vdso_addr, sizeof(vdso_so),
+    if (!DkVirtualMemoryProtect(vdso_addr, VDSO_SIZE,
                                 PAL_PROT_READ | PAL_PROT_WRITE))
             return -PAL_ERRNO;
 
@@ -1603,8 +1576,7 @@ int vdso_map_migrate(void)
     for (size_t i = 0; i < sizeof(vsyms)/sizeof(vsyms[0]); i++)
         **vsyms[i].func = vsyms[i].value;
 
-    if (!DkVirtualMemoryProtect((void*)vdso_addr, sizeof(vdso_so),
-                                PAL_PROT_READ | PAL_PROT_EXEC))
+    if (!DkVirtualMemoryProtect(vdso_addr, VDSO_SIZE, PAL_PROT_READ | PAL_PROT_EXEC))
             return -PAL_ERRNO;
     return 0;
 }
@@ -1613,8 +1585,6 @@ int init_internal_map (void)
 {
     __load_elf_object(NULL, &__load_address, OBJECT_INTERNAL, NULL);
     internal_map->l_name = "libsysdb.so";
-    __load_elf_object(NULL, &vdso_so, OBJECT_VDSO, NULL);
-    vdso_map->l_name = "vDSO";
     return 0;
 }
 
@@ -1701,7 +1671,7 @@ noreturn void execute_elf_object (struct shim_handle * exec,
                                   ElfW(auxv_t) * auxp)
 {
     int ret = vdso_map_init();
-    if (ret) {
+    if (ret < 0) {
         SYS_PRINTF("Could not initialize vDSO (error code = %d)", ret);
         shim_clean(ret);
     }
@@ -1712,6 +1682,7 @@ noreturn void execute_elf_object (struct shim_handle * exec,
     assert((void*)argcp + sizeof(long) == argp || argp == NULL);
 
     /* populate ELF aux vectors */
+    assert(REQUIRED_ELF_AUXV >= 8); /* stack allocated enough space */
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;
@@ -1728,7 +1699,6 @@ noreturn void execute_elf_object (struct shim_handle * exec,
     auxp[6].a_un.a_val = (uint64_t)&vdso_so;
     auxp[7].a_type = AT_NULL;
     auxp[7].a_un.a_val = 0;
-    assert(REQUIRED_ELF_AUXV >= 8); /* stack allocated enough space */
 
     /* populate extra memory space for aux vector data */
     assert(REQUIRED_ELF_AUXV_SPACE >= 16); /* stack allocated enough space */

@@ -18,7 +18,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Linker script for graphene vDSO simulation
+ * Linker script for Graphene vDSO emulation
  */
 
 PHDRS
@@ -75,8 +75,8 @@ VERSION {
 
                 __vdso_shim_clock_gettime;
                 __vdso_shim_gettimeofday;
-                __vdso_shim_time;
                 __vdso_shim_getcpu;
+                __vdso_shim_time;
         local: *;
         };
 }

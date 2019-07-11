@@ -24,7 +24,9 @@
 #define _SHIM_VDSO_H_
 
 /* 4096 bytes for vDSO image size */
-extern uint8_t vdso_so[4096] __attribute((aligned(4096)));
+#define VDSO_SIZE   4096
+extern const uint8_t vdso_so[];
+extern const size_t vdso_so_size;
 
 int vdso_map_migrate(void);
 
