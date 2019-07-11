@@ -223,7 +223,7 @@ void clean_link_map_list (void);
 /* create unique files/pipes */
 #define PIPE_URI_SIZE   40
 int create_pipe (IDTYPE * pipeid, char * uri, size_t size, PAL_HANDLE * hdl,
-                 struct shim_qstr * qstr);
+                 struct shim_qstr * qstr, bool use_vmid_for_name);
 int create_dir (const char * prefix, char * path, size_t size,
                 struct shim_handle ** hdl);
 int create_file (const char * prefix, char * path, size_t size,

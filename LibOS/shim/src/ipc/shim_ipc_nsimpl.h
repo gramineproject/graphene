@@ -770,7 +770,8 @@ static void __discover_ns (bool block, bool need_locate)
     if (NS_LEADER) {
         if (NS_LEADER->vmid == cur_process.vmid) {
             if (need_locate && qstrempty(&NS_LEADER->uri)) {
-                struct shim_ipc_info * info = create_ipc_info_cur_process();
+                bool is_self_ipc_info = false; /* not cur_process.self but cur_process.ns */
+                struct shim_ipc_info * info = create_ipc_info_cur_process(is_self_ipc_info);
                 if (info) {
                     put_ipc_info(NS_LEADER);
                     NS_LEADER = info;
@@ -816,7 +817,8 @@ static void __discover_ns (bool block, bool need_locate)
         goto out;
     }
 
-    if (!(NS_LEADER = create_ipc_info_cur_process()))
+    bool is_self_ipc_info = false; /* not cur_process.self but cur_process.ns */
+    if (!(NS_LEADER = create_ipc_info_cur_process(is_self_ipc_info)))
         goto out;
 
     // Finally, set the IPC port as a leadership port

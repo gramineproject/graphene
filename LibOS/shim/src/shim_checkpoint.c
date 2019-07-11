@@ -949,7 +949,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (!proc) {
         ret = -PAL_ERRNO;
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_create_process);
@@ -976,21 +976,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     }
 
     /* Create process and IPC bookkeepings */
-    if (!(new_process = create_process())) {
-        ret = -ENOMEM;
-        goto err;
-    }
-
-    if (!(new_process->self = create_ipc_info(0, NULL, 0))) {
+    new_process = create_process(exec ? /*execve case*/ true : /*fork case*/ false);
+    if (!new_process) {
         ret = -EACCES;
-        goto err;
-    }
-
-    char pipe_uri[PIPE_URI_SIZE];
-    if (create_pipe(NULL, pipe_uri, PIPE_URI_SIZE, &new_process->self->pal_handle,
-                    &new_process->self->uri) < 0) {
-        ret = -EACCES;
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_connect_ipc);
@@ -1019,19 +1008,20 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     if (!cpstore.base) {
         ret = -ENOMEM;
         debug("failed creating checkpoint store\n");
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_init_checkpoint);
 
-    /* Calling the migration function defined by the caller. */
+    /* Calling the migration function defined by caller. The thread argument
+     * is new thread in case of fork/clone and cur_thread in case of execve. */
     va_list ap;
     va_start(ap, thread);
     ret = (*migrate) (&cpstore, thread, new_process, ap);
     va_end(ap);
     if (ret < 0) {
         debug("failed creating checkpoint (ret = %d)\n", ret);
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_save_checkpoint);
@@ -1083,10 +1073,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     if (!bytes) {
         ret = -PAL_ERRNO;
         debug("failed writing to process stream (ret = %d)\n", ret);
-        goto err;
+        goto out;
     } else if (bytes < sizeof(struct newproc_header)) {
         ret = -EACCES;
-        goto err;
+        goto out;
     }
 
     ADD_PROFILE_OCCURENCE(migrate_send_on_stream, bytes);
@@ -1098,7 +1088,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (ret < 0) {
         debug("failed sending checkpoint (ret = %d)\n", ret);
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_send_checkpoint);
@@ -1108,7 +1098,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
      * to the new process using PAL calls.
      */
     if ((ret = send_handles_on_stream(proc, &cpstore)) < 0)
-        goto err;
+        goto out;
 
     SAVE_PROFILE_INTERVAL(migrate_send_pal_handles);
 
@@ -1116,7 +1106,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     if ((ret = bkeep_munmap((void *) cpstore.base, cpstore.bound,
                             CP_VMA_FLAGS)) < 0) {
         debug("failed unmaping checkpoint (ret = %d)\n", ret);
-        goto err;
+        goto out;
     }
 
     DkVirtualMemoryFree((PAL_PTR) cpstore.base, cpstore.bound);
@@ -1129,36 +1119,46 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                          NULL, 0);
     if (bytes == 0) {
         ret = -PAL_ERRNO;
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_wait_response);
 
+    /* exec != NULL implies the execve case so the new process "replaces"
+     * this current process: no need to notify the leader or establish IPC */
+    if (!exec) {
+        /* fork/clone case: new process is an actual child process for this
+         * current process, so notify the leader regarding subleasing of TID
+         * (child must create self-pipe with convention of pipe:child-vmid) */
+        char new_process_self_uri[256];
+        snprintf(new_process_self_uri, 256, "pipe:%u", res.child_vmid);
+        ipc_pid_sublease_send(res.child_vmid, thread->tid, new_process_self_uri, NULL);
+
+        /* listen on the new IPC port to the new child process */
+        add_ipc_port_by_id(res.child_vmid, proc,
+                IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
+                &ipc_port_with_child_fini,
+                NULL);
+    }
+
+    /* remote child thread has VMID of the child process (note that we don't
+     * care about execve case because the parent "intermediate" process will
+     * die right after this anyway) */
+    thread->vmid = res.child_vmid;
+
+    ret = 0;
+out:
     if (gipc_hdl)
         DkObjectClose(gipc_hdl);
-
-    /* Notify the namespace manager regarding the subleasing of TID */
-    ipc_pid_sublease_send(res.child_vmid, thread->tid,
-                          qstrgetstr(&new_process->self->uri),
-                          NULL);
-
-    /* Listen on the RPC stream to the new process */
-    add_ipc_port_by_id(res.child_vmid, proc,
-                       IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
-                       &ipc_port_with_child_fini,
-                       NULL);
-
-    free_process(new_process);
-    return 0;
-err:
-    if (gipc_hdl)
-        DkObjectClose(gipc_hdl);
-    if (proc)
-        DkObjectClose(proc);
     if (new_process)
         free_process(new_process);
 
-    SYS_PRINTF("process creation failed\n");
+    if (ret < 0) {
+        if (proc)
+            DkObjectClose(proc);
+        SYS_PRINTF("process creation failed\n");
+    }
+
     return ret;
 }
 

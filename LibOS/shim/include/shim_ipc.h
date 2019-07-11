@@ -447,10 +447,10 @@ int ipc_sysv_semreply_callback (IPC_CALLBACK_ARGS);
 int init_ipc(void);
 int init_ipc_helper(void);
 
-struct shim_process* create_process(void);
+struct shim_process* create_process(bool dup_cur_process);
 void free_process(struct shim_process* process);
 
-struct shim_ipc_info* create_ipc_info_cur_process(void);
+struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info);
 int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 
 enum {
@@ -515,8 +515,6 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
 void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned int exitcode);
 
 struct shim_thread* terminate_ipc_helper(void);
-
-#define IPC_FORCE_RECONNECT     ((void*)-1)
 
 int prepare_ns_leaders(void);
 

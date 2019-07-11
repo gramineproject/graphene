@@ -90,47 +90,105 @@ static ipc_callback ipc_callbacks[IPC_CODE_NUM] = {
     /* SYSV_SEMMOV      */  &ipc_sysv_semmov_callback,
 };
 
-static int init_ipc_port(struct shim_ipc_info* info, PAL_HANDLE hdl, IDTYPE type) {
-    if (!info)
-        return 0;
+static int init_self_ipc_port(void) {
+    lock(&cur_process.lock);
 
-    if (info->pal_handle == IPC_FORCE_RECONNECT) {
-        info->pal_handle = NULL;
-        if (!hdl && !qstrempty(&info->uri)) {
-            debug("Reconnecting IPC port %s\n", qstrgetstr(&info->uri));
-            hdl = DkStreamOpen(qstrgetstr(&info->uri), 0, 0, 0, 0);
-            if (!hdl)
-                return -PAL_ERRNO;
+    if (!cur_process.self) {
+        /* very first process or clone/fork case: create IPC port from scratch */
+        cur_process.self = create_ipc_info_cur_process(/*is_self_ipc_info*/ true);
+        if (!cur_process.self) {
+            unlock(&cur_process.lock);
+            return -EACCES;
         }
-        info->pal_handle = hdl;
+    } else {
+        /* execve case: inherited IPC port from parent process */
+        assert(cur_process.self->pal_handle && !qstrempty(&cur_process.self->uri));
+
+        add_ipc_port_by_id(cur_process.self->vmid,
+                           cur_process.self->pal_handle,
+                           IPC_PORT_SERVER,
+                           /* fini callback */ NULL,
+                           &cur_process.self->port);
     }
 
-    if (!info->pal_handle)
-        info->pal_handle = hdl;
+    unlock(&cur_process.lock);
+    return 0;
+}
 
-    if (info->pal_handle)
-        add_ipc_port_by_id(info->vmid == cur_process.vmid ? 0 : info->vmid,
-                           info->pal_handle, type, NULL, &info->port);
+static int init_parent_ipc_port(void) {
+    if (!PAL_CB(parent_process) || !cur_process.parent) {
+        /* no parent process, no sense in creating parent IPC port */
+        return 0;
+    }
+
+    lock(&cur_process.lock);
+    assert(cur_process.parent && cur_process.parent->vmid);
+
+    /* for execve case, my parent is the parent of my parent (current
+     * process transparently inherits the "real" parent through already
+     * opened pal_handle on "temporary" parent's cur_process.parent) */
+    if (!cur_process.parent->pal_handle) {
+        /* for clone/fork case, parent is connected on parent_process */
+        cur_process.parent->pal_handle = PAL_CB(parent_process);
+    }
+
+    add_ipc_port_by_id(cur_process.parent->vmid,
+                       cur_process.parent->pal_handle,
+                       IPC_PORT_DIRPRT | IPC_PORT_LISTEN,
+                       /* fini callback */ NULL,
+                       &cur_process.parent->port);
+
+    unlock(&cur_process.lock);
+    return 0;
+}
+
+static int init_ns_ipc_port(int ns_idx) {
+    if (!cur_process.ns[ns_idx]) {
+        /* no NS info from parent process, no sense in creating NS IPC port */
+        return 0;
+    }
+
+    if (!cur_process.ns[ns_idx]->pal_handle && qstrempty(&cur_process.ns[ns_idx]->uri)) {
+        /* there is no connection to NS leader via PAL handle and there is no
+         * URI to find NS leader: do not create NS IPC port now, it will be
+         * created on-demand during NS leader lookup */
+        return 0;
+    }
+
+    lock(&cur_process.lock);
+
+    if (!cur_process.ns[ns_idx]->pal_handle) {
+        debug("Reconnecting IPC port %s\n", qstrgetstr(&cur_process.ns[ns_idx]->uri));
+        cur_process.ns[ns_idx]->pal_handle = DkStreamOpen(qstrgetstr(&cur_process.ns[ns_idx]->uri), 0, 0, 0, 0);
+        if (!cur_process.ns[ns_idx]->pal_handle) {
+            unlock(&cur_process.lock);
+            return -PAL_ERRNO;
+        }
+    }
+
+    IDTYPE type = (ns_idx == PID_NS) ? IPC_PORT_PIDLDR : IPC_PORT_SYSVLDR;
+    add_ipc_port_by_id(cur_process.ns[ns_idx]->vmid,
+                       cur_process.ns[ns_idx]->pal_handle,
+                       type | IPC_PORT_LISTEN,
+                       /* fini callback */ NULL,
+                       &cur_process.ns[ns_idx]->port);
+
+    unlock(&cur_process.lock);
     return 0;
 }
 
 int init_ipc_ports(void) {
-    int ret = 0;
-
     if (!(port_mgr = create_mem_mgr(init_align_up(PORT_MGR_ALLOC))))
         return -ENOMEM;
 
-    if ((ret = init_ipc_port(cur_process.self, NULL, IPC_PORT_SERVER)) < 0)
+    int ret;
+    if ((ret = init_self_ipc_port()) < 0)
         return ret;
-    if (PAL_CB(parent_process) &&
-        (ret = init_ipc_port(cur_process.parent, PAL_CB(parent_process),
-                             IPC_PORT_DIRPRT|IPC_PORT_LISTEN)) < 0)
+    if ((ret = init_parent_ipc_port()) < 0)
         return ret;
-    if ((ret = init_ipc_port(cur_process.ns[PID_NS], NULL,
-                             IPC_PORT_PIDLDR|IPC_PORT_LISTEN)) < 0)
+    if ((ret = init_ns_ipc_port(PID_NS)) < 0)
         return ret;
-    if ((ret = init_ipc_port(cur_process.ns[SYSV_NS], NULL,
-                             IPC_PORT_SYSVLDR|IPC_PORT_LISTEN)) < 0)
+    if ((ret = init_ns_ipc_port(SYSV_NS)) < 0)
         return ret;
 
     return 0;
@@ -207,8 +265,6 @@ void put_ipc_port(struct shim_ipc_port* port) {
 
 static void __add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid,
                            IDTYPE type, port_fini fini) {
-    assert(vmid != cur_process.vmid); /* no sense in IPCing myself */
-
     port->type |= type;
     if (vmid && !port->vmid)
         port->vmid = vmid;
