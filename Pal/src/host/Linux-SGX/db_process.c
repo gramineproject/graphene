@@ -327,7 +327,7 @@ noreturn void _DkProcessExit (int exitcode)
 #endif
     if (exitcode)
         SGX_DBG(DBG_I, "DkProcessExit: Returning exit code %d\n", exitcode);
-    ocall_exit(exitcode);
+    ocall_exit(exitcode, /*is_exitgroup*/ true);
     while (true) {
         /* nothing */;
     }
