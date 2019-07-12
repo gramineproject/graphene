@@ -875,31 +875,14 @@ static int __check_elf_header (void * fbp, size_t len)
         [EI_CLASS] = ELFW(CLASS),
         [EI_DATA] = byteorder,
         [EI_VERSION] = EV_CURRENT,
-        [EI_OSABI] = ELFOSABI_SYSV,
-        [EI_ABIVERSION] = 0
+        [EI_OSABI] = 0,
     };
 
     /* See whether the ELF header is what we expect.  */
-    if (__builtin_expect (memcmp (ehdr->e_ident, expected, EI_ABIVERSION) !=
-                          0, 0)) {
+    if (__builtin_expect(memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 ||
+        (ehdr->e_ident[EI_OSABI] != ELFOSABI_SYSV &&
+         ehdr->e_ident[EI_OSABI] != ELFOSABI_LINUX), 0)) {
         errstring = "ELF file with invalid header";
-        goto verify_failed;
-    }
-
-    /* Check whether the ELF header use the right endian */
-    if (ehdr->e_ident[EI_DATA] != byteorder) {
-        if (__BYTE_ORDER == __BIG_ENDIAN) {
-            errstring = "ELF file data encoding not big-endian";
-            goto verify_failed;
-        } else {
-            errstring = "ELF file data encoding not little-endian";
-            goto verify_failed;
-        }
-    }
-
-    /* checking the header is of the right version */
-    if (ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
-        errstring = "ELF file version ident does not match current one";
         goto verify_failed;
     }
 
@@ -907,11 +890,6 @@ static int __check_elf_header (void * fbp, size_t len)
                EI_NIDENT - EI_PAD) != 0) {
        errstring = "nonzero padding in e_ident";
        goto verify_failed;
-    }
-
-    if (__builtin_expect (ehdr->e_version, EV_CURRENT) != EV_CURRENT) {
-        errstring = "ELF file version does not match current one";
-        goto verify_failed;
     }
 
     /* Now we check if the host match the elf machine profile */
