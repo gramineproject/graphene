@@ -551,10 +551,13 @@ int open_namei (struct shim_handle * hdl, struct shim_dentry * start,
 
         // Set err back to zero and fall through
         err = 0;
-    } else if (err == 0 && (flags & (O_CREAT|O_EXCL))) {
+    } else if (err == 0 && ((flags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))) {
         err = -EEXIST;
-    } else if (err < 0)
+    }
+    
+    if (err < 0) {
         goto out;
+    }
 
     // Check permission, but only if we didn't create the file.
     // creat/O_CREAT have idiosyncratic semantics about opening a
