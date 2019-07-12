@@ -431,17 +431,6 @@ sgx_ocall:
 
 	pushq %rbp
 
-	xorq %rdx, %rdx
-	xorq %r8, %r8
-	xorq %r9, %r9
-	xorq %r10, %r10
-	xorq %r11, %r11
-	xorq %r12, %r12
-	xorq %r13, %r13
-	xorq %r14, %r14
-	xorq %r15, %r15
-	xorq %rbp, %rbp
-
 .Locall_before_set_ocall_prepared:
 	movq $1, %gs:SGX_OCALL_PREPARED
 .Locall_after_set_ocall_prepared:
