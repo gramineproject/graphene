@@ -40,10 +40,20 @@ regression.add_check(name="2 page child binary",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
-# Running Fork and Exec
+# Running fork and exec
 regression = Regression(loader, "fork_and_exec")
 
-regression.add_check(name="Fork and exec 2 page child binary",
+regression.add_check(name="fork and exec 2 page child binary",
+    check=lambda res: "child exited with status: 0" in res[0].out and \
+                      "test completed successfully" in res[0].out)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+
+# Running vfork and exec
+regression = Regression(loader, "vfork_and_exec")
+
+regression.add_check(name="vfork and exec 2 page child binary",
     check=lambda res: "child exited with status: 0" in res[0].out and \
                       "test completed successfully" in res[0].out)
 

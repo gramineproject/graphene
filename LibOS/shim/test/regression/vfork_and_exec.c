@@ -27,7 +27,7 @@ int main(int argc, const char** argv, const char** envp) {
         return 1;
     }
 
-    child_pid = fork();
+    child_pid = vfork();
 
     if (child_pid == 0) {
         /* child performs execve(exec_victim) */
