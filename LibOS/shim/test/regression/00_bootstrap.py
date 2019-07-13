@@ -50,6 +50,16 @@ regression.add_check(name="Fork and exec 2 page child binary",
 rv = regression.run_checks()
 if rv: sys.exit(rv)
 
+# Running Vfork and Exec
+regression = Regression(loader, "vfork_and_exec")
+
+regression.add_check(name="Vfork and exec 2 page child binary",
+    check=lambda res: "child exited with status: 0" in res[0].out and \
+                      "test completed successfully" in res[0].out)
+
+rv = regression.run_checks()
+if rv: sys.exit(rv)
+
 # Running execve with invalid pointers in arguments
 regression = Regression(loader, "exec_invalid_args")
 

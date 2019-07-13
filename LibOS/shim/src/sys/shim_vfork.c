@@ -35,13 +35,40 @@
 #include <linux/futex.h>
 #include <errno.h>
 
-struct vfork_args {
-    PAL_HANDLE create_event;
-    struct shim_thread * thread;
-};
+/* This macro disables current vfork implementation and aliases it to fork.
+ *
+ * Rationale:
+ * Current vfork() implementation is broken and works only in simple cases.
+ * The implementation creates a new thread in the same process and runs it
+ * in place of the previous (parent) thread which called vfork(). When the
+ * "pseudo-process" new thread reaches execve(), it silently dies and
+ * switches execution back to the suspended parent thread (as per vfork
+ * semantics). Because execve() emulation creates a new host-OS process,
+ * this vfork implementation works in simple benign cases.
+ *
+ * However, this co-existence of the "pseudo-process" thread with threads
+ * of the parent process leads to bugs elsewhere in Graphene. In general,
+ * the rest of Graphene is not aware of such situation when two processes
+ * co-exist in the same Graphene instance and share memory. If the new
+ * "pseudo-process" thread makes syscalls in-between vfork() and execve()
+ * or abnormally dies or receives a signal, Graphene may hang or segfault
+ * or end up with inconsistent internal state.
+ *
+ * Therefore, instead of trying to support Linux semantics for vfork() --
+ * which requires adding corner-cases in signal handling and syscalls --
+ * we simply redirect vfork() as fork(). We assume that performance hit is
+ * negligible (Graphene has to migrate internal state anyway which is slow)
+ * and apps do not rely on insane Linux-specific semantics of vfork().
+ * */
+#define ALIAS_VFORK_AS_FORK 1
 
 int shim_do_vfork (void)
 {
+#ifdef ALIAS_VFORK_AS_FORK
+    debug("vfork() is an alias to fork() in Graphene, calling fork() now\n");
+    return shim_do_fork();
+#else
+    /* NOTE: leaving this old implementation for historical reference */
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     /* DEP 7/7/12 - Why r13?
@@ -114,4 +141,5 @@ int shim_do_vfork (void)
 
     /* here we return immediately, no letting the hooks mes up our stack */
     return 0;
+#endif
 }
