@@ -25,14 +25,47 @@
 #include <shim_table.h>
 #include <shim_handle.h>
 #include <shim_vma.h>
+#include <shim_thread.h>
 
 #include <pal.h>
 #include <pal_error.h>
 
 #include <errno.h>
 
+static bool signal_pending (void)
+{
+    struct shim_thread* cur = get_cur_thread();
+    if (!cur)
+        return false;
+
+    lock(&cur->lock);
+
+    if (!cur->signal_logs || !cur->has_signal.counter) {
+        unlock(&cur->lock);
+        return false;
+    }
+
+    for (int sig = 1; sig <= NUM_SIGS; sig++) {
+        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
+            atomic_read(&cur->signal_logs[sig - 1].tail)) {
+            /* at least one signal of type sig... */
+            if (!__sigismember(&cur->signal_mask, sig)) {
+                /* ...and this type is not blocked  */
+                unlock(&cur->lock);
+                return true;
+            }
+        }
+    }
+
+    unlock(&cur->lock);
+    return false;
+}
+
 int shim_do_pause (void)
 {
+    if (signal_pending())
+        return -EINTR;
+
     /* ~0ULL micro sec ~= 805675 years */
     DkThreadDelayExecution(~((PAL_NUM)0));
     return -EINTR;
@@ -43,6 +76,15 @@ int shim_do_nanosleep (const struct __kernel_timespec * rqtp,
 {
     if (!rqtp)
         return -EFAULT;
+
+    if (signal_pending()) {
+        if (rmtp) {
+            /* no time elapsed, so copy time interval from rqtp to rmtp */
+            rmtp->tv_sec = rqtp->tv_sec;
+            rmtp->tv_nsec = rqtp->tv_nsec;
+        }
+        return -EINTR;
+    }
 
     unsigned long time = rqtp->tv_sec * 1000000L + rqtp->tv_nsec / 1000;
     unsigned long ret = DkThreadDelayExecution(time);

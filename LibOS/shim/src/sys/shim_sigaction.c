@@ -205,6 +205,19 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
     lock(&cur->lock);
 
+    /* return immediately on some pending unblocked signal */
+    for (int sig = 1 ; sig <= NUM_SIGS ; sig++) {
+        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
+            atomic_read(&cur->signal_logs[sig - 1].tail)) {
+            /* at least one signal of type sig... */
+            if (!__sigismember(mask, sig)) {
+                /* ...and this type is not blocked in supplied mask */
+                unlock(&cur->lock);
+                return -EINTR;
+            }
+        }
+    }
+
     old = get_sig_mask(cur);
     memcpy(&tmp, old, sizeof(__sigset_t));
     old = &tmp;
