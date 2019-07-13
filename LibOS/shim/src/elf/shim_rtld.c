@@ -350,6 +350,8 @@ __map_elf_object (struct shim_handle * file,
                   const void * fbp, size_t fbp_len, void * addr, int type,
                   struct link_map * remap)
 {
+    ElfW(Phdr)* new_phdr = NULL;
+
     if (file && (!file->fs || !file->fs->fs_ops))
         return NULL;
 
@@ -399,7 +401,7 @@ __map_elf_object (struct shim_handle * file,
 
     if (type == OBJECT_LOAD &&
         header->e_phoff + maplength <= (size_t) fbp_len) {
-        ElfW(Phdr) * new_phdr = (ElfW(Phdr) *) malloc (maplength);
+        new_phdr = (ElfW(Phdr) *) malloc (maplength);
         if (!new_phdr) {
             errstring = "new_phdr malloc failure";
             goto call_lose;
@@ -407,7 +409,6 @@ __map_elf_object (struct shim_handle * file,
         if ((ret = (*seek) (file, header->e_phoff, SEEK_SET)) < 0 ||
             (ret = (*read) (file, new_phdr, maplength)) < 0) {
             errstring = "cannot read file data";
-            free(new_phdr);
             goto call_lose;
         }
         phdr = new_phdr;
@@ -671,7 +672,7 @@ postmap:
     }
 
     if (type == OBJECT_REMAP)
-        return l;
+        goto success;
 
     if (l->l_ld == 0) {
         if (__builtin_expect(e_type == ET_DYN, 0)) {
@@ -717,9 +718,12 @@ postmap:
     /* Set up the symbol hash table.  */
     setup_elf_hash(l);
 
+success:
+    free(new_phdr);
     return l;
 
 call_lose:
+    free(new_phdr);
     debug("loading %s: %s\n", l->l_name, errstring);
     if (l != remap) {
         /* l was allocated via new_elf_object() */
