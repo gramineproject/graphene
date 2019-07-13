@@ -70,11 +70,20 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
     if ((flags & MAP_FIXED) || addr) {
         struct shim_vma_val tmp;
 
-        if (!lookup_overlap_vma(addr, length, &tmp)) {
-            debug("mmap: allowing overlapping MAP_FIXED allocation at %p with length %lu\n",
+        if (addr < PAL_CB(user_address.start) ||
+            PAL_CB(user_address.end) <= addr ||
+            (uintptr_t)PAL_CB(user_address.end) - (uintptr_t)addr < length) {
+            debug("mmap: user specified address %p with length %lu "
+                  "not in allowed user space, ignoring this hint\n",
                   addr, length);
-
-            if (!(flags & MAP_FIXED))
+            if (flags & MAP_FIXED)
+                return (void *)-EINVAL;
+            addr = NULL;
+        } else if (!lookup_overlap_vma(addr, length, &tmp)) {
+            if (flags & MAP_FIXED)
+                debug("mmap: allowing overlapping MAP_FIXED allocation at %p with length %lu\n",
+                      addr, length);
+            else
                 addr = NULL;
         }
     }
