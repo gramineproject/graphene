@@ -71,10 +71,13 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         struct shim_vma_val tmp;
 
         if (addr < PAL_CB(user_address.start) ||
-            PAL_CB(user_address.end) < addr ||
+            PAL_CB(user_address.end) <= addr ||
             (uintptr_t)PAL_CB(user_address.end) - (uintptr_t)addr < length) {
+            debug("mmap: user specified address %p with length %lu "
+                  "not in allowed user space, ignoring this hint\n",
+                  addr, length);
             if (flags & MAP_FIXED)
-                return (void *) -EINVAL;
+                return (void *)-EINVAL;
             addr = NULL;
         } else if (!lookup_overlap_vma(addr, length, &tmp)) {
             if (flags & MAP_FIXED)
