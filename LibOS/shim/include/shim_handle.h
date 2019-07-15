@@ -23,6 +23,8 @@
 #ifndef _SHIM_HANDLE_H_
 #define _SHIM_HANDLE_H_
 
+#include <stdalign.h>
+
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <shim_sysv.h>
@@ -211,6 +213,16 @@ struct shim_dirent {
     unsigned char        type;
     char                 name[];       /* File name (null-terminated) */
 };
+
+#define SHIM_DIRENT_SIZE offsetof(struct shim_dirent, name)
+#define SHIM_DIRENT_ALIGNMENT alignof(struct shim_dirent)
+/* Size of struct shim_dirent instance together with alignment,
+ * which might be different depending on the length of the name field */
+#define SHIM_DIRENT_ALIGNED_SIZE(len) ( \
+                (SHIM_DIRENT_SIZE \
+                    + (len) \
+                    + SHIM_DIRENT_ALIGNMENT - 1) \
+            / SHIM_DIRENT_ALIGNMENT * SHIM_DIRENT_ALIGNMENT)
 
 struct shim_dir_handle {
     int offset;
