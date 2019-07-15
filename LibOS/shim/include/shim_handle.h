@@ -212,6 +212,14 @@ struct shim_dirent {
     char                 name[];       /* File name (null-terminated) */
 };
 
+#define SHIM_DIRENT_SIZE offsetof(struct shim_dirent, name)
+#define SHIM_DIRENT_ALIGNMENT offsetof(struct {char c; struct shim_dirent s;}, s)
+#define SHIM_DIRENT_ALIGNED_SIZE(len) ( \
+                (SHIM_DIRENT_SIZE \
+                    + len \
+                    + SHIM_DIRENT_ALIGNMENT - 1) \
+            / SHIM_DIRENT_ALIGNMENT * SHIM_DIRENT_ALIGNMENT)
+
 struct shim_dir_handle {
     int offset;
     struct shim_dentry * dotdot;
