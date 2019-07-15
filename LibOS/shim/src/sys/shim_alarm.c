@@ -26,7 +26,7 @@
 #include <shim_utils.h>
 #include <shim_signal.h>
 
-void signal_alarm (IDTYPE target, void * arg)
+static void signal_alarm (IDTYPE target, void * arg)
 {
     // Kept for API compatibility wtih signal_itimer
     __UNUSED(arg);
