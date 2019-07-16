@@ -14,20 +14,20 @@ int main (int argc, char** argv) {
 
     fd = open(".", O_DIRECTORY);
     if (fd == -1) {
-        printf("Opening CWD returns error %d\n", errno);
+        printf("Opening CWD returned error %d\n", errno);
         return -1;
     }
 
     r = fstat(fd, &buf);
     if (r == -1) {
-        printf("fstat on directory fd returns error %d\n", errno);
+        printf("fstat on directory fd returned error %d\n", errno);
         return -1;
     }
 
     close(fd);
 
     if (S_ISDIR(buf.st_mode))
-        printf("fstat returns the fd type as S_IFDIR\n");
+        printf("fstat returned the fd type as S_IFDIR\n");
 
     return 0;
 }
