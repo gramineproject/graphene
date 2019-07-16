@@ -32,6 +32,10 @@
 
 #include <pal.h>
 
+typedef void (*__rt_sighandler_t) (int, siginfo_t*, void*);
+
+static __rt_sighandler_t default_sighandler[NUM_SIGS];
+
 static struct shim_signal **
 allocate_signal_log (struct shim_thread * thread, int sig)
 {
@@ -593,35 +597,21 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
     return &thread->signal_mask;
 }
 
-static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *);
-
-static void
-__handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
-{
-    struct shim_thread * thread = (struct shim_thread *) tcb->tp;
-    struct shim_signal_handle * sighdl = &thread->signal_handles[sig - 1];
-    void (*handler) (int, siginfo_t *, void *) = NULL;
-
-    if (signal->info.si_signo == SIGCP) {
-        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
-        return;
-    }
-
-    debug("%s handled\n", signal_name(sig));
-
-    lock(&thread->lock);
+static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
+    struct shim_signal_handle* sighdl = &thread->signal_handles[sig - 1];
+    __rt_sighandler_t handler = NULL;
 
     if (sighdl->action) {
-        struct __kernel_sigaction * act = sighdl->action;
+        struct __kernel_sigaction* act = sighdl->action;
         /* This is a workaround. The truth is that many program will
            use sa_handler as sa_sigaction, because sa_sigaction is
            not supported in amd64 */
 #ifdef __i386__
-        handler = (void (*) (int, siginfo_t *, void *)) act->_u._sa_handler;
+        handler = (void (*)(int, siginfo_t*, void*))act->_u._sa_handler;
         if (act->sa_flags & SA_SIGINFO)
             sa_handler = act->_u._sa_sigaction;
 #else
-        handler = (void (*) (int, siginfo_t *, void *)) act->k_sa_handler;
+        handler = (void (*)(int, siginfo_t*, void*))act->k_sa_handler;
 #endif
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
@@ -629,13 +619,31 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
         }
     }
 
+    if ((void *) handler == (void *) 1) /* SIG_IGN */
+        return NULL;
+
+    return handler ? : default_sighandler[sig - 1];
+}
+
+static void
+__handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
+{
+    struct shim_thread * thread = (struct shim_thread *) tcb->tp;
+    __rt_sighandler_t handler = NULL;
+
+    if (signal->info.si_signo == SIGCP) {
+        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
+        return;
+    }
+
+    lock(&thread->lock);
+    handler = __get_sighandler(thread, sig);
     unlock(&thread->lock);
 
-    if ((void *) handler == (void *) 1) /* SIG_IGN */
+    if (!handler)
         return;
 
-    if (!handler && !(handler = default_sighandler[sig - 1]))
-        return;
+    debug("%s handled\n", signal_name(sig));
 
     /* if the context is never stored in the signal, it means the
        signal is handled during system calls, and before the thread
@@ -717,9 +725,13 @@ void handle_signal (void)
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
-void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
-                    bool wakeup)
-{
+void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool wakeup) {
+    __rt_sighandler_t handler = __get_sighandler(thread, sig);
+
+    // If the signal is ignored, no need to append
+    if (!handler)
+        return;
+
     struct shim_signal * signal = malloc(sizeof(struct shim_signal));
     if (!signal)
         return;
@@ -772,8 +784,7 @@ static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
     sighandler_kill(sig, info, ucontext);
 }
 
-static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
-    {
+static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
         /* SIGHUP */    &sighandler_kill,
         /* SIGINT */    &sighandler_kill,
         /* SIGQUIT */   &sighandler_kill,
