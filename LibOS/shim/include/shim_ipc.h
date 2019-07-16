@@ -487,7 +487,7 @@ struct shim_ipc_info* create_ipc_info(IDTYPE vmid, const char* uri, size_t len);
 void get_ipc_info(struct shim_ipc_info* port);
 void put_ipc_info(struct shim_ipc_info* port);
 
-struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri);
+struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size_t len);
 void put_ipc_info_in_list(struct shim_ipc_info* info);
 struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid);
 
