@@ -41,7 +41,7 @@ int create_pipes (IDTYPE * pipeid, PAL_HANDLE * srv, PAL_HANDLE * cli,
     char uri[PIPE_URI_SIZE];
 
     if ((ret = create_pipe(pipeid, uri, PIPE_URI_SIZE, &hdl0,
-                           qstr, /*use_vmid_for_name*/ false)) < 0) {
+                           qstr, /*use_vmid_for_name=*/false)) < 0) {
         debug("pipe creation failure\n");
         return ret;
     }

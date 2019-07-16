@@ -266,7 +266,7 @@ static int __add_range (struct range * r, IDTYPE off, IDTYPE owner,
     r->subranges = NULL;
 
     if (owner) {
-        r->owner = create_ipc_info_in_list(owner, uri);
+        r->owner = create_ipc_info_in_list(owner, uri, strlen(uri));
         if (!r->owner)
             return -ENOMEM;
     }
@@ -367,7 +367,7 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
     assert(owner);
     lock(&range_map_lock);
 
-    s->owner = create_ipc_info_in_list(owner, uri);
+    s->owner = create_ipc_info_in_list(owner, uri, strlen(uri));
     if (!s->owner) {
         err = -ENOMEM;
         goto failed;

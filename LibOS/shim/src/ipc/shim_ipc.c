@@ -17,7 +17,7 @@
 /*
  * shim_ipc.c
  *
- * This file contains codes to maintain generic bookkeeping of IPC: operations
+ * This file contains code to maintain generic bookkeeping of IPC: operations
  * on shim_ipc_msg (one-way IPC messages), shim_ipc_msg_duplex (IPC messages
  * with acknowledgement), shim_ipc_info (IPC ports of process), shim_process.
  */
@@ -45,8 +45,8 @@ struct shim_lock ipc_info_lock;
 
 struct shim_process cur_process;
 
-#define CLIENT_HASH_LEN     6
-#define CLIENT_HASH_NUM     (1 << CLIENT_HASH_LEN)
+#define CLIENT_HASH_BITLEN  6
+#define CLIENT_HASH_NUM     (1 << CLIENT_HASH_BITLEN)
 #define CLIENT_HASH_MASK    (CLIENT_HASH_NUM - 1)
 #define CLIENT_HASH(vmid)   ((vmid) & CLIENT_HASH_MASK)
 DEFINE_LISTP(shim_ipc_info);
@@ -145,15 +145,13 @@ struct shim_ipc_info* create_ipc_info(IDTYPE vmid, const char* uri, size_t len) 
     return info;
 }
 
-struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri) {
+struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size_t len) {
     assert(vmid);
 
     struct shim_ipc_info* info;
-    size_t len = strlen(uri);
-
     lock(&ipc_info_lock);
 
-    /* check if info with this vmid and uri already exists and return it */
+    /* check if info with this vmid & uri already exists and return it */
     LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
     LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist)
         if (info->vmid == vmid && !qstrcmpstr(&info->uri, uri, len)) {
@@ -356,7 +354,7 @@ int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_por
     struct shim_thread * thread = get_cur_thread();
     assert(thread);
 
-    /* prepare thread which sends the message for waiting for response
+    /* prepare thread which will send the message for waiting for response
      * (this also acquires reference to the thread) */
     if (!msg->thread)
         thread_setwait(&msg->thread, thread);
@@ -377,9 +375,9 @@ int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_por
     if (seq)
         *seq = msg->msg.seq;
 
-    debug("Start waiting for response (seq = %lu)\n", msg->msg.seq);
+    debug("Waiting for response (seq = %lu)\n", msg->msg.seq);
 
-    /* force thread which sends the message to wait for response;
+    /* force thread which will send the message to wait for response;
      * ignore unrelated interrupts but fail on actual errors */
     do {
         ret = thread_sleep(NO_TIMEOUT);
@@ -457,14 +455,14 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_CHECKPOINT, total_msg_size, 0);
 
-    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint *) &msg->msg;
+    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint *)&msg->msg;
     msgin->cpsession = cpsession;
     memcpy(&msgin->cpdir, cpdir, len + 1);
 
     debug("IPC broadcast to all: IPC_CHECKPOINT(%u, %s)\n", cpsession, cpdir);
 
     /* broadcast to all including myself (so I can also checkpoint) */
-    ret = broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, /*exclude_port*/ NULL);
+    ret = broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, /*exclude_port=*/NULL);
     SAVE_PROFILE_INTERVAL(ipc_checkpoint_send);
     return ret;
 }
@@ -476,7 +474,7 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
 int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
-    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint *) msg->msg;
+    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint *)msg->msg;
 
     debug("IPC callback from %u: IPC_CHECKPOINT(%u, %s)\n",
           msg->src, msgin->cpsession, msgin->cpdir);
@@ -495,7 +493,7 @@ out:
 BEGIN_CP_FUNC(ipc_info) {
     assert(size == sizeof(struct shim_ipc_info));
 
-    struct shim_ipc_info* info = (struct shim_ipc_info *) obj;
+    struct shim_ipc_info* info = (struct shim_ipc_info *)obj;
     struct shim_ipc_info* new_info = NULL;
 
     ptr_t off = GET_FROM_CP_MAP(obj);
@@ -504,7 +502,7 @@ BEGIN_CP_FUNC(ipc_info) {
         off = ADD_CP_OFFSET(sizeof(struct shim_ipc_info));
         ADD_TO_CP_MAP(obj, off);
 
-        new_info = (struct shim_ipc_info *) (base + off);
+        new_info = (struct shim_ipc_info *)(base + off);
         memcpy(new_info, info, sizeof(struct shim_ipc_info));
         REF_SET(new_info->ref_count, 0);
 
@@ -523,18 +521,18 @@ BEGIN_CP_FUNC(ipc_info) {
         }
     } else {
         /* already checkpointed */
-        new_info = (struct shim_ipc_info *) (base + off);
+        new_info = (struct shim_ipc_info *)(base + off);
     }
 
     if (new_info && objp)
-        *objp = (void *) new_info;
+        *objp = (void *)new_info;
 }
 END_CP_FUNC_NO_RS(ipc_info)
 
 BEGIN_CP_FUNC(process) {
     assert(size == sizeof(struct shim_process));
 
-    struct shim_process* process = (struct shim_process *) obj;
+    struct shim_process* process = (struct shim_process *)obj;
     struct shim_process* new_process = NULL;
 
     ptr_t off = GET_FROM_CP_MAP(obj);
@@ -543,7 +541,7 @@ BEGIN_CP_FUNC(process) {
         off = ADD_CP_OFFSET(sizeof(struct shim_process));
         ADD_TO_CP_MAP(obj, off);
 
-        new_process = (struct shim_process *) (base + off);
+        new_process = (struct shim_process *)(base + off);
         memcpy(new_process, process, sizeof(struct shim_process));
 
         /* call ipc_info-specific checkpointing functions
@@ -559,7 +557,7 @@ BEGIN_CP_FUNC(process) {
         ADD_CP_FUNC_ENTRY(off);
     } else {
         /* already checkpointed */
-        new_process = (struct shim_process *) (base + off);
+        new_process = (struct shim_process *)(base + off);
     }
 
     if (objp)
@@ -569,7 +567,7 @@ END_CP_FUNC(process)
 
 BEGIN_RS_FUNC(process) {
     __UNUSED(offset);
-    struct shim_process* process = (void *) (base + GET_CP_FUNC_ENTRY());
+    struct shim_process* process = (void *)(base + GET_CP_FUNC_ENTRY());
 
     /* process vmid  = 0: fork/clone case, forces to pick up new host-OS vmid
      * process vmid != 0: execve case, forces to re-use vmid of parent */

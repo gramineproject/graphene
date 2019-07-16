@@ -844,9 +844,9 @@ static int name_pipe_rand (char * uri, size_t size, void * id)
     if (ret < 0)
         return -convert_pal_errno(-ret);
     debug("creating pipe: pipe.srv:%u\n", pipeid);
-    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) == size)
+    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) >= size)
         return -ERANGE;
-    *((IDTYPE *) id) = pipeid;
+    *((IDTYPE *)id) = pipeid;
     return len;
 }
 
@@ -855,9 +855,9 @@ static int name_pipe_vmid (char * uri, size_t size, void * id)
     IDTYPE pipeid = cur_process.vmid;
     size_t len;
     debug("creating pipe: pipe.srv:%u\n", pipeid);
-    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) == size)
+    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) >= size)
         return -ERANGE;
-    *((IDTYPE *) id) = pipeid;
+    *((IDTYPE *)id) = pipeid;
     return len;
 }
 

@@ -535,7 +535,7 @@ int shim_do_kill (pid_t pid, int sig)
     /* If pid equals -1, then sig is sent to every process for which the
        calling process has permission to send */
     else if (pid == -1) {
-        ipc_pid_kill_send(cur->tid, /*target*/ 0, KILL_ALL, sig);
+        ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
         kill_all_threads(cur, cur->tid, sig);
         send_to_self = true;
     }

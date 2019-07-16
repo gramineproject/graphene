@@ -1131,7 +1131,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
          * current process, so notify the leader regarding subleasing of TID
          * (child must create self-pipe with convention of pipe:child-vmid) */
         char new_process_self_uri[256];
-        snprintf(new_process_self_uri, 256, "pipe:%u", res.child_vmid);
+        snprintf(new_process_self_uri, sizeof(new_process_self_uri), "pipe:%u", res.child_vmid);
         ipc_pid_sublease_send(res.child_vmid, thread->tid, new_process_self_uri, NULL);
 
         /* listen on the new IPC port to the new child process */

@@ -658,8 +658,6 @@ BEGIN_RS_FUNC(thread)
     struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
     __UNUSED(offset);
 
-    thread->vmid = cur_process.vmid;
-
     CP_REBASE(thread->children);
     CP_REBASE(thread->siblings);
     CP_REBASE(thread->exited_children);

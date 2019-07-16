@@ -454,7 +454,7 @@ struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info);
 int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 
 enum {
-    LISTEN=0,   /* listening */
+    LISTEN,     /* listening */
     SERVER,     /* connect as a server */
     KEEPALIVE,  /* keep the connetion alive */
     DIRCLD,     /* direct child */
@@ -487,7 +487,7 @@ struct shim_ipc_info* create_ipc_info(IDTYPE vmid, const char* uri, size_t len);
 void get_ipc_info(struct shim_ipc_info* port);
 void put_ipc_info(struct shim_ipc_info* port);
 
-struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri);
+struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size_t len);
 void put_ipc_info_in_list(struct shim_ipc_info* info);
 struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid);
 
@@ -497,6 +497,7 @@ static_always_inline size_t get_ipc_msg_size(size_t payload) {
 }
 
 static_always_inline size_t get_ipc_msg_duplex_size(size_t payload) {
+    assert(sizeof(struct shim_ipc_msg_duplex) >= sizeof(struct shim_ipc_msg));
     return get_ipc_msg_size(payload) +
         (sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg));
 }
