@@ -800,7 +800,7 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
         /* SIGPIPE */   &sighandler_kill,
         /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
-        /* SIGSTKFLT */ NULL,
+        /* SIGSTKFLT */ &sighandler_kill,
         /* SIGCHLD */   NULL,
         /* SIGCONT */   NULL,
         /* SIGSTOP */   NULL,
@@ -815,6 +815,5 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
         /* SIGWINCH  */ NULL,
         /* SIGIO   */   &sighandler_kill,
         /* SIGPWR  */   &sighandler_kill,
-        /* SIGSYS  */   &sighandler_core,
-        /* SIGRTMIN  */ NULL,
+        /* SIGSYS  */   &sighandler_core
     };
