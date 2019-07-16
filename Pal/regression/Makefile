@@ -75,11 +75,7 @@ else
 $(preloads) $(executables):
 endif
 
-PYTHONENV = "PYTHONPATH=../../Scripts"
-
-ifeq ($(SGX_RUN),1)
-	PYTHONENV += "TIMEOUT=20000"
-endif
+export PYTHONPATH=../../Scripts
 
 regression:
 	$(RM) pal-regression.xml
