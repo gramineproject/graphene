@@ -34,9 +34,10 @@
 #define BRK_SIZE           4096
 
 struct shim_brk_info {
-    void * brk_start;
-    void * brk_end;
-    void * brk_current;
+    size_t data_segment_size;
+    void* brk_start;
+    void* brk_end;
+    void* brk_current;
 };
 
 static struct shim_brk_info region;
@@ -54,18 +55,18 @@ void get_brk_region (void ** start, void ** end, void ** current)
     MASTER_UNLOCK();
 }
 
-int init_brk_region (void * brk_region)
-{
+int init_brk_region(void* brk_region, size_t data_segment_size) {
     if (region.brk_start)
         return 0;
 
-    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA);
+    data_segment_size = ALIGN_UP(data_segment_size);
+    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA) - data_segment_size;
 
     if (root_config) {
         char brk_cfg[CONFIG_MAX];
         if (get_config(root_config, "sys.brk.size", brk_cfg, CONFIG_MAX) > 0) {
             brk_max_size = parse_int(brk_cfg);
-            set_rlimit_cur(RLIMIT_DATA, brk_max_size);
+            set_rlimit_cur(RLIMIT_DATA, brk_max_size + data_segment_size);
         }
     }
 
@@ -155,6 +156,7 @@ int init_brk_region (void * brk_region)
 
     end_brk_region = brk_region + BRK_SIZE;
 
+    region.data_segment_size = data_segment_size;
     region.brk_start = brk_region;
     region.brk_end = end_brk_region;
     region.brk_current = brk_region;
@@ -198,11 +200,10 @@ int reset_brk (void)
     return 0;
 }
 
-void * shim_do_brk (void * brk)
-{
+void* shim_do_brk (void* brk) {
     MASTER_LOCK();
 
-    if (init_brk_region(NULL) < 0) {
+    if (init_brk_region(NULL, 0) < 0) { // If brk is never initialized, assume no executable
         debug("Failed to initialize brk!\n");
         brk = NULL;
         goto out;
@@ -218,7 +219,7 @@ unchanged:
         goto unchanged;
 
     if (brk > region.brk_end) {
-        uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA);
+        uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA) - region.data_segment_size;
 
         if (brk > region.brk_start + brk_max_size)
             goto unchanged;
@@ -255,6 +256,7 @@ BEGIN_CP_FUNC(brk)
         ADD_CP_FUNC_ENTRY((ptr_t)region.brk_start);
         ADD_CP_ENTRY(ADDR, region.brk_current);
         ADD_CP_ENTRY(SIZE, region.brk_end - region.brk_start);
+        ADD_CP_ENTRY(SIZE, region.data_segment_size);
     }
 }
 END_CP_FUNC(bek)
@@ -265,11 +267,12 @@ BEGIN_RS_FUNC(brk)
     region.brk_start   = (void *) GET_CP_FUNC_ENTRY();
     region.brk_current = (void *) GET_CP_ENTRY(ADDR);
     region.brk_end     = region.brk_start + GET_CP_ENTRY(SIZE);
+    region.data_segment_size = GET_CP_ENTRY(SIZE);
 
     debug("brk area: %p - %p\n", region.brk_start, region.brk_end);
 
     size_t brk_size = region.brk_end - region.brk_start;
-    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA);
+    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA) - region.data_segment_size;
 
     if (brk_size < brk_max_size) {
         void * alloc_addr = region.brk_end;
@@ -279,7 +282,7 @@ BEGIN_RS_FUNC(brk)
         if (!lookup_overlap_vma(alloc_addr, alloc_size, &vma)) {
             /* if memory are already allocated here, adjust RLIMIT_DATA */
             alloc_size = vma.addr - alloc_addr;
-            set_rlimit_cur(RLIMIT_DATA, (uint64_t) brk_size + alloc_size);
+            set_rlimit_cur(RLIMIT_DATA, (uint64_t) brk_size + alloc_size + region.data_segment_size);
         }
 
         int ret = bkeep_mmap(alloc_addr, alloc_size,
