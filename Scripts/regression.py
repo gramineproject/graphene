@@ -1,92 +1,61 @@
-import sys, os, subprocess, re, time, signal
+import contextlib
+import os
+import pathlib
+import signal
+import subprocess
+import unittest
 
-class Result:
-    def __init__(self, out, log, code):
-        self.out = out.split('\n')
-        self.log = log.split('\n')
-        self.code = code
+HAS_SGX = os.environ.get('SGX_RUN') == '1'
 
-class Regression:
-    def __init__(self, loader = None, executable = '', prepare = None, timeout = 0):
-        self.loader = loader
-        self.executable = executable
-        self.prepare = prepare
-        self.runs = dict()
-        default_timeout = int(os.getenv('TIMEOUT', '10000'))
-        if default_timeout > timeout:
-            self.timeout = default_timeout
-        else:
-            self.timeout = timeout
-        self.keep_log = (os.getenv('KEEP_LOG', '0') == '1')
+def expectedFailureIf(predicate):
+    if predicate:
+        return unittest.expectedFailure
+    return lambda func: func
 
-    def add_check(self, name, check, times = 1, ignore_failure=0, args = []):
-        combined_args = ' '.join(args)
-        if not combined_args in self.runs:
-            self.runs[combined_args] = []
-        self.runs[combined_args].append((name, check, ignore_failure, times))
+class RegressionTestCase(unittest.TestCase):
+    LOADER = os.environ['PAL_LOADER']
+    DEFAULT_TIMEOUT = (20 if HAS_SGX else 10)
 
-    def run_checks(self):
-        something_failed = 0
-        for combined_args in self.runs:
-            needed_times = 1
-            for (name, check, ignore_failure, times) in self.runs[combined_args]:
-                if needed_times < times:
-                    needed_times = times
+    def get_manifest(self, filename):
+        return filename + '.manifest' + ('.sgx' if HAS_SGX else '')
 
-            run_times = 0
-            outputs = []
-            timed_out = False
-            while run_times < needed_times:
-                args = []
-                if self.loader:
-                    args.append(self.loader)
-                if self.executable:
-                    args.append(self.executable)
-                if combined_args:
-                    args += combined_args.split(' ')
+    def run_binary(self, args, *, timeout=None, **kwds):
+        timeout = (max(self.DEFAULT_TIMEOUT, timeout) if timeout is not None
+            else self.DEFAULT_TIMEOUT)
 
-                if self.prepare:
-                    self.prepare(args)
+        if not pathlib.Path(self.LOADER).exists():
+            self.skipTest('loader ({}) not found'.format(self.LOADER))
 
-                p = subprocess.Popen(args,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     preexec_fn=os.setpgrp)
-                try:
-                    out, log = p.communicate(timeout=self.timeout * 0.001)
-                except subprocess.TimeoutExpired:
-                    timed_out = True
-                    os.killpg(p.pid, signal.SIGKILL)
-                    out, log = p.communicate()
+        with subprocess.Popen([self.LOADER, *args],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                preexec_fn=os.setpgrp,
+                **kwds) as process:
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                self.fail('timeout ({} s) expired'.format(timeout))
 
-                out = out.decode('utf-8')
-                log = log.decode('utf-8')
+            if process.returncode:
+                raise subprocess.CalledProcessError(
+                    process.returncode, args, stdout, stderr)
 
-                outputs.append(Result(out, log, p.returncode))
+        return stdout.decode(), stderr.decode()
 
-                run_times = run_times + 1
-                keep_log = False
-                for (name, check, ignore_failure, times) in self.runs[combined_args]:
-                    if run_times == times:
-                        result = check(outputs)
-                        if not timed_out and result:
-                            print('\033[92m[Success       ]\033[0m', name)
-                        else:
-                            if ignore_failure:
-                                print('[Fail (Ignored)]', name)
-                            else:
-                                print('\033[93m[Fail          ]\033[0m', name)
-                                something_failed = 1
-                            if timed_out : print('Test timed out!')
-                            keep_log = True
+    @contextlib.contextmanager
+    def expect_returncode(self, returncode):
+        if returncode == 0:
+            raise ValueError('expected returncode should be nonzero')
+        try:
+            yield
+            self.fail('did not fail (expected {})'.format(returncode))
+        except subprocess.CalledProcessError as e:
+            self.assertEqual(e.returncode, returncode,
+                'failed with returncode {} (expected {})'.format(
+                    e.returncode, returncode))
 
-                if self.keep_log and keep_log:
-                    sargs = [re.sub(r"\W", '_', a).strip('_') for a in args]
-                    filename = 'log-' + '_'.join(sargs) + '_' + time.strftime("%Y%m%d_%H%M%S")
-                    with open(filename, 'w') as f:
-                        f.write(log + out)
-                    print('keep log to %s' % (filename))
-        if something_failed:
-            return -1
-        else:
-            return 0
+
+class SandboxTestCase(RegressionTestCase):
+    LOADER = os.environ['PAL_SEC']
+
+# vim: tw=80 ts=4 sts=4 sw=4 et
