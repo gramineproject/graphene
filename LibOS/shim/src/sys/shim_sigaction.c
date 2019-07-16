@@ -224,11 +224,14 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
     set_sig_mask(cur, mask);
     cur->suspend_on_signal = true;
+    unlock(&cur->lock);
+
     thread_setwait(NULL, NULL);
     thread_sleep(NO_TIMEOUT);
 
-    unlock(&cur->lock);
+    lock(&cur->lock);
     set_sig_mask(cur, old);
+    unlock(&cur->lock);
     return -EINTR;
 }
 
@@ -264,8 +267,8 @@ struct walk_arg {
     bool use_ipc;
 };
 
-static inline void __append_signal (struct shim_thread * thread, int sig,
-                                    IDTYPE sender)
+// Need to hold thread->lock
+static inline void __append_signal(struct shim_thread* thread, int sig, IDTYPE sender)
 {
     debug("Thread %d killed by signal %d\n", thread->tid, sig);
     siginfo_t info;

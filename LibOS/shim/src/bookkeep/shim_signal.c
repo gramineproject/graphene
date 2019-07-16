@@ -32,6 +32,16 @@
 
 #include <pal.h>
 
+#include <asm/signal.h>
+
+// __rt_sighandler_t is different from __sighandler_t in <asm-generic/signal-defs.h>:
+//    typedef void __signalfn_t(int);
+//    typedef __signalfn_t *__sighandler_t
+
+typedef void (*__rt_sighandler_t)(int, siginfo_t*, void*);
+
+static __rt_sighandler_t default_sighandler[NUM_SIGS];
+
 static struct shim_signal **
 allocate_signal_log (struct shim_thread * thread, int sig)
 {
@@ -594,23 +604,9 @@ __sigset_t * set_sig_mask (struct shim_thread * thread,
     return &thread->signal_mask;
 }
 
-static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *);
-
-static void
-__handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
-{
-    struct shim_thread * thread = (struct shim_thread *) tcb->tp;
-    struct shim_signal_handle * sighdl = &thread->signal_handles[sig - 1];
-    void (*handler) (int, siginfo_t *, void *) = NULL;
-
-    if (signal->info.si_signo == SIGCP) {
-        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
-        return;
-    }
-
-    debug("%s handled\n", signal_name(sig));
-
-    lock(&thread->lock);
+static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
+    struct shim_signal_handle* sighdl = &thread->signal_handles[sig - 1];
+    __rt_sighandler_t handler = NULL;
 
     if (sighdl->action) {
         struct __kernel_sigaction * act = sighdl->action;
@@ -622,24 +618,40 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 #ifdef __i386__
 # error "x86-32 support is heavily broken."
 #endif
-        handler = (void *)act->k_sa_handler;
+        handler = (void*)act->k_sa_handler;
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
             free(act);
         }
     }
 
+    if ((void*)handler == SIG_IGN)
+        return NULL;
+
+    return handler ? : default_sighandler[sig - 1];
+}
+
+static void
+__handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
+    struct shim_thread* thread = (struct shim_thread*)tcb->tp;
+    __rt_sighandler_t handler = NULL;
+
+    if (signal->info.si_signo == SIGCP) {
+        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
+        return;
+    }
+
+    lock(&thread->lock);
+    handler = __get_sighandler(thread, sig);
     unlock(&thread->lock);
 
-    if ((void *) handler == (void *) 1) /* SIG_IGN */
+    if (!handler)
         return;
 
-    if (!handler && !(handler = default_sighandler[sig - 1]))
-        return;
+    debug("%s handled\n", signal_name(sig));
 
-    /* if the context is never stored in the signal, it means the
-       signal is handled during system calls, and before the thread
-       is resumed. */
+    // If the context is never stored in the signal, it means the signal is handled during
+    // system calls, and before the thread is resumed.
     if (!signal->context_stored)
         __store_context(tcb, NULL, signal);
 
@@ -661,8 +673,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
         memcpy(&tcb->context, context, sizeof(struct shim_context));
 
     if (signal->pal_context)
-        memcpy(signal->pal_context, signal->context.uc_mcontext.gregs,
-               sizeof(PAL_CONTEXT));
+        memcpy(signal->pal_context, signal->context.uc_mcontext.gregs, sizeof(PAL_CONTEXT));
 }
 
 void __handle_signal (shim_tcb_t * tcb, int sig)
@@ -717,9 +728,17 @@ void handle_signal (void)
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
-void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
-                    bool wakeup)
-{
+// Need to hold thread->lock when calling this function
+void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt) {
+    __rt_sighandler_t handler = __get_sighandler(thread, sig);
+
+    if (!handler) {
+        // SIGSTOP and SIGKILL cannot be ignored
+        assert(sig != SIGSTOP && sig != SIGKILL);
+        // If a signal is set to be ignored, append the signal but don't interrupt the thread
+        need_interrupt = false;
+    }
+
     struct shim_signal * signal = malloc(sizeof(struct shim_signal));
     if (!signal)
         return;
@@ -736,7 +755,7 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
 
     if (signal_log) {
         *signal_log = signal;
-        if (wakeup) {
+        if (need_interrupt) {
             debug("resuming thread %u\n", thread->tid);
             thread_wakeup(thread);
             DkThreadResume(thread->pal_handle);
@@ -777,8 +796,7 @@ static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
     sighandler_kill(sig, info, ucontext);
 }
 
-static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
-    {
+static __rt_sighandler_t default_sighandler[NUM_SIGS] = {
         /* SIGHUP */    &sighandler_kill,
         /* SIGINT */    &sighandler_kill,
         /* SIGQUIT */   &sighandler_core,
