@@ -121,8 +121,8 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
     if ((ret = walk_simple_thread_list(&child_sthread_exit, &info)) > 0)
         exited_threads_cnt += ret;
 
-    debug("Child process %u got disconnected: assume that child exited and "
-          "force %d of its threads to exit\n", vmid & 0xFFFF, exited_threads_cnt);
+    debug("Child process %u got disconnected: assuming that child exited and "
+          "forcing %d of its threads to exit\n", vmid & 0xFFFF, exited_threads_cnt);
 }
 
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_turnaround, ipc);
@@ -153,12 +153,12 @@ int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned i
     debug("IPC broadcast: IPC_CLD_EXIT(%u, %u, %d, %u)\n",
           ppid, tid, exitcode, term_signal);
 
-    int ret = broadcast_ipc(msg, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD, /*exclude_port*/ NULL);
+    int ret = broadcast_ipc(msg, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD, /*exclude_port=*/NULL);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_send);
     return ret;
 }
 
-/* IPC helper thread invokes this callback on an IPC_CLD_EXIT mesage received
+/* IPC helper thread invokes this callback on an IPC_CLD_EXIT message received
  * from a specific thread msgin->tid of the exiting child process with vmid
  * msg->src. The thread of the exiting child process informs about its exit
  * code in msgin->exit_code and its terminating signal in msgin->term_signal.
@@ -189,7 +189,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     /* message cannot come from our own threads (from ourselves as process) */
     assert(msg->src != cur_process.vmid);
 
-    /* First try to find remote thread who sent this message among normal
+    /* First try to find remote thread which sent this message among normal
      * threads. In the common case, we (as parent process) keep remote child
      * threads in the thread list. But sometimes the message can arrive twice
      * or very late, such that the corresponding remote thread was already
@@ -206,7 +206,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
 
         /* Remote thread is "virtually" exited: SIGCHLD is generated for the
          * parent thread and exit events are arranged for subsequent wait4(). */
-        ret = thread_exit(thread, /*send_ipc*/ false);
+        ret = thread_exit(thread, /*send_ipc=*/false);
         put_thread(thread);
     } else {
         /* Uncommon case: remote child thread was already exited and deleted
@@ -244,7 +244,7 @@ DEFINE_PROFILE_INTERVAL(ipc_send_profile, ipc);
 #ifdef PROFILE
 int ipc_cld_profile_send(void) {
     struct shim_ipc_port* port = NULL;
-    IDTYPE dest = (IDTYPE) -1;
+    IDTYPE dest = (IDTYPE)-1;
 
     /* port and dest are initialized to parent process */
     lock(&cur_process.lock);
@@ -254,7 +254,7 @@ int ipc_cld_profile_send(void) {
     }
     unlock(&cur_process.lock);
 
-    if (!port || (dest == (IDTYPE) -1))
+    if (!port || (dest == (IDTYPE)-1))
         return -ESRCH;
 
     unsigned long time = GET_PROFILE_INTERVAL();
@@ -278,7 +278,7 @@ int ipc_cld_profile_send(void) {
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_CLD_PROFILE, total_msg_size, dest);
 
-    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile *) &msg->msg;
+    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile *)&msg->msg;
 
     size_t nsent = 0;
     for (size_t i = 0; i < N_PROFILE && nsent < nsending; i++)
@@ -323,7 +323,7 @@ int ipc_cld_profile_send(void) {
 int ipc_cld_profile_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     debug("IPC callback from %u: IPC_CLD_PROFILE\n", msg->src & 0xFFFF);
 
-    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile *) &msg->msg;
+    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile *)&msg->msg;
 
     for (int i = 0; i < msgin->nprofile; i++) {
         int idx = msgin->profile[i].idx;
