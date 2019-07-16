@@ -67,3 +67,7 @@ Issues You May Encounter
 	- Your enclave size is too small (default is 256M). Try adding the line: `sgx.enclave_size = 1G` (Size must be a power of 2)
 9) Cannot connect to AESMD service (socket cannot connect)
 	- Most likley your isgx.ko did not load properly when you ran load.sh. Run load.sh and handle any errors that may appear (most are documented above)
+10) "Error while loading shared libraries: cannot open shared object file: No such file or directory"
+        - Add the library to your graphene/Runtime directory. This is a temporary workaround.
+11) "bash.manifest.sgx: file not found"
+        - Make sure that the location of the executable in your container is in your docker's PATH environment variable. If necessary, change the bin_name in gsce to the name of the binary manually.
