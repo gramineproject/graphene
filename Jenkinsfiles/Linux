@@ -12,6 +12,7 @@ pipeline {
                 }
                 stage('Test') {
                     steps {
+                        sh 'pip3 install -r Jenkinsfiles/requirements.txt'
                         sh '''
                             cd Pal/regression
                             make regression
@@ -62,6 +63,11 @@ pipeline {
                             sleep 1
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
                             '''
+                    }
+                    post {
+                        always {
+                            junit 'Pal/regression/pal-regression.xml'
+                        }
                     }
                 }
                 stage('Deploy') {
