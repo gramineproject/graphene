@@ -454,7 +454,7 @@ struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info);
 int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 
 enum {
-    LISTEN=0,   /* listening */
+    LISTEN,     /* listening */
     SERVER,     /* connect as a server */
     KEEPALIVE,  /* keep the connetion alive */
     DIRCLD,     /* direct child */

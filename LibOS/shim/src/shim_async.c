@@ -130,6 +130,10 @@ int init_async(void) {
     async_helper_state = HELPER_NOTALIVE;
     create_lock(&async_helper_lock);
     create_event(&install_new_event);
+
+    /* enable locking mechanisms since we are going in multi-threaded mode */
+    enable_locking();
+
     return 0;
 }
 
