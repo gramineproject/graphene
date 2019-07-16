@@ -54,28 +54,17 @@ else
 $(special_executables) $(c_executables) $(cxx_executables):
 endif
 
-PYTHONENV="PYTHONPATH=../../../../Scripts"
+export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
+export PAL_SEC = $(RUNTIME)/pal_sec-$(PAL_HOST)
+export PYTHONPATH=../../../../Scripts
 
-ifeq ($(SGX_RUN),1)
-	PYTHONENV += "TIMEOUT=20000"
-endif
-
-# 30_sigaltstack.py fails because sigaltstack isn't correctly implemented.
-BLOCKED_TESTS = \
-	30_sigaltstack.py
-get_tests = $(filter-out $(BLOCKED_TESTS),$(wildcard $(1)))
 .PHONY: regression
 regression: $(target)
-	@echo "\n\nBasic Bootstrapping:"
-	@for f in $(call get_tests,00_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
-	@echo "\n\nSyscall Support:"
-	@for f in $(call get_tests,30_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
-	@echo "\n\nFile System Support:"
-	@for f in $(call get_tests,40_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
-	@echo "\n\nSocket Support:"
-	@for f in $(call get_tests,80_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
-	@echo "\n\nLarge File Support:"
-	@for f in $(call get_tests,90_*.py); do env $(PYTHONENV) python3 $$f $(RUNTIME)/pal-$(PAL_HOST) || exit $$?; done
+	$(RM) libos-regression.xml
+	$(MAKE) libos-regression.xml
+
+libos-regression.xml:
+	python3 -m pytest --junit-xml $@ -v test_libos.py
 
 .PHONY: clean-tmp
 clean-tmp:
