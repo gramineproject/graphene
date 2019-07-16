@@ -307,7 +307,9 @@ void signal_io (IDTYPE target, void *arg)
     if (!thread)
         return;
 
+    lock(&thread->lock);
     append_signal(thread, SIGIO, NULL, true);
+    unlock(&thread->lock);
 }
 
 int shim_do_ioctl (int fd, int cmd, unsigned long arg)
