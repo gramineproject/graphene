@@ -11,39 +11,19 @@ import string
 import subprocess
 import unittest
 
+from regression import (
+    HAS_SGX,
+    RegressionTestCase,
+    SandboxTestCase,
+    expectedFailureIf,
+)
+
 CPUINFO_FLAGS_WHITELIST = [
     'fpu', 'vme', 'de', 'pse', 'tsc', 'msr', 'pae', 'mce', 'cx8', 'apic', 'sep',
     'mtrr', 'pge', 'mca', 'cmov', 'pat', 'pse36', 'pn', 'clflush', 'dts',
     'acpi', 'mmx', 'fxsr', 'sse', 'sse2', 'ss', 'ht', 'tm', 'ia64', 'pbe',
 ]
 
-HAS_SGX = os.environ.get('SGX_RUN') == '1'
-def expectedFailureIf(predicate):
-    if predicate:
-        return unittest.expectedFailure
-    return lambda func: func
-
-class RegressionTestCase(unittest.TestCase):
-    LOADER = os.environ['PAL_LOADER']
-    def get_manifest(self, filename):
-        return filename + '.manifest' + ('.sgx' if HAS_SGX else '')
-
-    def run_binary(self, args, **kwds):
-        kwds.setdefault('timeout', 10)
-        if not pathlib.Path(self.LOADER).exists():
-            self.skipTest('loader ({}) not found'.format(self.LOADER))
-        try:
-            proc = subprocess.run([self.LOADER, *args],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                preexec_fn=os.setpgrp,
-                **kwds)
-        except subprocess.TimeoutExpired:
-            self.fail('timeout ({} s) expired'.format(kwds['timeout']))
-        proc.check_returncode()
-        return proc.stdout.decode(), proc.stderr.decode()
-
-class SandboxTestCase(RegressionTestCase):
-    LOADER = os.environ['PAL_SEC']
 
 class TC_00_AtomicMath(RegressionTestCase):
     def test_000_atomic_math(self):
@@ -241,11 +221,8 @@ class TC_10_Exception(RegressionTestCase):
 
 class TC_20_SingleProcess(RegressionTestCase):
     def test_000_exit_code(self):
-        try:
+        with self.expect_returncode(112):
             self.run_binary(['Exit'])
-            self.fail('did not return 112')
-        except subprocess.CalledProcessError as e:
-            self.assertEqual(e.returncode, 112, 'did not return 112')
 
     def test_100_file(self):
         try:
@@ -642,4 +619,4 @@ class TC_40_AVXDisable(RegressionTestCase):
         stdout, stderr = self.run_binary(['AvxDisable'])
         self.assertIn('Illegal instruction executed in enclave', stderr)
 
-# vim: ts=4 sts=4 sw=4 et
+# vim: tw=80 ts=4 sts=4 sw=4 et
