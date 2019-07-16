@@ -234,7 +234,7 @@ enclave_entry:
 	#
 	# On host async signal we treat these cases as follows:
 	# A. right-before EEXIT(0. - 4. in above sequence):
-	#	 - set PAL_ERROR_INTERRUPTED and forward %rip to exception handler
+	#	 - set EINTR and forward %rip to exception handler
 	# B. during untrusted PAL(5. - 6. in above sequence):
 	#	 - code in _DkTerminateSighandler() must handle this case
 	#	 TODO: fix _DkTerminateSighandler() to not lose the result of successful
@@ -256,11 +256,11 @@ enclave_entry:
 
 	# Case A. We are right-before EEXIT for ocall in between
 	# [.Locall_about_to_eexit_begin, .Locall_about_to_eexit_end)
-	# Skip EEXIT as if ocall returned PAL_ERROR_INTERRUPTED.
+	# Skip EEXIT as if ocall returned EINTR.
 	# If there is registered signal handler for the current exception,
 	# _DkHandleExternalEvent() will be called (and thus we need to save
 	# %rdi = <external event>) before returning from ocall.
-	movq $-PAL_ERROR_INTERRUPTED, %rdi # return value for .Lreturn_from_ocall
+	movq $-EINTR, %rdi # return value for .Lreturn_from_ocall
 	# fallthrough to Case C.
 
 	# This code cannot land in Case B because:

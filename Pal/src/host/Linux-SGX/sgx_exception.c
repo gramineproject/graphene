@@ -212,7 +212,7 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 
     if (rip != (unsigned long) async_exit_pointer) {
         uc->uc_mcontext.gregs[REG_RIP] = (uint64_t) sgx_entry_return;
-        uc->uc_mcontext.gregs[REG_RDI] = -PAL_ERROR_INTERRUPTED;
+        uc->uc_mcontext.gregs[REG_RDI] = -EINTR;
         uc->uc_mcontext.gregs[REG_RSI] = get_event_num(signum);
     } else {
         sgx_raise(get_event_num(signum));
