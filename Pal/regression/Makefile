@@ -81,20 +81,12 @@ ifeq ($(SGX_RUN),1)
 	PYTHONENV += "TIMEOUT=20000"
 endif
 
-regression: $(call expand_target,$(target))
-	@printf "\n\nBasic Bootstrapping:\n"
-	@for f in $(wildcard 00_*.py); do env $(PYTHONENV) python3 $$f || exit $$?; done
-	@printf "\n\nException Handling:\n"
-	@for f in $(wildcard 01_*.py); do env $(PYTHONENV) python3 $$f || exit $$?; done
-	@printf "\n\nSingle-Process Functionalities:\n"
-	@for f in $(wildcard 02_*.py); do env $(PYTHONENV) python3 $$f || exit $$?; done
-	@printf "\n\nProcess Creation:\n"
-	@for f in $(wildcard 03_*.py); do env $(PYTHONENV) python3 $$f || exit $$?; done
-	@printf "\n\nMulti-Process Functionalities:\n"
-	@for f in $(wildcard 04_*.py); do env $(PYTHONENV) python3 $$f || exit $$?; done
-	@printf "\n\nReference Monitor (Optional):\n"
-	@for f in $(wildcard 05_*.py); do env $(PYTHONENV) python3 $$f || exit $$?; done
-	@printf "\n\n"
+regression:
+	$(RM) pal-regression.xml
+	$(MAKE) pal-regression.xml
+.PHONY: regression
+pal-regression.xml: test.py $(call expand_target,$(target))
+	python3 -m pytest --junit-xml $@ -v test.py
 
 .PHONY: clean
 clean:
