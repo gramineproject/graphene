@@ -574,7 +574,7 @@ send_result:
             init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, sops->client.vmid);
             resp_msg->seq = sops->client.seq;
 
-            struct shim_ipc_resp* resp = (struct shim_ipc_resp *) resp_msg->msg;
+            struct shim_ipc_resp* resp = (struct shim_ipc_resp *)resp_msg->msg;
             resp->retval = sops->stat.completed ? 0 : -EAGAIN;
 
             send_ipc_message(resp_msg, sops->client.port);
@@ -797,7 +797,7 @@ unowned:
             init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, client->vmid);
             resp_msg->seq = client->seq;
 
-            struct shim_ipc_resp* resp = (struct shim_ipc_resp *) resp_msg->msg;
+            struct shim_ipc_resp* resp = (struct shim_ipc_resp *)resp_msg->msg;
             resp->retval = ret;
 
             ret = send_ipc_message(resp_msg, client->port);
