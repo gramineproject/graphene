@@ -31,6 +31,10 @@
 
 #include <stdarg.h>
 
+#ifdef __i386__
+# error "x86-32 support is heavily broken."
+#endif
+
 typedef uint64_t ptr_t;
 # define hashfunc hash64
 
