@@ -302,7 +302,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     rv = init_enclave();
     if (rv) {
         SGX_DBG(DBG_E, "Failed to initialize enclave properties: %d\n", rv);
-        ocall_exit(rv, /*is_exitgroup*/ true);
+        ocall_exit(rv, /*is_exitgroup=*/true);
     }
 
     if (args_size > MAX_ARGS_SIZE || env_size > MAX_ENV_SIZE) {
@@ -323,7 +323,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     if (pal_sec.ppid) {
         if ((rv = init_child_process(&parent)) < 0) {
             SGX_DBG(DBG_E, "Failed to initialize child process: %d\n", rv);
-            ocall_exit(rv, /*is_exitgroup*/ true);
+            ocall_exit(rv, /*is_exitgroup=*/true);
         }
     }
 
@@ -366,7 +366,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     const char * errstring = NULL;
     if ((rv = read_config(root_config, loader_filter, &errstring)) < 0) {
         SGX_DBG(DBG_E, "Can't read manifest: %s, error code %d\n", errstring, rv);
-        ocall_exit(rv, /*is_exitgroup*/ true);
+        ocall_exit(rv, /*is_exitgroup=*/true);
     }
 
     pal_state.root_config = root_config;
