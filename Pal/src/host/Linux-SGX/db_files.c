@@ -453,81 +453,87 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 #define DIRBUF_SIZE     1024
+static inline bool is_dot_or_dotdot(const char* name) {
+    return (name[0] == '.' && !name[1]) || (name[0] == '.' && name[1] == '.' && !name[2]);
+}
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operation. */
-static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count,
-                         void * buf)
-{
-    if (offset)
+static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* _buf) {
+    size_t bytes_written = 0;
+    char* buf = (char*)_buf;
+
+    if (offset) {
         return -PAL_ERROR_INVAL;
-
-    void * dent_buf = (void *) handle->dir.buf ? : __alloca(DIRBUF_SIZE);
-    void * ptr = (void *) handle->dir.ptr;
-    void * end = (void *) handle->dir.end;
-    int bytes = 0;
-
-    if (ptr && ptr < end)
-        goto output;
-
-    do {
-        if (handle->dir.endofstream)
-            break;
-
-        int size = ocall_getdents(handle->dir.fd, dent_buf, DIRBUF_SIZE);
-
-        if (IS_ERR(size))
-            return unix_to_pal_error(ERRNO(size));
-
-        if (size == 0) {
-            handle->dir.endofstream = PAL_TRUE;
-            break;
-        }
-
-        ptr = dent_buf;
-        end = dent_buf + size;
-
-output:
-        while (ptr < end) {
-            struct linux_dirent64 * d = (struct linux_dirent64 *) ptr;
-
-            if (d->d_name[0] == '.' &&
-                (!d->d_name[1] || d->d_name[1] == '.'))
-                goto next;
-
-            bool isdir = (d->d_type == DT_DIR);
-            size_t len = strlen(d->d_name);
-            if (len + (isdir ? 2 : 1) > count)
-                break;
-
-            memcpy(buf, d->d_name, len);
-            if (isdir)
-                ((char *) buf)[len++] = '/';
-            ((char *) buf)[len++] = '\0';
-
-            bytes += len;
-            buf += len;
-            count -= len;
-next:
-            ptr += d->d_reclen;
-        }
-    } while (ptr == end);
-
-    if (ptr < end) {
-        if (!handle->dir.buf)
-            handle->dir.buf = (PAL_PTR) malloc(DIRBUF_SIZE);
-
-        if ((void *) handle->dir.buf != ptr) {
-            memmove((void *) handle->dir.buf, ptr, end - ptr);
-            end = (void *) handle->dir.buf + (end - ptr);
-            ptr = (void *) handle->dir.buf;
-        }
-
-        if (!bytes)
-            return -PAL_ERROR_OVERFLOW;
     }
 
-    return bytes ? : -PAL_ERROR_ENDOFSTREAM;
+    if (handle->dir.endofstream == PAL_TRUE) {
+        return -PAL_ERROR_ENDOFSTREAM;
+    }
+
+    while (1) {
+        while ((char*)handle->dir.ptr < (char*)handle->dir.end) {
+            struct linux_dirent64* dirent = (struct linux_dirent64*) handle->dir.ptr;
+
+            if (is_dot_or_dotdot(dirent->d_name)) {
+                goto skip;
+            }
+
+            bool is_dir = dirent->d_type == DT_DIR;
+            size_t len = strlen(dirent->d_name);
+
+            if (len + 1 + (is_dir ? 1 : 0) > count) {
+                goto out;
+            }
+
+            memcpy(buf, dirent->d_name, len);
+            if (is_dir) {
+                buf[len++] = '/';
+            }
+            buf[len++] = '\0';
+
+            buf += len;
+            bytes_written += len;
+            count -= len;
+skip:
+            handle->dir.ptr = (char*)handle->dir.ptr + dirent->d_reclen;
+        }
+
+        if (!count) {
+            /* No space left, returning */
+            goto out;
+        }
+
+        if (!handle->dir.buf) {
+            handle->dir.buf = (PAL_PTR)malloc(DIRBUF_SIZE);
+            if (!handle->dir.buf) {
+                return -PAL_ERROR_NOMEM;
+            }
+        }
+
+        int size = ocall_getdents(handle->dir.fd, handle->dir.buf, DIRBUF_SIZE);
+        if (IS_ERR(size)) {
+            /*
+             * If something was written just return that and pretend no error
+             * was seen - it will be caught next time.
+             */
+            if (bytes_written) {
+                return bytes_written;
+            }
+            return unix_to_pal_error(ERRNO(size));
+        }
+
+        if (!size) {
+            handle->dir.endofstream = PAL_TRUE;
+            goto out;
+        }
+
+        handle->dir.ptr = handle->dir.buf;
+        handle->dir.end = (char*)handle->dir.buf + size;
+    }
+
+out:
+    return (int64_t)bytes_written ? : -PAL_ERROR_ENDOFSTREAM;
 }
 
 /* 'close' operation of directory streams */
