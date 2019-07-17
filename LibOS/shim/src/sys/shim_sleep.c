@@ -35,9 +35,15 @@
 static bool signal_pending (void)
 {
     struct shim_thread* cur = get_cur_thread();
-
-    if (!cur || !cur->signal_logs || !cur->has_signal.counter)
+    if (!cur)
         return false;
+
+    lock(&cur->lock);
+
+    if (!cur->signal_logs || !cur->has_signal.counter) {
+        unlock(&cur->lock);
+        return false;
+    }
 
     for (int sig = 1; sig <= NUM_SIGS; sig++) {
         if (atomic_read(&cur->signal_logs[sig - 1].head) !=
@@ -45,11 +51,13 @@ static bool signal_pending (void)
             /* at least one signal of type sig... */
             if (!__sigismember(&cur->signal_mask, sig)) {
                 /* ...and this type is not blocked  */
+                unlock(&cur->lock);
                 return true;
             }
         }
     }
 
+    unlock(&cur->lock);
     return false;
 }
 
