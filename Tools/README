@@ -20,13 +20,11 @@ docker run -i -t -p 6379:6379 redis:latest
 
 To launch a GSC container running redis, simply change docker to "./gsce", i.e., the user runs the command as follows.
 
-./gsce run -i -t -p 6379:6379 redis:latest
-
+./gsce run -i -t -p 6379:6379 redis:latest=
 --------------------------------
-
 Setting up the Dockerfile: 
 
-If running a C++ for example your Dockerfile should have the following:
+If running a C++ example your Dockerfile should have the following:
 ```docker
 FROM gcc:9.1
 
@@ -41,9 +39,7 @@ RUN g++ -o app sourcefile.cpp -std=c++11
 CMD ["./app"]
 ```
 Note: If GSC has issues finding your program and it is added under the trusted files, it is possible your path has a typo or is incorrect. 
-
 --------------------------------
-
 Issues You May Encounter
 1) Graphene is having trouble handling the symbolic links in graphene/Runtime
 	- For some reason graphene doesn't read symbolic links in certain instances. You will need to replace all of the links with a copy of the actual files with the same name to the Runtime folder. Rather than doing this manually (more painful than you may think) use this trick: 
@@ -62,7 +58,7 @@ Issues You May Encounter
 	- Edit the gen_manifest python script and add your trusted files inside of the df.write. 
 	- The names for the sgx trusted files are arbitrary but need to be unique or overlap issues will occur when signing the enclaves 
 7) /lib64/ld-linux-x86-64.so.2: version 'SHIM' not found (required by libc.so.6)
-    - This issue and its variations are usually related to incompatible gcc or g++ versions. Graphene might not support the latest release. Run `echo $LD_LIBRARY_PATH`
+    - Run `echo $LD_LIBRARY_PATH` and check for a trailing colon at the end of this path
 8) "bad_alloc" or "st9_alloc" 
 	- Your enclave size is too small (default is 256M). Try adding the line: `sgx.enclave_size = 1G` (Size must be a power of 2)
 9) Cannot connect to AESMD service (socket cannot connect)
