@@ -497,8 +497,11 @@ static_always_inline size_t get_ipc_msg_size(size_t payload) {
 }
 
 static_always_inline size_t get_ipc_msg_duplex_size(size_t payload) {
-    return get_ipc_msg_size(payload) +
-        (sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg));
+    assert(sizeof(struct shim_ipc_msg_duplex) > sizeof(struct shim_ipc_msg));
+    size_t size = sizeof(struct shim_ipc_msg) + payload;
+    size_t base_size = (size > IPC_MSG_MINIMAL_SIZE) ? size : IPC_MSG_MINIMAL_SIZE;
+    size_t add_size  = sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg);
+    return base_size + add_size;
 }
 
 void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest);
