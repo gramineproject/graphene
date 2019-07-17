@@ -22,6 +22,7 @@ pipeline {
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/ltp
+                            git submodule update --init src
                             make
                             ./syscalls.sh
                             '''
