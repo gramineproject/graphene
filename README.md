@@ -145,14 +145,13 @@ __** Please make sure the GCC version is either 4 or 5 **__
     (The console will be prompted to ask for the path of Intel SGX driver code)
     sudo ./load.sh
 
-Note: if you get an error concerning "Mod probe isgx.ko not found" or "could not insert module isgx.ko: Invalid module format" after running the above steps, you need to rebuild the SGX-Drivers even if you have already built the driver prior otherwise you will have an issue running Aesmd.Service. 
+Note: if you get an error concerning "Mod probe isgx.ko not found" or "could not insert module isgx.ko: Invalid module format" after running the above steps, you need to rebuild the SGX-Drivers even if you have already built the driver prior otherwise you will have an issue running aesmd service (Linux daemon to communicate with Launch enclave and other SGX-related services).
 
-If you continue to get errors regarding "isgx.ko" or "graphene-sgx.ko" run the following commands repectivley:
+If you continue to get errors regarding "isgx.ko" or "graphene-sgx.ko" run the following commands respectively:
 ```bash
 	graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx -driver$ sudo insmod isgx.ko
 	graphene/Pal/src/host/Linux-SGX/sgx-driver$ sudo insmod graphene-sgx.ko
 ```
- 
 #### 2.1.2 Building Graphene-SGX
 
 To build Graphene Library OS with Intel SGX support, in the root directory of Graphene repo, run following command:
@@ -167,13 +166,12 @@ Using "make SGX=1" in the test or regression directory will automatically genera
 
 #### 2.1.3 Including Application Test Cases
 
-To add the application test cases (reccomended), issue the following command from the root
+To add the application test cases (recommended), issue the following command from the root
 of the source tree:
 
     git submodule update --init -- LibOS/shim/test/apps/
 
-Testing the included apps in Graphene:
-**Please refer to this wiki page for the full list and the current official instructions for all apps: ** 
+Please refer to this wiki page for the full list and the current official instructions for all apps: 
 https://github.com/oscarlab/graphene/wiki/Run-Applications-with-SGX
 
 #### 2.1.3 Run Built-in Examples in Graphene-SGX
@@ -208,7 +206,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
 (3) Running C in Graphene
-- First make an executable for your C program using GCC 4 or 5 Next do the following:
+- First make an executable for your C program using GCC. Next do the following:
      1. Go to the gcc apps folder: `cd LibOS/shim/test/apps/gcc`
      2. Copy one of the other manifest.template files and rename it `yourfile.manifest.template`
      3. Inside of this document, leave everything the same except for the sgx.trusted_children and sgx.trusted_files, adding whatever dependencies and files are necessary for your executable. 
@@ -240,7 +238,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
             rm -f yourfile.manifest.sgx *.sig *.token
         ```
 
-    4. Inside of this document, leave everything the same except for the sgx.trusted_children and sgx.trusted_files, adding whatever dependencies and files are necessary for your executable. 
+    4. Inside of this file, leave everything the same except for the sgx.trusted_children and sgx.trusted_files, adding whatever dependencies and files are necessary for your executable. 
      5. run `make && make SGX=1 && make SGX_RUN=1`
      6. then run ` SGX=1 ./yourfile.manifest`
      
