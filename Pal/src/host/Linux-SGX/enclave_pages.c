@@ -158,7 +158,6 @@ static void * found_area(void * addr, size_t size, struct heap_vma * prev)
     if (!vma) {
         vma = malloc(sizeof(struct heap_vma));
         if (!vma) {
-            _DkInternalUnlock(&heap_vma_lock);
             return NULL;
         }
         vma->top = addr + size;
