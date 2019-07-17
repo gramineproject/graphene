@@ -1,9 +1,9 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 int main(int argc, const char** argv, const char** envp) {
     pid_t child_pid;
@@ -11,12 +11,21 @@ int main(int argc, const char** argv, const char** envp) {
     /* duplicate STDOUT into newfd and pass it as exec_victim argument
      * (it will be inherited by exec_victim) */
     int newfd = dup(1);
-    char fd_argv[4];
-    snprintf(fd_argv, 4, "%d", newfd);
+    if (newfd < 0) {
+        perror("dup failed");
+        return 1;
+    }
+
+    char fd_argv[12];
+    snprintf(fd_argv, 12, "%d", newfd);
     char* const new_argv[] = {"./exec_victim", fd_argv, NULL};
 
     /* set environment variable to test that it is inherited by exec_victim */
-    setenv("IN_EXECVE", "1", 1);
+    int ret = setenv("IN_EXECVE", "1", 1);
+    if (ret < 0) {
+        perror("setenv failed");
+        return 1;
+    }
 
     child_pid = vfork();
 
