@@ -665,6 +665,14 @@ noreturn static void shim_ipc_helper(void* dummy) {
     palhandle_list[0] = install_new_event_hdl;
 
     while (true) {
+        lock(&ipc_helper_lock);
+        if (ipc_helper_state != HELPER_ALIVE) {
+            ipc_helper_thread = NULL;
+            unlock(&ipc_helper_lock);
+            break;
+        }
+        unlock(&ipc_helper_lock);
+
         struct shim_ipc_port* polled_port = NULL;
 
         if (polled == install_new_event_hdl) {
@@ -724,11 +732,6 @@ noreturn static void shim_ipc_helper(void* dummy) {
             put_ipc_port(object_list[i]);
 
         lock(&ipc_helper_lock);
-        if (ipc_helper_state != HELPER_ALIVE) {
-            ipc_helper_thread = NULL;
-            unlock(&ipc_helper_lock);
-            break;
-        }
 
         /* iterate through all ports to repopulate object_list */
         object_list_size = 0;
