@@ -94,7 +94,7 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_PID_KILL, total_msg_size, dest);
 
-    struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill *) &msg->msg;
+    struct shim_ipc_pid_kill* msgin = (struct shim_ipc_pid_kill *)&msg->msg;
     msgin->sender = sender;
     msgin->type   = type;
     msgin->id     = target;
@@ -103,9 +103,8 @@ int ipc_pid_kill_send(IDTYPE sender, IDTYPE target, enum kill_type type, int sig
     if (type == KILL_ALL) {
         debug("IPC broadcast: IPC_PID_KILL(%u, %d, %u, %d)\n",
               sender, type, target, signum);
-        ret = broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, /*exclude_port*/ NULL);
-    }
-    else {
+        ret = broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, /*exclude_port=*/NULL);
+    } else {
         debug("IPC send to %u: IPC_PID_KILL(%u, %d, %u, %d)\n",
               dest & 0xFFFF, sender, type, target, signum);
         ret = send_ipc_message(msg, port);
