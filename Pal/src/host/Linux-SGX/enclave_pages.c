@@ -177,8 +177,6 @@ static void * found_area(void * addr, size_t size, struct heap_vma * prev)
     }
     assert_vma_list();
 
-    _DkInternalUnlock(&heap_vma_lock);
-
     atomic_add(size / pgsz, &alloced_pages);
     return addr;
 }
@@ -223,7 +221,9 @@ void * get_reserved_pages(void * addr, size_t size)
                 break;
             prev = vma;
         }
-        return found_area(addr, size, prev);
+        void * ret = found_area(addr, size, prev);
+        _DkInternalUnlock(&heap_vma_lock);
+        return ret;
     }
 
     if (addr) {
@@ -236,7 +236,9 @@ void * get_reserved_pages(void * addr, size_t size)
     LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
         if ((size_t)(avail_top - vma->top) > size) {
             addr = avail_top - size;
-            return found_area(addr, size, prev);
+            void * ret = found_area(addr, size, prev);
+            _DkInternalUnlock(&heap_vma_lock);
+            return ret;
         }
         prev = vma;
         avail_top = prev->bottom;
@@ -244,7 +246,9 @@ void * get_reserved_pages(void * addr, size_t size)
 
     if (avail_top >= heap_base + size) {
         addr = avail_top - size;
-        return found_area(addr, size, prev);
+        void * ret = found_area(addr, size, prev);
+        _DkInternalUnlock(&heap_vma_lock);
+        return ret;
     }
 
     _DkInternalUnlock(&heap_vma_lock);
