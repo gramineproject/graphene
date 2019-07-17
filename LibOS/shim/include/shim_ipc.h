@@ -497,7 +497,7 @@ static_always_inline size_t get_ipc_msg_size(size_t payload) {
 }
 
 static_always_inline size_t get_ipc_msg_duplex_size(size_t payload) {
-    assert(sizeof(struct shim_ipc_msg_duplex) > sizeof(struct shim_ipc_msg));
+    assert(sizeof(struct shim_ipc_msg_duplex) >= sizeof(struct shim_ipc_msg));
     return get_ipc_msg_size(payload) +
         (sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg));
 }
