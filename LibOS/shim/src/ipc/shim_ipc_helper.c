@@ -44,8 +44,7 @@ static MEM_MGR port_mgr;
 DEFINE_LISTP(shim_ipc_port);
 static LISTP_TYPE(shim_ipc_port) port_list;
 
-/* can be read without ipc_helper_lock but always written with lock held */
-static enum {  HELPER_NOTALIVE, HELPER_ALIVE } ipc_helper_state;
+static enum { HELPER_NOTALIVE, HELPER_ALIVE } ipc_helper_state;
 
 static struct shim_thread* ipc_helper_thread;
 static struct shim_lock    ipc_helper_lock;
@@ -95,7 +94,7 @@ static int init_self_ipc_port(void) {
 
     if (!cur_process.self) {
         /* very first process or clone/fork case: create IPC port from scratch */
-        cur_process.self = create_ipc_info_cur_process(/*is_self_ipc_info*/ true);
+        cur_process.self = create_ipc_info_cur_process(/*is_self_ipc_info=*/true);
         if (!cur_process.self) {
             unlock(&cur_process.lock);
             return -EACCES;
@@ -107,7 +106,7 @@ static int init_self_ipc_port(void) {
         add_ipc_port_by_id(cur_process.self->vmid,
                            cur_process.self->pal_handle,
                            IPC_PORT_SERVER,
-                           /* fini callback */ NULL,
+                           /*fini=*/NULL,
                            &cur_process.self->port);
     }
 
@@ -135,7 +134,7 @@ static int init_parent_ipc_port(void) {
     add_ipc_port_by_id(cur_process.parent->vmid,
                        cur_process.parent->pal_handle,
                        IPC_PORT_DIRPRT | IPC_PORT_LISTEN,
-                       /* fini callback */ NULL,
+                       /*fini=*/NULL,
                        &cur_process.parent->port);
 
     unlock(&cur_process.lock);
@@ -170,7 +169,7 @@ static int init_ns_ipc_port(int ns_idx) {
     add_ipc_port_by_id(cur_process.ns[ns_idx]->vmid,
                        cur_process.ns[ns_idx]->pal_handle,
                        type | IPC_PORT_LISTEN,
-                       /* fini callback */ NULL,
+                       /*fini=*/NULL,
                        &cur_process.ns[ns_idx]->port);
 
     unlock(&cur_process.lock);
@@ -271,11 +270,14 @@ static void __add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid,
 
     /* find empty slot in fini callbacks and register callback */
     if (fini) {
+        bool found_empty_slot = false;
         for (int i = 0; i < MAX_IPC_PORT_FINI_CB; i++)
             if (!port->fini[i] || port->fini[i] == fini) {
                 port->fini[i] = fini;
+                found_empty_slot = true;
                 break;
             }
+        assert(found_empty_slot);
     }
 
     /* add to port list if not there already */
@@ -305,7 +307,7 @@ static void __del_ipc_port(struct shim_ipc_port* port) {
         msg->retval = -ECONNRESET;
         if (msg->thread) {
             debug("Deleted pending message on port %p, wake up blocking thread %d\n",
-                    port, msg->thread->tid);
+                  port, msg->thread->tid);
             thread_wakeup(msg->thread);
         }
     }
@@ -384,8 +386,10 @@ void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode) {
     unlock(&ipc_helper_lock);
 
     for (int i = 0; i < MAX_IPC_PORT_FINI_CB; i++)
-        if (port->fini[i])
+        if (port->fini[i]) {
             (port->fini[i])(port, port->vmid, exitcode);
+            port->fini[i] = NULL;
+        }
 
     __put_ipc_port(port);
 }
@@ -410,7 +414,7 @@ struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type) {
     struct shim_ipc_port* tmp;
     LISTP_FOR_EACH_ENTRY(tmp, &port_list, list) {
         if (tmp->vmid == vmid && (tmp->type & type)) {
-            debug("found port %p (handle %p) for process %u (type %04x)\n",
+            debug("Found port %p (handle %p) for process %u (type %04x)\n",
                   tmp, tmp->pal_handle, tmp->vmid & 0xFFFF, tmp->type);
             port = tmp;
             __get_ipc_port(port);
@@ -422,34 +426,36 @@ struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type) {
     return port;
 }
 
+#define PORTS_ON_STACK_CNT 32
+
 int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_port* exclude_port) {
     int ret;
     struct shim_ipc_port* port;
     struct shim_ipc_port** target_ports;
-    int target_ports_cnt = 0;
+    size_t target_ports_cnt = 0;
 
     assert(target_type);
     lock(&ipc_helper_lock);
 
     /* Collect all ports with appropriate types. In common case, stack-allocated
-     * array of 32 ports is enough. If there are more ports, we will allocate
-     * a bigger array on the heap and collect all ports again. */
-    struct shim_ipc_port* target_ports_stack[32];
+     * array of PORTS_ON_STACK_CNT ports is enough. If there are more ports, we
+     * will allocate a bigger array on the heap and collect all ports again. */
+    struct shim_ipc_port* target_ports_stack[PORTS_ON_STACK_CNT];
     LISTP_FOR_EACH_ENTRY(port, &port_list, list) {
         if (port == exclude_port)
             continue;
         if (port->type & target_type) {
-            if (target_ports_cnt < 32)
+            if (target_ports_cnt < PORTS_ON_STACK_CNT)
                 target_ports_stack[target_ports_cnt] = port;
             target_ports_cnt++;
         }
     }
     target_ports = target_ports_stack;
 
-    if (target_ports_cnt > 32) {
-        /* Rare case when there are more than 32 ports. Allocate big-enough
-         * array on the heap and collect all ports again. */
-        int cnt = 0;
+    if (target_ports_cnt > PORTS_ON_STACK_CNT) {
+        /* Rare case when there are more than PORTS_ON_STACK_CNT ports. Allocate
+         * big-enough array on the heap and collect all ports again. */
+        size_t cnt = 0;
         struct shim_ipc_port** target_ports_heap =
             malloc(sizeof(struct shim_ipc_port *) * target_ports_cnt);
 
@@ -463,13 +469,13 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
         assert(cnt == target_ports_cnt);
     }
 
+    for (size_t i = 0; i < target_ports_cnt; i++)
+        __get_ipc_port(target_ports[i]);
+
     unlock(&ipc_helper_lock);
 
-    for (int i = 0; i < target_ports_cnt; i++)
-        get_ipc_port(target_ports[i]);
-
     /* send msg to each collected port (note that ports cannot be freed in meantime) */
-    for (int i = 0; i < target_ports_cnt; i++) {
+    for (size_t i = 0; i < target_ports_cnt; i++) {
         port = target_ports[i];
 
         debug("Broadcast to port %p (handle %p) for process %u (type %x, target %x)\n",
@@ -479,14 +485,14 @@ int broadcast_ipc(struct shim_ipc_msg* msg, int target_type, struct shim_ipc_por
         ret = send_ipc_message(msg, port);
         if (ret < 0) {
             debug("Broadcast to port %p (handle %p) for process %u failed (errno = %d)!\n",
-                    port, port->pal_handle, port->vmid & 0xFFFF, ret);
+                  port, port->pal_handle, port->vmid & 0xFFFF, ret);
             goto out;
         }
     }
 
     ret = 0;
 out:
-    for (int i = 0; i < target_ports_cnt; i++)
+    for (size_t i = 0; i < target_ports_cnt; i++)
         put_ipc_port(target_ports[i]);
     if (target_ports != target_ports_stack)
         free(target_ports);
@@ -503,7 +509,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     /* find a corresponding request msg for this response msg */
     struct shim_ipc_msg_duplex* req_msg = pop_ipc_msg_duplex(port, msg->seq);
 
-    /* if some thread waits for response, wake it up with response retval */
+    /* if some thread is waiting for response, wake it with response retval */
     if (req_msg) {
         req_msg->retval = resp->retval;
         if (req_msg->thread)
@@ -514,7 +520,7 @@ static int ipc_resp_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
     return resp->retval;
 }
 
-int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, uint64_t seq) {
+int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, unsigned long seq) {
     ret = (ret == RESPONSE_CALLBACK) ? 0 : ret;
 
     /* create IPC_RESP msg to send to dest, with sequence number seq, and in-body retval ret */
@@ -523,7 +529,7 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
     init_ipc_msg(resp_msg, IPC_RESP, total_msg_size, dest);
     resp_msg->seq = seq;
 
-    struct shim_ipc_resp* resp = (struct shim_ipc_resp *) resp_msg->msg;
+    struct shim_ipc_resp* resp = (struct shim_ipc_resp *)resp_msg->msg;
     resp->retval = ret;
 
     debug("IPC send to %u: IPC_RESP(%d)\n", resp_msg->dst & 0xFFFF, ret);
@@ -532,12 +538,12 @@ int send_response_ipc_message(struct shim_ipc_port* port, IDTYPE dest, int ret, 
 
 static int receive_ipc_message(struct shim_ipc_port* port) {
     int ret;
-    int readahead = IPC_MSG_MINIMAL_SIZE * 2;
-    int bufsize = IPC_MSG_MINIMAL_SIZE + readahead;
+    size_t readahead = IPC_MSG_MINIMAL_SIZE * 2;
+    size_t bufsize = IPC_MSG_MINIMAL_SIZE + readahead;
 
     struct shim_ipc_msg* msg = malloc(bufsize);
-    int expected_size = IPC_MSG_MINIMAL_SIZE;
-    int bytes = 0;
+    size_t expected_size = IPC_MSG_MINIMAL_SIZE;
+    size_t bytes = 0;
 
     do {
         while (bytes < expected_size) {
@@ -551,8 +557,8 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
                 msg = tmp_buf;
             }
 
-            int read = DkStreamRead(port->pal_handle, /*offset*/ 0, expected_size - bytes + readahead,
-                                     (void *) msg + bytes, NULL, 0);
+            size_t read = DkStreamRead(port->pal_handle, /*offset=*/0, expected_size - bytes + readahead,
+                                       (void *) msg + bytes, NULL, 0);
 
             if (!read) {
                 if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
@@ -578,13 +584,13 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
         if (msg->src != cur_process.vmid) {
             if (msg->code < IPC_CODE_NUM && ipc_callbacks[msg->code]) {
                 /* invoke callback to this msg */
-                ret = (*ipc_callbacks[msg->code]) (msg, port);
+                ret = (*ipc_callbacks[msg->code])(msg, port);
                 if ((ret < 0 || ret == RESPONSE_CALLBACK) && msg->seq) {
                     /* send IPC_RESP message to sender of this msg */
                     ret = send_response_ipc_message(port, msg->src, ret, msg->seq);
                     if (ret < 0) {
                         debug("Sending IPC_RESP msg on port %p (handle %p) to %u failed\n",
-                                port, port->pal_handle, msg->src & 0xFFFF);
+                              port, port->pal_handle, msg->src & 0xFFFF);
                         ret = -PAL_ERRNO;
                         goto out;
                     }
@@ -597,7 +603,7 @@ static int receive_ipc_message(struct shim_ipc_port* port) {
         if (bytes > 0) {
             /* we may have started reading the next message, move this message
              * to beginning of msg buffer and reset expected size */
-            memmove(msg, (void *) msg + expected_size, bytes);
+            memmove(msg, (void *)msg + expected_size, bytes);
             expected_size = IPC_MSG_MINIMAL_SIZE;
             if (bytes >= IPC_MSG_MINIMAL_SIZE)
                 expected_size = msg->size;
@@ -642,7 +648,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
     /* Initialize two lists:
      * - object_list collects IPC port objects and is the main handled list
      * - palhandle_list collects corresponding PAL handles of IPC port objects
-     *   and is needed for DkObjectsWaitAny(.., <arrya-of-PAL-handles>, ..)
+     *   and is needed for DkObjectsWaitAny(.., <array-of-PAL-handles>, ..)
      *   interface; palhandle_list always contains at least install_new_event
      *
      * We allocate these two lists on the heap so they do not overflow the
@@ -658,7 +664,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
     PAL_HANDLE install_new_event_hdl = event_handle(&install_new_event);
     palhandle_list[0] = install_new_event_hdl;
 
-    while (ipc_helper_state == HELPER_ALIVE) {
+    while (true) {
         struct shim_ipc_port* polled_port = NULL;
 
         if (polled == install_new_event_hdl) {
@@ -702,24 +708,27 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
                     if (attr.disconnected) {
                         debug("Port %p (handle %p) disconnected\n",
-                                polled_port, polled_port->pal_handle);
+                              polled_port, polled_port->pal_handle);
                         del_ipc_port_fini(polled_port, -ECONNRESET);
                     }
                 } else {
                     debug("Port %p (handle %p) was removed during attr querying\n",
-                            polled_port, polled_port->pal_handle);
+                          polled_port, polled_port->pal_handle);
                     del_ipc_port_fini(polled_port, -PAL_ERRNO);
                 }
             }
         }
 
         /* done handling ports; put their references so they can be freed */
-        for (size_t i = 0; i < object_list_size; i++) {
-            struct shim_ipc_port* port = object_list[i];
-            put_ipc_port(port);
-        }
+        for (size_t i = 0; i < object_list_size; i++)
+            put_ipc_port(object_list[i]);
 
         lock(&ipc_helper_lock);
+        if (ipc_helper_state != HELPER_ALIVE) {
+            ipc_helper_thread = NULL;
+            unlock(&ipc_helper_lock);
+            break;
+        }
 
         /* iterate through all ports to repopulate object_list */
         object_list_size = 0;
@@ -729,14 +738,14 @@ noreturn static void shim_ipc_helper(void* dummy) {
             /* get port reference so it is not freed while we wait on/handle it */
             __get_ipc_port(port);
 
-            /* grow object_list and palhandle_list to accomodate more objects */
             if (object_list_size == object_list_maxsize) {
+                /* grow object_list and palhandle_list to accomodate more objects */
                 struct shim_ipc_port** tmp_array = malloc(
                         sizeof(struct shim_ipc_port *) * (object_list_maxsize * 2));
                 PAL_HANDLE* tmp_pal_array = malloc(
                         sizeof(PAL_HANDLE) * (1 + object_list_maxsize * 2));
                 memcpy(tmp_array, object_list,
-                        sizeof(struct shim_ipc_port *) * (object_list_maxsize));
+                        sizeof(struct shim_ipc_port *) * (object_list_size));
                 memcpy(tmp_pal_array, palhandle_list,
                         sizeof(PAL_HANDLE) * (1 + object_list_size));
                 object_list_maxsize *= 2;
@@ -759,23 +768,15 @@ noreturn static void shim_ipc_helper(void* dummy) {
 
         /* wait on collected ports' PAL handles + install_new_event_hdl */
         polled = DkObjectsWaitAny(object_list_size + 1, palhandle_list, NO_TIMEOUT);
-        /* ensure that while loop breaks on ipc_helper_state change */
-        COMPILER_BARRIER();
     }
 
     /* IPC thread exits; put acquired port references so they can be freed */
-    for (size_t i = 0; i < object_list_size; i++) {
-        struct shim_ipc_port* port = object_list[i];
-        put_ipc_port(port);
-    }
+    for (size_t i = 0; i < object_list_size; i++)
+        put_ipc_port(object_list[i]);
 
     free(object_list);
     free(palhandle_list);
 
-    lock(&ipc_helper_lock);
-    ipc_helper_state = HELPER_NOTALIVE;
-    ipc_helper_thread = NULL;
-    unlock(&ipc_helper_lock);
     put_thread(self);
     debug("IPC helper thread terminated\n");
 
@@ -799,6 +800,7 @@ static void shim_ipc_helper_prepare(void* arg) {
     void* stack = allocate_stack(IPC_HELPER_STACK_SIZE, allocsize, false);
 
     if (notme || !stack) {
+        free(stack);
         put_thread(self);
         DkThreadExit();
         return;
@@ -827,10 +829,11 @@ static int create_ipc_helper(void) {
     PAL_HANDLE handle = thread_create(shim_ipc_helper_prepare, new);
 
     if (!handle) {
+        int ret = -PAL_ERRNO;  /* put_thread() may overwrite errno */
         ipc_helper_thread = NULL;
         ipc_helper_state = HELPER_NOTALIVE;
         put_thread(new);
-        return -PAL_ERRNO;
+        return ret;
     }
 
     new->pal_handle = handle;
