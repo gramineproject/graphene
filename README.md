@@ -149,8 +149,8 @@ Note: if you get an error concerning "Mod probe isgx.ko not found" or "could not
 
 If you continue to get errors regarding "isgx.ko" or "graphene-sgx.ko" run the following commands respectively:
 ```bash
-	graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx -driver$ sudo insmod isgx.ko
-	graphene/Pal/src/host/Linux-SGX/sgx-driver$ sudo insmod graphene-sgx.ko
+	<your-directory-with-linux-sgx-driver>$ sudo insmod isgx.ko
+	<your-directory-with-sgx-driver>$ sudo insmod graphene-sgx.ko
 ```
 #### 2.1.2 Building Graphene-SGX
 
@@ -205,17 +205,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
-(3) Running C in Graphene
-- First make an executable for your C program using GCC. Next do the following:
-     1. Go to the gcc apps folder: `cd LibOS/shim/test/apps/gcc`
-     2. Copy one of the other manifest.template files and rename it `yourfile.manifest.template`
-     3. Inside of this document, leave everything the same except for the sgx.trusted_children and sgx.trusted_files, adding whatever dependencies and files are necessary for your executable. 
-     4. Add the executable to the make file on line 3 under "exec_target" inside the parameters
-     5. Run `make && make SGX=1 && make SGX_RUN=1`
-- To run the file with SGX support:
-     6. Run `sudo SGX=1 ./yourfile.manifest`
-
-(4) Running a binary/executable in Graphene
+(3) Running your own binary/executable in Graphene
 - Binaries and executables are significantly more time-intensive to use inside Graphene. A general outline of the steps needed are as follows:
     1. cd into  `LibOS/shim/test/apps/`
     2. create a new directory for your application
@@ -254,12 +244,6 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
      * You can add an entire directory to trusted/allowed files by typing file:directory with no slash at the end.
      * Trusted children will need to have their own signatures and tokens. This requires creating a manifest for those files as well, and they will also need to be added to the Makefile.
      * Arguments can be passed normally after the .manifest in terminal.
-
-(5) Testing your own files in Graphene
-- The simplest way to test your own code in Graphene is go into an apps folder (i.e.: apps/python) and run: `make SGX=1 clean`. 
-- Then go into the helloworld.py and add your own code. If you are using custom libraries and you are having issues add them to your trusted files in your "python.manifest.template" in your apps folder. If shared libary objects are still having issues loading. Place their ".so" files in graphene/Runtime
-- If you want to add your own file/executable what you need to add your executable/file, add it to the manifest as a sgx.trusted_files.(insert unique name here): file:(insert absolute path here). 
-    Then simply run `make SGX=1 && SGX_RUN=1` then run `./python.manifest.sgx scripts/yourProgramName.py`
 
 ## 3. HOW TO DEBUG AND HANDLE ERRORS
 ***THE MOST IMPORTANT THING WHEN DEBUGGING:***
