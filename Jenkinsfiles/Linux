@@ -12,7 +12,6 @@ pipeline {
                 }
                 stage('Test') {
                     steps {
-                        sh 'pip3 install -r Jenkinsfiles/requirements.txt'
                         sh '''
                             cd Pal/regression
                             make regression
