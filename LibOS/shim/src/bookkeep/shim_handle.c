@@ -470,7 +470,7 @@ void close_handle (struct shim_handle * hdl)
 
     if (!opened) {
         if (hdl->type == TYPE_DIR) {
-            struct shim_dir_handle * dir = &hdl->info.dir;
+            struct shim_dir_handle * dir = &hdl->dir_info;
 
             if (dir->dot) {
                 put_dentry(dir->dot);
