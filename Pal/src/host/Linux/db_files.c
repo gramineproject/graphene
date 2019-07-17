@@ -407,7 +407,7 @@ struct linux_dirent64 {
 #define DIRBUF_SIZE     1024
 
 /* 'read' operation for directory stream. Directory stream will not
-   need a 'write' operat4on. */
+   need a 'write' operation. */
 int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count, void * buf)
 {
     if (offset)
@@ -422,12 +422,18 @@ int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count, void * buf)
         while (ptr && ptr < end) {
             struct linux_dirent64 * d = (struct linux_dirent64 *) ptr;
 
-            if (!(d->d_name[0] == '.' &&
-                  (!d->d_name[1] || d->d_name[1] == '.'))) {
+            bool is_dot_or_dot_dot =
+                (d->d_name[0] == '.' && !d->d_name[1]) ||
+                (d->d_name[0] == '.' && d->d_name[1] == '.' && !d->d_name[2]);
+            if (!is_dot_or_dot_dot) {
                 bool isdir = (d->d_type == DT_DIR);
                 size_t len = strlen(d->d_name);
-                if (len + (isdir ? 2 : 1) > count)
+                if (len + (isdir ? 2 : 1) > count) {
+                    /* not enough space in buf to accommodate this dir name
+                     * (including '/' and '\0')
+                     */
                     break;
+                }
 
                 memcpy(buf, d->d_name, len);
                 if (isdir)
