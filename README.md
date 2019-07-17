@@ -150,7 +150,7 @@ Note: if you get an error concerning "Mod probe isgx.ko not found" or "could not
 If you continue to get errors regarding "isgx.ko" or "graphene-sgx.ko" run the following commands respectively:
 ```bash
 	<your-directory-with-linux-sgx-driver>$ sudo insmod isgx.ko
-	<your-directory-with-sgx-driver>$ sudo insmod graphene-sgx.ko
+	graphene/Pal/src/host/Linux-SGX/sgx-driver$ sudo insmod graphene-sgx.ko
 ```
 #### 2.1.2 Building Graphene-SGX
 
@@ -228,12 +228,12 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
             rm -f yourfile.manifest.sgx *.sig *.token
         ```
 
-    4. Inside of this file, leave everything the same except for the sgx.trusted_children and sgx.trusted_files, adding whatever dependencies and files are necessary for your executable. 
+    4. Inside of this file leave everything the same except for the "`sgx.trusted_children`" and "`sgx.trusted_files`", adding whatever dependencies and files are necessary for your executable. 
      5. run `make && make SGX=1 && make SGX_RUN=1`
      6. then run ` SGX=1 ./yourfile.manifest`
      
     NOTES:
-     * It is important that the directories of any libraries you wish to use are added under loader.env.LD_LIBRARY_PATH.
+     * It is important that the directories of any libraries you wish to use are added under "`loader.env.LD_LIBRARY_PATH`".
           * Any files that are needed by the program should have their directories mounted by adding the following code to the manifest:
          ```
          fs.mount.DIRNAME.type = chroot
@@ -241,35 +241,32 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
          fs.mount.DIRNAME.uri = file:PATH_IN_GRAPHENE
          ```
      * If there are memory or thread errors, increase ```sgx.enclave_size``` or ```sgx.thread_num``` in the manifest.
-     * You can add an entire directory to trusted/allowed files by typing file:directory with no slash at the end.
+     * You can add an entire directory to trusted/allowed files by typing "`file:directory`" with no slash at the end.
      * Trusted children will need to have their own signatures and tokens. This requires creating a manifest for those files as well, and they will also need to be added to the Makefile.
      * Arguments can be passed normally after the .manifest in terminal.
 
 ## 3. HOW TO DEBUG AND HANDLE ERRORS
-***THE MOST IMPORTANT THING WHEN DEBUGGING:***
-If you add or remove any files, symbolic links, manifests, executable, etc. you must first restart graphene. (For example, if you added your own custom script to test in LibOS/shim/test/apps/python you will need to restart graphene. If you get very frustrated on an error message try this, as chances are it will help isolate the issue.
+If you add or remove any files, symbolic links, manifests, executable, etc. you must first restart Graphene. (For example, if you added your own custom script to test in LibOS/shim/test/apps/python you will need to restart Graphene.
 
  ### How to restart/re-build Graphene:
-    1) cd into graphene root 
+    1) cd into Graphene root 
     2) run `make SGX=1 clean` 
     3) run `make && make SGX=1 && make SGX_RUN=1`  
 
- ### Issues You May Encounter in building graphene
-    1)  Aesmd.service issues (not loaded/not running). 
+ ### Issues You May Encounter in building Graphene
+    1)  sesmd service issues (not loaded/not running). 
         - Most likely your issue lies with your setup of the SGX SDK/PSW. Make sure you are following all of the steps for setting up the SGX SDK correctly and retry.
-    2) Cannot find "libelf-dev" packages even though they are already downloaded
-        - Run `sudo apt-get update && apt-get install libelf-dev`
-    3) Issue when running the sample code in hardware mode
+    2) Issue when running the sample code in hardware mode
         - Most likely you did not set SGX to enabled in your BIOS. If you cannot find this option, your system's processor likely doesn't support SGX
-    4) Error in Intel SGX driver compatibility
-        - Make sure when you run `./load.sh` you input `2.1` as the Driver Version and you downloaded and installed the Intel SGX Driver (branch sgx2). Ensure your path is correct as well otherwise compatibility issues will occur. You may need to wipe your graphene directory and restart if you entered the wrong version already. 
-    5) Cannot find "enclave-key.pem" 
-        - When you created the openssl key, it created the .pem file in the graphene root directory. You need to put it in the  "signer" folder: `graphene/Pal/src/host/Linux-SGX/signer/enclave-key.pem` 
-    6) Cannot open device `/dev/isgx. Please make sure the Intel SGX kernel module is loaded.`
+    3) Error in Intel SGX driver compatibility
+        - Make sure when you run `./load.sh` you input `2.1` as the Driver Version and you downloaded and installed the Intel SGX Driver (branch sgx2). Ensure your path is correct as well otherwise compatibility issues will occur. You may need to wipe your Graphene directory and restart if you entered the wrong version already. 
+    4) Cannot find "enclave-key.pem" 
+        - When you created the openssl key, it created the .pem file in the Graphene root directory. You need to put it in the  "signer" folder: `graphene/Pal/src/host/Linux-SGX/signer/enclave-key.pem` 
+    5) Cannot open device `/dev/isgx. Please make sure the Intel SGX kernel module is loaded.`
         - cd and run this command: `/graphene/Pal/src/host/Linux-SGX/sgx-driver$ ./load.sh`
-    7) `isgx.ko' not found
+    6) `isgx.ko' not found
         - run this command: `graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver$ sudo insmod isgx.ko`
-    8) `isgx.ko' not loaded
+    7) `isgx.ko' not loaded
         - This is an issue with SGX driver compatibility. You will need to delete your Graphene directory and re-install part 1. Don't forget to specify 2.1 as the driver version`isgx.ko' not found
         - run this command: `graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver$ sudo insmod isgx.ko`
 
