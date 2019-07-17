@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     git \
     libexpat1 \
     libexpat1-dev \
+    libomp-dev \
     libpcre3-dev \
     libxml2-dev \
     net-tools \
