@@ -201,13 +201,17 @@ int shim_do_fstatfs (int fd, struct statfs * buf)
     return __do_statfs (fs, buf);
 }
 
-int shim_do_newfstatat(int dirfd, const char * pathname,
-                       struct stat * statbuf, int flags)
+int shim_do_newfstatat(int dirfd, const char* pathname,
+                       struct stat* statbuf, int flags)
 {
     if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW))
         return -EINVAL;
+    if (test_user_string(pathname))
+        return -EFAULT;
+    if (test_user_memory(statbuf, sizeof(*statbuf), true))
+        return -EFAULT;
 
-    int lookup_flags = LOOKUP_FOLLOW;
+    int lookup_flags = LOOKUP_ACCESS | LOOKUP_FOLLOW;
     if (flags & AT_SYMLINK_NOFOLLOW)
         lookup_flags &= ~LOOKUP_FOLLOW;
     if (flags & AT_NO_AUTOMOUNT) {
@@ -215,26 +219,38 @@ int shim_do_newfstatat(int dirfd, const char * pathname,
         debug("ignoring AT_NO_AUTOMOUNT.");
     }
 
-    if ((flags & AT_EMPTY_PATH) && strlen(pathname) == 0) {
+    if (!(*pathname)){
+        if (!(flags & AT_EMPTY_PATH))
+            return -ENOENT;
+
         if (dirfd == AT_FDCWD) {
             struct shim_dentry * cwd = get_cur_thread()->cwd;
-            return cwd->fs->d_ops->stat(cwd, statbuf);
+            struct shim_d_ops* d_ops = cwd->fs->d_ops;
+            if (d_ops && d_ops->stat)
+                return d_ops->stat(cwd, statbuf);
+            return -EACCES;
         }
         return shim_do_fstat(dirfd, statbuf);
     }
 
-    struct shim_dentry *dir;
-    int ret = path_startat(dirfd, &dir);
-    if (ret < 0)
-        return ret;
+    struct shim_dentry* dir = NULL;
+    if (*pathname != '/') {
+        int ret = path_startat(dirfd, &dir);
+        if (ret < 0)
+            return ret;
+    }
 
-    struct shim_dentry *dent;
-    ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
-    if (ret < 0)
-        goto out;
-    ret = dent->fs->d_ops->stat(dent, statbuf);
-    put_dentry(dent);
-out:
-    put_dentry(dir);
+    struct shim_dentry* dent;
+    int ret = path_lookupat(dir, pathname, lookup_flags, &dent, NULL);
+    if (ret >= 0) {
+        struct shim_d_ops* d_ops = dent->fs->d_ops;
+        if (d_ops && d_ops->stat)
+            ret = d_ops->stat(dent, statbuf);
+        else
+            ret = -EACCES;
+        put_dentry(dent);
+    }
+    if (dir)
+        put_dentry(dir);
     return ret;
 }

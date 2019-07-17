@@ -1005,7 +1005,7 @@ SHIM_SYSCALL_PASSTHROUGH (futimesat, 3, int, int, dfd, const char *, filename,
 
 /* fstatat: sys/shim_stat.c */
 DEFINE_SHIM_SYSCALL (newfstatat, 4, shim_do_newfstatat, int, int, dfd,
-                     const char *, filename, struct stat *, statbuf,
+                     const char*, filename, struct stat*, statbuf,
                      int, flag)
 
 /* unlinkat: sys/shim_fs.c */
