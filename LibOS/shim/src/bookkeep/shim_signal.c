@@ -615,6 +615,9 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
          * because 1-3 arguments are passed by register and
          * sa_handler simply ignores 2nd and 3rd argument.
          */
+#ifdef __i386__
+# error "x86-32 support is heavily broken."
+#endif
         handler = (void *)act->k_sa_handler;
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
