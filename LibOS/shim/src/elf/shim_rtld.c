@@ -1526,23 +1526,25 @@ static int vdso_map_init(void)
 {
     /*
      * Allocate vdso page as user program allocated it.
-     * Using directly vdso code in LibOS causes trouble when fork emulation.
+     * Using directly vdso code in LibOS causes trouble when emulating fork.
      * In host child process, LibOS may or may not be loaded at the same address.
      * When LibOS is loaded at different address, it may overlap with the old vDSO area.
      */
-    assert(vdso_so_size <= VDSO_SIZE);
     void *addr = bkeep_unmapped_heap(
-        VDSO_SIZE, PROT_READ | PROT_EXEC, 0, NULL, 0, "linux-vdso.so.1");
-    assert(addr = ALIGN_UP(addr));
+        ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC, 0, NULL, 0,
+        "linux-vdso.so.1");
+    if (addr == NULL)
+        return -ENOMEM;
+    assert(addr == ALIGN_UP(addr));
 
-    void *ret_addr = (void *) DkVirtualMemoryAlloc(
-        addr, VDSO_SIZE, 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    void *ret_addr = (void *)DkVirtualMemoryAlloc(
+        addr, ALIGN_UP(vdso_so_size), 0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!ret_addr)
         return -PAL_ERRNO;
     assert(addr == ret_addr);
 
     memcpy(addr, &vdso_so, vdso_so_size);
-    memset(addr + vdso_so_size, 0, VDSO_SIZE - vdso_so_size);
+    memset(addr + vdso_so_size, 0, ALIGN_UP(vdso_so_size) - vdso_so_size);
     __load_elf_object(NULL, addr, OBJECT_VDSO, NULL);
     vdso_map->l_name = "vDSO";
 
@@ -1556,7 +1558,8 @@ static int vdso_map_init(void)
         **vsyms[i].func = vsyms[i].value;
     }
 
-    if (!DkVirtualMemoryProtect(addr, VDSO_SIZE, PAL_PROT_READ | PAL_PROT_EXEC))
+    if (!DkVirtualMemoryProtect(addr, ALIGN_UP(vdso_so_size),
+                                PAL_PROT_READ | PAL_PROT_EXEC))
             return -PAL_ERRNO;
 
     vdso_addr = addr;
@@ -1568,7 +1571,7 @@ int vdso_map_migrate(void)
     if (!vdso_addr)
         return 0;
 
-    if (!DkVirtualMemoryProtect(vdso_addr, VDSO_SIZE,
+    if (!DkVirtualMemoryProtect(vdso_addr, ALIGN_UP(vdso_so_size),
                                 PAL_PROT_READ | PAL_PROT_WRITE))
             return -PAL_ERRNO;
 
@@ -1576,7 +1579,8 @@ int vdso_map_migrate(void)
     for (size_t i = 0; i < sizeof(vsyms)/sizeof(vsyms[0]); i++)
         **vsyms[i].func = vsyms[i].value;
 
-    if (!DkVirtualMemoryProtect(vdso_addr, VDSO_SIZE, PAL_PROT_READ | PAL_PROT_EXEC))
+    if (!DkVirtualMemoryProtect(vdso_addr, ALIGN_UP(vdso_so_size),
+                                PAL_PROT_READ | PAL_PROT_EXEC))
             return -PAL_ERRNO;
     return 0;
 }
@@ -1695,8 +1699,13 @@ noreturn void execute_elf_object (struct shim_handle * exec,
     auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
     auxp[5].a_type = AT_RANDOM;
     auxp[5].a_un.a_val = 0; /* filled later */
-    auxp[6].a_type = AT_SYSINFO_EHDR;
-    auxp[6].a_un.a_val = (uint64_t)&vdso_so;
+    if (vdso_addr) {
+        auxp[6].a_type = AT_SYSINFO_EHDR;
+        auxp[6].a_un.a_val = (uint64_t)vdso_addr;
+    } else {
+        auxp[6].a_type = AT_NULL;
+        auxp[6].a_un.a_val = 0;
+    }
     auxp[7].a_type = AT_NULL;
     auxp[7].a_un.a_val = 0;
 

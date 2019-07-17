@@ -23,8 +23,6 @@
 #ifndef _SHIM_VDSO_H_
 #define _SHIM_VDSO_H_
 
-/* 4096 bytes for vDSO image size */
-#define VDSO_SIZE   4096
 extern const uint8_t vdso_so[];
 extern const size_t vdso_so_size;
 
