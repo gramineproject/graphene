@@ -254,7 +254,7 @@ If you add or remove any files, symbolic links, manifests, executable, etc. you 
     3) run `make && make SGX=1 && make SGX_RUN=1`  
 
  ### Issues You May Encounter in building Graphene
-    1)  sesmd service issues (not loaded/not running). 
+    1)  aesmd service issues (not loaded/not running). 
         - Most likely your issue lies with your setup of the SGX SDK/PSW. Make sure you are following all of the steps for setting up the SGX SDK correctly and retry.
     2) Issue when running the sample code in hardware mode
         - Most likely you did not set SGX to enabled in your BIOS. If you cannot find this option, your system's processor likely doesn't support SGX
@@ -262,14 +262,13 @@ If you add or remove any files, symbolic links, manifests, executable, etc. you 
         - Make sure when you run `./load.sh` you input `2.1` as the Driver Version and you downloaded and installed the Intel SGX Driver (branch sgx2). Ensure your path is correct as well otherwise compatibility issues will occur. You may need to wipe your Graphene directory and restart if you entered the wrong version already. 
     4) Cannot find "enclave-key.pem" 
         - When you created the openssl key, it created the .pem file in the Graphene root directory. You need to put it in the  "signer" folder: `graphene/Pal/src/host/Linux-SGX/signer/enclave-key.pem` 
-    5) Cannot open device `/dev/isgx. Please make sure the Intel SGX kernel module is loaded.`
+    5) "Cannot open device /dev/isgx"
         - cd and run this command: `/graphene/Pal/src/host/Linux-SGX/sgx-driver$ ./load.sh`
     6) `isgx.ko' not found
         - run this command: `graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver$ sudo insmod isgx.ko`
     7) `isgx.ko' not loaded
-        - This is an issue with SGX driver compatibility. You will need to delete your Graphene directory and re-install part 1. Don't forget to specify 2.1 as the driver version`isgx.ko' not found
-        - run this command: `graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver$ sudo insmod isgx.ko`
-
+        - This is an issue with SGX driver compatibility. You will need to delete your Graphene directory and re-install. Don't forget to specify 2.1 as the driver version
+	
 ## 4. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
 Graphene library OS uses PAL (libpal.so) as a loader to bootstrap an
