@@ -574,12 +574,12 @@ static int mcast_s (int port)
     int fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
 
     if (IS_ERR(fd))
-        return -PAL_ERROR_DENIED;
+        return -ERRNO(fd);
 
     ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
                          &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return -ERRNO(ret);
 
     return fd;
 }
@@ -595,7 +595,7 @@ static int mcast_c (int port)
 
     fd = INLINE_SYSCALL(socket, 3, AF_INET, SOCK_DGRAM, 0);
     if (IS_ERR(fd))
-        return -PAL_ERROR_DENIED;
+        return -ERRNO(fd);
 
     int reuse = 1;
     INLINE_SYSCALL(setsockopt, 5, fd, SOL_SOCKET, SO_REUSEADDR,
@@ -603,12 +603,12 @@ static int mcast_c (int port)
 
     ret = INLINE_SYSCALL(bind, 3, fd, &addr, sizeof(addr));
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return -ERRNO(ret);
 
     ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_MULTICAST_IF,
                          &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return -ERRNO(ret);
 
     inet_pton4(MCAST_GROUP, sizeof(MCAST_GROUP) - 1,
                &addr.sin_addr.s_addr);
@@ -620,7 +620,7 @@ static int mcast_c (int port)
     ret = INLINE_SYSCALL(setsockopt, 5, fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                          &group, sizeof(group));
     if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
+        return -ERRNO(ret);
 
     return fd;
 }
