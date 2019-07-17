@@ -60,15 +60,15 @@ int init_brk_region(void* brk_region, size_t data_segment_size) {
         return 0;
 
     data_segment_size = ALIGN_UP(data_segment_size);
-    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA) - data_segment_size;
+    uint64_t brk_max_size = DEFAULT_BRK_MAX_SIZE;
 
     if (root_config) {
         char brk_cfg[CONFIG_MAX];
-        if (get_config(root_config, "sys.brk.size", brk_cfg, CONFIG_MAX) > 0) {
+        if (get_config(root_config, "sys.brk.size", brk_cfg, CONFIG_MAX) > 0)
             brk_max_size = parse_int(brk_cfg);
-            set_rlimit_cur(RLIMIT_DATA, brk_max_size + data_segment_size);
-        }
     }
+
+    set_rlimit_cur(RLIMIT_DATA, brk_max_size + data_segment_size);
 
     int flags = MAP_PRIVATE|MAP_ANONYMOUS;
     bool brk_on_heap = true;
@@ -219,7 +219,15 @@ unchanged:
         goto unchanged;
 
     if (brk > region.brk_end) {
-        uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA) - region.data_segment_size;
+        uint64_t rlim_data = get_rlimit_cur(RLIMIT_DATA);
+
+        // Check if there is enough space within the system limit
+        if (rlim_data < region.data_segment_size) {
+            brk = NULL;
+            goto out;
+        }
+
+        uint64_t brk_max_size = rlim_data - region.data_segment_size;
 
         if (brk > region.brk_start + brk_max_size)
             goto unchanged;
@@ -272,7 +280,9 @@ BEGIN_RS_FUNC(brk)
     debug("brk area: %p - %p\n", region.brk_start, region.brk_end);
 
     size_t brk_size = region.brk_end - region.brk_start;
-    uint64_t brk_max_size = get_rlimit_cur(RLIMIT_DATA) - region.data_segment_size;
+    uint64_t rlim_data = get_rlimit_cur(RLIMIT_DATA);
+    assert(rlim_data > region.data_segment_size);
+    uint64_t brk_max_size = rlim_data - region.data_segment_size;
 
     if (brk_size < brk_max_size) {
         void * alloc_addr = region.brk_end;

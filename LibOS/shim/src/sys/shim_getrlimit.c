@@ -42,10 +42,10 @@
 #define MLOCK_LIMIT     (64*1024)
 #define MQ_BYTES_MAX    819200
 
-struct __kernel_rlimit64 __rlim[RLIM_NLIMITS] __attribute_migratable = {
+static struct __kernel_rlimit64 __rlim[RLIM_NLIMITS] __attribute_migratable = {
     [RLIMIT_CPU]        = {   RLIM_INFINITY, RLIM_INFINITY },
     [RLIMIT_FSIZE]      = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_DATA]       = { DEFAULT_BRK_MAX_SIZE,   RLIM_INFINITY },
+    [RLIMIT_DATA]       = {   RLIM_INFINITY, RLIM_INFINITY },
     [RLIMIT_STACK]      = { DEFAULT_SYS_STACK_SIZE, RLIM_INFINITY },
     [RLIMIT_CORE]       = {               0, RLIM_INFINITY },
     [RLIMIT_RSS]        = {   RLIM_INFINITY, RLIM_INFINITY },
