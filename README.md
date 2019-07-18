@@ -287,7 +287,7 @@ in LibOS/shim/test/apps/python you will need to restart Graphene.
         - Most likely you did not set SGX to enabled in your BIOS. If you cannot
         find this option, your system's processor likely doesn't support SGX
     3) Error in Intel SGX driver compatibility.
-        - Make sure when you run `./load.sh` you input `2.1` as the Driver Version
+        - Make sure when you run `./load.sh` you input the correct Driver Version
         and you downloaded and installed the Intel SGX Driver (branch sgx2). Ensure
         your path is correct as well otherwise compatibility issues will occur. You
         may need to wipe your Graphene directory and restart if you entered the wrong
