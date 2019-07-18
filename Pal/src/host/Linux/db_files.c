@@ -407,20 +407,15 @@ struct linux_dirent64 {
 
 #define DIRBUF_SIZE     1024
 
-static inline int is_dot_or_dotdot(const char *name) {
-    return name[0] == '.' && (!name[1] || name[1] == '.');
+static inline int is_dot_or_dotdot(const char* name) {
+    return name[0] == '.' && (!name[1] || (name[1] == '.' && !name[2]));
 }
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operation. */
-static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count,
-                        void *_buf) {
-    struct linux_dirent64 *dirent = NULL;
-    bool is_dir = false;
-    size_t len = 0,
-           bytes_written = 0;
-    char *buf = (char *)_buf;
-    int size = 0;
+static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count, void* _buf) {
+    size_t bytes_written = 0;
+    char* buf = (char*)_buf;
 
     if (offset) {
         return -PAL_ERROR_INVAL;
@@ -431,15 +426,15 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count,
     }
 
     while (1) {
-        while ((char *)handle->dir.ptr < (char *)handle->dir.end) {
-            dirent = (struct linux_dirent64 *) handle->dir.ptr;
+        while ((char*)handle->dir.ptr < (char*)handle->dir.end) {
+            struct linux_dirent64* dirent = (struct linux_dirent64*)handle->dir.ptr;
 
             if (is_dot_or_dotdot(dirent->d_name)) {
                 goto skip;
             }
 
-            is_dir = dirent->d_type == DT_DIR;
-            len = strlen(dirent->d_name);
+            bool is_dir = dirent->d_type == DT_DIR;
+            size_t len = strlen(dirent->d_name);
 
             if (len + 1 + (is_dir ? 1 : 0) > count) {
                 goto out;
@@ -455,7 +450,7 @@ static int64_t dir_read(PAL_HANDLE handle, uint64_t offset, size_t count,
             bytes_written += len;
             count -= len;
 skip:
-            handle->dir.ptr = (char *)handle->dir.ptr + dirent->d_reclen;
+            handle->dir.ptr = (char*)handle->dir.ptr + dirent->d_reclen;
         }
 
         if (!count) {
@@ -464,19 +459,16 @@ skip:
         }
 
         if (!handle->dir.buf) {
-            handle->dir.buf = (PAL_PTR) malloc(DIRBUF_SIZE);
+            handle->dir.buf = (PAL_PTR)malloc(DIRBUF_SIZE);
             if (!handle->dir.buf) {
                 return -PAL_ERROR_NOMEM;
             }
         }
 
-        size = INLINE_SYSCALL(getdents64, 3, handle->dir.fd, handle->dir.buf,
-                            DIRBUF_SIZE);
+        int size = INLINE_SYSCALL(getdents64, 3, handle->dir.fd, handle->dir.buf, DIRBUF_SIZE);
         if (IS_ERR(size)) {
-            /*
-             * If something was written just return that and pretend no error
-             * was seen - it will be caught next time.
-             */
+            /* If something was written just return that and pretend
+             * no error was seen - it will be caught next time. */
             if (bytes_written) {
                 return bytes_written;
             }
@@ -489,7 +481,7 @@ skip:
         }
 
         handle->dir.ptr = handle->dir.buf;
-        handle->dir.end = (char *)handle->dir.buf + size;
+        handle->dir.end = (char*)handle->dir.buf + size;
     }
 
 out:
