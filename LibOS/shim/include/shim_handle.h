@@ -23,6 +23,8 @@
 #ifndef _SHIM_HANDLE_H_
 #define _SHIM_HANDLE_H_
 
+#include <stdalign.h>
+
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <shim_sysv.h>
@@ -213,7 +215,9 @@ struct shim_dirent {
 };
 
 #define SHIM_DIRENT_SIZE offsetof(struct shim_dirent, name)
-#define SHIM_DIRENT_ALIGNMENT offsetof(struct {char c; struct shim_dirent s;}, s)
+#define SHIM_DIRENT_ALIGNMENT alignof(struct shim_dirent)
+/* Size of struct shim_dirent instance together with alignment,
+ * which might be different depending on the length of the name field */
 #define SHIM_DIRENT_ALIGNED_SIZE(len) ( \
                 (SHIM_DIRENT_SIZE \
                     + len \

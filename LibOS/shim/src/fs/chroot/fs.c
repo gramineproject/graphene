@@ -1004,32 +1004,21 @@ static int chroot_dput (struct shim_dentry * dent)
     return 0;
 }
 
-static int chroot_readdir(struct shim_dentry *dent,
-                        struct shim_dirent **dirent) {
-    struct shim_file_data *data = NULL;
+static int chroot_readdir(struct shim_dentry *dent, struct shim_dirent **dirent) {
+    struct shim_file_data* data = NULL;
     int ret = 0;
-    const char *uri = NULL;
     PAL_HANDLE pal_hdl = NULL;
     size_t buf_size = MAX_PATH,
-           bytes = 0,
-           i = 0,
-           dirent_buf_size = 0,
-           dirent_cur_off = 0,
-           len = 0;
-    char *buf = NULL,
-         *name = NULL,
-         *dirent_buf = NULL,
-         *tmp = NULL;
-    struct shim_dirent *dptr = NULL,
-                       **last = NULL;
-    bool is_dir = false;
+           dirent_buf_size = 0;
+    char* buf = NULL;
+    char* dirent_buf = NULL;
 
     if ((ret = try_create_data(dent, NULL, 0, &data)) < 0)
         return ret;
 
     chroot_update_ino(dent);
 
-    uri = qstrgetstr(&data->host_uri);
+    const char* uri = qstrgetstr(&data->host_uri);
     assert(strpartcmp_static(uri, "dir:"));
 
     pal_hdl = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0);
@@ -1043,11 +1032,8 @@ static int chroot_readdir(struct shim_dentry *dent,
     }
 
     while (1) {
-        /*
-         * DkStreamRead for directory will return as much data as fits
-         * into the buffer.
-         */
-        bytes = DkStreamRead(pal_hdl, 0, buf_size, buf, NULL, 0);
+        /* DkStreamRead for directory will return as many entries as fits into the buffer. */
+        size_t bytes = DkStreamRead(pal_hdl, 0, buf_size, buf, NULL, 0);
         if (!bytes) {
             if (PAL_NATIVE_ERRNO == PAL_ERROR_ENDOFSTREAM) {
                 /* End of directory listing */
@@ -1058,31 +1044,29 @@ static int chroot_readdir(struct shim_dentry *dent,
             ret = -PAL_ERRNO;
             goto out;
         }
+        /* Last entry must be null-terminated */
+        assert(buf[bytes - 1] == '\0');
 
-        dirent_cur_off = dirent_buf_size;
+        size_t dirent_cur_off = dirent_buf_size;
         /* Calculate needed buffer size */
-        len = buf[0] != '\0' ? 1 : 0;
-        for (i = 1; i < bytes; ++i) {
+        size_t len = buf[0] != '\0' ? 1 : 0;
+        for (size_t i = 1; i < bytes; i++) {
             if (buf[i] == '\0') {
-                /*
-                 * The PAL convention: if a name ends with '/',
-                 * it is a directory. struct shim_dirent has a field for type
-                 * hence trailing slash can be safely discarded.
-                 */
+                /* The PAL convention: if a name ends with '/', it is a directory.
+                 * struct shim_dirent has a field for a type, hence trailing slash
+                 * can be safely discarded. */
                 if (buf[i - 1] == '/') {
-                    --len;
+                    len--;
                 }
                 dirent_buf_size += SHIM_DIRENT_ALIGNED_SIZE(len + 1);
                 len = 0;
             } else {
-                ++len;
+                len++;
             }
         }
-        /* Last entry must be null-terminated */
-        assert(buf[bytes - 1] == '\0');
 
         /* XXX If realloc gets enabled delete following and uncomment rest */
-        tmp = malloc(dirent_buf_size);
+        char* tmp = malloc(dirent_buf_size);
         if (!tmp) {
             ret = -ENOMEM;
             goto out;
@@ -1098,12 +1082,12 @@ static int chroot_readdir(struct shim_dentry *dent,
         }
         */
 
-        i = 0;
+        size_t i = 0;
         while (i < bytes) {
-            name = buf + i;
-            len = strnlen(name, bytes - i);
+            char* name = buf + i;
+            size_t len = strnlen(name, bytes - i);
             i += len + 1;
-            is_dir = false;
+            bool is_dir = false;
 
             /* Skipping trailing slash - explained above */
             if (name[len - 1] == '/') {
@@ -1111,7 +1095,7 @@ static int chroot_readdir(struct shim_dentry *dent,
                 name[--len] = '\0';
             }
 
-            dptr = (struct shim_dirent *)(dirent_buf + dirent_cur_off);
+            struct shim_dirent* dptr = (struct shim_dirent *)(dirent_buf + dirent_cur_off);
             dptr->ino = rehash_name(dent->ino, name, len);
             dptr->type = is_dir ? LINUX_DT_DIR : LINUX_DT_REG;
             memcpy(dptr->name, name, len + 1);
@@ -1129,9 +1113,10 @@ static int chroot_readdir(struct shim_dentry *dent,
      * been just entry size instead of a pointer (and probably needs to be
      * rewritten as such one day).
      */
-    for (dirent_cur_off = 0; dirent_cur_off < dirent_buf_size; ) {
-        dptr = (struct shim_dirent *)(dirent_buf + dirent_cur_off);
-        len = SHIM_DIRENT_ALIGNED_SIZE(strlen(dptr->name) + 1);
+    struct shim_dirent** last = NULL;
+    for (size_t dirent_cur_off = 0; dirent_cur_off < dirent_buf_size; ) {
+        struct shim_dirent* dptr = (struct shim_dirent *)(dirent_buf + dirent_cur_off);
+        size_t len = SHIM_DIRENT_ALIGNED_SIZE(strlen(dptr->name) + 1);
         dptr->next = (struct shim_dirent *)(dirent_buf + dirent_cur_off + len);
         last = &dptr->next;
         dirent_cur_off += len;
@@ -1141,7 +1126,7 @@ static int chroot_readdir(struct shim_dentry *dent,
     }
 
 out:
-    /* Need to clear output buffer if error is returned */
+    /* Need to free output buffer if error is returned */
     if (ret) {
         free(dirent_buf);
     }
