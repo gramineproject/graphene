@@ -1004,7 +1004,7 @@ static int chroot_dput (struct shim_dentry * dent)
     return 0;
 }
 
-static int chroot_readdir(struct shim_dentry *dent, struct shim_dirent **dirent) {
+static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
     struct shim_file_data* data = NULL;
     int ret = 0;
     PAL_HANDLE pal_hdl = NULL;
@@ -1095,7 +1095,7 @@ static int chroot_readdir(struct shim_dentry *dent, struct shim_dirent **dirent)
                 name[--len] = '\0';
             }
 
-            struct shim_dirent* dptr = (struct shim_dirent *)(dirent_buf + dirent_cur_off);
+            struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
             dptr->ino = rehash_name(dent->ino, name, len);
             dptr->type = is_dir ? LINUX_DT_DIR : LINUX_DT_REG;
             memcpy(dptr->name, name, len + 1);
@@ -1104,7 +1104,7 @@ static int chroot_readdir(struct shim_dentry *dent, struct shim_dirent **dirent)
         }
     }
 
-    *dirent = (struct shim_dirent *)dirent_buf;
+    *dirent = (struct shim_dirent*)dirent_buf;
 
     /*
      * Fix next field of struct shim_dirent to point to the next entry.
@@ -1115,9 +1115,9 @@ static int chroot_readdir(struct shim_dentry *dent, struct shim_dirent **dirent)
      */
     struct shim_dirent** last = NULL;
     for (size_t dirent_cur_off = 0; dirent_cur_off < dirent_buf_size; ) {
-        struct shim_dirent* dptr = (struct shim_dirent *)(dirent_buf + dirent_cur_off);
+        struct shim_dirent* dptr = (struct shim_dirent*)(dirent_buf + dirent_cur_off);
         size_t len = SHIM_DIRENT_ALIGNED_SIZE(strlen(dptr->name) + 1);
-        dptr->next = (struct shim_dirent *)(dirent_buf + dirent_cur_off + len);
+        dptr->next = (struct shim_dirent*)(dirent_buf + dirent_cur_off + len);
         last = &dptr->next;
         dirent_cur_off += len;
     }
