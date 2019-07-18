@@ -129,11 +129,11 @@ built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
 files) and the signatures, to the SGX-enabled hosts.
 
 (2) Installing Intel SGX SDK and driver
-The Intel SGX Linux SDK is required for running Graphene Library OS. Download and install
-from the official Intel github repositories:
+The Intel SGX Linux SDK is required for running Graphene Library OS. Download and
+install from the official Intel github repositories:
 
    - <https://github.com/01org/linux-sgx> (Latest)
-   - <https://github.com/01org/linux-sgx-driver> (Download version 2.1 
+   - <https://github.com/01org/linux-sgx-driver> (Download version 2.1
      or later & remember exact version for later)
 
 A Linux driver must be installed before running Graphene Library OS in enclaves.
@@ -176,7 +176,7 @@ the enclave signatures (.sig files).
 
 #### 2.1.3 Including Application Test Cases
 
-To add the application test cases (recommended), issue the following command 
+To add the application test cases (recommended), issue the following command
 from the root of the source tree:
 
     git submodule update --init -- LibOS/shim/test/apps/
@@ -186,7 +186,7 @@ Please refer here for the full list and the official instructions for all apps:
 
 #### 2.1.3 Run Built-in Examples in Graphene-SGX
 
-There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
+There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few tested applications, such as GCC, Python,and Apache.
 
 (1) Build and run a Hello World program with Graphene on SGX
 
@@ -224,7 +224,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
     1. cd into  `LibOS/shim/test/apps/`
     2. create a new directory for your application
-    3. create a Makefile in the directory following this template 
+    3. create a Makefile in the directory following this template
     (this can vary wildly, look at other examples in LibOS/shim/test/apps):
         ```Makefile
         PYTHON_SRC = Python-2.7.9
@@ -259,12 +259,12 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
          fs.mount.DIRNAME.path = /PATH_ON_SYSTEM
          fs.mount.DIRNAME.uri = file:PATH_IN_GRAPHENE
          ```
-     * If there are memory or thread errors, increase ```sgx.enclave_size``` or 
+     * If there are memory or thread errors, increase ```sgx.enclave_size``` or
      ```sgx.thread_num``` in the manifest.
-     * You can add an entire directory to trusted/allowed files by typing 
+     * You can add an entire directory to trusted/allowed files by typing
      `file:directory` with no slash at the end.
-     * Trusted children will need to have their own signatures and tokens. This 
-     requires creating a manifest for those files as well, and they will also 
+     * Trusted children will need to have their own signatures and tokens. This
+     requires creating a manifest for those files as well, and they will also
      need to be added to the Makefile.
      * Arguments can be passed normally after the .manifest in terminal.
 
@@ -274,14 +274,14 @@ first restart Graphene. (For example, if you added your own custom script to tes
 in LibOS/shim/test/apps/python you will need to restart Graphene.
 
  ### How to restart/re-build Graphene
-    1) cd into Graphene root 
-    2) run `make SGX=1 clean` 
-    3) run `make SGX=1 && make SGX_RUN=1`  
+    1) cd into Graphene root
+    2) run `make SGX=1 clean`
+    3) run `make SGX=1 && make SGX_RUN=1`
 
  ### Issues You May Encounter in building Graphene
-    1)  aesmd service issues (not loaded/not running). 
+    1) aesmd service issues (not loaded/not running).
         - Most likely your issue lies with your setup of the SGX SDK/PSW. Make
-        sure you are following all of the steps for setting up the SGX SDK 
+        sure you are following all of the steps for setting up the SGX SDK
         correctly and retry.
     2) Issue when running the sample code in hardware mode.
         - Most likely you did not set SGX to enabled in your BIOS. If you cannot
@@ -291,18 +291,18 @@ in LibOS/shim/test/apps/python you will need to restart Graphene.
         and you downloaded and installed the Intel SGX Driver (branch sgx2). Ensure
         your path is correct as well otherwise compatibility issues will occur. You
         may need to wipe your Graphene directory and restart if you entered the wrong
-        version already. 
-    4) Cannot find "enclave-key.pem".
+        version already.
+    4) "Cannot find enclave-key.pem".
         - When you created the openssl key, it created the .pem file in the Graphene
-        root directory. You need to put it in the  "signer" folder: 
-        `graphene/Pal/src/host/Linux-SGX/signer/enclave-key.pem` 
+        root directory. You need to put it in the signer folder:
+        `graphene/Pal/src/host/Linux-SGX/signer/enclave-key.pem`
     5) "Cannot open device /dev/isgx".
         - cd and run this command: `/graphene/Pal/src/host/Linux-SGX/sgx-driver$ ./load.sh`
-    6) `isgx.ko' not found.
+    6) "isgx.ko not found".
         - run this command: `graphene/Pal/src/host/Linux-SGX/sgx-driver/linux-sgx-driver$ sudo insmod isgx.ko`
-    7) `isgx.ko' not loaded.
+    7) "isgx.ko not loaded".
         - This is an issue with SGX driver compatibility. You will need to delete
-        your Graphene directory and re-install. Don't forget to specify 2.1 as 
+        your Graphene directory and re-install. Don't forget to specify 2.1 as
         the driver version
 
 ## 4. HOW TO RUN AN APPLICATION IN GRAPHENE
