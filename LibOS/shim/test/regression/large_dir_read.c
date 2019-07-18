@@ -15,10 +15,11 @@ unsigned int FILES_NO = 10000;
 int main(int argc, char *argv[]) {
     int fd = 0, ret = 0;
     char name[0x10] = { 0 };
-    DIR *dir = NULL;
-    struct dirent *x = NULL;
+    DIR* dir = NULL;
+    struct dirent* x = NULL;
     unsigned long i, count = 0;
-    char *tmp_name = NULL;
+    char* tmp_name = NULL;
+    char* old_wd = NULL;
 
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
@@ -34,13 +35,17 @@ int main(int argc, char *argv[]) {
         FILES_NO = atol(argv[2]);
     }
 
-    if (mkdir(tmp_name, 0777) < 0 || chdir(tmp_name) < 0) {
+    if ((old_wd = get_current_dir_name()) == NULL) {
+        err(1, "getcwd");
+    }
+
+    if (mkdir(tmp_name, S_IRWXU | S_IRWXG | S_IRWXO) < 0 || chdir(tmp_name) < 0) {
         err(1, "mkdir & chdr");
     }
 
     for (i = 0; i < FILES_NO; ++i) {
         sprintf(name, "%010lu", i);
-        fd = open(name, O_CREAT | O_RDWR, 0777);
+        fd = open(name, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
         if (fd < 0) {
             fprintf(stderr, "cannot create file %lu\n", i);
             ret = 1;
@@ -83,7 +88,8 @@ cleanup:
         unlink(name);
     }
 
-    chdir("..");
+    chdir(old_wd);
+    free(old_wd);
 
     rmdir(tmp_name);
 
