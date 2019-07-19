@@ -51,7 +51,9 @@ int main(int argc, char *argv[]) {
             ret = 1;
             goto cleanup;
         }
-        close(fd);
+        if (close(fd) < 0) {
+            fprintf(stderr, "close failed with: %s\n", strerror(errno));
+        }
     }
 
     dir = opendir(".");
@@ -73,7 +75,7 @@ int main(int argc, char *argv[]) {
                 break;
             }
         }
-        ++count;
+        count++;
     }
 
     printf("count: %lu\n", count);
@@ -88,7 +90,9 @@ cleanup:
         unlink(name);
     }
 
-    chdir(old_wd);
+    if (chdir(old_wd) < 0) {
+        fprintf(stderr, "could not change directory to original (%s): %s\n", old_wd, strerror(errno));
+    }
     free(old_wd);
 
     rmdir(tmp_name);
