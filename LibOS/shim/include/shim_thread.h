@@ -37,8 +37,10 @@ struct shim_thread {
     struct shim_thread * parent;
     /* thread leader */
     struct shim_thread * leader;
+#ifndef ALIAS_VFORK_AS_FORK
     /* dummy thread: stores blocked parent thread for vfork */
     struct shim_thread * dummy;
+#endif
     /* child handles; protected by thread->lock */
     LISTP_TYPE(shim_thread) children;
     /* nodes in child handles; protected by the parent's lock */
