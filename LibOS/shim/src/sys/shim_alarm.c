@@ -37,7 +37,9 @@ void signal_alarm (IDTYPE target, void * arg)
     if (!thread)
         return;
 
+    lock(&thread->lock);
     append_signal(thread, SIGALRM, NULL, true);
+    unlock(&thread->lock);
 }
 
 int shim_do_alarm (unsigned int seconds)

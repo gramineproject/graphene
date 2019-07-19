@@ -728,6 +728,7 @@ void handle_signal (void)
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
+// Need to hold thread->lock when calling this function
 void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt) {
     __rt_sighandler_t handler = __get_sighandler(thread, sig);
 

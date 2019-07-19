@@ -251,8 +251,8 @@ struct walk_arg {
     bool use_ipc;
 };
 
-static inline void __append_signal (struct shim_thread * thread, int sig,
-                                    IDTYPE sender)
+// Need to hold thread->lock
+static inline void __append_kill_signal(struct shim_thread* thread, int sig, IDTYPE sender)
 {
     debug("Thread %d killed by signal %d\n", thread->tid, sig);
     siginfo_t info;
@@ -297,7 +297,7 @@ static int __kill_proc (struct shim_thread * thread, void * arg,
 
         if (thread->in_vm) {
             if (warg->sig > 0)
-                __append_signal(thread, warg->sig, warg->sender);
+                __append_kill_signal(thread, warg->sig, warg->sender);
             srched = 1;
         } else {
             /* This double-check case is probably unnecessary, but keep it for now */
@@ -393,7 +393,7 @@ static int __kill_pgroup (struct shim_thread * thread, void * arg,
 
     if (thread->in_vm) {
         if (warg->sig > 0)
-            __append_signal(thread, warg->sig, warg->sender);
+            __append_kill_signal(thread, warg->sig, warg->sender);
 
         srched = 1;
     } else {
@@ -481,7 +481,7 @@ static int __kill_all_threads (struct shim_thread * thread, void * arg,
     lock(&thread->lock);
 
     if (thread->in_vm) {
-        __append_signal(thread, warg->sig, warg->sender);
+        __append_kill_signal(thread, warg->sig, warg->sender);
         srched = 1;
     }
 
@@ -572,7 +572,7 @@ int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
 
         if (thread->in_vm) {
             if (!tgid || thread->tgid == tgid)
-                __append_signal(thread, sig, sender);
+                __append_kill_signal(thread, sig, sender);
             else
                 ret = -ESRCH;
         } else {
