@@ -453,7 +453,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 #define DIRBUF_SIZE     1024
-static inline int is_dot_or_dotdot(const char* name) {
+static inline bool is_dot_or_dotdot(const char* name) {
     return name[0] == '.' && (!name[1] || (name[1] == '.' && !name[2]));
 }
 
