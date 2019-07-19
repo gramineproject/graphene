@@ -37,7 +37,7 @@ struct shim_thread {
     struct shim_thread * parent;
     /* thread leader */
     struct shim_thread * leader;
-    /* dummy thread */
+    /* dummy thread: stores blocked parent thread for vfork */
     struct shim_thread * dummy;
     /* child handles; protected by thread->lock */
     LISTP_TYPE(shim_thread) children;
@@ -264,7 +264,10 @@ void add_simple_thread (struct shim_simple_thread * thread);
 void del_simple_thread (struct shim_simple_thread * thread);
 
 int check_last_thread (struct shim_thread * self);
+
+#ifndef ALIAS_VFORK_AS_FORK
 void switch_dummy_thread (struct shim_thread * thread);
+#endif
 
 int walk_thread_list (int (*callback) (struct shim_thread *, void *, bool *),
                       void * arg);

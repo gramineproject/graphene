@@ -564,6 +564,7 @@ out:
     return ret;
 }
 
+#ifndef ALIAS_VFORK_AS_FORK
 void switch_dummy_thread (struct shim_thread * thread)
 {
     struct shim_thread * real_thread = thread->dummy;
@@ -596,6 +597,7 @@ void switch_dummy_thread (struct shim_thread * thread)
                        "a"(child)
                      : "memory");
 }
+#endif
 
 BEGIN_CP_FUNC(thread)
 {

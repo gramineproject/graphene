@@ -173,11 +173,13 @@ noreturn int shim_do_exit_group (int error_code)
     if (debug_handle)
         sysparser_printf("---- shim_exit_group (returning %d)\n", error_code);
 
+#ifndef ALIAS_VFORK_AS_FORK
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
         thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
+#endif
 
     debug("now kill other threads in the process\n");
     do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
@@ -202,11 +204,13 @@ noreturn int shim_do_exit (int error_code)
     if (debug_handle)
         sysparser_printf("---- shim_exit (returning %d)\n", error_code);
 
+#ifndef ALIAS_VFORK_AS_FORK
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
         thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
+#endif
 
     try_process_exit(error_code, 0);
 
