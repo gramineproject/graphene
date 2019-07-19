@@ -136,9 +136,8 @@ int init_signal (void);
 void __store_context (shim_tcb_t * tcb, PAL_CONTEXT * pal_context,
                       struct shim_signal * signal);
 
-void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
-                    bool wakeup);
-void deliver_signal (siginfo_t * info, PAL_CONTEXT * context);
+void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt);
+void deliver_signal(siginfo_t* info, PAL_CONTEXT* context);
 
 __sigset_t * get_sig_mask (struct shim_thread * thread);
 __sigset_t * set_sig_mask (struct shim_thread * thread,

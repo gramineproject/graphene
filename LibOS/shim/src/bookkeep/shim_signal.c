@@ -32,7 +32,13 @@
 
 #include <pal.h>
 
-typedef void (*__rt_sighandler_t) (int, siginfo_t*, void*);
+#include <asm/signal.h>
+
+// __rt_sighandler_t is different from __sighandler_t in <asm-generic/signal-defs.h>:
+//    typedef void __signalfn_t(int);
+//    typedef __signalfn_t *__sighandler_t
+
+typedef void (*__rt_sighandler_t)(int, siginfo_t*, void*);
 
 static __rt_sighandler_t default_sighandler[NUM_SIGS];
 
@@ -607,11 +613,11 @@ static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
            use sa_handler as sa_sigaction, because sa_sigaction is
            not supported in amd64 */
 #ifdef __i386__
-        handler = (void (*)(int, siginfo_t*, void*))act->_u._sa_handler;
+        handler = (__rt_sighandler_t)act->_u._sa_handler;
         if (act->sa_flags & SA_SIGINFO)
             sa_handler = act->_u._sa_sigaction;
 #else
-        handler = (void (*)(int, siginfo_t*, void*))act->k_sa_handler;
+        handler = (__rt_sighandler_t)act->k_sa_handler;
 #endif
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
@@ -619,16 +625,15 @@ static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
         }
     }
 
-    if ((void *) handler == (void *) 1) /* SIG_IGN */
+    if ((__sighandler_t)handler == SIG_IGN)
         return NULL;
 
     return handler ? : default_sighandler[sig - 1];
 }
 
 static void
-__handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
-{
-    struct shim_thread * thread = (struct shim_thread *) tcb->tp;
+__handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
+    struct shim_thread* thread = (struct shim_thread*)tcb->tp;
     __rt_sighandler_t handler = NULL;
 
     if (signal->info.si_signo == SIGCP) {
@@ -645,9 +650,8 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 
     debug("%s handled\n", signal_name(sig));
 
-    /* if the context is never stored in the signal, it means the
-       signal is handled during system calls, and before the thread
-       is resumed. */
+    // If the context is never stored in the signal, it means the signal is handled during
+    // system calls, and before the thread is resumed.
     if (!signal->context_stored)
         __store_context(tcb, NULL, signal);
 
@@ -669,8 +673,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
         memcpy(&tcb->context, context, sizeof(struct shim_context));
 
     if (signal->pal_context)
-        memcpy(signal->pal_context, signal->context.uc_mcontext.gregs,
-               sizeof(PAL_CONTEXT));
+        memcpy(signal->pal_context, signal->context.uc_mcontext.gregs, sizeof(PAL_CONTEXT));
 }
 
 void __handle_signal (shim_tcb_t * tcb, int sig)
@@ -725,12 +728,18 @@ void handle_signal (void)
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
 }
 
-void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool wakeup) {
+void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool need_interrupt) {
     __rt_sighandler_t handler = __get_sighandler(thread, sig);
 
-    // If the signal is ignored, no need to append
-    if (!handler)
-        return;
+    if (!handler) {
+        // If the signal is set to be ignored, append the signal but don't interrupt the thread,
+        // except the case that the signal is SIGKILL, see the comment in
+        // https://elixir.bootlin.com/linux/v4.17/source/kernel/signal.c#L98
+        if (sig == SIGKILL)
+            return;
+
+        need_interrupt = false;
+    }
 
     struct shim_signal * signal = malloc(sizeof(struct shim_signal));
     if (!signal)
@@ -748,7 +757,7 @@ void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool wa
 
     if (signal_log) {
         *signal_log = signal;
-        if (wakeup) {
+        if (need_interrupt) {
             debug("resuming thread %u\n", thread->tid);
             thread_wakeup(thread);
             DkThreadResume(thread->pal_handle);
