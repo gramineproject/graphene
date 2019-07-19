@@ -67,7 +67,7 @@ static void assert_vma_list (void)
 #endif
 }
 
-static void * found_area(void * addr, size_t size, struct heap_vma * prev)
+static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
 {
     struct heap_vma * next;
 
@@ -194,11 +194,8 @@ void * get_reserved_pages(void * addr, size_t size)
         return NULL;
     }
 
-    if (size & (pgsz - 1))
-        size = ((size + pgsz - 1) & ~(pgsz - 1));
-
-    if ((uintptr_t) addr & (pgsz - 1))
-        addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
+    size = ((size + pgsz - 1) & ~(pgsz - 1));
+    addr = (void *)((uintptr_t)addr & ~(pgsz - 1));
 
     SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
 
@@ -220,7 +217,7 @@ void * get_reserved_pages(void * addr, size_t size)
                 break;
             prev = vma;
         }
-        void * ret = found_area(addr, size, prev);
+        void * ret = reserve_area(addr, size, prev);
         _DkInternalUnlock(&heap_vma_lock);
         return ret;
     }
@@ -235,7 +232,7 @@ void * get_reserved_pages(void * addr, size_t size)
     LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
         if ((size_t)(avail_top - vma->top) > size) {
             addr = avail_top - size;
-            void * ret = found_area(addr, size, prev);
+            void * ret = reserve_area(addr, size, prev);
             _DkInternalUnlock(&heap_vma_lock);
             return ret;
         }
@@ -245,7 +242,7 @@ void * get_reserved_pages(void * addr, size_t size)
 
     if (avail_top >= heap_base + size) {
         addr = avail_top - size;
-        void * ret = found_area(addr, size, prev);
+        void * ret = reserve_area(addr, size, prev);
         _DkInternalUnlock(&heap_vma_lock);
         return ret;
     }
