@@ -150,7 +150,7 @@ Note: if you get an error concerning "Mod probe isgx.ko not found" or "could not
  insert module isgx.ko: Invalid module format" after running the above steps, you
  need to rebuild the SGX Drivers even if you have already built them,
  otherwise you will have an issue running aesmd service (a Linux daemon which 
- communicates with Launch enclave and other SGX-related services).
+ communicates with Launch Enclave and other SGX-related services).
 
 If you continue to get errors regarding "isgx.ko" or "graphene-sgx.ko"
 run the following commands respectively:
