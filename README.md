@@ -217,7 +217,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
-(3) Running your own binary in Graphene
+(3) Running your own binary in Graphene (Not a production level setup)
 
     - Binaries and executables are significantly more time-consuming to setup inside
       Graphene. A general outline of the steps needed is as follows:
