@@ -621,7 +621,9 @@ BEGIN_CP_FUNC(thread)
 
         new_thread->in_vm  = false;
         new_thread->parent = NULL;
+#ifndef ALIAS_VFORK_AS_FORK
         new_thread->dummy  = NULL;
+#endif
         new_thread->handle_map = NULL;
         new_thread->root   = NULL;
         new_thread->cwd    = NULL;
