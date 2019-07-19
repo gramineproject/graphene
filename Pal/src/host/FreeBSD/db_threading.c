@@ -57,10 +57,6 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     // align child_stack to 16
     child_stack = ALIGN_DOWN_PTR(child_stack, 16);
 
-    flags &= PAL_THREAD_MASK;
-
-    assert(!flags); //FreeBSD does not support any more flags for rfork!
-
     int ret = rfork_thread(
                     RFPROC|RFNOWAIT|RFSIGSHARE|RFMEM,
                     child_stack,
@@ -116,6 +112,9 @@ void _DkThreadYieldExecution (void)
 noreturn void _DkThreadExit (void)
 {
     INLINE_SYSCALL(exit, 1, 0);
+    while (true) {
+        /* nothing */
+    }
 }
 
 int _DkThreadResume (PAL_HANDLE threadHandle)

@@ -60,7 +60,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int timeout)
                 events |= POLLOUT;
 
             if (events) {
-                fds[nfds].fd = handle->hdr.fds[i];
+                fds[nfds].fd = handle->generic.fds[i];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 off[nfds] = i;
@@ -170,8 +170,8 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
                 !(hdl->hdr.flags & ERROR(j)))
                 events |= POLLOUT;
 
-            if (events && hdl->hdr.fds[j] != PAL_IDX_POISON) {
-                fds[nfds].fd = hdl->hdr.fds[j];
+            if (events && hdl->generic.fds[j] != PAL_IDX_POISON) {
+                fds[nfds].fd = hdl->generic.fds[j];
                 fds[nfds].events = events|POLLHUP|POLLERR;
                 fds[nfds].revents = 0;
                 hdls[nfds] = hdl;
@@ -212,8 +212,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
         }
 
         for (j = 0 ; j < MAX_FDS ; j++)
-            if ((hdl->hdr.flags & (RFD(j)|WFD(j))) &&
-                hdl->hdr.fds[j] == fds[i].fd)
+            if ((hdl->hdr.flags & (RFD(j)|WFD(j))) && hdl->generic.fds[j] == fds[i].fd)
                 break;
 
         if (j == MAX_FDS)

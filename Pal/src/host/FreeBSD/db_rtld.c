@@ -33,6 +33,7 @@
 #include "pal_security.h"
 #include "pal_rtld.h"
 #include "api.h"
+#include "atomic.h"
 
 #include <sysdeps/generic/ldsodefs.h>
 #include <elf/elf.h>
@@ -59,7 +60,7 @@ pal_r_debug_state (struct r_debug * rd, struct link_gdb_map * map)
     if (pal_sec.r_debug_state)
         pal_sec.r_debug_state(rd, map);
 
-    asm volatile ("" ::: "memory");
+    COMPILER_BARRIER();
 }
 
 extern __typeof(pal_r_debug_state) r_debug_state

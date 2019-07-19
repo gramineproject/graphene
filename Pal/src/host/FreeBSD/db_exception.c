@@ -29,29 +29,69 @@
 #include "pal_error.h"
 #include "pal_security.h"
 #include "api.h"
-#include "list.h"
 
 #include <atomic.h>
 #include <sigset.h>
-#include "signal.h"
 #include <ucontext.h>
 #include <errno.h>
 
-typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
+#if !defined(__i386__)
+/* In x86_64 kernels, sigaction is required to have a user-defined
+ * restorer. Also, they not yet support SA_INFO. The reference:
+ * http://lxr.linux.no/linux+v2.6.35/arch/x86/kernel/signal.c#L448
+ *
+ *     / * x86-64 should always use SA_RESTORER. * /
+ *     if (ka->sa.sa_flags & SA_RESTORER) {
+ *             put_user_ex(ka->sa.sa_restorer, &frame->pretcode);
+ *     } else {
+ *             / * could use a vstub here * /
+ *             err |= -EFAULT;
+ *     }
+ */
+
+void restore_rt (void) __asm__ ("__restore_rt");
+
+#ifndef SA_RESTORER
+#define SA_RESTORER  0x04000000
+#endif
+
+#define DEFINE_RESTORE_RT(syscall) DEFINE_RESTORE_RT2(syscall)
+# define DEFINE_RESTORE_RT2(syscall)                \
+    __asm__ (                                       \
+         "    nop\n"                                \
+         ".align 16\n"                              \
+         ".LSTART_restore_rt:\n"                    \
+         "    .type __restore_rt,@function\n"       \
+         "__restore_rt:\n"                          \
+         "    movq $" #syscall ", %rax\n"           \
+         "    syscall\n");
+
+#endif
 
 int set_sighandler (int * sigs, int nsig, void * handler)
 {
     struct sigaction action;
-    action.sa_handler = (void (*)(int)) handler;
-    action.sa_flags = SA_SIGINFO;
 
-    __sigemptyset((_sigset_t *) &action.sa_mask);
-    __sigaddset((_sigset_t *) &action.sa_mask, SIGCONT);
+    if (handler) {
+        action.sa_handler = (void (*)(int)) handler;
+        action.sa_flags = SA_SIGINFO;
+#if !defined(__i386__)
+        //action.sa_flags |= SA_RESTORER;
+        //action.sa_restorer = restore_rt;
+#endif
+    } else {
+        action.sa_handler = SIG_IGN;
+    }
+
+#ifdef DEBUG
+    if (!linux_state.in_gdb)
+#endif
+        action.sa_flags |= SA_NOCLDWAIT;
+
+    __sigemptyset((_sigset_t *)&action.sa_mask);
+    __sigaddset((_sigset_t *)&action.sa_mask, SIGCONT);
 
     for (int i = 0 ; i < nsig ; i++) {
-        if (sigs[i] == SIGCHLD)
-            action.sa_flags |= SA_NOCLDSTOP|SA_NOCLDWAIT;
-
 #if defined(__i386__)
         int ret = INLINE_SYSCALL(sigaction, 3, sigs[i], &action, NULL)
 #else
@@ -60,155 +100,26 @@ int set_sighandler (int * sigs, int nsig, void * handler)
 #endif
         if (IS_ERR(ret))
             return -PAL_ERROR_DENIED;
-
-        action.sa_flags &= ~(SA_NOCLDSTOP|SA_NOCLDWAIT);
     }
-
-    bool maskset = false;
-    int ret = 0;
-    _sigset_t mask;
-    __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        if (__sigismember(&bsd_state.sigset, sigs[i])) {
-            __sigdelset(&bsd_state.sigset, sigs[i]);
-            __sigaddset(&mask, sigs[i]);
-            maskset = true;
-        }
-
-    if (maskset) {
-#if defined(__i386__)
-        ret = INLINE_SYSCALL(sigprocmask, 3, SIG_UNBLOCK, &mask, NULL)
-#else
-        ret = INLINE_SYSCALL(sigprocmask, 4, SIG_UNBLOCK, &mask, NULL,
-                             sizeof(sigset_t));
-#endif
-    }
-
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
 
     return 0;
 }
 
-int block_signals (int * sigs, int nsig)
-{
-    bool maskset = false;
-    int ret = 0;
-    _sigset_t mask;
-    __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        if (!__sigismember(&bsd_state.sigset, sigs[i])) {
-            __sigaddset(&bsd_state.sigset, sigs[i]);
-            __sigaddset(&mask, sigs[i]);
-            maskset = true;
-        }
+typedef struct {
+    PAL_IDX         event_num;
+    PAL_CONTEXT     context;
+    ucontext_t *    uc;
+    PAL_PTR         eframe;
+} PAL_EVENT;
 
-    if (maskset) {
-#if defined(__i386__)
-        ret = INLINE_SYSCALL(sigprocmask, 3, SIG_BLOCK, &mask, NULL)
-#else
-        ret = INLINE_SYSCALL(sigprocmask, 4, SIG_BLOCK, &mask, NULL,
-                             sizeof(sigset_t));
-#endif
-    }
-
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    return 0;
-}
-
-int unblock_signals (int * sigs, int nsig)
-{
-    bool maskset = false;
-    int ret = 0;
-    _sigset_t mask;
-    __sigemptyset(&mask);
-    for (int i = 0 ; i < nsig ; i++)
-        if (__sigismember(&bsd_state.sigset, sigs[i])) {
-            __sigdelset(&bsd_state.sigset, sigs[i]);
-            __sigaddset(&mask, sigs[i]);
-            maskset = true;
-        }
-
-    if (maskset) {
-#if defined(__i386__)
-        ret = INLINE_SYSCALL(sigprocmask, 3, SIG_UNBLOCK, &mask, NULL)
-#else
-        ret = INLINE_SYSCALL(sigprocmask, 4, SIG_UNBLOCK, &mask, NULL,
-                             sizeof(sigset_t));
-#endif
-    }
-
-    if (IS_ERR(ret))
-        return -PAL_ERROR_DENIED;
-
-    return 0;
-}
-
-int unset_sighandler (int * sigs, int nsig)
-{
-    for (int i = 0 ; i < nsig ; i++) {
-#if defined(__i386__)
-        int ret = INLINE_SYSCALL(sigaction, 4, sigs[i], SIG_DFL, NULL)
-#else
-        int ret = INLINE_SYSCALL(sigaction, 4, sigs[i], SIG_DFL, NULL,
-                                 sizeof(_sigset_t));
-#endif
-        if (IS_ERR(ret))
-            return -PAL_ERROR_DENIED;
-    }
-    return 0;
-}
-
-struct exception_handler {
-    struct mutex_handle lock;
-    int flags;
-    PAL_UPCALL upcall;
-
-} __attribute__((aligned(sizeof(int))));
-
-struct exception_event {
-
-    int event_num;
-    int flags;
-    PAL_CONTEXT context;
-    ucontext_t * uc;
-    void * eframe;
-
-};
-
-#define DECLARE_HANDLER_HEAD(event)                         \
-    static struct exception_handler handler_##event =       \
-        {  .lock = MUTEX_HANDLE_INIT,                       \
-           .upcall = NULL,                                  \
-           .flags = 0, };
-
-DECLARE_HANDLER_HEAD(DivZero);
-DECLARE_HANDLER_HEAD(MemFault);
-DECLARE_HANDLER_HEAD(Illegal);
-DECLARE_HANDLER_HEAD(Quit);
-DECLARE_HANDLER_HEAD(Suspend);
-DECLARE_HANDLER_HEAD(Resume);
-DECLARE_HANDLER_HEAD(Failure);
-
-struct exception_handler * pal_handlers [PAL_EVENT_NUM_BOUND] = {
-        NULL, /* reserved */
-        &handler_DivZero,
-        &handler_MemFault,
-        &handler_Illegal,
-        &handler_Quit,
-        &handler_Suspend,
-        &handler_Resume,
-        &handler_Failure,
-    };
+#define SIGNAL_MASK_TIME 1000
 
 static int get_event_num (int signum)
 {
     switch(signum) {
         case SIGFPE:                return PAL_EVENT_ARITHMETIC_ERROR;
         case SIGSEGV: case SIGBUS:  return PAL_EVENT_MEMFAULT;
-        case SIGILL:                return PAL_EVENT_ILLEGAL;
+        case SIGILL:  case SIGSYS:  return PAL_EVENT_ILLEGAL;
         case SIGTERM:               return PAL_EVENT_QUIT;
         case SIGINT:                return PAL_EVENT_SUSPEND;
         case SIGCONT:               return PAL_EVENT_RESUME;
@@ -216,15 +127,13 @@ static int get_event_num (int signum)
     }
 }
 
-static void _DkGenericEventTrigger (int event_num, PAL_UPCALL upcall,
-                                    int flags, PAL_NUM arg,
-                                    struct pal_frame * frame,
+static void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
+                                    PAL_NUM arg, struct pal_frame * frame,
                                     ucontext_t * uc, void * eframe)
 {
-    struct exception_event event;
-
+    PAL_EVENT event;
     event.event_num = event_num;
-    event.flags = flags;
+
     if (uc) {
         event.context.r8  = uc->uc_mcontext.mc_r8;
         event.context.r9  = uc->uc_mcontext.mc_r9;
@@ -263,36 +172,31 @@ static void _DkGenericEventTrigger (int event_num, PAL_UPCALL upcall,
         event.context.rsp = frame->arch.rbp + sizeof(unsigned long) * 2;
         event.context.rbp = ((unsigned long *) frame->arch.rbp)[0];
         event.context.rip = ((unsigned long *) frame->arch.rbp)[1];
+        /* making rax = 0 to tell the caller that this PAL call failed */
+        event.context.rax = 0;
     }
 
     event.uc = uc;
     event.eframe = eframe;
 
-    (*upcall) (&event, arg, &event.context);
+    (*upcall) ((PAL_PTR) &event, arg, &event.context);
 }
 
 static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
                                     struct pal_frame * frame,
                                     ucontext_t * uc, void * eframe)
 {
-    struct exception_handler * handler = pal_handlers[event_num];
-
-    _DkMutexLock(&handler->lock);
-    PAL_UPCALL upcall = handler->upcall;
-    int flags = handler->flags;
-    _DkMutexUnlock(&handler->lock);
+    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(event_num);
 
     if (upcall) {
         PAL_NUM arg = 0;
-
 
         if (event_num == PAL_EVENT_ARITHMETIC_ERROR ||
             event_num == PAL_EVENT_MEMFAULT ||
             event_num == PAL_EVENT_ILLEGAL)
             arg = (PAL_NUM) (info ? info->si_addr : 0);
 
-        _DkGenericEventTrigger(event_num, upcall, flags, arg, frame,
-                               uc, eframe);
+        _DkGenericEventTrigger(event_num, upcall, arg, frame, uc, eframe);
         return true;
     }
 
@@ -302,11 +206,23 @@ static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
 #define ADDR_IN_PAL(addr) \
         ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
+/* This function walks the stack to find the PAL_FRAME
+ * that was saved upon entry to the PAL, if an exception/interrupt
+ * comes in during a PAL call.  This is needed to support the behavior that an
+ * exception in the PAL has Unix-style, EAGAIN semantics.
+ *
+ * The PAL_FRAME is supposed to be in the first PAL frame, and we look for
+ * it by matching a special magic number, that should only appear on the stack
+ * once.
+ *
+ * If an exception comes in while we are not in the PAL, this PAL_FRAME won't
+ * exist, and it is ok to return NULL.
+ */
 static struct pal_frame * get_frame (ucontext_t * uc)
 {
     unsigned long rip = uc->uc_mcontext.mc_rip;
     unsigned long rbp = uc->uc_mcontext.mc_rbp;
-    unsigned long last_rbp = rbp - 1024;
+    unsigned long last_rbp = rbp - 64;
 
     if (!ADDR_IN_PAL(rip))
         return NULL;
@@ -334,34 +250,20 @@ static void return_frame (struct pal_frame * frame, int err)
 
     __clear_frame(frame);
     arch_restore_frame(&frame->arch);
-    asm volatile ("xor %%rax, %%rax\r\n"
-                  "leaveq\r\n"
-                  "retq\r\n" ::: "memory");
+
+    __asm__ volatile ("xor %rax, %rax\r\n"
+                      "leaveq\r\n"
+                      "retq\r\n");
 }
 
-static void _DkGenericSighandler (int signum, siginfo_t * info,
-                                  ucontext_t * uc)
-{
-#if 0
-    /* reseurrect this code if signal handler if giving segmentation fault */
-
-    if (signum == SIGSEGV) {
-        int pid = INLINE_SYSCALL(getpid, 0);
-        char msg[24] = "--- SIGSEGV --- [     ]\n";
-        msg[17] = '0' + pid / 10000;
-        msg[18] = '0' + (pid / 1000) % 10;
-        msg[19] = '0' + (pid / 100) % 10;
-        msg[20] = '0' + (pid / 10) % 10;
-        msg[21] = '0' + pid % 10;
-        INLINE_SYSCALL(write, 3, 1, msg, 24);
-
-    }
-#endif
-
+static void _DkGenericSighandler(int signum, siginfo_t* info, ucontext_t* uc) {
     struct pal_frame * frame = get_frame(uc);
-    void * eframe;
+    void* eframe;
 
-    asm volatile ("movq %%rbp, %0" : "=r"(eframe));
+    if (signum == SIGCONT && frame && frame->func == DkObjectsWaitAny)
+        return;
+
+    __asm__ volatile ("movq %%rbp, %0" : "=r"(eframe));
 
     if (frame && frame->func != &_DkGenericSighandler &&
         signum != SIGCONT &&
@@ -378,13 +280,11 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
     _DkGenericSignalHandle(event_num, info, frame, uc, eframe);
 }
 
-static void _DkTerminateSighandler (int signum, siginfo_t * info,
-                                    ucontext_t * uc)
-{
-    struct pal_frame * frame = get_frame(uc);
-    void * eframe;
+static void _DkTerminateSighandler(int signum, siginfo_t* info, ucontext_t* uc) {
+    struct pal_frame* frame = get_frame(uc);
+    void* eframe;
 
-    asm volatile ("movq %%rbp, %0" : "=r"(eframe));
+    __asm__ volatile ("movq %%rbp, %0" : "=r"(eframe));
 
     int event_num = get_event_num(signum);
     if (event_num == -1)
@@ -394,45 +294,43 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
         _DkThreadExit();
 }
 
-static void _DkPipeSighandler (int signum, siginfo_t * info,
-                               ucontext_t * uc)
-{
-    struct pal_frame * frame = get_frame(uc);
-    if (frame)
-        return_frame(frame, PAL_ERROR_CONNFAILED);
+static void _DkPipeSighandler(int signum, siginfo_t* info, ucontext_t* uc) {
+    return;
 }
 
 void _DkRaiseFailure (int error)
 {
-    _DkMutexLock(&handler_Failure.lock);
-    PAL_UPCALL upcall = handler_Failure.upcall;
-    int flags = handler_Failure.flags;
-    _DkMutexUnlock(&handler_Failure.lock);
+    PAL_EVENT_HANDLER upcall = _DkGetExceptionHandler(PAL_EVENT_FAILURE);
 
-    if (upcall)
-        _DkGenericEventTrigger(PAL_EVENT_FAILURE, upcall, flags, error,
-                               NULL, NULL, NULL);
+    if (!upcall)
+        return;
+
+    PAL_EVENT event;
+    event.event_num = PAL_EVENT_FAILURE;
+    event.uc = NULL;
+    event.eframe = NULL;
+
+    (*upcall) ((PAL_PTR) &event, error, NULL);
 }
 
 struct signal_ops {
     int signum[3];
-    void (*handler) (int signum, siginfo_t * info, ucontext_t * uc);
-
+    void (*handler)(int signum, siginfo_t* info, ucontext_t* uc);
 };
 
-struct signal_ops on_signals[PAL_EVENT_NUM_BOUND] = {
-        /* DivZero     */ { .signum = { SIGFPE, 0 },
-                            .handler = _DkGenericSighandler },
-        /* MemFault    */ { .signum = { SIGSEGV, SIGBUS, 0 },
-                            .handler = _DkGenericSighandler },
-        /* Illegal     */ { .signum = { SIGILL, 0 },
-                            .handler = _DkGenericSighandler },
-        /* Quit        */ { .signum = { SIGTERM, 0, 0 },
-                            .handler = _DkTerminateSighandler },
-        /* Suspend     */ { .signum = { SIGINT, 0 },
-                            .handler = _DkTerminateSighandler },
-        /* Resume      */ { .signum = { SIGCONT, 0 },
-                            .handler = _DkGenericSighandler },
+struct signal_ops on_signals[] = {
+        [PAL_EVENT_ARITHMETIC_ERROR] = { .signum = { SIGFPE, 0 },
+                                         .handler = &_DkGenericSighandler },
+        [PAL_EVENT_MEMFAULT]         = { .signum = { SIGSEGV, SIGBUS, 0 },
+                                         .handler = &_DkGenericSighandler },
+        [PAL_EVENT_ILLEGAL]          = { .signum = { SIGILL,  SIGSYS, 0 },
+                                         .handler = &_DkGenericSighandler },
+        [PAL_EVENT_QUIT]             = { .signum = { SIGTERM, 0, 0 },
+                                         .handler = &_DkTerminateSighandler },
+        [PAL_EVENT_SUSPEND]          = { .signum = { SIGINT, 0 },
+                                         .handler = &_DkTerminateSighandler },
+        [PAL_EVENT_RESUME]           = { .signum = { SIGCONT, 0 },
+                                         .handler = &_DkGenericSighandler },
     };
 
 static int _DkPersistentSighandlerSetup (int event_num)
@@ -440,130 +338,69 @@ static int _DkPersistentSighandlerSetup (int event_num)
     int nsigs, * sigs = on_signals[event_num].signum;
     for (nsigs = 0 ; sigs[nsigs] ; nsigs++);
 
-    void * sighandler = on_signals[event_num].handler;
-
-    int ret = set_sighandler (sigs, nsigs, sighandler);
+    int ret = set_sighandler(sigs, nsigs, on_signals[event_num].handler);
     if (ret < 0)
         return ret;
 
     return 0;
 }
 
-static int _DkPersistentEventUpcall (int event_num, PAL_UPCALL upcall,
-                                     int flags)
-{
-    struct exception_handler * handler = pal_handlers[event_num];
-
-    _DkMutexLock(&handler->lock);
-    handler->upcall = upcall;
-    handler->flags = flags;
-    _DkMutexUnlock(&handler->lock);
-
-    return _DkPersistentSighandlerSetup(event_num);
-}
-
-static int _DkGenericEventUpcall (int event_num, PAL_UPCALL upcall,
-                                  int flags)
-{
-    int nsigs, * sigs = on_signals[event_num].signum;
-    for (nsigs = 0 ; sigs[nsigs] ; nsigs++);
-
-    void * sighandler = on_signals[event_num].handler;
-    struct exception_handler * handler = pal_handlers[event_num];
-    int ret = 0;
-
-    _DkMutexLock(&handler->lock);
-    handler->upcall = upcall;
-    handler->flags = flags;
-    _DkMutexUnlock(&handler->lock);
-
-    if (upcall)
-        ret = set_sighandler (sigs, nsigs, sighandler);
-    else
-        ret = block_signals (sigs, nsigs);
-
-    return ret;
-}
-
-static int _DkDummyEventUpcall (int event_num, PAL_UPCALL upcall,
-                                int flags)
-{
-    struct exception_handler * handler = pal_handlers[event_num];
-
-    _DkMutexLock(&handler->lock);
-    handler->upcall = upcall;
-    handler->flags = flags;
-    _DkMutexUnlock(&handler->lock);
-
-    return 0;
-}
-
-typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
-
-int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])
-    (int, PAL_UPCALL, int) = {
-        /* reserved   */ NULL,
-        /* DivZero    */ &_DkPersistentEventUpcall,
-        /* MemFault   */ &_DkPersistentEventUpcall,
-        /* Illegal    */ &_DkPersistentEventUpcall,
-        /* Quit       */ &_DkGenericEventUpcall,
-        /* Suspend    */ &_DkGenericEventUpcall,
-        /* Resume     */ &_DkGenericEventUpcall,
-        /* Failure    */ &_DkDummyEventUpcall,
-    };
-
-static void _DkCompatibilitySighandler (int signum, siginfo_t * info,
-                                        ucontext_t * uc)
-{
-    /* not implemented */
-}
-
 void signal_setup (void)
 {
-    int ret, sig;
-    __sigemptyset(&bsd_state.sigset);
+    int ret, sig = SIGCHLD;
 
-    struct sigaction action;
-    action.sa_handler = (void (*)(int)) SIG_IGN;
-    action.sa_flags = 0;
-
-#if defined(__i386__)
-    ret = INLINE_SYSCALL(sigaction, 3, SIGCHLD, &action, NULL)
-#else
-    ret = INLINE_SYSCALL(sigaction, 4, SIGCHLD, &action, NULL,
-                         sizeof(sigset_t));
+#ifdef DEBUG
+    if (!linux_state.in_gdb)
 #endif
-    if (IS_ERR(ret)) {
-        ret = -PAL_ERROR_DENIED;
-        goto err;
-    }
-
-    if ((ret = _DkPersistentEventUpcall(PAL_EVENT_ARITHMETIC_ERROR,  NULL, 0)) < 0)
-        goto err;
-
-    if ((ret = _DkPersistentEventUpcall(PAL_EVENT_MEMFAULT,  NULL, 0)) < 0)
-        goto err;
-
-    if ((ret = _DkPersistentEventUpcall(PAL_EVENT_ILLEGAL,  NULL, 0)) < 0)
-        goto err;
+        set_sighandler(&sig, 1, NULL);
 
     sig = SIGPIPE;
     if ((ret = set_sighandler(&sig, 1, &_DkPipeSighandler)) < 0)
         goto err;
 
-    sig = SIGSYS;
-    if ((ret = set_sighandler(&sig, 1, &_DkCompatibilitySighandler)) < 0)
-        goto err;
+    int events[] = {
+        PAL_EVENT_ARITHMETIC_ERROR,
+        PAL_EVENT_MEMFAULT,
+        PAL_EVENT_ILLEGAL,
+        PAL_EVENT_QUIT,
+        PAL_EVENT_SUSPEND,
+        PAL_EVENT_RESUME,
+    };
+
+    for (int e = 0 ; e < sizeof(events) / sizeof(events[0]) ; e++)
+        if ((ret = _DkPersistentSighandlerSetup(events[e])) < 0)
+            goto err;
 
     return;
-
 err:
     INIT_FAIL(-ret, "cannot setup signal handlers");
 }
 
 void _DkExceptionReturn (void * event)
 {
-    const struct exception_event * e = (const struct exception_event *) event;
+    PAL_EVENT * e = event;
+
+    if (e->eframe) {
+        struct pal_frame * frame = (struct pal_frame *) e->eframe;
+        int err = 0;
+
+        switch (e->event_num) {
+            case PAL_EVENT_MEMFAULT:
+                err = PAL_ERROR_BADADDR;
+                break;
+            case PAL_EVENT_QUIT:
+            case PAL_EVENT_SUSPEND:
+            case PAL_EVENT_RESUME:
+                err = PAL_ERROR_INTERRUPTED;
+                break;
+        }
+
+        if (err)
+            _DkRaiseFailure(err);
+
+        __clear_frame(frame);
+    }
+
     if (e->uc) {
         /* copy the context back to ucontext */
         e->uc->uc_mcontext.mc_r8 = e->context.r8;
@@ -588,8 +425,9 @@ void _DkExceptionReturn (void * event)
         e->uc->uc_mcontext.mc_trapno = e->context.trapno;
 
         /* return to the frame of exception handler */
-        asm volatile ("movq %0, %%rbp\r\n"
-                      "leaveq\r\n"
-                      "retq\r\n" :: "r"(e->eframe) : "memory");
+        __asm__ volatile ("movq %0, %%rbp\r\n"
+                          "leaveq\r\n"
+                          "retq\r\n"
+                          :: "r"(e->eframe) : "memory");
     }
 }

@@ -48,6 +48,7 @@ typedef struct mutex_handle {
 #define _DkInternalLock _DkMutexLock
 #define _DkInternalUnlock _DkMutexUnlock
 #define MAX_FDS 3
+
 typedef union pal_handle
 {
     /* TSAI: Here we define the internal types of PAL_HANDLE
@@ -55,118 +56,97 @@ typedef union pal_handle
      * handle, also there is no need to allocate the internal
      * handles, so we hide the type name of these handles on purpose.
      */
-    struct {
-        PAL_HDR hdr;
-        struct mutex_handle mut;
-    } mutex;
+    PAL_HDR hdr;
 
-    struct {
-        PAL_IDX type;
-        PAL_FLG flags;
-        PAL_REF ref;
-        PAL_IDX fds[];
-    } hdr;
+    union {
+        struct {
+            PAL_IDX fds[MAX_FDS];
+        } generic;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fd;
-        PAL_NUM offset;
-        PAL_BOL append;
-        PAL_BOL pass;
-        PAL_STR realpath;
-    } file;
+        struct {
+            PAL_IDX fd;
+            PAL_NUM offset;
+            PAL_BOL append;
+            PAL_BOL pass;
+            PAL_STR realpath;
+        } file;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fd;
-        PAL_NUM pipeid;
-        PAL_BOL nonblocking;
-    } pipe;
+        struct {
+            PAL_IDX fd;
+            PAL_NUM pipeid;
+            PAL_BOL nonblocking;
+        } pipe;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fds[MAX_FDS];
-        PAL_BOL nonblocking;
-    } pipeprv;
+        struct {
+            PAL_IDX fds[MAX_FDS];
+            PAL_BOL nonblocking;
+        } pipeprv;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fd_in, fd_out;
-        PAL_IDX dev_type;
-        PAL_BOL destroy;
-        PAL_STR realpath;
-    } dev;
+        struct {
+            PAL_IDX fd_in, fd_out;
+            PAL_IDX dev_type;
+            PAL_BOL destroy;
+            PAL_STR realpath;
+        } dev;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fd;
-        PAL_STR realpath;
-        PAL_PTR buf;
-        PAL_PTR ptr;
-        PAL_PTR end;
-        PAL_BOL endofstream;
-    } dir;
+        struct {
+            PAL_IDX fd;
+            PAL_STR realpath;
+            PAL_PTR buf;
+            PAL_PTR ptr;
+            PAL_PTR end;
+            PAL_BOL endofstream;
+        } dir;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fd;
-        PAL_NUM token;
-    } gipc;
+        struct {
+            PAL_IDX fd;
+            PAL_NUM token;
+        } gipc;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX fd;
-        PAL_PTR bind;
-        PAL_PTR conn;
-        PAL_BOL nonblocking;
-        PAL_BOL reuseaddr;
-        PAL_NUM linger;
-        PAL_NUM receivebuf;
-        PAL_NUM sendbuf;
-        PAL_NUM receivetimeout;
-        PAL_NUM sendtimeout;
-        PAL_BOL tcp_cork;
-        PAL_BOL tcp_keepalive;
-        PAL_BOL tcp_nodelay;
-    } sock;
+        struct {
+            PAL_IDX fd;
+            PAL_PTR bind;
+            PAL_PTR conn;
+            PAL_BOL nonblocking;
+            PAL_BOL reuseaddr;
+            PAL_NUM linger;
+            PAL_NUM receivebuf;
+            PAL_NUM sendbuf;
+            PAL_NUM receivetimeout;
+            PAL_NUM sendtimeout;
+            PAL_BOL tcp_cork;
+            PAL_BOL tcp_keepalive;
+            PAL_BOL tcp_nodelay;
+        } sock;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX stream_in, stream_out;
-        PAL_IDX cargo;
-        PAL_IDX pid;
-        PAL_BOL nonblocking;
-    } process;
+        struct {
+            PAL_IDX stream_in, stream_out;
+            PAL_IDX cargo;
+            PAL_IDX pid;
+            PAL_BOL nonblocking;
+        } process;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX cli;
-        PAL_IDX srv;
-        PAL_IDX port;
-        PAL_BOL nonblocking;
-    } mcast;
+        struct {
+            PAL_IDX cli;
+            PAL_IDX srv;
+            PAL_IDX port;
+            PAL_BOL nonblocking;
+        } mcast;
 
-    struct {
-        PAL_HDR hdr;
-        PAL_IDX tid;
-    } thread;
+        struct {
+            PAL_IDX tid;
+        } thread;
 
-    struct {
-        PAL_HDR hdr;
-        struct atomic_int nwaiters;
-        PAL_NUM max_value;
-        union {
+        struct {
             struct mutex_handle mut;
-            struct atomic_int i;
-        } value;
-    } semaphore;
+        } mutex;
 
-    struct {
-        PAL_HDR hdr;
-        struct atomic_int signaled;
-        struct atomic_int nwaiters;
-        PAL_BOL isnotification;
-    } event;
+        struct {
+            struct atomic_int signaled;
+            struct atomic_int nwaiters;
+            PAL_BOL isnotification;
+        } event;
+    };
 } * PAL_HANDLE;
 
 #define RFD(n)          (1 << (MAX_FDS*0 + (n)))
@@ -186,7 +166,7 @@ struct arch_frame {
 
 #ifdef __x86_64__
 # define store_register(reg, var)     \
-    asm volatile ("movq %%" #reg ", %0" : "=a" (var) :: "memory");
+    __asm__ volatile ("movq %%" #reg ", %0" : "=a" (var) :: "memory");
 
 # define store_register_in_frame(reg, f)     store_register(reg, (f)->reg)
 
@@ -202,7 +182,7 @@ struct arch_frame {
     store_register_in_frame(r15, f)
 
 # define restore_register(reg, var, clobber...)  \
-    asm volatile ("movq %0, %%" #reg :: "g" (var) : "memory", ##clobber);
+    __asm__ volatile ("movq %0, %%" #reg :: "g" (var) : "memory", ##clobber);
 
 # define restore_register_in_frame(reg, f)       \
     restore_register(reg, (f)->reg,              \
@@ -257,7 +237,7 @@ void __store_frame (volatile struct pal_frame * frame,
     arch_store_frame(&frame->arch)
     frame->func = func;
     frame->funcname = funcname;
-    asm volatile ("nop" ::: "memory");
+    __asm__ volatile ("nop" ::: "memory");
     frame->identifier = PAL_FRAME_IDENTIFIER;
 }
 
@@ -270,7 +250,7 @@ static inline
 void __clear_frame (volatile struct pal_frame * frame)
 {
     if (frame->identifier == PAL_FRAME_IDENTIFIER) {
-        asm volatile ("nop" ::: "memory");
+        __asm__ volatile ("nop" ::: "memory");
         frame->identifier = 0;
     }
 }

@@ -324,9 +324,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type, const char * uri,
 }
 
 /* 'read' operation of pipe stream. offset does not apply here. */
-static int pipe_read (PAL_HANDLE handle, int offset, int len,
-                      void * buffer)
-{
+static int64_t pipe_read(PAL_HANDLE handle, uint64_t offset, uint64_t len, void* buffer) {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))
@@ -334,7 +332,7 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[0] :
              handle->pipe.fd;
-    int bytes = 0;
+    size_t bytes = 0;
 
 #if USE_PIPE_SYSCALL == 1
     if (IS_HANDLE_TYPE(handle, pipeprv)) {
@@ -376,9 +374,7 @@ static int pipe_read (PAL_HANDLE handle, int offset, int len,
 }
 
 /* 'write' operation of pipe stream. offset does not apply here. */
-static int pipe_write (PAL_HANDLE handle, int offset, int len,
-                       const void * buffer)
-{
+static int64_t pipe_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const void* buffer) {
     if (!IS_HANDLE_TYPE(handle, pipecli) &&
         !IS_HANDLE_TYPE(handle, pipeprv) &&
         !IS_HANDLE_TYPE(handle, pipe))
@@ -386,7 +382,7 @@ static int pipe_write (PAL_HANDLE handle, int offset, int len,
 
     int fd = IS_HANDLE_TYPE(handle, pipeprv) ? handle->pipeprv.fds[1] :
              handle->pipe.fd;
-    int bytes = 0;
+    int64_t bytes = 0;
 
 #if USE_PIPE_SYSCALL == 1
     if (IS_HANDLE_TYPE(handle, pipeprv)) {
@@ -513,19 +509,27 @@ static int pipe_delete (PAL_HANDLE handle, int access)
 
 static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    int ret, val;
+    int ret, val, fd;
+    PAL_BOL* nonblocking;
 
-    if (handle->hdr.fds[0] == PAL_IDX_POISON)
+    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+        fd = handle->pipeprv.fds[0];
+        nonblocking = &handle->pipeprv.nonblocking;
+    } else {
+        fd = handle->pipe.fd;
+        nonblocking = &handle->pipe.nonblocking;
+    }
+
+    if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    ret = INLINE_SYSCALL(ioctl, 3, handle->hdr.fds[0], FIONREAD, &val);
+    ret = INLINE_SYSCALL(ioctl, 3, fd, FIONREAD, &val);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 
     attr->handle_type  = pal_type_pipe;
     attr->disconnected = handle->hdr.flags & ERROR(0);
-    attr->nonblocking  = (handle->hdr.type == pal_type_pipeprv) ?
-                         handle->pipeprv.nonblocking : handle->pipe.nonblocking;
+    attr->nonblocking  = *nonblocking;
     attr->readable     = val > 0;
     if (PAL_GET_TYPE(handle) == pal_type_pipeprv)
         attr->writable = handle->hdr.flags & WRITABLE(1);
@@ -537,17 +541,22 @@ static int pipe_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
 static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 {
-    if (handle->hdr.fds[0] == PAL_IDX_POISON)
+    int ret, fd;
+    PAL_BOL* nonblocking;
+
+    if (IS_HANDLE_TYPE(handle, pipeprv)) {
+        fd = handle->pipeprv.fds[0];
+        nonblocking = &handle->pipeprv.nonblocking;
+    } else {
+        fd = handle->pipe.fd;
+        nonblocking = &handle->pipe.nonblocking;
+    }
+
+    if (fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    int ret;
-    PAL_BOL * nonblocking = (handle->hdr.type == pal_type_pipeprv) ?
-                            &handle->pipeprv.nonblocking :
-                            &handle->pipe.nonblocking;
-
     if (attr->nonblocking != *nonblocking) {
-        ret = INLINE_SYSCALL(fcntl, 3, handle->hdr.fds[0], F_SETFL,
-                             *nonblocking ? O_NONBLOCK : 0);
+        ret = INLINE_SYSCALL(fcntl, 3, fd, F_SETFL, *nonblocking ? O_NONBLOCK : 0);
 
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
@@ -558,7 +567,7 @@ static int pipe_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     return 0;
 }
 
-static int pipe_getname (PAL_HANDLE handle, char * buffer, int count)
+static int pipe_getname (PAL_HANDLE handle, char * buffer, size_t count)
 {
     int old_count = count;
     int ret;

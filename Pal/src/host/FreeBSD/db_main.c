@@ -41,11 +41,13 @@
 /* At the begining of entry point, rsp starts at argc, then argvs,
    envps and auxvs. Here we store rsp to rdi, so it will not be
    messed up by function calls */
-asm (".global pal_start \n"
-     "  .type pal_start,@function \n"
-     "pal_start: \n "
-     "  movq %rsp, %rdi \n"
-     "  call pal_bsd_main@PLT \n");
+__asm__ (
+    ".global pal_start \n"
+    "  .type pal_start,@function \n"
+    "pal_start: \n "
+    "  movq %rsp, %rdi \n"
+    "  call pal_bsd_main@PLT \n"
+);
 
 #define RTLD_BOOTSTRAP
 
@@ -198,7 +200,7 @@ void pal_bsd_main (void * args)
     const char * pal_name = NULL;
     PAL_HANDLE parent = NULL, exec = NULL, manifest = NULL;
     const char ** argv, ** envp;
-    int argc, ret;
+    int argc;
 
     struct timeval time;
     INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
@@ -267,7 +269,7 @@ done_init:
 static void cpuid (int cpuid_fd, unsigned int reg,
                    unsigned int words[], unsigned int ecx)
 {
-   asm("cpuid"
+   __asm__("cpuid"
        : "=a" (words[PAL_CPUID_WORD_EAX]),
          "=b" (words[PAL_CPUID_WORD_EBX]),
          "=c" (words[PAL_CPUID_WORD_ECX]),
@@ -363,7 +365,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
      * best option we have so far to get the cpu number  */
 
     cpuid(0xb, 1, words, 0);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX],  0, 16);
+    ci->cpu_num      = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX],  0, 16);
 
     int flen = 0, fmax = 80;
     char * flags = malloc(fmax);

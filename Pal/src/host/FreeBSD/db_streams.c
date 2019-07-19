@@ -71,10 +71,8 @@ int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 {
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (handle->hdr.flags & (RFD(i)|WFD(i))) {
-            long flags = enable ? FD_CLOEXEC : 0;
-            int ret = INLINE_SYSCALL(fcntl, 3,
-                                     handle->hdr.fds[i], F_SETFD,
-                                     flags);
+            int flags = enable ? FD_CLOEXEC : 0;
+            int ret = INLINE_SYSCALL(fcntl, 3, handle->generic.fds[i], F_SETFD, flags);
             if (IS_ERR(ret) && ERRNO(ret) != EBADF)
                 return -PAL_ERROR_DENIED;
         }
@@ -288,7 +286,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (cargo->hdr.flags & (RFD(i)|WFD(1))) {
             hdl_hdr.fds |= 1U << i;
-            fds[nfds++] = cargo->hdr.fds[i];
+            fds[nfds++] = cargo->generic.fds[i];
         }
     // ~ Initialize common parameter formessage passing
     // Channel between parent and child
@@ -445,7 +443,7 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     for (int i = 0 ; i < MAX_FDS ; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < total_fds) {
-                handle->hdr.fds[i] = ((int *) CMSG_DATA(chdr))[n++];
+                handle->generic.fds[i] = ((int *) CMSG_DATA(chdr))[n++];
             } else {
                 handle->hdr.flags &= ~(RFD(i)|WFD(i));
             }

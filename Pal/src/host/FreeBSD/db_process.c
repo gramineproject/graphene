@@ -383,6 +383,9 @@ no_data:
 noreturn void _DkProcessExit (int exitcode)
 {
     INLINE_SYSCALL(exit, 1, exitcode);
+    while (true) {
+        /* nothing */
+    }
 }
 
 int _DkProcessSandboxCreate (const char * manifest, int flags)
@@ -394,11 +397,8 @@ int _DkProcessSandboxCreate (const char * manifest, int flags)
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int proc_read (PAL_HANDLE handle, int offset, int count,
-                          void * buffer)
-{
-    int bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer,
-                               count);
+static int64_t proc_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
+    int64_t bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer, count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {
@@ -413,11 +413,8 @@ static int proc_read (PAL_HANDLE handle, int offset, int count,
     return bytes;
 }
 
-static int proc_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
-{
-    int bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer,
-                               count);
+static int64_t proc_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
+    int64_t bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer, count);
 
     if (IS_ERR(bytes))
         switch(ERRNO(bytes)) {

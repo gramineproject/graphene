@@ -5,14 +5,13 @@ CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
-host_target = libpal-FreeBSD.a ../../pal-gdb
+host_target = libpal-FreeBSD.a pal-gdb
 
 defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
 CFLAGS += $(defs)
 ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
-	    mutex events process object main rtld misc ipc \
-	    exception2) rfork_thread
+	    mutex events process object main rtld misc ipc exception) rfork_thread
 graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 

@@ -36,19 +36,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#if defined(__i386__)
-#define RMB()           asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
-#define CPU_RELAX()     asm volatile("rep; nop" ::: "memory");
-#endif
-
-#if defined(__x86_64__)
-#include <unistd.h>
-#define RMB()           asm volatile("lfence" ::: "memory")
-#define CPU_RELAX()     asm volatile("rep; nop" ::: "memory");
-#endif
-
 #define MUTEX_SPINLOCK_TIMES    20
-
 
 int _DkMutexLockTimeout (struct mutex_handle * mut, int timeout)
 {
@@ -200,7 +188,7 @@ out:
     return ret;
 }
 
-int _DkMutexAcquireTimeout (PAL_HANDLE handle, int timeout)
+int _DkMutexAcquireTimeout (PAL_HANDLE handle, PAL_NUM timeout)
 {
     return _DkMutexLockTimeout(&handle->mutex.mut, timeout);
 }

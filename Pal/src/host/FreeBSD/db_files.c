@@ -72,11 +72,9 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
 #endif
 
 /* 'read' operation for file streams. */
-static int file_read (PAL_HANDLE handle, int offset, int count,
-                      void * buffer)
-{
+static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
     int fd = handle->file.fd;
-    int ret;
+    int64_t ret;
     if (handle->file.offset != offset) {
         ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
 
@@ -96,11 +94,10 @@ static int file_read (PAL_HANDLE handle, int offset, int count,
 }
 
 /* 'write' operation for file streams. */
-static int file_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
+static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer)
 {
     int fd = handle->file.fd;
-    int ret;
+    int64_t ret;
 
     if (handle->file.offset != offset) {
         ret = INLINE_SYSCALL(lseek, 3, fd, offset, SEEK_SET);
@@ -147,8 +144,7 @@ static int file_delete (PAL_HANDLE handle, int access)
 }
 
 /* 'map' operation for file stream. */
-static int file_map (PAL_HANDLE handle, void ** addr, int prot,
-                     int offset, int size)
+static int file_map(PAL_HANDLE handle, void ** addr, int prot, uint64_t offset, uint64_t size)
 {
     int fd = handle->file.fd;
     void * mem = *addr;
@@ -168,9 +164,8 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
 }
 
 /* 'setlength' operation for file stream. */
-static int file_setlength (PAL_HANDLE handle, int length)
-{
-    int ret = INLINE_SYSCALL(ftruncate, 2, handle->file.fd, length);
+static int64_t file_setlength(PAL_HANDLE handle, uint64_t length) {
+    int64_t ret = INLINE_SYSCALL(ftruncate, 2, handle->file.fd, length);
 
     if (IS_ERR(ret))
         return (ERRNO(ret) == EINVAL || ERRNO(ret) == EBADF) ?
@@ -241,7 +236,7 @@ static int file_attrquery (const char * type, const char * uri,
 static int file_attrquerybyhdl (PAL_HANDLE handle,
                                 PAL_STREAM_ATTR * attr)
 {
-    int fd = handle->hdr.fds[0];
+    int fd = handle->file.fd;
     struct stat stat_buf;
 
     int ret = INLINE_SYSCALL(fstat, 2, fd, &stat_buf);
@@ -256,7 +251,7 @@ static int file_attrquerybyhdl (PAL_HANDLE handle,
 static int file_attrsetbyhdl (PAL_HANDLE handle,
                               PAL_STREAM_ATTR * attr)
 {
-    int fd = handle->hdr.fds[0], ret;
+    int fd = handle->file.fd, ret;
 
     ret = INLINE_SYSCALL(fchmod, 2, fd, attr->share_flags);
     if (IS_ERR(ret))
@@ -288,8 +283,7 @@ static int file_rename (PAL_HANDLE handle, const char * type,
     return 0;
 }
 
-static int file_getname (PAL_HANDLE handle, char * buffer, int count)
-{
+static int file_getname (PAL_HANDLE handle, char* buffer, size_t count) {
     if (!handle->file.realpath)
         return 0;
 
@@ -385,12 +379,11 @@ struct dirent {
 
 /* 'read' operation for directory stream. Directory stream will not
    need a 'write' operation. */
-int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
-{
-    void * dent_buf = handle->dir.buf ? : __alloca(DIRBUF_SIZE);
-    void * ptr = handle->dir.ptr;
-    void * end = handle->dir.end;
-    int bytes = 0;
+int64_t dir_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buf) {
+    void* dent_buf = handle->dir.buf ? : __alloca(DIRBUF_SIZE);
+    void* ptr = handle->dir.ptr;
+    void* end = handle->dir.end;
+    int64_t bytes = 0;
 
     if (ptr && ptr < end)
         goto output;
@@ -399,8 +392,7 @@ int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
         if (handle->dir.endofstream)
             break;
 
-        int size = INLINE_SYSCALL(getdents, 3, handle->dir.fd, dent_buf,
-                                  DIRBUF_SIZE);
+        int64_t size = INLINE_SYSCALL(getdents, 3, handle->dir.fd, dent_buf, DIRBUF_SIZE);
 
         if (IS_ERR(size))
             return -PAL_ERROR_DENIED;
@@ -520,8 +512,7 @@ static int dir_rename (PAL_HANDLE handle, const char * type,
     return 0;
 }
 
-static int dir_getname (PAL_HANDLE handle, char * buffer, int count)
-{
+static int dir_getname(PAL_HANDLE handle, char* buffer, size_t count) {
     if (!handle->dir.realpath)
         return 0;
 
