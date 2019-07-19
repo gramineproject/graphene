@@ -15,37 +15,38 @@ Launching a GSC container instance includes following steps:
    ./gsce run [All the arguments used for launching a normal Docker container] [docker Image Name:Tag].
 
 Let's take redis, a key-value, in-memory database as an example. Assume the user runs a normal redis from its docker image as follows.
-
+```bash
 docker run -i -t -p 6379:6379 redis:latest
-
+```
 To launch a GSC container running redis, simply change docker to "./gsce", i.e., the user runs the command as follows.
-
-./gsce run -i -t -p 6379:6379 redis:latest=
+```bash
+./gsce run -i -t -p 6379:6379 redis:latest
+```
 --------------------------------
-Setting up the Dockerfile: 
+Setting up the Dockerfile:
 
 If running a C++ example your Dockerfile should have the following:
 ```docker
 FROM gcc:9.1
 
 # Ensure you add your path to the graphene folder
-COPY . /home/username/graphene/LibOS/shim/test/apps/yourImageName 
+COPY . /home/username/graphene/LibOS/shim/test/apps/yourImageName
 
-WORKDIR /home/username/graphene/LibOS/shim/test/apps/yourImageName 
+WORKDIR /home/username/graphene/LibOS/shim/test/apps/yourImageName
 
-# You can use gcc or g++ and any flags you would like (std flag is for c++ 11 support)
-RUN g++ -o app sourcefile.cpp -std=c++11 
+# You can use gcc or g++ and any flags you would like (std flag is for C++ 11 support)
+RUN g++ -o app sourcefile.cpp -std=c++11
 
 CMD ["./app"]
 ```
-Note: If GSC has issues finding your program and it is added under the trusted files, it is possible your path has a typo or is incorrect. 
+Note: If GSC has issues finding your program and it is added under the trusted files, it is possible that your path has a typo or is incorrect.
 --------------------------------
 Issues You May Encounter
 1) Graphene is having trouble handling the symbolic links in graphene/Runtime
-	- For some reason graphene doesn't read symbolic links in certain instances. You will need to replace all of the links with a copy of the actual files with the same name to the Runtime folder. Rather than doing this manually (more painful than you may think) use this trick: 
+	- For some reason Graphene doesn't read symbolic links in certain instances. You will need to replace all of the links with a copy of the actual files with the same name to the Runtime folder. Rather than doing this manually (more painful than you may think) use this trick:
 	- `shopt -s globstar` <-- enables globstar option
 	- `sed -i '' **/*` <-- replaces all of the links
-2) Cannot find (generated_offsets)/(site).py 
+2) Cannot find (generated_offsets)/(site).py
 	- Graphene for some reason can't access certain modules it needs to sign enclaves, so all you need to do is copy wherever the modules are located to the folder: `/home/username/graphene/Pal/src/host/Linux-SGX/signer`
 3) "Cannot open device /dev/gsgx"
 	- cd into `graphene/Pal/src/host/Linux-SGX/sgx-driver/load.sh`
@@ -55,11 +56,11 @@ Issues You May Encounter
 5) If there is an issue when running bash.manifest.sgx
 	- edit the Entrypoint in relation to the executable in the Dockerfile
 6) Issues with trusted files in GSC
-	- Edit the gen_manifest python script and add your trusted files inside of the df.write. 
-	- The names for the sgx trusted files are arbitrary but need to be unique or overlap issues will occur when signing the enclaves 
+	- Edit the gen_manifest python script and add your trusted files inside of the df.write.
+	- The names for the sgx trusted files are arbitrary but need to be unique or overlap issues will occur when signing the enclaves
 7) /lib64/ld-linux-x86-64.so.2: version 'SHIM' not found (required by libc.so.6)
     - Run `echo $LD_LIBRARY_PATH` and check for a trailing colon at the end of this path
-8) "bad_alloc" or "st9_alloc" 
+8) "bad_alloc" or "st9_alloc"
 	- Your enclave size is too small (default is 256M). Try adding the line: `sgx.enclave_size = 1G` (Size must be a power of 2)
 9) Cannot connect to AESMD service (socket cannot connect)
 	- Most likley your isgx.ko did not load properly when you ran load.sh. Run load.sh and handle any errors that may appear (most are documented above)
