@@ -461,10 +461,8 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     TRY(init_enclave, &enclave_secs, &enclave_sigstruct, &enclave_token);
 
-    ret = create_tcs_mapper((void *) enclave_secs.baseaddr + tcs_area->addr,
+    create_tcs_mapper((void *) enclave_secs.baseaddr + tcs_area->addr,
                       enclave->thread_num);
-    if (ret < 0)
-        return ret;
 
     struct pal_sec * pal_sec = &enclave->pal_sec;
 

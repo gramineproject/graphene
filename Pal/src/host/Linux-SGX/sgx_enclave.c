@@ -35,10 +35,8 @@ static int sgx_ocall_exit(void* prv)
 
     sgx_signal_mask(true);
     ecall_thread_reset();
-    sgx_signal_mask(false);
 
-
-    /* The threads created with pthread_exit will be exiting with pthread_exit */
+    /* The threads created with pthread_create() must exit with pthread_exit() */
     if(!unmap_tcs())
         INLINE_SYSCALL(exit, 1, (int)rv);
     else

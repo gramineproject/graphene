@@ -116,7 +116,7 @@ void async_exit_pointer (void);
 int interrupt_thread (void * tcs);
 int clone_thread (void);
 
-int create_tcs_mapper (void * tcs_base, unsigned int thread_num);
+void create_tcs_mapper (void * tcs_base, unsigned int thread_num);
 void map_tcs (unsigned int tid, bool is_pthread);
 bool unmap_tcs (void);
 void thread_exit(void* rv);

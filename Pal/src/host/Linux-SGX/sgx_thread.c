@@ -1,6 +1,7 @@
 /* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 
+#include "assert.h"
 #include "pal_internal.h"
 #include "sgx_internal.h"
 #include "pal_security.h"
@@ -26,9 +27,9 @@ static sgx_arch_tcs_t * enclave_tcs;
 static int enclave_thread_num;
 static struct thread_map * enclave_thread_map;
 
-pthread_mutex_t tcs_lock;
+pthread_mutex_t tcs_lock = PTHREAD_MUTEX_INITIALIZER;
 
-int create_tcs_mapper (void * tcs_base, unsigned int thread_num)
+void create_tcs_mapper (void * tcs_base, unsigned int thread_num)
 {
     enclave_tcs = tcs_base;
     enclave_thread_map = malloc(sizeof(struct thread_map) * thread_num);
@@ -38,13 +39,6 @@ int create_tcs_mapper (void * tcs_base, unsigned int thread_num)
         enclave_thread_map[i].tid = 0;
         enclave_thread_map[i].tcs = &enclave_tcs[i];
     }
-
-    int ret = pthread_mutex_init(&tcs_lock, NULL);
-    if (ret) {
-        SGX_DBG(DBG_E, "TCS Lock initilization failed!\n");
-        return ERRNO(ret);
-    }
-    return ret;
 }
 
 void map_tcs (unsigned int tid, bool is_pthread)
@@ -61,23 +55,31 @@ void map_tcs (unsigned int tid, bool is_pthread)
     pthread_mutex_unlock(&tcs_lock);
 }
 
+/* Return true if unmapped thread was created with pthread_create(), false otherwise */
 bool unmap_tcs (void)
 {
     int index = current_tcs - enclave_tcs;
+    bool ret = false;
     struct thread_map * map = &enclave_thread_map[index];
-    if (index >= enclave_thread_num)
-        return -1;
+
+    assert(index < enclave_thread_num);
+
     SGX_DBG(DBG_I, "unmap TCS at 0x%08lx\n", map->tcs);
+
+    pthread_mutex_lock(&tcs_lock);
     current_tcs = NULL;
     ((struct enclave_dbginfo *) DBGINFO_ADDR)->thread_tids[index] = 0;
     map->tid = 0;
-    return map->is_pthread;
+    ret = map->is_pthread;
+    pthread_mutex_unlock(&tcs_lock);
+
+    return ret;
 }
 
 static void * thread_start (void * arg)
 {
     int tid = INLINE_SYSCALL(gettid, 0);
-    map_tcs(tid, true);
+    map_tcs(tid, true); /* Thread created by pthread_create() set as true */
     current_enclave = arg;
 
     if (!current_tcs) {

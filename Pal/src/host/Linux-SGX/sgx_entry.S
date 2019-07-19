@@ -9,10 +9,7 @@
 	.type sgx_ecall, @function
 
 sgx_ecall:
-	pushq %rax
 	pushq %rbx
-	pushq %rcx
-	pushq %rdx
 
 	# put entry address in RDX
 	leaq sgx_entry(%rip), %rdx
@@ -31,11 +28,7 @@ sgx_ecall:
 	ENCLU
 
 	# Currently only ECALL_THREAD_RESET returns
-	popq %rdx
-	popq %rcx
 	popq %rbx
-	popq %rax
-
 	retq
 
 	.global async_exit_pointer

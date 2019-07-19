@@ -274,15 +274,7 @@ err:
 
 int sgx_signal_mask(bool do_block)
 {
-    int sig[7];
-
-    sig[0] = SIGTERM;
-    sig[1] = SIGINT;
-    sig[2] = SIGCONT;
-    sig[3] = SIGSEGV;
-    sig[4] = SIGILL;
-    sig[5] = SIGFPE;
-    sig[6] = SIGBUS;
+    int sig[] = {SIGTERM, SIGINT, SIGCONT, SIGSEGV, SIGILL, SIGFPE, SIGBUS};
 
     return do_block ? block_signals(sig, 7) : unblock_signals(sig, 7);
 }

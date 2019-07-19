@@ -1,11 +1,10 @@
+#include <asm-offsets-build.h>
 #include <stddef.h>
 
-#include "sgx_arch.h"
-#include "sgx_tls.h"
 #include "ecall_types.h"
 #include "ocall_types.h"
-
-#include <asm-offsets-build.h>
+#include "sgx_arch.h"
+#include "sgx_tls.h"
 
 void dummy(void)
 {

@@ -1,6 +1,3 @@
-/* -*- mode:c; c-file-style:"k&r"; c-basic-offset: 4; tab-width:4; indent-tabs-mode:nil; mode:auto-fill; fill-column:78; -*- */
-/* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
-
 /* a simple helloworld test, with pthread usage */
 
 #include <stdio.h>
@@ -8,24 +5,26 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define THREAD_NUMBER 128
+#define THREAD_NUM 32 
+#define CON_THREAD_NUM 4
 
 int counter = 0;
 
-void * inc (void *arg)
+void* inc (void *arg)
 {
-//    printf("%dth thread, child: pid %d\n", counter++, getpid());
-    counter++;
+    asm volatile( "lock; incl %0"
+                 : "+m" (counter));
     return NULL;
 }
 
-int main(int argc, char ** argv)
+int main(int argc, char** argv)
 {
-    pthread_t thread;
-//    printf("parent: pid %d\n", getpid());
-    for (int i = 0; i < THREAD_NUMBER; i++){
-      pthread_create(&thread, NULL, inc, NULL);
-      pthread_join(thread, NULL);
+    for (int i = 0; i < THREAD_NUM; i++){
+      pthread_t thread[CON_THREAD_NUM];
+      for (int j = 0; j < CON_THREAD_NUM; j++)
+          pthread_create(&thread[j], NULL, inc, NULL);
+      for (int j = 0; j < CON_THREAD_NUM; j++)
+          pthread_join(thread[j], NULL);
     }
     printf("%d Threads Created\n", counter);
     return 0;

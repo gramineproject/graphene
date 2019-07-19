@@ -131,7 +131,7 @@ void _DkThreadExit (void)
         listp_del(exiting_thread, &thread_list, list);
         _DkInternalUnlock(&thread_list_lock);   
     }
-    
+
     ocall_exit(0);
 }
 
