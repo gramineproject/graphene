@@ -220,7 +220,7 @@ struct shim_dirent {
  * which might be different depending on the length of the name field */
 #define SHIM_DIRENT_ALIGNED_SIZE(len) ( \
                 (SHIM_DIRENT_SIZE \
-                    + len \
+                    + (len) \
                     + SHIM_DIRENT_ALIGNMENT - 1) \
             / SHIM_DIRENT_ALIGNMENT * SHIM_DIRENT_ALIGNMENT)
 

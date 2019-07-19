@@ -1065,7 +1065,7 @@ static int chroot_readdir(struct shim_dentry* dent, struct shim_dirent** dirent)
             }
         }
 
-        /* XXX If realloc gets enabled delete following and uncomment rest */
+        /* TODO: If realloc gets enabled delete following and uncomment rest */
         char* tmp = malloc(dirent_buf_size);
         if (!tmp) {
             ret = -ENOMEM;
