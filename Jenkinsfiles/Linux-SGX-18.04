@@ -1,6 +1,6 @@
 pipeline {
         agent {
-            dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile'
+            dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile'
                          label 'sgx_slave'
                          args "-v /lib/modules:/lib/modules:ro -v /usr/src:/usr/src:ro -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket --device=/dev/gsgx:/dev/gsgx --device=/dev/isgx:/dev/isgx"
                        }
@@ -51,8 +51,8 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python
-                                                  make SGX=1
-                                                  make SGX_RUN=1
+                                make SGX=1
+                                make SGX_RUN=1
                                 make SGX_RUN=1 regression
                             '''
       }

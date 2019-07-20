@@ -23,63 +23,6 @@
 
 #include "sgx_internal.h"
 
-#if 0 /* this code is useless for now */
-int _DkEventSet (PAL_HANDLE event, int wakeup)
-{
-    int ret = 0;
-
-    if (event->event.isnotification) {
-        // Leave it signaled, wake all
-        if (atomic_cmpxchg(&event->event.signaled, 0, 1) == 0) {
-            int nwaiters = atomic_read(&event->event.nwaiters);
-            if (nwaiters) {
-                if (wakeup != -1 && nwaiters > wakeup)
-                    nwaiters = wakeup;
-
-                ret = INLINE_SYSCALL(futex, 6, &event->event.signaled,
-                                     FUTEX_WAKE, nwaiters, NULL, NULL, 0);
-                if (IS_ERR(ret))
-                    atomic_set(&event->event.signaled, 0);
-            }
-        }
-    } else {
-        // Only one thread wakes up, leave unsignaled
-        ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, 1,
-                             NULL, NULL, 0);
-    }
-
-    return IS_ERR(ret) ? -PAL_ERROR_TRYAGAIN : ret;
-}
-
-int _DkEventWait (PAL_HANDLE event)
-{
-    int ret = 0;
-
-    if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
-        atomic_inc(&event->event.nwaiters);
-
-        do {
-            ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT,
-                                  0, NULL, NULL, 0);
-
-            if (IS_ERR(ret)) {
-                if (ERRNO(ret) == EWOULDBLOCK) {
-                    ret = 0;
-                } else {
-                    ret = -PAL_ERROR_DENIED;
-                    break;
-                }
-            }
-        } while (event->event.isnotification &&
-                 !atomic_read(&event->event.signaled));
-
-        atomic_dec(&event->event.nwaiters);
-    }
-
-    return ret;
-}
-#endif
-
 #define PRINTBUF_SIZE        256
 
 struct printbuf {

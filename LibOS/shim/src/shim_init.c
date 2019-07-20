@@ -30,6 +30,7 @@
 #include <shim_fs.h>
 #include <shim_ipc.h>
 #include <shim_profile.h>
+#include <shim_vdso.h>
 
 #include <pal.h>
 #include <pal_debug.h>
@@ -801,8 +802,10 @@ restore:
     shim_tcb_t * cur_tcb = shim_get_tls();
     struct shim_thread * cur_thread = (struct shim_thread *) cur_tcb->tp;
 
-    if (cur_tcb->context.regs && cur_tcb->context.regs->rsp)
+    if (cur_tcb->context.regs && cur_tcb->context.regs->rsp) {
+        vdso_map_migrate();
         restore_context(&cur_tcb->context);
+    }
 
     if (cur_thread->exec)
         execute_elf_object(cur_thread->exec, argcp, argp, auxp);
@@ -833,7 +836,7 @@ static int create_unique (int (*mkname) (char *, size_t, void *),
     }
 }
 
-static int name_pipe (char * uri, size_t size, void * id)
+static int name_pipe_rand (char * uri, size_t size, void * id)
 {
     IDTYPE pipeid;
     size_t len;
@@ -841,9 +844,20 @@ static int name_pipe (char * uri, size_t size, void * id)
     if (ret < 0)
         return -convert_pal_errno(-ret);
     debug("creating pipe: pipe.srv:%u\n", pipeid);
-    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) == size)
+    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) >= size)
         return -ERANGE;
-    *((IDTYPE *) id) = pipeid;
+    *((IDTYPE *)id) = pipeid;
+    return len;
+}
+
+static int name_pipe_vmid (char * uri, size_t size, void * id)
+{
+    IDTYPE pipeid = cur_process.vmid;
+    size_t len;
+    debug("creating pipe: pipe.srv:%u\n", pipeid);
+    if ((len = snprintf(uri, size, "pipe.srv:%u", pipeid)) >= size)
+        return -ERANGE;
+    *((IDTYPE *)id) = pipeid;
     return len;
 }
 
@@ -873,10 +887,15 @@ static int pipe_addr (char * uri, size_t size, const void * id,
 }
 
 int create_pipe (IDTYPE * id, char * uri, size_t size, PAL_HANDLE * hdl,
-                 struct shim_qstr * qstr)
+                 struct shim_qstr * qstr, bool use_vmid_for_name)
 {
     IDTYPE pipeid;
-    int ret = create_unique(&name_pipe, &open_pipe, &pipe_addr,
+    int ret;
+    if (use_vmid_for_name)
+        ret = create_unique(&name_pipe_vmid, &open_pipe, &pipe_addr,
+                            uri, size, &pipeid, hdl, qstr);
+    else
+        ret = create_unique(&name_pipe_rand, &open_pipe, &pipe_addr,
                             uri, size, &pipeid, hdl, qstr);
     if (ret > 0 && id)
         *id = pipeid;
@@ -1154,7 +1173,7 @@ int shim_clean (int err)
     }
 #endif
 
-    del_all_ipc_ports(0);
+    del_all_ipc_ports();
 
     if (shim_stdio && shim_stdio != (PAL_HANDLE) -1)
         DkObjectClose(shim_stdio);

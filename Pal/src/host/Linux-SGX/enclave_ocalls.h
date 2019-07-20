@@ -8,7 +8,7 @@
 #include <linux/socket.h>
 #include <linux/poll.h>
 
-noreturn void ocall_exit (int exitcode);
+noreturn void ocall_exit (int exitcode, int is_exitgroup);
 
 int ocall_print_string (const char * str, unsigned int length);
 

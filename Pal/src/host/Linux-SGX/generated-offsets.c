@@ -1,6 +1,6 @@
 #include <stddef.h>
+#include <asm/errno.h>
 
-#include "pal_error.h"
 #include "sgx_arch.h"
 #include "sgx_tls.h"
 #include "pal_linux.h"
@@ -130,7 +130,7 @@ void dummy(void)
     /* pal_linux.h */
     DEFINE(PAGESIZE, PRESET_PAGESIZE);
 
-    /* pal_error.h */
-    DEFINE(PAL_ERROR_INTERRUPTED, PAL_ERROR_INTERRUPTED);
+    /* errno */
+    DEFINE(EINTR, EINTR);
 }
 
