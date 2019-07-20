@@ -624,7 +624,7 @@ static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
         }
     }
 
-    if ((__sighandler_t)handler == SIG_IGN)
+    if ((void*)handler == SIG_IGN)
         return NULL;
 
     return handler ? : default_sighandler[sig - 1];
