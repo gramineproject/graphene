@@ -217,10 +217,9 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
-(3) Running your own binary in Graphene (Not a production level setup)
+(3) Running your own binary in Graphene (not a production level setup)
 
-    - Binaries and executables are significantly more time-consuming to setup inside
-      Graphene. A general outline of the steps needed is as follows:
+    - A general outline of the steps needed is as follows:
 
     1. cd into `LibOS/shim/test/apps/`
     2. create a new directory for your application
@@ -230,7 +229,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
         PYTHON_SRC = Python-2.7.9
         PYTHON_INSTALL = $(PYTHON_SRC)/build
 
-        manifests = your_executable.manifest
+        manifests = your_binary.manifest
 
         exec_target = $(manifests)
 
@@ -241,13 +240,13 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
         include ../../Makefile
 
         clean-tmp:
-            rm -f your_executable.manifest.sgx *.sig *.token
+            rm -f your_binary.manifest.sgx *.sig *.token
         ```
     4. Inside of this file leave everything the same except for the `sgx.trusted_children`
      and `sgx.trusted_files`, adding whatever dependencies and files are necessary
-     for your executable.
+     for your binaru.
     5. Run `make && make SGX=1 && make SGX_RUN=1`
-    6. then Run ` SGX=1 ./yourfile.manifest` to execute your code.
+    6. Run `SGX=1 ./yourfile.manifest` to execute your code.
 
     NOTES:
      * It is important that the directories of any libraries you wish to use are
@@ -269,11 +268,11 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
      * Arguments can be passed normally after the .manifest in terminal.
 
 ## 3. HOW TO DEBUG AND HANDLE ERRORS
-If you add or remove any files, symbolic links, manifests, executable, etc. you must
-first restart Graphene. (For example, if you added your own custom script to test
+If you add or remove any files, symbolic links, manifests, binary, etc. you must
+first restart Graphene (for example, if you added your own custom script to test
 in LibOS/shim/test/apps/python you will need to restart Graphene).
 
- ### How to re-build Graphene
+ ### How to rebuild Graphene
     1) cd into Graphene root
     2) run `make SGX=1 clean`
     3) run `make SGX=1 && make SGX_RUN=1`
@@ -285,7 +284,7 @@ in LibOS/shim/test/apps/python you will need to restart Graphene).
         correctly and retry.
     2) Issue when running the sample code in hardware mode.
         - Most likely you did not set SGX to enabled in your BIOS. If you cannot
-        find this option, your BIOS likely doesn't support SGX
+        find this option, either your BIOS or CPU likely doesn't support SGX
     3) Error in Intel SGX driver compatibility.
         - Make sure when you run `./load.sh` you input the correct driver version
         and you downloaded and installed the Intel SGX Driver (branch sgx2). Ensure
