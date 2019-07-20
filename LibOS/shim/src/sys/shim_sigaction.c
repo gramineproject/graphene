@@ -224,11 +224,14 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
     set_sig_mask(cur, mask);
     cur->suspend_on_signal = true;
+    unlock(&cur->lock);
+
     thread_setwait(NULL, NULL);
     thread_sleep(NO_TIMEOUT);
 
-    unlock(&cur->lock);
+    lock(&cur->lock);
     set_sig_mask(cur, old);
+    unlock(&cur->lock);
     return -EINTR;
 }
 
