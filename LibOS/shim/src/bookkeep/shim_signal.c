@@ -617,7 +617,7 @@ static __rt_sighandler_t __get_sighandler(struct shim_thread* thread, int sig) {
 #ifdef __i386__
 # error "x86-32 support is heavily broken."
 #endif
-        handler = (__rt_sighandler_t)act->k_sa_handler;
+        handler = (void*)act->k_sa_handler;
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
             free(act);
