@@ -71,8 +71,8 @@ $(graphene_lib): .lib/host_endian.h
 Process2.manifest.sgx: Bootstrap.manifest.sgx
 
 else
-.IGNORE: $(preloads) $(executables)
-$(preloads) $(executables):
+# Don't build binaries on non-Linux platforms
+$(preloads) $(executables): ;
 endif
 
 PYTHONENV = "PYTHONPATH=../../Scripts"

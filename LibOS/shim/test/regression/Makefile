@@ -50,8 +50,8 @@ openmp: %: %.c
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 else
-.IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
-$(special_executables) $(c_executables) $(cxx_executables):
+# Don't build binaries on non-Linux platforms
+$(special_executables) $(c_executables) $(cxx_executables): ;
 endif
 
 PYTHONENV="PYTHONPATH=../../../../Scripts"

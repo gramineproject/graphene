@@ -103,16 +103,12 @@ $(GLIBC_SRC)/nptl/Versions: $(GLIBC_SRC)/configure
 
 $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 
+else
+# Don't build binaries on non-Linux platforms
+$(GLIBC_TARGET) $(GLIBC_RUNTIME): ;
+endif
+
 .PHONY: clean
 clean:
 	$(MAKE) -C $(SHIM_DIR) clean
 	rm -rf $(BUILD_DIR)
-
-else
-.IGNORE: $(GLIBC_TARGET)
-$(GLIBC_TARGET):
-
-.PHONY: clean
-clean:
-	rm -rf $(BUILD_DIR)
-endif

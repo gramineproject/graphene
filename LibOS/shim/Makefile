@@ -10,8 +10,8 @@ endif
 
 .PHONY: $(targets)
 $(targets):
-	make $@ -C src
-	make $@ -C test
+	$(MAKE) $@ -C src
+	$(MAKE) $@ -C test
 
 .PHONY: format
 format:

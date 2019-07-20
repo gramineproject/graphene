@@ -94,9 +94,10 @@ $(graphene_lib): .lib/host_endian.h
 
 libsysdb.a: $(addsuffix .o,$(objs))
 	$(call cmd,ar_a_o)
+
 else
-.IGNORE: $(shim_target)
-$(shim_target):
+# Don't build binaries on non-Linux platforms
+$(files_to_build) $(files_to_install): ;
 endif
 
 $(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)

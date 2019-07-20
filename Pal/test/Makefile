@@ -51,9 +51,10 @@ $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
+
 else
-.IGNORE: $(executables)
-$(executables):
+# Don't build binaries on non-Linux platforms
+$(executables): ;
 endif
 
 .PHONY: clean

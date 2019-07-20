@@ -23,7 +23,8 @@ $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
 else
-.IGNORE: $(c_executables) $(cxx_executables)
-$(c_executables) $(cxx_executables):
+# Don't build binaries on non-Linux platforms
+$(c_executables) $(cxx_executables): ;
 endif
