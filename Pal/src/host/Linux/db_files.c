@@ -408,7 +408,7 @@ struct linux_dirent64 {
 #define DIRBUF_SIZE     1024
 
 static inline bool is_dot_or_dotdot(const char* name) {
-    return name[0] == '.' && (!name[1] || (name[1] == '.' && !name[2]));
+    return (name[0] == '.' && !name[1]) || (name[0] == '.' && name[1] == '.' && !name[2]);
 }
 
 /* 'read' operation for directory stream. Directory stream will not
