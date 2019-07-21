@@ -972,7 +972,9 @@ int ocall_gettime (unsigned long * microsec)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_GETTIME, ms);
+    do {
+        retval = sgx_ocall(OCALL_GETTIME, ms);
+    } while(retval == -EINTR);
     if (!retval)
         *microsec = ms->ms_microsec;
 

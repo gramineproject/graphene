@@ -67,76 +67,10 @@ static void assert_vma_list (void)
 #endif
 }
 
-// TODO: This function should be fixed to always either return exactly `addr` or
-// fail.
-void * get_reserved_pages(void * addr, size_t size)
+static void * reserve_area(void * addr, size_t size, struct heap_vma * prev)
 {
-    if (!size)
-        return NULL;
+    struct heap_vma * next;
 
-    SGX_DBG(DBG_M, "*** get_reserved_pages: heap_base %p, heap_size %lu, limit %p ***\n", heap_base, heap_size, heap_base + heap_size);
-    if (addr >= heap_base + heap_size) {
-        SGX_DBG(DBG_E, "*** allocating out of heap: %p ***\n", addr);
-        return NULL;
-    }
-
-    if (size & (pgsz - 1))
-        size = ((size + pgsz - 1) & ~(pgsz - 1));
-
-    if ((uintptr_t) addr & (pgsz - 1))
-        addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
-
-    SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
-
-    _DkInternalLock(&heap_vma_lock);
-
-    struct heap_vma * prev = NULL, * next;
-    struct heap_vma * vma;
-
-    /* Allocating in the heap region.  This loop searches the vma list to
-     * find the first vma with a starting address lower than the requested
-     * address.  Recall that vmas are in descending order.
-     *
-     * If the very first vma matches, prev will be null.
-     */
-    if (addr && addr >= heap_base &&
-        addr + size <= heap_base + heap_size) {
-        LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
-            if (vma->bottom < addr)
-                break;
-            prev = vma;
-        }
-        goto allocated;
-    }
-
-    if (addr) {
-        _DkInternalUnlock(&heap_vma_lock);
-        return NULL;
-    }
-
-    void * avail_top = heap_base + heap_size;
-
-    LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
-        if ((size_t)(avail_top - vma->top) > size) {
-            addr = avail_top - size;
-            goto allocated;
-        }
-        prev = vma;
-        avail_top = prev->bottom;
-    }
-
-    if (avail_top >= heap_base + size) {
-        addr = avail_top - size;
-        goto allocated;
-    }
-
-    _DkInternalUnlock(&heap_vma_lock);
-
-    SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %lu) ***\n", size);
-    __asm__ volatile("int $3");
-    return NULL;
-
-allocated:
     if (prev) {
         // If this is the last entry, don't wrap around
         if (prev->list.next == LISTP_FIRST_ENTRY(&heap_vma_list, struct heap_vma, list))
@@ -163,7 +97,7 @@ allocated:
     else if (next)
         SGX_DBG(DBG_M, "insert vma above %p-%p\n", next->bottom, next->top);
 
-    vma = NULL;
+    struct heap_vma * vma = NULL;
     while (prev) {
         struct heap_vma * prev_prev = NULL;
 
@@ -224,7 +158,6 @@ allocated:
     if (!vma) {
         vma = malloc(sizeof(struct heap_vma));
         if (!vma) {
-            _DkInternalUnlock(&heap_vma_lock);
             return NULL;
         }
         vma->top = addr + size;
@@ -243,10 +176,82 @@ allocated:
     }
     assert_vma_list();
 
-    _DkInternalUnlock(&heap_vma_lock);
-
     atomic_add(size / pgsz, &alloced_pages);
     return addr;
+}
+
+
+// TODO: This function should be fixed to always either return exactly `addr` or
+// fail.
+void * get_reserved_pages(void * addr, size_t size)
+{
+    if (!size)
+        return NULL;
+
+    SGX_DBG(DBG_M, "*** get_reserved_pages: heap_base %p, heap_size %lu, limit %p ***\n", heap_base, heap_size, heap_base + heap_size);
+    if (addr >= heap_base + heap_size) {
+        SGX_DBG(DBG_E, "*** allocating out of heap: %p ***\n", addr);
+        return NULL;
+    }
+
+    size = ((size + pgsz - 1) & ~(pgsz - 1));
+    addr = (void *)((uintptr_t)addr & ~(pgsz - 1));
+
+    SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
+
+    _DkInternalLock(&heap_vma_lock);
+
+    struct heap_vma * prev = NULL;
+    struct heap_vma * vma;
+
+    /* Allocating in the heap region.  This loop searches the vma list to
+     * find the first vma with a starting address lower than the requested
+     * address.  Recall that vmas are in descending order.
+     *
+     * If the very first vma matches, prev will be null.
+     */
+    if (addr && addr >= heap_base &&
+        addr + size <= heap_base + heap_size) {
+        LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
+            if (vma->bottom < addr)
+                break;
+            prev = vma;
+        }
+        void * ret = reserve_area(addr, size, prev);
+        _DkInternalUnlock(&heap_vma_lock);
+        return ret;
+    }
+
+    if (addr) {
+        _DkInternalUnlock(&heap_vma_lock);
+        return NULL;
+    }
+
+    void * avail_top = heap_base + heap_size;
+
+    LISTP_FOR_EACH_ENTRY(vma, &heap_vma_list, list) {
+        if ((size_t)(avail_top - vma->top) > size) {
+            addr = avail_top - size;
+            void * ret = reserve_area(addr, size, prev);
+            _DkInternalUnlock(&heap_vma_lock);
+            return ret;
+        }
+        prev = vma;
+        avail_top = prev->bottom;
+    }
+
+    if (avail_top >= heap_base + size) {
+        addr = avail_top - size;
+        void * ret = reserve_area(addr, size, prev);
+        _DkInternalUnlock(&heap_vma_lock);
+        return ret;
+    }
+
+    _DkInternalUnlock(&heap_vma_lock);
+
+    SGX_DBG(DBG_E, "*** Not enough space on the heap (requested = %lu) ***\n", size);
+    __asm__ volatile("int $3");
+    return NULL;
 }
 
 void free_pages(void * addr, size_t size)
