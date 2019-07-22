@@ -292,7 +292,7 @@ BEGIN_RS_FUNC(brk)
         if (!lookup_overlap_vma(alloc_addr, alloc_size, &vma)) {
             /* if memory are already allocated here, adjust RLIMIT_DATA */
             alloc_size = vma.addr - alloc_addr;
-            set_rlimit_cur(RLIMIT_DATA, (uint64_t) brk_size + alloc_size + region.data_segment_size);
+            set_rlimit_cur(RLIMIT_DATA, (uint64_t)brk_size + alloc_size + region.data_segment_size);
         }
 
         int ret = bkeep_mmap(alloc_addr, alloc_size,

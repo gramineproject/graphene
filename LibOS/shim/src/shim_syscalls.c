@@ -1139,9 +1139,9 @@ SHIM_SYSCALL_PASSTHROUGH (fanotify_init, 2, int, int, flags, int, event_f_flags)
 SHIM_SYSCALL_PASSTHROUGH (fanotify_mark, 5, int, int, fanotify_fd, int, flags,
                           unsigned long, mask, int, fd, const char  *, pathname)
 
-DEFINE_SHIM_SYSCALL (prlimit64, 4, shim_do_prlimit64, int, pid_t, pid, int, resource,
-                     const struct __kernel_rlimit64 *, new_rlim,
-                     struct __kernel_rlimit64 *, old_rlim)
+DEFINE_SHIM_SYSCALL(prlimit64, 4, shim_do_prlimit64, int, pid_t, pid, int, resource,
+                    const struct __kernel_rlimit64*, new_rlim,
+                    struct __kernel_rlimit64*, old_rlim)
 
 SHIM_SYSCALL_PASSTHROUGH (name_to_handle_at, 5, int, int, dfd,
                           const char *, name,

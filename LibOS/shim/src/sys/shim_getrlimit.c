@@ -62,14 +62,22 @@ static struct __kernel_rlimit64 __rlim[RLIM_NLIMITS] __attribute_migratable = {
     [RLIMIT_RTTIME]     = {   RLIM_INFINITY, RLIM_INFINITY },
 };
 
+
+static struct shim_lock rlimit_lock;
+
 uint64_t get_rlimit_cur(int resource) {
     assert(resource >= 0 && RLIM_NLIMITS > resource);
-    return __rlim[resource].rlim_cur;
+    lock(&rlimit_lock);
+    uint64_t rlim = __rlim[resource].rlim_cur;
+    unlock(&rlimit_lock);
+    return rlim;
 }
 
 void set_rlimit_cur(int resource, uint64_t rlim) {
     assert(resource >= 0 && RLIM_NLIMITS > resource);
+    lock(&rlimit_lock);
     __rlim[resource].rlim_cur = rlim;
+    unlock(&rlimit_lock);
 }
 
 int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
@@ -79,8 +87,10 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
     if (!rlim || test_user_memory(rlim, sizeof(*rlim), true))
         return -EFAULT;
 
+    lock(&rlimit_lock);
     rlim->rlim_cur = __rlim[resource].rlim_cur;
     rlim->rlim_max = __rlim[resource].rlim_max;
+    unlock(&rlimit_lock);
     return 0;
 }
 
@@ -95,8 +105,10 @@ int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
     if (rlim->rlim_cur > __rlim->rlim_max)
         return -EINVAL;
 
+    lock(&rlimit_lock);
     __rlim[resource].rlim_cur = rlim->rlim_cur;
     __rlim[resource].rlim_max = rlim->rlim_max;
+    unlock(&rlimit_lock);
     return 0;
 }
 
@@ -116,8 +128,6 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
     if (old_rlim) {
         if (test_user_memory(old_rlim, sizeof(*old_rlim), true))
             return -EFAULT;
-
-        *old_rlim = __rlim[resource];
     }
 
     if (new_rlim) {
@@ -127,9 +137,14 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
             return -EINVAL;
         if (new_rlim->rlim_cur > __rlim->rlim_max)
             return -EINVAL;
-
-        __rlim[resource] = *new_rlim;
     }
+
+    lock(&rlimit_lock);
+    if (old_rlim)
+        *old_rlim = __rlim[resource];
+    if (new_rlim)
+        __rlim[resource] = *new_rlim;
+    unlock(&rlimit_lock);
 
     return 0;
 }
