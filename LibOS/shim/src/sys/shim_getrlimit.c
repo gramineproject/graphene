@@ -62,8 +62,12 @@ static struct __kernel_rlimit64 __rlim[RLIM_NLIMITS] __attribute_migratable = {
     [RLIMIT_RTTIME]     = {   RLIM_INFINITY, RLIM_INFINITY },
 };
 
-
 static struct shim_lock rlimit_lock;
+
+int init_rlimit(void) {
+    create_lock(&rlimit_lock);
+    return 0;
+}
 
 uint64_t get_rlimit_cur(int resource) {
     assert(resource >= 0 && RLIM_NLIMITS > resource);
