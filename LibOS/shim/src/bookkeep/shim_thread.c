@@ -564,6 +564,7 @@ out:
     return ret;
 }
 
+#ifndef ALIAS_VFORK_AS_FORK
 void switch_dummy_thread (struct shim_thread * thread)
 {
     struct shim_thread * real_thread = thread->dummy;
@@ -596,6 +597,7 @@ void switch_dummy_thread (struct shim_thread * thread)
                        "a"(child)
                      : "memory");
 }
+#endif
 
 BEGIN_CP_FUNC(thread)
 {
@@ -738,6 +740,8 @@ BEGIN_RS_FUNC(running_thread)
     struct shim_thread * thread = (void *) (base + GET_CP_FUNC_ENTRY());
     struct shim_thread * cur_thread = get_cur_thread();
     thread->in_vm = true;
+
+    thread->vmid = cur_process.vmid;
 
     if (!thread->user_tcb)
         CP_REBASE(thread->tcb);

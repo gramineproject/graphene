@@ -299,6 +299,13 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     proc_args->process_create_time = before_create;
 #endif
 
+    /* Child's signal handler may mess with parent's memory during vfork(),
+     * so block signals
+     */
+    ret = block_async_signals(true);
+    if (ret < 0)
+        goto out;
+
     ret = child_process(&param);
     if (IS_ERR(ret)) {
         ret = -PAL_ERROR_DENIED;
@@ -307,6 +314,11 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     proc_args->pal_sec.process_id = ret;
     child_handle->process.pid = ret;
+
+    /* children unblock async signals by signal_setup() */
+    ret = block_async_signals(false);
+    if (ret < 0)
+        goto out;
 
     /* step 4: send parameters over the process handle */
 

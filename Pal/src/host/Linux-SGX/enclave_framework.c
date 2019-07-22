@@ -1236,7 +1236,7 @@ out:
 void restore_sgx_context(sgx_context_t *ctx) {
     if (((uint64_t) ctx) != ctx->rsp - (sizeof(sgx_context_t) + RED_ZONE_SIZE)) {
         SGX_DBG(DBG_E, "Invalid sgx_context_t pointer passed to restore_sgx_context!\n");
-        ocall_exit(1);
+        ocall_exit(1, /*is_exitgroup=*/false);
     }
 
     _restore_sgx_context(ctx);

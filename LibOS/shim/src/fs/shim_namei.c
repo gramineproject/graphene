@@ -42,7 +42,8 @@
  * Must be a null-terminated string. */
 static inline const char * eat_slashes (const char * string)
 {
-    while (*string == '/' && *string != '\0') string++;
+    while (*string == '/')
+        string++;
     return string;
 }
 
@@ -272,9 +273,19 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
     bool no_fs = false; // fs not passed
     struct shim_thread * cur_thread = get_cur_thread();
 
+    if (cur_thread && *path == '/') {
+        /*
+         * Allow (start != NULL, absolute path) for *at() system calls.
+         * which are common case as normal namei path resolution.
+         */
+        start = cur_thread->root;
+        no_start = true;
+        get_dentry(start);
+        fs = NULL;
+    }
     if (!start) {
         if (cur_thread) {
-            start = *path == '/' ? cur_thread->root : cur_thread->cwd;
+            start = cur_thread->cwd;
         } else {
             /* Start at the global root if we have no fs and no start dentry.
              * This shoud only happen as part of initialization.
@@ -285,6 +296,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
         no_start = true;
         // refcount should only be incremented if the caller didn't do it
         get_dentry(start);
+        assert(fs == NULL);
     }
 
     assert(start);

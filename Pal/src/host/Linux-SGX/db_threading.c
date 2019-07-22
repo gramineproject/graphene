@@ -140,7 +140,7 @@ void _DkThreadYieldExecution (void)
 /* _DkThreadExit for internal use: Thread exiting */
 noreturn void _DkThreadExit (void)
 {
-    ocall_exit(0);
+    ocall_exit(0, /*is_exitgroup=*/false);
 }
 
 int _DkThreadResume (PAL_HANDLE threadHandle)

@@ -366,7 +366,7 @@ long shim_do_sandbox_create (int flags, const char * fs_sb,
     }
 
     if (flags & SANDBOX_RPC)
-        del_all_ipc_ports(0);
+        del_all_ipc_ports();
 
     if ((ret = free_config(root_config)) < 0)
         goto err;

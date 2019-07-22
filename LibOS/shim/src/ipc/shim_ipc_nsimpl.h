@@ -266,7 +266,7 @@ static int __add_range (struct range * r, IDTYPE off, IDTYPE owner,
     r->subranges = NULL;
 
     if (owner) {
-        r->owner = lookup_and_alloc_client(owner, uri);
+        r->owner = create_ipc_info_in_list(owner, uri, strlen(uri));
         if (!r->owner)
             return -ENOMEM;
     }
@@ -291,7 +291,7 @@ static int __add_range (struct range * r, IDTYPE off, IDTYPE owner,
                 }
 
                 if (tmp->owner)
-                    put_client(tmp->owner);
+                    put_ipc_info_in_list(tmp->owner);
 
                 r->used = tmp->used;
                 r->subranges = tmp->subranges;
@@ -367,7 +367,7 @@ int CONCAT3(add, NS, subrange) (IDTYPE idx, IDTYPE owner,
     assert(owner);
     lock(&range_map_lock);
 
-    s->owner = lookup_and_alloc_client(owner, uri);
+    s->owner = create_ipc_info_in_list(owner, uri, strlen(uri));
     if (!s->owner) {
         err = -ENOMEM;
         goto failed;
@@ -770,8 +770,8 @@ static void __discover_ns (bool block, bool need_locate)
     if (NS_LEADER) {
         if (NS_LEADER->vmid == cur_process.vmid) {
             if (need_locate && qstrempty(&NS_LEADER->uri)) {
-                struct shim_ipc_info * info = create_ipc_port(cur_process.vmid,
-                                                              true);
+                bool is_self_ipc_info = false; /* not cur_process.self but cur_process.ns */
+                struct shim_ipc_info * info = create_ipc_info_cur_process(is_self_ipc_info);
                 if (info) {
                     put_ipc_info(NS_LEADER);
                     NS_LEADER = info;
@@ -796,7 +796,8 @@ static void __discover_ns (bool block, bool need_locate)
 
     // Send out an IPC message to find out the namespace information.
     // If the call is non-blocking, can't expect the answer when the function finishes.
-    if (!NS_SEND(findns)(block)) {
+    int ret = NS_SEND(findns)(block);
+    if (!ret) {
         ipc_pending = !block; // There is still some unfinished business with IPC
         lock(&cur_process.lock);
         assert(NS_LEADER);
@@ -805,19 +806,19 @@ static void __discover_ns (bool block, bool need_locate)
 
     lock(&cur_process.lock);
 
-    if (NS_LEADER && (!need_locate || !qstrempty(&NS_LEADER->uri)))
-        goto out;
-
-    // If all other ways failed, the current process becomes the leader
-    if (!need_locate) {
-        NS_LEADER = get_new_ipc_info(cur_process.vmid, NULL, 0);
-        goto out;
-    }
-
+    // At this point, (1) the leader is not me, (2) I don't know leader's URI,
+    // and (3) I failed to find out the leader via IPC. But I am pressed to
+    // report the leader so promote myself (and remove stale leader info).
     if (NS_LEADER)
         put_ipc_info(NS_LEADER);
 
-    if (!(NS_LEADER = create_ipc_port(cur_process.vmid, true)))
+    if (!need_locate) {
+        NS_LEADER = create_ipc_info(cur_process.vmid, NULL, 0);
+        goto out;
+    }
+
+    bool is_self_ipc_info = false; /* not cur_process.self but cur_process.ns */
+    if (!(NS_LEADER = create_ipc_info_cur_process(is_self_ipc_info)))
         goto out;
 
     // Finally, set the IPC port as a leadership port
@@ -995,17 +996,19 @@ int NS_SEND(findns) (bool block)
     unlock(&cur_process.lock);
 
     if (block) {
-        struct shim_ipc_msg_obj * msg =
-            create_ipc_msg_duplex_on_stack(NS_CODE(FINDNS), 0, dest);
+        size_t total_msg_size = get_ipc_msg_duplex_size(0);
+        struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+        init_ipc_msg_duplex(msg, NS_CODE(FINDNS), total_msg_size, dest);
 
         debug("ipc send to %u: " NS_CODE_STR(FINDNS) "\n", dest);
 
-        ret = do_ipc_duplex(msg, port, NULL, NULL);
+        ret = send_ipc_message_duplex(msg, port, NULL, NULL);
         goto out_port;
     }
 
-    struct shim_ipc_msg * msg =
-            create_ipc_msg_on_stack(NS_CODE(FINDNS), 0, dest);
+    size_t total_msg_size = get_ipc_msg_size(0);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, NS_CODE(FINDNS), total_msg_size, dest);
 
     debug("ipc send to %u: " NS_CODE_STR(FINDNS) "\n", dest);
 
@@ -1057,10 +1060,10 @@ int NS_SEND(tellns) (struct shim_ipc_port * port, IDTYPE dest,
                      struct shim_ipc_info * leader, unsigned long seq)
 {
     BEGIN_PROFILE_INTERVAL();
-    struct shim_ipc_msg * msg =
-        create_ipc_msg_on_stack(NS_CODE(TELLNS),
-                                leader->uri.len + sizeof(NS_MSG_TYPE(tellns)),
-                                dest);
+    size_t total_msg_size = get_ipc_msg_size(leader->uri.len + sizeof(NS_MSG_TYPE(tellns)));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, NS_CODE(TELLNS), total_msg_size, dest);
+
     NS_MSG_TYPE(tellns) * msgin = (void *) &msg->msg;
     msgin->vmid = leader->vmid;
     memcpy(msgin->uri, qstrgetstr(&leader->uri), leader->uri.len + 1);
@@ -1089,7 +1092,7 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
         NS_LEADER->vmid = msgin->vmid;
         qstrsetstr(&NS_LEADER->uri, msgin->uri, strlen(msgin->uri));
     } else {
-        NS_LEADER = get_new_ipc_info(msgin->vmid, msgin->uri,
+        NS_LEADER = create_ipc_info(msgin->vmid, msgin->uri,
                                       strlen(msgin->uri));
         if (!NS_LEADER) {
             ret = -ENOMEM;
@@ -1109,7 +1112,7 @@ int NS_CALLBACK(tellns) (IPC_CALLBACK_ARGS)
         free(query);
     }
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (obj && obj->thread)
         thread_wakeup(obj->thread);
 
@@ -1133,7 +1136,7 @@ int NS_SEND(lease) (LEASETYPE * lease)
     if ((ret = connect_ns(&leader, &port)) < 0)
         goto out;
 
-    if ((ret = create_ipc_location(&self)) < 0)
+    if ((ret = get_ipc_info_cur_process(&self)) < 0)
         goto out;
 
     if (leader == cur_process.vmid) {
@@ -1145,10 +1148,10 @@ int NS_SEND(lease) (LEASETYPE * lease)
     }
 
     int len = self->uri.len;
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        NS_CODE(LEASE),
-                                        len + sizeof(NS_MSG_TYPE(lease)),
-                                        leader);
+    size_t total_msg_size = get_ipc_msg_duplex_size(len + sizeof(NS_MSG_TYPE(lease)));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, NS_CODE(LEASE), total_msg_size, leader);
+
     NS_MSG_TYPE(lease) * msgin = (void *) &msg->msg.msg;
     assert(!qstrempty(&self->uri));
     memcpy(msgin->uri, qstrgetstr(&self->uri), len + 1);
@@ -1157,7 +1160,7 @@ int NS_SEND(lease) (LEASETYPE * lease)
     debug("ipc send to %u: " NS_CODE_STR(LEASE) "(%s)\n", leader,
           msgin->uri);
 
-    ret = do_ipc_duplex(msg, port, NULL, lease);
+    ret = send_ipc_message_duplex(msg, port, NULL, lease);
 out:
     if (port)
         put_ipc_port(port);
@@ -1195,8 +1198,10 @@ int NS_SEND(offer) (struct shim_ipc_port * port, IDTYPE dest, IDTYPE base,
 {
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(NS_CODE(OFFER),
-                                        sizeof(NS_MSG_TYPE(offer)), dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(NS_MSG_TYPE(offer)));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, NS_CODE(OFFER), total_msg_size, dest);
+
     NS_MSG_TYPE(offer) * msgin = (void *) &msg->msg;
     msgin->base  = base;
     msgin->size  = size;
@@ -1204,7 +1209,7 @@ int NS_SEND(offer) (struct shim_ipc_port * port, IDTYPE dest, IDTYPE base,
     msg->seq     = seq;
 
     debug("ipc send to %u: " NS_CODE_STR(OFFER) "(%u, %u, %lu)\n",
-          port->info.vmid, base, size, lease);
+          port->vmid, base, size, lease);
     ret = send_ipc_message(msg, port);
     SAVE_PROFILE_INTERVAL(NS_SEND(offer));
     return ret;
@@ -1218,7 +1223,7 @@ int NS_CALLBACK(offer) (IPC_CALLBACK_ARGS)
     debug("ipc callback from %u: " NS_CODE_STR(OFFER) "(%u, %u, %lu)\n",
           msg->src, msgin->base, msgin->size, msgin->lease);
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
 
     switch (msgin->size) {
         case RANGE_SIZE:
@@ -1265,9 +1270,10 @@ int NS_SEND(renew) (IDTYPE base, IDTYPE size)
     if ((ret = connect_ns(&leader, &port)) < 0)
         goto out;
 
-    struct shim_ipc_msg * msg =
-            create_ipc_msg_on_stack(NS_CODE(RENEW),
-                                    sizeof(NS_MSG_TYPE(renew)), leader);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(NS_MSG_TYPE(renew)));
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, NS_CODE(RENEW), total_msg_size, leader);
+
     NS_MSG_TYPE(renew) * msgin = (void *) &msg->msg;
     msgin->base = base;
     msgin->size = size;
@@ -1339,10 +1345,10 @@ int NS_SEND(sublease) (IDTYPE tenant, IDTYPE idx, const char * uri,
     }
 
     int len = strlen(uri);
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                            NS_CODE(SUBLEASE),
-                                            len + sizeof(NS_MSG_TYPE(sublease)),
-                                            leader);
+    size_t total_msg_size = get_ipc_msg_duplex_size(len + sizeof(NS_MSG_TYPE(sublease)));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, NS_CODE(SUBLEASE), total_msg_size, leader);
+
     NS_MSG_TYPE(sublease) * msgin = (void *) &msg->msg.msg;
     msgin->tenant = tenant;
     msgin->idx = idx;
@@ -1351,7 +1357,7 @@ int NS_SEND(sublease) (IDTYPE tenant, IDTYPE idx, const char * uri,
     debug("ipc send to %u: " NS_CODE_STR(SUBLEASE) "(%u, %u, %s)\n",
           leader, tenant, idx, msgin->uri);
 
-    ret = do_ipc_duplex(msg, port, NULL, lease);
+    ret = send_ipc_message_duplex(msg, port, NULL, lease);
 out:
     if (port)
         put_ipc_port(port);
@@ -1399,17 +1405,16 @@ int NS_SEND(query) (IDTYPE idx)
         goto out;
     }
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                            NS_CODE(QUERY),
-                                            sizeof(NS_MSG_TYPE(query)),
-                                            leader);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(NS_MSG_TYPE(query)));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, NS_CODE(QUERY), total_msg_size, leader);
 
     NS_MSG_TYPE(query) * msgin = (void *) &msg->msg.msg;
     msgin->idx = idx;
 
     debug("ipc send to %u: " NS_CODE_STR(QUERY) "(%u)\n", leader, idx);
 
-    ret = do_ipc_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
 out:
     if (port)
         put_ipc_port(port);
@@ -1471,12 +1476,13 @@ int NS_SEND(queryall) (void)
     if (cur_process.vmid == leader)
         goto out;
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                            NS_CODE(QUERYALL), 0, leader);
+    size_t total_msg_size = get_ipc_msg_duplex_size(0);
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, NS_CODE(QUERYALL), total_msg_size, leader);
 
     debug("ipc send to %u: " NS_CODE_STR(QUERYALL) "\n", leader);
 
-    ret = do_ipc_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(NS_SEND(queryall));
@@ -1587,9 +1593,9 @@ int NS_SEND(answer) (struct shim_ipc_port * port, IDTYPE dest,
     for (int i = 0 ; i < nowners ; i++)
         total_ownerdatasz += ownerdatasz[i];
 
-    struct shim_ipc_msg * msg =
-            create_ipc_msg_on_stack(NS_CODE(ANSWER),
-                                    owner_offset + total_ownerdatasz, dest);
+    size_t total_msg_size = get_ipc_msg_size(owner_offset + total_ownerdatasz);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, NS_CODE(ANSWER), total_msg_size, dest);
 
     NS_MSG_TYPE(answer) * msgin = (void *) &msg->msg;
     msgin->nanswers = nanswers;
@@ -1646,7 +1652,7 @@ int NS_CALLBACK(answer) (IPC_CALLBACK_ARGS)
         }
     }
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (obj && obj->thread)
         thread_wakeup(obj->thread);
 
@@ -1746,17 +1752,17 @@ int NS_SEND(findkey) (NS_KEY * key)
         goto out;
     }
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        NS_CODE(FINDKEY),
-                                        sizeof(NS_MSG_TYPE(findkey)),
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(NS_MSG_TYPE(findkey)));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, NS_CODE(FINDKEY), total_msg_size, dest);
+
     NS_MSG_TYPE(findkey) * msgin = (void *) &msg->msg.msg;
     KEY_COPY(&msgin->key, key);
 
     debug("ipc send to %u: " NS_CODE_STR(FINDKEY) "(%lu)\n",
           dest, KEY_HASH(key));
 
-    ret = do_ipc_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 
     if (!ret)
@@ -1809,10 +1815,10 @@ int NS_SEND(tellkey) (struct shim_ipc_port * port, IDTYPE dest, NS_KEY * key,
     }
 
     if (owned) {
-        struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        NS_CODE(TELLKEY),
-                                        sizeof(NS_MSG_TYPE(tellkey)),
-                                        dest);
+        size_t total_msg_size = get_ipc_msg_size(sizeof(NS_MSG_TYPE(tellkey)));
+        struct shim_ipc_msg* msg = __alloca(total_msg_size);
+        init_ipc_msg(msg, NS_CODE(TELLKEY), total_msg_size, dest);
+
         NS_MSG_TYPE(tellkey) * msgin = (void *) &msg->msg;
         KEY_COPY(&msgin->key, key);
         msgin->id = id;
@@ -1825,10 +1831,10 @@ int NS_SEND(tellkey) (struct shim_ipc_port * port, IDTYPE dest, NS_KEY * key,
         goto out;
     }
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        NS_CODE(TELLKEY),
-                                        sizeof(NS_MSG_TYPE(tellkey)),
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(NS_MSG_TYPE(tellkey)));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, NS_CODE(TELLKEY), total_msg_size, dest);
+
     NS_MSG_TYPE(tellkey) * msgin = (void *) &msg->msg.msg;
     KEY_COPY(&msgin->key, key);
     msgin->id = id;
@@ -1836,7 +1842,7 @@ int NS_SEND(tellkey) (struct shim_ipc_port * port, IDTYPE dest, NS_KEY * key,
     debug("ipc send to %u: IPC_SYSV_TELLKEY(%lu, %u)\n", dest,
           KEY_HASH(key), id);
 
-    ret = do_ipc_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(NS_SEND(tellkey));
@@ -1854,7 +1860,7 @@ int NS_CALLBACK(tellkey) (IPC_CALLBACK_ARGS)
 
     ret = CONCAT2(NS, add_key)(&msgin->key, msgin->id);
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (!obj) {
         ret = RESPONSE_CALLBACK;
         goto out;

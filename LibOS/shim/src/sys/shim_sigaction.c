@@ -205,6 +205,19 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
     lock(&cur->lock);
 
+    /* return immediately on some pending unblocked signal */
+    for (int sig = 1 ; sig <= NUM_SIGS ; sig++) {
+        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
+            atomic_read(&cur->signal_logs[sig - 1].tail)) {
+            /* at least one signal of type sig... */
+            if (!__sigismember(mask, sig)) {
+                /* ...and this type is not blocked in supplied mask */
+                unlock(&cur->lock);
+                return -EINTR;
+            }
+        }
+    }
+
     old = get_sig_mask(cur);
     memcpy(&tmp, old, sizeof(__sigset_t));
     old = &tmp;
@@ -489,8 +502,6 @@ static int __kill_all_threads (struct shim_thread * thread, void * arg,
     return srched;
 }
 
-int broadcast_signal (IDTYPE sender, int sig);
-
 int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig)
 {
     struct walk_arg arg;
@@ -524,7 +535,7 @@ int shim_do_kill (pid_t pid, int sig)
     /* If pid equals -1, then sig is sent to every process for which the
        calling process has permission to send */
     else if (pid == -1) {
-        broadcast_signal(cur->tid, sig);
+        ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
         kill_all_threads(cur, cur->tid, sig);
         send_to_self = true;
     }

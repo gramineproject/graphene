@@ -32,6 +32,7 @@
 #include <shim_vma.h>
 #include <shim_checkpoint.h>
 #include <shim_profile.h>
+#include <shim_vdso.h>
 
 #include <errno.h>
 
@@ -55,6 +56,7 @@ enum object_type {
     OBJECT_MAPPED       = 2,
     OBJECT_REMAP        = 3,
     OBJECT_USER         = 4,
+    OBJECT_VDSO         = 5,
 };
 
 /* Structure describing a loaded shared object.  The `l_next' and `l_prev'
@@ -147,6 +149,7 @@ struct link_map * lookup_symbol (const char * undef_name, ElfW(Sym) ** ref);
 
 static struct link_map * loaded_libraries = NULL;
 static struct link_map * internal_map = NULL, * interp_map = NULL;
+static struct link_map * vdso_map = NULL;
 
 /* This macro is used as a callback from the ELF_DYNAMIC_RELOCATE code.  */
 static ElfW(Addr) resolve_map (const char ** strtab, ElfW(Sym) ** ref)
@@ -376,7 +379,7 @@ __map_elf_object (struct shim_handle * file,
     const char * errstring __attribute__((unused)) = NULL;
     int ret;
 
-    if (type != OBJECT_INTERNAL && !file) {
+    if (type != OBJECT_INTERNAL && type != OBJECT_VDSO && !file) {
         errstring = "shared object has to be backed by file";
         goto call_lose;
     }
@@ -589,9 +592,9 @@ do_remap:
             }
 
 #if BOOKKEEP_INTERNAL_OBJ == 0
-                if (type != OBJECT_INTERNAL && type != OBJECT_USER)
+                if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO)
 #else
-                if (type != OBJECT_USER)
+                if (type != OBJECT_USER && type != OBJECT_VDSO)
 #endif
                     bkeep_mmap(mapaddr, c->mapend - c->mapstart, c->prot,
                                c->flags|MAP_FIXED|MAP_PRIVATE|
@@ -623,7 +626,9 @@ postmap:
 
             if (type != OBJECT_MAPPED &&
                 type != OBJECT_INTERNAL &&
-                type != OBJECT_USER && zeropage > zero) {
+                type != OBJECT_USER &&
+                type != OBJECT_VDSO &&
+                zeropage > zero) {
                 /* Zero the final part of the last page of the segment.  */
                 if (__builtin_expect ((c->prot & PROT_WRITE) == 0, 0)) {
                     /* Dag nab it.  */
@@ -647,7 +652,8 @@ postmap:
             if (zeroend > zeropage) {
                 if (type != OBJECT_MAPPED &&
                     type != OBJECT_INTERNAL &&
-                    type != OBJECT_USER) {
+                    type != OBJECT_USER &&
+                    type != OBJECT_VDSO) {
                     PAL_PTR mapat = DkVirtualMemoryAlloc((void *)zeropage, zeroend - zeropage,
                                                          0, c->prot);
                     if (__builtin_expect (!mapat, 0)) {
@@ -657,9 +663,9 @@ postmap:
                 }
 
 #if BOOKKEEP_INTERNAL_OBJ == 0
-                if (type != OBJECT_INTERNAL && type != OBJECT_USER)
+                if (type != OBJECT_INTERNAL && type != OBJECT_USER && type != OBJECT_VDSO)
 #else
-                if (type != OBJECT_USER)
+                if (type != OBJECT_USER && type != OBJECT_VDSO)
 #endif
                     bkeep_mmap((void *) zeropage, zeroend - zeropage, c->prot,
                                MAP_ANONYMOUS|MAP_PRIVATE|MAP_FIXED|
@@ -869,31 +875,14 @@ static int __check_elf_header (void * fbp, size_t len)
         [EI_CLASS] = ELFW(CLASS),
         [EI_DATA] = byteorder,
         [EI_VERSION] = EV_CURRENT,
-        [EI_OSABI] = ELFOSABI_SYSV,
-        [EI_ABIVERSION] = 0
+        [EI_OSABI] = 0,
     };
 
     /* See whether the ELF header is what we expect.  */
-    if (__builtin_expect (memcmp (ehdr->e_ident, expected, EI_ABIVERSION) !=
-                          0, 0)) {
+    if (__builtin_expect(memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 ||
+        (ehdr->e_ident[EI_OSABI] != ELFOSABI_SYSV &&
+         ehdr->e_ident[EI_OSABI] != ELFOSABI_LINUX), 0)) {
         errstring = "ELF file with invalid header";
-        goto verify_failed;
-    }
-
-    /* Check whether the ELF header use the right endian */
-    if (ehdr->e_ident[EI_DATA] != byteorder) {
-        if (__BYTE_ORDER == __BIG_ENDIAN) {
-            errstring = "ELF file data encoding not big-endian";
-            goto verify_failed;
-        } else {
-            errstring = "ELF file data encoding not little-endian";
-            goto verify_failed;
-        }
-    }
-
-    /* checking the header is of the right version */
-    if (ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
-        errstring = "ELF file version ident does not match current one";
         goto verify_failed;
     }
 
@@ -901,11 +890,6 @@ static int __check_elf_header (void * fbp, size_t len)
                EI_NIDENT - EI_PAD) != 0) {
        errstring = "nonzero padding in e_ident";
        goto verify_failed;
-    }
-
-    if (__builtin_expect (ehdr->e_version, EV_CURRENT) != EV_CURRENT) {
-        errstring = "ELF file version does not match current one";
-        goto verify_failed;
     }
 
     /* Now we check if the host match the elf machine profile */
@@ -1057,7 +1041,7 @@ static int __load_elf_object (struct shim_handle * file, void * addr,
         goto out;
     }
 
-    if (type != OBJECT_INTERNAL)
+    if (type != OBJECT_INTERNAL && type != OBJECT_VDSO)
         do_relocate_object(map);
 
     if (internal_map) {
@@ -1067,6 +1051,8 @@ static int __load_elf_object (struct shim_handle * file, void * addr,
 
     if (type == OBJECT_INTERNAL)
         internal_map = map;
+    if (type == OBJECT_VDSO)
+        vdso_map = map;
 
     if (type != OBJECT_REMAP) {
         if (file) {
@@ -1261,14 +1247,21 @@ do_lookup_map (ElfW(Sym) * ref, const char * undef_name,
 /* Inner part of the lookup functions.  We return a value > 0 if we
    found the symbol, the value 0 if nothing is found and < 0 if
    something bad happened.  */
-static int do_lookup (const char * undef_name, ElfW(Sym) * ref,
-                      struct sym_val * result)
+static ElfW(Sym) *
+__do_lookup (const char * undef_name, ElfW(Sym) * ref,
+             struct link_map * map)
 {
     const uint_fast32_t fast_hash = elf_fast_hash(undef_name);
     const long int hash = elf_hash(undef_name);
+    return do_lookup_map(ref, undef_name, fast_hash, hash, map);
+}
+
+static int do_lookup (const char * undef_name, ElfW(Sym) * ref,
+                      struct sym_val * result)
+{
     ElfW(Sym) *sym = NULL;
 
-    sym = do_lookup_map(ref, undef_name, fast_hash, hash, internal_map);
+    sym = __do_lookup(undef_name, ref, internal_map);
 
     if (!sym)
         return 0;
@@ -1463,13 +1456,114 @@ int remove_loaded_libraries (void)
 {
     struct link_map * map = loaded_libraries, * next_map = map->l_next;
     while (map) {
-        if (map->l_type != OBJECT_INTERNAL)
+        if (map->l_type != OBJECT_INTERNAL && map->l_type != OBJECT_VDSO)
             __remove_elf_object(map);
 
         map = next_map;
         next_map = map ? map->l_next : NULL;
     }
 
+    return 0;
+}
+
+/*
+ * libsysdb.so is loaded as shared library and load address for child may not match the one for
+ * parent. Just treat vdso page as user-program data and adjust function pointers for vdso
+ * functions after migration.
+ */
+static void * vdso_addr __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_clock_gettime __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_gettimeofday __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_time __attribute_migratable = NULL;
+static ElfW(Addr) * __vdso_shim_getcpu __attribute_migratable = NULL;
+
+static const struct {
+    const char *name;
+    ElfW(Addr) value;
+    ElfW(Addr) ** func;
+} vsyms[] = {
+    {
+        .name = "__vdso_shim_clock_gettime",
+        .value = (ElfW(Addr))&__shim_clock_gettime,
+        .func = &__vdso_shim_clock_gettime,
+    },
+    {
+        .name = "__vdso_shim_gettimeofday",
+        .value = (ElfW(Addr))&__shim_gettimeofday,
+        .func = &__vdso_shim_gettimeofday,
+    },
+    {
+        .name = "__vdso_shim_time",
+        .value = (ElfW(Addr))&__shim_time,
+        .func = &__vdso_shim_time,
+    },
+    {
+        .name = "__vdso_shim_getcpu",
+        .value = (ElfW(Addr))&__shim_getcpu,
+        .func = &__vdso_shim_getcpu,
+    }
+};
+
+static int vdso_map_init(void)
+{
+    /*
+     * Allocate vdso page as user program allocated it.
+     * Using directly vdso code in LibOS causes trouble when emulating fork.
+     * In host child process, LibOS may or may not be loaded at the same address.
+     * When LibOS is loaded at different address, it may overlap with the old vDSO area.
+     */
+    void *addr = bkeep_unmapped_heap(
+        ALIGN_UP(vdso_so_size), PROT_READ | PROT_EXEC, 0, NULL, 0,
+        "linux-vdso.so.1");
+    if (addr == NULL)
+        return -ENOMEM;
+    assert(addr == ALIGN_UP(addr));
+
+    void *ret_addr = (void *)DkVirtualMemoryAlloc(
+        addr, ALIGN_UP(vdso_so_size), 0, PAL_PROT_READ | PAL_PROT_WRITE);
+    if (!ret_addr)
+        return -PAL_ERRNO;
+    assert(addr == ret_addr);
+
+    memcpy(addr, &vdso_so, vdso_so_size);
+    memset(addr + vdso_so_size, 0, ALIGN_UP(vdso_so_size) - vdso_so_size);
+    __load_elf_object(NULL, addr, OBJECT_VDSO, NULL);
+    vdso_map->l_name = "vDSO";
+
+    for (size_t i = 0; i < sizeof(vsyms)/sizeof(vsyms[0]); i++) {
+        ElfW(Sym) *sym = __do_lookup(vsyms[i].name, NULL, vdso_map);
+        if (sym == NULL) {
+            debug("vDSO: symbol value for %s not found\n", vsyms[i].name);
+            continue;
+        }
+        *vsyms[i].func = (ElfW(Addr)*)(vdso_map->l_addr + sym->st_value);
+        **vsyms[i].func = vsyms[i].value;
+    }
+
+    if (!DkVirtualMemoryProtect(addr, ALIGN_UP(vdso_so_size),
+                                PAL_PROT_READ | PAL_PROT_EXEC))
+            return -PAL_ERRNO;
+
+    vdso_addr = addr;
+    return 0;
+}
+
+int vdso_map_migrate(void)
+{
+    if (!vdso_addr)
+        return 0;
+
+    if (!DkVirtualMemoryProtect(vdso_addr, ALIGN_UP(vdso_so_size),
+                                PAL_PROT_READ | PAL_PROT_WRITE))
+            return -PAL_ERRNO;
+
+    /* adjust funcs to loaded address for newly loaded libsysdb */
+    for (size_t i = 0; i < sizeof(vsyms)/sizeof(vsyms[0]); i++)
+        **vsyms[i].func = vsyms[i].value;
+
+    if (!DkVirtualMemoryProtect(vdso_addr, ALIGN_UP(vdso_so_size),
+                                PAL_PROT_READ | PAL_PROT_EXEC))
+            return -PAL_ERRNO;
     return 0;
 }
 
@@ -1562,14 +1656,18 @@ noreturn void execute_elf_object (struct shim_handle * exec,
                                   int * argcp, const char ** argp,
                                   ElfW(auxv_t) * auxp)
 {
+    int ret = vdso_map_init();
+    if (ret < 0) {
+        SYS_PRINTF("Could not initialize vDSO (error code = %d)", ret);
+        shim_clean(ret);
+    }
+
     struct link_map * exec_map = __search_map_by_handle(exec);
     assert(exec_map);
     assert((uintptr_t)argcp % 16 == 0);  /* stack must be 16B-aligned */
     assert((void*)argcp + sizeof(long) == argp || argp == NULL);
 
-    /* populate ELF aux vectors */
-    assert(REQUIRED_ELF_AUXV >= 7); /* stack allocated enough space */
-
+    assert(REQUIRED_ELF_AUXV >= 8); /* stack allocated enough space */
     auxp[0].a_type = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val)) exec_map->l_phdr;
     auxp[1].a_type = AT_PHNUM;
@@ -1582,15 +1680,22 @@ noreturn void execute_elf_object (struct shim_handle * exec,
     auxp[4].a_un.a_val = interp_map ? interp_map->l_addr : 0;
     auxp[5].a_type = AT_RANDOM;
     auxp[5].a_un.a_val = 0; /* filled later */
-    auxp[6].a_type = AT_NULL;
-    auxp[6].a_un.a_val = 0;
+    if (vdso_addr) {
+        auxp[6].a_type = AT_SYSINFO_EHDR;
+        auxp[6].a_un.a_val = (uint64_t)vdso_addr;
+    } else {
+        auxp[6].a_type = AT_NULL;
+        auxp[6].a_un.a_val = 0;
+    }
+    auxp[7].a_type = AT_NULL;
+    auxp[7].a_un.a_val = 0;
 
     /* populate extra memory space for aux vector data */
     assert(REQUIRED_ELF_AUXV_SPACE >= 16); /* stack allocated enough space */
-    ElfW(Addr) auxp_extra = (ElfW(Addr))&auxp[7];
+    ElfW(Addr) auxp_extra = (ElfW(Addr))&auxp[8];
 
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
-    int ret = DkRandomBitsRead((PAL_PTR)random, 16);
+    ret = DkRandomBitsRead((PAL_PTR)random, 16);
     if (ret < 0) {
         debug("execute_elf_object: DkRandomBitsRead failed.\n");
         DkThreadExit();

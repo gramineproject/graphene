@@ -11,15 +11,20 @@
 #include <api.h>
 #include <asm/errno.h>
 
-noreturn void ocall_exit(int exitcode)
+noreturn void ocall_exit(int exitcode, int is_exitgroup)
 {
-    int64_t code = exitcode;
+    ms_ocall_exit_t * ms;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    ms->ms_exitcode     = exitcode;
+    ms->ms_is_exitgroup = is_exitgroup;
+
     // There are two reasons for this loop:
     //  1. Ocalls can be interuppted.
     //  2. We can't trust the outside to actually exit, so we need to ensure
     //     that we never return even when the outside tries to trick us.
     while (true) {
-        sgx_ocall(OCALL_EXIT, (void *) code);
+        sgx_ocall(OCALL_EXIT, ms);
     }
 }
 
@@ -967,7 +972,9 @@ int ocall_gettime (unsigned long * microsec)
         return -EPERM;
     }
 
-    retval = sgx_ocall(OCALL_GETTIME, ms);
+    do {
+        retval = sgx_ocall(OCALL_GETTIME, ms);
+    } while(retval == -EINTR);
     if (!retval)
         *microsec = ms->ms_microsec;
 

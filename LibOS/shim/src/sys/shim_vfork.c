@@ -35,13 +35,13 @@
 #include <linux/futex.h>
 #include <errno.h>
 
-struct vfork_args {
-    PAL_HANDLE create_event;
-    struct shim_thread * thread;
-};
-
 int shim_do_vfork (void)
 {
+#ifdef ALIAS_VFORK_AS_FORK
+    debug("vfork() is an alias to fork() in Graphene, calling fork() now\n");
+    return shim_do_fork();
+#else
+    /* NOTE: leaving this old implementation for historical reference */
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 
     /* DEP 7/7/12 - Why r13?
@@ -114,4 +114,5 @@ int shim_do_vfork (void)
 
     /* here we return immediately, no letting the hooks mes up our stack */
     return 0;
+#endif
 }
