@@ -55,7 +55,7 @@ typedef struct mutex_handle {
 
 /* Locking and unlocking of Mutexes */
 int _DkMutexLock(struct mutex_handle* mut);
-int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout);
+int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
 int _DkMutexUnlock(struct mutex_handle* mut);
 
 typedef struct {
