@@ -48,14 +48,13 @@ int migrate_fork (struct shim_cp_store * store,
         DEFINE_MIGRATE(all_mounts, NULL, 0);
         DEFINE_MIGRATE(all_vmas, NULL, 0);
         DEFINE_MIGRATE(running_thread, thread, sizeof(struct shim_thread));
-        DEFINE_MIGRATE(handle_map, thread->handle_map,
-                       sizeof (struct shim_handle_map));
+        DEFINE_MIGRATE(handle_map, thread->handle_map, sizeof(struct shim_handle_map));
+        DEFINE_MIGRATE(migratable, NULL, 0);
         DEFINE_MIGRATE(brk, NULL, 0);
         DEFINE_MIGRATE(loaded_libraries, NULL, 0);
 #ifdef DEBUG
         DEFINE_MIGRATE(gdb_map, NULL, 0);
 #endif
-        DEFINE_MIGRATE(migratable, NULL, 0);
     }
     END_MIGRATION_DEF(fork)
 
