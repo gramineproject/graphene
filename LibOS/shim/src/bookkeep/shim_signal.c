@@ -677,7 +677,8 @@ __handle_one_signal(shim_tcb_t* tcb, int sig, struct shim_signal* signal) {
 
 void __handle_signal (shim_tcb_t * tcb, int sig)
 {
-    struct shim_thread * thread = (struct shim_thread *) tcb->tp;
+    struct shim_thread * thread = tcb->tp;
+    assert(thread);
     int begin_sig = 1, end_sig = NUM_KNOWN_SIGS;
 
     if (sig)
@@ -734,6 +735,19 @@ void append_signal(struct shim_thread* thread, int sig, siginfo_t* info, bool ne
     if (!handler) {
         // SIGSTOP and SIGKILL cannot be ignored
         assert(sig != SIGSTOP && sig != SIGKILL);
+        /*
+         * If signal is ignored and unmasked, the signal can be discarded
+         * directly. Otherwise it causes memory leak.
+         *
+         * SIGCHLD can be discarded even if it's masked.
+         * For Linux implementation, please refer to
+         * do_notify_parent() in linux/kernel/signal.c
+         * For standard, please refer to
+         * https://pubs.opengroup.org/onlinepubs/9699919799/functions/_Exit.html
+         */
+        if (!__sigismember(&thread->signal_mask, sig) || sig == SIGCHLD)
+            return;
+
         // If a signal is set to be ignored, append the signal but don't interrupt the thread
         need_interrupt = false;
     }
