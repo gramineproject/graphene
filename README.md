@@ -109,7 +109,6 @@ in the configuration:
 For more details about the building and installation, see the Graphene github
 Wiki page: <https://github.com/oscarlab/graphene/wiki>.
 
-
 ### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
 #### 2.1.1 Prerequisites
@@ -149,7 +148,7 @@ __** Please make sure the GCC version is either 4 or 5 **__
 Note: if you get an error concerning "Mod probe isgx.ko not found" or "could not
  insert module isgx.ko: Invalid module format" after running the above steps, you
  need to rebuild the SGX Drivers even if you have already built them,
- otherwise you will have an issue running aesmd service (a Linux daemon which 
+ otherwise you will have an issue running aesmd service (a Linux daemon which
  communicates with Launch Enclave and other SGX-related services).
 
 If you continue to get errors regarding "isgx.ko" or "graphene-sgx.ko"
@@ -244,7 +243,7 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
         ```
     4. Inside of this file leave everything the same except for the `sgx.trusted_children`
      and `sgx.trusted_files`, adding whatever dependencies and files are necessary
-     for your binaru.
+     for your binary.
     5. Run `make && make SGX=1 && make SGX_RUN=1`
     6. Run `SGX=1 ./yourfile.manifest` to execute your code.
 
@@ -303,6 +302,8 @@ in LibOS/shim/test/apps/python you will need to restart Graphene).
         - This is an issue with SGX driver compatibility. You will need to delete
         your Graphene directory and re-install. Don't forget to specify 2.1 as
         the driver version
+    8)"recipe for target: 'program.token' failed/connect_aesmd(attr)"
+        -
 
 ## 4. HOW TO RUN AN APPLICATION IN GRAPHENE
 
