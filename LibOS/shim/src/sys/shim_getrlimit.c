@@ -139,7 +139,7 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
             return -EFAULT;
         if (new_rlim->rlim_cur > new_rlim->rlim_max)
             return -EINVAL;
-        if (new_rlim->rlim_cur > __rlim->rlim_max)
+        if (new_rlim->rlim_cur > __rlim[resource].rlim_max)
             return -EINVAL;
     }
 
