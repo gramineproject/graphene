@@ -217,6 +217,12 @@ static int loader_filter (const char * key, int len)
             key[4] == 'e' && key[5] == 'r' && key[6] == '.') ? 0 : 1;
 }
 
+void init_libraries (const char * first_argument, const char ** arguments,
+                     const char ** environments);
+
+void start_execution (const char * first_argument, const char ** arguments,
+                      const char ** environments);
+
 /* 'pal_main' must be called by the host-specific bootloader */
 noreturn void pal_main (
         PAL_NUM    instance_id,      /* current instance id */
@@ -442,9 +448,6 @@ noreturn void pal_main (
     __pal_control.parent_process     = parent_process;
     __pal_control.first_thread       = first_thread;
 
-    _DkGetAvailableUserAddressRange(&__pal_control.user_address.start,
-                                    &__pal_control.user_address.end);
-
     __pal_control.pagesize           = pal_state.pagesize;
     __pal_control.alloc_align        = pal_state.alloc_align;
     __pal_control.broadcast_stream   = _DkBroadcastStreamOpen();
@@ -463,6 +466,13 @@ noreturn void pal_main (
     __pal_control.child_creation_time = is_parent ? 0 : pal_state.start_time -
                                         pal_state.process_create_time;
 #endif
+
+    /* Invoke lib initializer routines */
+    init_libraries(first_argument, arguments, environments);
+
+    /* Preloaded libs may allocate memory, so grab memory range now */
+    _DkGetAvailableUserAddressRange(&__pal_control.user_address.start,
+                                    &__pal_control.user_address.end);
 
     /* Now we will start the execution */
     start_execution(first_argument, arguments, environments);

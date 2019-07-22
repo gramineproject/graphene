@@ -66,6 +66,8 @@ struct link_map {
     ElfW(Half) l_phnum;     /* Number of program header entries.  */
     ElfW(Half) l_ldnum;     /* Number of dynamic segment entries.  */
 
+    bool l_init_called;
+
     /* Start and finish of memory map for this object.  l_map_start
        need not be the same as l_addr.  */
     ElfW(Addr) l_map_start, l_map_end;
