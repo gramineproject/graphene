@@ -618,5 +618,3 @@ class TC_40_AVXDisable(RegressionTestCase):
         # Disable AVX bit in XFRM
         stdout, stderr = self.run_binary(['AvxDisable'])
         self.assertIn('Illegal instruction executed in enclave', stderr)
-
-# vim: tw=80 ts=4 sts=4 sw=4 et
