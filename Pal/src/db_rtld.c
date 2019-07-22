@@ -1299,11 +1299,63 @@ void * stack_before_call __attribute_unused = NULL;
 #endif
 #endif /* !CALL_ENTRY */
 
+/* Invoke initializers of ELF binary.
+   See GNU libc elf/dl-init.c call_init() */
+void call_init (struct link_map *l, const char *first_argument,
+               const char ** arguments, const char ** environs)
+{
+    if (l->l_init_called)
+        return;
+    l->l_init_called = true;
+
+    /* Set up the arguments */
+
+    int argc = 1;
+    for (const char ** a = arguments; *a ; a++, argc++);
+
+    char **argv = __alloca(argc * sizeof(*argv));
+    argv[0] = (char*) first_argument;
+    for (int i = 1; i < argc; i++)
+        argv[i] = (char*) arguments[i];
+
+    char** env = (char**) environs;
+
+    /* Find initializers and invoke */
+
+    typedef void (*init_t) (int, char **, char **);
+    init_t init = NULL;
+    ElfW(Addr) *init_array = NULL;
+    size_t array_n = 0;
+
+    ElfW(Dyn) *dyn = NULL;
+    for (dyn = l->l_ld; dyn < &l->l_ld[l->l_ldnum]; dyn++)
+        if (dyn->d_tag == DT_INIT)
+            init = (init_t)(l->l_addr + dyn->d_un.d_ptr);
+        else if (dyn->d_tag == DT_INIT_ARRAY)
+            init_array = (ElfW(Addr)*)(l->l_addr + dyn->d_un.d_ptr);
+        else if (dyn->d_tag == DT_INIT_ARRAYSZ)
+            array_n = dyn->d_un.d_val / sizeof (ElfW(Addr));
+
+    if (init)
+        init(argc, argv, env);
+
+    if (init_array && array_n > 0)
+        for (ElfW(Addr) *a = init_array; a < &init_array[array_n]; a++)
+            if (*a != 0UL && *a != ~0UL)
+                ((init_t) *a)(argc, argv, env);
+}
+
+void init_libraries (const char * first_argument, const char ** arguments,
+                     const char ** environs)
+{
+    for (struct link_map *l = loaded_maps; l ; l = l->l_next)
+        if (l->l_type == OBJECT_PRELOAD && l->l_entry)
+            call_init(l, first_argument, arguments, environs);
+}
+
 noreturn void start_execution (const char * first_argument,
                                const char ** arguments, const char ** environs)
 {
-    /* First we will try to run all the preloaded libraries which come with
-       entry points */
     if (exec_map) {
         __pal_control.executable_range.start = (PAL_PTR) exec_map->l_map_start;
         __pal_control.executable_range.end   = (PAL_PTR) exec_map->l_map_end;
@@ -1359,13 +1411,20 @@ noreturn void start_execution (const char * first_argument,
             pal_state.tail_startup_time += _DkSystemTimeQuery() - before_tail;
 #endif
 
-    struct link_map * l = loaded_maps;
-    /* run entry point in reverse order */
-    for (; l->l_next ; l = l->l_next);
-    for (; l ; l = l->l_prev)
-        if (l->l_type == OBJECT_PRELOAD && l->l_entry)
-            CALL_ENTRY(l, cookies);
+    /* If LibOS is specified and found, invoke ELF entry. */
+    char libos_str[URI_MAX];
+    memset(libos_str, 0, URI_MAX);
+    ssize_t ret = get_config(pal_state.root_config, "loader.libos",
+                             libos_str, URI_MAX);
+    if (ret > 0)
+        for (struct link_map *l = loaded_maps; l ; l = l->l_next)
+            if (l->l_type == OBJECT_PRELOAD && l->l_entry)
+                if (strstr(l->l_name, libos_str))
+                    CALL_ENTRY(l, cookies);
+    printf("Warning: loader.libos not defined in manifest file"
+            " or cannot find specified lib in loader.preload list.\n");
 
+    /* Else, invoke ELF entry in the app. */
     if (exec_map)
         CALL_ENTRY(exec_map, cookies);
 
