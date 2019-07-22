@@ -80,6 +80,8 @@ typedef ptrdiff_t ssize_t;
 size_t strnlen (const char *str, size_t maxlen);
 size_t strlen (const char *str);
 
+char * strstr (const char *haystack, const char *needle);
+
 long strtol (const char *s, char **endptr, int base);
 int atoi (const char *nptr);
 long int atol (const char *nptr);
