@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libomp-dev \
     libpcre3-dev \
     libxml2-dev \
+    linux-headers-generic \
     net-tools \
     python \
     python-protobuf \
