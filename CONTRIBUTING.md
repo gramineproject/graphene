@@ -115,9 +115,23 @@ make SGX_RUN=1 regression
 
 If a test fails unexpectedly, one can use the KEEP_LOG=1 option to get the complete output.
 
-One can also run individual tests, such as Bootstrap, as:
+One can run tests manually:
 
-```path/to/pal-Linux ./Bootstrap```
+```sh
+PYTHONPATH=path/to/graphene/Scripts
+PAL_LOADER=path/to/pal-Linux
+PAL_SEC=path/to/pal_sec-Linux
+export PYTHONPATH PAL_LOADER PAL_SEC
+python3 -m pytest -v -rs test.py
+```
+
+It is also possible to run subset of tests:
+
+```sh
+# after env export
+python3 -m pytest -v -rs test.py::TC_01_Bootstrap
+python3 -m pytest -v -rs test.py::TC_01_Bootstrap::test_100_basic_boostrapping
+```
 
 The shim unit tests work similarly, and are under LibOS/shim/test/regression
 
