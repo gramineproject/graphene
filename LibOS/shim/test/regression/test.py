@@ -292,6 +292,3 @@ class TC_80_Socket(RegressionTestCase):
         self.assertIn('Data: This is packet 7', stdout)
         self.assertIn('Data: This is packet 8', stdout)
         self.assertIn('Data: This is packet 9', stdout)
-
-
-# vim: tw=80 ts=4 sts=4 sw=4 et

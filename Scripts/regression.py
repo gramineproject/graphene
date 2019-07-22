@@ -57,5 +57,3 @@ class RegressionTestCase(unittest.TestCase):
 
 class SandboxTestCase(RegressionTestCase):
     LOADER = os.environ['PAL_SEC']
-
-# vim: tw=80 ts=4 sts=4 sw=4 et
