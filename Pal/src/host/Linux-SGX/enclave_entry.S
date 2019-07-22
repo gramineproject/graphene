@@ -279,7 +279,7 @@ sgx_ocall:
 
 	# ocall_exit never returns
 	# Skip setting SGX_OCALL_PREPARED to avoid ECALL_THREAD_RESET
-	# falling into OCALL return handling
+	# falling into OCALL return handling period
 	cmpq $OCALL_EXIT, %rdi
 	je .Leexit
 

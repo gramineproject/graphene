@@ -129,7 +129,7 @@ void _DkThreadExit (void)
     if(exiting_thread != &pal_control.first_thread->thread) {
         _DkInternalLock(&thread_list_lock);
         listp_del(exiting_thread, &thread_list, list);
-        _DkInternalUnlock(&thread_list_lock);   
+        _DkInternalUnlock(&thread_list_lock);
     }
 
     ocall_exit(0);

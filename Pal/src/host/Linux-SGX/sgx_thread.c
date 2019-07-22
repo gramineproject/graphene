@@ -79,7 +79,7 @@ bool unmap_tcs (void)
 static void * thread_start (void * arg)
 {
     int tid = INLINE_SYSCALL(gettid, 0);
-    map_tcs(tid, true); /* Thread created by pthread_create() set as true */
+    map_tcs(tid, true); /* Thread created by pthread_create() */
     current_enclave = arg;
 
     if (!current_tcs) {
