@@ -1,4 +1,5 @@
 loader.preload = file:$(SHIMPATH)
+loader.libos = libsysdb
 loader.env.LD_LIBRARY_PATH = /lib
 loader.debug_type = inline
 

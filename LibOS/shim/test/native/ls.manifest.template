@@ -1,4 +1,5 @@
 loader.preload = file:$(SHIMPATH)
+loader.libos = libsysdb
 loader.exec = file:/bin/ls
 loader.env.LD_LIBRARY_PATH = /lib:/lib/x86_64-linux-gnu
 loader.debug_type = none

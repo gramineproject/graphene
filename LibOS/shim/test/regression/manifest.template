@@ -1,4 +1,5 @@
 loader.preload = file:../../src/libsysdb.so
+loader.libos = libsysdb
 loader.env.LD_LIBRARY_PATH = /lib
 loader.debug_type = none
 loader.syscall_symbol = syscalldb
