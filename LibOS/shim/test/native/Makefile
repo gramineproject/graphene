@@ -1,4 +1,4 @@
-special_executables = static pie
+special_executables = static pie multithread_on_exit
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
@@ -19,6 +19,11 @@ $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
+multithread_on_exit: %: %.c
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
+	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g') -lpthread
 
 static: %: %.c
 	@echo [ $@ ]
