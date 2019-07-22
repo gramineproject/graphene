@@ -216,6 +216,56 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
+(3) Running your own binary in Graphene (not a production level setup)
+
+    - A general outline of the steps needed is as follows:
+
+    1) cd into `LibOS/shim/test/apps/`
+    2) create a new directory for your application
+    3) create a Makefile in the directory following this template
+    (this can vary wildly, look at other examples in LibOS/shim/test/apps):
+        ```Makefile
+        PYTHON_SRC = Python-2.7.9
+        PYTHON_INSTALL = $(PYTHON_SRC)/build
+
+        manifests = your_binary.manifest
+
+        exec_target = $(manifests)
+
+        extra_rules = -e 's:\$$(PYTHONDIR):$(PYTHON_INSTALL)/:g'
+        clean-extra += clean-tmp
+
+        level = ../../
+        include ../../Makefile
+
+        clean-tmp:
+            rm -f your_binary.manifest.sgx *.sig *.token
+        ```
+    4) Inside of this file leave everything the same except for the `sgx.trusted_children`
+     and `sgx.trusted_files`, adding whatever dependencies and files are necessary
+     for your binary.
+    5) Run `make && make SGX=1 && make SGX_RUN=1`
+    6) Run `SGX=1 ./yourfile.manifest` to execute your code.
+
+    NOTES:
+     * It is important that the directories of any libraries you wish to use are
+     added under `loader.env.LD_LIBRARY_PATH`.
+          * Any files that are needed by the program should have their directories
+          mounted by adding the following code to the manifest:
+         ```
+         fs.mount.DIRNAME.type = chroot
+         fs.mount.DIRNAME.path = /PATH_ON_SYSTEM
+         fs.mount.DIRNAME.uri = file:PATH_IN_GRAPHENE
+         ```
+     * If there are memory or thread errors, increase ```sgx.enclave_size``` or
+     ```sgx.thread_num``` in the manifest.
+     * You can add an entire directory to trusted/allowed files by typing
+     `file:directory` with no slash at the end.
+     * Trusted children will need to have their own signatures and tokens. This
+     requires creating a manifest for those files as well, and they will also
+     need to be added to the Makefile.
+     * Arguments can be passed normally after the .manifest in terminal.
+
 ## 3. HOW TO DEBUG AND HANDLE ERRORS
 If you add or remove any files, symbolic links, manifests, binary, etc. you must
 first restart Graphene (for example, if you added your own custom script to test
