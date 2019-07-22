@@ -106,7 +106,7 @@ int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
         return -EFAULT;
     if (rlim->rlim_cur > rlim->rlim_max)
         return -EINVAL;
-    if (rlim->rlim_cur > __rlim->rlim_max)
+    if (rlim->rlim_cur > __rlim[resource].rlim_max)
         return -EINVAL;
 
     lock(&rlimit_lock);
