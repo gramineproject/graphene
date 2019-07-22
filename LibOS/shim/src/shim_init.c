@@ -621,7 +621,7 @@ DEFINE_PROFILE_INTERVAL(init_vma,                   init);
 DEFINE_PROFILE_INTERVAL(init_slab,                  init);
 DEFINE_PROFILE_INTERVAL(init_str_mgr,               init);
 DEFINE_PROFILE_INTERVAL(init_internal_map,          init);
-DEFINE_PROFILE_INTERNAL(init_rlimit,                init);
+DEFINE_PROFILE_INTERVAL(init_rlimit,                init);
 DEFINE_PROFILE_INTERVAL(init_fs,                    init);
 DEFINE_PROFILE_INTERVAL(init_dcache,                init);
 DEFINE_PROFILE_INTERVAL(init_handle,                init);
