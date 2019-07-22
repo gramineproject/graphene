@@ -234,7 +234,7 @@ int initialize_enclave (struct pal_enclave * enclave)
     sgx_arch_secs_t      enclave_secs;
     unsigned long        enclave_entry_addr;
     void *               tcs_addrs[MAX_DBG_THREADS];
-    unsigned long        heap_min = DEAFULT_HEAP_MIN;
+    unsigned long        heap_min = DEFAULT_HEAP_MIN;
 
 #define TRY(func, ...)                                              \
     ({                                                              \
