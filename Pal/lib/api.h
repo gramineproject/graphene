@@ -86,6 +86,9 @@ long int atol (const char *nptr);
 
 char * strchr (const char *s, int c_in);
 
+int strncmp (const char *s1, const char *s2, size_t n);
+int strcmp (const char *p1, const char *p2);
+
 void * memcpy (void *dstpp, const void *srcpp, size_t len);
 void * memmove (void *dstpp, const void *srcpp, size_t len);
 void * memset (void *dstpp, int c, size_t len);
