@@ -302,8 +302,11 @@ in LibOS/shim/test/apps/python you will need to restart Graphene).
         - This is an issue with SGX driver compatibility. You will need to delete
         your Graphene directory and re-install. Don't forget to specify 2.1 as
         the driver version
-    8)"recipe for target: 'program.token' failed/connect_aesmd(attr)"
-        -
+    8) "recipe for target: 'program.token' failed/connect_aesmd(attr)"
+        - Ensure BIOS SGX setting is set to 'Enabled'
+        - Reinstall the SGX SDK/PSW
+    9)"Permission denied on mapping enclave. You may need to set sysctl vm.mmap_min_addr to zero"
+        - `sudo sysctl vm.mmap_min_addr=0`
 
 ## 4. HOW TO RUN AN APPLICATION IN GRAPHENE
 
