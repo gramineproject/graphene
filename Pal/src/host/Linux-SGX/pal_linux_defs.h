@@ -5,7 +5,7 @@
 #define SSAFRAMENUM         2
 #define MEMORY_GAP          PRESET_PAGESIZE
 #define ENCLAVE_STACK_SIZE  (PRESET_PAGESIZE * 64)
-#define DEAFULT_HEAP_MIN    0x10000
+#define DEFAULT_HEAP_MIN    0x10000
 #define TRACE_ECALL         1
 #define TRACE_OCALL         1
 
