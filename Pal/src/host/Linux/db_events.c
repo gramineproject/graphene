@@ -75,14 +75,17 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
+int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us)
 {
     int ret = 0;
 
+    if (timeout_us < 0)
+        return _DkEventWait(event);
+
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         struct timespec waittime;
-        unsigned long sec = timeout / 1000000UL;
-        unsigned long microsec = timeout - (sec * 1000000UL);
+        uint64_t sec = (uint64_t)timeout_us / 1000000UL;
+        uint64_t microsec = (uint64_t)timeout_us - (sec * 1000000UL);
         waittime.tv_sec = sec;
         waittime.tv_nsec = microsec * 1000;
 
@@ -109,8 +112,7 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
     return ret;
 }
 
-int _DkEventWait (PAL_HANDLE event)
-{
+int _DkEventWait(PAL_HANDLE event) {
     int ret = 0;
 
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
@@ -149,11 +151,10 @@ static int event_close (PAL_HANDLE handle)
     return 0;
 }
 
-static int event_wait (PAL_HANDLE handle, uint64_t timeout)
-{
-    return timeout == NO_TIMEOUT ? _DkEventWait(handle) :
-           _DkEventWaitTimeout(handle, timeout);
+static int event_wait(PAL_HANDLE handle, int64_t timeout_us) {
+    return _DkEventWaitTimeout(handle, timeout_us);
 }
+
 struct handle_ops event_ops = {
         .close              = &event_close,
         .wait               = &event_wait,

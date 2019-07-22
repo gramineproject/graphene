@@ -860,8 +860,7 @@ static int socket_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR  * attr)
     }
 
     struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
-    unsigned long waittime = 0;
-    ret = ocall_poll(&pfd, 1, &waittime);
+    ret = ocall_poll(&pfd, 1, 0);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
     attr->readable = (ret == 1 && pfd.revents == POLLIN);

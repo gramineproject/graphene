@@ -54,9 +54,9 @@ typedef struct mutex_handle {
 #define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock);
 
 /* Locking and unlocking of Mutexes */
-int _DkMutexLock (struct mutex_handle * mut);
-int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
-int _DkMutexUnlock (struct mutex_handle * mut);
+int _DkMutexLock(struct mutex_handle* mut);
+int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout);
+int _DkMutexUnlock(struct mutex_handle* mut);
 
 typedef struct {
     PAL_HDR hdr;

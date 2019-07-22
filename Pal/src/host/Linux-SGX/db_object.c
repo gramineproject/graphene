@@ -42,8 +42,7 @@
 
 /* internally to wait for one object. Also used as a shortcut to wait
    on events and semaphores */
-static int _DkObjectWaitOne (PAL_HANDLE handle, int64_t timeout)
-{
+static int _DkObjectWaitOne(PAL_HANDLE handle, int64_t timeout_us) {
     /* only for all these handle which has a file descriptor, or
        a eventfd. events and semaphores will skip this part */
     if (HANDLE_HDR(handle)->flags & HAS_FDS) {
@@ -74,8 +73,7 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int64_t timeout)
         if (!nfds)
             return -PAL_ERROR_TRYAGAIN;
 
-        uint64_t waittime = timeout;
-        int ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
+        int ret = ocall_poll(fds, nfds, timeout_us);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
 
@@ -99,14 +97,13 @@ static int _DkObjectWaitOne (PAL_HANDLE handle, int64_t timeout)
     if (!ops || !ops->wait)
         return -PAL_ERROR_NOTSUPPORT;
 
-    return ops->wait(handle, timeout);
+    return ops->wait(handle, timeout_us);
 }
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
-   in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
-                       PAL_HANDLE * polled)
-{
+   in the handle array. timeout_us can be set for the wait. */
+int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
+                      PAL_HANDLE* polled) {
     if (count <= 0)
         return 0;
 
@@ -116,7 +113,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
         if (!handleArray[0])
             return -PAL_ERROR_TRYAGAIN;
 
-        int rv = _DkObjectWaitOne(handleArray[0], timeout);
+        int rv = _DkObjectWaitOne(handleArray[0], timeout_us);
         if (rv == 0)
             *polled = handleArray[0];
         return rv;
@@ -187,8 +184,7 @@ int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, int64_t timeout,
     if (!nfds)
         return -PAL_ERROR_TRYAGAIN;
 
-    uint64_t waittime = timeout;
-    ret = ocall_poll(fds, nfds, timeout >= 0 ? &waittime : NULL);
+    ret = ocall_poll(fds, nfds, timeout_us);
     if (IS_ERR(ret))
         return unix_to_pal_error(ERRNO(ret));
 

@@ -89,8 +89,8 @@ bool stataccess (struct stat * stats, int acc);
 int __DkMutexCreate (struct mutex_handle * mut);
 int _DkMutexAtomicCreate (struct mutex_handle * mut);
 int __DkMutexDestroy (struct mutex_handle * mut);
-int _DkMutexLock (struct mutex_handle * mut);
-int _DkMutexLockTimeout (struct mutex_handle * mut, uint64_t timeout);
+int _DkMutexLock(struct mutex_handle* mut);
+int _DkMutexLockTimeout(struct mutex_handle* mut, int64_t timeout_us);
 int _DkMutexUnlock (struct mutex_handle * mut);
 
 int * get_futex (void);
