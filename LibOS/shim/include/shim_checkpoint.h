@@ -80,7 +80,7 @@ struct shim_cp_entry
     ptr_t cp_type;  /* entry type */
     union
     {
-        ptr_t cp_val;   /* interger value */
+        ptr_t cp_val;   /* integer value */
         /* originally there is a pointer, now we don't need them */
     } cp_un;
 };

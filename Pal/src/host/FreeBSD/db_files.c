@@ -384,7 +384,7 @@ struct dirent {
 #define DIRBUF_SIZE     1024
 
 /* 'read' operation for directory stream. Directory stream will not
-   need a 'write' operat4on. */
+   need a 'write' operation. */
 int dir_read (PAL_HANDLE handle, int offset, int count, void * buf)
 {
     void * dent_buf = handle->dir.buf ? : __alloca(DIRBUF_SIZE);

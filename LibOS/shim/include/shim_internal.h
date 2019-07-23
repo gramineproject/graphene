@@ -717,7 +717,7 @@ static inline int __ref_dec (REFTYPE * ref)
 
 #define REF_DEC(ref) __ref_dec(&(ref))
 
-/* interger hash functions */
+/* integer hash functions */
 static inline uint32_t hash32 (uint32_t key)
 {
     key = ~key + (key << 15);
