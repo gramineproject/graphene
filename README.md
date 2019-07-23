@@ -148,7 +148,7 @@ __** Please make sure the GCC version is either 4 or 5 **__
 Note: if you get an error concerning "Mod probe isgx.ko not found" or "could not
  insert module isgx.ko: Invalid module format" after running the above steps, you
  need to rebuild the SGX Drivers even if you have already built them,
- otherwise you will have an issue running aesmd service (a Linux daemon which
+ otherwise, you will have an issue running aesmd service (a Linux daemon which,
  communicates with Launch Enclave and other SGX-related services).
 
 If you continue to get errors regarding "isgx.ko" or "graphene-sgx.ko"
@@ -216,9 +216,9 @@ There are a few built-in examples under LibOS/shim/test/. The "native" folder in
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
-(3) Running your own binary in Graphene (not a production level setup)
+(3) Running your own binary in Graphene (not a production-level setup)
 
-    - A general outline of the steps needed is as follows:
+    - A general outline of the required steps:
 
     1) cd into `LibOS/shim/test/apps/`
     2) create a new directory for your application
