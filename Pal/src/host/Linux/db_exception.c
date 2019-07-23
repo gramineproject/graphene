@@ -34,8 +34,10 @@
 #include "pal_security.h"
 #include "api.h"
 
+#include <assert.h>
 #include <atomic.h>
 #include <sigset.h>
+#include <stddef.h>
 #include <linux/signal.h>
 #include <ucontext.h>
 #include <asm/errno.h>
@@ -133,17 +135,67 @@ static int get_event_num (int signum)
 void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
                              PAL_NUM arg, ucontext_t * uc)
 {
-    PAL_EVENT event;
-    event.event_num = event_num;
+    PAL_EVENT event = {
+        .event_num = event_num,
+        .uc = uc,
+    };
 
-    if (uc) {
-        memcpy(&event.context, uc->uc_mcontext.gregs, sizeof(PAL_CONTEXT));
-        event.context.fpregs = uc->uc_mcontext.fpregs;
-    }
-
-    event.uc = uc;
-
-    (*upcall) ((PAL_PTR) &event, arg, &event.context);
+    /* Layout of PAL_CONTEXT is same to mcontext_t::{gregs, fpregs} */
+    _Static_assert(REG_R8 * 8 == offsetof(PAL_CONTEXT, r8),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_R9 * 8 == offsetof(PAL_CONTEXT, r9),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_R10 * 8 == offsetof(PAL_CONTEXT, r10),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_R11 * 8 == offsetof(PAL_CONTEXT, r11),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_R12 * 8 == offsetof(PAL_CONTEXT, r12),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_R13 * 8 == offsetof(PAL_CONTEXT, r13),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_R14 * 8 == offsetof(PAL_CONTEXT, r14),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_R15 * 8 == offsetof(PAL_CONTEXT, r15),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RDI * 8 == offsetof(PAL_CONTEXT, rdi),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RSI * 8 == offsetof(PAL_CONTEXT, rsi),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RBP * 8 == offsetof(PAL_CONTEXT, rbp),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RBX * 8 == offsetof(PAL_CONTEXT, rbx),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RDX * 8 == offsetof(PAL_CONTEXT, rdx),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RAX * 8 == offsetof(PAL_CONTEXT, rax),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RCX * 8 == offsetof(PAL_CONTEXT, rcx),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RSP * 8 == offsetof(PAL_CONTEXT, rsp),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_RIP * 8 == offsetof(PAL_CONTEXT, rip),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_EFL * 8 == offsetof(PAL_CONTEXT, efl),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_CSGSFS * 8 == offsetof(PAL_CONTEXT, csgsfs),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_ERR * 8 == offsetof(PAL_CONTEXT, err),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_TRAPNO * 8 == offsetof(PAL_CONTEXT, trapno),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_OLDMASK * 8 == offsetof(PAL_CONTEXT, oldmask),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(REG_CR2 * 8 == offsetof(PAL_CONTEXT, cr2),
+                   "PAL_CONTEXT doesn't match gregset_t");
+    _Static_assert(sizeof(uc->uc_mcontext.gregs) ==
+                   offsetof(PAL_CONTEXT, fpregs),
+                   "PAL_CONTEXT layout doesn't match gregset_t");
+    _Static_assert(offsetof(mcontext_t, fpregs) == offsetof(PAL_CONTEXT, fpregs),
+                   "offsetof PAL_CONTEXT.fpregs doesn't patch to mcontext_t::fpregs");
+    _Static_assert(sizeof(uc->uc_mcontext.fpregs) == sizeof(PAL_PTR),
+                   "sizeof PAL_CONTEXT.fpregs doesn't match to fpregset_t");
+    (*upcall) ((PAL_PTR) &event, arg,
+               uc ? (PAL_CONTEXT*)&uc->uc_mcontext : NULL);
 }
 
 static bool _DkGenericSignalHandle (int event_num, siginfo_t * info,
@@ -355,9 +407,7 @@ err:
 
 void _DkExceptionReturn (void * event)
 {
-    PAL_EVENT * e = event;
-    if (e->uc) {
-        /* copy the context back to ucontext */
-        memcpy(e->uc->uc_mcontext.gregs, &e->context, sizeof(PAL_CONTEXT));
-    }
+    /* nothing here.
+     * NOTE: mucontext_t is reused as PAL_CONTEXT by _DkGenericEventTrigger()
+     */
 }

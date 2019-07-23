@@ -276,6 +276,7 @@ handle_event:
     ctx->r15 = uc->r15;
     ctx->efl = uc->rflags;
     ctx->rip = uc->rip;
+    ctx->fpregs = NULL; /* TODO construct fpregs */
 
     struct pal_frame * frame = get_frame(uc);
 
