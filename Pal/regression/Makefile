@@ -82,8 +82,8 @@ regression:
 	$(RM) pal-regression.xml
 	$(MAKE) pal-regression.xml
 
-pal-regression.xml: test.py $(call expand_target,$(target))
-	python3 -m pytest --junit-xml $@ -v test.py
+pal-regression.xml: test_pal.py $(call expand_target,$(target))
+	python3 -m pytest --junit-xml $@ -v test_pal.py
 
 .PHONY: clean
 clean:
