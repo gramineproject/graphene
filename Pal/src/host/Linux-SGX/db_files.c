@@ -455,7 +455,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 #define DIRBUF_SIZE     1024
 
 /* 'read' operation for directory stream. Directory stream will not
-   need a 'write' operat4on. */
+   need a 'write' operation. */
 static int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count,
                          void * buf)
 {
