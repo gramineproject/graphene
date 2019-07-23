@@ -25,20 +25,20 @@
 
 #include <stdalign.h>
 
-#include <shim_types.h>
-#include <shim_defs.h>
-#include <shim_sysv.h>
-
-#include <pal.h>
-#include <list.h>
-
+#include <asm/fcntl.h>
+#include <asm/resource.h>
 #include <linux/shm.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/un.h>
 
-#include <asm/fcntl.h>
-#include <asm/resource.h>
+#include <shim_types.h>
+#include <shim_defs.h>
+#include <shim_sysv.h>
+
+#include <atomic.h> // TODO: migrate to stdatomic.h
+#include <pal.h>
+#include <list.h>
 
 /* start definition of shim handle */
 enum shim_handle_type {

@@ -29,6 +29,7 @@
 
 #include <sysdeps/generic/ldsodefs.h>
 #include "pal_internal.h"
+#include "pal_rtld.h"
 
 /* The x86-64 never uses Elf64_Rel relocations.  */
 #define ELF_MACHINE_NO_REL 1
