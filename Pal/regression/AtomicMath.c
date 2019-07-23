@@ -1,9 +1,10 @@
+#include <atomic.h>
+#include <limits.h>
+#include <stdint.h>
+#include <string.h>
+
 #include "pal.h"
 #include "pal_debug.h"
-#include <atomic.h>
-
-#include <string.h>
-#include <limits.h>
 
 int main (int argc, char ** argv, char ** envp)
 {

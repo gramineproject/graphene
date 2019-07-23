@@ -22,6 +22,7 @@
 #define _SHIM_UTILS_H_
 
 #include <shim_handle.h>
+#include <shim_internal.h>
 
 #include <pal.h>
 #include <list.h>
