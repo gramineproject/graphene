@@ -132,9 +132,9 @@ static inline const struct handle_ops * HANDLE_OPS (PAL_HANDLE handle)
     return pal_handle_ops[_type];
 }
 
-/* interger hash functions defined inline. The algorithm we used here
+/* integer hash functions defined inline. The algorithm we used here
   is based on Robert Jenkins developed in 96', the algorithm has two
-  version, 32-bit one and 64-bit one. */
+  versions, 32-bit one and 64-bit one. */
 static inline uint32_t hash32 (uint32_t key)
 {
     key = ~key + (key << 15);
