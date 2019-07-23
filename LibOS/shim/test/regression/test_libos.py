@@ -149,7 +149,7 @@ class TC_30_Syscall(RegressionTestCase):
         stdout, stderr = self.run_binary(['fopen_cornercases'])
 
         # fopen corner cases
-        self.assertIn('Successfully read from file: Hello world', stdout)
+        self.assertIn('Successfully read from file: Hello World', stdout)
 
     def test_040_futex_wake(self):
         stdout, stderr = self.run_binary(['futex'])
