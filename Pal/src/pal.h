@@ -101,7 +101,7 @@ typedef struct pal_tcb {
 #ifdef SHIM_TCB_USE_GS
     uint64_t libos_tcb[(PAL_LIBOS_TCB_SIZE + sizeof(uint64_t) - 1) / sizeof(uint64_t)];
 #endif
-    /* data private to PAL implementation follow to this struct. */
+    /* data private to PAL implementation follows this struct. */
 } PAL_TCB;
 
 static inline PAL_TCB * pal_get_tcb (void)
