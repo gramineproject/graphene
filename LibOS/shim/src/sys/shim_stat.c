@@ -215,11 +215,11 @@ int shim_do_newfstatat(int dirfd, const char* pathname,
     if (flags & AT_SYMLINK_NOFOLLOW)
         lookup_flags &= ~LOOKUP_FOLLOW;
     if (flags & AT_NO_AUTOMOUNT) {
-        /* nothing as automount isn't supported */
+        /* Do nothing as automount isn't supported */
         debug("ignoring AT_NO_AUTOMOUNT.");
     }
 
-    if (!(*pathname)){
+    if (!*pathname){
         if (!(flags & AT_EMPTY_PATH))
             return -ENOENT;
 
