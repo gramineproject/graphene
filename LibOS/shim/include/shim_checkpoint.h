@@ -32,12 +32,11 @@
 #include <stdarg.h>
 
 #ifdef __i386__
-typedef uint32_t ptr_t;
-# define hashfunc hash32
-#else
+# error "x86-32 support is heavily broken."
+#endif
+
 typedef uint64_t ptr_t;
 # define hashfunc hash64
-#endif
 
 #define __attribute_migratable __attribute__((section(".migratable")))
 
@@ -81,7 +80,7 @@ struct shim_cp_entry
     ptr_t cp_type;  /* entry type */
     union
     {
-        ptr_t cp_val;   /* interger value */
+        ptr_t cp_val;   /* integer value */
         /* originally there is a pointer, now we don't need them */
     } cp_un;
 };
@@ -282,7 +281,8 @@ enum {
 
 #define END_CP_FUNC_NO_RS(name)                                     \
     END_CP_FUNC(name)                                               \
-    BEGIN_RS_FUNC(name) {} END_RS_FUNC(name)
+    BEGIN_RS_FUNC(name) {__UNUSED(entry); __UNUSED(base);           \
+        __UNUSED(offset); __UNUSED(rebase); } END_RS_FUNC(name)
 
 #define BEGIN_RS_FUNC(name)                                         \
     DEFINE_RS_FUNC(name)                                            \
@@ -460,7 +460,6 @@ int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
 void restore_context (struct shim_context * context);
 
 int create_checkpoint (const char * cpdir, IDTYPE * session);
-int join_checkpoint (struct shim_thread * cur, ucontext_t * context,
-                     IDTYPE sid);
+int join_checkpoint (struct shim_thread * cur, IDTYPE sid);
 
 #endif /* _SHIM_CHECKPOINT_H_ */

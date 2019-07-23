@@ -59,6 +59,11 @@ enum {
 #define OCALL_NO_TIMEOUT   ((int64_t)-1)
 
 typedef struct {
+    int ms_exitcode;
+    int ms_is_exitgroup;
+} ms_ocall_exit_t;
+
+typedef struct {
     const char * ms_str;
     unsigned int ms_length;
 } ms_ocall_print_string_t;

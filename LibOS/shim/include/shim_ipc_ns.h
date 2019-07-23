@@ -32,7 +32,6 @@
     /* LEASE    */ &ipc_##ns##_lease_callback,      \
     /* OFFER    */ &ipc_##ns##_offer_callback,      \
     /* RENEW    */ &ipc_##ns##_renew_callback,      \
-    /* REVOKE   */ &ipc_##ns##_revoke_callback,     \
     /* SUBLEASE */ &ipc_##ns##_sublease_callback,   \
     /* QUERY    */ &ipc_##ns##_query_callback,      \
     /* QUERYALL */ &ipc_##ns##_queryall_callback,   \
@@ -103,7 +102,6 @@ enum {
     NS_CODE(LEASE),
     NS_CODE(OFFER),
     NS_CODE(RENEW),
-    NS_CODE(REVOKE),
     NS_CODE(SUBLEASE),
     NS_CODE(QUERY),
     NS_CODE(QUERYALL),
@@ -154,14 +152,6 @@ NS_MSG_TYPE(renew) {
 
 int NS_SEND(renew) (IDTYPE base, IDTYPE size);
 int NS_CALLBACK(renew) (IPC_CALLBACK_ARGS);
-
-/* REVOKE: revoke lease of a range of name */
-NS_MSG_TYPE(revoke) {
-    IDTYPE base, size;
-} __attribute__((packed));
-
-int NS_SEND(revoke) (IDTYPE base, IDTYPE size);
-int NS_CALLBACK(revoke) (IPC_CALLBACK_ARGS);
 
 /* SUBLEASE: lease a range of names */
 NS_MSG_TYPE(sublease) {

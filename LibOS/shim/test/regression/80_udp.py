@@ -4,7 +4,7 @@ from regression import Regression
 loader = sys.argv[1]
 
 # Running udp
-regression = Regression(loader, "udp", None)
+regression = Regression(loader, "udp", None, 50000)
 
 regression.add_check(name="udp",
     check=lambda res:

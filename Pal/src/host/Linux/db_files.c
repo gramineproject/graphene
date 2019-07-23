@@ -407,7 +407,7 @@ struct linux_dirent64 {
 #define DIRBUF_SIZE     1024
 
 /* 'read' operation for directory stream. Directory stream will not
-   need a 'write' operat4on. */
+   need a 'write' operation. */
 int64_t dir_read (PAL_HANDLE handle, uint64_t offset, size_t count, void * buf)
 {
     if (offset)

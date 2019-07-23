@@ -1,3 +1,4 @@
+include ../../../../Makefile.configs
 include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib \
@@ -12,6 +13,8 @@ endif
 host_files = libpal-Linux.a
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
+CFLAGS += $(defs)
+ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
 	    exception) manifest clone-x86_64 gettimeofday-x86_64
@@ -23,38 +26,29 @@ all: $(host_files)
 
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
-CFLAGS += -DDEBUG -Wsign-compare
+CFLAGS += -DDEBUG
 export DEBUG
 endif
 
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
-	@echo [ host/Linux/$@ ]
-	@$(AR) $(ARFLAGS) $@ $^
-
-%.asm: %.c $(headers)
-	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
+	$(call cmd,ar_a_o)
 
 %.o: %.c $(headers)
-	@echo [ host/Linux/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
+	$(call cmd,cc_o_c)
 
-%.e %.i: %.c $(headers)
-	@echo [ host/Linux/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+%.i: %.c $(headers)
+	$(call cmd,cpp_i_c)
 
 %.s: %.c $(headers)
-	@echo [ host/Linux/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 %.o: %.S $(headers)
-	@echo [ host/Linux/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+	$(call cmd,as_o_S)
 
-%.e %.s: %.S $(headers)
-	@echo [ host/Linux/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
+%.s: %.S $(headers)
+	$(call cmd,cpp_s_S)
+
+include ../../../../Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 

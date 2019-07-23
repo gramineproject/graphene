@@ -71,7 +71,7 @@ extern PAL_HANDLE debug_handle;
 void debug_printf (const char * fmt, ...) __attribute__((format (printf, 1, 2)));
 void debug_puts (const char * str);
 void debug_putch (int ch);
-void debug_vprintf (const char * fmt, va_list * ap) __attribute__((format (printf, 1, 0)));
+void debug_vprintf (const char * fmt, va_list ap) __attribute__((format (printf, 1, 0)));
 
 #define VMID_PREFIX     "[P%05u] "
 #define TID_PREFIX      "[%-6u] "
@@ -86,7 +86,7 @@ void debug_vprintf (const char * fmt, va_list * ap) __attribute__((format (print
 #define SYSPRINT_BUFFER_SIZE    256
 
 void handle_printf (PAL_HANDLE hdl, const char * fmt, ...) __attribute__((format (printf, 2, 3)));
-void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list * ap) __attribute__((format (printf, 2, 0)));
+void handle_vprintf (PAL_HANDLE hdl, const char * fmt, va_list ap) __attribute__((format (printf, 2, 0)));
 
 #define __SYS_PRINTF(fmt, ...)                                              \
     do {                                                                    \
@@ -173,7 +173,7 @@ static inline void do_pause (void);
     do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
 
 /* definition for syscall table */
-void handle_signal (bool delayed_only);
+void handle_signal (void);
 long convert_pal_errno (long err);
 void syscall_wrapper(void);
 void syscall_wrapper_after_syscalldb(void);
@@ -210,13 +210,13 @@ static inline uint64_t get_cur_preempt (void) {
     SHIM_ARG_TYPE __shim_##name(args) {                     \
         SHIM_ARG_TYPE ret = 0;                              \
         uint64_t preempt = get_cur_preempt();               \
-        /* handle_signal(true); */                          \
+        /* handle_signal(); */                              \
         /* check_stack_hook(); */                           \
         BEGIN_SYSCALL_PROFILE();
 
 #define END_SHIM(name)                                      \
         END_SYSCALL_PROFILE(name);                          \
-        handle_signal(false);                               \
+        handle_signal();                                    \
         assert(preempt == get_cur_preempt());               \
         return ret;                                         \
     }
@@ -378,6 +378,44 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
 #define SHIM_PASS_ARGS_5 SHIM_PASS_ARGS_4, __arg5
 #define SHIM_PASS_ARGS_6 SHIM_PASS_ARGS_5, __arg6
 
+#define SHIM_UNUSED_ARGS_0()
+
+#define SHIM_UNUSED_ARGS_1() do {               \
+        __UNUSED(__arg1);                       \
+    } while (0)
+#define SHIM_UNUSED_ARGS_2() do {               \
+        __UNUSED(__arg1);                       \
+        __UNUSED(__arg2);                       \
+    } while (0)
+#define SHIM_UNUSED_ARGS_3() do {               \
+        __UNUSED(__arg1);                       \
+        __UNUSED(__arg2);                       \
+        __UNUSED(__arg3);                       \
+    } while (0)
+#define SHIM_UNUSED_ARGS_4() do {               \
+        __UNUSED(__arg1);                       \
+        __UNUSED(__arg2);                       \
+        __UNUSED(__arg3);                       \
+        __UNUSED(__arg4);                       \
+    } while (0)
+
+#define SHIM_UNUSED_ARGS_5() do {               \
+        __UNUSED(__arg1);                       \
+        __UNUSED(__arg2);                       \
+        __UNUSED(__arg3);                       \
+        __UNUSED(__arg4);                       \
+        __UNUSED(__arg5);                       \
+    } while (0)
+
+#define SHIM_UNUSED_ARGS_6() do {               \
+        __UNUSED(__arg1);                       \
+        __UNUSED(__arg2);                       \
+        __UNUSED(__arg3);                       \
+        __UNUSED(__arg4);                       \
+        __UNUSED(__arg5);                       \
+        __UNUSED(__arg6);                       \
+    } while (0)
+
 #define DO_SYSCALL(...) DO_SYSCALL2(__VA_ARGS__)
 #define DO_SYSCALL2(n, ...) -ENOSYS
 
@@ -394,6 +432,7 @@ void parse_syscall_after (int sysno, const char * name, int nr, ...);
     DEFINE_PROFILE_INTERVAL(syscall_##name, syscall);               \
     BEGIN_SHIM(name, SHIM_PROTO_ARGS_##n)                           \
         debug("WARNING: shim_" #name " not implemented\n");         \
+        SHIM_UNUSED_ARGS_##n();                                     \
         ret = DO_SYSCALL_##n(__NR_##name);                          \
     END_SHIM(name)                                                  \
     EXPORT_SHIM_SYSCALL(name, n, __VA_ARGS__)
@@ -422,7 +461,7 @@ static inline void enable_locking (void)
         lock_enabled = true;
 }
 
-static inline PAL_HANDLE thread_create (void * func, void * arg, int option)
+static inline PAL_HANDLE thread_create (void * func, void * arg)
 {
     assert(lock_enabled);
     return DkThreadCreate(func, arg);
@@ -431,10 +470,10 @@ static inline PAL_HANDLE thread_create (void * func, void * arg, int option)
 static inline void __disable_preempt (shim_tcb_t * tcb)
 {
     //tcb->context.syscall_nr += SYSCALL_NR_PREEMPT_INC;
-    /* Assert if this counter overflows */
-    assert((tcb->context.preempt & ~SIGNAL_DELAYED) != ~SIGNAL_DELAYED);
     tcb->context.preempt++;
-    //debug("disable preempt: %d\n", tcb->context.preempt & ~SIGNAL_DELAYED);
+    /* Assert if this counter overflows */
+    assert(tcb->context.preempt != 0);
+    //debug("disable preempt: %d\n", tcb->context.preempt);
 }
 
 static inline void disable_preempt (shim_tcb_t * tcb)
@@ -451,21 +490,21 @@ static inline void __enable_preempt (shim_tcb_t * tcb)
     /* Assert if this counter underflows */
     assert(tcb->context.preempt > 0);
     tcb->context.preempt--;
-    //debug("enable preempt: %d\n", tcb->context.preempt & ~SIGNAL_DELAYED);
+    //debug("enable preempt: %d\n", tcb->context.preempt);
 }
 
-void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc);
+void __handle_signal (shim_tcb_t * tcb, int sig);
 
 static inline void enable_preempt (shim_tcb_t * tcb)
 {
     if (!tcb && !(tcb = shim_get_tls()))
         return;
 
-    if (!(tcb->context.preempt & ~SIGNAL_DELAYED))
+    if (!tcb->context.preempt)
         return;
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) == 1)
-        __handle_signal(tcb, 0, NULL);
+    if (tcb->context.preempt == 1)
+        __handle_signal(tcb, 0);
 
     __enable_preempt(tcb);
 }
@@ -678,7 +717,7 @@ static inline int __ref_dec (REFTYPE * ref)
 
 #define REF_DEC(ref) __ref_dec(&(ref))
 
-/* interger hash functions */
+/* integer hash functions */
 static inline uint32_t hash32 (uint32_t key)
 {
     key = ~key + (key << 15);

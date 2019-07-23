@@ -143,6 +143,7 @@ static int finish_checkpoint (struct cp_session * session);
 static int check_thread (struct shim_thread * thread, void * arg,
                          bool * unlocked)
 {
+    __UNUSED(unlocked); // Retained for API compatibility
     LISTP_TYPE(cp_thread) * registered = (LISTP_TYPE(cp_thread) *) arg;
     struct cp_thread * t;
 
@@ -156,8 +157,7 @@ static int check_thread (struct shim_thread * thread, void * arg,
     return 1;
 }
 
-int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
-                     IDTYPE sid)
+int join_checkpoint (struct shim_thread * thread, IDTYPE sid)
 {
     struct cp_session * s, * cpsession = NULL;
     struct cp_thread cpthread;
@@ -183,8 +183,7 @@ int join_checkpoint (struct shim_thread * thread, ucontext_t * context,
 
     /* find out if there is any thread that is not registered yet */
     ret = walk_thread_list(&check_thread,
-                           &cpsession->registered_threads,
-                           false);
+                           &cpsession->registered_threads);
 
     if (ret == -ESRCH)
         do_checkpoint = true;
@@ -288,7 +287,7 @@ int shim_do_checkpoint (const char * filename)
     ipc_checkpoint_send(filename, session);
     kill_all_threads(tcb->tp, session, SIGCP);
 
-    ret = join_checkpoint(tcb->tp, &signal.context, session);
+    ret = join_checkpoint(tcb->tp, session);
     if (ret < 0) {
         shim_do_rmdir(filename);
         return ret;

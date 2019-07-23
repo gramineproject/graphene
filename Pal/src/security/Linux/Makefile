@@ -1,5 +1,4 @@
-CC	= gcc
-LD	= ld
+include ../../../../Makefile.configs
 
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -Wall -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin \
@@ -19,21 +18,19 @@ CC += -g
 CFLAGS += -DDEBUG
 endif
 
+include ../../../../Makefile.rules
+
 libpal_sec.so: $(addsuffix .o,$(objs)) $(graphene_lib)
-	@echo [ security/Linux/$@ ]
-	@$(LD) $(LDFLAGS) -o $@ $^ -soname=libpal_sec.so
+	$(call cmd,ld_so_o)
 
 %.o: %.c
-	@echo [ security/Linux/$@ ]
-	@$(CC) $(CFLAGS) -c $< -o $@
+	$(call cmd,cc_o_c)
 
-%.e %.i: %.c
-	@echo [ security/Linux/$@ ]
-	@$(CC) $(CFLAGS) -E $< -o $@
+%.i: %.c
+	$(call cmd,cpp_i_o)
 
 %.s: %.c
-	@echo [ security/Linux/$@ ]
-	@$(CC) $(CFLAGS) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 .PHONY: clean
 clean:

@@ -36,8 +36,8 @@
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
-int printf(const char * fmt, ...);
-int snprintf(char * str, int size, const char * fmt, ...);
+int printf(const char * fmt, ...) __attribute__((format(printf, 1, 2)));
+int snprintf(char * str, int size, const char * fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /* constants and macros to help rounding addresses to page
    boundaries */
@@ -132,5 +132,7 @@ void sgx_edbgwr (void * addr, uint64_t data);
 
 int sgx_init_child_process (struct pal_sec * pal_sec);
 int sgx_signal_setup (void);
+int block_signals (bool block, const int * sigs, int nsig);
+int block_async_signals (bool block);
 
 #endif

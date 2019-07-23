@@ -1,0 +1,83 @@
+pipeline {
+        agent {
+              dockerfile { filename 'Jenkinsfiles/ubuntu-18.04.dockerfile' }
+        }
+        stages {
+                stage('Build') {
+                    steps {
+                        sh '''
+                            make -j 8 DEBUG=1 WERROR=1
+                           '''
+                    }
+                }
+                stage('Test') {
+                    steps {
+                        sh '''
+                            cd Pal/regression
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/regression
+                            make regression
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/ltp
+                            make
+                            ./syscalls.sh
+                            '''
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/python
+                                make regression
+                            '''
+                        }
+                        sh '''
+                            cd LibOS/shim/test/apps/bash
+                            make regression
+                            '''
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/gcc
+                                make regression
+                           '''
+                        }
+                        timeout(time: 20, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/lmbench
+                                make regression
+                            '''
+                        }
+                        sh '''
+                            cd LibOS/shim/test/apps/lighttpd
+                            make
+                            make start-graphene-server &
+                            sleep 1
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+                            make
+                            make start-graphene-server &
+                            sleep 1
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
+                            '''
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'echo Deploying code'
+                    }
+                }
+        }
+        post {
+                success {
+                        echo 'Deployment successful'
+                }
+                failure {
+                        echo 'Failure while on the pipeline'
+                }
+                unstable {
+                        echo 'Pipeline marked as "unstable"'
+                }
+        }
+}

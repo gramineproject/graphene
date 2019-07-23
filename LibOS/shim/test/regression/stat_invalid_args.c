@@ -18,20 +18,20 @@ int main (int argc, char** argv) {
     /* check stat() */
     r = stat(badpath, goodbuf);
     if (r == -1 && errno == EFAULT)
-        printf("stat(invalid-path-ptr) correctly returns error\n");
+        printf("stat(invalid-path-ptr) correctly returned error\n");
 
     r = stat(goodpath, badbuf);
     if (r == -1 && errno == EFAULT)
-        printf("stat(invalid-buf-ptr) correctly returns error\n");
+        printf("stat(invalid-buf-ptr) correctly returned error\n");
 
     /* check lstat() */
     r = lstat(badpath, goodbuf);
     if (r == -1 && errno == EFAULT)
-        printf("lstat(invalid-path-ptr) correctly returns error\n");
+        printf("lstat(invalid-path-ptr) correctly returned error\n");
 
     r = lstat(goodpath, badbuf);
     if (r == -1 && errno == EFAULT)
-        printf("lstat(invalid-buf-ptr) correctly returns error\n");
+        printf("lstat(invalid-buf-ptr) correctly returned error\n");
 
     return 0;
 }

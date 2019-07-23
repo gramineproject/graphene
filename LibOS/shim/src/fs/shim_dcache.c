@@ -198,6 +198,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
         if (!qstrempty(&parent->rel_path)) {
             const char * strs[] = { qstrgetstr(&parent->rel_path), "/", name };
             size_t lens[] = { parent->rel_path.len, 1, namelen };
+            assert(lens[0] + lens[1] + lens[2] < STR_SIZE);
             qstrsetstrs(&dent->rel_path, 3, strs, lens);
         } else
             qstrsetstr(&dent->rel_path, name, namelen);
@@ -211,11 +212,6 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
 /* This function searches for name/namelen (as the relative path) under
  * the parent directory (start).
  *
- * path/pathlen is the fully-qualified path, and an optional (unused)
- * argument.  XXX: I am not sure what the case is where the full path
- * would resolve but the relative path would not; consider dropping
- * this argument, or documenting the reason (after testing).
- *
  * If requested, the expected hash of the dentry is returned in hashptr,
  * primarily so that the hashing can be reused to add the dentry later.
  *
@@ -225,7 +221,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
  */
 struct shim_dentry *
 __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
-                 const char * path, int pathlen, HASHTYPE * hashptr) {
+                 HASHTYPE * hashptr) {
 
     /* In this implementation, we just look at the children
      * under the parent and see if there are matches.  It so,
@@ -367,6 +363,7 @@ END_CP_FUNC(dentry)
 
 BEGIN_RS_FUNC(dentry)
 {
+    __UNUSED(offset);
     struct shim_dentry * dent = (void *) (base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(dent->hlist);
@@ -393,5 +390,3 @@ BEGIN_RS_FUNC(dentry)
              dent->fs ? qstrgetstr(&dent->fs->path) : NULL);
 }
 END_RS_FUNC(dentry)
-
-

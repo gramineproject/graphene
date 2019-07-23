@@ -23,7 +23,7 @@ pipeline {
                             ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
                         '''
                         sh '''
-                            make SGX=1 WERROR=1
+                            make -j 8 SGX=1 WERROR=1
                         '''
                         sh '''
                             make SGX_RUN=1
@@ -40,7 +40,7 @@ pipeline {
                                 make SGX_RUN=1 KEEP_LOG=1 regression
                                 '''
                         }
-                        timeout(time: 5, unit: 'MINUTES') {
+                        timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/regression
                                 make SGX=1

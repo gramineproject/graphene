@@ -30,7 +30,7 @@ int main(int argc, char ** argv)
             return 0;
         }
 
-        snprintf(uri, 20, "gipc:%lld", key);
+        snprintf(uri, 20, "gipc:%ld", key);
 
         PAL_HANDLE phdl = DkProcessCreate("file:Ipc", args);
 

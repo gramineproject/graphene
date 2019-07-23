@@ -1,6 +1,7 @@
 export PAL_DIR = $(CURDIR)
 export RUNTIME_DIR = $(CURDIR)/../../Runtime
 
+include ../../Makefile.configs
 include ../../Makefile.rules
 include Makefile.Host
 
@@ -37,6 +38,7 @@ files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
 
 defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
 	  -DRUNTIME_DIR=$(RUNTIME_DIR)
+CFLAGS += $(defs)
 objs	= $(addprefix db_,streams memory threading mutex events process \
 	    object main misc ipc exception rtld) slab printf
 
@@ -104,8 +106,7 @@ $(runtime_loader): $(pal_loader)
 ifneq ($(pal_lib),)
 $(pal_lib): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	    $(host_lib) $(graphene_lib) $(pal_lib_deps)
-	@echo [ $@ ]
-	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) $(LDFLAGS-suffix)
+	$(call cmd,ld_so_o)
 
 $(runtime_lib): $(pal_lib)
 	$(call cmd,ln_sf)
@@ -131,38 +132,27 @@ endif
 
 $(pal_static): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	       $(host_lib) $(graphene_lib)
-	@echo [ $@ ]
-	@$(AR) $(ARFLAGS) $@ $^ $(ARFLAGS-suffix)
+	$(call cmd,ar_a_o)
 
-$(OBJ_DIR)/%.asm: %.c $(headers)
-	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
-
+user_start.o: ASFLAGS =
 user_start.o: user_start.S
-	@echo [ $@ ]
-	@$(CC) -c $< -o $@
+	$(call cmd,as_o_S)
 
+user_shared_start.o: ASFLAGS = -DSHARED -fPIC
 user_shared_start.o: user_start.S
-	@echo [ $@ ]
-	@$(CC) -DSHARED -fPIC -c $< -o $@
+	$(call cmd,as_o_S)
 
 $(OBJ_DIR)/%.o: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@ $(CFLAGS-suffix)
+	$(call cmd,cc_o_c)
 
-$(OBJ_DIR)/%.e $(OBJ_DIR)/%.i: %.c $(headers)
+$(OBJ_DIR)/%.i: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@ $(CFLAGS-suffix)
+	$(call cmd,cpp_i_c)
 
 $(OBJ_DIR)/%.s: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -S $< -o $@ $(CFLAGS-suffix)
+	$(call cmd,cc_s_c)
 
 .PHONY: clean
 clean:

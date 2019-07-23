@@ -44,10 +44,14 @@ void release_clear_child_id (int * clear_child_tid);
 
 int thread_exit(struct shim_thread * self, bool send_ipc)
 {
+    bool sent_exit_msg = false;
+
     /* Chia-Che: Broadcast exit message as early as possible,
        so other process can start early on responding. */
-    if (self->in_vm && send_ipc)
+    if (self->in_vm && send_ipc) {
         ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
+        sent_exit_msg = true;
+    }
 
     lock(&self->lock);
 
@@ -99,7 +103,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
         unlock(&parent->lock);
 
         DkEventSet(parent->child_exit_event);
-    } else {
+    } else if (!sent_exit_msg) {
         debug("parent not here, need to tell another process\n");
         ipc_cld_exit_send(self->ppid, self->tid, self->exit_code, self->term_signal);
     }
@@ -125,6 +129,7 @@ int thread_exit(struct shim_thread * self, bool send_ipc)
     return 0;
 }
 
+/* note that term_signal argument may contain WCOREDUMP bit (0x80) */
 int try_process_exit (int error_code, int term_signal)
 {
     struct shim_thread * cur_thread = get_cur_thread();
@@ -147,19 +152,15 @@ int try_process_exit (int error_code, int term_signal)
          */
         put_thread(async_thread); /* free resources of the thread */
 
-    struct shim_thread * ipc_thread;
-    int ret = exit_with_ipc_helper(true, &ipc_thread);
+    struct shim_thread * ipc_thread = terminate_ipc_helper();
     if (ipc_thread)
         /* TODO: wait for the thread to exit in host.
          * This is tracked by the following issue.
          * https://github.com/oscarlab/graphene/issues/440
          */
         put_thread(ipc_thread); /* free resources of the thread */
-    if (!ret)
-        shim_clean(ret);
-    else
-        DkThreadExit();
 
+    shim_clean(0);
     return 0;
 }
 
@@ -172,11 +173,13 @@ noreturn int shim_do_exit_group (int error_code)
     if (debug_handle)
         sysparser_printf("---- shim_exit_group (returning %d)\n", error_code);
 
+#ifndef ALIAS_VFORK_AS_FORK
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
         thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
+#endif
 
     debug("now kill other threads in the process\n");
     do_kill_proc(cur_thread->tgid, cur_thread->tgid, SIGKILL, false);
@@ -201,11 +204,13 @@ noreturn int shim_do_exit (int error_code)
     if (debug_handle)
         sysparser_printf("---- shim_exit (returning %d)\n", error_code);
 
+#ifndef ALIAS_VFORK_AS_FORK
     if (cur_thread->dummy) {
         cur_thread->term_signal = 0;
         thread_exit(cur_thread, true);
         switch_dummy_thread(cur_thread);
     }
+#endif
 
     try_process_exit(error_code, 0);
 

@@ -60,7 +60,7 @@ allocate_signal_log (struct shim_thread * thread, int sig)
 }
 
 static struct shim_signal *
-fetch_signal_log (shim_tcb_t * tcb, struct shim_thread * thread, int sig)
+fetch_signal_log (struct shim_thread * thread, int sig)
 {
     struct shim_signal_log * log = &thread->signal_logs[sig - 1];
     struct shim_signal * signal = NULL;
@@ -162,7 +162,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
     __store_context(tcb, context, signal);
     signal->pal_context = context;
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1 ||
+    if (tcb->context.preempt > 1 ||
         __sigismember(&cur_thread->signal_mask, sig)) {
         struct shim_signal ** signal_log = NULL;
         if ((signal = malloc_copy(signal,sizeof(struct shim_signal))) &&
@@ -175,7 +175,7 @@ void deliver_signal (siginfo_t * info, PAL_CONTEXT * context)
             free(signal);
         }
     } else {
-        __handle_signal(tcb, sig, &signal->context);
+        __handle_signal(tcb, sig);
         __handle_one_signal(tcb, sig, signal);
     }
 
@@ -523,6 +523,8 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    __UNUSED(arg);
+    __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
         deliver_signal(ALLOC_SIGINFO(SIGTERM, SI_USER, si_pid, 0), NULL);
     }
@@ -531,6 +533,8 @@ static void quit_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    __UNUSED(arg);
+    __UNUSED(context);
     if (!is_internal_tid(get_cur_tid())) {
         deliver_signal(ALLOC_SIGINFO(SIGINT, SI_USER, si_pid, 0), NULL);
     }
@@ -539,17 +543,16 @@ static void suspend_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 
 static void resume_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
+    __UNUSED(arg);
+    __UNUSED(context);
     shim_tcb_t * tcb = shim_get_tls();
     if (!tcb || !tcb->tp)
         return;
 
     if (!is_internal_tid(get_cur_tid())) {
         __disable_preempt(tcb);
-        if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-            tcb->context.preempt |= SIGNAL_DELAYED;
-        } else {
-            __handle_signal(tcb, 0, NULL);
-        }
+        if (tcb->context.preempt <= 1)
+            __handle_signal(tcb, 0);
         __enable_preempt(tcb);
     }
     DkExceptionReturn(event);
@@ -600,7 +603,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
     void (*handler) (int, siginfo_t *, void *) = NULL;
 
     if (signal->info.si_signo == SIGCP) {
-        join_checkpoint(thread, &signal->context, SI_CP_SESSION(&signal->info));
+        join_checkpoint(thread, SI_CP_SESSION(&signal->info));
         return;
     }
 
@@ -610,16 +613,15 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
 
     if (sighdl->action) {
         struct __kernel_sigaction * act = sighdl->action;
-        /* This is a workaround. The truth is that many program will
-           use sa_handler as sa_sigaction, because sa_sigaction is
-           not supported in amd64 */
+        /*
+         * on amd64, sa_handler can be treated as sa_sigaction
+         * because 1-3 arguments are passed by register and
+         * sa_handler simply ignores 2nd and 3rd argument.
+         */
 #ifdef __i386__
-        handler = (void (*) (int, siginfo_t *, void *)) act->_u._sa_handler;
-        if (act->sa_flags & SA_SIGINFO)
-            sa_handler = act->_u._sa_sigaction;
-#else
-        handler = (void (*) (int, siginfo_t *, void *)) act->k_sa_handler;
+# error "x86-32 support is heavily broken."
 #endif
+        handler = (void *)act->k_sa_handler;
         if (act->sa_flags & SA_RESETHAND) {
             sighdl->action = NULL;
             free(act);
@@ -662,7 +664,7 @@ __handle_one_signal (shim_tcb_t * tcb, int sig, struct shim_signal * signal)
                sizeof(PAL_CONTEXT));
 }
 
-void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
+void __handle_signal (shim_tcb_t * tcb, int sig)
 {
     struct shim_thread * thread = (struct shim_thread *) tcb->tp;
     int begin_sig = 1, end_sig = NUM_KNOWN_SIGS;
@@ -677,7 +679,7 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
 
         for ( ; sig < end_sig ; sig++)
             if (!__sigismember(&thread->signal_mask, sig) &&
-                (signal = fetch_signal_log(tcb, thread, sig)))
+                (signal = fetch_signal_log(thread, sig)))
                 break;
 
         if (!signal)
@@ -689,11 +691,10 @@ void __handle_signal (shim_tcb_t * tcb, int sig, ucontext_t * uc)
         __handle_one_signal(tcb, sig, signal);
         free(signal);
         DkThreadYieldExecution();
-        tcb->context.preempt &= ~SIGNAL_DELAYED;
     }
 }
 
-void handle_signal (bool delayed_only)
+void handle_signal (void)
 {
     shim_tcb_t * tcb = shim_get_tls();
     assert(tcb);
@@ -706,12 +707,10 @@ void handle_signal (bool delayed_only)
 
     __disable_preempt(tcb);
 
-    if ((tcb->context.preempt & ~SIGNAL_DELAYED) > 1) {
-        debug("signal delayed (%ld)\n", tcb->context.preempt & ~SIGNAL_DELAYED);
-        tcb->context.preempt |= SIGNAL_DELAYED;
-    } else if (!(delayed_only && !(tcb->context.preempt & SIGNAL_DELAYED))) {
-        __handle_signal(tcb, 0, NULL);
-    }
+    if (tcb->context.preempt > 1)
+        debug("signal delayed (%ld)\n", tcb->context.preempt);
+    else
+        __handle_signal(tcb, 0);
 
     __enable_preempt(tcb);
     debug("__enable_preempt: %s:%d\n", __FILE__, __LINE__);
@@ -748,15 +747,20 @@ void append_signal (struct shim_thread * thread, int sig, siginfo_t * info,
     }
 }
 
+#define __WCOREDUMP_BIT 0x80
+
 static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
 {
-    debug("killed by %s\n", signal_name(sig));
+    int sig_without_coredump_bit = sig & ~(__WCOREDUMP_BIT);
+
+    __UNUSED(ucontext);
+    debug("killed by %s\n", signal_name(sig_without_coredump_bit));
 
     if (!info->si_pid)
         switch(sig) {
             case SIGTERM:
             case SIGINT:
-                shim_do_kill(-1, sig);
+                shim_do_kill(-1, sig_without_coredump_bit);
                 break;
         }
 
@@ -764,10 +768,11 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
     DkThreadExit();
 }
 
-/* We don't currently implement core dumps, but put a wrapper
- * in case we do in the future */
 static void sighandler_core (int sig, siginfo_t * info, void * ucontext)
 {
+    /* NOTE: This implementation only indicates the core dump for wait4()
+     *       and friends. No actual core-dump file is created. */
+    sig = __WCOREDUMP_BIT | sig;
     sighandler_kill(sig, info, ucontext);
 }
 
@@ -775,24 +780,33 @@ static void (*default_sighandler[NUM_SIGS]) (int, siginfo_t *, void *) =
     {
         /* SIGHUP */    &sighandler_kill,
         /* SIGINT */    &sighandler_kill,
-        /* SIGQUIT */   &sighandler_kill,
-        /* SIGILL */    &sighandler_kill,
+        /* SIGQUIT */   &sighandler_core,
+        /* SIGILL */    &sighandler_core,
         /* SIGTRAP */   &sighandler_core,
-        /* SIGABRT */   &sighandler_kill,
-        /* SIGBUS */    &sighandler_kill,
-        /* SIGFPE */    &sighandler_kill,
+        /* SIGABRT */   &sighandler_core,
+        /* SIGBUS */    &sighandler_core,
+        /* SIGFPE */    &sighandler_core,
         /* SIGKILL */   &sighandler_kill,
-        /* SIGUSR1 */   NULL,
-        /* SIGSEGV */   &sighandler_kill,
-        /* SIGUSR2 */   NULL,
+        /* SIGUSR1 */   &sighandler_kill,
+        /* SIGSEGV */   &sighandler_core,
+        /* SIGUSR2 */   &sighandler_kill,
         /* SIGPIPE */   &sighandler_kill,
         /* SIGALRM */   &sighandler_kill,
         /* SIGTERM */   &sighandler_kill,
-        /* SIGSTKFLT */ NULL,
+        /* SIGSTKFLT */ &sighandler_kill,
         /* SIGCHLD */   NULL,
         /* SIGCONT */   NULL,
         /* SIGSTOP */   NULL,
         /* SIGTSTP */   NULL,
         /* SIGTTIN */   NULL,
         /* SIGTTOU */   NULL,
+        /* SIGURG  */   NULL,
+        /* SIGXCPU */   &sighandler_core,
+        /* SIGXFSZ */   &sighandler_core,
+        /* SIGVTALRM */ &sighandler_kill,
+        /* SIGPROF   */ &sighandler_kill,
+        /* SIGWINCH  */ NULL,
+        /* SIGIO   */   &sighandler_kill,
+        /* SIGPWR  */   &sighandler_kill,
+        /* SIGSYS  */   &sighandler_core
     };

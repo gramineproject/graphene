@@ -675,6 +675,9 @@ int bkeep_munmap (void * addr, size_t length, int flags)
     int ret = __bkeep_munmap(&prev, addr, addr + length, flags);
     assert_vma_list();
     __restore_reserved_vmas();
+    /* DEP 5/20/19: If this is a debugging region we are removing, take it out
+     * of the checkpoint.  Otherwise, it will be restored erroneously after a fork. */
+    remove_r_debug(addr);
     unlock(&vma_list_lock);
     return ret;
 }
@@ -1211,6 +1214,9 @@ BEGIN_CP_FUNC(all_vmas)
     size_t count = DEFAULT_VMA_COUNT;
     struct shim_vma_val * vmas = malloc(sizeof(*vmas) * count);
     int ret;
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
 
     if (!vmas)
         return -ENOMEM;

@@ -83,7 +83,7 @@ struct __kernel_timezone {
  * syscall interface - used (mainly by NTP daemon)
  * to discipline kernel clock oscillator
  */
-struct __kernel_timex {
+struct ____kernel_timex {
     unsigned int modes; /* mode selector */
     long offset;        /* time offset (usec) */
     long freq;          /* frequency offset (scaled ppm) */
@@ -482,7 +482,7 @@ typedef struct shim_aevent {
     PAL_HANDLE event;
 } AEVENTTYPE;
 
-#define STR_SIZE    256
+#define STR_SIZE    4096
 
 struct shim_str {
     char str[STR_SIZE];

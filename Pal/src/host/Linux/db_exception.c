@@ -74,6 +74,15 @@ __attribute__((visibility("hidden"))) void __restore_rt(void);
 
 #endif
 
+static const int async_signals[] =
+{
+    SIGTERM,
+    SIGINT,
+    SIGCONT,
+};
+static const int nasync_signals = sizeof(async_signals) / sizeof(async_signals[0]);
+
+
 int set_sighandler (int * sigs, int nsig, void * handler)
 {
     struct sigaction action;
@@ -109,7 +118,50 @@ int set_sighandler (int * sigs, int nsig, void * handler)
             return -PAL_ERROR_DENIED;
     }
 
+    int ret = 0;
+    __sigset_t mask;
+    __sigemptyset(&mask);
+    for (int i = 0 ; i < nsig ; i++)
+        __sigaddset(&mask, sigs[i]);
+
+#if defined(__i386__)
+    ret = INLINE_SYSCALL(sigprocmask, 3, SIG_UNBLOCK, &mask, NULL)
+#else
+    ret = INLINE_SYSCALL(rt_sigprocmask, 4, SIG_UNBLOCK, &mask, NULL,
+                         sizeof(sigset_t));
+#endif
+
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+
     return 0;
+}
+
+int block_signals (bool block, const int * sigs, int nsig)
+{
+    int how = block? SIG_BLOCK: SIG_UNBLOCK;
+    int ret = 0;
+    __sigset_t mask;
+    __sigemptyset(&mask);
+    for (int i = 0 ; i < nsig ; i++)
+        __sigaddset(&mask, sigs[i]);
+
+#if defined(__i386__)
+    ret = INLINE_SYSCALL(sigprocmask, 3, how, &mask, NULL)
+#else
+    ret = INLINE_SYSCALL(rt_sigprocmask, 4, how, &mask, NULL,
+                         sizeof(sigset_t));
+#endif
+
+    if (IS_ERR(ret))
+        return unix_to_pal_error(ERRNO(ret));
+
+    return 0;
+}
+
+int block_async_signals (bool block)
+{
+    return block_signals(block, async_signals, nasync_signals);
 }
 
 typedef struct {

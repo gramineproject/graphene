@@ -17,7 +17,7 @@ $(c_executables): %: %.c
 
 $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
+	@$(CXX) $(CXXFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 multithread_on_exit: %: %.c

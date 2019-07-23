@@ -1,11 +1,7 @@
 RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
+include ../../../Makefile.configs
 include ../../../Pal/src/Makefile.Host
-
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
-LD	= ld
 
 OMIT_FRAME_POINTER = no
 
@@ -16,7 +12,7 @@ CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal
 
-EXTRAFLAGS = -Wextra -Wno-unused-parameter
+EXTRAFLAGS = -Wextra
 
 CFLAGS += $(EXTRAFLAGS)
 
@@ -27,11 +23,9 @@ CFLAGS += -fno-omit-frame-pointer -DOMIT_FRAME_POINTER=0
 endif
 ASFLAGS	= -Wa,--noexecstack -x assembler-with-cpp -I../include
 
-LDFLAGS	= -shared -nostdlib --version-script shim.map -T shim.lds \
-	  -z combreloc -z relro -z defs \
+LDFLAGS	= -shared -nostdlib -z combreloc -z relro -z now -z defs \
 	  -dynamic-link=libpal.so \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
-LDFLAGS-debug = $(patsubst shim.map,shim-debug.map,$(LDFLAGS))
 ARFLAGS	=
 
 ifeq ($(WERROR),1)
@@ -42,6 +36,8 @@ files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 
 defs	= -DIN_SHIM
+CFLAGS += $(defs)
+ASFLAGS += $(defs)
 fs	= chroot str pipe socket proc dev
 ipcns	= pid sysv
 objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
@@ -53,7 +49,9 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  elf/shim_rtld \
 	  $(addprefix shim_,init table syscalls checkpoint malloc \
 	  async parser debug object) syscallas start \
-	  $(patsubst %.c,%,$(wildcard sys/*.c))
+	  $(patsubst %.c,%,$(wildcard sys/*.c)) \
+	  vdso/vdso-data
+
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
@@ -75,16 +73,16 @@ $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS)) \
+LDFLAGS-libsysdb.so += --version-script shim.map -T shim.lds
+libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 	     $(graphene_lib) $(pal_lib)
-	@echo [ $@ ]
-	$(LD) $(LDFLAGS) -o $@ $(filter-out %.map %.lds,$^) -soname $@
+	$(call cmd,ld_so_o)
 
+LDFLAGS-libsysdb_debug.so += --version-script shim-debug.map -T shim.lds
 libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
-		   $(filter %.map %.lds,$($LDFLAGS-debug)) \
+		   $(filter %.map %.lds,$(LDFLAGS-$@)) \
 		   $(graphene_lib) $(pal_lib)
-	@echo [ $@ ]
-	$(LD) $(LDFLAGS-debug) -o $@ $(filter-out %.map %.lds,$^) -soname $@
+	$(call cmd,ld_so_o)
 
 .lib/host_endian.h: ../../../Pal/src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
@@ -95,46 +93,50 @@ $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../../../Pal/lib target=$(abspath .lib)/
 
 libsysdb.a: $(addsuffix .o,$(objs))
-	@echo [ $@ ]
-	$(AR) $(ARFLAGS) $@ $^
+	$(call cmd,ar_a_o)
 else
 .IGNORE: $(shim_target)
 $(shim_target):
 endif
-
-%.asm: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
 
 $(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)
 elf/shim_rtld.o: $(wildcard elf/*.h)
 
 
 %.o: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
+	$(call cmd,cc_o_c)
 
-%.e %.i: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+%.i: %.c $(headers)
+	$(call cmd,cpp_i_c)
 
 %.s: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 %.o: %.S $(headers)
-	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+	$(call cmd,as_o_S)
 
-%.e %.s: %.S $(headers)
-	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
+%.s: %.S $(headers)
+	$(call cmd,cpp_s_S)
 
 syscallas.S shim_checkpoint.c: asm-offsets.h
 
 include ../../../Makefile.rules
+
+LDFLAGS-vdso/vdso.so.dbg = -nostdlib -shared \
+	--hash-style=both --build-id -Bsymbolic \
+	-m elf_x86_64 --no-undefined \
+	-z max-page-size=4096 -z common-page-size=4096 \
+	-T vdso/vdso.lds -soname linux-vdso.so.1
+vdso/vdso.so.dbg: LDFLAGS =
+vdso/vdso.so.dbg: vdso/vdso.lds vdso/vdso.o vdso/vdso-note.o
+	$(call cmd,ld)
+
+OBJCOPYFLAGS-vdso/vdso.so = -S
+vdso/vdso.so: vdso/vdso.so.dbg
+	$(call cmd,objcopy)
+
+vdso/vdso-data.o: vdso/vdso.so
+CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so
 
 clean:
 	rm -rf $(addsuffix .o,$(objs)) $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)

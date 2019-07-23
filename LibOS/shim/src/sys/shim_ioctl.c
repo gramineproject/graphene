@@ -166,6 +166,11 @@ static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
 static int ioctl_fd (struct shim_handle * hdl, unsigned int cmd,
                      unsigned long arg)
 {
+    // This is just a placeholder function; arguments are not actually used
+    // right now
+    __UNUSED(hdl);
+    __UNUSED(arg);
+
     switch(cmd) {
         /* <include/linux/fd.h> */
 
@@ -228,6 +233,10 @@ static int ioctl_fd (struct shim_handle * hdl, unsigned int cmd,
 static int ioctl_netdevice (struct shim_handle * hdl, unsigned int cmd,
                             unsigned long arg)
 {
+    // This is just a placeholder function; arguments are not actually used
+    // right now
+    __UNUSED(arg);
+
     if (hdl->type != TYPE_SOCK)
         return -ENOTSOCK;
 
@@ -287,8 +296,11 @@ static int ioctl_netdevice (struct shim_handle * hdl, unsigned int cmd,
     return -EAGAIN;
 }
 
-void signal_io (IDTYPE target, void * arg)
+void signal_io (IDTYPE target, void *arg)
 {
+    // Kept for compatibility with signal_itimer
+    __UNUSED(arg);
+
     debug("detecting input, signaling thread %u\n", target);
 
     struct shim_thread * thread = lookup_thread(target);
@@ -418,20 +430,15 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
                     break;
 
                 size = stat.st_size;
-                goto done_fioread;
-            }
-
-            if (hdl->pal_handle) {
+            } else if (hdl->pal_handle) {
                 PAL_STREAM_ATTR attr;
                 if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
                     ret = -PAL_ERRNO;
                     break;
                 }
                 size = attr.pending_size;
-                goto done_fioread;
             }
 
-done_fioread:
             if (fs->fs_ops->seek) {
                 ret = fs->fs_ops->seek(hdl, 0, SEEK_CUR);
                 if (ret < 0)

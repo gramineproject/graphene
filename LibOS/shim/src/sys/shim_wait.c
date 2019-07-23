@@ -44,6 +44,7 @@ pid_t shim_do_wait4 (pid_t pid, int * status, int option,
     struct shim_thread * cur = get_cur_thread();
     struct shim_thread * thread = NULL;
     int ret = 0;
+    __UNUSED(ru);
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
 

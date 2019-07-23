@@ -1,4 +1,4 @@
-special_executables = bootstrap_static bootstrap_pie shared_object
+special_executables = bootstrap_static bootstrap_pie shared_object openmp
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
@@ -24,7 +24,7 @@ $(c_executables): %: %.c
 
 $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) -o $@ $< \
+	@$(CXX) $(CXXFLAGS) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 bootstrap_static: %: %.c
@@ -43,6 +43,11 @@ shared_object: %: %.c
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 syscall: CFLAGS += -I$(PALDIR)/../include -I$(PALDIR)/host/$(PAL_HOST)
+
+openmp: %: %.c
+	@echo [ $@ ]
+	@$(CC) $(CFLAGS) -o $@ -fopenmp $< \
+	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 else
 .IGNORE: $(special_executables) $(c_executables) $(cxx_executables)

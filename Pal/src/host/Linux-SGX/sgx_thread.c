@@ -4,6 +4,7 @@
 
 #include <pthread.h>
 #include <linux/futex.h>
+#include <asm/errno.h>
 #include <asm/signal.h>
 #include <asm/prctl.h>
 
@@ -88,9 +89,9 @@ int interrupt_thread (void * tcs)
     int index = (sgx_arch_tcs_t *) tcs - enclave_tcs;
     struct thread_map * map = &enclave_thread_map[index];
     if (index >= enclave_thread_num)
-        return -PAL_ERROR_INVAL;
+        return -EINVAL;
     if (!map->tid)
-        return -PAL_ERROR_INVAL;
+        return -EINVAL;
     INLINE_SYSCALL(tgkill, 3, PAL_SEC()->pid, map->tid, SIGCONT);
     return 0;
 }

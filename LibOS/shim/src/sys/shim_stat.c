@@ -152,6 +152,7 @@ out:
 
 static int __do_statfs (struct shim_mount * fs, struct statfs * buf)
 {
+    __UNUSED(fs);
     if (!buf || test_user_memory(buf, sizeof(*buf), true))
         return -EFAULT;
 

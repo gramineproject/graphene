@@ -41,8 +41,8 @@ struct shim_handle;
 #define FS_POLL_SZ         0x08
 
 struct shim_fs_ops {
-    /* mount: moun an uri to the certain location */
-    int (*mount) (const char * uri, const char * root, void ** mount_data);
+    /* mount: mount an uri to the certain location */
+    int (*mount) (const char * uri, void ** mount_data);
     int (*unmount) (void * mount_data);
 
     /* close: clean up the file state inside the handle */
@@ -180,13 +180,11 @@ struct shim_d_ops {
      * On a successful lookup  (non-error, can be negative),
      * this function should call get_new_dentry(), populating additional fields,
      * and storing the new dentry in dent.
-     *
-     * Maybe drop force?
      */
-    int (*lookup) (struct shim_dentry * dent, bool force);
+    int (*lookup) (struct shim_dentry * dent);
 
     /* this is to check file type and access, returning the stat.st_mode */
-    int (*mode) (struct shim_dentry * dent, mode_t * mode, bool force);
+    int (*mode) (struct shim_dentry * dent, mode_t * mode);
 
     /* detach internal data from dentry */
     int (*dput) (struct shim_dentry * dent);
@@ -341,21 +339,16 @@ extern struct shim_lock dcache_lock;
 /* check permission (specified by mask) of a dentry. If force is not set,
  * permission is considered granted on invalid dentries */
 /* Assume caller has acquired dcache_lock */
-int permission (struct shim_dentry * dent, mode_t mask, bool force);
+int permission (struct shim_dentry * dent, mode_t mask);
 
 /* This function looks up a single dentry based on its parent dentry pointer
  * and the name.  Namelen is the length of char * name.
  * The dentry is returned in pointer *new.
  *
- * The force flag causes the libOS to query the underlying file system for the
- * existence of the dentry, whereas without force, a negative dentry is
- * treated as definitive.  In some cases, this can be elided as an
- * optimization.
- *
  * The caller should hold the dcache_lock.
  */
 int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen,
-                   bool force, struct shim_dentry ** new, struct shim_mount * fs);
+                   struct shim_dentry ** new, struct shim_mount * fs);
 
 /* Looks up path under start dentry.  Saves in dent.
  *
@@ -517,9 +510,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
                                      const char * name, int namelen,
                                      HASHTYPE * hashptr);
 
-/* This function searches for name/namelen (as the relative path;
- * path/pathlen is the fully-qualified path),
- * under parent dentry (start).
+/* This function searches for name/namelen (as the relative path).
  *
  * If requested, the expected hash of the dentry is returned in hashptr,
  * primarily so that the hashing can be reused to add the dentry later.
@@ -530,7 +521,7 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
  */
 struct shim_dentry *
 __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
-                 const char * path, int pathlen, HASHTYPE * hashptr);
+                 HASHTYPE * hashptr);
 
 /* This function recursively deletes and frees all dentries under root
  *

@@ -371,6 +371,9 @@ out:
 int shim_do_msgsnd (int msqid, const void * msgp, size_t msgsz, int msgflg)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
+    // Issue #755 - https://github.com/oscarlab/graphene/issues/755
+    __UNUSED(msgflg);
+
     int ret;
 
     if (msgsz > MSGMAX)
@@ -399,6 +402,10 @@ int shim_do_msgrcv (int msqid, void * msgp, size_t msgsz, long msgtype,
                     int msgflg)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
+
+    // Issue #755 - https://github.com/oscarlab/graphene/issues/755
+    __UNUSED(msgflg);
+
     int ret;
 
     if (msgsz > MSGMAX)
@@ -421,6 +428,10 @@ int shim_do_msgrcv (int msqid, void * msgp, size_t msgsz, long msgtype,
 int shim_do_msgctl (int msqid, int cmd, struct msqid_ds * buf)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
+
+    // Issue #756 - https://github.com/oscarlab/graphene/issues/756
+    __UNUSED(buf);
+
     struct shim_msg_handle * msgq;
     int ret;
     __try_create_lock();
@@ -833,7 +844,7 @@ static int __store_msg_persist (struct shim_msg_handle * msgq)
                 struct sysv_client * c = &req->dest;
                 struct msg_req * next = req->next;
 
-                __response_ipc_message(c->port, c->vmid, -EIDRM, c->seq);
+                send_response_ipc_message(c->port, c->vmid, -EIDRM, c->seq);
 
                 put_ipc_port(c->port);
                 __free_msg_qobj(msgq, req);
@@ -987,7 +998,7 @@ static int msg_balance_migrate (struct shim_handle * hdl,
     if ((ret = __store_msg_persist(msgq)) < 0)
         return 0;
 
-    struct shim_ipc_info * info = discover_client(src->port, src->vmid);
+    struct shim_ipc_info * info = lookup_ipc_info(src->vmid);
     if (!info)
         goto failed;
 

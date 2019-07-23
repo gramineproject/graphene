@@ -353,7 +353,7 @@ size_t shim_do_getdents (int fd, struct linux_dirent * buf, size_t count)
        updated */
     lock(&hdl->lock);
 
-    struct shim_dir_handle * dirhdl = &hdl->info.dir;
+    struct shim_dir_handle * dirhdl = &hdl->dir_info;
     struct shim_dentry * dent = hdl->dentry;
     struct linux_dirent * b = buf;
     int bytes = 0;
@@ -459,7 +459,7 @@ size_t shim_do_getdents64 (int fd, struct linux_dirent64 * buf, size_t count)
 
     lock(&hdl->lock);
 
-    struct shim_dir_handle * dirhdl = &hdl->info.dir;
+    struct shim_dir_handle * dirhdl = &hdl->dir_info;
     struct shim_dentry * dent = hdl->dentry;
     struct linux_dirent64 * b = buf;
     int bytes = 0;

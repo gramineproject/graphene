@@ -1,11 +1,6 @@
 # Add host-specific compilation rules here
 HOST_DIR = host/$(PAL_HOST)
 
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
-LD	= ld
-
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin

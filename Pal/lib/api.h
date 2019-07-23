@@ -145,12 +145,12 @@ void *calloc(size_t nmemb, size_t size);
 
 /* Libc printf functions. stdio.h/stdarg.h. */
 void fprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
-                const char * fmt, ...);
+                const char * fmt, ...) __attribute__((format(printf, 4, 5)));
 
 void vfprintfmt (int (*_fputch)(void *, int, void *), void * f, void * putdat,
-                 const char * fmt, va_list *ap);
+                 const char * fmt, va_list ap) __attribute__((format(printf, 4, 0)));
 
-int snprintf (char * buf, int n, const char * fmt, ...);
+int snprintf (char * buf, int n, const char * fmt, ...) __attribute__((format(printf, 3, 4)));
 
 /* Miscelleneous */
 

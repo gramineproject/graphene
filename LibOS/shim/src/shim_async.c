@@ -130,6 +130,10 @@ int init_async(void) {
     async_helper_state = HELPER_NOTALIVE;
     create_lock(&async_helper_lock);
     create_event(&install_new_event);
+
+    /* enable locking mechanisms since we are going in multi-threaded mode */
+    enable_locking();
+
     return 0;
 }
 
@@ -173,7 +177,7 @@ static void shim_async_helper(void * arg) {
     PAL_HANDLE install_new_event_hdl = event_handle(&install_new_event);
     object_list[0] = install_new_event_hdl;
 
-    while (async_helper_state == HELPER_ALIVE) {
+    while (true) {
         uint64_t now = DkSystemTimeQuery();
 
         if (polled == install_new_event_hdl) {
@@ -183,6 +187,11 @@ static void shim_async_helper(void * arg) {
         }
 
         lock(&async_helper_lock);
+        if (async_helper_state != HELPER_ALIVE) {
+            async_helper_thread = NULL;
+            unlock(&async_helper_lock);
+            break;
+        }
 
         /* Iterate through all async IO events and alarm/timer events to:
          *   - call callbacks for all triggered events, and
@@ -233,8 +242,6 @@ static void shim_async_helper(void * arg) {
             }
         }
 
-        unlock(&async_helper_lock);
-
         uint64_t sleep_time;
         if (next_expire_time) {
             sleep_time = next_expire_time - now;
@@ -249,20 +256,18 @@ static void shim_async_helper(void * arg) {
         }
 
         if (idle_cycles == MAX_IDLE_CYCLES) {
+            async_helper_state = HELPER_NOTALIVE;
+            async_helper_thread = NULL;
+            unlock(&async_helper_lock);
             debug("Async helper thread has been idle for some time; stopping it\n");
             break;
         }
+        unlock(&async_helper_lock);
 
         /* wait on async IO events + install_new_event + next expiring alarm/timer */
         polled = DkObjectsWaitAny(object_num + 1, object_list, sleep_time);
-        /* ensure that while loop breaks on async_helper_state change */
-        COMPILER_BARRIER();
     }
 
-    lock(&async_helper_lock);
-    async_helper_state = HELPER_NOTALIVE;
-    async_helper_thread = NULL;
-    unlock(&async_helper_lock);
     put_thread(self);
     debug("Async helper thread terminated\n");
     free(object_list);
@@ -275,13 +280,14 @@ static int create_async_helper(void) {
     if (async_helper_state == HELPER_ALIVE)
         return 0;
 
-    enable_locking();
-
     struct shim_thread* new = get_new_internal_thread();
     if (!new)
         return -ENOMEM;
 
-    PAL_HANDLE handle = thread_create(shim_async_helper, new, 0);
+    async_helper_thread = new;
+    async_helper_state = HELPER_ALIVE;
+
+    PAL_HANDLE handle = thread_create(shim_async_helper, new);
 
     if (!handle) {
         async_helper_thread = NULL;
@@ -291,8 +297,6 @@ static int create_async_helper(void) {
     }
 
     new->pal_handle = handle;
-    async_helper_thread = new;
-    async_helper_state = HELPER_ALIVE;
     return 0;
 }
 

@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <asm/errno.h>
 
 #include "sgx_arch.h"
 #include "sgx_tls.h"
@@ -124,9 +125,12 @@ void dummy(void)
     DEFINE(SSAFRAMENUM, SSAFRAMENUM);
     DEFINE(MEMORY_GAP, MEMORY_GAP);
     DEFINE(ENCLAVE_STACK_SIZE, ENCLAVE_STACK_SIZE);
-    DEFINE(DEFAULT_HEAP_MIN, DEAFULT_HEAP_MIN);
+    DEFINE(DEFAULT_HEAP_MIN, DEFAULT_HEAP_MIN);
 
     /* pal_linux.h */
     DEFINE(PAGESIZE, PRESET_PAGESIZE);
+
+    /* errno */
+    DEFINE(EINTR, EINTR);
 }
 

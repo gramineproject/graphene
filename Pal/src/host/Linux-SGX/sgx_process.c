@@ -46,6 +46,40 @@ struct proc_args {
     unsigned int    mcast_port;
 };
 
+/*
+ * vfork() shares stack between child and parent. Any stack modifications in
+ * child are reflected in parent's stack. Compiler may unwittingly modify
+ * child's stack for its own purposes and thus corrupt parent's stack
+ * (e.g., GCC re-uses the same stack area for local vars with non-overlapping
+ * lifetimes).
+ * Introduce noinline function with stack area used only by child.
+ * Make this function non-local to keep function signature.
+ * NOTE: more tricks may be needed to prevent unexpected optimization for
+ * future compiler.
+ */
+int __attribute_noinline
+vfork_exec(int pipe_input, int proc_fds[3], const char** argv)
+{
+    int ret = ARCH_VFORK();
+    if (ret)
+        return ret;
+
+    /* child */
+    for (int i = 0 ; i < 3 ; i++)
+        INLINE_SYSCALL(close, 1, proc_fds[i]);
+
+    ret = INLINE_SYSCALL(dup2, 2, pipe_input, PROC_INIT_FD);
+    if (!IS_ERR(ret)) {
+        extern char** environ;
+        ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
+
+        /* shouldn't get to here */
+        SGX_DBG(DBG_E, "unexpected failure of new process\n");
+    }
+    __asm__ volatile ("hlt");
+    return 0;
+}
+
 int sgx_create_process (const char * uri, int nargs, const char ** args,
                         int * retfds)
 {
@@ -71,28 +105,27 @@ int sgx_create_process (const char * uri, int nargs, const char ** args,
     memcpy(argv + 1, args, sizeof(const char *) * nargs);
     argv[nargs + 1] = NULL;
 
-    ret = ARCH_VFORK();
+    /* Child's signal handler may mess with parent's memory during vfork(),
+     * so block signals
+     */
+    ret = block_async_signals(true);
+    if (ret < 0) {
+        ret = -ret;
+        goto out;
+    }
 
+    ret = vfork_exec(proc_fds[0][0], proc_fds[1], argv);
     if (IS_ERR(ret))
         goto out;
 
-    if (!ret) {
-        for (int i = 0 ; i < 3 ; i++)
-            INLINE_SYSCALL(close, 1, proc_fds[1][i]);
-
-        ret = INLINE_SYSCALL(dup2, 2, proc_fds[0][0], PROC_INIT_FD);
-        if (!IS_ERR(ret)) {
-            extern char** environ;
-            ret = INLINE_SYSCALL(execve, 3, PAL_LOADER, argv, environ);
-
-            /* shouldn't get to here */
-            SGX_DBG(DBG_E, "unexpected failure of new process\n");
-        }
-        __asm__ volatile ("hlt");
-        return 0;
-    }
-
     child = ret;
+
+    /* children unblock async signals by sgx_signal_setup() */
+    ret = block_async_signals(false);
+    if (ret < 0) {
+        ret = -ret;
+        goto out;
+    }
 
     for (int i = 0 ; i < 3 ; i++)
         INLINE_SYSCALL(close, 1, proc_fds[0][i]);
