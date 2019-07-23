@@ -128,7 +128,7 @@ class TC_01_Bootstrap(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
     def test_120_8gb_enclave(self):
         manifest = self.get_manifest('Bootstrap6')
-        stdout, stderr = self.run_binary([manifest])
+        stdout, stderr = self.run_binary([manifest], timeout=240)
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Executable Range OK', stderr)
 
@@ -138,8 +138,12 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('key1=na', stderr)
 
     def test_140_missing_executable_and_manifest(self):
-        stdout, stderr = self.run_binary(['fakenews'])
-        self.assertIn('USAGE: ', stderr)
+        try:
+            stdout, stderr = self.run_binary(['fakenews'])
+            self.fail(
+                'expected non-zero returncode, stderr: {!r}'.format(stderr))
+        except subprocess.CalledProcessError as e:
+            self.assertIn('USAGE: ', e.stderr.decode())
 
 class TC_02_Symbols(RegressionTestCase):
     ALL_SYMBOLS = [
@@ -614,6 +618,7 @@ class TC_31_Sandbox_Process(SandboxTestCase, TC_21_ProcessCreation):
 
 @unittest.skipUnless(HAS_SGX, 'need SGX')
 class TC_40_AVXDisable(RegressionTestCase):
+    @unittest.expectedFailure
     def test_000_avx_disable(self):
         # Disable AVX bit in XFRM
         stdout, stderr = self.run_binary(['AvxDisable'])
