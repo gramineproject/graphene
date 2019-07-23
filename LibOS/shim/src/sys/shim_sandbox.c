@@ -18,11 +18,11 @@
  * shim_sandbox.c
  */
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_fs.h>
 #include <shim_checkpoint.h>
+#include <shim_fs.h>
+#include <shim_internal.h>
 #include <shim_ipc.h>
+#include <shim_table.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -30,16 +30,14 @@
 #include <errno.h>
 
 struct shim_sandbox {
-    unsigned int   sbid;
-    unsigned int   parent_sbid;
-    IDTYPE         parent_vmid;
+    unsigned int sbid;
+    unsigned int parent_sbid;
+    IDTYPE parent_vmid;
 };
 
 static struct shim_sandbox sandbox_info __attribute_migratable;
 
-static inline void append_uri (char * uri, int prefix_len, char * append,
-                               int append_len)
-{
+static inline void append_uri(char* uri, int prefix_len, char* append, int append_len) {
     if (prefix_len && uri[prefix_len - 1] == ':') {
         if (append[0] == '/')
             memcpy(uri + prefix_len, append + 1, append_len);
@@ -52,10 +50,9 @@ static inline void append_uri (char * uri, int prefix_len, char * append,
     }
 }
 
-static int isolate_fs (struct config_store * cfg, const char * path)
-{
-    struct shim_dentry * dent = NULL;
-    int ret = 0;
+static int isolate_fs(struct config_store* cfg, const char* path) {
+    struct shim_dentry* dent = NULL;
+    int ret                  = 0;
 
     if ((ret = path_lookupat(NULL, path, LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
@@ -65,8 +62,8 @@ static int isolate_fs (struct config_store * cfg, const char * path)
         return -ENOTDIR;
     }
 
-    size_t dpath_len = 0;
-    char * dpath = dentry_get_path(dent, true, &dpath_len);
+    size_t dpath_len  = 0;
+    char* dpath       = dentry_get_path(dent, true, &dpath_len);
     bool root_created = false;
     char t[CONFIG_MAX], u[CONFIG_MAX];
     ssize_t prefix_len;
@@ -77,41 +74,42 @@ static int isolate_fs (struct config_store * cfg, const char * path)
     if (keybuf_size <= 0)
         goto root;
 
-    char * keybuf = __alloca(keybuf_size);
-    nkeys = get_config_entries(cfg, "fs.mount.other", keybuf, keybuf_size);
+    char* keybuf = __alloca(keybuf_size);
+    nkeys        = get_config_entries(cfg, "fs.mount.other", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto root;
 
     char k[CONFIG_MAX], p[CONFIG_MAX];
-    char * tmp = strcpy_static(k, "fs.mount.other.", CONFIG_MAX);
-    const char * key = keybuf, * next = NULL;
+    char* tmp       = strcpy_static(k, "fs.mount.other.", CONFIG_MAX);
+    const char *key = keybuf, *next = NULL;
 
-    for (int n = 0 ; n < nkeys ; key = next, n++) {
-        for (next = key ; *next ; next++);
+    for (int n = 0; n < nkeys; key = next, n++) {
+        for (next = key; *next; next++)
+            ;
         next++;
         size_t key_len = next - key - 1;
         memcpy(tmp, key, key_len);
-        char * kp = tmp + key_len;
+        char* kp = tmp + key_len;
         ssize_t ulen, plen;
         bool is_chroot = false;
 
         /* Skip FS that are not chroot */
-        strcpy_static(kp, ".type", (size_t) ((k + CONFIG_MAX) - kp));
+        strcpy_static(kp, ".type", (size_t)((k + CONFIG_MAX) - kp));
         if (get_config(cfg, k, t, CONFIG_MAX) <= 0)
             continue;
         if (strpartcmp_static(t, "chroot"))
             is_chroot = true;
 
-        strcpy_static(kp, ".uri",  (size_t) ((k + CONFIG_MAX) - kp));
+        strcpy_static(kp, ".uri", (size_t)((k + CONFIG_MAX) - kp));
         if ((ulen = get_config(cfg, k, u, CONFIG_MAX)) <= 0)
             continue;
 
-        strcpy_static(kp, ".path", (size_t) ((k + CONFIG_MAX) - kp));
+        strcpy_static(kp, ".path", (size_t)((k + CONFIG_MAX) - kp));
         if ((plen = get_config(cfg, k, p, CONFIG_MAX)) <= 0)
             continue;
 
-        if ((size_t) plen >= dpath_len) {
+        if ((size_t)plen >= dpath_len) {
             if (!memcmp(p, dpath, dpath_len)) {
                 if (!p[dpath_len]) {
                     root_created = true;
@@ -123,15 +121,15 @@ static int isolate_fs (struct config_store * cfg, const char * path)
                 /* keep this FS */
                 continue;
             } else {
-remove:
+            remove:
                 if (!is_chroot) {
                     debug("kept file rule: %s => %s\n", p, u);
                     continue;
                 }
                 set_config(cfg, k, NULL);
-                strcpy_static(kp, ".type", (size_t) ((k + CONFIG_MAX) - kp));
+                strcpy_static(kp, ".type", (size_t)((k + CONFIG_MAX) - kp));
                 set_config(cfg, k, NULL);
-                strcpy_static(kp, ".uri",  (size_t) ((k + CONFIG_MAX) - kp));
+                strcpy_static(kp, ".uri", (size_t)((k + CONFIG_MAX) - kp));
                 set_config(cfg, k, NULL);
                 debug("deleted file rule: %s => %s\n", p, u);
             }
@@ -150,7 +148,7 @@ remove:
 
             append_uri(u, ulen, dpath + plen, dpath_len - plen);
             set_config(cfg, k, dpath);
-            strcpy_static(kp, "uri", (size_t) ((k + CONFIG_MAX) - kp));
+            strcpy_static(kp, "uri", (size_t)((k + CONFIG_MAX) - kp));
             set_config(cfg, k, u);
             root_created = true;
             debug("added file rule: %s => %s\n", dpath, u);
@@ -162,16 +160,15 @@ root:
         if (get_config(cfg, "fs.mount.root.type", t, CONFIG_MAX) > 0 &&
             strcmp_static(t, "chroot")) {
             /* remove the root FS */
-            set_config(cfg, "fs.mount.root.uri",  NULL);
+            set_config(cfg, "fs.mount.root.uri", NULL);
             set_config(cfg, "fs.mount.root.type", NULL);
             debug("deleted file rule: root\n");
-
 
             /* add another FS as part of the original root FS */
             if (!root_created) {
                 append_uri(u, prefix_len, dpath, dpath_len);
                 set_config(cfg, "fs.mount.other.root.path", dpath);
-                set_config(cfg, "fs.mount.other.root.uri",  u);
+                set_config(cfg, "fs.mount.other.root.uri", u);
                 set_config(cfg, "fs.mount.other.root.type", "chroot");
                 debug("added file rule: %s => %s\n", dpath, u);
             }
@@ -181,27 +178,27 @@ root:
     return 0;
 }
 
-static int isolate_net (struct config_store * cfg, struct net_sb * sb)
-{
+static int isolate_net(struct config_store* cfg, struct net_sb* sb) {
     int nkeys;
     ssize_t keybuf_size;
-    char k[CONFIG_MAX], * keybuf;
+    char k[CONFIG_MAX], *keybuf;
 
     keybuf_size = get_config_entries_size(cfg, "net.rules");
     if (keybuf_size <= 0)
         goto add;
 
     keybuf = __alloca(keybuf_size);
-    nkeys = get_config_entries(cfg, "net.rules", keybuf, keybuf_size);
+    nkeys  = get_config_entries(cfg, "net.rules", keybuf, keybuf_size);
 
     if (nkeys <= 0)
         goto add;
 
-    const char * key = keybuf, * next = NULL;
+    const char *key = keybuf, *next = NULL;
     memcpy(k, "net.rules.", 10);
 
-    for (int n = 0 ; n < nkeys ; key = next, n++) {
-        for (next = key ; *next ; next++);
+    for (int n = 0; n < nkeys; key = next, n++) {
+        for (next = key; *next; next++)
+            ;
         next++;
         int key_len = next - key - 1;
         memcpy(k + 10, key, key_len);
@@ -214,38 +211,34 @@ add:
     if (!sb)
         return 0;
 
-    for (int i = 0 ; i < sb->nrules ; i++) {
-        struct net_sb_rule * r = &sb->rules[i];
+    for (int i = 0; i < sb->nrules; i++) {
+        struct net_sb_rule* r = &sb->rules[i];
         char u[CONFIG_MAX];
         int ulen;
         int family = -1;
 
-undo:
+    undo:
         ulen = 0;
-        for (int turn = 0 ; turn < 2 ; turn++) {
-            struct sockaddr * addr = turn ? r->r_addr : r->l_addr;
+        for (int turn = 0; turn < 2; turn++) {
+            struct sockaddr* addr = turn ? r->r_addr : r->l_addr;
 
             if (turn)
                 u[ulen++] = ':';
 
             if (!addr) {
                 if (family == -1 || family == AF_INET)
-                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen,
-                                     "0.0.0.0:0-65535");
+                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen, "0.0.0.0:0-65535");
                 else
-                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen,
-                                     "[0:0:0:0:0:0:0:0]:0-65535]");
+                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen, "[0:0:0:0:0:0:0:0]:0-65535]");
             } else {
                 if (addr->sa_family == AF_INET) {
                     if (family == AF_INET6)
                         goto next;
-                    family = AF_INET;
-                    struct sockaddr_in * saddr = (void *) addr;
-                    unsigned char * a = (void *) &saddr->sin_addr.s_addr;
-                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen,
-                                     "%d.%d.%d.%d:%u",
-                                     a[0], a[1], a[2], a[3],
-                                     __ntohs(saddr->sin_port));
+                    family                    = AF_INET;
+                    struct sockaddr_in* saddr = (void*)addr;
+                    unsigned char* a          = (void*)&saddr->sin_addr.s_addr;
+                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen, "%d.%d.%d.%d:%u", a[0], a[1],
+                                     a[2], a[3], __ntohs(saddr->sin_port));
                     continue;
                 }
 
@@ -257,13 +250,11 @@ undo:
                         goto undo;
                     }
 
-                    family = AF_INET6;
-                    struct sockaddr_in6 * saddr = (void *) addr;
-                    unsigned short * a = (void *) &saddr->sin6_addr.s6_addr;
-                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen,
-                                     "[%d:%d:%d:%d:%d:%d:%d:%d]:%u",
-                                     a[0], a[1], a[2], a[3],
-                                     a[4], a[5], a[6], a[7],
+                    family                     = AF_INET6;
+                    struct sockaddr_in6* saddr = (void*)addr;
+                    unsigned short* a          = (void*)&saddr->sin6_addr.s6_addr;
+                    ulen += snprintf(u + ulen, CONFIG_MAX - ulen, "[%d:%d:%d:%d:%d:%d:%d:%d]:%u",
+                                     a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7],
                                      __ntohs(saddr->sin6_port));
                     continue;
                 }
@@ -275,20 +266,18 @@ undo:
         snprintf(k + 10, CONFIG_MAX - 10, "%d", i + 1);
         set_config(cfg, k, u);
         debug("added net rule: %s\n", u);
-next:
+    next:
         continue;
     }
 
     return 0;
 }
 
-static void * __malloc (size_t size)
-{
+static void* __malloc(size_t size) {
     return malloc(size);
 }
 
-static void __free (void * mem)
-{
+static void __free(void* mem) {
     free(mem);
 }
 
@@ -297,9 +286,8 @@ struct cfg_arg {
     int offset;
 };
 
-static int __write (void * f, void * buf, int len)
-{
-    struct cfg_arg * arg = f;
+static int __write(void* f, void* buf, int len) {
+    struct cfg_arg* arg = f;
 
     int bytes = DkStreamWrite(arg->handle, arg->offset, len, buf, NULL);
     if (!bytes)
@@ -309,9 +297,7 @@ static int __write (void * f, void * buf, int len)
     return bytes;
 }
 
-long shim_do_sandbox_create (int flags, const char * fs_sb,
-                             struct net_sb * net_sb)
-{
+long shim_do_sandbox_create(int flags, const char* fs_sb, struct net_sb* net_sb) {
     unsigned int sbid;
     char uri[24];
     PAL_HANDLE handle = NULL;
@@ -322,10 +308,10 @@ long shim_do_sandbox_create (int flags, const char * fs_sb,
 
     debug("create manifest: %s\n", uri);
 
-    struct config_store * newcfg = __alloca(sizeof(struct config_store));
+    struct config_store* newcfg = __alloca(sizeof(struct config_store));
     memset(newcfg, 0, sizeof(struct config_store));
     newcfg->malloc = __malloc;
-    newcfg->free = __free;
+    newcfg->free   = __free;
 
     if ((ret = copy_config(root_config, newcfg)) < 0) {
         newcfg = NULL;
@@ -349,8 +335,7 @@ long shim_do_sandbox_create (int flags, const char * fs_sb,
 
     DkObjectClose(handle);
 
-    PAL_BOL success = DkProcessSandboxCreate(uri, flags & SANDBOX_RPC ?
-                                             PAL_SANDBOX_PIPE : 0);
+    PAL_BOL success = DkProcessSandboxCreate(uri, flags & SANDBOX_RPC ? PAL_SANDBOX_PIPE : 0);
 
     if (!success) {
         ret = -PAL_ERRNO;
@@ -358,8 +343,7 @@ long shim_do_sandbox_create (int flags, const char * fs_sb,
     }
 
     if (sandbox_info.sbid) {
-        if (!sandbox_info.parent_sbid ||
-            sandbox_info.parent_vmid != cur_process.vmid) {
+        if (!sandbox_info.parent_sbid || sandbox_info.parent_vmid != cur_process.vmid) {
             sandbox_info.parent_sbid = sandbox_info.sbid;
             sandbox_info.parent_vmid = cur_process.vmid;
         }
@@ -376,7 +360,7 @@ long shim_do_sandbox_create (int flags, const char * fs_sb,
     if (!handle)
         return -PAL_ERRNO;
 
-    root_config = newcfg;
+    root_config       = newcfg;
     sandbox_info.sbid = sbid;
     return sbid;
 
@@ -387,13 +371,11 @@ err:
     return ret;
 }
 
-int shim_do_sandbox_attach (unsigned int sbid)
-{
+int shim_do_sandbox_attach(unsigned int sbid) {
     __UNUSED(sbid);
     return -ENOSYS;
 }
 
-long shim_do_sandbox_current (void)
-{
+long shim_do_sandbox_current(void) {
     return sandbox_info.sbid;
 }

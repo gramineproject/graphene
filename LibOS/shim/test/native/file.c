@@ -1,9 +1,8 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <fcntl.h>
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int fd1 = creat("testfile", 0600);
 
     if (fd1 < 0) {
@@ -34,7 +33,7 @@ int main(int argc, char ** argv)
     close(fd2);
     unlink("testfile");
 
-    int fd3 = open("testfile", O_RDWR|O_CREAT|O_EXCL, 0600);
+    int fd3 = open("testfile", O_RDWR | O_CREAT | O_EXCL, 0600);
 
     if (fd3 < 0) {
         perror("open with O_CREAT and O_EXCL");

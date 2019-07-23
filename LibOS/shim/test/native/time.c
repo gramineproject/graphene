@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     struct timeval time;
 
     int ret = gettimeofday(&time, NULL);

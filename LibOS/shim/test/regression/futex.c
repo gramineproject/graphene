@@ -1,15 +1,15 @@
 #define _GNU_SOURCE
+#include <asm/prctl.h>
+#include <assert.h>
+#include <linux/futex.h>
 #include <malloc.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
 #include <sched.h>
+#include <signal.h>
 #include <stdio.h>
 #include <sys/syscall.h>
-#include <asm/prctl.h>
-#include <linux/futex.h>
-#include <assert.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 // 64kB stack
 #define FIBER_STACK (1024 * 64)
@@ -20,42 +20,34 @@ struct atomic_int {
 };
 static struct atomic_int my_counter;
 
-static inline void atomic_inc (struct atomic_int * v)
-{
-    asm volatile( "lock; incl %0"
-                 : "+m" (v->counter));
+static inline void atomic_inc(struct atomic_int* v) {
+    asm volatile("lock; incl %0" : "+m"(v->counter));
 }
 
-static int
-futex(int *uaddr, int futex_op, int val,
-      const struct timespec *timeout, int *uaddr2, int val3)
-{
-    return syscall(SYS_futex, uaddr, futex_op, val,
-                   timeout, uaddr, val3);
+static int futex(int* uaddr, int futex_op, int val, const struct timespec* timeout, int* uaddr2,
+                 int val3) {
+    return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr, val3);
 }
 
-int thread_function (void * argument)
-{
-    int *ptr = (int *) argument;
+int thread_function(void* argument) {
+    int* ptr = (int*)argument;
     int rv;
     atomic_inc(&my_counter);
 
     // Sleep on the futex
     rv = futex(&myfutex, FUTEX_WAIT_BITSET, 0, NULL, NULL, *ptr);
     assert(rv == 0);
-    //printf("child thread %d awakened\n", getpid());
+    // printf("child thread %d awakened\n", getpid());
     return 0;
 }
 
-int main (int argc, const char ** argv)
-{
-    void * stacks[THREADS];
+int main(int argc, const char** argv) {
+    void* stacks[THREADS];
     pid_t pids[THREADS];
     int varx[THREADS];
     my_counter.counter = 0;
 
     for (int i = 0; i < THREADS; i++) {
-
         varx[i] = (1 << i);
 
         // Allocate the stack
@@ -66,11 +58,10 @@ int main (int argc, const char ** argv)
         }
 
         // Call the clone system call to create the child thread
-        pids[i] = clone(&thread_function, (void *) stacks[i] + FIBER_STACK,
-                        CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM,
-                        &varx[i]);
+        pids[i] = clone(&thread_function, (void*)stacks[i] + FIBER_STACK,
+                        CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM, &varx[i]);
 
-        //printf("clone() creates new thread %d\n", pids[i]);
+        // printf("clone() creates new thread %d\n", pids[i]);
 
         if (pids[i] == -1) {
             perror("clone");
@@ -81,11 +72,11 @@ int main (int argc, const char ** argv)
     // Make sure the threads are sleeping
     do {
         sleep(1);
-    } while(my_counter.counter != THREADS);
+    } while (my_counter.counter != THREADS);
 
     printf("Waking up kiddos\n");
     /* Wake in reverse order */
-    for (int i = THREADS-1; i >= 0; i--) {
+    for (int i = THREADS - 1; i >= 0; i--) {
         pid_t pid;
         int rv;
         int var = (1 << i);

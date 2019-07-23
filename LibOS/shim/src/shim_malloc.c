@@ -24,10 +24,10 @@
  * allocation is requested, it ends up here (__system_alloc and __system_free).
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_profile.h>
 #include <shim_checkpoint.h>
+#include <shim_internal.h>
+#include <shim_profile.h>
+#include <shim_utils.h>
 #include <shim_vma.h>
 
 #include <pal.h>
@@ -37,16 +37,16 @@
 
 static struct shim_lock slab_mgr_lock;
 
-#define SYSTEM_LOCK()       lock(&slab_mgr_lock)
-#define SYSTEM_UNLOCK()     unlock(&slab_mgr_lock)
-#define PAGE_SIZE           allocsize
+#define SYSTEM_LOCK() lock(&slab_mgr_lock)
+#define SYSTEM_UNLOCK() unlock(&slab_mgr_lock)
+#define PAGE_SIZE allocsize
 
 #ifdef SLAB_DEBUG_TRACE
-# define SLAB_DEBUG
+#define SLAB_DEBUG
 #endif
 
 #define SLAB_CANARY
-#define STARTUP_SIZE    16
+#define STARTUP_SIZE 16
 
 #include <slabmgr.h>
 
@@ -55,11 +55,10 @@ static SLAB_MGR slab_mgr = NULL;
 DEFINE_PROFILE_CATEGORY(memory, );
 
 /* Returns NULL on failure */
-void * __system_malloc (size_t size)
-{
+void* __system_malloc(size_t size) {
     size_t alloc_size = ALIGN_UP(size);
-    void * addr, * ret_addr;
-    int flags = MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL;
+    void *addr, *ret_addr;
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
 
     /*
      * If vmas are initialized, we need to request a free address range
@@ -68,15 +67,13 @@ void * __system_malloc (size_t size)
      * pattern.  It is not safe to just call DkVirtualMemoryAlloc directly
      * without reserving the vma region first.
      */
-    addr = bkeep_unmapped_any(alloc_size, PROT_READ|PROT_WRITE, flags,
-                              NULL, 0, "slab");
+    addr = bkeep_unmapped_any(alloc_size, PROT_READ | PROT_WRITE, flags, NULL, 0, "slab");
 
     if (!addr)
         return NULL;
 
     do {
-        ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0,
-                                        PAL_PROT_WRITE|PAL_PROT_READ);
+        ret_addr = DkVirtualMemoryAlloc(addr, alloc_size, 0, PAL_PROT_WRITE | PAL_PROT_READ);
 
         if (!ret_addr) {
             /* If the allocation is interrupted by signal, try to handle the
@@ -95,16 +92,14 @@ void * __system_malloc (size_t size)
     return addr;
 }
 
-void __system_free (void * addr, size_t size)
-{
+void __system_free(void* addr, size_t size) {
     DkVirtualMemoryFree(addr, ALIGN_UP(size));
 
     if (bkeep_munmap(addr, ALIGN_UP(size), VMA_INTERNAL) < 0)
         BUG();
 }
 
-int init_slab (void)
-{
+int init_slab(void) {
     create_lock(&slab_mgr_lock);
     slab_mgr = create_slab_mgr();
     return 0;
@@ -112,8 +107,7 @@ int init_slab (void)
 
 EXTERN_ALIAS(init_slab);
 
-int reinit_slab (void)
-{
+int reinit_slab(void) {
     if (slab_mgr) {
         destroy_slab_mgr(slab_mgr);
         slab_mgr = NULL;
@@ -132,54 +126,54 @@ DEFINE_PROFILE_OCCURENCE(malloc_7, memory);
 DEFINE_PROFILE_OCCURENCE(malloc_big, memory);
 
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
-void * __malloc_debug (size_t size, const char * file, int line)
+void* __malloc_debug(size_t size, const char* file, int line)
 #else
-void * malloc (size_t size)
+void* malloc(size_t size)
 #endif
 {
 #ifdef PROFILE
     int level = -1;
 
-    for (size_t i = 0 ; i < SLAB_LEVEL ; i++)
+    for (size_t i = 0; i < SLAB_LEVEL; i++)
         if (size < slab_levels[i]) {
             level = i;
             break;
         }
-    switch(level) {
-    case 0:
-        INC_PROFILE_OCCURENCE(malloc_0);
-        break;
-    case 1:
-        INC_PROFILE_OCCURENCE(malloc_1);
-        break;
-    case 2:
-        INC_PROFILE_OCCURENCE(malloc_2);
-        break;
-    case 3:
-        INC_PROFILE_OCCURENCE(malloc_3);
-        break;
-    case 4:
-        INC_PROFILE_OCCURENCE(malloc_4);
-        break;
-    case 5:
-        INC_PROFILE_OCCURENCE(malloc_5);
-        break;
-    case 6:
-        INC_PROFILE_OCCURENCE(malloc_6);
-        break;
-    case 7:
-        INC_PROFILE_OCCURENCE(malloc_7);
-        break;
-    case -1:
-        INC_PROFILE_OCCURENCE(malloc_big);
-        break;
+    switch (level) {
+        case 0:
+            INC_PROFILE_OCCURENCE(malloc_0);
+            break;
+        case 1:
+            INC_PROFILE_OCCURENCE(malloc_1);
+            break;
+        case 2:
+            INC_PROFILE_OCCURENCE(malloc_2);
+            break;
+        case 3:
+            INC_PROFILE_OCCURENCE(malloc_3);
+            break;
+        case 4:
+            INC_PROFILE_OCCURENCE(malloc_4);
+            break;
+        case 5:
+            INC_PROFILE_OCCURENCE(malloc_5);
+            break;
+        case 6:
+            INC_PROFILE_OCCURENCE(malloc_6);
+            break;
+        case 7:
+            INC_PROFILE_OCCURENCE(malloc_7);
+            break;
+        case -1:
+            INC_PROFILE_OCCURENCE(malloc_big);
+            break;
     }
 #endif
 
 #ifdef SLAB_DEBUG_TRACE
-    void * mem = slab_alloc_debug(slab_mgr, size, file, line);
+    void* mem = slab_alloc_debug(slab_mgr, size, file, line);
 #else
-    void * mem = slab_alloc(slab_mgr, size);
+    void* mem = slab_alloc(slab_mgr, size);
 #endif
 
     if (!mem) {
@@ -201,13 +195,12 @@ void * malloc (size_t size)
 EXTERN_ALIAS(malloc);
 #endif
 
-void * calloc (size_t nmemb, size_t size)
-{
+void* calloc(size_t nmemb, size_t size) {
     // This overflow checking is not a UB, because the operands are unsigned.
     size_t total = nmemb * size;
     if (total / size != nmemb)
         return NULL;
-    void *ptr = malloc(total);
+    void* ptr = malloc(total);
     if (ptr)
         memset(ptr, 0, total);
     return ptr;
@@ -245,16 +238,15 @@ EXTERN_ALIAS(realloc);
 
 // Copies data from `mem` to a newly allocated buffer of a specified size.
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
-void * __malloc_copy_debug (const void * mem, size_t size,
-                         const char * file, int line)
+void* __malloc_copy_debug(const void* mem, size_t size, const char* file, int line)
 #else
-void * malloc_copy (const void * mem, size_t size)
+void* malloc_copy(const void* mem, size_t size)
 #endif
 {
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
-    void * buff = __malloc_debug(size, file, line);
+    void* buff = __malloc_debug(size, file, line);
 #else
-    void * buff = malloc(size);
+    void* buff = malloc(size);
 #endif
     if (buff)
         memcpy(buff, mem, size);
@@ -276,9 +268,9 @@ DEFINE_PROFILE_OCCURENCE(free_big, memory);
 DEFINE_PROFILE_OCCURENCE(free_migrated, memory);
 
 #if defined(SLAB_DEBUG_PRINT) || defined(SLABD_DEBUG_TRACE)
-void __free_debug (void * mem, const char * file, int line)
+void __free_debug(void* mem, const char* file, int line)
 #else
-void free (void * mem)
+void free(void* mem)
 #endif
 {
     if (!mem)
@@ -290,35 +282,35 @@ void free (void * mem)
 
 #ifdef PROFILE
     int level = RAW_TO_LEVEL(mem);
-    switch(level) {
-    case 0:
-        INC_PROFILE_OCCURENCE(free_0);
-        break;
-    case 1:
-        INC_PROFILE_OCCURENCE(free_1);
-        break;
-    case 2:
-        INC_PROFILE_OCCURENCE(free_2);
-        break;
-    case 3:
-        INC_PROFILE_OCCURENCE(free_3);
-        break;
-    case 4:
-        INC_PROFILE_OCCURENCE(free_4);
-        break;
-    case 5:
-        INC_PROFILE_OCCURENCE(free_5);
-        break;
-    case 6:
-        INC_PROFILE_OCCURENCE(free_6);
-        break;
-    case 7:
-        INC_PROFILE_OCCURENCE(free_7);
-        break;
-    case -1:
-    case 255:
-        INC_PROFILE_OCCURENCE(free_big);
-        break;
+    switch (level) {
+        case 0:
+            INC_PROFILE_OCCURENCE(free_0);
+            break;
+        case 1:
+            INC_PROFILE_OCCURENCE(free_1);
+            break;
+        case 2:
+            INC_PROFILE_OCCURENCE(free_2);
+            break;
+        case 3:
+            INC_PROFILE_OCCURENCE(free_3);
+            break;
+        case 4:
+            INC_PROFILE_OCCURENCE(free_4);
+            break;
+        case 5:
+            INC_PROFILE_OCCURENCE(free_5);
+            break;
+        case 6:
+            INC_PROFILE_OCCURENCE(free_6);
+            break;
+        case 7:
+            INC_PROFILE_OCCURENCE(free_7);
+            break;
+        case -1:
+        case 255:
+            INC_PROFILE_OCCURENCE(free_big);
+            break;
     }
 #endif
 

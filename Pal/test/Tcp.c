@@ -1,25 +1,22 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-#define PORT    8000
-#define NTRIES  10
+#define PORT 8000
+#define NTRIES 10
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     char addr[40];
     int i;
 
-    if (argc == 1)
-    {
+    if (argc == 1) {
         unsigned long time = DkSystemTimeQuery();
         pal_printf("start time = %lu\n", time);
 
         char time_arg[24];
         snprintf(time_arg, 24, "%ld", time);
 
-        const char * newargs[4] = { "Tcp", time_arg, NULL };
-
+        const char* newargs[4] = {"Tcp", time_arg, NULL};
 
         PAL_HANDLE srv = DkStreamOpen("tcp.srv:127.0.0.1:8000", 0, 0, 0, 0);
 
@@ -33,7 +30,7 @@ int main (int argc, char ** argv)
 
         PAL_HANDLE proc = DkProcessCreate("file:Tcp", newargs);
 
-        for (i = 0 ; i < NTRIES ; i++) {
+        for (i = 0; i < NTRIES; i++) {
             PAL_HANDLE cli = DkStreamWaitForClient(srv);
 
             if (!cli) {
@@ -58,10 +55,8 @@ int main (int argc, char ** argv)
         DkStreamRead(proc, 0, sizeof(int), &retval, NULL, 0);
         DkStreamDelete(srv, 0);
         DkObjectClose(srv);
-    }
-    else
-    {
-        for (i = 0 ; i < NTRIES ; i++) {
+    } else {
+        for (i = 0; i < NTRIES; i++) {
             PAL_HANDLE cli = DkStreamOpen("tcp:127.0.0.1:8000", 0, 0, 0, 0);
 
             if (!cli) {
@@ -98,4 +93,3 @@ int main (int argc, char ** argv)
 
     return 0;
 }
-

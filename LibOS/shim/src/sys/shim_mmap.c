@@ -22,62 +22,60 @@
 
 #include <stdatomic.h>
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_handle.h>
-#include <shim_vma.h>
 #include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
 #include <shim_profile.h>
+#include <shim_table.h>
+#include <shim_vma.h>
 
 #include <pal.h>
 #include <pal_error.h>
 
-#include <sys/mman.h>
 #include <errno.h>
+#include <sys/mman.h>
 
 DEFINE_PROFILE_OCCURENCE(mmap, memory);
 
-void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
-                     off_t offset)
-{
-    struct shim_handle * hdl = NULL;
-    long ret = 0;
+void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
+    struct shim_handle* hdl = NULL;
+    long ret                = 0;
 
     /*
      * According to the manpage, both addr and offset have to be page-aligned,
      * but not the length. mmap() will automatically round up the length.
      */
     if (addr && !ALIGNED(addr))
-        return (void *) -EINVAL;
+        return (void*)-EINVAL;
 
     if (fd >= 0 && !ALIGNED(offset))
-        return (void *) -EINVAL;
+        return (void*)-EINVAL;
 
     if (!length || !access_ok(addr, length))
-        return (void*) -EINVAL;
+        return (void*)-EINVAL;
 
     if (!ALIGNED(length))
         length = ALIGN_UP(length);
 
     /* ignore MAP_32BIT when MAP_FIXED is set */
-    if ((flags & (MAP_32BIT|MAP_FIXED)) == (MAP_32BIT|MAP_FIXED))
+    if ((flags & (MAP_32BIT | MAP_FIXED)) == (MAP_32BIT | MAP_FIXED))
         flags &= ~MAP_32BIT;
 
-    assert(!(flags & (VMA_UNMAPPED|VMA_TAINTED)));
+    assert(!(flags & (VMA_UNMAPPED | VMA_TAINTED)));
 
     int pal_alloc_type = 0;
 
     if ((flags & MAP_FIXED) || addr) {
         struct shim_vma_val tmp;
 
-        if (addr < PAL_CB(user_address.start) ||
-            PAL_CB(user_address.end) <= addr ||
+        if (addr < PAL_CB(user_address.start) || PAL_CB(user_address.end) <= addr ||
             (uintptr_t)PAL_CB(user_address.end) - (uintptr_t)addr < length) {
-            debug("mmap: user specified address %p with length %lu "
-                  "not in allowed user space, ignoring this hint\n",
-                  addr, length);
+            debug(
+                "mmap: user specified address %p with length %lu "
+                "not in allowed user space, ignoring this hint\n",
+                addr, length);
             if (flags & MAP_FIXED)
-                return (void *)-EINVAL;
+                return (void*)-EINVAL;
             addr = NULL;
         } else if (!lookup_overlap_vma(addr, length, &tmp)) {
             if (flags & MAP_FIXED)
@@ -88,17 +86,17 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
         }
     }
 
-    if ((flags & (MAP_ANONYMOUS|MAP_FILE)) == MAP_FILE) {
+    if ((flags & (MAP_ANONYMOUS | MAP_FILE)) == MAP_FILE) {
         if (fd < 0)
-            return (void *) -EINVAL;
+            return (void*)-EINVAL;
 
         hdl = get_fd_handle(fd, NULL, NULL);
         if (!hdl)
-            return (void *) -EBADF;
+            return (void*)-EBADF;
 
         if (!hdl->fs || !hdl->fs->fs_ops || !hdl->fs->fs_ops->mmap) {
             put_handle(hdl);
-            return (void *) -ENODEV;
+            return (void*)-ENODEV;
         }
     }
 
@@ -111,18 +109,17 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
          * proper space to allocate the memory, simply return failure.
          */
         if (!addr)
-            return (void *) -ENOMEM;
+            return (void*)-ENOMEM;
     }
 
     // Approximate check only, to help root out bugs.
-    void * cur_stack = current_stack();
+    void* cur_stack = current_stack();
     assert(cur_stack < addr || cur_stack > addr + length);
 
     /* addr needs to be kept for bkeep_munmap() below */
-    void * ret_addr = addr;
+    void* ret_addr = addr;
     if (!hdl) {
-        ret_addr = (void *) DkVirtualMemoryAlloc(
-            ret_addr, length, pal_alloc_type, PAL_PROT(prot, 0));
+        ret_addr = (void*)DkVirtualMemoryAlloc(ret_addr, length, pal_alloc_type, PAL_PROT(prot, 0));
 
         if (!ret_addr) {
             if (PAL_NATIVE_ERRNO == PAL_ERROR_DENIED)
@@ -131,8 +128,7 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
                 ret = -PAL_ERRNO;
         }
     } else {
-        ret = hdl->fs->fs_ops->mmap(
-            hdl, &ret_addr, length, PAL_PROT(prot, flags), flags, offset);
+        ret = hdl->fs->fs_ops->mmap(hdl, &ret_addr, length, PAL_PROT(prot, flags), flags, offset);
     }
 
     if (hdl)
@@ -140,15 +136,14 @@ void * shim_do_mmap (void * addr, size_t length, int prot, int flags, int fd,
 
     if (ret < 0) {
         bkeep_munmap(addr, length, flags);
-        return (void *) ret;
+        return (void*)ret;
     }
 
     ADD_PROFILE_OCCURENCE(mmap, length);
     return ret_addr;
 }
 
-int shim_do_mprotect (void * addr, size_t length, int prot)
-{
+int shim_do_mprotect(void* addr, size_t length, int prot) {
     /*
      * According to the manpage, addr has to be page-aligned, but not the
      * length. mprotect() will automatically round up the length.
@@ -168,8 +163,7 @@ int shim_do_mprotect (void * addr, size_t length, int prot)
     return 0;
 }
 
-int shim_do_munmap (void * addr, size_t length)
-{
+int shim_do_munmap(void* addr, size_t length) {
     /*
      * According to the manpage, addr has to be page-aligned, but not the
      * length. munmap() will automatically round up the length.
@@ -186,8 +180,7 @@ int shim_do_munmap (void * addr, size_t length)
     struct shim_vma_val vma;
 
     if (lookup_overlap_vma(addr, length, &vma) < 0) {
-        debug("can't find addr %p - %p in map, quit unmapping\n",
-              addr, addr + length);
+        debug("can't find addr %p - %p in map, quit unmapping\n", addr, addr + length);
 
         /* Really not an error */
         return -EFAULT;
@@ -214,8 +207,7 @@ int shim_do_munmap (void * addr, size_t length)
  * pessimistically due to lack of a good way to know it.
  * Possibly it may cause performance(or other) issue due to this lying.
  */
-int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
-{
+int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     if (!ALIGNED(addr))
         return -EINVAL;
 
@@ -244,14 +236,14 @@ int shim_do_mincore(void *addr, size_t len, unsigned char * vec)
     static atomic_bool warned = false;
     if (!warned) {
         warned = true;
-        warn("mincore emulation always tells pages are _NOT_ in RAM. "
-             "This may cause issues.\n");
+        warn(
+            "mincore emulation always tells pages are _NOT_ in RAM. "
+            "This may cause issues.\n");
     }
 
     /* There is no good way to know if the page is in RAM.
      * Conservatively tell that it's not in RAM. */
-    for (unsigned long i = 0; i < pages; i++)
-        vec[i] = 0;
+    for (unsigned long i = 0; i < pages; i++) vec[i] = 0;
 
     return 0;
 }

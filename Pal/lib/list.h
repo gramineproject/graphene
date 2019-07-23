@@ -131,106 +131,111 @@
 /* Declare the enclosing struct for convenience, on
  * the assumption that this is primarily used in structure
  * definitions, and harmless if duplicated. */
-#define DEFINE_LIST(STRUCT_NAME)                     \
-    struct STRUCT_NAME;                              \
-    LIST_TYPE(STRUCT_NAME) {                         \
-        struct STRUCT_NAME* next;                    \
-        struct STRUCT_NAME* prev;                    \
+#define DEFINE_LIST(STRUCT_NAME)  \
+    struct STRUCT_NAME;           \
+    LIST_TYPE(STRUCT_NAME) {      \
+        struct STRUCT_NAME* next; \
+        struct STRUCT_NAME* prev; \
     }
 
 /* We use LISTP for pointers to a list.  This project only really needs
  * doubly-linked lists.  We used hlists to get a single pointer for more
  * efficient hash tables, but they were still effectively doubly-linked
  * lists. */
-#define DEFINE_LISTP(STRUCT)                    \
-    LISTP_TYPE(STRUCT) {                        \
-        struct STRUCT* first;                   \
+#define DEFINE_LISTP(STRUCT)  \
+    LISTP_TYPE(STRUCT) {      \
+        struct STRUCT* first; \
     }
 
-#define LISTP_INIT {NULL}
+#define LISTP_INIT \
+    { NULL }
 
 /* A node not on a list uses NULL; on a list, you
  * store self pointers */
-#define INIT_LIST_HEAD(OBJECT, FIELD) do {      \
-        (OBJECT)->FIELD.next = NULL;            \
-        (OBJECT)->FIELD.prev = NULL;            \
+#define INIT_LIST_HEAD(OBJECT, FIELD) \
+    do {                              \
+        (OBJECT)->FIELD.next = NULL;  \
+        (OBJECT)->FIELD.prev = NULL;  \
     } while (0)
 
-
-#define INIT_LISTP(OBJECT) do {                 \
-        (OBJECT)->first = NULL;                 \
+#define INIT_LISTP(OBJECT)      \
+    do {                        \
+        (OBJECT)->first = NULL; \
     } while (0)
 
 #define LISTP_EMPTY(HEAD) ((HEAD)->first == NULL)
 
-#define LIST_EMPTY(NODE, FIELD)                 \
-    ((NODE)->FIELD.next == NULL)
+#define LIST_EMPTY(NODE, FIELD) ((NODE)->FIELD.next == NULL)
 
 /* This helper takes 3 arguments - all should be containing structures,
  * and the field to use for the offset to the list node */
-#define __LIST_ADD(NEW, NEXT, PREV, FIELD) do {       \
-        __typeof__(NEW) __tmp_next = (NEXT);          \
-        __typeof__(NEW) __tmp_prev = (PREV);          \
-        __tmp_prev->FIELD.next = (NEW);               \
-        __tmp_next->FIELD.prev = (NEW);               \
-        (NEW)->FIELD.next = __tmp_next;               \
-        (NEW)->FIELD.prev = __tmp_prev;               \
+#define __LIST_ADD(NEW, NEXT, PREV, FIELD)       \
+    do {                                         \
+        __typeof__(NEW) __tmp_next = (NEXT);     \
+        __typeof__(NEW) __tmp_prev = (PREV);     \
+        __tmp_prev->FIELD.next     = (NEW);      \
+        __tmp_next->FIELD.prev     = (NEW);      \
+        (NEW)->FIELD.next          = __tmp_next; \
+        (NEW)->FIELD.prev          = __tmp_prev; \
     } while (0)
 
-#define LIST_ADD(NEW, HEAD, FIELD)                    \
-    __LIST_ADD(NEW, (HEAD)->FIELD.next, HEAD, FIELD)
+#define LIST_ADD(NEW, HEAD, FIELD) __LIST_ADD(NEW, (HEAD)->FIELD.next, HEAD, FIELD)
 
-#define LISTP_ADD(NEW, HEAD, FIELD) do {                    \
-        if ((HEAD)->first == NULL) {                        \
-            (HEAD)->first = (NEW);                          \
-            (NEW)->FIELD.next = (NEW);                      \
-            (NEW)->FIELD.prev = (NEW);                      \
-        } else {                                            \
+#define LISTP_ADD(NEW, HEAD, FIELD)                                           \
+    do {                                                                      \
+        if ((HEAD)->first == NULL) {                                          \
+            (HEAD)->first     = (NEW);                                        \
+            (NEW)->FIELD.next = (NEW);                                        \
+            (NEW)->FIELD.prev = (NEW);                                        \
+        } else {                                                              \
             __LIST_ADD(NEW, (HEAD)->first, (HEAD)->first->FIELD.prev, FIELD); \
-            (HEAD)->first = (NEW);                          \
-        }                                                   \
+            (HEAD)->first = (NEW);                                            \
+        }                                                                     \
     } while (0)
 
 /* If NODE is defined, add NEW after NODE; if not,
  * put NEW at the front of the list */
-#define LISTP_ADD_AFTER(NEW, NODE, HEAD, FIELD) do { \
-        if (NODE)                                    \
-            LIST_ADD(NEW, NODE, FIELD);              \
-        else                                         \
-            LISTP_ADD(NEW, HEAD, FIELD);             \
-    } while(0)
+#define LISTP_ADD_AFTER(NEW, NODE, HEAD, FIELD) \
+    do {                                        \
+        if (NODE)                               \
+            LIST_ADD(NEW, NODE, FIELD);         \
+        else                                    \
+            LISTP_ADD(NEW, HEAD, FIELD);        \
+    } while (0)
 
-#define LIST_ADD_TAIL(NEW, HEAD, FIELD)                 \
-    __LIST_ADD(NEW, HEAD, (HEAD)->FIELD.prev, FIELD)
+#define LIST_ADD_TAIL(NEW, HEAD, FIELD) __LIST_ADD(NEW, HEAD, (HEAD)->FIELD.prev, FIELD)
 
-#define LISTP_ADD_TAIL(NEW, HEAD, FIELD) do {               \
-        if ((HEAD)->first == NULL) {                        \
-            (HEAD)->first = (NEW);                          \
-            (NEW)->FIELD.next = (NEW);                      \
-            (NEW)->FIELD.prev = (NEW);                      \
-        } else                                              \
-            LIST_ADD_TAIL(NEW, (HEAD)->first, FIELD);       \
+#define LISTP_ADD_TAIL(NEW, HEAD, FIELD)              \
+    do {                                              \
+        if ((HEAD)->first == NULL) {                  \
+            (HEAD)->first     = (NEW);                \
+            (NEW)->FIELD.next = (NEW);                \
+            (NEW)->FIELD.prev = (NEW);                \
+        } else                                        \
+            LIST_ADD_TAIL(NEW, (HEAD)->first, FIELD); \
     } while (0)
 
 /* Or deletion needs to know the list root */
-#define LISTP_DEL(NODE, HEAD, FIELD) do {                               \
-        if ((HEAD)->first == (NODE)) {                                  \
-            if ((NODE)->FIELD.next == (NODE)) {                         \
-                (HEAD)->first = NULL;                                   \
-            } else {                                                    \
-                (HEAD)->first = (NODE)->FIELD.next;                     \
-            }                                                           \
-        }                                                               \
-        LIST_ASSERT((NODE)->FIELD.prev->FIELD.next == (NODE));          \
-        LIST_ASSERT((NODE)->FIELD.next->FIELD.prev == (NODE));          \
-        (NODE)->FIELD.prev->FIELD.next = (NODE)->FIELD.next;            \
-        (NODE)->FIELD.next->FIELD.prev = (NODE)->FIELD.prev;            \
-    } while(0)
+#define LISTP_DEL(NODE, HEAD, FIELD)                           \
+    do {                                                       \
+        if ((HEAD)->first == (NODE)) {                         \
+            if ((NODE)->FIELD.next == (NODE)) {                \
+                (HEAD)->first = NULL;                          \
+            } else {                                           \
+                (HEAD)->first = (NODE)->FIELD.next;            \
+            }                                                  \
+        }                                                      \
+        LIST_ASSERT((NODE)->FIELD.prev->FIELD.next == (NODE)); \
+        LIST_ASSERT((NODE)->FIELD.next->FIELD.prev == (NODE)); \
+        (NODE)->FIELD.prev->FIELD.next = (NODE)->FIELD.next;   \
+        (NODE)->FIELD.next->FIELD.prev = (NODE)->FIELD.prev;   \
+    } while (0)
 
-#define LISTP_DEL_INIT(NODE, HEAD, FIELD) do {  \
-        LISTP_DEL(NODE, HEAD, FIELD);           \
-        INIT_LIST_HEAD(NODE, FIELD);            \
-    } while(0)
+#define LISTP_DEL_INIT(NODE, HEAD, FIELD) \
+    do {                                  \
+        LISTP_DEL(NODE, HEAD, FIELD);     \
+        INIT_LIST_HEAD(NODE, FIELD);      \
+    } while (0)
 
 /* Keep vestigial TYPE and FIELD parameters to minimize disruption
  * when switching from Linux list implementation */
@@ -240,112 +245,106 @@
 #define LISTP_LAST_ENTRY(LISTP, TYPE, FIELD) ((LISTP)->first->FIELD.prev)
 
 /* New API: return next entry in list */
-#define LISTP_NEXT_ENTRY(NODE, LISTP, FIELD)                            \
-        ((NODE) == (LISTP)->first->FIELD.prev ? NULL : (NODE)->FIELD.next)
+#define LISTP_NEXT_ENTRY(NODE, LISTP, FIELD) \
+    ((NODE) == (LISTP)->first->FIELD.prev ? NULL : (NODE)->FIELD.next)
 
 /* New API: return previous entry in list */
-#define LISTP_PREV_ENTRY(NODE, LISTP, FIELD)                            \
-        ((NODE) == (LISTP)->first ? NULL : (NODE)->FIELD.prev)
+#define LISTP_PREV_ENTRY(NODE, LISTP, FIELD) ((NODE) == (LISTP)->first ? NULL : (NODE)->FIELD.prev)
 
 /* Vestigial - for compat with Linux list code; rename to listp?
  */
 #define LIST_ENTRY(LISTP, TYPE, FIELD) (LISTP)
 
 #define LISTP_FOR_EACH_ENTRY(CURSOR, HEAD, FIELD)                       \
-    for (bool first_iter = ((CURSOR) = (HEAD)->first,                   \
-                            !!(HEAD)->first);                           \
+    for (bool first_iter = ((CURSOR) = (HEAD)->first, !!(HEAD)->first); \
          first_iter || (CURSOR) != (HEAD)->first;                       \
          (CURSOR) = (CURSOR)->FIELD.next, first_iter = false)
 
-#define LISTP_FOR_EACH_ENTRY_REVERSE(CURSOR, HEAD, FIELD)                   \
-    for (bool first_iter = ((CURSOR) = ((HEAD)->first                       \
-                                       ? (HEAD)->first->FIELD.prev          \
-                                       : (HEAD)->first),                    \
-                           !!(HEAD)->first);                                \
-         first_iter || ((CURSOR) && (CURSOR)->FIELD.next != (HEAD)->first); \
+#define LISTP_FOR_EACH_ENTRY_REVERSE(CURSOR, HEAD, FIELD)                                          \
+    for (bool                                                                                      \
+             first_iter = ((CURSOR) = ((HEAD)->first ? (HEAD)->first->FIELD.prev : (HEAD)->first), \
+                          !!(HEAD)->first);                                                        \
+         first_iter || ((CURSOR) && (CURSOR)->FIELD.next != (HEAD)->first);                        \
          (CURSOR) = (CURSOR)->FIELD.prev, first_iter = false)
 
-#define LISTP_FOR_EACH_ENTRY_SAFE(CURSOR, TMP, HEAD, FIELD)                 \
-    for (bool first_iter = ((CURSOR) = (HEAD)->first,                       \
-                            (TMP) = ((CURSOR)                               \
-                                     ? (CURSOR)->FIELD.next                 \
-                                     : (CURSOR)),                           \
-                            !!(HEAD)->first);                               \
-         (HEAD)->first && (first_iter || (CURSOR) != (HEAD)->first);        \
-         /* Handle the case where the first element was removed. */         \
-         first_iter = first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP), \
-         (CURSOR) = (TMP),                                                  \
-         (TMP) = (TMP)->FIELD.next)
+#define LISTP_FOR_EACH_ENTRY_SAFE(CURSOR, TMP, HEAD, FIELD)                                        \
+    for (bool first_iter = ((CURSOR) = (HEAD)->first,                                              \
+                           (TMP) = ((CURSOR) ? (CURSOR)->FIELD.next : (CURSOR)), !!(HEAD)->first); \
+         (HEAD)->first &&                                                                          \
+         (first_iter ||                                                                            \
+          (CURSOR) != (HEAD)->first); /* Handle the case where the first element was removed. */   \
+         first_iter    = first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP),                \
+              (CURSOR) = (TMP), (TMP) = (TMP)->FIELD.next)
 
 /* Continue safe iteration with CURSOR->next */
-#define LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(CURSOR, TMP, HEAD, FIELD)     \
-    for ((CURSOR) = (CURSOR)->FIELD.next,                                \
-         (TMP) = (CURSOR)->FIELD.next;                                   \
-         (CURSOR) != (HEAD)->first && (HEAD)->first;                     \
-         (CURSOR) = (TMP),                                               \
-         (TMP) = (TMP)->FIELD.next)
+#define LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(CURSOR, TMP, HEAD, FIELD)    \
+    for ((CURSOR) = (CURSOR)->FIELD.next, (TMP) = (CURSOR)->FIELD.next; \
+         (CURSOR) != (HEAD)->first && (HEAD)->first; (CURSOR) = (TMP), (TMP) = (TMP)->FIELD.next)
 
 /* Assertion code written in Graphene project */
-#define CHECK_LIST_HEAD(TYPE, HEAD, FIELD)                              \
-        do {                                                            \
-            TYPE pos;                                                   \
-            LISTP_FOR_EACH_ENTRY(pos, HEAD, FIELD) {                    \
-                assert((pos->FIELD.prev != pos && pos->FIELD.next != pos) \
-                       || (pos->FIELD.prev == pos && pos->FIELD.next == pos)); \
-                assert(pos->FIELD.prev->FIELD.next == pos);             \
-                assert(pos->FIELD.next->FIELD.prev == pos);             \
-            }                                                           \
-        } while (0)
+#define CHECK_LIST_HEAD(TYPE, HEAD, FIELD)                               \
+    do {                                                                 \
+        TYPE pos;                                                        \
+        LISTP_FOR_EACH_ENTRY(pos, HEAD, FIELD) {                         \
+            assert((pos->FIELD.prev != pos && pos->FIELD.next != pos) || \
+                   (pos->FIELD.prev == pos && pos->FIELD.next == pos));  \
+            assert(pos->FIELD.prev->FIELD.next == pos);                  \
+            assert(pos->FIELD.next->FIELD.prev == pos);                  \
+        }                                                                \
+    } while (0)
 
 // Add NEW to OLD at position first (assuming first is all we need for now)
 // Can probably drop TYPE with some preprocessor smarts
-#define LISTP_SPLICE(NEW, OLD, FIELD, TYPE) do {                     \
-        if(!LISTP_EMPTY(NEW)) {                                      \
-            if(LISTP_EMPTY(OLD)) {                                   \
-                (OLD)->first = (NEW)->first;                         \
-            } else {                                                 \
-                struct TYPE* last_old = (OLD)->first->FIELD.prev;    \
-                (OLD)->first->FIELD.prev->FIELD.next = (NEW)->first; \
-                (OLD)->first->FIELD.prev = (NEW)->first->FIELD.prev; \
-                (NEW)->first->FIELD.prev->FIELD.next = (OLD)->first; \
-                (NEW)->first->FIELD.prev = last_old;                 \
-                (OLD)->first = (NEW)->first;                         \
-            }                                                        \
-        }                                                            \
+#define LISTP_SPLICE(NEW, OLD, FIELD, TYPE)                                      \
+    do {                                                                         \
+        if (!LISTP_EMPTY(NEW)) {                                                 \
+            if (LISTP_EMPTY(OLD)) {                                              \
+                (OLD)->first = (NEW)->first;                                     \
+            } else {                                                             \
+                struct TYPE* last_old                = (OLD)->first->FIELD.prev; \
+                (OLD)->first->FIELD.prev->FIELD.next = (NEW)->first;             \
+                (OLD)->first->FIELD.prev             = (NEW)->first->FIELD.prev; \
+                (NEW)->first->FIELD.prev->FIELD.next = (OLD)->first;             \
+                (NEW)->first->FIELD.prev             = last_old;                 \
+                (OLD)->first                         = (NEW)->first;             \
+            }                                                                    \
+        }                                                                        \
     } while (0)
 
 // Add NEW to OLD at last position
 // Can probably drop TYPE with some preprocessor smarts
-#define LISTP_SPLICE_TAIL(NEW, OLD, FIELD, TYPE) do {                \
-        if(!LISTP_EMPTY(NEW)) {                                      \
-            if(LISTP_EMPTY(OLD)) {                                   \
-                (OLD)->first = (NEW)->first;                         \
-            } else {                                                 \
-                struct TYPE* last_old = (OLD)->first->FIELD.prev;    \
-                last_old->FIELD.next = (NEW)->first;                 \
-                (OLD)->first->FIELD.prev = (NEW)->first->FIELD.prev; \
-                (NEW)->first->FIELD.prev->FIELD.next = (OLD)->first; \
-                (NEW)->first->FIELD.prev = last_old;                 \
-            }                                                        \
-        }                                                            \
+#define LISTP_SPLICE_TAIL(NEW, OLD, FIELD, TYPE)                                 \
+    do {                                                                         \
+        if (!LISTP_EMPTY(NEW)) {                                                 \
+            if (LISTP_EMPTY(OLD)) {                                              \
+                (OLD)->first = (NEW)->first;                                     \
+            } else {                                                             \
+                struct TYPE* last_old                = (OLD)->first->FIELD.prev; \
+                last_old->FIELD.next                 = (NEW)->first;             \
+                (OLD)->first->FIELD.prev             = (NEW)->first->FIELD.prev; \
+                (NEW)->first->FIELD.prev->FIELD.next = (OLD)->first;             \
+                (NEW)->first->FIELD.prev             = last_old;                 \
+            }                                                                    \
+        }                                                                        \
     } while (0)
 
-#define LISTP_SPLICE_INIT(NEW, OLD, FIELD, TYPE) do {       \
-        LISTP_SPLICE(NEW, OLD, FIELD, TYPE);                \
-        INIT_LISTP(NEW);                                    \
-    } while(0);
+#define LISTP_SPLICE_INIT(NEW, OLD, FIELD, TYPE) \
+    do {                                         \
+        LISTP_SPLICE(NEW, OLD, FIELD, TYPE);     \
+        INIT_LISTP(NEW);                         \
+    } while (0);
 
-
-#define LISTP_SPLICE_TAIL_INIT(NEW, OLD, FIELD, TYPE) do {  \
-        LISTP_SPLICE_TAIL(NEW, OLD, FIELD, TYPE);           \
-        INIT_LISTP(NEW);                                    \
-    } while(0);
+#define LISTP_SPLICE_TAIL_INIT(NEW, OLD, FIELD, TYPE) \
+    do {                                              \
+        LISTP_SPLICE_TAIL(NEW, OLD, FIELD, TYPE);     \
+        INIT_LISTP(NEW);                              \
+    } while (0);
 
 // list_move_tail - delete from OLD, make tail of NEW
-#define LISTP_MOVE_TAIL(NODE, NEW, OLD, FIELD) do {   \
-        LISTP_DEL_INIT(NODE, OLD, FIELD);             \
-        LISTP_ADD_TAIL(NODE, NEW, FIELD);             \
+#define LISTP_MOVE_TAIL(NODE, NEW, OLD, FIELD) \
+    do {                                       \
+        LISTP_DEL_INIT(NODE, OLD, FIELD);      \
+        LISTP_ADD_TAIL(NODE, NEW, FIELD);      \
     } while (0)
 
-
-#endif // LIST_H
+#endif  // LIST_H

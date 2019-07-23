@@ -20,31 +20,28 @@
  * This files contains APIs that allocate, free or protect virtual memory.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
 
 #include <asm/mman.h>
 
 #include "enclave_pages.h"
 
-#define PAL_VMA_MAX     64
+#define PAL_VMA_MAX 64
 
-static struct pal_vma {
-    void * top, * bottom;
-} pal_vmas[PAL_VMA_MAX];
+static struct pal_vma { void *top, *bottom; } pal_vmas[PAL_VMA_MAX];
 
 static uint32_t pal_nvmas = 0;
 static struct spinlock pal_vma_lock;
 
-bool _DkCheckMemoryMappable (const void * addr, size_t size)
-{
+bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     if (addr < DATA_END && addr + size > TEXT_START) {
         printf("address %p-%p is not mappable\n", addr, addr + size);
         return true;
@@ -52,7 +49,7 @@ bool _DkCheckMemoryMappable (const void * addr, size_t size)
 
     _DkSpinLock(&pal_vma_lock);
 
-    for (uint32_t i = 0 ; i < pal_nvmas ; i++)
+    for (uint32_t i = 0; i < pal_nvmas; i++)
         if (addr < pal_vmas[i].top && addr + size > pal_vmas[i].bottom) {
             printf("address %p-%p is not mappable\n", addr, addr + size);
             _DkSpinUnlock(&pal_vma_lock);
@@ -63,18 +60,17 @@ bool _DkCheckMemoryMappable (const void * addr, size_t size)
     return false;
 }
 
-int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int prot)
-{
+int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot) {
     if (!WITHIN_MASK(prot, PAL_PROT_MASK))
         return -PAL_ERROR_INVAL;
 
-    void * addr = *paddr, * mem;
+    void *addr = *paddr, *mem;
 
     if ((alloc_type & PAL_ALLOC_INTERNAL) && addr)
         return -PAL_ERROR_INVAL;
 
     if (size == 0)
-        __asm__ volatile ("int $3");
+        __asm__ volatile("int $3");
 
     mem = get_reserved_pages(addr, size);
     if (!mem)
@@ -83,7 +79,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
         // TODO: This case should be made impossible by fixing
         // `get_reserved_pages` semantics.
         free_pages(mem, size);
-        return -PAL_ERROR_INVAL; // `addr` was unaligned.
+        return -PAL_ERROR_INVAL;  // `addr` was unaligned.
     }
 
     memset(mem, 0, size);
@@ -93,7 +89,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
         _DkSpinLock(&pal_vma_lock);
         assert(pal_nvmas < PAL_VMA_MAX);
         pal_vmas[pal_nvmas].bottom = mem;
-        pal_vmas[pal_nvmas].top = mem + size;
+        pal_vmas[pal_nvmas].top    = mem + size;
         pal_nvmas++;
         _DkSpinUnlock(&pal_vma_lock);
     }
@@ -102,9 +98,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, uint64_t size)
-{
-
+int _DkVirtualMemoryFree(void* addr, uint64_t size) {
     if (sgx_is_completely_within_enclave(addr, size)) {
         free_pages(addr, size);
     } else {
@@ -115,26 +109,22 @@ int _DkVirtualMemoryFree (void * addr, uint64_t size)
     return 0;
 }
 
-int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
-{
+int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
     static struct atomic_int at_cnt = {.counter = 0};
 
     if (atomic_cmpxchg(&at_cnt, 0, 1) == 0)
-        SGX_DBG(DBG_M, "[Warning] DkVirtualMemoryProtect (0x%p, %lu, %d) is unimplemented",
-                addr, size, prot);
+        SGX_DBG(DBG_M, "[Warning] DkVirtualMemoryProtect (0x%p, %lu, %d) is unimplemented", addr,
+                size, prot);
     return 0;
 }
 
-unsigned long _DkMemoryQuota (void)
-{
+unsigned long _DkMemoryQuota(void) {
     return pal_sec.heap_max - pal_sec.heap_min;
 }
 
 extern struct atomic_int alloced_pages;
 extern unsigned int pagesz;
 
-unsigned long _DkMemoryAvailableQuota (void)
-{
-    return (pal_sec.heap_max - pal_sec.heap_min) -
-        atomic_read(&alloced_pages) * pagesz;
+unsigned long _DkMemoryAvailableQuota(void) {
+    return (pal_sec.heap_max - pal_sec.heap_min) - atomic_read(&alloced_pages) * pagesz;
 }

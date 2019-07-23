@@ -20,11 +20,11 @@
  * Implementation of system call "dup", "dup2" and "dup3".
  */
 
+#include <shim_fs.h>
+#include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
 #include <shim_utils.h>
 
 #include <pal.h>
@@ -32,12 +32,11 @@
 
 #include <errno.h>
 
-int shim_do_dup (int fd)
-{
-    struct shim_handle_map * handle_map = get_cur_handle_map(NULL);
-    int flags = 0;
+int shim_do_dup(int fd) {
+    struct shim_handle_map* handle_map = get_cur_handle_map(NULL);
+    int flags                          = 0;
 
-    struct shim_handle * hdl = get_fd_handle(fd, &flags, handle_map);
+    struct shim_handle* hdl = get_fd_handle(fd, &flags, handle_map);
     if (!hdl)
         return -EBADF;
 
@@ -46,15 +45,14 @@ int shim_do_dup (int fd)
     return vfd < 0 ? -EMFILE : vfd;
 }
 
-int shim_do_dup2 (int oldfd, int newfd)
-{
-    struct shim_handle_map * handle_map = get_cur_handle_map(NULL);
+int shim_do_dup2(int oldfd, int newfd) {
+    struct shim_handle_map* handle_map = get_cur_handle_map(NULL);
 
-    struct shim_handle * hdl = get_fd_handle(oldfd, NULL, handle_map);
+    struct shim_handle* hdl = get_fd_handle(oldfd, NULL, handle_map);
     if (!hdl)
         return -EBADF;
 
-    struct shim_handle * new_hdl = detach_fd_handle(newfd, NULL, handle_map);
+    struct shim_handle* new_hdl = detach_fd_handle(newfd, NULL, handle_map);
 
     if (new_hdl)
         close_handle(new_hdl);
@@ -64,14 +62,13 @@ int shim_do_dup2 (int oldfd, int newfd)
     return vfd < 0 ? -EMFILE : vfd;
 }
 
-int shim_do_dup3 (int oldfd, int newfd, int flags)
-{
-    struct shim_handle_map * handle_map = get_cur_handle_map(NULL);
-    struct shim_handle * hdl = get_fd_handle(oldfd, NULL, handle_map);
+int shim_do_dup3(int oldfd, int newfd, int flags) {
+    struct shim_handle_map* handle_map = get_cur_handle_map(NULL);
+    struct shim_handle* hdl            = get_fd_handle(oldfd, NULL, handle_map);
     if (!hdl)
         return -EBADF;
 
-    struct shim_handle * new_hdl = detach_fd_handle(newfd, NULL, handle_map);
+    struct shim_handle* new_hdl = detach_fd_handle(newfd, NULL, handle_map);
 
     if (new_hdl)
         close_handle(new_hdl);

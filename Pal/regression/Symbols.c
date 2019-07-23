@@ -1,16 +1,16 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-#define SYMBOL_ADDR(sym)                                        \
-    ({  void * _sym;                                            \
-        __asm__ volatile ("movq " #sym "@GOTPCREL(%%rip), %0"   \
-                          : "=r"(_sym));                        \
-        _sym; })
+#define SYMBOL_ADDR(sym)                                                    \
+    ({                                                                      \
+        void* _sym;                                                         \
+        __asm__ volatile("movq " #sym "@GOTPCREL(%%rip), %0" : "=r"(_sym)); \
+        _sym;                                                               \
+    })
 
 #define PRINT_SYMBOL(sym) pal_printf(#sym " = %p\n", SYMBOL_ADDR(sym))
 
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     PRINT_SYMBOL(DkVirtualMemoryAlloc);
     PRINT_SYMBOL(DkVirtualMemoryFree);
     PRINT_SYMBOL(DkVirtualMemoryProtect);

@@ -20,39 +20,32 @@
  * This file contains APIs that provides operations of semaphores.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
-int
-_DkSemaphoreCreate (PAL_HANDLE handle, int initialCount, int maxCount)
-{
+int _DkSemaphoreCreate(PAL_HANDLE handle, int initialCount, int maxCount) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-void _DkSemaphoreDestroy (PAL_HANDLE semaphoreHandle)
-{
+void _DkSemaphoreDestroy(PAL_HANDLE semaphoreHandle) {
     /* need to be implemented */
 }
 
-int _DkSemaphoreAcquire (PAL_HANDLE sem, int count)
-{
+int _DkSemaphoreAcquire(PAL_HANDLE sem, int count) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSemaphoreAcquireTimeout (PAL_HANDLE sem, int count, int timeout)
-{
+int _DkSemaphoreAcquireTimeout(PAL_HANDLE sem, int count, int timeout) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-void _DkSemaphoreRelease (PAL_HANDLE sem, int count)
-{
+void _DkSemaphoreRelease(PAL_HANDLE sem, int count) {
     /* need to be implemented */
 }
 
-int _DkSemaphoreGetCurrentCount (PAL_HANDLE sem)
-{
+int _DkSemaphoreGetCurrentCount(PAL_HANDLE sem) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

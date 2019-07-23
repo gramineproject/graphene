@@ -1,22 +1,19 @@
 /* This Hello World simply print out "Hello World" */
 
 #include "pal.h"
-#include "pal_error.h"
 #include "pal_debug.h"
+#include "pal_error.h"
 
 int handled = 0;
 
-void FailureHandler (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
-    pal_printf("Failure notified: %s\n",
-               pal_errstring[(unsigned long) arg]);
+void FailureHandler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
+    pal_printf("Failure notified: %s\n", pal_errstring[(unsigned long)arg]);
 
     handled = 1;
     DkExceptionReturn(event);
 }
 
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     pal_printf("Enter Main Thread\n");
 
     DkSetExceptionHandler(FailureHandler, PAL_EVENT_FAILURE);

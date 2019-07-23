@@ -21,32 +21,29 @@
  * host, and the methods to pass the exceptions to the upcalls.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
-typedef void (*PAL_UPCALL) (PAL_PTR, PAL_NUM, PAL_CONTEXT *);
+typedef void (*PAL_UPCALL)(PAL_PTR, PAL_NUM, PAL_CONTEXT*);
 
-int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])
-    (int, PAL_UPCALL, int) = {
-        /* reserved   */ NULL,
-        /* DivZero    */ NULL,
-        /* MemFault   */ NULL,
-        /* Illegal    */ NULL,
-        /* Quit       */ NULL,
-        /* Suspend    */ NULL,
-        /* Resume     */ NULL,
-        /* Failure    */ NULL,
-    };
+int (*_DkExceptionHandlers[PAL_EVENT_NUM_BOUND])(int, PAL_UPCALL, int) = {
+    /* reserved   */ NULL,
+    /* DivZero    */ NULL,
+    /* MemFault   */ NULL,
+    /* Illegal    */ NULL,
+    /* Quit       */ NULL,
+    /* Suspend    */ NULL,
+    /* Resume     */ NULL,
+    /* Failure    */ NULL,
+};
 
-void _DkRaiseFailure (int error)
-{
+void _DkRaiseFailure(int error) {
     /* need to be implemented */
 }
 
-void _DkExceptionReturn (void * event)
-{
+void _DkExceptionReturn(void* event) {
     /* need to be implemented */
 }

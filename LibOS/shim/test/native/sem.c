@@ -1,34 +1,33 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #define TEST_TIMES 1000
-#define DO_BENCH   1
+#define DO_BENCH 1
 
 enum { PARALLEL, SERIAL, IN_PROCESS } mode = PARALLEL;
 int pipefds[2], key;
 
 /* server always sends messages */
-void server (void)
-{
+void server(void) {
     struct timeval tv1, tv2;
     int semid;
     struct sembuf buf;
 
-    if ((semid = semget(key, 2, mode == SERIAL ? 0600|IPC_CREAT : 0)) < 0) {
+    if ((semid = semget(key, 2, mode == SERIAL ? 0600 | IPC_CREAT : 0)) < 0) {
         perror("semget");
         exit(1);
     }
 
     gettimeofday(&tv1, NULL);
 
-    for (int i = 0 ; i < TEST_TIMES ; i++) {
+    for (int i = 0; i < TEST_TIMES; i++) {
         buf.sem_num = 0;
         buf.sem_op  = 1;
         buf.sem_flg = 0;
@@ -44,10 +43,8 @@ void server (void)
 
     gettimeofday(&tv2, NULL);
 
-    printf("time spent on %d semop (signal): %llu microsecond\n",
-           TEST_TIMES,
-           (tv2.tv_sec * 1000000ull + tv2.tv_usec) -
-           (tv1.tv_sec * 1000000ull + tv1.tv_usec));
+    printf("time spent on %d semop (signal): %llu microsecond\n", TEST_TIMES,
+           (tv2.tv_sec * 1000000ull + tv2.tv_usec) - (tv1.tv_sec * 1000000ull + tv1.tv_usec));
 
     if (mode == PARALLEL) {
         close(pipefds[0]);
@@ -70,8 +67,7 @@ void server (void)
 }
 
 /* client always sends messages */
-void client (void)
-{
+void client(void) {
     struct timeval tv1, tv2;
     int semid;
     struct sembuf buf;
@@ -89,7 +85,7 @@ void client (void)
 
     gettimeofday(&tv1, NULL);
 
-    for (int i = 0 ; i < TEST_TIMES ; i++) {
+    for (int i = 0; i < TEST_TIMES; i++) {
         buf.sem_num = 0;
         buf.sem_op  = -1;
         buf.sem_flg = 0;
@@ -113,21 +109,17 @@ void client (void)
             perror("semop");
             exit(1);
         }
-    }
-    else
+    } else
         semctl(semid, 0, IPC_RMID);
 
-    printf("time spent on %d semop (wait): %llu microsecond\n",
-           TEST_TIMES,
-           (tv2.tv_sec * 1000000ull + tv2.tv_usec) -
-           (tv1.tv_sec * 1000000ull + tv1.tv_usec));
+    printf("time spent on %d semop (wait): %llu microsecond\n", TEST_TIMES,
+           (tv2.tv_sec * 1000000ull + tv2.tv_usec) - (tv1.tv_sec * 1000000ull + tv1.tv_usec));
 
     if (mode != IN_PROCESS)
         exit(0);
 }
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int semid;
 
     key = rand();
@@ -147,7 +139,7 @@ int main (int argc, char ** argv)
         wait(NULL);
     }
 
-    if ((semid = semget(key, 2, 0600|IPC_CREAT)) < 0) {
+    if ((semid = semget(key, 2, 0600 | IPC_CREAT)) < 0) {
         perror("semget");
         exit(1);
     }

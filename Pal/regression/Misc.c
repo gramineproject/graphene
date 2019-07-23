@@ -1,9 +1,8 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-int main (int argc, const char ** argv, const char ** envp)
-{
+int main(int argc, const char** argv, const char** envp) {
     unsigned long time1 = DkSystemTimeQuery();
     unsigned long time2 = DkSystemTimeQuery();
 
@@ -34,7 +33,7 @@ int main (int argc, const char ** argv, const char ** envp)
     unsigned long data[100];
     memset(data, 0, sizeof(data));
 
-    for (int i = 0 ; i < 100 ; i++) {
+    for (int i = 0; i < 100; i++) {
         int ret = DkRandomBitsRead(&data[i], sizeof(unsigned long));
         if (ret < 0) {
             pal_printf("DkRandomBitsRead() failed!\n");
@@ -43,13 +42,13 @@ int main (int argc, const char ** argv, const char ** envp)
     }
 
     bool same = false;
-    for (int i = 1 ; i < 100 ; i++)
-        for (int j = 0 ; j < i ; j++)
-            if (data[i] == data[j]) same = true;
+    for (int i = 1; i < 100; i++)
+        for (int j = 0; j < i; j++)
+            if (data[i] == data[j])
+                same = true;
 
     if (!same)
         pal_printf("Generate Random Bits OK\n");
 
     return 0;
 }
-

@@ -25,48 +25,44 @@
  * at creation.
  */
 
-#include "pal_defs.h"
-#include "pal_freebsd_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_freebsd.h"
-#include "pal_debug.h"
-#include "pal_error.h"
-#include "pal_security.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_freebsd.h"
+#include "pal_freebsd_defs.h"
+#include "pal_internal.h"
+#include "pal_security.h"
 
 #include <sched.h>
 #include <sys/types.h>
 typedef __kernel_pid_t pid_t;
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <errno.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
 #include <sys/filio.h>
+#include <sys/socket.h>
 #ifndef SEEK_SET
-# define SEEK_SET 0
+#define SEEK_SET 0
 #endif
 
-static inline int create_process_handle (PAL_HANDLE * parent,
-                                         PAL_HANDLE * child)
-{
+static inline int create_process_handle(PAL_HANDLE* parent, PAL_HANDLE* child) {
     PAL_HANDLE phdl = NULL, chdl = NULL;
-    int fds[6] = { -1, -1, -1, -1, -1, -1 };
+    int fds[6] = {-1, -1, -1, -1, -1, -1};
     int ret;
 
     if (IS_ERR((ret = INLINE_SYSCALL(pipe2, 2, &fds[0], O_CLOEXEC))) ||
         IS_ERR((ret = INLINE_SYSCALL(pipe2, 2, &fds[2], O_CLOEXEC))) ||
-        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX,
-                                     SOCK_STREAM|SOCK_CLOEXEC,
-                                     0, &fds[4])))) {
+        IS_ERR((ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0,
+                                     &fds[4])))) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
     int proc_fds[2][3] = {
-        { fds[0], fds[3], fds[4] },
-        { fds[2], fds[1], fds[5] },
+        {fds[0], fds[3], fds[4]}, {fds[2], fds[1], fds[5]},
     };
 
     phdl = malloc(HANDLE_SIZE(process));
@@ -76,7 +72,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(phdl, process);
-    phdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
+    phdl->hdr.flags |= RFD(0) | WFD(1) | RFD(2) | WFD(2) | WRITABLE(1) | WRITABLE(2);
     phdl->process.stream_in   = proc_fds[0][0];
     phdl->process.stream_out  = proc_fds[0][1];
     phdl->process.cargo       = proc_fds[0][2];
@@ -90,7 +86,7 @@ static inline int create_process_handle (PAL_HANDLE * parent,
     }
 
     SET_HANDLE_TYPE(chdl, process);
-    chdl->hdr.flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITABLE(1)|WRITABLE(2);
+    chdl->hdr.flags |= RFD(0) | WFD(1) | RFD(2) | WFD(2) | WRITABLE(1) | WRITABLE(2);
     chdl->process.stream_in   = proc_fds[1][0];
     chdl->process.stream_out  = proc_fds[1][1];
     chdl->process.cargo       = proc_fds[1][2];
@@ -99,14 +95,14 @@ static inline int create_process_handle (PAL_HANDLE * parent,
 
     *parent = phdl;
     *child  = chdl;
-    ret = 0;
+    ret     = 0;
 out:
     if (ret < 0) {
         if (phdl)
             _DkObjectClose(phdl);
         if (chdl)
             _DkObjectClose(chdl);
-        for (int i = 0 ; i < 6 ; i++)
+        for (int i = 0; i < 6; i++)
             if (fds[i] != -1)
                 INLINE_SYSCALL(close, 1, fds[i]);
     }
@@ -117,25 +113,23 @@ struct proc_param {
     PAL_HANDLE parent;
     PAL_HANDLE exec;
     PAL_HANDLE manifest;
-    const char ** argv;
+    const char** argv;
 };
 
 struct proc_args {
     PAL_NUM parent_process_id;
-    struct pal_sec  pal_sec;
-    unsigned long   memory_quota;
-    unsigned int    parent_data_size;
-    unsigned int    exec_data_size;
-    unsigned int    manifest_data_size;
+    struct pal_sec pal_sec;
+    unsigned long memory_quota;
+    unsigned int parent_data_size;
+    unsigned int exec_data_size;
+    unsigned int manifest_data_size;
 };
 
-static int child_process (void * param)
-{
-    struct proc_param * proc_param = param;
+static int child_process(void* param) {
+    struct proc_param* proc_param = param;
     int ret;
 
-    ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream_in,
-                         PROC_INIT_FD);
+    ret = INLINE_SYSCALL(dup2, 2, proc_param->parent->process.stream_in, PROC_INIT_FD);
     if (IS_ERR(ret))
         goto failed;
 
@@ -152,9 +146,8 @@ failed:
     return -PAL_ERROR_DENIED;
 }
 
-int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
-{
-    PAL_HANDLE exec = NULL;
+int _DkProcessCreate(PAL_HANDLE* handle, const char* uri, const char** args) {
+    PAL_HANDLE exec          = NULL;
     PAL_HANDLE parent_handle = NULL, child_handle = NULL;
     int ret;
 
@@ -175,17 +168,16 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     if (ret < 0)
         goto out;
 
-
-    param.parent = parent_handle;
-    param.exec = exec;
+    param.parent   = parent_handle;
+    param.exec     = exec;
     param.manifest = pal_state.manifest_handle;
 
     /* step 3: compose process parameter */
 
     int parent_datasz = 0, exec_datasz = 0, manifest_datasz = 0;
-    void * parent_data = NULL;
-    void * exec_data = NULL;
-    void * manifest_data = NULL;
+    void* parent_data   = NULL;
+    void* exec_data     = NULL;
+    void* manifest_data = NULL;
 
     ret = handle_serialize(parent_handle, &parent_data);
     if (ret < 0)
@@ -211,17 +203,16 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
         manifest_datasz = ret;
     }
 
-    unsigned int datasz = parent_datasz + exec_datasz + manifest_datasz;
-    struct proc_args * proc_args =
-            __alloca(sizeof(struct proc_args) + datasz);
+    unsigned int datasz         = parent_datasz + exec_datasz + manifest_datasz;
+    struct proc_args* proc_args = __alloca(sizeof(struct proc_args) + datasz);
 
     proc_args->parent_process_id = bsd_state.parent_pid;
     memcpy(&proc_args->pal_sec, &pal_sec, sizeof(struct pal_sec));
     proc_args->pal_sec.r_debug_state = NULL;
-    proc_args->pal_sec.r_debug = NULL;
-    proc_args->memory_quota = bsd_state.memory_quota;
+    proc_args->pal_sec.r_debug       = NULL;
+    proc_args->memory_quota          = bsd_state.memory_quota;
 
-    void * data = (void *) (proc_args + 1);
+    void* data = (void*)(proc_args + 1);
 
     memcpy(data, parent_data, parent_datasz);
     data += (proc_args->parent_data_size = parent_datasz);
@@ -248,11 +239,12 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
     /* the first arguement must be the PAL */
     int argc = 0;
     if (args)
-        for (; args[argc] ; argc++);
-    param.argv = __alloca(sizeof(const char *) * (argc + 2));
+        for (; args[argc]; argc++)
+            ;
+    param.argv    = __alloca(sizeof(const char*) * (argc + 2));
     param.argv[0] = PAL_LOADER;
     if (args)
-        memcpy(&param.argv[1], args, sizeof(const char *) * argc);
+        memcpy(&param.argv[1], args, sizeof(const char*) * argc);
     param.argv[argc + 1] = NULL;
 
     ret = INLINE_SYSCALL(vfork, 0);
@@ -271,19 +263,16 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri, const char ** args)
 
     /* step 4: send parameters over the process handle */
 
-    ret = INLINE_SYSCALL(write, 3,
-                         child_handle->process.stream_out,
-                         proc_args,
+    ret = INLINE_SYSCALL(write, 3, child_handle->process.stream_out, proc_args,
                          sizeof(struct proc_args) + datasz);
 
-    if (IS_ERR(ret) ||
-        ret < sizeof(struct proc_args) + datasz) {
+    if (IS_ERR(ret) || ret < sizeof(struct proc_args) + datasz) {
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
     *handle = child_handle;
-    ret = 0;
+    ret     = 0;
 out:
     if (parent_handle)
         _DkObjectClose(parent_handle);
@@ -298,19 +287,16 @@ out:
 
 #define LARGE_PROC_ARGS 4096
 
-void init_child_process (PAL_HANDLE * parent_handle,
-                         PAL_HANDLE * exec_handle,
-                         PAL_HANDLE * manifest_handle)
-{
+void init_child_process(PAL_HANDLE* parent_handle, PAL_HANDLE* exec_handle,
+                        PAL_HANDLE* manifest_handle) {
     int ret = 0;
 
     /* try to do a very large reading, so it doesn't have to be read for the
        second time */
-    struct proc_args * proc_args = __alloca(sizeof(struct proc_args));
-    struct proc_args * new_proc_args;
+    struct proc_args* proc_args = __alloca(sizeof(struct proc_args));
+    struct proc_args* new_proc_args;
 
-    int bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_args,
-                               sizeof(*proc_args));
+    int bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, proc_args, sizeof(*proc_args));
 
     if (IS_ERR(bytes)) {
         if (ERRNO(bytes) != EBADF)
@@ -326,16 +312,16 @@ void init_child_process (PAL_HANDLE * parent_handle,
     if (!proc_args->parent_data_size)
         INIT_FAIL(PAL_ERROR_INVAL, "invalid process created");
 
-    int datasz = proc_args->parent_data_size + proc_args->exec_data_size +
-                 proc_args->manifest_data_size;
+    int datasz =
+        proc_args->parent_data_size + proc_args->exec_data_size + proc_args->manifest_data_size;
 
     if (!datasz)
         goto no_data;
 
     new_proc_args = __alloca(sizeof(*proc_args) + datasz);
     memcpy(new_proc_args, proc_args, sizeof(*proc_args));
-    proc_args = new_proc_args;
-    void * data = (void *) (proc_args + 1);
+    proc_args  = new_proc_args;
+    void* data = (void*)(proc_args + 1);
 
     bytes = INLINE_SYSCALL(read, 3, PROC_INIT_FD, data, datasz);
     if (IS_ERR(bytes))
@@ -343,7 +329,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
 
     /* now deserialize the parent_handle */
     PAL_HANDLE parent = NULL;
-    ret = handle_deserialize(&parent, data, proc_args->parent_data_size);
+    ret               = handle_deserialize(&parent, data, proc_args->parent_data_size);
     if (ret < 0)
         INIT_FAIL(-ret, "cannot deseilaize parent process handle");
     data += proc_args->parent_data_size;
@@ -353,8 +339,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
     if (proc_args->exec_data_size) {
         PAL_HANDLE exec = NULL;
 
-        ret = handle_deserialize(&exec, data,
-                                 proc_args->exec_data_size);
+        ret = handle_deserialize(&exec, data, proc_args->exec_data_size);
         if (ret < 0)
             INIT_FAIL(-ret, "cannot deserialize executable handle");
 
@@ -366,8 +351,7 @@ void init_child_process (PAL_HANDLE * parent_handle,
     if (proc_args->manifest_data_size) {
         PAL_HANDLE manifest = NULL;
 
-        ret = handle_deserialize(&manifest, data,
-                                 proc_args->manifest_data_size);
+        ret = handle_deserialize(&manifest, data, proc_args->manifest_data_size);
         if (ret < 0)
             INIT_FAIL(-ret, "cannot deserialize manifest handle");
 
@@ -380,30 +364,25 @@ no_data:
     memcpy(&pal_sec, &proc_args->pal_sec, sizeof(struct pal_sec));
 }
 
-noreturn void _DkProcessExit (int exitcode)
-{
+noreturn void _DkProcessExit(int exitcode) {
     INLINE_SYSCALL(exit, 1, exitcode);
 }
 
-int _DkProcessSandboxCreate (const char * manifest, int flags)
-{
+int _DkProcessSandboxCreate(const char* manifest, int flags) {
     PAL_HANDLE handle = NULL;
     _DkStreamOpen(&handle, manifest, PAL_ACCESS_RDONLY, 0, 0, 0);
     pal_state.manifest_handle = handle;
-    pal_state.manifest = manifest;
+    pal_state.manifest        = manifest;
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-static int proc_read (PAL_HANDLE handle, int offset, int count,
-                          void * buffer)
-{
-    int bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer,
-                               count);
+static int proc_read(PAL_HANDLE handle, int offset, int count, void* buffer) {
+    int bytes = INLINE_SYSCALL(read, 3, handle->process.stream_in, buffer, count);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
+        switch (ERRNO(bytes)) {
             case EWOULDBLOCK:
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
@@ -413,17 +392,14 @@ static int proc_read (PAL_HANDLE handle, int offset, int count,
     return bytes;
 }
 
-static int proc_write (PAL_HANDLE handle, int offset, int count,
-                       const void * buffer)
-{
-    int bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer,
-                               count);
+static int proc_write(PAL_HANDLE handle, int offset, int count, const void* buffer) {
+    int bytes = INLINE_SYSCALL(write, 3, handle->process.stream_out, buffer, count);
 
     if (IS_ERR(bytes))
-        switch(ERRNO(bytes)) {
+        switch (ERRNO(bytes)) {
             case EWOULDBLOCK:
                 handle->hdr.flags &= ~WRITABLE(1);
-                return-PAL_ERROR_TRYAGAIN;
+                return -PAL_ERROR_TRYAGAIN;
             case EINTR:
                 return -PAL_ERROR_INTERRUPTED;
             default:
@@ -438,8 +414,7 @@ static int proc_write (PAL_HANDLE handle, int offset, int count,
     return bytes;
 }
 
-static int proc_close (PAL_HANDLE handle)
-{
+static int proc_close(PAL_HANDLE handle) {
     if (handle->process.stream_in != PAL_IDX_POISON) {
         INLINE_SYSCALL(close, 1, handle->process.stream_in);
         handle->process.stream_in = PAL_IDX_POISON;
@@ -458,8 +433,7 @@ static int proc_close (PAL_HANDLE handle)
     return 0;
 }
 
-static int proc_delete (PAL_HANDLE handle, int access)
-{
+static int proc_delete(PAL_HANDLE handle, int access) {
     int shutdown;
     switch (access) {
         case 0:
@@ -475,14 +449,12 @@ static int proc_delete (PAL_HANDLE handle, int access)
             return -PAL_ERROR_INVAL;
     }
 
-    if (access != PAL_DELETE_WR &&
-        handle->process.stream_in != PAL_IDX_POISON) {
+    if (access != PAL_DELETE_WR && handle->process.stream_in != PAL_IDX_POISON) {
         INLINE_SYSCALL(close, 1, handle->process.stream_in);
         handle->process.stream_in = PAL_IDX_POISON;
     }
 
-    if (access != PAL_DELETE_RD &&
-        handle->process.stream_out != PAL_IDX_POISON) {
+    if (access != PAL_DELETE_RD && handle->process.stream_out != PAL_IDX_POISON) {
         INLINE_SYSCALL(close, 1, handle->process.stream_out);
         handle->process.stream_out = PAL_IDX_POISON;
     }
@@ -493,8 +465,7 @@ static int proc_delete (PAL_HANDLE handle, int access)
     return 0;
 }
 
-static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
-{
+static int proc_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     int ret, val;
 
     if (handle->process.stream_in == PAL_IDX_POISON)
@@ -506,7 +477,7 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 
     attr->handle_type  = pal_type_process;
     attr->nonblocking  = handle->process.nonblocking;
-    attr->disconnected = handle->hdr.flags & (ERROR(0)|ERROR(1));
+    attr->disconnected = handle->hdr.flags & (ERROR(0) | ERROR(1));
     attr->readable     = !!val;
     attr->writable     = handle->hdr.flags & WRITABLE(1);
     attr->runnable     = PAL_FALSE;
@@ -515,8 +486,7 @@ static int proc_attrquerybyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
     return 0;
 }
 
-static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
-{
+static int proc_attrsetbyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (handle->process.stream_in == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
@@ -535,10 +505,10 @@ static int proc_attrsetbyhdl (PAL_HANDLE handle, PAL_STREAM_ATTR * attr)
 }
 
 struct handle_ops proc_ops = {
-        .read           = &proc_read,
-        .write          = &proc_write,
-        .close          = &proc_close,
-        .delete         = &proc_delete,
-        .attrquerybyhdl = &proc_attrquerybyhdl,
-        .attrsetbyhdl   = &proc_attrsetbyhdl,
-    };
+    .read           = &proc_read,
+    .write          = &proc_write,
+    .close          = &proc_close,
+    .delete         = &proc_delete,
+    .attrquerybyhdl = &proc_attrquerybyhdl,
+    .attrsetbyhdl   = &proc_attrsetbyhdl,
+};

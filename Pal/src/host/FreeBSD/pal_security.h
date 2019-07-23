@@ -19,8 +19,8 @@
 
 #include "pal.h"
 
-#define PATH_MAX    80
-#define PIPE_MAX    32
+#define PATH_MAX 80
+#define PIPE_MAX 32
 
 struct link_gdb_map;
 
@@ -29,26 +29,26 @@ struct link_gdb_map;
    dynamic section has a DT_DEBUG element, the run-time linker sets that
    element's value to the address where this structure can be found.  */
 struct r_debug {
-    int r_version;           /* Version number for this protocol.  */
+    int r_version; /* Version number for this protocol.  */
 
-    struct link_map * r_map; /* Head of the chain of loaded objects.  */
+    struct link_map* r_map; /* Head of the chain of loaded objects.  */
 
     /* This is the address of a function internal to the run-time linker,
        that will always be called when the linker begins to map in a
        library or unmap it, and again when the mapping change is complete.
        The debugger can set a breakpoint at this address if it wants to
        notice shared object mapping changes.  */
-    void (*r_brk) (struct r_debug *, struct link_gdb_map *);
+    void (*r_brk)(struct r_debug*, struct link_gdb_map*);
     enum {
         /* This state value describes the mapping change taking place when
            the `r_brk' address is called.  */
-        RT_CONSISTENT,  /* Mapping change is complete.  */
-        RT_ADD,         /* Beginning to add a new object.  */
-        RT_DELETE       /* Beginning to remove an object mapping.  */
+        RT_CONSISTENT, /* Mapping change is complete.  */
+        RT_ADD,        /* Beginning to add a new object.  */
+        RT_DELETE      /* Beginning to remove an object mapping.  */
     } r_state;
 };
 
-void pal_r_debug_state (struct r_debug *, struct link_gdb_map *);
+void pal_r_debug_state(struct r_debug*, struct link_gdb_map*);
 
 /* This structure communicates dl state to the debugger.  The debugger
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
@@ -58,20 +58,19 @@ extern struct r_debug pal_r_debug;
 symbol_version_default(pal_r_debug, r_debug, PAL);
 
 extern struct pal_sec {
-    unsigned int        domain_id;
-    char                pipe_prefix[PIPE_MAX];
-    void *              user_addr_base;
-    int                 rand_gen;
-    unsigned short      mcast_port;
-    void                (*r_debug_state) (struct r_debug *,
-                                          struct link_gdb_map *);
-    struct r_debug *    r_debug;
+    unsigned int domain_id;
+    char pipe_prefix[PIPE_MAX];
+    void* user_addr_base;
+    int rand_gen;
+    unsigned short mcast_port;
+    void (*r_debug_state)(struct r_debug*, struct link_gdb_map*);
+    struct r_debug* r_debug;
 } pal_sec;
 
-#define GRAPHENE_TEMPDIR        "/tmp/graphene"
-#define GRAPHENE_PIPEDIR        (GRAPHENE_TEMPDIR "/pipes")
+#define GRAPHENE_TEMPDIR "/tmp/graphene"
+#define GRAPHENE_PIPEDIR (GRAPHENE_TEMPDIR "/pipes")
 
-#define PROC_INIT_FD    255
+#define PROC_INIT_FD 255
 
 #define GRAPHENE_MCAST_GROUP "239.0.0.1"
 

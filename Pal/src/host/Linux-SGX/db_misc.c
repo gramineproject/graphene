@@ -20,29 +20,27 @@
  * This file contains APIs for miscellaneous use.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_error.h"
-#include "pal_debug.h"
+#include "pal_linux_defs.h"
 #include "pal_security.h"
-#include "api.h"
 
-#include <linux/time.h>
 #include <asm/fcntl.h>
+#include <linux/time.h>
 
-unsigned long _DkSystemTimeQuery (void)
-{
+unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
     int ret = ocall_gettime(&microsec);
     assert(!ret);
     return microsec;
 }
 
-size_t _DkRandomBitsRead (void * buffer, size_t size)
-{
+size_t _DkRandomBitsRead(void* buffer, size_t size) {
     uint32_t rand;
     for (size_t i = 0; i < size; i += sizeof(rand)) {
         rand = rdrand();
@@ -51,36 +49,33 @@ size_t _DkRandomBitsRead (void * buffer, size_t size)
     return 0;
 }
 
-int _DkInstructionCacheFlush (const void * addr, int size)
-{
+int _DkInstructionCacheFlush(const void* addr, int size) {
     __UNUSED(addr);
     __UNUSED(size);
 
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkSegmentRegisterSet (int reg, const void * addr)
-{
+int _DkSegmentRegisterSet(int reg, const void* addr) {
     /* GS is internally used, denied any access to it */
     if (reg != PAL_SEGMENT_FS)
         return -PAL_ERROR_DENIED;
 
-    SET_ENCLAVE_TLS(fsbase, (void *) addr);
-    wrfsbase((uint64_t) addr);
+    SET_ENCLAVE_TLS(fsbase, (void*)addr);
+    wrfsbase((uint64_t)addr);
     return 0;
 }
 
-int _DkSegmentRegisterGet (int reg, void ** addr)
-{
+int _DkSegmentRegisterGet(int reg, void** addr) {
     /* GS is internally used, denied any access to it */
     if (reg != PAL_SEGMENT_FS)
         return -PAL_ERROR_DENIED;
 
-    *addr = (void *) GET_ENCLAVE_TLS(fsbase);
+    *addr = (void*)GET_ENCLAVE_TLS(fsbase);
     return 0;
 }
 
-#define CPUID_CACHE_SIZE    64
+#define CPUID_CACHE_SIZE 64
 #define CPUID_CACHE_INVALID ((unsigned int)-1)
 
 static PAL_LOCK cpuid_cache_lock = LOCK_INIT;
@@ -91,21 +86,18 @@ static struct pal_cpuid {
     unsigned int values[4];
 } pal_cpuid_cache[CPUID_CACHE_SIZE];
 
-static int pal_cpuid_cache_top = 0;
+static int pal_cpuid_cache_top      = 0;
 static unsigned int pal_cpuid_clock = 0;
 
-int get_cpuid_from_cache (unsigned int leaf, unsigned int subleaf,
-                          unsigned int values[4])
-{
+int get_cpuid_from_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     _DkInternalLock(&cpuid_cache_lock);
 
-    for (int i = 0 ; i < pal_cpuid_cache_top ; i++)
-        if (pal_cpuid_cache[i].leaf == leaf &&
-            pal_cpuid_cache[i].subleaf == subleaf) {
-            values[0] = pal_cpuid_cache[i].values[0];
-            values[1] = pal_cpuid_cache[i].values[1];
-            values[2] = pal_cpuid_cache[i].values[2];
-            values[3] = pal_cpuid_cache[i].values[3];
+    for (int i = 0; i < pal_cpuid_cache_top; i++)
+        if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
+            values[0]                   = pal_cpuid_cache[i].values[0];
+            values[1]                   = pal_cpuid_cache[i].values[1];
+            values[2]                   = pal_cpuid_cache[i].values[2];
+            values[3]                   = pal_cpuid_cache[i].values[3];
             pal_cpuid_cache[i].recently = ++pal_cpuid_clock;
             _DkInternalUnlock(&cpuid_cache_lock);
             return 0;
@@ -115,59 +107,52 @@ int get_cpuid_from_cache (unsigned int leaf, unsigned int subleaf,
     return -PAL_ERROR_DENIED;
 }
 
-void add_cpuid_to_cache (unsigned int leaf, unsigned int subleaf,
-                         unsigned int values[4])
-{
-    struct pal_cpuid * chosen;
+void add_cpuid_to_cache(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
+    struct pal_cpuid* chosen;
     _DkInternalLock(&cpuid_cache_lock);
 
     if (pal_cpuid_cache_top < CPUID_CACHE_SIZE) {
-        for (int i = 0 ; i < pal_cpuid_cache_top ; i++)
-            if (pal_cpuid_cache[i].leaf == leaf &&
-                pal_cpuid_cache[i].subleaf == subleaf) {
+        for (int i = 0; i < pal_cpuid_cache_top; i++)
+            if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
                 _DkInternalUnlock(&cpuid_cache_lock);
                 return;
-        }
+            }
 
         chosen = &pal_cpuid_cache[pal_cpuid_cache_top++];
     } else {
         unsigned int oldest_clock = pal_cpuid_cache[0].recently;
-        chosen = &pal_cpuid_cache[0];
+        chosen                    = &pal_cpuid_cache[0];
 
-        if (pal_cpuid_cache[0].leaf == leaf &&
-            pal_cpuid_cache[0].subleaf == subleaf) {
+        if (pal_cpuid_cache[0].leaf == leaf && pal_cpuid_cache[0].subleaf == subleaf) {
             _DkInternalUnlock(&cpuid_cache_lock);
             return;
         }
 
-        for (int i = 1 ; i < pal_cpuid_cache_top ; i++) {
-            if (pal_cpuid_cache[i].leaf == leaf &&
-                pal_cpuid_cache[i].subleaf == subleaf) {
+        for (int i = 1; i < pal_cpuid_cache_top; i++) {
+            if (pal_cpuid_cache[i].leaf == leaf && pal_cpuid_cache[i].subleaf == subleaf) {
                 _DkInternalUnlock(&cpuid_cache_lock);
                 return;
             }
 
             if (pal_cpuid_cache[i].recently > oldest_clock) {
-                chosen = &pal_cpuid_cache[i];
+                chosen       = &pal_cpuid_cache[i];
                 oldest_clock = pal_cpuid_cache[i].recently;
             }
         }
     }
 
-    chosen->leaf = leaf;
-    chosen->subleaf = subleaf;
+    chosen->leaf      = leaf;
+    chosen->subleaf   = subleaf;
     chosen->values[0] = values[0];
     chosen->values[1] = values[1];
     chosen->values[2] = values[2];
     chosen->values[3] = values[3];
-    chosen->recently = ++pal_cpuid_clock;
+    chosen->recently  = ++pal_cpuid_clock;
 
     _DkInternalUnlock(&cpuid_cache_lock);
 }
 
-int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
-                      unsigned int values[4])
-{
+int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     if (leaf != 0x4 && leaf != 0x7 && leaf != 0xb)
         subleaf = 0;
 

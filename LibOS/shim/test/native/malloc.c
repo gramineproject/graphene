@@ -1,9 +1,8 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-int main(int argc, char ** argv)
-{
-    for (int i = 0 ; i < 100000 ; i++) {
+int main(int argc, char** argv) {
+    for (int i = 0; i < 100000; i++) {
         malloc(16);
         malloc(32);
         malloc(64);

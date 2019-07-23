@@ -1,9 +1,9 @@
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
-#define CPUINFO_FILE    "/proc/cpuinfo"
-#define BUFFSIZE        2048
+#define CPUINFO_FILE "/proc/cpuinfo"
+#define BUFFSIZE 2048
 
 /* vendor_id, model_name size reference Linux kernel struct cpuinfo_x86
  * (see Linux's arch/x86/include/asm/processor.h) */
@@ -18,18 +18,18 @@ struct cpuinfo {
     int cpu_cores;
 };
 
-static void init_cpuinfo(struct cpuinfo *ci) {
+static void init_cpuinfo(struct cpuinfo* ci) {
     ci->processor = -1;
     memset(&ci->vendor_id, 0, sizeof(ci->vendor_id));
     ci->cpu_family = -1;
-    ci->model = -1;
+    ci->model      = -1;
     memset(&ci->model_name, 0, sizeof(ci->model_name));
-    ci->stepping = -1;
-    ci->core_id = -1;
+    ci->stepping  = -1;
+    ci->core_id   = -1;
     ci->cpu_cores = -1;
 }
 
-static int parse_line(char *line, struct cpuinfo *ci) {
+static int parse_line(char* line, struct cpuinfo* ci) {
     char *k, *v, *p;
 
     if ((p = strchr(line, ':')) == NULL)
@@ -38,7 +38,7 @@ static int parse_line(char *line, struct cpuinfo *ci) {
     /* if the line does not have value string, p[1] should be '\n', otherwise
      * p[1] should be ' ' */
     if (p[1] == '\n' && !p[2])
-        return 0;  /* No value string */
+        return 0; /* No value string */
 
     /* ':' should always be followed by a space */
     if (p[1] != ' ')
@@ -51,7 +51,7 @@ static int parse_line(char *line, struct cpuinfo *ci) {
     *p = '\0';
     if ((p = strchr(line, '\t')) != NULL)
         *p = '\0';
-    k = line;
+    k      = line;
 
     if (!strcmp(k, "processor")) {
         sscanf(v, "%d\n", &ci->processor);
@@ -77,7 +77,7 @@ fmt_err:
     return -1;
 };
 
-static int check_cpuinfo(struct cpuinfo *ci) {
+static int check_cpuinfo(struct cpuinfo* ci) {
     if (ci->processor == -1) {
         fprintf(stderr, "Could not get cpu index\n");
         return -1;
@@ -94,8 +94,8 @@ static int check_cpuinfo(struct cpuinfo *ci) {
     return 0;
 }
 
-int main (int argc, char *argv[]) {
-    FILE *fp = NULL;
+int main(int argc, char* argv[]) {
+    FILE* fp = NULL;
     char line[BUFFSIZE];
     struct cpuinfo ci;
     int cpu_cnt = 0, rv = 0;

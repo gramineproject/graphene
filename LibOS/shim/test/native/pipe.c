@@ -1,10 +1,9 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int pipes[2];
 
     pipe(pipes);
@@ -18,7 +17,7 @@ int main(int argc, char ** argv)
 
     if (pid1 == 0) {
         close(pipes[0]);
-        write(pipes[1], "hello world",12);
+        write(pipes[1], "hello world", 12);
         return 0;
     }
 
@@ -26,7 +25,7 @@ int main(int argc, char ** argv)
     int bytes;
 
     close(pipes[1]);
-    bytes = read(pipes[0], buffer, 12);
+    bytes         = read(pipes[0], buffer, 12);
     buffer[bytes] = 0;
     printf("%s\n", buffer);
 

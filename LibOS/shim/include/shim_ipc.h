@@ -23,48 +23,48 @@
 #ifndef _SHIM_IPC_H_
 #define _SHIM_IPC_H_
 
-#include <shim_types.h>
 #include <shim_defs.h>
 #include <shim_handle.h>
-#include <shim_thread.h>
 #include <shim_sysv.h>
+#include <shim_thread.h>
+#include <shim_types.h>
 
-#include <pal.h>
 #include <list.h>
+#include <pal.h>
 
 DEFINE_LIST(shim_ipc_info);
 struct shim_ipc_info {
-    IDTYPE                  vmid;
-    struct shim_ipc_port *  port;
-    PAL_HANDLE              pal_handle;
-    struct shim_qstr        uri;
+    IDTYPE vmid;
+    struct shim_ipc_port* port;
+    PAL_HANDLE pal_handle;
+    struct shim_qstr uri;
     LIST_TYPE(shim_ipc_info) hlist;
-    REFTYPE                 ref_count;
+    REFTYPE ref_count;
 };
 
 enum { PID_NS, SYSV_NS, TOTAL_NS };
 
 struct shim_process {
-    IDTYPE              vmid;
-    struct shim_lock    lock;
-    int                 exit_code;
-    struct shim_ipc_info * self, * parent;
-    struct shim_ipc_info * ns[TOTAL_NS];
+    IDTYPE vmid;
+    struct shim_lock lock;
+    int exit_code;
+    struct shim_ipc_info *self, *parent;
+    struct shim_ipc_info* ns[TOTAL_NS];
 };
 
 extern struct shim_process cur_process;
 
-#define IPC_MSG_MINIMAL_SIZE        48
+#define IPC_MSG_MINIMAL_SIZE 48
 
 struct shim_ipc_msg {
-    unsigned char       code;
-    size_t              size;
-    IDTYPE              src, dst;
-    unsigned long       seq;
+    unsigned char code;
+    size_t size;
+    IDTYPE src, dst;
+    unsigned long seq;
 #ifdef PROFILE
-    unsigned long       time;
+    unsigned long time;
 #endif
-    char                msg[];
+    char msg[];
 } __attribute__((packed));
 
 struct shim_ipc_port;
@@ -72,40 +72,38 @@ struct shim_thread;
 
 DEFINE_LIST(shim_ipc_msg_duplex);
 struct shim_ipc_msg_duplex {
-    struct shim_thread *    thread;
+    struct shim_thread* thread;
     LIST_TYPE(shim_ipc_msg_duplex) list;
-    int                     retval;
-    void *                  private;
-    struct shim_ipc_msg     msg;
+    int retval;
+    void* private;
+    struct shim_ipc_msg msg;
 };
 
-typedef void (*port_fini) (struct shim_ipc_port *, IDTYPE vmid,
-                           unsigned int exitcode);
+typedef void (*port_fini)(struct shim_ipc_port*, IDTYPE vmid, unsigned int exitcode);
 
-#define MAX_IPC_PORT_FINI_CB        3
+#define MAX_IPC_PORT_FINI_CB 3
 
 DEFINE_LIST(shim_ipc_port);
 DEFINE_LISTP(shim_ipc_msg_duplex);
 struct shim_ipc_port {
-    PAL_HANDLE          pal_handle;
+    PAL_HANDLE pal_handle;
 
-    REFTYPE             ref_count;
+    REFTYPE ref_count;
     LIST_TYPE(shim_ipc_port) list;
     LISTP_TYPE(shim_ipc_msg_duplex) msgs;
-    struct shim_lock    msgs_lock;
+    struct shim_lock msgs_lock;
 
-    port_fini           fini[MAX_IPC_PORT_FINI_CB];
+    port_fini fini[MAX_IPC_PORT_FINI_CB];
 
-    IDTYPE              type;
-    IDTYPE              vmid;
+    IDTYPE type;
+    IDTYPE vmid;
 };
 
-#define IPC_CALLBACK_ARGS   \
-    struct shim_ipc_msg * msg, struct shim_ipc_port * port
+#define IPC_CALLBACK_ARGS struct shim_ipc_msg *msg, struct shim_ipc_port *port
 
 /* if callback return RESPONSE_CALLBACK, send a response even if the callback
    succeed. */
-#define RESPONSE_CALLBACK   1
+#define RESPONSE_CALLBACK 1
 
 typedef int (*ipc_callback)(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
@@ -131,7 +129,7 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession);
 int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 /* Message code from child to parent */
-#define IPC_CLD_BASE       IPC_BASE_BOUND
+#define IPC_CLD_BASE IPC_BASE_BOUND
 enum {
     IPC_CLD_EXIT = IPC_CLD_BASE,
 #ifdef PROFILE
@@ -154,7 +152,7 @@ int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned i
 int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port);
 
 #ifdef PROFILE
-# include <shim_profile.h>
+#include <shim_profile.h>
 
 struct shim_ipc_cld_profile {
     unsigned long time;
@@ -167,9 +165,9 @@ int ipc_cld_profile_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
 #endif
 
 /* Message code to namespace manager */
-#define IPC_PID_BASE       IPC_CLD_BOUND
+#define IPC_PID_BASE IPC_CLD_BOUND
 
-#define NS     pid
+#define NS pid
 #define NS_CAP PID
 
 #include "shim_ipc_ns.h"
@@ -208,10 +206,9 @@ struct shim_ipc_pid_getstatus {
     IDTYPE pids[];
 } __attribute__((packed));
 
-int ipc_pid_getstatus_send (struct shim_ipc_port * port, IDTYPE dest,
-                            int npids, IDTYPE * pids,
-                            struct pid_status ** status);
-int ipc_pid_getstatus_callback (IPC_CALLBACK_ARGS);
+int ipc_pid_getstatus_send(struct shim_ipc_port* port, IDTYPE dest, int npids, IDTYPE* pids,
+                           struct pid_status** status);
+int ipc_pid_getstatus_callback(IPC_CALLBACK_ARGS);
 
 /* PID_RETSTATUS: return status of pid(s) */
 struct shim_ipc_pid_retstatus {
@@ -219,10 +216,9 @@ struct shim_ipc_pid_retstatus {
     struct pid_status status[];
 } __attribute__((packed));
 
-int ipc_pid_retstatus_send (struct shim_ipc_port * port, IDTYPE dest,
-                            int nstatus, struct pid_status * status,
-                            unsigned long seq);
-int ipc_pid_retstatus_callback (IPC_CALLBACK_ARGS);
+int ipc_pid_retstatus_send(struct shim_ipc_port* port, IDTYPE dest, int nstatus,
+                           struct pid_status* status, unsigned long seq);
+int ipc_pid_retstatus_callback(IPC_CALLBACK_ARGS);
 
 /* PID_GETMETA: get metadata of certain pid */
 enum pid_meta_code {
@@ -237,9 +233,8 @@ struct shim_ipc_pid_getmeta {
     enum pid_meta_code code;
 } __attribute__((packed));
 
-int ipc_pid_getmeta_send (IDTYPE pid, enum pid_meta_code code,
-                          void ** data);
-int ipc_pid_getmeta_callback (IPC_CALLBACK_ARGS);
+int ipc_pid_getmeta_send(IDTYPE pid, enum pid_meta_code code, void** data);
+int ipc_pid_getmeta_callback(IPC_CALLBACK_ARGS);
 
 /* PID_RETMETA: return metadata of certain pid */
 struct shim_ipc_pid_retmeta {
@@ -249,11 +244,10 @@ struct shim_ipc_pid_retmeta {
     char data[];
 } __attribute__((packed));
 
-int ipc_pid_retmeta_send (struct shim_ipc_port * port, IDTYPE dest,
-                          IDTYPE pid, enum pid_meta_code code,
-                          const void * data, int datasize,
-                          unsigned long seq);
-int ipc_pid_retmeta_callback (IPC_CALLBACK_ARGS);
+int ipc_pid_retmeta_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE pid,
+                         enum pid_meta_code code, const void* data, int datasize,
+                         unsigned long seq);
+int ipc_pid_retmeta_callback(IPC_CALLBACK_ARGS);
 
 /* PID_NOP: send junk message (for benchmarking) */
 struct shim_ipc_pid_nop {
@@ -261,8 +255,7 @@ struct shim_ipc_pid_nop {
     char payload[];
 } __attribute__((packed));
 
-int ipc_pid_nop_send (struct shim_ipc_port * port, IDTYPE dest, int count,
-                      const void * buf, int len);
+int ipc_pid_nop_send(struct shim_ipc_port* port, IDTYPE dest, int count, const void* buf, int len);
 int ipc_pid_nop_callback(IPC_CALLBACK_ARGS);
 
 /* PID_SENDRPC: send arbitary message (for benchmarking) */
@@ -272,18 +265,17 @@ struct shim_ipc_pid_sendrpc {
     char payload[];
 } __attribute__((packed));
 
-int ipc_pid_sendrpc_send (IDTYPE pid, IDTYPE sender, const void * buf,
-                          int len);
-int ipc_pid_sendrpc_callback (IPC_CALLBACK_ARGS);
+int ipc_pid_sendrpc_send(IDTYPE pid, IDTYPE sender, const void* buf, int len);
+int ipc_pid_sendrpc_callback(IPC_CALLBACK_ARGS);
 
-#define IPC_SYSV_BASE      IPC_PID_BOUND
+#define IPC_SYSV_BASE IPC_PID_BOUND
 
 struct sysv_key {
-    unsigned long   key;
-    enum sysv_type  type;
+    unsigned long key;
+    enum sysv_type type;
 };
 
-#define NS     sysv
+#define NS sysv
 #define NS_CAP SYSV
 #define NS_KEY struct sysv_key
 
@@ -312,9 +304,9 @@ struct shim_ipc_sysv_delres {
     enum sysv_type type;
 } __attribute__((packed));
 
-int ipc_sysv_delres_send (struct shim_ipc_port * port, IDTYPE dest,
-                          IDTYPE resid, enum sysv_type type);
-int ipc_sysv_delres_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_delres_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE resid,
+                         enum sysv_type type);
+int ipc_sysv_delres_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_MOVRES */
 struct shim_ipc_sysv_movres {
@@ -325,10 +317,9 @@ struct shim_ipc_sysv_movres {
     char uri[1];
 } __attribute__((packed));
 
-int ipc_sysv_movres_send (struct sysv_client * client, IDTYPE owner,
-                          const char * uri, LEASETYPE lease, IDTYPE resid,
-                          enum sysv_type type);
-int ipc_sysv_movres_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_movres_send(struct sysv_client* client, IDTYPE owner, const char* uri, LEASETYPE lease,
+                         IDTYPE resid, enum sysv_type type);
+int ipc_sysv_movres_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_MSGSND */
 struct shim_ipc_sysv_msgsnd {
@@ -337,10 +328,9 @@ struct shim_ipc_sysv_msgsnd {
     char msg[];
 } __attribute__((packed));
 
-int ipc_sysv_msgsnd_send (struct shim_ipc_port * port, IDTYPE dest,
-                          IDTYPE msgid, long msgtype,
-                          const void * buf, size_t size, unsigned long seq);
-int ipc_sysv_msgsnd_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_msgsnd_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, long msgtype,
+                         const void* buf, size_t size, unsigned long seq);
+int ipc_sysv_msgsnd_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_MSGRCV */
 struct shim_ipc_sysv_msgrcv {
@@ -350,9 +340,8 @@ struct shim_ipc_sysv_msgrcv {
     int flags;
 } __attribute__((packed));
 
-int ipc_sysv_msgrcv_send (IDTYPE msgid, long msgtype, int flags, void * buf,
-                          size_t size);
-int ipc_sysv_msgrcv_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_msgrcv_send(IDTYPE msgid, long msgtype, int flags, void* buf, size_t size);
+int ipc_sysv_msgrcv_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_MSGMOV */
 struct shim_ipc_sysv_msgmov {
@@ -362,10 +351,9 @@ struct shim_ipc_sysv_msgmov {
     struct sysv_score scores[];
 } __attribute__((packed));
 
-int ipc_sysv_msgmov_send (struct shim_ipc_port * port, IDTYPE dest,
-                          IDTYPE msgid, LEASETYPE lease,
-                          struct sysv_score * scores, int nscores);
-int ipc_sysv_msgmov_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_msgmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE msgid, LEASETYPE lease,
+                         struct sysv_score* scores, int nscores);
+int ipc_sysv_msgmov_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_SEMOP */
 struct shim_ipc_sysv_semop {
@@ -377,9 +365,9 @@ struct shim_ipc_sysv_semop {
 
 #define IPC_SEM_NOTIMEOUT ((unsigned long)-1)
 
-int ipc_sysv_semop_send (IDTYPE semid, struct sembuf * sops, int nsops,
-                         unsigned long timeout, unsigned long * seq);
-int ipc_sysv_semop_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_semop_send(IDTYPE semid, struct sembuf* sops, int nsops, unsigned long timeout,
+                        unsigned long* seq);
+int ipc_sysv_semop_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_SEMCTL */
 struct shim_ipc_sysv_semctl {
@@ -390,9 +378,8 @@ struct shim_ipc_sysv_semctl {
     unsigned char vals[];
 } __attribute__((packed));
 
-int ipc_sysv_semctl_send (IDTYPE semid, int semnum, int cmd, void * vals,
-                          size_t valsize);
-int ipc_sysv_semctl_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_semctl_send(IDTYPE semid, int semnum, int cmd, void* vals, size_t valsize);
+int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_SEMRET */
 struct shim_ipc_sysv_semret {
@@ -400,9 +387,9 @@ struct shim_ipc_sysv_semret {
     unsigned char vals[];
 } __attribute__((packed));
 
-int ipc_sysv_semret_send (struct shim_ipc_port * port, IDTYPE dest,
-                          void * vals, size_t valsize, unsigned long seq);
-int ipc_sysv_semret_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_semret_send(struct shim_ipc_port* port, IDTYPE dest, void* vals, size_t valsize,
+                         unsigned long seq);
+int ipc_sysv_semret_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_SEMMOV */
 struct shim_ipc_sysv_semmov {
@@ -412,12 +399,10 @@ struct shim_ipc_sysv_semmov {
     struct sem_backup sems[];
 } __attribute__((packed));
 
-int ipc_sysv_semmov_send (struct shim_ipc_port * port, IDTYPE dest,
-                          IDTYPE semid, LEASETYPE lease,
-                          struct sem_backup * sems, int nsems,
-                          struct sem_client_backup * srcs, int nsrcs,
-                          struct sysv_score * scores, int nscores);
-int ipc_sysv_semmov_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_semmov_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, LEASETYPE lease,
+                         struct sem_backup* sems, int nsems, struct sem_client_backup* srcs,
+                         int nsrcs, struct sysv_score* scores, int nscores);
+int ipc_sysv_semmov_callback(IPC_CALLBACK_ARGS);
 
 #ifdef USE_SHARED_SEMAPHORE
 /* SYSV_SEMQUERY */
@@ -425,8 +410,8 @@ struct shim_ipc_sysv_semquery {
     IDTYPE semid;
 } __attribute__((packed));
 
-int ipc_sysv_semquery_send (IDTYPE semid, int * nsems, PAL_NUM ** host_sem_ids);
-int ipc_sysv_semquery_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_semquery_send(IDTYPE semid, int* nsems, PAL_NUM** host_sem_ids);
+int ipc_sysv_semquery_callback(IPC_CALLBACK_ARGS);
 
 /* SYSV_SEMREPLY */
 struct shim_ipc_sysv_semreply {
@@ -435,13 +420,12 @@ struct shim_ipc_sysv_semreply {
     PAL_NUM host_sem_ids[];
 } __attribute__((packed));
 
-int ipc_sysv_semreply_send (struct shim_ipc_port * port, IDTYPE dest,
-                            IDTYPE semid, int nsems, PAL_NUM * host_sem_ids,
-                            unsigned long seq);
-int ipc_sysv_semreply_callback (IPC_CALLBACK_ARGS);
+int ipc_sysv_semreply_send(struct shim_ipc_port* port, IDTYPE dest, IDTYPE semid, int nsems,
+                           PAL_NUM* host_sem_ids, unsigned long seq);
+int ipc_sysv_semreply_callback(IPC_CALLBACK_ARGS);
 #endif
 
-#define IPC_CODE_NUM     IPC_SYSV_BOUND
+#define IPC_CODE_NUM IPC_SYSV_BOUND
 
 /* functions and routines */
 int init_ipc(void);
@@ -454,30 +438,28 @@ struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info);
 int get_ipc_info_cur_process(struct shim_ipc_info** pinfo);
 
 enum {
-    LISTEN,     /* listening */
-    SERVER,     /* connect as a server */
-    KEEPALIVE,  /* keep the connetion alive */
-    DIRCLD,     /* direct child */
-    DIRPRT,     /* direct parent */
-    NS_PORT_CONSTS(PID)
-    NS_PORT_CONSTS(SYSV)
+    LISTEN,    /* listening */
+    SERVER,    /* connect as a server */
+    KEEPALIVE, /* keep the connetion alive */
+    DIRCLD,    /* direct child */
+    DIRPRT,    /* direct parent */
+    NS_PORT_CONSTS(PID) NS_PORT_CONSTS(SYSV)
 };
 
 enum {
-    IPC_PORT_LISTEN = 1<<LISTEN,
-    IPC_PORT_SERVER = 1<<SERVER,
-    IPC_PORT_KEEPALIVE = 1<<KEEPALIVE,
-    IPC_PORT_DIRCLD = 1<<DIRCLD,
-    IPC_PORT_DIRPRT = 1<<DIRPRT,
-    NS_PORT_TYPES(PID)
-    NS_PORT_TYPES(SYSV)
+    IPC_PORT_LISTEN    = 1 << LISTEN,
+    IPC_PORT_SERVER    = 1 << SERVER,
+    IPC_PORT_KEEPALIVE = 1 << KEEPALIVE,
+    IPC_PORT_DIRCLD    = 1 << DIRCLD,
+    IPC_PORT_DIRPRT    = 1 << DIRPRT,
+    NS_PORT_TYPES(PID) NS_PORT_TYPES(SYSV)
 };
 
 /* general-purpose routines */
-void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type,
-                        port_fini fini, struct shim_ipc_port** portptr);
-void add_ipc_port(struct shim_ipc_port * port, IDTYPE vmid, IDTYPE type, port_fini fini);
-void del_ipc_port_fini(struct shim_ipc_port * port, unsigned int exitcode);
+void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type, port_fini fini,
+                        struct shim_ipc_port** portptr);
+void add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid, IDTYPE type, port_fini fini);
+void del_ipc_port_fini(struct shim_ipc_port* port, unsigned int exitcode);
 struct shim_ipc_port* lookup_ipc_port(IDTYPE vmid, IDTYPE type);
 void get_ipc_port(struct shim_ipc_port* port);
 void put_ipc_port(struct shim_ipc_port* port);
@@ -499,7 +481,7 @@ static_always_inline size_t get_ipc_msg_size(size_t payload) {
 static_always_inline size_t get_ipc_msg_duplex_size(size_t payload) {
     assert(sizeof(struct shim_ipc_msg_duplex) >= sizeof(struct shim_ipc_msg));
     return get_ipc_msg_size(payload) +
-        (sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg));
+           (sizeof(struct shim_ipc_msg_duplex) - sizeof(struct shim_ipc_msg));
 }
 
 void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest);

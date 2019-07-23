@@ -20,33 +20,30 @@
  * This files contains APIs that allocate, free or protect virtual memory.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
+#include "pal_linux_defs.h"
 
-#include <asm/mman.h>
 #include <asm/fcntl.h>
+#include <asm/mman.h>
 
-bool _DkCheckMemoryMappable (const void * addr, size_t size)
-{
+bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     return (addr < DATA_END && addr + size > TEXT_START);
 }
 
-int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
-                           int prot)
-{
-    void * addr = *paddr, * mem = addr;
+int _DkVirtualMemoryAlloc(void** paddr, size_t size, int alloc_type, int prot) {
+    void *addr = *paddr, *mem = addr;
 
-    int flags = HOST_FLAGS(alloc_type, prot|PAL_PROT_WRITECOPY);
-    prot = HOST_PROT(prot);
+    int flags = HOST_FLAGS(alloc_type, prot | PAL_PROT_WRITECOPY);
+    prot      = HOST_PROT(prot);
 
-    flags |= MAP_ANONYMOUS|(addr ? MAP_FIXED : 0);
-    mem = (void *) ARCH_MMAP(addr, size, prot, flags, -1, 0);
+    flags |= MAP_ANONYMOUS | (addr ? MAP_FIXED : 0);
+    mem = (void*)ARCH_MMAP(addr, size, prot, flags, -1, 0);
 
     if (IS_ERR_P(mem))
         return unix_to_pal_error(ERRNO_P(mem));
@@ -55,22 +52,19 @@ int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, size_t size)
-{
+int _DkVirtualMemoryFree(void* addr, size_t size) {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-int _DkVirtualMemoryProtect (void * addr, size_t size, int prot)
-{
+int _DkVirtualMemoryProtect(void* addr, size_t size, int prot) {
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, HOST_PROT(prot));
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-static int read_proc_meminfo (const char * key, unsigned long * val)
-{
+static int read_proc_meminfo(const char* key, unsigned long* val) {
     int fd = INLINE_SYSCALL(open, 3, "/proc/meminfo", O_RDONLY, 0);
 
     if (IS_ERR(fd))
@@ -79,7 +73,7 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
     char buffer[40];
     int ret = 0;
     size_t n;
-    size_t r = 0;
+    size_t r   = 0;
     size_t len = strlen(key);
 
     ret = -PAL_ERROR_DENIED;
@@ -90,7 +84,7 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
             break;
         }
 
-        for (n = r ; n < r + ret ; n++)
+        for (n = r; n < r + ret; n++)
             if (buffer[n] == '\n')
                 break;
 
@@ -101,7 +95,7 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
         }
 
         if (!memcmp(key, buffer, len) && buffer[len] == ':') {
-            for (size_t i = len + 1; i < n ; i++)
+            for (size_t i = len + 1; i < n; i++)
                 if (buffer[i] != ' ') {
                     *val = atol(buffer + i);
                     break;
@@ -118,9 +112,8 @@ static int read_proc_meminfo (const char * key, unsigned long * val)
     return ret;
 }
 
-unsigned long _DkMemoryQuota (void)
-{
-    if (linux_state.memory_quota == (unsigned long) -1)
+unsigned long _DkMemoryQuota(void) {
+    if (linux_state.memory_quota == (unsigned long)-1)
         return 0;
 
     if (linux_state.memory_quota)
@@ -128,15 +121,14 @@ unsigned long _DkMemoryQuota (void)
 
     unsigned long quota = 0;
     if (read_proc_meminfo("MemTotal", &quota) < 0) {
-        linux_state.memory_quota = (unsigned long) -1;
+        linux_state.memory_quota = (unsigned long)-1;
         return 0;
     }
 
     return (linux_state.memory_quota = quota * 1024);
 }
 
-unsigned long _DkMemoryAvailableQuota (void)
-{
+unsigned long _DkMemoryAvailableQuota(void) {
     unsigned long quota = 0;
     if (read_proc_meminfo("MemFree", &quota) < 0)
         return 0;

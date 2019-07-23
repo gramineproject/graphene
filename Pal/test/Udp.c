@@ -1,19 +1,17 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-#define NTRIES  10
+#define NTRIES 10
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     char addr[40];
     int i;
 
-    if (argc == 1)
-    {
+    if (argc == 1) {
         unsigned long start = DkSystemTimeQuery();
 
-        const char * newargs[3] = { "Udp", "child", NULL };
+        const char* newargs[3] = {"Udp", "child", NULL};
 
         PAL_HANDLE srv = DkStreamOpen("udp.srv:127.0.0.1:8000", 0, 0, 0, 0);
 
@@ -27,7 +25,7 @@ int main (int argc, char ** argv)
 
         PAL_HANDLE proc = DkProcessCreate("file:Udp", newargs);
 
-        for (i = 0 ; i < NTRIES ; i++) {
+        for (i = 0; i < NTRIES; i++) {
             char buffer[20];
             int bytes = DkStreamRead(srv, 0, 20, buffer, addr, 40);
 
@@ -46,14 +44,13 @@ int main (int argc, char ** argv)
         DkStreamRead(proc, 0, sizeof(int), &retval, NULL, 0);
         DkStreamDelete(srv, 0);
         DkObjectClose(srv);
-    }
-    else {
+    } else {
         PAL_HANDLE cli = DkStreamOpen("udp:127.0.0.1:8000", 0, 0, 0, 0);
 
         DkStreamGetName(cli, addr, 40);
         pal_printf("client connected on %s\n", addr);
 
-        for (i = 0 ; i < NTRIES ; i++) {
+        for (i = 0; i < NTRIES; i++) {
             int bytes = DkStreamWrite(cli, 0, 12, "Hello World", NULL);
 
             if (!bytes) {
@@ -70,4 +67,3 @@ int main (int argc, char ** argv)
 
     return 0;
 }
-

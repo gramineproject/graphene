@@ -21,37 +21,33 @@
  * This file contains codes for maintaining directory cache in library OS.
  */
 
-#include <shim_types.h>
-#include <shim_internal.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
 #include <shim_checkpoint.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_types.h>
 
 #include <list.h>
 
 struct shim_lock dcache_lock;
 
-#define DCACHE_MGR_ALLOC    64
-#define PAGE_SIZE           allocsize
+#define DCACHE_MGR_ALLOC 64
+#define PAGE_SIZE allocsize
 
 #define OBJ_TYPE struct shim_dentry
 #include <memmgr.h>
 
 static MEM_MGR dentry_mgr = NULL;
 
-struct shim_dentry * dentry_root = NULL;
+struct shim_dentry* dentry_root = NULL;
 
-static inline
-HASHTYPE hash_dentry (struct shim_dentry * start, const char * path, int len)
-{
+static inline HASHTYPE hash_dentry(struct shim_dentry* start, const char* path, int len) {
     return rehash_path(start ? start->rel_path.hash : 0, path, len);
 }
 
-static struct shim_dentry * alloc_dentry (void)
-{
-    struct shim_dentry * dent =
-                get_mem_obj_from_mgr_enlarge(dentry_mgr,
-                                             size_align_up(DCACHE_MGR_ALLOC));
+static struct shim_dentry* alloc_dentry(void) {
+    struct shim_dentry* dent =
+        get_mem_obj_from_mgr_enlarge(dentry_mgr, size_align_up(DCACHE_MGR_ALLOC));
     if (!dent)
         return NULL;
 
@@ -68,9 +64,7 @@ static struct shim_dentry * alloc_dentry (void)
     return dent;
 }
 
-
-int init_dcache (void)
-{
+int init_dcache(void) {
     dentry_mgr = create_mem_mgr(init_align_up(DCACHE_MGR_ALLOC));
 
     create_lock(&dcache_lock);
@@ -88,7 +82,7 @@ int init_dcache (void)
     /* The root should be a directory too*/
     dentry_root->state |= DENTRY_ISDIRECTORY;
 
-    qstrsetstr(&dentry_root->name,     "", 0);
+    qstrsetstr(&dentry_root->name, "", 0);
     qstrsetstr(&dentry_root->rel_path, "", 0);
 
     get_dentry(dentry_root);
@@ -96,21 +90,18 @@ int init_dcache (void)
 }
 
 /* Increment the reference count for a dentry */
-void get_dentry (struct shim_dentry * dent)
-{
+void get_dentry(struct shim_dentry* dent) {
 #ifdef DEBUG_REF
     int count = REF_INC(dent->ref_count);
 
     debug("get dentry %p(%s/%s) (ref_count = %d)\n", dent,
-          dent->fs ?
-          qstrgetstr(&dent->fs->path) : "",
-          qstrgetstr(&dent->rel_path), count);
+          dent->fs ? qstrgetstr(&dent->fs->path) : "", qstrgetstr(&dent->rel_path), count);
 #else
     REF_INC(dent->ref_count);
 #endif
 }
 
-static void free_dentry (struct shim_dentry *dent) {
+static void free_dentry(struct shim_dentry* dent) {
     free_mem_obj_to_mgr(dentry_mgr, dent);
 }
 
@@ -125,9 +116,9 @@ static void free_dentry (struct shim_dentry *dent) {
  * If the ref count ever hits zero, we free the dentry.
  *
  */
-void put_dentry (struct shim_dentry * dent) {
+void put_dentry(struct shim_dentry* dent) {
     int count = REF_DEC(dent->ref_count);
-    assert (count >= 0);
+    assert(count >= 0);
     // We don't expect this to commonly free a dentry, and may represent a
     // reference counting bug.
     if (count == 0) {
@@ -155,12 +146,9 @@ void put_dentry (struct shim_dentry * dent) {
  *
  * This function also sets up both a name and a relative path
  */
-struct shim_dentry * get_new_dentry (struct shim_mount *mount,
-                                     struct shim_dentry * parent,
-                                     const char * name, int namelen,
-                                     HASHTYPE * hashptr)
-{
-    struct shim_dentry * dent = alloc_dentry();
+struct shim_dentry* get_new_dentry(struct shim_mount* mount, struct shim_dentry* parent,
+                                   const char* name, int namelen, HASHTYPE* hashptr) {
+    struct shim_dentry* dent = alloc_dentry();
     HASHTYPE hash;
 
     if (!dent)
@@ -196,8 +184,8 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
         parent->nchildren++;
 
         if (!qstrempty(&parent->rel_path)) {
-            const char * strs[] = { qstrgetstr(&parent->rel_path), "/", name };
-            size_t lens[] = { parent->rel_path.len, 1, namelen };
+            const char* strs[] = {qstrgetstr(&parent->rel_path), "/", name};
+            size_t lens[]      = {parent->rel_path.len, 1, namelen};
             assert(lens[0] + lens[1] + lens[2] < STR_SIZE);
             qstrsetstrs(&dent->rel_path, 3, strs, lens);
         } else
@@ -219,10 +207,8 @@ struct shim_dentry * get_new_dentry (struct shim_mount *mount,
  *
  * Used only by shim_namei.c
  */
-struct shim_dentry *
-__lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
-                 HASHTYPE * hashptr) {
-
+struct shim_dentry* __lookup_dcache(struct shim_dentry* start, const char* name, int namelen,
+                                    HASHTYPE* hashptr) {
     /* In this implementation, we just look at the children
      * under the parent and see if there are matches.  It so,
      * return it; if not, don't.
@@ -238,7 +224,8 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
      * This mainly happens when boostrapping; in general, we assume the
      * caller will use the current root or cwd.
      */
-    if (!start) return NULL;
+    if (!start)
+        return NULL;
 
     /* If we are looking up an empty string, return start */
     if (namelen == 0) {
@@ -252,8 +239,8 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
          * reason for mount point lookup to fail, at least in this code.
          * Keeping a note just in case.  That is why you always leave a note.
          */
-        //if (dent->state & DENTRY_MOUNTPOINT)
-        //continue;
+        // if (dent->state & DENTRY_MOUNTPOINT)
+        // continue;
 
         // Check for memory corruption
         assert(0 == (dent->state & DENTRY_INVALID_FLAGS));
@@ -265,10 +252,10 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
         /* I think comparing the relative path is adequate; with a global
          * hash table, a full path comparison may be needed, but I think
          * we can assume a parent has children with unique names */
-        const char * filename = get_file_name(name, namelen);
-        const char * dname = dentry_get_name(dent);
-        int dname_len = strlen(dname);
-        int fname_len = name + namelen - filename;
+        const char* filename = get_file_name(name, namelen);
+        const char* dname    = dentry_get_name(dent);
+        int dname_len        = strlen(dname);
+        int fname_len        = name + namelen - filename;
         if (dname_len != fname_len || memcmp(dname, filename, fname_len))
             continue;
 
@@ -294,7 +281,7 @@ out:
  * may be preferable to rewrite this using tail recursion or allocating a
  * structure on the heap to track progress.
  */
-int __del_dentry_tree(struct shim_dentry * root) {
+int __del_dentry_tree(struct shim_dentry* root) {
     struct shim_dentry *cursor, *n;
 
     LISTP_FOR_EACH_ENTRY_SAFE(cursor, n, &root->children, siblings) {
@@ -314,19 +301,18 @@ int __del_dentry_tree(struct shim_dentry * root) {
     return 0;
 }
 
-BEGIN_CP_FUNC(dentry)
-{
+BEGIN_CP_FUNC(dentry) {
     assert(size == sizeof(struct shim_dentry));
 
-    struct shim_dentry * dent = (struct shim_dentry *) obj;
-    struct shim_dentry * new_dent = NULL;
+    struct shim_dentry* dent     = (struct shim_dentry*)obj;
+    struct shim_dentry* new_dent = NULL;
 
     ptr_t off = GET_FROM_CP_MAP(obj);
 
     if (!off) {
         off = ADD_CP_OFFSET(sizeof(struct shim_dentry));
         ADD_TO_CP_MAP(obj, off);
-        new_dent = (struct shim_dentry *) (base + off);
+        new_dent = (struct shim_dentry*)(base + off);
 
         lock(&dent->lock);
         *new_dent = *dent;
@@ -353,18 +339,17 @@ BEGIN_CP_FUNC(dentry)
         unlock(&dent->lock);
         ADD_CP_FUNC_ENTRY(off);
     } else {
-        new_dent = (struct shim_dentry *) (base + off);
+        new_dent = (struct shim_dentry*)(base + off);
     }
 
     if (objp)
-        *objp = (void *) new_dent;
+        *objp = (void*)new_dent;
 }
 END_CP_FUNC(dentry)
 
-BEGIN_RS_FUNC(dentry)
-{
+BEGIN_RS_FUNC(dentry) {
     __UNUSED(offset);
-    struct shim_dentry * dent = (void *) (base + GET_CP_FUNC_ENTRY());
+    struct shim_dentry* dent = (void*)(base + GET_CP_FUNC_ENTRY());
 
     CP_REBASE(dent->hlist);
     CP_REBASE(dent->list);
@@ -385,8 +370,7 @@ BEGIN_RS_FUNC(dentry)
         LISTP_ADD_TAIL(dent, &dent->parent->children, siblings);
     }
 
-    DEBUG_RS("hash=%08lx,path=%s,fs=%s", dent->rel_path.hash,
-             dentry_get_path(dent, true, NULL),
+    DEBUG_RS("hash=%08lx,path=%s,fs=%s", dent->rel_path.hash, dentry_get_path(dent, true, NULL),
              dent->fs ? qstrgetstr(&dent->fs->path) : NULL);
 }
 END_RS_FUNC(dentry)

@@ -1,11 +1,10 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-#define NTRIES  10
+#define NTRIES 10
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     unsigned long pipeid;
     char uri[40];
 
@@ -18,8 +17,7 @@ int main (int argc, char ** argv)
 
     snprintf(uri, 40, "pipe.srv:%ld", pipeid);
 
-    PAL_HANDLE srv = DkStreamOpen(uri, 0, 0,
-                                  PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
+    PAL_HANDLE srv = DkStreamOpen(uri, 0, 0, PAL_CREATE_TRY | PAL_CREATE_ALWAYS, 0);
 
     if (!srv) {
         pal_printf("not able to create server (%s)\n", uri);
@@ -28,8 +26,7 @@ int main (int argc, char ** argv)
 
     snprintf(uri, 40, "pipe:%ld", pipeid);
 
-    PAL_HANDLE cli = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0,
-                                  PAL_CREATE_TRY|PAL_CREATE_ALWAYS, 0);
+    PAL_HANDLE cli = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0, PAL_CREATE_TRY | PAL_CREATE_ALWAYS, 0);
 
     if (!cli) {
         pal_printf("not able to create client\n");
@@ -43,8 +40,8 @@ int main (int argc, char ** argv)
     PAL_HANDLE conn = DkStreamWaitForClient(srv);
 
     if (!cli) {
-         pal_printf("not able to accept client\n");
-         return -1;
+        pal_printf("not able to accept client\n");
+        return -1;
     }
 
     DkStreamGetName(conn, uri, 40);
@@ -55,7 +52,7 @@ int main (int argc, char ** argv)
 
     int i;
 
-    for (i = 0 ; i < NTRIES ; i++) {
+    for (i = 0; i < NTRIES; i++) {
         int bytes = DkStreamWrite(cli, 0, 12, "Hello World", NULL);
 
         if (!bytes) {
@@ -64,7 +61,7 @@ int main (int argc, char ** argv)
         }
     }
 
-    for (i = 0 ; i < NTRIES ; i++) {
+    for (i = 0; i < NTRIES; i++) {
         char buffer[12];
         int bytes = DkStreamRead(conn, 0, 12, buffer, NULL, 0);
 
@@ -81,4 +78,3 @@ int main (int argc, char ** argv)
 
     return 0;
 }
-

@@ -5,13 +5,12 @@
 
 char str[13];
 
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     long sleeping = 3000000;
 
     if (argc > 1) {
-        const char * c = argv[1];
-        sleeping = 0;
+        const char* c = argv[1];
+        sleeping      = 0;
         while (*c) {
             if ((*c) > '9' || (*c) < '0')
                 break;
@@ -27,7 +26,8 @@ int main (int argc, char ** argv, char ** envp)
         pal_printf("Sleeping %ld microsecond...\n", sleeping);
         DkThreadDelayExecution(sleeping);
     } else {
-        while (1);
+        while (1)
+            ;
     }
 
     pal_printf("Leave Main Thread\n");

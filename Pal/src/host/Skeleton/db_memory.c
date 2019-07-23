@@ -20,40 +20,33 @@
  * This files contains APIs that allocate, free or protect virtual memory.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
-bool _DkCheckMemoryMappable (const void * addr, size_t size)
-{
+bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     return true;
 }
 
-int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type,
-                           int prot)
-{
+int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkVirtualMemoryFree (void * addr, uint64_t size)
-{
+int _DkVirtualMemoryFree(void* addr, uint64_t size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
-{
+int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-unsigned long _DkMemoryQuota (void)
-{
+unsigned long _DkMemoryQuota(void) {
     return 0;
 }
 
-unsigned long _DkMemoryAvailableQuota (void)
-{
+unsigned long _DkMemoryAvailableQuota(void) {
     return 0;
 }

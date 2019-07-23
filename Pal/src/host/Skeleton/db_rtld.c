@@ -23,22 +23,18 @@
  * Library.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_debug.h"
-#include "pal_error.h"
-#include "pal_rtld.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_rtld.h"
 
-#include <sysdeps/generic/ldsodefs.h>
-#include <elf/elf.h>
 #include <dlfcn.h>
+#include <elf/elf.h>
+#include <sysdeps/generic/ldsodefs.h>
 
-void _DkDebugAddMap (struct link_map * map)
-{
-}
+void _DkDebugAddMap(struct link_map* map) {}
 
-void _DkDebugDelMap (struct link_map * map)
-{
-}
+void _DkDebugDelMap(struct link_map* map) {}

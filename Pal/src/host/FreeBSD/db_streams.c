@@ -21,33 +21,31 @@
  * streams.
  */
 
-#include "pal_defs.h"
-#include "pal_freebsd_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_freebsd.h"
-#include "pal_debug.h"
-#include "pal_error.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_freebsd.h"
+#include "pal_freebsd_defs.h"
+#include "pal_internal.h"
 
 #include <sys/types.h>
 typedef __kernel_pid_t pid_t;
-#include <sys/msg.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <poll.h>
-#include <sys/signal.h>
-#include <netinet/in.h>
 #include <errno.h>
+#include <netinet/in.h>
+#include <poll.h>
+#include <sys/msg.h>
+#include <sys/signal.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
-void _DkPrintConsole (const void * buf, int size)
-{
+void _DkPrintConsole(const void* buf, int size) {
     INLINE_SYSCALL(write, 3, 2, buf, size);
 }
 
-bool stataccess (struct stat * stat, int acc)
-{
+bool stataccess(struct stat* stat, int acc) {
     mode_t mode = stat->st_mode;
 
     if (bsd_state.uid && bsd_state.uid == stat->st_uid) {
@@ -67,14 +65,11 @@ out:
     return (mode & acc);
 }
 
-int handle_set_cloexec (PAL_HANDLE handle, bool enable)
-{
-    for (int i = 0 ; i < MAX_FDS ; i++)
-        if (handle->hdr.flags & (RFD(i)|WFD(i))) {
+int handle_set_cloexec(PAL_HANDLE handle, bool enable) {
+    for (int i = 0; i < MAX_FDS; i++)
+        if (handle->hdr.flags & (RFD(i) | WFD(i))) {
             long flags = enable ? FD_CLOEXEC : 0;
-            int ret = INLINE_SYSCALL(fcntl, 3,
-                                     handle->hdr.fds[i], F_SETFD,
-                                     flags);
+            int ret    = INLINE_SYSCALL(fcntl, 3, handle->hdr.fds[i], F_SETFD, flags);
             if (IS_ERR(ret) && ERRNO(ret) != EBADF)
                 return -PAL_ERROR_DENIED;
         }
@@ -84,8 +79,7 @@ int handle_set_cloexec (PAL_HANDLE handle, bool enable)
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.
    The memory is unmapped as a whole.*/
-int _DkStreamUnmap (void * addr, uint64_t size)
-{
+int _DkStreamUnmap(void* addr, uint64_t size) {
     /* Just let the kernel tell us if the mapping isn't good. */
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
@@ -106,19 +100,18 @@ static size_t addr_size(const struct sockaddr* addr) {
     }
 }
 
-int handle_serialize (PAL_HANDLE handle, void ** data)
-{
+int handle_serialize(PAL_HANDLE handle, void** data) {
     int hdlsz = handle_size(handle);
-    const void * d1, * d2;
+    const void *d1, *d2;
     int dsz1 = 0, dsz2 = 0;
 
     // ~ Check cargo PAL_HANDLE - is allowed to be sent (White List checking
     // of cargo type)
     // ~ Also, Initialize common parameter formessage passing
     // Channel between parent and child
-    switch(PAL_GET_TYPE(handle)) {
+    switch (PAL_GET_TYPE(handle)) {
         case pal_type_file:
-            d1 = handle->file.realpath;
+            d1   = handle->file.realpath;
             dsz1 = strlen(handle->file.realpath) + 1;
             break;
         case pal_type_pipe:
@@ -128,14 +121,13 @@ int handle_serialize (PAL_HANDLE handle, void ** data)
             break;
         case pal_type_dev:
             if (handle->dev.realpath) {
-                d1 = handle->dev.realpath;
+                d1   = handle->dev.realpath;
                 dsz1 = strlen(handle->dev.realpath) + 1;
-
             }
             break;
         case pal_type_dir:
             if (handle->dir.realpath) {
-                d1 = handle->dir.realpath;
+                d1   = handle->dir.realpath;
                 dsz1 = strlen(handle->dir.realpath) + 1;
             }
             break;
@@ -144,11 +136,11 @@ int handle_serialize (PAL_HANDLE handle, void ** data)
         case pal_type_udp:
         case pal_type_udpsrv:
             if (handle->sock.bind) {
-                d1 = handle->sock.bind;
+                d1   = handle->sock.bind;
                 dsz1 = addr_size(handle->sock.bind);
             }
             if (handle->sock.conn) {
-                d2 = handle->sock.conn;
+                d2   = handle->sock.conn;
                 dsz2 = addr_size(handle->sock.conn);
             }
             break;
@@ -159,7 +151,7 @@ int handle_serialize (PAL_HANDLE handle, void ** data)
             return -PAL_ERROR_INVAL;
     }
 
-    void * buffer = malloc(hdlsz + dsz1 + dsz2);
+    void* buffer = malloc(hdlsz + dsz1 + dsz2);
     if (!buffer)
         return -PAL_ERROR_NOMEM;
 
@@ -174,27 +166,26 @@ int handle_serialize (PAL_HANDLE handle, void ** data)
 }
 
 #ifndef SEEK_SET
-# define SEEK_SET 0
+#define SEEK_SET 0
 #endif
 
-int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
-{
-    PAL_HANDLE hdl_data = (void *) data, hdl = NULL;
+int handle_deserialize(PAL_HANDLE* handle, const void* data, int size) {
+    PAL_HANDLE hdl_data = (void *)data, hdl = NULL;
     int hdlsz = handle_size(hdl_data), ret = -PAL_ERROR_NOMEM;
 
     data += hdlsz;
     size -= hdlsz;
 
     // recreate PAL_HANDLE based on type
-    switch(PAL_GET_TYPE(hdl_data)) {
+    switch (PAL_GET_TYPE(hdl_data)) {
         case pal_type_file: {
-            int l = strlen((const char *) data) + 1;
-            hdl = malloc(hdlsz + l);
+            int l = strlen((const char*)data) + 1;
+            hdl   = malloc(hdlsz + l);
             if (!hdl)
                 break;
             memcpy(hdl, hdl_data, hdlsz);
-            memcpy((void *) hdl + hdlsz, data, l);
-            hdl->file.realpath = (void *) hdl + hdlsz;
+            memcpy((void*)hdl + hdlsz, data, l);
+            hdl->file.realpath = (void*)hdl + hdlsz;
             break;
         }
         case pal_type_pipe:
@@ -204,26 +195,26 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
             hdl = malloc_copy(hdl_data, hdlsz);
             break;
         case pal_type_dev: {
-            int l = hdl_data->dev.realpath ? strlen((const char *) data) + 1 : 0;
-            hdl = malloc(hdlsz + l);
+            int l = hdl_data->dev.realpath ? strlen((const char*)data) + 1 : 0;
+            hdl   = malloc(hdlsz + l);
             if (!hdl)
                 break;
             memcpy(hdl, hdl_data, hdlsz);
             if (l) {
-                memcpy((void *) hdl + hdlsz, data, l);
-                hdl->dev.realpath = (void *) hdl + hdlsz;
+                memcpy((void*)hdl + hdlsz, data, l);
+                hdl->dev.realpath = (void*)hdl + hdlsz;
             }
             break;
         }
         case pal_type_dir: {
-            int l = hdl_data->dir.realpath ? strlen((const char *) data) + 1 : 0;
-            hdl = malloc(hdlsz + l);
+            int l = hdl_data->dir.realpath ? strlen((const char*)data) + 1 : 0;
+            hdl   = malloc(hdlsz + l);
             if (!hdl)
                 break;
             memcpy(hdl, hdl_data, hdlsz);
             if (l) {
-                memcpy((void *) hdl + hdlsz, data, l);
-                hdl->dir.realpath = (void *) hdl + hdlsz;
+                memcpy((void*)hdl + hdlsz, data, l);
+                hdl->dir.realpath = (void*)hdl + hdlsz;
             }
             break;
         }
@@ -236,17 +227,17 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
                 s1 = addr_size(data);
             if (hdl_data->sock.conn)
                 s2 = addr_size(data + s1);
-            hdl = malloc(hdlsz + s1 + s2);
+            hdl    = malloc(hdlsz + s1 + s2);
             if (!hdl)
                 break;
             memcpy(hdl, hdl_data, hdlsz);
             if (s1) {
-                memcpy((void *) hdl + hdlsz, data, s1);
-                hdl->sock.bind = (void *) hdl + hdlsz;
+                memcpy((void*)hdl + hdlsz, data, s1);
+                hdl->sock.bind = (void*)hdl + hdlsz;
             }
             if (s2) {
-                memcpy((void *) hdl + hdlsz + s1, data + s1, s2);
-                hdl->sock.conn = (void *) hdl + hdlsz + s2;
+                memcpy((void*)hdl + hdlsz + s1, data + s1, s2);
+                hdl->sock.conn = (void*)hdl + hdlsz + s2;
             }
             break;
         }
@@ -254,7 +245,7 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
         case pal_type_process:
             hdl = malloc_copy(hdl_data, hdlsz);
             break;
-        default :
+        default:
             return -PAL_ERROR_BADHANDLE;
     }
 
@@ -267,26 +258,25 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size)
 
 // Header for DkSendHandle and DkRecvHandle
 struct hdl_header {
-    unsigned short fds:(MAX_FDS);
-    unsigned short data_size:(16-(MAX_FDS));
+    unsigned short fds : (MAX_FDS);
+    unsigned short data_size : (16 - (MAX_FDS));
 };
 
 /* _DkSendHandle for internal use. Send a Pal Handle over the given
    process handle. Return 1 if success else return negative error code */
-int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
-{
+int _DkSendHandle(PAL_HANDLE hdl, PAL_HANDLE cargo) {
     struct hdl_header hdl_hdr;
-    void * hdl_data;
+    void* hdl_data;
     int ret = handle_serialize(cargo, &hdl_data);
     if (ret < 0)
         return ret;
 
-    hdl_hdr.fds = 0;
+    hdl_hdr.fds       = 0;
     hdl_hdr.data_size = ret;
     int fds[MAX_FDS];
     int nfds = 0;
-    for (int i = 0 ; i < MAX_FDS ; i++)
-        if (cargo->hdr.flags & (RFD(i)|WFD(1))) {
+    for (int i = 0; i < MAX_FDS; i++)
+        if (cargo->hdr.flags & (RFD(i) | WFD(1))) {
             hdl_hdr.fds |= 1U << i;
             fds[nfds++] = cargo->hdr.fds[i];
         }
@@ -295,18 +285,18 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     int ch = hdl->process.cargo;
 
     // Declare variables required for sending the message
-    struct msghdr hdr; // message header
-    struct cmsghdr * chdr; //control message header
-    struct iovec iov[1]; // IO Vector
-    iov[0].iov_base = &hdl_hdr;
-    iov[0].iov_len = sizeof(struct hdl_header);
-    hdr.msg_name = NULL;
-    hdr.msg_namelen = 0;
-    hdr.msg_iov = iov;
-    hdr.msg_iovlen = 1;
-    hdr.msg_control = NULL;
+    struct msghdr hdr;     // message header
+    struct cmsghdr* chdr;  // control message header
+    struct iovec iov[1];   // IO Vector
+    iov[0].iov_base    = &hdl_hdr;
+    iov[0].iov_len     = sizeof(struct hdl_header);
+    hdr.msg_name       = NULL;
+    hdr.msg_namelen    = 0;
+    hdr.msg_iov        = iov;
+    hdr.msg_iovlen     = 1;
+    hdr.msg_control    = NULL;
     hdr.msg_controllen = 0;
-    hdr.msg_flags = 0;
+    hdr.msg_flags      = 0;
 
     ret = INLINE_SYSCALL(sendmsg, 3, ch, &hdr, MSG_NOSIGNAL);
     // Unlock is error
@@ -326,21 +316,21 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
     memset(cbuf, 0, sizeof(cbuf));
     // Initialize iovec[0] with struct PAL_HANDLE
     iov[0].iov_base = hdl_data;
-    iov[0].iov_len = hdl_hdr.data_size;
+    iov[0].iov_len  = hdl_hdr.data_size;
 
     hdr.msg_iov = iov;
 
-    hdr.msg_iovlen = 1;
-    hdr.msg_control = cbuf; // Control Message Buffer
+    hdr.msg_iovlen     = 1;
+    hdr.msg_control    = cbuf;  // Control Message Buffer
     hdr.msg_controllen = CMSG_LEN(sizeof(int) * nfds);
     // Fill control message infomation for the file descriptors
     // Check hdr.msg_controllen >= sizeof(struct cmsghdr) to point to
     // cbuf, which is redundant based on the above code as we have
     // statically allocated memory.
     // or (struct cmsghdr*) cbuf
-    chdr = CMSG_FIRSTHDR(&hdr); // Pointer to msg_control
-    chdr->cmsg_level = SOL_SOCKET; // Originating Protocol
-    chdr->cmsg_type = SCM_RIGHTS; // Protocol Specific Type
+    chdr             = CMSG_FIRSTHDR(&hdr);  // Pointer to msg_control
+    chdr->cmsg_level = SOL_SOCKET;           // Originating Protocol
+    chdr->cmsg_type  = SCM_RIGHTS;           // Protocol Specific Type
     // Length of control message = sizeof(struct cmsghdr) + nfds
     chdr->cmsg_len = CMSG_LEN(sizeof(int) * nfds);
 
@@ -357,8 +347,7 @@ int _DkSendHandle (PAL_HANDLE hdl, PAL_HANDLE cargo)
 
 /* _DkRecvHandle for internal use. Receive and return a PAL_HANDLE over the
    given PAL_HANDLE else return negative value. */
-int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
-{
+int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE* cargo) {
     struct hdl_header hdl_hdr;
 
     // ~ Check connection PAL_HANDLE - is of process type for sending handle
@@ -373,15 +362,15 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     struct msghdr hdr;
     struct iovec iov[1];
 
-    iov[0].iov_base = &hdl_hdr;
-    iov[0].iov_len = sizeof(struct hdl_header);
-    hdr.msg_name = NULL;
-    hdr.msg_namelen = 0;
-    hdr.msg_iov = iov;
-    hdr.msg_iovlen = 1;
-    hdr.msg_control = NULL;
+    iov[0].iov_base    = &hdl_hdr;
+    iov[0].iov_len     = sizeof(struct hdl_header);
+    hdr.msg_name       = NULL;
+    hdr.msg_namelen    = 0;
+    hdr.msg_iov        = iov;
+    hdr.msg_iovlen     = 1;
+    hdr.msg_control    = NULL;
     hdr.msg_controllen = 0;
-    hdr.msg_flags = 0;
+    hdr.msg_flags      = 0;
 
     int ret = INLINE_SYSCALL(recvmsg, 3, ch, &hdr, 0);
     if (IS_ERR(ret))
@@ -407,10 +396,10 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     }
 
     // initialize variables to get body
-    void * buffer = __alloca(hdl_hdr.data_size);
-    int nfds = 0;
+    void* buffer = __alloca(hdl_hdr.data_size);
+    int nfds     = 0;
 
-    for (int i = 0 ; i < MAX_FDS ; i++)
+    for (int i = 0; i < MAX_FDS; i++)
         if (hdl_hdr.fds & (1U << i))
             nfds++;
     // receive PAL_HANDLE contents in the body
@@ -418,36 +407,35 @@ int _DkReceiveHandle(PAL_HANDLE hdl, PAL_HANDLE * cargo)
     memset(cbuf, 0, sizeof(cbuf));
     // initialize iovec[0] with struct PAL_HANDLE
     iov[0].iov_base = buffer;
-    iov[0].iov_len = hdl_hdr.data_size;
+    iov[0].iov_len  = hdl_hdr.data_size;
 
     // set message header values
-    hdr.msg_iov = iov;
-    hdr.msg_iovlen = 1;
-    hdr.msg_control = cbuf;
+    hdr.msg_iov        = iov;
+    hdr.msg_iovlen     = 1;
+    hdr.msg_control    = cbuf;
     hdr.msg_controllen = sizeof(cbuf);
-    ret = INLINE_SYSCALL(recvmsg, 3, ch, &hdr, 0);
+    ret                = INLINE_SYSCALL(recvmsg, 3, ch, &hdr, 0);
     // if error was returned
     if (IS_ERR(ret) && ERRNO(ret) != EINTR && ERRNO(ret) != ERESTART)
         return -ERRNO(ret);
 
-    struct cmsghdr * chdr = CMSG_FIRSTHDR(&hdr);
+    struct cmsghdr* chdr = CMSG_FIRSTHDR(&hdr);
     if (!chdr || chdr->cmsg_type != SCM_RIGHTS)
         return -PAL_ERROR_INVAL;
 
     PAL_HANDLE handle = NULL;
-    ret = handle_deserialize(&handle, buffer, hdl_hdr.data_size);
+    ret               = handle_deserialize(&handle, buffer, hdl_hdr.data_size);
     if (ret < 0)
         return ret;
 
-    int total_fds = (hdr.msg_controllen - sizeof(struct cmsghdr)) /
-                    sizeof(int);
-    int n = 0;
-    for (int i = 0 ; i < MAX_FDS ; i++)
+    int total_fds = (hdr.msg_controllen - sizeof(struct cmsghdr)) / sizeof(int);
+    int n         = 0;
+    for (int i = 0; i < MAX_FDS; i++)
         if (hdl_hdr.fds & (1U << i)) {
             if (n < total_fds) {
-                handle->hdr.fds[i] = ((int *) CMSG_DATA(chdr))[n++];
+                handle->hdr.fds[i] = ((int*)CMSG_DATA(chdr))[n++];
             } else {
-                handle->hdr.flags &= ~(RFD(i)|WFD(i));
+                handle->hdr.flags &= ~(RFD(i) | WFD(i));
             }
         }
 

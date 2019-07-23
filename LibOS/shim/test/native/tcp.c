@@ -1,16 +1,16 @@
 /* copied from http://www.daniweb.com/software-development/c/threads/179814 */
 
-#include <unistd.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #define SRV_BIND_IP "0.0.0.0"
 #define SRV_IP "127.0.0.1"
@@ -18,19 +18,18 @@
 #define BUFLEN 512
 #define NPACK 10
 
-const char * fname;
+const char* fname;
 
 enum { SINGLE, PARALLEL } mode = PARALLEL;
 int do_fork = 0;
 
 int pipefds[2];
 
-int server(void)
-{
+int server(void) {
     int conn, create_socket, new_socket, fd;
     socklen_t addrlen;
-    int bufsize = 1024;
-    char * buffer = malloc(bufsize);
+    int bufsize  = 1024;
+    char* buffer = malloc(bufsize);
     struct sockaddr_in address;
 
     if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) > 0)
@@ -40,8 +39,7 @@ int server(void)
     inet_pton(AF_INET, SRV_BIND_IP, &(address.sin_addr));
     address.sin_port = htons(PORT);
 
-    if (bind(create_socket, (struct sockaddr *) &address,
-             sizeof(address)) < 0) {
+    if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind");
         close(create_socket);
         exit(-1);
@@ -59,9 +57,8 @@ int server(void)
         write(pipefds[1], &byte, 1);
     }
 
-    addrlen = sizeof(address);
-    new_socket = accept(create_socket, (struct sockaddr *) &address,
-                        &addrlen);
+    addrlen    = sizeof(address);
+    new_socket = accept(create_socket, (struct sockaddr*)&address, &addrlen);
 
     if (new_socket < 0) {
         perror("accept");
@@ -92,8 +89,7 @@ int server(void)
         exit(-1);
     }
 
-    while ((conn = read(fd, buffer, bufsize)) > 0)
-        sendto(new_socket, buffer, conn, 0, 0, 0);
+    while ((conn = read(fd, buffer, bufsize)) > 0) sendto(new_socket, buffer, conn, 0, 0, 0);
 
     printf("Request completed\n");
 
@@ -103,11 +99,10 @@ int server(void)
     return 0;
 }
 
-int client(void)
-{
+int client(void) {
     int count, create_socket;
-    int bufsize = 1024;
-    char * buffer = malloc(bufsize);
+    int bufsize  = 1024;
+    char* buffer = malloc(bufsize);
     struct sockaddr_in address;
 
     if (mode == PARALLEL) {
@@ -122,8 +117,7 @@ int client(void)
     address.sin_family = AF_INET;
     inet_pton(AF_INET, SRV_IP, &address.sin_addr);
     address.sin_port = htons(PORT);
-    if (connect(create_socket, (struct sockaddr *) &address,
-                sizeof(address)) == 0) {
+    if (connect(create_socket, (struct sockaddr*)&address, sizeof(address)) == 0) {
         printf("The connection was accepted with the server\n");
     } else {
         perror("accept");
@@ -140,8 +134,7 @@ int client(void)
 
     printf("Content:\n");
 
-    while((count=recv(create_socket, buffer, bufsize, 0))>0)
-        write(1, buffer, count);
+    while ((count = recv(create_socket, buffer, bufsize, 0)) > 0) write(1, buffer, count);
 
     printf("EOF\n");
 
@@ -152,8 +145,7 @@ int client(void)
     return 0;
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     char fnamebuf[40];
     strcpy(fnamebuf, argv[0]);
     strcat(fnamebuf, ".c");
@@ -178,9 +170,8 @@ int main(int argc, char ** argv)
             do_fork = 1;
             goto old;
         }
-    }
-    else {
-old:
+    } else {
+    old:
         pipe(pipefds);
 
         int pid = fork();

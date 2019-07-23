@@ -1,6 +1,6 @@
+#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <math.h>
 
 #define ITERATIONS 100000
 
@@ -8,14 +8,12 @@
 pthread_mutex_t mutex;
 double target;
 
-void* opponent(void *arg)
-{
-    int i ;
-    for(i = 0; i < ITERATIONS; ++i)
-    {
+void* opponent(void* arg) {
+    int i;
+    for (i = 0; i < ITERATIONS; ++i) {
         // Lock the mutex
         pthread_mutex_lock(&mutex);
-        target -=  i ;
+        target -= i;
         // Unlock the mutex
         pthread_mutex_unlock(&mutex);
     }
@@ -23,37 +21,31 @@ void* opponent(void *arg)
     return NULL;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     pthread_t other;
     int rv;
 
     target = 5.0;
 
     // Initialize the mutex
-    if(pthread_mutex_init(&mutex, NULL))
-    {
+    if (pthread_mutex_init(&mutex, NULL)) {
         printf("Unable to initialize a mutex\n");
         return -1;
     }
 
-    if(pthread_create(&other, NULL, &opponent, NULL))
-    {
+    if (pthread_create(&other, NULL, &opponent, NULL)) {
         printf("Unable to spawn thread\n");
         return -1;
     }
 
-
     int i;
-    for(i = 0; i < ITERATIONS; ++i)
-    {
+    for (i = 0; i < ITERATIONS; ++i) {
         pthread_mutex_lock(&mutex);
-        target +=  i ;
+        target += i;
         pthread_mutex_unlock(&mutex);
     }
 
-    if((rv = pthread_join(other, NULL)) < 0)
-    {
+    if ((rv = pthread_join(other, NULL)) < 0) {
         printf("Could not join thread - %d\n", rv);
         return -1;
     }

@@ -20,14 +20,14 @@
  * Implementation of system call "checkpoint" and "restore".
  */
 
+#include <shim_checkpoint.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
 #include <shim_internal.h>
+#include <shim_ipc.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_handle.h>
 #include <shim_vma.h>
-#include <shim_fs.h>
-#include <shim_ipc.h>
-#include <shim_checkpoint.h>
 
 #include <pal.h>
 #include <pal_error.h>
@@ -44,28 +44,26 @@
 
 DEFINE_LIST(cp_thread);
 struct cp_thread {
-    struct shim_thread *    thread;
-    LIST_TYPE(cp_thread)    list;
+    struct shim_thread* thread;
+    LIST_TYPE(cp_thread) list;
 };
-
 
 DEFINE_LIST(cp_session);
 DEFINE_LISTP(cp_thread);
 struct cp_session {
-    IDTYPE                  sid;
-    struct shim_handle *    cpfile;
-    LISTP_TYPE(cp_thread)   registered_threads;
-    LIST_TYPE(cp_session)   list;
-    PAL_HANDLE              finish_event;
-    struct shim_cp_store    cpstore;
+    IDTYPE sid;
+    struct shim_handle* cpfile;
+    LISTP_TYPE(cp_thread) registered_threads;
+    LIST_TYPE(cp_session) list;
+    PAL_HANDLE finish_event;
+    struct shim_cp_store cpstore;
 };
 
 DEFINE_LISTP(cp_session);
 LISTP_TYPE(cp_session) cp_sessions;
 
-int create_checkpoint (const char * cpdir, IDTYPE * sid)
-{
-    struct cp_session * cpsession = malloc(sizeof(struct cp_session));
+int create_checkpoint(const char* cpdir, IDTYPE* sid) {
+    struct cp_session* cpsession = malloc(sizeof(struct cp_session));
     if (!cpsession)
         return -ENOMEM;
 
@@ -74,10 +72,10 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
     INIT_LISTP(&cpsession->registered_threads);
     INIT_LIST_HEAD(cpsession, list);
     cpsession->finish_event = DkNotificationEventCreate(PAL_FALSE);
-    cpsession->cpfile = NULL;
+    cpsession->cpfile       = NULL;
 
-    int len = strlen(cpdir);
-    char * filename = __alloca(len + 10);
+    int len        = strlen(cpdir);
+    char* filename = __alloca(len + 10);
     memcpy(filename, cpdir, len);
     filename[len] = '/';
     snprintf(filename + len + 1, 9, "%08x", cur_process.vmid);
@@ -89,27 +87,26 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
     }
 
     /* the directory might not be created. At least try to create it */
-    if ((ret = open_namei(NULL, NULL, cpdir, O_CREAT|O_DIRECTORY, 0700,
-                          NULL)) < 0
-        && ret != -EEXIST)
+    if ((ret = open_namei(NULL, NULL, cpdir, O_CREAT | O_DIRECTORY, 0700, NULL)) < 0 &&
+        ret != -EEXIST)
         goto err;
 
-    if ((ret = open_namei(cpsession->cpfile, NULL, filename,
-                          O_CREAT|O_EXCL|O_RDWR, 0600, NULL)) < 0)
+    if ((ret = open_namei(cpsession->cpfile, NULL, filename, O_CREAT | O_EXCL | O_RDWR, 0600,
+                          NULL)) < 0)
         goto err;
 
     open_handle(cpsession->cpfile);
     MASTER_LOCK();
 
-    struct cp_session * s;
+    struct cp_session* s;
     if (*sid) {
         LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
-            if (s->sid == *sid) {
-                ret = 0;
-                goto err_locked;
-            }
+        if (s->sid == *sid) {
+            ret = 0;
+            goto err_locked;
+        }
     } else {
-retry:
+    retry:
         ret = DkRandomBitsRead(&cpsession->sid, sizeof(cpsession->sid));
         if (ret < 0) {
             ret = -convert_pal_errno(-ret);
@@ -117,8 +114,8 @@ retry:
         }
 
         LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
-            if (s->sid == cpsession->sid)
-                goto retry;
+        if (s->sid == cpsession->sid)
+            goto retry;
 
         *sid = cpsession->sid;
     }
@@ -138,39 +135,36 @@ err:
     return ret;
 }
 
-static int finish_checkpoint (struct cp_session * session);
+static int finish_checkpoint(struct cp_session* session);
 
-static int check_thread (struct shim_thread * thread, void * arg,
-                         bool * unlocked)
-{
-    __UNUSED(unlocked); // Retained for API compatibility
-    LISTP_TYPE(cp_thread) * registered = (LISTP_TYPE(cp_thread) *) arg;
-    struct cp_thread * t;
+static int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
+    __UNUSED(unlocked);  // Retained for API compatibility
+    LISTP_TYPE(cp_thread)* registered = (LISTP_TYPE(cp_thread)*)arg;
+    struct cp_thread* t;
 
     if (!thread->in_vm || !thread->is_alive)
         return 0;
 
     LISTP_FOR_EACH_ENTRY(t, registered, list)
-        if (t->thread == thread)
-            return 0;
+    if (t->thread == thread)
+        return 0;
 
     return 1;
 }
 
-int join_checkpoint (struct shim_thread * thread, IDTYPE sid)
-{
-    struct cp_session * s, * cpsession = NULL;
+int join_checkpoint(struct shim_thread* thread, IDTYPE sid) {
+    struct cp_session *s, *cpsession = NULL;
     struct cp_thread cpthread;
-    int ret = 0;
+    int ret            = 0;
     bool do_checkpoint = false;
 
     MASTER_LOCK();
 
     LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
-        if (s->sid == sid) {
-            cpsession = s;
-            break;
-        }
+    if (s->sid == sid) {
+        cpsession = s;
+        break;
+    }
 
     if (!cpsession) {
         MASTER_UNLOCK();
@@ -182,8 +176,7 @@ int join_checkpoint (struct shim_thread * thread, IDTYPE sid)
     LISTP_ADD_TAIL(&cpthread, &cpsession->registered_threads, list);
 
     /* find out if there is any thread that is not registered yet */
-    ret = walk_thread_list(&check_thread,
-                           &cpsession->registered_threads);
+    ret = walk_thread_list(&check_thread, &cpsession->registered_threads);
 
     if (ret == -ESRCH)
         do_checkpoint = true;
@@ -209,35 +202,30 @@ int join_checkpoint (struct shim_thread * thread, IDTYPE sid)
     return ret;
 }
 
-static void * file_alloc (struct shim_cp_store * store, void * addr, size_t size)
-{
+static void* file_alloc(struct shim_cp_store* store, void* addr, size_t size) {
     assert(store->cp_file);
-    struct shim_mount * fs = store->cp_file->fs;
+    struct shim_mount* fs = store->cp_file->fs;
 
-    if (!fs || !fs->fs_ops ||
-        !fs->fs_ops->truncate || !fs->fs_ops->mmap)
+    if (!fs || !fs->fs_ops || !fs->fs_ops->truncate || !fs->fs_ops->mmap)
         return NULL;
 
     if (fs->fs_ops->truncate(store->cp_file, size) < 0)
         return NULL;
 
-    if (fs->fs_ops->mmap(store->cp_file, &addr, size,
-                         PROT_READ|PROT_WRITE,
-                         MAP_FILE|MAP_SHARED, 0) < 0)
+    if (fs->fs_ops->mmap(store->cp_file, &addr, size, PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED,
+                         0) < 0)
         return NULL;
 
     return addr;
 }
 
-static int finish_checkpoint (struct cp_session * cpsession)
-{
-    struct shim_cp_store * cpstore = &cpsession->cpstore;
+static int finish_checkpoint(struct cp_session* cpsession) {
+    struct shim_cp_store* cpstore = &cpsession->cpstore;
     int ret;
 
     cpstore->alloc = file_alloc;
 
-    BEGIN_MIGRATION_DEF(checkpoint)
-    {
+    BEGIN_MIGRATION_DEF(checkpoint) {
         DEFINE_MIGRATE(process, &cur_process, sizeof(struct shim_process));
         DEFINE_MIGRATE(all_mounts, NULL, 0);
         DEFINE_MIGRATE(all_vmas, NULL, 0);
@@ -254,26 +242,25 @@ static int finish_checkpoint (struct cp_session * cpsession)
     if ((ret = START_MIGRATE(cpstore, checkpoint)) < 0)
         return ret;
 
-    struct cp_header * hdr = (struct cp_header *) cpstore->base;
-    hdr->addr = (void *) cpstore->base;
-    hdr->size = cpstore->offset;
+    struct cp_header* hdr = (struct cp_header*)cpstore->base;
+    hdr->addr             = (void*)cpstore->base;
+    hdr->size             = cpstore->offset;
 
-    DkStreamUnmap((void *) cpstore->base, cpstore->bound);
+    DkStreamUnmap((void*)cpstore->base, cpstore->bound);
 
     close_handle(cpstore->cp_file);
     return 0;
 }
 
-int shim_do_checkpoint (const char * filename)
-{
+int shim_do_checkpoint(const char* filename) {
     IDTYPE session = 0;
-    int ret = 0;
+    int ret        = 0;
 
     ret = shim_do_mkdir(filename, 0700);
     if (ret < 0)
         return ret;
 
-    shim_tcb_t * tcb = shim_get_tls();
+    shim_tcb_t* tcb = shim_get_tls();
     assert(tcb && tcb->tp);
     struct shim_signal signal;
     __store_context(tcb, NULL, &signal);

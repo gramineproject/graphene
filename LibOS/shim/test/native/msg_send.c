@@ -1,42 +1,41 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
-#define PAYLOAD_SIZE    10
+#define PAYLOAD_SIZE 10
 
 struct msgbuf {
-    long    mtype;
-    char    mtext[PAYLOAD_SIZE];
+    long mtype;
+    char mtext[PAYLOAD_SIZE];
 };
 
 #define TEST_TIMES 1000
 #define TEST_TYPES 2
-#define DO_BENCH   1
+#define DO_BENCH 1
 
 enum { PARALLEL, SERIAL, IN_PROCESS } mode = PARALLEL;
 int pipefds[4], key;
 
 /* server always sends messages */
-void server (void)
-{
+void server(void) {
     struct timeval tv1, tv2;
     int msqid;
     struct msgbuf buf;
 
-    if ((msqid = msgget(key, mode == SERIAL ? 0600|IPC_CREAT : 0)) < 0) {
+    if ((msqid = msgget(key, mode == SERIAL ? 0600 | IPC_CREAT : 0)) < 0) {
         perror("msgget");
         exit(1);
     }
 
     gettimeofday(&tv1, NULL);
 
-    for (int i = 0 ; i < TEST_TIMES ; i++) {
+    for (int i = 0; i < TEST_TIMES; i++) {
         buf.mtype = (i % TEST_TYPES) + 1;
         if (msgsnd(msqid, &buf, PAYLOAD_SIZE, 0) < 0) {
             perror("msgsnd");
@@ -60,18 +59,15 @@ void server (void)
         read(pipefds[2], &byte, 1);
     }
 
-    printf("time spent on %d msgsnd: %llu microsecond\n",
-           TEST_TIMES,
-           (tv2.tv_sec * 1000000ull + tv2.tv_usec) -
-           (tv1.tv_sec * 1000000ull + tv1.tv_usec));
+    printf("time spent on %d msgsnd: %llu microsecond\n", TEST_TIMES,
+           (tv2.tv_sec * 1000000ull + tv2.tv_usec) - (tv1.tv_sec * 1000000ull + tv1.tv_usec));
 
     if (mode != IN_PROCESS)
         exit(0);
 }
 
 /* client always sends messages */
-void client (void)
-{
+void client(void) {
     struct timeval tv1, tv2;
     int msqid;
     struct msgbuf buf;
@@ -90,7 +86,7 @@ void client (void)
 
     gettimeofday(&tv1, NULL);
 
-    for (int i = 0 ; i < TEST_TIMES ; i++) {
+    for (int i = 0; i < TEST_TIMES; i++) {
         int type = (i % TEST_TYPES) + 1;
         if ((ret = msgrcv(msqid, &buf, PAYLOAD_SIZE, type, 0)) < 0) {
             perror("msgrcv");
@@ -111,17 +107,14 @@ void client (void)
         write(pipefds[3], &byte, 1);
     }
 
-    printf("time spent on %d msgrcv: %llu microsecond\n",
-           TEST_TIMES,
-           (tv2.tv_sec * 1000000ull + tv2.tv_usec) -
-           (tv1.tv_sec * 1000000ull + tv1.tv_usec));
+    printf("time spent on %d msgrcv: %llu microsecond\n", TEST_TIMES,
+           (tv2.tv_sec * 1000000ull + tv2.tv_usec) - (tv1.tv_sec * 1000000ull + tv1.tv_usec));
 
     if (mode != IN_PROCESS)
         exit(0);
 }
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int msqid;
 
     key = rand();
@@ -142,7 +135,7 @@ int main (int argc, char ** argv)
         return 0;
     }
 
-    if ((msqid = msgget(key, 0600|IPC_CREAT)) < 0) {
+    if ((msqid = msgget(key, 0600 | IPC_CREAT)) < 0) {
         perror("msgget");
         exit(1);
     }

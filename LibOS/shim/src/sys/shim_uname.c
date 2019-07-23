@@ -20,26 +20,23 @@
  * Implementation of system call "uname".
  */
 
+#include <shim_fs.h>
+#include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_table.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
 #include <shim_utils.h>
 
 #include <errno.h>
 #include <sys/utsname.h>
 
 /* DP: Damned lies */
-static struct old_utsname graphene_uname = {
-    .sysname = "Linux",
-    .nodename = "localhost",
-    .release = "3.10.0",
-    .version = "1",
-    .machine = "x86_64"
-};
+static struct old_utsname graphene_uname = {.sysname  = "Linux",
+                                            .nodename = "localhost",
+                                            .release  = "3.10.0",
+                                            .version  = "1",
+                                            .machine  = "x86_64"};
 
-int shim_do_uname (struct old_utsname * buf)
-{
+int shim_do_uname(struct old_utsname* buf) {
     if (!buf || test_user_memory(buf, sizeof(*buf), true))
         return -EFAULT;
 

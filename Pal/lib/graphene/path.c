@@ -24,11 +24,10 @@
 #include <api.h>
 #include <pal_error.h>
 
-int get_norm_path (const char * path, char * buf, int offset, int size)
-{
+int get_norm_path(const char* path, char* buf, int offset, int size) {
     int head = offset;
     char c, c1;
-    const char * p = path;
+    const char* p = path;
 
     while (head) { /* find the real head, not interrupted by dot-dot */
         if (head > 1 && buf[head - 1] == '.' && buf[head - 2] == '.')
@@ -36,20 +35,20 @@ int get_norm_path (const char * path, char * buf, int offset, int size)
         head--;
     }
 
-    for (c = '/' ; c ; c = c1, p++) {
+    for (c = '/'; c; c = c1, p++) {
         c1 = *p;
-        if (c == '/') {     /* find a slash, or the beginning of the path */
-            if (c1 == 0)    /* no more path */
+        if (c == '/') {  /* find a slash, or the beginning of the path */
+            if (c1 == 0) /* no more path */
                 break;
-            if (c1 == '/')  /* consequential slashes */
+            if (c1 == '/') /* consequential slashes */
                 continue;
-            if (c1 == '.') {    /* find a dot, can be dot-dot or a file */
+            if (c1 == '.') { /* find a dot, can be dot-dot or a file */
                 c1 = *(++p);
-                if (c1 == 0)    /* no more path */
+                if (c1 == 0) /* no more path */
                     break;
-                if (c1 == '/')  /* a dot, skip it */
+                if (c1 == '/') /* a dot, skip it */
                     continue;
-                if (c1 == '.') {    /* must be dot-dot */
+                if (c1 == '.') { /* must be dot-dot */
                     c1 = *(++p);
                     if (c1 != 0 && c1 != '/') { /* Paths can start with a dot
                                                  * dot: ..xyz is ok */
@@ -59,22 +58,23 @@ int get_norm_path (const char * path, char * buf, int offset, int size)
                         buf[offset++] = '.';
                         continue;
                     }
-                    if (offset > head) {    /* remove the last token */
-                        while (offset > head && buf[--offset] != '/');
+                    if (offset > head) { /* remove the last token */
+                        while (offset > head && buf[--offset] != '/')
+                            ;
                     } else {
-                        if (offset) {   /* add a slash */
+                        if (offset) { /* add a slash */
                             if (offset >= size - 1)
                                 return -PAL_ERROR_TOOLONG;
                             buf[offset++] = '/';
-                        }               /* add a dot-dot */
+                        } /* add a dot-dot */
                         if (offset >= size - 2)
                             return -PAL_ERROR_TOOLONG;
                         buf[offset++] = '.';
                         buf[offset++] = '.';
-                        head = offset;
+                        head          = offset;
                     }
-                } else { /* it's a file */
-                    if (offset) {   /* add a slash */
+                } else {          /* it's a file */
+                    if (offset) { /* add a slash */
                         if (offset >= size - 1)
                             return -PAL_ERROR_TOOLONG;
                         buf[offset++] = '/';
@@ -97,11 +97,10 @@ int get_norm_path (const char * path, char * buf, int offset, int size)
     return offset;
 }
 
-int get_base_name (const char * path, char * buf, int size)
-{
-    const char * p = path;
+int get_base_name(const char* path, char* buf, int size) {
+    const char* p = path;
 
-    for (; *p ; p++) {
+    for (; *p; p++) {
         if (*p == '/')
             continue;
         if (*p == '.') {
@@ -117,8 +116,9 @@ int get_base_name (const char * path, char * buf, int size)
             }
         }
 
-        const char * e = p + 1;
-        for (; *e && *e != '/' ; e++);
+        const char* e = p + 1;
+        for (; *e && *e != '/'; e++)
+            ;
         if (*e) {
             p = e - 1;
             continue;
@@ -128,8 +128,7 @@ int get_base_name (const char * path, char * buf, int size)
             return -PAL_ERROR_TOOLONG;
 
         int offset = 0;
-        for (; p < e ; p++, offset++)
-            buf[offset] = *p;
+        for (; p < e; p++, offset++) buf[offset] = *p;
         buf[offset] = 0;
         return offset;
     }

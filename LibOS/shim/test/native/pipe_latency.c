@@ -1,15 +1,14 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#define NTRIES    10000
+#define NTRIES 10000
 #define TEST_TIMES 32
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int times = TEST_TIMES;
     int pipes[6];
     int pids[TEST_TIMES][2];
@@ -25,7 +24,7 @@ int main(int argc, char ** argv)
     pipe(&pipes[2]);
     pipe(&pipes[4]);
 
-    for (i = 0 ; i < times ; i++ ) {
+    for (i = 0; i < times; i++) {
         int pair_pipes[4];
         pipe(&pair_pipes[0]);
         pipe(&pair_pipes[2]);
@@ -48,7 +47,7 @@ int main(int argc, char ** argv)
             close(pair_pipes[2]);
 
             char byte;
-            for (int i = 0 ; i < NTRIES ; i++) {
+            for (int i = 0; i < NTRIES; i++) {
                 read(pair_pipes[0], &byte, 1);
                 write(pair_pipes[3], &byte, 1);
             }
@@ -83,7 +82,7 @@ int main(int argc, char ** argv)
             struct timeval timevals[2];
             gettimeofday(&timevals[0], NULL);
 
-            for (int i = 0 ; i < NTRIES ; i++) {
+            for (int i = 0; i < NTRIES; i++) {
                 write(pair_pipes[1], &byte, 1);
                 read(pair_pipes[2], &byte, 1);
             }
@@ -115,14 +114,12 @@ int main(int argc, char ** argv)
     close(pipes[1]);
 
     unsigned long long start_time = 0;
-    unsigned long long end_time = 0;
+    unsigned long long end_time   = 0;
     struct timeval timevals[2];
-    for (int i = 0 ; i < times ; i++) {
+    for (int i = 0; i < times; i++) {
         read(pipes[4], timevals, sizeof(struct timeval) * 2);
-        unsigned long s = timevals[0].tv_sec * 1000000ULL +
-                          timevals[0].tv_usec;
-        unsigned long e = timevals[1].tv_sec * 1000000ULL +
-                          timevals[1].tv_usec;
+        unsigned long s = timevals[0].tv_sec * 1000000ULL + timevals[0].tv_usec;
+        unsigned long e = timevals[1].tv_sec * 1000000ULL + timevals[1].tv_usec;
         if (!start_time || s < start_time)
             start_time = s;
         if (!end_time || e > end_time)
@@ -133,13 +130,12 @@ int main(int argc, char ** argv)
     write(pipes[3], bytes, times * 2);
     close(pipes[3]);
 
-    for (i = 0 ; i < times ; i++) {
+    for (i = 0; i < times; i++) {
         waitpid(pids[i][0], NULL, 0);
         waitpid(pids[i][1], NULL, 0);
     }
 
-    printf("throughput for %d processes to send %d message: %lf bytes/second\n",
-           times, NTRIES,
+    printf("throughput for %d processes to send %d message: %lf bytes/second\n", times, NTRIES,
            1.0 * NTRIES * 2 * times * 1000000 / (end_time - start_time));
 
     return 0;

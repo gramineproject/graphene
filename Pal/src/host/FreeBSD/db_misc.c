@@ -20,25 +20,24 @@
  * This file contains APIs for miscellaneous use.
  */
 
-#include "pal_defs.h"
-#include "pal_freebsd_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_freebsd.h"
-#include "pal_error.h"
-#include "pal_security.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_freebsd.h"
+#include "pal_freebsd_defs.h"
+#include "pal_internal.h"
+#include "pal_security.h"
 
-#include <sys/time.h>
 #include <fcntl.h>
+#include <sys/time.h>
 
-unsigned long _DkSystemTimeQuery (void)
-{
+unsigned long _DkSystemTimeQuery(void) {
 #if USE_CLOCK_GETTIME == 1
     struct timespec time;
     int ret;
 
-        ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time);
+    ret = INLINE_SYSCALL(clock_gettime, 2, CLOCK_MONOTONIC, &time);
 
     /* Come on, gettimeofday mostly never fails */
     if (IS_ERR(ret))
@@ -50,7 +49,7 @@ unsigned long _DkSystemTimeQuery (void)
     struct timeval time;
     int ret;
 
-        ret = INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
+    ret = INLINE_SYSCALL(gettimeofday, 2, &time, NULL);
 
     /* Come on, gettimeofday mostly never fails */
     if (IS_ERR(ret))
@@ -62,28 +61,25 @@ unsigned long _DkSystemTimeQuery (void)
 }
 
 #if USE_ARCH_RDRAND == 1
-int _DkRandomBitsRead (void * buffer, int size)
-{
+int _DkRandomBitsRead(void* buffer, int size) {
     int total_bytes = 0;
     do {
         unsigned long rand;
-        asm volatile (".Lretry: rdrand %%rax\r\n jnc .Lretry\r\n"
-                      : "=a"(rand) :: "memory");
+        asm volatile(".Lretry: rdrand %%rax\r\n jnc .Lretry\r\n" : "=a"(rand)::"memory");
 
         if (total_bytes + sizeof(rand) <= size) {
-            *(unsigned long *) (buffer + total_bytes) = rand;
+            *(unsigned long*)(buffer + total_bytes) = rand;
             total_bytes += sizeof(rand);
         } else {
-            for (int i = 0 ; i < size - total_bytes ; i++)
-                *(unsigned char *) (buffer + total_bytes + i) = ((unsigned char *) &rand)[i];
-            total_bytes = size;
+            for (int i                                      = 0; i < size - total_bytes; i++)
+                *(unsigned char*)(buffer + total_bytes + i) = ((unsigned char*)&rand)[i];
+            total_bytes                                     = size;
         }
     } while (total_bytes < size);
     return 0;
 }
 #else
-int _DkRandomBitsRead (void * buffer, int size)
-{
+int _DkRandomBitsRead(void* buffer, int size) {
     if (!pal_sec.rand_gen) {
         int rand = INLINE_SYSCALL(open, 3, "/dev/urandom", O_RDONLY, 0);
         if (IS_ERR(rand))
@@ -94,8 +90,8 @@ int _DkRandomBitsRead (void * buffer, int size)
 
     int total_bytes = 0;
     do {
-        int bytes = INLINE_SYSCALL(read, 3, pal_sec.rand_gen,
-                                   buffer + total_bytes, size - total_bytes);
+        int bytes =
+            INLINE_SYSCALL(read, 3, pal_sec.rand_gen, buffer + total_bytes, size - total_bytes);
         if (IS_ERR(bytes))
             return -PAL_ERROR_DENIED;
 
@@ -112,8 +108,7 @@ int _DkRandomBitsRead (void * buffer, int size)
 #include <x86/sysarch.h>
 #endif
 
-int _DkSegmentRegisterSet (int reg, const void * addr)
-{
+int _DkSegmentRegisterSet(int reg, const void* addr) {
     int ret = 0;
 
 #if defined(__i386__)
@@ -125,7 +120,7 @@ int _DkSegmentRegisterSet (int reg, const void * addr)
         return NULL;
 
     u_info->entry_number = -1;
-    u_info->base_addr = (unsigned int) addr;
+    u_info->base_addr    = (unsigned int)addr;
 
     ret = INLINE_SYSCALL(sysarch, 2, I386_SET_FSBASE, &u_info);
 #else
@@ -143,8 +138,7 @@ int _DkSegmentRegisterSet (int reg, const void * addr)
     return 0;
 }
 
-int _DkSegmentRegisterGet (int reg, void ** addr)
-{
+int _DkSegmentRegisterGet(int reg, void** addr) {
     int ret;
 
 #if defined(__i386__)
@@ -155,7 +149,7 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
-    *addr = (void *) u_info->base_addr;
+    *addr = (void*)u_info->base_addr;
 #else
     unsigned long ret_addr;
 
@@ -165,25 +159,21 @@ int _DkSegmentRegisterGet (int reg, void ** addr)
         ret = INLINE_SYSCALL(sysarch, 2, AMD64_GET_GSBASE, &ret_addr);
     } else {
         return -PAL_ERROR_INVAL;
-
     }
 
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
 
-    *addr = (void *) ret_addr;
+    *addr = (void*)ret_addr;
 #endif
 
     return 0;
 }
 
-int _DkInstructionCacheFlush (const void * addr, int size)
-{
+int _DkInstructionCacheFlush(const void* addr, int size) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf,
-                      unsigned int values[4])
-{
+int _DkCpuIdRetrieve(unsigned int leaf, unsigned int subleaf, unsigned int values[4]) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }

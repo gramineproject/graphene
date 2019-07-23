@@ -61,9 +61,7 @@ int main(int argc, char** argv) {
     }
 
     stack_t ss = {
-        .ss_sp    = sig_stack,
-        .ss_flags = 0,
-        .ss_size  = sig_stack_size,
+        .ss_sp = sig_stack, .ss_flags = 0, .ss_size = sig_stack_size,
     };
     stack_t old;
     memset(&old, 0xff, sizeof(old));

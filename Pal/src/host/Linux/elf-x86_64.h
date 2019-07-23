@@ -31,22 +31,18 @@
 /* Return the link-time address of _DYNAMIC.  Conveniently, this is the
    first element of the GOT.  This must be inlined in a function which
    uses global data.  */
-static inline Elf64_Addr __attribute__ ((unused))
-elf_machine_dynamic (void)
-{
+static inline Elf64_Addr __attribute__((unused)) elf_machine_dynamic(void) {
     Elf64_Addr addr;
 
     /* This works because we have our GOT address available in the small PIC
        model.  */
-    addr = (Elf64_Addr) &_DYNAMIC;
+    addr = (Elf64_Addr)&_DYNAMIC;
 
     return addr;
 }
 
 /* Return the run-time load address of the shared object.  */
-static inline Elf64_Addr __attribute__ ((unused))
-elf_machine_load_address (void)
-{
+static inline Elf64_Addr __attribute__((unused)) elf_machine_load_address(void) {
     Elf64_Addr addr;
 
     /* The easy way is just the same as on x86:

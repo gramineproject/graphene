@@ -1,7 +1,7 @@
-#include "pal.h"
-#include "pal_debug.h"
 #include "api.h"
 #include "hex.h"
+#include "pal.h"
+#include "pal_debug.h"
 
 int main() {
     char x[] = {0xde, 0xad, 0xbe, 0xef};

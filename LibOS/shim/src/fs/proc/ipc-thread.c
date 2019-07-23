@@ -1,35 +1,33 @@
+#include <shim_fs.h>
+#include <shim_handle.h>
 #include <shim_internal.h>
+#include <shim_ipc.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
 #include <shim_utils.h>
-#include <shim_ipc.h>
 
 #include <pal.h>
 #include <pal_error.h>
 
 #include <errno.h>
 
-#include <linux/stat.h>
 #include <linux/fcntl.h>
+#include <linux/stat.h>
 
 #include <asm/fcntl.h>
 #include <asm/mman.h>
-#include <asm/unistd.h>
 #include <asm/prctl.h>
+#include <asm/unistd.h>
 
-static int parse_ipc_thread_name (const char * name, IDTYPE * pidptr,
-                                  const char ** next, size_t * next_len,
-                                  const char ** nextnext)
-{
-    const char * p = name;
-    IDTYPE pid = 0;
+static int parse_ipc_thread_name(const char* name, IDTYPE* pidptr, const char** next,
+                                 size_t* next_len, const char** nextnext) {
+    const char* p = name;
+    IDTYPE pid    = 0;
 
     if (*p == '/')
         p++;
 
-    for ( ; *p && *p != '/' ; p++) {
+    for (; *p && *p != '/'; p++) {
         if (*p < '0' || *p > '9')
             return -ENOENT;
 
@@ -41,7 +39,8 @@ static int parse_ipc_thread_name (const char * name, IDTYPE * pidptr,
             *next = p;
 
             if (next_len || nextnext)
-                for ( ; *p && *p != '/' ; p++);
+                for (; *p && *p != '/'; p++)
+                    ;
 
             if (next_len)
                 *next_len = p - *next;
@@ -53,14 +52,14 @@ static int parse_ipc_thread_name (const char * name, IDTYPE * pidptr,
         }
     }
 
-    if (pidptr) *pidptr = pid;
+    if (pidptr)
+        *pidptr = pid;
     return 0;
 }
 
-static int find_ipc_thread_link (const char * name, struct shim_qstr * link,
-                                 struct shim_dentry ** dentptr)
-{
-    const char * next, * nextnext;
+static int find_ipc_thread_link(const char* name, struct shim_qstr* link,
+                                struct shim_dentry** dentptr) {
+    const char *next, *nextnext;
     size_t next_len;
     IDTYPE pid;
 
@@ -68,9 +67,9 @@ static int find_ipc_thread_link (const char * name, struct shim_qstr * link,
     if (ret < 0)
         return ret;
 
-    struct shim_dentry * dent = NULL;
+    struct shim_dentry* dent = NULL;
     enum pid_meta_code ipc_code;
-    void * ipc_data = NULL;
+    void* ipc_data = NULL;
 
     if (!memcmp(next, "root", next_len)) {
         ipc_code = PID_META_ROOT;
@@ -95,12 +94,12 @@ do_ipc:
         goto out;
 
     if (link)
-        qstrsetstr(link, (char *) ipc_data, strlen((char *) ipc_data));
+        qstrsetstr(link, (char*)ipc_data, strlen((char*)ipc_data));
 
     if (dentptr) {
         /* XXX: Not sure how to handle this case yet */
-        assert (0);
-        ret = path_lookupat(NULL, (char *) ipc_data, 0, &dent, NULL);
+        assert(0);
+        ret = path_lookupat(NULL, (char*)ipc_data, 0, &dent, NULL);
         if (ret < 0)
             goto out;
 
@@ -114,10 +113,8 @@ out:
     return ret;
 }
 
-static int proc_ipc_thread_link_open (struct shim_handle * hdl,
-                                      const char * name, int flags)
-{
-    struct shim_dentry * dent;
+static int proc_ipc_thread_link_open(struct shim_handle* hdl, const char* name, int flags) {
+    struct shim_dentry* dent;
 
     int ret = find_ipc_thread_link(name, NULL, &dent);
     if (ret < 0)
@@ -134,9 +131,8 @@ out:
     return 0;
 }
 
-static int proc_ipc_thread_link_mode (const char * name, mode_t * mode)
-{
-    struct shim_dentry * dent;
+static int proc_ipc_thread_link_mode(const char* name, mode_t* mode) {
+    struct shim_dentry* dent;
 
     int ret = find_ipc_thread_link(name, NULL, &dent);
     if (ret < 0)
@@ -153,9 +149,8 @@ out:
     return ret;
 }
 
-static int proc_ipc_thread_link_stat (const char * name, struct stat * buf)
-{
-    struct shim_dentry * dent;
+static int proc_ipc_thread_link_stat(const char* name, struct stat* buf) {
+    struct shim_dentry* dent;
 
     int ret = find_ipc_thread_link(name, NULL, &dent);
     if (ret < 0)
@@ -172,30 +167,27 @@ out:
     return ret;
 }
 
-static int proc_ipc_thread_link_follow_link (const char * name,
-                                             struct shim_qstr * link)
-{
+static int proc_ipc_thread_link_follow_link(const char* name, struct shim_qstr* link) {
     return find_ipc_thread_link(name, link, NULL);
 }
 
 static const struct proc_fs_ops fs_ipc_thread_link = {
-            .open           = &proc_ipc_thread_link_open,
-            .mode           = &proc_ipc_thread_link_mode,
-            .stat           = &proc_ipc_thread_link_stat,
-            .follow_link    = &proc_ipc_thread_link_follow_link,
-        };
+    .open        = &proc_ipc_thread_link_open,
+    .mode        = &proc_ipc_thread_link_mode,
+    .stat        = &proc_ipc_thread_link_stat,
+    .follow_link = &proc_ipc_thread_link_follow_link,
+};
 
 static struct pid_status_cache {
     uint32_t ref_count;
     bool dirty;
     size_t nstatus;
-    struct pid_status * status;
+    struct pid_status* status;
 } * pid_status_cache;
 
 static struct shim_lock status_lock;
 
-static int proc_match_ipc_thread (const char * name)
-{
+static int proc_match_ipc_thread(const char* name) {
     IDTYPE pid;
     if (parse_ipc_thread_name(name, &pid, NULL, NULL, NULL) < 0)
         return 0;
@@ -204,7 +196,7 @@ static int proc_match_ipc_thread (const char * name)
     lock(&status_lock);
 
     if (pid_status_cache)
-        for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
+        for (size_t i = 0; i < pid_status_cache->nstatus; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 unlock(&status_lock);
                 return 1;
@@ -214,9 +206,8 @@ static int proc_match_ipc_thread (const char * name)
     return 0;
 }
 
-static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
-{
-    const char * next;
+static int proc_ipc_thread_dir_mode(const char* name, mode_t* mode) {
+    const char* next;
     size_t next_len;
     IDTYPE pid;
     int ret = parse_ipc_thread_name(name, &pid, &next, &next_len, NULL);
@@ -227,7 +218,7 @@ static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
     lock(&status_lock);
 
     if (pid_status_cache)
-        for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
+        for (size_t i = 0; i < pid_status_cache->nstatus; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 unlock(&status_lock);
                 *mode = 0500;
@@ -238,9 +229,8 @@ static int proc_ipc_thread_dir_mode (const char * name, mode_t * mode)
     return -ENOENT;
 }
 
-static int proc_ipc_thread_dir_stat (const char * name, struct stat * buf)
-{
-    const char * next;
+static int proc_ipc_thread_dir_stat(const char* name, struct stat* buf) {
+    const char* next;
     size_t next_len;
     IDTYPE pid;
     int ret = parse_ipc_thread_name(name, &pid, &next, &next_len, NULL);
@@ -251,14 +241,14 @@ static int proc_ipc_thread_dir_stat (const char * name, struct stat * buf)
     lock(&status_lock);
 
     if (pid_status_cache)
-        for (size_t i = 0 ; i < pid_status_cache->nstatus ; i++)
+        for (size_t i = 0; i < pid_status_cache->nstatus; i++)
             if (pid_status_cache->status[i].pid == pid) {
                 memset(buf, 0, sizeof(struct stat));
                 buf->st_dev = buf->st_ino = 1;
-                buf->st_mode = 0500|S_IFDIR;
-                buf->st_uid = 0; /* XXX */
-                buf->st_gid = 0; /* XXX */
-                buf->st_size = 4096;
+                buf->st_mode              = 0500 | S_IFDIR;
+                buf->st_uid               = 0; /* XXX */
+                buf->st_gid               = 0; /* XXX */
+                buf->st_size              = 4096;
                 unlock(&status_lock);
                 return 0;
             }
@@ -267,15 +257,13 @@ static int proc_ipc_thread_dir_stat (const char * name, struct stat * buf)
     return -ENOENT;
 }
 
-int get_all_pid_status (struct pid_status ** status);
+int get_all_pid_status(struct pid_status** status);
 
-static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
-                                 int len)
-{
+static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int len) {
     // Only one valid name
     __UNUSED(name);
-    struct pid_status_cache * status = NULL;
-    int ret = 0;
+    struct pid_status_cache* status = NULL;
+    int ret                         = 0;
 
     create_lock_runtime(&status_lock);
 
@@ -297,9 +285,9 @@ static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
             return ret;
         }
 
-        status->nstatus = ret;
+        status->nstatus   = ret;
         status->ref_count = 1;
-        status->dirty = false;
+        status->dirty     = false;
 
         lock(&status_lock);
         if (pid_status_cache) {
@@ -323,28 +311,28 @@ static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
     if (!status->nstatus)
         goto success;
 
-    struct shim_dirent * ptr = (*buf);
-    void * buf_end = (void *) ptr + len;
+    struct shim_dirent* ptr = (*buf);
+    void* buf_end           = (void*)ptr + len;
 
-    for (size_t i = 0 ; i < status->nstatus ; i++) {
+    for (size_t i = 0; i < status->nstatus; i++) {
         if (status->status[i].pid != status->status[i].tgid)
             continue;
 
         IDTYPE pid = status->status[i].pid;
         int p = pid, l = 0;
-        for ( ; p ; p /= 10, l++);
+        for (; p; p /= 10, l++)
+            ;
 
-        if ((void *) (ptr + 1) + l + 1 > buf_end) {
+        if ((void*)(ptr + 1) + l + 1 > buf_end) {
             ret = -ENOBUFS;
             goto err;
         }
 
-        ptr->next = (void *) (ptr + 1) + l + 1;
-        ptr->ino = 1;
-        ptr->type = LINUX_DT_DIR;
+        ptr->next      = (void*)(ptr + 1) + l + 1;
+        ptr->ino       = 1;
+        ptr->type      = LINUX_DT_DIR;
         ptr->name[l--] = 0;
-        for (p = pid ; p ; p /= 10)
-            ptr->name[l--] = p % 10 + '0';
+        for (p = pid; p; p /= 10) ptr->name[l--] = p % 10 + '0';
 
         ptr = ptr->next;
     }
@@ -368,17 +356,25 @@ err:
 }
 
 const struct proc_nm_ops nm_ipc_thread = {
-            .match_name = &proc_match_ipc_thread,
-            .list_name  = &proc_list_ipc_thread,
-        };
+    .match_name = &proc_match_ipc_thread, .list_name = &proc_list_ipc_thread,
+};
 
 const struct proc_fs_ops fs_ipc_thread = {
-            .mode   = &proc_ipc_thread_dir_mode,
-            .stat   = &proc_ipc_thread_dir_stat,
-        };
+    .mode = &proc_ipc_thread_dir_mode, .stat = &proc_ipc_thread_dir_stat,
+};
 
-const struct proc_dir dir_ipc_thread = { .size = 0, .ent = {
-        { .name = "cwd",  .fs_ops = &fs_ipc_thread_link, },
-        { .name = "exe",  .fs_ops = &fs_ipc_thread_link, },
-        { .name = "root", .fs_ops = &fs_ipc_thread_link, },
-    }, };
+const struct proc_dir dir_ipc_thread = {
+    .size = 0,
+    .ent =
+        {
+            {
+                .name = "cwd", .fs_ops = &fs_ipc_thread_link,
+            },
+            {
+                .name = "exe", .fs_ops = &fs_ipc_thread_link,
+            },
+            {
+                .name = "root", .fs_ops = &fs_ipc_thread_link,
+            },
+        },
+};

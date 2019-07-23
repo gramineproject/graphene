@@ -5,35 +5,33 @@
 
 PAL_HANDLE event1, event2;
 
-int thread_1 (void * args)
-{
-    pal_printf ("Enter Thread 1\n");
+int thread_1(void* args) {
+    pal_printf("Enter Thread 1\n");
 
     DkThreadDelayExecution(3000);
-    DkEventSet (event1);
+    DkEventSet(event1);
 
-    pal_printf ("Leave Thread 1\n");
+    pal_printf("Leave Thread 1\n");
     return 0;
 }
 
-int thread_2 (void * args)
-{
-    pal_printf ("Enter Thread 2\n");
+int thread_2(void* args) {
+    pal_printf("Enter Thread 2\n");
 
     DkThreadDelayExecution(5000);
-    DkEventSet (event2);
+    DkEventSet(event2);
 
-    pal_printf ("Leave Thread 2\n");
+    pal_printf("Leave Thread 2\n");
     return 0;
 }
 
 int main() {
-    pal_printf ("Enter Main Thread\n");
+    pal_printf("Enter Main Thread\n");
 
     PAL_HANDLE thd1, thd2;
 
-    event1 = DkNotificationEventCreate (0);
-    event2 = DkNotificationEventCreate (0);
+    event1 = DkNotificationEventCreate(0);
+    event2 = DkNotificationEventCreate(0);
 
     thd1 = DkThreadCreate(&thread_1, 0);
 
@@ -53,10 +51,9 @@ int main() {
     array[0] = event1;
     array[1] = event2;
 
-    PAL_HANDLE hdl = DkObjectsWaitAny (2, array, NO_TIMEOUT);
+    PAL_HANDLE hdl = DkObjectsWaitAny(2, array, NO_TIMEOUT);
     pal_printf("event%d is set\n", hdl == event1 ? 1 : 2);
 
     pal_printf("Leave Main Thread\n");
     return 0;
 }
-

@@ -13,13 +13,11 @@
  *   [ type strings here, see them appear on the console ]
  */
 
-
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     if (argc < 2) {
         pal_printf("specify the port to open\n");
         return 0;
@@ -28,16 +26,14 @@ int main (int argc, char ** argv)
     char uri[60];
     snprintf(uri, 60, "tcp.srv:127.0.0.1:%s", argv[1]);
 
-    PAL_HANDLE srv = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0,
-                                  PAL_CREATE_TRY, 0);
+    PAL_HANDLE srv = DkStreamOpen(uri, PAL_ACCESS_RDWR, 0, PAL_CREATE_TRY, 0);
 
     if (srv == NULL) {
         pal_printf("DkStreamOpen failed\n");
         return -1;
     }
 
-    void * buffer = (void *) DkVirtualMemoryAlloc(NULL, 4096, 0,
-                                                  PAL_PROT_READ|PAL_PROT_WRITE);
+    void* buffer = (void*)DkVirtualMemoryAlloc(NULL, 4096, 0, PAL_PROT_READ | PAL_PROT_WRITE);
     if (!buffer) {
         pal_printf("DkVirtualMemoryAlloc failed\n");
         return -1;
@@ -45,9 +41,9 @@ int main (int argc, char ** argv)
 
     PAL_HANDLE hdls[8];
     int nhdls = 1, i;
-    hdls[0] = srv;
+    hdls[0]   = srv;
 
-    while(1) {
+    while (1) {
         PAL_HANDLE hdl = DkObjectsWaitAny(nhdls, hdls, NO_TIMEOUT);
 
         if (!hdl)
@@ -71,7 +67,7 @@ int main (int argc, char ** argv)
         }
 
         int cnt = 0;
-        for (i = 0 ; i < nhdls ; i++)
+        for (i = 0; i < nhdls; i++)
             if (hdls[i] == hdl)
                 cnt = i;
 
@@ -85,9 +81,9 @@ int main (int argc, char ** argv)
             continue;
         }
 
-        ((char *) buffer)[bytes] = 0;
+        ((char*)buffer)[bytes] = 0;
 
-        pal_printf("[%d] %s", cnt, (char *) buffer);
+        pal_printf("[%d] %s", cnt, (char*)buffer);
     }
     return 0;
 }

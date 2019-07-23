@@ -24,7 +24,7 @@
 #define PAL_HOST_H
 
 #ifndef IN_PAL
-# error "cannot be included outside PAL"
+#error "cannot be included outside PAL"
 #endif
 
 /* internal Mutex design, the structure has to align at integer boundary
@@ -38,9 +38,14 @@ typedef struct mutex_handle {
 } PAL_LOCK;
 
 /* Initializer of Mutexes */
-#define MUTEX_HANDLE_INIT    { .value = { .counter = 1 } }
-#define INIT_MUTEX_HANDLE(mut)  \
-    do { atomic_set(&(mut)->value, 1); } while (0)
+#define MUTEX_HANDLE_INIT        \
+    {                            \
+        .value = {.counter = 1 } \
+    }
+#define INIT_MUTEX_HANDLE(mut)        \
+    do {                              \
+        atomic_set(&(mut)->value, 1); \
+    } while (0)
 
 #define LOCK_INIT MUTEX_HANDLE_INIT
 #define INIT_LOCK(lock) INIT_MUTEX_HANDLE(lock);
@@ -48,8 +53,7 @@ typedef struct mutex_handle {
 #define _DkInternalLock _DkMutexLock
 #define _DkInternalUnlock _DkMutexUnlock
 #define MAX_FDS 3
-typedef union pal_handle
-{
+typedef union pal_handle {
     /* TSAI: Here we define the internal types of PAL_HANDLE
      * in PAL design, user has not to access the content inside the
      * handle, also there is no need to allocate the internal
@@ -169,66 +173,56 @@ typedef union pal_handle
     } event;
 } * PAL_HANDLE;
 
-#define RFD(n)          (1 << (MAX_FDS*0 + (n)))
-#define WFD(n)          (1 << (MAX_FDS*1 + (n)))
-#define WRITABLE(n)     (1 << (MAX_FDS*2 + (n)))
-#define ERROR(n)        (1 << (MAX_FDS*3 + (n)))
-#define HAS_FDS         ((1 << MAX_FDS*2) - 1)
+#define RFD(n) (1 << (MAX_FDS * 0 + (n)))
+#define WFD(n) (1 << (MAX_FDS * 1 + (n)))
+#define WRITABLE(n) (1 << (MAX_FDS * 2 + (n)))
+#define ERROR(n) (1 << (MAX_FDS * 3 + (n)))
+#define HAS_FDS ((1 << MAX_FDS * 2) - 1)
 
-#define HANDLE_TYPE(handle)  ((handle)->hdr.type)
+#define HANDLE_TYPE(handle) ((handle)->hdr.type)
 struct arch_frame {
 #ifdef __x86_64__
     uint64_t rsp, rbp, rbx, rsi, rdi, r12, r13, r14, r15;
 #else
-# error "unsupported architecture"
+#error "unsupported architecture"
 #endif
 };
 
 #ifdef __x86_64__
-# define store_register(reg, var)     \
-    asm volatile ("movq %%" #reg ", %0" : "=a" (var) :: "memory");
+#define store_register(reg, var) asm volatile("movq %%" #reg ", %0" : "=a"(var)::"memory");
 
-# define store_register_in_frame(reg, f)     store_register(reg, (f)->reg)
+#define store_register_in_frame(reg, f) store_register(reg, (f)->reg)
 
-# define arch_store_frame(f)                     \
-    store_register_in_frame(rsp, f)              \
-    store_register_in_frame(rbp, f)              \
-    store_register_in_frame(rbx, f)              \
-    store_register_in_frame(rsi, f)              \
-    store_register_in_frame(rdi, f)              \
-    store_register_in_frame(r12, f)              \
-    store_register_in_frame(r13, f)              \
-    store_register_in_frame(r14, f)              \
-    store_register_in_frame(r15, f)
+#define arch_store_frame(f)                                                     \
+    store_register_in_frame(rsp, f) store_register_in_frame(rbp, f)             \
+        store_register_in_frame(rbx, f) store_register_in_frame(rsi, f)         \
+            store_register_in_frame(rdi, f) store_register_in_frame(r12, f)     \
+                store_register_in_frame(r13, f) store_register_in_frame(r14, f) \
+                    store_register_in_frame(r15, f)
 
-# define restore_register(reg, var, clobber...)  \
-    asm volatile ("movq %0, %%" #reg :: "g" (var) : "memory", ##clobber);
+#define restore_register(reg, var, clobber...) \
+    asm volatile("movq %0, %%" #reg::"g"(var) : "memory", ##clobber);
 
-# define restore_register_in_frame(reg, f)       \
-    restore_register(reg, (f)->reg,              \
-                     "r15", "r14", "r13", "r12", "rdi", "rsi", "rbx")
+#define restore_register_in_frame(reg, f) \
+    restore_register(reg, (f)->reg, "r15", "r14", "r13", "r12", "rdi", "rsi", "rbx")
 
-# define arch_restore_frame(f)                   \
-    restore_register_in_frame(r15, f)            \
-    restore_register_in_frame(r14, f)            \
-    restore_register_in_frame(r13, f)            \
-    restore_register_in_frame(r12, f)            \
-    restore_register_in_frame(rdi, f)            \
-    restore_register_in_frame(rsi, f)            \
-    restore_register_in_frame(rbx, f)            \
-    restore_register_in_frame(rbp, f)            \
-    restore_register_in_frame(rsp, f)
+#define arch_restore_frame(f)                                                       \
+    restore_register_in_frame(r15, f) restore_register_in_frame(r14, f)             \
+        restore_register_in_frame(r13, f) restore_register_in_frame(r12, f)         \
+            restore_register_in_frame(rdi, f) restore_register_in_frame(rsi, f)     \
+                restore_register_in_frame(rbx, f) restore_register_in_frame(rbp, f) \
+                    restore_register_in_frame(rsp, f)
 #else /* __x86_64__ */
-# error "unsupported architecture"
+#error "unsupported architecture"
 #endif
 
-#define PAL_FRAME_IDENTIFIER    (0xdeaddeadbeefbeef)
+#define PAL_FRAME_IDENTIFIER (0xdeaddeadbeefbeef)
 
 struct pal_frame {
-    volatile uint64_t           identifier;
-    void *                      func;
-    const char *                funcname;
-    struct arch_frame           arch;
+    volatile uint64_t identifier;
+    void* func;
+    const char* funcname;
+    struct arch_frame arch;
 };
 
 /* When a PAL call is issued, a special PAL_FRAME is placed on the stack.
@@ -250,40 +244,34 @@ struct pal_frame {
  * visible to the compiler in an otherwise stack-local variable (so the
  * compiler will try to optimize out these assignments.
  */
-static inline
-void __store_frame (volatile struct pal_frame * frame,
-                    void * func, const char * funcname)
-{
-    arch_store_frame(&frame->arch)
-    frame->func = func;
-    frame->funcname = funcname;
-    asm volatile ("nop" ::: "memory");
+static inline void __store_frame(volatile struct pal_frame* frame, void* func,
+                                 const char* funcname) {
+    arch_store_frame(&frame->arch) frame->func = func;
+    frame->funcname                            = funcname;
+    asm volatile("nop" ::: "memory");
     frame->identifier = PAL_FRAME_IDENTIFIER;
 }
 
-#define ENTER_PAL_CALL(name)                \
-    struct pal_frame frame;                 \
+#define ENTER_PAL_CALL(name) \
+    struct pal_frame frame;  \
     __store_frame(&frame, &(name), #name)
 
-
-static inline
-void __clear_frame (volatile struct pal_frame * frame)
-{
+static inline void __clear_frame(volatile struct pal_frame* frame) {
     if (frame->identifier == PAL_FRAME_IDENTIFIER) {
-        asm volatile ("nop" ::: "memory");
+        asm volatile("nop" ::: "memory");
         frame->identifier = 0;
     }
 }
 
-#define LEAVE_PAL_CALL()                    \
-    do {                                    \
-        __clear_frame(&frame);              \
+#define LEAVE_PAL_CALL()       \
+    do {                       \
+        __clear_frame(&frame); \
     } while (0)
 
-#define LEAVE_PAL_CALL_RETURN(retval)       \
-    do {                                    \
-        __clear_frame(&frame);              \
-        return (retval);                    \
-} while (0)
+#define LEAVE_PAL_CALL_RETURN(retval) \
+    do {                              \
+        __clear_frame(&frame);        \
+        return (retval);              \
+    } while (0)
 
 #endif /* PAL_HOST_H */

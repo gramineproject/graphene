@@ -20,10 +20,10 @@
  * This file contains codes for implementation of 'proc' filesystem.
  */
 
+#include <shim_fs.h>
+#include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
 #include <shim_utils.h>
 
 #include <pal.h>
@@ -31,13 +31,13 @@
 
 #include <errno.h>
 
-#include <linux/stat.h>
 #include <linux/fcntl.h>
+#include <linux/stat.h>
 
 #include <asm/fcntl.h>
 #include <asm/mman.h>
-#include <asm/unistd.h>
 #include <asm/prctl.h>
+#include <asm/unistd.h>
 
 extern const struct proc_nm_ops nm_thread;
 extern const struct proc_fs_ops fs_thread;
@@ -50,71 +50,72 @@ extern const struct proc_fs_ops fs_cpuinfo;
 
 const struct proc_dir proc_root = {
     .size = 5,
-    .ent = {
-        { .name = "self", .fs_ops = &fs_thread, .dir = &dir_thread, },
-        { .nm_ops = &nm_thread, .fs_ops = &fs_thread, .dir = &dir_thread, },
-        { .nm_ops = &nm_ipc_thread, .fs_ops = &fs_ipc_thread,
-          .dir = &dir_ipc_thread, },
-        { .name = "meminfo", .fs_ops = &fs_meminfo, },
-        { .name = "cpuinfo", .fs_ops = &fs_cpuinfo, },
-    }, };
+    .ent =
+        {
+            {
+                .name = "self", .fs_ops = &fs_thread, .dir = &dir_thread,
+            },
+            {
+                .nm_ops = &nm_thread, .fs_ops = &fs_thread, .dir = &dir_thread,
+            },
+            {
+                .nm_ops = &nm_ipc_thread, .fs_ops = &fs_ipc_thread, .dir = &dir_ipc_thread,
+            },
+            {
+                .name = "meminfo", .fs_ops = &fs_meminfo,
+            },
+            {
+                .name = "cpuinfo", .fs_ops = &fs_cpuinfo,
+            },
+        },
+};
 
-#define PROC_INO_BASE      1
+#define PROC_INO_BASE 1
 
-static int proc_root_mode (const char * name, mode_t * mode)
-{
-    __UNUSED(name); // We know this is /proc
+static int proc_root_mode(const char* name, mode_t* mode) {
+    __UNUSED(name);  // We know this is /proc
     *mode = 0555;
     return 0;
 }
 
-static int proc_root_stat (const char * name, struct stat * buf)
-{
-    __UNUSED(name); // We know this is /proc
+static int proc_root_stat(const char* name, struct stat* buf) {
+    __UNUSED(name);  // We know this is /proc
     memset(buf, 0, sizeof(struct stat));
 
     buf->st_dev = buf->st_ino = 1;
-    buf->st_mode = 0555|S_IFDIR;
-    buf->st_uid = 0;
-    buf->st_gid = 0;
-    buf->st_size = 4096;
+    buf->st_mode              = 0555 | S_IFDIR;
+    buf->st_uid               = 0;
+    buf->st_gid               = 0;
+    buf->st_size              = 4096;
 
     return 0;
 }
 
+static int proc_root_open(struct shim_handle* hdl, const char* name, int flags) {
+    __UNUSED(hdl);   // this is a placeholder function
+    __UNUSED(name);  // We know this is /proc
 
-static int proc_root_open (struct shim_handle * hdl,
-                           const char * name, int flags)
-{
-    __UNUSED(hdl); // this is a placeholder function
-    __UNUSED(name); // We know this is /proc
-
-
-    if (flags & (O_WRONLY|O_RDWR))
+    if (flags & (O_WRONLY | O_RDWR))
         return -EISDIR;
 
     // Don't really need to do any work here, but keeping as a placeholder,
     // just in case.
 
     return 0;
-
 }
 
 struct proc_fs_ops fs_proc_root = {
-        .open     = &proc_root_open,
-        .mode     = &proc_root_mode,
-        .stat     = &proc_root_stat,
-    };
+    .open = &proc_root_open, .mode = &proc_root_mode, .stat = &proc_root_stat,
+};
 
-const struct proc_ent proc_root_ent =
-    { .name = "", .fs_ops = &fs_proc_root, .dir = &proc_root, };
+const struct proc_ent proc_root_ent = {
+    .name = "", .fs_ops = &fs_proc_root, .dir = &proc_root,
+};
 
-static inline int token_len (const char * str, const char ** next_str)
-{
-    const char * t = str;
+static inline int token_len(const char* str, const char** next_str) {
+    const char* t = str;
 
-    while (*t && *t != '/')
-        t++;
+    while (*t && *t != '/') t++;
 
     if (next_str)
         *next_str = *t ? t + 1 : NULL;
@@ -122,17 +123,15 @@ static inline int token_len (const char * str, const char ** next_str)
     return t - str;
 }
 
-static int proc_match_name (const char * trim_name,
-                            const struct proc_ent ** ent)
-{
+static int proc_match_name(const char* trim_name, const struct proc_ent** ent) {
     if (!trim_name || !trim_name[0]) {
         *ent = &proc_root_ent;
         return 0;
     }
 
-    const char * token = trim_name, * next_token;
-    const struct proc_ent * tmp = proc_root.ent;
-    const struct proc_ent * last = NULL;
+    const char *token           = trim_name, *next_token;
+    const struct proc_ent* tmp  = proc_root.ent;
+    const struct proc_ent* last = NULL;
 
     if (*token == '/')
         token++;
@@ -140,23 +139,22 @@ static int proc_match_name (const char * trim_name,
     while (token) {
         int tlen = token_len(token, &next_token);
 
-        for ( ; tmp->name || tmp->nm_ops ; tmp++) {
+        for (; tmp->name || tmp->nm_ops; tmp++) {
             if (tmp->name && !memcmp(tmp->name, token, tlen))
                 goto found;
 
-            if (tmp->nm_ops && tmp->nm_ops->match_name &&
-                tmp->nm_ops->match_name(trim_name))
+            if (tmp->nm_ops && tmp->nm_ops->match_name && tmp->nm_ops->match_name(trim_name))
                 goto found;
         }
 
         return -ENOENT;
 
-found:
+    found:
         if (!tmp->dir && next_token)
             return -ENOENT;
 
-        last = tmp;
-        tmp = tmp->dir->ent;
+        last  = tmp;
+        tmp   = tmp->dir->ent;
         token = next_token;
     }
 
@@ -164,17 +162,16 @@ found:
     return 0;
 }
 
-static int proc_mode (struct shim_dentry * dent, mode_t * mode)
-{
+static int proc_mode(struct shim_dentry* dent, mode_t* mode) {
     if (qstrempty(&dent->rel_path)) {
         dent->ino = PROC_INO_BASE;
-        *mode = 0555|S_IFDIR;
+        *mode     = 0555 | S_IFDIR;
         return 0;
     }
 
     /* don't care about forced or not */
-    const char * rel_path = qstrgetstr(&dent->rel_path);
-    const struct proc_ent * ent;
+    const char* rel_path = qstrgetstr(&dent->rel_path);
+    const struct proc_ent* ent;
     int ret = proc_match_name(rel_path, &ent);
 
     if (ret < 0)
@@ -186,8 +183,7 @@ static int proc_mode (struct shim_dentry * dent, mode_t * mode)
     return ent->fs_ops->mode(rel_path, mode);
 }
 
-static int proc_lookup (struct shim_dentry * dent)
-{
+static int proc_lookup(struct shim_dentry* dent) {
     if (qstrempty(&dent->rel_path)) {
         dent->ino = PROC_INO_BASE;
         dent->state |= DENTRY_ISDIRECTORY;
@@ -195,8 +191,8 @@ static int proc_lookup (struct shim_dentry * dent)
     }
 
     /* don't care about forced or not */
-    const struct proc_ent * ent = NULL;
-    int ret = proc_match_name(qstrgetstr(&dent->rel_path), &ent);
+    const struct proc_ent* ent = NULL;
+    int ret                    = proc_match_name(qstrgetstr(&dent->rel_path), &ent);
 
     if (!ret && ent->dir)
         dent->state |= DENTRY_ISDIRECTORY;
@@ -204,11 +200,10 @@ static int proc_lookup (struct shim_dentry * dent)
     if (ent && ent->fs_ops && ent->fs_ops->follow_link)
         dent->state |= DENTRY_ISLINK;
 
-     return ret;
+    return ret;
 }
 
-static int proc_mount (const char * uri, void ** mount_data)
-{
+static int proc_mount(const char* uri, void** mount_data) {
     // Arguments for compatibility with other FSes
     __UNUSED(uri);
     __UNUSED(mount_data);
@@ -216,23 +211,20 @@ static int proc_mount (const char * uri, void ** mount_data)
     return 0;
 }
 
-static int proc_unmount (void * mount_data)
-{
+static int proc_unmount(void* mount_data) {
     // Arguments for compatibility with other FSes
     __UNUSED(mount_data);
     /* do nothing */
     return 0;
 }
 
-static int proc_open (struct shim_handle * hdl, struct shim_dentry * dent,
-                      int flags)
-{
-    const char * rel_path = qstrgetstr(&dent->rel_path);
+static int proc_open(struct shim_handle* hdl, struct shim_dentry* dent, int flags) {
+    const char* rel_path = qstrgetstr(&dent->rel_path);
 
-    if (flags & (O_CREAT|O_EXCL))
+    if (flags & (O_CREAT | O_EXCL))
         return -EACCES;
 
-    const struct proc_ent * ent;
+    const struct proc_ent* ent;
     int ret;
 
     if ((ret = proc_match_name(rel_path, &ent)) < 0)
@@ -246,11 +238,9 @@ static int proc_open (struct shim_handle * hdl, struct shim_dentry * dent,
     return ent->fs_ops->open(hdl, rel_path, flags);
 }
 
-static int proc_readdir (struct shim_dentry * dent,
-                         struct shim_dirent ** dirent)
-{
-    const char * rel_path = qstrgetstr(&dent->rel_path);
-    const struct proc_ent * ent;
+static int proc_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
+    const char* rel_path = qstrgetstr(&dent->rel_path);
+    const struct proc_ent* ent;
     int ret;
 
     if ((ret = proc_match_name(rel_path, &ent)) < 0)
@@ -259,46 +249,42 @@ static int proc_readdir (struct shim_dentry * dent,
     if (!ent->dir)
         return -ENOTDIR;
 
-    const struct proc_ent * tmp = ent->dir->ent;
-    const struct proc_ent * end = tmp + ent->dir->size;
+    const struct proc_ent* tmp = ent->dir->ent;
+    const struct proc_ent* end = tmp + ent->dir->size;
 
     HASHTYPE self_hash = hash_path(rel_path, dent->rel_path.len);
     HASHTYPE new_hash;
-    struct shim_dirent * buf, * ptr;
+    struct shim_dirent *buf, *ptr;
     int buf_size = MAX_PATH;
 
 retry:
-    buf = malloc(buf_size);
-    *dirent = ptr = buf;
-    struct shim_dirent ** last = dirent;
+    buf     = malloc(buf_size);
+    *dirent = ptr             = buf;
+    struct shim_dirent** last = dirent;
 
-    for ( ; tmp < end ; tmp++) {
+    for (; tmp < end; tmp++) {
         if (tmp->name) {
             int name_len = strlen(tmp->name);
 
-            if ((void *) (ptr + 1) + name_len + 1 > (void *) buf + buf_size)
+            if ((void*)(ptr + 1) + name_len + 1 > (void*)buf + buf_size)
                 goto enlarge;
 
-            new_hash = rehash_name(self_hash,
-                                   tmp->name, name_len);
+            new_hash = rehash_name(self_hash, tmp->name, name_len);
 
-            ptr->next = (void *) (ptr + 1) + name_len + 1;
-            ptr->ino = new_hash;
-            ptr->type = tmp->dir ? LINUX_DT_DIR : (
-                        tmp->fs_ops && tmp->fs_ops->follow_link ?
-                        LINUX_DT_LNK : LINUX_DT_REG);
+            ptr->next = (void*)(ptr + 1) + name_len + 1;
+            ptr->ino  = new_hash;
+            ptr->type =
+                tmp->dir ? LINUX_DT_DIR
+                         : (tmp->fs_ops && tmp->fs_ops->follow_link ? LINUX_DT_LNK : LINUX_DT_REG);
             memcpy(ptr->name, tmp->name, name_len + 1);
             last = &ptr->next;
-            ptr = *last;
+            ptr  = *last;
             continue;
         }
 
         if (tmp->nm_ops && tmp->nm_ops->list_name) {
-            struct shim_dirent * d = ptr;
-            int ret = tmp->nm_ops->list_name(rel_path,
-                                             &ptr,
-                                             (void *) buf + buf_size -
-                                             (void *) ptr);
+            struct shim_dirent* d = ptr;
+            int ret = tmp->nm_ops->list_name(rel_path, &ptr, (void*)buf + buf_size - (void*)ptr);
 
             if (ret == -ENOBUFS)
                 goto enlarge;
@@ -306,8 +292,7 @@ retry:
             if (ret < 0)
                 ptr = d;
             else
-                for ( ; d && d != ptr ; d = d->next)
-                    last = &d->next;
+                for (; d && d != ptr; d = d->next) last = &d->next;
             continue;
         }
     }
@@ -323,10 +308,9 @@ enlarge:
     goto retry;
 }
 
-static int proc_stat (struct shim_dentry * dent, struct stat * buf)
-{
-    const char * rel_path = qstrgetstr(&dent->rel_path);
-    const struct proc_ent * ent;
+static int proc_stat(struct shim_dentry* dent, struct stat* buf) {
+    const char* rel_path = qstrgetstr(&dent->rel_path);
+    const struct proc_ent* ent;
     int ret;
 
     if ((ret = proc_match_name(rel_path, &ent)) < 0)
@@ -338,11 +322,9 @@ static int proc_stat (struct shim_dentry * dent, struct stat * buf)
     return ent->fs_ops->stat(rel_path, buf);
 }
 
-static int proc_follow_link (struct shim_dentry * dent,
-                             struct shim_qstr * link)
-{
-    const char * rel_path = qstrgetstr(&dent->rel_path);
-    const struct proc_ent * ent;
+static int proc_follow_link(struct shim_dentry* dent, struct shim_qstr* link) {
+    const char* rel_path = qstrgetstr(&dent->rel_path);
+    const struct proc_ent* ent;
     int ret;
 
     if ((ret = proc_match_name(rel_path, &ent)) < 0)
@@ -354,13 +336,12 @@ static int proc_follow_link (struct shim_dentry * dent,
     return ent->fs_ops->follow_link(rel_path, link);
 }
 
-static int proc_hstat (struct shim_handle * hdl, struct stat * buf)
-{
-    struct shim_dentry * dent = hdl->dentry;
+static int proc_hstat(struct shim_handle* hdl, struct stat* buf) {
+    struct shim_dentry* dent = hdl->dentry;
     assert(dent);
 
-    const char * rel_path = qstrgetstr(&dent->rel_path);
-    const struct proc_ent * ent;
+    const char* rel_path = qstrgetstr(&dent->rel_path);
+    const struct proc_ent* ent;
     int ret;
 
     if ((ret = proc_match_name(rel_path, &ent)) < 0)
@@ -373,21 +354,21 @@ static int proc_hstat (struct shim_handle * hdl, struct stat * buf)
 }
 
 struct shim_fs_ops proc_fs_ops = {
-        .mount          = &proc_mount,
-        .unmount        = &proc_unmount,
-        .close          = &str_close,
-        .read           = &str_read,
-        .write          = &str_write,
-        .seek           = &str_seek,
-        .flush          = &str_flush,
-        .hstat          = &proc_hstat,
-    };
+    .mount   = &proc_mount,
+    .unmount = &proc_unmount,
+    .close   = &str_close,
+    .read    = &str_read,
+    .write   = &str_write,
+    .seek    = &str_seek,
+    .flush   = &str_flush,
+    .hstat   = &proc_hstat,
+};
 
 struct shim_d_ops proc_d_ops = {
-        .open           = &proc_open,
-        .stat           = &proc_stat,
-        .mode           = &proc_mode,
-        .lookup         = &proc_lookup,
-        .follow_link    = &proc_follow_link,
-        .readdir        = &proc_readdir,
-    };
+    .open        = &proc_open,
+    .stat        = &proc_stat,
+    .mode        = &proc_mode,
+    .lookup      = &proc_lookup,
+    .follow_link = &proc_follow_link,
+    .readdir     = &proc_readdir,
+};

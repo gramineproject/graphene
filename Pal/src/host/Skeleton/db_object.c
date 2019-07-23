@@ -20,17 +20,15 @@
  * This file contains APIs for closing or polling PAL handles.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
 /* _DkObjectsWaitAny for internal use. The function wait for any of the handle
    in the handle array. timeout can be set for the wait. */
-int _DkObjectsWaitAny (int count, PAL_HANDLE * handleArray, uint64_t timeout,
-                       PAL_HANDLE * polled)
-{
+int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, uint64_t timeout, PAL_HANDLE* polled) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
