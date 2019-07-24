@@ -137,6 +137,7 @@ class TC_01_Bootstrap(RegressionTestCase):
         self.assertIn('key1000=na', stderr)
         self.assertIn('key1=na', stderr)
 
+    @unittest.skip('this is broken on non-SGX, see #860')
     def test_140_missing_executable_and_manifest(self):
         try:
             stdout, stderr = self.run_binary(['fakenews'])
