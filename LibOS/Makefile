@@ -62,7 +62,7 @@ GLIBC_PATCHES = \
 # TODO: configuration
 # SHIM_TCB_USE_GS=yes
 SHIM_TCB_USE_GS=
-ifneq (SHIM_THREAD_USE_GS, "yes")
+ifneq (SHIM_TCB_USE_GS, "yes")
 GLIBC_PATCHES += \
     glibc-add-shim-tcb.patch
 endif
