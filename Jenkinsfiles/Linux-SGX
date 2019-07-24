@@ -51,19 +51,19 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python
-                                                  make SGX=1
-                                                  make SGX_RUN=1
+                                make SGX=1
+                                make SGX_RUN=1
                                 make SGX_RUN=1 regression
                             '''
-      }
-      timeout(time: 5, unit: 'MINUTES') {
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/bash
                                 make SGX=1
                                 make SGX_RUN=1
                                 make SGX_RUN=1 regression
                            '''
-      }
+                        }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
@@ -88,7 +88,6 @@ pipeline {
                             sleep 10
                             ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000
                             '''
-                            /*
                         sh '''
                             cd LibOS/shim/test/apps/apache
                             make SGX=1
@@ -96,7 +95,6 @@ pipeline {
                             make SGX_RUN=1 start-graphene-server &
                             sleep 15 && ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
                             '''
-                            */
                     }
                 }
                 stage('Deploy') {
