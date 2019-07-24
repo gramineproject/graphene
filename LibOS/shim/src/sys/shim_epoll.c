@@ -261,7 +261,7 @@ int shim_do_epoll_ctl (int epfd, int op, int fd,
                           hdl, epoll);
 
                     put_handle(epoll_hdl);
-                    put_handle(hdl); 
+                    put_handle(hdl);
 
                     LISTP_DEL(epoll_fd, &epoll->fds, list);
                     epoll->nfds--;
