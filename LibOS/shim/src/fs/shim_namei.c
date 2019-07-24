@@ -288,7 +288,7 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
             start = cur_thread->cwd;
         } else {
             /* Start at the global root if we have no fs and no start dentry.
-             * This shoud only happen as part of initialization.
+             * This should only happen as part of initialization.
              */
             start = dentry_root;
             assert(start);
@@ -608,7 +608,7 @@ int dentry_open (struct shim_handle * hdl, struct shim_dentry * dent,
     char *path;
     struct shim_mount * fs = dent->fs;
 
-    /* I think missing functionality shoudl be treated as EINVAL, or maybe
+    /* I think missing functionality should be treated as EINVAL, or maybe
      * ENOSYS?*/
     if (!fs->d_ops || !fs->d_ops->open) {
         ret = -EINVAL;

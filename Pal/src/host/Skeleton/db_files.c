@@ -138,7 +138,7 @@ static int dir_open (PAL_HANDLE * handle, const char * type, const char * uri,
 }
 
 /* 'read' operation for directory stream. Directory stream will not
-   need a 'write' operat4on. */
+   need a 'write' operation. */
 int64_t dir_read (PAL_HANDLE handle, uint64_t offset, uint64_t count, void * buf)
 {
     return -PAL_ERROR_NOTIMPLEMENTED;
