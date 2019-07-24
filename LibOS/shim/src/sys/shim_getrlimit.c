@@ -100,12 +100,18 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
 
 int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
 {
+    struct shim_thread* cur_thread = get_cur_thread();
+    assert(cur_thread);
+
     if (resource < 0 || RLIM_NLIMITS <= resource)
         return -EINVAL;
     if (!rlim || test_user_memory(rlim, sizeof(*rlim), false))
         return -EFAULT;
     if (rlim->rlim_cur > rlim->rlim_max)
         return -EINVAL;
+
+    if (rlim->rlim_max > __rlim[resource].rlim_max && cur_thread->euid)
+        return -EPERM;
 
     lock(&rlimit_lock);
     __rlim[resource].rlim_cur = rlim->rlim_cur;
@@ -137,8 +143,8 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
             return -EFAULT;
         if (new_rlim->rlim_cur > new_rlim->rlim_max)
             return -EINVAL;
-        if (new_rlim->rlim_cur > __rlim[resource].rlim_max)
-            return -EINVAL;
+        if (new_rlim->rlim_max > __rlim[resource].rlim_max && cur_thread->euid)
+            return -EPERM;
     }
 
     lock(&rlimit_lock);
