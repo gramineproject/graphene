@@ -191,9 +191,9 @@ void _DkGenericEventTrigger (PAL_IDX event_num, PAL_EVENT_HANDLER upcall,
                    offsetof(PAL_CONTEXT, fpregs),
                    "PAL_CONTEXT layout doesn't match gregset_t");
     _Static_assert(offsetof(mcontext_t, fpregs) == offsetof(PAL_CONTEXT, fpregs),
-                   "offsetof PAL_CONTEXT.fpregs doesn't patch to mcontext_t::fpregs");
+                   "offsetof PAL_CONTEXT.fpregs doesn't match mcontext_t::fpregs");
     _Static_assert(sizeof(uc->uc_mcontext.fpregs) == sizeof(PAL_PTR),
-                   "sizeof PAL_CONTEXT.fpregs doesn't match to fpregset_t");
+                   "PAL_CONTEXT assumes that uc_mcontext.fpregs is a pointer but it is not");
     (*upcall) ((PAL_PTR) &event, arg,
                uc ? (PAL_CONTEXT*)&uc->uc_mcontext : NULL);
 }
@@ -408,6 +408,6 @@ err:
 void _DkExceptionReturn (void * event)
 {
     /* nothing here.
-     * NOTE: mucontext_t is reused as PAL_CONTEXT by _DkGenericEventTrigger()
+     * NOTE: uc_mcontext is reused as PAL_CONTEXT by _DkGenericEventTrigger()
      */
 }
