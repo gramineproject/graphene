@@ -40,6 +40,7 @@ int migrate_fork (struct shim_cp_store * store,
                   struct shim_thread * thread,
                   struct shim_process * process, va_list ap)
 {
+    __UNUSED(ap);
     BEGIN_MIGRATION_DEF(fork, struct shim_thread * thread,
                         struct shim_process * process)
     {

@@ -2,22 +2,18 @@
 HOST_DIR = host/$(PAL_HOST)
 SEC_DIR = security/$(PAL_HOST)
 
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
-LD	= ld
-
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
 	  -fno-stack-protector -fno-builtin
 
-EXTRAFLAGS = -Wextra -Wno-sign-compare $(call cc-option,-Wnull-dereference)
+EXTRAFLAGS = -Wextra $(call cc-option,-Wnull-dereference)
 
 CFLAGS += $(EXTRAFLAGS)
 
 ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
-	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds
+	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds \
+	  -z relro -z now
 ARFLAGS	=
 
 ifeq ($(WERROR),1)

@@ -16,11 +16,11 @@ RUN apt-get update \
        libxml2-dev \
        net-tools \
        python \
-       python-crypto \
        python-protobuf \
        python3-minimal \
        texinfo \
        wget \
+       libomp-dev \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \

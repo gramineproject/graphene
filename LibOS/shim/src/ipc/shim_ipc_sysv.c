@@ -71,10 +71,10 @@ int ipc_sysv_delres_send (struct shim_ipc_port * port, IDTYPE dest,
     }
 
     if (!owned) {
-        struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                        IPC_SYSV_DELRES,
-                        sizeof(struct shim_ipc_sysv_delres),
-                        dest);
+        size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_delres));
+        struct shim_ipc_msg* msg = __alloca(total_msg_size);
+        init_ipc_msg(msg, IPC_SYSV_DELRES, total_msg_size, dest);
+
         struct shim_ipc_sysv_delres * msgin = (struct shim_ipc_sysv_delres *)
             &msg->msg;
         msgin->resid = resid;
@@ -87,10 +87,10 @@ int ipc_sysv_delres_send (struct shim_ipc_port * port, IDTYPE dest,
         goto out;
     }
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_SYSV_DELRES,
-                                        sizeof(struct shim_ipc_sysv_delres),
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_delres));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_SYSV_DELRES, total_msg_size, dest);
+
     struct shim_ipc_sysv_delres * msgin = (struct shim_ipc_sysv_delres *)
                                           &msg->msg.msg;
     msgin->resid = resid;
@@ -99,7 +99,7 @@ int ipc_sysv_delres_send (struct shim_ipc_port * port, IDTYPE dest,
     debug("ipc send to %u: IPC_SYSV_DELRES(%u, %s)\n", dest, resid,
           SYSV_TYPE_STR(type));
 
-    ret = do_ipc_duplex(msg, port, NULL, NULL);
+    ret = send_ipc_message_duplex(msg, port, NULL, NULL);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_sysv_delres_send);
@@ -108,6 +108,8 @@ out:
 
 int ipc_sysv_delres_callback (IPC_CALLBACK_ARGS)
 {
+    __UNUSED(port);
+
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_sysv_delres * msgin  =
@@ -158,10 +160,9 @@ int ipc_sysv_movres_send (struct sysv_client * client, IDTYPE owner,
     int ret = 0;
     int len = strlen(uri);
 
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_SYSV_MOVRES,
-                                        sizeof(struct shim_ipc_sysv_movres) +
-                                        len, client->vmid);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_movres) + len);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_SYSV_MOVRES, total_msg_size, client->vmid);
     struct shim_ipc_sysv_movres * msgin = (struct shim_ipc_sysv_movres *)
                                           &msg->msg;
     msgin->resid = resid;
@@ -189,7 +190,7 @@ int ipc_sysv_movres_callback (IPC_CALLBACK_ARGS)
     debug("ipc callback from %u: IPC_SYSV_MOVRES(%u, %s, %u, %s)\n", msg->src,
           msgin->resid, SYSV_TYPE_STR(msgin->type), msgin->owner, msgin->uri);
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (!obj)
         goto out;
 
@@ -231,10 +232,9 @@ int ipc_sysv_msgsnd_send (struct shim_ipc_port * port, IDTYPE dest,
         owned = false;
     }
 
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                    IPC_SYSV_MSGSND,
-                                    sizeof(struct shim_ipc_sysv_msgsnd) +
-                                    size, dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_msgsnd) + size);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_SYSV_MSGSND, total_msg_size, dest);
     struct shim_ipc_sysv_msgsnd * msgin =
                                (struct shim_ipc_sysv_msgsnd *) &msg->msg;
     msgin->msgid = msgid;
@@ -267,7 +267,7 @@ int ipc_sysv_msgsnd_callback (IPC_CALLBACK_ARGS)
     size_t size = msg->size - sizeof(*msg) - sizeof(*msgin);
 
     if (msg->seq) {
-        struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+        struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
         void * priv = obj ? obj->private : NULL;
 
         if (priv) {
@@ -327,10 +327,10 @@ int ipc_sysv_msgrcv_send (IDTYPE msgid, long msgtype, int flags, void * buf,
 
     assert(port);
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_SYSV_MSGRCV,
-                                        sizeof(struct shim_ipc_sysv_msgrcv),
-                                        true);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_msgrcv));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_SYSV_MSGRCV, total_msg_size, owner);
+
     struct shim_ipc_sysv_msgrcv * msgin =
                 (struct shim_ipc_sysv_msgrcv *) &msg->msg.msg;
     msgin->msgid = msgid;
@@ -341,7 +341,7 @@ int ipc_sysv_msgrcv_send (IDTYPE msgid, long msgtype, int flags, void * buf,
     debug("ipc send to %u: IPC_SYSV_MSGRCV(%u, %ld)\n", owner,
           msgid, msgtype);
 
-    ret = do_ipc_duplex(msg, port, NULL, buf);
+    ret = send_ipc_message_duplex(msg, port, NULL, buf);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_sysv_msgrcv_send);
@@ -394,11 +394,10 @@ int ipc_sysv_msgmov_send (struct shim_ipc_port * port, IDTYPE dest,
                           struct sysv_score * scores, int nscores)
 {
     BEGIN_PROFILE_INTERVAL();
-    struct shim_ipc_msg * msg =
-            create_ipc_msg_on_stack(IPC_SYSV_MSGMOV,
-                                    sizeof(struct shim_ipc_sysv_msgmov) +
-                                    sizeof(struct sysv_score) * nscores,
-                                    dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_msgmov) +
+                                             sizeof(struct sysv_score) * nscores);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_SYSV_MSGMOV, total_msg_size, dest);
     struct shim_ipc_sysv_msgmov * msgin =
                             (struct shim_ipc_sysv_msgmov *) &msg->msg;
 
@@ -416,6 +415,8 @@ int ipc_sysv_msgmov_send (struct shim_ipc_port * port, IDTYPE dest,
 
 int ipc_sysv_msgmov_callback (IPC_CALLBACK_ARGS)
 {
+    __UNUSED(port);
+
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_sysv_msgmov * msgin =
@@ -446,7 +447,7 @@ int ipc_sysv_msgmov_callback (IPC_CALLBACK_ARGS)
     ret = recover_msg_ownership(msgq);
 
     struct shim_ipc_info * info;
-    if (!create_ipc_location(&info)) {
+    if (!get_ipc_info_cur_process(&info)) {
         add_sysv_subrange(msgin->msgid, info->vmid, qstrgetstr(&info->uri),
                           &msgin->lease);
         put_ipc_info(info);
@@ -487,11 +488,10 @@ int ipc_sysv_semop_send (IDTYPE semid, struct sembuf * sops, int nsops,
     assert(port);
 
     if (!waitforreply) {
-        struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_SYSV_SEMOP,
-                                        sizeof(struct shim_ipc_sysv_semop) +
-                                        sizeof(struct sembuf) * nsops,
-                                        owner);
+        size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_semop) +
+                                                 sizeof(struct sembuf) * nsops);
+        struct shim_ipc_msg* msg = __alloca(total_msg_size);
+        init_ipc_msg(msg, IPC_SYSV_SEMOP, total_msg_size, owner);
         struct shim_ipc_sysv_semop * msgin =
                 (struct shim_ipc_sysv_semop *) &msg->msg;
 
@@ -510,11 +510,11 @@ int ipc_sysv_semop_send (IDTYPE semid, struct sembuf * sops, int nsops,
         goto out;
     }
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_SYSV_SEMOP,
-                                        sizeof(struct shim_ipc_sysv_semop) +
-                                        sizeof(struct sembuf) * nsops,
-                                        owner);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_semop) +
+                                                 sizeof(struct sembuf) * nsops);
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_SYSV_SEMOP, total_msg_size, owner);
+
     struct shim_ipc_sysv_semop * msgin =
             (struct shim_ipc_sysv_semop *) &msg->msg.msg;
     msgin->semid   = semid;
@@ -526,7 +526,7 @@ int ipc_sysv_semop_send (IDTYPE semid, struct sembuf * sops, int nsops,
     debug("ipc send to %u: IPC_SYSV_SEMOP(%u, %ld, %u)\n", owner, semid,
           timeout, nsops);
 
-    ret = do_ipc_duplex(msg, port, seq, NULL);
+    ret = send_ipc_message_duplex(msg, port, seq, NULL);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_sysv_semop_send);
@@ -577,14 +577,12 @@ int ipc_sysv_semctl_send (IDTYPE semid, int semnum, int cmd, void * vals,
 
     int ctlvalsize = (cmd == SETALL || cmd == SETVAL) ? valsize : 0;
 
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_SYSV_SEMCTL,
-                                        sizeof(struct shim_ipc_sysv_semctl) +
-                                        ctlvalsize,
-                                        owner);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_semctl) + ctlvalsize);
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_SYSV_SEMCTL, total_msg_size, owner);
+
     struct shim_ipc_sysv_semctl * msgin =
                 (struct shim_ipc_sysv_semctl *) &msg->msg.msg;
-
     msgin->semid   = semid;
     msgin->semnum  = semnum;
     msgin->cmd     = cmd;
@@ -595,7 +593,7 @@ int ipc_sysv_semctl_send (IDTYPE semid, int semnum, int cmd, void * vals,
     debug("ipc send to %u: IPC_SYSV_SEMCTL(%u, %d, %d)\n", owner, semid,
           semnum, cmd);
 
-    ret = do_ipc_duplex(msg, port, NULL, vals);
+    ret = send_ipc_message_duplex(msg, port, NULL, vals);
     put_ipc_port(port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_sysv_semctl_send);
@@ -702,11 +700,10 @@ int ipc_sysv_semret_send (struct shim_ipc_port * port, IDTYPE dest, void * vals,
 {
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_SYSV_SEMRET,
-                                        sizeof(struct shim_ipc_sysv_semret) +
-                                        valsize,
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_semret) + valsize);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_SYSV_SEMRET, total_msg_size, dest);
+
     struct shim_ipc_sysv_semret * msgin =
                 (struct shim_ipc_sysv_semret *) &msg->msg;
     msgin->valsize = valsize;
@@ -728,7 +725,7 @@ int ipc_sysv_semret_callback (IPC_CALLBACK_ARGS)
 
     debug("ipc callback from %u: IPC_SYSV_SEMRET\n", msg->src);
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (obj) {
         struct shim_ipc_sysv_semctl * semctl =
                                 (struct shim_ipc_sysv_semctl *) &obj->msg.msg;
@@ -769,13 +766,13 @@ int ipc_sysv_semmov_send (struct shim_ipc_port * port, IDTYPE dest,
                           struct sysv_score * scores, int nscores)
 {
     BEGIN_PROFILE_INTERVAL();
-    struct shim_ipc_msg * msg =
-            create_ipc_msg_on_stack(IPC_SYSV_SEMMOV,
-                                    sizeof(struct shim_ipc_sysv_semmov) +
-                                    sizeof(struct sem_backup) * nsems +
-                                    sizeof(struct sem_client_backup) * nsrcs +
-                                    sizeof(struct sysv_score) * nscores,
-                                    dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_semmov) +
+                                             sizeof(struct sem_backup) * nsems +
+                                             sizeof(struct sem_client_backup) * nsrcs +
+                                             sizeof(struct sysv_score) * nscores);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_SYSV_SEMMOV, total_msg_size, dest);
+
     struct shim_ipc_sysv_semmov * msgin =
                             (struct shim_ipc_sysv_semmov *) &msg->msg;
     msgin->semid   = semid;
@@ -800,6 +797,8 @@ int ipc_sysv_semmov_send (struct shim_ipc_port * port, IDTYPE dest,
 
 int ipc_sysv_semmov_callback (IPC_CALLBACK_ARGS)
 {
+    __UNUSED(port);
+
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
     struct shim_ipc_sysv_semmov * msgin =
@@ -837,7 +836,7 @@ int ipc_sysv_semmov_callback (IPC_CALLBACK_ARGS)
                                 msgin->nsrcs);
 
     struct shim_ipc_info * info;
-    if (!create_ipc_location(&info)) {
+    if (!get_ipc_info_cur_process(&info)) {
         add_sysv_subrange(msgin->semid, info->vmid, qstrgetstr(&info->uri),
                           &msgin->lease);
         put_ipc_info(info);
@@ -871,17 +870,17 @@ int ipc_sysv_semquery_send (IDTYPE semid, int * nsems,
     }
 
     assert(port);
-    struct shim_ipc_msg_obj * msg = create_ipc_msg_duplex_on_stack(
-                                        IPC_SYSV_SEMQUERY,
-                                        sizeof(struct shim_ipc_sysv_semquery),
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_duplex_size(sizeof(struct shim_ipc_sysv_semquery));
+    struct shim_ipc_msg_duplex* msg = __alloca(total_msg_size);
+    init_ipc_msg_duplex(msg, IPC_SYSV_SEMQUERY, total_msg_size, dest);
+
     struct shim_ipc_sysv_semquery * msgin =
                 (struct shim_ipc_sysv_semquery *) &msg->msg.msg;
     msgin->semid = semid;
 
     debug("ipc send to %u: IPC_SYSV_SEMQUERY(%u)\n", dest, semid);
 
-    ret = do_ipc_duplex(msg, port, NULL, host_sem_ids);
+    ret = send_ipc_message_duplex(msg, port, NULL, host_sem_ids);
     put_ipc_port(port);
     if (ret >= 0) {
         *nsems = ret;
@@ -924,11 +923,11 @@ int ipc_sysv_semreply_send (struct shim_ipc_port * port, IDTYPE dest,
 {
     BEGIN_PROFILE_INTERVAL();
     int ret = 0;
-    struct shim_ipc_msg * msg = create_ipc_msg_on_stack(
-                                        IPC_SYSV_SEMREPLY,
-                                        sizeof(struct shim_ipc_sysv_semreply)
-                                        + sizeof(PAL_NUM) * nsems,
-                                        dest);
+    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_sysv_semreply) +
+                                             sizeof(PAL_NUM) * nsems);
+    struct shim_ipc_msg* msg = __alloca(total_msg_size);
+    init_ipc_msg(msg, IPC_SYSV_SEMREPLY, total_msg_size, dest);
+
     struct shim_ipc_sysv_semreply * msgin =
                     (struct shim_ipc_sysv_semreply *) &msg->msg;
     msgin->semid = semid;
@@ -954,7 +953,7 @@ int ipc_sysv_semreply_callback (IPC_CALLBACK_ARGS)
     debug("ipc callback from %u: IPC_SYSV_SEMREPLY(%u, %d)\n", msg->src,
           msgin->semid, msgin->nsems);
 
-    struct shim_ipc_msg_obj * obj = find_ipc_msg_duplex(port, msg->seq);
+    struct shim_ipc_msg_duplex * obj = pop_ipc_msg_duplex(port, msg->seq);
     if (!obj)
         goto out;
 

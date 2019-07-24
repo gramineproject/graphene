@@ -74,6 +74,11 @@ static ssize_t pipe_write (struct shim_handle * hdl, const void * buf,
 
 static int pipe_hstat (struct shim_handle * hdl, struct stat * stat)
 {
+    /* XXX: Is any of this right?
+     * Shouldn't we be using hdl to figure something out?
+     * if stat is NULL, should we not return -EFAULT?
+     */
+    __UNUSED(hdl);
     if (!stat)
         return 0;
 

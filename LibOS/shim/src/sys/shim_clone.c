@@ -398,7 +398,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
     // returns .The parent comes back here - however, the child is Happily
     // running the function we gave to DkThreadCreate.
     PAL_HANDLE pal_handle = thread_create(clone_implementation_wrapper,
-                                          &new_args, flags);
+                                          &new_args);
     if (!pal_handle) {
         ret = -PAL_ERRNO;
         goto clone_thread_failed;

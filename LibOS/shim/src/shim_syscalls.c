@@ -478,6 +478,7 @@ DEFINE_SHIM_SYSCALL (getrlimit, 2, shim_do_getrlimit, int, int, resource,
 
 int shim_do_getrusage (int who, struct __kernel_rusage * ru)
 {
+    __UNUSED(who);
     memset(ru, 0, sizeof(struct __kernel_rusage));
     return -ENOSYS;
 }
@@ -669,7 +670,7 @@ void * shim_do_arch_prctl (int code, void * addr)
     return (void *) -ENOSYS;
 }
 
-SHIM_SYSCALL_PASSTHROUGH (adjtimex, 1, int, struct __kernel_timex *, txc_p)
+SHIM_SYSCALL_PASSTHROUGH (adjtimex, 1, int, struct ____kernel_timex *, txc_p)
 
 /* setrlimit: sys/shim_getrlimit.c */
 DEFINE_SHIM_SYSCALL (setrlimit, 2, shim_do_setrlimit, int, int, resource,

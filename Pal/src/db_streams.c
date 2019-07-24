@@ -658,10 +658,10 @@ DkStreamSetLength (PAL_HANDLE handle, PAL_NUM length)
     if (ret < 0) {
         _DkRaiseFailure(-ret);
         rv = -ret;
+    } else {
+        // At this point, ret should equal length
+        assert((uint64_t)ret == length);
     }
-
-    // At this point, ret should equal length
-    assert((uint64_t)ret == length);
 
     LEAVE_PAL_CALL_RETURN(rv);
 }

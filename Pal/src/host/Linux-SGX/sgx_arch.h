@@ -251,6 +251,8 @@ typedef struct {
 
 typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 
+#define ENCLU ".byte 0x0f, 0x01, 0xd7"
+
 #else /* !__ASSEMBLER__ */
 
 /* microcode to call ENCLU */
@@ -285,5 +287,7 @@ typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
 #define XSAVE_NON_FX_MASK 0xfffffffffffffffc
 
 #define RETURN_FROM_OCALL 0xffffffffffffffff
+
+#define RFLAGS_DF (1<<10)
 
 #endif /* SGX_ARCH_H */

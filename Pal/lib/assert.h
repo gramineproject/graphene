@@ -18,7 +18,7 @@
  * terminates the process.
  */
 
-void warn (const char *format, ...);
+void warn (const char *format, ...) __attribute__((format(printf, 1, 2)));
 noreturn void __abort(void);
 
 # define assert(test)                                                   \
@@ -26,8 +26,8 @@ noreturn void __abort(void);
         long _val = (long)(test);                                       \
         (!(_val))                                                       \
             ? ({                                                        \
-                    warn("assert failed " __FILE__ ":%d " #test " (value:%x)\n", \
-                         __LINE__, _val);                               \
+                    warn("assert failed " __FILE__ ":%d %s (value:%lx)\n", \
+                         __LINE__, #test, _val);                        \
                     __abort(); })                                       \
             : (void)0;                                                  \
     })

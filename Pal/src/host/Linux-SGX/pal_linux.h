@@ -28,6 +28,8 @@
 #include "sgx_api.h"
 #include "enclave_ocalls.h"
 
+#include <linux/mman.h>
+
 #ifdef __x86_64__
 # include "sysdep-x86_64.h"
 #endif

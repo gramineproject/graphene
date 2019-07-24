@@ -31,7 +31,7 @@
 #include <api.h>
 #include <list.h>
 
-#include <asm/mman.h>
+#include <linux/mman.h>
 
 struct shim_handle;
 

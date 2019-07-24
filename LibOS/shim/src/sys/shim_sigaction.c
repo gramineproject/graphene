@@ -88,6 +88,7 @@ out:
 
 int shim_do_sigreturn (int __unused)
 {
+    __UNUSED(__unused);
     /* do nothing */
     return 0;
 }
@@ -204,6 +205,19 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
     lock(&cur->lock);
 
+    /* return immediately on some pending unblocked signal */
+    for (int sig = 1 ; sig <= NUM_SIGS ; sig++) {
+        if (atomic_read(&cur->signal_logs[sig - 1].head) !=
+            atomic_read(&cur->signal_logs[sig - 1].tail)) {
+            /* at least one signal of type sig... */
+            if (!__sigismember(mask, sig)) {
+                /* ...and this type is not blocked in supplied mask */
+                unlock(&cur->lock);
+                return -EINTR;
+            }
+        }
+    }
+
     old = get_sig_mask(cur);
     memcpy(&tmp, old, sizeof(__sigset_t));
     old = &tmp;
@@ -220,7 +234,10 @@ int shim_do_sigsuspend (const __sigset_t * mask)
 
 int shim_do_sigpending (__sigset_t * set, size_t sigsetsize)
 {
-    if (!set || test_user_memory(set, sizeof(*set), false))
+    if (sigsetsize != sizeof(*set))
+        return -EINVAL;
+
+    if (!set || test_user_memory(set, sigsetsize, false))
         return -EFAULT;
 
     struct shim_thread * cur = get_cur_thread();
@@ -351,13 +368,13 @@ int do_kill_proc (IDTYPE sender, IDTYPE tgid, int sig, bool use_ipc)
 
     bool srched = false;
 
-    if (!walk_thread_list(__kill_proc, &arg, false))
+    if (!walk_thread_list(__kill_proc, &arg))
         srched = true;
 
     if (!use_ipc || srched)
         goto out;
 
-    if (!walk_simple_thread_list(__kill_proc_simple, &arg, false))
+    if (!walk_simple_thread_list(__kill_proc_simple, &arg))
         srched = true;
 
     if (!srched && !ipc_pid_kill_send(sender, tgid, KILL_PROCESS, sig))
@@ -445,13 +462,13 @@ int do_kill_pgroup (IDTYPE sender, IDTYPE pgid, int sig, bool use_ipc)
 
     bool srched = false;
 
-    if (!walk_thread_list(__kill_pgroup, &arg, false))
+    if (!walk_thread_list(__kill_pgroup, &arg))
         srched = true;
 
     if (!use_ipc || srched)
         goto out;
 
-    if (!walk_simple_thread_list(__kill_pgroup_simple, &arg, false))
+    if (!walk_simple_thread_list(__kill_pgroup_simple, &arg))
         srched = true;
 
     if (!srched && !ipc_pid_kill_send(sender, pgid, KILL_PGROUP, sig))
@@ -464,6 +481,7 @@ out:
 static int __kill_all_threads (struct shim_thread * thread, void * arg,
                                bool * unlocked)
 {
+    __UNUSED(unlocked); // Retained for API compatibility
     int srched = 0;
     struct walk_arg * warg = (struct walk_arg *) arg;
 
@@ -484,8 +502,6 @@ static int __kill_all_threads (struct shim_thread * thread, void * arg,
     return srched;
 }
 
-int broadcast_signal (IDTYPE sender, int sig);
-
 int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig)
 {
     struct walk_arg arg;
@@ -494,7 +510,7 @@ int kill_all_threads (struct shim_thread * cur, IDTYPE sender, int sig)
     arg.id      = 0;
     arg.sig     = sig;
     arg.use_ipc = false;
-    walk_thread_list(__kill_all_threads, &arg, false);
+    walk_thread_list(__kill_all_threads, &arg);
     return 0;
 }
 
@@ -519,7 +535,7 @@ int shim_do_kill (pid_t pid, int sig)
     /* If pid equals -1, then sig is sent to every process for which the
        calling process has permission to send */
     else if (pid == -1) {
-        broadcast_signal(cur->tid, sig);
+        ipc_pid_kill_send(cur->tid, /*target=*/0, KILL_ALL, sig);
         kill_all_threads(cur, cur->tid, sig);
         send_to_self = true;
     }

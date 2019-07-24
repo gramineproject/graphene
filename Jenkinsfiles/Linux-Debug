@@ -6,7 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make DEBUG=1 WERROR=1
+                            make -j 8 DEBUG=1 WERROR=1
                            '''
                     }
                 }
@@ -22,6 +22,7 @@ pipeline {
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/ltp
+                            git submodule update --init src
                             make
                             ./syscalls.sh
                             '''
@@ -53,6 +54,13 @@ pipeline {
                             make start-graphene-server &
                             sleep 1
                             ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8000
+                            '''
+                        sh '''
+                            cd LibOS/shim/test/apps/apache
+                            make
+                            make start-graphene-server &
+                            sleep 1
+                            ./benchmark-http.sh `hostname -I|tr -d '[:space:]'`:8001
                             '''
                     }
                 }

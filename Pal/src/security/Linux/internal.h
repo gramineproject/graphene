@@ -23,7 +23,7 @@
 #define ERRNO INTERNAL_SYSCALL_ERRNO
 #define ERRNO_P INTERNAL_SYSCALL_ERRNO_P
 
-int printf (const char * fmt, ...);
+int printf (const char * fmt, ...) __attribute__ ((format(printf, 1, 2)));
 void * malloc (size_t size);
 void free (void * mem);
 

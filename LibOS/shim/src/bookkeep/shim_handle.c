@@ -55,8 +55,7 @@ static inline int init_tty_handle (struct shim_handle * hdl, bool write)
     /* XXX: Try getting the root FS from current thread? */
     assert(cur_thread);
     assert(cur_thread->root);
-    if ((ret = path_lookupat(cur_thread->root, "/dev/tty", LOOKUP_OPEN, &dent,
-                             cur_thread->root->fs)) < 0)
+    if ((ret = path_lookupat(NULL, "/dev/tty", LOOKUP_OPEN, &dent, NULL)) < 0)
         return ret;
 
     int flags = (write ? O_WRONLY : O_RDONLY)|O_APPEND;
@@ -95,8 +94,15 @@ static inline int init_exec_handle (struct shim_thread * thread)
 
     struct shim_mount * fs = find_mount_from_uri(PAL_CB(executable));
     if (fs) {
-        path_lookupat(fs->root, PAL_CB(executable) + fs->uri.len, 0,
-                      &exec->dentry, fs);
+        const char * p = PAL_CB(executable) + fs->uri.len;
+        /*
+         * Lookup for PAL_CB(executable) needs to be done under a given
+         * mount point. which requires a relative path name.
+         * On the other hand, the one in manifest file can be absolute path.
+         */
+        while (*p == '/')
+            p++;
+        path_lookupat(fs->root, p, 0, &exec->dentry, fs);
         set_handle_fs(exec, fs);
         if (exec->dentry) {
             size_t len;
@@ -470,7 +476,7 @@ void close_handle (struct shim_handle * hdl)
 
     if (!opened) {
         if (hdl->type == TYPE_DIR) {
-            struct shim_dir_handle * dir = &hdl->info.dir;
+            struct shim_dir_handle * dir = &hdl->dir_info;
 
             if (dir->dot) {
                 put_dentry(dir->dot);
@@ -754,8 +760,8 @@ done:
 }
 
 int walk_handle_map (int (*callback) (struct shim_fd_handle *,
-                                      struct shim_handle_map *, void *),
-                     struct shim_handle_map * map, void * arg)
+                                      struct shim_handle_map *),
+                     struct shim_handle_map * map)
 {
     int ret = 0;
     lock(&map->lock);
@@ -767,7 +773,7 @@ int walk_handle_map (int (*callback) (struct shim_fd_handle *,
         if (!HANDLE_ALLOCATED(map->map[i]))
             continue;
 
-        if ((ret = (*callback) (map->map[i], map, arg)) < 0)
+        if ((ret = (*callback) (map->map[i], map)) < 0)
             break;
     }
 
@@ -841,6 +847,7 @@ END_CP_FUNC(handle)
 BEGIN_RS_FUNC(handle)
 {
     struct shim_handle * hdl = (void *) (base + GET_CP_FUNC_ENTRY());
+    __UNUSED(offset);
 
     CP_REBASE(hdl->fs);
     CP_REBASE(hdl->dentry);
@@ -938,6 +945,7 @@ END_CP_FUNC(handle_map)
 BEGIN_RS_FUNC(handle_map)
 {
     struct shim_handle_map * handle_map = (void *) (base + GET_CP_FUNC_ENTRY());
+    __UNUSED(offset);
 
     CP_REBASE(handle_map->map);
     assert(handle_map->map);

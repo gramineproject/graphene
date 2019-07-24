@@ -23,6 +23,8 @@
 #ifndef _SHIM_HANDLE_H_
 #define _SHIM_HANDLE_H_
 
+#include <stdalign.h>
+
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <shim_sysv.h>
@@ -212,6 +214,16 @@ struct shim_dirent {
     char                 name[];       /* File name (null-terminated) */
 };
 
+#define SHIM_DIRENT_SIZE offsetof(struct shim_dirent, name)
+#define SHIM_DIRENT_ALIGNMENT alignof(struct shim_dirent)
+/* Size of struct shim_dirent instance together with alignment,
+ * which might be different depending on the length of the name field */
+#define SHIM_DIRENT_ALIGNED_SIZE(len) ( \
+                (SHIM_DIRENT_SIZE \
+                    + (len) \
+                    + SHIM_DIRENT_ALIGNMENT - 1) \
+            / SHIM_DIRENT_ALIGNMENT * SHIM_DIRENT_ALIGNMENT)
+
 struct shim_dir_handle {
     int offset;
     struct shim_dentry * dotdot;
@@ -349,7 +361,6 @@ struct shim_handle {
         struct shim_dev_handle    dev;
         struct shim_pipe_handle   pipe;
         struct shim_sock_handle   sock;
-        struct shim_dir_handle    dir;
         struct shim_shm_handle    shm;
         struct shim_msg_handle    msg;
         struct shim_sem_handle    sem;
@@ -357,6 +368,8 @@ struct shim_handle {
         struct shim_str_handle    str;
         struct shim_epoll_handle  epoll;
     } info;
+
+    struct shim_dir_handle    dir_info;
 
     int                 flags;
     int                 acc_mode;
@@ -419,8 +432,8 @@ int flush_handle_map (struct shim_handle_map * map);
 void get_handle_map (struct shim_handle_map * map);
 void put_handle_map (struct shim_handle_map * map);
 int walk_handle_map (int (*callback) (struct shim_fd_handle *,
-                                      struct shim_handle_map *, void *),
-                     struct shim_handle_map * map, void * arg);
+                                      struct shim_handle_map *),
+                     struct shim_handle_map * map);
 
 int init_handle (void);
 int init_important_handles (void);

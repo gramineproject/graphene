@@ -147,7 +147,7 @@ static int proc_ipc_thread_link_mode (const char * name, mode_t * mode)
         goto out;
     }
 
-    ret = dent->fs->d_ops->mode(dent, mode, true);
+    ret = dent->fs->d_ops->mode(dent, mode);
 out:
     put_dentry(dent);
     return ret;
@@ -272,6 +272,8 @@ int get_all_pid_status (struct pid_status ** status);
 static int proc_list_ipc_thread (const char * name, struct shim_dirent ** buf,
                                  int len)
 {
+    // Only one valid name
+    __UNUSED(name);
     struct pid_status_cache * status = NULL;
     int ret = 0;
 

@@ -689,7 +689,7 @@ int shim__sysctl (struct __kernel_sysctl_args * args);
 int shim_prctl (int option, unsigned long arg2, unsigned long arg3,
                 unsigned long arg4, unsigned long arg5);
 void * shim_arch_prctl (int code, void * addr);
-int shim_adjtimex (struct __kernel_timex * txc_p);
+int shim_adjtimex (struct ____kernel_timex * txc_p);
 int shim_setrlimit (int resource, struct __kernel_rlimit * rlim);
 int shim_chroot (const char * filename);
 int shim_sync (void);

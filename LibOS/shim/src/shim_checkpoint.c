@@ -196,6 +196,7 @@ END_CP_FUNC_NO_RS(memory)
 
 BEGIN_CP_FUNC(palhdl)
 {
+    __UNUSED(size);
     ptr_t off = ADD_CP_OFFSET(sizeof(struct shim_palhdl_entry));
     struct shim_palhdl_entry * entry = (void *) (base + off);
 
@@ -215,6 +216,9 @@ END_CP_FUNC(palhdl)
 
 BEGIN_RS_FUNC(palhdl)
 {
+    __UNUSED(offset);
+    __UNUSED(rebase);
+
     struct shim_palhdl_entry * ent = (void *) (base + GET_CP_FUNC_ENTRY());
 
     if (ent->phandle && !ent->phandle && ent->uri) {
@@ -225,6 +229,9 @@ END_RS_FUNC(palhdl)
 
 BEGIN_CP_FUNC(migratable)
 {
+    __UNUSED(obj);
+    __UNUSED(size);
+    __UNUSED(objp);
     struct shim_mem_entry * mem_entry;
 
     DO_CP_SIZE(memory, &__migratable, &__migratable_end - &__migratable,
@@ -237,6 +244,9 @@ END_CP_FUNC(migratable)
 
 BEGIN_RS_FUNC(migratable)
 {
+    __UNUSED(base);
+    __UNUSED(offset);
+
     void * data = (void *) GET_CP_FUNC_ENTRY();
     CP_REBASE(data);
     memcpy(&__migratable, data, &__migratable_end - &__migratable);
@@ -245,6 +255,9 @@ END_RS_FUNC(migratable)
 
 BEGIN_CP_FUNC(environ)
 {
+    __UNUSED(size);
+    __UNUSED(objp);
+
     const char ** e, ** envp = (void *) obj;
     int nenvp = 0;
     int envp_bytes = 0;
@@ -272,6 +285,8 @@ END_CP_FUNC(environ)
 
 BEGIN_RS_FUNC(environ)
 {
+    __UNUSED(offset);
+
     const char ** envp = (void *) base + GET_CP_FUNC_ENTRY();
     const char ** e;
 
@@ -286,18 +301,20 @@ END_RS_FUNC(environ)
 
 BEGIN_CP_FUNC(qstr)
 {
+    __UNUSED(size);
+    __UNUSED(objp);
+
     struct shim_qstr * qstr = (struct shim_qstr *) obj;
 
-    if (qstr->len < QSTR_SIZE) {
-        if (qstr->oflow) {
-            memcpy(qstr->name, qstr->oflow, qstr->len + 1);
-            qstr->oflow = NULL;
-        }
-    } else {
+    /* qstr is always embedded as sub-object in other objects so it is
+     * automatically checkpointed as part of other checkpoint routines.
+     * However, its oflow string resides in some other memory region
+     * and must be checkpointed and restored explicitly. Copy oflow
+     * string inside checkpoint right before qstr cp entry. */
+    if (qstr->oflow) {
         struct shim_str * str =
             (void *) (base + ADD_CP_OFFSET(qstr->len + 1));
         memcpy(str, qstr->oflow, qstr->len + 1);
-        qstr->oflow = str;
         ADD_CP_FUNC_ENTRY((ptr_t) qstr - base);
     }
 }
@@ -305,8 +322,16 @@ END_CP_FUNC(qstr)
 
 BEGIN_RS_FUNC(qstr)
 {
+    __UNUSED(offset);
+    __UNUSED(rebase);
+
+    /* If we are here, qstr has oflow string. We know that oflow string
+     * is right before this qstr cp entry (aligned to 8B). Calculate
+     * oflow string's base address and update qstr to point to it. */
     struct shim_qstr * qstr = (void *) (base + GET_CP_FUNC_ENTRY());
-    CP_REBASE(qstr->oflow);
+    size_t size = qstr->len + 1;
+    size = ((size) + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
+    qstr->oflow = (void *)entry - size;
 }
 END_RS_FUNC(qstr)
 
@@ -343,6 +368,11 @@ END_CP_FUNC(gipc)
 
 BEGIN_RS_FUNC(gipc)
 {
+    __UNUSED(rebase);
+    __UNUSED(offset);
+    __UNUSED(base);
+    __UNUSED(entry);
+
 #if HASH_GIPC == 1
     struct shim_gipc_entry * entry = (void *) (base + GET_CP_FUNC_ENTRY());
 
@@ -664,7 +694,7 @@ int init_from_checkpoint_file (const char * filename,
     struct shim_dirent * d = dirent;
     for ( ; d ; d = d->next) {
         struct shim_dentry * file;
-        if ((ret = lookup_dentry(dir, d->name, strlen(d->name), false,
+        if ((ret = lookup_dentry(dir, d->name, strlen(d->name),
                                  &file, dir->fs)) < 0)
             continue;
         if (file->state & DENTRY_NEGATIVE)
@@ -812,6 +842,8 @@ int receive_handles_on_stream (struct palhdl_header * hdr, ptr_t base,
 
 static void * cp_alloc (struct shim_cp_store * store, void * addr, size_t size)
 {
+    // Keeping for api compatibility; not 100% sure this is needed
+    __UNUSED(store);
     if (addr) {
         /*
          * If the checkpoint needs more space, try to extend the checkpoint
@@ -917,7 +949,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (!proc) {
         ret = -PAL_ERRNO;
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_create_process);
@@ -944,14 +976,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     }
 
     /* Create process and IPC bookkeepings */
-    if (!(new_process = create_new_process(true))) {
-        ret = -ENOMEM;
-        goto err;
-    }
-
-    if (!(new_process->self = create_ipc_port(0, false))) {
+    new_process = create_process(exec ? /*execve case*/ true : /*fork case*/ false);
+    if (!new_process) {
         ret = -EACCES;
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_connect_ipc);
@@ -980,19 +1008,20 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     if (!cpstore.base) {
         ret = -ENOMEM;
         debug("failed creating checkpoint store\n");
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_init_checkpoint);
 
-    /* Calling the migration function defined by the caller. */
+    /* Calling the migration function defined by caller. The thread argument
+     * is new thread in case of fork/clone and cur_thread in case of execve. */
     va_list ap;
     va_start(ap, thread);
     ret = (*migrate) (&cpstore, thread, new_process, ap);
     va_end(ap);
     if (ret < 0) {
         debug("failed creating checkpoint (ret = %d)\n", ret);
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_save_checkpoint);
@@ -1015,7 +1044,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (cpstore.use_gipc) {
         snprintf(hdr.checkpoint.gipc.uri, sizeof(hdr.checkpoint.gipc.uri),
-                 "gipc:%lld", gipc_key);
+                 "gipc:%ld", gipc_key);
 
         if (cpstore.gipc_nentries) {
             hdr.checkpoint.gipc.entoffset =
@@ -1044,10 +1073,10 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     if (!bytes) {
         ret = -PAL_ERRNO;
         debug("failed writing to process stream (ret = %d)\n", ret);
-        goto err;
+        goto out;
     } else if (bytes < sizeof(struct newproc_header)) {
         ret = -EACCES;
-        goto err;
+        goto out;
     }
 
     ADD_PROFILE_OCCURENCE(migrate_send_on_stream, bytes);
@@ -1059,7 +1088,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
 
     if (ret < 0) {
         debug("failed sending checkpoint (ret = %d)\n", ret);
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_send_checkpoint);
@@ -1069,7 +1098,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
      * to the new process using PAL calls.
      */
     if ((ret = send_handles_on_stream(proc, &cpstore)) < 0)
-        goto err;
+        goto out;
 
     SAVE_PROFILE_INTERVAL(migrate_send_pal_handles);
 
@@ -1077,7 +1106,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     if ((ret = bkeep_munmap((void *) cpstore.base, cpstore.bound,
                             CP_VMA_FLAGS)) < 0) {
         debug("failed unmaping checkpoint (ret = %d)\n", ret);
-        goto err;
+        goto out;
     }
 
     DkVirtualMemoryFree((PAL_PTR) cpstore.base, cpstore.bound);
@@ -1090,36 +1119,46 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
                          NULL, 0);
     if (bytes == 0) {
         ret = -PAL_ERRNO;
-        goto err;
+        goto out;
     }
 
     SAVE_PROFILE_INTERVAL(migrate_wait_response);
 
+    /* exec != NULL implies the execve case so the new process "replaces"
+     * this current process: no need to notify the leader or establish IPC */
+    if (!exec) {
+        /* fork/clone case: new process is an actual child process for this
+         * current process, so notify the leader regarding subleasing of TID
+         * (child must create self-pipe with convention of pipe:child-vmid) */
+        char new_process_self_uri[256];
+        snprintf(new_process_self_uri, sizeof(new_process_self_uri), "pipe:%u", res.child_vmid);
+        ipc_pid_sublease_send(res.child_vmid, thread->tid, new_process_self_uri, NULL);
+
+        /* listen on the new IPC port to the new child process */
+        add_ipc_port_by_id(res.child_vmid, proc,
+                IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
+                &ipc_port_with_child_fini,
+                NULL);
+    }
+
+    /* remote child thread has VMID of the child process (note that we don't
+     * care about execve case because the parent "intermediate" process will
+     * die right after this anyway) */
+    thread->vmid = res.child_vmid;
+
+    ret = 0;
+out:
     if (gipc_hdl)
         DkObjectClose(gipc_hdl);
-
-    /* Notify the namespace manager regarding the subleasing of TID */
-    ipc_pid_sublease_send(res.child_vmid, thread->tid,
-                          qstrgetstr(&new_process->self->uri),
-                          NULL);
-
-    /* Listen on the RPC stream to the new process */
-    add_ipc_port_by_id(res.child_vmid, proc,
-                       IPC_PORT_DIRCLD|IPC_PORT_LISTEN|IPC_PORT_KEEPALIVE,
-                       &ipc_child_exit,
-                       NULL);
-
-    destroy_process(new_process);
-    return 0;
-err:
-    if (gipc_hdl)
-        DkObjectClose(gipc_hdl);
-    if (proc)
-        DkObjectClose(proc);
     if (new_process)
-        destroy_process(new_process);
+        free_process(new_process);
 
-    SYS_PRINTF("process creation failed\n");
+    if (ret < 0) {
+        if (proc)
+            DkObjectClose(proc);
+        SYS_PRINTF("process creation failed\n");
+    }
+
     return ret;
 }
 

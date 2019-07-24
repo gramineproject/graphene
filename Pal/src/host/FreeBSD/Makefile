@@ -1,3 +1,4 @@
+include ../../../../Makefile.configs
 include Makefile.am
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../ipc/linux \
@@ -7,6 +8,8 @@ ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 host_target = libpal-FreeBSD.a ../../pal-gdb
 
 defs	= -DIN_PAL -DPAL_DIR="$(PAL_DIR)"
+CFLAGS += $(defs)
+ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
 	    exception2) rfork_thread
@@ -27,33 +30,25 @@ pal-gdb: pal-gdb.template
 	chmod 755 $@
 
 libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
-	@echo [ host/FreeBSD/$@ ]
-	@$(AR) $(ARFLAGS) $@ $^
-
-%.asm: %.c $(headers)
-	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
-	@objdump -S $<.o > $@
-	@rm $<.o
+	$(call cmd,ar_a_o)
 
 %.o: %.c $(headers)
-	@echo [ host/FreeBSD/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
+	$(call cmd,cc_o_c)
 
-%.e %.i: %.c $(headers)
-	@echo [ host/FreeBSD/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+%.i: %.c $(headers)
+	$(call cmd,cpp_i_c)
 
 %.s: %.c $(headers)
-	@echo [ host/FreeBSD/$@ ]
-	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 %.o: %.S $(headers)
-	@echo [ host/FreeBSD/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+	$(call cmd,as_o_S)
 
-%.e %.s: %.S $(headers)
-	@echo [ host/FreeBSD/$@ ]
-	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
+%.s: %.S $(headers)
+	$(call cmd,cpp_s_S)
+
+
+include ../../../../Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 

@@ -6,7 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make WERROR=1
+                            make -j 8 WERROR=1
                            '''
                     }
                 }
@@ -22,6 +22,7 @@ pipeline {
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/ltp
+                            git submodule update --init src
                             make
                             ./syscalls.sh
                             '''
