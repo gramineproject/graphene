@@ -268,6 +268,7 @@ static void shim_async_helper(void * arg) {
         polled = DkObjectsWaitAny(object_num + 1, object_list, sleep_time);
     }
 
+    __disable_preempt(&self->tcb->shim_tcb);
     put_thread(self);
     debug("Async helper thread terminated\n");
     free(object_list);

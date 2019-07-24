@@ -780,6 +780,7 @@ noreturn static void shim_ipc_helper(void* dummy) {
     free(object_list);
     free(palhandle_list);
 
+    __disable_preempt(&self->tcb->shim_tcb);
     put_thread(self);
     debug("IPC helper thread terminated\n");
 
