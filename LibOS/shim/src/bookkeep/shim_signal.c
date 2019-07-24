@@ -472,8 +472,9 @@ static void illegal_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         !context_is_internal(context) &&
         !(lookup_vma((void *) arg, &vma)) &&
         !(vma.flags & VMA_INTERNAL)) {
-        if (context)
-            debug("illegal instruction at 0x%08lx\n", context->IP);
+
+        assert(context);
+        debug("illegal instruction at 0x%08lx\n", context->IP);
 
         uint8_t * rip = (uint8_t*)context->IP;
         /*
