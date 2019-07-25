@@ -17,4 +17,6 @@
 
 #define BLOCK_SIGFAULT          0
 
+#define USE_CPUID_FOR_CPUINFO   0
+
 #endif /* PAL_LINUX_DEFS_H */

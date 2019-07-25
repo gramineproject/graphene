@@ -328,6 +328,8 @@ void cpuid (unsigned int leaf, unsigned int subleaf,
         "c" (subleaf));
 }
 
+#if USE_CPUID_FOR_CPUINFO == 1
+
 #define FOUR_CHARS_VALUE(s, w)      \
     (s)[0] = (w) & 0xff;            \
     (s)[1] = ((w) >>  8) & 0xff;    \
@@ -456,3 +458,89 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
 }
+
+#else /* !USE_CPUID_FOR_CPUINFO */
+
+#define CPUINFO_BUFSIZE    2048
+
+void _DkGetCPUInfo(PAL_CPU_INFO* ci) {
+    int fd = INLINE_SYSCALL(open, 2, "/proc/cpuinfo", O_RDONLY);
+    if (IS_ERR(fd))
+        return;
+
+    char buf[CPUINFO_BUFSIZE];
+    size_t consumed = 0, remained = 0;
+
+    while (1) {
+        ssize_t bytes = INLINE_SYSCALL(read, 3, fd, buf + remained, sizeof(buf) - remained - 1);
+        if (IS_ERR(bytes) || !bytes)
+            break;
+
+        remained += bytes;
+        buf[remained] = '\0';
+        while (1) {
+            const char* line = buf + consumed;
+            if (line[0] == '\n') {
+                consumed++;
+                continue;
+            }
+            char* newline = strchr(line, '\n');
+            if (!newline)
+                break;
+            newline[0] = '\0';
+            char* val = strchr(line, ':');
+            if (!val)
+                break;
+            val += 2;
+            switch(line[0]) {
+                case 'p':
+                    if (strpartcmp_static(line, "processor\t"))
+                        ci->cpu_num++;
+                    break;
+                case 'c':
+                    if (!ci->cpu_family && strpartcmp_static(line, "cpu family\t"))
+                        ci->cpu_family = atoi(val);
+                    break;
+                case 'v':
+                    if (!ci->cpu_vendor && strpartcmp_static(line, "vendor_id\t")) {
+                        ci->cpu_vendor = malloc(newline - val + 1);
+                        if (!ci->cpu_vendor)
+                            return;
+                        memcpy((char*)ci->cpu_vendor, val, newline - val + 1);
+                    }
+                    break;
+                case 'm':
+                    if (!ci->cpu_brand && strpartcmp_static(line, "model name\t")) {
+                        ci->cpu_brand = malloc(newline - val + 1);
+                        if (!ci->cpu_brand)
+                            return;
+                        memcpy((char*)ci->cpu_brand, val, newline - val + 1);
+                    } else if (!ci->cpu_model && strpartcmp_static(line, "model\t")) {
+                        ci->cpu_model = atoi(val);
+                    }
+                    break;
+                case 's':
+                    if (!ci->cpu_stepping && strpartcmp_static(line, "stepping\t"))
+                        ci->cpu_stepping = atoi(val);
+                    break;
+                case 'f':
+                    if (!ci->cpu_flags && strpartcmp_static(line, "flags\t")) {
+                        ci->cpu_flags = malloc(newline - val + 1);
+                        if (!ci->cpu_flags)
+                            return;
+                        memcpy((char*)ci->cpu_flags, val, newline - val + 1);
+                    }
+                    break;
+            }
+            consumed = newline + 1 - buf;
+        }
+
+        if (consumed) {
+            memmove(buf, buf + consumed, remained - consumed);
+            remained -= consumed;
+            consumed = 0;
+        }
+    }
+}
+
+#endif
