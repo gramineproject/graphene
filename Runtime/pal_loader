@@ -41,11 +41,6 @@ if [ "$MEMUSG" == "1" ]; then
 	PREFIX="$RUNTIME_DIR/../Scripts/memusg"
 fi
 
-if [ "$SEC" == "1" ]; then
-	echo "Use reference monitor"
-	PAL_CMD=$RUNTIME_DIR/pal_sec-$PAL_HOST
-fi
-
 while [ "$1" != "" ];
 do
 	if [ "$MANIFEST" == "" ]; then

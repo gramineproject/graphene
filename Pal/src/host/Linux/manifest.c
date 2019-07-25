@@ -1,1 +1,0 @@
-../../security/Linux/manifest.c

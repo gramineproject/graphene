@@ -68,10 +68,6 @@ ifneq ($(pal_lib),)
 	runtime_lib += $(RUNTIME_DIR)/libpal-$(PAL_HOST)$(suffix $(pal_lib))
 endif
 
-ifneq ($(pal_sec),)
-	runtime_sec += $(RUNTIME_DIR)/pal_sec-$(PAL_HOST)
-endif
-
 ifneq ($(pal_gdb),)
 	runtime_gdb += $(RUNTIME_DIR)/pal_gdb-$(PAL_HOST)
 endif
@@ -90,7 +86,7 @@ $(LIB_DIR)/host_endian.h: $(HOST_DIR)/host_endian.h
 	@mkdir -p $(LIB_DIR)
 	$(call cmd,ln_sf)
 
-.PHONY: $(host_lib) $(graphene_lib) $(pal_lib) $(pal_sec)
+.PHONY: $(host_lib) $(graphene_lib) $(pal_lib)
 
 $(graphene_lib): $(LIB_DIR)/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath $(LIB_DIR))/
@@ -98,7 +94,7 @@ $(graphene_lib): $(LIB_DIR)/host_endian.h
 $(host_lib): $(graphene_lib)
 	@[ ! -d host/$(PAL_HOST) ] || $(MAKE) -C host/$(PAL_HOST)
 
-$(pal_loader) $(pal_sec): $(host_lib)
+$(pal_loader): $(host_lib)
 
 $(runtime_loader): $(pal_loader)
 	$(call cmd,ln_sf)
@@ -109,14 +105,6 @@ $(pal_lib): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	$(call cmd,ld_so_o)
 
 $(runtime_lib): $(pal_lib)
-	$(call cmd,ln_sf)
-endif
-
-ifneq ($(pal_sec),)
-$(pal_sec): $(graphene_lib)
-	@[ ! -d security/$(PAL_HOST) ] || $(MAKE) -C security/$(PAL_HOST)
-
-$(runtime_sec): $(pal_sec)
 	$(call cmd,ln_sf)
 endif
 
