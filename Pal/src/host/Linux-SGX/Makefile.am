@@ -24,6 +24,7 @@ CFLAGS += -Werror
 endif
 
 pal_loader = $(HOST_DIR)/pal-sgx
+pal_sec =
 pal_lib = $(HOST_DIR)/libpal.so
 pal_lib_deps = $(HOST_DIR)/enclave.lds $(HOST_DIR)/pal.map
 pal_static = $(HOST_DIR)/libpal.a

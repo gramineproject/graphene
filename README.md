@@ -35,6 +35,8 @@ Graphene Library OS is consist of five parts:
   - Instrumented GNU Library C
   - LibOS (a shared library named "libsysdb.so")
   - PAL, a.k.a Platform Adaption Layer (a shared library named "libpal.so")
+  - Reference monitor (a shared library named "libpal_sec.so")
+  - Minor kernel customization and kernel modules
 
 Graphene Library OS currently only works on x86_64 architecture.
 
@@ -71,7 +73,36 @@ To build with "-Werror", run "make WERROR=1".
 
 ### 2.1. BUILD WITH KERNEL-LEVEL SANDBOXING (OPTIONAL)
 
-This feature is marked as EXPERIMENTAL and no longer exists in the mainstream code.
+__** Note: this step is optional. **__
+
+__** Note: for building with Intel:registered: SGX support, skip this step, go to section 2.2 **__
+
+__** Disclaimer: this feature is experimental and may contain bugs. Please do
+   no use in production system before further assessment.__
+
+To enable sandboxing, a customized Linux kernel is needed. Note that
+this feature is optional and completely unnecessary for running on SGX.
+To build the Graphene Linux kernel, do the following steps:
+
+    cd Pal/linux-3.19
+    make menuconfig
+    make
+    make install
+    (Add Graphene kernel as a boot option by commands like "update-grub")
+    (reboot and choose the Graphene kernel)
+
+Please note that the building process may pause before building the Linux
+kernel, because it requires you to provide a sensible configuration file
+(.config). The Graphene kernel requires the following options to be enabled
+in the configuration:
+
+  - CONFIG_GRAPHENE=y
+  - CONFIG_GRAPHENE_BULK_IPC=y
+  - CONFIG_GRAPHENE_ISOLATE=y
+
+For more details about the building and installation, see the Graphene github
+Wiki page: <https://github.com/oscarlab/graphene/wiki>.
+
 
 ### 2.2 BUILD WITH INTEL:registered: SGX SUPPORT
 
@@ -179,6 +210,27 @@ specifying the programs and manifest files:
 
     [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
+
+Using "libpal.so" as loader to start Graphene will not attach the applications
+to the Graphene reference monitor. The applications will have better
+performance, but no strong security isolation. To attach the applications to
+the Graphene reference monitor, Graphene must be started with the PAL
+reference monitor loader (libpal_sec.so). Graphene provides three options for
+specifying the programs and manifest files to the loader:
+
+   - option 4: (automatic manifest - with reference monitor)
+
+    SEC=1 [PATH TO Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
+    (Manifest file: "[PROGRAM].manifest" or "manifest")
+
+   - option 5: (given manifest - with reference monitor)
+
+    SEC=1 [PATH TO Pal/src]/pal_loader [MANIFEST] [ARGUMENTS]...
+
+   - option 6: (manifest as a script - with reference monitor)
+
+    SEC=1 [PATH TO MANIFEST]/[MANIFEST] [ARGUMENTS]...
+    (Manifest must have "#![PATH TO Pal/src]/pal_sec" as the first line)
 
 Although manifest files are optional for Graphene, running an application
 usually requires some minimal configuration in its manifest file. A

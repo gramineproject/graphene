@@ -30,6 +30,7 @@
 #include "pal_security.h"
 #include "pal_debug.h"
 #include "api.h"
+#include "graphene.h"
 
 #include <linux/types.h>
 typedef __kernel_pid_t pid_t;

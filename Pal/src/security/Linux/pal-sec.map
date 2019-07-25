@@ -1,0 +1,9 @@
+PAL {
+    global:
+        _r_debug;
+    local: *;
+};
+PAL_PRIVATE {
+    global:
+        _dl_debug_state;
+};

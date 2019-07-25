@@ -21,6 +21,7 @@ CFLAGS += -Werror
 endif
 
 pal_loader = $(HOST_DIR)/libpal.so
+pal_sec = $(SEC_DIR)/libpal_sec.so
 pal_lib = $(HOST_DIR)/libpal.so
 pal_lib_deps = $(HOST_DIR)/pal.map $(HOST_DIR)/pal.lds
 pal_lib_post =

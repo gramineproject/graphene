@@ -1,0 +1,17 @@
+menuconfig GRAPHENE
+	bool "Graphene support (EXPERIMENTAL)"
+	default y
+
+if GRAPHENE
+	config GRAPHENE_ISOLATE
+		bool "Graphene isolation support (EXPERIMENTAL)"
+		default y
+
+	config GRAPHENE_BULK_IPC
+		tristate "Graphene bulk IPC support (EXPERIMENTAL)"
+		default y
+
+	config GRAPHENE_DEBUG
+		bool "Graphene debug feature (EXPERIMENTAL)"
+		default n
+endif

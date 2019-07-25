@@ -1,0 +1,748 @@
+diff --git a/Kconfig b/Kconfig
+index c13f48d..e18713e 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -9,3 +9,4 @@ config SRCARCH
+ 	option env="SRCARCH"
+ 
+ source "arch/$SRCARCH/Kconfig"
++source "graphene/Kconfig"
+diff --git a/Makefile b/Makefile
+index e5ac8a6..116ac82 100644
+--- a/Makefile
++++ b/Makefile
+@@ -779,7 +779,7 @@ export mod_sign_cmd
+ 
+ 
+ ifeq ($(KBUILD_EXTMOD),)
+-core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/
++core-y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/ graphene/
+ 
+ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
+ 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 80bbb8c..ca9f9e7 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -336,6 +336,10 @@ config SECCOMP_FILTER
+ 
+ 	  See Documentation/prctl/seccomp_filter.txt for details.
+ 
++# Used by archs to tell that they support SECCOMP_FILTER_JIT
++config HAVE_SECCOMP_FILTER_JIT
++	bool
++
+ config HAVE_CC_STACKPROTECTOR
+ 	bool
+ 	help
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 0af5250..0c4dfea 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -94,6 +94,7 @@ config X86
+ 	select GENERIC_CLOCKEVENTS_MIN_ADJUST
+ 	select IRQ_FORCED_THREADING
+ 	select HAVE_BPF_JIT if X86_64
++	select HAVE_SECCOMP_FILTER_JIT if X86_64
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+ 	select CLKEVT_I8253
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+@@ -1601,6 +1602,16 @@ config SECCOMP
+ 
+ 	  If unsure, say Y. Only embedded should say N here.
+ 
++if SECCOMP
++config SECCOMP_FILTER_JIT
++	bool "Enable seccomp filter Just In Time compiler"
++	depends on HAVE_SECCOMP_FILTER_JIT
++	depends on MODULES
++	---help---
++	  Like Berkeley Packet Filter, This option allows kernel to generate a
++	  native code when seccomp filter is loaded in memory.
++endif
++
+ source kernel/Kconfig.hz
+ 
+ config KEXEC
+diff --git a/arch/x86/net/bpf_jit_comp.c b/arch/x86/net/bpf_jit_comp.c
+index 4ed75dd..5768520 100644
+--- a/arch/x86/net/bpf_jit_comp.c
++++ b/arch/x86/net/bpf_jit_comp.c
+@@ -13,6 +13,7 @@
+ #include <linux/filter.h>
+ #include <linux/if_vlan.h>
+ #include <linux/random.h>
++#include <asm/syscall.h>
+ 
+ /*
+  * Conventions :
+@@ -108,9 +109,13 @@ do {								\
+ 		goto cond_branch
+ 
+ 
+-#define SEEN_DATAREF 1 /* might call external helpers */
+-#define SEEN_XREG    2 /* ebx is used */
+-#define SEEN_MEM     4 /* use mem[] for temporary storage */
++#define SEEN_DATAREF (1 << 0) /* might call external skb helpers */
++#define SEEN_XREG    (1 << 1) /* ebx is used */
++#define SEEN_MEM     (1 << 2) /* use mem[] for temporary storage */
++#define SEEN_SKBREF  (1 << 3) /* use pointer to skb */
++#define SEEN_SECCOMP (1 << 4) /* seccomp filters */
++
++#define NEED_PERILOGUE(_seen) ((_seen) & (SEEN_XREG | SEEN_MEM | SEEN_DATAREF))
+ 
+ static inline void bpf_flush_icache(void *start, void *end)
+ {
+@@ -122,6 +127,25 @@ static inline void bpf_flush_icache(void *start, void *end)
+ 	set_fs(old_fs);
+ }
+ 
++/* helper to find the offset in struct seccomp_data */
++#define BPF_DATA(_name) offsetof(struct seccomp_data, _name)
++
++/* helper to find the negative offset from the end of struct pt_regs */
++#define roffsetof(_type, _member) ((int)(offsetof(_type, _member) - sizeof(_type)))
++#define PT_REGS(_name)  roffsetof(struct pt_regs, _name)
++
++#define EMIT_REGS_LOAD(offset)				\
++do {							\
++	if (is_imm8(offset)) {				\
++		/* mov off8(%r8),%eax */		\
++		EMIT4(0x41, 0x8b, 0x40, offset);	\
++	} else {					\
++		/* mov off32(%r8),%eax */		\
++		EMIT3(0x41, 0x8b, 0x80);		\
++		EMIT(offset, 4);			\
++	}						\
++} while (0)
++
+ #define CHOOSE_LOAD_FUNC(K, func) \
+ 	((int)K < 0 ? ((int)K >= SKF_LL_OFF ? func##_negative_offset : func) : func##_positive_offset)
+ 
+@@ -178,7 +202,7 @@ static struct bpf_binary_header *bpf_alloc_binary(unsigned int proglen,
+ 	return header;
+ }
+ 
+-void bpf_jit_compile(struct sk_filter *fp)
++static void *__bpf_jit_compile(struct sock_filter *filter, unsigned int flen, u8 seen_all)
+ {
+ 	u8 temp[64];
+ 	u8 *prog;
+@@ -192,15 +216,14 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 	int pc_ret0 = -1; /* bpf index of first RET #0 instruction (if any) */
+ 	unsigned int cleanup_addr; /* epilogue code offset */
+ 	unsigned int *addrs;
+-	const struct sock_filter *filter = fp->insns;
+-	int flen = fp->len;
++	void *bpf_func = NULL;
+ 
+ 	if (!bpf_jit_enable)
+-		return;
++		return bpf_func;
+ 
+ 	addrs = kmalloc(flen * sizeof(*addrs), GFP_KERNEL);
+ 	if (addrs == NULL)
+-		return;
++		return NULL;
+ 
+ 	/* Before first pass, make a rough estimation of addrs[]
+ 	 * each bpf instruction is translated to less than 64 bytes
+@@ -212,12 +235,12 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 	cleanup_addr = proglen; /* epilogue address */
+ 
+ 	for (pass = 0; pass < 10; pass++) {
+-		u8 seen_or_pass0 = (pass == 0) ? (SEEN_XREG | SEEN_DATAREF | SEEN_MEM) : seen;
++		u8 seen_or_pass0 = (pass == 0) ? seen_all : seen;
+ 		/* no prologue/epilogue for trivial filters (RET something) */
+ 		proglen = 0;
+ 		prog = temp;
+ 
+-		if (seen_or_pass0) {
++		if (NEED_PERILOGUE(seen_or_pass0)) {
+ 			EMIT4(0x55, 0x48, 0x89, 0xe5); /* push %rbp; mov %rsp,%rbp */
+ 			EMIT4(0x48, 0x83, 0xec, 96);	/* subq  $96,%rsp	*/
+ 			/* note : must save %rbx in case bpf_error is hit */
+@@ -260,6 +283,47 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 			}
+ 		}
+ 
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++		/* For seccomp filters, load :
++		 *  r9  = current
++		 *  r8  = current->thread.sp0
++		 *  edi = task_thread_info(current)->status & TS_COMPAT
++		 *
++		 * r8 points to the end of struct pt_regs, task_pt_regs(current) + 1
++		 */
++		if (seen_or_pass0 & SEEN_SECCOMP) {
++			/* seccomp filters: skb must be NULL */
++			if (seen_or_pass0 & (SEEN_SKBREF | SEEN_DATAREF)) {
++				pr_err_once("seccomp filters shouldn't use skb");
++				goto out;
++			}
++			/* r9 = current */
++			EMIT1(0x65);EMIT4(0x4c, 0x8b, 0x0c, 0x25); /* mov %gs:imm32,%r9 */
++			EMIT((u32)(unsigned long)&current_task, 4);
++
++			/* r8 = current->thread.sp0 */
++			EMIT3(0x4d, 0x8b, 0x81); /* mov off32(%r9),%r8 */
++			EMIT(offsetof(struct task_struct, thread.sp0), 4);
++
++			/* edi = task_thread_info(current)->status & TS_COMPAT */
++#ifdef CONFIG_IA32_EMULATION
++			/* task_thread_info(current): current->stack */
++			BUILD_BUG_ON(!is_imm8(offsetof(struct task_struct, stack)));
++			/* mov off8(%r9),%rdi */
++			EMIT4(0x49, 0x8b, 0x79, offsetof(struct task_struct, stack));
++			/* task_thread_info(current)->status */
++			BUILD_BUG_ON(!is_imm8(offsetof(struct thread_info, status)));
++			BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info, status) != 4);
++			/* mov off8(%rdi),%edi */
++			EMIT3(0x8b, 0x7f, offsetof(struct thread_info, status));
++			/* task_thread_info(current)->status & TS_COMPAT */
++			BUILD_BUG_ON(!is_imm8(TS_COMPAT));
++			/* and imm8,%edi */
++			EMIT3(0x83, 0xe7, TS_COMPAT);
++#endif /* CONFIG_IA32_EMULATION */
++		}
++#endif /* CONFIG_SECCOMP_FILTER_JIT */
++
+ 		switch (filter[0].code) {
+ 		case BPF_S_RET_K:
+ 		case BPF_S_LD_W_LEN:
+@@ -272,6 +336,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 		case BPF_S_ANC_VLAN_TAG_PRESENT:
+ 		case BPF_S_ANC_QUEUE:
+ 		case BPF_S_ANC_PKTTYPE:
++		case BPF_S_ANC_SECCOMP_LD_W:
+ 		case BPF_S_LD_W_ABS:
+ 		case BPF_S_LD_H_ABS:
+ 		case BPF_S_LD_B_ABS:
+@@ -449,7 +514,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				}
+ 				/* fallinto */
+ 			case BPF_S_RET_A:
+-				if (seen_or_pass0) {
++				if (NEED_PERILOGUE(seen_or_pass0)) {
+ 					if (i != flen - 1) {
+ 						EMIT_JMP(cleanup_addr - addrs[i]);
+ 						break;
+@@ -499,6 +564,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				break;
+ 			case BPF_S_LD_W_LEN: /*	A = skb->len; */
+ 				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, len)))
+ 					/* mov    off8(%rdi),%eax */
+ 					EMIT3(0x8b, 0x47, offsetof(struct sk_buff, len));
+@@ -508,7 +574,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				}
+ 				break;
+ 			case BPF_S_LDX_W_LEN: /* X = skb->len; */
+-				seen |= SEEN_XREG;
++				seen |= SEEN_XREG | SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, len)))
+ 					/* mov off8(%rdi),%ebx */
+ 					EMIT3(0x8b, 0x5f, offsetof(struct sk_buff, len));
+@@ -519,6 +585,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				break;
+ 			case BPF_S_ANC_PROTOCOL: /* A = ntohs(skb->protocol); */
+ 				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, protocol) != 2);
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, protocol))) {
+ 					/* movzwl off8(%rdi),%eax */
+ 					EMIT4(0x0f, 0xb7, 0x47, offsetof(struct sk_buff, protocol));
+@@ -529,6 +596,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				EMIT2(0x86, 0xc4); /* ntohs() : xchg   %al,%ah */
+ 				break;
+ 			case BPF_S_ANC_IFINDEX:
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, dev))) {
+ 					/* movq off8(%rdi),%rax */
+ 					EMIT4(0x48, 0x8b, 0x47, offsetof(struct sk_buff, dev));
+@@ -544,6 +612,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				break;
+ 			case BPF_S_ANC_MARK:
+ 				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, mark))) {
+ 					/* mov off8(%rdi),%eax */
+ 					EMIT3(0x8b, 0x47, offsetof(struct sk_buff, mark));
+@@ -554,6 +623,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				break;
+ 			case BPF_S_ANC_RXHASH:
+ 				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, rxhash))) {
+ 					/* mov off8(%rdi),%eax */
+ 					EMIT3(0x8b, 0x47, offsetof(struct sk_buff, rxhash));
+@@ -564,6 +634,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 				break;
+ 			case BPF_S_ANC_QUEUE:
+ 				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, queue_mapping) != 2);
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, queue_mapping))) {
+ 					/* movzwl off8(%rdi),%eax */
+ 					EMIT4(0x0f, 0xb7, 0x47, offsetof(struct sk_buff, queue_mapping));
+@@ -583,6 +654,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 			case BPF_S_ANC_VLAN_TAG:
+ 			case BPF_S_ANC_VLAN_TAG_PRESENT:
+ 				BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(offsetof(struct sk_buff, vlan_tci))) {
+ 					/* movzwl off8(%rdi),%eax */
+ 					EMIT4(0x0f, 0xb7, 0x47, offsetof(struct sk_buff, vlan_tci));
+@@ -604,6 +676,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 
+ 				if (off < 0)
+ 					goto out;
++				seen |= SEEN_SKBREF;
+ 				if (is_imm8(off)) {
+ 					/* movzbl off8(%rdi),%eax */
+ 					EMIT4(0x0f, 0xb6, 0x47, off);
+@@ -617,7 +690,7 @@ void bpf_jit_compile(struct sk_filter *fp)
+ 			}
+ 			case BPF_S_LD_W_ABS:
+ 				func = CHOOSE_LOAD_FUNC(K, sk_load_word);
+-common_load:			seen |= SEEN_DATAREF;
++common_load:			seen |= SEEN_SKBREF | SEEN_DATAREF;
+ 				t_offset = func - (image + addrs[i]);
+ 				EMIT1_off32(0xbe, K); /* mov imm32,%esi */
+ 				EMIT1_off32(0xe8, t_offset); /* call */
+@@ -630,14 +703,14 @@ common_load:			seen |= SEEN_DATAREF;
+ 				goto common_load;
+ 			case BPF_S_LDX_B_MSH:
+ 				func = CHOOSE_LOAD_FUNC(K, sk_load_byte_msh);
+-				seen |= SEEN_DATAREF | SEEN_XREG;
++				seen |= SEEN_XREG | SEEN_SKBREF | SEEN_DATAREF;
+ 				t_offset = func - (image + addrs[i]);
+ 				EMIT1_off32(0xbe, K);	/* mov imm32,%esi */
+ 				EMIT1_off32(0xe8, t_offset); /* call sk_load_byte_msh */
+ 				break;
+ 			case BPF_S_LD_W_IND:
+ 				func = sk_load_word;
+-common_load_ind:		seen |= SEEN_DATAREF | SEEN_XREG;
++common_load_ind:		seen |= SEEN_XREG | SEEN_SKBREF | SEEN_DATAREF;
+ 				t_offset = func - (image + addrs[i]);
+ 				if (K) {
+ 					if (is_imm8(K)) {
+@@ -725,6 +798,72 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
+ 				}
+ 				EMIT_COND_JMP(f_op, f_offset);
+ 				break;
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++			case BPF_S_ANC_SECCOMP_LD_W:
++				seen |= SEEN_SECCOMP;
++				if (K == BPF_DATA(nr)) {
++					/* A = task_pt_regs(current)->orig_ax */
++					EMIT_REGS_LOAD(PT_REGS(orig_ax));
++					break;
++				}
++				if (K == BPF_DATA(arch)) {
++					/* A = AUDIT_ARCH_X86_64 */
++					EMIT1_off32(0xb8, AUDIT_ARCH_X86_64); /* mov imm32,%eax */
++#ifdef CONFIG_IA32_EMULATION
++					/* A = compat ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64 */
++					EMIT1_off32(0xb9, AUDIT_ARCH_I386); /* mov imm32,%ecx */
++					EMIT2(0x85, 0xff); /* test %edi,%edi */
++					EMIT3(0x0f, 0x45, 0xc1); /* cmovne %ecx,%eax*/
++#endif /* CONFIG_IA32_EMULATION */
++					break;
++				}
++				if (K >= BPF_DATA(args[0]) && K < BPF_DATA(args[6])) {
++					int arg = (K - BPF_DATA(args[0])) / sizeof(u64);
++					int off = K % sizeof(u64);
++
++					switch (arg) {
++					case 0: off += PT_REGS(di); break;
++					case 1: off += PT_REGS(si); break;
++					case 2: off += PT_REGS(dx); break;
++					case 3: off += PT_REGS(r10); break;
++					case 4: off += PT_REGS(r8); break;
++					case 5: off += PT_REGS(r9); break;
++					}
++					EMIT_REGS_LOAD(off);
++#ifdef CONFIG_IA32_EMULATION
++					off = K % sizeof(u64);
++					switch (arg) {
++					case 0: off += PT_REGS(bx); break;
++					case 1: off += PT_REGS(cx); break;
++					case 2: off += PT_REGS(dx); break;
++					case 3: off += PT_REGS(si); break;
++					case 4: off += PT_REGS(di); break;
++					case 5: off += PT_REGS(bp); break;
++					}
++					if (is_imm8(off)) {
++						/* mov off8(%r8),%ecx */
++						EMIT4(0x41, 0x8b, 0x48, off);
++					} else {
++						/* mov off32(%r8),%ecx */
++						EMIT3(0x41, 0x8b, 0x88);
++						EMIT(off, 4);
++					}
++					EMIT2(0x85, 0xff); /* test %edi,%edi */
++					EMIT3(0x0f, 0x45, 0xc1); /* cmovne %ecx,%eax*/
++#endif /* CONFIG_IA32_EMULATION */
++					break;
++				}
++				if (K == BPF_DATA(instruction_pointer)) {
++					/* A = task_pt_regs(current)->ip */
++					EMIT_REGS_LOAD(PT_REGS(ip));
++					break;
++				}
++				if (K == BPF_DATA(instruction_pointer) + sizeof(u32)) {
++					EMIT_REGS_LOAD(PT_REGS(ip) + 4);
++					break;
++				}
++				goto out;
++#endif /* CONFIG_SECCOMP_FILTER_JIT */
+ 			default:
+ 				/* hmm, too complex filter, give up with jit compiler */
+ 				goto out;
+@@ -732,10 +871,9 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
+ 			ilen = prog - temp;
+ 			if (image) {
+ 				if (unlikely(proglen + ilen > oldproglen)) {
+-					pr_err("bpb_jit_compile fatal error\n");
+-					kfree(addrs);
++					pr_err("bpf_jit_compile fatal error\n");
+ 					module_free(NULL, header);
+-					return;
++					goto out;
+ 				}
+ 				memcpy(image + proglen, temp, ilen);
+ 			}
+@@ -747,7 +885,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
+ 		 * use it to give the cleanup instruction(s) addr
+ 		 */
+ 		cleanup_addr = proglen - 1; /* ret */
+-		if (seen_or_pass0)
++		if (NEED_PERILOGUE(seen_or_pass0))
+ 			cleanup_addr -= 1; /* leaveq */
+ 		if (seen_or_pass0 & SEEN_XREG)
+ 			cleanup_addr -= 4; /* mov  -8(%rbp),%rbx */
+@@ -771,11 +909,11 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
+ 	if (image) {
+ 		bpf_flush_icache(header, image + proglen);
+ 		set_memory_ro((unsigned long)header, header->pages);
+-		fp->bpf_func = (void *)image;
++		bpf_func = (void *)image;
+ 	}
+ out:
+ 	kfree(addrs);
+-	return;
++	return bpf_func;
+ }
+ 
+ static void bpf_jit_free_deferred(struct work_struct *work)
+@@ -798,3 +936,38 @@ void bpf_jit_free(struct sk_filter *fp)
+ 		kfree(fp);
+ 	}
+ }
++
++void bpf_jit_compile(struct sk_filter *fp)
++{
++	u8 seen_all = SEEN_XREG | SEEN_MEM | SEEN_SKBREF | SEEN_DATAREF;
++	void *bpf_func = __bpf_jit_compile(fp->insns, fp->len, seen_all);
++
++	if (bpf_func)
++		fp->bpf_func = bpf_func;
++}
++
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++void seccomp_jit_compile(struct seccomp_filter *fp)
++{
++	struct sock_filter *filter = seccomp_filter_get_insns(fp);
++	unsigned int flen = seccomp_filter_get_len(fp);
++	u8 seen_all = SEEN_XREG | SEEN_MEM | SEEN_SECCOMP;
++	void *bpf_func = __bpf_jit_compile(filter, flen, seen_all);
++
++	if (bpf_func)
++		seccomp_filter_set_bpf_func(fp, bpf_func);
++}
++
++void seccomp_jit_free(struct seccomp_filter *fp)
++{
++	void *bpf_func = seccomp_filter_get_bpf_func(fp);
++
++	if (bpf_func) {
++		unsigned long addr = (unsigned long)bpf_func & PAGE_MASK;
++		struct bpf_binary_header *header = (void *)addr;
++
++		set_memory_rw(addr, header->pages);
++		module_free(NULL, header);
++	}
++}
++#endif /* CONFIG_SECCOMP_FILTER_JIT */
+diff --git a/include/linux/miscdevice.h b/include/linux/miscdevice.h
+index 3737f72..f7a4aba 100644
+--- a/include/linux/miscdevice.h
++++ b/include/linux/miscdevice.h
+@@ -3,6 +3,7 @@
+ #include <linux/major.h>
+ #include <linux/list.h>
+ #include <linux/types.h>
++#include <../graphene/graphene.h>
+ 
+ /*
+  *	These allocations are managed by device@lanana.org. If you use an
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a781dec..3381137 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1161,6 +1161,11 @@ enum perf_event_task_context {
+ 	perf_nr_task_contexts,
+ };
+ 
++#ifdef CONFIG_GRAPHENE
++# include <../graphene/graphene.h>
++struct graphene_struct;
++#endif
++
+ struct task_struct {
+ 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+ 	void *stack;
+@@ -1581,6 +1586,11 @@ struct task_struct {
+ 	unsigned int	sequential_io;
+ 	unsigned int	sequential_io_avg;
+ #endif
++
++#ifdef CONFIG_GRAPHENE
++	/* for graphene tasks */
++	struct graphene_struct *graphene; /* structure to store graphene info */
++#endif
+ };
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+diff --git a/include/linux/seccomp.h b/include/linux/seccomp.h
+index 6f19cfd..ed258f4 100644
+--- a/include/linux/seccomp.h
++++ b/include/linux/seccomp.h
+@@ -77,6 +77,14 @@ static inline int seccomp_mode(struct seccomp *s)
+ extern void put_seccomp_filter(struct task_struct *tsk);
+ extern void get_seccomp_filter(struct task_struct *tsk);
+ extern u32 seccomp_bpf_load(int off);
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++struct sock_filter *seccomp_filter_get_insns(struct seccomp_filter *);
++unsigned int seccomp_filter_get_len(struct seccomp_filter *);
++void *seccomp_filter_get_bpf_func(struct seccomp_filter *);
++void seccomp_filter_set_bpf_func(struct seccomp_filter *, void *);
++void seccomp_jit_compile(struct seccomp_filter *fp);
++void seccomp_jit_free(struct seccomp_filter *fp);
++#endif
+ #else  /* CONFIG_SECCOMP_FILTER */
+ static inline void put_seccomp_filter(struct task_struct *tsk)
+ {
+diff --git a/kernel/fork.c b/kernel/fork.c
+index a17621c..41d5958 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -11,6 +11,7 @@
+  * management can be a bitch. See 'mm/memory.c': 'copy_page_range()'
+  */
+ 
++#include <linux/version.h>
+ #include <linux/slab.h>
+ #include <linux/init.h>
+ #include <linux/unistd.h>
+@@ -84,6 +85,10 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/task.h>
+ 
++#ifdef CONFIG_GRAPHENE
++# include <../graphene/graphene.h>
++#endif
++
+ /*
+  * Protected counters by write_lock_irq(&tasklist_lock)
+  */
+@@ -242,6 +247,10 @@ void __put_task_struct(struct task_struct *tsk)
+ 	delayacct_tsk_free(tsk);
+ 	put_signal_struct(tsk->signal);
+ 
++#ifdef CONFIG_GRAPHENE
++	put_graphene_struct(tsk);
++#endif
++
+ 	if (!profile_handoff_task(tsk))
+ 		free_task(tsk);
+ }
+@@ -322,6 +331,16 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	tsk->stack_canary = get_random_int();
+ #endif
+ 
++#ifdef CONFIG_GRAPHENE
++	err = dup_graphene_struct(tsk);
++	if (err)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
++		goto free_ti;
++#else
++		goto out;
++#endif
++#endif
++
+ 	/*
+ 	 * One for us, one for whoever does the "release_task()" (usually
+ 	 * parent)
+diff --git a/kernel/seccomp.c b/kernel/seccomp.c
+index b7a1004..5def696 100644
+--- a/kernel/seccomp.c
++++ b/kernel/seccomp.c
+@@ -55,9 +55,34 @@ struct seccomp_filter {
+ 	atomic_t usage;
+ 	struct seccomp_filter *prev;
+ 	unsigned short len;  /* Instruction count */
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++	void *bpf_func;
++#endif
+ 	struct sock_filter insns[];
+ };
+ 
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++struct sock_filter *seccomp_filter_get_insns(struct seccomp_filter *fp)
++{
++	return fp->insns;
++}
++
++unsigned int seccomp_filter_get_len(struct seccomp_filter *fp)
++{
++	return fp->len;
++}
++
++void *seccomp_filter_get_bpf_func(struct seccomp_filter *fp)
++{
++	return fp->bpf_func;
++}
++
++void seccomp_filter_set_bpf_func(struct seccomp_filter *fp, void *bpf_func)
++{
++	fp->bpf_func = bpf_func;
++}
++#endif
++
+ /* Limit any path through the tree to 256KB worth of instructions. */
+ #define MAX_INSNS_PER_PATH ((1 << 18) / sizeof(struct sock_filter))
+ 
+@@ -213,7 +238,16 @@ static u32 seccomp_run_filters(int syscall)
+ 	 * value always takes priority (ignoring the DATA).
+ 	 */
+ 	for (f = current->seccomp.filter; f; f = f->prev) {
+-		u32 cur_ret = sk_run_filter(NULL, f->insns);
++		u32 cur_ret;
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++		void * bpf_func = seccomp_filter_get_bpf_func(f);
++		if (bpf_func)
++			cur_ret = (*(unsigned int (*)(const struct sk_buff *,
++					const struct sock_filter *))
++					bpf_func) (NULL, f->insns);
++		else
++#endif
++			cur_ret = sk_run_filter(NULL, f->insns);
+ 		if ((cur_ret & SECCOMP_RET_ACTION) < (ret & SECCOMP_RET_ACTION))
+ 			ret = cur_ret;
+ 	}
+@@ -275,6 +309,10 @@ static long seccomp_attach_filter(struct sock_fprog *fprog)
+ 	if (ret)
+ 		goto fail;
+ 
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++	seccomp_jit_compile(filter);
++#endif
++
+ 	/*
+ 	 * If there is an existing filter, make it the prev and don't drop its
+ 	 * task reference.
+@@ -332,6 +370,9 @@ void put_seccomp_filter(struct task_struct *tsk)
+ 	while (orig && atomic_dec_and_test(&orig->usage)) {
+ 		struct seccomp_filter *freeme = orig;
+ 		orig = orig->prev;
++#ifdef CONFIG_SECCOMP_FILTER_JIT
++		seccomp_jit_free(freeme);
++#endif
+ 		kfree(freeme);
+ 	}
+ }
+diff --git a/security/apparmor/lsm.c b/security/apparmor/lsm.c
+index 4257b7e..b21c19d 100644
+--- a/security/apparmor/lsm.c
++++ b/security/apparmor/lsm.c
+@@ -36,6 +36,10 @@
+ #include "include/policy.h"
+ #include "include/procattr.h"
+ 
++#ifdef CONFIG_GRAPHENE
++# include <../graphene/graphene.h>
++#endif
++
+ /* Flag indicating whether initialization completed */
+ int apparmor_initialized __initdata;
+ 
+@@ -165,6 +169,12 @@ static int common_perm(int op, struct path *path, u32 mask,
+ 	struct aa_profile *profile;
+ 	int error = 0;
+ 
++#ifdef CONFIG_GRAPHENE
++	if (GRAPHENE_ENABLED() &&
++	    (error = graphene_common_perm(op, path, mask)))
++		return error;
++#endif
++
+ 	profile = __aa_current_profile();
+ 	if (!unconfined(profile))
+ 		error = aa_path_perm(op, profile, path, 0, mask, cond);
+@@ -377,6 +387,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
+ {
+ 	struct aa_file_cxt *fcxt = file->f_security;
+ 	struct aa_profile *profile;
++	u32 mask;
+ 	int error = 0;
+ 
+ 	if (!mediated_filesystem(file_inode(file)))
+@@ -388,10 +399,21 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
+ 	 * actually execute the image.
+ 	 */
+ 	if (current->in_execve) {
++#ifdef CONFIG_GRAPHENE
++		if (GRAPHENE_ENABLED() && (error = graphene_execve_open(file)))
++			return error;
++#endif
+ 		fcxt->allow = MAY_EXEC | MAY_READ | AA_EXEC_MMAP;
+ 		return 0;
+ 	}
+ 
++#ifdef CONFIG_GRAPHENE
++	mask = aa_map_file_to_perms(file);
++	if (GRAPHENE_ENABLED() &&
++	    (error = graphene_common_perm(OP_OPEN, &file->f_path, mask)))
++		return error;
++#endif
++
+ 	profile = aa_cred_profile(cred);
+ 	if (!unconfined(profile)) {
+ 		struct inode *inode = file_inode(file);
+@@ -647,6 +669,14 @@ static struct security_operations apparmor_ops = {
+ 	.getprocattr =			apparmor_getprocattr,
+ 	.setprocattr =			apparmor_setprocattr,
+ 
++#ifdef CONFIG_GRAPHENE
++	.socket_bind =			graphene_socket_bind,
++	.socket_listen =		graphene_socket_listen,
++	.socket_connect =		graphene_socket_connect,
++	.socket_sendmsg =		graphene_socket_sendmsg,
++	.socket_recvmsg =		graphene_socket_recvmsg,
++#endif
++
+ 	.cred_alloc_blank =		apparmor_cred_alloc_blank,
+ 	.cred_free =			apparmor_cred_free,
+ 	.cred_prepare =			apparmor_cred_prepare,
+@@ -658,6 +688,10 @@ static struct security_operations apparmor_ops = {
+ 	.bprm_secureexec =		apparmor_bprm_secureexec,
+ 
+ 	.task_setrlimit =		apparmor_task_setrlimit,
++
++#ifdef CONFIG_GRAPHENE
++	.task_kill =			graphene_task_kill,
++#endif
+ };
+ 
+ /*
