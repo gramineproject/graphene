@@ -77,7 +77,7 @@ pipeline {
                                 cd LibOS/shim/test/apps/lmbench
                                 make SGX=1
                                 make SGX_RUN=1
-                                make SGX_RUN=1 regression
+                                make SGX_RUN=1 regression N_RUNS=1 ENOUGH=100
                             '''
                         }
                         sh '''
