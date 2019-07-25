@@ -34,7 +34,6 @@
 #include "pal_error.h"
 #include "pal_security.h"
 #include "pal_rtld.h"
-#include "graphene.h"
 #include "graphene-ipc.h"
 #include "api.h"
 
@@ -443,80 +442,10 @@ noreturn void _DkProcessExit (int exitcode)
     }
 }
 
-int ioctl_set_graphene (struct config_store * config, int ndefault,
-                        const struct graphene_user_policy * default_policies);
-
-static int set_graphene_task (const char * uri, int flags)
-{
-    PAL_HANDLE handle = NULL;
-    int ret;
-
-    if ((ret = _DkStreamOpen(&handle, uri, PAL_ACCESS_RDONLY, 0, 0, 0)) < 0)
-        return ret;
-
-    PAL_STREAM_ATTR attr;
-
-    if ((ret = _DkStreamAttributesQueryByHandle(handle, &attr)) < 0)
-        goto out;
-
-    void * addr = NULL;
-    size_t size = attr.pending_size;
-
-    if ((ret = _DkStreamMap(handle, &addr, PAL_PROT_READ, 0,
-                            ALLOC_ALIGNUP(size))) < 0)
-        goto out;
-
-    struct config_store sandbox_config;
-    sandbox_config.raw_data = addr;
-    sandbox_config.raw_size = size;
-    sandbox_config.malloc = malloc;
-    sandbox_config.free = free;
-
-    if ((ret = read_config(&sandbox_config, NULL, NULL)) < 0)
-        goto out_mem;
-
-    struct graphene_user_policy policies[5], * p = policies;
-
-    if (strpartcmp_static(uri, "file:")) {
-        p->type  = GRAPHENE_FS_PATH | GRAPHENE_FS_READ;
-        p->value = &uri[5];
-        p++;
-    }
-
-    if (flags & PAL_SANDBOX_PIPE) {
-        p->type  = GRAPHENE_UNIX_PREFIX;
-        p->value = &pal_sec.pipe_prefix_id;
-        p++;
-
-        p->type  = GRAPHENE_MCAST_PORT;
-        p->value = &pal_sec.mcast_port;
-        p++;
-    }
-
-    p->type  = GRAPHENE_FS_PATH | GRAPHENE_FS_READ;
-    p->value = "/proc/meminfo";
-    p++;
-
-    ret = ioctl_set_graphene(&sandbox_config, p - policies, policies);
-    if (ret < 0)
-        goto out_mem;
-
-    pal_state.manifest = uri;
-    _DkObjectClose(pal_state.manifest_handle);
-    pal_state.manifest_handle = handle;
-
-    free_config(&sandbox_config);
-out_mem:
-    _DkStreamUnmap(sandbox_config.raw_data,
-                   ALLOC_ALIGNUP(sandbox_config.raw_size));
-out:
-    _DkObjectClose(handle);
-    return ret;
-}
-
-int _DkProcessSandboxCreate (const char * manifest, int flags)
-{
-    return set_graphene_task(manifest, flags);
+int _DkProcessSandboxCreate(const char* manifest, int flags) {
+    __UNUSED(manifest);
+    __UNUSED(flags);
+    return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
