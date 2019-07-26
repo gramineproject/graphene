@@ -32,12 +32,10 @@
 
 #include <linux/types.h>
 typedef __kernel_pid_t pid_t;
-#include <linux/stat.h>
 #include <linux/msg.h>
 #include <linux/socket.h>
 #include <linux/wait.h>
 #include <asm/fcntl.h>
-#include <asm/stat.h>
 #include <asm/socket.h>
 #include <asm/poll.h>
 #include <sys/signal.h>
