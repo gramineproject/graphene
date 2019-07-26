@@ -3,7 +3,25 @@
 
 #ifndef __ASSEMBLER__
 
+#ifdef IN_SHIM
+
+#include <shim_defs.h>
 #include <atomic.h>
+
+#else  /* !IN_SHIM */
+/* workaround to make glibc build
+ * the following structure must match to the one defined in pal/lib/atomic.h
+ */
+#ifdef __x86_64__
+struct atomic_int {
+    volatile int64_t counter;
+}
+#ifdef __GNUC__
+__attribute__((aligned(sizeof(uint64_t))))
+#endif
+;
+#endif
+#endif /* IN_SHIM */
 
 #define SHIM_TLS_CANARY 0xdeadbeef
 
@@ -44,12 +62,6 @@ struct shim_context {
     uint64_t                enter_time;
     struct atomic_int       preempt;
 };
-
-#ifdef IN_SHIM
-
-#include <shim_defs.h>
-
-#endif /* IN_SHIM */
 
 struct debug_buf;
 
