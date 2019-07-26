@@ -480,6 +480,11 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
+    /* Figure out how many threads per core there are in the system */
+    int threads; // Can be 1 or 2
+    cpuid(0xb, 0, words);
+    threads = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
+    
     /* According to SDM: EBX[15:0] is to enumerate processor topology
      * of the system. However this value is intended for display/diagnostic
      * purposes. The actual number of logical processors available to
@@ -488,6 +493,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     cpuid(0xb, 1, words);
     ci->cpu_num      = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
+    ci->cpu_num *= threads;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +

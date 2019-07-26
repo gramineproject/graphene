@@ -405,14 +405,20 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     if (!memcmp(vendor_id, "GenuineIntel", 12)) {
 
+        /* Figure out how many threads per core there are in the system */
+        int threads; // Can be 1 or 2
+        cpuid(0xb, 0, words);
+        threads = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
+        
        /* According to SDM: EBX[15:0] is to enumerate processor topology
         * of the system. However this value is intended for display/diagnostic
         * purposes. The actual number of logical processors available to
         * BIOS/OS/App may be different. We use this leaf for now as it's the
         * best option we have so far to get the cpu number  */
-
+        
         cpuid(0xb, 1, words);
         ci->cpu_num  = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
+        ci->cpu_num *= threads;
     } else if (!memcmp(vendor_id, "AuthenticAMD", 12)) {
         cpuid(0x8000008, 0, words);
         ci->cpu_num  = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 0, 8) + 1;
