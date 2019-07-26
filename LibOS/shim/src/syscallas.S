@@ -20,7 +20,6 @@
  * This file contains the entry point of system call table in library OS.
  */
 
-#include <shim_tls.h>
 #include <shim_unistd_defs.h>
 
 #include "asm-offsets.h"

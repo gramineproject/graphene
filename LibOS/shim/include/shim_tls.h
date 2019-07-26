@@ -1,11 +1,8 @@
 #ifndef _SHIM_TLS_H_
 #define _SHIM_TLS_H_
 
-#ifndef __ASSEMBLER__
-
 #ifdef IN_SHIM
 
-#include <shim_defs.h>
 #include <atomic.h>
 
 #else  /* !IN_SHIM */
@@ -20,16 +17,6 @@ struct atomic_int {
 #endif /* IN_SHIM */
 
 #define SHIM_TLS_CANARY 0xdeadbeef
-
-struct lock_record {
-    enum { NO_LOCK, SEM_LOCK, READ_LOCK, WRITE_LOCK } type;
-    void * lock;
-    const char * filename;
-    int lineno;
-};
-
-#define NUM_LOCK_RECORD      32
-#define NUM_LOCK_RECORD_MASK (NUM_LOCK_RECORD - 1)
 
 struct shim_regs {
     unsigned long           orig_rax;
@@ -131,7 +118,5 @@ static inline __libc_tcb_t * shim_libc_tcb(void)
 }
 
 #endif /* IN_SHIM */
-
-#endif /* !__ASSEMBLER__ */
 
 #endif /* _SHIM_H_ */
