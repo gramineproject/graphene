@@ -331,7 +331,23 @@ static char * cpu_flags[]
            "pbe",    // "pending break event"
         };
 
-void _DkGetCPUInfo (PAL_CPU_INFO * ci)
+/*
+ * Returns the number of online CPUs read from sysctl hw.ncpus, -errno on failure.
+ */
+int get_cpu_count(void) {
+    int mib[2], cores;
+    size_t len = sizeof(cores);
+    mib[0] = CTL_HW;
+    mib[1] = HW_NCPU;
+
+    int rv = sysctl(mib, 2, &cores, &len, NULL, 0);
+    if (rv < 0)
+        return unix_to_pal_error(ERRNO(rv));
+
+    return cores;
+}
+
+int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[PAL_CPUID_WORD_NUM];
 
@@ -361,14 +377,15 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_model    = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  4,  8);
     ci->cpu_stepping = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  0,  4);
 
-    /* According to SDM: EBX[15:0] is to enumerate processor topology
-     * of the system. However this value is intended for display/diagnostic
-     * purposes. The actual number of logical processors available to
-     * BIOS/OS/App may be different. We use this leaf for now as it's the
-     * best option we have so far to get the cpu number  */
-
-    cpuid(0xb, 1, words, 0);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX],  0, 16);
+    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
+     * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
+    int cores = get_cpu_count();
+    if (cores < 0) {
+        free(brand);
+        free(vendor_id);
+        return cores;
+    }
+    ci->cpu_num = cores;
 
     int flen = 0, fmax = 80;
     char * flags = malloc(fmax);

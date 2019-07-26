@@ -383,9 +383,57 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
-void _DkGetCPUInfo (PAL_CPU_INFO * ci)
+/*
+ * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
+ * Understands complex formats like "1,3-5,6".
+ */
+int get_cpu_count(void) {
+    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
+    if (fd < 0)
+        return unix_to_pal_error(ERRNO(fd));
+
+    char buf[64];
+    int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
+    INLINE_SYSCALL(close, 1, fd);
+    if (ret < 0) {
+        return unix_to_pal_error(ERRNO(ret));
+    }
+
+    buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
+
+    char* end;
+    char* ptr = buf;
+    int cpu_count = 0;
+    while (*ptr) {
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
+            ptr++;
+
+        int firstint = (int)strtol(ptr, &end, 10);
+        if (ptr == end)
+            break;
+
+        if (*end == '\0' || *end == ',') {
+            /* single CPU index, count as one more CPU */
+            cpu_count++;
+        } else if (*end == '-') {
+            /* CPU range, count how many CPUs in range */
+            ptr = end + 1;
+            int secondint = (int)strtol(ptr, &end, 10);
+            if (secondint > firstint)
+                cpu_count += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
+        }
+        ptr = end;
+    }
+
+    if (cpu_count == 0)
+        return -PAL_ERROR_STREAMNOTEXIST;
+    return cpu_count;
+}
+
+int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[PAL_CPUID_WORD_NUM];
+    int rv = 0;
 
     const size_t VENDOR_ID_SIZE = 13;
     char* vendor_id = malloc(VENDOR_ID_SIZE);
@@ -408,22 +456,15 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    if (!memcmp(vendor_id, "GenuineIntel", 12)) {
-
-       /* According to SDM: EBX[15:0] is to enumerate processor topology
-        * of the system. However this value is intended for display/diagnostic
-        * purposes. The actual number of logical processors available to
-        * BIOS/OS/App may be different. We use this leaf for now as it's the
-        * best option we have so far to get the cpu number  */
-
-        cpuid(0xb, 1, words);
-        ci->cpu_num  = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
-    } else if (!memcmp(vendor_id, "AuthenticAMD", 12)) {
-        cpuid(0x8000008, 0, words);
-        ci->cpu_num  = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX], 0, 8) + 1;
-    } else {
-        ci->cpu_num  = 1;
+    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
+     * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
+    int cores = get_cpu_count();
+    if (cores < 0) {
+        free(vendor_id);
+        free(brand);
+        return cores;
     }
+    ci->cpu_num = cores;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12);
@@ -460,4 +501,5 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
+    return rv;
 }

@@ -35,8 +35,6 @@
 typedef __kernel_pid_t pid_t;
 #undef __GLIBC__
 #include <linux/stat.h>
-#include <asm/stat.h>
-#include <asm/fcntl.h>
 #include <asm/errno.h>
 
 /* 'open' operation for file streams */

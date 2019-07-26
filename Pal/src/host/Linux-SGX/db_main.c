@@ -75,6 +75,7 @@ PAL_NUM _DkGetHostId (void)
 
 #include "elf-x86_64.h"
 #include "dynamic_link.h"
+#include <asm/errno.h>
 
 void setup_pal_map (struct link_map * map);
 static struct link_map pal_map;
@@ -293,6 +294,12 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     pal_sec.uid = sec_info.uid;
     pal_sec.gid = sec_info.gid;
 
+    int num_cpus = sec_info.num_cpus;
+    if (num_cpus >= 1 && num_cpus <= (1 << 16)) {
+        pal_sec.num_cpus = num_cpus;
+    } else {
+        return;
+    }
 
     /* set up page allocator and slab manager */
     init_slab_mgr(pagesz);
@@ -459,9 +466,11 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
-void _DkGetCPUInfo (PAL_CPU_INFO * ci)
+
+int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[PAL_CPUID_WORD_NUM];
+    int rv = 0;
 
     const size_t VENDOR_ID_SIZE = 13;
     char* vendor_id = malloc(VENDOR_ID_SIZE);
@@ -486,14 +495,9 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    /* According to SDM: EBX[15:0] is to enumerate processor topology
-     * of the system. However this value is intended for display/diagnostic
-     * purposes. The actual number of logical processors available to
-     * BIOS/OS/App may be different. We use this leaf for now as it's the
-     * best option we have so far to get the cpu number  */
-
-    cpuid(0xb, 1, words);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
+    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
+     * instead, this is passed in via pal_sec at start-up time. */
+    ci->cpu_num = pal_sec.num_cpus;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
@@ -526,4 +530,5 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
+    return rv;
 }
