@@ -1223,6 +1223,11 @@ Report(bool isFatal, const char *pFormat, ...)
 		ubsan_vsyslog(LOG_DEBUG | LOG_USER, &SyslogData, pFormat, tmp);
 		va_end(tmp);
 	}
+#else
+    va_list tmp;
+    va_copy(tmp, ap);
+    pal_vprintf(pFormat, tmp);
+    va_end(tmp);
 #endif
 	if (isFatal || alwaysFatal || ISSET(ubsan_flags, UBSAN_ABORT)) {
 		abort();
