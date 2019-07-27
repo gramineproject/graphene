@@ -59,6 +59,7 @@ vprintf(const char * fmt, va_list ap)
 
     return b.cnt;
 }
+EXTERN_ALIAS(vprintf);
 
 int
 printf(const char * fmt, ...)

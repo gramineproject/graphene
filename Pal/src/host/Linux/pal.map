@@ -41,7 +41,7 @@ PAL {
         DkMemoryAvailableQuota;
 
         # Debugging ABIs
-        pal_printf; DkDebugAttachBinary; DkDebugDetachBinary;
+        pal_printf; pal_vprintf; DkDebugAttachBinary; DkDebugDetachBinary;
 
         # Control block
         pal_control_addr; pal_sec;

@@ -45,8 +45,8 @@ fputch(void * f, int ch, struct printbuf * b)
     return 0;
 }
 
-static int
-vprintf(const char * fmt, va_list ap)
+int
+pal_vprintf(const char * fmt, va_list ap)
 {
     struct printbuf b;
 
@@ -65,7 +65,7 @@ pal_printf(const char * fmt, ...)
     int cnt;
 
     va_start(ap, fmt);
-    cnt = vprintf(fmt, ap);
+    cnt = pal_vprintf(fmt, ap);
     va_end(ap);
 
     return cnt;

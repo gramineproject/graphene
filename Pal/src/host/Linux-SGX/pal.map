@@ -44,7 +44,7 @@ PAL {
         DkCpuIdRetrieve; # retrieve CPUID
 
         # Debugging ABIs
-        pal_printf; pal_snprintf; DkDebugAttachBinary; DkDebugDetachBinary;
+        pal_printf; pal_vprintf; pal_snprintf; DkDebugAttachBinary; DkDebugDetachBinary;
 
         # Control block
         pal_control; pal_control_addr;
