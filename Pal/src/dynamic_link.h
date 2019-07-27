@@ -58,7 +58,7 @@ elf_machine_rela_relative (struct link_map *l, const ElfW(Rela) *reloc,
 
 /* Read the dynamic section at DYN and fill in INFO with indices DT_*.  */
 static inline
-void __attribute_unused __attribute_always_inline
+void __attribute_unused __attribute_always_inline __attribute__((no_sanitize_undefined))
 elf_get_dynamic_info (ElfW(Dyn) *dyn, ElfW(Dyn) **l_info, ElfW(Addr) l_addr)
 {
 #if __ELF_NATIVE_CLASS == 32
