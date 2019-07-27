@@ -1,8 +1,11 @@
+include ../../Makefile.configs
+include ../../Makefile.rules
 include ../src/Makefile.Host
 
 CC	= gcc
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx \
-	  -I../include/pal -I../lib
+	  -I../include/pal -I../lib \
+	  $(CFLAGS_SANITIZE)
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
 executables = $(filter-out $(preloads),$(patsubst %.c,%,$(wildcard *.c))) ..Bootstrap

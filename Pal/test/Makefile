@@ -1,8 +1,11 @@
+include ../../Makefile.configs
+include ../../Makefile.rules
 include ../src/Makefile.Host
 
 CC	= gcc
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib \
-	  -I../include/pal -I../lib
+	  -I../include/pal -I../lib \
+	  $(CFLAGS_SANITIZE)
 
 .PHONY: default
 default: all

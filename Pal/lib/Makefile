@@ -59,7 +59,7 @@ endif
 
 ifeq ($(CONFIG_ENABLE_UBSAN),y)
 CFLAGS-ubsan.o += -Wno-unused-parameter -Wno-unused-variable
-objs += ubsan.o
+objs += ubsan.o abort.o
 endif
 
 .DEFAULT: all
