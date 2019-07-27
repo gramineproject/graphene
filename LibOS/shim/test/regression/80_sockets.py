@@ -19,20 +19,16 @@ except OSError:
     ## some debug output
     sys.exit(1)
 if pid == 0:
-    ## eventually use os.putenv(..) to set environment variables
-    ## os.execv strips of args[0] for the arguments
-    os.system("sleep 2 && telnet localhost 8001 2>&1 >/dev/null")
+    # wait till epoll_socket warms up and run telnet client
+    os.system("sleep 10 && telnet localhost 8000 >/dev/null 2>/dev/null")
     sys.exit(0)
 
-
-regression = Regression(loader, "epoll_socket", None)
-
+regression = Regression(loader, "epoll_socket", None, 50000)
 
 regression.add_check(name="Epoll on a writable socket",
-                     args = ['8001'],
+                     args = ['8000'],
                      check=lambda res: "Accepted connection" in res[0].out and
                      "socket is writable" in res[0].out)
 
 rv = regression.run_checks()
-
 if rv: sys.exit(rv)

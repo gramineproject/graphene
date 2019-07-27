@@ -1,7 +1,4 @@
-// Copied from
-// https://banu.com/blog/2/how-to-use-epoll-a-complete-example-in-c/epoll-example.c
-
-// Meant to be used for edge triggered epoll
+// Copied from https://banu.com/blog/2/how-to-use-epoll-a-complete-example-in-c/epoll-example.c
 
 #include <errno.h>
 #include <fcntl.h>
@@ -61,8 +58,7 @@ int main(int argc, char* argv[]) {
     struct epoll_event* events;
     int loops = 5;
 
-    // Default to 8001
-    int port = 8001;
+    int port = 8000;
     // The only argument we take is an optional port
     if (argc > 1)
         port = atoi(argv[1]);
@@ -225,7 +221,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
- done:
     free(events);
     close(sfd);
 
