@@ -31,7 +31,7 @@
 #include "pal_debug.h"
 
 /* NetBSD specific definitions
- * Stolen from
+ * Copied from
  * https://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/sys/sys/cdefs.h
  */
 #define __printflike(fmtarg, firstvararg)	\
