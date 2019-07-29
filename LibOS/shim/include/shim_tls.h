@@ -12,11 +12,7 @@
 #ifdef __x86_64__
 struct atomic_int {
     volatile int64_t counter;
-}
-#ifdef __GNUC__
-__attribute__((aligned(sizeof(uint64_t))))
-#endif
-;
+};
 #endif
 #endif /* IN_SHIM */
 
