@@ -27,6 +27,12 @@
  */
 
 
+/*
+ * NOTE: The following link is very helpful to understand
+ * the background of this implementation and, why this is suitable
+ * for Graphene use case.
+ * https://blog.netbsd.org/tnf/entry/introduction_to_%C2%B5ubsan_a_clean
+ */
 #include "api.h"
 #include "pal_debug.h"
 
