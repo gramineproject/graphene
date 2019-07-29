@@ -198,7 +198,7 @@ class TC_02_Symbols(RegressionTestCase):
     def test_000_symbols(self):
         stdout, stderr = self.run_binary(['Symbols'])
         found_symbols = dict(line.split(' = ')
-            for line in stderr.strip().split('\n'))
+            for line in stderr.strip().split('\n') if line.startswith('Dk'))
         self.assertCountEqual(found_symbols, self.ALL_SYMBOLS)
         for k, v in found_symbols.items():
             v = ast.literal_eval(v)
