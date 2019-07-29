@@ -50,11 +50,7 @@ Copyright (C) 2005-2014 Rich Felker, et al.
 
 struct atomic_int {
     volatile int32_t counter;
-}
-#ifdef __GNUC__
-__attribute__((aligned(sizeof(uint32_t))))
-#endif
-;
+};
 #endif
 
 
@@ -72,11 +68,7 @@ __attribute__((aligned(sizeof(uint32_t))))
 
 struct atomic_int {
     volatile int64_t counter;
-}
-#ifdef __GNUC__
-__attribute__((aligned(sizeof(uint64_t))))
-#endif
-;
+};
 #endif
 
 #define LOCK_PREFIX     "\n\tlock; "
