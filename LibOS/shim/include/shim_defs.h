@@ -11,7 +11,7 @@
  * exact address it was created. Currently this option is disabled
  * to prevent internal fragmentation of virtual memory space.
  */
-#define CPSTORE_DERANDOMIZATION     0
+#define CPSTORE_DERANDOMIZATION     1
 
 /* This macro disables current vfork implementation and aliases it to fork.
  *
