@@ -83,9 +83,6 @@ static int parse_device_uri(const char ** uri, char ** type, struct handle_ops *
     return 0;
 }
 
-static inline void
-dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat);
-
 static int64_t char_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                           void * buffer);
 static int64_t char_write (PAL_HANDLE handle, uint64_t offset, uint64_t count,
@@ -352,17 +349,6 @@ static int dev_flush (PAL_HANDLE handle)
     }
 
     return 0;
-}
-
-static inline void
-dev_attrcopy (PAL_STREAM_ATTR * attr, struct stat * stat)
-{
-    attr->handle_type = pal_type_dev;
-    /* readable, writable and runnable are decied by euidstataccess */
-    attr->readable = stataccess(stat, ACCESS_R);
-    attr->writable = stataccess(stat, ACCESS_W);
-    attr->runnable = stataccess(stat, ACCESS_X);
-    attr->pending_size = stat->st_size;
 }
 
 /* 'attrquery' operation for device streams */
