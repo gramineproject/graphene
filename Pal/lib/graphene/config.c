@@ -339,8 +339,11 @@ int read_config (struct config_store * store,
             vlen = (ptr - shift) - val;
         } else {
             val = ptr;
-            for ( ; RANGE && !IS_SKIP(ptr) ; ptr++);
-            vlen = ptr - val;
+            char* last = ptr - 1;
+            for ( ; RANGE && !IS_SKIP(ptr) ; ptr++)
+                if (!IS_SPACE(*ptr)) // Skip the trailing whitespaces
+                    last = ptr;
+            vlen = last + 1 - val;
         }
         ptr++;
 
