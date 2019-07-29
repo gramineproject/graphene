@@ -76,7 +76,7 @@ int str_dput (struct shim_dentry * dent)
 
 int str_close (struct shim_handle * hdl)
 {
-    if (hdl->flags && (O_WRONLY|O_RDWR)) {
+    if (hdl->flags & (O_WRONLY|O_RDWR)) {
         int ret = str_flush(hdl);
 
         if (ret < 0)
@@ -91,7 +91,7 @@ ssize_t str_read (struct shim_handle * hdl, void * buf, size_t count)
 {
     ssize_t ret = 0;
 
-    if (!(hdl->acc_mode && MAY_READ)) {
+    if (!(hdl->acc_mode & MAY_READ)) {
         ret = -EACCES;
         goto out;
     }
@@ -134,7 +134,7 @@ out:
 
 ssize_t str_write (struct shim_handle * hdl, const void * buf, size_t count)
 {
-    if (!(hdl->acc_mode && MAY_WRITE))
+    if (!(hdl->acc_mode & MAY_WRITE))
         return -EACCES;
 
     struct shim_str_handle * strhdl = &hdl->info.str;
