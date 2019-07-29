@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     python \
     python-protobuf \
+    python3-pytest \
     texinfo \
     wget
 
