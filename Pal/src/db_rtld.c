@@ -1334,11 +1334,13 @@ void call_init (struct link_map* l, const char* first_argument,
 
     int argc = 1;
     for (const char** a = arguments; *a ; a++, argc++);
+    argc++; /* argv must end with NULL */
 
     char** argv = __alloca(argc * sizeof(*argv));
     argv[0] = (char*)first_argument;
     for (int i = 1; i < argc; i++)
         argv[i] = (char*)arguments[i];
+    argv[argc] = NULL;
 
     char** env = (char**)environs;
 
