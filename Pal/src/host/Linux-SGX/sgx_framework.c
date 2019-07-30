@@ -822,12 +822,12 @@ done:
     if (pipefds[0] != -1) INLINE_SYSCALL(close, 1, pipefds[0]);
     if (pipefds[1] != -1) INLINE_SYSCALL(close, 1, pipefds[1]);
     if (head_file != -1) {
-        INLINE_SYSCALL(unlink, 1, head_path);
         INLINE_SYSCALL(close,  1, head_file);
+        INLINE_SYSCALL(unlink, 1, head_path);
     }
     if (resp_file != -1) {
-        INLINE_SYSCALL(unlink, 1, resp_path);
         INLINE_SYSCALL(close,  1, resp_file);
+        INLINE_SYSCALL(unlink, 1, resp_path);
     }
     return ret;
 failed:
