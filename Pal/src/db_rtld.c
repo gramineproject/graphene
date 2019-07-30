@@ -447,7 +447,7 @@ postmap:
 int check_elf_magic (const void* header, size_t len)
 {
 #define ELF_MAGIC_SIZE EI_CLASS
-    if (__builtin_expect (len < ELF_MAGIC_SIZE, 0))
+    if (__builtin_expect(len < ELF_MAGIC_SIZE, 0))
         return -PAL_ERROR_INVAL;
 
     ElfW(Ehdr) * ehdr = (ElfW(Ehdr) *) header;
@@ -470,12 +470,11 @@ int check_elf_magic (const void* header, size_t len)
 
 int check_elf_object (PAL_HANDLE handle)
 {
-#define ELF_MAGIC_SIZE EI_CLASS
     unsigned char buffer[ELF_MAGIC_SIZE];
 
-    int len = _DkStreamRead(handle, 0, ELF_MAGIC_SIZE, buffer, NULL, 0);
+    int64_t len = _DkStreamRead(handle, 0, ELF_MAGIC_SIZE, buffer, NULL, 0);
 
-    if (__builtin_expect (len < 0, 0))
+    if (__builtin_expect(len < 0, 0))
         return len;
     return check_elf_magic(buffer, len);
 }
@@ -837,11 +836,14 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
     ElfW(Phdr) * phdr = NULL;
     int phdr_malloced = 0;
 
-    int len = _DkStreamRead(handle, 0, FILEBUF_SIZE, &fb, NULL, 0);
+    int64_t len = _DkStreamRead(handle, 0, FILEBUF_SIZE, &fb, NULL, 0);
 
     if (__builtin_expect ((size_t)len < sizeof(ElfW(Ehdr)), 0)) {
+        if (len < 0)
+            ret = len;
+        else
+            ret = -PAL_ERROR_INVAL;
         errstring = "ELF file with a strange size";
-        ret = len;
         goto verify_failed;
     }
 
@@ -867,6 +869,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
         memcmp(ehdr->e_ident, expected, EI_OSABI) != 0 || (
         ehdr->e_ident[EI_OSABI] != ELFOSABI_SYSV &&
         ehdr->e_ident[EI_OSABI] != ELFOSABI_LINUX), 0)) {
+        ret = -PAL_ERROR_INVAL;
         errstring = "ELF file with invalid header";
         goto verify_failed;
     }
@@ -887,12 +890,14 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
         ret = _DkStreamRead(handle, ehdr->e_phoff, maplength, phdr, NULL, 0);
 
         if (ret < 0 || (size_t)ret != maplength) {
+            ret = -PAL_ERROR_INVAL;
             errstring = "cannot read file data";
             goto verify_failed;
         }
     }
 
     if (!(map = map_elf_object_by_handle(handle, type, &fb, len, true))) {
+        ret = -PAL_ERROR_INVAL;
         errstring = "unexpected failure";
         goto verify_failed;
     }
