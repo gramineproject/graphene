@@ -1444,20 +1444,20 @@ noreturn void start_execution (const char * first_argument,
 
     /* If LibOS is specified and found, invoke ELF entry. */
     char libos_str[URI_MAX];
-    memset(libos_str, 0, URI_MAX);
+    *libos_str = '\0';
     ssize_t ret = get_config(pal_state.root_config, "loader.libos",
                              libos_str, URI_MAX);
     if (ret > 0)
         for (struct link_map* l = loaded_maps; l ; l = l->l_next)
             if (l->l_type == OBJECT_PRELOAD && l->l_entry)
                 if (strstr(l->l_name, libos_str))
-                    CALL_ENTRY(l, cookies);
+                    CALL_ENTRY(l, cookies); // Does not return.
     printf("Warning: loader.libos not defined in manifest file"
             " or cannot find specified lib in loader.preload list.\n");
 
     /* Else, invoke ELF entry in the app. */
     if (exec_map)
-        CALL_ENTRY(exec_map, cookies);
+        CALL_ENTRY(exec_map, cookies); // Does not return.
 
     _DkThreadExit();
 }
