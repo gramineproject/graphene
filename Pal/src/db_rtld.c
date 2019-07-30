@@ -452,7 +452,7 @@ int check_elf_object (PAL_HANDLE handle)
     int len = _DkStreamRead(handle, 0, ELF_MAGIC_SIZE, buffer, NULL, 0);
 
     if (__builtin_expect (len < 0, 0))
-        return -len;
+        return len;
 
     if (__builtin_expect (len < ELF_MAGIC_SIZE, 0))
         return -PAL_ERROR_INVAL;
@@ -837,6 +837,7 @@ int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type)
 
     if (__builtin_expect ((size_t)len < sizeof(ElfW(Ehdr)), 0)) {
         errstring = "ELF file with a strange size";
+        ret = len;
         goto verify_failed;
     }
 
