@@ -1,3 +1,4 @@
+	.file "vdso-note.S"
 	/* This .note section informs dynamic linker about vDSO */
 	.section .note.Linux, "a", @note
 

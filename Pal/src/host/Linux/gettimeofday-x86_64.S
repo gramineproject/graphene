@@ -26,6 +26,8 @@
 
 #include "sysdep-x86_64.h"
 
+	.file "gettimeofday-x86_64.S"
+
 /* For the calculation see asm/vsyscall.h.  */
 #define VSYSCALL_ADDR_vgettimeofday	0xffffffffff600000
 

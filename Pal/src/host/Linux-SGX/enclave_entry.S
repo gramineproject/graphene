@@ -1,6 +1,8 @@
 #include "sgx_arch.h"
 #include "asm-offsets.h"
 
+	.file "enclave_entry.S"
+
 # In some cases, like bogus parameters passed to enclave_entry, it's tricky to
 # return cleanly (passing the correct return address to EEXIT, OCALL_EXIT can
 # be interrupted, etc.). Since those cases should only ever happen with a

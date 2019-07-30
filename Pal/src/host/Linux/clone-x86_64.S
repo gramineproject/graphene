@@ -30,6 +30,8 @@
 
 #include "sysdep-x86_64.h"
 
+	.file "clone-x86_64.S"
+
 #define CLONE_VM	0x00000100
 #define CLONE_THREAD	0x00010000
 

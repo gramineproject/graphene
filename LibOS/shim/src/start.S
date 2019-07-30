@@ -16,6 +16,7 @@
    ...
    NULL
  */
+    .file "start.S"
     .text
     .globl shim_start
     .type shim_start,@function

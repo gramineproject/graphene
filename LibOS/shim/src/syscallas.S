@@ -25,6 +25,7 @@
 
 #include "asm-offsets.h"
 
+        .file "syscallas.S"
         .global syscalldb
         .type syscalldb, @function
         .extern shim_table, debug_unsupp
