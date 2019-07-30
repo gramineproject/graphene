@@ -10,7 +10,8 @@ CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
-	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal
+	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal \
+	  -I../../../Pal/include/elf
 
 EXTRAFLAGS = -Wextra
 
