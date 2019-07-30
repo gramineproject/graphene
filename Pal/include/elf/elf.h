@@ -21,6 +21,10 @@
 #ifndef _ELF_H
 #define	_ELF_H 1
 
+#include <features.h>
+
+__BEGIN_DECLS
+
 /* Standard ELF types.  */
 
 #include <stdint.h>
@@ -62,7 +66,7 @@ typedef Elf64_Half Elf64_Versym;
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 
-#define EI_NIDENT 16
+#define EI_NIDENT (16)
 
 typedef struct
 {
@@ -477,7 +481,7 @@ typedef struct
 #define ELF32_ST_VISIBILITY(o)	((o) & 0x03)
 
 /* For ELF64 the definitions are the same.  */
-#define ELF64_ST_VISIBILITY(o)	ELF32_ST_VISIBILITY(o)
+#define ELF64_ST_VISIBILITY(o)	ELF32_ST_VISIBILITY (o)
 
 /* Symbol visibility specification encoded in the st_other field.  */
 #define STV_DEFAULT	0		/* Default symbol visibility rules */
@@ -753,7 +757,7 @@ typedef struct
    range.  Be compatible.  */
 #define DT_AUXILIARY    0x7ffffffd      /* Shared object to load before self */
 #define DT_FILTER       0x7fffffff      /* Shared object to get values from */
-#define DT_EXTRATAGIDX(tag)	((Elf32_Word)-((Elf32_Sword) (tag) <<1>>1)-1)
+#define DT_EXTRATAGIDX(tag)	(DT_FILTER - ((tag) & DT_FILTER))
 #define DT_EXTRANUM	3
 
 /* Values of `d_un.d_val' in the DT_FLAGS entry.  */
@@ -2790,5 +2794,8 @@ typedef Elf32_Addr Elf32_Conflict;
 					   with signed low */
 #define R_M32R_GOTOFF_LO	64	/* Low 16 bit offset to GOT */
 #define R_M32R_NUM		256	/* Keep this the last entry. */
+
+
+__END_DECLS
 
 #endif	/* elf.h */
