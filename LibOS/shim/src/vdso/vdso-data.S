@@ -1,3 +1,4 @@
+	.file "vdso-data.S"
 	.section .rodata
 
 	.global vdso_so

@@ -17,6 +17,7 @@
 						NULL
 */
 
+	.file "user_start.S"
 	.text
 	.globl _start
 	.type _start,@function

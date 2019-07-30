@@ -3,6 +3,8 @@
 
 #include "asm-offsets.h"
 
+	.file "sgx_entry.S"
+
 	.extern tcs_base
 
 	.global sgx_ecall
