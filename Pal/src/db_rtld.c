@@ -1325,6 +1325,9 @@ void call_init (struct link_map *l, const char *first_argument,
 {
     if (l->l_init_called)
         return;
+
+    /* Avoid handling this constructor again in case we have a
+     * circular dependency.  */
     l->l_init_called = true;
 
     /* Set up the arguments */
@@ -1339,9 +1342,11 @@ void call_init (struct link_map *l, const char *first_argument,
 
     char** env = (char**) environs;
 
-    /* Find initializers and invoke */
+    /* Locate constructors: DT_INIT and DT_INIT_ARRAY.
+     * One or the other, neither, or both may exist. */
 
-    typedef void (*init_t) (int, char **, char **);
+    typedef void (*init_t) (int, char **, char **); /* constructor prototype */
+
     init_t init = NULL;
     ElfW(Addr) *init_array = NULL;
     size_t array_n = 0;
@@ -1355,12 +1360,17 @@ void call_init (struct link_map *l, const char *first_argument,
         else if (dyn->d_tag == DT_INIT_ARRAYSZ)
             array_n = dyn->d_un.d_val / sizeof (ElfW(Addr));
 
+    /* Invoke constructors. We follow the order in the GNU C Library:
+     *  1. if exists, invoke the one constructor named by DT_INIT
+     *  2. if any, all constructors found in DT_INIT_ARRAY, in order
+     */
+
     if (init)
         init(argc, argv, env);
 
     if (init_array && array_n > 0)
         for (ElfW(Addr) *a = init_array; a < &init_array[array_n]; a++)
-            if (*a != 0UL && *a != ~0UL)
+            if (*a != 0UL && *a != ~0UL) /* ignore invalid entries */
                 ((init_t) *a)(argc, argv, env);
 }
 
