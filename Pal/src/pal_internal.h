@@ -366,6 +366,7 @@ int _DkCpuIdRetrieve (unsigned int leaf, unsigned int subleaf, unsigned int valu
 /* function and definition for loading binaries */
 enum object_type { OBJECT_RTLD, OBJECT_EXEC, OBJECT_PRELOAD, OBJECT_EXTERNAL };
 
+int check_elf_magic (const void* header, size_t len);
 int check_elf_object (PAL_HANDLE handle);
 int load_elf_object (const char * uri, enum object_type type);
 int load_elf_object_by_handle (PAL_HANDLE handle, enum object_type type);
