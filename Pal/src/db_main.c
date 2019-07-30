@@ -384,8 +384,15 @@ noreturn void pal_main (
     }
 
     /* must be a ELF */
-    if (exec_handle && check_elf_object(exec_handle) < 0)
-        INIT_FAIL(PAL_ERROR_INVAL, "executable is not a ELF binary");
+    if (exec_handle) {
+        if (exec_loaded_addr) {
+            if (check_elf_magic(exec_loaded_addr, sizeof(ElfW(Ehdr))))
+                INIT_FAIL(PAL_ERROR_INVAL, "executable is not a ELF binary");
+        } else {
+            if (check_elf_object(exec_handle) < 0)
+                INIT_FAIL(PAL_ERROR_INVAL, "executable is not a ELF binary");
+        }
+    }
 
     pal_state.manifest        = manifest_uri;
     pal_state.manifest_handle = manifest_handle;

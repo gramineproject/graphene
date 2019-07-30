@@ -346,6 +346,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     manifest = setup_dummy_file_handle(pal_sec.manifest_name);
 
+    if (pal_sec.exec_name[0] != '\0')
+        exec = setup_dummy_file_handle(pal_sec.exec_name);
+    else
+        SGX_DBG(DBG_I, "Run without executable\n");
+
     uint64_t manifest_size = GET_ENCLAVE_TLS(manifest_size);
     void* manifest_addr = enclave_top - ALIGN_UP_PTR(manifest_size, pagesz);
 
@@ -369,20 +374,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
 
     init_trusted_files();
     init_trusted_children();
-
-    /* loading exec files must be after initializing trusted files */
-    if (pal_sec.exec_name[0] != '\0') {
-        //exec = setup_dummy_file_handle(pal_sec.exec_name);
-        int rv = _DkStreamOpen(&exec, pal_sec.exec_name,
-                               PAL_ACCESS_RDONLY, 0, 0, 0);
-        if (rv < 0) {
-            SGX_DBG(DBG_E, "Can't open exec: %s, %s\n",
-                    pal_sec.exec_name, PAL_STRERROR(rv));
-            ocall_exit(rv, /*is_exitgroup=*/true);
-        }
-    } else {
-        SGX_DBG(DBG_I, "Run without executable\n");
-    }
 
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "
