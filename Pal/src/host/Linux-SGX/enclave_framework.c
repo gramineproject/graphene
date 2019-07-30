@@ -186,7 +186,7 @@ struct trusted_file {
     LIST_TYPE(trusted_file) list;
     int64_t index;
     uint64_t size;
-    int uri_len;
+    size_t uri_len;
     char uri[URI_MAX];
     sgx_checksum_t checksum;
     sgx_stub_t * stubs;
@@ -198,6 +198,24 @@ static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 static bool allow_file_creation = 0;
 
+/* Assumes `path` is normalized */
+static bool path_is_equal_or_subpath(const struct trusted_file* tf,
+                                     const char* path,
+                                     size_t path_len) {
+    if (tf->uri_len > path_len || memcmp(tf->uri, path, tf->uri_len)) {
+        /* tf->uri is not prefix of `path` */
+        return false;
+    }
+    if (tf->uri_len == path_len) {
+        /* Both are equal */
+        return true;
+    }
+    if (tf->uri[tf->uri_len - 1] == '/' || path[tf->uri_len] == '/') {
+        /* tf->uri is a subpath of `path` */
+        return true;
+    }
+    return false;
+}
 
 /*
  * 'load_trusted_file' checks if the file to be opened is trusted
@@ -216,14 +234,16 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
     char normpath[URI_MAX];
-    int ret, fd = file->file.fd, uri_len, len;
+    int ret, fd = file->file.fd, len;
+    size_t uri_len;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0)))
         return -PAL_ERROR_DENIED;
 
-    uri_len = _DkStreamGetName(file, uri, URI_MAX);
-    if (uri_len < 0)
-        return uri_len;
+    len = _DkStreamGetName(file, uri, URI_MAX);
+    if (len < 0)
+        return len;
+    uri_len = (size_t)len;
 
     /* Allow to create the file when allow_file_creation is turned on;
        The created file is added to allowed_file list for later access */
@@ -243,8 +263,11 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     normpath [2] = 'l';
     normpath [3] = 'e';
     normpath [4] = ':';
-    len = get_norm_path(uri + 5, normpath + 5, 0, URI_MAX);
-    uri_len = len + 5;
+    len = get_norm_path(uri + 5, normpath + 5, 0, sizeof(normpath) - 5);
+    if (len < 0) {
+        return len;
+    }
+    uri_len = (size_t)len + 5;
 
     _DkSpinLock(&trusted_file_lock);
 
@@ -257,9 +280,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
             }
         } else {
             /* allowed files: must be a subfolder or file */
-            if (tmp->uri_len <= uri_len &&
-                !memcmp(tmp->uri, normpath, tmp->uri_len) &&
-                (!normpath[tmp->uri_len] || normpath[tmp->uri_len] == '/')) {
+            if (path_is_equal_or_subpath(tmp, normpath, uri_len)) {
                 tf = tmp;
                 break;
             }
@@ -556,7 +577,7 @@ failed:
 static int register_trusted_file (const char * uri, const char * checksum_str)
 {
     struct trusted_file * tf = NULL, * new;
-    int uri_len = strlen(uri);
+    size_t uri_len = strlen(uri);
     int ret;
 
     _DkSpinLock(&trusted_file_lock);
