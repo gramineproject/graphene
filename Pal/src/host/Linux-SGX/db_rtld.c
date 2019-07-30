@@ -158,8 +158,8 @@ void setup_pal_map (struct link_map * pal_map)
 
     char buffer[BUFFER_LENGTH];
     snprintf(buffer, BUFFER_LENGTH,
-             "add-symbol-file %s 0x%p -readnow -s .rodata 0x%p "
-             "-s .dynamic 0x%p -s .data 0x%p -s .bss 0x%p",
+             "add-symbol-file %s %p -readnow -s .rodata %p "
+             "-s .dynamic %p -s .data %p -s .bss %p",
              pal_map->l_name,
              &section_text, &section_rodata, &section_dynamic,
              &section_data, &section_bss);
