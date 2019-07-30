@@ -544,7 +544,7 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
     map->l_addr  = (ElfW(Addr)) addr - mapstart;
     map->l_entry = header->e_entry;
     if (header->e_type == ET_DYN)
-        map->l_entry += (ElfW(Addr))addr;
+        map->l_entry += map->l_addr;
     map->l_map_start = (ElfW(Addr)) addr;
     map->l_map_end = (ElfW(Addr)) addr + (mapend - mapstart);
 
@@ -1254,6 +1254,8 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
 
     l->l_addr = l->l_map_start - map_start;
     l->l_map_end = l->l_addr + map_end;
+    if (header->e_type == ET_DYN)
+        l->l_entry += l->l_addr;
 
     for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph)
         switch (ph->p_type) {
