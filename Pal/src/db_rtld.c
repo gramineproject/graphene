@@ -1278,6 +1278,7 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
         }
 
     _DkDebugAddMap(l);
+    free(l);
 #endif
 }
 
