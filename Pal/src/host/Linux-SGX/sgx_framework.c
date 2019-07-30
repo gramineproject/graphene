@@ -726,13 +726,13 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     INLINE_SYSCALL(close, 1, resp_file);
     resp_file = ret;
 
-    size_t resp_size = INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_END);
+    ssize_t resp_size = INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_END);
     if (IS_ERR(resp_size) || resp_size == 0)
         goto failed;
     resp = malloc(resp_size + 1);
     INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_SET);
     ret = INLINE_SYSCALL(read, 3, resp_file, resp, resp_size);
-    if (IS_ERR(ret) || (size_t) ret < resp_size)
+    if (IS_ERR(ret) || (ssize_t) ret < resp_size)
         goto failed;
     resp[resp_size] = '\0';
 

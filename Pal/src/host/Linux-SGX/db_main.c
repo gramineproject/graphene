@@ -374,9 +374,20 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     __pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
     __pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
 
-    init_trusted_platform();
-    init_trusted_files();
-    init_trusted_children();
+    if ((rv = init_trusted_platform()) < 0) {
+        SGX_DBG(DBG_E, "Failed to verify the platform using remote attestation: %d\n", rv);
+        ocall_exit(rv);
+    }
+
+    if ((rv = init_trusted_files()) < 0) {
+        SGX_DBG(DBG_E, "Failed to load the checksums of trusted files: %d\n", rv);
+        ocall_exit(rv);
+    }
+
+    if ((rv = init_trusted_children()) < 0) {
+        SGX_DBG(DBG_E, "Failed to load the measurement of trusted child enclaves: %d\n", rv);
+        ocall_exit(rv);
+    }
 
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "
