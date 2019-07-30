@@ -10,16 +10,21 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-unsigned int FILES_NO = 10000;
+static unsigned int FILES_NO = 10000;
+
+static int is_dot_or_dotdot(const char* name) {
+    return (name[0] == '.' && !name[1]) || (name[0] == '.' && name[1] == '.' && !name[2]);
+}
 
 int main(int argc, char *argv[]) {
-    int fd = 0, ret = 0;
+    int fd = 0, ret = 1;
     char name[0x10] = { 0 };
     DIR* dir = NULL;
-    struct dirent* x = NULL;
-    unsigned long i, count = 0;
+    struct dirent* dent = NULL;
+    unsigned long i = 0;
     char* tmp_name = NULL;
     char* old_wd = NULL;
+    unsigned char* seen = NULL;
 
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
@@ -35,6 +40,10 @@ int main(int argc, char *argv[]) {
         FILES_NO = atol(argv[2]);
     }
 
+    if (!(seen = calloc(FILES_NO, sizeof *seen))) {
+        err(1, "calloc");
+    }
+
     if ((old_wd = get_current_dir_name()) == NULL) {
         err(1, "getcwd");
     }
@@ -43,59 +52,90 @@ int main(int argc, char *argv[]) {
         err(1, "mkdir & chdr");
     }
 
-    for (i = 0; i < FILES_NO; ++i) {
+    for (i = 0; i < FILES_NO; i++) {
         sprintf(name, "%010lu", i);
-        fd = open(name, O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+        fd = open(name, O_CREAT | O_EXCL | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
         if (fd < 0) {
-            fprintf(stderr, "cannot create file %lu\n", i);
-            ret = 1;
+            fprintf(stderr, "error: cannot create file %lu: %s\n", i, strerror(errno));
             goto cleanup;
         }
         if (close(fd) < 0) {
-            fprintf(stderr, "close failed with: %s\n", strerror(errno));
+            fprintf(stderr, "error: close failed with: %s\n", strerror(errno));
+            goto cleanup;
         }
     }
 
     dir = opendir(".");
     if (!dir) {
-        fputs("cannot open \".\"", stderr);
-        ret = 1;
+        fprintf(stderr, "error: cannot open \".\": %s\n", strerror(errno));
         goto cleanup;
     }
 
     while (1) {
         errno = 0;
-        x = readdir(dir);
-        if (!x) {
+        dent = readdir(dir);
+        if (!dent) {
             if (errno != 0) {
                 fprintf(stderr, "error: readdir: %s\n", strerror(errno));
-                ret = 1;
                 goto cleanup;
             } else {
                 break;
             }
         }
-        count++;
+        if (is_dot_or_dotdot(dent->d_name)) {
+            continue;
+        }
+        i = atol(dent->d_name);
+        if (i >= FILES_NO) {
+            fprintf(stderr, "error: weird file found: \"%s\"\n", dent->d_name);
+            goto cleanup;
+        }
+        if (seen[i]) {
+            fprintf(stderr, "error: file \"%s\" seen multiple times\n", dent->d_name);
+            goto cleanup;
+        }
+        seen[i] = 1;
     }
 
-    printf("count: %lu\n", count);
+    for (i = 0; i < FILES_NO; i++) {
+        if (!seen[i]) {
+            fprintf(stderr, "error: file %lu not seen!\n", i);
+            goto cleanup;
+        }
+    }
+
+    puts("Success!");
+    ret = 0;
 
 cleanup:
     if (dir) {
         closedir(dir);
     }
 
-    for (i = 0; i < FILES_NO; ++i) {
+    for (i = 0; i < FILES_NO; i++) {
         sprintf(name, "%010lu", i);
-        unlink(name);
+        if (unlink(name)) {
+            ret = 1;
+            fprintf(stderr, "error: could not remove file %s: %s\n", name, strerror(errno));
+        }
     }
 
     if (chdir(old_wd) < 0) {
-        fprintf(stderr, "could not change directory to original (%s): %s\n", old_wd, strerror(errno));
+        ret = 1;
+        fprintf(stderr,
+                "error: could not change directory to original (%s): %s\n",
+                old_wd,
+                strerror(errno));
     }
     free(old_wd);
 
-    rmdir(tmp_name);
+    if (rmdir(tmp_name) < 0) {
+        ret = 1;
+        fprintf(stderr,
+                "error: could not remove tmp directory (%s): %s\n",
+                tmp_name,
+                strerror(errno));
+    }
 
     return ret;
 }

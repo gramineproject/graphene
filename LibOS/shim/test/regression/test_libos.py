@@ -165,6 +165,11 @@ class TC_30_Syscall(RegressionTestCase):
         self.assertIn('getdents64: file2 [0x8]', stdout)
         self.assertIn('getdents64: dir3 [0x4]', stdout)
 
+    def test_021_getdents_large_dir(self):
+        stdout, stderr = self.run_binary(['large_dir_read', 'tmp/large_dir', '3000'])
+
+        self.assertIn('Success!', stdout)
+
     def test_030_fopen(self):
         stdout, stderr = self.run_binary(['fopen_cornercases'])
 
