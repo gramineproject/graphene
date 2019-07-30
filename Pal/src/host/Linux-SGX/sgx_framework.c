@@ -394,7 +394,7 @@ static int connect_aesm_service(void) {
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strcpy_static(addr.sun_path, "\0sgx_aesm_socket_base", sizeof(addr.sun_path));
+    (void)strcpy_static(addr.sun_path, "\0sgx_aesm_socket_base", sizeof(addr.sun_path));
 
     int ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
     if (!IS_ERR(ret))
@@ -404,7 +404,7 @@ static int connect_aesm_service(void) {
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strcpy_static(addr.sun_path, "/var/run/aesmd/aesm.socket", sizeof(addr.sun_path));
+    (void)strcpy_static(addr.sun_path, "/var/run/aesmd/aesm.socket", sizeof(addr.sun_path));
 
     ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
     if (!IS_ERR(ret))
