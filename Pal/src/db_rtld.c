@@ -531,9 +531,9 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
                 break;
             case PT_LOAD: {
                 ElfW(Addr) start = (ElfW(Addr))
-                        ALLOC_ALIGNDOWN(map->l_addr + ph->p_vaddr);
+                        ALLOC_ALIGNDOWN(addr + ph->p_vaddr);
                 ElfW(Addr) end = (ElfW(Addr))
-                        ALLOC_ALIGNUP(map->l_addr + ph->p_vaddr + ph->p_memsz);
+                        ALLOC_ALIGNUP(addr + ph->p_vaddr + ph->p_memsz);
                 if (!mapstart || start < mapstart)
                     mapstart = start;
                 if (!mapend || end > mapend)
@@ -541,15 +541,14 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
             }
         }
 
-    map->l_addr  = (ElfW(Addr)) addr - mapstart;
+    map->l_addr  = mapstart;
     map->l_entry = header->e_entry;
-    if (header->e_type == ET_DYN)
-        map->l_entry += map->l_addr;
+    map->l_entry += map->l_addr;
     map->l_map_start = (ElfW(Addr)) addr;
     map->l_map_end = (ElfW(Addr)) addr + (mapend - mapstart);
 
     map->l_real_ld = (ElfW(Dyn) *)
-            ((char *) map->l_addr + (unsigned long) map->l_ld);
+            (map->l_addr + (unsigned long) map->l_ld);
     map->l_ld = malloc_copy(map->l_real_ld, sizeof(ElfW(Dyn)) * map->l_ldnum);
 
     elf_get_dynamic_info(map->l_ld, map->l_info, map->l_addr);
