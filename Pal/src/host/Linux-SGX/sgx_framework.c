@@ -394,24 +394,22 @@ static int connect_aesm_service(void) {
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    (void) strcpy_static(addr.sun_path, "\0sgx_aesm_socket_base", sizeof(addr.sun_path));
+    strcpy_static(addr.sun_path, "\0sgx_aesm_socket_base", sizeof(addr.sun_path));
 
     int ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
     if (!IS_ERR(ret))
-        goto success;
+        return sock;
     if (ERRNO(ret) != ECONNREFUSED)
         goto err;
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    (void) strcpy_static(addr.sun_path, "/var/run/aesmd/aesm.socket", sizeof(addr.sun_path));
+    strcpy_static(addr.sun_path, "/var/run/aesmd/aesm.socket", sizeof(addr.sun_path));
 
     ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
-    if (IS_ERR(ret))
-        goto err;
+    if (!IS_ERR(ret))
+        return sock;
 
-success:
-    return sock;
 err:
     INLINE_SYSCALL(close, 1, sock);
     return -ERRNO(ret);
@@ -872,7 +870,7 @@ int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
         return ret;
 
     if (!res->getquoteres) {
-        SGX_DBG(DBG_E, "aesm_service returns wrong message\n");
+        SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
         goto failed;
     }
 
