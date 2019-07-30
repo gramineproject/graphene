@@ -317,9 +317,6 @@ long __shim_setns (long, long);
 long __shim_getcpu (long, long, long);
 
 /* libos call entries */
-long __shim_sandbox_create (long, long, long);
-long __shim_sandbox_attach (long);
-long __shim_sandbox_current (void);
 long __shim_msgpersist (long, long);
 long __shim_benchmark_rpc (long, long, long, long);
 long __shim_send_rpc (long, long, long);
@@ -506,10 +503,6 @@ int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* n
 ssize_t shim_do_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags);
 
 /* libos call implementation */
-long shim_do_sandbox_create (int flags, const char * fs_sb,
-                             struct net_sb * net_sb);
-int shim_do_sandbox_attach (unsigned int sbid);
-long shim_do_sandbox_current (void);
 int shim_do_msgpersist (int msqid, int cmd);
 int shim_do_benchmark_rpc (pid_t pid, int times, const void * buf, size_t size);
 size_t shim_do_send_rpc (pid_t pid, const void * buf, size_t size);
@@ -879,9 +872,6 @@ int shim_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_
 ssize_t shim_sendmmsg (int sockfd, struct mmsghdr * msg, size_t vlen, int flags);
 
 /* libos call wrappers */
-long shim_sandbox_create (int flags, const char * fs_sb, struct net_sb * net_sb);
-int shim_sandbox_attach (unsigned int sbid);
-long shim_sandbox_current (void);
 int shim_msgpersist (int msqid, int cmd);
 int shim_benchmark_rpc (pid_t pid, int times, const void * buf, size_t size);
 size_t shim_send_rpc (pid_t pid, const void * buf, size_t size);

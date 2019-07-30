@@ -7,41 +7,15 @@
 #include <unistd.h>
 #endif
 
-#define __NR_sandbox_create     (LIBOS_SYSCALL_BASE + 1)
-#define __NR_sandbox_attach     (LIBOS_SYSCALL_BASE + 2)
-#define __NR_sandbox_current    (LIBOS_SYSCALL_BASE + 3)
-
-#define SANDBOX_RPC      0x001
-#define SANDBOX_FS       0x002
-#define SANDBOX_NET      0x004
-
-struct sockaddr;
-
-struct net_sb_rule {
-    int l_addrlen;
-    struct sockaddr * l_addr;
-    int r_addrlen;
-    struct sockaddr * r_addr;
-};
-
-struct net_sb {
-    int nrules;
-    struct net_sb_rule * rules;
-};
-
-long sandbox_create (int flags, const char * fs_sb, struct net_sb * net_sb);
-int sandbox_attach (unsigned int sbid);
-long sandbox_current (void);
-
-#define __NR_msgpersist         (LIBOS_SYSCALL_BASE + 4)
+#define __NR_msgpersist         (LIBOS_SYSCALL_BASE + 1)
 
 #define MSGPERSIST_STORE    0
 #define MSGPERSIST_LOAD     1
 int msgpersist (int msqid, int cmd);
 
-#define __NR_benchmark_rpc      (LIBOS_SYSCALL_BASE + 5)
-#define __NR_send_rpc           (LIBOS_SYSCALL_BASE + 6)
-#define __NR_recv_rpc           (LIBOS_SYSCALL_BASE + 7)
+#define __NR_benchmark_rpc      (LIBOS_SYSCALL_BASE + 2)
+#define __NR_send_rpc           (LIBOS_SYSCALL_BASE + 3)
+#define __NR_recv_rpc           (LIBOS_SYSCALL_BASE + 4)
 
 int benchmark_rpc (pid_t pid, int times, const void * buf, size_t size);
 
@@ -55,7 +29,7 @@ struct nameinfo {
      size_t servlen;
 };
 
-#define __NR_checkpoint         (LIBOS_SYSCALL_BASE + 8)
+#define __NR_checkpoint         (LIBOS_SYSCALL_BASE + 5)
 
 int checkpoint (const char * filename);
 

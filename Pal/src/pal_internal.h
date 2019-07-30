@@ -303,7 +303,6 @@ int _DkThreadResume (PAL_HANDLE threadHandle);
 int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
                       const char ** args);
 noreturn void _DkProcessExit (int exitCode);
-int _DkProcessSandboxCreate (const char * manifest, int flags);
 
 /* DkMutex calls */
 int _DkMutexCreate (PAL_HANDLE * handle, int initialCount);

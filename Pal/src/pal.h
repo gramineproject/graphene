@@ -246,11 +246,6 @@ DkProcessCreate (PAL_STR uri, PAL_STR * args);
 noreturn void
 DkProcessExit (PAL_NUM exitCode);
 
-#define PAL_SANDBOX_PIPE         0x1
-
-PAL_BOL
-DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags);
-
 /* The stream ABI includes nine calls to open, read, write, map, unmap,
  * truncate, flush, delete and wait for I/O streams and three calls to
  * access metadata about an I/O stream. The ABI purposefully does not

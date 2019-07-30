@@ -87,7 +87,7 @@ sgx-driver/isgx_version.h:
 
 include ../../../../Makefile.rules
 
-CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
+CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o
 
 .PHONY: clean

@@ -59,7 +59,3 @@ class RegressionTestCase(unittest.TestCase):
             self.assertEqual(e.returncode, returncode,
                 'failed with returncode {} (expected {})'.format(
                     e.returncode, returncode))
-
-
-class SandboxTestCase(RegressionTestCase):
-    LOADER_ENV = 'PAL_SEC'

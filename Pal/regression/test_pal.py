@@ -14,7 +14,6 @@ import unittest
 from regression import (
     HAS_SGX,
     RegressionTestCase,
-    SandboxTestCase,
     expectedFailureIf,
 )
 
@@ -153,7 +152,6 @@ class TC_02_Symbols(RegressionTestCase):
         'DkVirtualMemoryProtect',
         'DkProcessCreate',
         'DkProcessExit',
-        'DkProcessSandboxCreate',
         'DkStreamOpen',
         'DkStreamWaitForClient',
         'DkStreamRead',
@@ -609,13 +607,6 @@ class TC_23_SendHandle(RegressionTestCase):
         # Send File Handle
         self.assertEqual(counter['Receive File Handle: Hello World'], 1)
 
-
-@unittest.expectedFailure
-class TC_30_Sandbox_Bootstrap(SandboxTestCase, TC_01_Bootstrap):
-    pass
-@unittest.expectedFailure
-class TC_31_Sandbox_Process(SandboxTestCase, TC_21_ProcessCreation):
-    pass
 
 @unittest.skipUnless(HAS_SGX, 'need SGX')
 class TC_40_AVXDisable(RegressionTestCase):

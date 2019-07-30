@@ -55,7 +55,6 @@ $(special_executables) $(c_executables) $(cxx_executables):
 endif
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
-export PAL_SEC = $(RUNTIME)/pal_sec-$(PAL_HOST)
 export PYTHONPATH=../../../../Scripts
 
 .PHONY: regression

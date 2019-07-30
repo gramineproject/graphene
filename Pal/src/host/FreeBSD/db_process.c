@@ -385,15 +385,6 @@ noreturn void _DkProcessExit (int exitcode)
     INLINE_SYSCALL(exit, 1, exitcode);
 }
 
-int _DkProcessSandboxCreate (const char * manifest, int flags)
-{
-    PAL_HANDLE handle = NULL;
-    _DkStreamOpen(&handle, manifest, PAL_ACCESS_RDONLY, 0, 0, 0);
-    pal_state.manifest_handle = handle;
-    pal_state.manifest = manifest;
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 static int proc_read (PAL_HANDLE handle, int offset, int count,
                           void * buffer)
 {

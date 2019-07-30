@@ -43,11 +43,6 @@ noreturn void _DkProcessExit (int exitcode)
     /* need to be implemented */
 }
 
-int _DkProcessSandboxCreate (const char * manifest, int flags)
-{
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                           void * buffer)
 {
