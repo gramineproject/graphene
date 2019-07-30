@@ -433,20 +433,13 @@ postmap:
     return l;
 }
 
-int check_elf_object (PAL_HANDLE handle)
+int check_elf_magic (const void* header, size_t len)
 {
 #define ELF_MAGIC_SIZE EI_CLASS
-    unsigned char buffer[ELF_MAGIC_SIZE];
-
-    int len = _DkStreamRead(handle, 0, ELF_MAGIC_SIZE, buffer, NULL, 0);
-
-    if (len < 0)
-        return -len;
-
     if (len < ELF_MAGIC_SIZE)
         return -PAL_ERROR_INVAL;
 
-    ElfW(Ehdr) * ehdr = (ElfW(Ehdr) *) buffer;
+    ElfW(Ehdr) * ehdr = (ElfW(Ehdr) *) header;
 
     static const unsigned char expected[EI_CLASS] =
     {
@@ -461,6 +454,16 @@ int check_elf_object (PAL_HANDLE handle)
         return -PAL_ERROR_INVAL;
 
     return 0;
+}
+
+int check_elf_object (PAL_HANDLE handle)
+{
+    unsigned char buffer[ELF_MAGIC_SIZE];
+    int64_t len = _DkStreamRead(handle, 0, sizeof(buffer), buffer, NULL, 0);
+
+    if (__builtin_expect(len < 0, 0))
+        return len;
+    return check_elf_magic(buffer, len);
 }
 
 void free_elf_object (struct link_map * map)
