@@ -120,8 +120,7 @@ One can run tests manually:
 ```sh
 PYTHONPATH=path/to/graphene/Scripts
 PAL_LOADER=path/to/pal-Linux
-PAL_SEC=path/to/pal_sec-Linux
-export PYTHONPATH PAL_LOADER PAL_SEC
+export PYTHONPATH PAL_LOADER
 python3 -m pytest -v -rs test.py
 ```
 

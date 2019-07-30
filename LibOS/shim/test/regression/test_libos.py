@@ -9,7 +9,6 @@ import subprocess
 from regression import (
     HAS_SGX,
     RegressionTestCase,
-    SandboxTestCase,
     expectedFailureIf,
 )
 

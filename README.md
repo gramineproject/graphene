@@ -183,8 +183,8 @@ specifying the programs and manifest files:
 Although manifest files are optional for Graphene, running an application
 usually requires some minimal configuration in its manifest file. A
 sensible manifest file will include paths to the library OS and GNU
-library C, environment variables such as LD_LIBRARY_PATH, file systems to
-be mounted, and isolation rules to be enforced in the reference monitor.
+library C, environment variables such as LD_LIBRARY_PATH and file systems to
+be mounted.
 
 Here is an example of manifest files:
 

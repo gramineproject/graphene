@@ -21,8 +21,6 @@ PAL {
 
         DkProcessCreate; DkProcessExit;
 
-        DkProcessSandboxCreate;
-
         DkSystemTimeQuery; DkRandomBitsRead;
         DkInstructionCacheFlush;
         DkObjectReference; DkObjectClose;

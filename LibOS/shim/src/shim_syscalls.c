@@ -1168,14 +1168,6 @@ SHIM_SYSCALL_PASSTHROUGH (getcpu, 3, int, unsigned *, cpu, unsigned *, node,
 
 /* libos calls */
 
-DEFINE_SHIM_SYSCALL (sandbox_create, 3, shim_do_sandbox_create, long,
-                     int, flags, const char *, fs_sb, struct net_sb *, net_sb)
-
-DEFINE_SHIM_SYSCALL (sandbox_attach, 1, shim_do_sandbox_attach, int,
-                     unsigned int, sandboxid)
-
-DEFINE_SHIM_SYSCALL (sandbox_current, 0, shim_do_sandbox_current, long)
-
 DEFINE_SHIM_SYSCALL (msgpersist, 2, shim_do_msgpersist, int, int, msqid,
                      int, cmd)
 

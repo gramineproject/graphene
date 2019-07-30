@@ -9,7 +9,6 @@ include Makefile.Host
 # (specify in Makefile.am in host-specific directories)
 # For concurrent builds, all PAL targets must be in host-specific directories
 pal_loader =
-pal_sec =
 pal_lib =
 pal_lib_deps =
 pal_lib_post =
@@ -34,7 +33,7 @@ endif
 #     (3) API library targets are in "host/{Host Name}/.lib".
 
 files_to_build = $(pal_lib) $(pal_lib_post) $(pal_static) \
-		 $(pal_loader) $(pal_sec)
+		 $(pal_loader)
 
 defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DIR) \
 	  -DRUNTIME_DIR=$(RUNTIME_DIR)
@@ -59,7 +58,6 @@ export DEBUG
 # Install Targets (all in RUNTIME_DIR):
 #       pal-{Host Name}:       loader for PAL (as an executable)
 #       libpal-{Host Name}.so: dynamic-linking library
-#       pal_sec-{Host Name}:   secure loader for PAL (as an executable)
 #       pal_gdb-{Host Name}:   debugger for PAL (as an executable)
 
 runtime_loader = $(RUNTIME_DIR)/pal-$(PAL_HOST)

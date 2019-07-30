@@ -21,7 +21,6 @@ include ../src/Makefile.Test
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
-export PAL_SEC = $(RUNTIME_DIR)/pal_sec-$(PAL_HOST)
 
 .PHONY: all
 all: $(call expand_target,$(target)) $(preloads)

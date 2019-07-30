@@ -395,9 +395,6 @@ struct parser_table {
 
     { .slow = 1, .parser = { NULL } }, /* checkpoint */
     { .slow = 1, .parser = { NULL } }, /* restore */
-    { .slow = 1, .parser = { NULL } }, /* sandbox_create */
-    { .slow = 0, .parser = { NULL } }, /* sandbox_attach */
-    { .slow = 0, .parser = { NULL } }, /* sandbox_current */
     { .slow = 1, .parser = { NULL } }, /* msgpersist */
     { .slow = 1, .parser = { NULL } }, /* benchmark_ipc */
     { .slow = 1, .parser = { NULL } }, /* send_rpc */

@@ -17,7 +17,6 @@ int main (int argc, char ** argv, char ** envp)
 
     PRINT_SYMBOL(DkProcessCreate);
     PRINT_SYMBOL(DkProcessExit);
-    PRINT_SYMBOL(DkProcessSandboxCreate);
 
     PRINT_SYMBOL(DkStreamOpen);
     PRINT_SYMBOL(DkStreamWaitForClient);

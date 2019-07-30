@@ -333,14 +333,6 @@ noreturn void _DkProcessExit (int exitcode)
     }
 }
 
-int _DkProcessSandboxCreate (const char * manifest, int flags)
-{
-    __UNUSED(manifest);
-    __UNUSED(flags);
-
-    return -PAL_ERROR_NOTIMPLEMENTED;
-}
-
 static int64_t proc_read (PAL_HANDLE handle, uint64_t offset, uint64_t count,
                           void * buffer)
 {

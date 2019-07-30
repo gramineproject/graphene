@@ -341,12 +341,9 @@ shim_fp shim_table [LIBOS_SYSCALL_BOUND] = {
 
     [LIBOS_SYSCALL_BASE] = (shim_fp) NULL,
 
-    (shim_fp) __shim_sandbox_create,    /* 303 */
-    (shim_fp) __shim_sandbox_attach,    /* 304 */
-    (shim_fp) __shim_sandbox_current,   /* 305 */
-    (shim_fp) __shim_msgpersist,        /* 306 */
-    (shim_fp) __shim_benchmark_rpc,     /* 307 */
-    (shim_fp) __shim_send_rpc,          /* 308 */
-    (shim_fp) __shim_recv_rpc,          /* 309 */
-    (shim_fp) __shim_checkpoint,        /* 310 */
+    (shim_fp) __shim_msgpersist,
+    (shim_fp) __shim_benchmark_rpc,
+    (shim_fp) __shim_send_rpc,
+    (shim_fp) __shim_recv_rpc,
+    (shim_fp) __shim_checkpoint,
 };

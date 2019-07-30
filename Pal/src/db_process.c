@@ -67,17 +67,3 @@ noreturn void DkProcessExit (PAL_NUM exitcode)
         /* nothing */;
     LEAVE_PAL_CALL();
 }
-
-PAL_BOL DkProcessSandboxCreate (PAL_STR manifest, PAL_FLG flags)
-{
-    ENTER_PAL_CALL(DkProcessSandboxCreate);
-
-    int ret = _DkProcessSandboxCreate(manifest, flags);
-
-    if (ret < 0) {
-        _DkRaiseFailure(-ret);
-        LEAVE_PAL_CALL_RETURN(PAL_FALSE);
-    }
-
-    LEAVE_PAL_CALL_RETURN(PAL_TRUE);
-}
