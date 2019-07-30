@@ -92,9 +92,10 @@ static void print_report(sgx_arch_report_t* r) {
     SGX_DBG(DBG_S, "  mrenclave:  %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrenclave));
     SGX_DBG(DBG_S, "  mrsigner:   %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrsigner));
     SGX_DBG(DBG_S, "  attr.flags: %016lx\n",    r->body.attributes.flags);
-    SGX_DBG(DBG_S, "  sttr.xfrm:  %016lx\n",    r->body.attributes.xfrm);
+    SGX_DBG(DBG_S, "  attr.xfrm:  %016lx\n",    r->body.attributes.xfrm);
     SGX_DBG(DBG_S, "  isvprodid:  %02x\n",      r->body.isvprodid);
     SGX_DBG(DBG_S, "  isvsvn:     %02x\n",      r->body.isvsvn);
+    SGX_DBG(DBG_S, "  reportdata: %s\n",        ALLOCA_BYTES2HEXSTR(r->body.report_data));
     SGX_DBG(DBG_S, "  keyid:      %s\n",        ALLOCA_BYTES2HEXSTR(r->keyid));
     SGX_DBG(DBG_S, "  mac:        %s\n",        ALLOCA_BYTES2HEXSTR(r->mac));
 }
@@ -125,7 +126,6 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
 
 static sgx_arch_key128_t enclave_key;
 
-#define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
 int sgx_verify_report (sgx_arch_report_t * report)
 {
     sgx_arch_keyrequest_t keyrequest;
@@ -133,23 +133,43 @@ int sgx_verify_report (sgx_arch_report_t * report)
     keyrequest.keyname = REPORT_KEY;
     memcpy(keyrequest.keyid, report->keyid, sizeof(keyrequest.keyid));
 
-    int ret = sgx_getkey(&keyrequest, &enclave_key);
+    sgx_arch_key128_t report_key;
+    int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
         SGX_DBG(DBG_S, "Can't get report key\n");
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n",
-            ALLOCA_BYTES2HEXSTR(enclave_key));
+    SGX_DBG(DBG_S, "Get report key for verification: %s\n", ALLOCA_BYTES2HEXSTR(report_key));
+
+    sgx_arch_mac_t check_mac;
+    memset(&check_mac, 0, sizeof(sgx_arch_mac_t));
+
+    lib_AESCMAC((uint8_t*)&report_key, sizeof(report_key),
+                (uint8_t*)report, offsetof(sgx_arch_report_t, keyid),
+                (uint8_t*)&check_mac, sizeof(sgx_arch_mac_t));
+
+    memset(&report_key, 0, sizeof(sgx_arch_key128_t));
+
+    SGX_DBG(DBG_S, "Verify report:\n");
+    SGX_DBG(DBG_S, "    expected:         %s\n", ALLOCA_BYTES2HEXSTR(report->mac));
+    SGX_DBG(DBG_S, "    mac:              %s\n", ALLOCA_BYTES2HEXSTR(check_mac));
+
+    if (memcmp(&check_mac, &report->mac, sizeof(check_mac))) {
+        SGX_DBG(DBG_S, "Local attestation verification failed\n");
+        return -PAL_ERROR_DENIED;
+    }
 
     return 0;
 }
 
-int sgx_verify_platform(void) {
+int init_trusted_platform(void) {
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
-    ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex, sizeof(spid_hex));
+    ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
+                             sizeof(spid_hex));
     if (len <= 0) {
-        SGX_DBG(DBG_E, "*** No client info specified in the manifest. Graphene will not perform remote attestation. ***\n");
+        SGX_DBG(DBG_E, "*** No client info specified in the manifest. "
+                "Graphene will not perform remote attestation ***\n");
         return 0;
     }
 
@@ -159,36 +179,40 @@ int sgx_verify_platform(void) {
     }
 
     sgx_spid_t spid;
-    memset(&spid, 0, sizeof(spid));
-
     for (ssize_t i = 0; i < len; i++) {
         int8_t val = hex2dec(spid_hex[i]);
         if (val < 0) {
             SGX_DBG(DBG_E, "Malformed sgx.ra_client_spid value in the manifest: %s\n", spid_hex);
             return -PAL_ERROR_INVAL;
         }
-        spid[i/2] = spid[i/2] * 16 + (uint8_t) val;
+        spid[i/2] = spid[i/2] * 16 + (uint8_t)val;
     }
 
     char buf[2];
     len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
-    bool linkable =  (len == 1 && buf[0] == '1');
+    bool linkable = (len == 1 && buf[0] == '1');
 
     sgx_quote_nonce_t nonce;
-     _DkRandomBitsRead(&nonce, sizeof(nonce));
+    int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
+    if (ret < 0)
+        return ret;
+
+    return sgx_verify_platform(&spid, &nonce, (sgx_arch_report_data_t*)&pal_enclave_state,
+                               linkable);
+}
+
+int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
+                        sgx_arch_report_data_t* report_data, bool linkable) {
 
     SGX_DBG(DBG_S, "Request quote:\n");
-    SGX_DBG(DBG_S, "  spid:  %s\n", ALLOCA_BYTES2HEXSTR(spid));
+    SGX_DBG(DBG_S, "  spid:  %s\n", ALLOCA_BYTES2HEXSTR(*spid));
     SGX_DBG(DBG_S, "  type:  %s\n", linkable ? "linkable" : "unlinkable");
-    SGX_DBG(DBG_S, "  nonce: %s\n", ALLOCA_BYTES2HEXSTR(nonce));
-
-    uint8_t report_data[PAL_ATTESTATION_DATA_SIZE] __attribute__((aligned(128)));
-    memset(report_data, 0, sizeof(report_data));
+    SGX_DBG(DBG_S, "  nonce: %s\n", ALLOCA_BYTES2HEXSTR(*nonce));
 
     sgx_arch_report_t report;
-    int ret = sgx_report(&pal_sec.aesm_targetinfo, &report_data, &report);
+    int ret = sgx_report(&pal_sec.aesm_targetinfo, report_data, &report);
     if (ret) {
-        SGX_DBG(DBG_E, "Fail to get report for attestation\n");
+        SGX_DBG(DBG_E, "Failed to get report for attestation\n");
         return -PAL_ERROR_DENIED;
     }
 
@@ -197,9 +221,9 @@ int sgx_verify_platform(void) {
 
     sgx_arch_report_t qe_report;
     sgx_quote_t quote;
-    ret = ocall_get_quote(&spid, linkable, &report, &nonce, &qe_report, &quote);
+    ret = ocall_get_quote(spid, linkable, &report, nonce, &qe_report, &quote);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Fail to get quote from aesm service\n");
+        SGX_DBG(DBG_E, "Failed to get quote from aesm service\n");
         return ret;
     }
 
@@ -208,7 +232,7 @@ int sgx_verify_platform(void) {
 
     ret = sgx_verify_report(&qe_report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Fail to verify report from aesm service\n");
+        SGX_DBG(DBG_E, "Failed to verify report from aesm service\n");
         return ret;
     }
 

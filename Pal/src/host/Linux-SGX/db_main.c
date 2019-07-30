@@ -79,10 +79,10 @@ PAL_NUM _DkGetHostId (void)
 void setup_pal_map (struct link_map * map);
 static struct link_map pal_map;
 
-void init_untrusted_slab_mgr ();
-int init_enclave (void);
-int init_enclave_key (void);
-int init_child_process (PAL_HANDLE * parent_handle);
+void init_untrusted_slab_mgr(void);
+int init_enclave(void);
+int init_enclave_key(void);
+int init_child_process(PAL_HANDLE* parent_handle);
 
 /*
  * Creates a dummy file handle with the given name.
@@ -374,13 +374,9 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     __pal_control.manifest_preload.start = (PAL_PTR) manifest_addr;
     __pal_control.manifest_preload.end = (PAL_PTR) manifest_addr + manifest_size;
 
+    init_trusted_platform();
     init_trusted_files();
     init_trusted_children();
-
-    if ((rv = sgx_verify_platform()) < 0) {
-        SGX_DBG(DBG_E, "Failed to verify the platform using remote attestation, error code %d\n", rv);
-        ocall_exit(rv);
-    }
 
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "

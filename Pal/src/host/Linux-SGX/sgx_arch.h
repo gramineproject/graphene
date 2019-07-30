@@ -213,6 +213,8 @@ typedef struct {
     sgx_arch_mac_t mac;
 } __attribute__((packed)) sgx_arch_token_t;
 
+typedef uint8_t sgx_arch_report_data_t[64];
+
 typedef struct {
     uint64_t cpusvn[2];
     uint32_t miscselect;
@@ -224,7 +226,7 @@ typedef struct {
     uint8_t  reserved3[96];
     uint16_t isvprodid, isvsvn;
     uint8_t  reserved4[60];
-    uint8_t  report_data[64];
+    sgx_arch_report_data_t report_data;
 } __attribute__((packed)) sgx_arch_report_body_t;
 
 typedef struct {

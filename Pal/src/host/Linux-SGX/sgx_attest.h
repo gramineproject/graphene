@@ -46,4 +46,9 @@ typedef uint8_t sgx_quote_nonce_t[16];
 #define IAS_TEST_REPORT_URL \
     "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/report"
 
+int init_trusted_platform(void);
+
+int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
+                        sgx_arch_report_data_t* report_data, bool linkable);
+
 #endif /* SGX_ATTEST_H */

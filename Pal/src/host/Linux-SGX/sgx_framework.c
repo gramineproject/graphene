@@ -16,10 +16,6 @@
 #define __USE_XOPEN2K8
 #include <stdlib.h>
 
-#ifndef PF_UNIX
-# define PF_UNIX 1
-#endif
-
 int gsgx_device = -1;
 int isgx_device = -1;
 #define ISGX_FILE "/dev/isgx"
@@ -391,8 +387,7 @@ int init_enclave(sgx_arch_secs_t * secs,
 }
 
 static int connect_aesm_service(void) {
-
-    int ret, sock = INLINE_SYSCALL(socket, 3, PF_UNIX, SOCK_STREAM, 0);
+    int sock = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM, 0);
     if (IS_ERR(sock))
         return -ERRNO(sock);
 
@@ -401,7 +396,7 @@ static int connect_aesm_service(void) {
     addr.sun_family = AF_UNIX;
     (void) strcpy_static(addr.sun_path, "\0sgx_aesm_socket_base", sizeof(addr.sun_path));
 
-    ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
+    int ret = INLINE_SYSCALL(connect, 3, sock, &addr, sizeof(addr));
     if (!IS_ERR(ret))
         goto success;
     if (ERRNO(ret) != ECONNREFUSED)
@@ -434,24 +429,27 @@ static int request_aesm_service(Request* req, Response** res) {
 
     int ret = INLINE_SYSCALL(write, 3, aesm_socket, &req_len, sizeof(req_len));
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        goto err;
 
     ret = INLINE_SYSCALL(write, 3, aesm_socket, req_buf, req_len);
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        goto err;
 
     uint32_t res_len;
     ret = INLINE_SYSCALL(read, 3, aesm_socket, &res_len, sizeof(res_len));
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        goto err;
 
     uint8_t* res_buf = __alloca(res_len);
     ret = INLINE_SYSCALL(read, 3, aesm_socket, res_buf, res_len);
     if (IS_ERR(ret))
-        return -ERRNO(ret);
+        goto err;
 
     *res = response__unpack(NULL, res_len, res_buf);
-    return *res == NULL ? -EINVAL : 0;
+    ret = *res == NULL ? -EINVAL : 0;
+err:
+    INLINE_SYSCALL(close, 1, aesm_socket);
+    return -ERRNO(ret);
 }
 
 int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo) {
@@ -465,25 +463,28 @@ int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo) {
     if (ret < 0)
         return ret;
 
+    ret = -EPERM;
     if (!res->initquoteres) {
-        SGX_DBG(DBG_E, "aesm_service returns wrong message\n");
+        SGX_DBG(DBG_E, "aesm_service returned wrong message\n");
         goto failed;
     }
 
     Response__InitQuoteResponse* r = res->initquoteres;
     if (r->errorcode != 0) {
-        SGX_DBG(DBG_E, "aesm_service returns error: %d\n", r->errorcode);
+        SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
         goto failed;
     }
 
-    assert(r->targetinfo.len == sizeof(*aesm_targetinfo));
-    memcpy(aesm_targetinfo, r->targetinfo.data, sizeof(*aesm_targetinfo));
-    response__free_unpacked(res, NULL);
-    return 0;
+    if (r->targetinfo.len != sizeof(*aesm_targetinfo)) {
+        SGX_DBG(DBG_E, "aesm_service returned invalid target info\n");
+        goto failed;
+    }
 
+    memcpy(aesm_targetinfo, r->targetinfo.data, sizeof(*aesm_targetinfo));
+    ret = 0;
 failed:
     response__free_unpacked(res, NULL);
-    return -EPERM;
+    return ret;
 }
 
 static int parse_x509_certificate(uint8_t* cert, size_t cert_len) {
@@ -639,6 +640,13 @@ static int parse_x509_certificate_pem(char* cert, char** cert_end) {
 }
 
 int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote) {
+
+    if (!current_enclave->ra_cert ||
+        !current_enclave->ra_pkey) {
+        SGX_DBG(DBG_E, "Need both certificate and private key for contacting IAS\n");
+        return -PAL_ERROR_DENIED;
+    }
+
     size_t quote_len = sizeof(sgx_quote_t) + quote->sig_len;
     size_t quote_str_len;
     lib_Base64Encode((uint8_t*)quote, quote_len, NULL, &quote_str_len);
@@ -683,12 +691,6 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     INLINE_SYSCALL(close, 1, pipefds[1]);
     pipefds[1] = -1;
 
-    if (!current_enclave->ra_cert ||
-        !current_enclave->ra_pkey) {
-        SGX_DBG(DBG_E, "Need both certificate and private key for contacting IAS\n");
-        goto failed;
-    }
-
     const char* https_client_args[] = {
             "/usr/bin/curl", "-s", "--tlsv1.2", "-X", "POST", "-H", "Accept: application/json",
             "--cert", current_enclave->ra_cert,
@@ -697,11 +699,11 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
             IAS_TEST_REPORT_URL, NULL,
         };
 
-    ret = ARCH_VFORK();
-    if (IS_ERR(ret))
+    int pid = ARCH_VFORK();
+    if (IS_ERR(pid))
         goto failed;
 
-    if (!ret) {
+    if (!pid) {
         INLINE_SYSCALL(dup2, 2, pipefds[0], 0);
         extern char** environ;
         INLINE_SYSCALL(execve, 3, https_client_args[0], https_client_args, environ);
@@ -713,7 +715,9 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     }
 
     int status;
-    INLINE_SYSCALL(wait4, 4, ret, &status, 0, NULL);
+    ret = INLINE_SYSCALL(wait4, 4, pid, &status, 0, NULL);
+    if (IS_ERR(ret) || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        goto failed;
 
     // Reading response
     ret = INLINE_SYSCALL(open, 2, resp_path, O_RDONLY);
@@ -723,6 +727,8 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     resp_file = ret;
 
     size_t resp_size = INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_END);
+    if (IS_ERR(resp_size) || resp_size == 0)
+        goto failed;
     resp = malloc(resp_size + 1);
     INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_SET);
     ret = INLINE_SYSCALL(read, 3, resp_file, resp, resp_size);
@@ -795,7 +801,7 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     }
 
     if (!ias_sig_len || !ias_sig || !ias_cert) {
-        SGX_DBG(DBG_E, "IAS return invalid headers\n");
+        SGX_DBG(DBG_E, "IAS returned invalid headers\n");
         goto failed;
     }
 
@@ -872,13 +878,13 @@ int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
 
     Response__GetQuoteResponse* r = res->getquoteres;
     if (r->errorcode != 0) {
-        SGX_DBG(DBG_E, "aesm_service returns error: %d\n", r->errorcode);
+        SGX_DBG(DBG_E, "aesm_service returned error: %d\n", r->errorcode);
         goto failed;
     }
 
     if (!r->has_quote     || r->quote.len < sizeof(sgx_quote_t) ||
         !r->has_qe_report || r->qe_report.len != SGX_REPORT_ACTUAL_SIZE) {
-        SGX_DBG(DBG_E, "aesm_service returns invalid quote or report\n");
+        SGX_DBG(DBG_E, "aesm_service returned invalid quote or report\n");
         goto failed;
     }
 
