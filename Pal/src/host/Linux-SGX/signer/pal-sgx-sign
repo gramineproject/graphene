@@ -420,6 +420,7 @@ def gen_area_content(attr, areas):
         set_tcs_field(t, TCS_FSLIMIT, '<L', 0xfff)
         set_tcs_field(t, TCS_GSLIMIT, '<L', 0xfff)
 
+        set_tls_field(t, SGX_COMMON_SELF, tls_area.addr + PAGESIZE * t + baseaddr())
         set_tls_field(t, SGX_ENCLAVE_SIZE, attr['enclave_size'])
         set_tls_field(t, SGX_TCS_OFFSET, tcs_area.addr + TCS_SIZE * t)
         set_tls_field(t, SGX_INITIAL_STACK_OFFSET, stacks[t].addr + stacks[t].size)
