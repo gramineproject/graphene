@@ -276,5 +276,5 @@ int sgx_signal_mask(bool do_block)
 {
     int sig[] = {SIGTERM, SIGINT, SIGCONT, SIGSEGV, SIGILL, SIGFPE, SIGBUS};
 
-    return do_block ? block_signals(sig, sizeof(sig)/sizeof(sig[0])) : unblock_signals(sig, 7sizeof(sig)/sizeof(sig[0]));
+    return do_block ? block_signals(sig, sizeof(sig)/sizeof(sig[0])) : unblock_signals(sig, sizeof(sig)/sizeof(sig[0]));
 }

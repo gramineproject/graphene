@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <stdatomic.h>
 
-#define THREAD_NUM 32 
+#define THREAD_NUM 32
 #define CONC_THREAD_NUM 4
 
-_Atomic int counter = 0;
+atomic_int counter = 0;
 
 void* inc (void* arg)
 {
