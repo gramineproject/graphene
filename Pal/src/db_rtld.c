@@ -1320,8 +1320,8 @@ void * stack_before_call __attribute_unused = NULL;
 
 /* Invoke initializers of ELF binary.
    See GNU libc elf/dl-init.c call_init() */
-void call_init (struct link_map *l, const char *first_argument,
-               const char ** arguments, const char ** environs)
+void call_init (struct link_map* l, const char* first_argument,
+                const char** arguments, const char** environs)
 {
     if (l->l_init_called)
         return;
@@ -1333,25 +1333,25 @@ void call_init (struct link_map *l, const char *first_argument,
     /* Set up the arguments */
 
     int argc = 1;
-    for (const char ** a = arguments; *a ; a++, argc++);
+    for (const char** a = arguments; *a ; a++, argc++);
 
-    char **argv = __alloca(argc * sizeof(*argv));
-    argv[0] = (char*) first_argument;
+    char** argv = __alloca(argc * sizeof(*argv));
+    argv[0] = (char*)first_argument;
     for (int i = 1; i < argc; i++)
-        argv[i] = (char*) arguments[i];
+        argv[i] = (char*)arguments[i];
 
-    char** env = (char**) environs;
+    char** env = (char**)environs;
 
     /* Locate constructors: DT_INIT and DT_INIT_ARRAY.
      * One or the other, neither, or both may exist. */
 
-    typedef void (*init_t) (int, char **, char **); /* constructor prototype */
+    typedef void (*init_t)(int, char**, char**); /* constructor prototype */
 
     init_t init = NULL;
-    ElfW(Addr) *init_array = NULL;
+    ElfW(Addr)* init_array = NULL;
     size_t array_n = 0;
 
-    ElfW(Dyn) *dyn = NULL;
+    ElfW(Dyn)* dyn = NULL;
     for (dyn = l->l_ld; dyn < &l->l_ld[l->l_ldnum]; dyn++)
         if (dyn->d_tag == DT_INIT)
             init = (init_t)(l->l_addr + dyn->d_un.d_ptr);
@@ -1371,13 +1371,13 @@ void call_init (struct link_map *l, const char *first_argument,
     if (init_array && array_n > 0)
         for (ElfW(Addr) *a = init_array; a < &init_array[array_n]; a++)
             if (*a != 0UL && *a != ~0UL) /* ignore invalid entries */
-                ((init_t) *a)(argc, argv, env);
+                ((init_t)*a)(argc, argv, env);
 }
 
-void init_libraries (const char * first_argument, const char ** arguments,
-                     const char ** environs)
+void init_libraries (const char* first_argument, const char** arguments,
+                     const char** environs)
 {
-    for (struct link_map *l = loaded_maps; l ; l = l->l_next)
+    for (struct link_map* l = loaded_maps; l ; l = l->l_next)
         if (l->l_type == OBJECT_PRELOAD && l->l_entry)
             call_init(l, first_argument, arguments, environs);
 }
@@ -1446,7 +1446,7 @@ noreturn void start_execution (const char * first_argument,
     ssize_t ret = get_config(pal_state.root_config, "loader.libos",
                              libos_str, URI_MAX);
     if (ret > 0)
-        for (struct link_map *l = loaded_maps; l ; l = l->l_next)
+        for (struct link_map* l = loaded_maps; l ; l = l->l_next)
             if (l->l_type == OBJECT_PRELOAD && l->l_entry)
                 if (strstr(l->l_name, libos_str))
                     CALL_ENTRY(l, cookies);

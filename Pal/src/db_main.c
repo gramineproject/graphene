@@ -217,8 +217,8 @@ static int loader_filter (const char * key, int len)
             key[4] == 'e' && key[5] == 'r' && key[6] == '.') ? 0 : 1;
 }
 
-void init_libraries (const char * first_argument, const char ** arguments,
-                     const char ** environments);
+void init_libraries (const char* first_argument, const char** arguments,
+                     const char** environments);
 
 void start_execution (const char * first_argument, const char ** arguments,
                       const char ** environments);
