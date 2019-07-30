@@ -198,6 +198,24 @@ static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 static bool allow_file_creation = 0;
 
+/* Assumes path is normalized */
+static bool path_is_equal_or_subpath(const struct trusted_file* tf,
+                                     const char* path,
+                                     size_t path_len) {
+    if (tf->uri_len > path_len || memcmp(tf->uri, path, tf->uri_len)) {
+        /* tf->uri is not prefix of path */
+        return false;
+    }
+    if (tf->uri_len == path_len) {
+        /* Both are equal */
+        return true;
+    }
+    if (tf->uri[tf->uri_len - 1] == '/' || path[tf->uri_len] == '/') {
+        /* tf->uri is a subpath of path */
+        return true;
+    }
+    return false;
+}
 
 /*
  * 'load_trusted_file' checks if the file to be opened is trusted
@@ -257,9 +275,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
             }
         } else {
             /* allowed files: must be a subfolder or file */
-            if (tmp->uri_len <= uri_len &&
-                !memcmp(tmp->uri, normpath, tmp->uri_len) &&
-                (!normpath[tmp->uri_len] || normpath[tmp->uri_len] == '/')) {
+            if (path_is_equal_or_subpath(tmp, normpath, uri_len)) {
                 tf = tmp;
                 break;
             }
