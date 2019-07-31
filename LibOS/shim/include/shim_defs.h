@@ -66,7 +66,7 @@
 #define REQUIRED_ELF_AUXV_SPACE     16  /* extra memory space (in bytes) */
 
 /* TODO: introduce configuration for compile time option */
-//#define SHIM_TCB_USE_GS             1
-#undef SHIM_TCB_USE_GS
+#define SHIM_TCB_USE_GS             1
+//#undef SHIM_TCB_USE_GS
 
 #endif /* _SHIM_DEFS_H_ */

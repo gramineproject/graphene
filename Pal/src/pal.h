@@ -87,8 +87,8 @@ typedef union pal_handle
 /* TODO: introduce configuration system in long term and
          make SHIM_TCB_USE_GS easily configurable without source code
          modification */
-//#define SHIM_TCB_USE_GS 1
-#undef SHIM_TCB_USE_GS
+#define SHIM_TCB_USE_GS 1
+//#undef SHIM_TCB_USE_GS
 
 #if defined(IN_PAL) || defined(SHIM_TCB_USE_GS)
 #define PAL_LIBOS_TCB_SIZE  256
