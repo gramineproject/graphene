@@ -198,12 +198,12 @@ static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 static bool allow_file_creation = 0;
 
-/* Assumes path is normalized */
+/* Assumes `path` is normalized */
 static bool path_is_equal_or_subpath(const struct trusted_file* tf,
                                      const char* path,
                                      size_t path_len) {
     if (tf->uri_len > path_len || memcmp(tf->uri, path, tf->uri_len)) {
-        /* tf->uri is not prefix of path */
+        /* tf->uri is not prefix of `path` */
         return false;
     }
     if (tf->uri_len == path_len) {
@@ -211,7 +211,7 @@ static bool path_is_equal_or_subpath(const struct trusted_file* tf,
         return true;
     }
     if (tf->uri[tf->uri_len - 1] == '/' || path[tf->uri_len] == '/') {
-        /* tf->uri is a subpath of path */
+        /* tf->uri is a subpath of `path` */
         return true;
     }
     return false;
