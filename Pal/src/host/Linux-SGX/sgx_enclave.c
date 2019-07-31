@@ -657,11 +657,11 @@ static int sgx_ocall_load_debug(void * pms)
     return 0;
 }
 
-static int sgx_ocall_get_quote(void* pms) {
-    ms_ocall_get_quote_t * ms = (ms_ocall_get_quote_t *) pms;
+static int sgx_ocall_get_attestation(void* pms) {
+    ms_ocall_get_attestation_t * ms = (ms_ocall_get_attestation_t *) pms;
     ODEBUG(OCALL_GET_QUOTE, ms);
     return retrieve_verified_quote(&ms->ms_spid, ms->ms_linkable, &ms->ms_report, &ms->ms_nonce,
-                                   &ms->ms_report, &ms->ms_quote);
+                                   &ms->ms_attestation);
 }
 
 sgx_ocall_fn_t ocall_table[OCALL_NR] = {
@@ -702,7 +702,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_RENAME]          = sgx_ocall_rename,
         [OCALL_DELETE]          = sgx_ocall_delete,
         [OCALL_LOAD_DEBUG]      = sgx_ocall_load_debug,
-        [OCALL_GET_QUOTE]       = sgx_ocall_get_quote,
+        [OCALL_GET_ATTESTATION] = sgx_ocall_get_attestation,
     };
 
 #define EDEBUG(code, ms) do {} while (0)

@@ -201,6 +201,206 @@ int init_trusted_platform(void) {
                                linkable);
 }
 
+/*
+ * A simple function to parse a X509 certificate for only the certificate body, the signature,
+ * and the public key.
+ * @cert:     The certificate to parse (DER format).
+ * @cert_len: The length of cert.
+ * @body:     The certificate body (the signed part).
+ * @body_len: The length of body.
+ * @sig:      The certificate signature.
+ * @sig_len:  The length of sig.
+ * @pubkey:   The RSA public key from the certificate.
+ */
+static int parse_x509(uint8_t* cert, size_t cert_len, uint8_t** body, size_t* body_len,
+                      uint8_t** sig, size_t* sig_len, LIB_RSA_KEY* pubkey) {
+    uint8_t* ptr = cert;
+    uint8_t* end = cert + cert_len;
+    enum asn1_tag tag;
+    bool is_cons;
+    uint8_t* buf;
+    size_t buf_len;
+    int ret;
+
+    // X509Certificate := SEQUENCE {
+    //     Body CertificateBody,
+    //     SignatureAlgorithm AlgorithmDescriptor,
+    //     Signature BIT STRING }
+
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+    if (tag != ASN1_SEQUENCE || !is_cons)
+        return -PAL_ERROR_INVAL;
+
+    uint8_t* cert_signed = ptr = buf;
+    uint8_t* cert_body;
+    uint8_t* cert_sig;
+    size_t cert_body_len, cert_sig_len;
+    end = buf + buf_len;
+
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &cert_body, &cert_body_len);
+    if (ret < 0)
+        return ret;
+    if (tag != ASN1_SEQUENCE || !is_cons)
+        return -PAL_ERROR_INVAL;
+
+    size_t cert_signed_len = ptr - cert_signed;
+
+    // Skip SignatureAlgorithm
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    ret = lib_ASN1GetBitstring(&ptr, end, &cert_sig, &cert_sig_len);
+    if (ret < 0)
+        return ret;
+
+    // CertficateBody := SEQUENCE {
+    //     Version CONSTANT,
+    //     SerialNumber INTEGER,
+    //     Signature AlgorithmDiscriptor,
+    //     Issuer Name,
+    //     Velidity ValidityTime,
+    //     Subject Name,
+    //     SubjectPublicKeyInfo PublicKeyInfo,
+    //     (optional fields) }
+
+    ptr = cert_body;
+    end = cert_body + cert_body_len;
+
+    // Skip Version, SerialNumber, Signature, Issuer, Validty, and Subject
+    for (int i = 0; i < 6; i++) {
+        ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+        if (ret < 0)
+            return ret;
+    }
+
+    // Get SubjectPublicKeyInfo
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+    if (tag != ASN1_SEQUENCE || !is_cons)
+        return -PAL_ERROR_INVAL;
+
+    // PublickKeyInfo := SEQUENCE {
+    //     PublicKeyAlgorithm AlgorithmDescriptor,
+    //     PublicKey BIT STRING }
+
+    ptr = buf;
+    end = buf + buf_len;
+
+    // Skip PublicKeyAlgorithm
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    // Get PublicKey
+    uint8_t* pkey_bits;
+    size_t pkey_bits_len;
+
+    ret = lib_ASN1GetBitstring(&ptr, end, &pkey_bits, &pkey_bits_len);
+    if (ret < 0)
+        return ret;
+
+    // RSAPublicKey := SEQUENCE {
+    //    Modulus Integer,
+    //    PublicExponent Integer }
+
+    ptr = pkey_bits;
+    end = pkey_bits + pkey_bits_len;
+
+    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
+    if (ret < 0)
+        return ret;
+
+    uint8_t* mod;
+    uint8_t* exp;
+    size_t mod_len, exp_len;
+    ptr = buf;
+    end = buf + buf_len;
+
+    ret = lib_ASN1GetLargeNumberLength(&ptr, end, &mod_len);
+    if (ret < 0)
+        return ret;
+
+    mod = ptr;
+    ptr += mod_len;
+
+    ret = lib_ASN1GetLargeNumberLength(&ptr, end, &exp_len);
+    if (ret < 0)
+        return ret;
+
+    exp = ptr;
+    ptr += exp_len;
+
+    *body = malloc(cert_signed_len);
+    *body_len = cert_signed_len;
+    memcpy(*body, cert_signed, cert_signed_len);
+
+    *sig = malloc(cert_sig_len);
+    *sig_len = cert_sig_len;
+    memcpy(*sig, cert_sig, cert_sig_len);
+
+    ret = lib_RSAInitKey(pubkey);
+    if (ret < 0)
+        return ret;
+
+    ret = lib_RSAImportPublicKey(pubkey, exp, exp_len, mod, mod_len);
+    if (ret < 0)
+        return ret;
+
+    return 0;
+}
+
+/*
+ * Same as parse_x509(), but parse the certificate in PEM format.
+ * @cert:     The starting address for parsing the certificate.
+ * @cert_end: Returns the end of certificate after parsing.
+ * @body:     The certificate body (the signed part).
+ * @body_len: The length of body.
+ * @sig:      The certificate signature.
+ * @sig_len:  The length of sig.
+ * @pubkey:   The RSA public key from the certificate.
+ */
+static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* body_len,
+                          uint8_t** sig, size_t* sig_len, LIB_RSA_KEY* pubkey) {
+
+    int ret;
+    char* start = strchr(cert, '-');
+    if (!start) {
+        // No more certificate
+        *cert_end = NULL;
+        return 0;
+    }
+
+    if (!strpartcmp_static(start, "-----BEGIN CERTIFICATE-----"))
+        return -PAL_ERROR_INVAL;
+
+    start += static_strlen("-----BEGIN CERTIFICATE-----");
+    char* end = strchr(start, '-');
+
+    if (!strpartcmp_static(end, "-----END CERTIFICATE-----"))
+        return -PAL_ERROR_INVAL;
+
+    size_t cert_der_len;
+    ret = lib_Base64Decode(start, end - start, NULL, &cert_der_len);
+    if (ret < 0)
+        return ret;
+
+    uint8_t* cert_der = __alloca(cert_der_len);
+    ret = lib_Base64Decode(start, end - start, cert_der, &cert_der_len);
+    if (ret < 0)
+        return ret;
+
+    ret = parse_x509(cert_der, cert_der_len, body, body_len, sig, sig_len, pubkey);
+    if (ret < 0)
+        return ret;
+
+    *cert_end = end + static_strlen("-----END CERTIFICATE-----");
+    return 0;
+}
+
 int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable) {
 
@@ -219,24 +419,182 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
     SGX_DBG(DBG_S, "Local report:\n");
     print_report(&report);
 
-    sgx_arch_report_t qe_report;
-    sgx_quote_t quote;
-    ret = ocall_get_quote(spid, linkable, &report, nonce, &qe_report, &quote);
+    sgx_attestation_t attestation;
+    ret = ocall_get_attestation(spid, linkable, &report, nonce, &attestation);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to get quote from aesm service\n");
+        SGX_DBG(DBG_E, "Failed to get attestation\n");
         return ret;
     }
 
+    // First, verify the report from the quoting enclave
     SGX_DBG(DBG_S, "QE report:\n");
-    print_report(&qe_report);
+    print_report(&attestation.qe_report);
 
-    ret = sgx_verify_report(&qe_report);
+    ret = sgx_verify_report(&attestation.qe_report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to verify report from aesm service\n");
-        return ret;
+        SGX_DBG(DBG_E, "Failed to QE verify report, ret = %d\n", ret);
+        goto free_attestation;
+    }
+
+    // Verify the IAS response against the certificate chain
+    uint8_t* data_to_verify = (uint8_t*)attestation.ias_report;
+    uint8_t* data_sig       = attestation.ias_sig;
+    size_t   data_len       = attestation.ias_report_len;
+    size_t   data_sig_len   = attestation.ias_sig_len;
+
+    for (char* cert_start = attestation.ias_certs;
+         cert_start < attestation.ias_certs + attestation.ias_certs_len && *cert_start; ) {
+
+        // Generate the message digest first (without RSA)
+        LIB_SHA256_CONTEXT ctx;
+        uint8_t hash[32];
+
+        if ((ret = lib_SHA256Init(&ctx)) < 0)
+            goto free_attestation;
+
+        if ((ret = lib_SHA256Update(&ctx, data_to_verify, data_len)) < 0)
+            goto free_attestation;
+
+        if ((ret = lib_SHA256Final(&ctx, hash)) < 0)
+            goto free_attestation;
+
+        // Use the public key to verify the last signature
+        uint8_t*    cert_body;
+        uint8_t*    cert_sig;
+        size_t      cert_body_len;
+        size_t      cert_sig_len;
+        LIB_RSA_KEY cert_key;
+
+        ret = parse_x509_pem(cert_start, &cert_start, &cert_body, &cert_body_len, &cert_sig,
+                             &cert_sig_len, &cert_key);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Failed to parse IAS certificate, rv = %d\n", ret);
+            goto free_attestation;
+        }
+
+        ret = lib_RSAVerifySHA256(&cert_key, hash, sizeof(hash), data_sig, data_sig_len);
+        if (ret < 0) {
+            SGX_DBG(DBG_E, "Failed to verify the report against the IAS certificates,"
+                    " rv = %d\n", ret);
+            lib_RSAFreeKey(&cert_key);
+            goto free_attestation;
+        }
+
+        lib_RSAFreeKey(&cert_key);
+
+        data_to_verify = cert_body;
+        data_sig       = cert_sig;
+        data_len       = cert_body_len;
+        data_sig_len   = cert_sig_len;
+    }
+
+    // Parse the IAS report in JSON format
+    char* ias_status    = NULL;
+    char* ias_nonce_str = NULL;
+    char* ias_timestamp = NULL;
+    char* ias_quote_str = NULL;
+    char* start = attestation.ias_report;
+    if (start[0] == '{') start++;
+    char* end = strchr(start, ',');
+    while (end) {
+        char* next_start = end + 1;
+
+        // Retrieve the key and value separated by the colon (:)
+        char* delim = strchr(start, ':');
+        if (!delim)
+            break;
+        char*  key  = start;
+        char*  val  = delim + 1;
+        size_t klen = delim - start;
+        size_t vlen = end - val;
+
+        // Remove quotation marks (") around the key and value if there are any
+        if (key[0] == '"') { key++; klen--; }
+        if (key[klen - 1] == '"') klen--;
+        if (val[0] == '"') { val++; vlen--; }
+        if (val[vlen - 1] == '"') vlen--;
+        key[klen] = 0;
+        val[vlen] = 0;
+
+        // Scan the fields in the IAS report
+        if (strcmp_static(key, "isvEnclaveQuoteStatus")) {
+            ias_status = val;
+        } else if (strcmp_static(key, "nonce")) {
+            ias_nonce_str = val;
+        } else if (strcmp_static(key, "timestamp")) {
+            ias_timestamp = val;
+        } else if (strcmp_static(key, "isvEnclaveQuoteBody")) {
+            ias_quote_str = val;
+        }
+
+        start = next_start;
+        end = strchr(start, ',') ? : strchr(start, '}');
+    }
+
+    if (!ias_status || !ias_nonce_str || !ias_timestamp || !ias_quote_str) {
+        SGX_DBG(DBG_E, "Missing important field(s) in the IAS report\n");
+        goto free_attestation;
+    }
+
+    SGX_DBG(DBG_S, "IAS report:\n");
+    SGX_DBG(DBG_S, "  status:    %s\n", ias_status);
+    SGX_DBG(DBG_S, "  nonce:     %s\n", ias_nonce_str);
+    SGX_DBG(DBG_S, "  timestamp: %s\n", ias_timestamp);
+    SGX_DBG(DBG_S, "  quote:     %s\n", ias_quote_str);
+
+    // For now, we only accept status to be "OK" or "GROUP_OUT_OF_DATE"
+    if (!strcmp_static(ias_status, "OK") &&
+        !strcmp_static(ias_status, "GROUP_OUT_OF_DATE")) {
+        SGX_DBG(DBG_E, "IAS returned invalid status: %s\n", ias_status);
+        goto free_attestation;
+    }
+
+    // Check if the nonce matches the IAS report
+    size_t nonce_str_len = sizeof(sgx_quote_nonce_t) * 2 + 1;
+    char* nonce_str = __alloca(nonce_str_len);
+    __bytes2hexstr((void *)nonce, sizeof(sgx_quote_nonce_t), nonce_str, nonce_str_len);
+
+    if (memcmp(ias_nonce_str, nonce_str, nonce_str_len)) {
+        SGX_DBG(DBG_E, "IAS returned the wrong nonce: %s\n", ias_nonce_str);
+        goto free_attestation;
+    }
+
+    // Check if the quote matches the IAS report
+    size_t ias_quote_str_len = strlen(ias_quote_str);
+    size_t ias_quote_len;
+    ret = lib_Base64Decode(ias_quote_str, ias_quote_str_len, NULL, &ias_quote_len);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Malformed quote in the IAS report\n");
+        goto free_attestation;
+    }
+
+    sgx_quote_t* ias_quote = __alloca(ias_quote_len);
+    ret = lib_Base64Decode(ias_quote_str, ias_quote_str_len, (uint8_t*)ias_quote, &ias_quote_len);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Malformed quote in the IAS report\n");
+        goto free_attestation;
+    }
+
+    if (memcmp(&ias_quote->body, &attestation.quote->body, sizeof(sgx_quote_body_t)) ||
+        memcmp(&ias_quote->report_body, &report.body, sizeof(sgx_arch_report_body_t))) {
+        SGX_DBG(DBG_E, "IAS returned the wrong quote\n");
+        goto free_attestation;
+    }
+
+    // Check if the quote has the right enclave report
+    if (memcmp(&attestation.quote->report_body, &report.body, sizeof(sgx_arch_report_body_t))) {
+        SGX_DBG(DBG_E, "The returned quote contains the wrong enclave report\n");
+        goto free_attestation;
     }
 
     return 0;
+
+free_attestation:
+    if (attestation.quote)      free(attestation.quote);
+    if (attestation.ias_report) free(attestation.ias_report);
+    if (attestation.ias_sig)    free(attestation.ias_sig);
+    if (attestation.ias_certs)  free(attestation.ias_certs);
+    return -PAL_ERROR_DENIED;
 }
 
 int init_enclave_key (void)

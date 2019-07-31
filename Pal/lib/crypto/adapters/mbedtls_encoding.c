@@ -64,3 +64,17 @@ int lib_ASN1GetSerial(uint8_t** ptr, const uint8_t* end, enum asn1_tag* tag, boo
     *ptr += l;
     return( 0 );
 }
+
+int lib_ASN1GetLargeNumberLength(uint8_t** ptr, const uint8_t* end, size_t* len) {
+    return mbedtls_asn1_get_tag(ptr, end, len, MBEDTLS_ASN1_INTEGER);
+}
+
+int lib_ASN1GetBitstring(uint8_t** ptr, const uint8_t* end, uint8_t** str, size_t* len) {
+    mbedtls_asn1_bitstring bs;
+    int ret = mbedtls_asn1_get_bitstring((unsigned char**)ptr, (const unsigned char*)end, &bs);
+    if (ret < 0)
+        return ret;
+    *str = (uint8_t*)bs.p;
+    *len = bs.len;
+    return 0;
+}

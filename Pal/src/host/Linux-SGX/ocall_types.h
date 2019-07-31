@@ -57,7 +57,7 @@ enum {
     OCALL_RENAME,
     OCALL_DELETE,
     OCALL_LOAD_DEBUG,
-    OCALL_GET_QUOTE,
+    OCALL_GET_ATTESTATION,
     OCALL_NR,
 };
 
@@ -272,7 +272,7 @@ typedef struct {
     bool              ms_linkable;
     sgx_arch_report_t ms_report;
     sgx_quote_nonce_t ms_nonce;
-    sgx_quote_t       ms_quote;
-} ms_ocall_get_quote_t;
+    sgx_attestation_t ms_attestation;
+} ms_ocall_get_attestation_t;
 
 #pragma pack(pop)

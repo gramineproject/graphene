@@ -38,10 +38,15 @@ typedef struct {
     uint32_t               sig_len;
 } __attribute__((packed)) sgx_quote_t;
 
-#define SGX_QUOTE_MAX_SIZE   (2048)
-
 typedef uint8_t sgx_spid_t[16];
 typedef uint8_t sgx_quote_nonce_t[16];
+
+enum {
+    SGX_UNLINKABLE_SIGNATURE,
+    SGX_LINKABLE_SIGNATURE
+};
+
+#define SGX_QUOTE_MAX_SIZE   (2048)
 
 #define IAS_TEST_REPORT_URL \
     "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/report"
@@ -50,5 +55,19 @@ int init_trusted_platform(void);
 
 int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable);
+
+typedef struct {
+    sgx_arch_report_t qe_report;
+    sgx_quote_t*      quote;
+    size_t            quote_len;
+    char*             ias_report;
+    size_t            ias_report_len;
+    uint8_t*          ias_sig;
+    size_t            ias_sig_len;
+    char*             ias_certs;
+    size_t            ias_certs_len;
+} sgx_attestation_t;
+
+#define HTTPS_REQUEST_MAX_LENGTH   (256)
 
 #endif /* SGX_ATTEST_H */

@@ -485,159 +485,14 @@ failed:
     return ret;
 }
 
-static int parse_x509_certificate(uint8_t* cert, size_t cert_len) {
-    uint8_t* ptr = cert;
-    uint8_t* end = cert + cert_len;
-    enum asn1_tag tag;
-    bool is_cons;
-    uint8_t* buf;
-    size_t buf_len;
-    int ret;
-
-    // X509Certificate := SEQUENCE {
-    //     Body CertificateBody,
-    //     SignatureAlgorithm AlgorithmDescriptor,
-    //     Signature BIT STRING }
-
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-    if (tag != ASN1_SEQUENCE || !is_cons)
-        return -PAL_ERROR_INVAL;
-
-    uint8_t* cert_body;
-    uint8_t* cert_sig;
-    size_t cert_body_len, cert_sig_len;
-    ptr = buf;
-    end = buf + buf_len;
-
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &cert_body, &cert_body_len);
-    if (ret < 0)
-        return ret;
-    if (tag != ASN1_SEQUENCE || !is_cons)
-        return -PAL_ERROR_INVAL;
-
-    // Skip SignatureAlgorithm
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &cert_sig, &cert_sig_len);
-    if (ret < 0)
-        return ret;
-    if (tag != ASN1_BIT_STRING || is_cons)
-        return -PAL_ERROR_INVAL;
-
-    // CertficateBody := SEQUENCE {
-    //     Version CONSTANT,
-    //     SerialNumber INTEGER,
-    //     Signature AlgorithmDiscriptor,
-    //     Issuer Name,
-    //     Velidity ValidityTime,
-    //     Subject Name,
-    //     SubjectPublicKeyInfo PublicKeyInfo,
-    //     (optional fields) }
-
-    ptr = cert_body;
-    end = cert_body + cert_body_len;
-
-    // Skip Version
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    // Skip SerialNumber
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    // Skip Signature
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    // Skip Issuer
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    // Get Validity
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    // Skip Subject
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    // Get SubjectPublicKeyInfo
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-    if (tag != ASN1_SEQUENCE || !is_cons)
-        return -PAL_ERROR_INVAL;
-
-    // PublickKeyInfo := SEQUENCE {
-    //     PublicKeyAlgorithm AgorithmDescriptor,
-    //     PublicKey BIT STRING }
-
-    uint8_t* pubkey;
-    size_t pubkey_len;
-    ptr = buf;
-    end = buf + buf_len;
-
-    // Skip PublicKeyAlgorithm
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
-    if (ret < 0)
-        return ret;
-
-    // Get PublicKey
-    ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &pubkey, &pubkey_len);
-    if (ret < 0)
-        return ret;
-
-    return 0;
-}
-
-static int parse_x509_certificate_pem(char* cert, char** cert_end) {
-
-    int ret;
-    char* start = strchr(cert, '-');
-    if (!start) {
-        // No more certificate
-        *cert_end = NULL;
-        return 0;
-    }
-
-    if (!strpartcmp_static(start, "-----BEGIN CERTIFICATE-----"))
-        return -PAL_ERROR_INVAL;
-
-    start += static_strlen("-----BEGIN CERTIFICATE-----");
-    char* end = strchr(start, '-');
-
-    if (!strpartcmp_static(end, "-----END CERTIFICATE-----"))
-        return -PAL_ERROR_INVAL;
-
-    size_t cert_der_len;
-    ret = lib_Base64Decode(start, end - start, NULL, &cert_der_len);
-    if (ret < 0)
-        return ret;
-
-    uint8_t* cert_der = __alloca(cert_der_len);
-    ret = lib_Base64Decode(start, end - start, cert_der, &cert_der_len);
-    if (ret < 0)
-        return ret;
-
-    ret = parse_x509_certificate(cert_der, cert_der_len);
-    if (ret < 0)
-        return ret;
-
-    *cert_end = end + static_strlen("-----END CERTIFICATE-----");
-    return 0;
-}
-
-int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote) {
+/*
+ * Contact to Intel Attestation Service and retrieve the signed attestation report
+ * @nonce:       Random nonce generated in the enclave.
+ * @quote:       Platform quote retrieved from AESMD.
+ * @attestation: Attestation data to be returned to the enclave.
+ */
+int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote,
+                                 sgx_attestation_t* attestation) {
 
     if (!current_enclave->ra_cert ||
         !current_enclave->ra_pkey) {
@@ -657,43 +512,49 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     char* nonce_str = __alloca(nonce_str_len);
     __bytes2hexstr((void *)nonce, sizeof(sgx_quote_nonce_t), nonce_str, nonce_str_len);
 
-    char head_path[] = "gsgx-ra-head-XXXXXX";
-    char resp_path[] = "gsgx-ra-resp-XXXXXX";
-    char* head = NULL;
-    char* resp = NULL;
-    int head_file = -1;
-    int resp_file = -1;
+    // Create two temporary files for dumping the header and output of HTTPS request to IAS
+    char    https_header_path[] = "gsgx-ias-header-XXXXXX";
+    char    https_output_path[] = "gsgx-ias-output-XXXXXX";
+    char*   https_header = NULL;
+    char*   https_output = NULL;
+    ssize_t https_header_len = 0;
+    ssize_t https_output_len = 0;
+    int header_fd = -1;
+    int output_fd = -1;
     int pipefds[2] = { -1, -1 };
 
-    head_file = mkstemp(head_path);
-    if (head_file < 0)
+    header_fd = mkstemp(https_header_path);
+    if (header_fd < 0)
         goto failed;
 
-    resp_file = mkstemp(resp_path);
-    if (resp_file < 0)
+    output_fd = mkstemp(https_output_path);
+    if (output_fd < 0)
         goto failed;
 
     ret = INLINE_SYSCALL(pipe, 1, pipefds);
     if (IS_ERR(ret))
         goto failed;
 
-    size_t http_data_max = quote_str_len + nonce_str_len + 64;
-    char* http_data = __alloca(http_data_max);
-    size_t http_data_len =
-            snprintf(http_data, http_data_max, "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}",
-                     quote_str, nonce_str);
-    assert(http_data_len < http_data_max);
-    ret = INLINE_SYSCALL(write, 3, pipefds[1], http_data, http_data_len);
+    // Write HTTPS request in XML format
+    size_t https_request_len = quote_str_len + nonce_str_len + HTTPS_REQUEST_MAX_LENGTH;
+    char*  https_request = __alloca(https_request_len);
+    https_request_len = snprintf(https_request, https_request_len,
+                                 "{\"isvEnclaveQuote\":\"%s\",\"nonce\":\"%s\"}",
+                                 quote_str, nonce_str);
+
+    ret = INLINE_SYSCALL(write, 3, pipefds[1], https_request, https_request_len);
     if (IS_ERR(ret))
         goto failed;
     INLINE_SYSCALL(close, 1, pipefds[1]);
     pipefds[1] = -1;
 
+    // Start a HTTPS client (using CURL)
     const char* https_client_args[] = {
-            "/usr/bin/curl", "-s", "--tlsv1.2", "-X", "POST", "-H", "Accept: application/json",
+            "/usr/bin/curl", "-s", "--tlsv1.2", "-X", "POST",
+            "-H", "Content-Type: application/json",
             "--cert", current_enclave->ra_cert,
             "--key",  current_enclave->ra_pkey,
-            "--data", "@-", "-o", resp_path, "-D", head_path,
+            "--data", "@-", "-o", https_output_path, "-D", https_header_path,
             IAS_TEST_REPORT_URL, NULL,
         };
 
@@ -712,48 +573,47 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
         return 0;
     }
 
+    // Make sure the HTTPS client has exited properly
     int status;
     ret = INLINE_SYSCALL(wait4, 4, pid, &status, 0, NULL);
     if (IS_ERR(ret) || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
         goto failed;
 
-    // Reading response
-    ret = INLINE_SYSCALL(open, 2, resp_path, O_RDONLY);
+    // Read the HTTPS output
+    ret = INLINE_SYSCALL(open, 2, https_output_path, O_RDONLY);
     if (IS_ERR(ret))
         goto failed;
-    INLINE_SYSCALL(close, 1, resp_file);
-    resp_file = ret;
-
-    ssize_t resp_size = INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_END);
-    if (IS_ERR(resp_size) || resp_size == 0)
+    INLINE_SYSCALL(close, 1, output_fd);
+    output_fd = ret;
+    https_output_len = INLINE_SYSCALL(lseek, 3, output_fd, 0, SEEK_END);
+    if (IS_ERR(https_output_len) || !https_output_len)
         goto failed;
-    resp = malloc(resp_size + 1);
-    INLINE_SYSCALL(lseek, 3, resp_file, 0, SEEK_SET);
-    ret = INLINE_SYSCALL(read, 3, resp_file, resp, resp_size);
-    if (IS_ERR(ret) || (ssize_t) ret < resp_size)
+    https_output = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(https_output_len),
+                                         PROT_READ, MAP_PRIVATE|MAP_FILE, output_fd, 0);
+    if (IS_ERR_P(https_output))
         goto failed;
-    resp[resp_size] = '\0';
 
-    // Reading headers
-    ret = INLINE_SYSCALL(open, 2, head_path, O_RDONLY);
+    // Read the HTTPS headers
+    ret = INLINE_SYSCALL(open, 2, https_header_path, O_RDONLY);
     if (IS_ERR(ret))
         goto failed;
-    INLINE_SYSCALL(close, 1, head_file);
-    head_file = ret;
-
-    size_t head_size = INLINE_SYSCALL(lseek, 3, head_file, 0, SEEK_END);
-    head = malloc(head_size + 1);
-    INLINE_SYSCALL(lseek, 3, head_file, 0, SEEK_SET);
-    ret = INLINE_SYSCALL(read, 3, head_file, head, head_size);
-    if (IS_ERR(ret) || (size_t) ret < head_size)
+    INLINE_SYSCALL(close, 1, header_fd);
+    header_fd = ret;
+    https_header_len = INLINE_SYSCALL(lseek, 3, header_fd, 0, SEEK_END);
+    if (IS_ERR(https_header_len) || !https_header_len)
         goto failed;
-    head[head_size] = '\0';
+    https_header = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(https_header_len),
+                                         PROT_READ, MAP_PRIVATE|MAP_FILE, header_fd, 0);
+    if (IS_ERR_P(https_header))
+        goto failed;
 
-    size_t   ias_sig_len = 0;
-    uint8_t* ias_sig     = NULL;
-    char*    ias_cert    = NULL;
-    char*    start       = head;
-    char*    end         = strchr(head, '\n');
+    // Parse the HTTPS headers
+    size_t   ias_sig_len     = 0;
+    uint8_t* ias_sig         = NULL;
+    size_t   ias_certs_len   = 0;
+    char*    ias_certs       = NULL;
+    char*    start       = https_header;
+    char*    end         = strchr(https_header, '\n');
     while (end) {
         char* next_start = end + 1;
         // If the eol (\n) is preceded by a return (\r), move the end pointer.
@@ -762,72 +622,100 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
 
         if (strpartcmp_static(start, "x-iasreport-signature: ")) {
             start += static_strlen("x-iasreport-signature: ");
+
+            // Decode IAS report signature
             ret = lib_Base64Decode(start, end - start, NULL, &ias_sig_len);
             if (ret < 0) {
                 SGX_DBG(DBG_E, "Malformed IAS signature\n");
                 goto failed;
             }
-            ias_sig = __alloca(ias_sig_len);
+
+            ias_sig = (uint8_t*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(ias_sig_len),
+                                               PROT_READ|PROT_WRITE,
+                                               MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            if (IS_ERR_P(ias_sig)) {
+                SGX_DBG(DBG_E, "Cannot allocate memory for IAS report signature\n");
+                goto failed;
+            }
+
             ret = lib_Base64Decode(start, end - start, ias_sig, &ias_sig_len);
             if (ret < 0) {
-                SGX_DBG(DBG_E, "Malformed IAS signature\n");
+                SGX_DBG(DBG_E, "Malformed IAS report signature\n");
                 goto failed;
             }
         } else if (strpartcmp_static(start, "x-iasreport-signing-certificate: ")) {
             start += static_strlen("x-iasreport-signing-certificate: ");
-            size_t len = end - start;
-            char* p = ias_cert = malloc(len + 1);
+
+            // Decode IAS signature chain
+            ias_certs_len = end - start;
+            ias_certs = (char*)INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(ias_certs_len),
+                                              PROT_READ|PROT_WRITE,
+                                              MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            if (IS_ERR_P(ias_certs)) {
+                SGX_DBG(DBG_E, "Cannot allocate memory for IAS certificate chain\n");
+                goto failed;
+            }
+
+            size_t total_bytes = 0;
             // Covert escaped characters
-            for (size_t i = 0; i < len; i++) {
+            for (size_t i = 0; i < ias_certs_len; i++) {
                 if (start[i] == '%') {
                     int8_t hex1 = hex2dec(start[i + 1]), hex2 = hex2dec(start[i + 2]);
                     if (hex1 < 0 || hex2 < 0)
                         goto failed;
 
                     char c = hex1 * 16 + hex2;
-                    if (c != '\n') *(p++) = c;
+                    if (c != '\n') ias_certs[total_bytes++] = c;
                     i += 2;
                 } else {
-                    *(p++) = start[i];
+                    ias_certs[total_bytes++] = start[i];
                 }
             }
-            *p = '\0';
+
+            // Adjust certificate chain length
+            ias_certs[total_bytes++] = '\0';
+            if (ALLOC_ALIGNUP(total_bytes) < ALLOC_ALIGNUP(ias_certs_len))
+                INLINE_SYSCALL(munmap, 2, ALLOC_ALIGNUP(total_bytes),
+                               ALLOC_ALIGNUP(ias_certs_len) - ALLOC_ALIGNUP(total_bytes));
+            ias_certs_len = total_bytes;
         }
 
         start = next_start;
         end   = strchr(start, '\n');
     }
 
-    if (!ias_sig_len || !ias_sig || !ias_cert) {
-        SGX_DBG(DBG_E, "IAS returned invalid headers\n");
+    if (!ias_sig) {
+        SGX_DBG(DBG_E, "IAS returned invalid headers: no report signature\n");
         goto failed;
     }
 
-    SGX_DBG(DBG_S, "IAS response:   %s\n",  resp);
-    SGX_DBG(DBG_S, "IAS signature:  %ld\n", ias_sig_len);
-
-    start = ias_cert;
-    while (start && *start) {
-        ret = parse_x509_certificate_pem(start, &start);
-        if (ret < 0) {
-            SGX_DBG(DBG_E, "Malformed IAS certificate, rv = %d\n", ret);
-            goto failed;
-        }
+    if (!ias_certs) {
+        SGX_DBG(DBG_E, "IAS returned invalid headers: no certificate chain\n");
+        goto failed;
     }
 
+    attestation->ias_report     = https_output;
+    attestation->ias_report_len = https_output_len;
+    attestation->ias_sig        = ias_sig;
+    attestation->ias_sig_len    = ias_sig_len;
+    attestation->ias_certs      = ias_certs;
+    attestation->ias_certs_len  = ias_certs_len;
+    https_output = NULL; // Don't free the HTTPS output
     ret = 0;
 done:
-    if (head) free(head);
-    if (resp) free(resp);
+    if (https_header)
+        INLINE_SYSCALL(munmap, 2, https_header, ALLOC_ALIGNUP(https_header_len));
+    if (https_output)
+        INLINE_SYSCALL(munmap, 2, https_output, ALLOC_ALIGNUP(https_output_len));
     if (pipefds[0] != -1) INLINE_SYSCALL(close, 1, pipefds[0]);
     if (pipefds[1] != -1) INLINE_SYSCALL(close, 1, pipefds[1]);
-    if (head_file != -1) {
-        INLINE_SYSCALL(close,  1, head_file);
-        INLINE_SYSCALL(unlink, 1, head_path);
+    if (header_fd != -1) {
+        INLINE_SYSCALL(close,  1, header_fd);
+        INLINE_SYSCALL(unlink, 1, https_header_path);
     }
-    if (resp_file != -1) {
-        INLINE_SYSCALL(close,  1, resp_file);
-        INLINE_SYSCALL(unlink, 1, resp_path);
+    if (output_fd != -1) {
+        INLINE_SYSCALL(close,  1, output_fd);
+        INLINE_SYSCALL(unlink, 1, https_output_path);
     }
     return ret;
 failed:
@@ -835,15 +723,9 @@ failed:
     goto done;
 }
 
-enum {
-    SGX_UNLINKABLE_SIGNATURE,
-    SGX_LINKABLE_SIGNATURE
-};
-
 int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
-                            const sgx_arch_report_t* report,
-                            const sgx_quote_nonce_t* nonce,
-                            sgx_arch_report_t* qe_report, sgx_quote_t* quote) {
+                            const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                            sgx_attestation_t* attestation) {
 
     int ret = connect_aesm_service();
     if (ret < 0)
@@ -886,12 +768,25 @@ int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
         goto failed;
     }
 
-    ret = contact_intel_attest_service(nonce, (sgx_quote_t *) r->quote.data);
-    if (ret < 0)
+    sgx_quote_t* quote = (sgx_quote_t*) INLINE_SYSCALL(mmap, 6, NULL, ALLOC_ALIGNUP(r->quote.len),
+                                                       PROT_READ|PROT_WRITE,
+                                                       MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    if (IS_ERR_P(quote)) {
+        SGX_DBG(DBG_E, "Failed to allocate memory for the quote\n");
         goto failed;
+    }
 
-    memcpy(quote, r->quote.data, sizeof(sgx_quote_t));
-    memcpy(qe_report, r->qe_report.data, sizeof(sgx_arch_report_t));
+    memcpy(quote, r->quote.data, r->quote.len);
+    attestation->quote = quote;
+    attestation->quote_len = r->quote.len;
+
+    ret = contact_intel_attest_service(nonce, (sgx_quote_t *) quote, attestation);
+    if (ret < 0) {
+        INLINE_SYSCALL(munmap, 2, quote, ALLOC_ALIGNUP(r->quote.len));
+        goto failed;
+    }
+
+    memcpy(&attestation->qe_report, r->qe_report.data, sizeof(sgx_arch_report_t));
     response__free_unpacked(res, NULL);
     return 0;
 

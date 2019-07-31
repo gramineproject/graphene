@@ -1105,39 +1105,71 @@ int ocall_load_debug(const char * command)
     return retval;
 }
 
-int ocall_get_quote (const sgx_spid_t* spid, bool linkable, const sgx_arch_report_t* report,
-                     const sgx_quote_nonce_t* nonce, sgx_arch_report_t* qe_report,
-                     sgx_quote_t* quote) {
+int ocall_get_attestation (const sgx_spid_t* spid, bool linkable,
+                           const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                           sgx_attestation_t* attestation) {
 
-    ms_ocall_get_quote_t * ms;
+    ms_ocall_get_attestation_t * ms;
+    int retval = -EPERM;
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
-    if (!ms) {
-        sgx_reset_ustack();
-        return -EPERM;
-    }
+    if (!ms)
+        goto failed;
 
     memcpy(&ms->ms_spid,   spid,   sizeof(sgx_spid_t));
     memcpy(&ms->ms_report, report, sizeof(sgx_arch_report_t));
     memcpy(&ms->ms_nonce,  nonce,  sizeof(sgx_quote_nonce_t));
     ms->ms_linkable = linkable;
 
-    int retval = sgx_ocall(OCALL_GET_QUOTE, ms);
+    retval = sgx_ocall(OCALL_GET_ATTESTATION, ms);
 
     if (retval >= 0) {
-        if (!sgx_copy_to_enclave(qe_report, sizeof(sgx_arch_report_t),
-                                 &ms->ms_report, sizeof(sgx_arch_report_t))) {
-            sgx_reset_ustack();
-            return -EPERM;
+        if (!sgx_copy_to_enclave(attestation, sizeof(sgx_attestation_t), &ms->ms_attestation,
+                                 sizeof(sgx_attestation_t)))
+            goto failed;
+
+        // Copy all the attestation data into the enclave (and free the untrusted buffers)
+        if (attestation->quote) {
+            size_t len = attestation->quote_len;
+            sgx_quote_t* quote = malloc(len);
+            if (!sgx_copy_to_enclave(quote, len, attestation->quote, len))
+                goto failed;
+            ocall_unmap_untrusted(attestation->quote, ALLOC_ALIGNUP(len));
+            attestation->quote = quote;
+            attestation->quote_len = len;
         }
 
-        if (!sgx_copy_to_enclave(quote, sizeof(sgx_quote_t),
-                                 &ms->ms_quote, sizeof(sgx_quote_t))) {
-            sgx_reset_ustack();
-            return -EPERM;
+        if (attestation->ias_report) {
+            size_t len = attestation->ias_report_len;
+            char* ias_report = malloc(len + 1);
+            if (!sgx_copy_to_enclave(ias_report, len, attestation->ias_report, len))
+                goto failed;
+            ocall_unmap_untrusted(attestation->ias_report, ALLOC_ALIGNUP(len));
+            ias_report[len] = 0; // Ensure null-ending
+            attestation->ias_report = ias_report;
+        }
+
+        if (attestation->ias_sig) {
+            size_t len = attestation->ias_sig_len;
+            uint8_t* ias_sig = malloc(len);
+            if (!sgx_copy_to_enclave(ias_sig, len, attestation->ias_sig, len))
+                goto failed;
+            ocall_unmap_untrusted(attestation->ias_sig, ALLOC_ALIGNUP(len));
+            attestation->ias_sig = ias_sig;
+        }
+
+        if (attestation->ias_certs) {
+            size_t len = attestation->ias_certs_len;
+            char* ias_certs = malloc(len + 1);
+            if (!sgx_copy_to_enclave(ias_certs, len, attestation->ias_certs, len))
+                goto failed;
+            ocall_unmap_untrusted(attestation->ias_certs, ALLOC_ALIGNUP(len));
+            ias_certs[len] = 0; // Ensure null-ending
+            attestation->ias_certs = ias_certs;
         }
     }
 
+failed:
     sgx_reset_ustack();
     return retval;
 }

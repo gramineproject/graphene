@@ -128,9 +128,8 @@ int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
 // padding, with SHA256 as the hash mechanism. These signatures are generated
 // by the Graphene filesystem build (so outside of a running Graphene
 // application), but are verified within the Graphene application.
-int lib_RSAVerifySHA256(LIB_RSA_KEY *key, const uint8_t *signature,
-                        uint64_t signature_len, uint8_t *signed_data_out,
-                        uint64_t signed_data_out_len);
+int lib_RSAVerifySHA256(LIB_RSA_KEY* key, const uint8_t* hash, uint64_t hash_len,
+                        const uint8_t* signature, uint64_t signature_len);
 
 // Frees memory allocated in lib_RSAInitKey.
 int lib_RSAFreeKey(LIB_RSA_KEY *key);
@@ -165,5 +164,7 @@ enum asn1_tag {
 int lib_ASN1GetSerial(uint8_t** ptr, const uint8_t* end, enum asn1_tag* tag, bool* is_construct,
                       uint8_t** buf, size_t* len);
 
+int lib_ASN1GetBitstring(uint8_t** ptr, const uint8_t* end, uint8_t** str, size_t* len);
+int lib_ASN1GetLargeNumberLength(uint8_t** ptr, const uint8_t* end, size_t* len);
 
 #endif
