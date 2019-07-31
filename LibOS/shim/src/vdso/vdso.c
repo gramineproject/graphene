@@ -23,10 +23,10 @@
 
 /*
  * The symbols below need to be exported for libsysdb to inject those values,
- * but GOT entries(i.e. relocation) entry aren't wanted in the code generation.
+ * but relocation (.rela.dyn section) isn't wanted in the code generation.
  */
 #define EXPORT_SYMBOL(name) \
-    extern __typeof__(name) __vdso_ ## name __attribute__ ((alias (#name)))
+    extern __typeof__(name) __vdso_ ## name __attribute__((alias(#name)))
 
 static int (*shim_clock_gettime)(clockid_t clock, struct timespec *t) = NULL;
 static int (*shim_gettimeofday)(struct timeval *tv, struct timezone *tz) = NULL;
