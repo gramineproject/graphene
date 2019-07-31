@@ -21,43 +21,54 @@
 
 #include <shim_types.h>
 
-int (*__vdso_shim_clock_gettime)(clockid_t clock, struct timespec *t) = NULL;
-int (*__vdso_shim_gettimeofday)(struct timeval *tv, struct timezone *tz) = NULL;
-time_t (*__vdso_shim_time)(time_t *t) = NULL;
-long (*__vdso_shim_getcpu)(unsigned *cpu, struct getcpu_cache *unused) = NULL;
+/*
+ * The symbols below need to be exported for libsysdb to inject those values,
+ * but relocation (.rela.dyn section) isn't wanted in the code generation.
+ */
+#define EXPORT_SYMBOL(name) \
+    extern __typeof__(name) __vdso_ ## name __attribute__((alias(#name)))
 
+static int (*shim_clock_gettime)(clockid_t clock, struct timespec *t) = NULL;
+static int (*shim_gettimeofday)(struct timeval *tv, struct timezone *tz) = NULL;
+static time_t (*shim_time)(time_t *t) = NULL;
+static long (*shim_getcpu)(unsigned *cpu, struct getcpu_cache *unused) = NULL;
+
+EXPORT_SYMBOL(shim_clock_gettime);
+EXPORT_SYMBOL(shim_gettimeofday);
+EXPORT_SYMBOL(shim_time);
+EXPORT_SYMBOL(shim_getcpu);
+
+#define EXPORT_WEAK_SYMBOL(name) \
+    __typeof__(__vdso_ ## name) name __attribute__((weak, alias("__vdso_" #name)))
 
 int __vdso_clock_gettime(clockid_t clock, struct timespec *t)
 {
-    if (__vdso_shim_clock_gettime)
-        return (*__vdso_shim_clock_gettime)(clock, t);
+    if (shim_clock_gettime)
+        return (*shim_clock_gettime)(clock, t);
     return -ENOSYS;
 }
-int clock_gettime(clockid_t clock, struct timespec *t)
-    __attribute__((weak, alias("__vdso_clock_gettime")));
+EXPORT_WEAK_SYMBOL(clock_gettime);
 
 int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
-    if (__vdso_shim_gettimeofday)
-        return (*__vdso_shim_gettimeofday)(tv, tz);
+    if (shim_gettimeofday)
+        return (*shim_gettimeofday)(tv, tz);
     return -ENOSYS;
 }
-int gettimeofday(struct timeval *tv, struct timezone *tz)
-    __attribute__((weak, alias("__vdso_gettimeofday")));
+EXPORT_WEAK_SYMBOL(gettimeofday);
 
 time_t __vdso_time(time_t *t)
 {
-    if (__vdso_shim_time)
-        return (*__vdso_shim_time)(t);
+    if (shim_time)
+        return (*shim_time)(t);
     return -ENOSYS;
 }
-time_t time(time_t *t) __attribute__((weak, alias("__vdso_time")));
+EXPORT_WEAK_SYMBOL(time);
 
 long __vdso_getcpu(unsigned *cpu, struct getcpu_cache *unused)
 {
-    if (__vdso_shim_getcpu)
-        return (*__vdso_shim_getcpu)(cpu, unused);
+    if (shim_getcpu)
+        return (*shim_getcpu)(cpu, unused);
     return -ENOSYS;
 }
-long getcpu(unsigned *cpu, struct getcpu_cache *unused)
-    __attribute__((weak, alias("__vdso_getcpu")));
+EXPORT_WEAK_SYMBOL(getcpu);
