@@ -1364,7 +1364,7 @@ void call_init (struct link_map* l, const char* first_argument,
 
     /* Invoke constructors. We follow the order in the GNU C Library:
      *  1. if exists, invoke the one constructor named by DT_INIT
-     *  2. if any, all constructors found in DT_INIT_ARRAY, in order
+     *  2. if exists, invoke all constructors in DT_INIT_ARRAY, in order of appearance
      */
 
     if (init)
@@ -1379,7 +1379,7 @@ void call_init (struct link_map* l, const char* first_argument,
 void init_libraries (const char* first_argument, const char** arguments,
                      const char** environs)
 {
-    for (struct link_map* l = loaded_maps; l ; l = l->l_next)
+    for (struct link_map* l = loaded_maps; l; l = l->l_next)
         if (l->l_type == OBJECT_PRELOAD && l->l_entry)
             call_init(l, first_argument, arguments, environs);
 }
@@ -1448,7 +1448,7 @@ noreturn void start_execution (const char * first_argument,
     ssize_t ret = get_config(pal_state.root_config, "loader.libos",
                              libos_str, URI_MAX);
     if (ret > 0)
-        for (struct link_map* l = loaded_maps; l ; l = l->l_next)
+        for (struct link_map* l = loaded_maps; l; l = l->l_next)
             if (l->l_type == OBJECT_PRELOAD && l->l_entry)
                 if (strstr(l->l_name, libos_str))
                     CALL_ENTRY(l, cookies); // Does not return.
