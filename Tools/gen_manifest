@@ -44,7 +44,7 @@ def gen_manifest(app_name, bin_name, g_path) :
   make_exec(m_path)
   mf.write("#!" + g_path + "/Runtime/pal_loader \n")
   mf.write("loader.preload = file:../../../../../Runtime/libsysdb.so \n")
-  mf.write("loader.libos = {} \n".format(LIBOS_LIB_NAME))
+  mf.write("loader.libos = {}\n".format(LIBOS_LIB_NAME))
 
   # Get Path of Binary
   bin_path = subprocess.check_output(['which', bin_name]).strip()
