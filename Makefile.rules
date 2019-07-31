@@ -109,3 +109,8 @@ quiet_cmd_ld = [ $@ ]
 # OBJCOPY
 quiet_cmd_objcopy = [ $@ ]
       cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS-$@) $< $@
+
+# check_no_reloc
+# This depends on the output of readelf command.
+quiet_cmd_check_no_reloc = [ $@ ]
+      cmd_check_no_reloc = readelf -r $^ | grep -q 'There are no relocations in this file.'

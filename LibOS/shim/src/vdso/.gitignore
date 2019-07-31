@@ -1,2 +1,3 @@
+/.vdso.so
 /vdso-data.c
 /vdso.so.dbg
