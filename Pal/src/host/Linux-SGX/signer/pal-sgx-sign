@@ -828,7 +828,7 @@ if __name__ == "__main__":
         else:
             print >>sys.stderr, "    cert:     " + manifest['sgx.ra_client_cert']
         if 'sgx.ra_client_pkey' not in manifest or not manifest['sgx.ra_client_pkey']:
-            print >>sys.stderr, "    *** sgx.ra_client.pkey not specified ***"
+            print >>sys.stderr, "    *** sgx.ra_client_pkey not specified ***"
             need_client_info = True
         else:
             print >>sys.stderr, "    pkey:     " + manifest['sgx.ra_client_pkey']

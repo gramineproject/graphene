@@ -218,7 +218,7 @@ int init_trusted_platform(void) {
  * A simple function to parse a X509 certificate for only the certificate body, the signature,
  * and the public key.
  *
- * Note: This function does not validate the content of the X509 certificate.
+ * TODO: Currently no verification of the X509 certificate.
  *
  * @cert:     The certificate to parse (DER format).
  * @cert_len: The length of cert.
@@ -277,7 +277,7 @@ static int parse_x509(uint8_t* cert, size_t cert_len, uint8_t** body, size_t* bo
     //     SerialNumber INTEGER,
     //     Signature AlgorithmDiscriptor,
     //     Issuer Name,
-    //     Velidity ValidityTime,
+    //     Validity ValidityTime,
     //     Subject Name,
     //     SubjectPublicKeyInfo PublicKeyInfo,
     //     (optional fields) }
@@ -429,6 +429,8 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * platform quote signed by the platform's attestation key. The IAS then verifies the platform
  * quote and issues a remote attestation report, signed by a certificate chain attached to
  * the report.
+ *
+ * TODO: currently no verification of the correctness of the IAS certificate
  *
  * @spid:              The SPID registered for the Intel Attestation Service (IAS).
  * @nonce:             A 16-byte nonce to be included in the quote.
