@@ -106,7 +106,7 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
                     void * enclave_data,
                     sgx_arch_report_t * report)
 {
-    sgx_arch_targetinfo_t targetinfo;
+    sgx_arch_targetinfo_t targetinfo __sgx_mem_aligned;
 
     memset(&targetinfo, 0, sizeof(sgx_arch_targetinfo_t));
     memcpy(targetinfo.mrenclave, mrenclave, sizeof(sgx_arch_hash_t));
@@ -129,12 +129,12 @@ static sgx_arch_key128_t enclave_key;
 
 int sgx_verify_report (sgx_arch_report_t * report)
 {
-    sgx_arch_keyrequest_t keyrequest;
+    sgx_arch_keyrequest_t keyrequest __sgx_mem_aligned;
     memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
     keyrequest.keyname = REPORT_KEY;
     memcpy(keyrequest.keyid, report->keyid, sizeof(keyrequest.keyid));
 
-    sgx_arch_key128_t report_key;
+    sgx_arch_key128_t report_key __attribute__((aligned(sizeof(sgx_arch_key128_t))));
     int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
         SGX_DBG(DBG_S, "Can't get report key\n");
@@ -452,8 +452,10 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
     SGX_DBG(DBG_S, "  type:  %s\n", linkable ? "linkable" : "unlinkable");
     SGX_DBG(DBG_S, "  nonce: %s\n", ALLOCA_BYTES2HEXSTR(*nonce));
 
-    sgx_arch_report_t report;
-    int ret = sgx_report(&pal_sec.aesm_targetinfo, report_data, &report);
+    sgx_arch_report_t report __sgx_mem_aligned;
+    sgx_arch_targetinfo_t targetinfo __sgx_mem_aligned = pal_sec.aesm_targetinfo;
+
+    int ret = sgx_report(&targetinfo, report_data, &report);
     if (ret) {
         SGX_DBG(DBG_E, "Failed to get report for attestation\n");
         return -PAL_ERROR_DENIED;
@@ -692,7 +694,7 @@ failed:
 
 int init_enclave_key (void)
 {
-    sgx_arch_keyrequest_t keyrequest;
+    sgx_arch_keyrequest_t keyrequest __sgx_mem_aligned;
     memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
     keyrequest.keyname = SEAL_KEY;
 
@@ -1451,9 +1453,9 @@ int init_enclave (void)
 
     // Since this report is only read by ourselves we can
     // leave targetinfo zeroed.
-    sgx_arch_targetinfo_t targetinfo = {0};
+    sgx_arch_targetinfo_t targetinfo __sgx_mem_aligned = {0};
     struct pal_enclave_state reportdata = {0};
-    sgx_arch_report_t report;
+    sgx_arch_report_t report __sgx_mem_aligned;
 
     int ret = sgx_report(&targetinfo, &reportdata, &report);
     if (ret) {

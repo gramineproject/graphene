@@ -63,7 +63,7 @@ typedef struct {
     size_t            ias_sig_len;
     char*             ias_certs;
     size_t            ias_certs_len;
-} sgx_attestation_t;
+} __attribute__((packed)) sgx_attestation_t;
 
 int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable,

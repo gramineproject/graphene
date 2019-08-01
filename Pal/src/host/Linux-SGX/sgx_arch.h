@@ -215,6 +215,8 @@ typedef struct {
 
 typedef uint8_t sgx_arch_report_data_t[64];
 
+#define __sgx_mem_aligned __attribute__((aligned(512)))
+
 typedef struct {
     uint64_t cpusvn[2];
     uint32_t miscselect;
@@ -233,7 +235,7 @@ typedef struct {
     sgx_arch_report_body_t body;
     uint8_t  keyid[32];
     sgx_arch_mac_t mac;
-} __attribute__((packed, aligned(512))) sgx_arch_report_t;
+} __attribute__((packed)) sgx_arch_report_t;
 
 #define SGX_REPORT_SIGNED_SIZE  384
 #define SGX_REPORT_ACTUAL_SIZE  432
@@ -241,8 +243,10 @@ typedef struct {
 typedef struct {
     sgx_arch_hash_t mrenclave;
     sgx_arch_attributes_t attributes;
-    uint8_t  reserved[464];
-} __attribute__((packed, aligned(512))) sgx_arch_targetinfo_t;
+    uint8_t  reserved[4];
+    uint32_t miscselect;
+    uint8_t  reserved2[456];
+} __attribute__((packed)) sgx_arch_targetinfo_t;
 
 typedef struct {
     uint16_t keyname;
@@ -254,9 +258,9 @@ typedef struct {
     uint8_t  keyid[32];
     uint32_t miscmask;
     uint8_t  reserved2[436];
-} __attribute__((packed, aligned(512))) sgx_arch_keyrequest_t;
+} __attribute__((packed)) sgx_arch_keyrequest_t;
 
-typedef uint8_t sgx_arch_key128_t[16] __attribute__((aligned(16)));
+typedef uint8_t sgx_arch_key128_t[16];
 
 #else /* !__ASSEMBLER__ */
 
