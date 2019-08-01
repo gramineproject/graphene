@@ -74,14 +74,13 @@ static bool symtab_init(void) {
     size_t len, offset;
     void* map;
 
-    offset = 0;
-    len = alignup(sizeof(ElfW(Ehdr)));
-    if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
+    len = alignup(sizeof(*ehdr));
+    if (!(map = DkStreamMap(handle, NULL, prot, /*offset=*/0, len)))
         goto fail;
 
     symbol_info.ehdr.addr = map;
     symbol_info.ehdr.len = len;
-    symbol_info.ehdr.offset = offset - aligndown(offset);
+    symbol_info.ehdr.offset = 0;
 
     ehdr = symbol_info.ehdr.addr + symbol_info.ehdr.offset;
 
