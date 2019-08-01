@@ -263,7 +263,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     normpath [2] = 'l';
     normpath [3] = 'e';
     normpath [4] = ':';
-    len = get_norm_path(uri + 5, normpath + 5, 0, sizeof normpath - 5);
+    len = get_norm_path(uri + 5, normpath + 5, 0, sizeof(normpath) - 5);
     if (len < 0) {
         return len;
     }
