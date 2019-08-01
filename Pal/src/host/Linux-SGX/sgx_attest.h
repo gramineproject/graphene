@@ -1,5 +1,5 @@
-/* Copyright (C) 2017, University of North Carolina at Chapel Hill
-   and Fortanix, Inc.
+/* Copyright (C) 2017, University of North Carolina at Chapel Hill.
+
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
