@@ -657,6 +657,16 @@ static void parse_clone_flags (va_list ap)
             flags &= ~all_flags[i].flag;
         }
 
+#define CLONE_SIGNAL_MASK 0xff
+    int exit_signal = flags & CLONE_SIGNAL_MASK;
+    flags &= ~CLONE_SIGNAL_MASK;
+    if (exit_signal) {
+        if (exit_signal >= 0 && exit_signal <= NUM_KNOWN_SIGS)
+            PRINTF("|%s", signal_name(exit_signal));
+        else
+            PRINTF("|[SIG %d]", exit_signal);
+    }
+
     if (flags)
         PRINTF("|0x%x", flags);
 }
