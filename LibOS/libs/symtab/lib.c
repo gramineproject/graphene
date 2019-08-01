@@ -2,7 +2,7 @@
 #include <symtab/symtab.h>
 
 /* Address of application .text section */
-void *text_section = 0UL;
+void* text_section = 0UL;
 
 /* DkStreamMap and friends require the addr, offset, and len to be
  * aligned. If the area we wish to map in a file is not exactly on
@@ -11,7 +11,7 @@ void *text_section = 0UL;
  * actually lies: data = .addr + .offset
  */
 struct dkmap {
-    void *addr;
+    void* addr;
     size_t len;
     size_t offset;
 };
@@ -49,18 +49,18 @@ static bool symtab_init(void) {
 
     PAL_HANDLE handle = NULL;
 
-    const ElfW(Shdr) *sh = NULL;
-    const ElfW(Ehdr) *ehdr = NULL;
+    const ElfW(Shdr)* sh = NULL;
+    const ElfW(Ehdr)* ehdr = NULL;
 
     struct dkmap shdr_map = { 0 };
-    const ElfW(Shdr) *shdr_tbl = NULL;
+    const ElfW(Shdr)* shdr_tbl = NULL;
 
     struct dkmap shstr_map = { 0 };
-    const char *shstr_sec = NULL;
+    const char* shstr_sec = NULL;
 
     /* Open the executable */
 
-    const char *uri = pal_control.executable;
+    const char* uri = pal_control.executable;
     if (!(handle = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0)))
         return false;
     if (!is_file(handle))
@@ -69,7 +69,7 @@ static bool symtab_init(void) {
     /* Map in ELF and section headers */
 
     size_t len, offset;
-    void *map;
+    void* map;
 
     offset = 0;
     len = alignup(sizeof(ElfW(Ehdr)));
@@ -112,7 +112,8 @@ static bool symtab_init(void) {
 
     /* Map in the symbol table and associated symbol string table */
 
-    const ElfW(Shdr)* symtab_shdr = NULL, *strtab_shdr = NULL;
+    const ElfW(Shdr)* symtab_shdr = NULL;
+    const ElfW(Shdr)* strtab_shdr = NULL;
     const size_t nshdr = ehdr->e_shnum;
     for (sh = shdr_tbl; sh < &shdr_tbl[nshdr]; sh++) {
         if (sh->sh_type == SHT_SYMTAB) {
@@ -167,8 +168,10 @@ done:
 }
 
 static bool __symtab_lookup_symbol(const char* name, struct syminfo* info) {
-    const ElfW(Sym) *sym, *tbl = symbol_info.symtab.addr + symbol_info.symtab.offset;
-    const char *symstr = NULL, *strtab = symbol_info.strtab.addr + symbol_info.strtab.offset;
+    const ElfW(Sym)* tbl = symbol_info.symtab.addr + symbol_info.symtab.offset;
+    const ElfW(Sym)* sym = NULL;
+    const char* strtab = symbol_info.strtab.addr + symbol_info.strtab.offset;
+    const char* symstr = NULL;
     for (sym = tbl; sym < &tbl[symbol_info.sym_n]; sym++, symstr = NULL) {
         if (sym->st_name > 0)
             symstr = &strtab[sym->st_name];
