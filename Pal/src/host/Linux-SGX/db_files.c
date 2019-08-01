@@ -54,24 +54,29 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
         return unix_to_pal_error(ERRNO(fd));
 
     /* if try_create_path succeeded, prepare for the file handle */
-    int len = strlen(uri);
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len + 1);
+    size_t len = strlen(uri) + 1;
+    PAL_HANDLE hdl = malloc(HANDLE_SIZE(file) + len);
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0)|WRITABLE(0);
     hdl->file.fd = fd;
     hdl->file.append = 0;
     hdl->file.pass = 0;
     char * path = (void *) hdl + HANDLE_SIZE(file);
-    get_norm_path(uri, path, 0, len + 1);
+    int ret;
+    if ((ret = get_norm_path(uri, path, &len)) < 0) {
+        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, PAL_STRERROR(ret));
+        free(hdl);
+        return ret;
+    }
     hdl->file.realpath = (PAL_STR) path;
 
     sgx_stub_t * stubs;
     uint64_t total;
-    int ret = load_trusted_file(hdl, &stubs, &total, create);
+    ret = load_trusted_file(hdl, &stubs, &total, create);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Accessing file:%s is denied. (%s) "
                 "This file is not trusted or allowed.\n", hdl->file.realpath,
-                PAL_STRERROR(-ret));
+                PAL_STRERROR(ret));
         free(hdl);
         return ret;
     }

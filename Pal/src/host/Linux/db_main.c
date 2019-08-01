@@ -281,8 +281,8 @@ void pal_linux_main (void * args)
         goto done_init;
     }
 
-    int len = strlen(argv[0]);
-    PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len + 1);
+    size_t len = strlen(argv[0]) + 1;
+    PAL_HANDLE file = malloc(HANDLE_SIZE(file) + len);
     SET_HANDLE_TYPE(file, file);
     HANDLE_HDR(file)->flags |= RFD(0)|WFD(0)|WRITABLE(0);
     file->file.fd = fd;
@@ -290,8 +290,13 @@ void pal_linux_main (void * args)
     file->file.append = false;
     file->file.pass = false;
     file->file.map_start = NULL;
+
     char * path = (void *) file + HANDLE_SIZE(file);
-    get_norm_path(argv[0], path, 0, len + 1);
+    int ret = get_norm_path(argv[0], path, &len);
+    if (ret < 0) {
+        printf("Could not normalize path (%s): %s\n", argv[0], PAL_STRERROR(ret));
+        goto done_init;
+    }
     file->file.realpath = path;
 
     if (!check_elf_object(file)) {

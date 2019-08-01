@@ -84,8 +84,9 @@ static char * resolve_uri (const char * uri, const char ** errstring)
     }
 
     char path_buf[URI_MAX];
-    int len = get_norm_path(uri + 5, path_buf, 0, URI_MAX);
-    if (len < 0) {
+    size_t len = URI_MAX;
+    int ret = get_norm_path(uri + 5, path_buf, &len);
+    if (ret < 0) {
         *errstring = "Invalid URI";
         return NULL;
     }
@@ -952,18 +953,17 @@ int main (int argc, char ** argv, char ** envp)
     INLINE_SYSCALL(close, 1, fd);
 
     char sgx_manifest[URI_MAX];
-    int len = get_base_name(exec_uri + static_strlen("file:"), sgx_manifest,
-                            URI_MAX);
-    if (len < 0) {
-        ret = len;
+    size_t len = sizeof(sgx_manifest);
+    ret = get_base_name(exec_uri + static_strlen("file:"), sgx_manifest, &len);
+    if (ret < 0) {
         goto out;
     }
 
     if (strcmp_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
-        strcpy_static(sgx_manifest + len, ".sgx", URI_MAX - (size_t)len);
+        strcpy_static(sgx_manifest + len, ".sgx", sizeof(sgx_manifest) - len);
     } else if (!strcmp_static(sgx_manifest + len - strlen(".manifest.sgx"),
                               ".manifest.sgx")) {
-        strcpy_static(sgx_manifest + len, ".manifest.sgx", URI_MAX - (size_t)len);
+        strcpy_static(sgx_manifest + len, ".manifest.sgx", sizeof(sgx_manifest) - len);
     }
 
     if (memcmp(filebuf, "\177ELF", 4)) {
