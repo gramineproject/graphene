@@ -146,15 +146,19 @@ int sgx_verify_report (sgx_arch_report_t * report)
     sgx_arch_mac_t check_mac;
     memset(&check_mac, 0, sizeof(sgx_arch_mac_t));
 
+    // Generating the MAC with AES-CMAC using the report key. Only hash the part of the report
+    // BEFORE the keyid field (hence the offsetof(...) trick). ENCLU[EREPORT] does not include
+    // the MAC and the keyid fields when generating the MAC.
     lib_AESCMAC((uint8_t*)&report_key, sizeof(report_key),
                 (uint8_t*)report, offsetof(sgx_arch_report_t, keyid),
                 (uint8_t*)&check_mac, sizeof(sgx_arch_mac_t));
 
+    // Clear the report key for security
     memset(&report_key, 0, sizeof(sgx_arch_key128_t));
 
     SGX_DBG(DBG_S, "Verify report:\n");
-    SGX_DBG(DBG_S, "    expected:         %s\n", ALLOCA_BYTES2HEXSTR(report->mac));
-    SGX_DBG(DBG_S, "    mac:              %s\n", ALLOCA_BYTES2HEXSTR(check_mac));
+    print_report(report);
+    SGX_DBG(DBG_S, "  verify:     %s\n", ALLOCA_BYTES2HEXSTR(check_mac));
 
     if (memcmp(&check_mac, &report->mac, sizeof(check_mac))) {
         SGX_DBG(DBG_S, "Local attestation verification failed\n");
@@ -469,9 +473,6 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Local report:\n");
-    print_report(&report);
-
     sgx_attestation_t attestation;
     ret = ocall_get_attestation(spid, subkey, linkable, &report, nonce, &attestation);
     if (ret < 0) {
@@ -480,9 +481,6 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     }
 
     // First, verify the report from the quoting enclave
-    SGX_DBG(DBG_S, "QE report:\n");
-    print_report(&attestation.qe_report);
-
     ret = sgx_verify_report(&attestation.qe_report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to QE verify report, ret = %d\n", ret);
