@@ -27,16 +27,14 @@ struct symtab_cache {
 static struct symtab_cache symbol_info = {.exists = false};
 
 void symtab_unmap(void) {
-    if (symbol_info.exists) {
-        if (symbol_info.symtab.addr)
-            DkStreamUnmap((PAL_PTR)symbol_info.symtab.addr, symbol_info.symtab.len);
-        if (symbol_info.strtab.addr)
-            DkStreamUnmap((PAL_PTR)symbol_info.strtab.addr, symbol_info.strtab.len);
-        if (symbol_info.ehdr.addr)
-            DkStreamUnmap((PAL_PTR)symbol_info.ehdr.addr, symbol_info.ehdr.len);
-        memset(&symbol_info, 0, sizeof(symbol_info));
-        symbol_info.exists = false;
-    }
+    if (symbol_info.symtab.addr)
+        DkStreamUnmap((PAL_PTR)symbol_info.symtab.addr, symbol_info.symtab.len);
+    if (symbol_info.strtab.addr)
+        DkStreamUnmap((PAL_PTR)symbol_info.strtab.addr, symbol_info.strtab.len);
+    if (symbol_info.ehdr.addr)
+        DkStreamUnmap((PAL_PTR)symbol_info.ehdr.addr, symbol_info.ehdr.len);
+    memset(&symbol_info, 0, sizeof(symbol_info));
+    symbol_info.exists = false;
 }
 
 static bool strequal(const char* s1, const char* s2) {
