@@ -14,7 +14,7 @@ int main(int argc,char **argv) {
   int s = -1;                /* Socket */
   int so_type = -1;    /* Socket type */
   socklen_t optlen;  /* Option length */
-  int rv;
+  int rv = 0;
 
   /*
    * Create a TCP/IP socket to use:
