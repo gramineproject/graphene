@@ -800,14 +800,6 @@ static int load_enclave (struct pal_enclave * enclave,
     if (ret < 0)
         return ret;
 
-    if (get_config(enclave->config, "sgx.ra_client_cert", cfgbuf, CONFIG_MAX) > 0) {
-        enclave->ra_cert = alloc_concat(cfgbuf, -1, NULL, -1);
-    }
-
-    if (get_config(enclave->config, "sgx.ra_client_pkey", cfgbuf, CONFIG_MAX) > 0) {
-        enclave->ra_pkey = alloc_concat(cfgbuf, -1, NULL, -1);
-    }
-
     ret = init_aesm_targetinfo(&pal_sec->aesm_targetinfo);
     if (ret < 0)
         return ret;

@@ -193,6 +193,13 @@ int init_trusted_platform(void) {
         spid[i/2] = spid[i/2] * 16 + (uint8_t)val;
     }
 
+    char subkey[CONFIG_MAX];
+    len = get_config(pal_state.root_config, "sgx.ra_client_key", subkey, CONFIG_MAX);
+    if (len <= 0) {
+        SGX_DBG(DBG_E, "No sgx.ra_client_key in the manifest\n");
+        return -PAL_ERROR_INVAL;
+    }
+
     char buf[2];
     len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
     bool linkable = (len == 1 && buf[0] == '1');
@@ -204,7 +211,7 @@ int init_trusted_platform(void) {
 
     char* status;
     char* timestamp;
-    ret = sgx_verify_platform(&spid, &nonce, (sgx_arch_report_data_t*)&pal_enclave_state,
+    ret = sgx_verify_platform(&spid, subkey, &nonce, (sgx_arch_report_data_t*)&pal_enclave_state,
                               linkable, NULL, &status, &timestamp);
     if (ret < 0)
         return ret;
@@ -434,6 +441,7 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * TODO: currently no verification of the correctness of the IAS certificate
  *
  * @spid:              The SPID registered for the Intel Attestation Service (IAS).
+ * @subkey:            SPID subscription key.
  * @nonce:             A 16-byte nonce to be included in the quote.
  * @report_data:       A 64-byte bytestring to be included in the local report and the quote.
  * @linkable:          Specify whether the SPID is linkable.
@@ -442,7 +450,7 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * @ret_ias_timestamp: Returns a pointer to the timestamp (as a string) from the IAS.
  *                     Timestamp format: %Y-%m-%dT%H:%M:%S.%f (Ex: 2019-08-01T12:30:00.123456)
  */
-int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
+int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable,
                         sgx_attestation_t** ret_attestation,
                         char** ret_ias_status, char** ret_ias_timestamp) {
@@ -465,7 +473,7 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
     print_report(&report);
 
     sgx_attestation_t attestation;
-    ret = ocall_get_attestation(spid, linkable, &report, nonce, &attestation);
+    ret = ocall_get_attestation(spid, subkey, linkable, &report, nonce, &attestation);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to get attestation\n");
         return ret;

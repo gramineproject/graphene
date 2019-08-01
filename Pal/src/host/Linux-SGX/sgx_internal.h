@@ -72,8 +72,6 @@ struct pal_enclave {
     int exec;
     int sigfile;
     int token;
-    const char* ra_cert;
-    const char* ra_pkey;
 
     /* manifest */
     struct config_store * config;
@@ -103,7 +101,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
 
 int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo);
 
-int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
+int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
                             const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
                             sgx_attestation_t* attestation);
 

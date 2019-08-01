@@ -502,18 +502,13 @@ failed:
 /*
  * Contact to Intel Attestation Service and retrieve the signed attestation report
  *
+ * @subkey:      SPID subscription key.
  * @nonce:       Random nonce generated in the enclave.
  * @quote:       Platform quote retrieved from AESMD.
  * @attestation: Attestation data to be returned to the enclave.
  */
-int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote_t* quote,
-                                 sgx_attestation_t* attestation) {
-
-    if (!current_enclave->ra_cert ||
-        !current_enclave->ra_pkey) {
-        SGX_DBG(DBG_E, "Need both certificate and private key for contacting IAS\n");
-        return -PAL_ERROR_DENIED;
-    }
+int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* nonce,
+                                 const sgx_quote_t* quote, sgx_attestation_t* attestation) {
 
     size_t quote_len = sizeof(sgx_quote_t) + quote->sig_len;
     size_t quote_str_len;
@@ -563,14 +558,16 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
     INLINE_SYSCALL(close, 1, pipefds[1]);
     pipefds[1] = -1;
 
+    char subscription_header[64];
+    snprintf(subscription_header, 64, "Ocp-Apim-Subscription-Key: %s", subkey);
+
     // Start a HTTPS client (using CURL)
     const char* https_client_args[] = {
             "/usr/bin/curl", "-s", "--tlsv1.2", "-X", "POST",
             "-H", "Content-Type: application/json",
-            "--cert", current_enclave->ra_cert,
-            "--key",  current_enclave->ra_pkey,
+            "-H", subscription_header,
             "--data", "@-", "-o", https_output_path, "-D", https_header_path,
-            IAS_TEST_REPORT_URL, NULL,
+            IAS_REPORT_URL, NULL,
         };
 
     int pid = ARCH_VFORK();
@@ -635,8 +632,8 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
         if (end > start + 1 && *(end - 1) == '\r')
             end--;
 
-        if (strpartcmp_static(start, "x-iasreport-signature: ")) {
-            start += static_strlen("x-iasreport-signature: ");
+        if (strpartcmp_static(start, "X-IASReport-Signature: ")) {
+            start += static_strlen("X-IASReport-Signature: ");
 
             // Decode IAS report signature
             ret = lib_Base64Decode(start, end - start, NULL, &ias_sig_len);
@@ -658,8 +655,8 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
                 SGX_DBG(DBG_E, "Malformed IAS report signature\n");
                 goto failed;
             }
-        } else if (strpartcmp_static(start, "x-iasreport-signing-certificate: ")) {
-            start += static_strlen("x-iasreport-signing-certificate: ");
+        } else if (strpartcmp_static(start, "X-IASReport-Signing-Certificate: ")) {
+            start += static_strlen("X-IASReport-Signing-Certificate: ");
 
             // Decode IAS signature chain
             ias_certs_len = end - start;
@@ -757,12 +754,13 @@ failed:
  * for verification.
  *
  * @spid:        The client SPID registered with IAS.
+ * @subkey:      SPID subscription key.
  * @linkable:    A boolean that represents whether the SPID is linkable.
  * @report:      The local report of the target enclave.
  * @nonce:       A 16-byte nonce randomly generated inside the enclave.
  * @attestation: A structure for storing the response from the AESM service and the IAS.
  */
-int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
+int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
                             const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
                             sgx_attestation_t* attestation) {
 
@@ -819,7 +817,7 @@ int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
     attestation->quote = quote;
     attestation->quote_len = r->quote.len;
 
-    ret = contact_intel_attest_service(nonce, (sgx_quote_t *) quote, attestation);
+    ret = contact_intel_attest_service(subkey, nonce, (sgx_quote_t *) quote, attestation);
     if (ret < 0) {
         INLINE_SYSCALL(munmap, 2, quote, ALLOC_ALIGNUP(r->quote.len));
         goto failed;

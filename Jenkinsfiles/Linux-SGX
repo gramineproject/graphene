@@ -36,12 +36,9 @@ pipeline {
                             sh '''
                                 cd Pal/regression
                                 if [ "${ra_client_spid}" != "" ]; then \
-                                    wget ${ra_client_cert_url} -O RACertificate.pem; \
-                                    wget ${ra_client_pkey_url} -O RAKey.pem; \
                                     make clean SGX=1; \
                                     make SGX=1 RA_CLIENT_SPID=${ra_client_spid} \
-                                        RA_CLIENT_CERT=RACertificate.pem \
-                                        RA_CLIENT_PKEY=RAKey.pem; \
+                                        RA_CLIENT_KEY=${ra_client_key}; \
                                 else \
                                     make SGX=1; \
                                 fi

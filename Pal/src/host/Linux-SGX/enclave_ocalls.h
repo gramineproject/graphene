@@ -101,5 +101,6 @@ int ocall_delete (const char * pathname);
 
 int ocall_load_debug (const char * command);
 
-int ocall_get_attestation(const sgx_spid_t* spid, bool linkable, const sgx_arch_report_t* report,
-                          const sgx_quote_nonce_t* nonce, sgx_attestation_t* attestation);
+int ocall_get_attestation(const sgx_spid_t* spid, const char* subkey, bool linkable,
+                          const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                          sgx_attestation_t* attestation);

@@ -269,6 +269,7 @@ typedef struct {
 
 typedef struct {
     sgx_spid_t        ms_spid;
+    const char*       ms_subkey;
     bool              ms_linkable;
     sgx_arch_report_t ms_report;
     sgx_quote_nonce_t ms_nonce;

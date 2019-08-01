@@ -48,8 +48,8 @@ enum {
 
 #define SGX_QUOTE_MAX_SIZE   (2048)
 
-#define IAS_TEST_REPORT_URL \
-    "https://test-as.sgx.trustedservices.intel.com:443/attestation/sgx/v3/report"
+#define IAS_REPORT_URL \
+    "https://api.trustedservices.intel.com/sgx/dev/attestation/v3/report"
 
 int init_trusted_platform(void);
 
@@ -65,7 +65,7 @@ typedef struct {
     size_t            ias_certs_len;
 } __attribute__((packed)) sgx_attestation_t;
 
-int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
+int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable,
                         sgx_attestation_t** ret_attestation,
                         char** ret_ias_status, char** ret_ias_timestamp);
