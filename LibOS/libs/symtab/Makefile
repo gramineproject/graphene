@@ -43,7 +43,7 @@ files_to_build = libsymtab.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 
 defs	=
-objs	= entry main
+objs	= entry lib
 headers = ../include/*.h
 
 all: $(files_to_build) $(files_to_install)
