@@ -489,7 +489,7 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
     const char* ca_cert = IAS_CA_CERT;
     size_t len1 = strlen(attestation.ias_certs);
     size_t len2 = static_strlen(IAS_CA_CERT);
-    char* certs = malloc(len1 + len2);
+    char* certs = malloc(len1 + len2 + 1);
     memcpy(certs, attestation.ias_certs, len1);
     memcpy(certs + len1, ca_cert, len2);
     certs[len1 + len2] = 0;
