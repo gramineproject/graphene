@@ -274,9 +274,13 @@ noreturn void pal_main (
 
         /* The rule is to only find the manifest in the current directory */
         /* try open "<execname>.manifest" */
-        ret = get_base_name(exec_uri, uri_buf, URI_MAX);
+        size_t len = sizeof(uri_buf);
+        ret = get_base_name(exec_uri, uri_buf, &len);
+        if (ret < 0) {
+            INIT_FAIL(-ret, "cannot normalize exec_uri");
+        }
 
-        strcpy_static(uri_buf + ret, ".manifest", URI_MAX - (size_t)ret);
+        strcpy_static(uri_buf + len, ".manifest", sizeof(uri_buf) - len);
         ret = _DkStreamOpen(&manifest_handle, uri_buf, PAL_ACCESS_RDONLY, 0, 0, 0);
         if (ret) {
             /* try open "file:manifest" */

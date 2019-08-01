@@ -2,6 +2,7 @@
 #include <pal_linux_error.h>
 #include <pal_internal.h>
 #include <pal_debug.h>
+#include <pal_error.h>
 #include <pal_security.h>
 #include <pal_crypto.h>
 #include <api.h>
@@ -234,16 +235,15 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     struct trusted_file * tf = NULL, * tmp;
     char uri[URI_MAX];
     char normpath[URI_MAX];
-    int ret, fd = file->file.fd, len;
-    size_t uri_len;
+    int ret, fd = file->file.fd;
 
     if (!(HANDLE_HDR(file)->flags & RFD(0)))
         return -PAL_ERROR_DENIED;
 
-    len = _DkStreamGetName(file, uri, URI_MAX);
-    if (len < 0)
-        return len;
-    uri_len = (size_t)len;
+    ret = _DkStreamGetName(file, uri, URI_MAX);
+    if (ret < 0) {
+        return ret;
+    }
 
     /* Allow to create the file when allow_file_creation is turned on;
        The created file is added to allowed_file list for later access */
@@ -263,24 +263,26 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     normpath [2] = 'l';
     normpath [3] = 'e';
     normpath [4] = ':';
-    len = get_norm_path(uri + 5, normpath + 5, 0, sizeof(normpath) - 5);
-    if (len < 0) {
-        return len;
+    size_t len = sizeof(normpath) - 5;
+    ret = get_norm_path(uri + 5, normpath + 5, &len);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Path (%s) normalizaion failed: %s\n", uri + 5, PAL_STRERROR(ret));
+        return ret;
     }
-    uri_len = (size_t)len + 5;
+    len += 5;
 
     _DkSpinLock(&trusted_file_lock);
 
     LISTP_FOR_EACH_ENTRY(tmp, &trusted_file_list, list) {
         if (tmp->stubs) {
             /* trusted files: must be exactly the same URI */
-            if (tmp->uri_len == uri_len && !memcmp(tmp->uri, normpath, uri_len + 1)) {
+            if (tmp->uri_len == len && !memcmp(tmp->uri, normpath, len + 1)) {
                 tf = tmp;
                 break;
             }
         } else {
             /* allowed files: must be a subfolder or file */
-            if (path_is_equal_or_subpath(tmp, normpath, uri_len)) {
+            if (path_is_equal_or_subpath(tmp, normpath, len)) {
                 tf = tmp;
                 break;
             }
@@ -677,8 +679,8 @@ static int init_trusted_file (const char * key, const char * uri)
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
-    ssize_t len = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
-    if (len < 0)
+    ssize_t ret = get_config(pal_state.root_config, cskey, checksum, CONFIG_MAX);
+    if (ret < 0)
         return 0;
 
     /* Normalize the uri */
@@ -691,7 +693,12 @@ static int init_trusted_file (const char * key, const char * uri)
     normpath [2] = 'l';
     normpath [3] = 'e';
     normpath [4] = ':';
-    len = get_norm_path(uri + 5, normpath + 5, 0, URI_MAX);
+    size_t len = sizeof(normpath) - 5;
+    ret = get_norm_path(uri + 5, normpath + 5, &len);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Path (%s) normalizaion failed: %s\n", uri + 5, PAL_STRERROR(ret));
+        return ret;
+    }
 
     return register_trusted_file(normpath, checksum);
 }

@@ -96,8 +96,8 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
         return NULL;
 
     name += static_strlen("file:");
-    int len = strlen(name);
-    PAL_HANDLE handle = malloc(HANDLE_SIZE(file) + len + 1);
+    size_t len = strlen(name) + 1;
+    PAL_HANDLE handle = malloc(HANDLE_SIZE(file) + len);
     SET_HANDLE_TYPE(handle, file);
     HANDLE_HDR(handle)->flags |= RFD(0);
     handle->file.fd = PAL_IDX_POISON;
@@ -105,7 +105,12 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     handle->file.pass = 0;
 
     char * path = (void *) handle + HANDLE_SIZE(file);
-    get_norm_path(name, path, 0, len + 1);
+    int ret = get_norm_path(name, path, &len);
+    if (ret < 0) {
+        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", name, PAL_STRERROR(ret));
+        free(handle);
+        return NULL;
+    }
     handle->file.realpath = path;
 
     handle->file.total = 0;

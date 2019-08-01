@@ -24,115 +24,143 @@
 #include <api.h>
 #include <pal_error.h>
 
-int get_norm_path (const char * path, char * buf, int offset, int size)
-{
-    int head = offset;
-    char c, c1;
-    const char * p = path;
-
-    while (head) { /* find the real head, not interrupted by dot-dot */
-        if (head > 1 && buf[head - 1] == '.' && buf[head - 2] == '.')
-            break;
-        head--;
+/*
+ * Finds next '/' in `path`.
+ * Returns a pointer to it or to the nullbyte ending the string if no '/' has been found.
+ */
+static inline const char* find_next_slash(const char* path) {
+    while (*path && *path != '/') {
+        path++;
     }
-
-    for (c = '/' ; c ; c = c1, p++) {
-        c1 = *p;
-        if (c == '/') {     /* find a slash, or the beginning of the path */
-            if (c1 == 0)    /* no more path */
-                break;
-            if (c1 == '/')  /* consequential slashes */
-                continue;
-            if (c1 == '.') {    /* find a dot, can be dot-dot or a file */
-                c1 = *(++p);
-                if (c1 == 0)    /* no more path */
-                    break;
-                if (c1 == '/')  /* a dot, skip it */
-                    continue;
-                if (c1 == '.') {    /* must be dot-dot */
-                    c1 = *(++p);
-                    if (c1 != 0 && c1 != '/') { /* Paths can start with a dot
-                                                 * dot: ..xyz is ok */
-                        if (offset >= size - 2)
-                            return -PAL_ERROR_TOOLONG;
-                        buf[offset++] = '.';
-                        buf[offset++] = '.';
-                        continue;
-                    }
-                    if (offset > head) {    /* remove the last token */
-                        while (offset > head && buf[--offset] != '/');
-                    } else {
-                        if (offset) {   /* add a slash */
-                            if (offset >= size - 1)
-                                return -PAL_ERROR_TOOLONG;
-                            buf[offset++] = '/';
-                        }               /* add a dot-dot */
-                        if (offset >= size - 2)
-                            return -PAL_ERROR_TOOLONG;
-                        buf[offset++] = '.';
-                        buf[offset++] = '.';
-                        head = offset;
-                    }
-                } else { /* it's a file */
-                    if (offset) {   /* add a slash */
-                        if (offset >= size - 1)
-                            return -PAL_ERROR_TOOLONG;
-                        buf[offset++] = '/';
-                    }
-                    if (offset >= size - 1)
-                        return -PAL_ERROR_TOOLONG;
-                    buf[offset++] = '.';
-                }
-                continue;
-            }
-        }
-        if (offset || c != '/' || *path == '/') {
-            if (offset >= size - 1)
-                return -PAL_ERROR_TOOLONG;
-            buf[offset++] = c;
-        }
-    }
-
-    buf[offset] = 0;
-    return offset;
+    return path;
 }
 
-int get_base_name (const char * path, char * buf, int size)
-{
-    const char * p = path;
-
-    for (; *p ; p++) {
-        if (*p == '/')
-            continue;
-        if (*p == '.') {
-            if (*(p + 1) == '/' || !*(p + 1)) {
-                p++;
-                continue;
-            }
-            if (*(p + 1) == '.') {
-                if (*(p + 2) == '/' || !*(p + 2)) {
-                    p += 2;
-                    continue;
-                }
-            }
-        }
-
-        const char * e = p + 1;
-        for (; *e && *e != '/' ; e++);
-        if (*e) {
-            p = e - 1;
-            continue;
-        }
-
-        if (e - p > size - 1)
-            return -PAL_ERROR_TOOLONG;
-
-        int offset = 0;
-        for (; p < e ; p++, offset++)
-            buf[offset] = *p;
-        buf[offset] = 0;
-        return offset;
+/*
+ * Finds previous '/' in `path` (starting from `size` - 1) and returns offset to it.
+ * If the last character is '/', then it is skipped (as a token can end with '/').
+ */
+static inline size_t find_prev_slash_offset(const char* path, size_t size) {
+    if (size && path[size - 1] == '/') {
+        size--;
     }
+    while (size && path[size - 1] != '/') {
+        size--;
+    }
+    return size;
+}
+
+/*
+ * Before calling this function *size_ptr should hold the size of buf.
+ * After returning it holds number of bytes actually written to it
+ * (excluding the ending '\0').
+ */
+int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
+    if (!path || !buf || !size_ptr) {
+        return -PAL_ERROR_INVAL;
+    }
+
+    size_t size = *size_ptr;
+    if (!size) {
+        return -PAL_ERROR_ZEROSIZE;
+    }
+    /* reserve 1 byte for ending '\0' */
+    size--;
+
+    size_t offset = 0,
+           ret_size = 0; /* accounts for undiscardable bytes written to `buf`
+                          * i.e. `buf - ret_size` points to original `buf` */
+    unsigned char need_slash = 0; // is '/' needed before next token
+    bool is_absolute_path = *path == '/';
+
+    /* handle an absolute path */
+    if (is_absolute_path) {
+        if (size < 1) {
+            return -PAL_ERROR_TOOLONG;
+        }
+        *buf++ = '/';
+        size--;
+        ret_size++;
+        path++;
+    }
+
+    while (1) {
+        /* handle next token */
+        const char* end = find_next_slash(path);
+        if (end - path == 2 && path[0] == '.' && path[1] == '.') {
+            /* ".." */
+            if (offset) {
+                /* eat up previously written token */
+                offset = find_prev_slash_offset(buf, offset);
+                need_slash = 0;
+            } else if (!is_absolute_path) {
+                /* append undiscardable ".." since there is no previous token
+                 * but only if the path is not absolute */
+                if (need_slash + 2u > size) {
+                    return -PAL_ERROR_TOOLONG;
+                }
+                if (need_slash) {
+                    *buf++ = '/';
+                }
+                *buf++ = '.';
+                *buf++ = '.';
+                size -= need_slash + 2u;
+                ret_size += need_slash + 2u;
+                need_slash = 1;
+            } else {
+                /* remaining case: offset == 0, path is absolute and ".." was just seen,
+                 * i.e. "/..", which is collapsed to "/", hence nothing needs to be done */
+            }
+        } else if ((end == path) || (end - path == 1 && path[0] == '.')) {
+            /* ignore "//" and "." */
+        } else {
+            size_t len = (size_t)(end - path);
+            if (need_slash + len > size - offset) {
+                return -PAL_ERROR_TOOLONG;
+            }
+            if (need_slash) {
+                buf[offset++] = '/';
+            }
+            memcpy(buf + offset, path, len);
+            offset += len;
+            need_slash = 1;
+        }
+        if (!*end) {
+            break;
+        }
+        path = end + 1;
+    }
+
+    buf[offset] = '\0';
+
+    *size_ptr = ret_size + offset;
+
+    return 0;
+}
+
+/*
+ * Before calling this function *size should hold the size of buf.
+ * After returning it holds number of bytes actually written to it
+ * (excluding the trailing '\0').
+ */
+int get_base_name(const char* path, char* buf, size_t* size) {
+    if (!path || !buf || !size) {
+        return -PAL_ERROR_INVAL;
+    }
+
+    const char* end;
+    while (*(end = find_next_slash(path))) {
+        path = end + 1;
+    }
+
+    size_t result = (size_t)(end - path);
+    if (result + 1 > *size) {
+        return -PAL_ERROR_TOOLONG;
+    }
+
+    memcpy(buf, path, result);
+    buf[result] = '\0';
+
+    *size = result;
 
     return 0;
 }
