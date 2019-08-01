@@ -39,6 +39,14 @@ void symtab_unmap(void) {
     }
 }
 
+static bool strequal(const char* s1, const char* s2) {
+    assert(s1 && s2);
+    const size_t l = strlen(s1);
+    if (l != strlen(s2))
+        return false;
+    return memcmp(s1,s2,l) == 0;
+}
+
 static bool symtab_init(void) {
     const PAL_FLG prot = PAL_PROT_READ;
 
@@ -119,7 +127,7 @@ static bool symtab_init(void) {
                 strtab_shdr = sh;
         } else if (sh->sh_type == SHT_PROGBITS) {
             if (!text_section)
-                if (sh->sh_name > 0 && 0 == strcmp(".text", &shstr_sec[sh->sh_name]))
+                if (sh->sh_name > 0 && strequal(".text", &shstr_sec[sh->sh_name]))
                     text_section = (void*)sh->sh_addr;
         }
     }
@@ -170,7 +178,7 @@ static bool __symtab_lookup_symbol(const char* name, struct syminfo* info) {
     for (sym = tbl; sym < &tbl[symbol_info.sym_n]; sym++, symstr = NULL) {
         if (sym->st_name > 0)
             symstr = &strtab[sym->st_name];
-        if (symstr && 0 == strcmp(name, symstr)) {
+        if (symstr && strequal(name, symstr)) {
             info->name = symstr;
             info->addr = (void*)sym->st_value;
             info->len  = sym->st_size;
