@@ -24,18 +24,18 @@ struct symtab_cache {
     size_t sym_n;
 };
 
-static struct symtab_cache SYMTAB = {.exists = false};
+static struct symtab_cache symbol_info = {.exists = false};
 
 void symtab_unmap(void) {
-    if (SYMTAB.exists) {
-        if (SYMTAB.symtab.addr)
-            DkStreamUnmap((PAL_PTR)SYMTAB.symtab.addr, SYMTAB.symtab.len);
-        if (SYMTAB.strtab.addr)
-            DkStreamUnmap((PAL_PTR)SYMTAB.strtab.addr, SYMTAB.strtab.len);
-        if (SYMTAB.ehdr.addr)
-            DkStreamUnmap((PAL_PTR)SYMTAB.ehdr.addr, SYMTAB.ehdr.len);
-        memset(&SYMTAB, 0, sizeof(SYMTAB));
-        SYMTAB.exists = false;
+    if (symbol_info.exists) {
+        if (symbol_info.symtab.addr)
+            DkStreamUnmap((PAL_PTR)symbol_info.symtab.addr, symbol_info.symtab.len);
+        if (symbol_info.strtab.addr)
+            DkStreamUnmap((PAL_PTR)symbol_info.strtab.addr, symbol_info.strtab.len);
+        if (symbol_info.ehdr.addr)
+            DkStreamUnmap((PAL_PTR)symbol_info.ehdr.addr, symbol_info.ehdr.len);
+        memset(&symbol_info, 0, sizeof(symbol_info));
+        symbol_info.exists = false;
     }
 }
 
@@ -76,11 +76,11 @@ static bool symtab_init(void) {
     if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
         goto fail;
 
-    SYMTAB.ehdr.addr = map;
-    SYMTAB.ehdr.len = len;
-    SYMTAB.ehdr.offset = offset - aligndown(offset);
+    symbol_info.ehdr.addr = map;
+    symbol_info.ehdr.len = len;
+    symbol_info.ehdr.offset = offset - aligndown(offset);
 
-    ehdr = SYMTAB.ehdr.addr + SYMTAB.ehdr.offset;
+    ehdr = symbol_info.ehdr.addr + symbol_info.ehdr.offset;
 
     offset = ehdr->e_shoff;
     len = alignup((size_t)ehdr->e_shentsize * (size_t)ehdr->e_shnum);
@@ -135,26 +135,26 @@ static bool symtab_init(void) {
     if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
         goto fail;
 
-    SYMTAB.symtab.addr = map;
-    SYMTAB.symtab.len = len;
-    SYMTAB.symtab.offset = offset - aligndown(offset);
-    SYMTAB.sym_n = symtab_shdr->sh_size / symtab_shdr->sh_entsize;
+    symbol_info.symtab.addr = map;
+    symbol_info.symtab.len = len;
+    symbol_info.symtab.offset = offset - aligndown(offset);
+    symbol_info.sym_n = symtab_shdr->sh_size / symtab_shdr->sh_entsize;
 
     offset = strtab_shdr->sh_offset;
     len = alignup(strtab_shdr->sh_size);
     if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
         goto fail;
 
-    SYMTAB.strtab.addr = map;
-    SYMTAB.strtab.len = len;
-    SYMTAB.strtab.offset = offset - aligndown(offset);
+    symbol_info.strtab.addr = map;
+    symbol_info.strtab.len = len;
+    symbol_info.strtab.offset = offset - aligndown(offset);
 
-    SYMTAB.exists = true;
+    symbol_info.exists = true;
     goto done;
 
 fail:
     symtab_unmap();
-    SYMTAB.exists = false;
+    symbol_info.exists = false;
     /* fall through */
 
 done:
@@ -163,13 +163,13 @@ done:
     if (shdr_map.addr)
         DkStreamUnmap((PAL_PTR)shdr_map.addr, shdr_map.len);
     DkObjectClose(handle);
-    return SYMTAB.exists;
+    return symbol_info.exists;
 }
 
 static bool __symtab_lookup_symbol(const char* name, struct syminfo* info) {
-    const ElfW(Sym) *sym, *tbl = SYMTAB.symtab.addr + SYMTAB.symtab.offset;
-    const char *symstr = NULL, *strtab = SYMTAB.strtab.addr + SYMTAB.strtab.offset;
-    for (sym = tbl; sym < &tbl[SYMTAB.sym_n]; sym++, symstr = NULL) {
+    const ElfW(Sym) *sym, *tbl = symbol_info.symtab.addr + symbol_info.symtab.offset;
+    const char *symstr = NULL, *strtab = symbol_info.strtab.addr + symbol_info.strtab.offset;
+    for (sym = tbl; sym < &tbl[symbol_info.sym_n]; sym++, symstr = NULL) {
         if (sym->st_name > 0)
             symstr = &strtab[sym->st_name];
         if (symstr && 0 == strcmp(name, symstr)) {
@@ -183,7 +183,7 @@ static bool __symtab_lookup_symbol(const char* name, struct syminfo* info) {
 }
 
 bool symtab_lookup_symbol(const char* name, struct syminfo* info) {
-    return name && info && SYMTAB.exists && __symtab_lookup_symbol(name, info);
+    return name && info && symbol_info.exists && __symtab_lookup_symbol(name, info);
 }
 
 void __fini(void) {
