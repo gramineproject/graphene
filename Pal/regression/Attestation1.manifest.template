@@ -1,5 +1,5 @@
 # the executable to run
-loader.exec = file:Bootstrap
+loader.exec = file:Attestation
 
 # debug type: inline|none
 loader.debug_type = none

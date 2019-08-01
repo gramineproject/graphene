@@ -197,8 +197,17 @@ int init_trusted_platform(void) {
     if (ret < 0)
         return ret;
 
-    return sgx_verify_platform(&spid, &nonce, (sgx_arch_report_data_t*)&pal_enclave_state,
-                               linkable);
+    char* status;
+    char* timestamp;
+    ret = sgx_verify_platform(&spid, &nonce, (sgx_arch_report_data_t*)&pal_enclave_state,
+                              linkable, NULL, &status, &timestamp);
+    if (ret < 0)
+        return ret;
+
+    // If the attestation is successful, update the control block
+    __pal_control.attestation_status = status;
+    __pal_control.attestation_timestamp = timestamp;
+    return ret;
 }
 
 /*
@@ -402,7 +411,9 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
 }
 
 int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
-                        sgx_arch_report_data_t* report_data, bool linkable) {
+                        sgx_arch_report_data_t* report_data, bool linkable,
+                        sgx_attestation_t** ret_attestation,
+                        char** ret_ias_status, char** ret_ias_timestamp) {
 
     SGX_DBG(DBG_S, "Request quote:\n");
     SGX_DBG(DBG_S, "  spid:  %s\n", ALLOCA_BYTES2HEXSTR(*spid));
@@ -433,7 +444,7 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
     ret = sgx_verify_report(&attestation.qe_report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to QE verify report, ret = %d\n", ret);
-        goto free_attestation;
+        goto failed;
     }
 
     // Verify the IAS response against the certificate chain
@@ -450,13 +461,13 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
         uint8_t hash[32];
 
         if ((ret = lib_SHA256Init(&ctx)) < 0)
-            goto free_attestation;
+            goto failed;
 
         if ((ret = lib_SHA256Update(&ctx, data_to_verify, data_len)) < 0)
-            goto free_attestation;
+            goto failed;
 
         if ((ret = lib_SHA256Final(&ctx, hash)) < 0)
-            goto free_attestation;
+            goto failed;
 
         // Use the public key to verify the last signature
         uint8_t*    cert_body;
@@ -469,7 +480,7 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
                              &cert_sig_len, &cert_key);
         if (ret < 0) {
             SGX_DBG(DBG_E, "Failed to parse IAS certificate, rv = %d\n", ret);
-            goto free_attestation;
+            goto failed;
         }
 
         ret = lib_RSAVerifySHA256(&cert_key, hash, sizeof(hash), data_sig, data_sig_len);
@@ -477,7 +488,7 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
             SGX_DBG(DBG_E, "Failed to verify the report against the IAS certificates,"
                     " rv = %d\n", ret);
             lib_RSAFreeKey(&cert_key);
-            goto free_attestation;
+            goto failed;
         }
 
         lib_RSAFreeKey(&cert_key);
@@ -490,9 +501,9 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
 
     // Parse the IAS report in JSON format
     char* ias_status    = NULL;
-    char* ias_nonce_str = NULL;
     char* ias_timestamp = NULL;
-    char* ias_quote_str = NULL;
+    sgx_quote_nonce_t* ias_nonce = NULL;
+    sgx_quote_t*       ias_quote = NULL;
     char* start = attestation.ias_report;
     if (start[0] == '{') start++;
     char* end = strchr(start, ',');
@@ -513,88 +524,116 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
         if (key[klen - 1] == '"') klen--;
         if (val[0] == '"') { val++; vlen--; }
         if (val[vlen - 1] == '"') vlen--;
-        key[klen] = 0;
-        val[vlen] = 0;
 
         // Scan the fields in the IAS report
-        if (strcmp_static(key, "isvEnclaveQuoteStatus")) {
-            ias_status = val;
-        } else if (strcmp_static(key, "nonce")) {
-            ias_nonce_str = val;
-        } else if (strcmp_static(key, "timestamp")) {
-            ias_timestamp = val;
-        } else if (strcmp_static(key, "isvEnclaveQuoteBody")) {
-            ias_quote_str = val;
+        if (!memcmp(key, "isvEnclaveQuoteStatus", klen)) {
+            ias_status = __alloca(vlen + 1);
+            memcpy(ias_status, val, vlen);
+            ias_status[vlen] = 0;
+        } else if (!memcmp(key, "nonce", klen)) {
+            if (vlen != sizeof(sgx_quote_nonce_t) * 2) {
+                SGX_DBG(DBG_E, "Malformed nonce in the IAS report\n");
+                goto failed;
+            }
+
+            ias_nonce = __alloca(sizeof(sgx_quote_nonce_t));
+            for (size_t i = 0; i < sizeof(sgx_quote_nonce_t); i++) {
+                int8_t hi = hex2dec(val[i * 2]);
+                int8_t lo = hex2dec(val[i * 2 + 1]);
+                if (hi < 0 || lo < 0) {
+                    SGX_DBG(DBG_E, "Malformed nonce in the IAS report\n");
+                    goto failed;
+                }
+                ((uint8_t*)ias_nonce)[i] = (uint8_t)hi * 16 + (uint8_t)lo;
+            }
+        } else if (!memcmp(key, "timestamp", klen)) {
+            ias_timestamp = __alloca(vlen + 1);
+            memcpy(ias_timestamp, val, vlen);
+            ias_timestamp[vlen] = 0;
+        } else if (!memcmp(key, "isvEnclaveQuoteBody", klen)) {
+            size_t ias_quote_len;
+            ret = lib_Base64Decode(val, vlen, NULL, &ias_quote_len);
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Malformed quote in the IAS report\n");
+                goto failed;
+            }
+
+            ias_quote = __alloca(ias_quote_len);
+            ret = lib_Base64Decode(val, vlen, (uint8_t*)ias_quote, &ias_quote_len);
+            if (ret < 0) {
+                SGX_DBG(DBG_E, "Malformed quote in the IAS report\n");
+                goto failed;
+            }
         }
 
         start = next_start;
         end = strchr(start, ',') ? : strchr(start, '}');
     }
 
-    if (!ias_status || !ias_nonce_str || !ias_timestamp || !ias_quote_str) {
+    if (!ias_status || !ias_nonce || !ias_timestamp || !ias_quote) {
         SGX_DBG(DBG_E, "Missing important field(s) in the IAS report\n");
-        goto free_attestation;
+        goto failed;
     }
 
     SGX_DBG(DBG_S, "IAS report:\n");
     SGX_DBG(DBG_S, "  status:    %s\n", ias_status);
-    SGX_DBG(DBG_S, "  nonce:     %s\n", ias_nonce_str);
     SGX_DBG(DBG_S, "  timestamp: %s\n", ias_timestamp);
-    SGX_DBG(DBG_S, "  quote:     %s\n", ias_quote_str);
 
     // For now, we only accept status to be "OK" or "GROUP_OUT_OF_DATE"
     if (!strcmp_static(ias_status, "OK") &&
         !strcmp_static(ias_status, "GROUP_OUT_OF_DATE")) {
         SGX_DBG(DBG_E, "IAS returned invalid status: %s\n", ias_status);
-        goto free_attestation;
+        goto failed;
     }
 
     // Check if the nonce matches the IAS report
-    size_t nonce_str_len = sizeof(sgx_quote_nonce_t) * 2 + 1;
-    char* nonce_str = __alloca(nonce_str_len);
-    __bytes2hexstr((void *)nonce, sizeof(sgx_quote_nonce_t), nonce_str, nonce_str_len);
-
-    if (memcmp(ias_nonce_str, nonce_str, nonce_str_len)) {
-        SGX_DBG(DBG_E, "IAS returned the wrong nonce: %s\n", ias_nonce_str);
-        goto free_attestation;
+    if (memcmp(ias_nonce, nonce, sizeof(sgx_quote_nonce_t))) {
+        SGX_DBG(DBG_E, "IAS returned the wrong nonce\n");
+        goto failed;
     }
 
     // Check if the quote matches the IAS report
-    size_t ias_quote_str_len = strlen(ias_quote_str);
-    size_t ias_quote_len;
-    ret = lib_Base64Decode(ias_quote_str, ias_quote_str_len, NULL, &ias_quote_len);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "Malformed quote in the IAS report\n");
-        goto free_attestation;
-    }
-
-    sgx_quote_t* ias_quote = __alloca(ias_quote_len);
-    ret = lib_Base64Decode(ias_quote_str, ias_quote_str_len, (uint8_t*)ias_quote, &ias_quote_len);
-    if (ret < 0) {
-        SGX_DBG(DBG_E, "Malformed quote in the IAS report\n");
-        goto free_attestation;
-    }
-
     if (memcmp(&ias_quote->body, &attestation.quote->body, sizeof(sgx_quote_body_t)) ||
         memcmp(&ias_quote->report_body, &report.body, sizeof(sgx_arch_report_body_t))) {
         SGX_DBG(DBG_E, "IAS returned the wrong quote\n");
-        goto free_attestation;
+        goto failed;
     }
 
     // Check if the quote has the right enclave report
     if (memcmp(&attestation.quote->report_body, &report.body, sizeof(sgx_arch_report_body_t))) {
         SGX_DBG(DBG_E, "The returned quote contains the wrong enclave report\n");
-        goto free_attestation;
+        goto failed;
     }
 
-    return 0;
+    // Succeeded!!!
+    if (ret_ias_status) {
+        size_t len = strlen(ias_status) + 1;
+        *ret_ias_status = malloc(len);
+        memcpy(*ret_ias_status, ias_status, len);
+    }
 
+    if (ret_ias_timestamp) {
+        size_t len = strlen(ias_timestamp) + 1;
+        *ret_ias_timestamp = malloc(len);
+        memcpy(*ret_ias_timestamp, ias_timestamp, len);
+    }
+
+    if (ret_attestation) {
+        *ret_attestation = malloc(sizeof(sgx_attestation_t));
+        memcpy(*ret_attestation, &attestation, sizeof(sgx_attestation_t));
+        return 0;
+    }
+    ret = 0;
 free_attestation:
     if (attestation.quote)      free(attestation.quote);
     if (attestation.ias_report) free(attestation.ias_report);
     if (attestation.ias_sig)    free(attestation.ias_sig);
     if (attestation.ias_certs)  free(attestation.ias_certs);
-    return -PAL_ERROR_DENIED;
+    return ret;
+
+failed:
+    ret = -PAL_ERROR_DENIED;
+    goto free_attestation;
 }
 
 int init_enclave_key (void)

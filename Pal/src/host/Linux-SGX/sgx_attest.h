@@ -53,9 +53,6 @@ enum {
 
 int init_trusted_platform(void);
 
-int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
-                        sgx_arch_report_data_t* report_data, bool linkable);
-
 typedef struct {
     sgx_arch_report_t qe_report;
     sgx_quote_t*      quote;
@@ -67,6 +64,11 @@ typedef struct {
     char*             ias_certs;
     size_t            ias_certs_len;
 } sgx_attestation_t;
+
+int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
+                        sgx_arch_report_data_t* report_data, bool linkable,
+                        sgx_attestation_t** ret_attestation,
+                        char** ret_ias_status, char** ret_ias_timestamp);
 
 #define HTTPS_REQUEST_MAX_LENGTH   (256)
 
