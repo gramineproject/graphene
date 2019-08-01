@@ -500,8 +500,9 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
     // There can be multiple certificates in the chain. We need to use the public key from
     // the *first* certificate to verify the IAS response. For each certificate except
     // the last one, we need to use the public key from the *next* certificate to verify
-    // the certificate body. The last certificate will be verified by the root certificate
-    // of the IAS (given during the signing phase)
+    // the certificate body. The last certificate will be verified by the CA certificate
+    // (hard-coded in the binary)
+
     for (char* cert_start = attestation.ias_certs;
          cert_start < attestation.ias_certs + attestation.ias_certs_len && *cert_start; ) {
 
