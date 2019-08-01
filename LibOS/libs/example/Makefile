@@ -1,6 +1,7 @@
 export RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
 include ../../../Pal/src/Makefile.Host
+include ../../../Makefile.rules
 
 CC	= gcc
 AS	= gcc
@@ -43,8 +44,11 @@ files_to_build = libexample.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 
 defs	=
-objs	= entry main
+objs	= entry lib
 headers = ../include/*.h
+
+CFLAGS += $(defs)
+ASFLAGS += $(defs)
 
 all: $(files_to_build) $(files_to_install)
 
@@ -67,33 +71,28 @@ libexample.so: $(addsuffix .o,$(objs)) $(graphene_lib) $(pal_lib)
 	$(LD) $(LDFLAGS) \
 		-o $@ $(filter-out %.map %.lds,$^) -soname $@ \
 		-rpath-link=$(abspath $(RUNTIME_DIR)) \
-		$(graphene_lib) $(pal_lib) $(symtab_lib)
+		$(graphene_lib) $(pal_lib)
 
 %.asm: %.c $(headers)
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
+	@$(CC) $(CFLAGS) -c $< -o $<.o
 	@objdump -S $<.o > $@
 	@rm $<.o
 
 %.o: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -c $< -o $@
+	$(call cmd,cc_o_c)
 
 %.e %.i: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -E $< -o $@
+	$(call cmd,cpp_i_c)
 
 %.s: %.c $(headers)
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(defs) -S $< -o $@
+	$(call cmd,cc_s_c)
 
 %.o: %.S $(headers)
-	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+	$(call cmd,as_o_S)
 
 %.e %.s: %.S $(headers)
-	@echo [ $@ ]
-	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
+	$(call cmd,cpp_s_S)
 
 clean:
 	rm -rf $(addsuffix .o,$(objs)) $(files_to_build) $(CLEAN_FILES)
