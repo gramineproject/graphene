@@ -15,5 +15,5 @@ struct syminfo {
 bool symtab_lookup_symbol(const char* name, struct syminfo* out_sinfo);
 void symtab_unmap(void);
 
-extern void *text_section;
+extern void* text_section;
 #endif
