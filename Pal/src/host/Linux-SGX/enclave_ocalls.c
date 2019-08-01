@@ -1105,6 +1105,19 @@ int ocall_load_debug(const char * command)
     return retval;
 }
 
+/*
+ * ocall_get_attestation() triggers remote attestation in untrusted PAL (see sgx_framework.c:
+ * retrieve_verified_quote()). If the OCall returns successfully, the function returns
+ * attestation data required for platform verification (i.e., sgx_attestation_t). Except the
+ * QE report, most data fields of the attestation need to be copied into the enclave.
+ *
+ * @spid:        The client SPID registered with the IAS.
+ * @linkable:    Whether the SPID is linkable.
+ * @report:      Local attestation report for the quoting enclave.
+ * @nonce:       Randomly-generated nonce for freshness.
+ * @attestation: Returns the attestation data (QE report, quote, IAS report, signature,
+ *               and certificate chain).
+ */
 int ocall_get_attestation (const sgx_spid_t* spid, bool linkable,
                            const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
                            sgx_attestation_t* attestation) {
