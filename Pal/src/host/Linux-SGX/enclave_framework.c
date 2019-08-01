@@ -637,7 +637,14 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
         goto failed;
     }
 
-    SGX_DBG(DBG_S, "IAS report:\n");
+    SGX_DBG(DBG_S, "Quote:\n");
+    SGX_DBG(DBG_S, "  version:    %04x\n",  ias_quote->body.version);
+    SGX_DBG(DBG_S, "  sigtype:    %04x\n",  ias_quote->body.sigtype);
+    SGX_DBG(DBG_S, "  gid:        %08x\n",  ias_quote->body.gid);
+    SGX_DBG(DBG_S, "  isvsvn qe:  %08x\n",  ias_quote->body.isvsvn_qe);
+    SGX_DBG(DBG_S, "  isvsvn pce: %08x\n",  ias_quote->body.isvsvn_pce);
+
+    SGX_DBG(DBG_S, "IAS report: %s\n", attestation.ias_report);
     SGX_DBG(DBG_S, "  status:    %s\n", ias_status);
     SGX_DBG(DBG_S, "  timestamp: %s\n", ias_timestamp);
 
