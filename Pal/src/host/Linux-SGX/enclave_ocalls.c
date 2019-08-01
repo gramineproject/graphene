@@ -1152,7 +1152,6 @@ int ocall_get_attestation (const sgx_spid_t* spid, bool linkable,
                 retval = -EACCES;
             ocall_unmap_untrusted(attestation->quote, ALLOC_ALIGNUP(len));
             attestation->quote = quote;
-            attestation->quote_len = len;
         }
 
         if (attestation->ias_report) {
