@@ -24,7 +24,6 @@
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
 #include "sgx_attest.h"
-#include "graphene-sgx.h"
 #include "quote/aesm.pb-c.h"
 
 #include <asm/errno.h>

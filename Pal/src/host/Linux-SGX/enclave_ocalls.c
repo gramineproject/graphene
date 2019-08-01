@@ -1106,7 +1106,7 @@ int ocall_load_debug(const char * command)
 }
 
 /*
- * ocall_get_attestation() triggers remote attestation in untrusted PAL (see sgx_framework.c:
+ * ocall_get_attestation() triggers remote attestation in untrusted PAL (see sgx_platform.c:
  * retrieve_verified_quote()). If the OCall returns successfully, the function returns
  * attestation data required for platform verification (i.e., sgx_attestation_t). Except the
  * QE report, most data fields of the attestation need to be copied into the enclave.

@@ -1,20 +1,11 @@
 #include <pal_linux.h>
 #include <pal_rtld.h>
-#include <pal_crypto.h>
-#include <hex.h>
-
 #include "sgx_internal.h"
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
-#include "sgx_attest.h"
 #include "graphene-sgx.h"
-#include "quote/aesm.pb-c.h"
 
 #include <asm/errno.h>
-#include <linux/fs.h>
-#include <linux/un.h>
-#define __USE_XOPEN2K8
-#include <stdlib.h>
 
 int gsgx_device = -1;
 int isgx_device = -1;
