@@ -37,7 +37,7 @@ endif
 
 # To enable tests for remote attestation, please provide RA_CLIENT_SPID,
 # RA_CLIENT_CERT, and RA_CLIENT_PKEY in the environment variables.
-# To obtain a dev-only SPID, please register a self-sigend certificate at
+# To obtain a dev-only SPID, please register a self-signed certificate at
 # https://software.intel.com/en-us/form/sgx-onboarding
 
 manifest_rules = \

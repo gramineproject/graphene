@@ -163,6 +163,10 @@ int sgx_verify_report (sgx_arch_report_t * report)
     return 0;
 }
 
+/*
+ * Perform the initial attestation procedure if "sgx.ra_client.spid" is specified in
+ * the manifest file.
+ */
 int init_trusted_platform(void) {
     char spid_hex[sizeof(sgx_spid_t) * 2 + 1];
     ssize_t len = get_config(pal_state.root_config, "sgx.ra_client_spid", spid_hex,
@@ -213,6 +217,9 @@ int init_trusted_platform(void) {
 /*
  * A simple function to parse a X509 certificate for only the certificate body, the signature,
  * and the public key.
+ *
+ * Note: This function does not validate the content of the X509 certificate.
+ *
  * @cert:     The certificate to parse (DER format).
  * @cert_len: The length of cert.
  * @body:     The certificate body (the signed part).
@@ -364,6 +371,7 @@ static int parse_x509(uint8_t* cert, size_t cert_len, uint8_t** body, size_t* bo
 
 /*
  * Same as parse_x509(), but parse the certificate in PEM format.
+ *
  * @cert:     The starting address for parsing the certificate.
  * @cert_end: Returns the end of certificate after parsing.
  * @body:     The certificate body (the signed part).
@@ -410,6 +418,27 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
     return 0;
 }
 
+/*
+ * Perform the remote attestation to verify the current SGX platform.
+ *
+ * The remote attestation procedure verifies two primary properties: (1) The current execution
+ * runs in an SGX enclave; and (2) The enclave is created on a genuine, up-to-date Intel CPU.
+ * This procedure requires interaction with the Intel PSW quoting enclave (AESMD) and the
+ * Intel Attestation Service (IAS). The quoting enclave verifies a local attestation report
+ * generating in the target enclave, and then generates a quoting enclave (QE) report and a
+ * platform quote signed by the platform's attestation key. The IAS then verifies the platform
+ * quote and issues a remote attestation report, signed by a certificate chain attached to
+ * the report.
+ *
+ * @spid:              The SPID registered for the Intel Attestation Service (IAS).
+ * @nonce:             A 16-byte nonce to be included in the quote.
+ * @report_data:       A 64-byte bytestring to be included in the local report and the quote.
+ * @linkable:          Specify whether the SPID is linkable.
+ * @ret_attestation:   Returns a pointer to the retrieved attestation data.
+ * @ret_ias_status:    Returns a pointer to the attestation status (as a string) from the IAS.
+ * @ret_ias_timestamp: Returns a pointer to the timestamp (as a string) from the IAS.
+ *                     Timestamp format: %Y-%m-%dT%H:%M:%S.%f (Ex: 2019-08-01T12:30:00.123456)
+ */
 int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable,
                         sgx_attestation_t** ret_attestation,
@@ -525,12 +554,14 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
         if (val[0] == '"') { val++; vlen--; }
         if (val[vlen - 1] == '"') vlen--;
 
-        // Scan the fields in the IAS report
+        // Scan the fields in the IAS report.
         if (!memcmp(key, "isvEnclaveQuoteStatus", klen)) {
+            // Parse "isvEnclaveQuoteStatus":"OK"|"GROUP_OUT_OF_DATE"|...
             ias_status = __alloca(vlen + 1);
             memcpy(ias_status, val, vlen);
             ias_status[vlen] = 0;
         } else if (!memcmp(key, "nonce", klen)) {
+            // Parse "nonce":"{Hex representation of the initial nonce}"
             if (vlen != sizeof(sgx_quote_nonce_t) * 2) {
                 SGX_DBG(DBG_E, "Malformed nonce in the IAS report\n");
                 goto failed;
@@ -547,10 +578,12 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
                 ((uint8_t*)ias_nonce)[i] = (uint8_t)hi * 16 + (uint8_t)lo;
             }
         } else if (!memcmp(key, "timestamp", klen)) {
+            // Parse "timestamp":"{IAS timestamp (format: %Y-%m-%dT%H:%M:%S.%f)}"
             ias_timestamp = __alloca(vlen + 1);
             memcpy(ias_timestamp, val, vlen);
             ias_timestamp[vlen] = 0;
         } else if (!memcmp(key, "isvEnclaveQuoteBody", klen)) {
+            // Parse "isvEnclaveQuoteBody":"{Quote body (in Base64 format)}"
             size_t ias_quote_len;
             ret = lib_Base64Decode(val, vlen, NULL, &ias_quote_len);
             if (ret < 0) {

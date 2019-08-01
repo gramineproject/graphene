@@ -1,5 +1,5 @@
-/* Copyright (C) 2017, University of North Carolina at Chapel Hill
-   and Fortanix, Inc.
+/* Copyright (C) 2019, University of North Carolina at Chapel Hill.
+
    This file is part of Graphene Library OS.
 
    Graphene Library OS is free software: you can redistribute it and/or
@@ -21,6 +21,15 @@
 #include "crypto/mbedtls/mbedtls/base64.h"
 #include "crypto/mbedtls/mbedtls/asn1.h"
 
+/*
+ * Encoding a byte string in Base64 format. If "dst" is NULL, this function returns the
+ * expected length after encoding.
+ *
+ * @src:  The raw data for encoding.
+ * @slen: The length of data
+ * @dst:  The buffer for storing the encoded data.
+ * @dlen: Returns the length after encoding.
+ */
 int lib_Base64Encode(const uint8_t* src, size_t slen, char* dst, size_t* dlen) {
     int ret = mbedtls_base64_encode((unsigned char*)dst, *dlen, dlen,
                                     (const unsigned char*)src, slen);
@@ -33,6 +42,15 @@ int lib_Base64Encode(const uint8_t* src, size_t slen, char* dst, size_t* dlen) {
     }
 }
 
+/*
+ * Decoding a byte string in Base64 format. If "dst" is NULL, this function returns the
+ * expected length after decoding.
+ *
+ * @src:  The Base64 string for decoding
+ * @slen: The length of data
+ * @dst:  The buffer for storing the decoded data.
+ * @dlen: Returns the length after decoding.
+ */
 int lib_Base64Decode(const char* src, size_t slen, uint8_t* dst, size_t* dlen) {
     int ret = mbedtls_base64_decode((unsigned char*)dst, *dlen, dlen,
                                     (const unsigned char*)src, slen);
@@ -45,16 +63,25 @@ int lib_Base64Decode(const char* src, size_t slen, uint8_t* dst, size_t* dlen) {
     }
 }
 
+/*
+ * Retrieve the next serialized object in the ASN1 format.
+ *
+ * @ptr:          Pass in the pointer for reading the ASN1 data.
+ * @end:          The end of ASN1 data.
+ * @tag:          Returns the tag of the object.
+ * @is_construct: Returns a boolean to represent whether the object is a construct object.
+ * @buf:          Returns the data field of the object.
+ * @len:          Returns the lenght of the data field.
+ */
 int lib_ASN1GetSerial(uint8_t** ptr, const uint8_t* end, enum asn1_tag* tag, bool* is_construct,
                       uint8_t** buf, size_t* len) {
-
     if (end - (*ptr) < 1)
         return -PAL_ERROR_ENDOFSTREAM;
 
     uint8_t t = *(*ptr)++;
     size_t l;
     int ret = mbedtls_asn1_get_len((unsigned char**)ptr, (const unsigned char*)end, &l);
-    if (ret !=0)
+    if (ret != 0)
         return -PAL_ERROR_INVAL;
 
     *tag = t & ~(MBEDTLS_ASN1_CONSTRUCTED|MBEDTLS_ASN1_CONTEXT_SPECIFIC);
@@ -62,13 +89,17 @@ int lib_ASN1GetSerial(uint8_t** ptr, const uint8_t* end, enum asn1_tag* tag, boo
     *buf = *ptr;
     *len = l;
     *ptr += l;
-    return( 0 );
+    return 0;
 }
 
+// If the next serialized object is a large number, return the length (number of bytes) of
+// the large number.
 int lib_ASN1GetLargeNumberLength(uint8_t** ptr, const uint8_t* end, size_t* len) {
     return mbedtls_asn1_get_tag(ptr, end, len, MBEDTLS_ASN1_INTEGER);
 }
 
+// If the next serialized object is a bitstring, return a pointer to the bitstring and the
+// length of the bitstring.
 int lib_ASN1GetBitstring(uint8_t** ptr, const uint8_t* end, uint8_t** str, size_t* len) {
     mbedtls_asn1_bitstring bs;
     int ret = mbedtls_asn1_get_bitstring((unsigned char**)ptr, (const unsigned char*)end, &bs);
