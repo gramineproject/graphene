@@ -13,9 +13,9 @@ defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
 enclave-objs = $(addprefix db_,files devices pipes sockets streams memory \
 		 threading mutex events process object main rtld \
 		 exception misc ipc spinlock) \
-	       $(addprefix enclave_,ocalls ecalls framework pages untrusted)
+	       $(addprefix enclave_,ocalls ecalls framework platform pages untrusted)
 enclave-asm-objs = enclave_entry
-urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene) \
+urts-objs = $(addprefix sgx_,enclave framework platform main rtld thread process exception graphene) \
 	    quote/aesm.pb-c
 urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
