@@ -1,8 +1,8 @@
 export RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
-include ../../../Pal/src/Makefile.Host
-include ../../../Makefile.rules
 include ../../../Makefile.configs
+include ../../../Makefile.rules
+include ../../../Pal/src/Makefile.Host
 
 # We link to this to access useful utility functions
 graphene_lib = ../../../Pal/lib/graphene-lib.a
@@ -59,7 +59,7 @@ $(files_to_install): $(RUNTIME_DIR)/%: %
 	cp -f $< $@
 
 .PHONY:	$(graphene_lib)
-$(target)graphene-lib.a: $(addprefix $(target),$(objs))
+$(target)graphene-lib.a:
 	@mkdir -p $(dir $@)
 	$(call cmd,ar_a_o)
 
