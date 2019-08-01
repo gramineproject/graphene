@@ -39,11 +39,6 @@ void symtab_unmap(void) {
     }
 }
 
-static inline bool
-is_file(const PAL_HANDLE h) {
-    return HANDLE_HDR(h)->type == pal_type_file;
-}
-
 static bool symtab_init(void) {
     const PAL_FLG prot = PAL_PROT_READ;
 
@@ -63,7 +58,7 @@ static bool symtab_init(void) {
     const char* uri = pal_control.executable;
     if (!(handle = DkStreamOpen(uri, PAL_ACCESS_RDONLY, 0, 0, 0)))
         return false;
-    if (!is_file(handle))
+    if (!IS_HANDLE_TYPE(handle, file))
         goto fail;
 
     /* Map in ELF and section headers */

@@ -82,6 +82,11 @@ typedef union pal_handle
 #  define HANDLE_HDR(handle) (&((handle)->hdr))
 # endif
 
+# ifndef IS_HANDLE_TYPE
+# define IS_HANDLE_TYPE(handle, t)              \
+    (HANDLE_HDR(handle)->type == pal_type_##t)
+# endif
+
 #endif /* !IN_PAL */
 
 /* TODO: introduce configuration system in long term and
