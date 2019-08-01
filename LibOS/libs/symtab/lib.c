@@ -38,7 +38,8 @@ void symtab_unmap(void) {
 }
 
 static bool strequal(const char* s1, const char* s2) {
-    assert(s1 && s2);
+    if (!s1 || !s2)
+        return false;
     const size_t l = strlen(s1);
     if (l != strlen(s2))
         return false;
