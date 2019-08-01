@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __LIBOS_LIBS_INCLUDES_H__
+#define __LIBOS_LIBS_INCLUDES_H__
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -15,3 +16,4 @@ static inline size_t aligndown(size_t m) {
 static inline size_t alignup(size_t m) {
     return aligndown(m + pal_control.alloc_align - 1);
 }
+#endif
