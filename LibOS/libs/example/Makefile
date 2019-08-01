@@ -2,11 +2,7 @@ export RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
 include ../../../Pal/src/Makefile.Host
 include ../../../Makefile.rules
-
-CC	= gcc
-AS	= gcc
-AR	= ar rcs
-LD	= ld
+include ../../../Makefile.configs
 
 # We link to this to access useful utility functions
 graphene_lib = ../../../Pal/lib/graphene-lib.a
