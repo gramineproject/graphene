@@ -67,7 +67,7 @@ typedef struct {
 
 int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable,
-                        sgx_attestation_t** ret_attestation,
+                        sgx_attestation_t* ret_attestation,
                         char** ret_ias_status, char** ret_ias_timestamp);
 
 #define HTTPS_REQUEST_MAX_LENGTH   (256)

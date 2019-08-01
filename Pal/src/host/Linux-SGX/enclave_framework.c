@@ -433,7 +433,7 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * runs in an SGX enclave; and (2) The enclave is created on a genuine, up-to-date Intel CPU.
  * This procedure requires interaction with the Intel PSW quoting enclave (AESMD) and the
  * Intel Attestation Service (IAS). The quoting enclave verifies a local attestation report
- * generating in the target enclave, and then generates a quoting enclave (QE) report and a
+ * from the target enclave to verify, and then generates a quoting enclave (QE) report and a
  * platform quote signed by the platform's attestation key. The IAS then verifies the platform
  * quote and issues a remote attestation report, signed by a certificate chain attached to
  * the report.
@@ -445,14 +445,14 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * @nonce:             A 16-byte nonce to be included in the quote.
  * @report_data:       A 64-byte bytestring to be included in the local report and the quote.
  * @linkable:          Specify whether the SPID is linkable.
- * @ret_attestation:   Returns a pointer to the retrieved attestation data.
+ * @ret_attestation:   Returns the retrieved attestation data.
  * @ret_ias_status:    Returns a pointer to the attestation status (as a string) from the IAS.
  * @ret_ias_timestamp: Returns a pointer to the timestamp (as a string) from the IAS.
  *                     Timestamp format: %Y-%m-%dT%H:%M:%S.%f (Ex: 2019-08-01T12:30:00.123456)
  */
 int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable,
-                        sgx_attestation_t** ret_attestation,
+                        sgx_attestation_t* ret_attestation,
                         char** ret_ias_status, char** ret_ias_timestamp) {
 
     SGX_DBG(DBG_S, "Request quote:\n");
@@ -683,8 +683,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     }
 
     if (ret_attestation) {
-        *ret_attestation = malloc(sizeof(sgx_attestation_t));
-        memcpy(*ret_attestation, &attestation, sizeof(sgx_attestation_t));
+        memcpy(ret_attestation, &attestation, sizeof(sgx_attestation_t));
         return 0;
     }
     ret = 0;
