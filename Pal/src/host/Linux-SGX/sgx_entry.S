@@ -77,13 +77,6 @@ sgx_entry_return:
 	.cfi_endproc
 
 /*
- * rdrand:
- * Get hardware generated random value.
- */
-	.global rdrand
-	.type rdrand, @function
-
-/*
  * rdfsbase:
  * read FS register (allowed in enclaves).
  */

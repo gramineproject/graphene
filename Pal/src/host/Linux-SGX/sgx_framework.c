@@ -386,6 +386,14 @@ int init_enclave(sgx_arch_secs_t * secs,
     return 0;
 }
 
+/*
+ * Connect to the AESM service to interact with the architectural enclave. Must reconnect
+ * for each request to the AESM service.
+ *
+ * Some older versions of AESM service use a UNIX socket at "\0sgx_aesm_socket_base".
+ * The latest AESM service binds the socket at "/var/run/aesmd/aesm.socket". This function
+ * tries to connect to either of the paths to ensure connectivity.
+ */
 static int connect_aesm_service(void) {
     int sock = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM, 0);
     if (IS_ERR(sock))
@@ -415,6 +423,11 @@ err:
     return -ERRNO(ret);
 }
 
+/*
+ * A wrapper for both creating a connection to the AESM service and submitting a request
+ * to the service. Upon success, the function returns a response from the AESM service
+ * back to the caller.
+ */
 static int request_aesm_service(Request* req, Response** res) {
 
     int aesm_socket = connect_aesm_service();
@@ -450,6 +463,7 @@ err:
     return -ERRNO(ret);
 }
 
+// Retrieve the targetinfo for the AESM enclave for generating the local attestation report.
 int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo) {
 
     Request req = REQUEST__INIT;
@@ -487,6 +501,7 @@ failed:
 
 /*
  * Contact to Intel Attestation Service and retrieve the signed attestation report
+ *
  * @nonce:       Random nonce generated in the enclave.
  * @quote:       Platform quote retrieved from AESMD.
  * @attestation: Attestation data to be returned to the enclave.
@@ -656,6 +671,13 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
                 goto failed;
             }
 
+            /*
+             * The value of x-iasreport-signing-certificate is a certificate chain which
+             * consists of multiple certificates represented in the PEM format. The value
+             * is escaped using the % character. For example, a %20 in the certificate
+             * needs to be replaced as the newline ("\n"). The following logic interatively
+             * reads the character and coverts the escapted characters into the buffer.
+             */
             size_t total_bytes = 0;
             // Covert escaped characters
             for (size_t i = 0; i < ias_certs_len; i++) {
@@ -694,6 +716,8 @@ int contact_intel_attest_service(const sgx_quote_nonce_t* nonce, const sgx_quote
         goto failed;
     }
 
+    // Now return the attestation data, including the IAS response, signature, and the
+    // certificate chain back to the caller.
     attestation->ias_report     = https_output;
     attestation->ias_report_len = https_output_len;
     attestation->ias_sig        = ias_sig;
@@ -723,6 +747,21 @@ failed:
     goto done;
 }
 
+/*
+ * This wrapper function performs the whole attestation procedure outside the enclave (except
+ * retrieving the local remote attestation and verification). The function first contacts
+ * the AESM service to retrieve a quote of the platform and the report of the quoting enclave.
+ * Then, the function submits the quote to the IAS through a HTTPS client (CURL) to exchange
+ * for a remote attestation report signed by a Intel-approved certificate chain. Finally, the
+ * function returns the QE report, the quote, and the response from the IAS back to the enclave
+ * for verification.
+ *
+ * @spid:        The client SPID registered with IAS.
+ * @linkable:    A boolean that represents whether the SPID is linkable.
+ * @report:      The local report of the target enclave.
+ * @nonce:       A 16-byte nonce randomly generated inside the enclave.
+ * @attestation: A structure for storing the response from the AESM service and the IAS.
+ */
 int retrieve_verified_quote(const sgx_spid_t* spid, bool linkable,
                             const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
                             sgx_attestation_t* attestation) {
