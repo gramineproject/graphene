@@ -63,8 +63,12 @@ $(files_to_install): $(RUNTIME_DIR)/%: %
 	cp -f $< $@
 
 .PHONY:	$(graphene_lib)
-$(graphene_lib):
-	$(MAKE) -C ../../../Pal/lib
+$(target)graphene-lib.a: $(addprefix $(target),$(objs))
+	@mkdir -p $(dir $@)
+	$(call cmd,ar_a_o)
+
+$(pal_lib):
+	make -C ../../../Pal/src
 
 libexample.so: $(addsuffix .o,$(objs)) $(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
