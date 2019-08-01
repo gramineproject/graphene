@@ -274,6 +274,9 @@ static int sock_getopt(int fd, struct sockopt * opt)
 {
     SGX_DBG(DBG_M, "sock_getopt (fd = %d, sockopt addr = %p) is not implemented \
             always returns 0\n", fd, opt);
+    /* initialize *opt with constant */
+    *opt = (struct sockopt){0};
+    opt->reuseaddr =1 ;
     return 0;
 }
 
