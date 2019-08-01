@@ -42,7 +42,7 @@ static bool strequal(const char* s1, const char* s2) {
     const size_t l = strlen(s1);
     if (l != strlen(s2))
         return false;
-    return memcmp(s1,s2,l) == 0;
+    return memcmp(s1, s2, l) == 0;
 }
 
 static bool symtab_init(void) {
@@ -50,14 +50,14 @@ static bool symtab_init(void) {
 
     PAL_HANDLE handle = NULL;
 
-    const ElfW(Shdr)* sh = NULL;
+    const ElfW(Shdr)* sh   = NULL;
     const ElfW(Ehdr)* ehdr = NULL;
 
-    struct dkmap shdr_map = { 0 };
+    struct dkmap shdr_map      = {0};
     const ElfW(Shdr)* shdr_tbl = NULL;
 
-    struct dkmap shstr_map = { 0 };
-    const char* shstr_sec = NULL;
+    struct dkmap shstr_map = {0};
+    const char* shstr_sec  = NULL;
 
     /* Open the executable */
 
@@ -76,36 +76,36 @@ static bool symtab_init(void) {
     if (!(map = DkStreamMap(handle, NULL, prot, /*offset=*/0, len)))
         goto fail;
 
-    symbol_info.ehdr.addr = map;
-    symbol_info.ehdr.len = len;
+    symbol_info.ehdr.addr   = map;
+    symbol_info.ehdr.len    = len;
     symbol_info.ehdr.offset = 0;
 
     ehdr = symbol_info.ehdr.addr + symbol_info.ehdr.offset;
 
     offset = ehdr->e_shoff;
-    len = alignup((size_t)ehdr->e_shentsize * (size_t)ehdr->e_shnum);
+    len    = alignup((size_t)ehdr->e_shentsize * (size_t)ehdr->e_shnum);
     if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
         goto fail;
 
-    shdr_map.addr = map;
-    shdr_map.len = len;
+    shdr_map.addr   = map;
+    shdr_map.len    = len;
     shdr_map.offset = offset - aligndown(offset);
 
     shdr_tbl = shdr_map.addr + shdr_map.offset;
 
     /* Map in the section header string table */
 
-    const size_t shstrndx = ehdr->e_shstrndx;
-    const ElfW(Shdr) *shstr_shdr = &shdr_tbl[shstrndx];
+    const size_t shstrndx        = ehdr->e_shstrndx;
+    const ElfW(Shdr)* shstr_shdr = &shdr_tbl[shstrndx];
 
     offset = shstr_shdr->sh_offset;
-    len = alignup(shstr_shdr->sh_size);
+    len    = alignup(shstr_shdr->sh_size);
 
     if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
         goto fail;
 
-    shstr_map.addr = map;
-    shstr_map.len = len;
+    shstr_map.addr   = map;
+    shstr_map.len    = len;
     shstr_map.offset = offset - aligndown(offset);
 
     shstr_sec = shstr_map.addr + shstr_map.offset;
@@ -114,7 +114,7 @@ static bool symtab_init(void) {
 
     const ElfW(Shdr)* symtab_shdr = NULL;
     const ElfW(Shdr)* strtab_shdr = NULL;
-    const size_t nshdr = ehdr->e_shnum;
+    const size_t nshdr            = ehdr->e_shnum;
     for (sh = shdr_tbl; sh < &shdr_tbl[nshdr]; sh++) {
         if (sh->sh_type == SHT_SYMTAB) {
             if (!symtab_shdr)
@@ -132,22 +132,22 @@ static bool symtab_init(void) {
         goto fail;
 
     offset = symtab_shdr->sh_offset;
-    len = alignup(symtab_shdr->sh_size);
+    len    = alignup(symtab_shdr->sh_size);
     if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
         goto fail;
 
-    symbol_info.symtab.addr = map;
-    symbol_info.symtab.len = len;
+    symbol_info.symtab.addr   = map;
+    symbol_info.symtab.len    = len;
     symbol_info.symtab.offset = offset - aligndown(offset);
-    symbol_info.sym_n = symtab_shdr->sh_size / symtab_shdr->sh_entsize;
+    symbol_info.sym_n         = symtab_shdr->sh_size / symtab_shdr->sh_entsize;
 
     offset = strtab_shdr->sh_offset;
-    len = alignup(strtab_shdr->sh_size);
+    len    = alignup(strtab_shdr->sh_size);
     if (!(map = DkStreamMap(handle, NULL, prot, aligndown(offset), len)))
         goto fail;
 
-    symbol_info.strtab.addr = map;
-    symbol_info.strtab.len = len;
+    symbol_info.strtab.addr   = map;
+    symbol_info.strtab.len    = len;
     symbol_info.strtab.offset = offset - aligndown(offset);
 
     symbol_info.exists = true;
@@ -170,8 +170,8 @@ done:
 static bool __symtab_lookup_symbol(const char* name, struct syminfo* info) {
     const ElfW(Sym)* tbl = symbol_info.symtab.addr + symbol_info.symtab.offset;
     const ElfW(Sym)* sym = NULL;
-    const char* strtab = symbol_info.strtab.addr + symbol_info.strtab.offset;
-    const char* symstr = NULL;
+    const char* strtab   = symbol_info.strtab.addr + symbol_info.strtab.offset;
+    const char* symstr   = NULL;
     for (sym = tbl; sym < &tbl[symbol_info.sym_n]; sym++, symstr = NULL) {
         if (sym->st_name > 0)
             symstr = &strtab[sym->st_name];
