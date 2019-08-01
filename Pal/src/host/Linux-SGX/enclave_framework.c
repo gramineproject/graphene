@@ -9,6 +9,7 @@
 #include <stdbool.h>
 
 #include "enclave_pages.h"
+#include "quote/generated-cacert.h"
 
 struct pal_enclave_state pal_enclave_state;
 
@@ -285,7 +286,7 @@ static int parse_x509(uint8_t* cert, size_t cert_len, uint8_t** body, size_t* bo
     ptr = cert_body;
     end = cert_body + cert_body_len;
 
-    // Skip Version, SerialNumber, Signature, Issuer, Validty, and Subject
+    // Skip Version, SerialNumber, Signature, Issuer, Validity, and Subject
     for (int i = 0; i < 6; i++) {
         ret = lib_ASN1GetSerial(&ptr, end, &tag, &is_cons, &buf, &buf_len);
         if (ret < 0)
@@ -483,6 +484,18 @@ int sgx_verify_platform(sgx_spid_t* spid, sgx_quote_nonce_t* nonce,
     uint8_t* data_sig       = attestation.ias_sig;
     size_t   data_len       = attestation.ias_report_len;
     size_t   data_sig_len   = attestation.ias_sig_len;
+
+    // Attach the IAS signing chain with the hard-coded CA certificate
+    const char* ca_cert = IAS_CA_CERT;
+    size_t len1 = strlen(attestation.ias_certs);
+    size_t len2 = static_strlen(IAS_CA_CERT);
+    char* certs = malloc(len1 + len2);
+    memcpy(certs, attestation.ias_certs, len1);
+    memcpy(certs + len1, ca_cert, len2);
+    certs[len1 + len2] = 0;
+    free(attestation.ias_certs);
+    attestation.ias_certs = certs;
+    attestation.ias_certs_len = len1 + len2;
 
     // There can be multiple certificates in the chain. We need to use the public key from
     // the *first* certificate to verify the IAS response. For each certificate except

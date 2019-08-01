@@ -1,6 +1,9 @@
 include ../../../../Makefile.configs
 include Makefile.am
 
+ias_cert_url ?= https://software.intel.com/sites/default/files/managed/7b/de/RK_PUB.zip
+ias_cert_zip = quote/$(notdir $(ias_cert_url))
+
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
@@ -18,7 +21,7 @@ urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
 	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h) \
-	  quote/aesm.pb-c.h
+	  quote/aesm.pb-c.h quote/generated-cacert.h
 
 .PHONY: all
 all: $(host_files)
@@ -95,6 +98,12 @@ quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto
 	@echo [ host/Linux-SGX/quote/aesm.pb-c.h ]
 	@protoc-c --c_out=. $<
 
+quote/generated-cacert.h: $(ias_cert_zip)
+	@echo "#define IAS_CA_CERT \"$(shell unzip -p $< | tr -d '[\r\n]')\"" > $@
+
+$(ias_cert_zip):
+	@wget $(ias_cert_url) -O $@
+
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
 	$(CC) -Wall -fPIC -O2 -std=c11 -c debugger/sgx_gdb.c -o debugger/sgx_gdb.o
@@ -110,6 +119,7 @@ include ../../../../Makefile.rules
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h
+CLEAN_FILES += $(ias_cert_zip) quote/generated-cacert.h
 
 .PHONY: clean
 clean:
