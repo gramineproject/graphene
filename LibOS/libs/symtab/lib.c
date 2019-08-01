@@ -171,12 +171,9 @@ static bool __symtab_lookup_symbol(const char* name, struct syminfo* info) {
     const ElfW(Sym)* tbl = symbol_info.symtab.addr + symbol_info.symtab.offset;
     const ElfW(Sym)* sym = NULL;
     const char* strtab   = symbol_info.strtab.addr + symbol_info.strtab.offset;
-    const char* symstr   = NULL;
-    for (sym = tbl; sym < &tbl[symbol_info.sym_n]; sym++, symstr = NULL) {
-        if (sym->st_name > 0)
-            symstr = &strtab[sym->st_name];
-        if (symstr && strequal(name, symstr)) {
-            info->name = symstr;
+    for (sym = tbl; sym < &tbl[symbol_info.sym_n]; sym++) {
+        if (sym->st_name > 0 && strequal(name, &strtab[sym->st_name])) {
+            info->name = &strtab[sym->st_name];
             info->addr = (void*)sym->st_value;
             info->len  = sym->st_size;
             return true;
