@@ -276,7 +276,7 @@ static int sock_getopt(int fd, struct sockopt * opt)
             always returns 0\n", fd, opt);
     /* initialize *opt with constant */
     *opt = (struct sockopt){0};
-    opt->reuseaddr =1;
+    opt->reuseaddr = 1;
     return 0;
 }
 
