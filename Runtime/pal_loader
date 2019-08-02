@@ -1,18 +1,31 @@
 #!/usr/bin/env bash
 
-if [ "$1" == "SGX" ]; then
-	if [ "$SGX" != "0" ]; then
-	    export SGX=1
-	    # Sometimes, we end up with a stray SGX_RUN in the environment,
-	    # which makes the Makefile.Host unhappy
-	    unset SGX_RUN
-	    # The interaction of SGX and SGX_RUN is getting pretty unwieldly.
-	    # We should kill off SGX_RUN.  Here, we can get in trouble
-	    # if the make invocation below gets SGX_RUN via an MAKEFLAGS
-	    # from a wrapper makefile (e.g., the regression tests)
-	    unset MAKEFLAGS
-	fi
+while :
+do
+	case "$1" in
+		"SGX")
+			SGX=1
+			;;
+		"GDB")
+			GDB=1
+			;;
+		*)
+			break
+			;;
+	esac
 	shift
+done
+
+if [ -n "$SGX" ] && [ "$SGX" != "0" ]; then
+	export SGX=1
+	# Sometimes, we end up with a stray SGX_RUN in the environment,
+	# which makes the Makefile.Host unhappy
+	unset SGX_RUN
+	# The interaction of SGX and SGX_RUN is getting pretty unwieldly.
+	# We should kill off SGX_RUN.  Here, we can get in trouble
+	# if the make invocation below gets SGX_RUN via an MAKEFLAGS
+	# from a wrapper makefile (e.g., the regression tests)
+	unset MAKEFLAGS
 fi
 
 RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
@@ -30,6 +43,9 @@ if [ "$GDB" == "1" ]; then
 fi
 
 if [ "$GDB" != "" ] && [ "$GDB" != "0" ]; then
+	if [ -n "$INSIDE_EMACS" ]; then
+		GDB="$GDB -i=mi"
+	fi
 	PREFIX="$GDB --args"
 fi
 
