@@ -2,7 +2,7 @@ include ../src/Makefile.Host
 
 CC	= gcc
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx -no-pie \
-	  -I../include/pal -I../lib
+	  -I../include/pal -I../lib -I../src
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
 executables = $(filter-out $(preloads),$(patsubst %.c,%,$(wildcard *.c))) ..Bootstrap
