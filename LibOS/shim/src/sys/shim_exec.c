@@ -87,6 +87,15 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     struct shim_thread * cur_thread = get_cur_thread();
     int ret = 0;
 
+#ifdef SHIM_TCB_USE_GS
+    __libc_tcb_t* tcb = NULL;
+#else
+    __libc_tcb_t* tcb = cur_thread->stack;
+    memset(tcb, 0, sizeof(*tcb));
+#endif
+    populate_tls(tcb, false);
+    debug("set tcb to %p\n", tcb);
+
     UPDATE_PROFILE_INTERVAL();
 
     DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
@@ -188,13 +197,6 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
         return ret;
 
     SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
-
-    void * tcb = malloc(sizeof(__libc_tcb_t));
-    if (!tcb)
-        return -ENOMEM;
-
-    populate_tls(tcb, false);
-    debug("set tcb to %p\n", tcb);
 
     put_handle(cur_thread->exec);
     get_handle(hdl);
