@@ -87,6 +87,19 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     struct shim_thread * cur_thread = get_cur_thread();
     int ret = 0;
 
+#ifdef SHIM_TCB_USE_GS
+    /* libc tcb is not needed because PAL provides storage for shim_tcb */
+    __libc_tcb_t* tcb = NULL;
+#else
+# define LIBC_TCB_ALLOC_SIZE    (sizeof(__libc_tcb_t) + __alignof__(__libc_tcb_t))
+    __libc_tcb_t* tcb = ALIGN_UP_PTR(
+        cur_thread->stack_top - LIBC_TCB_ALLOC_SIZE,
+        __alignof__(*tcb));
+    memset(tcb, 0, sizeof(*tcb));
+#endif
+    populate_tls(tcb, false);
+    debug("set tcb to %p\n", tcb);
+
     UPDATE_PROFILE_INTERVAL();
 
     DkVirtualMemoryFree(old_stack, old_stack_top - old_stack);
@@ -189,13 +202,6 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
 
-    void * tcb = malloc(sizeof(__libc_tcb_t));
-    if (!tcb)
-        return -ENOMEM;
-
-    populate_tls(tcb, false);
-    debug("set tcb to %p\n", tcb);
-
     put_handle(cur_thread->exec);
     get_handle(hdl);
     cur_thread->exec = hdl;
@@ -214,7 +220,14 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     int * new_argcp = &new_argc;
     const char ** new_argp;
     elf_auxv_t * new_auxp;
-    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
+#ifdef SHIM_TCB_USE_GS
+    size_t reserve = 0;
+#else
+    /* reserve __libc_tcb_t for startup use. see __shim_do_execve_rtld() */
+    size_t reserve = LIBC_TCB_ALLOC_SIZE;
+#endif
+    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp,
+                          reserve)) < 0)
         return ret;
 
     __disable_preempt(shim_get_tls()); // Temporarily disable preemption
