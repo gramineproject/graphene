@@ -397,6 +397,7 @@ int get_cpu_count ()
     } else {
         int i;
         bool match = false;
+        rv = -ENOENT;
         for (i = 0; i < size; i++) {
             if (buf[i] == '-') {
                 match = true;
@@ -408,12 +409,17 @@ int get_cpu_count ()
         if (match) {
             i++;
             // Starts counting at zero; PAL CB wants the total
-            return 1 + atoi(&buf[i]);
+            rv = 1 + atoi(&buf[i]);
+            break;
         }
     }
 
-    return -ENOENT;
+    ret = INLINE_SYSCALL(close, 1, fd);
+    if (ret < 0) {
+        rv = ret;
+    }
 
+    return rv;
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)

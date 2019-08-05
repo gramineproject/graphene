@@ -75,6 +75,7 @@ PAL_NUM _DkGetHostId (void)
 
 #include "elf-x86_64.h"
 #include "dynamic_link.h"
+#include <asm/errno.h>
 
 void setup_pal_map (struct link_map * map);
 static struct link_map pal_map;
@@ -453,9 +454,53 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
-void _DkGetCPUInfo (PAL_CPU_INFO * ci)
+// Returns >0 on success, -errno on failure
+int get_cpu_count ()
+{
+    int size = 16;
+    char buf [16]; // Unlikely we will need more than 16 chars to represent all
+                   // cpus in the system in 0-XXXX format
+    int fd = ocall_open("/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
+    if (fd < 0) {
+        return fd;
+    }
+
+    int rv = ocall_read(fd, buf, size);
+    if (rv < 0) {
+        return rv;
+    } if (rv == 0) {
+        return -ENOENT;
+    } else {
+        int i;
+        bool match = false;
+        rv = -ENOENT;
+        for (i = 0; i < size; i++) {
+            if (buf[i] == '-') {
+                match = true;
+                break;
+            } else if (buf[i] == '\0') {
+                break;
+            }
+        }
+        if (match) {
+            i++;
+            // Starts counting at zero; PAL CB wants the total
+            rv = 1 + atoi(&buf[i]);
+        }
+    }
+
+    int ret = ocall_close(fd);
+    if (ret < 0) {
+        rv = ret;
+    }
+
+    return rv;
+}
+
+int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[PAL_CPUID_WORD_NUM];
+    int rv = 0;
 
     const size_t VENDOR_ID_SIZE = 13;
     char* vendor_id = malloc(VENDOR_ID_SIZE);
@@ -480,20 +525,14 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    /* Figure out how many threads per core there are in the system */
-    int threads; // Can be 1 or 2
-    cpuid(0xb, 0, words);
-    threads = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
-    
-    /* According to SDM: EBX[15:0] is to enumerate processor topology
-     * of the system. However this value is intended for display/diagnostic
-     * purposes. The actual number of logical processors available to
-     * BIOS/OS/App may be different. We use this leaf for now as it's the
-     * best option we have so far to get the cpu number  */
-
-    cpuid(0xb, 1, words);
-    ci->cpu_num      = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
-    ci->cpu_num *= threads;
+    // cpuid always counts HT cores, whether disabled by the BIOS or not.
+    // Switch to parsing a /sys file to get this info
+    int cores = get_cpu_count();
+    if (cores > 0) {
+        ci->cpu_num = cores;
+    } else {
+        return cores;
+    }
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
@@ -526,4 +565,5 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
 
     flags[flen ? flen - 1 : 0] = 0;
     ci->cpu_flags = flags;
+    return rv;
 }
