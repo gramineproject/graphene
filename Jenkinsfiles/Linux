@@ -26,7 +26,7 @@ pipeline {
                             cd LibOS/shim/test/apps/ltp
                             git submodule update --init src
                             make
-                            ./syscalls.sh
+                            make ltp.xml
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
@@ -69,6 +69,7 @@ pipeline {
                         always {
                             junit 'Pal/regression/pal-regression.xml'
                             junit 'LibOS/shim/test/regression/libos-regression.xml'
+                            junit 'LibOS/shim/test/apps/ltp/ltp.xml'
                         }
                     }
                 }
