@@ -360,7 +360,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     int threads; // Can be 1 or 2
     cpuid(0xb, 0, words);
     threads = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EBX], 0, 16);
-    
+
     /* According to SDM: EBX[15:0] is to enumerate processor topology
      * of the system. However this value is intended for display/diagnostic
      * purposes. The actual number of logical processors available to
@@ -370,7 +370,7 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     cpuid(0xb, 1, words, 0);
     ci->cpu_num      = BIT_EXTRACT_LE(words[WORD_EBX],  0, 16);
     ci->cpu_num *= threads;
-    
+
     int flen = 0, fmax = 80;
     char * flags = malloc(fmax);
 
