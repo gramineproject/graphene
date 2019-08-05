@@ -57,6 +57,11 @@ pipeline {
                                 make SGX=1 regression
                             '''
                         }
+                        sh '''
+                            cd LibOS/shim/test/apps/ltp
+                            make SGX=1 all sgx-tokens
+                            make SGX=1 ltp-sgx.xml
+                            '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python
@@ -107,6 +112,11 @@ pipeline {
                            make SGX=1 clean
                            rm LibOS/glibc-*.tar.gz
                            make -C LibOS/shim/test/regression SGX=1 clean
+                           make -C LibOS/shim/test/apps/ltp clean
+                           # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
+                           rm -rf /tmp/graphene-sgx.clean-check.clean/LibOS/shim/test/apps/ltp/src
+                           rm -rf LibOS/shim/test/apps/ltp/src
+
                            make -C LibOS/shim/test/apps/python SGX=1 clean
                            make -C LibOS/shim/test/apps/bash SGX=1 clean
                            make -C LibOS/shim/test/apps/gcc SGX=1 clean
@@ -114,20 +124,16 @@ pipeline {
                            make -C LibOS/shim/test/apps/lighttpd SGX=1 distclean
                            make -C LibOS/shim/test/apps/apache SGX=1 distclean
 
-                           # LTP contains dead symlinks, which confuses the
-                           # clean-check script. Just delete them.
-                           for d in . /tmp/graphene-sgx.clean-check.clean; do
-                               rm $d/LibOS/shim/test/apps/ltp/src/utils/ffsb-6.0-rc2/config.sub
-                               rm $d/LibOS/shim/test/apps/ltp/src/utils/ffsb-6.0-rc2/config.guess
-                           done
-
                            ./Scripts/clean-check
                         '''
                     }
                     post {
                         always {
+                            archiveArtifacts 'LibOS/shim/test/apps/ltp/ltp-sgx.xml'
+
                             junit 'Pal/regression/pal-regression.xml'
                             junit 'LibOS/shim/test/regression/libos-regression.xml'
+                            junit 'LibOS/shim/test/apps/ltp/ltp-sgx.xml'
                         }
                     }
                 }
