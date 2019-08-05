@@ -1128,7 +1128,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
     if (!ms)
-        goto failed;
+        goto reset;
 
     memcpy(&ms->ms_spid,   spid,   sizeof(sgx_spid_t));
     ms->ms_subkey = sgx_copy_to_ustack(subkey, strlen(subkey) + 1);
@@ -1143,8 +1143,11 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
         if (!sgx_copy_to_enclave(attestation, sizeof(sgx_attestation_t), &ms->ms_attestation,
                                  sizeof(sgx_attestation_t))) {
             retval = -EACCES;
-            goto failed;
+            goto reset;
         }
+
+        // For calling ocall_unmap_untrusted, need to reset the untrusted stack
+        sgx_reset_ustack();
 
         // Copy each field inside and free the untrusted buffers
         if (attestation->quote) {
@@ -1192,9 +1195,12 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
             if (attestation->ias_sig)    free(attestation->ias_sig);
             if (attestation->ias_certs)  free(attestation->ias_certs);
         }
+
+        goto out;
     }
 
-failed:
+reset:
     sgx_reset_ustack();
+out:
     return retval;
 }

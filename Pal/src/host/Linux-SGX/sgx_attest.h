@@ -1,4 +1,4 @@
-/* Copyright (C) 2017, University of North Carolina at Chapel Hill.
+/* Copyright (C) 2017, Texas A&M University.
 
    This file is part of Graphene Library OS.
 

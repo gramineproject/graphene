@@ -1,4 +1,4 @@
-/* Copyright (C) 2019, University of North Carolina at Chapel Hill.
+/* Copyright (C) 2019, Texas A&M University.
 
    This file is part of Graphene Library OS.
 
@@ -318,11 +318,11 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
              * The value of x-iasreport-signing-certificate is a certificate chain which
              * consists of multiple certificates represented in the PEM format. The value
              * is escaped using the % character. For example, a %20 in the certificate
-             * needs to be replaced as the newline ("\n"). The following logic interatively
-             * reads the character and coverts the escapted characters into the buffer.
+             * needs to be replaced as the newline ("\n"). The following logic iteratively
+             * reads the character and converts the escaped characters into the buffer.
              */
             size_t total_bytes = 0;
-            // Covert escaped characters
+            // Convert escaped characters
             for (size_t i = 0; i < ias_certs_len; i++) {
                 if (start[i] == '%') {
                     int8_t hex1 = hex2dec(start[i + 1]), hex2 = hex2dec(start[i + 2]);

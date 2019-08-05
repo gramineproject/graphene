@@ -1,4 +1,4 @@
-/* Copyright (C) 2019, University of North Carolina at Chapel Hill.
+/* Copyright (C) 2019, Texas A&M University.
 
    This file is part of Graphene Library OS.
 
@@ -66,12 +66,13 @@ int lib_Base64Decode(const char* src, size_t slen, uint8_t* dst, size_t* dlen) {
 /*
  * Retrieve the next serialized object in the ASN1 format.
  *
- * @ptr:          Pass in the pointer for reading the ASN1 data.
+ * @ptr:          Pass in the pointer for reading the ASN1 data. On success, will be updated
+ *                to the beginning of the next serialized object.
  * @end:          The end of ASN1 data.
  * @tag:          Returns the tag of the object.
  * @is_construct: Returns a boolean to represent whether the object is a construct object.
  * @buf:          Returns the data field of the object.
- * @len:          Returns the lenght of the data field.
+ * @len:          Returns the length of the data field.
  */
 int lib_ASN1GetSerial(uint8_t** ptr, const uint8_t* end, enum asn1_tag* tag, bool* is_construct,
                       uint8_t** buf, size_t* len) {
@@ -92,19 +93,37 @@ int lib_ASN1GetSerial(uint8_t** ptr, const uint8_t* end, enum asn1_tag* tag, boo
     return 0;
 }
 
-// If the next serialized object is a large number, return the length (number of bytes) of
-// the large number.
+/*
+ * Retrieve the next ASN1 object which must be a large number (MBEDTLS_ASN1_INTEGER).
+ * Returns -PAL_ERROR_INVAL if the object is not a large number.
+ *
+ * @ptr:          Pass in the pointer for reading the ASN1 data. On sucess, will be updated
+ *                to the beginning of the next serialized object.
+ * @end:          The end of ASN1 data.
+ * @len:          Returns the length (number of bytes) of the large number.
+ */
 int lib_ASN1GetLargeNumberLength(uint8_t** ptr, const uint8_t* end, size_t* len) {
-    return mbedtls_asn1_get_tag(ptr, end, len, MBEDTLS_ASN1_INTEGER);
+    int ret = mbedtls_asn1_get_tag(ptr, end, len, MBEDTLS_ASN1_INTEGER);
+    if (ret < 0)
+        return -PAL_ERROR_INVAL;
+    return 0;
 }
 
-// If the next serialized object is a bitstring, return a pointer to the bitstring and the
-// length of the bitstring.
+/*
+ * Retrieve the next ASN1 object which must be a bitstring. Returns -PAL_ERROR_INVAL if the
+ * object is not a bitstring.
+ *
+ * @ptr:          Pass in the pointer for reading the ASN1 data. On sucess, will be updated
+ *                to the beginning of the next serialized object.
+ * @end:          The end of ASN1 data.
+ * @str:          Returns the pointer to the bitstring.
+ * @len:          Returns the length of the bitstring.
+ */
 int lib_ASN1GetBitstring(uint8_t** ptr, const uint8_t* end, uint8_t** str, size_t* len) {
     mbedtls_asn1_bitstring bs;
     int ret = mbedtls_asn1_get_bitstring((unsigned char**)ptr, (const unsigned char*)end, &bs);
     if (ret < 0)
-        return ret;
+        return -PAL_ERROR_INVAL;
     *str = (uint8_t*)bs.p;
     *len = bs.len;
     return 0;

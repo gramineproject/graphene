@@ -1,4 +1,4 @@
-/* Copyright (C) 2019, University of North Carolina at Chapel Hill.
+/* Copyright (C) 2019, Texas A&M University.
 
    This file is part of Graphene Library OS.
 
@@ -294,10 +294,9 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * runs in an SGX enclave; and (2) The enclave is created on a genuine, up-to-date Intel CPU.
  * This procedure requires interaction with the Intel PSW quoting enclave (AESMD) and the
  * Intel Attestation Service (IAS). The quoting enclave verifies a local attestation report
- * from the target enclave to verify, and then generates a quoting enclave (QE) report and a
- * platform quote signed by the platform's attestation key. The IAS then verifies the platform
- * quote and issues a remote attestation report, signed by a certificate chain attached to
- * the report.
+ * from the target enclave, and then generates a quoting enclave (QE) report and a platform
+ * quote signed by the platform's attestation key. The IAS then verifies the platform quote and
+ * issues a remote attestation report, signed by a certificate chain attached to the report.
  *
  * TODO: currently no verification of the correctness of the IAS certificate
  *
@@ -340,7 +339,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     // First, verify the report from the quoting enclave
     ret = sgx_verify_report(&attestation.qe_report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to QE verify report, ret = %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to verify QE report, ret = %d\n", ret);
         goto failed;
     }
 
@@ -360,7 +359,7 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     certs[len1 + len2] = 0;
     free(attestation.ias_certs);
     attestation.ias_certs = certs;
-    attestation.ias_certs_len = len1 + len2;
+    attestation.ias_certs_len = len1 + len2 + 1;
 
     // There can be multiple certificates in the chain. We need to use the public key from
     // the *first* certificate to verify the IAS response. For each certificate except
