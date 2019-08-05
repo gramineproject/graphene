@@ -61,7 +61,7 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
 
     size_t size = *size_ptr;
     if (!size) {
-        return 0;
+        return -PAL_ERROR_ZEROSIZE;
     }
     /* reserve 1 byte for ending '\0' */
     size--;
