@@ -33,7 +33,7 @@ pipeline {
                         sh '''
                             cd LibOS/shim/test/apps/ltp
                             make
-                            ./syscalls.sh
+                            make ltp.xml
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
@@ -98,8 +98,11 @@ pipeline {
                     }
                     post {
                         always {
+                            archiveArtifacts 'LibOS/shim/test/apps/ltp/ltp.xml'
+
                             junit 'Pal/regression/pal-regression.xml'
                             junit 'LibOS/shim/test/regression/libos-regression.xml'
+                            junit 'LibOS/shim/test/apps/ltp/ltp.xml'
                         }
                     }
                 }

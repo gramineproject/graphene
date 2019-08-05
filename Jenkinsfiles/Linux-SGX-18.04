@@ -54,6 +54,11 @@ pipeline {
                                 make SGX=1 regression
                             '''
                         }
+                        sh '''
+                            cd LibOS/shim/test/apps/ltp
+                            make
+                            make ltp-sgx.xml
+                            '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python
@@ -101,8 +106,11 @@ pipeline {
                     }
                     post {
                         always {
+                            archiveArtifacts 'LibOS/shim/test/apps/ltp/ltp-sgx.xml'
+
                             junit 'Pal/regression/pal-regression.xml'
                             junit 'LibOS/shim/test/regression/libos-regression.xml'
+                            junit 'LibOS/shim/test/apps/ltp/ltp-sgx.xml'
                         }
                     }
                 }
