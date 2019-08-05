@@ -84,16 +84,6 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     int * new_argcp = arg.new_argcp;
     elf_auxv_t * new_auxp = arg.new_auxp;
 
-#ifdef SHIM_TCB_USE_GS
-    __libc_tcb_t* tcb = NULL;
-#else
-    __libc_tcb_t tcb_on_stack;
-    __libc_tcb_t* tcb = &tcb_on_stack;
-    memset(tcb, 0, sizeof(*tcb));
-#endif
-    populate_tls(tcb, false);
-    debug("set tcb to %p\n", tcb);
-
     struct shim_thread * cur_thread = get_cur_thread();
     int ret = 0;
 
@@ -199,6 +189,19 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
 
     SAVE_PROFILE_INTERVAL(close_CLOEXEC_files_for_exec);
 
+#ifdef SHIM_TCB_USE_GS
+    __libc_tcb_t* tcb = NULL;
+#else
+    __libc_tcb_t* tcb = malloc(sizeof(*tcb));
+    if (!tcb)
+        return -ENOMEM;
+#endif
+
+    populate_tls(tcb, false);
+    __disable_preempt(shim_get_tls()); // Temporarily disable preemption
+                                       // during execve().
+    debug("set tcb to %p\n", tcb);
+
     put_handle(cur_thread->exec);
     get_handle(hdl);
     cur_thread->exec = hdl;
@@ -220,8 +223,6 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
         return ret;
 
-    __disable_preempt(shim_get_tls()); // Temporarily disable preemption
-                                       // during execve().
     SAVE_PROFILE_INTERVAL(alloc_new_stack_for_exec);
 
     struct execve_rtld_arg arg = {
