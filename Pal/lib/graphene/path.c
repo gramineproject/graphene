@@ -105,9 +105,12 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
                 size -= need_slash + 2u;
                 ret_size += need_slash + 2u;
                 need_slash = 1;
+            } else {
+                /* remaining case: offset == 0, path is absolute and ".." was just seen,
+                 * i.e. "/..", which is collapsed to "/", hence nothing needs to be done */
             }
         } else if ((end == path) || (end - path == 1 && path[0] == '.')) {
-            /* ignire "//" and "." */
+            /* ignore "//" and "." */
         } else {
             size_t len = (size_t)(end - path);
             if (need_slash + len > size - offset) {
