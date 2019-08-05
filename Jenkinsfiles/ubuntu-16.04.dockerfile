@@ -27,6 +27,7 @@ RUN apt-get update \
        protobuf-c-compiler \
        python \
        python3-minimal \
+       python3-lxml \
        python3-pip \
        python3-pytest \
        texinfo \
