@@ -30,6 +30,11 @@
 #include <sys/syscall.h>
 #include <sigset.h>
 
+#include <asm/fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #ifdef __x86_64__
 # include "sysdep-x86_64.h"
 #endif
@@ -71,7 +76,7 @@ extern struct pal_linux_state {
 #endif
 } linux_state;
 
-#include <asm/fcntl.h>
+
 #include <asm/mman.h>
 
 #ifdef INLINE_SYSCALL
@@ -150,7 +155,7 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size);
 #define ACCESS_W    2
 #define ACCESS_X    1
 
-struct stat;
+//struct stat;
 bool stataccess (struct stat * stats, int acc);
 
 /* Locking and unlocking of Mutexes */

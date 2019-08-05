@@ -35,8 +35,6 @@
 typedef __kernel_pid_t pid_t;
 #include <asm/errno.h>
 #include <asm/fcntl.h>
-#include <asm/stat.h>
-#include <linux/stat.h>
 
 #define DEVICE_OPS(handle)                                                             \
     ({                                                                                 \

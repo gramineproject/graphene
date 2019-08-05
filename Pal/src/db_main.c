@@ -449,7 +449,9 @@ noreturn void pal_main (
     __pal_control.alloc_align        = pal_state.alloc_align;
     __pal_control.broadcast_stream   = _DkBroadcastStreamOpen();
 
-    _DkGetCPUInfo(&__pal_control.cpu_info);
+    if (_DkGetCPUInfo(&__pal_control.cpu_info) < 0) {
+        goto out_fail;
+    }
     __pal_control.mem_info.mem_total = _DkMemoryQuota();
 
 #if PROFILING == 1
@@ -467,6 +469,7 @@ noreturn void pal_main (
     /* Now we will start the execution */
     start_execution(first_argument, arguments, environments);
 
+ out_fail:
     /* We wish we will never reached here */
     INIT_FAIL(PAL_ERROR_DENIED, "unexpected termination");
 }
