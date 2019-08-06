@@ -299,6 +299,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     /* now we can add a link map for PAL itself */
     setup_pal_map(&pal_map);
 
+    /* Set the alignment early */
+    pal_state.alloc_align = pagesz;
+    pal_state.alloc_shift = pagesz - 1;
+    pal_state.alloc_mask  = ~pagesz;
+
     /* initialize enclave properties */
     rv = init_enclave();
     if (rv) {
