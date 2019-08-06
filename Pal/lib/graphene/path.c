@@ -137,6 +137,7 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
 }
 
 /*
+ * Returns the part after the last '/' (so `path` should probably be normalized).
  * Before calling this function *size should hold the size of buf.
  * After returning it holds number of bytes actually written to it
  * (excluding the trailing '\0').
