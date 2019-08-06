@@ -1,7 +1,7 @@
 include ../src/Makefile.Host
 
 CC	= gcc
-CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx \
+CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx -no-pie \
 	  -I../include/pal -I../lib
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
@@ -53,7 +53,7 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(preloads): %.so: %.so.c ../src/user_shared_start.o \
 	$(graphene_lib) $(pal_lib) ../include/pal/pal.h
 	@echo [ $@ ]
-	@$(CC) -shared -fPIC $(CFLAGS) $^ -o $@
+	@$(CC) -shared -fPIC $(filter-out -no-pie,$(CFLAGS)) $^ -o $@
 
 $(executables): %: %.c ../src/user_start.o \
 	$(graphene_lib) $(pal_lib) $(preloads) ../include/pal/pal.h
