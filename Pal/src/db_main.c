@@ -272,10 +272,9 @@ noreturn void pal_main (
         unsigned long before_find_manifest = _DkSystemTimeQuery();
 #endif
 
-        /* The rule is to only find the manifest in the current directory */
         /* try open "<execname>.manifest" */
         size_t len = sizeof(uri_buf);
-        ret = get_base_name(exec_uri, uri_buf, &len);
+        ret = get_norm_path(exec_uri, uri_buf, &len);
         if (ret < 0) {
             INIT_FAIL(-ret, "cannot normalize exec_uri");
         }
