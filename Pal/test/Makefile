@@ -1,7 +1,7 @@
 include ../src/Makefile.Host
 
 CC	= gcc
-CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib \
+CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
 	  -I../include/pal -I../lib
 
 .PHONY: default
