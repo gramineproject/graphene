@@ -67,7 +67,8 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
     size--;
 
     size_t offset = 0,
-           ret_size = 0;
+           ret_size = 0; /* accounts for undiscardable bytes written to `buf`
+                          * i.e. `buf - ret_size` points to original `buf` */
     unsigned char need_slash = 0; // is '/' needed before next token
     bool is_absolute_path = *path == '/';
 
