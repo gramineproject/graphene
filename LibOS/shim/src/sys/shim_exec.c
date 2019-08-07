@@ -88,6 +88,10 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     int ret = 0;
 
 #ifdef SHIM_TCB_USE_GS
+    /* SHIM_TCB_USE_GS: dummy libc tcb is not needed because
+     * PAL provides storage for shim_tcb.
+     * start with zero fs_base.
+     */
     __libc_tcb_t* tcb = NULL;
 #else
     __libc_tcb_t* tcb = cur_thread->stack;
