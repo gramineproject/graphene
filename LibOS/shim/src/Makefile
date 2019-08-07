@@ -130,28 +130,24 @@ LDFLAGS-vdso/vdso.so.dbg = -nostdlib -shared \
 	-z max-page-size=4096 -z common-page-size=4096 \
 	-T vdso/vdso.lds -soname linux-vdso.so.1
 vdso/vdso.so.dbg: LDFLAGS =
-vdso/vdso.so.dbg: vdso/vdso.lds vdso/vdso.o vdso/vdso-note.o | vdso-check-no-reloc
+vdso/vdso.so.dbg: vdso/vdso.lds vdso/vdso.o vdso/vdso-note.o | vdso/.vdso.so
 	$(call cmd,ld)
-
-#
-# vdso.so is required to have no relocations.
-# this rule checks it.
-#
-vdso-check-no-reloc: vdso/.vdso.so
-	$(call cmd,check_no_reloc)
 
 # use default linker script to retain relocations if exist.
 LDFLAGS-vdso/.vdso.so = -nostdlib -shared -Bsymbolic
 vdso/.vdso.so: LDFLAGS =
 vdso/.vdso.so: vdso/vdso.o
 	$(call cmd,ld)
+	# vdso.so is required to have no relocations.
+	# this rule checks it.
+	$(call cmd,check_no_reloc)
 
 OBJCOPYFLAGS-vdso/vdso.so = -S
 vdso/vdso.so: vdso/vdso.so.dbg
 	$(call cmd,objcopy)
 
 vdso/vdso-data.o: vdso/vdso.so
-CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/.vdso.so
+CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/.vdso.so vdso/.vdso.so.check-failed
 
 clean:
 	rm -rf $(addsuffix .o,$(objs)) $(addsuffix .d,$(objs)) \
