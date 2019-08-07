@@ -169,8 +169,8 @@ int contact_intel_attest_service(const char* subkey, const sgx_quote_nonce_t* no
     __bytes2hexstr((void *)nonce, sizeof(sgx_quote_nonce_t), nonce_str, nonce_str_len);
 
     // Create two temporary files for dumping the header and output of HTTPS request to IAS
-    char    https_header_path[] = "gsgx-ias-header-XXXXXX";
-    char    https_output_path[] = "gsgx-ias-output-XXXXXX";
+    char    https_header_path[] = "/tmp/gsgx-ias-header-XXXXXX";
+    char    https_output_path[] = "/tmp/gsgx-ias-output-XXXXXX";
     char*   https_header = NULL;
     char*   https_output = NULL;
     ssize_t https_header_len = 0;

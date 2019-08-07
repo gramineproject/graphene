@@ -65,6 +65,9 @@ int init_trusted_platform(void) {
     len = get_config(pal_state.root_config, "sgx.ra_client_linkable", buf, sizeof(buf));
     bool linkable = (len == 1 && buf[0] == '1');
 
+    len = get_config(pal_state.root_config, "sgx.ra_accept_group_out_of_date", buf, sizeof(buf));
+    bool accept_group_out_of_date = (len == 1 && buf[0] == '1');
+
     sgx_quote_nonce_t nonce;
     int ret = _DkRandomBitsRead(&nonce, sizeof(nonce));
     if (ret < 0)
@@ -73,7 +76,7 @@ int init_trusted_platform(void) {
     char* status;
     char* timestamp;
     ret = sgx_verify_platform(&spid, subkey, &nonce, (sgx_arch_report_data_t*)&pal_enclave_state,
-                              linkable, NULL, &status, &timestamp);
+                              linkable, accept_group_out_of_date, NULL, &status, &timestamp);
     if (ret < 0)
         return ret;
 
@@ -305,6 +308,7 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  * @nonce:             A 16-byte nonce to be included in the quote.
  * @report_data:       A 64-byte bytestring to be included in the local report and the quote.
  * @linkable:          Specify whether the SPID is linkable.
+ * @accept_group_out_of_date: Specify whether to accept GROUP_OUT_OF_DATE from IAS
  * @ret_attestation:   Returns the retrieved attestation data.
  * @ret_ias_status:    Returns a pointer to the attestation status (as a string) from the IAS.
  * @ret_ias_timestamp: Returns a pointer to the timestamp (as a string) from the IAS.
@@ -312,7 +316,7 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  */
 int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
                         sgx_arch_report_data_t* report_data, bool linkable,
-                        sgx_attestation_t* ret_attestation,
+                        bool accept_group_out_of_date, sgx_attestation_t* ret_attestation,
                         char** ret_ias_status, char** ret_ias_timestamp) {
 
     SGX_DBG(DBG_S, "Request quote:\n");
@@ -504,9 +508,9 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     SGX_DBG(DBG_S, "  status:    %s\n", ias_status);
     SGX_DBG(DBG_S, "  timestamp: %s\n", ias_timestamp);
 
-    // For now, we only accept status to be "OK" or "GROUP_OUT_OF_DATE"
+    // Only accept status to be "OK" or "GROUP_OUT_OF_DATE" (if accept_out_of_date is true)
     if (!strcmp_static(ias_status, "OK") &&
-        !strcmp_static(ias_status, "GROUP_OUT_OF_DATE")) {
+        (!accept_group_out_of_date || !strcmp_static(ias_status, "GROUP_OUT_OF_DATE"))) {
         SGX_DBG(DBG_E, "IAS returned invalid status: %s\n", ias_status);
         goto failed;
     }

@@ -45,7 +45,7 @@ manifest_rules = \
 	-e 's:\$$(PWD):$(shell pwd)/:g' \
 	-e 's:\$$(RA_CLIENT_SPID):$(RA_CLIENT_SPID):g' \
 	-e 's:\$$(RA_CLIENT_KEY):$(RA_CLIENT_KEY):g' \
-	-e 's:\$$(RA_CLIENT_LINKABLE):$(if,$(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
+	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
 	$(extra_rules)
 
 manifest: manifest.template
