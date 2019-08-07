@@ -94,7 +94,9 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
      */
     __libc_tcb_t* tcb = NULL;
 #else
-    __libc_tcb_t* tcb = cur_thread->stack;
+    __libc_tcb_t* tcb = ALIGN_UP_PTR(
+        cur_thread->stack_top - sizeof(*tcb) - __alignof__(*tcb),
+        __alignof__(*tcb));
     memset(tcb, 0, sizeof(*tcb));
 #endif
     populate_tls(tcb, false);
@@ -220,7 +222,14 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     int * new_argcp = &new_argc;
     const char ** new_argp;
     elf_auxv_t * new_auxp;
-    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp)) < 0)
+#ifdef SHIM_TCB_USE_GS
+    size_t reserve = 0;
+#else
+    /* reserve __libc_tcb_t for startup use. see __shim_do_execve_rtld() */
+    size_t reserve = sizeof(__libc_tcb_t) + __alignof__(__libc_tcb_t);
+#endif
+    if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp,
+                          reserve)) < 0)
         return ret;
 
     __disable_preempt(shim_get_tls()); // Temporarily disable preemption

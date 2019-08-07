@@ -358,7 +358,7 @@ copy_envp:
 
 int init_stack (const char ** argv, const char ** envp,
                 int ** argcpp, const char *** argpp,
-                elf_auxv_t ** auxpp)
+                elf_auxv_t ** auxpp, size_t reserve)
 {
     uint64_t stack_size = get_rlimit_cur(RLIMIT_STACK);
 
@@ -382,7 +382,8 @@ int init_stack (const char ** argv, const char ** envp,
     if (initial_envp)
         envp = initial_envp;
 
-    int ret = populate_user_stack(stack, stack_size, auxpp, argcpp, &argv, &envp);
+    int ret = populate_user_stack(stack, stack_size - reserve,
+                                  auxpp, argcpp, &argv, &envp);
     if (ret < 0)
         return ret;
 
@@ -755,7 +756,7 @@ noreturn void* shim_init (int argc, void * args)
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
-    RUN_INIT(init_stack, argv, envp, &argcp, &argp, &auxp);
+    RUN_INIT(init_stack, argv, envp, &argcp, &argp, &auxp, 0);
     RUN_INIT(init_loader);
     RUN_INIT(init_ipc_helper);
     RUN_INIT(init_signal);
