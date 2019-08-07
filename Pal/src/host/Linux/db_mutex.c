@@ -114,8 +114,8 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us)
     while (MUTEX_LOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
         struct timespec waittime, *waittimep = NULL;
         if (timeout_us >= 0) {
-            uint64_t sec = (uint64_t)timeout_us / 1000000;
-            uint64_t microsec = (uint64_t)timeout_us - (sec * 1000000);
+            uint64_t sec = timeout_us / 1000000;
+            uint64_t microsec = timeout_us - (sec * 1000000);
             waittime.tv_sec = sec;
             waittime.tv_nsec = microsec * 1000;
             waittimep = &waittime;

@@ -84,8 +84,8 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us)
 
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         struct timespec waittime;
-        uint64_t sec = (uint64_t)timeout_us / 1000000UL;
-        uint64_t microsec = (uint64_t)timeout_us - (sec * 1000000UL);
+        uint64_t sec = timeout_us / 1000000UL;
+        uint64_t microsec = timeout_us - (sec * 1000000UL);
         waittime.tv_sec = sec;
         waittime.tv_nsec = microsec * 1000;
 

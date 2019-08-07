@@ -66,7 +66,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
                     nwaiters = wakeup;
 
                 ret = ocall_futex((int *) &event->event.signaled->counter,
-                                  FUTEX_WAKE, nwaiters, NULL);
+                                  FUTEX_WAKE, nwaiters, -1);
 
                 if (IS_ERR(ret)) {
                     atomic_set(event->event.signaled, 0);
@@ -77,7 +77,7 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
     } else {
         // Only one thread wakes up, leave unsignaled
         ret = ocall_futex((int *) &event->event.signaled->counter,
-                          FUTEX_WAKE, 1, NULL);
+                          FUTEX_WAKE, 1, -1);
         if (IS_ERR(ret))
             return unix_to_pal_error(ERRNO(ret));
     }
@@ -122,7 +122,7 @@ int _DkEventWait (PAL_HANDLE event)
 
         do {
             ret = ocall_futex((int *) &event->event.signaled->counter,
-                              FUTEX_WAIT, 0, NULL);
+                              FUTEX_WAIT, 0, -1);
             if (IS_ERR(ret)) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;

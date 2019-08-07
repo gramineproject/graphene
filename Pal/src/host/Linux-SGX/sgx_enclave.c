@@ -247,8 +247,8 @@ static int sgx_ocall_futex(void * pms)
     struct timespec* ts = NULL;
     if (ms->ms_timeout_us >= 0) {
         ts = __alloca(sizeof(struct timespec));
-        ts->tv_sec = (uint64_t)ms->ms_timeout_us / 1000000;
-        ts->tv_nsec = ((uint64_t)ms->ms_timeout_us - ts->tv_sec * 1000000) * 1000;
+        ts->tv_sec = ms->ms_timeout_us / 1000000;
+        ts->tv_nsec = (ms->ms_timeout_us - ts->tv_sec * 1000000) * 1000;
     }
     ret = INLINE_SYSCALL(futex, 6, ms->ms_futex, ms->ms_op, ms->ms_val,
                          ts, NULL, 0);
@@ -609,8 +609,8 @@ static int sgx_ocall_poll(void * pms)
     struct timespec * ts = NULL;
     if (ms->ms_timeout_us >= 0) {
         ts = __alloca(sizeof(struct timespec));
-        ts->tv_sec = (uint64_t)ms->ms_timeout_us / 1000000;
-        ts->tv_nsec = ((uint64_t)ms->ms_timeout_us - ts->tv_sec * 1000000) * 1000;
+        ts->tv_sec = ms->ms_timeout_us / 1000000;
+        ts->tv_nsec = (ms->ms_timeout_us - ts->tv_sec * 1000000) * 1000;
     }
     ret = INLINE_SYSCALL(ppoll, 4, ms->ms_fds, ms->ms_nfds, ts, NULL);
     return ret;
