@@ -3,12 +3,18 @@ MAKEFLAGS += --check-symlink-times
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-targets = all clean
+.PHONY: all
+all:
+	make -C src
 
-.PHONY: $(targets)
-$(targets):
-	make $@ -C src
-	make $@ -C test
+.PHONY: test
+test:
+	make -C test
+
+.PHONY: clean
+clean:
+	make -C src clean
+	make -C test clean
 
 .PHONY: format
 format:

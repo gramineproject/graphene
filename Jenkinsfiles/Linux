@@ -6,7 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make -j 8 WERROR=1
+                            make -j 8 WERROR=1 all test
                             cd Pal/ipc/linux
                             make
                            '''

@@ -144,3 +144,7 @@ $(OBJ_DIR)/%.s: %.c $(headers)
 clean:
 	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build)
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) clean
+
+.PHONY: test
+test:
+	$(MAKE) -C $(HOST_DIR) test
