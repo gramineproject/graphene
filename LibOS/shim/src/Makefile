@@ -87,9 +87,12 @@ libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 	@mkdir -p .lib
 	$(call cmd,ln_sf)
 
-.PHONY: $(graphene_lib)
-$(graphene_lib): .lib/host_endian.h
+.PHONY: graphene_lib_recurse
+graphene_lib_recurse: .lib/host_endian.h
 	$(MAKE) -C ../../../Pal/lib target=$(abspath .lib)/
+
+$(graphene_lib): graphene_lib_recurse
+	@true
 
 libsysdb.a: $(addsuffix .o,$(objs))
 	$(call cmd,ar_a_o)
