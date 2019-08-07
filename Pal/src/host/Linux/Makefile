@@ -19,7 +19,6 @@ objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
 	    exception) clone-x86_64 gettimeofday-x86_64
 graphene_lib = .lib/graphene-lib.a
-headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
 all: $(host_files)
@@ -33,28 +32,32 @@ endif
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
-%.o: %.c $(headers)
+%.o: %.c
 	$(call cmd,cc_o_c)
 
-%.i: %.c $(headers)
+%.i: %.c
 	$(call cmd,cpp_i_c)
 
-%.s: %.c $(headers)
+%.s: %.c
 	$(call cmd,cc_s_c)
 
-%.o: %.S $(headers)
+%.o: %.S
 	$(call cmd,as_o_S)
 
-%.s: %.S $(headers)
+%.s: %.S
 	$(call cmd,cpp_s_S)
 
 include ../../../../Makefile.rules
+
+-include $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs))
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 
 .PHONY: clean
 clean:
-	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES)
+	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES) \
+	      $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) \
+	      $(addsuffix .s.d,$(objs))
 
 .PHONY: test
 test:

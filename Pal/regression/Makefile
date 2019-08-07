@@ -12,7 +12,6 @@ target = $(executables) $(manifests)
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
-headers = $(wildcard ../include/pal/*.h)
 
 .PHONY: default
 default: all
@@ -51,12 +50,12 @@ manifest: manifest.template
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(preloads): %.so: %.so.c ../src/user_shared_start.o \
-	$(graphene_lib) $(pal_lib) ../include/pal/pal.h
+	$(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
 	@$(CC) -shared -fPIC $(CFLAGS) $^ -o $@
 
 $(executables): %: %.c ../src/user_start.o \
-	$(graphene_lib) $(pal_lib) $(preloads) ../include/pal/pal.h
+	$(graphene_lib) $(pal_lib) $(preloads)
 	@echo [ $@ ]
 	@$(CC) $(CFLAGS) $^ -o $@
 

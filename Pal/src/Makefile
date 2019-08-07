@@ -43,7 +43,6 @@ objs	= $(addprefix db_,streams memory threading mutex events process \
 
 graphene_lib = $(LIB_DIR)/graphene-lib.a
 host_lib = $(HOST_DIR)/libpal-$(PAL_HOST).a
-headers	= $(wildcard *.h) $(wildcard ../lib/*.h) $(HOST_DIR)/pal_host.h
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 files_to_build += user_start.o user_shared_start.o
@@ -128,7 +127,7 @@ user_shared_start.o: ASFLAGS = -DSHARED -fPIC
 user_shared_start.o: user_start.S
 	$(call cmd,as_o_S)
 
-$(OBJ_DIR)/%.o: %.c $(headers)
+$(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_o_c)
 
@@ -140,9 +139,11 @@ $(OBJ_DIR)/%.s: %.c $(headers)
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_s_c)
 
+include $(wildcard *.d)
+
 .PHONY: clean
 clean:
-	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build)
+	rm -rf $(LIB_DIR) $(OBJ_DIR) $(files_to_build) *.d
 	@[ ! -d $(HOST_DIR) ] || $(MAKE) -C $(HOST_DIR) clean
 
 .PHONY: test

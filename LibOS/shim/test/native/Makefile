@@ -12,23 +12,25 @@ include ../Makefile
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(c_executables): %: %.c
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
+	@$(CC) -MD -MP $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
-	@$(CXX) $(CXXFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
+	@$(CXX) -MD -MP $(CXXFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 static: %: %.c
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) -o $@ -static $< \
+	@$(CC) -MD -MP $(CFLAGS) -o $@ -static $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 pie: %: %.c
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) -fPIC --pie -o $@ $< \
+	@$(CC) -MD -MP $(CFLAGS) -fPIC --pie -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+
+include $(wildcard *.d)
 else
 .IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
 $(special_executables) $(c_executables) $(cxx_executables):
