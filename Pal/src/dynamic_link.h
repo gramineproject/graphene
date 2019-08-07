@@ -156,7 +156,7 @@ elf_get_dynamic_info (ElfW(Dyn) *dyn, ElfW(Dyn) **l_info, ElfW(Addr) l_addr)
     assert (!l_info[VERSYMIDX (DT_FLAGS_1)]
             || l_info[VERSYMIDX (DT_FLAGS_1)]->d_un.d_val == DF_1_NOW);
     assert (!l_info[DT_FLAGS]
-            || l_info[DT_FLAGS]->d_un.d_val == DF_BIND_NOW);
+            || (l_info[DT_FLAGS]->d_un.d_val & ~DF_SYMBOLIC) == DF_BIND_NOW);
     /* Flags must not be set for ld.so.  */
     assert (!l_info[DT_RUNPATH]);
     assert (!l_info[DT_RPATH]);
