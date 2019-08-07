@@ -29,19 +29,22 @@ struct atomic_int alloced_pages, max_alloced_pages;
 
 void init_pages (void)
 {
+    uint64_t reserved_for_exec = 0;
+
     heap_base = pal_sec.heap_min;
     heap_size = pal_sec.heap_max - pal_sec.heap_min;
 
-    SGX_DBG(DBG_M, "available heap size: %lu M\n",
-           (heap_size - pal_sec.exec_size) / 1024 / 1024);
-
     if (pal_sec.exec_size) {
         struct heap_vma * vma = malloc(sizeof(struct heap_vma));
-        vma->top = pal_sec.exec_addr + pal_sec.exec_size;
-        vma->bottom = pal_sec.exec_addr;
+        vma->top = MIN(pal_sec.exec_addr + pal_sec.exec_size + MEMORY_GAP, pal_sec.heap_max);
+        vma->bottom = MAX(pal_sec.exec_addr - MEMORY_GAP, pal_sec.heap_min);
+        reserved_for_exec = vma->top - vma->bottom;
         INIT_LIST_HEAD(vma, list);
         LISTP_ADD(vma, &heap_vma_list, list);
     }
+
+    SGX_DBG(DBG_M, "available heap size: %lu M\n",
+           (heap_size - reserved_for_exec) / 1024 / 1024);
 }
 
 #define ASSERT_VMA          0

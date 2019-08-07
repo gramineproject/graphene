@@ -299,6 +299,15 @@ int init_vma (void)
     if (ret < 0)
         return ret;
 
+    if (PAL_CB(user_address_hole.end) - PAL_CB(user_address_hole.start) > 0) {
+        ret = __bkeep_preloaded(PAL_CB(user_address_hole.start),
+                                PAL_CB(user_address_hole.end),
+                                PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
+                                "reserved");
+        if (ret < 0)
+            return ret;
+    }
+
     ret = __bkeep_preloaded(PAL_CB(manifest_preload.start),
                             PAL_CB(manifest_preload.end),
                             PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS|VMA_INTERNAL,

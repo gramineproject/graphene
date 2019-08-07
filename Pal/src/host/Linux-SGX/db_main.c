@@ -57,10 +57,13 @@ unsigned long _DkGetAllocationAlignment (void)
     return pagesz;
 }
 
-void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
+void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
+                                      PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
     *start = (PAL_PTR) pal_sec.heap_min;
     *end = (PAL_PTR) get_reserved_pages(NULL, pagesz);
+    *hole_start = MAX(pal_sec.exec_addr - MEMORY_GAP, *start);
+    *hole_end = MIN(pal_sec.exec_addr + pal_sec.exec_size + MEMORY_GAP, *end);
 }
 
 PAL_NUM _DkGetProcessId (void)
@@ -226,8 +229,8 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     void* zero2_end = pal_sec.heap_max;
 
     if (pal_sec.exec_addr != NULL) {
-        zero1_end = MIN(zero1_end, pal_sec.exec_addr);
-        zero2_start = MIN(zero2_start, pal_sec.exec_addr + pal_sec.exec_size);
+        zero1_end = MIN(zero1_end, pal_sec.exec_addr - MEMORY_GAP);
+        zero2_start = MIN(zero2_start, pal_sec.exec_addr + pal_sec.exec_size + MEMORY_GAP);
     }
 
     memset(zero1_start, 0, zero1_end - zero1_start);

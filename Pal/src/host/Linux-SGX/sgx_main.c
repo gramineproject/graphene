@@ -395,10 +395,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         if (areas[i].addr)
             continue;
         areas[i].addr = populating - areas[i].size;
-        if (&areas[i] == exec_area)
-            populating = areas[i].addr;
-        else
-            populating = areas[i].addr - MEMORY_GAP;
+        populating = areas[i].addr > MEMORY_GAP ? areas[i].addr - MEMORY_GAP : 0;
     }
 
     enclave_entry_addr += pal_area->addr;
@@ -410,9 +407,9 @@ int initialize_enclave (struct pal_enclave * enclave)
             goto out;
         }
 
-        if (exec_area->addr + exec_area->size < populating) {
+        if (exec_area->addr + exec_area->size + MEMORY_GAP < populating) {
             if (populating > heap_min) {
-                unsigned long addr = exec_area->addr + exec_area->size;
+                unsigned long addr = exec_area->addr + exec_area->size + MEMORY_GAP;
                 if (addr < heap_min)
                     addr = heap_min;
 
@@ -424,7 +421,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                 area_num++;
             }
 
-            populating = exec_area->addr;
+            populating = exec_area->addr > MEMORY_GAP ? exec_area->addr - MEMORY_GAP : 0;
         }
     }
 

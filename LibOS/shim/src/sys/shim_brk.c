@@ -86,6 +86,12 @@ int init_brk_region(void* brk_region, size_t data_segment_size) {
         if (PAL_CB(user_address.end) >= PAL_CB(executable_range.end))
             max_brk = PAL_CB(user_address.end) - PAL_CB(executable_range.end);
 
+        if (PAL_CB(user_address_hole.end) - PAL_CB(user_address_hole.start) > 0) {
+            /* XXX: This assumes that we always want brk to be after the hole. */
+            brk_region = MAX(brk_region, PAL_CB(user_address_hole.end));
+            max_brk = MIN(max_brk, (size_t) (PAL_CB(user_address.end) - PAL_CB(user_address_hole.end)));
+        }
+
         /* Check whether the brk region can potentially be located after exec at all. */
         if (brk_max_size <= max_brk) {
             int try;
