@@ -52,9 +52,8 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, int64_t timeout_us) {
         struct timespec timeout_ts;
 
         if (timeout_us >= 0) {
-            uint64_t sec = timeout_us / 1000000;
-            uint64_t microsec = timeout_us - (sec * 1000000);
-
+            int64_t sec = timeout_us / 1000000;
+            int64_t microsec = timeout_us - (sec * 1000000);
             timeout_ts.tv_sec = sec;
             timeout_ts.tv_nsec = microsec * 1000;
         }
@@ -209,8 +208,8 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
     struct timespec timeout_ts;
 
     if (timeout_us >= 0) {
-        uint64_t sec = (uint64_t)timeout_us / 1000000;
-        uint64_t microsec = (uint64_t)timeout_us - (sec * 1000000);
+        int64_t sec = timeout_us / 1000000;
+        int64_t microsec = timeout_us - (sec * 1000000);
         timeout_ts.tv_sec = sec;
         timeout_ts.tv_nsec = microsec * 1000;
     }
