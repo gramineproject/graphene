@@ -285,10 +285,16 @@ done_finding:
         goto done_polling;
     }
 
+    /* Try to allocate the arguments for DkObjectsWaitEvents() on stack, or use malloc() */
     pals = __try_alloca(cur, sizeof(PAL_HANDLE) * npals);
-    pal_events = __try_alloca(cur, sizeof(PAL_FLG) * npals * 2);
-    ret_events = pal_events + npals;
+    pal_events = __try_alloca(cur, sizeof(PAL_FLG) * npals);
+    ret_events = __try_alloca(cur, sizeof(PAL_FLG) * npals);
     npals = 0;
+
+    if (!pals || !pal_events || !ret_events) {
+        ret = -ENOMEM;
+        goto done_polling;
+    }
 
     n = &polling;
     for (p = polling ; p ; p = p->next) {
@@ -365,10 +371,13 @@ done_polling:
 
     SAVE_PROFILE_INTERVAL(do_poll_fourth_loop);
 
+    /* Free the arguments if they are allocated from malloc() */
     if (pals)
         __try_free(cur, pals);
     if (pal_events)
         __try_free(cur, pal_events);
+    if (ret_events)
+        __try_free(cur, ret_events);
 
     return ret;
 }

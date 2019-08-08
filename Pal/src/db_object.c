@@ -113,14 +113,12 @@ DkObjectsWaitEvents (PAL_NUM count, PAL_HANDLE * handleArray, PAL_FLG * events,
     }
 
     for (PAL_NUM i = 0 ; i < count ; i++)
-        // We modify the caller's handleArray?
-        if (UNKNOWN_HANDLE(handleArray[i]))
-            handleArray[i] = NULL;
+        if (UNKNOWN_HANDLE(handleArray[i])) {
+            _DkRaiseFailure(PAL_ERROR_INVAL);
+            LEAVE_PAL_CALL_RETURN(NULL);
+        }
 
-    int ret = _DkObjectsWaitEvents(count, handleArray, events, ret_events,
-                                   timeout == NO_TIMEOUT ?
-                                   (uint64_t) -1 : timeout);
-
+    int ret = _DkObjectsWaitEvents(count, handleArray, events, ret_events, timeout);
     if (ret < 0) {
         _DkRaiseFailure(-ret);
         return PAL_FALSE;
