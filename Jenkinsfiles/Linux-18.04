@@ -7,10 +7,9 @@ pipeline {
                     steps {
                         sh '''
                             make -j 8 WERROR=1
-                            /* We can't build this on 18.04 in our current pipeline
-                            cd Pal/ipc/linux
-                            make
-                            */
+                            # We can't build this on 18.04 in our current pipeline
+                            #cd Pal/ipc/linux
+                            #make
                            '''
                     }
                 }
