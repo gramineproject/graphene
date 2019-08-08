@@ -113,6 +113,7 @@ static int __do_poll(int npolls, struct poll_handle* polls, uint64_t timeout_us)
     struct poll_handle * polling = NULL;
     struct poll_handle * p, ** n, * q;
     PAL_HANDLE * pals = NULL;
+    PAL_FLG * pal_events = NULL, * ret_events;
     int ret = 0;
 
 #ifdef PROFILE
@@ -285,6 +286,8 @@ done_finding:
     }
 
     pals = __try_alloca(cur, sizeof(PAL_HANDLE) * npals);
+    pal_events = __try_alloca(cur, sizeof(PAL_FLG) * npals * 2);
+    ret_events = pal_events + npals;
     npals = 0;
 
     n = &polling;
@@ -298,75 +301,59 @@ done_finding:
             continue;
         }
 
-        pals[npals++] = p->handle->pal_handle;
+        pals[npals] = p->handle->pal_handle;
+        pal_events[npals] = ((p->flags & POLL_R) ? PAL_WAIT_READ  : 0) |
+                            ((p->flags & POLL_W) ? PAL_WAIT_WRITE : 0);
+        ret_events[npals] = 0;
+        npals++;
         n = &p->next;
     }
 
     SAVE_PROFILE_INTERVAL(do_poll_second_loop);
 
-    while (npals) {
-        int pal_timeout_us = (has_r && !has_known) ? timeout_us : 0;
-        PAL_HANDLE polled = DkObjectsWaitAny(npals, pals, pal_timeout_us);
+    int pal_timeout = (has_r && !has_known) ? timeout : 0;
+    PAL_BOL polled = DkObjectsWaitEvents(npals, pals,
+                                         pal_events, ret_events,
+                                         pal_timeout);
 
-        if (pal_timeout_us)
-            SAVE_PROFILE_INTERVAL(do_poll_wait_any);
-        else
-            SAVE_PROFILE_INTERVAL(do_poll_wait_any_peek);
+    if (pal_timeout)
+        SAVE_PROFILE_INTERVAL(do_poll_wait_any);
+    else
+        SAVE_PROFILE_INTERVAL(do_poll_wait_any_peek);
 
-        if (!polled)
-            break;
+    if (!polled) {
+        ret = (PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN) ? 0 : -PAL_ERRNO;
+        goto done_polling;
+    }
 
-        PAL_STREAM_ATTR attr;
-        if (!DkStreamAttributesQueryByHandle(polled, &attr))
-            break;
+    p = polling;
+    for (int i = 0 ; p ; i++, p = p->next) {
+        assert(p->handle->pal_handle == pals[i]);
 
-        n = &polling;
-        for (p = polling ; p ; p = p->next) {
-            if (p->handle->pal_handle == polled)
-                break;
-            n = &p->next;
-        }
-
-        if (!p)
-            break;
+        if (!ret_events[i])
+            continue;
 
         debug("handle %s is polled\n", qstrgetstr(&p->handle->uri));
 
         p->flags |= KNOWN_R|KNOWN_W;
 
-        if (attr.disconnected) {
+        if (ret_events[i] & PAL_WAIT_ERROR) {
             debug("handle is polled to be disconnected\n");
             p->flags |= RET_E;
         }
-        if (attr.readable) {
+
+        if (ret_events[i] & PAL_WAIT_READ) {
             debug("handle is polled to be readable\n");
             p->flags |= RET_R;
         }
-        if (attr.writable) {
-            debug("handle is polled to be writable\n");
+
+        if (ret_events[i] & PAL_WAIT_WRITE) {
+            debug("handle is polled to be writeable\n");
             p->flags |= RET_W;
         }
 
         for (q = p->children ; q ; q = q->next)
             q->flags |= p->flags & (KNOWN_R|KNOWN_W|RET_W|RET_R|RET_E);
-
-        if ((p->flags & (POLL_R|KNOWN_R)) != (POLL_R|KNOWN_R) &&
-            (p->flags & (POLL_W|KNOWN_W)) != (POLL_W|KNOWN_W))
-            continue;
-
-        has_known = true;
-        *n = p->next;
-        put_handle(p->handle);
-        p->handle = NULL;
-
-        int nskip = 0;
-        for (int i = 0 ; i < npals ; i++)
-            if (pals[i] == polled) {
-                nskip = 1;
-            } else if (nskip) {
-                pals[i - nskip] = pals[i];
-            }
-        npals -= nskip;
 
         SAVE_PROFILE_INTERVAL(do_poll_third_loop);
     }
@@ -380,6 +367,8 @@ done_polling:
 
     if (pals)
         __try_free(cur, pals);
+    if (pal_events)
+        __try_free(cur, pal_events);
 
     return ret;
 }

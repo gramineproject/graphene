@@ -220,3 +220,114 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
     *polled = polled_hdl;
     return polled_hdl ? 0 : -PAL_ERROR_TRYAGAIN;
 }
+
+/* _DkObjectsWaitEvents is a new version of _DkObjectsWaitAny. This function
+ * can select specific IO events to poll (read / write) and return multiple
+ * events (including errors) that occurs simutaneously. The rest of semantics
+ * is the same as _DkObjectWaitAny. */
+int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
+                          PAL_FLG * ret_events, PAL_NUM timeout)
+{
+    if (count <= 0)
+        return 0;
+
+    int i, j, ret, maxfds = 0, nfds = 0;
+
+    if (count == 1) {
+        const struct handle_ops * ops = HANDLE_OPS(handleArray[0]);
+
+        if (ops->wait) {
+            ret = ops->wait(handleArray[0], timeout);
+            if (!ret)
+                ret_events[0] = PAL_WAIT_SIGNAL;
+            return ret;
+        }
+    }
+
+    /* we are not gonna to allow any polling on muliple synchronous
+       objects, doing this is simply violating the division of
+       labor between PAL and library OS */
+    for (i = 0 ; i < count ; i++) {
+        PAL_HANDLE hdl = handleArray[i];
+
+        if (!hdl)
+            continue;
+
+        if (!(HANDLE_HDR(hdl)->flags & HAS_FDS))
+            return -PAL_ERROR_NOTSUPPORT;
+
+        /* eliminate repeated entries */
+        for (j = 0 ; j < i ; j++)
+            if (hdl == handleArray[j])
+                break;
+        if (j == i) {
+            for (j = 0 ; j < MAX_FDS ; j++)
+                if (HANDLE_HDR(hdl)->flags & (RFD(j)|WFD(j)))
+                    maxfds++;
+        }
+    }
+
+    struct pollfd * fds = __alloca(sizeof(struct pollfd) * maxfds);
+    int * offsets = __alloca(sizeof(int) * maxfds);
+
+    for (i = 0 ; i < count ; i++) {
+        PAL_HANDLE hdl = handleArray[i];
+        ret_events[i] = 0;
+
+        if (!hdl)
+            continue;
+
+        for (j = 0 ; j < i ; j++)
+            if (hdl == handleArray[j])
+                break;
+        if (j < i)
+            continue;
+
+        for (j = 0 ; j < MAX_FDS ; j++) {
+            fds[nfds].events = 0;
+
+            if ((HANDLE_HDR(hdl)->flags & RFD(i)) &&
+                (events[i] & PAL_WAIT_READ))
+                fds[nfds].events |= POLLIN;
+
+            if ((HANDLE_HDR(hdl)->flags & WFD(i)) &&
+                (events[i] & PAL_WAIT_WRITE))
+                fds[nfds].events |= POLLOUT;
+
+            /* POLLERR, POLLHUP, POLLNVAL are ignored in fds[nfds].events */
+
+            if (fds[nfds].events) {
+                fds[nfds].fd = hdl->generic.fds[i];
+                fds[nfds].revents = 0;
+                offsets[nfds] = i;
+                nfds++;
+            }
+        }
+    }
+
+    if (!nfds)
+        return -PAL_ERROR_TRYAGAIN;
+
+    int64_t waittime = timeout;
+    ret = ocall_poll(fds, nfds, timeout != NO_TIMEOUT ? &waittime : NULL);
+    if (ret < 0)
+        return ret;
+
+    if (!ret)
+        return -PAL_ERROR_TRYAGAIN;
+
+    for (i = 0 ; i < nfds ; i++) {
+        if (!fds[i].revents)
+            continue;
+
+        j = offsets[i];
+        if (fds[i].revents & POLLIN)
+            ret_events[j] |= PAL_WAIT_READ;
+        if (fds[i].revents & POLLOUT)
+            ret_events[j] |= PAL_WAIT_WRITE;
+        if (fds[i].revents & (POLLHUP|POLLERR|POLLNVAL))
+            ret_events[j] |= PAL_WAIT_ERROR;
+    }
+
+    return 0;
+}
