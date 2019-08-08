@@ -312,15 +312,6 @@ retry:
     if ((nread = epoll->nread))
         epoll->nwaiters++;
 
-<<<<<<< 1c5f307fec01316a95342aef5006f25b666ceca3
-    unlock(&epoll_hdl->lock);
-
-    PAL_NUM pal_timeout = timeout_ms == -1 ? NO_TIMEOUT : (PAL_NUM) timeout_ms * 1000;
-    PAL_HANDLE polled = DkObjectsWaitAny(nread ? npals + 1 : npals, pal_handles,
-                                         nread ? pal_timeout : 0);
-
-    lock(&epoll_hdl->lock);
-=======
     // Allocate space for one additional PAL_HANDLE to accommodate the special
     // events handle. Graphene monitors the special events handle to detect if the
     // epoll handle was modified while waiting for associated events. If the
@@ -332,7 +323,7 @@ retry:
     PAL_FLG * ret_events = pal_events + (npals + 1);
 
     npals = 0;
-    listp_for_each_entry(epoll_fd, &epoll->fds, list) {
+    LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
         if (!epoll_fd->pal_handle)
             continue;
         pal_handles[npals] = epoll_fd->pal_handle;
@@ -349,23 +340,21 @@ retry:
     pal_events[npals] = PAL_WAIT_READ;
     ret_events[npals] = 0;
 
-    unlock(epoll_hdl->lock);
-    
-    // TODO: Timeout must be updated in case of retries. Otherwise, we may
-    // wait too long.
-    uint64_t pal_timeout = timeout;
-    PAL_BOL polled = DkObjectsWaitEvents(npals, pal_handles, pal_events, ret_events, pal_timeout);
-    
-    lock(epoll_hdl->lock);
+    unlock(&epoll_hdl->lock);
+
+    // TODO: Timeout must be updated in case of retries. Otherwise, we may wait too long.
+    PAL_BOL polled = DkObjectsWaitEvents(npals, pal_handles, pal_events, ret_events, timeout);
+
+    lock(&epoll_hdl->lock);
 
     if (nread)
         epoll->nwaiters--;
 
     if (!polled)
         goto reply;
-    
+
     for (int i = 0; i < npals; i++) {
-        listp_for_each_entry(epoll_fd, &epoll->fds, list) {
+        LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
             if (!epoll_fd->pal_handle)
                 continue;
             if(epoll_fd->pal_handle != pal_handles[i])
@@ -390,7 +379,7 @@ retry:
         wait_event(&epoll->event);
         goto retry;
     }
-    
+
 reply:
     LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
         if (nevents == maxevents)
@@ -405,7 +394,7 @@ reply:
                   (events[nevents].events & EPOLLIN) ? "EPOLLIN" : "0",
                   (events[nevents].events & EPOLLOUT) ? "EPOLLOUT" : "0",
                   (events[nevents].events & EPOLLERR) ? "EPOLLERR" : "0");
-                  
+
             nevents++;
         }
     }
