@@ -49,9 +49,7 @@ struct proc_args {
     unsigned int    mcast_port;
 };
 
-int sgx_create_process (const char * uri, int nargs, const char ** args,
-                        int * retfds)
-{
+int sgx_create_process(const char* uri, int nargs, const char** args, int * retfds) {
     int ret, rete, child;
     int fds[6] = { -1, -1, -1, -1, -1, -1 };
 

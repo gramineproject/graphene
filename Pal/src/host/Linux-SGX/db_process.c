@@ -148,19 +148,33 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
  *     (for preventing man-in-the-middle attacks).
  */
 
-struct proc_attestation_data {
-    union {
-        sgx_sign_data_t data;
-        struct {
-            sgx_arch_mac_t  eid_mac;
-        } __attribute__((packed));
-    };
+struct proc_data {
+    sgx_arch_mac_t eid_mac;
 };
 
 struct check_child_param {
-    PAL_MAC_KEY     mac_key;
+    PAL_SESSION_KEY session_key;
     const char *    uri;
 };
+
+static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t enclave_id,
+                              sgx_sign_data_t* sign_data) {
+    struct proc_data data;
+    int ret = lib_AESCMAC((uint8_t*)session_key,   sizeof(PAL_SESSION_KEY),
+                          (uint8_t*)&enclave_id,   sizeof(enclave_id),
+                          (uint8_t*)&data.eid_mac, sizeof(data.eid_mac));
+    if (ret < 0)
+        return ret;
+
+    SGX_DBG(DBG_P|DBG_S, "Enclave identifier: %016llx -> %s\n", enclave_id,
+            alloca_bytes2hexstr(data.eid_mac));
+
+    /* Copy proc_data into sgx_sign_data_t */
+    assert(sizeof(data) <= sizeof(*sign_data));
+    memset(sign_data, 0, sizeof(*sign_data));
+    memcpy(sign_data, &data, sizeof(data));
+    return 0;
+}
 
 static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
                                   struct pal_enclave_state * remote_state,
@@ -172,18 +186,14 @@ static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
 
     struct check_child_param * param = check_param;
 
+    sgx_sign_data_t sign_data;
+    int ret = generate_sign_data(&param->session_key, remote_state->enclave_id, &sign_data);
+    if (ret < 0)
+        return ret;
+
     /* must make sure the signer of the report is also the owner of the key,
        in order to prevent man-in-the-middle attack */
-    struct proc_attestation_data check_data;
-    memset(&check_data, 0, sizeof(struct proc_attestation_data));
-
-    lib_AESCMAC((uint8_t *) &param->mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &remote_state->enclave_id,
-                sizeof(remote_state->enclave_id),
-                (uint8_t *) check_data.eid_mac, sizeof(check_data.eid_mac));
-
-    if (memcmp(&remote_state->enclave_data, &check_data.data,
-               sizeof(check_data.data)))
+    if (memcmp(&remote_state->enclave_data, &sign_data, sizeof(sign_data)))
         return 1;
 
     /* Always accept the same mrenclave as child process */
@@ -223,75 +233,54 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
         for (const char ** a = args ; *a ; a++)
             nargs++;
 
-    ret = ocall_create_process(uri, nargs, args,
-                               proc_fds,
-                               &child_pid);
+    ret = ocall_create_process(uri, nargs, args, proc_fds, &child_pid);
     if (ret < 0)
         return ret;
 
-    PAL_HANDLE proc = malloc(HANDLE_SIZE(process));
-    SET_HANDLE_TYPE(proc, process);
-    HANDLE_HDR(proc)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
-    proc->process.stream_in  = proc_fds[0];
-    proc->process.stream_out = proc_fds[1];
-    proc->process.cargo      = proc_fds[2];
-    proc->process.pid = child_pid;
-    proc->process.nonblocking = PAL_FALSE;
-
-    PAL_SESSION_KEY session_key;
-    ret = _DkStreamKeyExchange(proc, &session_key);
-    if (ret < 0)
-        return ret;
+    PAL_HANDLE child = malloc(HANDLE_SIZE(process));
+    SET_HANDLE_TYPE(child, process);
+    HANDLE_HDR(child)->flags |= RFD(0)|WFD(1)|RFD(2)|WFD(2)|WRITEABLE(1)|WRITEABLE(2);
+    child->process.stream_in  = proc_fds[0];
+    child->process.stream_out = proc_fds[1];
+    child->process.cargo      = proc_fds[2];
+    child->process.pid = child_pid;
+    child->process.nonblocking = PAL_FALSE;
 
     struct check_child_param param;
-    session_key_to_mac_key(&session_key, &param.mac_key);
     param.uri = uri;
-
-    struct proc_attestation_data data;
-    memset(&data, 0, sizeof(struct proc_attestation_data));
-
-    lib_AESCMAC((uint8_t *) &param.mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &pal_enclave_state.enclave_id,
-                sizeof(pal_enclave_state.enclave_id),
-                (uint8_t *) data.eid_mac, sizeof(data.eid_mac));
-
-    SGX_DBG(DBG_P|DBG_S, "Enclave identifier MAC: %s\n", alloca_bytes2hexstr(data.eid_mac));
-
-    ret = _DkStreamAttestationRequest(proc, &data.data,
-                                      &check_child_mrenclave, &param);
+    ret = _DkStreamKeyExchange(child, &param.session_key);
     if (ret < 0)
         return ret;
 
-    *handle = proc;
+    sgx_sign_data_t sign_data;
+    ret = generate_sign_data(&param.session_key, pal_enclave_state.enclave_id, &sign_data);
+    if (ret < 0)
+        return ret;
+
+    ret = _DkStreamReportRequest(child, &sign_data, &check_child_mrenclave, &param);
+    if (ret < 0)
+        return ret;
+
+    *handle = child;
     return 0;
 }
 
 struct check_parent_param {
-    PAL_MAC_KEY     mac_key;
+    PAL_SESSION_KEY session_key;
 };
 
-static int check_parent_mrenclave (sgx_arch_hash_t * mrenclave,
-                                   struct pal_enclave_state * remote_state,
-                                   void * check_param)
-{
-    struct check_parent_param * param = check_param;
+static int check_parent_mrenclave(sgx_arch_hash_t* mrenclave,
+                                  struct pal_enclave_state* remote_state, void* check_param) {
+    struct check_parent_param* param = check_param;
+    sgx_sign_data_t sign_data;
+    int ret = generate_sign_data(&param->session_key, remote_state->enclave_id, &sign_data);
+    if (ret < 0)
+        return ret;
 
-    /* must make sure the signer of the report is also the owner of the key,
-       in order to prevent man-in-the-middle attack */
-    struct proc_attestation_data check_data;
-    memset(&check_data, 0, sizeof(struct proc_attestation_data));
-
-    lib_AESCMAC((uint8_t *) &param->mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &remote_state->enclave_id,
-                sizeof(remote_state->enclave_id),
-                (uint8_t *) check_data.eid_mac, sizeof(check_data.eid_mac));
-
-    if (memcmp(&remote_state->enclave_data, &check_data.data,
-               sizeof(check_data.data)))
+    if (memcmp(&remote_state->enclave_data, &sign_data, sizeof(sign_data)))
         return 1;
 
-    /* for now, we will accept any enclave as a parent, but eventually
-       we should check parent, maybe using crypto challenge */
+    /* XXX: For now, accept any enclave, but eventually should challenge the parent process */
     return 0;
 }
 
@@ -307,27 +296,17 @@ int init_child_process (PAL_HANDLE * parent_handle)
     parent->process.pid        = pal_sec.ppid;
     parent->process.nonblocking = PAL_FALSE;
 
-    PAL_SESSION_KEY session_key;
-    int ret = _DkStreamKeyExchange(parent, &session_key);
+    struct check_parent_param param;
+    int ret = _DkStreamKeyExchange(parent, &param.session_key);
     if (ret < 0)
         return ret;
 
-    struct check_parent_param param;
-    session_key_to_mac_key(&session_key, &param.mac_key);
+    sgx_sign_data_t sign_data;
+    ret = generate_sign_data(&param.session_key, pal_enclave_state.enclave_id, &sign_data);
+    if (ret < 0)
+        return ret;
 
-    struct proc_attestation_data data;
-    memset(&data, 0, sizeof(struct proc_attestation_data));
-
-    lib_AESCMAC((uint8_t *) &param.mac_key, AES_CMAC_KEY_LEN,
-                (uint8_t *) &pal_enclave_state.enclave_id,
-                sizeof(pal_enclave_state.enclave_id),
-                (uint8_t *) data.eid_mac, sizeof(data.eid_mac));
-
-    SGX_DBG(DBG_P|DBG_S, "Enclave identifier MAC: %s\n", alloca_bytes2hexstr(data.eid_mac));
-
-    ret = _DkStreamAttestationRespond(parent, &data.data,
-                                      &check_parent_mrenclave,
-                                      &param);
+    ret = _DkStreamReportRespond(parent, &sign_data, &check_parent_mrenclave, &param);
     if (ret < 0)
         return ret;
 

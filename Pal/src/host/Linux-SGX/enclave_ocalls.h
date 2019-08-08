@@ -83,10 +83,8 @@ int ocall_sock_shutdown (int sockfd, int how);
 
 int ocall_wake_thread (void * tcs);
 
-int ocall_create_process (const char * uri,
-                          int nargs, const char ** args,
-                          int procfds[3],
-                          unsigned int * pid);
+int ocall_create_process(const char* uri, int nargs, const char** args, int procfds[3],
+                         unsigned int* pid);
 
 int ocall_futex (int * uaddr, int op, int val, const uint64_t * timeout);
 

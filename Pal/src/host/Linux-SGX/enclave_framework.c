@@ -36,28 +36,26 @@ void sgx_ocfree (void)
     SET_ENCLAVE_TLS(ustack, GET_ENCLAVE_TLS(ustack_top));
 }
 
-int sgx_get_report (sgx_arch_hash_t * mrenclave,
-                    sgx_arch_attributes_t * attributes,
-                    sgx_sign_data_t * enclave_data,
-                    sgx_arch_report_t * report)
-{
-    sgx_arch_targetinfo_t targetinfo;
+static sgx_arch_key128_t enclave_key;
 
-    memset(&targetinfo, 0, sizeof(sgx_arch_targetinfo_t));
-    memcpy(targetinfo.mrenclave, mrenclave, sizeof(sgx_arch_hash_t));
-    memcpy(&targetinfo.attributes, attributes, sizeof(sgx_arch_attributes_t));
+#define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
 
+/*
+ * sgx_get_report() obtains a CPU-signed report for local attestation
+ * @mrenclave:    the measurement of target enclave
+ * @attributes:   the attributes of target enclave
+ * @enclave_data: the data to be included and signed in the report
+ * @report:       a buffer for storing the report
+ */
+static int sgx_get_report(sgx_arch_targetinfo_t* target_info, sgx_sign_data_t* data,
+                          sgx_arch_report_t* report) {
     struct pal_enclave_state state;
     memcpy(&state, &pal_enclave_state, sizeof(state));
-    memcpy(&state.enclave_data, enclave_data, sizeof(state.enclave_data));
+    memcpy(&state.enclave_data, data, sizeof(*data));
 
-    SGX_DBG(DBG_S, "sgx_report(targetinfo = %p, data = %p, report = %p)\n",
-            &targetinfo, &state, report);
-
-    int ret = sgx_report(&targetinfo, &state, report);
+    int ret = sgx_report(target_info, &state, report);
     if (ret) {
-        SGX_DBG(DBG_S, "sgx_report failed (mrenclave = %s, ret = %d)\n",
-                alloca_bytes2hexstr(*mrenclave), ret);
+        SGX_DBG(DBG_E, "sgx_report failed: ret = %d)\n", ret);
         return -PAL_ERROR_DENIED;
     }
 
@@ -77,10 +75,6 @@ int sgx_get_report (sgx_arch_hash_t * mrenclave,
     return 0;
 }
 
-static sgx_arch_key128_t enclave_key;
-
-#define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
-
 int sgx_verify_report (sgx_arch_report_t * report)
 {
     sgx_arch_keyrequest_t keyrequest;
@@ -97,8 +91,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get report key for verification: %s\n",
-            alloca_bytes2hexstr(enclave_key));
+    SGX_DBG(DBG_S, "Get report key for verification: %s\n", alloca_bytes2hexstr(report_key));
 
     sgx_arch_mac_t check_mac;
     memset(&check_mac, 0, sizeof(sgx_arch_mac_t));
@@ -129,11 +122,11 @@ int init_enclave_key (void)
 
     int ret = sgx_getkey(&keyrequest, &enclave_key);
     if (ret) {
-        SGX_DBG(DBG_S, "Can't get report key\n");
+        SGX_DBG(DBG_E, "Can't get seal key\n");
         return -PAL_ERROR_DENIED;
     }
 
-    SGX_DBG(DBG_S, "Get sealing key: %s\n", alloca_bytes2hexstr(enclave_key));
+    SGX_DBG(DBG_S, "Seal key: %s\n", alloca_bytes2hexstr(enclave_key));
     return 0;
 }
 
@@ -185,7 +178,7 @@ static int allow_file_creation = 0;
  * sizeptr:  size pointer
  * create:   this file is newly created or not
  *
- * return:  0 succeed
+ * Return 0 if succeeded, or an error code.
  */
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr, int create)
@@ -195,7 +188,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     char normpath[URI_MAX];
     int ret, fd = file->file.fd, uri_len, len;
 
-    if (!(HANDLE_HDR(file)->flags & RFD(0))) 
+    if (!(HANDLE_HDR(file)->flags & RFD(0)))
         return -PAL_ERROR_DENIED;
 
     uri_len = _DkStreamGetName(file, uri, URI_MAX);
@@ -291,8 +284,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
          * AES-CMAC, and then update the SHA256 digest. */
         uint64_t mapping_size = MIN(tf->size - offset, TRUSTED_STUB_SIZE);
         LIB_AESCMAC_CONTEXT aes_cmac;
-        ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
-                              AES_CMAC_KEY_LEN);
+        ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&enclave_key, sizeof(enclave_key));
         if (ret < 0)
             goto failed;
 
@@ -441,7 +433,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
         /* Check one chunk at a time. */
         uint64_t checking_size = MIN(total_size - checking, TRUSTED_STUB_SIZE);
         uint64_t checking_end = checking + checking_size;
-        uint8_t hash[AES_CMAC_DIGEST_LEN];
+        sgx_checksum_t hash;
 
         if (checking >= offset && checking_end <= offset + size) {
             /* If the checking chunk completely overlaps with the region
@@ -451,17 +443,15 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
                    checking_size);
 
             /* Storing the checksum (using AES-CMAC) inside hash. */
-            ret = lib_AESCMAC((uint8_t *) &enclave_key,
-                              AES_CMAC_KEY_LEN,
+            ret = lib_AESCMAC((uint8_t*)&enclave_key, sizeof(enclave_key),
                               buffer + checking - offset, checking_size,
-                              hash, sizeof(hash));
+                              (uint8_t*)&hash, sizeof(hash));
         } else {
             /* If the checking chunk only partially overlaps with the region,
              * read the file content in smaller chunks and only copy the part
              * needed by the caller. */
             LIB_AESCMAC_CONTEXT aes_cmac;
-            ret = lib_AESCMACInit(&aes_cmac, (uint8_t *) &enclave_key,
-                                  AES_CMAC_KEY_LEN);
+            ret = lib_AESCMACInit(&aes_cmac, (uint8_t*)&enclave_key, sizeof(enclave_key));
             if (ret < 0)
                 goto failed;
 
@@ -499,7 +489,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
             }
 
             /* Storing the checksum (using AES-CMAC) inside hash. */
-            ret = lib_AESCMACFinish(&aes_cmac, hash, sizeof(hash));
+            ret = lib_AESCMACFinish(&aes_cmac, (uint8_t*)&hash, sizeof(hash));
         }
 
         if (ret < 0)
@@ -514,7 +504,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
          *
          * XXX: Maybe we should zero the buffer after denying the access?
          */
-        if (memcmp(s, hash, sizeof(sgx_stub_t))) {
+        if (memcmp(s, &hash, sizeof(sgx_stub_t))) {
             SGX_DBG(DBG_E, "Accesing file:%s is denied. Does not match with MAC"
                     " at chunk starting at %llu-%llu.\n",
                     path, checking, checking_end);
@@ -627,7 +617,7 @@ static int init_trusted_file (const char * key, const char * uri)
     char cskey[URI_MAX], * tmp;
     char checksum[URI_MAX];
     char normpath[URI_MAX];
-    
+
     tmp = strcpy_static(cskey, "sgx.trusted_checksum.", URI_MAX);
     memcpy(tmp, key, strlen(key) + 1);
 
@@ -906,10 +896,7 @@ int init_enclave (void)
     return 0;
 }
 
-int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
-{
-    uint8_t session_key[sizeof(PAL_SESSION_KEY)]
-        __attribute__((aligned(sizeof(PAL_SESSION_KEY))));
+int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     uint8_t pub[DH_SIZE]   __attribute__((aligned(DH_SIZE)));
     uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
     PAL_NUM pubsz, agreesz;
@@ -918,14 +905,14 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
 
     ret = lib_DhInit(&context);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Key Exchange: DH Init failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DH Init failed: %d\n", ret);
         goto out_no_final;
     }
 
     pubsz = sizeof pub;
     ret = lib_DhCreatePublic(&context, pub, &pubsz);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Key Exchange: DH CreatePublic failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DH CreatePublic failed: %d\n", ret);
         goto out;
     }
 
@@ -941,35 +928,36 @@ int _DkStreamKeyExchange (PAL_HANDLE stream, PAL_SESSION_KEY * keyptr)
 
     ret = _DkStreamWrite(stream, 0, DH_SIZE, pub, NULL, 0);
     if (ret != DH_SIZE) {
-        SGX_DBG(DBG_S, "Key Exchange: DkStreamWrite failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DkStreamWrite failed: %d\n", ret);
         goto out;
     }
 
     ret = _DkStreamRead(stream, 0, DH_SIZE, pub, NULL, 0);
     if (ret != DH_SIZE) {
-        SGX_DBG(DBG_S, "Key Exchange: DkStreamRead failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DkStreamRead failed: %d\n", ret);
         goto out;
     }
 
     agreesz = sizeof agree;
     ret = lib_DhCalcSecret(&context, pub, DH_SIZE, agree, &agreesz);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Key Exchange: DH CalcSecret failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DH CalcSecret failed: %d\n", ret);
         goto out;
     }
 
     assert(agreesz > 0 && agreesz <= sizeof agree);
-    // TODO(security): use a real KDF
-    memset(session_key, 0, sizeof(session_key));
-    for (int i = 0 ; i < agreesz ; i++)
-        session_key[i % sizeof(session_key)] ^= agree[i];
 
-    SGX_DBG(DBG_S, "key exchange: (%p) %s\n", session_key,
-            alloca_bytes2hexstr(session_key));
+    /* Using SHA256 as a KDF to convert the 128-byte DH secret to a 256-bit AES key. */
+    LIB_SHA256_CONTEXT sha;
+    if ((ret = lib_SHA256Init(&sha)) < 0 ||
+        (ret = lib_SHA256Update(&sha, agree, agreesz)) < 0 ||
+        (ret = lib_SHA256Final(&sha, (uint8_t*)key)) < 0) {
+        SGX_DBG(DBG_E, "Failed to derive the session key: %s\n", ret);
+        goto out;
+    }
 
-    if (keyptr)
-        memcpy(keyptr, session_key, sizeof(PAL_SESSION_KEY));
 
+    SGX_DBG(DBG_S, "Key exchange succeeded: %s\n", alloca_bytes2hexstr(*key));
     ret = 0;
 out:
     lib_DhFinal(&context);
@@ -977,102 +965,88 @@ out_no_final:
     return ret;
 }
 
-struct attestation_request {
-    sgx_arch_hash_t       mrenclave;
-    sgx_arch_attributes_t attributes;
-};
-
-struct attestation {
-    sgx_arch_hash_t       mrenclave;
-    sgx_arch_attributes_t attributes;
-    sgx_arch_report_t     report;
-};
-
-int _DkStreamAttestationRequest (PAL_HANDLE stream, sgx_sign_data_t * data,
-                                 int (*check_mrenclave) (sgx_arch_hash_t *,
-                                                         struct pal_enclave_state *,
-                                                         void *),
-                                 void * check_param)
-{
-    struct attestation_request req;
-    struct attestation att;
+/* Assuming the caller to be A */
+int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
+                           int (*check_mrenclave)(sgx_arch_hash_t*,
+                                                  struct pal_enclave_state *, void *),
+                           void* check_param) {
+    sgx_arch_targetinfo_t target_info;
+    sgx_arch_report_t report;
     int bytes, ret;
 
-    memcpy(req.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
-    memcpy(&req.attributes, &pal_sec.enclave_attributes,
+    /* A -> B: targetinfo[A] */
+    memset(&target_info, 0, sizeof(sgx_arch_targetinfo_t));
+    memcpy(&target_info.mrenclave,  &pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
+    memcpy(&target_info.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
 
-    SGX_DBG(DBG_S, "Sending attestation request ... (mrenclave = %s)\n",\
-            alloca_bytes2hexstr(req.mrenclave));
-
-    for (bytes = 0, ret = 0 ; bytes < sizeof(req) ; bytes += ret) {
-        ret = _DkStreamWrite(stream, 0, sizeof(req) - bytes,
-                             ((void *) &req) + bytes, NULL, 0);
+    for (bytes = 0, ret = 0; bytes < SGX_TARGETINFO_FILLED_SIZE; bytes += ret) {
+        ret = _DkStreamWrite(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,
+                             ((void*)&target_info) + bytes, NULL, 0);
         if (ret < 0) {
-            SGX_DBG(DBG_S, "Attestation Request: DkStreamWrite failed: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to send target info via RPC: %d\n", ret);
             goto out;
         }
     }
 
-    for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
-        ret = _DkStreamRead(stream, 0, sizeof(att) - bytes,
-                            ((void *) &att) + bytes, NULL, 0);
+    /* B -> A: report[B -> A] */
+    for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
+        ret = _DkStreamRead(stream, 0, sizeof(report) - bytes,
+                            ((void*)&report) + bytes, NULL, 0);
         if (ret < 0) {
-            SGX_DBG(DBG_S, "Attestation Request: DkStreamRead failed: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
             goto out;
         }
     }
 
-    SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            alloca_bytes2hexstr(att.mrenclave));
+    SGX_DBG(DBG_S, "Received local report (mrenclave = %s)\n",
+            alloca_bytes2hexstr(report.mrenclave));
 
-    ret = sgx_verify_report(&att.report);
+    /* Verify report[B -> A] */
+    ret = sgx_verify_report(&report);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Attestation Request: sgx_verify_report failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to verify local report: %d\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Remote attestation not signed by SGX!\n");
+        SGX_DBG(DBG_E, "Local report is not signed by CPU\n");
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave,
-                          (struct pal_enclave_state *) &att.report.report_data,
+    ret = check_mrenclave(&report.mrenclave,
+                          (struct pal_enclave_state*)&report.report_data,
                           check_param);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to check local report: %d\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed encalve (mrenclave = %s)\n",
-                alloca_bytes2hexstr(att.mrenclave));
+        SGX_DBG(DBG_E, "Not an allowed enclave (mrenclave = %s)\n",
+                alloca_bytes2hexstr(report.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Remote attestation succeed!\n");
+    SGX_DBG(DBG_S, "Local attestation succeeded!\n");
 
-    ret = sgx_get_report(&att.mrenclave, &att.attributes, data, &att.report);
+    /* A -> B: report[A -> B] */
+    memcpy(&target_info.mrenclave , &report.mrenclave,  sizeof(sgx_arch_hash_t));
+    memcpy(&target_info.attributes, &report.attributes, sizeof(sgx_arch_attributes_t));
+
+    ret = sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Attestation Request: sgx_get_report failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to get local report from CPU: %d\n", ret);
         goto out;
     }
 
-    memcpy(att.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
-    memcpy(&att.attributes, &pal_sec.enclave_attributes,
-           sizeof(sgx_arch_attributes_t));
-
-    SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            alloca_bytes2hexstr(att.mrenclave));
-
-    for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
-        ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
-                             ((void *) &att) + bytes, NULL, 0);
+    for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
+        ret = _DkStreamWrite(stream, 0, sizeof(report) - bytes,
+                             ((void*)&report) + bytes, NULL, 0);
         if (ret < 0) {
-            SGX_DBG(DBG_S, "Attestation Request: DkStreamWrite failed: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to send local report via RPC: %d\n", ret);
             goto out;
         }
     }
@@ -1084,88 +1058,83 @@ out:
     return ret;
 }
 
-int _DkStreamAttestationRespond (PAL_HANDLE stream, sgx_sign_data_t * data,
-                                 int (*check_mrenclave) (sgx_arch_hash_t *,
-                                                         struct pal_enclave_state *, void *),
-                                 void * check_param)
-{
-    struct attestation_request req;
-    struct attestation att;
+/* Assuming the caller to be B */
+int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
+                           int (*check_mrenclave)(sgx_arch_hash_t*,
+                                                  struct pal_enclave_state*, void*),
+                           void* check_param) {
+    sgx_arch_targetinfo_t target_info;
+    sgx_arch_report_t report;
     int bytes, ret;
+    memset(&target_info, 0, sizeof(target_info));
 
-    for (bytes = 0, ret = 0 ; bytes < sizeof(req) ; bytes += ret) {
-        ret = _DkStreamRead(stream, 0, sizeof(req) - bytes,
-                            ((void *) &req) + bytes, NULL, 0);
+    /* A -> B: targetinfo[A] */
+    for (bytes = 0, ret = 0 ; bytes < SGX_TARGETINFO_FILLED_SIZE ; bytes += ret) {
+        ret = _DkStreamRead(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,
+                            ((void*)&target_info) + bytes, NULL, 0);
         if (ret < 0) {
-            SGX_DBG(DBG_S, "Attestation Respond: DkStreamRead failed: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to receive target info via RPC: %d\n", ret);
             goto out;
         }
     }
 
-    SGX_DBG(DBG_S, "Received attestation request ... (mrenclave = %s)\n",
-            alloca_bytes2hexstr(req.mrenclave));
-
-    ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &att.report);
+    /* B -> A: report[B -> A] */
+    ret = sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Attestation Respond: sgx_get_report failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to get local report from CPU: %d\n", ret);
         goto out;
     }
 
-    memcpy(att.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
-    memcpy(&att.attributes, &pal_sec.enclave_attributes,
-           sizeof(sgx_arch_attributes_t));
-
-    SGX_DBG(DBG_S, "Sending attestation ... (mrenclave = %s)\n",
-            alloca_bytes2hexstr(att.mrenclave));
-
-    for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
-        ret = _DkStreamWrite(stream, 0, sizeof(att) - bytes,
-                             ((void *) &att) + bytes, NULL, 0);
+    for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
+        ret = _DkStreamWrite(stream, 0, sizeof(report) - bytes,
+                             ((void*)&report) + bytes, NULL, 0);
         if (ret < 0) {
-            SGX_DBG(DBG_S, "Attestation Respond: DkStreamWrite failed: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to send local report via PRC: %d\n", ret);
             goto out;
         }
     }
 
-    for (bytes = 0, ret = 0 ; bytes < sizeof(att) ; bytes += ret) {
-        ret = _DkStreamRead(stream, 0, sizeof(att) - bytes,
-                            ((void *) &att) + bytes, NULL, 0);
+    /* A -> B: report[A -> B] */
+    for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
+        ret = _DkStreamRead(stream, 0, sizeof(report) - bytes,
+                            ((void*)&report) + bytes, NULL, 0);
         if (ret < 0) {
-            SGX_DBG(DBG_S, "Attestation Respond: DkStreamRead failed: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
             goto out;
         }
     }
 
-    SGX_DBG(DBG_S, "Received attestation (mrenclave = %s)\n",
-            alloca_bytes2hexstr(att.mrenclave));
+    SGX_DBG(DBG_S, "Received local report (mrenclave = %s)\n",
+            alloca_bytes2hexstr(report.mrenclave));
 
-    ret = sgx_verify_report(&att.report);
+    /* Verify report[A -> B] */
+    ret = sgx_verify_report(&report);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Attestation Respond: sgx_verify_report failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to verify local report: %d\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Remote attestation not signed by SGX!\n");
+        SGX_DBG(DBG_E, "Local report is not signed by CPU.\n");
         goto out;
     }
 
-    ret = check_mrenclave(&att.report.mrenclave,
-                          (struct pal_enclave_state *) &att.report.report_data,
+    ret = check_mrenclave(&report.mrenclave,
+                          (struct pal_enclave_state *) &report.report_data,
                           check_param);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Attestation Request: check_mrenclave failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to check mrenclave: %d\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
-                alloca_bytes2hexstr(att.mrenclave));
+        SGX_DBG(DBG_E, "Not an allowed enclave (mrenclave = %s)\n",
+                alloca_bytes2hexstr(report.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
-    SGX_DBG(DBG_S, "Remote attestation succeeded!\n");
+    SGX_DBG(DBG_S, "Local attestation succeeded!\n");
     return 0;
 
 out:

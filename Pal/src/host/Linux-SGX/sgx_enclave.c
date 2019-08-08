@@ -218,16 +218,11 @@ static int sgx_ocall_wake_thread(void * pms)
     return pms ? interrupt_thread(pms) : clone_thread();
 }
 
-int sgx_create_process (const char * uri,
-                        int nargs, const char ** args,
-                        int * retfds);
-
 static int sgx_ocall_create_process(void * pms)
 {
     ms_ocall_create_process_t * ms = (ms_ocall_create_process_t *) pms;
     ODEBUG(OCALL_CREATE_PROCESS, ms);
-    int ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args,
-                                 ms->ms_proc_fds);
+    int ret = sgx_create_process(ms->ms_uri, ms->ms_nargs, ms->ms_args, ms->ms_proc_fds);
     if (ret < 0)
         return ret;
     ms->ms_pid = ret;
