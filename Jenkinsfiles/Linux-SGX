@@ -23,7 +23,8 @@ pipeline {
                             ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
                         '''
                         sh '''
-                            make -j 8 SGX=1 WERROR=1 all test
+                            make -j 8 SGX=1 WERROR=1
+                            make -j 8 SGX=1 WERROR=1 test
                         '''
                         sh '''
                             make SGX_RUN=1 test

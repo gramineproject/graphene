@@ -6,7 +6,8 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make -j 8 DEBUG=1 WERROR=1 all test
+                            make -j 8 DEBUG=1 WERROR=1
+                            make -j 8 DEBUG=1 WERROR=1 test
                            '''
                     }
                 }
