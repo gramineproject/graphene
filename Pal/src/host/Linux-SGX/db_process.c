@@ -152,11 +152,6 @@ struct proc_data {
     sgx_arch_mac_t eid_mac;
 };
 
-struct check_child_param {
-    PAL_SESSION_KEY session_key;
-    const char *    uri;
-};
-
 static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t enclave_id,
                               sgx_sign_data_t* sign_data) {
     struct proc_data data;
@@ -176,18 +171,15 @@ static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t encla
     return 0;
 }
 
-static int check_child_mrenclave (sgx_arch_hash_t * mrenclave,
-                                  struct pal_enclave_state * remote_state,
-                                  void * check_param)
-{
+static int check_child_mrenclave(PAL_HANDLE child, sgx_arch_hash_t* mrenclave,
+                                 struct pal_enclave_state* remote_state) {
     /* the process must be a clean process */
     if (remote_state->enclave_flags & PAL_ENCLAVE_INITIALIZED)
         return 1;
 
-    struct check_child_param * param = check_param;
-
     sgx_sign_data_t sign_data;
-    int ret = generate_sign_data(&param->session_key, remote_state->enclave_id, &sign_data);
+    int ret = generate_sign_data(&child->process.session_key, remote_state->enclave_id,
+                                 &sign_data);
     if (ret < 0)
         return ret;
 
@@ -246,34 +238,33 @@ int _DkProcessCreate (PAL_HANDLE * handle, const char * uri,
     child->process.pid = child_pid;
     child->process.nonblocking = PAL_FALSE;
 
-    struct check_child_param param;
-    param.uri = uri;
-    ret = _DkStreamKeyExchange(child, &param.session_key);
+    ret = _DkStreamKeyExchange(child, &child->process.session_key);
     if (ret < 0)
-        return ret;
+        goto failed;
 
     sgx_sign_data_t sign_data;
-    ret = generate_sign_data(&param.session_key, pal_enclave_state.enclave_id, &sign_data);
+    ret = generate_sign_data(&child->process.session_key, pal_enclave_state.enclave_id,
+                             &sign_data);
     if (ret < 0)
-        return ret;
+        goto failed;
 
-    ret = _DkStreamReportRequest(child, &sign_data, &check_child_mrenclave, &param);
+    ret = _DkStreamReportRequest(child, &sign_data, &check_child_mrenclave);
     if (ret < 0)
-        return ret;
+        goto failed;
 
     *handle = child;
     return 0;
+
+failed:
+    free(child);
+    return ret;
 }
 
-struct check_parent_param {
-    PAL_SESSION_KEY session_key;
-};
-
-static int check_parent_mrenclave(sgx_arch_hash_t* mrenclave,
-                                  struct pal_enclave_state* remote_state, void* check_param) {
-    struct check_parent_param* param = check_param;
+static int check_parent_mrenclave(PAL_HANDLE parent, sgx_arch_hash_t* mrenclave,
+                                  struct pal_enclave_state* remote_state) {
     sgx_sign_data_t sign_data;
-    int ret = generate_sign_data(&param->session_key, remote_state->enclave_id, &sign_data);
+    int ret = generate_sign_data(&parent->process.session_key, remote_state->enclave_id,
+                                 &sign_data);
     if (ret < 0)
         return ret;
 
@@ -296,17 +287,17 @@ int init_child_process (PAL_HANDLE * parent_handle)
     parent->process.pid        = pal_sec.ppid;
     parent->process.nonblocking = PAL_FALSE;
 
-    struct check_parent_param param;
-    int ret = _DkStreamKeyExchange(parent, &param.session_key);
+    int ret = _DkStreamKeyExchange(parent, &parent->process.session_key);
     if (ret < 0)
         return ret;
 
     sgx_sign_data_t sign_data;
-    ret = generate_sign_data(&param.session_key, pal_enclave_state.enclave_id, &sign_data);
+    ret = generate_sign_data(&parent->process.session_key, pal_enclave_state.enclave_id,
+                             &sign_data);
     if (ret < 0)
         return ret;
 
-    ret = _DkStreamReportRespond(parent, &sign_data, &check_parent_mrenclave, &param);
+    ret = _DkStreamReportRespond(parent, &sign_data, &check_parent_mrenclave);
     if (ret < 0)
         return ret;
 

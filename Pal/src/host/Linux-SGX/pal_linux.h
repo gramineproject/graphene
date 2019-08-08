@@ -128,9 +128,6 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
 int init_trusted_children (void);
 int register_trusted_child (const char * uri, const char * mrenclave_str);
 
-/* RPC streams are encrypted with 256-bit AES keys */
-typedef uint8_t PAL_SESSION_KEY[32];
-
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
 
@@ -149,6 +146,7 @@ extern struct pal_enclave_state {
  */
 int sgx_verify_report (sgx_arch_report_t * report);
 
+typedef int (*check_mrenclave_t)(PAL_HANDLE, sgx_arch_hash_t*, struct pal_enclave_state*);
 
 /*
  * _DkStreamReportRequest, _DkStreamReportRespond:
@@ -157,16 +155,11 @@ int sgx_verify_report (sgx_arch_report_t * report);
  * @stream:          stream handle for sending and receiving messages
  * @data:            data to sign in the outbound message
  * @check_mrenclave: callback function for checking the measurement of the other end
- * @check_param:     parameter for the callback function
  */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           int (*check_mrenclave)(sgx_arch_hash_t*,
-                                                  struct pal_enclave_state*, void*),
-                           void* check_param);
+                           check_mrenclave_t check_mrenclave);
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           int (*check_mrenclave)(sgx_arch_hash_t*,
-                                                  struct pal_enclave_state*, void*),
-                           void* check_param);
+                           check_mrenclave_t check_mrenclave);
 
 #include "sgx_arch.h"
 

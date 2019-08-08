@@ -42,8 +42,7 @@ static sgx_arch_key128_t enclave_key;
 
 /*
  * sgx_get_report() obtains a CPU-signed report for local attestation
- * @mrenclave:    the measurement of target enclave
- * @attributes:   the attributes of target enclave
+ * @target_info:  the enclave target info
  * @enclave_data: the data to be included and signed in the report
  * @report:       a buffer for storing the report
  */
@@ -967,9 +966,7 @@ out_no_final:
 
 /* Assuming the caller to be A */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           int (*check_mrenclave)(sgx_arch_hash_t*,
-                                                  struct pal_enclave_state *, void *),
-                           void* check_param) {
+                           check_mrenclave_t check_mrenclave) {
     sgx_arch_targetinfo_t target_info;
     sgx_arch_report_t report;
     int bytes, ret;
@@ -1015,9 +1012,8 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
         goto out;
     }
 
-    ret = check_mrenclave(&report.mrenclave,
-                          (struct pal_enclave_state*)&report.report_data,
-                          check_param);
+    struct pal_enclave_state* remote_state = (void*)&report.report_data;
+    ret = check_mrenclave(stream, &report.mrenclave, remote_state);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to check local report: %d\n", ret);
         goto out;
@@ -1060,9 +1056,7 @@ out:
 
 /* Assuming the caller to be B */
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           int (*check_mrenclave)(sgx_arch_hash_t*,
-                                                  struct pal_enclave_state*, void*),
-                           void* check_param) {
+                           check_mrenclave_t check_mrenclave) {
     sgx_arch_targetinfo_t target_info;
     sgx_arch_report_t report;
     int bytes, ret;
@@ -1119,9 +1113,8 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
         goto out;
     }
 
-    ret = check_mrenclave(&report.mrenclave,
-                          (struct pal_enclave_state *) &report.report_data,
-                          check_param);
+    struct pal_enclave_state* remote_state = (void*)&report.report_data;
+    ret = check_mrenclave(stream, &report.mrenclave, remote_state);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to check mrenclave: %d\n", ret);
         goto out;
