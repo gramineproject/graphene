@@ -374,15 +374,12 @@ struct shim_handle {
     int                 flags;
     int                 acc_mode;
     IDTYPE              owner;
-    REFTYPE             opened;
     struct shim_lock    lock;
 };
 
 /* allocating / manage handle */
 struct shim_handle * get_new_handle (void);
 void flush_handle (struct shim_handle * hdl);
-void open_handle (struct shim_handle * hdl);
-void close_handle (struct shim_handle * hdl);
 void get_handle (struct shim_handle * hdl);
 void put_handle (struct shim_handle * hdl);
 

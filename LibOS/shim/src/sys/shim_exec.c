@@ -43,7 +43,7 @@ static int close_on_exec (struct shim_fd_handle * fd_hdl,
 {
     if (fd_hdl->flags & FD_CLOEXEC) {
         struct shim_handle * hdl = __detach_fd_handle(fd_hdl, NULL, map);
-        close_handle(hdl);
+        put_handle(hdl);
     }
     return 0;
 }

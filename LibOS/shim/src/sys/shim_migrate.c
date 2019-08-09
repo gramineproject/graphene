@@ -98,7 +98,7 @@ int create_checkpoint (const char * cpdir, IDTYPE * sid)
                           O_CREAT|O_EXCL|O_RDWR, 0600, NULL)) < 0)
         goto err;
 
-    open_handle(cpsession->cpfile);
+    get_handle(cpsession->cpfile);
     MASTER_LOCK();
 
     struct cp_session * s;
@@ -131,7 +131,7 @@ err_locked:
     MASTER_UNLOCK();
 err:
     if (cpsession->cpfile)
-        close_handle(cpsession->cpfile);
+        put_handle(cpsession->cpfile);
 
     DkObjectClose(cpsession->finish_event);
     free(cpsession);
@@ -260,7 +260,7 @@ static int finish_checkpoint (struct cp_session * cpsession)
 
     DkStreamUnmap((void *) cpstore->base, cpstore->bound);
 
-    close_handle(cpstore->cp_file);
+    put_handle(cpstore->cp_file);
     return 0;
 }
 

@@ -311,7 +311,7 @@ static int __set_new_fd_handle(struct shim_fd_handle ** fdhdl, FDTYPE fd,
 
     new_handle->vfd    = fd;
     new_handle->flags  = flags;
-    open_handle(hdl);
+    get_handle(hdl);
     new_handle->handle = hdl;
     return 0;
 }
@@ -449,32 +449,40 @@ const char * __handle_name (struct shim_handle * hdl)
     return "(unknown)";
 }
 
-void open_handle (struct shim_handle * hdl)
+void get_handle (struct shim_handle * hdl)
 {
-    get_handle(hdl);
-
 #ifdef DEBUG_REF
-    int opened = REF_INC(hdl->opened);
+    int ref_count = REF_INC(hdl->ref_count);
 
-    debug("open handle %p(%s) (opened = %d)\n", hdl, __handle_name(hdl),
-          opened);
+    debug("get handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl),
+          ref_count);
 #else
-    REF_INC(hdl->opened);
+    REF_INC(hdl->ref_count);
 #endif
+}
+
+static void destroy_handle (struct shim_handle * hdl)
+{
+    destroy_lock(&hdl->lock);
+
+    if (memory_migrated(hdl))
+        memset(hdl, 0, sizeof(struct shim_handle));
+    else
+        free_mem_obj_to_mgr(handle_mgr, hdl);
 }
 
 extern int delete_from_epoll_handles (struct shim_handle * handle);
 
-void close_handle (struct shim_handle * hdl)
+void put_handle (struct shim_handle * hdl)
 {
-    int opened = REF_DEC(hdl->opened);
+    int ref_count = REF_DEC(hdl->ref_count);
 
 #ifdef DEBUG_REF
-    debug("close handle %p(%s) (opened = %d)\n", hdl, __handle_name(hdl),
-          opened);
+    debug("put handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl),
+          ref_count);
 #endif
 
-    if (!opened) {
+    if (!ref_count) {
         if (hdl->type == TYPE_DIR) {
             struct shim_dir_handle * dir = &hdl->dir_info;
 
@@ -502,43 +510,7 @@ void close_handle (struct shim_handle * hdl)
         }
 
         delete_from_epoll_handles(hdl);
-    }
 
-    put_handle(hdl);
-}
-
-void get_handle (struct shim_handle * hdl)
-{
-#ifdef DEBUG_REF
-    int ref_count = REF_INC(hdl->ref_count);
-
-    debug("get handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl),
-          ref_count);
-#else
-    REF_INC(hdl->ref_count);
-#endif
-}
-
-static void destroy_handle (struct shim_handle * hdl)
-{
-    destroy_lock(&hdl->lock);
-
-    if (memory_migrated(hdl))
-        memset(hdl, 0, sizeof(struct shim_handle));
-    else
-        free_mem_obj_to_mgr(handle_mgr, hdl);
-}
-
-void put_handle (struct shim_handle * hdl)
-{
-    int ref_count = REF_DEC(hdl->ref_count);
-
-#ifdef DEBUG_REF
-    debug("put handle %p(%s) (ref_count = %d)\n", hdl, __handle_name(hdl),
-          ref_count);
-#endif
-
-    if (!ref_count) {
         if (hdl->fs && hdl->fs->fs_ops &&
             hdl->fs->fs_ops->hput)
             hdl->fs->fs_ops->hput(hdl);
@@ -592,7 +564,7 @@ void dup_fd_handle (struct shim_handle_map * map,
     lock(&map->lock);
 
     if (old->vfd != FD_NULL) {
-        open_handle(old->handle);
+        get_handle(old->handle);
         replaced = new->handle;
         new->handle = old->handle;
     }
@@ -600,7 +572,7 @@ void dup_fd_handle (struct shim_handle_map * map,
     unlock(&map->lock);
 
     if (replaced)
-        close_handle(replaced);
+        put_handle(replaced);
 }
 
 static struct shim_handle_map * get_new_handle_map (FDTYPE size)
@@ -672,12 +644,12 @@ int dup_handle_map (struct shim_handle_map ** new,
         if (HANDLE_ALLOCATED(fd_old)) {
             /* first, get the handle to prevent it from being deleted */
             struct shim_handle * hdl = fd_old->handle;
-            open_handle(hdl);
+            get_handle(hdl);
 
             fd_new = malloc(sizeof(struct shim_fd_handle));
             if (!fd_new) {
                 for (int j = 0; j < i; j++) {
-                    close_handle(new_map->map[j]->handle);
+                    put_handle(new_map->map[j]->handle);
                     free(new_map->map[j]);
                 }
                 unlock(&old_map->lock);
@@ -721,7 +693,7 @@ void put_handle_map (struct shim_handle_map * map)
                 struct shim_handle * handle = map->map[i]->handle;
 
                 if (handle)
-                    close_handle(handle);
+                    put_handle(handle);
             }
 
             free(map->map[i]);
@@ -804,7 +776,6 @@ BEGIN_CP_FUNC(handle)
             fs->fs_ops->checkout(new_hdl);
 
         new_hdl->dentry = NULL;
-        REF_SET(new_hdl->opened, 0);
         REF_SET(new_hdl->ref_count, 0);
         clear_lock(&new_hdl->lock);
 
@@ -962,7 +933,7 @@ BEGIN_RS_FUNC(handle_map)
                 CP_REBASE(handle_map->map[i]->handle);
                 struct shim_handle * hdl = handle_map->map[i]->handle;
                 assert(hdl);
-                open_handle(hdl);
+                get_handle(hdl);
                 DEBUG_RS("[%d]%s", i, qstrempty(&hdl->uri) ? hdl->fs_type :
                                       qstrgetstr(&hdl->uri));
             }

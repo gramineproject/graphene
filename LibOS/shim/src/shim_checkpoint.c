@@ -744,7 +744,7 @@ int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
     }
 
     struct shim_mount * fs = file->fs;
-    open_handle(file);
+    get_handle(file);
     debug("restore %s\n", filename);
 
     struct cp_header cphdr;
@@ -764,7 +764,7 @@ int restore_from_file (const char * filename, struct newproc_cp_header * hdr,
     migrated_memory_start = cpaddr;
     migrated_memory_end = cpaddr + hdr->hdr.size;
 out:
-    close_handle(file);
+    put_handle(file);
     return ret;
 }
 
