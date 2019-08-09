@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-import sys, os, string, subprocess, shutil, fileinput, multiprocessing, re, resource
-
-def replaceAll(fd,searchExp,replaceExp):
-    for line in fileinput.input(fd, inplace=1):
-        if searchExp in line:
-            line = line.replace(searchExp,replaceExp)
-        sys.stdout.write(line)
+import os
+import shutil
+import subprocess
+import sys
 
 def prependText(filename, text) :
     data = ""
@@ -108,11 +105,3 @@ if True:
     commandStr = r'CFLAGS="{2}" {3} {0}/configure --prefix={1} {4} | tee configure.out'.format(glibc, installDir, cflags, extra_defs, extra_flags)
     print(commandStr)
     commandOutput = subprocess.call(commandStr, shell=True)
-
-    ##    Enable parallel builds
-    numCPUs = multiprocessing.cpu_count()
-    ##    Don't use up all the cores!
-    numCPUs = numCPUs - 1
-    if numCPUs == 0:
-        numCPUs = 1
-    replaceAll('Makefile', r'# PARALLELMFLAGS = -j4', r'PARALLELMFLAGS = -j{0}'.format(numCPUs))
