@@ -57,7 +57,7 @@ int shim_do_dup2 (int oldfd, int newfd)
     struct shim_handle * new_hdl = detach_fd_handle(newfd, NULL, handle_map);
 
     if (new_hdl)
-        close_handle(new_hdl);
+        put_handle(new_hdl);
 
     int vfd = set_new_fd_handle_by_fd(newfd, hdl, 0, handle_map);
     put_handle(hdl);
@@ -74,7 +74,7 @@ int shim_do_dup3 (int oldfd, int newfd, int flags)
     struct shim_handle * new_hdl = detach_fd_handle(newfd, NULL, handle_map);
 
     if (new_hdl)
-        close_handle(new_hdl);
+        put_handle(new_hdl);
 
     int vfd = set_new_fd_handle_by_fd(newfd, hdl, flags, handle_map);
     put_handle(hdl);

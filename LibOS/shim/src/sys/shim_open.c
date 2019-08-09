@@ -165,7 +165,7 @@ int shim_do_close (int fd)
     if (!handle)
         return -EBADF;
 
-    close_handle(handle);
+    put_handle(handle);
     return 0;
 }
 

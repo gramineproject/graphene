@@ -114,12 +114,12 @@ int shim_do_pipe2 (int * filedes, int flags)
         if (vfd1 >= 0) {
             struct shim_handle * tmp = detach_fd_handle(vfd1, NULL, NULL);
             if (tmp)
-                close_handle(tmp);
+                put_handle(tmp);
         }
         if (vfd2 >= 0) {
             struct shim_handle * tmp = detach_fd_handle(vfd2, NULL, NULL);
             if (tmp)
-                close_handle(tmp);
+                put_handle(tmp);
         }
         goto out;
     }
@@ -196,12 +196,12 @@ int shim_do_socketpair (int domain, int type, int protocol, int * sv)
         if (vfd1 >= 0) {
             struct shim_handle * tmp = detach_fd_handle(vfd1, NULL, NULL);
             if (tmp)
-                close_handle(tmp);
+                put_handle(tmp);
         }
         if (vfd2 >= 0) {
             struct shim_handle * tmp = detach_fd_handle(vfd2, NULL, NULL);
             if (tmp)
-                close_handle(tmp);
+                put_handle(tmp);
         }
         goto out;
     }
