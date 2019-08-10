@@ -48,6 +48,24 @@ typedef ptrdiff_t ssize_t;
       _a > _b ? _a : _b; })
 #endif
 
+#define SATURATED_ADD(a, b, limit) \
+    ({ __typeof__(a) _a = (a); \
+       __typeof__(b) _b = (b); \
+       __typeof__(limit) _limit = (limit); \
+       _b > _limit ? _limit : (_a > _limit - _b ? _limit : _a + _b); })
+
+#define SATURATED_SUB(a, b, limit) \
+    ({ __typeof__(a) _a = (a); \
+       __typeof__(b) _b = (b); \
+       __typeof__(limit) _limit = (limit); \
+       _a < _limit ? _limit : (_b > _a - _limit ? _limit : _a - _b); })
+
+#define SATURATED_P_ADD(ptr_a, b, limit) \
+   ((__typeof__(ptr_a))SATURATED_ADD((uintptr_t)(ptr_a), (uintptr_t)(b), (uintptr_t)(limit)))
+
+#define SATURATED_P_SUB(ptr_a, b, limit) \
+   ((__typeof__(ptr_a))SATURATED_SUB((uintptr_t)(ptr_a), (uintptr_t)(b), (uintptr_t)(limit)))
+
 #define ALIGN_DOWN_PTR(ptr, size) \
     ((__typeof__(ptr)) (((uintptr_t)(ptr)) & -(size)))
 #define ALIGN_UP_PTR(ptr, size) \
