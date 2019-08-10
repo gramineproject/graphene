@@ -135,7 +135,8 @@ unsigned long _DkGetAllocationAlignment (void)
     return pagesz;
 }
 
-void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
+void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
+                                      PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
     void * end_addr, * start_addr;
 
@@ -171,6 +172,10 @@ void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end)
 
     *end   = (PAL_PTR) end_addr;
     *start = (PAL_PTR) start_addr;
+
+    // Not used, so set it to an empty range.
+    *hole_start = start_addr;
+    *hole_end = start_addr;
 }
 
 PAL_NUM _DkGetProcessId (void)

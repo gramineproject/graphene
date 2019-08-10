@@ -54,7 +54,7 @@ struct shim_vma {
 
 #define VMA_MGR_ALLOC   DEFAULT_VMA_COUNT
 #define PAGE_SIZE       allocsize
-#define RESERVED_VMAS   4
+#define RESERVED_VMAS   6
 
 static struct shim_vma * reserved_vmas[RESERVED_VMAS];
 static struct shim_vma early_vmas[RESERVED_VMAS];
@@ -298,6 +298,29 @@ int init_vma (void)
                             "exec");
     if (ret < 0)
         return ret;
+
+    if (PAL_CB(user_address_hole.end) - PAL_CB(user_address_hole.start) > 0) {
+        PAL_PTR reserved1_start = PAL_CB(user_address_hole.start);
+        PAL_PTR reserved1_end = MIN(PAL_CB(user_address_hole.end), PAL_CB(executable_range.start));
+        PAL_PTR reserved2_start = MIN(PAL_CB(executable_range.end), PAL_CB(user_address_hole.end));
+        PAL_PTR reserved2_end = PAL_CB(user_address_hole.end);
+
+        ret = __bkeep_preloaded(reserved1_start,
+                                reserved1_end,
+                                PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
+                                "reserved");
+        if (ret < 0)
+            return ret;
+
+        if (reserved2_end - reserved2_start > 0) {
+            ret = __bkeep_preloaded(reserved2_start,
+                                    reserved2_end,
+                                    PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
+                                    "reserved");
+            if (ret < 0)
+                return ret;
+        }
+    }
 
     ret = __bkeep_preloaded(PAL_CB(manifest_preload.start),
                             PAL_CB(manifest_preload.end),
