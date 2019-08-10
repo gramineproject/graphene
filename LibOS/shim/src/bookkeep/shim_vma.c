@@ -301,16 +301,18 @@ int init_vma (void)
 
     if (PAL_CB(user_address_hole.end) - PAL_CB(user_address_hole.start) > 0) {
         PAL_PTR reserved1_start = PAL_CB(user_address_hole.start);
-        PAL_PTR reserved1_end = MIN(PAL_CB(user_address_hole.end), PAL_CB(executable_range.start));
-        PAL_PTR reserved2_start = MIN(PAL_CB(executable_range.end), PAL_CB(user_address_hole.end));
+        PAL_PTR reserved1_end = MAX(reserved1_start, MIN(PAL_CB(user_address_hole.end), PAL_CB(executable_range.start)));
         PAL_PTR reserved2_end = PAL_CB(user_address_hole.end);
+        PAL_PTR reserved2_start = MIN(reserved2_end, MAX(PAL_CB(executable_range.end), reserved1_end));
 
-        ret = __bkeep_preloaded(reserved1_start,
-                                reserved1_end,
-                                PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
-                                "reserved");
-        if (ret < 0)
-            return ret;
+        if (reserved1_end - reserved1_start > 0) {
+            ret = __bkeep_preloaded(reserved1_start,
+                                    reserved1_end,
+                                    PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|VMA_UNMAPPED,
+                                    "reserved");
+            if (ret < 0)
+                return ret;
+        }
 
         if (reserved2_end - reserved2_start > 0) {
             ret = __bkeep_preloaded(reserved2_start,
