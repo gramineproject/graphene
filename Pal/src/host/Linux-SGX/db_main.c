@@ -491,7 +491,7 @@ int get_cpu_count(void) {
             ptr = end + 1;
             int secondint = (int)strtol(ptr, &end, 10);
             if (secondint > firstint)
-                cpu_count += secondint - firstint;
+                cpu_count += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
         }
         ptr = end;
     }
