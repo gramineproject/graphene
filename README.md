@@ -55,6 +55,11 @@ For building Graphene for SGX, run the following command in addition:
     sudo apt-get install -y python-protobuf
 
 
+To run unit tests locally, you also need the python3-pytest package:
+
+    sudo apt-get install -y python3-pytest
+
+
 To build the system, simply run the following commands in the root of the
 source tree:
 
