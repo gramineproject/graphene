@@ -155,7 +155,6 @@ int handle_deserialize (PAL_HANDLE * handle, const void * data, int size);
 #define ACCESS_W    2
 #define ACCESS_X    1
 
-//struct stat;
 bool stataccess (struct stat * stats, int acc);
 
 /* Locking and unlocking of Mutexes */

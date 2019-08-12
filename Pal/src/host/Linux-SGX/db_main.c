@@ -454,47 +454,52 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
-// Returns >0 on success, -errno on failure
-int get_cpu_count ()
-{
-    int size = 16;
-    char buf [16]; // Unlikely we will need more than 16 chars to represent all
-                   // cpus in the system in 0-XXXX format
-    int fd = ocall_open("/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
-    if (fd < 0) {
-        return fd;
-    }
+/*
+ * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
+ * Understands complex formats like "1,3-5,6".
+ */
+int get_cpu_count(void) {
+    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
+    if (fd < 0)
+        return unix_to_pal_error(ERRNO(fd));
 
-    int rv = ocall_read(fd, buf, size);
-    if (rv < 0) {
-        return rv;
-    } if (rv == 0) {
-        return -ENOENT;
-    } else {
-        int i;
-        bool match = false;
-        rv = -ENOENT;
-        for (i = 0; i < size; i++) {
-            if (buf[i] == '-') {
-                match = true;
-                break;
-            } else if (buf[i] == '\0') {
-                break;
-            }
-        }
-        if (match) {
-            i++;
-            // Starts counting at zero; PAL CB wants the total
-            rv = 1 + atoi(&buf[i]);
-        }
-    }
-
-    int ret = ocall_close(fd);
+    char buf[64];
+    int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
     if (ret < 0) {
-        rv = ret;
+        INLINE_SYSCALL(close, 1, fd);
+        return unix_to_pal_error(ERRNO(ret));
     }
 
-    return rv;
+    buf[sizeof(buf) - 1] = '\0'; /* ensure null-terminated buf even in partial read */
+
+    char* end;
+    char* ptr = buf;
+    int cpu_count = 0;
+    while (*ptr) {
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
+            ptr++;
+
+        int firstint = (int)strtol(ptr, &end, 10);
+        if (ptr == end)
+            break;
+
+        if (*end == '\0' || *end == ',') {
+            /* single CPU index, count as one more CPU */
+            cpu_count++;
+        } else if (*end == '-') {
+            /* CPU range, count how many CPUs in range */
+            ptr = end + 1;
+            int secondint = (int)strtol(ptr, &end, 10);
+            if (secondint > firstint)
+                cpu_count += secondint - firstint;
+        }
+        ptr = end;
+    }
+
+    INLINE_SYSCALL(close, 1, fd);
+    if (cpu_count == 0)
+        return -PAL_ERROR_STREAMNOTEXIST;
+    return cpu_count;
 }
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
@@ -525,14 +530,12 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
     brand[BRAND_SIZE - 1] = '\0';
     ci->cpu_brand = brand;
 
-    // cpuid always counts HT cores, whether disabled by the BIOS or not.
-    // Switch to parsing a /sys file to get this info
+    /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
+     * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
     int cores = get_cpu_count();
-    if (cores > 0) {
-        ci->cpu_num = cores;
-    } else {
+    if (cores < 0)
         return cores;
-    }
+    ci->cpu_num = cores;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +
