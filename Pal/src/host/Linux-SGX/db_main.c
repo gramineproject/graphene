@@ -288,6 +288,7 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     }
     pal_sec.uid = sec_info.uid;
     pal_sec.gid = sec_info.gid;
+    pal_sec.num_cpus = sec_info.num_cpus;
 
 
     /* set up page allocator and slab manager */
@@ -454,53 +455,6 @@ static char * cpu_flags[]
           "pbe",    // "pending break event"
         };
 
-/*
- * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
- * Understands complex formats like "1,3-5,6".
- */
-int get_cpu_count(void) {
-    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
-    if (fd < 0)
-        return unix_to_pal_error(ERRNO(fd));
-
-    char buf[64];
-    int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
-    if (ret < 0) {
-        INLINE_SYSCALL(close, 1, fd);
-        return unix_to_pal_error(ERRNO(ret));
-    }
-
-    buf[sizeof(buf) - 1] = '\0'; /* ensure null-terminated buf even in partial read */
-
-    char* end;
-    char* ptr = buf;
-    int cpu_count = 0;
-    while (*ptr) {
-        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
-            ptr++;
-
-        int firstint = (int)strtol(ptr, &end, 10);
-        if (ptr == end)
-            break;
-
-        if (*end == '\0' || *end == ',') {
-            /* single CPU index, count as one more CPU */
-            cpu_count++;
-        } else if (*end == '-') {
-            /* CPU range, count how many CPUs in range */
-            ptr = end + 1;
-            int secondint = (int)strtol(ptr, &end, 10);
-            if (secondint > firstint)
-                cpu_count += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
-        }
-        ptr = end;
-    }
-
-    INLINE_SYSCALL(close, 1, fd);
-    if (cpu_count == 0)
-        return -PAL_ERROR_STREAMNOTEXIST;
-    return cpu_count;
-}
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
@@ -531,11 +485,8 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
     ci->cpu_brand = brand;
 
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
-     * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
-    int cores = get_cpu_count();
-    if (cores < 0)
-        return cores;
-    ci->cpu_num = cores;
+     * instead, this is passed in via pal_sec at start-up time. */
+    ci->cpu_num = pal_sec.num_cpus;
 
     cpuid(1, 0, words);
     ci->cpu_family   = BIT_EXTRACT_LE(words[PAL_CPUID_WORD_EAX],  8, 12) +

@@ -701,6 +701,54 @@ out:
     return ret;
 }
 
+/*
+ * Returns the number of online CPUs read from /sys/devices/system/cpu/online, -errno on failure.
+ * Understands complex formats like "1,3-5,6".
+ */
+int get_cpu_count(void) {
+    int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
+    if (fd < 0)
+        return fd;
+
+    char buf[64];
+    int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
+    if (ret < 0) {
+        INLINE_SYSCALL(close, 1, fd);
+        return ret;
+    }
+
+    buf[sizeof(buf) - 1] = '\0'; /* ensure null-terminated buf even in partial read */
+
+    char* end;
+    char* ptr = buf;
+    int cpu_count = 0;
+    while (*ptr) {
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == ',')
+            ptr++;
+
+        int firstint = (int)strtol(ptr, &end, 10);
+        if (ptr == end)
+            break;
+
+        if (*end == '\0' || *end == ',') {
+            /* single CPU index, count as one more CPU */
+            cpu_count++;
+        } else if (*end == '-') {
+            /* CPU range, count how many CPUs in range */
+            ptr = end + 1;
+            int secondint = (int)strtol(ptr, &end, 10);
+            if (secondint > firstint)
+                cpu_count += secondint - firstint + 1; // inclusive (e.g., 0-7, or 8-16)
+        }
+        ptr = end;
+    }
+
+    INLINE_SYSCALL(close, 1, fd);
+    if (cpu_count == 0)
+        return -PAL_ERROR_STREAMNOTEXIST;
+    return cpu_count;
+}
+
 static int load_enclave (struct pal_enclave * enclave,
                          char * manifest_uri,
                          char * exec_uri,
@@ -731,6 +779,7 @@ static int load_enclave (struct pal_enclave * enclave,
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
     pal_sec->uid = INLINE_SYSCALL(getuid, 0);
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
+    pal_sec->num_cpus = get_cpu_count();
 
 #ifdef DEBUG
     size_t env_i = 0;

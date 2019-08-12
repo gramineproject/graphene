@@ -49,6 +49,9 @@ struct pal_sec {
     PAL_SEC_STR     pipe_prefix;
     PAL_IDX         mcast_port, mcast_srv, mcast_cli;
 
+    /* Need to pass in the number of cores */
+    PAL_NUM         num_cpus;
+
 #ifdef DEBUG
     PAL_BOL         in_gdb;
 #endif
