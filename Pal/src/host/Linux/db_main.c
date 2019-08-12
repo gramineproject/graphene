@@ -410,11 +410,10 @@ int get_cpu_count ()
             i++;
             // Starts counting at zero; PAL CB wants the total
             rv = 1 + atoi(&buf[i]);
-            break;
         }
     }
 
-    ret = INLINE_SYSCALL(close, 1, fd);
+    int ret = INLINE_SYSCALL(close, 1, fd);
     if (ret < 0) {
         rv = ret;
     }
