@@ -47,12 +47,17 @@ contact us with a detailed bug report.
 
 Run the following command on Ubuntu to install dependencies for Graphene:
 
-    sudo apt-get install -y build-essential autoconf gawk
+    sudo apt-get install -y build-essential autoconf gawk 
 
 
 For building Graphene for SGX, run the following command in addition:
 
     sudo apt-get install -y python-protobuf
+
+
+To run unit tests locally, you also need this package:
+
+    sudo apt-get install -y python3-pytest
 
 
 To build the system, simply run the following commands in the root of the
