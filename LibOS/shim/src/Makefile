@@ -51,6 +51,7 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  async parser debug object) syscallas start \
 	  $(patsubst %.c,%,$(wildcard sys/*.c)) \
 	  vdso/vdso-data
+all_objs = $(objs) vdso/vdso-note vdso/vdso
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
@@ -101,10 +102,6 @@ else
 $(shim_target):
 endif
 
-$(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)
-elf/shim_rtld.o: $(wildcard elf/*.h)
-
-
 %.o: %.c
 	$(call cmd,cc_o_c)
 
@@ -152,8 +149,8 @@ vdso/vdso-data.o: vdso/vdso.so
 CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/.vdso-linked-for-reloc-check.so vdso/.vdso-no-reloc-checked
 
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(addsuffix .d,$(objs)) \
-	       $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs)) \
+	rm -rf $(addsuffix .o,$(all_objs)) $(addsuffix .d,$(all_objs)) \
+	       $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs)) \
 	       $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
 
--include $(addsuffix .d,$(objs)) $(addsuffix .i.d,$(objs)) $(addsuffix .s.d,$(objs))
+-include $(addsuffix .d,$(all_objs)) $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs))

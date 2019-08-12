@@ -52,12 +52,14 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(preloads): %.so: %.so.c ../src/user_shared_start.o \
 	$(graphene_lib) $(pal_lib)
 	@echo [ $@ ]
-	@$(CC) -shared -fPIC $(CFLAGS) $^ -o $@
+	@$(CC) -MD -MP -shared -fPIC $(CFLAGS) $(filter-out %.h,$^) -o $@
 
 $(executables): %: %.c ../src/user_start.o \
 	$(graphene_lib) $(pal_lib) $(preloads)
 	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $^ -o $@
+	@$(CC) -MD -MP $(CFLAGS) $(filter-out %.h,$^) -o $@
+
+include $(wildcard *.d)
 
 .lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
@@ -85,4 +87,4 @@ pal-regression.xml: test_pal.py $(call expand_target,$(target))
 
 .PHONY: clean
 clean:
-	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig
+	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig *.d
