@@ -1,0 +1,196 @@
+unchanged:
+--- a/sysdeps/unix/sysv/linux/x86_64/clock_gettime.c
++++ b/sysdeps/unix/sysv/linux/x86_64/clock_gettime.c
+@@ -1,5 +1,6 @@
+ #include "bits/libc-vdso.h"
+ 
++#if 0 /* in Graphene, disallow VDSO calls */
+ #ifdef SHARED
+ # define SYSCALL_GETTIME(id, tp) \
+   ({ long int (*f) (clockid_t, struct timespec *) = __vdso_clock_gettime; \
+@@ -16,5 +17,6 @@
+   PTR_DEMANGLE (f);							  \
+   f (id, tp); })
+ #endif
++#endif
+ 
+ #include "../clock_gettime.c"
+unchanged:
+--- a/sysdeps/unix/sysv/linux/x86_64/gettimeofday.c
++++ b/sysdeps/unix/sysv/linux/x86_64/gettimeofday.c
+@@ -17,6 +17,7 @@
+ 
+ #include <sys/time.h>
+ 
++#if 0 /* In graphene, do not use vsyscall or VDSO call */
+ #ifdef SHARED
+ 
+ # include <dl-vdso.h>
+@@ -42,7 +43,8 @@ asm (".type __gettimeofday, %gnu_indirect_function");
+ asm (".globl __GI___gettimeofday\n"
+      "__GI___gettimeofday = __gettimeofday");
+ 
+-#else
++#endif
++#endif
+ 
+ # include <sysdep.h>
+ # include <errno.h>
+@@ -54,6 +56,5 @@ __gettimeofday (struct timeval *tv, struct timezone *tz)
+ }
+ libc_hidden_def (__gettimeofday)
+ 
+-#endif
+ weak_alias (__gettimeofday, gettimeofday)
+ libc_hidden_weak (gettimeofday)
+unchanged:
+--- a/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S	2019-08-13 16:07:35.878486727 -0700
++++ b/nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_timedwait.S	2019-08-13 16:07:56.166508488 -0700
+@@ -485,15 +485,8 @@ __pthread_cond_timedwait:
+ 	/* Only clocks 0 and 1 are allowed so far.  Both are handled in the
+ 	   kernel.  */
+ 	leaq	32(%rsp), %rsi
+-#  ifdef SHARED
+-	mov	__vdso_clock_gettime@GOTPCREL(%rip), %RAX_LP
+-	mov	(%rax), %RAX_LP
+-	PTR_DEMANGLE (%RAX_LP)
+-	call	*%rax
+-#  else
+ 	movl	$__NR_clock_gettime, %eax
+ 	SYSCALLDB
+-#  endif
+ 
+ 	/* Compute relative timeout.  */
+ 	movq	(%r13), %rcx
+unchanged:
+--- a/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S	2019-08-13 16:02:43.550205689 -0700
++++ b/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S	2019-08-13 16:03:29.282244893 -0700
+@@ -30,6 +30,7 @@ ENTRY (sched_getcpu)
+ 	sub	$0x8, %rsp
+ 	cfi_adjust_cfa_offset(8)
+ 
++#if 0 /* for Graphene, never do VDSO calls */
+ 	movq	%rsp, %rdi
+ 	xorl	%esi, %esi
+ 	movl	$VGETCPU_CACHE_OFFSET, %edx
+@@ -39,16 +40,19 @@ ENTRY (sched_getcpu)
+ 	movq	__vdso_getcpu(%rip), %rax
+ 	PTR_DEMANGLE (%rax)
+ 	callq	*%rax
+-#else
+-# ifdef __NR_getcpu
++#endif
++#endif
++
++#ifdef __NR_getcpu
+ 	movl	$__NR_getcpu, %eax
+ 	SYSCALLDB
+-#  ifndef __ASSUME_GETCPU_SYSCALL
++#endif
++
++#if 0 /* for Graphene, never do vsyscall */
++# ifndef __ASSUME_GETCPU_SYSCALL
+ 	cmpq	$-ENOSYS, %rax
+ 	jne	1f
+-#  endif
+-# endif
+-# ifndef __ASSUME_GETCPU_SYSCALL
++
+ 	movq	$VSYSCALL_ADDR_vgetcpu, %rax
+ 	callq	*%rax
+ 1:
+unchanged:
+--- glibc-2.19-orig/sysdeps/unix/sysv/linux/x86_64/time.c	2014-02-07 01:04:38.000000000 -0800
++++ glibc-2.19-modify/sysdeps/unix/sysv/linux/x86_64/time.c	1969-12-31 16:00:00.000000000 -0800
+@@ -1,60 +0,0 @@
+-/* Copyright (C) 2001-2014 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, see
+-   <http://www.gnu.org/licenses/>.  */
+-
+-#ifdef SHARED
+-/* Redefine time so that the compiler won't complain about the type
+-   mismatch with the IFUNC selector in strong_alias, below.  */
+-#undef time
+-#define time __redirect_time
+-#include <time.h>
+-
+-#include <dl-vdso.h>
+-
+-#define VSYSCALL_ADDR_vtime	0xffffffffff600400
+-
+-/* Avoid DWARF definition DIE on ifunc symbol so that GDB can handle
+-   ifunc symbol properly.  */
+-extern __typeof (__redirect_time) __libc_time;
+-void *time_ifunc (void) __asm__ ("__libc_time");
+-
+-void *
+-time_ifunc (void)
+-{
+-  PREPARE_VERSION (linux26, "LINUX_2.6", 61765110);
+-
+-  /* If the vDSO is not available we fall back on the old vsyscall.  */
+-  return _dl_vdso_vsym ("__vdso_time", &linux26) ?: (void *) VSYSCALL_ADDR_vtime;
+-}
+-__asm (".type __libc_time, %gnu_indirect_function");
+-
+-#undef time
+-strong_alias (__libc_time, time)
+-libc_hidden_ver (__libc_time, time)
+-
+-#else
+-
+-# include <time.h>
+-# include <sysdep.h>
+-
+-time_t
+-time (time_t *t)
+-{
+-  INTERNAL_SYSCALL_DECL (err);
+-  return INTERNAL_SYSCALL (time, err, 1, t);
+-}
+-
+-#endif
+only in patch2:
+unchanged:
+--- a/sysdeps/unix/sysv/linux/x86_64/sysdep.h
++++ b/sysdeps/unix/sysv/linux/x86_64/sysdep.h
+@@ -252,6 +252,7 @@
+ # undef INTERNAL_SYSCALL_ERRNO
+ # define INTERNAL_SYSCALL_ERRNO(val, err)	(-(val))
+ 
++# if 0 /* for Graphene, never do vsyscall */
+ # ifdef SHARED
+ #  define INLINE_VSYSCALL(name, nr, args...) \
+   ({									      \
+@@ -300,12 +301,13 @@
+     v_ret;								      \
+   })
+ 
+-# else
+-#  define INLINE_VSYSCALL(name, nr, args...) \
+-  INLINE_SYSCALL (name, nr, ##args)
+-#  define INTERNAL_VSYSCALL(name, err, nr, args...) \
+-  INTERNAL_SYSCALL (name, err, nr, ##args)
+ # endif
++# endif
++
++#  define INLINE_VSYSCALL(name, nr_args...) \
++  INLINE_SYSCALL (name, ##nr_args)
++#  define INTERNAL_VSYSCALL(name, err, nr_args...) \
++  INTERNAL_SYSCALL (name, err, ##nr_args)
+ 
+ # define LOAD_ARGS_0()
+ # define LOAD_REGS_0
