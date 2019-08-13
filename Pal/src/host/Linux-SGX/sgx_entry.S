@@ -10,6 +10,7 @@
 
 sgx_ecall:
 	pushq %rbx
+	subq $8, %rsp  # adjust to 16B alignment
 
 	# put entry address in RDX
 	leaq sgx_entry(%rip), %rdx
@@ -28,6 +29,7 @@ sgx_ecall:
 	ENCLU
 
 	# Currently only ECALL_THREAD_RESET returns
+	addq $8, %rsp  # due to 16B alignment
 	popq %rbx
 	retq
 
