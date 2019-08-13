@@ -15,6 +15,7 @@
 *.i
 *.s
 *.e
+*.d
 
 # object file/libraries
 *.a

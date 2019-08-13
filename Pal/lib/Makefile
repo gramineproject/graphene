@@ -21,7 +21,6 @@ CFLAGS += -I$(target)
 endif
 
 subdirs = string stdlib network graphene util crypto
-headers = api.h pal_crypto.h
 
 # Choose Crypto provider among (mbedtls|wolfssl)
 CRYPTO_PROVIDER ?= mbedtls
@@ -36,11 +35,9 @@ CRYPTO_PROVIDER ?= mbedtls
 # symbols.
 ifeq ($(CRYPTO_PROVIDER),mbedtls)
 subdirs += crypto/mbedtls
-headers += $(wildcard crypto/mbedtls/mbedtls/*.h)
 endif
 ifeq ($(CRYPTO_PROVIDER),wolfssl)
 subdirs += crypto/wolfssl
-headers += $(wildcard crypto/wolfssl/*.h)
 endif
 
 objs	= $(foreach dir,$(subdirs),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
@@ -68,9 +65,11 @@ $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@mkdir -p $(dir $@)
 	$(call cmd,ar_a_o)
 
-$(target)%.o: %.c $(headers)
+$(target)%.o: %.c
 	@mkdir -p $(dir $@)
 	$(call cmd,cc_o_c)
+
+-include $(patsubst %.o,%.d,$(addprefix $(target),$(objs)))
 
 .PHONY: clean
 clean:

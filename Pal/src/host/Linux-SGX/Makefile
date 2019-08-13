@@ -17,8 +17,6 @@ enclave-asm-objs = enclave_entry
 urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exception graphene)
 urts-asm-objs = sgx_entry
 graphene_lib = .lib/graphene-lib.a
-headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
-	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h)
 
 .PHONY: all
 all: $(host_files)
@@ -37,38 +35,38 @@ libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
 	$(call cmd,ar_a_o)
 
 $(addsuffix .o,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .o,$(enclave-objs)): %.o: %.c $(headers)
+$(addsuffix .o,$(enclave-objs)): %.o: %.c
 	$(call cmd,cc_o_c)
 
 $(addsuffix .i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .i,$(enclave-objs)): %.i: %.c $(headers)
+$(addsuffix .i,$(enclave-objs)): %.i: %.c
 	$(call cmd,cpp_i_c)
 
 $(addsuffix .s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .s,$(enclave-objs)): %.s: %.c $(headers)
+$(addsuffix .s,$(enclave-objs)): %.s: %.c
 	$(call cmd,cc_s_c)
 
 $(addsuffix .o,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
-$(addsuffix .o,$(enclave-asm-objs)): %.o: %.S $(headers)
+$(addsuffix .o,$(enclave-asm-objs)): %.o: %.S
 	$(call cmd,as_o_S)
 
 $(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
-$(addsuffix .s,$(enclave-asm-objs)): %.s: %.S $(headers)
+$(addsuffix .s,$(enclave-asm-objs)): %.s: %.S
 	$(call cmd,cpp_s_S)
 
-$(addsuffix .o,$(urts-objs)): %.o: %.c $(headers)
+$(addsuffix .o,$(urts-objs)): %.o: %.c
 	$(call cmd,cc_o_c)
 
-$(addsuffix .i,$(urts-objs)): %.i: %.c $(headers)
+$(addsuffix .i,$(urts-objs)): %.i: %.c
 	$(call cmd,cpp_i_c)
 
-$(addsuffix .s,$(urts-objs)): %.s: %.c $(headers)
+$(addsuffix .s,$(urts-objs)): %.s: %.c
 	$(call cmd,cc_s_c)
 
-$(addsuffix .s,$(urts-asm-objs)): %.s: %.S $(headers)
+$(addsuffix .s,$(urts-asm-objs)): %.s: %.S
 	$(call cmd,cpp_s_S)
 
-$(addsuffix .o,$(urts-asm-objs)): %.o: %.S $(headers)
+$(addsuffix .o,$(urts-asm-objs)): %.o: %.S
 	$(call cmd,as_o_S)
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
@@ -77,13 +75,15 @@ pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
 	@echo [ host/Linux-SGX/$@ ]
-	$(CC) -Wall -fPIC -O2 -std=c11 -c debugger/sgx_gdb.c -o debugger/sgx_gdb.o
+	$(CC) -MD -MP -Wall -fPIC -O2 -std=c11 -c debugger/sgx_gdb.c -o debugger/sgx_gdb.o
 	$(LD) -shared debugger/sgx_gdb.o -o debugger/sgx_gdb.so -lc
 
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
 sgx-driver/isgx_version.h:
 	$(MAKE) -C sgx-driver $(notdir $<)
+
+include $(wildcard *.d) $(wildcard debugger/*.d)
 
 include ../../../../Makefile.rules
 
@@ -92,7 +92,7 @@ CLEAN_FILES += debugger/sgx_gdb.o
 
 .PHONY: clean
 clean:
-	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES)
+	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d
 
 .PHONY: test
 test:

@@ -76,20 +76,20 @@ cc-option = $(shell set -e; \
 
 # .c
 quiet_cmd_cc_o_c = [ $@ ]
-      cmd_cc_o_c = $(CC) $(CFLAGS) $(CFLAGS-$@) -c -o $@ $<
+      cmd_cc_o_c = $(CC) -MD -MP $(CFLAGS) $(CFLAGS-$@) -c -o $@ $<
 
 quiet_cmd_cpp_i_c = [ $@ ]
-      cmd_cpp_i_c = $(CC) $(CFLAGS) $(CFLAGS-$@) -E -o $@ $<
+      cmd_cpp_i_c = $(CC) -MD -MP -MF $@.d $(CFLAGS) $(CFLAGS-$@) -E -o $@ $<
 
 quiet_cmd_cc_s_c = [ $@ ]
-      cmd_cc_s_c = $(CC) $(CFLAGS) $(CFLAGS-$@) -S -o $@ $<
+      cmd_cc_s_c = $(CC) -MD -MP -MF $@.d $(CFLAGS) $(CFLAGS-$@) -S -o $@ $<
 
 # .S
 quiet_cmd_as_o_S = [ $@ ]
-      cmd_as_o_S = $(CC) $(ASFLAGS) $(ASFLAGS-$@) -c -o $@ $<
+      cmd_as_o_S = $(CC) -MD -MP $(ASFLAGS) $(ASFLAGS-$@) -c -o $@ $<
 
 quiet_cmd_cpp_s_S = [ $@ ]
-      cmd_cpp_s_S = $(CC) $(ASFLAGS) $(ASFLAGS-$@) -E -o $@ $<
+      cmd_cpp_s_S = $(CC) -MD -MP -MF $@.d $(ASFLAGS) $(ASFLAGS-$@) -E -o $@ $<
 
 # LD
 quiet_cmd_ld_so_o = [ $@ ]
