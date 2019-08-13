@@ -266,7 +266,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
     size_t len = sizeof(normpath) - 5;
     ret = get_norm_path(uri + 5, normpath + 5, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Path (%s) normalizaion failed: %s\n", uri + 5, PAL_STRERROR(ret));
+        SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + 5, PAL_STRERROR(ret));
         return ret;
     }
     len += 5;
@@ -696,7 +696,7 @@ static int init_trusted_file (const char * key, const char * uri)
     size_t len = sizeof(normpath) - 5;
     ret = get_norm_path(uri + 5, normpath + 5, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Path (%s) normalizaion failed: %s\n", uri + 5, PAL_STRERROR(ret));
+        SGX_DBG(DBG_E, "Path (%s) normalization failed: %s\n", uri + 5, PAL_STRERROR(ret));
         return ret;
     }
 
