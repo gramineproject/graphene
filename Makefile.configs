@@ -10,4 +10,7 @@ endif
 ifeq ($(origin LD),default)
 LD	= ld
 endif
+ifeq ($(origin CXX),default)
+CXX = g++
+endif
 OBJCOPY ?= objcopy
