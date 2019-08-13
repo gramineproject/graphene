@@ -24,9 +24,10 @@ pipeline {
                         '''
                         sh '''
                             make -j 8 SGX=1 WERROR=1
+                            make -j 8 SGX=1 WERROR=1 test
                         '''
                         sh '''
-                            make SGX_RUN=1
+                            make SGX_RUN=1 test
                         '''
                     }
                 }

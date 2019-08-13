@@ -93,3 +93,6 @@ CLEAN_FILES += debugger/sgx_gdb.o
 .PHONY: clean
 clean:
 	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES)
+
+.PHONY: test
+test:
