@@ -83,13 +83,19 @@ $(LIB_DIR)/host_endian.h: $(HOST_DIR)/host_endian.h
 	@mkdir -p $(LIB_DIR)
 	$(call cmd,ln_sf)
 
-.PHONY: $(host_lib) $(graphene_lib) $(pal_lib)
+.PHONY: host_lib_recurse graphene_lib_recurse
 
-$(graphene_lib): $(LIB_DIR)/host_endian.h
+graphene_lib_recurse: $(LIB_DIR)/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath $(LIB_DIR))/
 
-$(host_lib): $(graphene_lib)
+$(graphene_lib): graphene_lib_recurse
+	@true
+
+host_lib_recurse: $(graphene_lib)
 	@[ ! -d host/$(PAL_HOST) ] || $(MAKE) -C host/$(PAL_HOST)
+
+$(host_lib): host_lib_recurse
+	@true
 
 $(pal_loader): $(host_lib)
 
