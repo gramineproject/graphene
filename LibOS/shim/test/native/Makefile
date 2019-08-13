@@ -1,9 +1,8 @@
-special_executables = static pie
-c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
+c_executables = $(patsubst %.c,%,$(wildcard *.c))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
 
-exec_target = $(special_executables) $(c_executables) $(cxx_executables) ls.manifest
+exec_target = $(c_executables) $(cxx_executables) ls.manifest
 target = $(exec_target) $(manifests)
 
 level = ../
@@ -20,18 +19,8 @@ $(cxx_executables): %: %.cpp
 	@$(CXX) -MD -MP $(CXXFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
-static: %: %.c
-	@echo [ $@ ]
-	@$(CC) -MD -MP $(CFLAGS) -o $@ -static $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-pie: %: %.c
-	@echo [ $@ ]
-	@$(CC) -MD -MP $(CFLAGS) -fPIC --pie -o $@ $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
 include $(wildcard *.d)
 else
-.IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
-$(special_executables) $(c_executables) $(cxx_executables):
+.IGNORE: $(c_executables) $(cxx_executables)
+$(c_executables) $(cxx_executables):
 endif
