@@ -19,8 +19,3 @@ format:
 	                               -path ./lib/crypto/udivmodti4.c -prune -o \
 	                               -path ./src/host/Linux-SGX/sgx-driver -prune -o \
 	                               \( -name '*.h' -o -name '*.c' \) -print)
-
-.PHONY: pack
-pack:
-	$(MAKE) -C test pack
-	$(MAKE) -C regression pack
