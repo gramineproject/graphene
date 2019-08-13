@@ -91,8 +91,9 @@ noreturn static void __shim_do_execve_rtld (struct execve_rtld_arg * __arg)
     /* libc tcb is not needed because PAL provides storage for shim_tcb */
     __libc_tcb_t* tcb = NULL;
 #else
+# define LIBC_TCB_ALLOC_SIZE    (sizeof(__libc_tcb_t) + __alignof__(__libc_tcb_t))
     __libc_tcb_t* tcb = ALIGN_UP_PTR(
-        cur_thread->stack_top - sizeof(*tcb) - __alignof__(*tcb),
+        cur_thread->stack_top - LIBC_TCB_ALLOC_SIZE,
         __alignof__(*tcb));
     memset(tcb, 0, sizeof(*tcb));
 #endif
@@ -223,7 +224,7 @@ static int shim_do_execve_rtld (struct shim_handle * hdl, const char ** argv,
     size_t reserve = 0;
 #else
     /* reserve __libc_tcb_t for startup use. see __shim_do_execve_rtld() */
-    size_t reserve = sizeof(__libc_tcb_t) + __alignof__(__libc_tcb_t);
+    size_t reserve = LIBC_TCB_ALLOC_SIZE;
 #endif
     if ((ret = init_stack(argv, envp, &new_argcp, &new_argp, &new_auxp,
                           reserve)) < 0)
