@@ -269,7 +269,7 @@ PAL_NUM _DkGetProcessId (void);
 PAL_NUM _DkGetHostId (void);
 unsigned long _DkMemoryQuota (void);
 unsigned long _DkMemoryAvailableQuota (void);
-// Returns 0 on success, -errno on failure
+// Returns 0 on success, negative PAL code on failure
 int _DkGetCPUInfo (PAL_CPU_INFO * info);
 
 /* Internal DK calls, in case any of the internal routines needs to use them */

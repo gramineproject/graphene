@@ -708,16 +708,16 @@ out:
 int get_cpu_count(void) {
     int fd = INLINE_SYSCALL(open, 3, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC, 0);
     if (fd < 0)
-        return fd;
+        return unix_to_pal_error(ERRNO(fd));
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
     if (ret < 0) {
         INLINE_SYSCALL(close, 1, fd);
-        return ret;
+        return unix_to_pal_error(ERRNO(ret));
     }
 
-    buf[sizeof(buf) - 1] = '\0'; /* ensure null-terminated buf even in partial read */
+    buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
     char* end;
     char* ptr = buf;
@@ -779,7 +779,11 @@ static int load_enclave (struct pal_enclave * enclave,
     pal_sec->pid = INLINE_SYSCALL(getpid, 0);
     pal_sec->uid = INLINE_SYSCALL(getuid, 0);
     pal_sec->gid = INLINE_SYSCALL(getgid, 0);
-    pal_sec->num_cpus = get_cpu_count();
+    int num_cpus = get_cpu_count();
+    if (num_cpus < 0) {
+        return num_cpus;
+    }
+    pal_sec->num_cpus = num_cpus;
 
 #ifdef DEBUG
     size_t env_i = 0;

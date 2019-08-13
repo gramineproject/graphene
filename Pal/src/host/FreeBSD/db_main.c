@@ -337,12 +337,12 @@ int get_cpu_count(void) {
 
     int rv = sysctl(mib, 2, &cores, &len, NULL, 0);
     if (rv < 0)
-        return rv;
+        return unix_to_pal_error(ERRNO(rv));
 
     return cores;
 }
 
-void _DkGetCPUInfo (PAL_CPU_INFO * ci)
+int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
     unsigned int words[PAL_CPUID_WORD_NUM];
 
@@ -375,8 +375,11 @@ void _DkGetCPUInfo (PAL_CPU_INFO * ci)
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
      * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
     int cores = get_cpu_count();
-    if (cores < 0)
+    if (cores < 0) {
+        free(brand);
+        free(vendor_id);
         return cores;
+    }
     ci->cpu_num = cores;
 
     int flen = 0, fmax = 80;

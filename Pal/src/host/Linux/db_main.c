@@ -394,7 +394,7 @@ int get_cpu_count(void) {
         return unix_to_pal_error(ERRNO(ret));
     }
 
-    buf[sizeof(buf) - 1] = '\0'; /* ensure null-terminated buf even in partial read */
+    buf[ret] = '\0'; /* ensure null-terminated buf even in partial read */
 
     char* end;
     char* ptr = buf;
@@ -455,8 +455,11 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
     /* we cannot use CPUID(0xb) because it counts even disabled-by-BIOS cores (e.g. HT cores);
      * instead we extract info on number of online CPUs by parsing sysfs pseudo-files */
     int cores = get_cpu_count();
-    if (cores < 0)
+    if (cores < 0) {
+        free(vendor_id);
+        free(brand);
         return cores;
+    }
     ci->cpu_num = cores;
 
     cpuid(1, 0, words);
