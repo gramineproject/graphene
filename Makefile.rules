@@ -114,3 +114,11 @@ quiet_cmd_objcopy = [ $@ ]
 # This depends on the output of readelf command.
 quiet_cmd_check_no_reloc = [ $@ ]
       cmd_check_no_reloc = LC_ALL=C readelf -r $^ | grep -q 'There are no relocations in this file.'
+
+# single .c => executable
+quiet_cmd_csingle  = [ $@ ]
+      cmd_csingle  = $(CC) $(CFLAGS) $(CFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
+
+# single .cpp => executable
+quiet_cmd_cxxsingle  = [ $@ ]
+      cmd_cxxsingle  = $(CXX) $(CXXFLAGS) $(CXXFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
