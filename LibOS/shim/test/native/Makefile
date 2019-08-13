@@ -1,4 +1,4 @@
-special_executables = static pie
+special_executables = pie
 c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
@@ -18,11 +18,6 @@ $(c_executables): %: %.c
 $(cxx_executables): %: %.cpp
 	@echo [ $@ ]
 	@$(CXX) $(CXXFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
-
-static: %: %.c
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) -o $@ -static $< \
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 pie: %: %.c
