@@ -51,10 +51,10 @@ objs	= $(addprefix bookkeep/shim_,handle vma thread signal) \
 	  async parser debug object) syscallas start \
 	  $(patsubst %.c,%,$(wildcard sys/*.c)) \
 	  vdso/vdso-data
+all_objs = $(objs) vdso/vdso-note vdso/vdso
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
-headers = ../include/*.h ../../../Pal/lib/*.h ../../../Pal/include/pal/*.h
 
 all: $(files_to_build) $(files_to_install)
 
@@ -99,23 +99,19 @@ else
 $(shim_target):
 endif
 
-$(addsuffix .o,$(addprefix ipc/shim_ipc_,$(ipcns))): $(wildcard ipc/*.h)
-elf/shim_rtld.o: $(wildcard elf/*.h)
-
-
-%.o: %.c $(headers)
+%.o: %.c
 	$(call cmd,cc_o_c)
 
-%.i: %.c $(headers)
+%.i: %.c
 	$(call cmd,cpp_i_c)
 
-%.s: %.c $(headers)
+%.s: %.c
 	$(call cmd,cc_s_c)
 
-%.o: %.S $(headers)
+%.o: %.S
 	$(call cmd,as_o_S)
 
-%.s: %.S $(headers)
+%.s: %.S
 	$(call cmd,cpp_s_S)
 
 syscallas.S shim_checkpoint.c: asm-offsets.h
@@ -152,4 +148,8 @@ vdso/vdso-data.o: vdso/vdso.so
 CLEAN_FILES += vdso/vdso.so.dbg vdso/vdso.so vdso/.vdso.so
 
 clean:
-	rm -rf $(addsuffix .o,$(objs)) $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
+	rm -rf $(addsuffix .o,$(all_objs)) $(addsuffix .d,$(all_objs)) \
+	       $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs)) \
+	       $(shim_target) $(files_to_build) .lib $(CLEAN_FILES)
+
+-include $(addsuffix .d,$(all_objs)) $(addsuffix .i.d,$(all_objs)) $(addsuffix .s.d,$(all_objs))
