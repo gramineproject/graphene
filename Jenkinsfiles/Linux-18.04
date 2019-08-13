@@ -7,6 +7,7 @@ pipeline {
                     steps {
                         sh '''
                             make -j 8 WERROR=1
+                            make -j 8 WERROR=1 test
                             # We can't build this on 18.04 in our current pipeline
                             #cd Pal/ipc/linux
                             #make

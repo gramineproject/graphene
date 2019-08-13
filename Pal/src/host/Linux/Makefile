@@ -55,3 +55,6 @@ CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 .PHONY: clean
 clean:
 	rm -f $(addsuffix .o,$(objs)) $(host_files) $(CLEAN_FILES)
+
+.PHONY: test
+test:
