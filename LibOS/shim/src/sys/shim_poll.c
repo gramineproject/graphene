@@ -109,7 +109,6 @@ static int __do_poll(int npolls, struct poll_handle* polls, uint64_t timeout_us)
 
     struct shim_handle_map * map = cur->handle_map;
     int npals = 0;
-    bool has_r = false, has_known = false;
     struct poll_handle * polling = NULL;
     struct poll_handle * p, ** n, * q;
     PAL_HANDLE * pals = NULL;
@@ -264,14 +263,7 @@ no_op:
 done_finding:
         /* feedback the new knowledge of repeated handles */
         if (rep)
-            rep->flags |= p->flags &
-                          (KNOWN_R|KNOWN_W|RET_R|RET_W|RET_E|POLL_R|POLL_W);
-
-        if (do_r)
-            has_r = true;
-
-        if (p->flags & (RET_R|RET_W|RET_E))
-            has_known = true;
+            rep->flags |= p->flags & (KNOWN_R|KNOWN_W|RET_R|RET_W|RET_E|POLL_R|POLL_W);
 
         SAVE_PROFILE_INTERVAL(do_poll_update_bookkeeping);
     }
@@ -317,15 +309,9 @@ done_finding:
 
     SAVE_PROFILE_INTERVAL(do_poll_second_loop);
 
-    int pal_timeout = (has_r && !has_known) ? timeout : 0;
-    PAL_BOL polled = DkObjectsWaitEvents(npals, pals,
-                                         pal_events, ret_events,
-                                         pal_timeout);
+    PAL_BOL polled = DkObjectsWaitEvents(npals, pals, pal_events, ret_events, timeout_us);
 
-    if (pal_timeout)
-        SAVE_PROFILE_INTERVAL(do_poll_wait_any);
-    else
-        SAVE_PROFILE_INTERVAL(do_poll_wait_any_peek);
+    SAVE_PROFILE_INTERVAL(do_poll_wait);
 
     if (!polled) {
         ret = (PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN) ? 0 : -PAL_ERRNO;
