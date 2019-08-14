@@ -1,0 +1,26 @@
+PROJECT_NAME = "Graphene"
+OUTPUT_DIRECTORY = _build/doxygen
+
+GENERATE_XML = YES
+XML_PROGRAMLISTING = NO
+XML_OUTPUT = xml
+
+GENERATE_HTML = NO
+GENERATE_LATEX = NO
+
+RECURSIVE = YES
+INPUT = \
+    ../Pal \
+    ../LibOS/shim/include \
+    ../LibOS/shim/src
+
+EXCLUDE = \
+    ../Pal/lib \
+    ../Pal/regression \
+    ../Pal/test
+#EXCLUDE_PATTERNS =
+
+WARN_NO_PARAMDOC = YES
+WARN_AS_ERROR = NO
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_STATIC = YES
