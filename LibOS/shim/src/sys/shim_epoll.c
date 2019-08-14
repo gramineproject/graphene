@@ -343,7 +343,8 @@ retry:
     unlock(&epoll_hdl->lock);
 
     // TODO: Timeout must be updated in case of retries. Otherwise, we may wait too long.
-    PAL_BOL polled = DkObjectsWaitEvents(npals, pal_handles, pal_events, ret_events, timeout);
+    PAL_BOL polled = DkObjectsWaitEvents(npals, pal_handles, pal_events, ret_events,
+                                         timeout_ms * 1000);
 
     lock(&epoll_hdl->lock);
 
