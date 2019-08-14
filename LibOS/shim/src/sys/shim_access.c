@@ -61,7 +61,7 @@ int shim_do_faccessat (int dfd, const char * filename, mode_t mode)
     struct shim_dentry * dir = NULL, * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_startat(dfd, &dir)) < 0)
+    if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     ret = path_lookupat(dir, filename, LOOKUP_ACCESS|LOOKUP_FOLLOW, &dent, NULL);

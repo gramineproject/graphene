@@ -487,7 +487,7 @@ int path_lookupat (struct shim_dentry * start, const char * name, int flags,
  *
  * The start dentry specifies where to begin the search, and can be null. If
  * specified, we assume the caller has incremented the ref count on the start,
- * but not the associated mount (probably using path_startat)
+ * but not the associated mount (probably using get_dirfd_dentry)
  *
  * hdl is an optional argument; if passed in, it is initialized to
  *   refer to the opened path.
@@ -824,38 +824,30 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
     return 0;
 }
 
-
-/* This function initializes dir to before a search, to either point
- * to the current working directory (if dfd == AT_FDCWD), or to the handle
- * pointed to by dfd, depending on the argument.
- *
- * Increments dentry ref count by one.
- *
- * Returns -EBADF if dfd is <0 or not a valid handle.
- * Returns -ENOTDIR if dfd is not a directory.
- */
-int path_startat (int dfd, struct shim_dentry ** dir)
-{
-    if (dfd == AT_FDCWD) {
-        struct shim_thread * cur = get_cur_thread();
+int get_dirfd_dentry(int dirfd, struct shim_dentry** dir) {
+    if (dirfd == AT_FDCWD) {
+        struct shim_thread* cur = get_cur_thread();
         get_dentry(cur->cwd);
         *dir = cur->cwd;
         return 0;
-    } else if (dfd < 0) {
-        return -EBADF;
-    } else {
-        struct shim_handle * hdl = get_fd_handle(dfd, NULL, NULL);
-        if (!hdl)
-            return -EBADF;
-
-        if (hdl->type != TYPE_DIR) {
-            put_handle(hdl);
-            return -ENOTDIR;
-        }
-
-        get_dentry(hdl->dentry);
-        put_handle(hdl);
-        *dir = hdl->dentry;
-        return 0;
     }
+
+    if (dirfd < 0) {
+        return -EBADF;
+    }
+
+    struct shim_handle* hdl = get_fd_handle(dirfd, NULL, NULL);
+    if (!hdl) {
+        return -EBADF;
+    }
+
+    if (hdl->type != TYPE_DIR) {
+        put_handle(hdl);
+        return -ENOTDIR;
+    }
+
+    get_dentry(hdl->dentry);
+    *dir = hdl->dentry;
+    put_handle(hdl);
+    return 0;
 }

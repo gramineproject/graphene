@@ -314,6 +314,16 @@ int __del_dentry_tree(struct shim_dentry * root) {
     return 0;
 }
 
+bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent) {
+    while (dent) {
+        if (dent == anc) {
+            return true;
+        }
+        dent = dent->parent;
+    }
+    return false;
+}
+
 BEGIN_CP_FUNC(dentry)
 {
     assert(size == sizeof(struct shim_dentry));

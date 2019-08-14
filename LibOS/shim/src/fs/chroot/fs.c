@@ -1252,22 +1252,23 @@ out:
     return ret;
 }
 
-static int chroot_rename (struct shim_dentry * old, struct shim_dentry * new)
-{
+static int chroot_rename(struct shim_dentry* old, struct shim_dentry* new) {
     int ret;
 
-    struct shim_file_data * old_data;
-    if ((ret = try_create_data(old, NULL, 0, &old_data)) < 0)
+    struct shim_file_data* old_data;
+    if ((ret = try_create_data(old, NULL, 0, &old_data)) < 0) {
         return ret;
+    }
 
-    struct shim_file_data * new_data;
-    if ((ret = try_create_data(new, NULL, 0, &new_data)) < 0)
+    struct shim_file_data* new_data;
+    if ((ret = try_create_data(new, NULL, 0, &new_data)) < 0) {
         return ret;
+    }
 
-    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&old_data->host_uri),
-                                      0, 0, 0, 0);
-    if (!pal_hdl)
+    PAL_HANDLE pal_hdl = DkStreamOpen(qstrgetstr(&old_data->host_uri), 0, 0, 0, 0);
+    if (!pal_hdl) {
         return -PAL_ERRNO;
+    }
 
     if (!DkStreamChangeName(pal_hdl, qstrgetstr(&new_data->host_uri))) {
         DkObjectClose(pal_hdl);
@@ -1277,6 +1278,8 @@ static int chroot_rename (struct shim_dentry * old, struct shim_dentry * new)
     new->mode = new_data->mode = old_data->mode;
     old->mode = NO_MODE;
     old_data->mode = 0;
+
+    new->type = old->type;
 
     DkObjectClose(pal_hdl);
 

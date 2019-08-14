@@ -375,14 +375,15 @@ int __path_lookupat (struct shim_dentry * start, const char * path, int flags,
 int path_lookupat (struct shim_dentry * start, const char * name, int flags,
                    struct shim_dentry ** dent, struct shim_mount *fs);
 
-/* This function initializes dir to before a search, to either point
- * to the current working directory (if dfd == AT_FDCWD), or to the handle pointed to by dfd,
- * depending on the argument.
+/*
+ * This function returns a dentry (in *dir) from a handle corresponding to dirfd.
+ * If dirfd == AT_FDCWD returns current working directory.
  *
- * Returns -EBADF if dfd is <0 or not a valid handle.
- * Returns -ENOTDIR if dfd is not a directory.
+ * Returned dentry must be a directory.
+ *
+ * Increments dentry ref count by one.
  */
-int path_startat (int dfd, struct shim_dentry ** dir);
+int get_dirfd_dentry(int dirfd, struct shim_dentry** dir);
 
 /* Open path with given flags, in mode, similar to Unix open.
  *
@@ -528,6 +529,11 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
  * XXX: Current code doesn't do a free..
  */
 int __del_dentry_tree(struct shim_dentry * root);
+
+/*
+ * Returns true if `anc` is an ancestor of `dent`.
+ */
+bool dentry_is_ancestor(struct shim_dentry* anc, struct shim_dentry* dent);
 
 /* XXX: Future work: current dcache never shrinks.  Would be nice
  * to be able to do something like LRU under space pressure, although

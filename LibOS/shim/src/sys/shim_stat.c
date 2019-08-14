@@ -233,7 +233,7 @@ int shim_do_newfstatat(int dirfd, const char* pathname,
 
     struct shim_dentry* dir = NULL;
     if (*pathname != '/') {
-        int ret = path_startat(dirfd, &dir);
+        int ret = get_dirfd_dentry(dirfd, &dir);
         if (ret < 0)
             return ret;
     }

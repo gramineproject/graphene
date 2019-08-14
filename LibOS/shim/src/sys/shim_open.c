@@ -137,7 +137,7 @@ int shim_do_openat (int dfd, const char * filename, int flags, int mode)
     struct shim_dentry * dir = NULL;
     int ret = 0;
 
-    if ((ret = path_startat(dfd, &dir)) < 0)
+    if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     struct shim_handle * hdl = get_new_handle();
