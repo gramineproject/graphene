@@ -8,7 +8,9 @@ pipeline {
                         sh '''
                             cd LibOS
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.19
+                            rm -r glibc-build
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.23
+                            rm -r glibc-build
                             cd ..
                             make -j 8 WERROR=1
                             cd Pal/ipc/linux
