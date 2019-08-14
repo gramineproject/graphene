@@ -103,16 +103,17 @@ struct poll_handle {
 
 #define POLL_NOTIMEOUT  ((uint64_t)-1)
 
-static int __do_poll(int npolls, struct poll_handle* polls, uint64_t timeout_us)
-{
-    struct shim_thread * cur = get_cur_thread();
-
-    struct shim_handle_map * map = cur->handle_map;
+static int __do_poll(int npolls, struct poll_handle* polls, uint64_t timeout_us) {
+    struct shim_thread* cur = get_cur_thread();
+    struct shim_handle_map* map = cur->handle_map;
     int npals = 0;
-    struct poll_handle * polling = NULL;
-    struct poll_handle * p, ** n, * q;
-    PAL_HANDLE * pals = NULL;
-    PAL_FLG * pal_events = NULL, * ret_events;
+    struct poll_handle* polling = NULL;
+    struct poll_handle* p;
+    struct poll_handle* q;
+    struct poll_handle** n;
+    PAL_HANDLE* pals = NULL;
+    PAL_FLG* pal_events = NULL;
+    PAL_FLG* ret_events = NULL;
     int ret = 0;
 
 #ifdef PROFILE
