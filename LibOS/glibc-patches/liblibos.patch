@@ -79,7 +79,7 @@ index 0000000..3211637
 +++ b/libos/Versions
 @@ -0,0 +1,7 @@
 +liblibos {
-+  GLIBC_2.12 {
++  GLIBC_2.19 {
 +    checkpoint;
 +    msgpersist;
 +    benchmark_rpc; send_rpc; recv_rpc;

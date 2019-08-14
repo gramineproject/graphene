@@ -7,7 +7,7 @@ index 759c754..e1a270e 100644
    GLIBC_PRIVATE
  }
 +liblibos {
-+  GLIBC_2.12
++  GLIBC_2.19
 +}
 diff --git a/shlib-versions b/shlib-versions
 index 78b0ad7..5c3dcf2 100644

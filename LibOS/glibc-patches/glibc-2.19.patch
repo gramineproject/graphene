@@ -37,14 +37,6 @@ index 759c754..e1a270e 100644
  }
  libcrypt {
    GLIBC_2.0
-@@ -50,6 +51,7 @@ libdl {
-   GLIBC_2.1
-   GLIBC_2.3.3
-   GLIBC_2.3.4
-+  SHIM
- }
- libm {
-   GLIBC_2.0
 @@ -108,6 +110,7 @@ libpthread {
    GLIBC_2.18
    GLIBC_2.19
@@ -61,18 +53,6 @@ index 759c754..e1a270e 100644
  }
  libthread_db {
    GLIBC_2.1.3
-diff --git a/dlfcn/Versions b/dlfcn/Versions
-index 97902f0..c1874c1 100644
---- a/dlfcn/Versions
-+++ b/dlfcn/Versions
-@@ -14,4 +14,7 @@ libdl {
-   GLIBC_PRIVATE {
-     _dlfcn_hook;
-   }
-+  SHIM {
-+    syscalldb;
-+  }
- }
 diff --git a/elf/Makefile b/elf/Makefile
 index 4c58fc9..0ae2fa8 100644
 --- a/elf/Makefile
@@ -100,16 +80,6 @@ diff --git a/elf/Versions b/elf/Versions
 index 2383992..98687f6 100644
 --- a/elf/Versions
 +++ b/elf/Versions
-@@ -24,6 +24,9 @@ libc {
-     _dl_sym; _dl_vsym;
-     __libc_dlclose; __libc_dlopen_mode; __libc_dlsym;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- ld {
 @@ -62,4 +65,7 @@ ld {
      # Pointer protection.
      __pointer_chk_guard;
@@ -183,16 +153,6 @@ diff --git a/nptl/Versions b/nptl/Versions
 index bb11277..354149a 100644
 --- a/nptl/Versions
 +++ b/nptl/Versions
-@@ -31,6 +31,9 @@ libc {
-     # Internal libc interface to libpthread
-     __libc_dl_error_tsd;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- libpthread {
 @@ -262,4 +265,8 @@ libpthread {
      __pthread_clock_gettime; __pthread_clock_settime;
      __pthread_unwind; __pthread_get_minstack;
@@ -477,23 +437,15 @@ index 0dc2340..8aff242 100644
  	subq	$cond_nwaiters, %rdi
  
  55:	LOCK
-@@ -485,15 +485,8 @@ __pthread_cond_timedwait:
- 	/* Only clocks 0 and 1 are allowed so far.  Both are handled in the
- 	   kernel.  */
- 	leaq	32(%rsp), %rsi
--#  ifdef SHARED
--	mov	__vdso_clock_gettime@GOTPCREL(%rip), %RAX_LP
--	mov	(%rax), %RAX_LP
--	PTR_DEMANGLE (%RAX_LP)
--	call	*%rax
--#  else
+@@ -492,7 +492,7 @@ __pthread_cond_timedwait:
+ 	call	*%rax
+ #  else
  	movl	$__NR_clock_gettime, %eax
 -	syscall
--#  endif
 +	SYSCALLDB
+ #  endif
  
  	/* Compute relative timeout.  */
- 	movq	(%r13), %rcx
 @@ -560,7 +553,7 @@ __pthread_cond_timedwait:
  # endif
  	addq	$cond_futex, %rdi
@@ -811,24 +763,6 @@ index 49f0384..6b1a975 100644
  	/* Without working sigaltstack we cannot perform the test.  */
  	testl	%eax, %eax
  	jne	.Lok2
-diff --git a/sysdeps/unix/sysv/linux/x86_64/clock_gettime.c b/sysdeps/unix/sysv/linux/x86_64/clock_gettime.c
-index f712110..f6bad14 100644
---- a/sysdeps/unix/sysv/linux/x86_64/clock_gettime.c
-+++ b/sysdeps/unix/sysv/linux/x86_64/clock_gettime.c
-@@ -1,5 +1,6 @@
- #include "bits/libc-vdso.h"
- 
-+#if 0 /* in Graphene, disallow VDSO calls */
- #ifdef SHARED
- # define SYSCALL_GETTIME(id, tp) \
-   ({ long int (*f) (clockid_t, struct timespec *) = __vdso_clock_gettime; \
-@@ -16,5 +17,6 @@
-   PTR_DEMANGLE (f);							  \
-   f (id, tp); })
- #endif
-+#endif
- 
- #include "../clock_gettime.c"
 diff --git a/sysdeps/unix/sysv/linux/x86_64/clone.S b/sysdeps/unix/sysv/linux/x86_64/clone.S
 index 0508730..e1b35ec 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/clone.S
@@ -865,74 +799,6 @@ index 140db03..6967f10 100644
  	cmpq	$-4095, %rax		/* Check %rax for error.  */
  	jae	SYSCALL_ERROR_LABEL	/* Jump to error handler if error.  */
  
-diff --git a/sysdeps/unix/sysv/linux/x86_64/gettimeofday.c b/sysdeps/unix/sysv/linux/x86_64/gettimeofday.c
-index 440ca7f..571125d 100644
---- a/sysdeps/unix/sysv/linux/x86_64/gettimeofday.c
-+++ b/sysdeps/unix/sysv/linux/x86_64/gettimeofday.c
-@@ -17,6 +17,7 @@
- 
- #include <sys/time.h>
- 
-+#if 0 /* In graphene, do not use vsyscall or VDSO call */
- #ifdef SHARED
- 
- # include <dl-vdso.h>
-@@ -42,7 +43,8 @@ asm (".type __gettimeofday, %gnu_indirect_function");
- asm (".globl __GI___gettimeofday\n"
-      "__GI___gettimeofday = __gettimeofday");
- 
--#else
-+#endif
-+#endif
- 
- # include <sysdep.h>
- # include <errno.h>
-@@ -54,6 +56,5 @@ __gettimeofday (struct timeval *tv, struct timezone *tz)
- }
- libc_hidden_def (__gettimeofday)
- 
--#endif
- weak_alias (__gettimeofday, gettimeofday)
- libc_hidden_weak (gettimeofday)
-diff --git a/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S b/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S
-index 0fd47f2..7a82975 100644
---- a/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S
-+++ b/sysdeps/unix/sysv/linux/x86_64/sched_getcpu.S
-@@ -30,6 +30,7 @@ ENTRY (sched_getcpu)
- 	sub	$0x8, %rsp
- 	cfi_adjust_cfa_offset(8)
- 
-+#if 0 /* for Graphene, never do VDSO calls */
- 	movq	%rsp, %rdi
- 	xorl	%esi, %esi
- 	movl	$VGETCPU_CACHE_OFFSET, %edx
-@@ -39,16 +40,19 @@ ENTRY (sched_getcpu)
- 	movq	__vdso_getcpu(%rip), %rax
- 	PTR_DEMANGLE (%rax)
- 	callq	*%rax
--#else
--# ifdef __NR_getcpu
-+#endif
-+#endif
-+
-+#ifdef __NR_getcpu
- 	movl	$__NR_getcpu, %eax
--	syscall
--#  ifndef __ASSUME_GETCPU_SYSCALL
-+	SYSCALLDB
-+#endif
-+
-+#if 0 /* for Graphene, never do vsyscall */
-+# ifndef __ASSUME_GETCPU_SYSCALL
- 	cmpq	$-ENOSYS, %rax
- 	jne	1f
--#  endif
--# endif
--# ifndef __ASSUME_GETCPU_SYSCALL
-+
- 	movq	$VSYSCALL_ADDR_vgetcpu, %rax
- 	callq	*%rax
- 1:
 diff --git a/sysdeps/unix/sysv/linux/x86_64/setcontext.S b/sysdeps/unix/sysv/linux/x86_64/setcontext.S
 index b726fa0..bb3ae34 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/setcontext.S

@@ -1,14 +1,3 @@
-diff -ruNp a/dlfcn/Versions b/dlfcn/Versions
---- a/dlfcn/Versions
-+++ b/dlfcn/Versions
-@@ -14,4 +14,7 @@ libdl {
-   GLIBC_PRIVATE {
-     _dlfcn_hook;
-   }
-+  SHIM {
-+    syscalldb;
-+  }
- }
 diff -ruNp a/elf/dl-load.c b/elf/dl-load.c
 --- a/elf/dl-load.c
 +++ b/elf/dl-load.c
@@ -92,16 +81,6 @@ diff -ruNp a/elf/rtld.c b/elf/rtld.c
 diff -ruNp a/elf/Versions b/elf/Versions
 --- a/elf/Versions
 +++ b/elf/Versions
-@@ -27,6 +27,9 @@ libc {
-     _dl_sym; _dl_vsym;
-     __libc_dlclose; __libc_dlopen_mode; __libc_dlsym;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- ld {
 @@ -65,4 +68,7 @@ ld {
      # Pointer protection.
      __pointer_chk_guard;
@@ -138,23 +117,13 @@ diff -ruNp a/Makefile b/Makefile
 diff -ruNp a/nptl/Versions b/nptl/Versions
 --- a/nptl/Versions
 +++ b/nptl/Versions
-@@ -37,6 +37,9 @@ libc {
-     __libc_current_sigrtmin_private; __libc_current_sigrtmax_private;
-     __libc_allocate_rtsig_private;
-   }
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
- 
- libpthread {
 @@ -272,4 +275,8 @@ libpthread {
      __pthread_barrier_init; __pthread_barrier_wait;
      __shm_directory;
    }
 +
 +  SHIM {
-+    syscalldb; glibc_option;
++    syscalldb;
 +  }
  }
 diff -ruNp a/scripts/mkinstalldirs b/scripts/mkinstalldirs
