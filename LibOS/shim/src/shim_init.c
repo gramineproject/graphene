@@ -14,8 +14,8 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
- * shim_init.c
+/*!
+ * \file shim_init.c
  *
  * This file contains entry and exit functions of library OS.
  */
@@ -110,6 +110,11 @@ long convert_pal_errno (long err)
            pal_errno_to_unix_errno[err] : 0;
 }
 
+/*!
+ * \brief A random function.
+ *
+ * \param str a random string
+ */
 unsigned long parse_int (const char * str)
 {
     unsigned long num = 0;
