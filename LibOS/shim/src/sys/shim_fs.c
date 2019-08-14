@@ -35,6 +35,7 @@
 #include <errno.h>
 
 #include <linux/fcntl.h>
+#include <linux/stat.h>
 
 #include <asm/mman.h>
 
@@ -87,7 +88,7 @@ int shim_do_unlinkat (int dfd, const char * pathname, int flag)
     struct shim_dentry * dir = NULL, * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_startat(dfd, &dir)) < 0)
+    if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     if ((ret = path_lookupat(dir, pathname, LOOKUP_OPEN, &dent, NULL)) < 0)
@@ -141,7 +142,7 @@ int shim_do_mkdirat (int dfd, const char * pathname, int mode)
     struct shim_dentry * dir = NULL;
     int ret = 0;
 
-    if ((ret = path_startat(dfd, &dir)) < 0)
+    if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     ret = open_namei(NULL, dir, pathname, O_CREAT|O_EXCL|O_DIRECTORY,
@@ -235,7 +236,7 @@ int shim_do_fchmodat (int dfd, const char * filename, mode_t mode)
     struct shim_dentry * dir = NULL, * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_startat(dfd, &dir)) < 0)
+    if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     if ((ret = path_lookupat(dir, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
@@ -315,7 +316,7 @@ int shim_do_fchownat (int dfd, const char * filename, uid_t uid, gid_t gid,
     struct shim_dentry * dir = NULL, * dent = NULL;
     int ret = 0;
 
-    if ((ret = path_startat(dfd, &dir)) < 0)
+    if ((ret = get_dirfd_dentry(dfd, &dir)) < 0)
         return ret;
 
     if ((ret = path_lookupat(dir, filename, LOOKUP_OPEN, &dent, NULL)) < 0)
@@ -574,119 +575,97 @@ static ssize_t handle_copy (struct shim_handle * hdli, off_t * offseti,
     return bytes;
 }
 
-static int do_rename (struct shim_dentry * old_dent,
-                      struct shim_dentry * new_dent)
-{
-    int ret = 0;
-
-    if (old_dent->fs && old_dent->fs->d_ops &&
-        old_dent->fs->d_ops->rename &&
-        old_dent->type == new_dent->type) {
-        ret = old_dent->fs->d_ops->rename(old_dent, new_dent);
-
-        if (!ret) {
-            old_dent->state |= DENTRY_NEGATIVE;
-            new_dent->state &= ~DENTRY_NEGATIVE;
-            goto out;
-        }
-
-        if (ret == -EACCES)
-            goto out;
+static int do_rename(struct shim_dentry* old_dent, struct shim_dentry* new_dent) {
+    if ((old_dent->type != S_IFREG)
+        || (!(new_dent->state & DENTRY_NEGATIVE) && (new_dent->type != S_IFREG))) {
+        /* Current implementation of fs does not allow for renaming anything but regular files */
+        return -ENOSYS;
     }
 
-    if (!(new_dent->state & DENTRY_NEGATIVE)) {
-        if (!new_dent->parent ||
-            !new_dent->fs || !new_dent->fs->d_ops ||
-            !new_dent->fs->d_ops->unlink) {
-            ret = -EACCES;
-            goto out;
-        }
-
-        if ((ret = new_dent->fs->d_ops->unlink(new_dent->parent,
-                                               new_dent)) < 0)
-            goto out;
-
-        new_dent->state |= DENTRY_NEGATIVE;
+    if (old_dent->fs != new_dent->fs) {
+        /* Disallow cross mount renames */
+        return -EXDEV;
     }
 
-    /* TODO: we are not able to handle directory copy yet */
+    if (!old_dent->fs || !old_dent->fs->d_ops || !old_dent->fs->d_ops->rename) {
+        return -EPERM;
+    }
+
     if (old_dent->state & DENTRY_ISDIRECTORY) {
-        ret = -ENOSYS;
-        goto out;
-    }
-
-    struct shim_handle * old_hdl = NULL, * new_hdl = NULL;
-
-    if (!(old_hdl = get_new_handle())) {
-        ret = -ENOMEM;
-        goto out_hdl;
-    }
-
-    if ((ret = dentry_open(old_hdl, old_dent, O_RDONLY)) < 0)
-        goto out_hdl;
-
-    if (!(new_hdl = get_new_handle())) {
-        ret = -ENOMEM;
-        goto out_hdl;
-    }
-
-    if ((ret = dentry_open(new_hdl, new_dent, O_WRONLY|O_CREAT)) < 0)
-        goto out_hdl;
-
-    off_t old_offset = 0, new_offset = 0;
-
-    if ((ret = handle_copy(old_hdl, &old_offset,
-                           new_hdl, &new_offset, -1)) < 0) {
-        if (new_dent->fs && new_dent->fs->d_ops &&
-            new_dent->fs->d_ops->unlink) {
-            ret = new_dent->fs->d_ops->unlink(new_dent->parent,
-                                              new_dent);
+        if (!(new_dent->state & DENTRY_NEGATIVE)) {
+            if (!(new_dent->state & DENTRY_ISDIRECTORY)) {
+                return -ENOTDIR;
+            }
+            if (new_dent->nchildren > 0) {
+                return -ENOTEMPTY;
+            }
+        } else {
+            /* destination is a negative dentry and needs to be marked as a directory,
+             * since source is a directory */
+            new_dent->state |= DENTRY_ISDIRECTORY;
         }
-
-        goto out_hdl;
+    } else if (new_dent->state & DENTRY_ISDIRECTORY) {
+        return -EISDIR;
     }
 
-    new_dent->state &= ~DENTRY_NEGATIVE;
-
-    if (old_dent->fs && old_dent->fs->d_ops &&
-        old_dent->fs->d_ops->unlink) {
-        if ((ret = old_dent->fs->d_ops->unlink(old_dent->parent,
-                                               old_dent)) < 0)
-            goto out_hdl;
+    if (dentry_is_ancestor(old_dent, new_dent) || dentry_is_ancestor(new_dent, old_dent)) {
+        return -EINVAL;
     }
 
-    old_dent->state |= DENTRY_NEGATIVE;
+    /* TODO: Add appropriate checks for hardlinks once they get implemented. */
 
-out_hdl:
-    if (old_hdl) {
-            put_handle(old_hdl);
+    int ret = old_dent->fs->d_ops->rename(old_dent, new_dent);
+    if (!ret) {
+        old_dent->state |= DENTRY_NEGATIVE;
+        new_dent->state &= ~DENTRY_NEGATIVE;
+        if (old_dent->state & DENTRY_ISDIRECTORY) {
+            new_dent->state |= DENTRY_ISDIRECTORY;
+        }
     }
-    if (new_hdl) {
-            put_handle(new_hdl);
-    }
-out:
+
     return ret;
 }
 
-int shim_do_rename (const char * oldname, const char * newname)
-{
-    struct shim_dentry * old_dent = NULL, * new_dent = NULL;
+int shim_do_rename(const char* oldpath, const char* newpath) {
+    return shim_do_renameat(AT_FDCWD, oldpath, AT_FDCWD, newpath);
+}
+
+int shim_do_renameat(int olddirfd, const char* oldpath, int newdirfd, const char* newpath) {
+    struct shim_dentry* old_dir_dent = NULL;
+    struct shim_dentry* old_dent = NULL;
+    struct shim_dentry* new_dir_dent = NULL;
+    struct shim_dentry* new_dent = NULL;
     int ret = 0;
 
-    if ((ret = path_lookupat(NULL, oldname, LOOKUP_OPEN, &old_dent, NULL)) < 0)
+    if (!oldpath || test_user_string(oldpath) || !newpath || test_user_string(newpath)) {
+        return -EFAULT;
+    }
+
+    if ((ret = get_dirfd_dentry(olddirfd, &old_dir_dent)) < 0) {
         goto out;
+    }
+
+    if ((ret = path_lookupat(old_dir_dent, oldpath, LOOKUP_OPEN, &old_dent, NULL)) < 0) {
+        goto out;
+    }
 
     if (old_dent->state & DENTRY_NEGATIVE) {
         ret = -ENOENT;
         goto out;
     }
 
-    if ((ret = path_lookupat(NULL, newname, LOOKUP_OPEN|LOOKUP_CREATE,
-                             &new_dent, NULL)) < 0) {
-        // It is now ok for pathlookupat to return ENOENT with a negative DETRY
-        if (!(ret == -ENOENT && new_dent
-              && (new_dent->state & (DENTRY_NEGATIVE|DENTRY_VALID))))
+    if ((ret = get_dirfd_dentry(newdirfd, &new_dir_dent)) < 0) {
+        goto out;
+    }
+
+    ret = path_lookupat(new_dir_dent, newpath, LOOKUP_OPEN|LOOKUP_CREATE, &new_dent, NULL);
+    if (ret < 0) {
+        if (ret != -ENOENT
+                || !new_dent
+                || (new_dent->state & (DENTRY_NEGATIVE|DENTRY_VALID))
+                        != (DENTRY_NEGATIVE|DENTRY_VALID)) {
             goto out;
+        }
     }
 
     // Both dentries should have a ref count of at least 2 at this point
@@ -696,49 +675,12 @@ int shim_do_rename (const char * oldname, const char * newname)
     ret = do_rename(old_dent, new_dent);
 
 out:
+    if (old_dir_dent)
+        put_dentry(old_dir_dent);
     if (old_dent)
         put_dentry(old_dent);
-    if (new_dent)
-        put_dentry(new_dent);
-
-    return ret;
-}
-
-int shim_do_renameat (int olddfd, const char * pathname, int newdfd,
-                      const char * newname)
-{
-    struct shim_dentry * old_dir = NULL, * old_dent = NULL;
-    struct shim_dentry * new_dir = NULL, * new_dent = NULL;
-    int ret = 0;
-
-    if ((ret = path_startat(olddfd, &old_dir)) < 0)
-        goto out;
-
-
-    if ((ret = path_lookupat(old_dir, pathname, LOOKUP_OPEN, &old_dent, NULL)) < 0)
-        goto out;
-
-    if (old_dent->state & DENTRY_NEGATIVE) {
-        ret = -ENOENT;
-        goto out;
-    }
-
-    if ((ret = path_startat(newdfd, &new_dir)) < 0)
-        goto out;
-
-    if ((ret = path_lookupat(new_dir, newname, LOOKUP_OPEN|LOOKUP_CREATE,
-                             &new_dent, NULL)) < 0)
-        goto out;
-
-    ret = do_rename(old_dent, new_dent);
-
-out:
-    if (old_dir)
-        put_dentry(old_dir);
-    if (old_dent)
-        put_dentry(old_dent);
-    if (new_dir)
-        put_dentry(new_dir);
+    if (new_dir_dent)
+        put_dentry(new_dir_dent);
     if (new_dent)
         put_dentry(new_dent);
     return ret;
