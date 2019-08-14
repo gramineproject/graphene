@@ -14,8 +14,8 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/*
- * shim_init.c
+/*!
+ * \file shim_init.c
  *
  * This file contains entry and exit functions of library OS.
  */
@@ -110,6 +110,15 @@ long convert_pal_errno (long err)
            pal_errno_to_unix_errno[err] : 0;
 }
 
+/*!
+ * \brief Parse a number into an unsigned long.
+ *
+ * \param str A string containing a non-negative number.
+ *
+ * By default the number should be decimal, but if it starts with 0x it is
+ * parsed as hexadecimal and if it otherwise starts with 0, it is parsed as
+ * octal.
+ */
 unsigned long parse_int (const char * str)
 {
     unsigned long num = 0;
