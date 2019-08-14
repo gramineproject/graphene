@@ -1,9 +1,8 @@
-special_executables =
-c_executables = $(filter-out $(special_executables),$(patsubst %.c,%,$(wildcard *.c)))
+c_executables = $(patsubst %.c,%,$(wildcard *.c))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
 
-exec_target = $(special_executables) $(c_executables) $(cxx_executables) ls.manifest
+exec_target = $(c_executables) $(cxx_executables) ls.manifest
 target = $(exec_target) $(manifests)
 
 level = ../
@@ -21,6 +20,6 @@ $(cxx_executables): %: %.cpp
 	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
 
 else
-.IGNORE: $(special_executables) $(c_executables) $(cxx_executables)
-$(special_executables) $(c_executables) $(cxx_executables):
+.IGNORE: $(c_executables) $(cxx_executables)
+$(c_executables) $(cxx_executables):
 endif
