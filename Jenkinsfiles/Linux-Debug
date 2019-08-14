@@ -25,12 +25,7 @@ pipeline {
                             cd LibOS/shim/test/apps/ltp
                             git submodule update --init src
                             make
-                            cd opt/ltp/testcases/bin
-                            ./pal_loader ./asyncio02
-                            ./pal_loader ./asyncio02
-                            ./pal_loader ./asyncio02
-                            ./pal_loader ./asyncio02
-                            ./pal_loader ./asyncio02
+                            ./syscalls.sh
                             '''
                     }
                     post {
