@@ -258,13 +258,14 @@ int _DkObjectsWaitAny(int count, PAL_HANDLE* handleArray, int64_t timeout_us,
     return polled_hdl ? 0 : -PAL_ERROR_TRYAGAIN;
 }
 
-/* _DkObjectsWaitEvents is a new version of _DkObjectsWaitAny. This function
+/*
+ * _DkObjectsWaitEvents is a new version of _DkObjectsWaitAny. This function
  * can select specific IO events to poll (read / write) and return multiple
  * events (including errors) that occurs simutaneously. The rest of semantics
- * is the same as _DkObjectWaitAny. */
-int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
-                          PAL_FLG * ret_events, PAL_NUM timeout)
-{
+ * is the same as _DkObjectWaitAny.
+ */
+int _DkObjectsWaitEvents(int count, PAL_HANDLE* handleArray, PAL_FLG* events, PAL_FLG* ret_events,
+                         int64_t timeout_us) {
     if (count <= 0)
         return 0;
 
@@ -275,7 +276,7 @@ int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
         const struct handle_ops * ops = HANDLE_OPS(handleArray[0]);
 
         if (ops->wait) {
-            ret = ops->wait(handleArray[0], timeout);
+            ret = ops->wait(handleArray[0], timeout_us);
             if (!ret)
                 ret_events[0] = PAL_WAIT_SIGNAL;
             return ret;
@@ -348,15 +349,15 @@ int _DkObjectsWaitEvents (int count, PAL_HANDLE * handleArray, PAL_FLG * events,
 
     struct timespec timeout_ts;
 
-    if (timeout != NO_TIMEOUT) {
-        long sec = (unsigned long) timeout / 1000000;
-        long microsec = (unsigned long) timeout - (sec * 1000000);
+    if (timeout_us >= 0) {
+        int64_t sec = timeout_us / 1000000;
+        int64_t microsec = timeout_us - (sec * 1000000);
         timeout_ts.tv_sec = sec;
         timeout_ts.tv_nsec = microsec * 1000;
     }
 
     ret = INLINE_SYSCALL(ppoll, 5, fds, nfds,
-                         timeout != NO_TIMEOUT ? &timeout_ts : NULL,
+                         timeout_us >= 0 ? &timeout_ts : NULL,
                          NULL, 0);
 
     if (IS_ERR(ret))

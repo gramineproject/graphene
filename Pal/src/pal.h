@@ -497,8 +497,8 @@ DkObjectsWaitAny (PAL_NUM count, PAL_HANDLE * handleArray, PAL_NUM timeout_us);
 #define PAL_WAIT_ERROR      8   /* ignored in events */
 
 PAL_BOL
-DkObjectsWaitEvents (PAL_NUM count, PAL_HANDLE * handleArray, PAL_FLG * events,
-                     PAL_FLG * ret_events, PAL_NUM timeout);
+DkObjectsWaitEvents(PAL_NUM count, PAL_HANDLE* handleArray, PAL_FLG* events, PAL_FLG* ret_events,
+                    PAL_NUM timeout_us);
 
 
 /* Deprecate DkObjectReference */
