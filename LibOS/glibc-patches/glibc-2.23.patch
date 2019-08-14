@@ -63,7 +63,7 @@ diff -ruNp a/elf/rtld.c b/elf/rtld.c
 +   library. If not, tell the user to update glibc. */
 +#include "glibc-version.h"
 +
-+volatile const int glibc_version __attribute__((weak)) = GLIBC_VERSION;
++const unsigned int glibc_version __attribute__((weak)) = GLIBC_VERSION;
 +
 +static void __attribute__((noinline,optimize("-O0")))
 +check_glibc_version (void)
@@ -135,18 +135,6 @@ diff -ruNp a/Makefile b/Makefile
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
-diff -ruNp a/nptl/Makefile b/nptl/Makefile
---- a/nptl/Makefile
-+++ b/nptl/Makefile
-@@ -22,7 +22,7 @@ subdir	:= nptl
- 
- include ../Makeconfig
- 
--headers := pthread.h semaphore.h bits/semaphore.h
-+headers := pthread.h semaphore.h bits/semaphore.h syscalldb.h
- 
- extra-libs := libpthread
- extra-libs-others := $(extra-libs)
 diff -ruNp a/nptl/Versions b/nptl/Versions
 --- a/nptl/Versions
 +++ b/nptl/Versions
@@ -202,13 +190,12 @@ diff -ruNp a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
 diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 --- a/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/cancellation.S
-@@ -111,7 +111,8 @@ ENTRY(__pthread_disable_asynccancel)
+@@ -111,7 +111,7 @@ ENTRY(__pthread_disable_asynccancel)
  	xorq	%r10, %r10
  	addq	$CANCELHANDLING, %rdi
  	LOAD_PRIVATE_FUTEX_WAIT (%esi)
 -	syscall
 +	SYSCALLDB
-+
  	movl	%fs:CANCELHANDLING, %eax
  	jmp	3b
  END(__pthread_disable_asynccancel)
@@ -549,12 +536,7 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/swapcontext.S b/sysdeps/unix/sysv/li
 diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/x86_64/syscall.S
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-@@ -31,10 +31,12 @@ ENTRY (syscall)
- 	movq %rsi, %rdi		/* shift arg1 - arg5.  */
- 	movq %rdx, %rsi
- 	movq %rcx, %rdx
-+	/* DEP 8/17/17: Keep kernel calling
-+	 * 	convention and fix in libOS */
+@@ -34,7 +34,7 @@ ENTRY (syscall)
  	movq %r8, %r10
  	movq %r9, %r8
  	movq 8(%rsp),%r9	/* arg6 is on the stack.  */
@@ -650,19 +632,6 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
      : "=a" (resultvar)							      \
      : "0" (name) ASM_ARGS_##nr : "memory", REGISTERS_CLOBBERED_BY_SYSCALL);   \
      (long int) resultvar; })
-@@ -256,10 +274,12 @@
- # undef INTERNAL_SYSCALL_ERRNO
- # define INTERNAL_SYSCALL_ERRNO(val, err)	(-(val))
- 
-+# if 0 /* for Graphene, never do vsyscall */
- /* List of system calls which are supported as vsyscalls.  */
- # define HAVE_CLOCK_GETTIME_VSYSCALL    1
- # define HAVE_GETTIMEOFDAY_VSYSCALL     1
- # define HAVE_GETCPU_VSYSCALL		1
-+# endif
- 
- # define LOAD_ARGS_0()
- # define LOAD_REGS_0
 diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
 --- a/sysdeps/unix/sysv/linux/x86_64/vfork.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/vfork.S

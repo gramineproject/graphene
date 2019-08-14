@@ -153,7 +153,7 @@ index 6dcbabc..c87c773 100644
 +   library. If not, tell the user to update glibc. */
 +#include "glibc-version.h"
 +
-+volatile const int glibc_version __attribute__((weak)) = GLIBC_VERSION;
++const unsigned int glibc_version __attribute__((weak)) = GLIBC_VERSION;
 +
 +static void __attribute__((noinline,optimize("-O0")))
 +check_glibc_version (void)
@@ -179,19 +179,6 @@ index 6dcbabc..c87c773 100644
    /* Now life is sane; we can call functions and access global data.
       Set up to use the operating system facilities, and find out from
       the operating system's program loader where to find the program
-diff --git a/nptl/Makefile b/nptl/Makefile
-index 57cc8c6..81f1bf4 100644
---- a/nptl/Makefile
-+++ b/nptl/Makefile
-@@ -20,7 +20,7 @@
- #
- subdir	:= nptl
- 
--headers := pthread.h semaphore.h bits/semaphore.h
-+headers := pthread.h semaphore.h bits/semaphore.h syscalldb.h
- 
- extra-libs := libpthread
- extra-libs-others := $(extra-libs)
 diff --git a/nptl/Versions b/nptl/Versions
 index bb11277..354149a 100644
 --- a/nptl/Versions
@@ -219,13 +206,12 @@ diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/nptl/sysdeps/u
 index 89fda5e..f6963f6 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 +++ b/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
-@@ -111,7 +111,8 @@ ENTRY(__pthread_disable_asynccancel)
+@@ -111,7 +111,7 @@ ENTRY(__pthread_disable_asynccancel)
  	xorq	%r10, %r10
  	addq	$CANCELHANDLING, %rdi
  	LOAD_PRIVATE_FUTEX_WAIT (%esi)
 -	syscall
 +	SYSCALLDB
-+
  	movl	%fs:CANCELHANDLING, %eax
  	jmp	3b
  END(__pthread_disable_asynccancel)
@@ -990,12 +976,7 @@ diff --git a/sysdeps/unix/sysv/linux/x86_64/syscall.S b/sysdeps/unix/sysv/linux/
 index 92c2f5b..e32ebb2 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/syscall.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/syscall.S
-@@ -31,10 +31,12 @@
- 	movq %rsi, %rdi		/* shift arg1 - arg5.  */
- 	movq %rdx, %rsi
- 	movq %rcx, %rdx
-+	/* DEP 8/17/17: Keep kernel calling
-+	 * 	convention and fix in libOS */
+@@ -34,7 +34,7 @@
  	movq %r8, %r10
  	movq %r9, %r8
  	movq 8(%rsp),%r9	/* arg6 is on the stack.  */
@@ -1092,99 +1073,6 @@ index 4a9a9d9..dc452ed 100644
      : "=a" (resultvar)							      \
      : "0" (name) ASM_ARGS_##nr : "memory", "cc", "r11", "cx");		      \
      (long int) resultvar; })
-@@ -252,6 +270,7 @@
- # undef INTERNAL_SYSCALL_ERRNO
- # define INTERNAL_SYSCALL_ERRNO(val, err)	(-(val))
- 
-+# if 0 /* for Graphene, never do vsyscall */
- # ifdef SHARED
- #  define INLINE_VSYSCALL(name, nr, args...) \
-   ({									      \
-@@ -300,12 +319,13 @@
-     v_ret;								      \
-   })
- 
--# else
--#  define INLINE_VSYSCALL(name, nr, args...) \
--  INLINE_SYSCALL (name, nr, ##args)
--#  define INTERNAL_VSYSCALL(name, err, nr, args...) \
--  INTERNAL_SYSCALL (name, err, nr, ##args)
- # endif
-+# endif
-+
-+#  define INLINE_VSYSCALL(name, nr_args...) \
-+  INLINE_SYSCALL (name, ##nr_args)
-+#  define INTERNAL_VSYSCALL(name, err, nr_args...) \
-+  INTERNAL_SYSCALL (name, err, ##nr_args)
- 
- # define LOAD_ARGS_0()
- # define LOAD_REGS_0
-diff --git a/sysdeps/unix/sysv/linux/x86_64/time.c b/sysdeps/unix/sysv/linux/x86_64/time.c
-deleted file mode 100644
-index 79f1fab..0000000
---- a/sysdeps/unix/sysv/linux/x86_64/time.c
-+++ /dev/null
-@@ -1,60 +0,0 @@
--/* Copyright (C) 2001-2014 Free Software Foundation, Inc.
--   This file is part of the GNU C Library.
--
--   The GNU C Library is free software; you can redistribute it and/or
--   modify it under the terms of the GNU Lesser General Public
--   License as published by the Free Software Foundation; either
--   version 2.1 of the License, or (at your option) any later version.
--
--   The GNU C Library is distributed in the hope that it will be useful,
--   but WITHOUT ANY WARRANTY; without even the implied warranty of
--   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
--   Lesser General Public License for more details.
--
--   You should have received a copy of the GNU Lesser General Public
--   License along with the GNU C Library; if not, see
--   <http://www.gnu.org/licenses/>.  */
--
--#ifdef SHARED
--/* Redefine time so that the compiler won't complain about the type
--   mismatch with the IFUNC selector in strong_alias, below.  */
--#undef time
--#define time __redirect_time
--#include <time.h>
--
--#include <dl-vdso.h>
--
--#define VSYSCALL_ADDR_vtime	0xffffffffff600400
--
--/* Avoid DWARF definition DIE on ifunc symbol so that GDB can handle
--   ifunc symbol properly.  */
--extern __typeof (__redirect_time) __libc_time;
--void *time_ifunc (void) __asm__ ("__libc_time");
--
--void *
--time_ifunc (void)
--{
--  PREPARE_VERSION (linux26, "LINUX_2.6", 61765110);
--
--  /* If the vDSO is not available we fall back on the old vsyscall.  */
--  return _dl_vdso_vsym ("__vdso_time", &linux26) ?: (void *) VSYSCALL_ADDR_vtime;
--}
--__asm (".type __libc_time, %gnu_indirect_function");
--
--#undef time
--strong_alias (__libc_time, time)
--libc_hidden_ver (__libc_time, time)
--
--#else
--
--# include <time.h>
--# include <sysdep.h>
--
--time_t
--time (time_t *t)
--{
--  INTERNAL_SYSCALL_DECL (err);
--  return INTERNAL_SYSCALL (time, err, 1, t);
--}
--
--#endif
 diff --git a/sysdeps/unix/sysv/linux/x86_64/vfork.S b/sysdeps/unix/sysv/linux/x86_64/vfork.S
 index d3b450a..75a63e1 100644
 --- a/sysdeps/unix/sysv/linux/x86_64/vfork.S

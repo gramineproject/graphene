@@ -45,7 +45,6 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 $(BUILD_DIR)/Build.success: $(BUILD_DIR)/Makefile
 	@echo "Building glibc, may take a while to finish. Warning messages may show up. If this process terminates with failures, see \"$(BUILD_DIR)/build.log\" for more information."
 	($(MAKE) -C $(BUILD_DIR) 2>&1 >> build.log) && touch $@
-#  2>&1 | tee -a build.log)
 
 $(GLIBC_TARGET): $(BUILD_DIR)/Build.success
 
