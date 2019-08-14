@@ -114,33 +114,6 @@ diff -ruNp a/Makefile b/Makefile
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
-diff -ruNp a/nptl/Versions b/nptl/Versions
---- a/nptl/Versions
-+++ b/nptl/Versions
-@@ -272,4 +275,8 @@ libpthread {
-     __pthread_barrier_init; __pthread_barrier_wait;
-     __shm_directory;
-   }
-+
-+  SHIM {
-+    syscalldb;
-+  }
- }
-diff -ruNp a/scripts/mkinstalldirs b/scripts/mkinstalldirs
---- a/scripts/mkinstalldirs
-+++ b/scripts/mkinstalldirs
-@@ -126,9 +126,9 @@ do
-     esac
- 
-     if test ! -d "$pathcomp"; then
--      echo "mkdir $pathcomp"
-+      echo "mkdir -p $pathcomp"
- 
--      mkdir "$pathcomp" || lasterr=$?
-+      mkdir -p "$pathcomp" || lasterr=$?
- 
-       if test ! -d "$pathcomp"; then
- 	errstatus=$lasterr
 diff -ruNp a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
 --- a/sysdeps/unix/sysv/linux/_exit.c
 +++ b/sysdeps/unix/sysv/linux/_exit.c
@@ -530,7 +503,7 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
      DOARGS_##args				\
      movl $SYS_ify (syscall_name), %eax;		\
 -    syscall;
-+    SYSCALLDB
++    SYSCALLDB;
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */

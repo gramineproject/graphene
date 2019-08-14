@@ -114,18 +114,6 @@ diff -ruNp a/Makefile b/Makefile
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
-diff -ruNp a/nptl/Versions b/nptl/Versions
---- a/nptl/Versions	2018-02-01 10:17:18.000000000 -0600
-+++ b/nptl/Versions	2019-05-27 17:26:39.209526816 -0500
-@@ -272,4 +275,8 @@ libpthread {
-     __pthread_barrier_init; __pthread_barrier_wait;
-     __shm_directory;
-   }
-+
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
 diff -ruNp a/scripts/mkinstalldirs b/scripts/mkinstalldirs
 --- a/scripts/mkinstalldirs	2018-02-01 10:17:18.000000000 -0600
 +++ b/scripts/mkinstalldirs	2019-05-27 17:26:39.209526816 -0500
@@ -344,7 +332,7 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/sysdep.h b/sysdeps/unix/sysv/linux/x
      DOARGS_##args				\
      movl $SYS_ify (syscall_name), %eax;		\
 -    syscall;
-+    SYSCALLDB
++    SYSCALLDB;
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */

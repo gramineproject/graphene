@@ -29,22 +29,6 @@ diff --git a/Versions.def b/Versions.def
 index 759c754..e1a270e 100644
 --- a/Versions.def
 +++ b/Versions.def
-@@ -41,6 +41,7 @@ libc {
-   GCC_3.0
- %endif
-   GLIBC_PRIVATE
-+  SHIM
- }
- libcrypt {
-   GLIBC_2.0
-@@ -108,6 +110,7 @@ libpthread {
-   GLIBC_2.18
-   GLIBC_2.19
-   GLIBC_PRIVATE
-+  SHIM
- }
- libresolv {
-   GLIBC_2.0
 @@ -135,6 +138,7 @@ ld {
    GLIBC_2.3
    GLIBC_2.4
@@ -151,17 +135,6 @@ index 6dcbabc..c87c773 100644
       the operating system's program loader where to find the program
 diff --git a/nptl/Versions b/nptl/Versions
 index bb11277..354149a 100644
---- a/nptl/Versions
-+++ b/nptl/Versions
-@@ -262,4 +265,8 @@ libpthread {
-     __pthread_clock_gettime; __pthread_clock_settime;
-     __pthread_unwind; __pthread_get_minstack;
-   }
-+
-+  SHIM {
-+    syscalldb; glibc_option;
-+  }
- }
 diff --git a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S b/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
 index 89fda5e..f6963f6 100644
 --- a/nptl/sysdeps/unix/sysv/linux/x86_64/cancellation.S
@@ -700,14 +673,6 @@ index cbb5e9e..9b87e25 100644
    int rtld_must_xmm_save;
    /* Reservation of some values for the TM ABI.  */
    void *__private_tm[4];
-@@ -137,7 +143,6 @@ typedef struct
- # define GET_DTV(descr) \
-   (((tcbhead_t *) (descr))->dtv)
- 
--
- /* Code to initially initialize the thread pointer.  This might need
-    special attention since 'errno' is not yet available and if the
-    operation can cause a failure 'errno' must not be touched.
 @@ -154,7 +159,7 @@ typedef struct
       _head->self = _thrdescr;						      \
  									      \
@@ -717,22 +682,6 @@ index cbb5e9e..9b87e25 100644
  		   : "=a" (_result)					      \
  		   : "0" ((unsigned long int) __NR_arch_prctl),		      \
  		     "D" ((unsigned long int) ARCH_SET_FS),		      \
-diff --git a/scripts/mkinstalldirs b/scripts/mkinstalldirs
-index 55d537f..57bf12b 100755
---- a/scripts/mkinstalldirs
-+++ b/scripts/mkinstalldirs
-@@ -126,9 +126,9 @@ do
-     esac
- 
-     if test ! -d "$pathcomp"; then
--      echo "mkdir $pathcomp"
-+      echo "mkdir -p $pathcomp"
- 
--      mkdir "$pathcomp" || lasterr=$?
-+      mkdir -p "$pathcomp" || lasterr=$?
- 
-       if test ! -d "$pathcomp"; then
- 	errstatus=$lasterr
 diff --git a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
 index 2468228..a9f1cd6 100644
 --- a/sysdeps/unix/sysv/linux/_exit.c
@@ -868,7 +817,7 @@ index 4a9a9d9..dc452ed 100644
      DOARGS_##args				\
      movl $SYS_ify (syscall_name), %eax;		\
 -    syscall;
-+    SYSCALLDB
++    SYSCALLDB;
  
  # define DOARGS_0 /* nothing */
  # define DOARGS_1 /* nothing */
