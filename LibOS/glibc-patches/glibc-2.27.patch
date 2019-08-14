@@ -114,21 +114,6 @@ diff -ruNp a/Makefile b/Makefile
  
  # Since stubs.h is never needed when building the library, we simplify the
  # hairy installation process by producing it in place only as the last part
-diff -ruNp a/scripts/mkinstalldirs b/scripts/mkinstalldirs
---- a/scripts/mkinstalldirs	2018-02-01 10:17:18.000000000 -0600
-+++ b/scripts/mkinstalldirs	2019-05-27 17:26:39.209526816 -0500
-@@ -126,9 +126,9 @@ do
-     esac
- 
-     if test ! -d "$pathcomp"; then
--      echo "mkdir $pathcomp"
-+      echo "mkdir -p $pathcomp"
- 
--      mkdir "$pathcomp" || lasterr=$?
-+      mkdir -p "$pathcomp" || lasterr=$?
- 
-       if test ! -d "$pathcomp"; then
- 	errstatus=$lasterr
 diff -ruNp a/sysdeps/unix/sysv/linux/_exit.c b/sysdeps/unix/sysv/linux/_exit.c
 --- a/sysdeps/unix/sysv/linux/_exit.c	2018-02-01 10:17:18.000000000 -0600
 +++ b/sysdeps/unix/sysv/linux/_exit.c	2019-05-27 17:26:39.209526816 -0500
@@ -192,13 +177,12 @@ diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/getcontext.S b/sysdeps/unix/sysv/lin
 diff -ruNp a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 --- a/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
 +++ b/sysdeps/unix/sysv/linux/x86_64/____longjmp_chk.S
-@@ -84,7 +84,8 @@ ENTRY(____longjmp_chk)
+@@ -84,7 +84,7 @@ ENTRY(____longjmp_chk)
  	xorl	%edi, %edi
  	lea	-sizeSS(%rsp), %RSI_LP
  	movl	$__NR_sigaltstack, %eax
 -	syscall
 +	SYSCALLDB
-+
  	/* Without working sigaltstack we cannot perform the test.  */
  	testl	%eax, %eax
  	jne	.Lok2
