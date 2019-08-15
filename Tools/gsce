@@ -15,9 +15,8 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir):
   df.write('\n')
 
   # SWITCH to ROOT
-  df.write('# SWITCH to root \n')
-  df.write('USER root \n')
-  df.write('\n')
+  df.write('# SWITCH to root\n')
+  df.write('USER root\n\n')
 
   # DOWNLOAD dependencies
   df.write('# Download dependencies\n')
@@ -26,19 +25,18 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir):
   df.write('RUN pip install protobuf && \\\n')
   df.write('    pip install pycrypto\n')
 
-  df.write('# Temporal fixes for Dependencies Issue #1: libcrypto.so.1.0.0 and libssl.so.1.0.0 have different locations \n')
+  df.write('# Temporal fixes for Dependencies Issue #1: libcrypto.so.1.0.0 and libssl.so.1.0.0 have different locations\n')
   if not os.path.isfile('/lib/x86_64-linux-gnu/libcrypto.so.1.0.0'):
     df.write('RUN ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.1.0.0 /lib/x86_64-linux-gnu/libcrypto.so.1.0.0 \\\n')
   if not os.path.isfile('/lib/x86_64-linux-gnu/libssl.so.1.0.0'):
     df.write('RUN ln -s /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 /lib/x86_64-linux-gnu/libssl.so.1.0.0\n')
 
   # SETUP Directory Structure
-  print 'cwd: '+ proj_dir
-  df.write('# Setup Directory Structure \n')
-  df.write('RUN mkdir -p ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + '\n')
-  df.write('RUN mkdir -p ' + proj_dir + '/Pal/src/host/Linux-SGX/signer\n')
-  df.write('RUN mkdir -p ' + proj_dir + '/Runtime\n')
-  df.write('RUN mkdir /gbin\n')
+  df.write('# Setup Directory Structure\n')
+  df.write('RUN mkdir -p ' + proj_dir + '/LibOS/shim/test/apps/' + app_name + ' \\\n')
+  df.write(' && mkdir -p ' + proj_dir + '/Pal/src/host/Linux-SGX/signer \\\n')
+  df.write(' && mkdir -p ' + proj_dir + '/Runtime \\\n')
+  df.write(' && mkdir /gbin\n')
 
   # COPY system files
   df.write('# Copy system files\n')
@@ -69,7 +67,7 @@ def gen_dockerfile( image_name, app_name, bin_name, proj_dir):
   df.write('ENTRYPOINT  ["/bin/bash", "/gbin/app_exec"]\n')
   df.close()
 
-def make_exec(path):
+def make_executable(path):
   mode = os.stat(path).st_mode
   mode |= (mode & 0o444) >> 2    # copy R bits to X
   os.chmod(path, mode)
@@ -79,12 +77,12 @@ def gen_app_executor(app_name, bin_cmd, proj_dir):
     os.makedirs(proj_dir + '/Tools/build/tools')
 
   e_path = proj_dir + '/Tools/build/tools/app_exec'
-  print 'e_path: ' + e_path
   ef = open(e_path, 'w')
-  make_exec(e_path)
-  ef.write('#!/bin/bash \n \n')
+  make_executable(e_path)
+
+  ef.write('#!/usr/bin/env bash\n\n')
   ef.write('cd ' + proj_dir + '/LibOS/shim/test/apps/' + app_name +'\n')
-  ef.write('# Generate EINITOKEN \n')
+  ef.write('# Generate EINITOKEN\n')
   ef.write(proj_dir + '/Pal/src/host/Linux-SGX/signer/pal-sgx-get-token -output '
            + app_name + '.token -sig ' + app_name + '.sig\n')
   ef.write('# Run the application\n')
@@ -94,33 +92,31 @@ def gen_app_executor(app_name, bin_cmd, proj_dir):
 
 if __name__ == '__main__':
   if len(sys.argv) < 3:
-    print 'Usage: gsce run [Image name] '
+    print('Usage: gsce run [Image name]')
     exit()
 
   image_name = sys.argv[-1]
   image_match = re.match(r'([^:]*)(:*)(.*)', image_name)
   if image_match:
     app_name = image_match.group(1)
-  print 'app_name: ' + app_name
 
-  # sometimes application name contains '/', remove it
+  # application name may contain '/', remove it
   app_name = app_name.split('/')[0]
 
   inspect_cmd = 'sudo docker inspect --format \'{{.Config.Cmd}}\' ' + image_name
   res = subprocess.check_output(inspect_cmd, shell=True).strip()
-  print res
-  # sometimes docker is generated with '/bin/sh -c' started
+
+  # Docker image may execute '[/bin/sh -c command]', replace with just '[command]'
   if res.startswith('[/bin/sh -c '):
-    res = '[' + res[12:]
+    res = '[' + res[len('[/bin/sh -c '):]
 
   match = re.match(r'\[([^\s]*)\s*(.*)\]', res)
   bin_name = match.group(1)
+  bin_cmd = ''
   if match.group(2):
     bin_cmd = match.group(2)
-  else:
-    bin_cmd = ''
-  print 'bin_name: ' + bin_name + ' bin_cmd: ' + bin_cmd
-  # Store the rest arguments as docker run arguments
+
+  # Store the rest arguments as Docker run arguments
   docker_str = ' ' + ' '.join(sys.argv[2:-1])
 
   # print image_cmd
@@ -137,4 +133,5 @@ if __name__ == '__main__':
   os.system('sudo docker build -f Tools/build/Dockerfile.' + app_name + ' -t gsc_' + app_name + ' .\n')
 
   # STEP 4: Run GSC with the target app
-  os.system('sudo docker run -i -t' + docker_str +' --device=/dev/gsgx --device=/dev/isgx -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc_'+app_name+'\n')
+  os.system('sudo docker run -i -t' + docker_str +' --device=/dev/gsgx --device=/dev/isgx ' +
+            '-v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket gsc_' + app_name + '\n')
