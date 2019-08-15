@@ -15,6 +15,8 @@ pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
 .PHONY: default
 default: all
+include ../../Makefile.configs
+include ../../Makefile.rules
 include ../src/Makefile.Test
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
@@ -60,6 +62,9 @@ $(executables): %: %.c ../src/user_start.o \
 	@$(CC) -MD -MP $(CFLAGS) $(filter-out %.h,$^) -o $@
 
 include $(wildcard *.d)
+ifeq ($(SGX), 1)
+include $(addsuffix .manifest.sgx.d,$(executables))
+endif
 
 .lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
