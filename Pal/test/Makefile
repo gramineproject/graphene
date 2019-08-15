@@ -40,9 +40,10 @@ manifest: manifest.template
 	cp -f $< $@
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-$(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
-	@echo [ $@ ]
-	@$(CC) -MD -MP $(CFLAGS) $(if $(filter Pie,$@),-fPIC -pie,) $^ -o $@
+CFLAGS-Pie = -fPIC -pie
+LDLIBS = $(graphene_lib) $(pal_lib) ../src/user_start.o
+$(executables): %: %.c $(LDLIBS)
+	$(call cmd,csingle)
 
 .lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
 	@mkdir -p .lib
