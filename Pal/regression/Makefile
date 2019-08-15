@@ -1,7 +1,7 @@
 include ../src/Makefile.Host
 
 CC	= gcc
-CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx -no-pie \
+CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx \
 	  -I../include/pal -I../lib -I../src
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
@@ -51,15 +51,17 @@ manifest: manifest.template
 	$(MAKE) -C ../src $(notdir $@)
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-$(preloads): %.so: %.so.c ../src/user_shared_start.o \
-	$(graphene_lib) $(pal_lib)
-	@echo [ $@ ]
-	@$(CC) -MD -MP -shared -fPIC $(filter-out -no-pie,$(CFLAGS)) $(filter-out %.h,$^) -o $@
+LDLIBS-preloads = ../src/user_shared_start.o $(graphene_lib) $(pal_lib)
+$(preloads): CFLAGS += -shared -fPIC
+$(preloads): LDLIBS = $(LDLIBS-preloads)
+$(preloads): %.so: %.so.c $(LDLIBS-preloads)
+	$(call cmd,csingle)
 
-$(executables): %: %.c ../src/user_start.o \
-	$(graphene_lib) $(pal_lib) $(preloads)
-	@echo [ $@ ]
-	@$(CC) -MD -MP $(CFLAGS) $(filter-out %.h,$^) -o $@
+LDLIBS-executables = ../src/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
+$(executables): CFLAGS += -no-pie
+$(executables): LDLIBS = $(LDLIBS-executables)
+$(executables): %: %.c $(LDLIBS-executables)
+	$(call cmd,csingle)
 
 include $(wildcard *.d)
 ifeq ($(SGX), 1)
