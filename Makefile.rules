@@ -122,3 +122,23 @@ quiet_cmd_csingle  = [ $@ ]
 # single .cpp => executable
 quiet_cmd_cxxsingle  = [ $@ ]
       cmd_cxxsingle  = $(CXX) -MD -MP $(CXXFLAGS) $(CXXFLAGS-$@) -o $@ $< $(LDLIBS) $(LDLIBS-$@)
+
+# sgx sign
+quiet_cmd_sgx_sign_manifest = [ $*.{sig, manifest.sgx} ]
+      cmd_sgx_sign_manifest = $(SGX_SIGN) -output $*.manifest.sgx -exec $* -manifest $<
+
+quiet_cmd_sgx_sign = [ $*.{sig, manifest.sgx} ]
+      cmd_sgx_sign = $(SGX_SIGN) -output $*.manifest.sgx -manifest $<
+
+# sgx token
+quiet_cmd_sgx_get_token = [ Token: $(basename $*) ]
+      cmd_sgx_get_token = $(SGX_GET_TOKEN) -output $@ -sig $^
+
+# sgx manifest dependency
+quiet_cmd_sgx_manifest_dependency = [ $@ ]
+      cmd_sgx_manifest_dependency = \
+	(set -e; \
+	 echo -n "$(patsubst %.d,%,$@) $(patsubst %.manifest.sgx.d,%.sig,$@) :"; \
+	 awk -F= '/^\s*sgx.trusted_files./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file)}' $<; \
+	 awk -F= '/^\s*sgx.trusted_children./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file); gsub(".sig", "", file); printf(" \\\n\t%s.manifest.sgx", file)}' $<; \
+	 echo "") > $@
