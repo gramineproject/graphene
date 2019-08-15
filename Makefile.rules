@@ -130,7 +130,7 @@ quiet_cmd_sgx_get_token = [ Token: $(basename $*) ]
 quiet_cmd_sgx_manifest_dependency = [ $@ ]
       cmd_sgx_manifest_dependency = \
 	(set -e; \
-	 echo -n "$(patsubst %.d,%,$@) :"; \
+	 echo -n "$(patsubst %.d,%,$@) $(patsubst %.manifest.sgx.d,%.sig,$@) :"; \
 	 awk -F= '/^\s*sgx.trusted_files./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file)}' $<; \
 	 awk -F= '/^\s*sgx.trusted_children./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file); gsub(".sig", "", file); printf(" \\\n\t%s.manifest.sgx", file)}' $<; \
 	 echo "") > $@
