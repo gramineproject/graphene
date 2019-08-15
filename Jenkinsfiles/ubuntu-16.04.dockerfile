@@ -16,6 +16,7 @@ RUN apt-get update \
        libpcre3-dev \
        libxml2-dev \
        linux-headers-generic \
+       linux-headers-$(uname -r) \
        net-tools \
        python \
        python-protobuf \
