@@ -6,6 +6,8 @@ CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
 
 .PHONY: default
 default: all
+include ../../Makefile.configs
+include ../../Makefile.rules
 include ../src/Makefile.Test
 
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
@@ -50,6 +52,9 @@ $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
+ifeq ($(SGX), 1)
+include $(addsuffix .manifest.sgx.d,$(executables))
+endif
 else
 .IGNORE: $(executables)
 $(executables):
@@ -61,4 +66,5 @@ endif
 clean:
 	rm -rf pal_loader $(call expand_target,$(target)) .lib *.cached \
 	       $(addsuffix .d, $(executables)) $(addsuffix .i.d, $(executables)) \
-	       $(addsuffix .s.d, $(executables))
+	       $(addsuffix .s.d, $(executables)) \
+	       $(addsuffix .manifest.sgx.d,$(executables))

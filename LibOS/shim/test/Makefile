@@ -27,6 +27,8 @@ CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
 .PHONY: default
 default: all
 
+include $(level)../../../Makefile.configs
+include $(level)../../../Makefile.rules
 include $(PALDIR)/Makefile.Test
 
 .PHONY: all
@@ -74,6 +76,10 @@ relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspa
 manifest: manifest.template
 	@echo [ $@ ]
 	sed $(manifest_rules) $< > $@
+
+ifeq ($(SGX), 1)
+include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
+endif
 
 .PHONY: clean
 clean: $(clean-extra) $(if $(level),,clean-subdirs)

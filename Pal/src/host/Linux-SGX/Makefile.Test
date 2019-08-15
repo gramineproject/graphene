@@ -11,37 +11,33 @@ ifeq ($(SGX_RUN),1)
 expand_target = $(foreach t,$(filter-out manifest,$(1)),$(patsubst %.manifest,%,$(t)).token)
 
 %.token: %.sig
-	@echo [ Token: $(patsubst %.token,%,$@) ]
-	@$(SGX_GET_TOKEN) -output $@ -sig $(patsubst %.token,%.sig,$@)
+	$(call cmd,sgx_get_token)
 
 else
 
 expand_target = $(1) $(foreach t,$(filter-out manifest,$(1)), \
-		$(patsubst %.manifest,%,$(t)).manifest.sgx) *.sig *.token
+		$(patsubst %.manifest,%,$(t)).manifest.sgx)
 
 $(SGX_SIGNER_KEY):
 	$(error "Cannot find any enclave key. Generate $(abspath $(SGX_SIGNER_KEY)) or specify 'SGX_SIGNER_KEY=' with make")
 
-prerequisite = \
-	for f in `sed -e 's/\#.*//g' $(1) | grep -Po 'sgx.trusted_children.[^\\s=]+\\s*=\\s*file:\\K\\S+'`; do \
-		$(MAKE) $${f%.sig}.manifest.sgx; \
-	done
+%.sig %.manifest.sgx: %.manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+	$(call cmd,sgx_sign_manifest)
 
-find_manifest = $(patsubst %.template,%,$(if $(wildcard $(1).manifest.template),$(1).manifest.template,manifest.template))
+%.sig %.manifest.sgx: manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+	$(call cmd,sgx_sign_manifest)
 
-%.manifest.sgx: % $(LIBPAL) $(SGX_SIGNER_KEY)
-	$(eval $@-manifest := $(call find_manifest,$<))
-	@$(MAKE) $($@-manifest)
-	$(call prerequisite,$($@-manifest))
-	@echo [ $@ ]
-	$(SGX_SIGN) -output $@ -exec $< -manifest $($@-manifest)
+%.sig %.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+	$(call cmd,sgx_sign)
 
-%.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY)
-	$(call prerequisite,$<)
-	@$(MAKE) $<
-	@echo [ $@ ]
-	$(SGX_SIGN) -output $@ -manifest $<
+.PRECIOUS: %.manifest.sgx.d
 
-*.sig *.token nothing:
+%.manifest.sgx.d: %.manifest
+	$(call cmd,sgx_manifest_dependency)
+
+%.manifest.sgx.d: manifest
+	$(call cmd,sgx_manifest_dependency)
+
+*.token nothing:
 
 endif
