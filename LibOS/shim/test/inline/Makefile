@@ -13,17 +13,20 @@ include ../Makefile.Test
 
 CFLAGS-debug += -fno-builtin -nostdlib
 
+$(PALDIR)/user_start.o: $(PALDIR)/user_start.S
+	$(MAKE) -C $(PALDIR) $(notdir $@)
+
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-LDLIBS-c_executables = $(libs) $(level)../../../Pal/src/user_start.o
+LDLIBS-c_executables = $(libs) $(PALDIR)/user_start.o
 $(c_executables): CFLAGS += $(CFLAGS-debug)
 $(c_executables): LDLIBS += $(LDFLAGS-debug) $(LDLIBS-c_executables) -lpal -lsysdb_debug
-%: %.c $(LDLIBS-c_executables)
+$(c_executables): %: %.c $(LDLIBS-c_executables)
 	$(call cmd,csingle)
 
-LDLIBS-cxx_executables = $(libs) $(level)../../../Pal/src/user_start.o
+LDLIBS-cxx_executables = $(libs) ../../../../Pal/src/user_start.o
 $(cxx_executables): CXXFLAGS += $(CFLAGS-debug)
 $(cxx_executables): LDLIBS += $(LDFLAGS-debug) $(LDLIBS-cxx_executables) -lpal -lsysdb_debug
-%: %.cpp $(LDLIBS-cxx_executables)
+$(cxx_executables): %: %.cpp $(LDLIBS-cxx_executables)
 	$(call cmd,cxxsingle)
 else
 .IGNORE: $(c_executables) $(cxx_executables)
