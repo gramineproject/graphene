@@ -98,12 +98,23 @@ enclave_entry:
 	# handle_ecall will only return when invalid parameters has been passed.
 	FAIL_LOOP
 
-	# clear TLS variables for thread reuse (note that signals are impossible
-	# during this code path because they were blocked in sgx_ocall_exit())
+	# clear TLS variables for thread reuse
 .Lhandle_thread_reset:
 	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
+
+	# Signals are impossible at this point: benign untrusted runtime blocks
+	# all signals (see sgx_ocall_exit()), and even if malicious one doesn't
+	# block them, signals are ignored due to SGX_READY_FOR_EXCEPTIONS = 0.
 	movq $0, %gs:SGX_THREAD_STARTED
 
+	# Assertion: thread is reset only after special-case OCALL_EXIT which
+	# does *not* set SGX_OCALL_PREPARED = 1.
+	cmpq $0, %gs:SGX_OCALL_PREPARED
+	je 1f
+	FAIL_LOOP
+1:
+	# Instead of jumping to .Lclear_and_eexit, simply perform EEXIT because
+	# there is no modified state to clear in this "thread-reset" code path.
 	movq %gs:SGX_ECALL_RETURN_ADDR, %rbx
 	movq $EEXIT, %rax
 	ENCLU
@@ -451,9 +462,11 @@ sgx_ocall:
 
 	pushq %rbp
 
-	# OCALL_EXIT never returns (see sgx_ocall_exit(): it always exits the
-	# thread). Skip setting SGX_OCALL_PREPARED to land in the special-case
-	# of ECALL_THREAD_RESET (issued in sgx_ocall_exit()) later.
+	# OCALL_EXIT should never return (see sgx_ocall_exit(): it always exits
+	# the thread). Skip setting SGX_OCALL_PREPARED to land in special-case
+	# of ECALL_THREAD_RESET (issued in sgx_ocall_exit()) later. Note that if
+	# there is an interrupt (which usually would result in a simulated
+	# return of -EINTR), it will be silently ignored via .Lignore_exception.
 	cmpq $OCALL_EXIT, %rdi
 	je .Locall_after_set_ocall_prepared
 
