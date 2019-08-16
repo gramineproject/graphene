@@ -20,7 +20,7 @@ CFLAGS-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/..
 CXXFLAGS = -Wall -std=c++14
 CXXFLAGS-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib
 LDFLAGS	=
-LDFLAGS-debug = -L$(SHIMDIR) -L$(PALDIR) -Wl,-rpath-link=$(abspath $(RUNTIME))
+LDFLAGS-debug = -L$(SHIMDIR) -L$(PALDIR)/host/$(PAL_HOST)  -Wl,-rpath-link=$(abspath $(RUNTIME))
 
 CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
 
