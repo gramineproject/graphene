@@ -35,39 +35,25 @@ libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
 	$(call cmd,ar_a_o)
 
 $(addsuffix .o,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .o,$(enclave-objs)): %.o: %.c
-	$(call cmd,cc_o_c)
-
 $(addsuffix .i,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .i,$(enclave-objs)): %.i: %.c
-	$(call cmd,cpp_i_c)
-
 $(addsuffix .s,$(enclave-objs)): CFLAGS += -DIN_ENCLAVE
-$(addsuffix .s,$(enclave-objs)): %.s: %.c
-	$(call cmd,cc_s_c)
-
 $(addsuffix .o,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
-$(addsuffix .o,$(enclave-asm-objs)): %.o: %.S
-	$(call cmd,as_o_S)
-
 $(addsuffix .s,$(enclave-asm-objs)): ASFLAGS += -DIN_ENCLAVE
-$(addsuffix .s,$(enclave-asm-objs)): %.s: %.S
-	$(call cmd,cpp_s_S)
 
-$(addsuffix .o,$(urts-objs)): %.o: %.c
+%.o: %.c
 	$(call cmd,cc_o_c)
 
-$(addsuffix .i,$(urts-objs)): %.i: %.c
+%.i: %.c
 	$(call cmd,cpp_i_c)
 
-$(addsuffix .s,$(urts-objs)): %.s: %.c
+%.s: %.c
 	$(call cmd,cc_s_c)
 
-$(addsuffix .s,$(urts-asm-objs)): %.s: %.S
-	$(call cmd,cpp_s_S)
-
-$(addsuffix .o,$(urts-asm-objs)): %.o: %.S
+%.o: %.S
 	$(call cmd,as_o_S)
+
+%.s: %.S
+	$(call cmd,cpp_s_S)
 
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
 	@echo [ host/Linux-SGX/$@ ]
