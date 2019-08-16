@@ -6,18 +6,31 @@ exec_target = $(c_executables) $(cxx_executables) ls.manifest
 target = $(exec_target) $(manifests)
 
 level = ../
+include ../../../../Makefile.configs
+include ../../../../Makefile.rules
 include ../Makefile
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
+
+CFLAGS-msg_create.libos += $(CFLAGS-libos)
+CFLAGS-msg_send.libos += $(CFLAGS-libos)
+
+LDLIBS-condvar.pthread += -lpthread
+LDLIBS-futextest.pthread += -lpthread
+LDLIBS-get_time.m += -lm
+LDLIBS-helloworld.pthread += -lpthread
+LDLIBS-msg_create.libos += -llibos
+LDLIBS-msg_send.libos += -llibos
+LDLIBS-sqrt.m += -lm
+LDLIBS-start.pthread.m += -lpthread -lm
+LDLIBS-sync.pthread += -lpthread
+LDLIBS-test_start_pthread_m.m += -lm
+
 $(c_executables): %: %.c
-	@echo [ $@ ]
-	@$(CC) -MD -MP $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+	$(call cmd,csingle)
 
 $(cxx_executables): %: %.cpp
-	@echo [ $@ ]
-	@$(CXX) -MD -MP $(CXXFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+	$(call cmd,cxxsingle)
 
 include $(wildcard *.d)
 else
