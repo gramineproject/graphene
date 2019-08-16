@@ -10,7 +10,7 @@ default: all
 level = ../
 include ../../../../Makefile.configs
 include ../../../../Makefile.rules
-include ../Makefile
+include ../Makefile.Test
 
 CFLAGS-debug += -fno-builtin -nostdlib
 
