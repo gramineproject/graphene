@@ -23,7 +23,7 @@ enclave_entry:
 	cmpq $0, %rax
 	jne .Lprepare_resume
 
-	# ECALL return address in RCX (Trusted)
+	# ECALL return address in RCX (filled by EENTER hardware flow)
 	movq %rcx, %gs:SGX_ECALL_RETURN_ADDR
 
 	# The following code is hardened to defend attacks from untrusted host.
@@ -63,11 +63,11 @@ enclave_entry:
 	# Except ecall_thread_reset, ecalls are only used to start a thread (main
 	# or additional threads). We already checked for case of ecall_thread_reset,
 	# so at this point we should only get exactly one ecall per thread
-	cmpq $0, %gs:SGX_ECALL_CALLED
+	cmpq $0, %gs:SGX_THREAD_STARTED
 	je 1f
 	FAIL_LOOP
 1:
-	movq $1, %gs:SGX_ECALL_CALLED
+	movq $1, %gs:SGX_THREAD_STARTED
 
 	# calculate enclave base = RBX (trusted) - %gs:SGX_TCS_OFFSET
 	subq %gs:SGX_TCS_OFFSET, %rbx
@@ -98,13 +98,12 @@ enclave_entry:
 	# handle_ecall will only return when invalid parameters has been passed.
 	FAIL_LOOP
 
-	# Clear tls variables for thread reuse
-	# Signals are already blocked
+	# clear TLS variables for thread reuse (note that signals are impossible
+	# during this code path because they were blocked in sgx_ocall_exit())
 .Lhandle_thread_reset:
 	movq $0, %gs:SGX_READY_FOR_EXCEPTIONS
-	movq $0, %gs:SGX_ECALL_CALLED
+	movq $0, %gs:SGX_THREAD_STARTED
 
-.Lecall_return:
 	movq %gs:SGX_ECALL_RETURN_ADDR, %rbx
 	movq $EEXIT, %rax
 	ENCLU
@@ -141,6 +140,7 @@ enclave_entry:
 	cmpl $0, %edi
 	jne .Lhandle_exception
 
+.Lignore_exception:
 	# clear the registers
 	xorq %rdi, %rdi
 	xorq %rsi, %rsi
@@ -194,12 +194,18 @@ enclave_entry:
 	cmpq $0, %rsi
 	je .Lsetup_exception_handler
 
-	# Assertion:
+	# The usual case (bar OCALL_EXIT):
 	# SGX_OCALL_PREPARED set to 1 before SGX_STACK is set to enclave stack.
 	# SGX_OCALL_PREPARED set to 0 after SGX_STACK is set to 0.
 	cmpq $0, %gs:SGX_OCALL_PREPARED
 	jne 1f
-	FAIL_LOOP
+
+	# At this point, we are in the exception handler, SGX_STACK != 0 but
+	# SGX_OCALL_PREPARED = 0. This can only happen if we are interrupted
+	# during a special case of never-returning OCALL_EXIT. Because the
+	# thread is going to exit anyway, we can ignore this exception.
+	jmp .Lignore_exception
+
 1:
 	# At this point, we are in the exception handler,
 	# SGX_STACK=<trusted pointer to enclave stack>, SGX_OCALL_PREPARED=1,
@@ -445,8 +451,9 @@ sgx_ocall:
 
 	pushq %rbp
 
-	# ocall_exit never returns. Skip setting SGX_OCALL_PREPARED to avoid
-	# ECALL_THREAD_RESET falling into OCALL return handling.
+	# OCALL_EXIT never returns (see sgx_ocall_exit(): it always exits the
+	# thread). Skip setting SGX_OCALL_PREPARED to land in the special-case
+	# of ECALL_THREAD_RESET (issued in sgx_ocall_exit()) later.
 	cmpq $OCALL_EXIT, %rdi
 	je .Locall_after_set_ocall_prepared
 

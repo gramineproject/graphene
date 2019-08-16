@@ -26,7 +26,7 @@ struct enclave_tls {
         void*    ustack;
         struct pal_handle_thread* thread;
         uint64_t ocall_prepared;
-        uint64_t ecall_called;
+        uint64_t thread_started;
         uint64_t ready_for_exceptions;
         uint64_t manifest_size;
         void*    heap_min;
