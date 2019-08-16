@@ -5,7 +5,6 @@ manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
 exec_target = $(c_executables) $(cxx_executables) ls.manifest
 target = $(exec_target) $(manifests)
 
-level = ../
 include ../../../../Makefile.configs
 include ../../../../Makefile.rules
 include ../Makefile.Test
