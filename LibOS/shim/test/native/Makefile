@@ -5,8 +5,6 @@ manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
 exec_target = $(c_executables) $(cxx_executables) ls.manifest
 target = $(exec_target) $(manifests)
 
-include ../../../../Makefile.configs
-include ../../../../Makefile.rules
 include ../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
@@ -25,10 +23,10 @@ LDLIBS-start.pthread.m += -lpthread -lm
 LDLIBS-sync.pthread += -lpthread
 LDLIBS-test_start_pthread_m.m += -lm
 
-%: %.c
+$(c_executables): %: %.c
 	$(call cmd,csingle)
 
-%: %.cpp
+$(cxx_executables): %: %.cpp
 	$(call cmd,cxxsingle)
 
 include $(wildcard *.d)

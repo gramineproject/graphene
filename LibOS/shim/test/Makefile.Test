@@ -28,6 +28,8 @@ LDFLAGS-libos-debug = -L$(SHIMDIR) -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=
 .PHONY: default
 default: all
 
+include $(SHIM_TEST_DIR)/../../../Makefile.configs
+include $(SHIM_TEST_DIR)/../../../Makefile.rules
 include $(PALDIR)/Makefile.Test
 
 .PHONY: all
@@ -66,7 +68,7 @@ pal_loader:
 
 relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspath $2)\",\"$(abspath $1)\")")
 
-%manifest: %manifest.template
+%.manifest: %.manifest.template
 	@echo [ $@ ]
 	RELDIR=$(filter-out ./,$(call relative-to,$(dir $@),$(shell pwd))/) && \
 	sed $(manifest_rules) $< > $@
@@ -76,9 +78,9 @@ manifest: manifest.template
 	@echo [ $@ ]
 	sed $(manifest_rules) $< > $@
 
-ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX),1)
-include $(addsuffix .manifest.sgx.d,$(exec_target))
+include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
 endif
 endif
 

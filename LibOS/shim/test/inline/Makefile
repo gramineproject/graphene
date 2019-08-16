@@ -7,8 +7,6 @@ target = $(c_executables) $(cxx_executables) manifest
 .PHONY: default
 default: all
 
-include ../../../../Makefile.configs
-include ../../../../Makefile.rules
 include ../Makefile.Test
 
 $(PALDIR)/user_start.o: $(PALDIR)/user_start.S
