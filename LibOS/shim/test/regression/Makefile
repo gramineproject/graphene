@@ -10,7 +10,6 @@ clean-extra += clean-tmp
 .PHONY: default
 default: all
 
-level = ../
 include ../../../../Makefile.configs
 include ../../../../Makefile.rules
 include ../Makefile.Test
