@@ -1,5 +1,3 @@
-subdirs = native
-
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
@@ -30,7 +28,7 @@ default: all
 include $(PALDIR)/Makefile.Test
 
 .PHONY: all
-all: pal_loader $(target) $(if $(level),,build-subdirs) | $(call expand_target,$(exec_target))
+all: pal_loader $(target) | $(call expand_target,$(exec_target))
 
 ifeq ($(DEBUG),1)
 CC += -g
@@ -76,13 +74,5 @@ manifest: manifest.template
 	sed $(manifest_rules) $< > $@
 
 .PHONY: clean
-clean: $(clean-extra) $(if $(level),,clean-subdirs)
+clean: $(clean-extra)
 	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d)
-
-.PHONY: build-subdirs
-build-subdirs:
-	for f in $(subdirs); do (cd $$f; $(MAKE); cd ..); done
-
-.PHONY: clean-subdirs
-clean-subdirs:
-	for f in $(subdirs); do (cd $$f; $(MAKE) clean; cd ..); done
