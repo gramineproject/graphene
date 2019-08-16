@@ -7,7 +7,7 @@ target = $(c_executables) $(cxx_executables) \
 level = ../
 include ../../../../Makefile.configs
 include ../../../../Makefile.rules
-include ../Makefile
+include ../Makefile.Test
 
 CFLAGS-libos = -L../../../glibc-build/libos -I../../include
 

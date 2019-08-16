@@ -8,7 +8,7 @@ target = $(exec_target) $(manifests)
 level = ../
 include ../../../../Makefile.configs
 include ../../../../Makefile.rules
-include ../Makefile
+include ../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
