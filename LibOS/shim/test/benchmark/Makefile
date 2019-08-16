@@ -5,6 +5,8 @@ target = $(c_executables) $(cxx_executables) \
 	  manifest
 
 level = ../
+include ../../../../Makefile.configs
+include ../../../../Makefile.rules
 include ../Makefile
 
 CFLAGS-libos = -L../../../glibc-build/libos -I../../include
@@ -14,15 +16,19 @@ CFLAGS-libos = -L../../../glibc-build/libos -I../../include
 	cp $@.template $@
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
+
+CFLAGS-rpc_latency.libos += $(CFLAGS-libos)
+CFLAGS-rpc_latency2.libos += $(CFLAGS-libos)
+
+LDLIBS-rpc_latency.libos += -llibos
+LDLIBS-rpc_latency2.libos += -llibos
+LDLIBS-test_start.m += -lm
+
 $(c_executables): %: %.c
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) $(if $(findstring .libos,$@),$(CFLAGS-libos),) -o $@ $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+	$(call cmd,csingle)
 
 $(cxx_executables): %: %.cpp
-	@echo [ $@ ]
-	@$(CC) $(CFLAGS) -o $@ $< \
-	$(shell echo $@ | sed 's/^[^\.]*//g' | sed 's/\./ -l/g')
+	$(call cmd,cxxsingle)
 else
 .IGNORE: $(c_executables) $(cxx_executables)
 $(c_executables) $(cxx_executables):
