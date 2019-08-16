@@ -1,9 +1,12 @@
+SHIM_TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+$(info SHIM_TEST_DIR=$(SHIM_TEST_DIR))
+
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-PALDIR  = $(level)../../../Pal/src
-SHIMDIR = $(level)../src
-RUNTIME = $(level)../../../Runtime
+PALDIR  = $(SHIM_TEST_DIR)/../../../Pal/src
+SHIMDIR = $(SHIM_TEST_DIR)/../src
+RUNTIME = $(SHIM_TEST_DIR)/../../../Runtime
 
 ifeq ($(SGX),1)
 PAL_LOADER = pal_loader SGX
