@@ -5,16 +5,16 @@ export SYS
 
 .PHONY: all
 all:
-	make -C src
+	$(MAKE) -C src
 
 .PHONY: test
 test:
-	make -C test
+	$(MAKE) -C test
 
 .PHONY: clean
 clean:
-	make -C src clean
-	make -C test clean
+	$(MAKE) -C src clean
+	$(MAKE) -C test clean
 
 .PHONY: format
 format:
