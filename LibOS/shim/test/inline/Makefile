@@ -7,7 +7,6 @@ target = $(c_executables) $(cxx_executables) manifest
 .PHONY: default
 default: all
 
-level = ../
 include ../../../../Makefile.configs
 include ../../../../Makefile.rules
 include ../Makefile.Test
