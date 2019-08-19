@@ -1,5 +1,5 @@
 #include <pal_linux.h>
-#include "pal_linux_error.h"
+#include <pal_linux_error.h>
 #include <pal_rtld.h>
 #include "sgx_internal.h"
 #include "sgx_tls.h"
