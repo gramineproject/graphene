@@ -117,13 +117,7 @@ Prerequisites
    - <https://github.com/01org/linux-sgx-driver>
 
    A Linux driver must be installed before running Graphene Library OS in
-   enclaves. Simply run the following command to build the driver:
-
-   .. note::
-
-      Please make sure the GCC version is either 4 or 5
-
-   ::
+   enclaves. Simply run the following command to build the driver::
 
       cd Pal/src/host/Linux-SGX/sgx-driver
       make
