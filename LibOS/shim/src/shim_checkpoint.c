@@ -907,7 +907,9 @@ DEFINE_PROFILE_INTERVAL(migrate_send_pal_handles, migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_free_checkpoint,  migrate_proc);
 DEFINE_PROFILE_INTERVAL(migrate_wait_response,    migrate_proc);
 
+#if WARN_NO_GIPC == 1
 static bool warn_no_gipc __attribute_migratable = true;
+#endif
 
 /*
  * Create a new process and migrate the process states to the new process.
@@ -968,11 +970,13 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
         use_gipc = true;
         SAVE_PROFILE_INTERVAL(migrate_create_gipc);
     } else {
+#if WARN_NO_GIPC == 1
         if (warn_no_gipc) {
             warn_no_gipc = false;
             SYS_PRINTF("WARNING: no physical memory support, process creation "
                        "may be slow.\n");
         }
+#endif
     }
 
     /* Create process and IPC bookkeepings */

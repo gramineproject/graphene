@@ -65,4 +65,6 @@
 #define REQUIRED_ELF_AUXV           8   /* number of LibOS-supported vectors */
 #define REQUIRED_ELF_AUXV_SPACE     16  /* extra memory space (in bytes) */
 
+#define WARN_NO_GIPC                0   /* warn if GIPC is not supported for process creation */
+
 #endif /* _SHIM_DEFS_H_ */
