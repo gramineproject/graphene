@@ -389,8 +389,8 @@ int get_cpu_count(void) {
 
     char buf[64];
     int ret = INLINE_SYSCALL(read, 3, fd, buf, sizeof(buf) - 1);
+    INLINE_SYSCALL(close, 1, fd);
     if (ret < 0) {
-        INLINE_SYSCALL(close, 1, fd);
         return unix_to_pal_error(ERRNO(ret));
     }
 
@@ -420,7 +420,6 @@ int get_cpu_count(void) {
         ptr = end;
     }
 
-    INLINE_SYSCALL(close, 1, fd);
     if (cpu_count == 0)
         return -PAL_ERROR_STREAMNOTEXIST;
     return cpu_count;
