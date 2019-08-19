@@ -26,6 +26,91 @@
 #include "quote/generated-cacert.h"
 
 /*
+ * Graphene's simple remote attestation feature:
+ *
+ * This feature is for verifying the SGX hardware platforms for executing applications
+ * in Graphene, to a remote trusted entity. The whole remote attestation process requires
+ * interaction with the Intel Attestation Service (IAS) and Intel PSW enclave for
+ * generating the remote and local quotes. Once the platform is fully verified, Graphene
+ * will continue to initialize the library OS and the application; otherwise the execution
+ * should terminate.
+ *
+ * Graphene's remote attestation process is meant to be transparent to the application;
+ * that is, no change is required to the source code or binary of the application. The
+ * remote attestation feature is enabled if "sgx.ra_client_spid" and "sgx.ra_client_key"
+ * are specified in the manifest. To obtain the SPID and the subscription key, register in
+ * the Intel API Portal: https://api.portal.trustedservices.intel.com/EPID-attestation.
+ *
+ * The remote attestation process contains four steps:
+ *
+ * (1) Initialization:
+ *
+ *    +-------------------+                    +-----------+                     +---------+
+ *    | Intel PSW Enclave |  target info (PSW) | Untrusted |  target info (PSW)  | Enclave |
+ *    |      (AESMD)      |------------------->|    PAL    |-------------------->|   PAL   |
+ *    +-------------------+                    +-----------+                     +---------+
+ *
+ *    Before the enclave is created, Graphene contacts the AESMD to retrieve the target info
+ *    of the Intel PSW enclave. The target info is used for generating local report later.
+ *
+ * (2) OCALL + Local attestation:
+ *
+ *    +---------+                        +-----------+                   +-------------------+
+ *    | Enclave | OCALL(GET_ATTESTATION) | Untrusted | Report (PAL->PSW) | Intel PSW Enclave |
+ *    |   PAL   |----------------------->|    PAL    |------------------>|      (AESMD)      |
+ *    +---------+                        +-----------+                   +-------------------+
+ *
+ *    The enclave PAL uses ENCLU[EREPORT] to generate a local report for the PSW enclave to
+ *    verify that the two enclaves are on the same platform. The enclave PAL then issues an
+ *    OCALL(GET_ATTESTATION), alone with the report, the SPID, and the subscription key.
+ *    The report is given to the PSW enclave to generate a local quote. The PSW enclave will
+ *    verify the report, decide whether to trust the Graphene enclave, and then sign the
+ *    local quote with a PSW-only attestation key.
+ *
+ * (3) Contact the IAS for platform report:
+ *
+ *    The local quote from the PSW enclave needs to be verified by the IAS. Different from the
+ *    Intel SDK model, Graphene does not rely on another third party to contact the IAS.
+ *    Graphene contact the IAS as part of its remote attestation process.
+ *
+ *    +-----------+               +--------------+                            +---------------+
+ *    | Untrusted | fork + execve | HTTPS client |  HTTPS (quote, SPID, key)  | Intel Attest. |
+ *    |    PAL    |-------------->|    (CURL)    |--------------------------->|    Service    |
+ *    +-----------+               +--------------+                            +---------------+
+ *
+ *    Graphene now uses a commodity HTTPS client (CURL) to contact the IAS. This is not fully
+ *    compliant to the TOS of the IAS, because the SPID and the key is not protected from
+ *    the untrusted host. This is considered safe because the SPID and the key are not directly
+ *    related with the safety of the attestation. The IAS receives the quote from the platform
+ *    and generate a report as the result of remote attestation.
+ *
+ * (4) Checking the IAS report:
+ *
+ *    +---------------+                   +-----------+ HTTPS resp, Certs,  +---------+
+ *    | Intel Attest. | HTTPS resp, Certs | Untrusted | Report (PSW->PAL),  | Enclave |
+ *    |    Service    |------------------>|    PAL    |-------------------->|   PAL   |
+ *    +---------------+                   +-----------+                     +---------+
+ *
+ *    Finally, Graphene returns the HTTPS response from the IAS back to the enclave, alone
+ *    with certificate chain and the local report from the PSW enclave. Graphene verifies
+ *    the attestation result based on the following criterion:
+ *
+ *    - The HTTPS response needs to be signed by the certificate chain, including the first
+ *      certificate to generate the signature, and all the following certificates to sign
+ *      the previous certificates.
+ *    - The last certificate in the chain will be signed by a known IAS root CA, hard-coded
+ *      in the enclave PAL.
+ *    - The report from the PSW enclave needs to be verified. This will establish the mutual
+ *      trust between the enclave PAL and the PSW enclave.
+ *    - Finally, the content of the HTTPS response from the IAS needs to contain the same
+ *      quote generated from the PSW enclave, the same mrenclave, attributes, and 64-byte
+ *      data included in the local report. The HTTPS response also needs to include the right
+ *      enclave status, which has to be either "OK" or "GROUP_OUT_OF_DATE". The latter is
+ *      only permitted if "sgx.ra_accept_group_out_of_date = 1" is in the manifest.
+ */
+
+
+/*
  * Perform the initial attestation procedure if "sgx.ra_client.spid" is specified in
  * the manifest file.
  */
