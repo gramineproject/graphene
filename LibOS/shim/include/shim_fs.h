@@ -502,7 +502,7 @@ const char * dentry_get_name (struct shim_dentry * dent)
  * If hashptr is passed (as an optimization), this is a hash
  * of the name.
  *
- * If parent is non-null, the ref count is 1; else it is zero.
+ * If parent is non-null, the ref count is 2; else it is 1.
  *
  * This function also sets up both a name and a relative path
  */

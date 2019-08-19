@@ -293,10 +293,7 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
         if (ret < 0) {
             /* Try getting rid of ESKIPPED case */
             assert (ret != -ESKIPPED);
-            // TODO: `mount_root` leaks here, but fixing this would require
-            // fixing `get_new_dentry` semantics (its result has sometimes
-            // refcount set to 0).
-            // put_dentry(mount_root);
+            put_dentry(mount_root);
             return ret;
         }
         mount->root = mount_root;
@@ -457,7 +454,6 @@ int mount_fs (const char * type, const char * uri, const char * mount_point,
 
         if (!dent) {
             dent = get_new_dentry(mount, parent, last, last_len, NULL);
-            get_dentry(dent);
         }
     }
 

@@ -169,17 +169,17 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, 
              * + name strings (see get_new_dentry), make sure it fits into qstr */
             if (parent->rel_path.len + 1 + namelen >= STR_SIZE) {  /* +1 for '/' */
                 debug("Relative path exceeds the limit %d\n", STR_SIZE);
-                return -ENAMETOOLONG;
+                err = -ENAMETOOLONG;
+                goto out;
             }
         }
 
         dent = get_new_dentry(fs, parent, name, namelen, NULL);
-        if (!dent)
-            return -ENOMEM;
+        if (!dent) {
+            err = -ENOMEM;
+            goto out;
+        }
         do_fs_lookup = 1;
-        // In the case we make a new dentry, go ahead and increment the
-        // ref count; in other cases, __lookup_dcache does this
-        get_dentry(dent);
     } else {
         if (!(dent->state & DENTRY_VALID))
             do_fs_lookup = 1;
@@ -206,7 +206,7 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, 
 
                 /* Trying to weed out ESKIPPED */
                 assert(err != -ESKIPPED);
-                return err;
+                goto out;
             }
         }
         dent->state |= DENTRY_VALID;
@@ -220,8 +220,15 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, 
     if (dent->state & DENTRY_NEGATIVE)
         err = -ENOENT;
 
-    if (new)
+    if (new) {
+        get_dentry(dent);
         *new = dent;
+    }
+
+out:
+    if (dent) {
+        put_dentry(dent);
+    }
 
     return err;
 }
