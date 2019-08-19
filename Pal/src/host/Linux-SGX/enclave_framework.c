@@ -1123,12 +1123,14 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
 
     SGX_DBG(DBG_S, "Remote attestation succeed!\n");
 
-    ret = sgx_get_report(&att.mrenclave, &att.attributes, data, &att.report);
+    sgx_arch_report_t report __sgx_mem_aligned;
+    ret = sgx_get_report(&att.mrenclave, &att.attributes, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Request: sgx_get_report failed: %d\n", ret);
         goto out;
     }
 
+    memcpy(&att.report, &report, sizeof(sgx_arch_report_t));
     memcpy(att.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
     memcpy(&att.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
@@ -1174,12 +1176,14 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     SGX_DBG(DBG_S, "Received attestation request ... (mrenclave = %s)\n",
             ALLOCA_BYTES2HEXSTR(req.mrenclave));
 
-    ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &att.report);
+    sgx_arch_report_t report __sgx_mem_aligned;
+    ret = sgx_get_report(&req.mrenclave, &req.attributes, data, &report);
     if (ret < 0) {
         SGX_DBG(DBG_S, "Attestation Respond: sgx_get_report failed: %d\n", ret);
         goto out;
     }
 
+    memcpy(&att.report, &report, sizeof(sgx_arch_report_t));
     memcpy(att.mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
     memcpy(&att.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
