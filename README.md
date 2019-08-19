@@ -106,8 +106,6 @@ from the official Intel github repositories:
 A Linux driver must be installed before running Graphene Library OS in enclaves.
 Simply run the following command to build the driver:
 
-__** Please make sure the GCC version is either 4 or 5 **__
-
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
     (The console will be prompted to ask for the path of Intel SGX driver code)
