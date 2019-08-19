@@ -293,12 +293,6 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
     }
     pal_sec.uid = sec_info.uid;
     pal_sec.gid = sec_info.gid;
-    int num_cpus = sec_info.num_cpus;
-    if (num_cpus > 1 && num_cpus <= (1 << 16)) {
-        pal_sec.num_cpus = num_cpus;
-    } else {
-        return;
-    }
 
     int num_cpus = sec_info.num_cpus;
     if (num_cpus >= 1 && num_cpus <= (1 << 16)) {
