@@ -180,7 +180,7 @@ typedef struct {
     /* Memory information (only required ones) */
     PAL_MEM_INFO mem_info;
 
-    /***** Attestation information *****/
+    /* Attestation information */
     PAL_STR attestation_status;
     PAL_STR attestation_timestamp;
 
