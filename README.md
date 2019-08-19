@@ -189,6 +189,36 @@ of the source tree:
 
     git submodule update --init -- LibOS/shim/test/apps/
 
+#### 2.1.4 Testing the remote attestation feature
+
+To enable tests for the built-in remote attestation feature for Graphene-SGX, obtain a SPID
+and a subscription key (can be linkable or unlinkable) from the Intel API Portal:
+https://api.portal.trustedservices.intel.com/EPID-attestation
+
+Specify the SPID, subscription key, and the type of the SPID/key in the manifest:
+
+    sgx.ra_client_spid = <SPID>
+    sgx.ra_client_key = <KEY>
+    sgx.ra_client_linkable = 1 # or 0 if the SPID/key is unlinkable (default)
+
+If the remote attestation feature is enabled, Graphene-SGX will terminate if the platform
+is not successfully verified by the Intel Attestation Service (IAS). The feature ensures that
+Graphene-SGX only executes on a genuine, up-to-date SGX hardware.
+
+You may obtain a "GROUP_OUT_OF_DATE" message from IAS. This message does not indicate that
+the platform is compromised. This message indicates that your platform may not be fully
+compliant to the security requirements of Intel SGX. If you wish to bypass this message,
+specify the following manifest option:
+
+    sgx.ra_accept_group_out_of_date = 1
+
+To enable remote attestation tests in `Pal/regression`, specify the following variables:
+
+    cd PAL/regression
+    make SGX=1 RA_CLIENT_SPID=<SPID> RA_CLIENT_KEY=<KEY>
+    make SGX_RUN=1
+
+
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
 
 Graphene library OS uses PAL (libpal.so) as a loader to bootstrap an
