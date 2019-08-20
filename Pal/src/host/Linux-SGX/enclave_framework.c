@@ -951,7 +951,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     if ((ret = lib_SHA256Init(&sha)) < 0 ||
         (ret = lib_SHA256Update(&sha, agree, agreesz)) < 0 ||
         (ret = lib_SHA256Final(&sha, (uint8_t*)key)) < 0) {
-        SGX_DBG(DBG_E, "Failed to derive the session key: %s\n", ret);
+        SGX_DBG(DBG_E, "Failed to derive the session key: %d\n", ret);
         goto out;
     }
 
