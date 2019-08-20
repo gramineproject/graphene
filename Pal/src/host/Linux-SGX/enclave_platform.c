@@ -85,10 +85,6 @@
  *    an attacker has obtained the SPID/key, the attacker cannot tamper the quote and the IAS
  *    attestation report.
  *
- not directly
- *    related with the safety of the attestation. The IAS receives the quote from the platform
- *    and generate a report as the result of remote attestation.
- *
  * (4) Checking the IAS report:
  *
  *    +---------------+                   +-----------+ HTTPS resp, Certs,  +---------+
