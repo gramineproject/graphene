@@ -40,7 +40,9 @@ bool _DkCheckMemoryMappable (const void * addr, size_t size)
 int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
                            int prot)
 {
-    void * addr = *paddr, * mem = addr;
+    void* addr = *paddr;
+    void* mem = addr;
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
 
     int flags = HOST_FLAGS(alloc_type, prot|PAL_PROT_WRITECOPY);
     prot = HOST_PROT(prot);
@@ -57,6 +59,8 @@ int _DkVirtualMemoryAlloc (void ** paddr, size_t size, int alloc_type,
 
 int _DkVirtualMemoryFree (void * addr, size_t size)
 {
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
+
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
@@ -64,6 +68,8 @@ int _DkVirtualMemoryFree (void * addr, size_t size)
 
 int _DkVirtualMemoryProtect (void * addr, size_t size, int prot)
 {
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
+
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, HOST_PROT(prot));
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;

@@ -194,9 +194,7 @@ void * get_reserved_pages(void * addr, size_t size)
         return NULL;
     }
 
-    size = ((size + pgsz - 1) & ~(pgsz - 1));
-    addr = (void *)((uintptr_t)addr & ~(pgsz - 1));
-
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
     SGX_DBG(DBG_M, "allocate %ld bytes at %p\n", size, addr);
 
     _DkInternalLock(&heap_vma_lock);
@@ -263,11 +261,7 @@ void free_pages(void * addr, size_t size)
     if (!addr || !size)
         return;
 
-    if ((uintptr_t) addr_top & (pgsz - 1))
-        addr = (void *) (((uintptr_t) addr_top + pgsz + 1) & ~(pgsz - 1));
-
-    if ((uintptr_t) addr & (pgsz - 1))
-        addr = (void *) ((uintptr_t) addr & ~(pgsz - 1));
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
 
     if (addr >= heap_base + heap_size)
         return;

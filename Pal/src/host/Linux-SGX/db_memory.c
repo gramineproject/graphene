@@ -68,7 +68,9 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
     if (!WITHIN_MASK(prot, PAL_PROT_MASK))
         return -PAL_ERROR_INVAL;
 
-    void * addr = *paddr, * mem;
+    void* addr = *paddr;
+    void* mem;
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
 
     if ((alloc_type & PAL_ALLOC_INTERNAL) && addr)
         return -PAL_ERROR_INVAL;
@@ -104,6 +106,7 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type, int pro
 
 int _DkVirtualMemoryFree (void * addr, uint64_t size)
 {
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
 
     if (sgx_is_completely_within_enclave(addr, size)) {
         free_pages(addr, size);
@@ -117,6 +120,8 @@ int _DkVirtualMemoryFree (void * addr, uint64_t size)
 
 int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
 {
+    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
+
     static struct atomic_int at_cnt = {.counter = 0};
 
     if (atomic_cmpxchg(&at_cnt, 0, 1) == 0)
