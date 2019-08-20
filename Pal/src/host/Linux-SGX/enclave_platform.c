@@ -111,17 +111,7 @@
  *      PSW enclave, the same mrenclave, attributes, and 64-byte report data.
  *    - The HTTPS response needs to have an acceptable status, which is "OK" by default, or
  *      "GROUP_OUT_OF_DATE" if "sgx.ra_accept_group_out_of_date = 1" is in the manifest.
- *
- *    Security advisories:
- *
- *    "GROUP_OUT_OF_DATE" indicates that your CPU is out of date and can be vulnerable to
- *    hardware attacks. If you see this status, it's likely that the firmware (microcode) of
- *    your CPU is not updated according to INTEL-SA-00233 (Load/store data sampling) and
- *    INTEL-SA-00161 (L1 terminal fault). It's recommended that you update the BIOS of your
- *    platform to later than June 2019.
- *
- *    If you receive "CONFIGURATION_NEEDED" from the IAS after updating your BIOS, you may
- *    need to disable hyperthreading in your BIOS to mitigate L1 terminal fault.
+ *      If you obtain a status besides OK, please see the SECURITY ADVISORIES in README.md.
  */
 
 

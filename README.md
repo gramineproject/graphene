@@ -205,18 +205,29 @@ If the remote attestation feature is enabled, Graphene-SGX will terminate if the
 is not successfully verified by the Intel Attestation Service (IAS). The feature ensures that
 Graphene-SGX only executes on a genuine, up-to-date SGX hardware.
 
-You may obtain a "GROUP_OUT_OF_DATE" message from IAS. This message does not indicate that
-the platform is compromised. This message indicates that your platform may not be fully
-compliant to the security requirements of Intel SGX. If you wish to bypass this message,
-specify the following manifest option:
-
-    sgx.ra_accept_group_out_of_date = 1
 
 To enable remote attestation tests in `Pal/regression`, specify the following variables:
 
     cd PAL/regression
     make SGX=1 RA_CLIENT_SPID=<SPID> RA_CLIENT_KEY=<KEY>
     make SGX_RUN=1
+
+
+If you receive a "GROUP_OUT_OF_DATE" status from IAS, this status indicates that your CPU
+is out of date and can be vulnerable to hardware attacks. If you wish to bypass this error,
+you can specify the following option in the manifest:
+
+    sgx.ra_accept_group_out_of_date = 1
+
+SECURITY ADVISORIES:
+
+"GROUP_OUT_OF_DATE" may indicate that the firmware (microcode) of you CPU is not updated
+according to INTEL-SA-00233 (Load/store data sampling) and INTEL-SA-00161 (L1 terminal fault).
+It's recommended that you update the BIOS of your platform to later than June 2019.
+
+If you receive status "CONFIGURATION_NEEDED" from the IAS after updating your BIOS, you may
+need to disable hyperthreading in your BIOS to mitigate L1 terminal fault.
+
 
 
 ## 3. HOW TO RUN AN APPLICATION IN GRAPHENE?
