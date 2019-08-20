@@ -223,6 +223,8 @@ void pal_linux_main (void * args)
     ELF_DYNAMIC_RELOCATE(&pal_map);
 
     linux_state.environ = envp;
+
+    /* Set page alignment early */
     pal_state.pagesize    = pagesz;
     pal_state.alloc_align = pagesz;
     pal_state.alloc_shift = pagesz - 1;
