@@ -223,6 +223,10 @@ void pal_linux_main (void * args)
     ELF_DYNAMIC_RELOCATE(&pal_map);
 
     linux_state.environ = envp;
+    pal_state.pagesize    = pagesz;
+    pal_state.alloc_align = pagesz;
+    pal_state.alloc_shift = pagesz - 1;
+    pal_state.alloc_mask  = ~(pagesz - 1);
 
     init_slab_mgr(pagesz);
 

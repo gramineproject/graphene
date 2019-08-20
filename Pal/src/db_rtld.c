@@ -304,7 +304,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
         void * mapaddr = NULL;
         /* Remember which part of the address space this object uses.  */
         ret = _DkStreamMap(handle, (void **) &mapaddr,
-                           APPEND_WRITECOPY(c->prot), c->mapoff, maplength);
+                           APPEND_WRITECOPY(c->prot), c->mapoff, ALLOC_ALIGNUP(maplength));
 
         if (__builtin_expect (ret < 0, 0)) {
             print_error("failed to map dynamic segment from shared object",
@@ -313,7 +313,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
         }
 
         l->l_map_start = (ElfW(Addr)) mapaddr;
-        l->l_map_end = (ElfW(Addr)) mapaddr + maplength;
+        l->l_map_end = (ElfW(Addr)) mapaddr + ALLOC_ALIGNUP(maplength);
         l->l_addr = l->l_map_start - c->mapstart;
 
         if (has_holes)
@@ -331,7 +331,7 @@ map_elf_object_by_handle (PAL_HANDLE handle, enum object_type type,
 
     /* Remember which part of the address space this object uses.  */
     l->l_map_start = c->mapstart + l->l_addr;
-    l->l_map_end = l->l_map_start + maplength;
+    l->l_map_end = l->l_map_start + ALLOC_ALIGNUP(maplength);
 
     while (c < &loadcmds[nloadcmds]) {
         if (c->mapend > c->mapstart) {

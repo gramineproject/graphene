@@ -154,8 +154,8 @@ static int file_map (PAL_HANDLE handle, void ** addr, int prot,
                      uint64_t offset, uint64_t size)
 {
     int fd = handle->file.fd;
-    void * mem = *addr;
-    assert(ALLOC_ALIGNED(addr) && ALLOC_ALIGNED(size));
+    void* mem = *addr;
+    assert(ALLOC_ALIGNED(mem) && ALLOC_ALIGNED(size));
 
     /*
      * work around for fork emulation
