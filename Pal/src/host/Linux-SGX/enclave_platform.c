@@ -80,7 +80,12 @@
  *
  *    Graphene now uses a commodity HTTPS client (CURL) to contact the IAS. This is not fully
  *    compliant to the TOS of the IAS, because the SPID and the key is not protected from
- *    the untrusted host. This is considered safe because the SPID and the key are not directly
+ *    the untrusted host. The verification of the SGX platform does not require secrecy of the
+ *    SPID/key, because the SPID/key is only used by the IAS to identify the clients. Even if
+ *    an attacker has obtained the SPID/key, the attacker cannot tamper the quote and the IAS
+ *    attestation report.
+ *
+ not directly
  *    related with the safety of the attestation. The IAS receives the quote from the platform
  *    and generate a report as the result of remote attestation.
  *
@@ -91,9 +96,9 @@
  *    |    Service    |------------------>|    PAL    |-------------------->|   PAL   |
  *    +---------------+                   +-----------+                     +---------+
  *
- *    Finally, Graphene returns the HTTPS response from the IAS back to the enclave, alone
- *    with certificate chain and the local report from the PSW enclave. Graphene verifies
- *    the attestation result based on the following criterion:
+ *    Finally, Graphene returns the HTTPS response and a certificate chain from the IAS
+ *    back to the enclave PAL, alone with the local report from the PSW enclave. Graphene
+ *    then verifies the attestation result based on the following criterion:
  *
  *    - The HTTPS response needs to be signed by the certificate chain, including the first
  *      certificate to generate the signature, and all the following certificates to sign
@@ -102,11 +107,21 @@
  *      in the enclave PAL.
  *    - The report from the PSW enclave needs to be verified. This will establish the mutual
  *      trust between the enclave PAL and the PSW enclave.
- *    - Finally, the content of the HTTPS response from the IAS needs to contain the same
- *      quote generated from the PSW enclave, the same mrenclave, attributes, and 64-byte
- *      data included in the local report. The HTTPS response also needs to include the right
- *      enclave status, which has to be either "OK" or "GROUP_OUT_OF_DATE". The latter is
- *      only permitted if "sgx.ra_accept_group_out_of_date = 1" is in the manifest.
+ *    - The HTTPS response from the IAS needs to contain the same quote generated from the
+ *      PSW enclave, the same mrenclave, attributes, and 64-byte report data.
+ *    - The HTTPS response needs to have an acceptable status, which is "OK" by default, or
+ *      "GROUP_OUT_OF_DATE" if "sgx.ra_accept_group_out_of_date = 1" is in the manifest.
+ *
+ *    Security advisories:
+ *
+ *    "GROUP_OUT_OF_DATE" indicates that your CPU is out of date and can be vulnerable to
+ *    hardware attacks. If you see this status, it's likely that the firmware (microcode) of
+ *    your CPU is not updated according to INTEL-SA-00233 (Load/store data sampling) and
+ *    INTEL-SA-00161 (L1 terminal fault). It's recommended that you update the BIOS of your
+ *    platform to later than June 2019.
+ *
+ *    If you receive "CONFIGURATION_NEEDED" from the IAS after updating your BIOS, you may
+ *    need to disable hyperthreading in your BIOS to mitigate L1 terminal fault.
  */
 
 
