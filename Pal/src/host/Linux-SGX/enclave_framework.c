@@ -1062,7 +1062,13 @@ out_no_final:
     return ret;
 }
 
-/* Assuming the caller to be A */
+/*
+ * Initalize the request of local report exchange.
+ *
+ * We refer to this enclave as A and to the other enclave as B, e.g., A is this
+ * parent enclave and B is the child enclave in the fork case (for more info,
+ * see comments in db_process.c).
+ */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mrenclave_t check_mrenclave) {
     sgx_arch_targetinfo_t target_info;
@@ -1079,7 +1085,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0; bytes < SGX_TARGETINFO_FILLED_SIZE; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,
                              ((void*)&target_info) + bytes, NULL, 0);
-        if (ret < 0) {
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             SGX_DBG(DBG_E, "Failed to send target info via RPC: %d\n", ret);
             goto out;
         }
@@ -1089,7 +1095,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamRead(stream, 0, sizeof(report) - bytes,
                             ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0) {
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
             goto out;
         }
@@ -1102,12 +1108,6 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     ret = sgx_verify_report(&report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to verify local report: %d\n", ret);
-        goto out;
-    }
-
-    if (ret == 1) {
-        SGX_DBG(DBG_E, "Local report is not signed by CPU\n");
-        ret = -PAL_ERROR_DENIED;
         goto out;
     }
 
@@ -1140,7 +1140,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(report) - bytes,
                              ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0) {
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             SGX_DBG(DBG_E, "Failed to send local report via RPC: %d\n", ret);
             goto out;
         }
@@ -1153,7 +1153,13 @@ out:
     return ret;
 }
 
-/* Assuming the caller to be B */
+/*
+ * Respond to the request of local report exchange.
+ *
+ * We refer to this enclave as B and to the other enclave as A, e.g., B is this
+ * child enclave and A is the parent enclave in the fork case (for more info,
+ * see comments in db_process.c).
+ */
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mrenclave_t check_mrenclave) {
     sgx_arch_targetinfo_t target_info;
@@ -1166,7 +1172,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < SGX_TARGETINFO_FILLED_SIZE ; bytes += ret) {
         ret = _DkStreamRead(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,
                             ((void*)&target_info) + bytes, NULL, 0);
-        if (ret < 0) {
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             SGX_DBG(DBG_E, "Failed to receive target info via RPC: %d\n", ret);
             goto out;
         }
@@ -1182,7 +1188,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(report) - bytes,
                              ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0) {
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             SGX_DBG(DBG_E, "Failed to send local report via PRC: %d\n", ret);
             goto out;
         }
@@ -1192,7 +1198,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamRead(stream, 0, sizeof(report) - bytes,
                             ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0) {
+        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
             SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
             goto out;
         }
@@ -1205,11 +1211,6 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     ret = sgx_verify_report(&report);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to verify local report: %d\n", ret);
-        goto out;
-    }
-
-    if (ret == 1) {
-        SGX_DBG(DBG_E, "Local report is not signed by CPU.\n");
         goto out;
     }
 
