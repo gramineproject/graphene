@@ -618,9 +618,6 @@ static int do_rename(struct shim_dentry* old_dent, struct shim_dentry* new_dent)
     if (!ret) {
         old_dent->state |= DENTRY_NEGATIVE;
         new_dent->state &= ~DENTRY_NEGATIVE;
-        if (old_dent->state & DENTRY_ISDIRECTORY) {
-            new_dent->state |= DENTRY_ISDIRECTORY;
-        }
     }
 
     return ret;
