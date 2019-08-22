@@ -36,8 +36,8 @@ def read_sigstruct(sig):
     for field in fields.values():
         values = struct.unpack_from(field[1], sig, field[0])
 
-        for i in range(len(values)):
-            attr[field[i + 2]] = values[i]
+        for i, value in enumerate(values):
+            attr[field[i + 2]] = value
 
     return attr
 
