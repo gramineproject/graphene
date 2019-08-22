@@ -73,9 +73,14 @@ $(executables): LDLIBS = $(LDLIBS-executables)
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle)
 
-include $(wildcard *.d)
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
+include $(wildcard *.d)
 ifeq ($(SGX), 1)
+# Bootstrap5.manifest doesn't have main executable, but only preloaded
+# libraries. Static pattern rule is needed to override the implicit pattern
+# rule defined in Pal/src/host/Linux-SGX/Makefile.Test.
+Bootstrap5.manifest.sgx.d: %.manifest.sgx.d: %.manifest
+	$(call cmd,sgx_sign_depend)
 include $(addsuffix .manifest.sgx.d,$(executables))
 endif
 endif
@@ -86,8 +91,6 @@ endif
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
-
-Process2.manifest.sgx: Bootstrap.manifest.sgx
 
 else
 .IGNORE: $(preloads) $(executables)

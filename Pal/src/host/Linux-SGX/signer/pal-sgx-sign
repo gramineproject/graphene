@@ -84,6 +84,36 @@ def read_manifest(filename):
     return (manifest, manifest_layout)
 
 
+def exec_sig_manifest(args, manifest):
+    if 'exec' not in args or args.get('depend'):
+        if 'loader.exec' in manifest:
+            exec_url = manifest['loader.exec']
+            if not exec_url.startswith('file:'):
+                print("executable must be a local file", file=sys.stderr)
+                return 1
+
+            exec_path = exec_url[5:]  # strip preceding 'file:'
+            if os.path.isabs(exec_path):
+                args['exec'] = exec_path
+            else:
+                args['exec'] = os.path.join(
+                    os.path.dirname(args['manifest']), exec_path)
+
+    if 'sgx.sigfile' in manifest:
+        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'],
+                                      check_exist=False)
+    else:
+        sigfile = args['output']
+        for ext in ['.manifest.sgx.d', '.manifest.sgx', '.manifest']:
+            if sigfile.endswith(ext):
+                sigfile = sigfile[:-len(ext)]
+                break
+        args['sigfile'] = sigfile + '.sig'
+        manifest['sgx.sigfile'] = 'file:' + os.path.basename(args['sigfile'])
+
+    return 0
+
+
 def output_manifest(filename, manifest, manifest_layout):
     with open(filename, 'w') as f:
         written = []
@@ -137,11 +167,11 @@ def get_enclave_attributes(manifest):
         default_attributes.add('FLAG_MODE64BIT')
 
     manifest_options = {
-        'debug'          : 'FLAG_DEBUG',
-        'require_avx'    : 'XFRM_AVX',
-        'require_avx512' : 'XFRM_AVX512',
-        'enable_mpx'     : 'XFRM_MPX',
-        'support_exinfo' : 'MISC_EXINFO',
+        'debug': 'FLAG_DEBUG',
+        'require_avx': 'XFRM_AVX',
+        'require_avx512': 'XFRM_AVX512',
+        'enable_mpx': 'XFRM_MPX',
+        'support_exinfo': 'MISC_EXINFO',
     }
 
     attributes = default_attributes
@@ -193,17 +223,16 @@ def get_checksum(file):
     return digest.digest()
 
 
-def get_trusted_files(manifest, args):
+def get_trusted_files(manifest, args, check_exist=True, do_checksum=True):
     targets = dict()
 
     if 'exec' in args:
-        targets['exec'] = (args['exec'], resolve_uri(args['exec']))
+        targets['exec'] = (args['exec'], resolve_uri(args['exec'],
+                                                     check_exist))
 
     if 'loader.preload' in manifest:
-        i = 0
-        for uri in str.split(manifest['loader.preload'], ','):
-            targets['preload' + str(i)] = (uri, resolve_uri(uri))
-            i += 1
+        for i, uri in enumerate(str.split(manifest['loader.preload'], ',')):
+            targets['preload' + str(i)] = (uri, resolve_uri(uri, check_exist))
 
     for (key, val) in manifest.items():
         if not key.startswith('sgx.trusted_files.'):
@@ -212,17 +241,18 @@ def get_trusted_files(manifest, args):
         if key in targets:
             raise Exception(
                 'repeated key in manifest: sgx.trusted_files.' + key)
-        targets[key] = (val, resolve_uri(val))
+        targets[key] = (val, resolve_uri(val, check_exist))
 
-    for (key, val) in targets.items():
-        (uri, target) = val
-        checksum = get_checksum(target).hex()
-        targets[key] = (uri, target, checksum)
+    if do_checksum:
+        for (key, val) in targets.items():
+            (uri, target) = val
+            checksum = get_checksum(target).hex()
+            targets[key] = (uri, target, checksum)
 
     return targets
 
 
-def get_trusted_children(manifest):
+def get_trusted_children(manifest, check_exist=True, do_checksum=True):
     targets = dict()
 
     for (key, val) in manifest.items():
@@ -233,14 +263,16 @@ def get_trusted_children(manifest):
             raise Exception(
                 'repeated key in manifest: sgx.trusted_children.' + key)
 
-        target = resolve_uri(val)
+        target = resolve_uri(val, check_exist)
         if not target.endswith('.sig'):
             target += '.sig'
-        sig = open(target, 'rb').read()[
-            SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH:
-            SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE].hex()
-        targets[key] = (val, target, sig)
-
+        if do_checksum:
+            sig = open(target, 'rb').read()[
+                SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH:
+                SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE].hex()
+            targets[key] = (val, target, sig)
+        else:
+            targets[key] = (val, target)
     return targets
 
 
@@ -691,19 +723,21 @@ def generate_sigstruct(attr, args, mrenclave):
 
     return buffer
 
+
 # Main Program
 
-argparser = argparse.ArgumentParser()
+argparser = argparse.ArgumentParser(
+    epilog='With sign mode(without -depend), libpal and key are also required')
 argparser.add_argument('--output', '-output', metavar='OUTPUT',
                        type=str, required=True,
                        help='Output .manifest.sgx file '
                             '(manifest augmented with autogenerated fields)')
 argparser.add_argument('--libpal', '-libpal', metavar='LIBPAL',
-                       type=str, required=True,
+                       type=str, required=False,
                        help='Input libpal file '
                             '(required as part of the enclave measurement)')
 argparser.add_argument('--key', '-key', metavar='KEY',
-                       type=str, required=True,
+                       type=str, required=False,
                        help='specify signing key(.pem) file')
 argparser.add_argument('--manifest', '-manifest', metavar='MANIFEST',
                        type=str, required=True,
@@ -713,6 +747,9 @@ argparser.add_argument('--exec', '-exec', metavar='EXEC',
                        type=str, required=False,
                        help='Input executable file '
                             '(required as part of the enclave measurement)')
+argparser.add_argument('--depend', '-depend',
+                       action='store_true', required=False,
+                       help='Generate dependency for Makefile')
 
 
 def parse_args(args):
@@ -725,39 +762,28 @@ def parse_args(args):
     }
     if args.exec is not None:
         args_dict['exec'] = args.exec
+    if args.depend:
+        args_dict['depend'] = True
+    else:
+        # libpal and key are required
+        if args.libpal is None or args.key is None:
+            argparser.error("libpal and key are also required to sign")
+            return None
 
     return args_dict
 
 
-def main(args=None):
-    args = parse_args(args)
-
+def main_sign(args):
     (manifest, manifest_layout) = read_manifest(args['manifest'])
 
-    if 'exec' not in args:
-        if 'loader.exec' in manifest:
-            exec_url = manifest['loader.exec']
-            if exec_url[:5] != 'file:':
-                print("executable must be a local file", file=sys.stderr)
-                return -1
-
-            args['exec'] = os.path.join(os.path.dirname(args['manifest']),
-                                        exec_url[5:])
-
-    if 'sgx.sigfile' in manifest:
-        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'], False)
-    else:
-        sigfile = args['output']
-        for ext in ['.manifest.sgx', '.manifest']:
-            if sigfile.endswith(ext):
-                sigfile = sigfile[:-len(ext)]
-                break
-        args['sigfile'] = sigfile + '.sig'
-        manifest['sgx.sigfile'] = 'file:' + os.path.basename(args['sigfile'])
+    if exec_sig_manifest(args, manifest) != 0:
+        return 1
 
     # Get attributes from manifest
     attr = dict()
-    parse_int = lambda s: int(s, 0)
+
+    def parse_int(s):
+        return int(s, 0)
 
     for key, default, parse in [
             ('enclave_size', DEFAULT_ENCLAVE_SIZE, parse_size),
@@ -789,7 +815,8 @@ def main(args=None):
     print("    date:      %d-%02d-%02d" % (attr['year'], attr['month'],
                                            attr['day']))
 
-    # Check client info for remote attestation (if sgx.ra_client.spid is provided)
+    # Check client info for remote attestation
+    # (if sgx.ra_client.spid is provided)
     print("Attestation:")
     if 'sgx.ra_client_spid' in manifest and manifest['sgx.ra_client_spid']:
         print("    spid:     " + manifest['sgx.ra_client_spid'])
@@ -797,7 +824,7 @@ def main(args=None):
             print("    key:   " + manifest['sgx.ra_client_key'])
         else:
             print("    *** sgx.ra_client_key not specified ***")
-            return -1
+            return 1
         if 'sgx.ra_client_linkable' in manifest:
             print("    linkable: " + manifest['sgx.ra_client_linkable'])
         else:
@@ -850,6 +877,44 @@ def main(args=None):
     open(args['sigfile'], 'wb').write(
         generate_sigstruct(attr, args, mrenclave))
     return 0
+
+
+def make_depend(args):
+    manifest_file = args['manifest']
+    output = args['output']
+
+    (manifest, _) = read_manifest(manifest_file)
+    if exec_sig_manifest(args, manifest) != 0:
+        return 1
+
+    dependencies = set()
+    for filename in get_trusted_files(manifest, args, check_exist=False,
+                                      do_checksum=False).values():
+        dependencies.add(filename[1])
+    for filename in get_trusted_children(manifest, check_exist=False,
+                                         do_checksum=False).values():
+        dependencies.add(filename[1])
+
+    with open(output, 'w') as f:
+        manifest_sgx = output
+        if manifest_sgx.endswith('.d'):
+            manifest_sgx = manifest_sgx[:-len('.d')]
+        f.write('%s %s:' % (manifest_sgx, args['sigfile']))
+        for filename in dependencies:
+            f.write(' \\\n\t%s' % filename)
+        f.write('\n')
+
+    return 0
+
+
+def main(args=None):
+    args = parse_args(args)
+    if args is None:
+        return 1
+
+    if args.get('depend'):
+        return make_depend(args)
+    return main_sign(args)
 
 
 if __name__ == "__main__":
