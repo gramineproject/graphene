@@ -105,6 +105,29 @@ def read_manifest(filename):
 
     return (manifest, manifest_layout)
 
+def exec_sig_manifest(args, manifest):
+    if 'exec' not in args or args.get('depend'):
+        if 'loader.exec' in manifest:
+            exec_url = manifest['loader.exec']
+            if exec_url[:5] != 'file:':
+                print "executable must be a local file"
+                os._exit(-1)
+
+            args['exec'] = os.path.join(os.path.dirname(args['manifest']), exec_url[5:])
+
+    if 'sgx.sigfile' in manifest:
+        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'],
+                                      check_exist=False)
+    else:
+        sigfile = args['output']
+        for ext in ['.manifest.sgx.d', '.manifest.sgx', '.manifest']:
+            if sigfile.endswith(ext):
+                sigfile = sigfile[:-len(ext)]
+                break
+        args['sigfile'] = sigfile + '.sig'
+        manifest['sgx.sigfile'] = 'file:' + os.path.basename(args['sigfile'])
+
+
 def output_manifest(filename, manifest, manifest_layout):
     with open(filename, 'w') as f:
         written = []
@@ -208,17 +231,17 @@ def get_checksum(file):
         digest.update(f.read())
     return digest.digest()
 
-def get_trusted_files(manifest, args):
+def get_trusted_files(manifest, args, check_exist=True, do_checksum=True):
     targets = dict()
 
     if 'exec' in args:
-        targets['exec'] = (args['exec'], resolve_uri(args['exec']))
+        targets['exec'] = (args['exec'], resolve_uri(args['exec'], check_exist))
 
     if 'loader.preload' in manifest:
         i = 0
         preloads = []
         for uri in str.split(manifest['loader.preload'], ','):
-            targets['preload' + str(i)] = (uri, resolve_uri(uri))
+            targets['preload' + str(i)] = (uri, resolve_uri(uri, check_exist))
             preloads.append(uri)
             i += 1
 
@@ -228,16 +251,17 @@ def get_trusted_files(manifest, args):
         key = key[len('sgx.trusted_files.'):]
         if key in targets:
             raise Exception('repeated key in manifest: sgx.trusted_files.' + key)
-        targets[key] = (val, resolve_uri(val))
+        targets[key] = (val, resolve_uri(val, check_exist))
 
-    for (key, val) in targets.items():
-        (uri, target) = val
-        checksum = get_checksum(target).encode('hex')
-        targets[key] = (uri, target, checksum)
+    if do_checksum:
+        for (key, val) in targets.items():
+            (uri, target) = val
+            checksum = get_checksum(target).encode('hex')
+            targets[key] = (uri, target, checksum)
 
     return targets
 
-def get_trusted_children(manifest, args):
+def get_trusted_children(manifest, args, check_exist=True, do_checksum=True):
     targets = dict()
 
     for (key, val) in manifest.items():
@@ -247,12 +271,14 @@ def get_trusted_children(manifest, args):
         if key in targets:
             raise Exception('repeated key in manifest: sgx.trusted_children.' + key)
 
-        target = resolve_uri(val)
+        target = resolve_uri(val, check_exist)
         if not target.endswith('.sig'):
             target += '.sig'
-        sig = open(target, 'rb').read()[960:992].encode('hex')
-        targets[key] = (val, target, sig)
-
+        if do_checksum:
+            sig = open(target, 'rb').read()[960:992].encode('hex')
+            targets[key] = (val, target, sig)
+        else:
+            targets[key] = (val, target)
     return targets
 
 """ Populate Enclave Memory """
@@ -706,6 +732,7 @@ options = {
         'key':       (True,    'signing key'),
         'manifest':  (True,    'manifest'),
         'exec':      (False,   'executable'),
+        'depend':    (False,   None),
     }
 
 def usage():
@@ -758,41 +785,27 @@ def parse_args():
             usage()
         i += 1
 
-    for opt, optval in options.items():
-        if optval[0] and opt not in args:
-            print >>sys.stderr, "Must specify %s <%s>." % (opt, optval[1])
-            usage()
+    if args.get('depend'):
+        required_opts = ('manifest', 'output')
+        for opt in required_opts:
+            optval = options[opt]
+            if opt not in args:
+                print >>sys.stderr, "Must specify %s <%s>." % (opt, optval[1])
+                usage()
+    else:
+        for opt, optval in options.items():
+            if optval[0] and opt not in args:
+                print >>sys.stderr, "Must specify %s <%s>." % (opt, optval[1])
+                usage()
 
     return args
 
-if __name__ == "__main__":
 
-    # Parse arguments
-    args = parse_args()
-
+def main(args):
     (manifest, manifest_layout) = read_manifest(args['manifest'])
-
-    if 'exec' not in args:
-        if 'loader.exec' in manifest:
-            exec_url = manifest['loader.exec']
-            if exec_url[:5] != 'file:':
-                print "executable must be a local file"
-                os._exit(-1)
-
-            args['exec'] = os.path.join(os.path.dirname(args['manifest']), exec_url[5:])
+    exec_sig_manifest(args, manifest)
 
     args['root'] = os.path.dirname(os.path.abspath(args['output']))
-
-    if 'sgx.sigfile' in manifest:
-        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'], False)
-    else:
-        sigfile = args['output']
-        for ext in ['.manifest.sgx', '.manifest']:
-            if sigfile.endswith(ext):
-                sigfile = sigfile[:-len(ext)]
-                break
-        args['sigfile'] = sigfile + '.sig'
-        manifest['sgx.sigfile'] = 'file:' + os.path.basename(args['sigfile'])
 
     # Get attributes from manifest
     attr = dict()
@@ -837,6 +850,7 @@ if __name__ == "__main__":
     if len([a for a in memory_areas if a.addr is not None]) > 0:
         manifest['sgx.static_address'] = '1'
     else:
+        global enclave_heap_min
         enclave_heap_min = 0
 
     # Add manifest at the top
@@ -859,3 +873,34 @@ if __name__ == "__main__":
 
     # Generate sigstruct
     open(args['sigfile'], 'wb').write(generate_sigstruct(attr, args, mrenclave))
+
+def make_depend(args):
+    manifest_file = args['manifest']
+    output = args['output']
+
+    (manifest, manifest_layout) = read_manifest(manifest_file)
+    exec_sig_manifest(args, manifest)
+
+    dependencies = set()
+    for filename in get_trusted_files(manifest, args, check_exist=False,
+                                      do_checksum=False).values():
+        dependencies.add(filename[1])
+    for filename in get_trusted_children(manifest, args, check_exist=False,
+                                         do_checksum=False).values():
+        dependencies.add(filename[1])
+
+    with open(output, 'w') as f:
+        manifest_sgx = output
+        if manifest_sgx.endswith('.d'):
+            manifes_sgx = manifest_sgx[:-len('.d')]
+        f.write('%s %s:' % (manifest_sgx, args['sigfile']))
+        for filename in dependencies:
+            f.write(' \\\n\t%s' % filename)
+        f.write('\n')
+
+if __name__ == "__main__":
+    args = parse_args()
+    if args.get('depend'):
+        make_depend(args)
+    else:
+        main(args)

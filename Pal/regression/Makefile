@@ -65,6 +65,11 @@ $(executables): %: %.c $(LDLIBS-executables)
 
 include $(wildcard *.d)
 ifeq ($(SGX), 1)
+# Bootstrap5.manifest doesn't have main executable, but only preloaded
+# libraries. Static pattern rule is needed to override the implicit pattern
+# rule defined in Pal/src/host/Linux-SGX/Makefile.Test.
+Bootstrap5.manifest.sgx.d: %.manifest.sgx.d: %.manifest
+	$(call cmd,sgx_sign_depend)
 include $(addsuffix .manifest.sgx.d,$(executables))
 endif
 
