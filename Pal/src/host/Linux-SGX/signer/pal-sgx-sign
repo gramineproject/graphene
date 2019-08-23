@@ -787,11 +787,12 @@ def parse_args():
         i += 1
 
     if args.get('depend'):
-        opt = 'manifest'
-        val = options[opt]
-        if opt not in args:
-            print >>sys.stderr, "Must specify %s <%s>." % (opt, val)
-            usage()
+        required_opts=('manifest', 'output')
+        for opt in required_opts:
+            val = options[opt]
+            if opt not in args:
+                print >>sys.stderr, "Must specify %s <%s>." % (opt, val)
+                usage()
     else:
         for opt, optval in options.items():
             if optval[0] and opt not in args:
@@ -891,8 +892,8 @@ def make_depend(args):
         dependencies.add(filename[1])
 
     with open(output, 'w') as f:
-        f.write('%s.sgx %s:' % (
-            manifest_file, manifest_file.replace('.manifest', '.sig')))
+        exec_name = args['output'].replace(".manifest.sgx.d", "")
+        f.write('%s.manifest.sgx %s.sig:' % (exec_name, exec_name))
         for filename in dependencies:
             f.write(' \\\n\t%s' % filename)
         f.write('\n')
