@@ -85,7 +85,7 @@ endif
 
 .PHONY: clean
 clean: $(clean-extra) $(if $(level),,clean-subdirs)
-	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d)
+	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d) *.sig *.token *.manifest.sgx
 
 .PHONY: build-subdirs
 build-subdirs:

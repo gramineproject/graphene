@@ -129,7 +129,7 @@ $(GLIBC_SRC)/dlfcn/Versions: $(GLIBC_SRC)/configure
 .PHONY: clean
 clean:
 	$(MAKE) -C $(SHIM_DIR) clean
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(GLIBC_SRC) build.log
 
 else
 .IGNORE: $(GLIBC_TARGET)
