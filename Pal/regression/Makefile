@@ -63,6 +63,8 @@ $(executables): %: %.c ../src/user_start.o \
 
 include $(wildcard *.d)
 ifeq ($(SGX), 1)
+Bootstrap5.manifest.sgx.d: %.manifest.sgx.d: %.manifest
+	$(call cmd,sgx_sign_depend)
 include $(addsuffix .manifest.sgx.d,$(executables))
 endif
 

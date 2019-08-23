@@ -22,10 +22,10 @@ $(SGX_SIGNER_KEY):
 	$(error "Cannot find any enclave key. Generate $(abspath $(SGX_SIGNER_KEY)) or specify 'SGX_SIGNER_KEY=' with make")
 
 %.sig %.manifest.sgx: %.manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
-	$(call cmd,sgx_sign_manifest)
+	$(call cmd,sgx_sign_exec)
 
 %.sig %.manifest.sgx: manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
-	$(call cmd,sgx_sign_manifest)
+	$(call cmd,sgx_sign_exec)
 
 %.sig %.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
 	$(call cmd,sgx_sign)
@@ -33,10 +33,15 @@ $(SGX_SIGNER_KEY):
 .PRECIOUS: %.manifest.sgx.d
 
 %.manifest.sgx.d: %.manifest
-	$(call cmd,sgx_manifest_dependency)
+	$(call cmd,sgx_sign_depend_exec)
 
 %.manifest.sgx.d: manifest
-	$(call cmd,sgx_manifest_dependency)
+	$(call cmd,sgx_sign_depend_exec)
+
+# There is no way to distinguish this from the above because
+# % as exec doesn't exist. This is very special case, use static rule.
+# %.manifest.sgx.d: %.manifest
+# 	$(call cmd,sgx_sign_depend)
 
 *.token nothing:
 
