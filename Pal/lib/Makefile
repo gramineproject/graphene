@@ -10,6 +10,7 @@ ARFLAGS	=
 
 include ../src/host/$(PAL_HOST)/Makefile.am
 
+CFLAGS += -Wtrampolines
 CFLAGS += -I. -I../include -I../src
 
 # Include host_endian.h from either the host-specific directory,
