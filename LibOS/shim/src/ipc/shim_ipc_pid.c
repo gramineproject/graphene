@@ -177,6 +177,32 @@ int ipc_pid_getstatus_send (struct shim_ipc_port * port, IDTYPE dest,
     return ret;
 }
 
+struct thread_status {
+    int npids;
+    IDTYPE * pids;
+    int nstatus;
+    struct pid_status * status;
+};
+
+int check_thread (struct shim_thread * thread, void * arg,
+                  bool * unlocked)
+{
+    __UNUSED(unlocked); // Kept for API compatibility
+    struct thread_status * status = (struct thread_status *) arg;
+
+    for (int i = 0 ; i < status->npids ; i++)
+        if (status->pids[i] == thread->tid &&
+            thread->in_vm && thread->is_alive) {
+            status->status[status->nstatus].pid  = thread->tid;
+            status->status[status->nstatus].tgid = thread->tgid;
+            status->status[status->nstatus].pgid = thread->pgid;
+            status->nstatus++;
+            return 1;
+        }
+
+    return 0;
+}
+
 int ipc_pid_getstatus_callback (IPC_CALLBACK_ARGS)
 {
     BEGIN_PROFILE_INTERVAL();
@@ -186,32 +212,6 @@ int ipc_pid_getstatus_callback (IPC_CALLBACK_ARGS)
 
     debug("ipc callback from %u: IPC_PID_GETSTATUS(%d, [%u, ...])\n",
           msg->src, msgin->npids, msgin->pids[0]);
-
-    struct thread_status {
-        int npids;
-        IDTYPE * pids;
-        int nstatus;
-        struct pid_status * status;
-    };
-
-    int check_thread (struct shim_thread * thread, void * arg,
-                      bool * unlocked)
-    {
-        __UNUSED(unlocked); // Kept for API compatibility
-        struct thread_status * status = (struct thread_status *) arg;
-
-        for (int i = 0 ; i < status->npids ; i++)
-            if (status->pids[i] == thread->tid &&
-                thread->in_vm && thread->is_alive) {
-                status->status[status->nstatus].pid  = thread->tid;
-                status->status[status->nstatus].tgid = thread->tgid;
-                status->status[status->nstatus].pgid = thread->pgid;
-                status->nstatus++;
-                return 1;
-            }
-
-        return 0;
-    }
 
     struct thread_status status;
     status.npids = msgin->npids;
