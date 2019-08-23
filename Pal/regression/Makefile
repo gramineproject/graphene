@@ -61,9 +61,11 @@ $(executables): %: %.c ../src/user_start.o \
 	@echo [ $@ ]
 	@$(CC) -MD -MP $(CFLAGS) $(filter-out %.h,$^) -o $@
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
 ifeq ($(SGX), 1)
 include $(addsuffix .manifest.sgx.d,$(executables))
+endif
 endif
 
 .lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
