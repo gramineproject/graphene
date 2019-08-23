@@ -875,9 +875,7 @@ def main(args):
 
 def make_depend(args):
     manifest_file = args['manifest']
-    output = args.get('output')
-    if output is None:
-        output = manifest_file + '.sgx.d'
+    output = args['output']
 
     (manifest, manifest_layout) = read_manifest(manifest_file)
     exec_sig_manifest(args, manifest)
@@ -890,7 +888,7 @@ def make_depend(args):
         dependencies.add(filename[1])
 
     with open(output, 'w') as f:
-        f.write('%s %s:' % (output.replace(".d", ""), args['sigfile']))
+        f.write('%s %s:' % (output.replace('.d', ''), args['sigfile']))
         for filename in dependencies:
             f.write(' \\\n\t%s' % filename)
         f.write('\n')
