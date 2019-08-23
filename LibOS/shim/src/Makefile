@@ -6,7 +6,7 @@ include ../../../Pal/src/Makefile.Host
 OMIT_FRAME_POINTER = no
 
 CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
-	  -fmerge-all-constants -Wstrict-prototypes \
+	  -fmerge-all-constants -Wstrict-prototypes -Wtrampolines \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
