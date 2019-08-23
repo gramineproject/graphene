@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -eu -o pipefail
+
+top_dir="$(readlink -m "${BASH_SOURCE[0]}/../..")"
+clean_dir="$top_dir.clean-check.clean"
+
+rm -rf "$clean_dir"
+cp -a "$top_dir" "$clean_dir"

@@ -6,6 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
+                            ./Scripts/clean-check-prepare
                             cd LibOS
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.19
                             rm -r glibc-build
@@ -70,6 +71,23 @@ pipeline {
                             sleep 1
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''
+                        sh '''
+                           cd "$(./Scripts/clean-check-test-copy)"
+
+                           make clean
+                           rm -r LibOS/glibc-2.19 LibOS/glibc-2.23
+                           rm LibOS/glibc-*.tar.gz
+                           make -C LibOS/shim/test/regression clean
+                           make -C LibOS/shim/test/apps/ltp clean
+                           make -C LibOS/shim/test/apps/python clean
+                           make -C LibOS/shim/test/apps/bash clean
+                           make -C LibOS/shim/test/apps/gcc clean
+                           make -C LibOS/shim/test/apps/lmbench clean
+                           make -C LibOS/shim/test/apps/lighttpd distclean
+                           make -C LibOS/shim/test/apps/apache distclean
+
+                           ./Scripts/clean-check
+                        '''
                     }
                     post {
                         always {
