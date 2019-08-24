@@ -116,7 +116,8 @@ def exec_sig_manifest(args, manifest):
             args['exec'] = os.path.join(os.path.dirname(args['manifest']), exec_url[5:])
 
     if 'sgx.sigfile' in manifest:
-        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'], False)
+        args['sigfile'] = resolve_uri(manifest['sgx.sigfile'],
+                                      check_exist=False)
     else:
         sigfile = args['output']
         for ext in ['.manifest.sgx.d', '.manifest.sgx', '.manifest']:
@@ -881,20 +882,23 @@ def make_depend(args):
     exec_sig_manifest(args, manifest)
 
     dependencies = set()
-    for filename in get_trusted_files(manifest, args, False, False).values():
+    for filename in get_trusted_files(manifest, args, check_exist=False,
+                                      do_checksum=False).values():
         dependencies.add(filename[1])
-    for filename in get_trusted_children(manifest, args,
-                                         False, False).values():
+    for filename in get_trusted_children(manifest, args, check_exist=False,
+                                         do_checksum=False).values():
         dependencies.add(filename[1])
 
     with open(output, 'w') as f:
-        f.write('%s %s:' % (output.replace('.d', ''), args['sigfile']))
+        manifest_sgx = output
+        if manifest_sgx.endswith('.d'):
+            manifes_sgx = manifest_sgx[:-len('.d')]
+        f.write('%s %s:' % (manifest_sgx, args['sigfile']))
         for filename in dependencies:
             f.write(' \\\n\t%s' % filename)
         f.write('\n')
 
 if __name__ == "__main__":
-    # Parse arguments
     args = parse_args()
     if args.get('depend'):
         make_depend(args)

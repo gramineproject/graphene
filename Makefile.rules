@@ -138,5 +138,8 @@ quiet_cmd_sgx_get_token = [ Token: $(basename $*) ]
 quiet_cmd_sgx_sign_depend_exec = [ $@ ]
       cmd_sgx_sign_depend_exec = $(SGX_SIGN) -depend -output $@ -exec $* -manifest $<
 
+# sgx manifest dependency without executable
+# manifest may or may not include loader.exec. If no, only preloaded libraries.
+# use static pattern rule for this recipe.
 quiet_cmd_sgx_sign_depend = [ $@ ]
       cmd_sgx_sign_depend = $(SGX_SIGN) -depend -output $@ -manifest $<
