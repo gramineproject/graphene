@@ -21,10 +21,10 @@ LDLIBS-rpc_latency.libos += -llibos
 LDLIBS-rpc_latency2.libos += -llibos
 LDLIBS-test_start.m += -lm
 
-$(c_executables): %: %.c
+%: %.c
 	$(call cmd,csingle)
 
-$(cxx_executables): %: %.cpp
+%: %.cpp
 	$(call cmd,cxxsingle)
 else
 .IGNORE: $(c_executables) $(cxx_executables)
