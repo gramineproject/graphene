@@ -20,37 +20,34 @@
  * Implementation of system call "getcwd", "chdir" and "fchdir".
  */
 
+#include <errno.h>
+#include <pal.h>
+#include <pal_error.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
 #include <shim_utils.h>
 
-#include <pal.h>
-#include <pal_error.h>
-
-#include <errno.h>
-
 #ifndef ERANGE
-# define ERANGE 34
+#define ERANGE 34
 #endif
 
-int shim_do_getcwd (char * buf, size_t len)
-{
+int shim_do_getcwd(char* buf, size_t len) {
     if (!buf || !len)
         return -EINVAL;
 
     if (test_user_memory(buf, len, true))
         return -EFAULT;
 
-    struct shim_thread * thread = get_cur_thread();
+    struct shim_thread* thread = get_cur_thread();
     assert(thread);
 
-    struct shim_dentry * cwd = thread->cwd;
+    struct shim_dentry* cwd = thread->cwd;
 
     size_t plen;
-    const char * path = dentry_get_path(cwd, true, &plen);
+    const char* path = dentry_get_path(cwd, true, &plen);
 
     int ret;
     if (plen >= MAX_PATH) {
@@ -64,11 +61,10 @@ int shim_do_getcwd (char * buf, size_t len)
     return ret;
 }
 
-int shim_do_chdir (const char * filename)
-{
-    struct shim_thread * thread = get_cur_thread();
+int shim_do_chdir(const char* filename) {
+    struct shim_thread* thread = get_cur_thread();
     assert(thread);
-    struct shim_dentry * dent = NULL;
+    struct shim_dentry* dent = NULL;
     int ret;
 
     if (!filename)
@@ -99,14 +95,13 @@ int shim_do_chdir (const char * filename)
     return 0;
 }
 
-int shim_do_fchdir (int fd)
-{
-    struct shim_thread * thread = get_cur_thread();
-    struct shim_handle * hdl = get_fd_handle(fd, NULL, thread->handle_map);
+int shim_do_fchdir(int fd) {
+    struct shim_thread* thread = get_cur_thread();
+    struct shim_handle* hdl    = get_fd_handle(fd, NULL, thread->handle_map);
     if (!hdl)
         return -EBADF;
 
-    struct shim_dentry * dent = hdl->dentry;
+    struct shim_dentry* dent = hdl->dentry;
 
     if (!(dent->state & DENTRY_ISDIRECTORY)) {
         debug("%s is not a directory\n", dentry_get_path(dent, false, NULL));

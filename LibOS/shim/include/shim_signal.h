@@ -3,7 +3,6 @@
 
 #include <shim_types.h>
 #include <shim_defs.h>
-#include <shim_thread.h>
 
 struct shim_signal_handle {
     /* sigaction */

@@ -3,13 +3,11 @@
 
 #ifdef IN_PAL
 
-# include <pal_error.h>
-# include <errno.h>
+#include <errno.h>
+#include <pal_error.h>
 
-static inline __attribute__((unused))
-int unix_to_pal_error (int unix_errno)
-{
-    switch(unix_errno) {
+static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
+    switch (unix_errno) {
         case ENOENT:
             return -PAL_ERROR_STREAMNOTEXIST;
         case EINTR:
@@ -38,7 +36,7 @@ int unix_to_pal_error (int unix_errno)
     }
 }
 
-#define ERESTART        (-1)            /* restart syscall */
+#define ERESTART (-1) /* restart syscall */
 
 #endif /* IN_PAL */
 

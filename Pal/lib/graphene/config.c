@@ -21,45 +21,44 @@
  * a tree to lookup / access config values.
  */
 
-#include <list.h>
 #include <api.h>
+#include <list.h>
 #include <pal_error.h>
 
 DEFINE_LIST(config);
 struct config {
-    const char * key, * val;
+    const char* key;
+    const char* val;
     size_t klen, vlen; /* for leaf nodes, vlen stores the size of config
                           values; for branch nodes, vlen stores the sum
                           of config value lengths plus one of all the
                           immediate children. */
-    char * buf;
+    char* buf;
     LIST_TYPE(config) list;
     LISTP_TYPE(config) children;
     LIST_TYPE(config) siblings;
 };
 
-static int __add_config (struct config_store * store,
-                         const char * key, size_t klen,
-                         const char * val, size_t vlen,
-                         struct config ** entry)
-{
-    LISTP_TYPE(config) * list = &store->root;
-    struct config * e = NULL;
-    struct config * parent = NULL;
+static int __add_config(struct config_store* store, const char* key, size_t klen, const char* val,
+                        size_t vlen, struct config** entry) {
+    LISTP_TYPE(config)* list = &store->root;
+    struct config* e         = NULL;
+    struct config* parent    = NULL;
 
     while (klen) {
         if (e && e->val)
             return -PAL_ERROR_INVAL;
 
-        const char * token = key;
-        size_t len = 0;
-        for ( ; len < klen ; len++)
+        const char* token = key;
+        size_t len        = 0;
+        for (; len < klen; len++)
             if (token[len] == '.')
                 break;
 
-        LISTP_FOR_EACH_ENTRY(e, list, siblings)
+        LISTP_FOR_EACH_ENTRY(e, list, siblings) {
             if (e->klen == len && !memcmp(e->key, token, len))
                 goto next;
+        }
 
         e = store->malloc(sizeof(struct config));
         if (!e)
@@ -78,12 +77,12 @@ static int __add_config (struct config_store * store,
         if (parent)
             parent->vlen += (len + 1);
 
-next:
+    next:
         if (len < klen)
             len++;
         key += len;
         klen -= len;
-        list = &e->children;
+        list   = &e->children;
         parent = e;
     }
 
@@ -99,26 +98,25 @@ next:
     return 0;
 }
 
-static struct config * __get_config (struct config_store * store,
-                                     const char * key)
-{
-    LISTP_TYPE(config) * list = &store->root;
-    struct config * e = NULL;
+static struct config* __get_config(struct config_store* store, const char* key) {
+    LISTP_TYPE(config)* list = &store->root;
+    struct config* e         = NULL;
 
     while (*key) {
-        const char * token = key;
-        size_t len = 0;
-        for ( ; token[len] ; len++)
+        const char* token = key;
+        size_t len        = 0;
+        for (; token[len]; len++)
             if (token[len] == '.')
                 break;
 
-        LISTP_FOR_EACH_ENTRY(e, list, siblings)
+        LISTP_FOR_EACH_ENTRY(e, list, siblings) {
             if (e->klen == len && !memcmp(e->key, token, len))
                 goto next;
+        }
 
         return NULL;
 
-next:
+    next:
         if (token[len])
             len++;
         key += len;
@@ -128,10 +126,8 @@ next:
     return e;
 }
 
-ssize_t get_config (struct config_store * store, const char * key,
-                    char * val_buf, size_t buf_size)
-{
-    struct config * e = __get_config(store, key);
+ssize_t get_config(struct config_store* store, const char* key, char* val_buf, size_t buf_size) {
+    struct config* e = __get_config(store, key);
 
     if (!e || !e->val)
         return -PAL_ERROR_INVAL;
@@ -144,16 +140,15 @@ ssize_t get_config (struct config_store * store, const char * key,
     return e->vlen;
 }
 
-int get_config_entries (struct config_store * store, const char * key,
-                        char * key_buf, size_t key_bufsize)
-{
-    struct config * e = __get_config(store, key);
+int get_config_entries(struct config_store* store, const char* key, char* key_buf,
+                       size_t key_bufsize) {
+    struct config* e = __get_config(store, key);
 
     if (!e || e->val)
         return -PAL_ERROR_INVAL;
 
-    LISTP_TYPE(config) * children = &e->children;
-    int nentries = 0;
+    LISTP_TYPE(config)* children = &e->children;
+    int nentries                 = 0;
 
     LISTP_FOR_EACH_ENTRY(e, children, siblings) {
         if (e->klen + 1 > key_bufsize)
@@ -168,10 +163,8 @@ int get_config_entries (struct config_store * store, const char * key,
     return nentries;
 }
 
-ssize_t get_config_entries_size (struct config_store * store,
-                                 const char * key)
-{
-    struct config * e = __get_config(store, key);
+ssize_t get_config_entries_size(struct config_store* store, const char* key) {
+    struct config* e = __get_config(store, key);
 
     if (!e || e->val)
         return -PAL_ERROR_INVAL;
@@ -179,21 +172,21 @@ ssize_t get_config_entries_size (struct config_store * store,
     return e->vlen;
 }
 
-static int __del_config (struct config_store * store,
-                         LISTP_TYPE(config) * root,
-                         struct config * p, const char * key)
-{
-    struct config * e, * found = NULL;
+static int __del_config(struct config_store* store, LISTP_TYPE(config)* root, struct config* p,
+                        const char* key) {
+    struct config* e;
+    struct config* found = NULL;
     size_t len = 0;
-    for ( ; key[len] ; len++)
+    for (; key[len]; len++)
         if (key[len] == '.')
             break;
 
-    LISTP_FOR_EACH_ENTRY(e, root, siblings)
+    LISTP_FOR_EACH_ENTRY(e, root, siblings) {
         if (e->klen == len && !memcmp(e->key, key, len)) {
             found = e;
             break;
         }
+    }
 
     if (!found)
         return -PAL_ERROR_INVAL;
@@ -222,8 +215,7 @@ static int __del_config (struct config_store * store,
     return 0;
 }
 
-int set_config (struct config_store * store, const char * key, const char * val)
-{
+int set_config(struct config_store* store, const char* key, const char* val) {
     if (!key)
         return -PAL_ERROR_INVAL;
 
@@ -234,14 +226,14 @@ int set_config (struct config_store * store, const char * key, const char * val)
     int klen = strlen(key);
     int vlen = strlen(val);
 
-    char * buf = store->malloc(klen + vlen + 2);
+    char* buf = store->malloc(klen + vlen + 2);
     if (!buf)
         return -PAL_ERROR_NOMEM;
 
     memcpy(buf, key, klen + 1);
     memcpy(buf + klen + 1, val, vlen + 1);
 
-    struct config * e = __get_config(store, key);
+    struct config* e = __get_config(store, key);
     if (e) {
         e->val  = buf + klen + 1;
         e->vlen = vlen;
@@ -252,42 +244,55 @@ int set_config (struct config_store * store, const char * key, const char * val)
             store->free(buf);
             return ret;
         }
-        e->buf  = buf;
+        e->buf = buf;
     }
 
     return 0;
 }
 
-int read_config (struct config_store * store,
-                 int (*filter) (const char * key, int ken),
-                 const char ** errstring)
-{
+int read_config(struct config_store* store, int (*filter)(const char* key, int ken),
+                const char** errstring) {
     INIT_LISTP(&store->root);
     INIT_LISTP(&store->entries);
 
-    char * ptr = store->raw_data;
-    char * ptr_end = store->raw_data + store->raw_size;
+    char* ptr     = store->raw_data;
+    char* ptr_end = store->raw_data + store->raw_size;
 
-    const char * err = "unknown error";
+    const char* err = "unknown error";
 
-#define IS_SPACE(c) ((c) == ' '  || (c) == '\t')
+#define IS_SPACE(c) ((c) == ' ' || (c) == '\t')
 #define IS_BREAK(c) ((c) == '\r' || (c) == '\n')
-#define IS_VALID(c)                                                    \
-    (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z') ||       \
-     ((c) >= '0' && (c) <= '9') || (c) == '_')
+#define IS_VALID(c)                                                                            \
+    (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z') || ((c) >= '0' && (c) <= '9') || \
+     (c) == '_')
 
     register int skipping = 0;
 
-#define IS_SKIP(p)                                                     \
-    (skipping ? ({ if (IS_BREAK(*(p))) skipping = 0; 1; })             \
-     : ((*(p)) == '#' ? ({ skipping = 1; 1; }) : IS_BREAK(*(p))))
+#define IS_SKIP(p)                  \
+    (skipping ? ({                  \
+        if (IS_BREAK(*(p)))         \
+            skipping = 0;           \
+        1;                          \
+    })                              \
+              : ((*(p)) == '#' ? ({ \
+                    skipping = 1;   \
+                    1;              \
+                })                  \
+                               : IS_BREAK(*(p))))
 
 #define RANGE (ptr < ptr_end)
-#define GOTO_INVAL(msg) ({ err = msg; goto inval; })
-#define CHECK_PTR(msg) if (!RANGE) GOTO_INVAL(msg)
+#define GOTO_INVAL(msg) \
+    ({                  \
+        err = msg;      \
+        goto inval;     \
+    })
+#define CHECK_PTR(msg) \
+    if (!RANGE)        \
+    GOTO_INVAL(msg)
 
     while (RANGE) {
-        for ( ; RANGE && (IS_SKIP(ptr) || IS_SPACE(*ptr)) ; ptr++);
+        for (; RANGE && (IS_SKIP(ptr) || IS_SPACE(*ptr)); ptr++)
+            ;
 
         if (!(RANGE))
             break;
@@ -295,11 +300,12 @@ int read_config (struct config_store * store,
         if (!IS_VALID(*ptr))
             GOTO_INVAL("invalid start of key");
 
-        char * key = ptr;
-        for ( ; RANGE ; ptr++) {
-            char * pptr = ptr;
+        char* key = ptr;
+        for (; RANGE; ptr++) {
+            char* pptr = ptr;
 
-            for ( ; RANGE && IS_VALID(*ptr) ; ptr++);
+            for (; RANGE && IS_VALID(*ptr); ptr++)
+                ;
             CHECK_PTR("stream ended at key");
 
             if (pptr == ptr)
@@ -311,23 +317,25 @@ int read_config (struct config_store * store,
 
         int klen = ptr - key;
 
-        for ( ; RANGE && IS_SPACE(*ptr) ; ptr++)
-        CHECK_PTR("stream ended at key");
+        for (; RANGE && IS_SPACE(*ptr); ptr++) {
+            CHECK_PTR("stream ended at key");
+        }
 
         if (*ptr != '=')
             GOTO_INVAL("equal mark expected");
 
         ptr++;
 
-        for ( ; RANGE && IS_SPACE(*ptr) ; ptr++);
+        for (; RANGE && IS_SPACE(*ptr); ptr++)
+            ;
         CHECK_PTR("stream ended at equal mark");
 
-        char * val = NULL;
+        char* val = NULL;
         int vlen;
         if (*ptr == '"') {
             int shift = 0;
-            val = (++ptr);
-            for ( ; RANGE && *ptr != '"' ; ptr++) {
+            val       = (++ptr);
+            for (; RANGE && *ptr != '"'; ptr++) {
                 if (*ptr == '\\') {
                     shift++;
                     ptr++;
@@ -338,10 +346,10 @@ int read_config (struct config_store * store,
             CHECK_PTR("stream ended without closing quote");
             vlen = (ptr - shift) - val;
         } else {
-            val = ptr;
+            val        = ptr;
             char* last = ptr - 1;
-            for ( ; RANGE && !IS_SKIP(ptr) ; ptr++)
-                if (!IS_SPACE(*ptr)) // Skip the trailing whitespaces
+            for (; RANGE && !IS_SKIP(ptr); ptr++)
+                if (!IS_SPACE(*ptr))  // Skip the trailing whitespaces
                     last = ptr;
             vlen = last + 1 - val;
         }
@@ -377,9 +385,9 @@ inval:
 #undef IS_SPACE
 }
 
-int free_config (struct config_store * store)
-{
-    struct config * e, * n;
+int free_config(struct config_store* store) {
+    struct config* e;
+    struct config* n;
     LISTP_FOR_EACH_ENTRY_SAFE(e, n, &store->entries, list) {
         store->free(e->buf);
         store->free(e);
@@ -390,16 +398,16 @@ int free_config (struct config_store * store)
     return 0;
 }
 
-static int __dup_config (const struct config_store * ss,
-                         const LISTP_TYPE(config) * sr,
-                         struct config_store * ts,
-                         LISTP_TYPE(config) * tr,
-                         void ** data, size_t * size)
-{
-    struct config * e, * new;
+static int __dup_config(const struct config_store* ss, const LISTP_TYPE(config) * sr,
+                        struct config_store* ts, LISTP_TYPE(config) * tr, void** data,
+                        size_t* size) {
+    struct config* e;
+    struct config* new;
 
     LISTP_FOR_EACH_ENTRY(e, sr, siblings) {
-        char * key = NULL, * val = NULL, * buf = NULL;
+        char* key = NULL;
+        char* val = NULL;
+        char* buf = NULL;
         int need = 0;
 
         if (e->key) {
@@ -453,9 +461,7 @@ static int __dup_config (const struct config_store * ss,
         LISTP_ADD_TAIL(new, tr, siblings);
 
         if (!LISTP_EMPTY(&e->children)) {
-            int ret = __dup_config(ss, &e->children,
-                                   ts, &new->children,
-                                   data, size);
+            int ret = __dup_config(ss, &e->children, ts, &new->children, data, size);
             if (ret < 0)
                 return ret;
         }
@@ -464,12 +470,11 @@ static int __dup_config (const struct config_store * ss,
     return 0;
 }
 
-int copy_config (struct config_store * store, struct config_store * new_store)
-{
+int copy_config(struct config_store* store, struct config_store* new_store) {
     INIT_LISTP(&new_store->root);
     INIT_LISTP(&new_store->entries);
 
-    struct config * e;
+    struct config* e;
     size_t size = 0;
 
     LISTP_FOR_EACH_ENTRY(e, &store->entries, list) {
@@ -479,33 +484,29 @@ int copy_config (struct config_store * store, struct config_store * new_store)
             size += e->vlen;
     }
 
-    void * data = new_store->malloc(size);
+    void* data = new_store->malloc(size);
 
     if (!data)
         return -PAL_ERROR_NOMEM;
 
-    void * dataptr = data;
+    void* dataptr = data;
     size_t datasz = size;
 
     new_store->raw_data = data;
     new_store->raw_size = size;
 
-    return __dup_config(store, &store->root, new_store, &new_store->root,
-                        &dataptr, &datasz);
+    return __dup_config(store, &store->root, new_store, &new_store->root, &dataptr, &datasz);
 }
 
-static int __write_config (void * f, int (*write) (void *, void *, int),
-                           struct config_store * store,
-                           LISTP_TYPE(config) * root,
-                           char * keybuf, int klen,
-                           unsigned long * offset)
-{
-    struct config * e;
+static int __write_config(void* f, int (*write)(void*, void*, int), struct config_store* store,
+                          LISTP_TYPE(config) * root, char* keybuf, int klen,
+                          unsigned long* offset) {
+    struct config* e;
     int ret;
-    char * buf = NULL;
+    char* buf = NULL;
     int bufsz = 0;
 
-    LISTP_FOR_EACH_ENTRY(e, root, siblings)
+    LISTP_FOR_EACH_ENTRY(e, root, siblings) {
         if (e->val) {
             int total = klen + e->klen + e->vlen + 2;
 
@@ -532,17 +533,16 @@ static int __write_config (void * f, int (*write) (void *, void *, int),
             memcpy(keybuf + klen, e->key, e->klen);
             keybuf[klen + e->klen] = '.';
 
-            if ((ret = __write_config(f, write, store, &e->children, keybuf,
-                                      klen + e->klen + 1, offset)) < 0)
+            if ((ret = __write_config(f, write, store, &e->children, keybuf, klen + e->klen + 1,
+                                      offset)) < 0)
                 return ret;
         }
+    }
 
     return 0;
 }
 
-int write_config (void * f, int (*write) (void *, void *, int),
-                  struct config_store * store)
-{
+int write_config(void* f, int (*write)(void*, void*, int), struct config_store* store) {
     char buf[CONFIG_MAX];
     unsigned long offset = 0;
 

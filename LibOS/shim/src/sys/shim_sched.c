@@ -20,22 +20,18 @@
  * Implementation of system call "sched_yield".
  */
 
+#include <api.h>
+#include <errno.h>
+#include <pal.h>
 #include <shim_internal.h>
 #include <shim_table.h>
-#include <api.h>
-#include <pal.h>
 
-#include <errno.h>
-
-int shim_do_sched_yield (void)
-{
+int shim_do_sched_yield(void) {
     DkThreadYieldExecution();
     return 0;
 }
 
-int shim_do_sched_getaffinity (pid_t pid, size_t len,
-                               __kernel_cpu_set_t * user_mask_ptr)
-{
+int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
     __UNUSED(pid);
     int ncpus = PAL_CB(cpu_info.cpu_num);
 
@@ -45,8 +41,7 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
 
     /* Linux kernel bitmap is based on long. So according to its
      * implementation, round up the result to sizeof(long) */
-    size_t bitmask_long_count = (ncpus + sizeof(long) * 8 - 1) /
-                                (sizeof(long) * 8);
+    size_t bitmask_long_count    = (ncpus + sizeof(long) * 8 - 1) / (sizeof(long) * 8);
     size_t bitmask_size_in_bytes = bitmask_long_count * sizeof(long);
     if (len < bitmask_size_in_bytes)
         return -EINVAL;
@@ -55,8 +50,9 @@ int shim_do_sched_getaffinity (pid_t pid, size_t len,
         return -EINVAL;
 
     memset(user_mask_ptr, 0, len);
-    for (int i = 0 ; i < ncpus ; i++)
-        ((uint8_t *) user_mask_ptr)[i / 8] |= 1 << (i % 8);
+    for (int i = 0; i < ncpus; i++) {
+        ((uint8_t*)user_mask_ptr)[i / 8] |= 1 << (i % 8);
+    }
     /* imitate the Linux kernel implementation
      * See SYSCALL_DEFINE3(sched_getaffinity) */
     return bitmask_size_in_bytes;

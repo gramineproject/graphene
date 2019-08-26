@@ -1,27 +1,26 @@
 /* This Hello World demostrate a simple multithread program */
 
-#define DO_BENCH    1
+#define DO_BENCH 1
 
 #include "pal.h"
 #include "pal_debug.h"
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     if (argc == 1) {
-        char id[2] = { '0', 0 };
-        const char * newargs[] = { "Broadcast", id, NULL };
+        char id[2]            = {'0', 0};
+        const char* newargs[] = {"Broadcast", id, NULL};
         PAL_HANDLE proc[4];
         int i;
 
-        for (i = 0 ; i < 4 ; i++) {
-            id[0] = '0' + i + 1;
-            proc[i] = DkProcessCreate ("file:Broadcast", newargs);
+        for (i = 0; i < 4; i++) {
+            id[0]   = '0' + i + 1;
+            proc[i] = DkProcessCreate("file:Broadcast", newargs);
         }
 
         DkThreadDelayExecution(1000000);
         DkStreamWrite(pal_control.broadcast_stream, 0, 12, "Hello World", NULL);
 
-        for (i = 0 ; i < 4 ; i++) {
+        for (i = 0; i < 4; i++) {
             char byte;
             DkStreamRead(proc[i], 0, 1, &byte, NULL, 0);
             pal_printf("process %d exited\n", i + 1);
@@ -40,4 +39,3 @@ int main (int argc, char ** argv)
 
     return 0;
 }
-

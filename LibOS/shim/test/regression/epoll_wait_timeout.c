@@ -1,29 +1,29 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/epoll.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 /* On success, a file descriptor for the new socket is returned.
  * On error, -1 is returned. */
-static int create_and_bind (char *port) {
+static int create_and_bind(char* port) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int s, sfd;
 
-    memset(&hints, 0, sizeof (struct addrinfo));
-    hints.ai_family = AF_UNSPEC;     /* Return IPv4 and IPv6 choices */
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family   = AF_UNSPEC;   /* Return IPv4 and IPv6 choices */
     hints.ai_socktype = SOCK_STREAM; /* We want a TCP socket */
-    hints.ai_flags = AI_PASSIVE;     /* All interfaces */
+    hints.ai_flags    = AI_PASSIVE;  /* All interfaces */
 
     s = getaddrinfo(NULL, port, &hints, &result);
     if (s != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror (s));
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
         return -1;
     }
 
@@ -51,7 +51,7 @@ static int create_and_bind (char *port) {
 }
 
 /* On success, 0 is returned. On error, -1 is returned. */
-static int make_socket_non_blocking (int sfd) {
+static int make_socket_non_blocking(int sfd) {
     int flags, s;
 
     flags = fcntl(sfd, F_GETFL, 0);
@@ -72,11 +72,11 @@ static int make_socket_non_blocking (int sfd) {
 
 #define MAXEVENTS 64
 
-int main (int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     int sfd, s, n;
     int efd;
     struct epoll_event event;
-    struct epoll_event *events;
+    struct epoll_event* events;
 
     if (argc != 2) {
         perror("please specify port");
@@ -104,8 +104,8 @@ int main (int argc, char *argv[]) {
     }
 
     event.data.fd = sfd;
-    event.events = EPOLLIN | EPOLLET;
-    s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
+    event.events  = EPOLLIN | EPOLLET;
+    s             = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
     if (s == -1) {
         perror("epoll_ctl");
         return 1;

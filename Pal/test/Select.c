@@ -4,8 +4,7 @@
 
 PAL_HANDLE wakeup;
 
-int thread (void * args)
-{
+int thread(void* args) {
     pal_printf("Enter Thread\n");
 
     DkThreadDelayExecution(3000000);
@@ -25,7 +24,7 @@ int main() {
     handles[0] = DkStreamOpen("pipe:", PAL_ACCESS_RDWR, 0, 0, 0);
     handles[1] = DkStreamOpen("pipe:", PAL_ACCESS_RDWR, 0, 0, 0);
     handles[2] = DkStreamOpen("pipe:", PAL_ACCESS_RDWR, 0, 0, 0);
-    wakeup = handles[2];
+    wakeup     = handles[2];
 
     PAL_HANDLE thd = DkThreadCreate(&thread, NULL);
 
@@ -44,4 +43,3 @@ int main() {
     pal_printf("Leave Main Thread\n");
     return 0;
 }
-

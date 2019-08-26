@@ -1,8 +1,8 @@
-#include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 #include <linux/limits.h>
+#include <stdio.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 static char bss_cwd_buf[PATH_MAX];
 
@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
      * This checks the correctness of internal test_user_memory() spanning
      * several adjacent VMAs. */
     void* mmapped_cwd_buf = mmap(NULL, 4096 * 2, PROT_READ | PROT_WRITE | PROT_EXEC,
-            MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+                                 MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (mmapped_cwd_buf == MAP_FAILED) {
         perror("mmap failed\n");
         return 1;

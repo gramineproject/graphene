@@ -1,31 +1,29 @@
 #define _GNU_SOURCE
+#include <asm/prctl.h>
 #include <malloc.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
 #include <sched.h>
+#include <signal.h>
 #include <stdio.h>
 #include <sys/syscall.h>
-#include <asm/prctl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 // 64kB stack
 #define FIBER_STACK (1024 * 64)
 
 __thread int mypid = 0;
 
-unsigned long gettls (void)
-{
+unsigned long gettls(void) {
     unsigned long tls;
     syscall(__NR_arch_prctl, ARCH_GET_FS, &tls);
     return tls;
 }
 
-int thread_function (void * argument)
-{
-    mypid = getpid();
-    int * ptr = (int *) argument;
-    printf("in the child: pid (%016lx) = %d\n", (unsigned long) &mypid, mypid);
+int thread_function(void* argument) {
+    mypid    = getpid();
+    int* ptr = (int*)argument;
+    printf("in the child: pid (%016lx) = %d\n", (unsigned long)&mypid, mypid);
     printf("in the child: pid = %d\n", getpid());
     printf("in the child: tls = %08lx\n", gettls());
     printf("child thread exiting\n");
@@ -33,9 +31,8 @@ int thread_function (void * argument)
     return 0;
 }
 
-int main (int argc, const char ** argv)
-{
-    void * stack;
+int main(int argc, const char** argv) {
+    void* stack;
     pid_t pid;
     int varx = 143;
 
@@ -50,13 +47,12 @@ int main (int argc, const char ** argv)
         _exit(1);
     }
 
-    printf("child_stack: %016lx-%016lx\n", (unsigned long) stack,
-           (unsigned long) stack + FIBER_STACK);
+    printf("child_stack: %016lx-%016lx\n", (unsigned long)stack,
+           (unsigned long)stack + FIBER_STACK);
 
     // Call the clone system call to create the child thread
-    pid = clone(&thread_function, (void *) stack + FIBER_STACK,
-                CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM,
-                &varx);
+    pid = clone(&thread_function, (void*)stack + FIBER_STACK,
+                CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM, &varx);
 
     printf("clone() creates new thread %d\n", pid);
 
@@ -75,7 +71,7 @@ int main (int argc, const char ** argv)
     // Free the stack
     free(stack);
 
-    printf("in the parent: pid (%016lx) = %d\n", (unsigned long) &mypid, mypid);
+    printf("in the parent: pid (%016lx) = %d\n", (unsigned long)&mypid, mypid);
     printf("in the parent: pid = %d\n", getpid());
     printf("in the parent: tls = %08lx\n", gettls());
 

@@ -19,13 +19,13 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#include "api.h"
 #include <sysdeps/generic/memcopy.h>
 
-void * memcpy (void *dstpp, const void *srcpp, size_t len)
-{
-    unsigned long int dstp = (long int) dstpp;
-    unsigned long int srcp = (long int) srcpp;
+#include "api.h"
+
+void* memcpy(void* dstpp, const void* srcpp, size_t len) {
+    unsigned long int dstp = (long int)dstpp;
+    unsigned long int srcp = (long int)srcpp;
 
     /* Copy from the beginning to the end.  */
 
@@ -33,26 +33,25 @@ void * memcpy (void *dstpp, const void *srcpp, size_t len)
     if (len >= OP_T_THRES) {
         /* Copy just a few bytes to make DSTP aligned.  */
         len -= (-dstp) % OPSIZ;
-        BYTE_COPY_FWD (dstp, srcp, (-dstp) % OPSIZ);
+        BYTE_COPY_FWD(dstp, srcp, (-dstp) % OPSIZ);
 
         /* Copy from SRCP to DSTP taking advantage of the known alignment of
            DSTP.  Number of bytes remaining is put in the third argument,
            i.e. in LEN.  This number may vary from machine to machine.  */
-        WORD_COPY_FWD (dstp, srcp, len, len);
+        WORD_COPY_FWD(dstp, srcp, len, len);
 
         /* Fall out and copy the tail.  */
     }
 
     /* There are just a few bytes to copy.  Use byte memory operations.  */
-    BYTE_COPY_FWD (dstp, srcp, len);
+    BYTE_COPY_FWD(dstp, srcp, len);
 
     return dstpp;
 }
 
-void * memmove (void * destpp, const void * srcpp, size_t len)
-{
-    unsigned long int dstp = (long int) destpp;
-    unsigned long int srcp = (long int) srcpp;
+void* memmove(void* destpp, const void* srcpp, size_t len) {
+    unsigned long int dstp = (long int)destpp;
+    unsigned long int srcp = (long int)srcpp;
 
     /* This test makes the forward copying code be used whenever possible.
        Reduces the working set.  */
@@ -63,19 +62,19 @@ void * memmove (void * destpp, const void * srcpp, size_t len)
         if (len >= OP_T_THRES) {
             /* Copy just a few bytes to make DSTP aligned.  */
             len -= (-dstp) % OPSIZ;
-            BYTE_COPY_FWD (dstp, srcp, (-dstp) % OPSIZ);
+            BYTE_COPY_FWD(dstp, srcp, (-dstp) % OPSIZ);
 
             /* Copy from SRCP to DSTP taking advantage of the known
                alignment of DSTP.  Number of bytes remaining is put
                in the third argument, i.e. in LEN.  This number may
                vary from machine to machine.  */
-            WORD_COPY_FWD (dstp, srcp, len, len);
+            WORD_COPY_FWD(dstp, srcp, len, len);
 
             /* Fall out and copy the tail.  */
         }
 
         /* There are just a few bytes to copy.  Use byte memory operations.  */
-        BYTE_COPY_FWD (dstp, srcp, len);
+        BYTE_COPY_FWD(dstp, srcp, len);
     } else {
         /* Copy from the end to the beginning.  */
         srcp += len;
@@ -85,19 +84,19 @@ void * memmove (void * destpp, const void * srcpp, size_t len)
         if (len >= OP_T_THRES) {
             /* Copy just a few bytes to make DSTP aligned.  */
             len -= dstp % OPSIZ;
-            BYTE_COPY_BWD (dstp, srcp, dstp % OPSIZ);
+            BYTE_COPY_BWD(dstp, srcp, dstp % OPSIZ);
 
             /* Copy from SRCP to DSTP taking advantage of the known
                alignment of DSTP.  Number of bytes remaining is put
                in the third argument, i.e. in LEN.  This number may
                vary from machine to machine.  */
-            WORD_COPY_BWD (dstp, srcp, len, len);
+            WORD_COPY_BWD(dstp, srcp, len, len);
 
             /* Fall out and copy the tail.  */
         }
 
         /* There are just a few bytes to copy.  Use byte memory operations.  */
-        BYTE_COPY_BWD (dstp, srcp, len);
+        BYTE_COPY_BWD(dstp, srcp, len);
     }
 
     return destpp;

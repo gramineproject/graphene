@@ -16,14 +16,14 @@ static int is_dot_or_dotdot(const char* name) {
     return (name[0] == '.' && !name[1]) || (name[0] == '.' && name[1] == '.' && !name[2]);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     int fd = 0, ret = 1;
-    char name[0x10] = { 0 };
-    DIR* dir = NULL;
+    char name[0x10]     = {0};
+    DIR* dir            = NULL;
     struct dirent* dent = NULL;
-    unsigned long i = 0;
-    char* tmp_name = NULL;
-    char* old_wd = NULL;
+    unsigned long i     = 0;
+    char* tmp_name      = NULL;
+    char* old_wd        = NULL;
     unsigned char* seen = NULL;
 
     setbuf(stdout, NULL);
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         errno = 0;
-        dent = readdir(dir);
+        dent  = readdir(dir);
         if (!dent) {
             if (errno != 0) {
                 fprintf(stderr, "error: readdir: %s\n", strerror(errno));
@@ -122,18 +122,14 @@ cleanup:
 
     if (chdir(old_wd) < 0) {
         ret = 1;
-        fprintf(stderr,
-                "error: could not change directory to original (%s): %s\n",
-                old_wd,
+        fprintf(stderr, "error: could not change directory to original (%s): %s\n", old_wd,
                 strerror(errno));
     }
     free(old_wd);
 
     if (rmdir(tmp_name) < 0) {
         ret = 1;
-        fprintf(stderr,
-                "error: could not remove tmp directory (%s): %s\n",
-                tmp_name,
+        fprintf(stderr, "error: could not remove tmp directory (%s): %s\n", tmp_name,
                 strerror(errno));
     }
 

@@ -18,9 +18,10 @@
 /* Unit test for the new list implementation */
 
 #include "list.h"
+
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 
 DEFINE_LIST(simple);
 struct simple {
@@ -29,21 +30,21 @@ struct simple {
 };
 
 DEFINE_LISTP(simple);
-static LISTP_TYPE(simple) list_in_the_sky = LISTP_INIT;
+static LISTP_TYPE(simple) list_in_the_sky      = LISTP_INIT;
 static LISTP_TYPE(simple) list_in_the_basement = LISTP_INIT;
 
 /* Use some static arrays to assert expected list contents */
-int sol1[7] = {1, 2, 3, 4, 5, 6, 7};
+int sol1[7]  = {1, 2, 3, 4, 5, 6, 7};
 int sol2[10] = {1, 2, 25, 3, 4, 45, 5, 6, 65, 7};
 int sol3[17] = {1, 2, 25, 3, 4, 45, 5, 6, 65, 7, 8, 9, 10, 11, 12, 13, 14};
 int sol4[20] = {1, 2, 25, 3, 4, 45, 5, 6, 65, 7, 8, 85, 9, 10, 105, 11, 12, 125, 13, 14};
-int sol5[7] = {7, 6, 5, 4, 3, 2, 1};
-int sol6[4] = {7, 5, 3, 1};
+int sol5[7]  = {7, 6, 5, 4, 3, 2, 1};
+int sol6[4]  = {7, 5, 3, 1};
 int sol7[10] = {7, 5, 3, 1, 13, 12, 11, 10, 9, 8};
 int sol8[17] = {7, 5, 3, 1, 13, 12, 11, 10, 9, 8, 20, 19, 18, 17, 16, 15, 14};
 
-void print_list(LISTP_TYPE(simple) *listp) {
-    struct simple *tmp;
+void print_list(LISTP_TYPE(simple)* listp) {
+    struct simple* tmp;
     printf("Beginning of list\n");
     LISTP_FOR_EACH_ENTRY(tmp, listp, list) {
         printf("List element %d\n", tmp->idx);
@@ -51,11 +52,11 @@ void print_list(LISTP_TYPE(simple) *listp) {
     printf("End of list\n\n");
 }
 
-void assert_list(LISTP_TYPE(simple) *listp, int len, int *array, int stop_early_ok) {
+void assert_list(LISTP_TYPE(simple)* listp, int len, int* array, int stop_early_ok) {
     int j = 0;
-    struct simple *tmp;
+    struct simple* tmp;
     int stop_early = 0;
-    CHECK_LIST_HEAD(struct simple *, listp, list);
+    CHECK_LIST_HEAD(struct simple*, listp, list);
     LISTP_FOR_EACH_ENTRY(tmp, listp, list) {
         if (j >= len) {
             stop_early = 1;
@@ -71,9 +72,8 @@ void assert_list(LISTP_TYPE(simple) *listp, int len, int *array, int stop_early_
         assert(stop_early_ok);
 }
 
-
-void print_list_reverse(LISTP_TYPE(simple) *listp) {
-    struct simple *tmp;
+void print_list_reverse(LISTP_TYPE(simple)* listp) {
+    struct simple* tmp;
     printf("Beginning of list\n");
     LISTP_FOR_EACH_ENTRY_REVERSE(tmp, listp, list) {
         printf("List element %d\n", tmp->idx);
@@ -81,10 +81,11 @@ void print_list_reverse(LISTP_TYPE(simple) *listp) {
     printf("End of list\n\n");
 }
 
-
 int main() {
     int i;
-    struct simple *tmp, *tmp2, *n;
+    struct simple* tmp;
+    struct simple* tmp2;
+    struct simple* n;
 
     assert(LISTP_EMPTY(&list_in_the_sky));
 
@@ -93,13 +94,13 @@ int main() {
 
     /* Test adding things to the listp */
     for (i = 0; i < 7; i++) {
-        tmp = malloc(sizeof(struct simple));
+        tmp      = malloc(sizeof(struct simple));
         tmp->idx = 7 - i;
         INIT_LIST_HEAD(tmp, list);
         assert(LIST_EMPTY(tmp, list));
         LISTP_ADD(tmp, &list_in_the_sky, list);
         assert(!LIST_EMPTY(tmp, list));
-        assert_list(&list_in_the_sky, i, &sol1[6-i], 1);
+        assert_list(&list_in_the_sky, i, &sol1[6 - i], 1);
     }
     assert(!LISTP_EMPTY(&list_in_the_sky));
 
@@ -108,7 +109,7 @@ int main() {
     /* Test LIST_ADD  - i.e., adding things in the middle of the list*/
     LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &list_in_the_sky, list) {
         if ((tmp->idx % 2) == 0) {
-            tmp2 = malloc(sizeof(struct simple));
+            tmp2      = malloc(sizeof(struct simple));
             tmp2->idx = (tmp->idx * 10) + 5;
             INIT_LIST_HEAD(tmp2, list);
             assert(LIST_EMPTY(tmp2, list));
@@ -117,13 +118,13 @@ int main() {
         }
     }
 
-    //print_list(&list_in_the_sky);
-    //print_list_reverse(&list_in_the_sky);
+    // print_list(&list_in_the_sky);
+    // print_list_reverse(&list_in_the_sky);
     assert_list(&list_in_the_sky, 10, sol2, 0);
 
     /* Try adding some integers to the tail of the list */
     for (i = 0; i < 7; i++) {
-        tmp = malloc(sizeof(struct simple));
+        tmp      = malloc(sizeof(struct simple));
         tmp->idx = 8 + i;
         INIT_LIST_HEAD(tmp, list);
         assert(LIST_EMPTY(tmp, list));
@@ -140,7 +141,7 @@ int main() {
             continue;
 
         if ((tmp->idx % 2) == 1) {
-            tmp2 = malloc(sizeof(struct simple));
+            tmp2      = malloc(sizeof(struct simple));
             tmp2->idx = ((tmp->idx - 1) * 10) + 5;
             INIT_LIST_HEAD(tmp2, list);
             assert(LIST_EMPTY(tmp2, list));
@@ -149,8 +150,8 @@ int main() {
         }
     }
 
-    //print_list(&list_in_the_sky);
-    //print_list_reverse(&list_in_the_sky);
+    // print_list(&list_in_the_sky);
+    // print_list_reverse(&list_in_the_sky);
     assert_list(&list_in_the_sky, 20, sol4, 0);
 
     printf("Deletion test starting\n\n");
@@ -159,7 +160,7 @@ int main() {
     LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &list_in_the_sky, list) {
         LISTP_DEL(tmp, &list_in_the_sky, list);
         free(tmp);
-        //print_list(&list_in_the_sky);
+        // print_list(&list_in_the_sky);
     }
     assert(LISTP_EMPTY(&list_in_the_sky));
 
@@ -167,7 +168,7 @@ int main() {
 
     /* Rebuild the list */
     for (i = 0; i < 7; i++) {
-        tmp = malloc(sizeof(struct simple));
+        tmp      = malloc(sizeof(struct simple));
         tmp->idx = 7 - i;
         INIT_LIST_HEAD(tmp, list);
         assert(LIST_EMPTY(tmp, list));
@@ -182,12 +183,12 @@ int main() {
     LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &list_in_the_sky, list) {
         LISTP_DEL(tmp, &list_in_the_sky, list);
         LISTP_ADD(tmp, &list_in_the_basement, list);
-        //print_list(&list_in_the_sky);
-        //print_list(&list_in_the_basement);
+        // print_list(&list_in_the_sky);
+        // print_list(&list_in_the_basement);
     }
 
-    //print_list(&list_in_the_sky);
-    //print_list(&list_in_the_basement);
+    // print_list(&list_in_the_sky);
+    // print_list(&list_in_the_basement);
     assert(LISTP_EMPTY(&list_in_the_sky));
     assert_list(&list_in_the_basement, 7, sol5, 0);
 
@@ -221,13 +222,12 @@ int main() {
             // by accident even if 4 isn't freed, so better to leak one node
             if (idx == 4)
                 break;
-             else
+            else
                 free(tmp);
-
         }
     }
 
-    //printf("Continuing\n");
+    // printf("Continuing\n");
 
     LISTP_FOR_EACH_ENTRY_SAFE_CONTINUE(tmp, n, &list_in_the_basement, list) {
         if (0 == (tmp->idx % 2)) {
@@ -236,15 +236,15 @@ int main() {
         }
     }
 
-    //print_list(&list_in_the_sky);
-    //print_list(&list_in_the_basement);
+    // print_list(&list_in_the_sky);
+    // print_list(&list_in_the_basement);
     assert(LISTP_EMPTY(&list_in_the_sky));
     assert_list(&list_in_the_basement, 4, sol6, 0);
 
     /* Test list_splice variants.  Rebuild sky list again */
     /* Rebuild the list */
     for (i = 8; i < 14; i++) {
-        tmp = malloc(sizeof(struct simple));
+        tmp      = malloc(sizeof(struct simple));
         tmp->idx = i;
         INIT_LIST_HEAD(tmp, list);
         assert(LIST_EMPTY(tmp, list));
@@ -270,7 +270,7 @@ int main() {
     /* Test splicing onto the tail */
     /* Rebuild the list */
     for (i = 14; i < 21; i++) {
-        tmp = malloc(sizeof(struct simple));
+        tmp      = malloc(sizeof(struct simple));
         tmp->idx = i;
         INIT_LIST_HEAD(tmp, list);
         assert(LIST_EMPTY(tmp, list));
@@ -278,7 +278,6 @@ int main() {
         assert(!LIST_EMPTY(tmp, list));
     }
     assert(!LISTP_EMPTY(&list_in_the_sky));
-
 
     LISTP_SPLICE_TAIL(&list_in_the_sky, &list_in_the_basement, list, simple);
     INIT_LISTP(&list_in_the_sky);
@@ -292,7 +291,6 @@ int main() {
     print_list(&list_in_the_sky);
     printf("\nfin\n");
     */
-
 
     printf("Before list move test \n\n");
 

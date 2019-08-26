@@ -22,28 +22,28 @@
  * (http://locklessinc.com/articles/mutex_cv_futex)
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_linux.h"
-#include "pal_error.h"
-#include "api.h"
-
-#include <linux/futex.h>
-#include <limits.h>
-#include <atomic.h>
 #include <asm/errno.h>
+#include <atomic.h>
+#include <limits.h>
+#include <linux/futex.h>
 #include <linux/time.h>
 #include <unistd.h>
 
+#include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_defs.h"
+
 #ifdef __x86_64__
-# include <unistd.h>
+#include <unistd.h>
 #endif
 
-#define MUTEX_SPINLOCK_TIMES    100
-#define MUTEX_UNLOCKED 0
-#define MUTEX_LOCKED   1
+#define MUTEX_SPINLOCK_TIMES 100
+#define MUTEX_UNLOCKED       0
+#define MUTEX_LOCKED         1
 
 /* Interplay between locked and nwaiters:
  *
@@ -72,19 +72,16 @@
  * Don't wake anyone
  */
 
-int
-_DkMutexCreate (PAL_HANDLE * handle, int initialCount)
-{
+int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
     PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
     SET_HANDLE_TYPE(mut, mutex);
     atomic_set(&mut->mutex.mut.nwaiters, 0);
     mut->mutex.mut.locked = initialCount;
-    *handle = mut;
+    *handle               = mut;
     return 0;
 }
 
-int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us)
-{
+int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
     int i, ret = 0;
 #ifdef DEBUG_MUTEX
     int tid = INLINE_SYSCALL(gettid, 0);
@@ -111,11 +108,11 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us)
     while (MUTEX_LOCKED == cmpxchg(&m->locked, MUTEX_UNLOCKED, MUTEX_LOCKED)) {
         struct timespec waittime, *waittimep = NULL;
         if (timeout_us >= 0) {
-            int64_t sec = timeout_us / 1000000;
+            int64_t sec      = timeout_us / 1000000;
             int64_t microsec = timeout_us - (sec * 1000000);
-            waittime.tv_sec = sec;
+            waittime.tv_sec  = sec;
             waittime.tv_nsec = microsec * 1000;
-            waittimep = &waittime;
+            waittimep        = &waittime;
         }
 
         ret = INLINE_SYSCALL(futex, 6, m, FUTEX_WAIT, MUTEX_LOCKED, waittimep, NULL, 0);
@@ -162,8 +159,7 @@ int _DkMutexAcquireTimeout(PAL_HANDLE handle, int64_t timeout_us) {
     return _DkMutexLockTimeout(&handle->mutex.mut, timeout_us);
 }
 
-int _DkMutexUnlock (struct mutex_handle * m)
-{
+int _DkMutexUnlock(struct mutex_handle* m) {
     int ret = 0;
     int need_wake;
 
@@ -186,27 +182,27 @@ int _DkMutexUnlock (struct mutex_handle * m)
     return ret;
 }
 
-void _DkMutexRelease (PAL_HANDLE handle)
-{
+void _DkMutexRelease(PAL_HANDLE handle) {
     _DkMutexUnlock(&handle->mutex.mut);
     return;
 }
 
-int _DkInternalLock (PAL_LOCK* lock) {
-    while (_DkMutexLock(lock) < 0); // Retry the lock if being interrupted by signals
+int _DkInternalLock(PAL_LOCK* lock) {
+    // Retry the lock if being interrupted by signals
+    while (_DkMutexLock(lock) < 0)
+        ;
     return 0;
 }
 
-int _DkInternalUnlock (PAL_LOCK* lock) {
+int _DkInternalUnlock(PAL_LOCK* lock) {
     _DkMutexUnlock(lock);
     return 0;
 }
 
-static int mutex_wait (PAL_HANDLE handle, int64_t timeout_us)
-{
+static int mutex_wait(PAL_HANDLE handle, int64_t timeout_us) {
     return _DkMutexAcquireTimeout(handle, timeout_us);
 }
 
 struct handle_ops mutex_ops = {
-        .wait               = &mutex_wait,
-    };
+    .wait = &mutex_wait,
+};

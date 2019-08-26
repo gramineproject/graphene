@@ -20,21 +20,19 @@
  * This file contains implementation of Drawbridge event synchronization APIs.
  */
 
-#include "pal_defs.h"
-#include "pal_freebsd_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_freebsd.h"
-#include "pal_error.h"
-#include "api.h"
-
 #include <atomic.h>
 #include <errno.h>
 #include <sys/time.h>
 
+#include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_freebsd.h"
+#include "pal_freebsd_defs.h"
+#include "pal_internal.h"
 
-int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
-{
+int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
     PAL_HANDLE ev = malloc(HANDLE_SIZE(event));
     SET_HANDLE_TYPE(ev, event);
     ev->event.isnotification = isnotification;
@@ -44,52 +42,48 @@ int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
     return 0;
 }
 
-void _DkEventDestroy (PAL_HANDLE handle)
-{
+void _DkEventDestroy(PAL_HANDLE handle) {
     free(handle);
 }
 
-int _DkEventSet (PAL_HANDLE event, int wakeup)
-{
+int _DkEventSet(PAL_HANDLE event, int wakeup) {
     int ret = 0;
     if (event->event.isnotification) {
-        /* Leave it signaled, wake all	*/
+        /* Leave it signaled, wake all */
         if (atomic_cmpxchg(&event->event.signaled, 0, 1) == 0) {
             int nwaiters = atomic_read(&event->event.nwaiters);
             if (nwaiters) {
                 if (wakeup != -1 && nwaiters > wakeup)
                     nwaiters = wakeup;
 
-                ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled,
-                                     UMTX_OP_WAKE, nwaiters, NULL, NULL);
+                ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled, UMTX_OP_WAKE, nwaiters,
+                                     NULL, NULL);
                 if (IS_ERR(ret))
                     atomic_set(&event->event.signaled, 0);
             }
         }
     } else {
         /* Only one thread wakes up, leave unsignaled */
-        ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled,
-                             UMTX_OP_WAKE, 1, NULL, NULL);
+        ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled, UMTX_OP_WAKE, 1, NULL, NULL);
     }
 
     return IS_ERR(ret) ? PAL_ERROR_TRYAGAIN : ret;
 }
 
-int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
-{
+int _DkEventWaitTimeout(PAL_HANDLE event, uint64_t timeout) {
     int ret = 0;
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         struct timespec waittime;
-        unsigned long sec = timeout / 1000000UL;
+        unsigned long sec      = timeout / 1000000UL;
         unsigned long microsec = timeout - (sec * 1000000UL);
-        waittime.tv_sec = sec;
-        waittime.tv_nsec = microsec * 1000;
+        waittime.tv_sec        = sec;
+        waittime.tv_nsec       = microsec * 1000;
 
         atomic_inc(&event->event.nwaiters);
 
         do {
-            ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled,
-                                 UMTX_OP_WAIT_UINT, 0, NULL, &waittime);
+            ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled, UMTX_OP_WAIT_UINT, 0, NULL,
+                                 &waittime);
             if (IS_ERR(ret)) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
@@ -98,8 +92,7 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
                     break;
                 }
             }
-        } while (event->event.isnotification &&
-                 !atomic_read(&event->event.signaled));
+        } while (event->event.isnotification && !atomic_read(&event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -107,16 +100,14 @@ int _DkEventWaitTimeout (PAL_HANDLE event, uint64_t timeout)
     return ret;
 }
 
-int _DkEventWait (PAL_HANDLE event)
-{
+int _DkEventWait(PAL_HANDLE event) {
     int ret = 0;
 
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         atomic_inc(&event->event.nwaiters);
 
         do {
-            ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled,
-                                 UMTX_OP_WAIT, 0, NULL, NULL);
+            ret = INLINE_SYSCALL(_umtx_op, 5, &event->event.signaled, UMTX_OP_WAIT, 0, NULL, NULL);
             if (IS_ERR(ret)) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
                     ret = 0;
@@ -125,8 +116,7 @@ int _DkEventWait (PAL_HANDLE event)
                     break;
                 }
             }
-        } while (event->event.isnotification &&
-                 !atomic_read(&event->event.signaled));
+        } while (event->event.isnotification && !atomic_read(&event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -134,26 +124,21 @@ int _DkEventWait (PAL_HANDLE event)
     return ret;
 }
 
-int _DkEventClear (PAL_HANDLE event)
-{
+int _DkEventClear(PAL_HANDLE event) {
     atomic_set(&event->event.signaled, 0);
     return 0;
 }
 
-
-static int event_close (PAL_HANDLE handle)
-{
+static int event_close(PAL_HANDLE handle) {
     _DkEventSet(handle, -1);
     return 0;
 }
 
-static int event_wait (PAL_HANDLE handle, uint64_t timeout)
-{
-    return timeout == NO_TIMEOUT ? _DkEventWait(handle) :
-           _DkEventWaitTimeout(handle, timeout);
+static int event_wait(PAL_HANDLE handle, uint64_t timeout) {
+    return timeout == NO_TIMEOUT ? _DkEventWait(handle) : _DkEventWaitTimeout(handle, timeout);
 }
 
 struct handle_ops event_ops = {
-        .close              = &event_close,
-        .wait               = &event_wait,
+    .close = &event_close,
+    .wait  = &event_wait,
 };

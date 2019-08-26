@@ -22,22 +22,21 @@
  * with acknowledgement), shim_ipc_info (IPC ports of process), shim_process.
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_ipc.h>
-#include <shim_checkpoint.h>
-#include <shim_unistd.h>
-#include <shim_profile.h>
-
+#include <list.h>
 #include <pal.h>
 #include <pal_error.h>
-#include <list.h>
+#include <shim_checkpoint.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_ipc.h>
+#include <shim_profile.h>
+#include <shim_thread.h>
+#include <shim_unistd.h>
+#include <shim_utils.h>
 
-#define IPC_INFO_MGR_ALLOC  32
-#define PAGE_SIZE           allocsize
-#define OBJ_TYPE struct shim_ipc_info
+#define IPC_INFO_MGR_ALLOC 32
+#define PAGE_SIZE          allocsize
+#define OBJ_TYPE           struct shim_ipc_info
 #include "memmgr.h"
 static MEM_MGR ipc_info_mgr;
 
@@ -45,10 +44,10 @@ struct shim_lock ipc_info_lock;
 
 struct shim_process cur_process;
 
-#define CLIENT_HASH_BITLEN  6
-#define CLIENT_HASH_NUM     (1 << CLIENT_HASH_BITLEN)
-#define CLIENT_HASH_MASK    (CLIENT_HASH_NUM - 1)
-#define CLIENT_HASH(vmid)   ((vmid) & CLIENT_HASH_MASK)
+#define CLIENT_HASH_BITLEN 6
+#define CLIENT_HASH_NUM    (1 << CLIENT_HASH_BITLEN)
+#define CLIENT_HASH_MASK   (CLIENT_HASH_NUM - 1)
+#define CLIENT_HASH(vmid)  ((vmid)&CLIENT_HASH_MASK)
 DEFINE_LISTP(shim_ipc_info);
 static LISTP_TYPE(shim_ipc_info) info_hlist[CLIENT_HASH_NUM];
 
@@ -153,12 +152,13 @@ struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size
 
     /* check if info with this vmid & uri already exists and return it */
     LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
-    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist)
+    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
         if (info->vmid == vmid && !qstrcmpstr(&info->uri, uri, len)) {
             get_ipc_info(info);
             unlock(&ipc_info_lock);
             return info;
         }
+    }
 
     /* otherwise create new info and return it */
     info = __create_ipc_info(vmid, uri, len);
@@ -189,12 +189,13 @@ struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid) {
 
     struct shim_ipc_info* info;
     LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
-    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist)
+    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
         if (info->vmid == vmid && !qstrempty(&info->uri)) {
             __get_ipc_info(info);
             unlock(&ipc_info_lock);
             return info;
         }
+    }
 
     unlock(&ipc_info_lock);
     return NULL;
@@ -219,9 +220,8 @@ struct shim_process* create_process(bool dup_cur_process) {
          */
         new_process->vmid = cur_process.vmid;
 
-        new_process->self = create_ipc_info(cur_process.self->vmid,
-                                            qstrgetstr(&cur_process.self->uri),
-                                            cur_process.self->uri.len);
+        new_process->self = create_ipc_info(
+            cur_process.self->vmid, qstrgetstr(&cur_process.self->uri), cur_process.self->uri.len);
         new_process->self->pal_handle = cur_process.self->pal_handle;
         if (!new_process->self) {
             unlock(&cur_process.lock);
@@ -231,19 +231,17 @@ struct shim_process* create_process(bool dup_cur_process) {
         /* there is a corner case of execve in very first process; such process does
          * not have parent process, so cannot copy parent IPC info */
         if (cur_process.parent) {
-            new_process->parent = create_ipc_info(cur_process.parent->vmid,
-                                                  qstrgetstr(&cur_process.parent->uri),
-                                                  cur_process.parent->uri.len);
+            new_process->parent =
+                create_ipc_info(cur_process.parent->vmid, qstrgetstr(&cur_process.parent->uri),
+                                cur_process.parent->uri.len);
             new_process->parent->pal_handle = cur_process.parent->pal_handle;
         }
-    }
-    else {
+    } else {
         /* fork/clone case, new process has new identity but inherits parent  */
-        new_process->vmid = 0;
-        new_process->self = NULL;
-        new_process->parent = create_ipc_info(cur_process.self->vmid,
-                                              qstrgetstr(&cur_process.self->uri),
-                                              cur_process.self->uri.len);
+        new_process->vmid   = 0;
+        new_process->self   = NULL;
+        new_process->parent = create_ipc_info(
+            cur_process.self->vmid, qstrgetstr(&cur_process.self->uri), cur_process.self->uri.len);
     }
 
     if (cur_process.parent && !new_process->parent) {
@@ -256,16 +254,17 @@ struct shim_process* create_process(bool dup_cur_process) {
     /* new process inherits the same namespace leaders */
     for (int i = 0; i < TOTAL_NS; i++) {
         if (cur_process.ns[i]) {
-            new_process->ns[i] = create_ipc_info(cur_process.ns[i]->vmid,
-                                                 qstrgetstr(&cur_process.ns[i]->uri),
-                                                 cur_process.ns[i]->uri.len);
+            new_process->ns[i] =
+                create_ipc_info(cur_process.ns[i]->vmid, qstrgetstr(&cur_process.ns[i]->uri),
+                                cur_process.ns[i]->uri.len);
             if (!new_process->ns[i]) {
                 if (new_process->self)
                     put_ipc_info(new_process->self);
                 if (new_process->parent)
                     put_ipc_info(new_process->parent);
-                for (int j = 0; j < i; j++)
+                for (int j = 0; j < i; j++) {
                     put_ipc_info(new_process->ns[j]);
+                }
                 unlock(&cur_process.lock);
                 return NULL;
             }
@@ -290,16 +289,16 @@ void free_process(struct shim_process* process) {
 void init_ipc_msg(struct shim_ipc_msg* msg, int code, size_t size, IDTYPE dest) {
     msg->code = code;
     msg->size = get_ipc_msg_size(size);
-    msg->src = cur_process.vmid;
-    msg->dst = dest;
-    msg->seq = 0;
+    msg->src  = cur_process.vmid;
+    msg->dst  = dest;
+    msg->seq  = 0;
 }
 
 void init_ipc_msg_duplex(struct shim_ipc_msg_duplex* msg, int code, size_t size, IDTYPE dest) {
     init_ipc_msg(&msg->msg, code, size, dest);
     msg->thread = NULL;
     INIT_LIST_HEAD(msg, list);
-    msg->retval = 0;
+    msg->retval  = 0;
     msg->private = NULL;
 }
 
@@ -310,11 +309,11 @@ int send_ipc_message(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     debug("Sending ipc message to port %p (handle %p)\n", port, port->pal_handle);
 
     size_t total_bytes = msg->size;
-    size_t bytes = 0;
+    size_t bytes       = 0;
 
     do {
-        size_t ret = DkStreamWrite(port->pal_handle, 0, total_bytes - bytes,
-                                   (void *)msg + bytes, NULL);
+        size_t ret =
+            DkStreamWrite(port->pal_handle, 0, total_bytes - bytes, (void*)msg + bytes, NULL);
 
         if (!ret) {
             if (PAL_ERRNO == EINTR || PAL_ERRNO == EAGAIN || PAL_ERRNO == EWOULDBLOCK)
@@ -336,22 +335,23 @@ struct shim_ipc_msg_duplex* pop_ipc_msg_duplex(struct shim_ipc_port* port, unsig
 
     lock(&port->msgs_lock);
     struct shim_ipc_msg_duplex* tmp;
-    LISTP_FOR_EACH_ENTRY(tmp, &port->msgs, list)
+    LISTP_FOR_EACH_ENTRY(tmp, &port->msgs, list) {
         if (tmp->msg.seq == seq) {
             found = tmp;
             LISTP_DEL_INIT(tmp, &port->msgs, list);
             break;
         }
+    }
     unlock(&port->msgs_lock);
 
     return found;
 }
 
 int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_port* port,
-                  unsigned long* seq, void* private_data) {
+                            unsigned long* seq, void* private_data) {
     int ret = 0;
 
-    struct shim_thread * thread = get_cur_thread();
+    struct shim_thread* thread = get_cur_thread();
     assert(thread);
 
     /* prepare thread which will send the message for waiting for response
@@ -385,8 +385,7 @@ int send_ipc_message_duplex(struct shim_ipc_msg_duplex* msg, struct shim_ipc_por
             goto out;
     } while (ret != 0);
 
-    debug("Finished waiting for response (seq = %lu, ret = %d)\n",
-          msg->msg.seq, msg->retval);
+    debug("Finished waiting for response (seq = %lu, ret = %d)\n", msg->msg.seq, msg->retval);
     ret = msg->retval;
 out:
     lock(&port->msgs_lock);
@@ -411,13 +410,13 @@ struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info) {
 
     /* pipe for cur_process.self is of format "pipe:<cur_process.vmid>", others with random name */
     char uri[PIPE_URI_SIZE];
-    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle, &info->uri, is_self_ipc_info) < 0) {
+    if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle, &info->uri, is_self_ipc_info) <
+        0) {
         put_ipc_info(info);
         return NULL;
     }
 
-    add_ipc_port_by_id(cur_process.vmid, info->pal_handle, IPC_PORT_SERVER,
-            NULL, &info->port);
+    add_ipc_port_by_id(cur_process.vmid, info->pal_handle, IPC_PORT_SERVER, NULL, &info->port);
 
     return info;
 }
@@ -451,18 +450,19 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
     int ret;
     size_t len = strlen(cpdir);
 
-    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_checkpoint) + len);
+    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_checkpoint) + len);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_CHECKPOINT, total_msg_size, 0);
 
-    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint *)&msg->msg;
-    msgin->cpsession = cpsession;
+    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint*)&msg->msg;
+    msgin->cpsession                  = cpsession;
     memcpy(&msgin->cpdir, cpdir, len + 1);
 
     debug("IPC broadcast to all: IPC_CHECKPOINT(%u, %s)\n", cpsession, cpdir);
 
     /* broadcast to all including myself (so I can also checkpoint) */
-    ret = broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, /*exclude_port=*/NULL);
+    ret = broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT,
+                        /*exclude_port=*/NULL);
     SAVE_PROFILE_INTERVAL(ipc_checkpoint_send);
     return ret;
 }
@@ -473,18 +473,18 @@ int ipc_checkpoint_send(const char* cpdir, IDTYPE cpsession) {
  * - broadcasts checkpoint msg further to other processes. */
 int ipc_checkpoint_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     BEGIN_PROFILE_INTERVAL();
-    int ret = 0;
-    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint *)msg->msg;
+    int ret                           = 0;
+    struct shim_ipc_checkpoint* msgin = (struct shim_ipc_checkpoint*)msg->msg;
 
-    debug("IPC callback from %u: IPC_CHECKPOINT(%u, %s)\n",
-          msg->src, msgin->cpsession, msgin->cpdir);
+    debug("IPC callback from %u: IPC_CHECKPOINT(%u, %s)\n", msg->src, msgin->cpsession,
+          msgin->cpdir);
 
     ret = create_checkpoint(msgin->cpdir, &msgin->cpsession);
     if (ret < 0)
         goto out;
 
     kill_all_threads(NULL, msgin->cpsession, SIGCP);
-    broadcast_ipc(msg, IPC_PORT_DIRCLD|IPC_PORT_DIRPRT, port);
+    broadcast_ipc(msg, IPC_PORT_DIRCLD | IPC_PORT_DIRPRT, port);
 out:
     SAVE_PROFILE_INTERVAL(ipc_checkpoint_callback);
     return ret;
@@ -493,7 +493,7 @@ out:
 BEGIN_CP_FUNC(ipc_info) {
     assert(size == sizeof(struct shim_ipc_info));
 
-    struct shim_ipc_info* info = (struct shim_ipc_info *)obj;
+    struct shim_ipc_info* info     = (struct shim_ipc_info*)obj;
     struct shim_ipc_info* new_info = NULL;
 
     ptr_t off = GET_FROM_CP_MAP(obj);
@@ -502,7 +502,7 @@ BEGIN_CP_FUNC(ipc_info) {
         off = ADD_CP_OFFSET(sizeof(struct shim_ipc_info));
         ADD_TO_CP_MAP(obj, off);
 
-        new_info = (struct shim_ipc_info *)(base + off);
+        new_info = (struct shim_ipc_info*)(base + off);
         memcpy(new_info, info, sizeof(struct shim_ipc_info));
         REF_SET(new_info->ref_count, 0);
 
@@ -516,23 +516,23 @@ BEGIN_CP_FUNC(ipc_info) {
             DO_CP(palhdl, info->pal_handle, &entry);
             /* info's PAL handle will be re-opened with new URI during
              * palhdl restore (see checkpoint.c) */
-            entry->uri = &new_info->uri;
+            entry->uri     = &new_info->uri;
             entry->phandle = &new_info->pal_handle;
         }
     } else {
         /* already checkpointed */
-        new_info = (struct shim_ipc_info *)(base + off);
+        new_info = (struct shim_ipc_info*)(base + off);
     }
 
     if (new_info && objp)
-        *objp = (void *)new_info;
+        *objp = (void*)new_info;
 }
 END_CP_FUNC_NO_RS(ipc_info)
 
 BEGIN_CP_FUNC(process) {
     assert(size == sizeof(struct shim_process));
 
-    struct shim_process* process = (struct shim_process *)obj;
+    struct shim_process* process     = (struct shim_process*)obj;
     struct shim_process* new_process = NULL;
 
     ptr_t off = GET_FROM_CP_MAP(obj);
@@ -541,7 +541,7 @@ BEGIN_CP_FUNC(process) {
         off = ADD_CP_OFFSET(sizeof(struct shim_process));
         ADD_TO_CP_MAP(obj, off);
 
-        new_process = (struct shim_process *)(base + off);
+        new_process = (struct shim_process*)(base + off);
         memcpy(new_process, process, sizeof(struct shim_process));
 
         /* call ipc_info-specific checkpointing functions
@@ -557,17 +557,17 @@ BEGIN_CP_FUNC(process) {
         ADD_CP_FUNC_ENTRY(off);
     } else {
         /* already checkpointed */
-        new_process = (struct shim_process *)(base + off);
+        new_process = (struct shim_process*)(base + off);
     }
 
     if (objp)
-        *objp = (void *) new_process;
+        *objp = (void*)new_process;
 }
 END_CP_FUNC(process)
 
 BEGIN_RS_FUNC(process) {
     __UNUSED(offset);
-    struct shim_process* process = (void *)(base + GET_CP_FUNC_ENTRY());
+    struct shim_process* process = (void*)(base + GET_CP_FUNC_ENTRY());
 
     /* process vmid  = 0: fork/clone case, forces to pick up new host-OS vmid
      * process vmid != 0: execve case, forces to re-use vmid of parent */

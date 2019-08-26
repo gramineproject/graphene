@@ -20,14 +20,12 @@
  * Implementation of system call "getrlimit" and "setrlimit".
  */
 
-#include <shim_internal.h>
+#include <asm/resource.h>
 #include <shim_checkpoint.h>
+#include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_utils.h>
 #include <shim_vma.h>
-
-#include <asm/resource.h>
-
 
 /*
  * TODO: implement actual limitation on each resource.
@@ -39,27 +37,27 @@
 #define MAX_THREADS     (0x3fffffff / 2)
 #define DEFAULT_MAX_FDS (1024)
 #define MAX_MAX_FDS     (65536) /* 4096: Linux initial value */
-#define MLOCK_LIMIT     (64*1024)
+#define MLOCK_LIMIT     (64 * 1024)
 #define MQ_BYTES_MAX    819200
 
 static struct __kernel_rlimit64 __rlim[RLIM_NLIMITS] __attribute_migratable = {
-    [RLIMIT_CPU]        = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_FSIZE]      = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_DATA]       = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_STACK]      = { DEFAULT_SYS_STACK_SIZE, RLIM_INFINITY },
-    [RLIMIT_CORE]       = {               0, RLIM_INFINITY },
-    [RLIMIT_RSS]        = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_NPROC]      = {     MAX_THREADS,   MAX_THREADS },
-    [RLIMIT_NOFILE]     = { DEFAULT_MAX_FDS,   MAX_MAX_FDS },
-    [RLIMIT_MEMLOCK]    = {     MLOCK_LIMIT,   MLOCK_LIMIT },
-    [RLIMIT_AS]         = {   RLIM_INFINITY, RLIM_INFINITY },
-    [RLIMIT_LOCKS]      = {   RLIM_INFINITY, RLIM_INFINITY },
+    [RLIMIT_CPU]     = {RLIM_INFINITY, RLIM_INFINITY},
+    [RLIMIT_FSIZE]   = {RLIM_INFINITY, RLIM_INFINITY},
+    [RLIMIT_DATA]    = {RLIM_INFINITY, RLIM_INFINITY},
+    [RLIMIT_STACK]   = {DEFAULT_SYS_STACK_SIZE, RLIM_INFINITY},
+    [RLIMIT_CORE]    = {0, RLIM_INFINITY},
+    [RLIMIT_RSS]     = {RLIM_INFINITY, RLIM_INFINITY},
+    [RLIMIT_NPROC]   = {MAX_THREADS, MAX_THREADS},
+    [RLIMIT_NOFILE]  = {DEFAULT_MAX_FDS, MAX_MAX_FDS},
+    [RLIMIT_MEMLOCK] = {MLOCK_LIMIT, MLOCK_LIMIT},
+    [RLIMIT_AS]      = {RLIM_INFINITY, RLIM_INFINITY},
+    [RLIMIT_LOCKS]   = {RLIM_INFINITY, RLIM_INFINITY},
     /* [RLIMIT_SIGPENDING] = [RLIMIT_NPROC] for initial value */
-    [RLIMIT_SIGPENDING] = {     MAX_THREADS,   MAX_THREADS },
-    [RLIMIT_MSGQUEUE]   = {    MQ_BYTES_MAX,  MQ_BYTES_MAX },
-    [RLIMIT_NICE]       = {               0,             0 },
-    [RLIMIT_RTPRIO]     = {               0,             0 },
-    [RLIMIT_RTTIME]     = {   RLIM_INFINITY, RLIM_INFINITY },
+    [RLIMIT_SIGPENDING] = {MAX_THREADS, MAX_THREADS},
+    [RLIMIT_MSGQUEUE]   = {MQ_BYTES_MAX, MQ_BYTES_MAX},
+    [RLIMIT_NICE]       = {0, 0},
+    [RLIMIT_RTPRIO]     = {0, 0},
+    [RLIMIT_RTTIME]     = {RLIM_INFINITY, RLIM_INFINITY},
 };
 
 static struct shim_lock rlimit_lock;
@@ -84,8 +82,7 @@ void set_rlimit_cur(int resource, uint64_t rlim) {
     unlock(&rlimit_lock);
 }
 
-int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
-{
+int shim_do_getrlimit(int resource, struct __kernel_rlimit* rlim) {
     if (resource < 0 || RLIM_NLIMITS <= resource)
         return -EINVAL;
     if (!rlim || test_user_memory(rlim, sizeof(*rlim), true))
@@ -98,8 +95,7 @@ int shim_do_getrlimit (int resource, struct __kernel_rlimit * rlim)
     return 0;
 }
 
-int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
-{
+int shim_do_setrlimit(int resource, struct __kernel_rlimit* rlim) {
     struct shim_thread* cur_thread = get_cur_thread();
     assert(cur_thread);
 
@@ -122,7 +118,6 @@ int shim_do_setrlimit (int resource, struct __kernel_rlimit * rlim)
 
 int shim_do_prlimit64(pid_t pid, int resource, const struct __kernel_rlimit64* new_rlim,
                       struct __kernel_rlimit64* old_rlim) {
-
     struct shim_thread* cur_thread = get_cur_thread();
     assert(cur_thread);
 

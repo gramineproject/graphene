@@ -20,19 +20,15 @@
  * Implementation of system call "gettimeofday", "time" and "clock_gettime".
  */
 
-#include <shim_internal.h>
-#include <shim_table.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
-
+#include <errno.h>
 #include <pal.h>
 #include <pal_error.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_table.h>
 
-#include <errno.h>
-
-int shim_do_gettimeofday (struct __kernel_timeval * tv,
-                          struct __kernel_timezone * tz)
-{
+int shim_do_gettimeofday(struct __kernel_timeval* tv, struct __kernel_timezone* tz) {
     if (!tv)
         return -EINVAL;
 
@@ -52,8 +48,7 @@ int shim_do_gettimeofday (struct __kernel_timeval * tv,
     return 0;
 }
 
-time_t shim_do_time (time_t * tloc)
-{
+time_t shim_do_time(time_t* tloc) {
     long time = DkSystemTimeQuery();
 
     if (time == -1)
@@ -70,9 +65,7 @@ time_t shim_do_time (time_t * tloc)
     return t;
 }
 
-int shim_do_clock_gettime (clockid_t which_clock,
-                           struct timespec * tp)
-{
+int shim_do_clock_gettime(clockid_t which_clock, struct timespec* tp) {
     /* all clock are the same */
     __UNUSED(which_clock);
 
@@ -92,9 +85,7 @@ int shim_do_clock_gettime (clockid_t which_clock,
     return 0;
 }
 
-int shim_do_clock_getres (clockid_t which_clock,
-                          struct timespec * tp)
-{
+int shim_do_clock_getres(clockid_t which_clock, struct timespec* tp) {
     /* all clock are the same */
     __UNUSED(which_clock);
 

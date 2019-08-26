@@ -7,14 +7,14 @@ static PAL_HANDLE event1;
 
 int count = 0;
 
-int thread_1(void* args)
-{
+int thread_1(void* args) {
     DkThreadDelayExecution(1000);
 
     pal_printf("In Thread 1\n");
 
-    while (count < 100)
+    while (count < 100) {
         count++;
+    }
 
     DkEventSet(event1);
     DkThreadExit();
@@ -22,9 +22,8 @@ int thread_1(void* args)
     return 0;
 }
 
-int main (int argc, char ** argv)
-{
-    pal_printf ("Enter Main Thread\n");
+int main(int argc, char** argv) {
+    pal_printf("Enter Main Thread\n");
 
     PAL_HANDLE thd1;
 
@@ -51,4 +50,3 @@ int main (int argc, char ** argv)
     pal_printf("Leave Main Thread\n");
     return 0;
 }
-

@@ -1,9 +1,8 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     char buffer1[20] = "Hello World 1", buffer2[20] = "Hello World 2";
     char buffer3[20], buffer4[20];
     int ret;
@@ -50,14 +49,12 @@ int main (int argc, char ** argv, char ** envp)
         DkObjectClose(tcp1);
     }
 
-    PAL_HANDLE udp1 = DkStreamOpen("udp.srv:127.0.0.1:3000",
-                                   PAL_ACCESS_RDWR, 0, 0, 0);
+    PAL_HANDLE udp1 = DkStreamOpen("udp.srv:127.0.0.1:3000", PAL_ACCESS_RDWR, 0, 0, 0);
 
     if (udp1) {
         pal_printf("UDP Creation 1 OK\n");
 
-        PAL_HANDLE udp2 = DkStreamOpen("udp:127.0.0.1:3000",
-                                       PAL_ACCESS_RDWR, 0, 0, 0);
+        PAL_HANDLE udp2 = DkStreamOpen("udp:127.0.0.1:3000", PAL_ACCESS_RDWR, 0, 0, 0);
 
         if (udp2) {
             pal_printf("UDP Connection 1 OK\n");
@@ -86,8 +83,8 @@ int main (int argc, char ** argv, char ** envp)
             DkObjectClose(udp2);
         }
 
-        PAL_HANDLE udp3 = DkStreamOpen("udp:127.0.0.1:3001:127.0.0.1:3000",
-                                       PAL_ACCESS_RDWR, 0, 0, 0);
+        PAL_HANDLE udp3 =
+            DkStreamOpen("udp:127.0.0.1:3001:127.0.0.1:3000", PAL_ACCESS_RDWR, 0, 0, 0);
 
         if (udp3) {
             pal_printf("UDP Connection 2 OK\n");

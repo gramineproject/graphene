@@ -20,23 +20,20 @@
  * Implementation of system call "vfork".
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_checkpoint.h>
-
+#include <asm/prctl.h>
+#include <errno.h>
+#include <linux/futex.h>
 #include <pal.h>
 #include <pal_error.h>
-
-#include <sys/syscall.h>
+#include <shim_checkpoint.h>
+#include <shim_internal.h>
+#include <shim_table.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 #include <sys/mman.h>
-#include <asm/prctl.h>
-#include <linux/futex.h>
-#include <errno.h>
+#include <sys/syscall.h>
 
-int shim_do_vfork (void)
-{
+int shim_do_vfork(void) {
 #ifdef ALIAS_VFORK_AS_FORK
     debug("vfork() is an alias to fork() in Graphene, calling fork() now\n");
     return shim_do_fork();
@@ -51,20 +48,18 @@ int shim_do_vfork (void)
      * Because rdi might be used in SHIM, I cache rdi in r13 (reference:
      * syscallas.S).
      */
-    struct shim_thread * cur_thread = get_cur_thread();
-    struct shim_thread * new_thread = get_new_thread(0);
+    struct shim_thread* cur_thread = get_cur_thread();
+    struct shim_thread* new_thread = get_new_thread(0);
     /* put the new thread in a new process (thread group) */
 
-    __asm__ volatile ("movq %%rbp, %0\r\n"
-                      : "=r"(new_thread->frameptr));
+    __asm__ volatile ("movq %%rbp, %0\r\n" : "=r"(new_thread->frameptr));
 
     size_t stack_size = 4096;
 
-    if (new_thread->frameptr <= cur_thread->stack_top &&
-        new_thread->frameptr > cur_thread->stack)
+    if (new_thread->frameptr <= cur_thread->stack_top && new_thread->frameptr > cur_thread->stack)
         stack_size = cur_thread->stack_top - new_thread->frameptr;
 
-    void * dummy_stack = system_malloc(stack_size);
+    void* dummy_stack = system_malloc(stack_size);
 
     if (!dummy_stack) {
         debug("creation of stack failed\n");
@@ -94,10 +89,10 @@ int shim_do_vfork (void)
     add_thread(new_thread);
     new_thread->dummy = cur_thread;
 
-    struct shim_handle_map * handle_map = get_cur_handle_map(cur_thread);
+    struct shim_handle_map* handle_map = get_cur_handle_map(cur_thread);
     /* pop the ref count of current handle map to prevent revocation */
     get_handle_map(handle_map);
-    struct shim_handle_map * new_map = NULL;
+    struct shim_handle_map* new_map = NULL;
     /* duplicate handle map intp a new handle map */
     dup_handle_map(&new_map, handle_map);
     /* set the new handle map to new thread */

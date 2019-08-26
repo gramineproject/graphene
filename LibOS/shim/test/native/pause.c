@@ -5,13 +5,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void handler(int signal)
-{
+void handler(int signal) {
     printf("hello world\n");
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     if (signal(SIGALRM, &handler) < 0)
         return EXIT_FAILURE;
 

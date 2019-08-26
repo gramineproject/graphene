@@ -1,13 +1,13 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
 void helper_timeout(PAL_NUM timeout) {
     /* Create a binary semaphore */
 
     PAL_HANDLE sem1 = DkMutexCreate(1);
 
-    if(!sem1) {
+    if (!sem1) {
         pal_printf("Failed to create a binary semaphore\n");
         return;
     }
@@ -17,7 +17,8 @@ void helper_timeout(PAL_NUM timeout) {
     if (rv == NULL)
         pal_printf("Locked binary semaphore timed out (%ld).\n", timeout);
     else
-        pal_printf("Acquired locked binary semaphore!?! Got back %p; sem1 is %p (%ld)\n", rv, sem1, timeout);
+        pal_printf("Acquired locked binary semaphore!?! Got back %p; sem1 is %p (%ld)\n", rv, sem1,
+                   timeout);
 
     DkObjectClose(sem1);
 }
@@ -27,7 +28,7 @@ void helper_success(PAL_NUM timeout) {
 
     PAL_HANDLE sem1 = DkMutexCreate(0);
 
-    if(!sem1) {
+    if (!sem1) {
         pal_printf("Failed to create a binary semaphore\n");
         return;
     }
@@ -42,9 +43,7 @@ void helper_success(PAL_NUM timeout) {
     DkObjectClose(sem1);
 }
 
-
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     helper_timeout(1000);
     /* Try again with timeout 0 (trylock) */
     helper_timeout(0);

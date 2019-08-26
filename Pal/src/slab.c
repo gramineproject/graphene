@@ -20,14 +20,14 @@
  * This file contains implementation of PAL's internal memory allocator.
  */
 
-#include "pal_internal.h"
 #include "api.h"
+#include "pal_internal.h"
 
 #ifndef NO_INTERNAL_ALLOC
 
+#include "pal_debug.h"
 #include "pal_defs.h"
 #include "pal_error.h"
-#include "pal_debug.h"
 
 static int slab_alignment;
 static PAL_LOCK slab_mgr_lock = LOCK_INIT;
@@ -36,20 +36,19 @@ static PAL_LOCK slab_mgr_lock = LOCK_INIT;
 #define SYSTEM_UNLOCK() _DkInternalUnlock(&slab_mgr_lock)
 
 #if STATIC_SLAB == 1
-# define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
+#define POOL_SIZE 64 * 1024 * 1024 /* 64MB by default */
 static char mem_pool[POOL_SIZE];
-static void *bump = mem_pool;
-static void *mem_pool_end = &mem_pool[POOL_SIZE];
+static void* bump         = mem_pool;
+static void* mem_pool_end = &mem_pool[POOL_SIZE];
 #else
-# define PAGE_SIZE slab_alignment
+#define PAGE_SIZE slab_alignment
 #endif
 
-#define STARTUP_SIZE    2
+#define STARTUP_SIZE 2
 
 /* This function is protected by slab_mgr_lock. */
-static inline void * __malloc (int size)
-{
-    void * addr = NULL;
+static inline void* __malloc(int size) {
+    void* addr = NULL;
 
 #if STATIC_SLAB == 1
     if (bump + size <= mem_pool_end) {
@@ -59,19 +58,17 @@ static inline void * __malloc (int size)
     }
 #endif
 
-    _DkVirtualMemoryAlloc(&addr, size, PAL_ALLOC_INTERNAL,
-                          PAL_PROT_READ|PAL_PROT_WRITE);
+    _DkVirtualMemoryAlloc(&addr, size, PAL_ALLOC_INTERNAL, PAL_PROT_READ | PAL_PROT_WRITE);
     return addr;
 }
 
 #define system_malloc(size) __malloc(size)
 
-static inline void __free (void * addr, int size)
-{
+static inline void __free(void* addr, int size) {
     if (!addr)
         return;
 #if STATIC_SLAB == 1
-    if (addr >= (void *)mem_pool && addr < mem_pool_end)
+    if (addr >= (void*)mem_pool && addr < mem_pool_end)
         return;
 #endif
 
@@ -84,8 +81,7 @@ static inline void __free (void * addr, int size)
 
 static SLAB_MGR slab_mgr = NULL;
 
-void init_slab_mgr (int alignment)
-{
+void init_slab_mgr(int alignment) {
     if (slab_mgr)
         return;
 
@@ -94,7 +90,7 @@ void init_slab_mgr (int alignment)
 #endif
 
     slab_alignment = alignment;
-    slab_mgr = create_slab_mgr();
+    slab_mgr       = create_slab_mgr();
     if (!slab_mgr)
         INIT_FAIL(PAL_ERROR_NOMEM, "cannot initialize slab manager");
 
@@ -103,12 +99,11 @@ void init_slab_mgr (int alignment)
 #endif
 }
 
-void * malloc (size_t size)
-{
+void* malloc(size_t size) {
 #if PROFILING == 1
     unsigned long before_slab = _DkSystemTimeQuery();
 #endif
-    void * ptr = slab_alloc(slab_mgr, size);
+    void* ptr = slab_alloc(slab_mgr, size);
 
 #ifdef DEBUG
     /* In debug builds, try to break code that uses uninitialized heap
@@ -134,9 +129,8 @@ void * malloc (size_t size)
 }
 
 // Copies data from `mem` to a newly allocated buffer of a specified size.
-void * malloc_copy (const void * mem, size_t size)
-{
-    void * nmem = malloc(size);
+void* malloc_copy(const void* mem, size_t size) {
+    void* nmem = malloc(size);
 
     if (nmem)
         memcpy(nmem, mem, size);
@@ -144,10 +138,9 @@ void * malloc_copy (const void * mem, size_t size)
     return nmem;
 }
 
-char * strdup (const char *s)
-{
+char* strdup(const char* s) {
     size_t len = strlen(s) + 1;
-    char *new = malloc(len);
+    char* new  = malloc(len);
 
     if (new)
         memcpy(new, s, len);
@@ -155,9 +148,8 @@ char * strdup (const char *s)
     return new;
 }
 
-void * calloc (size_t nmem, size_t size)
-{
-    void * ptr = malloc(nmem * size);
+void* calloc(size_t nmem, size_t size) {
+    void* ptr = malloc(nmem * size);
 
     if (ptr)
         memset(ptr, 0, nmem * size);
@@ -165,8 +157,7 @@ void * calloc (size_t nmem, size_t size)
     return ptr;
 }
 
-void free (void * ptr)
-{
+void free(void* ptr) {
     if (!ptr)
         return;
 #if PROFILING == 1

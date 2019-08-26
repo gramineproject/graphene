@@ -17,29 +17,28 @@
 
 #include <errno.h>
 #include <limits.h>
+
 #include "api.h"
+#include "assert.h"
 #include "pal.h"
-#include "pal_error.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
-#include "assert.h"
+#include "pal_error.h"
 
 #define BITS_PER_BYTE 8
 
 /* This is declared in pal_internal.h, but that can't be included here. */
-size_t _DkRandomBitsRead(void *buffer, size_t size);
+size_t _DkRandomBitsRead(void* buffer, size_t size);
 
 /* Wrapper to provide mbedtls the RNG interface it expects. It passes an
  * extra context parameter, and expects a return value of 0 for success
  * and nonzero for failure. */
-static int RandomWrapper(void *private, unsigned char *data, size_t size)
-{
+static int RandomWrapper(void* private, unsigned char* data, size_t size) {
     __UNUSED(private);
     return _DkRandomBitsRead(data, size);
 }
 
-int lib_DhInit(LIB_DH_CONTEXT *context)
-{
+int lib_DhInit(LIB_DH_CONTEXT* context) {
     int ret;
     mbedtls_dhm_init(context);
 
@@ -47,15 +46,13 @@ int lib_DhInit(LIB_DH_CONTEXT *context)
      * are considered more secure, but require more data be exchanged
      * between the two parties to establish the parameters, so we haven't
      * implemented that yet. */
-    ret = mbedtls_mpi_read_string(&context->P, 16 /* radix */,
-                                  MBEDTLS_DHM_RFC3526_MODP_2048_P);
+    ret = mbedtls_mpi_read_string(&context->P, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_P);
     if (ret != 0) {
         pal_printf("D-H initialization failed: %d\n", ret);
         return ret;
     }
 
-    ret = mbedtls_mpi_read_string(&context->G, 16 /* radix */,
-                                  MBEDTLS_DHM_RFC3526_MODP_2048_G);
+    ret = mbedtls_mpi_read_string(&context->G, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_G);
     if (ret != 0) {
         pal_printf("D-H initialization failed: %d\n", ret);
         return ret;
@@ -66,17 +63,14 @@ int lib_DhInit(LIB_DH_CONTEXT *context)
     return 0;
 }
 
-int lib_DhCreatePublic(LIB_DH_CONTEXT *context, uint8_t *public,
-                     uint64_t *public_size)
-{
+int lib_DhCreatePublic(LIB_DH_CONTEXT* context, uint8_t* public, uint64_t* public_size) {
     int ret;
 
     if (*public_size != DH_SIZE)
         return -PAL_ERROR_INVAL;
 
     /* The RNG here is used to generate secret exponent X. */
-    ret = mbedtls_dhm_make_public(context, context->len, public, *public_size,
-                                  RandomWrapper, NULL);
+    ret = mbedtls_dhm_make_public(context, context->len, public, *public_size, RandomWrapper, NULL);
     if (ret != 0)
         return ret;
 
@@ -85,9 +79,8 @@ int lib_DhCreatePublic(LIB_DH_CONTEXT *context, uint8_t *public,
     return 0;
 }
 
-int lib_DhCalcSecret(LIB_DH_CONTEXT *context, uint8_t *peer, uint64_t peer_size,
-                   uint8_t *secret, uint64_t *secret_size)
-{
+int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, uint64_t peer_size, uint8_t* secret,
+                     uint64_t* secret_size) {
     int ret;
 
     if (*secret_size != DH_SIZE)
@@ -100,12 +93,10 @@ int lib_DhCalcSecret(LIB_DH_CONTEXT *context, uint8_t *peer, uint64_t peer_size,
     /* The RNG here is used for blinding against timing attacks if X is
      * reused and not used otherwise. mbedtls recommends always passing
      * in an RNG. */
-    return mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size,
-                                   RandomWrapper, NULL);
+    return mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size, RandomWrapper, NULL);
 }
 
-void lib_DhFinal(LIB_DH_CONTEXT *context)
-{
+void lib_DhFinal(LIB_DH_CONTEXT* context) {
     /* This call zeros out context for us. */
     mbedtls_dhm_free(context);
 }

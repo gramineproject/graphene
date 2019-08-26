@@ -23,8 +23,9 @@
 #ifndef MEMMGR_H
 #define MEMMGR_H
 
-#include "list.h"
 #include <sys/mman.h>
+
+#include "list.h"
 
 #ifndef OBJ_TYPE
 #error "OBJ_TYPE not defined"
@@ -49,14 +50,14 @@ typedef struct mem_obj {
         LIST_TYPE(mem_obj) __list;
         OBJ_TYPE obj;
     };
-} MEM_OBJ_TYPE, * MEM_OBJ;
+} MEM_OBJ_TYPE, *MEM_OBJ;
 
 DEFINE_LIST(mem_area);
 typedef struct mem_area {
     LIST_TYPE(mem_area) __list;
     unsigned int size;
     MEM_OBJ_TYPE objs[];
-} MEM_AREA_TYPE, * MEM_AREA;
+} MEM_AREA_TYPE, *MEM_AREA;
 
 DEFINE_LISTP(mem_area);
 DEFINE_LISTP(mem_obj);
@@ -64,41 +65,38 @@ typedef struct mem_mgr {
     LISTP_TYPE(mem_area) area_list;
     LISTP_TYPE(mem_obj) free_list;
     size_t size;
-    MEM_OBJ_TYPE * obj, * obj_top;
+    MEM_OBJ_TYPE* obj;
+    MEM_OBJ_TYPE* obj_top;
     MEM_AREA active_area;
-} MEM_MGR_TYPE, * MEM_MGR;
+} MEM_MGR_TYPE, *MEM_MGR;
 
 #define __SUM_OBJ_SIZE(size) (sizeof(MEM_OBJ_TYPE) * (size))
-#define __MIN_MEM_SIZE() (sizeof(MEM_MGR_TYPE) + sizeof(MEM_AREA_TYPE))
+#define __MIN_MEM_SIZE()     (sizeof(MEM_MGR_TYPE) + sizeof(MEM_AREA_TYPE))
 #define __MAX_MEM_SIZE(size) (__MIN_MEM_SIZE() + __SUM_OBJ_SIZE(size))
 
 #ifdef PAGE_SIZE
-static inline int size_align_down (int size)
-{
+static inline int size_align_down(int size) {
     int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
     int p = s - (s & ~(PAGE_SIZE - 1));
     int o = __SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int size_align_up (int size)
-{
+static inline int size_align_up(int size) {
     int s = __MAX_MEM_SIZE(size) - sizeof(MEM_MGR_TYPE);
     int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
     int o = __SUM_OBJ_SIZE(1);
     return size + p / o;
 }
 
-static inline int init_align_down (int size)
-{
+static inline int init_align_down(int size) {
     int s = __MAX_MEM_SIZE(size);
     int p = s - (s & ~(PAGE_SIZE - 1));
     int o = __SUM_OBJ_SIZE(1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int init_align_up (int size)
-{
+static inline int init_align_up(int size) {
     int s = __MAX_MEM_SIZE(size);
     int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
     int o = __SUM_OBJ_SIZE(1);
@@ -106,26 +104,24 @@ static inline int init_align_up (int size)
 }
 #endif
 
-static inline void __set_free_mem_area (MEM_AREA area, MEM_MGR mgr)
-{
+static inline void __set_free_mem_area(MEM_AREA area, MEM_MGR mgr) {
     mgr->size += area->size;
-    mgr->obj = area->objs;
-    mgr->obj_top = area->objs + area->size;
+    mgr->obj         = area->objs;
+    mgr->obj_top     = area->objs + area->size;
     mgr->active_area = area;
 }
 
-static inline MEM_MGR create_mem_mgr (unsigned int size)
-{
-    void * mem = system_malloc(__MAX_MEM_SIZE(size));
+static inline MEM_MGR create_mem_mgr(unsigned int size) {
+    void* mem = system_malloc(__MAX_MEM_SIZE(size));
     MEM_AREA area;
     MEM_MGR mgr;
 
     if (!mem)
         return NULL;
 
-    mgr = (MEM_MGR) mem;
-    mgr->size = 0;
-    area = (MEM_AREA) (mem + sizeof(MEM_MGR_TYPE));
+    mgr        = (MEM_MGR)mem;
+    mgr->size  = 0;
+    area       = (MEM_AREA)(mem + sizeof(MEM_MGR_TYPE));
     area->size = size;
 
     INIT_LIST_HEAD(area, __list);
@@ -138,12 +134,10 @@ static inline MEM_MGR create_mem_mgr (unsigned int size)
     return mgr;
 }
 
-static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
-{
+static inline MEM_MGR enlarge_mem_mgr(MEM_MGR mgr, unsigned int size) {
     MEM_AREA area;
 
-    area = (MEM_AREA) system_malloc(sizeof(MEM_AREA_TYPE) +
-                                    __SUM_OBJ_SIZE(size));
+    area = (MEM_AREA)system_malloc(sizeof(MEM_AREA_TYPE) + __SUM_OBJ_SIZE(size));
     if (!area)
         return NULL;
 
@@ -156,8 +150,7 @@ static inline MEM_MGR enlarge_mem_mgr (MEM_MGR mgr, unsigned int size)
     return mgr;
 }
 
-static inline void destroy_mem_mgr (MEM_MGR mgr)
-{
+static inline void destroy_mem_mgr(MEM_MGR mgr) {
     MEM_AREA tmp, n, first = NULL;
 
     first = tmp = LISTP_FIRST_ENTRY(&mgr->area_list, MEM_AREA_TYPE, __list);
@@ -174,8 +167,7 @@ free_mgr:
     system_free(mgr, __MAX_MEM_SIZE(first->size));
 }
 
-static inline OBJ_TYPE * get_mem_obj_from_mgr (MEM_MGR mgr)
-{
+static inline OBJ_TYPE* get_mem_obj_from_mgr(MEM_MGR mgr) {
     MEM_OBJ mobj;
 
     SYSTEM_LOCK();
@@ -195,9 +187,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr (MEM_MGR mgr)
     return &mobj->obj;
 }
 
-static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
-                                                       unsigned int size)
-{
+static inline OBJ_TYPE* get_mem_obj_from_mgr_enlarge(MEM_MGR mgr, unsigned int size) {
     MEM_OBJ mobj;
 
     SYSTEM_LOCK();
@@ -219,8 +209,7 @@ static inline OBJ_TYPE * get_mem_obj_from_mgr_enlarge (MEM_MGR mgr,
 
         /* There can be concurrent attempt to try to enlarge the
            allocator, but we prevent deadlocks or crashes. */
-        area = (MEM_AREA) system_malloc(sizeof(MEM_AREA_TYPE) +
-                                        __SUM_OBJ_SIZE(size));
+        area = (MEM_AREA)system_malloc(sizeof(MEM_AREA_TYPE) + __SUM_OBJ_SIZE(size));
         if (!area)
             return NULL;
 
@@ -249,17 +238,17 @@ alloc:
     return &mobj->obj;
 }
 
-static inline void free_mem_obj_to_mgr (MEM_MGR mgr, OBJ_TYPE * obj)
-{
+static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
     MEM_OBJ mobj = container_of(obj, MEM_OBJ_TYPE, obj);
 
     SYSTEM_LOCK();
     MEM_AREA area, found = NULL;
-    LISTP_FOR_EACH_ENTRY(area, &mgr->area_list, __list)
+    LISTP_FOR_EACH_ENTRY(area, &mgr->area_list, __list) {
         if (mobj >= area->objs && mobj < area->objs + area->size) {
             found = area;
             break;
         }
+    }
 
     if (found) {
         INIT_LIST_HEAD(mobj, __list);

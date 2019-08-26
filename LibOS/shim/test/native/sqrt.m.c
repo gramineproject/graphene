@@ -1,7 +1,7 @@
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
     float x;
 
     printf("enter a float: ");

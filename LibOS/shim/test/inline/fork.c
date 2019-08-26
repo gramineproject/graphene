@@ -1,8 +1,7 @@
-#include <shim_table.h>
 #include <errno.h>
+#include <shim_table.h>
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     pid_t pid = shim_fork();
 
     if (pid < 0) {
@@ -12,11 +11,10 @@ int main (int argc, char ** argv)
 
     if (pid == 0) {
         shim_write(1, "Hello, Dad!\n", 12);
-    }
-    else {
+    } else {
         shim_write(1, "Hello, Kid!\n", 12);
     }
 
     shim_exit_group(0);
-    return 0; // should not reach here.
+    return 0;  // should not reach here.
 }

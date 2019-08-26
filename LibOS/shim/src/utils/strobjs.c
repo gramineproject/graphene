@@ -25,32 +25,28 @@
 
 static struct shim_lock str_mgr_lock;
 
-#define SYSTEM_LOCK()       lock(&str_mgr_lock)
-#define SYSTEM_UNLOCK()     unlock(&str_mgr_lock)
+#define SYSTEM_LOCK()   lock(&str_mgr_lock)
+#define SYSTEM_UNLOCK() unlock(&str_mgr_lock)
 
-#define STR_MGR_ALLOC  32
-#define PAGE_SIZE      allocsize
+#define STR_MGR_ALLOC 32
+#define PAGE_SIZE     allocsize
 
 #define OBJ_TYPE struct shim_str
 #include "memmgr.h"
 
 static MEM_MGR str_mgr = NULL;
 
-int init_str_mgr (void)
-{
+int init_str_mgr(void) {
     create_lock(&str_mgr_lock);
     str_mgr = create_mem_mgr(init_align_up(STR_MGR_ALLOC));
     return 0;
 }
 
-struct shim_str * get_str_obj (void)
-{
-    return get_mem_obj_from_mgr_enlarge(str_mgr,
-                                        size_align_up(STR_MGR_ALLOC));
+struct shim_str* get_str_obj(void) {
+    return get_mem_obj_from_mgr_enlarge(str_mgr, size_align_up(STR_MGR_ALLOC));
 }
 
-int free_str_obj (struct shim_str * str)
-{
+int free_str_obj(struct shim_str* str) {
     if (str == NULL)
         return 0;
 

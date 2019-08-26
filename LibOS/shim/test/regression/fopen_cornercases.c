@@ -1,18 +1,18 @@
-#include <string.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <string.h>
 
 #define FILENAME_MAX_LENGTH 255
-#define PATH "tmp/"
-#define MSG "Hello World"
+#define PATH                "tmp/"
+#define MSG                 "Hello World"
 
 int main(int argc, char** argv) {
     size_t rets;
     int reti;
     char filename[FILENAME_MAX_LENGTH];
     memset(filename, 'a', sizeof(filename));
-    filename[FILENAME_MAX_LENGTH-1] = '\0';
+    filename[FILENAME_MAX_LENGTH - 1] = '\0';
 
     char filepath[sizeof(PATH) + sizeof(filename) - 1];
     strcpy(filepath, PATH);
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     printf("filepath = %s (len = %lu)\n", filepath, strlen(filepath));
 
     /* sanity check: try fopening dir in write mode (must fail) */
-    errno = 0;
+    errno    = 0;
     FILE* fp = fopen(PATH, "w");
     if (fp != NULL || errno != EISDIR) {
         perror("(sanity check) fopen of dir with write access did not fail");

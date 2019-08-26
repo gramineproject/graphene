@@ -4,42 +4,39 @@
  * (i.e. only between parent and its child in this test).
  */
 
-#include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/un.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 enum { SINGLE, PARALLEL } mode = PARALLEL;
-int do_fork = 0;
+int do_fork                    = 0;
 
 int pipefds[2];
 
-int server_dummy_socket(void)
-{
+int server_dummy_socket(void) {
     int create_socket;
     struct sockaddr_un address;
 
-    if ((create_socket = socket(AF_UNIX,SOCK_STREAM,
-                                0)) > 0)
+    if ((create_socket = socket(AF_UNIX, SOCK_STREAM, 0)) > 0)
         printf("Dummy socket was created\n");
 
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path, "dummy", sizeof(address.sun_path));
 
-    if (bind(create_socket,(struct sockaddr *)&address,
-             sizeof(address)) < 0) {
+    if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind");
         close(create_socket);
         exit(-1);
     }
 
-    if (listen(create_socket,3) < 0) {
+    if (listen(create_socket, 3) < 0) {
         perror("listen");
         close(create_socket);
         exit(-1);
@@ -49,29 +46,26 @@ int server_dummy_socket(void)
     return 0;
 }
 
-int server(void)
-{
-    int create_socket,new_socket;
+int server(void) {
+    int create_socket, new_socket;
     socklen_t addrlen;
-    int bufsize = 1024;
-    char *buffer = malloc(bufsize);
+    int bufsize  = 1024;
+    char* buffer = malloc(bufsize);
     struct sockaddr_un address;
 
-    if ((create_socket = socket(AF_UNIX,SOCK_STREAM,
-                                0)) > 0)
+    if ((create_socket = socket(AF_UNIX, SOCK_STREAM, 0)) > 0)
         printf("The socket was created\n");
 
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path, "u", sizeof(address.sun_path));
 
-    if (bind(create_socket,(struct sockaddr *)&address,
-             sizeof(address)) < 0) {
+    if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind");
         close(create_socket);
         exit(-1);
     }
 
-    if (listen(create_socket,3) < 0) {
+    if (listen(create_socket, 3) < 0) {
         perror("listen");
         close(create_socket);
         exit(-1);
@@ -83,9 +77,8 @@ int server(void)
         write(pipefds[1], &byte, 1);
     }
 
-    addrlen = sizeof(address);
-    new_socket = accept(create_socket,(struct sockaddr *)&address,
-                        &addrlen);
+    addrlen    = sizeof(address);
+    new_socket = accept(create_socket, (struct sockaddr*)&address, &addrlen);
 
     if (new_socket < 0) {
         perror("accept");
@@ -114,18 +107,16 @@ int server(void)
         }
     }
 
-
     close(new_socket);
     if (do_fork)
         exit(0);
     return 0;
 }
 
-int client(void)
-{
-    int count,create_socket;
-    int bufsize = 1024;
-    char *buffer = malloc(bufsize);
+int client(void) {
+    int count, create_socket;
+    int bufsize  = 1024;
+    char* buffer = malloc(bufsize);
     struct sockaddr_un address;
 
     if (mode == PARALLEL) {
@@ -134,14 +125,13 @@ int client(void)
         read(pipefds[0], &byte, 1);
     }
 
-    if ((create_socket = socket(AF_UNIX,SOCK_STREAM,0)) >= 0)
+    if ((create_socket = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
         printf("The socket was created\n");
 
     address.sun_family = AF_UNIX;
     strncpy(address.sun_path, "u", sizeof(address.sun_path));
 
-    if (connect(create_socket,(struct sockaddr *)&address,
-                sizeof(address)) == 0)
+    if (connect(create_socket, (struct sockaddr*)&address, sizeof(address)) == 0)
         printf("The connection was accepted with the server\n");
     else {
         printf("The connection was not accepted with the server\n");
@@ -157,7 +147,7 @@ int client(void)
     }
 
     puts("Receiving:");
-    while ((count = recv(create_socket,buffer,bufsize,0)) > 0) {
+    while ((count = recv(create_socket, buffer, bufsize, 0)) > 0) {
         fwrite(buffer, count, 1, stdout);
     }
     puts("Done");
@@ -168,8 +158,7 @@ int client(void)
     return 0;
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     if (argc > 1) {
         if (strcmp(argv[1], "client") == 0) {
             mode = SINGLE;
@@ -188,9 +177,8 @@ int main(int argc, char ** argv)
             do_fork = 1;
             goto old;
         }
-    }
-    else {
-old:
+    } else {
+    old:
         pipe(pipefds);
 
         int pid = fork();

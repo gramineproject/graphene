@@ -15,18 +15,19 @@
  * SOFTWARE.
  */
 
-#include "api.h"
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
+
+#include "api.h"
 
 #ifndef NS_INADDRSZ
-# define NS_INADDRSZ 4
+#define NS_INADDRSZ 4
 #endif
 #ifndef NS_IN6ADDRSZ
-# define NS_IN6ADDRSZ 16
+#define NS_IN6ADDRSZ 16
 #endif
 #ifndef NS_INT16SZ
-# define NS_INT16SZ 2
+#define NS_INT16SZ 2
 #endif
 
 /* int inet_pton4(src, dst)
@@ -39,18 +40,16 @@
  * author:
  *    Paul Vixie, 1996.
  */
-int inet_pton4 (const char *src, size_t len, void *dstp)
-{
-    unsigned char *dst = (unsigned char *) dstp;
-    const char *end = src + len;
+int inet_pton4(const char* src, size_t len, void* dstp) {
+    unsigned char* dst = (unsigned char*)dstp;
+    const char* end    = src + len;
     int saw_digit, octets, ch;
     unsigned char tmp[NS_INADDRSZ], *tp;
 
-    saw_digit = 0;
-    octets = 0;
+    saw_digit   = 0;
+    octets      = 0;
     *(tp = tmp) = 0;
     while (src < end && (ch = *src++) != '\0') {
-
         if (ch >= '0' && ch <= '9') {
             uint32_t new = *tp * 10 + (ch - '0');
 
@@ -59,7 +58,7 @@ int inet_pton4 (const char *src, size_t len, void *dstp)
             if (new > 255)
                 return (0);
             *tp = new;
-            if (! saw_digit) {
+            if (!saw_digit) {
                 if (++octets > 4)
                     return (0);
                 saw_digit = 1;
@@ -67,20 +66,19 @@ int inet_pton4 (const char *src, size_t len, void *dstp)
         } else if (ch == '.' && saw_digit) {
             if (octets == 4)
                 return (0);
-            *++tp = 0;
+            *++tp     = 0;
             saw_digit = 0;
         } else
             return (0);
     }
     if (octets < 4)
         return (0);
-    memcpy (dst, tmp, NS_INADDRSZ);
+    memcpy(dst, tmp, NS_INADDRSZ);
     return (1);
 }
 
-static int tolower (char c)
-{
-  return c >= 'A' && c < 'Z' ? c + ('a' - 'A') : c;
+static int tolower(char c) {
+    return c >= 'A' && c < 'Z' ? c + ('a' - 'A') : c;
 }
 
 /* int inet_pton6(src, dst)
@@ -95,30 +93,29 @@ static int tolower (char c)
  * author:
  *    Paul Vixie, 1996.
  */
-int inet_pton6 (const char *src, size_t len, void *dstp)
-{
-    unsigned char *dst = (unsigned char *) dstp;
-    const char *end = src + len;
+int inet_pton6(const char* src, size_t len, void* dstp) {
+    unsigned char* dst          = (unsigned char*)dstp;
+    const char* end             = src + len;
     static const char xdigits[] = "0123456789abcdef";
     unsigned char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
-    const char *curtok;
+    const char* curtok;
     int ch, saw_xdigit;
     unsigned int val;
 
-    tp = memset (tmp, '\0', NS_IN6ADDRSZ);
-    endp = tp + NS_IN6ADDRSZ;
+    tp     = memset(tmp, '\0', NS_IN6ADDRSZ);
+    endp   = tp + NS_IN6ADDRSZ;
     colonp = NULL;
     /* Leading :: requires some special handling. */
     if (*src == ':')
         if (*++src != ':')
             return (0);
-    curtok = src;
+    curtok     = src;
     saw_xdigit = 0;
-    val = 0;
-    while (src < end && (ch = tolower (*src++)) != '\0') {
-        const char *pch;
+    val        = 0;
+    while (src < end && (ch = tolower(*src++)) != '\0') {
+        const char* pch;
 
-        pch = strchr (xdigits, ch);
+        pch = strchr(xdigits, ch);
         if (pch != NULL) {
             val <<= 4;
             val |= (pch - xdigits);
@@ -139,25 +136,24 @@ int inet_pton6 (const char *src, size_t len, void *dstp)
             }
             if (tp + NS_INT16SZ > endp)
                 return (0);
-            *tp++ = (unsigned char) (val >> 8) & 0xff;
-            *tp++ = (unsigned char) val & 0xff;
+            *tp++      = (unsigned char)(val >> 8) & 0xff;
+            *tp++      = (unsigned char)val & 0xff;
             saw_xdigit = 0;
-            val = 0;
+            val        = 0;
             continue;
         }
-        if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
-            inet_pton4(curtok, end - curtok, tp) > 0) {
+        if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) && inet_pton4(curtok, end - curtok, tp) > 0) {
             tp += NS_INADDRSZ;
             saw_xdigit = 0;
-            break;    /* '\0' was seen by inet_pton4(). */
+            break; /* '\0' was seen by inet_pton4(). */
         }
         return (0);
     }
     if (saw_xdigit) {
         if (tp + NS_INT16SZ > endp)
             return (0);
-        *tp++ = (unsigned char) (val >> 8) & 0xff;
-        *tp++ = (unsigned char) val & 0xff;
+        *tp++ = (unsigned char)(val >> 8) & 0xff;
+        *tp++ = (unsigned char)val & 0xff;
     }
     if (colonp != NULL) {
         /*
@@ -170,13 +166,13 @@ int inet_pton6 (const char *src, size_t len, void *dstp)
         if (tp == endp)
             return (0);
         for (i = 1; i <= n; i++) {
-            endp[- i] = colonp[n - i];
+            endp[-i]      = colonp[n - i];
             colonp[n - i] = 0;
         }
         tp = endp;
     }
     if (tp != endp)
         return (0);
-    memcpy (dst, tmp, NS_IN6ADDRSZ);
+    memcpy(dst, tmp, NS_IN6ADDRSZ);
     return (1);
 }

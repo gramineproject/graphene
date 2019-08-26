@@ -1,9 +1,9 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 int main() {
     pid_t pid = vfork();
@@ -15,8 +15,7 @@ int main() {
     if (pid == 0) {
         printf("[pid=%d|ppid=%d] Hello, Dad!\n", getpid(), getppid());
         _exit(0);
-    }
-    else {
+    } else {
         printf("[pid=%d|ppid=%d] Hello, Kid!\n", getpid(), getppid());
     }
 

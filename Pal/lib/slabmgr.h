@@ -23,12 +23,13 @@
 #ifndef SLABMGR_H
 #define SLABMGR_H
 
-#include "list.h"
-#include "api.h"
-#include <pal_debug.h>
 #include <assert.h>
 #include <errno.h>
+#include <pal_debug.h>
 #include <sys/mman.h>
+
+#include "api.h"
+#include "list.h"
 
 // Before calling any of `system_malloc` and `system_free` this library will
 // acquire `SYSTEM_LOCK` (the systen_* implementation must not do it).
@@ -60,7 +61,7 @@
 
 /* Slab objects need to be a multiple of 16 bytes to ensure proper address
  * alignment for malloc and calloc. */
-#define OBJ_PADDING   15
+#define OBJ_PADDING 15
 
 #define LARGE_OBJ_PADDING 8
 
@@ -77,9 +78,9 @@ typedef struct __attribute__((packed)) slab_obj {
     unsigned char padding[OBJ_PADDING];
     union {
         LIST_TYPE(slab_obj) __list;
-        unsigned char *raw;
+        unsigned char* raw;
     };
-} SLAB_OBJ_TYPE, * SLAB_OBJ;
+} SLAB_OBJ_TYPE, *SLAB_OBJ;
 
 /* In order for slab elements to be 16-byte aligned, struct slab_area must
  * be a multiple of 16 bytes. TODO: Add compile time assertion that this
@@ -93,31 +94,31 @@ typedef struct __attribute__((packed)) slab_area {
     unsigned int size;
     unsigned char pad[AREA_PADDING];
     unsigned char raw[];
-} SLAB_AREA_TYPE, * SLAB_AREA;
+} SLAB_AREA_TYPE, *SLAB_AREA;
 
 #ifdef SLAB_DEBUG
 struct slab_debug {
     struct {
-        const char * file;
-        int          line;
+        const char* file;
+        int line;
     } alloc, free;
 };
 
-# define SLAB_DEBUG_SIZE    sizeof(struct slab_debug)
+#define SLAB_DEBUG_SIZE sizeof(struct slab_debug)
 #else
-# define SLAB_DEBUG_SIZE    0
+#define SLAB_DEBUG_SIZE 0
 #endif
 
 #ifdef SLAB_CANARY
-# define SLAB_CANARY_STRING 0xDEADBEEF
-# define SLAB_CANARY_SIZE   sizeof(unsigned long)
+#define SLAB_CANARY_STRING 0xDEADBEEF
+#define SLAB_CANARY_SIZE   sizeof(unsigned long)
 #else
-# define SLAB_CANARY_SIZE   0
+#define SLAB_CANARY_SIZE 0
 #endif
 
-#define SLAB_HDR_SIZE \
-    ROUND_UP((sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) +     \
-              SLAB_DEBUG_SIZE + SLAB_CANARY_SIZE),                      \
+#define SLAB_HDR_SIZE                                                                 \
+    ROUND_UP((sizeof(SLAB_OBJ_TYPE) - sizeof(LIST_TYPE(slab_obj)) + SLAB_DEBUG_SIZE + \
+              SLAB_CANARY_SIZE),                                                      \
              MIN_MALLOC_ALIGNMENT)
 
 #ifndef SLAB_LEVEL
@@ -125,22 +126,19 @@ struct slab_debug {
 #endif
 
 #ifndef SLAB_LEVEL_SIZES
-# define SLAB_LEVEL_SIZES  16, 32, 64,           \
-                           128  - SLAB_HDR_SIZE, \
-                           256  - SLAB_HDR_SIZE, \
-                           512  - SLAB_HDR_SIZE, \
-                           1024 - SLAB_HDR_SIZE, \
-                           2048 - SLAB_HDR_SIZE
-# define SLAB_LEVELS_SUM  (4080 - SLAB_HDR_SIZE * 5)
+#define SLAB_LEVEL_SIZES                                                       \
+    16, 32, 64, 128 - SLAB_HDR_SIZE, 256 - SLAB_HDR_SIZE, 512 - SLAB_HDR_SIZE, \
+        1024 - SLAB_HDR_SIZE, 2048 - SLAB_HDR_SIZE
+#define SLAB_LEVELS_SUM (4080 - SLAB_HDR_SIZE * 5)
 #else
-# ifndef SLAB_LEVELS_SUM
-# error "SALB_LEVELS_SUM not defined"
-# endif
+#ifndef SLAB_LEVELS_SUM
+#error "SALB_LEVELS_SUM not defined"
+#endif
 #endif
 
 // User buffer sizes on each level (not counting mandatory header
 // (SLAB_HDR_SIZE)).
-static const size_t slab_levels[SLAB_LEVEL] = { SLAB_LEVEL_SIZES };
+static const size_t slab_levels[SLAB_LEVEL] = {SLAB_LEVEL_SIZES};
 
 DEFINE_LISTP(slab_obj);
 DEFINE_LISTP(slab_area);
@@ -148,9 +146,10 @@ typedef struct slab_mgr {
     LISTP_TYPE(slab_area) area_list[SLAB_LEVEL];
     LISTP_TYPE(slab_obj) free_list[SLAB_LEVEL];
     size_t size[SLAB_LEVEL];
-    void * addr[SLAB_LEVEL], * addr_top[SLAB_LEVEL];
+    void* addr[SLAB_LEVEL];
+    void* addr_top[SLAB_LEVEL];
     SLAB_AREA active_area[SLAB_LEVEL];
-} SLAB_MGR_TYPE, * SLAB_MGR;
+} SLAB_MGR_TYPE, *SLAB_MGR;
 
 typedef struct __attribute__((packed)) large_mem_obj {
     // offset 0
@@ -161,55 +160,45 @@ typedef struct __attribute__((packed)) large_mem_obj {
     unsigned char padding[OBJ_PADDING];
     // offset 32
     unsigned char raw[];
-} LARGE_MEM_OBJ_TYPE, * LARGE_MEM_OBJ;
+} LARGE_MEM_OBJ_TYPE, *LARGE_MEM_OBJ;
 
 #define OBJ_LEVEL(obj) ((obj)->level)
-#define OBJ_RAW(obj) (&(obj)->raw)
+#define OBJ_RAW(obj)   (&(obj)->raw)
 
-#define RAW_TO_LEVEL(raw_ptr) \
-            (*((const unsigned char*)(raw_ptr) - OBJ_PADDING - 1))
+#define RAW_TO_LEVEL(raw_ptr)     (*((const unsigned char*)(raw_ptr) - OBJ_PADDING - 1))
 #define RAW_TO_OBJ(raw_ptr, type) container_of((raw_ptr), type, raw)
 
-#define __SUM_OBJ_SIZE(slab_size, size) \
-            (((slab_size) + SLAB_HDR_SIZE) * (size))
-#define __MIN_MEM_SIZE() (sizeof(SLAB_AREA_TYPE))
-#define __MAX_MEM_SIZE(slab_size, size) \
-            (__MIN_MEM_SIZE() + __SUM_OBJ_SIZE((slab_size), (size)))
+#define __SUM_OBJ_SIZE(slab_size, size) (((slab_size) + SLAB_HDR_SIZE) * (size))
+#define __MIN_MEM_SIZE()                (sizeof(SLAB_AREA_TYPE))
+#define __MAX_MEM_SIZE(slab_size, size) (__MIN_MEM_SIZE() + __SUM_OBJ_SIZE((slab_size), (size)))
 
-#define __INIT_SUM_OBJ_SIZE(size) \
-            ((SLAB_LEVELS_SUM + SLAB_HDR_SIZE * SLAB_LEVEL) * (size))
-#define __INIT_MIN_MEM_SIZE() \
-            (sizeof(SLAB_MGR_TYPE) + sizeof(SLAB_AREA_TYPE) * SLAB_LEVEL)
-#define __INIT_MAX_MEM_SIZE(size) \
-            (__INIT_MIN_MEM_SIZE() + __INIT_SUM_OBJ_SIZE(size))
+#define __INIT_SUM_OBJ_SIZE(size) ((SLAB_LEVELS_SUM + SLAB_HDR_SIZE * SLAB_LEVEL) * (size))
+#define __INIT_MIN_MEM_SIZE()     (sizeof(SLAB_MGR_TYPE) + sizeof(SLAB_AREA_TYPE) * SLAB_LEVEL)
+#define __INIT_MAX_MEM_SIZE(size) (__INIT_MIN_MEM_SIZE() + __INIT_SUM_OBJ_SIZE(size))
 
 #ifdef PAGE_SIZE
-static inline int size_align_down(int slab_size, int size)
-{
+static inline int size_align_down(int slab_size, int size) {
     int s = __MAX_MEM_SIZE(slab_size, size);
     int p = s - (s & ~(PAGE_SIZE - 1));
     int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int size_align_up(int slab_size, int size)
-{
+static inline int size_align_up(int slab_size, int size) {
     int s = __MAX_MEM_SIZE(slab_size, size);
     int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
     int o = __SUM_OBJ_SIZE(slab_size, 1);
     return size + p / o;
 }
 
-static inline int init_align_down(int size)
-{
+static inline int init_align_down(int size) {
     int s = __INIT_MAX_MEM_SIZE(size);
     int p = s - (s & ~(PAGE_SIZE - 1));
     int o = __INIT_SUM_OBJ_SIZE(1);
-    return size - p /o - (p % o ? 1 : 0);
+    return size - p / o - (p % o ? 1 : 0);
 }
 
-static inline int init_size_align_up(int size)
-{
+static inline int init_size_align_up(int size) {
     int s = __INIT_MAX_MEM_SIZE(size);
     int p = ((s + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) - s;
     int o = __INIT_SUM_OBJ_SIZE(1);
@@ -218,27 +207,24 @@ static inline int init_size_align_up(int size)
 #endif /* PAGE_SIZE */
 
 #ifndef STARTUP_SIZE
-# define STARTUP_SIZE 16
+#define STARTUP_SIZE 16
 #endif
 
-static inline void __set_free_slab_area (SLAB_AREA area, SLAB_MGR mgr,
-                                         int level)
-{
-    int slab_size = slab_levels[level] + SLAB_HDR_SIZE;
-    mgr->addr[level] = (void *) area->raw;
-    mgr->addr_top[level] = (void *) area->raw + (area->size * slab_size);
+static inline void __set_free_slab_area(SLAB_AREA area, SLAB_MGR mgr, int level) {
+    int slab_size        = slab_levels[level] + SLAB_HDR_SIZE;
+    mgr->addr[level]     = (void*)area->raw;
+    mgr->addr_top[level] = (void*)area->raw + (area->size * slab_size);
     mgr->size[level] += area->size;
     mgr->active_area[level] = area;
 }
 
-static inline SLAB_MGR create_slab_mgr (void)
-{
+static inline SLAB_MGR create_slab_mgr(void) {
 #ifdef PAGE_SIZE
     size_t size = init_size_align_up(STARTUP_SIZE);
 #else
     size_t size = STARTUP_SIZE;
 #endif
-    void * mem = NULL;
+    void* mem = NULL;
     SLAB_AREA area;
     SLAB_MGR mgr;
 
@@ -252,12 +238,12 @@ static inline SLAB_MGR create_slab_mgr (void)
     if (!mem)
         return NULL;
 
-    mgr = (SLAB_MGR) mem;
+    mgr = (SLAB_MGR)mem;
 
-    void * addr = (void *) mgr + sizeof(SLAB_MGR_TYPE);
+    void* addr = (void*)mgr + sizeof(SLAB_MGR_TYPE);
     int i;
-    for (i = 0 ; i < SLAB_LEVEL ; i++) {
-        area = (SLAB_AREA) addr;
+    for (i = 0; i < SLAB_LEVEL; i++) {
+        area       = (SLAB_AREA)addr;
         area->size = size;
 
         INIT_LIST_HEAD(area, __list);
@@ -274,29 +260,26 @@ static inline SLAB_MGR create_slab_mgr (void)
     return mgr;
 }
 
-static inline void destroy_slab_mgr (SLAB_MGR mgr)
-{
-    void * addr = (void *) mgr + sizeof(SLAB_MGR_TYPE);
+static inline void destroy_slab_mgr(SLAB_MGR mgr) {
+    void* addr = (void*)mgr + sizeof(SLAB_MGR_TYPE);
     SLAB_AREA area, tmp, n;
     int i;
-    for (i = 0 ; i < SLAB_LEVEL; i++) {
-        area = (SLAB_AREA) addr;
+    for (i = 0; i < SLAB_LEVEL; i++) {
+        area = (SLAB_AREA)addr;
 
         LISTP_FOR_EACH_ENTRY_SAFE(tmp, n, &mgr->area_list[i], __list) {
             if (tmp != area)
-                system_free(area,
-                            __MAX_MEM_SIZE(slab_levels[i], area->size));
+                system_free(area, __MAX_MEM_SIZE(slab_levels[i], area->size));
         }
 
         addr += __MAX_MEM_SIZE(slab_levels[i], STARTUP_SIZE);
     }
 
-    system_free(mgr, addr - (void *) mgr);
+    system_free(mgr, addr - (void*)mgr);
 }
 
 // SYSTEM_LOCK needs to be held by the caller on entry.
-static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
-{
+static inline int enlarge_slab_mgr(SLAB_MGR mgr, int level) {
     assert(level < SLAB_LEVEL);
     /* DEP 11/24/17: This strategy basically doubles a level's size
      * every time it grows.  The assumption if we get this far is that
@@ -319,7 +302,7 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
 
     /* If the allocation failed, always try smaller sizes */
     for (; size > 0; size >>= 1) {
-        area = (SLAB_AREA) system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
+        area = (SLAB_AREA)system_malloc(__MAX_MEM_SIZE(slab_levels[level], size));
         if (area)
             break;
     }
@@ -344,34 +327,31 @@ static inline int enlarge_slab_mgr (SLAB_MGR mgr, int level)
     return 0;
 }
 
-static inline void * slab_alloc (SLAB_MGR mgr, size_t size)
-{
+static inline void* slab_alloc(SLAB_MGR mgr, size_t size) {
     SLAB_OBJ mobj;
     int i;
     int level = -1;
 
-    for (i = 0 ; i < SLAB_LEVEL ; i++)
+    for (i = 0; i < SLAB_LEVEL; i++)
         if (size <= slab_levels[i]) {
             level = i;
             break;
         }
 
     if (level == -1) {
-        LARGE_MEM_OBJ mem = (LARGE_MEM_OBJ)
-                            system_malloc(sizeof(LARGE_MEM_OBJ_TYPE) + size);
+        LARGE_MEM_OBJ mem = (LARGE_MEM_OBJ)system_malloc(sizeof(LARGE_MEM_OBJ_TYPE) + size);
         if (!mem)
             return NULL;
 
-        mem->size = size;
-        OBJ_LEVEL(mem) = (unsigned char) -1;
+        mem->size      = size;
+        OBJ_LEVEL(mem) = (unsigned char)-1;
 
         return OBJ_RAW(mem);
     }
 
     SYSTEM_LOCK();
     assert(mgr->addr[level] <= mgr->addr_top[level]);
-    if (mgr->addr[level] == mgr->addr_top[level] &&
-          LISTP_EMPTY(&mgr->free_list[level])) {
+    if (mgr->addr[level] == mgr->addr_top[level] && LISTP_EMPTY(&mgr->free_list[level])) {
         int ret = enlarge_slab_mgr(mgr, level);
         if (ret < 0) {
             SYSTEM_UNLOCK();
@@ -383,7 +363,7 @@ static inline void * slab_alloc (SLAB_MGR mgr, size_t size)
         mobj = LISTP_FIRST_ENTRY(&mgr->free_list[level], SLAB_OBJ_TYPE, __list);
         LISTP_DEL(mobj, &mgr->free_list[level], __list);
     } else {
-        mobj = (void *) mgr->addr[level];
+        mobj = (void*)mgr->addr[level];
         mgr->addr[level] += slab_levels[level] + SLAB_HDR_SIZE;
     }
     assert(mgr->addr[level] <= mgr->addr_top[level]);
@@ -391,32 +371,28 @@ static inline void * slab_alloc (SLAB_MGR mgr, size_t size)
     SYSTEM_UNLOCK();
 
 #ifdef SLAB_CANARY
-    unsigned long * m =
-            (unsigned long *) ((void *) OBJ_RAW(mobj) + slab_levels[level]);
-    *m = SLAB_CANARY_STRING;
+    unsigned long* m = (unsigned long*)((void*)OBJ_RAW(mobj) + slab_levels[level]);
+    *m               = SLAB_CANARY_STRING;
 #endif
 
     return OBJ_RAW(mobj);
 }
 
 #ifdef SLAB_DEBUG
-static inline void * slab_alloc_debug (SLAB_MGR mgr, size_t size,
-                                       const char * file, int line)
-{
-    void * mem = slab_alloc(mgr, size);
+static inline void* slab_alloc_debug(SLAB_MGR mgr, size_t size, const char* file, int line) {
+    void* mem = slab_alloc(mgr, size);
     int i;
     int level = -1;
 
-    for (i = 0 ; i < SLAB_LEVEL ; i++)
+    for (i = 0; i < SLAB_LEVEL; i++)
         if (size <= slab_levels[i]) {
             level = i;
             break;
         }
 
     if (level != -1) {
-        struct slab_debug * debug =
-                (struct slab_debug *) (mem + slab_levels[level] +
-                                       SLAB_CANARY_SIZE);
+        struct slab_debug* debug =
+            (struct slab_debug*)(mem + slab_levels[level] + SLAB_CANARY_SIZE);
         debug->alloc.file = file;
         debug->alloc.line = line;
     }
@@ -426,13 +402,12 @@ static inline void * slab_alloc_debug (SLAB_MGR mgr, size_t size,
 #endif
 
 // Returns user buffer size (i.e. excluding size of control structures).
-static inline size_t slab_get_buf_size(const void * ptr)
-{
+static inline size_t slab_get_buf_size(const void* ptr) {
     assert(ptr);
 
     unsigned char level = RAW_TO_LEVEL(ptr);
 
-    if (level == (unsigned char) -1) {
+    if (level == (unsigned char)-1) {
         LARGE_MEM_OBJ mem = RAW_TO_OBJ(ptr, LARGE_MEM_OBJ_TYPE);
         return mem->size;
     }
@@ -443,15 +418,14 @@ static inline size_t slab_get_buf_size(const void * ptr)
     }
 
 #ifdef SLAB_CANARY
-    const unsigned long * m = (const unsigned long *)(ptr + slab_levels[level]);
+    const unsigned long* m = (const unsigned long*)(ptr + slab_levels[level]);
     assert((*m) == SLAB_CANARY_STRING);
 #endif
 
     return slab_levels[level];
 }
 
-static inline void slab_free (SLAB_MGR mgr, void * obj)
-{
+static inline void slab_free(SLAB_MGR mgr, void* obj) {
     /* In a general purpose allocator, free of NULL is allowed (and is a
      * nop). We might want to enforce stricter rules for our allocator if
      * we're sure that no clients rely on being able to free NULL. */
@@ -460,7 +434,7 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
 
     unsigned char level = RAW_TO_LEVEL(obj);
 
-    if (level == (unsigned char) -1) {
+    if (level == (unsigned char)-1) {
         LARGE_MEM_OBJ mem = RAW_TO_OBJ(obj, LARGE_MEM_OBJ_TYPE);
         system_free(mem, mem->size + sizeof(LARGE_MEM_OBJ_TYPE));
         return;
@@ -479,7 +453,7 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
     }
 
 #ifdef SLAB_CANARY
-    unsigned long * m = (unsigned long *) (obj + slab_levels[level]);
+    unsigned long* m = (unsigned long*)(obj + slab_levels[level]);
     assert((*m) == SLAB_CANARY_STRING);
 #endif
 
@@ -492,18 +466,15 @@ static inline void slab_free (SLAB_MGR mgr, void * obj)
 }
 
 #ifdef SLAB_DEBUG
-static inline void slab_free_debug (SLAB_MGR mgr, void * obj,
-                                    const char * file, int line)
-{
+static inline void slab_free_debug(SLAB_MGR mgr, void* obj, const char* file, int line) {
     if (!obj)
         return;
 
     unsigned char level = RAW_TO_LEVEL(obj);
 
-    if (level < SLAB_LEVEL && level != (unsigned char) -1) {
-        struct slab_debug * debug =
-                (struct slab_debug *) (obj + slab_levels[level] +
-                                       SLAB_CANARY_SIZE);
+    if (level < SLAB_LEVEL && level != (unsigned char)-1) {
+        struct slab_debug* debug =
+            (struct slab_debug*)(obj + slab_levels[level] + SLAB_CANARY_SIZE);
         debug->free.file = file;
         debug->free.line = line;
     }

@@ -20,30 +20,26 @@
  * Implementation of system call "wait4".
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_table.h>
-#include <shim_thread.h>
-#include <shim_profile.h>
-
+#include <asm/prctl.h>
+#include <errno.h>
+#include <linux/wait.h>
 #include <pal.h>
 #include <pal_error.h>
-
-#include <sys/syscall.h>
+#include <shim_internal.h>
+#include <shim_profile.h>
+#include <shim_table.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 #include <sys/mman.h>
-#include <asm/prctl.h>
-#include <linux/wait.h>
-#include <errno.h>
+#include <sys/syscall.h>
 
 DEFINE_PROFILE_CATEGORY(wait, );
 DEFINE_PROFILE_INTERVAL(child_exit_notification, wait);
 
-pid_t shim_do_wait4 (pid_t pid, int * status, int option,
-                     struct __kernel_rusage * ru)
-{
-    struct shim_thread * cur = get_cur_thread();
-    struct shim_thread * thread = NULL;
-    int ret = 0;
+pid_t shim_do_wait4(pid_t pid, int* status, int option, struct __kernel_rusage* ru) {
+    struct shim_thread* cur    = get_cur_thread();
+    struct shim_thread* thread = NULL;
+    int ret                    = 0;
     __UNUSED(ru);
 
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
@@ -53,7 +49,7 @@ pid_t shim_do_wait4 (pid_t pid, int * status, int option,
             return -ECHILD;
 
         if (!(option & WNOHANG)) {
-block_pid:
+        block_pid:
             object_wait_with_retry(thread->exit_event);
         }
 
@@ -69,7 +65,7 @@ block_pid:
 
         if (!LIST_EMPTY(thread, siblings)) {
             debug("reaping thread %p\n", thread);
-            struct shim_thread * parent = thread->parent;
+            struct shim_thread* parent = thread->parent;
             assert(parent);
 
             lock(&parent->lock);
@@ -89,14 +85,13 @@ block_pid:
 
     lock(&cur->lock);
 
-    if (LISTP_EMPTY(&cur->children) &&
-        LISTP_EMPTY(&cur->exited_children)) {
+    if (LISTP_EMPTY(&cur->children) && LISTP_EMPTY(&cur->exited_children)) {
         unlock(&cur->lock);
         return -ECHILD;
     }
 
     if (!(option & WNOHANG)) {
-block:
+    block:
         if (cur->child_exit_event)
             while (LISTP_EMPTY(&cur->exited_children)) {
                 unlock(&cur->lock);
@@ -109,16 +104,16 @@ block:
         if (pid == 0)
             pid = -cur->pgid;
 
-        LISTP_FOR_EACH_ENTRY(thread, &cur->exited_children, siblings)
-            if (thread->pgid == (IDTYPE) -pid)
+        LISTP_FOR_EACH_ENTRY(thread, &cur->exited_children, siblings) {
+            if (thread->pgid == (IDTYPE)-pid)
                 goto found_child;
+        }
 
         if (!(option & WNOHANG))
             goto block;
     } else {
         if (!LISTP_EMPTY(&cur->exited_children)) {
-            thread = LISTP_FIRST_ENTRY(&cur->exited_children,
-                                       struct shim_thread, siblings);
+            thread = LISTP_FIRST_ENTRY(&cur->exited_children, struct shim_thread, siblings);
             goto found_child;
         }
     }
