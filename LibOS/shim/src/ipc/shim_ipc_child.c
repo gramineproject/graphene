@@ -21,16 +21,15 @@
  * processes and their children.
  */
 
-#include <shim_internal.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_ipc.h>
-#include <shim_utils.h>
-#include <shim_profile.h>
-
+#include <errno.h>
 #include <pal.h>
 #include <pal_error.h>
-#include <errno.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_ipc.h>
+#include <shim_profile.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 
 struct thread_info {
     IDTYPE vmid;
@@ -38,11 +37,12 @@ struct thread_info {
     unsigned int term_signal;
 };
 
-/* walk_simple_thread_list callback; exit each simple thread of child process vmid. */
+/* walk_simple_thread_list callback; exit each simple thread of child process
+ * vmid. */
 static int child_sthread_exit(struct shim_simple_thread* thread, void* arg, bool* unlocked) {
     __UNUSED(unlocked); /* FYI: notifies about unlocked thread_list_lock */
 
-    struct thread_info* info = (struct thread_info *) arg;
+    struct thread_info* info = (struct thread_info*)arg;
     int found_exiting_thread = 0;
 
     lock(&thread->lock);
@@ -50,9 +50,9 @@ static int child_sthread_exit(struct shim_simple_thread* thread, void* arg, bool
         found_exiting_thread = 1;
 
         if (thread->is_alive) {
-            thread->exit_code = -info->exitcode;
+            thread->exit_code   = -info->exitcode;
             thread->term_signal = info->term_signal;
-            thread->is_alive = false;
+            thread->is_alive    = false;
 
             /* arrange exit event for subsequent wait4(thread->tid) */
             DkEventSet(thread->exit_event);
@@ -66,7 +66,7 @@ static int child_sthread_exit(struct shim_simple_thread* thread, void* arg, bool
 static int child_thread_exit(struct shim_thread* thread, void* arg, bool* unlocked) {
     __UNUSED(unlocked); /* FYI: notifies about unlocked thread_list_lock */
 
-    struct thread_info* info = (struct thread_info *) arg;
+    struct thread_info* info = (struct thread_info*)arg;
     int found_exiting_thread = 0;
 
     lock(&thread->lock);
@@ -74,7 +74,7 @@ static int child_thread_exit(struct shim_thread* thread, void* arg, bool* unlock
         found_exiting_thread = 1;
 
         if (thread->is_alive) {
-            thread->exit_code = -info->exitcode;
+            thread->exit_code   = -info->exitcode;
             thread->term_signal = info->term_signal;
             unlock(&thread->lock);
 
@@ -108,7 +108,7 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
      *       we previously sent SIGINT/SIGTERM/SIGKILL to this child and
      *       use the corresponding termination signal. For now, we simply
      *       report that child process was killed by SIGKILL. */
-    struct thread_info info = { .vmid = vmid, .exitcode = exitcode, .term_signal = SIGKILL };
+    struct thread_info info = {.vmid = vmid, .exitcode = exitcode, .term_signal = SIGKILL};
 
     /* message cannot come from our own threads (from ourselves as process) */
     assert(vmid != cur_process.vmid);
@@ -121,8 +121,10 @@ void ipc_port_with_child_fini(struct shim_ipc_port* port, IDTYPE vmid, unsigned 
     if ((ret = walk_simple_thread_list(&child_sthread_exit, &info)) > 0)
         exited_threads_cnt += ret;
 
-    debug("Child process %u got disconnected: assuming that child exited and "
-          "forcing %d of its threads to exit\n", vmid & 0xFFFF, exited_threads_cnt);
+    debug(
+        "Child process %u got disconnected: assuming that child exited and "
+        "forcing %d of its threads to exit\n",
+        vmid & 0xFFFF, exited_threads_cnt);
 }
 
 DEFINE_PROFILE_INTERVAL(ipc_cld_exit_turnaround, ipc);
@@ -137,23 +139,23 @@ int ipc_cld_exit_send(IDTYPE ppid, IDTYPE tid, unsigned int exitcode, unsigned i
     __attribute__((unused)) unsigned long send_time = GET_PROFILE_INTERVAL();
     BEGIN_PROFILE_INTERVAL_SET(send_time);
 
-    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
+    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_cld_exit));
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_CLD_EXIT, total_msg_size, 0);
 
-    struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit *) &msg->msg;
-    msgin->ppid        = ppid;
-    msgin->tid         = tid;
-    msgin->exitcode    = exitcode;
-    msgin->term_signal = term_signal;
+    struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
+    msgin->ppid                     = ppid;
+    msgin->tid                      = tid;
+    msgin->exitcode                 = exitcode;
+    msgin->term_signal              = term_signal;
 #ifdef PROFILE
-    msgin->time        = send_time;
+    msgin->time = send_time;
 #endif
 
-    debug("IPC broadcast: IPC_CLD_EXIT(%u, %u, %d, %u)\n",
-          ppid, tid, exitcode, term_signal);
+    debug("IPC broadcast: IPC_CLD_EXIT(%u, %u, %d, %u)\n", ppid, tid, exitcode, term_signal);
 
-    int ret = broadcast_ipc(msg, IPC_PORT_DIRPRT|IPC_PORT_DIRCLD, /*exclude_port=*/NULL);
+    int ret = broadcast_ipc(msg, IPC_PORT_DIRPRT | IPC_PORT_DIRCLD,
+                            /*exclude_port=*/NULL);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_send);
     return ret;
 }
@@ -173,7 +175,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     __UNUSED(port);
     int ret = 0;
 
-    struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit *) &msg->msg;
+    struct shim_ipc_cld_exit* msgin = (struct shim_ipc_cld_exit*)&msg->msg;
 
 #ifdef PROFILE
     unsigned long time = msgin->time;
@@ -183,8 +185,8 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
     BEGIN_PROFILE_INTERVAL_SET(time);
     SAVE_PROFILE_INTERVAL(ipc_cld_exit_turnaround);
 
-    debug("IPC callback from %u: IPC_CLD_EXIT(%u, %u, %d, %u)\n",
-          msg->src & 0xFFFF, msgin->ppid, msgin->tid, msgin->exitcode, msgin->term_signal);
+    debug("IPC callback from %u: IPC_CLD_EXIT(%u, %u, %d, %u)\n", msg->src & 0xFFFF, msgin->ppid,
+          msgin->tid, msgin->exitcode, msgin->term_signal);
 
     /* message cannot come from our own threads (from ourselves as process) */
     assert(msg->src != cur_process.vmid);
@@ -216,7 +218,7 @@ int ipc_cld_exit_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) 
         struct shim_simple_thread* sthread = lookup_simple_thread(msgin->tid);
 
         if (!sthread) {
-            sthread = get_new_simple_thread();
+            sthread       = get_new_simple_thread();
             sthread->vmid = msg->src;
             sthread->tid  = msgin->tid;
             add_simple_thread(sthread);
@@ -244,7 +246,7 @@ DEFINE_PROFILE_INTERVAL(ipc_send_profile, ipc);
 #ifdef PROFILE
 int ipc_cld_profile_send(void) {
     struct shim_ipc_port* port = NULL;
-    IDTYPE dest = (IDTYPE)-1;
+    IDTYPE dest                = (IDTYPE)-1;
 
     /* port and dest are initialized to parent process */
     lock(&cur_process.lock);
@@ -258,9 +260,8 @@ int ipc_cld_profile_send(void) {
         return -ESRCH;
 
     unsigned long time = GET_PROFILE_INTERVAL();
-    size_t nsending = 0;
-    for (size_t i = 0; i < N_PROFILE; i++)
-        switch (PROFILES[i].type) {
+    size_t nsending    = 0;
+    for (size_t i = 0; i < N_PROFILE; i++) switch (PROFILES[i].type) {
             case OCCURENCE:
                 if (atomic_read(&PROFILES[i].val.occurence.count))
                     nsending++;
@@ -273,20 +274,19 @@ int ipc_cld_profile_send(void) {
                 break;
         }
 
-    size_t total_msg_size = get_ipc_msg_size(sizeof(struct shim_ipc_cld_profile) +
+    size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_cld_profile) +
                                              sizeof(struct profile_val) * nsending);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
     init_ipc_msg(msg, IPC_CLD_PROFILE, total_msg_size, dest);
 
-    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile *)&msg->msg;
+    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile*)&msg->msg;
 
     size_t nsent = 0;
-    for (size_t i = 0; i < N_PROFILE && nsent < nsending; i++)
-        switch (PROFILES[i].type) {
+    for (size_t i = 0; i < N_PROFILE && nsent < nsending; i++) switch (PROFILES[i].type) {
             case OCCURENCE: {
                 unsigned long count = atomic_read(&PROFILES[i].val.occurence.count);
                 if (count) {
-                    msgin->profile[nsent].idx = i + 1;
+                    msgin->profile[nsent].idx                 = i + 1;
                     msgin->profile[nsent].val.occurence.count = count;
                     debug("Send %s: %lu times\n", PROFILES[i].name, count);
                     nsent++;
@@ -296,12 +296,12 @@ int ipc_cld_profile_send(void) {
             case INTERVAL: {
                 unsigned long count = atomic_read(&PROFILES[i].val.interval.count);
                 if (count) {
-                    msgin->profile[nsent].idx = i + 1;
+                    msgin->profile[nsent].idx                = i + 1;
                     msgin->profile[nsent].val.interval.count = count;
                     msgin->profile[nsent].val.interval.time =
                         atomic_read(&PROFILES[i].val.interval.time);
-                    debug("Send %s: %lu times, %lu msec\n", PROFILES[i].name,
-                          count, msgin->profile[nsent].val.interval.time);
+                    debug("Send %s: %lu times, %lu msec\n", PROFILES[i].name, count,
+                          msgin->profile[nsent].val.interval.time);
                     nsent++;
                 }
                 break;
@@ -310,7 +310,7 @@ int ipc_cld_profile_send(void) {
                 break;
         }
 
-    msgin->time = time;
+    msgin->time     = time;
     msgin->nprofile = nsent;
 
     debug("IPC send to %u: IPC_CLD_PROFILE\n", dest & 0xFFFF);
@@ -323,7 +323,7 @@ int ipc_cld_profile_send(void) {
 int ipc_cld_profile_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* port) {
     debug("IPC callback from %u: IPC_CLD_PROFILE\n", msg->src & 0xFFFF);
 
-    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile *)&msg->msg;
+    struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile*)&msg->msg;
 
     for (int i = 0; i < msgin->nprofile; i++) {
         int idx = msgin->profile[i].idx;
@@ -339,12 +339,9 @@ int ipc_cld_profile_callback(struct shim_ipc_msg* msg, struct shim_ipc_port* por
                 break;
             case INTERVAL:
                 debug("Receive %s: %u times, %lu msec\n", PROFILES[idx].name,
-                      msgin->profile[i].val.interval.count,
-                      msgin->profile[i].val.interval.time);
-                atomic_add(msgin->profile[i].val.interval.count,
-                           &PROFILES[idx].val.interval.count);
-                atomic_add(msgin->profile[i].val.interval.time,
-                           &PROFILES[idx].val.interval.time);
+                      msgin->profile[i].val.interval.count, msgin->profile[i].val.interval.time);
+                atomic_add(msgin->profile[i].val.interval.count, &PROFILES[idx].val.interval.count);
+                atomic_add(msgin->profile[i].val.interval.time, &PROFILES[idx].val.interval.time);
                 break;
             case CATEGORY:
                 break;

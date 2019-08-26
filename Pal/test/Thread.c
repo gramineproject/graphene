@@ -2,8 +2,7 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-int thread_1 (void * args)
-{
+int thread_1(void* args) {
     pal_printf("Enter Thread 1\n");
 
     DkThreadDelayExecution(3000);
@@ -12,8 +11,7 @@ int thread_1 (void * args)
     return 0;
 }
 
-int thread_2 (void * args)
-{
+int thread_2(void* args) {
     pal_printf("Enter Thread 2\n");
     pal_printf("Parent do suspension\n");
 
@@ -46,4 +44,3 @@ int main() {
     pal_printf("Leave Main Thread\n");
     return 0;
 }
-

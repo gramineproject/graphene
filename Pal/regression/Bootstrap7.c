@@ -1,7 +1,6 @@
 #include "pal_debug.h"
 
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     /* check if the programriables in the manifest should appear  is loaded */
     pal_printf("User Program Started\n");
 

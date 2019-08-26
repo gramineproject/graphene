@@ -22,6 +22,8 @@
  * "dev:".
  */
 
+#include <linux/types.h>
+
 #include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
@@ -30,8 +32,6 @@
 #include "pal_internal.h"
 #include "pal_linux.h"
 #include "pal_linux_defs.h"
-
-#include <linux/types.h>
 typedef __kernel_pid_t pid_t;
 #include <asm/errno.h>
 #include <asm/fcntl.h>
@@ -51,7 +51,8 @@ enum {
 static struct handle_ops term_ops;
 
 static const struct handle_ops* pal_device_ops[PAL_DEVICE_TYPE_BOUND] = {
-    NULL, &term_ops,
+    NULL,
+    &term_ops,
 };
 
 /* parse_device_uri scans the uri, parses the prefix of the uri and searches
@@ -115,8 +116,7 @@ static int term_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     if (!strcmp_static(type, "tty"))
         return -PAL_ERROR_INVAL;
 
-    if (!WITHIN_MASK(share, PAL_SHARE_MASK) ||
-        !WITHIN_MASK(create, PAL_CREATE_MASK) ||
+    if (!WITHIN_MASK(share, PAL_SHARE_MASK) || !WITHIN_MASK(create, PAL_CREATE_MASK) ||
         !WITHIN_MASK(options, PAL_OPTION_MASK))
         return -PAL_ERROR_INVAL;
 
@@ -147,8 +147,7 @@ static int term_close(PAL_HANDLE handle) {
 }
 
 /* 'attrquery' operation for terminal stream */
-static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr)
-{
+static int term_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* attr) {
     __UNUSED(uri);
 
     if (!strcmp_static(type, "tty"))
@@ -224,7 +223,7 @@ static int dev_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
         return -PAL_ERROR_INVAL;
 
     struct handle_ops* ops = NULL;
-    char* dev_type   = NULL;
+    char* dev_type         = NULL;
     int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);
@@ -313,7 +312,7 @@ static int dev_delete(PAL_HANDLE handle, int access) {
     if (ret < 0)
         return ret;
 
-    return ops->delete (handle, access);
+    return ops->delete(handle, access);
 }
 
 /* 'flush' operation for device streams */
@@ -361,7 +360,7 @@ static int dev_attrquery(const char* type, const char* uri, PAL_STREAM_ATTR* att
         return -PAL_ERROR_INVAL;
 
     struct handle_ops* ops = NULL;
-    char* dev_type   = NULL;
+    char* dev_type         = NULL;
     int ret                = 0;
 
     ret = parse_device_uri(&uri, &dev_type, &ops);

@@ -27,9 +27,9 @@
    dynamic section has a DT_DEBUG element, the run-time linker sets that
    element's value to the address where this structure can be found.  */
 struct r_debug {
-    int r_version;           /* Version number for this protocol.  */
+    int r_version; /* Version number for this protocol.  */
 
-    struct link_map * r_map; /* Head of the chain of loaded objects.  */
+    struct link_map* r_map; /* Head of the chain of loaded objects.  */
 
     /* This is the address of a function internal to the run-time linker,
        that will always be called when the linker begins to map in a
@@ -40,15 +40,15 @@ struct r_debug {
     enum {
         /* This state value describes the mapping change taking place when
            the `r_brk' address is called.  */
-        RT_CONSISTENT,  /* Mapping change is complete.  */
-        RT_ADD,         /* Beginning to add a new object.  */
-        RT_DELETE       /* Beginning to remove an object mapping.  */
+        RT_CONSISTENT, /* Mapping change is complete.  */
+        RT_ADD,        /* Beginning to add a new object.  */
+        RT_DELETE      /* Beginning to remove an object mapping.  */
     } r_state;
 
-    ElfW(Addr) r_ldbase;    /* Base address the linker is loaded at.  */
+    ElfW(Addr) r_ldbase; /* Base address the linker is loaded at.  */
 };
 
-void pal_dl_debug_state (void);
+void pal_dl_debug_state(void);
 
 /* This structure communicates dl state to the debugger.  The debugger
    normally finds it via the DT_DEBUG entry in the dynamic section, but in
@@ -59,20 +59,20 @@ symbol_version_default(pal_r_debug, _r_debug, PAL);
 
 extern struct pal_sec {
     /* system variables */
-    unsigned int    process_id;
-    int             random_device;
+    unsigned int process_id;
+    int random_device;
 
     /* pipes and sockets */
-    unsigned long   pipe_prefix_id;
-    unsigned short  mcast_port;
+    unsigned long pipe_prefix_id;
+    unsigned short mcast_port;
 
     /* for debugger */
-    void (*_dl_debug_state) (void);
-    struct r_debug * _r_debug;
+    void (*_dl_debug_state)(void);
+    struct r_debug* _r_debug;
 } pal_sec;
 
-#define PROC_INIT_FD    255
+#define PROC_INIT_FD 255
 
-#define RANDGEN_DEVICE          "/dev/urandom"
+#define RANDGEN_DEVICE "/dev/urandom"
 
 #endif /* PAL_SECURITY_H */

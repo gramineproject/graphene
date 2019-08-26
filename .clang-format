@@ -1,5 +1,6 @@
 BasedOnStyle: Google
 AlignConsecutiveAssignments: true
+AlignConsecutiveMacros: true
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: false
 ColumnLimit:     100

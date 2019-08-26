@@ -25,16 +25,15 @@
  * at creation.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_debug.h"
-#include "pal_error.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
 PAL_HANDLE
-DkProcessCreate (PAL_STR uri, PAL_STR * args)
-{
+DkProcessCreate(PAL_STR uri, PAL_STR* args) {
     ENTER_PAL_CALL(DkProcessCreate);
 
     /* DEP 3/22/17: There seems to be a default semantics that
@@ -47,7 +46,7 @@ DkProcessCreate (PAL_STR uri, PAL_STR * args)
     log_stream(uri);
 
     PAL_HANDLE handle = NULL;
-    int ret = _DkProcessCreate(&handle, uri, args);
+    int ret           = _DkProcessCreate(&handle, uri, args);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -58,12 +57,11 @@ DkProcessCreate (PAL_STR uri, PAL_STR * args)
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-noreturn void DkProcessExit (PAL_NUM exitcode)
-{
+noreturn void DkProcessExit(PAL_NUM exitcode) {
     ENTER_PAL_CALL(DkProcessExit);
     _DkProcessExit(exitcode);
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
-    while (true)
-        /* nothing */;
+    while (true) /* nothing */
+        ;
     LEAVE_PAL_CALL();
 }

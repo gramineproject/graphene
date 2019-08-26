@@ -1,15 +1,14 @@
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <signal.h>
 #include <time.h>
+#include <unistd.h>
 
 int kill_parent = 0;
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     if (argc == 2 && !strcmp("parent", argv[1]))
         kill_parent = 1;
 
@@ -23,7 +22,7 @@ int main(int argc, char ** argv)
 
     if (pid == 0) {
         struct timespec rem;
-        rem.tv_sec = kill_parent ? 1 : 60;
+        rem.tv_sec  = kill_parent ? 1 : 60;
         rem.tv_nsec = 0;
 
         printf("[pid=%d|ppid=%d] Going to sleep...\n", getpid(), getppid());
@@ -35,10 +34,9 @@ int main(int argc, char ** argv)
 
         printf("[pid=%d|ppid=%d] Hello, Dad!\n", getpid(), getppid());
         return 0;
-    }
-    else {
+    } else {
         struct timespec rem;
-        rem.tv_sec = kill_parent ? 60 : 1;
+        rem.tv_sec  = kill_parent ? 60 : 1;
         rem.tv_nsec = 0;
 
         printf("[pid=%d|ppid=%d] Going to sleep...\n", getpid(), getppid());

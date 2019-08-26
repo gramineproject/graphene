@@ -1,18 +1,17 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#define DO_BENCH 1
-#define NTRIES   100
+#define DO_BENCH   1
+#define NTRIES     100
 #define TEST_TIMES 64
 
 int pids[TEST_TIMES];
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int times = TEST_TIMES;
     int pipes[6];
     int i = 0;
@@ -27,7 +26,7 @@ int main(int argc, char ** argv)
     pipe(&pipes[2]);
     pipe(&pipes[4]);
 
-    for (i = 0 ; i < times ; i++ ) {
+    for (i = 0; i < times; i++) {
         pids[i] = fork();
 
         if (pids[i] < 0) {
@@ -46,7 +45,7 @@ int main(int argc, char ** argv)
             struct timeval timevals[2];
             gettimeofday(&timevals[0], NULL);
 
-            for (int count = 0 ; count < NTRIES ; count++) {
+            for (int count = 0; count < NTRIES; count++) {
                 int child = fork();
 
                 if (!child)
@@ -79,15 +78,13 @@ int main(int argc, char ** argv)
     close(pipes[1]);
 
     unsigned long long start_time = 0;
-    unsigned long long end_time = 0;
+    unsigned long long end_time   = 0;
     unsigned long long total_time = 0;
     struct timeval timevals[2];
-    for (int i = 0 ; i < times ; i++) {
+    for (int i = 0; i < times; i++) {
         read(pipes[2], timevals, sizeof(struct timeval) * 2);
-        unsigned long s = timevals[0].tv_sec * 1000000ULL +
-                          timevals[0].tv_usec;
-        unsigned long e = timevals[1].tv_sec * 1000000ULL +
-                          timevals[1].tv_usec;
+        unsigned long s = timevals[0].tv_sec * 1000000ULL + timevals[0].tv_usec;
+        unsigned long e = timevals[1].tv_sec * 1000000ULL + timevals[1].tv_usec;
         if (!start_time || s < start_time)
             start_time = s;
         if (!end_time || e > end_time)
@@ -99,15 +96,13 @@ int main(int argc, char ** argv)
     write(pipes[5], bytes, times);
     close(pipes[5]);
 
-    for (i = 0 ; i < times ; i++)
-        waitpid(pids[i], NULL, 0);
+    for (i = 0; i < times; i++) waitpid(pids[i], NULL, 0);
 
-    printf("%d processes fork %d children: throughput = %lf procs/second, "
-           "latency = %lf microseconds\n",
-           times, NTRIES,
-           1.0 * NTRIES * times * 1000000 / (end_time - start_time),
-           1.0 * total_time / (NTRIES * times));
-
+    printf(
+        "%d processes fork %d children: throughput = %lf procs/second, "
+        "latency = %lf microseconds\n",
+        times, NTRIES, 1.0 * NTRIES * times * 1000000 / (end_time - start_time),
+        1.0 * total_time / (NTRIES * times));
 
     return 0;
 }

@@ -20,27 +20,23 @@
  * Implementation of system call "fcntl".
  */
 
-#include <shim_internal.h>
-#include <shim_utils.h>
-#include <shim_table.h>
-#include <shim_handle.h>
-#include <shim_thread.h>
-#include <shim_fs.h>
-
+#include <errno.h>
+#include <linux/fcntl.h>
 #include <pal.h>
 #include <pal_error.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
+#include <shim_table.h>
+#include <shim_thread.h>
+#include <shim_utils.h>
 
-#include <errno.h>
-
-#include <linux/fcntl.h>
-
-int shim_do_fcntl (int fd, int cmd, unsigned long arg)
-{
-    struct shim_handle_map * handle_map = get_cur_handle_map(NULL);
+int shim_do_fcntl(int fd, int cmd, unsigned long arg) {
+    struct shim_handle_map* handle_map = get_cur_handle_map(NULL);
     int flags;
     int ret = -ENOSYS;
 
-    struct shim_handle * hdl = get_fd_handle(fd, &flags, handle_map);
+    struct shim_handle* hdl = get_fd_handle(fd, &flags, handle_map);
     if (!hdl)
         return -EBADF;
 
@@ -54,7 +50,7 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
         case F_DUPFD: {
             int vfd = arg;
 
-            while(1) {
+            while (1) {
                 if (set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map) == vfd)
                     break;
                 vfd++;
@@ -75,7 +71,7 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
             int vfd = arg;
             flags |= FD_CLOEXEC;
 
-            while(1) {
+            while (1) {
                 if (set_new_fd_handle_by_fd(vfd, hdl, flags, handle_map) == vfd)
                     break;
                 vfd++;
@@ -110,17 +106,17 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
             ret = 0;
             break;
 
-        /* File status flags
-         *   Each open file description has certain associated status flags,
-         *   initialized by open(2) and possibly modified by fcntl().
-         *   Duplicated file descriptors (made with dup(2), fcntl(F_DUPFD),
-         *   fork(2), etc.) refer to the same open file description, and thus
-         *   share the same file status flags.
-         *   The file status flags and their semantics are described in open(2).
-         *
-         * F_GETFL (void)
-         *   Read the file status flags; arg is ignored.
-         */
+            /* File status flags
+             *   Each open file description has certain associated status flags,
+             *   initialized by open(2) and possibly modified by fcntl().
+             *   Duplicated file descriptors (made with dup(2), fcntl(F_DUPFD),
+             *   fork(2), etc.) refer to the same open file description, and thus
+             *   share the same file status flags.
+             *   The file status flags and their semantics are described in open(2).
+             *
+             * F_GETFL (void)
+             *   Read the file status flags; arg is ignored.
+             */
 
         case F_GETFL:
             lock(&hdl->lock);
@@ -129,23 +125,21 @@ int shim_do_fcntl (int fd, int cmd, unsigned long arg)
             ret = flags;
             break;
 
-        /* F_SETFL (long)
-         *   Set the file status flags to the value specified by arg.  File
-         *   access mode (O_RDONLY, O_WRONLY, O_RDWR) and file creation flags
-         *   (i.e., O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC) in arg are ignored. On
-         *   Linux this command can only change the O_APPEND, O_DIRECT,
-         *   O_NOATIME, and O_NONBLOCK flags.
-         */
+            /* F_SETFL (long)
+             *   Set the file status flags to the value specified by arg.  File
+             *   access mode (O_RDONLY, O_WRONLY, O_RDWR) and file creation flags
+             *   (i.e., O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC) in arg are ignored. On
+             *   Linux this command can only change the O_APPEND, O_DIRECT,
+             *   O_NOATIME, and O_NONBLOCK flags.
+             */
 
-#define FCNTL_SETFL_MASK (O_APPEND|O_NONBLOCK)
+#define FCNTL_SETFL_MASK (O_APPEND | O_NONBLOCK)
 
         case F_SETFL:
             lock(&hdl->lock);
-            if (hdl->fs && hdl->fs->fs_ops &&
-                hdl->fs->fs_ops->setflags)
+            if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->setflags)
                 hdl->fs->fs_ops->setflags(hdl, arg & FCNTL_SETFL_MASK);
-            hdl->flags = (hdl->flags & ~FCNTL_SETFL_MASK) |
-                         (arg & FCNTL_SETFL_MASK);
+            hdl->flags = (hdl->flags & ~FCNTL_SETFL_MASK) | (arg & FCNTL_SETFL_MASK);
             unlock(&hdl->lock);
             ret = 0;
             break;

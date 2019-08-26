@@ -25,29 +25,27 @@
 #include <api.h>
 
 /* Find the first occurrence of C in S.  */
-char * strchr (const char *s, int c_in)
-{
-    const unsigned char *char_ptr;
-    const unsigned long int *longword_ptr;
+char* strchr(const char* s, int c_in) {
+    const unsigned char* char_ptr;
+    const unsigned long int* longword_ptr;
     unsigned long int longword, magic_bits, charmask;
     unsigned char c;
 
-    c = (unsigned char) c_in;
+    c = (unsigned char)c_in;
 
     /* Handle the first few characters by reading one character at a time.
        Do this until CHAR_PTR is aligned on a longword boundary.  */
-    for (char_ptr = (const unsigned char *) s;
-         ((unsigned long int) char_ptr & (sizeof (longword) - 1)) != 0;
-         ++char_ptr)
+    for (char_ptr = (const unsigned char*)s;
+         ((unsigned long int)char_ptr & (sizeof(longword) - 1)) != 0; ++char_ptr)
         if (*char_ptr == c)
-            return (void *) char_ptr;
+            return (void*)char_ptr;
         else if (*char_ptr == '\0')
             return NULL;
 
     /* All these elucidatory comments refer to 4-byte longwords,
        but the theory applies equally well to 8-byte longwords.  */
 
-    longword_ptr = (unsigned long int *) char_ptr;
+    longword_ptr = (unsigned long int*)char_ptr;
 
     /* Bits 31, 24, 16, and 8 of this number are zero.  Call these bits
        the "holes."  Note that there is a hole just to the left of
@@ -58,9 +56,13 @@ char * strchr (const char *s, int c_in)
 
        The 1-bits make sure that carries propagate to the next 0-bit.
        The 0-bits provide holes for carries to fall into.  */
-    switch (sizeof (longword)) {
-        case 4: magic_bits = 0x7efefeffL; break;
-        case 8: magic_bits = ((0x7efefefeL << 16) << 16) | 0xfefefeffL; break;
+    switch (sizeof(longword)) {
+        case 4:
+            magic_bits = 0x7efefeffL;
+            break;
+        case 8:
+            magic_bits = ((0x7efefefeL << 16) << 16) | 0xfefefeffL;
+            break;
         default:
             return NULL;
     }
@@ -68,10 +70,10 @@ char * strchr (const char *s, int c_in)
     /* Set up a longword, each of whose bytes is C.  */
     charmask = c | (c << 8);
     charmask |= charmask << 16;
-    if (sizeof (longword) > 4)
-    /* Do the shift in two steps to avoid a warning if long has 32 bits.  */
+    if (sizeof(longword) > 4)
+        /* Do the shift in two steps to avoid a warning if long has 32 bits.  */
         charmask |= (charmask << 16) << 16;
-    if (sizeof (longword) > 8)
+    if (sizeof(longword) > 8)
         return NULL;
 
     /* Instead of the traditional loop which tests each character,
@@ -116,53 +118,52 @@ char * strchr (const char *s, int c_in)
 
         /* Add MAGIC_BITS to LONGWORD.  */
         if ((((longword + magic_bits)
-            /* Set those bits that were unchanged by the addition.  */
-            ^ ~longword)
+              /* Set those bits that were unchanged by the addition.  */
+              ^ ~longword)
 
-            /* Look at only the hole bits.  If any of the hole bits
-               are unchanged, most likely one of the bytes was a
-               zero.  */
-            & ~magic_bits) != 0 ||
+             /* Look at only the hole bits.  If any of the hole bits
+                are unchanged, most likely one of the bytes was a
+                zero.  */
+             & ~magic_bits) != 0 ||
 
             /* That caught zeroes.  Now test for C.  */
-            ((((longword ^ charmask) + magic_bits) ^ ~(longword ^ charmask))
-            & ~magic_bits) != 0) {
+            ((((longword ^ charmask) + magic_bits) ^ ~(longword ^ charmask)) & ~magic_bits) != 0) {
             /* Which of the bytes was C or zero?
                If none of them were, it was a misfire; continue the search.  */
 
-            const unsigned char *cp = (const unsigned char *) (longword_ptr - 1);
+            const unsigned char* cp = (const unsigned char*)(longword_ptr - 1);
 
             if (*cp == c)
-                return (char *) cp;
+                return (char*)cp;
             else if (*cp == '\0')
                 return NULL;
             if (*++cp == c)
-                return (char *) cp;
+                return (char*)cp;
             else if (*cp == '\0')
                 return NULL;
             if (*++cp == c)
-                return (char *) cp;
+                return (char*)cp;
             else if (*cp == '\0')
                 return NULL;
             if (*++cp == c)
-                return (char *) cp;
+                return (char*)cp;
             else if (*cp == '\0')
                 return NULL;
-            if (sizeof (longword) > 4) {
+            if (sizeof(longword) > 4) {
                 if (*++cp == c)
-                    return (char *) cp;
+                    return (char*)cp;
                 else if (*cp == '\0')
                     return NULL;
                 if (*++cp == c)
-                    return (char *) cp;
+                    return (char*)cp;
                 else if (*cp == '\0')
                     return NULL;
                 if (*++cp == c)
-                    return (char *) cp;
+                    return (char*)cp;
                 else if (*cp == '\0')
                     return NULL;
                 if (*++cp == c)
-                    return (char *) cp;
+                    return (char*)cp;
                 else if (*cp == '\0')
                     return NULL;
             }

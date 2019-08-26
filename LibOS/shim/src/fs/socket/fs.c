@@ -20,50 +20,41 @@
  * This file contains codes for implementation of 'socket' filesystem.
  */
 
-#include <shim_internal.h>
-#include <shim_fs.h>
-#include <shim_profile.h>
-
+#include <asm/fcntl.h>
+#include <asm/mman.h>
+#include <asm/prctl.h>
+#include <asm/unistd.h>
+#include <errno.h>
+#include <linux/fcntl.h>
+#include <linux/stat.h>
 #include <pal.h>
 #include <pal_error.h>
+#include <shim_fs.h>
+#include <shim_internal.h>
+#include <shim_profile.h>
 
-#include <errno.h>
-
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-
-#include <asm/mman.h>
-#include <asm/unistd.h>
-#include <asm/prctl.h>
-#include <asm/fcntl.h>
-
-static int socket_close (struct shim_handle * hdl)
-{
+static int socket_close(struct shim_handle* hdl) {
     /* XXX: Shouldn't this do something? */
     __UNUSED(hdl);
     return 0;
 }
 
-static ssize_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
-{
-    struct shim_sock_handle * sock = &hdl->info.sock;
+static ssize_t socket_read(struct shim_handle* hdl, void* buf, size_t count) {
+    struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (!count)
         return 0;
 
     lock(&hdl->lock);
 
-    if (sock->sock_type == SOCK_STREAM &&
-        sock->sock_state != SOCK_ACCEPTED &&
-        sock->sock_state != SOCK_CONNECTED &&
-        sock->sock_state != SOCK_BOUNDCONNECTED) {
+    if (sock->sock_type == SOCK_STREAM && sock->sock_state != SOCK_ACCEPTED &&
+        sock->sock_state != SOCK_CONNECTED && sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = ENOTCONN;
         unlock(&hdl->lock);
         return -ENOTCONN;
     }
 
-    if (sock->sock_type == SOCK_DGRAM &&
-        sock->sock_state != SOCK_CONNECTED &&
+    if (sock->sock_type == SOCK_DGRAM && sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = EDESTADDRREQ;
         unlock(&hdl->lock);
@@ -75,7 +66,7 @@ static ssize_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
     PAL_NUM bytes = DkStreamRead(hdl->pal_handle, 0, count, buf, NULL, 0);
 
     if (!bytes)
-        switch(PAL_NATIVE_ERRNO) {
+        switch (PAL_NATIVE_ERRNO) {
             case PAL_ERROR_ENDOFSTREAM:
                 return 0;
             default: {
@@ -87,27 +78,23 @@ static ssize_t socket_read (struct shim_handle * hdl, void * buf, size_t count)
             }
         }
 
-    assert((ssize_t) bytes > 0);
-    return (ssize_t) bytes;
+    assert((ssize_t)bytes > 0);
+    return (ssize_t)bytes;
 }
 
-static ssize_t socket_write (struct shim_handle * hdl, const void * buf, size_t count)
-{
-    struct shim_sock_handle * sock = &hdl->info.sock;
+static ssize_t socket_write(struct shim_handle* hdl, const void* buf, size_t count) {
+    struct shim_sock_handle* sock = &hdl->info.sock;
 
     lock(&hdl->lock);
 
-    if (sock->sock_type == SOCK_STREAM &&
-        sock->sock_state != SOCK_ACCEPTED &&
-        sock->sock_state != SOCK_CONNECTED &&
-        sock->sock_state != SOCK_BOUNDCONNECTED) {
+    if (sock->sock_type == SOCK_STREAM && sock->sock_state != SOCK_ACCEPTED &&
+        sock->sock_state != SOCK_CONNECTED && sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = ENOTCONN;
         unlock(&hdl->lock);
         return -ENOTCONN;
     }
 
-    if (sock->sock_type == SOCK_DGRAM &&
-        sock->sock_state != SOCK_CONNECTED &&
+    if (sock->sock_type == SOCK_DGRAM && sock->sock_state != SOCK_CONNECTED &&
         sock->sock_state != SOCK_BOUNDCONNECTED) {
         sock->error = EDESTADDRREQ;
         unlock(&hdl->lock);
@@ -119,11 +106,11 @@ static ssize_t socket_write (struct shim_handle * hdl, const void * buf, size_t 
     if (!count)
         return 0;
 
-    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (!bytes) {
         int err;
-        switch(PAL_NATIVE_ERRNO) {
+        switch (PAL_NATIVE_ERRNO) {
             case PAL_ERROR_CONNFAILED:
                 err = EPIPE;
                 break;
@@ -137,12 +124,11 @@ static ssize_t socket_write (struct shim_handle * hdl, const void * buf, size_t 
         return -err;
     }
 
-    assert((ssize_t) bytes > 0);
-    return (ssize_t) bytes;
+    assert((ssize_t)bytes > 0);
+    return (ssize_t)bytes;
 }
 
-static int socket_hstat (struct shim_handle * hdl, struct stat * stat)
-{
+static int socket_hstat(struct shim_handle* hdl, struct stat* stat) {
     if (!stat)
         return 0;
 
@@ -153,38 +139,34 @@ static int socket_hstat (struct shim_handle * hdl, struct stat * stat)
 
     memset(stat, 0, sizeof(struct stat));
 
-    stat->st_ino    = 0;
-    stat->st_size   = (off_t) attr.pending_size;
-    stat->st_mode   = S_IFSOCK;
+    stat->st_ino  = 0;
+    stat->st_size = (off_t)attr.pending_size;
+    stat->st_mode = S_IFSOCK;
 
     return 0;
 }
 
-static int socket_checkout (struct shim_handle * hdl)
-{
+static int socket_checkout(struct shim_handle* hdl) {
     hdl->fs = NULL;
     return 0;
 }
 
-static off_t socket_poll (struct shim_handle * hdl, int poll_type)
-{
-    struct shim_sock_handle * sock = &hdl->info.sock;
-    off_t ret = 0;
+static off_t socket_poll(struct shim_handle* hdl, int poll_type) {
+    struct shim_sock_handle* sock = &hdl->info.sock;
+    off_t ret                     = 0;
 
     lock(&hdl->lock);
 
     if (poll_type & FS_POLL_RD) {
         if (sock->sock_type == SOCK_STREAM) {
-            if (sock->sock_state == SOCK_CREATED ||
-                sock->sock_state == SOCK_BOUND ||
+            if (sock->sock_state == SOCK_CREATED || sock->sock_state == SOCK_BOUND ||
                 sock->sock_state == SOCK_SHUTDOWN) {
                 ret = -ENOTCONN;
                 goto out;
             }
         }
 
-        if (sock->sock_type == SOCK_DGRAM &&
-            sock->sock_state == SOCK_SHUTDOWN) {
+        if (sock->sock_type == SOCK_DGRAM && sock->sock_state == SOCK_SHUTDOWN) {
             ret = -ENOTCONN;
             goto out;
         }
@@ -192,21 +174,17 @@ static off_t socket_poll (struct shim_handle * hdl, int poll_type)
 
     if (poll_type & FS_POLL_WR) {
         if (sock->sock_type == SOCK_STREAM) {
-            if (sock->sock_state == SOCK_CREATED ||
-                sock->sock_state == SOCK_BOUND ||
-                sock->sock_state == SOCK_LISTENED ||
-                sock->sock_state == SOCK_SHUTDOWN) {
+            if (sock->sock_state == SOCK_CREATED || sock->sock_state == SOCK_BOUND ||
+                sock->sock_state == SOCK_LISTENED || sock->sock_state == SOCK_SHUTDOWN) {
                 ret = -ENOTCONN;
                 goto out;
             }
         }
 
-        if (sock->sock_type == SOCK_DGRAM &&
-            sock->sock_state == SOCK_SHUTDOWN) {
+        if (sock->sock_type == SOCK_DGRAM && sock->sock_state == SOCK_SHUTDOWN) {
             ret = -ENOTCONN;
             goto out;
         }
-
     }
 
     if (!hdl->pal_handle) {
@@ -243,8 +221,7 @@ out:
     return ret;
 }
 
-static int socket_setflags (struct shim_handle * hdl, int flags)
-{
+static int socket_setflags(struct shim_handle* hdl, int flags) {
     if (!hdl->pal_handle)
         return 0;
 
@@ -266,20 +243,22 @@ static int socket_setflags (struct shim_handle * hdl, int flags)
     }
 
     if (!DkStreamAttributesSetByHandle(hdl->pal_handle, &attr))
-       return -PAL_ERRNO;
+        return -PAL_ERRNO;
 
     return 0;
 }
 
 struct shim_fs_ops socket_fs_ops = {
-        .close    = &socket_close,
-        .read     = &socket_read,
-        .write    = &socket_write,
-        .hstat    = &socket_hstat,
-        .checkout = &socket_checkout,
-        .poll     = &socket_poll,
-        .setflags = &socket_setflags,
-    };
+    .close    = &socket_close,
+    .read     = &socket_read,
+    .write    = &socket_write,
+    .hstat    = &socket_hstat,
+    .checkout = &socket_checkout,
+    .poll     = &socket_poll,
+    .setflags = &socket_setflags,
+};
 
-struct shim_mount socket_builtin_fs = { .type = "socket",
-                                        .fs_ops = &socket_fs_ops, };
+struct shim_mount socket_builtin_fs = {
+    .type   = "socket",
+    .fs_ops = &socket_fs_ops,
+};

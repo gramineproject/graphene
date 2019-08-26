@@ -1,11 +1,13 @@
 #define _GNU_SOURCE
+#include "sgx_gdb.h"
+
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/ptrace.h>
@@ -15,7 +17,6 @@
 #include <wait.h>
 
 #include "../sgx_arch.h"
-#include "sgx_gdb.h"
 
 //#define DEBUG_GDB_PTRACE 1
 
@@ -104,12 +105,12 @@ static void fill_regs(struct user_regs_struct* regs, const sgx_arch_gpr_t* gpr) 
     regs->fs_base  = gpr->fsbase;
     regs->gs_base  = gpr->gsbase;
     /* dummy values for non-SGX-saved regs */
-    regs->cs       = 0;
-    regs->ss       = 0;
-    regs->ds       = 0;
-    regs->es       = 0;
-    regs->fs       = 0;
-    regs->gs       = 0;
+    regs->cs = 0;
+    regs->ss = 0;
+    regs->ds = 0;
+    regs->es = 0;
+    regs->fs = 0;
+    regs->gs = 0;
 }
 
 static void fill_gpr(sgx_arch_gpr_t* gpr, const struct user_regs_struct* regs) {
@@ -149,8 +150,8 @@ static long int host_ptrace(enum __ptrace_request request, pid_t tid, void* addr
         data = &res;
     }
 
-    errno = 0;
-    ret = syscall((long int)SYS_ptrace, (long int)request, (long int)tid, (long int)addr,
+    errno        = 0;
+    ret          = syscall((long int)SYS_ptrace, (long int)request, (long int)tid, (long int)addr,
                   (long int)data);
     ptrace_errno = errno;
 
@@ -185,7 +186,7 @@ static int update_thread_tids(struct enclave_dbginfo* ei) {
 
     for (int off = 0; off < sizeof(ei->thread_tids); off += sizeof(long)) {
         errno = 0;
-        res = host_ptrace(PTRACE_PEEKDATA, ei->pid, src + off, NULL);
+        res   = host_ptrace(PTRACE_PEEKDATA, ei->pid, src + off, NULL);
         if (res < 0 && errno != 0) {
             /* benign failure: enclave is not yet initialized */
             return -1;
@@ -222,8 +223,8 @@ static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
         return NULL;
     }
 
-    DEBUG("[enclave thread %d] TCS at 0x%lx: TCS.ossa = 0x%lx TCS.cssa = %d\n", tid,
-          (long)tcs_addr, tcs_part.ossa, tcs_part.cssa);
+    DEBUG("[enclave thread %d] TCS at 0x%lx: TCS.ossa = 0x%lx TCS.cssa = %d\n", tid, (long)tcs_addr,
+          tcs_part.ossa, tcs_part.cssa);
     assert(tcs_part.cssa > 0);
 
     return (void*)ei->base + tcs_part.ossa + ei->ssaframesize * tcs_part.cssa -
@@ -340,7 +341,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
 
     for (int off = 0; off < sizeof(eib); off += sizeof(long)) {
         errno = 0;
-        ret = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
+        ret   = host_ptrace(PTRACE_PEEKDATA, tid, (void*)DBGINFO_ADDR + off, NULL);
         if (ret < 0 && errno != 0) {
             /* benign failure: enclave is not yet initialized */
             return -1;
@@ -467,8 +468,7 @@ long int ptrace(enum __ptrace_request request, ...) {
     switch (request) {
         case PTRACE_PEEKTEXT:
         case PTRACE_PEEKDATA: {
-            if ((addr + sizeof(long)) <= (void*)ei->base ||
-                 addr >= (void*)(ei->base + ei->size)) {
+            if ((addr + sizeof(long)) <= (void*)ei->base || addr >= (void*)(ei->base + ei->size)) {
                 /* peek into strictly non-enclave memory */
                 return host_ptrace(PTRACE_PEEKDATA, tid, addr, NULL);
             }
@@ -493,8 +493,7 @@ long int ptrace(enum __ptrace_request request, ...) {
 
         case PTRACE_POKETEXT:
         case PTRACE_POKEDATA: {
-            if ((addr + sizeof(long)) <= (void*)ei->base ||
-                 addr >= (void*)(ei->base + ei->size)) {
+            if ((addr + sizeof(long)) <= (void*)ei->base || addr >= (void*)(ei->base + ei->size)) {
                 /* poke strictly non-enclave memory */
                 return host_ptrace(PTRACE_POKEDATA, tid, addr, data);
             }
@@ -615,12 +614,13 @@ pid_t waitpid(pid_t tid, int* status, int options) {
 
     DEBUG("[GDB %d] Intercepted waitpid(%d)\n", getpid(), tid);
 
-    errno = 0;
-    wait_res = syscall((long int)SYS_wait4, (long int)tid, (long int)status, (long int)options,
-                  (long int)NULL);
+    errno      = 0;
+    wait_res   = syscall((long int)SYS_wait4, (long int)tid, (long int)status, (long int)options,
+                       (long int)NULL);
     wait_errno = errno;
 
-    DEBUG("[GDB %d] Executed host waitpid(%d, <status>, %d) = %d\n", getpid(), tid, options, wait_res);
+    DEBUG("[GDB %d] Executed host waitpid(%d, <status>, %d) = %d\n", getpid(), tid, options,
+          wait_res);
 
     if (wait_res < 0) {
         errno = wait_errno;

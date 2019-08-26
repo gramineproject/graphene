@@ -20,22 +20,21 @@
  * This file contains implementation of Drawbridge event synchronization APIs.
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_linux.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
-
+#include <asm/errno.h>
 #include <atomic.h>
 #include <linux/futex.h>
-#include <asm/errno.h>
 #include <linux/time.h>
 
-int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
-{
+#include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
+#include "pal_linux.h"
+#include "pal_linux_defs.h"
+
+int _DkEventCreate(PAL_HANDLE* event, bool initialState, bool isnotification) {
     PAL_HANDLE ev = malloc(HANDLE_SIZE(event));
     SET_HANDLE_TYPE(ev, event);
     ev->event.isnotification = isnotification;
@@ -45,8 +44,7 @@ int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
     return 0;
 }
 
-int _DkEventSet (PAL_HANDLE event, int wakeup)
-{
+int _DkEventSet(PAL_HANDLE event, int wakeup) {
     int ret = 0;
 
     if (event->event.isnotification) {
@@ -57,23 +55,21 @@ int _DkEventSet (PAL_HANDLE event, int wakeup)
                 if (wakeup != -1 && nwaiters > wakeup)
                     nwaiters = wakeup;
 
-                ret = INLINE_SYSCALL(futex, 6, &event->event.signaled,
-                                     FUTEX_WAKE, nwaiters, NULL, NULL, 0);
+                ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, nwaiters, NULL,
+                                     NULL, 0);
                 if (IS_ERR(ret))
                     atomic_set(&event->event.signaled, 0);
             }
         }
     } else {
         // Only one thread wakes up, leave unsignaled
-        ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, 1,
-                             NULL, NULL, 0);
+        ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAKE, 1, NULL, NULL, 0);
     }
 
     return IS_ERR(ret) ? -PAL_ERROR_TRYAGAIN : ret;
 }
 
-int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us)
-{
+int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us) {
     int ret = 0;
 
     if (timeout_us < 0)
@@ -81,16 +77,16 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us)
 
     if (!event->event.isnotification || !atomic_read(&event->event.signaled)) {
         struct timespec waittime;
-        int64_t sec = timeout_us / 1000000UL;
+        int64_t sec      = timeout_us / 1000000UL;
         int64_t microsec = timeout_us - (sec * 1000000UL);
-        waittime.tv_sec = sec;
+        waittime.tv_sec  = sec;
         waittime.tv_nsec = microsec * 1000;
 
         atomic_inc(&event->event.nwaiters);
 
         do {
-            ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT,
-                                 0, &waittime, NULL, 0);
+            ret =
+                INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT, 0, &waittime, NULL, 0);
 
             if (IS_ERR(ret)) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
@@ -100,8 +96,7 @@ int _DkEventWaitTimeout(PAL_HANDLE event, int64_t timeout_us)
                     break;
                 }
             }
-        } while (event->event.isnotification &&
-                 !atomic_read(&event->event.signaled));
+        } while (event->event.isnotification && !atomic_read(&event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -116,8 +111,7 @@ int _DkEventWait(PAL_HANDLE event) {
         atomic_inc(&event->event.nwaiters);
 
         do {
-            ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT,
-                                  0, NULL, NULL, 0);
+            ret = INLINE_SYSCALL(futex, 6, &event->event.signaled, FUTEX_WAIT, 0, NULL, NULL, 0);
 
             if (IS_ERR(ret)) {
                 if (ERRNO(ret) == EWOULDBLOCK) {
@@ -127,8 +121,7 @@ int _DkEventWait(PAL_HANDLE event) {
                     break;
                 }
             }
-        } while (event->event.isnotification &&
-                 !atomic_read(&event->event.signaled));
+        } while (event->event.isnotification && !atomic_read(&event->event.signaled));
 
         atomic_dec(&event->event.nwaiters);
     }
@@ -136,14 +129,12 @@ int _DkEventWait(PAL_HANDLE event) {
     return ret;
 }
 
-int _DkEventClear (PAL_HANDLE event)
-{
+int _DkEventClear(PAL_HANDLE event) {
     atomic_set(&event->event.signaled, 0);
     return 0;
 }
 
-static int event_close (PAL_HANDLE handle)
-{
+static int event_close(PAL_HANDLE handle) {
     _DkEventSet(handle, -1);
     return 0;
 }
@@ -153,6 +144,6 @@ static int event_wait(PAL_HANDLE handle, int64_t timeout_us) {
 }
 
 struct handle_ops event_ops = {
-        .close              = &event_close,
-        .wait               = &event_wait,
-    };
+    .close = &event_close,
+    .wait  = &event_wait,
+};

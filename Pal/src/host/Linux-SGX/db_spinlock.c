@@ -22,21 +22,20 @@
  * (http://locklessinc.com/articles/mutex_cv_futex)
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include <atomic.h>
+#include <limits.h>
+
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
+#include "pal_linux_defs.h"
 
-#include <limits.h>
-#include <atomic.h>
-
-int _DkSpinLock (struct spinlock * lock)
-{
-    struct atomic_int * m = &lock->value;
+int _DkSpinLock(struct spinlock* lock) {
+    struct atomic_int* m = &lock->value;
     while (1) {
         int c = atomic_read(m);
         if (!c && atomic_cmpxchg(m, 0, 1) == 0)
@@ -46,9 +45,8 @@ int _DkSpinLock (struct spinlock * lock)
     return 0;
 }
 
-int _DkSpinUnlock (struct spinlock * lock)
-{
-    struct atomic_int * m = &lock->value;
+int _DkSpinUnlock(struct spinlock* lock) {
+    struct atomic_int* m = &lock->value;
     atomic_set(m, 0);
     return 0;
 }

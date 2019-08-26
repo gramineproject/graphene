@@ -20,23 +20,21 @@
  * This file contain APIs to create, exit and yield a thread.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
 /* PAL call DkThreadCreate: create a thread inside the current
    process */
 PAL_HANDLE
-DkThreadCreate (PAL_PTR addr, PAL_PTR param)
-{
+DkThreadCreate(PAL_PTR addr, PAL_PTR param) {
     ENTER_PAL_CALL(DkThreadCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret = _DkThreadCreate (&handle, (int (*)(void *)) addr,
-                               (const void *) param);
+    int ret           = _DkThreadCreate(&handle, (int (*)(void*))addr, (const void*)param);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -50,12 +48,11 @@ DkThreadCreate (PAL_PTR addr, PAL_PTR param)
 /* PAL call DkThreadDelayExecution. Delay the current thread
    (sleep) for the given duration */
 PAL_NUM
-DkThreadDelayExecution (PAL_NUM duration)
-{
+DkThreadDelayExecution(PAL_NUM duration) {
     ENTER_PAL_CALL(DkThreadDelayExecution);
 
     unsigned long dur = duration;
-    int ret = _DkThreadDelayExecution(&dur);
+    int ret           = _DkThreadDelayExecution(&dur);
 
     if (ret < 0) {
         _DkRaiseFailure(PAL_ERROR_INTERRUPTED);
@@ -67,8 +64,7 @@ DkThreadDelayExecution (PAL_NUM duration)
 
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
-void DkThreadYieldExecution (void)
-{
+void DkThreadYieldExecution(void) {
     ENTER_PAL_CALL(DkThreadYieldExecution);
     _DkThreadYieldExecution();
     LEAVE_PAL_CALL();
@@ -76,20 +72,18 @@ void DkThreadYieldExecution (void)
 
 /* PAL call DkThreadExit: simply exit the current thread
    no matter what */
-noreturn void DkThreadExit (void)
-{
+noreturn void DkThreadExit(void) {
     ENTER_PAL_CALL(DkThreadExit);
     _DkThreadExit();
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
-    while (true)
-        /* nothing */;
+    while (true) /* nothing */
+        ;
     LEAVE_PAL_CALL();
 }
 
 /* PAL call DkThreadResume: resume the execution of a thread
    which is delayed before */
-PAL_BOL DkThreadResume (PAL_HANDLE threadHandle)
-{
+PAL_BOL DkThreadResume(PAL_HANDLE threadHandle) {
     ENTER_PAL_CALL(DkThreadResume);
 
     if (!threadHandle || !IS_HANDLE_TYPE(threadHandle, thread)) {

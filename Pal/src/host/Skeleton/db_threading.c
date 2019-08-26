@@ -20,45 +20,38 @@
  * This file contain APIs to create, exit and yield a thread.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
 /* _DkThreadCreate for internal use. Create an internal thread
    inside the current process. The arguments callback and param
    specify the starting function and parameters */
-int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
-                     const void * param)
-{
+int _DkThreadCreate(PAL_HANDLE* handle, int (*callback)(void*), const void* param) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
-int _DkThreadDelayExecution (unsigned long * duration)
-{
+int _DkThreadDelayExecution(unsigned long* duration) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
-void _DkThreadYieldExecution (void)
-{
-    /* need to be implemented */
+void _DkThreadYieldExecution(void) { /* need to be implemented */
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
-noreturn void _DkThreadExit (void)
-{
+noreturn void _DkThreadExit(void) {
     /* need to be implemented */
     while (true) {
         /* nothing */
     }
 }
 
-int _DkThreadResume (PAL_HANDLE threadHandle)
-{
+int _DkThreadResume(PAL_HANDLE threadHandle) {
     return -PAL_ERROR_NOTIMPLEMENTED;
 }
 

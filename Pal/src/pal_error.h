@@ -23,39 +23,39 @@
 #ifndef PAL_ERROR_H
 #define PAL_ERROR_H
 
-#define PAL_ERROR_NOTIMPLEMENTED        1
-#define PAL_ERROR_NOTDEFINED            2
-#define PAL_ERROR_NOTSUPPORT            3
-#define PAL_ERROR_INVAL                 4
-#define PAL_ERROR_TOOLONG               5
-#define PAL_ERROR_DENIED                6
-#define PAL_ERROR_BADHANDLE             7
-#define PAL_ERROR_STREAMEXIST           8
-#define PAL_ERROR_STREAMNOTEXIST        9
-#define PAL_ERROR_STREAMISFILE         10
-#define PAL_ERROR_STREAMISDIR          11
-#define PAL_ERROR_STREAMISDEVICE       12
-#define PAL_ERROR_INTERRUPTED          13
-#define PAL_ERROR_OVERFLOW             14
-#define PAL_ERROR_BADADDR              15
-#define PAL_ERROR_NOMEM                16
-#define PAL_ERROR_NOTKILLABLE          17
-#define PAL_ERROR_INCONSIST            18
-#define PAL_ERROR_TRYAGAIN             19
-#define PAL_ERROR_ENDOFSTREAM          20
-#define PAL_ERROR_NOTSERVER            21
-#define PAL_ERROR_NOTCONNECTION        22
-#define PAL_ERROR_ZEROSIZE             23
-#define PAL_ERROR_CONNFAILED           24
-#define PAL_ERROR_ADDRNOTEXIST         25
+#define PAL_ERROR_NOTIMPLEMENTED 1
+#define PAL_ERROR_NOTDEFINED     2
+#define PAL_ERROR_NOTSUPPORT     3
+#define PAL_ERROR_INVAL          4
+#define PAL_ERROR_TOOLONG        5
+#define PAL_ERROR_DENIED         6
+#define PAL_ERROR_BADHANDLE      7
+#define PAL_ERROR_STREAMEXIST    8
+#define PAL_ERROR_STREAMNOTEXIST 9
+#define PAL_ERROR_STREAMISFILE   10
+#define PAL_ERROR_STREAMISDIR    11
+#define PAL_ERROR_STREAMISDEVICE 12
+#define PAL_ERROR_INTERRUPTED    13
+#define PAL_ERROR_OVERFLOW       14
+#define PAL_ERROR_BADADDR        15
+#define PAL_ERROR_NOMEM          16
+#define PAL_ERROR_NOTKILLABLE    17
+#define PAL_ERROR_INCONSIST      18
+#define PAL_ERROR_TRYAGAIN       19
+#define PAL_ERROR_ENDOFSTREAM    20
+#define PAL_ERROR_NOTSERVER      21
+#define PAL_ERROR_NOTCONNECTION  22
+#define PAL_ERROR_ZEROSIZE       23
+#define PAL_ERROR_CONNFAILED     24
+#define PAL_ERROR_ADDRNOTEXIST   25
 
-#define PAL_ERROR_BOUND                25
+#define PAL_ERROR_BOUND 25
 
-static const char * pal_errstring[]
+static const char* pal_errstring[]
 #ifdef __GNUC__
-__attribute__((unused))
+    __attribute__((unused))
 #endif
-= {
+    = {
         /*  0. */ "Success",
         /*  1. */ "Function not implemented",
         /*  2. */ "Symbol not defined",
@@ -82,10 +82,9 @@ __attribute__((unused))
         /* 23. */ "Zero size",
         /* 24. */ "Connection failed",
         /* 25. */ "Resource address not exist",
-    };
+};
 
-static inline const char * PAL_STRERROR (int errno)
-{
+static inline const char* PAL_STRERROR(int errno) {
     int _e = -errno;
     if (_e >= 0 && _e <= PAL_ERROR_BOUND)
         return pal_errstring[_e];

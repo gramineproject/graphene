@@ -1,11 +1,11 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <errno.h>
 
-int main (int argc, char** argv) {
+int main(int argc, char** argv) {
     int r;
     struct stat buf;
 

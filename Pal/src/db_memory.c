@@ -20,28 +20,26 @@
  * This files contains APIs that allocate, free or protect virtual memory.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
-#include "pal_debug.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
 PAL_PTR
-DkVirtualMemoryAlloc (PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type,
-                      PAL_FLG prot)
-{
+DkVirtualMemoryAlloc(PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot) {
     ENTER_PAL_CALL(DkVirtualMemoryAlloc);
-    void * map_addr = (void *) addr;
+    void* map_addr = (void*)addr;
 
     if ((addr && !ALLOC_ALIGNED(addr)) || !size || !ALLOC_ALIGNED(size)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
-        LEAVE_PAL_CALL_RETURN((PAL_PTR) NULL);
+        LEAVE_PAL_CALL_RETURN((PAL_PTR)NULL);
     }
 
-    if (map_addr && _DkCheckMemoryMappable((void *) map_addr, size)) {
+    if (map_addr && _DkCheckMemoryMappable((void*)map_addr, size)) {
         _DkRaiseFailure(PAL_ERROR_DENIED);
-        LEAVE_PAL_CALL_RETURN((PAL_PTR) NULL);
+        LEAVE_PAL_CALL_RETURN((PAL_PTR)NULL);
     }
 
     int ret = _DkVirtualMemoryAlloc(&map_addr, size, alloc_type, prot);
@@ -51,12 +49,10 @@ DkVirtualMemoryAlloc (PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type,
         map_addr = NULL;
     }
 
-    LEAVE_PAL_CALL_RETURN((PAL_PTR) map_addr);
+    LEAVE_PAL_CALL_RETURN((PAL_PTR)map_addr);
 }
 
-void
-DkVirtualMemoryFree (PAL_PTR addr, PAL_NUM size)
-{
+void DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size) {
     ENTER_PAL_CALL(DkVirtualMemoryFree);
 
     if (!addr || !size) {
@@ -69,12 +65,12 @@ DkVirtualMemoryFree (PAL_PTR addr, PAL_NUM size)
         LEAVE_PAL_CALL();
     }
 
-    if (_DkCheckMemoryMappable((void *) addr, size)) {
+    if (_DkCheckMemoryMappable((void*)addr, size)) {
         _DkRaiseFailure(PAL_ERROR_DENIED);
         LEAVE_PAL_CALL();
     }
 
-    int ret = _DkVirtualMemoryFree((void *) addr, size);
+    int ret = _DkVirtualMemoryFree((void*)addr, size);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -84,8 +80,7 @@ DkVirtualMemoryFree (PAL_PTR addr, PAL_NUM size)
 }
 
 PAL_BOL
-DkVirtualMemoryProtect (PAL_PTR addr, PAL_NUM size, PAL_FLG prot)
-{
+DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot) {
     ENTER_PAL_CALL(DkVirtualMemoryProtect);
 
     if (!addr || !size) {
@@ -93,17 +88,17 @@ DkVirtualMemoryProtect (PAL_PTR addr, PAL_NUM size, PAL_FLG prot)
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    if (!ALLOC_ALIGNED((void *) addr) || !ALLOC_ALIGNED(size)) {
+    if (!ALLOC_ALIGNED((void*)addr) || !ALLOC_ALIGNED(size)) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    if (_DkCheckMemoryMappable((void *) addr, size)) {
+    if (_DkCheckMemoryMappable((void*)addr, size)) {
         _DkRaiseFailure(PAL_ERROR_DENIED);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    int ret = _DkVirtualMemoryProtect((void *) addr, size, prot);
+    int ret = _DkVirtualMemoryProtect((void*)addr, size, prot);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);

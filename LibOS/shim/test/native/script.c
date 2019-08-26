@@ -1,14 +1,13 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
-int main (int argc, const char ** argv, const char ** envp)
-{
+int main(int argc, const char** argv, const char** envp) {
     int newfd = dup(1);
     char fd_argv[4];
     snprintf(fd_argv, 4, "%d", newfd);
-    char * const new_argv[] = { "./script1.sh", fd_argv, NULL };
+    char* const new_argv[] = {"./script1.sh", fd_argv, NULL};
 
     setenv("IN_EXECVE", "1", 1);
 

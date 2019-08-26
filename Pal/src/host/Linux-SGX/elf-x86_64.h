@@ -26,23 +26,20 @@
 
 #include <sysdep.h>
 #include <sysdeps/generic/ldsodefs.h>
+
 #include "pal_internal.h"
 
 /* Return the link-time address of _DYNAMIC.  Conveniently, this is the
    first element of the GOT.  This must be inlined in a function which
    uses global data.  */
-static inline Elf64_Addr __attribute__ ((unused))
-elf_machine_dynamic (void)
-{
+static inline Elf64_Addr __attribute__((unused)) elf_machine_dynamic(void) {
     /* This works because we have our GOT address available in the small PIC
        model.  */
-    return (Elf64_Addr) &_DYNAMIC;
+    return (Elf64_Addr)&_DYNAMIC;
 }
 
 /* Return the run-time load address of the shared object.  */
-static inline Elf64_Addr __attribute__ ((unused))
-elf_machine_load_address (void)
-{
+static inline Elf64_Addr __attribute__((unused)) elf_machine_load_address(void) {
     Elf64_Addr addr;
 
     /* The easy way is just the same as on x86:
@@ -60,12 +57,15 @@ elf_machine_load_address (void)
        load offset which is zero if the binary was loaded at the address
        it is prelinked for.  */
 
-    __asm__ ("leaq " XSTRINGIFY(_ENTRY) "(%%rip), %0\n\t"
-         "subq 1f(%%rip), %0\n\t"
-         ".section\t.data.rel.ro\n"
-         "1:\t.quad " XSTRINGIFY(_ENTRY) "\n\t"
-         ".previous\n\t"
-         : "=r" (addr) : : "cc");
+    __asm__(
+      "leaq " XSTRINGIFY(_ENTRY) "(%%rip), %0\n\t"
+                                 "subq 1f(%%rip), %0\n\t"
+                                 ".section\t.data.rel.ro\n"
+                                 "1:\t.quad " XSTRINGIFY(_ENTRY) "\n\t"
+                                                                 ".previous\n\t"
+      : "=r"(addr)
+      :
+      : "cc");
 
     return addr;
 }

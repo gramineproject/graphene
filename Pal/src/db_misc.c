@@ -20,14 +20,13 @@
  * This file contains APIs for miscellaneous use.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
-PAL_NUM DkSystemTimeQuery (void)
-{
+PAL_NUM DkSystemTimeQuery(void) {
     ENTER_PAL_CALL(DkSystemTimeQuery);
     unsigned long time = _DkSystemTimeQuery();
     return time;
@@ -36,8 +35,7 @@ PAL_NUM DkSystemTimeQuery (void)
 static PAL_LOCK lock = LOCK_INIT;
 static unsigned long seed;
 
-size_t _DkFastRandomBitsRead (void * buffer, size_t size)
-{
+size_t _DkFastRandomBitsRead(void* buffer, size_t size) {
     unsigned long rand;
     size_t bytes = 0;
 
@@ -54,11 +52,11 @@ size_t _DkFastRandomBitsRead (void * buffer, size_t size)
 
     do {
         if (bytes + sizeof(rand) <= size) {
-            *(unsigned long *) ((char *) buffer + bytes) = rand;
+            *(unsigned long*)((char*)buffer + bytes) = rand;
             bytes += sizeof(rand);
         } else {
-            for (size_t i = 0 ; i < size - bytes ; i++)
-                *(unsigned char *) ((char *) buffer + bytes + i) = ((unsigned char *) &rand)[i];
+            for (size_t i = 0; i < size - bytes; i++)
+                *(unsigned char*)((char*)buffer + bytes + i) = ((unsigned char*)&rand)[i];
             bytes = size;
         }
         do {
@@ -72,19 +70,17 @@ size_t _DkFastRandomBitsRead (void * buffer, size_t size)
     return bytes;
 }
 
-PAL_NUM DkRandomBitsRead (PAL_PTR buffer, PAL_NUM size)
-{
+PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size) {
     ENTER_PAL_CALL(DkRandomBitsRead);
 
-    int ret = _DkRandomBitsRead((void *) buffer, size);
+    int ret = _DkRandomBitsRead((void*)buffer, size);
 
     LEAVE_PAL_CALL_RETURN(ret);
 }
 
-PAL_PTR DkSegmentRegister (PAL_FLG reg, PAL_PTR addr)
-{
+PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr) {
     ENTER_PAL_CALL(DkSegmentRegister);
-    void * seg_addr = (void *) addr;
+    void* seg_addr = (void*)addr;
     int ret;
 
     if (addr) {
@@ -98,11 +94,10 @@ PAL_PTR DkSegmentRegister (PAL_FLG reg, PAL_PTR addr)
         seg_addr = NULL;
     }
 
-    LEAVE_PAL_CALL_RETURN((PAL_PTR) seg_addr);
+    LEAVE_PAL_CALL_RETURN((PAL_PTR)seg_addr);
 }
 
-PAL_BOL DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size)
-{
+PAL_BOL DkInstructionCacheFlush(PAL_PTR addr, PAL_NUM size) {
     ENTER_PAL_CALL(DkInstructionCacheFlush);
 
     if (!addr || !size) {
@@ -110,7 +105,7 @@ PAL_BOL DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size)
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    int ret = _DkInstructionCacheFlush((void *) addr, size);
+    int ret = _DkInstructionCacheFlush((void*)addr, size);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -120,20 +115,18 @@ PAL_BOL DkInstructionCacheFlush (PAL_PTR addr, PAL_NUM size)
     LEAVE_PAL_CALL_RETURN(PAL_TRUE);
 }
 
-PAL_NUM DkMemoryAvailableQuota (void)
-{
+PAL_NUM DkMemoryAvailableQuota(void) {
     ENTER_PAL_CALL(DkMemoryAvailableQuota);
 
     long quota = _DkMemoryAvailableQuota();
     if (quota < 0)
         quota = 0;
 
-    LEAVE_PAL_CALL_RETURN((PAL_NUM) quota);
+    LEAVE_PAL_CALL_RETURN((PAL_NUM)quota);
 }
 
 PAL_BOL
-DkCpuIdRetrieve (PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4])
-{
+DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]) {
     ENTER_PAL_CALL(DkCpuIdRetrieve);
 
     unsigned int vals[4];

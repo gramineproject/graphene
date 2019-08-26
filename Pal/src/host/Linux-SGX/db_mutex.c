@@ -22,31 +22,28 @@
  * (http://locklessinc.com/articles/mutex_cv_futex)
  */
 
-#include "pal_defs.h"
-#include "pal_linux_defs.h"
+#include <asm/errno.h>
+#include <atomic.h>
+#include <errno.h>
+#include <limits.h>
+#include <linux/futex.h>
+#include <linux/time.h>
+
+#include "api.h"
 #include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
 #include "pal_internal.h"
 #include "pal_linux.h"
+#include "pal_linux_defs.h"
 #include "pal_linux_error.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
 
-#include <linux/futex.h>
-#include <limits.h>
-#include <atomic.h>
-#include <linux/time.h>
-#include <errno.h>
-#include <asm/errno.h>
+#define MUTEX_SPINLOCK_TIMES 100
+#define MUTEX_UNLOCKED       0
+#define MUTEX_LOCKED         1
 
-#define MUTEX_SPINLOCK_TIMES    100
-#define MUTEX_UNLOCKED            0
-#define MUTEX_LOCKED              1
-
-
-int
-_DkMutexCreate (PAL_HANDLE * handle, int initialCount)
-{
+int _DkMutexCreate(PAL_HANDLE* handle, int initialCount) {
     PAL_HANDLE mut = malloc(HANDLE_SIZE(mutex));
     SET_HANDLE_TYPE(mut, mutex);
     atomic_set(&mut->mutex.mut.nwaiters, 0);
@@ -56,7 +53,7 @@ _DkMutexCreate (PAL_HANDLE * handle, int initialCount)
         return -PAL_ERROR_NOMEM;
     }
     *(mut->mutex.mut.locked) = initialCount;
-    *handle = mut;
+    *handle                  = mut;
     return 0;
 }
 
@@ -84,8 +81,8 @@ int _DkMutexLockTimeout(struct mutex_handle* m, int64_t timeout_us) {
 
         if (IS_ERR(ret)) {
             if (ERRNO(ret) == EWOULDBLOCK) {
-                    ret = -PAL_ERROR_TRYAGAIN;
-                    atomic_dec(&m->nwaiters);
+                ret = -PAL_ERROR_TRYAGAIN;
+                atomic_dec(&m->nwaiters);
             } else {
                 ret = unix_to_pal_error(ERRNO(ret));
                 atomic_dec(&m->nwaiters);
@@ -110,46 +107,43 @@ int _DkMutexAcquireTimeout(PAL_HANDLE handle, int64_t timeout_us) {
     return _DkMutexLockTimeout(&handle->mutex.mut, timeout_us);
 }
 
-int _DkMutexUnlock (struct mutex_handle * m)
-{
+int _DkMutexUnlock(struct mutex_handle* m) {
     int ret = 0;
     int need_wake;
 
     /* Unlock */
-    *(m->locked) = MUTEX_UNLOCKED; // TODO: this is not atomic!
+    *(m->locked) = MUTEX_UNLOCKED;  // TODO: this is not atomic!
     /* We need to make sure the write to locked is visible to lock-ers
      * before we read the waiter count. */
     MB();
 
-    need_wake= atomic_read(&m->nwaiters);
+    need_wake = atomic_read(&m->nwaiters);
 
     /* If we need to wake someone up... */
     if (need_wake)
-        ocall_futex((int *) m->locked, FUTEX_WAKE, 1, -1);
+        ocall_futex((int*)m->locked, FUTEX_WAKE, 1, -1);
 
     return ret;
 }
 
-void _DkMutexRelease (PAL_HANDLE handle)
-{
-    struct mutex_handle * mut = &handle->mutex.mut;
-    int ret = _DkMutexUnlock(mut);
+void _DkMutexRelease(PAL_HANDLE handle) {
+    struct mutex_handle* mut = &handle->mutex.mut;
+    int ret                  = _DkMutexUnlock(mut);
     if (ret < 0)
         _DkRaiseFailure(ret);
     return;
 }
 
-static int mutex_wait (PAL_HANDLE handle, int64_t timeout_us) {
+static int mutex_wait(PAL_HANDLE handle, int64_t timeout_us) {
     return _DkMutexAcquireTimeout(handle, timeout_us);
 }
 
-static int mutex_close (PAL_HANDLE handle)
-{
-    free_untrusted((int64_t *) handle->mutex.mut.locked);
+static int mutex_close(PAL_HANDLE handle) {
+    free_untrusted((int64_t*)handle->mutex.mut.locked);
     return 0;
 }
 
 struct handle_ops mutex_ops = {
-        .wait               = &mutex_wait,
-        .close              = &mutex_close,
-    };
+    .wait  = &mutex_wait,
+    .close = &mutex_close,
+};

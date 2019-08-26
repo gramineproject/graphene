@@ -1,11 +1,10 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int sv[2];
 
     socketpair(AF_UNIX, SOCK_STREAM, 0, sv);
@@ -19,7 +18,7 @@ int main(int argc, char ** argv)
 
     if (pid1 == 0) {
         close(sv[0]);
-        write(sv[1], "hello world",12);
+        write(sv[1], "hello world", 12);
         return 0;
     }
 
@@ -27,7 +26,7 @@ int main(int argc, char ** argv)
     int bytes;
 
     close(sv[1]);
-    bytes = read(sv[0], buffer, 12);
+    bytes         = read(sv[0], buffer, 12);
     buffer[bytes] = 0;
     printf("%s\n", buffer);
 

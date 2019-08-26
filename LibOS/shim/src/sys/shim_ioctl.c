@@ -20,43 +20,38 @@
  * Implementation of system call "ioctl".
  */
 
+#include <asm/ioctl.h>
+#include <asm/ioctls.h>
+#include <asm/termbits.h>
+#include <asm/termios.h>
+#include <asm/unistd.h>
+#include <errno.h>
+#include <linux/fd.h>
+#include <linux/sockios.h>
+#include <pal.h>
+#include <pal_error.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
 #include <shim_internal.h>
 #include <shim_table.h>
 #include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
 
-#include <pal.h>
-#include <pal_error.h>
+#define TERM_DEFAULT_IFLAG (ICRNL | IUTF8)
+#define TERM_DEFAULT_OFLAG (OPOST | ONLCR)
+#define TERM_DEFAULT_CFLAG (B38400 | CS8 | CREAD)
+#define TERM_DEFAULT_LFLAG (ICANON | ECHO | ECHOE | ECHOK | ECHOCTL | ECHOKE | IEXTEN)
 
-#include <asm/unistd.h>
-#include <errno.h>
-#include <asm/ioctl.h>
-#include <asm/ioctls.h>
-#include <asm/termios.h>
-#include <asm/termbits.h>
-#include <linux/fd.h>
-#include <linux/sockios.h>
-
-#define TERM_DEFAULT_IFLAG (ICRNL|IUTF8)
-#define TERM_DEFAULT_OFLAG (OPOST|ONLCR)
-#define TERM_DEFAULT_CFLAG (B38400|CS8|CREAD)
-#define TERM_DEFAULT_LFLAG (ICANON|ECHO|ECHOE|ECHOK|ECHOCTL|ECHOKE|IEXTEN)
-
-static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
-                          unsigned long arg)
-{
-    if (hdl->type != TYPE_FILE ||
-        hdl->info.file.type != FILE_TTY)
+static int ioctl_termios(struct shim_handle* hdl, unsigned int cmd, unsigned long arg) {
+    if (hdl->type != TYPE_FILE || hdl->info.file.type != FILE_TTY)
         return -ENOTTY;
 
     if (!arg)
         return -EINVAL;
 
-    switch(cmd) {
+    switch (cmd) {
         /* <include/asm/termios.h> */
         case TIOCGPGRP:
-            *(int *) arg = get_cur_thread()->pgid;
+            *(int*)arg = get_cur_thread()->pgid;
             return 0;
 
         case TIOCSPGRP:
@@ -159,19 +154,17 @@ static int ioctl_termios (struct shim_handle * hdl, unsigned int cmd,
             goto passthrough;
     }
 
- passthrough:
+passthrough:
     return -EAGAIN;
 }
 
-static int ioctl_fd (struct shim_handle * hdl, unsigned int cmd,
-                     unsigned long arg)
-{
+static int ioctl_fd(struct shim_handle* hdl, unsigned int cmd, unsigned long arg) {
     // This is just a placeholder function; arguments are not actually used
     // right now
     __UNUSED(hdl);
     __UNUSED(arg);
 
-    switch(cmd) {
+    switch (cmd) {
         /* <include/linux/fd.h> */
 
         /* 0x00000000 FDCLRPRM void */
@@ -226,13 +219,11 @@ static int ioctl_fd (struct shim_handle * hdl, unsigned int cmd,
             goto passthrough;
     }
 
- passthrough:
+passthrough:
     return -EAGAIN;
 }
 
-static int ioctl_netdevice (struct shim_handle * hdl, unsigned int cmd,
-                            unsigned long arg)
-{
+static int ioctl_netdevice(struct shim_handle* hdl, unsigned int cmd, unsigned long arg) {
     // This is just a placeholder function; arguments are not actually used
     // right now
     __UNUSED(arg);
@@ -240,70 +231,69 @@ static int ioctl_netdevice (struct shim_handle * hdl, unsigned int cmd,
     if (hdl->type != TYPE_SOCK)
         return -ENOTSOCK;
 
-    struct shim_sock_handle * sock = &hdl->info.sock;
+    struct shim_sock_handle* sock = &hdl->info.sock;
 
     if (sock->sock_state == SOCK_CREATED) {
         if (sock->sock_type == SOCK_STREAM)
             return -ENOTCONN;
     }
 
-    switch(cmd) {
+    switch (cmd) {
         /* Socket configuration controls. */
-        case SIOCGIFNAME:       /* 0x8910 get iface name */
-        case SIOCSIFLINK:       /* 0x8911 set iface channel */
-        case SIOCGIFCONF:       /* 0x8912 get iface list */
-        case SIOCGIFFLAGS:      /* 0x8913 get flags */
-        case SIOCSIFFLAGS:      /* 0x8914 set flags */
-        case SIOCGIFADDR:       /* 0x8915 get PA address */
-        case SIOCSIFADDR:       /* 0x8916 set PA address */
-        case SIOCGIFDSTADDR:    /* 0x8917 get remote PA address */
-        case SIOCSIFDSTADDR:    /* 0x8918 set remote PA address */
-        case SIOCGIFBRDADDR:    /* 0x8919 get broadcast PA address */
-        case SIOCSIFBRDADDR:    /* 0x891a set broadcast PA address */
-        case SIOCGIFNETMASK:    /* 0x891b get network PA mask */
-        case SIOCSIFNETMASK:    /* 0x891c set network PA mask */
-        case SIOCGIFMETRIC:     /* 0x891d get metric */
-        case SIOCSIFMETRIC:     /* 0x891e set metric */
-        case SIOCGIFMEM:        /* 0x891f get memory address (BSD) */
-        case SIOCSIFMEM:        /* 0x8920 set memory address (BSD) */
-        case SIOCGIFMTU:        /* 0x8921 get MTU size */
-        case SIOCSIFMTU:        /* 0x8922 set MTU size */
-        case SIOCSIFNAME:       /* 0x8923 set interface name */
-        case SIOCSIFHWADDR:     /* 0x8924 set hardware address */
-        case SIOCGIFENCAP:      /* 0x8925 get/set encapsulations       */
-        case SIOCSIFENCAP:      /* 0x8926 */
-        case SIOCGIFHWADDR:     /* 0x8927 Get hardware address */
-        case SIOCGIFSLAVE:      /* 0x8929 Driver slaving support */
-        case SIOCSIFSLAVE:      /* 0x8930 */
-        case SIOCADDMULTI:      /* 0x8931 Multicast address lists */
-        case SIOCDELMULTI:      /* 0x8932 */
-        case SIOCGIFINDEX:      /* 0x8933 name -> if_index mapping */
+        case SIOCGIFNAME:    /* 0x8910 get iface name */
+        case SIOCSIFLINK:    /* 0x8911 set iface channel */
+        case SIOCGIFCONF:    /* 0x8912 get iface list */
+        case SIOCGIFFLAGS:   /* 0x8913 get flags */
+        case SIOCSIFFLAGS:   /* 0x8914 set flags */
+        case SIOCGIFADDR:    /* 0x8915 get PA address */
+        case SIOCSIFADDR:    /* 0x8916 set PA address */
+        case SIOCGIFDSTADDR: /* 0x8917 get remote PA address */
+        case SIOCSIFDSTADDR: /* 0x8918 set remote PA address */
+        case SIOCGIFBRDADDR: /* 0x8919 get broadcast PA address */
+        case SIOCSIFBRDADDR: /* 0x891a set broadcast PA address */
+        case SIOCGIFNETMASK: /* 0x891b get network PA mask */
+        case SIOCSIFNETMASK: /* 0x891c set network PA mask */
+        case SIOCGIFMETRIC:  /* 0x891d get metric */
+        case SIOCSIFMETRIC:  /* 0x891e set metric */
+        case SIOCGIFMEM:     /* 0x891f get memory address (BSD) */
+        case SIOCSIFMEM:     /* 0x8920 set memory address (BSD) */
+        case SIOCGIFMTU:     /* 0x8921 get MTU size */
+        case SIOCSIFMTU:     /* 0x8922 set MTU size */
+        case SIOCSIFNAME:    /* 0x8923 set interface name */
+        case SIOCSIFHWADDR:  /* 0x8924 set hardware address */
+        case SIOCGIFENCAP:   /* 0x8925 get/set encapsulations       */
+        case SIOCSIFENCAP:   /* 0x8926 */
+        case SIOCGIFHWADDR:  /* 0x8927 Get hardware address */
+        case SIOCGIFSLAVE:   /* 0x8929 Driver slaving support */
+        case SIOCSIFSLAVE:   /* 0x8930 */
+        case SIOCADDMULTI:   /* 0x8931 Multicast address lists */
+        case SIOCDELMULTI:   /* 0x8932 */
+        case SIOCGIFINDEX:   /* 0x8933 name -> if_index mapping */
         /* SIOGIFINDEX = SIOCGIFINDEX misprint compatibility :-) */
-        case SIOCSIFPFLAGS:     /* 0x8934 set/get extended flags set */
-        case SIOCGIFPFLAGS:     /* 0x8935 */
-        case SIOCDIFADDR:       /* 0x8936 delete PA address */
+        case SIOCSIFPFLAGS:      /* 0x8934 set/get extended flags set */
+        case SIOCGIFPFLAGS:      /* 0x8935 */
+        case SIOCDIFADDR:        /* 0x8936 delete PA address */
         case SIOCSIFHWBROADCAST: /* 0x8937 set hardware broadcast addr */
-        case SIOCGIFCOUNT:      /* 0x8938 get number of devices */
-        case SIOCGIFBR:         /* 0x8940 Bridging support */
-        case SIOCSIFBR:         /* 0x8941 Set bridging options  */
-        case SIOCGIFTXQLEN:     /* 0x8942 Get the tx queue length */
-        case SIOCSIFTXQLEN:     /* 0x8943 Set the tx queue length  */
+        case SIOCGIFCOUNT:       /* 0x8938 get number of devices */
+        case SIOCGIFBR:          /* 0x8940 Bridging support */
+        case SIOCSIFBR:          /* 0x8941 Set bridging options  */
+        case SIOCGIFTXQLEN:      /* 0x8942 Get the tx queue length */
+        case SIOCSIFTXQLEN:      /* 0x8943 Set the tx queue length  */
         default:
             goto passthrough;
     }
 
- passthrough:
+passthrough:
     return -EAGAIN;
 }
 
-void signal_io (IDTYPE target, void *arg)
-{
+void signal_io(IDTYPE target, void* arg) {
     // Kept for compatibility with signal_itimer
     __UNUSED(arg);
 
     debug("detecting input, signaling thread %u\n", target);
 
-    struct shim_thread * thread = lookup_thread(target);
+    struct shim_thread* thread = lookup_thread(target);
     if (!thread)
         return;
 
@@ -312,14 +302,13 @@ void signal_io (IDTYPE target, void *arg)
     unlock(&thread->lock);
 }
 
-int shim_do_ioctl (int fd, int cmd, unsigned long arg)
-{
-    struct shim_handle * hdl = get_fd_handle(fd, NULL, NULL);
+int shim_do_ioctl(int fd, int cmd, unsigned long arg) {
+    struct shim_handle* hdl = get_fd_handle(fd, NULL, NULL);
     if (!hdl)
         return -EBADF;
 
     int ret = -EAGAIN;
-    switch(cmd) {
+    switch (cmd) {
         /* <include/asm/termios.h> */
         case TCGETS:
         case TCSETS:
@@ -359,8 +348,7 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
             ret = ioctl_termios(hdl, cmd, arg);
             break;
         case FIONBIO:
-            if (hdl->fs && hdl->fs->fs_ops &&
-                hdl->fs->fs_ops->setflags)
+            if (hdl->fs && hdl->fs->fs_ops && hdl->fs->fs_ops->setflags)
                 hdl->fs->fs_ops->setflags(hdl, hdl->flags | O_NONBLOCK);
             hdl->flags |= O_NONBLOCK;
             ret = 0;
@@ -416,9 +404,9 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
             break;
 
         case FIONREAD: {
-            struct shim_mount * fs = hdl->fs;
-            int size = 0;
-            int offset = 0;
+            struct shim_mount* fs = hdl->fs;
+            int size              = 0;
+            int offset            = 0;
 
             if (!fs || !fs->fs_ops) {
                 ret = -EACCES;
@@ -448,51 +436,51 @@ int shim_do_ioctl (int fd, int cmd, unsigned long arg)
                 offset = ret;
             }
 
-            *(int *) arg = size - offset;
-            ret = 0;
+            *(int*)arg = size - offset;
+            ret        = 0;
             break;
         }
 
         /* Socket configuration controls. */
-        case SIOCGIFNAME:       /* 0x8910 get iface name */
-        case SIOCSIFLINK:       /* 0x8911 set iface channel */
-        case SIOCGIFCONF:       /* 0x8912 get iface list */
-        case SIOCGIFFLAGS:      /* 0x8913 get flags */
-        case SIOCSIFFLAGS:      /* 0x8914 set flags */
-        case SIOCGIFADDR:       /* 0x8915 get PA address */
-        case SIOCSIFADDR:       /* 0x8916 set PA address */
-        case SIOCGIFDSTADDR:    /* 0x8917 get remote PA address */
-        case SIOCSIFDSTADDR:    /* 0x8918 set remote PA address */
-        case SIOCGIFBRDADDR:    /* 0x8919 get broadcast PA address */
-        case SIOCSIFBRDADDR:    /* 0x891a set broadcast PA address */
-        case SIOCGIFNETMASK:    /* 0x891b get network PA mask */
-        case SIOCSIFNETMASK:    /* 0x891c set network PA mask */
-        case SIOCGIFMETRIC:     /* 0x891d get metric */
-        case SIOCSIFMETRIC:     /* 0x891e set metric */
-        case SIOCGIFMEM:        /* 0x891f get memory address (BSD) */
-        case SIOCSIFMEM:        /* 0x8920 set memory address (BSD) */
-        case SIOCGIFMTU:        /* 0x8921 get MTU size */
-        case SIOCSIFMTU:        /* 0x8922 set MTU size */
-        case SIOCSIFNAME:       /* 0x8923 set interface name */
-        case SIOCSIFHWADDR:     /* 0x8924 set hardware address */
-        case SIOCGIFENCAP:      /* 0x8925 get/set encapsulations       */
-        case SIOCSIFENCAP:      /* 0x8926 */
-        case SIOCGIFHWADDR:     /* 0x8927 Get hardware address */
-        case SIOCGIFSLAVE:      /* 0x8929 Driver slaving support */
-        case SIOCSIFSLAVE:      /* 0x8930 */
-        case SIOCADDMULTI:      /* 0x8931 Multicast address lists */
-        case SIOCDELMULTI:      /* 0x8932 */
-        case SIOCGIFINDEX:      /* 0x8933 name -> if_index mapping */
+        case SIOCGIFNAME:    /* 0x8910 get iface name */
+        case SIOCSIFLINK:    /* 0x8911 set iface channel */
+        case SIOCGIFCONF:    /* 0x8912 get iface list */
+        case SIOCGIFFLAGS:   /* 0x8913 get flags */
+        case SIOCSIFFLAGS:   /* 0x8914 set flags */
+        case SIOCGIFADDR:    /* 0x8915 get PA address */
+        case SIOCSIFADDR:    /* 0x8916 set PA address */
+        case SIOCGIFDSTADDR: /* 0x8917 get remote PA address */
+        case SIOCSIFDSTADDR: /* 0x8918 set remote PA address */
+        case SIOCGIFBRDADDR: /* 0x8919 get broadcast PA address */
+        case SIOCSIFBRDADDR: /* 0x891a set broadcast PA address */
+        case SIOCGIFNETMASK: /* 0x891b get network PA mask */
+        case SIOCSIFNETMASK: /* 0x891c set network PA mask */
+        case SIOCGIFMETRIC:  /* 0x891d get metric */
+        case SIOCSIFMETRIC:  /* 0x891e set metric */
+        case SIOCGIFMEM:     /* 0x891f get memory address (BSD) */
+        case SIOCSIFMEM:     /* 0x8920 set memory address (BSD) */
+        case SIOCGIFMTU:     /* 0x8921 get MTU size */
+        case SIOCSIFMTU:     /* 0x8922 set MTU size */
+        case SIOCSIFNAME:    /* 0x8923 set interface name */
+        case SIOCSIFHWADDR:  /* 0x8924 set hardware address */
+        case SIOCGIFENCAP:   /* 0x8925 get/set encapsulations       */
+        case SIOCSIFENCAP:   /* 0x8926 */
+        case SIOCGIFHWADDR:  /* 0x8927 Get hardware address */
+        case SIOCGIFSLAVE:   /* 0x8929 Driver slaving support */
+        case SIOCSIFSLAVE:   /* 0x8930 */
+        case SIOCADDMULTI:   /* 0x8931 Multicast address lists */
+        case SIOCDELMULTI:   /* 0x8932 */
+        case SIOCGIFINDEX:   /* 0x8933 name -> if_index mapping */
         /* SIOGIFINDEX = SIOCGIFINDEX misprint compatibility :-) */
-        case SIOCSIFPFLAGS:     /* 0x8934 set/get extended flags set */
-        case SIOCGIFPFLAGS:     /* 0x8935 */
-        case SIOCDIFADDR:       /* 0x8936 delete PA address */
+        case SIOCSIFPFLAGS:      /* 0x8934 set/get extended flags set */
+        case SIOCGIFPFLAGS:      /* 0x8935 */
+        case SIOCDIFADDR:        /* 0x8936 delete PA address */
         case SIOCSIFHWBROADCAST: /* 0x8937 set hardware broadcast addr */
-        case SIOCGIFCOUNT:      /* 0x8938 get number of devices */
-        case SIOCGIFBR:         /* 0x8940 Bridging support */
-        case SIOCSIFBR:         /* 0x8941 Set bridging options  */
-        case SIOCGIFTXQLEN:     /* 0x8942 Get the tx queue length */
-        case SIOCSIFTXQLEN:     /* 0x8943 Set the tx queue length  */
+        case SIOCGIFCOUNT:       /* 0x8938 get number of devices */
+        case SIOCGIFBR:          /* 0x8940 Bridging support */
+        case SIOCSIFBR:          /* 0x8941 Set bridging options  */
+        case SIOCGIFTXQLEN:      /* 0x8942 Get the tx queue length */
+        case SIOCSIFTXQLEN:      /* 0x8943 Set the tx queue length  */
             ret = ioctl_netdevice(hdl, cmd, arg);
             break;
 

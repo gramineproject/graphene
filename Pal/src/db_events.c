@@ -20,18 +20,17 @@
  * This file contains implementation of Drawbridge event synchronization APIs.
  */
 
-#include "pal_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_error.h"
 #include "api.h"
+#include "pal.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_internal.h"
 
-PAL_HANDLE DkNotificationEventCreate (PAL_BOL initialState)
-{
+PAL_HANDLE DkNotificationEventCreate(PAL_BOL initialState) {
     ENTER_PAL_CALL(DkNotificationEventCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret = _DkEventCreate(&handle, initialState, true);
+    int ret           = _DkEventCreate(&handle, initialState, true);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -42,12 +41,11 @@ PAL_HANDLE DkNotificationEventCreate (PAL_BOL initialState)
     LEAVE_PAL_CALL_RETURN(handle);
 }
 
-PAL_HANDLE DkSynchronizationEventCreate (PAL_BOL initialState)
-{
+PAL_HANDLE DkSynchronizationEventCreate(PAL_BOL initialState) {
     ENTER_PAL_CALL(DkSynchronizationEventCreate);
 
     PAL_HANDLE handle = NULL;
-    int ret = _DkEventCreate(&handle, initialState, false);
+    int ret           = _DkEventCreate(&handle, initialState, false);
 
     if (ret < 0) {
         _DkRaiseFailure(-ret);
@@ -60,8 +58,7 @@ PAL_HANDLE DkSynchronizationEventCreate (PAL_BOL initialState)
 
 /* DkEventDestroy deprecated, replaced by DkObjectClose */
 
-void DkEventSet (PAL_HANDLE handle)
-{
+void DkEventSet(PAL_HANDLE handle) {
     ENTER_PAL_CALL(DkEventSet);
 
     if (!handle || !IS_HANDLE_TYPE(handle, event)) {
@@ -77,8 +74,7 @@ void DkEventSet (PAL_HANDLE handle)
     LEAVE_PAL_CALL();
 }
 
-void DkEventWait (PAL_HANDLE handle)
-{
+void DkEventWait(PAL_HANDLE handle) {
     ENTER_PAL_CALL(DkEventWait);
 
     if (!handle || !IS_HANDLE_TYPE(handle, event)) {
@@ -94,8 +90,7 @@ void DkEventWait (PAL_HANDLE handle)
     LEAVE_PAL_CALL();
 }
 
-void DkEventClear (PAL_HANDLE handle)
-{
+void DkEventClear(PAL_HANDLE handle) {
     ENTER_PAL_CALL(DkEventClear);
 
     if (!handle || !IS_HANDLE_TYPE(handle, event)) {

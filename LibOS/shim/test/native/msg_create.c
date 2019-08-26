@@ -1,15 +1,14 @@
 /* Test to create 100 message queues and query them from another process*/
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/types.h>
-#include <sys/msg.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 struct msg_buf {
     long mtype;
@@ -19,12 +18,11 @@ struct msg_buf {
 #define TEST_TIMES 1000
 #define DO_BENCH   1
 
-int create_q (int key)
-{
-    int r = msgget(key, IPC_CREAT|0600);
+int create_q(int key) {
+    int r = msgget(key, IPC_CREAT | 0600);
 
 #ifndef DO_BENCH
-    printf("The identifier used is %d\n",r);
+    printf("The identifier used is %d\n", r);
 #endif
 
     if (r < 0) {
@@ -39,24 +37,23 @@ int create_q (int key)
     return r;
 }
 
-int connect_q (int key)
-{
-   int r = msgget(key, 0);
+int connect_q(int key) {
+    int r = msgget(key, 0);
 
 #ifndef DO_BENCH
-   printf("The identifier used is %d\n",r);
+    printf("The identifier used is %d\n", r);
 #endif
 
-   if (r < 0) {
-       perror("msgget");
-       exit(-1);
-   }
+    if (r < 0) {
+        perror("msgget");
+        exit(-1);
+    }
 #ifndef DO_BENCH
-   else
+    else
         printf("Connected the message queue\n");
 #endif
 
-   return r;
+    return r;
 }
 
 enum { PARALLEL, SERIAL, IN_PROCESS } mode = PARALLEL;
@@ -64,15 +61,13 @@ int pipefds[4];
 int keys[TEST_TIMES];
 
 /* server always creates queues */
-void server (void)
-{
+void server(void) {
     struct timeval tv1, tv2;
     int i;
 
     gettimeofday(&tv1, NULL);
 
-    for (i = 0; i < TEST_TIMES; i++)
-        create_q(keys[i]);
+    for (i = 0; i < TEST_TIMES; i++) create_q(keys[i]);
 
     gettimeofday(&tv2, NULL);
 
@@ -88,18 +83,15 @@ void server (void)
         read(pipefds[2], &byte, 1);
     }
 
-    printf("time spent on %d creation: %llu microsecond\n",
-           TEST_TIMES,
-           (tv2.tv_sec * 1000000ULL + tv2.tv_usec) -
-           (tv1.tv_sec * 1000000ULL + tv1.tv_usec));
+    printf("time spent on %d creation: %llu microsecond\n", TEST_TIMES,
+           (tv2.tv_sec * 1000000ULL + tv2.tv_usec) - (tv1.tv_sec * 1000000ULL + tv1.tv_usec));
 
     if (mode != IN_PROCESS)
         exit(0);
 }
 
 /* client always connects queues */
-void client (void)
-{
+void client(void) {
     struct timeval tv1, tv2;
     int i;
     int ids[TEST_TIMES];
@@ -112,13 +104,11 @@ void client (void)
 
     gettimeofday(&tv1, NULL);
 
-    for (i= 0; i < TEST_TIMES ; i++)
-        ids[i] = connect_q(keys[i]);
+    for (i = 0; i < TEST_TIMES; i++) ids[i] = connect_q(keys[i]);
 
     gettimeofday(&tv2, NULL);
 
-    for (i= 0; i < TEST_TIMES ; i++)
-        msgctl(ids[i], IPC_RMID, NULL);
+    for (i = 0; i < TEST_TIMES; i++) msgctl(ids[i], IPC_RMID, NULL);
 
     if (mode == PARALLEL) {
         close(pipefds[2]);
@@ -126,21 +116,17 @@ void client (void)
         write(pipefds[3], &byte, 1);
     }
 
-    printf("time spent on %d connection: %llu microsecond\n",
-           TEST_TIMES,
-           (tv2.tv_sec * 1000000ULL + tv2.tv_usec) -
-           (tv1.tv_sec * 1000000ULL + tv1.tv_usec));
+    printf("time spent on %d connection: %llu microsecond\n", TEST_TIMES,
+           (tv2.tv_sec * 1000000ULL + tv2.tv_usec) - (tv1.tv_sec * 1000000ULL + tv1.tv_usec));
 
     if (mode != IN_PROCESS)
         exit(0);
 }
 
-int main (int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int i;
 
-    for (i = 0; i < TEST_TIMES; i++)
-        keys[i] = rand();
+    for (i = 0; i < TEST_TIMES; i++) keys[i] = rand();
 
     pipe(pipefds);
     pipe(pipefds + 2);

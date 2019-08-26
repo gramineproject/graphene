@@ -26,7 +26,8 @@
 
 /*
  * Finds next '/' in `path`.
- * Returns a pointer to it or to the nullbyte ending the string if no '/' has been found.
+ * Returns a pointer to it or to the nullbyte ending the string if no '/' has
+ * been found.
  */
 static inline const char* find_next_slash(const char* path) {
     while (*path && *path != '/') {
@@ -36,8 +37,10 @@ static inline const char* find_next_slash(const char* path) {
 }
 
 /*
- * Finds previous '/' in `path` (starting from `size` - 1) and returns offset to it.
- * If the last character is '/', then it is skipped (as a token can end with '/').
+ * Finds previous '/' in `path` (starting from `size` - 1) and returns offset to
+ * it.
+ * If the last character is '/', then it is skipped (as a token can end with
+ * '/').
  */
 static inline size_t find_prev_slash_offset(const char* path, size_t size) {
     if (size && path[size - 1] == '/') {
@@ -66,11 +69,10 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
     /* reserve 1 byte for ending '\0' */
     size--;
 
-    size_t offset = 0,
-           ret_size = 0; /* accounts for undiscardable bytes written to `buf`
-                          * i.e. `buf - ret_size` points to original `buf` */
-    unsigned char need_slash = 0; // is '/' needed before next token
-    bool is_absolute_path = *path == '/';
+    size_t offset = 0, ret_size = 0; /* accounts for undiscardable bytes written to `buf`
+                                      * i.e. `buf - ret_size` points to original `buf` */
+    unsigned char need_slash = 0;    // is '/' needed before next token
+    bool is_absolute_path    = *path == '/';
 
     /* handle an absolute path */
     if (is_absolute_path) {
@@ -90,7 +92,7 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
             /* ".." */
             if (offset) {
                 /* eat up previously written token */
-                offset = find_prev_slash_offset(buf, offset);
+                offset     = find_prev_slash_offset(buf, offset);
                 need_slash = 0;
             } else if (!is_absolute_path) {
                 /* append undiscardable ".." since there is no previous token
@@ -108,7 +110,8 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
                 need_slash = 1;
             } else {
                 /* remaining case: offset == 0, path is absolute and ".." was just seen,
-                 * i.e. "/..", which is collapsed to "/", hence nothing needs to be done */
+                 * i.e. "/..", which is collapsed to "/", hence nothing needs to be done
+                 */
             }
         } else if ((end == path) || (end - path == 1 && path[0] == '.')) {
             /* ignore "//" and "." */
@@ -138,7 +141,8 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
 }
 
 /*
- * Returns the part after the last '/' (so `path` should probably be normalized).
+ * Returns the part after the last '/' (so `path` should probably be
+ * normalized).
  * Before calling this function *size should hold the size of buf.
  * After returning it holds number of bytes actually written to it
  * (excluding the trailing '\0').

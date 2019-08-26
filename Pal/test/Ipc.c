@@ -1,32 +1,31 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-int main(int argc, char ** argv)
-{
-    char * name = "parent";
+int main(int argc, char** argv) {
+    char* name = "parent";
 
     if (argc == 1) {
-        const char * args[3];
+        const char* args[3];
         char uri[20];
 
         args[0] = "Ipc";
         args[1] = uri;
         args[2] = NULL;
 
-        void * mem = (void *) DkVirtualMemoryAlloc(NULL,
-                                                   pal_control.alloc_align, 0,
-                                                   PAL_PROT_READ|PAL_PROT_WRITE);
+        void* mem = (void*)DkVirtualMemoryAlloc(NULL, pal_control.alloc_align, 0,
+                                                PAL_PROT_READ | PAL_PROT_WRITE);
 
         pal_printf("mem = %p\n", mem);
-        snprintf((char *) mem, 4096, "Hello World");
+        snprintf((char*)mem, 4096, "Hello World");
 
-        PAL_NUM key = 0;
+        PAL_NUM key     = 0;
         PAL_HANDLE chdl = DkCreatePhysicalMemoryChannel(&key);
 
         if (chdl == NULL) {
-            pal_printf ("(parent) DkCreatePhysicalMemoryChannel Failed,"
-                         " Make sure gipc module is loaded\n");
+            pal_printf(
+                "(parent) DkCreatePhysicalMemoryChannel Failed,"
+                " Make sure gipc module is loaded\n");
             return 0;
         }
 
@@ -35,9 +34,9 @@ int main(int argc, char ** argv)
         PAL_HANDLE phdl = DkProcessCreate("file:Ipc", args);
 
         if (phdl == NULL)
-            pal_printf ("ProcessCreate Failed\n");
+            pal_printf("ProcessCreate Failed\n");
 
-        PAL_PTR addr = (PAL_PTR) mem;
+        PAL_PTR addr = (PAL_PTR)mem;
         PAL_NUM size = pal_control.alloc_align;
         DkPhysicalMemoryCommit(chdl, 1, &addr, &size);
         DkObjectClose(chdl);
@@ -60,9 +59,9 @@ int main(int argc, char ** argv)
 
         PAL_PTR addr = NULL;
         PAL_NUM size = pal_control.alloc_align;
-        PAL_FLG prot = PAL_PROT_READ|PAL_PROT_WRITE;
+        PAL_FLG prot = PAL_PROT_READ | PAL_PROT_WRITE;
 
-        int len = DkPhysicalMemoryMap (chdl, 1, &addr, &size, &prot);
+        int len = DkPhysicalMemoryMap(chdl, 1, &addr, &size, &prot);
 
         if (!len) {
             pal_printf("PhysicalMemoryMap Failed\n");
@@ -70,7 +69,7 @@ int main(int argc, char ** argv)
         }
 
         pal_printf("(child) mem = %p\n", addr);
-        pal_printf("(child) receive string: %s\n", (char *) addr);
+        pal_printf("(child) receive string: %s\n", (char*)addr);
 
         DkStreamDelete(chdl, 0);
         DkObjectClose(chdl);
@@ -85,9 +84,8 @@ int main(int argc, char ** argv)
 
     pal_printf("Enter Main Thread (%s)\n", name);
 
-    DkThreadDelayExecution (3000);
+    DkThreadDelayExecution(3000);
 
     pal_printf("Leave Main Thread\n");
     return 0;
 }
-

@@ -20,33 +20,30 @@
  * This files contains APIs that allocate, free or protect virtual memory.
  */
 
-#include "pal_defs.h"
-#include "pal_freebsd_defs.h"
-#include "pal.h"
-#include "pal_internal.h"
-#include "pal_freebsd.h"
-#include "pal_error.h"
-#include "pal_debug.h"
-#include "api.h"
-
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
-bool _DkCheckMemoryMappable (const void * addr, size_t size)
-{
+#include "api.h"
+#include "pal.h"
+#include "pal_debug.h"
+#include "pal_defs.h"
+#include "pal_error.h"
+#include "pal_freebsd.h"
+#include "pal_freebsd_defs.h"
+#include "pal_internal.h"
+
+bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     return (addr <= DATA_END && addr + size >= TEXT_START);
 }
-int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type,
-                           int prot)
-{
-    void * addr = *paddr, * mem = addr;
+int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot) {
+    void *addr = *paddr, *mem = addr;
 
-    int flags = HOST_FLAGS(alloc_type, prot|PAL_PROT_WRITECOPY);
-    prot = HOST_PROT(prot);
+    int flags = HOST_FLAGS(alloc_type, prot | PAL_PROT_WRITECOPY);
+    prot      = HOST_PROT(prot);
 
-    flags |= MAP_ANONYMOUS|(addr ? MAP_FIXED : 0);
-    mem = (void *) ARCH_MMAP(addr, size, prot, flags, -1, 0);
+    flags |= MAP_ANONYMOUS | (addr ? MAP_FIXED : 0);
+    mem = (void*)ARCH_MMAP(addr, size, prot, flags, -1, 0);
 
     if (IS_ERR_P(mem))
         return unix_to_pal_error(ERRNO_P(mem));
@@ -55,52 +52,48 @@ int _DkVirtualMemoryAlloc (void ** paddr, uint64_t size, int alloc_type,
     return 0;
 }
 
-int _DkVirtualMemoryFree (void * addr, uint64_t size)
-{
+int _DkVirtualMemoryFree(void* addr, uint64_t size) {
     int ret = INLINE_SYSCALL(munmap, 2, addr, size);
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-int _DkVirtualMemoryProtect (void * addr, uint64_t size, int prot)
-{
+int _DkVirtualMemoryProtect(void* addr, uint64_t size, int prot) {
     int ret = INLINE_SYSCALL(mprotect, 3, addr, size, HOST_PROT(prot));
 
     return IS_ERR(ret) ? unix_to_pal_error(ERRNO(ret)) : 0;
 }
 
-#define MEM_TOTAL   1
-#define MEM_FREE    2
+#define MEM_TOTAL 1
+#define MEM_FREE  2
 
-#define VM_TOTAL    1
+#define VM_TOTAL 1
 
-static int get_meminfo (int key, unsigned long * val)
-{
+static int get_meminfo(int key, unsigned long* val) {
     int mib[2], len;
     struct vmtotal vm;
 
     int ret = -PAL_ERROR_DENIED;
 
-    switch(key){
+    switch (key) {
         case MEM_TOTAL:
             mib[0] = CTL_HW;
             mib[1] = HW_REALMEM;
-            len = sizeof(val);
-            ret = INLINE_SYSCALL(__sysctl, 6, mib, 2, val, &len, NULL, 0);
+            len    = sizeof(val);
+            ret    = INLINE_SYSCALL(__sysctl, 6, mib, 2, val, &len, NULL, 0);
             break;
         case MEM_FREE:
             mib[0] = CTL_VM;
             mib[1] = VM_TOTAL;
-            len = sizeof(vm);
-            ret = INLINE_SYSCALL(__sysctl, 6, mib, 2, &vm, &len, NULL, 0);
-            *val = vm.t_free * 4096;
+            len    = sizeof(vm);
+            ret    = INLINE_SYSCALL(__sysctl, 6, mib, 2, &vm, &len, NULL, 0);
+            *val   = vm.t_free * 4096;
             break;
     }
     return ret;
 }
 
-unsigned long _DkMemoryQuota (void)
-{
+unsigned long _DkMemoryQuota(void) {
     if (bsd_state.memory_quota)
         return bsd_state.memory_quota;
     unsigned long quota = 0;
@@ -109,8 +102,7 @@ unsigned long _DkMemoryQuota (void)
     return quota * 1024;
 }
 
-unsigned long _DkMemoryAvailableQuota (void)
-{
+unsigned long _DkMemoryAvailableQuota(void) {
     unsigned long quota = 0;
     if (get_meminfo(MEM_FREE, &quota) < 0)
         return 0;

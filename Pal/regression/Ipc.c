@@ -1,25 +1,21 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
 #define UNIT (pal_control.alloc_align)
 
-static const char * volatile message = NULL;
+static const char* volatile message = NULL;
 
-void handler (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
-{
+void handler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (message)
         pal_printf("%s", message);
 
-    while (*(unsigned char *) context->rip != 0x90)
-        context->rip++;
+    while (*(unsigned char*)context->rip != 0x90) context->rip++;
 
     DkExceptionReturn(event);
-
 }
 
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     char gipc_uri[20];
     int ret;
 
@@ -28,8 +24,7 @@ int main (int argc, char ** argv, char ** envp)
     if (argc > 1 && !memcmp(argv[1], "Child", 6)) {
         /* private memory */
 
-        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri,
-                           NULL, 0);
+        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri, NULL, 0);
 
         if (ret > 0) {
             PAL_HANDLE ipc1 = DkStreamOpen(gipc_uri, 0, 0, 0, 0);
@@ -39,30 +34,25 @@ int main (int argc, char ** argv, char ** envp)
 
                 PAL_PTR mem_addr = 0;
                 PAL_NUM mem_size = UNIT;
-                PAL_FLG mem_prot = PAL_PROT_READ|PAL_PROT_WRITE;
+                PAL_FLG mem_prot = PAL_PROT_READ | PAL_PROT_WRITE;
 
-                ret = DkPhysicalMemoryMap(ipc1, 1, &mem_addr, &mem_size,
-                                          &mem_prot);
+                ret = DkPhysicalMemoryMap(ipc1, 1, &mem_addr, &mem_size, &mem_prot);
 
                 if (ret > 0) {
-                    pal_printf("[Test 1] Physical Memory Map   : %s\n",
-                               (char *) mem_addr);
-                    memcpy((void *) mem_addr, "Hello World, Bob", 20);
-                    pal_printf("[Test 1] Receiver After  Map   : %s\n",
-                               (char *) mem_addr);
+                    pal_printf("[Test 1] Physical Memory Map   : %s\n", (char*)mem_addr);
+                    memcpy((void*)mem_addr, "Hello World, Bob", 20);
+                    pal_printf("[Test 1] Receiver After  Map   : %s\n", (char*)mem_addr);
                 }
 
                 ret = 0;
-                DkStreamWrite(pal_control.parent_process, 0, sizeof(int),
-                              &ret, NULL);
+                DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &ret, NULL);
                 DkObjectClose(ipc1);
             }
         }
 
         /* private untouched memory */
 
-        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri,
-                           NULL, 0);
+        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri, NULL, 0);
 
         if (ret > 0) {
             PAL_HANDLE ipc2 = DkStreamOpen(gipc_uri, 0, 0, 0, 0);
@@ -72,22 +62,18 @@ int main (int argc, char ** argv, char ** envp)
 
                 PAL_PTR mem_addr = 0;
                 PAL_NUM mem_size = UNIT;
-                PAL_FLG mem_prot = PAL_PROT_READ|PAL_PROT_WRITE;
+                PAL_FLG mem_prot = PAL_PROT_READ | PAL_PROT_WRITE;
 
-                ret = DkPhysicalMemoryMap(ipc2, 1, &mem_addr, &mem_size,
-                                          &mem_prot);
+                ret = DkPhysicalMemoryMap(ipc2, 1, &mem_addr, &mem_size, &mem_prot);
 
                 if (ret > 0) {
-                    pal_printf("[Test 2] Physical Memory Map   : %s\n",
-                               (char *) mem_addr);
-                    memcpy((void *) mem_addr, "Hello World, Bob", 20);
-                    pal_printf("[Test 2] Receiver After  Map   : %s\n",
-                               (char *) mem_addr);
+                    pal_printf("[Test 2] Physical Memory Map   : %s\n", (char*)mem_addr);
+                    memcpy((void*)mem_addr, "Hello World, Bob", 20);
+                    pal_printf("[Test 2] Receiver After  Map   : %s\n", (char*)mem_addr);
                 }
 
                 ret = 0;
-                DkStreamWrite(pal_control.parent_process, 0, sizeof(int),
-                              &ret, NULL);
+                DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &ret, NULL);
                 DkStreamDelete(ipc2, 0);
                 DkObjectClose(ipc2);
             }
@@ -95,8 +81,7 @@ int main (int argc, char ** argv, char ** envp)
 
         /* file-backed memory */
 
-        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri,
-                           NULL, 0);
+        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri, NULL, 0);
 
         if (ret > 0) {
             PAL_HANDLE ipc3 = DkStreamOpen(gipc_uri, 0, 0, 0, 0);
@@ -106,30 +91,25 @@ int main (int argc, char ** argv, char ** envp)
 
                 PAL_PTR mem_addr = 0;
                 PAL_NUM mem_size = UNIT;
-                PAL_FLG mem_prot = PAL_PROT_READ|PAL_PROT_WRITE;
+                PAL_FLG mem_prot = PAL_PROT_READ | PAL_PROT_WRITE;
 
-                ret = DkPhysicalMemoryMap(ipc3, 1, &mem_addr, &mem_size,
-                                          &mem_prot);
+                ret = DkPhysicalMemoryMap(ipc3, 1, &mem_addr, &mem_size, &mem_prot);
 
                 if (ret > 0) {
-                    pal_printf("[Test 3] Physical Memory Map   : %s\n",
-                               (char *) mem_addr);
-                    memcpy((void *) mem_addr, "Hello World, Bob", 20);
-                    pal_printf("[Test 3] Receiver After  Map   : %s\n",
-                               (char *) mem_addr);
+                    pal_printf("[Test 3] Physical Memory Map   : %s\n", (char*)mem_addr);
+                    memcpy((void*)mem_addr, "Hello World, Bob", 20);
+                    pal_printf("[Test 3] Receiver After  Map   : %s\n", (char*)mem_addr);
                 }
 
                 ret = 0;
-                DkStreamWrite(pal_control.parent_process, 0, sizeof(int),
-                              &ret, NULL);
+                DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &ret, NULL);
                 DkObjectClose(ipc3);
             }
         }
 
         /* file-backed memory beyond file size */
 
-        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri,
-                           NULL, 0);
+        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri, NULL, 0);
 
         if (ret > 0) {
             PAL_HANDLE ipc4 = DkStreamOpen(gipc_uri, 0, 0, 0, 0);
@@ -139,29 +119,26 @@ int main (int argc, char ** argv, char ** envp)
 
                 PAL_PTR mem_addr = 0;
                 PAL_NUM mem_size = UNIT;
-                PAL_FLG mem_prot = PAL_PROT_READ|PAL_PROT_WRITE;
+                PAL_FLG mem_prot = PAL_PROT_READ | PAL_PROT_WRITE;
 
-                ret = DkPhysicalMemoryMap(ipc4, 1, &mem_addr, &mem_size,
-                                          &mem_prot);
+                ret = DkPhysicalMemoryMap(ipc4, 1, &mem_addr, &mem_size, &mem_prot);
 
                 if (ret > 0) {
                     message = "[Test 4] Physical Memory Map   : Memory Fault\n";
-                    *(volatile int *) mem_addr;
+                    *(volatile int*)mem_addr;
                     __asm__ volatile("nop");
                     message = NULL;
                 }
 
                 ret = 0;
-                DkStreamWrite(pal_control.parent_process, 0, sizeof(int),
-                              &ret, NULL);
+                DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &ret, NULL);
                 DkObjectClose(ipc4);
             }
         }
 
         /* large memory */
 
-        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri,
-                           NULL, 0);
+        ret = DkStreamRead(pal_control.parent_process, 0, 20, gipc_uri, NULL, 0);
 
         if (ret > 0) {
             PAL_HANDLE ipc5 = DkStreamOpen(gipc_uri, 0, 0, 0, 0);
@@ -171,24 +148,22 @@ int main (int argc, char ** argv, char ** envp)
 
                 PAL_PTR mem_addr = 0;
                 PAL_NUM mem_size = UNIT * 1024 * 64;
-                PAL_FLG mem_prot = PAL_PROT_READ|PAL_PROT_WRITE;
+                PAL_FLG mem_prot = PAL_PROT_READ | PAL_PROT_WRITE;
 
-                ret = DkPhysicalMemoryMap(ipc5, 1, &mem_addr, &mem_size,
-                                          &mem_prot);
+                ret = DkPhysicalMemoryMap(ipc5, 1, &mem_addr, &mem_size, &mem_prot);
 
                 if (ret > 0) {
                     pal_printf("[Test 5] Physical Memory Map   : %s\n",
-                               (char *) mem_addr + UNIT * 1024);
+                               (char*)mem_addr + UNIT * 1024);
                 }
 
                 ret = 0;
-                DkStreamWrite(pal_control.parent_process, 0, sizeof(int),
-                              &ret, NULL);
+                DkStreamWrite(pal_control.parent_process, 0, sizeof(int), &ret, NULL);
                 DkObjectClose(ipc5);
             }
         }
     } else {
-        PAL_STR args[3] = { "Ipc", "Child", 0 };
+        PAL_STR args[3] = {"Ipc", "Child", 0};
         PAL_HANDLE proc = DkProcessCreate("file:Ipc", args);
 
         if (!proc)
@@ -203,9 +178,7 @@ int main (int argc, char ** argv, char ** envp)
             snprintf(gipc_uri, 20, "gipc:%ld", key1);
             pal_printf("Create Physical Memory Store OK\n");
 
-            void * mem1 =
-                (void *) DkVirtualMemoryAlloc(NULL, UNIT, 0,
-                                              PAL_PROT_READ|PAL_PROT_WRITE);
+            void* mem1 = (void*)DkVirtualMemoryAlloc(NULL, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
 
             if (mem1) {
                 memcpy(mem1, "Hello World", 20);
@@ -216,15 +189,12 @@ int main (int argc, char ** argv, char ** envp)
                 if (DkPhysicalMemoryCommit(ipc1, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 1] Physical Memory Commit OK\n");
                     memcpy(mem1, "Hello World, Alice", 20);
-                    pal_printf("[Test 1] Sender   After  Commit: %s\n",
-                               (char *) mem1);
+                    pal_printf("[Test 1] Sender   After  Commit: %s\n", (char*)mem1);
                     DkStreamWrite(proc, 0, 20, gipc_uri, NULL);
                     memcpy(mem1, "Alice, Hello World", 20);
-                    pal_printf("[Test 1] Sender   Before Map   : %s\n",
-                               (char *) mem1);
+                    pal_printf("[Test 1] Sender   Before Map   : %s\n", (char*)mem1);
                     DkStreamRead(proc, 0, sizeof(int), &ret, NULL, 0);
-                    pal_printf("[Test 1] Sender   After  Map   : %s\n",
-                               (char *) mem1);
+                    pal_printf("[Test 1] Sender   After  Map   : %s\n", (char*)mem1);
                 }
             }
 
@@ -240,9 +210,7 @@ int main (int argc, char ** argv, char ** envp)
             snprintf(gipc_uri, 20, "gipc:%ld", key2);
             pal_printf("Create Physical Memory Store OK\n");
 
-            void * mem2 =
-                (void *) DkVirtualMemoryAlloc(NULL, UNIT, 0,
-                                              PAL_PROT_READ|PAL_PROT_WRITE);
+            void* mem2 = (void*)DkVirtualMemoryAlloc(NULL, UNIT, 0, PAL_PROT_READ | PAL_PROT_WRITE);
 
             if (mem2) {
                 PAL_PTR mem_addr = mem2;
@@ -251,15 +219,12 @@ int main (int argc, char ** argv, char ** envp)
                 if (DkPhysicalMemoryCommit(ipc2, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 2] Physical Memory Commit OK\n");
                     memcpy(mem2, "Hello World, Alice", 20);
-                    pal_printf("[Test 2] Sender   After  Commit: %s\n",
-                               (char *) mem2);
+                    pal_printf("[Test 2] Sender   After  Commit: %s\n", (char*)mem2);
                     DkStreamWrite(proc, 0, 20, gipc_uri, NULL);
                     memcpy(mem2, "Alice, Hello World", 20);
-                    pal_printf("[Test 2] Sender   Before Map   : %s\n",
-                               (char *) mem2);
+                    pal_printf("[Test 2] Sender   Before Map   : %s\n", (char*)mem2);
                     DkStreamRead(proc, 0, sizeof(int), &ret, NULL, 0);
-                    pal_printf("[Test 2] Sender   After  Map   : %s\n",
-                               (char *) mem2);
+                    pal_printf("[Test 2] Sender   After  Map   : %s\n", (char*)mem2);
                 }
             }
 
@@ -275,14 +240,11 @@ int main (int argc, char ** argv, char ** envp)
             snprintf(gipc_uri, 20, "gipc:%ld", key3);
             pal_printf("Create Physical Memory Store OK\n");
 
-            void * mem3 = NULL;
-            PAL_HANDLE file1 = DkStreamOpen("file:ipc_mapping.tmp",
-                                            PAL_ACCESS_RDWR, 0, 0, 0);
+            void* mem3       = NULL;
+            PAL_HANDLE file1 = DkStreamOpen("file:ipc_mapping.tmp", PAL_ACCESS_RDWR, 0, 0, 0);
 
             if (file1) {
-                mem3 = (void *) DkStreamMap(file1, NULL,
-                                            PAL_PROT_READ|PAL_PROT_WRITE,
-                                            0, UNIT);
+                mem3 = (void*)DkStreamMap(file1, NULL, PAL_PROT_READ | PAL_PROT_WRITE, 0, UNIT);
                 DkObjectClose(file1);
             }
 
@@ -293,11 +255,9 @@ int main (int argc, char ** argv, char ** envp)
                 if (DkPhysicalMemoryCommit(ipc3, 1, &mem_addr, &mem_size)) {
                     pal_printf("[Test 3] Physical Memory Commit OK\n");
                     DkStreamWrite(proc, 0, 20, gipc_uri, NULL);
-                    pal_printf("[Test 3] Sender   After  Commit: %s\n",
-                               (char *) mem3);
+                    pal_printf("[Test 3] Sender   After  Commit: %s\n", (char*)mem3);
                     DkStreamRead(proc, 0, sizeof(int), &ret, NULL, 0);
-                    pal_printf("[Test 3] Sender   After  Map   : %s\n",
-                               (char *) mem3);
+                    pal_printf("[Test 3] Sender   After  Map   : %s\n", (char*)mem3);
                 }
             }
 
@@ -313,14 +273,11 @@ int main (int argc, char ** argv, char ** envp)
             snprintf(gipc_uri, 20, "gipc:%ld", key4);
             pal_printf("Create Physical Memory Store OK\n");
 
-            void * mem4 = NULL;
-            PAL_HANDLE file2 = DkStreamOpen("file:ipc_mapping.tmp",
-                                            PAL_ACCESS_RDWR, 0, 0, 0);
+            void* mem4       = NULL;
+            PAL_HANDLE file2 = DkStreamOpen("file:ipc_mapping.tmp", PAL_ACCESS_RDWR, 0, 0, 0);
 
             if (file2) {
-                mem4 = (void *) DkStreamMap(file2, NULL,
-                                            PAL_PROT_READ|PAL_PROT_WRITE,
-                                            UNIT, UNIT);
+                mem4 = (void*)DkStreamMap(file2, NULL, PAL_PROT_READ | PAL_PROT_WRITE, UNIT, UNIT);
                 DkObjectClose(file2);
             }
 
@@ -347,9 +304,8 @@ int main (int argc, char ** argv, char ** envp)
             snprintf(gipc_uri, 20, "gipc:%ld", key5);
             pal_printf("Create Physical Memory Store OK\n");
 
-            void * mem5 =
-                (void *) DkVirtualMemoryAlloc(NULL, UNIT * 1024 * 64, 0,
-                                              PAL_PROT_READ|PAL_PROT_WRITE);
+            void* mem5 = (void*)DkVirtualMemoryAlloc(NULL, UNIT * 1024 * 64, 0,
+                                                     PAL_PROT_READ | PAL_PROT_WRITE);
 
             if (mem5) {
                 pal_printf("Touch Memory at %p\n", mem5 + UNIT * 1024);

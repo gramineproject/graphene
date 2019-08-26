@@ -24,70 +24,63 @@
 
 #include "dl-machine-x86_64.h"
 
-#define elf_dynamic_do_rel          elf_dynamic_do_rela
-#define RELCOUNT_IDX                VERSYMIDX(DT_RELACOUNT)
-#define Rel                         Rela
-#define elf_machine_rel             elf_machine_rela
-#define elf_machine_rel_relative    elf_machine_rela_relative
-#define elf_dynamic_redo_rel        elf_dynamic_redo_rela
+#define elf_dynamic_do_rel       elf_dynamic_do_rela
+#define RELCOUNT_IDX             VERSYMIDX(DT_RELACOUNT)
+#define Rel                      Rela
+#define elf_machine_rel          elf_machine_rela
+#define elf_machine_rel_relative elf_machine_rela_relative
+#define elf_dynamic_redo_rel     elf_dynamic_redo_rela
 
 #ifndef DO_ELF_MACHINE_REL_RELATIVE
-# define DO_ELF_MACHINE_REL_RELATIVE(l, relative)           \
-    elf_machine_rel_relative(l, relative,                   \
-                             (void*)((l)->l_addr + relative->r_offset))
+#define DO_ELF_MACHINE_REL_RELATIVE(l, relative) \
+    elf_machine_rel_relative(l, relative, (void*)((l)->l_addr + relative->r_offset))
 #endif
 
 #ifndef VERSYMIDX
-# define VERSYMIDX(sym) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGIDX(sym))
+#define VERSYMIDX(sym) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGIDX(sym))
 #endif
 
 #ifndef VALIDX
-# define VALIDX(tag) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM    \
-                      + DT_EXTRANUM + DT_VALTAGIDX(tag))
+#define VALIDX(tag) (DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALTAGIDX(tag))
 #endif
 
-#define elf_dynamic_copy_rel        elf_dynamic_copy_rela
-#define dt_reloc                    DT_RELA
-#define dt_reloc_sz                 DT_RELASZ
+#define elf_dynamic_copy_rel elf_dynamic_copy_rela
+#define dt_reloc             DT_RELA
+#define dt_reloc_sz          DT_RELASZ
 
 /* Perform the relocations in MAP on the running program image as specified
    by RELTAG, SZTAG.  If LAZY is nonzero, this is the first pass on PLT
    relocations; they should be set up to call _dl_runtime_resolve, rather
    than fully resolved now.  */
 static void __attribute__((unused))
-elf_dynamic_do_rel (struct link_map * l, ElfW(Addr) reladdr, size_t relsize)
-{
+elf_dynamic_do_rel(struct link_map* l, ElfW(Addr) reladdr, size_t relsize) {
     if (!l->l_info[DT_SYMTAB])
         return;
 
-    ElfW(Sym) * symtab = (void *) D_PTR (l->l_info[DT_SYMTAB]);
-    ElfW(Rel) * r = (void *) reladdr;
-    ElfW(Rel) * end = (void *) (reladdr + relsize);
-    ElfW(Word) nrelative = l->l_info[RELCOUNT_IDX] == NULL
-                           ? 0 : l->l_info[RELCOUNT_IDX]->d_un.d_val;
-    size_t nrelsize = relsize / sizeof (ElfW(Rel));
+    ElfW(Sym)* symtab = (void*)D_PTR(l->l_info[DT_SYMTAB]);
+    ElfW(Rel)* r      = (void*)reladdr;
+    ElfW(Rel)* end    = (void*)(reladdr + relsize);
+    ElfW(Word) nrelative =
+        l->l_info[RELCOUNT_IDX] == NULL ? 0 : l->l_info[RELCOUNT_IDX]->d_un.d_val;
+    size_t nrelsize = relsize / sizeof(ElfW(Rel));
 
     r = r + (nrelative < nrelsize ? nrelative : nrelsize);
     for (; r < end; ++r) {
-        ElfW(Sym) * sym = &symtab[ELFW(R_SYM) (r->r_info)];
-        void * reloc = (void *) l->l_addr + r->r_offset;
+        ElfW(Sym)* sym = &symtab[ELFW(R_SYM)(r->r_info)];
+        void* reloc    = (void*)l->l_addr + r->r_offset;
         if (elf_machine_rel(l, r, sym, reloc)) {
             assert(l->nlinksyms < MAX_LINKSYMS);
-            l->linksyms[l->nlinksyms].rel = r;
-            l->linksyms[l->nlinksyms].sym = sym;
+            l->linksyms[l->nlinksyms].rel   = r;
+            l->linksyms[l->nlinksyms].sym   = sym;
             l->linksyms[l->nlinksyms].reloc = reloc;
             l->nlinksyms++;
         }
     }
 }
 
-static void __attribute__((unused))
-elf_dynamic_redo_rel (struct link_map * l)
-{
-    for (int i = 0 ; i < l->nlinksyms ; i++)
-        elf_machine_rel(l, l->linksyms[i].rel,
-                        l->linksyms[i].sym,
-                        l->linksyms[i].reloc);
+static void __attribute__((unused)) elf_dynamic_redo_rel(struct link_map* l) {
+    for (int i = 0; i < l->nlinksyms; i++)
+        elf_machine_rel(l, l->linksyms[i].rel, l->linksyms[i].sym, l->linksyms[i].reloc);
 }
 
 #if 0

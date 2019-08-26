@@ -1,9 +1,8 @@
+#include "api.h"
 #include "pal.h"
 #include "pal_debug.h"
-#include "api.h"
 
-int main (int argc, char ** argv, char ** envp)
-{
+int main(int argc, char** argv, char** envp) {
     char buffer1[20] = "Hello World 1", buffer2[20] = "Hello World 2";
     char buffer3[20], buffer4[20];
     int ret;
@@ -28,7 +27,7 @@ int main (int argc, char ** argv, char ** envp)
         if (pipe2) {
             // DEP 10/24/16: We should also be able to wait for a connection
             //  on this handle
-            //PAL_HANDLE pipe3 = DkObjectsWaitAny(1, &pipe1, 0);
+            // PAL_HANDLE pipe3 = DkObjectsWaitAny(1, &pipe1, 0);
 
             PAL_HANDLE pipe3 = DkStreamWaitForClient(pipe1);
 

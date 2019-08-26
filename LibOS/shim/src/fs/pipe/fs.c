@@ -20,31 +20,23 @@
  * This file contains codes for implementation of 'pipe' filesystem.
  */
 
-#include <shim_internal.h>
-#include <shim_thread.h>
-#include <shim_handle.h>
-#include <shim_fs.h>
-#include <shim_profile.h>
-
-#include <pal.h>
-#include <pal_error.h>
-#include <pal_debug.h>
-
-#include <errno.h>
-
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-
 #include <asm/fcntl.h>
 #include <asm/mman.h>
-#include <asm/unistd.h>
 #include <asm/prctl.h>
-#include <asm/fcntl.h>
+#include <asm/unistd.h>
+#include <errno.h>
+#include <linux/fcntl.h>
+#include <linux/stat.h>
+#include <pal.h>
+#include <pal_debug.h>
+#include <pal_error.h>
+#include <shim_fs.h>
+#include <shim_handle.h>
+#include <shim_internal.h>
 #include <shim_profile.h>
+#include <shim_thread.h>
 
-static ssize_t pipe_read (struct shim_handle * hdl, void * buf,
-                          size_t count)
-{
+static ssize_t pipe_read(struct shim_handle* hdl, void* buf, size_t count) {
     if (!count)
         return 0;
 
@@ -53,27 +45,24 @@ static ssize_t pipe_read (struct shim_handle * hdl, void * buf,
     if (!bytes)
         return -PAL_ERRNO;
 
-    assert((ssize_t) bytes > 0);
-    return (ssize_t) bytes;
+    assert((ssize_t)bytes > 0);
+    return (ssize_t)bytes;
 }
 
-static ssize_t pipe_write (struct shim_handle * hdl, const void * buf,
-                           size_t count)
-{
+static ssize_t pipe_write(struct shim_handle* hdl, const void* buf, size_t count) {
     if (!count)
         return 0;
 
-    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void *) buf, NULL);
+    PAL_NUM bytes = DkStreamWrite(hdl->pal_handle, 0, count, (void*)buf, NULL);
 
     if (!bytes)
         return -PAL_ERRNO;
 
-    assert((ssize_t) bytes > 0);
-    return (ssize_t) bytes;
+    assert((ssize_t)bytes > 0);
+    return (ssize_t)bytes;
 }
 
-static int pipe_hstat (struct shim_handle * hdl, struct stat * stat)
-{
+static int pipe_hstat(struct shim_handle* hdl, struct stat* stat) {
     /* XXX: Is any of this right?
      * Shouldn't we be using hdl to figure something out?
      * if stat is NULL, should we not return -EFAULT?
@@ -82,33 +71,31 @@ static int pipe_hstat (struct shim_handle * hdl, struct stat * stat)
     if (!stat)
         return 0;
 
-    struct shim_thread * thread = get_cur_thread();
+    struct shim_thread* thread = get_cur_thread();
 
-    stat->st_dev    = (dev_t) 0;     /* ID of device containing file */
-    stat->st_ino    = (ino_t) 0;     /* inode number */
-    stat->st_nlink  = (nlink_t) 0;   /* number of hard links */
-    stat->st_uid    = (uid_t) thread->uid;    /* user ID of owner */
-    stat->st_gid    = (gid_t) thread->gid;    /* group ID of owner */
-    stat->st_rdev   = (dev_t) 0;     /* device ID (if special file) */
-    stat->st_size   = (off_t) 0;     /* total size, in bytes */
-    stat->st_blksize = 0;            /* blocksize for file system I/O */
-    stat->st_blocks = 0;             /* number of 512B blocks allocated */
-    stat->st_atime  = (time_t) 0;    /* access time */
-    stat->st_mtime  = (time_t) 0;    /* last modification */
-    stat->st_ctime  = (time_t) 0;    /* last status change */
-    stat->st_mode   = S_IRUSR|S_IWUSR|S_IFIFO;
+    stat->st_dev     = (dev_t)0;           /* ID of device containing file */
+    stat->st_ino     = (ino_t)0;           /* inode number */
+    stat->st_nlink   = (nlink_t)0;         /* number of hard links */
+    stat->st_uid     = (uid_t)thread->uid; /* user ID of owner */
+    stat->st_gid     = (gid_t)thread->gid; /* group ID of owner */
+    stat->st_rdev    = (dev_t)0;           /* device ID (if special file) */
+    stat->st_size    = (off_t)0;           /* total size, in bytes */
+    stat->st_blksize = 0;                  /* blocksize for file system I/O */
+    stat->st_blocks  = 0;                  /* number of 512B blocks allocated */
+    stat->st_atime   = (time_t)0;          /* access time */
+    stat->st_mtime   = (time_t)0;          /* last modification */
+    stat->st_ctime   = (time_t)0;          /* last status change */
+    stat->st_mode    = S_IRUSR | S_IWUSR | S_IFIFO;
 
     return 0;
 }
 
-static int pipe_checkout (struct shim_handle * hdl)
-{
+static int pipe_checkout(struct shim_handle* hdl) {
     hdl->fs = NULL;
     return 0;
 }
 
-static off_t pipe_poll (struct shim_handle * hdl, int poll_type)
-{
+static off_t pipe_poll(struct shim_handle* hdl, int poll_type) {
     off_t ret = 0;
 
     lock(&hdl->lock);
@@ -142,8 +129,7 @@ out:
     return ret;
 }
 
-static int pipe_setflags (struct shim_handle * hdl, int flags)
-{
+static int pipe_setflags(struct shim_handle* hdl, int flags) {
     if (!hdl->pal_handle)
         return 0;
 
@@ -165,19 +151,21 @@ static int pipe_setflags (struct shim_handle * hdl, int flags)
     }
 
     if (!DkStreamAttributesSetByHandle(hdl->pal_handle, &attr))
-       return -PAL_ERRNO;
+        return -PAL_ERRNO;
 
     return 0;
 }
 
 struct shim_fs_ops pipe_fs_ops = {
-        .read       = &pipe_read,
-        .write      = &pipe_write,
-        .hstat      = &pipe_hstat,
-        .checkout   = &pipe_checkout,
-        .poll       = &pipe_poll,
-        .setflags   = &pipe_setflags,
-    };
+    .read     = &pipe_read,
+    .write    = &pipe_write,
+    .hstat    = &pipe_hstat,
+    .checkout = &pipe_checkout,
+    .poll     = &pipe_poll,
+    .setflags = &pipe_setflags,
+};
 
-struct shim_mount pipe_builtin_fs = { .type = "pipe",
-                                      .fs_ops = &pipe_fs_ops, };
+struct shim_mount pipe_builtin_fs = {
+    .type   = "pipe",
+    .fs_ops = &pipe_fs_ops,
+};

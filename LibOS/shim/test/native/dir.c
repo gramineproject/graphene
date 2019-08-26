@@ -1,14 +1,13 @@
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #define TESTDIR "testdir"
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
     int ret = 0;
 
     if ((ret = rmdir(TESTDIR)) < 0 && errno != ENOENT) {

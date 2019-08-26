@@ -14,25 +14,24 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include <pal_internal.h>
-#include <pal_security.h>
-#include <pal_error.h>
 #include <api.h>
 #include <assert.h>
+#include <pal_error.h>
+#include <pal_internal.h>
+#include <pal_security.h>
 
 #include "enclave_ocalls.h"
 
 static PAL_LOCK malloc_lock = LOCK_INIT;
-static int pagesize = PRESET_PAGESIZE;
+static int pagesize         = PRESET_PAGESIZE;
 
 #define SYSTEM_LOCK()   _DkSpinLock(&malloc_lock)
 #define SYSTEM_UNLOCK() _DkSpinUnlock(&malloc_lock)
 
 #define PAGE_SIZE pagesize
 
-static inline void * __malloc (int size)
-{
-    void * addr = NULL;
+static inline void* __malloc(int size) {
+    void* addr = NULL;
 
     ocall_alloc_untrusted(size, &addr);
     return addr;
@@ -40,8 +39,7 @@ static inline void * __malloc (int size)
 
 #define system_malloc(size) __malloc(size)
 
-static inline void __free (void * addr, int size)
-{
+static inline void __free(void* addr, int size) {
     ocall_unmap_untrusted(addr, size);
 }
 
@@ -51,8 +49,7 @@ static inline void __free (void * addr, int size)
 
 static SLAB_MGR untrusted_slabmgr = NULL;
 
-void init_untrusted_slab_mgr ()
-{
+void init_untrusted_slab_mgr() {
     if (untrusted_slabmgr)
         return;
 
@@ -61,12 +58,10 @@ void init_untrusted_slab_mgr ()
         INIT_FAIL(PAL_ERROR_NOMEM, "cannot initialize slab manager");
 }
 
-void * malloc_untrusted (int size)
-{
+void* malloc_untrusted(int size) {
     return slab_alloc(untrusted_slabmgr, size);
 }
 
-void free_untrusted (void * ptr)
-{
+void free_untrusted(void* ptr) {
     slab_free(untrusted_slabmgr, ptr);
 }
