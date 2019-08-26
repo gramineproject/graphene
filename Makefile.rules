@@ -143,6 +143,12 @@ quiet_cmd_sgx_sign_depend_exec = [ $@ ]
 quiet_cmd_sgx_sign_depend = [ $@ ]
       cmd_sgx_sign_depend = $(SGX_SIGN) -depend -output $@ -manifest $<
 
+# manifest
+quiet_cmd_manifest = [ $@ ]
+      cmd_manifest = \
+	$(if $(2),sed $(2) $< > $@,cp -f $< $@); \
+	(grep -q "\#\\!" $@ && chmod +x $@) || true
+
 # pal map
 PAL_SYMBOL_FILE := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))Pal/src/pal-symbols
 PAL_SYMBOLS = $(shell sed -e 's|$$|;|g' $(PAL_SYMBOL_FILE))

@@ -61,25 +61,19 @@ manifest_rules= \
 	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
-	-e 's:\$$(SHIMPATH):'$$RELDIR'$(RUNTIME)/libsysdb.so:g' \
-	-e 's:\$$(LIBCDIR):'$$RELDIR'$(RUNTIME):g' \
+	-e 's:\$$(SHIMPATH):$(RUNTIME)/libsysdb.so:g' \
+	-e 's:\$$(LIBCDIR):$(RUNTIME):g' \
 	$(extra_rules)
 endif
 
 pal_loader:
 	ln -sf $(RUNTIME)/pal_loader
 
-relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspath $2)\",\"$(abspath $1)\")")
-
 %.manifest: %.manifest.template
-	@echo [ $@ ]
-	RELDIR=$(filter-out ./,$(call relative-to,$(dir $@),$(shell pwd))/) && \
-	sed $(manifest_rules) $< > $@
-	(grep -q '^#!' $@ && chmod +x $@) || true
+	$(call cmd,manifest,$(manifest_rules))
 
 manifest: manifest.template
-	@echo [ $@ ]
-	sed $(manifest_rules) $< > $@
+	$(call cmd,manifest,$(manifest_rules))
 
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX),1)
