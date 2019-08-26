@@ -5,8 +5,6 @@ manifests = $(patsubst %.template,%,$(wildcard *.manifest.template)) manifest
 exec_target = $(c_executables) $(cxx_executables) ls.manifest
 target = $(exec_target) $(manifests)
 
-include ../../../../Makefile.configs
-include ../../../../Makefile.rules
 include ../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
