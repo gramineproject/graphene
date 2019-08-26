@@ -25,10 +25,10 @@ LDLIBS-start.pthread.m += -lpthread -lm
 LDLIBS-sync.pthread += -lpthread
 LDLIBS-test_start_pthread_m.m += -lm
 
-%: %.c
+$(c_executables): %: %.c
 	$(call cmd,csingle)
 
-%: %.cpp
+$(cxx_executables): %: %.cpp
 	$(call cmd,cxxsingle)
 
 include $(wildcard *.d)
