@@ -6,10 +6,6 @@ target = $(c_executables) $(cxx_executables) \
 
 include ../Makefile.Test
 
-%.manifest: %.manifest.template
-	rm -rf $@
-	cp $@.template $@
-
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
 CFLAGS-rpc_latency.libos += $(CFLAGS-libos)

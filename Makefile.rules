@@ -142,3 +142,9 @@ quiet_cmd_sgx_manifest_dependency = [ $@ ]
 	 awk -F= '/^\s*sgx.trusted_files./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file)}' $<; \
 	 awk -F= '/^\s*sgx.trusted_children./{file=$$2; gsub("file:", "", file); printf(" \\\n\t%s", file); gsub(".sig", "", file); printf(" \\\n\t%s.manifest.sgx", file)}' $<; \
 	 echo "") > $@
+
+# manifest
+quiet_cmd_manifest = [ $@ ]
+      cmd_manifest = \
+	$(if $(2),sed $(2) $< > $@,cp -f $< $@); \
+	(grep -q "\#\\!" $@ && chmod +x $@) || true
