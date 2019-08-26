@@ -78,7 +78,7 @@ manifest: manifest.template
 
 ifneq ($(MAKECMDGOALS),clean)
 ifeq ($(SGX),1)
-include $(addsuffix .manifest.sgx.d,$(exec_target))
+include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
 endif
 endif
 
