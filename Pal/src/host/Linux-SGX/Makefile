@@ -78,7 +78,7 @@ CLEAN_FILES += debugger/sgx_gdb.o
 
 .PHONY: clean
 clean:
-	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d
+	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc
 
 .PHONY: test
 test:

@@ -48,4 +48,4 @@ libos-regression.xml:
 
 .PHONY: clean-tmp
 clean-tmp:
-	rm -rf *.tmp ../apps/ltp/*.csv *.cached *.manifest.sgx *~ *.sig *.token
+	rm -rf *.tmp *.cached *.manifest.sgx *~ *.sig *.token .cache __pycache__ libos-regression.xml testfile tmp/*

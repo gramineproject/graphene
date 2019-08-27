@@ -94,4 +94,4 @@ pal-regression.xml: test_pal.py $(call expand_target,$(target))
 
 .PHONY: clean
 clean:
-	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig *.d
+	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig *.d *.token .*.d .*.sig .*.token __pycache__ .cache pal-regression.xml
