@@ -110,8 +110,8 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression N_RUNS=1 ENOUGH=100
+                                make SGX=1 all
+                                make SGX=1 test N_RUNS=1 ENOUGH=100
                             '''
                         }
                         sh '''
@@ -153,7 +153,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/bash SGX=1 clean
                            make -C LibOS/shim/test/apps/curl SGX=1 clean
                            make -C LibOS/shim/test/apps/gcc SGX=1 clean
-                           make -C LibOS/shim/test/apps/lmbench SGX=1 clean
+                           make -C LibOS/shim/test/apps/lmbench SGX=1 distclean
                            make -C LibOS/shim/test/apps/lighttpd SGX=1 distclean
                            make -C LibOS/shim/test/apps/nginx SGX=1 distclean
                            make -C LibOS/shim/test/apps/apache SGX=1 distclean

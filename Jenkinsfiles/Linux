@@ -68,7 +68,7 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make regression N_RUNS=1 ENOUGH=100
+                                make test N_RUNS=1 ENOUGH=100
                             '''
                         }
                         sh '''
@@ -111,7 +111,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/bash clean
                            make -C LibOS/shim/test/apps/curl clean
                            make -C LibOS/shim/test/apps/gcc clean
-                           make -C LibOS/shim/test/apps/lmbench clean
+                           make -C LibOS/shim/test/apps/lmbench distclean
                            make -C LibOS/shim/test/apps/lighttpd distclean
                            make -C LibOS/shim/test/apps/nginx distclean
                            make -C LibOS/shim/test/apps/apache distclean
