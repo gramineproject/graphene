@@ -78,7 +78,7 @@ manifest: manifest.template
 	@echo [ $@ ]
 	sed $(manifest_rules) $< > $@
 
-ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX),1)
 include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
 endif
