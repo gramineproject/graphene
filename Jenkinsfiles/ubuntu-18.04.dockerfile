@@ -17,6 +17,7 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libelf-dev \
     libexpat1 \
     libexpat1-dev \
+    libnss-mdns \
     libomp-dev \
     libpcre2-dev \
     libpcre3-dev \
@@ -26,11 +27,13 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     net-tools \
     protobuf-c-compiler \
     python \
+    python3-apport \
+    python3-apt \
     python3-breathe \
+    python3-lxml \
     python3-pip \
     python3-protobuf \
     python3-pytest \
-    python3-lxml \
     texinfo \
     wget
 

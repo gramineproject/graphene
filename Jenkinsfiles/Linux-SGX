@@ -67,8 +67,8 @@ pipeline {
 
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/python
-                                make SGX=1 all sgx-tokens
+                                cd LibOS/shim/test/apps/python-simple
+                                make SGX=1
                                 make SGX=1 regression
                             '''
                         }
@@ -120,7 +120,7 @@ pipeline {
                            rm -rf /tmp/graphene-sgx.clean-check.clean/LibOS/shim/test/apps/ltp/src
                            rm -rf LibOS/shim/test/apps/ltp/src
 
-                           make -C LibOS/shim/test/apps/python SGX=1 clean
+                           make -C LibOS/shim/test/apps/python-simple SGX=1 clean
                            make -C LibOS/shim/test/apps/bash SGX=1 clean
                            make -C LibOS/shim/test/apps/gcc SGX=1 clean
                            make -C LibOS/shim/test/apps/lmbench SGX=1 clean

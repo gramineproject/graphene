@@ -17,6 +17,7 @@ RUN apt-get update \
        libaprutil1-dev \
        libexpat1 \
        libexpat1-dev \
+       libnss-mdns \
        libomp-dev \
        libpcre2-dev \
        libpcre3-dev \
@@ -26,8 +27,10 @@ RUN apt-get update \
        net-tools \
        protobuf-c-compiler \
        python \
-       python3-minimal \
+       python3-apport \
+       python3-apt \
        python3-lxml \
+       python3-minimal \
        python3-pip \
        python3-pytest \
        texinfo \
