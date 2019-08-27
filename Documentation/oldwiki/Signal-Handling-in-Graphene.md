@@ -1,20 +1,52 @@
+(Disclaimer: This explanation is partially outdated. It is intended only as an internal
+reference for developers of Graphene, not as a general documentation for Graphene users.)
+
 # Signal Handling
 
-This analysis is written while Graphene's signal handling mechanisms are in flux. In future, all Graphene PALs should implement the same mechanism, and LibOS should adopt a better scheme to support nested signals and alternate signal stacks.
+This analysis is written while Graphene's signal handling mechanisms are in flux. In future, all
+Graphene PALs should implement the same mechanism, and LibOS should adopt a better scheme to
+support nested signals and alternate signal stacks.
 
-In the interest of space and mental sanity, we do not discuss FreeBSD PAL implementation. Historically, Linux and FreeBSD shared the same mechanism (where signals were immediately delivered to LibOS even if signal arrived during PAL call). This old mechanism was adopted by Linux-SGX PAL, though due to peculiarities of Intel SGX, it has its own sub-flows and is more complicated. Currently, Linux PAL implements a new mechanism where a signal during a PAL call is pended and is delivered to LibOS only after the PAL call is finished.
+In the interest of space and mental sanity, we do not discuss FreeBSD PAL implementation.
+Historically, Linux and FreeBSD shared the same mechanism (where signals were immediately delivered
+to LibOS even if signal arrived during PAL call). This old mechanism was adopted by Linux-SGX PAL,
+though due to peculiarities of Intel SGX, it has its own sub-flows and is more complicated.
+Currently, Linux PAL implements a new mechanism where a signal during a PAL call is pended and is
+delivered to LibOS only after the PAL call is finished.
 
 So, there are two signal-handling mechanisms at the PAL layer:
 
-* Linux PAL: (1) If signal arrives during PAL call, pend it and return from signal context, continuing normal context of PAL call. Immediately after a PAL call is finished, deliver all pending signals to LibOS. (2) If signal arrives during LibOS/application code, deliver the signal immediately to LibOS. Note that the signal delivery and handling is done in signal context (in contrast to pending-signal delivery).
+* Linux PAL: (1) If signal arrives during PAL call, pend it and return from signal context,
+continuing normal context of PAL call. Immediately after a PAL call is finished, deliver all
+pending signals to LibOS. (2) If signal arrives during LibOS/application code, deliver the
+signal immediately to LibOS. Note that the signal delivery and handling is done in signal context
+(in contrast to pending-signal delivery).
 
-* Linux-SGX PAL: (1) If signal arrives during enclave-code execution, remember the interrupted enclave-code context and return from signal context. When jumping back into the enclave (in normal context), deliver the signal to LibOS. After handling the signal, LibOS/PAL will continue from interrupted enclave-code context. (2) If signal arrives during non-enclave-code, i.e. untrusted-PAL, execution, just return from signal context. When jumping back into the enclave (in normal context), deliver the signal to LibOS. In contrast to first case, after handling the signal, LibOS/PAL will continue as if outermost PAL function failed with PAL_ERROR_INTERRUPTED.
+* Linux-SGX PAL: (1) If signal arrives during enclave-code execution, remember the interrupted
+enclave-code context and return from signal context. When jumping back into the enclave (in normal
+context), deliver the signal to LibOS. After handling the signal, LibOS/PAL will continue from
+interrupted enclave-code context. (2) If signal arrives during non-enclave-code, i.e.
+untrusted-PAL, execution, just return from signal context. When jumping back into the enclave
+(in normal context), deliver the signal to LibOS. In contrast to first case, after handling the
+signal, LibOS/PAL will continue as if outermost PAL function failed with `PAL_ERROR_INTERRUPTED`.
 
-The advantage of the first mechanism is that there is never a possibility of nested PAL calls (which is not supported by Graphene). However, this also disallows nested signals already at the PAL layer. The advantage of the second mechanism is that nested signals are possible, at least as far as it concerns the PAL layer.
+The advantage of the first mechanism is that there is never a possibility of nested PAL calls
+(which is not supported by Graphene). However, this also disallows nested signals already at the
+PAL layer. The advantage of the second mechanism is that nested signals are possible, at least as
+far as it concerns the PAL layer.
 
-There is a single unified signal-handling mechanism at the LibOS layer. This mechanism does *not* support nested signals: if a signal is delivered while another signal is handled (or during a LibOS internal lock), then it is pended. Pended signals are delivered after any system-call completion or after any LibOS internal unlock.
+There is a single unified signal-handling mechanism at the LibOS layer. This mechanism does *not*
+support nested signals: if a signal is delivered while another signal is handled (or during a LibOS
+internal lock), then it is pended. Pended signals are delivered after any system-call completion
+or after any LibOS internal unlock.
 
-A new signal-handling mechanism at the LibOS layer was proposed by Isaku Yamahata ( see https://github.com/oscarlab/graphene/pull/347 ). This proposal changes the points at which signals are delivered to the user app. The two points are (1) if signal arrives during app execution, the signal is delivered after host OS returns from signal context, and (2) if signal arrives during LibOS/PAL execution, the signal is delivered after system-call completion. This is in contrast to current LibOS approach of (1) delivering the first signal even in the middle of emulated syscall, and (2) pending nested signals until system-call completion.
+A new signal-handling mechanism at the LibOS layer was proposed by Isaku Yamahata
+(see https://github.com/oscarlab/graphene/pull/347). This proposal changes the points at which
+signals are delivered to the user app. The two points are (1) if signal arrives during app
+execution, the signal is delivered after host OS returns from signal context, and (2) if signal
+arrives during LibOS/PAL execution, the signal is delivered after system-call completion. This is
+in contrast to current LibOS approach of (1) delivering the first signal even in the middle of
+emulated syscall, and (2) pending nested signals until system-call completion.
 
 
 ## Linux-SGX PAL Flows
@@ -128,7 +160,8 @@ On the example of SIGINT, until we arrive into `_DkGenericSignalHandle()`.
 
 ### Async Signal Arrives During Non-Enclave Code Execution
 
-Non-enclave code execution can only happen if Graphene process is currently executing untrusted-PAL code, e.g., is blocked on a `futex(wait)` system call.
+Non-enclave code execution can only happen if Graphene process is currently executing untrusted-PAL
+code, e.g., is blocked on a `futex(wait)` system call.
 
 On the example of SIGINT, until we arrive into `_DkGenericSignalHandle()`.
 
@@ -177,13 +210,18 @@ On the example of SIGINT, until we arrive into `_DkGenericSignalHandle()`.
 
 ### Sync Signal Arrives During Enclave Code Execution
 
-This case is exactly the same as for async signal. The only difference in the diagram would be that `_DkTerminateSighandler` is replaced by `_DkResumeSighandler`. But the logic is exactly the same.
+This case is exactly the same as for async signal. The only difference in the diagram would be that
+`_DkTerminateSighandler` is replaced by `_DkResumeSighandler`. But the logic is exactly the same.
 
 ### Sync Signal Arrives During Non-Enclave Code Execution
 
-Non-enclave code execution can only happen if Graphene process is currently executing untrusted-PAL code, e.g., is blocked on a `futex(wait)` system call.
+Non-enclave code execution can only happen if Graphene process is currently executing untrusted-PAL
+code, e.g., is blocked on a `futex(wait)` system call.
 
-If a sync signal arrives in this case, it means that there was a memory fault, illegal instruction, or arithmetic exception in untrusted-PAL code. This should never happen in a correct implementation of Graphene. In this case, `_DkResumeSighandler` simply kills the faulting thread (not the whole process!) by issuing `exit(1)` syscall.
+If a sync signal arrives in this case, it means that there was a memory fault, illegal instruction,
+or arithmetic exception in untrusted-PAL code. This should never happen in a correct implementation
+of Graphene. In this case, `_DkResumeSighandler` simply kills the faulting thread (not the whole
+process!) by issuing `exit(1)` syscall.
 
 ### DkGenericSignalHandle Logic
 
@@ -233,7 +271,8 @@ If a sync signal arrives in this case, it means that there was a memory fault, i
 
 ### Initialization of Signal Handling
 
-Very similar to the flow for Linux-SGX. In addition to 7 handled signals, Linux PAL also operates on these signals:
+Very similar to the flow for Linux-SGX. In addition to 7 handled signals, Linux PAL also operates on
+these signals:
 * SIGCHLD -- is ignored
 * SIGPIPE -- installs `_DkPipeSighandler` handler
 
@@ -510,17 +549,25 @@ On the example of `suspend_upcall()`. Assumes `tcb.context.preempt = 1` (in a si
 (Notation: <Linux signal> -> PAL signal -> LibOS signal handler (purpose))
 
 Sync signals:
-* SIGFPE  -> PAL_EVENT_ARITHMETIC_ERROR  -> arithmetic_error_upcall (if not internal fault, handle pending non-blocked SIGFPEs and then this SIGFPE)
-* SIGSEGV -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault, handle pending non-blocked SIGSEGVs and then this SIGSEGV)
-* SIGBUS  -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault, handle pending non-blocked SIGBUSs and then this SIGBUS)
-* SIGILL  -> PAL_EVENT_ILLEGAL  -> illegal_upcall  (handle pending non-blocked SIGILLs and then this SIGILL)
+* SIGFPE  -> PAL_EVENT_ARITHMETIC_ERROR  -> arithmetic_error_upcall (if not internal fault, handle
+pending non-blocked SIGFPEs and then this SIGFPE)
+* SIGSEGV -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault, handle pending
+non-blocked SIGSEGVs and then this SIGSEGV)
+* SIGBUS  -> PAL_EVENT_MEMFAULT -> memfault_upcall (if not internal fault, handle pending
+non-blocked SIGBUSs and then this SIGBUS)
+* SIGILL  -> PAL_EVENT_ILLEGAL  -> illegal_upcall  (handle pending non-blocked SIGILLs and then
+this SIGILL)
 
 Async signals:
-* SIGTERM -> PAL_EVENT_QUIT     -> quit_upcall    (handle pending non-blocked SIGTERMs and then this SIGTERM)
-* SIGINT  -> PAL_EVENT_SUSPEND  -> suspend_upcall (handle pending non-blocked SIGINTs and then this SIGINT)
-* SIGCONT -> PAL_EVENT_RESUME   -> resume_upcall  (handle pending non-blocked signals but not SIGCONT itself)
+* SIGTERM -> PAL_EVENT_QUIT     -> quit_upcall    (handle pending non-blocked SIGTERMs and then
+this SIGTERM)
+* SIGINT  -> PAL_EVENT_SUSPEND  -> suspend_upcall (handle pending non-blocked SIGINTs and then
+this SIGINT)
+* SIGCONT -> PAL_EVENT_RESUME   -> resume_upcall  (handle pending non-blocked signals but not
+SIGCONT itself)
 
-We already described flows of `suspend_upcall`. Here is how other signal handlers are different from `suspend_upcall`:
+We already described flows of `suspend_upcall`. Here is how other signal handlers are different
+from `suspend_upcall`:
 ```
   Normal context (enclave mode)
 +-----------------------------------------------------+
@@ -600,9 +647,10 @@ illegal_upcall(event, context)
 ```
 
 
-## Alarm() Emulation
+# Alarm() Emulation
 
-SIGALRM signal is blocked in Graphene. Therefore, on `alarm()` syscall, SIGALRM is generated and raised purely by LibOS.
+SIGALRM signal is blocked in Graphene. Therefore, on `alarm()` syscall, SIGALRM is generated and
+raised purely by LibOS.
 
 ```
   Application thread                              AsyncHelperThread
@@ -665,16 +713,29 @@ shim_do_alarm(seconds)                          ... no alive host thread ...
 ```
 
 
-## Bugs and Issues
+# Bugs and Issues
 
-* BUG? Graphene LibOS performs `DkThreadYieldExecution()` in `__handle_signal()` (i.e., yield thread execution after handling one pending signal). Looks useless.
+* BUG? Graphene LibOS performs `DkThreadYieldExecution()` in `__handle_signal()` (i.e., yield
+thread execution after handling one pending signal). Looks useless.
 
 * TODO: clean-up `install_async_event()`, redundant logic in `async_list` checking
 
 * TODO: `suspend_on_signal` is useless
 
-* BUG? `return_from_ocall` remembers RDI = -PAL_ERROR_INTERRUPTED, but `_DkExceptionReturn` never returns back to after `_DkHandleExternalEvent` in `return_from_ocall`. Thus, the PAL return code (interrupted error) is lost! Check it with printfs and simple example.
+* BUG? `return_from_ocall` remembers RDI = -PAL_ERROR_INTERRUPTED, but `_DkExceptionReturn` never
+returns back to after `_DkHandleExternalEvent` in `return_from_ocall`. Thus, the PAL return code
+(interrupted error) is lost! Check it with printfs and simple example.
 
-* BUG? `SIGNAL_DELAYED` flag is useless? It is set as one of the highest bits in int64 `SIGNAL_DELAYED = 0x80000000UL`. `resume_upcall` sets SIGNAL_DELAYED flag in current thread's `context.preempt` if the SIGCONT signal arrives during signal handling. `handle_signal` does the same.
+* BUG? `SIGNAL_DELAYED` flag is useless? It is set as one of the highest bits in int64
+`SIGNAL_DELAYED = 0x80000000UL`. `resume_upcall` sets SIGNAL_DELAYED flag in current thread's
+`context.preempt` if the SIGCONT signal arrives during signal handling. `handle_signal` does the same.
 
-* TODO: Sigsuspend fix ( https://github.com/oscarlab/graphene/issues/453 ). In `shim_do_sigsuspend`: (1) unlock before thread_setwait + thread_sleep, (2) lock and unlock around last set_sig_mask, (3) add code similar to `__handle_signal`, but on all possible signal numbers and without `DkThreadYieldExecution` and without unsetting `SIGNAL_DELAYED` (?). Allow all pending signals to be delivered ( see https://stackoverflow.com/questions/40592066/sigsuspend-vs-additional-signals-delivered-during-handler-execution ). If at least one signal was delivered, do NOT go to `thread_sleep` but immediately return (and set the old mask beforehand).
+* TODO: Sigsuspend fix ( https://github.com/oscarlab/graphene/issues/453 ). In `shim_do_sigsuspend`:
+(1) unlock before thread_setwait + thread_sleep
+(2) lock and unlock around last set_sig_mask
+(3) add code similar to `__handle_signal`, but on all possible signal numbers and without
+`DkThreadYieldExecution` and without unsetting `SIGNAL_DELAYED` (?).
+Allow all pending signals to be delivered
+(see https://stackoverflow.com/questions/40592066/sigsuspend-vs-additional-signals-delivered-during-handler-execution).
+If at least one signal was delivered, do NOT go to `thread_sleep` but immediately return
+(and set the old mask beforehand).

@@ -1,9 +1,8 @@
-# Implemented System Calls
-The following is a list of system calls that are currently implemented. We will update the list when there is a major release.
+The following is a list of system calls that are currently implemented.
 
-## System calls that are fully implemented
+## System Calls that are Fully Implemented
 
-### System calls that require multi-process coordination
+### System Calls that Require Multi-process Coordination
 
 * Process creation (fork/vfork)
 * execve
@@ -53,7 +52,7 @@ The following is a list of system calls that are currently implemented. We will 
 * Thread-state (arch_prctl)
 
 
-## System calls that are partially implemented
+## System Calls that are Partially Implemented
 
 * ioctl
 
@@ -62,19 +61,23 @@ The following is a list of system calls that are currently implemented. We will 
 * fcntl
    + Supported: Duplicate FDs (F_DUPFD/F_DUPFD_CLOEXEC), Set FD flags (F_GETFD/F_SETFD), Set file flags (F_GETFL/F_SETFL)
    + Unsupported: File locking (F_SETLK/F_SETLKW/F_GETLK)
+
 * clone
 
-   The Linux clone system call is ubiquitously used for creation of processes and threads. However, in Graphene, we only use the clone system call for thread creation. Process creation are implemented as the fork system call. In practice, it is quite rare for applications to use methods that are not forking to create processes.
+   The Linux clone system call is ubiquitously used for creation of processes and threads. However,
+   in Graphene, we only use the clone system call for thread creation. Process creation is
+   implemented as the fork system call. In practice, it is quite rare for applications to use
+   methods that are not forking to create processes.
 
-   The namespace options for the clone system calls (CLONE_FS, CLONE_NEWIPC, CLONE_NEWNET, etc) are currently not supported.
+   The namespace options (CLONE_FS, CLONE_NEWIPC, CLONE_NEWNET, etc) are currently not supported.
 
 * msgctl
 
-   Only IPC_RMID is supported
+   Only IPC_RMID is supported.
 
 * setpgid/setsid
 
-   These two system calls will set the process credential, but do not coordinate any cross-process state.
+   These two system calls set the process credentials but do not coordinate any cross-process state.
 
 * bind
 
@@ -86,7 +89,5 @@ The following is a list of system calls that are currently implemented. We will 
 
 * getrlimit
 
-   getrlimit() returns the static values of RLIMIT_NOFILE, RLIMIT_RSS, RLIMIT_AS, RLIMIT_STACK.
-
-## System calls that are added in Graphene as _Hypercalls_
+   Returns the static values of RLIMIT_NOFILE, RLIMIT_RSS, RLIMIT_AS, RLIMIT_STACK.
 
