@@ -18,5 +18,6 @@ graphene-ipc.i: graphene-ipc.c
 .PHONY: clean
 clean:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
+	rm -rf *.o.ur-safe
 
 endif
