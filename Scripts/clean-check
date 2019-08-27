@@ -4,8 +4,8 @@ set -eu -o pipefail
 
 top_dir="$(readlink -m "${BASH_SOURCE[0]}/../..")"
 
-# Also allow operatin on a copy named ${orig_top_dir}.clean-check.${something}
-# I.e. .../graphene.clean-check.test/Scripts/clean-check will check:
+# Also allow operation on a copy named ${orig_top_dir}.clean-check.${something}
+# I.e., .../graphene.clean-check.test/Scripts/clean-check will check:
 # .../graphene.clean-check.test against .../graphene.clean-check.clean
 clean_dir="${top_dir%.clean-check.*}.clean-check.clean"
 
