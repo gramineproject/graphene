@@ -1,14 +1,13 @@
-# Run Applications with SGX
 We prepared and tested the following applications in Graphene library OS. These applications can be directly built and run from the Graphene library OS source.
 
-* [[LMBench (v2.5) | Run Applications with SGX#running lmbench in graphene]]
-* [[Python | Run Applications with SGX#running python in graphene]]
-* [[R | Run Applications with SGX#running r in graphene]]
-* [[Lighttpd | Run Applications with SGX#running lighttpd in graphene]]
-* [[Apache | Run Applications with SGX#running apache in graphene]]
-* [[Busybox | Run Applications with SGX#running busybox in graphene]]
-* [[Bash | Run Applications with SGX#running bash in graphene]]
-* [[OpenJDK 1.7 | Run Applications with SGX#running openjdk in graphene]]
+* [[LMBench (v2.5) | Run Applications in Graphene SGX#running lmbench in graphene]]
+* [[Python | Run Applications in Graphene SGX#running python in graphene]]
+* [[R | Run Applications in Graphene SGX#running r in graphene]]
+* [[Lighttpd | Run Applications in Graphene SGX#running lighttpd in graphene]]
+* [[Apache | Run Applications in Graphene SGX#running apache in graphene]]
+* [[Busybox | Run Applications in Graphene SGX#running busybox in graphene]]
+* [[Bash | Run Applications in Graphene SGX#running bash in graphene]]
+
 
 ## Running LMBench in Graphene
 
@@ -137,17 +136,3 @@ Bash is the most commonly used shell utilities in Linux. Bash can be run as a in
 To test Bash, you may use the benchmark suites we prepared: one is `bash_test.sh`, and the other is `unixbench`. Run one of the following commands to test Bash:
 
     ./bash.manifest.sgx bash_test.sh [times]
-
-## Running OpenJDK in Graphene
-
-We have tested OpenJDK 1.6 and 1.7 in Graphene library OS. Newer versions of OpenJDK can potentially work, but there is no guarantee. To build OpenJDK 1.7 and generated the manifest, run the following commands:
-
-    cd LibOS/shim/test/apps/openjdk
-    make SGX=1
-    make SGX_RUN=1
-
-The building will take several minutes and require network connection to download packages. After building OpenJDK, use the following script to run a Java program:
-
-    ./run-java -cp classes HelloWorld
-
-In `run-java` we specify the OpenJDK options to limit the resource used by the OpenJDK VM. We do not suggest running OpenJDK without these options, because the assumptions made by OpenJDK may cause Graphene library OS to crash.

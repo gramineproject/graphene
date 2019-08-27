@@ -1,4 +1,3 @@
-# Implementing New System Calls
 ### Step 1: Define the interface of system call and name the implementing function in `LibOS/shim/src/shim_syscalls.c`.
 
 For example, assume we are implementing `sched_setaffinity`, find the definition of `sched_setaffinity` in `shim_syscalls.c`, which will be the following code:

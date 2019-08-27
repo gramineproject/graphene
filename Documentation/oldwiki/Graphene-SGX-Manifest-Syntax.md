@@ -1,5 +1,4 @@
-# SGX Manifest Syntax
-The basic manifest syntax is described in [[Manifest Syntax]]. The SGX-specific syntax in a manifest is ignored if Graphene library OS is run without Intel SGX support. All keys in the SGX-specific syntax are optional. If the keys are not specified, Graphene library OS will use the default values.
+The basic manifest syntax for Graphene is described in [[Graphene Manifest Syntax]]. If Graphene is NOT running with SGX, the SGX-specific syntax is ignored. All keys in the SGX-specific syntax are optional. If the keys are not specified, Graphene library OS will use the default values.
 
 ## Basic SGX-specific Syntax
 
@@ -16,7 +15,7 @@ This syntax specifies the number of threads that can be created inside the encla
 ### Debugging (OPTIONAL)
     sgx.debug=[1|0]
     (Default: 1)
-This syntax specifies the whether the enclave can be debugged. Currently Graphene library OS only supports the debugging mode.
+This syntax specifies whether the enclave can be debugged. Currently, Graphene library OS only supports the debugging mode.
 
 ### ISV Product ID and SVN (OPTIONAL)
     sgx.isvprodid=[NUM]

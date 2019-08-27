@@ -600,7 +600,7 @@ illegal_upcall(event, context)
 ```
 
 
-## Alarm() Emulation
+# Alarm() Emulation
 
 SIGALRM signal is blocked in Graphene. Therefore, on `alarm()` syscall, SIGALRM is generated and raised purely by LibOS.
 
@@ -665,7 +665,7 @@ shim_do_alarm(seconds)                          ... no alive host thread ...
 ```
 
 
-## Bugs and Issues
+# Bugs and Issues
 
 * BUG? Graphene LibOS performs `DkThreadYieldExecution()` in `__handle_signal()` (i.e., yield thread execution after handling one pending signal). Looks useless.
 

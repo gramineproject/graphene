@@ -1,4 +1,3 @@
-# Port Graphene PAL to Other hosts
 ## Platform Compatibility of Graphene Library OS
 
 Graphene Library OS has adapted the design of PAL (Platform Adaption Layer) from _Drawbridge Library OS_, which is a library OS designed for maximizing its platform compatibility. The argument made by _Drawbridge Library OS_ is that the library OS can be ported to a new host as long as PAL is implemented on the said host. The same property is also available in Graphene library OS.

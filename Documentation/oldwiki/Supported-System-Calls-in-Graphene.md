@@ -1,4 +1,3 @@
-# Implemented System Calls
 The following is a list of system calls that are currently implemented. We will update the list when there is a major release.
 
 ## System calls that are fully implemented
@@ -88,5 +87,4 @@ The following is a list of system calls that are currently implemented. We will 
 
    getrlimit() returns the static values of RLIMIT_NOFILE, RLIMIT_RSS, RLIMIT_AS, RLIMIT_STACK.
 
-## System calls that are added in Graphene as _Hypercalls_
 
