@@ -37,8 +37,14 @@ pipeline {
                             '''
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
-                                cd LibOS/shim/test/apps/python
-                                make regression
+                                cd LibOS/shim/test/apps/python-simple
+                                make check
+                            '''
+                        }
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh '''
+                                cd LibOS/shim/test/apps/python-scipy-insecure
+                                make check
                             '''
                         }
                         sh '''
@@ -85,7 +91,8 @@ pipeline {
                            rm -rf /tmp/graphene.clean-check.clean/LibOS/shim/test/apps/ltp/src
                            rm -rf LibOS/shim/test/apps/ltp/src
 
-                           make -C LibOS/shim/test/apps/python clean
+                           make -C LibOS/shim/test/apps/python-simple clean
+                           make -C LibOS/shim/test/apps/python-scipy-insecure clean
                            make -C LibOS/shim/test/apps/bash clean
                            make -C LibOS/shim/test/apps/gcc clean
                            make -C LibOS/shim/test/apps/lmbench clean
