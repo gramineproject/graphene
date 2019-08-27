@@ -26,8 +26,11 @@ RUN apt-get update \
        net-tools \
        protobuf-c-compiler \
        python \
-       python3-minimal \
+       python-numpy \
+       python-scipy \
+       python3-apt \
        python3-lxml \
+       python3-minimal \
        python3-pip \
        python3-pytest \
        texinfo \
