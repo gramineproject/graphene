@@ -45,7 +45,7 @@ pipeline {
                         timeout(time: 20, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make regression N_RUNS=1 ENOUGH=100
+                                make test N_RUNS=1 ENOUGH=100
                             '''
                         }
                         sh '''
