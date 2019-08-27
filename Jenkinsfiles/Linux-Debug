@@ -6,6 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
+                            ./Scripts/clean-check-prepare
                             make -j 8 DEBUG=1 WERROR=1
                             make -j 8 DEBUG=1 WERROR=1 test
                            '''
@@ -66,6 +67,27 @@ pipeline {
                             sleep 1
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''
+                        sh '''
+                           cd "$(./Scripts/clean-check-test-copy)"
+
+                           make clean
+                           rm LibOS/glibc-*.tar.gz
+                           make -C LibOS/shim/test/regression clean
+
+                           make -C LibOS/shim/test/apps/ltp clean
+                           # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
+                           rm -rf /tmp/graphene-debug.clean-check.clean/LibOS/shim/test/apps/ltp/src
+                           rm -rf LibOS/shim/test/apps/ltp/src
+
+                           make -C LibOS/shim/test/apps/python clean
+                           make -C LibOS/shim/test/apps/bash clean
+                           make -C LibOS/shim/test/apps/gcc clean
+                           make -C LibOS/shim/test/apps/lmbench clean
+                           make -C LibOS/shim/test/apps/lighttpd distclean
+                           make -C LibOS/shim/test/apps/apache distclean
+
+                           ./Scripts/clean-check
+                        '''
                     }
                     post {
                         always {

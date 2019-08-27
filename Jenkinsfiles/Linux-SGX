@@ -9,6 +9,9 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
+                           ./Scripts/clean-check-prepare
+                        '''
+                        sh '''
                             cd Pal/src/host/Linux-SGX/signer/ && openssl genrsa -3 -out enclave-key.pem 3072
                         '''
                         sh '''
@@ -102,6 +105,30 @@ pipeline {
                             sleep 30
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''
+                        sh '''
+                           cd "$(./Scripts/clean-check-test-copy)"
+
+                           rm Pal/src/host/Linux-SGX/signer/enclave-key.pem
+                           make -C Pal/src/host/Linux-SGX/sgx-driver clean
+                           make SGX=1 clean
+                           rm LibOS/glibc-*.tar.gz
+                           make -C LibOS/shim/test/regression SGX=1 clean
+                           make -C LibOS/shim/test/apps/python SGX=1 clean
+                           make -C LibOS/shim/test/apps/bash SGX=1 clean
+                           make -C LibOS/shim/test/apps/gcc SGX=1 clean
+                           make -C LibOS/shim/test/apps/lmbench SGX=1 clean
+                           make -C LibOS/shim/test/apps/lighttpd SGX=1 distclean
+                           make -C LibOS/shim/test/apps/apache SGX=1 distclean
+
+                           # LTP contains dead symlinks, which confuses the
+                           # clean-check script. Just delete them.
+                           for d in . /tmp/graphene-sgx.clean-check.clean; do
+                               rm $d/LibOS/shim/test/apps/ltp/src/utils/ffsb-6.0-rc2/config.sub
+                               rm $d/LibOS/shim/test/apps/ltp/src/utils/ffsb-6.0-rc2/config.guess
+                           done
+
+                           ./Scripts/clean-check
+                        '''
                     }
                     post {
                         always {
