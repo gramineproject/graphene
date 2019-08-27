@@ -77,8 +77,10 @@ manifest: manifest.template
 	@echo [ $@ ]
 	sed $(manifest_rules) $< > $@
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX), 1)
 include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
+endif
 endif
 
 .PHONY: clean

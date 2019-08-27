@@ -52,15 +52,19 @@ $(executables): %: %.c $(graphene_lib) $(pal_lib) ../src/user_start.o
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX), 1)
 include $(addsuffix .manifest.sgx.d,$(executables))
+endif
 endif
 else
 .IGNORE: $(executables)
 $(executables):
 endif
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d, $(executables)) $(addsuffix .i.d, $(executables)) $(addsuffix .s.d, $(executables))
+endif
 
 .PHONY: clean
 clean:
