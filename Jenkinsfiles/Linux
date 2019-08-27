@@ -6,6 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
+                            ./Scripts/clean-check-prepare
                             cd LibOS
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.19
                             rm -r glibc-build
@@ -14,12 +15,8 @@ pipeline {
                             cd ..
                             make -j 8 WERROR=1
                             make -j 8 WERROR=1 test
-                            cd Pal/ipc/linux
-                            make KERNELDIR=/lib/modules/4.4.0-161-generic/build
-                           '''
-                        sh '''
-                            cd Pal/src
-                            make -j 8 PAL_HOST=Skeleton WERROR=1
+                            make -C Pal/ipc/linux KERNELDIR=/lib/modules/4.4.0-161-generic/build
+                            make -C Pal/src -j 8 PAL_HOST=Skeleton WERROR=1
                            '''
                     }
                 }
@@ -74,6 +71,30 @@ pipeline {
                             sleep 1
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''
+                        sh '''
+                           cd "$(./Scripts/clean-check-test-copy)"
+
+                           make clean
+                           rm -r LibOS/glibc-2.19 LibOS/glibc-2.23
+                           rm LibOS/glibc-*.tar.gz
+                           make -C Pal/ipc/linux KERNELDIR=/lib/modules/4.4.0-161-generic/build clean
+                           make -C LibOS/shim/test/regression clean
+
+                           make -C LibOS/shim/test/apps/ltp clean
+                           # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
+                           rm -rf /tmp/graphene.clean-check.clean/LibOS/shim/test/apps/ltp/src
+                           rm -rf LibOS/shim/test/apps/ltp/src
+
+                           make -C LibOS/shim/test/apps/python clean
+                           make -C LibOS/shim/test/apps/bash clean
+                           make -C LibOS/shim/test/apps/gcc clean
+                           make -C LibOS/shim/test/apps/lmbench clean
+                           make -C LibOS/shim/test/apps/lighttpd distclean
+                           make -C LibOS/shim/test/apps/apache distclean
+                           make -C Pal/src PAL_HOST=Skeleton clean
+
+                           ./Scripts/clean-check
+                        '''
                     }
                     post {
                         always {
