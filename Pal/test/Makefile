@@ -63,7 +63,9 @@ else
 $(executables):
 endif
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 -include $(addsuffix .d, $(executables)) $(addsuffix .i.d, $(executables)) $(addsuffix .s.d, $(executables))
+endif
 
 .PHONY: clean
 clean:
