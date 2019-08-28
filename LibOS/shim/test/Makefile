@@ -34,6 +34,9 @@ include $(PALDIR)/Makefile.Test
 .PHONY: all
 all: pal_loader $(target) $(if $(level),,build-subdirs) | $(call expand_target,$(exec_target))
 
+.PHONY: sgx-tokens
+sgx-tokens: $(if $(level),,sgx-tokens-subdirs) $(call expand_target_to_token,$(exec_target))
+
 ifeq ($(DEBUG),1)
 CC += -g
 CXX += -g
@@ -88,6 +91,10 @@ clean: $(clean-extra) $(if $(level),,clean-subdirs)
 .PHONY: build-subdirs
 build-subdirs:
 	for f in $(subdirs); do (cd $$f; $(MAKE); cd ..); done
+
+.PHONY: sgx-tokens-subdirs
+sgx-tokens-subdirs:
+	for f in $(subdirs); do (cd $$f; $(MAKE) sgx-tokens; cd ..); done
 
 .PHONY: clean-subdirs
 clean-subdirs:

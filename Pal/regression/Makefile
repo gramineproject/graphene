@@ -26,6 +26,9 @@ export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
 .PHONY: all
 all: $(call expand_target,$(target)) $(preloads)
 
+.PHONY: sgx-tokens
+sgx-tokens: $(call expand_target_to_token,$(target))
+
 ifeq ($(DEBUG),1)
 CC += -g
 endif
@@ -89,7 +92,7 @@ regression:
 	$(RM) pal-regression.xml
 	$(MAKE) pal-regression.xml
 
-pal-regression.xml: test_pal.py $(call expand_target,$(target))
+pal-regression.xml: test_pal.py $(call expand_target_to_token,$(target))
 	python3 -m pytest --junit-xml $@ -v test_pal.py
 
 .PHONY: clean

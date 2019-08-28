@@ -894,7 +894,7 @@ static int load_enclave (struct pal_enclave * enclave,
     if (IS_ERR(enclave->token)) {
         SGX_DBG(DBG_E, "Cannot open token \'%s\'. Use \'"
                 PAL_FILE("pal-sgx-get-token")
-                "\' on the runtime host or run \'make SGX_RUN=1\' "
+                "\' on the runtime host or run \'make SGX=1 sgx-tokens\' "
                 "in the Graphene source to create the token file.\n",
                 token_uri);
         free(token_uri);

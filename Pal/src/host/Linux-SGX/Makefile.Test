@@ -6,14 +6,10 @@ SGX_SIGNER_KEY ?= $(SGX_DIR)/signer/enclave-key.pem
 SGX_SIGN = $(SGX_DIR)/signer/pal-sgx-sign -libpal $(LIBPAL) -key $(SGX_SIGNER_KEY)
 SGX_GET_TOKEN = $(SGX_DIR)/signer/pal-sgx-get-token
 
-ifeq ($(SGX_RUN),1)
-
-expand_target = $(foreach t,$(filter-out manifest,$(1)),$(patsubst %.manifest,%,$(t)).token)
+expand_target_to_token = $(foreach t,$(filter-out manifest,$(1)),$(patsubst %.manifest,%,$(t)).token)
 
 %.token: %.sig
 	$(call cmd,sgx_get_token)
-
-else
 
 expand_target = $(1) $(foreach t,$(filter-out manifest,$(1)), \
 		$(patsubst %.manifest,%,$(t)).manifest.sgx)
@@ -37,7 +33,3 @@ $(SGX_SIGNER_KEY):
 
 %.manifest.sgx.d: manifest
 	$(call cmd,sgx_manifest_dependency)
-
-*.token nothing:
-
-endif

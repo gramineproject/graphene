@@ -143,3 +143,7 @@ endif
 .PHONY: test
 test:
 	$(MAKE) -C $(SHIM_DIR) test
+
+.PHONY: sgx-tokens
+sgx-tokens:
+	$(MAKE) -C $(SHIM_DIR) sgx-tokens

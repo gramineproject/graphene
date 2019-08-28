@@ -18,6 +18,11 @@ test:
 	$(MAKE) -C test
 	$(MAKE) -C regression
 
+.PHONY: sgx-tokens
+sgx-tokens:
+	$(MAKE) -C test sgx-tokens
+	$(MAKE) -C regression sgx-tokens
+
 .PHONY: format
 format:
 	clang-format -i $(shell find . -path ./lib/crypto/mbedtls -prune -o \

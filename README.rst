@@ -156,7 +156,7 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
    - Generate the token from aesmd service, via command::
 
-      make SGX_RUN=1
+      make SGX=1 sgx-tokens
 
    - Run Hello World program with Graphene on SGX::
 
@@ -174,7 +174,7 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
    - Generate token::
 
-      make SGX_RUN=1
+      make SGX=1 sgx-tokens
 
    - Run python helloworld with Graphene-SGX via::
 

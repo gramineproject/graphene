@@ -109,8 +109,7 @@ For SGX, one needs to do the following:
 
 ```Bash
 cd Pal/regression
-make SGX=1
-make SGX_RUN=1 regression
+make SGX=1 regression
 ```
 
 If a test fails unexpectedly, one can use the KEEP_LOG=1 option to get the complete output.

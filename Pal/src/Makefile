@@ -155,3 +155,7 @@ clean:
 .PHONY: test
 test:
 	$(MAKE) -C $(HOST_DIR) test
+
+.PHONY: sgx-tokens
+sgx-tokens:
+	$(MAKE) -C $(HOST_DIR) sgx-tokens
