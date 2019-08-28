@@ -7,7 +7,7 @@ endif
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 
-targets = all clean format test sgx-tokens
+targets = all format test sgx-tokens
 
 ifneq ($(filter sgx-tokens,$(MAKECMDGOALS)),)
 ifneq ($(SGX),1)
@@ -20,3 +20,10 @@ $(targets):
 	$(MAKE) -C Pal $@
 	$(MAKE) -C LibOS $@
 	$(MAKE) -C Runtime $@
+
+.PHONY: clean
+clean:
+	$(MAKE) -C Pal clean
+	$(MAKE) -C LibOS clean
+	$(MAKE) -C Runtime clean
+	rm -f build-config.mk
