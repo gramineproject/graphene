@@ -91,6 +91,7 @@ pipeline {
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/apache
+                            make SGX=1
                             make SGX=1 start-graphene-server &
                             sleep 15
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
