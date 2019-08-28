@@ -21,14 +21,14 @@ class TC_00_Bootstrap(RegressionTestCase):
 
         # One Argument Given
         self.assertIn('# of Arguments: 1', stdout)
-        self.assertIn('argv[0] = file:bootstrap', stdout)
+        self.assertIn('argv[0] = bootstrap', stdout)
 
 
     def test_101_basic_bootstrapping_five_arguments(self):
         # Five Arguments Given
         stdout, stderr = self.run_binary(['bootstrap', 'a', 'b', 'c', 'd'])
         self.assertIn('# of Arguments: 5', stdout)
-        self.assertIn('argv[0] = file:bootstrap', stdout)
+        self.assertIn('argv[0] = bootstrap', stdout)
         self.assertIn('argv[1] = a', stdout)
         self.assertIn('argv[2] = b', stdout)
         self.assertIn('argv[3] = c', stdout)
@@ -41,14 +41,14 @@ class TC_00_Bootstrap(RegressionTestCase):
     def test_102_basic_bootstrapping_static(self):
         # bootstrap_static
         stdout, stderr = self.run_binary(['bootstrap_static'])
-        self.assertIn('Hello world (file:bootstrap_static)!', stdout)
+        self.assertIn('Hello world (bootstrap_static)!', stdout)
 
     def test_103_basic_bootstrapping_pie(self):
         # bootstrap_pie
         stdout, stderr = self.run_binary(['bootstrap_pie'])
         self.assertIn('User program started', stdout)
         self.assertIn('Local Address in Executable: 0x', stdout)
-        self.assertIn('argv[0] = file:bootstrap_pie', stdout)
+        self.assertIn('argv[0] = bootstrap_pie', stdout)
 
     def test_110_basic_bootstrapping_cxx(self):
         stdout, stderr = self.run_binary(['bootstrap-c++'])

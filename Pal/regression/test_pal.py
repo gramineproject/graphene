@@ -49,7 +49,7 @@ class TC_01_Bootstrap(RegressionTestCase):
 
         # One Argument Given
         self.assertIn('# of Arguments: 1', stderr)
-        self.assertIn('argv[0] = file:Bootstrap', stderr)
+        self.assertIn('argv[0] = Bootstrap', stderr)
 
         # Control Block: Debug Stream (Inline)
         self.assertIn('Written to Debug Stream', stdout)
