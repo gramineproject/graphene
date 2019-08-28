@@ -6,27 +6,31 @@ RUN apt-get update \
     && apt-get install -y \
        apache2-utils \
        autoconf \
-       build-essential \
-       gawk \
        bison \
+       build-essential \
+       curl \
+       flex \
+       gawk \
        gettext \
        git \
+       libapr1-dev \
+       libaprutil1-dev \
        libexpat1 \
        libexpat1-dev \
+       libomp-dev \
+       libpcre2-dev \
        libpcre3-dev \
+       libprotobuf-c-dev \
        libxml2-dev \
        linux-headers-4.4.0-161-generic \
        net-tools \
+       protobuf-c-compiler \
        python \
-       python3-pip \
        python3-minimal \
+       python3-pip \
        python3-pytest \
        texinfo \
        wget \
-       curl \
-       libomp-dev \
-       libprotobuf-c-dev \
-       protobuf-c-compiler \
     && /usr/bin/pip3 install protobuf \
 
 # Add the user UID:1001, GID:1001, home at /leeroy

@@ -5,29 +5,33 @@ FROM ubuntu:18.04
 RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     apache2-utils \
     autoconf \
-    build-essential \
-    gawk \
     bison \
+    build-essential \
+    curl \
+    flex \
+    gawk \
     gettext \
     git \
+    libapr1-dev \
+    libaprutil1-dev \
     libelf-dev \
     libexpat1 \
     libexpat1-dev \
     libomp-dev \
+    libpcre2-dev \
     libpcre3-dev \
+    libprotobuf-c-dev \
     libxml2-dev \
     linux-headers-4.15.0-20-generic \
     net-tools \
+    protobuf-c-compiler \
     python \
+    python3-breathe \
     python3-pip \
     python3-protobuf \
     python3-pytest \
-    python3-breathe \
     texinfo \
-    wget \
-    curl \
-    libprotobuf-c-dev \
-    protobuf-c-compiler
+    wget
 
 RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 
