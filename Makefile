@@ -1,3 +1,9 @@
+-include build-config.mk
+
+ifneq ($(BUILD_CONFIGURED),1)
+$(error "Run ./build-setup to configure build before running make!")
+endif
+
 SYS ?= $(shell gcc -dumpmachine)
 export SYS
 

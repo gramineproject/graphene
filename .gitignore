@@ -10,6 +10,7 @@
 !/Runtime/pal_loader
 /Jenkinsfiles/Jenkinsfile-*
 /Jenkinsfiles/JenkinsfileSGX-*
+/build-config.mk
 
 .lib
 *.i

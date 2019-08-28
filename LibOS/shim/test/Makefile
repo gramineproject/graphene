@@ -1,3 +1,5 @@
+include $(dirname $(lastword $(MAKEFILE_LIST))../../../build-config.mk
+
 subdirs = native
 
 SYS ?= $(shell gcc -dumpmachine)

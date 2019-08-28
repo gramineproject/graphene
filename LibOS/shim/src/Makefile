@@ -1,3 +1,5 @@
+include ../../../build-config.mk
+
 RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
 include ../../../Makefile.configs

@@ -23,11 +23,12 @@ pipeline {
                             ISGX_DRIVER_PATH=/opt/intel/linux-sgx-driver ISGX_DRIVER_VERSION=1.9 make
                         '''
                         sh '''
-                            make -j 8 SGX=1 WERROR=1
-                            make -j 8 SGX=1 WERROR=1 test
+                            ./build-setup SGX=1 WERROR=1
+                            make -j 8
+                            make -j 8 test
                         '''
                         sh '''
-                            make SGX=1 sgx-tokens
+                            make sgx-tokens
                         '''
                     }
                 }
@@ -36,56 +37,56 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd Pal/regression
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 KEEP_LOG=1 regression
+                                make all sgx-tokens
+                                make KEEP_LOG=1 regression
                                 '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/regression
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression
+                                make all sgx-tokens
+                                make regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression
+                                make all sgx-tokens
+                                make regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/bash
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression
+                                make all sgx-tokens
+                                make regression
                            '''
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression
+                                make all sgx-tokens
+                                make regression
                            '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression N_RUNS=1 ENOUGH=100
+                                make all sgx-tokens WERROR=
+                                make regression N_RUNS=1 ENOUGH=100 WERROR=
                             '''
                         }
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
-                            make SGX=1 all sgx-tokens
-                            make SGX=1 start-graphene-server &
+                            make all sgx-tokens
+                            make start-graphene-server &
                             sleep 10
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8000
                             '''
                         sh '''
                             cd LibOS/shim/test/apps/apache
-                            make SGX=1 all sgx-tokens
-                            make SGX=1 start-graphene-server &
+                            make all sgx-tokens
+                            make start-graphene-server &
                             sleep 15
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8001
                             '''

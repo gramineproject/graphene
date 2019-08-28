@@ -71,8 +71,8 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make SGX=1 all sgx-tokens
-                                make SGX=1 regression N_RUNS=1 ENOUGH=100
+                                make SGX=1 all sgx-tokens WERROR=
+                                make SGX=1 regression N_RUNS=1 ENOUGH=100 WERROR=
                             '''
                         }
                         sh '''

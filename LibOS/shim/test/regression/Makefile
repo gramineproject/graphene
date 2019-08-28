@@ -1,3 +1,5 @@
+include ../../../../build-config.mk
+
 c_executables = $(patsubst %.c,%,$(wildcard *.c))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest

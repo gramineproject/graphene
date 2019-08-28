@@ -1,3 +1,4 @@
+include ../../build-config.mk
 include ../src/Makefile.Host
 
 CC	= gcc

@@ -1,3 +1,5 @@
+include ../build-config.mk
+
 .PHONY: all
 all:
 

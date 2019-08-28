@@ -6,8 +6,9 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
-                            make -j 8 DEBUG=1 WERROR=1
-                            make -j 8 DEBUG=1 WERROR=1 test
+                            ./build-setup DEBUG=1 WERROR=1
+                            make -j 8
+                            make -j 8 test
                            '''
                     }
                 }
@@ -45,7 +46,7 @@ pipeline {
                         timeout(time: 20, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make regression N_RUNS=1 ENOUGH=100
+                                make regression N_RUNS=1 ENOUGH=100 WERROR=
                             '''
                         }
                         sh '''

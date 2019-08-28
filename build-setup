@@ -1,0 +1,46 @@
+#!/bin/bash
+
+set -eu -o pipefail
+
+cd "$(readlink -m "${BASH_SOURCE[0]}/..")"
+
+: > build-config.mk.new
+
+while [ "${1:+defined}" == defined ]; do
+    name="${1%%=*}"
+    value="${1#*=}"
+
+    case "$name" in
+        --help|-h)
+            echo "Usage: build-setup VARIABLE=VALUE ..."
+            echo
+            echo "for example for SGX with debug symbols: build-setup SGX=1 DEBUG=1"
+            exit 1
+            ;;
+        SGX_RUN)
+            echo "SGX_RUN has been removed, use SGX=1 and the 'sgx-tokens' Make target instead!"
+            exit 1
+            ;;
+        SGX|DEBUG|WERROR)
+            if [ "$value" != "1" ]; then
+                echo "Please set $name to 1 or don't set it"
+                exit 1
+            fi
+            ;;
+        CC|AS|AR|LD|CXX|OBJCOPY|GLIBC_MIRRORS|SGX_SIGNER_KEY|GLIBC_VERSION)
+            ;;
+        *)
+            echo "Warning: Variable \"$name\" not recognized by build-setup."
+            echo "Will set it anyway, but please double check if it is really what you want."
+            ;;
+    esac
+
+    printf '%s := %s\n' "$name" "$value" >> build-config.mk.new
+    printf 'export %s\n' "$name" >> build-config.mk.new
+
+    shift
+done
+
+echo "BUILD_CONFIGURED := 1" >> build-config.mk.new
+
+mv build-config.mk{.new,}

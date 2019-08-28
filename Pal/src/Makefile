@@ -1,3 +1,5 @@
+include ../../build-config.mk
+
 export PAL_DIR = $(CURDIR)
 export RUNTIME_DIR = $(CURDIR)/../../Runtime
 

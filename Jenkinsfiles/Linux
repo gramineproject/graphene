@@ -6,14 +6,15 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
+                            ./build-setup WERROR=1
                             cd LibOS
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.19
                             rm -r glibc-build
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.23
                             rm -r glibc-build
                             cd ..
-                            make -j 8 WERROR=1
-                            make -j 8 WERROR=1 test
+                            make -j 8
+                            make -j 8 test
                             cd Pal/ipc/linux
                             make
                            '''
@@ -53,7 +54,7 @@ pipeline {
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make regression N_RUNS=1 ENOUGH=100
+                                make regression N_RUNS=1 ENOUGH=100 WERROR=
                             '''
                         }
                         sh '''

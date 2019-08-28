@@ -1,3 +1,4 @@
+include ../../build-config.mk
 include ../../Makefile.configs
 include ../../Makefile.rules
 include ../src/Makefile.Host

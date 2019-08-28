@@ -71,15 +71,16 @@ To build the system, simply run the following commands in the root of the
 source tree::
 
     git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
+    ./build-setup
     make
 
 Each part of Graphene can be built separately in the subdirectories.
 
-To build Graphene library OS with debug symbols, run ``make DEBUG=1``
-instead of ``make``. To specify custom mirrors for downloading the GLIBC
-source, use ``make GLIBC_MIRRORS=...``.
+To build Graphene library OS with debug symbols, pass ``DEBUG=1`` to
+``build-setup``. To specify custom mirrors for downloading the GLIBC source,
+use ``GLIBC_MIRRORS=...``.
 
-To build with ``-Werror``, run ``make WERROR=1``.
+To build with ``-Werror``, pass ``WERROR=1``.
 
 Build with kernel-level sandboxing (optional)
 ---------------------------------------------
@@ -100,9 +101,8 @@ Prerequisites
       openssl genrsa -3 -out enclave-key.pem 3072
 
    You could either put the generated enclave key to the default path,
-   ``host/Linux-SGX/signer/enclave-key.pem``, or specify the key through
-   environment variable ``SGX_SIGNER_KEY`` when building Graphene with SGX
-   support.
+   ``host/Linux-SGX/signer/enclave-key.pem``, or specify the key through the
+   config variable ``SGX_SIGNER_KEY`` when building Graphene with SGX support.
 
    After signing the enclaves, users may ship the application files with the
    built Graphene Library OS, along with a SGX-specific manifest (.manifest.sgx
@@ -130,14 +130,17 @@ Building Graphene-SGX
 To build Graphene Library OS with Intel SGX support, in the root directory of
 Graphene repo, run following command::
 
-   make SGX=1
+   ./build-setup SGX=1
+   make
 
 To build with debug symbols, run the command::
 
-   make SGX=1 DEBUG=1
+   ./build-setup SGX=1 DEBUG=1
+   make
 
-Using ``make SGX=1`` in the test or regression directory will automatically
-generate the enclave signatures (.sig files).
+After running ``./build-setup SGX=1`` in the top level directory, using
+``make`` in the test or regression directory will automatically generate the
+enclave signatures (.sig files).
 
 Run Built-in Examples in Graphene-SGX
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -150,13 +153,13 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
    - go to LibOS/shim/test/native, build the enclaves via command::
 
-      make SGX=1
+      make
 
      The command will build enclaves for all the programs in the folder
 
    - Generate the token from aesmd service, via command::
 
-      make SGX=1 sgx-tokens
+      make sgx-tokens
 
    - Run Hello World program with Graphene on SGX::
 
@@ -170,11 +173,11 @@ a |_| few tested applications, such as GCC, Python, and Apache.
 
    - go to LibOS/shim/test/apps/python, build the enclave::
 
-      make SGX=1
+      make
 
    - Generate token::
 
-      make SGX=1 sgx-tokens
+      make sgx-tokens
 
    - Run python helloworld with Graphene-SGX via::
 
