@@ -1119,7 +1119,7 @@ int _DkStreamAttestationRequest (PAL_HANDLE stream, void * data,
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
+        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
                 ALLOCA_BYTES2HEXSTR(att.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
@@ -1231,7 +1231,7 @@ int _DkStreamAttestationRespond (PAL_HANDLE stream, void * data,
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s)\n",
+        SGX_DBG(DBG_S, "Not an allowed enclave (mrenclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
                 ALLOCA_BYTES2HEXSTR(att.mrenclave));
         ret = -PAL_ERROR_DENIED;
         goto out;
