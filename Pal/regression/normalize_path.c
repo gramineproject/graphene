@@ -17,7 +17,7 @@ static const char* get_norm_path_cases[][2] = {
     {"/../../../../../a", "/a"},
     {"/../a/../../b", "/b"},
     {"/../..a/b", "/..a/b"},
-    {" /a/..", "/"},
+    {"/a/..", "/"},
     {"/a/.", "/a"},
     {"/.//a//./b", "/a/b"},
     {"///////.////////////./", "/"},
@@ -38,11 +38,11 @@ static const char* get_base_name_cases[][2] = {
     {"a/b/c", "c"},
 };
 
-#define ARR_LEN(x) (sizeof(x) / sizeof(x[0]) / sizeof(x[0][0]))
+#define ARR_LEN(x) (sizeof(x) / sizeof((x)[0]))
 
 #define print_err(name, i, ...)                                 \
     do {                                                        \
-        pal_printf("%s: case %lu (%s) ", name, i, cases[i][0]); \
+        pal_printf("%s: case %lu (\"%s\") ", name, i, cases[i][0]); \
         pal_printf(__VA_ARGS__);                                \
     } while (0)
 
@@ -69,7 +69,7 @@ static int run_test(void) {
         }
 
         if (strcmp(cases[i][1], buf) != 0) {
-            print_err(func_name, i, "returned: \"%s\", instead of: %s\n", buf, cases[i][1]);
+            print_err(func_name, i, "returned: \"%s\", instead of: \"%s\"\n", buf, cases[i][1]);
             return 1;
         }
     }
@@ -80,6 +80,7 @@ int main(void) {
     cases        = get_norm_path_cases;
     cases_len    = ARR_LEN(get_norm_path_cases);
     func_to_test = get_norm_path;
+    func_name = "get_norm_path";
     if (run_test()) {
         return 1;
     }
@@ -87,6 +88,7 @@ int main(void) {
     cases        = get_base_name_cases;
     cases_len    = ARR_LEN(get_base_name_cases);
     func_to_test = get_base_name;
+    func_name = "get_base_name";
     if (run_test()) {
         return 1;
     }
