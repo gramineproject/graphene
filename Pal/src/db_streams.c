@@ -48,23 +48,23 @@ extern struct handle_ops gipc_ops;
 extern struct handle_ops mcast_ops;
 
 const struct handle_ops* pal_handle_ops[PAL_HANDLE_TYPE_BOUND] = {
-    [pal_type_file] = &file_ops,
-    [pal_type_pipe] = &pipe_ops,
+    [pal_type_file]    = &file_ops,
+    [pal_type_pipe]    = &pipe_ops,
     [pal_type_pipesrv] = &pipe_ops,
     [pal_type_pipecli] = &pipe_ops,
     [pal_type_pipeprv] = &pipeprv_ops,
-    [pal_type_dev] = &dev_ops,
-    [pal_type_dir] = &dir_ops,
-    [pal_type_tcp] = &tcp_ops,
-    [pal_type_tcpsrv] = &tcp_ops,
-    [pal_type_udp] = &udp_ops,
-    [pal_type_udpsrv] = &udpsrv_ops,
+    [pal_type_dev]     = &dev_ops,
+    [pal_type_dir]     = &dir_ops,
+    [pal_type_tcp]     = &tcp_ops,
+    [pal_type_tcpsrv]  = &tcp_ops,
+    [pal_type_udp]     = &udp_ops,
+    [pal_type_udpsrv]  = &udpsrv_ops,
     [pal_type_process] = &proc_ops,
-    [pal_type_mcast] = &mcast_ops,
-    [pal_type_thread] = &thread_ops,
-    [pal_type_mutex] = &mutex_ops,
-    [pal_type_event] = &event_ops,
-    [pal_type_gipc] = &gipc_ops,
+    [pal_type_mcast]   = &mcast_ops,
+    [pal_type_thread]  = &thread_ops,
+    [pal_type_mutex]   = &mutex_ops,
+    [pal_type_event]   = &event_ops,
+    [pal_type_gipc]    = &gipc_ops,
 };
 
 /* parse_stream_uri scan the uri, seperate prefix and search for
