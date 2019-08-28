@@ -7,7 +7,9 @@ int main(int argc, char** argv) {
 
     DIR* dir = opendir(".");
 
-    while ((dirent = readdir(dir))) printf("found %s\n", dirent->d_name);
+    while ((dirent = readdir(dir))) {
+        printf("found %s\n", dirent->d_name);
+    }
 
     closedir(dir);
 

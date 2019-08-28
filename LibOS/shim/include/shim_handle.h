@@ -315,10 +315,9 @@ DEFINE_LISTP(shim_epoll_fd);
 struct shim_epoll_handle {
     int maxfds;
     int nfds;
-    LISTP_TYPE(shim_epoll_fd)
-    fds; /* this list contains all the
-          * shim_epoll_fd objects in correspondence
-          * with the registered handles. */
+    LISTP_TYPE(shim_epoll_fd) fds; /* this list contains all the
+                                    * shim_epoll_fd objects in correspondence
+                                    * with the registered handles. */
     FDTYPE* pal_fds;
     PAL_HANDLE* pal_handles;
     int npals;

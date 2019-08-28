@@ -96,7 +96,9 @@ int main(int argc, char** argv) {
     write(pipes[5], bytes, times);
     close(pipes[5]);
 
-    for (i = 0; i < times; i++) waitpid(pids[i], NULL, 0);
+    for (i = 0; i < times; i++) {
+        waitpid(pids[i], NULL, 0);
+    }
 
     printf(
         "%d processes fork %d children: throughput = %lf procs/second, "

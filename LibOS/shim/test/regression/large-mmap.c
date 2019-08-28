@@ -16,8 +16,9 @@ int main() {
     if (rv) {
         perror("ftruncate");
         return 1;
-    } else
+    } else {
         printf("large-mmap: ftruncate OK\n");
+    }
 
     void* a = mmap(NULL, TEST_LENGTH2, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
     if (a == MAP_FAILED) {

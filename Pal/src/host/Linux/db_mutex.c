@@ -188,8 +188,9 @@ void _DkMutexRelease(PAL_HANDLE handle) {
 }
 
 int _DkInternalLock(PAL_LOCK* lock) {
+    // Retry the lock if being interrupted by signals
     while (_DkMutexLock(lock) < 0)
-        ;  // Retry the lock if being interrupted by signals
+        ;
     return 0;
 }
 

@@ -97,7 +97,9 @@ static inline int init_exec_handle(struct shim_thread* thread) {
          * mount point. which requires a relative path name.
          * On the other hand, the one in manifest file can be absolute path.
          */
-        while (*p == '/') p++;
+        while (*p == '/') {
+            p++;
+        }
         path_lookupat(fs->root, p, 0, &exec->dentry, fs);
         set_handle_fs(exec, fs);
         if (exec->dentry) {

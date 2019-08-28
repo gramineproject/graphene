@@ -158,8 +158,7 @@ int main(int argc, char* argv[]) {
                                     NI_NUMERICHOST | NI_NUMERICSERV);
                     if (s == 0)
                         printf(
-                            "Accepted connection on descriptor %d "
-                            "(host=%s, port=%s)\n",
+                            "Accepted connection on descriptor %d (host=%s, port=%s)\n",
                             infd, hbuf, sbuf);
 
                     /* Make the incoming socket non-blocking and add it to the

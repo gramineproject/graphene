@@ -8,8 +8,8 @@ int main(int argc, char** argv) {
     int nsend = 5, i;
     PAL_HANDLE handles[nsend];
 
-    if (argc == 1) /* parent */
-    {
+    if (argc == 1) {
+        /* parent */
         pal_printf("Parent: Executing the program\n");
 
         const char* args[3] = {"HandleSend", "child", NULL};
@@ -82,8 +82,8 @@ int main(int argc, char** argv) {
         pal_printf("Parent: Finished execution\n");
 
         DkObjectClose(child);
-    } else /* child */
-    {
+    } else {
+        /* child */
         PAL_HANDLE parent = pal_control.parent_process;
 
         for (i = 0; i < nsend; i++) {
@@ -128,7 +128,9 @@ int main(int argc, char** argv) {
     }
 
 out:
-    for (i = 0; i < nsend; i++) DkObjectClose(handles[i]);
+    for (i = 0; i < nsend; i++) {
+        DkObjectClose(handles[i]);
+    }
 
     return 0;
 }

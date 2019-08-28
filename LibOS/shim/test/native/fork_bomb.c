@@ -56,7 +56,9 @@ int main(int argc, char** argv) {
             struct timeval start_time;
             gettimeofday(&start_time, NULL);
             kill(secondpid, SIGUSR1);
-            while (count < NTRIES - 1) sleep(1);
+            while (count < NTRIES - 1) {
+                sleep(1);
+            }
 
             struct timeval finish_time;
             gettimeofday(&finish_time, NULL);

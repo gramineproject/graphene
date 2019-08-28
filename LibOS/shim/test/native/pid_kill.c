@@ -45,7 +45,9 @@ int main(int argc, char** argv) {
         signal(SIGUSR1, (void*)sighand1);
         read(pipes[0], &secondpid, sizeof(int));
         kill(secondpid, SIGUSR1);
-        while (count < NTRIES - 1) sleep(1);
+        while (count < NTRIES - 1) {
+            sleep(1);
+        }
 
         struct timeval finish_time;
         gettimeofday(&finish_time, NULL);
@@ -73,7 +75,9 @@ int main(int argc, char** argv) {
         signal(SIGUSR1, (void*)sighand2);
         secondpid = getpid();
         write(pipes[1], &secondpid, sizeof(int));
-        while (count < NTRIES) sleep(1);
+        while (count < NTRIES) {
+            sleep(1);
+        }
 
         struct timeval finish_time;
         gettimeofday(&finish_time, NULL);

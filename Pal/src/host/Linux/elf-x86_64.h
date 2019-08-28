@@ -62,14 +62,14 @@ static inline Elf64_Addr __attribute__((unused)) elf_machine_load_address(void) 
        it is prelinked for.  */
 
     __asm__(
-      "leaq " XSTRINGIFY(_ENTRY) "(%%rip), %0\n\t"
-                                 "subq 1f(%%rip), %0\n\t"
-                                 ".section\t.data.rel.ro\n"
-                                 "1:\t.quad " XSTRINGIFY(_ENTRY) "\n\t"
-                                                                 ".previous\n\t"
-      : "=r"(addr)
-      :
-      : "cc");
+        "leaq " XSTRINGIFY(_ENTRY) "(%%rip), %0\n\t"
+        "subq 1f(%%rip), %0\n\t"
+        ".section\t.data.rel.ro\n"
+        "1:\t.quad " XSTRINGIFY(_ENTRY) "\n\t"
+        ".previous\n\t"
+        : "=r"(addr)
+        :
+        : "cc");
 
     return addr;
 }

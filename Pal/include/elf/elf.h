@@ -416,8 +416,8 @@ typedef struct {
 /* How to extract and insert information held in the st_info field.  */
 
 #define ELF32_ST_BIND(val)        (((unsigned char)(val)) >> 4)
-#define ELF32_ST_TYPE(val)        ((val)&0xf)
-#define ELF32_ST_INFO(bind, type) (((bind) << 4) + ((type)&0xf))
+#define ELF32_ST_TYPE(val)        ((val) & 0xf)
+#define ELF32_ST_INFO(bind, type) (((bind) << 4) + ((type) & 0xf))
 
 /* Both Elf32_Sym and Elf64_Sym use the same one-byte st_info field.  */
 #define ELF64_ST_BIND(val)        ELF32_ST_BIND(val)
@@ -460,7 +460,7 @@ typedef struct {
 
 /* How to extract and insert information held in the st_other field.  */
 
-#define ELF32_ST_VISIBILITY(o) ((o)&0x03)
+#define ELF32_ST_VISIBILITY(o) ((o) & 0x03)
 
 /* For ELF64 the definitions are the same.  */
 #define ELF64_ST_VISIBILITY(o) ELF32_ST_VISIBILITY(o)
@@ -505,11 +505,11 @@ typedef struct {
 /* How to extract and insert information held in the r_info field.  */
 
 #define ELF32_R_SYM(val)        ((val) >> 8)
-#define ELF32_R_TYPE(val)       ((val)&0xff)
-#define ELF32_R_INFO(sym, type) (((sym) << 8) + ((type)&0xff))
+#define ELF32_R_TYPE(val)       ((val) & 0xff)
+#define ELF32_R_INFO(sym, type) (((sym) << 8) + ((type) & 0xff))
 
 #define ELF64_R_SYM(i)          ((i) >> 32)
-#define ELF64_R_TYPE(i)         ((i)&0xffffffff)
+#define ELF64_R_TYPE(i)         ((i) & 0xffffffff)
 #define ELF64_R_INFO(sym, type) ((((Elf64_Xword)(sym)) << 32) + (type))
 
 /* Program segment header.  */
@@ -724,7 +724,7 @@ typedef struct {
    range.  Be compatible.  */
 #define DT_AUXILIARY        0x7ffffffd /* Shared object to load before self */
 #define DT_FILTER           0x7fffffff /* Shared object to get values from */
-#define DT_EXTRATAGIDX(tag) (~(Elf32_Word)((Elf32_Word)(tag)&DT_FILTER))
+#define DT_EXTRATAGIDX(tag) (~(Elf32_Word)((Elf32_Word)(tag) & DT_FILTER))
 #define DT_EXTRANUM         3
 
 /* Values of `d_un.d_val' in the DT_FLAGS entry.  */
@@ -1394,11 +1394,9 @@ typedef struct {
 /* Entries found in sections of type SHT_MIPS_OPTIONS.  */
 
 typedef struct {
-    unsigned char kind;    /* Determines interpretation of the
-                  variable part of descriptor.  */
+    unsigned char kind;    /* Determines interpretation of the variable part of descriptor.  */
     unsigned char size;    /* Size of descriptor, including header.  */
-    Elf32_Section section; /* Section header index of section affected,
-                  0 for global options.  */
+    Elf32_Section section; /* Section header index of section affected, 0 for global options.  */
     Elf32_Word info;       /* Kind-specific information.  */
 } Elf_Options;
 
@@ -2160,7 +2158,7 @@ typedef Elf32_Addr Elf32_Conflict;
 #define EF_ARM_BE8 0x00800000
 #define EF_ARM_LE8 0x00400000
 
-#define EF_ARM_EABI_VERSION(flags) ((flags)&EF_ARM_EABIMASK)
+#define EF_ARM_EABI_VERSION(flags) ((flags) & EF_ARM_EABIMASK)
 #define EF_ARM_EABI_UNKNOWN        0x00000000
 #define EF_ARM_EABI_VER1           0x01000000
 #define EF_ARM_EABI_VER2           0x02000000

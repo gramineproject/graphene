@@ -123,7 +123,9 @@ const struct proc_ent proc_root_ent = {
 static inline int token_len(const char* str, const char** next_str) {
     const char* t = str;
 
-    while (*t && *t != '/') t++;
+    while (*t && *t != '/') {
+        t++;
+    }
 
     if (next_str)
         *next_str = *t ? t + 1 : NULL;
@@ -137,7 +139,8 @@ static int proc_match_name(const char* trim_name, const struct proc_ent** ent) {
         return 0;
     }
 
-    const char *token           = trim_name, *next_token;
+    const char* token           = trim_name;
+    const char* next_token;
     const struct proc_ent* tmp  = proc_root.ent;
     const struct proc_ent* last = NULL;
 
@@ -262,7 +265,8 @@ static int proc_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
 
     HASHTYPE self_hash = hash_path(rel_path, dent->rel_path.len);
     HASHTYPE new_hash;
-    struct shim_dirent *buf, *ptr;
+    struct shim_dirent* buf;
+    struct shim_dirent* ptr;
     int buf_size = MAX_PATH;
 
 retry:
@@ -300,7 +304,9 @@ retry:
             if (ret < 0)
                 ptr = d;
             else
-                for (; d && d != ptr; d = d->next) last = &d->next;
+                for (; d && d != ptr; d = d->next) {
+                    last = &d->next;
+                }
             continue;
         }
     }

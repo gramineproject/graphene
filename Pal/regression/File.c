@@ -2,7 +2,7 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-#define NUM_TO_HEX(num) ((num) >= 10 ? 'a' + ((num)-10) : '0' + (num))
+#define NUM_TO_HEX(num) ((num) >= 10 ? 'a' + ((num) - 10) : '0' + (num))
 
 static __attribute__((noinline)) void print_hex(char* fmt, const void* data, int len) {
     char* buf    = __alloca(len * 2 + 1);

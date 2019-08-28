@@ -742,13 +742,11 @@ SHIM_SYSCALL_PASSTHROUGH(lookup_dcookie, 3, int, unsigned long, cookie64, char*,
 DEFINE_SHIM_SYSCALL(epoll_create, 1, shim_do_epoll_create, int, int, size)
 
 /* shim_epoll_ctl_old MISSING
-   TODO: epoll_ctl_old syscall is not implemented (kernel always returns
-   -ENOSYS),
+   TODO: epoll_ctl_old syscall is not implemented (kernel always returns -ENOSYS),
    how should we handle this?*/
 
 /* shim_epoll_wait_old MISSING
-   TODO: epoll_wait_old syscall is not implemented (kernel always returns
-   -ENOSYS),
+   TODO: epoll_wait_old syscall is not implemented (kernel always returns -ENOSYS),
    how should we handle this?*/
 
 SHIM_SYSCALL_PASSTHROUGH(remap_file_pages, 5, int, void*, start, size_t, size, int, prot, ssize_t,

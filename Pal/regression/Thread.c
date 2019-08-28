@@ -11,7 +11,9 @@ int callback1(void* args) {
     pal_printf("Run in Child Thread: %s\n", (char*)args);
 
     while (count1 < 10) {
-        while (!(count1 % 2)) DkThreadYieldExecution();
+        while (!(count1 % 2)) {
+            DkThreadYieldExecution();
+        }
         count1++;
         __asm__ volatile("nop" ::: "memory");
     }
@@ -44,13 +46,19 @@ int main(int argc, const char** argv, const char** envp) {
         pal_printf("Child Thread Created\n");
 
         while (count1 < 10) {
-            while (!!(count1 % 2)) DkThreadYieldExecution();
+            while (!!(count1 % 2)) {
+                DkThreadYieldExecution();
+            }
             count1++;
             __asm__ volatile("nop" ::: "memory");
         }
 
-        while (count1 < 100) DkThreadYieldExecution();
-        for (int i = 0; i < 300; i++) DkThreadYieldExecution();
+        while (count1 < 100) {
+            DkThreadYieldExecution();
+        }
+        for (int i = 0; i < 300; i++) {
+            DkThreadYieldExecution();
+        }
         if (count1 == 100)
             pal_printf("Child Thread Exited\n");
     }

@@ -69,7 +69,7 @@
  * In other words, returns _x if _x is a multiple of _y, otherwise rounds
  * _x up to be a multiple of _y.
  */
-#define ROUND_UP(_x, _y) ((((_x) + (_y)-1) / (_y)) * (_y))
+#define ROUND_UP(_x, _y) ((((_x) + (_y) - 1) / (_y)) * (_y))
 
 DEFINE_LIST(slab_obj);
 
@@ -146,7 +146,8 @@ typedef struct slab_mgr {
     LISTP_TYPE(slab_area) area_list[SLAB_LEVEL];
     LISTP_TYPE(slab_obj) free_list[SLAB_LEVEL];
     size_t size[SLAB_LEVEL];
-    void *addr[SLAB_LEVEL], *addr_top[SLAB_LEVEL];
+    void* addr[SLAB_LEVEL];
+    void* addr_top[SLAB_LEVEL];
     SLAB_AREA active_area[SLAB_LEVEL];
 } SLAB_MGR_TYPE, *SLAB_MGR;
 
@@ -164,7 +165,7 @@ typedef struct __attribute__((packed)) large_mem_obj {
 #define OBJ_LEVEL(obj) ((obj)->level)
 #define OBJ_RAW(obj)   (&(obj)->raw)
 
-#define RAW_TO_LEVEL(raw_ptr)     (*((const unsigned char*)(raw_ptr)-OBJ_PADDING - 1))
+#define RAW_TO_LEVEL(raw_ptr)     (*((const unsigned char*)(raw_ptr) - OBJ_PADDING - 1))
 #define RAW_TO_OBJ(raw_ptr, type) container_of((raw_ptr), type, raw)
 
 #define __SUM_OBJ_SIZE(slab_size, size) (((slab_size) + SLAB_HDR_SIZE) * (size))

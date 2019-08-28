@@ -96,10 +96,11 @@ int create_checkpoint(const char* cpdir, IDTYPE* sid) {
 
     struct cp_session* s;
     if (*sid) {
-        LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
-        if (s->sid == *sid) {
-            ret = 0;
-            goto err_locked;
+        LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list) {
+            if (s->sid == *sid) {
+                ret = 0;
+                goto err_locked;
+            }
         }
     } else {
     retry:
@@ -109,9 +110,10 @@ int create_checkpoint(const char* cpdir, IDTYPE* sid) {
             goto err_locked;
         }
 
-        LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
-        if (s->sid == cpsession->sid)
-            goto retry;
+        LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list) {
+            if (s->sid == cpsession->sid)
+                goto retry;
+        }
 
         *sid = cpsession->sid;
     }
@@ -141,25 +143,28 @@ static int check_thread(struct shim_thread* thread, void* arg, bool* unlocked) {
     if (!thread->in_vm || !thread->is_alive)
         return 0;
 
-    LISTP_FOR_EACH_ENTRY(t, registered, list)
-    if (t->thread == thread)
-        return 0;
+    LISTP_FOR_EACH_ENTRY(t, registered, list) {
+        if (t->thread == thread)
+            return 0;
+    }
 
     return 1;
 }
 
 int join_checkpoint(struct shim_thread* thread, IDTYPE sid) {
-    struct cp_session *s, *cpsession = NULL;
+    struct cp_session* s;
+    struct cp_session* cpsession = NULL;
     struct cp_thread cpthread;
     int ret            = 0;
     bool do_checkpoint = false;
 
     MASTER_LOCK();
 
-    LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list)
-    if (s->sid == sid) {
-        cpsession = s;
-        break;
+    LISTP_FOR_EACH_ENTRY(s, &cp_sessions, list) {
+        if (s->sid == sid) {
+            cpsession = s;
+            break;
+        }
     }
 
     if (!cpsession) {

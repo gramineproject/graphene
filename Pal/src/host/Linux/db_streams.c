@@ -104,7 +104,8 @@ static size_t addr_size(const struct sockaddr* addr) {
 
 int handle_serialize(PAL_HANDLE handle, void** data) {
     int hdlsz = handle_size(handle);
-    const void *d1, *d2;
+    const void* d1;
+    const void* d2;
     int dsz1 = 0, dsz2 = 0;
 
     // ~ Check cargo PAL_HANDLE - is allowed to be sent (White List checking

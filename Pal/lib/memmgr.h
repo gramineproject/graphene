@@ -65,7 +65,8 @@ typedef struct mem_mgr {
     LISTP_TYPE(mem_area) area_list;
     LISTP_TYPE(mem_obj) free_list;
     size_t size;
-    MEM_OBJ_TYPE *obj, *obj_top;
+    MEM_OBJ_TYPE* obj;
+    MEM_OBJ_TYPE* obj_top;
     MEM_AREA active_area;
 } MEM_MGR_TYPE, *MEM_MGR;
 
@@ -242,10 +243,11 @@ static inline void free_mem_obj_to_mgr(MEM_MGR mgr, OBJ_TYPE* obj) {
 
     SYSTEM_LOCK();
     MEM_AREA area, found = NULL;
-    LISTP_FOR_EACH_ENTRY(area, &mgr->area_list, __list)
-    if (mobj >= area->objs && mobj < area->objs + area->size) {
-        found = area;
-        break;
+    LISTP_FOR_EACH_ENTRY(area, &mgr->area_list, __list) {
+        if (mobj >= area->objs && mobj < area->objs + area->size) {
+            found = area;
+            break;
+        }
     }
 
     if (found) {

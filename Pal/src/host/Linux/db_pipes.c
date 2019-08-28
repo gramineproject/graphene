@@ -172,7 +172,7 @@ static int pipe_connect(PAL_HANDLE* handle, PAL_NUM pipeid, int options) {
 #if USE_PIPE_SYSCALL == 1
     fd = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 #else
-    fd             = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | options, 0);
+    fd = INLINE_SYSCALL(socket, 3, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | options, 0);
 #endif
 
     if (IS_ERR(fd))
@@ -262,7 +262,7 @@ static int pipe_private(PAL_HANDLE* handle, int options) {
 #if USE_PIPE_SYSCALL == 1
     ret = INLINE_SYSCALL(pipe2, 2, fds, O_CLOEXEC | options);
 #else
-    ret   = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | options, 0, fds);
+    ret = INLINE_SYSCALL(socketpair, 4, AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | options, 0, fds);
 #endif
     if (IS_ERR(ret))
         return -PAL_ERROR_DENIED;
@@ -500,7 +500,7 @@ static int pipe_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         }
         attr->pending_size = val;
         attr->writable     = HANDLE_HDR(handle)->flags &
-                         (IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0));
+                                 (IS_HANDLE_TYPE(handle, pipeprv) ? WRITABLE(1) : WRITABLE(0));
     } else {
         struct pollfd pfd  = {.fd = handle->generic.fds[0], .events = POLLIN, .revents = 0};
         struct timespec tp = {0, 0};

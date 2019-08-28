@@ -24,8 +24,7 @@ int main(int argc, char** argv) {
 
         if (chdl == NULL) {
             pal_printf(
-                "(parent) DkCreatePhysicalMemoryChannel Failed,"
-                " Make sure gipc module is loaded\n");
+                "(parent) DkCreatePhysicalMemoryChannel Failed, Make sure gipc module is loaded\n");
             return 0;
         }
 

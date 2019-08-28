@@ -140,7 +140,9 @@ ssize_t str_write(struct shim_handle* hdl, const void* buf, size_t count) {
         if (data->str) {
             newlen = data->buf_size * 2;
 
-            while (strhdl->ptr + count > data->str + newlen) newlen *= 2;
+            while (strhdl->ptr + count > data->str + newlen) {
+                newlen *= 2;
+            }
         } else {
             newlen = count;
         }

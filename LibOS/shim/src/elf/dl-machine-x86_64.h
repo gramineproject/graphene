@@ -38,11 +38,14 @@ static inline int __attribute__((unused)) elf_machine_matches_host(const Elf64_E
    define the value.
    ELF_RTYPE_CLASS_NOCOPY iff TYPE should not be allowed to resolve to one
    of the main executable's symbols, as for a COPY reloc.  */
-#define elf_machine_type_class(type)                                                              \
-    ((((type) == R_X86_64_JUMP_SLOT || (type) == R_X86_64_DTPMOD64 ||                             \
-       (type) == R_X86_64_DTPOFF64 || (type) == R_X86_64_TPOFF64 || (type) == R_X86_64_TLSDESC) * \
-      ELF_RTYPE_CLASS_PLT) |                                                                      \
-     (((type) == R_X86_64_COPY) * ELF_RTYPE_CLASS_COPY))
+#define elf_machine_type_class(type) \
+    ((((type) == R_X86_64_JUMP_SLOT  \
+    || (type) == R_X86_64_DTPMOD64   \
+    || (type) == R_X86_64_DTPOFF64   \
+    || (type) == R_X86_64_TPOFF64    \
+    || (type) == R_X86_64_TLSDESC)   \
+    * ELF_RTYPE_CLASS_PLT)           \
+    | (((type) == R_X86_64_COPY) * ELF_RTYPE_CLASS_COPY))
 
 /* The x86-64 never uses Elf64_Rel relocations.  */
 #define ELF_MACHINE_NO_REL 1

@@ -43,7 +43,7 @@ int sol6[4]  = {7, 5, 3, 1};
 int sol7[10] = {7, 5, 3, 1, 13, 12, 11, 10, 9, 8};
 int sol8[17] = {7, 5, 3, 1, 13, 12, 11, 10, 9, 8, 20, 19, 18, 17, 16, 15, 14};
 
-void print_list(LISTP_TYPE(simple) * listp) {
+void print_list(LISTP_TYPE(simple)* listp) {
     struct simple* tmp;
     printf("Beginning of list\n");
     LISTP_FOR_EACH_ENTRY(tmp, listp, list) {
@@ -52,7 +52,7 @@ void print_list(LISTP_TYPE(simple) * listp) {
     printf("End of list\n\n");
 }
 
-void assert_list(LISTP_TYPE(simple) * listp, int len, int* array, int stop_early_ok) {
+void assert_list(LISTP_TYPE(simple)* listp, int len, int* array, int stop_early_ok) {
     int j = 0;
     struct simple* tmp;
     int stop_early = 0;
@@ -72,7 +72,7 @@ void assert_list(LISTP_TYPE(simple) * listp, int len, int* array, int stop_early
         assert(stop_early_ok);
 }
 
-void print_list_reverse(LISTP_TYPE(simple) * listp) {
+void print_list_reverse(LISTP_TYPE(simple)* listp) {
     struct simple* tmp;
     printf("Beginning of list\n");
     LISTP_FOR_EACH_ENTRY_REVERSE(tmp, listp, list) {
@@ -83,7 +83,9 @@ void print_list_reverse(LISTP_TYPE(simple) * listp) {
 
 int main() {
     int i;
-    struct simple *tmp, *tmp2, *n;
+    struct simple* tmp;
+    struct simple* tmp2;
+    struct simple* n;
 
     assert(LISTP_EMPTY(&list_in_the_sky));
 

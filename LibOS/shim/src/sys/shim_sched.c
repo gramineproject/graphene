@@ -50,7 +50,9 @@ int shim_do_sched_getaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_ma
         return -EINVAL;
 
     memset(user_mask_ptr, 0, len);
-    for (int i = 0; i < ncpus; i++) ((uint8_t*)user_mask_ptr)[i / 8] |= 1 << (i % 8);
+    for (int i = 0; i < ncpus; i++) {
+        ((uint8_t*)user_mask_ptr)[i / 8] |= 1 << (i % 8);
+    }
     /* imitate the Linux kernel implementation
      * See SYSCALL_DEFINE3(sched_getaffinity) */
     return bitmask_size_in_bytes;

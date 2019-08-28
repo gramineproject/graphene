@@ -132,12 +132,14 @@ void CONCAT3(debug_print, NS, ranges)(void) {
 
             IDTYPE off              = i * BITS + j;
             LISTP_TYPE(range)* head = range_table + RANGE_HASH(off);
-            struct range *tmp, *r = NULL;
+            struct range* tmp;
+            struct range* r = NULL;
 
-            LISTP_FOR_EACH_ENTRY(tmp, head, hlist)
-            if (tmp->offset == off) {
-                r = tmp;
-                break;
+            LISTP_FOR_EACH_ENTRY(tmp, head, hlist) {
+                if (tmp->offset == off) {
+                    r = tmp;
+                    break;
+                }
             }
 
             assert(r);
@@ -173,7 +175,9 @@ static int __extend_range_bitmap(IDTYPE expected) {
     if (range_map)
         size = range_map->map_size;
 
-    while (size <= expected) size *= 2;
+    while (size <= expected) {
+        size *= 2;
+    }
 
     struct range_bitmap* new_map = malloc(sizeof(struct range_bitmap) + size / BITS);
     if (!new_map)
@@ -228,9 +232,10 @@ static struct range* __get_range(IDTYPE off) {
 
     struct range* r;
 
-    LISTP_FOR_EACH_ENTRY(r, head, hlist)
-    if (r->offset == off)
-        return r;
+    LISTP_FOR_EACH_ENTRY(r, head, hlist) {
+        if (r->offset == off)
+            return r;
+    }
 
     return NULL;
 }
@@ -262,28 +267,29 @@ static int __add_range(struct range* r, IDTYPE off, IDTYPE owner, const char* ur
     if (ret == -EEXIST) {
         struct range* tmp;
 
-        LISTP_FOR_EACH_ENTRY(tmp, head, hlist)
-        if (tmp->offset == off) {
-            LISTP_DEL(tmp, head, hlist);
+        LISTP_FOR_EACH_ENTRY(tmp, head, hlist) {
+            if (tmp->offset == off) {
+                LISTP_DEL(tmp, head, hlist);
 
-            /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
-             * and tmp->owner->vmid == cur_process.vmid, tmp is on the
-             * owned list, otherwise it is an offered. */
-            if (tmp->owner && tmp->owner->vmid == cur_process.vmid) {
-                LISTP_DEL(tmp, &owned_ranges, list);
-                nowned--;
-            } else {
-                LISTP_DEL(tmp, &offered_ranges, list);
-                noffered--;
+                /* Chia-Che Tsai 10/17/17: only when tmp->owner is non-NULL,
+                 * and tmp->owner->vmid == cur_process.vmid, tmp is on the
+                 * owned list, otherwise it is an offered. */
+                if (tmp->owner && tmp->owner->vmid == cur_process.vmid) {
+                    LISTP_DEL(tmp, &owned_ranges, list);
+                    nowned--;
+                } else {
+                    LISTP_DEL(tmp, &offered_ranges, list);
+                    noffered--;
+                }
+
+                if (tmp->owner)
+                    put_ipc_info_in_list(tmp->owner);
+
+                r->used      = tmp->used;
+                r->subranges = tmp->subranges;
+                free(tmp);
+                break;
             }
-
-            if (tmp->owner)
-                put_ipc_info_in_list(tmp->owner);
-
-            r->used      = tmp->used;
-            r->subranges = tmp->subranges;
-            free(tmp);
-            break;
         }
     }
 
@@ -750,19 +756,15 @@ static void __discover_ns(bool block, bool need_locate) {
     }
 
     /*
-     * Now we need to discover the leader through IPC. Because IPC calls can be
-     * blocking,
-     * we need to temporarily release cur_process.lock to prevent deadlocks. If
-     * the discovery
-     * succeeds, NS_LEADER will contain the IPC information of the namespace
-     * leader.
+     * Now we need to discover the leader through IPC. Because IPC calls can be blocking,
+     * we need to temporarily release cur_process.lock to prevent deadlocks. If the discovery
+     * succeeds, NS_LEADER will contain the IPC information of the namespace leader.
      */
 
     unlock(&cur_process.lock);
 
     // Send out an IPC message to find out the namespace information.
-    // If the call is non-blocking, can't expect the answer when the function
-    // finishes.
+    // If the call is non-blocking, can't expect the answer when the function finishes.
     int ret = NS_SEND(findns)(block);
     if (!ret) {
         ipc_pending = !block;  // There is still some unfinished business with IPC
@@ -871,8 +873,7 @@ int CONCAT3(prepare, NS, leader)(void) {
     unlock(&cur_process.lock);
 
     if (need_discover)
-        __discover_ns(true,
-                      true);  // This function cannot be called with cur_process.lock held
+        __discover_ns(true, true);  // This function cannot be called with cur_process.lock held
     return 0;
 }
 
@@ -993,8 +994,7 @@ int NS_CALLBACK(findns)(IPC_CALLBACK_ARGS) {
         // Got the answer! Send back the discovery now.
         ret = NS_SEND(tellns)(port, msg->src, NS_LEADER, msg->seq);
     } else {
-        // Don't know the answer yet, set up a callback for sending the discovery
-        // later.
+        // Don't know the answer yet, set up a callback for sending the discovery later.
         struct ns_query* query = malloc(sizeof(struct ns_query));
         if (query) {
             query->dest = msg->src;
@@ -1058,7 +1058,8 @@ int NS_CALLBACK(tellns)(IPC_CALLBACK_ARGS) {
     assert(NS_LEADER->vmid != 0);
     assert(!qstrempty(&NS_LEADER->uri));
 
-    struct ns_query *query, *pos;
+    struct ns_query* query;
+    struct ns_query* pos;
 
     LISTP_FOR_EACH_ENTRY_SAFE(query, pos, &ns_queries, list) {
         LISTP_DEL(query, &ns_queries, list);
@@ -1173,8 +1174,8 @@ int NS_CALLBACK(offer)(IPC_CALLBACK_ARGS) {
 
     switch (msgin->size) {
         case RANGE_SIZE:
-            CONCAT3(add, NS, range)
-            (msgin->base, cur_process.vmid, qstrgetstr(&cur_process.self->uri), msgin->lease);
+            CONCAT3(add, NS, range)(msgin->base, cur_process.vmid,
+                                    qstrgetstr(&cur_process.self->uri), msgin->lease);
             LEASETYPE* priv = obj ? obj->private : NULL;
             if (priv)
                 *priv = msgin->lease;
@@ -1516,7 +1517,9 @@ int NS_SEND(answer)(struct shim_ipc_port* port, IDTYPE dest, int nanswers,
 
     int owner_offset      = sizeof(NS_MSG_TYPE(answer)) + sizeof(struct ipc_ns_offered) * nanswers;
     int total_ownerdatasz = 0;
-    for (int i = 0; i < nowners; i++) total_ownerdatasz += ownerdatasz[i];
+    for (int i = 0; i < nowners; i++) {
+        total_ownerdatasz += ownerdatasz[i];
+    }
 
     size_t total_msg_size    = get_ipc_msg_size(owner_offset + total_ownerdatasz);
     struct shim_ipc_msg* msg = __alloca(total_msg_size);
@@ -1567,8 +1570,7 @@ int NS_CALLBACK(answer)(IPC_CALLBACK_ARGS) {
                 CONCAT3(add, NS, range)(ans->base, owner->vmid, owner->uri, ans->lease);
                 break;
             case 1:
-                CONCAT3(add, NS, subrange)
-                (ans->base, owner->vmid, owner->uri, &ans->lease);
+                CONCAT3(add, NS, subrange)(ans->base, owner->vmid, owner->uri, &ans->lease);
                 break;
             default:
                 break;
@@ -1605,9 +1607,10 @@ int CONCAT2(NS, add_key)(NS_KEY* key, IDTYPE id) {
 
     lock(&range_map_lock);
 
-    LISTP_FOR_EACH_ENTRY(k, head, hlist)
-    if (!KEY_COMP(&k->key, key))
-        goto out;
+    LISTP_FOR_EACH_ENTRY(k, head, hlist) {
+        if (!KEY_COMP(&k->key, key))
+            goto out;
+    }
 
     k = malloc(sizeof(struct key));
     if (!k) {
@@ -1634,14 +1637,15 @@ int CONCAT2(NS, get_key)(NS_KEY* key, bool delete) {
 
     lock(&range_map_lock);
 
-    LISTP_FOR_EACH_ENTRY(k, head, hlist)
-    if (!KEY_COMP(&k->key, key)) {
-        id = k->id;
-        if (delete) {
-            LISTP_DEL(k, head, hlist);
-            free(k);
+    LISTP_FOR_EACH_ENTRY(k, head, hlist) {
+        if (!KEY_COMP(&k->key, key)) {
+            id = k->id;
+            if (delete) {
+                LISTP_DEL(k, head, hlist);
+                free(k);
+            }
+            break;
         }
-        break;
     }
 
     unlock(&range_map_lock);

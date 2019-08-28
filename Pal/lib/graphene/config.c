@@ -27,7 +27,8 @@
 
 DEFINE_LIST(config);
 struct config {
-    const char *key, *val;
+    const char* key;
+    const char* val;
     size_t klen, vlen; /* for leaf nodes, vlen stores the size of config
                           values; for branch nodes, vlen stores the sum
                           of config value lengths plus one of all the
@@ -54,9 +55,10 @@ static int __add_config(struct config_store* store, const char* key, size_t klen
             if (token[len] == '.')
                 break;
 
-        LISTP_FOR_EACH_ENTRY(e, list, siblings)
-        if (e->klen == len && !memcmp(e->key, token, len))
-            goto next;
+        LISTP_FOR_EACH_ENTRY(e, list, siblings) {
+            if (e->klen == len && !memcmp(e->key, token, len))
+                goto next;
+        }
 
         e = store->malloc(sizeof(struct config));
         if (!e)
@@ -107,9 +109,10 @@ static struct config* __get_config(struct config_store* store, const char* key) 
             if (token[len] == '.')
                 break;
 
-        LISTP_FOR_EACH_ENTRY(e, list, siblings)
-        if (e->klen == len && !memcmp(e->key, token, len))
-            goto next;
+        LISTP_FOR_EACH_ENTRY(e, list, siblings) {
+            if (e->klen == len && !memcmp(e->key, token, len))
+                goto next;
+        }
 
         return NULL;
 
@@ -169,18 +172,20 @@ ssize_t get_config_entries_size(struct config_store* store, const char* key) {
     return e->vlen;
 }
 
-static int __del_config(struct config_store* store, LISTP_TYPE(config) * root, struct config* p,
+static int __del_config(struct config_store* store, LISTP_TYPE(config)* root, struct config* p,
                         const char* key) {
-    struct config *e, *found = NULL;
+    struct config* e;
+    struct config* found = NULL;
     size_t len = 0;
     for (; key[len]; len++)
         if (key[len] == '.')
             break;
 
-    LISTP_FOR_EACH_ENTRY(e, root, siblings)
-    if (e->klen == len && !memcmp(e->key, key, len)) {
-        found = e;
-        break;
+    LISTP_FOR_EACH_ENTRY(e, root, siblings) {
+        if (e->klen == len && !memcmp(e->key, key, len)) {
+            found = e;
+            break;
+        }
     }
 
     if (!found)
@@ -312,7 +317,9 @@ int read_config(struct config_store* store, int (*filter)(const char* key, int k
 
         int klen = ptr - key;
 
-        for (; RANGE && IS_SPACE(*ptr); ptr++) CHECK_PTR("stream ended at key");
+        for (; RANGE && IS_SPACE(*ptr); ptr++) {
+            CHECK_PTR("stream ended at key");
+        }
 
         if (*ptr != '=')
             GOTO_INVAL("equal mark expected");
@@ -379,7 +386,8 @@ inval:
 }
 
 int free_config(struct config_store* store) {
-    struct config *e, *n;
+    struct config* e;
+    struct config* n;
     LISTP_FOR_EACH_ENTRY_SAFE(e, n, &store->entries, list) {
         store->free(e->buf);
         store->free(e);
@@ -393,10 +401,13 @@ int free_config(struct config_store* store) {
 static int __dup_config(const struct config_store* ss, const LISTP_TYPE(config) * sr,
                         struct config_store* ts, LISTP_TYPE(config) * tr, void** data,
                         size_t* size) {
-    struct config *e, *new;
+    struct config* e;
+    struct config* new;
 
     LISTP_FOR_EACH_ENTRY(e, sr, siblings) {
-        char *key = NULL, *val = NULL, *buf = NULL;
+        char* key = NULL;
+        char* val = NULL;
+        char* buf = NULL;
         int need = 0;
 
         if (e->key) {
@@ -495,36 +506,37 @@ static int __write_config(void* f, int (*write)(void*, void*, int), struct confi
     char* buf = NULL;
     int bufsz = 0;
 
-    LISTP_FOR_EACH_ENTRY(e, root, siblings)
-    if (e->val) {
-        int total = klen + e->klen + e->vlen + 2;
+    LISTP_FOR_EACH_ENTRY(e, root, siblings) {
+        if (e->val) {
+            int total = klen + e->klen + e->vlen + 2;
 
-        while (total > bufsz) {
-            bufsz += CONFIG_MAX;
-            buf = __alloca(CONFIG_MAX);
+            while (total > bufsz) {
+                bufsz += CONFIG_MAX;
+                buf = __alloca(CONFIG_MAX);
+            }
+
+            memcpy(buf, keybuf, klen);
+            memcpy(buf + klen, e->key, e->klen);
+            buf[klen + e->klen] = '=';
+            memcpy(buf + total - e->vlen - 1, e->val, e->vlen);
+            buf[total - 1] = '\n';
+
+            ret = write(f, buf, total);
+            if (ret < 0)
+                return ret;
+
+            *offset += total;
+        } else {
+            if (klen + e->klen + 1 > CONFIG_MAX)
+                return -PAL_ERROR_TOOLONG;
+
+            memcpy(keybuf + klen, e->key, e->klen);
+            keybuf[klen + e->klen] = '.';
+
+            if ((ret = __write_config(f, write, store, &e->children, keybuf, klen + e->klen + 1,
+                                      offset)) < 0)
+                return ret;
         }
-
-        memcpy(buf, keybuf, klen);
-        memcpy(buf + klen, e->key, e->klen);
-        buf[klen + e->klen] = '=';
-        memcpy(buf + total - e->vlen - 1, e->val, e->vlen);
-        buf[total - 1] = '\n';
-
-        ret = write(f, buf, total);
-        if (ret < 0)
-            return ret;
-
-        *offset += total;
-    } else {
-        if (klen + e->klen + 1 > CONFIG_MAX)
-            return -PAL_ERROR_TOOLONG;
-
-        memcpy(keybuf + klen, e->key, e->klen);
-        keybuf[klen + e->klen] = '.';
-
-        if ((ret = __write_config(f, write, store, &e->children, keybuf, klen + e->klen + 1,
-                                  offset)) < 0)
-            return ret;
     }
 
     return 0;

@@ -40,7 +40,7 @@ int main(int argc, const char** argv) {
     a[1023] = 0xff;
     a[4095] = 0xff;
 
-    asm volatile("nop" ::: "memory");
+    asm volatile ("nop" ::: "memory");
 
     int pid = fork();
     if (pid == -1) {
@@ -55,14 +55,14 @@ int main(int argc, const char** argv) {
         }
     }
 
-    asm volatile("nop" ::: "memory");
+    asm volatile ("nop" ::: "memory");
 
     a[0] = 0xff;
     printf(pid == 0 ? "mmap test 1 passed\n" : "mmap test 6 passed\n");
     a[1024] = 0xff;
     printf(pid == 0 ? "mmap test 2 passed\n" : "mmap test 7 passed\n");
 
-    asm volatile("nop" ::: "memory");
+    asm volatile ("nop" ::: "memory");
 
     if (pid == 0) {
         if (a[1023] == 0xff)
@@ -71,7 +71,7 @@ int main(int argc, const char** argv) {
             printf("mmap test 4 passed\n");
     }
 
-    asm volatile("nop" ::: "memory");
+    asm volatile ("nop" ::: "memory");
 
     if (signal(SIGBUS, SIGBUS_handler) == SIG_ERR) {
         perror("signal");

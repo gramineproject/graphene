@@ -10,7 +10,9 @@ void handler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
     if (message)
         pal_printf("%s", message);
 
-    while (*(unsigned char*)context->rip != 0x90) context->rip++;
+    while (*(unsigned char*)context->rip != 0x90) {
+        context->rip++;
+    }
 
     DkExceptionReturn(event);
 }

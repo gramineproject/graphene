@@ -177,10 +177,11 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
 
     switch (op) {
         case EPOLL_CTL_ADD: {
-            LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list)
-            if (epoll_fd->fd == fd) {
-                ret = -EEXIST;
-                goto out;
+            LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
+                if (epoll_fd->fd == fd) {
+                    ret = -EEXIST;
+                    goto out;
+                }
             }
 
             struct shim_handle* hdl = get_fd_handle(fd, NULL, cur->handle_map);
@@ -224,11 +225,12 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
         }
 
         case EPOLL_CTL_MOD: {
-            LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list)
-            if (epoll_fd->fd == fd) {
-                epoll_fd->events = event->events;
-                epoll_fd->data   = event->data;
-                goto update;
+            LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
+                if (epoll_fd->fd == fd) {
+                    epoll_fd->events = event->events;
+                    epoll_fd->data   = event->data;
+                    goto update;
+                }
             }
 
             ret = -ENOENT;
@@ -236,24 +238,25 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
         }
 
         case EPOLL_CTL_DEL: {
-            LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list)
-            if (epoll_fd->fd == fd) {
-                struct shim_handle* hdl = epoll_fd->handle;
+            LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
+                if (epoll_fd->fd == fd) {
+                    struct shim_handle* hdl = epoll_fd->handle;
 
-                /* Unregister the epoll handle */
-                lock(&hdl->lock);
-                LISTP_DEL(epoll_fd, &hdl->epolls, back);
-                unlock(&hdl->lock);
+                    /* Unregister the epoll handle */
+                    lock(&hdl->lock);
+                    LISTP_DEL(epoll_fd, &hdl->epolls, back);
+                    unlock(&hdl->lock);
 
-                debug("delete handle %p from epoll handle %p\n", hdl, epoll);
+                    debug("delete handle %p from epoll handle %p\n", hdl, epoll);
 
-                put_handle(epoll_hdl);
-                put_handle(hdl);
+                    put_handle(epoll_hdl);
+                    put_handle(hdl);
 
-                LISTP_DEL(epoll_fd, &epoll->fds, list);
-                epoll->nfds--;
-                free(epoll_fd);
-                goto update;
+                    LISTP_DEL(epoll_fd, &epoll->fds, list);
+                    epoll->nfds--;
+                    free(epoll_fd);
+                    goto update;
+                }
             }
 
             ret = -ENOENT;
@@ -327,20 +330,21 @@ retry:
     if (!DkStreamAttributesQueryByHandle(polled, &attr))
         goto reply;
 
-    LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list)
-    if (polled == epoll_fd->pal_handle) {
-        debug("epoll: fd %d (handle %p) polled\n", epoll_fd->fd, epoll_fd->handle);
+    LISTP_FOR_EACH_ENTRY(epoll_fd, &epoll->fds, list) {
+        if (polled == epoll_fd->pal_handle) {
+            debug("epoll: fd %d (handle %p) polled\n", epoll_fd->fd, epoll_fd->handle);
 
-        if (attr.disconnected) {
-            epoll_fd->revents |= EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-            epoll_fd->pal_handle = NULL;
-            need_update          = true;
+            if (attr.disconnected) {
+                epoll_fd->revents |= EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+                epoll_fd->pal_handle = NULL;
+                need_update          = true;
+            }
+            if (attr.readable)
+                epoll_fd->revents |= EPOLLIN;
+            if (attr.writable)
+                epoll_fd->revents |= EPOLLOUT;
+            break;
         }
-        if (attr.readable)
-            epoll_fd->revents |= EPOLLIN;
-        if (attr.writable)
-            epoll_fd->revents |= EPOLLOUT;
-        break;
     }
 
 reply:

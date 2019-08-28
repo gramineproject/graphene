@@ -29,7 +29,9 @@ int main(int argc, char** argv, char** envp) {
     char* new_argv[argc + 2];
     char time_arg[30];
 
-    for (int i = 1; i < argc; i++) new_argv[i - 1] = argv[i];
+    for (int i = 1; i < argc; i++) {
+        new_argv[i - 1] = argv[i];
+    }
 
     new_argv[argc - 1] = "./start.pthread.m";
     new_argv[argc]     = time_arg;
@@ -52,7 +54,9 @@ int main(int argc, char** argv, char** envp) {
         if (!pid) {
             struct timeval tv1, tv2;
             gettimeofday(&tv1, NULL);
-            for (int j = 0; j < OVERHEAD_TIMES; j++) get_time(time_arg, 0);
+            for (int j = 0; j < OVERHEAD_TIMES; j++) {
+                get_time(time_arg, 0);
+            }
             gettimeofday(&tv2, NULL);
             unsigned long long msec1    = tv1.tv_sec * 1000000ULL + tv1.tv_usec;
             unsigned long long msec2    = tv2.tv_sec * 1000000ULL + tv2.tv_usec;

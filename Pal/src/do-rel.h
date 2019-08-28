@@ -50,12 +50,12 @@ static void __attribute_unused elf_dynamic_do_rel(struct link_map* l, ElfW(Addr)
     r = r + MIN(nrelative, relsize / sizeof(ElfW(Rel)));
 
 #ifndef RTLD_BOOTSTRAP
-/* This is defined in rtld.c, but nowhere in the static libc.a; make
-   the reference weak so static programs can still link.  This
-   declaration cannot be done when compiling rtld.c (i.e. #ifdef
-   RTLD_BOOTSTRAP) because rtld.c contains the common defn for
-   _dl_rtld_map, which is incompatible with a weak decl in the same
-   file.  */
+    /* This is defined in rtld.c, but nowhere in the static libc.a; make
+       the reference weak so static programs can still link.  This
+       declaration cannot be done when compiling rtld.c (i.e. #ifdef
+       RTLD_BOOTSTRAP) because rtld.c contains the common defn for
+       _dl_rtld_map, which is incompatible with a weak decl in the same
+       file.  */
 #if !defined DO_RELA || defined ELF_MACHINE_REL_RELATIVE
     /* Rela platforms get the offset from r_addend and this must
        be copied in the relocation address.  Therefore we can skip
@@ -68,10 +68,13 @@ static void __attribute_unused elf_dynamic_do_rel(struct link_map* l, ElfW(Addr)
     if (l->l_addr != 0 || !l->l_info[VALIDX(DT_GNU_PRELINKED)])
 #endif
 #endif
-        for (; relative < r; ++relative) DO_ELF_MACHINE_REL_RELATIVE(l, relative);
+        for (; relative < r; ++relative) {
+            DO_ELF_MACHINE_REL_RELATIVE(l, relative);
+        }
 
-    for (; r < end; ++r)
+    for (; r < end; ++r) {
         elf_machine_rel(l, r, &symtab[ELFW(R_SYM)(r->r_info)], (void*)(l->l_addr + r->r_offset));
+    }
 }
 
 #undef elf_dynamic_do_rel

@@ -92,7 +92,9 @@ int main(int argc, char** argv) {
             write(pipes[5], &byte, 1);
             close(pipes[5]);
 
-            while (count < NTRIES) sched_yield();
+            while (count < NTRIES) {
+                sched_yield();
+            }
 
             read(pipes[2], &byte, 1);
             close(pipes[2]);
@@ -129,7 +131,9 @@ int main(int argc, char** argv) {
             count = 0;
             kill(firstpid, SIGUSR1);
 
-            while (count < NTRIES - 1) sched_yield();
+            while (count < NTRIES - 1) {
+                sched_yield();
+            }
 
             gettimeofday(&timevals[1], NULL);
 

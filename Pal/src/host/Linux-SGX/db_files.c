@@ -197,12 +197,9 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
 
     if (!(prot & PAL_PROT_WRITECOPY) && (prot & PAL_PROT_WRITE)) {
         SGX_DBG(DBG_E,
-                "file_map does not currently support writable pass-through "
-                "mappings on SGX.  You "
-                "may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your "
-                "file mapping to keep "
-                "the writes inside the enclave but they won't be reflected "
-                "outside of the "
+                "file_map does not currently support writable pass-through mappings on SGX.  You "
+                "may add the PAL_PROT_WRITECOPY (MAP_PRIVATE) flag to your file mapping to keep "
+                "the writes inside the enclave but they won't be reflected outside of the "
                 "enclave.\n");
         return -PAL_ERROR_DENIED;
     }

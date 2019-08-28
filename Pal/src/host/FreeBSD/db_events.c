@@ -49,7 +49,7 @@ void _DkEventDestroy(PAL_HANDLE handle) {
 int _DkEventSet(PAL_HANDLE event, int wakeup) {
     int ret = 0;
     if (event->event.isnotification) {
-        /* Leave it signaled, wake all	*/
+        /* Leave it signaled, wake all */
         if (atomic_cmpxchg(&event->event.signaled, 0, 1) == 0) {
             int nwaiters = atomic_read(&event->event.nwaiters);
             if (nwaiters) {

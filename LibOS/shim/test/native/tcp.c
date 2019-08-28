@@ -89,7 +89,9 @@ int server(void) {
         exit(-1);
     }
 
-    while ((conn = read(fd, buffer, bufsize)) > 0) sendto(new_socket, buffer, conn, 0, 0, 0);
+    while ((conn = read(fd, buffer, bufsize)) > 0) {
+        sendto(new_socket, buffer, conn, 0, 0, 0);
+    }
 
     printf("Request completed\n");
 
@@ -134,7 +136,9 @@ int client(void) {
 
     printf("Content:\n");
 
-    while ((count = recv(create_socket, buffer, bufsize, 0)) > 0) write(1, buffer, count);
+    while ((count = recv(create_socket, buffer, bufsize, 0)) > 0) {
+        write(1, buffer, count);
+    }
 
     printf("EOF\n");
 

@@ -76,8 +76,10 @@ static size_t addr_size(const struct sockaddr* addr) {
 /* parsing the string of uri, and fill in the socket address structure.
    the latest pointer of uri, length of socket address are returned. */
 static int inet_parse_uri(char** uri, struct sockaddr* addr, size_t* addrlen) {
-    char *tmp      = *uri, *end;
-    char *addr_str = NULL, *port_str;
+    char* tmp = *uri;
+    char* end;
+    char* addr_str = NULL;
+    char* port_str;
     int af;
     void* addr_buf;
     size_t addr_len;
@@ -279,7 +281,8 @@ static inline PAL_HANDLE socket_create_handle(int type, int fd, int options,
 }
 
 static bool check_zero(void* mem, size_t size) {
-    void *p = mem, *q = mem + size;
+    void* p = mem;
+    void* q = mem + size;
 
     while (p < q) {
         if (p <= q - sizeof(long)) {
@@ -322,7 +325,8 @@ static bool check_any_addr(struct sockaddr* addr) {
 
 /* listen on a tcp socket */
 static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
-    struct sockaddr buffer, *bind_addr = &buffer;
+    struct sockaddr buffer;
+    struct sockaddr buffer* bind_addr = &buffer;
     size_t bind_addrlen;
     int ret, fd = -1;
 
@@ -439,7 +443,8 @@ failed:
 /* connect on a tcp socket */
 static int tcp_connect(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr buffer[3];
-    struct sockaddr *bind_addr = buffer, *dest_addr = buffer + 1;
+    struct sockaddr* bind_addr = buffer;
+    struct sockaddr* dest_addr = buffer + 1;
     size_t bind_addrlen, dest_addrlen;
     int ret, fd = -1;
 
@@ -613,7 +618,8 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, size_t len, const v
 
 /* used by 'open' operation of tcp stream for bound socket */
 static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
-    struct sockaddr buffer, *bind_addr = &buffer;
+    struct sockaddr buffer;
+    struct sockaddr* bind_addr = &buffer;
     size_t bind_addrlen;
     int ret = 0, fd = -1;
 
@@ -673,7 +679,8 @@ failed:
 /* used by 'open' operation of tcp stream for connected socket */
 static int udp_connect(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr buffer[2];
-    struct sockaddr *bind_addr = buffer, *dest_addr = buffer + 1;
+    struct sockaddr* bind_addr = buffer;
+    struct sockaddr* dest_addr = buffer + 1;
     size_t bind_addrlen, dest_addrlen;
     int ret, fd = -1;
 
@@ -1118,7 +1125,8 @@ static int socket_getname(PAL_HANDLE handle, char* buffer, size_t count) {
 
     const char* prefix         = NULL;
     size_t prefix_len          = 0;
-    struct sockaddr *bind_addr = NULL, *dest_addr = NULL;
+    struct sockaddr* bind_addr = NULL;
+    struct sockaddr* dest_addr = NULL;
 
     switch (PAL_GET_TYPE(handle)) {
         case pal_type_tcpsrv:
@@ -1309,7 +1317,7 @@ static int64_t mcast_send(PAL_HANDLE handle, uint64_t offset, uint64_t size, con
                 return -PAL_ERROR_CONNFAILED;
             case EAGAIN:
                 HANDLE_HDR(handle)->flags &= ~WRITABLE(1);
-            /* fallthrough */
+                /* fallthrough */
             default:
                 return unix_to_pal_error(ERRNO(bytes));
         }

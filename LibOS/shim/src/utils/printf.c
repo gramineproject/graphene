@@ -75,7 +75,9 @@ void debug_puts(const char* str) {
             isfull = false;
         }
 
-        for (int i = 0; i < rem; i++) buf->buf[buf->end + i] = str[i];
+        for (int i = 0; i < rem; i++) {
+            buf->buf[buf->end + i] = str[i];
+        }
         buf->end += rem;
         str += rem;
         len -= rem;

@@ -71,19 +71,20 @@ struct link_map {
     /* These first few members are part of the protocol with the debugger.
        This is the same format used in SVR4.  */
 
-    ElfW(Addr) l_addr;                /* Base address shared object is loaded at. */
-    const char* l_name;               /* Absolute file name object was found in.  */
-    ElfW(Dyn) * l_real_ld;            /* Dynamic section of the shared object.    */
-    struct link_map *l_next, *l_prev; /* Chain of loaded objects.  */
+    ElfW(Addr) l_addr;       /* Base address shared object is loaded at. */
+    const char* l_name;      /* Absolute file name object was found in.  */
+    ElfW(Dyn)* l_real_ld;    /* Dynamic section of the shared object.    */
+    struct link_map* l_next; /* Chain of loaded objects.  */
+    struct link_map* l_prev;
 
     /* All following members are internal to the dynamic linker.
        They may change without notice.  */
-    ElfW(Dyn) * l_ld;
+    ElfW(Dyn)* l_ld;
     char* l_soname;
 
-    ElfW(Dyn) *
+    ElfW(Dyn)*
         l_info[DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGNUM + DT_EXTRANUM + DT_VALNUM + DT_ADDRNUM];
-    const ElfW(Phdr) * l_phdr; /* Pointer to program header table in core.  */
+    const ElfW(Phdr)* l_phdr;  /* Pointer to program header table in core.  */
     ElfW(Addr) l_entry;        /* Entry point location.  */
     ElfW(Half) l_phnum;        /* Number of program header entries.  */
     ElfW(Half) l_ldnum;        /* Number of dynamic segment entries.  */
@@ -110,7 +111,7 @@ struct link_map {
     /* For DT_GNU_HASH */
     Elf32_Word l_gnu_bitmask_idxbits;
     Elf32_Word l_gnu_shift;
-    const ElfW(Addr) * l_gnu_bitmask;
+    const ElfW(Addr)* l_gnu_bitmask;
     const Elf32_Word* l_gnu_buckets;
     const Elf32_Word* l_gnu_chain_zero;
 
@@ -137,20 +138,21 @@ struct link_map {
 #define MAX_LINKSYMS 32
     struct linksym {
         void* rel;
-        ElfW(Sym) * sym;
+        ElfW(Sym)* sym;
         void* reloc;
     } linksyms[MAX_LINKSYMS];
     int nlinksyms;
 };
 
-struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym) * *ref);
+struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym)** ref);
 
 static struct link_map* loaded_libraries = NULL;
-static struct link_map *internal_map = NULL, *interp_map = NULL;
+static struct link_map* internal_map = NULL;
+static struct link_map* interp_map = NULL;
 static struct link_map* vdso_map = NULL;
 
 /* This macro is used as a callback from the ELF_DYNAMIC_RELOCATE code.  */
-static ElfW(Addr) resolve_map(const char** strtab, ElfW(Sym) * *ref) {
+static ElfW(Addr) resolve_map(const char** strtab, ElfW(Sym)** ref) {
     if (ELFW(ST_BIND)((*ref)->st_info) != STB_LOCAL) {
         struct link_map* l = lookup_symbol((*strtab) + (*ref)->st_name, ref);
         if (l) {
@@ -172,7 +174,8 @@ static int protect_page(struct link_map* l, void* addr, size_t size) {
     if (c < &l->loadcmds[l->nloadcmds])
         prot = c->prot;
 
-    struct textrel *t = l->textrels, **loc = &l->textrels;
+    struct textrel* t    = l->textrels;
+    struct textrel** loc = &l->textrels;
 
     for (; t; t = t->next) {
         if ((void*)t->start <= addr && addr + size <= (void*)t->end)
@@ -217,8 +220,9 @@ static int protect_page(struct link_map* l, void* addr, size_t size) {
 }
 
 static int reprotect_map(struct link_map* l) {
-    struct textrel *t = l->textrels, *next;
-    int ret           = 0;
+    struct textrel* t = l->textrels;
+    struct textrel* next;
+    int ret = 0;
 
     while (t) {
         struct loadcmd* c = l->loadcmds;
@@ -405,8 +409,9 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
     l->nloadcmds   = 0;
     bool has_holes = false;
 
-    const ElfW(Phdr) * ph;
-    for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph) switch (ph->p_type) {
+    const ElfW(Phdr)* ph;
+    for (ph = phdr; ph < &phdr[l->l_phnum]; ++ph) {
+        switch (ph->p_type) {
             /* These entries tell us where to find things once the file's
                segments are mapped in.  We record the addresses it says
                verbatim, and later correct for the run-time load address.  */
@@ -432,9 +437,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                 }
 
                 if (__builtin_expect(((ph->p_vaddr - ph->p_offset) & (ph->p_align - 1)) != 0, 0)) {
-                    errstring =
-                        "\
-                        ELF load command address/offset not properly aligned";
+                    errstring = "ELF load command address/offset not properly aligned";
                     goto call_lose;
                 }
 
@@ -455,7 +458,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                 if (l->nloadcmds > 1 && c[-1].mapend != c->mapstart)
                     has_holes = true;
 
-/* Optimize a common case.  */
+                /* Optimize a common case.  */
 #if (PF_R | PF_W | PF_X) == 7 && (PROT_READ | PROT_WRITE | PROT_EXEC) == 7
                 c->prot = (PF_TO_PROT >> ((ph->p_flags & (PF_R | PF_W | PF_X)) * 4)) & 0xf;
 #else
@@ -475,6 +478,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                 l->l_relro_size = ph->p_memsz;
                 break;
         }
+    }
 
     if (__builtin_expect(l->nloadcmds == 0, 0)) {
         /* This only happens for a bogus object that will be caught with
@@ -1036,13 +1040,15 @@ int reload_elf_object(struct shim_handle* file) {
 }
 
 struct sym_val {
-    ElfW(Sym) * s;
+    ElfW(Sym)* s;
     struct link_map* m;
 };
 
 static uint_fast32_t elf_fast_hash(const char* s) {
     uint_fast32_t h = 5381;
-    for (unsigned char c = *s; c != '\0'; c = *++s) h = h * 33 + c;
+    for (unsigned char c = *s; c != '\0'; c = *++s) {
+        h = h * 33 + c;
+    }
     return h & 0xffffffff;
 }
 
@@ -1092,18 +1098,18 @@ static unsigned long int elf_hash(const char* name_arg) {
     return hash;
 }
 
-static ElfW(Sym) * do_lookup_map(ElfW(Sym) * ref, const char* undef_name, const uint_fast32_t hash,
-                                 unsigned long int elf_hash, const struct link_map* map) {
+static ElfW(Sym)* do_lookup_map(ElfW(Sym)* ref, const char* undef_name, const uint_fast32_t hash,
+                                unsigned long int elf_hash, const struct link_map* map) {
     /* These variables are used in the nested function.  */
     Elf_Symndx symidx;
-    ElfW(Sym) * sym;
+    ElfW(Sym)* sym;
     /* The tables for this map.  */
     ElfW(Sym)* symtab  = (void*)D_PTR(map->l_info[DT_SYMTAB]);
     const char* strtab = (const void*)D_PTR(map->l_info[DT_STRTAB]);
     int len            = strlen(undef_name);
 
     /* Nested routine to check whether the symbol matches.  */
-    ElfW(Sym) * check_match(ElfW(Sym) * sym) {
+    ElfW(Sym)* check_match(ElfW(Sym)* sym) {
         unsigned int stt = ELFW(ST_TYPE)(sym->st_info);
 
         if (__builtin_expect((sym->st_value == 0 /* No value.  */
@@ -1175,13 +1181,13 @@ static ElfW(Sym) * do_lookup_map(ElfW(Sym) * ref, const char* undef_name, const 
 /* Inner part of the lookup functions.  We return a value > 0 if we
    found the symbol, the value 0 if nothing is found and < 0 if
    something bad happened.  */
-static ElfW(Sym) * __do_lookup(const char* undef_name, ElfW(Sym) * ref, struct link_map* map) {
+static ElfW(Sym)* __do_lookup(const char* undef_name, ElfW(Sym)* ref, struct link_map* map) {
     const uint_fast32_t fast_hash = elf_fast_hash(undef_name);
     const long int hash           = elf_hash(undef_name);
     return do_lookup_map(ref, undef_name, fast_hash, hash, map);
 }
 
-static int do_lookup(const char* undef_name, ElfW(Sym) * ref, struct sym_val* result) {
+static int do_lookup(const char* undef_name, ElfW(Sym)* ref, struct sym_val* result) {
     ElfW(Sym)* sym = NULL;
 
     sym = __do_lookup(undef_name, ref, internal_map);
@@ -1198,7 +1204,7 @@ static int do_lookup(const char* undef_name, ElfW(Sym) * ref, struct sym_val* re
             }
             break;
 
-        /* FALLTHROUGH */
+            /* FALLTHROUGH */
         case STB_GLOBAL:
         case STB_GNU_UNIQUE:
             /* success: */
@@ -1222,7 +1228,7 @@ static int do_lookup(const char* undef_name, ElfW(Sym) * ref, struct sym_val* re
    We must never have calls to the audit functions inside this function
    or in any function which gets called.  If this would happen the audit
    code might create a thread which can throw off all the scope locking.  */
-struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym) * *ref) {
+struct link_map* lookup_symbol(const char* undef_name, ElfW(Sym)** ref) {
     struct sym_val current_value = {NULL, NULL};
 
     do_lookup(undef_name, *ref, &current_value);
@@ -1255,14 +1261,16 @@ static bool __need_interp(struct link_map* exec_map) {
         return false;
 
     const char* strtab = (const void*)D_PTR(exec_map->l_info[DT_STRTAB]);
-    const ElfW(Dyn) * d;
+    const ElfW(Dyn)* d;
 
     for (d = exec_map->l_ld; d->d_tag != DT_NULL; d++)
         if (__builtin_expect(d->d_tag, DT_NEEDED) == DT_NEEDED) {
             const char* name     = strtab + d->d_un.d_val;
             int len              = strlen(name);
             const char* filename = name + len - 1;
-            while (filename > name && *filename != '/') filename--;
+            while (filename > name && *filename != '/') {
+                filename--;
+            }
             if (*filename == '/')
                 filename++;
 
@@ -1288,7 +1296,9 @@ static int __load_interp_object(struct link_map* exec_map) {
     const char* interp_name = (const char*)exec_map->l_interp_libname + (long)exec_map->l_addr;
     int len                 = strlen(interp_name);
     const char* filename    = interp_name + len - 1;
-    while (filename > interp_name && *filename != '/') filename--;
+    while (filename > interp_name && *filename != '/') {
+        filename--;
+    }
     if (*filename == '/')
         filename++;
     len -= filename - interp_name;
@@ -1364,7 +1374,8 @@ int load_elf_interp(struct shim_handle* exec) {
 }
 
 int remove_loaded_libraries(void) {
-    struct link_map *map = loaded_libraries, *next_map = map->l_next;
+    struct link_map* map = loaded_libraries;
+    struct link_map* next_map = map->l_next;
     while (map) {
         if (map->l_type != OBJECT_INTERNAL && map->l_type != OBJECT_VDSO)
             __remove_elf_object(map);
@@ -1377,40 +1388,38 @@ int remove_loaded_libraries(void) {
 }
 
 /*
- * libsysdb.so is loaded as shared library and load address for child may not
- * match the one for
- * parent. Just treat vdso page as user-program data and adjust function
- * pointers for vdso
+ * libsysdb.so is loaded as shared library and load address for child may not match the one for
+ * parent. Just treat vdso page as user-program data and adjust function pointers for vdso
  * functions after migration.
  */
-static void* vdso_addr __attribute_migratable                        = NULL;
-static ElfW(Addr) * __vdso_shim_clock_gettime __attribute_migratable = NULL;
-static ElfW(Addr) * __vdso_shim_gettimeofday __attribute_migratable  = NULL;
-static ElfW(Addr) * __vdso_shim_time __attribute_migratable          = NULL;
-static ElfW(Addr) * __vdso_shim_getcpu __attribute_migratable        = NULL;
+static void* vdso_addr __attribute_migratable                       = NULL;
+static ElfW(Addr)* __vdso_shim_clock_gettime __attribute_migratable = NULL;
+static ElfW(Addr)* __vdso_shim_gettimeofday __attribute_migratable  = NULL;
+static ElfW(Addr)* __vdso_shim_time __attribute_migratable          = NULL;
+static ElfW(Addr)* __vdso_shim_getcpu __attribute_migratable        = NULL;
 
 static const struct {
     const char* name;
     ElfW(Addr) value;
-    ElfW(Addr) * *func;
+    ElfW(Addr)** func;
 } vsyms[] = {{
                  .name  = "__vdso_shim_clock_gettime",
-                 .value = (ElfW(Addr)) & __shim_clock_gettime,
+                 .value = (ElfW(Addr))&__shim_clock_gettime,
                  .func  = &__vdso_shim_clock_gettime,
              },
              {
                  .name  = "__vdso_shim_gettimeofday",
-                 .value = (ElfW(Addr)) & __shim_gettimeofday,
+                 .value = (ElfW(Addr))&__shim_gettimeofday,
                  .func  = &__vdso_shim_gettimeofday,
              },
              {
                  .name  = "__vdso_shim_time",
-                 .value = (ElfW(Addr)) & __shim_time,
+                 .value = (ElfW(Addr))&__shim_time,
                  .func  = &__vdso_shim_time,
              },
              {
                  .name  = "__vdso_shim_getcpu",
-                 .value = (ElfW(Addr)) & __shim_getcpu,
+                 .value = (ElfW(Addr))&__shim_getcpu,
                  .func  = &__vdso_shim_getcpu,
              }};
 
@@ -1464,7 +1473,9 @@ int vdso_map_migrate(void) {
         return -PAL_ERRNO;
 
     /* adjust funcs to loaded address for newly loaded libsysdb */
-    for (size_t i = 0; i < sizeof(vsyms) / sizeof(vsyms[0]); i++) **vsyms[i].func = vsyms[i].value;
+    for (size_t i = 0; i < sizeof(vsyms) / sizeof(vsyms[0]); i++) {
+        **vsyms[i].func = vsyms[i].value;
+    }
 
     if (!DkVirtualMemoryProtect(vdso_addr, ALIGN_UP(vdso_so_size), PAL_PROT_READ | PAL_PROT_EXEC))
         return -PAL_ERRNO;
@@ -1549,7 +1560,7 @@ int register_library(const char* name, unsigned long load_address) {
 }
 
 noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const char** argp,
-                                 ElfW(auxv_t) * auxp) {
+                                 ElfW(auxv_t)* auxp) {
     int ret = vdso_map_init();
     if (ret < 0) {
         SYS_PRINTF("Could not initialize vDSO (error code = %d)", ret);
@@ -1586,7 +1597,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
 
     /* populate extra memory space for aux vector data */
     assert(REQUIRED_ELF_AUXV_SPACE >= 16); /* stack allocated enough space */
-    ElfW(Addr) auxp_extra = (ElfW(Addr)) & auxp[8];
+    ElfW(Addr) auxp_extra = (ElfW(Addr))&auxp[8];
 
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
     ret               = DkRandomBitsRead((PAL_PTR)random, 16);
@@ -1614,8 +1625,8 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
 #else
 #error "architecture not supported"
 #endif
-    while (true) /* nothing */
-        ;
+    while (true)
+        /* nothing */;
 }
 
 BEGIN_CP_FUNC(library) {
@@ -1648,7 +1659,7 @@ BEGIN_CP_FUNC(library) {
 
             ElfW(Dyn)** start = new_map->l_info;
             ElfW(Dyn)** end   = (void*)start + sizeof(new_map->l_info);
-            ElfW(Dyn) * *dyn;
+            ElfW(Dyn)** dyn;
             for (dyn = start; dyn < end; dyn++)
                 if (*dyn)
                     *dyn = (void*)*dyn + ((void*)ld - (void*)map->l_ld);
@@ -1726,7 +1737,8 @@ BEGIN_CP_FUNC(loaded_libraries) {
     __UNUSED(obj);
     __UNUSED(size);
     __UNUSED(objp);
-    struct link_map *map = loaded_libraries, *new_interp_map = NULL;
+    struct link_map* map = loaded_libraries;
+    struct link_map* new_interp_map = NULL;
     while (map) {
         struct link_map* new_map = NULL;
 

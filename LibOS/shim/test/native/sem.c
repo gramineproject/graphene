@@ -109,8 +109,9 @@ void client(void) {
             perror("semop");
             exit(1);
         }
-    } else
+    } else {
         semctl(semid, 0, IPC_RMID);
+    }
 
     printf("time spent on %d semop (wait): %llu microsecond\n", TEST_TIMES,
            (tv2.tv_sec * 1000000ull + tv2.tv_usec) - (tv1.tv_sec * 1000000ull + tv1.tv_usec));

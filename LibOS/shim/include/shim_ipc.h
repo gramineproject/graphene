@@ -47,7 +47,8 @@ struct shim_process {
     IDTYPE vmid;
     struct shim_lock lock;
     int exit_code;
-    struct shim_ipc_info *self, *parent;
+    struct shim_ipc_info* self;
+    struct shim_ipc_info* parent;
     struct shim_ipc_info* ns[TOTAL_NS];
 };
 
@@ -98,7 +99,7 @@ struct shim_ipc_port {
     IDTYPE vmid;
 };
 
-#define IPC_CALLBACK_ARGS struct shim_ipc_msg *msg, struct shim_ipc_port *port
+#define IPC_CALLBACK_ARGS struct shim_ipc_msg* msg, struct shim_ipc_port* port
 
 /* if callback return RESPONSE_CALLBACK, send a response even if the callback
    succeed. */

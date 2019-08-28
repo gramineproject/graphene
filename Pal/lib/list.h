@@ -147,8 +147,7 @@
         struct STRUCT* first; \
     }
 
-#define LISTP_INIT \
-    { NULL }
+#define LISTP_INIT {NULL}
 
 /* A node not on a list uses NULL; on a list, you
  * store self pointers */
@@ -271,8 +270,8 @@
     for (bool first_iter = ((CURSOR) = (HEAD)->first,                                              \
                            (TMP) = ((CURSOR) ? (CURSOR)->FIELD.next : (CURSOR)), !!(HEAD)->first); \
          (HEAD)->first &&                                                                          \
-         (first_iter || (CURSOR) != (HEAD)->first); /* Handle the case where the                   \
-                                                       first element was removed. */               \
+         (first_iter || (CURSOR) != (HEAD)->first);                                                \
+         /* Handle the case where the first element was removed. */                                \
          first_iter = first_iter && (TMP) != (CURSOR) && (HEAD)->first == (TMP), (CURSOR) = (TMP), \
               (TMP) = (TMP)->FIELD.next)
 

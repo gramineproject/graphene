@@ -235,14 +235,14 @@ int shim_do_mincore(void* addr, size_t len, unsigned char* vec) {
     static atomic_bool warned = false;
     if (!warned) {
         warned = true;
-        warn(
-            "mincore emulation always tells pages are _NOT_ in RAM. "
-            "This may cause issues.\n");
+        warn("mincore emulation always tells pages are _NOT_ in RAM. This may cause issues.\n");
     }
 
     /* There is no good way to know if the page is in RAM.
      * Conservatively tell that it's not in RAM. */
-    for (unsigned long i = 0; i < pages; i++) vec[i] = 0;
+    for (unsigned long i = 0; i < pages; i++) {
+        vec[i] = 0;
+    }
 
     return 0;
 }

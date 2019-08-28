@@ -90,7 +90,9 @@ static inline char* qstrsetstrs(struct shim_qstr* qstr, int nstrs, const char** 
                                 size_t* sizes) {
     size_t total_size = 0;
 
-    for (int i = 0; i < nstrs; i++) total_size += sizes[i];
+    for (int i = 0; i < nstrs; i++) {
+        total_size += sizes[i];
+    }
 
     if (total_size >= STR_SIZE)
         return NULL;

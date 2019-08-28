@@ -55,7 +55,8 @@ static int parse_ipc_thread_name(const char* name, IDTYPE* pidptr, const char** 
 
 static int find_ipc_thread_link(const char* name, struct shim_qstr* link,
                                 struct shim_dentry** dentptr) {
-    const char *next, *nextnext;
+    const char *next;
+    const char *nextnext;
     size_t next_len;
     IDTYPE pid;
 
@@ -328,7 +329,9 @@ static int proc_list_ipc_thread(const char* name, struct shim_dirent** buf, int 
         ptr->ino       = 1;
         ptr->type      = LINUX_DT_DIR;
         ptr->name[l--] = 0;
-        for (p = pid; p; p /= 10) ptr->name[l--] = p % 10 + '0';
+        for (p = pid; p; p /= 10) {
+            ptr->name[l--] = p % 10 + '0';
+        }
 
         ptr = ptr->next;
     }

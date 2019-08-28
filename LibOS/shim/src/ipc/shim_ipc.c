@@ -152,11 +152,12 @@ struct shim_ipc_info* create_ipc_info_in_list(IDTYPE vmid, const char* uri, size
 
     /* check if info with this vmid & uri already exists and return it */
     LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
-    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist)
-    if (info->vmid == vmid && !qstrcmpstr(&info->uri, uri, len)) {
-        get_ipc_info(info);
-        unlock(&ipc_info_lock);
-        return info;
+    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
+        if (info->vmid == vmid && !qstrcmpstr(&info->uri, uri, len)) {
+            get_ipc_info(info);
+            unlock(&ipc_info_lock);
+            return info;
+        }
     }
 
     /* otherwise create new info and return it */
@@ -188,11 +189,12 @@ struct shim_ipc_info* lookup_ipc_info(IDTYPE vmid) {
 
     struct shim_ipc_info* info;
     LISTP_TYPE(shim_ipc_info)* info_bucket = &info_hlist[CLIENT_HASH(vmid)];
-    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist)
-    if (info->vmid == vmid && !qstrempty(&info->uri)) {
-        __get_ipc_info(info);
-        unlock(&ipc_info_lock);
-        return info;
+    LISTP_FOR_EACH_ENTRY(info, info_bucket, hlist) {
+        if (info->vmid == vmid && !qstrempty(&info->uri)) {
+            __get_ipc_info(info);
+            unlock(&ipc_info_lock);
+            return info;
+        }
     }
 
     unlock(&ipc_info_lock);
@@ -260,7 +262,9 @@ struct shim_process* create_process(bool dup_cur_process) {
                     put_ipc_info(new_process->self);
                 if (new_process->parent)
                     put_ipc_info(new_process->parent);
-                for (int j = 0; j < i; j++) put_ipc_info(new_process->ns[j]);
+                for (int j = 0; j < i; j++) {
+                    put_ipc_info(new_process->ns[j]);
+                }
                 unlock(&cur_process.lock);
                 return NULL;
             }
@@ -331,11 +335,12 @@ struct shim_ipc_msg_duplex* pop_ipc_msg_duplex(struct shim_ipc_port* port, unsig
 
     lock(&port->msgs_lock);
     struct shim_ipc_msg_duplex* tmp;
-    LISTP_FOR_EACH_ENTRY(tmp, &port->msgs, list)
-    if (tmp->msg.seq == seq) {
-        found = tmp;
-        LISTP_DEL_INIT(tmp, &port->msgs, list);
-        break;
+    LISTP_FOR_EACH_ENTRY(tmp, &port->msgs, list) {
+        if (tmp->msg.seq == seq) {
+            found = tmp;
+            LISTP_DEL_INIT(tmp, &port->msgs, list);
+            break;
+        }
     }
     unlock(&port->msgs_lock);
 
@@ -403,8 +408,7 @@ struct shim_ipc_info* create_ipc_info_cur_process(bool is_self_ipc_info) {
     if (!info)
         return NULL;
 
-    /* pipe for cur_process.self is of format "pipe:<cur_process.vmid>", others
-     * with random name */
+    /* pipe for cur_process.self is of format "pipe:<cur_process.vmid>", others with random name */
     char uri[PIPE_URI_SIZE];
     if (create_pipe(NULL, uri, PIPE_URI_SIZE, &info->pal_handle, &info->uri, is_self_ipc_info) <
         0) {

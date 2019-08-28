@@ -55,7 +55,8 @@ DEFINE_PROFILE_CATEGORY(memory, );
 /* Returns NULL on failure */
 void* __system_malloc(size_t size) {
     size_t alloc_size = ALIGN_UP(size);
-    void *addr, *ret_addr;
+    void* addr;
+    void* ret_addr;
     int flags = MAP_PRIVATE | MAP_ANONYMOUS | VMA_INTERNAL;
 
     /*

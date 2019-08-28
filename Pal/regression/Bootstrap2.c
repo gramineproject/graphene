@@ -16,7 +16,9 @@ int main(int argc, char** argv, char** envp) {
 
     /* check arguments */
     pal_printf("# of Arguments: %d\n", argc);
-    for (int i = 0; i < argc; i++) pal_printf("argv[%d] = %s\n", i, argv[i]);
+    for (int i = 0; i < argc; i++) {
+        pal_printf("argv[%d] = %s\n", i, argv[i]);
+    }
 
     return 0;
 }

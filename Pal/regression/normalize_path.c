@@ -29,8 +29,7 @@ static const char* get_norm_path_cases[][2] = {
     {"../a/../../b", "../../b"},
     {"../..a/b", "../..a/b"},
     {"a/..", ""},
-    {"a/."
-     "a"},
+    {"a/.", "a"},
 };
 
 static const char* get_base_name_cases[][2] = {

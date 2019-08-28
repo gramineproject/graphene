@@ -79,7 +79,8 @@ static unsigned char PADDING[64] = {
         (a) += (b);                                  \
     }
 
-void md5_init(mdContext) struct shim_md5_ctx* mdContext;
+void md5_init(mdContext)
+    struct shim_md5_ctx* mdContext;
 {
     mdContext->i[0] = mdContext->i[1] = (UINT4)0;
 
@@ -92,9 +93,10 @@ void md5_init(mdContext) struct shim_md5_ctx* mdContext;
 }
 EXTERN_ALIAS(md5_init);
 
-void md5_update(mdContext, inBuf, inLen) struct shim_md5_ctx* mdContext;
-const void* inBuf;
-size_t inLen;
+void md5_update(mdContext, inBuf, inLen)
+    struct shim_md5_ctx* mdContext;
+    const void* inBuf;
+    size_t inLen;
 {
     UINT4 in[16];
     int mdi;
@@ -126,7 +128,8 @@ size_t inLen;
 }
 EXTERN_ALIAS(md5_update);
 
-void md5_final(mdContext) struct shim_md5_ctx* mdContext;
+void md5_final(mdContext)
+    struct shim_md5_ctx* mdContext;
 {
     UINT4 in[16];
     int mdi;
@@ -161,12 +164,13 @@ void md5_final(mdContext) struct shim_md5_ctx* mdContext;
 
 /* Basic MD5 step. Transform buf based on in.
  */
-static void __transform(buf, in) UINT4* buf;
-UINT4* in;
+static void __transform(buf, in)
+    UINT4* buf;
+    UINT4* in;
 {
     UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
 
-/* Round 1 */
+    /* Round 1 */
 #define S11 7
 #define S12 12
 #define S13 17
@@ -188,7 +192,7 @@ UINT4* in;
     FF(c, d, a, b, in[14], S13, 2792965006); /* 15 */
     FF(b, c, d, a, in[15], S14, 1236535329); /* 16 */
 
-/* Round 2 */
+    /* Round 2 */
 #define S21 5
 #define S22 9
 #define S23 14
@@ -210,7 +214,7 @@ UINT4* in;
     GG(c, d, a, b, in[7], S23, 1735328473);  /* 31 */
     GG(b, c, d, a, in[12], S24, 2368359562); /* 32 */
 
-/* Round 3 */
+    /* Round 3 */
 #define S31 4
 #define S32 11
 #define S33 16
@@ -232,7 +236,7 @@ UINT4* in;
     HH(c, d, a, b, in[15], S33, 530742520);  /* 47 */
     HH(b, c, d, a, in[2], S34, 3299628645);  /* 48 */
 
-/* Round 4 */
+    /* Round 4 */
 #define S41 6
 #define S42 10
 #define S43 15

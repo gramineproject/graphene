@@ -95,7 +95,7 @@ extern struct pal_bsd_state {
 #define DEFAULT_BACKLOG 2048
 
 static inline int HOST_FLAGS(int alloc_type, int prot) {
-    return ((prot & PAL_PROT_WRITECOPY) ? MAP_PRIVATE : MAP_SHARED);
+    return (prot & PAL_PROT_WRITECOPY) ? MAP_PRIVATE : MAP_SHARED;
 }
 
 static inline int HOST_PROT(int prot) {
@@ -127,25 +127,25 @@ static inline int HOST_FILE_OPEN(int access_type, int create_type, int options) 
 #include <sys/stat.h>
 
 static inline int HOST_PERM(int share_type) {
-    return ((share_type & PAL_SHARE_GLOBAL_X ? S_IXUSR | S_IXGRP | S_IXOTH : 0) |
-            (share_type & PAL_SHARE_GLOBAL_W ? S_IWUSR | S_IWGRP | S_IWOTH : 0) |
-            (share_type & PAL_SHARE_GLOBAL_R ? S_IRUSR | S_IRGRP | S_IROTH : 0) |
-            (share_type & PAL_SHARE_GROUP_X ? S_IXGRP : 0) |
-            (share_type & PAL_SHARE_GROUP_W ? S_IWGRP : 0) |
-            (share_type & PAL_SHARE_GROUP_R ? S_IRGRP : 0) |
-            (share_type & PAL_SHARE_OWNER_X ? S_IXUSR : 0) |
-            (share_type & PAL_SHARE_OWNER_W ? S_IWUSR : 0) |
-            (share_type & PAL_SHARE_OWNER_R ? S_IRUSR : 0));
+    return (share_type & PAL_SHARE_GLOBAL_X ? S_IXUSR | S_IXGRP | S_IXOTH : 0) |
+           (share_type & PAL_SHARE_GLOBAL_W ? S_IWUSR | S_IWGRP | S_IWOTH : 0) |
+           (share_type & PAL_SHARE_GLOBAL_R ? S_IRUSR | S_IRGRP | S_IROTH : 0) |
+           (share_type & PAL_SHARE_GROUP_X ? S_IXGRP : 0) |
+           (share_type & PAL_SHARE_GROUP_W ? S_IWGRP : 0) |
+           (share_type & PAL_SHARE_GROUP_R ? S_IRGRP : 0) |
+           (share_type & PAL_SHARE_OWNER_X ? S_IXUSR : 0) |
+           (share_type & PAL_SHARE_OWNER_W ? S_IWUSR : 0) |
+           (share_type & PAL_SHARE_OWNER_R ? S_IRUSR : 0);
 }
 
 static inline int HOST_OPTIONS(int options) {
-    return ((options & PAL_OPTION_NONBLOCK ? O_NONBLOCK : 0));
+    return (options & PAL_OPTION_NONBLOCK ? O_NONBLOCK : 0);
 }
 
 #include <sys/socket.h>
 
 static inline int HOST_SOCKET_OPTIONS(int options) {
-    return ((options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0));
+    return (options & PAL_OPTION_NONBLOCK ? SOCK_NONBLOCK : 0);
 }
 
 /* Locking and unlocking of Mutexes */

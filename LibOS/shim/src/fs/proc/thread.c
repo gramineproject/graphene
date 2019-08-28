@@ -61,7 +61,8 @@ static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next
 
 static int find_thread_link(const char* name, struct shim_qstr* link, struct shim_dentry** dentptr,
                             struct shim_thread** threadptr) {
-    const char *next, *nextnext;
+    const char* next;
+    const char* nextnext;
     size_t next_len;
     IDTYPE pid;
     int ret = parse_thread_name(name, &pid, &next, &next_len, &nextnext);
@@ -207,7 +208,8 @@ static const struct proc_fs_ops fs_thread_link = {
 
 /* If *phdl is returned on success, the ref count is incremented */
 static int parse_thread_fd(const char* name, const char** rest, struct shim_handle** phdl) {
-    const char *next, *nextnext;
+    const char* next;
+    const char* nextnext;
     size_t next_len;
     IDTYPE pid;
     int ret = parse_thread_name(name, &pid, &next, &next_len, &nextnext);
@@ -277,7 +279,8 @@ static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, 
 
     struct shim_handle_map* handle_map = get_cur_handle_map(thread);
     int err = 0, bytes = 0;
-    struct shim_dirent *dirent = *buf, **last = NULL;
+    struct shim_dirent* dirent = *buf;
+    struct shim_dirent** last  = NULL;
 
     lock(&handle_map->lock);
 
@@ -299,7 +302,9 @@ static int proc_list_thread_each_fd(const char* name, struct shim_dirent** buf, 
             dirent->type      = LINUX_DT_LNK;
             dirent->name[0]   = '0';
             dirent->name[l--] = 0;
-            for (d = i; d; d /= 10) dirent->name[l--] = '0' + d % 10;
+            for (d = i; d; d /= 10) {
+                dirent->name[l--] = '0' + d % 10;
+            }
             last   = &dirent->next;
             dirent = dirent->next;
         }
@@ -696,7 +701,9 @@ static int walk_cb(struct shim_thread* thread, void* arg, bool* unlocked) {
     buf->ino       = 1;
     buf->type      = LINUX_DT_DIR;
     buf->name[l--] = 0;
-    for (p = pid; p; p /= 10) buf->name[l--] = p % 10 + '0';
+    for (p = pid; p; p /= 10) {
+        buf->name[l--] = p % 10 + '0';
+    }
 
     args->buf = buf->next;
     return 1;

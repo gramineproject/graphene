@@ -30,10 +30,7 @@ int main(int argc, char** argv) {
     optlen = sizeof so_type;
     z      = getsockopt(s, SOL_SOCKET, SO_TYPE, &so_type, &optlen);
     if (z) {
-        printf(
-            "getsockopt(s,SOL_SOCKET,"
-            "SO_TYPE) %d",
-            errno);
+        printf("getsockopt(s,SOL_SOCKET,SO_TYPE) %d", errno);
         exit(-1);
     }
 

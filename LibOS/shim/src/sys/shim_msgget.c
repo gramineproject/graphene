@@ -35,7 +35,7 @@
 #define MSGQ_HASH_LEN  8
 #define MSGQ_HASH_NUM  (1 << MSGQ_HASH_LEN)
 #define MSGQ_HASH_MASK (MSGQ_HASH_NUM - 1)
-#define MSGQ_HASH(idx) ((idx)&MSGQ_HASH_MASK)
+#define MSGQ_HASH(idx) ((idx) & MSGQ_HASH_MASK)
 
 /* The msgq_list links shim_msg_handle objects by the list field.
  * The msgq_key_hlist links them by key_hlist, and qid_hlist by qid_hlist */
@@ -61,25 +61,27 @@ static int __add_msg_handle(unsigned long key, IDTYPE msqid, bool owned,
     struct shim_msg_handle* tmp;
 
     if (key_head)
-        LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
-    if (tmp->msqkey == key) {
-        if (tmp->msqid == msqid) {
-            if (msghdl)
-                *msghdl = tmp;
-            return 0;
+        LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist) {
+            if (tmp->msqkey == key) {
+                if (tmp->msqid == msqid) {
+                    if (msghdl)
+                        *msghdl = tmp;
+                    return 0;
+                }
+                return -EEXIST;
+            }
         }
-        return -EEXIST;
-    }
 
     if (qid_head)
-        LISTP_FOR_EACH_ENTRY(tmp, qid_head, qid_hlist)
-    if (tmp->msqid == msqid) {
-        if (key)
-            tmp->msqkey = key;
-        if (msghdl)
-            *msghdl = tmp;
-        return 0;
-    }
+        LISTP_FOR_EACH_ENTRY(tmp, qid_head, qid_hlist) {
+            if (tmp->msqid == msqid) {
+                if (key)
+                    tmp->msqkey = key;
+                if (msghdl)
+                    *msghdl = tmp;
+                return 0;
+            }
+        }
 
     struct shim_handle* hdl = get_new_handle();
     if (!hdl)
@@ -137,14 +139,16 @@ int add_msg_handle(unsigned long key, IDTYPE id, bool owned) {
 
 struct shim_msg_handle* get_msg_handle_by_key(unsigned long key) {
     LISTP_TYPE(shim_msg_handle)* key_head = &msgq_key_hlist[MSGQ_HASH(key)];
-    struct shim_msg_handle *tmp, *found = NULL;
+    struct shim_msg_handle* tmp;
+    struct shim_msg_handle* found = NULL;
 
     lock(&msgq_list_lock);
 
-    LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
-    if (tmp->msqkey == key) {
-        found = tmp;
-        break;
+    LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist) {
+        if (tmp->msqkey == key) {
+            found = tmp;
+            break;
+        }
     }
 
     if (found)
@@ -156,14 +160,16 @@ struct shim_msg_handle* get_msg_handle_by_key(unsigned long key) {
 
 struct shim_msg_handle* get_msg_handle_by_id(IDTYPE msqid) {
     LISTP_TYPE(shim_msg_handle)* qid_head = &msgq_qid_hlist[MSGQ_HASH(msqid)];
-    struct shim_msg_handle *tmp, *found = NULL;
+    struct shim_msg_handle* tmp;
+    struct shim_msg_handle* found = NULL;
 
     lock(&msgq_list_lock);
 
-    LISTP_FOR_EACH_ENTRY(tmp, qid_head, qid_hlist)
-    if (tmp->msqid == msqid) {
-        found = tmp;
-        break;
+    LISTP_FOR_EACH_ENTRY(tmp, qid_head, qid_hlist) {
+        if (tmp->msqid == msqid) {
+            found = tmp;
+            break;
+        }
     }
 
     if (found)
@@ -638,7 +644,8 @@ int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* dat
     int ret                   = 0;
     struct shim_handle* hdl   = MSG_TO_HANDLE(msgq);
     struct msg_item* msg      = NULL;
-    struct msg_type *alltypes = NULL, *mtype = NULL;
+    struct msg_type* alltypes = NULL;
+    struct msg_type* mtype    = NULL;
     lock(&hdl->lock);
 
     if (msgq->deleted) {
@@ -875,16 +882,18 @@ out:
 }
 
 int store_all_msg_persist(void) {
-    struct shim_msg_handle *msgq, *n;
+    struct shim_msg_handle* msgq;
+    struct shim_msg_handle* n;
 
     lock(&msgq_list_lock);
 
-    LISTP_FOR_EACH_ENTRY_SAFE(msgq, n, &msgq_list, list)
-    if (msgq->owned) {
-        struct shim_handle* hdl = container_of(msgq, struct shim_handle, info.msg);
-        lock(&hdl->lock);
-        __store_msg_persist(msgq);
-        unlock(&hdl->lock);
+    LISTP_FOR_EACH_ENTRY_SAFE(msgq, n, &msgq_list, list) {
+        if (msgq->owned) {
+            struct shim_handle* hdl = container_of(msgq, struct shim_handle, info.msg);
+            lock(&hdl->lock);
+            __store_msg_persist(msgq);
+            unlock(&hdl->lock);
+        }
     }
 
     unlock(&msgq_list_lock);

@@ -35,10 +35,18 @@
 #include <shim_profile.h>
 #include <shim_utils.h>
 
-#define EMPTY_DEV_OPS                                                                          \
-    {                                                                                          \
-        .open = NULL, .close = NULL, .read = NULL, .write = NULL, .flush = NULL, .seek = NULL, \
-        .truncate = NULL, .mode = NULL, .stat = NULL, .hstat = NULL,                           \
+#define EMPTY_DEV_OPS     \
+    {                     \
+        .open     = NULL, \
+        .close    = NULL, \
+        .read     = NULL, \
+        .write    = NULL, \
+        .flush    = NULL, \
+        .seek     = NULL, \
+        .truncate = NULL, \
+        .mode     = NULL, \
+        .stat     = NULL, \
+        .hstat    = NULL, \
     }
 
 #define DEV_INO_BASE 1025
@@ -322,7 +330,7 @@ static int dev_readdir(struct shim_dentry* dent, struct shim_dirent** dirent) {
 
 retry:
     buf     = malloc(buf_size);
-    *dirent = ptr             = buf;
+    *dirent = ptr = buf;
     struct shim_dirent** last = dirent;
 
 #define COPY_ENTRY(devname, devtype)                                 \

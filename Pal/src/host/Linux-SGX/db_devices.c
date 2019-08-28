@@ -60,7 +60,8 @@ static const struct handle_ops* pal_device_ops[PAL_DEVICE_TYPE_BOUND] = {
    for stream handler wich will open or access the device. */
 static int parse_device_uri(const char** uri, char** type, struct handle_ops** ops) {
     struct handle_ops* dops = NULL;
-    const char *p, *u = (*uri);
+    const char* p;
+    const char* u = (*uri);
 
     for (p = u; (*p) && (*p) != ',' && (*p) != '/'; p++)
         ;
@@ -353,7 +354,9 @@ static int dev_attrquerybyhdl(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
     if (ops && ops->attrquerybyhdl)
         return ops->attrquerybyhdl(handle, attr);
 
-    struct stat stat_buf, *stat_in = NULL, *stat_out = NULL;
+    struct stat stat_buf;
+    struct stat* stat_in = NULL;
+    struct stat* stat_out = NULL;
     int ret;
 
     attr->handle_type = pal_type_dev;

@@ -50,8 +50,8 @@
 #define ALIGNARG(log2)       (1 << (log2))
 #define ASM_GLOBAL_DIRECTIVE .global
 /* For ELF we need the `.type' directive to make shared libs work right.  */
-#define ASM_TYPE_DIRECTIVE(name, typearg) .type name, typearg;
-#define ASM_SIZE_DIRECTIVE(name)          .size name, .- name;
+#define ASM_TYPE_DIRECTIVE(name, typearg) .type name,typearg;
+#define ASM_SIZE_DIRECTIVE(name)          .size name,.-name;
 
 #define C_LABEL(name) name
 
@@ -112,14 +112,14 @@
 #undef DO_CALL
 #define DO_CALL(syscall_name, args)     \
     DOARGS_##args;                      \
-    movl $SYS_ify(syscall_name), % eax; \
+    movl $SYS_ify(syscall_name), %eax;  \
     DO_SYSCALL;
 
 #define DOARGS_0 /* nothing */
 #define DOARGS_1 /* nothing */
 #define DOARGS_2 /* nothing */
 #define DOARGS_3 /* nothing */
-#define DOARGS_4 movq % rcx, % r10;
+#define DOARGS_4 movq %rcx, %r10;
 #define DOARGS_5 DOARGS_4
 #define DOARGS_6 DOARGS_5
 

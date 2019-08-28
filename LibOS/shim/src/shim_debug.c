@@ -32,7 +32,8 @@
 
 #ifndef DEBUG
 
-void clean_link_map_list(void) { /* do nothing */
+void clean_link_map_list(void) {
+    /* do nothing */
 }
 
 void remove_r_debug(void* addr) {

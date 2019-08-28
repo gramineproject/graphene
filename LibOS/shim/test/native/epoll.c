@@ -54,7 +54,9 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
-    for (int i = 0; i < TEST_TIMES; i++) close(fds[i][1]);
+    for (int i = 0; i < TEST_TIMES; i++) {
+        close(fds[i][1]);
+    }
 
     for (int i = 0; i < TEST_TIMES; i++) {
         ret = epoll_wait(efd, &event, 1, -1);

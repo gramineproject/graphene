@@ -67,9 +67,13 @@ void server(void) {
 
     gettimeofday(&tv1, NULL);
 
-    for (i = 0; i < TEST_TIMES; i++) ids[i] = create_q(keys[i]);
+    for (i = 0; i < TEST_TIMES; i++) {
+        ids[i] = create_q(keys[i]);
+    }
 
-    for (i = 0; i < TEST_TIMES; i++) msgpersist(ids[i], MSGPERSIST_STORE);
+    for (i = 0; i < TEST_TIMES; i++) {
+        msgpersist(ids[i], MSGPERSIST_STORE);
+    }
 
     gettimeofday(&tv2, NULL);
 
@@ -84,18 +88,24 @@ void client(void) {
 
     gettimeofday(&tv1, NULL);
 
-    for (i = 0; i < TEST_TIMES; i++) msgpersist(ids[i], MSGPERSIST_LOAD);
+    for (i = 0; i < TEST_TIMES; i++) {
+        msgpersist(ids[i], MSGPERSIST_LOAD);
+    }
 
     gettimeofday(&tv2, NULL);
 
     printf("time spent on %d connection: %llu microsecond\n", TEST_TIMES,
            (tv2.tv_sec * 1000000ULL + tv2.tv_usec) - (tv1.tv_sec * 1000000ULL + tv1.tv_usec));
 
-    for (i = 0; i < TEST_TIMES; i++) msgctl(ids[i], IPC_RMID, NULL);
+    for (i = 0; i < TEST_TIMES; i++) {
+        msgctl(ids[i], IPC_RMID, NULL);
+    }
 }
 
 int main(int argc, char** argv) {
-    for (int i = 0; i < TEST_TIMES; i++) keys[i] = rand();
+    for (int i = 0; i < TEST_TIMES; i++) {
+        keys[i] = rand();
+    }
 
     server();
     client();

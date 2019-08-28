@@ -104,9 +104,10 @@ pid_t shim_do_wait4(pid_t pid, int* status, int option, struct __kernel_rusage* 
         if (pid == 0)
             pid = -cur->pgid;
 
-        LISTP_FOR_EACH_ENTRY(thread, &cur->exited_children, siblings)
-        if (thread->pgid == (IDTYPE)-pid)
-            goto found_child;
+        LISTP_FOR_EACH_ENTRY(thread, &cur->exited_children, siblings) {
+            if (thread->pgid == (IDTYPE)-pid)
+                goto found_child;
+        }
 
         if (!(option & WNOHANG))
             goto block;

@@ -79,8 +79,7 @@ int shim_do_setgid(gid_t gid) {
     return 0;
 }
 
-/* shim_do_set{get}groups() do not propagate group info to host OS but rather
- * are dummies */
+/* shim_do_set{get}groups() do not propagate group info to host OS but rather are dummies */
 #define NGROUPS_MAX 65536 /* # of supplemental group IDs; has to be same as host OS */
 
 static struct groups_info_t {
@@ -97,7 +96,9 @@ int shim_do_setgroups(int gidsetsize, gid_t* grouplist) {
 
     lock(&cur_process.lock);
     g_groups_info.size = gidsetsize;
-    for (int i = 0; i < gidsetsize; i++) g_groups_info.spl_gid[i] = grouplist[i];
+    for (int i = 0; i < gidsetsize; i++) {
+        g_groups_info.spl_gid[i] = grouplist[i];
+    }
     unlock(&cur_process.lock);
 
     return 0;
@@ -127,7 +128,9 @@ int shim_do_getgroups(int gidsetsize, gid_t* grouplist) {
             return -EINVAL;
         }
 
-        for (int i = 0; i < cur_groups_size; i++) grouplist[i] = g_groups_info.spl_gid[i];
+        for (int i = 0; i < cur_groups_size; i++) {
+            grouplist[i] = g_groups_info.spl_gid[i];
+        }
     }
 
     unlock(&cur_process.lock);

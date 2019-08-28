@@ -26,12 +26,12 @@
 #include <shim_internal.h>
 #include <shim_types.h>
 
-#define IPC_NS_CALLBACKS(ns)                                                                     \
-    /* FINDNS   */ &ipc_##ns##_findns_callback, /* TELLNS   */ &ipc_##ns##_tellns_callback,      \
-        /* LEASE    */ &ipc_##ns##_lease_callback, /* OFFER    */ &ipc_##ns##_offer_callback,    \
-        /* RENEW    */ &ipc_##ns##_renew_callback, /* SUBLEASE */ &ipc_##ns##_sublease_callback, \
-        /* QUERY    */ &ipc_##ns##_query_callback, /* QUERYALL */ &ipc_##ns##_queryall_callback, \
-        /* ANSWER   */ &ipc_##ns##_answer_callback,
+#define IPC_NS_CALLBACKS(ns)                                                                \
+    /* FINDNS */ &ipc_##ns##_findns_callback, /* TELLNS   */ &ipc_##ns##_tellns_callback,   \
+    /* LEASE  */ &ipc_##ns##_lease_callback,  /* OFFER    */ &ipc_##ns##_offer_callback,    \
+    /* RENEW  */ &ipc_##ns##_renew_callback,  /* SUBLEASE */ &ipc_##ns##_sublease_callback, \
+    /* QUERY  */ &ipc_##ns##_query_callback,  /* QUERYALL */ &ipc_##ns##_queryall_callback, \
+    /* ANSWER */ &ipc_##ns##_answer_callback,
 
 #define IPC_NS_KEY_CALLBACKS(ns) \
     /* FINDKEY */ &ipc_##ns##_findkey_callback, /* TELLKEY */ &ipc_##ns##_tellkey_callback,
@@ -78,7 +78,7 @@ struct CONCAT2(NS, range) {
     struct shim_ipc_port* port;
 };
 
-int CONCAT3(get, NS, range)(IDTYPE idx, struct CONCAT2(NS, range) * range,
+int CONCAT3(get, NS, range)(IDTYPE idx, struct CONCAT2(NS, range)* range,
                             struct shim_ipc_info** pinfo);
 enum {
     NS_CODE(FINDNS) = CONCAT3(IPC, NS_CAP, BASE),

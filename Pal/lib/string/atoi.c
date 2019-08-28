@@ -23,7 +23,9 @@ long strtol(const char* s, char** endptr, int base) {
     long val = 0;
 
     // gobble initial whitespace
-    while (*s == ' ' || *s == '\t') s++;
+    while (*s == ' ' || *s == '\t') {
+        s++;
+    }
 
     // plus/minus sign
     if (*s == '+')

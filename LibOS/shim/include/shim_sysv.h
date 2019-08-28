@@ -106,8 +106,10 @@ struct msg_req {
 
 struct msg_type {
     long type; /* type of the messages */
-    struct msg_item *msgs, *msg_tail;
-    struct msg_req *reqs, *req_tail;
+    struct msg_item* msgs;
+    struct msg_item* msg_tail;
+    struct msg_req* reqs;
+    struct msg_req* req_tail;
 };
 
 #define DEFAULT_MSG_QUEUE_SIZE 2048

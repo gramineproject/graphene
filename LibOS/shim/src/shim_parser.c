@@ -75,12 +75,7 @@ struct parser_table {
         {.slow = 1, .parser = {NULL}}, /* read */
         {.slow = 1, .parser = {NULL}}, /* write */
         {.slow = 1,                    /* open */
-         .parser =
-             {
-                 NULL,
-                 &parse_open_flags,
-                 &parse_open_mode,
-             }},
+         .parser = {NULL, &parse_open_flags, &parse_open_mode}},
         {.slow = 0, .parser = {NULL}},                    /* close */
         {.slow = 0, .parser = {NULL}},                    /* stat */
         {.slow = 0, .parser = {NULL}},                    /* fstat */
@@ -137,29 +132,20 @@ struct parser_table {
         {.slow = 0, .parser = {NULL}},                  /* listen */
         {.slow = 0, .parser = {NULL}},                  /* getsockname */
         {.slow = 0, .parser = {NULL}},                  /* getpeername */
-        {.slow   = 0,
-         .stop   = 3, /* socketpair */
+        {.slow   = 0,                                   /* socketpair */
+         .stop   = 3,
          .parser = {&parse_domain, &parse_socktype, NULL, &parse_pipe_fds}},
         {.slow = 0, .parser = {NULL}},               /* setsockopt */
         {.slow = 0, .parser = {NULL}},               /* getsockopt */
         {.slow = 1, .parser = {&parse_clone_flags}}, /* clone */
         {.slow = 1, .parser = {NULL}},               /* fork */
         {.slow = 1, .parser = {NULL}},               /* vfork */
-        {.slow = 1,                                  /* execve */
-         .parser =
-             {
-                 NULL,
-                 &parse_exec_args,
-                 &parse_exec_envp,
-             }},
+        {.slow   = 1,                                /* execve */
+         .parser = {NULL, &parse_exec_args, &parse_exec_envp}},
         {.slow = 0, .parser = {NULL}},                                 /* exit */
         {.slow = 1, .parser = {NULL, NULL, &parse_wait_option, NULL}}, /* wait4 */
-        {.slow = 0,
-         .parser =
-             {
-                 NULL,
-                 &parse_signum,
-             }},                                            /* kill */
+        {.slow   = 0,                                                  /* kill */
+         .parser = {NULL, &parse_signum, }},
         {.slow = 0, .parser = {NULL}},                      /* uname */
         {.slow = 0, .parser = {NULL}},                      /* semget */
         {.slow = 1, .parser = {NULL}},                      /* semop */
@@ -356,67 +342,18 @@ struct parser_table {
         {.slow = 0, .parser = {NULL}},                      /* migrate_pages */
         {.slow   = 0,
          .parser = {&parse_at_fdcwd, NULL, &parse_open_flags, &parse_open_mode}}, /* openat */
-
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* mkdirat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* mknodat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* fchownat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* futimesat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* newfstatat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* unlinkat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* renameat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* linkat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* symlinkat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* readlinkat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }}, /* fchmodat */
-        {.slow = 0,
-         .parser =
-             {
-                 &parse_at_fdcwd,
-             }},                       /* faccessat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* mkdirat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* mknodat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* fchownat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* futimesat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* newfstatat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* unlinkat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* renameat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* linkat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* symlinkat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* readlinkat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* fchmodat */
+        {.slow = 0, .parser = {&parse_at_fdcwd}}, /* faccessat */
         {.slow = 0, .parser = {NULL}}, /* pselect6 */
         {.slow = 1, .parser = {NULL}}, /* ppoll */
         {.slow = 0, .parser = {NULL}}, /* unshare */

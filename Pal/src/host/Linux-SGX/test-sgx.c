@@ -7,8 +7,7 @@ static inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned i
 }
 
 int main(int argc, char** argv) {
-    /* This programm prints some CPUID information and tests the SGX support of
-     * the CPU */
+    /* This programm prints some CPUID information and tests the SGX support of the CPU */
 
     unsigned eax, ebx, ecx, edx;
     eax = 1; /* processor info and feature bits */
@@ -37,19 +36,19 @@ int main(int argc, char** argv) {
     printf("sgx available: %d\n", (ebx >> 2) & 0x1);
 
     /* SGX has to be enabled in MSR.IA32_Feature_Control.SGX_Enable
-      check with msr-tools: rdmsr -ax 0x3a
-      SGX_Enable is Bit 18
-      if SGX_Enable = 0 no leaf information will appear.
-       for more information check Intel Docs
-      Architectures-software-developer-system-programming-manual - 35.1
-      Architectural MSRS
-    */
+     * check with msr-tools: rdmsr -ax 0x3a
+     * SGX_Enable is Bit 18
+     * if SGX_Enable = 0 no leaf information will appear.
+     * for more information check Intel Docs
+     * Architectures-software-developer-system-programming-manual - 35.1
+     * Architectural MSRS
+     */
 
     /* CPUID Leaf 12H, Sub-Leaf 0 Enumeration of Intel SGX Capabilities
-     * (EAX=12H,ECX=0) */
+     * (EAX=12H,ECX=0)
+     */
     printf(
-        "\nCPUID Leaf 12H, Sub-Leaf 0 of Intel SGX Capabilities "
-        "(EAX=12H,ECX=0)\n");
+        "\nCPUID Leaf 12H, Sub-Leaf 0 of Intel SGX Capabilities (EAX=12H,ECX=0)\n");
     eax = 0x12;
     ecx = 0;
     native_cpuid(&eax, &ebx, &ecx, &edx);
@@ -62,9 +61,7 @@ int main(int argc, char** argv) {
 
     /* CPUID Leaf 12H, Sub-Leaf 1 Enumeration of Intel SGX Capabilities
      * (EAX=12H,ECX=1) */
-    printf(
-        "\nCPUID Leaf 12H, Sub-Leaf 1 of Intel SGX Capabilities "
-        "(EAX=12H,ECX=1)\n");
+    printf("\nCPUID Leaf 12H, Sub-Leaf 1 of Intel SGX Capabilities (EAX=12H,ECX=1)\n");
     eax = 0x12;
     ecx = 1;
     native_cpuid(&eax, &ebx, &ecx, &edx);
@@ -74,10 +71,7 @@ int main(int argc, char** argv) {
     for (i = 2; i < 10; i++) {
         /* CPUID Leaf 12H, Sub-Leaf i Enumeration of Intel SGX Capabilities
          * (EAX=12H,ECX=i) */
-        printf(
-            "\nCPUID Leaf 12H, Sub-Leaf %d of Intel SGX Capabilities "
-            "(EAX=12H,ECX=%d)\n",
-            i, i);
+        printf("\nCPUID Leaf 12H, Sub-Leaf %d of Intel SGX Capabilities (EAX=12H,ECX=%d)\n", i, i);
         eax = 0x12;
         ecx = i;
         native_cpuid(&eax, &ebx, &ecx, &edx);

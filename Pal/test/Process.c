@@ -11,7 +11,9 @@ int main(int argc, char** argv) {
 
 #if DO_BENCH != 1
     pal_printf("In process: %s", argv[0]);
-    for (int i = 1; i < argc; i++) pal_printf(" %s", argv[i]);
+    for (int i = 1; i < argc; i++) {
+        pal_printf(" %s", argv[i]);
+    }
     pal_printf("\n");
 #endif
 

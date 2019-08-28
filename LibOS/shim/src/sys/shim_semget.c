@@ -35,7 +35,7 @@
 #define SEM_HASH_LEN  8
 #define SEM_HASH_NUM  (1 << SEM_HASH_LEN)
 #define SEM_HASH_MASK (SEM_HASH_NUM - 1)
-#define SEM_HASH(idx) ((idx)&SEM_HASH_MASK)
+#define SEM_HASH(idx) ((idx) & SEM_HASH_MASK)
 
 /* The sem_list links shim_sem_handle objects by the list field.
  * The sem_key_hlist links them by key_hlist, and qid_hlist by qid_hlist */
@@ -59,20 +59,22 @@ static int __add_sem_handle(unsigned long key, IDTYPE semid, int nsems, bool own
     int ret = 0;
 
     if (key_head)
-        LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
-    if (tmp->semkey == key) {
-        if (tmp->semid == semid)
-            goto out;
-        return -EEXIST;
-    }
+        LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist) {
+            if (tmp->semkey == key) {
+                if (tmp->semid == semid)
+                    goto out;
+                return -EEXIST;
+            }
+        }
 
     if (sid_head)
-        LISTP_FOR_EACH_ENTRY(tmp, sid_head, sid_hlist)
-    if (tmp->semid == semid) {
-        if (key)
-            tmp->semkey = key;
-        goto out;
-    }
+        LISTP_FOR_EACH_ENTRY(tmp, sid_head, sid_hlist) {
+            if (tmp->semid == semid) {
+                if (key)
+                    tmp->semkey = key;
+                goto out;
+            }
+        }
 
     struct shim_handle* hdl = get_new_handle();
     if (!hdl)
@@ -140,14 +142,16 @@ int add_sem_handle(unsigned long key, IDTYPE id, int nsems, bool owned) {
 
 struct shim_sem_handle* get_sem_handle_by_key(unsigned long key) {
     LISTP_TYPE(shim_sem_handle)* key_head = &sem_key_hlist[SEM_HASH(key)];
-    struct shim_sem_handle *tmp, *found = NULL;
+    struct shim_sem_handle* tmp;
+    struct shim_sem_handle* found = NULL;
 
     lock(&sem_list_lock);
 
-    LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist)
-    if (tmp->semkey == key) {
-        found = tmp;
-        break;
+    LISTP_FOR_EACH_ENTRY(tmp, key_head, key_hlist) {
+        if (tmp->semkey == key) {
+            found = tmp;
+            break;
+        }
     }
 
     if (found)
@@ -159,14 +163,16 @@ struct shim_sem_handle* get_sem_handle_by_key(unsigned long key) {
 
 struct shim_sem_handle* get_sem_handle_by_id(IDTYPE semid) {
     LISTP_TYPE(shim_sem_handle)* sid_head = &sem_sid_hlist[SEM_HASH(semid)];
-    struct shim_sem_handle *tmp, *found = NULL;
+    struct shim_sem_handle* tmp;
+    struct shim_sem_handle* found = NULL;
 
     lock(&sem_list_lock);
 
-    LISTP_FOR_EACH_ENTRY(tmp, sid_head, sid_hlist)
-    if (tmp->semid == semid) {
-        found = tmp;
-        break;
+    LISTP_FOR_EACH_ENTRY(tmp, sid_head, sid_hlist) {
+        if (tmp->semid == semid) {
+            found = tmp;
+            break;
+        }
     }
 
     if (found)
@@ -473,7 +479,8 @@ static bool __handle_sysv_sems(struct shim_sem_handle* sem) {
         LISTP_SPLICE_TAIL_INIT(&sobj->next_ops, &sobj->ops, progress, sem_ops);
 
     for (sobj = sem->sems; sobj < &sem->sems[sem->nsems]; sobj++) {
-        struct sem_ops *sops, *n;
+        struct sem_ops* sops;
+        struct sem_ops* n;
 
         LISTP_FOR_EACH_ENTRY_SAFE(sops, n, &sobj->ops, progress) {
             struct sembuf* op = &sops->ops[sops->stat.current];
@@ -728,14 +735,15 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
     if (seq) {
         struct sem_ops* op;
 
-        LISTP_FOR_EACH_ENTRY(op, &sem->migrated, progress)
-        if (op->client.vmid == (client ? client->vmid : cur_process.vmid) &&
-            seq == op->client.seq) {
-            LISTP_DEL_INIT(op, &sem->migrated, progress);
-            sem_ops  = op;
-            stat     = sem_ops->stat;
-            malloced = true;
-            break;
+        LISTP_FOR_EACH_ENTRY(op, &sem->migrated, progress) {
+            if (op->client.vmid == (client ? client->vmid : cur_process.vmid) &&
+                seq == op->client.seq) {
+                LISTP_DEL_INIT(op, &sem->migrated, progress);
+                sem_ops  = op;
+                stat     = sem_ops->stat;
+                malloced = true;
+                break;
+            }
         }
     }
 
@@ -788,7 +796,9 @@ int submit_sysv_sem(struct shim_sem_handle* sem, struct sembuf* sops, int nsops,
     }
 
     sem_ops->stat = stat;
-    for (int i = 0; i < nsops; i++) sem_ops->ops[i] = sops[i];
+    for (int i = 0; i < nsops; i++) {
+        sem_ops->ops[i] = sops[i];
+    }
 
     LISTP_TYPE(sem_ops)* next_ops = &sem->sems[sops[stat.current].sem_num].next_ops;
     assert(LIST_EMPTY(sem_ops, progress));
@@ -881,7 +891,8 @@ static int sem_balance_migrate(struct shim_handle* hdl, struct sysv_client* src)
     sem->owner = info;
 
     for (sobj = sem->sems; sobj < &sem->sems[sem->nsems]; sobj++) {
-        struct sem_ops *sops, *n;
+        struct sem_ops* sops;
+        struct sem_ops* n;
         LISTP_FOR_EACH_ENTRY_SAFE(sops, n, &sobj->ops, progress) {
             LISTP_DEL_INIT(sops, &sobj->ops, progress);
             sem->nreqs--;

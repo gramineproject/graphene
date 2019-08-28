@@ -67,7 +67,9 @@ void server(void) {
 
     gettimeofday(&tv1, NULL);
 
-    for (i = 0; i < TEST_TIMES; i++) create_q(keys[i]);
+    for (i = 0; i < TEST_TIMES; i++) {
+        create_q(keys[i]);
+    }
 
     gettimeofday(&tv2, NULL);
 
@@ -104,11 +106,15 @@ void client(void) {
 
     gettimeofday(&tv1, NULL);
 
-    for (i = 0; i < TEST_TIMES; i++) ids[i] = connect_q(keys[i]);
+    for (i = 0; i < TEST_TIMES; i++) {
+        ids[i] = connect_q(keys[i]);
+    }
 
     gettimeofday(&tv2, NULL);
 
-    for (i = 0; i < TEST_TIMES; i++) msgctl(ids[i], IPC_RMID, NULL);
+    for (i = 0; i < TEST_TIMES; i++) {
+        msgctl(ids[i], IPC_RMID, NULL);
+    }
 
     if (mode == PARALLEL) {
         close(pipefds[2]);
@@ -126,7 +132,9 @@ void client(void) {
 int main(int argc, char** argv) {
     int i;
 
-    for (i = 0; i < TEST_TIMES; i++) keys[i] = rand();
+    for (i = 0; i < TEST_TIMES; i++) {
+        keys[i] = rand();
+    }
 
     pipe(pipefds);
     pipe(pipefds + 2);

@@ -76,8 +76,8 @@ noreturn void DkThreadExit(void) {
     ENTER_PAL_CALL(DkThreadExit);
     _DkThreadExit();
     _DkRaiseFailure(PAL_ERROR_NOTKILLABLE);
-    while (true) /* nothing */
-        ;
+    while (true)
+        /* nothing */;
     LEAVE_PAL_CALL();
 }
 

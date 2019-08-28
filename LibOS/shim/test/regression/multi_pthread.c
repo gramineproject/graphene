@@ -19,10 +19,14 @@ int main(int argc, char** argv) {
         pthread_t thread[CONC_THREAD_NUM];
 
         /* create several threads running in parallel */
-        for (int j = 0; j < CONC_THREAD_NUM; j++) pthread_create(&thread[j], NULL, inc, NULL);
+        for (int j = 0; j < CONC_THREAD_NUM; j++) {
+            pthread_create(&thread[j], NULL, inc, NULL);
+        }
 
         /* join threads and continue with the next batch */
-        for (int j = 0; j < CONC_THREAD_NUM; j++) pthread_join(thread[j], NULL);
+        for (int j = 0; j < CONC_THREAD_NUM; j++) {
+            pthread_join(thread[j], NULL);
+        }
     }
 
     printf("%d Threads Created\n", counter);

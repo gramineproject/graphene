@@ -58,7 +58,7 @@ static inline void __attribute_always_inline elf_machine_rela_relative(struct li
 
 /* Read the dynamic section at DYN and fill in INFO with indices DT_*.  */
 static inline void __attribute_unused __attribute_always_inline
-elf_get_dynamic_info(ElfW(Dyn)* dyn, ElfW(Dyn)** l_info, ElfW(Addr)l_addr) {
+elf_get_dynamic_info(ElfW(Dyn)* dyn, ElfW(Dyn)** l_info, ElfW(Addr) l_addr) {
 #if __ELF_NATIVE_CLASS == 32
     typedef Elf32_Word d_tag_utype;
 #elif __ELF_NATIVE_CLASS == 64

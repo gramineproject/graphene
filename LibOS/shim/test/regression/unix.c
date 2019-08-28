@@ -92,7 +92,7 @@ int server(void) {
 
     if (do_fork) {
         if (fork() > 0) {
-            asm volatile("int $3");
+            asm volatile ("int $3");
             close(new_socket);
             wait(NULL);
             return 0;

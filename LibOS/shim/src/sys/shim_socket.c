@@ -536,7 +536,9 @@ out:
 
 static int inet_parse_addr(int domain, int type, const char* uri, struct addr_inet* bind,
                            struct addr_inet* conn) {
-    char *ip_str, *port_str, *next_str;
+    char* ip_str;
+    char* port_str;
+    char* next_str;
     int ip_len = 0;
 
     if (!(next_str = strchr(uri, ':')))
@@ -1612,7 +1614,9 @@ int shim_do_setsockopt(int fd, int level, int optname, char* optval, int optlen)
         }
 
         struct shim_sock_option** next = &sock->pending_options;
-        while (*next) next = &(*next)->next;
+        while (*next) {
+            next = &(*next)->next;
+        }
 
         o->next    = NULL;
         *next      = o;
@@ -1705,54 +1709,55 @@ unknown:
     ret = -ENOPROTOOPT;
     goto out;
 
-query : {
-    PAL_STREAM_ATTR attr;
+query:
+    {
+        PAL_STREAM_ATTR attr;
 
-    if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
-        ret = -PAL_ERRNO;
-        goto out;
-    }
+        if (!DkStreamAttributesQueryByHandle(hdl->pal_handle, &attr)) {
+            ret = -PAL_ERRNO;
+            goto out;
+        }
 
-    if (level == SOL_SOCKET) {
-        switch (optname) {
-            case SO_KEEPALIVE:
-                *intval = attr.socket.tcp_keepalive ? 1 : 0;
-                break;
-            case SO_LINGER: {
-                struct __kernel_linger* l = (struct __kernel_linger*)optval;
-                l->l_onoff                = attr.socket.linger ? 1 : 0;
-                l->l_linger               = attr.socket.linger;
-                break;
+        if (level == SOL_SOCKET) {
+            switch (optname) {
+                case SO_KEEPALIVE:
+                    *intval = attr.socket.tcp_keepalive ? 1 : 0;
+                    break;
+                case SO_LINGER: {
+                    struct __kernel_linger* l = (struct __kernel_linger*)optval;
+                    l->l_onoff                = attr.socket.linger ? 1 : 0;
+                    l->l_linger               = attr.socket.linger;
+                    break;
+                }
+                case SO_RCVBUF:
+                    *intval = attr.socket.receivebuf;
+                    break;
+                case SO_SNDBUF:
+                    *intval = attr.socket.sendbuf;
+                    break;
+                case SO_RCVTIMEO:
+                    *intval = attr.socket.receivetimeout;
+                    break;
+                case SO_SNDTIMEO:
+                    *intval = attr.socket.sendtimeout;
+                    break;
+                case SO_REUSEADDR:
+                    *intval = 1;
+                    break;
             }
-            case SO_RCVBUF:
-                *intval = attr.socket.receivebuf;
-                break;
-            case SO_SNDBUF:
-                *intval = attr.socket.sendbuf;
-                break;
-            case SO_RCVTIMEO:
-                *intval = attr.socket.receivetimeout;
-                break;
-            case SO_SNDTIMEO:
-                *intval = attr.socket.sendtimeout;
-                break;
-            case SO_REUSEADDR:
-                *intval = 1;
-                break;
         }
-    }
 
-    if (level == SOL_TCP) {
-        switch (optname) {
-            case TCP_CORK:
-                *intval = attr.socket.tcp_cork ? 1 : 0;
-                break;
-            case TCP_NODELAY:
-                *intval = attr.socket.tcp_nodelay ? 1 : 0;
-                break;
+        if (level == SOL_TCP) {
+            switch (optname) {
+                case TCP_CORK:
+                    *intval = attr.socket.tcp_cork ? 1 : 0;
+                    break;
+                case TCP_NODELAY:
+                    *intval = attr.socket.tcp_nodelay ? 1 : 0;
+                    break;
+            }
         }
     }
-}
 
 out:
     unlock(&hdl->lock);

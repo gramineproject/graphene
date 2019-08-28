@@ -12,7 +12,9 @@ int thread_1(void* args) {
 
     pal_printf("In Thread 1\n");
 
-    while (count < 100) count++;
+    while (count < 100) {
+        count++;
+    }
 
     DkEventSet(event1);
     DkThreadExit();

@@ -26,8 +26,8 @@
 /* ELF uses byte-counts for .align, most others use log2 of count of bytes.  */
 #define ALIGNARG(log2) (1 << (log2))
 /* For ELF we need the `.type' directive to make shared libs work right.  */
-#define ASM_TYPE_DIRECTIVE(name, typearg) .type name, typearg;
-#define ASM_SIZE_DIRECTIVE(name)          .size name, .- name;
+#define ASM_TYPE_DIRECTIVE(name, typearg) .type name,typearg;
+#define ASM_SIZE_DIRECTIVE(name)          .size name,.-name;
 
 /* In ELF C symbols are asm symbols.  */
 #undef NO_UNDERSCORES
@@ -48,7 +48,7 @@
     .align ALIGNARG(4);                                 \
     C_LABEL(name);                                      \
     cfi_startproc;                                      \
-    CALL_MCOUNT;
+    CALL_MCOUNT
 
 #undef END
 #define END(name) \
@@ -60,12 +60,12 @@
 /* The mcount code relies on a normal frame pointer being on the stack
    to locate our caller, so push one just for its benefit.  */
 #define CALL_MCOUNT              \
-    pushq % rbp;                 \
+    pushq %rbp;                  \
     cfi_adjust_cfa_offset(8);    \
-    movq % rsp, % rbp;           \
+    movq %rsp, %rbp;             \
     cfi_def_cfa_register(% rbp); \
     call JUMPTARGET(mcount);     \
-    popq % rbp;                  \
+    popq %rbp;                   \
     cfi_def_cfa(rsp, 8);
 #else
 #define CALL_MCOUNT /* Do nothing.  */

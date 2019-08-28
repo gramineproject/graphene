@@ -37,7 +37,8 @@ bool _DkCheckMemoryMappable(const void* addr, size_t size) {
     return (addr <= DATA_END && addr + size >= TEXT_START);
 }
 int _DkVirtualMemoryAlloc(void** paddr, uint64_t size, int alloc_type, int prot) {
-    void *addr = *paddr, *mem = addr;
+    void* addr = *paddr;
+    void* mem = addr;
 
     int flags = HOST_FLAGS(alloc_type, prot | PAL_PROT_WRITECOPY);
     prot      = HOST_PROT(prot);

@@ -570,7 +570,9 @@ int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS) {
     switch (msgin->cmd) {
         case GETALL: {
             unsigned short* allsems = __alloca(sizeof(unsigned short) * sem->nsems);
-            for (int i = 0; i < sem->nsems; i++) allsems[i] = sem->sems[i].val;
+            for (int i = 0; i < sem->nsems; i++) {
+                allsems[i] = sem->sems[i].val;
+            }
 
             vals    = allsems;
             valsize = sizeof(unsigned short) * sem->nsems;
@@ -605,7 +607,9 @@ int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS) {
 
             unsigned short* vals = (void*)msgin->vals;
 
-            for (int i = 0; i < sem->nsems; i++) sem->sems[i].val = vals[i];
+            for (int i = 0; i < sem->nsems; i++) {
+                sem->sems[i].val = vals[i];
+            }
 
             ret = RESPONSE_CALLBACK;
             break;

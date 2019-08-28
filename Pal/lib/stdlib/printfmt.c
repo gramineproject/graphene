@@ -48,12 +48,10 @@ inline unsigned long getuint(va_list ap, int lflag)
 #if !defined(__i386__)
     if (lflag >= 2)
         return va_arg(ap, unsigned long long);
-    else
 #endif
-        if (lflag)
+    if (lflag)
         return va_arg(ap, unsigned long);
-    else
-        return va_arg(ap, unsigned int);
+    return va_arg(ap, unsigned int);
 }
 
 // Same as getuint but signed - can't use getuint
@@ -67,12 +65,10 @@ inline long getint(va_list ap, int lflag)
 #if !defined(__i386__)
     if (lflag >= 2)
         return va_arg(ap, long long);
-    else
 #endif
-        if (lflag)
+    if (lflag)
         return va_arg(ap, long);
-    else
-        return va_arg(ap, int);
+    return va_arg(ap, int);
 }
 
 // Main function to format and print a string.
@@ -254,8 +250,8 @@ void vfprintfmt(int (*_fputch)(void*, int, void*), void* f, void* putdat, const 
             // unrecognized escape sequence - just print it literally
             default:
                 (*_fputch)(f, '%', putdat);
-                for (fmt--; fmt[-1] != '%'; fmt--) /* do nothing */
-                    ;
+                for (fmt--; fmt[-1] != '%'; fmt--)
+                    /* do nothing */;
                 break;
         }
     }

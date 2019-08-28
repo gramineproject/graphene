@@ -339,10 +339,10 @@ static void fill_page_bit_map(struct mm_struct* mm, unsigned long addr, unsigned
 
         if (pte_none(*pte))
             goto next_locked;
-        /*
-                if (unlikely(!pte_present(*pte)) && pte_file(*pte))
-                    goto next_locked;
-        */
+        #if 0
+        if (unlikely(!pte_present(*pte)) && pte_file(*pte))
+            goto next_locked;
+        #endif
         has_page = true;
     next_locked:
         spin_unlock(ptl);
@@ -384,17 +384,13 @@ static int get_pages(struct task_struct* task, unsigned long start, unsigned lon
                                   pages + last, vmas + last, NULL);
 #endif
             if (rv <= 0) {
-                printk(KERN_ERR
-                       "Graphene error: "
-                       "get_user_pages at 0x%016lx-0x%016lx\n",
+                printk(KERN_ERR "Graphene error: get_user_pages at 0x%016lx-0x%016lx\n",
                        addr, addr + (nr << PAGE_SHIFT));
                 return rv;
             }
 
             if (rv != nr) {
-                printk(KERN_ERR
-                       "Graphene error: "
-                       "get_user_pages at 0x%016lx\n",
+                printk(KERN_ERR "Graphene error: get_user_pages at 0x%016lx\n",
                        addr + (rv << PAGE_SHIFT));
                 return -EACCES;
             }
@@ -494,8 +490,7 @@ static int do_gipc_send(struct task_struct* task, struct gipc_queue* gq,
 
     if (addr > addr + len) {
         printk(KERN_ALERT
-               "Graphene SEND: attempt to send %p - %p "
-               " by thread %d FAIL: bad argument\n",
+               "Graphene SEND: attempt to send %p - %p by thread %d FAIL: bad argument\n",
                (void*)addr, (void*)(addr + len), task->pid);
         return -EINVAL;
     }
@@ -505,10 +500,8 @@ static int do_gipc_send(struct task_struct* task, struct gipc_queue* gq,
     nr_pages = len >> PAGE_SHIFT;
 
     if (!access_ok(VERIFY_READ, addr, len)) {
-        printk(KERN_ALERT
-               "Graphene SEND:"
-               " attempt to send %p - %p (%ld pages) "
-               " by thread %d FAIL: bad permission\n",
+        printk(KERN_ALERT "Graphene SEND: attempt to send %p - %p (%ld pages) by thread %d FAIL: "
+               "bad permission\n",
                (void*)addr, (void*)(addr + len), nr_pages, task->pid);
         return -EFAULT;
     }
@@ -689,17 +682,12 @@ static int do_gipc_recv(struct task_struct* task, struct gipc_queue* gq,
         if (page) {
             rv = vm_insert_page(vma, addr, page);
             if (rv) {
-                printk(KERN_ERR
-                       "Graphene error: "
-                       "fail to insert page %d\n",
-                       rv);
+                printk(KERN_ERR "Graphene error: fail to insert page %d\n", rv);
                 goto finish;
             }
             rv = make_page_cow(mm, vma, addr);
             if (rv) {
-                printk(KERN_ERR
-                       "Graphene error: "
-                       "can't make vma copy-on-write at %p\n",
+                printk(KERN_ERR "Graphene error: can't make vma copy-on-write at %p\n",
                        (void*)addr);
                 goto finish;
             }
@@ -937,9 +925,7 @@ static int __init gipc_init(void) {
 #endif
                                           NULL);
     if (!gipc_queue_cachep) {
-        printk(KERN_ERR
-               "Graphene error: "
-               "failed to create a gipc queues cache\n");
+        printk(KERN_ERR "Graphene error: failed to create a gipc queues cache\n");
         return -ENOMEM;
     }
 
@@ -953,9 +939,7 @@ static int __init gipc_init(void) {
 #endif
                           NULL);
     if (!gipc_send_buffer_cachep) {
-        printk(KERN_ERR
-               "Graphene error: "
-               "failed to create a gipc buffers cache\n");
+        printk(KERN_ERR "Graphene error: failed to create a gipc buffers cache\n");
         return -ENOMEM;
     }
 
@@ -965,10 +949,7 @@ static int __init gipc_init(void) {
 
     rv = misc_register(&gipc_dev);
     if (rv) {
-        printk(KERN_ERR
-               "Graphene error: "
-               "failed to add a char device (rv=%d)\n",
-               rv);
+        printk(KERN_ERR "Graphene error: failed to add a char device (rv=%d)\n", rv);
         return rv;
     }
 
@@ -979,7 +960,9 @@ static int __init gipc_init(void) {
 static void __exit gipc_exit(void) {
     struct gipc_queue *gq, *n;
     spin_lock(&gdev.lock);
-    list_for_each_entry_safe(gq, n, &gdev.channels, list) release_gipc_queue(gq, true);
+    list_for_each_entry_safe(gq, n, &gdev.channels, list) {
+        release_gipc_queue(gq, true);
+    }
     spin_unlock(&gdev.lock);
 
     misc_deregister(&gipc_dev);

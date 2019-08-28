@@ -37,8 +37,7 @@ struct thread_info {
     unsigned int term_signal;
 };
 
-/* walk_simple_thread_list callback; exit each simple thread of child process
- * vmid. */
+/* walk_simple_thread_list callback; exit each simple thread of child process vmid. */
 static int child_sthread_exit(struct shim_simple_thread* thread, void* arg, bool* unlocked) {
     __UNUSED(unlocked); /* FYI: notifies about unlocked thread_list_lock */
 
@@ -261,7 +260,8 @@ int ipc_cld_profile_send(void) {
 
     unsigned long time = GET_PROFILE_INTERVAL();
     size_t nsending    = 0;
-    for (size_t i = 0; i < N_PROFILE; i++) switch (PROFILES[i].type) {
+    for (size_t i = 0; i < N_PROFILE; i++) {
+        switch (PROFILES[i].type) {
             case OCCURENCE:
                 if (atomic_read(&PROFILES[i].val.occurence.count))
                     nsending++;
@@ -273,6 +273,7 @@ int ipc_cld_profile_send(void) {
             case CATEGORY:
                 break;
         }
+    }
 
     size_t total_msg_size    = get_ipc_msg_size(sizeof(struct shim_ipc_cld_profile) +
                                              sizeof(struct profile_val) * nsending);
@@ -282,7 +283,8 @@ int ipc_cld_profile_send(void) {
     struct shim_ipc_cld_profile* msgin = (struct shim_ipc_cld_profile*)&msg->msg;
 
     size_t nsent = 0;
-    for (size_t i = 0; i < N_PROFILE && nsent < nsending; i++) switch (PROFILES[i].type) {
+    for (size_t i = 0; i < N_PROFILE && nsent < nsending; i++) {
+        switch (PROFILES[i].type) {
             case OCCURENCE: {
                 unsigned long count = atomic_read(&PROFILES[i].val.occurence.count);
                 if (count) {
@@ -309,6 +311,7 @@ int ipc_cld_profile_send(void) {
             case CATEGORY:
                 break;
         }
+    }
 
     msgin->time     = time;
     msgin->nprofile = nsent;

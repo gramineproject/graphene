@@ -11,7 +11,9 @@ int main(int argc, char** argv) {
     if (!cpuinfo)
         return errno;
 
-    while (getdelim(&arg, &size, 0, cpuinfo) != -1) puts(arg);
+    while (getdelim(&arg, &size, 0, cpuinfo) != -1) {
+        puts(arg);
+    }
 
     free(arg);
     fclose(cpuinfo);

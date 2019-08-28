@@ -17,8 +17,8 @@
 /*
  * path.c
  *
- * This file contains functions to read app config (manifest) file and create
- * a tree to lookup / access config values.
+ * This file contains functions to read app config (manifest) file and create a tree to
+ * lookup / access config values.
  */
 
 #include <api.h>
@@ -26,8 +26,7 @@
 
 /*
  * Finds next '/' in `path`.
- * Returns a pointer to it or to the nullbyte ending the string if no '/' has
- * been found.
+ * Returns a pointer to it or to the nullbyte ending the string if no '/' has been found.
  */
 static inline const char* find_next_slash(const char* path) {
     while (*path && *path != '/') {
@@ -37,10 +36,8 @@ static inline const char* find_next_slash(const char* path) {
 }
 
 /*
- * Finds previous '/' in `path` (starting from `size` - 1) and returns offset to
- * it.
- * If the last character is '/', then it is skipped (as a token can end with
- * '/').
+ * Finds previous '/' in `path` (starting from `size` - 1) and returns offset to it.
+ * If the last character is '/', then it is skipped (as a token can end with '/').
  */
 static inline size_t find_prev_slash_offset(const char* path, size_t size) {
     if (size && path[size - 1] == '/') {
@@ -54,8 +51,7 @@ static inline size_t find_prev_slash_offset(const char* path, size_t size) {
 
 /*
  * Before calling this function *size_ptr should hold the size of buf.
- * After returning it holds number of bytes actually written to it
- * (excluding the ending '\0').
+ * After returning it holds number of bytes actually written to it (excluding the ending '\0').
  */
 int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
     if (!path || !buf || !size_ptr) {
@@ -141,11 +137,9 @@ int get_norm_path(const char* path, char* buf, size_t* size_ptr) {
 }
 
 /*
- * Returns the part after the last '/' (so `path` should probably be
- * normalized).
+ * Returns the part after the last '/' (so `path` should probably be normalized).
  * Before calling this function *size should hold the size of buf.
- * After returning it holds number of bytes actually written to it
- * (excluding the trailing '\0').
+ * After returning it holds number of bytes actually written to it (excluding the trailing '\0').
  */
 int get_base_name(const char* path, char* buf, size_t* size) {
     if (!path || !buf || !size) {
