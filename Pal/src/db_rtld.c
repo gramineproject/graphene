@@ -1319,9 +1319,7 @@ void * stack_before_call __attribute_unused = NULL;
 #endif
 #endif /* !CALL_ENTRY */
 
-noreturn void start_execution (const char * first_argument,
-                               const char ** arguments, const char ** environs)
-{
+noreturn void start_execution(const char** arguments, const char** environs) {
     /* First we will try to run all the preloaded libraries which come with
        entry points */
     if (exec_map) {
@@ -1334,15 +1332,13 @@ noreturn void start_execution (const char * first_argument,
 #endif
 
     int narguments = 0;
-    if (first_argument)
-        narguments++;
-    for (const char ** a = arguments; *a ; a++, narguments++);
+    for (const char** a = arguments; *a ; a++, narguments++);
 
     /* Let's count the number of cookies, first we will have argc & argv */
     int ncookies = narguments + 3; /* 1 for argc, argc + 2 for argv */
 
     /* Then we count envp */
-    for (const char ** e = environs; *e; e++)
+    for (const char** e = environs; *e; e++)
         ncookies++;
 
     ncookies++; /* for NULL-end */
@@ -1351,13 +1347,11 @@ noreturn void start_execution (const char * first_argument,
                       + sizeof(ElfW(auxv_t)) * 1  /* only AT_NULL */
                       + sizeof(void *) * 4 + 16;
 
-    unsigned long int * cookies = __alloca(cookiesz);
+    unsigned long int* cookies = __alloca(cookiesz);
     int cnt = 0;
 
     /* Let's copy the cookies */
     cookies[cnt++] = (unsigned long int) narguments;
-    if (first_argument)
-        cookies[cnt++] = (unsigned long int) first_argument;
 
     for (int i = 0 ; arguments[i] ; i++)
         cookies[cnt++] = (unsigned long int) arguments[i];
