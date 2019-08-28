@@ -326,7 +326,7 @@ static bool check_any_addr(struct sockaddr* addr) {
 /* listen on a tcp socket */
 static int tcp_listen(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr buffer;
-    struct sockaddr buffer* bind_addr = &buffer;
+    struct sockaddr* bind_addr = &buffer;
     size_t bind_addrlen;
     int ret, fd = -1;
 

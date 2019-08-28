@@ -63,7 +63,7 @@
     pushq %rbp;                  \
     cfi_adjust_cfa_offset(8);    \
     movq %rsp, %rbp;             \
-    cfi_def_cfa_register(% rbp); \
+    cfi_def_cfa_register(%rbp);  \
     call JUMPTARGET(mcount);     \
     popq %rbp;                   \
     cfi_def_cfa(rsp, 8);

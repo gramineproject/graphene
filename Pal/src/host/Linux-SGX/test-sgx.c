@@ -47,8 +47,7 @@ int main(int argc, char** argv) {
     /* CPUID Leaf 12H, Sub-Leaf 0 Enumeration of Intel SGX Capabilities
      * (EAX=12H,ECX=0)
      */
-    printf(
-        "\nCPUID Leaf 12H, Sub-Leaf 0 of Intel SGX Capabilities (EAX=12H,ECX=0)\n");
+    printf("\nCPUID Leaf 12H, Sub-Leaf 0 of Intel SGX Capabilities (EAX=12H,ECX=0)\n");
     eax = 0x12;
     ecx = 0;
     native_cpuid(&eax, &ebx, &ecx, &edx);

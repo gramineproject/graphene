@@ -515,7 +515,7 @@ static int64_t tcp_write(PAL_HANDLE handle, uint64_t offset, uint64_t len, const
 /* used by 'open' operation of tcp stream for bound socket */
 static int udp_bind(PAL_HANDLE* handle, char* uri, int options) {
     struct sockaddr buffer;
-    struct sockaddr buffer* bind_addr = &buffer;
+    struct sockaddr* bind_addr = &buffer;
     unsigned int bind_addrlen;
     int ret = 0;
 
