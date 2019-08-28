@@ -4,7 +4,6 @@ FROM ubuntu:16.04
 # Add steps here to set up dependencies
 RUN apt-get update \
     && apt-get install -y \
-       apache2-utils \
        autoconf \
        build-essential \
        gawk \
@@ -27,6 +26,11 @@ RUN apt-get update \
        libomp-dev \
        libprotobuf-c-dev \
        protobuf-c-compiler \
+       flex \
+       libapr1-dev \
+       libaprutil1-dev \
+       libpcre2-dev \
+       apache2-utils \
     && /usr/bin/pip3 install protobuf \
 
 # Add the user UID:1001, GID:1001, home at /leeroy

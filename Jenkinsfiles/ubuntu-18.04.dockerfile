@@ -3,7 +3,6 @@ FROM ubuntu:18.04
 
 # Add steps here to set up dependencies
 RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    apache2-utils \
     autoconf \
     build-essential \
     gawk \
@@ -27,7 +26,12 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     wget \
     curl \
     libprotobuf-c-dev \
-    protobuf-c-compiler
+    protobuf-c-compiler \
+    flex \
+    libapr1-dev \
+    libaprutil1-dev \
+    libpcre2-dev \
+    apache2-utils
 
 RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 
