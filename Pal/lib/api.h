@@ -17,6 +17,7 @@
 #ifndef API_H
 #define API_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -90,6 +91,8 @@ void * memcpy (void *dstpp, const void *srcpp, size_t len);
 void * memmove (void *dstpp, const void *srcpp, size_t len);
 void * memset (void *dstpp, int c, size_t len);
 int memcmp (const void *s1, const void *s2, size_t len);
+
+bool strendswith(const char* haystack, const char* needle);
 
 /* Libc memory allocation functions. stdlib.h. */
 void *malloc(size_t size);

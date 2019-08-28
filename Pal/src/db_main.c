@@ -229,8 +229,6 @@ noreturn void pal_main (
         PAL_STR *  environments      /* environment variables */
     )
 {
-    bool is_parent = (parent_process == NULL);
-
 #if PROFILING == 1
     __pal_control.host_specific_startup_time =
             _DkSystemTimeQuery() - pal_state.start_time;
@@ -395,16 +393,14 @@ noreturn void pal_main (
     pal_state.exec            = exec_uri;
     pal_state.exec_handle     = exec_handle;
 
-    const char * first_argument =
-        (is_parent && exec_uri) ? exec_uri : *arguments;
-    arguments++;
-
-    if (pal_state.root_config) {
+    if (pal_state.root_config && *arguments
+        && (strendswith(*arguments, ".manifest") || strendswith(*arguments, ".manifest.sgx"))) {
+        /* Run as a manifest file,
+         * replace argv[0] with the contents of the manifest's loader.execname */
         char cfgbuf[CONFIG_MAX];
-        ret = get_config(pal_state.root_config, "loader.execname", cfgbuf,
-                         CONFIG_MAX);
+        ret = get_config(pal_state.root_config, "loader.execname", cfgbuf, CONFIG_MAX);
         if (ret > 0)
-            first_argument = malloc_copy(cfgbuf, ret + 1);
+            *arguments = malloc_copy(cfgbuf, ret + 1);
     }
 
     read_environments(&environments);
@@ -465,12 +461,12 @@ noreturn void pal_main (
     __pal_control.manifest_loading_time
                                       = pal_state.manifest_loading_time;
     __pal_control.allocation_time     = pal_state.slab_time;
-    __pal_control.child_creation_time = is_parent ? 0 : pal_state.start_time -
+    __pal_control.child_creation_time = (parent_process == NULL) ? 0 : pal_state.start_time -
                                         pal_state.process_create_time;
 #endif
 
     /* Now we will start the execution */
-    start_execution(first_argument, arguments, environments);
+    start_execution(arguments, environments);
 
  out_fail:
     /* We wish we will never reached here */

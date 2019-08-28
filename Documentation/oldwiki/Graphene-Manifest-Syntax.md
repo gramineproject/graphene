@@ -35,10 +35,10 @@ libraries must be separated by commas. The libraries must be ELF binaries.
 
     loader.execname=[STRING]
 
-This syntax specifies the executable name that will be passed as the first argument (`argv[0]`)
-to the executable. If the executable name is not specified in the manifest, the PAL will use the
-URI of the executable or the manifest -- depending on whether the executable or the manifest is
-given as the first argument to the PAL loader -- as `argv[0]` when running the executable.
+This syntax specifies an arbitrary string (typically the executable name) that will be passed as
+the first argument (argv[0]) to the executable only if it is run via the manifest
+(e.g. `./app.manifest arg1 arg2 ...`). If the string is not specified in the manifest, the PAL will
+use the path to the manifest itself (standard UNIX convention).
 
 ### Environment Variables
 
