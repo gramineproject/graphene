@@ -21,10 +21,16 @@ RUN apt-get update \
        python \
        python-protobuf \
        python3-minimal \
+       python3-pip \
        python3-pytest \
+       python3-sphinx \
+       python3-sphinx-rtd-theme \
+       python3-breathe \
        texinfo \
        wget \
        libomp-dev \
+
+    && pip3 install recommonmark \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
