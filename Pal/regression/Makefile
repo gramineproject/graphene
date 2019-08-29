@@ -4,8 +4,39 @@ CC	= gcc
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx \
 	  -I../include/pal -I../lib -I../src
 
-preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
-executables = $(filter-out $(preloads),$(patsubst %.c,%,$(wildcard *.c))) ..Bootstrap
+preloads = \
+	Preload1.so \
+	Preload2.so
+
+executables = \
+	..Bootstrap \
+	AtomicMath \
+	AvxDisable \
+	Bootstrap \
+	Bootstrap2 \
+	Bootstrap3 \
+	Bootstrap7 \
+	Directory \
+	Event \
+	Exception \
+	Exit \
+	File \
+	Hex \
+	Ipc \
+	Memory \
+	Misc \
+	Pipe \
+	Process \
+	Process2 \
+	Process3 \
+	Semaphore \
+	SendHandle \
+	Socket \
+	Symbols \
+	Thread \
+	Thread2 \
+	normalize_path
+
 manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template))
 
 target = $(executables) $(manifests)
@@ -53,7 +84,7 @@ ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 LDLIBS-preloads = ../src/user_shared_start.o $(graphene_lib) $(pal_lib)
 $(preloads): CFLAGS += -shared -fPIC
 $(preloads): LDLIBS = $(LDLIBS-preloads)
-$(preloads): %.so: %.so.c $(LDLIBS-preloads)
+$(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle)
 
 LDLIBS-executables = ../src/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
