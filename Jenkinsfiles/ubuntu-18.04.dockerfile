@@ -20,6 +20,10 @@ RUN apt-get update && apt-get install -y \
     python \
     python-protobuf \
     python3-pytest \
+    python3-sphinx \
+    python3-sphinx-rtd-theme \
+    python3-breathe \
+    python3-recommonmark \
     texinfo \
     wget
 

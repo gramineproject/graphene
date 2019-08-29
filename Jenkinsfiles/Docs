@@ -1,0 +1,12 @@
+pipeline {
+        agent {
+              dockerfile { filename 'Jenkinsfiles/ubuntu-16.04.dockerfile' }
+        }
+        stages {
+                stage('Build') {
+                    steps {
+                        sh 'make -C Documentation html SPHINXOPTS="-W -n"'
+                    }
+                }
+        }
+}

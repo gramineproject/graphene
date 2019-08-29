@@ -22,6 +22,10 @@ RUN apt-get update \
        python-protobuf \
        python3-minimal \
        python3-pytest \
+       python3-sphinx \
+       python3-sphinx-rtd-theme \
+       python3-breathe \
+       python3-recommonmark \
        texinfo \
        wget \
        libomp-dev \
