@@ -27,7 +27,6 @@ ASFLAGS	= -Wa,--noexecstack -x assembler-with-cpp -I../include
 LDFLAGS	= -shared -nostdlib -z combreloc -z relro -z now -z defs \
 	  -dynamic-link=libpal.so \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
-ARFLAGS	=
 
 ifeq ($(WERROR),1)
 CFLAGS += -Werror
