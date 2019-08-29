@@ -9,19 +9,19 @@ include ../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
-CFLAGS-msg_create.libos += $(CFLAGS-libos)
-CFLAGS-msg_send.libos += $(CFLAGS-libos)
+CFLAGS-msg_create_libos += $(CFLAGS-libos)
+CFLAGS-msg_send_libos += $(CFLAGS-libos)
 
-LDLIBS-condvar.pthread += -lpthread
-LDLIBS-futextest.pthread += -lpthread
-LDLIBS-get_time.m += -lm
-LDLIBS-helloworld.pthread += -lpthread
-LDLIBS-msg_create.libos += -llibos
-LDLIBS-msg_send.libos += -llibos
-LDLIBS-sqrt.m += -lm
-LDLIBS-start.pthread.m += -lpthread -lm
-LDLIBS-sync.pthread += -lpthread
-LDLIBS-test_start_pthread_m.m += -lm
+LDLIBS-condvar += -lpthread
+LDLIBS-futextest += -lpthread
+LDLIBS-get_time += -lm
+LDLIBS-helloworld_pthread += -lpthread
+LDLIBS-msg_create_libos += -llibos
+LDLIBS-msg_send_libos += -llibos
+LDLIBS-sqrt += -lm
+LDLIBS-start += -lpthread -lm
+LDLIBS-sync += -lpthread
+LDLIBS-test_start_pthread_m += -lm
 
 $(c_executables): %: %.c
 	$(call cmd,csingle)
