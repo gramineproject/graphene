@@ -8,7 +8,6 @@ ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
 LDFLAGS	= -shared -nostdlib -z combreloc -z defs \
 	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds
-ARFLAGS	=
 
 ifeq ($(WERROR),1)
 CFLAGS += -Werror
