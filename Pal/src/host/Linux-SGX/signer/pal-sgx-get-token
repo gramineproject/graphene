@@ -1,5 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
+import binascii
 import os
 import sys
 import struct
@@ -10,10 +11,10 @@ import aesm_pb2
 """ Utilities """
 
 def int_to_bytes(i):
-    b = ""
+    b = b""
     l = 0
     while i > 0:
-        b = b + chr(i % 256)
+        b = b + bytes([i % 256])
         i = i // 256
         l = l + 1
     return b
@@ -21,7 +22,7 @@ def int_to_bytes(i):
 def bytes_to_int(b):
     i = 0
     for c in b:
-        i = i * 256 + ord(c)
+        i = i * 256 + c
     return i
 
 
@@ -46,7 +47,7 @@ def read_sigstruct(sig):
     fields['isvsvn']    = (1026, "<H",   'isvsvn')
 
     attr = dict()
-    for key, field in fields.items():
+    for key, field in list(fields.items()):
         values = struct.unpack_from(field[1], sig, field[0])
 
         for i in range(len(values)):
@@ -111,7 +112,7 @@ options = {
 def usage():
     usage_message = 'USAGE: ' + sys.argv[0] + ' -help|-h'
 
-    for opt, optval in options.items():
+    for opt, optval in list(options.items()):
         if not optval[0]:
             usage_message += '['
         usage_message += '|-' + opt
@@ -120,12 +121,12 @@ def usage():
         if not optval[0]:
             usage_message += ']'
 
-    print >> sys.stderr, usage_message
+    print(usage_message, file=sys.stderr)
     os._exit(-1)
 
 def parse_args():
     args = dict()
-    for opt, optval in options.items():
+    for opt, optval in list(options.items()):
         if optval[1] is None:
             args[opt] = False
 
@@ -137,14 +138,14 @@ def parse_args():
             usage()
 
         invalid = True
-        for opt, optval in options.items():
+        for opt, optval in list(options.items()):
             if got != '-' + opt:
                 continue
 
             if optval[1] is not None:
                 i += 1
                 if i == len(sys.argv):
-                    print >>sys.stderr, "Option %s needs a value." % (opt)
+                    print("Option %s needs a value." % (opt), file=sys.stderr)
                     usage()
                 args[opt] = sys.argv[i]
             else:
@@ -154,13 +155,13 @@ def parse_args():
             break
 
         if invalid:
-            print >>sys.stderr, "Unknown option: %s." % (got[1:])
+            print("Unknown option: %s." % (got[1:]), file=sys.stderr)
             usage()
         i += 1
 
-    for opt, optval in options.items():
+    for opt, optval in list(options.items()):
         if optval[0] and opt not in args:
-            print >>sys.stderr, "Must specify %s <%s>." % (opt, optval[1])
+            print("Must specify %s <%s>." % (opt, optval[1]), file=sys.stderr)
             usage()
 
     return args
@@ -172,17 +173,17 @@ if __name__ == "__main__":
 
     attr = read_sigstruct(open(args['sig'], 'rb').read())
 
-    print >>sys.stderr, "Attributes:"
-    print >>sys.stderr, "    mrenclave: %s" % (attr['mrenclave'].encode('hex'))
-    print >>sys.stderr, "    isvprodid: %d" % (attr['isvprodid'])
-    print >>sys.stderr, "    isvsvn:    %d" % (attr['isvsvn'])
-    print >>sys.stderr, "    flags:     %016x" % (bytes_to_int(attr['flags']))
-    print >>sys.stderr, "    xfrms:     %016x" % (bytes_to_int(attr['xfrms']))
-    print >>sys.stderr, "    miscs:     %08x"  % (bytes_to_int(attr['miscs']))
-    print >>sys.stderr, "    miscmask:  %08x"  % (bytes_to_int(attr['miscmask']))
-    print >>sys.stderr, "    modulus:   %s..." % (attr['modulus'].encode('hex')[:32])
-    print >>sys.stderr, "    exponent:  %d" % (attr['exponent'])
-    print >>sys.stderr, "    signature: %s..." % (attr['signature'].encode('hex')[:32])
+    print("Attributes:", file=sys.stderr)
+    print("    mrenclave: %s" % binascii.hexlify(attr['mrenclave']).decode(), file=sys.stderr)
+    print("    isvprodid: %d" % (attr['isvprodid'], file=sys.stderr))
+    print("    isvsvn:    %d" % (attr['isvsvn']), file=sys.stderr)
+    print("    flags:     %016x" % (bytes_to_int(attr['flags'])), file=sys.stderr)
+    print("    xfrms:     %016x" % (bytes_to_int(attr['xfrms'])), file=sys.stderr)
+    print("    miscs:     %08x"  % (bytes_to_int(attr['miscs'])), file=sys.stderr)
+    print("    miscmask:  %08x"  % (bytes_to_int(attr['miscmask'])), file=sys.stderr)
+    print("    modulus:   %s..." % (binascii.hexlify(attr['modulus']).decode()[:32]), file=sys.stderr)
+    print("    exponent:  %d" % (attr['exponent']), file=sys.stderr)
+    print("    signature: %s..." % (binascii.hexlify(attr['signature']).decode()[:32]), file=sys.stderr)
 
     token = connect_aesmd(attr)
     open(args['output'], 'wb').write(token)
