@@ -68,4 +68,5 @@ clean:
 	rm -rf pal_loader $(call expand_target,$(target)) .lib *.cached \
 	       $(addsuffix .d, $(executables)) $(addsuffix .i.d, $(executables)) \
 	       $(addsuffix .s.d, $(executables)) \
-	       $(addsuffix .manifest.sgx.d,$(executables))
+	       $(addsuffix .manifest.sgx.d,$(executables)) \
+		   .output.*

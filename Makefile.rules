@@ -125,14 +125,14 @@ quiet_cmd_cxxsingle  = [ $@ ]
 
 # sgx sign
 quiet_cmd_sgx_sign_manifest = [ $*.{sig, manifest.sgx} ]
-      cmd_sgx_sign_manifest = $(SGX_SIGN) -output $*.manifest.sgx -exec $* -manifest $<
+      cmd_sgx_sign_manifest = $(SGX_SIGN) -output $*.manifest.sgx -exec $* -manifest $< > .output.sgx_sign.$*
 
 quiet_cmd_sgx_sign = [ $*.{sig, manifest.sgx} ]
-      cmd_sgx_sign = $(SGX_SIGN) -output $*.manifest.sgx -manifest $<
+      cmd_sgx_sign = $(SGX_SIGN) -output $*.manifest.sgx -manifest $< > .output.sgx_sign.$*
 
 # sgx token
 quiet_cmd_sgx_get_token = [ Token: $(basename $*) ]
-      cmd_sgx_get_token = $(SGX_GET_TOKEN) -output $@ -sig $^
+      cmd_sgx_get_token = $(SGX_GET_TOKEN) -output $@ -sig $^ > .output.sgx_get_token.$(basename $*)
 
 # sgx manifest dependency
 quiet_cmd_sgx_manifest_dependency = [ $@ ]
