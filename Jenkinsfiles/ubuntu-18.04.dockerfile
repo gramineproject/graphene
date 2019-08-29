@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     linux-headers-4.15.0-20-generic \
     net-tools \
     python \
-    python-protobuf \
+    python3-protobuf \
     python3-pytest \
     texinfo \
     wget \

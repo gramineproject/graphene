@@ -22,6 +22,12 @@ void dummy(void)
     DEFINE(SGX_XFRM_AVX512, SGX_XFRM_AVX512);
     DEFINE(SGX_MISCSELECT_EXINFO, SGX_MISCSELECT_EXINFO);
 
+    /* sgx_arch_key_t */
+    DEFINE(SGX_ARCH_KEY_SIZE, sizeof(sgx_arch_key_t));
+
+    /* sgx_arch_hash_t */
+    DEFINE(SGX_ARCH_HASH_SIZE, sizeof(sgx_arch_hash_t));
+
     /* sgx_arch_gpr_t */
     OFFSET_T(SGX_GPR_RAX, sgx_arch_gpr_t, rax);
     OFFSET_T(SGX_GPR_RCX, sgx_arch_gpr_t, rcx);

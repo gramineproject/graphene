@@ -18,7 +18,7 @@ RUN apt-get update \
        linux-headers-4.4.0-161-generic \
        net-tools \
        python \
-       python-protobuf \
+       python3-pip \
        python3-minimal \
        python3-pytest \
        texinfo \
@@ -27,6 +27,7 @@ RUN apt-get update \
        libomp-dev \
        libprotobuf-c-dev \
        protobuf-c-compiler \
+    && /usr/bin/pip3 install protobuf \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
