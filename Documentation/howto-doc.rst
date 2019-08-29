@@ -11,7 +11,7 @@ documentation should be written in reST.
 API documentation of C |nbsp| language should be written as Doxygen comments
 (prefer Qt-style ``/*!`` and ``\param``) and then included in one of the
 ``.rst`` files (with appropriate description) using one of the `Breathe
-directives`_, like :rst:dir:`doxygenfunction` or :rst:dir:`doxygenstruct`. See
+directives`_, like ``.. doxygenfunction::`` or ``.. doxygenstruct::``. See
 `Breathe`_ documentation for more info. Do not use ``autodoxygen`` directives,
 and especially do not use ``.. doxygenfile::``, because documentation should be
 written as prose, not a |nbsp| coredump.
@@ -32,7 +32,7 @@ be different. In case of doubt, place them as they fit the narration of the
 document, not as they are placed in the source files.
 
 Documents should be grouped by general areas and presented using
-:rst:dir:`toctree` directive in :file:`index.rst` file. This causes them to be
+``.. toctree::`` directive in :file:`index.rst` file. This causes them to be
 included in TOC in the main document and also in sidebar on RTD.
 
 The documentation targets ``html`` output of Sphinx. The :file:`manpages/`
