@@ -19,13 +19,17 @@ RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     linux-headers-4.15.0-20-generic \
     net-tools \
     python \
+    python3-pip \
     python3-protobuf \
     python3-pytest \
+    python3-breathe \
     texinfo \
     wget \
     curl \
     libprotobuf-c-dev \
     protobuf-c-compiler
+
+RUN pip3 install 'Sphinx>=1.8' sphinx_rtd_theme recommonmark
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN groupadd -r leeroy -g 1001 && useradd -u 1001 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \
