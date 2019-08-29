@@ -5,7 +5,10 @@ ifeq ($(origin AS),default)
 AS	= gcc
 endif
 ifeq ($(origin AR),default)
-AR	= ar rcs
+AR	= ar
+endif
+ifeq ($(origin ARFLAGS),default)
+ARFLAGS = rcs
 endif
 ifeq ($(origin LD),default)
 LD	= ld

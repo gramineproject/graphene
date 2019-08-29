@@ -6,7 +6,6 @@ CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  $(call cc-option,-Wnull-dereference) \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin
-ARFLAGS	=
 
 include ../src/host/$(PAL_HOST)/Makefile.am
 

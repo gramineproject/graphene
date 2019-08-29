@@ -97,10 +97,10 @@ quiet_cmd_ld_so_o = [ $@ ]
 
 # AR
 quiet_cmd_ar_so_o = [ $@ ]
-      cmd_ar_so_o = $(AR) $(ARFLAGS) $(ARFLAGS-$@) $@ $^
+      cmd_ar_so_o = $(AR) $(ARFLAGS)$(ARFLAGS-$@) $@ $^
 
 quiet_cmd_ar_a_o = [ $@ ]
-      cmd_ar_a_o = $(AR) $(ARFLAGS) $(ARFLAGS-$@) $@ $^
+      cmd_ar_a_o = $(AR) $(ARFLAGS)$(ARFLAGS-$@) $@ $^
 
 # LD only
 quiet_cmd_ld = [ $@ ]
