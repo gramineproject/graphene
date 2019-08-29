@@ -9,20 +9,20 @@ default: all
 
 include ../Makefile.Test
 
+LDLIBS-user_start = $(PALDIR)/user_start.o
 $(PALDIR)/user_start.o: $(PALDIR)/user_start.S
 	$(MAKE) -C $(PALDIR) $(notdir $@)
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-LDLIBS-c_executables = $(libs) $(PALDIR)/user_start.o
-$(c_executables): CFLAGS += $(CFLAGS-libos-debug)
-$(c_executables): LDLIBS += $(LDLIBS-c_executables) $(LDFLAGS-libos-debug)
-$(c_executables): %: %.c $(LDLIBS-c_executables)
+
+CFLAGS += $(CFLAGS-libos-debug)
+CXXFLAGS += $(CXXFLAGS-libos-debug)
+LDLIBS += $(LDLIBS-user_start) $(LDFLAGS-libos-debug)
+
+$(c_executables): %: %.c $(LDLIBS-user_start)
 	$(call cmd,csingle)
 
-LDLIBS-cxx_executables = $(libs) ../../../../Pal/src/user_start.o
-$(cxx_executables): CXXFLAGS += $(CXXFLAGS-libos-debug)
-$(cxx_executables): LDLIBS += $(LDLIBS-cxx_executables) $(LDFLAGS-libos-debug)
-$(cxx_executables): %: %.cpp $(LDLIBS-cxx_executables)
+$(cxx_executables): %: %.cpp $(LDLIBS-user_start)
 	$(call cmd,cxxsingle)
 else
 .IGNORE: $(c_executables) $(cxx_executables)
