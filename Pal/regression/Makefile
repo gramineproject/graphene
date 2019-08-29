@@ -74,8 +74,6 @@ endif
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
 
-Process2.manifest.sgx: Bootstrap.manifest.sgx
-
 else
 .IGNORE: $(preloads) $(executables)
 $(preloads) $(executables):
