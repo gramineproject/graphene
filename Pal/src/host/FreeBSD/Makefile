@@ -22,7 +22,6 @@ all: $(host_files)
 ifeq ($(DEBUG),1)
 CC += -g -gdwarf-2 -gstrict-dwarf
 CFLAGS += -DDEBUG
-export DEBUG
 endif
 
 pal-gdb: pal-gdb.template

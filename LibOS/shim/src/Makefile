@@ -65,7 +65,6 @@ ASFLAGS += -DDEBUG
 else
 CFLAGS += -O2
 endif
-export DEBUG
 
 ifeq ($(PROFILING), 1)
 CFLAGS += -DPROFILE
