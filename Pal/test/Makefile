@@ -28,7 +28,6 @@ sgx-tokens: $(call expand_target_to_token,$(target))
 ifeq ($(DEBUG),1)
 CC += -g
 endif
-export DEBUG
 
 ifeq ($(WERROR),1)
 CFLAGS += -Werror

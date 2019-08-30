@@ -38,7 +38,6 @@ ifeq ($(DEBUG),1)
 CC += -g
 CXX += -g
 endif
-export DEBUG
 
 ifeq ($(WERROR),1)
 CFLAGS += -Werror
