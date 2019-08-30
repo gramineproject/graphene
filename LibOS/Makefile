@@ -1,5 +1,6 @@
-SYS ?= $(shell gcc -dumpmachine)
-export SYS
+include ../Scripts/Makefile.configs
+include ../Scripts/Makefile.rules
+include ../Pal/src/Makefile.Host
 
 export DEBUG
 
@@ -31,8 +32,6 @@ GLIBC_RUNTIME = $(addprefix $(RUNTIME_DIR)/, $(notdir $(GLIBC_TARGET)))
 .PHONY: all
 all: $(GLIBC_TARGET) $(GLIBC_RUNTIME)
 	$(MAKE) -C $(SHIM_DIR) all
-
-include ../Scripts/Makefile.rules
 
 .PHONY: format
 format:
