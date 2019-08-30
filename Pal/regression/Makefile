@@ -1,6 +1,8 @@
+include ../../Makefile.configs
 include ../src/Makefile.Host
+include ../../Makefile.rules
+include ../src/Makefile.Test
 
-CC	= gcc
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx \
 	  -I../include/pal -I../lib -I../src
 
@@ -46,9 +48,6 @@ pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
 .PHONY: default
 default: all
-include ../../Makefile.configs
-include ../../Makefile.rules
-include ../src/Makefile.Test
 
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 

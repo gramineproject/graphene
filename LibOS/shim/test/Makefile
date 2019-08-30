@@ -1,8 +1,8 @@
+include ../Makefile.configs
+include ../Pal/src/Makefile.Host
+
 # SUBDIRS = regression native inline benchmark
 SUBDIRS = native
-
-SYS ?= $(shell gcc -dumpmachine)
-export SYS
 
 .PHONY: default
 default: all

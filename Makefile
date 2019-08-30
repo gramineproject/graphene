@@ -1,5 +1,5 @@
-SYS ?= $(shell gcc -dumpmachine)
-export SYS
+include Makefile.configs
+include Pal/src/Makefile.Host
 
 targets = all clean format test
 

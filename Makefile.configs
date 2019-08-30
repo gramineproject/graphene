@@ -17,3 +17,7 @@ ifeq ($(origin CXX),default)
 CXX = g++
 endif
 OBJCOPY ?= objcopy
+SYS ?= $(shell $(CC) -dumpmachine)
+export SYS
+
+MAKEFILE_CONFIGS_INCLUDED = y

@@ -1,6 +1,9 @@
 all_hosts = Skeleton Linux Linux-SGX FreeBSD
 
-SYS ?= $(shell gcc -dumpmachine)
+ifneq($(MAKEFILE_CONFIGS_INCLUDED),y)
+$(error Makfile.configs must be included before Makefile.Host)
+endif
+
 ifeq ($(PAL_HOST),)
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 PAL_HOST := Linux
@@ -23,7 +26,6 @@ ifeq ($(findstring $(PAL_HOST),$(all_hosts)),)
 $(error Unsupported platform: $(PAL_HOST))
 endif
 
-export SYS
 export PAL_HOST
 export PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 

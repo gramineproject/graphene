@@ -1,14 +1,13 @@
+include ../../Makefile.configs
 include ../src/Makefile.Host
+include ../../Makefile.rules
+include ../src/Makefile.Test
 
-CC	= gcc
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
 	  -I../include/pal -I../lib
 
 .PHONY: default
 default: all
-include ../../Makefile.configs
-include ../../Makefile.rules
-include ../src/Makefile.Test
 
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
 	      Memory Pipe Tcp Udp Yield Broadcast Ipc Server Wait HandleSend \
