@@ -1,11 +1,13 @@
 SHIM_TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-SYS ?= $(shell gcc -dumpmachine)
-export SYS
-
 PALDIR  = $(SHIM_TEST_DIR)/../../../Pal/src
 SHIMDIR = $(SHIM_TEST_DIR)/../src
 RUNTIME = $(SHIM_TEST_DIR)/../../../Runtime
+
+include $(SHIM_TEST_DIR)/../../../Makefile.configs
+include $(PALDIR)/Makefile.Host
+include $(SHIM_TEST_DIR)/../../../Makefile.rules
+include $(PALDIR)/Makefile.Test
 
 ifeq ($(SGX),1)
 PAL_LOADER = pal_loader SGX
@@ -13,8 +15,6 @@ else
 PAL_LOADER = pal_loader
 endif
 
-CC = gcc
-CXX = g++
 CFLAGS 	= -Wall -std=gnu99
 CXXFLAGS = -Wall -std=c++14
 LDFLAGS	=
@@ -27,10 +27,6 @@ LDFLAGS-libos-debug = -L$(SHIMDIR) -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=
 
 .PHONY: default
 default: all
-
-include $(SHIM_TEST_DIR)/../../../Makefile.configs
-include $(SHIM_TEST_DIR)/../../../Makefile.rules
-include $(PALDIR)/Makefile.Test
 
 .PHONY: all
 all: pal_loader $(target) | $(call expand_target,$(exec_target))

@@ -1,7 +1,7 @@
-MAKEFLAGS += --check-symlink-times
+include ../../Makefile.configs
+include ../../Pal/src/Makefile.Host
 
-SYS ?= $(shell gcc -dumpmachine)
-export SYS
+MAKEFLAGS += --check-symlink-times
 
 .PHONY: all
 all:
