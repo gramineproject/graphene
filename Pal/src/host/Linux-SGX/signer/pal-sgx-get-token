@@ -8,6 +8,9 @@ import socket
 from google.protobuf import message as _message
 import aesm_pb2
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from generated_offsets import *
+
 """ Utilities """
 
 def int_to_bytes(i):
@@ -32,19 +35,24 @@ def read_sigstruct(sig):
     # field format: (offset, type, value)
     fields = dict()
 
-    fields['date']      = (  20, "<HBB", 'year', 'month', 'day')
+    # SGX_ARCH_SIGSTRUCT_
+    fields['date']      = (SGX_ARCH_SIGSTRUCT_DATE,
+                               "<HBB", 'year', 'month', 'day')
 
-    fields['modulus']   = ( 128, "384s", 'modulus')
-    fields['exponent']  = ( 512, "<L",   'exponent')
-    fields['signature'] = ( 516, "384s", 'signature')
+    fields['modulus']   = (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", 'modulus')
+    fields['exponent']  = (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L",   'exponent')
+    fields['signature'] = (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", 'signature')
 
-    fields['miscs']     = ( 900, "4s",   'miscs')
-    fields['miscmask']  = ( 904, "4s",   'miscmask')
-    fields['attrs']     = ( 928, "8s8s", 'flags', 'xfrms')
-    fields['attrmask']  = ( 944, "8s8s", 'flagmask', 'xfrmmask')
-    fields['mrenclave'] = ( 960, "32s",  'mrenclave')
-    fields['isvprodid'] = (1024, "<H",   'isvprodid')
-    fields['isvsvn']    = (1026, "<H",   'isvsvn')
+    fields['miscs']     = (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s",   'miscs')
+    fields['miscmask']  = (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK,
+                               "4s",   'miscmask')
+    fields['attrs']     = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
+                               "8s8s", 'flags', 'xfrms')
+    fields['attrmask']  = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+                               "8s8s", 'flagmask', 'xfrmmask')
+    fields['mrenclave'] = (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s",  'mrenclave')
+    fields['isvprodid'] = (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H",   'isvprodid')
+    fields['isvsvn']    = (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H",   'isvsvn')
 
     attr = dict()
     for key, field in list(fields.items()):
