@@ -2,8 +2,6 @@ include ../Makefile.configs
 include ../Pal/src/Makefile.Host
 include ../Makefile.rules
 
-export DEBUG
-
 GLIBC_VERSION ?= 2.27
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
 GLIBC_CHECKSUM = $(firstword $(shell grep $(GLIBC_SRC).tar.gz glibc-checksums))

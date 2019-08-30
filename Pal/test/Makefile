@@ -25,7 +25,6 @@ all:	pal_loader $(call expand_target,$(target))
 ifeq ($(DEBUG),1)
 CC += -g
 endif
-export DEBUG
 
 ifeq ($(WERROR),1)
 CFLAGS += -Werror

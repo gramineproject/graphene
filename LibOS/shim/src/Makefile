@@ -63,7 +63,6 @@ CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
 endif
-export DEBUG
 
 ifeq ($(PROFILING), 1)
 CFLAGS += -DPROFILE

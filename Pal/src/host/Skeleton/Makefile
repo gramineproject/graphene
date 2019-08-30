@@ -20,7 +20,6 @@ all: $(host_target)
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
-export DEBUG
 endif
 
 ../../host_endian.h: host_endian.h

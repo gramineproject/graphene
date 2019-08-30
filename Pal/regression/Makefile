@@ -59,7 +59,6 @@ all: $(call expand_target,$(target)) $(preloads)
 ifeq ($(DEBUG),1)
 CC += -g
 endif
-export DEBUG
 
 ifeq ($(WERROR),1)
 CFLAGS += -Werror
