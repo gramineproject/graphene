@@ -19,7 +19,7 @@ RUN apt-get update \
        linux-headers-$(uname -r) \
        net-tools \
        python \
-       python-protobuf \
+       python3-protobuf \
        python3-minimal \
        python3-pytest \
        texinfo \
