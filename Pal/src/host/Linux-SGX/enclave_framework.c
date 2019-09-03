@@ -86,7 +86,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
     int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
-        SGX_DBG(DBG_S, "Can't get report key\n");
+        SGX_DBG(DBG_E, "Can't get report key\n");
         return -PAL_ERROR_DENIED;
     }
 
@@ -106,7 +106,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
     SGX_DBG(DBG_S, "    mac:              %s\n", alloca_bytes2hexstr(check_mac));
 
     if (memcmp(&check_mac, &report->mac, sizeof(check_mac))) {
-        SGX_DBG(DBG_S, "Report verification failed\n");
+        SGX_DBG(DBG_E, "Report verification failed\n");
         return -PAL_ERROR_DENIED;
     }
 
@@ -877,7 +877,7 @@ int init_enclave (void)
 
     ret = lib_RSAGenerateKey(rsa, RSA_KEY_SIZE, RSA_E);
     if (ret < 0) {
-        SGX_DBG(DBG_S, "lib_RSAGenerateKey failed: %d\n", ret);
+        SGX_DBG(DBG_E, "lib_RSAGenerateKey failed: %d\n", ret);
         return ret;
     }
 
@@ -892,7 +892,7 @@ int init_enclave (void)
     ret = _DkRandomBitsRead(&pal_enclave_state.enclave_id,
                             sizeof(pal_enclave_state.enclave_id));
     if (ret < 0) {
-        SGX_DBG(DBG_S, "Failed to generate a random id: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to generate a random id: %d\n", ret);
         return ret;
     }
 
