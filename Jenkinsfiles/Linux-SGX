@@ -84,8 +84,7 @@ pipeline {
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
                             make SGX=1
-                            make SGX_RUN=1
-                            make SGX_RUN=1 start-graphene-server &
+                            make SGX=1 start-graphene-server &
                             sleep 10
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8000
                             '''
