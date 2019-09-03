@@ -144,13 +144,13 @@ extern struct pal_enclave_state {
  * sgx_verify_report: verify a CPU-signed report from another local enclave
  * @report: the buffer storing the report to verify
  */
-int sgx_verify_report (sgx_arch_report_t * report);
+int sgx_verify_report(sgx_arch_report_t* report);
 
 typedef int (*check_mrenclave_t)(PAL_HANDLE, sgx_arch_hash_t*, struct pal_enclave_state*);
 
 /*
  * _DkStreamReportRequest, _DkStreamReportRespond:
- * Request and respond a local report on a RPC stream
+ * Request and respond a local report on an RPC stream
  *
  * @stream:          stream handle for sending and receiving messages
  * @data:            data to sign in the outbound message

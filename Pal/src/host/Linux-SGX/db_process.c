@@ -140,20 +140,23 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
  * can either create arbitrary enclaves, or intercept the handshake protocol between the
  * parent and child enclaves to launch a man-in-the-middle attack.
  *
- * Prerequisite of a secure channel:
+ * Prerequisites of a secure channel:
  * (1) A session key needs to be shared only between the parent and child enclaves.
  *
  *       See the implementation in _DkStreamKeyExchange().
- *       When initializing a RPC stream, both ends of the stream needs to use
+ *       When initializing an RPC stream, both ends of the stream needs to use
  *       Diffie-Hellman to exchange a session key. The key will be used to both identify
- *       the connection (prevent man-in-the-middle attack) and for future encryption.
+ *       the connection (to prevent man-in-the-middle attack) and for future encryption.
  *
  * (2) Both the parent and child enclaves need to be proven by the Intel CPU.
  *
  *       See the implementation in _DkStreamReportRequest() and _DkStreamReportRespond().
  *       The two ends of the RPC stream need to exchange local attestation reports
  *       signed by the Intel CPUs to prove themselves to be running inside enclaves
- *       on the same platform. The flow of local attestation is as follows:
+ *       on the same platform. The local attestation reports contain no secret information
+ *       and can be verified cryptographically, and can be sent on an unencrypted channel.
+ *
+ *       The flow of local attestation is as follows:
  *         - Parent: Send targetinfo(Parent) to Child
  *         - Child:  Generate report(Child -> Parent) and send to Parent
  *         - Parent: Verify report(Child -> Parent)
@@ -166,7 +169,11 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
  *       See the implementation in check_child_mrenclave() and check_parent_mrenclave().
  *       For a child process, we check if the child's mrenclave is listed as
  *       "sgx.trusted_children.xxx = ...) in the manifest.
- *       For a parent process, we currently don't check the mrenclave.
+ *       For a parent process, we currently don't check its mrenclave in the child.
+ *       This is a limitation because listing the parent's mrenclave in the child's
+ *       manifest will change the child's mrenclave, which then needs to be updated
+ *       in the parent's manifest, and eventually falls into a loop of updating both
+ *       manifest files.
  *
  * (4) The two parties who create the session key need to be the ones proven by the CPU
  *     (for preventing man-in-the-middle attacks).
@@ -185,7 +192,7 @@ struct proc_data {
 static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t enclave_id,
                               sgx_sign_data_t* sign_data) {
     struct proc_data data;
-    int ret = lib_AESCMAC((uint8_t*)session_key,   sizeof(PAL_SESSION_KEY),
+    int ret = lib_AESCMAC((uint8_t*)session_key,   sizeof(*session_key),
                           (uint8_t*)&enclave_id,   sizeof(enclave_id),
                           (uint8_t*)&data.eid_mac, sizeof(data.eid_mac));
     if (ret < 0)

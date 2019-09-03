@@ -43,7 +43,7 @@ static sgx_arch_key128_t enclave_key;
 /*
  * sgx_get_report() obtains a CPU-signed report for local attestation
  * @target_info:  the enclave target info
- * @enclave_data: the data to be included and signed in the report
+ * @data:         the data to be included and signed in the report
  * @report:       a buffer for storing the report
  */
 static int sgx_get_report(sgx_arch_targetinfo_t* target_info, sgx_sign_data_t* data,
@@ -93,11 +93,11 @@ int sgx_verify_report (sgx_arch_report_t * report)
     SGX_DBG(DBG_S, "Get report key for verification: %s\n", alloca_bytes2hexstr(report_key));
 
     sgx_arch_mac_t check_mac;
-    memset(&check_mac, 0, sizeof(sgx_arch_mac_t));
+    memset(&check_mac, 0, sizeof(check_mac));
 
-    lib_AESCMAC((uint8_t *) &report_key, sizeof(report_key),
-                (uint8_t *) report, offsetof(sgx_arch_report_t, keyid),
-                (uint8_t *) &check_mac, sizeof(sgx_arch_mac_t));
+    lib_AESCMAC((uint8_t*)&report_key, sizeof(report_key),
+                (uint8_t*)report, offsetof(sgx_arch_report_t, keyid),
+                (uint8_t*)&check_mac, sizeof(check_mac));
 
     memset(&report_key, 0, sizeof(sgx_arch_key128_t));
 
@@ -116,7 +116,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
 int init_enclave_key (void)
 {
     sgx_arch_keyrequest_t keyrequest;
-    memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
+    memset(&keyrequest, 0, sizeof(keyrequest));
     keyrequest.keyname = SEAL_KEY;
 
     int ret = sgx_getkey(&keyrequest, &enclave_key);
@@ -177,7 +177,7 @@ static int allow_file_creation = 0;
  * sizeptr:  size pointer
  * create:   this file is newly created or not
  *
- * Return 0 if succeeded, or an error code.
+ * Returns 0 if succeeded, or an error code otherwise.
  */
 int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
                        uint64_t * sizeptr, int create)
@@ -889,8 +889,12 @@ int init_enclave (void)
      * for authenticating the enclave as the sender of attestation.
      * See 'host/Linux-SGX/db_process.c' for further explanation.
      */
-    _DkRandomBitsRead(&pal_enclave_state.enclave_id,
-                      sizeof(pal_enclave_state.enclave_id));
+    ret = _DkRandomBitsRead(&pal_enclave_state.enclave_id,
+                            sizeof(pal_enclave_state.enclave_id));
+    if (ret < 0) {
+        SGX_DBG(DBG_S, "Failed to generate a random id: %d\n", ret);
+        return ret;
+    }
 
     return 0;
 }
@@ -925,16 +929,28 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
         memset(pub, 0, DH_SIZE - pubsz);
     }
 
-    ret = _DkStreamWrite(stream, 0, DH_SIZE, pub, NULL, 0);
-    if (ret != DH_SIZE) {
-        SGX_DBG(DBG_E, "Key Exchange: DkStreamWrite failed: %d\n", ret);
-        goto out;
+    for (bytes = 0, ret = 0; bytes < DH_SIZE; bytes += ret) {
+        ret = _DkStreamWrite(stream, 0, DH_SIZE - bytes, pub + bytes, NULL, 0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
+            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %d\n", ret);
+            goto out;
+        }
     }
 
-    ret = _DkStreamRead(stream, 0, DH_SIZE, pub, NULL, 0);
-    if (ret != DH_SIZE) {
-        SGX_DBG(DBG_E, "Key Exchange: DkStreamRead failed: %d\n", ret);
-        goto out;
+    for (bytes = 0, ret = 0 ; bytes < DH_SIZE ; bytes += ret) {
+        ret = _DkStreamRead(stream, 0, DH_SIZE - bytes, pub + bytes, NULL, 0);
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
+            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %d\n", ret);
+            goto out;
+        }
     }
 
     agreesz = sizeof agree;
@@ -978,7 +994,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     int bytes, ret;
 
     /* A -> B: targetinfo[A] */
-    memset(&target_info, 0, sizeof(sgx_arch_targetinfo_t));
+    memset(&target_info, 0, sizeof(target_info));
     memcpy(&target_info.mrenclave,  &pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
     memcpy(&target_info.attributes, &pal_sec.enclave_attributes,
            sizeof(sgx_arch_attributes_t));
@@ -986,7 +1002,11 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0; bytes < SGX_TARGETINFO_FILLED_SIZE; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,
                              ((void*)&target_info) + bytes, NULL, 0);
-        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
             SGX_DBG(DBG_E, "Failed to send target info via RPC: %d\n", ret);
             goto out;
         }
@@ -996,7 +1016,11 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamRead(stream, 0, sizeof(report) - bytes,
                             ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
             SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
             goto out;
         }
@@ -1041,7 +1065,11 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(report) - bytes,
                              ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
             SGX_DBG(DBG_E, "Failed to send local report via RPC: %d\n", ret);
             goto out;
         }
@@ -1088,7 +1116,11 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, sizeof(report) - bytes,
                              ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
             SGX_DBG(DBG_E, "Failed to send local report via PRC: %d\n", ret);
             goto out;
         }
@@ -1098,7 +1130,11 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < sizeof(report) ; bytes += ret) {
         ret = _DkStreamRead(stream, 0, sizeof(report) - bytes,
                             ((void*)&report) + bytes, NULL, 0);
-        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
             SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
             goto out;
         }
