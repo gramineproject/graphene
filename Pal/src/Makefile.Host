@@ -1,6 +1,6 @@
 all_hosts = Skeleton Linux Linux-SGX FreeBSD
 
-ifneq($(MAKEFILE_CONFIGS_INCLUDED),y)
+ifneq ($(MAKEFILE_CONFIGS_INCLUDED),y)
 $(error Makfile.configs must be included before Makefile.Host)
 endif
 
