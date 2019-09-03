@@ -62,7 +62,7 @@
  *
  *    The enclave PAL uses ENCLU[EREPORT] to generate a local report for the PSW enclave to
  *    verify that the two enclaves are on the same platform. The enclave PAL then issues an
- *    OCALL(GET_ATTESTATION), alone with the report, the SPID, and the subscription key.
+ *    OCALL(GET_ATTESTATION), along with the report, the SPID, and the subscription key.
  *    The report is given to the PSW enclave to generate a local quote. The PSW enclave will
  *    verify the report, decide whether to trust the Graphene enclave, and then sign the
  *    local quote with a PSW-only attestation key.
@@ -70,8 +70,8 @@
  * (3) Contact the IAS for platform report:
  *
  *    The local quote from the PSW enclave needs to be verified by the IAS. Different from the
- *    Intel SDK model, Graphene does not rely on another third party to contact the IAS.
- *    Graphene contact the IAS as part of its remote attestation process.
+ *    Intel SDK model, Graphene does not rely on a third party to contact the IAS.
+ *    Graphene contacts the IAS as part of its remote attestation process.
  *
  *    +-----------+               +--------------+                            +---------------+
  *    | Untrusted | fork + execve | HTTPS client |  HTTPS (quote, SPID, key)  | Intel Attest. |
@@ -88,13 +88,13 @@
  * (4) Checking the IAS report:
  *
  *    +---------------+                   +-----------+ HTTPS resp, Certs,  +---------+
- *    | Intel Attest. | HTTPS resp, Certs | Untrusted | Report (PSW->PAL),  | Enclave |
+ *    | Intel Attest. | HTTPS resp, Certs | Untrusted | Report (PSW->PAL)   | Enclave |
  *    |    Service    |------------------>|    PAL    |-------------------->|   PAL   |
  *    +---------------+                   +-----------+                     +---------+
  *
  *    Finally, Graphene returns the HTTPS response and a certificate chain from the IAS
- *    back to the enclave PAL, alone with the local report from the PSW enclave. Graphene
- *    then verifies the attestation result based on the following criterion:
+ *    back to the enclave PAL, along with the local report from the PSW enclave. Graphene
+ *    then verifies the attestation result based on the following criteria:
  *
  *    - The HTTPS response needs to be signed by the certificate chain, including the first
  *      certificate to generate the signature, and all the following certificates to sign

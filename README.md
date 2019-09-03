@@ -223,7 +223,7 @@ SECURITY ADVISORIES:
 
 "GROUP_OUT_OF_DATE" may indicate that the firmware (microcode) of you CPU is not updated
 according to INTEL-SA-00233 (Load/store data sampling) and INTEL-SA-00161 (L1 terminal fault).
-It's recommended that you update the BIOS of your platform to later than June 2019.
+It is recommended that you keep the BIOS of your platform up-to-date.
 
 If you receive status "CONFIGURATION_NEEDED" from the IAS after updating your BIOS, you may
 need to disable hyperthreading in your BIOS to mitigate L1 terminal fault.
