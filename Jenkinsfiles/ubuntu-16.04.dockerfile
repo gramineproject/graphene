@@ -25,6 +25,8 @@ RUN apt-get update \
        texinfo \
        wget \
        libomp-dev \
+       python-numpy \
+       python-scipy
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \

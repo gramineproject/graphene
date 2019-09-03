@@ -21,7 +21,9 @@ RUN apt-get update && apt-get install -y \
     python-protobuf \
     python3-pytest \
     texinfo \
-    wget
+    wget \
+    python-numpy \
+    python-scipy
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN groupadd -r leeroy -g 1001 && useradd -u 1001 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \
