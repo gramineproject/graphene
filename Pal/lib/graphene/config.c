@@ -333,18 +333,12 @@ int read_config(struct config_store* store, int (*filter)(const char* key, int k
         char* val = NULL;
         int vlen;
         if (*ptr == '"') {
-            int shift = 0;
-            val       = (++ptr);
-            for (; RANGE && *ptr != '"'; ptr++) {
-                if (*ptr == '\\') {
-                    shift++;
-                    ptr++;
-                }
-                if (shift)
-                    *(ptr - shift) = *ptr;
+            val = ++ptr;
+            while (RANGE && *ptr != '"') {
+                ptr++;
             }
             CHECK_PTR("stream ended without closing quote");
-            vlen = (ptr - shift) - val;
+            vlen = ptr - val;
         } else {
             val        = ptr;
             char* last = ptr - 1;
