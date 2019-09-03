@@ -21,6 +21,7 @@ RUN apt-get update \
        libpcre2-dev \
        libpcre3-dev \
        libprotobuf-c-dev \
+       libssl-dev \
        libxml2-dev \
        linux-headers-4.4.0-161-generic \
        net-tools \
