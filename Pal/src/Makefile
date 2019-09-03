@@ -21,7 +21,6 @@ HOST_DIR = host/$(PAL_HOST)
 LIB_DIR = $(HOST_DIR)/.lib
 OBJ_DIR = $(HOST_DIR)/.obj
 
-CFLAGS += -Wtrampolines
 CFLAGS	+= -I. -I../include -I$(HOST_DIR) -I../lib
 
 ifeq ($(PROFILING),1)
