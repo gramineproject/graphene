@@ -3,7 +3,6 @@ FROM ubuntu:18.04
 
 # Add steps here to set up dependencies
 RUN apt-get update && apt-get install -y \
-    apache2-utils \
     autoconf \
     build-essential \
     gawk \
@@ -21,7 +20,12 @@ RUN apt-get update && apt-get install -y \
     python-protobuf \
     python3-pytest \
     texinfo \
-    wget
+    wget \
+    flex \
+    libapr1-dev \
+    libaprutil1-dev \
+    libpcre2-dev \
+    apache2-utils
 
 # Add the user UID:1001, GID:1001, home at /leeroy
 RUN groupadd -r leeroy -g 1001 && useradd -u 1001 -r -g leeroy -m -d /leeroy -c "Leeroy Jenkins" leeroy && \
