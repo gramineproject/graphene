@@ -519,9 +519,9 @@ def generate_measurement(attr, areas):
             desc += ' measured'
 
         if size == PAGESIZE:
-            print("    %016x [%s:%s] %s" % (addr, type, prot, desc), file=sys.stderr)
+            print("    %016x [%s:%s] %s" % (addr, type, prot, desc))
         else:
-            print("    %016x-%016lx [%s:%s] %s" % (addr, addr + size, type, prot, desc), file=sys.stderr)
+            print("    %016x-%016lx [%s:%s] %s" % (addr, addr + size, type, prot, desc))
 
     def load_file(digest, f, offset, addr, filesize, memsize, desc, flags):
         f_addr = rounddown(offset)
@@ -809,26 +809,26 @@ if __name__ == "__main__":
 
     (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(manifest)
 
-    print("Attributes:", file=sys.stderr)
-    print("    size:      %d" % (attr['enclave_size']), file=sys.stderr)
-    print("    threadnum: %d" % (attr['thread_num']), file=sys.stderr)
-    print("    isvprodid: %d" % (attr['isvprodid']), file=sys.stderr)
-    print("    isvsvn:    %d" % (attr['isvsvn']), file=sys.stderr)
-    print("    flags:     %016x" % (bytes_to_int(attr['flags'])), file=sys.stderr)
-    print("    xfrms:     %016x" % (bytes_to_int(attr['xfrms'])), file=sys.stderr)
-    print("    miscs:     %08x"  % (bytes_to_int(attr['miscs'])), file=sys.stderr)
+    print("Attributes:")
+    print("    size:      %d" % (attr['enclave_size']))
+    print("    threadnum: %d" % (attr['thread_num']))
+    print("    isvprodid: %d" % (attr['isvprodid']))
+    print("    isvsvn:    %d" % (attr['isvsvn']))
+    print("    flags:     %016x" % (bytes_to_int(attr['flags'])))
+    print("    xfrms:     %016x" % (bytes_to_int(attr['xfrms'])))
+    print("    miscs:     %08x"  % (bytes_to_int(attr['miscs'])))
 
     # Get trusted checksums and measurements
-    print("Trusted files:", file=sys.stderr)
+    print("Trusted files:")
     for key, val in list(get_trusted_files(manifest, args).items()):
         (uri, target, checksum) = val
-        print("    %s %s" % (checksum, uri), file=sys.stderr)
+        print("    %s %s" % (checksum, uri))
         manifest['sgx.trusted_checksum.' + key] = checksum
 
-    print("Trusted children:", file=sys.stderr)
+    print("Trusted children:")
     for key, val in list(get_trusted_children(manifest, args).items()):
         (uri, target, mrenclave) = val
-        print("    %s %s" % (mrenclave, uri), file=sys.stderr)
+        print("    %s %s" % (mrenclave, uri))
         manifest['sgx.trusted_mrenclave.' + key] = mrenclave
 
     # Try populate memory areas
@@ -850,11 +850,11 @@ if __name__ == "__main__":
 
     memory_areas = populate_memory_areas(manifest, attr, memory_areas)
 
-    print("Memory:", file=sys.stderr)
+    print("Memory:")
     # Generate measurement
     mrenclave = generate_measurement(attr, memory_areas)
-    print("Measurement:", file=sys.stderr)
-    print("    %s" % binascii.hexlify(mrenclave).decode(), file=sys.stderr)
+    print("Measurement:")
+    print("    %s" % binascii.hexlify(mrenclave).decode())
 
     # Generate sigstruct
     open(args['sigfile'], 'wb').write(generate_sigstruct(attr, args, mrenclave))
