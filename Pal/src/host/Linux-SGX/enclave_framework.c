@@ -82,7 +82,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
     memcpy(keyrequest.keyid, report->keyid, sizeof(keyrequest.keyid));
 
     sgx_arch_key128_t report_key;
-    memset(&report_key, 0, sizeof(sgx_arch_key128_t));
+    memset(&report_key, 0, sizeof(report_key));
 
     int ret = sgx_getkey(&keyrequest, &report_key);
     if (ret) {
@@ -967,7 +967,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
      * According to the NIST recommendation:
      * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Cr1.pdf,
      * a key derivation function (KDF) can be a secure hash function (e.g., SHA-256),
-     * HMAC, or KMAC. We use SHA-256 for the simplicity of implementation for now.
+     * HMAC, or KMAC.
      */
     LIB_SHA256_CONTEXT sha;
     if ((ret = lib_SHA256Init(&sha)) < 0 ||
@@ -1106,7 +1106,11 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     for (bytes = 0, ret = 0 ; bytes < SGX_TARGETINFO_FILLED_SIZE ; bytes += ret) {
         ret = _DkStreamRead(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,
                             ((void*)&target_info) + bytes, NULL, 0);
-        if (ret < 0 && ret != -PAL_ERROR_INTERRUPTED && ret != -PAL_ERROR_TRYAGAIN) {
+        if (ret < 0) {
+            if (ret == -PAL_ERROR_INTERRUPTED || ret == -PAL_ERROR_TRYAGAIN) {
+                ret = 0;
+                continue;
+            }
             SGX_DBG(DBG_E, "Failed to receive target info via RPC: %d\n", ret);
             goto out;
         }
