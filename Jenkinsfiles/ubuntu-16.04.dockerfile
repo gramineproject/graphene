@@ -25,7 +25,7 @@ RUN apt-get update \
        texinfo \
        wget \
        libomp-dev \
-    && /usr/bin/pip3 install protobuf
+    && /usr/bin/pip3 install protobuf \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
