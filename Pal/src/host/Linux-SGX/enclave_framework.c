@@ -99,7 +99,7 @@ int sgx_verify_report (sgx_arch_report_t * report)
                 (uint8_t*)report, offsetof(sgx_arch_report_t, keyid),
                 (uint8_t*)&check_mac, sizeof(check_mac));
 
-    memset(&report_key, 0, sizeof(sgx_arch_key128_t));
+    memset(&report_key, 0, sizeof(report_key));
 
     SGX_DBG(DBG_S, "Verify report:\n");
     SGX_DBG(DBG_S, "    expected:         %s\n", alloca_bytes2hexstr(report->mac));
