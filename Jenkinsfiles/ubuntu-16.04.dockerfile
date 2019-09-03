@@ -19,12 +19,13 @@ RUN apt-get update \
        linux-headers-$(uname -r) \
        net-tools \
        python \
-       python3-protobuf \
+       python3-pip \
        python3-minimal \
        python3-pytest \
        texinfo \
        wget \
        libomp-dev \
+    && /usr/bin/pip3 install protobuf
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
