@@ -1,8 +1,8 @@
 c_executables = $(patsubst %.c,%,$(wildcard *.c))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 
-target = $(c_executables) $(cxx_executables) \
-	  manifest
+exec_target = $(c_executables) $(cxx_executables)
+target = $(exec_target) manifest
 
 include ../Makefile.Test
 
@@ -15,10 +15,10 @@ LDLIBS-rpc_latency += -llibos
 LDLIBS-rpc_latency2 += -llibos
 LDLIBS-test_start += -lm
 
-$(c_executables): %: %.c
+%: %.c
 	$(call cmd,csingle)
 
-$(cxx_executables): %: %.cpp
+%: %.cpp
 	$(call cmd,cxxsingle)
 else
 .IGNORE: $(c_executables) $(cxx_executables)
