@@ -26,7 +26,7 @@ RUN apt-get update \
        wget \
        libomp-dev \
        python-numpy \
-       python-scipy
+       python-scipy \
 
 # Add the user UID:1001, GID:1001, home at /leeroy
     && groupadd -r leeroy -g 1001 \
