@@ -101,7 +101,7 @@ if __name__ == '__main__':
     app_name = image_match.group(1)
 
   # application name may contain '/', remove it
-  app_name = app_name.split('/')[0]
+  app_name = app_name.split('/')[-1]
 
   inspect_cmd = 'sudo docker inspect --format \'{{.Config.Cmd}}\' ' + image_name
   res = subprocess.check_output(inspect_cmd, shell=True).strip()
