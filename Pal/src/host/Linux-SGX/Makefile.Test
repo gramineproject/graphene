@@ -4,7 +4,11 @@ RUNTIME_DIR = $(SGX_DIR)/../../../../Runtime
 LIBPAL = $(RUNTIME_DIR)/libpal-Linux-SGX.so
 SGX_SIGNER_KEY ?= $(SGX_DIR)/signer/enclave-key.pem
 SGX_SIGN = $(SGX_DIR)/signer/pal-sgx-sign -libpal $(LIBPAL) -key $(SGX_SIGNER_KEY)
+ifeq ($(SGX_DCAP),1)
+SGX_GET_TOKEN = $(SGX_DIR)/signer/pal-sgx-create-dcap-token
+else
 SGX_GET_TOKEN = $(SGX_DIR)/signer/pal-sgx-get-token
+endif
 
 ifeq ($(SGX_RUN),1)
 

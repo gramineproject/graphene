@@ -28,6 +28,10 @@ ASFLAGS += -DDEBUG
 export DEBUG
 endif
 
+ifeq ($(SGX_DCAP),1)
+CFLAGS += -DSGX_DCAP
+endif
+
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
 
