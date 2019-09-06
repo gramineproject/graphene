@@ -41,3 +41,11 @@ $(SGX_SIGNER_KEY):
 # use static pattern rules in the corresponding Makefiles (e.g., in Pal/regression).
 # %.manifest.sgx.d: %.manifest
 # 	$(call cmd,sgx_sign_depend)
+
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(target),)
+$(error define "target" variable for manifest.sgx dependency calculation)
+endif
+include $(addsuffix .manifest.sgx.d,$(call drop_manifest_suffix,$(target)))
+endif
+

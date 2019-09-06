@@ -1,7 +1,6 @@
 include ../../Makefile.configs
 include ../src/Makefile.Host
 include ../../Makefile.rules
-include ../src/Makefile.Test
 
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib -I../src
@@ -44,6 +43,7 @@ manifests   = manifest $(patsubst %.manifest.template,%.manifest,$(wildcard *.ma
 
 target = $(executables) $(manifests)
 
+include ../../Makefile.manifest
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
@@ -81,12 +81,6 @@ manifest_rules = \
 	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
 	$(extra_rules)
 
-manifest: manifest.template
-	$(call cmd,manifest,$(manifest_rules))
-
-%.manifest: %.manifest.template $(executables) $(pal_lib)
-	$(call cmd,manifest,$(manifest_rules))
-
 ../src/user_shared_start.o ../src/user_start.o: ../src/user_start.S
 	$(MAKE) -C ../src $(notdir $@)
 
@@ -118,7 +112,6 @@ ifeq ($(SGX), 1)
 # rule defined in Pal/src/host/Linux-SGX/Makefile.Test.
 Bootstrap5.manifest.sgx.d: %.manifest.sgx.d: %.manifest
 	$(call cmd,sgx_sign_depend)
-include $(addsuffix .manifest.sgx.d,$(executables))
 endif
 endif
 

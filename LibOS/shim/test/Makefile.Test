@@ -7,7 +7,7 @@ RUNTIME = $(SHIM_TEST_DIR)/../../../Runtime
 include $(SHIM_TEST_DIR)/../../../Makefile.configs
 include $(PALDIR)/Makefile.Host
 include $(SHIM_TEST_DIR)/../../../Makefile.rules
-include $(PALDIR)/Makefile.Test
+include $(SHIM_TEST_DIR)/../../../Makefile.manifest
 
 ifeq ($(SGX),1)
 PAL_LOADER = pal_loader SGX
@@ -63,18 +63,6 @@ endif
 
 pal_loader:
 	ln -sf $(RUNTIME)/pal_loader
-
-%.manifest: %.manifest.template
-	$(call cmd,manifest,$(manifest_rules))
-
-manifest: manifest.template
-	$(call cmd,manifest,$(manifest_rules))
-
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
-ifeq ($(SGX),1)
-include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
-endif
-endif
 
 .PHONY: clean
 clean: $(clean-extra)

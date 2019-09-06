@@ -1,7 +1,0 @@
-DIR := $(dir $(lastword $(MAKEFILE_LIST)))
-
-ifeq ($(PAL_HOST),)
-include $(DIR)/Makefile.Host
-endif
-
--include $(DIR)/host/$(PAL_HOST)/Makefile.Test

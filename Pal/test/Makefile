@@ -1,7 +1,6 @@
 include ../../Makefile.configs
 include ../src/Makefile.Host
 include ../../Makefile.rules
-include ../src/Makefile.Test
 
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
 	  -I../include/pal -I../lib
@@ -15,6 +14,8 @@ executables = HelloWorld File Failure Thread Fork Event Process Exception \
 manifests = manifest
 
 target = $(executables) $(manifests)
+
+include ../../Makefile.manifest
 
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
@@ -36,12 +37,6 @@ endif
 pal_loader:
 	ln -sf ../../Runtime/pal_loader
 
-manifest: manifest.template
-	$(call cmd,manifest)
-
-%.manifest: %.manifest.template
-	$(call cmd,manifest)
-
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 CFLAGS-Pie = -fPIC -pie
 LDLIBS = $(graphene_lib) $(pal_lib) ../src/user_start.o
@@ -54,11 +49,6 @@ $(executables): %: %.c $(LDLIBS)
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
-ifeq ($(SGX), 1)
-include $(addsuffix .manifest.sgx.d,$(executables))
-endif
-endif
 else
 .IGNORE: $(executables)
 $(executables):

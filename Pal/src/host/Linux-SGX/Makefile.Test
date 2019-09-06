@@ -1,2 +1,0 @@
-SGX_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-include $(SGX_DIR)/Makefile.manifest
