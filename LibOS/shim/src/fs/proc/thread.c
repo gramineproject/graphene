@@ -4,7 +4,6 @@
 #include <asm/unistd.h>
 #include <errno.h>
 #include <linux/fcntl.h>
-#include <linux/stat.h>
 #include <pal.h>
 #include <pal_error.h>
 #include <shim_fs.h>
@@ -13,6 +12,10 @@
 #include <shim_table.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
+
+// TODO: For some reason S_IF* macros are missing if this file is included before our headers. We
+// should investigate and fix this behavior.
+#include <linux/stat.h>
 
 static int parse_thread_name(const char* name, IDTYPE* pidptr, const char** next, size_t* next_len,
                              const char** nextnext) {

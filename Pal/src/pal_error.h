@@ -84,8 +84,8 @@ static const char* pal_errstring[]
         /* 25. */ "Resource address not exist",
 };
 
-static inline const char* PAL_STRERROR(int errno) {
-    int _e = -errno;
+static inline const char* PAL_STRERROR(int err) {
+    int _e = -err;
     if (_e >= 0 && _e <= PAL_ERROR_BOUND)
         return pal_errstring[_e];
     return "Unknown error";

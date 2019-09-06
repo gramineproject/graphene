@@ -26,7 +26,6 @@
 #include <asm/unistd.h>
 #include <errno.h>
 #include <linux/fcntl.h>
-#include <linux/stat.h>
 #include <pal.h>
 #include <pal_error.h>
 #include <shim_fs.h>
@@ -34,6 +33,10 @@
 #include <shim_internal.h>
 #include <shim_thread.h>
 #include <shim_utils.h>
+
+// TODO: For some reason S_IF* macros are missing if this file is included before our headers. We
+// should investigate and fix this behavior.
+#include <linux/stat.h>
 
 extern const struct proc_nm_ops nm_thread;
 extern const struct proc_fs_ops fs_thread;
