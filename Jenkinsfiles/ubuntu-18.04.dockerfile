@@ -2,7 +2,7 @@
 FROM ubuntu:18.04
 
 # Add steps here to set up dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     apache2-utils \
     autoconf \
     build-essential \
