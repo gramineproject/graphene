@@ -55,7 +55,7 @@ RUNTIME_DIR = $(CURDIR)/../../Runtime
 export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
 
 .PHONY: all
-all: $(call expand_target,$(target)) $(preloads)
+all: $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(preloads)
 
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(target))
@@ -141,9 +141,9 @@ regression:
 	$(RM) pal-regression.xml
 	$(MAKE) pal-regression.xml
 
-pal-regression.xml: test_pal.py $(call expand_target_to_token,$(target))
+pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(call expand_target_to_token,$(target))
 	python3 -m pytest --junit-xml $@ -v test_pal.py
 
 .PHONY: clean
 clean:
-	rm -rf $(call expand_target,$(target)) $(preloads) *.tmp .lib *.cached *.sig *.d .output.* *.token .*.d .*.sig .*.token __pycache__ .cache pal-regression.xml
+	rm -rf $(target) $(preloads) *.tmp .lib *.cached *.sig *.d .output.* *.token .*.d .*.sig .*.token *.manifest.sgx __pycache__ .cache pal-regression.xml
