@@ -248,7 +248,9 @@ def get_trusted_children(manifest, args):
         target = resolve_uri(val)
         if not target.endswith('.sig'):
             target += '.sig'
-        sig = binascii.hexlify(open(target, 'rb').read()[960:992]).decode()
+        sig = binascii.hexlify(open(target, 'rb').read()[
+            SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH:
+            SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE]).decode()
         targets[key] = (val, target, sig)
 
     return targets
@@ -639,14 +641,16 @@ def generate_sigstruct(attr, args, mrenclave):
     sign_buffer = bytearray(128 + 128)
 
     for key, field in list(fields.items()):
-        if field[0] >= 900:
-            struct.pack_into(field[1], sign_buffer, field[0] - 900 + 128, *field[2:])
+        if field[0] >= SGX_ARCH_SIGSTRUCT_MISCSELECT:
+            struct.pack_into(field[1], sign_buffer,
+                             field[0] - SGX_ARCH_SIGSTRUCT_MISCSELECT + 128,
+                             *field[2:])
         else:
             struct.pack_into(field[1], sign_buffer, field[0], *field[2:])
 
     p = subprocess.Popen(['openssl', 'rsa', '-modulus', '-in', args['key'], '-noout'], stdout=subprocess.PIPE)
     modulus_out = p.communicate()[0]
-    modulus = binascii.unhexlify(modulus_out[8:8+384*2])
+    modulus = binascii.unhexlify(modulus_out[8:8+SGX_ARCH_KEY_SIZE*2])
     modulus = bytes(reversed(modulus))
 
     p = subprocess.Popen(['openssl', 'sha256', '-binary', '-sign', args['key']],
