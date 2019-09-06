@@ -6,7 +6,6 @@ SHIMDIR = $(abspath $(SCRIPTS_DIR)/../LibOS/shim)
 RUNTIME = $(abspath $(SCRIPTS_DIR)/../Runtime)
 
 include $(SCRIPTS_DIR)/Makefile.configs
-include $(PALDIR)/Makefile.Host
 include $(SCRIPTS_DIR)/Makefile.rules
 include $(SCRIPTS_DIR)/Makefile.manifest
 
