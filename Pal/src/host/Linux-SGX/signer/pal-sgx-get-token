@@ -7,6 +7,9 @@ import socket
 from google.protobuf import message as _message
 import aesm_pb2
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from generated_offsets import *
+
 """ Utilities """
 
 def int_to_bytes(i):
@@ -54,6 +57,15 @@ def read_sigstruct(sig):
 
     return attr
 
+""" Check if we're dealing with DCAP driver """
+
+def check_dcap():
+    try:
+        SGX_ENCLAVE_INIT_EINITTOKEN
+    except:
+        return True
+    return False
+
 """ Connect with AESMD """
 
 def connect_aesmd(attr):
@@ -99,6 +111,43 @@ def connect_aesmd(attr):
         raise Exception("Failed. (Error Code = %d)" % (ret_msg.ret.error))
 
     return ret_msg.ret.token
+
+""" Create dummy token with a few fields initialized with real value
+    and others with placeholder ('\0')"""
+
+def create_dummy_token(attr):
+    token = array.array('B', '\0'*304)
+
+    # field format: (offset, type, field in attr)
+    fields = dict()
+
+    fields['valid'] = (0, "<I")
+    fields['reserved'] = (4, "44B")
+    fields['flags'] = (48, "<Q") # attrs
+    fields['xfrms'] = (56, "<Q") # attrs
+    fields['mrenclave'] = (64, "32B")
+    fields['reserved2'] = (96, "32B")
+    fields['mrsigner'] = (128, "32B")
+    fields['reserved3'] = (160, "32B")
+    fields['cpusvnle'] = (192, "<2Q")
+    fields['isvprodidle'] = (208, "<H")
+    fields['isvsvnle'] = (210, "<H")
+    fields['reserved4'] = (212, "24B")
+    fields['miscmask'] = (236, "<I")
+    fields['flagmask'] = (240, "<Q") # attrmask
+    fields['xfrmmask'] = (248, "<Q") # attrmask
+    fields['keyid'] = (256, "32B")
+    fields['mac'] = (288, "16B")
+
+    # fields read by create_enclave() in sgx_framework.c
+    actual_fields = ['flags', 'xfrms', 'miscmask']
+
+    for key in actual_fields:
+        field = fields[key]
+        field_size = struct.Struct(field[1]).size
+        token[field[0]:field[0] + field_size] = array.array('B', attr[key])
+
+    return token
 
 """ Main Program """
 
@@ -184,5 +233,10 @@ if __name__ == "__main__":
     print >>sys.stderr, "    exponent:  %d" % (attr['exponent'])
     print >>sys.stderr, "    signature: %s..." % (attr['signature'].encode('hex')[:32])
 
-    token = connect_aesmd(attr)
+    if check_dcap():
+        print "DCAP driver detected"
+        token = create_dummy_token(attr)
+    else:
+        token = connect_aesmd(attr)
+
     open(args['output'], 'wb').write(token)

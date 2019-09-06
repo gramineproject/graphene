@@ -8,6 +8,7 @@
 #include "pal_security.h"
 #include "ecall_types.h"
 #include "ocall_types.h"
+#include "graphene-sgx.h"
 
 #include <generated-offsets-build.h>
 
@@ -143,5 +144,18 @@ void dummy(void)
 
     /* Ocall Index */
     DEFINE(OCALL_EXIT, OCALL_EXIT);
+
+    /* gsgx_enclave_init */
+#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
+#define SGX_ENCLAVE_INIT sgx_enclave_init
+#else
+#define SGX_ENCLAVE_INIT gsgx_enclave_init
+#endif
+
+    OFFSET(SGX_ENCLAVE_INIT_ADDR, SGX_ENCLAVE_INIT, addr);
+    OFFSET(SGX_ENCLAVE_INIT_SIGSTRUCT, SGX_ENCLAVE_INIT, sigstruct);
+#ifndef SGX_DCAP
+    OFFSET(SGX_ENCLAVE_INIT_EINITTOKEN, SGX_ENCLAVE_INIT, einittoken);
+#endif
 }
 
