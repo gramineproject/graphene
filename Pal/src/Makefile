@@ -14,11 +14,11 @@ pal_lib_post =
 pal_static =
 pal_gdb =
 
-include host/$(PAL_HOST)/Makefile.am
-
 HOST_DIR = host/$(PAL_HOST)
 LIB_DIR = $(HOST_DIR)/.lib
 OBJ_DIR = $(HOST_DIR)/.obj
+
+include host/$(PAL_HOST)/Makefile.am
 
 CFLAGS	+= -I. -I../include -I$(HOST_DIR) -I../lib
 

@@ -1,5 +1,4 @@
 # Add host-specific compilation rules here
-HOST_DIR = host/$(PAL_HOST)
 
 CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
