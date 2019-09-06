@@ -266,7 +266,7 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
             }
 
             *(int*)uaddr2 = newval;
-            struct futex_waiter* waiter
+            struct futex_waiter* waiter;
             struct futex_waiter* wtmp;
             int nwaken = 0;
             debug("FUTEX_WAKE_OP: %p (val = %d) count = %d\n", uaddr, *uaddr, val);

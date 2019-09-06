@@ -15,7 +15,6 @@
 struct shim_handle;
 struct shim_fd_map;
 struct shim_dentry;
-struct shim_signal_handle;
 struct shim_signal_log;
 
 DEFINE_LIST(shim_thread);
