@@ -1,3 +1,5 @@
+MAKEFILE_CONFIGS_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+
 ifeq ($(origin CC),default)
 CC	= gcc
 endif
@@ -25,3 +27,4 @@ DEBUG ?=
 export DEBUG
 
 MAKEFILE_CONFIGS_INCLUDED = y
+include $(MAKEFILE_CONFIGS_DIR)/Makefile.Host

@@ -1,5 +1,4 @@
 include ../../Makefile.configs
-include ../src/Makefile.Host
 include ../../Makefile.rules
 
 CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib \

@@ -1,7 +1,6 @@
 RUNTIME_DIR = $(CURDIR)/../../../Runtime
 
 include ../../../Makefile.configs
-include ../../../Pal/src/Makefile.Host
 
 OMIT_FRAME_POINTER = no
 

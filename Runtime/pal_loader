@@ -17,7 +17,7 @@ do
 done
 
 RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
-PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f $RUNTIME_DIR/../Makefile.configs -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
+PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f $RUNTIME_DIR/../Makefile.configs print_host 2>&1)
 
 MANIFEST=
 PREFIX=

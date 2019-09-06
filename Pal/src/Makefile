@@ -3,7 +3,6 @@ export RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 include ../../Makefile.configs
 include ../../Makefile.rules
-include Makefile.Host
 
 # Customizable PAL Targets
 # (specify in Makefile.am in host-specific directories)
@@ -26,6 +25,8 @@ CFLAGS	+= -I. -I../include -I$(HOST_DIR) -I../lib
 ifeq ($(PROFILING),1)
 CFLAGS	+= -DPROFILING=1
 endif
+
+PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
 # Build Targets:
 #     (1) Host-specific targets are in "host/{Host Name}".

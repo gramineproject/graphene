@@ -1,5 +1,4 @@
 include ../../Makefile.configs
-include ../../Pal/src/Makefile.Host
 
 MAKEFLAGS += --check-symlink-times
 

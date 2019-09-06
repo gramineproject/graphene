@@ -1,5 +1,4 @@
 include ../Makefile.configs
-include ../Pal/src/Makefile.Host
 include ../Makefile.rules
 
 GLIBC_VERSION ?= 2.27

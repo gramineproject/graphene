@@ -1,5 +1,4 @@
 include Makefile.configs
-include Pal/src/Makefile.Host
 
 targets = all clean format test sgx-tokens
 

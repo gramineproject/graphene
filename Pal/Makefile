@@ -1,5 +1,4 @@
 include ../Makefile.configs
-include src/Makefile.Host
 
 DIRS = src test regression
 

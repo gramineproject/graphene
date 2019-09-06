@@ -5,7 +5,6 @@ SHIMDIR = $(SHIM_TEST_DIR)/../src
 RUNTIME = $(SHIM_TEST_DIR)/../../../Runtime
 
 include $(SHIM_TEST_DIR)/../../../Makefile.configs
-include $(PALDIR)/Makefile.Host
 include $(SHIM_TEST_DIR)/../../../Makefile.rules
 include $(SHIM_TEST_DIR)/../../../Makefile.manifest
 
