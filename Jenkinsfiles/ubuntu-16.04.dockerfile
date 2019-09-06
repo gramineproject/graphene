@@ -2,6 +2,7 @@
 FROM ubuntu:16.04
 
 # Add steps here to set up dependencies
+RUN echo 'a nonce to kill docker cache: 198879723'
 RUN uname -a
 RUN echo $(uname -a)
 RUN apt-get update \
