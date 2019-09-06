@@ -6,6 +6,7 @@ pipeline {
                 stage('Build') {
                     steps {
                         sh '''
+                            sh 'uname -a'
                             cd LibOS
                             make -j 8 glibc-build/Build.success GLIBC_VERSION=2.19
                             rm -r glibc-build

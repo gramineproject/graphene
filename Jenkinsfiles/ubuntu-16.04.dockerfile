@@ -2,6 +2,7 @@
 FROM ubuntu:16.04
 
 # Add steps here to set up dependencies
+RUN uname -a
 RUN apt-get update \
     && apt-get install -y \
        apache2-utils \
