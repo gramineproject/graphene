@@ -1,5 +1,4 @@
 # Add host-specific compilation rules here
-HOST_DIR = host/$(PAL_HOST)
 SEC_DIR = security/$(PAL_HOST)
 
 CFLAGS	= -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
