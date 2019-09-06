@@ -1,5 +1,4 @@
 include ../../../Scripts/Makefile.configs
-include ../../../Pal/src/Makefile.Host
 
 # SUBDIRS = regression native inline benchmark
 SUBDIRS = native fs
