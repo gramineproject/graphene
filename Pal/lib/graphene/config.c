@@ -322,12 +322,23 @@ int read_config (struct config_store * store,
         for ( ; RANGE && IS_SPACE(*ptr) ; ptr++);
         CHECK_PTR("stream ended at equal mark");
 
-        char* val = ptr;
-        char* last = ptr - 1;
-        for ( ; RANGE && !IS_SKIP(ptr) ; ptr++)
-            if (!IS_SPACE(*ptr)) // Skip the trailing whitespaces
-                last = ptr;
-        size_t vlen = last + 1 - val;
+        char * val = NULL;
+        int vlen;
+        if (*ptr == '"') {
+            val = ++ptr;
+            while (RANGE && *ptr != '"') {
+                ptr++;
+            }
+            CHECK_PTR("stream ended without closing quote");
+            vlen = ptr - val;
+        } else {
+            val = ptr;
+            char* last = ptr - 1;
+            for ( ; RANGE && !IS_SKIP(ptr) ; ptr++)
+                if (!IS_SPACE(*ptr)) // Skip the trailing whitespaces
+                    last = ptr;
+            vlen = last + 1 - val;
+        }
         ptr++;
 
         if (!filter || !filter(key, klen)) {
