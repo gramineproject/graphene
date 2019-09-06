@@ -1,4 +1,2 @@
 SGX_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(SGX_DIR)/Makefile.manifest
-
-expand_target = $(1) $(call expand_target_to_sig,$(1)) $(call expand_target_to_sgx,$(1))
