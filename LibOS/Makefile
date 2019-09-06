@@ -1,6 +1,5 @@
 include ../Scripts/Makefile.configs
 include ../Scripts/Makefile.rules
-include ../Pal/src/Makefile.Host
 
 GLIBC_VERSION ?= 2.27
 GLIBC_SRC = glibc-$(GLIBC_VERSION)
