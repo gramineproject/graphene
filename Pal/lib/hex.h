@@ -18,6 +18,9 @@
 #ifndef HEX_H
 #define HEX_H
 
+#include <assert.h>
+#include <stddef.h>
+
 /* This function is a helper for debug printing.
  * It accepts a pointer to a numerical value, and
  * formats it as a hex string, for printing.
@@ -28,7 +31,6 @@
  * Note that it does not normalize for endianness, and pads to the
  * size the compiler things the string is.
  */
-#include <assert.h>
 static inline __attribute__((always_inline))
 char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 {
