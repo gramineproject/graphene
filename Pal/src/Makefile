@@ -129,16 +129,17 @@ $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_o_c)
 
-$(OBJ_DIR)/%.i: %.c $(headers)
+$(OBJ_DIR)/%.i: %.c
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cpp_i_c)
 
-$(OBJ_DIR)/%.s: %.c $(headers)
+$(OBJ_DIR)/%.s: %.c
 	@mkdir -p $(OBJ_DIR)
 	$(call cmd,cc_s_c)
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
+-include $(patsubst %,$(OBJ_DIR)/%.d,$(objs))
 endif
 
 clean_targets = clean distclean
