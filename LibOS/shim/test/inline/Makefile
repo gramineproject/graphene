@@ -7,6 +7,8 @@ target = $(c_executables) $(cxx_executables) manifest
 .PHONY: default
 default: all
 
+include ../../../../Scripts/Makefile.configs
+include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
 
 .PHONY: crt_init-recurse
