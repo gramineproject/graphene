@@ -1,7 +1,7 @@
 include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 
-CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
+CFLAGS += -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
 	  -I../include/pal -I../lib
 
 .PHONY: default
@@ -45,7 +45,7 @@ csu-recurse:
 	@true
 
 CFLAGS-Pie = -fPIC -pie
-LDLIBS = $(graphene_lib) $(pal_lib) ../csu/user_start.o
+LDLIBS += $(graphene_lib) $(pal_lib) ../csu/user_start.o
 $(executables): %: %.c $(LDLIBS)
 	$(call cmd,csingle)
 
