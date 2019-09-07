@@ -8,12 +8,6 @@ include $(SHIM_TEST_DIR)/../../../Makefile.configs
 include $(SHIM_TEST_DIR)/../../../Makefile.rules
 include $(SHIM_TEST_DIR)/../../../Makefile.manifest
 
-ifeq ($(SGX),1)
-PAL_LOADER = pal_loader SGX
-else
-PAL_LOADER = pal_loader
-endif
-
 CFLAGS += -Wall -std=gnu99
 CXXFLAGS += -Wall -std=c++14
 LDFLAGS	+=
@@ -35,7 +29,7 @@ sgx-tokens: $(call expand_target_to_token,$(exec_target))
 
 ifeq ($(ABSPATH_IN_MANIFEST),yes)
 manifest_rules = \
-	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
+	-e 's:\$$(PAL):$(abspath $(RUNTIME))/pal_loader:g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):$(abspath $(RUNTIME))/libsysdb.so:g' \
@@ -43,7 +37,7 @@ manifest_rules = \
 	$(extra_rules)
 else
 manifest_rules= \
-	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
+	-e 's:\$$(PAL):$(abspath $(RUNTIME))/pal_loader:g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
 	-e 's:\$$(SHIMPATH):$(RUNTIME)/libsysdb.so:g' \
