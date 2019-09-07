@@ -18,7 +18,7 @@ static int is_dot_or_dotdot(const char* name) {
 
 int main(int argc, char* argv[]) {
     int fd = 0, ret = 1;
-    char name[0x10]     = {0};
+    char name[21]     = {0};
     DIR* dir            = NULL;
     struct dirent* dent = NULL;
     unsigned long i     = 0;
