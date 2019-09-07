@@ -1,7 +1,7 @@
 include ../../Makefile.configs
 include ../../Makefile.rules
 
-CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib \
+CFLAGS	+= -Wall -O2 -std=c11 -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib -I../src
 
 preloads = \

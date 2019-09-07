@@ -1,15 +1,13 @@
 # Add host-specific compilation rules here
 
-CFLAGS = -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
+CFLAGS += -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
          -fno-stack-protector -fno-builtin
 
-EXTRAFLAGS = -Wextra -Wno-unused-parameter -Wno-sign-compare $(call cc-option,-Wnull-dereference)
+CFLAGS += -Wextra -Wno-unused-parameter -Wno-sign-compare $(call cc-option,-Wnull-dereference)
 
-CFLAGS += $(EXTRAFLAGS)
-
-ASFLAGS = -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
+ASFLAGS += -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp
-LDFLAGS = -shared -nostdlib -z combreloc -z defs \
+LDFLAGS += -shared -nostdlib -z combreloc -z defs \
 	  --version-script $(HOST_DIR)/pal.map -T $(HOST_DIR)/pal.lds
 
 ifeq ($(WERROR),1)

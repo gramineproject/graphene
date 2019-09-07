@@ -14,9 +14,9 @@ else
 PAL_LOADER = pal_loader
 endif
 
-CFLAGS 	= -Wall -std=gnu99
-CXXFLAGS = -Wall -std=c++14
-LDFLAGS	=
+CFLAGS += -Wall -std=gnu99
+CXXFLAGS += -Wall -std=c++14
+LDFLAGS	+=
 
 CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
 

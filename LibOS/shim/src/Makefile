@@ -4,7 +4,7 @@ include ../../../Makefile.configs
 
 OMIT_FRAME_POINTER = no
 
-CFLAGS	= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
+CFLAGS	+= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes -Wtrampolines \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
@@ -21,9 +21,9 @@ CFLAGS += -DOMIT_FRAME_POINTER=1
 else
 CFLAGS += -fno-omit-frame-pointer -DOMIT_FRAME_POINTER=0
 endif
-ASFLAGS	= -Wa,--noexecstack -x assembler-with-cpp -I../include
+ASFLAGS += -Wa,--noexecstack -x assembler-with-cpp -I../include
 
-LDFLAGS	= -shared -nostdlib -z combreloc -z relro -z now -z defs \
+LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
 	  -dynamic-link=libpal.so \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
 
