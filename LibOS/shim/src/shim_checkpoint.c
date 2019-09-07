@@ -932,6 +932,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
     struct shim_process * new_process = NULL;
     struct newproc_header hdr;
     size_t bytes;
+    PAL_HANDLE gipc_hdl = NULL;
     memset(&hdr, 0, sizeof(hdr));
 
 #ifdef PROFILE
@@ -963,7 +964,7 @@ int do_migrate_process (int (*migrate) (struct shim_cp_store *,
      */
     bool use_gipc = false;
     PAL_NUM gipc_key;
-    PAL_HANDLE gipc_hdl = DkCreatePhysicalMemoryChannel(&gipc_key);
+    gipc_hdl = DkCreatePhysicalMemoryChannel(&gipc_key);
 
     if (gipc_hdl) {
         debug("created gipc store: gipc:%lu\n", gipc_key);
