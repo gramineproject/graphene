@@ -7,9 +7,6 @@ target = $(exec_target) $(manifests)
 
 clean-extra += clean-tmp
 
-.PHONY: default
-default: all
-
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
