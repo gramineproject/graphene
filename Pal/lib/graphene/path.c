@@ -36,13 +36,14 @@ static inline const char* find_next_slash(const char* path) {
 }
 
 /*
- * Finds previous '/' in `path` (starting from `size` - 1).
+ * Finds previous '/' in `path` (starting from `offset` - 1).
  * If the last character is '/', then it is skipped (as a token can end with '/').
  *
- * Returns whether '/' was found. Updates *size to match new length.
+ * Returns whether '/' was found.
+ * Updates `*offset` to the index of the found '/' (or 0 if none was found).
  */
-static inline bool find_prev_slash_offset(const char* path, size_t* size) {
-    size_t off = *size;
+static inline bool find_prev_slash_offset(const char* path, size_t* offset) {
+    size_t off = *offset;
 
     if (!off) {
         return false;
@@ -58,7 +59,7 @@ static inline bool find_prev_slash_offset(const char* path, size_t* size) {
         off--;
     }
 
-    *size = off;
+    *offset = off;
     return path[off] == '/';
 }
 
