@@ -22,10 +22,6 @@ include host/$(PAL_HOST)/Makefile.am
 
 CFLAGS	+= -I. -I../include -I$(HOST_DIR) -I../lib
 
-ifeq ($(PROFILING),1)
-CFLAGS	+= -DPROFILING=1
-endif
-
 PAL_HOST_MACRO = $(shell echo $(PAL_HOST) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
 # Build Targets:
@@ -44,11 +40,6 @@ objs	= $(addprefix db_,streams memory threading mutex events process \
 
 graphene_lib = $(LIB_DIR)/graphene-lib.a
 host_lib = $(HOST_DIR)/libpal-$(PAL_HOST).a
-
-ifeq ($(DEBUG),1)
-CC += -gdwarf-2 -g3
-CFLAGS += -DDEBUG
-endif
 
 # Install Targets (all in RUNTIME_DIR):
 #       pal-{Host Name}:       loader for PAL (as an executable)
