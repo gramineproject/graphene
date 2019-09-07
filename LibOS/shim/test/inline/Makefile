@@ -9,9 +9,19 @@ default: all
 
 include ../../../../Scripts/Makefile.Test
 
-LDLIBS-user_start = $(PALDIR)/user_start.o
-$(PALDIR)/user_start.o: $(PALDIR)/user_start.S
-	$(MAKE) -C $(PALDIR) $(notdir $@)
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C ../crt_init all
+
+../crt_init/user_shared_start.o ../crt_init/user_start.o: crt_init-recurse
+	@true
+
+LDLIBS-user_start = $(PALDIR)/../crt_init/user_start.o
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C $(PALDIR)/../crt_init/ all
+$(PALDIR)/../crt_init/user_start.o: crt_init-recurse
+	@true
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
