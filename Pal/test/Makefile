@@ -4,9 +4,6 @@ include ../../Scripts/Makefile.rules
 CFLAGS += -fno-builtin -nostdlib -no-pie \
 	  -I../include/pal -I../lib
 
-.PHONY: default
-default: all
-
 executables = HelloWorld File Failure Thread Fork Event Process Exception \
 	      Memory Pipe Tcp Udp Yield Server Wait HandleSend Select Segment \
 	      Sleep Cpuid Pie

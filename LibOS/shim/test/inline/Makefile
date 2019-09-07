@@ -4,9 +4,6 @@ cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 exec_target = $(c_executables) $(cxx_executables)
 target = $(c_executables) $(cxx_executables) manifest
 
-.PHONY: default
-default: all
-
 include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test

@@ -3,9 +3,6 @@ include ../../../Scripts/Makefile.configs
 # SUBDIRS = regression native inline benchmark
 SUBDIRS = native fs
 
-.PHONY: default
-default: all
-
 .PHONY: all clean sgx-tokens distclean
 all clean sgx-tokens distclean:
 	for d in $(SUBDIRS); do \
