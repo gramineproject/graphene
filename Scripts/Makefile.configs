@@ -26,5 +26,21 @@ export SYS
 DEBUG ?=
 export DEBUG
 
+ifeq ($(DEBUG),1)
+CFLAGS += -gdwarf-2 -g3
+CXXFLAGS += -gdwarf-2 -g3
+CFLAGS += -DDEBUG
+ASFLAGS += -DDEBUG
+endif
+
+ifeq ($(WERROR),1)
+CFLAGS += -Werror
+CXXFLAGS += -Werror
+endif
+
+ifeq ($(PROFILING),1)
+CFLAGS += -DPROFILING=1
+endif
+
 MAKEFILE_CONFIGS_INCLUDED = y
 include $(MAKEFILE_CONFIGS_DIR)/Makefile.Host
