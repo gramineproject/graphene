@@ -62,9 +62,10 @@ $(addsuffix .o,$(enclave-objs)): quote/generated-cacert.h
 %.s: %.S
 	$(call cmd,cpp_s_S)
 
+CFLAGS-pal-sgx = -Wl,-z,relro,-z,now -pie
+LDLIBS-pal-sgx += -lprotobuf-c
 pal-sgx: $(addsuffix .o,$(urts-objs) $(urts-asm-objs)) $(graphene_lib)
-	@echo [ host/Linux-SGX/$@ ]
-	@$(CC) $(CFLAGS) -Wl,-z,relro,-z,now -pie $^ -lc -lprotobuf-c -o $@
+	$(call cmd,cmulti)
 
 quote/aesm.pb-c.o: quote/aesm.pb-c.c quote/aesm.pb-c.h
 quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto
@@ -78,10 +79,10 @@ quote/generated-cacert.h: $(ias_cert_file)
 $(ias_cert_file):
 	@../../../../Scripts/download --output $@ --url $(ias_cert_url) --sha256 $(ias_cert_sha256)
 
-debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
-	@echo [ host/Linux-SGX/$@ ]
-	$(CC) -MD -MP -Wall -fPIC -O2 -std=c11 -c debugger/sgx_gdb.c -o debugger/sgx_gdb.o
-	$(LD) -shared debugger/sgx_gdb.o -o debugger/sgx_gdb.so -lc
+debugger/sgx_gdb.so: CFLAGS =
+CFLAGS-debugger/sgx_gdb.so = -shared -Wall -fPIC -O2 -std=c11
+debugger/sgx_gdb.so: debugger/sgx_gdb.c
+	$(call cmd,csingle)
 
 enclave_entry.o sgx_entry.o: asm-offsets.h
 
@@ -95,7 +96,7 @@ endif
 include ../../../../Scripts/Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
-CLEAN_FILES += debugger/sgx_gdb.o
+CLEAN_FILES += debugger/sgx_gdb.so
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
 CLEAN_FILES += quote/generated-cacert.h
 
