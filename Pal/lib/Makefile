@@ -1,11 +1,5 @@
 include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
-
-CFLAGS	= -Wall -fPIC -O2 -std=gnu99 -fgnu89-inline -U_FORTIFY_SOURCE \
-	  $(call cc-option,-Wnull-dereference) \
-	  -fno-omit-frame-pointer \
-	  -fno-stack-protector -fno-builtin
-
 include ../src/host/$(PAL_HOST)/Makefile.am
 
 CFLAGS += -I. -I../include -I../src -Icrypto/mbedtls/include
