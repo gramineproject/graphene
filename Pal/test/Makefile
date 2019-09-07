@@ -1,7 +1,7 @@
 include ../../Makefile.configs
 include ../../Makefile.rules
 
-CFLAGS += -Wall -O2 -std=c11 -fno-builtin -nostdlib -no-pie \
+CFLAGS += -fno-builtin -nostdlib -no-pie \
 	  -I../include/pal -I../lib
 
 .PHONY: default

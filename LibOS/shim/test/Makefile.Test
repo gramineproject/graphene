@@ -8,9 +8,10 @@ include $(SHIM_TEST_DIR)/../../../Makefile.configs
 include $(SHIM_TEST_DIR)/../../../Makefile.rules
 include $(SHIM_TEST_DIR)/../../../Makefile.manifest
 
-CFLAGS += -Wall -std=gnu99
-CXXFLAGS += -Wall -std=c++14
-LDFLAGS	+=
+CFLAGS += -std=gnu99
+
+# TODO: enable -Wunused-result
+CFLAGS += -Wno-unused-result
 
 CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
 

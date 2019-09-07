@@ -4,7 +4,7 @@ include ../../../Makefile.configs
 
 OMIT_FRAME_POINTER = no
 
-CFLAGS	+= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
+CFLAGS	+= -fPIC -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes -Wtrampolines \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
@@ -12,9 +12,7 @@ CFLAGS	+= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal \
 	  -I../../../Pal/include/elf
 
-EXTRAFLAGS = -Wextra
-
-CFLAGS += $(EXTRAFLAGS)
+CFLAGS += -Wextra
 
 ifeq ($(OMIT_FRAME_POINTER),yes)
 CFLAGS += -DOMIT_FRAME_POINTER=1
