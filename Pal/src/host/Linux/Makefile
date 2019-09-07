@@ -6,10 +6,6 @@ CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib \
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
 
-ifeq ($(PROFILING),1)
-CFLAGS	+= -DPROFILING=1
-endif
-
 host_files = libpal-Linux.a pal.map
 
 defs	= -DIN_PAL -DPAL_DIR=$(PAL_DIR) -DRUNTIME_DIR=$(RUNTIME_DIR)
@@ -22,11 +18,6 @@ graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
 all: $(host_files)
-
-ifeq ($(DEBUG),1)
-CC += -gdwarf-2 -g3
-CFLAGS += -DDEBUG
-endif
 
 libpal-Linux.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	$(call cmd,ar_a_o)

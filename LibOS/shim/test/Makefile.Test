@@ -33,15 +33,6 @@ all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sgx,$(exec_ta
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(exec_target))
 
-ifeq ($(DEBUG),1)
-CC += -g
-CXX += -g
-endif
-
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
-
 ifeq ($(ABSPATH_IN_MANIFEST),yes)
 manifest_rules = \
 	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \

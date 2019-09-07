@@ -16,11 +16,6 @@ headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 .PHONY: all
 all: $(host_files)
 
-ifeq ($(DEBUG),1)
-CC += -gdwarf-2 -g3
-CFLAGS += -DDEBUG
-endif
-
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
 

@@ -25,14 +25,6 @@ all:	pal_loader $(target) $(call expand_target_to_sig,$(target)) $(call expand_t
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(target))
 
-ifeq ($(DEBUG),1)
-CC += -g
-endif
-
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
-
 pal_loader:
 	ln -sf ../../Runtime/pal_loader
 

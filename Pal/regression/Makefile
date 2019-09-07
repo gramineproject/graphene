@@ -59,14 +59,6 @@ all: $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sg
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(target))
 
-ifeq ($(DEBUG),1)
-CC += -g
-endif
-
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
-
 # To enable tests for remote attestation, please provide RA_CLIENT_SPID and RA_CLIENT_KEY
 # in the environment variables.
 # To obtain a SPID, register in the Intel API portal:

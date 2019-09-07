@@ -49,11 +49,6 @@ endif
 .PHONY: all
 all: $(target)graphene-lib.a
 
-ifeq ($(DEBUG),1)
-CC += -g
-CFLAGS += -DDEBUG
-endif
-
 $(target)graphene-lib.a: $(addprefix $(target),$(objs))
 	@mkdir -p $(dir $@)
 	$(call cmd,ar_a_o)

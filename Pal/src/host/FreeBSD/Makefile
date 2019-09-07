@@ -20,8 +20,7 @@ headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 all: $(host_files)
 
 ifeq ($(DEBUG),1)
-CC += -g -gdwarf-2 -gstrict-dwarf
-CFLAGS += -DDEBUG
+CFLAGS += -gstrict-dwarf
 endif
 
 pal-gdb: pal-gdb.template

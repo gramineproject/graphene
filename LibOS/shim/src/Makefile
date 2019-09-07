@@ -27,10 +27,6 @@ LDFLAGS += -shared -nostdlib -z combreloc -z relro -z now -z defs \
 	  -dynamic-link=libpal.so \
 	  -rpath-link=$(abspath $(RUNTIME_DIR))
 
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
-
 files_to_build = libsysdb.a libsysdb.so libsysdb_debug.so
 files_to_install = $(addprefix $(RUNTIME_DIR)/,$(files_to_build))
 
@@ -56,16 +52,6 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 
 all: $(files_to_build) $(files_to_install)
-
-ifeq ($(DEBUG),1)
-CC += -gdwarf-2 -g3
-CFLAGS += -DDEBUG
-ASFLAGS += -DDEBUG
-endif
-
-ifeq ($(PROFILING), 1)
-CFLAGS += -DPROFILE
-endif
 
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)

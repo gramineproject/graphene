@@ -25,12 +25,6 @@ graphene_lib = .lib/graphene-lib.a
 .PHONY: all
 all: $(host_files)
 
-ifeq ($(DEBUG),1)
-CC += -gdwarf-2 -g3
-CFLAGS += -DDEBUG
-ASFLAGS += -DDEBUG
-endif
-
 ../../host_endian.h: host_endian.h
 	$(MAKE) -C ../../ $<
 
