@@ -45,10 +45,6 @@ objs	= $(addprefix db_,streams memory threading mutex events process \
 graphene_lib = $(LIB_DIR)/graphene-lib.a
 host_lib = $(HOST_DIR)/libpal-$(PAL_HOST).a
 
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-files_to_build += user_start.o user_shared_start.o
-endif
-
 ifeq ($(DEBUG),1)
 CC += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
@@ -128,14 +124,6 @@ endif
 $(pal_static): $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(objs))) \
 	       $(host_lib) $(graphene_lib)
 	$(call cmd,ar_a_o)
-
-user_start.o: ASFLAGS =
-user_start.o: user_start.S
-	$(call cmd,as_o_S)
-
-user_shared_start.o: ASFLAGS = -DSHARED -fPIC
-user_shared_start.o: user_start.S
-	$(call cmd,as_o_S)
 
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(OBJ_DIR)

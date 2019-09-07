@@ -9,9 +9,9 @@ default: all
 
 include ../Makefile.Test
 
-LDLIBS-user_start = $(PALDIR)/user_start.o
-$(PALDIR)/user_start.o: $(PALDIR)/user_start.S
-	$(MAKE) -C $(PALDIR) $(notdir $@)
+LDLIBS-user_start = $(PALDIR)/../csu/user_start.o
+$(PALDIR)/../csu/user_start.o: $(PALDIR)/../csu/user_start.S
+	$(MAKE) -C $(dir $@) $(notdir $@)
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 

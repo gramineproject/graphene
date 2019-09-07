@@ -38,7 +38,7 @@ pal_loader:
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 CFLAGS-Pie = -fPIC -pie
-LDLIBS = $(graphene_lib) $(pal_lib) ../src/user_start.o
+LDLIBS = $(graphene_lib) $(pal_lib) ../csu/user_start.o
 $(executables): %: %.c $(LDLIBS)
 	$(call cmd,csingle)
 
