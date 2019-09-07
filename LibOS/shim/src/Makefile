@@ -4,7 +4,7 @@ include ../../../Scripts/Makefile.configs
 
 OMIT_FRAME_POINTER = no
 
-CFLAGS	+= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
+CFLAGS	+= -fPIC -Winline -Wwrite-strings \
 	  -fmerge-all-constants -Wstrict-prototypes -Wtrampolines \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
@@ -12,9 +12,7 @@ CFLAGS	+= -Wall -fPIC -std=c11 -Winline -Wwrite-strings \
 	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal \
 	  -I../../../Pal/include/elf
 
-EXTRAFLAGS = -Wextra
-
-CFLAGS += $(EXTRAFLAGS)
+CFLAGS += -Wextra
 
 ifeq ($(OMIT_FRAME_POINTER),yes)
 CFLAGS += -DOMIT_FRAME_POINTER=1
@@ -52,6 +50,12 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 
 all: $(files_to_build) $(files_to_install)
+
+# FIXME: enable optimization
+# With -O0, regression tests fails
+ifeq ($(DEBUG),1)
+$(addsuffix .o,$(objs)): CFLAGS += -O0
+endif
 
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
