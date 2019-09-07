@@ -17,10 +17,6 @@ LDFLAGS += -shared -nostdlib -z combreloc -z defs \
 CRYPTO_PROVIDER = mbedtls
 CFLAGS += -DCRYPTO_USE_MBEDTLS
 
-ifeq ($(WERROR),1)
-CFLAGS += -Werror
-endif
-
 pal_loader = $(HOST_DIR)/pal-sgx
 pal_lib = $(HOST_DIR)/libpal.so
 pal_lib_deps = pal-symbols $(HOST_DIR)/pal.map.template $(HOST_DIR)/enclave.lds
