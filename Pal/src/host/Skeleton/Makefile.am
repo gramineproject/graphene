@@ -1,6 +1,6 @@
 # Add host-specific compilation rules here
 
-CFLAGS += -Wall -fPIC -O2 -std=c11 -U_FORTIFY_SOURCE \
+CFLAGS += -fPIC -U_FORTIFY_SOURCE \
          -fno-stack-protector -fno-builtin
 
 CFLAGS += -Wextra -Wno-unused-parameter -Wno-sign-compare $(call cc-option,-Wnull-dereference)
