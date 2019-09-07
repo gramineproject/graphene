@@ -10,7 +10,10 @@ clean-extra += clean-tmp
 .PHONY: default
 default: all
 
-include ../Makefile.Test
+include ../../../../Makefile.configs
+include ../../../../Makefile.rules
+include ../../../../Makefile.manifest
+include ../../../../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 

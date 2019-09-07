@@ -7,7 +7,10 @@ target = $(c_executables) $(cxx_executables) manifest
 .PHONY: default
 default: all
 
-include ../Makefile.Test
+include ../../../../Makefile.configs
+include ../../../../Makefile.rules
+include ../../../../Makefile.manifest
+include ../../../../Makefile.Test
 
 LDLIBS-user_start = $(PALDIR)/../csu/user_start.o
 $(PALDIR)/../csu/user_start.o: $(PALDIR)/../csu/user_start.S

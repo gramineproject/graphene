@@ -1,12 +1,12 @@
-SHIM_TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+ifeq ($(MAKEFILE_MANIFEST_DIR),)
+$(error include Makefile.manifest before $(lastword $(MAKEFILE_LIST)))
+endif
 
-PALDIR  = $(SHIM_TEST_DIR)/../../../Pal/src
-SHIMDIR = $(SHIM_TEST_DIR)/../src
-RUNTIME = $(SHIM_TEST_DIR)/../../../Runtime
+MAKEFILE_TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-include $(SHIM_TEST_DIR)/../../../Makefile.configs
-include $(SHIM_TEST_DIR)/../../../Makefile.rules
-include $(SHIM_TEST_DIR)/../../../Makefile.manifest
+PALDIR  = $(MAKEFILE_TEST_DIR)/Pal/src
+SHIMDIR = $(MAKEFILE_TEST_DIR)/LibOS/shim/src
+RUNTIME = $(MAKEFILE_TEST_DIR)/Runtime
 
 CFLAGS += -std=gnu99
 
@@ -29,7 +29,7 @@ all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sgx,$(exec_ta
 sgx-tokens: $(call expand_target_to_token,$(exec_target))
 
 ifeq ($(ABSPATH_IN_MANIFEST),yes)
-manifest_rules = \
+manifest_rules ?= \
 	-e 's:\$$(PAL):$(abspath $(RUNTIME))/pal_loader:g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
@@ -37,7 +37,7 @@ manifest_rules = \
 	-e 's:\$$(LIBCDIR):$(abspath $(RUNTIME)):g' \
 	$(extra_rules)
 else
-manifest_rules= \
+manifest_rules ?= \
 	-e 's:\$$(PAL):$(abspath $(RUNTIME))/pal_loader:g' \
 	-e 's:\$$(PWD):$(PWD):g' \
 	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \

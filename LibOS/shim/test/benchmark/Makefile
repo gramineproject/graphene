@@ -4,7 +4,10 @@ cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 exec_target = $(c_executables) $(cxx_executables)
 target = $(exec_target) manifest
 
-include ../Makefile.Test
+include ../../../../Makefile.configs
+include ../../../../Makefile.rules
+include ../../../../Makefile.manifest
+include ../../../../Makefile.Test
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
