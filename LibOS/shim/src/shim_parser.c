@@ -518,8 +518,8 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...) {
     else
         PRINTF("---- shim_%s(", name);
 
-    unsigned long ret_ptr;
-    int ret_val;
+    unsigned long ret_ptr = 0;
+    int ret_val = 0;
 
     if (is_pointer(ret_type))
         ret_ptr = (unsigned long)va_arg(ap, void*);
@@ -550,10 +550,7 @@ void parse_syscall_after(int sysno, const char* name, int nr, ...) {
         else
             PRINTF(") = %ld\n", (long)ret_ptr);
     } else {
-        if (ret_val >= 0)
-            PRINTF(") = %d\n", ret_val);
-        else
-            PRINTF(") = %d\n", ret_val);
+        PRINTF(") = %d\n", ret_val);
     }
 
     va_end(ap);
