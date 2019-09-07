@@ -668,8 +668,6 @@ int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* dat
 #endif
 
     if (!msgq->owned) {
-        IDTYPE msqid = msgq->msqid;
-
         if (src) {
             struct shim_ipc_info* owner = msgq->owner;
             ret = owner ? ipc_sysv_movres_send(src, owner->vmid, qstrgetstr(&owner->uri),
@@ -680,7 +678,7 @@ int get_sysv_msg(struct shim_msg_handle* msgq, long type, size_t size, void* dat
 
     unowned:
         unlock(&hdl->lock);
-        ret = ipc_sysv_msgrcv_send(msqid, type, flags, data, size);
+        ret = ipc_sysv_msgrcv_send(msgq->msqid, type, flags, data, size);
         if (ret != -EAGAIN && ret != -ECONNREFUSED)
             goto out;
 

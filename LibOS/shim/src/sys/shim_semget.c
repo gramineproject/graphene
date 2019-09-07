@@ -56,6 +56,7 @@ static int __add_sem_handle(unsigned long key, IDTYPE semid, int nsems, bool own
     LISTP_TYPE(shim_sem_handle)* sid_head = semid ? &sem_sid_hlist[SEM_HASH(semid)] : NULL;
 
     struct shim_sem_handle* tmp;
+    struct shim_handle* hdl = NULL;
     int ret = 0;
 
     if (key_head)
@@ -76,7 +77,7 @@ static int __add_sem_handle(unsigned long key, IDTYPE semid, int nsems, bool own
             }
         }
 
-    struct shim_handle* hdl = get_new_handle();
+    hdl = get_new_handle();
     if (!hdl)
         return -ENOMEM;
 

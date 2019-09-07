@@ -467,6 +467,7 @@ static int proc_thread_maps_open(struct shim_handle* hdl, const char* name, int 
     const char* next;
     size_t next_len;
     IDTYPE pid;
+    char* buffer = NULL;
     int ret = parse_thread_name(name, &pid, &next, &next_len, NULL);
     if (ret < 0)
         return ret;
@@ -506,7 +507,7 @@ retry_dump_vmas:
 
     count              = ret;
     size_t buffer_size = DEFAULT_VMA_BUFFER_SIZE, offset = 0;
-    char* buffer = malloc(buffer_size);
+    buffer = malloc(buffer_size);
     if (!buffer) {
         ret = -ENOMEM;
         goto err;

@@ -378,9 +378,6 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
     /* This is the ELF header.  We read it in `open_verify'.  */
     const ElfW(Ehdr)* header = fbp;
 
-    if (type == OBJECT_REMAP)
-        goto do_remap;
-
     /* Extract the remaining details we need from the ELF header
        and then read in the program header table.  */
     l->l_addr  = (ElfW(Addr))addr;
@@ -390,6 +387,9 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
 
     size_t maplength       = header->e_phnum * sizeof(ElfW(Phdr));
     const ElfW(Phdr)* phdr = (fbp + header->e_phoff);
+
+    if (type == OBJECT_REMAP)
+        goto do_remap;
 
     if (type == OBJECT_LOAD && header->e_phoff + maplength <= (size_t)fbp_len) {
         new_phdr = (ElfW(Phdr)*)malloc(maplength);
