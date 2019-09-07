@@ -20,7 +20,7 @@ graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
 .PHONY: all
-all:	pal_loader $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target))
+all: pal_loader $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target))
 
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(target))
@@ -37,8 +37,15 @@ pal_loader:
 	ln -sf ../../Runtime/pal_loader
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C ../crt_init all
+
+../crt_init/user_start.o: crt_init-recurse
+	@true
+
 CFLAGS-Pie = -fPIC -pie
-LDLIBS = $(graphene_lib) $(pal_lib) ../src/user_start.o
+LDLIBS = $(graphene_lib) $(pal_lib) ../crt_init/user_start.o
 $(executables): %: %.c $(LDLIBS)
 	$(call cmd,csingle)
 

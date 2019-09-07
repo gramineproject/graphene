@@ -79,8 +79,12 @@ manifest_rules = \
 	-e 's:\$$(RA_CLIENT_LINKABLE):$(if $(RA_CLIENT_LINKABLE),$(RA_CLIENT_LINKABLE),0):g' \
 	$(extra_rules)
 
-../src/user_shared_start.o ../src/user_start.o: ../src/user_start.S
-	$(MAKE) -C ../src $(notdir $@)
+.PHONY: crt_init-recurse
+crt_init-recurse:
+	$(MAKE) -C ../crt_init all
+
+../crt_init/user_shared_start.o ../crt_init/user_start.o: crt_init-recurse
+	@true
 
 CFLAGS-AvxDisable += -mavx
 
@@ -90,13 +94,13 @@ CFLAGS-AvxDisable += -mavx
 	@true
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-LDLIBS-preloads = ../src/user_shared_start.o $(graphene_lib) $(pal_lib)
+LDLIBS-preloads = ../crt_init/user_shared_start.o $(graphene_lib) $(pal_lib)
 $(preloads): CFLAGS += -shared -fPIC
 $(preloads): LDLIBS = $(LDLIBS-preloads)
 $(preloads): %.so: %.c $(LDLIBS-preloads)
 	$(call cmd,csingle)
 
-LDLIBS-executables = ../src/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
+LDLIBS-executables = ../crt_init/user_start.o $(graphene_lib) $(pal_lib) $(preloads)
 $(executables): CFLAGS += -no-pie
 $(executables): LDLIBS = $(LDLIBS-executables)
 $(executables): %: %.c $(LDLIBS-executables)
