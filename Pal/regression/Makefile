@@ -46,9 +46,6 @@ include ../../Makefile.manifest
 graphene_lib = .lib/graphene-lib.a
 pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 
-.PHONY: default
-default: all
-
 RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 .PHONY: all

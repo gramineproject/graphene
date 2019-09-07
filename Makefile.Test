@@ -19,9 +19,6 @@ CFLAGS-libos-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALD
 CXXFLAGS-libos-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
 LDFLAGS-libos-debug = -L$(SHIMDIR) -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=$(abspath $(RUNTIME)) -lpal -lsysdb_debug
 
-.PHONY: default
-default: all
-
 .PHONY: all
 all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sgx,$(exec_target)) $(call expand_target_to_sig,$(exec_target))
 
