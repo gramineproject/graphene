@@ -9,9 +9,19 @@ default: all
 
 include ../../../../Scripts/Makefile.Test
 
-LDLIBS-user_start = $(PALDIR)/user_start.o
-$(PALDIR)/user_start.o: $(PALDIR)/user_start.S
-	$(MAKE) -C $(PALDIR) $(notdir $@)
+.PHONY: csu-recurse
+csu-recurse:
+    $(MAKE) -C ../csu all
+
+../csu/user_shared_start.o ../csu/user_start.o: csu-recurse
+       @true
+
+LDLIBS-user_start = $(PALDIR)/../csu/user_start.o
+.PHONY: csu-recurse
+csu-recurse:
+	$(MAKE) -C $(PALDIR)/../csu/ all
+$(PALDIR)/../csu/user_start.o: csu-recurse
+	@true
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 
