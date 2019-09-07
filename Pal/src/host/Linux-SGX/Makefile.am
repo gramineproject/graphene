@@ -1,12 +1,10 @@
 # Add host-specific compilation rules here
 
-CFLAGS += -Wall -fPIC -O2 -maes -std=c11 -U_FORTIFY_SOURCE \
+CFLAGS += -fPIC -maes -U_FORTIFY_SOURCE \
 	  -fno-omit-frame-pointer \
 	  -fno-stack-protector -fno-builtin -Wtrampolines
 
-EXTRAFLAGS = -Wextra $(call cc-option,-Wnull-dereference)
-
-CFLAGS += $(EXTRAFLAGS)
+CFLAGS += -Wextra $(call cc-option,-Wnull-dereference)
 
 ASFLAGS += -DPIC -DSHARED -fPIC -DASSEMBLER -Wa,--noexecstack \
 	  -x assembler-with-cpp

@@ -26,11 +26,19 @@ export SYS
 DEBUG ?=
 export DEBUG
 
+CFLAGS += -Wall -std=c11
+CXXFLAGS += -Wall -std=c++14
+
 ifeq ($(DEBUG),1)
 CFLAGS += -gdwarf-2 -g3
 CXXFLAGS += -gdwarf-2 -g3
 CFLAGS += -DDEBUG
 ASFLAGS += -DDEBUG
+endif
+
+ifeq ($(DEBUG),)
+CFLAGS += -O2
+CXXFLAGS += -O2
 endif
 
 ifeq ($(WERROR),1)
