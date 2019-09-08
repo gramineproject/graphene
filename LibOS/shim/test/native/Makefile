@@ -9,8 +9,6 @@ include ../../../../Scripts/Makefile.configs
 include ../../../../Scripts/Makefile.manifest
 include ../../../../Scripts/Makefile.Test
 
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-
 CFLAGS-msg_create_libos += $(CFLAGS-libos)
 CFLAGS-msg_send_libos += $(CFLAGS-libos)
 
@@ -33,8 +31,4 @@ LDLIBS-test_start_pthread_m += -lm
 
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
 include $(wildcard *.d)
-endif
-else
-.IGNORE: $(c_executables) $(cxx_executables)
-$(c_executables) $(cxx_executables):
 endif
