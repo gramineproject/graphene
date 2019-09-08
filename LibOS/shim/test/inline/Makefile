@@ -22,8 +22,6 @@ crt_init-recurse:
 $(PALDIR)/../crt_init/user_start.o: crt_init-recurse
 	@true
 
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-
 CFLAGS += $(CFLAGS-libos-debug)
 CXXFLAGS += $(CXXFLAGS-libos-debug)
 LDLIBS += $(LDLIBS-user_start) $(LDFLAGS-libos-debug)
@@ -33,7 +31,3 @@ $(c_executables): %: %.c $(LDLIBS-user_start)
 
 $(cxx_executables): %: %.cpp $(LDLIBS-user_start)
 	$(call cmd,cxxsingle)
-else
-.IGNORE: $(c_executables) $(cxx_executables)
-$(c_executables) $(cxx_executables):
-endif
