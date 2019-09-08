@@ -60,11 +60,7 @@ def read_sigstruct(sig):
 """ Check if we're dealing with DCAP driver """
 
 def is_dcap():
-    try:
-        SGX_ENCLAVE_INIT_EINITTOKEN
-    except:
-        return True
-    return False
+    return 'SGX_DCAP' in globals()
 
 """ Connect with AESMD """
 
