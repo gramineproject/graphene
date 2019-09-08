@@ -12,8 +12,6 @@ include ../../../../Makefile.rules
 include ../../../../Makefile.manifest
 include ../../../../Makefile.Test
 
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-
 CFLAGS-bootstrap_static = -static
 CFLAGS-bootstrap_pie = -fPIC -pie
 CFLAGS-shared_object = -fPIC -pie
@@ -26,11 +24,6 @@ CFLAGS-multi_pthread = -pthread
 
 %: %.cpp
 	$(call cmd,cxxsingle)
-
-else
-.IGNORE: $(c_executables) $(cxx_executables)
-$(c_executables) $(cxx_executables):
-endif
 
 export PAL_LOADER = $(RUNTIME)/pal-$(PAL_HOST)
 export PYTHONPATH=../../../../Scripts

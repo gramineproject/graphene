@@ -9,8 +9,6 @@ include ../../../../Makefile.rules
 include ../../../../Makefile.manifest
 include ../../../../Makefile.Test
 
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
-
 CFLAGS-rpc_latency += $(CFLAGS-libos)
 CFLAGS-rpc_latency2 += $(CFLAGS-libos)
 
@@ -23,7 +21,3 @@ LDLIBS-test_start += -lm
 
 %: %.cpp
 	$(call cmd,cxxsingle)
-else
-.IGNORE: $(c_executables) $(cxx_executables)
-$(c_executables) $(cxx_executables):
-endif

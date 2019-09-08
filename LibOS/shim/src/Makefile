@@ -49,12 +49,15 @@ all_objs = $(objs) vdso/vdso-note vdso/vdso
 graphene_lib = .lib/graphene-lib.a
 pal_lib = $(RUNTIME_DIR)/libpal-$(PAL_HOST).so
 
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 all: $(files_to_build) $(files_to_install)
+else
+all:
+endif
 
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
 
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 LDFLAGS-libsysdb.so += --version-script shim.map -T shim.lds
 libsysdb.so: $(addsuffix .o,$(objs)) $(filter %.map %.lds,$(LDFLAGS-$@)) \
 	     $(graphene_lib) $(pal_lib)
@@ -79,10 +82,6 @@ $(graphene_lib): graphene_lib_recurse
 
 libsysdb.a: $(addsuffix .o,$(objs))
 	$(call cmd,ar_a_o)
-else
-.IGNORE: $(shim_target)
-$(shim_target):
-endif
 
 %.o: %.c
 	$(call cmd,cc_o_c)

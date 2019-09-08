@@ -1,3 +1,7 @@
+ifeq ($(SYS),)
+$(error include Makefiel.config before $(lastword $(MAKEFILE_LIST)))
+endif
+
 ifeq ($(MAKEFILE_MANIFEST_DIR),)
 $(error include Makefile.manifest before $(lastword $(MAKEFILE_LIST)))
 endif
@@ -20,7 +24,11 @@ CXXFLAGS-libos-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PA
 LDFLAGS-libos-debug = -L$(SHIMDIR) -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=$(abspath $(RUNTIME)) -lpal -lsysdb_debug
 
 .PHONY: all
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sgx,$(exec_target)) $(call expand_target_to_sig,$(exec_target))
+else
+all: pall_loader
+endif
 
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(exec_target))

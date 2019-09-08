@@ -50,6 +50,11 @@ RUNTIME_DIR = $(CURDIR)/../../Runtime
 
 .PHONY: all
 all: $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(preloads)
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
+all: $(target) $(call expand_target_to_sig,$(target)) $(call expand_target_to_sgx,$(target)) $(preloads)
+else
+all:
+endif
 
 .PHONY: sgx-tokens
 sgx-tokens: $(call expand_target_to_token,$(target))
@@ -76,7 +81,6 @@ CFLAGS-AvxDisable += -mavx
 ../regression/File: | File
 	@true
 
-ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 LDLIBS-preloads = ../csu/user_shared_start.o $(graphene_lib) $(pal_lib)
 $(preloads): CFLAGS += -shared -fPIC
 $(preloads): LDLIBS = $(LDLIBS-preloads)
@@ -106,11 +110,6 @@ endif
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
-
-else
-.IGNORE: $(preloads) $(executables)
-$(preloads) $(executables):
-endif
 
 export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)
 export PYTHONPATH=../../Scripts
