@@ -1,3 +1,11 @@
+ifeq ($(SYS),)
+$(error include Makefiel.config before $(lastword $(MAKEFILE_LIST)))
+endif
+
+ifeq ($(MAKEFILE_MANIFEST_DIR),)
+$(error include Makefile.manifest before $(lastword $(MAKEFILE_LIST)))
+endif
+
 SCRIPTS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SHIM_TEST_DIR = $(SCRIPTS_DIR)/../LibOS/shim/test
 
@@ -5,9 +13,7 @@ PALDIR  = $(abspath $(SCRIPTS_DIR)/../Pal/src)
 SHIMDIR = $(abspath $(SCRIPTS_DIR)/../LibOS/shim)
 RUNTIME = $(abspath $(SCRIPTS_DIR)/../Runtime)
 
-include $(SCRIPTS_DIR)/Makefile.configs
 include $(SCRIPTS_DIR)/Makefile.rules
-include $(SCRIPTS_DIR)/Makefile.manifest
 
 CFLAGS += -std=gnu99
 
@@ -21,7 +27,11 @@ CXXFLAGS-libos-debug = -I$(SHIMDIR)/include -I$(PALDIR)/../include/pal -I$(PALDI
 LDFLAGS-libos-debug = -L$(SHIMDIR)/src -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=$(abspath $(RUNTIME)) -lpal -lsysdb_debug
 
 .PHONY: all
+ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sgx,$(exec_target)) $(call expand_target_to_sig,$(exec_target))
+else
+all: pal_loader
+endif
 
 
 .PHONY: sgx-tokens
