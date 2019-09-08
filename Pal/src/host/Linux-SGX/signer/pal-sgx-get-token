@@ -59,7 +59,7 @@ def read_sigstruct(sig):
 
 """ Check if we're dealing with DCAP driver """
 
-def check_dcap():
+def is_dcap():
     try:
         SGX_ENCLAVE_INIT_EINITTOKEN
     except:
@@ -233,8 +233,8 @@ if __name__ == "__main__":
     print >>sys.stderr, "    exponent:  %d" % (attr['exponent'])
     print >>sys.stderr, "    signature: %s..." % (attr['signature'].encode('hex')[:32])
 
-    if check_dcap():
-        print "DCAP driver detected"
+    if is_dcap():
+        print >>sys.stderr, "DCAP driver detected"
         token = create_dummy_token(attr)
     else:
         token = connect_aesmd(attr)
