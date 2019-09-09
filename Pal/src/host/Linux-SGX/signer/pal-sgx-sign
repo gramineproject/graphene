@@ -578,33 +578,26 @@ def generate_sigstruct(attr, args, mrenclave):
     today = datetime.date.today()
 
     # field format: (offset, type, value)
-    fields = dict()
+    fields = {
+        'header'   : (SGX_ARCH_SIGSTRUCT_HEADER,
+                      "<4L",  0x00000006, 0x000000e1, 0x00010000, 0x00000000),
+        'vendor'   : (SGX_ARCH_SIGSTRUCT_VENDOR, "<L",   0x00000000),
+        'date'     : (SGX_ARCH_SIGSTRUCT_DATE,
+                      "<HBB", today.year, today.month, today.day),
+        'header2'  : (SGX_ARCH_SIGSTRUCT_HEADER2,
+                      "<4L",  0x00000101, 0x00000060, 0x00000060, 0x00000001),
+        'swdefined': (SGX_ARCH_SIGSTRUCT_SWDEFINED, "<L", 0x00000000),
 
-    fields['header']    = (SGX_ARCH_SIGSTRUCT_HEADER,
-                           "<4L",  0x00000006, 0x000000e1, 0x00010000, 0x00000000)
-    fields['vendor']    = (SGX_ARCH_SIGSTRUCT_VENDOR,
-                           "<L",   0x00000000)
-    fields['date']      = (SGX_ARCH_SIGSTRUCT_DATE,
-                           "<HBB", today.year, today.month, today.day)
-    fields['header2']   = (SGX_ARCH_SIGSTRUCT_HEADER2,
-                           "<4L",  0x00000101, 0x00000060, 0x00000060, 0x00000001)
-    fields['swdefined'] = (SGX_ARCH_SIGSTRUCT_SWDEFINED,
-                           "<L",   0x00000000)
-
-    fields['miscs']     = (SGX_ARCH_SIGSTRUCT_MISCSELECT,
-                           "4s",   attr['miscs'])
-    fields['miscmask']  = (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK,
-                           "4s",   attr['miscs'])
-    fields['attrs']     = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
-                           "8s8s", attr['flags'], attr['xfrms'])
-    fields['attrmask']  = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
-                           "8s8s", attr['flags'], attr['xfrms'])
-    fields['mrenclave'] = (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH,
-                           "32s",  mrenclave)
-    fields['isvprodid'] = (SGX_ARCH_SIGSTRUCT_ISVPRODID,
-                           "<H",   attr['isvprodid'])
-    fields['isvsvn']    = (SGX_ARCH_SIGSTRUCT_ISVSVN,
-                           "<H",   attr['isvsvn'])
+        'miscs'    : (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", attr['miscs']),
+        'miscmask' : (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", attr['miscs']),
+        'attires'  : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
+                      "8s8s", attr['flags'], attr['xfrms']),
+        'attrmask' : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+                      "8s8s", attr['flags'], attr['xfrms']),
+        'mrenclave': (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s", mrenclave),
+        'isvprodid': (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H", attr['isvprodid']),
+        'isvsvn'   : (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", attr['isvsvn']),
+    }
 
     sign_buffer = bytearray(128 + 128)
 
@@ -646,12 +639,14 @@ def generate_sigstruct(attr, args, mrenclave):
     q1 = int_to_bytes(q1_int)
     q2 = int_to_bytes(q2_int)
 
-    fields['modulus']   = (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", modulus)
-    fields['exponent']  = (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L",   3)
-    fields['signature'] = (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", signature)
+    fields.update({
+        'modulus'  : (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", modulus),
+        'exponent' : (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L", 3),
+        'signature': (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", signature),
 
-    fields['q1']        = (SGX_ARCH_SIGSTRUCT_Q1, "384s", q1)
-    fields['q2']        = (SGX_ARCH_SIGSTRUCT_Q2, "384s", q2)
+        'q1'       : (SGX_ARCH_SIGSTRUCT_Q1, "384s", q1),
+        'q2'       : (SGX_ARCH_SIGSTRUCT_Q2, "384s", q2),
+    })
 
     buffer = bytearray(SGX_ARCH_SIGSTRUCT_SIZE)
 
@@ -738,13 +733,13 @@ if __name__ == "__main__":
     (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(manifest)
 
     print("Attributes:")
-    print("    size:      %d" % (attr['enclave_size']))
-    print("    threadnum: %d" % (attr['thread_num']))
-    print("    isvprodid: %d" % (attr['isvprodid']))
-    print("    isvsvn:    %d" % (attr['isvsvn']))
-    print("    flags:     %016x" % (bytes_to_int(attr['flags'])))
-    print("    xfrms:     %016x" % (bytes_to_int(attr['xfrms'])))
-    print("    miscs:     %08x"  % (bytes_to_int(attr['miscs'])))
+    print("    size:      %d" % attr['enclave_size'])
+    print("    threadnum: %d" % attr['thread_num'])
+    print("    isvprodid: %d" % attr['isvprodid'])
+    print("    isvsvn:    %d" % attr['isvsvn'])
+    print("    flags:     %016x" % bytes_to_int(attr['flags']))
+    print("    xfrms:     %016x" % bytes_to_int(attr['xfrms']))
+    print("    miscs:     %08x"  % bytes_to_int(attr['miscs']))
 
     # Get trusted checksums and measurements
     print("Trusted files:")

@@ -18,26 +18,22 @@ from generated_offsets import *
 
 def read_sigstruct(sig):
     # field format: (offset, type, value)
-    fields = dict()
-
     # SGX_ARCH_SIGSTRUCT_
-    fields['date']      = (SGX_ARCH_SIGSTRUCT_DATE,
-                               "<HBB", 'year', 'month', 'day')
+    fields = {
+        'date'     : (SGX_ARCH_SIGSTRUCT_DATE, "<HBB", 'year', 'month', 'day'),
+        'modulus'  : (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", 'modulus'),
+        'exponent' : (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L",   'exponent'),
+        'signature': (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", 'signature'),
 
-    fields['modulus']   = (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", 'modulus')
-    fields['exponent']  = (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L",   'exponent')
-    fields['signature'] = (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", 'signature')
-
-    fields['miscs']     = (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s",   'miscs')
-    fields['miscmask']  = (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK,
-                               "4s",   'miscmask')
-    fields['attrs']     = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
-                               "8s8s", 'flags', 'xfrms')
-    fields['attrmask']  = (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
-                               "8s8s", 'flagmask', 'xfrmmask')
-    fields['mrenclave'] = (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s",  'mrenclave')
-    fields['isvprodid'] = (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H",   'isvprodid')
-    fields['isvsvn']    = (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H",   'isvsvn')
+        'miscs'    : (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", 'miscs'),
+        'miscmask' : (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", 'miscmask'),
+        'attrs'    : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
+        'attrmask' : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+                      "8s8s", 'flagmask', 'xfrmmask'),
+        'mrenclave': (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s", 'mrenclave'),
+        'isvprodid': (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H", 'isvprodid'),
+        'isvsvn'   : (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", 'isvsvn'),
+    }
 
     attr = dict()
     for key, field in fields.items():
@@ -111,15 +107,15 @@ if __name__ == "__main__":
 
     print("Attributes:")
     print("    mrenclave: %s" % attr['mrenclave'].hex())
-    print("    isvprodid: %d" % (attr['isvprodid']))
-    print("    isvsvn:    %d" % (attr['isvsvn']))
-    print("    flags:     %016x" % (bytes_to_int(attr['flags'])))
-    print("    xfrms:     %016x" % (bytes_to_int(attr['xfrms'])))
-    print("    miscs:     %08x"  % (bytes_to_int(attr['miscs'])))
-    print("    miscmask:  %08x"  % (bytes_to_int(attr['miscmask'])))
-    print("    modulus:   %s..." % (attr['modulus'].hex()[:32]))
-    print("    exponent:  %d" % (attr['exponent']))
-    print("    signature: %s..." % (attr['signature'].hex()[:32]))
+    print("    isvprodid: %d" % attr['isvprodid'])
+    print("    isvsvn:    %d" % attr['isvsvn'])
+    print("    flags:     %016x" % bytes_to_int(attr['flags']))
+    print("    xfrms:     %016x" % bytes_to_int(attr['xfrms']))
+    print("    miscs:     %08x"  % bytes_to_int(attr['miscs']))
+    print("    miscmask:  %08x"  % bytes_to_int(attr['miscmask']))
+    print("    modulus:   %s..." % attr['modulus'].hex()[:32])
+    print("    exponent:  %d" % attr['exponent'])
+    print("    signature: %s..." % attr['signature'].hex()[:32])
 
     token = connect_aesmd(attr)
     args.output[0].write(token)
