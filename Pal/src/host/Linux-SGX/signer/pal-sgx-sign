@@ -10,6 +10,8 @@ import hashlib
 import binascii
 import shutil
 
+from utils import *
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
 
@@ -36,41 +38,6 @@ def roundup(addr):
 
 def rounddown(addr):
     return addr - addr % PAGESIZE
-
-def int_to_bytes(i):
-    b = b""
-    l = 0
-    while i > 0:
-        b = b + bytes([i % 256])
-        i = i // 256
-        l = l + 1
-    return b
-
-def bytes_to_int(b):
-    i = 0
-    for c in b:
-        i = i * 256 + c
-    return i
-
-def parse_int(s):
-    if len(s) > 2 and s.startswith("0x"):
-        return int(s[2:], 16)
-    if len(s) > 1 and s.startswith("0"):
-        return int(s[1:], 8)
-    return int(s)
-
-def parse_size(s):
-    scale = 1
-    if s.endswith("K"):
-        scale = 1024
-    if s.endswith("M"):
-        scale = 1024 * 1024
-    if s.endswith("G"):
-        scale = 1024 * 1024 * 1024
-    if scale != 1:
-        s = s[:-1]
-    return parse_int(s) * scale
-
 
 """ Reading / Writing Manifests """
 
@@ -666,15 +633,6 @@ def generate_sigstruct(attr, args, mrenclave):
                 i = i + digit * q
             q = q * 256
         return i
-
-    def int_to_bytes(i):
-        b = b""
-        l = 0
-        while i > 0:
-            b = b + bytes([i % 256])
-            i = i // 256
-            l = l + 1
-        return b
 
     modulus_int = bytes_to_int(modulus)
     signature_int = bytes_to_int(signature)

@@ -8,26 +8,10 @@ import socket
 from google.protobuf import message as _message
 import aesm_pb2
 
+from utils import *
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
-
-""" Utilities """
-
-def int_to_bytes(i):
-    b = b""
-    l = 0
-    while i > 0:
-        b = b + bytes([i % 256])
-        i = i // 256
-        l = l + 1
-    return b
-
-def bytes_to_int(b):
-    i = 0
-    for c in b:
-        i = i * 256 + c
-    return i
-
 
 """ Reading Sigstruct """
 
