@@ -20,10 +20,10 @@
 """ Utilities """
 
 def int_to_bytes(i):
-    b = b""
+    b = bytearray()
     l = 0
     while i > 0:
-        b = b + bytes([i % 256])
+        b.append(i % 256)
         i = i // 256
         l = l + 1
     return b
