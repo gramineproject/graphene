@@ -350,9 +350,7 @@ int init_enclave(sgx_arch_secs_t * secs,
     struct gsgx_enclave_init param = {
         .addr           = enclave_valid_addr,
         .sigstruct      = (uint64_t) sigstruct,
-#ifndef SGX_DCAP
         .einittoken     = (uint64_t) token,
-#endif
     };
     int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_INIT,
                              &param);
