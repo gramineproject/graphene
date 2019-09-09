@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import sys
 import re
@@ -661,75 +662,40 @@ def generate_sigstruct(attr, args, mrenclave):
 
 """ Main Program """
 
-options = {
-#       Option name : (Required  Value)
-        'output':    (True,    'output'),
-        'libpal':    (True,    'libpal path'),
-        'key':       (True,    'signing key'),
-        'manifest':  (True,    'manifest'),
-        'exec':      (False,   'executable'),
-    }
+argparser = argparse.ArgumentParser()
+argparser.add_argument('--output', '-output', metavar='OUTPUT',
+                       type=str, nargs=1, required=True,
+                       help='specify output(.manifest.sgx) file')
+argparser.add_argument('--libpal', '-libpal', metavar='LIBPAL',
+                       type=str, nargs=1, required=True,
+                       help='specify libpal file')
+argparser.add_argument('--key', '-key', metavar='KEY',
+                       type=str, nargs=1, required=True,
+                       help='specify signing key(.pem) file')
+argparser.add_argument('--manifest', '-manifest', metavar='MANIFEST',
+                       type=str, nargs=1, required=True,
+                       help='specify manifest(.manifest) file')
+argparser.add_argument('--exec', '-exec', metavar='EXEC',
+                       type=str, nargs=1, required=False,
+                       help='specify executable file')
 
-def usage():
-    usage_message = 'USAGE: ' + sys.argv[0] + ' -help|-h'
-
-    for opt, optval in options.items():
-        if not optval[0]:
-            usage_message += '['
-        usage_message += '|-' + opt
-        if optval[1]:
-            usage_message += ' <' + optval[1] + '>'
-        if not optval[0]:
-            usage_message += ']'
-
-    print(usage_message, file=sys.stderr)
-    os._exit(-1)
 
 def parse_args():
-    args = dict()
-    for opt, optval in options.items():
-        if not optval[1]:
-            args[opt] = False
+    args = argparser.parse_args(sys.argv[1:])
+    args_dict = {
+        'output': args.output[0],
+        'libpal': args.libpal[0],
+        'key': args.key[0],
+        'manifest': args.manifest[0],
+    }
+    if 'exec' in args:
+        args_dict['exec'] = args.exec[0]
 
-    i = 1
-    while i < len(sys.argv):
-        got = sys.argv[i]
+    return args_dict
 
-        if got == '-help' or got == '-h':
-            usage()
-
-        invalid = True
-        for opt, optval in options.items():
-            if got != '-' + opt:
-                continue
-
-            if optval[1] is not None:
-                i += 1
-                if i == len(sys.argv):
-                    print("Option %s needs a value." % (opt), file=sys.stderr)
-                    usage()
-                args[opt] = sys.argv[i]
-            else:
-                args[opt] = True
-
-            invalid = False
-            break
-
-        if invalid:
-            print("Unknown option: %s." % (got[1:]), file=sys.stderr)
-            usage()
-        i += 1
-
-    for opt, optval in options.items():
-        if optval[0] and opt not in args:
-            print("Must specify %s <%s>." % (opt, optval[1]), file=sys.stderr)
-            usage()
-
-    return args
 
 if __name__ == "__main__":
 
-    # Parse arguments
     args = parse_args()
 
     (manifest, manifest_layout) = read_manifest(args['manifest'])
