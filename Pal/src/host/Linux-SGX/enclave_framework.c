@@ -1002,18 +1002,19 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     uint8_t agree[DH_SIZE] __attribute__((aligned(DH_SIZE)));
     PAL_NUM pubsz, agreesz;
     LIB_DH_CONTEXT context;
-    int ret;
+    int64_t bytes;
+    int64_t ret;
 
     ret = lib_DhInit(&context);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Key Exchange: DH Init failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DH Init failed: %ld\n", ret);
         goto out_no_final;
     }
 
     pubsz = sizeof pub;
     ret = lib_DhCreatePublic(&context, pub, &pubsz);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Key Exchange: DH CreatePublic failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DH CreatePublic failed: %ld\n", ret);
         goto out;
     }
 
@@ -1034,7 +1035,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1046,7 +1047,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to exchange the secret key via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1054,7 +1055,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     agreesz = sizeof agree;
     ret = lib_DhCalcSecret(&context, pub, DH_SIZE, agree, &agreesz);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Key Exchange: DH CalcSecret failed: %d\n", ret);
+        SGX_DBG(DBG_E, "Key Exchange: DH CalcSecret failed: %ld\n", ret);
         goto out;
     }
 
@@ -1071,7 +1072,7 @@ int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key) {
     if ((ret = lib_SHA256Init(&sha)) < 0 ||
         (ret = lib_SHA256Update(&sha, agree, agreesz)) < 0 ||
         (ret = lib_SHA256Final(&sha, (uint8_t*)key)) < 0) {
-        SGX_DBG(DBG_E, "Failed to derive the session key: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to derive the session key: %ld\n", ret);
         goto out;
     }
 
@@ -1096,7 +1097,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     sgx_arch_targetinfo_t target_info;
     sgx_arch_report_t report;
     uint64_t bytes;
-    int ret;
+    int64_t ret;
 
     /* A -> B: targetinfo[A] */
     memset(&target_info, 0, sizeof(target_info));
@@ -1112,7 +1113,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to send target info via RPC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to send target info via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1126,7 +1127,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1137,14 +1138,14 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     /* Verify report[B -> A] */
     ret = sgx_verify_report(&report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to verify local report: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to verify local report: %ld\n", ret);
         goto out;
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.report_data;
     ret = check_mrenclave(stream, &report.mrenclave, remote_state);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to check local report: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to check local report: %ld\n", ret);
         goto out;
     }
 
@@ -1163,7 +1164,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     ret = sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to get local report from CPU: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
         goto out;
     }
 
@@ -1175,7 +1176,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to send local report via RPC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to send local report via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1199,7 +1200,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     sgx_arch_targetinfo_t target_info;
     sgx_arch_report_t report;
     uint64_t bytes;
-    int ret;
+    int64_t ret;
     memset(&target_info, 0, sizeof(target_info));
 
     /* A -> B: targetinfo[A] */
@@ -1211,7 +1212,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to receive target info via RPC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to receive target info via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1219,7 +1220,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     /* B -> A: report[B -> A] */
     ret = sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to get local report from CPU: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to get local report from CPU: %ld\n", ret);
         goto out;
     }
 
@@ -1231,7 +1232,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to send local report via PRC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to send local report via PRC: %ld\n", ret);
             goto out;
         }
     }
@@ -1245,7 +1246,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                 ret = 0;
                 continue;
             }
-            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %d\n", ret);
+            SGX_DBG(DBG_E, "Failed to receive local report via RPC: %ld\n", ret);
             goto out;
         }
     }
@@ -1256,14 +1257,14 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     /* Verify report[A -> B] */
     ret = sgx_verify_report(&report);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to verify local report: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to verify local report: %ld\n", ret);
         goto out;
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.report_data;
     ret = check_mrenclave(stream, &report.mrenclave, remote_state);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to check mrenclave: %d\n", ret);
+        SGX_DBG(DBG_E, "Failed to check mrenclave: %ld\n", ret);
         goto out;
     }
 
