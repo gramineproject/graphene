@@ -230,7 +230,7 @@ def get_trusted_files(manifest, args):
 
     for (key, val) in targets.items():
         (uri, target) = val
-        checksum = binascii.hexlify(get_checksum(target)).decode()
+        checksum = get_checksum(target).hex()
         targets[key] = (uri, target, checksum)
 
     return targets
@@ -248,9 +248,9 @@ def get_trusted_children(manifest, args):
         target = resolve_uri(val)
         if not target.endswith('.sig'):
             target += '.sig'
-        sig = binascii.hexlify(open(target, 'rb').read()[
+        sig = open(target, 'rb').read()[
             SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH:
-            SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE]).decode()
+            SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE].hex()
         targets[key] = (val, target, sig)
 
     return targets
@@ -650,7 +650,7 @@ def generate_sigstruct(attr, args, mrenclave):
 
     p = subprocess.Popen(['openssl', 'rsa', '-modulus', '-in', args['key'], '-noout'], stdout=subprocess.PIPE)
     modulus_out = p.communicate()[0]
-    modulus = binascii.unhexlify(modulus_out[8:8+SGX_ARCH_KEY_SIZE*2])
+    modulus = bytes.fromhex(modulus_out[8:8+SGX_ARCH_KEY_SIZE*2].decode())
     modulus = bytes(reversed(modulus))
 
     p = subprocess.Popen(['openssl', 'sha256', '-binary', '-sign', args['key']],
@@ -858,7 +858,7 @@ if __name__ == "__main__":
     # Generate measurement
     mrenclave = generate_measurement(attr, memory_areas)
     print("Measurement:")
-    print("    %s" % binascii.hexlify(mrenclave).decode())
+    print("    %s" % mrenclave.hex())
 
     # Generate sigstruct
     open(args['sigfile'], 'wb').write(generate_sigstruct(attr, args, mrenclave))
