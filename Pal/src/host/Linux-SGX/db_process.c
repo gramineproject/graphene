@@ -168,7 +168,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
  *
  *       See the implementation in check_child_mrenclave() and check_parent_mrenclave().
  *       For a child process, we check if the child's mrenclave is listed as
- *       "sgx.trusted_children.xxx = ...) in the manifest.
+ *       "sgx.trusted_children.xxx = ..." in the manifest.
  *       For a parent process, we currently don't check its mrenclave in the child.
  *       This is a limitation because listing the parent's mrenclave in the child's
  *       manifest will change the child's mrenclave, which then needs to be updated
