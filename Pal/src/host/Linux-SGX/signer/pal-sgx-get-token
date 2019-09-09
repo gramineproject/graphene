@@ -55,7 +55,7 @@ def read_sigstruct(sig):
     fields['isvsvn']    = (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H",   'isvsvn')
 
     attr = dict()
-    for key, field in list(fields.items()):
+    for key, field in fields.items():
         values = struct.unpack_from(field[1], sig, field[0])
 
         for i in range(len(values)):
@@ -120,7 +120,7 @@ options = {
 def usage():
     usage_message = 'USAGE: ' + sys.argv[0] + ' -help|-h'
 
-    for opt, optval in list(options.items()):
+    for opt, optval in options.items():
         if not optval[0]:
             usage_message += '['
         usage_message += '|-' + opt
@@ -134,7 +134,7 @@ def usage():
 
 def parse_args():
     args = dict()
-    for opt, optval in list(options.items()):
+    for opt, optval in options.items():
         if optval[1] is None:
             args[opt] = False
 
@@ -146,7 +146,7 @@ def parse_args():
             usage()
 
         invalid = True
-        for opt, optval in list(options.items()):
+        for opt, optval in options.items():
             if got != '-' + opt:
                 continue
 
@@ -167,7 +167,7 @@ def parse_args():
             usage()
         i += 1
 
-    for opt, optval in list(options.items()):
+    for opt, optval in options.items():
         if optval[0] and opt not in args:
             print("Must specify %s <%s>." % (opt, optval[1]), file=sys.stderr)
             usage()
