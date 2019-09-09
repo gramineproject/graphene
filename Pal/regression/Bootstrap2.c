@@ -10,7 +10,7 @@ int main(int argc, char** argv, char** envp) {
     pal_printf("Loaded Executable: %s\n", pal_control.executable);
 
     /* check manifest name */
-    char manifest[30] = "";
+    char manifest[30];
     DkStreamGetName(pal_control.manifest_handle, manifest, 30);
     pal_printf("Loaded Manifest: %s\n", manifest);
 
