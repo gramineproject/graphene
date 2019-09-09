@@ -6,6 +6,7 @@
 
    glossary
    howto-doc
+   dcap
 
 .. toctree::
    :caption: LibOS
