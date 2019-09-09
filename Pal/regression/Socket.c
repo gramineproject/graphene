@@ -2,8 +2,10 @@
 #include "pal.h"
 #include "pal_debug.h"
 
-int main(int argc, char** argv, char** envp) {
-    char buffer1[20] = "Hello World 1", buffer2[20] = "Hello World 2";
+int main (int argc, char** argv, char** envp)
+{
+    char* buffer1 = "Hello World 1";
+    char* buffer2 = "Hello World 2";
     char buffer3[20], buffer4[20];
     int ret;
 
