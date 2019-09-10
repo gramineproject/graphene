@@ -1,7 +1,7 @@
 include ../src/Makefile.Host
 
 CC	= gcc
-CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib -mavx \
+CFLAGS	= -Wall -O2 -std=c11 -fno-builtin -nostdlib \
 	  -I../include/pal -I../lib -I../src
 
 preloads    = $(patsubst %.c,%,$(wildcard *.so.c))
@@ -49,6 +49,8 @@ manifest: manifest.template
 
 ../src/user_shared_start.o ../src/user_start.o: ../src/user_start.S
 	$(MAKE) -C ../src $(notdir $@)
+
+CFLAGS-AvxDisable += -mavx
 
 ifeq ($(findstring x86_64,$(SYS))$(findstring linux,$(SYS)),x86_64linux)
 LDLIBS-preloads = ../src/user_shared_start.o $(graphene_lib) $(pal_lib)
