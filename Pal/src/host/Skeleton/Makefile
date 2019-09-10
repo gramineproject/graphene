@@ -11,7 +11,6 @@ CFLAGS += $(defs)
 ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc exception)
-headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
 all: $(host_files)
@@ -19,10 +18,10 @@ all: $(host_files)
 libpal-Skeleton.a: $(addsuffix .o,$(objs))
 	$(call cmd,ar_a_o)
 
-%.o: %.c $(headers)
+%.o: %.c
 	$(call cmd,cc_o_c)
 
-%.o: %.S $(headers)
+%.o: %.S
 	$(call cmd,as_o_S)
 
 include ../../../../Makefile.rules
