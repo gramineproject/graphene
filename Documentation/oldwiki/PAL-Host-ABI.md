@@ -1,6 +1,11 @@
 ## What is Graphene's PAL Host ABI
 
-PAL Host ABI is the interface used by Graphene library OS to interact with its hosts. It is translated into the hosts' native ABI (e.g. system calls for UNIX), by a layer called PAL (platform adaption layer). A PAL not only exports a set of APIs (PAL APIs) that can be called by the library OS, but also act as the loader that bootstraps the library OS. The design of PAL Host ABI strictly follows three primary principles, to guarantee functionality, security, and platform compatibility:  
+PAL Host ABI is the interface used by Graphene library OS to interact with its hosts. It is
+translated into the hosts' native ABI (e.g. system calls for UNIX), by a layer called PAL
+(platform adaption layer). A PAL not only exports a set of APIs (PAL APIs) that can be called by
+the library OS, but also act as the loader that bootstraps the library OS. The design of PAL
+Host ABI strictly follows three primary principles, to guarantee functionality, security, and
+portability:
 
 * The host ABI must be stateless.
 * The host ABI must be a narrowed interface to reduce the attack surface.
@@ -10,23 +15,43 @@ Most of the PAL Host ABI are adapted from _Drawbridge_ library OS.
 
 ## PAL as Loader
 
-Regardless of the actual implementation, we require PAL to be able to load ELF-format binaries as executables or dynamic libraries, and perform the necessary dynamic relocation. PAL will need to look up all unresolved symbols in loaded binaries, and resolve the ones matching the name of PAL APIs (_Important!!!_). PAL does not and will not resolve other unresolved symbols, so the loaded libraries and executables must resolve them afterwards. 
+Regardless of the actual implementation, we require PAL to be able to load ELF-format binaries
+as executables or dynamic libraries, and perform the necessary dynamic relocation. PAL will need
+to look up all unresolved symbols in loaded binaries, and resolve the ones matching the name of
+PAL APIs (_Important!!!_). PAL does not and will not resolve other unresolved symbols, so the
+loaded libraries and executables must resolve them afterwards. 
 
-After loading the binaries, PAL needs to load and interpret the manifest files. The manifest syntax will be described in [[Graphene Manifest Syntax]].
+After loading the binaries, PAL needs to load and interpret the manifest files. The manifest syntax
+will be described in [[Graphene Manifest Syntax]].
 
-After PAL fully initialized the process, it will jump to the entry points of libraries and/or executables to start the execution. When jumping to the entry points, arguments, environment variables and auxiliary vectors must be pushed to the stack as the UNIX calling convention.
+After PAL fully initialized the process, it will jump to the entry points of libraries and/or
+executables to start the execution. When jumping to the entry points, arguments, environment
+variables and auxiliary vectors must be pushed to the stack as the UNIX calling convention.
 
 ### Manifest and Executable Loading Rules
 
-The PAL loader supports multiple ways of locating the manifest and executable. To run a program in Graphene properly, the PAL loader generally requires both a manifest and an executable, although it is possible to load with only one of them. The user shall specify either the manifest and the executable to load in the command line, and the PAL loader will try to locate the other based on the file name or content.
+The PAL loader supports multiple ways of locating the manifest and executable. To run a program
+in Graphene properly, the PAL loader generally requires both a manifest and an executable,
+although it is possible to load with only one of them. The user shall specify either the manifest
+and the executable to load in the command line, and the PAL loader will try to locate the other
+based on the file name or content.
 
 Precisely, the loading rules for the manifest and executable are as follows:
 
-1. The first argument given to the PAL loader (e.g., `pal-Linux`, `pal-Linux-SGX`, `pal-FreeBSD`, or the cross-platform wrapper, `pal-loader`) can be either a manifest file or an executable.
-2. If an executable is given to the command line, the loader will search for the manifest in the following order: the same file name as the executable with a `.manifest` or `.manifest.sgx` extension, a `manifest` file without any extension, or no manifest at all.
-3. If a manifest is given to the command line, and the manifest contains a `loader.exec` rule, then the rule is used to determine the executable. The loader should exit if the executable file doesn't exist.
-4. If a manifest is given to the command line, and the manifest DOES NOT contain a `loader.exec rule`, then the manifest MAY be used to infer the executable. The potential executable file has the same file name as the manifest file except it doesn't have the `.manifest` or `.manifest.sgx` extension.
-5. If a manifest is given to the command line, and no executable file can be found either based on any `loader.exec` rule or inferring from the manifest file, then no executable is used for the execution.   
+1. The first argument given to the PAL loader (e.g., `pal-Linux`, `pal-Linux-SGX`, `pal-FreeBSD`,
+or the cross-platform wrapper, `pal-loader`) can be either a manifest file or an executable.
+2. If an executable is given to the command line, the loader will search for the manifest in the
+following order: the same file name as the executable with a `.manifest` or `.manifest.sgx` extension,
+a `manifest` file without any extension, or no manifest at all.
+3. If a manifest is given to the command line, and the manifest contains a `loader.exec` rule,
+then the rule is used to determine the executable. The loader should exit if the executable file
+doesn't exist.
+4. If a manifest is given to the command line, and the manifest DOES NOT contain a `loader.exec rule`,
+then the manifest MAY be used to infer the executable. The potential executable file has the same
+file name as the manifest file except it doesn't have the `.manifest` or `.manifest.sgx` extension.
+5. If a manifest is given to the command line, and no executable file can be found either based on
+any `loader.exec` rule or inferring from the manifest file, then no executable is used for the
+execution.
 
 
 ## Data Types and Variables
@@ -35,7 +60,8 @@ Precisely, the loading rules for the manifest and executable are as follows:
 
 #### PAL handles
 
-The PAL handles are identifiers that are returned by PAL when opening or creating resources. The basic data structure of a PAL handle is defined as follows:
+The PAL handles are identifiers that are returned by PAL when opening or creating resources. The
+basic data structure of a PAL handle is defined as follows:
 
     typedef union pal_handle {
         struct {
@@ -46,31 +72,40 @@ The PAL handles are identifiers that are returned by PAL when opening or creatin
         (Other resource-specific definitions)
     } PAL_HANDLE;
 
-As shown above, a PAL handle is usually defined as a _union_ data type that contains different subtypes that represent each resource such as files, directories, pipes or sockets. The actual memory allocated for the PAL handles may be variable-sized. 
+As shown above, a PAL handle is usually defined as a _union_ data type that contains different
+subtypes that represent each resource such as files, directories, pipes or sockets. The actual
+memory allocated for the PAL handles may be variable-sized.
 
 #### Numbers and Flags
 
-_PAL_NUM_ and _PAL_FLG_ represent the values of 64-bit integers and 32-bit flags. On x86-64, they are defined as follows:
+_PAL_NUM_ and _PAL_FLG_ represent integers and flags. On x86-64, they are defined as follows:
 
     typedef uint64_t      PAL_NUM;
     typedef uint32_t      PAL_FLG;
-  
+
 #### Pointers, Buffers and Strings
 
-_PAL_PTR_ and _PAL_STR_ represent the pointers that point to memory, buffers, and strings.  On x86_64, they are defined as follows:
+_PAL_PTR_ and _PAL_STR_ represent the pointers that point to memory, buffers, and strings.
+On x86-64, they are defined as follows:
 
     typedef const char *  PAL_STR;
     typedef void *        PAL_PTR;
 
 #### Boolean Values
 
-_PAL_BOL_ represents the boolean values that will solely contain either _True_ or _False_. This data type is commonly used as the return values of many PAL APIs to determine whether the call has succeeded. The value of _PAL_BOL_ could be either _PAL_TRUE_ or _PAL_FALSE_. On x86_64, they are defined as follows:
+_PAL_BOL_ represents the boolean values that will solely contain either _True_ or _False_. This
+data type is commonly used as the return values of many PAL APIs to determine whether the call has
+succeeded. The value of _PAL_BOL_ could be either _PAL_TRUE_ or _PAL_FALSE_. On x86-64, they are
+defined as follows:
 
     typedef bool          PAL_BOL;
- 
+
 ### Graphene Control Block
 
-The control block in Graphene is a structure that provides static information about the current process and its host. It is also a dynamic symbol that will be linked by library OSes and resolved at run time. Sometimes, for the flexibility or the convenience of the dynamic resolution, the address of the control block may be resolved by a function (_pal_control_addr()_).
+The control block in Graphene is a structure that provides static information about the current
+process and its host. It is also a dynamic symbol that will be linked by library OSes and resolved
+at runtime. Sometimes, for the flexibility or the convenience of the dynamic resolution, the
+address of the control block may be resolved by a function (_pal_control_addr()_).
 
 The members of Graphene control block are defined as follows:
 
@@ -120,7 +155,11 @@ The PAL APIs contain _44_ functions that can be called from the library OSes.
 
     PAL_PTR DkVirtualMemoryAlloc(PAL_PTR addr, PAL_NUM size, PAL_FLG alloc_type, PAL_FLG prot);
 
-This API allocates virtual memory for the library OSes. _addr_ can be either _NULL_ or any valid addresses that are aligned by the allocation alignment. When _addr_ is non-NULL, the API will try to allocate the memory at the given address, potentially rewrite any memory previously allocated at the same address. Overwriting any part of PAL and host kernel is forbidden. _size_ must be a positive number, aligned by the allocation alignment. 
+This API allocates virtual memory for the library OSes. _addr_ can be either _NULL_ or any valid
+addresses that are aligned by the allocation alignment. When _addr_ is non-NULL, the API will try
+to allocate the memory at the given address, potentially rewrite any memory previously allocated
+at the same address. Overwriting any part of PAL and host kernel is forbidden. _size_ must be a
+positive number, aligned by the allocation alignment.
 
 _alloc_type_ can be a combination of any of the following flags:
 
@@ -141,13 +180,16 @@ _prot_ can be a combination of the following flags:
 
     void DkVirtualMemoryFree(PAL_PTR addr, PAL_NUM size);
 
-This API deallocates a previously allocated memory mapping. Both _addr_ and _size_ must be non-zero and aligned by the allocation alignment.
+This API deallocates a previously allocated memory mapping. Both _addr_ and _size_ must be non-zero
+and aligned by the allocation alignment.
 
 #### DkVirtualMemoryProtect
 
     PAL_BOL DkVirtualMemoryProtect(PAL_PTR addr, PAL_NUM size, PAL_FLG prot);
 
-This API modified the hardware protection of a previously allocated memory mapping. Both _addr_ and _size_ must be non-zero and aligned by the allocation alignment. _prot_ is defined as [[DkVirtualMemoryAlloc|PAL Host ABI#DkVirtualMemoryAlloc]].
+This API modified the hardware protection of a previously allocated memory mapping. Both _addr_ and
+_size_ must be non-zero and aligned by the allocation alignment. _prot_ is defined as
+[[DkVirtualMemoryAlloc|PAL Host ABI#DkVirtualMemoryAlloc]].
 
 ### Process Creation
 
@@ -155,27 +197,39 @@ This API modified the hardware protection of a previously allocated memory mappi
 
     PAL_HANDLE DkProcessCreate(PAL_STR uri, PAL_FLG flags, PAL_STR* args);
 
-This API creates a new process to run a separated executable. _uri_ is the URI of the manifest file or the executable to be loaded in the new process. _flags_ is currently unused. _args_ is an array of strings as the arguments to be passed to the new process.
+This API creates a new process to run a separated executable. _uri_ is the URI of the manifest file
+or the executable to be loaded in the new process. _flags_ is currently unused. _args_ is an array
+of strings as the arguments to be passed to the new process.
 
 #### DkProcessExit
 
     void DkProcessExit(PAL_NUM exitCode);
 
-This API terminates all threads in the process immediately. _exitCode_ with be exit value returned to the host.
+This API terminates all threads in the process immediately. _exitCode_ with be exit value returned
+to the host.
 
 ### Stream Creation/Connection/Open
 
 #### DkStreamOpen
 
-    PAL_HANDLE DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share_flags, PAL_FLG create, PAL_FLG options);
+    PAL_HANDLE DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share_flags, PAL_FLG create,
+                            PAL_FLG options);
 
-This APIs open/create stream resources specified by _uri_. If the resource is successfully opened/created, a PAL handle will be returned for further access such as reading or writing. _uri_ is the URI of the stream to be opened/created. The following is a list of URIs that are supported in PAL:
+This APIs open/create stream resources specified by _uri_. If the resource is successfully opened
+or created, a PAL handle will be returned for further access such as reading or writing. _uri_ is
+the URI of the stream to be opened/created. The following is a list of URIs that are supported:
 
-* `file:...`, `dir:...`: Files or directories on the host file systems. If _PAL_CREAT_TRY_ is given in _create_, the file or directory will be created. 
-* `dev:...`: Opening devices as streams. For example, `dev:tty` represents the standard input/output.
-* `pipe.srv:<ID>`, `pipe:<ID>`, `pipe:`: Open a byte stream that can be used as RPC (remote procedure call) between processes. Pipes are located by numeric IDs. The server side of pipes can accept any number of connection. If `pipe:` is given as the URI, it will open an anonymous bidirectional pipe. 
-* `tcp.srv:<ADDR>:<port>`, `tcp:<ADDR>:<PORT>`: Opening a TCP socket to listen or connecting to a remote TCP socket.
-* `udp.srv:<ADDR>:<PORT>`, `udp:<ADDR>:<PORT>`: Opening a UDP socket to listen or connecting to a remote UDP socket.
+* `file:...`, `dir:...`: Files or directories on the host file systems. If _PAL_CREAT_TRY_ is given
+in _create_, the file or directory will be created. 
+* `dev:...`: Opening devices as streams. For example, `dev:tty` represents the standard IO.
+* `pipe.srv:<ID>`, `pipe:<ID>`, `pipe:`: Open a byte stream that can be used as RPC (remote
+procedure call) between processes. Pipes are located by numeric IDs. The server side of pipes can
+accept any number of connection. If `pipe:` is given as the URI, it will open an anonymous
+bidirectional pipe.
+* `tcp.srv:<ADDR>:<port>`, `tcp:<ADDR>:<PORT>`: Opening a TCP socket to listen or connecting to
+a remote TCP socket.
+* `udp.srv:<ADDR>:<PORT>`, `udp:<ADDR>:<PORT>`: Opening a UDP socket to listen or connecting to
+a remote UDP socket.
 
 _access_ can be a combination of the following flags:
 
@@ -214,14 +268,18 @@ _options_ can be a combination of the following flags:
 
     PAL_HANDLE DkStreamWaitForClient(PAL_HANDLE handle);
 
-This API is only available for handles that are opened with `pipe.srv:...`, `tcp.srv:...` and `udp.srv:...`. It will block until a new connection is accepted and return the PAL handle for the connection.
+This API is only available for handles that are opened with `pipe.srv:...`, `tcp.srv:...` and
+`udp.srv:...`. It will block until a new connection is accepted and return the PAL handle for the
+connection.
 
 #### DkStreamRead
 
     PAL_NUM DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer,
                          PAL_PTR source, PAL_NUM size);
 
-This API receives or reads data from an opened stream. If the handles are files, _offset_ must be specified at each call of DkStreamRead. _source_ and _size_ can be used to return the remote socket addresses if the handles are UDP sockets.  
+This API receives or reads data from an opened stream. If the handles are files, _offset_ must be
+specified at each call of DkStreamRead. _source_ and _size_ can be used to return the remote socket
+addresses if the handles are UDP sockets.
 
 If the handles are directories, calling DkStreamRead will fill the buffer with the names (NULL-ended) of the files or subdirectories inside.
 
@@ -230,28 +288,36 @@ If the handles are directories, calling DkStreamRead will fill the buffer with t
     PAL_NUM DkStreamWrite(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count,
                           PAL_PTR buffer, PAL_STR dest);
 
-This API sends or writes data to an opened stream. If the handles are files, _offset_ must be specified at each call of DkStreamWrite. _dest_ can be used to specify the remote socket addresses if the handles are UDP sockets.
+This API sends or writes data to an opened stream. If the handles are files, _offset_ must be
+specified at each call of DkStreamWrite. _dest_ can be used to specify the remote socket addresses
+if the handles are UDP sockets.
 
 #### DkStreamDelete
 
     #define PAL_DELETE_RD       01
     #define PAL_DELETE_WR       02
-    void  DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
+    void DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
 
-This API deletes files or directories on the host or shut down the connection of TCP or UDP sockets. _access_ specifies the method of shutting down the connection. _access_ can be either read-side only, write-side only, or both if 0 is given in _access_.
+This API deletes files or directories on the host or shut down the connection of TCP or UDP sockets.
+_access_ specifies the method of shutting down the connection. _access_ can be either read-side only,
+write-side only, or both if 0 is given in _access_.
 
 #### DkStreamMap
 
     PAL_PTR DkStreamMap(PAL_HANDLE handle, PAL_PTR address, PAL_FLG prot,
                         PAL_NUM offset, PAL_NUM size);
 
-This API maps files to virtual memory of the current process. _address_ can be NULL or a valid address that is aligned by the allocation alignment. _offset_ and _size_ have to be non-zero and aligned by the allocation alignment. _prot_ is defined as [[DkVirtualMemoryAlloc|PAL Host ABI#DkVirtualMemoryAlloc]].
+This API maps a file to a virtual memory address in the current process. _address_ can be NULL or
+a valid address that is aligned by the allocation alignment. _offset_ and _size_ have to be non-zero
+and aligned by the allocation alignment. _prot_ is defined as
+[[DkVirtualMemoryAlloc|PAL Host ABI#DkVirtualMemoryAlloc]].
 
 #### DkStreamUnmap
 
     void DkStreamUnmap (PAL_PTR addr, PAL_NUM size);
 
-This API unmaps virtual memory that is backed with file streams. _addr_ and _size_ must be aligned by the allocation alignment.
+This API unmaps virtual memory that is backed with file streams. _addr_ and _size_ must be aligned
+by the allocation alignment.
 
 #### DkStreamSetLength
 
@@ -269,7 +335,9 @@ This API flushes the buffer of a file stream.
 
     PAL_BOL DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo);
 
-This API can be used to send a PAL handle upon other handles. Currently, the handle that is used to send handle must be a process handle, thus handles can only be sent between parent and child processes. 
+This API can be used to send a PAL handle upon other handles. Currently, the handle that is used
+to send handle must be a process handle, thus handles can only be sent between parent and child
+processes.
 
 #### DkReceiveHandle
 
@@ -281,7 +349,8 @@ This API receives a handle upon other handles.
 
     PAL_BOL DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR * attr);
 
-This API queries the attributes of a named stream. This API only applies for URI such as `file:...`, `dir:...` or `dev:...`.
+This API queries the attributes of a named stream. This API only applies for URI such as `file:...`,
+`dir:...` or `dev:...`.
 
 The data type _PAL_STREAM_ATTR_ is defined as follows:
 
@@ -340,7 +409,9 @@ This API changes the name of an opened stream.
 
     PAL_HANDLE DkThreadCreate(PAL_PTR addr, PAL_PTR param, PAL_FLG flags);
 
-This API creates a thread in the current process. _addr_ will be the address where the new thread starts. _param_ is the parameter that is passed into the new thread as the only argument. _flags_ is currently unused.
+This API creates a thread in the current process. _addr_ will be the address where the new thread
+starts. _param_ is the parameter that is passed into the new thread as the only argument. _flags_
+is currently unused.
 
 #### DkThreadPrivate
 
@@ -358,7 +429,7 @@ This API will suspend the current thread for a certain duration (in microseconds
 
     void DkThreadYieldExecution(void);
 
-This API will yield the current thread and request for rescheduling in the scheduler on the host. 
+This API will yield the current thread and request for rescheduling in the scheduler on the host.
 
 #### DkThreadExit
 
@@ -406,7 +477,7 @@ _flags_ can be combination of the following flags:
 
 #### DkExceptionReturn
 
-    void  DkExceptionReturn(PAL_PTR event);
+    void DkExceptionReturn(PAL_PTR event);
 
 This API exits a exception handler and restores the context.
 
@@ -429,7 +500,11 @@ This API unlocks the given mutex.
     PAL_HANDLE DkNotificationEventCreate(PAL_BOL initialState);
     PAL_HANDLE DkSynchronizationEventCreate(PAL_BOL initialState);
 
-This API creates an event with the given _initialState_. The definition of notification events and synchronization events are the same as the WIN32 API. When a notification event is set to the Signaled state it remains in that state until it is explicitly cleared. When a synchronization event is set to the Signaled state, a single thread of execution that was waiting for the event is released, and the event is automatically reset to the Not-Signaled state.
+This API creates an event with the given __initialState__. The definition of notification events
+and synchronization events are the same as the WIN32 API. When a notification event is set to the
+__Signaled__ state it remains in that state until it is explicitly cleared. When a synchronization
+event is set to the Signaled state, a single thread of execution that was waiting for the event is
+released, and the event is automatically reset to the Not-Signaled state.
 
 #### DkEventSet
 
@@ -450,7 +525,9 @@ This API clears a notification event or a synchronization event.
     #define NO_TIMEOUT      ((PAL_NUM) -1)
     PAL_HANDLE DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handleArray, PAL_NUM timeout);
 
-This API polls an array of handles and return one handle with recent activity. _timeout_ is the maximum time that the API should wait (in microsecond), or _NO_TIMEOUT_ to indicate it to be blocked as long as possible.
+This API polls an array of handles and return one handle with recent activity. _timeout_ is the
+maximum time that the API should wait (in microsecond), or `NO_TIMEOUT` to indicate it to be blocked
+as long as possible.
 
 #### DkObjectClose
 
@@ -464,13 +541,13 @@ This API closes (deallocates) a PAL handle.
 
     PAL_NUM DkSystemTimeQuery(void);
 
-This API returns the timestamp of the current time (in microseconds).
+This API returns the current time (in microseconds).
 
 #### DkRandomBitsRead
 
     PAL_NUM DkRandomBitsRead(PAL_PTR buffer, PAL_NUM size);
 
-This API fills the buffer with random values.
+This API fills the buffer with cryptographically-secure random values.
 
 ### Memory Bulk Copy (Optional)
 
@@ -478,7 +555,9 @@ This API fills the buffer with random values.
 
     PAL_HANDLE DkCreatePhysicalMemoryChannel(PAL_NUM* key);
 
-This API creates a physical memory channel for the process to copy virtual memory as copy-on-write. Once a channel is created, any other processes can connect to the physical memory channel by using [[DkStreamOpen|PAL Host ABI#DkStreamOpen]] with a URI as `gipc:<key>`.
+This API creates a physical memory channel for the process to copy virtual memory as copy-on-write.
+Once a channel is created, any other processes can connect to the physical memory channel by using
+[[DkStreamOpen|PAL Host ABI#DkStreamOpen]] with a URI as `gipc:<key>`.
 
 #### DkPhysicalMemoryCommit
 
@@ -493,3 +572,4 @@ This API commits (sends) an array of the virtual memory area to the physical mem
                                 PAL_NUM* sizes, PAL_FLG* prots);
 
 This API maps an array of virtual memory area from the physical memory channel.
+
