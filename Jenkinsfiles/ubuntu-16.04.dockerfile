@@ -23,6 +23,7 @@ RUN apt-get update \
        python3-pytest \
        texinfo \
        wget \
+       curl \
        libomp-dev \
        libprotobuf-c-dev \
        protobuf-c-compiler \
