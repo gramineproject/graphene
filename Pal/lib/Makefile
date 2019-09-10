@@ -2,15 +2,7 @@ include ../../Scripts/Makefile.configs
 include ../../Scripts/Makefile.rules
 include ../src/host/$(PAL_HOST)/Makefile.am
 
-CFLAGS += -I. -I../include -I../src -Icrypto/mbedtls/include
-
-# Include host_endian.h from either the host-specific directory,
-# or directly under the target directory.
-ifeq ($(target),)
-CFLAGS += -I../src/host/$(PAL_HOST)
-else
-CFLAGS += -I$(target)
-endif
+CFLAGS += -I. -I../include -I../src -Icrypto/mbedtls/include -I../src/host/$(PAL_HOST)
 
 subdirs = string stdlib network graphene crypto
 
