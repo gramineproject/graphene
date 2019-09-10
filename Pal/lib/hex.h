@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* This function is a helper for debug printing.
  * It accepts a pointer to a numerical value, and
