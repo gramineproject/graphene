@@ -59,12 +59,14 @@ You can run `R.manifest` as an executable to load any script. The manifest file 
 
 ## Running GCC in Graphene
 
-In Graphene, we prepare several C/C++ source files to test the performance of file IO. Usually, the native GCC and LD (linker) are used to compile the source code. The scripts and tested source files can be found in `LibOS/shim/test/apps/gcc/test_files`. The source files include:
+In Graphene, we prepare several C/C++ source files to test the performance of file IO. Usually,
+the native GCC and LD (linker) are used to compile the source code. The scripts and tested source
+files can be found in `LibOS/shim/test/apps/gcc/test_files`. The source files include:
 
 * `helloworld.c`: an extremely small source file
 * `gzip.c`: a larger real-world application
 * `oggenc.m.c`: even larger, linked with libm.so
-* `single-gcc.c`: merge all gcc codes into an extremely huge source file. used as a stress test.
+* `single-gcc.c`: all of the gcc source into one source file. used as a stress test.
 
 To test compiling those source file, first prepare the GCC manifest to compile the program:
 
@@ -79,16 +81,22 @@ To run GCC, you can run `gcc.manifest` as an executable. The manifest file is ac
 
 ## Running Lighttpd in Graphene
 
-Lighttpd can be used to test tcp latency and throughput of Graphene Library OS, in either single-threaded or multi-threaded environment. The scripts and source codes for Lighttpd can be found in `LibOS/shim/test/apps/lighttpd`. To compile the code base of Lighttpd that can be potentially used, run the following command:
+Lighttpd can be used to test tcp latency and throughput of Graphene Library OS, in either single-
+threaded or multi-threaded environment. The scripts and source codes for Lighttpd can be found in
+`LibOS/shim/test/apps/lighttpd`. To compile the code base of Lighttpd that can be potentially used,
+run the following command:
 
     cd LibOS/shim/test/apps/lighttpd
     make
 
-The commands above will compile the source code, build the manifest file for Graphene, generate the configuration file for Apache, and generate the HTML sample files. We prepare the following file samples:
+The commands above will compile the source code, build the manifest file for Graphene, generate the
+configuration file for Apache, and generate the HTML sample files. We prepare the following file
+samples:
 
-* html/random/*.html: random file (non-html) created into different sizes
+* `html/random/*.html`: random file (non-html) created into different sizes
 
-The server should be started manually, and tested by running apache bench from a remote client. To start the http server either in native runs or graphene runs, run the following commands:
+The server should be started manually, and tested by running apache bench from a remote client. To
+start the http server either in native runs or graphene runs, run the following commands:
 
 `make start-native-server` or `make start-graphene-server`.
 
@@ -96,9 +104,16 @@ To start the server in multi-threaded environment, run the following commands:
 
 `make start-multithreaded-native-serve` and `make start-multithreaded-graphene-server`.
 
-To actually test, you should use _ApacheBench_. _ApacheBench(ab)_ is an HTTP client which can sit/run from any machine. When we benchmark lighttpd on Graphene, provided web server on Graphene is visible outside the host, one must be able to use ab from any of the lab machines. ab provides multiple options like the number of HTTP requests, number of concurrent requests, silent mode, the time delay between requests. The Ubuntu/Debian package is `apache2-utils`.
+To actually test, you should use _ApacheBench_. _ApacheBench(ab)_ is an HTTP client, which can
+it/run from any machine. When we benchmark lighttpd on Graphene, provided web server on Graphene
+is visible outside the host, one must be able to use ab from any of the lab machines. ab provides
+multiple options like the number of HTTP requests, number of concurrent requests, silent mode, the
+time delay between requests. The Ubuntu/Debian package is `apache2-utils`.
 
-To test Lighttpd server with _ApacheBench_, first, we need to start to Lighttpd server as above. There is a script run-apachebench.sh that takes two arguments: the IP and port. It runs 100,000 requests (-n 100000) with 25 to 200 maximum outstanding requests (-n 25 to 200). The results are saved into the same directory, and all previous output files are overwritten.
+To test Lighttpd server with _ApacheBench_, first, we need to start to Lighttpd server as above.
+There is a script run-apachebench.sh that takes two arguments: the IP and port. It runs 100,000
+requests (-n 100000) with 25 to 200 maximum outstanding requests (-n 25 to 200). The results are
+saved into the same directory, and all previous output files are overwritten.
 
     make start-graphene-server
     ./run-apachebench.sh <ip> <port>
@@ -107,34 +122,47 @@ To test Lighttpd server with _ApacheBench_, first, we need to start to Lighttpd 
 
 ## Running Apache in Graphene
 
-Apache is a commercial-class web server that can be used to test tcp latency and throughput of Graphene Library OS. The scripts and source codes for Lighttpd can be found in `LibOS/shim/test/apps/apache`. To compile the code base of Apache and PHP module that can be potentially used, run the following command:
+Apache is a commercial-class web server that can be used to test tcp latency and throughput of
+Graphene Library OS. The scripts and source codes for Lighttpd can be found in
+`LibOS/shim/test/apps/apache`. To compile the code base of Apache and PHP module that can be
+potentially used, run the following command:
 
     cd LibOS/shim/test/apps/apache
     make
 
-The commands above will compile the source code, build the manifest file for Graphene, generate the configuration file for Apache, and generate the HTML sample files (same as described in the [[lighttpd section|Run applications in Graphene#Running Lighttpd in Graphene]]).
+The commands above will compile the source code, build the manifest file for Graphene, generate
+the configuration file for Apache, and generate the HTML sample files (same as described in the
+[[lighttpd section|Run applications in Graphene#Running Lighttpd in Graphene]]).
 
 The server could be started manually by using the following commands:
 
 `make start-native-server` or `make start-graphene-server`.
 
-By default, the Apache web server is configured to run with 4 preforked worker processes, and has PHP support enabled.
+By default, the Apache web server is configured to run with 4 preforked worker processes, and has
+PHP support enabled.
 
-To test Apache server with _ApacheBench_, first we need to start to Apache server as above. Run the same script to test with ApacheBench:
+To test Apache server with _ApacheBench_, first we need to start to Apache server as above. Run
+the same script to test with ApacheBench:
 
     make start-graphene-server
     ./run-apachebench.sh <ip> <port>
     # which internally calls:
-    #   ab -k -n 100000 -c [25:200] -t 10 http://ip:port/random/100.1.html
+    #   ab -k -n 100000 -n [25:200] -t 10 http://ip:port/random/100.1.html
 
 ## Running Busybox in Graphene
 
-Busybox is a standalone shell including general-purpose system utilities. Running Busybox is a lot easier than running real shells such as Bash, because: first, Busybox can use _vfork_ instead of _fork_ to create new processes. second, Busybox can call itself as any of the utilities it includes, no need for calling some other binaries. The scripts and source code for Busybox is store in `LibOS/shim/apps/busybox`. To build the source code with the proper manifest, simply run the following commands:
+Busybox is a standalone shell including general-purpose system utilities. Running Busybox is a
+lot easier than running real shells such as Bash, because: first, Busybox can use _vfork_ instead
+of _fork_ to create new processes. second, Busybox can call itself as any of the utilities it
+includes, no need for calling some other binaries. The scripts and source code for Busybox is
+store in `LibOS/shim/apps/busybox`. To build the source code with the proper manifest, simply
+run the following commands:
 
     cd Shim/shim/test/apps/busybox
     make
 
-To run busybox, either to run a shell or a utility, you may directly run busybox.manifest built in the directory as a script. For example:
+To run busybox, either to run a shell or a utility, you may directly run busybox.manifest built
+in the directory as a script. For example:
 
     ./busybox.manifest sh (to run a shell)
 
@@ -144,12 +172,19 @@ or
 
 ## Running Bash in Graphene
 
-Bash is the most commonly used shell utilities in Linux. Bash can be run as an interactive standalone shell, or execute scripts or binaries immediately. Besides a few built-in commands, Bash mostly relies on other standalone utilities to execute commands given in the shell, such as `ls`, `cat` or `grep`. Therefore, supporting Bash will require supporting all the utility programs that can be potentially used. The scripts and source code for Bash is store in `LibOS/shim/apps/bash`. To build the source code with the proper manifest, simply run the following commands:
+Bash is the most commonly used shell utilities in Linux. Bash can be run as an interactive
+standalone shell, or execute scripts or binaries immediately. Besides a few built-in commands,
+Bash mostly relies on other standalone utilities to execute commands given in the shell, such as
+`ls`, `cat` or `grep`. Therefore, supporting Bash will require supporting all the utility programs
+that can be potentially used. The scripts and source code for Bash is store in
+`LibOS/shim/apps/bash`. To build the source code with the proper manifest, simply run the following
+commands:
 
     cd Shim/shim/test/apps/bash
     make
 
-To test Bash, you may use the benchmark suites we prepared: one is `bash_test.sh`, and the other is `unixbench`. Run one of the following commands to test Bash:
+To test Bash, you may use the benchmark suites we prepared: one is `bash_test.sh`, and the other is
+`unixbench`. Run one of the following commands to test Bash:
 
     ./bash.manifest bash_test.sh [times]
     ./bash.manifest unixbench.sh [times]
