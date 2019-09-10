@@ -95,10 +95,10 @@ def connect_aesmd(attr):
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--sig', '-sig', metavar='SIGNATURE',
                        type=argparse.FileType('rb'), nargs=1, required=True,
-                       help='specify .sig file')
+                       help='Input .sig file (contains SIGSTRUCT)')
 argparser.add_argument('--output', '-output', metavar='OUTPUT',
                        type=argparse.FileType('wb'), nargs=1, required=True,
-                       help='specify output(.token) file')
+                       help='Output .token file (contains EINITTOKEN)')
 
 if __name__ == "__main__":
     args = argparser.parse_args(sys.argv[1:])
