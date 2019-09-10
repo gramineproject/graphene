@@ -730,9 +730,7 @@ if __name__ == "__main__":
         ('isvprodid',    '0',                     parse_int),
         ('isvsvn',       '0',                     parse_int),
     ]:
-        if 'sgx.' + key not in manifest:
-            manifest['sgx.' + key] = default
-        attr[key] = parse(manifest['sgx.' + key])
+        attr[key] = parse(manifest.setdefault('sgx.' + key, default))
 
     (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(manifest)
 
