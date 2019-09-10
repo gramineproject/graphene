@@ -8,7 +8,7 @@ a virtual machine. The work is originally published in the proceedings of
 
 Graphene library OS supports running Linux applications with the latest **Intel SGX (Software
 Guard Extension)**. With Intel SGX, applications are secured in hardware-encrypted memory
-regions (so-called **enclaves**). SGX can protect code and data in the enclave agains a malicious
+regions (so-called **enclaves**). SGX can protect code and data in the enclave against a malicious
 software stack or attacks on the hardware off the CPU package. Graphene Library OS can support
 native application to run in enclaves, without the porting efforts that developers usually have
 to pay. For more information about SGX support, see [[Introduction to Graphene-SGX]].
