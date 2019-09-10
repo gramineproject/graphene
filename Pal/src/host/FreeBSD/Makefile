@@ -14,7 +14,6 @@ objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
 	    exception2) rfork_thread
 graphene_lib = .lib/graphene-lib.a
-headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 
 .PHONY: all
 all: $(host_files)
@@ -30,19 +29,19 @@ pal-gdb: pal-gdb.template
 libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	$(call cmd,ar_a_o)
 
-%.o: %.c $(headers)
+%.o: %.c
 	$(call cmd,cc_o_c)
 
-%.i: %.c $(headers)
+%.i: %.c
 	$(call cmd,cpp_i_c)
 
-%.s: %.c $(headers)
+%.s: %.c
 	$(call cmd,cc_s_c)
 
-%.o: %.S $(headers)
+%.o: %.S
 	$(call cmd,as_o_S)
 
-%.s: %.S $(headers)
+%.s: %.S
 	$(call cmd,cpp_s_S)
 
 
