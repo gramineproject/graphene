@@ -69,12 +69,8 @@ libsysdb_debug.so: $(addsuffix .o,$(filter-out syscallas,$(objs))) \
 		   $(graphene_lib) $(pal_lib)
 	$(call cmd,ld_so_o)
 
-.lib/host_endian.h: ../../../Pal/src/host/$(PAL_HOST)/host_endian.h
-	@mkdir -p .lib
-	$(call cmd,ln_sf)
-
 .PHONY: graphene_lib_recurse
-graphene_lib_recurse: .lib/host_endian.h
+graphene_lib_recurse:
 	$(MAKE) -C ../../../Pal/lib target=$(abspath .lib)/
 
 $(graphene_lib): graphene_lib_recurse

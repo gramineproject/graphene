@@ -68,13 +68,9 @@ files_to_install = $(runtime_loader) $(runtime_lib) $(runtime_sec) $(runtime_gdb
 .PHONY: all
 all: $(files_to_build) $(files_to_install)
 
-$(LIB_DIR)/host_endian.h: $(HOST_DIR)/host_endian.h
-	@mkdir -p $(LIB_DIR)
-	$(call cmd,ln_sf)
-
 .PHONY: host_lib_recurse graphene_lib_recurse
 
-graphene_lib_recurse: $(LIB_DIR)/host_endian.h
+graphene_lib_recurse:
 	$(MAKE) -C ../lib target=$(abspath $(LIB_DIR))/
 
 $(graphene_lib): graphene_lib_recurse

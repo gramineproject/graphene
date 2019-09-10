@@ -104,11 +104,7 @@ Bootstrap5.manifest.sgx.d: %.manifest.sgx.d: %.manifest
 endif
 endif
 
-.lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
-	@mkdir -p .lib
-	cp -f $< $@
-
-$(graphene_lib): .lib/host_endian.h
+$(graphene_lib):
 	$(MAKE) -C ../lib target=$(abspath .lib)/
 
 export PAL_LOADER = $(RUNTIME_DIR)/pal-$(PAL_HOST)

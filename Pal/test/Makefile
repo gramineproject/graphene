@@ -34,11 +34,7 @@ LDLIBS += $(graphene_lib) $(pal_lib) ../csu/user_start.o
 $(executables): %: %.c $(LDLIBS)
 	$(call cmd,csingle)
 
-.lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
-	@mkdir -p .lib
-	cp -f $< $@
-
-$(graphene_lib): .lib/host_endian.h
+$(graphene_lib):
 	$(MAKE) -C ../lib target=$(abspath .lib)/
 
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
