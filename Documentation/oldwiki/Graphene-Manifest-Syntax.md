@@ -1,13 +1,13 @@
 ## Basic Syntax
 
 A manifest file is an application-specific configuration file that specifies the environment and
-resources for running a Graphene library OS instance. A manifest file is a text file containing
-entries separated by _line breaks_. Each configuration entry consists of the key (with possible
-subkeys) and the value. Whitespaces before /after the key and before/after the value are ignored.
-The value can be written in quotes, in this case the value is interpreted as everything inside the
-quotes without modifications. Each entry must be in the following format:
+resources for running a Graphene library OS instance. A manifest file is a text file, containing
+entries separated by _line breaks_. Each configuration entry consists of a key and a value.
+Whitespaces before/after the key and before/after the value are ignored. The value can be written
+in quotes, indicating that values should be assigned to this string verbatim, or be unquoted.
+Each entry must be in the following format:
 
-    [Key][.Key][.Key] = [Value]
+    [Key][.Key][.Key] = [Value] or [Key][.Key][.Key] = "[Value]"
 
 Comments can be inlined in a manifest, by preceding them with a _sharp sign (#)_. Any texts behind
 a _sharp sign (#)_ will be considered part of a comment and be discarded while loading the manifest
@@ -20,26 +20,27 @@ file.
     loader.exec=[URI]
 
 This syntax specifies the executable to be loaded into the library OS. The executable must be an
-ELF-format binary, with a defined entry point to start its execution.
+ELF binary, with a defined entry point to start its execution.
 
-### Preloading the LibOS
+### Preloading Guest Libraries (e.g., LibOS)
 
     loader.preload=[URI][,URI]...
 
 This syntax specifies the libraries to be preloaded before loading the executable. The URI of the
-libraries will be separated by _commas(,)_. The libraries must be ELF-format binaries, and may or
-may not have a defined entry point. If the libraries have their entry points, the entry points will
-be executed before jumping to the entry point of the executable, in the order as they are listed.
+libraries will be separated by _commas(,)_. The libraries must be ELF binaries, but may or may not
+have entry points defined (i.e., a "start" or "main" function). If some of these preloaded libraries
+have entry points, these entry points will be executed before running the executable, in the exact
+order the libraries are listed in the `loader.preload` rule.
 
 ### Executable Name
 
     loader.execname=[STRING]
 
-This syntax specifies the executable name given as the first argument to the binaries (the
-executable and preloaded libraries). If the executable name is not specified in the manifest, PAL
-will use the URI of the executable or manifest as the first argument when executing the executable.
-In some circumstance, the executable name has to be specified so the binaries can re-execute the
-executable or determine their functionalities.
+This syntax specifies the executable name that wille be passed as the first argument to the
+executable and preloaded libraries. If the executable name is not specified in the manifest,
+the PAL will use the URI of the executable or manifest as the first argument when executing the
+executable. In case that the application tries to execute the same executable as specified by
+the first argument, the executable name can be explicitly specified in the manifest.
 
 ### Environment Variables
 
@@ -54,7 +55,7 @@ variables can be deleted by giving a empty value.
 
     loader.debug_type=[none|inline]
 
-This syntax specifies the debug option while running the library OS. If the debug type is _none_,
+This specifies the debug option while running the library OS. If the debug type is _none_,
 no debug output will be printed to the screen. If the debug type is _inline_, a dmesg-like debug
 output will be printed inlined with standard output.
 
@@ -63,17 +64,19 @@ output will be printed inlined with standard output.
 
 ### Stack Size
 
-    sys.stack.size=[# of bytes (with B/K/M/G)]
+    sys.stack.size=[# of bytes (with K/M/G)]
 
-This syntax specifies the stack size of the first thread in each Graphene process. The default
-value of stack size is determined by the library OSes.
+This specifies the stack size of each thread in each Graphene process. The default value is
+determined by the library OS. Units like K (KB), M (MB, and G (GB) can be given to the values
+for convenience. For example, `sys.stack.size=1M` indicates an 1MB stack size.
 
-### Program Break Size
+### Program Break (Heap) Size
 
-    sys.brk.size=[# of bytes (with B/K/M/G)]
+    sys.brk.size=[# of bytes (with K/M/G)]
 
-This syntax specifies the program break (_brk_) size in each Graphene process. The default value of
-program break size is determined by the library OS.
+This specifies the program break (_brk_) size in each Graphene process. The default value of
+program break size is determined by the library OS. Units like K (KB), M (MB, and G (GB) can be
+given to the values for convenience. For example, `sys.brk.size=1M` indicates an 1MB max brk size.
 
 
 ## FS-related (Required by LibOS)

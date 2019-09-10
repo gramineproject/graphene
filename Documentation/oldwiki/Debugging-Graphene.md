@@ -1,8 +1,8 @@
 ## Running Graphene with GDB
 
-To enable GDB support, the PAL loader and Graphene library OS has implemented the GDB protocol to
-notify any loading and unloading of dynamic libraries. The PAL loader will also load a GDB script
-to enable proper GDB features to make the debugging process easier.
+To enable GDB support, the PAL loader and Graphene library OS have implemented the GDB protocol to
+notify the debugger any loading and unloading of dynamic libraries. The PAL loader will also load
+a GDB script to enable GDB features to make the debugging process easier.
 
 To build Graphene with debug symbols, the source code needs to be compiled with `DEBUG=1`. Run the
 following commands in the source tree:

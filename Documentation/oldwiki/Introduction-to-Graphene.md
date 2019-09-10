@@ -7,25 +7,33 @@ to different OSes, and process migration. The work is published in the proceedin
 [Eurosys 2014](https://oscarlab.github.io/papers/tsai14graphene.pdf).
 
 Graphene library OS supports running Linux applications with the latest **Intel SGX (Software
-Guard Extension)** technologies. With Intel SGX, applications are secured in hardware-encrypted
-memory regions (so called **enclaves**), and no malicious software stack or hardware attack such
-as cold-boot attack can retrieve the application secret. Graphene Library OS can support native
-application to run in enclaves, without the porting efforts that developers usually have to pay.
-For more information about the SGX support, see [[Introduction to Graphene-SGX]].
+Guard Extension)**. With Intel SGX, applications are secured in hardware-encrypted memory
+regions (so-called **enclaves**). SGX can protect code and data in the enclave agains a malicious
+software stack or attacks on the hardware off the CPU package. Graphene Library OS can support
+native application to run in enclaves, without the porting efforts that developers usually have
+to pay. For more information about SGX support, see [[Introduction to Graphene-SGX]].
 
-### Which Hosts is Graphene Currently Ported To?
+### Which Hosts are Graphene Currently Ported To?
 
 Graphene Library OS can run Linux applications on top of any host that Graphene Library OS has
 been ported to. Porting Graphene to a new host requires implementing the [[PAL Host ABI]] using
 the host ABI. Currently, we have ported Graphene Library OS to **64-bit FreeBSD** and **64-bit
 Linux with Intel SGX**. Support for more hosts is expected in the future.
 
+#### Check out Application Test Cases
+
+To get the application test cases, run the following command from the root of the source tree:
+
+    git submodule update --init -- LibOS/shim/test/apps/
+
+See [Run Applications in Graphene] for the instruction of running each application.
+
+
 ## Prerequisites
 
-Graphene Library OS is tested to be compiling and running on Ubuntu 16.04, along with Linux
-kernel 4.4+. We recommend to build and install Graphene with the same host platform. Other
-distributions of 64-bit Linux can potentially, but the result is not guaranteed. If you find
-Graphene not working on other distributions, please submit a bug report.
+Graphene Library OS has been tested to build and install on Ubuntu 16.04, along with Linux
+kernel 4.4+. We recommend to build and install Graphene with the same system. If you find
+Graphene not working on other Linux distributions, please submit a bug report.
 
 To install the prerequisites of Graphene on Ubuntu, run the following command:
 
@@ -41,7 +49,7 @@ To run tests, you also need the python3-pytest package:
 
 ## Build and Run Graphene Library OS
 
-Here is a [[Graphene Quick Start]] instruction describing how to quickly build and run Graphene.
+See [[Graphene Quick Start]] for instructions how to quickly build and run Graphene.
 
 ### Obtain Source Code
 
@@ -81,7 +89,7 @@ See [EXPERIMENTAL/linux-reference-monitor](https://github.com/oscarlab/graphene/
 
 ### Build with Intel SGX Support
 
-Here is a [[Graphene-SGX Quick Start]] instruction for how to quickly build and run Graphene with
+See [[Graphene-SGX Quick Start]] for instructions how to quickly build and run Graphene with
 the Intel SGX support.
 
 
@@ -94,14 +102,15 @@ private key, create it with the following command:
 
     openssl genrsa -3 -out enclave-key.pem 3072
 
-You can either put the generated enclave key to the default path,
-`host/Linux-SGX/signer/enclave-key.pem`, or specify the key through environment variable
-`SGX_SIGNER_KEY` when building Graphene with SGX support.
+You can either put the generated enclave key in the default path,
+`host/Linux-SGX/signer/enclave-key.pem`, or specify the key through the environment variable
+`SGX_SIGNER_KEY`.
 
-After signing the enclaves, users may ship the application with the built Graphene Library OS,
-along with an SGX-specific manifest (.manifest.sgx files) and the signatures, to SGX-enabled hosts.
+After signing the application, users may ship the application binaries, the manifest, and the
+signature with the built Graphene Library OS, along with an SGX-specific manifest
+(.manifest.sgx files) and the signatures, to SGX-enabled systems.
 
-(2) Installing Intel SGX SDK and driver
+(2) Installing the Intel SGX SDK and driver
 
 The Intel SGX Linux SDK is required for running Graphene Library OS. Download and install it
 from the official Intel GitHub repositories:
@@ -120,7 +129,7 @@ following commands to build the driver:
 #### Build Graphene library OS for SGX
 
 To build Graphene Library OS with Intel SGX support, in the root directory of Graphene repo, run
-following command:
+the following command:
 
     make SGX=1
 
@@ -130,47 +139,6 @@ To build with debug symbols, run the command:
 
 Using `make SGX=1` in the test or regression directory will automatically generate the enclave
 signatures (.sig files).
-
-#### Check out Application Test Cases
-
-To get the application test cases, run the following command from the root of the source tree:
-
-    git submodule update --init -- LibOS/shim/test/apps/
-
-See [Run Applications in Graphene] for the instruction of running each application.
-
-#### Run Built-in Examples in Graphene-SGX
-
-There are a few examples under LibOS/shim/test. The "native" folder includes a rich set of C
-programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
-
-(1) Build and run `hellowWorld` with Graphene on SGX
-
-- Go to LibOS/shim/test/native, sign all the test programs via command:
-
-      make SGX=1
-
-- Generate launch tokens from the aesmd service, via command:
-
-      make SGX_RUN=1
-
-- Run `helloworld` with Graphene on SGX:
-
-      SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
-
-(2) Build and run the Python helloworld script with Graphene on SGX
-
-- Go to LibOS/shim/test/apps/python and sign the application:
-
-      make SGX=1
-
-- Generate a launch token from the aesmd service, via command:
-
-      make SGX_RUN=1
-
-- Run the Python helloworld with Graphene-SGX via:
-
-      SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
 ### Run Applications in Graphene
 
@@ -196,7 +164,7 @@ manifest file:
 
 Although manifest files are optional for Graphene, running an application usually requires some
 minimal configuration in its manifest file. A sensible manifest file will include paths to the
-library OS and GNU library C, environment variables such as `LD_LIBRARY_PATH`, file systems to be
+library OS and GNU C library, environment variables such as `LD_LIBRARY_PATH`, file systems to be
 mounted, and isolation rules to be enforced in the reference monitor.
 
 Here is an example manifest file:
@@ -217,6 +185,40 @@ For the full documentation of the Graphene manifest syntax, please see the follo
 
 More details regarding running tested/benchmarked applications in Graphene, please see this page:
 [[Run Applications in Graphene]].
+
+#### Run Built-in Examples in Graphene-SGX
+
+There are a few examples under LibOS/shim/test. The "native" folder includes a rich set of C
+programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
+
+(1) Build and run `hellowWorld` with Graphene on SGX
+
+- Go to LibOS/shim/test/native, sign all the test programs via the command:
+
+      make SGX=1
+
+- Generate launch tokens from the aesmd service, via the command:
+
+      make SGX_RUN=1
+
+- Run `helloworld` with Graphene on SGX:
+
+      SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
+
+(2) Build and run the Python helloworld script with Graphene on SGX
+
+- Go to LibOS/shim/test/apps/python and sign the application:
+
+      make SGX=1
+
+- Generate a launch token from the aesmd service, via the command:
+
+      make SGX_RUN=1
+
+- Run the Python helloworld with Graphene-SGX via:
+
+      SGX=1 ./python.manifest.sgx scripts/helloworld.py
+
 
 ## How Do I Contribute to the Project?
 
