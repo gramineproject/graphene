@@ -1,16 +1,31 @@
 ## What is Graphene Library OS?
 
-**Graphene library OS** is a project to provide lightweight guest OSes with support for Linux multi-process applications. Comparable to virtual machines, Graphene runs applications in an isolated environment, with virtualization benefits such as guest customization, platform independence and migration. The work is published in the proceeding of [Eurosys 2014](https://oscarlab.github.io/papers/tsai14graphene.pdf).
+**Graphene library OS** is a project which provides lightweight guest OSes with support for Linux
+multi-process applications. Comparable to virtual machines, Graphene runs applications in an
+isolated environment, with virtualization benefits such as guest customization, ease of porting
+to different OSes, and process migration. The work is published in the proceeding of
+[Eurosys 2014](https://oscarlab.github.io/papers/tsai14graphene.pdf).
 
-Graphene Library OS can support running Linux applications with the latest **Intel SGX (Software Guard Extension)** technologies. With Intel SGX, applications are secured in hardware-encrypted memory regions (so called **enclaves**), and no malicious software stack or hardware attack such as cold-boot attack can retrieve the application secret. Graphene Library OS can support native application to run in enclaves, without the porting efforts that developers usually have to pay. For more information about the SGX support, see [[Introduction to Graphene-SGX]].
+Graphene library OS supports running Linux applications with the latest **Intel SGX (Software
+Guard Extension)** technologies. With Intel SGX, applications are secured in hardware-encrypted
+memory regions (so called **enclaves**), and no malicious software stack or hardware attack such
+as cold-boot attack can retrieve the application secret. Graphene Library OS can support native
+application to run in enclaves, without the porting efforts that developers usually have to pay.
+For more information about the SGX support, see [[Introduction to Graphene-SGX]].
 
 ### Which Hosts is Graphene Currently Ported To?
 
-Graphene Library OS can run Linux applications on top of any hosts that Graphene Library OS has been ported to. Porting Graphene Library OS to a new host requires implementing the [[PAL Host ABI]] using the host ABI. Currently, we have ported Graphene Library OS to **64-bit FreeBSD** and **64-bit Linux with Intel SGX**. More supported hosts are expected in the future. 
+Graphene Library OS can run Linux applications on top of any host that Graphene Library OS has
+been ported to. Porting Graphene to a new host requires implementing the [[PAL Host ABI]] using
+the host ABI. Currently, we have ported Graphene Library OS to **64-bit FreeBSD** and **64-bit
+Linux with Intel SGX**. Support for more hosts is expected in the future.
 
-## What is the Prerequisite of Graphene?
+## Prerequisites
 
-Graphene Library OS is tested to be compiling and running on Ubuntu 14.04/16.04 (both server and desktop version), along with Linux kernel 3.5/3.14/4.4. We recommend to build and install Graphene with the same host platform. Other distributions of 64-bit Linux can potentially, but the result is not guaranteed. If you find Graphene not working on other distributions, please contact us with a detailed bug report.
+Graphene Library OS is tested to be compiling and running on Ubuntu 16.04, along with Linux
+kernel 4.4+. We recommend to build and install Graphene with the same host platform. Other
+distributions of 64-bit Linux can potentially, but the result is not guaranteed. If you find
+Graphene not working on other distributions, please submit a bug report.
 
 To install the prerequisites of Graphene on Ubuntu, run the following command:
 
@@ -20,83 +35,92 @@ For building Graphene for SGX, run the following command in addition:
 
     sudo apt-get install -y python-protobuf
 
-To run unit tests locally, you also need the python3-pytest package:
+To run tests, you also need the python3-pytest package:
 
     sudo apt-get install -y python3-pytest
 
-## How to Build and Run Graphene Library OS?
+## Build and Run Graphene Library OS
 
-Here is a [[Graphene Quick Start]] instruction for how to quickly build and run Graphene.
+Here is a [[Graphene Quick Start]] instruction describing how to quickly build and run Graphene.
 
 ### Obtain Source Code
 
-Graphene can be obtained on _github_. Use the following command to check out the code:
+Graphene can be obtained from _GitHub_. Use the following command to check out the code:
 
 `git clone https://github.com/oscarlab/graphene.git`
 
 ### Build Graphene
 
-To build the system, simply run the following commands in the root of the source tree:
+To build Graphene library OS, simply run the following commands in the root of the source tree:
 
     git submodule update --init -- Pal/src/host/Linux-SGX/sgx-driver/
     make
 
 Each part of Graphene can be built separately in the subdirectories.
 
-To build Graphene library OS with debug symbols, run ``make DEBUG=1`` instead of ``make``. You may have to run ``make clean`` first if you have previously compiled the source code. To specify custom mirrors for downloading the GLIBC source, use ``GLIBC_MIRRORS=...`` when running ``make``.
+To build Graphene library OS with debug symbols, run ``make DEBUG=1`` instead of ``make``. You may
+have to run ``make clean`` first if you have previously compiled the source code. To specify custom
+mirrors for downloading the GLIBC source, use ``GLIBC_MIRRORS=...`` when running ``make``.
 
 To build with ``-Werror``, run ``make WERROR=1``.
 
 
-Currently, Graphene has implemented [[these Linux system calls|Supported System Calls in Graphene]]. Before running any application, you must confirm if every system call required by the application executables and libraries is supported, or at least does not affect the functionality of the application if the system call is returned with error code **ENOSYS**.
+Currently, Graphene has implemented [[these Linux system calls|Supported System Calls in Graphene]].
+Before running any application, you must confirm if every system call required by the application
+executables and libraries is supported, or at least does not affect the functionality of the
+application if the system call always returns error code **ENOSYS**.
 
 
 
-### 2.1. Build with Kernel-Level Sandboxing (Optional)
+### Build with Kernel-Level Sandboxing (Optional)
 
-This feature is marked as EXPERIMENTAL and no longer exists in the mainstream code. If you are interested, see the [EXPERIMENTAL/linux-reference-monitor](https://github.com/oscarlab/graphene/tree/EXPERIMENTAL/linux-reference-monitor) branch.
-
-
-
-### 2.2 Build with Intel SGX Support
-
-Here is a [[Graphene-SGX Quick Start]] instruction for how to quickly build and run Graphene with the Intel SGX support.
+This feature is marked as EXPERIMENTAL and no longer exists in the mainstream code.
+See [EXPERIMENTAL/linux-reference-monitor](https://github.com/oscarlab/graphene/tree/EXPERIMENTAL/linux-reference-monitor).
 
 
-#### 2.1.1 Prerequisites
+
+### Build with Intel SGX Support
+
+Here is a [[Graphene-SGX Quick Start]] instruction for how to quickly build and run Graphene with
+the Intel SGX support.
+
+
+#### Prerequisites
 
 (1) Generating signing keys
-A 3072-bit RSA private key (PEM format) is required for signing the enclaves.
-If you don't have a private key, create it with the following command:
+
+A 3072-bit RSA private key (PEM format) is required for signing the enclaves. If you don't have a
+private key, create it with the following command:
 
     openssl genrsa -3 -out enclave-key.pem 3072
 
-You could either put the generated enclave key to the default path,
-'host/Linux-SGX/signer/enclave-key.pem', or specify the key through environment
-variable 'SGX_SIGNER_KEY' when building Graphene with SGX support.
+You can either put the generated enclave key to the default path,
+`host/Linux-SGX/signer/enclave-key.pem`, or specify the key through environment variable
+`SGX_SIGNER_KEY` when building Graphene with SGX support.
 
-After signing the enclaves, users may ship the application files with the
-built Graphene Library OS, along with an SGX-specific manifest (.manifest.sgx
-files) and the signatures, to the SGX-enabled hosts.
+After signing the enclaves, users may ship the application with the built Graphene Library OS,
+along with an SGX-specific manifest (.manifest.sgx files) and the signatures, to SGX-enabled hosts.
 
 (2) Installing Intel SGX SDK and driver
-The Intel SGX Linux SDK is required for running Graphene Library OS. Download and install
-from the official Intel github repositories:
+
+The Intel SGX Linux SDK is required for running Graphene Library OS. Download and install it
+from the official Intel GitHub repositories:
 
    - <https://github.com/01org/linux-sgx>
    - <https://github.com/01org/linux-sgx-driver>
 
-A Linux driver must be installed before running Graphene Library OS in enclaves.
-Simply run the following command to build the driver:
+The Linux driver must be installed before running Graphene Library OS in enclaves. Simply run the
+following commands to build the driver:
 
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
-    (The console will be prompted to ask for the path of Intel SGX driver code)
+    # You'll be prompted to provide the path to Intel SGX driver code and the version you chose.
     sudo ./load.sh
 
-#### 2.1.2 Building Graphene-SGX
+#### Build Graphene library OS for SGX
 
-To build Graphene Library OS with Intel SGX support, in the root directory of Graphene repo, run following command:
+To build Graphene Library OS with Intel SGX support, in the root directory of Graphene repo, run
+following command:
 
     make SGX=1
 
@@ -104,50 +128,60 @@ To build with debug symbols, run the command:
 
     make SGX=1 DEBUG=1
 
-Using "make SGX=1" in the test or regression directory will automatically generate the enclave signatures (.sig files).
+Using `make SGX=1` in the test or regression directory will automatically generate the enclave
+signatures (.sig files).
 
-#### 2.1.3 Run Built-in Examples in Graphene-SGX
+#### Check out Application Test Cases
 
-There are a few built-in examples under LibOS/shim/test/. The "native" folder includes a rich set of C programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
-
-(1) Build and run a Hello World program with Graphene on SGX
-- go to LibOS/shim/test/native, build the enclaves via command:
-
-      make SGX=1
-
-  The command will build enclaves for all the programs in the folder
-- Generate the token from aesmd service, via command:
-
-      make SGX_RUN=1
-
-- Run Hello World program with Graphene on SGX:
-
-      SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
-
-(2) Build and run python helloworld script in Graphene on SGX
-- go to LibOS/shim/test/apps/python, build the enclave:
-
-      make SGX=1
-
-- Generate token:
-
-      make SGX_RUN=1
-
-- Run python helloworld with Graphene-SGX via:
-
-      SGX=1 ./python.manifest.sgx scripts/helloworld.py
-
-#### 2.1.3 Including Application Test Cases
-
-To add the application test cases, issue the following command from the root
-of the source tree:
+To get the application test cases, run the following command from the root of the source tree:
 
     git submodule update --init -- LibOS/shim/test/apps/
 
+See [Run Applications in Graphene] for the instruction of running each application.
 
-### Run an Application in Graphene
+#### Run Built-in Examples in Graphene-SGX
 
-Graphene library OS uses PAL as a loader to bootstrap an application in the library OS. To start Graphene, PAL will have to be run as an executable, with the name of the program, and a "manifest file" given from the command line. Graphene provides three options for specifying the programs and manifest files:
+There are a few examples under LibOS/shim/test. The "native" folder includes a rich set of C
+programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
+
+(1) Build and run `hellowWorld` with Graphene on SGX
+
+- Go to LibOS/shim/test/native, sign all the test programs via command:
+
+      make SGX=1
+
+- Generate launch tokens from the aesmd service, via command:
+
+      make SGX_RUN=1
+
+- Run `helloworld` with Graphene on SGX:
+
+      SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
+
+(2) Build and run the Python helloworld script with Graphene on SGX
+
+- Go to LibOS/shim/test/apps/python and sign the application:
+
+      make SGX=1
+
+- Generate a launch token from the aesmd service, via command:
+
+      make SGX_RUN=1
+
+- Run the Python helloworld with Graphene-SGX via:
+
+      SGX=1 ./python.manifest.sgx scripts/helloworld.py
+
+### Run Applications in Graphene
+
+Graphene library OS uses a PAL as a loader to bootstrap applications in the library OS. To start
+Graphene, the PAL runs as an executable, taking the name of the program, and a manifest file
+(per-app configuration) as command line arguments. Please see [Graphene Manifest Syntax] for more
+information regarding the manifest files.
+
+We provide a loader script, `pal_loader`, for the convenience of giving run-time options to the
+PAL loader. Via `pal_loader`, Graphene provides three options for specifying the program and the
+manifest file:
 
     option 1: (automatic manifest)
     [PATH_TO_Runtime]/pal_loader [PROGRAM] [ARGUMENTS]...
@@ -160,22 +194,29 @@ Graphene library OS uses PAL as a loader to bootstrap an application in the libr
     [PATH_TO_MANIFEST]/[MANIFEST] [ARGUMENTS]...
     (Manifest must have "#![PATH_TO_PAL]/libpal.so" as the first line)
 
-Although manifest files are optional for Graphene, running an application usually requires some minimal configuration in its manifest file. A sensible manifest file will include paths to the library OS and GNU library C, environment variables such as `LD_LIBRARY_PATH`, file systems to be mounted, and isolation rules to be enforced in the reference monitor.
+Although manifest files are optional for Graphene, running an application usually requires some
+minimal configuration in its manifest file. A sensible manifest file will include paths to the
+library OS and GNU library C, environment variables such as `LD_LIBRARY_PATH`, file systems to be
+mounted, and isolation rules to be enforced in the reference monitor.
 
-Here is an example of manifest files:
+Here is an example manifest file:
 
-    loader.preload = file:LibOS/shim/src/libsysdb.so
-    loader.env.LDL_LIBRAY_PATH = /lib
+    loader.preload = file:[relative path to Graphene root]/LibOS/shim/src/libsysdb.so
+    loader.env.LD_LIBRAY_PATH = /lib
 
     fs.mount.libc.type = chroot
     fs.mount.libc.path = /lib
-    fs.mount.libc.uri = file:LibOS/build
+    fs.mount.libc.uri = file:[relative path to Graphene root]/Runtime
 
-More examples can be found in the test directories (`LibOS/shim/test`). We have also tested several commercial applications such as GCC, Bash and Apache, and the manifest files that bootstrap them in Graphene are provided in the individual directories.
+More examples can be found in the test directories (`LibOS/shim/test`). We have also tested several
+application test cases such as GCC, Bash, and Apache. The manifest files for these applications are
+provided in the individual directories in `LibOS/shim/test/apps`.
 
-For the full documentation of the Graphene manifest syntax, please see this page: [[Graphene Manifest Syntax]] and [[Graphene-SGX Manifest Syntax]].
+For the full documentation of the Graphene manifest syntax, please see the following pages:
+[Graphene Manifest Syntax]] and [[Graphene-SGX Manifest Syntax]].
 
-More details of running tested/benchmarked applications in Graphene, please see this page: [[Run Applications in Graphene]].
+More details regarding running tested/benchmarked applications in Graphene, please see this page:
+[[Run Applications in Graphene]].
 
 ## How Do I Contribute to the Project?
 
@@ -184,7 +225,7 @@ Some documentation that might be helpful:
 * [[PAL Host ABI]]
 * [[Port Graphene PAL to Other hosts]]
 
-## How to Contact the Caintainers?
+## How to Contact the Maintainers?
 
 For any questions or bug reports, please send an email to support@graphene-project.io
 or post an issue on our GitHub repository: https://github.com/oscarlab/graphene/issues
