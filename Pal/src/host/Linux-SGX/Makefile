@@ -5,7 +5,9 @@ ias_cert_url ?= https://certificates.trustedservices.intel.com/Intel_SGX_Attesta
 ias_cert_sha256 ?= e7b9113b647bc6bd421d4f140076a3acc31e410e01bf12883841e824cdaf1564
 ias_cert_file = quote/$(notdir $(ias_cert_url))
 
-CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -I../../../lib/crypto/mbedtls/include -Isgx-driver
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include  -I../../../include/pal \
+	-I../../../lib/crypto/mbedtls/include -I../../../include/host/Linux-SGX \
+	-I../../../lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so pal.map generated_offsets.py
