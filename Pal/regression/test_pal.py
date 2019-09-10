@@ -10,6 +10,7 @@ import shutil
 import string
 import subprocess
 import unittest
+from datetime import datetime, timedelta
 
 from regression import (
     HAS_SGX,
@@ -613,3 +614,22 @@ class TC_40_AVXDisable(RegressionTestCase):
         # Disable AVX bit in XFRM
         stdout, stderr = self.run_binary(['AvxDisable'])
         self.assertIn('Illegal instruction executed in enclave', stderr)
+
+@unittest.skipUnless(HAS_SGX, 'need SGX')
+class TC_50_Attestation(RegressionTestCase):
+    def test_000_remote_attestation(self):
+        stdout, stderr = self.run_binary(["Attestation"])
+
+        for line in stderr.split("\n"):
+            # Check the attestation status
+            if line.startswith("Attestation status:"):
+                status = line[19:].strip()
+                self.assertIn(status, ["OK", "GROUP_OUT_OF_DATE"])
+
+            # Check the timestamp
+            if line.startswith("Attestation timestamp:"):
+                timestamp = datetime.strptime(line[22:].strip(), "%Y-%m-%dT%H:%M:%S.%f")
+                # The timestamp may be in another time zone, but should be
+                # within 24 hours of the current time.
+                self.assertTrue(datetime.now() - timedelta(hours=24) <= timestamp and \
+                                datetime.now() + timedelta(hours=24) >= timestamp);
