@@ -3,7 +3,7 @@
 Fork() system call is intercepted in the `shim_do_fork()` LibOS function. This function performs three tasks: (1) discovers the namespace leader, (2) creates a LibOS `shim_thread` structure for a new thread, and (3) calls `do_migrate_process()`. The first two tasks are trivial, so we concentrate on the third one.
 
 
-## Parent: Fork via do_migrate_process
+## Parent: Fork via `do_migrate_process`
 
 The function `do_migrate_process()` creates a new process in the underlying OS, establishes a channel between the current process and the newly created child process, collects checkpoint data from the parent process, sends the checkpoint to the child process, and establishes an IPC port to listen for events from the child process (such as death of the child).
 

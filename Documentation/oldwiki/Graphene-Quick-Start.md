@@ -1,21 +1,21 @@
 The following quick start instruction does not include the steps for running Graphene with sandboxing (EXPERIMENTAL).
 
-### 1. Clone the Graphene repository
+### 1. Clone the Graphene Repository
 
     git clone https://github.com/oscarlab/graphene.git
 
-### 2. build Graphene
+### 2. Build Graphene
 
     cd graphene
     make
 
-### 3. Run the Hellow World program
+### 3. Run the Hellow World Program
 
     cd LibOS/shim/test/native
     make
     ./pal_loader helloworld
 
-### 4. Test with an application (example: LMBench)
+### 4. Test with Applications (Example: LMBench)
 
     cd ..
     git submodule update --init apps

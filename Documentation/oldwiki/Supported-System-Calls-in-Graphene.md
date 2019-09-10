@@ -1,8 +1,8 @@
 The following is a list of system calls that are currently implemented. We will update the list when there is a major release.
 
-## System calls that are fully implemented
+## System Calls that are Fully Implemented
 
-### System calls that require multi-process coordination
+### System Calls that Require Multi-process Coordination
 
 * Process creation (fork/vfork)
 * execve
@@ -52,7 +52,7 @@ The following is a list of system calls that are currently implemented. We will 
 * Thread-state (arch_prctl)
 
 
-## System calls that are partially implemented
+## System Calls that are Partially Implemented
 
 * ioctl
 

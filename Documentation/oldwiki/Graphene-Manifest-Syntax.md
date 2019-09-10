@@ -12,15 +12,15 @@ Comments can be inlined in a manifest, by preceding them with a _sharp sign (#)_
     loader.exec=[URI]
 This syntax specifies the executable to be loaded into the library OS. The executable must be an ELF-format binary, with a defined entry point to start its execution.
 
-### Preloaded libraries
+### Preloading the LibOS
     loader.preload=[URI][,URI]...
 This syntax specifies the libraries to be preloaded before loading the executable. The URI of the libraries will be separated by _commas(,)_. The libraries must be ELF-format binaries, and may or may not have a defined entry point. If the libraries have their entry points, the entry points will be executed before jumping to the entry point of the executable, in the order as they are listed.  
 
-### Executable name
+### Executable Name
     loader.execname=[STRING]
 This syntax specifies the executable name given as the first argument to the binaries (the executable and preloaded libraries). If the executable name is not specified in the manifest, PAL will use the URI of the executable or manifest as the first argument when executing the executable. In some circumstance, the executable name has to be specified so the binaries can re-execute the executable or determine their functionalities. 
 
-### Environment variables
+### Environment Variables
     loader.env.[ENVIRON]=[VALUE]
 By default, the environment variables on the host will be passed to the binaries in the library OSes. This syntax specifies the environment variable values that are customized for the library OSes. This syntax can be used for multiple times to specify more than one environment variables, and the environment variables can be deleted by giving a empty value.  
 
@@ -29,20 +29,20 @@ By default, the environment variables on the host will be passed to the binaries
 This syntax specifies the debug option while executing the library OSes. If the debug type is _none_, no debug output will be printed to the screen. If the debug type is _inline_, a dmesg-like debug output will be printed inlined with standard output.
 
 
-## System-related (required by LibOS)
+## System-related (Required by LibOS)
 
-### Stack size
+### Stack Size
     sys.stack.size=[# of bytes]
 This syntax specifies the stack size of the first thread in each Graphene process. The default value of stack size is determined by the library OSes.
 
-### Program break size
+### Program Break Size
     sys.brk.size=[# of bytes]
 This syntax specifies the program break (_brk_) size in each Graphene process. The default value of program break size is determined by the library OSes.
 
 
-## FS-related (required by LibOS)
+## FS-related (Required by LibOS)
 
-### Mount points (REQUIRED)
+### Mount Points (REQUIRED)
     fs.mount.[identifier].path=[PATH]
     fs.mount.[identifier].type=[chroot|...]
     fs.mount.[identifier].uri=[URI]

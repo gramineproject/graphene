@@ -1,4 +1,4 @@
-### Step 1: Define the interface of system call and name the implementing function in `LibOS/shim/src/shim_syscalls.c`.
+### Step 1: Define the Interface of System Call and Name the Function in `LibOS/shim/src/shim_syscalls.c`.
 
 For example, assume we are implementing `sched_setaffinity`, find the definition of `sched_setaffinity` in `shim_syscalls.c`, which will be the following code:
 
@@ -15,7 +15,7 @@ DEFINE_SHIM_SYSCALL (sched_setaffinity, 3, shim_do_sched_setaffinity, int, pid_t
 ```
 
 
-### Step 2: Add the definitions to `LibOS/shim/include/shim_table.h`
+### Step 2: Add Definitions to `LibOS/shim/include/shim_table.h`
 
 To implement system call `sched_setaffinity`, three functions need to be defined in `shim_table.h`: `__shim_sched_setaffinity`, `shim_sched_setaffinity`, and `shim_do_sched_setaffinity`. The first two should already be defined. Add the third in respect to the system call you are implementing, with the same prototype as defined in `shim_syscalls.c`.
 
@@ -23,7 +23,7 @@ To implement system call `sched_setaffinity`, three functions need to be defined
 int shim_do_sched_setaffinity (pid_t pid, size_t len, __kernel_cpu_set_t * user_mask_ptr);
 ``` 
 
-### Step 3: Implement the system call in a source file under `LibOS/shim/src/sys`.
+### Step 3: Implement the System Call under `LibOS/shim/src/sys`.
 
 You can add the function body of `shim_do_sysinfo` (or the function name defined earlier) in a new source file or any existing source file in `LibOS/shim/src/sys`.
 
@@ -34,7 +34,7 @@ int shim_do_sched_setaffinity (pid_t pid, size_t len, __kernel_cpu_set_t * user_
 }
 ```
 
-### Step 4 (Optional): Add a new PAL call if it is necessary for the system call.
+### Step 4 (Optional): Add New PAL Calls if Necessary for the System Call.
 
 The concept of Graphene library OS is to keep the PAL interface as simple as possible. So, you should not add new PAL calls if the features can be fully implemented inside the library OS using the existing PAL calls. However, sometimes, the OS features needed involve low-level operations inside the host operating systems and cannot be emulated inside the library OS. Therefore, you may have to add a few new PAL calls to be supplementary to the existing interface.
 
@@ -50,7 +50,7 @@ Make sure you use the PAL-specific data types, including `PAL_BOL`, `PAL_NUM`, `
 
 For each directory in `PAL/host/`, there is a `pal.map` file. This file lists all the symbols accessible to the library OS. The new PAL call needs to be listed here in order to be used for your system call implementation.
 
-### Step 6 (Optional): Implementing the new PAL call in `PAL/src`.
+### Step 6 (Optional): Implementing the New PAL Call in `PAL/src`.
 
 
 

@@ -10,7 +10,7 @@ Porting applications to Intel SGX platform can be cumbersome. To secure an appli
 
 Graphene Library OS provides the OS features needed by the applications, right inside the SGX enclaves. To secure any applications, developers can directly load native, unmodified binaries into enclaves, with minimal porting efforts. Graphene Library OS provides a signing tool to sign all binaries that are loaded into the enclaves, just like the Intel SGX SDK.
 
-## How to build with Intel SGX Support?
+## How to Build with Intel SGX Support?
 
 Here is a [[Quick Start | SGX Quick Start]] instruction for how to build and run Graphene with minimal commands.
 

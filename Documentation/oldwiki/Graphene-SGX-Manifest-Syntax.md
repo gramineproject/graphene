@@ -2,12 +2,12 @@ The basic manifest syntax for Graphene is described in [[Graphene Manifest Synta
 
 ## Basic SGX-specific Syntax
 
-### Enclave size (OPTIONAL)
+### Enclave Size (OPTIONAL)
     sgx.enclave_size=[SIZE]
     (default: 256M)
 This syntax specifies the enclave size to be created. Beside PAL and library OS, the remaining memory in the enclave is used as the heap, to load application libraries or create anonymous memory. The application cannot allocate memory that exceeds the enclave size.
 
-### Thread number (OPTIONAL)
+### Thread Number (OPTIONAL)
     sgx.thread_num=[NUM]
     (Default: 4)
 This syntax specifies the number of threads that can be created inside the enclave. The application cannot create more threads than this limit. Creating more threads will require more enclave memory.
@@ -23,7 +23,7 @@ This syntax specifies whether the enclave can be debugged. Currently, Graphene l
     (Default: 0)
 This syntax specifies the ISV Product ID and SVN to be added into the enclave signature.
 
-## Trusted files and child processes
+## Trusted Files and Child Processes
 
 ### Trusted Files (OPTIONAL)
     sgx.trusted_files.[identifier]=[URI]

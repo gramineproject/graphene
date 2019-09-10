@@ -16,7 +16,7 @@ After loading the binaries, PAL needs to load and interpret the manifest files. 
 
 After PAL fully initialized the process, it will jump to the entry points of libraries and/or executables to start the execution. When jumping to the entry points, arguments, environment variables and auxiliary vectors must be pushed to the stack as the UNIX calling convention.
 
-### Manifest and Executable Loading Rules 
+### Manifest and Executable Loading Rules
 
 The PAL loader supports multiple ways of locating the manifest and executable. To run a program in Graphene properly, the PAL loader generally requires both a manifest and an executable, although it is possible to load with only one of them. The user shall specify either the manifest and the executable to load in the command line, and the PAL loader will try to locate the other based on the file name or content.
 
@@ -114,7 +114,7 @@ The members of Graphene control block are defined as follows:
 
 The PAL APIs contain _44_ functions that can be called from the library OSes.
 
-### Memory allocation
+### Memory Allocation
 
 #### DkVirtualMemoryAlloc
 

@@ -1,14 +1,14 @@
-## What is Graphene library OS?
+## What is Graphene Library OS?
 
 **Graphene library OS** is a project to provide lightweight guest OSes with support for Linux multi-process applications. Comparable to virtual machines, Graphene runs applications in an isolated environment, with virtualization benefits such as guest customization, platform independence and migration. The work is published in the proceeding of [Eurosys 2014](https://oscarlab.github.io/papers/tsai14graphene.pdf).
 
 Graphene Library OS can support running Linux applications with the latest **Intel SGX (Software Guard Extension)** technologies. With Intel SGX, applications are secured in hardware-encrypted memory regions (so called **enclaves**), and no malicious software stack or hardware attack such as cold-boot attack can retrieve the application secret. Graphene Library OS can support native application to run in enclaves, without the porting efforts that developers usually have to pay. For more information about the SGX support, see [[Introduction to Graphene-SGX]].
 
-### Which hosts is Graphene currently ported to?
+### Which Hosts is Graphene Currently Ported To?
 
 Graphene Library OS can run Linux applications on top of any hosts that Graphene Library OS has been ported to. Porting Graphene Library OS to a new host requires implementing the [[PAL Host ABI]] using the host ABI. Currently, we have ported Graphene Library OS to **64-bit FreeBSD** and **64-bit Linux with Intel SGX**. More supported hosts are expected in the future. 
 
-## What is the prerequisite of Graphene?
+## What is the Prerequisite of Graphene?
 
 Graphene Library OS is tested to be compiling and running on Ubuntu 14.04/16.04 (both server and desktop version), along with Linux kernel 3.5/3.14/4.4. We recommend to build and install Graphene with the same host platform. Other distributions of 64-bit Linux can potentially, but the result is not guaranteed. If you find Graphene not working on other distributions, please contact us with a detailed bug report.
 
@@ -24,17 +24,17 @@ To run unit tests locally, you also need the python3-pytest package:
 
     sudo apt-get install -y python3-pytest
 
-## How to build and run Graphene library OS?
+## How to Build and Run Graphene Library OS?
 
 Here is a [[Graphene Quick Start]] instruction for how to quickly build and run Graphene.
 
-### Obtaining source code
+### Obtain Source Code
 
 Graphene can be obtained on _github_. Use the following command to check out the code:
 
 `git clone https://github.com/oscarlab/graphene.git`
 
-### Building Graphene
+### Build Graphene
 
 To build the system, simply run the following commands in the root of the source tree:
 
@@ -145,7 +145,7 @@ of the source tree:
     git submodule update --init -- LibOS/shim/test/apps/
 
 
-### Run an application in the Graphene Library OS
+### Run an Application in Graphene
 
 Graphene library OS uses PAL as a loader to bootstrap an application in the library OS. To start Graphene, PAL will have to be run as an executable, with the name of the program, and a "manifest file" given from the command line. Graphene provides three options for specifying the programs and manifest files:
 
@@ -177,14 +177,14 @@ For the full documentation of the Graphene manifest syntax, please see this page
 
 More details of running tested/benchmarked applications in Graphene, please see this page: [[Run Applications in Graphene]].
 
-## How do I contribute to the project? 
+## How Do I Contribute to the Project?
 
 Some documentation that might be helpful:
 
 * [[PAL Host ABI]]
 * [[Port Graphene PAL to Other hosts]]
 
-## How to contact the maintainers?
+## How to Contact the Caintainers?
 
 For any questions or bug reports, please send an email to support@graphene-project.io
 or post an issue on our GitHub repository: https://github.com/oscarlab/graphene/issues
