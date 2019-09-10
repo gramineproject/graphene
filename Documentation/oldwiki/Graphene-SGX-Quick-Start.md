@@ -26,7 +26,7 @@ The first command should list `isgx` and the second command should list the proc
     cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
     openssl genrsa -3 -out enclave-key.pem 3072
 
-### 4. Build Graphene (Including the SGX PAL and te LibOS)
+### 4. Build Graphene (Including the SGX PAL and the LibOS)
 
     cd $GRAPHENE_DIR
     make SGX=1

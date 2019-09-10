@@ -1,9 +1,9 @@
 ## What is Graphene Library OS?
 
-**Graphene library OS** is a project which provides lightweight guest OSes with support for Linux
-multi-process applications. Comparable to virtual machines, Graphene runs applications in an
-isolated environment, with virtualization benefits such as guest customization, ease of porting
-to different OSes, and process migration. The work is published in the proceeding of
+**Graphene library OS** is a lightweight guest OS which supports Linux multi-process applications.
+Graphene runs applications in an isolated environment, with virtualization benefits, such as guest
+customization, ease of porting to different OSes, and process migration, similar to a container or
+a virtual machine. The work is originally published in the proceedings of
 [Eurosys 2014](https://oscarlab.github.io/papers/tsai14graphene.pdf).
 
 Graphene library OS supports running Linux applications with the latest **Intel SGX (Software
@@ -13,12 +13,13 @@ software stack or attacks on the hardware off the CPU package. Graphene Library 
 native application to run in enclaves, without the porting efforts that developers usually have
 to pay. For more information about SGX support, see [[Introduction to Graphene-SGX]].
 
-### Which Hosts are Graphene Currently Ported To?
+### Which Hosts is Graphene Currently Ported To?
 
-Graphene Library OS can run Linux applications on top of any host that Graphene Library OS has
-been ported to. Porting Graphene to a new host requires implementing the [[PAL Host ABI]] using
-the host ABI. Currently, we have ported Graphene Library OS to **64-bit FreeBSD** and **64-bit
-Linux with Intel SGX**. Support for more hosts is expected in the future.
+Graphene Library OS can run Linux applications on top of a host-specific layer which is easy to
+port to different hosts. This host-specific layer is called a __Platform Adaption Layer (PAL)__.
+Porting Graphene to a new host only requires porting a PAL, by implementing the [[PAL Host ABI]]
+using OS features of the host. Currently, we have ported Graphene Library OS to **64-bit FreeBSD**
+and **64-bit Linux with Intel SGX**. Support for more hosts is expected in the future.
 
 #### Check out Application Test Cases
 
@@ -165,7 +166,7 @@ manifest file:
 Although manifest files are optional for Graphene, running an application usually requires some
 minimal configuration in its manifest file. A sensible manifest file will include paths to the
 library OS and GNU C library, environment variables such as `LD_LIBRARY_PATH`, file systems to be
-mounted, and isolation rules to be enforced in the reference monitor.
+mounted.
 
 Here is an example manifest file:
 
@@ -183,15 +184,12 @@ provided in the individual directories in `LibOS/shim/test/apps`.
 For the full documentation of the Graphene manifest syntax, please see the following pages:
 [Graphene Manifest Syntax]] and [[Graphene-SGX Manifest Syntax]].
 
-More details regarding running tested/benchmarked applications in Graphene, please see this page:
+For more details about running tested/benchmarked applications in Graphene, please see this page:
 [[Run Applications in Graphene]].
 
 #### Run Built-in Examples in Graphene-SGX
 
-There are a few examples under LibOS/shim/test. The "native" folder includes a rich set of C
-programs and "apps" folder includes a few tested applications, such as GCC, Python, and Apache.
-
-(1) Build and run `hellowWorld` with Graphene on SGX
+(1) Build and run `helloworld` with Graphene on SGX
 
 - Go to LibOS/shim/test/native, sign all the test programs via the command:
 
@@ -205,7 +203,7 @@ programs and "apps" folder includes a few tested applications, such as GCC, Pyth
 
       SGX=1 ./pal_loader helloworld   or  ./pal_loader SGX helloworld
 
-(2) Build and run the Python helloworld script with Graphene on SGX
+(2) Build and run the Python `helloworld.py` script with Graphene on SGX
 
 - Go to LibOS/shim/test/apps/python and sign the application:
 
@@ -215,7 +213,7 @@ programs and "apps" folder includes a few tested applications, such as GCC, Pyth
 
       make SGX_RUN=1
 
-- Run the Python helloworld with Graphene-SGX via:
+- Run the `helloworld.py` with Graphene-SGX via:
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 
@@ -225,7 +223,7 @@ programs and "apps" folder includes a few tested applications, such as GCC, Pyth
 Some documentation that might be helpful:
 
 * [[PAL Host ABI]]
-* [[Port Graphene PAL to Other hosts]]
+* [[Porting Graphene PAL to Other hosts]]
 
 ## How to Contact the Maintainers?
 
