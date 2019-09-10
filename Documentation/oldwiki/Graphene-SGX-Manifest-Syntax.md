@@ -62,4 +62,4 @@ critical information. Developers must not allow files blindly.
 This syntax specifies the signatures that are allowed to be created as child processes of the
 current application. Upon process creation, the current enclave will perform attest the enclave
 in the child process, against the trusted signatures. If the child process is not trusted, the
-current enclave will not communicate with it.
+current enclave will not communicate with it. 

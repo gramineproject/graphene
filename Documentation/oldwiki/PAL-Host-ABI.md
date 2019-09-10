@@ -572,4 +572,3 @@ This API commits (sends) an array of the virtual memory area to the physical mem
                                 PAL_NUM* sizes, PAL_FLG* prots);
 
 This API maps an array of virtual memory area from the physical memory channel.
-
