@@ -31,9 +31,6 @@ libpal-FreeBSD.a: $(addsuffix .o,$(objs)) $(graphene_lib)
 	@echo [ host/FreeBSD/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
 
-pal.map: pal.map.template ../../pal-symbols
-	sed -e 's:\$$(PAL_SYMBOLS):$(shell sed -e 's:$$:;:g' ../../pal-symbols):g' $< > $@
-
 %.asm: %.c $(headers)
 	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
 	@objdump -S $<.o > $@
@@ -58,6 +55,8 @@ pal.map: pal.map.template ../../pal-symbols
 %.e %.s: %.S $(headers)
 	@echo [ host/FreeBSD/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -E $< -o $@
+
+include ../../../../Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_sec) $(pal_loader))
 

@@ -27,9 +27,6 @@ libpal-Skeleton.a: $(addsuffix .o,$(objs))
 	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(AR) $(ARFLAGS) $@ $^
 
-pal.map: pal.map.template ../../pal-symbols
-	sed -e 's:\$$(PAL_SYMBOLS):$(shell sed -e 's:$$:;:g' ../../pal-symbols):g' $< > $@
-
 %.asm: %.c $(headers)
 	$(CC) $(CFLAGS) $(defs) -c $< -o $<.o
 	@objdump -S $<.o > $@
@@ -42,6 +39,8 @@ pal.map: pal.map.template ../../pal-symbols
 %.o: %.S $(headers)
 	@echo [ host/$(PAL_HOST)/$@ ]
 	@$(AS) $(ASFLAGS) $(defs) -c $< -o $@
+
+include ../../../../Makefile.rules
 
 .PHONY: clean
 clean:

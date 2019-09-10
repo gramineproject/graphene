@@ -35,9 +35,6 @@ libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
 	@echo [ host/Linux-SGX/$@ ]
 	$(AR) $(ARFLAGS) $@ $^
 
-pal.map: pal.map.template ../../pal-symbols
-	sed -e 's:\$$(PAL_SYMBOLS):$(shell sed -e 's:$$:;:g' ../../pal-symbols):g' $< > $@
-
 $(addsuffix .o,$(enclave-objs)): %.o: %.c $(headers)
 	@echo [ host/Linux-SGX/$@ ]
 	@$(CC) $(CFLAGS) $(defs) -DIN_ENCLAVE -c $< -o $@

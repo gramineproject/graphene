@@ -64,3 +64,12 @@ cc-option = $(shell set -e; \
 	if ($(CC) -Werror $(1) -c -x c /dev/null -o /dev/null) >/dev/null 2>&1; \
 	then echo "$(1)"; \
 	fi)
+
+PAL_SYMBOL_FILE = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))Pal/src/pal-symbols
+PAL_SYMBOLS = $(shell sed -e 's|$$|;|g' $(PAL_SYMBOL_FILE))
+
+quiet_cmd_pal_map = [ $@ ]
+      cmd_pal_map = sed -e 's|\$$(PAL_SYMBOLS)|$(PAL_SYMBOLS)|g' $< > $@
+
+pal.map: pal.map.template $(PAL_SYMBOL_FILE)
+	$(call cmd,pal_map)
