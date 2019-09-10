@@ -26,9 +26,6 @@ graphene_lib = .lib/graphene-lib.a
 .PHONY: all
 all: sgx-driver/isgx_version.h $(host_files)
 
-../../host_endian.h: host_endian.h
-	$(MAKE) -C ../../ $<
-
 libpal-Linux-SGX.a: $(addsuffix .o,$(enclave-objs) $(enclave-asm-objs))
 	$(call cmd,ar_a_o)
 

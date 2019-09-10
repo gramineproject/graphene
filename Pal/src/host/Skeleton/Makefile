@@ -16,9 +16,6 @@ headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h)
 .PHONY: all
 all: $(host_files)
 
-../../host_endian.h: host_endian.h
-	$(MAKE) -C ../../ $<
-
 libpal-Skeleton.a: $(addsuffix .o,$(objs))
 	$(call cmd,ar_a_o)
 
