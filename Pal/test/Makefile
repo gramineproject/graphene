@@ -53,8 +53,10 @@ $(executables): %: %.c $(LDLIBS)
 
 $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX), 1)
 include $(addsuffix .manifest.sgx.d,$(executables))
+endif
 endif
 else
 .IGNORE: $(executables)

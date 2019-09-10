@@ -66,8 +66,10 @@ $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle)
 
 include $(wildcard *.d)
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX), 1)
 include $(addsuffix .manifest.sgx.d,$(executables))
+endif
 endif
 
 .lib/host_endian.h: ../src/host/$(PAL_HOST)/host_endian.h
