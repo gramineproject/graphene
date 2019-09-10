@@ -1,7 +1,8 @@
 include ../../../../Makefile.configs
 include Makefile.am
 
-CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib \
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../include/pal \
+	   -I../../../include/host/Linux -I../../../lib \
 	   -I../../../ipc/linux \
 	   -I../../../linux-kernel/graphene
 ASFLAGS += -I. -Iinclude -I../.. -I../../../include
