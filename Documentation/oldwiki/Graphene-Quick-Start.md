@@ -1,4 +1,5 @@
-The following quick start instruction does not include the steps for running Graphene with sandboxing (EXPERIMENTAL).
+The following quick start instruction does not include the steps for running Graphene with
+sandboxing (EXPERIMENTAL). Currently for non-SGX Linux platform only.
 
 ### 1. Clone the Graphene Repository
 
@@ -9,7 +10,7 @@ The following quick start instruction does not include the steps for running Gra
     cd graphene
     make
 
-### 3. Run the Hellow World Program
+### 3. Run `helloworld`
 
     cd LibOS/shim/test/native
     make
@@ -26,3 +27,4 @@ The following quick start instruction does not include the steps for running Gra
     ./pal_loader lat_syscall open
     ./pal_loader lat_syscall read
     ./pal_loader lat_proc fork
+
