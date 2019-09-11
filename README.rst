@@ -163,7 +163,7 @@ a |_| few tested applications, such as GCC, Python, and Apache.
       SGX=1 ./pal_loader helloworld
 
      or::
-     
+
       ./pal_loader SGX helloworld
 
 2. Build and run python helloworld script in Graphene on SGX
@@ -195,7 +195,7 @@ To enable tests for the built-in remote attestation feature for Graphene-SGX, ob
 and a subscription key (can be linkable or unlinkable) from the Intel API Portal:
 https://api.portal.trustedservices.intel.com/EPID-attestation
 
-Specify the SPID, subscription key, and the type of the SPID/key in the manifest:
+Specify the SPID, subscription key, and the type of the SPID/key in the manifest::
 
     sgx.ra_client_spid = <SPID>
     sgx.ra_client_key = <KEY>
@@ -206,7 +206,7 @@ is not successfully verified by the Intel Attestation Service (IAS). The feature
 Graphene-SGX only executes on a genuine, up-to-date SGX hardware.
 
 
-To enable remote attestation tests in ``Pal/regression``, specify the following variables:
+To enable remote attestation tests in ``Pal/regression``, specify the following variables::
 
     cd PAL/regression
     make SGX=1 RA_CLIENT_SPID=<SPID> RA_CLIENT_KEY=<KEY>
@@ -215,7 +215,7 @@ To enable remote attestation tests in ``Pal/regression``, specify the following 
 
 If you receive a "GROUP_OUT_OF_DATE" status from IAS, this status indicates that your CPU
 is out of date and can be vulnerable to hardware attacks. If you wish to bypass this error,
-you can specify the following option in the manifest:
+you can specify the following option in the manifest::
 
     sgx.ra_accept_group_out_of_date = 1
 
