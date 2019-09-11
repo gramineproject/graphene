@@ -18,11 +18,11 @@ For more information about SGX support, see [[Introduction to Graphene-SGX]].
 
 Graphene was developed to encapsulate all host-specific code in one layer, called the Platform
 Adaptation Layer, or PAL. Thus, if there is a PAL for a given host, the library OS and applications
-will 'just work'.
+will "just work".
 
 Porting Graphene to a new host only requires porting a PAL, by implementing the [[PAL Host ABI]]
-using OS features of the host. Currently, we have ported Graphene Library OS to FreeBSD and Linux
-(the latter also with Intel SGX support). Support for more hosts is expected in the future.
+using OS features of the host. To date, we ported Graphene to FreeBSD and Linux (the latter also
+with Intel SGX support). Support for more hosts is expected in the future.
 
 #### Check out Application Test Cases
 
@@ -59,7 +59,7 @@ See [[Graphene Quick Start]] for instructions how to quickly build and run Graph
 
 The latest version of Graphene can be cloned from GitHub:
 
-`git clone https://github.com/oscarlab/graphene.git`
+    git clone https://github.com/oscarlab/graphene.git
 
 ### Build Graphene
 
@@ -70,18 +70,15 @@ To build Graphene, simply run the following commands in the root of the source t
 
 Each part of Graphene can be built separately in the corresponding subdirectories.
 
-To build Graphene library OS with debug symbols, run ``make DEBUG=1`` instead of ``make``. You may
-have to run ``make clean`` first if you have previously compiled the source code. To specify custom
-mirrors for downloading the GLIBC source, use ``GLIBC_MIRRORS=...`` when running ``make``.
-
-To build with ``-Werror``, run ``make WERROR=1``.
-
+To build Graphene with debug symbols, run `make DEBUG=1` instead of `make`. You may have to run
+`make clean` first if you have previously compiled the source code. To specify custom mirrors for
+downloading the Glibc sources, use `GLIBC_MIRRORS=...` when running `make`. To build with `-Werror`,
+run `make WERROR=1`.
 
 Currently, Graphene has implemented [[these Linux system calls|Supported System Calls in Graphene]].
-Before running any application, you must confirm if every system call required by the application
-executables and libraries is supported, or at least does not affect the functionality of the
-application if the system call always returns error code `ENOSYS`.
-
+Before running any application, you must confirm that all system calls required by the application
+executables and libraries are supported (or that unsuppored system calls do not affect the
+functionality of the application).
 
 
 ### Build with Kernel-Level Sandboxing (Optional)
@@ -90,28 +87,26 @@ This feature is marked as EXPERIMENTAL and no longer exists in the master branch
 See [EXPERIMENTAL/linux-reference-monitor](https://github.com/oscarlab/graphene/tree/EXPERIMENTAL/linux-reference-monitor).
 
 
-
 ### Build with Intel SGX Support
 
 See [[Graphene-SGX Quick Start]] for instructions on how to build and run Graphene with
-the Intel SGX support.
+Intel SGX support.
 
 
 #### Prerequisites
 
 (1) Generating signing keys
 
-A 3072-bit RSA private key (PEM format) is required for signing the enclaves. If you don't have a
-private key, create it with the following command:
+A 3072-bit RSA private key (PEM format) is required for signing the application manifest. If you
+do not have a private key, create one with the following command:
 
     openssl genrsa -3 -out enclave-key.pem 3072
 
-You can either put the generated enclave key in the default path,
-`host/Linux-SGX/signer/enclave-key.pem`, or specify the key through the environment variable
-`SGX_SIGNER_KEY`.
+You can either put the generated key in the default path, `host/Linux-SGX/signer/enclave-key.pem`,
+or specify the key through the environment variable `SGX_SIGNER_KEY`.
 
-After signing the enclave, users may ship the application binaries, the manifest, and the
-signature together with the Graphene binaries to an SGX-enabled system.
+After signing the application manifest, users may ship the application binaries, the manifest, and
+the signature together with the Graphene binaries to an SGX-enabled system.
 
 (2) Installing Intel SGX SDK and SGX driver
 
@@ -125,22 +120,22 @@ To make Graphene aware of the SGX driver, run the following commands:
 
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
-    # You'll be prompted to provide the path to the SGX driver and the version you downloaded
+    (The console will be prompted to ask for the path of the Intel SGX driver code)
     sudo ./load.sh
 
 #### Build Graphene for SGX
 
-To build Graphene with the Intel SGX support, in the root directory of the Graphene repo, run
+To build Graphene with Intel SGX support, in the root directory of the Graphene repo, run
 the following command:
 
     make SGX=1
 
-To build with debug symbols, run instead the following command:
+To build with debug symbols, instead run the following command:
 
     make SGX=1 DEBUG=1
 
 Using `make SGX=1` in the test or regression directory will automatically generate the required
-enclave signatures (.sig files).
+manifest signatures (.sig files).
 
 ### Run Applications in Graphene
 
@@ -187,6 +182,7 @@ For the full documentation of the Graphene manifest syntax, please see the follo
 For more details about running tested/benchmarked applications in Graphene, please see this page:
 [[Run Applications in Graphene]].
 
+
 #### Run Built-in Examples in Graphene-SGX
 
 (1) Build and run `helloworld` with Graphene-SGX:
@@ -228,5 +224,5 @@ Some documentation that might be helpful:
 ## How to Contact the Maintainers?
 
 For any questions or bug reports, please send an email to support@graphene-project.io
-or post an issue on our GitHub repository: https://github.com/oscarlab/graphene/issues
+or post an issue on our GitHub repository: https://github.com/oscarlab/graphene/issues.
 

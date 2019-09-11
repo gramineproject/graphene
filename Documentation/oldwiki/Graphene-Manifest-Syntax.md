@@ -1,22 +1,22 @@
 ## Basic Syntax
 
-A manifest file is an application-specific configuration file that specifies the environment and
-resources for running a Graphene library OS instance. A manifest file is a text file, containing
-entries separated by _line breaks_. Each configuration entry consists of a key and a value.
-Whitespaces before/after the key and before/after the value are ignored. The value can be written
-in quotes, indicating that the value should be assigned to this string verbatim, or be unquoted.
-(The quotes syntax is useful for values with leading/trailing whitespaces, e.g. `" SPACES! "`.)
-Each entry must be in the following format:
+A manifest file is an application-specific configuration text file that specifies the environment
+and resources for running an application inside Graphene. A manifest file contains entries
+separated by line breaks. Each configuration entry consists of a key and a value. Whitespaces
+before/after the key and before/after the value are ignored. The value can be written in quotes,
+indicating that the value should be assigned to this string verbatim. (The quotes syntax is useful
+for values with leading/trailing whitespaces, e.g. `" SPACES! "`.) Each entry must be in the
+following format:
 
-    [Key][.Key][.Key] = [Value] or [Key][.Key][.Key] = "[Value]"
+    [Key][.Key][.Key] = [Value]  or  [Key][.Key][.Key] = "[Value]"
 
-Comments can be inlined in a manifest, by preceding them with a _sharp sign (#)_. Any text after
-a _sharp sign (#)_ will be considered part of a comment and discarded while loading the manifest
+Comments can be inlined in a manifest by starting them with a sharp sign (`# comment`). Any text
+after a sharp sign will be considered part of a comment and discarded while loading the manifest
 file.
 
 ## Loader-related (Required by PAL)
 
-### Executable (REQUIRED)
+### Executable
 
     loader.exec=[URI]
 
@@ -24,12 +24,12 @@ This syntax specifies the executable to be loaded into the library OS. The execu
 ELF binary, with an entry point defined to start its execution (i.e., the binary needs a `main()`
 routine, it cannot just be a library).
 
-### Preloading Guest Libraries (e.g., LibOS)
+### Preloaded Libraries (e.g., the LibOS library)
 
     loader.preload=[URI][,URI]...
 
-This syntax specifies the libraries to be preloaded before loading the executable. The URI of the
-libraries will be separated by _commas(,)_. The libraries must be ELF binaries.
+This syntax specifies the libraries to be preloaded before loading the executable. The URIs of the
+libraries must be separated by commas. The libraries must be ELF binaries.
 
 ### Executable Name
 
@@ -44,18 +44,19 @@ given as the first argument to the PAL loader -- as `argv[0]` when running the e
 
     loader.env.[ENVIRON]=[VALUE]
 
-By default, the environment variables on the host will be passed to the library OS. This syntax
-specifies the environment variable values that are customized for the library OS. This syntax
-can be used for multiple times to specify more than one environment variables, and the environment
-variables can be deleted by giving a empty value.
+By default, the environment variables on the host will be passed to the library OS. Specifying an
+environment variable using this syntax adds/overwrites it and passes to the library OS. This syntax
+can be used multiple times to specify more than one environment variable. An environment variable
+can be deleted by giving it an empty value.
 
-### Debug Type (DEFAULT:none)
+### Debug Type
 
     loader.debug_type=[none|inline]
+    (Default: none)
 
-This specifies the debug option while running the library OS. If the debug type is _none_,
-no debug output will be printed to the screen. If the debug type is _inline_, a dmesg-like debug
-output will be printed inlined with standard output.
+This specifies the debug option while running the library OS. If the debug type is `none`, no
+debug output will be printed to standard output. If the debug type is `inline`, a dmesg-like
+debug output will be printed inlined with standard output.
 
 
 ## System-related (Required by LibOS)
@@ -65,26 +66,25 @@ output will be printed inlined with standard output.
     sys.stack.size=[# of bytes (with K/M/G)]
 
 This specifies the stack size of each thread in each Graphene process. The default value is
-determined by the library OS. Units like K (KB), M (MB), and G (GB) can be given to the values
-for convenience. For example, `sys.stack.size=1M` indicates a 1MB stack size.
+determined by the library OS. Units like `K` (KB), `M` (MB), and `G` (GB) can be appended to the
+values for convenience. For example, `sys.stack.size=1M` indicates a 1MB stack size.
 
 ### Program Break (Heap) Size
 
     sys.brk.size=[# of bytes (with K/M/G)]
 
-This specifies the program break (_brk_) size in each Graphene process. The default value of
-program break size is determined by the library OS. Units like K (KB), M (MB), and G (GB) can be
-given to the values for convenience. For example, `sys.brk.size=1M` indicates a 1MB max brk size.
+This specifies the program break (brk) size in each Graphene process. The default value of the
+program break size is determined by the library OS. Units like `K` (KB), `M` (MB), and `G` (GB) can
+be appended to the values for convenience. For example, `sys.brk.size=1M` indicates a 1MB brk size.
 
 
 ## FS-related (Required by LibOS)
 
-### Mount Points (REQUIRED)
+### Mount Points
 
     fs.mount.[identifier].path=[PATH]
     fs.mount.[identifier].type=[chroot|...]
     fs.mount.[identifier].uri=[URI]
 
-This syntax specifies how the FSes are mounted inside the library OSes. At least one mount point
-is required in the manifest, because at least the Glibc library must be mounted in the library
-OS.
+This syntax specifies how file systems are mounted inside the library OS. At least one mount point
+is required in the manifest, because at least the Glibc library must be mounted in the library OS.

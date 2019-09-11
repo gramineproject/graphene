@@ -14,7 +14,7 @@ application data from the enclave memory.
 
 Porting applications to an Intel SGX platform can be cumbersome. To secure an application with SGX,
 developers must recompile the application executable with the Intel SGX SDK
-(<https://github.com/01org/linux-sgx>). Moreover, an in-enclave application has _no_ access to
+(<https://github.com/01org/linux-sgx>). Moreover, an in-enclave application has *no* access to
 OS features, such as opening a file, creating a network connection, or cloning a thread. For any
 interaction with the host, developers must define untrusted interfaces that the application must
 use to exit the enclave, perform the OS system call, and re-enter the enclave.
@@ -22,7 +22,8 @@ use to exit the enclave, perform the OS system call, and re-enter the enclave.
 Graphene provides the OS features to in-enclave applications, by implementing them inside the SGX
 enclaves. To secure their applications, developers can directly load native, unmodified binaries
 into enclaves, with no/minimal porting efforts. Graphene provides a signing tool to sign all
-binaries that are loaded into the enclaves, similar to the Intel SGX SDK workflow.
+binaries that are loaded into the enclave (technically, the application manifest with URIs of
+these binaries is signed), similar to the Intel SGX SDK workflow.
 
 ## How to Build Graphene with Intel SGX Support?
 
@@ -41,19 +42,19 @@ The prerequisites to build Graphene are detailed in
 
 ### Prerequisites for Developer
 
-To build Graphene with the Intel SGX support, simply run `make SGX=1` instead of `make` at
+To build Graphene with Intel SGX support, simply run `make SGX=1` instead of `make` at
 the root of the source tree (or in the PAL directory if the rest of the source is already built).
 Like regular Graphene, `DEBUG=1` can be used to build with debug symbols. After compiling the
 source, a PAL enclave binary (`libpal-enclave.so`) is created, along with the untrusted loader
 (`pal-sgx`) to load the enclave.
 
-Note that building Graphene and signing the applications does *not* require an SGX-enabled CPU
-on the developer's machine (except for testing purposes).
+Note that building Graphene and signing the application manifests do *not* require an SGX-enabled
+CPU on the developer's machine (except for testing purposes).
 
-A 3072-bit RSA private key (PEM format) is required for signing the applications. The default
-enclave key is placed under `Pal/src/host/Linux-SGX/signer/enclave-key.pem`, or can be specified
-through the environment variable `SGX_ENCLAVE_KEY` when building Graphene with Intel SGX
-support. If you don't have a private key, create it with the following command:
+A 3072-bit RSA private key (PEM format) is required for signing the application manifests. The
+default key is placed under `Pal/src/host/Linux-SGX/signer/enclave-key.pem`, or can be specified
+through the environment variable `SGX_SIGNER_KEY` when building Graphene with Intel SGX
+support. If you don't have a private key, create one with the following command:
 
     openssl genrsa -3 -out enclave-key.pem 3072
 
@@ -64,16 +65,16 @@ The signing tool takes the PAL enclave binary, application binaries, a manifest 
 supporting binaries (including the library OS). It then generates the SGX-specific manifest
 (a `.manifest.sgx` file) and the enclave signature (a `.sig` file).
 
-After signing the application, users may ship the application files together with Graphene itself,
+After signing the manifest, users may ship the application files together with Graphene itself,
 along with an SGX-specific manifest and the signatures, to the untrusted host that has Intel SGX.
 Please note that all supporting binaries must be shipped and placed at the same paths as on the
 developer's machine. For security reasons, Graphene will not allow loading any binaries that are
-not signed.
+not signed/checksumed.
 
 For applications that are prepared in the Graphene apps directory, such as GCC, Apache, and Bash
 (more are listed in [[Run Applications in Graphene]]), just type 'make SGX=1' in the corresponding
-directory. The scripts are automated to build and sign the applications so as to be ready for
-shipment to the untrusted host.
+directory. The scripts are automated to build the applications and sign their manifests so as to be
+ready for shipment to the untrusted host.
 
 If you are simply testing the applications, you may build and run the applications on the same host
 (which must be SGX-enabled). In production scenarios, building and running the applications on the
@@ -85,8 +86,8 @@ To run the applications on Intel SGX with Graphene-SGX, the host must have an SG
 Intel SGX SDK and the SGX driver installed. Please download and install the SDK and the driver from:
 <https://github.com/01org/linux-sgx> and <https://github.com/01org/linux-sgx-driver>.
 
-A Graphene SGX driver also needs to be installed on the untrusted host. Simply run the following
-commands to build the driver:
+A Graphene SGX driver (gsgx) also needs to be installed on the untrusted host. Simply run the
+following commands to build the driver:
 
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
@@ -96,7 +97,7 @@ commands to build the driver:
 If the Graphene SGX driver is successfully installed, and the Intel SDK aesmd service is up and
 running (see [here](https://github.com/01org/linux-sgx#start-or-stop-aesmd-service) for more
 information), one can acquire an enclave token to launch Graphene with the application. Use the
-token tool `Pal/src/host/Linux-SGX/signer/pal-sgx-get-token` to connect with the aesmd service
+token tool `Pal/src/host/Linux-SGX/signer/pal-sgx-get-token` to connect to the aesmd service
 and retrieve the token.
 
 For applications that are prepared in the Graphene apps directory (GCC, Apache, Bash, etc.), type

@@ -26,32 +26,30 @@ The first command should list `isgx` and the second command should list the proc
     cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/signer
     openssl genrsa -3 -out enclave-key.pem 3072
 
-### 4. Build Graphene (Including the SGX PAL and the LibOS)
-
-    cd $GRAPHENE_DIR
-    make SGX=1
-
-### 5. Build and Install Graphene SGX Driver
+### 4. Build and Install Graphene SGX Driver
 
     cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver
     make
+    (The console will be prompted to ask for the path of the Intel SGX driver code)
     sudo ./load.sh
 
-During installation, you will be prompted to enter the source code path of the SGX driver. Type in
-the path and the driver version and continue.
+### 5. Build Graphene-SGX
+
+    cd $GRAPHENE_DIR
+    make SGX=1
 
 ### 6. Set `vm.mmap_min_addr=0` in the System
 
     sudo sysctl vm.mmap_min_addr=0
 
-### 7. Run `helloworld`
+### 7. Build and Run `helloworld`
 
     cd $GRAPHENE_DIR/LibOS/shim/test/native
     make SGX=1
     make SGX_RUN=1
     SGX=1 ./pal_loader helloworld
 
-### 9. Run Applications in Graphene-SGX (LMBench Example)
+### 8. Test LMBench Application
 
     cd $GRAPHENE_DIR
     git submodule update --init -- LibOS/shim/test/apps

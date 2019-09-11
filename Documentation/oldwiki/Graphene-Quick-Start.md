@@ -1,5 +1,5 @@
-The following quick start instruction does not include the steps for running Graphene with
-sandboxing (EXPERIMENTAL). Currently for non-SGX Linux platform only.
+(The following quick start instruction does not include the steps for running Graphene with
+sandboxing because sandboxing is an experimental feature.)
 
 ### 1. Clone the Graphene Repository
 
@@ -10,13 +10,13 @@ sandboxing (EXPERIMENTAL). Currently for non-SGX Linux platform only.
     cd graphene
     make
 
-### 3. Run `helloworld`
+### 3. Build and Run `helloworld`
 
     cd LibOS/shim/test/native
     make
     ./pal_loader helloworld
 
-### 4. Test with Applications (Example: LMBench)
+### 4. Test LMBench Application
 
     cd ..
     git submodule update --init apps
