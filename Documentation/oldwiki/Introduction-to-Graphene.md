@@ -16,7 +16,7 @@ to pay. For more information about SGX support, see [[Introduction to Graphene-S
 ### Which Hosts is Graphene Currently Ported To?
 
 Graphene Library OS can run Linux applications on top of a host-specific layer which is easy to
-port to different hosts. This host-specific layer is called a __Platform Adaption Layer (PAL)__.
+port to different hosts. This host-specific layer is called a __Platform Adaptation Layer (PAL)__.
 Porting Graphene to a new host only requires porting a PAL, by implementing the [[PAL Host ABI]]
 using OS features of the host. Currently, we have ported Graphene Library OS to **64-bit FreeBSD**
 and **64-bit Linux with Intel SGX**. Support for more hosts is expected in the future.
@@ -213,7 +213,7 @@ For more details about running tested/benchmarked applications in Graphene, plea
 
       make SGX_RUN=1
 
-- Run the `helloworld.py` with Graphene-SGX via:
+- Run the `helloworld.py` script with Graphene-SGX via:
 
       SGX=1 ./python.manifest.sgx scripts/helloworld.py
 

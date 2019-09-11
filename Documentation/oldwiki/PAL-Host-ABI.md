@@ -19,14 +19,10 @@ Regardless of the actual implementation, we require PAL to be able to load ELF-f
 as executables or dynamic libraries, and perform the necessary dynamic relocation. PAL will need
 to look up all unresolved symbols in loaded binaries, and resolve the ones matching the name of
 PAL APIs (_Important!!!_). PAL does not and will not resolve other unresolved symbols, so the
-loaded libraries and executables must resolve them afterwards. 
+loaded libraries and executables must resolve them afterwards.
 
 After loading the binaries, PAL needs to load and interpret the manifest files. The manifest syntax
 will be described in [[Graphene Manifest Syntax]].
-
-After PAL fully initialized the process, it will jump to the entry points of libraries and/or
-executables to start the execution. When jumping to the entry points, arguments, environment
-variables and auxiliary vectors must be pushed to the stack as the UNIX calling convention.
 
 ### Manifest and Executable Loading Rules
 

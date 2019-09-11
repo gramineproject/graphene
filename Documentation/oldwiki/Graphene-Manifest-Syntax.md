@@ -27,17 +27,16 @@ ELF binary, with a defined entry point to start its execution.
     loader.preload=[URI][,URI]...
 
 This syntax specifies the libraries to be preloaded before loading the executable. The URI of the
-libraries will be separated by _commas(,)_. The libraries must be ELF binaries, but may or may not
-have entry points defined (i.e., a "start" or "main" function).
+libraries will be separated by _commas(,)_. The libraries must be ELF binaries.
 
 ### Executable Name
 
     loader.execname=[STRING]
 
 This syntax specifies the executable name that will be passed as the first argument to the
-executable and preloaded libraries. If the executable name is not specified in the manifest,
-the PAL will use the URI of the executable or manifest as the first argument when executing the
-executable. This is used when the manifest is given as the first argument to the PAL loader.
+executable. If the executable name is not specified in the manifest, the PAL will use the URI
+of the executable or manifest as the first argument when executing the executable. This is used
+when the manifest is given as the first argument to the PAL loader.
 
 ### Environment Variables
 

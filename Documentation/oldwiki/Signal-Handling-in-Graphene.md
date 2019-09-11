@@ -38,7 +38,7 @@ internal lock), then it is pended. Pended signals are delivered after any system
 or after any LibOS internal unlock.
 
 A new signal-handling mechanism at the LibOS layer was proposed by Isaku Yamahata
-(see https://github.com/oscarlab/graphene/pull/347 ). This proposal changes the points at which
+(see https://github.com/oscarlab/graphene/pull/347). This proposal changes the points at which
 signals are delivered to the user app. The two points are (1) if signal arrives during app
 execution, the signal is delivered after host OS returns from signal context, and (2) if signal
 arrives during LibOS/PAL execution, the signal is delivered after system-call completion. This is
@@ -733,6 +733,6 @@ returns back to after `_DkHandleExternalEvent` in `return_from_ocall`. Thus, the
 (3) add code similar to `__handle_signal`, but on all possible signal numbers and without
 `DkThreadYieldExecution` and without unsetting `SIGNAL_DELAYED` (?).
 Allow all pending signals to be delivered
-(see https://stackoverflow.com/questions/40592066/sigsuspend-vs-additional-signals-delivered-during-handler-execution ).
+(see https://stackoverflow.com/questions/40592066/sigsuspend-vs-additional-signals-delivered-during-handler-execution).
 If at least one signal was delivered, do NOT go to `thread_sleep` but immediately return
 (and set the old mask beforehand).

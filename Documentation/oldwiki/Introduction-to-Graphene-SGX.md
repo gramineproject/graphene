@@ -65,11 +65,11 @@ The signing tool takes the built PAL enclave binary, application binaries, a man
 supporting binaries (including the library OS). It then generates the SGX-specific manifest
 (a `.manifest.sgx` file) and the enclave signature (a `.sig` file).
 
-After signing the application, users may ship the application files with the Graphene, along with
-an SGX-specific manifest and the signatures, to the untrusted hosts that are enabled with Intel SGX.
-Please note that all supporting binaries must be shipped and placed at the same path as on the
-developers' host. For security reasons, Graphene library OS will not allow loading any binaries that
-are not signed.
+After signing the application, users may ship the application files with the Graphene library OS,
+along with an SGX-specific manifest and the signatures, to the untrusted hosts that are enabled
+with Intel SGX. Please note that all supporting binaries must be shipped and placed at the same
+path as on the developers' host. For security reasons, Graphene library OS will not allow loading
+any binaries that are not signed.
 
 For applications that are prepared in the Graphene library source, such as GCC, Apache, and OpenJDK
 (more are listed in [[Run Applications in Graphene]]), just type 'make SGX=1' in the correspondent

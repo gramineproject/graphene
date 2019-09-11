@@ -97,13 +97,13 @@ delay between requests. The Ubuntu/Debian package is `apache2-utils`.
 
 To test Lighttpd server with _ApacheBench_, first we need to start to Lighttpd server as above.
 There is a script run-apachebench.sh that takes two arguments: ip and port. It runs 10,000 requests
-(-n 10000) with 1, 2, 3, 4, and 5 maximum outstanding requests (-n 1...5). The results are saved
+(-n 10000) with 1, 2, 3, 4, and 5 maximum outstanding requests (-c 25 to 200). The results are saved
 into the same directory, and all previous output files are overwritten.
 
     make start-graphene-server
     ./run-apachebench.sh <ip> <port>
     # which internally calls:
-    #   ab -k -n 100000 -n [25:200] -t 10 http://ip:port/random/100.1.html
+    #   ab -k -n 100000 -c [25:200] -t 10 http://ip:port/random/100.1.html
 
 ## Running Apache in Graphene
 

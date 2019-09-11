@@ -66,7 +66,7 @@ files can be found in `LibOS/shim/test/apps/gcc/test_files`. The source files in
 * `helloworld.c`: an extremely small source file
 * `gzip.c`: a larger real-world application
 * `oggenc.m.c`: even larger, linked with libm.so
-* `single-gcc.c`: all of the gcc source into one source file. used as a stress test.
+* `single-gcc.c`: all of the gcc source in one source file. used as a stress test.
 
 To test compiling those source file, first prepare the GCC manifest to compile the program:
 
@@ -112,7 +112,7 @@ time delay between requests. The Ubuntu/Debian package is `apache2-utils`.
 
 To test Lighttpd server with _ApacheBench_, first, we need to start to Lighttpd server as above.
 There is a script run-apachebench.sh that takes two arguments: the IP and port. It runs 100,000
-requests (-n 100000) with 25 to 200 maximum outstanding requests (-n 25 to 200). The results are
+requests (-n 100000) with 25 to 200 maximum outstanding requests (-c 25 to 200). The results are
 saved into the same directory, and all previous output files are overwritten.
 
     make start-graphene-server
@@ -147,7 +147,7 @@ the same script to test with ApacheBench:
     make start-graphene-server
     ./run-apachebench.sh <ip> <port>
     # which internally calls:
-    #   ab -k -n 100000 -n [25:200] -t 10 http://ip:port/random/100.1.html
+    #   ab -k -n 100000 -c [25:200] -t 10 http://ip:port/random/100.1.html
 
 ## Running Busybox in Graphene
 
