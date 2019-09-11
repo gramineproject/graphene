@@ -4,9 +4,10 @@ SGX DCAP Driver Support
 =======================
 
 DCAP driver can be found in https://github.com/intel/SGXDataCenterAttestationPrimitives/.
+The DCAP driver support was tested with both debug (`sgx.debug = 1` in the ``manifest``) and production/release (`sgx.debug = 0`) enclaves on Azure's Confidential Compute VM Deployment (Ubuntu 16.04 and 18.04).
 
 Before running `make` in ``$GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver/``, ``sgx_user.h`` must be symlinked because this file does not exist.
-For example, on Azure's Confidential Compute VM Deployment instance (Ubuntu 16.04 or 18.04), DCAP driver is installed in ``/usr/src/sgx-1.10`` and thus the file can be symlinked as follows:
+For example, on Azure's Confidential Compute VM Deployment instance, DCAP driver is installed in ``/usr/src/sgx-1.10`` and thus the file can be symlinked as follows:
 
 .. code-block:: bash
 
@@ -16,3 +17,4 @@ For example, on Azure's Confidential Compute VM Deployment instance (Ubuntu 16.0
 
 Also, input `~/sgx-1.10` when "Enter the Intel SGX driver directory" is prompted during `make` of ``$GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver/``.
 The internal script will automatically detect that the driver is DCAP.
+
