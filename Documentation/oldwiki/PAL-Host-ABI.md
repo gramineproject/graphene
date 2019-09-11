@@ -277,7 +277,8 @@ This API receives or reads data from an opened stream. If the handles are files,
 specified at each call of DkStreamRead. _source_ and _size_ can be used to return the remote socket
 addresses if the handles are UDP sockets.
 
-If the handles are directories, calling DkStreamRead will fill the buffer with the names (NULL-ended) of the files or subdirectories inside.
+If the handles are directories, calling DkStreamRead will fill the buffer with the names
+(NULL-ended) of the files or subdirectories inside.
 
 #### DkStreamWrite
 
@@ -295,8 +296,8 @@ if the handles are UDP sockets.
     void DkStreamDelete(PAL_HANDLE handle, PAL_FLG access);
 
 This API deletes files or directories on the host or shut down the connection of TCP or UDP sockets.
-_access_ specifies the method of shutting down the connection. _access_ can be either read-side only,
-write-side only, or both if 0 is given in _access_.
+_access_ specifies the method of shutting down the connection. _access_ can be either read-side
+only, write-side only, or both if 0 is given in _access_.
 
 #### DkStreamMap
 

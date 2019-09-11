@@ -1,16 +1,16 @@
 ## Platform Compatibility of Graphene Library OS
 
-Graphene Library OS has adapted the design of PAL (Platform Adaption Layer) from _Drawbridge Library
-OS_, which is a library OS designed for maximizing its platform compatibility. The argument made by
-Drawbridge Library OS is that the library OS can be ported to a new host as long as PAL is implemented
-on the said host. The same property is also available in Graphene library OS.
+Graphene Library OS has adapted the design of PAL (Platform Adaption Layer) from Drawbridge Library
+OS, which is a library OS designed for maximizing its platform compatibility. The argument made by
+Drawbridge Library OS is that the library OS can be ported to a new host as long as PAL is
+implemented on the said host. The same property is also available in Graphene library OS.
 
 ## How to Port Graphene
 
 As a result of platform compatibility, to port Graphene library OS to a new host platform, the only
-effort required will be reimplementing the PAL on the desired host platform. Most of the implementation
-should be just as simple as translating PAL API into the native system interface of the host. The
-implemented PAL must support [[PAL Host ABI]].
+effort required will be reimplementing the PAL on the desired host platform. Most of the
+implementation should be just as simple as translating PAL API into the native system interface of
+the host. The implemented PAL must support [[PAL Host ABI]].
 
 In fact, even in the PAL source code, we expect part of the code to be host-generic. To make porting
 Graphene easier, we deliberately separate the source code of PAL into three parts:
@@ -19,12 +19,12 @@ Graphene easier, we deliberately separate the source code of PAL into three part
 * `Pal/src`: Host-generic implementation.
 * `Pal/src/host/<host name>`: Host-specific implementation.
 
-To start porting Graphene to a new host, we suggest starting with a clone of `Pal/src/host/Skeleton`.
-This directory contains the skeleton of all functions that need to be implemented as part of a fully
-compatible PAL. However, although we have tried our best to isolate any host-specific code in each
-host directories, we do not guarantee that the necessary changes are only limited to those
-directories. That is, you may have to modify other part of the source code, especially Makefile
-scripts to complete your implementation.
+To start porting Graphene to a new host, we suggest starting with a clone of
+`Pal/src/host/Skeleton`.  This directory contains the skeleton of all functions that need to be
+implemented as part of a fully compatible PAL. However, although we have tried our best to isolate
+any host-specific code in each host directories, we do not guarantee that the necessary changes are
+only limited to those directories. That is, you may have to modify other part of the source code,
+especially Makefile scripts to complete your implementation.
 
 ## Steps of Porting PAL
 
@@ -33,14 +33,14 @@ scripts to complete your implementation.
 For the first step to port PAL, you want to be able to build PAL as an executable on the target
 host. After cloning a host-specific directory, first modify `Makefile.am` to adjust compilation
 rules such as `CC`, `CFLAGS`, `LDFLAGS`, `AS` and `ASFLAGS`. You will also have to define the name
-of loader  as target `pal` in `Makefile.am.`
+of loader as target `pal` in `Makefile.am.`
 
 * Step 2: Build a loader
 
-PAL needs to run on the target host like a regular executable. To run Graphene Library OS, PAL
-must initialize the proper environments and load the applications as well as library OS in the form
-of Linux ELF binaries. To start the implemention of PAL loader, we suggest you begin with the
-following APIs in your host-specific directory:
+PAL needs to run on the target host like a regular executable. To run Graphene Library OS, PAL must
+initialize the proper environments and load the applications as well as library OS in the form of
+Linux ELF binaries. To start the implemention of PAL loader, we suggest you begin with the following
+APIs in your host-specific directory:
 
 1. `db_main.c`: this files need to contain the entry function of your loader (the 'main' function)
 and APIs to retrieve host-specific information. The definition of the APIs are as follows:
@@ -70,20 +70,20 @@ The definition of `pal_main` is:
     );
 
 2. `pal_host.h`: this file needs to define the member of `PAL_HANDLE` for handles of files, devices,
-pipes, sockets, threads, processes, etc.
+   pipes, sockets, threads, processes, etc.
 
 3. `db_files.c`: To implement a basic loader, you have to specify how to open, read, and map an
-executable file. At least `file_open`, `file_read`, `file_map` , `file_attrquery`,
-`file_attrquerybyhdl` must be implemented to load a basic HelloWorld program.
+   executable file. At least `file_open`, `file_read`, `file_map` , `file_attrquery`,
+   `file_attrquerybyhdl` must be implemented to load a basic HelloWorld program.
 
-4. `db_memory.c`: the same as `db_files.c`, this file also contain APIs essential to PAL loader.
-At least `_DkCheckMemoryMappable`, `_DkVirtualMemoryAlloc`, `_DkVirtualMemoryFree`,
-`_DkVirtualMemoryProtect` must be implemented.
+4. `db_memory.c`: the same as `db_files.c`, this file also contain APIs essential to PAL loader.  At
+   least `_DkCheckMemoryMappable`, `_DkVirtualMemoryAlloc`, `_DkVirtualMemoryFree`,
+   `_DkVirtualMemoryProtect` must be implemented.
 
 5. `db_rtld.c`: This file must handle how symbols are resolved against PAL loader itself, to
-discover the entry address of host ABI. If the PAL loader is a Linux ELF binary, you may simply
-add a `link_map` to the `loaded_maps` list. Otherwise, you need to implement `resolve_rtld`
-function to return addresses of host ABI by names.
+   discover the entry address of host ABI. If the PAL loader is a Linux ELF binary, you may simply
+   add a `link_map` to the `loaded_maps` list. Otherwise, you need to implement `resolve_rtld`
+   function to return addresses of host ABI by names.
 
 (Optional) You may implement `_DkDebugAddMap` and `_DkDebugDelMap` if you want to use host-specific
 debugger such as GDB to debug applications in Graphene.
@@ -97,8 +97,8 @@ PAL loader.
 * Step 4: Implementing the whole PAL Host ABI
 
 Now it is time to complete the whole implementation of PAL Host ABI. Once you have finished
-mplementation, use the **regression test** to confirm whether your implementation is compatible
-to PAL Host ABI. To run the regression test, do the following steps:
+implementation, use the **regression test** to confirm whether your implementation is compatible to
+PAL Host ABI. To run the regression test, do the following steps:
 
     Graphene % cd Pal/regression
     Graphene/Pal/regression % make regression
@@ -113,8 +113,5 @@ to PAL Host ABI. To run the regression test, do the following steps:
 
 With a completely implemented PAL, you should be able to run any applications that are currently
 running on Graphene library OS upon other platform. Please be aware you should not try to build any
-application binaries on your target host. On the contrary, you should build them on a Linux host
-and ship them to your target host.
-We have packed most of Linux binaries in directories named `.packed` which can be found everywhere
-in the Graphene source code. Simplt type `make`, and these binaries will be unpacked if an
-non-Linux host is detected.
+application binaries on your target host. On the contrary, you should build them on a Linux host and
+ship them to your target host.
