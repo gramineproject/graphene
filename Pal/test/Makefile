@@ -23,6 +23,9 @@ pal_lib = ../../Runtime/libpal-$(PAL_HOST).so
 .PHONY: all
 all:	pal_loader $(call expand_target,$(target))
 
+.PHONY: sgx-tokens
+sgx-tokens: $(call expand_target_to_token,$(target))
+
 ifeq ($(DEBUG),1)
 CC += -g
 endif
