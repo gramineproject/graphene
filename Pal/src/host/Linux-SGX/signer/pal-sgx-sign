@@ -687,7 +687,7 @@ def parse_args():
         'key': args.key[0],
         'manifest': args.manifest[0],
     }
-    if 'exec' in args:
+    if args.exec is not None:
         args_dict['exec'] = args.exec[0]
 
     return args_dict
