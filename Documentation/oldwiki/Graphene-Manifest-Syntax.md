@@ -5,12 +5,13 @@ resources for running a Graphene library OS instance. A manifest file is a text 
 entries separated by _line breaks_. Each configuration entry consists of a key and a value.
 Whitespaces before/after the key and before/after the value are ignored. The value can be written
 in quotes, indicating that the value should be assigned to this string verbatim, or be unquoted.
+(The quotes syntax is useful for values with leading/trailing whitespaces, e.g. `" SPACES! "`.)
 Each entry must be in the following format:
 
     [Key][.Key][.Key] = [Value] or [Key][.Key][.Key] = "[Value]"
 
-Comments can be inlined in a manifest, by preceding them with a _sharp sign (#)_. Any texts behind
-a _sharp sign (#)_ will be considered part of a comment and be discarded while loading the manifest
+Comments can be inlined in a manifest, by preceding them with a _sharp sign (#)_. Any text after
+a _sharp sign (#)_ will be considered part of a comment and discarded while loading the manifest
 file.
 
 ## Loader-related (Required by PAL)
@@ -20,7 +21,8 @@ file.
     loader.exec=[URI]
 
 This syntax specifies the executable to be loaded into the library OS. The executable must be an
-ELF binary, with a defined entry point to start its execution.
+ELF binary, with an entry point defined to start its execution (i.e., the binary needs a `main()`
+routine, it cannot just be a library).
 
 ### Preloading Guest Libraries (e.g., LibOS)
 
@@ -33,10 +35,10 @@ libraries will be separated by _commas(,)_. The libraries must be ELF binaries.
 
     loader.execname=[STRING]
 
-This syntax specifies the executable name that will be passed as the first argument to the
-executable. If the executable name is not specified in the manifest, the PAL will use the URI
-of the executable or manifest as the first argument when executing the executable. This is used
-when the manifest is given as the first argument to the PAL loader.
+This syntax specifies the executable name that will be passed as the first argument (`argv[0]`)
+to the executable. If the executable name is not specified in the manifest, the PAL will use the
+URI of the executable or the manifest -- depending on whether the executable or the manifest is
+given as the first argument to the PAL loader -- as `argv[0]` when running the executable.
 
 ### Environment Variables
 
@@ -83,6 +85,6 @@ given to the values for convenience. For example, `sys.brk.size=1M` indicates a 
     fs.mount.[identifier].type=[chroot|...]
     fs.mount.[identifier].uri=[URI]
 
-This syntax specifies how the FSes are mounted inside the library OSes. This syntax is almost
-required for all binaries, because the GNU Library C must be at least mounted somewhere in the
-library OS.
+This syntax specifies how the FSes are mounted inside the library OSes. At least one mount point
+is required in the manifest, because at least the Glibc library must be mounted in the library
+OS.

@@ -1,3 +1,6 @@
+(Disclaimer: This explanation is partially outdated. It is intended only as an internal
+reference for developers of Graphene, not as a general documentation for Graphene users.)
+
 # Signal Handling
 
 This analysis is written while Graphene's signal handling mechanisms are in flux. In future, all

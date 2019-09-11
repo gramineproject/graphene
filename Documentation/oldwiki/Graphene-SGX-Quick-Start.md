@@ -1,10 +1,10 @@
-Before you run any applications in Graphene-SGX, please make sure the Intel SGX Linux SDK and Linux
-driver are installed on your system. We recommend using Intel SGX Linux SDK and Linux driver no
-older than 2.1.
+Before you run any applications in Graphene-SGX, please make sure that Intel SGX SDK and the SGX
+driver are installed on your system. We recommend using Intel SGX SDK and the SGX driver no older
+than version 2.1.
 
-If Intel SGX Linux SDK and Linux driver are not installed, please follow the READMEs in
-<https://github.com/01org/linux-sgx> and <https://github.com/01org/linux-sgx-driver> to download and
-install them.
+If Intel SGX SDK and the SGX driver are not installed, please follow the READMEs in
+<https://github.com/01org/linux-sgx> and <https://github.com/01org/linux-sgx-driver> to download
+and install them.
 
 ### 1. Ensure That Intel SGX is Enabled on Your Platform
 
@@ -37,7 +37,8 @@ The first command should list `isgx` and the second command should list the proc
     make
     sudo ./load.sh
 
-During the installation, you will be prompted to enter the source code of the Intel SGX Linux driver. Type in the path and the driver version and continue.
+During installation, you will be prompted to enter the source code path of the SGX driver. Type in
+the path and the driver version and continue.
 
 ### 6. Set `vm.mmap_min_addr=0` in the System
 
@@ -50,7 +51,7 @@ During the installation, you will be prompted to enter the source code of the In
     make SGX_RUN=1
     SGX=1 ./pal_loader helloworld
 
-### 9. Run Applications in Graphene-SGX (Example: LMBench)
+### 9. Run Applications in Graphene-SGX (LMBench Example)
 
     cd $GRAPHENE_DIR
     git submodule update --init -- LibOS/shim/test/apps

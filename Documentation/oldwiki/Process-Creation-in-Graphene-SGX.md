@@ -1,3 +1,6 @@
+(Disclaimer: This explanation is partially outdated. It is intended only as an internal
+reference for developers of Graphene, not as a general documentation for Graphene users.)
+
 # Fork in Graphene-SGX
 
 Fork() system call is intercepted in the `shim_do_fork()` LibOS function. This function performs
