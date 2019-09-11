@@ -39,7 +39,7 @@ ok=true
 diff "$diff_opts" -r "$clean_dir" "$top_dir" > "$diff" || ok=false
 
 if [ "$ok" == true ]; then
-    echo "Source tree in unchanged. :]"
+    echo "Source tree is unchanged. :]"
     exit 0
 fi
 
