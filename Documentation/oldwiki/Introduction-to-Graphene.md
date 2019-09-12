@@ -77,7 +77,7 @@ run `make WERROR=1`.
 
 Currently, Graphene has implemented [[these Linux system calls|Supported System Calls in Graphene]].
 Before running any application, you must confirm that all system calls required by the application
-executables and libraries are supported (or that unsuppored system calls do not affect the
+executables and libraries are supported (or that unsupported system calls do not affect the
 functionality of the application).
 
 
@@ -110,7 +110,7 @@ the signature together with the Graphene binaries to an SGX-enabled system.
 
 (2) Installing Intel SGX SDK and SGX driver
 
-The Intel SGX SDK and the SGX driver are required for running Graphene. Download and install then
+The Intel SGX SDK and the SGX driver are required for running Graphene. Download and install them
 from the official Intel GitHub repositories:
 
    - <https://github.com/01org/linux-sgx>
@@ -120,7 +120,7 @@ To make Graphene aware of the SGX driver, run the following commands:
 
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
-    (The console will be prompted to ask for the path of the Intel SGX driver code)
+    # the console will prompt you for the path of the Intel SGX driver code
     sudo ./load.sh
 
 #### Build Graphene for SGX

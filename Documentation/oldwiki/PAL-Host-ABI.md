@@ -64,7 +64,7 @@ basic data structure of a PAL handle is defined as follows:
             PAL_REF ref;
             PAL_FLG flags;
         } __in;
-        (Other resource-specific definitions)
+        /* other resource-specific definitions */
     } PAL_HANDLE;
 
 As shown above, a PAL handle is usually defined as a `union` data type that contains different
@@ -83,8 +83,8 @@ memory allocated for the PAL handles may be variable-sized.
 `PAL_PTR` and `PAL_STR` types represent pointers that point to memory, buffers, and strings.
 On x86-64, they are defined as follows:
 
-    typedef const char *  PAL_STR;
-    typedef void *        PAL_PTR;
+    typedef const char*   PAL_STR;
+    typedef void*         PAL_PTR;
 
 #### Boolean Values
 
@@ -339,7 +339,7 @@ This API receives a handle over another handle.
 
 #### DkStreamAttributeQuery
 
-    PAL_BOL DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR * attr);
+    PAL_BOL DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr);
 
 This API queries the attributes of a named stream. This API only applies for URIs such as
 `file:...`, `dir:...`, and `dev:...`.
@@ -514,7 +514,7 @@ This API clears a notification event or a synchronization event.
 
 #### DkObjectsWaitAny
 
-    #define NO_TIMEOUT      ((PAL_NUM) -1)
+    #define NO_TIMEOUT ((PAL_NUM) -1)
     PAL_HANDLE DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handleArray, PAL_NUM timeout);
 
 This API polls an array of handles and returns one handle with recent activity. `timeout` is the

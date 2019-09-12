@@ -65,8 +65,8 @@ The definition of `pal_main()` is:
         PAL_PTR    exec_loaded_addr, /* executable addr if loaded */
         PAL_HANDLE parent_process,   /* parent process if it's a child */
         PAL_HANDLE first_thread,     /* first thread handle */
-        PAL_STR *  arguments,        /* application arguments */
-        PAL_STR *  environments      /* environment variables */
+        PAL_STR*  arguments,         /* application arguments */
+        PAL_STR*  environments       /* environment variables */
     );
 
 2. `pal_host.h`: This file needs to define the member of `PAL_HANDLE` for handles of files, devices,

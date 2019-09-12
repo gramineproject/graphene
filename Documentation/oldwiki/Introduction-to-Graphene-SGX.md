@@ -6,7 +6,7 @@ October 1st, 2015.
 
 Intel SGX is designed to protect critical applications against a potentially malicious system stack,
 from the operating systems to hardware (CPU itself excluded). SGX creates a hardware-encrypted
-memory region (so-called SGX enclaves) for the protected application, such that neither privileged
+memory region (called SGX enclaves) for the protected application, such that neither privileged
 software attacks nor hardware attacks such as cold-boot attacks can modify or retrieve the
 application data from the enclave memory.
 
@@ -22,12 +22,12 @@ use to exit the enclave, perform the OS system call, and re-enter the enclave.
 Graphene provides the OS features to in-enclave applications, by implementing them inside the SGX
 enclaves. To secure their applications, developers can directly load native, unmodified binaries
 into enclaves, with no/minimal porting efforts. Graphene provides a signing tool to sign all
-binaries that are loaded into the enclave (technically, the application manifest with URIs of
-these binaries is signed), similar to the Intel SGX SDK workflow.
+binaries that are loaded into the enclave (technically, the application manifest, which contains
+hashes and URIs of these binaries, is signed), similar to the Intel SGX SDK workflow.
 
 ## How to Build Graphene with Intel SGX Support?
 
-Refer to a [[Quick Start | SGX Quick Start]] page on how to build and run Graphene-SGX.
+Refer to the [[Quick Start | SGX Quick Start]] page on how to build and run Graphene-SGX.
 
 ### Prerequisites
 
@@ -69,12 +69,12 @@ After signing the manifest, users may ship the application files together with G
 along with an SGX-specific manifest and the signatures, to the untrusted host that has Intel SGX.
 Please note that all supporting binaries must be shipped and placed at the same paths as on the
 developer's machine. For security reasons, Graphene will not allow loading any binaries that are
-not signed/checksumed.
+not signed/hashed.
 
 For applications that are prepared in the Graphene apps directory, such as GCC, Apache, and Bash
 (more are listed in [[Run Applications in Graphene]]), just type 'make SGX=1' in the corresponding
-directory. The scripts are automated to build the applications and sign their manifests so as to be
-ready for shipment to the untrusted host.
+directory. The scripts are automated to build the applications and sign their manifests in order
+to ship them to the untrusted host.
 
 If you are simply testing the applications, you may build and run the applications on the same host
 (which must be SGX-enabled). In production scenarios, building and running the applications on the
@@ -91,7 +91,7 @@ following commands to build the driver:
 
     cd Pal/src/host/Linux-SGX/sgx-driver
     make
-    (The console will be prompted to ask for the path of the Intel SGX driver code)
+    # the console will prompt you for the path of the Intel SGX driver code
     sudo ./load.sh
 
 If the Graphene SGX driver is successfully installed, and the Intel SDK aesmd service is up and

@@ -4,16 +4,16 @@ For example, assume we are implementing `sched_setaffinity`. You must find the d
 `sched_setaffinity` in `shim_syscalls.c`, which will be the following code:
 
 ```
-SHIM_SYSCALL_PASSTHROUGH (sched_setaffinity, 3, int, pid_t, pid, size_t, len,
-                          __kernel_cpu_set_t *, user_mask_ptr)
+SHIM_SYSCALL_PASSTHROUGH(sched_setaffinity, 3, int, pid_t, pid, size_t, len,
+                         __kernel_cpu_set_t*, user_mask_ptr)
 ```
 
 Change this line to `DEFINE_SHIM_SYSCALL(...)` to name the function that implements this system
 call: `shim_do_sched_setaffinity` (this is the naming convention, please follow it).
 
 ```
-DEFINE_SHIM_SYSCALL (sched_setaffinity, 3, shim_do_sched_setaffinity, int, pid_t, pid, size_t, len,
-                     __kernel_cpu_set_t *, user_mask_ptr)
+DEFINE_SHIM_SYSCALL(sched_setaffinity, 3, shim_do_sched_setaffinity, int, pid_t, pid, size_t, len,
+                    __kernel_cpu_set_t*, user_mask_ptr)
 ```
 
 
@@ -25,7 +25,7 @@ two should already be defined. Add the third in respect to the system call you a
 with the same prototype as defined in `shim_syscalls.c`.
 
 ```
-int shim_do_sched_setaffinity (pid_t pid, size_t len, __kernel_cpu_set_t * user_mask_ptr);
+int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr);
 ``` 
 
 ### Step 3: Implement the System Call under `LibOS/shim/src/sys`
@@ -35,8 +35,8 @@ source file or any existing source file in `LibOS/shim/src/sys`.
 
 For example, in `LibOS/shim/src/sys/shim_sched.c`:
 ```
-int shim_do_sched_setaffinity (pid_t pid, size_t len, __kernel_cpu_set_t * user_mask_ptr) {
-   /* Write the code for implementing the semantic of sched_setaffinity. */
+int shim_do_sched_setaffinity(pid_t pid, size_t len, __kernel_cpu_set_t* user_mask_ptr) {
+   /* code for implementing the semantics of sched_setaffinity */
 }
 ```
 
@@ -51,14 +51,14 @@ few new PAL calls to the existing interface.
 To add a new PAL call, first modify `Pal/src/pal.h`. Define the PAL call in a platform-independent way.
 
 ```
-PAL_BOL DkThreadSetCPUAffinity (PAL_NUM cpu_num, PAL_IDX * cpu_indexes);
+PAL_BOL DkThreadSetCPUAffinity(PAL_NUM cpu_num, PAL_IDX* cpu_indexes);
 ```
 
 Make sure you use the PAL-specific data types, including `PAL_BOL`, `PAL_NUM`, `PAL_PTR`,
 `PAL_FLG`, `PAL_IDX`, and `PAL_STR`. The naming convention of a PAL call is to start functions
 with the `Dk` prefix, followed by a comprehensive name describing the purpose of the PAL call.
 
-### Step 5 (Optional): Export the new PAL call in the PAL binaries
+### Step 5 (Optional): Export the new PAL call from the PAL binaries
 
 For each directory in `PAL/host/`, there is a `pal.map` file. This file lists all the symbols
 accessible to the library OS. The new PAL call needs to be listed here in order to be used by

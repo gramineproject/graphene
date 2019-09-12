@@ -10,8 +10,8 @@ following format:
 
     [Key][.Key][.Key] = [Value]  or  [Key][.Key][.Key] = "[Value]"
 
-Comments can be inlined in a manifest by starting them with a sharp sign (`# comment`). Any text
-after a sharp sign will be considered part of a comment and discarded while loading the manifest
+Comments can be inlined in a manifest by starting them with a hash sign (`# comment...`). Any text
+after a hash sign will be considered part of a comment and discarded while loading the manifest
 file.
 
 ## Loader-related (Required by PAL)
@@ -24,7 +24,7 @@ This syntax specifies the executable to be loaded into the library OS. The execu
 ELF binary, with an entry point defined to start its execution (i.e., the binary needs a `main()`
 routine, it cannot just be a library).
 
-### Preloaded Libraries (e.g., the LibOS library)
+### Preloaded Libraries (e.g., LibOS)
 
     loader.preload=[URI][,URI]...
 
@@ -86,5 +86,6 @@ be appended to the values for convenience. For example, `sys.brk.size=1M` indica
     fs.mount.[identifier].type=[chroot|...]
     fs.mount.[identifier].uri=[URI]
 
-This syntax specifies how file systems are mounted inside the library OS. At least one mount point
-is required in the manifest, because at least the Glibc library must be mounted in the library OS.
+This syntax specifies how file systems are mounted inside the library OS. For dynamically linked
+binaries, usually at least one mount point is required in the manifest (the mount point of the
+Glibc library).

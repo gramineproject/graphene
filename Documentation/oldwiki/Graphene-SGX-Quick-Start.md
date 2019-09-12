@@ -30,7 +30,7 @@ The first command should list `isgx` and the second command should list the proc
 
     cd $GRAPHENE_DIR/Pal/src/host/Linux-SGX/sgx-driver
     make
-    (The console will be prompted to ask for the path of the Intel SGX driver code)
+    # the console will prompt you for the path of the Intel SGX driver code
     sudo ./load.sh
 
 ### 5. Build Graphene-SGX

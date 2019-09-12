@@ -29,7 +29,7 @@ the following commands in the source tree:
     make SGX=1 DEBUG=1
 
 After rebuilding Graphene-SGX with `DEBUG=1`, you need to re-sign the manifest of the application.
-For instance, if you want to debug the helloworld program, run the following commands:
+For instance, if you want to debug the `helloworld` program, run the following commands:
 
     cd LibOS/shim/test/native
     make SGX=1
