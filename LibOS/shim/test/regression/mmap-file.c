@@ -6,7 +6,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-const char* message;
+static const char* message;
 
 void SIGBUS_handler(int sig) {
     puts(message);
@@ -79,6 +79,8 @@ int main(int argc, const char** argv) {
     }
 
     message = pid == 0 ? "mmap test 5 passed\n" : "mmap test 8 passed\n";
+    /* need a barrier to assign message before SIGBUS due to a[4096] */
+    asm volatile ("nop" ::: "memory");
     a[4096] = 0xff;
 
     if (signal(SIGBUS, SIG_DFL) == SIG_ERR) {
