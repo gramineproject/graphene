@@ -1,0 +1,89 @@
+SHIM_TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+
+SYS ?= $(shell gcc -dumpmachine)
+export SYS
+
+PALDIR  = $(SHIM_TEST_DIR)/../../../Pal/src
+SHIMDIR = $(SHIM_TEST_DIR)/../src
+RUNTIME = $(SHIM_TEST_DIR)/../../../Runtime
+
+ifeq ($(SGX),1)
+PAL_LOADER = pal_loader SGX
+else
+PAL_LOADER = pal_loader
+endif
+
+CC = gcc
+CXX = g++
+CFLAGS 	= -Wall -std=gnu99
+CXXFLAGS = -Wall -std=c++14
+LDFLAGS	=
+
+CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
+
+CFLAGS-libos-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
+CXXFLAGS-libos-debug = -I$(SHIMDIR)/../include -I$(PALDIR)/../include/pal -I$(PALDIR)/../lib -fno-builtin -nostdlib
+LDFLAGS-libos-debug = -L$(SHIMDIR) -L$(PALDIR)/host/$(PAL_HOST) -Wl,-rpath-link=$(abspath $(RUNTIME)) -lpal -lsysdb_debug
+
+.PHONY: default
+default: all
+
+include $(SHIM_TEST_DIR)/../../../Makefile.configs
+include $(SHIM_TEST_DIR)/../../../Makefile.rules
+include $(PALDIR)/Makefile.Test
+
+.PHONY: all
+all: pal_loader $(target) | $(call expand_target,$(exec_target))
+
+ifeq ($(DEBUG),1)
+CC += -g
+CXX += -g
+endif
+export DEBUG
+
+ifeq ($(WERROR),1)
+CFLAGS += -Werror
+endif
+
+ifeq ($(ABSPATH_IN_MANIFEST),yes)
+manifest_rules = \
+	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
+	-e 's:\$$(PWD):$(PWD):g' \
+	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
+	-e 's:\$$(SHIMPATH):$(abspath $(RUNTIME))/libsysdb.so:g' \
+	-e 's:\$$(LIBCDIR):$(abspath $(RUNTIME)):g' \
+	$(extra_rules)
+else
+manifest_rules= \
+	-e 's:\$$(PAL):$(abspath $(RUNTIME))/$(PAL_LOADER):g' \
+	-e 's:\$$(PWD):$(PWD):g' \
+	-e 's:\$$(BIN):$(subst .manifest,,$(notdir $@)):g' \
+	-e 's:\$$(SHIMPATH):'$$RELDIR'$(RUNTIME)/libsysdb.so:g' \
+	-e 's:\$$(LIBCDIR):'$$RELDIR'$(RUNTIME):g' \
+	$(extra_rules)
+endif
+
+pal_loader:
+	ln -sf $(RUNTIME)/pal_loader
+
+relative-to = $(shell python -c "import os.path; print os.path.relpath(\"$(abspath $2)\",\"$(abspath $1)\")")
+
+%.manifest: %.manifest.template
+	@echo [ $@ ]
+	RELDIR=$(filter-out ./,$(call relative-to,$(dir $@),$(shell pwd))/) && \
+	sed $(manifest_rules) $< > $@
+	(grep -q '^#!' $@ && chmod +x $@) || true
+
+manifest: manifest.template
+	@echo [ $@ ]
+	sed $(manifest_rules) $< > $@
+
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifeq ($(SGX),1)
+include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
+endif
+endif
+
+.PHONY: clean
+clean: $(clean-extra)
+	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d)
