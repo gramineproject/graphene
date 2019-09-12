@@ -1,8 +1,8 @@
 include ../../../../Makefile.configs
 include Makefile.am
 
-ias_cert_url ?= https://software.intel.com/sites/default/files/managed/7b/de/RK_PUB.zip
-ias_cert_zip = quote/$(notdir $(ias_cert_url))
+ias_cert_url ?= https://certificates.trustedservices.intel.com/Intel_SGX_Attestation_RootCA.pem
+ias_cert_file = quote/$(notdir $(ias_cert_url))
 
 CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -Isgx-driver
 ASFLAGS += -I. -I../.. -I../../../include
@@ -72,10 +72,10 @@ quote/aesm.pb-c.c quote/aesm.pb-c.h: quote/aesm.proto
 	@echo [ host/Linux-SGX/quote/aesm.pb-c.h ]
 	@protoc-c --c_out=. $<
 
-quote/generated-cacert.h: $(ias_cert_zip)
-	@echo "#define IAS_CA_CERT \"$(shell unzip -p $< | tr -d '[\r\n]')\"" > $@
+quote/generated-cacert.h: $(ias_cert_file)
+	@echo "#define IAS_CA_CERT \"$(shell cat $< | tr -d '[\r\n]')\"" > $@
 
-$(ias_cert_zip):
+$(ias_cert_file):
 	@wget $(ias_cert_url) -O $@
 
 debugger/sgx_gdb.so: debugger/sgx_gdb.c debugger/sgx_gdb.h sgx_arch.h
@@ -95,7 +95,7 @@ include ../../../../Makefile.rules
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o
 CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h
-CLEAN_FILES += $(ias_cert_zip) quote/generated-cacert.h
+CLEAN_FILES += $(ias_cert_file) quote/generated-cacert.h
 
 .PHONY: clean
 clean:
