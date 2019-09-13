@@ -203,7 +203,7 @@ def get_trusted_files(manifest, args):
 
     return targets
 
-def get_trusted_children(manifest, args):
+def get_trusted_children(manifest):
     targets = dict()
 
     for (key, val) in manifest.items():
@@ -302,7 +302,7 @@ class MemoryArea:
         if self.size is not None:
             self.size = roundup(self.size)
 
-def get_memory_areas(manifest, attr, args):
+def get_memory_areas(attr, args):
     areas = []
     areas.append(MemoryArea('ssa', size=attr['thread_num'] * SSAFRAMESIZE * SSAFRAMENUM,
                             flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
@@ -328,7 +328,7 @@ def find_areas(areas, desc):
 def find_area(areas, desc, allow_none=False):
     matching = find_areas(areas, desc)
 
-    if len(matching) == 0 and allow_none:
+    if not matching and allow_none:
         return None
 
     if len(matching) != 1:
@@ -741,13 +741,13 @@ def main(args=None):
         manifest['sgx.trusted_checksum.' + key] = checksum
 
     print("Trusted children:")
-    for key, val in get_trusted_children(manifest, args).items():
+    for key, val in get_trusted_children(manifest).items():
         (uri, target, mrenclave) = val
         print("    %s %s" % (mrenclave, uri))
         manifest['sgx.trusted_mrenclave.' + key] = mrenclave
 
     # Try populate memory areas
-    memory_areas = get_memory_areas(manifest, attr, args)
+    memory_areas = get_memory_areas(attr, args)
 
     if len([a for a in memory_areas if a.addr is not None]) > 0:
         manifest['sgx.static_address'] = '1'
