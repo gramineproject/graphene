@@ -619,17 +619,8 @@ def generate_sigstruct(attr, args, mrenclave):
     signature = p.communicate(sign_buffer)[0]
     signature = signature[::-1]
 
-    def bytes_to_int(bytes):
-        i = 0
-        q = 1
-        for digit in bytes:
-            if digit != 0:
-                i = i + digit * q
-            q = q * 256
-        return i
-
-    modulus_int = bytes_to_int(modulus)
-    signature_int = bytes_to_int(signature)
+    modulus_int = bytes_to_int_little(modulus)
+    signature_int = bytes_to_int_little(signature)
 
     tmp1   = signature_int * signature_int
     q1_int = tmp1 // modulus_int

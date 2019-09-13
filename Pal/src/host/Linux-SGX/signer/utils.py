@@ -29,10 +29,23 @@ def int_to_bytes(i):
     return b
 
 
-def bytes_to_int(b):
+def bytes_to_int_big(b):
     i = 0
     for c in b:
         i = i * 256 + c
+    return i
+
+
+bytes_to_int = bytes_to_int_big
+
+
+def bytes_to_int_little(bytes):
+    i = 0
+    q = 1
+    for digit in bytes:
+        if digit != 0:
+            i = i + digit * q
+        q = q * 256
     return i
 
 
@@ -55,5 +68,3 @@ def parse_size(s):
     if scale != 1:
         s = s[:-1]
     return parse_int(s) * scale
-
-
