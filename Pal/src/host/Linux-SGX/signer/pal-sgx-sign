@@ -679,8 +679,8 @@ argparser.add_argument('--exec', '-exec', metavar='EXEC',
                             '(required as part of the enclave measurement)')
 
 
-def parse_args():
-    args = argparser.parse_args(sys.argv[1:])
+def parse_args(args):
+    args = argparser.parse_args(args)
     args_dict = {
         'output': args.output,
         'libpal': args.libpal,
@@ -693,9 +693,8 @@ def parse_args():
     return args_dict
 
 
-if __name__ == "__main__":
-
-    args = parse_args()
+def main(args=None):
+    args = parse_args(args)
 
     (manifest, manifest_layout) = read_manifest(args['manifest'])
 
@@ -704,7 +703,7 @@ if __name__ == "__main__":
             exec_url = manifest['loader.exec']
             if exec_url[:5] != 'file:':
                 print("executable must be a local file", file=sys.stderr)
-                os._exit(-1)
+                return -1
 
             args['exec'] = os.path.join(os.path.dirname(args['manifest']), exec_url[5:])
 
@@ -762,6 +761,7 @@ if __name__ == "__main__":
     if len([a for a in memory_areas if a.addr is not None]) > 0:
         manifest['sgx.static_address'] = '1'
     else:
+        global enclave_heap_min
         enclave_heap_min = 0
 
     # Add manifest at the top
@@ -783,3 +783,8 @@ if __name__ == "__main__":
 
     # Generate sigstruct
     open(args['sigfile'], 'wb').write(generate_sigstruct(attr, args, mrenclave))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

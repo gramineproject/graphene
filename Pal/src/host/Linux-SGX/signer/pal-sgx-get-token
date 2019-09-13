@@ -100,8 +100,9 @@ argparser.add_argument('--output', '-output', metavar='OUTPUT',
                        type=argparse.FileType('wb'), required=True,
                        help='Output .token file (contains EINITTOKEN)')
 
-if __name__ == "__main__":
-    args = argparser.parse_args(sys.argv[1:])
+
+def main(args=None):
+    args = argparser.parse_args(args)
 
     attr = read_sigstruct(args.sig.read())
 
@@ -119,3 +120,7 @@ if __name__ == "__main__":
 
     token = connect_aesmd(attr)
     args.output.write(token)
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
