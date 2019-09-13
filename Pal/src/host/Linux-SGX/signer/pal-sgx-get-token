@@ -94,16 +94,16 @@ def connect_aesmd(attr):
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--sig', '-sig', metavar='SIGNATURE',
-                       type=argparse.FileType('rb'), nargs=1, required=True,
+                       type=argparse.FileType('rb'), required=True,
                        help='Input .sig file (contains SIGSTRUCT)')
 argparser.add_argument('--output', '-output', metavar='OUTPUT',
-                       type=argparse.FileType('wb'), nargs=1, required=True,
+                       type=argparse.FileType('wb'), required=True,
                        help='Output .token file (contains EINITTOKEN)')
 
 if __name__ == "__main__":
     args = argparser.parse_args(sys.argv[1:])
 
-    attr = read_sigstruct(args.sig[0].read())
+    attr = read_sigstruct(args.sig.read())
 
     print("Attributes:")
     print("    mrenclave: %s" % attr['mrenclave'].hex())
@@ -118,4 +118,4 @@ if __name__ == "__main__":
     print("    signature: %s..." % attr['signature'].hex()[:32])
 
     token = connect_aesmd(attr)
-    args.output[0].write(token)
+    args.output.write(token)
