@@ -145,6 +145,7 @@ static int proc_match_name(const char* trim_name, const struct proc_ent** ent) {
     const char* token           = trim_name;
     const char* next_token;
     const struct proc_ent* tmp  = proc_root.ent;
+    const struct proc_ent* end  = tmp + proc_root.size;
     const struct proc_ent* last = NULL;
 
     if (*token == '/')
@@ -153,7 +154,7 @@ static int proc_match_name(const char* trim_name, const struct proc_ent** ent) {
     while (token) {
         int tlen = token_len(token, &next_token);
 
-        for (; tmp->name || tmp->nm_ops; tmp++) {
+        for (; tmp < end; tmp++) {
             if (tmp->name && !memcmp(tmp->name, token, tlen))
                 goto found;
 
@@ -164,10 +165,17 @@ static int proc_match_name(const char* trim_name, const struct proc_ent** ent) {
         return -ENOENT;
 
     found:
-        if (!tmp->dir && next_token)
+        if (!next_token) {
+            /* found the entry, break out of the while loop */
+            last = tmp;
+            break;
+        }
+
+        if (!tmp->dir)
             return -ENOENT;
 
         last  = tmp;
+        end   = tmp->dir->ent + tmp->dir->size;
         tmp   = tmp->dir->ent;
         token = next_token;
     }
