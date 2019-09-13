@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
-import binascii
 import os
-import sys
-import struct
 import socket
-from google.protobuf import message as _message
+import struct
+import sys
+
 import aesm_pb2
 
 from utils import *
@@ -14,29 +13,29 @@ from utils import *
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
 
-""" Reading Sigstruct """
 
 def read_sigstruct(sig):
+    """Reading Sigstruct."""
     # field format: (offset, type, value)
     # SGX_ARCH_SIGSTRUCT_
     fields = {
-        'date'     : (SGX_ARCH_SIGSTRUCT_DATE, "<HBB", 'year', 'month', 'day'),
-        'modulus'  : (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", 'modulus'),
-        'exponent' : (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L",   'exponent'),
+        'date': (SGX_ARCH_SIGSTRUCT_DATE, "<HBB", 'year', 'month', 'day'),
+        'modulus': (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", 'modulus'),
+        'exponent': (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L", 'exponent'),
         'signature': (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", 'signature'),
 
-        'miscs'    : (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", 'miscs'),
-        'miscmask' : (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", 'miscmask'),
-        'attrs'    : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
-        'attrmask' : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
-                      "8s8s", 'flagmask', 'xfrmmask'),
+        'miscs': (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", 'miscs'),
+        'miscmask': (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", 'miscmask'),
+        'attrs': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
+        'attrmask': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+                     "8s8s", 'flagmask', 'xfrmmask'),
         'mrenclave': (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s", 'mrenclave'),
         'isvprodid': (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H", 'isvprodid'),
-        'isvsvn'   : (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", 'isvsvn'),
+        'isvsvn': (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", 'isvsvn'),
     }
 
     attr = dict()
-    for key, field in fields.items():
+    for field in fields.values():
         values = struct.unpack_from(field[1], sig, field[0])
 
         for i in range(len(values)):
@@ -44,9 +43,10 @@ def read_sigstruct(sig):
 
     return attr
 
-""" Connect with AESMD """
 
 def connect_aesmd(attr):
+    """Connect with AESMD."""
+
     req_msg = aesm_pb2.GetTokenReq()
     req_msg.req.signature = attr['mrenclave']
     req_msg.req.key = attr['modulus']
@@ -90,7 +90,6 @@ def connect_aesmd(attr):
 
     return ret_msg.ret.token
 
-""" Main Program """
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--sig', '-sig', metavar='SIGNATURE',
@@ -102,6 +101,7 @@ argparser.add_argument('--output', '-output', metavar='OUTPUT',
 
 
 def main(args=None):
+    """Main Program."""
     args = argparser.parse_args(args)
 
     attr = read_sigstruct(args.sig.read())
@@ -112,8 +112,8 @@ def main(args=None):
     print("    isvsvn:    %d" % attr['isvsvn'])
     print("    flags:     %016x" % bytes_to_int(attr['flags']))
     print("    xfrms:     %016x" % bytes_to_int(attr['xfrms']))
-    print("    miscs:     %08x"  % bytes_to_int(attr['miscs']))
-    print("    miscmask:  %08x"  % bytes_to_int(attr['miscmask']))
+    print("    miscs:     %08x" % bytes_to_int(attr['miscs']))
+    print("    miscmask:  %08x" % bytes_to_int(attr['miscmask']))
     print("    modulus:   %s..." % attr['modulus'].hex()[:32])
     print("    exponent:  %d" % attr['exponent'])
     print("    signature: %s..." % attr['signature'].hex()[:32])
@@ -121,6 +121,7 @@ def main(args=None):
     token = connect_aesmd(attr)
     args.output.write(token)
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

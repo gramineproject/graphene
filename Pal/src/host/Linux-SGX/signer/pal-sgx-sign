@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import sys
-import re
 import datetime
+import hashlib
+import os
+import shutil
 import struct
 import subprocess
-import hashlib
-import binascii
-import shutil
+import sys
 
 from utils import *
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
 
-""" Default / Architectural Options """
+
+# Default / Architectural Options
 
 ARCHITECTURE = "amd64"
 
@@ -26,21 +25,24 @@ DEFAULT_ENCLAVE_SIZE = '256M'
 DEFAULT_THREAD_NUM = 4
 enclave_heap_min = DEFAULT_HEAP_MIN
 
-""" Utilities """
+
+# Utilities
 
 ZERO_PAGE = bytes(PAGESIZE)
+
 
 def roundup(addr):
     remaining = addr % PAGESIZE
     if remaining:
         return addr + (PAGESIZE - remaining)
-    else:
-        return addr
+    return addr
+
 
 def rounddown(addr):
     return addr - addr % PAGESIZE
 
-""" Reading / Writing Manifests """
+
+# Reading / Writing Manifests
 
 def read_manifest(filename):
     manifest = dict()
@@ -70,6 +72,7 @@ def read_manifest(filename):
 
     return (manifest, manifest_layout)
 
+
 def output_manifest(filename, manifest, manifest_layout):
     with open(filename, 'w') as f:
         written = []
@@ -95,23 +98,23 @@ def output_manifest(filename, manifest, manifest_layout):
                 f.write("%s = %s\n" % (key, manifest[key]))
 
 
-""" Loading Enclave Attributes """
+# Loading Enclave Attributes
 
 def get_enclave_attributes(manifest):
     sgx_flags = {
-        'FLAG_DEBUG'          : struct.pack("<Q", SGX_FLAGS_DEBUG),
-        'FLAG_MODE64BIT'      : struct.pack("<Q", SGX_FLAGS_MODE64BIT),
+        'FLAG_DEBUG': struct.pack("<Q", SGX_FLAGS_DEBUG),
+        'FLAG_MODE64BIT': struct.pack("<Q", SGX_FLAGS_MODE64BIT),
     }
 
     sgx_xfrms = {
-        'XFRM_LEGACY'         : struct.pack("<Q", SGX_XFRM_LEGACY),
-        'XFRM_AVX'            : struct.pack("<Q", SGX_XFRM_AVX),
-        'XFRM_AVX512'         : struct.pack("<Q", SGX_XFRM_AVX512),
-        'XFRM_MPX'            : struct.pack("<Q", SGX_XFRM_MPX),
+        'XFRM_LEGACY': struct.pack("<Q", SGX_XFRM_LEGACY),
+        'XFRM_AVX': struct.pack("<Q", SGX_XFRM_AVX),
+        'XFRM_AVX512': struct.pack("<Q", SGX_XFRM_AVX512),
+        'XFRM_MPX': struct.pack("<Q", SGX_XFRM_MPX),
     }
 
     sgx_miscs = {
-        'MISC_EXINFO'         : struct.pack("<L", SGX_MISCSELECT_EXINFO),
+        'MISC_EXINFO': struct.pack("<L", SGX_MISCSELECT_EXINFO),
     }
 
     default_attributes = {
@@ -124,11 +127,11 @@ def get_enclave_attributes(manifest):
         default_attributes.add('FLAG_MODE64BIT')
 
     manifest_options = {
-        'debug'          : 'FLAG_DEBUG',
-        'enable_avx'     : 'XFRM_AVX',
-        'enable_avx512'  : 'XFRM_AVX512',
-        'enable_mpx'     : 'XFRM_MPX',
-        'support_exinfo' : 'MISC_EXINFO',
+        'debug': 'FLAG_DEBUG',
+        'enable_avx': 'XFRM_AVX',
+        'enable_avx512': 'XFRM_AVX512',
+        'enable_mpx': 'XFRM_MPX',
+        'support_exinfo': 'MISC_EXINFO',
     }
 
     attributes = default_attributes
@@ -147,16 +150,19 @@ def get_enclave_attributes(manifest):
 
     for attr in attributes:
         if attr in sgx_flags:
-            flags_raw = bytes([a|b for a, b in zip(flags_raw, sgx_flags[attr])])
+            flags_raw = bytes([a | b for a, b in
+                               zip(flags_raw, sgx_flags[attr])])
         if attr in sgx_xfrms:
-            xfrms_raw = bytes([a|b for a, b in zip(xfrms_raw, sgx_xfrms[attr])])
+            xfrms_raw = bytes([a | b for a, b in
+                               zip(xfrms_raw, sgx_xfrms[attr])])
         if attr in sgx_miscs:
-            miscs_raw = bytes([a|b for a, b in zip(miscs_raw, sgx_miscs[attr])])
+            miscs_raw = bytes([a | b for a, b in
+                               zip(miscs_raw, sgx_miscs[attr])])
 
     return flags_raw, xfrms_raw, miscs_raw
 
 
-""" Generate Checksums / Measurement """
+# Generate Checksums / Measurement
 
 def resolve_uri(uri, check_exist=True):
     orig_uri = uri
@@ -165,14 +171,17 @@ def resolve_uri(uri, check_exist=True):
     else:
         target = os.path.normpath(uri)
     if check_exist and not os.path.exists(target):
-        raise Exception('Cannot resolve ' + orig_uri + ' or the file does not exist.')
+        raise Exception(
+            'Cannot resolve ' + orig_uri + ' or the file does not exist.')
     return target
+
 
 def get_checksum(file):
     digest = hashlib.sha256()
     with open(file, 'rb') as f:
         digest.update(f.read())
     return digest.digest()
+
 
 def get_trusted_files(manifest, args):
     targets = dict()
@@ -193,7 +202,8 @@ def get_trusted_files(manifest, args):
             continue
         key = key[len('sgx.trusted_files.'):]
         if key in targets:
-            raise Exception('repeated key in manifest: sgx.trusted_files.' + key)
+            raise Exception(
+                'repeated key in manifest: sgx.trusted_files.' + key)
         targets[key] = (val, resolve_uri(val))
 
     for (key, val) in targets.items():
@@ -203,6 +213,7 @@ def get_trusted_files(manifest, args):
 
     return targets
 
+
 def get_trusted_children(manifest):
     targets = dict()
 
@@ -211,7 +222,8 @@ def get_trusted_children(manifest):
             continue
         key = key[len('sgx.trusted_children.'):]
         if key in targets:
-            raise Exception('repeated key in manifest: sgx.trusted_children.' + key)
+            raise Exception(
+                'repeated key in manifest: sgx.trusted_children.' + key)
 
         target = resolve_uri(val)
         if not target.endswith('.sig'):
@@ -223,7 +235,8 @@ def get_trusted_children(manifest):
 
     return targets
 
-""" Populate Enclave Memory """
+
+# Populate Enclave Memory
 
 PAGEINFO_R = 0x1
 PAGEINFO_W = 0x2
@@ -231,11 +244,11 @@ PAGEINFO_X = 0x4
 PAGEINFO_TCS = 0x100
 PAGEINFO_REG = 0x200
 
+
 def get_loadcmds(filename):
     loadcmds = []
     p = subprocess.Popen(['readelf', '-l', '-W', filename],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     while True:
         line = p.stdout.readline()
         if not line:
@@ -268,8 +281,10 @@ def get_loadcmds(filename):
         return None
     return loadcmds
 
+
 class MemoryArea:
-    def __init__(self, desc, file=None, content=None, addr=None, size=None, flags=None, measure=True):
+    def __init__(self, desc, file=None, content=None, addr=None, size=None,
+                 flags=None, measure=True):
         self.desc = desc
         self.file = file
         self.content = content
@@ -284,11 +299,11 @@ class MemoryArea:
             if loadcmds:
                 mapaddr = 0xffffffffffffffff
                 mapaddr_end = 0
-                for (offset, addr, filesize, memsize, prot) in loadcmds:
-                    if rounddown(addr) < mapaddr:
-                        mapaddr = rounddown(addr)
-                    if roundup(addr + memsize) > mapaddr_end:
-                        mapaddr_end = roundup(addr + memsize)
+                for (_, addr_, _, memsize, _) in loadcmds:
+                    if rounddown(addr_) < mapaddr:
+                        mapaddr = rounddown(addr_)
+                    if roundup(addr_ + memsize) > mapaddr_end:
+                        mapaddr_end = roundup(addr_ + memsize)
 
                 self.is_binary = True
                 self.size = mapaddr_end - mapaddr
@@ -302,28 +317,33 @@ class MemoryArea:
         if self.size is not None:
             self.size = roundup(self.size)
 
+
 def get_memory_areas(attr, args):
     areas = []
-    areas.append(MemoryArea('ssa', size=attr['thread_num'] * SSAFRAMESIZE * SSAFRAMENUM,
-                            flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+    areas.append(
+        MemoryArea('ssa',
+                   size=attr['thread_num'] * SSAFRAMESIZE * SSAFRAMENUM,
+                   flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
     areas.append(MemoryArea('tcs', size=attr['thread_num'] * TCS_SIZE,
                             flags=PAGEINFO_TCS))
     areas.append(MemoryArea('tls', size=attr['thread_num'] * PAGESIZE,
-                            flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+                            flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
 
-    for t in range(attr['thread_num']):
+    for _ in range(attr['thread_num']):
         areas.append(MemoryArea('stack', size=ENCLAVE_STACK_SIZE,
-                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_REG))
+                                flags=PAGEINFO_R | PAGEINFO_W | PAGEINFO_REG))
 
     areas.append(MemoryArea('pal', file=args['libpal'], flags=PAGEINFO_REG))
 
     if 'exec' in args:
         areas.append(MemoryArea('exec', file=args['exec'],
-                                flags=PAGEINFO_W|PAGEINFO_REG))
+                                flags=PAGEINFO_W | PAGEINFO_REG))
     return areas
+
 
 def find_areas(areas, desc):
     return [area for area in areas if area.desc == desc]
+
 
 def find_area(areas, desc, allow_none=False):
     matching = find_areas(areas, desc)
@@ -332,25 +352,29 @@ def find_area(areas, desc, allow_none=False):
         return None
 
     if len(matching) != 1:
-        raise KeyError("Could not find exactly one MemoryArea '{}'".format(desc))
+        raise KeyError(
+            "Could not find exactly one MemoryArea '{}'".format(desc))
 
     return matching[0]
+
 
 def entry_point(elf_path):
     env = os.environ
     env['LC_ALL'] = 'C'
-    out = subprocess.check_output(['readelf', '-l', '--', elf_path], env = env)
+    out = subprocess.check_output(
+        ['readelf', '-l', '--', elf_path], env=env)
     for line in out.splitlines():
         line = line.decode()
         if line.startswith("Entry point "):
             return parse_int(line[12:])
     raise ValueError("Could not find entry point of elf file")
 
+
 def baseaddr():
     if enclave_heap_min == 0:
         return ENCLAVE_HIGH_ADDRESS
-    else:
-        return 0
+    return 0
+
 
 def gen_area_content(attr, areas):
     manifest_area = find_area(areas, 'manifest')
@@ -362,10 +386,12 @@ def gen_area_content(attr, areas):
     stacks = find_areas(areas, 'stack')
 
     tcs_data = bytearray(tcs_area.size)
+
     def set_tcs_field(t, offset, pack_fmt, value):
         struct.pack_into(pack_fmt, tcs_data, t * TCS_SIZE + offset, value)
 
     tls_data = bytearray(tls_area.size)
+
     def set_tls_field(t, offset, value):
         struct.pack_into('<Q', tls_data, t * PAGESIZE + offset, value)
 
@@ -374,29 +400,35 @@ def gen_area_content(attr, areas):
     # Sanity check that we measure everything except the heap which is zeroed
     # on enclave startup.
     for area in areas:
-        if area.addr + area.size <= enclave_heap_min or area.addr >= enclave_heap_max or area is exec_area:
+        if (area.addr + area.size <= enclave_heap_min or
+                area.addr >= enclave_heap_max or area is exec_area):
             if not area.measure:
-                raise ValueError("Memory area, which is not the heap, is not measured")
+                raise ValueError("Memory area, which is not the heap, "
+                                 "is not measured")
         elif area.desc != 'free':
             raise ValueError("Unexpected memory area is in heap range")
 
     for t in range(0, attr['thread_num']):
-        ssa_offset = ssa_area.addr + SSAFRAMESIZE * SSAFRAMENUM * t;
+        ssa_offset = ssa_area.addr + SSAFRAMESIZE * SSAFRAMENUM * t
         ssa = baseaddr() + ssa_offset
         set_tcs_field(t, TCS_OSSA, '<Q', ssa_offset)
         set_tcs_field(t, TCS_NSSA, '<L', SSAFRAMENUM)
-        set_tcs_field(t, TCS_OENTRY, '<Q', pal_area.addr + entry_point(pal_area.file))
+        set_tcs_field(t, TCS_OENTRY, '<Q',
+                      pal_area.addr + entry_point(pal_area.file))
         set_tcs_field(t, TCS_OGSBASGX, '<Q', tls_area.addr + PAGESIZE * t)
         set_tcs_field(t, TCS_FSLIMIT, '<L', 0xfff)
         set_tcs_field(t, TCS_GSLIMIT, '<L', 0xfff)
 
-        set_tls_field(t, SGX_COMMON_SELF, tls_area.addr + PAGESIZE * t + baseaddr())
+        set_tls_field(t, SGX_COMMON_SELF,
+                      tls_area.addr + PAGESIZE * t + baseaddr())
         set_tls_field(t, SGX_ENCLAVE_SIZE, attr['enclave_size'])
         set_tls_field(t, SGX_TCS_OFFSET, tcs_area.addr + TCS_SIZE * t)
-        set_tls_field(t, SGX_INITIAL_STACK_OFFSET, stacks[t].addr + stacks[t].size)
+        set_tls_field(t, SGX_INITIAL_STACK_OFFSET,
+                      stacks[t].addr + stacks[t].size)
         set_tls_field(t, SGX_SSA, ssa)
         set_tls_field(t, SGX_GPR, ssa + SSAFRAMESIZE - SGX_GPR_SIZE)
-        set_tls_field(t, SGX_MANIFEST_SIZE, os.stat(manifest_area.file).st_size)
+        set_tls_field(t, SGX_MANIFEST_SIZE,
+                      os.stat(manifest_area.file).st_size)
         set_tls_field(t, SGX_HEAP_MIN, baseaddr() + enclave_heap_min)
         set_tls_field(t, SGX_HEAP_MAX, baseaddr() + enclave_heap_max)
         if exec_area is not None:
@@ -406,7 +438,8 @@ def gen_area_content(attr, areas):
     tcs_area.content = tcs_data
     tls_area.content = tls_data
 
-def populate_memory_areas(manifest, attr, areas):
+
+def populate_memory_areas(attr, areas):
     populating = attr['enclave_size']
 
     for area in areas:
@@ -417,7 +450,7 @@ def populate_memory_areas(manifest, attr, areas):
         if area.addr < enclave_heap_min:
             raise Exception("Enclave size is not large enough")
         if area.desc == 'exec':
-            populating = area.addr;
+            populating = area.addr
         else:
             populating = area.addr - MEMORY_GAP
 
@@ -425,25 +458,29 @@ def populate_memory_areas(manifest, attr, areas):
     for area in areas:
         if area.addr + area.size < populating:
             addr = area.addr + area.size
-            free_areas.append(MemoryArea('free', addr=addr, size=populating - addr,
-                                flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG,
-                                measure=False))
+            flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
+            free_areas.append(
+                MemoryArea('free', addr=addr, size=populating - addr,
+                           flags=flags, measure=False))
             populating = area.addr
 
     if populating > enclave_heap_min:
-        free_areas.append(MemoryArea('free', addr=enclave_heap_min,
-                                     size=populating - enclave_heap_min,
-                                     flags=PAGEINFO_R|PAGEINFO_W|PAGEINFO_X|PAGEINFO_REG,
-                                     measure=False))
+        flags = PAGEINFO_R | PAGEINFO_W | PAGEINFO_X | PAGEINFO_REG
+        free_areas.append(
+            MemoryArea('free', addr=enclave_heap_min,
+                       size=populating - enclave_heap_min, flags=flags,
+                       measure=False))
 
     gen_area_content(attr, areas)
 
     return areas + free_areas
 
+
 def generate_measurement(attr, areas):
 
     def do_ecreate(digest, size):
-        data = struct.pack("<8sLQ44s", b"ECREATE", SSAFRAMESIZE // PAGESIZE, size, b"")
+        data = struct.pack("<8sLQ44s", b"ECREATE", SSAFRAMESIZE // PAGESIZE,
+                           size, b"")
         digest.update(data)
 
     def do_eadd(digest, offset, flags):
@@ -472,9 +509,9 @@ def generate_measurement(attr, areas):
 
     def print_area(addr, size, flags, desc, measured):
         if flags & PAGEINFO_REG:
-            type = 'REG'
+            type_ = 'REG'
         if flags & PAGEINFO_TCS:
-            type = 'TCS'
+            type_ = 'TCS'
         prot = ['-', '-', '-']
         if flags & PAGEINFO_R:
             prot[0] = 'R'
@@ -489,14 +526,14 @@ def generate_measurement(attr, areas):
             desc += ' measured'
 
         if size == PAGESIZE:
-            print("    %016x [%s:%s] %s" % (addr, type, prot, desc))
+            print("    %016x [%s:%s] %s" % (addr, type_, prot, desc))
         else:
-            print("    %016x-%016lx [%s:%s] %s" % (addr, addr + size, type, prot, desc))
+            print("    %016x-%016lx [%s:%s] %s" %
+                  (addr, addr + size, type_, prot, desc))
 
     def load_file(digest, f, offset, addr, filesize, memsize, desc, flags):
         f_addr = rounddown(offset)
         m_addr = rounddown(addr)
-        f_size = roundup(offset + filesize) - f_addr
         m_size = roundup(addr + memsize) - m_addr
 
         print_area(m_addr, m_size, flags, desc, True)
@@ -524,7 +561,7 @@ def generate_measurement(attr, areas):
             else:
                 data = b""
             if len(start_zero + data + end_zero) != PAGESIZE:
-                    raise Exception("wrong calculation")
+                raise Exception("wrong calculation")
 
             include_page(digest, pg, flags, start_zero + data + end_zero, True)
 
@@ -535,10 +572,11 @@ def generate_measurement(attr, areas):
                     loadcmds = get_loadcmds(area.file)
                     if loadcmds:
                         mapaddr = 0xffffffffffffffff
-                        for (offset, addr, filesize, memsize, prot) in loadcmds:
+                        for (offset, addr, filesize, memsize,
+                             prot) in loadcmds:
                             if rounddown(addr) < mapaddr:
                                 mapaddr = rounddown(addr)
-                    baseaddr = area.addr - mapaddr
+                    baseaddr_ = area.addr - mapaddr
                     for (offset, addr, filesize, memsize, prot) in loadcmds:
                         flags = area.flags
                         if prot & 4:
@@ -552,7 +590,7 @@ def generate_measurement(attr, areas):
                             desc = 'code'
                         else:
                             desc = 'data'
-                        load_file(mrenclave, f, offset, baseaddr + addr,
+                        load_file(mrenclave, f, offset, baseaddr_ + addr,
                                   filesize, memsize, desc, flags)
                 else:
                     load_file(mrenclave, f, 0, area.addr,
@@ -568,40 +606,41 @@ def generate_measurement(attr, areas):
 
                 include_page(mrenclave, a, area.flags, data, area.measure)
 
-            print_area(area.addr, area.size, area.flags, area.desc, area.measure)
+            print_area(area.addr, area.size, area.flags, area.desc,
+                       area.measure)
 
     return mrenclave.digest()
 
-""" Generate Sigstruct """
 
 def generate_sigstruct(attr, args, mrenclave):
+    """Generate Sigstruct."""
     today = datetime.date.today()
 
     # field format: (offset, type, value)
     fields = {
-        'header'   : (SGX_ARCH_SIGSTRUCT_HEADER,
-                      "<4L",  0x00000006, 0x000000e1, 0x00010000, 0x00000000),
-        'vendor'   : (SGX_ARCH_SIGSTRUCT_VENDOR, "<L",   0x00000000),
-        'date'     : (SGX_ARCH_SIGSTRUCT_DATE,
-                      "<HBB", today.year, today.month, today.day),
-        'header2'  : (SGX_ARCH_SIGSTRUCT_HEADER2,
-                      "<4L",  0x00000101, 0x00000060, 0x00000060, 0x00000001),
+        'header': (SGX_ARCH_SIGSTRUCT_HEADER,
+                   "<4L", 0x00000006, 0x000000e1, 0x00010000, 0x00000000),
+        'vendor': (SGX_ARCH_SIGSTRUCT_VENDOR, "<L", 0x00000000),
+        'date': (SGX_ARCH_SIGSTRUCT_DATE,
+                 "<HBB", today.year, today.month, today.day),
+        'header2': (SGX_ARCH_SIGSTRUCT_HEADER2,
+                    "<4L", 0x00000101, 0x00000060, 0x00000060, 0x00000001),
         'swdefined': (SGX_ARCH_SIGSTRUCT_SWDEFINED, "<L", 0x00000000),
 
-        'miscs'    : (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", attr['miscs']),
-        'miscmask' : (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", attr['miscs']),
-        'attrs'    : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
-                      "8s8s", attr['flags'], attr['xfrms']),
-        'attrmask' : (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
-                      "8s8s", attr['flags'], attr['xfrms']),
+        'miscs': (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", attr['miscs']),
+        'miscmask': (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", attr['miscs']),
+        'attrs': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
+                  "8s8s", attr['flags'], attr['xfrms']),
+        'attrmask': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+                     "8s8s", attr['flags'], attr['xfrms']),
         'mrenclave': (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s", mrenclave),
         'isvprodid': (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H", attr['isvprodid']),
-        'isvsvn'   : (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", attr['isvsvn']),
+        'isvsvn': (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", attr['isvsvn']),
     }
 
     sign_buffer = bytearray(128 + 128)
 
-    for key, field in fields.items():
+    for field in fields.values():
         if field[0] >= SGX_ARCH_SIGSTRUCT_MISCSELECT:
             struct.pack_into(field[1], sign_buffer,
                              field[0] - SGX_ARCH_SIGSTRUCT_MISCSELECT + 128,
@@ -609,44 +648,47 @@ def generate_sigstruct(attr, args, mrenclave):
         else:
             struct.pack_into(field[1], sign_buffer, field[0], *field[2:])
 
-    p = subprocess.Popen(['openssl', 'rsa', '-modulus', '-in', args['key'], '-noout'], stdout=subprocess.PIPE)
+    p = subprocess.Popen(
+        ['openssl', 'rsa', '-modulus', '-in', args['key'], '-noout'],
+        stdout=subprocess.PIPE)
     modulus_out = p.communicate()[0]
     modulus = bytes.fromhex(modulus_out[8:8+SGX_ARCH_KEY_SIZE*2].decode())
     modulus = bytes(reversed(modulus))
 
-    p = subprocess.Popen(['openssl', 'sha256', '-binary', '-sign', args['key']],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    p = subprocess.Popen(
+        ['openssl', 'sha256', '-binary', '-sign', args['key']],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     signature = p.communicate(sign_buffer)[0]
     signature = signature[::-1]
 
     modulus_int = bytes_to_int_little(modulus)
     signature_int = bytes_to_int_little(signature)
 
-    tmp1   = signature_int * signature_int
+    tmp1 = signature_int * signature_int
     q1_int = tmp1 // modulus_int
-    tmp2   = tmp1 % modulus_int
+    tmp2 = tmp1 % modulus_int
     q2_int = tmp2 * signature_int // modulus_int
 
     q1 = int_to_bytes(q1_int)
     q2 = int_to_bytes(q2_int)
 
     fields.update({
-        'modulus'  : (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", modulus),
-        'exponent' : (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L", 3),
+        'modulus': (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", modulus),
+        'exponent': (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L", 3),
         'signature': (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", signature),
 
-        'q1'       : (SGX_ARCH_SIGSTRUCT_Q1, "384s", q1),
-        'q2'       : (SGX_ARCH_SIGSTRUCT_Q2, "384s", q2),
+        'q1': (SGX_ARCH_SIGSTRUCT_Q1, "384s", q1),
+        'q2': (SGX_ARCH_SIGSTRUCT_Q2, "384s", q2),
     })
 
     buffer = bytearray(SGX_ARCH_SIGSTRUCT_SIZE)
 
-    for key, field in fields.items():
+    for field in fields.values():
         struct.pack_into(field[1], buffer, field[0], *field[2:])
 
     return buffer
 
-""" Main Program """
+# Main Program
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--output', '-output', metavar='OUTPUT',
@@ -696,7 +738,8 @@ def main(args=None):
                 print("executable must be a local file", file=sys.stderr)
                 return -1
 
-            args['exec'] = os.path.join(os.path.dirname(args['manifest']), exec_url[5:])
+            args['exec'] = os.path.join(os.path.dirname(args['manifest']),
+                                        exec_url[5:])
 
     args['root'] = os.path.dirname(os.path.abspath(args['output']))
 
@@ -715,14 +758,15 @@ def main(args=None):
     attr = dict()
 
     for key, default, parse in [
-        ('enclave_size', DEFAULT_ENCLAVE_SIZE,    parse_size),
-        ('thread_num',   str(DEFAULT_THREAD_NUM), parse_int),
-        ('isvprodid',    '0',                     parse_int),
-        ('isvsvn',       '0',                     parse_int),
+            ('enclave_size', DEFAULT_ENCLAVE_SIZE, parse_size),
+            ('thread_num', str(DEFAULT_THREAD_NUM), parse_int),
+            ('isvprodid', '0', parse_int),
+            ('isvsvn', '0', parse_int),
     ]:
         attr[key] = parse(manifest.setdefault('sgx.' + key, default))
 
-    (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(manifest)
+    (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(
+        manifest)
 
     print("Attributes:")
     print("    size:      %d" % attr['enclave_size'])
@@ -731,25 +775,25 @@ def main(args=None):
     print("    isvsvn:    %d" % attr['isvsvn'])
     print("    flags:     %016x" % bytes_to_int(attr['flags']))
     print("    xfrms:     %016x" % bytes_to_int(attr['xfrms']))
-    print("    miscs:     %08x"  % bytes_to_int(attr['miscs']))
+    print("    miscs:     %08x" % bytes_to_int(attr['miscs']))
 
     # Get trusted checksums and measurements
     print("Trusted files:")
     for key, val in get_trusted_files(manifest, args).items():
-        (uri, target, checksum) = val
+        (uri, _, checksum) = val
         print("    %s %s" % (checksum, uri))
         manifest['sgx.trusted_checksum.' + key] = checksum
 
     print("Trusted children:")
     for key, val in get_trusted_children(manifest).items():
-        (uri, target, mrenclave) = val
+        (uri, _, mrenclave) = val
         print("    %s %s" % (mrenclave, uri))
         manifest['sgx.trusted_mrenclave.' + key] = mrenclave
 
     # Try populate memory areas
     memory_areas = get_memory_areas(attr, args)
 
-    if len([a for a in memory_areas if a.addr is not None]) > 0:
+    if any([a.addr is not None for a in memory_areas]):
         manifest['sgx.static_address'] = '1'
     else:
         global enclave_heap_min
@@ -760,11 +804,11 @@ def main(args=None):
     output_manifest(args['output'], manifest, manifest_layout)
 
     memory_areas = [
-            MemoryArea('manifest', file=args['output'],
-                       flags=PAGEINFO_R|PAGEINFO_REG)
-            ] + memory_areas
+        MemoryArea('manifest', file=args['output'],
+                   flags=PAGEINFO_R | PAGEINFO_REG)
+        ] + memory_areas
 
-    memory_areas = populate_memory_areas(manifest, attr, memory_areas)
+    memory_areas = populate_memory_areas(attr, memory_areas)
 
     print("Memory:")
     # Generate measurement
@@ -773,7 +817,8 @@ def main(args=None):
     print("    %s" % mrenclave.hex())
 
     # Generate sigstruct
-    open(args['sigfile'], 'wb').write(generate_sigstruct(attr, args, mrenclave))
+    open(args['sigfile'], 'wb').write(
+        generate_sigstruct(attr, args, mrenclave))
     return 0
 
 
