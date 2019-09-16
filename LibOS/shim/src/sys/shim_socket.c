@@ -360,7 +360,8 @@ static void inet_save_addr(int domain, struct addr_inet* addr, const struct sock
             const struct sockaddr_in* in           = (const struct sockaddr_in*)saddr;
             addr->port                             = __ntohs(in->sin_port);
             uint32_t s_addr[4] = {
-                0, 0, 0xffff0000, in->sin_addr.s_addr
+                /* in->sin_addr.s_addr is already network byte order */
+                __htonl(0), __htonl(0), __htonl(0x0000ffff), in->sin_addr.s_addr
             };
             memcpy(&addr->addr.v6.s6_addr, s_addr, sizeof(s_addr));
         } else {
