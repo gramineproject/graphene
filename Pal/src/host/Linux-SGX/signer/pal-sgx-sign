@@ -151,7 +151,6 @@ def get_enclave_attributes(manifest):
     default_attributes = {
         'FLAG_DEBUG',
         'XFRM_LEGACY',
-        'XFRM_AVX',
     }
 
     if ARCHITECTURE == 'amd64':
