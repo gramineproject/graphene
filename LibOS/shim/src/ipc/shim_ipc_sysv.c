@@ -623,7 +623,7 @@ int ipc_sysv_semctl_callback(IPC_CALLBACK_ARGS) {
                 break;
 
             memcpy(&sem->sems[msgin->semnum].val, msgin->vals, msgin->valsize);
-            ret                          = RESPONSE_CALLBACK;
+            ret = RESPONSE_CALLBACK;
             break;
         }
 
