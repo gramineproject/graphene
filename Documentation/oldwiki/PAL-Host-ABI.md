@@ -61,9 +61,8 @@ basic data structure of a PAL handle is defined as follows:
     typedef union pal_handle {
         struct {
             PAL_IDX type;
-            PAL_REF ref;
             PAL_FLG flags;
-        } __in;
+        } hdr;
         /* other resource-specific definitions */
     } PAL_HANDLE;
 
@@ -104,6 +103,7 @@ address of the control block may be resolved by a function (`pal_control_addr()`
 The fields of the Graphene control block are defined as follows:
 
     typedef struct {
+         PAL_STR host_type;
         /* An identifier of current picoprocess */
         PAL_NUM process_id;
         PAL_NUM host_id;
@@ -158,17 +158,17 @@ positive number, aligned at the allocation alignment.
 `alloc_type` can be a combination of any of the following flags:
 
     /* Memory Allocation Flags */
-    #define PAL_ALLOC_32BIT       0x0001   /* Only give out 32-bit addresses */
-    #define PAL_ALLOC_RESERVE     0x0002   /* Only reserve the memory */
+    #define PAL_ALLOC_RESERVE     0x0001   /* Only reserve the memory */
+    #define PAL_ALLOC_INTERNAL    0x8000   /* Allocate for PAL */
 
 `prot` can be a combination of the following flags:
 
     /* Memory Protection Flags */
-    #define PAL_PROT_NONE       0x0     /* 0x0 Page can not be accessed. */
-    #define PAL_PROT_READ       0x1     /* 0x1 Page can be read. */
-    #define PAL_PROT_WRITE      0x2     /* 0x2 Page can be written. */
-    #define PAL_PROT_EXEC       0x4     /* 0x4 Page can be executed. */
-    #define PAL_PROT_WRITECOPY  0x8     /* 0x8 Copy on write */
+    #define PAL_PROT_NONE       0x0     /* Page can not be accessed */
+    #define PAL_PROT_READ       0x1     /* Page can be read */
+    #define PAL_PROT_WRITE      0x2     /* Page can be written */
+    #define PAL_PROT_EXEC       0x4     /* Page can be executed */
+    #define PAL_PROT_WRITECOPY  0x8     /* Copy on write */
 
 #### DkVirtualMemoryFree
 
@@ -189,11 +189,11 @@ This API modifies the permissions of a previously allocated memory mapping. Both
 
 #### DkProcessCreate
 
-    PAL_HANDLE DkProcessCreate(PAL_STR uri, PAL_FLG flags, PAL_STR* args);
+    PAL_HANDLE DkProcessCreate(PAL_STR uri, PAL_STR* args);
 
 This API creates a new process to run a separate executable. `uri` is the URI of the manifest file
-or the executable to be loaded in the new process. `flags` is currently unused. `args` is an array
-of strings -- the arguments to be passed to the new process.
+or the executable to be loaded in the new process. `args` is an array of strings -- the arguments
+to be passed to the new process.
 
 #### DkProcessExit
 
@@ -230,6 +230,7 @@ the URI of the stream to be opened/created. The following is a list of URIs that
     #define PAL_ACCESS_RDONLY   00
     #define PAL_ACCESS_WRONLY   01
     #define PAL_ACCESS_RDWR     02
+    #define PAL_ACCESS_APPEND   04
 
 `share_flags` can be a combination of the following flags:
 
@@ -247,10 +248,8 @@ the URI of the stream to be opened/created. The following is a list of URIs that
 `create` can be a combination of the following flags:
 
     /* Stream Create Flags */
-    #define PAL_CREAT_TRY        0100       /* 0100 Create file if file not
-                                               exist (O_CREAT) */
-    #define PAL_CREAT_ALWAYS     0200       /* 0300 Create file and fail if file
-                                               already exist (O_CREAT|O_EXCL) */
+    #define PAL_CREAT_TRY        0100  /* Create file if does not exist (O_CREAT) */
+    #define PAL_CREAT_ALWAYS     0200  /* Create file and fail if already exists (O_CREAT|O_EXCL) */
 
 `options` can be a combination of the following flags:
 
@@ -328,8 +327,7 @@ This API flushes the buffer of a file stream.
     PAL_BOL DkSendHandle(PAL_HANDLE handle, PAL_HANDLE cargo);
 
 This API sends a PAL handle `cargo` over another handle. Currently, the handle that is used
-to send cargo must be a process handle, thus handles can only be sent between parent and child
-processes.
+to send cargo must be a process handle.
 
 #### DkReceiveHandle
 
@@ -348,27 +346,24 @@ The data type `PAL_STREAM_ATTR` is defined as follows:
 
     /* stream attribute structure */
     typedef struct {
-        PAL_IDX type;
-        PAL_NUM file_id;
-        PAL_NUM size;
-        PAL_NUM access_time;
-        PAL_NUM change_time;
-        PAL_NUM create_time;
+        PAL_IDX handle_type;
         PAL_BOL disconnected;
+        PAL_BOL nonblocking;
         PAL_BOL readable;
         PAL_BOL writeable;
         PAL_BOL runnable;
         PAL_FLG share_flags;
-        PAL_BOL nonblocking;
-        PAL_BOL reuseaddr;
-        PAL_NUM linger;
-        PAL_NUM receivebuf;
-        PAL_NUM sendbuf;
-        PAL_NUM receivetimeout;
-        PAL_NUM sendtimeout;
-        PAL_BOL tcp_cork;
-        PAL_BOL tcp_keepalive;
-        PAL_BOL tcp_nodelay;
+        PAL_NUM pending_size;
+        struct {
+            PAL_NUM linger;
+            PAL_NUM receivebuf;
+            PAL_NUM sendbuf;
+            PAL_NUM receivetimeout;
+            PAL_NUM sendtimeout;
+            PAL_BOL tcp_cork;
+            PAL_BOL tcp_keepalive;
+            PAL_BOL tcp_nodelay;
+        } socket;
     } PAL_STREAM_ATTR;
 
 #### DkStreamAttributesQuerybyHandle
@@ -399,17 +394,10 @@ This API changes the name of an opened stream.
 
 #### DkThreadCreate
 
-    PAL_HANDLE DkThreadCreate(PAL_PTR addr, PAL_PTR param, PAL_FLG flags);
+    PAL_HANDLE DkThreadCreate(PAL_PTR addr, PAL_PTR param);
 
 This API creates a thread in the current process. `addr` is the address of an entry point of
-execution for the new thread. `param` is the parameter that is passed to the new thread as the
-only argument. `flags` is currently unused.
-
-#### DkThreadPrivate
-
-    PAL_PTR DkThreadPrivate(PAL_PTR addr);
-
-This API retrieves or sets the Thread-Local Storage (TLS) address of the current thread.
+execution for the new thread. `param` is the pointer argument that is passed to the new thread.
 
 #### DkThreadDelayExecution
 
@@ -433,34 +421,33 @@ This API terminates the current thread.
 
     PAL_BOL DkThreadResume(PAL_HANDLE thread);
 
-This API resumes a thread. 
+This API resumes a thread.
 
 ### Exception Handling
 
 #### DkSetExceptionHandler
 
     PAL_BOL DkSetExceptionHandler(void (*handler) (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context),
-                                  PAL_NUM event, PAL_FLG flags);
+                                  PAL_NUM event);
 
 This API sets the handler for the specific exception event.
 
 `event` can be one of the following values:
 
-    /* Exception Handling */
-    /* Div-by-zero */
-    #define PAL_EVENT_DIVZERO       1
+    /* arithmetic error (div-by-zero, floating point exception, etc.) */
+    #define PAL_EVENT_ARITHMETIC_ERROR 1
     /* segmentation fault, protection fault, bus fault */
-    #define PAL_EVENT_MEMFAULT      2
+    #define PAL_EVENT_MEMFAULT         2
     /* illegal instructions */
-    #define PAL_EVENT_ILLEGAL       3
+    #define PAL_EVENT_ILLEGAL          3
     /* terminated by external program */
-    #define PAL_EVENT_QUIT          4
+    #define PAL_EVENT_QUIT             4
     /* suspended by external program */
-    #define PAL_EVENT_SUSPEND       5
+    #define PAL_EVENT_SUSPEND          5
     /* continued by external program */
-    #define PAL_EVENT_RESUME        6
+    #define PAL_EVENT_RESUME           6
     /* failure within PAL calls */
-    #define PAL_EVENT_FAILURE       7
+    #define PAL_EVENT_FAILURE          7
 
 `flags` can be a combination of the following flags:
 
@@ -481,11 +468,11 @@ This API exits an exception handler and restores the context.
 
 This API creates a mutex with the given `initialCount`.
 
-#### DkMutexUnlock
+#### DkMutexRelease
 
-    void DkMutexUnlock(PAL_HANDLE mutexHandle);
+    void DkMutexRelease(PAL_HANDLE mutexHandle);
 
-This API unlocks the given mutex.
+This API destroys the given mutex.
 
 ##### DkNotificationEventCreate/DkSynchronizationEventCreate
 
@@ -494,9 +481,9 @@ This API unlocks the given mutex.
 
 This API creates an event with the given `initialState`. The definition of notification events
 and synchronization events is the same as the WIN32 API. When a notification event is set to the
-Signaled state it remains in that state until it is explicitly cleared. When a synchronization
-event is set to the Signaled state, a single thread of execution that was waiting for the event is
-released, and the event is automatically reset to the Not-signaled state.
+signaled state it remains in that state until it is explicitly cleared. When a synchronization
+event is set to the signaled state, a single thread of execution that was waiting for the event is
+released, and the event is automatically reset to the not-signaled state.
 
 #### DkEventSet
 
@@ -514,8 +501,8 @@ This API clears a notification event or a synchronization event.
 
 #### DkObjectsWaitAny
 
-    #define NO_TIMEOUT ((PAL_NUM) -1)
-    PAL_HANDLE DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handleArray, PAL_NUM timeout);
+    #define NO_TIMEOUT ((PAL_NUM)-1)
+    PAL_HANDLE DkObjectsWaitAny(PAL_NUM count, PAL_HANDLE* handleArray, PAL_NUM timeout_us);
 
 This API polls an array of handles and returns one handle with recent activity. `timeout` is the
 maximum time that the API should wait (in microseconds), or `NO_TIMEOUT` to indicate it is to be
@@ -541,6 +528,33 @@ This API returns the current time (in microseconds).
 
 This API fills the buffer with cryptographically-secure random values.
 
+#### DkSegmentRegister
+
+    #define PAL_SEGMENT_FS  0x1
+    #define PAL_SEGMENT_GS  0x2
+    PAL_PTR DkSegmentRegister(PAL_FLG reg, PAL_PTR addr);
+
+This API sets segment register FS or GS specified by `reg` to the address `addr`. If `addr` is
+specified as NULL, then this API returns the current value of the segment register.
+
+#### DkMemoryAvailableQuota
+
+    PAL_NUM DkMemoryAvailableQuota(void);
+
+This API returns the amount of currently available memory for LibOS/application usage.
+
+#### DkCpuIdRetrieve
+
+     #define PAL_CPUID_WORD_EAX  0
+     #define PAL_CPUID_WORD_EBX  1
+     #define PAL_CPUID_WORD_ECX  2
+     #define PAL_CPUID_WORD_EDX  3
+     #define PAL_CPUID_WORD_NUM  4
+     PAL_BOL DkCpuIdRetrieve(PAL_IDX leaf, PAL_IDX subleaf, PAL_IDX values[4]);
+
+This API returns CPUID information in the array `values`, based on the leaf/subleaf.
+
+
 ### Memory Bulk Copy (Optional)
 
 #### DkCreatePhysicalMemoryChannel
@@ -554,7 +568,7 @@ Once a channel is created, other processes can connect to the physical memory ch
 #### DkPhysicalMemoryCommit
 
     PAL_NUM DkPhysicalMemoryCommit(PAL_HANDLE channel, PAL_NUM entries, PAL_PTR* addrs,
-                                   PAL_NUM* sizes, PAL_FLG flags);
+                                   PAL_NUM* sizes);
 
 This API commits (sends) an array of the virtual memory area over the physical memory channel.
 

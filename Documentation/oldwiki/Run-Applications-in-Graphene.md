@@ -17,9 +17,9 @@ convenient commands are written in the Makefile inside the directory. The follow
 and run LMBench in a native environment and under Graphene.
 
     cd LibOS/shim/test/apps/lmbench
-    make        # compile source of lmbench and set up manifests as target of Graphene tests
-    make test-native         # run the whole package in native environment
-    make test-graphene       # run the whole package in Graphene
+    make                  # compile lmbench and set up manifests as target of Graphene tests
+    make test-native      # run the whole package in native environment
+    make test-graphene    # run the whole package in Graphene
 
 The result of native runs can be found in `lmbench-2.5/results/linux`. The result of Graphene runs
 can be found in `lmbench-2.5/results/graphene`. The file with the largest number as suffix will be
@@ -106,7 +106,7 @@ remote client. To start the HTTP server, run one of the following commands:
 
     make start-native-server  or  make start-graphene-server
 
-To start the server in a multi-threaded environment, run on of the following commands:
+To start the server in a multi-threaded environment, run one of the following commands:
 
     make start-multithreaded-native-server  or  make start-multithreaded-graphene-server
 
@@ -133,7 +133,7 @@ The commands above will compile the source code, build the manifest file for Gra
 the configuration file for Apache, and generate the HTML sample files (same as described in the
 [[lighttpd section|Run applications in Graphene#Running Lighttpd in Graphene]]).
 
-The server can be started manually via one the following commands:
+The server can be started manually via one of the following commands:
 
     make start-native-server  or  make start-graphene-server
 
@@ -167,7 +167,7 @@ or
 ## Running Bash in Graphene
 
 Bash is the most commonly used shell utility in Linux. The scripts and the source code for Bash
-is stored in `LibOS/shim/apps/bash`. To build the source code with the proper manifest, simply run
+are stored in `LibOS/shim/apps/bash`. To build the source code with the proper manifest, simply run
 the following commands:
 
     cd Shim/shim/test/apps/bash

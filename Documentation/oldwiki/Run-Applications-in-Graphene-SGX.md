@@ -14,12 +14,12 @@ can be directly built and run from the Graphene source:
 
 The LMBench source and scripts are stored in the directory `LibOS/shim/test/apps/lmbench`. Many
 convenient commands are written in the Makefile inside the directory. The following steps compile
-and run LMBench in a native environment and under Graphene-SGX.
+and run LMBench in a native environment and under Graphene-SGX:
 
     cd LibOS/shim/test/apps/lmbench
-    make SGX=1      # compile source of lmbench and generate manifest and signature
-    make SGX_RUN=1  $ get enclave token
-    make test-graphene       # run the whole package in Graphene-SGX
+    make SGX=1                    # compile lmbench and generate manifest and signature
+    make SGX_RUN=1                # get enclave token
+    make SGX=1 test-graphene      # run the whole package in Graphene-SGX
 
 The result of native runs can be found in `lmbench-2.5/results/linux`. The result of Graphene-SGX
 runs can be found in `lmbench-2.5/results/graphene`. The file with the largest number as suffix
@@ -83,18 +83,18 @@ samples:
 The server should be started manually and tested by running the ApacheBench (ab) benchmark from a
 remote client. To start the HTTP server, run one of the following commands:
 
-    make start-native-server  or  make start-graphene-server
+    make start-native-server  or  make SGX=1 start-graphene-server
 
-To start the server in a multi-threaded environment, run on of the following commands:
+To start the server in a multi-threaded environment, run one of the following commands:
 
-    make start-multithreaded-native-server  or  make start-multithreaded-graphene-server
+    make start-multithreaded-native-server  or  make SGX=1 start-multithreaded-graphene-server
 
 For testing, use ApacheBench (ab). There is a script `run-apachebench.sh` that takes two arguments:
 the IP and the port. It runs 100,000 requests (`-n 100000`) with 25 to 200 maximum outstanding
 requests (`-c 25` to `-c 200`). The results are saved into the same directory, and all previous
 output files are overwritten.
 
-    make start-graphene-server
+    make SGX=1 start-graphene-server
     ./run-apachebench.sh <ip> <port>
     # which internally calls:
     #   ab -k -n 100000 -c [25:200] -t 10 http://ip:port/random/100.1.html
@@ -113,14 +113,14 @@ The commands above will compile the source code, build the manifest file for Gra
 the configuration file for Apache, and generate the HTML sample files (same as described in the
 [[lighttpd section|Run applications in Graphene#Running Lighttpd in Graphene]]).
 
-The server can be started manually via one the following commands:
+The server can be started manually via one of the following commands:
 
-    make start-native-server  or  make start-graphene-server
+    make start-native-server  or  make SGX=1 start-graphene-server
 
 By default, the Apache web server is configured to run with 4 preforked worker processes and has
 PHP support enabled. To test Apache server with ab, run:
 
-    make start-graphene-server
+    make SGX=1 start-graphene-server
     ./run-apachebench.sh <ip> <port>
     # which internally calls:
     #   ab -k -n 100000 -c [25:200] -t 10 http://ip:port/random/100.1.html
@@ -147,7 +147,7 @@ or
 ## Running Bash in Graphene-SGX
 
 Bash is the most commonly used shell utility in Linux. The scripts and the source code for Bash
-is stored in `LibOS/shim/apps/bash`. To build the source code with the proper manifest, simply run
+are stored in `LibOS/shim/apps/bash`. To build the source code with the proper manifest, simply run
 the following commands:
 
     cd LibOS/shim/test/apps/bash
