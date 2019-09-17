@@ -268,7 +268,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 
     if (sgx_is_completely_outside_enclave(buf, count)) {
         /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
-        obuf = buf;
+        obuf = (void*)buf;
     } else if (sgx_is_completely_within_enclave(buf, count)) {
         /* typical case of buf inside of enclave memory */
         if (count > PRESET_PAGESIZE) {
@@ -802,7 +802,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
 
     if (sgx_is_completely_outside_enclave(buf, count)) {
         /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
-        obuf = buf;
+        obuf = (void*)buf;
     } else if (sgx_is_completely_within_enclave(buf, count)) {
         /* typical case of buf inside of enclave memory */
         if ((count + addrlen) > PRESET_PAGESIZE) {
