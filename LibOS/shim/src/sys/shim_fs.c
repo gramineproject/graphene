@@ -492,7 +492,7 @@ static ssize_t handle_copy (struct shim_handle * hdli, off_t * offseti,
         if (do_mapi && do_mapo) {
             copysize = count - bytes > bufsize ? bufsize :
                        count - bytes;
-            memcpy(hdlo + boffo, hdli + boffi, copysize);
+            memcpy(bufo + boffo, bufi + boffi, copysize);
             DkVirtualMemoryFree(bufi, ALIGN_UP(bufsize + boffi));
             bufi = NULL;
             DkVirtualMemoryFree(bufo, ALIGN_UP(bufsize + boffo));
