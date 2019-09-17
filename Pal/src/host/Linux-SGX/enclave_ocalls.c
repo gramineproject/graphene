@@ -266,10 +266,21 @@ int ocall_write (int fd, const void * buf, unsigned int count)
     void * obuf = NULL;
     ms_ocall_write_t * ms;
 
-    if (count > PRESET_PAGESIZE) {
-        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (IS_ERR(retval))
-            return retval;
+    if (sgx_is_completely_outside_enclave(buf, count)) {
+        /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
+        obuf = buf;
+    } else if (sgx_is_completely_within_enclave(buf, count)) {
+        /* typical case of buf inside of enclave memory */
+        if (count > PRESET_PAGESIZE) {
+            /* buf is too big and may overflow untrusted stack, so use untrusted heap */
+            retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+            if (IS_ERR(retval))
+                return retval;
+            memcpy(obuf, buf, count);
+        }
+    } else {
+        /* buf is partially in/out of enclave memory */
+        return -EPERM;
     }
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
@@ -280,12 +291,10 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 
     ms->ms_fd = fd;
     ms->ms_count = count;
-    if (obuf) {
+    if (obuf)
         ms->ms_buf = obuf;
-        memcpy(obuf, buf, count);
-    } else {
+    else
         ms->ms_buf = sgx_copy_to_ustack(buf, count);
-    }
 
     if (!ms->ms_buf) {
         retval = -EPERM;
@@ -296,7 +305,7 @@ int ocall_write (int fd, const void * buf, unsigned int count)
 
 out:
     sgx_reset_ustack();
-    if (obuf)
+    if (obuf && obuf != buf)
         ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
     return retval;
 }
@@ -791,10 +800,21 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
     void * obuf = NULL;
     ms_ocall_sock_send_t * ms;
 
-    if ((count + addrlen) > PRESET_PAGESIZE) {
-        retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
-        if (IS_ERR(retval))
-            return retval;
+    if (sgx_is_completely_outside_enclave(buf, count)) {
+        /* buf is in untrusted memory (e.g., allowed file mmaped in untrusted memory) */
+        obuf = buf;
+    } else if (sgx_is_completely_within_enclave(buf, count)) {
+        /* typical case of buf inside of enclave memory */
+        if ((count + addrlen) > PRESET_PAGESIZE) {
+            /* buf is too big and may overflow untrusted stack, so use untrusted heap */
+            retval = ocall_alloc_untrusted(ALLOC_ALIGNUP(count), &obuf);
+            if (IS_ERR(retval))
+                return retval;
+            memcpy(obuf, buf, count);
+        }
+    } else {
+        /* buf is partially in/out of enclave memory */
+        return -EPERM;
     }
 
     ms = sgx_alloc_on_ustack(sizeof(*ms));
@@ -807,12 +827,10 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
     ms->ms_count = count;
     ms->ms_addrlen = addrlen;
     ms->ms_addr = addr ? sgx_copy_to_ustack(addr, addrlen) : NULL;
-    if (obuf) {
+    if (obuf)
         ms->ms_buf = obuf;
-        memcpy(obuf, buf, count);
-    } else {
+    else
         ms->ms_buf = sgx_copy_to_ustack(buf, count);
-    }
 
     if (!ms->ms_buf || (addr && !ms->ms_addr)) {
         retval = -EPERM;
@@ -823,7 +841,7 @@ int ocall_sock_send (int sockfd, const void * buf, unsigned int count,
 
 out:
     sgx_reset_ustack();
-    if (obuf)
+    if (obuf && obuf != buf)
         ocall_unmap_untrusted(obuf, ALLOC_ALIGNUP(count));
     return retval;
 }
