@@ -61,7 +61,6 @@ basic data structure of a PAL handle is defined as follows:
     typedef union pal_handle {
         struct {
             PAL_IDX type;
-            PAL_FLG flags;
         } hdr;
         /* other resource-specific definitions */
     } PAL_HANDLE;
@@ -103,7 +102,7 @@ address of the control block may be resolved by a function (`pal_control_addr()`
 The fields of the Graphene control block are defined as follows:
 
     typedef struct {
-         PAL_STR host_type;
+        PAL_STR host_type;
         /* An identifier of current picoprocess */
         PAL_NUM process_id;
         PAL_NUM host_id;
@@ -137,6 +136,20 @@ The fields of the Graphene control block are defined as follows:
         PAL_CPU_INFO cpu_info;
         /* Memory information */
         PAL_MEM_INFO mem_info;
+
+        /* Attestation information */
+        PAL_STR attestation_status;
+        PAL_STR attestation_timestamp;
+
+        /* Purely for profiling */
+        PAL_NUM startup_time;
+        PAL_NUM host_specific_startup_time;
+        PAL_NUM relocation_time;
+        PAL_NUM linking_time;
+        PAL_NUM manifest_loading_time;
+        PAL_NUM allocation_time;
+        PAL_NUM tail_startup_time;
+        PAL_NUM child_creation_time;
     } PAL_CONTROL;
 
 ## PAL APIs
@@ -472,7 +485,7 @@ This API creates a mutex with the given `initialCount`.
 
     void DkMutexRelease(PAL_HANDLE mutexHandle);
 
-This API destroys the given mutex.
+This API unlocks the given mutex.
 
 ##### DkNotificationEventCreate/DkSynchronizationEventCreate
 
