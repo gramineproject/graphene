@@ -133,7 +133,7 @@ class TC_01_Bootstrap(RegressionTestCase):
     @unittest.skipUnless(HAS_SGX, 'this test requires SGX')
     def test_120_8gb_enclave(self):
         manifest = self.get_manifest('Bootstrap6')
-        stdout, stderr = self.run_binary([manifest], timeout=240)
+        stdout, stderr = self.run_binary([manifest], timeout=360)
         self.assertIn('Loaded Manifest: file:' + manifest, stderr)
         self.assertIn('Executable Range OK', stderr)
 
