@@ -148,7 +148,7 @@ int create_enclave(sgx_arch_secs_t * secs,
     memset(secs, 0, sizeof(sgx_arch_secs_t));
 
     // Enable AVX and AVX512
-    secs->attributes.xfrm |= 0x0000000000000004ULL;
+    secs->attributes.xfrm |= SGX_XFRM_AVX;
 
     secs->size = pagesize;
     while (secs->size < size)
