@@ -521,7 +521,8 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
     map->l_phdr  = (void *) header->e_phoff;
     map->l_phnum = header->e_phnum;
 
-    ElfW(Addr) mapstart = 0, mapend = 0;
+    ElfW(Addr) mapstart = ~0;  /* start with the highest possible address */
+    ElfW(Addr) mapend = 0;     /* start with the lowest possible address */
 
     for (ph = phdr; ph < &phdr[map->l_phnum]; ++ph)
         switch (ph->p_type) {
@@ -534,9 +535,9 @@ int add_elf_object(void * addr, PAL_HANDLE handle, int type)
                         ALLOC_ALIGNDOWN(map->l_addr + ph->p_vaddr);
                 ElfW(Addr) end = (ElfW(Addr))
                         ALLOC_ALIGNUP(map->l_addr + ph->p_vaddr + ph->p_memsz);
-                if (!mapstart || start < mapstart)
+                if (start < mapstart)
                     mapstart = start;
-                if (!mapend || end > mapend)
+                if (end > mapend)
                     mapend = end;
             }
         }
