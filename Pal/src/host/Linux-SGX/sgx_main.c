@@ -1014,9 +1014,11 @@ int main (int argc, char ** argv, char ** envp)
         goto out;
     }
 
-    if (strcmp_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
+    if (len >= static_strlen(".manifest") &&
+        strcmp_static(sgx_manifest + len - static_strlen(".manifest"), ".manifest")) {
         strcpy_static(sgx_manifest + len, ".sgx", sizeof(sgx_manifest) - len);
-    } else if (!strcmp_static(sgx_manifest + len - strlen(".manifest.sgx"),
+    } else if (len < static_strlen(".manifest.sgx") ||
+               !strcmp_static(sgx_manifest + len - static_strlen(".manifest.sgx"),
                               ".manifest.sgx")) {
         strcpy_static(sgx_manifest + len, ".manifest.sgx", sizeof(sgx_manifest) - len);
     }
