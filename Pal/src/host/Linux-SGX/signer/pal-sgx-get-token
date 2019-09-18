@@ -7,6 +7,7 @@ import struct
 import sys
 
 import aesm_pb2
+import array
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
