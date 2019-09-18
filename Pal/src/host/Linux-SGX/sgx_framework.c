@@ -156,7 +156,9 @@ int create_enclave(sgx_arch_secs_t * secs,
            sizeof(sgx_arch_attributes_t));
 
     // Enable AVX and AVX512
-    secs->attributes.xfrm |= SGX_XFRM_AVX;
+    // DEP 9/18/19: This alone is not enough to get the fully optional behavior we will want.
+    // Leave this here for future work in another PR
+    // secs->attributes.xfrm |= SGX_XFRM_AVX;
 
     /* Do not initialize secs->mrsigner and secs->mrenclave here as they are
      * not used by ECREATE to populate the internal SECS. SECS's mrenclave is
