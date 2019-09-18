@@ -7,4 +7,4 @@ if [ -z "$INSIDE_EMACS" ]; then
 	set -x
 fi
 
-LD_PRELOAD=$GDB_SO gdb -iex "set auto-load safe-path $GDB_SCRIPT" "$@"
+LD_PRELOAD=$GDB_SO gdb -iex "add-auto-load-safe-path $GDB_SCRIPT" "$@"
