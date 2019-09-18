@@ -771,7 +771,7 @@ int ocall_sock_recv (int sockfd, void * buf, unsigned int count,
             *addrlen = copied;
         }
 
-        if (!sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
+        if (retval > 0 && !sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
             retval = -EPERM;
             goto out;
         }
@@ -832,7 +832,7 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
                         unsigned int * fds, unsigned int * nfds)
 {
     int retval = 0;
-    unsigned int copied;
+    unsigned int copied = 0;
     unsigned int max_nfds_bytes = (*nfds) * sizeof(int);
     ms_ocall_sock_recv_fd_t * ms;
 
@@ -856,15 +856,18 @@ int ocall_sock_recv_fd (int sockfd, void * buf, unsigned int count,
     retval = sgx_ocall(OCALL_SOCK_RECV_FD, ms);
 
     if (retval >= 0) {
-        if (!sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
+        if (retval > 0 && !sgx_copy_to_enclave(buf, count, ms->ms_buf, retval)) {
             sgx_reset_ustack();
             return -EPERM;
         }
 
-        copied = sgx_copy_to_enclave(fds, max_nfds_bytes, ms->ms_fds, ms->ms_nfds * sizeof(int));
-        if (!copied) {
-            sgx_reset_ustack();
-            return -EPERM;
+        if (ms->ms_nfds > 0) {
+            /* TOCTOU on ms_nfds is possible, but it is benign */
+            copied = sgx_copy_to_enclave(fds, max_nfds_bytes, ms->ms_fds, ms->ms_nfds * sizeof(int));
+            if (!copied) {
+                sgx_reset_ustack();
+                return -EPERM;
+            }
         }
         *nfds = copied / sizeof(int);
     }
