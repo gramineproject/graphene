@@ -1042,7 +1042,7 @@ int main (int argc, char ** argv, char ** envp)
         manifest_uri = alloc_concat("file:", static_strlen("file:"),
                                     sgx_manifest, -1);
         INLINE_SYSCALL(close, 1, fd);
-    } else if (!manifest_uri) {
+    } else {
         SGX_DBG(DBG_E, "Cannot open manifest file: %s\n", sgx_manifest);
         goto usage;
     }
