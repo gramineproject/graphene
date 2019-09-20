@@ -73,7 +73,7 @@ $(executables): LDLIBS = $(LDLIBS-executables)
 $(executables): %: %.c $(LDLIBS-executables)
 	$(call cmd,csingle)
 
-include $(wildcard *.d)
+include $(filter-out %.manifest.sgx.d,$(wildcard *.d))
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX), 1)
 include $(addsuffix .manifest.sgx.d,$(executables))
@@ -88,6 +88,11 @@ $(graphene_lib): .lib/host_endian.h
 	$(MAKE) -C ../lib target=$(abspath .lib)/
 
 Process2.manifest.sgx: Bootstrap.manifest.sgx
+
+# File.manifest.template includes ../regression/File
+# make doesn't understand that ../regression/File is same to File
+../regression/File: | File
+	@true
 
 else
 .IGNORE: $(preloads) $(executables)

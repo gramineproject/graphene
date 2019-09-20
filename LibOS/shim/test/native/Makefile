@@ -29,7 +29,7 @@ $(c_executables): %: %.c
 $(cxx_executables): %: %.cpp
 	$(call cmd,cxxsingle)
 
-include $(wildcard *.d)
+include $(filter-out %.manifest.sgx.d,$(wildcard *.d))
 else
 .IGNORE: $(c_executables) $(cxx_executables)
 $(c_executables) $(cxx_executables):
