@@ -58,8 +58,6 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     SET_HANDLE_TYPE(hdl, file);
     HANDLE_HDR(hdl)->flags |= RFD(0) | WFD(0) | WRITABLE(0);
     hdl->file.fd     = fd;
-    hdl->file.append = 0;
-    hdl->file.pass   = 0;
     char* path       = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
