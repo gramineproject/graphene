@@ -94,8 +94,6 @@ typedef struct pal_handle
 
         struct {
             PAL_IDX fd;
-            PAL_BOL append;
-            PAL_BOL pass;
             PAL_STR realpath;
             PAL_NUM total;
             PAL_PTR stubs;

@@ -102,8 +102,6 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     SET_HANDLE_TYPE(handle, file);
     HANDLE_HDR(handle)->flags |= RFD(0);
     handle->file.fd = PAL_IDX_POISON;
-    handle->file.append = 0;
-    handle->file.pass = 0;
 
     char * path = (void *) handle + HANDLE_SIZE(file);
     int ret = get_norm_path(name, path, &len);
