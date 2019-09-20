@@ -144,7 +144,7 @@ quiet_cmd_sgx_manifest_dependency = [ $@ ]
 	 echo "") > $@
 
 # pal map
-PAL_SYMBOL_FILE = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))Pal/src/pal-symbols
+PAL_SYMBOL_FILE = $(PAL_DIR)/pal-symbols
 PAL_SYMBOLS = $(shell sed -e 's|$$|;|g' $(PAL_SYMBOL_FILE))
 
 quiet_cmd_pal_map = [ $@ ]
