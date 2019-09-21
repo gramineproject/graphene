@@ -7,21 +7,30 @@ import socket
 from google.protobuf import message as _message
 import aesm_pb2
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from generated_offsets import *
+
 """ Utilities """
 
-def int_to_bytes(i):
+# Convert int to bytes (litten endian)
+def int_to_bytes(i, pad=0):
     b = ""
     l = 0
     while i > 0:
         b = b + chr(i % 256)
         i = i // 256
         l = l + 1
+    if len(b) < pad:
+        b = b + chr(0) * (pad - len(b))
     return b
 
+# Convert bytes to int (little endian)
 def bytes_to_int(b):
     i = 0
+    r = 1
     for c in b:
-        i = i * 256 + ord(c)
+        i += ord(c) * r
+        r *= 256
     return i
 
 
@@ -165,12 +174,44 @@ def parse_args():
 
     return args
 
+def get_cpu_features():
+    with open("/proc/cpuinfo", "r") as f:
+        for line in f:
+            if line.startswith("flags"):
+                return line.split(":")[1].strip().split(" ")
+
+        raise Exception("Failed to parse CPU flags")
+
 if __name__ == "__main__":
 
     # Parse arguments
     args = parse_args()
 
     attr = read_sigstruct(open(args['sig'], 'rb').read())
+
+    xfrms    = bytes_to_int(attr['xfrms'])
+    xfrmmask = bytes_to_int(attr['xfrmmask'])
+
+    cpu_features = get_cpu_features()
+
+    optional_sgx_features = [
+        (SGX_XFRM_AVX,      "avx"),
+        (SGX_XFRM_AVX512,   "avx512f"),
+        (SGX_XFRM_MPX,      "mpx"),
+    ]
+
+    for (bits, feature) in optional_sgx_features:
+        """
+        Check if SIGSTRUCT allows enabling an optional CPU feature.
+
+        If all the xfrm bits for a feature, after applying xfrmmask, are set in xfrms,
+        we can set the remaining bits if the feature is available.
+
+        If the xfrmmask includes all the required xfrm bits, then these bits cannot be
+        changed in xfrm (need to stay the same as signed).
+        """
+        if xfrms & (bits & xfrmmask) == (bits & xfrmmask) and feature in cpu_features:
+            attr['xfrms'] = int_to_bytes(xfrms | bits, 8)
 
     print >>sys.stderr, "Attributes:"
     print >>sys.stderr, "    mrenclave: %s" % (attr['mrenclave'].encode('hex'))

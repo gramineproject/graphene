@@ -13,12 +13,7 @@ int main() {
     __m256 result = _mm256_sub_ps(evens, odds);
 
     /* Display the elements of the result vector */
-    float f = result[0];
-
-    PAL_HANDLE file1 = DkStreamOpen("file:avxRes", PAL_ACCESS_RDWR, 0, 0, 0);
-    if (file1) {
-        DkStreamWrite(file1, 0, sizeof(f), &f, NULL);
-        DkObjectClose(file1);
-    }
+    pal_printf("Result: %d %d %d %d %d %d %d %d\n", (int)result[0], (int)result[1], (int)result[2],
+               (int)result[3], (int)result[4], (int)result[5], (int)result[6], (int)result[7]);
     return 1;
 }

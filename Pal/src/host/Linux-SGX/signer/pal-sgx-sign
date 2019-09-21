@@ -151,7 +151,6 @@ def get_enclave_attributes(manifest):
     default_attributes = {
         'FLAG_DEBUG',
         'XFRM_LEGACY',
-        'XFRM_AVX',
     }
 
     if ARCHITECTURE == 'amd64':
@@ -159,9 +158,9 @@ def get_enclave_attributes(manifest):
 
     manifest_options = {
         'debug'          : 'FLAG_DEBUG',
-        'enable_avx'     : 'XFRM_AVX',
-        'enable_avx512'  : 'XFRM_AVX512',
-        'enable_mpx'     : 'XFRM_MPX',
+        'require_avx'    : 'XFRM_AVX',
+        'require_avx512' : 'XFRM_AVX512',
+        'require_mpx'    : 'XFRM_MPX',
         'support_exinfo' : 'MISC_EXINFO',
     }
 
