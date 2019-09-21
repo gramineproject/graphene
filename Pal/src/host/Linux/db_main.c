@@ -287,8 +287,6 @@ void pal_linux_main (void * args)
     HANDLE_HDR(file)->flags |= RFD(0)|WFD(0)|WRITABLE(0);
     file->file.fd = fd;
     file->file.offset = 0;
-    file->file.append = false;
-    file->file.pass = false;
     file->file.map_start = NULL;
 
     char * path = (void *) file + HANDLE_SIZE(file);
