@@ -213,6 +213,14 @@ static int sgx_ocall_ftruncate(void * pms)
     return ret;
 }
 
+static int sgx_ocall_lseek(void* pms) {
+    ms_ocall_lseek_t* ms = (ms_ocall_lseek_t*)pms;
+    int ret;
+    ODEBUG(OCALL_LSEEK, ms);
+    ret = INLINE_SYSCALL(lseek, 3, ms->ms_fd, ms->ms_offset, ms->ms_whence);
+    return ret;
+}
+
 static int sgx_ocall_mkdir(void * pms)
 {
     ms_ocall_mkdir_t * ms = (ms_ocall_mkdir_t *) pms;
@@ -696,6 +704,7 @@ sgx_ocall_fn_t ocall_table[OCALL_NR] = {
         [OCALL_FCHMOD]          = sgx_ocall_fchmod,
         [OCALL_FSYNC]           = sgx_ocall_fsync,
         [OCALL_FTRUNCATE]       = sgx_ocall_ftruncate,
+        [OCALL_LSEEK]           = sgx_ocall_lseek,
         [OCALL_MKDIR]           = sgx_ocall_mkdir,
         [OCALL_GETDENTS]        = sgx_ocall_getdents,
         [OCALL_WAKE_THREAD]     = sgx_ocall_wake_thread,

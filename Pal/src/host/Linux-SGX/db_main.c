@@ -112,8 +112,9 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     }
     handle->file.realpath = path;
 
-    handle->file.total = 0;
-    handle->file.stubs = NULL;
+    handle->file.total  = 0;
+    handle->file.offset = 0;
+    handle->file.stubs  = NULL;
 
     return handle;
 }

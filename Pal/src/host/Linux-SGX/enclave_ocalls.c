@@ -431,6 +431,26 @@ int ocall_ftruncate (int fd, uint64_t length)
     return retval;
 }
 
+int ocall_lseek(int fd, uint64_t offset, int whence) {
+    int retval = 0;
+    ms_ocall_lseek_t* ms;
+
+    ms = sgx_alloc_on_ustack(sizeof(*ms));
+    if (!ms) {
+        sgx_reset_ustack();
+        return -EPERM;
+    }
+
+    ms->ms_fd     = fd;
+    ms->ms_offset = offset;
+    ms->ms_whence = whence;
+
+    retval = sgx_ocall(OCALL_LSEEK, ms);
+
+    sgx_reset_ustack();
+    return retval;
+}
+
 int ocall_mkdir (const char * pathname, unsigned short mode)
 {
     int retval = 0;

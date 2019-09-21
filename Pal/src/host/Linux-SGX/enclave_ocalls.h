@@ -45,6 +45,8 @@ int ocall_fsync (int fd);
 
 int ocall_ftruncate (int fd, uint64_t length);
 
+int ocall_lseek(int fd, uint64_t offset, int whence);
+
 int ocall_mkdir (const char *pathname, unsigned short mode);
 
 int ocall_getdents (int fd, struct linux_dirent64 *dirp, unsigned int size);

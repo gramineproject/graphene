@@ -96,7 +96,10 @@ typedef struct pal_handle
             PAL_IDX fd;
             PAL_STR realpath;
             PAL_NUM total;
-            PAL_PTR stubs;
+            PAL_NUM offset;
+            /* below fields are used only for trusted files */
+            PAL_PTR stubs;    /* contains hashes of file chunks */
+            PAL_PTR umem;     /* valid only when stubs != NULL */
         } file;
 
         struct {
