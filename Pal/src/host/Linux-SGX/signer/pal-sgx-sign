@@ -170,7 +170,7 @@ def get_enclave_attributes(manifest):
         'debug': 'FLAG_DEBUG',
         'require_avx': 'XFRM_AVX',
         'require_avx512': 'XFRM_AVX512',
-        'enable_mpx': 'XFRM_MPX',
+        'require_mpx': 'XFRM_MPX',
         'support_exinfo': 'MISC_EXINFO',
     }
 

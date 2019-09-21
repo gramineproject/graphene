@@ -11,6 +11,38 @@ import aesm_pb2
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
 
+def set_optional_sgx_features(attr):
+    """Set optional SGX features if they are available on this machine."""
+    optional_sgx_features = {
+        SGX_XFRM_AVX:      "avx",
+        SGX_XFRM_AVX512:   "avx512f",
+        SGX_XFRM_MPX:      "mpx",
+    }
+
+    cpu_features = ""
+    with open("/proc/cpuinfo", "r") as f:
+        for line in f:
+            if line.startswith("flags"):
+                cpu_features = line.split(":")[1].strip().split()
+                break
+        else:
+            raise Exception("Failed to parse CPU flags")
+
+    xfrms    = int.from_bytes(attr['xfrms'], byteorder='little')
+    xfrmmask = int.from_bytes(attr['xfrm_mask'], byteorder='little')
+
+    new_xfrms = 0
+    for (bits, feature) in optional_sgx_features.items():
+        # Check if SIGSTRUCT allows enabling an optional CPU feature.
+        # If all the xfrm bits for a feature, after applying xfrmmask, are set in xfrms,
+        # we can set the remaining bits if the feature is available.
+        # If the xfrmmask includes all the required xfrm bits, then these bits cannot be
+        # changed in xfrm (need to stay the same as signed).
+        if xfrms & (bits & xfrmmask) == (bits & xfrmmask) and feature in cpu_features:
+            new_xfrms |= xfrms | bits
+
+    attr['xfrms'] = new_xfrms.to_bytes(length=8, byteorder='little')
+
 
 def read_sigstruct(sig):
     """Reading Sigstruct."""
@@ -97,6 +129,7 @@ def main(args=None):
     args = argparser.parse_args(args)
 
     attr = read_sigstruct(args.sig.read())
+    set_optional_sgx_features(attr)
 
     print("Attributes:")
     print("    mr_enclave:  %s" % attr['enclave_hash'].hex())

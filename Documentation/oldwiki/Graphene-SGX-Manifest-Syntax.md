@@ -32,6 +32,18 @@ threads are destroyed).
 This syntax specifies whether the enclave can be debugged. Set it to 1 for a debug enclave and to 0
 for a production enclave.
 
+### Optional CPU features (AVX, AVX512, MPX)
+
+    sgx.require_avx=[1|0]
+    sgx.require_avx512=[1|0]
+    sgx.require_mpx=[1|0]
+    (Default: 0)
+
+This syntax ensures that the CPU features are available and enabled for the enclave. If the options
+are set in the manifest but the features are unavailable on the platform, enclave initialization
+should fail. If the options are unset, enclave initialization should succeed even if these features
+are unavailable on the platform.
+
 ### ISV Product ID and SVN
 
     sgx.isvprodid=[NUM]

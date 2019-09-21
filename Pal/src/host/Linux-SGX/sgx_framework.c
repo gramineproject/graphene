@@ -159,11 +159,6 @@ int create_enclave(sgx_arch_secs_t * secs,
     secs->misc_select = token->masked_misc_select_le;
     memcpy(&secs->attributes, &token->body.attributes, sizeof(sgx_attributes_t));
 
-    // Enable AVX and AVX512
-    // [2019-09-18] TODO(dep): This alone is not enough to get the fully optional behavior we will want.
-    // Leave this here for future work in another PR
-    // secs->attributes.xfrm |= SGX_XFRM_AVX;
-
     /* Do not initialize secs->mr_signer and secs->mr_enclave here as they are
      * not used by ECREATE to populate the internal SECS. SECS's mr_enclave is
      * computed dynamically and SECS's mr_signer is populated based on the
