@@ -59,8 +59,6 @@ static int file_open (PAL_HANDLE * handle, const char * type, const char * uri,
     HANDLE_HDR(hdl)->flags |= RFD(0)|WFD(0)|WRITABLE(0);
     hdl->file.fd = ret;
     hdl->file.offset = 0;
-    hdl->file.append = 0;
-    hdl->file.pass = 0;
     hdl->file.map_start = NULL;
     char * path = (void *) hdl + HANDLE_SIZE(file);
     memcpy(path, uri, len + 1);
