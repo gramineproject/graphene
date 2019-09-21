@@ -79,74 +79,98 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         return ret;
     }
 
-    hdl->file.stubs = (PAL_PTR)stubs;
-    hdl->file.total = total;
-    *handle         = hdl;
+    hdl->file.stubs  = (PAL_PTR)stubs;
+    hdl->file.total  = total;
+    hdl->file.offset = 0;
+    *handle          = hdl;
+
+    if (hdl->file.stubs) {
+        /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
+        ret = ocall_map_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
+    }
+
     return 0;
 }
 
 /* 'read' operation for file streams. */
 static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
-    sgx_stub_t* stubs  = (sgx_stub_t*)handle->file.stubs;
-    unsigned int total = handle->file.total;
     int ret;
+    sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
+    if (!stubs) {
+        /* case of allowed file: emulate via lseek + read */
+        if (handle->file.offset != offset) {
+            ret = ocall_lseek(handle->file.fd, offset, SEEK_SET);
+            if (IS_ERR(ret))
+                return -PAL_ERROR_DENIED;
+            handle->file.offset = offset;
+        }
+
+        ret = ocall_read(handle->file.fd, buffer, count);
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
+
+        handle->file.offset = offset + ret;
+        return ret;
+    }
+
+    /* case of trusted file: already mmaped in umem, copy from there and verify checksum */
+    unsigned int total = handle->file.total;
     if (offset >= total)
         return 0;
 
-    uint64_t end = (offset + count > total) ? total : offset + count;
-    uint64_t map_start, map_end;
+    uint64_t end       = (offset + count > total) ? total : offset + count;
+    uint64_t map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
+    uint64_t map_end   = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
 
-    if (stubs) {
-        map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
-        map_end   = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
-        /* Don't go past the end of file with the stub map either */
-        if (map_end > total)
-            map_end = ALLOC_ALIGNUP(total);
-    } else {
-        map_start = ALLOC_ALIGNDOWN(offset);
-        map_end   = ALLOC_ALIGNUP(end);
-    }
+    if (map_end > total)
+        map_end = ALLOC_ALIGNUP(total);
 
-    void* umem;
-    ret = ocall_map_untrusted(handle->file.fd, map_start, map_end - map_start, PROT_READ, &umem);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    ret = copy_and_verify_trusted_file(handle->file.realpath, handle->file.umem + map_start,
+            map_start, map_end, buffer, offset, end - offset, stubs, total);
+    if (ret < 0)
+        return ret;
 
-    if (stubs) {
-        ret = copy_and_verify_trusted_file(handle->file.realpath, umem, map_start, map_end, buffer,
-                                           offset, end - offset, stubs, total);
-        if (ret < 0) {
-            ocall_unmap_untrusted(umem, map_end - map_start);
-            return ret;
-        }
-    } else {
-        memcpy(buffer, umem + (offset - map_start), end - offset);
-    }
-
-    ocall_unmap_untrusted(umem, map_end - map_start);
     return end - offset;
 }
 
 /* 'write' operation for file streams. */
 static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
-    uint64_t map_start = ALLOC_ALIGNDOWN(offset);
-    uint64_t map_end   = ALLOC_ALIGNUP(offset + count);
-    void* umem;
     int ret;
+    sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
-    ret = ocall_map_untrusted(handle->file.fd, map_start, map_end - map_start, PROT_WRITE, &umem);
-    if (IS_ERR(ret))
-        return unix_to_pal_error(ERRNO(ret));
+    if (!stubs) {
+        /* case of allowed file: emulate via lseek + write */
+        if (handle->file.offset != offset) {
+            ret = ocall_lseek(handle->file.fd, offset, SEEK_SET);
+            if (IS_ERR(ret))
+                return -PAL_ERROR_DENIED;
+            handle->file.offset = offset;
+        }
 
-    if (offset + count > handle->file.total) {
-        ocall_ftruncate(handle->file.fd, offset + count);
-        handle->file.total = offset + count;
+        ret = ocall_write(handle->file.fd, buffer, count);
+        if (IS_ERR(ret))
+            return unix_to_pal_error(ERRNO(ret));
+
+        handle->file.offset = offset + ret;
+        return ret;
     }
 
-    memcpy(umem + offset - map_start, buffer, count);
+    /* case of trusted file: already mmaped in umem, copy into there and update checksum */
+    if (offset + count > handle->file.total) {
+        SGX_DBG(DBG_E, "Writing beyond the end of trusted file (%s) is disallowed!\n",
+                handle->file.realpath);
+        return -PAL_ERROR_DENIED;
+    }
 
-    ocall_unmap_untrusted(umem, map_end - map_start);
+    memcpy(handle->file.umem + offset, buffer, count);
+
+    /* TODO: need to update checksum in corresponding stubs */
+    SGX_DBG(DBG_I, "Writing to a trusted file (%s) does not update its checksum. "
+                   "Subsequent reads may fail!\n", handle->file.realpath);
+
     return count;
 }
 
@@ -154,6 +178,12 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
    close the file withou deleting it. */
 static int file_close(PAL_HANDLE handle) {
     int fd = handle->file.fd;
+
+    if (handle->file.stubs) {
+        /* case of trusted file: the whole file was mmapped in untrusted memory */
+        ocall_unmap_untrusted(handle->file.umem, handle->file.total);
+    }
+
     ocall_close(fd);
 
     /* initial realpath is part of handle object and will be freed with it */

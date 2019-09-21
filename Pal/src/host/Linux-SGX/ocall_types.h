@@ -36,6 +36,7 @@ enum {
     OCALL_FCHMOD,
     OCALL_FSYNC,
     OCALL_FTRUNCATE,
+    OCALL_LSEEK,
     OCALL_MKDIR,
     OCALL_GETDENTS,
     OCALL_WAKE_THREAD,
@@ -144,6 +145,12 @@ typedef struct {
     int ms_fd;
     uint64_t ms_length;
 } ms_ocall_ftruncate_t;
+
+typedef struct {
+    int ms_fd;
+    uint64_t ms_offset;
+    int ms_whence;
+} ms_ocall_lseek_t;
 
 typedef struct {
     const char * ms_pathname;

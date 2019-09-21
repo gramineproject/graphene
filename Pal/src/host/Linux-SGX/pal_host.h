@@ -96,7 +96,9 @@ typedef struct pal_handle
             PAL_IDX fd;
             PAL_STR realpath;
             PAL_NUM total;
+            PAL_NUM offset;
             PAL_PTR stubs;
+            PAL_PTR umem;
         } file;
 
         struct {
