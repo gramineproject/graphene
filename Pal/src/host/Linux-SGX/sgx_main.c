@@ -1095,3 +1095,23 @@ usage:
     ret = -EINVAL;
     goto out;
 }
+
+size_t _DkRandomBitsRead (void * buffer, size_t size)
+{
+    size_t total_bytes = 0;
+    do {
+        unsigned long rand;
+        __asm__ volatile (".Lretry: rdrand %%rax\r\n jnc .Lretry\r\n"
+                          : "=a"(rand) :: "memory", "cc");
+
+        if (total_bytes + sizeof(rand) <= size) {
+            *(unsigned long *) (buffer + total_bytes) = rand;
+            total_bytes += sizeof(rand);
+        } else {
+            for (size_t i = 0 ; i < size - total_bytes ; i++)
+                *(unsigned char *) (buffer + total_bytes + i) = ((unsigned char *) &rand)[i];
+            total_bytes = size;
+        }
+    } while (total_bytes < size);
+    return 0;
+}

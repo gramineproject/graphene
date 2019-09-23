@@ -5,6 +5,6 @@ targets = all clean format test
 
 .PHONY: $(targets)
 $(targets):
-	$(MAKE) -C Pal $@
+	cd Pal && cmake . && $(MAKE) $(subst all,install,$@)
 	$(MAKE) -C LibOS $@
 	$(MAKE) -C Runtime $@
