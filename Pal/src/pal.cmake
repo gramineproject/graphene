@@ -8,6 +8,8 @@ file(GLOB PAL_GENERIC_SOURCE
     ${CMAKE_CURRENT_LIST_DIR}/*.c)
 
 add_definitions("-DIN_PAL")
+add_definitions("-DPAL_DIR=${CMAKE_CURRENT_LIST_DIR}")
+add_definitions("-DRUNTIME_DIR=${GRAPHENE_RUNTIME_DIR}")
 
 set(PAL_GENERIC_SOURCE_FILES
     db_streams.c
