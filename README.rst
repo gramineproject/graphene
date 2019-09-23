@@ -102,8 +102,8 @@ Prerequisites
    the environment variable ``SGX_SIGNER_KEY``.
 
    After signing the application, users may ship the application and Graphene binaries,
-   along with a signed SGX-specific manifest (.manifest.sgx extension), to execute on
-   another SGX-enabled host.
+   along with an SGX-specific manifest (.manifest.sgx extension), the signature (.sig extension),
+   and the aesmd init token (.token extension) to execute on another SGX-enabled host.
 
 2. Install the Intel SGX SDK and driver
 
