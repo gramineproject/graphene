@@ -17,27 +17,27 @@ endfunction(append_list)
 # May need to change this to allow installation under any prefixes
 set(GRAPHENE_RUNTIME_DIR "${CMAKE_CURRENT_LIST_DIR}/Runtime")
 
-if (EXISTS generated-offsets.c)
-    add_library(generated-offsets OBJECT generated-offsets.c)
+if (EXISTS ${PROJECT_SOURCE_DIR}/generated-offsets.c)
+    add_library(generated-offsets OBJECT ${PROJECT_SOURCE_DIR}/generated-offsets.c)
 
     # Generate generated-offsets.s from generated-offsets.c
-    set_property(SOURCE generated-offsets.c PROPERTY
+    set_property(SOURCE ${PROJECT_SOURCE_DIR}/generated-offsets.c PROPERTY
         COMPILE_FLAGS
-        "-Wa,-adhln=${CMAKE_CURRENT_BINARY_DIR}/generated-offsets.s")
+        "-Wa,-adhln=${PROJECT_BINARY_DIR}/generated-offsets.s")
 
     # Ensure that generated-offsets.s is cleaned up
     set_property(DIRECTORY PROPERTY
         ADDITIONAL_MAKE_CLEAN_FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/generated-offsets.s APPEND)
+        ${PROJECT_BINARY_DIR}/generated-offsets.s APPEND)
 
     add_custom_command(
         PRE_BUILD
         OUTPUT
-            ${CMAKE_CURRENT_BINARY_DIR}/asm-offsets.h
+            ${PROJECT_BINARY_DIR}/asm-offsets.h
         COMMAND
             ${CMAKE_COMMAND} -D FORMAT=C
-                -D INPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/generated-offsets.s
-                -D OUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/asm-offsets.h
+                -D INPUT_FILE=${PROJECT_BINARY_DIR}/generated-offsets.s
+                -D OUTPUT_FILE=${PROJECT_BINARY_DIR}/asm-offsets.h
                 -P ${CMAKE_CURRENT_LIST_DIR}/generate_offsets.cmake
         DEPENDS
             generated-offsets
@@ -46,11 +46,11 @@ if (EXISTS generated-offsets.c)
     add_custom_command(
         PRE_BUILD
         OUTPUT
-            ${CMAKE_CURRENT_BINARY_DIR}/generated_offsets.py
+            ${PROJECT_BINARY_DIR}/generated_offsets.py
         COMMAND
             ${CMAKE_COMMAND} -D FORMAT=python
-                -D INPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/generated-offsets.s
-                -D OUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/generated_offsets.py
+                -D INPUT_FILE=${PROJECT_BINARY_DIR}/generated-offsets.s
+                -D OUTPUT_FILE=${PROJECT_BINARY_DIR}/generated_offsets.py
                 -P ${CMAKE_CURRENT_LIST_DIR}/generate_offsets.cmake
         DEPENDS
             generated-offsets

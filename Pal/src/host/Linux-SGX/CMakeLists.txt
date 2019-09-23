@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(graphene_pal_linux C ASM)
+project(graphene_pal_linux_sgx C ASM)
 
 string(CONCAT CMAKE_C_FLAGS
     "-Wall -Wextra -O2 -std=c11 -maes -U_FORTIFY_SOURCE -fno-stack-protector "
@@ -12,8 +12,8 @@ string(CONCAT CMAKE_ASM_FLAGS
 string(CONCAT CMAKE_SHARED_LINKER_FLAGS
     "-Wl,-nostdlib -Wl,-z,combreloc -Wl,-z,defs -Wl,-z,relro -Wl,-z,now "
     "-Wl,--hash-style=gnu "
-    "-Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/pal.map "
-    "-Wl,-T,${CMAKE_CURRENT_SOURCE_DIR}/enclave.lds")
+    "-Wl,--version-script,${PROJECT_BINARY_DIR}/pal.map "
+    "-Wl,-T,${PROJECT_SOURCE_DIR}/enclave.lds")
 string(CONCAT CMAKE_EXE_LINKER_FLAGS
     "-Wl,-z,relro -Wl,-z,now")
 
@@ -22,7 +22,7 @@ include_directories(include)
 include_directories(quote)
 include_directories(sgx-driver)
 include_directories(.)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}) # Required for asm-offsets.h
+include_directories(${PROJECT_BINARY_DIR}) # Required for asm-offsets.h
 
 set(CRYPTO_PROVIDER "mbedtls")
 
@@ -60,24 +60,26 @@ set_property(SOURCE ${PAL_LINUX_ENCLAVE_SOURCE} PROPERTY COMPILE_FLAGS -DIN_ENCL
 
 file(DOWNLOAD
     https://certificates.trustedservices.intel.com/Intel_SGX_Attestation_RootCA.pem
-    ${CMAKE_CURRENT_BINARY_DIR}/quote/Intel_SGX_Attestation_RootCA.pem)
+    ${PROJECT_BINARY_DIR}/quote/Intel_SGX_Attestation_RootCA.pem)
 
 add_library(pal-Linux-SGX SHARED
     ${PAL_GENERIC_SOURCE}
     ${COMMON_LIB_SOURCE}
     ${PAL_LINUX_ENCLAVE_SOURCE}
-    ${CMAKE_CURRENT_BINARY_DIR}/asm-offsets.h
-    ${CMAKE_CURRENT_BINARY_DIR}/pal.map)
+    ${PROJECT_BINARY_DIR}/asm-offsets.h
+    ${PROJECT_BINARY_DIR}/pal.map)
+
+install(TARGETS pal-Linux-SGX LIBRARY DESTINATION ${GRAPHENE_RUNTIME_DIR})
 
 add_custom_command(
     OUTPUT
-        ${CMAKE_CURRENT_BINARY_DIR}/quote/aesm.pb-c.c
+        ${PROJECT_BINARY_DIR}/quote/aesm.pb-c.c
     COMMAND
-        protoc-c --c_out=${CMAKE_CURRENT_BINARY_DIR}/quote
-            --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/quote
-            ${CMAKE_CURRENT_SOURCE_DIR}/quote/aesm.proto
+        protoc-c --c_out=${PROJECT_BINARY_DIR}/quote
+            --proto_path=${PROJECT_SOURCE_DIR}/quote
+            ${PROJECT_SOURCE_DIR}/quote/aesm.proto
     DEPENDS
-        ${CMAKE_CURRENT_SOURCE_DIR}/quote/aesm.proto
+        ${PROJECT_SOURCE_DIR}/quote/aesm.proto
 )
 
 set(PAL_LINUX_UNTRUST_SOURCE
@@ -95,9 +97,9 @@ set(PAL_LINUX_UNTRUST_SOURCE
 add_executable(pal-sgx
     ${COMMON_LIB_SOURCE}
     ${PAL_LINUX_UNTRUST_SOURCE}
-    ${CMAKE_CURRENT_BINARY_DIR}/asm-offsets.h
-    ${CMAKE_CURRENT_BINARY_DIR}/quote/aesm.pb-c.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/sgx-driver/isgx_version.h)
+    ${PROJECT_BINARY_DIR}/asm-offsets.h
+    ${PROJECT_BINARY_DIR}/quote/aesm.pb-c.c
+    ${PROJECT_SOURCE_DIR}/sgx-driver/isgx_version.h)
 
 set_property(TARGET pal-sgx PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -107,7 +109,9 @@ target_link_libraries(pal-sgx protobuf-c)
 
 add_custom_command(
     OUTPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/sgx-driver/isgx_version.h
+        ${PROJECT_SOURCE_DIR}/sgx-driver/isgx_version.h
     COMMAND
-        make -C ${CMAKE_CURRENT_SOURCE_DIR}/sgx-driver isgx_version.h
+        make -C ${PROJECT_SOURCE_DIR}/sgx-driver isgx_version.h
 )
+
+install(PROGRAMS pal-sgx DESTINATION ${GRAPHENE_RUNTIME_DIR})

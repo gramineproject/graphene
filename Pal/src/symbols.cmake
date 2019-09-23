@@ -50,6 +50,6 @@ set(PAL_SYMBOL_LIST
     pal_printf
     pal_control_addr)
 
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/pal.map.template PAL_MAP_TEMPLATE)
+file(READ ${INPUT_FILE} PAL_MAP_TEMPLATE)
 string(REPLACE "$(PAL_SYMBOLS)" "${PAL_SYMBOL_LIST};" PAL_MAP "${PAL_MAP_TEMPLATE}")
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/pal.map "${PAL_MAP}")
+file(WRITE ${OUTPUT_FILE} "${PAL_MAP}")

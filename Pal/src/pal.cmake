@@ -29,9 +29,12 @@ prepend_list(PAL_GENERIC_SOURCE ${CMAKE_CURRENT_LIST_DIR}/ ${PAL_GENERIC_SOURCE_
 
 add_custom_command(
     OUTPUT
-        ${CMAKE_CURRENT_BINARY_DIR}/pal.map
+        ${PROJECT_BINARY_DIR}/pal.map
     COMMAND
-        ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_LIST_DIR}/symbols.cmake
+        ${CMAKE_COMMAND}
+            -D INPUT_FILE=${PROJECT_SOURCE_DIR}/pal.map.template
+            -D OUTPUT_FILE=${PROJECT_BINARY_DIR}/pal.map
+            -P ${CMAKE_CURRENT_LIST_DIR}/symbols.cmake
     DEPENDS
-        ${CMAKE_CURRENT_SOURCE_DIR}/pal.map.template
+        ${PROJECT_SOURCE_DIR}/pal.map.template
 )
