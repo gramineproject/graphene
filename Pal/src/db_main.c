@@ -395,7 +395,7 @@ noreturn void pal_main (
 
     if (pal_state.root_config && *arguments
         && (strendswith(*arguments, ".manifest") || strendswith(*arguments, ".manifest.sgx"))) {
-        /* Ran as a manifest file,
+        /* Run as a manifest file,
          * replace argv[0] with the contents of the manifest's loader.execname */
         char cfgbuf[CONFIG_MAX];
         ret = get_config(pal_state.root_config, "loader.execname", cfgbuf, CONFIG_MAX);

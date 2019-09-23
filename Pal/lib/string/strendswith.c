@@ -9,9 +9,5 @@ bool strendswith(const char* haystack, const char* needle) {
         return false;
     }
 
-    if (!memcmp(&haystack[haystack_len - needle_len], needle, needle_len)) {
-        return true;
-    }
-
-    return false;
+    return !memcmp(&haystack[haystack_len - needle_len], needle, needle_len);
 }
