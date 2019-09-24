@@ -317,9 +317,9 @@ int read_config(struct config_store* store, int (*filter)(const char* key, int k
 
         int klen = ptr - key;
 
-        for (; RANGE && IS_SPACE(*ptr); ptr++) {
-            CHECK_PTR("stream ended at key");
-        }
+        for (; RANGE && IS_SPACE(*ptr); ptr++)
+            ;
+        CHECK_PTR("stream ended at key");
 
         if (*ptr != '=')
             GOTO_INVAL("equal mark expected");
