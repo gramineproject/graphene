@@ -8,8 +8,6 @@ import sys
 
 import aesm_pb2
 
-from utils import *
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
 
@@ -110,10 +108,14 @@ def main(args=None):
     print("    mrenclave: %s" % attr['mrenclave'].hex())
     print("    isvprodid: %d" % attr['isvprodid'])
     print("    isvsvn:    %d" % attr['isvsvn'])
-    print("    flags:     %016x" % bytes_to_int(attr['flags']))
-    print("    xfrms:     %016x" % bytes_to_int(attr['xfrms']))
-    print("    miscs:     %08x" % bytes_to_int(attr['miscs']))
-    print("    miscmask:  %08x" % bytes_to_int(attr['miscmask']))
+    print("    flags:     %016x" % int.from_bytes(attr['flags'],
+                                                  byteorder='big'))
+    print("    xfrms:     %016x" % int.from_bytes(attr['xfrms'],
+                                                  byteorder='big'))
+    print("    miscs:     %08x" % int.from_bytes(attr['miscs'],
+                                                 byteorder='big'))
+    print("    miscmask:  %08x" % int.from_bytes(attr['miscmask'],
+                                                 byteorder='big'))
     print("    modulus:   %s..." % attr['modulus'].hex()[:32])
     print("    exponent:  %d" % attr['exponent'])
     print("    signature: %s..." % attr['signature'].hex()[:32])

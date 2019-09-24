@@ -9,8 +9,6 @@ import struct
 import subprocess
 import sys
 
-from utils import *
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from generated_offsets import *
 
@@ -40,6 +38,28 @@ def roundup(addr):
 
 def rounddown(addr):
     return addr - addr % PAGESIZE
+
+
+def int_to_bytes(i):
+    """bignum to bytes."""
+    b = bytearray()
+    while i > 0:
+        b.append(i % 256)
+        i = i // 256
+    return b
+
+
+def parse_size(s):
+    scale = 1
+    if s.endswith("K"):
+        scale = 1024
+    if s.endswith("M"):
+        scale = 1024 * 1024
+    if s.endswith("G"):
+        scale = 1024 * 1024 * 1024
+    if scale != 1:
+        s = s[:-1]
+    return int(s, 0) * scale
 
 
 # Reading / Writing Manifests
@@ -366,7 +386,7 @@ def entry_point(elf_path):
     for line in out.splitlines():
         line = line.decode()
         if line.startswith("Entry point "):
-            return parse_int(line[12:])
+            return int(line[12:], 0)
     raise ValueError("Could not find entry point of elf file")
 
 
@@ -661,8 +681,8 @@ def generate_sigstruct(attr, args, mrenclave):
     signature = p.communicate(sign_buffer)[0]
     signature = signature[::-1]
 
-    modulus_int = bytes_to_int_little(modulus)
-    signature_int = bytes_to_int_little(signature)
+    modulus_int = int.from_bytes(modulus, byteorder='little')
+    signature_int = int.from_bytes(signature, byteorder='little')
 
     tmp1 = signature_int * signature_int
     q1_int = tmp1 // modulus_int
@@ -756,6 +776,7 @@ def main(args=None):
 
     # Get attributes from manifest
     attr = dict()
+    parse_int = lambda s: int(s, 0)
 
     for key, default, parse in [
             ('enclave_size', DEFAULT_ENCLAVE_SIZE, parse_size),
@@ -773,9 +794,12 @@ def main(args=None):
     print("    threadnum: %d" % attr['thread_num'])
     print("    isvprodid: %d" % attr['isvprodid'])
     print("    isvsvn:    %d" % attr['isvsvn'])
-    print("    flags:     %016x" % bytes_to_int(attr['flags']))
-    print("    xfrms:     %016x" % bytes_to_int(attr['xfrms']))
-    print("    miscs:     %08x" % bytes_to_int(attr['miscs']))
+    print("    flags:     %016x" % int.from_bytes(attr['flags'],
+                                                  byteorder='big'))
+    print("    xfrms:     %016x" % int.from_bytes(attr['xfrms'],
+                                                  byteorder='big'))
+    print("    miscs:     %08x" % int.from_bytes(attr['miscs'],
+                                                 byteorder='big'))
 
     # Get trusted checksums and measurements
     print("Trusted files:")
