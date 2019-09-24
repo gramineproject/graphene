@@ -60,6 +60,18 @@ This syntax specifies the files that are allowed to be loaded into the enclave u
 These files are not cryptographically hashed and are thus not protected. It is insecure to allow
 files containing code or critical information; developers must not allow files blindly!
 
+### File Policy
+
+    sgx.file_policy=[default|audit]
+    (Default: default)
+
+This syntax specifies the file policy, determining the behavior of authentication when opening
+file.
+By default, only `sgx.trusted_files.foo` and `sgx.allowed_files.foo` explicitly declared in
+manifest are allowed for access. If the file policy is `audit`, all files other than trusted and
+allowed are allowed for access, and Graphene-SGX emits a warning message for every such file. This
+is a convenient way to determine the set of files that the ported application uses.
+
 ### Trusted Child Processes
 
     sgx.trusted_children.[identifier]=[URI of signature (.sig)]
