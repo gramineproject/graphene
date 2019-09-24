@@ -291,6 +291,7 @@ int read_config(struct config_store* store, int (*filter)(const char* key, int k
     GOTO_INVAL(msg)
 
     while (RANGE) {
+        /* Skip the comment lines, empty lines and whitespaces before the key */
         for (; RANGE && (IS_SKIP(ptr) || IS_SPACE(*ptr)); ptr++)
             ;
 
@@ -304,6 +305,7 @@ int read_config(struct config_store* store, int (*filter)(const char* key, int k
         for (; RANGE; ptr++) {
             char* pptr = ptr;
 
+            /* Stop when meeting an invalid character */
             for (; RANGE && IS_VALID(*ptr); ptr++)
                 ;
             CHECK_PTR("stream ended at key");
@@ -317,15 +319,17 @@ int read_config(struct config_store* store, int (*filter)(const char* key, int k
 
         int klen = ptr - key;
 
-        for (; RANGE && IS_SPACE(*ptr); ptr++) {
-            CHECK_PTR("stream ended at key");
-        }
+        /* Skip whitespaces between key portion and equal mark */
+        for (; RANGE && IS_SPACE(*ptr); ptr++)
+            ;
+        CHECK_PTR("stream ended at key portion");
 
         if (*ptr != '=')
             GOTO_INVAL("equal mark expected");
 
         ptr++;
 
+        /* Skip whitespaces between equal mark and value portion */
         for (; RANGE && IS_SPACE(*ptr); ptr++)
             ;
         CHECK_PTR("stream ended at equal mark");
