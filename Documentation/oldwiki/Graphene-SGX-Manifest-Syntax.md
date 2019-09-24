@@ -40,6 +40,19 @@ for a production enclave.
 
 This syntax specifies the ISV Product ID and SVN to be added to the enclave signature.
 
+### File Check Policy
+
+    sgx.file_check_policy=[strict|allow_all_but_log]
+    (Default: strict)
+
+This syntax specifies the file check policy, determining the behavior of authentication when
+opening files.
+By default, only files explicitly listed as _trusted_files_ or _allowed_files_ declared in the
+manifest are allowed for access. If the file check policy is `allow_all_but_log`, all files other
+than trusted and allowed are allowed for access, and Graphene-SGX emits a warning message for
+every such file. This is a convenient way to determine the set of files that the ported
+application uses.
+
 ## Trusted Files and Child Processes
 
 ### Trusted Files
