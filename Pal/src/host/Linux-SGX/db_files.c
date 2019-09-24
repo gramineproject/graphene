@@ -82,21 +82,24 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     hdl->file.stubs  = (PAL_PTR)stubs;
     hdl->file.total  = total;
     hdl->file.offset = 0;
-    *handle          = hdl;
 
     if (hdl->file.stubs) {
         /* case of trusted file: mmap the whole file in untrusted memory for future reads/writes */
         ret = ocall_map_untrusted(hdl->file.fd, 0, hdl->file.total, PROT_READ, &hdl->file.umem);
-        if (IS_ERR(ret))
+        if (IS_ERR(ret)) {
+            /* note that we don't free stubs because they are re-used in same trusted file */
+            free(hdl);
             return unix_to_pal_error(ERRNO(ret));
+        }
     }
 
+    *handle = hdl;
     return 0;
 }
 
 /* 'read' operation for file streams. */
 static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buffer) {
-    int ret;
+    int64_t ret;
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
@@ -116,10 +119,13 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
         return ret;
     }
 
-    /* case of trusted file: already mmaped in umem, copy from there and verify checksum */
-    unsigned int total = handle->file.total;
+    /* case of trusted file: already mmaped in umem, copy from there and verify hash */
+    uint64_t total = handle->file.total;
     if (offset >= total)
         return 0;
+
+    _Static_assert((TRUSTED_STUB_SIZE & (TRUSTED_STUB_SIZE - 1)) == 0,
+                   "TRUSTED_STUB_SIZE must be a power of two");
 
     uint64_t end       = (offset + count > total) ? total : offset + count;
     uint64_t map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
@@ -138,7 +144,7 @@ static int64_t file_read(PAL_HANDLE handle, uint64_t offset, uint64_t count, voi
 
 /* 'write' operation for file streams. */
 static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buffer) {
-    int ret;
+    int64_t ret;
     sgx_stub_t* stubs = (sgx_stub_t*)handle->file.stubs;
 
     if (!stubs) {
@@ -158,24 +164,13 @@ static int64_t file_write(PAL_HANDLE handle, uint64_t offset, uint64_t count, co
         return ret;
     }
 
-    /* case of trusted file: already mmaped in umem, copy into there and update checksum */
-    if (offset + count > handle->file.total) {
-        SGX_DBG(DBG_E, "Writing beyond the end of trusted file (%s) is disallowed!\n",
-                handle->file.realpath);
-        return -PAL_ERROR_DENIED;
-    }
-
-    memcpy(handle->file.umem + offset, buffer, count);
-
-    /* TODO: need to update checksum in corresponding stubs */
-    SGX_DBG(DBG_I, "Writing to a trusted file (%s) does not update its checksum. "
-                   "Subsequent reads may fail!\n", handle->file.realpath);
-
-    return count;
+    /* case of trusted file: disallow writing completely */
+    SGX_DBG(DBG_E, "Writing to a trusted file (%s) is disallowed!\n", handle->file.realpath);
+    return -PAL_ERROR_DENIED;
 }
 
 /* 'close' operation for file streams. In this case, it will only
-   close the file withou deleting it. */
+   close the file without deleting it. */
 static int file_close(PAL_HANDLE handle) {
     int fd = handle->file.fd;
 
@@ -240,6 +235,8 @@ static int file_map(PAL_HANDLE handle, void** addr, int prot, uint64_t offset, u
     uint64_t map_start, map_end;
 
     if (stubs) {
+        _Static_assert((TRUSTED_STUB_SIZE & (TRUSTED_STUB_SIZE - 1)) == 0,
+                       "TRUSTED_STUB_SIZE must be a power of two");
         map_start = offset & ~(TRUSTED_STUB_SIZE - 1);
         map_end   = (end + TRUSTED_STUB_SIZE - 1) & ~(TRUSTED_STUB_SIZE - 1);
     } else {
