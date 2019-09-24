@@ -40,15 +40,6 @@ def rounddown(addr):
     return addr - addr % PAGESIZE
 
 
-def int_to_bytes(i):
-    """bignum to bytes."""
-    b = bytearray()
-    while i > 0:
-        b.append(i % 256)
-        i = i // 256
-    return b
-
-
 def parse_size(s):
     scale = 1
     if s.endswith("K"):
@@ -689,8 +680,8 @@ def generate_sigstruct(attr, args, mrenclave):
     tmp2 = tmp1 % modulus_int
     q2_int = tmp2 * signature_int // modulus_int
 
-    q1 = int_to_bytes(q1_int)
-    q2 = int_to_bytes(q2_int)
+    q1 = q1_int.to_bytes(384, byteorder='little')
+    q2 = q2_int.to_bytes(384, byteorder='little')
 
     fields.update({
         'modulus': (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", modulus),
