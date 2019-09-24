@@ -1,0 +1,17 @@
+#!$(PAL)
+
+loader.exec = file:file_check_policy
+loader.preload = file:$(SHIMPATH)
+loader.env.LD_LIBRARY_PATH = /lib
+loader.debug_type = none
+
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:$(LIBCDIR)
+
+sgx.file_check_policy = allow_all_but_log
+
+sgx.trusted_files.ld = file:$(LIBCDIR)/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:$(LIBCDIR)/libc.so.6
+
+sgx.trusted_files.test = file:trusted_testfile
