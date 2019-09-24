@@ -224,6 +224,7 @@ static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 static bool allow_file_creation = 0;
+static int file_check_policy = FILE_CHECK_POLICY_STRICT;
 
 /* Assumes `path` is normalized */
 static bool path_is_equal_or_subpath(const struct trusted_file* tf,
@@ -317,21 +318,15 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     _DkSpinUnlock(&trusted_file_lock);
 
-    if (!tf)
-        return -PAL_ERROR_DENIED;
+    if (!tf || !tf->index) {
+        if (!tf) {
+            if (get_file_check_policy() != FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG)
+                return -PAL_ERROR_DENIED;
 
-    if (tf->index < 0)
-        return tf->index;
+            SGX_DBG(DBG_I, "Allowing access to an unknown file due to "
+                    "file_check_policy settings: %s\n", uri);
+        }
 
-#if CACHE_FILE_STUBS == 1
-    if (tf->index && tf->stubs) {
-        *stubptr = tf->stubs;
-        *sizeptr = tf->size;
-        return 0;
-    }
-#endif
-
-    if (!tf->index) {
         *stubptr = NULL;
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(normpath, &attr);
@@ -339,8 +334,20 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
             *sizeptr = attr.pending_size;
         else
             *sizeptr = 0;
+
         return 0;
     }
+
+    if (tf->index < 0)
+        return tf->index;
+
+#if CACHE_FILE_STUBS == 1
+    if (tf->stubs) {
+        *stubptr = tf->stubs;
+        *sizeptr = tf->size;
+        return 0;
+    }
+#endif
 
     int nstubs = tf->size / TRUSTED_STUB_SIZE +
                 (tf->size % TRUSTED_STUB_SIZE ? 1 : 0);
@@ -458,6 +465,16 @@ failed:
 #endif
 
     return ret;
+}
+
+int get_file_check_policy ()
+{
+    return file_check_policy;
+}
+
+static void set_file_check_policy (int policy)
+{
+    file_check_policy = policy;
 }
 
 /*
@@ -885,6 +902,26 @@ int init_trusted_children (void)
         }
     }
     free(cfgbuf);
+    return 0;
+}
+
+int init_file_check_policy (void)
+{
+    char cfgbuf[CONFIG_MAX];
+    ssize_t ret = get_config(pal_state.root_config, "sgx.file_check_policy",
+                             cfgbuf, CONFIG_MAX);
+
+    if (ret > 0) {
+        if (strcmp_static(cfgbuf, "strict"))
+            set_file_check_policy(FILE_CHECK_POLICY_STRICT);
+        else if (strcmp_static(cfgbuf, "allow_all_but_log"))
+            set_file_check_policy(FILE_CHECK_POLICY_ALLOW_ALL_BUT_LOG);
+        else
+            INIT_FAIL(PAL_ERROR_INVAL, "unknown file check policy");
+
+        SGX_DBG(DBG_S, "File check policy: %s\n", cfgbuf);
+    }
+
     return 0;
 }
 
