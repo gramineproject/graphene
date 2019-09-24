@@ -128,6 +128,15 @@ int init_trusted_files (void);
 int load_trusted_file
     (PAL_HANDLE file, sgx_stub_t ** stubptr, uint64_t * sizeptr, int create);
 
+enum {
+    FILE_POLICY_DEFAULT = 0,
+    FILE_POLICY_LOG,
+};
+
+int init_file_policy (void);
+
+int get_file_policy (void);
+
 int copy_and_verify_trusted_file (const char * path, const void * umem,
                     uint64_t umem_start, uint64_t umem_end,
                     void * buffer, uint64_t offset, uint64_t size,
