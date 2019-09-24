@@ -142,6 +142,38 @@ class TC_01_OpenMP(RegressionTestCase):
         # OpenMP simple for loop
         self.assertIn('first: 0, last: 9', stdout)
 
+@unittest.skipUnless(HAS_SGX,
+    'This test is only meaningful on SGX PAL because file-check-policy is '
+    'only relevant to SGX.')
+class TC_02_FileCheckPolicy(RegressionTestCase):
+    def test_000_strict_success(self):
+        manifest = self.get_manifest('file_check_policy_strict')
+        stdout, stderr = self.run_binary([manifest, 'trusted_testfile'])
+
+        self.assertIn('file_check_policy succeeded', stdout)
+
+    def test_001_strict_fail(self):
+        manifest = self.get_manifest('file_check_policy_strict')
+        try:
+            stdout, stderr = self.run_binary([manifest, 'unknown_testfile'])
+            self.fail('expected to return nonzero')
+        except subprocess.CalledProcessError as e:
+            self.assertEqual(e.returncode, 2, 'expected returncode == 2')
+
+    def test_002_allow_all_but_log_success(self):
+        manifest = self.get_manifest('file_check_policy_allow_all_but_log')
+        stdout, stderr = self.run_binary([manifest, 'unknown_testfile'])
+
+        self.assertIn('Allowing access to an unknown file due to file_check_policy settings: file:unknown_testfile', stderr)
+        self.assertIn('file_check_policy succeeded', stdout)
+
+    def test_003_allow_all_but_log_fail(self):
+        manifest = self.get_manifest('file_check_policy_allow_all_but_log')
+        stdout, stderr = self.run_binary([manifest, 'trusted_testfile'])
+
+        self.assertNotIn('Allowing access to an unknown file due to file_check_policy settings: file:trusted_testfile', stderr)
+        self.assertIn('file_check_policy succeeded', stdout)
+
 class TC_30_Syscall(RegressionTestCase):
     def test_000_getcwd(self):
         stdout, stderr = self.run_binary(['getcwd'])

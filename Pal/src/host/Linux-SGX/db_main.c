@@ -408,6 +408,11 @@ void pal_linux_main(char * uptr_args, uint64_t args_size,
         ocall_exit(rv, true);
     }
 
+    if ((rv = init_file_check_policy()) < 0) {
+        SGX_DBG(DBG_E, "Failed to load the file check policy: %d\n", rv);
+        ocall_exit(rv, true);
+    }
+
 #if PRINT_ENCLAVE_STAT == 1
     printf("                >>>>>>>> "
            "Enclave loading time =      %10ld milliseconds\n",
