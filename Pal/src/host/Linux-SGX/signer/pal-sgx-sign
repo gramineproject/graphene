@@ -109,11 +109,15 @@ def exec_sig_manifest(args, manifest):
     if 'exec' not in args or args.get('depend'):
         if 'loader.exec' in manifest:
             exec_url = manifest['loader.exec']
-            if exec_url[:5] != 'file:':
+            if not exec_url.startswith('file:'):
                 print "executable must be a local file"
                 os._exit(-1)
 
-            args['exec'] = os.path.join(os.path.dirname(args['manifest']), exec_url[5:])
+            exec_path = exec_url[5:]  # strip preceding 'file:'
+            if os.path.isabs(exec_path):
+                args['exec'] = exec_path
+            else:
+                args['exec'] = os.path.join(os.path.dirname(args['manifest']), exec_path)
 
     if 'sgx.sigfile' in manifest:
         args['sigfile'] = resolve_uri(manifest['sgx.sigfile'],
