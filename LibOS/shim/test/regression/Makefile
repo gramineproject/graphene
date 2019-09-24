@@ -2,7 +2,7 @@ c_executables = $(patsubst %.c,%,$(wildcard *.c))
 cxx_executables = $(patsubst %.cpp,%,$(wildcard *.cpp))
 manifests = $(patsubst %.manifest.template,%.manifest,$(wildcard *.manifest.template)) manifest
 
-exec_target = $(c_executables) $(cxx_executables)
+exec_target = $(c_executables) $(cxx_executables) file_check_policy_strict.manifest file_check_policy_allow_all_but_log.manifest
 target = $(exec_target) $(manifests)
 
 clean-extra += clean-tmp
