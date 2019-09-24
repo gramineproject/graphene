@@ -224,6 +224,7 @@ static LISTP_TYPE(trusted_file) trusted_file_list = LISTP_INIT;
 static struct spinlock trusted_file_lock = LOCK_INIT;
 static int trusted_file_indexes = 0;
 static bool allow_file_creation = 0;
+static bool file_policy = FILE_POLICY_DEFAULT;
 
 /* Assumes `path` is normalized */
 static bool path_is_equal_or_subpath(const struct trusted_file* tf,
@@ -317,8 +318,13 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 
     _DkSpinUnlock(&trusted_file_lock);
 
-    if (!tf)
-        return -PAL_ERROR_DENIED;
+    if (!tf) {
+        if (!file_policy_is_audit())
+            return -PAL_ERROR_DENIED;
+
+        SGX_DBG(DBG_I, "audited: %s\n", uri);
+        goto audited_file;
+    }
 
     if (tf->index < 0)
         return tf->index;
@@ -332,6 +338,7 @@ int load_trusted_file (PAL_HANDLE file, sgx_stub_t ** stubptr,
 #endif
 
     if (!tf->index) {
+audited_file:
         *stubptr = NULL;
         PAL_STREAM_ATTR attr;
         ret = _DkStreamAttributesQuery(normpath, &attr);
@@ -458,6 +465,19 @@ failed:
 #endif
 
     return ret;
+}
+
+bool file_policy_is_audit ()
+{
+    if (file_policy == FILE_POLICY_AUDIT)
+        return true;
+
+    return false;
+}
+
+static void set_file_policy (int policy)
+{
+    file_policy = policy;
 }
 
 /*
@@ -885,6 +905,26 @@ int init_trusted_children (void)
         }
     }
     free(cfgbuf);
+    return 0;
+}
+
+int init_file_policy (void)
+{
+    char cfgbuf[CONFIG_MAX];
+    ssize_t ret = get_config(pal_state.root_config, "sgx.file_policy",
+                             cfgbuf, CONFIG_MAX);
+
+    if (ret > 0) {
+        if (strcmp_static(cfgbuf, "default"))
+            set_file_policy(FILE_POLICY_DEFAULT);
+        else if (strcmp_static(cfgbuf, "audit"))
+            set_file_policy(FILE_POLICY_AUDIT);
+        else
+            INIT_FAIL(PAL_ERROR_INVAL, "unknown file policy");
+
+        SGX_DBG(DBG_S, "File policy: %s\n", cfgbuf);
+    }
+
     return 0;
 }
 
