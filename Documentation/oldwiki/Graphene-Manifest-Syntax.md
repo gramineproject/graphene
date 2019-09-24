@@ -37,7 +37,7 @@ libraries must be separated by commas. The libraries must be ELF binaries.
 
 This syntax specifies an arbitrary string (typically the executable name) that will be passed as
 the first argument (argv[0]) to the executable only if it is run via the manifest
-(e.g. ./app.manifest arg1 arg2 ...). If the string is not specified in the manifest, the PAL will
+(e.g. `./app.manifest arg1 arg2 ...`). If the string is not specified in the manifest, the PAL will
 use the path to the manifest itself (standard UNIX convention).
 
 ### Environment Variables
