@@ -89,6 +89,11 @@ $(graphene_lib): .lib/host_endian.h
 
 Process2.manifest.sgx: Bootstrap.manifest.sgx
 
+# File.manifest.template includes ../regression/File
+# make doesn't understand that ../regression/File is same to File
+../regression/File: | File
+	@true
+
 else
 .IGNORE: $(preloads) $(executables)
 $(preloads) $(executables):
