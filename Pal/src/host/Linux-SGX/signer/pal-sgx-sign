@@ -201,10 +201,8 @@ def get_trusted_files(manifest, args):
 
     if 'loader.preload' in manifest:
         i = 0
-        preloads = []
         for uri in str.split(manifest['loader.preload'], ','):
             targets['preload' + str(i)] = (uri, resolve_uri(uri))
-            preloads.append(uri)
             i += 1
 
     for (key, val) in manifest.items():
@@ -750,8 +748,6 @@ def main(args=None):
 
             args['exec'] = os.path.join(os.path.dirname(args['manifest']),
                                         exec_url[5:])
-
-    args['root'] = os.path.dirname(os.path.abspath(args['output']))
 
     if 'sgx.sigfile' in manifest:
         args['sigfile'] = resolve_uri(manifest['sgx.sigfile'], False)
