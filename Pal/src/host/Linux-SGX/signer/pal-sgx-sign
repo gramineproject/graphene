@@ -785,11 +785,11 @@ def main(args=None):
     print("    isvprodid: %d" % attr['isvprodid'])
     print("    isvsvn:    %d" % attr['isvsvn'])
     print("    flags:     %016x" % int.from_bytes(attr['flags'],
-                                                  byteorder='big'))
+                                                  byteorder='little'))
     print("    xfrms:     %016x" % int.from_bytes(attr['xfrms'],
-                                                  byteorder='big'))
+                                                  byteorder='little'))
     print("    miscs:     %08x" % int.from_bytes(attr['miscs'],
-                                                 byteorder='big'))
+                                                 byteorder='little'))
 
     # Check client info for remote attestation (if sgx.ra_client.spid is provided)
     print("Attestation:")
