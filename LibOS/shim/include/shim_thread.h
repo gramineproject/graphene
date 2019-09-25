@@ -118,19 +118,19 @@ struct shim_simple_thread {
 #endif
 };
 
-int init_thread (__libc_tcb_t * tcb);
+int init_thread (void);
 
 #ifdef SHIM_TCB_USE_GS
 static inline struct shim_thread * shim_thread_self(void)
 {
-    /* optimize to use single movq %gs:<offset> */
+    /* TODO: optimize to use single movq %gs:<offset> */
     shim_tcb_t * shim_tcb = shim_get_tls();
     return shim_tcb->tp;
 }
 
 static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __self)
 {
-    /* optimize to use single movq %gs:<offset> */
+    /* TODO: optimize to use single movq %gs:<offset> */
     shim_tcb_t * shim_tcb = shim_get_tls();
     shim_tcb->tp = __self;
     return __self;
@@ -150,7 +150,6 @@ static inline struct shim_thread * save_shim_thread_self(struct shim_thread * __
              "i" (offsetof(__libc_tcb_t, shim_tcb.tp)));
     return __self;
 }
-
 #endif
 
 static inline bool is_internal(struct shim_thread *thread)

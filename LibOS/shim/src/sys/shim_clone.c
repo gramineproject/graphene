@@ -120,7 +120,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
     //PAL allocated stack. We need to switch the stack to use
     //the user provided stack.
 
-    int stack_allocated = 0;
+    bool stack_allocated = false;
 
     object_wait_with_retry(arg->create_event);
     DkObjectClose(arg->create_event);
@@ -131,7 +131,7 @@ static int clone_implementation_wrapper(struct clone_args * arg)
 
 #ifndef SHIM_TCB_USE_GS
     if (!my_thread->tcb) {
-        stack_allocated = 1;
+        stack_allocated = true;
         my_thread->tcb = __alloca(sizeof(__libc_tcb_t) + PTHREAD_PADDING);
     }
 #endif
@@ -333,6 +333,7 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
             old_shim_tcb = __alloca(sizeof(shim_tcb_t));
             memcpy(old_shim_tcb, self->shim_tcb, sizeof(shim_tcb_t));
             thread->user_tcb = self->user_tcb;
+            thread->shim_tcb = self->shim_tcb;
         }
 
         if (user_stack_addr) {

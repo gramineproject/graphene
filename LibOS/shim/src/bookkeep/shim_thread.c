@@ -47,7 +47,7 @@ PAL_HANDLE thread_start_event = NULL;
 
 //#define DEBUG_REF
 
-int init_thread (__libc_tcb_t * libc_tcb)
+int init_thread ()
 {
     create_lock(&thread_list_lock);
 
@@ -59,7 +59,6 @@ int init_thread (__libc_tcb_t * libc_tcb)
         return -ENOMEM;
 
     cur_thread->in_vm = cur_thread->is_alive = true;
-    cur_thread->tcb = libc_tcb;
     set_cur_thread(cur_thread);
     add_thread(cur_thread);
     cur_thread->pal_handle = PAL_CB(first_thread);

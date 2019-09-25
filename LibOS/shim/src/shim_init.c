@@ -44,7 +44,7 @@
 #ifdef SHIM_TCB_USE_GS
 _Static_assert(sizeof(shim_tcb_t) <= PAL_LIBOS_TCB_SIZE,
                "shim_tcb_t is too big. increase PAL_LIBOS_TCB_SIZE");
-#endif
+#else
 #if 0
 /* tcbhead_t is defined in glibc-2.19/nptl/sysdeps/x86_64/tls.h
  * with glibc 2.19, sizeof(tcbhead_t) = 704
@@ -55,6 +55,7 @@ _Static_assert(sizeof(tcbhead_t) <= PAL_LIBOS_TCB_SIZE,
 
 _Static_assert(sizeof(struct pthread) <= PAL_LIBOS_TCB_SIZE,
                "increase PAL_LIBOS_TCB_SIZE");
+#endif
 #endif
 
 unsigned long allocsize;
@@ -799,7 +800,7 @@ noreturn void* shim_init (int argc, void * args)
 
     RUN_INIT(init_mount_root);
     RUN_INIT(init_ipc);
-    RUN_INIT(init_thread, tcb);
+    RUN_INIT(init_thread);
     RUN_INIT(init_mount);
     RUN_INIT(init_important_handles);
     RUN_INIT(init_async);
