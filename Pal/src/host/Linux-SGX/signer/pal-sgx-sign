@@ -245,7 +245,7 @@ def get_trusted_files(manifest, args, check_exist=True, do_checksum=True):
         if key in targets:
             raise Exception(
                 'repeated key in manifest: sgx.trusted_files.' + key)
-        targets[key] = (val, resolve_uri(val))
+        targets[key] = (val, resolve_uri(val, check_exist))
 
     if do_checksum:
         for (key, val) in targets.items():
