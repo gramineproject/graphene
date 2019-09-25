@@ -351,8 +351,10 @@ int shim_do_clone (int flags, void * user_stack_addr, int * parent_tidptr,
         set_as_child(self, thread);
 
         ret = do_migrate_process(&migrate_fork, NULL, NULL, thread);
-        if (old_shim_tcb)
+        if (old_shim_tcb) {
+            thread->shim_tcb = NULL;
             memcpy(self->shim_tcb, old_shim_tcb, sizeof(*self->shim_tcb));
+        }
         if (parent_stack)
             self->shim_tcb->context.regs->rsp = (unsigned long)parent_stack;
         if (ret < 0)
