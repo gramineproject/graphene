@@ -72,7 +72,7 @@ pipeline {
 
                            make -C LibOS/shim/test/apps/ltp clean
                            # LTP's make clean is broken, see https://github.com/linux-test-project/ltp/issues/559
-                           rm -rf /tmp/graphene.clean-check.clean/LibOS/shim/test/apps/ltp/src
+                           rm -rf /tmp/graphene-debug.clean-check.clean/LibOS/shim/test/apps/ltp/src
                            rm -rf LibOS/shim/test/apps/ltp/src
 
                            make -C LibOS/shim/test/apps/python clean
