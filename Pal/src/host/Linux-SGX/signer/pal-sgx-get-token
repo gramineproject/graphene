@@ -119,6 +119,8 @@ def main(args=None):
     print("    modulus:   %s..." % attr['modulus'].hex()[:32])
     print("    exponent:  %d" % attr['exponent'])
     print("    signature: %s..." % attr['signature'].hex()[:32])
+    print("    date:      %d-%02d-%02d" % (attr['year'], attr['month'],
+                                           attr['day']))
 
     token = connect_aesmd(attr)
     args.output.write(token)
