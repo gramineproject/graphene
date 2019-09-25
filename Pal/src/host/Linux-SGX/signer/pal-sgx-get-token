@@ -57,12 +57,11 @@ def connect_aesmd(attr):
     connected = False
 
     # try to connect to the unnamed socket (for PSW 1.6 and 1.7)
-    if not connected:
-        try:
-            aesm_service.connect("\0sgx_aesm_socket_base" + "\0" * 87)
-            connected = True
-        except socket.error:
-            pass
+    try:
+        aesm_service.connect("\0sgx_aesm_socket_base" + "\0" * 87)
+        connected = True
+    except socket.error:
+        pass
 
     # try to connect to the named socket (for PSW 1.8+)
     if not connected:
