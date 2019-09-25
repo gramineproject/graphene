@@ -622,15 +622,13 @@ def generate_measurement(attr, areas):
 
 def generate_sigstruct(attr, args, mrenclave):
     """Generate Sigstruct."""
-    today = datetime.date.today()
-
     # field format: (offset, type, value)
     fields = {
         'header': (SGX_ARCH_SIGSTRUCT_HEADER,
                    "<4L", 0x00000006, 0x000000e1, 0x00010000, 0x00000000),
         'vendor': (SGX_ARCH_SIGSTRUCT_VENDOR, "<L", 0x00000000),
         'date': (SGX_ARCH_SIGSTRUCT_DATE,
-                 "<HBB", today.year, today.month, today.day),
+                 "<HBB", attr['year'], attr['month'], attr['day']),
         'header2': (SGX_ARCH_SIGSTRUCT_HEADER2,
                     "<4L", 0x00000101, 0x00000060, 0x00000060, 0x00000001),
         'swdefined': (SGX_ARCH_SIGSTRUCT_SWDEFINED, "<L", 0x00000000),
@@ -775,6 +773,11 @@ def main(args=None):
     (attr['flags'], attr['xfrms'], attr['miscs']) = get_enclave_attributes(
         manifest)
 
+    today = datetime.date.today()
+    attr['year'] = today.year
+    attr['month'] = today.month
+    attr['day'] = today.day
+
     print("Attributes:")
     print("    size:      %d" % attr['enclave_size'])
     print("    threadnum: %d" % attr['thread_num'])
@@ -786,6 +789,8 @@ def main(args=None):
                                                   byteorder='little'))
     print("    miscs:     %08x" % int.from_bytes(attr['miscs'],
                                                  byteorder='little'))
+    print("    date:      %d-%02d-%02d" % (attr['year'], attr['month'],
+                                           attr['day']))
 
     # Check client info for remote attestation (if sgx.ra_client.spid is provided)
     print("Attestation:")
