@@ -52,7 +52,7 @@ A Graphene SGX driver also needs to be installed on the untrusted host. Simply r
 
 If the Graphene SGX driver is successfully installed, and the Intel SDK aesmd service is up and running (see [here](https://github.com/01org/linux-sgx#start-or-stop-aesmd-service) for more information), we can acquire enclave token to launch Graphene library OS. Use the token tool `Pal/src/host/Linux-SGX/signer/pal-sgx-get-token` to connect with the aesmd service and retrieve the token.
 
-For applications that are prepared in the Graphene library OS source, just type 'make SGX_RUN=1' in the correspondent directories. The scripts are automated to retrieve the tokens for the applications.
+For applications that are prepared in the Graphene library OS source, just type 'make SGX=1 sgx-tokens' in the correspondent directories. The scripts are automated to retrieve the tokens for the applications.
 
 With the manifest (`.manifest.sgx`), the signature (`.sig`) and the token (`.token`) ready, we can now launch Graphene Library OS to run the application. Graphene provides three options for specifying the programs and manifest files:
 

@@ -222,7 +222,7 @@ To build OpenJDK 1.7 and generate the manifest, run the following commands:
 
 For SGX support, do this:
 
-    make SGX=1; make SGX_RUN=1
+    make SGX=1; make SGX=1 sgx-tokens
 
 The building will take several minutes and require network connection to download packages. After building OpenJDK, use the following script to run a Java program:
 

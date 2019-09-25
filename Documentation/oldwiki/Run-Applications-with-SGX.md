@@ -15,8 +15,8 @@ We prepared and tested the following applications in Graphene library OS. These 
 The LMBench source and scripts are stored in directory `LibOS/shim/test/apps/lmbench` inside the source tree. Many convenient commands are written in the Makefile inside the directory. The following steps will compile and run LMBench in SGX enclave.
 
     cd LibOS/shim/test/apps/lmbench
-    make SGX=1      # compile source of lmbench and generate manifest and signature
-    make SGX_RUN=1  $ get enclave token
+    make SGX=1               # compile source of lmbench and generate manifest and signature
+    make SGX=1 sgx-tokens    # get enclave token
     make test-graphene       # run the whole package in graphene library OS
 
 The result of graphene runs can be found in `lmbench-2.5/results/graphene`. The file with the largest number as suffix will be the latest output. Sometimes, for debugging purpose, you may want to test each LMBench test individually. For doing that, you may run the following commands:
@@ -37,7 +37,7 @@ To run Python, first generate the manifest and the signature, and retrieve the t
 
     cd LibOS/shim/test/apps/python
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 You can run `python.manifest.sgx` as an executable to load any script. The manifest file is actually a script with a shebang that can be automatically loaded in PAL. Use the following commands:
 
@@ -50,7 +50,7 @@ To run R, first prepare the manifest:
 
     cd LibOS/shim/test/apps/r
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 You can run `R.manifest.sgx` as an executable to load any script. The manifest file is actually a script with a shebang that can be automatically loaded in PAL. Use the following commands:
 
@@ -62,7 +62,7 @@ Lighttpd can be used to test tcp latency and throughput of Graphene Library OS, 
 
     cd LibOS/shim/test/apps/lighttpd
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 The building command will not only compile the source code, but build up manifests for Graphene, config file for Lighttpd, and test html files. We prepare the following test html files so far:
 
@@ -93,7 +93,7 @@ Apache is a commercial-class web server that can be used to test tcp latency and
 
     cd LibOS/shim/test/apps/apache
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 The building command will not only compile the source code, but build up manifests for Graphene, config file for Apache, and test html files (as described in the [[lighttpd section|Run Applications with SGX#Running Lighttpd in Graphene]]).
 
@@ -116,7 +116,7 @@ Busybox is a standalone shell including general-purpose system utilities. Runnin
 
     cd LibOS/shim/test/apps/busybox
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 To run busybox, either to run a shell or a utility, you may directly run busybox.manifest built in the directory as a script. For example:
 
@@ -132,7 +132,7 @@ Bash is the most commonly used shell utilities in Linux. Bash can be run as a in
 
     cd LibOS/shim/test/apps/bash
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 To test Bash, you may use the benchmark suites we prepared: one is `bash_test.sh`, and the other is `unixbench`. Run one of the following commands to test Bash:
 
@@ -144,7 +144,7 @@ We have tested OpenJDK 1.6 and 1.7 in Graphene library OS. Newer versions of Ope
 
     cd LibOS/shim/test/apps/openjdk
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 The building will take several minutes and require network connection to download packages. After building OpenJDK, use the following script to run a Java program:
 

@@ -42,7 +42,7 @@ __** Note: Please use Intel SGX Linux SDK and driver version 1.9 or lower. **__
 
     cd $GRAPHENE_DIR/LibOS/shim/test/native
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
     ./pal_loader SGX helloworld    or    SGX=1 ./pal_loader helloworld
 
 ### 7. Run LMBench
@@ -50,7 +50,7 @@ __** Note: Please use Intel SGX Linux SDK and driver version 1.9 or lower. **__
     git submodule update --init -- $GRAPHENE_DIR/LibOS/shim/test/apps
     cd $GRAPHENE_DIR/LibOS/shim/test/apps/lmbench
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
     cd lmbench-2.5/bin/linux
     ./pal_loader SGX lat_syscall null    or   SGX=1 ./pal_loader lat_syscall null
     ./pal_loader SGX lat_syscall open    or   SGX=1 ./pal_loader lat_syscall open
