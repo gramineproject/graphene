@@ -137,7 +137,6 @@ int delete_from_epoll_handles(struct shim_handle* handle) {
 
         LISTP_DEL(epoll_fd, &handle->epolls, back);
         unlock(&handle->lock);
-        put_handle(handle);
 
         struct shim_handle* epoll_hdl   = epoll_fd->epoll;
         struct shim_epoll_handle* epoll = &epoll_hdl->info.epoll;
@@ -217,6 +216,7 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
             INIT_LIST_HEAD(epoll_fd, back);
             LISTP_ADD_TAIL(epoll_fd, &hdl->epolls, back);
             unlock(&hdl->lock);
+            put_handle(hdl);
 
             INIT_LIST_HEAD(epoll_fd, list);
             LISTP_ADD_TAIL(epoll_fd, &epoll->fds, list);
@@ -250,7 +250,6 @@ int shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* eve
                     debug("delete handle %p from epoll handle %p\n", hdl, epoll);
 
                     put_handle(epoll_hdl);
-                    put_handle(hdl);
 
                     LISTP_DEL(epoll_fd, &epoll->fds, list);
                     epoll->nfds--;
