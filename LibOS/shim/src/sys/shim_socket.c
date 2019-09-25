@@ -630,7 +630,7 @@ int shim_do_listen(int sockfd, int backlog) {
     enum shim_sock_state state = sock->sock_state;
     int ret                    = -EINVAL;
 
-    if (state != SOCK_BOUND) {
+    if (state != SOCK_BOUND && state != SOCK_LISTENED) {
         debug("shim_listen: listen on unbound socket\n");
         goto out;
     }
