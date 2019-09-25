@@ -442,7 +442,9 @@ noreturn void pal_main (
     __pal_control.first_thread       = first_thread;
 
     _DkGetAvailableUserAddressRange(&__pal_control.user_address.start,
-                                    &__pal_control.user_address.end);
+                                    &__pal_control.user_address.end,
+                                    &__pal_control.user_address_hole.start,
+                                    &__pal_control.user_address_hole.end);
 
     __pal_control.pagesize           = pal_state.pagesize;
     __pal_control.alloc_align        = pal_state.alloc_align;
