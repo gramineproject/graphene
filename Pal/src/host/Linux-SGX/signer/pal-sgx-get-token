@@ -54,25 +54,20 @@ def connect_aesmd(attr):
     req_msg_raw = req_msg.SerializeToString()
 
     aesm_service = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    connected = False
 
-    # try to connect to the unnamed socket (for PSW 1.6 and 1.7)
-    if not connected:
+    # Try to connect to all possible interfaces exposed by aesm service
+    connections = (
+        "/var/run/aesmd/aesm.socket",         # named socket (for PSW 1.8+)
+        "\0sgx_aesm_socket_base" + "\0" * 87  # unnamed socket (for PSW 1.6/1.7)
+    )
+
+    for conn in connections:
         try:
-            aesm_service.connect("\0sgx_aesm_socket_base" + "\0" * 87)
-            connected = True
+            aesm_service.connect(conn)
         except socket.error:
-            pass
-
-    # try to connect to the named socket (for PSW 1.8+)
-    if not connected:
-        try:
-            aesm_service.connect("/var/run/aesmd/aesm.socket")
-            connected = True
-        except socket.error:
-            pass
-
-    if not connected:
+            continue
+        break
+    else:
         raise socket.error("Cannot connect to the AESMD service")
 
     aesm_service.send(struct.pack("<I", len(req_msg_raw)))
