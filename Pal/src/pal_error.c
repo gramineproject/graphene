@@ -48,6 +48,7 @@ static const struct pal_error_description pal_error_list[] = {
     { PAL_ERROR_ZEROSIZE, "Zero size" },
     { PAL_ERROR_CONNFAILED, "Connection failed" },
     { PAL_ERROR_ADDRNOTEXIST, "Resource address does not exist" },
+    { PAL_ERROR_AFNOSUPPORT, "Address family not supported by protocol" },
 
     { PAL_ERROR_CRYPTO_FEATURE_UNAVAILABLE, "[Crypto] Feature not available" },
     { PAL_ERROR_CRYPTO_INVALID_CONTEXT, "[Crypto] Invalid context" },

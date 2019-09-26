@@ -104,6 +104,7 @@ static int pal_errno_to_unix_errno [PAL_ERROR_NATIVE_COUNT + 1] = {
         /* PAL_ERROR_ZEROSIZE       */  0,
         /* PAL_ERROR_CONNFAILED     */  ECONNRESET,
         /* PAL_ERROR_ADDRNOTEXIST   */  EADDRNOTAVAIL,
+        /* PAL_ERROR_AFNOSUPPORT    */  EAFNOSUPPORT,
     };
 
 long convert_pal_errno (long err)
