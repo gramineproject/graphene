@@ -231,10 +231,8 @@ def get_trusted_files(manifest, args, check_exist=True, do_checksum=True):
                                                      check_exist))
 
     if 'loader.preload' in manifest:
-        i = 0
-        for uri in str.split(manifest['loader.preload'], ','):
+        for i, uri in enumerate(str.split(manifest['loader.preload'], ',')):
             targets['preload' + str(i)] = (uri, resolve_uri(uri, check_exist))
-            i += 1
 
     for (key, val) in manifest.items():
         if not key.startswith('sgx.trusted_files.'):
