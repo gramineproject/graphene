@@ -118,6 +118,10 @@ class TC_00_Bootstrap(RegressionTestCase):
         with self.expect_returncode(113):
             self.run_binary(['exit'])
 
+    def test_401_signalexit(self):
+        with self.expect_returncode(134):
+            self.run_binary(['assert'])
+            
     def test_500_init_fail(self):
         try:
             self.run_binary(['init_fail'])
