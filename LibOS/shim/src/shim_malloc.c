@@ -61,12 +61,12 @@ void* __system_malloc(size_t size) {
 
     /*
      * If vmas are initialized, we need to request a free address range
-     * using bkeep_unmapped_any().  The current mmap code uses this function
+     * using bkeep_unmapped_any(). The current mmap code uses this function
      * to synchronize all address allocation, via a "publication"
-     * pattern.  It is not safe to just call DkVirtualMemoryAlloc directly
+     * pattern. It is not safe to just call DkVirtualMemoryAlloc directly
      * without reserving the vma region first.
      */
-    addr = bkeep_unmapped_any(alloc_size, PROT_READ | PROT_WRITE, flags, NULL, 0, "slab");
+    addr = bkeep_unmapped_any(alloc_size, PROT_READ | PROT_WRITE, flags, 0, "slab");
 
     if (!addr)
         return NULL;

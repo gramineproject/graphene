@@ -301,6 +301,10 @@ class TC_40_FileSystem(RegressionTestCase):
         # proc/cpuinfo Linux-based formatting
         self.assertIn('cpuinfo test passed', stdout)
 
+    def test_030_fdleak(self):
+        stdout, stderr = self.run_binary(['fdleak'], timeout=10)
+        self.assertIn("Test succeeded.", stdout)
+
 class TC_80_Socket(RegressionTestCase):
     def test_000_getsockopt(self):
         stdout, stderr = self.run_binary(['getsockopt'])
