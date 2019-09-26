@@ -83,15 +83,18 @@ int pal_thread_init (void * tcbptr)
 int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param)
 {
-    void * stack = NULL;
-    int ret = _DkVirtualMemoryAlloc(&stack, THREAD_STACK_SIZE + ALT_STACK_SIZE,
-                                    0, PAL_PROT_READ|PAL_PROT_WRITE);
-    if (ret < 0)
-        return ret;
+    int ret = 0;
+    PAL_HANDLE hdl = NULL;
+    void * stack = malloc(THREAD_STACK_SIZE + ALT_STACK_SIZE);
+    if (!stack) {
+        ret = -ENOMEM;
+        goto err;
+    }
+    memset(stack, 0, THREAD_STACK_SIZE + ALT_STACK_SIZE);
 
     void * child_stack = stack + THREAD_STACK_SIZE;
 
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(thread));
+    hdl = malloc(HANDLE_SIZE(thread));
     if (!hdl) {
         ret = -ENOMEM;
         goto err;
@@ -124,10 +127,8 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     *handle = hdl;
     return 0;
 err:
-    if (stack)
-        _DkVirtualMemoryFree(stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
-    if (hdl)
-        free(hdl);
+    free(stack);
+    free(hdl);
     return ret;
 }
 
@@ -181,12 +182,11 @@ noreturn void _DkThreadExit (void)
         // Take precautions to unset the TCB and alternative stack first.
         INLINE_SYSCALL(arch_prctl, 2, ARCH_SET_GS, 0);
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
-        INLINE_SYSCALL(munmap, 2, tcb->alt_stack, ALT_STACK_SIZE);
     }
 
-    if (handle && handle->thread.stack) {
+    if (handle) {
         // Free the thread stack
-        INLINE_SYSCALL(munmap, 2, handle->thread.stack, THREAD_STACK_SIZE);
+        free(handle->thread.stack);
         // After this line, needs to exit the thread immediately
     }
 

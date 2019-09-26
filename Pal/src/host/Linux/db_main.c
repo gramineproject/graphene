@@ -236,12 +236,12 @@ void pal_linux_main (void * args)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
     SET_HANDLE_TYPE(first_thread, thread);
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
-    first_thread->thread.stack = NULL;
 
-    void * alt_stack = NULL;
-    _DkVirtualMemoryAlloc(&alt_stack, ALT_STACK_SIZE, 0, PAL_PROT_READ|PAL_PROT_WRITE);
+    void * alt_stack = malloc(ALT_STACK_SIZE);
     if (!alt_stack)
         INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
+    memset(alt_stack, 0, ALT_STACK_SIZE);
+    first_thread->thread.stack = alt_stack;
 
     // Initialize TCB at the top of the alternative stack.
     PAL_TCB_LINUX * tcb = alt_stack + ALT_STACK_SIZE - sizeof(PAL_TCB_LINUX);
