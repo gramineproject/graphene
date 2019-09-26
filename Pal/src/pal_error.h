@@ -48,8 +48,9 @@
 #define PAL_ERROR_ZEROSIZE       23
 #define PAL_ERROR_CONNFAILED     24
 #define PAL_ERROR_ADDRNOTEXIST   25
+#define PAL_ERROR_AFNOSUPPORT    26
 
-#define PAL_ERROR_BOUND 25
+#define PAL_ERROR_BOUND 26
 
 static const char* pal_errstring[]
 #ifdef __GNUC__
@@ -82,6 +83,7 @@ static const char* pal_errstring[]
         /* 23. */ "Zero size",
         /* 24. */ "Connection failed",
         /* 25. */ "Resource address not exist",
+        /* 26. */ "Af not support",
 };
 
 static inline const char* PAL_STRERROR(int err) {
