@@ -18,7 +18,7 @@ and run LMBench in a native environment and under Graphene-SGX:
 
     cd LibOS/shim/test/apps/lmbench
     make SGX=1                    # compile lmbench and generate manifest and signature
-    make SGX_RUN=1                # get enclave token
+    make SGX=1 sgx-tokens         # get enclave token
     make SGX=1 test-graphene      # run the whole package in Graphene-SGX
 
 The result of native runs can be found in `lmbench-2.5/results/linux`. The result of Graphene-SGX
@@ -42,7 +42,7 @@ To run Python, first generate the manifest and the signature, and retrieve the t
 
     cd LibOS/shim/test/apps/python
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 You can run `python.manifest.sgx` as an executable to load any script. The manifest file is
 actually a script with a shebang that can be automatically loaded in PAL. Use the following
@@ -57,7 +57,7 @@ To run R, first prepare the manifest:
 
     cd LibOS/shim/test/apps/r
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 You can run `R.manifest.sgx` as an executable to load any script. The manifest file is actually
 a script with a shebang that can be automatically loaded in PAL. Use the following commands:
@@ -72,7 +72,7 @@ in `LibOS/shim/test/apps/lighttpd`. To build Lighttpd, run the following command
 
     cd LibOS/shim/test/apps/lighttpd
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 The commands above will compile the source code, build the manifest file for Graphene-SGX, generate
 the configuration file for Lighttpd, and generate the HTML sample files. We prepared the following file
@@ -107,7 +107,7 @@ Apache, run the following commands:
 
     cd LibOS/shim/test/apps/apache
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 The commands above will compile the source code, build the manifest file for Graphene, generate
 the configuration file for Apache, and generate the HTML sample files (same as described in the
@@ -133,7 +133,7 @@ the proper manifest, run the following commands:
 
     cd LibOS/shim/test/apps/busybox
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 To run Busybox, you may directly run busybox.manifest built in the directory as a script.
 For example:
@@ -152,7 +152,7 @@ the following commands:
 
     cd LibOS/shim/test/apps/bash
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 To test Bash, use the benchmark suites we prepared: `bash_test.sh` and `unixbench`. Run one of the
 following commands to test Bash:
