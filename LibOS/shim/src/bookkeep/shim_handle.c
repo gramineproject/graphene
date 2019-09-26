@@ -298,44 +298,45 @@ static int __set_new_fd_handle(struct shim_fd_handle** fdhdl, FDTYPE fd, struct 
 }
 
 int set_new_fd_handle(struct shim_handle* hdl, int flags, struct shim_handle_map* handle_map) {
-    FDTYPE fd    = 0;
-    int new_size = 0;
-    int ret      = 0;
+    int ret = -EMFILE;
 
     if (!handle_map && !(handle_map = get_cur_handle_map(NULL)))
         return -EBADF;
 
     lock(&handle_map->lock);
 
-    if (!handle_map->map || handle_map->fd_size < INIT_HANDLE_MAP_SIZE)
-        new_size = INIT_HANDLE_MAP_SIZE;
+    FDTYPE fd = 0;
+    if (handle_map->fd_top != FD_NULL) {
+        // find first free fd
+        while (fd <= handle_map->fd_top && HANDLE_ALLOCATED(handle_map->map[fd])) {
+            fd++;
+        }
 
-    if (!handle_map->map)
-        goto extend;
+        if (fd > handle_map->fd_top) {
+            // no free fd found (fd == handle_map->fd_top + 1)
 
-    if (handle_map->fd_top != FD_NULL)
-        do {
-            ++fd;
-            if (fd == handle_map->fd_size) {
-                new_size = handle_map->fd_size < new_size ? new_size : handle_map->fd_size * 2;
-            extend:
-                if (!__enlarge_handle_map(handle_map, new_size)) {
+            if (fd >= handle_map->fd_size) {
+                // no space left, need to enlarge handle_map->map
+                if (!__enlarge_handle_map(handle_map, handle_map->fd_size * 2)) {
                     ret = -ENOMEM;
                     goto out;
                 }
             }
-        } while (handle_map->fd_top != FD_NULL && fd <= handle_map->fd_top &&
-                 HANDLE_ALLOCATED(handle_map->map[fd]));
+        }
+    } else {
+        fd = 0;
+    }
 
-    if (handle_map->fd_top == FD_NULL || fd > handle_map->fd_top)
+    if ((ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, flags)) < 0) {
+        goto out;
+    }
+
+    ret = fd;
+
+    if (handle_map->fd_top == FD_NULL || fd > handle_map->fd_top) {
         handle_map->fd_top = fd;
+    }
 
-    ret = __set_new_fd_handle(&handle_map->map[fd], fd, hdl, flags);
-    if (ret < 0) {
-        if (fd == handle_map->fd_top)
-            handle_map->fd_top = fd ? fd - 1 : FD_NULL;
-    } else
-        ret = fd;
 out:
     unlock(&handle_map->lock);
     return ret;
@@ -560,7 +561,6 @@ static struct shim_handle_map* __enlarge_handle_map(struct shim_handle_map* map,
         return NULL;
 
     memcpy(new_map, map->map, map->fd_size * sizeof(new_map[0]));
-    memset(new_map + map->fd_size, 0, (size - map->fd_size) * sizeof(new_map[0]));
     free(map->map);
     map->map     = new_map;
     map->fd_size = size;
