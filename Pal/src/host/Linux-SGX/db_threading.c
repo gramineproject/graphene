@@ -147,6 +147,7 @@ noreturn void _DkThreadExit (void)
         _DkInternalLock(&thread_list_lock);
         LISTP_DEL(exiting_thread, &thread_list, list);
         _DkInternalUnlock(&thread_list_lock);
+        free(container_of(exiting_thread, struct pal_handle, thread));
     }
 
     ocall_exit(0, /*is_exitgroup=*/false);

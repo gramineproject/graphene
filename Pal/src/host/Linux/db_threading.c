@@ -187,6 +187,8 @@ noreturn void _DkThreadExit (void)
         free(handle->thread.stack);
         // After this line, needs to exit the thread immediately
     }
+    if (handle != pal_control.first_thread)
+        free(handle);
 
     INLINE_SYSCALL(exit, 1, 0);
     while (true) {
