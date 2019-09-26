@@ -803,8 +803,10 @@ BEGIN_RS_FUNC(running_thread)
              * frameptr = NULL
              * tcb = NULL
              * user_tcb = false
+             * shim_tcb = NULL
              * in_vm = false
              */
+            thread->shim_tcb = shim_get_tls();
             init_tcb(thread->shim_tcb);
             set_cur_thread(thread);
         }
