@@ -46,7 +46,7 @@ The first command should list `isgx` and the second command should list the proc
 
     cd $GRAPHENE_DIR/LibOS/shim/test/native
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
     SGX=1 ./pal_loader helloworld
 
 ### 8. Test LMBench Application

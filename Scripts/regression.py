@@ -5,7 +5,7 @@ import signal
 import subprocess
 import unittest
 
-HAS_SGX = os.environ.get('SGX_RUN') == '1'
+HAS_SGX = os.environ.get('SGX') == '1'
 
 def expectedFailureIf(predicate):
     if predicate:

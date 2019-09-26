@@ -193,7 +193,7 @@ For more details about running tested/benchmarked applications in Graphene, plea
 
 - Generate launch tokens from the aesmd service:
 
-      make SGX_RUN=1
+      make SGX=1 sgx-tokens
 
 - Run `helloworld` with Graphene-SGX:
 
@@ -207,7 +207,7 @@ For more details about running tested/benchmarked applications in Graphene, plea
 
 - Generate a launch token from the aesmd service:
 
-      make SGX_RUN=1
+      make SGX=1 sgx-tokens
 
 - Run the `helloworld.py` script with Graphene-SGX:
 

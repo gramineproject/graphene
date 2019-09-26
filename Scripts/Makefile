@@ -10,3 +10,6 @@ format: ;
 
 .PHONY: test
 test: ;
+
+.PHONY: sgx-tokens
+sgx-tokens: ;

@@ -33,7 +33,7 @@ For instance, if you want to debug the `helloworld` program, run the following c
 
     cd LibOS/shim/test/native
     make SGX=1
-    make SGX_RUN=1
+    make SGX=1 sgx-tokens
 
 To run Graphene with GDB, use the Graphene loader (`pal_loader`) and specify `GDB=1`:
 
