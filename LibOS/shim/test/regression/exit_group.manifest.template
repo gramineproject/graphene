@@ -1,0 +1,15 @@
+loader.preload = file:../../src/libsysdb.so
+loader.env.LD_LIBRARY_PATH = /lib
+loader.debug_type = none
+loader.syscall_symbol = syscalldb
+
+fs.mount.lib.type = chroot
+fs.mount.lib.path = /lib
+fs.mount.lib.uri = file:../../../../Runtime
+
+sgx.trusted_files.ld = file:../../../../Runtime/ld-linux-x86-64.so.2
+sgx.trusted_files.libc = file:../../../../Runtime/libc.so.6
+sgx.trusted_files.libpthread = file:../../../../Runtime/libpthread.so.0
+
+# Test uses 5 threads plus Graphene has up to two internal threads.
+sgx.thread_num = 7

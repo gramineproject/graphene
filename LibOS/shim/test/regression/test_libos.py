@@ -118,6 +118,18 @@ class TC_00_Bootstrap(RegressionTestCase):
         with self.expect_returncode(113):
             self.run_binary(['exit'])
 
+    @unittest.skipIf(HAS_SGX,
+        'Exposes a rare memory corruption on SGX PAL. Disable for now.')
+    def test_401_exit_group(self):
+        try:
+            self.run_binary(['exit_group'])
+        except subprocess.CalledProcessError as e:
+            self.assertTrue(1 <= e.returncode and e.returncode <= 4)
+
+    def test_401_signalexit(self):
+        with self.expect_returncode(134):
+            self.run_binary(['abort'])
+
     def test_500_init_fail(self):
         try:
             self.run_binary(['init_fail'])
