@@ -34,8 +34,8 @@ static inline __attribute__((unused)) int unix_to_pal_error(int unix_errno) {
         case ECONNRESET:
         case EPIPE:
             return -PAL_ERROR_CONNFAILED;
-        case EPERM:
-            return -PAL_ERROR_DENIED;
+        case EAFNOSUPPORT:
+            return -PAL_ERROR_AFNOSUPPORT;
         default:
             return -PAL_ERROR_DENIED;
     }
