@@ -35,6 +35,9 @@ include $(PALDIR)/Makefile.Test
 .PHONY: all
 all: pal_loader $(target) | $(call expand_target,$(exec_target))
 
+.PHONY: sgx-tokens
+sgx-tokens: $(call expand_target_to_token,$(exec_target))
+
 ifeq ($(DEBUG),1)
 CC += -g
 CXX += -g

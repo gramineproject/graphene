@@ -16,18 +16,6 @@ do
 	shift
 done
 
-if [ -n "$SGX" ] && [ "$SGX" != "0" ]; then
-	export SGX=1
-	# Sometimes, we end up with a stray SGX_RUN in the environment,
-	# which makes the Makefile.Host unhappy
-	unset SGX_RUN
-	# The interaction of SGX and SGX_RUN is getting pretty unwieldly.
-	# We should kill off SGX_RUN.  Here, we can get in trouble
-	# if the make invocation below gets SGX_RUN via an MAKEFLAGS
-	# from a wrapper makefile (e.g., the regression tests)
-	unset MAKEFLAGS
-fi
-
 RUNTIME_DIR=$(/usr/bin/dirname $(readlink -f ${BASH_SOURCE[0]}))
 PAL_HOST=$(/usr/bin/make --no-print-directory --quiet -f $RUNTIME_DIR/../Pal/src/Makefile.Host print_host 2>&1)
 
