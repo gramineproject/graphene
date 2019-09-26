@@ -84,13 +84,17 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
                      const void * param)
 {
     int ret = 0;
+    PAL_HANDLE hdl = NULL;
     void * stack = malloc(THREAD_STACK_SIZE + ALT_STACK_SIZE);
-    assert(stack);
+    if (!stack) {
+        ret = -ENOMEM;
+        goto err;
+    }
     memset(stack, 0, THREAD_STACK_SIZE + ALT_STACK_SIZE);
 
     void * child_stack = stack + THREAD_STACK_SIZE;
 
-    PAL_HANDLE hdl = malloc(HANDLE_SIZE(thread));
+    hdl = malloc(HANDLE_SIZE(thread));
     if (!hdl) {
         ret = -ENOMEM;
         goto err;
@@ -123,10 +127,8 @@ int _DkThreadCreate (PAL_HANDLE * handle, int (*callback) (void *),
     *handle = hdl;
     return 0;
 err:
-    if (stack)
-        _DkVirtualMemoryFree(stack, THREAD_STACK_SIZE + ALT_STACK_SIZE);
-    if (hdl)
-        free(hdl);
+    free(stack);
+    free(hdl);
     return ret;
 }
 
@@ -182,7 +184,7 @@ noreturn void _DkThreadExit (void)
         INLINE_SYSCALL(sigaltstack, 2, &ss, NULL);
     }
 
-    if (handle && handle->thread.stack) {
+    if (handle) {
         // Free the thread stack
         free(handle->thread.stack);
         // After this line, needs to exit the thread immediately

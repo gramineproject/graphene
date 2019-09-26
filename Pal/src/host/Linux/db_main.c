@@ -233,6 +233,8 @@ void pal_linux_main (void * args)
     first_thread->thread.tid = INLINE_SYSCALL(gettid, 0);
 
     void * alt_stack = malloc(ALT_STACK_SIZE);
+    if (!alt_stack)
+        INIT_FAIL(PAL_ERROR_NOMEM, "Out of memory");
     memset(alt_stack, 0, ALT_STACK_SIZE);
     first_thread->thread.stack = alt_stack;
 
