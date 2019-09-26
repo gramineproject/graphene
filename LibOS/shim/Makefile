@@ -11,6 +11,10 @@ all:
 test:
 	$(MAKE) -C test
 
+.PHONY: sgx-tokens
+sgx-tokens:
+	$(MAKE) -C test sgx-tokens
+
 .PHONY: clean
 clean:
 	$(MAKE) -C src clean

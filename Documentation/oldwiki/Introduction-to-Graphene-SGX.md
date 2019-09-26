@@ -101,8 +101,8 @@ token tool `Pal/src/host/Linux-SGX/signer/pal-sgx-get-token` to connect to the a
 and retrieve the token.
 
 For applications that are prepared in the Graphene apps directory (GCC, Apache, Bash, etc.), type
-`make SGX_RUN=1` in the corresponding directory. The scripts are automated to retrieve the tokens
-for the applications.
+`make SGX=1 sgx-tokens` in the corresponding directory. The scripts are automated to retrieve the
+tokens for the applications.
 
 With the manifest (`.manifest.sgx`), the signature (`.sig`), and the token (`.token`) ready, one
 can launch Graphene-SGX to run the application. Graphene-SGX provides three options for specifying

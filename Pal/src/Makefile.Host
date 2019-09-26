@@ -11,11 +11,11 @@ $(error Unsupported platform: $(SYS))
 endif
 endif
 
-# Set SGX=1 to build Graphene for SGX
-ifeq ($(SGX)$(SGX_RUN),11)
-	$(error "Do not use SGX=1 and SGX_RUN=1 at the same time")
+ifeq ($(SGX_RUN),1)
+	$(error "SGX_RUN has been removed. Always set SGX=1 if building for SGX and use the 'sgx-tokens' make target to build launch/EINIT tokens")
 endif
-ifeq ($(SGX)$(SGX_RUN),1)
+
+ifeq ($(SGX),1)
 	PAL_HOST := $(patsubst %-SGX,%,$(PAL_HOST))-SGX
 endif
 

@@ -34,9 +34,4 @@ Environment variables
 .. envvar:: SGX
 
    If not empty and not ``0``, enable :term:`SGX`. Could be used instead of
-   :option:`SGX option <SGX>`. This has some unexplained interaction with
-   :envvar:`SGX_RUN`.
-
-.. envvar:: SGX_RUN
-
-   This is a mystery to me. It cannot be set together with :envvar:`SGX`.
+   :option:`SGX option <SGX>`.

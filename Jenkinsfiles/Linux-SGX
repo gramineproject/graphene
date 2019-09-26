@@ -27,7 +27,7 @@ pipeline {
                             make -j 8 SGX=1 WERROR=1 test
                         '''
                         sh '''
-                            make SGX_RUN=1 test
+                            make SGX=1 sgx-tokens
                         '''
                     }
                 }
@@ -43,55 +43,49 @@ pipeline {
                                 else \
                                     make SGX=1; \
                                 fi
-                                make SGX_RUN=1
-                                make SGX_RUN=1 KEEP_LOG=1 regression
+                                make SGX=1 all sgx-tokens
+                                make SGX=1 KEEP_LOG=1 regression
                                 '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/regression
-                                make SGX=1
-                                make SGX_RUN=1
-                                make SGX_RUN=1 regression
+                                make SGX=1 all sgx-tokens
+                                make SGX=1 regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/python
-                                make SGX=1
-                                make SGX_RUN=1
-                                make SGX_RUN=1 regression
+                                make SGX=1 all sgx-tokens
+                                make SGX=1 regression
                             '''
                         }
                         timeout(time: 5, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/bash
-                                make SGX=1
-                                make SGX_RUN=1
-                                make SGX_RUN=1 regression
+                                make SGX=1 all sgx-tokens
+                                make SGX=1 regression
                            '''
                         }
                         timeout(time: 10, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/gcc
-                                make SGX=1
-                                make SGX_RUN=1
-                                make SGX_RUN=1 regression
+                                make SGX=1 all sgx-tokens
+                                make SGX=1 regression
                            '''
                         }
                         timeout(time: 15, unit: 'MINUTES') {
                             sh '''
                                 cd LibOS/shim/test/apps/lmbench
-                                make SGX=1
-                                make SGX_RUN=1
-                                make SGX_RUN=1 regression N_RUNS=1 ENOUGH=100
+                                make SGX=1 all sgx-tokens
+                                make SGX=1 regression N_RUNS=1 ENOUGH=100
                             '''
                         }
                         sh '''
                             cd LibOS/shim/test/apps/lighttpd
-                            make SGX=1
-                            make SGX_RUN=1
-                            make SGX_RUN=1 start-graphene-server &
+                            make SGX=1 all sgx-tokens
+                            make SGX=1 start-graphene-server &
                             sleep 10
                             LOOP=1 CONCURRENCY_LIST="1 32" ./benchmark-http.sh 127.0.0.1:8000
                             '''
