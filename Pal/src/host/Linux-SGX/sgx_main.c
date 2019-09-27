@@ -794,6 +794,7 @@ static int load_enclave (struct pal_enclave * enclave,
         if (strcmp_static(&env[env_i], "IN_GDB=1")) {
             SGX_DBG(DBG_I, "[ Running under GDB ]\n");
             pal_sec->in_gdb = true;
+            continue;
         }
 
         if (strcmp_static(&env[env_i], "LD_PRELOAD=")) {
