@@ -31,6 +31,9 @@ char * alloc_concat(const char * p, size_t plen,
     slen = (slen != (size_t)-1) ? slen : (s ? strlen(s) : 0);
 
     char * buf = malloc(plen + slen + 1);
+    if (!buf)
+        return NULL;
+
     if (plen)
         memcpy(buf, p, plen);
     if (slen)
