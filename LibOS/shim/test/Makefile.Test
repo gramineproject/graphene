@@ -1,3 +1,7 @@
+# TODO: remove This file
+# once graphene-tests rewrite is done, this file should be unnecessary.
+# This file is kept for graphene-tests to be happy as workaround
+
 SHIM_TEST_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
 SYS ?= $(shell gcc -dumpmachine)
@@ -30,10 +34,10 @@ default: all
 
 include $(SHIM_TEST_DIR)/../../../Makefile.configs
 include $(SHIM_TEST_DIR)/../../../Makefile.rules
-include $(PALDIR)/Makefile.Test
+include $(SHIM_TEST_DIR)/../../../Makefile.manifest
 
 .PHONY: all
-all: pal_loader $(target) | $(call expand_target,$(exec_target))
+all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sig,$(exec_target)) $(call expand_target_to_sgx,$(exec_target))
 
 ifeq ($(DEBUG),1)
 CC += -g
@@ -86,4 +90,4 @@ endif
 
 .PHONY: clean
 clean: $(clean-extra)
-	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d)
+	rm -rf pal_loader $(exec_target) *.token *.sig *.manifest.sgx $(target) $(wildcard *.d)
