@@ -302,7 +302,6 @@ class TC_40_FileSystem(RegressionTestCase):
         self.assertIn('cpuinfo test passed', stdout)
 
     def test_030_fdleak(self):
-        subprocess.check_call("cp fdleak.c tmp", shell=True)
         stdout, stderr = self.run_binary(['fdleak'], timeout=10)
         self.assertIn("Test succeeded.", stdout)
 

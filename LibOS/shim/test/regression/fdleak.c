@@ -1,26 +1,25 @@
-#include <assert.h>
+#include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <unistd.h>
 
 /* This is supposed to expose resource leaks where close()d files are not
    properly cleaned up. */
 
 int main(int argc, char** argv) {
-
-    for (int i = 0; i < 10000; ++i) {
-        int fd = open("tmp/fdleak.c", O_RDONLY);
-        assert(fd != -1);
+    for (int i = 0; i < 10000; i++) {
+        int fd = open(argv[0], O_RDONLY);
+        if (fd == -1) abort();
         char buf[1024];
-        int ret = read(fd, buf, sizeof(buf));
-        assert(ret != -1);
-        ret = close(fd);
-        assert(ret != -1);
+        ssize_t read_ret = read(fd, buf, sizeof(buf));
+        if (read_ret == -1) abort();
+        int ret = close(fd);
+        if (ret == -1) abort();
     }
 
     puts("Test succeeded.");
-    
+
     return 0;
 }
