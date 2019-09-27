@@ -58,6 +58,7 @@ pal_loader:
 	ln -sf $(RUNTIME)/pal_loader
 
 ifeq ($(filter %clean,$(MAKECMDGOALS)),)
+include $(wildcard *.d)
 ifeq ($(SGX),1)
 include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
 endif
