@@ -659,11 +659,8 @@ static inline int __map_buffer (struct shim_handle * hdl, size_t size)
     while (mapoff + maplen < file->marker + size)
         maplen *= 2;
 
-    /* Create the bookkeeping before allocating the memory. Do not pass hdl (4th parameter is NULL
-    instead) which would bump hdl's refcount. The file mapping is process-internal; a child shall
-    re-create the mapping if necessary. */
-    void * mapbuf = bkeep_unmapped_any(maplen, prot, flags, NULL, mapoff,
-                                       "filebuf");
+    /* Create the bookkeeping before allocating the memory. */
+    void * mapbuf = bkeep_unmapped_any(maplen, prot, flags, mapoff, "filebuf");
     if (!mapbuf)
         return -ENOMEM;
 

@@ -130,10 +130,10 @@ bool is_in_adjacent_vmas(void* addr, size_t length);
 void* bkeep_unmapped(void* top_addr, void* bottom_addr, size_t length, int prot, int flags,
                      struct shim_handle* file, off_t offset, const char* comment);
 
-static inline void* bkeep_unmapped_any(size_t length, int prot, int flags, struct shim_handle* file,
+static inline void* bkeep_unmapped_any(size_t length, int prot, int flags,
                                        off_t offset, const char* comment) {
     return bkeep_unmapped(PAL_CB(user_address.end), PAL_CB(user_address.start), length, prot, flags,
-                          file, offset, comment);
+                          NULL, offset, comment);
 }
 
 void* bkeep_unmapped_heap(size_t length, int prot, int flags, struct shim_handle* file,
