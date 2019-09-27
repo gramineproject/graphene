@@ -64,6 +64,7 @@ struct shim_tcb {
     struct {
         void * start, * end;
         void * cont_addr;
+        bool has_fault;
     } test_range;
 };
 

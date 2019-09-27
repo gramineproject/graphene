@@ -254,6 +254,7 @@ static void memfault_upcall (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
         && (void *) arg >= tcb->test_range.start
         && (void *) arg <= tcb->test_range.end) {
         assert(context);
+        tcb->test_range.has_fault = true;
         context->rip = (PAL_NUM) tcb->test_range.cont_addr;
         goto ret_exception;
     }
@@ -365,11 +366,12 @@ bool test_user_memory (void * addr, size_t size, bool write)
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
-    bool  has_fault = true;
+    bool has_fault = false;
 
     /* Add the memory region to the watch list. This is not racy because
      * each thread has its own record. */
     assert(!tcb->test_range.cont_addr);
+    tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = &&ret_fault;
     tcb->test_range.start = addr;
     tcb->test_range.end   = addr + size - 1;
@@ -385,11 +387,14 @@ bool test_user_memory (void * addr, size_t size, bool write)
         tmp = ALIGN_UP(tmp + 1);
     }
 
-    has_fault = false; /* All accesses have passed. Nothing wrong. */
-
 ret_fault:
+    /* enforce complier to load tcb->test_range.has_fault below */
+    __asm__ volatile(""::: "memory");
+
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
+    has_fault = tcb->test_range.has_fault;
+    tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
     __enable_preempt(tcb);
