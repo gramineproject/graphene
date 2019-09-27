@@ -405,6 +405,17 @@ struct shim_handle_map {
 
 struct shim_handle* __get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map* map);
 struct shim_handle* get_fd_handle(FDTYPE fd, int* flags, struct shim_handle_map* map);
+
+/*!
+ * \brief Assign new fd to a handle.
+ *
+ * \param hdl A handle to be mapped to the new fd.
+ * \param flags Flags assigned to new shim_fd_handle.
+ * \param handle_map Handle map to be used. If NULL is passed, current thread's handle map is used.
+ *
+ * Creates mapping for the given handle to a new file descriptor which is then returned.
+ * Uses the lowest, non-negative available number for the new fd.
+ */
 int set_new_fd_handle(struct shim_handle* hdl, int flags, struct shim_handle_map* map);
 int set_new_fd_handle_by_fd(FDTYPE fd, struct shim_handle* hdl, int flags,
                             struct shim_handle_map* map);
