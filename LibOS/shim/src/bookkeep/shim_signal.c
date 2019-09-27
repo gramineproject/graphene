@@ -798,7 +798,7 @@ static void sighandler_kill (int sig, siginfo_t * info, void * ucontext)
                 break;
         }
 
-    try_process_exit(sig, sig);
+    try_process_exit(0, sig);
     DkThreadExit();
 }
 
