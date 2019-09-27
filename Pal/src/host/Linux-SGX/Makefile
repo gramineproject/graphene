@@ -94,12 +94,13 @@ include ../../../../Makefile.rules
 
 CLEAN_FILES += $(notdir $(pal_static) $(pal_lib) $(pal_loader))
 CLEAN_FILES += debugger/sgx_gdb.o
-CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h
+CLEAN_FILES += quote/aesm.pb-c.c quote/aesm.pb-c.h quote/aesm.pb-c.d quote/aesm.pb-c.o
 CLEAN_FILES += $(ias_cert_file) quote/generated-cacert.h
 
 .PHONY: clean
 clean:
-	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc
+	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
+	      signer/__pycache__
 
 .PHONY: test
 test:

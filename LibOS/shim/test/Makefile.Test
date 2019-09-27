@@ -86,4 +86,5 @@ endif
 
 .PHONY: clean
 clean: $(clean-extra)
-	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d) .output.*
+	rm -rf pal_loader $(call expand_target,$(exec_target)) $(target) $(wildcard *.d) .output.* \
+	       *.sig *.token *.manifest.sgx
