@@ -120,7 +120,7 @@ class TC_00_Bootstrap(RegressionTestCase):
 
     def test_401_signalexit(self):
         with self.expect_returncode(134):
-            self.run_binary(['assert'])
+            self.run_binary(['abort'])
 
     def test_500_init_fail(self):
         try:
