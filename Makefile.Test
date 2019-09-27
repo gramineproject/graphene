@@ -58,3 +58,7 @@ pal_loader:
 clean: $(clean-extra)
 	rm -rf pal_loader $(exec_target) $(target) $(wildcard *.d) .output.* \
 	       *.sig *.token *.manifest.sgx
+
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+include $(wildcard *.d)
+endif
