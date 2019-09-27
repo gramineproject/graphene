@@ -99,8 +99,8 @@ CLEAN_FILES += $(ias_cert_file) quote/generated-cacert.h
 
 .PHONY: clean
 clean:
-	rm -f *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
-	      signer/__pycache__
+	rm -rf *.o *.e *.i *.s $(host_files) $(CLEAN_FILES) *.d debugger/*.d signer/*.pyc __pycache__ \
+	       signer/__pycache__
 
 .PHONY: test
 test:
