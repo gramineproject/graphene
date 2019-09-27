@@ -15,12 +15,8 @@ pipeline {
                             cd ..
                             make -j 8 WERROR=1
                             make -j 8 WERROR=1 test
-                            cd Pal/ipc/linux
-                            make KERNELDIR=/lib/modules/4.4.0-161-generic/build
-                           '''
-                        sh '''
-                            cd Pal/src
-                            make -j 8 PAL_HOST=Skeleton WERROR=1
+                            make -C Pal/ipc/linux KERNELDIR=/lib/modules/4.4.0-161-generic/build
+                            make -C Pal/src -j 8 PAL_HOST=Skeleton WERROR=1
                            '''
                     }
                 }
@@ -81,7 +77,7 @@ pipeline {
                            make clean
                            rm -r LibOS/glibc-2.19 LibOS/glibc-2.23
                            rm LibOS/glibc-*.tar.gz
-                           make -C Pal/ipc/linux clean
+                           make -C Pal/ipc/linux KERNELDIR=/lib/modules/4.4.0-161-generic/build clean
                            make -C LibOS/shim/test/regression clean
 
                            make -C LibOS/shim/test/apps/ltp clean

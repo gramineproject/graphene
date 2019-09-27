@@ -85,6 +85,7 @@ pipeline {
                            make -C LibOS/shim/test/apps/lmbench clean
                            make -C LibOS/shim/test/apps/lighttpd distclean
                            make -C LibOS/shim/test/apps/apache distclean
+                           make -C Pal/src PAL_HOST=Skeleton clean
 
                            ./Scripts/clean-check
                         '''
