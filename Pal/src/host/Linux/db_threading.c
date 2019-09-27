@@ -173,6 +173,7 @@ noreturn void _DkThreadExit (void)
     PAL_TCB_LINUX* tcb = get_tcb_linux();
     PAL_HANDLE handle = tcb->handle;
 
+    block_async_signals(true);
     if (tcb->alt_stack) {
         stack_t ss;
         ss.ss_sp    = NULL;
