@@ -120,4 +120,4 @@ pal-regression.xml: test_pal.py $(target) $(call expand_target_to_sig,$(target))
 
 .PHONY: clean
 clean:
-	rm -rf $(target) $(preloads) *.tmp .lib *.cached *.sig *.d .output.* *.token .*.d .*.sig .*.token *.manifest.sgx __pycache__ .cache pal-regression.xml
+	rm -rf $(target) $(preloads) *.tmp .lib *.cached *.sig *.d .output.* *.token .*.d .*.sig .*.token *.manifest.sgx .*.manifest.sgx __pycache__ .cache pal-regression.xml
