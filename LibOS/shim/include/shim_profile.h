@@ -201,61 +201,18 @@ extern struct shim_profile __profile_end;
 #define DEFINE_PROFILE_CATEGORY(prof, rprof)
 #define DEFINE_PROFILE_OCCURENCE(prof, rprof)
 #define DEFINE_PROFILE_INTERVAL(prof, rprof)
-#define INC_PROFILE_OCCURENCE(prof) \
-    ({                              \
-        do {                        \
-        } while (0);                \
-        0;                          \
-    })
-#define ADD_PROFILE_OCCURENCE(prof, val) \
-    ({                                   \
-        do {                             \
-        } while (0);                     \
-        0;                               \
-    })
-#define BEGIN_PROFILE_INTERVAL() \
-    do {                         \
-    } while (0)
-#define BEGIN_PROFILE_INTERVAL_SET(val) \
-    do {                                \
-    } while (0)
-#define SET_PROFILE_INTERVAL(val) \
-    do {                          \
-    } while (0)
-#define GET_PROFILE_INTERVAL() (0)
-#define UPDATE_PROFILE_INTERVAL() \
-    ({                            \
-        do {                      \
-        } while (0);              \
-        0;                        \
-    })
-#define ASSIGN_PROFILE_INTERVAL(prof) \
-    do {                              \
-    } while (0)
-#define SAVE_PROFILE_INTERVAL_ASSIGNED() \
-    ({                                   \
-        do {                             \
-        } while (0);                     \
-        0;                               \
-    })
-#define SAVE_PROFILE_INTERVAL(prof) \
-    ({                              \
-        do {                        \
-        } while (0);                \
-        0;                          \
-    })
-#define SAVE_PROFILE_INTERVAL_SINCE(prof, time) \
-    ({                                          \
-        do {                                    \
-        } while (0);                            \
-        0;                                      \
-    })
-#define SAVE_PROFILE_INTERVAL_SET(prof, begin, end) \
-    ({                                              \
-        do {                                        \
-        } while (0);                                \
-        0;                                          \
-    })
+#define INC_PROFILE_OCCURENCE(prof) do {} while (0)
+#define ADD_PROFILE_OCCURENCE(prof, val) do {} while (0)
+#define BEGIN_PROFILE_INTERVAL() do {} while (0)
+#define BEGIN_PROFILE_INTERVAL_SET(val) do {} while (0)
+#define SET_PROFILE_INTERVAL(val) do {} while (0)
+#define GET_PROFILE_INTERVAL() 0
+#define UPDATE_PROFILE_INTERVAL() do {} while (0)
+#define ASSIGN_PROFILE_INTERVAL(prof) do {} while (0)
+#define SAVE_PROFILE_INTERVAL_ASSIGNED() do {} while (0)
+#define SAVE_PROFILE_INTERVAL(prof) do {} while (0)
+#define SAVE_PROFILE_INTERVAL_SINCE(prof, time) do {} while (0)
+#define SAVE_PROFILE_INTERVAL_SET(prof, begin, end) do {} while (0)
 
 #endif
 
