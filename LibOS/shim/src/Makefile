@@ -57,7 +57,8 @@ endif
 
 # FIXME: enable optimization
 # With -O0, regression tests fails on Linux-SGX
-shim_object.o: CFLAGS += -O0
+#shim_object.o: CFLAGS += -O0
+$(addsuffix .o,$(objs)): CFLAGS += -O0
 
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
