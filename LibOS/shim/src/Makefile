@@ -55,6 +55,10 @@ else
 all:
 endif
 
+# TODO: enable optimization
+# With -O0, regression tests fails on Linux-SGX
+$(addsuffix .o,$(objs)): CFLAGS += -O0
+
 $(files_to_install): $(RUNTIME_DIR)/%: %
 	$(call cmd,ln_sf)
 
