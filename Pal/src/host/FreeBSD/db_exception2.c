@@ -265,7 +265,7 @@ static void _DkGenericSighandler (int signum, siginfo_t * info,
                                   struct ucontext * uc)
 {
 #if BLOCK_SIGFUALT == 1
-    /* reseurrect this code if signal handler if giving segmentation fault */
+    /* resurrect this code if signal handler is giving segmentation fault */
     if (signum == SIGSEGV) {
         int pid = INLINE_SYSCALL(getpid, 0);
         exception_msg[17] = '0' + pid / 10000;

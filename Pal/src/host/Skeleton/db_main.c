@@ -48,7 +48,7 @@ unsigned long _DkGetAllocationAlignment (void)
 void _DkGetAvailableUserAddressRange (PAL_PTR * start, PAL_PTR * end,
                                       PAL_PTR * hole_start, PAL_PTR * hole_end)
 {
-    /* need to be implemented */
+    /* needs to be implemented */
 }
 
 PAL_NUM _DkGetProcessId (void)
@@ -63,6 +63,6 @@ PAL_NUM _DkGetHostId (void)
 
 int _DkGetCPUInfo (PAL_CPU_INFO * ci)
 {
-    /* need to be implemented */
+    /* needs to be implemented */
     return 0;
 }

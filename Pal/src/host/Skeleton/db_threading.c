@@ -41,12 +41,12 @@ int _DkThreadDelayExecution(unsigned long* duration) {
 /* PAL call DkThreadYieldExecution. Yield the execution
    of the current thread. */
 void _DkThreadYieldExecution(void) {
-    /* need to be implemented */
+    /* needs to be implemented */
 }
 
 /* _DkThreadExit for internal use: Thread exiting */
 noreturn void _DkThreadExit(void) {
-    /* need to be implemented */
+    /* needs to be implemented */
     while (true) {
         /* nothing */
     }
