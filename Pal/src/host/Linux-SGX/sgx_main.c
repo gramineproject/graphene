@@ -750,6 +750,7 @@ int get_cpu_count(void) {
 }
 
 static int load_enclave (struct pal_enclave * enclave,
+                         int manifest_fd,
                          char * manifest_uri,
                          char * exec_uri,
                          char * args, size_t args_size,
@@ -806,12 +807,7 @@ static int load_enclave (struct pal_enclave * enclave,
 
     char cfgbuf[CONFIG_MAX];
 
-    enclave->manifest = INLINE_SYSCALL(open, 3, manifest_uri + 5,
-                                       O_RDONLY|O_CLOEXEC, 0);
-    if (IS_ERR(enclave->manifest)) {
-         SGX_DBG(DBG_E, "Cannot open manifest %s\n", manifest_uri);
-         return -EINVAL;
-    }
+    enclave->manifest = manifest_fd;
 
     ret = load_manifest(enclave->manifest, &enclave->config);
     if (ret < 0) {
@@ -957,6 +953,7 @@ int main (int argc, char ** argv, char ** envp)
     char * manifest_uri = NULL;
     char * exec_uri = NULL;
     const char * pal_loader = argv[0];
+    int fd = -1;
     int ret = 0;
     bool exec_uri_inferred = false; // Handle the case where the exec uri is
                                     // inferred from the manifest name somewhat
@@ -992,63 +989,87 @@ int main (int argc, char ** argv, char ** envp)
         exec_uri = alloc_concat(enclave->pal_sec.exec_name, -1, NULL, -1);
     }
 
-    int fd = INLINE_SYSCALL(open, 3, exec_uri + 5, O_RDONLY|O_CLOEXEC, 0);
+    if (!exec_uri) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    fd = INLINE_SYSCALL(open, 3, exec_uri + static_strlen("file:"), O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(fd)) {
-        SGX_DBG(DBG_E, "Executable not found\n");
+        SGX_DBG(DBG_E, "Input file not found: %s\n", exec_uri);
+        ret = fd;
         goto usage;
     }
 
-    char filebuf[4];
-    /* Check if the first argument is a executable. If it is, try finding
-       all the possible manifest files. */
-    INLINE_SYSCALL(read, 3, fd, filebuf, 4);
-    INLINE_SYSCALL(close, 1, fd);
+    char file_first_four_bytes[4];
+    ret = INLINE_SYSCALL(read, 3, fd, file_first_four_bytes, sizeof(file_first_four_bytes));
+    if (IS_ERR(ret)) {
+        goto out;
+    }
 
-    char sgx_manifest[URI_MAX];
-    size_t len = sizeof(sgx_manifest);
-    ret = get_base_name(exec_uri + static_strlen("file:"), sgx_manifest, &len);
+    char manifest_base_name[URI_MAX];
+    size_t manifest_base_name_len = sizeof(manifest_base_name);
+    ret = get_base_name(exec_uri + static_strlen("file:"), manifest_base_name,
+                        &manifest_base_name_len);
     if (ret < 0) {
         goto out;
     }
 
-    if (strcmp_static(sgx_manifest + len - strlen(".manifest"), ".manifest")) {
-        strcpy_static(sgx_manifest + len, ".sgx", sizeof(sgx_manifest) - len);
-    } else if (!strcmp_static(sgx_manifest + len - strlen(".manifest.sgx"),
-                              ".manifest.sgx")) {
-        strcpy_static(sgx_manifest + len, ".manifest.sgx", sizeof(sgx_manifest) - len);
-    }
-
-    if (memcmp(filebuf, "\177ELF", 4)) {
-        // In this case the manifest is given as the executable.  Set
-        // manifest_uri to sgx_manifest (should be the same), and
-        // and drop the .manifest* from exec_uri, so that the program
-        // loads properly.
-        manifest_uri = sgx_manifest;
-        size_t exec_len = strlen(exec_uri);
-        if (strcmp_static(exec_uri + exec_len - strlen(".manifest"), ".manifest")) {
-            exec_uri[exec_len - strlen(".manifest")] = '\0';
-            exec_uri_inferred = true;
-        } else if (strcmp_static(exec_uri + exec_len - strlen(".manifest.sgx"), ".manifest.sgx")) {
-            exec_uri[exec_len - strlen(".manifest.sgx")] = '\0';
-            exec_uri_inferred = true;
+    if (strendswith(manifest_base_name, ".manifest")) {
+        if (!strcpy_static(manifest_base_name + manifest_base_name_len, ".sgx",
+                           sizeof(manifest_base_name) - manifest_base_name_len)) {
+            ret = -E2BIG;
+            goto out;
+        }
+    } else if (!strendswith(manifest_base_name, ".manifest.sgx")) {
+        if (!strcpy_static(manifest_base_name + manifest_base_name_len, ".manifest.sgx",
+                           sizeof(manifest_base_name) - manifest_base_name_len)) {
+            ret = -E2BIG;
+            goto out;
         }
     }
 
-    fd = INLINE_SYSCALL(open, 3, sgx_manifest, O_RDONLY|O_CLOEXEC, 0);
-    if (!IS_ERR(fd)) {
-        manifest_uri = alloc_concat("file:", static_strlen("file:"),
-                                    sgx_manifest, -1);
+    int manifest_fd = -1;
+
+    if (memcmp(file_first_four_bytes, "\177ELF", sizeof(file_first_four_bytes))) {
+        /* exec_uri doesn't refer to ELF executable, so it must refer to the
+         * manifest. Verify this and update exec_uri with the manifest suffix
+         * removed.
+         */
+
+        size_t exec_uri_len = strlen(exec_uri);
+        if (strendswith(exec_uri, ".manifest")) {
+            exec_uri[exec_uri_len - static_strlen(".manifest")] = '\0';
+        } else if (strendswith(exec_uri, ".manifest.sgx")) {
+            INLINE_SYSCALL(lseek, 3, fd, 0, SEEK_SET);
+            manifest_fd = fd;
+
+            exec_uri[exec_uri_len - static_strlen(".manifest.sgx")] = '\0';
+        } else {
+            SGX_DBG(DBG_E, "Invalid manifest file specified: %s\n", exec_uri);
+            goto usage;
+        }
+
+        exec_uri_inferred = true;
+    }
+
+    if (manifest_fd == -1) {
         INLINE_SYSCALL(close, 1, fd);
-    } else if (!manifest_uri) {
-        SGX_DBG(DBG_E, "Cannot open manifest file: %s\n", sgx_manifest);
-        goto usage;
+        fd = manifest_fd = INLINE_SYSCALL(open, 3, manifest_base_name, O_RDONLY|O_CLOEXEC, 0);
+        if (IS_ERR(fd)) {
+            SGX_DBG(DBG_E, "Cannot open manifest file: %s\n", manifest_base_name);
+            goto usage;
+        }
+    }
+
+    manifest_uri = alloc_concat("file:", static_strlen("file:"), manifest_base_name, -1);
+    if (!manifest_uri) {
+        ret = -ENOMEM;
+        goto out;
     }
 
     SGX_DBG(DBG_I, "Manifest file: %s\n", manifest_uri);
-    if (exec_uri)
-        SGX_DBG(DBG_I, "Executable file: %s\n", exec_uri);
-    else
-        SGX_DBG(DBG_I, "Executable file not found\n");
+    SGX_DBG(DBG_I, "Executable file: %s\n", exec_uri);
 
     /*
      * While C does not guarantee that the argv[i] and envp[i] strings are
@@ -1065,25 +1086,21 @@ int main (int argc, char ** argv, char ** envp)
     char * env = envp[0];
     size_t env_size = envc > 0 ? (envp[envc - 1] - envp[0]) + strlen(envp[envc - 1]) + 1: 0;
 
-
-    ret = load_enclave(enclave, manifest_uri, exec_uri, args, args_size,
-            env, env_size, exec_uri_inferred);
+    ret = load_enclave(enclave, manifest_fd, manifest_uri, exec_uri, args, args_size, env, env_size,
+                       exec_uri_inferred);
 
 out:
-    if (enclave->manifest >= 0)
-        INLINE_SYSCALL(close, 1, enclave->manifest);
     if (enclave->exec >= 0)
         INLINE_SYSCALL(close, 1, enclave->exec);
     if (enclave->sigfile >= 0)
         INLINE_SYSCALL(close, 1, enclave->sigfile);
     if (enclave->token >= 0)
         INLINE_SYSCALL(close, 1, enclave->token);
-    if (enclave)
-        free(enclave);
-    if (exec_uri)
-        free(exec_uri);
-    if (manifest_uri && manifest_uri != sgx_manifest)
-        free(manifest_uri);
+    free(enclave);
+    if (!IS_ERR(fd))
+        INLINE_SYSCALL(close, 1, fd);
+    free(exec_uri);
+    free(manifest_uri);
 
     return ret;
 
