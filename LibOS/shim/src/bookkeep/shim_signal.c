@@ -389,7 +389,7 @@ bool test_user_memory (void * addr, size_t size, bool write)
 
 ret_fault:
     /* enforce complier to load tcb->test_range.has_fault below */
-    __asm__ volatile(""::: "memory");
+    __asm__ volatile("": "=m"(tcb->test_range.has_fault));
 
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
@@ -440,6 +440,7 @@ bool test_user_string (const char * addr)
     bool has_fault = true;
 
     assert(!tcb->test_range.cont_addr);
+    tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = &&ret_fault;
 
     do {
@@ -459,11 +460,13 @@ bool test_user_string (const char * addr)
         next = ALIGN_UP(addr + 1);
     } while (size == maxlen);
 
-    has_fault = false; /* All accesses have passed. Nothing wrong. */
-
 ret_fault:
+    /* enforce complier to load tcb->test_range.has_fault below */
+    __asm__ volatile("": "=m"(tcb->test_range.has_fault));
+
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
+    has_fault = tcb->test_range.has_fault;
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
     __enable_preempt(tcb);
