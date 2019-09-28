@@ -76,9 +76,8 @@ void dump_threads (void)
     unlock(&thread_list_lock);
 }
 
-struct shim_thread * __lookup_thread (IDTYPE tid)
-{
-    struct shim_thread * tmp;
+static struct shim_thread* __lookup_thread(IDTYPE tid) {
+    struct shim_thread* tmp;
 
     LISTP_FOR_EACH_ENTRY(tmp, &thread_list, list) {
         if (tmp->tid == tid) {
@@ -90,10 +89,9 @@ struct shim_thread * __lookup_thread (IDTYPE tid)
     return NULL;
 }
 
-struct shim_thread * lookup_thread (IDTYPE tid)
-{
+struct shim_thread* lookup_thread(IDTYPE tid) {
     lock(&thread_list_lock);
-    struct shim_thread * thread = __lookup_thread(tid);
+    struct shim_thread* thread = __lookup_thread(tid);
     unlock(&thread_list_lock);
     return thread;
 }
@@ -319,7 +317,7 @@ void put_thread (struct shim_thread * thread)
     int ref_count = REF_DEC(thread->ref_count);
 
 #ifdef DEBUG_REF
-    debug("put thread %p(%d) (ref_count = %d)\n", thread, thread->tid,
+    debug("put_thread %p(%d) (ref_count = %d)\n", thread, thread->tid,
           ref_count);
 #endif
 

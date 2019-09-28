@@ -216,10 +216,11 @@ static inline void thread_setwait (struct shim_thread ** queue,
 {
     if (!thread)
         thread = get_cur_thread();
-    get_thread(thread);
     DkEventClear(thread->scheduler_event);
-    if (queue)
+    if (queue) {
+        get_thread(thread);
         *queue = thread;
+    }
 }
 
 static inline int thread_sleep (uint64_t timeout_us)
@@ -246,8 +247,16 @@ static inline void thread_wakeup (struct shim_thread * thread)
 
 extern struct shim_lock thread_list_lock;
 
-struct shim_thread * __lookup_thread (IDTYPE tid);
-struct shim_thread * lookup_thread (IDTYPE tid);
+/*!
+ * \brief Look up the thread for a given id.
+ *
+ * \param tid Thread id to look for.
+ *
+ * Searches global threads list for a thread with id equal to \p tid.
+ * If no thread was found returns NULL.
+ * Increases the referece counter of the returned thread.
+ */
+struct shim_thread* lookup_thread(IDTYPE tid);
 struct shim_simple_thread * __lookup_simple_thread (IDTYPE tid);
 struct shim_simple_thread * lookup_simple_thread (IDTYPE tid);
 

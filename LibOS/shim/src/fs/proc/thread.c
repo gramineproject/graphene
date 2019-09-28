@@ -244,8 +244,8 @@ static int parse_thread_fd(const char* name, const char** rest, struct shim_hand
 
     if (fd >= handle_map->fd_top || handle_map->map[fd] == NULL ||
         handle_map->map[fd]->handle == NULL) {
-        unlock(&handle_map->lock);
-        return -ENOENT;
+        ret = -ENOENT;
+        goto out;
     }
 
     if (phdl) {
@@ -253,12 +253,15 @@ static int parse_thread_fd(const char* name, const char** rest, struct shim_hand
         get_handle(*phdl);
     }
 
-    unlock(&handle_map->lock);
-
     if (rest)
         *rest = *p ? p + 1 : NULL;
 
-    return 0;
+    ret = 0;
+
+out:
+    unlock(&handle_map->lock);
+    put_thread(thread);
+    return ret;
 }
 
 static int proc_match_thread_each_fd(const char* name) {
@@ -664,6 +667,8 @@ static int proc_thread_dir_stat(const char* name, struct stat* buf) {
     buf->st_gid = thread->gid;
     unlock(&thread->lock);
     buf->st_size = 4096;
+
+    put_thread(thread);
     return 0;
 }
 
@@ -679,7 +684,12 @@ static int proc_match_thread(const char* name) {
 
     struct shim_thread* thread = lookup_thread(pid);
 
-    return thread ? 1 : 0;
+    if (thread) {
+        put_thread(thread);
+        return 1;
+    }
+
+    return 0;
 }
 
 struct walk_thread_arg {

@@ -183,13 +183,21 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
                 /* DEP 1/28/17: Should return ETIMEDOUT, not EAGAIN, on timeout. */
                 if (ret == -EAGAIN)
                     ret = -ETIMEDOUT;
-                if (ret == -ETIMEDOUT)
+                if (ret == -ETIMEDOUT) {
                     LISTP_DEL(&waiter, &futex->waiters, list);
+                    if (waiter.thread) {
+                        put_thread(waiter.thread);
+                    }
+                }
                 lock(&hdl->lock);
                 /* Chia-Che 10/17/17: FUTEX_WAKE should remove the waiter
                  * from the list; if not, we should remove it now. */
-                if (!LIST_EMPTY(&waiter, list))
+                if (!LIST_EMPTY(&waiter, list)) {
                     LISTP_DEL(&waiter, &futex->waiters, list);
+                    if (waiter.thread) {
+                        put_thread(waiter.thread);
+                    }
+                }
                 break;
             }
 
@@ -211,6 +219,7 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
 
                 LISTP_DEL_INIT(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
+                put_thread(waiter->thread);
                 nwaken++;
                 if (nwaken >= val)
                     break;
@@ -275,6 +284,7 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
                       *uaddr);
                 LISTP_DEL_INIT(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
+                put_thread(waiter->thread);
                 nwaken++;
             }
 
@@ -289,6 +299,7 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
                           uaddr2, *uaddr2);
                     LISTP_DEL_INIT(waiter, &futex2->waiters, list);
                     thread_wakeup(waiter->thread);
+                    put_thread(waiter->thread);
                     nwaken++;
                 }
             }
@@ -310,6 +321,7 @@ int shim_do_futex(int* uaddr, int op, int val, void* utime, int* uaddr2, int val
             LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
                 LISTP_DEL_INIT(waiter, &futex->waiters, list);
                 thread_wakeup(waiter->thread);
+                put_thread(waiter->thread);
                 nwaken++;
                 if (nwaken >= val)
                     break;
@@ -361,10 +373,12 @@ int shim_do_get_robust_list(pid_t pid, struct robust_list_head** head, size_t* l
             return -ESRCH;
     } else {
         thread = get_cur_thread();
+        get_thread(thread);
     }
 
     *head = (struct robust_list_head*)thread->robust_list;
     *len  = sizeof(struct robust_list_head);
+    put_thread(thread);
     return 0;
 }
 
@@ -405,6 +419,7 @@ void release_robust_list(struct robust_list_head* head) {
         LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
             LISTP_DEL_INIT(waiter, &futex->waiters, list);
             thread_wakeup(waiter->thread);
+            put_thread(waiter->thread);
         }
 
         unlock(&hdl->lock);
@@ -445,6 +460,7 @@ void release_clear_child_id(int* clear_child_tid) {
     LISTP_FOR_EACH_ENTRY_SAFE(waiter, wtmp, &futex->waiters, list) {
         LISTP_DEL_INIT(waiter, &futex->waiters, list);
         thread_wakeup(waiter->thread);
+        put_thread(waiter->thread);
     }
 
     unlock(&hdl->lock);

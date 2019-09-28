@@ -572,34 +572,33 @@ int shim_do_kill (pid_t pid, int sig)
     return ret < 0 ? ret : 0;
 }
 
-int do_kill_thread (IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig,
-                    bool use_ipc)
-{
+int do_kill_thread(IDTYPE sender, IDTYPE tgid, IDTYPE tid, int sig, bool use_ipc) {
     if (sig < 0 || sig > NUM_SIGS)
         return -EINVAL;
 
-    struct shim_thread * thread = lookup_thread(tid);
-    int ret = 0;
+    struct shim_thread* thread = lookup_thread(tid);
+    int ret = -ESRCH;
 
     if (thread) {
         lock(&thread->lock);
 
         if (thread->in_vm) {
-            if (!tgid || thread->tgid == tgid)
+            if (!tgid || thread->tgid == tgid) {
                 __append_signal(thread, sig, sender);
-            else
-                ret = -ESRCH;
+                ret = 0;
+            }
+            use_ipc = false;
         } else {
-            unlock(&thread->lock);
-            return ipc_pid_kill_send(sender, tid, KILL_THREAD, sig);
+            use_ipc = true;
         }
 
         unlock(&thread->lock);
-        return ret;
+        put_thread(thread);
     }
 
-    if (!use_ipc)
-        return -ESRCH;
+    if (!use_ipc) {
+        return ret;
+    }
 
     return ipc_pid_kill_send(sender, tid, KILL_THREAD, sig);
 }
