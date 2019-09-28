@@ -373,6 +373,8 @@ bool test_user_memory (void * addr, size_t size, bool write)
     tcb->test_range.cont_addr = &&ret_fault;
     tcb->test_range.start = addr;
     tcb->test_range.end   = addr + size - 1;
+    /* enforce complier to store tcb->test_range.has_fault below */
+    __asm__ volatile("": : "m"(tcb->test_range.has_fault));
 
     /* Try to read or write into one byte inside each page */
     void * tmp = addr;
@@ -438,6 +440,8 @@ bool test_user_string (const char * addr)
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = &&ret_fault;
+    /* enforce complier to store tcb->test_range.has_fault below */
+    __asm__ volatile("": : "m"(tcb->test_range.has_fault));
 
     do {
         /* Add the memory region to the watch list. This is not racy because
