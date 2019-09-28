@@ -98,7 +98,7 @@ manifest: manifest.template
 
 ifeq ($(SGX),1)
 SGX_DIR = $(PALDIR)/host/Linux-SGX
-RUNTIME_DIR = RUNTIME
+RUNTIME_DIR = $(RUNTIME)
 
 LIBPAL = $(RUNTIME_DIR)/libpal-Linux-SGX.so
 SGX_SIGNER_KEY ?= $(SGX_DIR)/signer/enclave-key.pem
