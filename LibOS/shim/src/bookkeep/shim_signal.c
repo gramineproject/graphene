@@ -366,8 +366,6 @@ bool test_user_memory (void * addr, size_t size, bool write)
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
-    bool has_fault = false;
-
     /* Add the memory region to the watch list. This is not racy because
      * each thread has its own record. */
     assert(!tcb->test_range.cont_addr);
@@ -393,7 +391,7 @@ ret_fault:
 
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
-    has_fault = tcb->test_range.has_fault;
+    bool has_fault = tcb->test_range.has_fault;
     tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
@@ -437,8 +435,6 @@ bool test_user_string (const char * addr)
     assert(tcb && tcb->tp);
     __disable_preempt(tcb);
 
-    bool has_fault = true;
-
     assert(!tcb->test_range.cont_addr);
     tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = &&ret_fault;
@@ -466,7 +462,7 @@ ret_fault:
 
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
-    has_fault = tcb->test_range.has_fault;
+    bool has_fault = tcb->test_range.has_fault;
     tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
