@@ -467,6 +467,7 @@ ret_fault:
     /* If any read or write into the target region causes an exception,
      * the control flow will immediately jump to here. */
     has_fault = tcb->test_range.has_fault;
+    tcb->test_range.has_fault = false;
     tcb->test_range.cont_addr = NULL;
     tcb->test_range.start = tcb->test_range.end = NULL;
     __enable_preempt(tcb);
