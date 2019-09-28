@@ -33,7 +33,7 @@ int _DkEventCreate (PAL_HANDLE * event, bool initialState, bool isnotification)
 
 void _DkEventDestroy (PAL_HANDLE handle)
 {
-    /* need to be implemented */
+    /* needs to be implemented */
 }
 
 int _DkEventSet (PAL_HANDLE event, int wakeup)

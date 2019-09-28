@@ -29,7 +29,7 @@
 #include "pal_internal.h"
 
 void _DkPrintConsole(const void* buf, int size) {
-    /* need to be implemented */
+    /* needs to be implemented */
 }
 
 /* _DkStreamUnmap for internal use. Unmap stream at certain memory address.

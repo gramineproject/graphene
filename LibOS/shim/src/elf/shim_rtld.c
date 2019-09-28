@@ -442,7 +442,7 @@ static struct link_map* __map_elf_object(struct shim_handle* file, const void* f
                 }
 
                 if (l->nloadcmds >= MAX_LOADCMDS) {
-                    errstring = "too many load commamds";
+                    errstring = "too many load commands";
                     goto call_lose;
                 }
 
