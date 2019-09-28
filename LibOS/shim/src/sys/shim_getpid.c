@@ -148,26 +148,38 @@ gid_t shim_do_getegid(void) {
 }
 
 int shim_do_setpgid(pid_t pid, pid_t pgid) {
-    struct shim_thread* thread = pid ? lookup_thread(pid) : get_cur_thread();
+    struct shim_thread* thread;
 
-    if (!pid)
-        assert(thread);
-
-    if (!thread)
-        return -ESRCH;
+    if (pid) {
+        thread = lookup_thread(pid);
+        if (!thread) {
+            return -ESRCH;
+        }
+    } else {
+        thread = get_cur_thread();
+        get_thread(thread);
+    }
 
     thread->pgid = (IDTYPE)pgid ?: thread->tgid;
 
+    put_thread(thread);
     return 0;
 }
 
 int shim_do_getpgid(pid_t pid) {
-    struct shim_thread* thread = pid ? lookup_thread(pid) : get_cur_thread();
+    if (!pid) {
+        return get_cur_thread()->pgid;
+    }
 
-    if (!thread)
+    struct shim_thread* thread = lookup_thread(pid);
+
+    if (!thread) {
         return -ESRCH;
+    }
 
-    return thread->pgid;
+    int ret = thread->pgid;
+    put_thread(thread);
+    return ret;
 }
 
 pid_t shim_do_getpgrp(void) {
@@ -191,10 +203,5 @@ int shim_do_setsid(void) {
 }
 
 int shim_do_getsid(pid_t pid) {
-    struct shim_thread* thread = pid ? lookup_thread(pid) : get_cur_thread();
-
-    if (!thread)
-        return -ESRCH;
-
-    return thread->pgid;
+    return shim_do_getpgid(pid);
 }

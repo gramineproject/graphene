@@ -71,12 +71,12 @@ pid_t shim_do_wait4(pid_t pid, int* status, int option, struct __kernel_rusage* 
             lock(&parent->lock);
             /* DEP 5/15/17: These threads are exited */
             assert(!thread->is_alive);
-            LISTP_DEL_INIT(thread, &thread->parent->exited_children, siblings);
+            LISTP_DEL_INIT(thread, &parent->exited_children, siblings);
             unlock(&parent->lock);
 
             put_thread(parent);
-            put_thread(thread);
             thread->parent = NULL;
+            put_thread(thread);
         }
 
         unlock(&thread->lock);

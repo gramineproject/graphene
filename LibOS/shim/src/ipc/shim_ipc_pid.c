@@ -735,13 +735,12 @@ static LISTP_TYPE(rpcmsg) rpc_msgs;
 static LISTP_TYPE(rpcreq) rpc_reqs;
 static struct shim_lock rpc_queue_lock;
 
-int get_rpc_msg (IDTYPE * sender, void * buf, int len)
-{
+int get_rpc_msg(IDTYPE* sender, void* buf, int len) {
     create_lock_runtime(&rpc_queue_lock);
     lock(&rpc_queue_lock);
 
     if (!LISTP_EMPTY(&rpc_msgs)) {
-        struct rpcmsg * m = LISTP_FIRST_ENTRY(&rpc_msgs, struct rpcmsg, list);
+        struct rpcmsg* m = LISTP_FIRST_ENTRY(&rpc_msgs, struct rpcmsg, list);
         LISTP_DEL(m, &rpc_msgs, list);
         if (m->len < len)
             len = m->len;
@@ -752,7 +751,7 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
         return len;
     }
 
-    struct rpcreq * r = malloc(sizeof(struct rpcreq));
+    struct rpcreq* r = malloc(sizeof(struct rpcreq));
     if (!r) {
         unlock(&rpc_queue_lock);
         return -ENOMEM;
@@ -764,12 +763,17 @@ int get_rpc_msg (IDTYPE * sender, void * buf, int len)
     r->buffer = buf;
     thread_setwait(&r->thread, NULL);
     LISTP_ADD_TAIL(r, &rpc_reqs, list);
+
     unlock(&rpc_queue_lock);
     thread_sleep(NO_TIMEOUT);
+
     put_thread(r->thread);
     if (sender)
         *sender = r->sender;
-    return r->len;
+    int ret = r->len;
+
+    free(r);
+    return ret;
 }
 
 int ipc_pid_sendrpc_callback (IPC_CALLBACK_ARGS)
