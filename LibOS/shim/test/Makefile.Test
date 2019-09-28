@@ -34,10 +34,20 @@ default: all
 
 include $(SHIM_TEST_DIR)/../../../Makefile.configs
 include $(SHIM_TEST_DIR)/../../../Makefile.rules
-include $(SHIM_TEST_DIR)/../../../Makefile.manifest
+
+expand_target_to_token = $(foreach t,$(filter-out manifest,$(1)),$(patsubst %.manifest,%,$(t)).token)
+ifeq ($(SGX),1)
+expand_target = $(1) $(foreach t,$(filter-out manifest,$(1)), \
+                $(patsubst %.manifest,%,$(t)).manifest.sgx)
+else
+expand_target = $(1)
+endif
 
 .PHONY: all
-all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sig,$(exec_target)) $(call expand_target_to_sgx,$(exec_target))
+all: pal_loader $(target) | $(call expand_target,$(exec_target))
+
+.PHONY: sgx-tokens
+sgx-tokens: $(call expand_target_to_token,$(exec_target))
 
 # reset CFLAGS, CXXFLAGS which graphene-tests doesn't want
 CFLAGS =
@@ -86,9 +96,43 @@ manifest: manifest.template
 	@echo [ $@ ]
 	sed $(manifest_rules) $< > $@
 
-ifeq ($(filter clean,$(MAKECMDGOALS)),)
 ifeq ($(SGX),1)
-include $(addsuffix .manifest.sgx.d,$(patsubst %.manifest,%,$(exec_target)))
+SGX_DIR = $(PALDIR)/host/Linux-SGX
+RUNTIME_DIR = RUNTIME
+
+LIBPAL = $(RUNTIME_DIR)/libpal-Linux-SGX.so
+SGX_SIGNER_KEY ?= $(SGX_DIR)/signer/enclave-key.pem
+SGX_SIGN = $(SGX_DIR)/signer/pal-sgx-sign -libpal $(LIBPAL) -key $(SGX_SIGNER_KEY)
+SGX_GET_TOKEN = $(SGX_DIR)/signer/pal-sgx-get-token
+
+# sgx manifest.sgx/sig/token
+drop_manifest_suffix = $(filter-out manifest,$(sort $(patsubst %.manifest,%,$(1))))
+expand_target_to_token = $(addsuffix .token,$(call drop_manifest_suffix, $(1)))
+expand_target_to_sig = $(addsuffix .sig,$(call drop_manifest_suffix,$(1)))
+expand_target_to_sgx = $(addsuffix .manifest.sgx,$(call drop_manifest_suffix,$(1)))
+
+%.token: %.sig
+	$(call cmd,sgx_get_token)
+
+%.sig %.manifest.sgx: %.manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+	$(call cmd,sgx_sign_exec)
+
+%.sig %.manifest.sgx: manifest % $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+	$(call cmd,sgx_sign_exec)
+
+%.sig %.manifest.sgx: %.manifest $(LIBPAL) $(SGX_SIGNER_KEY) %.manifest.sgx.d
+	$(call cmd,sgx_sign)
+
+.PRECIOUS: %.manifest.sgx.d
+
+%.manifest.sgx.d: %.manifest
+	$(call cmd,sgx_sign_depend_exec)
+
+%.manifest.sgx.d: manifest
+	$(call cmd,sgx_sign_depend)
+
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+include $(addsuffix .manifest.sgx.d,$(call drop_manifest_suffix,$(exec_target)))
 endif
 endif
 
