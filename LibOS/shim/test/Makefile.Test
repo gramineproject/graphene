@@ -19,8 +19,8 @@ endif
 
 CC = gcc
 CXX = g++
-CFLAGS 	= -Wall -std=gnu99
-CXXFLAGS = -Wall -std=c++14
+CFLAGS =
+CXXFLAGS =
 LDFLAGS	=
 
 CFLAGS-libos = -I$(SHIMDIR)/../include -L$(SHIMDIR)/../../glibc-build/libos
@@ -38,6 +38,10 @@ include $(SHIM_TEST_DIR)/../../../Makefile.manifest
 
 .PHONY: all
 all: pal_loader $(target) | $(exec_target) $(call expand_target_to_sig,$(exec_target)) $(call expand_target_to_sgx,$(exec_target))
+
+# reset CFLAGS, CXXFLAGS which graphene-tests doesn't want
+CFLAGS =
+CXXFLAGS =
 
 ifeq ($(DEBUG),1)
 CC += -g
