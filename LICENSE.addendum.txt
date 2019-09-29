@@ -29,7 +29,6 @@ A number of files taken from other C libraries:
  ** Pal/lib/network/hton.c
  ** Pal/lib/string/ - the whole directory
  ** Pal/src/dynamic_link.h, do-rel.h , dl-machine-x86_64.h
- ** Pal/src/host/Linux/gettimeofday-x86_64.S
  ** Pal/src/host/Linux/include/ - whole directory - for signal API definitions
  ** We also build a patched glibc, but this could be moved into a separate repo
 
