@@ -11,7 +11,7 @@
 
 #include "enclave_pages.h"
 
-struct pal_enclave_state pal_enclave_state;
+struct pal_enclave_state pal_enclave_state __sgx_mem_aligned;
 
 void * enclave_base, * enclave_top;
 
@@ -88,16 +88,16 @@ uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr
     return usize;
 }
 
-static void print_report(sgx_arch_report_t* r) {
-    SGX_DBG(DBG_S, "  cpusvn:     %08lx %08lx\n", r->body.cpusvn[0], r->body.cpusvn[1]);
-    SGX_DBG(DBG_S, "  mrenclave:  %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrenclave));
-    SGX_DBG(DBG_S, "  mrsigner:   %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mrsigner));
+static void print_report(sgx_report_t* r) {
+    SGX_DBG(DBG_S, "  cpusvn:     %s\n",        ALLOCA_BYTES2HEXSTR(r->body.cpu_svn.svn));
+    SGX_DBG(DBG_S, "  mrenclave:  %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mr_enclave.m));
+    SGX_DBG(DBG_S, "  mrsigner:   %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mr_signer.m));
     SGX_DBG(DBG_S, "  attr.flags: %016lx\n",    r->body.attributes.flags);
     SGX_DBG(DBG_S, "  attr.xfrm:  %016lx\n",    r->body.attributes.xfrm);
-    SGX_DBG(DBG_S, "  isvprodid:  %02x\n",      r->body.isvprodid);
-    SGX_DBG(DBG_S, "  isvsvn:     %02x\n",      r->body.isvsvn);
-    SGX_DBG(DBG_S, "  reportdata: %s\n",        ALLOCA_BYTES2HEXSTR(r->body.report_data));
-    SGX_DBG(DBG_S, "  keyid:      %s\n",        ALLOCA_BYTES2HEXSTR(r->keyid));
+    SGX_DBG(DBG_S, "  isvprodid:  %02x\n",      r->body.isv_prod_id);
+    SGX_DBG(DBG_S, "  isvsvn:     %02x\n",      r->body.isv_svn);
+    SGX_DBG(DBG_S, "  reportdata: %s\n",        ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
+    SGX_DBG(DBG_S, "  keyid:      %s\n",        ALLOCA_BYTES2HEXSTR(r->key_id.id));
     SGX_DBG(DBG_S, "  mac:        %s\n",        ALLOCA_BYTES2HEXSTR(r->mac));
 }
 
@@ -111,9 +111,9 @@ static sgx_arch_key128_t enclave_key;
  * @data:         the data to be included and signed in the report
  * @report:       a buffer for storing the report
  */
-static int sgx_get_report(sgx_arch_targetinfo_t* target_info, sgx_sign_data_t* data,
-                          sgx_arch_report_t* report) {
-    struct pal_enclave_state state;
+static int sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
+                          sgx_report_t* report) {
+    struct pal_enclave_state state __sgx_mem_aligned;
     memcpy(&state, &pal_enclave_state, sizeof(state));
     memcpy(&state.enclave_data, data, sizeof(*data));
 
@@ -127,13 +127,12 @@ static int sgx_get_report(sgx_arch_targetinfo_t* target_info, sgx_sign_data_t* d
     return 0;
 }
 
-
-int sgx_verify_report (sgx_arch_report_t * report)
+int sgx_verify_report (sgx_report_t* report)
 {
-    sgx_arch_keyrequest_t keyrequest __sgx_mem_aligned;
-    memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
-    keyrequest.keyname = REPORT_KEY;
-    memcpy(keyrequest.keyid, report->keyid, sizeof(keyrequest.keyid));
+    sgx_key_request_t keyrequest __sgx_mem_aligned;
+    memset(&keyrequest, 0, sizeof(sgx_key_request_t));
+    keyrequest.key_name = REPORT_KEY;
+    memcpy(&keyrequest.key_id, &report->key_id, sizeof(keyrequest.key_id));
 
     sgx_arch_key128_t report_key __attribute__((aligned(sizeof(sgx_arch_key128_t))));
     memset(&report_key, 0, sizeof(report_key));
@@ -146,14 +145,14 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
     SGX_DBG(DBG_S, "Get report key for verification: %s\n", ALLOCA_BYTES2HEXSTR(report_key));
 
-    sgx_arch_mac_t check_mac;
+    sgx_mac_t check_mac;
     memset(&check_mac, 0, sizeof(check_mac));
 
     // Generating the MAC with AES-CMAC using the report key. Only hash the part of the report
     // BEFORE the keyid field (hence the offsetof(...) trick). ENCLU[EREPORT] does not include
     // the MAC and the keyid fields when generating the MAC.
     lib_AESCMAC((uint8_t*)&report_key, sizeof(report_key),
-                (uint8_t*)report, offsetof(sgx_arch_report_t, keyid),
+                (uint8_t*)report, offsetof(sgx_report_t, key_id),
                 (uint8_t*)&check_mac, sizeof(check_mac));
 
     // Clear the report key for security
@@ -173,9 +172,9 @@ int sgx_verify_report (sgx_arch_report_t * report)
 
 int init_enclave_key (void)
 {
-    sgx_arch_keyrequest_t keyrequest __sgx_mem_aligned;
-    memset(&keyrequest, 0, sizeof(sgx_arch_keyrequest_t));
-    keyrequest.keyname = SEAL_KEY;
+    sgx_key_request_t keyrequest __sgx_mem_aligned;
+    memset(&keyrequest, 0, sizeof(sgx_key_request_t));
+    keyrequest.key_name = SEAL_KEY;
 
     int ret = sgx_getkey(&keyrequest, &enclave_key);
     if (ret) {
@@ -956,16 +955,19 @@ int init_enclave (void)
 
     // Since this report is only read by ourselves we can
     // leave targetinfo zeroed.
-    sgx_arch_targetinfo_t targetinfo __sgx_mem_aligned = {0};
-    struct pal_enclave_state reportdata = {0};
-    sgx_arch_report_t report __sgx_mem_aligned;
+    sgx_target_info_t targetinfo __sgx_mem_aligned = {0};
+    struct pal_enclave_state reportdata __sgx_mem_aligned = {0};
+    sgx_report_t report __sgx_mem_aligned;
 
-    int ret = sgx_report(&targetinfo, &reportdata, &report);
-    if (ret)
+    assert(sizeof(reportdata) == sizeof(sgx_report_data_t));
+    int ret = sgx_report(&targetinfo, (sgx_report_data_t*)&reportdata, &report);
+    if (ret) {
+        SGX_DBG(DBG_E, "failed to get self report: %d\n", ret);
         return -PAL_ERROR_INVAL;
+    }
 
-    memcpy(pal_sec.mrenclave, report.body.mrenclave, sizeof(pal_sec.mrenclave));
-    memcpy(pal_sec.mrsigner,  report.body.mrsigner,  sizeof(pal_sec.mrsigner));
+    memcpy(&pal_sec.mrenclave, &report.body.mr_enclave, sizeof(pal_sec.mrenclave));
+    memcpy(&pal_sec.mrsigner, &report.body.mr_signer, sizeof(pal_sec.mrsigner));
     pal_sec.enclave_attributes = report.body.attributes;
 
 #if 0
@@ -1100,16 +1102,15 @@ out_no_final:
  */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mrenclave_t check_mrenclave) {
-    sgx_arch_targetinfo_t target_info __sgx_mem_aligned;
-    sgx_arch_report_t report __sgx_mem_aligned;
+    sgx_target_info_t target_info __sgx_mem_aligned;
+    sgx_report_t report __sgx_mem_aligned;
     uint64_t bytes;
     int64_t ret;
 
     /* A -> B: targetinfo[A] */
     memset(&target_info, 0, sizeof(target_info));
-    memcpy(&target_info.mrenclave,  &pal_sec.mrenclave, sizeof(sgx_arch_hash_t));
-    memcpy(&target_info.attributes, &pal_sec.enclave_attributes,
-           sizeof(sgx_arch_attributes_t));
+    memcpy(&target_info.mr_enclave,  &pal_sec.mrenclave, sizeof(sgx_measurement_t));
+    memcpy(&target_info.attributes, &pal_sec.enclave_attributes, sizeof(sgx_attributes_t));
 
     for (bytes = 0, ret = 0; bytes < SGX_TARGETINFO_FILLED_SIZE; bytes += ret) {
         ret = _DkStreamWrite(stream, 0, SGX_TARGETINFO_FILLED_SIZE - bytes,
@@ -1139,7 +1140,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     SGX_DBG(DBG_S, "Received local report (mrenclave = %s)\n",
-            ALLOCA_BYTES2HEXSTR(report.body.mrenclave));
+            ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[B -> A] */
     ret = sgx_verify_report(&report);
@@ -1149,7 +1150,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    ret = check_mrenclave(stream, &report.body.mrenclave, remote_state);
+    ret = check_mrenclave(stream, &report.body.mr_enclave, remote_state);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to check local report: %ld\n", ret);
         goto out;
@@ -1157,7 +1158,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     if (ret == 1) {
         SGX_DBG(DBG_E, "Not an allowed enclave (mrenclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
-                ALLOCA_BYTES2HEXSTR(report.body.mrenclave));
+                ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -1165,8 +1166,8 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     SGX_DBG(DBG_S, "Local attestation succeeded!\n");
 
     /* A -> B: report[A -> B] */
-    memcpy(&target_info.mrenclave , &report.body.mrenclave,  sizeof(sgx_arch_hash_t));
-    memcpy(&target_info.attributes, &report.body.attributes, sizeof(sgx_arch_attributes_t));
+    memcpy(&target_info.mr_enclave , &report.body.mr_enclave,  sizeof(sgx_measurement_t));
+    memcpy(&target_info.attributes, &report.body.attributes, sizeof(sgx_attributes_t));
 
     ret = sgx_get_report(&target_info, data, &report);
     if (ret < 0) {
@@ -1203,8 +1204,8 @@ out:
  */
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mrenclave_t check_mrenclave) {
-    sgx_arch_targetinfo_t target_info __sgx_mem_aligned;
-    sgx_arch_report_t report __sgx_mem_aligned;
+    sgx_target_info_t target_info __sgx_mem_aligned;
+    sgx_report_t report __sgx_mem_aligned;
     uint64_t bytes;
     int64_t ret;
     memset(&target_info, 0, sizeof(target_info));
@@ -1258,7 +1259,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     SGX_DBG(DBG_S, "Received local report (mrenclave = %s)\n",
-            ALLOCA_BYTES2HEXSTR(report.body.mrenclave));
+            ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[A -> B] */
     ret = sgx_verify_report(&report);
@@ -1268,7 +1269,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    ret = check_mrenclave(stream, &report.body.mrenclave, remote_state);
+    ret = check_mrenclave(stream, &report.body.mr_enclave, remote_state);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to check mrenclave: %ld\n", ret);
         goto out;
@@ -1276,7 +1277,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     if (ret == 1) {
         SGX_DBG(DBG_E, "Not an allowed enclave (mrenclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
-                ALLOCA_BYTES2HEXSTR(report.body.mrenclave));
+                ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;
     }
@@ -1290,24 +1291,24 @@ out:
 }
 
 /*
- * Restore an sgx_context_t as generated by .Lhandle_exception. Execution will
+ * Restore an sgx_cpu_context_t as generated by .Lhandle_exception. Execution will
  * continue as specified by the rip in the context.
  *
  * It is required that:
  *
- *     ctx == ctx->rsp - (sizeof(sgx_context_t) + RED_ZONE_SIZE)
+ *     ctx == ctx->rsp - (sizeof(sgx_cpu_context_t) + RED_ZONE_SIZE)
  *
  * This means that the ctx is allocated directly below the "normal" stack
  * (honoring its red zone). This is needed to properly restore the old state
  * (see _restore_sgx_context for details).
  *
- * For the original sgx_context_t allocated by .Lhandle_exception this is true.
+ * For the original sgx_cpu_context_t allocated by .Lhandle_exception this is true.
  * This is a safe wrapper around _restore_sgx_context, which checks this
  * preconditon.
  */
-void restore_sgx_context(sgx_context_t *ctx) {
-    if (((uint64_t) ctx) != ctx->rsp - (sizeof(sgx_context_t) + RED_ZONE_SIZE)) {
-        SGX_DBG(DBG_E, "Invalid sgx_context_t pointer passed to restore_sgx_context!\n");
+void restore_sgx_context(sgx_cpu_context_t *ctx) {
+    if (((uint64_t) ctx) != ctx->rsp - (sizeof(sgx_cpu_context_t) + RED_ZONE_SIZE)) {
+        SGX_DBG(DBG_E, "Invalid sgx_cpu_context_t pointer passed to restore_sgx_context!\n");
         ocall_exit(1, /*is_exitgroup=*/false);
     }
 

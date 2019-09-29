@@ -146,15 +146,15 @@ extern struct pal_enclave_state {
     uint64_t        enclave_flags;      // Reserved for flags
     uint64_t        enclave_id;         // Unique identifier for authentication
     sgx_sign_data_t enclave_data;       // Reserved for signing other data
-} __attribute__((packed, aligned (128))) pal_enclave_state;
+} __attribute__((packed)) pal_enclave_state;
 
 /*
  * sgx_verify_report: verify a CPU-signed report from another local enclave
  * @report: the buffer storing the report to verify
  */
-int sgx_verify_report(sgx_arch_report_t* report);
+int sgx_verify_report(sgx_report_t* report);
 
-typedef int (*check_mrenclave_t)(PAL_HANDLE, sgx_arch_hash_t*, struct pal_enclave_state*);
+typedef int (*check_mrenclave_t)(PAL_HANDLE, sgx_measurement_t*, struct pal_enclave_state*);
 
 /*
  * _DkStreamReportRequest, _DkStreamReportRespond:
@@ -174,9 +174,9 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
 #define PAL_ENCLAVE_INITIALIZED     0x0001ULL
 
 extern struct pal_enclave_config {
-    sgx_arch_hash_t        mrenclave;
-    sgx_arch_attributes_t  enclave_attributes;
-    void *                 enclave_key;
+    sgx_measurement_t mrenclave;
+    sgx_attributes_t  enclave_attributes;
+    void *            enclave_key;
 } pal_enclave_config;
 
 #include <hex.h>

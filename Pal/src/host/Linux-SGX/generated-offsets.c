@@ -26,7 +26,7 @@ void dummy(void)
     DEFINE(SGX_ARCH_KEY_SIZE, sizeof(sgx_arch_key_t));
 
     /* sgx_arch_hash_t */
-    DEFINE(SGX_ARCH_HASH_SIZE, sizeof(sgx_arch_hash_t));
+    DEFINE(SGX_ARCH_HASH_SIZE, sizeof(sgx_measurement_t));
 
     /* sgx_arch_gpr_t */
     OFFSET_T(SGX_GPR_RAX, sgx_arch_gpr_t, rax);
@@ -50,26 +50,26 @@ void dummy(void)
     OFFSET_T(SGX_GPR_EXITINFO, sgx_arch_gpr_t, exitinfo);
     DEFINE(SGX_GPR_SIZE, sizeof(sgx_arch_gpr_t));
 
-    /* sgx_context_t */
-    OFFSET_T(SGX_CONTEXT_RAX, sgx_context_t, rax);
-    OFFSET_T(SGX_CONTEXT_RCX, sgx_context_t, rcx);
-    OFFSET_T(SGX_CONTEXT_RDX, sgx_context_t, rdx);
-    OFFSET_T(SGX_CONTEXT_RBX, sgx_context_t, rbx);
-    OFFSET_T(SGX_CONTEXT_RSP, sgx_context_t, rsp);
-    OFFSET_T(SGX_CONTEXT_RBP, sgx_context_t, rbp);
-    OFFSET_T(SGX_CONTEXT_RSI, sgx_context_t, rsi);
-    OFFSET_T(SGX_CONTEXT_RDI, sgx_context_t, rdi);
-    OFFSET_T(SGX_CONTEXT_R8, sgx_context_t, r8);
-    OFFSET_T(SGX_CONTEXT_R9, sgx_context_t, r9);
-    OFFSET_T(SGX_CONTEXT_R10, sgx_context_t, r10);
-    OFFSET_T(SGX_CONTEXT_R11, sgx_context_t, r11);
-    OFFSET_T(SGX_CONTEXT_R12, sgx_context_t, r12);
-    OFFSET_T(SGX_CONTEXT_R13, sgx_context_t, r13);
-    OFFSET_T(SGX_CONTEXT_R14, sgx_context_t, r14);
-    OFFSET_T(SGX_CONTEXT_R15, sgx_context_t, r15);
-    OFFSET_T(SGX_CONTEXT_RFLAGS, sgx_context_t, rflags);
-    OFFSET_T(SGX_CONTEXT_RIP, sgx_context_t, rip);
-    DEFINE(SGX_CONTEXT_SIZE, sizeof(sgx_context_t));
+    /* sgx_cpu_context_t */
+    OFFSET_T(SGX_CPU_CONTEXT_RAX, sgx_cpu_context_t, rax);
+    OFFSET_T(SGX_CPU_CONTEXT_RCX, sgx_cpu_context_t, rcx);
+    OFFSET_T(SGX_CPU_CONTEXT_RDX, sgx_cpu_context_t, rdx);
+    OFFSET_T(SGX_CPU_CONTEXT_RBX, sgx_cpu_context_t, rbx);
+    OFFSET_T(SGX_CPU_CONTEXT_RSP, sgx_cpu_context_t, rsp);
+    OFFSET_T(SGX_CPU_CONTEXT_RBP, sgx_cpu_context_t, rbp);
+    OFFSET_T(SGX_CPU_CONTEXT_RSI, sgx_cpu_context_t, rsi);
+    OFFSET_T(SGX_CPU_CONTEXT_RDI, sgx_cpu_context_t, rdi);
+    OFFSET_T(SGX_CPU_CONTEXT_R8, sgx_cpu_context_t, r8);
+    OFFSET_T(SGX_CPU_CONTEXT_R9, sgx_cpu_context_t, r9);
+    OFFSET_T(SGX_CPU_CONTEXT_R10, sgx_cpu_context_t, r10);
+    OFFSET_T(SGX_CPU_CONTEXT_R11, sgx_cpu_context_t, r11);
+    OFFSET_T(SGX_CPU_CONTEXT_R12, sgx_cpu_context_t, r12);
+    OFFSET_T(SGX_CPU_CONTEXT_R13, sgx_cpu_context_t, r13);
+    OFFSET_T(SGX_CPU_CONTEXT_R14, sgx_cpu_context_t, r14);
+    OFFSET_T(SGX_CPU_CONTEXT_R15, sgx_cpu_context_t, r15);
+    OFFSET_T(SGX_CPU_CONTEXT_RFLAGS, sgx_cpu_context_t, rflags);
+    OFFSET_T(SGX_CPU_CONTEXT_RIP, sgx_cpu_context_t, rip);
+    DEFINE(SGX_CPU_CONTEXT_SIZE, sizeof(sgx_cpu_context_t));
 
     /* struct enclave_tls */
     OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);
@@ -103,8 +103,8 @@ void dummy(void)
     OFFSET_T(TCS_GSLIMIT, sgx_arch_tcs_t, gslimit);
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
 
-    /* sgx_arch_attributes_t */
-    OFFSET_T(SGX_ARCH_ATTRIBUTES_XFRM, sgx_arch_attributes_t, xfrm);
+    /* sgx_attributes_t */
+    OFFSET_T(SGX_ATTRIBUTES_XFRM, sgx_attributes_t, xfrm);
 
     /* sgx_arch_sigstruct_t */
     OFFSET_T(SGX_ARCH_SIGSTRUCT_HEADER, sgx_arch_sigstruct_t, header);

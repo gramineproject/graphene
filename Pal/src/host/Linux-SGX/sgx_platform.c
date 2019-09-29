@@ -110,7 +110,7 @@ err:
 }
 
 // Retrieve the targetinfo for the AESM enclave for generating the local attestation report.
-int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo) {
+int init_aesm_targetinfo(sgx_target_info_t* aesm_targetinfo) {
 
     Request req = REQUEST__INIT;
     Request__InitQuoteRequest initreq = REQUEST__INIT_QUOTE_REQUEST__INIT;
@@ -407,7 +407,7 @@ failed:
  * @attestation: A structure for storing the response from the AESM service and the IAS.
  */
 int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
-                            const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                            const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
                             sgx_attestation_t* attestation) {
 
     int ret = connect_aesm_service();
@@ -469,7 +469,7 @@ int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool lin
         goto failed;
     }
 
-    memcpy(&attestation->qe_report, r->qe_report.data, sizeof(sgx_arch_report_t));
+    memcpy(&attestation->qe_report, r->qe_report.data, sizeof(sgx_report_t));
     response__free_unpacked(res, NULL);
     return 0;
 

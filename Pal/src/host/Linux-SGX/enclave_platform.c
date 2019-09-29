@@ -161,7 +161,7 @@ int init_trusted_platform(void) {
 
     char* status;
     char* timestamp;
-    ret = sgx_verify_platform(&spid, subkey, &nonce, (sgx_arch_report_data_t*)&pal_enclave_state,
+    ret = sgx_verify_platform(&spid, subkey, &nonce, (sgx_report_data_t*)&pal_enclave_state,
                               linkable, accept_group_out_of_date, NULL, &status, &timestamp);
     if (ret < 0)
         return ret;
@@ -401,7 +401,7 @@ static int parse_x509_pem(char* cert, char** cert_end, uint8_t** body, size_t* b
  *                     Timestamp format: %Y-%m-%dT%H:%M:%S.%f (Ex: 2019-08-01T12:30:00.123456)
  */
 int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
-                        sgx_arch_report_data_t* report_data, bool linkable,
+                        sgx_report_data_t* report_data, bool linkable,
                         bool accept_group_out_of_date, sgx_attestation_t* ret_attestation,
                         char** ret_ias_status, char** ret_ias_timestamp) {
 
@@ -410,8 +410,8 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     SGX_DBG(DBG_S, "  type:  %s\n", linkable ? "linkable" : "unlinkable");
     SGX_DBG(DBG_S, "  nonce: %s\n", ALLOCA_BYTES2HEXSTR(*nonce));
 
-    sgx_arch_report_t report __sgx_mem_aligned;
-    sgx_arch_targetinfo_t targetinfo __sgx_mem_aligned = pal_sec.aesm_targetinfo;
+    sgx_report_t report __sgx_mem_aligned;
+    sgx_target_info_t targetinfo __sgx_mem_aligned = pal_sec.aesm_targetinfo;
 
     int ret = sgx_report(&targetinfo, report_data, &report);
     if (ret) {
@@ -609,13 +609,13 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
 
     // Check if the quote matches the IAS report
     if (memcmp(&ias_quote->body, &attestation.quote->body, sizeof(sgx_quote_body_t)) ||
-        memcmp(&ias_quote->report_body, &report.body, sizeof(sgx_arch_report_body_t))) {
+        memcmp(&ias_quote->report_body, &report.body, sizeof(sgx_report_body_t))) {
         SGX_DBG(DBG_E, "IAS returned the wrong quote\n");
         goto failed;
     }
 
     // Check if the quote has the right enclave report
-    if (memcmp(&attestation.quote->report_body, &report.body, sizeof(sgx_arch_report_body_t))) {
+    if (memcmp(&attestation.quote->report_body, &report.body, sizeof(sgx_report_body_t))) {
         SGX_DBG(DBG_E, "The returned quote contains the wrong enclave report\n");
         goto failed;
     }

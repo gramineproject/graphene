@@ -36,8 +36,8 @@ uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr
  * sgx_report:
  * Generate SGX hardware signed report.
  */
-static inline int sgx_report (sgx_arch_targetinfo_t * targetinfo,
-                               void * reportdata, sgx_arch_report_t * report)
+static inline int sgx_report (sgx_target_info_t * targetinfo,
+                              void * reportdata, sgx_report_t * report)
 {
     __asm__ volatile(
         ENCLU "\n"
@@ -50,7 +50,7 @@ static inline int sgx_report (sgx_arch_targetinfo_t * targetinfo,
  * sgx_getkey:
  * Retrieve SGX hardware enclave cryptography key.
  */
-static inline int64_t sgx_getkey (sgx_arch_keyrequest_t * keyrequest,
+static inline int64_t sgx_getkey (sgx_key_request_t * keyrequest,
                                   sgx_arch_key128_t * key)
 {
     int64_t rax = EGETKEY;
@@ -101,7 +101,7 @@ static inline void wrfsbase (uint64_t addr)
         :: "D"(addr));
 }
 
-void restore_sgx_context(sgx_context_t *ctx);
-void _restore_sgx_context(sgx_context_t *ctx);
+void restore_sgx_context(sgx_cpu_context_t *ctx);
+void _restore_sgx_context(sgx_cpu_context_t *ctx);
 
 #endif /* SGX_API_H */

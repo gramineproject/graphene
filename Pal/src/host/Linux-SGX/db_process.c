@@ -46,7 +46,7 @@ typedef __kernel_pid_t pid_t;
 DEFINE_LIST(trusted_child);
 struct trusted_child {
     LIST_TYPE(trusted_child) list;
-    sgx_arch_hash_t mrenclave;
+    sgx_measurement_t mrenclave;
     char uri[];
 };
 
@@ -76,9 +76,9 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
     INIT_LIST_HEAD(new, list);
     memcpy(new->uri, uri, uri_len + 1);
 
-    char mrenclave_text[sizeof(sgx_arch_hash_t) * 2 + 1] = "\0";
+    char mrenclave_text[sizeof(sgx_measurement_t) * 2 + 1] = "\0";
     size_t nbytes = 0;
-    for (; nbytes < sizeof(sgx_arch_hash_t) ; nbytes++) {
+    for (; nbytes < sizeof(sgx_measurement_t) ; nbytes++) {
         char byte1 = mrenclave_str[nbytes * 2];
         char byte2 = mrenclave_str[nbytes * 2 + 1];
         unsigned char val = 0;
@@ -105,11 +105,11 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
         if (byte2 >= 'a' && byte2 <= 'f')
             val += byte2 - 'a' + 10;
 
-        new->mrenclave[nbytes] = val;
+        new->mrenclave.m[nbytes] = val;
         snprintf(mrenclave_text + nbytes * 2, 3, "%02x", val);
     }
 
-    if (nbytes < sizeof(sgx_arch_hash_t)) {
+    if (nbytes < sizeof(sgx_measurement_t)) {
         free(new);
         return -PAL_ERROR_INVAL;
     }
@@ -184,7 +184,7 @@ int register_trusted_child(const char * uri, const char * mrenclave_str)
  */
 
 struct proc_data {
-    sgx_arch_mac_t eid_mac;
+    sgx_mac_t eid_mac;
 };
 
 static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t enclave_id,
@@ -206,7 +206,7 @@ static int generate_sign_data(const PAL_SESSION_KEY* session_key, uint64_t encla
     return 0;
 }
 
-static int check_child_mrenclave(PAL_HANDLE child, sgx_arch_hash_t* mrenclave,
+static int check_child_mrenclave(PAL_HANDLE child, sgx_measurement_t* mrenclave,
                                  struct pal_enclave_state* remote_state) {
     /* the process must be a clean process */
     if (remote_state->enclave_flags & PAL_ENCLAVE_INITIALIZED)
@@ -224,7 +224,7 @@ static int check_child_mrenclave(PAL_HANDLE child, sgx_arch_hash_t* mrenclave,
         return 1;
 
     /* Always accept the same mrenclave as child process */
-    if (!memcmp(mrenclave, pal_sec.mrenclave, sizeof(sgx_arch_hash_t))) {
+    if (!memcmp(mrenclave, &pal_sec.mrenclave, sizeof(sgx_measurement_t))) {
         SGX_DBG(DBG_S, "trusted child: <forked>\n");
         return 0;
     }
@@ -234,7 +234,7 @@ static int check_child_mrenclave(PAL_HANDLE child, sgx_arch_hash_t* mrenclave,
 
     /* Try to find a matching mrenclave from the manifest */
     LISTP_FOR_EACH_ENTRY(tc, &trusted_children, list) {
-        if (!memcmp(mrenclave, tc->mrenclave, sizeof(sgx_arch_hash_t))) {
+        if (!memcmp(mrenclave, &tc->mrenclave, sizeof(sgx_measurement_t))) {
             _DkSpinUnlock(&trusted_children_lock);
             SGX_DBG(DBG_S, "trusted child: %s\n", tc->uri);
             return 0;
@@ -294,7 +294,7 @@ failed:
     return ret;
 }
 
-static int check_parent_mrenclave(PAL_HANDLE parent, sgx_arch_hash_t* mrenclave,
+static int check_parent_mrenclave(PAL_HANDLE parent, sgx_measurement_t* mrenclave,
                                   struct pal_enclave_state* remote_state) {
     __UNUSED(mrenclave);
     sgx_sign_data_t sign_data;

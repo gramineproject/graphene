@@ -98,10 +98,10 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                          bool skip_eextend,
                          const char * comment);
 
-int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo);
+int init_aesm_targetinfo(sgx_target_info_t* aesm_targetinfo);
 
 int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
-                            const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                            const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
                             sgx_attestation_t* attestation);
 
 int init_enclave(sgx_arch_secs_t * secs,

@@ -72,7 +72,7 @@ _DkGenericSignalHandle (int event_num, PAL_NUM arg, struct pal_frame * frame,
 #define ADDR_IN_PAL(addr)  \
         ((void*)(addr) > TEXT_START && (void*)(addr) < TEXT_END)
 
-static struct pal_frame * get_frame (sgx_context_t * uc)
+static struct pal_frame * get_frame (sgx_cpu_context_t * uc)
 {
     unsigned long rbp;
 
@@ -161,7 +161,7 @@ void _DkExceptionRealHandler (int event, PAL_NUM arg, struct pal_frame * frame,
  *  false: #UD is not handled.
  *         the exception needs to be raised up to LibOS or user application.
  */
-static bool handle_ud(sgx_context_t * uc)
+static bool handle_ud(sgx_cpu_context_t * uc)
 {
     uint8_t * instr = (uint8_t *) uc->rip;
     if (instr[0] == 0xcc) { /* skip int 3 */
@@ -193,7 +193,7 @@ static bool handle_ud(sgx_context_t * uc)
     return false;
 }
 
-void _DkExceptionHandler (unsigned int exit_info, sgx_context_t * uc)
+void _DkExceptionHandler (unsigned int exit_info, sgx_cpu_context_t * uc)
 {
     union {
         sgx_arch_exitinfo_t info;
@@ -336,10 +336,10 @@ void _DkExceptionReturn (void * event)
                       "retq\r\n" ::: "memory");
     }
 
-    // Allocate sgx_context_t just below the "normal" stack (honoring the red
+    // Allocate sgx_cpu_context_t just below the "normal" stack (honoring the red
     // zone) and then copy the content of ctx there. This is needed by
     // restore_sgx_context.
-    sgx_context_t * uc = (void *)ctx->rsp - sizeof(sgx_context_t) - RED_ZONE_SIZE;
+    sgx_cpu_context_t * uc = (void *)ctx->rsp - sizeof(sgx_cpu_context_t) - RED_ZONE_SIZE;
     uc->rax = ctx->rax;
     uc->rbx = ctx->rbx;
     uc->rcx = ctx->rcx;
@@ -362,7 +362,7 @@ void _DkExceptionReturn (void * event)
     restore_sgx_context(uc);
 }
 
-void _DkHandleExternalEvent (PAL_NUM event, sgx_context_t * uc)
+void _DkHandleExternalEvent (PAL_NUM event, sgx_cpu_context_t * uc)
 {
     struct pal_frame * frame = get_frame(uc);
 

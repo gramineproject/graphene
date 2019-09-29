@@ -151,8 +151,7 @@ int create_enclave(sgx_arch_secs_t * secs,
         secs->size <<= 1;
     secs->ssaframesize = get_ssaframesize(token->attributes.xfrm) / pagesize;
     secs->miscselect = token->miscselect_mask;
-    memcpy(&secs->attributes, &token->attributes,
-           sizeof(sgx_arch_attributes_t));
+    memcpy(&secs->attributes, &token->attributes, sizeof(sgx_attributes_t));
 
     // Enable AVX and AVX512
     // [2019-09-18] TODO(dep): This alone is not enough to get the fully optional behavior we will want.
@@ -333,8 +332,8 @@ int init_enclave(sgx_arch_secs_t * secs,
     SGX_DBG(DBG_I, "enclave initializing:\n");
     SGX_DBG(DBG_I, "    enclave id:   0x%016lx\n", enclave_valid_addr);
     SGX_DBG(DBG_I, "    enclave hash:");
-    for (size_t i = 0 ; i < sizeof(sgx_arch_hash_t) ; i++)
-        SGX_DBG(DBG_I, " %02x", sigstruct->enclave_hash[i]);
+    for (size_t i = 0 ; i < sizeof(sgx_measurement_t) ; i++)
+        SGX_DBG(DBG_I, " %02x", sigstruct->enclave_hash.m[i]);
     SGX_DBG(DBG_I, "\n");
 
 #if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)

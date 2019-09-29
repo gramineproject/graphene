@@ -33,9 +33,9 @@ typedef struct {
 } __attribute__((packed)) sgx_quote_body_t;
 
 typedef struct {
-    sgx_quote_body_t       body;
-    sgx_arch_report_body_t report_body;
-    uint32_t               sig_len;
+    sgx_quote_body_t  body;
+    sgx_report_body_t report_body;
+    uint32_t          sig_len;
 } __attribute__((packed)) sgx_quote_t;
 
 typedef uint8_t sgx_spid_t[16];
@@ -54,19 +54,19 @@ enum {
 int init_trusted_platform(void);
 
 typedef struct {
-    sgx_arch_report_t qe_report;
-    sgx_quote_t*      quote;
-    size_t            quote_len;
-    char*             ias_report;
-    size_t            ias_report_len;
-    uint8_t*          ias_sig;
-    size_t            ias_sig_len;
-    char*             ias_certs;
-    size_t            ias_certs_len;
+    sgx_report_t qe_report;
+    sgx_quote_t* quote;
+    size_t       quote_len;
+    char*        ias_report;
+    size_t       ias_report_len;
+    uint8_t*     ias_sig;
+    size_t       ias_sig_len;
+    char*        ias_certs;
+    size_t       ias_certs_len;
 } __attribute__((packed)) sgx_attestation_t;
 
 int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t* nonce,
-                        sgx_arch_report_data_t* report_data, bool linkable,
+                        sgx_report_data_t* report_data, bool linkable,
                         bool accept_group_out_of_date, sgx_attestation_t* ret_attestation,
                         char** ret_ias_status, char** ret_ias_timestamp);
 
