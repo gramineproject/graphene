@@ -17,7 +17,7 @@ CFLAGS += $(defs)
 ASFLAGS += $(defs)
 objs	= $(addprefix db_,files devices pipes sockets streams memory threading \
 	    mutex events process object main rtld misc ipc \
-	    exception) clone-x86_64 gettimeofday-x86_64
+	    exception) clone-x86_64
 graphene_lib = .lib/graphene-lib.a
 
 .PHONY: all
