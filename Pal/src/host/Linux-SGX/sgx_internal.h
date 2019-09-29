@@ -83,7 +83,7 @@ int open_gsgx (void);
 bool is_wrfsbase_supported (void);
 
 int read_enclave_token (int token_file, sgx_arch_token_t * token);
-int read_enclave_sigstruct (int sigfile, sgx_arch_sigstruct_t * sig);
+int read_enclave_sigstruct (int sigfile, sgx_arch_enclave_css_t * sig);
 
 int create_enclave(sgx_arch_secs_t * secs,
                    unsigned long base,
@@ -98,14 +98,14 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                          bool skip_eextend,
                          const char * comment);
 
-int init_aesm_targetinfo(sgx_arch_targetinfo_t* aesm_targetinfo);
+int init_aesm_targetinfo(sgx_target_info_t* aesm_targetinfo);
 
 int retrieve_verified_quote(const sgx_spid_t* spid, const char* subkey, bool linkable,
-                            const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                            const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
                             sgx_attestation_t* attestation);
 
 int init_enclave(sgx_arch_secs_t * secs,
-                 sgx_arch_sigstruct_t * sigstruct,
+                 sgx_arch_enclave_css_t * sigstruct,
                  sgx_arch_token_t * token);
 
 int destroy_enclave(void * base_addr, size_t length);

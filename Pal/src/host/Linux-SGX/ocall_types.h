@@ -281,7 +281,7 @@ typedef struct {
     sgx_spid_t        ms_spid;
     const char*       ms_subkey;
     bool              ms_linkable;
-    sgx_arch_report_t ms_report;
+    sgx_report_t      ms_report;
     sgx_quote_nonce_t ms_nonce;
     sgx_attestation_t ms_attestation;
 } ms_ocall_get_attestation_t;

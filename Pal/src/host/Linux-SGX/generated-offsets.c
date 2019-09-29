@@ -21,55 +21,53 @@ void dummy(void)
     DEFINE(SGX_XFRM_MPX, SGX_XFRM_MPX);
     DEFINE(SGX_XFRM_AVX512, SGX_XFRM_AVX512);
     DEFINE(SGX_MISCSELECT_EXINFO, SGX_MISCSELECT_EXINFO);
+    DEFINE(SE_KEY_SIZE, SE_KEY_SIZE);
 
-    /* sgx_arch_key_t */
-    DEFINE(SGX_ARCH_KEY_SIZE, sizeof(sgx_arch_key_t));
+    /* sgx_measurement_t */
+    DEFINE(SGX_HASH_SIZE, sizeof(sgx_measurement_t));
 
-    /* sgx_arch_hash_t */
-    DEFINE(SGX_ARCH_HASH_SIZE, sizeof(sgx_arch_hash_t));
+    /* sgx_pal_gpr_t */
+    OFFSET_T(SGX_GPR_RAX, sgx_pal_gpr_t, rax);
+    OFFSET_T(SGX_GPR_RCX, sgx_pal_gpr_t, rcx);
+    OFFSET_T(SGX_GPR_RDX, sgx_pal_gpr_t, rdx);
+    OFFSET_T(SGX_GPR_RBX, sgx_pal_gpr_t, rbx);
+    OFFSET_T(SGX_GPR_RSP, sgx_pal_gpr_t, rsp);
+    OFFSET_T(SGX_GPR_RBP, sgx_pal_gpr_t, rbp);
+    OFFSET_T(SGX_GPR_RSI, sgx_pal_gpr_t, rsi);
+    OFFSET_T(SGX_GPR_RDI, sgx_pal_gpr_t, rdi);
+    OFFSET_T(SGX_GPR_R8, sgx_pal_gpr_t, r8);
+    OFFSET_T(SGX_GPR_R9, sgx_pal_gpr_t, r9);
+    OFFSET_T(SGX_GPR_R10, sgx_pal_gpr_t, r10);
+    OFFSET_T(SGX_GPR_R11, sgx_pal_gpr_t, r11);
+    OFFSET_T(SGX_GPR_R12, sgx_pal_gpr_t, r12);
+    OFFSET_T(SGX_GPR_R13, sgx_pal_gpr_t, r13);
+    OFFSET_T(SGX_GPR_R14, sgx_pal_gpr_t, r14);
+    OFFSET_T(SGX_GPR_R15, sgx_pal_gpr_t, r15);
+    OFFSET_T(SGX_GPR_RFLAGS, sgx_pal_gpr_t, rflags);
+    OFFSET_T(SGX_GPR_RIP, sgx_pal_gpr_t, rip);
+    OFFSET_T(SGX_GPR_EXITINFO, sgx_pal_gpr_t, exitinfo);
+    DEFINE(SGX_GPR_SIZE, sizeof(sgx_pal_gpr_t));
 
-    /* sgx_arch_gpr_t */
-    OFFSET_T(SGX_GPR_RAX, sgx_arch_gpr_t, rax);
-    OFFSET_T(SGX_GPR_RCX, sgx_arch_gpr_t, rcx);
-    OFFSET_T(SGX_GPR_RDX, sgx_arch_gpr_t, rdx);
-    OFFSET_T(SGX_GPR_RBX, sgx_arch_gpr_t, rbx);
-    OFFSET_T(SGX_GPR_RSP, sgx_arch_gpr_t, rsp);
-    OFFSET_T(SGX_GPR_RBP, sgx_arch_gpr_t, rbp);
-    OFFSET_T(SGX_GPR_RSI, sgx_arch_gpr_t, rsi);
-    OFFSET_T(SGX_GPR_RDI, sgx_arch_gpr_t, rdi);
-    OFFSET_T(SGX_GPR_R8, sgx_arch_gpr_t, r8);
-    OFFSET_T(SGX_GPR_R9, sgx_arch_gpr_t, r9);
-    OFFSET_T(SGX_GPR_R10, sgx_arch_gpr_t, r10);
-    OFFSET_T(SGX_GPR_R11, sgx_arch_gpr_t, r11);
-    OFFSET_T(SGX_GPR_R12, sgx_arch_gpr_t, r12);
-    OFFSET_T(SGX_GPR_R13, sgx_arch_gpr_t, r13);
-    OFFSET_T(SGX_GPR_R14, sgx_arch_gpr_t, r14);
-    OFFSET_T(SGX_GPR_R15, sgx_arch_gpr_t, r15);
-    OFFSET_T(SGX_GPR_RFLAGS, sgx_arch_gpr_t, rflags);
-    OFFSET_T(SGX_GPR_RIP, sgx_arch_gpr_t, rip);
-    OFFSET_T(SGX_GPR_EXITINFO, sgx_arch_gpr_t, exitinfo);
-    DEFINE(SGX_GPR_SIZE, sizeof(sgx_arch_gpr_t));
-
-    /* sgx_context_t */
-    OFFSET_T(SGX_CONTEXT_RAX, sgx_context_t, rax);
-    OFFSET_T(SGX_CONTEXT_RCX, sgx_context_t, rcx);
-    OFFSET_T(SGX_CONTEXT_RDX, sgx_context_t, rdx);
-    OFFSET_T(SGX_CONTEXT_RBX, sgx_context_t, rbx);
-    OFFSET_T(SGX_CONTEXT_RSP, sgx_context_t, rsp);
-    OFFSET_T(SGX_CONTEXT_RBP, sgx_context_t, rbp);
-    OFFSET_T(SGX_CONTEXT_RSI, sgx_context_t, rsi);
-    OFFSET_T(SGX_CONTEXT_RDI, sgx_context_t, rdi);
-    OFFSET_T(SGX_CONTEXT_R8, sgx_context_t, r8);
-    OFFSET_T(SGX_CONTEXT_R9, sgx_context_t, r9);
-    OFFSET_T(SGX_CONTEXT_R10, sgx_context_t, r10);
-    OFFSET_T(SGX_CONTEXT_R11, sgx_context_t, r11);
-    OFFSET_T(SGX_CONTEXT_R12, sgx_context_t, r12);
-    OFFSET_T(SGX_CONTEXT_R13, sgx_context_t, r13);
-    OFFSET_T(SGX_CONTEXT_R14, sgx_context_t, r14);
-    OFFSET_T(SGX_CONTEXT_R15, sgx_context_t, r15);
-    OFFSET_T(SGX_CONTEXT_RFLAGS, sgx_context_t, rflags);
-    OFFSET_T(SGX_CONTEXT_RIP, sgx_context_t, rip);
-    DEFINE(SGX_CONTEXT_SIZE, sizeof(sgx_context_t));
+    /* sgx_cpu_context_t */
+    OFFSET_T(SGX_CPU_CONTEXT_RAX, sgx_cpu_context_t, rax);
+    OFFSET_T(SGX_CPU_CONTEXT_RCX, sgx_cpu_context_t, rcx);
+    OFFSET_T(SGX_CPU_CONTEXT_RDX, sgx_cpu_context_t, rdx);
+    OFFSET_T(SGX_CPU_CONTEXT_RBX, sgx_cpu_context_t, rbx);
+    OFFSET_T(SGX_CPU_CONTEXT_RSP, sgx_cpu_context_t, rsp);
+    OFFSET_T(SGX_CPU_CONTEXT_RBP, sgx_cpu_context_t, rbp);
+    OFFSET_T(SGX_CPU_CONTEXT_RSI, sgx_cpu_context_t, rsi);
+    OFFSET_T(SGX_CPU_CONTEXT_RDI, sgx_cpu_context_t, rdi);
+    OFFSET_T(SGX_CPU_CONTEXT_R8, sgx_cpu_context_t, r8);
+    OFFSET_T(SGX_CPU_CONTEXT_R9, sgx_cpu_context_t, r9);
+    OFFSET_T(SGX_CPU_CONTEXT_R10, sgx_cpu_context_t, r10);
+    OFFSET_T(SGX_CPU_CONTEXT_R11, sgx_cpu_context_t, r11);
+    OFFSET_T(SGX_CPU_CONTEXT_R12, sgx_cpu_context_t, r12);
+    OFFSET_T(SGX_CPU_CONTEXT_R13, sgx_cpu_context_t, r13);
+    OFFSET_T(SGX_CPU_CONTEXT_R14, sgx_cpu_context_t, r14);
+    OFFSET_T(SGX_CPU_CONTEXT_R15, sgx_cpu_context_t, r15);
+    OFFSET_T(SGX_CPU_CONTEXT_RFLAGS, sgx_cpu_context_t, rflags);
+    OFFSET_T(SGX_CPU_CONTEXT_RIP, sgx_cpu_context_t, rip);
+    DEFINE(SGX_CPU_CONTEXT_SIZE, sizeof(sgx_cpu_context_t));
 
     /* struct enclave_tls */
     OFFSET(SGX_COMMON_SELF, enclave_tls, common.self);
@@ -95,36 +93,42 @@ void dummy(void)
     OFFSET(SGX_EXEC_SIZE, enclave_tls, exec_size);
 
     /* sgx_arch_tcs_t */
+    OFFSET_T(TCS_FLAGS, sgx_arch_tcs_t, flags);
     OFFSET_T(TCS_OSSA, sgx_arch_tcs_t, ossa);
+    OFFSET_T(TCS_CSSA, sgx_arch_tcs_t, cssa);
     OFFSET_T(TCS_NSSA, sgx_arch_tcs_t, nssa);
     OFFSET_T(TCS_OENTRY, sgx_arch_tcs_t, oentry);
-    OFFSET_T(TCS_OGSBASGX, sgx_arch_tcs_t, ogsbasgx);
-    OFFSET_T(TCS_FSLIMIT, sgx_arch_tcs_t, fslimit);
-    OFFSET_T(TCS_GSLIMIT, sgx_arch_tcs_t, gslimit);
+    OFFSET_T(TCS_OFS_BASE, sgx_arch_tcs_t, ofs_base);
+    OFFSET_T(TCS_OGS_BASE, sgx_arch_tcs_t, ogs_base);
+    OFFSET_T(TCS_OFS_LIMIT, sgx_arch_tcs_t, ofs_limit);
+    OFFSET_T(TCS_OGS_LIMIT, sgx_arch_tcs_t, ogs_limit);
     DEFINE(TCS_SIZE, sizeof(sgx_arch_tcs_t));
 
-    /* sgx_arch_attributes_t */
-    OFFSET_T(SGX_ARCH_ATTRIBUTES_XFRM, sgx_arch_attributes_t, xfrm);
+    /* sgx_attributes_t */
+    OFFSET_T(SGX_ATTRIBUTES_XFRM, sgx_attributes_t, xfrm);
 
-    /* sgx_arch_sigstruct_t */
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_HEADER, sgx_arch_sigstruct_t, header);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_VENDOR, sgx_arch_sigstruct_t, vendor);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_DATE, sgx_arch_sigstruct_t, date);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_HEADER2, sgx_arch_sigstruct_t, header2);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_SWDEFINED, sgx_arch_sigstruct_t, swdefined);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_MODULUS, sgx_arch_sigstruct_t, modulus);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_EXPONENT, sgx_arch_sigstruct_t, exponent);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_SIGNATURE, sgx_arch_sigstruct_t, signature);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_MISCSELECT, sgx_arch_sigstruct_t, miscselect);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, sgx_arch_sigstruct_t, miscselect_mask);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_ATTRIBUTES, sgx_arch_sigstruct_t, attributes);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK, sgx_arch_sigstruct_t, attribute_mask);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, sgx_arch_sigstruct_t, enclave_hash);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_ISVPRODID, sgx_arch_sigstruct_t, isvprodid);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_ISVSVN, sgx_arch_sigstruct_t, isvsvn);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_Q1, sgx_arch_sigstruct_t, q1);
-    OFFSET_T(SGX_ARCH_SIGSTRUCT_Q2, sgx_arch_sigstruct_t, q2);
-    DEFINE(SGX_ARCH_SIGSTRUCT_SIZE, sizeof(sgx_arch_sigstruct_t));
+    /* sgx_arch_enclave_css_t */
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_HEADER, sgx_arch_enclave_css_t, header.header);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_TYPE, sgx_arch_enclave_css_t, header.type);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_MODULE_VENDOR, sgx_arch_enclave_css_t, header.module_vendor);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_DATE, sgx_arch_enclave_css_t, header.date);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_HEADER2, sgx_arch_enclave_css_t, header.header2);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_HW_VERSION, sgx_arch_enclave_css_t, header.hw_version);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_MODULUS, sgx_arch_enclave_css_t, key.modulus);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_EXPONENT, sgx_arch_enclave_css_t, key.exponent);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_SIGNATURE, sgx_arch_enclave_css_t, key.signature);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, sgx_arch_enclave_css_t, body.misc_select);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_MISC_MASK, sgx_arch_enclave_css_t, body.misc_mask);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_ISV_FAMILY_ID, sgx_arch_enclave_css_t, body.isv_family_id);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES, sgx_arch_enclave_css_t, body.attributes);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK, sgx_arch_enclave_css_t, body.attribute_mask);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, sgx_arch_enclave_css_t, body.enclave_hash);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_ISVEXT_PROD_ID, sgx_arch_enclave_css_t, body.isvext_prod_id);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, sgx_arch_enclave_css_t, body.isv_prod_id);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_ISV_SVN, sgx_arch_enclave_css_t, body.isv_svn);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_Q1, sgx_arch_enclave_css_t, buffer.q1);
+    OFFSET_T(SGX_ARCH_ENCLAVE_CSS_Q2, sgx_arch_enclave_css_t, buffer.q2);
+    DEFINE(SGX_ARCH_ENCLAVE_CSS_SIZE, sizeof(sgx_arch_enclave_css_t));
 
     /* struct pal_sec */
     OFFSET(PAL_SEC_ENCLAVE_ATTRIBUTES, pal_sec, enclave_attributes);

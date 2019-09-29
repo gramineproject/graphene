@@ -15,21 +15,20 @@ from generated_offsets import *
 def read_sigstruct(sig):
     """Reading Sigstruct."""
     # field format: (offset, type, value)
-    # SGX_ARCH_SIGSTRUCT_
+    # SGX_ARCH_ENCLAVE_CSS_
     fields = {
-        'date': (SGX_ARCH_SIGSTRUCT_DATE, "<HBB", 'year', 'month', 'day'),
-        'modulus': (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", 'modulus'),
-        'exponent': (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L", 'exponent'),
-        'signature': (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", 'signature'),
+        'date': (SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", 'year', 'month', 'day'),
+        'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, "384s", 'modulus'),
+        'exponent': (SGX_ARCH_ENCLAVE_CSS_EXPONENT, "<L", 'exponent'),
+        'signature': (SGX_ARCH_ENCLAVE_CSS_SIGNATURE, "384s", 'signature'),
 
-        'miscs': (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", 'miscs'),
-        'miscmask': (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", 'miscmask'),
-        'attrs': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
-        'attrmask': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
-                     "8s8s", 'flagmask', 'xfrmmask'),
-        'mrenclave': (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s", 'mrenclave'),
-        'isvprodid': (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H", 'isvprodid'),
-        'isvsvn': (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", 'isvsvn'),
+        'misc_select': (SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, "4s", 'misc_select'),
+        'misc_mask': (SGX_ARCH_ENCLAVE_CSS_MISC_MASK, "4s", 'misc_mask'),
+        'attributes': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
+        'attribute_mask': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK, "8s8s", 'flag_mask', 'xfrm_mask'),
+        'enclave_hash': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", 'enclave_hash'),
+        'isv_prod_id': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", 'isv_prod_id'),
+        'isv_svn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", 'isv_svn'),
     }
 
     attr = dict()
@@ -46,7 +45,7 @@ def connect_aesmd(attr):
     """Connect with AESMD."""
 
     req_msg = aesm_pb2.GetTokenReq()
-    req_msg.req.signature = attr['mrenclave']
+    req_msg.req.signature = attr['enclave_hash']
     req_msg.req.key = attr['modulus']
     req_msg.req.attributes = attr['flags'] + attr['xfrms']
     req_msg.req.timeout = 10000
@@ -100,22 +99,17 @@ def main(args=None):
     attr = read_sigstruct(args.sig.read())
 
     print("Attributes:")
-    print("    mrenclave: %s" % attr['mrenclave'].hex())
-    print("    isvprodid: %d" % attr['isvprodid'])
-    print("    isvsvn:    %d" % attr['isvsvn'])
-    print("    flags:     %016x" % int.from_bytes(attr['flags'],
-                                                  byteorder='big'))
-    print("    xfrms:     %016x" % int.from_bytes(attr['xfrms'],
-                                                  byteorder='big'))
-    print("    miscs:     %08x" % int.from_bytes(attr['miscs'],
-                                                 byteorder='big'))
-    print("    miscmask:  %08x" % int.from_bytes(attr['miscmask'],
-                                                 byteorder='big'))
-    print("    modulus:   %s..." % attr['modulus'].hex()[:32])
-    print("    exponent:  %d" % attr['exponent'])
-    print("    signature: %s..." % attr['signature'].hex()[:32])
-    print("    date:      %d-%02d-%02d" % (attr['year'], attr['month'],
-                                           attr['day']))
+    print("    mr_enclave:  %s" % attr['enclave_hash'].hex())
+    print("    isv_prod_id: %d" % attr['isv_prod_id'])
+    print("    isv_svn:     %d" % attr['isv_svn'])
+    print("    attr.flags:  %016x" % int.from_bytes(attr['flags'], byteorder='big'))
+    print("    attr.xfrm:   %016x" % int.from_bytes(attr['xfrms'], byteorder='big'))
+    print("    misc_select: %08x" % int.from_bytes(attr['misc_select'], byteorder='big'))
+    print("    misc_mask:   %08x" % int.from_bytes(attr['misc_mask'], byteorder='big'))
+    print("    modulus:     %s..." % attr['modulus'].hex()[:32])
+    print("    exponent:    %d" % attr['exponent'])
+    print("    signature:   %s..." % attr['signature'].hex()[:32])
+    print("    date:        %d-%02d-%02d" % (attr['year'], attr['month'], attr['day']))
 
     token = connect_aesmd(attr)
     args.output.write(token)

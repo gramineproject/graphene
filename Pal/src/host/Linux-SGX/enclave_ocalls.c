@@ -1159,7 +1159,7 @@ int ocall_load_debug(const char * command)
  *               and certificate chain).
  */
 int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool linkable,
-                           const sgx_arch_report_t* report, const sgx_quote_nonce_t* nonce,
+                           const sgx_report_t* report, const sgx_quote_nonce_t* nonce,
                            sgx_attestation_t* attestation) {
 
     ms_ocall_get_attestation_t * ms;
@@ -1171,7 +1171,7 @@ int ocall_get_attestation (const sgx_spid_t* spid, const char* subkey, bool link
 
     memcpy(&ms->ms_spid,   spid,   sizeof(sgx_spid_t));
     ms->ms_subkey = sgx_copy_to_ustack(subkey, strlen(subkey) + 1);
-    memcpy(&ms->ms_report, report, sizeof(sgx_arch_report_t));
+    memcpy(&ms->ms_report, report, sizeof(sgx_report_t));
     memcpy(&ms->ms_nonce,  nonce,  sizeof(sgx_quote_nonce_t));
     ms->ms_linkable = linkable;
 

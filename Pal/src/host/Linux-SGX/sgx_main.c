@@ -229,13 +229,13 @@ int initialize_enclave (struct pal_enclave * enclave)
 {
     int ret = 0;
 
-    int                  enclave_image = -1;
-    sgx_arch_token_t     enclave_token;
-    sgx_arch_sigstruct_t enclave_sigstruct;
-    sgx_arch_secs_t      enclave_secs;
-    unsigned long        enclave_entry_addr;
-    void *               tcs_addrs[MAX_DBG_THREADS];
-    unsigned long        heap_min = DEFAULT_HEAP_MIN;
+    int                    enclave_image = -1;
+    sgx_arch_token_t       enclave_token;
+    sgx_arch_enclave_css_t enclave_sigstruct;
+    sgx_arch_secs_t        enclave_secs;
+    unsigned long          enclave_entry_addr;
+    void*                  tcs_addrs[MAX_DBG_THREADS];
+    unsigned long          heap_min = DEFAULT_HEAP_MIN;
 
     enclave_image = INLINE_SYSCALL(open, 3, ENCLAVE_FILENAME, O_RDONLY, 0);
     if (IS_ERR(enclave_image)) {
@@ -297,9 +297,9 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto out;
     }
 
-    enclave->baseaddr = enclave_secs.baseaddr;
+    enclave->baseaddr = enclave_secs.base;
     enclave->size = enclave_secs.size;
-    enclave->ssaframesize = enclave_secs.ssaframesize * pagesize;
+    enclave->ssaframesize = enclave_secs.ssa_frame_size * pagesize;
 
     struct stat stat;
     ret = INLINE_SYSCALL(fstat, 2, enclave->manifest, &stat);
@@ -465,21 +465,21 @@ int initialize_enclave (struct pal_enclave * enclave)
                 memset(gs, 0, pagesize);
                 assert(sizeof(*gs) <= pagesize);
                 gs->common.self = (PAL_TCB *)(
-                    tls_area->addr + pagesize * t + enclave_secs.baseaddr);
+                    tls_area->addr + pagesize * t + enclave_secs.base);
                 gs->enclave_size = enclave->size;
                 gs->tcs_offset = tcs_area->addr + pagesize * t;
                 gs->initial_stack_offset =
                     stack_areas[t].addr + ENCLAVE_STACK_SIZE;
                 gs->ssa = (void *) ssa_area->addr +
                     enclave->ssaframesize * SSAFRAMENUM * t +
-                    enclave_secs.baseaddr;
+                    enclave_secs.base;
                 gs->gpr = gs->ssa +
-                    enclave->ssaframesize - sizeof(sgx_arch_gpr_t);
+                    enclave->ssaframesize - sizeof(sgx_pal_gpr_t);
                 gs->manifest_size = manifest_size;
-                gs->heap_min = (void *) enclave_secs.baseaddr + heap_min;
-                gs->heap_max = (void *) enclave_secs.baseaddr + pal_area->addr - MEMORY_GAP;
+                gs->heap_min = (void *) enclave_secs.base + heap_min;
+                gs->heap_max = (void *) enclave_secs.base + pal_area->addr - MEMORY_GAP;
                 if (exec_area) {
-                    gs->exec_addr = (void *) enclave_secs.baseaddr + exec_area->addr;
+                    gs->exec_addr = (void *) enclave_secs.base + exec_area->addr;
                     gs->exec_size = exec_area->size;
                 }
                 gs->thread = NULL;
@@ -501,12 +501,11 @@ int initialize_enclave (struct pal_enclave * enclave)
                     enclave->ssaframesize * SSAFRAMENUM * t;
                 tcs->nssa = SSAFRAMENUM;
                 tcs->oentry = enclave_entry_addr;
-                tcs->ofsbasgx = 0;
-                tcs->ogsbasgx = tls_area->addr + t * pagesize;
-                tcs->fslimit = 0xfff;
-                tcs->gslimit = 0xfff;
-                tcs_addrs[t] = (void *) enclave_secs.baseaddr + tcs_area->addr
-                    + pagesize * t;
+                tcs->ofs_base = 0;
+                tcs->ogs_base = tls_area->addr + t * pagesize;
+                tcs->ofs_limit = 0xfff;
+                tcs->ogs_limit = 0xfff;
+                tcs_addrs[t] = (void *) enclave_secs.base + tcs_area->addr + pagesize * t;
             }
         } else if (areas[i].fd != -1) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
@@ -538,8 +537,7 @@ int initialize_enclave (struct pal_enclave * enclave)
         goto out;
     }
 
-    create_tcs_mapper((void *) enclave_secs.baseaddr + tcs_area->addr,
-                      enclave->thread_num);
+    create_tcs_mapper((void *) enclave_secs.base + tcs_area->addr, enclave->thread_num);
 
     struct enclave_dbginfo * dbg = (void *)
             INLINE_SYSCALL(mmap, 6, DBGINFO_ADDR,

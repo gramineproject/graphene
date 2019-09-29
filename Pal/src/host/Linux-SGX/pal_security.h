@@ -28,10 +28,10 @@ struct pal_sec {
     PAL_IDX         ppid, pid, uid, gid;
 
     /* enclave information */
-    sgx_arch_targetinfo_t   aesm_targetinfo;
-    sgx_arch_hash_t         mrenclave;
-    sgx_arch_hash_t         mrsigner;
-    sgx_arch_attributes_t   enclave_attributes;
+    sgx_target_info_t  aesm_targetinfo;
+    sgx_measurement_t  mr_enclave;
+    sgx_measurement_t  mr_signer;
+    sgx_attributes_t   enclave_attributes;
 
     /* remaining heap usable by application */
     PAL_PTR         heap_min, heap_max;
