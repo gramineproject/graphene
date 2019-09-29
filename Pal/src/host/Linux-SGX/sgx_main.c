@@ -269,8 +269,9 @@ int initialize_enclave (struct pal_enclave * enclave)
             ret = -EINVAL;
             goto out;
         }
-    } else
+    } else {
         enclave->thread_num = 1;
+    }
 
     /* Reading sgx.static_address from manifest */
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 && cfgbuf[0] == '1')
