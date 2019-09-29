@@ -31,6 +31,9 @@ char * alloc_concat(const char * p, size_t plen,
     slen = (slen != (size_t)-1) ? slen : (s ? strlen(s) : 0);
 
     char * buf = malloc(plen + slen + 1);
+    if (!buf)
+        return NULL;
+
     if (plen)
         memcpy(buf, p, plen);
     if (slen)
@@ -227,7 +230,6 @@ int initialize_enclave (struct pal_enclave * enclave)
     int ret = 0;
 
     int                  enclave_image = -1;
-    int                  enclave_thread_num = 1;
     sgx_arch_token_t     enclave_token;
     sgx_arch_sigstruct_t enclave_sigstruct;
     sgx_arch_secs_t      enclave_secs;
@@ -259,14 +261,16 @@ int initialize_enclave (struct pal_enclave * enclave)
     }
 
     /* Reading sgx.thread_num from manifest */
-    if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0)
+    if (get_config(enclave->config, "sgx.thread_num", cfgbuf, CONFIG_MAX) > 0) {
         enclave->thread_num = parse_int(cfgbuf);
 
-    if (enclave_thread_num > MAX_DBG_THREADS) {
-        SGX_DBG(DBG_E, "Too many threads to debug\n");
-        ret = -EINVAL;
-        goto out;
-    }
+        if (enclave->thread_num > MAX_DBG_THREADS) {
+            SGX_DBG(DBG_E, "Too many threads to debug\n");
+            ret = -EINVAL;
+            goto out;
+        }
+    } else
+        enclave->thread_num = 1;
 
     /* Reading sgx.static_address from manifest */
     if (get_config(enclave->config, "sgx.static_address", cfgbuf, CONFIG_MAX) > 0 && cfgbuf[0] == '1')
@@ -693,8 +697,7 @@ int load_manifest (int fd, struct config_store ** config_ptr)
 
 out:
     if (ret < 0) {
-        if (config)
-            free(config);
+        free(config);
         if (!IS_ERR_P(config_raw))
             INLINE_SYSCALL(munmap, 2, config_raw, nbytes);
     }
@@ -791,9 +794,7 @@ static int load_enclave (struct pal_enclave * enclave,
         if (strcmp_static(&env[env_i], "IN_GDB=1")) {
             SGX_DBG(DBG_I, "[ Running under GDB ]\n");
             pal_sec->in_gdb = true;
-        }
-
-        if (strcmp_static(&env[env_i], "LD_PRELOAD=")) {
+        } else if (strcmp_static(&env[env_i], "LD_PRELOAD=")) {
             uint64_t env_i_size = strnlen(&env[env_i], env_size - env_i) + 1;
             memmove(&env[env_i], &env[env_i + env_i_size], env_size - env_i - env_i_size);
             env_size -= env_i_size;
@@ -806,7 +807,7 @@ static int load_enclave (struct pal_enclave * enclave,
 
     char cfgbuf[CONFIG_MAX];
 
-    enclave->manifest = INLINE_SYSCALL(open, 3, manifest_uri + 5,
+    enclave->manifest = INLINE_SYSCALL(open, 3, manifest_uri + static_strlen("file:"),
                                        O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->manifest)) {
          SGX_DBG(DBG_E, "Cannot open manifest %s\n", manifest_uri);
@@ -831,29 +832,24 @@ static int load_enclave (struct pal_enclave * enclave,
         }
     }
 
-    if (exec_uri) {
-        enclave->exec = INLINE_SYSCALL(open, 3,
-                                       exec_uri + static_strlen("file:"),
-                                       O_RDONLY|O_CLOEXEC, 0);
-        if (IS_ERR(enclave->exec)) {
-            if (exec_uri_inferred) {
-                // It is valid for an enclave not to have an executable.
-                // We need to catch the case where we inferred the executable
-                // from the manifest file name, but it doesn't exist, and let
-                // the enclave go a bit further.  Go ahead and warn the user,
-                // though.
-                SGX_DBG(DBG_I, "Inferred executable cannot be opened: %s.  This may be ok, "
-                       "or may represent a manifest misconfiguration. This typically "
-                       "represents advanced usage, and if it is not what you intended, "
-                       "try setting the loader.exec field in the manifest.\n", exec_uri);
-                enclave->exec = -1;
-            } else {
-                SGX_DBG(DBG_E, "Cannot open executable %s\n", exec_uri);
-                return -EINVAL;
-            }
+    enclave->exec = INLINE_SYSCALL(open, 3, exec_uri + static_strlen("file:"),
+                                   O_RDONLY|O_CLOEXEC, 0);
+    if (IS_ERR(enclave->exec)) {
+        if (exec_uri_inferred) {
+            // It is valid for an enclave not to have an executable.
+            // We need to catch the case where we inferred the executable
+            // from the manifest file name, but it doesn't exist, and let
+            // the enclave go a bit further.  Go ahead and warn the user,
+            // though.
+            SGX_DBG(DBG_I, "Inferred executable cannot be opened: %s.  This may be ok, "
+                    "or may represent a manifest misconfiguration. This typically "
+                    "represents advanced usage, and if it is not what you intended, "
+                    "try setting the loader.exec field in the manifest.\n", exec_uri);
+            enclave->exec = -1;
+        } else {
+            SGX_DBG(DBG_E, "Cannot open executable %s\n", exec_uri);
+            return -EINVAL;
         }
-    } else {
-        enclave->exec = -1;
     }
 
     if (get_config(enclave->config, "sgx.sigfile", cfgbuf, CONFIG_MAX) < 0) {
@@ -867,23 +863,29 @@ static int load_enclave (struct pal_enclave * enclave,
         return -EINVAL;
     }
 
-    if (!strcmp_static(sig_uri + strlen(sig_uri) - 4, ".sig")) {
+    if (!strendswith(sig_uri, ".sig")) {
         SGX_DBG(DBG_E, "Invalid sigstruct file URI as %s\n", cfgbuf);
         free(sig_uri);
         return -EINVAL;
     }
 
-    enclave->sigfile = INLINE_SYSCALL(open, 3, sig_uri + 5, O_RDONLY|O_CLOEXEC, 0);
+    enclave->sigfile = INLINE_SYSCALL(open, 3, sig_uri + static_strlen("file:"),
+                                      O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->sigfile)) {
         SGX_DBG(DBG_E, "Cannot open sigstruct file %s\n", sig_uri);
         free(sig_uri);
         return -EINVAL;
     }
 
-    char * token_uri = alloc_concat(sig_uri, strlen(sig_uri) - 4, ".token", -1);
+    char * token_uri = alloc_concat(sig_uri, strlen(sig_uri) - static_strlen(".sig"), ".token", -1);
     free(sig_uri);
+    if (!token_uri) {
+        INLINE_SYSCALL(close, 1, enclave->sigfile);
+        return -ENOMEM;
+    }
 
-    enclave->token = INLINE_SYSCALL(open, 3, token_uri + 5, O_RDONLY|O_CLOEXEC, 0);
+    enclave->token = INLINE_SYSCALL(open, 3, token_uri + static_strlen("file:"),
+                                    O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->token)) {
         SGX_DBG(DBG_E, "Cannot open token \'%s\'. Use \'"
                 PAL_FILE("pal-sgx-get-token")
