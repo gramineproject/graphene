@@ -70,7 +70,7 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_sigstruct_t * sig)
     if (IS_ERR(ret))
         return -ERRNO(ret);
 
-    if ((size_t)stat.st_size < sizeof(sgx_arch_sigstruct_t)) {
+    if ((size_t)stat.st_size != sizeof(sgx_arch_sigstruct_t)) {
         SGX_DBG(DBG_I, "size of sigstruct size does not match\n");
         return -EINVAL;
     }
