@@ -109,7 +109,7 @@ static PAL_HANDLE setup_dummy_file_handle (const char * name)
     char * path = (void *) handle + HANDLE_SIZE(file);
     int ret = get_norm_path(name, path, &len);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", name, PAL_STRERROR(ret));
+        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", name, pal_strerror(ret));
         free(handle);
         return NULL;
     }

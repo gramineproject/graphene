@@ -434,10 +434,9 @@ static inline void log_stream (const char * uri)
         write_log(2, uri, "\n");
 }
 
-/* errval is negative value. see PAL_STRERROR */
-static inline void print_error(const char * errstring, int errval)
-{
-    printf("%s (%s)\n", errstring, PAL_STRERROR(errval));
+/* errval is negative value. see pal_strerror */
+static inline void print_error(const char* errstring, int errval) {
+    printf("%s (%s)\n", errstring, pal_strerror(errval));
 }
 
 #endif

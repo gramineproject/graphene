@@ -24,9 +24,88 @@
 #include "pal_error.h"
 #include "pal_debug.h"
 #include "assert.h"
+#include "crypto/mbedtls/mbedtls/aes.h"
 #include "crypto/mbedtls/mbedtls/cmac.h"
 #include "crypto/mbedtls/mbedtls/sha256.h"
 #include "crypto/mbedtls/mbedtls/rsa.h"
+
+int mbedtls_to_pal_error(int error)
+{
+    switch(error) {
+        case 0:
+            return 0;
+
+        case MBEDTLS_ERR_AES_INVALID_KEY_LENGTH:
+            return -PAL_ERROR_CRYPTO_INVALID_KEY_LENGTH;
+
+        case MBEDTLS_ERR_AES_INVALID_INPUT_LENGTH:
+        case MBEDTLS_ERR_CIPHER_FULL_BLOCK_EXPECTED:
+            return -PAL_ERROR_CRYPTO_INVALID_INPUT_LENGTH;
+
+        case MBEDTLS_ERR_CIPHER_FEATURE_UNAVAILABLE:
+        case MBEDTLS_ERR_MD_FEATURE_UNAVAILABLE:
+            return -PAL_ERROR_CRYPTO_FEATURE_UNAVAILABLE;
+
+        case MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA:
+        case MBEDTLS_ERR_DHM_BAD_INPUT_DATA:
+        case MBEDTLS_ERR_MD_BAD_INPUT_DATA:
+        case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
+            return -PAL_ERROR_CRYPTO_BAD_INPUT_DATA;
+
+        case MBEDTLS_ERR_RSA_OUTPUT_TOO_LARGE:
+            return -PAL_ERROR_CRYPTO_INVALID_OUTPUT_LENGTH;
+
+        case MBEDTLS_ERR_CIPHER_ALLOC_FAILED:
+        case MBEDTLS_ERR_DHM_ALLOC_FAILED:
+        case MBEDTLS_ERR_MD_ALLOC_FAILED:
+            return -PAL_ERROR_NOMEM;
+
+        case MBEDTLS_ERR_CIPHER_INVALID_PADDING:
+        case MBEDTLS_ERR_RSA_INVALID_PADDING:
+            return -PAL_ERROR_CRYPTO_INVALID_PADDING;
+
+        case MBEDTLS_ERR_CIPHER_AUTH_FAILED:
+            return -PAL_ERROR_CRYPTO_AUTH_FAILED;
+
+        case MBEDTLS_ERR_CIPHER_INVALID_CONTEXT:
+            return -PAL_ERROR_CRYPTO_INVALID_CONTEXT;
+
+        case MBEDTLS_ERR_DHM_READ_PARAMS_FAILED:
+        case MBEDTLS_ERR_DHM_MAKE_PARAMS_FAILED:
+        case MBEDTLS_ERR_DHM_READ_PUBLIC_FAILED:
+        case MBEDTLS_ERR_DHM_MAKE_PUBLIC_FAILED:
+        case MBEDTLS_ERR_DHM_CALC_SECRET_FAILED:
+            return -PAL_ERROR_CRYPTO_BIGNUM_FAILED;
+
+        case MBEDTLS_ERR_DHM_INVALID_FORMAT:
+            return -PAL_ERROR_CRYPTO_INVALID_ASN1;
+
+        case MBEDTLS_ERR_DHM_FILE_IO_ERROR:
+        case MBEDTLS_ERR_MD_FILE_IO_ERROR:
+            return -PAL_ERROR_CRYPTO_IO_ERROR;
+
+        case MBEDTLS_ERR_RSA_KEY_GEN_FAILED:
+            return -PAL_ERROR_CRYPTO_KEY_GEN_FAILED;
+
+        case MBEDTLS_ERR_RSA_KEY_CHECK_FAILED:
+            return -PAL_ERROR_CRYPTO_INVALID_KEY;
+
+        case MBEDTLS_ERR_RSA_PUBLIC_FAILED:
+            return -PAL_ERROR_CRYPTO_PUBLIC_FAILED;
+
+        case MBEDTLS_ERR_RSA_PRIVATE_FAILED:
+            return -PAL_ERROR_CRYPTO_PRIVATE_FAILED;
+
+        case MBEDTLS_ERR_RSA_VERIFY_FAILED:
+            return -PAL_ERROR_CRYPTO_PKCS1_VERIFY_FAILED;
+
+        case MBEDTLS_ERR_RSA_RNG_FAILED:
+            return -PAL_ERROR_CRYPTO_RNG_FAILED;
+
+        default:
+            return -PAL_ERROR_DENIED;
+    }
+}
 
 #define BITS_PER_BYTE 8
 
@@ -98,16 +177,13 @@ int lib_AESCMAC(const uint8_t *key, uint64_t key_len, const uint8_t *input,
         return -PAL_ERROR_INVAL;
     }
 
-    return mbedtls_cipher_cmac(cipher_info,
-                               key, key_len * BITS_PER_BYTE,
-                               input, input_len, mac);
+    int ret = mbedtls_cipher_cmac(cipher_info, key, key_len * BITS_PER_BYTE, input, input_len, mac);
+    return mbedtls_to_pal_error(ret);
 }
 
 int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
                     const uint8_t *key, uint64_t key_len)
 {
-    int ret;
-
     switch (key_len) {
     case 16:
         context->cipher = MBEDTLS_CIPHER_AES_128_ECB;
@@ -125,17 +201,19 @@ int lib_AESCMACInit(LIB_AESCMAC_CONTEXT * context,
     const mbedtls_cipher_info_t *cipher_info =
         mbedtls_cipher_info_from_type(context->cipher);
 
-    if ( ( ret = mbedtls_cipher_setup( &context->ctx, cipher_info ) ) != 0 )
-        return ret;
+    int ret = mbedtls_cipher_setup(&context->ctx, cipher_info);
+    if (ret != 0)
+        return mbedtls_to_pal_error(ret);
 
-    return mbedtls_cipher_cmac_starts( &context->ctx, key,
-                                       key_len * BITS_PER_BYTE );
+    ret = mbedtls_cipher_cmac_starts(&context->ctx, key, key_len * BITS_PER_BYTE);
+    return mbedtls_to_pal_error(ret);
 }
 
 int lib_AESCMACUpdate(LIB_AESCMAC_CONTEXT * context, const uint8_t * input,
                       uint64_t input_len)
 {
-    return mbedtls_cipher_cmac_update( &context->ctx, input, input_len );
+    int ret = mbedtls_cipher_cmac_update(&context->ctx, input, input_len);
+    return mbedtls_to_pal_error(ret);
 }
 
 int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, uint8_t * mac,
@@ -148,11 +226,12 @@ int lib_AESCMACFinish(LIB_AESCMAC_CONTEXT * context, uint8_t * mac,
     if (mac_len < cipher_info->block_size)
         goto exit;
 
-    ret = mbedtls_cipher_cmac_finish( &context->ctx, mac );
+    ret = mbedtls_cipher_cmac_finish(&context->ctx, mac);
+    ret = mbedtls_to_pal_error(ret);
 
 exit:
     mbedtls_cipher_free( &context->ctx );
-    return( ret );
+    return ret;
 }
 
 int lib_RSAInitKey(LIB_RSA_KEY *key)
@@ -171,31 +250,27 @@ int lib_RSAInitKey(LIB_RSA_KEY *key)
 
 int lib_RSAGenerateKey(LIB_RSA_KEY *key, uint64_t length_in_bits, uint64_t exponent)
 {
-    if (length_in_bits > UINT_MAX) {
+    if (length_in_bits > UINT_MAX)
         return -PAL_ERROR_INVAL;
-    }
-    if (exponent > UINT_MAX || (int) exponent < 0) {
+
+    if (exponent > UINT_MAX || (int) exponent < 0)
         return -PAL_ERROR_INVAL;
-    }
-    return mbedtls_rsa_gen_key(key, RandomWrapper, NULL, length_in_bits,
-                               exponent);
+
+    int ret = mbedtls_rsa_gen_key(key, RandomWrapper, NULL, length_in_bits, exponent);
+    return mbedtls_to_pal_error(ret);
 }
 
 int lib_RSAExportPublicKey(LIB_RSA_KEY *key, uint8_t *e, uint64_t *e_size,
                            uint8_t *n, uint64_t *n_size)
 {
-    int ret;
-
     /* Public exponent. */
-    if ((ret = mbedtls_mpi_write_binary(&key->E, e, *e_size)) != 0) {
-        return ret;
-    }
+    int ret = mbedtls_mpi_write_binary(&key->E, e, *e_size);
+    if (ret != 0)
+        return mbedtls_to_pal_error(ret);
 
     /* Modulus. */
-    if ((ret = mbedtls_mpi_write_binary(&key->N, n, *n_size)) != 0) {
-        return ret;
-    }
-    return 0;
+    ret = mbedtls_mpi_write_binary(&key->N, n, *n_size);
+    return mbedtls_to_pal_error(ret);
 }
 
 int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
@@ -204,14 +279,14 @@ int lib_RSAImportPublicKey(LIB_RSA_KEY *key, const uint8_t *e, uint64_t e_size,
     int ret;
 
     /* Public exponent. */
-    if ((ret = mbedtls_mpi_read_binary(&key->E, e, e_size)) != 0) {
-        return ret;
-    }
+    ret = mbedtls_mpi_read_binary(&key->E, e, e_size);
+    if (ret != 0)
+        return mbedtls_to_pal_error(ret);
 
     /* Modulus. */
-    if ((ret = mbedtls_mpi_read_binary(&key->N, n, n_size)) != 0) {
-        return ret;
-    }
+    ret = mbedtls_mpi_read_binary(&key->N, n, n_size);
+    if (ret != 0)
+        return mbedtls_to_pal_error(ret);
 
     /* This length is in bytes. */
     key->len = (mbedtls_mpi_bitlen(&key->N) + 7) >> 3;
@@ -232,10 +307,7 @@ int lib_RSAVerifySHA256(LIB_RSA_KEY* key, const uint8_t* hash, uint64_t hash_len
     int ret = mbedtls_rsa_pkcs1_verify(key, NULL, NULL, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256,
                                        hash_len, hash, signature);
 
-    if (ret < 0)
-        return -PAL_ERROR_DENIED;
-
-    return 0;
+    return mbedtls_to_pal_error(ret);
 }
 
 int lib_RSAFreeKey(LIB_RSA_KEY *key)
