@@ -20,6 +20,7 @@
 
 #include "api.h"
 #include "assert.h"
+#include "mbedtls_adapter.h"
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
@@ -49,13 +50,13 @@ int lib_DhInit(LIB_DH_CONTEXT* context) {
     ret = mbedtls_mpi_read_string(&context->P, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_P);
     if (ret != 0) {
         pal_printf("D-H initialization failed: %d\n", ret);
-        return ret;
+        return mbedtls_to_pal_error(ret);
     }
 
     ret = mbedtls_mpi_read_string(&context->G, 16 /* radix */, MBEDTLS_DHM_RFC3526_MODP_2048_G);
     if (ret != 0) {
         pal_printf("D-H initialization failed: %d\n", ret);
-        return ret;
+        return mbedtls_to_pal_error(ret);
     }
 
     context->len = mbedtls_mpi_size(&context->P);
@@ -72,7 +73,7 @@ int lib_DhCreatePublic(LIB_DH_CONTEXT* context, uint8_t* public, uint64_t* publi
     /* The RNG here is used to generate secret exponent X. */
     ret = mbedtls_dhm_make_public(context, context->len, public, *public_size, RandomWrapper, NULL);
     if (ret != 0)
-        return ret;
+        return mbedtls_to_pal_error(ret);
 
     /* mbedtls writes leading zeros in the big-endian output to pad to
      * public_size, so leave caller's public_size unchanged */
@@ -88,12 +89,13 @@ int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, uint64_t peer_size,
 
     ret = mbedtls_dhm_read_public(context, peer, peer_size);
     if (ret != 0)
-        return ret;
+        return mbedtls_to_pal_error(ret);
 
     /* The RNG here is used for blinding against timing attacks if X is
      * reused and not used otherwise. mbedtls recommends always passing
      * in an RNG. */
-    return mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size, RandomWrapper, NULL);
+    ret = mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size, RandomWrapper, NULL);
+    return mbedtls_to_pal_error(ret);
 }
 
 void lib_DhFinal(LIB_DH_CONTEXT* context) {

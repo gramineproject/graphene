@@ -62,7 +62,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
     char* path       = (void*)hdl + HANDLE_SIZE(file);
     int ret;
     if ((ret = get_norm_path(uri, path, &len)) < 0) {
-        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, PAL_STRERROR(ret));
+        SGX_DBG(DBG_E, "Could not normalize path (%s): %s\n", uri, pal_strerror(ret));
         free(hdl);
         return ret;
     }
@@ -75,7 +75,7 @@ static int file_open(PAL_HANDLE* handle, const char* type, const char* uri, int 
         SGX_DBG(DBG_E,
                 "Accessing file:%s is denied. (%s) "
                 "This file is not trusted or allowed.\n",
-                hdl->file.realpath, PAL_STRERROR(ret));
+                hdl->file.realpath, pal_strerror(ret));
         free(hdl);
         return ret;
     }

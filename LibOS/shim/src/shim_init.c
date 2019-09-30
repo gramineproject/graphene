@@ -54,7 +54,11 @@ static void handle_failure (PAL_PTR event, PAL_NUM arg, PAL_CONTEXT * context)
 {
     __UNUSED(event);
     __UNUSED(context);
-    shim_get_tls()->pal_errno = (arg <= PAL_ERROR_BOUND) ? arg : 0;
+    if ((arg <= PAL_ERROR_NATIVE_COUNT) || (arg >= PAL_ERROR_CRYPTO_START &&
+        arg <= PAL_ERROR_CRYPTO_END))
+        shim_get_tls()->pal_errno = arg;
+    else
+        shim_get_tls()->pal_errno = PAL_ERROR_DENIED;
 }
 
 noreturn void __abort(void) {
@@ -75,7 +79,7 @@ void __stack_chk_fail (void)
 {
 }
 
-static int pal_errno_to_unix_errno [PAL_ERROR_BOUND + 1] = {
+static int pal_errno_to_unix_errno [PAL_ERROR_NATIVE_COUNT + 1] = {
         /* reserved                 */  0,
         /* PAL_ERROR_NOTIMPLEMENTED */  ENOSYS,
         /* PAL_ERROR_NOTDEFINED     */  ENOSYS,
@@ -106,8 +110,8 @@ static int pal_errno_to_unix_errno [PAL_ERROR_BOUND + 1] = {
 
 long convert_pal_errno (long err)
 {
-    return (err >= 0 && err <= PAL_ERROR_BOUND) ?
-           pal_errno_to_unix_errno[err] : 0;
+    return (err >= 0 && err <= PAL_ERROR_NATIVE_COUNT) ?
+           pal_errno_to_unix_errno[err] : EACCES;
 }
 
 /*!

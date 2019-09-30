@@ -23,72 +23,59 @@
 #ifndef PAL_ERROR_H
 #define PAL_ERROR_H
 
-#define PAL_ERROR_NOTIMPLEMENTED 1
-#define PAL_ERROR_NOTDEFINED     2
-#define PAL_ERROR_NOTSUPPORT     3
-#define PAL_ERROR_INVAL          4
-#define PAL_ERROR_TOOLONG        5
-#define PAL_ERROR_DENIED         6
-#define PAL_ERROR_BADHANDLE      7
-#define PAL_ERROR_STREAMEXIST    8
-#define PAL_ERROR_STREAMNOTEXIST 9
-#define PAL_ERROR_STREAMISFILE   10
-#define PAL_ERROR_STREAMISDIR    11
-#define PAL_ERROR_STREAMISDEVICE 12
-#define PAL_ERROR_INTERRUPTED    13
-#define PAL_ERROR_OVERFLOW       14
-#define PAL_ERROR_BADADDR        15
-#define PAL_ERROR_NOMEM          16
-#define PAL_ERROR_NOTKILLABLE    17
-#define PAL_ERROR_INCONSIST      18
-#define PAL_ERROR_TRYAGAIN       19
-#define PAL_ERROR_ENDOFSTREAM    20
-#define PAL_ERROR_NOTSERVER      21
-#define PAL_ERROR_NOTCONNECTION  22
-#define PAL_ERROR_ZEROSIZE       23
-#define PAL_ERROR_CONNFAILED     24
-#define PAL_ERROR_ADDRNOTEXIST   25
+#include <stddef.h>
 
-#define PAL_ERROR_BOUND 25
+typedef enum _pal_error_t {
+    PAL_ERROR_SUCCESS = 0,
+    PAL_ERROR_NOTIMPLEMENTED,
+    PAL_ERROR_NOTDEFINED,
+    PAL_ERROR_NOTSUPPORT,
+    PAL_ERROR_INVAL,
+    PAL_ERROR_TOOLONG,
+    PAL_ERROR_DENIED,
+    PAL_ERROR_BADHANDLE,
+    PAL_ERROR_STREAMEXIST,
+    PAL_ERROR_STREAMNOTEXIST,
+    PAL_ERROR_STREAMISFILE,
+    PAL_ERROR_STREAMISDIR,
+    PAL_ERROR_STREAMISDEVICE,
+    PAL_ERROR_INTERRUPTED,
+    PAL_ERROR_OVERFLOW,
+    PAL_ERROR_BADADDR,
+    PAL_ERROR_NOMEM,
+    PAL_ERROR_NOTKILLABLE,
+    PAL_ERROR_INCONSIST,
+    PAL_ERROR_TRYAGAIN,
+    PAL_ERROR_ENDOFSTREAM,
+    PAL_ERROR_NOTSERVER,
+    PAL_ERROR_NOTCONNECTION,
+    PAL_ERROR_ZEROSIZE,
+    PAL_ERROR_CONNFAILED,
+    PAL_ERROR_ADDRNOTEXIST,
 
-static const char* pal_errstring[]
-#ifdef __GNUC__
-    __attribute__((unused))
-#endif
-    = {
-        /*  0. */ "Success",
-        /*  1. */ "Function not implemented",
-        /*  2. */ "Symbol not defined",
-        /*  3. */ "Function not supported",
-        /*  4. */ "Invalid argument",
-        /*  5. */ "Name/Path is too long",
-        /*  6. */ "Operation Denied",
-        /*  7. */ "Handle Corrupted",
-        /*  8. */ "Stream already exists",
-        /*  9. */ "Stream does not exists",
-        /* 10. */ "Stream is File",
-        /* 11. */ "Stream is Directory",
-        /* 12. */ "Stream is Device",
-        /* 13. */ "Operation interrupted",
-        /* 14. */ "Buffer overflowed",
-        /* 15. */ "Invalid address",
-        /* 16. */ "Not enough memory",
-        /* 17. */ "Thread state unkillable",
-        /* 18. */ "Inconsistent system state",
-        /* 19. */ "Try again",
-        /* 20. */ "End of stream",
-        /* 21. */ "Not a server",
-        /* 22. */ "Not a connection",
-        /* 23. */ "Zero size",
-        /* 24. */ "Connection failed",
-        /* 25. */ "Resource address not exist",
-};
+#define PAL_ERROR_NATIVE_COUNT PAL_ERROR_ADDRNOTEXIST
+#define PAL_ERROR_CRYPTO_START PAL_ERROR_CRYPTO_FEATURE_UNAVAILABLE
 
-static inline const char* PAL_STRERROR(int err) {
-    int _e = -err;
-    if (_e >= 0 && _e <= PAL_ERROR_BOUND)
-        return pal_errstring[_e];
-    return "Unknown error";
-}
+    /* Crypto error constants and their descriptions are adapted from mbedtls. */
+    PAL_ERROR_CRYPTO_FEATURE_UNAVAILABLE = 1000,
+    PAL_ERROR_CRYPTO_INVALID_CONTEXT,
+    PAL_ERROR_CRYPTO_INVALID_KEY_LENGTH,
+    PAL_ERROR_CRYPTO_INVALID_INPUT_LENGTH,
+    PAL_ERROR_CRYPTO_INVALID_OUTPUT_LENGTH,
+    PAL_ERROR_CRYPTO_BAD_INPUT_DATA,
+    PAL_ERROR_CRYPTO_INVALID_PADDING,
+    PAL_ERROR_CRYPTO_DATA_MISALIGNED,
+    PAL_ERROR_CRYPTO_INVALID_FORMAT,
+    PAL_ERROR_CRYPTO_AUTH_FAILED,
+    PAL_ERROR_CRYPTO_IO_ERROR,
+    PAL_ERROR_CRYPTO_KEY_GEN_FAILED,
+    PAL_ERROR_CRYPTO_INVALID_KEY,
+    PAL_ERROR_CRYPTO_VERIFY_FAILED,
+    PAL_ERROR_CRYPTO_RNG_FAILED,
+    PAL_ERROR_CRYPTO_INVALID_DH_STATE,
+#define PAL_ERROR_CRYPTO_END PAL_ERROR_CRYPTO_INVALID_DH_STATE
+} pal_error_t;
+
+const char* pal_strerror(int err);
 
 #endif

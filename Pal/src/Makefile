@@ -39,7 +39,7 @@ defs	= -DIN_PAL -DHOST_TYPE="$(PAL_HOST)" -D$(PAL_HOST_MACRO) -DPAL_DIR=$(PAL_DI
 	  -DRUNTIME_DIR=$(RUNTIME_DIR)
 CFLAGS += $(defs)
 objs	= $(addprefix db_,streams memory threading mutex events process \
-	    object main misc ipc exception rtld) slab printf
+	    object main misc ipc exception rtld) slab printf pal_error
 
 graphene_lib = $(LIB_DIR)/graphene-lib.a
 host_lib = $(HOST_DIR)/libpal-$(PAL_HOST).a

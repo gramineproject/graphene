@@ -7,7 +7,7 @@
 int handled = 0;
 
 void FailureHandler(PAL_PTR event, PAL_NUM arg, PAL_CONTEXT* context) {
-    pal_printf("Failure notified: %s\n", pal_errstring[(unsigned long)arg]);
+    pal_printf("Failure notified: %s\n", pal_strerror((unsigned long)arg));
 
     handled = 1;
     DkExceptionReturn(event);

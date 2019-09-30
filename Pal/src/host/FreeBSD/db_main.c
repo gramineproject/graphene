@@ -248,7 +248,7 @@ void pal_bsd_main (void * args)
     char * path = (void *) file + HANDLE_SIZE(file);
     int ret = get_norm_path(argv[0], path, &len);
     if (ret < 0) {
-        printf("Could not normalize path (%s): %s\n", argv[0], PAL_STRERROR(ret));
+        printf("Could not normalize path (%s): %s\n", argv[0], pal_strerror(ret));
         goto done_init;
     }
     file->file.realpath = path;
