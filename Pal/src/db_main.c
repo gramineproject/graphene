@@ -420,7 +420,7 @@ noreturn void pal_main (
         }
 
         if (ret < 0)
-            INIT_FAIL(ret, PAL_STRERROR(ret));
+            INIT_FAIL(ret, pal_strerror(ret));
 
 #if PROFILING == 1
         pal_state.linking_time += _DkSystemTimeQuery() - before_load_exec;
