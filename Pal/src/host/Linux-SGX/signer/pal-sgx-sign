@@ -855,6 +855,7 @@ def main_sign(args):
     else:
         global enclave_heap_min
         enclave_heap_min = 0
+        manifest['sgx.static_address'] = '0'
 
     # Add manifest at the top
     shutil.copy2(args['manifest'], args['output'])
