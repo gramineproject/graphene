@@ -25,50 +25,50 @@
 
 typedef uint8_t sgx_arch_key_t [384];
 
-#define SGX_HASH_SIZE        32
-#define SGX_MAC_SIZE         16
+#define SGX_HASH_SIZE 32
+#define SGX_MAC_SIZE  16
 
 typedef struct _sgx_measurement_t {
-    uint8_t  m[SGX_HASH_SIZE];
+    uint8_t m[SGX_HASH_SIZE];
 } sgx_measurement_t;
 
-typedef uint8_t  sgx_mac_t[SGX_MAC_SIZE];
+typedef uint8_t sgx_mac_t[SGX_MAC_SIZE];
 
 // This if for passing a mac to hex2str
 #define MACBUF_SIZE ((sizeof(sgx_mac_t) * 2) + 1)
 
 typedef struct _sgx_attributes_t {
-    uint64_t  flags;
-    uint64_t  xfrm;
+    uint64_t flags;
+    uint64_t xfrm;
 } sgx_attributes_t;
 
-#define SGX_CPUSVN_SIZE       16
-#define SGX_CONFIGID_SIZE     64
-#define SGX_KEYID_SIZE        32
-#define SGX_REPORT_DATA_SIZE  64
+#define SGX_CPUSVN_SIZE      16
+#define SGX_CONFIGID_SIZE    64
+#define SGX_KEYID_SIZE       32
+#define SGX_REPORT_DATA_SIZE 64
 
 typedef struct _sgx_cpu_svn_t {
-    uint8_t  svn[SGX_CPUSVN_SIZE];
+    uint8_t svn[SGX_CPUSVN_SIZE];
 } sgx_cpu_svn_t;
 
-typedef uint32_t  sgx_misc_select_t;
-typedef uint16_t  sgx_prod_id_t;
-typedef uint16_t  sgx_isv_svn_t;
-typedef uint16_t  sgx_config_svn_t;
-typedef uint8_t   sgx_config_id_t[SGX_CONFIGID_SIZE];
+typedef uint32_t sgx_misc_select_t;
+typedef uint16_t sgx_prod_id_t;
+typedef uint16_t sgx_isv_svn_t;
+typedef uint16_t sgx_config_svn_t;
+typedef uint8_t  sgx_config_id_t[SGX_CONFIGID_SIZE];
 
-#define SGX_FLAGS_INITIALIZED    0x01ULL
-#define SGX_FLAGS_DEBUG          0x02ULL
-#define SGX_FLAGS_MODE64BIT      0x04ULL
-#define SGX_FLAGS_PROVISION_KEY  0x10ULL
-#define SGX_FLAGS_LICENSE_KEY    0x20ULL
+#define SGX_FLAGS_INITIALIZED   0x01ULL
+#define SGX_FLAGS_DEBUG         0x02ULL
+#define SGX_FLAGS_MODE64BIT     0x04ULL
+#define SGX_FLAGS_PROVISION_KEY 0x10ULL
+#define SGX_FLAGS_LICENSE_KEY   0x20ULL
 
-#define SGX_XFRM_LEGACY          0x03ULL
-#define SGX_XFRM_AVX             0x06ULL
-#define SGX_XFRM_MPX             0x18ULL
-#define SGX_XFRM_AVX512          0xe6ULL
+#define SGX_XFRM_LEGACY         0x03ULL
+#define SGX_XFRM_AVX            0x06ULL
+#define SGX_XFRM_MPX            0x18ULL
+#define SGX_XFRM_AVX512         0xe6ULL
 
-#define SGX_MISCSELECT_EXINFO    0x01UL
+#define SGX_MISCSELECT_EXINFO   0x01UL
 
 typedef struct {
     uint64_t          size;
@@ -101,7 +101,7 @@ typedef struct {
     uint8_t  reserved3[4024];
 } sgx_arch_tcs_t;
 
-#define TCS_FLAGS_DBGOPTIN   (01ULL)
+#define TCS_FLAGS_DBGOPTIN (01ULL)
 
 typedef struct {
     uint64_t rax;
@@ -198,7 +198,8 @@ typedef struct {
 
 typedef struct {
     /* header part (signed) */
-    uint32_t header[4], vendor;
+    uint32_t header[4];
+    uint32_t vendor;
     uint32_t date;
     uint32_t header2[4];
     uint32_t swdefined;
@@ -206,106 +207,105 @@ typedef struct {
 
     /* key part (unsigned) */
     sgx_arch_key_t modulus;
-    uint32_t exponent;
+    uint32_t       exponent;
     sgx_arch_key_t signature;
 
     /* body part (signed) */
     sgx_misc_select_t miscselect;
     sgx_misc_select_t miscselect_mask;
-    uint8_t  reserved2[20];
-    sgx_attributes_t attributes;
-    sgx_attributes_t attribute_mask;
+    uint8_t           reserved2[20];
+    sgx_attributes_t  attributes;
+    sgx_attributes_t  attribute_mask;
     sgx_measurement_t enclave_hash;
-    uint8_t  reserved3[32];
-    sgx_prod_id_t isvprodid;
-    sgx_isv_svn_t isvsvn;
+    uint8_t           reserved3[32];
+    sgx_prod_id_t     isvprodid;
+    sgx_isv_svn_t     isvsvn;
 
     /* tail part (unsigned) */
-    uint8_t  reserved4[12];
+    uint8_t        reserved4[12];
     sgx_arch_key_t q1;
     sgx_arch_key_t q2;
 } __attribute__((packed)) sgx_arch_sigstruct_t;
 
 typedef struct {
-    uint32_t valid;
-    uint8_t  reserved[44];
-    sgx_attributes_t attributes;
+    uint32_t          valid;
+    uint8_t           reserved[44];
+    sgx_attributes_t  attributes;
     sgx_measurement_t mrenclave;
-    uint8_t  reserved2[32];
+    uint8_t           reserved2[32];
     sgx_measurement_t mrsigner;
-    uint8_t  reserved3[32];
-    sgx_cpu_svn_t cpusvnle;
-    sgx_prod_id_t isvprodidle;
-    sgx_isv_svn_t isvsvnle;
-    uint8_t  reserved4[24];
+    uint8_t           reserved3[32];
+    sgx_cpu_svn_t     cpusvnle;
+    sgx_prod_id_t     isvprodidle;
+    sgx_isv_svn_t     isvsvnle;
+    uint8_t           reserved4[24];
     sgx_misc_select_t miscselect_mask;
-    sgx_attributes_t attribute_mask;
+    sgx_attributes_t  attribute_mask;
     sgx_measurement_t keyid;
-    sgx_mac_t mac;
+    sgx_mac_t         mac;
 } __attribute__((packed)) sgx_arch_token_t;
 
 typedef struct _sgx_report_data_t {
-    uint8_t  d[SGX_REPORT_DATA_SIZE];
+    uint8_t d[SGX_REPORT_DATA_SIZE];
 } sgx_report_data_t;
 
 #define __sgx_mem_aligned __attribute__((aligned(512)))
 
 typedef struct _report_body_t {
-    sgx_cpu_svn_t      cpu_svn;
-    sgx_misc_select_t  misc_select;
-    uint8_t            reserved1[28];
-    sgx_attributes_t   attributes;
-    sgx_measurement_t  mr_enclave;
-    uint8_t            reserved2[32];
-    sgx_measurement_t  mr_signer;
-    uint8_t            reserved3[96];
-    sgx_prod_id_t      isv_prod_id;
-    sgx_isv_svn_t      isv_svn;
-    uint8_t            reserved4[60];
-    sgx_report_data_t  report_data;
+    sgx_cpu_svn_t     cpu_svn;
+    sgx_misc_select_t misc_select;
+    uint8_t           reserved1[28];
+    sgx_attributes_t  attributes;
+    sgx_measurement_t mr_enclave;
+    uint8_t           reserved2[32];
+    sgx_measurement_t mr_signer;
+    uint8_t           reserved3[96];
+    sgx_prod_id_t     isv_prod_id;
+    sgx_isv_svn_t     isv_svn;
+    uint8_t           reserved4[60];
+    sgx_report_data_t report_data;
 } sgx_report_body_t;
 
-typedef struct _sgx_key_id_t
-{
-    uint8_t  id[SGX_KEYID_SIZE];
+typedef struct _sgx_key_id_t {
+    uint8_t id[SGX_KEYID_SIZE];
 } sgx_key_id_t;
 
 typedef struct _report_t {
-    sgx_report_body_t  body;
-    sgx_key_id_t       key_id;
-    sgx_mac_t          mac;
+    sgx_report_body_t body;
+    sgx_key_id_t      key_id;
+    sgx_mac_t         mac;
 } sgx_report_t;
 
-#define SGX_REPORT_SIGNED_SIZE  384
-#define SGX_REPORT_ACTUAL_SIZE  432
+#define SGX_REPORT_SIGNED_SIZE 384
+#define SGX_REPORT_ACTUAL_SIZE 432
 
 typedef struct _target_info_t {
-    sgx_measurement_t  mr_enclave;
-    sgx_attributes_t   attributes;
-    uint8_t            reserved1[2];
-    sgx_config_svn_t   config_svn;
-    sgx_misc_select_t  misc_select;
-    uint8_t            reserved2[8];
-    sgx_config_id_t    config_id;
-    uint8_t            reserved3[384];
+    sgx_measurement_t mr_enclave;
+    sgx_attributes_t  attributes;
+    uint8_t           reserved1[2];
+    sgx_config_svn_t  config_svn;
+    sgx_misc_select_t misc_select;
+    uint8_t           reserved2[8];
+    sgx_config_id_t   config_id;
+    uint8_t           reserved3[384];
 } sgx_target_info_t;
 
 typedef struct _key_request_t {
-    uint16_t           key_name;
-    uint16_t           key_policy;
-    sgx_isv_svn_t      isv_svn;
-    uint16_t           reserved1;
-    sgx_cpu_svn_t      cpu_svn;
-    sgx_attributes_t   attribute_mask;
-    sgx_key_id_t       key_id;
-    sgx_misc_select_t  misc_mask;
-    sgx_config_svn_t   config_svn;
-    uint8_t            reserved2[434];
+    uint16_t          key_name;
+    uint16_t          key_policy;
+    sgx_isv_svn_t     isv_svn;
+    uint16_t          reserved1;
+    sgx_cpu_svn_t     cpu_svn;
+    sgx_attributes_t  attribute_mask;
+    sgx_key_id_t      key_id;
+    sgx_misc_select_t misc_mask;
+    sgx_config_svn_t  config_svn;
+    uint8_t           reserved2[434];
     // struct is 512-bytes in size, alignment is required for EGETKEY
 } sgx_key_request_t;
 
-#define SGX_TARGETINFO_FILLED_SIZE  (sizeof(sgx_measurement_t) + \
-                                     sizeof(sgx_attributes_t))
+#define SGX_TARGETINFO_FILLED_SIZE (sizeof(sgx_measurement_t) + \
+                                    sizeof(sgx_attributes_t))
 
 typedef uint8_t sgx_arch_key128_t[16];
 

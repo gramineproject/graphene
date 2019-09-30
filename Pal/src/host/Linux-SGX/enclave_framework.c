@@ -11,7 +11,7 @@
 
 #include "enclave_pages.h"
 
-struct pal_enclave_state pal_enclave_state __sgx_mem_aligned;
+__sgx_mem_aligned struct pal_enclave_state pal_enclave_state;
 
 void * enclave_base, * enclave_top;
 
@@ -113,7 +113,7 @@ static sgx_arch_key128_t enclave_key;
  */
 static int sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
                           sgx_report_t* report) {
-    struct pal_enclave_state state __sgx_mem_aligned;
+    __sgx_mem_aligned struct pal_enclave_state state;
     memcpy(&state, &pal_enclave_state, sizeof(state));
     memcpy(&state.enclave_data, data, sizeof(*data));
 
@@ -129,7 +129,7 @@ static int sgx_get_report(sgx_target_info_t* target_info, sgx_sign_data_t* data,
 
 int sgx_verify_report (sgx_report_t* report)
 {
-    sgx_key_request_t keyrequest __sgx_mem_aligned;
+    __sgx_mem_aligned sgx_key_request_t keyrequest;
     memset(&keyrequest, 0, sizeof(sgx_key_request_t));
     keyrequest.key_name = REPORT_KEY;
     memcpy(&keyrequest.key_id, &report->key_id, sizeof(keyrequest.key_id));
@@ -172,7 +172,7 @@ int sgx_verify_report (sgx_report_t* report)
 
 int init_enclave_key (void)
 {
-    sgx_key_request_t keyrequest __sgx_mem_aligned;
+    __sgx_mem_aligned sgx_key_request_t keyrequest;
     memset(&keyrequest, 0, sizeof(sgx_key_request_t));
     keyrequest.key_name = SEAL_KEY;
 
@@ -955,9 +955,9 @@ int init_enclave (void)
 
     // Since this report is only read by ourselves we can
     // leave targetinfo zeroed.
-    sgx_target_info_t targetinfo __sgx_mem_aligned = {0};
-    struct pal_enclave_state reportdata __sgx_mem_aligned = {0};
-    sgx_report_t report __sgx_mem_aligned;
+    __sgx_mem_aligned sgx_target_info_t targetinfo = {0};
+    __sgx_mem_aligned struct pal_enclave_state reportdata = {0};
+    __sgx_mem_aligned sgx_report_t report;
 
     assert(sizeof(reportdata) == sizeof(sgx_report_data_t));
     int ret = sgx_report(&targetinfo, (sgx_report_data_t*)&reportdata, &report);
@@ -1102,8 +1102,8 @@ out_no_final:
  */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mrenclave_t check_mrenclave) {
-    sgx_target_info_t target_info __sgx_mem_aligned;
-    sgx_report_t report __sgx_mem_aligned;
+    __sgx_mem_aligned sgx_target_info_t target_info;
+    __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
     int64_t ret;
 
@@ -1204,8 +1204,8 @@ out:
  */
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
                            check_mrenclave_t check_mrenclave) {
-    sgx_target_info_t target_info __sgx_mem_aligned;
-    sgx_report_t report __sgx_mem_aligned;
+    __sgx_mem_aligned sgx_target_info_t target_info;
+    __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
     int64_t ret;
     memset(&target_info, 0, sizeof(target_info));

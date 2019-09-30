@@ -25,7 +25,7 @@ void dummy(void)
     /* sgx_arch_key_t */
     DEFINE(SGX_ARCH_KEY_SIZE, sizeof(sgx_arch_key_t));
 
-    /* sgx_arch_hash_t */
+    /* sgx_measurement_t */
     DEFINE(SGX_ARCH_HASH_SIZE, sizeof(sgx_measurement_t));
 
     /* sgx_arch_gpr_t */
