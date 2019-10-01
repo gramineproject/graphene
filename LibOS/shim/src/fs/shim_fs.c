@@ -292,7 +292,7 @@ int __mount_fs (struct shim_mount * mount, struct shim_dentry * dent)
         ret = mount->d_ops->lookup(mount_root);
         if (ret < 0) {
             /* Try getting rid of ESKIPPED case */
-            assert (ret != -ESKIPPED);
+            assert(ret != -ESKIPPED);
             put_dentry(mount_root);
             return ret;
         }
@@ -554,6 +554,7 @@ struct shim_mount * find_mount_from_uri (const char * uri)
 
 BEGIN_CP_FUNC(mount)
 {
+    __UNUSED(size);
     assert(size == sizeof(struct shim_mount));
 
     struct shim_mount * mount = (struct shim_mount *) obj;

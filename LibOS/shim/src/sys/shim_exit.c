@@ -199,6 +199,7 @@ noreturn int shim_do_exit (int error_code)
 {
     INC_PROFILE_OCCURENCE(syscall_use_ipc);
     struct shim_thread * cur_thread = get_cur_thread();
+    __UNUSED(cur_thread);
     assert(!is_internal(cur_thread));
 
     if (debug_handle)

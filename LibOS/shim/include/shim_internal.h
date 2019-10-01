@@ -34,6 +34,8 @@
 
 #define static_always_inline static inline __attribute__((always_inline))
 
+#include <api.h>
+#include <assert.h>
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <atomic.h>
@@ -144,9 +146,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
 
 noreturn void shim_terminate (int err);
 
-/* assertions */
 #define USE_PAUSE       0
-#define USE_ASSERT      1
 
 static inline void do_pause (void);
 
@@ -162,12 +162,6 @@ static inline void do_pause (void);
         PAUSE();                                                            \
         shim_terminate(-ENOTRECOVERABLE);                                   \
     } while (0)
-
-#if USE_ASSERT == 1
-#include <assert.h>
-#else
-# define assert(test) do {} while (0)
-#endif
 
 #define DEBUG_HERE() \
     do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
@@ -210,6 +204,7 @@ static inline int64_t get_cur_preempt (void) {
     SHIM_ARG_TYPE __shim_##name(args) {                     \
         SHIM_ARG_TYPE ret = 0;                              \
         int64_t preempt = get_cur_preempt();                \
+        __UNUSED(preempt);                                  \
         /* handle_signal(); */                              \
         /* check_stack_hook(); */                           \
         BEGIN_SYSCALL_PROFILE();
@@ -489,6 +484,7 @@ static inline void __enable_preempt (shim_tcb_t * tcb)
 {
     int64_t preempt = atomic_add_return(-1, &tcb->context.preempt);
     /* Assert if this counter underflows */
+    __UNUSED(preempt);
     assert(preempt >= 0);
     //debug("enable preempt: %d\n", preempt);
 }
@@ -843,7 +839,8 @@ static inline bool access_ok(const volatile void* addr, size_t size) {
 #endif /* __x86_64__ */
 
 static inline IDTYPE hashtype_to_idtype(HASHTYPE hash) {
-    assert(sizeof(HASHTYPE) == 8 && sizeof(IDTYPE) == 4);
+    static_assert(sizeof(HASHTYPE) == 8, "Unsupported HASHTYPE size");
+    static_assert(sizeof(IDTYPE) == 4, "Unsupported IDTYPE size");
     return ((IDTYPE)hash) ^ ((IDTYPE)(hash >> 32));
 }
 

@@ -502,7 +502,10 @@ int _DkGetCPUInfo (PAL_CPU_INFO * ci)
     vendor_id[VENDOR_ID_SIZE - 1] = '\0';
     ci->cpu_vendor = vendor_id;
     // Must be an Intel CPU
-    assert(!memcmp(vendor_id, "GenuineIntel", 12));
+    if (memcmp(vendor_id, "GenuineIntel", 12)) {
+      free(vendor_id);
+      return -PAL_ERROR_INVAL;
+    }
 
     const size_t BRAND_SIZE = 49;
     char* brand = malloc(BRAND_SIZE);

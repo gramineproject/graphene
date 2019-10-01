@@ -18,6 +18,7 @@
 #ifndef HEX_H
 #define HEX_H
 
+#include <api.h>
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -36,6 +37,7 @@ static inline __attribute__((always_inline))
 char * __bytes2hexstr(void * hex, size_t size, char *str, size_t len)
 {
     static char * ch = "0123456789abcdef";
+    __UNUSED(len);
     assert(len >= size * 2 + 1);
 
     for (size_t i = 0 ; i < size ; i++) {
@@ -63,13 +65,13 @@ int8_t hex2dec(char c) {
         return -1;
 }
 
-    /*
+/*
  * BYTES2HEXSTR converts an array into a hexadecimal string and fills into a
  * given buffer. The buffer size is given as an extra argument.
  */
-#define BYTES2HEXSTR(array, str, len) ({             \
-            COMPILE_TIME_ASSERT(IS_ARRAY(array));    \
-            __bytes2hexstr((array), sizeof(array), str, len);})
+#define BYTES2HEXSTR(array, str, len) ({                        \
+    static_assert(IS_ARRAY(array), "`array` must be an array"); \
+    __bytes2hexstr((array), sizeof(array), str, len);})
 
 /*
  * ALLOCA_BYTES2HEXSTR uses __alloca to allocate a buffer on the current frame

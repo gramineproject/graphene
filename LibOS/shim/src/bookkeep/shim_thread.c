@@ -601,6 +601,7 @@ void switch_dummy_thread (struct shim_thread * thread)
 
 BEGIN_CP_FUNC(thread)
 {
+    __UNUSED(size);
     assert(size == sizeof(struct shim_thread));
 
     struct shim_thread * thread = (struct shim_thread *) obj;
@@ -698,6 +699,7 @@ END_RS_FUNC(thread)
 
 BEGIN_CP_FUNC(running_thread)
 {
+    __UNUSED(size);
     __UNUSED(objp);
     assert(size == sizeof(struct shim_thread));
 

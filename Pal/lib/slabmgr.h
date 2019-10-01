@@ -419,7 +419,8 @@ static inline size_t slab_get_buf_size(const void* ptr) {
 
 #ifdef SLAB_CANARY
     const unsigned long* m = (const unsigned long*)(ptr + slab_levels[level]);
-    assert((*m) == SLAB_CANARY_STRING);
+    __UNUSED(m);
+    assert(*m == SLAB_CANARY_STRING);
 #endif
 
     return slab_levels[level];
@@ -454,7 +455,8 @@ static inline void slab_free(SLAB_MGR mgr, void* obj) {
 
 #ifdef SLAB_CANARY
     unsigned long* m = (unsigned long*)(obj + slab_levels[level]);
-    assert((*m) == SLAB_CANARY_STRING);
+    __UNUSED(m);
+    assert(*m == SLAB_CANARY_STRING);
 #endif
 
     SLAB_OBJ mobj = RAW_TO_OBJ(obj, SLAB_OBJ_TYPE);
