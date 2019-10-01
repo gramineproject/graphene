@@ -112,7 +112,10 @@ static int _DkObjectWaitOne(PAL_HANDLE handle, int64_t timeout_us) {
 
     const struct handle_ops * ops = HANDLE_OPS(handle);
 
-    if (!ops || !ops->wait)
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
+    if (!ops->wait)
         return -PAL_ERROR_NOTSUPPORT;
 
     return ops->wait(handle, timeout_us);

@@ -33,10 +33,13 @@
 int _DkObjectClose (PAL_HANDLE objectHandle)
 {
     const struct handle_ops * ops = HANDLE_OPS(objectHandle);
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
     int ret = 0;
 
     /* if the operation 'close' is defined, call the function. */
-    if (ops && ops->close)
+    if (ops->close)
         ret = ops->close(objectHandle);
 
     /*
@@ -56,7 +59,7 @@ void DkObjectClose (PAL_HANDLE objectHandle)
 {
     ENTER_PAL_CALL(DkObjectClose);
 
-    if (!objectHandle || UNKNOWN_HANDLE(objectHandle)) {
+    if (!objectHandle) {
         _DkRaiseFailure(PAL_ERROR_INVAL);
         LEAVE_PAL_CALL();
     }
@@ -64,7 +67,6 @@ void DkObjectClose (PAL_HANDLE objectHandle)
     UNTRACE_HEAP(objectHandle);
 
     int ret = _DkObjectClose(objectHandle);
-
     if (ret < 0)
         _DkRaiseFailure(-ret);
 

@@ -271,13 +271,12 @@ class TC_20_SingleProcess(RegressionTestCase):
         self.assertEqual(file_exist[200:240], file_nonexist[0:40])
 
         # File Attribute Query
-        self.assertIn(
-            'Query: type = 1, size = {}'.format(len(file_exist)), stderr)
+        self.assertIn('Query: type = ', stderr)
+        self.assertIn(', size = {}'.format(len(file_exist)), stderr)
 
         # File Attribute Query by Handle
-        self.assertIn(
-            'Query by Handle: type = 1, size = {}'.format(len(file_exist)),
-            stderr)
+        self.assertIn('Query by Handle: type = ', stderr)
+        self.assertIn(', size = {}'.format(len(file_exist)), stderr)
 
         # File Mapping
         self.assertIn(
@@ -335,10 +334,10 @@ class TC_20_SingleProcess(RegressionTestCase):
             self.assertIn('Read Directory: {}'.format(p.name), stderr)
 
         # Directory Attribute Query
-        self.assertIn('Query: type = 7', stderr)
+        self.assertIn('Query: type = ', stderr)
 
         # Directory Attribute Query by Handle
-        self.assertIn('Query by Handle: type = 7', stderr)
+        self.assertIn('Query by Handle: type = ', stderr)
 
         # Directory Deletion
         self.assertFalse(pathlib.Path('dir_delete.tmp').exists())

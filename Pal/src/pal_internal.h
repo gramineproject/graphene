@@ -127,7 +127,7 @@ extern const struct handle_ops * pal_handle_ops [];
 static inline const struct handle_ops * HANDLE_OPS (PAL_HANDLE handle)
 {
     int _type = PAL_GET_TYPE(handle);
-    if (_type <= 0 || _type >= PAL_HANDLE_TYPE_BOUND)
+    if (_type >= PAL_HANDLE_TYPE_BOUND)
         return NULL;
     return pal_handle_ops[_type];
 }
@@ -162,9 +162,6 @@ static inline uint64_t hash64 (uint64_t key)
    deciding the actual size of the handle */
 extern PAL_HANDLE _h;
 #define HANDLE_SIZE(type)  (sizeof(*_h))
-
-#define UNKNOWN_HANDLE(handle)     \
-    (PAL_GET_TYPE(handle) == 0 || PAL_GET_TYPE(handle) >= PAL_HANDLE_TYPE_BOUND)
 
 static inline int handle_size (PAL_HANDLE handle)
 {

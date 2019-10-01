@@ -338,7 +338,7 @@ void add_ipc_port_by_id(IDTYPE vmid, PAL_HANDLE hdl, IDTYPE type,
     if (portptr)
         *portptr = NULL;
 
-    assert(hdl && PAL_GET_TYPE(hdl));
+    assert(hdl);
     lock(&ipc_helper_lock);
 
     /* check if port with this PAL handle already exists, then we only

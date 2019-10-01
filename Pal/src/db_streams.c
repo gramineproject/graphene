@@ -39,7 +39,6 @@ extern struct handle_ops dir_ops;
 extern struct handle_ops tcp_ops;
 extern struct handle_ops udp_ops;
 extern struct handle_ops udpsrv_ops;
-extern struct hadnle_ops udppacket_ops;
 extern struct handle_ops thread_ops;
 extern struct handle_ops proc_ops;
 extern struct handle_ops mutex_ops;
@@ -173,7 +172,7 @@ DkStreamOpen(PAL_STR uri, PAL_FLG access, PAL_FLG share, PAL_FLG create, PAL_FLG
     }
 
     assert(handle);
-    assert(PAL_GET_TYPE(handle));
+    assert(!UNKNOWN_HANDLE(handle));
 
     TRACE_HEAP(handle);
     LEAVE_PAL_CALL_RETURN(handle);
@@ -184,10 +183,10 @@ int _DkStreamWaitForClient(PAL_HANDLE handle, PAL_HANDLE* client) {
         return -PAL_ERROR_BADHANDLE;
 
     const struct handle_ops* ops = HANDLE_OPS(handle);
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
 
-    /* No ops or ops->delete being defined, inferring the handle can never
-       be deleted */
-    if (!ops || !ops->waitforclient)
+    if (!ops->waitforclient)
         return -PAL_ERROR_NOTSERVER;
 
     return ops->waitforclient(handle, client);
@@ -213,14 +212,12 @@ DkStreamWaitForClient(PAL_HANDLE handle) {
    the stream. For example, file will be deleted, socket witll be
    disconnected, etc */
 int _DkStreamDelete(PAL_HANDLE handle, int access) {
-    if (UNKNOWN_HANDLE(handle))
-        return -PAL_ERROR_BADHANDLE;
-
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
-    /* No ops or ops->delete being defined, inferring the handle can never
-       be deleted */
-    if (!ops || !ops->delete)
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
+    if (!ops->delete)
         return -PAL_ERROR_NOTSUPPORT;
 
     return ops->delete(handle, access);
@@ -248,15 +245,10 @@ void DkStreamDelete(PAL_HANDLE handle, PAL_FLG access) {
    The actual behavior of stream read is defined by handler */
 int64_t _DkStreamRead(PAL_HANDLE handle, uint64_t offset, uint64_t count, void* buf, char* addr,
                       int addrlen) {
-    if (UNKNOWN_HANDLE(handle))
-        return -PAL_ERROR_BADHANDLE;
-
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
-    /* if ops or ops->read is not defined, it infers that the stream can
-       never be read */
     if (!ops)
-        return -PAL_ERROR_NOTSUPPORT;
+        return -PAL_ERROR_BADHANDLE;
 
     if (!count)
         return -PAL_ERROR_ZEROSIZE;
@@ -305,13 +297,10 @@ DkStreamRead(PAL_HANDLE handle, PAL_NUM offset, PAL_NUM count, PAL_PTR buffer, P
    The actual behavior of stream write is defined by handler */
 int64_t _DkStreamWrite(PAL_HANDLE handle, uint64_t offset, uint64_t count, const void* buf,
                        const char* addr, int addrlen) {
-    if (UNKNOWN_HANDLE(handle))
-        return -PAL_ERROR_BADHANDLE;
-
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
     if (!ops)
-        return -PAL_ERROR_NOTSUPPORT;
+        return -PAL_ERROR_BADHANDLE;;
 
     if (!count)
         return -PAL_ERROR_ZEROSIZE;
@@ -404,14 +393,11 @@ DkStreamAttributesQuery(PAL_STR uri, PAL_STREAM_ATTR* attr) {
 /* _DkStreamAttributesQueryByHandle for internal use. Query attribute
    of streams by their handle */
 int _DkStreamAttributesQueryByHandle(PAL_HANDLE hdl, PAL_STREAM_ATTR* attr) {
-    if (UNKNOWN_HANDLE(hdl))
-        return -PAL_ERROR_BADHANDLE;
-
     const struct handle_ops* ops = HANDLE_OPS(hdl);
 
-    assert(ops);
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
 
-    /* if ops->attrquerybyhdl is not defined, the stream cannot be queried */
     if (!ops->attrquerybyhdl)
         return -PAL_ERROR_NOTSUPPORT;
 
@@ -452,14 +438,11 @@ DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
 
-    if (UNKNOWN_HANDLE(handle)) {
+    const struct handle_ops* ops = HANDLE_OPS(handle);
+    if (!ops) {
         _DkRaiseFailure(PAL_ERROR_BADHANDLE);
         LEAVE_PAL_CALL_RETURN(PAL_FALSE);
     }
-
-    const struct handle_ops* ops = HANDLE_OPS(handle);
-
-    assert(ops);
 
     if (!ops->attrsetbyhdl) {
         _DkRaiseFailure(PAL_ERROR_NOTSUPPORT);
@@ -478,9 +461,10 @@ DkStreamAttributesSetByHandle(PAL_HANDLE handle, PAL_STREAM_ATTR* attr) {
 
 int _DkStreamGetName(PAL_HANDLE handle, char* buffer, int size) {
     const struct handle_ops* ops = HANDLE_OPS(handle);
-    assert(ops);
 
-    /* if ops->getname is not defined, the stream cannot be queried */
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
     if (!ops->getname)
         return -PAL_ERROR_NOTSUPPORT;
 
@@ -504,11 +488,6 @@ PAL_NUM DkStreamGetName(PAL_HANDLE handle, PAL_PTR buffer, PAL_NUM size) {
         LEAVE_PAL_CALL_RETURN(0);
     }
 
-    if (UNKNOWN_HANDLE(handle)) {
-        _DkRaiseFailure(PAL_ERROR_BADHANDLE);
-        LEAVE_PAL_CALL_RETURN(0);
-    }
-
     int ret = _DkStreamGetName(handle, (void*)buffer, size);
 
     if (ret < 0) {
@@ -527,8 +506,10 @@ int _DkStreamMap(PAL_HANDLE handle, void** paddr, int prot, uint64_t offset, uin
 
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
-    /* if ops or ops->map is not defined, the stream cannot be mapped */
-    if (!ops || !ops->map)
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
+    if (!ops->map)
         return -PAL_ERROR_NOTSUPPORT;
 
     if ((ret = ops->map(handle, &addr, prot, offset, size)) < 0)
@@ -600,12 +581,12 @@ void DkStreamUnmap(PAL_PTR addr, PAL_NUM size) {
 /* _DkStreamSetLength for internal use. This function truncate the stream
    to certain length. This call might not be support for certain streams */
 int64_t _DkStreamSetLength(PAL_HANDLE handle, uint64_t length) {
-    if (UNKNOWN_HANDLE(handle))
-        return -PAL_ERROR_BADHANDLE;
-
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
-    if (!ops || !ops->setlength)
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
+    if (!ops->setlength)
         return -PAL_ERROR_NOTSUPPORT;
 
     return ops->setlength(handle, length);
@@ -645,7 +626,10 @@ int _DkStreamFlush(PAL_HANDLE handle) {
 
     const struct handle_ops* ops = HANDLE_OPS(handle);
 
-    if (!ops || !ops->flush)
+    if (!ops)
+        return -PAL_ERROR_BADHANDLE;
+
+    if (!ops->flush)
         return -PAL_ERROR_NOTSUPPORT;
 
     return ops->flush(handle);
@@ -727,7 +711,6 @@ PAL_HANDLE DkReceiveHandle(PAL_HANDLE handle) {
     }
 
     assert(cargo);
-    assert(PAL_GET_TYPE(cargo));
     LEAVE_PAL_CALL_RETURN(cargo);
 }
 
