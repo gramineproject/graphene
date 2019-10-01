@@ -57,7 +57,7 @@ static int pipe_open (PAL_HANDLE *handle, const char * type,
                       const char * uri, int access, int share,
                       int create, int options)
 {
-    if (strcmp_static(type, "pipe") && !*uri)
+    if (!strcmp_static(type, "pipe") && !*uri)
         return pipe_private(handle);
 
     char * endptr;
@@ -74,10 +74,10 @@ static int pipe_open (PAL_HANDLE *handle, const char * type,
     if (*endptr)
         return -PAL_ERROR_INVAL;
 
-    if (strcmp_static(type, "pipe.srv"))
+    if (!strcmp_static(type, "pipe.srv"))
         return pipe_listen(handle, pipeid, create);
 
-    if (strcmp_static(type, "pipe"))
+    if (!strcmp_static(type, "pipe"))
         return pipe_connect(handle, pipeid, connid, create);
 
     return -PAL_ERROR_INVAL;

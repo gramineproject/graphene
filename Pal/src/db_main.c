@@ -186,9 +186,9 @@ static void set_debug_type (void)
 
     PAL_HANDLE handle = NULL;
 
-    if (strcmp_static(cfgbuf, "inline")) {
+    if (!strcmp_static(cfgbuf, "inline")) {
         ret = _DkStreamOpen(&handle, "dev:tty", PAL_ACCESS_RDWR, 0, 0, 0);
-    } else if (strcmp_static(cfgbuf, "file")) {
+    } else if (!strcmp_static(cfgbuf, "file")) {
         ret = get_config(pal_state.root_config, "loader.debug_file",
                          cfgbuf, CONFIG_MAX);
         if (ret <= 0)
@@ -198,7 +198,7 @@ static void set_debug_type (void)
                             PAL_ACCESS_RDWR,
                             PAL_SHARE_OWNER_R|PAL_SHARE_OWNER_W,
                             PAL_CREATE_TRY, 0);
-    } else if (strcmp_static(cfgbuf, "none")) {
+    } else if (!strcmp_static(cfgbuf, "none")) {
         ret = 0;
     } else {
         INIT_FAIL(PAL_ERROR_INVAL, "unknown debug type");
@@ -357,11 +357,11 @@ noreturn void pal_main (
         size_t exec_strlen = manifest_strlen - 9;
         int success = 0;
         // Try .manifest
-        if (strcmp_static(&manifest_uri[exec_strlen], ".manifest")) {
+        if (!strcmp_static(&manifest_uri[exec_strlen], ".manifest")) {
             success = 1;
         } else {
             exec_strlen -= 4;
-            if (strcmp_static(&manifest_uri[exec_strlen], ".manifest.sgx")) {
+            if (!strcmp_static(&manifest_uri[exec_strlen], ".manifest.sgx")) {
                 success = 1;
             }
         }

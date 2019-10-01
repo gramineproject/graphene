@@ -34,7 +34,7 @@
 int gipc_open (PAL_HANDLE * handle, const char * type, const char * uri,
                int access, int share, int create, int options)
 {
-    if (!strcmp_static(type, "gipc"))
+    if (strcmp_static(type, "gipc"))
         return -PAL_ERROR_INVAL;
 
     if (!WITHIN_MASK(access, PAL_ACCESS_MASK) ||

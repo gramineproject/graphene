@@ -163,7 +163,7 @@ long int glibc_option (const char * opt)
 {
     char cfg[CONFIG_MAX];
 
-    if (strcmp_static(opt, "heap_size")) {
+    if (!strcmp_static(opt, "heap_size")) {
         ssize_t ret = get_config(root_config, "glibc.heap_size", cfg, CONFIG_MAX);
         if (ret <= 0) {
             debug("no glibc option: %s (err=%ld)\n", opt, ret);
@@ -727,7 +727,7 @@ noreturn void* shim_init (int argc, void * args)
     debug("shim loaded at %p, ready to initialize\n", &__load_address);
 
     if (argc && argv[0][0] == '-') {
-        if (strcmp_static(argv[0], "-resume") && argc >= 2) {
+        if (!strcmp_static(argv[0], "-resume") && argc >= 2) {
             const char * filename = *(argv + 1);
             argc -= 2;
             argv += 2;

@@ -445,7 +445,7 @@ int initialize_enclave (struct pal_enclave * enclave)
 
         void * data = NULL;
 
-        if (strcmp_static(areas[i].desc, "tls")) {
+        if (!strcmp_static(areas[i].desc, "tls")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
@@ -479,7 +479,7 @@ int initialize_enclave (struct pal_enclave * enclave)
                 }
                 gs->thread = NULL;
             }
-        } else if (strcmp_static(areas[i].desc, "tcs")) {
+        } else if (!strcmp_static(areas[i].desc, "tcs")) {
             data = (void *) INLINE_SYSCALL(mmap, 6, NULL, areas[i].size,
                                            PROT_READ|PROT_WRITE,
                                            MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
@@ -789,7 +789,7 @@ static int load_enclave (struct pal_enclave * enclave,
 #ifdef DEBUG
     size_t env_i = 0;
     while (env_i < env_size) {
-        if (strcmp_static(&env[env_i], "IN_GDB=1")) {
+        if (!strcmp_static(&env[env_i], "IN_GDB=1")) {
             SGX_DBG(DBG_I, "[ Running under GDB ]\n");
             pal_sec->in_gdb = true;
         }
@@ -863,7 +863,7 @@ static int load_enclave (struct pal_enclave * enclave,
         return -EINVAL;
     }
 
-    if (!strcmp_static(sig_uri + strlen(sig_uri) - 4, ".sig")) {
+    if (strcmp_static(sig_uri + strlen(sig_uri) - 4, ".sig")) {
         SGX_DBG(DBG_E, "Invalid sigstruct file URI as %s\n", cfgbuf);
         free(sig_uri);
         return -EINVAL;
@@ -980,7 +980,7 @@ int main (int argc, char ** argv, char ** envp)
         if (!argc)
             goto usage;
 
-        if (strcmp_static(argv[0], "file:")) {
+        if (!strcmp_static(argv[0], "file:")) {
             exec_uri = alloc_concat(argv[0], -1, NULL, -1);
         } else {
             exec_uri = alloc_concat("file:", -1, argv[0], -1);
