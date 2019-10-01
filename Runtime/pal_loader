@@ -5,6 +5,7 @@ do
 	case "$1" in
 		"SGX")
 			SGX=1
+			export SGX
 			;;
 		"GDB")
 			GDB=1
