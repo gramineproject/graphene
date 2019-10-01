@@ -330,7 +330,7 @@ static bool is_sgx_pal(void) {
 
     if (!atomic_read(&inited)) {
         /* Ensure that is_sgx_pal is updated before initialized */
-        atomic_set(&sgx_pal, strcmp_static(PAL_CB(host_type), "Linux-SGX"));
+        atomic_set(&sgx_pal, !strcmp_static(PAL_CB(host_type), "Linux-SGX"));
         MB();
         atomic_set(&inited, 1);
     }

@@ -468,7 +468,7 @@ err:
     SAVE_PROFILE_INTERVAL(open_file_for_exec);
 
 #if EXECVE_RTLD == 1
-    if (!strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
+    if (strcmp_static(PAL_CB(host_type), "Linux-SGX")) {
         int is_last = check_last_thread(cur_thread) == 0;
         if (is_last) {
             debug("execve() in the same process\n");

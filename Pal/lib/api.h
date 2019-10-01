@@ -118,24 +118,23 @@ void *malloc(size_t size);
 void free(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 
-/* Some useful macro */
 /* force failure if str is not a static string */
-#define force_static(str)   ("" str "")
+#define force_literal_cstr(str)   ("" str "")
 
 /* check if the var is exactly the same as the static string */
 #define strcmp_static(var, str) \
-    (!memcmp((var), force_static(str), static_strlen(force_static(str)) + 1))
+    (memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str)) + 1))
 
 /* check if the var starts with the static string */
 #define strpartcmp_static(var, str) \
-    (!memcmp((var), force_static(str), static_strlen(force_static(str))))
+    (!memcmp(var, force_literal_cstr(str), static_strlen(force_literal_cstr(str))))
 
 /* copy static string and return the address of the null end (null if the dest
  * is not large enough).*/
-#define strcpy_static(var, str, max)                                          \
-    (static_strlen(force_static(str)) + 1 > (max) ? NULL :                    \
-     memcpy((var), force_static(str), static_strlen(force_static(str)) + 1) + \
-     static_strlen(force_static(str)))
+#define strcpy_static(var, str, max)                                                      \
+    (static_strlen(force_literal_cstr(str)) + 1 > (max) ? NULL :                          \
+     memcpy((var), force_literal_cstr(str), static_strlen(force_literal_cstr(str)) + 1) + \
+     static_strlen(force_literal_cstr(str)))
 
 /* Copy a fixed size array. */
 #define COPY_ARRAY(dst, src)                                                    \

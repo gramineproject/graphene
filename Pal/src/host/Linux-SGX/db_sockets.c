@@ -447,10 +447,10 @@ static int tcp_open(PAL_HANDLE* handle, const char* type, const char* uri, int a
     char uri_buf[PAL_SOCKADDR_SIZE];
     memcpy(uri_buf, uri, uri_len);
 
-    if (strcmp_static(type, "tcp.srv"))
+    if (!strcmp_static(type, "tcp.srv"))
         return tcp_listen(handle, uri_buf, options);
 
-    if (strcmp_static(type, "tcp"))
+    if (!strcmp_static(type, "tcp"))
         return tcp_connect(handle, uri_buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
@@ -608,10 +608,10 @@ static int udp_open(PAL_HANDLE* hdl, const char* type, const char* uri, int acce
 
     memcpy(buf, uri, len + 1);
 
-    if (strcmp_static(type, "udp.srv"))
+    if (!strcmp_static(type, "udp.srv"))
         return udp_bind(hdl, buf, options);
 
-    if (strcmp_static(type, "udp"))
+    if (!strcmp_static(type, "udp"))
         return udp_connect(hdl, buf, options);
 
     return -PAL_ERROR_NOTSUPPORT;
