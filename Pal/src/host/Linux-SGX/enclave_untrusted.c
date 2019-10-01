@@ -15,7 +15,6 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <api.h>
-#include <assert.h>
 #include <pal_error.h>
 #include <pal_internal.h>
 #include <pal_security.h>

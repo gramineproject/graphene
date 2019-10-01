@@ -39,14 +39,6 @@ struct link_map * exec_map = NULL;
 
 struct link_map * lookup_symbol (const char *undef_name, ElfW(Sym) **ref);
 
-#ifdef assert
-/* This function can be used as a breakpoint to debug assertion */
-void __attribute_noinline __assert (void)
-{
-    BREAK();
-}
-#endif
-
 /* This macro is used as a callback from the ELF_DYNAMIC_RELOCATE code.  */
 static struct link_map * resolve_map (const char **strtab, ElfW(Sym) ** ref)
 {
@@ -108,7 +100,7 @@ void setup_elf_hash (struct link_map *map)
         Elf32_Word bitmask_nwords = *hash32++;
 
         /* Must be a power of two.  */
-        assert ((bitmask_nwords & (bitmask_nwords - 1)) == 0);
+        assert((bitmask_nwords & (bitmask_nwords - 1)) == 0);
         map->l_gnu_bitmask_idxbits = bitmask_nwords - 1;
         map->l_gnu_shift = *hash32++;
 

@@ -49,6 +49,7 @@ static inline int init_tty_handle(struct shim_handle* hdl, bool write) {
     struct shim_dentry* dent = NULL;
     int ret;
     struct shim_thread* cur_thread = get_cur_thread();
+    __UNUSED(cur_thread);
 
     /* XXX: Try getting the root FS from current thread? */
     assert(cur_thread);
@@ -697,6 +698,7 @@ done:
 }
 
 BEGIN_CP_FUNC(handle) {
+    __UNUSED(size);
     assert(size == sizeof(struct shim_handle));
 
     struct shim_handle* hdl     = (struct shim_handle*)obj;
@@ -781,6 +783,7 @@ BEGIN_RS_FUNC(handle) {
 END_RS_FUNC(handle)
 
 BEGIN_CP_FUNC(fd_handle) {
+    __UNUSED(size);
     assert(size == sizeof(struct shim_fd_handle));
 
     struct shim_fd_handle* fdhdl     = (struct shim_fd_handle*)obj;
@@ -798,6 +801,7 @@ BEGIN_CP_FUNC(fd_handle) {
 END_CP_FUNC_NO_RS(fd_handle)
 
 BEGIN_CP_FUNC(handle_map) {
+    __UNUSED(size);
     assert(size >= sizeof(struct shim_handle_map));
 
     struct shim_handle_map* handle_map     = (struct shim_handle_map*)obj;

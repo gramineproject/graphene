@@ -45,7 +45,7 @@ int do_handle_read (struct shim_handle * hdl, void * buf, int count)
         return -EACCES;
 
     struct shim_mount * fs = hdl->fs;
-    assert (fs && fs->fs_ops);
+    assert(fs && fs->fs_ops);
 
     if (!fs->fs_ops->read)
         return -EBADF;
@@ -76,7 +76,7 @@ int do_handle_write (struct shim_handle * hdl, const void * buf, int count)
         return -EACCES;
 
     struct shim_mount * fs = hdl->fs;
-    assert (fs && fs->fs_ops);
+    assert(fs && fs->fs_ops);
 
     if (!fs->fs_ops->write)
         return -EBADF;

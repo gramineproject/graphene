@@ -271,6 +271,7 @@ static void __add_ipc_port(struct shim_ipc_port* port, IDTYPE vmid,
     /* find empty slot in fini callbacks and register callback */
     if (fini) {
         bool found_empty_slot = false;
+        __UNUSED(found_empty_slot);
         for (int i = 0; i < MAX_IPC_PORT_FINI_CB; i++)
             if (!port->fini[i] || port->fini[i] == fini) {
                 port->fini[i] = fini;

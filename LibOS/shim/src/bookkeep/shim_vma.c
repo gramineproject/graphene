@@ -233,6 +233,7 @@ __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
             LISTP_NEXT_ENTRY(prev, &vma_list, list) :
             LISTP_FIRST_ENTRY(&vma_list, struct shim_vma, list);
 
+    __UNUSED(next);
     assert(!next || vma->end <= next->start);
 
     if (prev)
@@ -249,6 +250,7 @@ __insert_vma (struct shim_vma * vma, struct shim_vma * prev)
 static inline void
 __remove_vma (struct shim_vma * vma, struct shim_vma * prev)
 {
+    __UNUSED(prev);
     assert(vma != prev);
     LISTP_DEL(vma, &vma_list, list);
 }
@@ -1040,6 +1042,7 @@ int dump_all_vmas (struct shim_vma_val * vmas, size_t max_count)
 
 BEGIN_CP_FUNC(vma)
 {
+    __UNUSED(size);
     assert(size == sizeof(struct shim_vma_val));
 
     struct shim_vma_val * vma = (struct shim_vma_val *) obj;

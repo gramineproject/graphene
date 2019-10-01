@@ -391,6 +391,7 @@ struct shim_mount epoll_builtin_fs = {
 };
 
 BEGIN_CP_FUNC(epoll_fd) {
+    __UNUSED(size);
     assert(size == sizeof(LISTP_TYPE(shim_epoll_fd)));
 
     LISTP_TYPE(shim_epoll_fd)* old_list = (LISTP_TYPE(shim_epoll_fd)*)obj;

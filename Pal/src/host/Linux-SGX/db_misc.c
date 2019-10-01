@@ -36,7 +36,8 @@
 unsigned long _DkSystemTimeQuery(void) {
     unsigned long microsec;
     int ret = ocall_gettime(&microsec);
-    assert(!ret);
+    if (ret)
+        return -PAL_ERROR_DENIED;
     return microsec;
 }
 

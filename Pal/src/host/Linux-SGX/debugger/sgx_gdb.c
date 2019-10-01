@@ -182,7 +182,8 @@ static int update_thread_tids(struct enclave_dbginfo* ei) {
     void* src = (void*)DBGINFO_ADDR + offsetof(struct enclave_dbginfo, thread_tids);
     void* dst = (void*)ei + offsetof(struct enclave_dbginfo, thread_tids);
 
-    assert((sizeof(ei->thread_tids) % sizeof(long)) == 0);
+    static_assert((sizeof(ei->thread_tids) % sizeof(long)) == 0,
+                  "Unsupported ei->thread_tids size");
 
     for (int off = 0; off < sizeof(ei->thread_tids); off += sizeof(long)) {
         errno = 0;
@@ -337,7 +338,7 @@ static int open_memdevice(pid_t tid, int* memdev, struct enclave_dbginfo** ei) {
         }
     }
 
-    assert(sizeof(eib) % sizeof(long) == 0);
+    static_assert(sizeof(eib) % sizeof(long) == 0, "Unsupported eib size");
 
     for (int off = 0; off < sizeof(eib); off += sizeof(long)) {
         errno = 0;

@@ -113,6 +113,7 @@ void* shim_do_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t
 
     // Approximate check only, to help root out bugs.
     void* cur_stack = current_stack();
+    __UNUSED(cur_stack);
     assert(cur_stack < addr || cur_stack > addr + length);
 
     /* addr needs to be kept for bkeep_munmap() below */

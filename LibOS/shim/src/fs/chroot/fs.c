@@ -672,7 +672,7 @@ static inline int __map_buffer (struct shim_handle * hdl, size_t size)
         return -PAL_ERRNO;
     }
 
-    assert((void *) mapped == mapbuf);
+    assert((void*)mapped == mapbuf);
 
     file->mapbuf    = mapbuf;
     file->mapoffset = mapoff;

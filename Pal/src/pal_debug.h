@@ -24,7 +24,6 @@
 #define PAL_DEBUG_H
 
 #include "pal.h"
-#include <assert.h>
 
 int pal_printf (const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 

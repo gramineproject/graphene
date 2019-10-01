@@ -491,6 +491,7 @@ out:
 }
 
 BEGIN_CP_FUNC(ipc_info) {
+    __UNUSED(size);
     assert(size == sizeof(struct shim_ipc_info));
 
     struct shim_ipc_info* info     = (struct shim_ipc_info*)obj;
@@ -530,6 +531,7 @@ BEGIN_CP_FUNC(ipc_info) {
 END_CP_FUNC_NO_RS(ipc_info)
 
 BEGIN_CP_FUNC(process) {
+    __UNUSED(size);
     assert(size == sizeof(struct shim_process));
 
     struct shim_process* process     = (struct shim_process*)obj;

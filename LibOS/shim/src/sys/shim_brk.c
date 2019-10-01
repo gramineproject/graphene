@@ -310,7 +310,7 @@ BEGIN_RS_FUNC(brk)
 
         void * ptr = DkVirtualMemoryAlloc(alloc_addr, alloc_size, 0,
                                           PAL_PROT_READ|PAL_PROT_WRITE);
-
+        __UNUSED(ptr);
         assert(ptr == alloc_addr);
         ADD_PROFILE_OCCURENCE(brk, alloc_size);
         INC_PROFILE_OCCURENCE(brk_migrate_count);

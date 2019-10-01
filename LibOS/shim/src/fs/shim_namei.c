@@ -188,9 +188,9 @@ int lookup_dentry (struct shim_dentry * parent, const char * name, int namelen, 
     if (do_fs_lookup) {
         // This doesn't make any sense if there isn't a low-level
         // lookup function.
-        assert (dent->fs);
-        assert (dent->fs->d_ops);
-        assert (dent->fs->d_ops->lookup);
+        assert(dent->fs);
+        assert(dent->fs->d_ops);
+        assert(dent->fs->d_ops->lookup);
         err = dent->fs->d_ops->lookup(dent);
 
         /* XXX: On an error, it seems like we should probably destroy
@@ -741,7 +741,7 @@ int list_directory_dentry (struct shim_dentry *dent) {
         return 0;
     }
 
-    assert (dent->state & DENTRY_ISDIRECTORY);
+    assert(dent->state & DENTRY_ISDIRECTORY);
 
     struct shim_dirent * dirent = NULL;
 
@@ -790,8 +790,8 @@ int list_directory_handle (struct shim_dentry * dent, struct shim_handle * hdl)
     int nchildren = dent->nchildren, count = 0;
     struct shim_dentry * child;
 
-    assert(hdl->dir_info.buf == (void *)-1);
-    assert(hdl->dir_info.ptr == (void *)-1);
+    assert(hdl->dir_info.buf == (void*)-1);
+    assert(hdl->dir_info.ptr == (void*)-1);
 
     // Handle the case where the handle is on a rmdir-ed directory
     // Handle is already locked by caller, so these values shouldn't change

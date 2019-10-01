@@ -299,10 +299,12 @@ static void _DkTerminateSighandler (int signum, siginfo_t * info,
 static void _DkPipeSighandler (int signum, siginfo_t * info,
                                struct ucontext * uc)
 {
-    assert(signum == SIGPIPE);
+    __UNUSED(signum);
     __UNUSED(info);
+    assert(signum == SIGPIPE);
 
     uintptr_t rip = uc->uc_mcontext.gregs[REG_RIP];
+    __UNUSED(rip);
     assert(ADDR_IN_PAL(rip)); // This signal can only happens inside PAL
     return;
 }

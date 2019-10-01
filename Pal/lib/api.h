@@ -17,6 +17,7 @@
 #ifndef API_H
 #define API_H
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -159,7 +160,7 @@ void *calloc(size_t nmemb, size_t size);
         (void) (_d == &_d2);                                                    \
                                                                                 \
         /* Double check sizes. */                                               \
-        _Static_assert(sizeof(*_s) == sizeof(*_d), "sizes don't match");        \
+        static_assert(sizeof(*_s) == sizeof(*_d), "sizes don't match");         \
                                                                                 \
         memcpy(*_d, *_s, sizeof(*_d));                                          \
     } while (0)
