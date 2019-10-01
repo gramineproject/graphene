@@ -34,6 +34,7 @@
 
 #define static_always_inline static inline __attribute__((always_inline))
 
+#include <assert.h>
 #include <shim_types.h>
 #include <shim_defs.h>
 #include <atomic.h>
@@ -144,9 +145,7 @@ static inline PAL_HANDLE __open_shim_stdio (void)
 
 noreturn void shim_terminate (int err);
 
-/* assertions */
 #define USE_PAUSE       0
-#define USE_ASSERT      1
 
 static inline void do_pause (void);
 
@@ -162,12 +161,6 @@ static inline void do_pause (void);
         PAUSE();                                                            \
         shim_terminate(-ENOTRECOVERABLE);                                   \
     } while (0)
-
-#if USE_ASSERT == 1
-#include <assert.h>
-#else
-# define assert(test) do {} while (0)
-#endif
 
 #define DEBUG_HERE() \
     do { debug("%s (" __FILE__ ":%d)\n", __func__, __LINE__); } while (0)
@@ -843,7 +836,8 @@ static inline bool access_ok(const volatile void* addr, size_t size) {
 #endif /* __x86_64__ */
 
 static inline IDTYPE hashtype_to_idtype(HASHTYPE hash) {
-    assert(sizeof(HASHTYPE) == 8 && sizeof(IDTYPE) == 4);
+    static_assert(sizeof(HASHTYPE) == 8, "Unsupported HASHTYPE size");
+    static_assert(sizeof(IDTYPE) == 4, "Unsupported IDTYPE size");
     return ((IDTYPE)hash) ^ ((IDTYPE)(hash >> 32));
 }
 

@@ -578,8 +578,10 @@ SHIM_SYSCALL_PASSTHROUGH(prctl, 5, int, int, option, unsigned long, arg2, unsign
 DEFINE_SHIM_SYSCALL(arch_prctl, 2, shim_do_arch_prctl, void*, int, code, void*, addr)
 
 void* shim_do_arch_prctl(int code, void* addr) {
-    /* We only support set fs.  Die loudly if we see anything else. */
-    assert(code == ARCH_SET_FS || code == ARCH_GET_FS);
+    if (code != ARCH_SET_FS && code != ARCH_GET_FS) {
+        debug("Not supported flag (0x%x) passed to arch_prctl\n", code);
+        return (void*)-ENOSYS;
+    }
 
     switch (code) {
         case ARCH_SET_FS:

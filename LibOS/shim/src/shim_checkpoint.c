@@ -674,7 +674,7 @@ int init_from_checkpoint_file (const char * filename,
     int ret;
 
     /* XXX: Not sure what to do here yet */
-    assert(0);
+    __abort();
     ret = path_lookupat(NULL, filename, LOOKUP_ACCESS|LOOKUP_DIRECTORY, &dir, NULL);
     if (ret < 0)
         return ret;

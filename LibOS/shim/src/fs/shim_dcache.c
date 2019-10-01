@@ -127,7 +127,7 @@ static void free_dentry (struct shim_dentry *dent) {
  */
 void put_dentry (struct shim_dentry * dent) {
     int count = REF_DEC(dent->ref_count);
-    assert (count >= 0);
+    assert(count >= 0);
     // We don't expect this to commonly free a dentry, and may represent a
     // reference counting bug.
     if (count == 0) {
@@ -258,7 +258,7 @@ __lookup_dcache (struct shim_dentry * start, const char * name, int namelen,
         //continue;
 
         // Check for memory corruption
-        assert(0 == (dent->state & DENTRY_INVALID_FLAGS));
+        assert((dent->state & DENTRY_INVALID_FLAGS) == 0);
 
         /* Compare the hash first */
         if (dent->rel_path.hash != hash)

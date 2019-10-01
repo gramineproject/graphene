@@ -1572,7 +1572,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     assert((uintptr_t)argcp % 16 == 0); /* stack must be 16B-aligned */
     assert((void*)argcp + sizeof(long) == argp || argp == NULL);
 
-    assert(REQUIRED_ELF_AUXV >= 8); /* stack allocated enough space */
+    static_assert(REQUIRED_ELF_AUXV >= 8, "not enough space on stack for auxv");
     auxp[0].a_type     = AT_PHDR;
     auxp[0].a_un.a_val = (__typeof(auxp[0].a_un.a_val))exec_map->l_phdr;
     auxp[1].a_type     = AT_PHNUM;
@@ -1596,7 +1596,7 @@ noreturn void execute_elf_object(struct shim_handle* exec, int* argcp, const cha
     auxp[7].a_un.a_val = 0;
 
     /* populate extra memory space for aux vector data */
-    assert(REQUIRED_ELF_AUXV_SPACE >= 16); /* stack allocated enough space */
+    static_assert(REQUIRED_ELF_AUXV_SPACE >= 16, "not enough space on stack for auxv");
     ElfW(Addr) auxp_extra = (ElfW(Addr))&auxp[8];
 
     ElfW(Addr) random = auxp_extra; /* random 16B for AT_RANDOM */
