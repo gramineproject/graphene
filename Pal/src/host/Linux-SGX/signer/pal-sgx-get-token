@@ -17,19 +17,19 @@ def read_sigstruct(sig):
     # field format: (offset, type, value)
     # SGX_ARCH_SIGSTRUCT_
     fields = {
-        'date': (SGX_ARCH_SIGSTRUCT_DATE, "<HBB", 'year', 'month', 'day'),
-        'modulus': (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", 'modulus'),
-        'exponent': (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L", 'exponent'),
-        'signature': (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", 'signature'),
+        'date': (SGX_ARCH_ENCLAVE_CSS_DATE, "<HBB", 'year', 'month', 'day'),
+        'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, "384s", 'modulus'),
+        'exponent': (SGX_ARCH_ENCLAVE_CSS_EXPONENT, "<L", 'exponent'),
+        'signature': (SGX_ARCH_ENCLAVE_CSS_SIGNATURE, "384s", 'signature'),
 
-        'miscs': (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", 'miscs'),
-        'miscmask': (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", 'miscmask'),
-        'attrs': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
-        'attrmask': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+        'miscs': (SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, "4s", 'miscs'),
+        'miscmask': (SGX_ARCH_ENCLAVE_CSS_MISC_MASK, "4s", 'miscmask'),
+        'attrs': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES, "8s8s", 'flags', 'xfrms'),
+        'attrmask': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK,
                      "8s8s", 'flagmask', 'xfrmmask'),
-        'mrenclave': (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s", 'mrenclave'),
-        'isvprodid': (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H", 'isvprodid'),
-        'isvsvn': (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", 'isvsvn'),
+        'mrenclave': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", 'mrenclave'),
+        'isvprodid': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", 'isvprodid'),
+        'isvsvn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", 'isvsvn'),
     }
 
     attr = dict()

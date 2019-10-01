@@ -268,8 +268,8 @@ def get_trusted_children(manifest, check_exist=True, do_checksum=True):
             target += '.sig'
         if do_checksum:
             sig = open(target, 'rb').read()[
-                SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH:
-                SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE].hex()
+                SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH:
+                SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH + SGX_ARCH_HASH_SIZE].hex()
             targets[key] = (val, target, sig)
         else:
             targets[key] = (val, target)
@@ -455,9 +455,9 @@ def gen_area_content(attr, areas):
         set_tcs_field(t, TCS_NSSA, '<L', SSAFRAMENUM)
         set_tcs_field(t, TCS_OENTRY, '<Q',
                       pal_area.addr + entry_point(pal_area.file))
-        set_tcs_field(t, TCS_OGSBASGX, '<Q', tls_area.addr + PAGESIZE * t)
-        set_tcs_field(t, TCS_FSLIMIT, '<L', 0xfff)
-        set_tcs_field(t, TCS_GSLIMIT, '<L', 0xfff)
+        set_tcs_field(t, TCS_OGS_BASE, '<Q', tls_area.addr + PAGESIZE * t)
+        set_tcs_field(t, TCS_OFS_LIMIT, '<L', 0xfff)
+        set_tcs_field(t, TCS_OGS_LIMIT, '<L', 0xfff)
 
         set_tls_field(t, SGX_COMMON_SELF,
                       tls_area.addr + PAGESIZE * t + baseaddr())
@@ -653,32 +653,32 @@ def generate_sigstruct(attr, args, mrenclave):
     """Generate Sigstruct."""
     # field format: (offset, type, value)
     fields = {
-        'header': (SGX_ARCH_SIGSTRUCT_HEADER,
+        'header': (SGX_ARCH_ENCLAVE_CSS_HEADER,
                    "<4L", 0x00000006, 0x000000e1, 0x00010000, 0x00000000),
-        'vendor': (SGX_ARCH_SIGSTRUCT_VENDOR, "<L", 0x00000000),
-        'date': (SGX_ARCH_SIGSTRUCT_DATE,
+        'vendor': (SGX_ARCH_ENCLAVE_CSS_MODULE_VENDOR, "<L", 0x00000000),
+        'date': (SGX_ARCH_ENCLAVE_CSS_DATE,
                  "<HBB", attr['year'], attr['month'], attr['day']),
-        'header2': (SGX_ARCH_SIGSTRUCT_HEADER2,
+        'header2': (SGX_ARCH_ENCLAVE_CSS_HEADER2,
                     "<4L", 0x00000101, 0x00000060, 0x00000060, 0x00000001),
-        'swdefined': (SGX_ARCH_SIGSTRUCT_SWDEFINED, "<L", 0x00000000),
+        'swdefined': (SGX_ARCH_ENCLAVE_CSS_HW_VERSION, "<L", 0x00000000),
 
-        'miscs': (SGX_ARCH_SIGSTRUCT_MISCSELECT, "4s", attr['miscs']),
-        'miscmask': (SGX_ARCH_SIGSTRUCT_MISCSELECT_MASK, "4s", attr['miscs']),
-        'attrs': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES,
+        'miscs': (SGX_ARCH_ENCLAVE_CSS_MISC_SELECT, "4s", attr['miscs']),
+        'miscmask': (SGX_ARCH_ENCLAVE_CSS_MISC_MASK, "4s", attr['miscs']),
+        'attrs': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTES,
                   "8s8s", attr['flags'], attr['xfrms']),
-        'attrmask': (SGX_ARCH_SIGSTRUCT_ATTRIBUTES_MASK,
+        'attrmask': (SGX_ARCH_ENCLAVE_CSS_ATTRIBUTE_MASK,
                      "8s8s", attr['flags'], attr['xfrms']),
-        'mrenclave': (SGX_ARCH_SIGSTRUCT_ENCLAVE_HASH, "32s", mrenclave),
-        'isvprodid': (SGX_ARCH_SIGSTRUCT_ISVPRODID, "<H", attr['isvprodid']),
-        'isvsvn': (SGX_ARCH_SIGSTRUCT_ISVSVN, "<H", attr['isvsvn']),
+        'mrenclave': (SGX_ARCH_ENCLAVE_CSS_ENCLAVE_HASH, "32s", mrenclave),
+        'isvprodid': (SGX_ARCH_ENCLAVE_CSS_ISV_PROD_ID, "<H", attr['isvprodid']),
+        'isvsvn': (SGX_ARCH_ENCLAVE_CSS_ISV_SVN, "<H", attr['isvsvn']),
     }
 
     sign_buffer = bytearray(128 + 128)
 
     for field in fields.values():
-        if field[0] >= SGX_ARCH_SIGSTRUCT_MISCSELECT:
+        if field[0] >= SGX_ARCH_ENCLAVE_CSS_MISC_SELECT:
             struct.pack_into(field[1], sign_buffer,
-                             field[0] - SGX_ARCH_SIGSTRUCT_MISCSELECT + 128,
+                             field[0] - SGX_ARCH_ENCLAVE_CSS_MISC_SELECT + 128,
                              *field[2:])
         else:
             struct.pack_into(field[1], sign_buffer, field[0], *field[2:])
@@ -708,15 +708,15 @@ def generate_sigstruct(attr, args, mrenclave):
     q2 = q2_int.to_bytes(384, byteorder='little')
 
     fields.update({
-        'modulus': (SGX_ARCH_SIGSTRUCT_MODULUS, "384s", modulus),
-        'exponent': (SGX_ARCH_SIGSTRUCT_EXPONENT, "<L", 3),
-        'signature': (SGX_ARCH_SIGSTRUCT_SIGNATURE, "384s", signature),
+        'modulus': (SGX_ARCH_ENCLAVE_CSS_MODULUS, "384s", modulus),
+        'exponent': (SGX_ARCH_ENCLAVE_CSS_EXPONENT, "<L", 3),
+        'signature': (SGX_ARCH_ENCLAVE_CSS_SIGNATURE, "384s", signature),
 
-        'q1': (SGX_ARCH_SIGSTRUCT_Q1, "384s", q1),
-        'q2': (SGX_ARCH_SIGSTRUCT_Q2, "384s", q2),
+        'q1': (SGX_ARCH_ENCLAVE_CSS_Q1, "384s", q1),
+        'q2': (SGX_ARCH_ENCLAVE_CSS_Q2, "384s", q2),
     })
 
-    buffer = bytearray(SGX_ARCH_SIGSTRUCT_SIZE)
+    buffer = bytearray(SGX_ARCH_ENCLAVE_CSS_SIZE)
 
     for field in fields.values():
         struct.pack_into(field[1], buffer, field[0], *field[2:])
