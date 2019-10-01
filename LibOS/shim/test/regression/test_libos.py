@@ -118,6 +118,13 @@ class TC_00_Bootstrap(RegressionTestCase):
         with self.expect_returncode(113):
             self.run_binary(['exit'])
 
+    def test_401_exit_group(self):
+        try:
+            self.run_binary(['multi_exit'])
+        except subprocess.CalledProcessError as e:
+            # self.assertTrue(1 <= e.returncode and e.returncode <= 4)
+            pass
+
     def test_401_signalexit(self):
         with self.expect_returncode(134):
             self.run_binary(['abort'])
