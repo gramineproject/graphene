@@ -956,11 +956,6 @@ struct __kernel_linger {
 
 static int socket_close(PAL_HANDLE handle) {
     if (handle->sock.fd != PAL_IDX_POISON) {
-        struct __kernel_linger l;
-        l.l_onoff  = 1;
-        l.l_linger = 0;
-        INLINE_SYSCALL(setsockopt, 5, handle->sock.fd, SOL_SOCKET, SO_LINGER, &l,
-                       sizeof(struct __kernel_linger));
         INLINE_SYSCALL(close, 1, handle->sock.fd);
         handle->sock.fd = PAL_IDX_POISON;
     }
