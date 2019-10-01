@@ -101,9 +101,9 @@ static void print_report(sgx_report_t* r) {
     SGX_DBG(DBG_S, "  mac:        %s\n",        ALLOCA_BYTES2HEXSTR(r->mac));
 }
 
-static sgx_arch_key128_t enclave_key;
+static sgx_key_128bit_t enclave_key;
 
-#define KEYBUF_SIZE ((sizeof(sgx_arch_key128_t) * 2) + 1)
+#define KEYBUF_SIZE ((sizeof(sgx_key_128bit_t) * 2) + 1)
 
 /*
  * sgx_get_report() obtains a CPU-signed report for local attestation
@@ -134,7 +134,7 @@ int sgx_verify_report (sgx_report_t* report)
     keyrequest.key_name = REPORT_KEY;
     memcpy(&keyrequest.key_id, &report->key_id, sizeof(keyrequest.key_id));
 
-    sgx_arch_key128_t report_key __attribute__((aligned(sizeof(sgx_arch_key128_t))));
+    sgx_key_128bit_t report_key __attribute__((aligned(sizeof(sgx_key_128bit_t))));
     memset(&report_key, 0, sizeof(report_key));
 
     int ret = sgx_getkey(&keyrequest, &report_key);

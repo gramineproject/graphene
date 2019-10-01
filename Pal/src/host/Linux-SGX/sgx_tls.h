@@ -18,7 +18,7 @@ struct enclave_tls {
         uint64_t initial_stack_offset;
         void*    ecall_return_addr;
         void*    ssa;
-        sgx_arch_gpr_t* gpr;
+        sgx_pal_gpr_t* gpr;
         void*    exit_target;
         void*    fsbase;
         void*    stack;

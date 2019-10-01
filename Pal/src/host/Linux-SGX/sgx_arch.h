@@ -23,7 +23,10 @@
 
 #include <stdint.h>
 
-typedef uint8_t sgx_arch_key_t [384];
+#pragma pack(push, 1)
+
+#define SE_KEY_SIZE      384
+#define SE_EXPONENT_SIZE 4
 
 #define SGX_HASH_SIZE 32
 #define SGX_MAC_SIZE  16
@@ -57,6 +60,12 @@ typedef uint16_t sgx_isv_svn_t;
 typedef uint16_t sgx_config_svn_t;
 typedef uint8_t  sgx_config_id_t[SGX_CONFIGID_SIZE];
 
+#define SGX_ISVEXT_PROD_ID_SIZE 16
+#define SGX_ISV_FAMILY_ID_SIZE  16
+
+typedef uint8_t sgx_isvext_prod_id_t[SGX_ISVEXT_PROD_ID_SIZE];
+typedef uint8_t sgx_isvfamily_id_t[SGX_ISV_FAMILY_ID_SIZE];
+
 #define SGX_FLAGS_INITIALIZED   0x01ULL
 #define SGX_FLAGS_DEBUG         0x02ULL
 #define SGX_FLAGS_MODE64BIT     0x04ULL
@@ -72,34 +81,37 @@ typedef uint8_t  sgx_config_id_t[SGX_CONFIGID_SIZE];
 
 typedef struct {
     uint64_t          size;
-    uint64_t          baseaddr;
-    uint32_t          ssaframesize;
-    sgx_misc_select_t miscselect;
-    uint8_t           reserved[24];
+    uint64_t          base;
+    uint32_t          ssa_frame_size;
+    sgx_misc_select_t misc_select;
+    uint8_t           reserved1[24];
     sgx_attributes_t  attributes;
-    sgx_measurement_t mrenclave;
+    sgx_measurement_t mr_enclave;
     uint8_t           reserved2[32];
-    sgx_measurement_t mrsigner;
-    uint8_t           reserved3[96];
-    sgx_prod_id_t     isvprodid;
-    sgx_isv_svn_t     isvsvn;
-    uint8_t           reserved4[3836];
+    sgx_measurement_t mr_signer;
+    uint8_t           reserved3[32];
+    sgx_config_id_t   config_id;
+    sgx_prod_id_t     isv_prod_id;
+    sgx_isv_svn_t     isv_svn;
+    sgx_config_svn_t  config_svn;
+    uint8_t           reserved4[3834];
 } sgx_arch_secs_t;
 
 typedef struct {
-    uint64_t reserved;
+    uint64_t reserved0;
     uint64_t flags;
     uint64_t ossa;
     uint32_t cssa;
     uint32_t nssa;
     uint64_t oentry;
-    uint64_t reserved2;
-    uint64_t ofsbasgx;
-    uint64_t ogsbasgx;
-    uint32_t fslimit;
-    uint32_t gslimit;
+    uint64_t reserved1;
+    uint64_t ofs_base;
+    uint64_t ogs_base;
+    uint32_t ofs_limit;
+    uint32_t ogs_limit;
     uint8_t  reserved3[4024];
 } sgx_arch_tcs_t;
+_Static_assert(sizeof(sgx_arch_tcs_t) == 4096, "incorrect struct size");
 
 #define TCS_FLAGS_DBGOPTIN (01ULL)
 
@@ -128,7 +140,7 @@ typedef struct {
     uint32_t reserved;
     uint64_t fsbase;
     uint64_t gsbase;
-} sgx_arch_gpr_t;
+} sgx_pal_gpr_t;
 
 typedef struct {
     uint64_t rax;
@@ -160,10 +172,10 @@ _Static_assert(offsetof(sgx_cpu_context_t, rflags) - offsetof(sgx_cpu_context_t,
 
 typedef struct {
     uint32_t vector:8;
-    uint32_t type:3;
+    uint32_t exit_type:3;
     uint32_t reserved:20;
     uint32_t valid:1;
-} sgx_arch_exitinfo_t;
+} sgx_arch_exit_info_t;
 
 #define SGX_EXCEPTION_HARDWARE      3UL
 #define SGX_EXCEPTION_SOFTWARE      6UL
@@ -178,16 +190,16 @@ typedef struct {
 #define SGX_EXCEPTION_VECTOR_XM    19UL  /* Any SIMD floating-point exceptions */
 
 typedef struct {
-    uint64_t linaddr;
-    uint64_t srcpge;
-    uint64_t secinfo;
+    uint64_t lin_addr;
+    uint64_t src_pge;
+    uint64_t sec_info;
     uint64_t secs;
-} sgx_arch_pageinfo_t;
+} sgx_arch_page_info_t;
 
 typedef struct {
     uint64_t flags;
-    uint8_t  reserved[56];
-} sgx_arch_secinfo_t;
+    uint64_t reserved[7];
+} sgx_arch_sec_info_t;
 
 #define SGX_SECINFO_FLAGS_R             0x001
 #define SGX_SECINFO_FLAGS_W             0x002
@@ -196,54 +208,79 @@ typedef struct {
 #define SGX_SECINFO_FLAGS_TCS           0x100
 #define SGX_SECINFO_FLAGS_REG           0x200
 
-typedef struct {
-    /* header part (signed) */
-    uint32_t header[4];
-    uint32_t vendor;
+typedef struct _css_header_t {
+    uint8_t  header[12];
+    uint32_t type;
+    uint32_t module_vendor;
     uint32_t date;
-    uint32_t header2[4];
-    uint32_t swdefined;
-    uint8_t  reserved1[84];
+    uint8_t  header2[16];
+    uint32_t hw_version;
+    uint8_t  reserved[84];
+} css_header_t;
+_Static_assert(sizeof(css_header_t) == 128, "incorrect struct size");
 
-    /* key part (unsigned) */
-    sgx_arch_key_t modulus;
-    uint32_t       exponent;
-    sgx_arch_key_t signature;
+typedef struct _css_key_t {
+    uint8_t modulus[SE_KEY_SIZE];
+    uint8_t exponent[SE_EXPONENT_SIZE];
+    uint8_t signature[SE_KEY_SIZE];
+} css_key_t;
+_Static_assert(sizeof(css_key_t) == 772, "incorrect struct size");
 
-    /* body part (signed) */
-    sgx_misc_select_t miscselect;
-    sgx_misc_select_t miscselect_mask;
-    uint8_t           reserved2[20];
-    sgx_attributes_t  attributes;
-    sgx_attributes_t  attribute_mask;
-    sgx_measurement_t enclave_hash;
-    uint8_t           reserved3[32];
-    sgx_prod_id_t     isvprodid;
-    sgx_isv_svn_t     isvsvn;
+typedef struct _css_body_t {
+    sgx_misc_select_t    misc_select;
+    sgx_misc_select_t    misc_mask;
+    uint8_t              reserved[4];
+    sgx_isvfamily_id_t   isv_family_id;
+    sgx_attributes_t     attributes;
+    sgx_attributes_t     attribute_mask;
+    sgx_measurement_t    enclave_hash;
+    uint8_t              reserved2[16];
+    sgx_isvext_prod_id_t isvext_prod_id;
+    uint16_t             isv_prod_id;
+    uint16_t             isv_svn;
+} css_body_t;
+_Static_assert(sizeof(css_body_t) == 128, "incorrect struct size");
 
-    /* tail part (unsigned) */
-    uint8_t        reserved4[12];
-    sgx_arch_key_t q1;
-    sgx_arch_key_t q2;
-} __attribute__((packed)) sgx_arch_sigstruct_t;
+typedef struct _css_buffer_t {
+    uint8_t reserved[12];
+    uint8_t q1[SE_KEY_SIZE];
+    uint8_t q2[SE_KEY_SIZE];
+} css_buffer_t;
+_Static_assert(sizeof(css_buffer_t) == 780, "incorrect struct size");
+
+typedef struct _enclave_css_t {
+    css_header_t header;
+    css_key_t    key;
+    css_body_t   body;
+    css_buffer_t buffer;
+} sgx_arch_enclave_css_t;
+_Static_assert(sizeof(sgx_arch_enclave_css_t) == 1808, "incorrect struct size");
+
+typedef struct _sgx_key_id_t {
+    uint8_t id[SGX_KEYID_SIZE];
+} sgx_key_id_t;
 
 typedef struct {
     uint32_t          valid;
-    uint8_t           reserved[44];
+    uint32_t          reserved1[11];
     sgx_attributes_t  attributes;
-    sgx_measurement_t mrenclave;
+    sgx_measurement_t mr_enclave;
     uint8_t           reserved2[32];
-    sgx_measurement_t mrsigner;
+    sgx_measurement_t mr_signer;
     uint8_t           reserved3[32];
-    sgx_cpu_svn_t     cpusvnle;
-    sgx_prod_id_t     isvprodidle;
-    sgx_isv_svn_t     isvsvnle;
-    uint8_t           reserved4[24];
-    sgx_misc_select_t miscselect_mask;
-    sgx_attributes_t  attribute_mask;
-    sgx_measurement_t keyid;
+} launch_body_t;
+
+typedef struct {
+    launch_body_t     body;
+    sgx_cpu_svn_t     cpu_svn_le;
+    sgx_prod_id_t     isv_prod_id_le;
+    sgx_isv_svn_t     isv_svn_le;
+    uint8_t           reserved2[24];
+    sgx_misc_select_t masked_misc_select_le;
+    sgx_attributes_t  attributes_le;
+    sgx_key_id_t      key_id;
     sgx_mac_t         mac;
-} __attribute__((packed)) sgx_arch_token_t;
+} sgx_arch_token_t;
 
 typedef struct _sgx_report_data_t {
     uint8_t d[SGX_REPORT_DATA_SIZE];
@@ -266,10 +303,6 @@ typedef struct _report_body_t {
     sgx_report_data_t report_data;
 } sgx_report_body_t;
 
-typedef struct _sgx_key_id_t {
-    uint8_t id[SGX_KEYID_SIZE];
-} sgx_key_id_t;
-
 typedef struct _report_t {
     sgx_report_body_t body;
     sgx_key_id_t      key_id;
@@ -289,6 +322,7 @@ typedef struct _target_info_t {
     sgx_config_id_t   config_id;
     uint8_t           reserved3[384];
 } sgx_target_info_t;
+_Static_assert(sizeof(sgx_target_info_t) == 512, "incorrect struct size");
 
 typedef struct _key_request_t {
     uint16_t          key_name;
@@ -303,11 +337,12 @@ typedef struct _key_request_t {
     uint8_t           reserved2[434];
     // struct is 512-bytes in size, alignment is required for EGETKEY
 } sgx_key_request_t;
+_Static_assert(sizeof(sgx_key_request_t) == 512, "incorrect struct size");
 
 #define SGX_TARGETINFO_FILLED_SIZE (sizeof(sgx_measurement_t) + \
                                     sizeof(sgx_attributes_t))
 
-typedef uint8_t sgx_arch_key128_t[16];
+typedef uint8_t sgx_key_128bit_t[16];
 
 #define ENCLU ".byte 0x0f, 0x01, 0xd7"
 
@@ -348,4 +383,5 @@ typedef uint8_t sgx_arch_key128_t[16];
 
 #define RFLAGS_DF (1<<10)
 
+#pragma pack(pop)
 #endif /* SGX_ARCH_H */

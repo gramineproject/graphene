@@ -196,7 +196,7 @@ static bool handle_ud(sgx_cpu_context_t * uc)
 void _DkExceptionHandler (unsigned int exit_info, sgx_cpu_context_t * uc)
 {
     union {
-        sgx_arch_exitinfo_t info;
+        sgx_arch_exit_info_t info;
         unsigned int intval;
     } ei = { .intval = exit_info };
 
@@ -245,7 +245,7 @@ void _DkExceptionHandler (unsigned int exit_info, sgx_cpu_context_t * uc)
                "r8 : 0x%08lx r9 : 0x%08lx r10: 0x%08lx r11: 0x%08lx\n"
                "r12: 0x%08lx r13: 0x%08lx r14: 0x%08lx r15: 0x%08lx\n"
                "rflags: 0x%08lx rip: 0x%08lx\n",
-               ei.info.vector, ei.info.type, ei.info.valid,
+               ei.info.vector, ei.info.exit_type, ei.info.valid,
                uc->rip - (uintptr_t) TEXT_START,
                uc->rax, uc->rcx, uc->rdx, uc->rbx,
                uc->rsp, uc->rbp, uc->rsi, uc->rdi,

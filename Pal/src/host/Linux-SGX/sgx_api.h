@@ -51,7 +51,7 @@ static inline int sgx_report (sgx_target_info_t * targetinfo,
  * Retrieve SGX hardware enclave cryptography key.
  */
 static inline int64_t sgx_getkey (sgx_key_request_t * keyrequest,
-                                  sgx_arch_key128_t * key)
+                                  sgx_key_128bit_t * key)
 {
     int64_t rax = EGETKEY;
     __asm__ volatile(

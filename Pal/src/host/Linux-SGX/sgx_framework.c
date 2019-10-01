@@ -1,3 +1,4 @@
+#include <hex.h>
 #include <pal_linux.h>
 #include <pal_rtld.h>
 #include "sgx_internal.h"
@@ -52,17 +53,22 @@ int read_enclave_token(int token_file, sgx_arch_token_t * token)
         return -ERRNO(bytes);
 
     SGX_DBG(DBG_I, "read token:\n");
-    SGX_DBG(DBG_I, "    valid:        0x%08x\n", token->valid);
-    SGX_DBG(DBG_I, "    attr:         0x%016lx\n", token->attributes.flags);
-    SGX_DBG(DBG_I, "    xfrm:         0x%016lx\n", token->attributes.xfrm);
-    SGX_DBG(DBG_I, "    miscmask:     0x%08x\n",   token->miscselect_mask);
-    SGX_DBG(DBG_I, "    attr_mask:    0x%016lx\n", token->attribute_mask.flags);
-    SGX_DBG(DBG_I, "    xfrm_mask:    0x%016lx\n", token->attribute_mask.xfrm);
+    SGX_DBG(DBG_I, "    valid:                 0x%08x\n",   token->body.valid);
+    SGX_DBG(DBG_I, "    attr.flags:            0x%016lx\n", token->body.attributes.flags);
+    SGX_DBG(DBG_I, "    attr.xfrm:             0x%016lx\n", token->body.attributes.xfrm);
+    SGX_DBG(DBG_I, "    mr_enclave:            %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_enclave.m));
+    SGX_DBG(DBG_I, "    mr_signer:             %s\n", ALLOCA_BYTES2HEXSTR(token->body.mr_signer.m));
+    SGX_DBG(DBG_I, "    LE cpu_svn:            %s\n", ALLOCA_BYTES2HEXSTR(token->cpu_svn_le.svn));
+    SGX_DBG(DBG_I, "    LE isv_prod_id:        %02x\n", token->isv_prod_id_le);
+    SGX_DBG(DBG_I, "    LE isv_svn:            %02x\n", token->isv_svn_le);
+    SGX_DBG(DBG_I, "    LE masked_misc_select: 0x%08x\n",   token->masked_misc_select_le);
+    SGX_DBG(DBG_I, "    LE attr.flags:         0x%016lx\n", token->attributes_le.flags);
+    SGX_DBG(DBG_I, "    LE attr.xfrm:          0x%016lx\n", token->attributes_le.xfrm);
 
     return 0;
 }
 
-int read_enclave_sigstruct(int sigfile, sgx_arch_sigstruct_t * sig)
+int read_enclave_sigstruct(int sigfile, sgx_arch_enclave_css_t * sig)
 {
     struct stat stat;
     int ret;
@@ -70,12 +76,12 @@ int read_enclave_sigstruct(int sigfile, sgx_arch_sigstruct_t * sig)
     if (IS_ERR(ret))
         return -ERRNO(ret);
 
-    if ((size_t)stat.st_size < sizeof(sgx_arch_sigstruct_t)) {
+    if ((size_t)stat.st_size < sizeof(sgx_arch_enclave_css_t)) {
         SGX_DBG(DBG_I, "size of sigstruct size does not match\n");
         return -EINVAL;
     }
 
-    int bytes = INLINE_SYSCALL(read, 3, sigfile, sig, sizeof(sgx_arch_sigstruct_t));
+    int bytes = INLINE_SYSCALL(read, 3, sigfile, sig, sizeof(sgx_arch_enclave_css_t));
     if (IS_ERR(bytes))
         return -ERRNO(bytes);
 
@@ -111,7 +117,7 @@ static size_t get_ssaframesize (uint64_t xfrm)
                 xsave_size = cpuinfo[0] + cpuinfo[1];
         }
 
-    return ALLOC_ALIGNUP(xsave_size + sizeof(sgx_arch_gpr_t) + 1);
+    return ALLOC_ALIGNUP(xsave_size + sizeof(sgx_pal_gpr_t) + 1);
 }
 
 bool is_wrfsbase_supported (void)
@@ -149,9 +155,9 @@ int create_enclave(sgx_arch_secs_t * secs,
     secs->size = pagesize;
     while (secs->size < size)
         secs->size <<= 1;
-    secs->ssaframesize = get_ssaframesize(token->attributes.xfrm) / pagesize;
-    secs->miscselect = token->miscselect_mask;
-    memcpy(&secs->attributes, &token->attributes, sizeof(sgx_attributes_t));
+    secs->ssa_frame_size = get_ssaframesize(token->body.attributes.xfrm) / pagesize;
+    secs->misc_select = token->masked_misc_select_le;
+    memcpy(&secs->attributes, &token->body.attributes, sizeof(sgx_attributes_t));
 
     // Enable AVX and AVX512
     // [2019-09-18] TODO(dep): This alone is not enough to get the fully optional behavior we will want.
@@ -165,12 +171,12 @@ int create_enclave(sgx_arch_secs_t * secs,
      * EINIT in https://software.intel.com/sites/default/files/managed/48/88/329298-002.pdf). */
 
     if (baseaddr) {
-        secs->baseaddr = (uint64_t) baseaddr & ~(secs->size - 1);
+        secs->base = (uint64_t) baseaddr & ~(secs->size - 1);
     } else {
-        secs->baseaddr = ENCLAVE_HIGH_ADDRESS;
+        secs->base = ENCLAVE_HIGH_ADDRESS;
     }
 
-    uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->baseaddr, secs->size,
+    uint64_t addr = INLINE_SYSCALL(mmap, 6, secs->base, secs->size,
                                    PROT_READ|PROT_WRITE|PROT_EXEC,
                                    flags|MAP_FIXED, isgx_device, 0);
 
@@ -184,7 +190,7 @@ int create_enclave(sgx_arch_secs_t * secs,
         return -ENOMEM;
     }
 
-    secs->baseaddr = addr;
+    secs->base = addr;
 
 #if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_create param = {
@@ -213,14 +219,14 @@ int create_enclave(sgx_arch_secs_t * secs,
     secs->attributes.flags |= SGX_FLAGS_INITIALIZED;
 
     SGX_DBG(DBG_I, "enclave created:\n");
-    SGX_DBG(DBG_I, "    base:         0x%016lx\n", secs->baseaddr);
-    SGX_DBG(DBG_I, "    size:         0x%016lx\n", secs->size);
-    SGX_DBG(DBG_I, "    miscselect:   0x%08x\n",   secs->miscselect);
-    SGX_DBG(DBG_I, "    attr:         0x%016lx\n", secs->attributes.flags);
-    SGX_DBG(DBG_I, "    xfrm:         0x%016lx\n", secs->attributes.xfrm);
-    SGX_DBG(DBG_I, "    ssaframesize: %d\n",       secs->ssaframesize);
-    SGX_DBG(DBG_I, "    isvprodid:    0x%08x\n",   secs->isvprodid);
-    SGX_DBG(DBG_I, "    isvsvn:       0x%08x\n",   secs->isvsvn);
+    SGX_DBG(DBG_I, "    base:           0x%016lx\n", secs->base);
+    SGX_DBG(DBG_I, "    size:           0x%016lx\n", secs->size);
+    SGX_DBG(DBG_I, "    misc_select:    0x%08x\n",   secs->misc_select);
+    SGX_DBG(DBG_I, "    attr.flags:     0x%016lx\n", secs->attributes.flags);
+    SGX_DBG(DBG_I, "    attr.xfrm:      0x%016lx\n", secs->attributes.xfrm);
+    SGX_DBG(DBG_I, "    ssa_frame_size: %d\n",       secs->ssa_frame_size);
+    SGX_DBG(DBG_I, "    isv_prod_id:    0x%08x\n",   secs->isv_prod_id);
+    SGX_DBG(DBG_I, "    isv_svn:        0x%08x\n",   secs->isv_svn);
 
     return 0;
 }
@@ -232,10 +238,10 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                          bool skip_eextend,
                          const char * comment)
 {
-    sgx_arch_secinfo_t secinfo;
+    sgx_arch_sec_info_t secinfo;
     int ret;
 
-    memset(&secinfo, 0, sizeof(sgx_arch_secinfo_t));
+    memset(&secinfo, 0, sizeof(sgx_arch_sec_info_t));
 
     switch (type) {
         case SGX_PAGE_SECS:
@@ -277,7 +283,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
 
 #if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_add_page param = {
-        .addr       = secs->baseaddr + (uint64_t) addr,
+        .addr       = secs->base + (uint64_t) addr,
         .src        = (uint64_t) (user_addr ? : zero_page),
         .secinfo    = (uint64_t) &secinfo,
         .mrmask     = skip_eextend ? 0 : (uint16_t) -1,
@@ -323,17 +329,17 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
 }
 
 int init_enclave(sgx_arch_secs_t * secs,
-                 sgx_arch_sigstruct_t * sigstruct,
+                 sgx_arch_enclave_css_t * sigstruct,
                  sgx_arch_token_t * token)
 {
     unsigned long enclave_valid_addr =
-                secs->baseaddr + secs->size - pagesize;
+                secs->base + secs->size - pagesize;
 
     SGX_DBG(DBG_I, "enclave initializing:\n");
     SGX_DBG(DBG_I, "    enclave id:   0x%016lx\n", enclave_valid_addr);
     SGX_DBG(DBG_I, "    enclave hash:");
     for (size_t i = 0 ; i < sizeof(sgx_measurement_t) ; i++)
-        SGX_DBG(DBG_I, " %02x", sigstruct->enclave_hash.m[i]);
+        SGX_DBG(DBG_I, " %02x", sigstruct->body.enclave_hash.m[i]);
     SGX_DBG(DBG_I, "\n");
 
 #if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)

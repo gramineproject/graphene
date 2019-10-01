@@ -410,8 +410,8 @@ int sgx_verify_platform(sgx_spid_t* spid, const char* subkey, sgx_quote_nonce_t*
     SGX_DBG(DBG_S, "  type:  %s\n", linkable ? "linkable" : "unlinkable");
     SGX_DBG(DBG_S, "  nonce: %s\n", ALLOCA_BYTES2HEXSTR(*nonce));
 
-    sgx_report_t report __sgx_mem_aligned;
-    sgx_target_info_t targetinfo __sgx_mem_aligned = pal_sec.aesm_targetinfo;
+    __sgx_mem_aligned sgx_report_t report;
+    __sgx_mem_aligned sgx_target_info_t targetinfo = pal_sec.aesm_targetinfo;
 
     int ret = sgx_report(&targetinfo, report_data, &report);
     if (ret) {

@@ -82,7 +82,7 @@ static char* str_ptrace_request(enum __ptrace_request request) {
 }
 #endif
 
-static void fill_regs(struct user_regs_struct* regs, const sgx_arch_gpr_t* gpr) {
+static void fill_regs(struct user_regs_struct* regs, const sgx_pal_gpr_t* gpr) {
     regs->orig_rax = gpr->rax;
     regs->rax      = gpr->rax;
     regs->rcx      = gpr->rcx;
@@ -113,7 +113,7 @@ static void fill_regs(struct user_regs_struct* regs, const sgx_arch_gpr_t* gpr) 
     regs->gs = 0;
 }
 
-static void fill_gpr(sgx_arch_gpr_t* gpr, const struct user_regs_struct* regs) {
+static void fill_gpr(sgx_pal_gpr_t* gpr, const struct user_regs_struct* regs) {
     gpr->rax    = regs->rax;
     gpr->rcx    = regs->rcx;
     gpr->rdx    = regs->rdx;
@@ -228,18 +228,18 @@ static void* get_gpr_addr(int memdev, pid_t tid, struct enclave_dbginfo* ei) {
     assert(tcs_part.cssa > 0);
 
     return (void*)ei->base + tcs_part.ossa + ei->ssaframesize * tcs_part.cssa -
-           sizeof(sgx_arch_gpr_t);
+           sizeof(sgx_pal_gpr_t);
 }
 
-static int peek_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, sgx_arch_gpr_t* gpr) {
+static int peek_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, sgx_pal_gpr_t* gpr) {
     int ret;
 
     void* gpr_addr = get_gpr_addr(memdev, tid, ei);
     if (!gpr_addr)
         return -1;
 
-    ret = pread(memdev, gpr, sizeof(sgx_arch_gpr_t), (off_t)gpr_addr);
-    if (ret < sizeof(sgx_arch_gpr_t)) {
+    ret = pread(memdev, gpr, sizeof(sgx_pal_gpr_t), (off_t)gpr_addr);
+    if (ret < sizeof(sgx_pal_gpr_t)) {
         DEBUG("Cannot read GPR data (%p) of enclave thread %d\n", gpr_addr, tid);
         return -1;
     }
@@ -248,15 +248,15 @@ static int peek_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, sgx_arch_
     return 0;
 }
 
-static int poke_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, const sgx_arch_gpr_t* gpr) {
+static int poke_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, const sgx_pal_gpr_t* gpr) {
     int ret;
 
     void* gpr_addr = get_gpr_addr(memdev, tid, ei);
     if (!gpr_addr)
         return -1;
 
-    ret = pwrite(memdev, gpr, sizeof(sgx_arch_gpr_t), (off_t)gpr_addr);
-    if (ret < sizeof(sgx_arch_gpr_t)) {
+    ret = pwrite(memdev, gpr, sizeof(sgx_pal_gpr_t), (off_t)gpr_addr);
+    if (ret < sizeof(sgx_pal_gpr_t)) {
         DEBUG("Cannot write GPR data (%p) of enclave thread %d\n", (void*)gpr_addr, tid);
         return -1;
     }
@@ -267,7 +267,7 @@ static int poke_gpr(int memdev, pid_t tid, struct enclave_dbginfo* ei, const sgx
 
 static int peek_user(int memdev, pid_t tid, struct enclave_dbginfo* ei, struct user* ud) {
     int ret;
-    sgx_arch_gpr_t gpr;
+    sgx_pal_gpr_t gpr;
 
     ret = peek_gpr(memdev, tid, ei, &gpr);
     if (ret < 0)
@@ -279,7 +279,7 @@ static int peek_user(int memdev, pid_t tid, struct enclave_dbginfo* ei, struct u
 
 static int poke_user(int memdev, pid_t tid, struct enclave_dbginfo* ei, const struct user* ud) {
     int ret;
-    sgx_arch_gpr_t gpr;
+    sgx_pal_gpr_t gpr;
 
     ret = peek_gpr(memdev, tid, ei, &gpr);
     if (ret < 0)
@@ -292,7 +292,7 @@ static int poke_user(int memdev, pid_t tid, struct enclave_dbginfo* ei, const st
 static int peek_regs(int memdev, pid_t tid, struct enclave_dbginfo* ei,
                      struct user_regs_struct* regdata) {
     int ret;
-    sgx_arch_gpr_t gpr;
+    sgx_pal_gpr_t gpr;
 
     ret = peek_gpr(memdev, tid, ei, &gpr);
     if (ret < 0)
@@ -305,7 +305,7 @@ static int peek_regs(int memdev, pid_t tid, struct enclave_dbginfo* ei,
 static int poke_regs(int memdev, pid_t tid, struct enclave_dbginfo* ei,
                      const struct user_regs_struct* regdata) {
     int ret;
-    sgx_arch_gpr_t gpr;
+    sgx_pal_gpr_t gpr;
 
     ret = peek_gpr(memdev, tid, ei, &gpr);
     if (ret < 0)
@@ -608,7 +608,7 @@ pid_t waitpid(pid_t tid, int* status, int options) {
     int memdev;
     pid_t wait_res;
     struct enclave_dbginfo* ei;
-    sgx_arch_gpr_t gpr;
+    sgx_pal_gpr_t gpr;
     uint8_t code;
     int wait_errno;
 
