@@ -63,11 +63,8 @@ static inline void init_handle_hdr(PAL_HDR *hdr, int pal_type) {
     hdr->flags = 0;
 }
 
-# define SET_HANDLE_TYPE(handle, t) \
-    init_handle_hdr(HANDLE_HDR(handle), pal_type_##t)
-
-# define IS_HANDLE_TYPE(handle, t)              \
-    (HANDLE_HDR(handle)->type == pal_type_##t)
+# define SET_HANDLE_TYPE(handle, t) init_handle_hdr(HANDLE_HDR(handle), pal_type_##t)
+# define IS_HANDLE_TYPE(handle, t) (HANDLE_HDR(handle)->type == pal_type_##t)
 
 #else
 typedef union pal_handle
@@ -128,7 +125,6 @@ typedef struct {
 
 /********** PAL TYPE DEFINITIONS **********/
 enum {
-    pal_type_none = 0,
     pal_type_file,
     pal_type_pipe,
     pal_type_pipesrv,
@@ -150,10 +146,10 @@ enum {
 };
 
 
-/* PAL identifier poison value */
-#define PAL_IDX_POISON          ((PAL_IDX) -1)
+#define PAL_IDX_POISON          ((PAL_IDX)-1) /* PAL identifier poison value */
 #define PAL_GET_TYPE(h)         (HANDLE_HDR(h)->type)
 #define PAL_CHECK_TYPE(h, t)    (PAL_GET_TYPE(h) == pal_type_##t)
+#define UNKNOWN_HANDLE(handle)  (PAL_GET_TYPE(handle) >= PAL_HANDLE_TYPE_BOUND)
 
 typedef struct { PAL_PTR start, end; }  PAL_PTR_RANGE;
 
