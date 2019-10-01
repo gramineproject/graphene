@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 while :
 do
 	case "$1" in
