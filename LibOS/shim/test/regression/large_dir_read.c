@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (mkdir(tmp_name, S_IRWXU | S_IRWXG | S_IRWXO) < 0 || chdir(tmp_name) < 0) {
-        err(1, "mkdir & chdr");
+        err(1, "mkdir & chdir");
     }
 
     for (i = 0; i < FILES_NO; i++) {
