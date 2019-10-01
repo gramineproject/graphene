@@ -67,10 +67,11 @@ files containing code or critical information; developers must not allow files b
 
 This syntax specifies the file check policy, determining the behavior of authentication when
 opening file.
-By default, only `sgx.trusted_files.foo` and `sgx.allowed_files.foo` explicitly declared in
-manifest are allowed for access. If the file check policy is `allow_all_but_log`, all files other
-than trusted and allowed are allowed for access, and Graphene-SGX emits a warning message for every
-such file. This is a convenient way to determine the set of files that the ported application uses.
+By default, only files explicitly listed as _trusted_files_ or _allowed_files_ in the manifest
+explicitly declared in manifest are allowed for access. If the file check policy is
+`allow_all_but_log`, all files other than trusted and allowed are allowed for access, and
+Graphene-SGX emits a warning message for every such file. This is a convenient way to determine
+the set of files that the ported application uses.
 
 ### Trusted Child Processes
 
