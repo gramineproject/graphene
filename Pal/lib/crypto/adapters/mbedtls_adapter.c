@@ -49,7 +49,10 @@ int mbedtls_to_pal_error(int error)
         case MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA:
         case MBEDTLS_ERR_DHM_BAD_INPUT_DATA:
         case MBEDTLS_ERR_MD_BAD_INPUT_DATA:
+        case MBEDTLS_ERR_MPI_BAD_INPUT_DATA:
         case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
+        case MBEDTLS_ERR_RSA_PUBLIC_FAILED: // see mbedtls_rsa_public()
+        case MBEDTLS_ERR_RSA_PRIVATE_FAILED: // see mbedtls_rsa_private()
             return -PAL_ERROR_CRYPTO_BAD_INPUT_DATA;
 
         case MBEDTLS_ERR_RSA_OUTPUT_TOO_LARGE:
@@ -75,10 +78,10 @@ int mbedtls_to_pal_error(int error)
         case MBEDTLS_ERR_DHM_READ_PUBLIC_FAILED:
         case MBEDTLS_ERR_DHM_MAKE_PUBLIC_FAILED:
         case MBEDTLS_ERR_DHM_CALC_SECRET_FAILED:
-            return -PAL_ERROR_CRYPTO_BIGNUM_FAILED;
+            return -PAL_ERROR_CRYPTO_INVALID_DH_STATE;
 
         case MBEDTLS_ERR_DHM_INVALID_FORMAT:
-            return -PAL_ERROR_CRYPTO_INVALID_ASN1;
+            return -PAL_ERROR_CRYPTO_INVALID_FORMAT;
 
         case MBEDTLS_ERR_DHM_FILE_IO_ERROR:
         case MBEDTLS_ERR_MD_FILE_IO_ERROR:
@@ -90,14 +93,8 @@ int mbedtls_to_pal_error(int error)
         case MBEDTLS_ERR_RSA_KEY_CHECK_FAILED:
             return -PAL_ERROR_CRYPTO_INVALID_KEY;
 
-        case MBEDTLS_ERR_RSA_PUBLIC_FAILED:
-            return -PAL_ERROR_CRYPTO_PUBLIC_FAILED;
-
-        case MBEDTLS_ERR_RSA_PRIVATE_FAILED:
-            return -PAL_ERROR_CRYPTO_PRIVATE_FAILED;
-
         case MBEDTLS_ERR_RSA_VERIFY_FAILED:
-            return -PAL_ERROR_CRYPTO_PKCS1_VERIFY_FAILED;
+            return -PAL_ERROR_CRYPTO_VERIFY_FAILED;
 
         case MBEDTLS_ERR_RSA_RNG_FAILED:
             return -PAL_ERROR_CRYPTO_RNG_FAILED;

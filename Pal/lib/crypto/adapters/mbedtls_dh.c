@@ -20,14 +20,13 @@
 
 #include "api.h"
 #include "assert.h"
+#include "mbedtls_adapter.h"
 #include "pal.h"
 #include "pal_crypto.h"
 #include "pal_debug.h"
 #include "pal_error.h"
 
 #define BITS_PER_BYTE 8
-
-int mbedtls_to_pal_error(int error);
 
 /* This is declared in pal_internal.h, but that can't be included here. */
 size_t _DkRandomBitsRead(void* buffer, size_t size);
@@ -95,7 +94,8 @@ int lib_DhCalcSecret(LIB_DH_CONTEXT* context, uint8_t* peer, uint64_t peer_size,
     /* The RNG here is used for blinding against timing attacks if X is
      * reused and not used otherwise. mbedtls recommends always passing
      * in an RNG. */
-    return mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size, RandomWrapper, NULL);
+    ret = mbedtls_dhm_calc_secret(context, secret, *secret_size, secret_size, RandomWrapper, NULL);
+    return mbedtls_to_pal_error(ret);
 }
 
 void lib_DhFinal(LIB_DH_CONTEXT* context) {

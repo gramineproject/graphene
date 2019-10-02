@@ -8,7 +8,7 @@ int object_wait_with_retry(PAL_HANDLE handle) {
     } while (ret == NULL &&
              (PAL_NATIVE_ERRNO == PAL_ERROR_INTERRUPTED || PAL_NATIVE_ERRNO == PAL_ERROR_TRYAGAIN));
     if (ret == NULL) {
-        debug("waiting on %p resulted in error %s", handle, pal_strerror(PAL_NATIVE_ERRNO));
+        debug("waiting on %p resulted in error %d", handle, PAL_NATIVE_ERRNO);
         return -PAL_NATIVE_ERRNO;
     }
     assert(ret == handle);
