@@ -3,22 +3,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PATH                "file_check_policy_testfile"
-
-static inline int run_file_check_policy(void) {
+static inline int run_file_check_policy_test(int argc, char** argv) {
 //    setbuf(stdout, NULL);
 //    setbuf(stderr, NULL);
 
-    FILE* fp = fopen(PATH, "r");
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s file_check_policy_testfile\n", argv[0]);
+        return 1;
+    }
+
+    FILE* fp = fopen(argv[1], "r");
     if (!fp) {
         perror("fopen failed");
-        return 1;
+        return 2;
     }
 
     int reti = fclose(fp);
     if (reti) {
         perror("fclose failed");
-        return 1;
+        return 3;
     }
 
     printf("file_check_policy succeeded\n");
