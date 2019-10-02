@@ -134,7 +134,7 @@ int copy_and_verify_trusted_file (const char * path, const void * umem,
                     sgx_stub_t * stubs, uint64_t total_size);
 
 int init_trusted_children (void);
-int register_trusted_child (const char * uri, const char * mrenclave_str);
+int register_trusted_child (const char * uri, const char * mr_enclave_str);
 
 /* exchange and establish a 256-bit session key */
 int _DkStreamKeyExchange(PAL_HANDLE stream, PAL_SESSION_KEY* key);
@@ -154,27 +154,27 @@ extern struct pal_enclave_state {
  */
 int sgx_verify_report(sgx_report_t* report);
 
-typedef int (*check_mrenclave_t)(PAL_HANDLE, sgx_measurement_t*, struct pal_enclave_state*);
+typedef int (*check_mr_enclave_t)(PAL_HANDLE, sgx_measurement_t*, struct pal_enclave_state*);
 
 /*
  * _DkStreamReportRequest, _DkStreamReportRespond:
  * Request and respond a local report on an RPC stream
  *
- * @stream:          stream handle for sending and receiving messages
- * @data:            data to sign in the outbound message
- * @check_mrenclave: callback function for checking the measurement of the other end
+ * @stream:           stream handle for sending and receiving messages
+ * @data:             data to sign in the outbound message
+ * @check_mr_enclave: callback function for checking the measurement of the other end
  */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mrenclave_t check_mrenclave);
+                           check_mr_enclave_t check_mr_enclave);
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mrenclave_t check_mrenclave);
+                           check_mr_enclave_t check_mr_enclave);
 
 #include "sgx_arch.h"
 
 #define PAL_ENCLAVE_INITIALIZED     0x0001ULL
 
 extern struct pal_enclave_config {
-    sgx_measurement_t mrenclave;
+    sgx_measurement_t mr_enclave;
     sgx_attributes_t  enclave_attributes;
     void *            enclave_key;
 } pal_enclave_config;

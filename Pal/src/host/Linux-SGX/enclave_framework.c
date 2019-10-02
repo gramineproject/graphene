@@ -89,16 +89,16 @@ uint64_t sgx_copy_to_enclave(const void* ptr, uint64_t maxsize, const void* uptr
 }
 
 static void print_report(sgx_report_t* r) {
-    SGX_DBG(DBG_S, "  cpusvn:     %s\n",        ALLOCA_BYTES2HEXSTR(r->body.cpu_svn.svn));
-    SGX_DBG(DBG_S, "  mrenclave:  %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mr_enclave.m));
-    SGX_DBG(DBG_S, "  mrsigner:   %s\n",        ALLOCA_BYTES2HEXSTR(r->body.mr_signer.m));
-    SGX_DBG(DBG_S, "  attr.flags: %016lx\n",    r->body.attributes.flags);
-    SGX_DBG(DBG_S, "  attr.xfrm:  %016lx\n",    r->body.attributes.xfrm);
-    SGX_DBG(DBG_S, "  isvprodid:  %02x\n",      r->body.isv_prod_id);
-    SGX_DBG(DBG_S, "  isvsvn:     %02x\n",      r->body.isv_svn);
-    SGX_DBG(DBG_S, "  reportdata: %s\n",        ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
-    SGX_DBG(DBG_S, "  keyid:      %s\n",        ALLOCA_BYTES2HEXSTR(r->key_id.id));
-    SGX_DBG(DBG_S, "  mac:        %s\n",        ALLOCA_BYTES2HEXSTR(r->mac));
+    SGX_DBG(DBG_S, "  cpu_svn:     %s\n",     ALLOCA_BYTES2HEXSTR(r->body.cpu_svn.svn));
+    SGX_DBG(DBG_S, "  mr_enclave:  %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_enclave.m));
+    SGX_DBG(DBG_S, "  mr_signer:   %s\n",     ALLOCA_BYTES2HEXSTR(r->body.mr_signer.m));
+    SGX_DBG(DBG_S, "  attr.flags:  %016lx\n", r->body.attributes.flags);
+    SGX_DBG(DBG_S, "  attr.xfrm:   %016lx\n", r->body.attributes.xfrm);
+    SGX_DBG(DBG_S, "  isv_prod_id: %02x\n",   r->body.isv_prod_id);
+    SGX_DBG(DBG_S, "  isv_svn:     %02x\n",   r->body.isv_svn);
+    SGX_DBG(DBG_S, "  report_data: %s\n",     ALLOCA_BYTES2HEXSTR(r->body.report_data.d));
+    SGX_DBG(DBG_S, "  key_id:      %s\n",     ALLOCA_BYTES2HEXSTR(r->key_id.id));
+    SGX_DBG(DBG_S, "  mac:         %s\n",     ALLOCA_BYTES2HEXSTR(r->mac));
 }
 
 static sgx_key_128bit_t enclave_key;
@@ -851,7 +851,7 @@ int init_trusted_children (void)
     struct config_store * store = pal_state.root_config;
 
     char key[CONFIG_MAX], mrkey[CONFIG_MAX];
-    char uri[CONFIG_MAX], mrenclave[CONFIG_MAX];
+    char uri[CONFIG_MAX], mr_enclave[CONFIG_MAX];
 
     char * tmp1 = strcpy_static(key, "sgx.trusted_children.", CONFIG_MAX);
     char * tmp2 = strcpy_static(mrkey, "sgx.trusted_mrenclave.", CONFIG_MAX);
@@ -878,9 +878,9 @@ int init_trusted_children (void)
             if (ret < 0)
                 continue;
 
-            ret = get_config(store, mrkey, mrenclave, CONFIG_MAX);
+            ret = get_config(store, mrkey, mr_enclave, CONFIG_MAX);
             if (ret > 0)
-                register_trusted_child(uri, mrenclave);
+                register_trusted_child(uri, mr_enclave);
         }
     }
     free(cfgbuf);
@@ -950,7 +950,7 @@ void test_dh (void)
 
 int init_enclave (void)
 {
-    // Get report to initialize info (MRENCLAVE, etc.) about this enclave from
+    // Get report to initialize info (MR_ENCLAVE, etc.) about this enclave from
     // a trusted source.
 
     // Since this report is only read by ourselves we can
@@ -966,8 +966,8 @@ int init_enclave (void)
         return -PAL_ERROR_INVAL;
     }
 
-    memcpy(&pal_sec.mrenclave, &report.body.mr_enclave, sizeof(pal_sec.mrenclave));
-    memcpy(&pal_sec.mrsigner, &report.body.mr_signer, sizeof(pal_sec.mrsigner));
+    memcpy(&pal_sec.mr_enclave, &report.body.mr_enclave, sizeof(pal_sec.mr_enclave));
+    memcpy(&pal_sec.mr_signer, &report.body.mr_signer, sizeof(pal_sec.mr_signer));
     pal_sec.enclave_attributes = report.body.attributes;
 
 #if 0
@@ -1101,7 +1101,7 @@ out_no_final:
  * see comments in db_process.c).
  */
 int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mrenclave_t check_mrenclave) {
+                           check_mr_enclave_t check_mr_enclave) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1109,7 +1109,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
 
     /* A -> B: targetinfo[A] */
     memset(&target_info, 0, sizeof(target_info));
-    memcpy(&target_info.mr_enclave,  &pal_sec.mrenclave, sizeof(sgx_measurement_t));
+    memcpy(&target_info.mr_enclave,  &pal_sec.mr_enclave, sizeof(sgx_measurement_t));
     memcpy(&target_info.attributes, &pal_sec.enclave_attributes, sizeof(sgx_attributes_t));
 
     for (bytes = 0, ret = 0; bytes < SGX_TARGETINFO_FILLED_SIZE; bytes += ret) {
@@ -1139,7 +1139,7 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
         }
     }
 
-    SGX_DBG(DBG_S, "Received local report (mrenclave = %s)\n",
+    SGX_DBG(DBG_S, "Received local report (mr_enclave = %s)\n",
             ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[B -> A] */
@@ -1150,14 +1150,14 @@ int _DkStreamReportRequest(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    ret = check_mrenclave(stream, &report.body.mr_enclave, remote_state);
+    ret = check_mr_enclave(stream, &report.body.mr_enclave, remote_state);
     if (ret < 0) {
         SGX_DBG(DBG_E, "Failed to check local report: %ld\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_E, "Not an allowed enclave (mrenclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
+        SGX_DBG(DBG_E, "Not an allowed enclave (mr_enclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;
@@ -1203,7 +1203,7 @@ out:
  * see comments in db_process.c).
  */
 int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
-                           check_mrenclave_t check_mrenclave) {
+                           check_mr_enclave_t check_mr_enclave) {
     __sgx_mem_aligned sgx_target_info_t target_info;
     __sgx_mem_aligned sgx_report_t report;
     uint64_t bytes;
@@ -1258,7 +1258,7 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
         }
     }
 
-    SGX_DBG(DBG_S, "Received local report (mrenclave = %s)\n",
+    SGX_DBG(DBG_S, "Received local report (mr_enclave = %s)\n",
             ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
 
     /* Verify report[A -> B] */
@@ -1269,14 +1269,14 @@ int _DkStreamReportRespond(PAL_HANDLE stream, sgx_sign_data_t* data,
     }
 
     struct pal_enclave_state* remote_state = (void*)&report.body.report_data;
-    ret = check_mrenclave(stream, &report.body.mr_enclave, remote_state);
+    ret = check_mr_enclave(stream, &report.body.mr_enclave, remote_state);
     if (ret < 0) {
-        SGX_DBG(DBG_E, "Failed to check mrenclave: %ld\n", ret);
+        SGX_DBG(DBG_E, "Failed to check mr_enclave: %ld\n", ret);
         goto out;
     }
 
     if (ret == 1) {
-        SGX_DBG(DBG_E, "Not an allowed enclave (mrenclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
+        SGX_DBG(DBG_E, "Not an allowed enclave (mr_enclave = %s). Maybe missing 'sgx.trusted_children' in the manifest file?\n",
                 ALLOCA_BYTES2HEXSTR(report.body.mr_enclave.m));
         ret = -PAL_ERROR_DENIED;
         goto out;

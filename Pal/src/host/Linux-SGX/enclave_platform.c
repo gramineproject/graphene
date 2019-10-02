@@ -104,7 +104,7 @@
  *    - The report from the PSW enclave needs to be verified. This will establish the mutual
  *      trust between the enclave PAL and the PSW enclave.
  *    - The HTTPS response from the IAS needs to contain the same quote generated from the
- *      PSW enclave, the same mrenclave, attributes, and 64-byte report data.
+ *      PSW enclave, the same mr_enclave, attributes, and 64-byte report data.
  *    - The HTTPS response needs to have an acceptable status, which is "OK" by default, or
  *      "GROUP_OUT_OF_DATE" if "sgx.ra_accept_group_out_of_date = 1" is in the manifest.
  *      If you obtain a status besides OK, please see the SECURITY ADVISORIES in README.md.

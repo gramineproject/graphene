@@ -164,9 +164,9 @@ int create_enclave(sgx_arch_secs_t * secs,
     // Leave this here for future work in another PR
     // secs->attributes.xfrm |= SGX_XFRM_AVX;
 
-    /* Do not initialize secs->mrsigner and secs->mrenclave here as they are
-     * not used by ECREATE to populate the internal SECS. SECS's mrenclave is
-     * computed dynamically and SECS's mrsigner is populated based on the
+    /* Do not initialize secs->mr_signer and secs->mr_enclave here as they are
+     * not used by ECREATE to populate the internal SECS. SECS's mr_enclave is
+     * computed dynamically and SECS's mr_signer is populated based on the
      * SIGSTRUCT during EINIT (see pp21 for ECREATE and pp34 for
      * EINIT in https://software.intel.com/sites/default/files/managed/48/88/329298-002.pdf). */
 

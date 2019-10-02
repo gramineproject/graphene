@@ -29,8 +29,8 @@ struct pal_sec {
 
     /* enclave information */
     sgx_target_info_t  aesm_targetinfo;
-    sgx_measurement_t  mrenclave;
-    sgx_measurement_t  mrsigner;
+    sgx_measurement_t  mr_enclave;
+    sgx_measurement_t  mr_signer;
     sgx_attributes_t   enclave_attributes;
 
     /* remaining heap usable by application */
