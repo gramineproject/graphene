@@ -4,9 +4,6 @@
 #include <string.h>
 
 static inline int run_file_check_policy_test(int argc, char** argv) {
-//    setbuf(stdout, NULL);
-//    setbuf(stderr, NULL);
-
     if (argc != 2) {
         fprintf(stderr, "Usage: %s file_check_policy_testfile\n", argv[0]);
         return 1;

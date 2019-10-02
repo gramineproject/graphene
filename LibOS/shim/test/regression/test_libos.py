@@ -143,26 +143,26 @@ class TC_01_OpenMP(RegressionTestCase):
         self.assertIn('first: 0, last: 9', stdout)
 
 class TC_02_FileCheckPolicy(RegressionTestCase):
-    def test_000_strict_succeeded(self):
+    def test_000_strict_success(self):
         stdout, stderr = self.run_binary(['file_check_policy_strict', 'trusted_testfile'])
 
         self.assertIn('file_check_policy succeeded', stdout)
 
-    def test_001_strict_failed(self):
+    def test_001_strict_fail(self):
         try:
             stdout, stderr = self.run_binary(['file_check_policy_strict', 'unknown_testfile'])
             self.fail('expected to return nonzero')
         except subprocess.CalledProcessError as e:
             self.assertEqual(e.returncode, 2, 'expected returncode == 2')
 
-    def test_002_allow_all_but_log_succeeded(self):
+    def test_002_allow_all_but_log_success(self):
         stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log',
                                           'unknown_testfile'])
 
         self.assertIn('Allowing access to an unknown file due to file_check_policy settings: file:unknown_testfile', stderr)
         self.assertIn('file_check_policy succeeded', stdout)
 
-    def test_003_allow_all_but_log_failed(self):
+    def test_003_allow_all_but_log_fail(self):
         stdout, stderr = self.run_binary(['file_check_policy_allow_all_but_log',
                                           'trusted_testfile'])
 
