@@ -1218,7 +1218,7 @@ void DkDebugAttachBinary (PAL_STR uri, PAL_PTR start_addr)
     __UNUSED(uri);
     __UNUSED(start_addr);
 #else
-    if (!strpartcmp_static(uri, "file:"))
+    if (!strstartswith_static(uri, "file:"))
         return;
 
     const char * realname = uri + static_strlen("file:");

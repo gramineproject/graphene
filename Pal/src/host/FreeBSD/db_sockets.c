@@ -908,7 +908,7 @@ static int udp_sendbyaddr (PAL_HANDLE handle, int offset, int len,
     if (handle->sock.fd == PAL_IDX_POISON)
         return -PAL_ERROR_BADHANDLE;
 
-    if (!strpartcmp_static(addr, "udp:"))
+    if (!strstartswith_static(addr, "udp:"))
         return -PAL_ERROR_INVAL;
 
     addr += static_strlen("udp:");

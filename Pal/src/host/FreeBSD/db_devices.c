@@ -63,7 +63,7 @@ static int parse_device_uri(const char ** uri, char ** type, struct handle_ops *
 
     for (p = u ; (*p) && (*p) != ',' && (*p) != '/' ; p++);
 
-    if (strpartcmp_static(u, "tty"))
+    if (strstartswith_static(u, "tty"))
         dops = &term_ops;
 
     if (!dops)
