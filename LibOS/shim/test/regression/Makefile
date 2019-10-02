@@ -23,7 +23,7 @@ CFLAGS-eventfd = -pthread
 CFLAGS-futex_bitset = -pthread
 CFLAGS-futex_requeue = -pthread
 CFLAGS-futex_wake_op = -pthread
-CFLAGS-spinlock += -I$(PALDIR)/../lib -pthread
+CFLAGS-spinlock += -I$(PALDIR)/../include/lib -pthread
 CFLAGS-sigprocmask += -pthread
 
 %: %.c

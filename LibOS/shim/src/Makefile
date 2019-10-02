@@ -9,7 +9,7 @@ CFLAGS += -fPIC -Winline -Wwrite-strings \
 	  -Werror=implicit-function-declaration \
 	  $(cc-option, -Wnull-dereference) \
 	  -fno-stack-protector -fno-builtin -Wno-inline \
-	  -I../include -I../../../Pal/lib -I../../../Pal/include/pal \
+	  -I../include -I../../../Pal/include/lib -I../../../Pal/include/pal \
 	  -I../../../Pal/include/elf
 
 CFLAGS += -Wextra
